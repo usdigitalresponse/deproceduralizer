@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """
-Migration script to move existing red flag analysis results into PostgreSQL
+Migration script to import regulations and LLM-analyzed red flags into PostgreSQL
 """
 
 import json
-import pandas as pd
 import psycopg
 from pathlib import Path
-from typing import List
+from typing import Dict, List, Any
 import os
 from dotenv import load_dotenv
+import re
 
 load_dotenv()
 
@@ -19,203 +19,202 @@ def get_db_connection():
     if not database_url:
         raise ValueError("DATABASE_URL not set in environment variables")
 
-    # Neon connection strings use psycopg (PostgreSQL driver)
     return psycopg.connect(database_url)
 
-def migrate_analyses(csv_file: str, state: str = "NY", doc_type: str = "regulation"):
+def parse_nycrr_info(url: str) -> tuple[int | None, str | None, str | None]:
     """
-    Migrate analysis results from CSV to PostgreSQL
+    Extract NYCRR title, part, and section from a Cornell Law URL.
+    Example: https://www.law.cornell.edu/regulations/new-york/9-NYCRR-5320.1
+    Returns: (title, part, section)
+    """
+    match = re.search(r'(\d+)-NYCRR-(\d+)(?:\.(\d+))?', url)
+    if match:
+        return int(match.group(1)), match.group(2), match.group(3)
+    return None, None, None
+
+def migrate_json_analysis(json_file: str, state: str = "NY"):
+    """
+    Migrate regulations and red flag analysis from JSON to PostgreSQL
 
     Args:
-        csv_file: Path to CSV file with analysis results
-        state: State code (e.g., 'NY', 'CA')
-        doc_type: Document type ('regulation' or 'policy_document')
+        json_file: Path to JSON file with regulations and analysis
+        state: State code (e.g., 'NY')
     """
 
-    print(f"Reading {csv_file}...")
-    df = pd.read_csv(csv_file)
+    print(f"Reading {json_file}...")
+    with open(json_file) as f:
+        sections = json.load(f)
+
+    if not isinstance(sections, list):
+        print("✗ JSON file must contain a list of sections")
+        return
+
+    total_documents = 0
+    total_analyses = 0
+    total_flags = 0
 
     with get_db_connection() as conn:
         with conn.cursor() as cur:
-            for idx, row in df.iterrows():
+            for section_idx, section in enumerate(sections):
                 try:
-                    # Insert regulatory document
-                    cur.execute("""
-                        INSERT INTO regulatory_documents
-                        (source_index, type, state, title, url, url_type, content)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s)
-                        ON CONFLICT (state, source_index, type) DO UPDATE SET
-                            title = EXCLUDED.title,
-                            url = EXCLUDED.url,
-                            content = EXCLUDED.content
-                        RETURNING id
-                    """, (
-                        int(row['source_index']),
-                        doc_type,
-                        state,
-                        row['title'],
-                        row['url'],
-                        row['url_type'],
-                        row['content']
-                    ))
+                    section_title = section.get("section_title", f"Section-{section_idx}")
+                    regulations = section.get("regulations", [])
+                    source_indices = section.get("source_indices", [])
 
-                    doc_id = cur.fetchone()[0]
+                    print(f"\nProcessing {section_title} ({len(regulations)} regulations)...")
 
-                    # Mark previous analyses as not current
-                    cur.execute("""
-                        UPDATE analyses SET is_current = FALSE
-                        WHERE document_id = %s
-                    """, (doc_id,))
+                    # For this section, we'll create one analysis record
+                    # and link it to all regulations in the section
+                    analysis_id = None
 
-                    # Insert analysis
-                    cur.execute("""
-                        INSERT INTO analyses
-                        (document_id, model_version, has_implementation_issues,
-                         overall_complexity, summary, requires_technical_review,
-                         has_reporting_requirement, max_severity, num_flags)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                        RETURNING id
-                    """, (
-                        doc_id,
-                        "gpt-5-nano-2025-08-07",
-                        bool(row['has_implementation_issues']),
-                        row['overall_complexity'] if pd.notna(row['overall_complexity']) else None,
-                        row['summary'] if pd.notna(row['summary']) else None,
-                        bool(row['requires_technical_review']),
-                        bool(row['has_reporting_requirement']),
-                        int(row['max_severity']) if pd.notna(row['max_severity']) else 0,
-                        int(row['num_flags']) if pd.notna(row['num_flags']) else 0
-                    ))
+                    # First, insert all regulatory documents for this section
+                    doc_ids = []
+                    for reg_idx, reg in enumerate(regulations):
+                        try:
+                            title = reg.get("title", "")
+                            url = reg.get("url", "")
+                            content = reg.get("content", "")
+                            url_type = reg.get("url_type", "regulation")
+                            source_index = reg.get("source_index", source_indices[reg_idx] if reg_idx < len(source_indices) else None)
+                            hierarchy_level = reg.get("hierarchy_level")
+                            hierarchy_path = reg.get("hierarchy_path")
+                            nycrr_title, nycrr_part, nycrr_section = parse_nycrr_info(url)
 
-                    analysis_id = cur.fetchone()[0]
-
-                    # Parse and insert red flags
-                    red_flags_json = row['red_flags']
-                    if pd.notna(red_flags_json) and red_flags_json != '[]':
-                        flags = json.loads(red_flags_json)
-                        for flag in flags:
+                            # Insert regulatory document
                             cur.execute("""
-                                INSERT INTO red_flags
-                                (analysis_id, category, explanation, severity, complexity,
-                                 matched_phrases, implementation_approach, effort_estimate,
-                                 text_examples)
-                                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                                INSERT INTO regulatory_documents
+                                (source_index, type, state, title, url, url_type, content,
+                                 hierarchy_level, hierarchy_path, nycrr_title, nycrr_part, nycrr_section)
+                                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                                ON CONFLICT (state, source_index, type) DO UPDATE SET
+                                    title = EXCLUDED.title,
+                                    url = EXCLUDED.url,
+                                    content = EXCLUDED.content,
+                                    hierarchy_level = EXCLUDED.hierarchy_level
+                                RETURNING id
                             """, (
-                                analysis_id,
-                                flag['category'],
-                                flag['explanation'],
-                                flag['severity'],
-                                flag['complexity'],
-                                flag.get('matched_phrases', []),
-                                flag['implementation_approach'],
-                                flag.get('effort_estimate'),
-                                flag.get('text_examples', [])
+                                source_index,
+                                "regulation",
+                                state,
+                                title,
+                                url,
+                                url_type,
+                                content,
+                                hierarchy_level,
+                                hierarchy_path,
+                                nycrr_title,
+                                nycrr_part,
+                                nycrr_section
                             ))
 
-                    if (idx + 1) % 10 == 0:
-                        print(f"  ✓ Migrated {idx + 1} documents...")
+                            doc_id = cur.fetchone()[0]
+                            doc_ids.append(doc_id)
+                            total_documents += 1
+
+                        except Exception as e:
+                            print(f"  ✗ Error inserting regulation {reg_idx}: {e}")
+                            raise
+
+                    # Now create one analysis for the section covering all its regulations
+                    if doc_ids:
+                        try:
+                            # Mark previous analyses as not current
+                            cur.execute("""
+                                UPDATE analyses SET is_current = FALSE
+                                WHERE document_id = ANY(%s)
+                            """, (doc_ids,))
+
+                            # Use the first document as the "primary" for analysis
+                            primary_doc_id = doc_ids[0]
+
+                            # Insert analysis
+                            cur.execute("""
+                                INSERT INTO analyses
+                                (document_id, model_version, has_implementation_issues,
+                                 overall_complexity, summary, requires_technical_review,
+                                 has_reporting_requirement, max_severity, num_flags)
+                                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                                RETURNING id
+                            """, (
+                                primary_doc_id,
+                                "claude-3-5-sonnet-20241022",
+                                section.get("has_implementation_issues", False),
+                                section.get("overall_complexity"),
+                                section.get("summary"),
+                                section.get("requires_technical_review", False),
+                                section.get("has_reporting_requirement", False),
+                                section.get("max_severity", 0),
+                                section.get("num_flags", 0)
+                            ))
+
+                            analysis_id = cur.fetchone()[0]
+                            total_analyses += 1
+
+                        except Exception as e:
+                            print(f"  ✗ Error inserting analysis for section: {e}")
+                            raise
+
+                    # Insert red flags for this analysis
+                    if analysis_id:
+                        red_flags = section.get("red_flags", [])
+                        for flag in red_flags:
+                            try:
+                                cur.execute("""
+                                    INSERT INTO red_flags
+                                    (analysis_id, category, explanation, severity, complexity,
+                                     matched_phrases, implementation_approach, effort_estimate,
+                                     text_examples)
+                                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                                """, (
+                                    analysis_id,
+                                    flag.get("category"),
+                                    flag.get("explanation"),
+                                    flag.get("severity"),
+                                    flag.get("complexity"),
+                                    flag.get("matched_phrases", []),
+                                    flag.get("implementation_approach"),
+                                    flag.get("effort_estimate"),
+                                    flag.get("text_examples", [])
+                                ))
+                                total_flags += 1
+
+                            except Exception as e:
+                                print(f"  ✗ Error inserting red flag: {e}")
+                                raise
+
+                    if (section_idx + 1) % 5 == 0:
+                        print(f"  ✓ Processed {section_idx + 1} sections...")
                         conn.commit()
 
                 except Exception as e:
-                    print(f"  ✗ Error migrating row {idx} ({row['title'][:50]}): {e}")
+                    print(f"  ✗ Error processing section {section_idx}: {e}")
                     conn.rollback()
                     raise
 
         conn.commit()
 
-    print(f"✓ Successfully migrated {len(df)} analyses from {csv_file}")
-
-def migrate_statute_references(csv_file: str, state: str = "NY"):
-    """
-    Migrate federal statute references to PostgreSQL
-
-    Args:
-        csv_file: Path to CSV file with statute references
-        state: State code
-    """
-
-    print(f"Reading statute references from {csv_file}...")
-    df = pd.read_csv(csv_file)
-
-    with get_db_connection() as conn:
-        with conn.cursor() as cur:
-            for idx, row in df.iterrows():
-                try:
-                    # Find the document by title (assuming titles are unique per state)
-                    cur.execute("""
-                        SELECT id FROM regulatory_documents
-                        WHERE state = %s AND title = %s
-                        LIMIT 1
-                    """, (state, row['title']))
-
-                    result = cur.fetchone()
-                    if not result:
-                        print(f"  ⚠ Document not found for: {row['title'][:50]}")
-                        continue
-
-                    doc_id = result[0]
-
-                    # Insert statute reference
-                    cur.execute("""
-                        INSERT INTO statute_references
-                        (document_id, usc_citations, cfr_citations, public_laws, acts,
-                         state_title, state_section)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s)
-                        ON CONFLICT (document_id) DO UPDATE SET
-                            usc_citations = EXCLUDED.usc_citations,
-                            cfr_citations = EXCLUDED.cfr_citations,
-                            public_laws = EXCLUDED.public_laws,
-                            acts = EXCLUDED.acts
-                    """, (
-                        doc_id,
-                        row['usc_citations'] if pd.notna(row['usc_citations']) else None,
-                        row['cfr_citations'] if pd.notna(row['cfr_citations']) else None,
-                        row['public_laws'] if pd.notna(row['public_laws']) else None,
-                        row['acts'] if pd.notna(row['acts']) else None,
-                        row['ny_title'] if pd.notna(row['ny_title']) else None,
-                        row['ny_section'] if pd.notna(row['ny_section']) else None
-                    ))
-
-                    if (idx + 1) % 10 == 0:
-                        print(f"  ✓ Migrated {idx + 1} statute references...")
-                        conn.commit()
-
-                except Exception as e:
-                    print(f"  ✗ Error migrating statute reference {idx}: {e}")
-                    conn.rollback()
-                    raise
-
-        conn.commit()
-
-    print(f"✓ Successfully migrated statute references from {csv_file}")
+    print(f"\n✓ Successfully migrated:")
+    print(f"  - {total_documents} regulatory documents")
+    print(f"  - {total_analyses} analyses")
+    print(f"  - {total_flags} red flags")
 
 def main():
     print("Starting migration to PostgreSQL...\n")
 
-    # Find all analysis CSV files
-    analysis_files = list(Path(".").glob("red_flag_analysis_*.csv"))
+    # Find all analysis JSON files
+    json_files = list(Path(".").glob("red_flag_analysis_*.json"))
 
-    if not analysis_files:
-        print("No red_flag_analysis_*.csv files found!")
+    if not json_files:
+        print("✗ No red_flag_analysis_*.json files found!")
         return
 
-    # Migrate each analysis CSV
-    for csv_file in sorted(analysis_files):
+    # Migrate each JSON file
+    for json_file in sorted(json_files):
         try:
-            migrate_analyses(str(csv_file), state="NY", doc_type="regulation")
+            migrate_json_analysis(str(json_file), state="NY")
         except Exception as e:
-            print(f"Failed to migrate {csv_file}: {e}")
+            print(f"✗ Failed to migrate {json_file}: {e}")
             raise
-
-    # Migrate statute references if file exists
-    statute_file = Path("federal_statute_references.csv")
-    if statute_file.exists():
-        try:
-            migrate_statute_references(str(statute_file), state="NY")
-        except Exception as e:
-            print(f"Failed to migrate statute references: {e}")
-            # Don't fail the whole migration if statute refs fail
-            print("Continuing despite statute reference migration failure...")
 
     print("\n✓ Migration complete!")
 
