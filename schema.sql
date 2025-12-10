@@ -47,11 +47,11 @@ CREATE TABLE red_flags (
   category VARCHAR(100) NOT NULL,      -- Type of implementation concern
   explanation TEXT NOT NULL,           -- Why this is flagged
   severity INTEGER NOT NULL CHECK (severity >= 1 AND severity <= 10),  -- Impact severity (1-10)
-  complexity VARCHAR(10) NOT NULL,     -- HIGH/MEDIUM/LOW for this specific issue
+  complexity VARCHAR(20) NOT NULL,     -- HIGH/MEDIUM/LOW/MEDIUM-HIGH for this specific issue
   matched_phrases TEXT[] DEFAULT '{}', -- Key phrases from regulation that triggered flag
   implementation_approach TEXT NOT NULL,  -- Suggested approach to address
   effort_estimate VARCHAR(255),        -- Estimated effort to implement
-  text_examples TEXT[] DEFAULT '{}'    -- Direct quotes as evidence
+  text_examples TEXT[] DEFAULT '{}',   -- Direct quotes as evidence
 
   -- Reviewer comment fields
   review_status VARCHAR(50) DEFAULT 'unreviewed',  -- 'unreviewed', 'confirmed', 'false_positive', 'needs_context', 'deferred'
