@@ -8,7 +8,7 @@ to identify regulatory "red flags" based on the patterns identified by Jennifer 
 
 import json
 import os
-import pandas as pd
+import shutil
 from pathlib import Path
 from typing import List, Optional, Dict
 from enum import Enum
@@ -18,7 +18,6 @@ from openai import AsyncOpenAI
 from dotenv import load_dotenv
 import asyncio
 from datetime import datetime
-import psycopg
 
 # Load environment variables
 load_dotenv()
@@ -75,6 +74,13 @@ class RegulationData(BaseModel):
     content: str
     url_type: str
     source_index: int
+    # Hierarchy fields
+    hierarchy_level: Optional[str] = None
+    hierarchy_path: Optional[str] = None
+    nycrr_title: Optional[int] = None
+    nycrr_part: Optional[str] = None
+    nycrr_section: Optional[str] = None
+    parent_source_index: Optional[int] = None
 
 def create_analysis_prompt(section_text: str = "", citation: str = "", heading: str = "") -> str:
     """
@@ -298,7 +304,7 @@ def load_regulation_files(directory: str, limit: int = 100, filter_keyword: str 
 
     return regulations
 
-async def analyze_regulations_batch(regulations: List[RegulationData], client: AsyncOpenAI, output_file: str, batch_size: int = 10) -> pd.DataFrame:
+async def analyze_regulations_batch(regulations: List[RegulationData], client: AsyncOpenAI, output_file: str, batch_size: int = 10) -> List[Dict]:
     """Analyze a batch of regulations in parallel, saving every 5 completed calls"""
 
     results = []
@@ -315,8 +321,8 @@ async def analyze_regulations_batch(regulations: List[RegulationData], client: A
 
         # Process results from this batch
         for regulation, analysis in zip(batch, analyses):
-            # Convert red_flags list to JSON string for CSV storage
-            red_flags_json = json.dumps([{
+            # Keep red_flags as actual array (not JSON string) for JSON output
+            red_flags_list = [{
                 'category': flag.category,
                 'explanation': flag.explanation,
                 'severity': flag.severity,
@@ -325,7 +331,7 @@ async def analyze_regulations_batch(regulations: List[RegulationData], client: A
                 'implementation_approach': flag.implementation_approach,
                 'effort_estimate': flag.effort_estimate,
                 'text_examples': flag.text_examples
-            } for flag in analysis.red_flags]) if analysis.red_flags else '[]'
+            } for flag in analysis.red_flags] if analysis.red_flags else []
 
             row = {
                 'source_index': regulation.source_index,
@@ -333,7 +339,15 @@ async def analyze_regulations_batch(regulations: List[RegulationData], client: A
                 'url': regulation.url,
                 'content': regulation.content,
                 'url_type': regulation.url_type,
-                'red_flags': red_flags_json,
+                # Hierarchy fields
+                'hierarchy_level': regulation.hierarchy_level,
+                'hierarchy_path': regulation.hierarchy_path,
+                'nycrr_title': regulation.nycrr_title,
+                'nycrr_part': regulation.nycrr_part,
+                'nycrr_section': regulation.nycrr_section,
+                'parent_source_index': regulation.parent_source_index,
+                # Analysis fields
+                'red_flags': red_flags_list,
                 'has_implementation_issues': analysis.has_implementation_issues,
                 'overall_complexity': analysis.overall_complexity,
                 'summary': analysis.summary,
@@ -352,13 +366,13 @@ async def analyze_regulations_batch(regulations: List[RegulationData], client: A
             else:
                 print(f"  {regulation.title[:50]}... No flags")
 
-        # Save to CSV every 5 completed results
+        # Save to JSON every 5 completed results
         if completed_count % 5 == 0 or batch_start + batch_size >= len(regulations):
-            df = pd.DataFrame(results)
-            df.to_csv(output_file, index=False)
+            with open(output_file, 'w', encoding='utf-8') as f:
+                json.dump(results, f, indent=2, ensure_ascii=False)
             print(f"  💾 Saved progress ({completed_count} regulations) to {output_file}")
 
-    return pd.DataFrame(results)
+    return results
 
 async def main(filter_keyword: str = None):
     """Main execution function
@@ -384,21 +398,32 @@ async def main(filter_keyword: str = None):
         return
 
     # Set output file name upfront for incremental saves
-    output_file = f"red_flag_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+    output_file = f"red_flag_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
 
     # Analyze regulations (batch_size controls parallelism - adjust based on rate limits)
     print("Starting red flag analysis...")
-    results_df = await analyze_regulations_batch(regulations, client, output_file, batch_size=10)
+    results = await analyze_regulations_batch(regulations, client, output_file, batch_size=10)
 
     # Final save
-    results_df.to_csv(output_file, index=False)
+    with open(output_file, 'w', encoding='utf-8') as f:
+        json.dump(results, f, indent=2, ensure_ascii=False)
     print(f"Analysis complete! Results saved to {output_file}")
-    
+
+    # Auto-copy to web app public directory
+    web_data_path = Path("apps/web/public/data.json")
+    web_data_path.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy(output_file, web_data_path)
+    print(f"📦 Copied to {web_data_path}")
+
     # Print summary statistics
-    print(f"\nTotal regulations analyzed: {len(results_df)}")
-    print(f"Regulations with red flags: {len(results_df[results_df['num_flags'] > 0])}")
-    print(f"Regulations with high severity (9-10): {len(results_df[results_df['max_severity'] >= 9])}")
-    print(f"Regulations with medium severity (7-8): {len(results_df[results_df['max_severity'].between(7, 8)])}")
+    num_with_flags = sum(1 for r in results if r['num_flags'] > 0)
+    num_high_severity = sum(1 for r in results if r['max_severity'] >= 9)
+    num_medium_severity = sum(1 for r in results if 7 <= r['max_severity'] <= 8)
+
+    print(f"\nTotal regulations analyzed: {len(results)}")
+    print(f"Regulations with red flags: {num_with_flags}")
+    print(f"Regulations with high severity (9-10): {num_high_severity}")
+    print(f"Regulations with medium severity (7-8): {num_medium_severity}")
     print(f"Results saved to: {output_file}")
 
 if __name__ == "__main__":

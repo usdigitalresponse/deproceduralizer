@@ -8,6 +8,121 @@ import os
 import hashlib
 from pathlib import Path
 import re
+from typing import Optional, Dict, Tuple
+
+
+# =============================================================================
+# HIERARCHY PARSING FUNCTIONS
+# =============================================================================
+
+def parse_citation_url(url: str) -> Optional[Dict]:
+    """
+    Parse citation-style URLs like '18-NYCRR-433.8' into components.
+    """
+    if '/new-york/' not in url:
+        return None
+
+    path = url.split('/new-york/')[1]
+    match = re.match(r'^(\d+)-NYCRR-(.+)$', path)
+    if not match:
+        return None
+
+    title_num = int(match.group(1))
+    rest = match.group(2)
+
+    if 'app' in rest.lower() or 'ch-' in rest:
+        return None
+
+    result = {
+        'nycrr_title': title_num,
+        'nycrr_part': None,
+        'nycrr_section': None,
+        'hierarchy_level': 'section'
+    }
+
+    # part.section (e.g., 433.8)
+    simple_match = re.match(r'^(\d+)\.(\d+)$', rest)
+    if simple_match:
+        result['nycrr_part'] = simple_match.group(1)
+        result['nycrr_section'] = simple_match.group(2)
+        return result
+
+    # part-subpart.section (e.g., 5-1.2)
+    subpart_match = re.match(r'^(\d+)-(\d+)\.(\d+)$', rest)
+    if subpart_match:
+        result['nycrr_part'] = subpart_match.group(1)
+        result['nycrr_section'] = subpart_match.group(3)
+        return result
+
+    # part.section.subsection (e.g., 1200.1.15)
+    subsection_match = re.match(r'^(\d+)\.(\d+)\.(\d+)$', rest)
+    if subsection_match:
+        result['nycrr_part'] = subsection_match.group(1)
+        result['nycrr_section'] = f"{subsection_match.group(2)}.{subsection_match.group(3)}"
+        return result
+
+    return None
+
+
+def parse_hierarchy_url(url: str) -> Optional[Dict]:
+    """
+    Parse hierarchy-style URLs like 'title-22/subtitle-A/chapter-II/part-221'.
+    """
+    if '/new-york/' not in url:
+        return None
+
+    path = url.split('/new-york/')[1]
+    if not path.startswith('title-'):
+        return None
+
+    result = {
+        'hierarchy_path': path,
+        'nycrr_title': None,
+        'nycrr_part': None,
+        'hierarchy_level': None
+    }
+
+    components = path.split('/')
+    for comp in components:
+        if comp.startswith('title-'):
+            try:
+                result['nycrr_title'] = int(comp.replace('title-', ''))
+            except ValueError:
+                pass
+        elif comp.startswith('part-'):
+            result['nycrr_part'] = comp.replace('part-', '')
+
+    last = components[-1]
+    for prefix in ['subpart-', 'part-', 'article-', 'subchapter-', 'chapter-', 'subtitle-', 'title-']:
+        if last.startswith(prefix):
+            result['hierarchy_level'] = prefix.rstrip('-')
+            break
+    else:
+        result['hierarchy_level'] = 'section'
+
+    return result
+
+
+def get_hierarchy_info(url: str) -> Dict:
+    """Get hierarchy info from URL, trying both formats."""
+    parsed = parse_citation_url(url)
+    if parsed:
+        parsed['hierarchy_path'] = None
+        return parsed
+
+    parsed = parse_hierarchy_url(url)
+    if parsed:
+        parsed['nycrr_section'] = None
+        return parsed
+
+    return {
+        'hierarchy_level': None,
+        'hierarchy_path': None,
+        'nycrr_title': None,
+        'nycrr_part': None,
+        'nycrr_section': None
+    }
+
 
 class NYRegulationsScraper:
     def __init__(self, cache_dir='scraped_data'):
@@ -205,12 +320,22 @@ class NYRegulationsScraper:
         # Clean the content for better readability
         cleaned_content = self.clean_regulation_text(content)
         
+        # Get hierarchy info from URL
+        hierarchy = get_hierarchy_info(url)
+
         return {
             'url': url,
             'title': title,
             'content': content,
             'cleaned_content': cleaned_content,
-            'url_type': self.classify_url(url)
+            'url_type': self.classify_url(url),
+            # Hierarchy fields
+            'hierarchy_level': hierarchy.get('hierarchy_level'),
+            'hierarchy_path': hierarchy.get('hierarchy_path'),
+            'nycrr_title': hierarchy.get('nycrr_title'),
+            'nycrr_part': hierarchy.get('nycrr_part'),
+            'nycrr_section': hierarchy.get('nycrr_section'),
+            'parent_source_index': None  # Will be populated in post-processing
         }
     
     def clean_regulation_text(self, content):
@@ -413,6 +538,66 @@ class NYRegulationsScraper:
         
         return all_data
     
+    def link_parent_source_indices(self, data):
+        """
+        Post-process to link parent_source_index for all documents.
+        Must be called after all documents have source_index assigned.
+        """
+        print("Linking parent_source_index for all documents...")
+
+        # Build lookup tables
+        # For hierarchy URLs: path -> source_index
+        hierarchy_path_to_idx = {}
+        # For citation URLs: (title, part) -> source_index (Part containers only)
+        part_container_lookup = {}
+
+        for item in data:
+            source_idx = item.get('source_index')
+            if source_idx is None:
+                continue
+
+            hierarchy_path = item.get('hierarchy_path')
+            hierarchy_level = item.get('hierarchy_level')
+            nycrr_title = item.get('nycrr_title')
+            nycrr_part = item.get('nycrr_part')
+
+            # Record hierarchy path
+            if hierarchy_path:
+                hierarchy_path_to_idx[hierarchy_path] = source_idx
+
+            # Record Part containers
+            if hierarchy_level == 'part' and nycrr_title is not None and nycrr_part:
+                part_container_lookup[(nycrr_title, nycrr_part)] = source_idx
+
+        print(f"  Found {len(part_container_lookup)} Part containers")
+        print(f"  Found {len(hierarchy_path_to_idx)} hierarchy paths")
+
+        # Link parents
+        linked = 0
+        for item in data:
+            parent_idx = None
+            hierarchy_path = item.get('hierarchy_path')
+            hierarchy_level = item.get('hierarchy_level')
+            nycrr_title = item.get('nycrr_title')
+            nycrr_part = item.get('nycrr_part')
+
+            if hierarchy_path:
+                # Hierarchy URL: parent is one level up
+                parts = hierarchy_path.rstrip('/').rsplit('/', 1)
+                if len(parts) > 1:
+                    parent_path = parts[0]
+                    parent_idx = hierarchy_path_to_idx.get(parent_path)
+            elif hierarchy_level == 'section' and nycrr_title is not None and nycrr_part:
+                # Citation URL: parent is the Part container
+                parent_idx = part_container_lookup.get((nycrr_title, nycrr_part))
+
+            if parent_idx is not None:
+                item['parent_source_index'] = parent_idx
+                linked += 1
+
+        print(f"  Linked {linked} documents to parents")
+        return data
+
     def save_to_json(self, data, filename='ny_regulations.json'):
         with open(filename, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
@@ -420,22 +605,36 @@ class NYRegulationsScraper:
 
 if __name__ == "__main__":
     scraper = NYRegulationsScraper()
-    
+
     # For testing, limit to 50 pages. Remove max_pages parameter to scrape everything
     data = scraper.scrape_all(max_pages=50)
-    
+
     if data:
+        # Assign source_index to each item
+        for idx, item in enumerate(data):
+            item['source_index'] = idx
+
+        # Link parent_source_index
+        data = scraper.link_parent_source_indices(data)
+
         scraper.save_to_json(data)
         print(f"Successfully scraped {len(data)} regulations")
-        
+
         # Print summary of what we found
         types_found = {}
+        hierarchy_levels = {}
         for item in data:
             url_type = item.get('url_type', 'unknown')
             types_found[url_type] = types_found.get(url_type, 0) + 1
-        
+            level = item.get('hierarchy_level', 'unknown')
+            hierarchy_levels[level] = hierarchy_levels.get(level, 0) + 1
+
         print("\nTypes of content found:")
         for content_type, count in types_found.items():
             print(f"  {content_type}: {count}")
+
+        print("\nHierarchy levels:")
+        for level, count in sorted(hierarchy_levels.items(), key=lambda x: -x[1]):
+            print(f"  {level}: {count}")
     else:
         print("No data scraped")

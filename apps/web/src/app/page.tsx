@@ -1,27 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Papa from 'papaparse';
 import DataTable from '@/components/DataTable';
 import DetailModal from '@/components/DetailModal';
-import { Regulation, ParsedRegulation, RedFlag } from '@/types/regulation';
-
-function parseRedFlags(redFlagsStr: string): RedFlag[] {
-  try {
-    if (!redFlagsStr || redFlagsStr === 'N/A') return [];
-    return JSON.parse(redFlagsStr);
-  } catch {
-    return [];
-  }
-}
-
-function getCategories(flags: RedFlag[]): string {
-  return flags.map((f) => f.category || '').filter((c) => c).join(', ');
-}
-
-function getExplanations(flags: RedFlag[]): string {
-  return flags.map((f) => f.explanation || '').filter((e) => e).join(' | ');
-}
+import { ParsedRegulation } from '@/types/regulation';
 
 export default function Home() {
   const [data, setData] = useState<ParsedRegulation[]>([]);
@@ -29,28 +11,26 @@ export default function Home() {
   const [selectedRegulation, setSelectedRegulation] = useState<ParsedRegulation | null>(null);
 
   useEffect(() => {
-    Papa.parse<Regulation>('/data.csv', {
-      header: true,
-      download: true,
-      complete: (results) => {
-        const parsed = results.data
+    fetch('/data.json')
+      .then((res) => res.json())
+      .then((results: ParsedRegulation[]) => {
+        // Add derived fields for table display
+        const parsed = results
           .filter((row) => row.title)
           .map((row): ParsedRegulation => {
-            const flags = parseRedFlags(row.red_flags);
+            const flags = row.red_flags || [];
             return {
               ...row,
-              red_flags: flags,
-              categories: getCategories(flags),
-              explanations: getExplanations(flags),
+              categories: flags.map((f) => f.category || '').filter((c) => c).join(', '),
+              explanations: flags.map((f) => f.explanation || '').filter((e) => e).join(' | '),
             };
           });
         setData(parsed);
         setLoading(false);
-      },
-      error: () => {
+      })
+      .catch(() => {
         setLoading(false);
-      },
-    });
+      });
   }, []);
 
   return (

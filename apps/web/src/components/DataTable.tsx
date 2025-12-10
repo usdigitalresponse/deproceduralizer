@@ -27,7 +27,7 @@ const columns = [
     size: 70,
     cell: (info) => (
       <span className="inline-block bg-red-100 text-red-800 px-2 py-1 rounded text-xs font-medium">
-        {info.getValue() || '0'}
+        {info.getValue() || 0}
       </span>
     ),
   }),
@@ -53,7 +53,7 @@ const columns = [
   columnHelper.accessor('has_implementation_issues', {
     header: 'Impl Issues',
     size: 80,
-    cell: (info) => <span className="text-gray-900">{info.getValue() === 'True' ? '✓' : '–'}</span>,
+    cell: (info) => <span className="text-gray-900">{info.getValue() ? '✓' : '–'}</span>,
   }),
   columnHelper.accessor('overall_complexity', {
     header: 'Complexity',
@@ -65,9 +65,9 @@ const columns = [
     size: 80,
     cell: (info) => {
       const severity = info.getValue();
-      const colorClass = severity === '9' || severity === '8'
+      const colorClass = severity >= 9
         ? 'text-red-600 font-bold'
-        : severity === '7' || severity === '6'
+        : severity >= 7
         ? 'text-orange-500 font-bold'
         : 'text-green-600';
       return <span className={colorClass}>{severity || '–'}</span>;
@@ -76,12 +76,12 @@ const columns = [
   columnHelper.accessor('requires_technical_review', {
     header: 'Tech Review',
     size: 85,
-    cell: (info) => <span className="text-gray-900">{info.getValue() === 'True' ? '✓' : '–'}</span>,
+    cell: (info) => <span className="text-gray-900">{info.getValue() ? '✓' : '–'}</span>,
   }),
   columnHelper.accessor('has_reporting_requirement', {
     header: 'Reporting',
     size: 80,
-    cell: (info) => <span className="text-gray-900">{info.getValue() === 'True' ? '✓' : '–'}</span>,
+    cell: (info) => <span className="text-gray-900">{info.getValue() ? '✓' : '–'}</span>,
   }),
   columnHelper.accessor('summary', {
     header: 'Summary',
