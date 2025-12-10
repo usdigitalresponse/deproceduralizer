@@ -82,29 +82,17 @@ class RegulationData(BaseModel):
     nycrr_section: Optional[str] = None
     parent_source_index: Optional[int] = None
 
-def create_analysis_prompt(regulations: List[Dict] = None, section_title: str = "") -> str:
+def create_analysis_prompt(section_text: str = "", citation: str = "", heading: str = "") -> str:
     """
-    Build comprehensive Pahlka implementation analysis prompt for a whole section/part.
-
-    Args:
-        regulations: List of regulation dicts with title, url, content
-        section_title: Title of the section/part being analyzed
+    Build comprehensive Pahlka implementation analysis prompt with pattern library examples.
     """
-    # Build section text with all regulations grouped
-    section_text = ""
-    if regulations:
-        for i, reg in enumerate(regulations, 1):
-            section_text += f"\n--- REGULATION {i} ---\n"
-            section_text += f"Citation: {reg.get('url', '')}\n"
-            section_text += f"Title: {reg.get('title', '')}\n"
-            section_text += f"Content:\n{reg.get('content', '')}\n"
-
-    prompt = f"""Analyze this section of New York State regulations for implementation complexity using Jennifer Pahlka's framework from "Recoding America".
+    prompt = f"""Analyze this regulation section for implementation complexity using Jennifer Pahlka's framework from "Recoding America".
 
 SECTION INFO:
-{section_title}
+Citation: {citation}
+Heading: {heading}
 
-FULL SECTION TEXT WITH ALL SUBSECTIONS:
+SECTION TEXT:
 {section_text}"""
 
     prompt += """
@@ -249,22 +237,14 @@ Example output:
 
     return prompt
 
-async def analyze_section(regulations: List[Dict], section_title: str, client: AsyncOpenAI) -> Dict:
-    """Analyze a whole section of regulations for red flags using GPT-5 nano with structured output
-
-    Args:
-        regulations: List of regulation dicts (all from the same section)
-        section_title: Title describing this section/part
-        client: AsyncOpenAI client
-
-    Returns:
-        Dict with analysis results and source regulation metadata
-    """
+async def analyze_regulation(regulation_data: RegulationData, client: AsyncOpenAI) -> RegulationAnalysis:
+    """Analyze a single regulation for red flags using GPT-5 nano with structured output"""
 
     try:
         prompt = create_analysis_prompt(
-            regulations=regulations,
-            section_title=section_title
+            section_text=regulation_data.content,
+            citation=regulation_data.url,
+            heading=regulation_data.title
         )
 
         response = await client.beta.chat.completions.parse(
@@ -275,19 +255,12 @@ async def analyze_section(regulations: List[Dict], section_title: str, client: A
             response_format=RegulationAnalysis
         )
 
-        analysis = response.choices[0].message.parsed
-
-        # Return analysis with all source regulations included
-        return {
-            'analysis': analysis,
-            'regulations': regulations,
-            'section_title': section_title
-        }
+        return response.choices[0].message.parsed
 
     except Exception as e:
-        print(f"Error analyzing section {section_title}: {e}")
+        print(f"Error analyzing regulation {regulation_data.source_index}: {e}")
         # Return a default analysis in case of error
-        default_analysis = RegulationAnalysis(
+        return RegulationAnalysis(
             has_implementation_issues=False,
             red_flags=[],
             overall_complexity=None,
@@ -295,20 +268,14 @@ async def analyze_section(regulations: List[Dict], section_title: str, client: A
             requires_technical_review=False,
             has_reporting_requirement=False
         )
-        return {
-            'analysis': default_analysis,
-            'regulations': regulations,
-            'section_title': section_title
-        }
 
-def load_all_regulation_files(directory: str) -> List[Dict]:
-    """Load ALL regulation JSON files from directory
+def load_regulation_files(directory: str, limit: int = 100, filter_keyword: str = None) -> List[RegulationData]:
+    """Load regulation JSON files from directory
 
     Args:
         directory: Path to directory containing regulation JSON files
-
-    Returns:
-        List of regulation dicts with their JSON data
+        limit: Maximum number of files to load
+        filter_keyword: Optional keyword to filter regulations (e.g., 'housing', 'tenant')
     """
 
     regulation_files = list(Path(directory).glob("*.json"))
@@ -318,7 +285,18 @@ def load_all_regulation_files(directory: str) -> List[Dict]:
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-                regulations.append(data)
+
+                # Apply keyword filter if specified
+                if filter_keyword:
+                    title = data.get('title', '').lower()
+                    content = data.get('content', '').lower()
+                    if filter_keyword.lower() not in title and filter_keyword.lower() not in content:
+                        continue
+
+                regulations.append(RegulationData(**data))
+
+                if limit and len(regulations) >= limit:
+                    break
 
         except Exception as e:
             print(f"Error loading {file_path}: {e}")
@@ -326,160 +304,24 @@ def load_all_regulation_files(directory: str) -> List[Dict]:
 
     return regulations
 
-
-def filter_regulations_by_keyword(regulations: List[Dict], filter_keyword: str) -> List[Dict]:
-    """Filter regulations by keyword in title or content
-
-    Args:
-        regulations: List of regulation dicts
-        filter_keyword: Keyword to search for (e.g., 'housing', 'tenant')
-
-    Returns:
-        List of regulations matching the keyword
-    """
-    filtered = []
-
-    for reg in regulations:
-        title = reg.get('title', '').lower()
-        content = reg.get('content', '').lower()
-        if filter_keyword.lower() in title or filter_keyword.lower() in content:
-            filtered.append(reg)
-
-    return filtered
-
-
-def group_regulations_by_section(regulations: List[Dict]) -> Dict[str, List[Dict]]:
-    """Group regulations by their NYCRR part (section)
-
-    Groups regulations by their NYCRR Title and Part to analyze whole sections together.
-    All regulations must have NYCRR metadata populated.
-
-    Args:
-        regulations: List of regulation dicts
-
-    Returns:
-        Dict mapping section keys (Title-X-Part-Y) to lists of regulations in that section
-    """
-    sections = {}
-    missing_hierarchy = []
-
-    for reg in regulations:
-        nycrr_title = reg.get('nycrr_title')
-        nycrr_part = reg.get('nycrr_part')
-
-        # Require NYCRR information for grouping
-        if not nycrr_title or not nycrr_part:
-            missing_hierarchy.append({
-                'source_index': reg.get('source_index'),
-                'title': reg.get('title'),
-                'nycrr_title': nycrr_title,
-                'nycrr_part': nycrr_part,
-                'parent_source_index': reg.get('parent_source_index')
-            })
-            continue
-
-        section_key = f"Title-{nycrr_title}-Part-{nycrr_part}"
-
-        if section_key not in sections:
-            sections[section_key] = []
-
-        sections[section_key].append(reg)
-
-    # Report any regulations that couldn't be grouped
-    if missing_hierarchy:
-        print(f"\n⚠️  WARNING: {len(missing_hierarchy)} regulations missing NYCRR hierarchy info (skipping these):")
-        for reg in missing_hierarchy[:5]:  # Show first 5
-            print(f"   - Source {reg['source_index']}: {reg['title'][:50]}...")
-        if len(missing_hierarchy) > 5:
-            print(f"   ... and {len(missing_hierarchy) - 5} more")
-        print()
-
-    return sections
-
-
-def get_sections_for_regulations(all_sections: Dict[str, List[Dict]], target_regulations: List[Dict]) -> Dict[str, List[Dict]]:
-    """Get full sections that contain at least one of the target regulations
-
-    Args:
-        all_sections: Dict of all sections with all their regulations
-        target_regulations: List of regulations to match against (e.g., filtered by keyword)
-
-    Returns:
-        Dict of sections that contain at least one target regulation, with ALL their regulations
-    """
-    # Build a set of section keys that contain at least one target regulation
-    target_section_keys = set()
-
-    for target_reg in target_regulations:
-        nycrr_title = target_reg.get('nycrr_title')
-        nycrr_part = target_reg.get('nycrr_part')
-
-        if nycrr_title and nycrr_part:
-            section_key = f"Title-{nycrr_title}-Part-{nycrr_part}"
-            target_section_keys.add(section_key)
-
-    # Return full sections for all matched keys
-    matching_sections = {
-        key: regs for key, regs in all_sections.items()
-        if key in target_section_keys
-    }
-
-    return matching_sections
-
-
-def sample_sections(sections: Dict[str, List[Dict]], sample_size: int = 100) -> Dict[str, List[Dict]]:
-    """Sample N sections from the available sections
-
-    Args:
-        sections: Dict of sections
-        sample_size: Number of sections to sample
-
-    Returns:
-        Dict of sampled sections
-    """
-    import random
-
-    section_keys = list(sections.keys())
-    sampled_keys = random.sample(section_keys, min(sample_size, len(section_keys)))
-
-    return {key: sections[key] for key in sampled_keys}
-
-async def analyze_sections_batch(sections: Dict[str, List[Dict]], client: AsyncOpenAI, output_file: str, batch_size: int = 5) -> List[Dict]:
-    """Analyze sections of regulations in parallel, saving progress periodically
-
-    Args:
-        sections: Dict mapping section keys to lists of regulations
-        client: AsyncOpenAI client
-        output_file: Path to save results
-        batch_size: Number of sections to process in parallel at once
-
-    Returns:
-        List of analysis results with source regulation data
-    """
+async def analyze_regulations_batch(regulations: List[RegulationData], client: AsyncOpenAI, output_file: str, batch_size: int = 10) -> List[Dict]:
+    """Analyze a batch of regulations in parallel, saving every 5 completed calls"""
 
     results = []
     completed_count = 0
-    section_items = list(sections.items())
 
-    # Process sections in batches for controlled parallelism
-    for batch_start in range(0, len(section_items), batch_size):
-        batch = section_items[batch_start:batch_start + batch_size]
-        print(f"Processing batch {batch_start // batch_size + 1} ({len(batch)} sections)...")
+    # Process in batches for controlled parallelism
+    for batch_start in range(0, len(regulations), batch_size):
+        batch = regulations[batch_start:batch_start + batch_size]
+        print(f"Processing batch {batch_start // batch_size + 1} ({len(batch)} regulations)...")
 
-        # Create tasks for parallel execution of sections
-        tasks = [
-            analyze_section(section_regs, section_key, client)
-            for section_key, section_regs in batch
-        ]
-        section_results = await asyncio.gather(*tasks)
+        # Create tasks for parallel execution
+        tasks = [analyze_regulation(reg, client) for reg in batch]
+        analyses = await asyncio.gather(*tasks)
 
         # Process results from this batch
-        for section_result in section_results:
-            analysis = section_result['analysis']
-            regulations = section_result['regulations']
-            section_title = section_result['section_title']
-
-            # Keep red_flags as actual array for JSON output
+        for regulation, analysis in zip(batch, analyses):
+            # Keep red_flags as actual array (not JSON string) for JSON output
             red_flags_list = [{
                 'category': flag.category,
                 'explanation': flag.explanation,
@@ -491,13 +333,20 @@ async def analyze_sections_batch(sections: Dict[str, List[Dict]], client: AsyncO
                 'text_examples': flag.text_examples
             } for flag in analysis.red_flags] if analysis.red_flags else []
 
-            # Create result row for this section
             row = {
-                'section_title': section_title,
-                'num_regulations': len(regulations),
-                'source_indices': [reg.get('source_index') for reg in regulations],
-                'regulations': regulations,
-                # Analysis fields (apply to whole section)
+                'source_index': regulation.source_index,
+                'title': regulation.title,
+                'url': regulation.url,
+                'content': regulation.content,
+                'url_type': regulation.url_type,
+                # Hierarchy fields
+                'hierarchy_level': regulation.hierarchy_level,
+                'hierarchy_path': regulation.hierarchy_path,
+                'nycrr_title': regulation.nycrr_title,
+                'nycrr_part': regulation.nycrr_part,
+                'nycrr_section': regulation.nycrr_section,
+                'parent_source_index': regulation.parent_source_index,
+                # Analysis fields
                 'red_flags': red_flags_list,
                 'has_implementation_issues': analysis.has_implementation_issues,
                 'overall_complexity': analysis.overall_complexity,
@@ -513,14 +362,15 @@ async def analyze_sections_batch(sections: Dict[str, List[Dict]], client: AsyncO
             # Format severity summary for console output
             if analysis.red_flags:
                 flag_summary = ', '.join([f"{flag.category}:{flag.severity}" for flag in analysis.red_flags])
-                print(f"  {section_title[:60]}... 🚩 {len(analysis.red_flags)} flags ({flag_summary})")
+                print(f"  {regulation.title[:50]}... 🚩 {len(analysis.red_flags)} flags ({flag_summary})")
             else:
-                print(f"  {section_title[:60]}... No flags")
+                print(f"  {regulation.title[:50]}... No flags")
 
-        # Save to JSON after each batch
-        with open(output_file, 'w', encoding='utf-8') as f:
-            json.dump(results, f, indent=2, ensure_ascii=False)
-        print(f"  💾 Saved progress ({completed_count} sections) to {output_file}")
+        # Save to JSON every 5 completed results
+        if completed_count % 5 == 0 or batch_start + batch_size >= len(regulations):
+            with open(output_file, 'w', encoding='utf-8') as f:
+                json.dump(results, f, indent=2, ensure_ascii=False)
+            print(f"  💾 Saved progress ({completed_count} regulations) to {output_file}")
 
     return results
 
@@ -534,51 +384,25 @@ async def main(filter_keyword: str = None):
     # Initialize async OpenAI client
     client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-    # Step 1: Load ALL regulations
-    print("Loading all regulation files...")
-    all_regulations = load_all_regulation_files("individual_regulations")
-    print(f"Loaded {len(all_regulations)} total regulations")
-
-    # Step 2: Filter by keyword if specified
+    # Load regulations
     if filter_keyword:
-        print(f"Filtering for '{filter_keyword}'...")
-        filtered_regulations = filter_regulations_by_keyword(all_regulations, filter_keyword)
-        print(f"Found {len(filtered_regulations)} regulations matching '{filter_keyword}'")
+        print(f"Loading regulation files (filtering for '{filter_keyword}')...")
     else:
-        filtered_regulations = all_regulations
-        print("No filter keyword provided - using all regulations")
+        print("Loading regulation files...")
 
-    if not filtered_regulations:
-        print("No regulations matched the filter!")
+    regulations = load_regulation_files("individual_regulations", limit=100, filter_keyword=filter_keyword)
+    print(f"Loaded {len(regulations)} regulation files")
+
+    if not regulations:
+        print("No regulation files found!")
         return
 
-    # Step 3: Group ALL regulations by section
-    print("Grouping all regulations by section...")
-    all_sections = group_regulations_by_section(all_regulations)
-    print(f"Found {len(all_sections)} total sections")
-
-    # Step 4: Get sections containing at least one filtered regulation
-    if filter_keyword:
-        print(f"Finding sections that contain '{filter_keyword}' regulations...")
-        matching_sections = get_sections_for_regulations(all_sections, filtered_regulations)
-        print(f"Found {len(matching_sections)} sections containing '{filter_keyword}'")
-    else:
-        matching_sections = all_sections
-        print(f"Using all {len(matching_sections)} sections")
-
-    # Step 5: Sample 100 sections
-    print("Sampling 100 sections...")
-    sampled_sections = sample_sections(matching_sections, sample_size=100)
-    sampled_count = len(sampled_sections)
-    total_regs_in_sample = sum(len(regs) for regs in sampled_sections.values())
-    print(f"Sampled {sampled_count} sections containing {total_regs_in_sample} regulations total")
-
     # Set output file name upfront for incremental saves
-    output_file = f"red_flag_analysis_{filter_keyword}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json" if filter_keyword else f"red_flag_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    output_file = f"red_flag_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
 
-    # Step 6: Analyze sampled sections
-    print(f"Starting red flag analysis on {sampled_count} sampled sections...")
-    results = await analyze_sections_batch(sampled_sections, client, output_file, batch_size=5)
+    # Analyze regulations (batch_size controls parallelism - adjust based on rate limits)
+    print("Starting red flag analysis...")
+    results = await analyze_regulations_batch(regulations, client, output_file, batch_size=10)
 
     # Final save
     with open(output_file, 'w', encoding='utf-8') as f:
@@ -595,13 +419,11 @@ async def main(filter_keyword: str = None):
     num_with_flags = sum(1 for r in results if r['num_flags'] > 0)
     num_high_severity = sum(1 for r in results if r['max_severity'] >= 9)
     num_medium_severity = sum(1 for r in results if 7 <= r['max_severity'] <= 8)
-    total_regulations = sum(r['num_regulations'] for r in results)
 
-    print(f"\nTotal sections analyzed: {len(results)}")
-    print(f"Total regulations in sections: {total_regulations}")
-    print(f"Sections with red flags: {num_with_flags}")
-    print(f"Sections with high severity (9-10): {num_high_severity}")
-    print(f"Sections with medium severity (7-8): {num_medium_severity}")
+    print(f"\nTotal regulations analyzed: {len(results)}")
+    print(f"Regulations with red flags: {num_with_flags}")
+    print(f"Regulations with high severity (9-10): {num_high_severity}")
+    print(f"Regulations with medium severity (7-8): {num_medium_severity}")
     print(f"Results saved to: {output_file}")
 
 if __name__ == "__main__":
