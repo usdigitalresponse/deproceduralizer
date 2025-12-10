@@ -52,6 +52,14 @@ CREATE TABLE red_flags (
   implementation_approach TEXT NOT NULL,  -- Suggested approach to address
   effort_estimate VARCHAR(255),        -- Estimated effort to implement
   text_examples TEXT[] DEFAULT '{}'    -- Direct quotes as evidence
+
+  -- Reviewer comment fields
+  review_status VARCHAR(50) DEFAULT 'unreviewed',  -- 'unreviewed', 'confirmed', 'false_positive', 'needs_context', 'deferred'
+  reviewed_by VARCHAR(255),            -- Name/ID of reviewer
+  reviewed_at TIMESTAMP,               -- When flag was reviewed
+  reviewer_notes TEXT,                 -- Detailed notes from reviewer
+  priority INTEGER,                    -- Priority ranking for announcing
+  impact_type VARCHAR(100)             -- Type of impact: 'cost_savings', 'time_savings', 'accessibility', etc.
 );
 
 CREATE TABLE statute_references (
@@ -78,6 +86,8 @@ CREATE INDEX idx_analyses_document ON analyses(document_id);
 CREATE INDEX idx_analyses_is_current ON analyses(is_current) WHERE is_current = TRUE;
 CREATE INDEX idx_red_flags_analysis ON red_flags(analysis_id);
 CREATE INDEX idx_red_flags_severity ON red_flags(severity);
+CREATE INDEX idx_red_flags_review_status ON red_flags(review_status);
+CREATE INDEX idx_red_flags_priority ON red_flags(priority) WHERE priority IS NOT NULL;
 CREATE INDEX idx_statute_references_document ON statute_references(document_id);
 
 -- View: Latest analysis for each document
