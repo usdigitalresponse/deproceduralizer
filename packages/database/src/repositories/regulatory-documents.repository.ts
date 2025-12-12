@@ -51,7 +51,7 @@ export interface PaginationOptions {
   page: number;
   pageSize: number;
   search?: string;
-  sortBy?: 'maxSeverity' | 'numFlags' | 'title' | 'overallComplexity';
+  sortBy?: 'maxSeverity' | 'numFlags' | 'title' | 'overallComplexity' | 'hasImplementationIssues' | 'requiresTechnicalReview' | 'hasReportingRequirement';
   sortOrder?: 'asc' | 'desc';
   filters?: FilterOptions;
 }
@@ -195,6 +195,9 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
       numFlags: analyses.numFlags,
       title: regulatoryDocuments.title,
       overallComplexity: analyses.overallComplexity,
+      hasImplementationIssues: analyses.hasImplementationIssues,
+      requiresTechnicalReview: analyses.requiresTechnicalReview,
+      hasReportingRequirement: analyses.hasReportingRequirement,
     }[sortBy];
 
     const orderByClause = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);

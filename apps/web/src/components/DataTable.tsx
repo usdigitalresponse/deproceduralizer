@@ -26,6 +26,9 @@ const SORTABLE_COLUMNS: Record<string, PaginationOptions['sortBy']> = {
   numFlags: 'numFlags',
   maxSeverity: 'maxSeverity',
   overallComplexity: 'overallComplexity',
+  hasImplementationIssues: 'hasImplementationIssues',
+  requiresTechnicalReview: 'requiresTechnicalReview',
+  hasReportingRequirement: 'hasReportingRequirement',
 };
 
 // Filter configuration for each column
