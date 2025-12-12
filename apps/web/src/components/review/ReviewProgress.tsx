@@ -1,5 +1,6 @@
 'use client';
 
+import { Card } from '@/components/ui/Card';
 import type { ReviewStatusCounts } from '@deproceduralizer/database';
 
 interface ReviewProgressProps {
@@ -12,7 +13,7 @@ export function ReviewProgress({ counts, className = '' }: ReviewProgressProps) 
   const percentage = counts.total > 0 ? Math.round((reviewed / counts.total) * 100) : 0;
 
   return (
-    <div className={`bg-[var(--color-surface)] border border-[var(--color-neutral-200)] rounded-[var(--radius-lg)] p-4 ${className}`}>
+    <Card padding="md" className={className}>
       <div className="flex items-center justify-between mb-2">
         <span className="text-sm font-medium text-[var(--color-text)]">
           Review Progress
@@ -38,7 +39,7 @@ export function ReviewProgress({ counts, className = '' }: ReviewProgressProps) 
         <StatusCount label="Needs Context" count={counts.needs_context} color="warning" />
         <StatusCount label="Deferred" count={counts.deferred} color="info" />
       </div>
-    </div>
+    </Card>
   );
 }
 

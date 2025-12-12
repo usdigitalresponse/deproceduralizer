@@ -43,7 +43,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
             text-sm text-[var(--color-text)]
             bg-[var(--color-surface)]
             border rounded-[var(--radius-md)]
-            transition-colors duration-[var(--transition-fast)]
+            transition-colors duration-[var(--duration-fast)]
             placeholder:text-[var(--color-text-muted)]
             resize-vertical
             ${hasError

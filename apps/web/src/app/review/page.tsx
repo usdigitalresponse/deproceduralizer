@@ -59,26 +59,28 @@ export default async function ReviewPage({ searchParams }: PageProps) {
   ]);
 
   return (
-    <Container>
+    <div className="bg-[var(--color-background)]">
       <PageHeader
         title="Review Mode"
         description="Efficiently triage red flags identified by analysis"
       />
 
-      <ReviewQueue
-        initialFlags={flagsResult.data}
-        pagination={{
-          page: flagsResult.page,
-          pageSize: flagsResult.pageSize,
-          total: flagsResult.total,
-          totalPages: flagsResult.totalPages,
-        }}
-        statusCounts={statusCounts}
-        categories={categories}
-        currentFilters={filters}
-        sortBy={sortBy}
-        sortOrder={sortOrder}
-      />
-    </Container>
+      <Container size="2xl" className="py-6">
+        <ReviewQueue
+          initialFlags={flagsResult.data}
+          pagination={{
+            page: flagsResult.page,
+            pageSize: flagsResult.pageSize,
+            total: flagsResult.total,
+            totalPages: flagsResult.totalPages,
+          }}
+          statusCounts={statusCounts}
+          categories={categories}
+          currentFilters={filters}
+          sortBy={sortBy}
+          sortOrder={sortOrder}
+        />
+      </Container>
+    </div>
   );
 }

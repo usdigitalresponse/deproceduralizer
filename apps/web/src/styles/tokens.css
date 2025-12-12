@@ -41,6 +41,8 @@
   --color-warning: #b45309;
   --color-warning-bg: #fef3c7;
   --color-danger: #b52c2c;
+  --color-danger-strong: #9f2424;
+  --color-danger-stronger: #871d1d;
   --color-danger-bg: #fee2e2;
   --color-info: #004dd1;
   --color-info-bg: #dbeafe;
@@ -148,6 +150,12 @@
      TRANSITION TOKENS
      ======================================== */
 
+  /* Duration tokens (for Tailwind duration-[...]) */
+  --duration-fast: 150ms;
+  --duration-base: 200ms;
+  --duration-slow: 300ms;
+
+  /* Full transition shorthand (for CSS transition property) */
   --transition-fast: 150ms ease;
   --transition-base: 200ms ease;
   --transition-slow: 300ms ease;

@@ -7,6 +7,7 @@ import { Badge, SeverityBadge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { RedFlagsList } from '@/components/RedFlagsList';
+import { formatNycrrCitation } from '@/lib/formatters/nycrr';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,10 +30,11 @@ export default async function RegulationDetailPage({ params }: PageProps) {
     notFound();
   }
 
-  // Format NYCRR citation
-  const nycrrCitation = regulation.nycrrTitle
-    ? `${regulation.nycrrTitle} NYCRR ${regulation.nycrrPart || ''}${regulation.nycrrSection ? '.' + regulation.nycrrSection : ''}`
-    : null;
+  const nycrrCitation = formatNycrrCitation(
+    regulation.nycrrTitle,
+    regulation.nycrrPart,
+    regulation.nycrrSection
+  );
 
   return (
     <div className="bg-[var(--color-background)] min-h-screen">

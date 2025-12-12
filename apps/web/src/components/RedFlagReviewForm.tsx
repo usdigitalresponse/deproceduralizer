@@ -8,6 +8,7 @@ import { useReviewerName } from '@/hooks/useReviewerName';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
+import { Select } from '@/components/ui/Select';
 import { ReviewStatusBadge } from '@/components/ui/Badge';
 
 // Extract the red flag type from RegulationWithAnalysis
@@ -103,7 +104,7 @@ export default function RedFlagReviewForm({ flag, onUpdated }: RedFlagReviewForm
             <ReviewStatusBadge status={flag.reviewStatus || 'unreviewed'} />
             {flag.priority && (
               <span className="text-[var(--color-text-secondary)]">
-                Priority: {PRIORITY_OPTIONS.find(p => p.value === flag.priority)?.label}
+                Priority: {PRIORITY_OPTIONS.find(p => p.value === String(flag.priority))?.label}
               </span>
             )}
             {flag.reviewedBy && (
@@ -142,28 +143,12 @@ export default function RedFlagReviewForm({ flag, onUpdated }: RedFlagReviewForm
           <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">
             Review Status *
           </label>
-          <select
+          <Select
             value={formData.reviewStatus}
-            onChange={(e) => setFormData(prev => ({ ...prev, reviewStatus: e.target.value }))}
-            className="
-              w-full px-3 py-2 text-sm
-              bg-[var(--color-surface)]
-              border border-[var(--color-neutral-300)]
-              rounded-[var(--radius-md)]
-              text-[var(--color-text)]
-              transition-colors duration-[var(--transition-fast)]
-              hover:border-[var(--color-neutral-400)]
-              focus:outline-none focus:ring-2 focus:ring-[var(--color-focus)] focus:ring-offset-2
-              disabled:opacity-50 disabled:cursor-not-allowed
-            "
+            onValueChange={(value) => setFormData(prev => ({ ...prev, reviewStatus: value }))}
+            options={[...REVIEW_STATUSES]}
             disabled={isPending}
-          >
-            {REVIEW_STATUSES.map(status => (
-              <option key={status.value} value={status.value}>
-                {status.label}
-              </option>
-            ))}
-          </select>
+          />
         </div>
 
         <div>
@@ -182,61 +167,29 @@ export default function RedFlagReviewForm({ flag, onUpdated }: RedFlagReviewForm
           <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">
             Priority
           </label>
-          <select
-            value={formData.priority || ''}
-            onChange={(e) => setFormData(prev => ({
+          <Select
+            value={formData.priority?.toString() ?? 'none'}
+            onValueChange={(value) => setFormData(prev => ({
               ...prev,
-              priority: e.target.value ? parseInt(e.target.value) : undefined
+              priority: value === 'none' ? undefined : parseInt(value)
             }))}
-            className="
-              w-full px-3 py-2 text-sm
-              bg-[var(--color-surface)]
-              border border-[var(--color-neutral-300)]
-              rounded-[var(--radius-md)]
-              text-[var(--color-text)]
-              transition-colors duration-[var(--transition-fast)]
-              hover:border-[var(--color-neutral-400)]
-              focus:outline-none focus:ring-2 focus:ring-[var(--color-focus)] focus:ring-offset-2
-              disabled:opacity-50 disabled:cursor-not-allowed
-            "
+            options={[{ value: 'none', label: 'No priority' }, ...PRIORITY_OPTIONS]}
             disabled={isPending}
-          >
-            <option value="">Select priority...</option>
-            {PRIORITY_OPTIONS.map(priority => (
-              <option key={priority.value} value={priority.value}>
-                {priority.label}
-              </option>
-            ))}
-          </select>
+          />
         </div>
 
         <div>
           <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">
             Impact Type
           </label>
-          <select
-            value={formData.impactType}
-            onChange={(e) => setFormData(prev => ({ ...prev, impactType: e.target.value }))}
-            className="
-              w-full px-3 py-2 text-sm
-              bg-[var(--color-surface)]
-              border border-[var(--color-neutral-300)]
-              rounded-[var(--radius-md)]
-              text-[var(--color-text)]
-              transition-colors duration-[var(--transition-fast)]
-              hover:border-[var(--color-neutral-400)]
-              focus:outline-none focus:ring-2 focus:ring-[var(--color-focus)] focus:ring-offset-2
-              disabled:opacity-50 disabled:cursor-not-allowed
-            "
+          <Select
+            value={formData.impactType || 'none'}
+            onValueChange={(value) =>
+              setFormData(prev => ({ ...prev, impactType: value === 'none' ? '' : value }))
+            }
+            options={[{ value: 'none', label: 'No impact type' }, ...IMPACT_TYPES]}
             disabled={isPending}
-          >
-            <option value="">Select impact type...</option>
-            {IMPACT_TYPES.map(type => (
-              <option key={type.value} value={type.value}>
-                {type.label}
-              </option>
-            ))}
-          </select>
+          />
         </div>
       </div>
 

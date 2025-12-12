@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/Modal';
 import { Badge, SeverityBadge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { formatNycrrCitation } from '@/lib/formatters/nycrr';
 
 interface RegulationModalProps {
   regulationId: number | null;
@@ -45,9 +46,12 @@ export function RegulationModal({ regulationId, onClose }: RegulationModalProps)
       });
   }, [regulationId]);
 
-  // Format NYCRR citation
-  const nycrrCitation = regulation?.nycrrTitle
-    ? `${regulation.nycrrTitle} NYCRR ${regulation.nycrrPart || ''}${regulation.nycrrSection ? '.' + regulation.nycrrSection : ''}`
+  const nycrrCitation = regulation
+    ? formatNycrrCitation(
+        regulation.nycrrTitle,
+        regulation.nycrrPart,
+        regulation.nycrrSection
+      )
     : null;
 
   return (

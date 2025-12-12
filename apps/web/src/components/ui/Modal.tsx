@@ -214,7 +214,7 @@ export function ModalClose({ children, className = '', asChild }: ModalCloseProp
         hover:text-[var(--color-text)]
         hover:bg-[var(--color-neutral-100)]
         rounded-[var(--radius-sm)]
-        transition-colors duration-[var(--transition-fast)]
+        transition-colors duration-[var(--duration-fast)]
         focus:outline-none focus:ring-2 focus:ring-[var(--color-focus-ring)]
         ${className}
       `.trim().replace(/\s+/g, ' ')}

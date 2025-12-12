@@ -41,7 +41,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             text-sm text-[var(--color-text)]
             bg-[var(--color-surface)]
             border rounded-[var(--radius-md)]
-            transition-colors duration-[var(--transition-fast)]
+            transition-colors duration-[var(--duration-fast)]
             placeholder:text-[var(--color-text-muted)]
             ${hasError
               ? 'border-[var(--color-danger)] focus:border-[var(--color-danger)] focus:ring-2 focus:ring-[var(--color-danger-bg)]'

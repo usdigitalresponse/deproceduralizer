@@ -1,7 +1,9 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
+import { Button } from '@/components/ui/Button';
+import { Select } from '@/components/ui/Select';
 import type { RedFlagFilterOptions } from '@deproceduralizer/database';
 
 interface ReviewFiltersProps {
@@ -74,92 +76,58 @@ export function ReviewFilters({
     currentFilters.severity ||
     currentFilters.category;
 
-  const selectClass = `
-    px-3 py-2 text-sm
-    bg-[var(--color-surface)]
-    border border-[var(--color-neutral-300)]
-    rounded-[var(--radius-md)]
-    text-[var(--color-text)]
-    transition-colors duration-[var(--transition-fast)]
-    hover:border-[var(--color-neutral-400)]
-    focus:outline-none focus:ring-2 focus:ring-[var(--color-focus)] focus:ring-offset-2
-  `;
+  // Build category options dynamically
+  const categoryOptions = useMemo(() => [
+    { value: 'all', label: 'All Categories' },
+    ...categories.map(cat => ({ value: cat, label: cat }))
+  ], [categories]);
 
   return (
     <div className={`flex flex-wrap items-center gap-3 ${className}`}>
       {/* Status filter */}
       <div className="flex items-center gap-2">
-        <label htmlFor="status-filter" className="text-sm text-[var(--color-text-secondary)]">
+        <label className="text-sm text-[var(--color-text-secondary)]">
           Status:
         </label>
-        <select
-          id="status-filter"
+        <Select
           value={currentFilters.status || 'all'}
-          onChange={(e) => updateParams({ status: e.target.value })}
-          className={selectClass}
-        >
-          {STATUS_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
+          onValueChange={(value) => updateParams({ status: value })}
+          options={STATUS_OPTIONS}
+          aria-label="Filter by status"
+        />
       </div>
 
       {/* Severity filter */}
       <div className="flex items-center gap-2">
-        <label htmlFor="severity-filter" className="text-sm text-[var(--color-text-secondary)]">
+        <label className="text-sm text-[var(--color-text-secondary)]">
           Severity:
         </label>
-        <select
-          id="severity-filter"
+        <Select
           value={currentFilters.severity || 'all'}
-          onChange={(e) => updateParams({ severity: e.target.value })}
-          className={selectClass}
-        >
-          {SEVERITY_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
+          onValueChange={(value) => updateParams({ severity: value })}
+          options={SEVERITY_OPTIONS}
+          aria-label="Filter by severity"
+        />
       </div>
 
       {/* Category filter */}
       <div className="flex items-center gap-2">
-        <label htmlFor="category-filter" className="text-sm text-[var(--color-text-secondary)]">
+        <label className="text-sm text-[var(--color-text-secondary)]">
           Category:
         </label>
-        <select
-          id="category-filter"
-          value={currentFilters.category || ''}
-          onChange={(e) => updateParams({ category: e.target.value || undefined })}
-          className={selectClass}
-        >
-          <option value="">All Categories</option>
-          {categories.map((cat) => (
-            <option key={cat} value={cat}>
-              {cat}
-            </option>
-          ))}
-        </select>
+        <Select
+          value={currentFilters.category || 'all'}
+          onValueChange={(value) => updateParams({ category: value })}
+          options={categoryOptions}
+          aria-label="Filter by category"
+        />
       </div>
 
       {/* Clear filters button */}
       {hasActiveFilters && (
-        <button
-          onClick={clearFilters}
-          className="
-            px-3 py-2 text-sm
-            text-[var(--color-text-secondary)]
-            hover:text-[var(--color-text)]
-            transition-colors duration-[var(--transition-fast)]
-            focus:outline-none focus:ring-2 focus:ring-[var(--color-focus)] focus:ring-offset-2
-            rounded-[var(--radius-md)]
-          "
-        >
+        <Button variant="ghost" size="sm" onClick={clearFilters}>
           Clear filters
-        </button>
+        </Button>
       )}
 
       {/* Spacer */}
@@ -167,37 +135,23 @@ export function ReviewFilters({
 
       {/* Sort controls */}
       <div className="flex items-center gap-2">
-        <label htmlFor="sort-by" className="text-sm text-[var(--color-text-secondary)]">
+        <label className="text-sm text-[var(--color-text-secondary)]">
           Sort by:
         </label>
-        <select
-          id="sort-by"
+        <Select
           value={sortBy}
-          onChange={(e) => updateParams({ sortBy: e.target.value })}
-          className={selectClass}
-        >
-          {SORT_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
-        <button
+          onValueChange={(value) => updateParams({ sortBy: value })}
+          options={SORT_OPTIONS}
+          aria-label="Sort by"
+        />
+        <Button
+          variant="secondary"
+          size="sm"
           onClick={() => updateParams({ sortOrder: sortOrder === 'desc' ? 'asc' : 'desc' })}
-          className={`
-            px-2 py-2 text-sm
-            bg-[var(--color-surface)]
-            border border-[var(--color-neutral-300)]
-            rounded-[var(--radius-md)]
-            text-[var(--color-text)]
-            transition-colors duration-[var(--transition-fast)]
-            hover:border-[var(--color-neutral-400)] hover:bg-[var(--color-neutral-50)]
-            focus:outline-none focus:ring-2 focus:ring-[var(--color-focus)] focus:ring-offset-2
-          `}
           aria-label={`Sort ${sortOrder === 'desc' ? 'ascending' : 'descending'}`}
         >
           {sortOrder === 'desc' ? '↓' : '↑'}
-        </button>
+        </Button>
       </div>
     </div>
   );

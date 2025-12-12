@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/Modal';
 import { Badge, SeverityBadge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { formatNycrrCitation } from '@/lib/formatters/nycrr';
 
 interface DetailModalProps {
   regulation: RegulationWithAnalysis | null;
@@ -31,10 +32,11 @@ interface DetailModalProps {
 export default function DetailModal({ regulation, onClose, onFlagUpdated }: DetailModalProps) {
   if (!regulation) return null;
 
-  // Format NYCRR citation
-  const nycrrCitation = regulation.nycrrTitle
-    ? `${regulation.nycrrTitle} NYCRR ${regulation.nycrrPart || ''}${regulation.nycrrSection ? '.' + regulation.nycrrSection : ''}`
-    : null;
+  const nycrrCitation = formatNycrrCitation(
+    regulation.nycrrTitle,
+    regulation.nycrrPart,
+    regulation.nycrrSection
+  );
 
   return (
     <Modal open={!!regulation} onOpenChange={(open) => !open && onClose()}>

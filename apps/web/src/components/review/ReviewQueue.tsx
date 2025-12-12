@@ -62,33 +62,36 @@ export function ReviewQueue({
 
   // Handle flag update (optimistic)
   const handleFlagUpdated = useCallback((updatedFlag: RedFlagWithContext) => {
-    setFlags((prev) =>
-      prev.map((f) => (f.id === updatedFlag.id ? updatedFlag : f))
-    );
-
-    // Update counts optimistically
-    setCounts((prev) => {
-      const oldStatus = flags.find((f) => f.id === updatedFlag.id)?.reviewStatus || 'unreviewed';
+    // Update flags and counts together to avoid stale closure issues
+    setFlags((prevFlags) => {
+      // Compute old status from the actual previous state, not a closure
+      const oldFlag = prevFlags.find((f) => f.id === updatedFlag.id);
+      const oldStatus = oldFlag?.reviewStatus || 'unreviewed';
       const newStatus = updatedFlag.reviewStatus || 'unreviewed';
 
-      if (oldStatus === newStatus) return prev;
+      // Update counts if status changed
+      if (oldStatus !== newStatus) {
+        setCounts((prevCounts) => {
+          const newCounts = { ...prevCounts };
+          // Decrement old status count
+          if (oldStatus in newCounts && oldStatus !== 'total') {
+            newCounts[oldStatus as keyof ReviewStatusCounts] = Math.max(
+              0,
+              (newCounts[oldStatus as keyof ReviewStatusCounts] as number) - 1
+            );
+          }
+          // Increment new status count
+          if (newStatus in newCounts && newStatus !== 'total') {
+            newCounts[newStatus as keyof ReviewStatusCounts] =
+              (newCounts[newStatus as keyof ReviewStatusCounts] as number) + 1;
+          }
+          return newCounts;
+        });
+      }
 
-      const newCounts = { ...prev };
-      // Decrement old status count
-      if (oldStatus in newCounts) {
-        newCounts[oldStatus as keyof ReviewStatusCounts] = Math.max(
-          0,
-          (newCounts[oldStatus as keyof ReviewStatusCounts] as number) - 1
-        );
-      }
-      // Increment new status count
-      if (newStatus in newCounts) {
-        newCounts[newStatus as keyof ReviewStatusCounts] =
-          (newCounts[newStatus as keyof ReviewStatusCounts] as number) + 1;
-      }
-      return newCounts;
+      return prevFlags.map((f) => (f.id === updatedFlag.id ? updatedFlag : f));
     });
-  }, [flags]);
+  }, []);
 
   // Handle view regulation
   const handleViewRegulation = useCallback((regulationId: number) => {

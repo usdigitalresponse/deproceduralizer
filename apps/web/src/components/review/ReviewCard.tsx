@@ -8,34 +8,10 @@ import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
 import { Badge, SeverityBadge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
+import { Select } from '@/components/ui/Select';
+import { REVIEW_STATUSES, PRIORITY_OPTIONS, IMPACT_TYPES } from '@/types/regulation';
+import { formatNycrrCitation } from '@/lib/formatters/nycrr';
 import type { RedFlagWithContext } from '@deproceduralizer/database';
-
-// Form constants
-const REVIEW_STATUSES = [
-  { value: 'unreviewed', label: 'Unreviewed' },
-  { value: 'confirmed', label: 'Confirmed' },
-  { value: 'false_positive', label: 'False Positive' },
-  { value: 'needs_context', label: 'Needs Context' },
-  { value: 'deferred', label: 'Deferred' },
-];
-
-const PRIORITY_OPTIONS = [
-  { value: 1, label: '1 - Highest' },
-  { value: 2, label: '2 - High' },
-  { value: 3, label: '3 - Medium' },
-  { value: 4, label: '4 - Low' },
-  { value: 5, label: '5 - Lowest' },
-];
-
-const IMPACT_TYPES = [
-  { value: 'cost_savings', label: 'Cost Savings' },
-  { value: 'time_savings', label: 'Time Savings' },
-  { value: 'accessibility', label: 'Accessibility' },
-  { value: 'compliance_risk', label: 'Compliance Risk' },
-  { value: 'operational_efficiency', label: 'Operational Efficiency' },
-  { value: 'citizen_experience', label: 'Citizen Experience' },
-  { value: 'other', label: 'Other' },
-];
 
 interface ReviewCardProps {
   flag: RedFlagWithContext;
@@ -65,10 +41,11 @@ export const ReviewCard = forwardRef<HTMLDivElement, ReviewCardProps>(
       }
     }, [isLoaded, storedName, formData.reviewedBy]);
 
-    // Format NYCRR citation
-    const nycrrCitation = flag.regulation.nycrrTitle
-      ? `${flag.regulation.nycrrTitle} NYCRR ${flag.regulation.nycrrPart || ''}${flag.regulation.nycrrSection ? '.' + flag.regulation.nycrrSection : ''}`
-      : null;
+    const nycrrCitation = formatNycrrCitation(
+      flag.regulation.nycrrTitle,
+      flag.regulation.nycrrPart,
+      flag.regulation.nycrrSection
+    );
 
     const handleSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
@@ -109,23 +86,15 @@ export const ReviewCard = forwardRef<HTMLDivElement, ReviewCardProps>(
       });
     };
 
-    const selectClass = `
-      w-full px-3 py-2 text-sm
-      bg-[var(--color-surface)]
-      border border-[var(--color-neutral-300)]
-      rounded-[var(--radius-md)]
-      text-[var(--color-text)]
-      transition-colors duration-[var(--transition-fast)]
-      hover:border-[var(--color-neutral-400)]
-      focus:outline-none focus:ring-2 focus:ring-[var(--color-focus)] focus:ring-offset-2
-      disabled:opacity-50 disabled:cursor-not-allowed
-    `;
+    // Convert options to Select format with explicit "none" sentinel
+    const priorityOptions = [{ value: 'none', label: '--' }, ...PRIORITY_OPTIONS];
+    const impactOptions = [{ value: 'none', label: '--' }, ...IMPACT_TYPES];
 
     return (
       <Card
         ref={ref}
         className={`
-          transition-shadow duration-[var(--transition-fast)]
+          transition-shadow duration-[var(--duration-fast)]
           ${isFocused ? 'ring-2 ring-[var(--color-focus)] ring-offset-2' : ''}
         `}
         tabIndex={0}
@@ -210,18 +179,12 @@ export const ReviewCard = forwardRef<HTMLDivElement, ReviewCardProps>(
               <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">
                 Status *
               </label>
-              <select
+              <Select
                 value={formData.reviewStatus}
-                onChange={(e) => setFormData((prev) => ({ ...prev, reviewStatus: e.target.value }))}
-                className={selectClass}
+                onValueChange={(value) => setFormData((prev) => ({ ...prev, reviewStatus: value }))}
+                options={[...REVIEW_STATUSES]}
                 disabled={isPending}
-              >
-                {REVIEW_STATUSES.map((status) => (
-                  <option key={status.value} value={status.value}>
-                    {status.label}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
 
             {/* Priority */}
@@ -229,24 +192,17 @@ export const ReviewCard = forwardRef<HTMLDivElement, ReviewCardProps>(
               <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">
                 Priority
               </label>
-              <select
-                value={formData.priority || ''}
-                onChange={(e) =>
+              <Select
+                value={formData.priority?.toString() ?? 'none'}
+                onValueChange={(value) =>
                   setFormData((prev) => ({
                     ...prev,
-                    priority: e.target.value ? parseInt(e.target.value) : undefined,
+                    priority: value === 'none' ? undefined : parseInt(value),
                   }))
                 }
-                className={selectClass}
+                options={priorityOptions}
                 disabled={isPending}
-              >
-                <option value="">--</option>
-                {PRIORITY_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
 
             {/* Impact Type */}
@@ -254,19 +210,17 @@ export const ReviewCard = forwardRef<HTMLDivElement, ReviewCardProps>(
               <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">
                 Impact
               </label>
-              <select
-                value={formData.impactType}
-                onChange={(e) => setFormData((prev) => ({ ...prev, impactType: e.target.value }))}
-                className={selectClass}
+              <Select
+                value={formData.impactType || 'none'}
+                onValueChange={(value) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    impactType: value === 'none' ? '' : value,
+                  }))
+                }
+                options={impactOptions}
                 disabled={isPending}
-              >
-                <option value="">--</option>
-                {IMPACT_TYPES.map((type) => (
-                  <option key={type.value} value={type.value}>
-                    {type.label}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
 
             {/* Reviewer */}

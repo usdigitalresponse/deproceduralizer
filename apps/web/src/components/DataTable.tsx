@@ -360,7 +360,7 @@ export default function DataTable({ data, onRowClick, pagination, search, sortBy
                       px-3 py-3
                       text-left text-xs font-semibold text-white
                       uppercase tracking-wider
-                      transition-colors duration-[var(--transition-fast)]
+                      transition-colors duration-[var(--duration-fast)]
                       focus:outline-none focus:ring-2 focus:ring-white focus:ring-inset
                       ${isSortable(header.id) ? 'cursor-pointer hover:bg-[var(--color-primary-strong)]' : ''}
                     `}
@@ -443,12 +443,14 @@ export default function DataTable({ data, onRowClick, pagination, search, sortBy
                       : 'No regulations available'}
                   </p>
                   {hasActiveFilters && (
-                    <button
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={clearAllFilters}
-                      className="mt-4 text-sm text-[var(--color-primary)] hover:underline"
+                      className="mt-4"
                     >
                       Clear all filters
-                    </button>
+                    </Button>
                   )}
                 </td>
               </tr>
@@ -459,7 +461,7 @@ export default function DataTable({ data, onRowClick, pagination, search, sortBy
                   className="
                     hover:bg-[var(--color-primary-faint)]
                     cursor-pointer
-                    transition-colors duration-[var(--transition-fast)]
+                    transition-colors duration-[var(--duration-fast)]
                     focus:outline-none focus:ring-2 focus:ring-[var(--color-focus)] focus:ring-inset
                   "
                   onClick={() => onRowClick(row.original)}

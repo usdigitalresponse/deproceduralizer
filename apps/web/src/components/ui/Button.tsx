@@ -32,8 +32,8 @@ const variantStyles: Record<ButtonVariant, string> = {
   `,
   danger: `
     bg-[var(--color-danger)] text-white
-    hover:bg-[#9f2424]
-    active:bg-[#871d1d]
+    hover:bg-[var(--color-danger-strong)]
+    active:bg-[var(--color-danger-stronger)]
     focus-visible:ring-2 focus-visible:ring-[var(--color-danger)] focus-visible:ring-offset-2
   `,
 };
@@ -62,7 +62,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         className={`
           inline-flex items-center justify-center
           font-medium rounded-[var(--radius-md)]
-          transition-colors duration-[var(--transition-fast)]
+          transition-colors duration-[var(--duration-fast)]
           outline-none
           ${variantStyles[variant]}
           ${sizeStyles[size]}

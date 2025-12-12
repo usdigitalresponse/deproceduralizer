@@ -14,14 +14,12 @@
     "@radix-ui/react-select": "^2.2.6",
     "@tanstack/react-table": "^8.21.3",
     "next": "16.0.8",
-    "papaparse": "^5.5.3",
     "react": "19.2.1",
     "react-dom": "19.2.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
-    "@types/papaparse": "^5.5.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",

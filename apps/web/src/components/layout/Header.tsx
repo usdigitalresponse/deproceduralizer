@@ -10,7 +10,7 @@ interface HeaderProps {
 
 const NAV_LINKS = [
   { href: '/', label: 'Regulations' },
-  { href: '/review', label: 'Review Mode' },
+  { href: '/review?status=unreviewed', label: 'Review Mode' },
 ];
 
 export function Header({ className = '' }: HeaderProps) {
@@ -62,9 +62,11 @@ export function Header({ className = '' }: HeaderProps) {
             {/* Navigation */}
             <nav className="flex items-center gap-1">
               {NAV_LINKS.map((link) => {
-                const isActive = link.href === '/'
+                // Extract pathname without query params for comparison
+                const linkPath = link.href.split('?')[0];
+                const isActive = linkPath === '/'
                   ? pathname === '/'
-                  : pathname.startsWith(link.href);
+                  : pathname.startsWith(linkPath);
 
                 return (
                   <Link
@@ -72,7 +74,7 @@ export function Header({ className = '' }: HeaderProps) {
                     href={link.href}
                     className={`
                       px-3 py-2 text-sm font-medium rounded-[var(--radius-md)]
-                      transition-colors duration-[var(--transition-fast)]
+                      transition-colors duration-[var(--duration-fast)]
                       ${isActive
                         ? 'bg-[var(--color-primary-weaker)] text-[var(--color-primary)]'
                         : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-[var(--color-neutral-100)]'

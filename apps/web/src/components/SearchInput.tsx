@@ -106,7 +106,7 @@ export default function SearchInput({
           rounded-[var(--radius-md)]
           text-[var(--color-text)]
           placeholder:text-[var(--color-text-muted)]
-          transition-colors duration-[var(--transition-fast)]
+          transition-colors duration-[var(--duration-fast)]
           hover:border-[var(--color-neutral-400)]
           focus:outline-none focus:ring-2 focus:ring-[var(--color-focus)] focus:ring-offset-2
         "
@@ -122,7 +122,7 @@ export default function SearchInput({
             absolute inset-y-0 right-0 pr-3 flex items-center
             text-[var(--color-text-muted)]
             hover:text-[var(--color-text)]
-            transition-colors duration-[var(--transition-fast)]
+            transition-colors duration-[var(--duration-fast)]
           "
         >
           <svg

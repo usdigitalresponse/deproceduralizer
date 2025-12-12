@@ -53,6 +53,8 @@ The interface follows a **"modern civic"** design language, inspired by:
 | Success | `--color-success-bg` (`#dcfce7`) | `--color-success` (`#1e752e`) |
 | Warning | `--color-warning-bg` (`#fef3c7`) | `--color-warning` (`#b45309`) |
 | Danger | `--color-danger-bg` (`#fee2e2`) | `--color-danger` (`#b52c2c`) |
+| Danger (hover) | — | `--color-danger-strong` (`#9f2424`) |
+| Danger (active) | — | `--color-danger-stronger` (`#871d1d`) |
 | Info | `--color-info-bg` (`#dbeafe`) | `--color-info` (`#004dd1`) |
 
 ### Neutral Colors
