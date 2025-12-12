@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import DataTable from '@/components/DataTable';
 import DetailModal from '@/components/DetailModal';
 import SearchInput from '@/components/SearchInput';
+import { Button } from '@/components/ui/Button';
 import type { RegulationWithAnalysis, FilterOptions, PaginationOptions } from '@deproceduralizer/database';
 
 interface PaginationInfo {
@@ -23,8 +25,17 @@ interface RegulationsClientProps {
 }
 
 export default function RegulationsClient({ initialData, pagination, search, filters, sortBy, sortOrder }: RegulationsClientProps) {
+  const router = useRouter();
   const [selectedRegulation, setSelectedRegulation] = useState<RegulationWithAnalysis | null>(null);
   const [data, setData] = useState(initialData);
+
+  // Check if any filters are active
+  const hasActiveFilters = Object.keys(filters).length > 0;
+
+  // Clear all filters
+  const clearFilters = useCallback(() => {
+    router.push('/');
+  }, [router]);
 
   // Sync data when server provides new initialData (e.g., after search/pagination)
   useEffect(() => {
@@ -75,9 +86,18 @@ export default function RegulationsClient({ initialData, pagination, search, fil
 
   return (
     <div className="space-y-4">
-      {/* Search Bar */}
-      <div className="flex justify-between items-center">
+      {/* Search Bar and Clear Filters */}
+      <div className="flex justify-between items-center gap-4">
         <SearchInput initialValue={search} />
+        {hasActiveFilters && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={clearFilters}
+          >
+            Clear filters
+          </Button>
+        )}
       </div>
 
       {/* Live region for screen reader announcements */}
