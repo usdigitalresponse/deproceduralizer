@@ -1,12 +1,21 @@
 'use client';
 
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Container } from './Container';
 
 interface HeaderProps {
   className?: string;
 }
 
+const NAV_LINKS = [
+  { href: '/', label: 'Regulations' },
+  { href: '/review', label: 'Review Mode' },
+];
+
 export function Header({ className = '' }: HeaderProps) {
+  const pathname = usePathname();
+
   return (
     <header className={`sticky top-0 z-[var(--z-sticky)] ${className}`}>
       {/* Official bar */}
@@ -50,10 +59,31 @@ export function Header({ className = '' }: HeaderProps) {
               </div>
             </div>
 
-            {/* Right side - Could add navigation items here in the future */}
-            <div className="flex items-center gap-4">
-              {/* Placeholder for future nav items */}
-            </div>
+            {/* Navigation */}
+            <nav className="flex items-center gap-1">
+              {NAV_LINKS.map((link) => {
+                const isActive = link.href === '/'
+                  ? pathname === '/'
+                  : pathname.startsWith(link.href);
+
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className={`
+                      px-3 py-2 text-sm font-medium rounded-[var(--radius-md)]
+                      transition-colors duration-[var(--transition-fast)]
+                      ${isActive
+                        ? 'bg-[var(--color-primary-weaker)] text-[var(--color-primary)]'
+                        : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-[var(--color-neutral-100)]'
+                      }
+                    `}
+                  >
+                    {link.label}
+                  </Link>
+                );
+              })}
+            </nav>
           </div>
         </Container>
       </div>

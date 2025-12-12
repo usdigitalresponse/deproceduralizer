@@ -214,9 +214,25 @@ export default function DetailModal({ regulation, onClose, onFlagUpdated }: Deta
                   >
                     <div className="flex items-center justify-between mb-2">
                       <span className="font-semibold text-[var(--color-danger)]">{flag.category}</span>
-                      <div className="flex gap-2">
-                        <SeverityBadge severity={flag.severity} />
-                        <Badge variant="default">{flag.complexity}</Badge>
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs text-[var(--color-text-muted)]">Severity:</span>
+                          <SeverityBadge severity={flag.severity} />
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs text-[var(--color-text-muted)]">Complexity:</span>
+                          <Badge
+                            variant={
+                              flag.complexity === 'HIGH'
+                                ? 'danger'
+                                : flag.complexity === 'MEDIUM' || flag.complexity === 'MEDIUM-HIGH'
+                                ? 'warning'
+                                : 'success'
+                            }
+                          >
+                            {flag.complexity}
+                          </Badge>
+                        </div>
                       </div>
                     </div>
                     <p className="text-sm text-[var(--color-text-secondary)] mb-2">{flag.explanation}</p>

@@ -49,3 +49,32 @@ export async function updateRedFlagReview(input: UpdateRedFlagInput) {
 export async function getRedFlagById(id: number) {
   return redFlagsRepo.getById(id);
 }
+
+export async function getRedFlagCategories() {
+  return redFlagsRepo.getCategories();
+}
+
+export async function getRedFlagStatusCounts() {
+  return redFlagsRepo.getCountsByStatus();
+}
+
+export async function getRedFlagsPaginated(options: {
+  page: number;
+  pageSize: number;
+  sortBy?: 'severity' | 'category' | 'reviewedAt';
+  sortOrder?: 'asc' | 'desc';
+  filters?: {
+    status?: string;
+    severity?: 'high' | 'medium' | 'low';
+    category?: string;
+  };
+}) {
+  return redFlagsRepo.getAllPaginated({
+    ...options,
+    filters: options.filters ? {
+      status: options.filters.status as ReviewStatus | 'all' | undefined,
+      severity: options.filters.severity,
+      category: options.filters.category,
+    } : undefined,
+  });
+}
