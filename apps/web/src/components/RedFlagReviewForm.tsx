@@ -2,19 +2,27 @@
 
 import { useState, useTransition, useEffect } from 'react';
 import { updateRedFlagReview } from '@/lib/actions/red-flags';
-import { RedFlag, REVIEW_STATUSES, IMPACT_TYPES, PRIORITY_OPTIONS } from '@/types/regulation';
+import { REVIEW_STATUSES, IMPACT_TYPES, PRIORITY_OPTIONS } from '@/types/regulation';
+import type { RegulationWithAnalysis } from '@deproceduralizer/database';
 import { useReviewerName } from '@/hooks/useReviewerName';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Textarea } from '@/components/ui/Textarea';
+import { ReviewStatusBadge } from '@/components/ui/Badge';
+
+// Extract the red flag type from RegulationWithAnalysis
+type RedFlag = RegulationWithAnalysis['redFlags'][number];
 
 interface RedFlagReviewFormProps {
   flag: RedFlag;
   onUpdated: (updatedFlag: {
     id: number;
-    review_status?: string;
-    reviewed_by?: string;
-    reviewed_at?: string;
-    reviewer_notes?: string;
+    reviewStatus?: string;
+    reviewedBy?: string;
+    reviewedAt?: string;
+    reviewerNotes?: string;
     priority?: number;
-    impact_type?: string;
+    impactType?: string;
   }) => void;
 }
 
@@ -25,19 +33,22 @@ export default function RedFlagReviewForm({ flag, onUpdated }: RedFlagReviewForm
   const { reviewerName: storedName, saveReviewerName, isLoaded } = useReviewerName();
 
   const [formData, setFormData] = useState({
-    reviewStatus: flag.review_status || 'unreviewed',
-    reviewedBy: flag.reviewed_by || '',
-    reviewerNotes: flag.reviewer_notes || '',
+    reviewStatus: flag.reviewStatus || 'unreviewed',
+    reviewedBy: flag.reviewedBy || '',
+    reviewerNotes: flag.reviewerNotes || '',
     priority: flag.priority || undefined,
-    impactType: flag.impact_type || '',
+    impactType: flag.impactType || '',
   });
 
-  // Pre-fill reviewer name from localStorage
+  // Pre-fill reviewer name from localStorage (runs once when storage loads)
+  // Note: We intentionally omit formData.reviewedBy from deps to avoid re-running
+  // on every keystroke. The check inside ensures we only pre-fill if empty.
   useEffect(() => {
     if (isLoaded && storedName && !formData.reviewedBy) {
       setFormData(prev => ({ ...prev, reviewedBy: storedName }));
     }
-  }, [isLoaded, storedName, formData.reviewedBy]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoaded, storedName]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,12 +80,12 @@ export default function RedFlagReviewForm({ flag, onUpdated }: RedFlagReviewForm
 
         onUpdated({
           id: flag.id!,
-          review_status: result.reviewStatus ?? undefined,
-          reviewed_by: result.reviewedBy ?? undefined,
-          reviewed_at: result.reviewedAt?.toISOString(),
-          reviewer_notes: result.reviewerNotes ?? undefined,
+          reviewStatus: result.reviewStatus ?? undefined,
+          reviewedBy: result.reviewedBy ?? undefined,
+          reviewedAt: result.reviewedAt?.toISOString(),
+          reviewerNotes: result.reviewerNotes ?? undefined,
           priority: result.priority ?? undefined,
-          impact_type: result.impactType ?? undefined,
+          impactType: result.impactType ?? undefined,
         });
 
         setIsEditing(false);
@@ -86,39 +97,32 @@ export default function RedFlagReviewForm({ flag, onUpdated }: RedFlagReviewForm
 
   if (!isEditing) {
     return (
-      <div className="mt-3 pt-3 border-t border-red-200">
+      <div className="mt-3 pt-3 border-t border-[var(--color-danger)]/20">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4 text-sm">
-            <span className={`px-2 py-1 rounded text-xs font-medium ${
-              flag.review_status === 'confirmed' ? 'bg-green-100 text-green-800' :
-              flag.review_status === 'false_positive' ? 'bg-gray-100 text-gray-800' :
-              flag.review_status === 'needs_context' ? 'bg-yellow-100 text-yellow-800' :
-              flag.review_status === 'deferred' ? 'bg-blue-100 text-blue-800' :
-              'bg-gray-100 text-gray-600'
-            }`}>
-              {REVIEW_STATUSES.find(s => s.value === flag.review_status)?.label || 'Unreviewed'}
-            </span>
+            <ReviewStatusBadge status={flag.reviewStatus || 'unreviewed'} />
             {flag.priority && (
-              <span className="text-gray-600">
+              <span className="text-[var(--color-text-secondary)]">
                 Priority: {PRIORITY_OPTIONS.find(p => p.value === flag.priority)?.label}
               </span>
             )}
-            {flag.reviewed_by && (
-              <span className="text-gray-500">
-                Reviewed by {flag.reviewed_by}
+            {flag.reviewedBy && (
+              <span className="text-[var(--color-text-muted)]">
+                Reviewed by {flag.reviewedBy}
               </span>
             )}
           </div>
-          <button
+          <Button
+            variant="primary"
+            size="sm"
             onClick={() => setIsEditing(true)}
-            className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
           >
-            {flag.review_status === 'unreviewed' ? 'Review' : 'Edit Review'}
-          </button>
+            {flag.reviewStatus === 'unreviewed' ? 'Review' : 'Edit Review'}
+          </Button>
         </div>
-        {flag.reviewer_notes && (
-          <p className="mt-2 text-sm text-gray-600 italic">
-            Notes: {flag.reviewer_notes}
+        {flag.reviewerNotes && (
+          <p className="mt-2 text-sm text-[var(--color-text-secondary)] italic">
+            Notes: {flag.reviewerNotes}
           </p>
         )}
       </div>
@@ -126,22 +130,32 @@ export default function RedFlagReviewForm({ flag, onUpdated }: RedFlagReviewForm
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mt-3 pt-3 border-t border-red-200 space-y-3">
+    <form onSubmit={handleSubmit} className="mt-3 pt-3 border-t border-[var(--color-danger)]/20 space-y-3">
       {error && (
-        <div className="p-2 bg-red-100 border border-red-300 text-red-700 text-sm rounded">
+        <div className="p-3 bg-[var(--color-danger-bg)] border border-[var(--color-danger)]/30 text-[var(--color-danger)] text-sm rounded-[var(--radius-md)]">
           {error}
         </div>
       )}
 
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="block text-xs font-medium text-gray-700 mb-1">
+          <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">
             Review Status *
           </label>
           <select
             value={formData.reviewStatus}
             onChange={(e) => setFormData(prev => ({ ...prev, reviewStatus: e.target.value }))}
-            className="w-full px-2 py-1 border rounded text-sm"
+            className="
+              w-full px-3 py-2 text-sm
+              bg-[var(--color-surface)]
+              border border-[var(--color-neutral-300)]
+              rounded-[var(--radius-md)]
+              text-[var(--color-text)]
+              transition-colors duration-[var(--transition-fast)]
+              hover:border-[var(--color-neutral-400)]
+              focus:outline-none focus:ring-2 focus:ring-[var(--color-focus)] focus:ring-offset-2
+              disabled:opacity-50 disabled:cursor-not-allowed
+            "
             disabled={isPending}
           >
             {REVIEW_STATUSES.map(status => (
@@ -153,21 +167,19 @@ export default function RedFlagReviewForm({ flag, onUpdated }: RedFlagReviewForm
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-gray-700 mb-1">
+          <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">
             Reviewer Name *
           </label>
-          <input
-            type="text"
+          <Input
             value={formData.reviewedBy}
             onChange={(e) => setFormData(prev => ({ ...prev, reviewedBy: e.target.value }))}
-            className="w-full px-2 py-1 border rounded text-sm"
             placeholder="Your name"
             disabled={isPending}
           />
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-gray-700 mb-1">
+          <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">
             Priority
           </label>
           <select
@@ -176,7 +188,17 @@ export default function RedFlagReviewForm({ flag, onUpdated }: RedFlagReviewForm
               ...prev,
               priority: e.target.value ? parseInt(e.target.value) : undefined
             }))}
-            className="w-full px-2 py-1 border rounded text-sm"
+            className="
+              w-full px-3 py-2 text-sm
+              bg-[var(--color-surface)]
+              border border-[var(--color-neutral-300)]
+              rounded-[var(--radius-md)]
+              text-[var(--color-text)]
+              transition-colors duration-[var(--transition-fast)]
+              hover:border-[var(--color-neutral-400)]
+              focus:outline-none focus:ring-2 focus:ring-[var(--color-focus)] focus:ring-offset-2
+              disabled:opacity-50 disabled:cursor-not-allowed
+            "
             disabled={isPending}
           >
             <option value="">Select priority...</option>
@@ -189,13 +211,23 @@ export default function RedFlagReviewForm({ flag, onUpdated }: RedFlagReviewForm
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-gray-700 mb-1">
+          <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">
             Impact Type
           </label>
           <select
             value={formData.impactType}
             onChange={(e) => setFormData(prev => ({ ...prev, impactType: e.target.value }))}
-            className="w-full px-2 py-1 border rounded text-sm"
+            className="
+              w-full px-3 py-2 text-sm
+              bg-[var(--color-surface)]
+              border border-[var(--color-neutral-300)]
+              rounded-[var(--radius-md)]
+              text-[var(--color-text)]
+              transition-colors duration-[var(--transition-fast)]
+              hover:border-[var(--color-neutral-400)]
+              focus:outline-none focus:ring-2 focus:ring-[var(--color-focus)] focus:ring-offset-2
+              disabled:opacity-50 disabled:cursor-not-allowed
+            "
             disabled={isPending}
           >
             <option value="">Select impact type...</option>
@@ -209,13 +241,12 @@ export default function RedFlagReviewForm({ flag, onUpdated }: RedFlagReviewForm
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-gray-700 mb-1">
+        <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">
           Reviewer Notes
         </label>
-        <textarea
+        <Textarea
           value={formData.reviewerNotes}
           onChange={(e) => setFormData(prev => ({ ...prev, reviewerNotes: e.target.value }))}
-          className="w-full px-2 py-1 border rounded text-sm"
           rows={2}
           placeholder="Add any notes about this flag..."
           disabled={isPending}
@@ -223,21 +254,23 @@ export default function RedFlagReviewForm({ flag, onUpdated }: RedFlagReviewForm
       </div>
 
       <div className="flex justify-end gap-2">
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="sm"
           onClick={() => setIsEditing(false)}
-          className="px-3 py-1 text-sm border rounded hover:bg-gray-50"
           disabled={isPending}
         >
           Cancel
-        </button>
-        <button
+        </Button>
+        <Button
           type="submit"
-          className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-          disabled={isPending}
+          variant="primary"
+          size="sm"
+          isLoading={isPending}
         >
           {isPending ? 'Saving...' : 'Save Review'}
-        </button>
+        </Button>
       </div>
     </form>
   );

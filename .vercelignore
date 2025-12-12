@@ -1,0 +1,7 @@
+node_modules
+packages/database/node_modules
+.git
+data
+*.md
+!README.md
+.playwright-mcp

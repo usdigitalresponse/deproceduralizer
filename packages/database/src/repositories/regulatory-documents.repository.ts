@@ -1,4 +1,4 @@
-import { eq, and, desc, inArray } from 'drizzle-orm';
+import { eq, and, desc, asc, inArray, ilike, or, sql, count } from 'drizzle-orm';
 import { BaseRepository } from './base.repository';
 import { regulatoryDocuments, RegulatoryDocument } from '../schema/regulatory-documents';
 import { analyses } from '../schema/analyses';
@@ -29,6 +29,39 @@ export interface RegulationWithAnalysis extends RegulatoryDocument {
     priority: number | null;
     impactType: string | null;
   }>;
+  /**
+   * Pre-computed display strings for table columns.
+   * Computed here in the repository to avoid recalculating on every React render
+   * (e.g., during sorting, pagination, filtering in DataTable).
+   */
+  categories: string;
+  explanations: string;
+}
+
+export interface FilterOptions {
+  severity?: number; // 1-5
+  complexity?: 'LOW' | 'MEDIUM' | 'MEDIUM-HIGH' | 'HIGH';
+  hasFlags?: boolean;
+  hasImplementationIssues?: boolean;
+  requiresTechnicalReview?: boolean;
+  hasReportingRequirement?: boolean;
+}
+
+export interface PaginationOptions {
+  page: number;
+  pageSize: number;
+  search?: string;
+  sortBy?: 'maxSeverity' | 'numFlags' | 'title' | 'overallComplexity';
+  sortOrder?: 'asc' | 'desc';
+  filters?: FilterOptions;
+}
+
+export interface PaginatedResult<T> {
+  data: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
 }
 
 export class RegulatoryDocumentsRepository extends BaseRepository {
@@ -88,15 +121,252 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
       return acc;
     }, {} as Record<number, typeof flags>);
 
-    return results.map(row => ({
-      ...row,
-      redFlags: row.analysisId
+    return results.map(row => {
+      const rowFlags = row.analysisId
         ? (flagsByAnalysis[Number(row.analysisId)] || []).map(flag => ({
             ...flag,
             id: Number(flag.id),
           }))
-        : [],
+        : [];
+
+      return {
+        ...row,
+        redFlags: rowFlags,
+        // Pre-compute display strings to avoid recalculating on every table render
+        categories: rowFlags.map(f => f.category).filter(Boolean).join(', '),
+        explanations: rowFlags.map(f => f.explanation).filter(Boolean).join(' | '),
+      };
+    });
+  }
+
+  async getAllWithAnalysisPaginated(
+    options: PaginationOptions
+  ): Promise<PaginatedResult<RegulationWithAnalysis>> {
+    const { page, pageSize, search, sortBy = 'maxSeverity', sortOrder = 'desc', filters } = options;
+    const offset = (page - 1) * pageSize;
+
+    // Build conditions array
+    const conditions: ReturnType<typeof eq>[] = [];
+
+    // Add search condition if provided
+    if (search) {
+      conditions.push(
+        or(
+          ilike(regulatoryDocuments.title, `%${search}%`),
+          ilike(analyses.summary, `%${search}%`)
+        )!
+      );
+    }
+
+    // Add filter conditions
+    if (filters) {
+      if (filters.severity !== undefined) {
+        conditions.push(eq(analyses.maxSeverity, filters.severity));
+      }
+      if (filters.complexity !== undefined) {
+        conditions.push(eq(analyses.overallComplexity, filters.complexity));
+      }
+      if (filters.hasFlags === true) {
+        conditions.push(sql`${analyses.numFlags} > 0`);
+      } else if (filters.hasFlags === false) {
+        conditions.push(
+          or(
+            sql`${analyses.numFlags} = 0`,
+            sql`${analyses.numFlags} IS NULL`
+          )!
+        );
+      }
+      if (filters.hasImplementationIssues !== undefined) {
+        conditions.push(eq(analyses.hasImplementationIssues, filters.hasImplementationIssues));
+      }
+      if (filters.requiresTechnicalReview !== undefined) {
+        conditions.push(eq(analyses.requiresTechnicalReview, filters.requiresTechnicalReview));
+      }
+      if (filters.hasReportingRequirement !== undefined) {
+        conditions.push(eq(analyses.hasReportingRequirement, filters.hasReportingRequirement));
+      }
+    }
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    // Build the sort order
+    const sortColumn = {
+      maxSeverity: analyses.maxSeverity,
+      numFlags: analyses.numFlags,
+      title: regulatoryDocuments.title,
+      overallComplexity: analyses.overallComplexity,
+    }[sortBy];
+
+    const orderByClause = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
+
+    // Get total count for pagination
+    const countQuery = this.db
+      .select({ count: count() })
+      .from(regulatoryDocuments)
+      .leftJoin(
+        analyses,
+        and(
+          eq(analyses.documentId, regulatoryDocuments.id),
+          eq(analyses.isCurrent, true)
+        )
+      );
+
+    if (whereClause) {
+      countQuery.where(whereClause);
+    }
+
+    const [{ count: total }] = await countQuery;
+
+    // Get paginated results
+    const query = this.db
+      .select({
+        id: regulatoryDocuments.id,
+        sourceIndex: regulatoryDocuments.sourceIndex,
+        type: regulatoryDocuments.type,
+        state: regulatoryDocuments.state,
+        title: regulatoryDocuments.title,
+        url: regulatoryDocuments.url,
+        urlType: regulatoryDocuments.urlType,
+        content: regulatoryDocuments.content,
+        createdAt: regulatoryDocuments.createdAt,
+        parentId: regulatoryDocuments.parentId,
+        hierarchyLevel: regulatoryDocuments.hierarchyLevel,
+        hierarchyPath: regulatoryDocuments.hierarchyPath,
+        nycrrTitle: regulatoryDocuments.nycrrTitle,
+        nycrrPart: regulatoryDocuments.nycrrPart,
+        nycrrSection: regulatoryDocuments.nycrrSection,
+        analysisId: analyses.id,
+        hasImplementationIssues: analyses.hasImplementationIssues,
+        overallComplexity: analyses.overallComplexity,
+        summary: analyses.summary,
+        requiresTechnicalReview: analyses.requiresTechnicalReview,
+        hasReportingRequirement: analyses.hasReportingRequirement,
+        maxSeverity: analyses.maxSeverity,
+        numFlags: analyses.numFlags,
+      })
+      .from(regulatoryDocuments)
+      .leftJoin(
+        analyses,
+        and(
+          eq(analyses.documentId, regulatoryDocuments.id),
+          eq(analyses.isCurrent, true)
+        )
+      )
+      .orderBy(orderByClause)
+      .limit(pageSize)
+      .offset(offset);
+
+    if (whereClause) {
+      query.where(whereClause);
+    }
+
+    const results = await query;
+
+    // Get red flags for the current page only
+    const analysisIds = results
+      .filter(r => r.analysisId !== null)
+      .map(r => r.analysisId as number);
+
+    const flags = analysisIds.length > 0
+      ? await this.db
+          .select()
+          .from(redFlags)
+          .where(inArray(redFlags.analysisId, analysisIds))
+      : [];
+
+    const flagsByAnalysis = flags.reduce((acc, flag) => {
+      const analysisId = Number(flag.analysisId);
+      if (!acc[analysisId]) acc[analysisId] = [];
+      acc[analysisId].push(flag);
+      return acc;
+    }, {} as Record<number, typeof flags>);
+
+    const data = results.map(row => {
+      const rowFlags = row.analysisId
+        ? (flagsByAnalysis[Number(row.analysisId)] || []).map(flag => ({
+            ...flag,
+            id: Number(flag.id),
+          }))
+        : [];
+
+      return {
+        ...row,
+        redFlags: rowFlags,
+        categories: rowFlags.map(f => f.category).filter(Boolean).join(', '),
+        explanations: rowFlags.map(f => f.explanation).filter(Boolean).join(' | '),
+      };
+    });
+
+    return {
+      data,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
+  }
+
+  async getByIdWithAnalysis(id: number): Promise<RegulationWithAnalysis | null> {
+    const results = await this.db
+      .select({
+        id: regulatoryDocuments.id,
+        sourceIndex: regulatoryDocuments.sourceIndex,
+        type: regulatoryDocuments.type,
+        state: regulatoryDocuments.state,
+        title: regulatoryDocuments.title,
+        url: regulatoryDocuments.url,
+        urlType: regulatoryDocuments.urlType,
+        content: regulatoryDocuments.content,
+        createdAt: regulatoryDocuments.createdAt,
+        parentId: regulatoryDocuments.parentId,
+        hierarchyLevel: regulatoryDocuments.hierarchyLevel,
+        hierarchyPath: regulatoryDocuments.hierarchyPath,
+        nycrrTitle: regulatoryDocuments.nycrrTitle,
+        nycrrPart: regulatoryDocuments.nycrrPart,
+        nycrrSection: regulatoryDocuments.nycrrSection,
+        analysisId: analyses.id,
+        hasImplementationIssues: analyses.hasImplementationIssues,
+        overallComplexity: analyses.overallComplexity,
+        summary: analyses.summary,
+        requiresTechnicalReview: analyses.requiresTechnicalReview,
+        hasReportingRequirement: analyses.hasReportingRequirement,
+        maxSeverity: analyses.maxSeverity,
+        numFlags: analyses.numFlags,
+      })
+      .from(regulatoryDocuments)
+      .leftJoin(
+        analyses,
+        and(
+          eq(analyses.documentId, regulatoryDocuments.id),
+          eq(analyses.isCurrent, true)
+        )
+      )
+      .where(eq(regulatoryDocuments.id, id))
+      .limit(1);
+
+    if (results.length === 0) return null;
+
+    const row = results[0];
+
+    // Get red flags for this document
+    const flags = row.analysisId
+      ? await this.db
+          .select()
+          .from(redFlags)
+          .where(eq(redFlags.analysisId, row.analysisId))
+      : [];
+
+    const rowFlags = flags.map(flag => ({
+      ...flag,
+      id: Number(flag.id),
     }));
+
+    return {
+      ...row,
+      redFlags: rowFlags,
+      categories: rowFlags.map(f => f.category).filter(Boolean).join(', '),
+      explanations: rowFlags.map(f => f.explanation).filter(Boolean).join(' | '),
+    };
   }
 
   async getById(id: number): Promise<RegulatoryDocument | undefined> {

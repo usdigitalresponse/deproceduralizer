@@ -1,19 +1,30 @@
 'use client';
 
-import { ParsedRegulation } from '@/types/regulation';
+import Link from 'next/link';
+import type { RegulationWithAnalysis } from '@deproceduralizer/database';
 import RedFlagReviewForm from './RedFlagReviewForm';
+import {
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalTitle,
+  ModalBody,
+  ModalClose,
+} from '@/components/ui/Modal';
+import { Badge, SeverityBadge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
 
 interface DetailModalProps {
-  regulation: ParsedRegulation | null;
+  regulation: RegulationWithAnalysis | null;
   onClose: () => void;
   onFlagUpdated?: (updatedFlag: {
     id: number;
-    review_status?: string;
-    reviewed_by?: string;
-    reviewed_at?: string;
-    reviewer_notes?: string;
+    reviewStatus?: string;
+    reviewedBy?: string;
+    reviewedAt?: string;
+    reviewerNotes?: string;
     priority?: number;
-    impact_type?: string;
+    impactType?: string;
   }) => void;
 }
 
@@ -21,78 +32,86 @@ export default function DetailModal({ regulation, onClose, onFlagUpdated }: Deta
   if (!regulation) return null;
 
   // Format NYCRR citation
-  const nycrrCitation = regulation.nycrr_title
-    ? `${regulation.nycrr_title} NYCRR ${regulation.nycrr_part || ''}${regulation.nycrr_section ? '.' + regulation.nycrr_section : ''}`
+  const nycrrCitation = regulation.nycrrTitle
+    ? `${regulation.nycrrTitle} NYCRR ${regulation.nycrrPart || ''}${regulation.nycrrSection ? '.' + regulation.nycrrSection : ''}`
     : null;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-      onClick={onClose}
-    >
-      <div
-        className="bg-white rounded-lg shadow-xl max-w-5xl w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <Modal open={!!regulation} onOpenChange={(open) => !open && onClose()}>
+      <ModalContent size="xl">
         {/* Header */}
-        <div className="px-6 py-4 border-b flex items-center justify-between bg-gray-50">
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900 pr-4">
-              {regulation.title}
-            </h2>
+        <ModalHeader>
+          <div className="flex-1 pr-4">
+            <ModalTitle>{regulation.title}</ModalTitle>
             {nycrrCitation && (
-              <span className="text-sm text-gray-500">{nycrrCitation}</span>
+              <span className="text-sm text-[var(--color-text-muted)]">{nycrrCitation}</span>
             )}
           </div>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
-          >
-            &times;
-          </button>
-        </div>
+          <div className="flex items-center gap-2">
+            <Link href={`/regulations/${regulation.id}`}>
+              <Button variant="ghost" size="sm">
+                <svg
+                  className="w-4 h-4 mr-1"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                  />
+                </svg>
+                Full Page
+              </Button>
+            </Link>
+            <ModalClose />
+          </div>
+        </ModalHeader>
 
         {/* Body */}
-        <div className="px-6 py-4 overflow-y-auto flex-1">
+        <ModalBody>
           {/* Hierarchy Info */}
-          {(regulation.hierarchy_level || regulation.hierarchy_path) && (
-            <div className="mb-6 bg-purple-50 border-l-4 border-purple-400 p-4 rounded">
-              <h3 className="font-semibold text-purple-800 mb-2">Hierarchy Information</h3>
+          {(regulation.hierarchyLevel || regulation.hierarchyPath) && (
+            <div className="mb-6 bg-[var(--color-primary-weaker)] border-l-4 border-[var(--color-primary-mid)] p-4 rounded-[var(--radius-md)]">
+              <h3 className="font-semibold text-[var(--color-primary)] mb-2">Hierarchy Information</h3>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
-                {regulation.hierarchy_level && (
+                {regulation.hierarchyLevel && (
                   <div>
-                    <span className="font-medium text-gray-600">Level:</span>
-                    <span className="ml-2 capitalize">{regulation.hierarchy_level}</span>
+                    <span className="font-medium text-[var(--color-text-secondary)]">Level:</span>
+                    <span className="ml-2 capitalize">{regulation.hierarchyLevel}</span>
                   </div>
                 )}
-                {regulation.nycrr_title && (
+                {regulation.nycrrTitle && (
                   <div>
-                    <span className="font-medium text-gray-600">Title:</span>
-                    <span className="ml-2">{regulation.nycrr_title}</span>
+                    <span className="font-medium text-[var(--color-text-secondary)]">Title:</span>
+                    <span className="ml-2">{regulation.nycrrTitle}</span>
                   </div>
                 )}
-                {regulation.nycrr_part && (
+                {regulation.nycrrPart && (
                   <div>
-                    <span className="font-medium text-gray-600">Part:</span>
-                    <span className="ml-2">{regulation.nycrr_part}</span>
+                    <span className="font-medium text-[var(--color-text-secondary)]">Part:</span>
+                    <span className="ml-2">{regulation.nycrrPart}</span>
                   </div>
                 )}
-                {regulation.nycrr_section && (
+                {regulation.nycrrSection && (
                   <div>
-                    <span className="font-medium text-gray-600">Section:</span>
-                    <span className="ml-2">{regulation.nycrr_section}</span>
+                    <span className="font-medium text-[var(--color-text-secondary)]">Section:</span>
+                    <span className="ml-2">{regulation.nycrrSection}</span>
                   </div>
                 )}
-                {regulation.parent_source_index && (
+                {regulation.parentId && (
                   <div>
-                    <span className="font-medium text-gray-600">Parent ID:</span>
-                    <span className="ml-2">{regulation.parent_source_index}</span>
+                    <span className="font-medium text-[var(--color-text-secondary)]">Parent ID:</span>
+                    <span className="ml-2">{regulation.parentId}</span>
                   </div>
                 )}
-                {regulation.hierarchy_path && (
+                {regulation.hierarchyPath && (
                   <div className="col-span-2 md:col-span-3">
-                    <span className="font-medium text-gray-600">Path:</span>
-                    <span className="ml-2 font-mono text-xs">{regulation.hierarchy_path}</span>
+                    <span className="font-medium text-[var(--color-text-secondary)]">Path:</span>
+                    <span className="ml-2 font-mono text-xs">{regulation.hierarchyPath}</span>
                   </div>
                 )}
               </div>
@@ -101,119 +120,138 @@ export default function DetailModal({ regulation, onClose, onFlagUpdated }: Deta
 
           {/* Metadata Grid */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <div className="border-b pb-2">
-              <span className="font-semibold text-gray-700 text-sm">Source:</span>
+            <div className="border-b border-[var(--color-neutral-200)] pb-2">
+              <span className="font-semibold text-[var(--color-text-secondary)] text-sm">Source:</span>
               <a
-                href={regulation.url}
+                href={regulation.url ?? ''}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="ml-2 text-blue-600 hover:underline text-sm"
+                className="ml-2 text-[var(--color-link)] hover:text-[var(--color-link-hover)] hover:underline text-sm"
               >
                 View Original
               </a>
             </div>
-            <div className="border-b pb-2">
-              <span className="font-semibold text-gray-700 text-sm">URL Type:</span>
-              <span className="ml-2 text-sm">{regulation.url_type || '–'}</span>
+            <div className="border-b border-[var(--color-neutral-200)] pb-2">
+              <span className="font-semibold text-[var(--color-text-secondary)] text-sm">URL Type:</span>
+              <span className="ml-2 text-sm">{regulation.urlType || '–'}</span>
             </div>
-            <div className="border-b pb-2">
-              <span className="font-semibold text-gray-700 text-sm">Source Index:</span>
-              <span className="ml-2 text-sm font-mono">{regulation.source_index || '–'}</span>
+            <div className="border-b border-[var(--color-neutral-200)] pb-2">
+              <span className="font-semibold text-[var(--color-text-secondary)] text-sm">Source Index:</span>
+              <span className="ml-2 text-sm font-mono">{regulation.sourceIndex || '–'}</span>
             </div>
-            <div className="border-b pb-2">
-              <span className="font-semibold text-gray-700 text-sm">Red Flags:</span>
-              <span className="ml-2 inline-block bg-red-100 text-red-800 px-2 py-0.5 rounded text-xs">
-                {regulation.num_flags || '0'} flags
-              </span>
+            <div className="border-b border-[var(--color-neutral-200)] pb-2">
+              <span className="font-semibold text-[var(--color-text-secondary)] text-sm">Red Flags:</span>
+              <Badge variant={(regulation.numFlags ?? 0) > 0 ? 'danger' : 'default'} className="ml-2">
+                {regulation.numFlags || 0} flags
+              </Badge>
             </div>
-            <div className="border-b pb-2">
-              <span className="font-semibold text-gray-700 text-sm">Severity:</span>
-              <span className={`ml-2 font-bold ${
-                regulation.max_severity >= 8
-                  ? 'text-red-600'
-                  : regulation.max_severity >= 6
-                  ? 'text-orange-500'
-                  : 'text-green-600'
-              }`}>
-                {regulation.max_severity || '–'}
-              </span>
+            <div className="border-b border-[var(--color-neutral-200)] pb-2">
+              <span className="font-semibold text-[var(--color-text-secondary)] text-sm">Severity:</span>
+              {regulation.maxSeverity ? (
+                <SeverityBadge severity={regulation.maxSeverity} className="ml-2" />
+              ) : (
+                <span className="ml-2 text-[var(--color-text-muted)]">–</span>
+              )}
             </div>
-            <div className="border-b pb-2">
-              <span className="font-semibold text-gray-700 text-sm">Complexity:</span>
-              <span className="ml-2 text-sm">{regulation.overall_complexity || '–'}</span>
+            <div className="border-b border-[var(--color-neutral-200)] pb-2">
+              <span className="font-semibold text-[var(--color-text-secondary)] text-sm">Complexity:</span>
+              {regulation.overallComplexity ? (
+                <Badge
+                  variant={
+                    regulation.overallComplexity === 'HIGH' ? 'danger' :
+                    regulation.overallComplexity === 'MEDIUM' || regulation.overallComplexity === 'MEDIUM-HIGH' ? 'warning' :
+                    'success'
+                  }
+                  className="ml-2"
+                >
+                  {regulation.overallComplexity}
+                </Badge>
+              ) : (
+                <span className="ml-2 text-[var(--color-text-muted)]">–</span>
+              )}
             </div>
-            <div className="border-b pb-2">
-              <span className="font-semibold text-gray-700 text-sm">Impl Issues:</span>
+            <div className="border-b border-[var(--color-neutral-200)] pb-2">
+              <span className="font-semibold text-[var(--color-text-secondary)] text-sm">Impl Issues:</span>
               <span className="ml-2 text-sm">
-                {regulation.has_implementation_issues ? '✓ Yes' : '– No'}
+                {regulation.hasImplementationIssues ? (
+                  <span className="text-[var(--color-danger)]">● Yes</span>
+                ) : (
+                  <span className="text-[var(--color-text-muted)]">– No</span>
+                )}
               </span>
             </div>
-            <div className="border-b pb-2">
-              <span className="font-semibold text-gray-700 text-sm">Tech Review:</span>
+            <div className="border-b border-[var(--color-neutral-200)] pb-2">
+              <span className="font-semibold text-[var(--color-text-secondary)] text-sm">Tech Review:</span>
               <span className="ml-2 text-sm">
-                {regulation.requires_technical_review ? '✓ Yes' : '– No'}
+                {regulation.requiresTechnicalReview ? (
+                  <span className="text-[var(--color-info)]">● Yes</span>
+                ) : (
+                  <span className="text-[var(--color-text-muted)]">– No</span>
+                )}
               </span>
             </div>
-            <div className="border-b pb-2 col-span-2">
-              <span className="font-semibold text-gray-700 text-sm">Reporting Req:</span>
+            <div className="border-b border-[var(--color-neutral-200)] pb-2 col-span-2">
+              <span className="font-semibold text-[var(--color-text-secondary)] text-sm">Reporting Req:</span>
               <span className="ml-2 text-sm">
-                {regulation.has_reporting_requirement ? '✓ Yes' : '– No'}
+                {regulation.hasReportingRequirement ? (
+                  <span className="text-[var(--color-warning)]">● Yes</span>
+                ) : (
+                  <span className="text-[var(--color-text-muted)]">– No</span>
+                )}
               </span>
             </div>
           </div>
 
           {/* Red Flags Details */}
-          {regulation.red_flags && regulation.red_flags.length > 0 && (
+          {regulation.redFlags && regulation.redFlags.length > 0 && (
             <div className="mb-6">
-              <h3 className="font-semibold text-gray-700 mb-2">Red Flags Details:</h3>
+              <h3 className="font-semibold text-[var(--color-text)] mb-3">Red Flags Details</h3>
               <div className="space-y-3">
-                {regulation.red_flags.map((flag, idx) => (
-                  <div key={idx} className="bg-red-50 border-l-4 border-red-400 p-4 rounded">
+                {regulation.redFlags.map((flag, idx) => (
+                  <div
+                    key={idx}
+                    className="bg-[var(--color-danger-bg)] border-l-4 border-[var(--color-danger)] p-4 rounded-[var(--radius-md)]"
+                  >
                     <div className="flex items-center justify-between mb-2">
-                      <span className="font-semibold text-red-800">{flag.category}</span>
+                      <span className="font-semibold text-[var(--color-danger)]">{flag.category}</span>
                       <div className="flex gap-2">
-                        <span className={`text-xs px-2 py-1 rounded ${
-                          flag.severity >= 8 ? 'bg-red-200 text-red-800' :
-                          flag.severity >= 6 ? 'bg-orange-200 text-orange-800' :
-                          'bg-yellow-200 text-yellow-800'
-                        }`}>
-                          Severity: {flag.severity}
-                        </span>
-                        <span className="text-xs px-2 py-1 rounded bg-gray-200 text-gray-700">
-                          {flag.complexity}
-                        </span>
+                        <SeverityBadge severity={flag.severity} />
+                        <Badge variant="default">{flag.complexity}</Badge>
                       </div>
                     </div>
-                    <p className="text-sm text-gray-700 mb-2">{flag.explanation}</p>
-                    {flag.implementation_approach && (
+                    <p className="text-sm text-[var(--color-text-secondary)] mb-2">{flag.explanation}</p>
+                    {flag.implementationApproach && (
                       <div className="mt-2 text-sm">
-                        <span className="font-medium text-gray-600">Implementation:</span>
-                        <span className="ml-2 text-gray-700">{flag.implementation_approach}</span>
+                        <span className="font-medium text-[var(--color-text-secondary)]">Implementation:</span>
+                        <span className="ml-2">{flag.implementationApproach}</span>
                       </div>
                     )}
-                    {flag.effort_estimate && (
+                    {flag.effortEstimate && (
                       <div className="mt-1 text-sm">
-                        <span className="font-medium text-gray-600">Effort:</span>
-                        <span className="ml-2 text-gray-700">{flag.effort_estimate}</span>
+                        <span className="font-medium text-[var(--color-text-secondary)]">Effort:</span>
+                        <span className="ml-2">{flag.effortEstimate}</span>
                       </div>
                     )}
-                    {flag.matched_phrases && flag.matched_phrases.length > 0 && (
+                    {flag.matchedPhrases && flag.matchedPhrases.length > 0 && (
                       <div className="mt-2">
-                        <span className="text-xs font-medium text-gray-600">Matched phrases:</span>
+                        <span className="text-xs font-medium text-[var(--color-text-secondary)]">Matched phrases:</span>
                         <div className="flex flex-wrap gap-1 mt-1">
-                          {flag.matched_phrases.map((phrase, i) => (
-                            <span key={i} className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">
+                          {flag.matchedPhrases.map((phrase, i) => (
+                            <span
+                              key={i}
+                              className="text-xs bg-[var(--color-danger-bg)] text-[var(--color-danger)] px-2 py-0.5 rounded-[var(--radius-sm)] border border-[var(--color-danger)]/20"
+                            >
                               {phrase}
                             </span>
                           ))}
                         </div>
                       </div>
                     )}
-                    {flag.text_examples && flag.text_examples.length > 0 && (
+                    {flag.textExamples && flag.textExamples.length > 0 && (
                       <div className="mt-2">
-                        <span className="text-xs font-medium text-gray-600">Examples from text:</span>
-                        <ul className="mt-1 text-xs text-gray-600 list-disc list-inside">
-                          {flag.text_examples.map((ex, i) => (
+                        <span className="text-xs font-medium text-[var(--color-text-secondary)]">Examples from text:</span>
+                        <ul className="mt-1 text-xs text-[var(--color-text-muted)] list-disc list-inside">
+                          {flag.textExamples.map((ex, i) => (
                             <li key={i} className="italic">&quot;{ex}&quot;</li>
                           ))}
                         </ul>
@@ -233,21 +271,21 @@ export default function DetailModal({ regulation, onClose, onFlagUpdated }: Deta
 
           {/* Summary */}
           <div className="mb-6">
-            <h3 className="font-semibold text-gray-700 mb-2">Summary:</h3>
-            <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded text-gray-700 text-sm">
+            <h3 className="font-semibold text-[var(--color-text)] mb-3">Summary</h3>
+            <div className="bg-[var(--color-info-bg)] border-l-4 border-[var(--color-info)] p-4 rounded-[var(--radius-md)] text-sm">
               {regulation.summary || 'No summary available'}
             </div>
           </div>
 
           {/* Regulation Text */}
           <div>
-            <h3 className="font-semibold text-gray-700 mb-2">Regulation Text:</h3>
-            <div className="bg-gray-100 border-l-4 border-gray-400 p-4 rounded text-sm font-mono whitespace-pre-wrap text-gray-800 max-h-64 overflow-y-auto">
+            <h3 className="font-semibold text-[var(--color-text)] mb-3">Regulation Text</h3>
+            <div className="bg-[var(--color-neutral-50)] border-l-4 border-[var(--color-neutral-400)] p-4 rounded-[var(--radius-md)] text-sm font-mono whitespace-pre-wrap max-h-64 overflow-y-auto">
               {regulation.content || 'No content available'}
             </div>
           </div>
-        </div>
-      </div>
-    </div>
+        </ModalBody>
+      </ModalContent>
+    </Modal>
   );
 }

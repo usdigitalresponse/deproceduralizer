@@ -1,58 +1,128 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import DataTable from '@/components/DataTable';
 import DetailModal from '@/components/DetailModal';
-import { ParsedRegulation } from '@/types/regulation';
+import SearchInput from '@/components/SearchInput';
+import type { RegulationWithAnalysis, FilterOptions, PaginationOptions } from '@deproceduralizer/database';
 
-interface RegulationsClientProps {
-  initialData: ParsedRegulation[];
+interface PaginationInfo {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
 }
 
-export default function RegulationsClient({ initialData }: RegulationsClientProps) {
-  const [selectedRegulation, setSelectedRegulation] = useState<ParsedRegulation | null>(null);
+interface RegulationsClientProps {
+  initialData: RegulationWithAnalysis[];
+  pagination: PaginationInfo;
+  search: string;
+  filters: FilterOptions;
+  sortBy: PaginationOptions['sortBy'];
+  sortOrder: PaginationOptions['sortOrder'];
+}
+
+export default function RegulationsClient({ initialData, pagination, search, filters, sortBy, sortOrder }: RegulationsClientProps) {
+  const [selectedRegulation, setSelectedRegulation] = useState<RegulationWithAnalysis | null>(null);
   const [data, setData] = useState(initialData);
 
-  const handleFlagUpdated = (updatedFlag: {
+  // Sync data when server provides new initialData (e.g., after search/pagination)
+  useEffect(() => {
+    setData(initialData);
+  }, [initialData]);
+
+  // Memoized to prevent unnecessary re-renders of DataTable and DetailModal
+  const handleFlagUpdated = useCallback((updatedFlag: {
     id: number;
-    review_status?: string;
-    reviewed_by?: string;
-    reviewed_at?: string;
-    reviewer_notes?: string;
+    reviewStatus?: string;
+    reviewedBy?: string;
+    reviewedAt?: string;
+    reviewerNotes?: string;
     priority?: number;
-    impact_type?: string;
+    impactType?: string;
   }) => {
+    // Convert reviewedAt string back to Date for type compatibility
+    const flagUpdate = {
+      ...updatedFlag,
+      reviewedAt: updatedFlag.reviewedAt ? new Date(updatedFlag.reviewedAt) : null,
+    };
+
     setData(prevData =>
       prevData.map(reg => ({
         ...reg,
-        red_flags: reg.red_flags.map(flag =>
+        redFlags: reg.redFlags.map(flag =>
           flag.id === updatedFlag.id
-            ? { ...flag, ...updatedFlag }
+            ? { ...flag, ...flagUpdate }
             : flag
         )
       }))
     );
 
-    if (selectedRegulation) {
-      setSelectedRegulation(prev => prev ? {
-        ...prev,
-        red_flags: prev.red_flags.map(flag =>
-          flag.id === updatedFlag.id
-            ? { ...flag, ...updatedFlag }
-            : flag
-        )
-      } : null);
-    }
-  };
+    setSelectedRegulation(prev => prev ? {
+      ...prev,
+      redFlags: prev.redFlags.map(flag =>
+        flag.id === updatedFlag.id
+          ? { ...flag, ...flagUpdate }
+          : flag
+      )
+    } : null);
+  }, []);
+
+  // Memoized to prevent unnecessary re-renders of DetailModal
+  const handleClose = useCallback(() => {
+    setSelectedRegulation(null);
+  }, []);
 
   return (
-    <>
-      <DataTable data={data} onRowClick={setSelectedRegulation} />
+    <div className="space-y-4">
+      {/* Search Bar */}
+      <div className="flex justify-between items-center">
+        <SearchInput initialValue={search} />
+      </div>
+
+      {/* Live region for screen reader announcements */}
+      <div
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        className="sr-only"
+      >
+        {search
+          ? `Showing ${data.length} results for "${search}"`
+          : `Showing ${pagination.total} regulations`}
+      </div>
+
+      {/* Empty state when no results */}
+      {data.length === 0 ? (
+        <div className="text-center py-12 text-[var(--color-text-muted)]">
+          {search ? (
+            <>
+              <p className="text-lg font-medium">No results found</p>
+              <p className="text-sm mt-1">No regulations match &quot;{search}&quot;</p>
+            </>
+          ) : (
+            <p>No regulations available</p>
+          )}
+        </div>
+      ) : (
+        /* Data Table */
+        <DataTable
+          data={data}
+          onRowClick={setSelectedRegulation}
+          pagination={pagination}
+          search={search}
+          sortBy={sortBy}
+          sortOrder={sortOrder}
+          filters={filters}
+        />
+      )}
+
+      {/* Detail Modal */}
       <DetailModal
         regulation={selectedRegulation}
-        onClose={() => setSelectedRegulation(null)}
+        onClose={handleClose}
         onFlagUpdated={handleFlagUpdated}
       />
-    </>
+    </div>
   );
 }

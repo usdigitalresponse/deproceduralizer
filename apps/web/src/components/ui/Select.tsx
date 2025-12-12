@@ -1,0 +1,179 @@
+'use client';
+
+import * as RadixSelect from '@radix-ui/react-select';
+import { forwardRef, ReactNode } from 'react';
+
+interface SelectOption {
+  value: string;
+  label: string;
+}
+
+interface SelectProps {
+  value?: string;
+  onValueChange?: (value: string) => void;
+  placeholder?: string;
+  options: SelectOption[];
+  label?: string;
+  error?: string;
+  disabled?: boolean;
+  className?: string;
+  id?: string;
+  name?: string;
+}
+
+export const Select = forwardRef<HTMLButtonElement, SelectProps>(
+  ({
+    value,
+    onValueChange,
+    placeholder = 'Select...',
+    options,
+    label,
+    error,
+    disabled,
+    className = '',
+    id,
+    name,
+  }, ref) => {
+    const selectId = id || name;
+    const hasError = !!error;
+
+    return (
+      <div className="w-full">
+        {label && (
+          <label
+            htmlFor={selectId}
+            className="block text-sm font-medium text-[var(--color-text)] mb-1.5"
+          >
+            {label}
+          </label>
+        )}
+        <RadixSelect.Root
+          value={value}
+          onValueChange={onValueChange}
+          disabled={disabled}
+          name={name}
+        >
+          <RadixSelect.Trigger
+            ref={ref}
+            id={selectId}
+            className={`
+              inline-flex items-center justify-between
+              w-full
+              px-3 py-2
+              text-sm text-[var(--color-text)]
+              bg-[var(--color-surface)]
+              border rounded-[var(--radius-md)]
+              transition-colors duration-[var(--transition-fast)]
+              ${hasError
+                ? 'border-[var(--color-danger)] focus:border-[var(--color-danger)]'
+                : 'border-[var(--color-neutral-300)] focus:border-[var(--color-primary)]'
+              }
+              ${disabled ? 'opacity-50 cursor-not-allowed bg-[var(--color-neutral-50)]' : 'cursor-pointer'}
+              focus:outline-none focus:ring-2 focus:ring-[var(--color-focus-ring)]
+              data-[placeholder]:text-[var(--color-text-muted)]
+              ${className}
+            `.trim().replace(/\s+/g, ' ')}
+          >
+            <RadixSelect.Value placeholder={placeholder} />
+            <RadixSelect.Icon className="ml-2">
+              <ChevronDownIcon />
+            </RadixSelect.Icon>
+          </RadixSelect.Trigger>
+
+          <RadixSelect.Portal>
+            <RadixSelect.Content
+              className="
+                overflow-hidden
+                bg-[var(--color-surface)]
+                rounded-[var(--radius-md)]
+                border border-[var(--color-neutral-200)]
+                shadow-[var(--shadow-lg)]
+                z-50
+              "
+              position="popper"
+              sideOffset={4}
+            >
+              <RadixSelect.Viewport className="p-1">
+                {options.map((option) => (
+                  <RadixSelect.Item
+                    key={option.value}
+                    value={option.value}
+                    className="
+                      relative
+                      flex items-center
+                      px-3 py-2
+                      text-sm text-[var(--color-text)]
+                      rounded-[var(--radius-sm)]
+                      cursor-pointer
+                      outline-none
+                      data-[highlighted]:bg-[var(--color-primary-faint)]
+                      data-[highlighted]:text-[var(--color-primary)]
+                      data-[state=checked]:font-medium
+                      data-[disabled]:text-[var(--color-text-muted)]
+                      data-[disabled]:pointer-events-none
+                    "
+                  >
+                    <RadixSelect.ItemText>{option.label}</RadixSelect.ItemText>
+                    <RadixSelect.ItemIndicator className="absolute right-2">
+                      <CheckIcon />
+                    </RadixSelect.ItemIndicator>
+                  </RadixSelect.Item>
+                ))}
+              </RadixSelect.Viewport>
+            </RadixSelect.Content>
+          </RadixSelect.Portal>
+        </RadixSelect.Root>
+        {error && (
+          <p className="mt-1.5 text-xs text-[var(--color-danger)]">
+            {error}
+          </p>
+        )}
+      </div>
+    );
+  }
+);
+
+Select.displayName = 'Select';
+
+// Icons
+function ChevronDownIcon() {
+  return (
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 12 12"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M2.5 4.5L6 8L9.5 4.5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 12 12"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M2.5 6L5 8.5L9.5 3.5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+export default Select;

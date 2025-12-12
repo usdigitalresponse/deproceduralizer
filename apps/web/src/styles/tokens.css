@@ -1,0 +1,176 @@
+/**
+ * Design Tokens
+ * Based on NYS Design System with influences from RAF and USDR
+ * "Modern Civic" design language - calm, confident, highly readable
+ */
+
+:root {
+  /* ========================================
+     COLOR TOKENS
+     ======================================== */
+
+  /* Primary - NYS Blue */
+  --color-primary: #154973;
+  --color-primary-strong: #0e324f;
+  --color-primary-stronger: #081b2b;
+  --color-primary-mid: #457aa5;
+  --color-primary-weak: #cddde9;
+  --color-primary-weaker: #eff6fb;
+  --color-primary-faint: #f7fafd;
+
+  /* Accent - NYS Yellow (use sparingly) */
+  --color-accent: #face00;
+  --color-accent-muted: #fef3c7;
+
+  /* Neutrals */
+  --color-neutral-900: #1b1b1b;
+  --color-neutral-800: #2d2d2d;
+  --color-neutral-700: #404040;
+  --color-neutral-600: #525252;
+  --color-neutral-500: #6b6b6b;
+  --color-neutral-400: #8c8c8c;
+  --color-neutral-300: #b3b3b3;
+  --color-neutral-200: #d4d4d4;
+  --color-neutral-100: #ededed;
+  --color-neutral-50: #f6f6f6;
+  --color-white: #ffffff;
+
+  /* Semantic - Status Colors */
+  --color-success: #1e752e;
+  --color-success-bg: #dcfce7;
+  --color-warning: #b45309;
+  --color-warning-bg: #fef3c7;
+  --color-danger: #b52c2c;
+  --color-danger-bg: #fee2e2;
+  --color-info: #004dd1;
+  --color-info-bg: #dbeafe;
+
+  /* Text Colors */
+  --color-text: #1b1b1b;
+  --color-text-secondary: #525252;
+  --color-text-muted: #6b6b6b;
+  --color-text-inverse: #ffffff;
+  --color-link: #004dd1;
+  --color-link-hover: #003ba1;
+
+  /* Surface Colors */
+  --color-surface: #ffffff;
+  --color-surface-raised: #f6f6f6;
+  --color-background: #f7fafd;
+
+  /* Interactive States */
+  --color-focus: #004dd1;
+  --color-focus-ring: rgba(0, 77, 209, 0.4);
+
+  /* ========================================
+     TYPOGRAPHY TOKENS
+     ======================================== */
+
+  /* Font Families */
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", "Consolas", "Monaco", monospace;
+
+  /* Font Sizes */
+  --text-xs: 0.75rem;     /* 12px */
+  --text-sm: 0.875rem;    /* 14px */
+  --text-base: 1rem;      /* 16px */
+  --text-lg: 1.125rem;    /* 18px */
+  --text-xl: 1.25rem;     /* 20px */
+  --text-2xl: 1.5rem;     /* 24px */
+  --text-3xl: 1.875rem;   /* 30px */
+  --text-4xl: 2.25rem;    /* 36px */
+
+  /* Line Heights */
+  --leading-none: 1;
+  --leading-tight: 1.25;
+  --leading-snug: 1.375;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.625;
+  --leading-loose: 2;
+
+  /* Font Weights */
+  --font-normal: 400;
+  --font-medium: 500;
+  --font-semibold: 600;
+  --font-bold: 700;
+
+  /* Letter Spacing */
+  --tracking-tight: -0.025em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.025em;
+
+  /* ========================================
+     SPACING TOKENS
+     ======================================== */
+
+  --space-0: 0;
+  --space-1: 0.25rem;    /* 4px */
+  --space-2: 0.5rem;     /* 8px */
+  --space-3: 0.75rem;    /* 12px */
+  --space-4: 1rem;       /* 16px */
+  --space-5: 1.25rem;    /* 20px */
+  --space-6: 1.5rem;     /* 24px */
+  --space-8: 2rem;       /* 32px */
+  --space-10: 2.5rem;    /* 40px */
+  --space-12: 3rem;      /* 48px */
+  --space-16: 4rem;      /* 64px */
+  --space-20: 5rem;      /* 80px */
+  --space-24: 6rem;      /* 96px */
+
+  /* ========================================
+     BORDER TOKENS
+     ======================================== */
+
+  /* Border Radius */
+  --radius-none: 0;
+  --radius-sm: 0.25rem;   /* 4px */
+  --radius-md: 0.375rem;  /* 6px */
+  --radius-lg: 0.5rem;    /* 8px */
+  --radius-xl: 0.75rem;   /* 12px */
+  --radius-2xl: 1rem;     /* 16px */
+  --radius-full: 9999px;
+
+  /* Border Widths */
+  --border-width-1: 1px;
+  --border-width-2: 2px;
+  --border-width-4: 4px;
+
+  /* ========================================
+     SHADOW TOKENS
+     ======================================== */
+
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+
+  /* ========================================
+     TRANSITION TOKENS
+     ======================================== */
+
+  --transition-fast: 150ms ease;
+  --transition-base: 200ms ease;
+  --transition-slow: 300ms ease;
+
+  /* ========================================
+     Z-INDEX TOKENS
+     ======================================== */
+
+  --z-base: 0;
+  --z-dropdown: 10;
+  --z-sticky: 20;
+  --z-fixed: 30;
+  --z-modal-backdrop: 40;
+  --z-modal: 50;
+  --z-tooltip: 60;
+
+  /* ========================================
+     LAYOUT TOKENS
+     ======================================== */
+
+  --container-sm: 640px;
+  --container-md: 768px;
+  --container-lg: 1024px;
+  --container-xl: 1280px;
+  --container-2xl: 1536px;
+}
