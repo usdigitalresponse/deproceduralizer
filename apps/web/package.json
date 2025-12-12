@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@deproceduralizer/database": "workspace:*",
     "@tanstack/react-table": "^8.21.3",
     "next": "16.0.8",
     "papaparse": "^5.5.3",

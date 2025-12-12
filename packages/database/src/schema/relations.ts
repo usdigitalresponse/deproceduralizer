@@ -1,0 +1,38 @@
+import { relations } from 'drizzle-orm';
+import { regulatoryDocuments } from './regulatory-documents';
+import { analyses } from './analyses';
+import { redFlags } from './red-flags';
+import { statuteReferences } from './statute-references';
+
+export const regulatoryDocumentsRelations = relations(regulatoryDocuments, ({ one, many }) => ({
+  parent: one(regulatoryDocuments, {
+    fields: [regulatoryDocuments.parentId],
+    references: [regulatoryDocuments.id],
+    relationName: 'parentChild',
+  }),
+  children: many(regulatoryDocuments, { relationName: 'parentChild' }),
+  analyses: many(analyses),
+  statuteReferences: many(statuteReferences),
+}));
+
+export const analysesRelations = relations(analyses, ({ one, many }) => ({
+  document: one(regulatoryDocuments, {
+    fields: [analyses.documentId],
+    references: [regulatoryDocuments.id],
+  }),
+  redFlags: many(redFlags),
+}));
+
+export const redFlagsRelations = relations(redFlags, ({ one }) => ({
+  analysis: one(analyses, {
+    fields: [redFlags.analysisId],
+    references: [analyses.id],
+  }),
+}));
+
+export const statuteReferencesRelations = relations(statuteReferences, ({ one }) => ({
+  document: one(regulatoryDocuments, {
+    fields: [statuteReferences.documentId],
+    references: [regulatoryDocuments.id],
+  }),
+}));

@@ -1,13 +1,23 @@
 'use client';
 
 import { ParsedRegulation } from '@/types/regulation';
+import RedFlagReviewForm from './RedFlagReviewForm';
 
 interface DetailModalProps {
   regulation: ParsedRegulation | null;
   onClose: () => void;
+  onFlagUpdated?: (updatedFlag: {
+    id: number;
+    review_status?: string;
+    reviewed_by?: string;
+    reviewed_at?: string;
+    reviewer_notes?: string;
+    priority?: number;
+    impact_type?: string;
+  }) => void;
 }
 
-export default function DetailModal({ regulation, onClose }: DetailModalProps) {
+export default function DetailModal({ regulation, onClose, onFlagUpdated }: DetailModalProps) {
   if (!regulation) return null;
 
   // Format NYCRR citation
@@ -208,6 +218,12 @@ export default function DetailModal({ regulation, onClose }: DetailModalProps) {
                           ))}
                         </ul>
                       </div>
+                    )}
+                    {flag.id && onFlagUpdated && (
+                      <RedFlagReviewForm
+                        flag={flag}
+                        onUpdated={onFlagUpdated}
+                      />
                     )}
                   </div>
                 ))}
