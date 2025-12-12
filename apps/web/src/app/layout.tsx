@@ -17,8 +17,29 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Deproceduralizer",
-  description: "Regulatory analysis tool for identifying compliance issues, procedural complexity, and technical review requirements in government regulations",
+  title: {
+    default: "Deproceduralizer",
+    template: "%s | Deproceduralizer",
+  },
+  description: "Regulatory analysis tool for identifying compliance issues, procedural complexity, and technical review requirements in government regulations.",
+  keywords: ["regulatory analysis", "compliance", "government regulations", "red flags", "procedural complexity"],
+  authors: [{ name: "Recoding America Fund" }],
+  openGraph: {
+    title: "Deproceduralizer",
+    description: "Regulatory analysis tool for identifying compliance issues and procedural complexity in government regulations.",
+    type: "website",
+    locale: "en_US",
+    siteName: "Deproceduralizer",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Deproceduralizer",
+    description: "Regulatory analysis tool for identifying compliance issues and procedural complexity in government regulations.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export default function RootLayout({
