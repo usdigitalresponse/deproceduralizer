@@ -64,6 +64,16 @@ export function ReviewFilters({
     [router, searchParams]
   );
 
+  const clearFilters = useCallback(() => {
+    router.push('/review?status=all');
+  }, [router]);
+
+  // Check if any filters are active (not default)
+  const hasActiveFilters =
+    (currentFilters.status && currentFilters.status !== 'all' && currentFilters.status !== 'unreviewed') ||
+    currentFilters.severity ||
+    currentFilters.category;
+
   const selectClass = `
     px-3 py-2 text-sm
     bg-[var(--color-surface)]
@@ -134,6 +144,23 @@ export function ReviewFilters({
           ))}
         </select>
       </div>
+
+      {/* Clear filters button */}
+      {hasActiveFilters && (
+        <button
+          onClick={clearFilters}
+          className="
+            px-3 py-2 text-sm
+            text-[var(--color-text-secondary)]
+            hover:text-[var(--color-text)]
+            transition-colors duration-[var(--transition-fast)]
+            focus:outline-none focus:ring-2 focus:ring-[var(--color-focus)] focus:ring-offset-2
+            rounded-[var(--radius-md)]
+          "
+        >
+          Clear filters
+        </button>
+      )}
 
       {/* Spacer */}
       <div className="flex-1" />
