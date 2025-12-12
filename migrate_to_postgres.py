@@ -10,6 +10,7 @@ from typing import Dict, List, Any
 import os
 from dotenv import load_dotenv
 import re
+import time
 
 load_dotenv()
 
@@ -19,7 +20,11 @@ def get_db_connection():
     if not database_url:
         raise ValueError("DATABASE_URL not set in environment variables")
 
-    return psycopg.connect(database_url)
+    conn = psycopg.connect(database_url, connect_timeout=30)
+    # Set statement timeout after connection (can't use in startup options with Neon pooler)
+    with conn.cursor() as cur:
+        cur.execute("SET statement_timeout = '300000ms'")  # 5 minute timeout
+    return conn
 
 def parse_nycrr_info(url: str) -> tuple[int | None, str | None, str | None]:
     """
@@ -157,34 +162,39 @@ def migrate_json_analysis(json_file: str, state: str = "NY"):
                     # Insert red flags for this analysis
                     if analysis_id:
                         red_flags = section.get("red_flags", [])
-                        for flag in red_flags:
+                        if red_flags:
                             try:
-                                cur.execute("""
+                                flag_data = [
+                                    (
+                                        analysis_id,
+                                        flag.get("category"),
+                                        flag.get("explanation"),
+                                        flag.get("severity"),
+                                        flag.get("complexity"),
+                                        flag.get("matched_phrases", []),
+                                        flag.get("implementation_approach"),
+                                        flag.get("effort_estimate"),
+                                        flag.get("text_examples", [])
+                                    )
+                                    for flag in red_flags
+                                ]
+                                cur.executemany("""
                                     INSERT INTO red_flags
                                     (analysis_id, category, explanation, severity, complexity,
                                      matched_phrases, implementation_approach, effort_estimate,
                                      text_examples)
                                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                                """, (
-                                    analysis_id,
-                                    flag.get("category"),
-                                    flag.get("explanation"),
-                                    flag.get("severity"),
-                                    flag.get("complexity"),
-                                    flag.get("matched_phrases", []),
-                                    flag.get("implementation_approach"),
-                                    flag.get("effort_estimate"),
-                                    flag.get("text_examples", [])
-                                ))
-                                total_flags += 1
+                                """, flag_data)
+                                total_flags += len(flag_data)
 
                             except Exception as e:
-                                print(f"  ✗ Error inserting red flag: {e}")
+                                print(f"  ✗ Error inserting red flags: {e}")
                                 raise
 
                     if (section_idx + 1) % 5 == 0:
                         print(f"  ✓ Processed {section_idx + 1} sections...")
                         conn.commit()
+                        time.sleep(0.5)
 
                 except Exception as e:
                     print(f"  ✗ Error processing section {section_idx}: {e}")
@@ -198,14 +208,100 @@ def migrate_json_analysis(json_file: str, state: str = "NY"):
     print(f"  - {total_analyses} analyses")
     print(f"  - {total_flags} red flags")
 
+def migrate_all_individual_regulations(state: str = "NY"):
+    """
+    Migrate all individual regulation files from individual_regulations directory
+
+    Args:
+        state: State code (e.g., 'NY')
+    """
+    reg_dir = Path("individual_regulations")
+    if not reg_dir.exists():
+        print("✗ individual_regulations directory not found!")
+        return 0
+
+    json_files = list(reg_dir.glob("*.json"))
+    if not json_files:
+        print("✗ No JSON files found in individual_regulations/")
+        return 0
+
+    print(f"Found {len(json_files)} individual regulation files")
+
+    total_documents = 0
+
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            for file_idx, json_file in enumerate(sorted(json_files)):
+                try:
+                    with open(json_file) as f:
+                        reg = json.load(f)
+
+                    title = reg.get("title", "")
+                    url = reg.get("url", "")
+                    content = reg.get("content", "")
+                    url_type = reg.get("url_type", "regulation")
+                    source_index = reg.get("source_index")
+                    hierarchy_level = reg.get("hierarchy_level")
+                    hierarchy_path = reg.get("hierarchy_path")
+                    nycrr_title, nycrr_part, nycrr_section = parse_nycrr_info(url)
+
+                    cur.execute("""
+                        INSERT INTO regulatory_documents
+                        (source_index, type, state, title, url, url_type, content,
+                         hierarchy_level, hierarchy_path, nycrr_title, nycrr_part, nycrr_section)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        ON CONFLICT (state, source_index, type) DO UPDATE SET
+                            title = EXCLUDED.title,
+                            url = EXCLUDED.url,
+                            content = EXCLUDED.content,
+                            hierarchy_level = EXCLUDED.hierarchy_level
+                    """, (
+                        source_index,
+                        "regulation",
+                        state,
+                        title,
+                        url,
+                        url_type,
+                        content,
+                        hierarchy_level,
+                        hierarchy_path,
+                        nycrr_title,
+                        nycrr_part,
+                        nycrr_section
+                    ))
+
+                    total_documents += 1
+                    if (file_idx + 1) % 10 == 0:
+                        print(f"  ✓ Processed {file_idx + 1} regulations (total: {total_documents})...")
+                        conn.commit()
+                        time.sleep(0.5)  # Small delay between commits
+
+                except Exception as e:
+                    print(f"  ✗ Error processing {json_file.name}: {e}")
+                    raise
+
+        conn.commit()
+
+    print(f"✓ Successfully migrated {total_documents} individual regulatory documents")
+    return total_documents
+
 def main():
     print("Starting migration to PostgreSQL...\n")
+
+    # First, migrate all individual regulations
+    print("Phase 1: Migrating all individual regulations")
+    print("=" * 50)
+    migrate_all_individual_regulations(state="NY")
+
+    print("\nPhase 2: Migrating analyzed regulations with red flags")
+    print("=" * 50)
 
     # Find all analysis JSON files
     json_files = list(Path(".").glob("red_flag_analysis_*.json"))
 
     if not json_files:
         print("✗ No red_flag_analysis_*.json files found!")
+        print("✓ All individual regulations are in the database (without analyses)")
         return
 
     # Migrate each JSON file
