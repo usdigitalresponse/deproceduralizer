@@ -119,9 +119,9 @@ CREATE TABLE definitions (
   -- Scope/applicability (e.g., "in this section", "in this part", "throughout this title")
   scope TEXT,
 
-  -- Confidence metric (0.0-1.0) indicating how close the definition appears in the regulation
-  -- 1.0 = definition found verbatim in document, 0.0 = not found at all
-  definition_confidence FLOAT DEFAULT 0.0,
+  -- Overlap metric (0.0-1.0) based on edit distance - indicates how much the definition overlaps with the regulation text
+  -- 1.0 = definition found verbatim in document, 0.0 = no overlap
+  definition_overlap FLOAT DEFAULT 0.0,
 
   -- Source location (e.g., "section 1.1", "definitions section")
   source_location TEXT,
@@ -137,5 +137,5 @@ CREATE TABLE definitions (
 -- Indexes
 CREATE INDEX idx_definitions_document ON definitions(document_id);
 CREATE INDEX idx_definitions_term ON definitions(term);
-CREATE INDEX idx_definitions_confidence ON definitions(definition_confidence);
+CREATE INDEX idx_definitions_overlap ON definitions(definition_overlap);
 CREATE INDEX idx_definitions_document_term ON definitions(document_id, term);
