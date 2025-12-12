@@ -14,7 +14,7 @@ import argparse
 from pathlib import Path
 from typing import List, Optional, Dict, Set, Tuple
 from enum import Enum
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import openai
 from openai import AsyncOpenAI
 from dotenv import load_dotenv
@@ -34,7 +34,8 @@ class ComplexityLevel(str, Enum):
 
 
 class RedFlagCategory(str, Enum):
-    """12 implementation complexity categories based on Jennifer Pahlka's framework"""
+    """12 implementation complexity categories based on Jennifer Pahlka's framework.
+    MUST use one of these exact values:"""
 
     COMPLEXITY_POLICY_DEBT = "complexity_policy_debt"
     OPTIONS_BECOME_REQUIREMENTS = "options_become_requirements"
@@ -51,7 +52,9 @@ class RedFlagCategory(str, Enum):
 
 class RedFlagDetail(BaseModel):
     """Details for a specific red flag category"""
-    category: RedFlagCategory  # Category name - must be one of the valid categories
+    category: RedFlagCategory = Field(
+        description="One of: complexity_policy_debt, options_become_requirements, policy_implementation_separation, overwrought_legalese, cascade_of_rigidity, mandated_steps_not_outcomes, administrative_burdens, no_feedback_loops, process_worship_oversight, zero_risk_language, frozen_technology, implementation_opportunity"
+    )
     explanation: str
     severity: int  # 1-10 scale for this specific category
     complexity: str  # HIGH, MEDIUM, or LOW
@@ -555,7 +558,7 @@ def save_analysis_to_database(conn: Connection,
             if analysis.red_flags:
                 flag_data = [
                     (
-                        analysis_id, flag.category, flag.explanation,
+                        analysis_id, flag.category.value, flag.explanation,
                         flag.severity, flag.complexity,
                         flag.matched_phrases, flag.implementation_approach,
                         flag.effort_estimate, flag.text_examples
@@ -644,7 +647,7 @@ async def analyze_regulations_batch(regulations: List[RegulationData],
         for regulation, analysis in zip(batch, analyses):
             # Keep red_flags as actual array (not JSON string) for JSON output
             red_flags_list = [{
-                'category': flag.category,
+                'category': flag.category.value,
                 'explanation': flag.explanation,
                 'severity': flag.severity,
                 'complexity': flag.complexity,
