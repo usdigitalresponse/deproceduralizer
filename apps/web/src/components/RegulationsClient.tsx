@@ -92,30 +92,16 @@ export default function RegulationsClient({ initialData, pagination, search, fil
           : `Showing ${pagination.total} regulations`}
       </div>
 
-      {/* Empty state when no results */}
-      {data.length === 0 ? (
-        <div className="text-center py-12 text-[var(--color-text-muted)]">
-          {search ? (
-            <>
-              <p className="text-lg font-medium">No results found</p>
-              <p className="text-sm mt-1">No regulations match &quot;{search}&quot;</p>
-            </>
-          ) : (
-            <p>No regulations available</p>
-          )}
-        </div>
-      ) : (
-        /* Data Table */
-        <DataTable
-          data={data}
-          onRowClick={setSelectedRegulation}
-          pagination={pagination}
-          search={search}
-          sortBy={sortBy}
-          sortOrder={sortOrder}
-          filters={filters}
-        />
-      )}
+      {/* Data Table - always render to keep headers/filters visible */}
+      <DataTable
+        data={data}
+        onRowClick={setSelectedRegulation}
+        pagination={pagination}
+        search={search}
+        sortBy={sortBy}
+        sortOrder={sortOrder}
+        filters={filters}
+      />
 
       {/* Detail Modal */}
       <DetailModal

@@ -37,26 +37,46 @@ export default async function Home({ searchParams }: PageProps) {
 
   // Parse filters from URL params
   const filters: FilterOptions = {};
-  if (params.severity) {
-    const sev = parseInt(params.severity, 10);
-    if (!isNaN(sev) && sev >= 1 && sev <= 5) {
-      filters.severity = sev;
+
+  // Severity filter: 'high', 'medium', 'low', or 'null'
+  if (params.severity && ['high', 'medium', 'low', 'null'].includes(params.severity)) {
+    filters.severity = params.severity as FilterOptions['severity'];
+  }
+
+  // Complexity filter
+  if (params.complexity) {
+    if (params.complexity === 'null') {
+      filters.complexity = 'null';
+    } else if (['LOW', 'MEDIUM', 'MEDIUM-HIGH', 'HIGH'].includes(params.complexity)) {
+      filters.complexity = params.complexity as FilterOptions['complexity'];
     }
   }
-  if (params.complexity && ['LOW', 'MEDIUM', 'MEDIUM-HIGH', 'HIGH'].includes(params.complexity)) {
-    filters.complexity = params.complexity as FilterOptions['complexity'];
-  }
+
+  // Flags filter (boolean only)
   const hasFlags = parseBooleanParam(params.hasFlags);
   if (hasFlags !== undefined) filters.hasFlags = hasFlags;
 
-  const hasImplIssues = parseBooleanParam(params.hasImplIssues);
-  if (hasImplIssues !== undefined) filters.hasImplementationIssues = hasImplIssues;
+  // Boolean filters with null support
+  if (params.hasImplIssues === 'null') {
+    filters.hasImplementationIssues = 'null';
+  } else {
+    const hasImplIssues = parseBooleanParam(params.hasImplIssues);
+    if (hasImplIssues !== undefined) filters.hasImplementationIssues = hasImplIssues;
+  }
 
-  const techReview = parseBooleanParam(params.techReview);
-  if (techReview !== undefined) filters.requiresTechnicalReview = techReview;
+  if (params.techReview === 'null') {
+    filters.requiresTechnicalReview = 'null';
+  } else {
+    const techReview = parseBooleanParam(params.techReview);
+    if (techReview !== undefined) filters.requiresTechnicalReview = techReview;
+  }
 
-  const reporting = parseBooleanParam(params.reporting);
-  if (reporting !== undefined) filters.hasReportingRequirement = reporting;
+  if (params.reporting === 'null') {
+    filters.hasReportingRequirement = 'null';
+  } else {
+    const reporting = parseBooleanParam(params.reporting);
+    if (reporting !== undefined) filters.hasReportingRequirement = reporting;
+  }
 
   const repo = new RegulatoryDocumentsRepository(db);
   const result = await repo.getAllWithAnalysisPaginated({

@@ -39,12 +39,12 @@ export interface RegulationWithAnalysis extends RegulatoryDocument {
 }
 
 export interface FilterOptions {
-  severity?: number; // 1-5
-  complexity?: 'LOW' | 'MEDIUM' | 'MEDIUM-HIGH' | 'HIGH';
+  severity?: 'high' | 'medium' | 'low' | 'null'; // high=≥7, medium=4-6, low=1-3, null=not analyzed
+  complexity?: 'LOW' | 'MEDIUM' | 'MEDIUM-HIGH' | 'HIGH' | 'null';
   hasFlags?: boolean;
-  hasImplementationIssues?: boolean;
-  requiresTechnicalReview?: boolean;
-  hasReportingRequirement?: boolean;
+  hasImplementationIssues?: boolean | 'null'; // null = not analyzed
+  requiresTechnicalReview?: boolean | 'null';
+  hasReportingRequirement?: boolean | 'null';
 }
 
 export interface PaginationOptions {
@@ -160,12 +160,27 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
 
     // Add filter conditions
     if (filters) {
+      // Severity filter with range comparisons
       if (filters.severity !== undefined) {
-        conditions.push(eq(analyses.maxSeverity, filters.severity));
+        if (filters.severity === 'null') {
+          conditions.push(sql`${analyses.maxSeverity} IS NULL`);
+        } else if (filters.severity === 'high') {
+          conditions.push(sql`${analyses.maxSeverity} >= 7`);
+        } else if (filters.severity === 'medium') {
+          conditions.push(sql`${analyses.maxSeverity} >= 4 AND ${analyses.maxSeverity} < 7`);
+        } else if (filters.severity === 'low') {
+          conditions.push(sql`${analyses.maxSeverity} >= 1 AND ${analyses.maxSeverity} < 4`);
+        }
       }
+      // Complexity filter
       if (filters.complexity !== undefined) {
-        conditions.push(eq(analyses.overallComplexity, filters.complexity));
+        if (filters.complexity === 'null') {
+          conditions.push(sql`${analyses.overallComplexity} IS NULL`);
+        } else {
+          conditions.push(eq(analyses.overallComplexity, filters.complexity));
+        }
       }
+      // Flags filter
       if (filters.hasFlags === true) {
         conditions.push(sql`${analyses.numFlags} > 0`);
       } else if (filters.hasFlags === false) {
@@ -176,14 +191,27 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
           )!
         );
       }
+      // Boolean filters with null support
       if (filters.hasImplementationIssues !== undefined) {
-        conditions.push(eq(analyses.hasImplementationIssues, filters.hasImplementationIssues));
+        if (filters.hasImplementationIssues === 'null') {
+          conditions.push(sql`${analyses.hasImplementationIssues} IS NULL`);
+        } else {
+          conditions.push(eq(analyses.hasImplementationIssues, filters.hasImplementationIssues as boolean));
+        }
       }
       if (filters.requiresTechnicalReview !== undefined) {
-        conditions.push(eq(analyses.requiresTechnicalReview, filters.requiresTechnicalReview));
+        if (filters.requiresTechnicalReview === 'null') {
+          conditions.push(sql`${analyses.requiresTechnicalReview} IS NULL`);
+        } else {
+          conditions.push(eq(analyses.requiresTechnicalReview, filters.requiresTechnicalReview as boolean));
+        }
       }
       if (filters.hasReportingRequirement !== undefined) {
-        conditions.push(eq(analyses.hasReportingRequirement, filters.hasReportingRequirement));
+        if (filters.hasReportingRequirement === 'null') {
+          conditions.push(sql`${analyses.hasReportingRequirement} IS NULL`);
+        } else {
+          conditions.push(eq(analyses.hasReportingRequirement, filters.hasReportingRequirement as boolean));
+        }
       }
     }
 

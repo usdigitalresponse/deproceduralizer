@@ -54,27 +54,40 @@ const COLUMN_FILTERS: Record<string, ColumnFilterConfig> = {
       { value: '', label: 'All' },
       { value: 'true', label: 'Yes' },
       { value: 'false', label: 'No' },
+      { value: 'null', label: 'Not Analyzed' },
     ],
-    getValue: (f) => f.hasImplementationIssues === undefined ? '' : f.hasImplementationIssues.toString(),
+    getValue: (f) => {
+      if (f.hasImplementationIssues === undefined) return '';
+      if (f.hasImplementationIssues === null) return 'null';
+      return f.hasImplementationIssues.toString();
+    },
   },
   overallComplexity: {
     urlParam: 'complexity',
     options: [
       { value: '', label: 'All' },
       { value: 'HIGH', label: 'High' },
+      { value: 'MEDIUM-HIGH', label: 'Medium-High' },
+      { value: 'MEDIUM', label: 'Medium' },
       { value: 'LOW', label: 'Low' },
+      { value: 'null', label: 'Not Analyzed' },
     ],
-    getValue: (f) => f.complexity || '',
+    getValue: (f) => {
+      if (f.complexity === undefined) return '';
+      if (f.complexity === null) return 'null';
+      return f.complexity;
+    },
   },
   maxSeverity: {
     urlParam: 'severity',
     options: [
       { value: '', label: 'All' },
-      { value: '7', label: 'High (≥7)' },
-      { value: '4', label: 'Medium (4-6)' },
-      { value: '1', label: 'Low (1-3)' },
+      { value: 'high', label: 'High (≥7)' },
+      { value: 'medium', label: 'Medium (4-6)' },
+      { value: 'low', label: 'Low (1-3)' },
+      { value: 'null', label: 'Not Analyzed' },
     ],
-    getValue: (f) => f.severity?.toString() || '',
+    getValue: (f) => f.severity || '',
   },
   requiresTechnicalReview: {
     urlParam: 'techReview',
@@ -82,8 +95,13 @@ const COLUMN_FILTERS: Record<string, ColumnFilterConfig> = {
       { value: '', label: 'All' },
       { value: 'true', label: 'Yes' },
       { value: 'false', label: 'No' },
+      { value: 'null', label: 'Not Analyzed' },
     ],
-    getValue: (f) => f.requiresTechnicalReview === undefined ? '' : f.requiresTechnicalReview.toString(),
+    getValue: (f) => {
+      if (f.requiresTechnicalReview === undefined) return '';
+      if (f.requiresTechnicalReview === null) return 'null';
+      return f.requiresTechnicalReview.toString();
+    },
   },
   hasReportingRequirement: {
     urlParam: 'reporting',
@@ -91,8 +109,13 @@ const COLUMN_FILTERS: Record<string, ColumnFilterConfig> = {
       { value: '', label: 'All' },
       { value: 'true', label: 'Yes' },
       { value: 'false', label: 'No' },
+      { value: 'null', label: 'Not Analyzed' },
     ],
-    getValue: (f) => f.hasReportingRequirement === undefined ? '' : f.hasReportingRequirement.toString(),
+    getValue: (f) => {
+      if (f.hasReportingRequirement === undefined) return '';
+      if (f.hasReportingRequirement === null) return 'null';
+      return f.hasReportingRequirement.toString();
+    },
   },
 };
 
@@ -266,6 +289,20 @@ export default function DataTable({ data, onRowClick, pagination, search, sortBy
     router.push(`?${params.toString()}`);
   }, [router, searchParams]);
 
+  // Clear all filters
+  const clearAllFilters = useCallback(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    // Remove all filter params
+    params.delete('hasFlags');
+    params.delete('hasImplIssues');
+    params.delete('complexity');
+    params.delete('severity');
+    params.delete('techReview');
+    params.delete('reporting');
+    params.set('page', '1');
+    router.push(`?${params.toString()}`);
+  }, [router, searchParams]);
+
   // Check if any filter is active
   const hasActiveFilters = Object.keys(filters).length > 0;
 
@@ -391,33 +428,59 @@ export default function DataTable({ data, onRowClick, pagination, search, sortBy
             </tr>
           </thead>
           <tbody className="bg-[var(--color-surface)] divide-y divide-[var(--color-neutral-200)]">
-            {table.getRowModel().rows.map((row) => (
-              <tr
-                key={row.id}
-                className="
-                  hover:bg-[var(--color-primary-faint)]
-                  cursor-pointer
-                  transition-colors duration-[var(--transition-fast)]
-                  focus:outline-none focus:ring-2 focus:ring-[var(--color-focus)] focus:ring-inset
-                "
-                onClick={() => onRowClick(row.original)}
-                onKeyDown={(e) => handleRowKeyDown(e, row.original)}
-                tabIndex={0}
-                role="row"
-                aria-label={`${row.original.title || 'Untitled'}, ${row.original.numFlags || 0} flags`}
-              >
-                {row.getVisibleCells().map((cell) => (
-                  <td
-                    key={cell.id}
-                    style={{ width: cell.column.getSize() }}
-                    className="px-3 py-3 align-top overflow-hidden"
-                    role="gridcell"
-                  >
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </td>
-                ))}
+            {table.getRowModel().rows.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={columns.length}
+                  className="px-4 py-12 text-center text-[var(--color-text-muted)]"
+                >
+                  <p className="text-lg font-medium">No results found</p>
+                  <p className="text-sm mt-1">
+                    {search
+                      ? `No regulations match "${search}"`
+                      : hasActiveFilters
+                      ? 'No regulations match the selected filters'
+                      : 'No regulations available'}
+                  </p>
+                  {hasActiveFilters && (
+                    <button
+                      onClick={clearAllFilters}
+                      className="mt-4 text-sm text-[var(--color-primary)] hover:underline"
+                    >
+                      Clear all filters
+                    </button>
+                  )}
+                </td>
               </tr>
-            ))}
+            ) : (
+              table.getRowModel().rows.map((row) => (
+                <tr
+                  key={row.id}
+                  className="
+                    hover:bg-[var(--color-primary-faint)]
+                    cursor-pointer
+                    transition-colors duration-[var(--transition-fast)]
+                    focus:outline-none focus:ring-2 focus:ring-[var(--color-focus)] focus:ring-inset
+                  "
+                  onClick={() => onRowClick(row.original)}
+                  onKeyDown={(e) => handleRowKeyDown(e, row.original)}
+                  tabIndex={0}
+                  role="row"
+                  aria-label={`${row.original.title || 'Untitled'}, ${row.original.numFlags || 0} flags`}
+                >
+                  {row.getVisibleCells().map((cell) => (
+                    <td
+                      key={cell.id}
+                      style={{ width: cell.column.getSize() }}
+                      className="px-3 py-3 align-top overflow-hidden"
+                      role="gridcell"
+                    >
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </td>
+                  ))}
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
