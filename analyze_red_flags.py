@@ -319,6 +319,23 @@ def load_regulations_multi_category(directory: str,
 
     return regulations
 
+def validate_analysis_categories(analysis: RegulationAnalysis) -> tuple[bool, list]:
+    """Check if all red flag categories match the valid enum values.
+
+    Returns:
+        (True if all valid, list of invalid categories found)
+        Prints warnings for invalid categories.
+    """
+    valid_categories = {cat.value for cat in RedFlagCategory}
+    invalid_categories = []
+
+    for flag in analysis.red_flags:
+        if flag.category.value not in valid_categories:
+            print(f"    ⚠️  INVALID CATEGORY: '{flag.category.value}' (not in enum)")
+            invalid_categories.append(flag.category.value)
+
+    return (len(invalid_categories) == 0, invalid_categories)
+
 def create_analysis_prompt(section_text: str = "", citation: str = "", heading: str = "") -> str:
     """
     Build comprehensive Pahlka implementation analysis prompt with pattern library examples.
@@ -528,9 +545,9 @@ def save_analysis_to_database(conn: Connection,
             ))
             doc_id = cur.fetchone()[0]
 
-            # 2. Mark previous analyses as not current
+            # 2. Delete previous analyses (cascades to red_flags)
             cur.execute("""
-                UPDATE analyses SET is_current = FALSE
+                DELETE FROM analyses
                 WHERE document_id = %s
             """, (doc_id,))
 
@@ -539,8 +556,8 @@ def save_analysis_to_database(conn: Connection,
                 INSERT INTO analyses
                 (document_id, model_version, has_implementation_issues,
                  overall_complexity, summary, requires_technical_review,
-                 has_reporting_requirement, max_severity, num_flags, is_current)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                 has_reporting_requirement, max_severity, num_flags)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
             """, (
                 doc_id, "gpt-5-nano-2025-08-07",
@@ -549,8 +566,7 @@ def save_analysis_to_database(conn: Connection,
                 analysis.requires_technical_review,
                 analysis.has_reporting_requirement,
                 max([f.severity for f in analysis.red_flags], default=0),
-                len(analysis.red_flags),
-                True
+                len(analysis.red_flags)
             ))
             analysis_id = cur.fetchone()[0]
 
@@ -602,7 +618,8 @@ async def analyze_regulation(regulation_data: RegulationData, client: AsyncOpenA
             response_format=RegulationAnalysis
         )
 
-        return response.choices[0].message.parsed
+        analysis = response.choices[0].message.parsed
+        return analysis
 
     except Exception as e:
         print(f"Error analyzing regulation {regulation_data.source_index}: {e}")
@@ -633,6 +650,7 @@ async def analyze_regulations_batch(regulations: List[RegulationData],
 
     results = []
     completed_count = 0
+    invalid_categories_found = []
 
     # Process in batches for controlled parallelism
     for batch_start in range(0, len(regulations), batch_size):
@@ -645,6 +663,11 @@ async def analyze_regulations_batch(regulations: List[RegulationData],
 
         # Process results from this batch
         for regulation, analysis in zip(batch, analyses):
+            # Track invalid categories
+            is_valid, invalid_cats = validate_analysis_categories(analysis)
+            if not is_valid:
+                invalid_categories_found.extend([(regulation.source_index, cat) for cat in invalid_cats])
+
             # Keep red_flags as actual array (not JSON string) for JSON output
             red_flags_list = [{
                 'category': flag.category.value,
@@ -704,6 +727,18 @@ async def analyze_regulations_batch(regulations: List[RegulationData],
             with open(output_file, 'w', encoding='utf-8') as f:
                 json.dump(results, f, indent=2, ensure_ascii=False)
             print(f"  💾 Saved progress ({completed_count} regulations) to {output_file}")
+
+    # Report invalid categories if found
+    if invalid_categories_found:
+        print(f"\n⚠️  VALIDATION ISSUES DETECTED:")
+        print(f"Found {len(invalid_categories_found)} invalid category values:")
+        unique_invalid = {}
+        for source_idx, cat in invalid_categories_found:
+            if cat not in unique_invalid:
+                unique_invalid[cat] = []
+            unique_invalid[cat].append(source_idx)
+        for cat in sorted(unique_invalid.keys()):
+            print(f"  - '{cat}': {len(unique_invalid[cat])} occurrence(s)")
 
     return results
 
