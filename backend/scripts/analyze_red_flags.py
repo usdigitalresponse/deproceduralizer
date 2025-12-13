@@ -9,6 +9,7 @@ to identify regulatory "red flags" based on the patterns identified by Jennifer 
 import json
 import os
 import shutil
+import sys
 from pathlib import Path
 from typing import List, Optional, Dict
 from enum import Enum
@@ -19,8 +20,12 @@ from dotenv import load_dotenv
 import asyncio
 from datetime import datetime
 
-# Load environment variables
-load_dotenv()
+# Add parent directory to path for config import
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from config import INDIVIDUAL_REGULATIONS_DIR, WEB_PUBLIC_DIR, PROJECT_ROOT
+
+# Load environment variables from project root
+load_dotenv(PROJECT_ROOT / '.env')
 
 class ComplexityLevel(str, Enum):
     """Complexity levels for implementation issues"""
@@ -390,7 +395,7 @@ async def main(filter_keyword: str = None):
     else:
         print("Loading regulation files...")
 
-    regulations = load_regulation_files("individual_regulations", limit=100, filter_keyword=filter_keyword)
+    regulations = load_regulation_files(str(INDIVIDUAL_REGULATIONS_DIR), limit=100, filter_keyword=filter_keyword)
     print(f"Loaded {len(regulations)} regulation files")
 
     if not regulations:
@@ -410,7 +415,7 @@ async def main(filter_keyword: str = None):
     print(f"Analysis complete! Results saved to {output_file}")
 
     # Auto-copy to web app public directory
-    web_data_path = Path("apps/web/public/data.json")
+    web_data_path = WEB_PUBLIC_DIR / "data.json"
     web_data_path.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy(output_file, web_data_path)
     print(f"📦 Copied to {web_data_path}")

@@ -12,6 +12,17 @@ import json
 import time
 import re
 from pathlib import Path
+
+# Add parent directory to path for config import
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from config import (
+    SCRAPED_DATA_DIR,
+    INDIVIDUAL_REGULATIONS_DIR,
+    NY_REGULATIONS_CACHE_FILE,
+    NY_REGULATIONS_COMPLETE_FILE,
+    DATA_DIR,
+    ensure_data_dirs
+)
 from ny_regulations_scraper import NYRegulationsScraper
 
 class FullPipeline:
@@ -76,7 +87,7 @@ class FullPipeline:
             return False
             
         # Save raw scraped data
-        scraper.save_to_json(data, 'ny_regulations_complete.json')
+        scraper.save_to_json(data, str(NY_REGULATIONS_COMPLETE_FILE))
         
         elapsed = end_time - start_time
         print(f"\n✅ Step 1 Complete: {len(data)} regulations scraped")
@@ -91,10 +102,10 @@ class FullPipeline:
         print("=" * 60)
         
         scraper = NYRegulationsScraper()
-        cache_dir = Path('scraped_data')
-        
+        cache_dir = SCRAPED_DATA_DIR
+
         if not cache_dir.exists():
-            print("❌ No scraped_data directory found")
+            print(f"❌ No scraped_data directory found at {cache_dir}")
             return False
         
         # Find all cached HTML files
@@ -164,11 +175,11 @@ class FullPipeline:
             return False
         
         # Save clean regulation data
-        with open('ny_regulations_from_cache.json', 'w', encoding='utf-8') as f:
+        with open(NY_REGULATIONS_CACHE_FILE, 'w', encoding='utf-8') as f:
             json.dump(regulation_data, f, indent=2, ensure_ascii=False)
-        
+
         print(f"✅ Step 2 Complete: {len(regulation_data)} regulations with cleaned content")
-        print(f"💾 Saved to ny_regulations_from_cache.json")
+        print(f"💾 Saved to {NY_REGULATIONS_CACHE_FILE}")
         
         return regulation_data
     
@@ -180,16 +191,16 @@ class FullPipeline:
         
         # Load the clean data
         try:
-            with open('ny_regulations_from_cache.json', 'r', encoding='utf-8') as f:
+            with open(NY_REGULATIONS_CACHE_FILE, 'r', encoding='utf-8') as f:
                 regulations = json.load(f)
         except FileNotFoundError:
-            print("❌ ny_regulations_from_cache.json not found. Run steps 1-2 first.")
+            print(f"❌ {NY_REGULATIONS_CACHE_FILE} not found. Run steps 1-2 first.")
             return False
-        
+
         print(f"📄 Loaded {len(regulations)} regulations")
-        
+
         # Create output directory
-        output_dir = Path('individual_regulations')
+        output_dir = INDIVIDUAL_REGULATIONS_DIR
         if output_dir.exists():
             print("🗑️  Removing old individual files...")
             import shutil
@@ -259,8 +270,8 @@ class FullPipeline:
             print("PIPELINE COMPLETE!")
             print("🎉" * 20)
             print(f"✅ {len(clean_data)} regulations scraped and cleaned")
-            print(f"📁 Individual files: individual_regulations/")
-            print(f"📄 Master file: ny_regulations_from_cache.json")
+            print(f"📁 Individual files: {INDIVIDUAL_REGULATIONS_DIR}")
+            print(f"📄 Master file: {NY_REGULATIONS_CACHE_FILE}")
             
             return True
             
@@ -304,7 +315,7 @@ def main():
     success = pipeline.run_full_pipeline(max_pages)
     
     if success:
-        print("\n🎯 Ready to use! Check individual_regulations/ directory")
+        print(f"\n🎯 Ready to use! Check {INDIVIDUAL_REGULATIONS_DIR}")
     else:
         print("\n❌ Pipeline failed")
 

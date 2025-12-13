@@ -4,6 +4,7 @@ Migration script to import regulations and LLM-analyzed red flags into PostgreSQ
 """
 
 import json
+import sys
 import psycopg
 from pathlib import Path
 from typing import Dict, List, Any
@@ -11,7 +12,11 @@ import os
 from dotenv import load_dotenv
 import re
 
-load_dotenv()
+# Add parent directory to path for config import
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from config import OUTPUTS_DIR, PROJECT_ROOT
+
+load_dotenv(PROJECT_ROOT / '.env')
 
 def get_db_connection():
     """Create connection to Neon PostgreSQL database"""
@@ -201,11 +206,11 @@ def migrate_json_analysis(json_file: str, state: str = "NY"):
 def main():
     print("Starting migration to PostgreSQL...\n")
 
-    # Find all analysis JSON files
-    json_files = list(Path(".").glob("red_flag_analysis_*.json"))
+    # Find all analysis JSON files in outputs directory
+    json_files = list(OUTPUTS_DIR.glob("red_flag_analysis_*.json"))
 
     if not json_files:
-        print("✗ No red_flag_analysis_*.json files found!")
+        print(f"✗ No red_flag_analysis_*.json files found in {OUTPUTS_DIR}")
         return
 
     # Migrate each JSON file

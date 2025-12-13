@@ -3,7 +3,7 @@
 Enrich regulation JSON files with parent/child hierarchy information.
 
 This script:
-1. Reads all regulation JSON files from individual_regulations/
+1. Reads all regulation JSON files from data/individual_regulations/
 2. Parses URLs to extract hierarchy information (title, part, section)
 3. Adds hierarchy fields to each JSON file
 4. Links children to parents via parent_source_index
@@ -16,10 +16,16 @@ Usage:
 import json
 import re
 import os
+import sys
 import glob
 import argparse
+from pathlib import Path
 from collections import defaultdict
 from typing import Optional, Dict
+
+# Add parent directory to path for config import
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from config import INDIVIDUAL_REGULATIONS_DIR
 
 
 # =============================================================================
@@ -314,8 +320,8 @@ def main():
     )
     parser.add_argument(
         '--json-dir',
-        default='individual_regulations',
-        help='Directory containing regulation JSON files (default: individual_regulations)'
+        default=str(INDIVIDUAL_REGULATIONS_DIR),
+        help=f'Directory containing regulation JSON files (default: {INDIVIDUAL_REGULATIONS_DIR})'
     )
 
     args = parser.parse_args()

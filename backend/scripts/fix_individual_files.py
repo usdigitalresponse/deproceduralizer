@@ -5,8 +5,13 @@ Fix individual file creation to ensure 1:1 mapping with master file
 
 import json
 import re
+import sys
 from pathlib import Path
 import hashlib
+
+# Add parent directory to path for config import
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from config import NY_REGULATIONS_CACHE_FILE, DATA_DIR
 
 def create_safe_filename(url, index):
     """Create a guaranteed unique, safe filename"""
@@ -31,14 +36,14 @@ def create_safe_filename(url, index):
 
 def main():
     # Load the master file
-    print("📄 Loading master regulations file...")
-    with open('ny_regulations_from_cache.json', 'r', encoding='utf-8') as f:
+    print(f"📄 Loading master regulations file from {NY_REGULATIONS_CACHE_FILE}...")
+    with open(NY_REGULATIONS_CACHE_FILE, 'r', encoding='utf-8') as f:
         regulations = json.load(f)
-    
+
     print(f"📊 Master file contains: {len(regulations)} regulations")
-    
+
     # Create fresh output directory
-    output_dir = Path('individual_regulations_fixed')
+    output_dir = DATA_DIR / 'individual_regulations_fixed'
     if output_dir.exists():
         print("🗑️  Removing old individual files...")
         import shutil

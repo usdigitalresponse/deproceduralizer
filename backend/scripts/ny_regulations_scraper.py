@@ -8,7 +8,12 @@ import os
 import hashlib
 from pathlib import Path
 import re
+import sys
 from typing import Optional, Dict, Tuple
+
+# Add parent directory to path for config import
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from config import SCRAPED_DATA_DIR
 
 
 # =============================================================================
@@ -125,7 +130,7 @@ def get_hierarchy_info(url: str) -> Dict:
 
 
 class NYRegulationsScraper:
-    def __init__(self, cache_dir='scraped_data'):
+    def __init__(self, cache_dir=None):
         self.base_url = "https://www.law.cornell.edu/regulations/new-york"
         self.session = requests.Session()
         self.session.headers.update({
@@ -134,8 +139,8 @@ class NYRegulationsScraper:
         self.visited_urls = set()
         self.all_regulations = []
         self.failed_urls = set()
-        self.cache_dir = Path(cache_dir)
-        self.cache_dir.mkdir(exist_ok=True)
+        self.cache_dir = Path(cache_dir) if cache_dir else SCRAPED_DATA_DIR
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.progress_file = self.cache_dir / 'progress.json'
         self.failed_file = self.cache_dir / 'failed_urls.json'
         self.load_progress()
