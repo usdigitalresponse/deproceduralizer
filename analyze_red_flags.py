@@ -597,7 +597,7 @@ def save_analysis_to_database(conn: Connection,
             conn.rollback()
         except:
             pass
-        print(f"Error saving to database for {regulation.source_index}: {e}")
+        print(f"❌ Error saving to database for {regulation.source_index}: {type(e).__name__}: {e}")
         return None
 
 async def analyze_regulation(regulation_data: RegulationData, client: AsyncOpenAI) -> RegulationAnalysis:
@@ -651,6 +651,8 @@ async def analyze_regulations_batch(regulations: List[RegulationData],
     results = []
     completed_count = 0
     invalid_categories_found = []
+    db_write_success = 0
+    db_write_failed = 0
 
     # Process in batches for controlled parallelism
     for batch_start in range(0, len(regulations), batch_size):
@@ -711,7 +713,11 @@ async def analyze_regulations_batch(regulations: List[RegulationData],
 
             # Save to database if connection available
             if db_conn:
-                save_analysis_to_database(db_conn, regulation, analysis)
+                analysis_id = save_analysis_to_database(db_conn, regulation, analysis)
+                if analysis_id:
+                    db_write_success += 1
+                else:
+                    db_write_failed += 1
 
             # Format severity summary for console output
             if analysis.red_flags:
@@ -739,6 +745,18 @@ async def analyze_regulations_batch(regulations: List[RegulationData],
             unique_invalid[cat].append(source_idx)
         for cat in sorted(unique_invalid.keys()):
             print(f"  - '{cat}': {len(unique_invalid[cat])} occurrence(s)")
+
+    # Report database write status
+    if db_conn:
+        if db_write_failed > 0:
+            print(f"\n⚠️  DATABASE WRITE STATUS:")
+            print(f"  ✓ Successfully wrote: {db_write_success} analyses")
+            print(f"  ✗ Failed to write: {db_write_failed} analyses")
+            print(f"  ⚠️  {db_write_failed} analyses are in JSON but NOT in database!")
+            print(f"  💡 You can manually import from {output_file} if needed")
+        else:
+            print(f"\n✓ Database write status:")
+            print(f"  ✓ All {db_write_success} analyses written to database")
 
     return results
 
@@ -837,10 +855,10 @@ async def main():
         # Final save
         with open(output_file, 'w', encoding='utf-8') as f:
             json.dump(results, f, indent=2, ensure_ascii=False)
-        print(f"\nAnalysis complete! Results saved to {output_file}")
-
+        print(f"\nAnalysis complete!")
+        print(f"  📄 JSON: {output_file}")
         if db_conn:
-            print("✓ Results written to Neon database")
+            print(f"  💾 Database: See database write status below")
 
         # Print summary statistics
         num_with_flags = sum(1 for r in results if r['num_flags'] > 0)
