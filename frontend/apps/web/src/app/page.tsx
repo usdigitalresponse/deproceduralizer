@@ -18,6 +18,9 @@ interface PageProps {
     hasImplIssues?: string;
     techReview?: string;
     reporting?: string;
+    category?: string;
+    summarySearch?: string;
+    explanationSearch?: string;
   }>;
 }
 
@@ -76,6 +79,20 @@ export default async function Home({ searchParams }: PageProps) {
   } else {
     const reporting = parseBooleanParam(params.reporting);
     if (reporting !== undefined) filters.hasReportingRequirement = reporting;
+  }
+
+  // Category filter
+  if (params.category) {
+    filters.category = params.category;
+  }
+
+  // Text search filters
+  if (params.summarySearch) {
+    filters.summarySearch = params.summarySearch;
+  }
+
+  if (params.explanationSearch) {
+    filters.explanationSearch = params.explanationSearch;
   }
 
   const repo = new RegulatoryDocumentsRepository(db);

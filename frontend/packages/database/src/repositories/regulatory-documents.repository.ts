@@ -45,13 +45,16 @@ export interface FilterOptions {
   hasImplementationIssues?: boolean | 'null'; // null = not analyzed
   requiresTechnicalReview?: boolean | 'null';
   hasReportingRequirement?: boolean | 'null';
+  category?: string; // Filter by red flag category
+  summarySearch?: string; // Text search in summary
+  explanationSearch?: string; // Text search in explanations
 }
 
 export interface PaginationOptions {
   page: number;
   pageSize: number;
   search?: string;
-  sortBy?: 'maxSeverity' | 'numFlags' | 'title' | 'overallComplexity' | 'hasImplementationIssues' | 'requiresTechnicalReview' | 'hasReportingRequirement';
+  sortBy?: 'maxSeverity' | 'numFlags' | 'title' | 'overallComplexity' | 'hasImplementationIssues' | 'requiresTechnicalReview' | 'hasReportingRequirement' | 'summary';
   sortOrder?: 'asc' | 'desc';
   filters?: FilterOptions;
 }
@@ -213,6 +216,30 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
           conditions.push(eq(analyses.hasReportingRequirement, filters.hasReportingRequirement as boolean));
         }
       }
+      // Category filter - documents with a red flag of this category
+      if (filters.category) {
+        conditions.push(
+          sql`EXISTS (
+            SELECT 1 FROM red_flags rf
+            WHERE rf.analysis_id = ${analyses.id}
+            AND rf.category = ${filters.category}
+          )`
+        );
+      }
+      // Summary text search
+      if (filters.summarySearch) {
+        conditions.push(ilike(analyses.summary, `%${filters.summarySearch}%`));
+      }
+      // Explanation text search - search in red_flags explanations
+      if (filters.explanationSearch) {
+        conditions.push(
+          sql`EXISTS (
+            SELECT 1 FROM red_flags rf
+            WHERE rf.analysis_id = ${analyses.id}
+            AND rf.explanation ILIKE ${'%' + filters.explanationSearch + '%'}
+          )`
+        );
+      }
     }
 
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
@@ -226,6 +253,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
       hasImplementationIssues: analyses.hasImplementationIssues,
       requiresTechnicalReview: analyses.requiresTechnicalReview,
       hasReportingRequirement: analyses.hasReportingRequirement,
+      summary: analyses.summary,
     }[sortBy];
 
     const orderByClause = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);

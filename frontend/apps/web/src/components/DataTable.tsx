@@ -29,18 +29,36 @@ const SORTABLE_COLUMNS: Record<string, PaginationOptions['sortBy']> = {
   hasImplementationIssues: 'hasImplementationIssues',
   requiresTechnicalReview: 'requiresTechnicalReview',
   hasReportingRequirement: 'hasReportingRequirement',
+  summary: 'summary',
 };
+
+// Available red flag categories for filter dropdown
+const CATEGORY_OPTIONS = [
+  { value: '', label: 'All' },
+  { value: 'administrative_burdens', label: 'Administrative Burdens' },
+  { value: 'cascade_of_rigidity', label: 'Cascade of Rigidity' },
+  { value: 'complexity_policy_debt', label: 'Complexity/Policy Debt' },
+  { value: 'implementation_opportunity', label: 'Implementation Opportunity' },
+  { value: 'mandated_steps_not_outcomes', label: 'Mandated Steps Not Outcomes' },
+  { value: 'no_feedback_loops', label: 'No Feedback Loops' },
+  { value: 'overwrought_legalese', label: 'Overwrought Legalese' },
+  { value: 'process_worship_oversight', label: 'Process Worship/Oversight' },
+  { value: 'zero_risk_language', label: 'Zero Risk Language' },
+];
 
 // Filter configuration for each column
 interface ColumnFilterConfig {
   urlParam: string;
-  options: { value: string; label: string }[];
+  type: 'select' | 'text';
+  options?: { value: string; label: string }[];
   getValue: (filters: FilterOptions) => string;
+  placeholder?: string;
 }
 
 const COLUMN_FILTERS: Record<string, ColumnFilterConfig> = {
   numFlags: {
     urlParam: 'hasFlags',
+    type: 'select',
     options: [
       { value: '', label: 'All' },
       { value: 'true', label: 'With Flags' },
@@ -48,8 +66,21 @@ const COLUMN_FILTERS: Record<string, ColumnFilterConfig> = {
     ],
     getValue: (f) => f.hasFlags === undefined ? '' : f.hasFlags.toString(),
   },
+  categories: {
+    urlParam: 'category',
+    type: 'select',
+    options: CATEGORY_OPTIONS,
+    getValue: (f) => f.category || '',
+  },
+  explanations: {
+    urlParam: 'explanationSearch',
+    type: 'text',
+    placeholder: 'Search...',
+    getValue: (f) => f.explanationSearch || '',
+  },
   hasImplementationIssues: {
     urlParam: 'hasImplIssues',
+    type: 'select',
     options: [
       { value: '', label: 'All' },
       { value: 'true', label: 'Yes' },
@@ -64,6 +95,7 @@ const COLUMN_FILTERS: Record<string, ColumnFilterConfig> = {
   },
   overallComplexity: {
     urlParam: 'complexity',
+    type: 'select',
     options: [
       { value: '', label: 'All' },
       { value: 'HIGH', label: 'High' },
@@ -80,6 +112,7 @@ const COLUMN_FILTERS: Record<string, ColumnFilterConfig> = {
   },
   maxSeverity: {
     urlParam: 'severity',
+    type: 'select',
     options: [
       { value: '', label: 'All' },
       { value: 'high', label: 'High (≥7)' },
@@ -91,6 +124,7 @@ const COLUMN_FILTERS: Record<string, ColumnFilterConfig> = {
   },
   requiresTechnicalReview: {
     urlParam: 'techReview',
+    type: 'select',
     options: [
       { value: '', label: 'All' },
       { value: 'true', label: 'Yes' },
@@ -105,6 +139,7 @@ const COLUMN_FILTERS: Record<string, ColumnFilterConfig> = {
   },
   hasReportingRequirement: {
     urlParam: 'reporting',
+    type: 'select',
     options: [
       { value: '', label: 'All' },
       { value: 'true', label: 'Yes' },
@@ -116,6 +151,12 @@ const COLUMN_FILTERS: Record<string, ColumnFilterConfig> = {
       if (f.hasReportingRequirement === null) return 'null';
       return f.hasReportingRequirement.toString();
     },
+  },
+  summary: {
+    urlParam: 'summarySearch',
+    type: 'text',
+    placeholder: 'Search...',
+    getValue: (f) => f.summarySearch || '',
   },
 };
 
@@ -299,6 +340,9 @@ export default function DataTable({ data, onRowClick, pagination, search, sortBy
     params.delete('severity');
     params.delete('techReview');
     params.delete('reporting');
+    params.delete('category');
+    params.delete('summarySearch');
+    params.delete('explanationSearch');
     params.set('page', '1');
     router.push(`?${params.toString()}`);
   }, [router, searchParams]);
@@ -402,25 +446,42 @@ export default function DataTable({ data, onRowClick, pagination, search, sortBy
                     className="px-2 py-2"
                   >
                     {filterConfig ? (
-                      <select
-                        value={filterConfig.getValue(filters)}
-                        onChange={(e) => handleFilter(filterConfig.urlParam, e.target.value)}
-                        className={`
-                          w-full text-xs py-1 px-1.5
-                          bg-white/90 text-[var(--color-text)]
-                          border-0 rounded
-                          cursor-pointer
-                          focus:outline-none focus:ring-2 focus:ring-white
-                          ${filterConfig.getValue(filters) ? 'bg-[var(--color-warning-bg)] font-medium' : ''}
-                        `}
-                        aria-label={`Filter ${header.column.columnDef.header}`}
-                      >
-                        {filterConfig.options.map((opt) => (
-                          <option key={opt.value} value={opt.value}>
-                            {opt.label}
-                          </option>
-                        ))}
-                      </select>
+                      filterConfig.type === 'select' ? (
+                        <select
+                          value={filterConfig.getValue(filters)}
+                          onChange={(e) => handleFilter(filterConfig.urlParam, e.target.value)}
+                          className={`
+                            w-full text-xs py-1 px-1.5
+                            bg-white/90 text-[var(--color-text)]
+                            border-0 rounded
+                            cursor-pointer
+                            focus:outline-none focus:ring-2 focus:ring-white
+                            ${filterConfig.getValue(filters) ? 'bg-[var(--color-warning-bg)] font-medium' : ''}
+                          `}
+                          aria-label={`Filter ${header.column.columnDef.header}`}
+                        >
+                          {filterConfig.options?.map((opt) => (
+                            <option key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          type="text"
+                          value={filterConfig.getValue(filters)}
+                          onChange={(e) => handleFilter(filterConfig.urlParam, e.target.value)}
+                          placeholder={filterConfig.placeholder || 'Search...'}
+                          className={`
+                            w-full text-xs py-1 px-1.5
+                            bg-white/90 text-[var(--color-text)]
+                            border-0 rounded
+                            focus:outline-none focus:ring-2 focus:ring-white
+                            ${filterConfig.getValue(filters) ? 'bg-[var(--color-warning-bg)] font-medium' : ''}
+                          `}
+                          aria-label={`Search ${header.column.columnDef.header}`}
+                        />
+                      )
                     ) : null}
                   </th>
                 );
