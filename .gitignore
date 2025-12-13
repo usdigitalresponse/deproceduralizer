@@ -1,16 +1,27 @@
 # Python virtual environment
 venv/
+.venv/
+backend/.venv/
 __pycache__/
 *.pyc
 *.pyo
 
+# Node modules
+node_modules/
+frontend/node_modules/
+frontend/apps/*/node_modules/
+frontend/packages/*/node_modules/
+
 # Cache and temporary files
+data/scraped_data/
 scraped_data/
 *.cache
 
 # Large data files (use Git LFS or separate storage)
 ny_regulations_complete.json
 ny_regulations_from_cache.json
+data/ny_regulations_complete.json
+data/ny_regulations_from_cache.json
 scrape_summary.json
 
 # OS files
@@ -25,8 +36,15 @@ Thumbs.db
 
 # Logs
 *.log
+logs/*.log
 
 # Environment variables
 .env
 .vercel
 .env*.local
+
+# Symlinks for env files in frontend (development convenience)
+frontend/.env
+frontend/.env.local
+frontend/apps/web/.env
+frontend/apps/web/.env.local
