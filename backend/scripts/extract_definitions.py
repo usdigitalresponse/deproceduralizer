@@ -40,7 +40,7 @@ class DefinitionsResponse(BaseModel):
     definitions: List[Definition] = Field(default_factory=list)
 
 REG_DIR = str(INDIVIDUAL_REGULATIONS_DIR)
-MODEL_VERSION = "gpt-4o-mini"
+MODEL_VERSION = "gpt-5-nano"
 
 
 def get_processed_source_indices() -> set:

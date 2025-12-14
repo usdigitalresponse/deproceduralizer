@@ -16,8 +16,7 @@ from pathlib import Path
 from typing import List, Optional, Dict, Set, Tuple
 from enum import Enum
 from pydantic import BaseModel, Field
-import openai
-from openai import AsyncOpenAI
+from openai import AsyncOpenAI  # Type hint only
 from dotenv import load_dotenv
 import asyncio
 from datetime import datetime
@@ -27,10 +26,14 @@ from psycopg import Connection
 # Add backend directory to path for config import
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import INDIVIDUAL_REGULATIONS_DIR, WEB_PUBLIC_DIR, PROJECT_ROOT, OUTPUTS_DIR
-from shared_utils import get_db_connection
+from shared_utils import get_db_connection, get_async_openai_client, call_llm_parse_async
 
 # Load environment variables from project root
 load_dotenv(PROJECT_ROOT / '.env')
+
+# Model to use for analysis
+MODEL_VERSION = "gpt-5-nano"
+
 
 class ComplexityLevel(str, Enum):
     """Complexity levels for implementation issues"""
@@ -547,7 +550,7 @@ def save_analysis_to_database(conn: Connection,
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
             """, (
-                doc_id, "gpt-5-nano-2025-08-07",
+                doc_id, MODEL_VERSION,
                 analysis.has_implementation_issues,
                 analysis.overall_complexity, analysis.summary,
                 analysis.requires_technical_review,
@@ -590,27 +593,21 @@ def save_analysis_to_database(conn: Connection,
 async def analyze_regulation(regulation_data: RegulationData, client: AsyncOpenAI) -> RegulationAnalysis:
     """Analyze a single regulation for red flags using GPT-5 nano with structured output"""
 
-    try:
-        prompt = create_analysis_prompt(
-            section_text=regulation_data.content,
-            citation=regulation_data.url,
-            heading=regulation_data.title
-        )
+    prompt = create_analysis_prompt(
+        section_text=regulation_data.content,
+        citation=regulation_data.url,
+        heading=regulation_data.title
+    )
 
-        response = await client.beta.chat.completions.parse(
-            model="gpt-5-nano-2025-08-07",
-            messages=[
-                {"role": "system", "content": prompt}
-            ],
-            response_format=RegulationAnalysis
-        )
+    result = await call_llm_parse_async(
+        client=client,
+        prompt=prompt,
+        response_format=RegulationAnalysis,
+        model=MODEL_VERSION,
+    )
 
-        analysis = response.choices[0].message.parsed
-        return analysis
-
-    except Exception as e:
-        print(f"Error analyzing regulation {regulation_data.source_index}: {e}")
-        # Return a default analysis in case of error
+    if result is None:
+        print(f"Error analyzing regulation {regulation_data.source_index}")
         return RegulationAnalysis(
             has_implementation_issues=False,
             red_flags=[],
@@ -619,6 +616,8 @@ async def analyze_regulation(regulation_data: RegulationData, client: AsyncOpenA
             requires_technical_review=False,
             has_reporting_requirement=False
         )
+
+    return result
 
 async def analyze_regulations_batch(regulations: List[RegulationData],
                                    client: AsyncOpenAI,
@@ -800,7 +799,7 @@ async def main():
     random.seed(args.seed)
 
     # Initialize async OpenAI client
-    client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    client = get_async_openai_client()
 
     # Load regulations with balanced multi-category sampling
     print(f"Loading regulations with balanced multi-category sampling...")
