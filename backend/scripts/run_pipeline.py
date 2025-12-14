@@ -13,14 +13,13 @@ from datetime import datetime
 
 # Add paths for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
-sys.path.insert(0, str(Path(__file__).parent.parent.parent / 'experiments'))
 
 from config import PROJECT_ROOT, INDIVIDUAL_REGULATIONS_DIR
 from dotenv import load_dotenv
 load_dotenv(PROJECT_ROOT / '.env')
 
 # Import from existing scripts
-from llm_extract_to_db import (
+from extract_definitions import (
     get_topic_regulations,
     extract_with_llm,
     store_to_database,
