@@ -27,22 +27,9 @@ from dotenv import load_dotenv
 # Add parent directory to path for config import
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import INDIVIDUAL_REGULATIONS_DIR, PROJECT_ROOT
+from shared_utils import get_db_connection
 
 load_dotenv(PROJECT_ROOT / '.env')
-
-
-def get_db_connection() -> Optional[Connection]:
-    """Create connection to Neon PostgreSQL"""
-    try:
-        database_url = os.getenv("DATABASE_URL")
-        if not database_url:
-            print("ERROR: DATABASE_URL not set")
-            return None
-        conn = psycopg.connect(database_url, connect_timeout=30)
-        return conn
-    except Exception as e:
-        print(f"ERROR: Could not connect to database: {e}")
-        return None
 
 
 def load_all_regulations() -> Dict[str, Dict]:

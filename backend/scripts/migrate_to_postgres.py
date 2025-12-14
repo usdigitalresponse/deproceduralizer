@@ -16,20 +16,9 @@ import time
 # Add parent directory to path for config import
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import OUTPUTS_DIR, PROJECT_ROOT, INDIVIDUAL_REGULATIONS_DIR
+from shared_utils import get_db_connection
 
 load_dotenv(PROJECT_ROOT / '.env')
-
-def get_db_connection():
-    """Create connection to Neon PostgreSQL database"""
-    database_url = os.getenv("DATABASE_URL")
-    if not database_url:
-        raise ValueError("DATABASE_URL not set in environment variables")
-
-    conn = psycopg.connect(database_url, connect_timeout=30)
-    # Set statement timeout after connection (can't use in startup options with Neon pooler)
-    with conn.cursor() as cur:
-        cur.execute("SET statement_timeout = '300000ms'")  # 5 minute timeout
-    return conn
 
 def parse_nycrr_info(url: str) -> tuple[int | None, str | None, str | None]:
     """

@@ -27,6 +27,7 @@ from psycopg import Connection
 # Add parent directory to path for config import
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import INDIVIDUAL_REGULATIONS_DIR, WEB_PUBLIC_DIR, PROJECT_ROOT
+from shared_utils import get_db_connection
 
 # Load environment variables from project root
 load_dotenv(PROJECT_ROOT / '.env')
@@ -495,25 +496,6 @@ Example output:
 }"""
 
     return prompt
-
-def get_db_connection() -> Optional[Connection]:
-    """Create connection to Neon PostgreSQL
-
-    Returns:
-        Connection object or None if connection fails
-    """
-    try:
-        database_url = os.getenv("DATABASE_URL")
-        if not database_url:
-            print("Warning: DATABASE_URL not set in .env, skipping database writes")
-            return None
-        conn = psycopg.connect(database_url, connect_timeout=30)
-        print("✓ Connected to database")
-        return conn
-    except Exception as e:
-        print(f"Warning: Database connection failed: {e}")
-        print("  Continuing with JSON-only mode...")
-        return None
 
 def save_analysis_to_database(conn: Connection,
                              regulation: RegulationData,

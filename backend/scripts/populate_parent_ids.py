@@ -11,22 +11,14 @@ import os
 import sys
 from pathlib import Path
 from typing import Dict, Optional
-import psycopg
 from dotenv import load_dotenv
 
 # Add parent directory to path for config import
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import PROJECT_ROOT, INDIVIDUAL_REGULATIONS_DIR
+from shared_utils import get_db_connection
 
 load_dotenv(PROJECT_ROOT / '.env')
-
-
-def get_db_connection():
-    """Create connection to Neon PostgreSQL database"""
-    database_url = os.getenv("DATABASE_URL")
-    if not database_url:
-        raise ValueError("DATABASE_URL not set in environment variables")
-    return psycopg.connect(database_url, connect_timeout=30)
 
 
 def load_parent_mappings() -> Dict[int, Optional[int]]:
