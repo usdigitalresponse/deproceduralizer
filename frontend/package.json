@@ -7,5 +7,5 @@
     "build": "pnpm --filter web build",
     "lint": "pnpm --filter web lint"
   },
-  "packageManager": "pnpm@9.15.1"
+  "packageManager": "pnpm@10.22.0"
 }
