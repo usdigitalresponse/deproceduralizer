@@ -719,7 +719,7 @@ async def analyze_regulations_batch(regulations: List[RegulationData],
             # Save to database if connection available
             if db_conn:
                 analysis_id = save_analysis_to_database(db_conn, regulation, analysis)
-                if analysis_id:
+                if analysis_id is not None:
                     db_write_success += 1
                 else:
                     db_write_failed += 1

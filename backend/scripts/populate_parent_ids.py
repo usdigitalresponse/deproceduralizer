@@ -16,12 +16,9 @@ from dotenv import load_dotenv
 
 # Add parent directory to path for config import
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from config import PROJECT_ROOT
+from config import PROJECT_ROOT, INDIVIDUAL_REGULATIONS_DIR
 
 load_dotenv(PROJECT_ROOT / '.env')
-
-# Individual regulations are at project root, not in data/
-INDIVIDUAL_REGULATIONS_DIR = PROJECT_ROOT / 'individual_regulations'
 
 
 def get_db_connection():

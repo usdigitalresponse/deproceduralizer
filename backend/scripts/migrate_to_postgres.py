@@ -15,7 +15,7 @@ import time
 
 # Add parent directory to path for config import
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from config import OUTPUTS_DIR, PROJECT_ROOT
+from config import OUTPUTS_DIR, PROJECT_ROOT, INDIVIDUAL_REGULATIONS_DIR
 
 load_dotenv(PROJECT_ROOT / '.env')
 
@@ -165,7 +165,7 @@ def migrate_json_analysis(json_file: str, state: str = "NY"):
                             raise
 
                     # Insert red flags for this analysis
-                    if analysis_id:
+                    if analysis_id is not None:
                         red_flags = section.get("red_flags", [])
                         if red_flags:
                             try:
@@ -220,14 +220,14 @@ def migrate_all_individual_regulations(state: str = "NY"):
     Args:
         state: State code (e.g., 'NY')
     """
-    reg_dir = Path("individual_regulations")
+    reg_dir = Path(INDIVIDUAL_REGULATIONS_DIR)
     if not reg_dir.exists():
-        print("✗ individual_regulations directory not found!")
+        print(f"✗ individual_regulations directory not found at {reg_dir}!")
         return 0
 
     json_files = list(reg_dir.glob("*.json"))
     if not json_files:
-        print("✗ No JSON files found in individual_regulations/")
+        print(f"✗ No JSON files found in {reg_dir}/")
         return 0
 
     print(f"Found {len(json_files)} individual regulation files")

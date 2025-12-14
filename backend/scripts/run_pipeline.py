@@ -15,7 +15,7 @@ from datetime import datetime
 sys.path.insert(0, str(Path(__file__).parent.parent))
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / 'experiments'))
 
-from config import PROJECT_ROOT
+from config import PROJECT_ROOT, INDIVIDUAL_REGULATIONS_DIR
 from dotenv import load_dotenv
 load_dotenv(PROJECT_ROOT / '.env')
 
@@ -202,7 +202,7 @@ async def run_pipeline(sample_size: int = 20, skip_extraction: bool = False):
 
     # Score regulations by definition matches for prioritization
     definition_scores = score_regulations_by_definition_matches(
-        str(PROJECT_ROOT / 'individual_regulations'),
+        str(INDIVIDUAL_REGULATIONS_DIR),
         db_conn
     )
 
@@ -210,7 +210,7 @@ async def run_pipeline(sample_size: int = 20, skip_extraction: bool = False):
     from analyze_red_flags import load_regulations_multi_category, build_category_index, deduplicate_and_assign
 
     # Custom sampling that prioritizes definitions
-    file_category_map = build_category_index(str(PROJECT_ROOT / 'individual_regulations'), CATEGORY_KEYWORDS)
+    file_category_map = build_category_index(str(INDIVIDUAL_REGULATIONS_DIR), CATEGORY_KEYWORDS)
     if file_category_map:
         file_assignments = deduplicate_and_assign(file_category_map, CATEGORY_KEYWORDS)
 
@@ -247,7 +247,7 @@ async def run_pipeline(sample_size: int = 20, skip_extraction: bool = False):
         regulations = selected_regulations
     else:
         regulations = load_regulations_multi_category(
-            str(PROJECT_ROOT / 'individual_regulations'),
+            str(INDIVIDUAL_REGULATIONS_DIR),
             CATEGORY_KEYWORDS,
             sample_size,
             selected_categories=None

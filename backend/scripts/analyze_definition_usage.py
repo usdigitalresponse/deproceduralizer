@@ -54,23 +54,10 @@ def load_all_regulations() -> Dict[str, Dict]:
     print("Loading all regulation files...")
     regulations = {}
 
-    # Try multiple possible paths
-    possible_paths = [
-        Path(INDIVIDUAL_REGULATIONS_DIR),
-        Path("individual_regulations"),
-        PROJECT_ROOT / "individual_regulations"
-    ]
+    reg_dir = Path(INDIVIDUAL_REGULATIONS_DIR)
 
-    reg_dir = None
-    for path in possible_paths:
-        if path.exists() and path.is_dir():
-            reg_dir = path
-            print(f"  Using path: {reg_dir}")
-            break
-
-    if not reg_dir:
-        print(f"  ERROR: Could not find individual_regulations directory")
-        print(f"  Tried: {possible_paths}")
+    if not reg_dir.exists() or not reg_dir.is_dir():
+        print(f"  ERROR: Could not find individual_regulations directory at {reg_dir}")
         return {}
 
     json_files = list(reg_dir.glob("*.json"))
@@ -83,7 +70,7 @@ def load_all_regulations() -> Dict[str, Dict]:
             with open(filepath, 'r', encoding='utf-8') as f:
                 data = json.load(f)
                 source_index = data.get('source_index')
-                if source_index:
+                if source_index is not None:
                     regulations[source_index] = data
         except Exception as e:
             continue
