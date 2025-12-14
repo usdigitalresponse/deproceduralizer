@@ -161,8 +161,11 @@ def score_regulations_by_definition_matches(directory: str, db_conn) -> dict:
     return scores
 
 
-async def run_pipeline(sample_size: int = 20, skip_extraction: bool = False):
+async def run_pipeline(sample_size: int = 20, skip_extraction: bool = False, seed: int = 42):
     """Run the full pipeline: extract definitions, then analyze for red flags."""
+
+    # Set random seed for reproducibility
+    random.seed(seed)
 
     print("=" * 70)
     print("COMBINED PIPELINE: DEFINITIONS → RED FLAG ANALYSIS")
@@ -334,12 +337,15 @@ def main():
                         help='Number of regulations to process (default: 20)')
     parser.add_argument('--skip-extraction', action='store_true',
                         help='Skip definition extraction, use existing definitions')
+    parser.add_argument('--seed', type=int, default=42,
+                        help='Random seed for reproducible sampling (default: 42)')
 
     args = parser.parse_args()
 
     asyncio.run(run_pipeline(
         sample_size=args.sample_size,
-        skip_extraction=args.skip_extraction
+        skip_extraction=args.skip_extraction,
+        seed=args.seed
     ))
 
 

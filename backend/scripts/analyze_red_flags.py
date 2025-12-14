@@ -799,6 +799,13 @@ def parse_arguments():
         help='Parallel batch size for API calls (default: 10)'
     )
 
+    parser.add_argument(
+        '--seed',
+        type=int,
+        default=42,
+        help='Random seed for reproducible sampling (default: 42)'
+    )
+
     return parser.parse_args()
 
 async def main():
@@ -806,6 +813,9 @@ async def main():
 
     # Parse arguments
     args = parse_arguments()
+
+    # Set random seed for reproducibility
+    random.seed(args.seed)
 
     # Initialize async OpenAI client
     client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
