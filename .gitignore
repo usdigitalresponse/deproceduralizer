@@ -31,3 +31,7 @@ Thumbs.db
 .vercel
 .env*.local
 individual_regulations/
+node_modules
+
+# Local test artifacts
+.playwright-mcp/
