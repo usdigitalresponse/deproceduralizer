@@ -50,6 +50,30 @@ export interface FilterOptions {
   explanationSearch?: string; // Text search in explanations
 }
 
+// Hierarchy browsing interfaces
+export interface HierarchyNode {
+  id: number;
+  title: string;
+  hierarchyLevel: string | null;
+  hierarchyPath: string | null;
+  nycrrTitle: number | null;
+  nycrrPart: string | null;
+  nycrrSection: string | null;
+  // Aggregated data
+  hasAnalysis: boolean;
+  totalFlags: number;
+  maxSeverity: number | null;
+  hasDefinitions: boolean;
+  childCount: number;
+}
+
+export interface HierarchyFilterOptions {
+  hasAnalysis?: boolean;
+  hasFlags?: boolean;
+  severity?: 'high' | 'medium' | 'low';
+  hasDefinitions?: boolean;
+}
+
 export interface PaginationOptions {
   page: number;
   pageSize: number;
@@ -446,5 +470,209 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
       .limit(1);
 
     return result[0];
+  }
+
+  // ========================================
+  // Hierarchy browsing methods
+  // ========================================
+
+  /**
+   * Get root-level documents (titles) for the hierarchy tree
+   */
+  async getHierarchyRoots(filters?: HierarchyFilterOptions): Promise<HierarchyNode[]> {
+    // Build filter conditions for descendants
+    const filterConditions = this.buildHierarchyFilterConditions(filters);
+    const filterClause = filterConditions.length > 0
+      ? sql`AND ${sql.join(filterConditions, sql` AND `)}`
+      : sql``;
+
+    const results = await this.db.execute(sql`
+      SELECT
+        rd.id,
+        rd.title,
+        rd.hierarchy_level as "hierarchyLevel",
+        rd.hierarchy_path as "hierarchyPath",
+        rd.nycrr_title as "nycrrTitle",
+        rd.nycrr_part as "nycrrPart",
+        rd.nycrr_section as "nycrrSection",
+        COALESCE(stats.has_analysis, false) as "hasAnalysis",
+        COALESCE(stats.total_flags, 0)::int as "totalFlags",
+        stats.max_severity as "maxSeverity",
+        COALESCE(stats.has_definitions, false) as "hasDefinitions",
+        COALESCE(stats.child_count, 0)::int as "childCount"
+      FROM regulatory_documents rd
+      LEFT JOIN LATERAL (
+        SELECT
+          COUNT(DISTINCT child.id)::int as child_count,
+          BOOL_OR(a.id IS NOT NULL) as has_analysis,
+          SUM(COALESCE(a.num_flags, 0))::int as total_flags,
+          MAX(a.max_severity) as max_severity,
+          BOOL_OR(EXISTS (
+            SELECT 1 FROM definitions d WHERE d.document_id = child.id
+          )) as has_definitions
+        FROM regulatory_documents child
+        LEFT JOIN analyses a ON a.document_id = child.id AND a.is_current = true
+        WHERE child.parent_id = rd.id
+        ${filterClause}
+      ) stats ON true
+      WHERE rd.hierarchy_level = 'title'
+      ORDER BY rd.nycrr_title NULLS LAST, rd.title
+    `);
+
+    return results.rows as unknown as HierarchyNode[];
+  }
+
+  /**
+   * Get children of a specific document in the hierarchy
+   */
+  async getHierarchyChildren(parentId: number, filters?: HierarchyFilterOptions): Promise<HierarchyNode[]> {
+    // Build filter conditions
+    const filterConditions = this.buildHierarchyFilterConditions(filters);
+    const filterClause = filterConditions.length > 0
+      ? sql`AND ${sql.join(filterConditions, sql` AND `)}`
+      : sql``;
+
+    const results = await this.db.execute(sql`
+      SELECT
+        rd.id,
+        rd.title,
+        rd.hierarchy_level as "hierarchyLevel",
+        rd.hierarchy_path as "hierarchyPath",
+        rd.nycrr_title as "nycrrTitle",
+        rd.nycrr_part as "nycrrPart",
+        rd.nycrr_section as "nycrrSection",
+        COALESCE(a.id IS NOT NULL, false) as "hasAnalysis",
+        COALESCE(a.num_flags, 0)::int as "totalFlags",
+        a.max_severity as "maxSeverity",
+        EXISTS (SELECT 1 FROM definitions d WHERE d.document_id = rd.id) as "hasDefinitions",
+        COALESCE(stats.child_count, 0)::int as "childCount"
+      FROM regulatory_documents rd
+      LEFT JOIN analyses a ON a.document_id = rd.id AND a.is_current = true
+      LEFT JOIN LATERAL (
+        SELECT COUNT(*)::int as child_count
+        FROM regulatory_documents grandchild
+        WHERE grandchild.parent_id = rd.id
+      ) stats ON true
+      WHERE rd.parent_id = ${parentId}
+      ${filterClause}
+      ORDER BY
+        rd.nycrr_part::int NULLS LAST,
+        rd.nycrr_section NULLS LAST,
+        rd.title
+    `);
+
+    return results.rows as unknown as HierarchyNode[];
+  }
+
+  /**
+   * Get orphan documents (no parent, but not a title; or null hierarchy_level)
+   */
+  async getOrphanDocuments(filters?: HierarchyFilterOptions): Promise<HierarchyNode[]> {
+    const filterConditions = this.buildHierarchyFilterConditions(filters);
+    const filterClause = filterConditions.length > 0
+      ? sql`AND ${sql.join(filterConditions, sql` AND `)}`
+      : sql``;
+
+    const results = await this.db.execute(sql`
+      SELECT
+        rd.id,
+        rd.title,
+        rd.hierarchy_level as "hierarchyLevel",
+        rd.hierarchy_path as "hierarchyPath",
+        rd.nycrr_title as "nycrrTitle",
+        rd.nycrr_part as "nycrrPart",
+        rd.nycrr_section as "nycrrSection",
+        COALESCE(a.id IS NOT NULL, false) as "hasAnalysis",
+        COALESCE(a.num_flags, 0)::int as "totalFlags",
+        a.max_severity as "maxSeverity",
+        EXISTS (SELECT 1 FROM definitions d WHERE d.document_id = rd.id) as "hasDefinitions",
+        0 as "childCount"
+      FROM regulatory_documents rd
+      LEFT JOIN analyses a ON a.document_id = rd.id AND a.is_current = true
+      WHERE (
+        (rd.parent_id IS NULL AND rd.hierarchy_level IS DISTINCT FROM 'title')
+        OR rd.hierarchy_level IS NULL
+      )
+      ${filterClause}
+      ORDER BY
+        rd.nycrr_title NULLS LAST,
+        rd.nycrr_part NULLS LAST,
+        rd.title
+      LIMIT 1000
+    `);
+
+    return results.rows as unknown as HierarchyNode[];
+  }
+
+  /**
+   * Get hierarchy statistics by level
+   */
+  async getHierarchyStats(filters?: HierarchyFilterOptions): Promise<{
+    level: string;
+    count: number;
+    analyzedCount: number;
+    flaggedCount: number;
+  }[]> {
+    const filterConditions = this.buildHierarchyFilterConditions(filters);
+    const filterClause = filterConditions.length > 0
+      ? sql`WHERE ${sql.join(filterConditions, sql` AND `)}`
+      : sql``;
+
+    const results = await this.db.execute(sql`
+      SELECT
+        COALESCE(rd.hierarchy_level, 'unlinked') as level,
+        COUNT(*)::int as count,
+        COUNT(a.id)::int as "analyzedCount",
+        COUNT(CASE WHEN a.num_flags > 0 THEN 1 END)::int as "flaggedCount"
+      FROM regulatory_documents rd
+      LEFT JOIN analyses a ON a.document_id = rd.id AND a.is_current = true
+      ${filterClause}
+      GROUP BY rd.hierarchy_level
+      ORDER BY count DESC
+    `);
+
+    return results.rows as unknown as {
+      level: string;
+      count: number;
+      analyzedCount: number;
+      flaggedCount: number;
+    }[];
+  }
+
+  /**
+   * Build filter conditions for hierarchy queries
+   */
+  private buildHierarchyFilterConditions(filters?: HierarchyFilterOptions) {
+    const conditions: ReturnType<typeof sql>[] = [];
+
+    if (!filters) return conditions;
+
+    if (filters.hasAnalysis === true) {
+      conditions.push(sql`a.id IS NOT NULL`);
+    } else if (filters.hasAnalysis === false) {
+      conditions.push(sql`a.id IS NULL`);
+    }
+
+    if (filters.hasFlags === true) {
+      conditions.push(sql`a.num_flags > 0`);
+    } else if (filters.hasFlags === false) {
+      conditions.push(sql`(a.num_flags = 0 OR a.num_flags IS NULL)`);
+    }
+
+    if (filters.severity === 'high') {
+      conditions.push(sql`a.max_severity >= 7`);
+    } else if (filters.severity === 'medium') {
+      conditions.push(sql`a.max_severity >= 4 AND a.max_severity < 7`);
+    } else if (filters.severity === 'low') {
+      conditions.push(sql`a.max_severity >= 1 AND a.max_severity < 4`);
+    }
+
+    if (filters.hasDefinitions === true) {
+      conditions.push(sql`EXISTS (SELECT 1 FROM definitions d WHERE d.document_id = rd.id)`);
+    } else if (filters.hasDefinitions === false) {
+      conditions.push(sql`NOT EXISTS (SELECT 1 FROM definitions d WHERE d.document_id = rd.id)`);
+    }
+
+    return conditions;
   }
 }

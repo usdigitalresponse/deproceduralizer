@@ -9,7 +9,8 @@ interface HeaderProps {
 }
 
 const NAV_LINKS = [
-  { href: '/', label: 'Regulations' },
+  { href: '/', label: 'Table View' },
+  { href: '/browse', label: 'Browse' },
   { href: '/review?status=unreviewed', label: 'Review Mode' },
 ];
 

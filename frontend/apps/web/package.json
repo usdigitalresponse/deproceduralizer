@@ -13,6 +13,7 @@
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-select": "^2.2.6",
     "@tanstack/react-table": "^8.21.3",
+    "lucide-react": "^0.561.0",
     "next": "16.0.8",
     "react": "19.2.1",
     "react-dom": "19.2.1"
