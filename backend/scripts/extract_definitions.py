@@ -40,6 +40,48 @@ class DefinitionsResponse(BaseModel):
     definitions: List[Definition] = Field(default_factory=list)
 
 REG_DIR = str(INDIVIDUAL_REGULATIONS_DIR)
+MODEL_VERSION = "gpt-4o-mini"
+
+
+def get_processed_source_indices() -> set:
+    """Get set of source_indices that have already been processed for definitions."""
+    conn = get_db_connection()
+    if not conn:
+        print("Warning: Could not connect to DB, will process all regulations")
+        return set()
+
+    try:
+        result = conn.execute("SELECT source_index FROM definition_extraction_log")
+        processed = {row[0] for row in result.fetchall()}
+        conn.close()
+        return processed
+    except Exception as e:
+        print(f"Warning: Could not fetch processed indices: {e}")
+        conn.close()
+        return set()
+
+
+def log_extraction(source_index: int, definitions_found: int):
+    """Log that a regulation has been processed for definitions."""
+    conn = get_db_connection()
+    if not conn:
+        return
+
+    try:
+        conn.execute("""
+            INSERT INTO definition_extraction_log (source_index, model_version, definitions_found)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (source_index) DO UPDATE SET
+                processed_at = CURRENT_TIMESTAMP,
+                model_version = EXCLUDED.model_version,
+                definitions_found = EXCLUDED.definitions_found
+        """, (source_index, MODEL_VERSION, definitions_found))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Warning: Could not log extraction: {e}")
+        conn.close()
+
 
 TOPIC_PATTERNS = {
     'housing': ['housing', 'dwelling', 'apartment', 'residential', 'tenant', 'landlord'],
@@ -115,50 +157,96 @@ def calculate_definition_overlap(definition: str, content: str) -> float:
     return matcher.ratio()
 
 
-def get_topic_regulations(sample_size: int) -> List[Dict]:
-    """Get sample of regulations from target topics"""
-    print(f"[1/3] Sampling {sample_size} regulations from target topics...")
+def get_regulations_for_extraction(num_to_process: int, skip_processed: bool = True) -> List[Dict]:
+    """Get regulations for definition extraction, prioritizing target topics.
+
+    Args:
+        num_to_process: Number of regulations to return (guaranteed LLM calls)
+        skip_processed: If True, exclude regulations already in definition_extraction_log
+
+    Returns:
+        List of regulations, prioritizing housing/child_care/permitting, then expanding to all.
+    """
+    print(f"[1/3] Finding {num_to_process} regulations for definition extraction...")
+
+    # Get already-processed source_indices
+    processed_indices = set()
+    if skip_processed:
+        processed_indices = get_processed_source_indices()
+        if processed_indices:
+            print(f"      Excluding {len(processed_indices)} already-processed regulations")
 
     all_files = list(Path(REG_DIR).glob('*.json'))
-    matching_regs = []
+
+    priority_regs = []  # Match priority topics
+    other_regs = []     # Have definition content but not priority topics
 
     for filepath in all_files:
         try:
             with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
                 data = json.load(f)
 
+            source_index = data.get('source_index')
+
+            # Skip if already processed
+            if skip_processed and source_index in processed_indices:
+                continue
+
             content = data.get('content', '')
             title = data.get('title', '')
 
-            # Filter: must have definition content AND match a topic
+            # Must have definition content
             if not has_definition_content(content, title):
                 continue
 
-            topics = check_topic_match(content, title)
-            if not topics:
-                continue
-
-            matching_regs.append({
+            reg_data = {
                 'filename': filepath.name,
                 'filepath': str(filepath),
                 'title': title,
                 'url': data.get('url', ''),
                 'content': content,
-                'topics': topics,
-                'source_index': data.get('source_index'),
+                'source_index': source_index,
                 'nycrr_title': data.get('nycrr_title'),
                 'nycrr_part': data.get('nycrr_part'),
                 'nycrr_section': data.get('nycrr_section'),
-            })
+            }
+
+            # Check if matches priority topics
+            topics = check_topic_match(content, title)
+            if topics:
+                reg_data['topics'] = topics
+                priority_regs.append(reg_data)
+            else:
+                reg_data['topics'] = ['other']
+                other_regs.append(reg_data)
 
         except Exception:
             pass
 
-    # Sample
-    sampled = random.sample(matching_regs, min(sample_size, len(matching_regs)))
-    print(f"      ✓ Sampled {len(sampled)} regulations")
+    print(f"      Found {len(priority_regs)} priority topic regulations (housing/child_care/permitting)")
+    print(f"      Found {len(other_regs)} other regulations with definition content")
+
+    # Build final list: priority first, then others
+    result = []
+
+    # Take from priority first
+    if len(priority_regs) >= num_to_process:
+        result = random.sample(priority_regs, num_to_process)
+        print(f"      ✓ Selected {num_to_process} from priority topics")
+    else:
+        # Take all priority, then fill from others
+        result = priority_regs.copy()
+        remaining = num_to_process - len(result)
+        if remaining > 0 and other_regs:
+            extras = random.sample(other_regs, min(remaining, len(other_regs)))
+            result.extend(extras)
+            print(f"      ✓ Selected {len(priority_regs)} priority + {len(extras)} other = {len(result)} total")
+
+    if len(result) < num_to_process:
+        print(f"      ⚠ Only {len(result)} unprocessed regulations available")
+
     print()
-    return sampled
+    return result
 
 def extract_with_llm(content: str, title: str, client=None, max_retries: int = 3) -> List[Dict]:
     """Extract definitions using LLM with Pydantic structured output.
@@ -193,7 +281,7 @@ Only extract actual term definitions, not general descriptions."""
         client=client,
         prompt=prompt,
         response_format=DefinitionsResponse,
-        model="gpt-5-nano",
+        model=MODEL_VERSION,
         max_retries=max_retries
     )
 
@@ -281,7 +369,7 @@ def store_to_database(regulations: List[Dict]):
                         defn.get('scope'),
                         defn.get('source_location'),
                         overlap,
-                        "gpt-5-nano"
+                        MODEL_VERSION
                     ))
                     total_defs += 1
                     defs_for_this_doc += 1
@@ -401,6 +489,7 @@ def main():
     parser = argparse.ArgumentParser(description='Extract definitions with LLM and store to database')
     parser.add_argument('-n', '--num', type=int, default=20, help='Number of regulations to sample')
     parser.add_argument('--seed', type=int, default=42, help='Random seed for reproducible sampling (default: 42)')
+    parser.add_argument('--reprocess', action='store_true', help='Re-process even if already done')
 
     args = parser.parse_args()
 
@@ -412,8 +501,9 @@ def main():
     print("=" * 80)
     print()
 
-    # Step 1: Sample regulations
-    regulations = get_topic_regulations(args.num)
+    # Step 1: Get regulations (skip already-processed unless --reprocess)
+    skip_processed = not args.reprocess
+    regulations = get_regulations_for_extraction(args.num, skip_processed=skip_processed)
 
     if not regulations:
         print("No regulations found!")
@@ -429,7 +519,12 @@ def main():
     for i, reg in enumerate(regulations, 1):
         print(f"  [{i}/{len(regulations)}] {reg['filename'][:40]}...")
         reg['llm_definitions'] = extract_with_llm(reg['content'], reg['title'], client=client)
-        print(f"      → {len(reg['llm_definitions'])} definitions found")
+        num_defs = len(reg['llm_definitions'])
+        print(f"      → {num_defs} definitions found")
+
+        # Log that we processed this regulation
+        if reg.get('source_index') is not None:
+            log_extraction(reg['source_index'], num_defs)
 
     print()
 

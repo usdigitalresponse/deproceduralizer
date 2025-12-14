@@ -139,3 +139,15 @@ CREATE INDEX idx_definitions_document ON definitions(document_id);
 CREATE INDEX idx_definitions_term ON definitions(term);
 CREATE INDEX idx_definitions_overlap ON definitions(definition_overlap);
 CREATE INDEX idx_definitions_document_term ON definitions(document_id, term);
+
+-- Track which regulations have been processed for definition extraction
+CREATE TABLE definition_extraction_log (
+  id BIGSERIAL PRIMARY KEY,
+  source_index INTEGER NOT NULL,           -- Which regulation was processed
+  processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  model_version VARCHAR(100),              -- Model used for extraction
+  definitions_found INTEGER DEFAULT 0,     -- How many definitions were extracted
+  CONSTRAINT unique_def_extraction_source UNIQUE(source_index)
+);
+
+CREATE INDEX idx_def_extraction_source ON definition_extraction_log(source_index);
