@@ -9,11 +9,19 @@ import hashlib
 from pathlib import Path
 import re
 import sys
+import subprocess
+import signal
+import shutil
 from typing import Optional, Dict, Tuple
 
 # Add parent directory to path for config import
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from config import SCRAPED_DATA_DIR
+from config import (
+    SCRAPED_DATA_DIR,
+    INDIVIDUAL_REGULATIONS_DIR,
+    NY_REGULATIONS_CACHE_FILE,
+    NY_REGULATIONS_COMPLETE_FILE,
+)
 
 
 # =============================================================================
@@ -608,38 +616,319 @@ class NYRegulationsScraper:
             json.dump(data, f, indent=2, ensure_ascii=False)
         print(f"Data saved to {filename}")
 
-if __name__ == "__main__":
-    scraper = NYRegulationsScraper()
 
-    # For testing, limit to 50 pages. Remove max_pages parameter to scrape everything
-    data = scraper.scrape_all(max_pages=50)
+# =============================================================================
+# FULL PIPELINE (scrape -> clean -> individual files)
+# =============================================================================
 
-    if data:
-        # Assign source_index to each item
+class FullPipeline:
+    """Complete pipeline from scraping to individual clean files."""
+
+    def __init__(self):
+        self.caffeinate_proc = None
+
+    def start_caffeinate(self):
+        """Start caffeinate to prevent system sleep (macOS)"""
+        try:
+            print("Starting caffeinate to prevent system sleep...")
+            self.caffeinate_proc = subprocess.Popen(
+                ['caffeinate', '-d'],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
+            print("Caffeinate started successfully")
+        except Exception as e:
+            print(f"Could not start caffeinate: {e}")
+
+    def stop_caffeinate(self):
+        """Stop caffeinate process"""
+        if self.caffeinate_proc:
+            try:
+                self.caffeinate_proc.terminate()
+                self.caffeinate_proc.wait(timeout=5)
+                print("Caffeinate stopped")
+            except:
+                try:
+                    self.caffeinate_proc.kill()
+                except:
+                    pass
+
+    def setup_signal_handlers(self):
+        """Setup clean shutdown handlers"""
+        def signal_handler(sig, frame):
+            print("\nReceived interrupt signal, cleaning up...")
+            self.stop_caffeinate()
+            sys.exit(0)
+
+        signal.signal(signal.SIGINT, signal_handler)
+        signal.signal(signal.SIGTERM, signal_handler)
+
+    def step1_scrape_regulations(self, max_pages=None):
+        """Step 1: Scrape all regulations"""
+        print("=" * 60)
+        print("STEP 1: SCRAPING NY REGULATIONS")
+        print("=" * 60)
+
+        scraper = NYRegulationsScraper()
+
+        print("Starting comprehensive scrape...")
+        print("Features: caffeinate, auto-resume, retry logic, progress saving")
+        print()
+
+        if scraper.visited_urls:
+            print(f"Resuming from {len(scraper.visited_urls)} previously visited URLs")
+
+        start_time = time.time()
+        data = scraper.scrape_all(max_pages=max_pages)
+        end_time = time.time()
+
+        if not data:
+            print("No data was scraped")
+            return False
+
+        # Assign source_index and link parents
         for idx, item in enumerate(data):
             item['source_index'] = idx
-
-        # Link parent_source_index
         data = scraper.link_parent_source_indices(data)
 
-        scraper.save_to_json(data)
-        print(f"Successfully scraped {len(data)} regulations")
+        # Save raw scraped data
+        scraper.save_to_json(data, str(NY_REGULATIONS_COMPLETE_FILE))
 
-        # Print summary of what we found
-        types_found = {}
-        hierarchy_levels = {}
-        for item in data:
-            url_type = item.get('url_type', 'unknown')
-            types_found[url_type] = types_found.get(url_type, 0) + 1
-            level = item.get('hierarchy_level', 'unknown')
-            hierarchy_levels[level] = hierarchy_levels.get(level, 0) + 1
+        elapsed = end_time - start_time
+        print(f"\nStep 1 Complete: {len(data)} regulations scraped")
+        print(f"Time: {int(elapsed//3600)}h {int((elapsed%3600)//60)}m")
 
-        print("\nTypes of content found:")
-        for content_type, count in types_found.items():
-            print(f"  {content_type}: {count}")
+        return data
 
-        print("\nHierarchy levels:")
-        for level, count in sorted(hierarchy_levels.items(), key=lambda x: -x[1]):
-            print(f"  {level}: {count}")
+    def step2_process_cache_to_clean_data(self):
+        """Step 2: Convert cached HTML to clean regulation data"""
+        print("\n" + "=" * 60)
+        print("STEP 2: PROCESSING CACHED FILES TO CLEAN DATA")
+        print("=" * 60)
+
+        scraper = NYRegulationsScraper()
+        cache_dir = SCRAPED_DATA_DIR
+
+        if not cache_dir.exists():
+            print(f"No scraped_data directory found at {cache_dir}")
+            return False
+
+        html_files = list(cache_dir.glob('*.json'))
+        regulation_data = []
+
+        print(f"Processing {len(html_files)} cached files...")
+
+        processed_count = 0
+        for html_file in html_files:
+            if html_file.name in ['progress.json', 'failed_urls.json']:
+                continue
+
+            try:
+                with open(html_file, 'r', encoding='utf-8') as f:
+                    cached_data = json.load(f)
+
+                if 'html' in cached_data and 'url' in cached_data:
+                    url = cached_data['url']
+                    html = cached_data['html']
+
+                    soup = BeautifulSoup(html, 'html.parser')
+
+                    title_elem = soup.find('h1') or soup.find('title')
+                    title = title_elem.get_text(strip=True) if title_elem else "No title found"
+
+                    content = ""
+                    reg_content = soup.find('div', class_='statereg-text')
+                    if reg_content:
+                        content = reg_content.get_text(separator='\n', strip=True)
+                    else:
+                        main_content = soup.find('div', {'id': 'content'}) or soup.find('main')
+                        if main_content:
+                            for unwanted in main_content(['nav', 'aside', 'footer', 'script', 'style', 'noscript', 'header']):
+                                unwanted.decompose()
+                            content = main_content.get_text(separator='\n', strip=True)
+
+                    cleaned_content = scraper.clean_regulation_text(content)
+                    hierarchy = get_hierarchy_info(url)
+
+                    regulation = {
+                        'url': url,
+                        'title': title,
+                        'content': content,
+                        'cleaned_content': cleaned_content,
+                        'url_type': scraper.classify_url(url),
+                        'hierarchy_level': hierarchy.get('hierarchy_level'),
+                        'hierarchy_path': hierarchy.get('hierarchy_path'),
+                        'nycrr_title': hierarchy.get('nycrr_title'),
+                        'nycrr_part': hierarchy.get('nycrr_part'),
+                        'nycrr_section': hierarchy.get('nycrr_section'),
+                    }
+
+                    regulation_data.append(regulation)
+                    processed_count += 1
+
+                    if processed_count % 500 == 0:
+                        print(f"  Processed {processed_count} files...")
+
+            except Exception:
+                continue
+
+        if not regulation_data:
+            print("No valid regulation data found")
+            return False
+
+        # Assign source_index and link parents
+        for idx, item in enumerate(regulation_data):
+            item['source_index'] = idx
+
+        scraper_temp = NYRegulationsScraper()
+        regulation_data = scraper_temp.link_parent_source_indices(regulation_data)
+
+        with open(NY_REGULATIONS_CACHE_FILE, 'w', encoding='utf-8') as f:
+            json.dump(regulation_data, f, indent=2, ensure_ascii=False)
+
+        print(f"Step 2 Complete: {len(regulation_data)} regulations with cleaned content")
+        print(f"Saved to {NY_REGULATIONS_CACHE_FILE}")
+
+        return regulation_data
+
+    def step3_create_individual_files(self):
+        """Step 3: Create individual JSON files from cleaned data"""
+        print("\n" + "=" * 60)
+        print("STEP 3: CREATING INDIVIDUAL REGULATION FILES")
+        print("=" * 60)
+
+        try:
+            with open(NY_REGULATIONS_CACHE_FILE, 'r', encoding='utf-8') as f:
+                regulations = json.load(f)
+        except FileNotFoundError:
+            print(f"{NY_REGULATIONS_CACHE_FILE} not found. Run steps 1-2 first.")
+            return False
+
+        print(f"Loaded {len(regulations)} regulations")
+
+        output_dir = INDIVIDUAL_REGULATIONS_DIR
+        if output_dir.exists():
+            print("Removing old individual files...")
+            shutil.rmtree(output_dir)
+        output_dir.mkdir(parents=True)
+
+        print("Creating individual files...")
+
+        created_count = 0
+        for regulation in regulations:
+            source_index = regulation.get('source_index', created_count)
+            url = regulation['url']
+
+            url_part = url.split('/')[-1] if '/' in url else url
+            clean_name = re.sub(r'[^\w\-\.]', '_', url_part)
+            filename = f"{source_index:06d}_{clean_name}.json"
+
+            individual_file = {
+                'url': regulation['url'],
+                'title': regulation['title'],
+                'content': regulation.get('cleaned_content', regulation.get('content', '')),
+                'url_type': regulation.get('url_type', 'unknown'),
+                'source_index': source_index,
+                'hierarchy_level': regulation.get('hierarchy_level'),
+                'hierarchy_path': regulation.get('hierarchy_path'),
+                'nycrr_title': regulation.get('nycrr_title'),
+                'nycrr_part': regulation.get('nycrr_part'),
+                'nycrr_section': regulation.get('nycrr_section'),
+                'parent_source_index': regulation.get('parent_source_index'),
+            }
+
+            file_path = output_dir / filename
+            with open(file_path, 'w', encoding='utf-8') as f:
+                json.dump(individual_file, f, indent=2, ensure_ascii=False)
+
+            created_count += 1
+            if created_count % 1000 == 0:
+                print(f"  Created {created_count}/{len(regulations)} files...")
+
+        print(f"Step 3 Complete: {created_count} individual files created")
+        print(f"Location: {output_dir}/")
+
+        return True
+
+    def run_full_pipeline(self, max_pages=None):
+        """Run the complete pipeline"""
+        print("=" * 60)
+        print("NY REGULATIONS COMPLETE PIPELINE")
+        print("From 0 to Individual Clean Files")
+        print("=" * 60)
+        print()
+
+        self.setup_signal_handlers()
+        self.start_caffeinate()
+
+        try:
+            data = self.step1_scrape_regulations(max_pages)
+            if not data:
+                return False
+
+            clean_data = self.step2_process_cache_to_clean_data()
+            if not clean_data:
+                return False
+
+            success = self.step3_create_individual_files()
+            if not success:
+                return False
+
+            print("\n" + "=" * 60)
+            print("PIPELINE COMPLETE!")
+            print("=" * 60)
+            print(f"Regulations scraped and cleaned: {len(clean_data)}")
+            print(f"Individual files: {INDIVIDUAL_REGULATIONS_DIR}")
+            print(f"Master file: {NY_REGULATIONS_CACHE_FILE}")
+
+            return True
+
+        except KeyboardInterrupt:
+            print("\nPipeline interrupted by user")
+            return False
+        except Exception as e:
+            print(f"Pipeline failed: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
+        finally:
+            self.stop_caffeinate()
+
+
+def main():
+    """Main entry point with CLI argument parsing."""
+    import argparse
+
+    parser = argparse.ArgumentParser(description='NY Regulations Scraper and Pipeline')
+    parser.add_argument('--test', action='store_true', help='Test mode: limit to 100 pages')
+    parser.add_argument('--small', action='store_true', help='Small run: limit to 1000 pages')
+    parser.add_argument('--yes', '-y', action='store_true', help='Auto-confirm (skip prompt)')
+    parser.add_argument('--max-pages', type=int, help='Custom max pages limit')
+
+    args = parser.parse_args()
+
+    max_pages = args.max_pages
+    if args.test:
+        max_pages = 100
+        print("Test mode: limiting to 100 pages")
+    elif args.small:
+        max_pages = 1000
+        print("Small run: limiting to 1000 pages")
+
+    if not args.yes and not args.test:
+        response = input("Run the complete pipeline? This may take several hours. (y/N): ")
+        if response.lower() not in ['y', 'yes']:
+            print("Pipeline cancelled.")
+            return
+
+    pipeline = FullPipeline()
+    success = pipeline.run_full_pipeline(max_pages)
+
+    if success:
+        print(f"\nReady to use! Check {INDIVIDUAL_REGULATIONS_DIR}")
     else:
-        print("No data scraped")
+        print("\nPipeline failed")
+
+
+if __name__ == "__main__":
+    main()

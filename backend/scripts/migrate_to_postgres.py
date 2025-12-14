@@ -11,7 +11,6 @@ from typing import Dict, List, Any
 import os
 from dotenv import load_dotenv
 import re
-import time
 
 # Add parent directory to path for config import
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -185,10 +184,9 @@ def migrate_json_analysis(json_file: str, state: str = "NY"):
                                 print(f"  ✗ Error inserting red flags: {e}")
                                 raise
 
-                    if (section_idx + 1) % 5 == 0:
+                    if (section_idx + 1) % 50 == 0:
                         print(f"  ✓ Processed {section_idx + 1} sections...")
                         conn.commit()
-                        time.sleep(0.5)
 
                 except Exception as e:
                     print(f"  ✗ Error processing section {section_idx}: {e}")
@@ -265,10 +263,9 @@ def migrate_all_individual_regulations(state: str = "NY"):
                     ))
 
                     total_documents += 1
-                    if (file_idx + 1) % 10 == 0:
-                        print(f"  ✓ Processed {file_idx + 1} regulations (total: {total_documents})...")
+                    if (file_idx + 1) % 1000 == 0:
+                        print(f"  ✓ Processed {file_idx + 1} regulations...")
                         conn.commit()
-                        time.sleep(0.5)  # Small delay between commits
 
                 except Exception as e:
                     print(f"  ✗ Error processing {json_file.name}: {e}")
@@ -278,6 +275,88 @@ def migrate_all_individual_regulations(state: str = "NY"):
 
     print(f"✓ Successfully migrated {total_documents} individual regulatory documents")
     return total_documents
+
+
+def populate_parent_ids(state: str = "NY"):
+    """
+    Populate parent_id column in regulatory_documents table.
+
+    Reads parent_source_index from JSON files and updates the database
+    to set parent_id based on matching source_index values.
+    """
+    reg_dir = Path(INDIVIDUAL_REGULATIONS_DIR)
+    if not reg_dir.exists():
+        print(f"✗ individual_regulations directory not found!")
+        return
+
+    # Step 1: Load parent mappings from JSON files
+    print("Loading parent mappings from JSON files...")
+    parent_mappings = {}  # source_index -> parent_source_index
+    json_files = list(reg_dir.glob("*.json"))
+
+    for filepath in json_files:
+        try:
+            with open(filepath, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            source_index = data.get('source_index')
+            parent_source_index = data.get('parent_source_index')
+            if source_index is not None:
+                parent_mappings[source_index] = parent_source_index
+        except Exception:
+            continue
+
+    with_parents = sum(1 for v in parent_mappings.values() if v is not None)
+    print(f"  Found {len(parent_mappings)} documents, {with_parents} have parent_source_index")
+
+    if not parent_mappings:
+        print("No mappings found!")
+        return
+
+    # Step 2: Get source_index -> database ID mapping
+    print("Building source_index to database ID mapping...")
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT id, source_index
+                FROM regulatory_documents
+                WHERE state = %s AND type = 'regulation'
+            """, (state,))
+            rows = cur.fetchall()
+            source_to_db_id = {row[1]: row[0] for row in rows if row[1] is not None}
+            print(f"  {len(source_to_db_id)} documents in database with source_index")
+
+            # Step 3: Build and apply updates
+            updates = []
+            missing_parents = 0
+
+            for source_index, parent_source_index in parent_mappings.items():
+                if parent_source_index is None:
+                    continue
+                child_db_id = source_to_db_id.get(source_index)
+                parent_db_id = source_to_db_id.get(parent_source_index)
+
+                if child_db_id is None:
+                    continue
+                if parent_db_id is None:
+                    missing_parents += 1
+                    continue
+
+                updates.append((parent_db_id, child_db_id))
+
+            print(f"  Prepared {len(updates)} parent_id updates")
+            if missing_parents > 0:
+                print(f"  ({missing_parents} documents have parents not in database)")
+
+            # Apply updates in batches
+            print("Applying updates...")
+            cur.executemany("""
+                UPDATE regulatory_documents
+                SET parent_id = %s
+                WHERE id = %s
+            """, updates)
+            conn.commit()
+            print(f"✓ Updated {len(updates)} documents with parent_id")
+
 
 def main():
     print("Starting migration to PostgreSQL...\n")
@@ -305,6 +384,10 @@ def main():
         except Exception as e:
             print(f"✗ Failed to migrate {json_file}: {e}")
             raise
+
+    print("\nPhase 3: Populating parent_id relationships")
+    print("=" * 50)
+    populate_parent_ids(state="NY")
 
     print("\n✓ Migration complete!")
 

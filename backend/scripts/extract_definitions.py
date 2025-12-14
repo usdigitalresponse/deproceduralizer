@@ -10,16 +10,21 @@ Workflow:
 """
 
 import json
-import os
 import re
 import argparse
 import random
+import sys
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
-import psycopg
-from openai import OpenAI
+from typing import Dict, List, Optional
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
+
+# Add backend directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from config import PROJECT_ROOT, INDIVIDUAL_REGULATIONS_DIR, OUTPUTS_DIR
+from shared_utils import get_db_connection, get_openai_client, call_llm_parse
+
+load_dotenv(PROJECT_ROOT / '.env')
 
 
 class Definition(BaseModel):
@@ -33,13 +38,6 @@ class Definition(BaseModel):
 class DefinitionsResponse(BaseModel):
     """Response containing all extracted definitions."""
     definitions: List[Definition] = Field(default_factory=list)
-
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent / 'backend'))
-from config import PROJECT_ROOT, INDIVIDUAL_REGULATIONS_DIR
-
-load_dotenv(PROJECT_ROOT / '.env')
 
 REG_DIR = str(INDIVIDUAL_REGULATIONS_DIR)
 
@@ -162,19 +160,20 @@ def get_topic_regulations(sample_size: int) -> List[Dict]:
     print()
     return sampled
 
-def extract_with_llm(content: str, title: str, max_retries: int = 3) -> List[Dict]:
+def extract_with_llm(content: str, title: str, client=None, max_retries: int = 3) -> List[Dict]:
     """Extract definitions using LLM with Pydantic structured output.
 
     Args:
         content: Regulation content text
         title: Regulation title
+        client: OpenAI client (optional, will create one if not provided)
         max_retries: Number of retries on failed responses
 
     Returns:
         List of definition dicts with term, definition, scope, source_location
     """
-    import time
-    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    if client is None:
+        client = get_openai_client()
 
     prompt = f"""Extract all term definitions from this regulation section.
 
@@ -190,45 +189,22 @@ For each definition found, extract:
 
 Only extract actual term definitions, not general descriptions."""
 
-    for attempt in range(max_retries):
-        try:
-            response = client.beta.chat.completions.parse(
-                model="gpt-5-nano",
-                messages=[{"role": "user", "content": prompt}],
-                response_format=DefinitionsResponse
-            )
+    parsed = call_llm_parse(
+        client=client,
+        prompt=prompt,
+        response_format=DefinitionsResponse,
+        model="gpt-5-nano",
+        max_retries=max_retries
+    )
 
-            parsed = response.choices[0].message.parsed
+    if parsed is None:
+        return []
 
-            if parsed is None:
-                finish_reason = response.choices[0].finish_reason
-                print(f"      ⚠️  Parse failed (attempt {attempt + 1}/{max_retries}, finish_reason={finish_reason})")
-                if attempt < max_retries - 1:
-                    time.sleep(2)
-                    continue
-                else:
-                    print(f"      ❌ All {max_retries} attempts failed to parse")
-                    return []
-
-            # Convert Pydantic models to dicts
-            definitions = [d.model_dump() for d in parsed.definitions]
-
-            if attempt > 0:
-                print(f"      ✓ Success on attempt {attempt + 1}")
-            return definitions
-
-        except Exception as e:
-            print(f"      ⚠️  API error: {type(e).__name__}: {e} (attempt {attempt + 1}/{max_retries})")
-            if attempt < max_retries - 1:
-                time.sleep(2)
-                continue
-            print(f"      ❌ All {max_retries} attempts failed")
-            return []
-
-    return []
+    # Convert Pydantic models to dicts
+    return [d.model_dump() for d in parsed.definitions]
 
 def store_to_database(regulations: List[Dict]):
-    """Store definitions in Neon database using psycopg v3"""
+    """Store definitions in Neon database using shared_utils connection"""
     print(f"[2/3] Storing results in Neon database...")
     print(f"      Input: {len(regulations)} regulations to process")
 
@@ -236,13 +212,12 @@ def store_to_database(regulations: List[Dict]):
     total_input_defs = sum(len(r.get('llm_definitions', [])) for r in regulations)
     print(f"      Input: {total_input_defs} total definitions to store")
 
-    db_url = os.getenv("DATABASE_URL")
-    if not db_url:
-        print("      ERROR: DATABASE_URL not set")
+    conn = get_db_connection()
+    if not conn:
+        print("      ERROR: Could not connect to database")
         return
 
     try:
-        conn = psycopg.connect(db_url)
         print("      ✓ Connected to database")
 
         # Check definitions count before
@@ -414,7 +389,8 @@ def generate_viewer(regulations: List[Dict]):
 </html>
 """
 
-    output_file = "~/Documents/repos/newyork/experiments/viewer_extracted_definitions.html"
+    OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
+    output_file = OUTPUTS_DIR / "viewer_extracted_definitions.html"
     with open(output_file, 'w') as f:
         f.write(html)
 
@@ -447,9 +423,12 @@ def main():
     print(f"Extracting definitions with LLM ({args.num} regulations)...")
     print()
 
+    # Create client once for efficiency
+    client = get_openai_client()
+
     for i, reg in enumerate(regulations, 1):
         print(f"  [{i}/{len(regulations)}] {reg['filename'][:40]}...")
-        reg['llm_definitions'] = extract_with_llm(reg['content'], reg['title'])
+        reg['llm_definitions'] = extract_with_llm(reg['content'], reg['title'], client=client)
         print(f"      → {len(reg['llm_definitions'])} definitions found")
 
     print()
@@ -469,7 +448,7 @@ def main():
     print(f"Total definitions: {total_defs}")
     print()
     print(f"✓ Results stored in Neon database")
-    print(f"✓ Local viewer: ~/Documents/repos/newyork/experiments/viewer_extracted_definitions.html")
+    print(f"✓ Local viewer: {OUTPUTS_DIR / 'viewer_extracted_definitions.html'}")
     print()
 
 if __name__ == '__main__':

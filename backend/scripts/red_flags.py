@@ -24,9 +24,9 @@ from datetime import datetime
 import psycopg
 from psycopg import Connection
 
-# Add parent directory to path for config import
+# Add backend directory to path for config import
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from config import INDIVIDUAL_REGULATIONS_DIR, WEB_PUBLIC_DIR, PROJECT_ROOT
+from config import INDIVIDUAL_REGULATIONS_DIR, WEB_PUBLIC_DIR, PROJECT_ROOT, OUTPUTS_DIR
 from shared_utils import get_db_connection
 
 # Load environment variables from project root
@@ -831,7 +831,8 @@ async def main():
         print(f"  {cat}: {count}")
 
     # Set output file name upfront for incremental saves
-    output_file = f"red_flag_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
+    output_file = str(OUTPUTS_DIR / f"red_flag_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
 
     # Get database connection if needed
     db_conn = None

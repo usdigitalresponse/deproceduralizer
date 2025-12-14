@@ -24,9 +24,9 @@ import psycopg
 from psycopg import Connection
 from dotenv import load_dotenv
 
-# Add parent directory to path for config import
-sys.path.insert(0, str(Path(__file__).parent.parent))
-from config import INDIVIDUAL_REGULATIONS_DIR, PROJECT_ROOT
+# Add backend directory to path for config import (two levels up from analyze/)
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+from config import INDIVIDUAL_REGULATIONS_DIR, PROJECT_ROOT, OUTPUTS_DIR
 from shared_utils import get_db_connection
 
 load_dotenv(PROJECT_ROOT / '.env')
@@ -270,7 +270,8 @@ def main():
     print()
 
     # Save full results to JSON
-    output_file = "definition_usage_analysis.json"
+    OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
+    output_file = OUTPUTS_DIR / "definition_usage_analysis.json"
     with open(output_file, 'w') as f:
         json.dump(results, f, indent=2)
 
