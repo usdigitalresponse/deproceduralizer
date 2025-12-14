@@ -32,38 +32,42 @@ from shared_utils import get_db_connection
 load_dotenv(PROJECT_ROOT / '.env')
 
 
-def load_all_regulations() -> Dict[str, Dict]:
-    """Load all regulation JSON files into memory.
+def get_regulations_from_db(conn: Connection) -> Dict[str, Dict]:
+    """Get all regulations with their metadata from database.
 
     Returns:
         Dict mapping source_index to regulation data
     """
-    print("Loading all regulation files...")
-    regulations = {}
+    print("Loading regulations from database...")
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT
+                    source_index,
+                    title,
+                    content,
+                    nycrr_title,
+                    nycrr_part
+                FROM regulatory_documents
+                WHERE type = 'regulation'
+            """)
 
-    reg_dir = Path(INDIVIDUAL_REGULATIONS_DIR)
-
-    if not reg_dir.exists() or not reg_dir.is_dir():
-        print(f"  ERROR: Could not find individual_regulations directory at {reg_dir}")
-        return {}
-
-    json_files = list(reg_dir.glob("*.json"))
-
-    for i, filepath in enumerate(json_files):
-        if i % 10000 == 0:
-            print(f"  Loaded {i}/{len(json_files)}...")
-
-        try:
-            with open(filepath, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                source_index = data.get('source_index')
+            regulations = {}
+            for row in cur.fetchall():
+                source_index = row[0]
                 if source_index is not None:
-                    regulations[source_index] = data
-        except Exception as e:
-            continue
+                    regulations[source_index] = {
+                        'title': row[1],
+                        'content': row[2],
+                        'nycrr_title': row[3],
+                        'nycrr_part': row[4]
+                    }
 
-    print(f"  ✓ Loaded {len(regulations)} regulations")
-    return regulations
+            print(f"  ✓ Loaded {len(regulations)} regulations from database")
+            return regulations
+    except Exception as e:
+        print(f"ERROR loading regulations: {e}")
+        return {}
 
 
 def normalize_term(term: str) -> str:
@@ -213,7 +217,6 @@ def main():
 
     # Fetch definitions
     definitions = get_definitions_from_db(db_conn)
-    db_conn.close()
 
     if not definitions:
         print("No definitions found in database!")
@@ -222,8 +225,9 @@ def main():
     print(f"Found {len(definitions)} definitions in database")
     print()
 
-    # Load all regulations
-    regulations = load_all_regulations()
+    # Load all regulations from database (much faster than loading JSON files)
+    regulations = get_regulations_from_db(db_conn)
+    db_conn.close()
     print()
 
     # Analyze usage (all three scopes at once)
@@ -252,6 +256,22 @@ def main():
 
         print(f"{nycrr:8s} | {term} | {global_info} | {title_info} | {section_info}")
 
+    # Scope breakdown analysis
+    print()
+    print("=" * 80)
+    print("DEFINITION SCOPE BREAKDOWN - What do they apply to?")
+    print("=" * 80)
+
+    scope_counts = {}
+    for result in results:
+        scope = result['scope'] or 'unknown'
+        scope_counts[scope] = scope_counts.get(scope, 0) + 1
+
+    print(f"\nDefinitions by scope (total: {len(results)}):")
+    for scope, count in sorted(scope_counts.items(), key=lambda x: -x[1]):
+        pct = (count / len(results) * 100) if results else 0
+        print(f"  {scope:40s}: {count:5d} ({pct:5.1f}%)")
+
     # Summary statistics
     print()
     print("=" * 80)
@@ -272,8 +292,21 @@ def main():
     # Save full results to JSON
     OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
     output_file = OUTPUTS_DIR / "definition_usage_analysis.json"
+
+    output_data = {
+        'total_definitions': total_definitions,
+        'scope_breakdown': scope_counts,
+        'statistics': {
+            'found_in_any_regulation': total_definitions - unused,
+            'wide_global_usage': wide_usage,
+            'high_section_adoption': high_section_adoption,
+            'unused': unused
+        },
+        'definitions': results
+    }
+
     with open(output_file, 'w') as f:
-        json.dump(results, f, indent=2)
+        json.dump(output_data, f, indent=2)
 
     print()
     print(f"Full results saved to: {output_file}")

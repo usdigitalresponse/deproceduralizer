@@ -16,19 +16,22 @@ import re
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import OUTPUTS_DIR, PROJECT_ROOT, INDIVIDUAL_REGULATIONS_DIR
 from shared_utils import get_db_connection
+from scripts.ny_regulations_scraper import get_hierarchy_info
 
 load_dotenv(PROJECT_ROOT / '.env')
 
 def parse_nycrr_info(url: str) -> Tuple[Optional[int], Optional[str], Optional[str]]:
     """
     Extract NYCRR title, part, and section from a Cornell Law URL.
-    Example: https://www.law.cornell.edu/regulations/new-york/9-NYCRR-5320.1
+    Uses the comprehensive get_hierarchy_info parser.
     Returns: (title, part, section)
     """
-    match = re.search(r'(\d+)-NYCRR-(\d+)(?:\.(\d+))?', url)
-    if match:
-        return int(match.group(1)), match.group(2), match.group(3)
-    return None, None, None
+    hierarchy = get_hierarchy_info(url)
+    return (
+        hierarchy.get('nycrr_title'),
+        hierarchy.get('nycrr_part'),
+        hierarchy.get('nycrr_section')
+    )
 
 def migrate_json_analysis(json_file: str, state: str = "NY"):
     """
@@ -358,13 +361,95 @@ def populate_parent_ids(state: str = "NY"):
             print(f"✓ Updated {len(updates)} documents with parent_id")
 
 
+def refresh_hierarchy_fields(state: str = "NY"):
+    """
+    Re-parse all URLs and update hierarchy fields in the database.
+
+    This fixes any documents that were imported with the old, simpler parser
+    by re-parsing with the improved get_hierarchy_info function.
+    """
+    print("Refreshing hierarchy fields for all documents...")
+
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            # Get all documents
+            cur.execute("""
+                SELECT id, url FROM regulatory_documents
+                WHERE state = %s AND type = 'regulation'
+            """, (state,))
+            docs = cur.fetchall()
+            print(f"  Found {len(docs):,} documents to process")
+
+            # Re-parse and collect updates
+            updates = []
+            for i, (doc_id, url) in enumerate(docs):
+                if (i + 1) % 10000 == 0:
+                    print(f"  Processing {i + 1:,}/{len(docs):,}...")
+
+                hierarchy = get_hierarchy_info(url)
+                updates.append((
+                    hierarchy.get('hierarchy_level'),
+                    hierarchy.get('hierarchy_path'),
+                    hierarchy.get('nycrr_title'),
+                    hierarchy.get('nycrr_part'),
+                    hierarchy.get('nycrr_section'),
+                    doc_id
+                ))
+
+            # Apply updates
+            print(f"  Updating {len(updates):,} documents...")
+            cur.executemany("""
+                UPDATE regulatory_documents
+                SET hierarchy_level = %s,
+                    hierarchy_path = %s,
+                    nycrr_title = %s,
+                    nycrr_part = %s,
+                    nycrr_section = %s
+                WHERE id = %s
+            """, updates)
+            conn.commit()
+
+            # Report results
+            cur.execute("""
+                SELECT
+                    COUNT(*) as total,
+                    COUNT(*) FILTER (WHERE hierarchy_level IS NOT NULL) as has_level,
+                    COUNT(*) FILTER (WHERE nycrr_title IS NOT NULL) as has_title,
+                    COUNT(*) FILTER (WHERE nycrr_part IS NOT NULL) as has_part,
+                    COUNT(*) FILTER (WHERE nycrr_section IS NOT NULL) as has_section
+                FROM regulatory_documents
+                WHERE state = %s AND type = 'regulation'
+            """, (state,))
+            row = cur.fetchone()
+            total = row[0]
+            print(f"\n✓ Hierarchy fields refreshed:")
+            print(f"  hierarchy_level: {row[1]:,} ({100*row[1]/total:.1f}%)")
+            print(f"  nycrr_title:     {row[2]:,} ({100*row[2]/total:.1f}%)")
+            print(f"  nycrr_part:      {row[3]:,} ({100*row[3]/total:.1f}%)")
+            print(f"  nycrr_section:   {row[4]:,} ({100*row[4]/total:.1f}%)")
+
+
 def main():
+    import argparse
+
+    parser = argparse.ArgumentParser(description='Migrate regulations to PostgreSQL')
+    parser.add_argument('--refresh-hierarchy', action='store_true',
+                        help='Only refresh hierarchy fields (re-parse URLs)')
+    parser.add_argument('--state', default='NY', help='State code (default: NY)')
+    args = parser.parse_args()
+
+    if args.refresh_hierarchy:
+        print("Running hierarchy refresh only...\n")
+        refresh_hierarchy_fields(state=args.state)
+        print("\n✓ Done!")
+        return
+
     print("Starting migration to PostgreSQL...\n")
 
     # First, migrate all individual regulations
     print("Phase 1: Migrating all individual regulations")
     print("=" * 50)
-    migrate_all_individual_regulations(state="NY")
+    migrate_all_individual_regulations(state=args.state)
 
     print("\nPhase 2: Migrating analyzed regulations with red flags")
     print("=" * 50)
@@ -375,21 +460,25 @@ def main():
     if not json_files:
         print(f"✗ No red_flag_analysis_*.json files found in {OUTPUTS_DIR}")
         print("✓ All individual regulations are in the database (without analyses)")
-        return
-
-    # Migrate each JSON file
-    for json_file in sorted(json_files):
-        try:
-            migrate_json_analysis(str(json_file), state="NY")
-        except Exception as e:
-            print(f"✗ Failed to migrate {json_file}: {e}")
-            raise
+    else:
+        # Migrate each JSON file
+        for json_file in sorted(json_files):
+            try:
+                migrate_json_analysis(str(json_file), state=args.state)
+            except Exception as e:
+                print(f"✗ Failed to migrate {json_file}: {e}")
+                raise
 
     print("\nPhase 3: Populating parent_id relationships")
     print("=" * 50)
-    populate_parent_ids(state="NY")
+    populate_parent_ids(state=args.state)
+
+    print("\nPhase 4: Refreshing hierarchy fields")
+    print("=" * 50)
+    refresh_hierarchy_fields(state=args.state)
 
     print("\n✓ Migration complete!")
+
 
 if __name__ == "__main__":
     main()

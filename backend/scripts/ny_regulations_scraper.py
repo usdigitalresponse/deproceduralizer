@@ -28,6 +28,67 @@ from config import (
 # HIERARCHY PARSING FUNCTIONS
 # =============================================================================
 
+def parse_comp_codes_url(url: str) -> Optional[Dict]:
+    """
+    Parse N-Y-Comp-Codes style URLs into components.
+    Examples:
+      - N-Y-Comp-Codes-R-Regs-Tit-3SS-2.13 → Title 3, Section 2.13
+      - N-Y-Comp-Codes-R--Regs-Tit-3-SS-117.4 → Title 3, Section 117.4
+      - N-Y-Comp-Codes-R--Regs-Tit-22-r-202.70.33 → Title 22, Rule 202.70.33
+    """
+    if '/new-york/' not in url:
+        return None
+
+    path = url.split('/new-york/')[1]
+    if not path.startswith('N-Y-Comp-Codes'):
+        return None
+
+    # Skip forms and full hierarchy paths - these are structural, not sections
+    if '-form-' in path.lower() or '-subch-' in path or '-subtit-' in path:
+        return None
+
+    result = {
+        'nycrr_title': None,
+        'nycrr_part': None,
+        'nycrr_section': None,
+        'hierarchy_level': 'section'
+    }
+
+    # Pattern 1: Tit-XSS-Y.Z (e.g., Tit-3SS-2.13)
+    match = re.search(r'Tit-(\d+)SS-(\d+)\.(\d+)', path, re.IGNORECASE)
+    if match:
+        result['nycrr_title'] = int(match.group(1))
+        result['nycrr_part'] = match.group(2)
+        result['nycrr_section'] = match.group(3)
+        return result
+
+    # Pattern 2: Tit-X-SS-Y.Z (e.g., Tit-3-SS-117.4)
+    match = re.search(r'Tit-(\d+)-SS-(\d+)\.(\d+)', path, re.IGNORECASE)
+    if match:
+        result['nycrr_title'] = int(match.group(1))
+        result['nycrr_part'] = match.group(2)
+        result['nycrr_section'] = match.group(3)
+        return result
+
+    # Pattern 3: Tit-X-r-Y.Z.W (rule pattern, e.g., Tit-22-r-202.70.33)
+    match = re.search(r'Tit-(\d+)-r-(\d+)\.(\d+)\.(\d+)', path, re.IGNORECASE)
+    if match:
+        result['nycrr_title'] = int(match.group(1))
+        result['nycrr_part'] = match.group(2)
+        result['nycrr_section'] = f"{match.group(3)}.{match.group(4)}"
+        return result
+
+    # Pattern 4: Tit-X-r-Y.Z.W-X (rule with suffix, e.g., Tit-22-r-202.70.11-d)
+    match = re.search(r'Tit-(\d+)-r-(\d+)\.(\d+)\.(\d+)-([a-z])', path, re.IGNORECASE)
+    if match:
+        result['nycrr_title'] = int(match.group(1))
+        result['nycrr_part'] = match.group(2)
+        result['nycrr_section'] = f"{match.group(3)}.{match.group(4)}{match.group(5)}"
+        return result
+
+    return None
+
+
 def parse_citation_url(url: str) -> Optional[Dict]:
     """
     Parse citation-style URLs like '18-NYCRR-433.8' into components.
@@ -43,7 +104,8 @@ def parse_citation_url(url: str) -> Optional[Dict]:
     title_num = int(match.group(1))
     rest = match.group(2)
 
-    if 'app' in rest.lower() or 'ch-' in rest:
+    # Skip appendices and complex hierarchy patterns (forms, exhibits, etc.)
+    if 'app' in rest.lower() or 'ch-' in rest or 'form' in rest.lower() or 'exh' in rest.lower():
         return None
 
     result = {
@@ -53,25 +115,88 @@ def parse_citation_url(url: str) -> Optional[Dict]:
         'hierarchy_level': 'section'
     }
 
-    # part.section (e.g., 433.8)
-    simple_match = re.match(r'^(\d+)\.(\d+)$', rest)
+    # part.section (e.g., 433.8 or 2B.36)
+    simple_match = re.match(r'^([\dA-Za-z]+)\.(\d+)$', rest)
     if simple_match:
         result['nycrr_part'] = simple_match.group(1)
         result['nycrr_section'] = simple_match.group(2)
         return result
 
+    # part.section with letter suffix (e.g., 20.50a, 202.12a)
+    letter_suffix_match = re.match(r'^([\dA-Za-z]+)\.(\d+[a-z])$', rest)
+    if letter_suffix_match:
+        result['nycrr_part'] = letter_suffix_match.group(1)
+        result['nycrr_section'] = letter_suffix_match.group(2)
+        return result
+
+    # part.section-letter (e.g., 202.20-i, 202.20-g)
+    dash_letter_match = re.match(r'^([\dA-Za-z]+)\.(\d+)-([a-z])$', rest)
+    if dash_letter_match:
+        result['nycrr_part'] = dash_letter_match.group(1)
+        result['nycrr_section'] = f"{dash_letter_match.group(2)}-{dash_letter_match.group(3)}"
+        return result
+
     # part-subpart.section (e.g., 5-1.2)
-    subpart_match = re.match(r'^(\d+)-(\d+)\.(\d+)$', rest)
+    subpart_match = re.match(r'^([\dA-Za-z]+)-([\dA-Za-z]+)\.(\d+)$', rest)
     if subpart_match:
         result['nycrr_part'] = subpart_match.group(1)
         result['nycrr_section'] = subpart_match.group(3)
         return result
 
     # part.section.subsection (e.g., 1200.1.15)
-    subsection_match = re.match(r'^(\d+)\.(\d+)\.(\d+)$', rest)
+    subsection_match = re.match(r'^([\dA-Za-z]+)\.(\d+)\.(\d+)$', rest)
     if subsection_match:
         result['nycrr_part'] = subsection_match.group(1)
         result['nycrr_section'] = f"{subsection_match.group(2)}.{subsection_match.group(3)}"
+        return result
+
+    # part-section-subsection (e.g., 10-C-4)
+    dash_subsection_match = re.match(r'^(\d+)-([A-Z])-(\d+)$', rest)
+    if dash_subsection_match:
+        result['nycrr_part'] = dash_subsection_match.group(1)
+        result['nycrr_section'] = f"{dash_subsection_match.group(2)}-{dash_subsection_match.group(3)}"
+        return result
+
+    # part.sectionLETTERS (e.g., 861.6A, 202.5bb, 207.4aa)
+    letter_suffix_multi = re.match(r'^([\dA-Za-z]+)\.(\d+[A-Za-z]+)$', rest)
+    if letter_suffix_multi:
+        result['nycrr_part'] = letter_suffix_multi.group(1)
+        result['nycrr_section'] = letter_suffix_multi.group(2)
+        return result
+
+    # part.section-LETTER (e.g., 6028.3-A, 6029.5-A)
+    dash_letter_upper = re.match(r'^([\dA-Za-z]+)\.(\d+)-([A-Z])$', rest)
+    if dash_letter_upper:
+        result['nycrr_part'] = dash_letter_upper.group(1)
+        result['nycrr_section'] = f"{dash_letter_upper.group(2)}-{dash_letter_upper.group(3)}"
+        return result
+
+    # part.section(subsection) (e.g., 7.34(1), 7.34(2))
+    paren_match = re.match(r'^([\dA-Za-z]+)\.(\d+)\((\d+)\)$', rest)
+    if paren_match:
+        result['nycrr_part'] = paren_match.group(1)
+        result['nycrr_section'] = f"{paren_match.group(2)}({paren_match.group(3)})"
+        return result
+
+    # part-subpart.section.subsection (e.g., 98-1.1.16)
+    complex_subpart = re.match(r'^(\d+)-(\d+)\.(\d+)\.(\d+)$', rest)
+    if complex_subpart:
+        result['nycrr_part'] = complex_subpart.group(1)
+        result['nycrr_section'] = f"{complex_subpart.group(3)}.{complex_subpart.group(4)}"
+        return result
+
+    # part-subpart.section with letter suffix (e.g., 130-1.1a)
+    subpart_letter = re.match(r'^(\d+)-(\d+)\.(\d+[a-z]+)$', rest)
+    if subpart_letter:
+        result['nycrr_part'] = subpart_letter.group(1)
+        result['nycrr_section'] = subpart_letter.group(3)
+        return result
+
+    # part.section with suffix (e.g., 646-5.3sh)
+    suffix_match = re.match(r'^([\dA-Za-z]+)-(\d+)\.(\d+[a-z]+)$', rest)
+    if suffix_match:
+        result['nycrr_part'] = suffix_match.group(1)
+        result['nycrr_section'] = f"{suffix_match.group(2)}.{suffix_match.group(3)}"
         return result
 
     return None
@@ -117,12 +242,20 @@ def parse_hierarchy_url(url: str) -> Optional[Dict]:
 
 
 def get_hierarchy_info(url: str) -> Dict:
-    """Get hierarchy info from URL, trying both formats."""
+    """Get hierarchy info from URL, trying all formats."""
+    # Try citation URL first (most common)
     parsed = parse_citation_url(url)
     if parsed:
         parsed['hierarchy_path'] = None
         return parsed
 
+    # Try comp-codes URL format
+    parsed = parse_comp_codes_url(url)
+    if parsed:
+        parsed['hierarchy_path'] = None
+        return parsed
+
+    # Try hierarchy URL format
     parsed = parse_hierarchy_url(url)
     if parsed:
         parsed['nycrr_section'] = None
