@@ -280,14 +280,16 @@ class NYRegulationsScraper:
         self.visited_urls = set()
         self.all_regulations = []
         self.failed_urls = set()
+        self.scraped_from_map = {}  # Maps URL -> scraped_from_url
         self.cache_dir = Path(cache_dir) if cache_dir else SCRAPED_DATA_DIR
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.progress_file = self.cache_dir / 'progress.json'
         self.failed_file = self.cache_dir / 'failed_urls.json'
+        self.scraped_from_file = self.cache_dir / 'scraped_from_urls.json'
         self.load_progress()
     
     def load_progress(self):
-        """Load previously visited URLs and failed URLs"""
+        """Load previously visited URLs, failed URLs, and scraped_from mappings"""
         if self.progress_file.exists():
             try:
                 with open(self.progress_file, 'r') as f:
@@ -296,7 +298,7 @@ class NYRegulationsScraper:
                     print(f"Loaded {len(self.visited_urls)} previously visited URLs")
             except Exception as e:
                 print(f"Error loading progress: {e}")
-        
+
         if self.failed_file.exists():
             try:
                 with open(self.failed_file, 'r') as f:
@@ -304,6 +306,14 @@ class NYRegulationsScraper:
                     print(f"Loaded {len(self.failed_urls)} previously failed URLs")
             except Exception as e:
                 print(f"Error loading failed URLs: {e}")
+
+        if self.scraped_from_file.exists():
+            try:
+                with open(self.scraped_from_file, 'r') as f:
+                    self.scraped_from_map = json.load(f)
+                    print(f"Loaded {len(self.scraped_from_map)} scraped_from URL mappings")
+            except Exception as e:
+                print(f"Error loading scraped_from mappings: {e}")
     
     def save_progress(self):
         """Save current progress"""
@@ -313,10 +323,14 @@ class NYRegulationsScraper:
                     'visited_urls': list(self.visited_urls),
                     'total_scraped': len(self.all_regulations)
                 }, f, indent=2)
-            
+
             if self.failed_urls:
                 with open(self.failed_file, 'w') as f:
                     json.dump(list(self.failed_urls), f, indent=2)
+
+            if self.scraped_from_map:
+                with open(self.scraped_from_file, 'w') as f:
+                    json.dump(self.scraped_from_map, f, indent=2)
         except Exception as e:
             print(f"Error saving progress: {e}")
     
@@ -481,7 +495,8 @@ class NYRegulationsScraper:
             'nycrr_title': hierarchy.get('nycrr_title'),
             'nycrr_part': hierarchy.get('nycrr_part'),
             'nycrr_section': hierarchy.get('nycrr_section'),
-            'parent_source_index': None  # Will be populated in post-processing
+            'parent_source_index': None,  # Will be populated in post-processing
+            'scraped_from_url': None  # Will be set by crawler
         }
     
     def clean_regulation_text(self, content):
@@ -574,46 +589,49 @@ class NYRegulationsScraper:
             return 'unknown'
     
     def crawl_recursively(self, start_urls, max_pages=None):
-        to_visit = deque(start_urls)
+        # Queue stores tuples of (url, referring_url)
+        to_visit = deque((url, None) for url in start_urls)
         scraped_count = len(self.all_regulations)  # Start from existing count
         save_interval = 50  # Save progress every 50 pages
-        
+
         while to_visit and (max_pages is None or scraped_count < max_pages):
-            current_url = to_visit.popleft()
-            
+            current_url, referring_url = to_visit.popleft()
+
             # Skip if already processed or failed
             if current_url in self.visited_urls or current_url in self.failed_urls:
                 continue
-            
+
             print(f"Scraping {scraped_count + 1}: {current_url}")
             self.visited_urls.add(current_url)
-            
+
             # Scrape current page content
             content_data = self.scrape_regulation_content(current_url)
             if content_data:
+                content_data['scraped_from_url'] = referring_url
+                self.scraped_from_map[current_url] = referring_url  # Save mapping
                 self.all_regulations.append(content_data)
                 scraped_count += 1
-            
+
             # Get page HTML to find more links
             html = self.get_page(current_url)
             if html:
                 soup = BeautifulSoup(html, 'html.parser')
                 new_links = self.find_regulation_links(soup, current_url)
-                
-                # Add new links to queue
+
+                # Add new links to queue with current_url as referring URL
                 for link_info in new_links:
-                    if (link_info['url'] not in self.visited_urls and 
+                    if (link_info['url'] not in self.visited_urls and
                         link_info['url'] not in self.failed_urls):
-                        to_visit.append(link_info['url'])
-            
+                        to_visit.append((link_info['url'], current_url))
+
             # Save progress periodically
             if scraped_count % save_interval == 0:
                 self.save_progress()
                 print(f"Progress saved. Queue size: {len(to_visit)}")
-            
+
             # Be respectful to the server
             time.sleep(0.5)
-        
+
         # Final save
         self.save_progress()
         return self.all_regulations
@@ -894,6 +912,7 @@ class FullPipeline:
                         'nycrr_title': hierarchy.get('nycrr_title'),
                         'nycrr_part': hierarchy.get('nycrr_part'),
                         'nycrr_section': hierarchy.get('nycrr_section'),
+                        'scraped_from_url': scraper.scraped_from_map.get(url),
                     }
 
                     regulation_data.append(regulation)
@@ -968,6 +987,7 @@ class FullPipeline:
                 'nycrr_part': regulation.get('nycrr_part'),
                 'nycrr_section': regulation.get('nycrr_section'),
                 'parent_source_index': regulation.get('parent_source_index'),
+                'scraped_from_url': regulation.get('scraped_from_url'),
             }
 
             file_path = output_dir / filename
@@ -1037,6 +1057,7 @@ def main():
     parser.add_argument('--small', action='store_true', help='Small run: limit to 1000 pages')
     parser.add_argument('--yes', '-y', action='store_true', help='Auto-confirm (skip prompt)')
     parser.add_argument('--max-pages', type=int, help='Custom max pages limit')
+    parser.add_argument('--fresh', action='store_true', help='Clear progress and start fresh')
 
     args = parser.parse_args()
 
@@ -1047,6 +1068,19 @@ def main():
     elif args.small:
         max_pages = 1000
         print("Small run: limiting to 1000 pages")
+
+    if args.fresh:
+        print("Clearing progress files for fresh start...")
+        progress_files = [
+            SCRAPED_DATA_DIR / 'progress.json',
+            SCRAPED_DATA_DIR / 'failed_urls.json',
+            SCRAPED_DATA_DIR / 'scraped_from_urls.json',
+        ]
+        for pf in progress_files:
+            if pf.exists():
+                pf.unlink()
+                print(f"  Removed {pf.name}")
+        print()
 
     if not args.yes and not args.test:
         response = input("Run the complete pipeline? This may take several hours. (y/N): ")
