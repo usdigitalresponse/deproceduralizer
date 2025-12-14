@@ -7,7 +7,7 @@ import json
 import sys
 import psycopg
 from pathlib import Path
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Tuple, Optional
 import os
 from dotenv import load_dotenv
 import re
@@ -19,7 +19,7 @@ from shared_utils import get_db_connection
 
 load_dotenv(PROJECT_ROOT / '.env')
 
-def parse_nycrr_info(url: str) -> tuple[int | None, str | None, str | None]:
+def parse_nycrr_info(url: str) -> Tuple[Optional[int], Optional[str], Optional[str]]:
     """
     Extract NYCRR title, part, and section from a Cornell Law URL.
     Example: https://www.law.cornell.edu/regulations/new-york/9-NYCRR-5320.1

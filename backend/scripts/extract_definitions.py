@@ -57,7 +57,8 @@ def get_processed_source_indices() -> set:
         return processed
     except Exception as e:
         print(f"Warning: Could not fetch processed indices: {e}")
-        conn.close()
+        if conn:
+            conn.close()
         return set()
 
 
@@ -80,7 +81,8 @@ def log_extraction(source_index: int, definitions_found: int):
         conn.close()
     except Exception as e:
         print(f"Warning: Could not log extraction: {e}")
-        conn.close()
+        if conn:
+            conn.close()
 
 
 TOPIC_PATTERNS = {

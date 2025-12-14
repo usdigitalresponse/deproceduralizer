@@ -252,16 +252,24 @@ def stratified_sample(file_assignments: Dict[Path, str],
         remaining_quota = total_limit - total_selected
         print(f"\nHandling quota exhaustion: need {remaining_quota} more samples")
 
-        # Get all sampled file paths
-        sampled_paths = {reg.url for reg in selected_regulations}
+        # Get all sampled URLs (not file paths)
+        sampled_urls = {reg.url for reg in selected_regulations}
 
         # Try to sample from under-quota categories
         for category in categories_config.keys():
             if remaining_quota <= 0:
                 break
 
-            available_files = [f for f in category_files[category]
-                             if f not in sampled_paths]
+            # Load and check URLs from available files
+            available_files = []
+            for f in category_files[category]:
+                try:
+                    with open(f, 'r', encoding='utf-8') as file:
+                        data = json.load(file)
+                        if data.get('url') not in sampled_urls:
+                            available_files.append(f)
+                except Exception:
+                    continue
 
             if not available_files:
                 continue
@@ -281,7 +289,7 @@ def stratified_sample(file_assignments: Dict[Path, str],
                             primary_category=category
                         )
                         selected_regulations.append(regulation_data)
-                        sampled_paths.add(regulation_data.url)
+                        sampled_urls.add(regulation_data.url)
                         remaining_quota -= 1
                 except Exception as e:
                     print(f"    Error loading {file_path}: {e}")
