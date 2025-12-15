@@ -478,6 +478,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
 
   /**
    * Get root-level documents (titles) for the hierarchy tree
+   * When filters are applied, only returns titles that have matching descendants
    */
   async getHierarchyRoots(filters?: HierarchyFilterOptions): Promise<HierarchyNode[]> {
     // Build filter conditions for descendants
@@ -485,6 +486,9 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
     const filterClause = filterConditions.length > 0
       ? sql`AND ${sql.join(filterConditions, sql` AND `)}`
       : sql``;
+
+    // When filters are active, only show titles with matching descendants
+    const hasFilters = filterConditions.length > 0;
 
     const results = await this.db.execute(sql`
       SELECT
@@ -516,6 +520,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         ${filterClause}
       ) stats ON true
       WHERE rd.hierarchy_level = 'title'
+        ${hasFilters ? sql`AND stats.child_count > 0` : sql``}
       ORDER BY rd.nycrr_title NULLS LAST, rd.title
     `);
 
