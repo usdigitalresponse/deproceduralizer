@@ -35,3 +35,8 @@ node_modules
 
 # Local test artifacts
 .playwright-mcp/
+
+# Data files
+data/raw/
+data/*.csv
+CLAUDE.md
