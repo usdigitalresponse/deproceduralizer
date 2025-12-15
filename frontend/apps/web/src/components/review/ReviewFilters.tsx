@@ -50,8 +50,8 @@ export function ReviewFilters({
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  // Extract state from pathname (e.g., /ny/review -> ny)
-  const state = pathname.match(/^\/(ny|nj)/)?.[1] || 'ny';
+  // Extract state from pathname (e.g., /nj/review -> nj)
+  const state = pathname.match(/^\/(ny|nj)/)?.[1] || 'nj';
 
   const updateParams = useCallback(
     (updates: Record<string, string | undefined>) => {

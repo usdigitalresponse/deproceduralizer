@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { getRegulationById } from '@/lib/actions/regulations';
 import type { RegulationWithAnalysis } from '@deproceduralizer/database';
 import {
@@ -22,9 +23,13 @@ interface RegulationModalProps {
 }
 
 export function RegulationModal({ regulationId, onClose }: RegulationModalProps) {
+  const pathname = usePathname();
   const [regulation, setRegulation] = useState<RegulationWithAnalysis | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Extract state from URL or regulation, default to nj
+  const state = pathname.match(/^\/(ny|nj)/)?.[1] || regulation?.state?.toLowerCase() || 'nj';
 
   useEffect(() => {
     if (regulationId === null) {
@@ -74,7 +79,7 @@ export function RegulationModal({ regulationId, onClose }: RegulationModalProps)
           </div>
           <div className="flex items-center gap-2">
             {regulation && (
-              <Link href={`/regulations/${regulation.id}`}>
+              <Link href={`/${state}/regulations/${regulation.id}`}>
                 <Button variant="ghost" size="sm">
                   <svg
                     className="w-4 h-4 mr-1"

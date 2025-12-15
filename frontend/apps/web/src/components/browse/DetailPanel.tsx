@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import type { RegulationWithAnalysis } from '@deproceduralizer/database';
 import { getDocumentForPanel } from '@/lib/actions/hierarchy';
 import { Card } from '@/components/ui/Card';
@@ -20,7 +20,13 @@ interface DetailPanelProps {
 
 export function DetailPanel({ documentId, onClose, onNavigate }: DetailPanelProps) {
   const pathname = usePathname();
-  const state = pathname.match(/^\/(ny|nj)/)?.[1] || 'ny';
+  const searchParams = useSearchParams();
+  const state = pathname.match(/^\/(ny|nj)/)?.[1] || 'nj';
+
+  // Build the full current URL for back navigation
+  const currentUrl = searchParams.toString()
+    ? `${pathname}?${searchParams.toString()}`
+    : pathname;
 
   const [document, setDocument] = useState<RegulationWithAnalysis | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -102,7 +108,7 @@ export function DetailPanel({ documentId, onClose, onNavigate }: DetailPanelProp
             )}
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <Link href={`/${state}/regulations/${document.id}`}>
+            <Link href={`/${state}/regulations/${document.id}?from=${encodeURIComponent(currentUrl)}`}>
               <Button variant="ghost" size="sm">
                 <ExternalLink className="w-4 h-4 mr-1" />
                 Full Page
@@ -189,7 +195,7 @@ export function DetailPanel({ documentId, onClose, onNavigate }: DetailPanelProp
               ))}
               {document.redFlags.length > 5 && (
                 <Link
-                  href={`/${state}/regulations/${document.id}`}
+                  href={`/${state}/regulations/${document.id}?from=${encodeURIComponent(currentUrl)}`}
                   className="text-sm text-[var(--color-link)] hover:text-[var(--color-link-hover)]"
                 >
                   View all {document.redFlags.length} flags...

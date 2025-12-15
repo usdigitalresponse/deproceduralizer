@@ -15,10 +15,15 @@ export const dynamic = 'force-dynamic';
 
 interface PageProps {
   params: Promise<{ state: string; id: string }>;
+  searchParams: Promise<{ from?: string }>;
 }
 
-export default async function RegulationDetailPage({ params }: PageProps) {
+export default async function RegulationDetailPage({ params, searchParams }: PageProps) {
   const { state, id } = await params;
+  const { from } = await searchParams;
+
+  // Decode the back URL, default to browse page
+  const backUrl = from ? decodeURIComponent(from) : `/${state}/browse`;
   const regulationId = parseInt(id, 10);
 
   if (isNaN(regulationId)) {
@@ -48,7 +53,7 @@ export default async function RegulationDetailPage({ params }: PageProps) {
       <Container size="xl" className="py-6">
         {/* Back Button */}
         <div className="mb-6">
-          <Link href={`/${state}`}>
+          <Link href={backUrl}>
             <Button variant="ghost" size="sm">
               <svg
                 className="w-4 h-4 mr-2"
@@ -58,7 +63,7 @@ export default async function RegulationDetailPage({ params }: PageProps) {
               >
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
               </svg>
-              Back to Regulations
+              Back to Browse
             </Button>
           </Link>
         </div>

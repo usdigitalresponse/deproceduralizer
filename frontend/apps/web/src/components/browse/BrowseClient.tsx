@@ -1,12 +1,20 @@
 'use client';
 
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import type { HierarchyNode, HierarchyFilterOptions, StateCode } from '@deproceduralizer/database';
 import { getHierarchyChildren, getHierarchyChildrenFast } from '@/lib/actions/hierarchy';
 import { Card } from '@/components/ui/Card';
 import { HierarchyTree } from './HierarchyTree';
 import { BrowseFilters } from './BrowseFilters';
 import { DetailPanel } from './DetailPanel';
+
+// Parse expanded IDs from URL param
+function parseExpandedIds(param: string | null): Set<number> {
+  if (!param) return new Set();
+  const ids = param.split(',').map(Number).filter(n => !isNaN(n) && n > 0);
+  return new Set(ids);
+}
 
 interface BrowseClientProps {
   state: StateCode;
@@ -28,12 +36,26 @@ export function BrowseClient({
   stats,
   filters,
 }: BrowseClientProps) {
-  // Tree state
-  const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
-  const [selectedId, setSelectedId] = useState<number | null>(null);
+  // URL state management
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  // Parse initial state from URL
+  const initialSelected = searchParams.get('selected');
+  const initialExpanded = searchParams.get('expanded');
+
+  // Tree state - initialized from URL params
+  const [expandedIds, setExpandedIds] = useState<Set<number>>(() => parseExpandedIds(initialExpanded));
+  const [selectedId, setSelectedId] = useState<number | null>(
+    initialSelected ? parseInt(initialSelected, 10) || null : null
+  );
   const [loadedChildren, setLoadedChildren] = useState<Map<number, HierarchyNode[]>>(new Map());
   const [loadingIds, setLoadingIds] = useState<Set<number>>(new Set());
   const [showOrphans, setShowOrphans] = useState(false);
+
+  // Track if we've done initial URL sync to avoid loops
+  const isInitialMount = useRef(true);
 
   // Check if any filters are active (need this before handleToggleExpand)
   const hasActiveFilters = Boolean(
@@ -42,6 +64,67 @@ export function BrowseClient({
     filters.severity !== undefined ||
     filters.hasDefinitions !== undefined
   );
+
+  // Sync state to URL when selectedId or expandedIds change
+  useEffect(() => {
+    // Skip the initial mount to avoid unnecessary URL update
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+
+    // Build new URL params, preserving existing filter params
+    const params = new URLSearchParams();
+
+    // Preserve filter params from props (already parsed by server)
+    if (filters.hasAnalysis !== undefined) {
+      params.set('analyzed', String(filters.hasAnalysis));
+    }
+    if (filters.hasFlags !== undefined) {
+      params.set('hasFlags', String(filters.hasFlags));
+    }
+    if (filters.severity) {
+      params.set('severity', filters.severity);
+    }
+    if (filters.hasDefinitions !== undefined) {
+      params.set('hasDefs', String(filters.hasDefinitions));
+    }
+
+    // Add tree state params
+    if (selectedId) {
+      params.set('selected', String(selectedId));
+    }
+    if (expandedIds.size > 0) {
+      params.set('expanded', Array.from(expandedIds).join(','));
+    }
+
+    const newUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
+    router.replace(newUrl, { scroll: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId, expandedIds]); // Only react to tree state changes, not URL changes
+
+  // On mount, load children for any expanded nodes from URL
+  useEffect(() => {
+    const loadExpandedChildren = async () => {
+      for (const id of expandedIds) {
+        if (!loadedChildren.has(id)) {
+          try {
+            const children = hasActiveFilters
+              ? await getHierarchyChildren(id, state, filters)
+              : await getHierarchyChildrenFast(id);
+            setLoadedChildren(prev => new Map(prev).set(id, children));
+          } catch (error) {
+            console.error('Failed to load children for expanded node:', error);
+          }
+        }
+      }
+    };
+
+    if (expandedIds.size > 0) {
+      loadExpandedChildren();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only on mount
 
   // Handle node expansion
   const handleToggleExpand = useCallback(async (id: number) => {

@@ -47,8 +47,8 @@ export function ReviewQueue({
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  // Extract state from pathname (e.g., /ny/review -> ny)
-  const state = pathname.match(/^\/(ny|nj)/)?.[1] || 'ny';
+  // Extract state from pathname (e.g., /nj/review -> nj)
+  const state = pathname.match(/^\/(ny|nj)/)?.[1] || 'nj';
 
   // Local state for optimistic updates
   const [flags, setFlags] = useState<RedFlagWithContext[]>(initialFlags);

@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import type { RegulationWithAnalysis } from '@deproceduralizer/database';
 import RedFlagReviewForm from './RedFlagReviewForm';
 import {
@@ -30,6 +31,9 @@ interface DetailModalProps {
 }
 
 export default function DetailModal({ regulation, onClose, onFlagUpdated }: DetailModalProps) {
+  const pathname = usePathname();
+  const state = pathname.match(/^\/(ny|nj)/)?.[1] || regulation?.state?.toLowerCase() || 'nj';
+
   if (!regulation) return null;
 
   const nycrrCitation = formatNycrrCitation(
@@ -50,7 +54,7 @@ export default function DetailModal({ regulation, onClose, onFlagUpdated }: Deta
             )}
           </div>
           <div className="flex items-center gap-2">
-            <Link href={`/regulations/${regulation.id}`}>
+            <Link href={`/${state}/regulations/${regulation.id}`}>
               <Button variant="ghost" size="sm">
                 <svg
                   className="w-4 h-4 mr-1"
