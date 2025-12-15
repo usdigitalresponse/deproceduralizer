@@ -28,246 +28,184 @@ from config import (
 # HIERARCHY PARSING FUNCTIONS
 # =============================================================================
 
-def parse_comp_codes_url(url: str) -> Optional[Dict]:
+def parse_breadcrumb(soup: BeautifulSoup) -> Dict:
     """
-    Parse N-Y-Comp-Codes style URLs into components.
-    Examples:
-      - N-Y-Comp-Codes-R-Regs-Tit-3SS-2.13 → Title 3, Section 2.13
-      - N-Y-Comp-Codes-R--Regs-Tit-3-SS-117.4 → Title 3, Section 117.4
-      - N-Y-Comp-Codes-R--Regs-Tit-22-r-202.70.33 → Title 22, Rule 202.70.33
+    Parse the breadcrumb navigation to extract hierarchy info.
+
+    Extracts from <ol class="breadcrumb"> which contains items like:
+    - "N.Y. Comp. Codes R. & Regs. tit. 18 - SOCIAL SERVICES" (Title)
+    - "Chapter II - Medical Assistance"
+    - "Subchapter C - Vulnerable Persons"
+    - "Part 433 - Incident Reporting"
+    - "§ 433.8 - Incident review committees" (Section)
     """
-    if '/new-york/' not in url:
-        return None
-
-    path = url.split('/new-york/')[1]
-    if not path.startswith('N-Y-Comp-Codes'):
-        return None
-
-    # Skip forms and full hierarchy paths - these are structural, not sections
-    if '-form-' in path.lower() or '-subch-' in path or '-subtit-' in path:
-        return None
-
     result = {
-        'nycrr_title': None,
-        'nycrr_part': None,
-        'nycrr_section': None,
-        'hierarchy_level': 'section'
-    }
-
-    # Pattern 1: Tit-XSS-Y.Z (e.g., Tit-3SS-2.13)
-    match = re.search(r'Tit-(\d+)SS-(\d+)\.(\d+)', path, re.IGNORECASE)
-    if match:
-        result['nycrr_title'] = int(match.group(1))
-        result['nycrr_part'] = match.group(2)
-        result['nycrr_section'] = match.group(3)
-        return result
-
-    # Pattern 2: Tit-X-SS-Y.Z (e.g., Tit-3-SS-117.4)
-    match = re.search(r'Tit-(\d+)-SS-(\d+)\.(\d+)', path, re.IGNORECASE)
-    if match:
-        result['nycrr_title'] = int(match.group(1))
-        result['nycrr_part'] = match.group(2)
-        result['nycrr_section'] = match.group(3)
-        return result
-
-    # Pattern 3: Tit-X-r-Y.Z.W (rule pattern, e.g., Tit-22-r-202.70.33)
-    match = re.search(r'Tit-(\d+)-r-(\d+)\.(\d+)\.(\d+)', path, re.IGNORECASE)
-    if match:
-        result['nycrr_title'] = int(match.group(1))
-        result['nycrr_part'] = match.group(2)
-        result['nycrr_section'] = f"{match.group(3)}.{match.group(4)}"
-        return result
-
-    # Pattern 4: Tit-X-r-Y.Z.W-X (rule with suffix, e.g., Tit-22-r-202.70.11-d)
-    match = re.search(r'Tit-(\d+)-r-(\d+)\.(\d+)\.(\d+)-([a-z])', path, re.IGNORECASE)
-    if match:
-        result['nycrr_title'] = int(match.group(1))
-        result['nycrr_part'] = match.group(2)
-        result['nycrr_section'] = f"{match.group(3)}.{match.group(4)}{match.group(5)}"
-        return result
-
-    return None
-
-
-def parse_citation_url(url: str) -> Optional[Dict]:
-    """
-    Parse citation-style URLs like '18-NYCRR-433.8' into components.
-    """
-    if '/new-york/' not in url:
-        return None
-
-    path = url.split('/new-york/')[1]
-    match = re.match(r'^(\d+)-NYCRR-(.+)$', path)
-    if not match:
-        return None
-
-    title_num = int(match.group(1))
-    rest = match.group(2)
-
-    # Skip appendices and complex hierarchy patterns (forms, exhibits, etc.)
-    if 'app' in rest.lower() or 'ch-' in rest or 'form' in rest.lower() or 'exh' in rest.lower():
-        return None
-
-    result = {
-        'nycrr_title': title_num,
-        'nycrr_part': None,
-        'nycrr_section': None,
-        'hierarchy_level': 'section'
-    }
-
-    # part.section (e.g., 433.8 or 2B.36)
-    simple_match = re.match(r'^([\dA-Za-z]+)\.(\d+)$', rest)
-    if simple_match:
-        result['nycrr_part'] = simple_match.group(1)
-        result['nycrr_section'] = simple_match.group(2)
-        return result
-
-    # part.section with letter suffix (e.g., 20.50a, 202.12a)
-    letter_suffix_match = re.match(r'^([\dA-Za-z]+)\.(\d+[a-z])$', rest)
-    if letter_suffix_match:
-        result['nycrr_part'] = letter_suffix_match.group(1)
-        result['nycrr_section'] = letter_suffix_match.group(2)
-        return result
-
-    # part.section-letter (e.g., 202.20-i, 202.20-g)
-    dash_letter_match = re.match(r'^([\dA-Za-z]+)\.(\d+)-([a-z])$', rest)
-    if dash_letter_match:
-        result['nycrr_part'] = dash_letter_match.group(1)
-        result['nycrr_section'] = f"{dash_letter_match.group(2)}-{dash_letter_match.group(3)}"
-        return result
-
-    # part-subpart.section (e.g., 5-1.2)
-    subpart_match = re.match(r'^([\dA-Za-z]+)-([\dA-Za-z]+)\.(\d+)$', rest)
-    if subpart_match:
-        result['nycrr_part'] = subpart_match.group(1)
-        result['nycrr_section'] = subpart_match.group(3)
-        return result
-
-    # part.section.subsection (e.g., 1200.1.15)
-    subsection_match = re.match(r'^([\dA-Za-z]+)\.(\d+)\.(\d+)$', rest)
-    if subsection_match:
-        result['nycrr_part'] = subsection_match.group(1)
-        result['nycrr_section'] = f"{subsection_match.group(2)}.{subsection_match.group(3)}"
-        return result
-
-    # part-section-subsection (e.g., 10-C-4)
-    dash_subsection_match = re.match(r'^(\d+)-([A-Z])-(\d+)$', rest)
-    if dash_subsection_match:
-        result['nycrr_part'] = dash_subsection_match.group(1)
-        result['nycrr_section'] = f"{dash_subsection_match.group(2)}-{dash_subsection_match.group(3)}"
-        return result
-
-    # part.sectionLETTERS (e.g., 861.6A, 202.5bb, 207.4aa)
-    letter_suffix_multi = re.match(r'^([\dA-Za-z]+)\.(\d+[A-Za-z]+)$', rest)
-    if letter_suffix_multi:
-        result['nycrr_part'] = letter_suffix_multi.group(1)
-        result['nycrr_section'] = letter_suffix_multi.group(2)
-        return result
-
-    # part.section-LETTER (e.g., 6028.3-A, 6029.5-A)
-    dash_letter_upper = re.match(r'^([\dA-Za-z]+)\.(\d+)-([A-Z])$', rest)
-    if dash_letter_upper:
-        result['nycrr_part'] = dash_letter_upper.group(1)
-        result['nycrr_section'] = f"{dash_letter_upper.group(2)}-{dash_letter_upper.group(3)}"
-        return result
-
-    # part.section(subsection) (e.g., 7.34(1), 7.34(2))
-    paren_match = re.match(r'^([\dA-Za-z]+)\.(\d+)\((\d+)\)$', rest)
-    if paren_match:
-        result['nycrr_part'] = paren_match.group(1)
-        result['nycrr_section'] = f"{paren_match.group(2)}({paren_match.group(3)})"
-        return result
-
-    # part-subpart.section.subsection (e.g., 98-1.1.16)
-    complex_subpart = re.match(r'^(\d+)-(\d+)\.(\d+)\.(\d+)$', rest)
-    if complex_subpart:
-        result['nycrr_part'] = complex_subpart.group(1)
-        result['nycrr_section'] = f"{complex_subpart.group(3)}.{complex_subpart.group(4)}"
-        return result
-
-    # part-subpart.section with letter suffix (e.g., 130-1.1a)
-    subpart_letter = re.match(r'^(\d+)-(\d+)\.(\d+[a-z]+)$', rest)
-    if subpart_letter:
-        result['nycrr_part'] = subpart_letter.group(1)
-        result['nycrr_section'] = subpart_letter.group(3)
-        return result
-
-    # part.section with suffix (e.g., 646-5.3sh)
-    suffix_match = re.match(r'^([\dA-Za-z]+)-(\d+)\.(\d+[a-z]+)$', rest)
-    if suffix_match:
-        result['nycrr_part'] = suffix_match.group(1)
-        result['nycrr_section'] = f"{suffix_match.group(2)}.{suffix_match.group(3)}"
-        return result
-
-    return None
-
-
-def parse_hierarchy_url(url: str) -> Optional[Dict]:
-    """
-    Parse hierarchy-style URLs like 'title-22/subtitle-A/chapter-II/part-221'.
-    """
-    if '/new-york/' not in url:
-        return None
-
-    path = url.split('/new-york/')[1]
-    if not path.startswith('title-'):
-        return None
-
-    result = {
-        'hierarchy_path': path,
-        'nycrr_title': None,
-        'nycrr_part': None,
-        'hierarchy_level': None
-    }
-
-    components = path.split('/')
-    for comp in components:
-        if comp.startswith('title-'):
-            try:
-                result['nycrr_title'] = int(comp.replace('title-', ''))
-            except ValueError:
-                pass
-        elif comp.startswith('part-'):
-            result['nycrr_part'] = comp.replace('part-', '')
-
-    last = components[-1]
-    for prefix in ['subpart-', 'part-', 'article-', 'subchapter-', 'chapter-', 'subtitle-', 'title-']:
-        if last.startswith(prefix):
-            result['hierarchy_level'] = prefix.rstrip('-')
-            break
-    else:
-        result['hierarchy_level'] = 'section'
-
-    return result
-
-
-def get_hierarchy_info(url: str) -> Dict:
-    """Get hierarchy info from URL, trying all formats."""
-    # Try citation URL first (most common)
-    parsed = parse_citation_url(url)
-    if parsed:
-        parsed['hierarchy_path'] = None
-        return parsed
-
-    # Try comp-codes URL format
-    parsed = parse_comp_codes_url(url)
-    if parsed:
-        parsed['hierarchy_path'] = None
-        return parsed
-
-    # Try hierarchy URL format
-    parsed = parse_hierarchy_url(url)
-    if parsed:
-        parsed['nycrr_section'] = None
-        return parsed
-
-    return {
+        'nycrr_title': None, 'nycrr_title_name': None,
+        'nycrr_subtitle': None, 'nycrr_subtitle_name': None,
+        'nycrr_chapter': None, 'nycrr_chapter_name': None,
+        'nycrr_subchapter': None, 'nycrr_subchapter_name': None,
+        'nycrr_article': None, 'nycrr_article_name': None,
+        'nycrr_part': None, 'nycrr_part_name': None,
+        'nycrr_subpart': None, 'nycrr_subpart_name': None,
+        'nycrr_section': None, 'nycrr_section_name': None,
         'hierarchy_level': None,
         'hierarchy_path': None,
-        'nycrr_title': None,
-        'nycrr_part': None,
-        'nycrr_section': None
     }
+
+    breadcrumb = soup.find('ol', class_='breadcrumb')
+    if not breadcrumb:
+        return result
+
+    items = breadcrumb.find_all('li')
+    last_level = None
+
+    for item in items:
+        text = item.get_text(strip=True)
+
+        # Skip navigation items
+        if text in ['LII', 'State Regulations', 'New York Codes, Rules, and Regulations']:
+            continue
+
+        # Parse NYCRR Title: "N.Y. Comp. Codes R. & Regs. tit. 18 - SOCIAL SERVICES"
+        # or "N.Y. Comp. Codes R. & Regs. Tit. 18 § 433.8" (section level)
+        if text.startswith('N.Y. Comp. Codes'):
+            # Check for section pattern first: "tit. X § Y.Z - NAME" or just "Tit. X § Y.Z"
+            section_match = re.search(r'[Tt]it\.?\s*(\d+)\s*§\s*([\d.]+(?:[a-zA-Z])?)\s*(?:-\s*(.+))?$', text)
+            if section_match:
+                result['nycrr_title'] = int(section_match.group(1))
+                result['nycrr_section'] = section_match.group(2)
+                if section_match.group(3):
+                    result['nycrr_section_name'] = section_match.group(3).strip()
+                last_level = 'section'
+                continue
+
+            # Check for part pattern: "tit. X, ch. Y, subch. Z, pt. W - NAME"
+            part_match = re.search(r'[Tt]it\.?\s*(\d+).*?pt\.?\s*([\dA-Za-z]+)\s*(?:-\s*(.+))?$', text)
+            if part_match:
+                result['nycrr_title'] = int(part_match.group(1))
+                result['nycrr_part'] = part_match.group(2)
+                if part_match.group(3):
+                    result['nycrr_part_name'] = part_match.group(3).strip()
+                last_level = 'part'
+                continue
+
+            # Title only: "N.Y. Comp. Codes R. & Regs. tit. 18 - SOCIAL SERVICES"
+            title_match = re.search(r'[Tt]it\.?\s*(\d+)\s*(?:-\s*(.+))?$', text)
+            if title_match:
+                result['nycrr_title'] = int(title_match.group(1))
+                if title_match.group(2):
+                    result['nycrr_title_name'] = title_match.group(2).strip()
+                last_level = 'title'
+                continue
+
+        # Parse "Chapter X - NAME"
+        chapter_match = re.match(r'^Chapter\s+([IVXLCDM\d]+)\s*(?:-\s*(.+))?$', text)
+        if chapter_match:
+            result['nycrr_chapter'] = chapter_match.group(1)
+            if chapter_match.group(2):
+                result['nycrr_chapter_name'] = chapter_match.group(2).strip()
+            last_level = 'chapter'
+            continue
+
+        # Parse "Subchapter X - NAME"
+        subchapter_match = re.match(r'^Subchapter\s+([A-Za-z\d]+)\s*(?:-\s*(.+))?$', text)
+        if subchapter_match:
+            result['nycrr_subchapter'] = subchapter_match.group(1)
+            if subchapter_match.group(2):
+                result['nycrr_subchapter_name'] = subchapter_match.group(2).strip()
+            last_level = 'subchapter'
+            continue
+
+        # Parse "Subtitle X - NAME"
+        subtitle_match = re.match(r'^Subtitle\s+([A-Za-z\d]+)\s*(?:-\s*(.+))?$', text)
+        if subtitle_match:
+            result['nycrr_subtitle'] = subtitle_match.group(1)
+            if subtitle_match.group(2):
+                result['nycrr_subtitle_name'] = subtitle_match.group(2).strip()
+            last_level = 'subtitle'
+            continue
+
+        # Parse "Article X - NAME"
+        article_match = re.match(r'^Article\s+([\dA-Za-z]+)\s*(?:-\s*(.+))?$', text)
+        if article_match:
+            result['nycrr_article'] = article_match.group(1)
+            if article_match.group(2):
+                result['nycrr_article_name'] = article_match.group(2).strip()
+            last_level = 'article'
+            continue
+
+        # Parse "Part X - NAME"
+        part_match = re.match(r'^Part\s+([\dA-Za-z]+)\s*(?:-\s*(.+))?$', text)
+        if part_match:
+            result['nycrr_part'] = part_match.group(1)
+            if part_match.group(2):
+                result['nycrr_part_name'] = part_match.group(2).strip()
+            last_level = 'part'
+            continue
+
+        # Parse "Subpart X - NAME"
+        subpart_match = re.match(r'^Subpart\s+([\dA-Za-z]+)\s*(?:-\s*(.+))?$', text)
+        if subpart_match:
+            result['nycrr_subpart'] = subpart_match.group(1)
+            if subpart_match.group(2):
+                result['nycrr_subpart_name'] = subpart_match.group(2).strip()
+            last_level = 'subpart'
+            continue
+
+        # Parse "§ X.Y - NAME" or "Section X.Y - NAME"
+        section_match = re.match(r'^(?:§|Section)\s*([\d.]+[a-zA-Z]?)\s*(?:-\s*(.+))?$', text)
+        if section_match:
+            result['nycrr_section'] = section_match.group(1)
+            if section_match.group(2):
+                result['nycrr_section_name'] = section_match.group(2).strip()
+            last_level = 'section'
+            continue
+
+        # Parse "Title X - NAME" (subdivision within part, not NYCRR title)
+        # This comes after checking for N.Y. Comp. Codes pattern
+        title_div_match = re.match(r'^Title\s+([A-Za-z\d]+)\s*(?:-\s*(.+))?$', text)
+        if title_div_match:
+            # Store as a special "division" type - these are nested titles within parts
+            # We'll use subpart field for this since it's the closest semantic match
+            result['nycrr_subpart'] = f"Title-{title_div_match.group(1)}"
+            if title_div_match.group(2):
+                result['nycrr_subpart_name'] = title_div_match.group(2).strip()
+            last_level = 'subpart'
+            continue
+
+    result['hierarchy_level'] = last_level
+
+    # Build hierarchy_path from components
+    path_parts = []
+    if result['nycrr_title'] is not None:
+        name = result['nycrr_title_name'] or ''
+        path_parts.append(f"Title {result['nycrr_title']}" + (f" - {name}" if name else ""))
+    if result['nycrr_subtitle']:
+        name = result['nycrr_subtitle_name'] or ''
+        path_parts.append(f"Subtitle {result['nycrr_subtitle']}" + (f" - {name}" if name else ""))
+    if result['nycrr_chapter']:
+        name = result['nycrr_chapter_name'] or ''
+        path_parts.append(f"Chapter {result['nycrr_chapter']}" + (f" - {name}" if name else ""))
+    if result['nycrr_subchapter']:
+        name = result['nycrr_subchapter_name'] or ''
+        path_parts.append(f"Subchapter {result['nycrr_subchapter']}" + (f" - {name}" if name else ""))
+    if result['nycrr_article']:
+        name = result['nycrr_article_name'] or ''
+        path_parts.append(f"Article {result['nycrr_article']}" + (f" - {name}" if name else ""))
+    if result['nycrr_part']:
+        name = result['nycrr_part_name'] or ''
+        path_parts.append(f"Part {result['nycrr_part']}" + (f" - {name}" if name else ""))
+    if result['nycrr_subpart']:
+        name = result['nycrr_subpart_name'] or ''
+        path_parts.append(f"Subpart {result['nycrr_subpart']}" + (f" - {name}" if name else ""))
+    if result['nycrr_section']:
+        name = result['nycrr_section_name'] or ''
+        path_parts.append(f"§ {result['nycrr_section']}" + (f" - {name}" if name else ""))
+
+    if path_parts:
+        result['hierarchy_path'] = ' > '.join(path_parts)
+
+    return result
 
 
 class NYRegulationsScraper:
@@ -479,9 +417,9 @@ class NYRegulationsScraper:
         
         # Clean the content for better readability
         cleaned_content = self.clean_regulation_text(content)
-        
-        # Get hierarchy info from URL
-        hierarchy = get_hierarchy_info(url)
+
+        # Get hierarchy info from breadcrumb
+        hierarchy = parse_breadcrumb(soup)
 
         return {
             'url': url,
@@ -493,8 +431,21 @@ class NYRegulationsScraper:
             'hierarchy_level': hierarchy.get('hierarchy_level'),
             'hierarchy_path': hierarchy.get('hierarchy_path'),
             'nycrr_title': hierarchy.get('nycrr_title'),
+            'nycrr_title_name': hierarchy.get('nycrr_title_name'),
+            'nycrr_subtitle': hierarchy.get('nycrr_subtitle'),
+            'nycrr_subtitle_name': hierarchy.get('nycrr_subtitle_name'),
+            'nycrr_chapter': hierarchy.get('nycrr_chapter'),
+            'nycrr_chapter_name': hierarchy.get('nycrr_chapter_name'),
+            'nycrr_subchapter': hierarchy.get('nycrr_subchapter'),
+            'nycrr_subchapter_name': hierarchy.get('nycrr_subchapter_name'),
+            'nycrr_article': hierarchy.get('nycrr_article'),
+            'nycrr_article_name': hierarchy.get('nycrr_article_name'),
             'nycrr_part': hierarchy.get('nycrr_part'),
+            'nycrr_part_name': hierarchy.get('nycrr_part_name'),
+            'nycrr_subpart': hierarchy.get('nycrr_subpart'),
+            'nycrr_subpart_name': hierarchy.get('nycrr_subpart_name'),
             'nycrr_section': hierarchy.get('nycrr_section'),
+            'nycrr_section_name': hierarchy.get('nycrr_section_name'),
             'parent_source_index': None,  # Will be populated in post-processing
             'scraped_from_url': None  # Will be set by crawler
         }
@@ -588,9 +539,10 @@ class NYRegulationsScraper:
         else:
             return 'unknown'
     
-    def crawl_recursively(self, start_urls, max_pages=None):
+    def crawl_recursively(self, start_urls, max_pages=None, start_referring_url=None):
         # Queue stores tuples of (url, referring_url)
-        to_visit = deque((url, None) for url in start_urls)
+        # start_referring_url is the page that linked to the start_urls (e.g., main page)
+        to_visit = deque((url, start_referring_url) for url in start_urls)
         scraped_count = len(self.all_regulations)  # Start from existing count
         save_interval = 50  # Save progress every 50 pages
 
@@ -693,7 +645,8 @@ class NYRegulationsScraper:
             start_urls = []  # Will be populated from cached links
         
         # Start recursive crawling
-        all_data = self.crawl_recursively(start_urls, max_pages)
+        # Pass main page URL as referring URL for title pages
+        all_data = self.crawl_recursively(start_urls, max_pages, start_referring_url=self.base_url)
         
         # Try failed URLs one more time
         if self.failed_urls:
@@ -899,7 +852,7 @@ class FullPipeline:
                             content = main_content.get_text(separator='\n', strip=True)
 
                     cleaned_content = scraper.clean_regulation_text(content)
-                    hierarchy = get_hierarchy_info(url)
+                    hierarchy = parse_breadcrumb(soup)
 
                     regulation = {
                         'url': url,
@@ -910,8 +863,21 @@ class FullPipeline:
                         'hierarchy_level': hierarchy.get('hierarchy_level'),
                         'hierarchy_path': hierarchy.get('hierarchy_path'),
                         'nycrr_title': hierarchy.get('nycrr_title'),
+                        'nycrr_title_name': hierarchy.get('nycrr_title_name'),
+                        'nycrr_subtitle': hierarchy.get('nycrr_subtitle'),
+                        'nycrr_subtitle_name': hierarchy.get('nycrr_subtitle_name'),
+                        'nycrr_chapter': hierarchy.get('nycrr_chapter'),
+                        'nycrr_chapter_name': hierarchy.get('nycrr_chapter_name'),
+                        'nycrr_subchapter': hierarchy.get('nycrr_subchapter'),
+                        'nycrr_subchapter_name': hierarchy.get('nycrr_subchapter_name'),
+                        'nycrr_article': hierarchy.get('nycrr_article'),
+                        'nycrr_article_name': hierarchy.get('nycrr_article_name'),
                         'nycrr_part': hierarchy.get('nycrr_part'),
+                        'nycrr_part_name': hierarchy.get('nycrr_part_name'),
+                        'nycrr_subpart': hierarchy.get('nycrr_subpart'),
+                        'nycrr_subpart_name': hierarchy.get('nycrr_subpart_name'),
                         'nycrr_section': hierarchy.get('nycrr_section'),
+                        'nycrr_section_name': hierarchy.get('nycrr_section_name'),
                         'scraped_from_url': scraper.scraped_from_map.get(url),
                     }
 
@@ -984,8 +950,21 @@ class FullPipeline:
                 'hierarchy_level': regulation.get('hierarchy_level'),
                 'hierarchy_path': regulation.get('hierarchy_path'),
                 'nycrr_title': regulation.get('nycrr_title'),
+                'nycrr_title_name': regulation.get('nycrr_title_name'),
+                'nycrr_subtitle': regulation.get('nycrr_subtitle'),
+                'nycrr_subtitle_name': regulation.get('nycrr_subtitle_name'),
+                'nycrr_chapter': regulation.get('nycrr_chapter'),
+                'nycrr_chapter_name': regulation.get('nycrr_chapter_name'),
+                'nycrr_subchapter': regulation.get('nycrr_subchapter'),
+                'nycrr_subchapter_name': regulation.get('nycrr_subchapter_name'),
+                'nycrr_article': regulation.get('nycrr_article'),
+                'nycrr_article_name': regulation.get('nycrr_article_name'),
                 'nycrr_part': regulation.get('nycrr_part'),
+                'nycrr_part_name': regulation.get('nycrr_part_name'),
+                'nycrr_subpart': regulation.get('nycrr_subpart'),
+                'nycrr_subpart_name': regulation.get('nycrr_subpart_name'),
                 'nycrr_section': regulation.get('nycrr_section'),
+                'nycrr_section_name': regulation.get('nycrr_section_name'),
                 'parent_source_index': regulation.get('parent_source_index'),
                 'scraped_from_url': regulation.get('scraped_from_url'),
             }

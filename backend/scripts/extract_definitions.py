@@ -210,6 +210,7 @@ def get_regulations_for_extraction(num_to_process: int, skip_processed: bool = T
                 'source_index': source_index,
                 'nycrr_title': data.get('nycrr_title'),
                 'nycrr_part': data.get('nycrr_part'),
+                'nycrr_subpart': data.get('nycrr_subpart'),
                 'nycrr_section': data.get('nycrr_section'),
             }
 
@@ -329,8 +330,8 @@ def store_to_database(regulations: List[Dict]):
                 doc_id = conn.execute("""
                     INSERT INTO regulatory_documents
                     (source_index, type, state, title, url, url_type, content,
-                     nycrr_title, nycrr_part, nycrr_section)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                     nycrr_title, nycrr_part, nycrr_subpart, nycrr_section)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (state, source_index, type) DO UPDATE SET
                         title = EXCLUDED.title,
                         url = EXCLUDED.url,
@@ -346,6 +347,7 @@ def store_to_database(regulations: List[Dict]):
                     reg['content'],
                     reg.get('nycrr_title'),
                     reg.get('nycrr_part'),
+                    reg.get('nycrr_subpart'),
                     reg.get('nycrr_section')
                 )).fetchone()[0]
                 docs_processed += 1

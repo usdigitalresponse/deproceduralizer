@@ -18,10 +18,23 @@ CREATE TABLE regulatory_documents (
   hierarchy_level VARCHAR(50),         -- Position in tree: title/subtitle/chapter/subchapter/article/part/subpart/section
   hierarchy_path TEXT,                 -- Full path for hierarchy URLs (e.g., "title-18/part-433")
 
-  -- Parsed NYCRR citation components (from URLs like "18-NYCRR-433.8")
+  -- Parsed NYCRR citation components (extracted from page breadcrumbs)
   nycrr_title INTEGER,                 -- Title number (1-23)
+  nycrr_title_name TEXT,               -- Title name (e.g., "SOCIAL SERVICES")
+  nycrr_subtitle VARCHAR(50),          -- Subtitle identifier (e.g., "A")
+  nycrr_subtitle_name TEXT,            -- Subtitle name
+  nycrr_chapter VARCHAR(50),           -- Chapter identifier (e.g., "II")
+  nycrr_chapter_name TEXT,             -- Chapter name (e.g., "Medical Assistance")
+  nycrr_subchapter VARCHAR(50),        -- Subchapter identifier (e.g., "C")
+  nycrr_subchapter_name TEXT,          -- Subchapter name
+  nycrr_article VARCHAR(50),           -- Article identifier (e.g., "2")
+  nycrr_article_name TEXT,             -- Article name
   nycrr_part VARCHAR(50),              -- Part number
+  nycrr_part_name TEXT,                -- Part name
+  nycrr_subpart VARCHAR(50),           -- Subpart number
+  nycrr_subpart_name TEXT,             -- Subpart name
   nycrr_section VARCHAR(50),           -- Section number
+  nycrr_section_name TEXT,             -- Section name
 
   CONSTRAINT unique_per_pull UNIQUE(state, source_index, type)
 );
@@ -82,6 +95,11 @@ CREATE INDEX idx_documents_hierarchy_level ON regulatory_documents(hierarchy_lev
 CREATE INDEX idx_documents_nycrr_title ON regulatory_documents(nycrr_title);
 CREATE INDEX idx_documents_nycrr_part ON regulatory_documents(nycrr_part);
 CREATE INDEX idx_documents_nycrr_title_part ON regulatory_documents(nycrr_title, nycrr_part);
+CREATE INDEX idx_documents_nycrr_subpart ON regulatory_documents(nycrr_subpart);
+CREATE INDEX idx_documents_nycrr_title_part_subpart ON regulatory_documents(nycrr_title, nycrr_part, nycrr_subpart);
+CREATE INDEX idx_documents_nycrr_chapter ON regulatory_documents(nycrr_chapter);
+CREATE INDEX idx_documents_nycrr_subchapter ON regulatory_documents(nycrr_subchapter);
+CREATE INDEX idx_documents_nycrr_article ON regulatory_documents(nycrr_article);
 CREATE INDEX idx_analyses_document ON analyses(document_id);
 CREATE INDEX idx_analyses_is_current ON analyses(is_current) WHERE is_current = TRUE;
 CREATE INDEX idx_red_flags_analysis ON red_flags(analysis_id);

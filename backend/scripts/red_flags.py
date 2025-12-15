@@ -95,6 +95,7 @@ class RegulationData(BaseModel):
     hierarchy_path: Optional[str] = None
     nycrr_title: Optional[int] = None
     nycrr_part: Optional[str] = None
+    nycrr_subpart: Optional[str] = None
     nycrr_section: Optional[str] = None
     parent_source_index: Optional[int] = None
     # Category tracking fields
@@ -527,8 +528,8 @@ def save_analysis_to_database(conn: Connection,
             cur.execute("""
                 INSERT INTO regulatory_documents
                 (source_index, type, state, title, url, url_type, content,
-                 hierarchy_level, hierarchy_path, nycrr_title, nycrr_part, nycrr_section)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                 hierarchy_level, hierarchy_path, nycrr_title, nycrr_part, nycrr_subpart, nycrr_section)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (state, source_index, type) DO UPDATE SET
                     title = EXCLUDED.title,
                     url = EXCLUDED.url,
@@ -539,7 +540,7 @@ def save_analysis_to_database(conn: Connection,
                 regulation.title, regulation.url, regulation.url_type,
                 regulation.content, regulation.hierarchy_level,
                 regulation.hierarchy_path, regulation.nycrr_title,
-                regulation.nycrr_part, regulation.nycrr_section
+                regulation.nycrr_part, regulation.nycrr_subpart, regulation.nycrr_section
             ))
             doc_id = cur.fetchone()[0]
 
@@ -687,6 +688,7 @@ async def analyze_regulations_batch(regulations: List[RegulationData],
                 'hierarchy_path': regulation.hierarchy_path,
                 'nycrr_title': regulation.nycrr_title,
                 'nycrr_part': regulation.nycrr_part,
+                'nycrr_subpart': regulation.nycrr_subpart,
                 'nycrr_section': regulation.nycrr_section,
                 'parent_source_index': regulation.parent_source_index,
                 # Category tracking

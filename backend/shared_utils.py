@@ -85,7 +85,6 @@ def call_llm_parse(
     prompt: str,
     response_format: Type[BaseModel],
     model: str = "gpt-5-nano",
-    temperature: float = 0,
     max_retries: int = 3,
 ) -> Optional[BaseModel]:
     """
@@ -98,7 +97,6 @@ def call_llm_parse(
         prompt: User prompt/message
         response_format: Pydantic model for structured output
         model: Model name (default: gpt-5-nano)
-        temperature: Temperature for determinism (default: 0 for reproducibility)
         max_retries: Number of retries on failure (default: 3)
 
     Returns:
@@ -110,7 +108,6 @@ def call_llm_parse(
                 model=model,
                 messages=[{"role": "user", "content": prompt}],
                 response_format=response_format,
-                temperature=temperature
             )
 
             parsed = response.choices[0].message.parsed
@@ -152,7 +149,6 @@ async def call_llm_parse_async(
     prompt: str,
     response_format: Type[BaseModel],
     model: str = "gpt-5-nano",
-    temperature: float = 0,
     max_retries: int = 3,
 ) -> Optional[BaseModel]:
     """
@@ -165,7 +161,6 @@ async def call_llm_parse_async(
         prompt: User prompt/message
         response_format: Pydantic model for structured output
         model: Model name (default: gpt-5-nano)
-        temperature: Temperature for determinism (default: 0 for reproducibility)
         max_retries: Number of retries on failure (default: 3)
 
     Returns:
@@ -177,7 +172,6 @@ async def call_llm_parse_async(
                 model=model,
                 messages=[{"role": "user", "content": prompt}],
                 response_format=response_format,
-                temperature=temperature
             )
 
             parsed = response.choices[0].message.parsed
