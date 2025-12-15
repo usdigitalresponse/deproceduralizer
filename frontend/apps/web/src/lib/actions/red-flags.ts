@@ -7,7 +7,8 @@ import {
   ReviewStatus,
   ImpactType,
   REVIEW_STATUSES,
-  IMPACT_TYPES
+  IMPACT_TYPES,
+  type StateCode,
 } from '@deproceduralizer/database';
 
 const redFlagsRepo = new RedFlagsRepository(db);
@@ -50,26 +51,30 @@ export async function getRedFlagById(id: number) {
   return redFlagsRepo.getById(id);
 }
 
-export async function getRedFlagCategories() {
-  return redFlagsRepo.getCategories();
+export async function getRedFlagCategories(state: StateCode) {
+  return redFlagsRepo.getCategories(state);
 }
 
-export async function getRedFlagStatusCounts() {
-  return redFlagsRepo.getCountsByStatus();
+export async function getRedFlagStatusCounts(state: StateCode) {
+  return redFlagsRepo.getCountsByStatus(state);
 }
 
-export async function getRedFlagsPaginated(options: {
-  page: number;
-  pageSize: number;
-  sortBy?: 'severity' | 'category' | 'reviewedAt';
-  sortOrder?: 'asc' | 'desc';
-  filters?: {
-    status?: string;
-    severity?: 'high' | 'medium' | 'low';
-    category?: string;
-  };
-}) {
+export async function getRedFlagsPaginated(
+  state: StateCode,
+  options: {
+    page: number;
+    pageSize: number;
+    sortBy?: 'severity' | 'category' | 'reviewedAt';
+    sortOrder?: 'asc' | 'desc';
+    filters?: {
+      status?: string;
+      severity?: 'high' | 'medium' | 'low';
+      category?: string;
+    };
+  }
+) {
   return redFlagsRepo.getAllPaginated({
+    state,
     ...options,
     filters: options.filters ? {
       status: options.filters.status as ReviewStatus | 'all' | undefined,

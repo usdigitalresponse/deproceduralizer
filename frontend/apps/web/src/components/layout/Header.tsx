@@ -8,14 +8,29 @@ interface HeaderProps {
   className?: string;
 }
 
-const NAV_LINKS = [
-  { href: '/', label: 'Table View' },
-  { href: '/browse', label: 'Browse' },
-  { href: '/review?status=unreviewed', label: 'Review Mode' },
-];
+/**
+ * Extract state from pathname (e.g., /ny/browse -> ny)
+ */
+function getStateFromPathname(pathname: string): string {
+  const match = pathname.match(/^\/(ny|nj)/);
+  return match ? match[1] : 'ny';
+}
+
+/**
+ * Generate state-aware nav links based on current state
+ */
+function getNavLinks(state: string) {
+  return [
+    { href: `/${state}`, label: 'Table View', matchPath: `/${state}` },
+    { href: `/${state}/browse`, label: 'Browse', matchPath: `/${state}/browse` },
+    { href: `/${state}/review?status=unreviewed`, label: 'Review Mode', matchPath: `/${state}/review` },
+  ];
+}
 
 export function Header({ className = '' }: HeaderProps) {
   const pathname = usePathname();
+  const currentState = getStateFromPathname(pathname);
+  const navLinks = getNavLinks(currentState);
 
   return (
     <header className={`sticky top-0 z-[var(--z-sticky)] ${className}`}>
@@ -62,12 +77,11 @@ export function Header({ className = '' }: HeaderProps) {
 
             {/* Navigation */}
             <nav className="flex items-center gap-1">
-              {NAV_LINKS.map((link) => {
-                // Extract pathname without query params for comparison
-                const linkPath = link.href.split('?')[0];
-                const isActive = linkPath === '/'
-                  ? pathname === '/'
-                  : pathname.startsWith(linkPath);
+              {navLinks.map((link) => {
+                // Check if current path matches this nav link
+                const isActive = link.matchPath === `/${currentState}`
+                  ? pathname === `/${currentState}` || pathname === `/${currentState}/`
+                  : pathname.startsWith(link.matchPath);
 
                 return (
                   <Link

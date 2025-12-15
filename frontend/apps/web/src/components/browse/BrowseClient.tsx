@@ -1,14 +1,15 @@
 'use client';
 
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import type { HierarchyNode, HierarchyFilterOptions } from '@deproceduralizer/database';
-import { getHierarchyChildren } from '@/lib/actions/hierarchy';
+import type { HierarchyNode, HierarchyFilterOptions, StateCode } from '@deproceduralizer/database';
+import { getHierarchyChildren, getHierarchyChildrenFast } from '@/lib/actions/hierarchy';
 import { Card } from '@/components/ui/Card';
 import { HierarchyTree } from './HierarchyTree';
 import { BrowseFilters } from './BrowseFilters';
 import { DetailPanel } from './DetailPanel';
 
 interface BrowseClientProps {
+  state: StateCode;
   initialRoots: HierarchyNode[];
   initialOrphans: HierarchyNode[];
   stats: {
@@ -21,6 +22,7 @@ interface BrowseClientProps {
 }
 
 export function BrowseClient({
+  state,
   initialRoots,
   initialOrphans,
   stats,
@@ -32,6 +34,14 @@ export function BrowseClient({
   const [loadedChildren, setLoadedChildren] = useState<Map<number, HierarchyNode[]>>(new Map());
   const [loadingIds, setLoadingIds] = useState<Set<number>>(new Set());
   const [showOrphans, setShowOrphans] = useState(false);
+
+  // Check if any filters are active (need this before handleToggleExpand)
+  const hasActiveFilters = Boolean(
+    filters.hasAnalysis !== undefined ||
+    filters.hasFlags !== undefined ||
+    filters.severity !== undefined ||
+    filters.hasDefinitions !== undefined
+  );
 
   // Handle node expansion
   const handleToggleExpand = useCallback(async (id: number) => {
@@ -47,10 +57,12 @@ export function BrowseClient({
       setExpandedIds(newExpanded);
 
       if (!loadedChildren.has(id)) {
-        // Load children
+        // Load children - use fast query when no filters active
         setLoadingIds(prev => new Set(prev).add(id));
         try {
-          const children = await getHierarchyChildren(id, filters);
+          const children = hasActiveFilters
+            ? await getHierarchyChildren(id, state, filters)
+            : await getHierarchyChildrenFast(id);
           setLoadedChildren(prev => new Map(prev).set(id, children));
         } catch (error) {
           console.error('Failed to load children:', error);
@@ -63,7 +75,7 @@ export function BrowseClient({
         }
       }
     }
-  }, [expandedIds, loadedChildren, filters]);
+  }, [expandedIds, loadedChildren, filters, state, hasActiveFilters]);
 
   // Handle node selection
   const handleSelect = useCallback((id: number) => {
@@ -79,14 +91,6 @@ export function BrowseClient({
   const handleToggleOrphans = useCallback(() => {
     setShowOrphans(prev => !prev);
   }, []);
-
-  // Check if any filters are active
-  const hasActiveFilters = Boolean(
-    filters.hasAnalysis !== undefined ||
-    filters.hasFlags !== undefined ||
-    filters.severity !== undefined ||
-    filters.hasDefinitions !== undefined
-  );
 
   // Serialize filters for dependency comparison
   const filtersKey = useMemo(() => JSON.stringify(filters), [filters]);
@@ -131,6 +135,7 @@ export function BrowseClient({
           <DetailPanel
             documentId={selectedId}
             onClose={handleCloseDetail}
+            onNavigate={handleSelect}
           />
         </div>
       </div>

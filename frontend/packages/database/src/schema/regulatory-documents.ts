@@ -6,6 +6,7 @@ import {
   text,
   timestamp,
   bigint,
+  boolean,
   unique
 } from 'drizzle-orm/pg-core';
 
@@ -25,6 +26,12 @@ export const regulatoryDocuments = pgTable('regulatory_documents', {
   nycrrTitle: integer('nycrr_title'),
   nycrrPart: varchar('nycrr_part', { length: 50 }),
   nycrrSection: varchar('nycrr_section', { length: 50 }),
+  // Precomputed hierarchy stats (for fast browse queries)
+  directChildCount: integer('direct_child_count').default(0),
+  descendantCount: integer('descendant_count').default(0),
+  descendantFlagCount: integer('descendant_flag_count').default(0),
+  descendantMaxSeverity: integer('descendant_max_severity'),
+  hasDescendantAnalysis: boolean('has_descendant_analysis').default(false),
 }, (table) => ({
   uniquePerPull: unique().on(table.state, table.sourceIndex, table.type),
 }));

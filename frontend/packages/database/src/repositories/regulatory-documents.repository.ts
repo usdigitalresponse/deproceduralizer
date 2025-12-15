@@ -50,6 +50,9 @@ export interface FilterOptions {
   explanationSearch?: string; // Text search in explanations
 }
 
+// State code type (imported from types/state.ts in frontend, mirrored here)
+export type StateCode = 'ny' | 'nj';
+
 // Hierarchy browsing interfaces
 export interface HierarchyNode {
   id: number;
@@ -59,6 +62,7 @@ export interface HierarchyNode {
   nycrrTitle: number | null;
   nycrrPart: string | null;
   nycrrSection: string | null;
+  state: string | null;
   // Aggregated data
   hasAnalysis: boolean;
   totalFlags: number;
@@ -71,6 +75,7 @@ export interface HierarchyNode {
 }
 
 export interface HierarchyFilterOptions {
+  state: StateCode; // Required - filter by state
   hasAnalysis?: boolean;
   hasFlags?: boolean;
   severity?: 'high' | 'medium' | 'low';
@@ -78,6 +83,7 @@ export interface HierarchyFilterOptions {
 }
 
 export interface PaginationOptions {
+  state: StateCode; // Required - filter by state
   page: number;
   pageSize: number;
   search?: string;
@@ -113,6 +119,11 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         nycrrTitle: regulatoryDocuments.nycrrTitle,
         nycrrPart: regulatoryDocuments.nycrrPart,
         nycrrSection: regulatoryDocuments.nycrrSection,
+        directChildCount: regulatoryDocuments.directChildCount,
+        descendantCount: regulatoryDocuments.descendantCount,
+        descendantFlagCount: regulatoryDocuments.descendantFlagCount,
+        descendantMaxSeverity: regulatoryDocuments.descendantMaxSeverity,
+        hasDescendantAnalysis: regulatoryDocuments.hasDescendantAnalysis,
         analysisId: analyses.id,
         hasImplementationIssues: analyses.hasImplementationIssues,
         overallComplexity: analyses.overallComplexity,
@@ -172,11 +183,14 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
   async getAllWithAnalysisPaginated(
     options: PaginationOptions
   ): Promise<PaginatedResult<RegulationWithAnalysis>> {
-    const { page, pageSize, search, sortBy = 'maxSeverity', sortOrder = 'desc', filters } = options;
+    const { state, page, pageSize, search, sortBy = 'maxSeverity', sortOrder = 'desc', filters } = options;
     const offset = (page - 1) * pageSize;
 
     // Build conditions array
     const conditions: ReturnType<typeof eq>[] = [];
+
+    // Always filter by state
+    conditions.push(eq(regulatoryDocuments.state, state.toUpperCase()));
 
     // Add search condition if provided
     if (search) {
@@ -321,6 +335,11 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         nycrrTitle: regulatoryDocuments.nycrrTitle,
         nycrrPart: regulatoryDocuments.nycrrPart,
         nycrrSection: regulatoryDocuments.nycrrSection,
+        directChildCount: regulatoryDocuments.directChildCount,
+        descendantCount: regulatoryDocuments.descendantCount,
+        descendantFlagCount: regulatoryDocuments.descendantFlagCount,
+        descendantMaxSeverity: regulatoryDocuments.descendantMaxSeverity,
+        hasDescendantAnalysis: regulatoryDocuments.hasDescendantAnalysis,
         analysisId: analyses.id,
         hasImplementationIssues: analyses.hasImplementationIssues,
         overallComplexity: analyses.overallComplexity,
@@ -410,6 +429,11 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         nycrrTitle: regulatoryDocuments.nycrrTitle,
         nycrrPart: regulatoryDocuments.nycrrPart,
         nycrrSection: regulatoryDocuments.nycrrSection,
+        directChildCount: regulatoryDocuments.directChildCount,
+        descendantCount: regulatoryDocuments.descendantCount,
+        descendantFlagCount: regulatoryDocuments.descendantFlagCount,
+        descendantMaxSeverity: regulatoryDocuments.descendantMaxSeverity,
+        hasDescendantAnalysis: regulatoryDocuments.hasDescendantAnalysis,
         analysisId: analyses.id,
         hasImplementationIssues: analyses.hasImplementationIssues,
         overallComplexity: analyses.overallComplexity,
@@ -483,15 +507,18 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
    * Get root-level documents (titles) for the hierarchy tree
    * When filters are applied, only returns titles that have matching descendants
    */
-  async getHierarchyRoots(filters?: HierarchyFilterOptions): Promise<HierarchyNode[]> {
+  async getHierarchyRoots(filters: HierarchyFilterOptions): Promise<HierarchyNode[]> {
+    const { state } = filters;
+    const stateUpper = state.toUpperCase();
+
     // Build filter conditions for descendants
     const filterConditions = this.buildHierarchyFilterConditions(filters);
     const filterClause = filterConditions.length > 0
       ? sql`AND ${sql.join(filterConditions, sql` AND `)}`
       : sql``;
 
-    // When filters are active, only show titles with matching descendants
-    const hasFilters = filterConditions.length > 0;
+    // When filters are active (beyond just state), only show titles with matching descendants
+    const hasContentFilters = filterConditions.length > 0;
 
     const results = await this.db.execute(sql`
       SELECT
@@ -502,6 +529,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         rd.nycrr_title as "nycrrTitle",
         rd.nycrr_part as "nycrrPart",
         rd.nycrr_section as "nycrrSection",
+        rd.state,
         COALESCE(child_stats.has_analysis, false) as "hasAnalysis",
         COALESCE(child_stats.total_flags, 0)::int as "totalFlags",
         child_stats.max_severity as "maxSeverity",
@@ -540,7 +568,8 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         ${filterClause}
       ) descendant_stats ON true
       WHERE rd.hierarchy_level = 'title'
-        ${hasFilters ? sql`AND (child_stats.matching_child_count > 0 OR descendant_stats.matching_descendant_count > 0)` : sql``}
+        AND rd.state = ${stateUpper}
+        ${hasContentFilters ? sql`AND (child_stats.matching_child_count > 0 OR descendant_stats.matching_descendant_count > 0)` : sql``}
       ORDER BY rd.nycrr_title NULLS LAST, rd.title
     `);
 
@@ -553,7 +582,8 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
    * 1. Directly match the filter criteria, OR
    * 2. Have descendants that match (to preserve the path to matching items)
    */
-  async getHierarchyChildren(parentId: number, filters?: HierarchyFilterOptions): Promise<HierarchyNode[]> {
+  async getHierarchyChildren(parentId: number, filters: HierarchyFilterOptions): Promise<HierarchyNode[]> {
+    // Note: State filtering is implicit through parent - children inherit parent's state
     // Build filter conditions with different aliases for different contexts
     const filterConditionsA = this.buildHierarchyFilterConditions(filters, 'a', 'rd');
     const filterConditionsGa = this.buildHierarchyFilterConditions(filters, 'ga', 'grandchild');
@@ -579,6 +609,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         rd.nycrr_title as "nycrrTitle",
         rd.nycrr_part as "nycrrPart",
         rd.nycrr_section as "nycrrSection",
+        rd.state,
         COALESCE(a.id IS NOT NULL, false) as "hasAnalysis",
         COALESCE(a.num_flags, 0)::int as "totalFlags",
         a.max_severity as "maxSeverity",
@@ -630,7 +661,10 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
   /**
    * Get orphan documents (no parent, but not a title; or null hierarchy_level)
    */
-  async getOrphanDocuments(filters?: HierarchyFilterOptions): Promise<HierarchyNode[]> {
+  async getOrphanDocuments(filters: HierarchyFilterOptions): Promise<HierarchyNode[]> {
+    const { state } = filters;
+    const stateUpper = state.toUpperCase();
+
     const filterConditions = this.buildHierarchyFilterConditions(filters);
     const filterClause = filterConditions.length > 0
       ? sql`AND ${sql.join(filterConditions, sql` AND `)}`
@@ -645,6 +679,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         rd.nycrr_title as "nycrrTitle",
         rd.nycrr_part as "nycrrPart",
         rd.nycrr_section as "nycrrSection",
+        rd.state,
         COALESCE(a.id IS NOT NULL, false) as "hasAnalysis",
         COALESCE(a.num_flags, 0)::int as "totalFlags",
         a.max_severity as "maxSeverity",
@@ -654,10 +689,11 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         0 as "matchingDescendantCount"
       FROM regulatory_documents rd
       LEFT JOIN analyses a ON a.document_id = rd.id AND a.is_current = true
-      WHERE (
-        (rd.parent_id IS NULL AND rd.hierarchy_level IS DISTINCT FROM 'title')
-        OR rd.hierarchy_level IS NULL
-      )
+      WHERE rd.state = ${stateUpper}
+        AND (
+          (rd.parent_id IS NULL AND rd.hierarchy_level IS DISTINCT FROM 'title')
+          OR rd.hierarchy_level IS NULL
+        )
       ${filterClause}
       ORDER BY
         rd.nycrr_title NULLS LAST,
@@ -672,15 +708,18 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
   /**
    * Get hierarchy statistics by level
    */
-  async getHierarchyStats(filters?: HierarchyFilterOptions): Promise<{
+  async getHierarchyStats(filters: HierarchyFilterOptions): Promise<{
     level: string;
     count: number;
     analyzedCount: number;
     flaggedCount: number;
   }[]> {
+    const { state } = filters;
+    const stateUpper = state.toUpperCase();
+
     const filterConditions = this.buildHierarchyFilterConditions(filters);
-    const filterClause = filterConditions.length > 0
-      ? sql`WHERE ${sql.join(filterConditions, sql` AND `)}`
+    const additionalFilters = filterConditions.length > 0
+      ? sql`AND ${sql.join(filterConditions, sql` AND `)}`
       : sql``;
 
     const results = await this.db.execute(sql`
@@ -691,7 +730,8 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         COUNT(CASE WHEN a.num_flags > 0 THEN 1 END)::int as "flaggedCount"
       FROM regulatory_documents rd
       LEFT JOIN analyses a ON a.document_id = rd.id AND a.is_current = true
-      ${filterClause}
+      WHERE rd.state = ${stateUpper}
+      ${additionalFilters}
       GROUP BY rd.hierarchy_level
       ORDER BY count DESC
     `);
@@ -746,5 +786,165 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
     }
 
     return conditions;
+  }
+
+  // ========================================
+  // Fast hierarchy methods (using precomputed stats)
+  // ========================================
+
+  /**
+   * Get root-level titles using precomputed stats (fast)
+   * Only returns true root titles (parent_id IS NULL)
+   * Uses precomputed descendant stats for instant load
+   */
+  async getHierarchyRootsFast(state: StateCode): Promise<HierarchyNode[]> {
+    const stateUpper = state.toUpperCase();
+
+    const results = await this.db.execute(sql`
+      SELECT
+        rd.id,
+        rd.title,
+        rd.hierarchy_level as "hierarchyLevel",
+        rd.hierarchy_path as "hierarchyPath",
+        rd.nycrr_title as "nycrrTitle",
+        rd.nycrr_part as "nycrrPart",
+        rd.nycrr_section as "nycrrSection",
+        rd.state,
+        -- Use precomputed stats
+        COALESCE(rd.has_descendant_analysis, false) as "hasAnalysis",
+        COALESCE(rd.descendant_flag_count, 0)::int as "totalFlags",
+        rd.descendant_max_severity as "maxSeverity",
+        false as "hasDefinitions",
+        COALESCE(rd.direct_child_count, 0)::int as "childCount",
+        0 as "matchingChildCount",
+        COALESCE(rd.descendant_count, 0)::int as "matchingDescendantCount"
+      FROM regulatory_documents rd
+      WHERE rd.hierarchy_level = 'title'
+        AND rd.state = ${stateUpper}
+        AND rd.parent_id IS NULL
+      ORDER BY rd.nycrr_title NULLS LAST, rd.title
+    `);
+
+    return results.rows as unknown as HierarchyNode[];
+  }
+
+  /**
+   * Get children using precomputed stats (fast)
+   * Uses precomputed descendant stats for instant child load
+   */
+  async getHierarchyChildrenFast(parentId: number): Promise<HierarchyNode[]> {
+    const results = await this.db.execute(sql`
+      SELECT
+        rd.id,
+        rd.title,
+        rd.hierarchy_level as "hierarchyLevel",
+        rd.hierarchy_path as "hierarchyPath",
+        rd.nycrr_title as "nycrrTitle",
+        rd.nycrr_part as "nycrrPart",
+        rd.nycrr_section as "nycrrSection",
+        rd.state,
+        -- Use precomputed stats
+        COALESCE(rd.has_descendant_analysis, false) as "hasAnalysis",
+        COALESCE(rd.descendant_flag_count, 0)::int as "totalFlags",
+        rd.descendant_max_severity as "maxSeverity",
+        false as "hasDefinitions",
+        COALESCE(rd.direct_child_count, 0)::int as "childCount",
+        0 as "matchingChildCount",
+        COALESCE(rd.descendant_count, 0)::int as "matchingDescendantCount"
+      FROM regulatory_documents rd
+      WHERE rd.parent_id = ${parentId}
+      ORDER BY
+        rd.nycrr_part::int NULLS LAST,
+        rd.nycrr_section NULLS LAST,
+        rd.title
+    `);
+
+    return results.rows as unknown as HierarchyNode[];
+  }
+
+  /**
+   * Get direct children of a document
+   * Returns basic info about children for display in detail views
+   */
+  async getDirectChildren(parentId: number): Promise<{
+    id: number;
+    title: string;
+    hierarchyLevel: string | null;
+    hasAnalysis: boolean;
+    maxSeverity: number | null;
+    numFlags: number;
+  }[]> {
+    const results = await this.db.execute(sql`
+      SELECT
+        rd.id,
+        rd.title,
+        rd.hierarchy_level as "hierarchyLevel",
+        COALESCE(a.id IS NOT NULL, false) as "hasAnalysis",
+        a.max_severity as "maxSeverity",
+        COALESCE(a.num_flags, 0)::int as "numFlags"
+      FROM regulatory_documents rd
+      LEFT JOIN analyses a ON a.document_id = rd.id AND a.is_current = true
+      WHERE rd.parent_id = ${parentId}
+      ORDER BY
+        rd.nycrr_part::int NULLS LAST,
+        rd.nycrr_section NULLS LAST,
+        rd.title
+    `);
+
+    return results.rows as unknown as {
+      id: number;
+      title: string;
+      hierarchyLevel: string | null;
+      hasAnalysis: boolean;
+      maxSeverity: number | null;
+      numFlags: number;
+    }[];
+  }
+
+  /**
+   * Get the ancestor chain (breadcrumb path) for a document
+   * Returns documents from root to immediate parent, ordered from root to current
+   */
+  async getAncestorChain(documentId: number): Promise<{
+    id: number;
+    title: string;
+    hierarchyLevel: string | null;
+  }[]> {
+    // Use a recursive CTE to walk up the parent chain
+    const results = await this.db.execute(sql`
+      WITH RECURSIVE ancestors AS (
+        -- Start with the document's parent
+        SELECT
+          rd.id,
+          rd.title,
+          rd.hierarchy_level as "hierarchyLevel",
+          rd.parent_id as "parentId",
+          1 as depth
+        FROM regulatory_documents rd
+        WHERE rd.id = (SELECT parent_id FROM regulatory_documents WHERE id = ${documentId})
+
+        UNION ALL
+
+        -- Recursively get parents
+        SELECT
+          rd.id,
+          rd.title,
+          rd.hierarchy_level as "hierarchyLevel",
+          rd.parent_id as "parentId",
+          a.depth + 1
+        FROM regulatory_documents rd
+        INNER JOIN ancestors a ON rd.id = a."parentId"
+        WHERE a.depth < 20  -- Safety limit to prevent infinite loops
+      )
+      SELECT id, title, "hierarchyLevel"
+      FROM ancestors
+      ORDER BY depth DESC  -- Root first
+    `);
+
+    return results.rows as unknown as {
+      id: number;
+      title: string;
+      hierarchyLevel: string | null;
+    }[];
   }
 }

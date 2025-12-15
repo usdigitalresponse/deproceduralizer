@@ -1,4 +1,4 @@
-import { redirect } from 'next/navigation';
+import { redirect, notFound } from 'next/navigation';
 import { Container } from '@/components/layout/Container';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { ReviewQueue } from '@/components/review';
@@ -7,9 +7,11 @@ import {
   getRedFlagStatusCounts,
   getRedFlagCategories,
 } from '@/lib/actions/red-flags';
-import type { RedFlagFilterOptions } from '@deproceduralizer/database';
+import type { RedFlagFilterOptions, StateCode } from '@deproceduralizer/database';
+import { isValidState, STATE_CONFIG } from '@/types/state';
 
 interface PageProps {
+  params: Promise<{ state: string }>;
   searchParams: Promise<{
     status?: string;
     severity?: string;
@@ -20,30 +22,39 @@ interface PageProps {
   }>;
 }
 
-export default async function ReviewPage({ searchParams }: PageProps) {
-  const params = await searchParams;
+export default async function ReviewPage({ params, searchParams }: PageProps) {
+  const { state } = await params;
+  const queryParams = await searchParams;
+
+  // Validate state parameter
+  if (!isValidState(state)) {
+    notFound();
+  }
+
+  const stateCode = state as StateCode;
+  const stateConfig = STATE_CONFIG[stateCode];
 
   // Default to showing unreviewed flags
-  if (!params.status) {
-    redirect('/review?status=unreviewed');
+  if (!queryParams.status) {
+    redirect(`/${state}/review?status=unreviewed`);
   }
 
   // Parse pagination params
-  const page = Math.max(1, parseInt(params.page || '1', 10));
+  const page = Math.max(1, parseInt(queryParams.page || '1', 10));
   const pageSize = 10;
-  const sortBy = (params.sortBy || 'severity') as 'severity' | 'category' | 'reviewedAt';
-  const sortOrder = (params.sortOrder || 'desc') as 'asc' | 'desc';
+  const sortBy = (queryParams.sortBy || 'severity') as 'severity' | 'category' | 'reviewedAt';
+  const sortOrder = (queryParams.sortOrder || 'desc') as 'asc' | 'desc';
 
   // Parse filter params
-  const filters: RedFlagFilterOptions = {
-    status: params.status === 'all' ? 'all' : (params.status as RedFlagFilterOptions['status']),
-    severity: params.severity as 'high' | 'medium' | 'low' | undefined,
-    category: params.category || undefined,
+  const filters: Omit<RedFlagFilterOptions, 'state'> = {
+    status: queryParams.status === 'all' ? 'all' : (queryParams.status as RedFlagFilterOptions['status']),
+    severity: queryParams.severity as 'high' | 'medium' | 'low' | undefined,
+    category: queryParams.category || undefined,
   };
 
-  // Fetch data in parallel
+  // Fetch data in parallel - all calls now require state
   const [flagsResult, statusCounts, categories] = await Promise.all([
-    getRedFlagsPaginated({
+    getRedFlagsPaginated(stateCode, {
       page,
       pageSize,
       sortBy,
@@ -54,15 +65,15 @@ export default async function ReviewPage({ searchParams }: PageProps) {
         category: filters.category,
       },
     }),
-    getRedFlagStatusCounts(),
-    getRedFlagCategories(),
+    getRedFlagStatusCounts(stateCode),
+    getRedFlagCategories(stateCode),
   ]);
 
   return (
     <div className="bg-[var(--color-background)]">
       <PageHeader
-        title="Review Mode"
-        description="Efficiently triage red flags identified by analysis"
+        title={`Review ${stateConfig.name} Regulations`}
+        description={`Efficiently triage red flags identified in ${stateConfig.regulationsLabel}`}
       />
 
       <Container size="2xl" className="py-6">

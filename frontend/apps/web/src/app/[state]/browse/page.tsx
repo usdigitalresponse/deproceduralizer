@@ -1,18 +1,22 @@
 import { Suspense } from 'react';
+import { notFound } from 'next/navigation';
 import {
   db,
   RegulatoryDocumentsRepository,
   type HierarchyFilterOptions,
+  type StateCode,
 } from '@deproceduralizer/database';
 import { BrowseClient } from '@/components/browse';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Container } from '@/components/layout/Container';
 import { HierarchyTreeSkeleton } from '@/components/browse/HierarchyTree';
 import { Card } from '@/components/ui/Card';
+import { isValidState, STATE_CONFIG } from '@/types/state';
 
 export const dynamic = 'force-dynamic';
 
 interface PageProps {
+  params: Promise<{ state: string }>;
   searchParams: Promise<{
     analyzed?: string;
     hasFlags?: string;
@@ -29,29 +33,51 @@ function parseBooleanParam(value: string | undefined): boolean | undefined {
   return undefined;
 }
 
-export default async function BrowsePage({ searchParams }: PageProps) {
-  const params = await searchParams;
+export default async function BrowsePage({ params, searchParams }: PageProps) {
+  const { state } = await params;
+  const queryParams = await searchParams;
 
-  // Parse filters from URL params
-  const filters: HierarchyFilterOptions = {};
-
-  const hasAnalysis = parseBooleanParam(params.analyzed);
-  if (hasAnalysis !== undefined) filters.hasAnalysis = hasAnalysis;
-
-  const hasFlags = parseBooleanParam(params.hasFlags);
-  if (hasFlags !== undefined) filters.hasFlags = hasFlags;
-
-  if (params.severity && ['high', 'medium', 'low'].includes(params.severity)) {
-    filters.severity = params.severity as HierarchyFilterOptions['severity'];
+  // Validate state parameter
+  if (!isValidState(state)) {
+    notFound();
   }
 
-  const hasDefinitions = parseBooleanParam(params.hasDefs);
+  const stateCode = state as StateCode;
+  const stateConfig = STATE_CONFIG[stateCode];
+
+  // Parse filters from URL params - state is always required
+  const filters: HierarchyFilterOptions = { state: stateCode };
+
+  const hasAnalysis = parseBooleanParam(queryParams.analyzed);
+  if (hasAnalysis !== undefined) filters.hasAnalysis = hasAnalysis;
+
+  const hasFlags = parseBooleanParam(queryParams.hasFlags);
+  if (hasFlags !== undefined) filters.hasFlags = hasFlags;
+
+  if (queryParams.severity && ['high', 'medium', 'low'].includes(queryParams.severity)) {
+    filters.severity = queryParams.severity as HierarchyFilterOptions['severity'];
+  }
+
+  const hasDefinitions = parseBooleanParam(queryParams.hasDefs);
   if (hasDefinitions !== undefined) filters.hasDefinitions = hasDefinitions;
 
-  // Fetch data
+  // Check if any filters are active (beyond just state)
+  const hasActiveFilters = Boolean(
+    filters.hasAnalysis !== undefined ||
+    filters.hasFlags !== undefined ||
+    filters.severity !== undefined ||
+    filters.hasDefinitions !== undefined
+  );
+
+  // Fetch data filtered by state
   const repo = new RegulatoryDocumentsRepository(db);
+
+  // Use fast queries when no filters active (uses precomputed stats)
+  // This is especially important for NJ which has 61k+ documents
   const [roots, orphans, stats] = await Promise.all([
-    repo.getHierarchyRoots(filters),
+    hasActiveFilters
+      ? repo.getHierarchyRoots(filters)
+      : repo.getHierarchyRootsFast(stateCode),
     repo.getOrphanDocuments(filters),
     repo.getHierarchyStats(filters),
   ]);
@@ -59,13 +85,14 @@ export default async function BrowsePage({ searchParams }: PageProps) {
   return (
     <div className="bg-[var(--color-background)] min-h-screen">
       <PageHeader
-        title="Browse Regulations"
-        description="Navigate the regulatory hierarchy by title, chapter, part, and section"
+        title={`Browse ${stateConfig.name} Regulations`}
+        description={`Navigate the ${stateConfig.regulationsLabel} hierarchy by title, chapter, part, and section`}
       />
 
       <Container size="2xl" className="py-6">
         <Suspense fallback={<BrowsePageSkeleton />}>
           <BrowseClient
+            state={stateCode}
             initialRoots={roots}
             initialOrphans={orphans}
             stats={stats}

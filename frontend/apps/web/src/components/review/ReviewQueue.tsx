@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import type {
   RedFlagWithContext,
   ReviewStatusCounts,
@@ -21,12 +21,15 @@ interface PaginationInfo {
   totalPages: number;
 }
 
+// Filter options without state - state is handled at the page level
+type UIFilterOptions = Omit<RedFlagFilterOptions, 'state'>;
+
 interface ReviewQueueProps {
   initialFlags: RedFlagWithContext[];
   pagination: PaginationInfo;
   statusCounts: ReviewStatusCounts;
   categories: string[];
-  currentFilters: RedFlagFilterOptions;
+  currentFilters: UIFilterOptions;
   sortBy: string;
   sortOrder: string;
 }
@@ -41,7 +44,11 @@ export function ReviewQueue({
   sortOrder,
 }: ReviewQueueProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
+
+  // Extract state from pathname (e.g., /ny/review -> ny)
+  const state = pathname.match(/^\/(ny|nj)/)?.[1] || 'ny';
 
   // Local state for optimistic updates
   const [flags, setFlags] = useState<RedFlagWithContext[]>(initialFlags);
@@ -132,8 +139,8 @@ export function ReviewQueue({
   const goToPage = useCallback((page: number) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set('page', String(page));
-    router.push(`/review?${params.toString()}`);
-  }, [router, searchParams]);
+    router.push(`/${state}/review?${params.toString()}`);
+  }, [router, searchParams, state]);
 
   return (
     <div className="space-y-6">

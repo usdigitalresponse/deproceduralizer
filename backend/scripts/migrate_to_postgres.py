@@ -774,6 +774,16 @@ def main():
         print("=" * 50)
         populate_nj_parent_ids()
 
+    print("\nPhase 5: Refreshing structure stats (children counts)")
+    print("=" * 50)
+    try:
+        from refresh_hierarchy_stats import refresh_structure_stats
+        with get_db_connection() as conn:
+            refresh_structure_stats(conn, args.state.upper())
+    except Exception as e:
+        print(f"⚠️ Failed to refresh structure stats: {e}")
+        print("  Run manually: python scripts/refresh_hierarchy_stats.py --state " + args.state.upper() + " --structure")
+
     print("\n✓ Migration complete!")
 
 

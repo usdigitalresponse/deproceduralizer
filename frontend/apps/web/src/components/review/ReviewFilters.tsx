@@ -1,14 +1,17 @@
 'use client';
 
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 import type { RedFlagFilterOptions } from '@deproceduralizer/database';
 
+// Filter options without state - state is handled at the page level
+type UIFilterOptions = Omit<RedFlagFilterOptions, 'state'>;
+
 interface ReviewFiltersProps {
   categories: string[];
-  currentFilters: RedFlagFilterOptions;
+  currentFilters: UIFilterOptions;
   sortBy: string;
   sortOrder: string;
   className?: string;
@@ -44,7 +47,11 @@ export function ReviewFilters({
   className = '',
 }: ReviewFiltersProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
+
+  // Extract state from pathname (e.g., /ny/review -> ny)
+  const state = pathname.match(/^\/(ny|nj)/)?.[1] || 'ny';
 
   const updateParams = useCallback(
     (updates: Record<string, string | undefined>) => {
@@ -61,14 +68,14 @@ export function ReviewFilters({
         }
       }
 
-      router.push(`/review?${params.toString()}`);
+      router.push(`/${state}/review?${params.toString()}`);
     },
-    [router, searchParams]
+    [router, searchParams, state]
   );
 
   const clearFilters = useCallback(() => {
-    router.push('/review?status=all');
-  }, [router]);
+    router.push(`/${state}/review?status=all`);
+  }, [router, state]);
 
   // Check if any filters are active (not default)
   const hasActiveFilters =

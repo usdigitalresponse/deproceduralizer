@@ -3,6 +3,7 @@ import { BaseRepository } from './base.repository';
 import { redFlags, RedFlag, ReviewStatus, ImpactType, REVIEW_STATUSES } from '../schema/red-flags';
 import { analyses } from '../schema/analyses';
 import { regulatoryDocuments } from '../schema/regulatory-documents';
+import { StateCode } from './regulatory-documents.repository';
 
 export interface UpdateRedFlagReviewInput {
   reviewStatus: ReviewStatus;
@@ -25,17 +26,19 @@ export interface RedFlagWithContext extends RedFlag {
 }
 
 export interface RedFlagFilterOptions {
+  state: StateCode;
   status?: ReviewStatus | 'all';
   severity?: 'high' | 'medium' | 'low';
   category?: string;
 }
 
 export interface RedFlagPaginationOptions {
+  state: StateCode;
   page: number;
   pageSize: number;
   sortBy?: 'severity' | 'category' | 'reviewedAt';
   sortOrder?: 'asc' | 'desc';
-  filters?: RedFlagFilterOptions;
+  filters?: Omit<RedFlagFilterOptions, 'state'>;
 }
 
 export interface PaginatedRedFlagsResult {
@@ -107,12 +110,16 @@ export class RedFlagsRepository extends BaseRepository {
   /**
    * Get all unique categories for filter dropdown
    */
-  async getCategories(): Promise<string[]> {
+  async getCategories(state: StateCode): Promise<string[]> {
     const result = await this.db
       .selectDistinct({ category: redFlags.category })
       .from(redFlags)
       .innerJoin(analyses, eq(redFlags.analysisId, analyses.id))
-      .where(eq(analyses.isCurrent, true))
+      .innerJoin(regulatoryDocuments, eq(analyses.documentId, regulatoryDocuments.id))
+      .where(and(
+        eq(analyses.isCurrent, true),
+        eq(regulatoryDocuments.state, state.toUpperCase())
+      ))
       .orderBy(asc(redFlags.category));
 
     return result.map(r => r.category);
@@ -121,7 +128,7 @@ export class RedFlagsRepository extends BaseRepository {
   /**
    * Get counts by review status for progress display
    */
-  async getCountsByStatus(): Promise<ReviewStatusCounts> {
+  async getCountsByStatus(state: StateCode): Promise<ReviewStatusCounts> {
     const result = await this.db
       .select({
         status: redFlags.reviewStatus,
@@ -129,7 +136,11 @@ export class RedFlagsRepository extends BaseRepository {
       })
       .from(redFlags)
       .innerJoin(analyses, eq(redFlags.analysisId, analyses.id))
-      .where(eq(analyses.isCurrent, true))
+      .innerJoin(regulatoryDocuments, eq(analyses.documentId, regulatoryDocuments.id))
+      .where(and(
+        eq(analyses.isCurrent, true),
+        eq(regulatoryDocuments.state, state.toUpperCase())
+      ))
       .groupBy(redFlags.reviewStatus);
 
     // Initialize counts with zeros
@@ -160,12 +171,13 @@ export class RedFlagsRepository extends BaseRepository {
   async getAllPaginated(
     options: RedFlagPaginationOptions
   ): Promise<PaginatedRedFlagsResult> {
-    const { page, pageSize, sortBy = 'severity', sortOrder = 'desc', filters } = options;
+    const { state, page, pageSize, sortBy = 'severity', sortOrder = 'desc', filters } = options;
     const offset = (page - 1) * pageSize;
 
-    // Build where conditions
+    // Build where conditions - always filter by state and current analysis
     const conditions: ReturnType<typeof eq>[] = [
       eq(analyses.isCurrent, true),
+      eq(regulatoryDocuments.state, state.toUpperCase()),
     ];
 
     if (filters) {

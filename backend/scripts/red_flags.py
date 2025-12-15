@@ -898,6 +898,16 @@ async def main():
             for cat in sorted(category_flags.keys()):
                 print(f"  {cat}: {category_flags[cat]}")
 
+        # Refresh analysis stats (aggregate flags to parent documents)
+        if db_conn:
+            try:
+                print("\n=== Refreshing Analysis Stats ===")
+                from refresh_hierarchy_stats import refresh_analysis_stats
+                refresh_analysis_stats(db_conn, args.state.upper())
+            except Exception as e:
+                print(f"⚠️ Failed to refresh analysis stats: {e}")
+                print(f"  Run manually: python scripts/refresh_hierarchy_stats.py --state {args.state.upper()} --analysis")
+
     finally:
         if db_conn:
             try:

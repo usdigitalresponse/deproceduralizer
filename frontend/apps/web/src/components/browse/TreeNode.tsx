@@ -99,6 +99,7 @@ export function TreeNode({
         onDoubleClick={hasChildren ? onToggleExpand : undefined}
         tabIndex={0}
         onKeyDown={handleKeyDown}
+        title={node.hierarchyPath || undefined}
       >
         {/* Expand/collapse chevron */}
         {hasChildren ? (

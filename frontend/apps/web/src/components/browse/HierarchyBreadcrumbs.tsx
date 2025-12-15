@@ -1,0 +1,138 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { getAncestorChain } from '@/lib/actions/hierarchy';
+import { ChevronRight, Loader2 } from 'lucide-react';
+
+interface AncestorNode {
+  id: number;
+  title: string;
+  hierarchyLevel: string | null;
+}
+
+interface HierarchyBreadcrumbsProps {
+  documentId: number;
+  currentTitle: string;
+  onNavigate?: (id: number) => void;
+}
+
+const levelLabels: Record<string, string> = {
+  title: 'Title',
+  subtitle: 'Subtitle',
+  chapter: 'Chapter',
+  subchapter: 'Subchapter',
+  article: 'Article',
+  part: 'Part',
+  subpart: 'Subpart',
+  section: 'Section',
+};
+
+/**
+ * Displays the hierarchy breadcrumb path for a document
+ * Each ancestor is clickable to navigate to that node in the tree
+ */
+export function HierarchyBreadcrumbs({
+  documentId,
+  currentTitle,
+  onNavigate,
+}: HierarchyBreadcrumbsProps) {
+  const [ancestors, setAncestors] = useState<AncestorNode[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadAncestors() {
+      setIsLoading(true);
+      try {
+        const chain = await getAncestorChain(documentId);
+        if (!cancelled) {
+          setAncestors(chain);
+        }
+      } catch (error) {
+        console.error('Failed to load ancestor chain:', error);
+        if (!cancelled) {
+          setAncestors([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    loadAncestors();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [documentId]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
+        <Loader2 className="w-3 h-3 animate-spin" />
+        <span>Loading hierarchy...</span>
+      </div>
+    );
+  }
+
+  if (ancestors.length === 0) {
+    return null;
+  }
+
+  // Truncate title for display
+  const truncateTitle = (title: string, maxLength: number = 40) => {
+    if (title.length <= maxLength) return title;
+    return title.substring(0, maxLength) + '...';
+  };
+
+  // Clean up title display (remove common prefixes)
+  const cleanTitle = (title: string) => {
+    return title
+      .replace(/^N\.Y\. Comp\. Codes R\. & Regs\.?\s*/i, '')
+      .replace(/^N\.J\. Admin\. Code\s*§?\s*/i, '')
+      .replace(/^Title \d+ - /, '')
+      .trim() || title;
+  };
+
+  return (
+    <nav className="flex flex-wrap items-center gap-1 text-xs" aria-label="Hierarchy breadcrumb">
+      {ancestors.map((ancestor, index) => (
+        <span key={ancestor.id} className="flex items-center gap-1">
+          {index > 0 && (
+            <ChevronRight className="w-3 h-3 text-[var(--color-text-muted)]" />
+          )}
+          <button
+            onClick={() => onNavigate?.(ancestor.id)}
+            className="
+              px-1.5 py-0.5 rounded
+              text-[var(--color-link)] hover:text-[var(--color-link-hover)]
+              hover:bg-[var(--color-neutral-100)]
+              transition-colors duration-[var(--duration-fast)]
+              max-w-[200px] truncate
+            "
+            title={ancestor.title}
+          >
+            <span className="font-medium text-[var(--color-text-secondary)] mr-1">
+              {levelLabels[ancestor.hierarchyLevel || ''] || ancestor.hierarchyLevel}:
+            </span>
+            {truncateTitle(cleanTitle(ancestor.title), 30)}
+          </button>
+        </span>
+      ))}
+      {/* Current document (not clickable) */}
+      <span className="flex items-center gap-1">
+        <ChevronRight className="w-3 h-3 text-[var(--color-text-muted)]" />
+        <span
+          className="px-1.5 py-0.5 text-[var(--color-text)] max-w-[200px] truncate"
+          title={currentTitle}
+        >
+          {truncateTitle(cleanTitle(currentTitle), 30)}
+        </span>
+      </span>
+    </nav>
+  );
+}
+
+export default HierarchyBreadcrumbs;

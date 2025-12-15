@@ -2,20 +2,26 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import type { RegulationWithAnalysis } from '@deproceduralizer/database';
 import { getDocumentForPanel } from '@/lib/actions/hierarchy';
 import { Card } from '@/components/ui/Card';
 import { Badge, SeverityBadge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
+import { HierarchyBreadcrumbs } from './HierarchyBreadcrumbs';
 import { FileText, ExternalLink, AlertTriangle, BookOpen, X, Loader2 } from 'lucide-react';
 
 interface DetailPanelProps {
   documentId: number | null;
   onClose: () => void;
+  onNavigate?: (id: number) => void;
 }
 
-export function DetailPanel({ documentId, onClose }: DetailPanelProps) {
+export function DetailPanel({ documentId, onClose, onNavigate }: DetailPanelProps) {
+  const pathname = usePathname();
+  const state = pathname.match(/^\/(ny|nj)/)?.[1] || 'ny';
+
   const [document, setDocument] = useState<RegulationWithAnalysis | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -96,7 +102,7 @@ export function DetailPanel({ documentId, onClose }: DetailPanelProps) {
             )}
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <Link href={`/regulations/${document.id}`}>
+            <Link href={`/${state}/regulations/${document.id}`}>
               <Button variant="ghost" size="sm">
                 <ExternalLink className="w-4 h-4 mr-1" />
                 Full Page
@@ -140,6 +146,15 @@ export function DetailPanel({ documentId, onClose }: DetailPanelProps) {
         </div>
       </div>
 
+      {/* Hierarchy Breadcrumbs */}
+      <div className="px-4 py-2 bg-[var(--color-neutral-50)] border-b border-[var(--color-neutral-200)]">
+        <HierarchyBreadcrumbs
+          documentId={document.id}
+          currentTitle={document.title}
+          onNavigate={onNavigate}
+        />
+      </div>
+
       {/* Scrollable content */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {/* Summary */}
@@ -174,7 +189,7 @@ export function DetailPanel({ documentId, onClose }: DetailPanelProps) {
               ))}
               {document.redFlags.length > 5 && (
                 <Link
-                  href={`/regulations/${document.id}`}
+                  href={`/${state}/regulations/${document.id}`}
                   className="text-sm text-[var(--color-link)] hover:text-[var(--color-link-hover)]"
                 >
                   View all {document.redFlags.length} flags...

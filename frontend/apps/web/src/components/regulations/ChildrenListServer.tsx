@@ -1,0 +1,110 @@
+import Link from 'next/link';
+import { db, RegulatoryDocumentsRepository } from '@deproceduralizer/database';
+import { ChevronRight } from 'lucide-react';
+import { Badge, SeverityBadge } from '@/components/ui/Badge';
+import { Card } from '@/components/ui/Card';
+
+interface ChildrenListServerProps {
+  documentId: number;
+  state: string;
+}
+
+const levelLabels: Record<string, string> = {
+  title: 'Title',
+  subtitle: 'Subtitle',
+  chapter: 'Chapter',
+  subchapter: 'Subchapter',
+  article: 'Article',
+  part: 'Part',
+  subpart: 'Subpart',
+  section: 'Section',
+};
+
+/**
+ * Server-side children list for regulation detail pages
+ * Each child links to its own detail page
+ * Returns null if no children exist (so the Card wrapper is also not shown)
+ */
+export async function ChildrenListServer({
+  documentId,
+  state,
+}: ChildrenListServerProps) {
+  const repo = new RegulatoryDocumentsRepository(db);
+  const children = await repo.getDirectChildren(documentId);
+
+  if (children.length === 0) {
+    return null;
+  }
+
+  // Truncate title for display
+  const truncateTitle = (title: string, maxLength: number = 60) => {
+    if (title.length <= maxLength) return title;
+    return title.substring(0, maxLength) + '...';
+  };
+
+  // Clean up title display (remove common prefixes)
+  const cleanTitle = (title: string) => {
+    return title
+      .replace(/^N\.Y\. Comp\. Codes R\. & Regs\.?\s*/i, '')
+      .replace(/^N\.J\. Admin\. Code\s*§?\s*/i, '')
+      .replace(/^Title \d+ - /, '')
+      .trim() || title;
+  };
+
+  return (
+    <Card>
+      <h2 className="font-semibold text-[var(--color-text)] mb-3">
+        Contains ({children.length})
+      </h2>
+      <div className="space-y-2">
+        {children.map((child) => (
+          <Link
+            key={child.id}
+            href={`/${state}/regulations/${child.id}`}
+            className="
+              flex items-center justify-between gap-3 p-3 rounded-[var(--radius-md)]
+              bg-[var(--color-neutral-50)] hover:bg-[var(--color-neutral-100)]
+              border border-[var(--color-neutral-200)]
+              transition-colors duration-[var(--duration-fast)]
+              group
+            "
+          >
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <ChevronRight className="w-4 h-4 text-[var(--color-text-muted)] group-hover:text-[var(--color-link)] shrink-0" />
+              <div className="min-w-0">
+                {child.hierarchyLevel && (
+                  <span className="text-xs font-medium text-[var(--color-text-secondary)] mr-1.5">
+                    {levelLabels[child.hierarchyLevel] || child.hierarchyLevel}:
+                  </span>
+                )}
+                <span
+                  className="text-sm text-[var(--color-text)] group-hover:text-[var(--color-link)]"
+                  title={child.title}
+                >
+                  {truncateTitle(cleanTitle(child.title))}
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              {child.numFlags > 0 && (
+                <Badge variant="danger" className="text-xs">
+                  {child.numFlags} {child.numFlags === 1 ? 'flag' : 'flags'}
+                </Badge>
+              )}
+              {child.maxSeverity !== null && (
+                <SeverityBadge severity={child.maxSeverity} className="text-xs" />
+              )}
+              {!child.hasAnalysis && (
+                <Badge variant="default" className="text-xs">
+                  Not analyzed
+                </Badge>
+              )}
+            </div>
+          </Link>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+export default ChildrenListServer;

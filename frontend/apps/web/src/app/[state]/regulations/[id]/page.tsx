@@ -8,15 +8,17 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { RedFlagsList } from '@/components/RedFlagsList';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
+import { HierarchyBreadcrumbsServer } from '@/components/regulations/HierarchyBreadcrumbsServer';
+import { ChildrenListServer } from '@/components/regulations/ChildrenListServer';
 
 export const dynamic = 'force-dynamic';
 
 interface PageProps {
-  params: Promise<{ id: string }>;
+  params: Promise<{ state: string; id: string }>;
 }
 
 export default async function RegulationDetailPage({ params }: PageProps) {
-  const { id } = await params;
+  const { state, id } = await params;
   const regulationId = parseInt(id, 10);
 
   if (isNaN(regulationId)) {
@@ -46,7 +48,7 @@ export default async function RegulationDetailPage({ params }: PageProps) {
       <Container size="xl" className="py-6">
         {/* Back Button */}
         <div className="mb-6">
-          <Link href="/">
+          <Link href={`/${state}`}>
             <Button variant="ghost" size="sm">
               <svg
                 className="w-4 h-4 mr-2"
@@ -62,11 +64,18 @@ export default async function RegulationDetailPage({ params }: PageProps) {
         </div>
 
         <div className="space-y-6">
-          {/* Hierarchy Info */}
-          {(regulation.hierarchyLevel || regulation.hierarchyPath) && (
-            <Card>
-              <h2 className="font-semibold text-[var(--color-primary)] mb-3">Hierarchy Information</h2>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+          {/* Hierarchy Breadcrumbs */}
+          <Card>
+            <h2 className="font-semibold text-[var(--color-primary)] mb-3">Hierarchy</h2>
+            <HierarchyBreadcrumbsServer
+              documentId={regulationId}
+              currentTitle={regulation.title || 'Untitled'}
+              state={state}
+            />
+
+            {/* Additional hierarchy details */}
+            {(regulation.hierarchyLevel || regulation.nycrrTitle || regulation.nycrrPart || regulation.nycrrSection) && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mt-4 pt-4 border-t border-[var(--color-neutral-200)]">
                 {regulation.hierarchyLevel && (
                   <div>
                     <span className="font-medium text-[var(--color-text-secondary)]">Level:</span>
@@ -91,15 +100,9 @@ export default async function RegulationDetailPage({ params }: PageProps) {
                     <span className="ml-2">{regulation.nycrrSection}</span>
                   </div>
                 )}
-                {regulation.hierarchyPath && (
-                  <div className="col-span-2 md:col-span-3">
-                    <span className="font-medium text-[var(--color-text-secondary)]">Path:</span>
-                    <span className="ml-2 font-mono text-xs">{regulation.hierarchyPath}</span>
-                  </div>
-                )}
               </div>
-            </Card>
-          )}
+            )}
+          </Card>
 
           {/* Metadata Grid */}
           <Card>
@@ -186,6 +189,9 @@ export default async function RegulationDetailPage({ params }: PageProps) {
               {regulation.summary || 'No summary available'}
             </div>
           </Card>
+
+          {/* Children (sub-sections, parts, etc.) - only renders if document has children */}
+          <ChildrenListServer documentId={regulationId} state={state} />
 
           {/* Red Flags Details */}
           {regulation.redFlags && regulation.redFlags.length > 0 && (
