@@ -11,6 +11,7 @@ interface HierarchyTreeProps {
   selectedId: number | null;
   loadedChildren: Map<number, HierarchyNode[]>;
   loadingIds: Set<number>;
+  hasActiveFilters: boolean;
   onToggleExpand: (id: number) => void;
   onSelect: (id: number) => void;
   showOrphans: boolean;
@@ -24,6 +25,7 @@ export function HierarchyTree({
   selectedId,
   loadedChildren,
   loadingIds,
+  hasActiveFilters,
   onToggleExpand,
   onSelect,
   showOrphans,
@@ -43,6 +45,7 @@ export function HierarchyTree({
         isExpanded={isExpanded}
         isSelected={isSelected}
         isLoading={isLoading}
+        hasActiveFilters={hasActiveFilters}
         onToggleExpand={() => onToggleExpand(node.id)}
         onSelect={() => onSelect(node.id)}
         renderChildren={() =>

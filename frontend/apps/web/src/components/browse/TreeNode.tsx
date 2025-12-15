@@ -10,6 +10,7 @@ interface TreeNodeProps {
   isExpanded: boolean;
   isSelected: boolean;
   isLoading: boolean;
+  hasActiveFilters?: boolean;
   children?: HierarchyNode[];
   onToggleExpand: () => void;
   onSelect: () => void;
@@ -44,6 +45,7 @@ export function TreeNode({
   isExpanded,
   isSelected,
   isLoading,
+  hasActiveFilters = false,
   onToggleExpand,
   onSelect,
   renderChildren,
@@ -52,6 +54,10 @@ export function TreeNode({
   const indentPx = depth * 20;
   const Icon = levelIcons[node.hierarchyLevel || ''] || FileText;
   const levelLabel = levelLabels[node.hierarchyLevel || ''] || node.hierarchyLevel || 'Document';
+
+  // Filter match indicators
+  const showMatchCounts = hasActiveFilters && hasChildren;
+  const hasMatches = node.matchingChildCount > 0 || node.matchingDescendantCount > 0;
 
   // Extract display title (remove "N.Y. Comp. Codes R. & Regs." prefix if present)
   const displayTitle = node.title
@@ -135,9 +141,32 @@ export function TreeNode({
                 {node.nycrrPart && `Part ${node.nycrrPart}`}
               </span>
             )}
-            {/* Child count */}
+            {/* Child/match counts */}
             {node.childCount > 0 && (
-              <span className="ml-auto">({node.childCount})</span>
+              <span className="ml-auto flex items-center gap-1.5">
+                {showMatchCounts ? (
+                  <>
+                    {/* Matching children indicator */}
+                    <span
+                      className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-[var(--color-success-bg)] text-[var(--color-success)]"
+                      title={`${node.matchingChildCount} direct children match filters`}
+                    >
+                      {node.matchingChildCount}/{node.childCount}
+                    </span>
+                    {/* Total matching descendants */}
+                    {node.matchingDescendantCount > 0 && (
+                      <span
+                        className="text-[10px] text-[var(--color-text-muted)]"
+                        title={`${node.matchingDescendantCount} total items match filters in this branch`}
+                      >
+                        ({node.matchingDescendantCount} total)
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  <span>({node.childCount})</span>
+                )}
+              </span>
             )}
           </div>
         </div>

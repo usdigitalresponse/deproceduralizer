@@ -80,6 +80,14 @@ export function BrowseClient({
     setShowOrphans(prev => !prev);
   }, []);
 
+  // Check if any filters are active
+  const hasActiveFilters = Boolean(
+    filters.hasAnalysis !== undefined ||
+    filters.hasFlags !== undefined ||
+    filters.severity !== undefined ||
+    filters.hasDefinitions !== undefined
+  );
+
   return (
     <div className="space-y-4">
       {/* Filters */}
@@ -100,6 +108,7 @@ export function BrowseClient({
               selectedId={selectedId}
               loadedChildren={loadedChildren}
               loadingIds={loadingIds}
+              hasActiveFilters={hasActiveFilters}
               onToggleExpand={handleToggleExpand}
               onSelect={handleSelect}
               showOrphans={showOrphans}

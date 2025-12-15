@@ -65,6 +65,9 @@ export interface HierarchyNode {
   maxSeverity: number | null;
   hasDefinitions: boolean;
   childCount: number;
+  // Filter-aware counts (when filters applied)
+  matchingChildCount: number;      // Direct children matching filter
+  matchingDescendantCount: number; // All descendants matching filter
 }
 
 export interface HierarchyFilterOptions {
@@ -499,15 +502,24 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         rd.nycrr_title as "nycrrTitle",
         rd.nycrr_part as "nycrrPart",
         rd.nycrr_section as "nycrrSection",
-        COALESCE(stats.has_analysis, false) as "hasAnalysis",
-        COALESCE(stats.total_flags, 0)::int as "totalFlags",
-        stats.max_severity as "maxSeverity",
-        COALESCE(stats.has_definitions, false) as "hasDefinitions",
-        COALESCE(stats.child_count, 0)::int as "childCount"
+        COALESCE(child_stats.has_analysis, false) as "hasAnalysis",
+        COALESCE(child_stats.total_flags, 0)::int as "totalFlags",
+        child_stats.max_severity as "maxSeverity",
+        COALESCE(child_stats.has_definitions, false) as "hasDefinitions",
+        COALESCE(total_stats.total_child_count, 0)::int as "childCount",
+        COALESCE(child_stats.matching_child_count, 0)::int as "matchingChildCount",
+        COALESCE(descendant_stats.matching_descendant_count, 0)::int as "matchingDescendantCount"
       FROM regulatory_documents rd
+      -- Total children (unfiltered) for context
+      LEFT JOIN LATERAL (
+        SELECT COUNT(*)::int as total_child_count
+        FROM regulatory_documents child
+        WHERE child.parent_id = rd.id
+      ) total_stats ON true
+      -- Direct children matching filter
       LEFT JOIN LATERAL (
         SELECT
-          COUNT(DISTINCT child.id)::int as child_count,
+          COUNT(DISTINCT child.id)::int as matching_child_count,
           BOOL_OR(a.id IS NOT NULL) as has_analysis,
           SUM(COALESCE(a.num_flags, 0))::int as total_flags,
           MAX(a.max_severity) as max_severity,
@@ -518,9 +530,17 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         LEFT JOIN analyses a ON a.document_id = child.id AND a.is_current = true
         WHERE child.parent_id = rd.id
         ${filterClause}
-      ) stats ON true
+      ) child_stats ON true
+      -- All descendants matching filter (using hierarchy_path)
+      LEFT JOIN LATERAL (
+        SELECT COUNT(DISTINCT descendant.id)::int as matching_descendant_count
+        FROM regulatory_documents descendant
+        LEFT JOIN analyses a ON a.document_id = descendant.id AND a.is_current = true
+        WHERE descendant.hierarchy_path LIKE rd.hierarchy_path || '.%'
+        ${filterClause}
+      ) descendant_stats ON true
       WHERE rd.hierarchy_level = 'title'
-        ${hasFilters ? sql`AND stats.child_count > 0` : sql``}
+        ${hasFilters ? sql`AND (child_stats.matching_child_count > 0 OR descendant_stats.matching_descendant_count > 0)` : sql``}
       ORDER BY rd.nycrr_title NULLS LAST, rd.title
     `);
 
@@ -536,6 +556,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
     const filterClause = filterConditions.length > 0
       ? sql`AND ${sql.join(filterConditions, sql` AND `)}`
       : sql``;
+    const hasFilters = filterConditions.length > 0;
 
     const results = await this.db.execute(sql`
       SELECT
@@ -550,14 +571,33 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         COALESCE(a.num_flags, 0)::int as "totalFlags",
         a.max_severity as "maxSeverity",
         EXISTS (SELECT 1 FROM definitions d WHERE d.document_id = rd.id) as "hasDefinitions",
-        COALESCE(stats.child_count, 0)::int as "childCount"
+        COALESCE(total_stats.total_child_count, 0)::int as "childCount",
+        COALESCE(child_stats.matching_child_count, 0)::int as "matchingChildCount",
+        COALESCE(descendant_stats.matching_descendant_count, 0)::int as "matchingDescendantCount"
       FROM regulatory_documents rd
       LEFT JOIN analyses a ON a.document_id = rd.id AND a.is_current = true
+      -- Total children (unfiltered)
       LEFT JOIN LATERAL (
-        SELECT COUNT(*)::int as child_count
+        SELECT COUNT(*)::int as total_child_count
         FROM regulatory_documents grandchild
         WHERE grandchild.parent_id = rd.id
-      ) stats ON true
+      ) total_stats ON true
+      -- Matching direct children
+      LEFT JOIN LATERAL (
+        SELECT COUNT(DISTINCT grandchild.id)::int as matching_child_count
+        FROM regulatory_documents grandchild
+        LEFT JOIN analyses ga ON ga.document_id = grandchild.id AND ga.is_current = true
+        WHERE grandchild.parent_id = rd.id
+        ${filterClause}
+      ) child_stats ON true
+      -- Matching descendants at any depth
+      LEFT JOIN LATERAL (
+        SELECT COUNT(DISTINCT descendant.id)::int as matching_descendant_count
+        FROM regulatory_documents descendant
+        LEFT JOIN analyses da ON da.document_id = descendant.id AND da.is_current = true
+        WHERE descendant.hierarchy_path LIKE rd.hierarchy_path || '.%'
+        ${filterClause}
+      ) descendant_stats ON true
       WHERE rd.parent_id = ${parentId}
       ${filterClause}
       ORDER BY
@@ -591,7 +631,9 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         COALESCE(a.num_flags, 0)::int as "totalFlags",
         a.max_severity as "maxSeverity",
         EXISTS (SELECT 1 FROM definitions d WHERE d.document_id = rd.id) as "hasDefinitions",
-        0 as "childCount"
+        0 as "childCount",
+        0 as "matchingChildCount",
+        0 as "matchingDescendantCount"
       FROM regulatory_documents rd
       LEFT JOIN analyses a ON a.document_id = rd.id AND a.is_current = true
       WHERE (
