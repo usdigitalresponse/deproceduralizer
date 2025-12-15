@@ -59,10 +59,21 @@ def parse_breadcrumb(soup: BeautifulSoup) -> Dict:
     items = breadcrumb.find_all('li')
     last_level = None
 
+    # Capture the full raw breadcrumb path (all items)
+    all_breadcrumb_items = []
+    for item in items:
+        text = item.get_text(strip=True)
+        if text:
+            all_breadcrumb_items.append(text)
+
+    # Store the full raw breadcrumb path
+    if all_breadcrumb_items:
+        result['hierarchy_path'] = ' > '.join(all_breadcrumb_items)
+
     for item in items:
         text = item.get_text(strip=True)
 
-        # Skip navigation items
+        # Skip navigation items for structured parsing (but they're in hierarchy_path)
         if text in ['LII', 'State Regulations', 'New York Codes, Rules, and Regulations']:
             continue
 
@@ -175,36 +186,7 @@ def parse_breadcrumb(soup: BeautifulSoup) -> Dict:
 
     result['hierarchy_level'] = last_level
 
-    # Build hierarchy_path from components
-    path_parts = []
-    if result['nycrr_title'] is not None:
-        name = result['nycrr_title_name'] or ''
-        path_parts.append(f"Title {result['nycrr_title']}" + (f" - {name}" if name else ""))
-    if result['nycrr_subtitle']:
-        name = result['nycrr_subtitle_name'] or ''
-        path_parts.append(f"Subtitle {result['nycrr_subtitle']}" + (f" - {name}" if name else ""))
-    if result['nycrr_chapter']:
-        name = result['nycrr_chapter_name'] or ''
-        path_parts.append(f"Chapter {result['nycrr_chapter']}" + (f" - {name}" if name else ""))
-    if result['nycrr_subchapter']:
-        name = result['nycrr_subchapter_name'] or ''
-        path_parts.append(f"Subchapter {result['nycrr_subchapter']}" + (f" - {name}" if name else ""))
-    if result['nycrr_article']:
-        name = result['nycrr_article_name'] or ''
-        path_parts.append(f"Article {result['nycrr_article']}" + (f" - {name}" if name else ""))
-    if result['nycrr_part']:
-        name = result['nycrr_part_name'] or ''
-        path_parts.append(f"Part {result['nycrr_part']}" + (f" - {name}" if name else ""))
-    if result['nycrr_subpart']:
-        name = result['nycrr_subpart_name'] or ''
-        path_parts.append(f"Subpart {result['nycrr_subpart']}" + (f" - {name}" if name else ""))
-    if result['nycrr_section']:
-        name = result['nycrr_section_name'] or ''
-        path_parts.append(f"§ {result['nycrr_section']}" + (f" - {name}" if name else ""))
-
-    if path_parts:
-        result['hierarchy_path'] = ' > '.join(path_parts)
-
+    # hierarchy_path is already set from the raw breadcrumb above
     return result
 
 
@@ -662,6 +644,13 @@ class NYRegulationsScraper:
         """
         print("Linking parent_source_index for all documents...")
 
+        def normalize_path(path):
+            """Normalize whitespace in hierarchy path for consistent matching."""
+            if not path:
+                return path
+            # Replace any whitespace sequences (including newlines, tabs) with single space
+            return re.sub(r'\s+', ' ', path).strip()
+
         # Build lookup tables
         # For hierarchy URLs: path -> source_index
         hierarchy_path_to_idx = {}
@@ -678,9 +667,10 @@ class NYRegulationsScraper:
             nycrr_title = item.get('nycrr_title')
             nycrr_part = item.get('nycrr_part')
 
-            # Record hierarchy path
+            # Record hierarchy path (normalized for matching)
             if hierarchy_path:
-                hierarchy_path_to_idx[hierarchy_path] = source_idx
+                normalized = normalize_path(hierarchy_path)
+                hierarchy_path_to_idx[normalized] = source_idx
 
             # Record Part containers
             if hierarchy_level == 'part' and nycrr_title is not None and nycrr_part:
@@ -699,8 +689,9 @@ class NYRegulationsScraper:
             nycrr_part = item.get('nycrr_part')
 
             if hierarchy_path:
-                # Hierarchy URL: parent is one level up
-                parts = hierarchy_path.rstrip('/').rsplit('/', 1)
+                # Use ' > ' as separator and normalize whitespace
+                normalized = normalize_path(hierarchy_path)
+                parts = normalized.rsplit(' > ', 1)
                 if len(parts) > 1:
                     parent_path = parts[0]
                     parent_idx = hierarchy_path_to_idx.get(parent_path)

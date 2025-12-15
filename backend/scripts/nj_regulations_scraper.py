@@ -33,6 +33,58 @@ from config import (
 
 
 # =============================================================================
+# BAD SCRAPE DETECTION
+# =============================================================================
+
+def is_bad_url(url: str) -> bool:
+    """
+    Detect URLs that are malformed scrape results.
+
+    These are URLs where external domains got embedded into Cornell paths, like:
+    - https://www.law.cornell.edu/regulations/new-jersey/www.epa.gov/...
+    - https://www.law.cornell.edu/regulations/new-jersey/www.energycodes.gov
+    """
+    # Extract the path portion after /new-jersey/
+    if '/regulations/new-jersey/' not in url:
+        return False
+
+    after_nj = url.split('/regulations/new-jersey/')[-1]
+
+    # Check if path contains what looks like an external domain
+    bad_patterns = [
+        'www.',
+        '.gov/',
+        '.com/',
+        '.org/',
+        '.edu/',
+        '.net/',
+    ]
+
+    for pattern in bad_patterns:
+        if pattern in after_nj.lower():
+            return True
+
+    return False
+
+
+def is_index_page_content(title: str, content: str) -> bool:
+    """
+    Detect if content is the NJ Admin Code index page (table of contents).
+
+    These are 404s or redirects that ended up showing the main index instead
+    of actual regulation content.
+    """
+    if not title or not content:
+        return False
+
+    # Index page has generic title and starts with list of titles
+    is_generic_title = title.strip() == "New Jersey Administrative Code"
+    has_toc_content = content.strip().startswith("New Jersey Administrative Code\n\nTitle 1")
+
+    return is_generic_title and has_toc_content
+
+
+# =============================================================================
 # HIERARCHY PARSING FUNCTIONS
 # =============================================================================
 
@@ -66,10 +118,21 @@ def parse_breadcrumb(soup: BeautifulSoup) -> Dict:
     items = breadcrumb.find_all('li')
     last_level = None
 
+    # Capture the full raw breadcrumb path (all items)
+    all_breadcrumb_items = []
+    for item in items:
+        text = item.get_text(strip=True)
+        if text:
+            all_breadcrumb_items.append(text)
+
+    # Store the full raw breadcrumb path
+    if all_breadcrumb_items:
+        result['hierarchy_path'] = ' > '.join(all_breadcrumb_items)
+
     for item in items:
         text = item.get_text(strip=True)
 
-        # Skip navigation items
+        # Skip navigation items for structured parsing (but they're in hierarchy_path)
         if text in ['LII', 'State Regulations', 'New Jersey Administrative Code']:
             continue
 
@@ -77,7 +140,7 @@ def parse_breadcrumb(soup: BeautifulSoup) -> Dict:
         # or section: "N.J. Admin. Code § 8:43-1.1 - Scope"
         if text.startswith('N.J. Admin. Code') or text.startswith('N.J.A.C.'):
             # Check for section pattern first: "§ X:Y-Z.W - NAME"
-            section_match = re.search(r'§\s*([\d:.\-]+[a-zA-Z]?)\s*(?:-\s*(.+))?$', text)
+            section_match = re.search(r'§\s*([\d:.\-A-Za-z]+)\s*(?:-\s*(.+))?$', text)
             if section_match:
                 result['njac_section'] = section_match.group(1)
                 if section_match.group(2):
@@ -182,7 +245,7 @@ def parse_breadcrumb(soup: BeautifulSoup) -> Dict:
             continue
 
         # Parse "§ X.Y - NAME" or "Section X.Y - NAME"
-        section_match = re.match(r'^(?:§|Section)\s*([\d:.\-]+[a-zA-Z]?)\s*(?:-\s*(.+))?$', text)
+        section_match = re.match(r'^(?:§|Section)\s*([\d:.\-A-Za-z]+)\s*(?:-\s*(.+))?$', text)
         if section_match:
             result['njac_section'] = section_match.group(1)
             if section_match.group(2):
@@ -192,30 +255,7 @@ def parse_breadcrumb(soup: BeautifulSoup) -> Dict:
 
     result['hierarchy_level'] = last_level
 
-    # Build hierarchy_path from components
-    path_parts = []
-    if result['njac_title'] is not None:
-        name = result['njac_title_name'] or ''
-        path_parts.append(f"Title {result['njac_title']}" + (f" - {name}" if name else ""))
-    if result['njac_chapter']:
-        name = result['njac_chapter_name'] or ''
-        path_parts.append(f"Chapter {result['njac_chapter']}" + (f" - {name}" if name else ""))
-    if result['njac_subchapter']:
-        name = result['njac_subchapter_name'] or ''
-        path_parts.append(f"Subchapter {result['njac_subchapter']}" + (f" - {name}" if name else ""))
-    if result['njac_article']:
-        name = result['njac_article_name'] or ''
-        path_parts.append(f"Article {result['njac_article']}" + (f" - {name}" if name else ""))
-    if result['njac_part']:
-        name = result['njac_part_name'] or ''
-        path_parts.append(f"Part {result['njac_part']}" + (f" - {name}" if name else ""))
-    if result['njac_section']:
-        name = result['njac_section_name'] or ''
-        path_parts.append(f"§ {result['njac_section']}" + (f" - {name}" if name else ""))
-
-    if path_parts:
-        result['hierarchy_path'] = ' > '.join(path_parts)
-
+    # hierarchy_path is already set from the raw breadcrumb above
     return result
 
 
@@ -363,6 +403,10 @@ class NJRegulationsScraper:
             if 'law.cornell.edu/regulations/new-jersey' not in full_url:
                 continue
 
+            # Skip malformed URLs with external domains embedded
+            if is_bad_url(full_url):
+                continue
+
             if full_url in self.visited_urls:
                 continue
 
@@ -410,6 +454,10 @@ class NJRegulationsScraper:
                 script.decompose()
             content = soup.get_text(separator='\n', strip=True)
 
+        # Skip index page content (404s/redirects that show TOC instead of regulation)
+        if is_index_page_content(title, content):
+            return None
+
         cleaned_content = self.clean_regulation_text(content)
         hierarchy = parse_breadcrumb(soup)
 
@@ -418,7 +466,7 @@ class NJRegulationsScraper:
             'title': title,
             'content': content,
             'cleaned_content': cleaned_content,
-            'url_type': self.classify_url(url),
+            'url_type': hierarchy.get('hierarchy_level') or self.classify_url(url),
             'hierarchy_level': hierarchy.get('hierarchy_level'),
             'hierarchy_path': hierarchy.get('hierarchy_path'),
             'njac_title': hierarchy.get('njac_title'),
@@ -615,6 +663,14 @@ class NJRegulationsScraper:
         """Post-process to link parent_source_index for all documents."""
         print("Linking parent_source_index for all documents...")
 
+        def normalize_path(path):
+            """Normalize whitespace in hierarchy path for consistent matching."""
+            if not path:
+                return path
+            # Replace any whitespace sequences (including newlines, tabs) with single space
+            import re
+            return re.sub(r'\s+', ' ', path).strip()
+
         hierarchy_path_to_idx = {}
         chapter_container_lookup = {}
 
@@ -629,7 +685,9 @@ class NJRegulationsScraper:
             njac_chapter = item.get('njac_chapter')
 
             if hierarchy_path:
-                hierarchy_path_to_idx[hierarchy_path] = source_idx
+                # Store with normalized path for matching
+                normalized = normalize_path(hierarchy_path)
+                hierarchy_path_to_idx[normalized] = source_idx
 
             if hierarchy_level == 'chapter' and njac_title is not None and njac_chapter:
                 chapter_container_lookup[(njac_title, njac_chapter)] = source_idx
@@ -646,7 +704,9 @@ class NJRegulationsScraper:
             njac_chapter = item.get('njac_chapter')
 
             if hierarchy_path:
-                parts = hierarchy_path.rstrip('/').rsplit('/', 1)
+                # Use ' > ' as separator (not '/') and normalize whitespace
+                normalized = normalize_path(hierarchy_path)
+                parts = normalized.rsplit(' > ', 1)
                 if len(parts) > 1:
                     parent_path = parts[0]
                     parent_idx = hierarchy_path_to_idx.get(parent_path)
