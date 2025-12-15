@@ -122,16 +122,22 @@ export function TreeNode({
           <div className="text-sm font-medium truncate" title={node.title}>
             {displayTitle}
           </div>
-          <div className="text-xs text-[var(--color-text-muted)] flex gap-2">
-            <span>{levelLabel}</span>
-            {node.nycrrTitle && (
-              <span>Title {node.nycrrTitle}</span>
+          <div className="text-xs text-[var(--color-text-muted)] flex items-center gap-2">
+            {/* Level badge */}
+            <span className="px-1.5 py-0.5 bg-[var(--color-neutral-100)] rounded text-[10px] uppercase tracking-wide font-medium">
+              {levelLabel}
+            </span>
+            {/* NYCRR citation */}
+            {(node.nycrrTitle || node.nycrrPart) && (
+              <span className="text-[var(--color-text-secondary)]">
+                {node.nycrrTitle && `Title ${node.nycrrTitle}`}
+                {node.nycrrTitle && node.nycrrPart && ' · '}
+                {node.nycrrPart && `Part ${node.nycrrPart}`}
+              </span>
             )}
-            {node.nycrrPart && (
-              <span>Part {node.nycrrPart}</span>
-            )}
+            {/* Child count */}
             {node.childCount > 0 && (
-              <span>({node.childCount} items)</span>
+              <span className="ml-auto">({node.childCount})</span>
             )}
           </div>
         </div>
