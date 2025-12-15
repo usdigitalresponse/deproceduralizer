@@ -549,14 +549,26 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
 
   /**
    * Get children of a specific document in the hierarchy
+   * When filters are applied, returns children that either:
+   * 1. Directly match the filter criteria, OR
+   * 2. Have descendants that match (to preserve the path to matching items)
    */
   async getHierarchyChildren(parentId: number, filters?: HierarchyFilterOptions): Promise<HierarchyNode[]> {
-    // Build filter conditions
-    const filterConditions = this.buildHierarchyFilterConditions(filters);
-    const filterClause = filterConditions.length > 0
-      ? sql`AND ${sql.join(filterConditions, sql` AND `)}`
+    // Build filter conditions with different aliases for different contexts
+    const filterConditionsA = this.buildHierarchyFilterConditions(filters, 'a', 'rd');
+    const filterConditionsGa = this.buildHierarchyFilterConditions(filters, 'ga', 'grandchild');
+    const filterConditionsDa = this.buildHierarchyFilterConditions(filters, 'da', 'descendant');
+
+    const filterClauseA = filterConditionsA.length > 0
+      ? sql`AND ${sql.join(filterConditionsA, sql` AND `)}`
       : sql``;
-    const hasFilters = filterConditions.length > 0;
+    const filterClauseGa = filterConditionsGa.length > 0
+      ? sql`AND ${sql.join(filterConditionsGa, sql` AND `)}`
+      : sql``;
+    const filterClauseDa = filterConditionsDa.length > 0
+      ? sql`AND ${sql.join(filterConditionsDa, sql` AND `)}`
+      : sql``;
+    const hasFilters = filterConditionsA.length > 0;
 
     const results = await this.db.execute(sql`
       SELECT
@@ -582,13 +594,13 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         FROM regulatory_documents grandchild
         WHERE grandchild.parent_id = rd.id
       ) total_stats ON true
-      -- Matching direct children
+      -- Matching direct children (grandchildren of original parent)
       LEFT JOIN LATERAL (
         SELECT COUNT(DISTINCT grandchild.id)::int as matching_child_count
         FROM regulatory_documents grandchild
         LEFT JOIN analyses ga ON ga.document_id = grandchild.id AND ga.is_current = true
         WHERE grandchild.parent_id = rd.id
-        ${filterClause}
+        ${filterClauseGa}
       ) child_stats ON true
       -- Matching descendants at any depth
       LEFT JOIN LATERAL (
@@ -596,10 +608,16 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         FROM regulatory_documents descendant
         LEFT JOIN analyses da ON da.document_id = descendant.id AND da.is_current = true
         WHERE descendant.hierarchy_path LIKE rd.hierarchy_path || '.%'
-        ${filterClause}
+        ${filterClauseDa}
       ) descendant_stats ON true
       WHERE rd.parent_id = ${parentId}
-      ${filterClause}
+      ${hasFilters ? sql`AND (
+        -- Child directly matches the filter
+        (1=1 ${filterClauseA})
+        OR
+        -- Child has descendants that match the filter
+        descendant_stats.matching_descendant_count > 0
+      )` : sql``}
       ORDER BY
         rd.nycrr_part::int NULLS LAST,
         rd.nycrr_section NULLS LAST,
@@ -688,36 +706,43 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
 
   /**
    * Build filter conditions for hierarchy queries
+   * @param filters - The filter options to apply
+   * @param analysisAlias - The SQL alias for the analyses table (default: 'a')
+   * @param docAlias - The SQL alias for the regulatory_documents table (default: 'rd')
    */
-  private buildHierarchyFilterConditions(filters?: HierarchyFilterOptions) {
+  private buildHierarchyFilterConditions(
+    filters?: HierarchyFilterOptions,
+    analysisAlias: string = 'a',
+    docAlias: string = 'rd'
+  ) {
     const conditions: ReturnType<typeof sql>[] = [];
 
     if (!filters) return conditions;
 
     if (filters.hasAnalysis === true) {
-      conditions.push(sql`a.id IS NOT NULL`);
+      conditions.push(sql.raw(`${analysisAlias}.id IS NOT NULL`));
     } else if (filters.hasAnalysis === false) {
-      conditions.push(sql`a.id IS NULL`);
+      conditions.push(sql.raw(`${analysisAlias}.id IS NULL`));
     }
 
     if (filters.hasFlags === true) {
-      conditions.push(sql`a.num_flags > 0`);
+      conditions.push(sql.raw(`${analysisAlias}.num_flags > 0`));
     } else if (filters.hasFlags === false) {
-      conditions.push(sql`(a.num_flags = 0 OR a.num_flags IS NULL)`);
+      conditions.push(sql.raw(`(${analysisAlias}.num_flags = 0 OR ${analysisAlias}.num_flags IS NULL)`));
     }
 
     if (filters.severity === 'high') {
-      conditions.push(sql`a.max_severity >= 7`);
+      conditions.push(sql.raw(`${analysisAlias}.max_severity >= 7`));
     } else if (filters.severity === 'medium') {
-      conditions.push(sql`a.max_severity >= 4 AND a.max_severity < 7`);
+      conditions.push(sql.raw(`${analysisAlias}.max_severity >= 4 AND ${analysisAlias}.max_severity < 7`));
     } else if (filters.severity === 'low') {
-      conditions.push(sql`a.max_severity >= 1 AND a.max_severity < 4`);
+      conditions.push(sql.raw(`${analysisAlias}.max_severity >= 1 AND ${analysisAlias}.max_severity < 4`));
     }
 
     if (filters.hasDefinitions === true) {
-      conditions.push(sql`EXISTS (SELECT 1 FROM definitions d WHERE d.document_id = rd.id)`);
+      conditions.push(sql.raw(`EXISTS (SELECT 1 FROM definitions d WHERE d.document_id = ${docAlias}.id)`));
     } else if (filters.hasDefinitions === false) {
-      conditions.push(sql`NOT EXISTS (SELECT 1 FROM definitions d WHERE d.document_id = rd.id)`);
+      conditions.push(sql.raw(`NOT EXISTS (SELECT 1 FROM definitions d WHERE d.document_id = ${docAlias}.id)`));
     }
 
     return conditions;

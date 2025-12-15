@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import type { HierarchyNode, HierarchyFilterOptions } from '@deproceduralizer/database';
 import { getHierarchyChildren } from '@/lib/actions/hierarchy';
 import { Card } from '@/components/ui/Card';
@@ -87,6 +87,15 @@ export function BrowseClient({
     filters.severity !== undefined ||
     filters.hasDefinitions !== undefined
   );
+
+  // Serialize filters for dependency comparison
+  const filtersKey = useMemo(() => JSON.stringify(filters), [filters]);
+
+  // Reset tree state when filters change
+  useEffect(() => {
+    setLoadedChildren(new Map());
+    setExpandedIds(new Set());
+  }, [filtersKey]);
 
   return (
     <div className="space-y-4">
