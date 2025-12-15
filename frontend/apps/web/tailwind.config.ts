@@ -74,8 +74,8 @@ const config: Config = {
         },
       },
       fontFamily: {
-        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
-        mono: ['JetBrains Mono', 'SF Mono', 'Consolas', 'Monaco', 'monospace'],
+        sans: ['var(--font-inter, "Inter")', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
+        mono: ['var(--font-jetbrains-mono, "JetBrains Mono")', 'SF Mono', 'Consolas', 'Monaco', 'monospace'],
       },
       fontSize: {
         xs: ['0.75rem', { lineHeight: '1rem' }],

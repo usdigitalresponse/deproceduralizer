@@ -1,4 +1,7 @@
 node_modules
+.next
+.turbo
+.vercel
 packages/database/node_modules
 .git
 data
