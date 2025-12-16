@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 import type { HierarchyFilterOptions } from '@deproceduralizer/database';
 import { X } from 'lucide-react';
+import { BrowseSearchInput } from './BrowseSearchInput';
 
 interface BrowseFiltersProps {
   currentFilters: HierarchyFilterOptions;
@@ -15,6 +16,7 @@ interface BrowseFiltersProps {
     analyzedCount: number;
     flaggedCount: number;
   }[];
+  search?: string;
   className?: string;
 }
 
@@ -46,6 +48,7 @@ const HAS_DEFINITIONS_OPTIONS = [
 export function BrowseFilters({
   currentFilters,
   stats,
+  search = '',
   className = '',
 }: BrowseFiltersProps) {
   const router = useRouter();
@@ -74,12 +77,15 @@ export function BrowseFilters({
     router.push(pathname);
   }, [router, pathname]);
 
-  // Check if any filters are active
+  // Check if any filters are active (excluding search which has its own clear)
   const hasActiveFilters =
     currentFilters.hasAnalysis !== undefined ||
     currentFilters.hasFlags !== undefined ||
     currentFilters.severity !== undefined ||
     currentFilters.hasDefinitions !== undefined;
+
+  // Check if search or filters are active (for clear all)
+  const hasSearchOrFilters = search || hasActiveFilters;
 
   // Calculate totals from stats
   const totalDocs = stats.reduce((sum, s) => sum + s.count, 0);
@@ -88,6 +94,9 @@ export function BrowseFilters({
 
   return (
     <div className={`flex flex-wrap items-center gap-3 ${className}`}>
+      {/* Search input */}
+      <BrowseSearchInput initialValue={search} />
+
       {/* Analyzed filter */}
       <div className="flex items-center gap-2">
         <label className="text-sm text-[var(--color-text-secondary)]">
@@ -140,8 +149,8 @@ export function BrowseFilters({
         />
       </div>
 
-      {/* Clear filters button */}
-      {hasActiveFilters && (
+      {/* Clear all button */}
+      {hasSearchOrFilters && (
         <Button
           variant="ghost"
           size="sm"
@@ -149,7 +158,7 @@ export function BrowseFilters({
           className="text-[var(--color-text-muted)]"
         >
           <X className="w-4 h-4 mr-1" />
-          Clear filters
+          Clear all
         </Button>
       )}
 

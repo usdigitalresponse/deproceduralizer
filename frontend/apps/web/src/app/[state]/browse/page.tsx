@@ -23,6 +23,7 @@ interface PageProps {
     severity?: string;
     hasDefs?: string;
     selected?: string;
+    search?: string;
   }>;
 }
 
@@ -61,8 +62,15 @@ export default async function BrowsePage({ params, searchParams }: PageProps) {
   const hasDefinitions = parseBooleanParam(queryParams.hasDefs);
   if (hasDefinitions !== undefined) filters.hasDefinitions = hasDefinitions;
 
+  // Parse search term
+  const search = queryParams.search?.trim() || '';
+  if (search) {
+    filters.search = search;
+  }
+
   // Check if any filters are active (beyond just state)
   const hasActiveFilters = Boolean(
+    search ||
     filters.hasAnalysis !== undefined ||
     filters.hasFlags !== undefined ||
     filters.severity !== undefined ||
@@ -97,6 +105,7 @@ export default async function BrowsePage({ params, searchParams }: PageProps) {
             initialOrphans={orphans}
             stats={stats}
             filters={filters}
+            search={search}
           />
         </Suspense>
       </Container>

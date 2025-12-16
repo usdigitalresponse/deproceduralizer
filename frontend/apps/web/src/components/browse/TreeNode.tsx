@@ -11,10 +11,32 @@ interface TreeNodeProps {
   isSelected: boolean;
   isLoading: boolean;
   hasActiveFilters?: boolean;
+  searchTerm?: string;
   children?: HierarchyNode[];
   onToggleExpand: () => void;
   onSelect: () => void;
   renderChildren?: () => React.ReactNode;
+}
+
+// Highlight matching text in a string
+function highlightMatch(text: string, searchTerm: string | undefined): React.ReactNode {
+  if (!searchTerm || !text) return text;
+
+  const lowerText = text.toLowerCase();
+  const lowerSearch = searchTerm.toLowerCase();
+  const index = lowerText.indexOf(lowerSearch);
+
+  if (index === -1) return text;
+
+  return (
+    <>
+      {text.substring(0, index)}
+      <mark className="bg-[var(--color-accent-muted)] text-inherit rounded px-0.5">
+        {text.substring(index, index + searchTerm.length)}
+      </mark>
+      {text.substring(index + searchTerm.length)}
+    </>
+  );
 }
 
 const levelIcons: Record<string, typeof Folder> = {
@@ -46,6 +68,7 @@ export function TreeNode({
   isSelected,
   isLoading,
   hasActiveFilters = false,
+  searchTerm,
   onToggleExpand,
   onSelect,
   renderChildren,
@@ -127,7 +150,7 @@ export function TreeNode({
         {/* Node content */}
         <div className="flex-1 min-w-0">
           <div className="text-sm font-medium truncate" title={node.title}>
-            {displayTitle}
+            {highlightMatch(displayTitle, searchTerm)}
           </div>
           <div className="text-xs text-[var(--color-text-muted)] flex items-center gap-2">
             {/* Level badge */}

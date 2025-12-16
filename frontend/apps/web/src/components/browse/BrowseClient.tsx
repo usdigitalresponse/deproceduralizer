@@ -29,6 +29,7 @@ interface BrowseClientProps {
     flaggedCount: number;
   }[];
   filters: HierarchyFilterOptions;
+  search?: string;
 }
 
 export function BrowseClient({
@@ -37,6 +38,7 @@ export function BrowseClient({
   initialOrphans,
   stats,
   filters,
+  search = '',
 }: BrowseClientProps) {
   // Responsive state
   const { isMobile } = useResponsive();
@@ -64,6 +66,7 @@ export function BrowseClient({
 
   // Check if any filters are active (need this before handleToggleExpand)
   const hasActiveFilters = Boolean(
+    search ||
     filters.hasAnalysis !== undefined ||
     filters.hasFlags !== undefined ||
     filters.severity !== undefined ||
@@ -82,6 +85,9 @@ export function BrowseClient({
     const params = new URLSearchParams();
 
     // Preserve filter params from props (already parsed by server)
+    if (search) {
+      params.set('search', search);
+    }
     if (filters.hasAnalysis !== undefined) {
       params.set('analyzed', String(filters.hasAnalysis));
     }
@@ -195,6 +201,7 @@ export function BrowseClient({
       <BrowseFilters
         currentFilters={filters}
         stats={stats}
+        search={search}
       />
 
       {/* Main content: tree + detail panel */}
@@ -210,6 +217,7 @@ export function BrowseClient({
               loadedChildren={loadedChildren}
               loadingIds={loadingIds}
               hasActiveFilters={hasActiveFilters}
+              searchTerm={search}
               onToggleExpand={handleToggleExpand}
               onSelect={handleSelect}
               showOrphans={showOrphans}
