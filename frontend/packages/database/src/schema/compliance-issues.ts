@@ -5,7 +5,8 @@ import {
   varchar,
   text,
   boolean,
-  timestamp
+  timestamp,
+  integer
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { regulatoryDocuments } from './regulatory-documents';
