@@ -831,15 +831,16 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         rd.nycrr_part as "nycrrPart",
         rd.nycrr_section as "nycrrSection",
         rd.state,
-        -- Use precomputed stats
-        COALESCE(rd.has_descendant_analysis, false) as "hasAnalysis",
-        COALESCE(rd.descendant_flag_count, 0)::int as "totalFlags",
-        rd.descendant_max_severity as "maxSeverity",
+        -- Combine own analysis with precomputed descendant stats
+        COALESCE(a.id IS NOT NULL OR rd.has_descendant_analysis, false) as "hasAnalysis",
+        (COALESCE(a.num_flags, 0) + COALESCE(rd.descendant_flag_count, 0))::int as "totalFlags",
+        GREATEST(a.max_severity, rd.descendant_max_severity) as "maxSeverity",
         false as "hasDefinitions",
         COALESCE(rd.direct_child_count, 0)::int as "childCount",
         0 as "matchingChildCount",
         COALESCE(rd.descendant_count, 0)::int as "matchingDescendantCount"
       FROM regulatory_documents rd
+      LEFT JOIN analyses a ON a.document_id = rd.id AND a.is_current = true
       WHERE rd.hierarchy_level = 'title'
         AND rd.state = ${stateUpper}
         AND rd.parent_id IS NULL
@@ -864,15 +865,16 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         rd.nycrr_part as "nycrrPart",
         rd.nycrr_section as "nycrrSection",
         rd.state,
-        -- Use precomputed stats
-        COALESCE(rd.has_descendant_analysis, false) as "hasAnalysis",
-        COALESCE(rd.descendant_flag_count, 0)::int as "totalFlags",
-        rd.descendant_max_severity as "maxSeverity",
+        -- Combine own analysis with precomputed descendant stats
+        COALESCE(a.id IS NOT NULL OR rd.has_descendant_analysis, false) as "hasAnalysis",
+        (COALESCE(a.num_flags, 0) + COALESCE(rd.descendant_flag_count, 0))::int as "totalFlags",
+        GREATEST(a.max_severity, rd.descendant_max_severity) as "maxSeverity",
         false as "hasDefinitions",
         COALESCE(rd.direct_child_count, 0)::int as "childCount",
         0 as "matchingChildCount",
         COALESCE(rd.descendant_count, 0)::int as "matchingDescendantCount"
       FROM regulatory_documents rd
+      LEFT JOIN analyses a ON a.document_id = rd.id AND a.is_current = true
       WHERE rd.parent_id = ${parentId}
       ORDER BY
         rd.nycrr_part::int NULLS LAST,
