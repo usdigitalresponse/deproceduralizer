@@ -668,7 +668,9 @@ class NYRegulationsScraper:
             nycrr_part = item.get('nycrr_part')
 
             # Record hierarchy path (normalized for matching)
-            if hierarchy_path:
+            # Only register as potential parent if document has a valid hierarchy_level
+            # This prevents linking to orphan documents with hierarchy_level=NULL
+            if hierarchy_path and hierarchy_level:
                 normalized = normalize_path(hierarchy_path)
                 hierarchy_path_to_idx[normalized] = source_idx
 
