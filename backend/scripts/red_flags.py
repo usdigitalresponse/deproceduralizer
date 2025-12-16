@@ -797,6 +797,14 @@ def parse_arguments():
         help='Random seed for reproducible sampling (default: 42)'
     )
 
+    parser.add_argument(
+        '--state',
+        type=str,
+        default='NY',
+        choices=['NY', 'NJ'],
+        help='State to analyze (default: NY)'
+    )
+
     return parser.parse_args()
 
 async def main():
@@ -817,7 +825,7 @@ async def main():
     print(f"  Categories: {', '.join(args.categories) if 'all' not in args.categories else 'all'}")
 
     regulations = load_regulations_multi_category(
-        "individual_regulations",
+        str(INDIVIDUAL_REGULATIONS_DIR),
         CATEGORY_KEYWORDS,
         args.sample_size,
         selected_categories=args.categories if 'all' not in args.categories else None

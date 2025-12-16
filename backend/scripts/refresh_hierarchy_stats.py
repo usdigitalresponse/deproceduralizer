@@ -21,9 +21,7 @@ import sys
 import argparse
 import time
 from pathlib import Path
-from collections import defaultdict
 from dotenv import load_dotenv
-from tqdm import tqdm
 
 # Add parent directory to path for config import
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -34,161 +32,180 @@ from shared_utils import get_db_connection
 load_dotenv(PROJECT_ROOT / '.env')
 
 
-def refresh_structure_stats_batched(conn, state: str, batch_size: int = 500) -> int:
+def refresh_structure_stats(conn, state: str) -> int:
     """
-    Refresh structural hierarchy stats in batches with progress tracking.
+    Refresh structural hierarchy stats (children counts) for all documents in a state.
+
+    This should be called after data import (migrate_to_postgres.py) since children
+    counts only change when document structure changes.
 
     Updates: direct_child_count, descendant_count
+
+    Uses two efficient queries:
+    1. Direct children count using parent_id index
+    2. Recursive CTE for descendant count
+
+    Returns the number of documents updated.
     """
     print(f"  Computing structure stats for {state}...")
-
-    with conn.cursor() as cur:
-        # Get all document IDs for this state
-        cur.execute("""
-            SELECT id, hierarchy_path FROM regulatory_documents
-            WHERE state = %s ORDER BY id
-        """, (state,))
-        docs = cur.fetchall()
-
-    if not docs:
-        print(f"  No documents found for {state}")
-        return 0
-
-    # Build hierarchy path index for fast descendant counting
-    print(f"  Building hierarchy index for {len(docs):,} documents...")
-    path_to_id = {row[1]: row[0] for row in docs if row[1]}
-    all_paths = set(path_to_id.keys())
-
-    updated = 0
-
-    with conn.cursor() as cur:
-        for i in tqdm(range(0, len(docs), batch_size), desc="  Updating structure"):
-            batch = docs[i:i + batch_size]
-
-            for doc_id, hierarchy_path in batch:
-                if not hierarchy_path:
-                    continue
-
-                # Count direct children
-                cur.execute("""
-                    SELECT COUNT(*) FROM regulatory_documents WHERE parent_id = %s
-                """, (doc_id,))
-                direct_count = cur.fetchone()[0]
-
-                # Count descendants by path prefix matching
-                prefix = hierarchy_path + " > "
-                descendant_count = sum(1 for p in all_paths if p.startswith(prefix))
-
-                # Update
-                cur.execute("""
-                    UPDATE regulatory_documents
-                    SET direct_child_count = %s, descendant_count = %s
-                    WHERE id = %s
-                """, (direct_count, descendant_count, doc_id))
-                updated += 1
-
-            conn.commit()
-
-    print(f"  Updated {updated:,} documents")
-    return updated
-
-
-def refresh_analysis_stats_incremental(conn, state: str) -> int:
-    """
-    Refresh analysis stats by walking UP from analyzed documents.
-
-    Instead of joining all 61k documents, we:
-    1. Find documents with analyses (~200)
-    2. Parse their hierarchy_path to find all ancestors
-    3. Aggregate stats per ancestor
-    4. Update only the affected ancestors
-
-    This is O(analyzed_docs * avg_depth) instead of O(all_docs^2).
-
-    Updates: descendant_flag_count, descendant_max_severity, has_descendant_analysis
-    """
-    print(f"  Computing analysis stats for {state} (incremental)...")
     start = time.time()
 
-    # Step 1: Get all analyzed documents with their stats and paths
     with conn.cursor() as cur:
+        # Two queries: one for direct children, one for descendants
+        # Direct children (simple and fast)
         cur.execute("""
-            SELECT rd.id, rd.hierarchy_path, a.num_flags, a.max_severity
-            FROM regulatory_documents rd
-            JOIN analyses a ON a.document_id = rd.id AND a.is_current = true
-            WHERE rd.state = %s
-        """, (state,))
-        analyzed_docs = cur.fetchall()
+            WITH direct_children AS (
+                SELECT parent_id, COUNT(*) as direct_child_count
+                FROM regulatory_documents
+                WHERE state = %s AND parent_id IS NOT NULL
+                GROUP BY parent_id
+            ),
+            structure_stats AS (
+                SELECT
+                    rd.id,
+                    COALESCE(dc.direct_child_count, 0) as direct_child_count
+                FROM regulatory_documents rd
+                LEFT JOIN direct_children dc ON rd.id = dc.parent_id
+                WHERE rd.state = %s
+            )
+            UPDATE regulatory_documents rd
+            SET direct_child_count = ss.direct_child_count
+            FROM structure_stats ss
+            WHERE rd.id = ss.id
+        """, (state, state))
 
-    if not analyzed_docs:
-        print(f"  No analyzed documents found for {state}")
-        return 0
-
-    print(f"  Found {len(analyzed_docs)} analyzed documents")
-
-    # Step 2: Build a map of path -> document ID for all documents in state
-    with conn.cursor() as cur:
-        cur.execute("""
-            SELECT id, hierarchy_path FROM regulatory_documents
-            WHERE state = %s AND hierarchy_path IS NOT NULL
-        """, (state,))
-        path_to_id = {row[1]: row[0] for row in cur.fetchall()}
-
-    # Step 3: For each analyzed doc, walk up the hierarchy and aggregate stats
-    # ancestor_stats[doc_id] = {flag_count, max_severity, has_analysis}
-    ancestor_stats = defaultdict(lambda: {'flag_count': 0, 'max_severity': None, 'has_analysis': False})
-
-    for doc_id, hierarchy_path, num_flags, max_severity in tqdm(analyzed_docs, desc="  Aggregating stats"):
-        if not hierarchy_path:
-            continue
-
-        # Parse hierarchy path: "Title 1 > Part 2 > Section 3"
-        # Each prefix is an ancestor
-        parts = hierarchy_path.split(" > ")
-
-        # Build all ancestor paths (excluding the document itself)
-        for i in range(len(parts) - 1):
-            ancestor_path = " > ".join(parts[:i + 1])
-            ancestor_id = path_to_id.get(ancestor_path)
-
-            if ancestor_id:
-                stats = ancestor_stats[ancestor_id]
-                stats['flag_count'] += num_flags or 0
-                if max_severity is not None:
-                    if stats['max_severity'] is None:
-                        stats['max_severity'] = max_severity
-                    else:
-                        stats['max_severity'] = max(stats['max_severity'], max_severity)
-                stats['has_analysis'] = True
-
-    # Step 4: Reset all documents in state first, then update affected ones
-    print(f"  Resetting stats for {state}...")
-    with conn.cursor() as cur:
-        cur.execute("""
-            UPDATE regulatory_documents
-            SET descendant_flag_count = 0,
-                descendant_max_severity = NULL,
-                has_descendant_analysis = false
-            WHERE state = %s
-        """, (state,))
         conn.commit()
 
-    # Step 5: Update all affected ancestors
-    print(f"  Updating {len(ancestor_stats)} ancestor documents...")
-    with conn.cursor() as cur:
-        for doc_id, stats in tqdm(ancestor_stats.items(), desc="  Writing updates"):
-            cur.execute("""
-                UPDATE regulatory_documents
-                SET descendant_flag_count = %s,
-                    descendant_max_severity = %s,
-                    has_descendant_analysis = %s
-                WHERE id = %s
-            """, (stats['flag_count'], stats['max_severity'], stats['has_analysis'], doc_id))
+        # Descendants using recursive CTE (separate query)
+        cur.execute("""
+            WITH RECURSIVE all_descendants AS (
+                -- Base case: all documents in this state
+                SELECT id, parent_id, 1 as depth
+                FROM regulatory_documents
+                WHERE state = %s
+
+                UNION ALL
+
+                -- Recursive case: count descendants by walking up tree
+                SELECT ad.id, p.parent_id, ad.depth + 1
+                FROM all_descendants ad
+                JOIN regulatory_documents p ON p.id = ad.parent_id
+                WHERE ad.depth < 100  -- Safety limit
+            ),
+            descendant_counts AS (
+                SELECT parent_id, COUNT(DISTINCT id) as descendant_count
+                FROM all_descendants
+                WHERE parent_id IS NOT NULL
+                GROUP BY parent_id
+            )
+            UPDATE regulatory_documents rd
+            SET descendant_count = COALESCE(dc.descendant_count, 0)
+            FROM descendant_counts dc
+            WHERE rd.id = dc.parent_id
+        """, (state,))
+
+        updated_count = cur.rowcount
         conn.commit()
 
     elapsed = time.time() - start
-    print(f"  Updated {len(ancestor_stats):,} ancestors in {elapsed:.1f}s")
-    return len(ancestor_stats)
+    print(f"  Updated {updated_count:,} documents in {elapsed:.1f}s")
+    return updated_count
+
+
+def refresh_analysis_stats(conn, state: str) -> int:
+    """
+    Refresh analysis-related hierarchy stats for all documents in a state.
+
+    This should be called after red flag analysis (red_flags.py) since these
+    stats aggregate analysis results from descendants.
+
+    Updates: descendant_flag_count, descendant_max_severity, has_descendant_analysis
+
+    Uses recursive CTE walking from child to parent (efficient with parent_id index)
+    instead of pattern matching on hierarchy_path.
+
+    Returns the number of documents updated.
+    """
+    print(f"  Computing analysis stats for {state}...")
+    start = time.time()
+
+    with conn.cursor() as cur:
+        # Use recursive CTE to walk tree from children upward (uses parent_id index)
+        cur.execute("""
+            WITH RECURSIVE descendant_analysis AS (
+                -- Base case: all leaf nodes with their analysis
+                SELECT
+                    rd.id as descendant_id,
+                    rd.parent_id,
+                    COALESCE(a.num_flags, 0) as num_flags,
+                    a.max_severity,
+                    a.id IS NOT NULL as has_analysis
+                FROM regulatory_documents rd
+                LEFT JOIN analyses a ON a.document_id = rd.id AND a.is_current = true
+                WHERE rd.state = %s
+
+                UNION ALL
+
+                -- Recursive case: aggregate up to parents
+                SELECT
+                    da.descendant_id,
+                    p.parent_id,
+                    da.num_flags,
+                    da.max_severity,
+                    da.has_analysis
+                FROM descendant_analysis da
+                JOIN regulatory_documents p ON p.id = da.parent_id
+            ),
+            analysis_stats AS (
+                SELECT
+                    parent_id as id,
+                    COALESCE(SUM(num_flags), 0)::int as descendant_flag_count,
+                    MAX(max_severity) as descendant_max_severity,
+                    BOOL_OR(has_analysis) as has_descendant_analysis
+                FROM descendant_analysis
+                WHERE parent_id IS NOT NULL
+                GROUP BY parent_id
+            )
+            UPDATE regulatory_documents rd
+            SET
+                descendant_flag_count = ast.descendant_flag_count,
+                descendant_max_severity = ast.descendant_max_severity,
+                has_descendant_analysis = COALESCE(ast.has_descendant_analysis, false)
+            FROM analysis_stats ast
+            WHERE rd.id = ast.id AND rd.state = %s
+        """, (state, state))
+
+        updated_count = cur.rowcount
+        conn.commit()
+
+    elapsed = time.time() - start
+    print(f"  Updated {updated_count:,} documents in {elapsed:.1f}s")
+    return updated_count
+
+
+def refresh_all_stats(conn, state: str) -> int:
+    """
+    Refresh ALL hierarchy stats (both structural and analysis) for a state.
+
+    Uses two separate optimized queries instead of one combined query to avoid
+    memory issues and statement timeouts.
+
+    Returns the number of documents updated.
+    """
+    print(f"  Computing all stats for {state}...")
+    start = time.time()
+
+    # Run structure stats first
+    updated1 = refresh_structure_stats(conn, state)
+
+    # Then run analysis stats
+    updated2 = refresh_analysis_stats(conn, state)
+
+    elapsed = time.time() - start
+    # Return max since both update same rows
+    updated_count = max(updated1, updated2)
+    print(f"  All stats complete in {elapsed:.1f}s")
+    return updated_count
 
 
 def run_refresh(states: list[str] = None, mode: str = 'all'):
@@ -217,12 +234,11 @@ def run_refresh(states: list[str] = None, mode: str = 'all'):
     with get_db_connection() as conn:
         for state in states:
             if mode == 'structure':
-                updated = refresh_structure_stats_batched(conn, state)
+                updated = refresh_structure_stats(conn, state)
             elif mode == 'analysis':
-                updated = refresh_analysis_stats_incremental(conn, state)
+                updated = refresh_analysis_stats(conn, state)
             else:  # 'all'
-                updated = refresh_structure_stats_batched(conn, state)
-                updated += refresh_analysis_stats_incremental(conn, state)
+                updated = refresh_all_stats(conn, state)
             total_updated += updated
 
     total_elapsed = time.time() - total_start
@@ -266,11 +282,6 @@ def main():
         mode = 'all'  # Default: refresh everything
 
     run_refresh(states, mode)
-
-
-# Backwards-compatible aliases for imports from other scripts
-refresh_structure_stats = refresh_structure_stats_batched
-refresh_analysis_stats = refresh_analysis_stats_incremental
 
 
 if __name__ == "__main__":
