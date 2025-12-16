@@ -578,7 +578,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         SELECT COUNT(DISTINCT descendant.id)::int as matching_descendant_count
         FROM regulatory_documents descendant
         LEFT JOIN analyses a ON a.document_id = descendant.id AND a.is_current = true
-        WHERE descendant.hierarchy_path LIKE rd.hierarchy_path || '.%'
+        WHERE descendant.hierarchy_path LIKE rd.hierarchy_path || ' > %'
         ${filterClause}
       ) descendant_stats ON true
       WHERE rd.hierarchy_level = 'title'
@@ -652,7 +652,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         SELECT COUNT(DISTINCT descendant.id)::int as matching_descendant_count
         FROM regulatory_documents descendant
         LEFT JOIN analyses da ON da.document_id = descendant.id AND da.is_current = true
-        WHERE descendant.hierarchy_path LIKE rd.hierarchy_path || '.%'
+        WHERE descendant.hierarchy_path LIKE rd.hierarchy_path || ' > %'
         ${filterClauseDa}
       ) descendant_stats ON true
       WHERE rd.parent_id = ${parentId}
