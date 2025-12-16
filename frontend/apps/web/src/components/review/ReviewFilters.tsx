@@ -5,6 +5,7 @@ import { useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 import type { RedFlagFilterOptions } from '@deproceduralizer/database';
+import { getStateFromPathname } from '@/hooks';
 
 // Filter options without state - state is handled at the page level
 type UIFilterOptions = Omit<RedFlagFilterOptions, 'state'>;
@@ -51,7 +52,7 @@ export function ReviewFilters({
   const searchParams = useSearchParams();
 
   // Extract state from pathname (e.g., /nj/review -> nj)
-  const state = pathname.match(/^\/(ny|nj)/)?.[1] || 'nj';
+  const state = getStateFromPathname(pathname, 'nj');
 
   const updateParams = useCallback(
     (updates: Record<string, string | undefined>) => {

@@ -13,6 +13,7 @@ import { ReviewCard } from './ReviewCard';
 import { ReviewKeyboardNav } from './ReviewKeyboardNav';
 import { Button } from '@/components/ui/Button';
 import RegulationModal from './RegulationModal';
+import { getStateFromPathname } from '@/hooks';
 
 interface PaginationInfo {
   page: number;
@@ -48,7 +49,7 @@ export function ReviewQueue({
   const searchParams = useSearchParams();
 
   // Extract state from pathname (e.g., /nj/review -> nj)
-  const state = pathname.match(/^\/(ny|nj)/)?.[1] || 'nj';
+  const state = getStateFromPathname(pathname, 'nj');
 
   // Local state for optimistic updates
   const [flags, setFlags] = useState<RedFlagWithContext[]>(initialFlags);

@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { Badge, SeverityBadge, ReviewStatusBadge } from '@/components/ui/Badge';
-import { Card } from '@/components/ui/Card';
+import { Badge, SeverityBadge, ReviewStatusBadge, Card, Tag } from '@/components/ui';
 import RedFlagReviewForm from '@/components/RedFlagReviewForm';
 
 interface RedFlag {
@@ -116,12 +115,9 @@ export function RedFlagsList({ initialFlags }: RedFlagsListProps) {
                 <span className="text-xs font-medium text-[var(--color-text-secondary)]">Matched phrases:</span>
                 <div className="flex flex-wrap gap-1 mt-1">
                   {flag.matchedPhrases.map((phrase, i) => (
-                    <span
-                      key={i}
-                      className="text-xs bg-[var(--color-danger-bg)] text-[var(--color-danger)] px-2 py-0.5 rounded-[var(--radius-sm)] border border-[var(--color-danger)]/20"
-                    >
+                    <Tag key={i} variant="danger" size="sm">
                       {phrase}
-                    </span>
+                    </Tag>
                   ))}
                 </div>
               </div>

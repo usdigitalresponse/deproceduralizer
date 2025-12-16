@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { getAncestorChain } from '@/lib/actions/hierarchy';
 import { ChevronRight, Loader2 } from 'lucide-react';
+import { cleanTitle, truncateTitle } from '@/lib/format';
 
 interface AncestorNode {
   id: number;
@@ -78,21 +79,6 @@ export function HierarchyBreadcrumbs({
       </div>
     );
   }
-
-  // Truncate title for display
-  const truncateTitle = (title: string, maxLength: number = 40) => {
-    if (title.length <= maxLength) return title;
-    return title.substring(0, maxLength) + '...';
-  };
-
-  // Clean up title display (remove common prefixes)
-  const cleanTitle = (title: string) => {
-    return title
-      .replace(/^N\.Y\. Comp\. Codes R\. & Regs\.?\s*/i, '')
-      .replace(/^N\.J\. Admin\. Code\s*§?\s*/i, '')
-      .replace(/^Title \d+ - /, '')
-      .trim() || title;
-  };
 
   return (
     <nav className="flex flex-wrap items-center gap-1 text-xs" aria-label="Hierarchy breadcrumb">

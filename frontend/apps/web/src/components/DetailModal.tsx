@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import type { RegulationWithAnalysis } from '@deproceduralizer/database';
 import RedFlagReviewForm from './RedFlagReviewForm';
 import {
@@ -11,10 +10,13 @@ import {
   ModalTitle,
   ModalBody,
   ModalClose,
-} from '@/components/ui/Modal';
-import { Badge, SeverityBadge } from '@/components/ui/Badge';
-import { Button } from '@/components/ui/Button';
+  Badge,
+  SeverityBadge,
+  Button,
+  Tag,
+} from '@/components/ui';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
+import { useStateFromPath } from '@/hooks';
 
 interface DetailModalProps {
   regulation: RegulationWithAnalysis | null;
@@ -31,8 +33,9 @@ interface DetailModalProps {
 }
 
 export default function DetailModal({ regulation, onClose, onFlagUpdated }: DetailModalProps) {
-  const pathname = usePathname();
-  const state = pathname.match(/^\/(ny|nj)/)?.[1] || regulation?.state?.toLowerCase() || 'nj';
+  const pathState = useStateFromPath();
+  // Use path state, fallback to regulation's state if available
+  const state = pathState || (regulation?.state?.toLowerCase() as 'ny' | 'nj') || 'nj';
 
   if (!regulation) return null;
 
@@ -259,12 +262,9 @@ export default function DetailModal({ regulation, onClose, onFlagUpdated }: Deta
                         <span className="text-xs font-medium text-[var(--color-text-secondary)]">Matched phrases:</span>
                         <div className="flex flex-wrap gap-1 mt-1">
                           {flag.matchedPhrases.map((phrase, i) => (
-                            <span
-                              key={i}
-                              className="text-xs bg-[var(--color-danger-bg)] text-[var(--color-danger)] px-2 py-0.5 rounded-[var(--radius-sm)] border border-[var(--color-danger)]/20"
-                            >
+                            <Tag key={i} variant="danger" size="sm">
                               {phrase}
-                            </span>
+                            </Tag>
                           ))}
                         </div>
                       </div>

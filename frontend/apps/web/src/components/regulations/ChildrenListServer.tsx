@@ -3,6 +3,7 @@ import { db, RegulatoryDocumentsRepository } from '@deproceduralizer/database';
 import { ChevronRight } from 'lucide-react';
 import { Badge, SeverityBadge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
+import { cleanTitle, truncateTitle } from '@/lib/format';
 
 interface ChildrenListServerProps {
   documentId: number;
@@ -36,21 +37,6 @@ export async function ChildrenListServer({
     return null;
   }
 
-  // Truncate title for display
-  const truncateTitle = (title: string, maxLength: number = 60) => {
-    if (title.length <= maxLength) return title;
-    return title.substring(0, maxLength) + '...';
-  };
-
-  // Clean up title display (remove common prefixes)
-  const cleanTitle = (title: string) => {
-    return title
-      .replace(/^N\.Y\. Comp\. Codes R\. & Regs\.?\s*/i, '')
-      .replace(/^N\.J\. Admin\. Code\s*§?\s*/i, '')
-      .replace(/^Title \d+ - /, '')
-      .trim() || title;
-  };
-
   return (
     <Card>
       <h2 className="font-semibold text-[var(--color-text)] mb-3">
@@ -81,7 +67,7 @@ export async function ChildrenListServer({
                   className="text-sm text-[var(--color-text)] group-hover:text-[var(--color-link)]"
                   title={child.title}
                 >
-                  {truncateTitle(cleanTitle(child.title))}
+                  {truncateTitle(cleanTitle(child.title), 60)}
                 </span>
               </div>
             </div>

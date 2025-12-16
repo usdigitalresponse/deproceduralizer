@@ -206,6 +206,97 @@ Button sizes: `sm`, `md`, `lg`
 
 Styled native select with same appearance as Input for consistency.
 
+### SearchInput
+
+Search input with debouncing, clear button, and loading state:
+
+```tsx
+import { SearchInput } from '@/components/ui';
+
+<SearchInput
+  value={search}
+  onSearch={(value) => updateUrlParams({ search: value })}
+  placeholder="Search regulations..."
+  debounceMs={300}
+  isLoading={isSearching}
+  size="md"  // 'sm' | 'md'
+/>
+```
+
+Features:
+- Controlled value with debounced `onSearch` callback
+- Non-debounced `onChange` for immediate updates
+- Clear button appears when value is present
+- Loading spinner state
+- Search and clear icons from Lucide
+
+### Alert
+
+Component for displaying messages with different severity levels:
+
+```tsx
+import { Alert } from '@/components/ui';
+
+<Alert variant="error">
+  Failed to save changes. Please try again.
+</Alert>
+
+<Alert variant="warning" title="Unsaved Changes">
+  You have unsaved changes that will be lost.
+</Alert>
+
+<Alert variant="success">
+  Changes saved successfully!
+</Alert>
+
+<Alert variant="info" icon={<CustomIcon />}>
+  Processing may take a few seconds.
+</Alert>
+```
+
+| Variant | Background | Icon |
+|---------|------------|------|
+| `error` | `danger-bg` | XCircle |
+| `warning` | `warning-bg` | AlertTriangle |
+| `success` | `success-bg` | CheckCircle |
+| `info` | `primary-bg` | Info |
+
+### Tag
+
+Component for displaying labels, matched phrases, keywords, etc.:
+
+```tsx
+import { Tag } from '@/components/ui';
+
+<Tag>Label</Tag>
+<Tag variant="danger" size="sm">shall comply</Tag>
+<Tag variant="primary">keyword</Tag>
+<Tag removable onRemove={() => handleRemove()}>tag</Tag>
+```
+
+| Variant | Style |
+|---------|-------|
+| `default` | Gray background |
+| `primary` | Primary blue background |
+| `danger` | Red background with border |
+| `warning` | Yellow background with border |
+| `success` | Green background with border |
+
+Size options: `sm`, `md`
+
+### LevelBadge
+
+Badge for displaying hierarchy levels (Title, Part, Section, etc.):
+
+```tsx
+import { LevelBadge } from '@/components/ui';
+
+<LevelBadge level="section" />
+<LevelBadge level={document.hierarchyLevel} />
+```
+
+Renders uppercase text with neutral background: `[SECTION]`
+
 ---
 
 ## Layout Components
@@ -404,17 +495,23 @@ apps/web/src/
 ├── hooks/
 │   ├── useMediaQuery.ts    # SSR-safe media query hook
 │   ├── useResponsive.ts    # Breakpoint detection
+│   ├── useStateFromPath.ts # Extract state (ny/nj) from URL path
+│   ├── useReviewerName.ts  # Persist reviewer name in localStorage
 │   └── index.ts
 ├── components/
 │   ├── ui/                 # Reusable UI primitives
-│   │   ├── Button.tsx
+│   │   ├── Alert.tsx       # Error/warning/success/info messages
 │   │   ├── Badge.tsx
+│   │   ├── Button.tsx
 │   │   ├── Card.tsx
 │   │   ├── Drawer.tsx      # Mobile-friendly slide-in panel
 │   │   ├── Input.tsx
-│   │   ├── Textarea.tsx
-│   │   ├── Select.tsx      # Radix Select wrapper
+│   │   ├── LevelBadge.tsx  # Hierarchy level badges
 │   │   ├── Modal.tsx       # Radix Dialog wrapper
+│   │   ├── SearchInput.tsx # Search with debounce, clear, loading
+│   │   ├── Select.tsx      # Radix Select wrapper
+│   │   ├── Tag.tsx         # Labels, keywords, matched phrases
+│   │   ├── Textarea.tsx
 │   │   └── index.ts
 │   ├── layout/             # Layout components
 │   │   ├── Header.tsx      # Responsive with mobile menu
@@ -442,11 +539,16 @@ apps/web/src/
 │       ├── RegulationModal.tsx
 │       └── index.ts
 ├── lib/
-│   └── actions/
-│       ├── dashboard.ts    # Dashboard stats server actions
-│       ├── hierarchy.ts
-│       ├── regulations.ts
-│       └── red-flags.ts
+│   ├── actions/
+│   │   ├── dashboard.ts    # Dashboard stats server actions
+│   │   ├── hierarchy.ts    # Hierarchy navigation server actions
+│   │   ├── regulations.ts
+│   │   └── red-flags.ts
+│   ├── constants/
+│   │   └── hierarchy.ts    # Hierarchy level labels
+│   ├── format.ts           # Shared formatting utilities
+│   └── formatters/
+│       └── nycrr.ts        # NYCRR citation formatting
 └── tailwind.config.ts      # Extended Tailwind theme
 ```
 

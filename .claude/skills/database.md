@@ -58,7 +58,9 @@ Run database queries using the helper script:
 
 ### regulatory_documents
 
-Main table storing regulatory document data with hierarchy information.
+Main table storing regulatory document data with hierarchy information. **50 columns total** - use `./scripts/db-query.sh describe regulatory_documents` to see all.
+
+**Core columns:**
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -74,14 +76,21 @@ Main table storing regulatory document data with hierarchy information.
 | `parent_id` | bigint | FK to parent document |
 | `hierarchy_level` | varchar(50) | Level in hierarchy |
 | `hierarchy_path` | text | Full path in hierarchy |
-| `nycrr_title` | integer | NYCRR title number |
-| `nycrr_part` | varchar(50) | NYCRR part number |
-| `nycrr_section` | varchar(50) | NYCRR section number |
-| `direct_child_count` | integer | Precomputed: direct children |
-| `descendant_count` | integer | Precomputed: all descendants |
-| `descendant_flag_count` | integer | Precomputed: flags in subtree |
-| `descendant_max_severity` | integer | Precomputed: max severity in subtree |
-| `has_descendant_analysis` | boolean | Precomputed: has analyzed descendants |
+| `scraped_from_url` | text | Original URL scraped from |
+
+**NYCRR columns (New York):** `nycrr_title`, `nycrr_title_name`, `nycrr_subtitle`, `nycrr_subtitle_name`, `nycrr_chapter`, `nycrr_chapter_name`, `nycrr_subchapter`, `nycrr_subchapter_name`, `nycrr_article`, `nycrr_article_name`, `nycrr_part`, `nycrr_part_name`, `nycrr_subpart`, `nycrr_subpart_name`, `nycrr_section`, `nycrr_section_name`
+
+**NJAC columns (New Jersey):** `njac_title`, `njac_title_name`, `njac_subtitle`, `njac_subtitle_name`, `njac_chapter`, `njac_chapter_name`, `njac_subchapter`, `njac_subchapter_name`, `njac_article`, `njac_article_name`, `njac_part`, `njac_part_name`, `njac_subpart`, `njac_subpart_name`, `njac_section`, `njac_section_name`
+
+**Precomputed stats (for hierarchy performance):**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `direct_child_count` | integer | Count of direct children |
+| `descendant_count` | integer | Count of all descendants |
+| `descendant_flag_count` | integer | Sum of red flags in subtree |
+| `descendant_max_severity` | integer | Max severity in subtree |
+| `has_descendant_analysis` | boolean | Whether any descendant has analysis |
 
 **Unique Constraint**: `(state, source_index, type)`
 
@@ -197,6 +206,36 @@ Tracks specific compliance requirements (wet signatures, in-person, paper forms,
 | `priority` | integer | Priority ranking |
 | `impact_type` | varchar(100) | Type of impact |
 | `state` | varchar(2) | 'NY' or 'NJ' |
+| `created_at` | timestamp | Creation timestamp |
+
+### definition_extractions (Legacy)
+
+Earlier definition extraction implementation. May be deprecated.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | serial | Primary key |
+| `filename` | text | Source filename |
+| `title` | text | Document title |
+| `url` | text | Source URL |
+| `nycrr_title` | integer | NYCRR title number |
+| `nycrr_part` | text | NYCRR part |
+| `nycrr_section` | text | NYCRR section |
+| `topics` | text[] | Extracted topics |
+| `extraction_count` | integer | Number of extractions |
+| `raw_response` | jsonb | Raw LLM response |
+| `created_at` | timestamp | Creation timestamp |
+
+### extracted_definitions (Legacy)
+
+Definitions from the legacy extraction system. May be deprecated.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | serial | Primary key |
+| `extraction_id` | integer | FK to definition_extractions |
+| `term` | text | The defined term |
+| `definition` | text | The definition text |
 | `created_at` | timestamp | Creation timestamp |
 
 ## Views

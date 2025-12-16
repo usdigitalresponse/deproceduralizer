@@ -11,18 +11,11 @@ import {
   DrawerClose,
 } from '@/components/ui';
 import { Table, FolderTree, ClipboardCheck, Home } from 'lucide-react';
+import { getStateFromPathname } from '@/hooks';
 
 interface MobileNavProps {
   isOpen: boolean;
   onClose: () => void;
-}
-
-/**
- * Extract state from pathname (e.g., /ny/browse -> ny)
- */
-function getStateFromPathname(pathname: string): string {
-  const match = pathname.match(/^\/(ny|nj)/);
-  return match ? match[1] : 'ny';
 }
 
 const navItems = [

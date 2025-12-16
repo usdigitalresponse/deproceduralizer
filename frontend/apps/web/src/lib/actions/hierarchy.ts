@@ -11,17 +11,8 @@ import {
 const repo = new RegulatoryDocumentsRepository(db);
 
 /**
- * Get root-level documents (titles) for the hierarchy tree
- */
-export async function getHierarchyRoots(
-  state: StateCode,
-  filters?: Omit<HierarchyFilterOptions, 'state'>
-): Promise<HierarchyNode[]> {
-  return repo.getHierarchyRoots({ ...filters, state });
-}
-
-/**
  * Get children of a specific document in the hierarchy
+ * Used by BrowseClient for filtered tree expansion
  */
 export async function getHierarchyChildren(
   parentId: number,
@@ -32,32 +23,8 @@ export async function getHierarchyChildren(
 }
 
 /**
- * Get orphan documents (no parent linkage or null hierarchy level)
- */
-export async function getOrphanDocuments(
-  state: StateCode,
-  filters?: Omit<HierarchyFilterOptions, 'state'>
-): Promise<HierarchyNode[]> {
-  return repo.getOrphanDocuments({ ...filters, state });
-}
-
-/**
- * Get hierarchy statistics by level
- */
-export async function getHierarchyStats(
-  state: StateCode,
-  filters?: Omit<HierarchyFilterOptions, 'state'>
-): Promise<{
-  level: string;
-  count: number;
-  analyzedCount: number;
-  flaggedCount: number;
-}[]> {
-  return repo.getHierarchyStats({ ...filters, state });
-}
-
-/**
  * Get a single document with full analysis for the detail panel
+ * Used by DetailPanel to fetch document details
  */
 export async function getDocumentForPanel(id: number) {
   return repo.getByIdWithAnalysis(id);
@@ -66,6 +33,7 @@ export async function getDocumentForPanel(id: number) {
 /**
  * Get the ancestor chain (breadcrumb path) for a document
  * Returns documents from root to immediate parent, ordered from root to current
+ * Used by HierarchyBreadcrumbs for navigation
  */
 export async function getAncestorChain(documentId: number): Promise<{
   id: number;
@@ -75,24 +43,10 @@ export async function getAncestorChain(documentId: number): Promise<{
   return repo.getAncestorChain(documentId);
 }
 
-// ========================================
-// Fast hierarchy methods (using precomputed stats)
-// ========================================
-
-/**
- * Get root-level titles using precomputed stats (fast)
- * Only returns true root titles (parent_id IS NULL)
- * For NJ, this is much faster than the filtered version
- */
-export async function getHierarchyRootsFast(
-  state: StateCode
-): Promise<HierarchyNode[]> {
-  return repo.getHierarchyRootsFast(state);
-}
-
 /**
  * Get children using precomputed stats (fast)
  * Uses precomputed descendant stats - no LATERAL joins needed
+ * Used by BrowseClient for unfiltered tree expansion
  */
 export async function getHierarchyChildrenFast(
   parentId: number

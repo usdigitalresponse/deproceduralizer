@@ -6,17 +6,11 @@ import { usePathname } from 'next/navigation';
 import { Menu } from 'lucide-react';
 import { Container } from './Container';
 import { MobileNav } from './MobileNav';
+import { getStateFromPathname } from '@/hooks';
+import { Button } from '@/components/ui';
 
 interface HeaderProps {
   className?: string;
-}
-
-/**
- * Extract state from pathname (e.g., /ny/browse -> ny)
- */
-function getStateFromPathname(pathname: string): string {
-  const match = pathname.match(/^\/(ny|nj)/);
-  return match ? match[1] : 'ny';
 }
 
 /**
@@ -108,25 +102,15 @@ export function Header({ className = '' }: HeaderProps) {
               </nav>
 
               {/* Mobile Menu Button - visible on mobile only */}
-              <button
-                type="button"
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => setIsMobileNavOpen(true)}
-                className="
-                  md:hidden
-                  p-2
-                  min-w-[44px] min-h-[44px]
-                  flex items-center justify-center
-                  text-[var(--color-text-secondary)]
-                  hover:text-[var(--color-text)]
-                  hover:bg-[var(--color-neutral-100)]
-                  rounded-[var(--radius-md)]
-                  transition-colors duration-[var(--duration-fast)]
-                  focus:outline-none focus:ring-2 focus:ring-[var(--color-focus-ring)]
-                "
+                className="md:hidden"
                 aria-label="Open menu"
               >
                 <Menu className="w-6 h-6" />
-              </button>
+              </Button>
             </div>
           </Container>
         </div>

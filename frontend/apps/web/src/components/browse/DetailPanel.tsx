@@ -5,12 +5,11 @@ import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import type { RegulationWithAnalysis } from '@deproceduralizer/database';
 import { getDocumentForPanel } from '@/lib/actions/hierarchy';
-import { Card } from '@/components/ui/Card';
-import { Badge, SeverityBadge } from '@/components/ui/Badge';
-import { Button } from '@/components/ui/Button';
+import { Card, Badge, SeverityBadge, Button } from '@/components/ui';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
 import { HierarchyBreadcrumbs } from './HierarchyBreadcrumbs';
 import { FileText, ExternalLink, AlertTriangle, BookOpen, X, Loader2 } from 'lucide-react';
+import { getStateFromPathname } from '@/hooks';
 
 interface DetailPanelProps {
   documentId: number | null;
@@ -26,7 +25,7 @@ export function DetailPanel({ documentId, onClose, onNavigate, fullScreen = fals
 
   // Height class based on fullScreen mode
   const heightClass = fullScreen ? 'h-full' : 'h-[calc(100vh-16rem)]';
-  const state = pathname.match(/^\/(ny|nj)/)?.[1] || 'nj';
+  const state = getStateFromPathname(pathname, 'nj');
 
   // Build the full current URL for back navigation
   const currentUrl = searchParams.toString()
@@ -119,13 +118,14 @@ export function DetailPanel({ documentId, onClose, onNavigate, fullScreen = fals
                 Full Page
               </Button>
             </Link>
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={onClose}
-              className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center hover:bg-[var(--color-neutral-100)] rounded-[var(--radius-md)]"
               aria-label="Close panel"
             >
               <X className="w-5 h-5" />
-            </button>
+            </Button>
           </div>
         </div>
 

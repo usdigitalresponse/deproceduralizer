@@ -6,6 +6,7 @@ import DataTable from '@/components/DataTable';
 import DetailModal from '@/components/DetailModal';
 import SearchInput from '@/components/SearchInput';
 import { Button } from '@/components/ui/Button';
+import { useStateFromPath } from '@/hooks';
 import type { RegulationWithAnalysis, FilterOptions, PaginationOptions } from '@deproceduralizer/database';
 
 interface PaginationInfo {
@@ -26,16 +27,17 @@ interface RegulationsClientProps {
 
 export default function RegulationsClient({ initialData, pagination, search, filters, sortBy, sortOrder }: RegulationsClientProps) {
   const router = useRouter();
+  const state = useStateFromPath();
   const [selectedRegulation, setSelectedRegulation] = useState<RegulationWithAnalysis | null>(null);
   const [data, setData] = useState(initialData);
 
   // Check if any filters are active
   const hasActiveFilters = Object.keys(filters).length > 0;
 
-  // Clear all filters
+  // Clear all filters - navigate to state's root table view
   const clearFilters = useCallback(() => {
-    router.push('/');
-  }, [router]);
+    router.push(`/${state}`);
+  }, [router, state]);
 
   // Sync data when server provides new initialData (e.g., after search/pagination)
   useEffect(() => {

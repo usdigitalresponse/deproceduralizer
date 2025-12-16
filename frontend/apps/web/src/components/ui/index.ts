@@ -48,3 +48,19 @@ export {
   DrawerFooter,
   DrawerClose,
 } from './Drawer';
+
+// SearchInput
+export { SearchInput } from './SearchInput';
+export type { SearchInputProps } from './SearchInput';
+
+// Alert
+export { Alert } from './Alert';
+export type { AlertProps, AlertVariant } from './Alert';
+
+// Tag
+export { Tag } from './Tag';
+export type { TagProps, TagVariant, TagSize } from './Tag';
+
+// LevelBadge
+export { LevelBadge } from './LevelBadge';
+export type { LevelBadgeProps } from './LevelBadge';

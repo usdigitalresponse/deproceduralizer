@@ -3,12 +3,7 @@
 import { useState, useTransition, useEffect, forwardRef } from 'react';
 import { updateRedFlagReview } from '@/lib/actions/red-flags';
 import { useReviewerName } from '@/hooks/useReviewerName';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { Textarea } from '@/components/ui/Textarea';
-import { Badge, SeverityBadge } from '@/components/ui/Badge';
-import { Card } from '@/components/ui/Card';
-import { Select } from '@/components/ui/Select';
+import { Button, Input, Textarea, Badge, SeverityBadge, Card, Select, Tag } from '@/components/ui';
 import { REVIEW_STATUSES, PRIORITY_OPTIONS, IMPACT_TYPES } from '@/types/regulation';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
 import type { RedFlagWithContext } from '@deproceduralizer/database';
@@ -146,12 +141,9 @@ export const ReviewCard = forwardRef<HTMLDivElement, ReviewCardProps>(
             <span className="text-xs font-medium text-[var(--color-text-secondary)]">Matched phrases:</span>
             <div className="flex flex-wrap gap-1 mt-1">
               {flag.matchedPhrases.map((phrase, i) => (
-                <span
-                  key={i}
-                  className="text-xs bg-[var(--color-primary-weaker)] text-[var(--color-primary)] px-2 py-0.5 rounded-[var(--radius-sm)]"
-                >
+                <Tag key={i} variant="primary" size="sm">
                   {phrase}
-                </span>
+                </Tag>
               ))}
             </div>
           </div>

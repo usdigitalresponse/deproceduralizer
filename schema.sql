@@ -1,12 +1,12 @@
--- New York Regulatory Analysis Database Schema
+-- New York & New Jersey Regulatory Analysis Database Schema
 -- Stores regulations from Cornell Law and LLM-generated red flag analysis results.
--- Hierarchy: Title → Subtitle → Chapter → Subchapter → Article → Part → Subpart → Section
+-- Hierarchy: Title -> Subtitle -> Chapter -> Subchapter -> Article -> Part -> Subpart -> Section
 
 CREATE TABLE regulatory_documents (
   id BIGSERIAL PRIMARY KEY,
   source_index INTEGER,                -- Index from scraping process, used for ordering and deduplication
   type VARCHAR(50) NOT NULL,           -- 'regulation' or 'policy_document'
-  state VARCHAR(2),                    -- Two-letter state code (e.g., 'NY')
+  state VARCHAR(2),                    -- Two-letter state code (e.g., 'NY', 'NJ')
   title TEXT NOT NULL,                 -- Human-readable title of the regulation
   url TEXT,                            -- Source URL from Cornell Law
   url_type VARCHAR(50),                -- 'regulation' (section) or 'title' (container)
@@ -18,7 +18,7 @@ CREATE TABLE regulatory_documents (
   hierarchy_level VARCHAR(50),         -- Position in tree: title/subtitle/chapter/subchapter/article/part/subpart/section
   hierarchy_path TEXT,                 -- Full path for hierarchy URLs (e.g., "title-18/part-433")
 
-  -- Parsed NYCRR citation components (extracted from page breadcrumbs)
+  -- Parsed NYCRR citation components (extracted from page breadcrumbs) - New York
   nycrr_title INTEGER,                 -- Title number (1-23)
   nycrr_title_name TEXT,               -- Title name (e.g., "SOCIAL SERVICES")
   nycrr_subtitle VARCHAR(50),          -- Subtitle identifier (e.g., "A")
@@ -35,6 +35,34 @@ CREATE TABLE regulatory_documents (
   nycrr_subpart_name TEXT,             -- Subpart name
   nycrr_section VARCHAR(50),           -- Section number
   nycrr_section_name TEXT,             -- Section name
+
+  -- Parsed NJAC citation components - New Jersey
+  njac_title VARCHAR(50),              -- Title number
+  njac_title_name TEXT,                -- Title name
+  njac_subtitle VARCHAR(50),           -- Subtitle identifier
+  njac_subtitle_name TEXT,             -- Subtitle name
+  njac_chapter VARCHAR(50),            -- Chapter identifier
+  njac_chapter_name TEXT,              -- Chapter name
+  njac_subchapter VARCHAR(50),         -- Subchapter identifier
+  njac_subchapter_name TEXT,           -- Subchapter name
+  njac_article VARCHAR(50),            -- Article identifier
+  njac_article_name TEXT,              -- Article name
+  njac_part VARCHAR(50),               -- Part number
+  njac_part_name TEXT,                 -- Part name
+  njac_subpart VARCHAR(50),            -- Subpart number
+  njac_subpart_name TEXT,              -- Subpart name
+  njac_section VARCHAR(50),            -- Section number
+  njac_section_name TEXT,              -- Section name
+
+  -- Metadata
+  scraped_from_url TEXT,               -- Original URL the content was scraped from
+
+  -- Precomputed hierarchy statistics (for performance)
+  direct_child_count INTEGER DEFAULT 0,        -- Count of direct children
+  descendant_count INTEGER DEFAULT 0,          -- Count of all descendants
+  descendant_flag_count INTEGER DEFAULT 0,     -- Sum of red flags in subtree
+  descendant_max_severity INTEGER,             -- Max severity in subtree
+  has_descendant_analysis BOOLEAN DEFAULT FALSE, -- Whether any descendant has analysis
 
   CONSTRAINT unique_per_pull UNIQUE(state, source_index, type)
 );
@@ -196,9 +224,34 @@ CREATE TABLE compliance_issues (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Indexes for common queries
+-- Indexes for compliance_issues
 CREATE INDEX idx_compliance_issues_document ON compliance_issues(document_id);
 CREATE INDEX idx_compliance_issues_state ON compliance_issues(state);
 CREATE INDEX idx_compliance_issues_issue_type ON compliance_issues(issue_type);
 CREATE INDEX idx_compliance_issues_review_status ON compliance_issues(review_status);
 CREATE INDEX idx_compliance_issues_state_issue ON compliance_issues(state, issue_type);
+
+-- Legacy tables (from earlier definition extraction implementation)
+-- These may be deprecated in favor of the definitions/definition_extraction_log tables
+
+CREATE TABLE definition_extractions (
+  id SERIAL PRIMARY KEY,
+  filename TEXT,
+  title TEXT,
+  url TEXT,
+  nycrr_title INTEGER,
+  nycrr_part TEXT,
+  nycrr_section TEXT,
+  topics TEXT[],
+  extraction_count INTEGER,
+  raw_response JSONB,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE extracted_definitions (
+  id SERIAL PRIMARY KEY,
+  extraction_id INTEGER REFERENCES definition_extractions(id),
+  term TEXT,
+  definition TEXT,
+  created_at TIMESTAMP DEFAULT NOW()
+);

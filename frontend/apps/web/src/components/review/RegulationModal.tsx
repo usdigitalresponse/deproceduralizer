@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import { getRegulationById } from '@/lib/actions/regulations';
 import type { RegulationWithAnalysis } from '@deproceduralizer/database';
 import {
@@ -12,10 +11,12 @@ import {
   ModalTitle,
   ModalBody,
   ModalClose,
-} from '@/components/ui/Modal';
-import { Badge, SeverityBadge } from '@/components/ui/Badge';
-import { Button } from '@/components/ui/Button';
+  Badge,
+  SeverityBadge,
+  Button,
+} from '@/components/ui';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
+import { useStateFromPath } from '@/hooks';
 
 interface RegulationModalProps {
   regulationId: number | null;
@@ -23,13 +24,13 @@ interface RegulationModalProps {
 }
 
 export function RegulationModal({ regulationId, onClose }: RegulationModalProps) {
-  const pathname = usePathname();
+  const pathState = useStateFromPath();
   const [regulation, setRegulation] = useState<RegulationWithAnalysis | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Extract state from URL or regulation, default to nj
-  const state = pathname.match(/^\/(ny|nj)/)?.[1] || regulation?.state?.toLowerCase() || 'nj';
+  // Use path state, fallback to regulation's state if available
+  const state = pathState || (regulation?.state?.toLowerCase() as 'ny' | 'nj') || 'nj';
 
   useEffect(() => {
     if (regulationId === null) {

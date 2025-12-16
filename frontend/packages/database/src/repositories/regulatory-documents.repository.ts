@@ -537,7 +537,14 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
     const results = await this.db.execute(sql`
       SELECT
         rd.id,
-        rd.title,
+        -- Format root titles as "TITLE [number] - [name]"
+        CASE
+          WHEN rd.state = 'NY' AND rd.nycrr_title IS NOT NULL AND rd.nycrr_title_name IS NOT NULL THEN
+            'TITLE ' || rd.nycrr_title || ' - ' || rd.nycrr_title_name
+          WHEN rd.state = 'NJ' AND rd.njac_title IS NOT NULL AND rd.njac_title_name IS NOT NULL THEN
+            'TITLE ' || rd.njac_title || ' - ' || rd.njac_title_name
+          ELSE rd.title
+        END as title,
         rd.hierarchy_level as "hierarchyLevel",
         rd.hierarchy_path as "hierarchyPath",
         rd.nycrr_title as "nycrrTitle",
@@ -584,7 +591,12 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
       WHERE rd.hierarchy_level = 'title'
         AND rd.state = ${stateUpper}
         ${hasContentFilters ? sql`AND (child_stats.matching_child_count > 0 OR descendant_stats.matching_descendant_count > 0)` : sql``}
-      ORDER BY rd.nycrr_title NULLS LAST, rd.title
+      ORDER BY
+        -- Sort by numeric title, handling alphanumeric NJ titles like "10A"
+        COALESCE(rd.nycrr_title, NULLIF(regexp_replace(rd.njac_title, '[^0-9]', '', 'g'), '')::int) NULLS LAST,
+        -- Secondary sort by alpha suffix for NJ (e.g., "A" in "10A")
+        regexp_replace(rd.njac_title, '[0-9]', '', 'g') NULLS LAST,
+        rd.title
     `);
 
     return results.rows as unknown as HierarchyNode[];
@@ -824,7 +836,14 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
     const results = await this.db.execute(sql`
       SELECT
         rd.id,
-        rd.title,
+        -- Format root titles as "TITLE [number] - [name]"
+        CASE
+          WHEN rd.state = 'NY' AND rd.nycrr_title IS NOT NULL AND rd.nycrr_title_name IS NOT NULL THEN
+            'TITLE ' || rd.nycrr_title || ' - ' || rd.nycrr_title_name
+          WHEN rd.state = 'NJ' AND rd.njac_title IS NOT NULL AND rd.njac_title_name IS NOT NULL THEN
+            'TITLE ' || rd.njac_title || ' - ' || rd.njac_title_name
+          ELSE rd.title
+        END as title,
         rd.hierarchy_level as "hierarchyLevel",
         rd.hierarchy_path as "hierarchyPath",
         rd.nycrr_title as "nycrrTitle",
@@ -844,7 +863,12 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
       WHERE rd.hierarchy_level = 'title'
         AND rd.state = ${stateUpper}
         AND rd.parent_id IS NULL
-      ORDER BY rd.nycrr_title NULLS LAST, rd.title
+      ORDER BY
+        -- Sort by numeric title, handling alphanumeric NJ titles like "10A"
+        COALESCE(rd.nycrr_title, NULLIF(regexp_replace(rd.njac_title, '[^0-9]', '', 'g'), '')::int) NULLS LAST,
+        -- Secondary sort by alpha suffix for NJ (e.g., "A" in "10A")
+        regexp_replace(rd.njac_title, '[0-9]', '', 'g') NULLS LAST,
+        rd.title
     `);
 
     return results.rows as unknown as HierarchyNode[];
