@@ -394,32 +394,59 @@ apps/web/src/
 ├── app/
 │   ├── globals.css         # Base styles, imports tokens
 │   ├── layout.tsx          # Root layout with Header/Footer
-│   └── review/
-│       └── page.tsx        # Review mode page (server component)
+│   ├── page.tsx            # Home dashboard page
+│   └── [state]/
+│       ├── page.tsx        # State table view
+│       ├── browse/
+│       │   └── page.tsx    # Browse hierarchy page
+│       └── review/
+│           └── page.tsx    # Review mode page
+├── hooks/
+│   ├── useMediaQuery.ts    # SSR-safe media query hook
+│   ├── useResponsive.ts    # Breakpoint detection
+│   └── index.ts
 ├── components/
 │   ├── ui/                 # Reusable UI primitives
 │   │   ├── Button.tsx
 │   │   ├── Badge.tsx
 │   │   ├── Card.tsx
+│   │   ├── Drawer.tsx      # Mobile-friendly slide-in panel
 │   │   ├── Input.tsx
 │   │   ├── Textarea.tsx
 │   │   ├── Select.tsx      # Radix Select wrapper
 │   │   ├── Modal.tsx       # Radix Dialog wrapper
 │   │   └── index.ts
 │   ├── layout/             # Layout components
-│   │   ├── Header.tsx      # Includes nav links to Review Mode
+│   │   ├── Header.tsx      # Responsive with mobile menu
 │   │   ├── Footer.tsx
 │   │   ├── Container.tsx
 │   │   ├── PageHeader.tsx
+│   │   ├── MobileNav.tsx   # Mobile navigation drawer
+│   │   └── index.ts
+│   ├── home/               # Home dashboard components
+│   │   ├── DashboardStats.tsx
+│   │   ├── StateCard.tsx
+│   │   ├── QuickLinks.tsx
+│   │   └── index.ts
+│   ├── browse/             # Browse hierarchy components
+│   │   ├── BrowseClient.tsx    # Main responsive container
+│   │   ├── HierarchyTree.tsx
+│   │   ├── DetailPanel.tsx     # Supports fullScreen mode
 │   │   └── index.ts
 │   └── review/             # Review mode components
-│       ├── ReviewQueue.tsx      # Main container with state
-│       ├── ReviewCard.tsx       # Individual flag card
-│       ├── ReviewFilters.tsx    # Filter bar
-│       ├── ReviewProgress.tsx   # Progress indicator
-│       ├── ReviewKeyboardNav.tsx # Keyboard shortcuts
-│       ├── RegulationModal.tsx  # Regulation detail modal
+│       ├── ReviewQueue.tsx
+│       ├── ReviewCard.tsx
+│       ├── ReviewFilters.tsx
+│       ├── ReviewProgress.tsx
+│       ├── ReviewKeyboardNav.tsx
+│       ├── RegulationModal.tsx
 │       └── index.ts
+├── lib/
+│   └── actions/
+│       ├── dashboard.ts    # Dashboard stats server actions
+│       ├── hierarchy.ts
+│       ├── regulations.ts
+│       └── red-flags.ts
 └── tailwind.config.ts      # Extended Tailwind theme
 ```
 
@@ -462,6 +489,185 @@ apps/web/src/
 - Use composition over duplication
 - Share common styles through design tokens
 - Create utility components for common layouts
+
+---
+
+## Mobile Responsive Patterns
+
+### Breakpoints
+
+The application uses a mobile-first approach with the following breakpoints:
+
+| Breakpoint | Min Width | Tailwind Prefix | Usage |
+|------------|-----------|-----------------|-------|
+| Mobile | 0px | (default) | Single column, stacked layouts |
+| Tablet | 768px | `md:` | Side-by-side layouts, wider forms |
+| Desktop | 1024px | `lg:` | Full multi-column layouts |
+
+### useResponsive Hook
+
+SSR-safe hook for detecting viewport size:
+
+```tsx
+import { useResponsive, useMediaQuery } from '@/hooks';
+
+function MyComponent() {
+  const { isMobile, isTablet, isDesktop, isMobileOrTablet, isTabletOrDesktop } = useResponsive();
+
+  // Or use custom query
+  const isLargeScreen = useMediaQuery('(min-width: 1280px)');
+
+  return isMobile ? <MobileView /> : <DesktopView />;
+}
+```
+
+**Note**: Initial render returns `false` to avoid hydration mismatch. Use conditional rendering carefully.
+
+### Drawer Component
+
+Mobile-friendly slide-in panel based on Radix Dialog:
+
+```tsx
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerBody, DrawerClose } from '@/components/ui';
+
+<Drawer open={isOpen} onOpenChange={setIsOpen}>
+  <DrawerContent side="right" size="full">
+    <DrawerHeader>
+      <DrawerTitle>Panel Title</DrawerTitle>
+      <DrawerClose />
+    </DrawerHeader>
+    <DrawerBody>
+      {/* Content */}
+    </DrawerBody>
+  </DrawerContent>
+</Drawer>
+```
+
+| Prop | Values | Default | Description |
+|------|--------|---------|-------------|
+| `side` | `left`, `right`, `bottom` | `right` | Slide-in direction |
+| `size` | `sm`, `md`, `lg`, `full` | `md` | Panel width/height |
+
+### Mobile Navigation
+
+The Header component includes responsive navigation:
+
+- **Desktop**: Horizontal nav links visible (`hidden md:flex`)
+- **Mobile**: Hamburger menu button (`md:hidden`) opens MobileNav drawer
+
+```tsx
+// MobileNav includes:
+// - Full-height right-side drawer
+// - State selector (NY/NJ toggle)
+// - Large tap-target nav links (min 44px)
+// - Close button
+```
+
+### Browse View Pattern
+
+The Browse page uses a drawer pattern for mobile detail viewing:
+
+- **Desktop**: Side-by-side layout (400px tree + flex detail panel)
+- **Mobile**: Tree full-width, detail panel slides in as drawer when item selected
+
+```tsx
+<div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
+  {/* Tree - always visible, full width on mobile */}
+  <div className="w-full lg:w-[400px] lg:shrink-0">
+    <Card className="h-[50vh] lg:h-[calc(100vh-16rem)]">
+      <HierarchyTree />
+    </Card>
+  </div>
+
+  {/* Detail - drawer on mobile, side panel on desktop */}
+  {isMobile ? (
+    <Drawer open={!!selectedId}>
+      <DetailPanel fullScreen />
+    </Drawer>
+  ) : (
+    <div className="flex-1"><DetailPanel /></div>
+  )}
+</div>
+```
+
+### Touch Targets
+
+All interactive elements should have a minimum touch target of 44x44px:
+
+```tsx
+<button className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center">
+  <Icon className="w-5 h-5" />
+</button>
+```
+
+### Responsive Grid Patterns
+
+Common responsive grid patterns:
+
+```tsx
+// 1-2-4 column progression
+<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+
+// 1-2 column for cards
+<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+// 1-3 column for action cards
+<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+```
+
+---
+
+## Home Page Components
+
+### DashboardStats
+
+Grid of stat cards showing aggregate metrics:
+
+```tsx
+import { DashboardStats } from '@/components/home';
+
+<DashboardStats stats={{
+  totalDocuments: 1000,
+  analyzedDocuments: 500,
+  documentsWithFlags: 100,
+  totalFlags: 250,
+  flagsBySeverity: { high: 50, medium: 100, low: 100 },
+  unreviewedFlags: 200,
+}} />
+```
+
+Displays 2 columns on mobile, 4 columns on desktop.
+
+### StateCard
+
+Clickable card for state selection:
+
+```tsx
+import { StateCard } from '@/components/home';
+
+<StateCard state="ny" stats={nyStats} />
+<StateCard state="nj" stats={njStats} />
+```
+
+Features:
+- State abbreviation badge with accent color
+- Document count and flag stats
+- Hover state with shadow elevation
+
+### QuickLinks
+
+Grid of quick action cards:
+
+```tsx
+import { QuickLinks } from '@/components/home';
+
+<QuickLinks state="ny" />
+```
+
+Links to:
+- Browse Hierarchy
+- Review Queue
+- Table View
 
 ---
 

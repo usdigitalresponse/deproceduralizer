@@ -5,6 +5,8 @@ import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import type { HierarchyNode, HierarchyFilterOptions, StateCode } from '@deproceduralizer/database';
 import { getHierarchyChildren, getHierarchyChildrenFast } from '@/lib/actions/hierarchy';
 import { Card } from '@/components/ui/Card';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerBody, DrawerClose } from '@/components/ui';
+import { useResponsive } from '@/hooks';
 import { HierarchyTree } from './HierarchyTree';
 import { BrowseFilters } from './BrowseFilters';
 import { DetailPanel } from './DetailPanel';
@@ -36,6 +38,9 @@ export function BrowseClient({
   stats,
   filters,
 }: BrowseClientProps) {
+  // Responsive state
+  const { isMobile } = useResponsive();
+
   // URL state management
   const router = useRouter();
   const pathname = usePathname();
@@ -193,10 +198,10 @@ export function BrowseClient({
       />
 
       {/* Main content: tree + detail panel */}
-      <div className="flex gap-6">
-        {/* Tree panel */}
-        <div className="w-[400px] shrink-0">
-          <Card padding="none" className="h-[calc(100vh-16rem)] overflow-hidden">
+      <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
+        {/* Tree panel - full width on mobile, fixed width on desktop */}
+        <div className="w-full lg:w-[400px] lg:shrink-0">
+          <Card padding="none" className="h-[50vh] lg:h-[calc(100vh-16rem)] overflow-hidden">
             <HierarchyTree
               roots={initialRoots}
               orphans={initialOrphans}
@@ -213,14 +218,33 @@ export function BrowseClient({
           </Card>
         </div>
 
-        {/* Detail panel */}
-        <div className="flex-1 min-w-0">
-          <DetailPanel
-            documentId={selectedId}
-            onClose={handleCloseDetail}
-            onNavigate={handleSelect}
-          />
-        </div>
+        {/* Detail panel - side panel on desktop, drawer on mobile */}
+        {isMobile ? (
+          <Drawer open={!!selectedId} onOpenChange={(open) => !open && handleCloseDetail()}>
+            <DrawerContent side="right" size="full" className="flex flex-col">
+              <DrawerHeader>
+                <DrawerTitle>Regulation Details</DrawerTitle>
+                <DrawerClose />
+              </DrawerHeader>
+              <DrawerBody className="flex-1 p-0">
+                <DetailPanel
+                  documentId={selectedId}
+                  onClose={handleCloseDetail}
+                  onNavigate={handleSelect}
+                  fullScreen
+                />
+              </DrawerBody>
+            </DrawerContent>
+          </Drawer>
+        ) : (
+          <div className="flex-1 min-w-0">
+            <DetailPanel
+              documentId={selectedId}
+              onClose={handleCloseDetail}
+              onNavigate={handleSelect}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

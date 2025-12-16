@@ -8,11 +8,13 @@ The Deproceduralizer is a web application that helps policy reviewers and govern
 
 ### Key Features
 
+- **Home Dashboard**: Overview of stats across all states with quick navigation
+- **Multi-State Support**: View and analyze regulations from NY and NJ
 - **Red Flag Analysis**: AI-powered identification of regulatory complexity and compliance issues
-- **Searchable Database**: Full-text search across regulations and analysis results
+- **Browse Hierarchy**: Tree view of regulations organized by titles, parts, and sections
 - **Review Workflow**: Mark flags as confirmed, false positive, needs context, or deferred
-- **Severity & Priority Tracking**: Categorize issues by severity level and priority
-- **Detailed Modal View**: Deep-dive into individual regulations with full context
+- **Table View**: Sortable, filterable data table with full-text search
+- **Mobile Responsive**: Fully responsive design with drawer patterns for mobile browsing
 
 ## Getting Started
 
@@ -55,25 +57,31 @@ pnpm start
 apps/web/
 ├── src/
 │   ├── app/                    # Next.js App Router pages
-│   │   ├── page.tsx            # Main regulations list
+│   │   ├── page.tsx            # Home dashboard
 │   │   ├── layout.tsx          # Root layout with header/footer
-│   │   └── globals.css         # Global styles
+│   │   ├── globals.css         # Global styles
+│   │   └── [state]/            # State-specific routes (ny, nj)
+│   │       ├── page.tsx        # Table view
+│   │       ├── browse/         # Hierarchy browser
+│   │       └── review/         # Review workflow
 │   ├── components/
 │   │   ├── ui/                 # Reusable UI primitives
 │   │   │   ├── Button.tsx
 │   │   │   ├── Badge.tsx
 │   │   │   ├── Card.tsx
-│   │   │   ├── Input.tsx
+│   │   │   ├── Drawer.tsx      # Mobile slide-in panel
 │   │   │   ├── Modal.tsx       # Radix Dialog wrapper
 │   │   │   └── ...
 │   │   ├── layout/             # Layout components
-│   │   │   ├── Header.tsx
-│   │   │   ├── Footer.tsx
-│   │   │   └── Container.tsx
-│   │   ├── DataTable.tsx       # Main data table
-│   │   ├── DetailModal.tsx     # Regulation detail view
-│   │   └── RedFlagReviewForm.tsx
+│   │   │   ├── Header.tsx      # Responsive with mobile menu
+│   │   │   ├── MobileNav.tsx   # Mobile navigation drawer
+│   │   │   └── ...
+│   │   ├── home/               # Dashboard components
+│   │   ├── browse/             # Browse hierarchy components
+│   │   └── review/             # Review workflow components
 │   ├── hooks/                  # Custom React hooks
+│   │   ├── useMediaQuery.ts    # SSR-safe media query
+│   │   └── useResponsive.ts    # Breakpoint detection
 │   ├── lib/                    # Utilities and server actions
 │   └── styles/
 │       └── tokens.css          # Design token definitions

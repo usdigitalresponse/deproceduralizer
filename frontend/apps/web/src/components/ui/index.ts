@@ -36,3 +36,15 @@ export {
   ModalFooter,
   ModalClose,
 } from './Modal';
+
+// Drawer
+export {
+  Drawer,
+  DrawerTrigger,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerBody,
+  DrawerFooter,
+  DrawerClose,
+} from './Drawer';

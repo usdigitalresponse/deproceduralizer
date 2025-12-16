@@ -16,11 +16,16 @@ interface DetailPanelProps {
   documentId: number | null;
   onClose: () => void;
   onNavigate?: (id: number) => void;
+  /** When true, panel fills entire viewport (for mobile drawer) */
+  fullScreen?: boolean;
 }
 
-export function DetailPanel({ documentId, onClose, onNavigate }: DetailPanelProps) {
+export function DetailPanel({ documentId, onClose, onNavigate, fullScreen = false }: DetailPanelProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+
+  // Height class based on fullScreen mode
+  const heightClass = fullScreen ? 'h-full' : 'h-[calc(100vh-16rem)]';
   const state = pathname.match(/^\/(ny|nj)/)?.[1] || 'nj';
 
   // Build the full current URL for back navigation
@@ -56,7 +61,7 @@ export function DetailPanel({ documentId, onClose, onNavigate }: DetailPanelProp
 
   if (!documentId) {
     return (
-      <Card className="h-[calc(100vh-16rem)] flex items-center justify-center">
+      <Card className={`${heightClass} flex items-center justify-center`}>
         <div className="text-center text-[var(--color-text-muted)]">
           <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
           <p className="text-sm font-medium">Select a regulation</p>
@@ -68,7 +73,7 @@ export function DetailPanel({ documentId, onClose, onNavigate }: DetailPanelProp
 
   if (isLoading) {
     return (
-      <Card className="h-[calc(100vh-16rem)] flex items-center justify-center">
+      <Card className={`${heightClass} flex items-center justify-center`}>
         <div className="text-center text-[var(--color-text-muted)]">
           <Loader2 className="w-8 h-8 mx-auto mb-3 animate-spin" />
           <p className="text-sm">Loading document...</p>
@@ -79,7 +84,7 @@ export function DetailPanel({ documentId, onClose, onNavigate }: DetailPanelProp
 
   if (error || !document) {
     return (
-      <Card className="h-[calc(100vh-16rem)] flex items-center justify-center">
+      <Card className={`${heightClass} flex items-center justify-center`}>
         <div className="text-center text-[var(--color-danger)]">
           <AlertTriangle className="w-12 h-12 mx-auto mb-3 opacity-50" />
           <p className="text-sm font-medium">{error || 'Document not found'}</p>
@@ -95,7 +100,7 @@ export function DetailPanel({ documentId, onClose, onNavigate }: DetailPanelProp
   );
 
   return (
-    <Card padding="none" className="h-[calc(100vh-16rem)] flex flex-col overflow-hidden">
+    <Card padding="none" className={`${heightClass} flex flex-col overflow-hidden`}>
       {/* Header */}
       <div className="p-4 border-b border-[var(--color-neutral-200)] shrink-0">
         <div className="flex items-start justify-between gap-4">
@@ -116,7 +121,7 @@ export function DetailPanel({ documentId, onClose, onNavigate }: DetailPanelProp
             </Link>
             <button
               onClick={onClose}
-              className="p-1 hover:bg-[var(--color-neutral-100)] rounded"
+              className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center hover:bg-[var(--color-neutral-100)] rounded-[var(--radius-md)]"
               aria-label="Close panel"
             >
               <X className="w-5 h-5" />

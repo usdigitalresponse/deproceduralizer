@@ -80,6 +80,7 @@ export interface HierarchyFilterOptions {
   hasFlags?: boolean;
   severity?: 'high' | 'medium' | 'low';
   hasDefinitions?: boolean;
+  search?: string; // Text search on title
 }
 
 export interface PaginationOptions {
@@ -98,6 +99,19 @@ export interface PaginatedResult<T> {
   page: number;
   pageSize: number;
   totalPages: number;
+}
+
+export interface DashboardStats {
+  totalDocuments: number;
+  analyzedDocuments: number;
+  documentsWithFlags: number;
+  totalFlags: number;
+  flagsBySeverity: {
+    high: number;   // severity >= 7
+    medium: number; // severity 4-6
+    low: number;    // severity 1-3
+  };
+  unreviewedFlags: number;
 }
 
 export class RegulatoryDocumentsRepository extends BaseRepository {
@@ -785,6 +799,13 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
       conditions.push(sql.raw(`NOT EXISTS (SELECT 1 FROM definitions d WHERE d.document_id = ${docAlias}.id)`));
     }
 
+    // Text search on title (case-insensitive)
+    if (filters.search) {
+      // Escape single quotes to prevent SQL injection
+      const escapedSearch = filters.search.replace(/'/g, "''");
+      conditions.push(sql.raw(`${docAlias}.title ILIKE '%${escapedSearch}%'`));
+    }
+
     return conditions;
   }
 
@@ -946,5 +967,90 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
       title: string;
       hierarchyLevel: string | null;
     }[];
+  }
+
+  // ========================================
+  // Dashboard statistics methods
+  // ========================================
+
+  /**
+   * Get aggregate statistics for the dashboard
+   * @param state - Optional state filter. If not provided, returns stats for all states.
+   */
+  async getDashboardStats(state?: StateCode): Promise<DashboardStats> {
+    const stateCondition = state
+      ? sql`WHERE rd.state = ${state.toUpperCase()}`
+      : sql``;
+
+    const stateConditionWithAnd = state
+      ? sql`AND rd.state = ${state.toUpperCase()}`
+      : sql``;
+
+    // Get document counts
+    const docStats = await this.db.execute(sql`
+      SELECT
+        COUNT(*)::int as "totalDocuments",
+        COUNT(a.id)::int as "analyzedDocuments",
+        COUNT(CASE WHEN a.num_flags > 0 THEN 1 END)::int as "documentsWithFlags"
+      FROM regulatory_documents rd
+      LEFT JOIN analyses a ON a.document_id = rd.id AND a.is_current = true
+      ${stateCondition}
+    `);
+
+    // Get flag counts by severity
+    const flagStats = await this.db.execute(sql`
+      SELECT
+        COUNT(*)::int as "totalFlags",
+        COUNT(CASE WHEN rf.severity >= 7 THEN 1 END)::int as "highSeverity",
+        COUNT(CASE WHEN rf.severity >= 4 AND rf.severity < 7 THEN 1 END)::int as "mediumSeverity",
+        COUNT(CASE WHEN rf.severity >= 1 AND rf.severity < 4 THEN 1 END)::int as "lowSeverity",
+        COUNT(CASE WHEN rf.review_status = 'unreviewed' OR rf.review_status IS NULL THEN 1 END)::int as "unreviewedFlags"
+      FROM red_flags rf
+      JOIN analyses a ON a.id = rf.analysis_id AND a.is_current = true
+      JOIN regulatory_documents rd ON rd.id = a.document_id
+      ${stateCondition}
+    `);
+
+    const docRow = docStats.rows[0] as {
+      totalDocuments: number;
+      analyzedDocuments: number;
+      documentsWithFlags: number;
+    };
+
+    const flagRow = flagStats.rows[0] as {
+      totalFlags: number;
+      highSeverity: number;
+      mediumSeverity: number;
+      lowSeverity: number;
+      unreviewedFlags: number;
+    };
+
+    return {
+      totalDocuments: docRow.totalDocuments,
+      analyzedDocuments: docRow.analyzedDocuments,
+      documentsWithFlags: docRow.documentsWithFlags,
+      totalFlags: flagRow.totalFlags,
+      flagsBySeverity: {
+        high: flagRow.highSeverity,
+        medium: flagRow.mediumSeverity,
+        low: flagRow.lowSeverity,
+      },
+      unreviewedFlags: flagRow.unreviewedFlags,
+    };
+  }
+
+  /**
+   * Get stats for all states at once (for state selector cards)
+   */
+  async getAllStateStats(): Promise<Record<StateCode, DashboardStats>> {
+    const [nyStats, njStats] = await Promise.all([
+      this.getDashboardStats('ny'),
+      this.getDashboardStats('nj'),
+    ]);
+
+    return {
+      ny: nyStats,
+      nj: njStats,
+    };
   }
 }

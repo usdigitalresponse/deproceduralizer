@@ -3,3 +3,4 @@ export { Header } from './Header';
 export { Footer } from './Footer';
 export { PageHeader } from './PageHeader';
 export { StateContextBar } from './StateContextBar';
+export { MobileNav } from './MobileNav';
