@@ -6,10 +6,16 @@ import type { HierarchyNode, HierarchyFilterOptions, StateCode } from '@deproced
 import { getHierarchyChildren, getHierarchyChildrenFast } from '@/lib/actions/hierarchy';
 import { Card } from '@/components/ui/Card';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerBody, DrawerClose } from '@/components/ui';
+import { ResizableDivider } from '@/components/ui/ResizableDivider';
 import { useResponsive } from '@/hooks';
 import { HierarchyTree } from './HierarchyTree';
 import { BrowseFilters } from './BrowseFilters';
 import { DetailPanel } from './DetailPanel';
+
+const PANEL_WIDTH_KEY = 'browse-panel-width';
+const DEFAULT_PANEL_WIDTH = 400;
+const MIN_PANEL_WIDTH = 200;
+const MAX_PANEL_WIDTH_PERCENT = 0.6;
 
 // Parse expanded IDs from URL param
 function parseExpandedIds(param: string | null): Set<number> {
@@ -42,6 +48,43 @@ export function BrowseClient({
 }: BrowseClientProps) {
   // Responsive state
   const { isMobile } = useResponsive();
+
+  // Panel resize state
+  const [panelWidth, setPanelWidth] = useState(DEFAULT_PANEL_WIDTH);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Load panel width from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem(PANEL_WIDTH_KEY);
+    if (saved) {
+      const width = parseInt(saved, 10);
+      if (!isNaN(width) && width >= MIN_PANEL_WIDTH) {
+        setPanelWidth(width);
+      }
+    }
+  }, []);
+
+  // Handle panel resize
+  const handlePanelResize = useCallback((delta: number) => {
+    setPanelWidth(prev => {
+      const container = containerRef.current;
+      const maxWidth = container
+        ? container.clientWidth * MAX_PANEL_WIDTH_PERCENT
+        : 800;
+      return Math.min(Math.max(prev + delta, MIN_PANEL_WIDTH), maxWidth);
+    });
+  }, []);
+
+  // Save to localStorage when resize ends
+  const handlePanelResizeEnd = useCallback(() => {
+    localStorage.setItem(PANEL_WIDTH_KEY, String(panelWidth));
+  }, [panelWidth]);
+
+  // Reset panel width to default
+  const handlePanelReset = useCallback(() => {
+    setPanelWidth(DEFAULT_PANEL_WIDTH);
+    localStorage.setItem(PANEL_WIDTH_KEY, String(DEFAULT_PANEL_WIDTH));
+  }, []);
 
   // URL state management
   const router = useRouter();
@@ -205,9 +248,12 @@ export function BrowseClient({
       />
 
       {/* Main content: tree + detail panel */}
-      <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
-        {/* Tree panel - full width on mobile, fixed width on desktop */}
-        <div className="w-full lg:w-[400px] lg:shrink-0">
+      <div ref={containerRef} className="flex flex-col lg:flex-row gap-4 lg:gap-0">
+        {/* Tree panel - full width on mobile, resizable on desktop */}
+        <div
+          className="w-full lg:shrink-0"
+          style={isMobile ? undefined : { width: panelWidth }}
+        >
           <Card padding="none" className="h-[50vh] lg:h-[calc(100vh-16rem)] overflow-hidden">
             <HierarchyTree
               roots={initialRoots}
@@ -225,6 +271,16 @@ export function BrowseClient({
             />
           </Card>
         </div>
+
+        {/* Resizable divider - desktop only */}
+        {!isMobile && (
+          <ResizableDivider
+            onResize={handlePanelResize}
+            onResizeEnd={handlePanelResizeEnd}
+            onReset={handlePanelReset}
+            className="mx-2 hidden lg:block"
+          />
+        )}
 
         {/* Detail panel - side panel on desktop, drawer on mobile */}
         {isMobile ? (

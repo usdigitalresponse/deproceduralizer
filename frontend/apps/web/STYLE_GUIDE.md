@@ -476,6 +476,50 @@ import { RegulationModal } from '@/components/review';
 
 ---
 
+## Resizable Panels
+
+### ResizableDivider
+
+Draggable divider for resizing adjacent panels:
+
+```tsx
+import { ResizableDivider } from '@/components/ui/ResizableDivider';
+
+<div className="flex">
+  <div style={{ width: panelWidth }}>Left Panel</div>
+  <ResizableDivider
+    onResize={(delta) => setPanelWidth(w => w + delta)}
+    onResizeEnd={() => localStorage.setItem('width', panelWidth)}
+    onReset={() => setPanelWidth(400)}
+  />
+  <div className="flex-1">Right Panel</div>
+</div>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `onResize` | `(delta: number) => void` | Called during drag with pixel delta |
+| `onResizeEnd` | `() => void` | Called when drag ends (save to storage) |
+| `onReset` | `() => void` | Called on double-click (reset to default) |
+| `orientation` | `'vertical' \| 'horizontal'` | Divider direction (default: `'vertical'`) |
+
+Features:
+- 4px hit area with 1px visible line
+- `col-resize` cursor on hover
+- Prevents text selection during drag
+- Double-click to reset to default
+- Uses pointer events for touch/mouse support
+- Accessible: `role="separator"` with `aria-orientation`
+
+**Browse View Integration**: The browse page uses this for resizable tree/detail panels:
+- Default width: 400px
+- Min width: 200px
+- Max width: 60% of container
+- Persists to localStorage (`browse-panel-width`)
+- Hidden on mobile (uses drawer pattern instead)
+
+---
+
 ## Files Structure
 
 ```
@@ -508,6 +552,7 @@ apps/web/src/
 │   │   ├── Input.tsx
 │   │   ├── LevelBadge.tsx  # Hierarchy level badges
 │   │   ├── Modal.tsx       # Radix Dialog wrapper
+│   │   ├── ResizableDivider.tsx # Draggable panel divider
 │   │   ├── SearchInput.tsx # Search with debounce, clear, loading
 │   │   ├── Select.tsx      # Radix Select wrapper
 │   │   ├── Tag.tsx         # Labels, keywords, matched phrases
@@ -667,19 +712,28 @@ The Header component includes responsive navigation:
 
 ### Browse View Pattern
 
-The Browse page uses a drawer pattern for mobile detail viewing:
+The Browse page uses a drawer pattern for mobile and resizable panels on desktop:
 
-- **Desktop**: Side-by-side layout (400px tree + flex detail panel)
+- **Desktop**: Side-by-side with resizable divider (default 400px tree, flex detail panel)
 - **Mobile**: Tree full-width, detail panel slides in as drawer when item selected
 
 ```tsx
-<div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
-  {/* Tree - always visible, full width on mobile */}
-  <div className="w-full lg:w-[400px] lg:shrink-0">
+<div ref={containerRef} className="flex flex-col lg:flex-row gap-4 lg:gap-0">
+  {/* Tree - resizable width on desktop */}
+  <div style={isMobile ? undefined : { width: panelWidth }}>
     <Card className="h-[50vh] lg:h-[calc(100vh-16rem)]">
       <HierarchyTree />
     </Card>
   </div>
+
+  {/* Resizable divider - desktop only */}
+  {!isMobile && (
+    <ResizableDivider
+      onResize={handlePanelResize}
+      onResizeEnd={handlePanelResizeEnd}
+      onReset={handlePanelReset}
+    />
+  )}
 
   {/* Detail - drawer on mobile, side panel on desktop */}
   {isMobile ? (
@@ -691,6 +745,8 @@ The Browse page uses a drawer pattern for mobile detail viewing:
   )}
 </div>
 ```
+
+Panel width persists to localStorage and respects min/max constraints.
 
 ### Touch Targets
 
