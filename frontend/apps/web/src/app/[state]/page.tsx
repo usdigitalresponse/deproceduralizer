@@ -1,9 +1,10 @@
 import { Suspense } from 'react';
+import { notFound } from 'next/navigation';
 import { db, RegulatoryDocumentsRepository, type PaginationOptions, type FilterOptions, type StateCode } from '@deproceduralizer/database';
 import RegulationsClient from '@/components/RegulationsClient';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Container } from '@/components/layout/Container';
-import { STATE_CONFIG } from '@/types/state';
+import { STATE_CONFIG, isValidState } from '@/types/state';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,6 +37,12 @@ function parseBooleanParam(value: string | undefined): boolean | undefined {
 export default async function Home({ params, searchParams }: PageProps) {
   const { state } = await params;
   const queryParams = await searchParams;
+
+  // Validate state parameter
+  if (!isValidState(state)) {
+    notFound();
+  }
+
   const stateCode = state as StateCode;
   const stateConfig = STATE_CONFIG[stateCode];
 

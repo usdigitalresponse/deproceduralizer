@@ -13,6 +13,7 @@ interface AncestorNode {
 interface HierarchyBreadcrumbsProps {
   documentId: number;
   currentTitle: string;
+  currentLevel?: string | null;
   onNavigate?: (id: number) => void;
 }
 
@@ -34,6 +35,7 @@ const levelLabels: Record<string, string> = {
 export function HierarchyBreadcrumbs({
   documentId,
   currentTitle,
+  currentLevel,
   onNavigate,
 }: HierarchyBreadcrumbsProps) {
   const [ancestors, setAncestors] = useState<AncestorNode[]>([]);
@@ -75,10 +77,6 @@ export function HierarchyBreadcrumbs({
         <span>Loading hierarchy...</span>
       </div>
     );
-  }
-
-  if (ancestors.length === 0) {
-    return null;
   }
 
   // Truncate title for display
@@ -123,11 +121,18 @@ export function HierarchyBreadcrumbs({
       ))}
       {/* Current document (not clickable) */}
       <span className="flex items-center gap-1">
-        <ChevronRight className="w-3 h-3 text-[var(--color-text-muted)]" />
+        {ancestors.length > 0 && (
+          <ChevronRight className="w-3 h-3 text-[var(--color-text-muted)]" />
+        )}
         <span
           className="px-1.5 py-0.5 text-[var(--color-text)] max-w-[200px] truncate"
           title={currentTitle}
         >
+          {currentLevel && (
+            <span className="font-medium text-[var(--color-text-secondary)] mr-1">
+              {levelLabels[currentLevel] || currentLevel}:
+            </span>
+          )}
           {truncateTitle(cleanTitle(currentTitle), 30)}
         </span>
       </span>

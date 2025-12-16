@@ -157,6 +157,7 @@ export function DetailPanel({ documentId, onClose, onNavigate }: DetailPanelProp
         <HierarchyBreadcrumbs
           documentId={document.id}
           currentTitle={document.title}
+          currentLevel={document.hierarchyLevel}
           onNavigate={onNavigate}
         />
       </div>

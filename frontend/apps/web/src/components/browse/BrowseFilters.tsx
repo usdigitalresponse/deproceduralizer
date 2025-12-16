@@ -1,6 +1,6 @@
 'use client';
 
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useCallback } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
@@ -49,6 +49,7 @@ export function BrowseFilters({
   className = '',
 }: BrowseFiltersProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
 
   const updateParams = useCallback(
@@ -63,14 +64,15 @@ export function BrowseFilters({
         }
       }
 
-      router.push(`/browse?${params.toString()}`);
+      const queryString = params.toString();
+      router.push(queryString ? `${pathname}?${queryString}` : pathname);
     },
-    [router, searchParams]
+    [router, pathname, searchParams]
   );
 
   const clearFilters = useCallback(() => {
-    router.push('/browse');
-  }, [router]);
+    router.push(pathname);
+  }, [router, pathname]);
 
   // Check if any filters are active
   const hasActiveFilters =
