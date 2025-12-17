@@ -1,0 +1,748 @@
+{
+  "id": "f34e5fe2-e505-467d-bab0-c8b5994290ec",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.regulatory_documents": {
+      "name": "regulatory_documents",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigserial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "source_index": {
+          "name": "source_index",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "type": {
+          "name": "type",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "state": {
+          "name": "state",
+          "type": "varchar(2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "url": {
+          "name": "url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "url_type": {
+          "name": "url_type",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "content": {
+          "name": "content",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "parent_id": {
+          "name": "parent_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "hierarchy_level": {
+          "name": "hierarchy_level",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "hierarchy_path": {
+          "name": "hierarchy_path",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "nycrr_title": {
+          "name": "nycrr_title",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "nycrr_part": {
+          "name": "nycrr_part",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "nycrr_section": {
+          "name": "nycrr_section",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "njac_title": {
+          "name": "njac_title",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "njac_chapter": {
+          "name": "njac_chapter",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "njac_subchapter": {
+          "name": "njac_subchapter",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "scraped_from_url": {
+          "name": "scraped_from_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "direct_child_count": {
+          "name": "direct_child_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "default": 0
+        },
+        "descendant_count": {
+          "name": "descendant_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "default": 0
+        },
+        "descendant_flag_count": {
+          "name": "descendant_flag_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "default": 0
+        },
+        "descendant_max_severity": {
+          "name": "descendant_max_severity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "has_descendant_analysis": {
+          "name": "has_descendant_analysis",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
+        },
+        "compliance_issue_count": {
+          "name": "compliance_issue_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "default": 0
+        },
+        "descendant_compliance_issue_count": {
+          "name": "descendant_compliance_issue_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "default": 0
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "regulatory_documents_state_source_index_type_unique": {
+          "name": "regulatory_documents_state_source_index_type_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "state",
+            "source_index",
+            "type"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.analyses": {
+      "name": "analyses",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigserial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "document_id": {
+          "name": "document_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "analyzed_at": {
+          "name": "analyzed_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "model_version": {
+          "name": "model_version",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "has_implementation_issues": {
+          "name": "has_implementation_issues",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
+        },
+        "overall_complexity": {
+          "name": "overall_complexity",
+          "type": "varchar(10)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "summary": {
+          "name": "summary",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "requires_technical_review": {
+          "name": "requires_technical_review",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
+        },
+        "has_reporting_requirement": {
+          "name": "has_reporting_requirement",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
+        },
+        "max_severity": {
+          "name": "max_severity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "num_flags": {
+          "name": "num_flags",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "default": 0
+        },
+        "is_current": {
+          "name": "is_current",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "analyses_document_id_regulatory_documents_id_fk": {
+          "name": "analyses_document_id_regulatory_documents_id_fk",
+          "tableFrom": "analyses",
+          "tableTo": "regulatory_documents",
+          "columnsFrom": [
+            "document_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.red_flags": {
+      "name": "red_flags",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigserial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "analysis_id": {
+          "name": "analysis_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "category": {
+          "name": "category",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "explanation": {
+          "name": "explanation",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "severity": {
+          "name": "severity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "complexity": {
+          "name": "complexity",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "matched_phrases": {
+          "name": "matched_phrases",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'{}'"
+        },
+        "implementation_approach": {
+          "name": "implementation_approach",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "effort_estimate": {
+          "name": "effort_estimate",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "text_examples": {
+          "name": "text_examples",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'{}'"
+        },
+        "review_status": {
+          "name": "review_status",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'unreviewed'"
+        },
+        "reviewed_by": {
+          "name": "reviewed_by",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reviewed_at": {
+          "name": "reviewed_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reviewer_notes": {
+          "name": "reviewer_notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "priority": {
+          "name": "priority",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "impact_type": {
+          "name": "impact_type",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "red_flags_analysis_id_analyses_id_fk": {
+          "name": "red_flags_analysis_id_analyses_id_fk",
+          "tableFrom": "red_flags",
+          "tableTo": "analyses",
+          "columnsFrom": [
+            "analysis_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.compliance_issues": {
+      "name": "compliance_issues",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigserial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "document_id": {
+          "name": "document_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "issue_type": {
+          "name": "issue_type",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "term_matched": {
+          "name": "term_matched",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "context": {
+          "name": "context",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "requirement_quote": {
+          "name": "requirement_quote",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "from_statute": {
+          "name": "from_statute",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "statute_citation": {
+          "name": "statute_citation",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "llm_confirmed": {
+          "name": "llm_confirmed",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
+        },
+        "review_status": {
+          "name": "review_status",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'unreviewed'"
+        },
+        "reviewed_by": {
+          "name": "reviewed_by",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reviewed_at": {
+          "name": "reviewed_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reviewer_notes": {
+          "name": "reviewer_notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "priority": {
+          "name": "priority",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "impact_type": {
+          "name": "impact_type",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "state": {
+          "name": "state",
+          "type": "varchar(2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "compliance_issues_document_id_regulatory_documents_id_fk": {
+          "name": "compliance_issues_document_id_regulatory_documents_id_fk",
+          "tableFrom": "compliance_issues",
+          "tableTo": "regulatory_documents",
+          "columnsFrom": [
+            "document_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.statute_references": {
+      "name": "statute_references",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigserial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "document_id": {
+          "name": "document_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "usc_citations": {
+          "name": "usc_citations",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cfr_citations": {
+          "name": "cfr_citations",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "public_laws": {
+          "name": "public_laws",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "acts": {
+          "name": "acts",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "state_title": {
+          "name": "state_title",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "state_section": {
+          "name": "state_section",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "statute_references_document_id_regulatory_documents_id_fk": {
+          "name": "statute_references_document_id_regulatory_documents_id_fk",
+          "tableFrom": "statute_references",
+          "tableTo": "regulatory_documents",
+          "columnsFrom": [
+            "document_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.document_notes": {
+      "name": "document_notes",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigserial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "document_id": {
+          "name": "document_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "note_type": {
+          "name": "note_type",
+          "type": "note_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "anchor_start_offset": {
+          "name": "anchor_start_offset",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "anchor_end_offset": {
+          "name": "anchor_end_offset",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "anchor_text": {
+          "name": "anchor_text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "content": {
+          "name": "content",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "author_name": {
+          "name": "author_name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "state": {
+          "name": "state",
+          "type": "varchar(2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "document_notes_document_id_regulatory_documents_id_fk": {
+          "name": "document_notes_document_id_regulatory_documents_id_fk",
+          "tableFrom": "document_notes",
+          "tableTo": "regulatory_documents",
+          "columnsFrom": [
+            "document_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "public.note_type": {
+      "name": "note_type",
+      "schema": "public",
+      "values": [
+        "anchored",
+        "document"
+      ]
+    }
+  },
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

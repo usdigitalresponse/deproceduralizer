@@ -3,6 +3,7 @@ import { regulatoryDocuments } from './regulatory-documents';
 import { analyses } from './analyses';
 import { redFlags } from './red-flags';
 import { statuteReferences } from './statute-references';
+import { documentNotes } from './document-notes';
 
 export const regulatoryDocumentsRelations = relations(regulatoryDocuments, ({ one, many }) => ({
   parent: one(regulatoryDocuments, {
@@ -13,6 +14,14 @@ export const regulatoryDocumentsRelations = relations(regulatoryDocuments, ({ on
   children: many(regulatoryDocuments, { relationName: 'parentChild' }),
   analyses: many(analyses),
   statuteReferences: many(statuteReferences),
+  notes: many(documentNotes),
+}));
+
+export const documentNotesRelations = relations(documentNotes, ({ one }) => ({
+  document: one(regulatoryDocuments, {
+    fields: [documentNotes.documentId],
+    references: [regulatoryDocuments.id],
+  }),
 }));
 
 export const analysesRelations = relations(analyses, ({ one, many }) => ({
