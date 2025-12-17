@@ -1,6 +1,6 @@
 'use client';
 
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { Container } from './Container';
 import { STATE_CONFIG, VALID_STATES, STATE_STORAGE_KEY, type StateCode } from '@/types/state';
 import { useEffect, useState } from 'react';
@@ -16,6 +16,7 @@ interface StateContextBarProps {
 export function StateContextBar({ state }: StateContextBarProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const config = STATE_CONFIG[state];
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
@@ -35,7 +36,8 @@ export function StateContextBar({ state }: StateContextBarProps) {
     // Replace the state prefix in the current path
     // e.g., /ny/browse -> /nj/browse
     const pathWithoutState = pathname.replace(/^\/(ny|nj)/, '');
-    const newPath = `/${newState}${pathWithoutState || ''}`;
+    const queryString = searchParams.toString();
+    const newPath = `/${newState}${pathWithoutState || ''}${queryString ? `?${queryString}` : ''}`;
 
     // Save to localStorage
     localStorage.setItem(STATE_STORAGE_KEY, newState);

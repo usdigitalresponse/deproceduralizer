@@ -100,7 +100,16 @@ CREATE TABLE red_flags (
   reviewed_at TIMESTAMP,               -- When flag was reviewed
   reviewer_notes TEXT,                 -- Detailed notes from reviewer
   priority INTEGER,                    -- Priority ranking for announcing
-  impact_type VARCHAR(100)             -- Type of impact: 'cost_savings', 'time_savings', 'accessibility', etc.
+  impact_type VARCHAR(100),            -- Type of impact: 'cost_savings', 'time_savings', 'accessibility', etc.
+
+  -- Developer tracking fields
+  developer_status VARCHAR(50) DEFAULT 'unresolved',  -- 'unresolved', 'resolved', 'pending', 'backlogged', 'need_more_info'
+  developer_assigned VARCHAR(50),      -- 'Michael' or 'Abigail'
+  developer_notes TEXT,                -- Notes from developer
+  resolution_type VARCHAR(50),         -- 'implemented' or 'not_implemented' (when resolved)
+  resolution_comments TEXT,            -- Comments about the resolution
+  developer_question TEXT,             -- Question for reviewer (when need_more_info)
+  developer_checked_at TIMESTAMP       -- When developer last checked this item
 );
 
 CREATE TABLE statute_references (
@@ -134,6 +143,8 @@ CREATE INDEX idx_red_flags_analysis ON red_flags(analysis_id);
 CREATE INDEX idx_red_flags_severity ON red_flags(severity);
 CREATE INDEX idx_red_flags_review_status ON red_flags(review_status);
 CREATE INDEX idx_red_flags_priority ON red_flags(priority) WHERE priority IS NOT NULL;
+CREATE INDEX idx_red_flags_developer_status ON red_flags(developer_status);
+CREATE INDEX idx_red_flags_developer_assigned ON red_flags(developer_assigned);
 CREATE INDEX idx_statute_references_document ON statute_references(document_id);
 
 -- View: Latest analysis for each document
@@ -219,6 +230,15 @@ CREATE TABLE compliance_issues (
   priority INTEGER,                                   -- Priority ranking
   impact_type VARCHAR(100),                           -- Type of impact
 
+  -- Developer tracking fields
+  developer_status VARCHAR(50) DEFAULT 'unresolved',  -- 'unresolved', 'resolved', 'pending', 'backlogged', 'need_more_info'
+  developer_assigned VARCHAR(50),                     -- 'Michael' or 'Abigail'
+  developer_notes TEXT,                               -- Notes from developer
+  resolution_type VARCHAR(50),                        -- 'implemented' or 'not_implemented' (when resolved)
+  resolution_comments TEXT,                           -- Comments about the resolution
+  developer_question TEXT,                            -- Question for reviewer (when need_more_info)
+  developer_checked_at TIMESTAMP,                     -- When developer last checked this item
+
   -- Metadata
   state VARCHAR(2) NOT NULL,                          -- 'NY' or 'NJ'
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -229,6 +249,8 @@ CREATE INDEX idx_compliance_issues_document ON compliance_issues(document_id);
 CREATE INDEX idx_compliance_issues_state ON compliance_issues(state);
 CREATE INDEX idx_compliance_issues_issue_type ON compliance_issues(issue_type);
 CREATE INDEX idx_compliance_issues_review_status ON compliance_issues(review_status);
+CREATE INDEX idx_compliance_issues_developer_status ON compliance_issues(developer_status);
+CREATE INDEX idx_compliance_issues_developer_assigned ON compliance_issues(developer_assigned);
 CREATE INDEX idx_compliance_issues_state_issue ON compliance_issues(state, issue_type);
 
 -- Legacy tables (from earlier definition extraction implementation)

@@ -1,9 +1,10 @@
-import { eq, and, desc, asc, sql, count, or, isNull } from 'drizzle-orm';
+import { eq, and, desc, asc, sql, count, or, isNull, ne } from 'drizzle-orm';
 import { BaseRepository } from './base.repository';
 import { complianceIssues, ComplianceIssue, IssueType } from '../schema/compliance-issues';
 import { regulatoryDocuments } from '../schema/regulatory-documents';
-import { ReviewStatus, ImpactType } from '../schema/red-flags';
+import { ReviewStatus, ImpactType, DeveloperStatus, ResolutionType, Developer } from '../schema/red-flags';
 import { StateCode } from './regulatory-documents.repository';
+import { DeveloperStatusCounts } from './red-flags.repository';
 
 export interface UpdateComplianceIssueReviewInput {
   reviewStatus: ReviewStatus;
@@ -11,6 +12,15 @@ export interface UpdateComplianceIssueReviewInput {
   reviewerNotes?: string;
   priority?: number;
   impactType?: ImpactType;
+}
+
+export interface UpdateComplianceIssueDeveloperInput {
+  developerStatus: DeveloperStatus;
+  developerAssigned: Developer;
+  developerNotes?: string;
+  resolutionType?: ResolutionType;
+  resolutionComments?: string;
+  developerQuestion?: string;
 }
 
 export interface ComplianceIssueWithContext extends ComplianceIssue {
@@ -290,6 +300,14 @@ export class ComplianceIssuesRepository extends BaseRepository {
         reviewerNotes: complianceIssues.reviewerNotes,
         priority: complianceIssues.priority,
         impactType: complianceIssues.impactType,
+        // Developer fields
+        developerStatus: complianceIssues.developerStatus,
+        developerAssigned: complianceIssues.developerAssigned,
+        developerNotes: complianceIssues.developerNotes,
+        resolutionType: complianceIssues.resolutionType,
+        resolutionComments: complianceIssues.resolutionComments,
+        developerQuestion: complianceIssues.developerQuestion,
+        developerCheckedAt: complianceIssues.developerCheckedAt,
         state: complianceIssues.state,
         createdAt: complianceIssues.createdAt,
         // Regulation context
@@ -327,6 +345,13 @@ export class ComplianceIssuesRepository extends BaseRepository {
       reviewerNotes: row.reviewerNotes,
       priority: row.priority,
       impactType: row.impactType,
+      developerStatus: row.developerStatus,
+      developerAssigned: row.developerAssigned,
+      developerNotes: row.developerNotes,
+      resolutionType: row.resolutionType,
+      resolutionComments: row.resolutionComments,
+      developerQuestion: row.developerQuestion,
+      developerCheckedAt: row.developerCheckedAt,
       state: row.state,
       createdAt: row.createdAt,
       regulation: {
@@ -349,5 +374,374 @@ export class ComplianceIssuesRepository extends BaseRepository {
       pageSize,
       totalPages: Math.ceil(total / pageSize),
     };
+  }
+
+  /**
+   * Update developer tracking fields for a compliance issue
+   */
+  async updateDeveloperStatus(id: number, data: UpdateComplianceIssueDeveloperInput): Promise<ComplianceIssue | undefined> {
+    const result = await this.db
+      .update(complianceIssues)
+      .set({
+        developerStatus: data.developerStatus,
+        developerAssigned: data.developerAssigned,
+        developerNotes: data.developerNotes ?? null,
+        resolutionType: data.resolutionType ?? null,
+        resolutionComments: data.resolutionComments ?? null,
+        developerQuestion: data.developerQuestion ?? null,
+        developerCheckedAt: new Date(),
+      })
+      .where(eq(complianceIssues.id, id))
+      .returning();
+
+    return result[0];
+  }
+
+  /**
+   * Get counts by developer status for progress display
+   */
+  async getDeveloperStatusCounts(state: StateCode): Promise<DeveloperStatusCounts> {
+    const result = await this.db
+      .select({
+        status: complianceIssues.developerStatus,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(complianceIssues)
+      .where(and(
+        eq(complianceIssues.state, state.toUpperCase()),
+        // Only count reviewed items
+        ne(complianceIssues.reviewStatus, 'unreviewed')
+      ))
+      .groupBy(complianceIssues.developerStatus);
+
+    // Initialize counts with zeros
+    const counts: DeveloperStatusCounts = {
+      unresolved: 0,
+      resolved: 0,
+      pending: 0,
+      backlogged: 0,
+      need_more_info: 0,
+      total: 0,
+    };
+
+    // Fill in counts from query results
+    for (const row of result) {
+      const status = (row.status ?? 'unresolved') as DeveloperStatus;
+      if (status in counts) {
+        counts[status] = row.count;
+      }
+      counts.total += row.count;
+    }
+
+    return counts;
+  }
+
+  /**
+   * Get paginated reviewed compliance issues for developer mode
+   */
+  async getReviewedPaginated(
+    options: ComplianceIssuePaginationOptions & {
+      developerStatus?: DeveloperStatus | 'all';
+      developerAssigned?: Developer;
+    }
+  ): Promise<PaginatedComplianceIssuesResult> {
+    const { state, page, pageSize, sortBy = 'reviewedAt', sortOrder = 'desc', filters, developerStatus, developerAssigned } = options;
+    const offset = (page - 1) * pageSize;
+
+    // Build where conditions - only reviewed items
+    const conditions: ReturnType<typeof eq>[] = [
+      eq(complianceIssues.state, state.toUpperCase()),
+      ne(complianceIssues.reviewStatus, 'unreviewed'),
+    ];
+
+    // Developer status filter
+    if (developerStatus && developerStatus !== 'all') {
+      conditions.push(eq(complianceIssues.developerStatus, developerStatus));
+    }
+
+    // Developer assigned filter
+    if (developerAssigned) {
+      conditions.push(eq(complianceIssues.developerAssigned, developerAssigned));
+    }
+
+    if (filters) {
+      // Status filter
+      if (filters.status && filters.status !== 'all') {
+        conditions.push(eq(complianceIssues.reviewStatus, filters.status));
+      }
+
+      // Issue type filter
+      if (filters.issueType && filters.issueType !== 'all') {
+        conditions.push(eq(complianceIssues.issueType, filters.issueType));
+      }
+    }
+
+    const whereClause = and(...conditions);
+
+    // Get total count
+    const [{ count: total }] = await this.db
+      .select({ count: count() })
+      .from(complianceIssues)
+      .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
+      .where(whereClause);
+
+    // Build sort column
+    const sortColumn = {
+      issueType: complianceIssues.issueType,
+      createdAt: complianceIssues.createdAt,
+      reviewedAt: complianceIssues.reviewedAt,
+      developerCheckedAt: complianceIssues.developerCheckedAt,
+    }[sortBy] ?? complianceIssues.reviewedAt;
+
+    const orderByClause = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
+
+    // Get paginated results with regulation context
+    const results = await this.db
+      .select({
+        // Compliance issue fields
+        id: complianceIssues.id,
+        documentId: complianceIssues.documentId,
+        issueType: complianceIssues.issueType,
+        termMatched: complianceIssues.termMatched,
+        context: complianceIssues.context,
+        requirementQuote: complianceIssues.requirementQuote,
+        fromStatute: complianceIssues.fromStatute,
+        statuteCitation: complianceIssues.statuteCitation,
+        llmConfirmed: complianceIssues.llmConfirmed,
+        reviewStatus: complianceIssues.reviewStatus,
+        reviewedBy: complianceIssues.reviewedBy,
+        reviewedAt: complianceIssues.reviewedAt,
+        reviewerNotes: complianceIssues.reviewerNotes,
+        priority: complianceIssues.priority,
+        impactType: complianceIssues.impactType,
+        // Developer fields
+        developerStatus: complianceIssues.developerStatus,
+        developerAssigned: complianceIssues.developerAssigned,
+        developerNotes: complianceIssues.developerNotes,
+        resolutionType: complianceIssues.resolutionType,
+        resolutionComments: complianceIssues.resolutionComments,
+        developerQuestion: complianceIssues.developerQuestion,
+        developerCheckedAt: complianceIssues.developerCheckedAt,
+        state: complianceIssues.state,
+        createdAt: complianceIssues.createdAt,
+        // Regulation context
+        regulationId: regulatoryDocuments.id,
+        regulationTitle: regulatoryDocuments.title,
+        regulationNycrrTitle: regulatoryDocuments.nycrrTitle,
+        regulationNycrrPart: regulatoryDocuments.nycrrPart,
+        regulationNycrrSection: regulatoryDocuments.nycrrSection,
+        regulationNjacTitle: regulatoryDocuments.njacTitle,
+        regulationNjacChapter: regulatoryDocuments.njacChapter,
+        regulationNjacSubchapter: regulatoryDocuments.njacSubchapter,
+        regulationUrl: regulatoryDocuments.url,
+      })
+      .from(complianceIssues)
+      .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
+      .where(whereClause)
+      .orderBy(orderByClause)
+      .limit(pageSize)
+      .offset(offset);
+
+    // Transform results to ComplianceIssueWithContext shape
+    const data: ComplianceIssueWithContext[] = results.map(row => ({
+      id: Number(row.id),
+      documentId: Number(row.documentId),
+      issueType: row.issueType,
+      termMatched: row.termMatched,
+      context: row.context,
+      requirementQuote: row.requirementQuote,
+      fromStatute: row.fromStatute,
+      statuteCitation: row.statuteCitation,
+      llmConfirmed: row.llmConfirmed,
+      reviewStatus: row.reviewStatus,
+      reviewedBy: row.reviewedBy,
+      reviewedAt: row.reviewedAt,
+      reviewerNotes: row.reviewerNotes,
+      priority: row.priority,
+      impactType: row.impactType,
+      developerStatus: row.developerStatus,
+      developerAssigned: row.developerAssigned,
+      developerNotes: row.developerNotes,
+      resolutionType: row.resolutionType,
+      resolutionComments: row.resolutionComments,
+      developerQuestion: row.developerQuestion,
+      developerCheckedAt: row.developerCheckedAt,
+      state: row.state,
+      createdAt: row.createdAt,
+      regulation: {
+        id: row.regulationId,
+        title: row.regulationTitle,
+        nycrrTitle: row.regulationNycrrTitle,
+        nycrrPart: row.regulationNycrrPart,
+        nycrrSection: row.regulationNycrrSection,
+        njacTitle: row.regulationNjacTitle,
+        njacChapter: row.regulationNjacChapter,
+        njacSubchapter: row.regulationNjacSubchapter,
+        url: row.regulationUrl,
+      },
+    }));
+
+    return {
+      data,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
+  }
+
+  /**
+   * Get compliance issues that need more info, with reviewer's items first
+   */
+  async getNeedMoreInfoIssues(
+    state: StateCode,
+    options: {
+      page: number;
+      pageSize: number;
+      reviewerName?: string;
+    }
+  ): Promise<PaginatedComplianceIssuesResult> {
+    const { page, pageSize, reviewerName } = options;
+    const offset = (page - 1) * pageSize;
+
+    const conditions = [
+      eq(complianceIssues.state, state.toUpperCase()),
+      eq(complianceIssues.developerStatus, 'need_more_info'),
+    ];
+
+    const whereClause = and(...conditions);
+
+    // Get total count
+    const [{ count: total }] = await this.db
+      .select({ count: count() })
+      .from(complianceIssues)
+      .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
+      .where(whereClause);
+
+    // Order: reviewer's items first, then by developerCheckedAt desc
+    const orderBy = reviewerName
+      ? [
+          sql`CASE WHEN ${complianceIssues.reviewedBy} = ${reviewerName} THEN 0 ELSE 1 END`,
+          desc(complianceIssues.developerCheckedAt),
+        ]
+      : [desc(complianceIssues.developerCheckedAt)];
+
+    // Get paginated results
+    const results = await this.db
+      .select({
+        id: complianceIssues.id,
+        documentId: complianceIssues.documentId,
+        issueType: complianceIssues.issueType,
+        termMatched: complianceIssues.termMatched,
+        context: complianceIssues.context,
+        requirementQuote: complianceIssues.requirementQuote,
+        fromStatute: complianceIssues.fromStatute,
+        statuteCitation: complianceIssues.statuteCitation,
+        llmConfirmed: complianceIssues.llmConfirmed,
+        reviewStatus: complianceIssues.reviewStatus,
+        reviewedBy: complianceIssues.reviewedBy,
+        reviewedAt: complianceIssues.reviewedAt,
+        reviewerNotes: complianceIssues.reviewerNotes,
+        priority: complianceIssues.priority,
+        impactType: complianceIssues.impactType,
+        developerStatus: complianceIssues.developerStatus,
+        developerAssigned: complianceIssues.developerAssigned,
+        developerNotes: complianceIssues.developerNotes,
+        resolutionType: complianceIssues.resolutionType,
+        resolutionComments: complianceIssues.resolutionComments,
+        developerQuestion: complianceIssues.developerQuestion,
+        developerCheckedAt: complianceIssues.developerCheckedAt,
+        state: complianceIssues.state,
+        createdAt: complianceIssues.createdAt,
+        regulationId: regulatoryDocuments.id,
+        regulationTitle: regulatoryDocuments.title,
+        regulationNycrrTitle: regulatoryDocuments.nycrrTitle,
+        regulationNycrrPart: regulatoryDocuments.nycrrPart,
+        regulationNycrrSection: regulatoryDocuments.nycrrSection,
+        regulationNjacTitle: regulatoryDocuments.njacTitle,
+        regulationNjacChapter: regulatoryDocuments.njacChapter,
+        regulationNjacSubchapter: regulatoryDocuments.njacSubchapter,
+        regulationUrl: regulatoryDocuments.url,
+      })
+      .from(complianceIssues)
+      .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
+      .where(whereClause)
+      .orderBy(...orderBy)
+      .limit(pageSize)
+      .offset(offset);
+
+    const data: ComplianceIssueWithContext[] = results.map(row => ({
+      id: Number(row.id),
+      documentId: Number(row.documentId),
+      issueType: row.issueType,
+      termMatched: row.termMatched,
+      context: row.context,
+      requirementQuote: row.requirementQuote,
+      fromStatute: row.fromStatute,
+      statuteCitation: row.statuteCitation,
+      llmConfirmed: row.llmConfirmed,
+      reviewStatus: row.reviewStatus,
+      reviewedBy: row.reviewedBy,
+      reviewedAt: row.reviewedAt,
+      reviewerNotes: row.reviewerNotes,
+      priority: row.priority,
+      impactType: row.impactType,
+      developerStatus: row.developerStatus,
+      developerAssigned: row.developerAssigned,
+      developerNotes: row.developerNotes,
+      resolutionType: row.resolutionType,
+      resolutionComments: row.resolutionComments,
+      developerQuestion: row.developerQuestion,
+      developerCheckedAt: row.developerCheckedAt,
+      state: row.state,
+      createdAt: row.createdAt,
+      regulation: {
+        id: row.regulationId,
+        title: row.regulationTitle,
+        nycrrTitle: row.regulationNycrrTitle,
+        nycrrPart: row.regulationNycrrPart,
+        nycrrSection: row.regulationNycrrSection,
+        njacTitle: row.regulationNjacTitle,
+        njacChapter: row.regulationNjacChapter,
+        njacSubchapter: row.regulationNjacSubchapter,
+        url: row.regulationUrl,
+      },
+    }));
+
+    return {
+      data,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
+  }
+
+  /**
+   * Get count of need_more_info issues, optionally filtered by reviewer
+   */
+  async getNeedMoreInfoCount(state: StateCode, reviewerName?: string): Promise<{ total: number; forReviewer: number }> {
+    const baseConditions = [
+      eq(complianceIssues.state, state.toUpperCase()),
+      eq(complianceIssues.developerStatus, 'need_more_info'),
+    ];
+
+    // Get total count
+    const [{ count: total }] = await this.db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(complianceIssues)
+      .where(and(...baseConditions));
+
+    // Get count for specific reviewer
+    let forReviewer = 0;
+    if (reviewerName) {
+      const [{ count: reviewerCount }] = await this.db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(complianceIssues)
+        .where(and(...baseConditions, eq(complianceIssues.reviewedBy, reviewerName)));
+      forReviewer = reviewerCount;
+    }
+
+    return { total, forReviewer };
   }
 }

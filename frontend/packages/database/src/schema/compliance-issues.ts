@@ -30,6 +30,15 @@ export const complianceIssues = pgTable('compliance_issues', {
   priority: integer('priority'),
   impactType: varchar('impact_type', { length: 100 }),
 
+  // Developer tracking fields
+  developerStatus: varchar('developer_status', { length: 50 }).default('unresolved'),
+  developerAssigned: varchar('developer_assigned', { length: 50 }),
+  developerNotes: text('developer_notes'),
+  resolutionType: varchar('resolution_type', { length: 50 }),
+  resolutionComments: text('resolution_comments'),
+  developerQuestion: text('developer_question'),
+  developerCheckedAt: timestamp('developer_checked_at'),
+
   // Metadata
   state: varchar('state', { length: 2 }).notNull(), // 'NY' or 'NJ'
   createdAt: timestamp('created_at').defaultNow(),
@@ -49,5 +58,6 @@ export const ISSUE_TYPES = [
 ] as const;
 export type IssueType = typeof ISSUE_TYPES[number];
 
-// Review statuses are imported from red-flags (shared)
-export type { ReviewStatus } from './red-flags';
+// Shared types from red-flags
+export type { ReviewStatus, DeveloperStatus, ResolutionType, Developer } from './red-flags';
+export { DEVELOPER_STATUSES, RESOLUTION_TYPES, DEVELOPERS } from './red-flags';

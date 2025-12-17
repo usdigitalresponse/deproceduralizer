@@ -28,6 +28,15 @@ export const redFlags = pgTable('red_flags', {
   reviewerNotes: text('reviewer_notes'),
   priority: integer('priority'),
   impactType: varchar('impact_type', { length: 100 }),
+
+  // Developer tracking fields
+  developerStatus: varchar('developer_status', { length: 50 }).default('unresolved'),
+  developerAssigned: varchar('developer_assigned', { length: 50 }),
+  developerNotes: text('developer_notes'),
+  resolutionType: varchar('resolution_type', { length: 50 }),
+  resolutionComments: text('resolution_comments'),
+  developerQuestion: text('developer_question'),
+  developerCheckedAt: timestamp('developer_checked_at'),
 });
 
 export type RedFlag = typeof redFlags.$inferSelect;
@@ -54,3 +63,24 @@ export const IMPACT_TYPES = [
   'other'
 ] as const;
 export type ImpactType = typeof IMPACT_TYPES[number];
+
+// Developer status constants
+export const DEVELOPER_STATUSES = [
+  'unresolved',
+  'resolved',
+  'pending',
+  'backlogged',
+  'need_more_info'
+] as const;
+export type DeveloperStatus = typeof DEVELOPER_STATUSES[number];
+
+// Resolution type constants (for when status is 'resolved')
+export const RESOLUTION_TYPES = [
+  'implemented',
+  'not_implemented'
+] as const;
+export type ResolutionType = typeof RESOLUTION_TYPES[number];
+
+// Developer assignment options
+export const DEVELOPERS = ['Michael', 'Abigail'] as const;
+export type Developer = typeof DEVELOPERS[number];

@@ -54,6 +54,43 @@ export const ISSUE_TYPE_LABELS: Record<string, string> = {
 export const REVIEW_TYPES = [
   { value: 'flags', label: 'Red Flags' },
   { value: 'compliance', label: 'Compliance Issues' },
+  { value: 'needs_info', label: 'Needs More Info' },
 ] as const;
 
 export type ReviewType = typeof REVIEW_TYPES[number]['value'];
+
+// Developer mode constants
+export const DEVELOPER_STATUSES = [
+  { value: 'unresolved', label: 'Unresolved' },
+  { value: 'resolved', label: 'Resolved' },
+  { value: 'pending', label: 'Pending' },
+  { value: 'backlogged', label: 'Backlogged' },
+  { value: 'need_more_info', label: 'Need More Info' },
+] as const;
+
+export type DeveloperStatusValue = typeof DEVELOPER_STATUSES[number]['value'];
+
+export const DEVELOPER_STATUS_LABELS: Record<string, string> = {
+  unresolved: 'Unresolved',
+  resolved: 'Resolved',
+  pending: 'Pending',
+  backlogged: 'Backlogged',
+  need_more_info: 'Need More Info',
+};
+
+export const RESOLUTION_TYPES = [
+  { value: 'implemented', label: 'Implemented' },
+  { value: 'not_implemented', label: 'Not Implemented' },
+] as const;
+
+export type ResolutionTypeValue = typeof RESOLUTION_TYPES[number]['value'];
+
+export const DEVELOPERS = [
+  { value: 'Michael', label: 'Michael' },
+  { value: 'Abigail', label: 'Abigail' },
+] as const;
+
+export type DeveloperValue = typeof DEVELOPERS[number]['value'];
+
+// Review mode for the toggle
+export type ReviewMode = 'review' | 'developer';

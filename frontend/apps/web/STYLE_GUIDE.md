@@ -474,6 +474,149 @@ import { RegulationModal } from '@/components/review';
 />
 ```
 
+### ReviewModeSwitcher
+
+Compact two-button toggle for switching between Review Mode and Developer Mode:
+- Positioned above the tab bar with bottom margin for visual separation
+- Uses `inline-flex` to maintain compact width
+- Persists mode in URL params (`?mode=developer`)
+
+```tsx
+import { ReviewModeSwitcher } from '@/components/review';
+
+<ReviewModeSwitcher mode={mode} />
+```
+
+### ReviewTypeTabs
+
+Tab bar for switching between content types. Adapts based on mode:
+- **Review Mode**: Red Flags, Compliance Issues, Needs More Info
+- **Developer Mode**: All Reviewed Items, Needs More Info
+
+```tsx
+import { ReviewTypeTabs } from '@/components/review';
+
+<ReviewTypeTabs
+  activeType={reviewType}
+  counts={{ flags: 100, compliance: 50, needs_info: 5 }}
+  mode={mode}
+/>
+```
+
+---
+
+## Developer Mode Components
+
+Developer Mode provides a second layer for tracking implementation status of reviewed items.
+
+### DeveloperQueue
+
+Combined queue showing both red flags and compliance issues that have been reviewed:
+- Manages local state for optimistic updates
+- Handles pagination and keyboard navigation
+- Shows developer-specific progress and filters
+
+```tsx
+import { DeveloperQueue } from '@/components/review';
+
+<DeveloperQueue
+  initialItems={items}
+  pagination={{ page, pageSize, total, totalPages }}
+  statusCounts={developerStatusCounts}
+  currentDeveloperStatus="unresolved"
+  currentDeveloperAssigned="Michael"
+  sortBy="reviewedAt"
+  sortOrder="desc"
+/>
+```
+
+### DeveloperCard
+
+Individual item card with developer tracking form:
+- Shows item type badge (Red Flag or Compliance Issue)
+- Developer status dropdown: Unresolved, Resolved, Pending, Backlogged, Need More Info
+- Developer assignment: Michael or Abigail
+- Resolution type (when resolved): Implemented or Not Implemented
+- Notes and question fields
+
+```tsx
+import { DeveloperCard } from '@/components/review';
+
+<DeveloperCard
+  item={developerItem}
+  onUpdated={handleItemUpdated}
+  onViewRegulation={handleViewRegulation}
+  isFocused={index === focusedIndex}
+/>
+```
+
+### DeveloperFilters
+
+Filter bar for developer view:
+- Status: All, Unresolved, Resolved, Pending, Backlogged, Need More Info
+- Developer: All, Michael, Abigail
+- Sort by: Review Date, Developer Checked Date
+
+```tsx
+import { DeveloperFilters } from '@/components/review';
+
+<DeveloperFilters
+  currentStatus="unresolved"
+  currentDeveloper="Michael"
+  sortBy="reviewedAt"
+  sortOrder="desc"
+/>
+```
+
+### DeveloperProgress
+
+Progress indicator showing developer status breakdown:
+- Progress bar with resolved percentage
+- Counts by status: Unresolved, Pending, Backlogged, Need More Info, Resolved
+
+```tsx
+import { DeveloperProgress } from '@/components/review';
+
+<DeveloperProgress counts={developerStatusCounts} />
+```
+
+### NeedMoreInfoQueue
+
+Queue for items where developers have requested additional information:
+- Shows items with `need_more_info` developer status
+- Prioritizes current reviewer's items at top (if reviewer name set)
+- Allows reviewers to respond with updated notes
+
+```tsx
+import { NeedMoreInfoQueue } from '@/components/review';
+
+<NeedMoreInfoQueue
+  initialItems={needsInfoItems}
+  pagination={{ page, pageSize, total, totalPages }}
+  counts={needsInfoCounts}
+  reviewerName="Test Reviewer"
+/>
+```
+
+### NeedMoreInfoCard
+
+Card for displaying developer questions and allowing reviewer responses:
+- Shows developer's question prominently
+- Highlights if current reviewer owns the item
+- Form for updating reviewer notes
+
+```tsx
+import { NeedMoreInfoCard } from '@/components/review';
+
+<NeedMoreInfoCard
+  item={needsInfoItem}
+  isOwner={true}
+  onUpdated={handleItemUpdated}
+  onViewRegulation={handleViewRegulation}
+  isFocused={index === focusedIndex}
+/>
+```
+
 ---
 
 ## Resizable Panels

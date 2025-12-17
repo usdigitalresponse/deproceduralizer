@@ -1,6 +1,6 @@
-import { eq, and, desc, asc, sql, count, gte, lt, or, isNull } from 'drizzle-orm';
+import { eq, and, desc, asc, sql, count, gte, lt, or, isNull, ne } from 'drizzle-orm';
 import { BaseRepository } from './base.repository';
-import { redFlags, RedFlag, ReviewStatus, ImpactType, REVIEW_STATUSES } from '../schema/red-flags';
+import { redFlags, RedFlag, ReviewStatus, ImpactType, DeveloperStatus, ResolutionType, Developer, REVIEW_STATUSES, DEVELOPER_STATUSES } from '../schema/red-flags';
 import { analyses } from '../schema/analyses';
 import { regulatoryDocuments } from '../schema/regulatory-documents';
 import { StateCode } from './regulatory-documents.repository';
@@ -11,6 +11,15 @@ export interface UpdateRedFlagReviewInput {
   reviewerNotes?: string;
   priority?: number;
   impactType?: ImpactType;
+}
+
+export interface UpdateRedFlagDeveloperInput {
+  developerStatus: DeveloperStatus;
+  developerAssigned: Developer;
+  developerNotes?: string;
+  resolutionType?: ResolutionType;
+  resolutionComments?: string;
+  developerQuestion?: string;
 }
 
 // Types for the review queue
@@ -55,6 +64,15 @@ export interface ReviewStatusCounts {
   false_positive: number;
   needs_context: number;
   deferred: number;
+  total: number;
+}
+
+export interface DeveloperStatusCounts {
+  unresolved: number;
+  resolved: number;
+  pending: number;
+  backlogged: number;
+  need_more_info: number;
   total: number;
 }
 
@@ -250,6 +268,14 @@ export class RedFlagsRepository extends BaseRepository {
         reviewerNotes: redFlags.reviewerNotes,
         priority: redFlags.priority,
         impactType: redFlags.impactType,
+        // Developer fields
+        developerStatus: redFlags.developerStatus,
+        developerAssigned: redFlags.developerAssigned,
+        developerNotes: redFlags.developerNotes,
+        resolutionType: redFlags.resolutionType,
+        resolutionComments: redFlags.resolutionComments,
+        developerQuestion: redFlags.developerQuestion,
+        developerCheckedAt: redFlags.developerCheckedAt,
         // Regulation context
         regulationId: regulatoryDocuments.id,
         regulationTitle: regulatoryDocuments.title,
@@ -284,6 +310,13 @@ export class RedFlagsRepository extends BaseRepository {
       reviewerNotes: row.reviewerNotes,
       priority: row.priority,
       impactType: row.impactType,
+      developerStatus: row.developerStatus,
+      developerAssigned: row.developerAssigned,
+      developerNotes: row.developerNotes,
+      resolutionType: row.resolutionType,
+      resolutionComments: row.resolutionComments,
+      developerQuestion: row.developerQuestion,
+      developerCheckedAt: row.developerCheckedAt,
       regulation: {
         id: row.regulationId,
         title: row.regulationTitle,
@@ -301,5 +334,381 @@ export class RedFlagsRepository extends BaseRepository {
       pageSize,
       totalPages: Math.ceil(total / pageSize),
     };
+  }
+
+  /**
+   * Update developer tracking fields for a red flag
+   */
+  async updateDeveloperStatus(id: number, data: UpdateRedFlagDeveloperInput): Promise<RedFlag | undefined> {
+    const result = await this.db
+      .update(redFlags)
+      .set({
+        developerStatus: data.developerStatus,
+        developerAssigned: data.developerAssigned,
+        developerNotes: data.developerNotes ?? null,
+        resolutionType: data.resolutionType ?? null,
+        resolutionComments: data.resolutionComments ?? null,
+        developerQuestion: data.developerQuestion ?? null,
+        developerCheckedAt: new Date(),
+      })
+      .where(eq(redFlags.id, id))
+      .returning();
+
+    return result[0];
+  }
+
+  /**
+   * Get counts by developer status for progress display
+   */
+  async getDeveloperStatusCounts(state: StateCode): Promise<DeveloperStatusCounts> {
+    const result = await this.db
+      .select({
+        status: redFlags.developerStatus,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(redFlags)
+      .innerJoin(analyses, eq(redFlags.analysisId, analyses.id))
+      .innerJoin(regulatoryDocuments, eq(analyses.documentId, regulatoryDocuments.id))
+      .where(and(
+        eq(analyses.isCurrent, true),
+        eq(regulatoryDocuments.state, state.toUpperCase()),
+        // Only count reviewed items
+        ne(redFlags.reviewStatus, 'unreviewed')
+      ))
+      .groupBy(redFlags.developerStatus);
+
+    // Initialize counts with zeros
+    const counts: DeveloperStatusCounts = {
+      unresolved: 0,
+      resolved: 0,
+      pending: 0,
+      backlogged: 0,
+      need_more_info: 0,
+      total: 0,
+    };
+
+    // Fill in counts from query results
+    for (const row of result) {
+      const status = (row.status ?? 'unresolved') as DeveloperStatus;
+      if (status in counts) {
+        counts[status] = row.count;
+      }
+      counts.total += row.count;
+    }
+
+    return counts;
+  }
+
+  /**
+   * Get paginated reviewed red flags for developer mode
+   */
+  async getReviewedPaginated(
+    options: RedFlagPaginationOptions & {
+      developerStatus?: DeveloperStatus | 'all';
+      developerAssigned?: Developer;
+    }
+  ): Promise<PaginatedRedFlagsResult> {
+    const { state, page, pageSize, sortBy = 'reviewedAt', sortOrder = 'desc', filters, developerStatus, developerAssigned } = options;
+    const offset = (page - 1) * pageSize;
+
+    // Build where conditions - only reviewed items
+    const conditions: ReturnType<typeof eq>[] = [
+      eq(analyses.isCurrent, true),
+      eq(regulatoryDocuments.state, state.toUpperCase()),
+      ne(redFlags.reviewStatus, 'unreviewed'),
+    ];
+
+    // Developer status filter
+    if (developerStatus && developerStatus !== 'all') {
+      conditions.push(eq(redFlags.developerStatus, developerStatus));
+    }
+
+    // Developer assigned filter
+    if (developerAssigned) {
+      conditions.push(eq(redFlags.developerAssigned, developerAssigned));
+    }
+
+    if (filters) {
+      // Status filter
+      if (filters.status && filters.status !== 'all') {
+        conditions.push(eq(redFlags.reviewStatus, filters.status));
+      }
+
+      // Severity filter
+      if (filters.severity === 'high') {
+        conditions.push(gte(redFlags.severity, 7));
+      } else if (filters.severity === 'medium') {
+        conditions.push(and(gte(redFlags.severity, 4), lt(redFlags.severity, 7))!);
+      } else if (filters.severity === 'low') {
+        conditions.push(lt(redFlags.severity, 4));
+      }
+
+      // Category filter
+      if (filters.category) {
+        conditions.push(eq(redFlags.category, filters.category));
+      }
+    }
+
+    const whereClause = and(...conditions);
+
+    // Get total count
+    const [{ count: total }] = await this.db
+      .select({ count: count() })
+      .from(redFlags)
+      .innerJoin(analyses, eq(redFlags.analysisId, analyses.id))
+      .innerJoin(regulatoryDocuments, eq(analyses.documentId, regulatoryDocuments.id))
+      .where(whereClause);
+
+    // Build sort column
+    const sortColumn = {
+      severity: redFlags.severity,
+      category: redFlags.category,
+      reviewedAt: redFlags.reviewedAt,
+      developerCheckedAt: redFlags.developerCheckedAt,
+    }[sortBy] ?? redFlags.reviewedAt;
+
+    const orderByClause = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
+
+    // Get paginated results with regulation context
+    const results = await this.db
+      .select({
+        // Red flag fields
+        id: redFlags.id,
+        analysisId: redFlags.analysisId,
+        category: redFlags.category,
+        explanation: redFlags.explanation,
+        severity: redFlags.severity,
+        complexity: redFlags.complexity,
+        matchedPhrases: redFlags.matchedPhrases,
+        implementationApproach: redFlags.implementationApproach,
+        effortEstimate: redFlags.effortEstimate,
+        textExamples: redFlags.textExamples,
+        reviewStatus: redFlags.reviewStatus,
+        reviewedBy: redFlags.reviewedBy,
+        reviewedAt: redFlags.reviewedAt,
+        reviewerNotes: redFlags.reviewerNotes,
+        priority: redFlags.priority,
+        impactType: redFlags.impactType,
+        // Developer fields
+        developerStatus: redFlags.developerStatus,
+        developerAssigned: redFlags.developerAssigned,
+        developerNotes: redFlags.developerNotes,
+        resolutionType: redFlags.resolutionType,
+        resolutionComments: redFlags.resolutionComments,
+        developerQuestion: redFlags.developerQuestion,
+        developerCheckedAt: redFlags.developerCheckedAt,
+        // Regulation context
+        regulationId: regulatoryDocuments.id,
+        regulationTitle: regulatoryDocuments.title,
+        regulationNycrrTitle: regulatoryDocuments.nycrrTitle,
+        regulationNycrrPart: regulatoryDocuments.nycrrPart,
+        regulationNycrrSection: regulatoryDocuments.nycrrSection,
+        regulationUrl: regulatoryDocuments.url,
+      })
+      .from(redFlags)
+      .innerJoin(analyses, eq(redFlags.analysisId, analyses.id))
+      .innerJoin(regulatoryDocuments, eq(analyses.documentId, regulatoryDocuments.id))
+      .where(whereClause)
+      .orderBy(orderByClause)
+      .limit(pageSize)
+      .offset(offset);
+
+    // Transform results to RedFlagWithContext shape
+    const data: RedFlagWithContext[] = results.map(row => ({
+      id: Number(row.id),
+      analysisId: Number(row.analysisId),
+      category: row.category,
+      explanation: row.explanation,
+      severity: row.severity,
+      complexity: row.complexity,
+      matchedPhrases: row.matchedPhrases,
+      implementationApproach: row.implementationApproach,
+      effortEstimate: row.effortEstimate,
+      textExamples: row.textExamples,
+      reviewStatus: row.reviewStatus,
+      reviewedBy: row.reviewedBy,
+      reviewedAt: row.reviewedAt,
+      reviewerNotes: row.reviewerNotes,
+      priority: row.priority,
+      impactType: row.impactType,
+      developerStatus: row.developerStatus,
+      developerAssigned: row.developerAssigned,
+      developerNotes: row.developerNotes,
+      resolutionType: row.resolutionType,
+      resolutionComments: row.resolutionComments,
+      developerQuestion: row.developerQuestion,
+      developerCheckedAt: row.developerCheckedAt,
+      regulation: {
+        id: row.regulationId,
+        title: row.regulationTitle,
+        nycrrTitle: row.regulationNycrrTitle,
+        nycrrPart: row.regulationNycrrPart,
+        nycrrSection: row.regulationNycrrSection,
+        url: row.regulationUrl,
+      },
+    }));
+
+    return {
+      data,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
+  }
+
+  /**
+   * Get red flags that need more info, with reviewer's items first
+   */
+  async getNeedMoreInfoFlags(
+    state: StateCode,
+    options: {
+      page: number;
+      pageSize: number;
+      reviewerName?: string;
+    }
+  ): Promise<PaginatedRedFlagsResult> {
+    const { page, pageSize, reviewerName } = options;
+    const offset = (page - 1) * pageSize;
+
+    const conditions = [
+      eq(analyses.isCurrent, true),
+      eq(regulatoryDocuments.state, state.toUpperCase()),
+      eq(redFlags.developerStatus, 'need_more_info'),
+    ];
+
+    const whereClause = and(...conditions);
+
+    // Get total count
+    const [{ count: total }] = await this.db
+      .select({ count: count() })
+      .from(redFlags)
+      .innerJoin(analyses, eq(redFlags.analysisId, analyses.id))
+      .innerJoin(regulatoryDocuments, eq(analyses.documentId, regulatoryDocuments.id))
+      .where(whereClause);
+
+    // Order: reviewer's items first, then by developerCheckedAt desc
+    const orderBy = reviewerName
+      ? [
+          sql`CASE WHEN ${redFlags.reviewedBy} = ${reviewerName} THEN 0 ELSE 1 END`,
+          desc(redFlags.developerCheckedAt),
+        ]
+      : [desc(redFlags.developerCheckedAt)];
+
+    // Get paginated results
+    const results = await this.db
+      .select({
+        id: redFlags.id,
+        analysisId: redFlags.analysisId,
+        category: redFlags.category,
+        explanation: redFlags.explanation,
+        severity: redFlags.severity,
+        complexity: redFlags.complexity,
+        matchedPhrases: redFlags.matchedPhrases,
+        implementationApproach: redFlags.implementationApproach,
+        effortEstimate: redFlags.effortEstimate,
+        textExamples: redFlags.textExamples,
+        reviewStatus: redFlags.reviewStatus,
+        reviewedBy: redFlags.reviewedBy,
+        reviewedAt: redFlags.reviewedAt,
+        reviewerNotes: redFlags.reviewerNotes,
+        priority: redFlags.priority,
+        impactType: redFlags.impactType,
+        developerStatus: redFlags.developerStatus,
+        developerAssigned: redFlags.developerAssigned,
+        developerNotes: redFlags.developerNotes,
+        resolutionType: redFlags.resolutionType,
+        resolutionComments: redFlags.resolutionComments,
+        developerQuestion: redFlags.developerQuestion,
+        developerCheckedAt: redFlags.developerCheckedAt,
+        regulationId: regulatoryDocuments.id,
+        regulationTitle: regulatoryDocuments.title,
+        regulationNycrrTitle: regulatoryDocuments.nycrrTitle,
+        regulationNycrrPart: regulatoryDocuments.nycrrPart,
+        regulationNycrrSection: regulatoryDocuments.nycrrSection,
+        regulationUrl: regulatoryDocuments.url,
+      })
+      .from(redFlags)
+      .innerJoin(analyses, eq(redFlags.analysisId, analyses.id))
+      .innerJoin(regulatoryDocuments, eq(analyses.documentId, regulatoryDocuments.id))
+      .where(whereClause)
+      .orderBy(...orderBy)
+      .limit(pageSize)
+      .offset(offset);
+
+    const data: RedFlagWithContext[] = results.map(row => ({
+      id: Number(row.id),
+      analysisId: Number(row.analysisId),
+      category: row.category,
+      explanation: row.explanation,
+      severity: row.severity,
+      complexity: row.complexity,
+      matchedPhrases: row.matchedPhrases,
+      implementationApproach: row.implementationApproach,
+      effortEstimate: row.effortEstimate,
+      textExamples: row.textExamples,
+      reviewStatus: row.reviewStatus,
+      reviewedBy: row.reviewedBy,
+      reviewedAt: row.reviewedAt,
+      reviewerNotes: row.reviewerNotes,
+      priority: row.priority,
+      impactType: row.impactType,
+      developerStatus: row.developerStatus,
+      developerAssigned: row.developerAssigned,
+      developerNotes: row.developerNotes,
+      resolutionType: row.resolutionType,
+      resolutionComments: row.resolutionComments,
+      developerQuestion: row.developerQuestion,
+      developerCheckedAt: row.developerCheckedAt,
+      regulation: {
+        id: row.regulationId,
+        title: row.regulationTitle,
+        nycrrTitle: row.regulationNycrrTitle,
+        nycrrPart: row.regulationNycrrPart,
+        nycrrSection: row.regulationNycrrSection,
+        url: row.regulationUrl,
+      },
+    }));
+
+    return {
+      data,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
+  }
+
+  /**
+   * Get count of need_more_info flags, optionally filtered by reviewer
+   */
+  async getNeedMoreInfoCount(state: StateCode, reviewerName?: string): Promise<{ total: number; forReviewer: number }> {
+    const baseConditions = [
+      eq(analyses.isCurrent, true),
+      eq(regulatoryDocuments.state, state.toUpperCase()),
+      eq(redFlags.developerStatus, 'need_more_info'),
+    ];
+
+    // Get total count
+    const [{ count: total }] = await this.db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(redFlags)
+      .innerJoin(analyses, eq(redFlags.analysisId, analyses.id))
+      .innerJoin(regulatoryDocuments, eq(analyses.documentId, regulatoryDocuments.id))
+      .where(and(...baseConditions));
+
+    // Get count for specific reviewer
+    let forReviewer = 0;
+    if (reviewerName) {
+      const [{ count: reviewerCount }] = await this.db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(redFlags)
+        .innerJoin(analyses, eq(redFlags.analysisId, analyses.id))
+        .innerJoin(regulatoryDocuments, eq(analyses.documentId, regulatoryDocuments.id))
+        .where(and(...baseConditions, eq(redFlags.reviewedBy, reviewerName)));
+      forReviewer = reviewerCount;
+    }
+
+    return { total, forReviewer };
   }
 }

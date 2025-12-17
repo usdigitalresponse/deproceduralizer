@@ -137,6 +137,13 @@ Individual red flags identified during analysis.
 | `reviewer_notes` | text | Reviewer comments |
 | `priority` | integer | Assigned priority |
 | `impact_type` | varchar(100) | cost_savings, time_savings, accessibility, etc. |
+| `developer_status` | varchar(50) | unresolved, resolved, pending, backlogged, need_more_info |
+| `developer_assigned` | varchar(50) | Developer name (Michael or Abigail) |
+| `developer_notes` | text | Notes from developer |
+| `resolution_type` | varchar(50) | implemented or not_implemented (when resolved) |
+| `resolution_comments` | text | Comments about the resolution |
+| `developer_question` | text | Question for reviewer (when need_more_info) |
+| `developer_checked_at` | timestamp | When developer last checked this item |
 
 ### statute_references
 
@@ -205,6 +212,13 @@ Tracks specific compliance requirements (wet signatures, in-person, paper forms,
 | `reviewer_notes` | text | Reviewer comments |
 | `priority` | integer | Priority ranking |
 | `impact_type` | varchar(100) | Type of impact |
+| `developer_status` | varchar(50) | unresolved, resolved, pending, backlogged, need_more_info |
+| `developer_assigned` | varchar(50) | Developer name (Michael or Abigail) |
+| `developer_notes` | text | Notes from developer |
+| `resolution_type` | varchar(50) | implemented or not_implemented (when resolved) |
+| `resolution_comments` | text | Comments about the resolution |
+| `developer_question` | text | Question for reviewer (when need_more_info) |
+| `developer_checked_at` | timestamp | When developer last checked this item |
 | `state` | varchar(2) | 'NY' or 'NJ' |
 | `created_at` | timestamp | Creation timestamp |
 
