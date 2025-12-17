@@ -12,6 +12,8 @@ import { formatNycrrCitation } from '@/lib/formatters/nycrr';
 import { HierarchyBreadcrumbsServer } from '@/components/regulations/HierarchyBreadcrumbsServer';
 import { ChildrenListServer } from '@/components/regulations/ChildrenListServer';
 import { getComplianceIssuesByDocumentId } from '@/lib/actions/compliance-issues';
+import { getNotesByDocumentId } from '@/lib/actions/document-notes';
+import { RegulationDetailClient } from './RegulationDetailClient';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,9 +35,10 @@ export default async function RegulationDetailPage({ params, searchParams }: Pag
   }
 
   const repo = new RegulatoryDocumentsRepository(db);
-  const [regulation, complianceIssues] = await Promise.all([
+  const [regulation, complianceIssues, notes] = await Promise.all([
     repo.getByIdWithAnalysis(regulationId),
     getComplianceIssuesByDocumentId(regulationId),
+    getNotesByDocumentId(regulationId),
   ]);
 
   if (!regulation) {
@@ -216,13 +219,13 @@ export default async function RegulationDetailPage({ params, searchParams }: Pag
             />
           )}
 
-          {/* Regulation Text */}
-          <Card>
-            <h2 className="font-semibold text-[var(--color-text)] mb-3">Full Regulation Text</h2>
-            <div className="bg-[var(--color-neutral-50)] border-l-4 border-[var(--color-neutral-400)] p-4 rounded-[var(--radius-md)] text-sm font-mono whitespace-pre-wrap max-h-[600px] overflow-y-auto">
-              {regulation.content || 'No content available'}
-            </div>
-          </Card>
+          {/* Regulation Text with Notes */}
+          <RegulationDetailClient
+            content={regulation.content || ''}
+            documentId={regulationId}
+            state={state}
+            initialNotes={notes}
+          />
         </div>
       </Container>
     </div>
