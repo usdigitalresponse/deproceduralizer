@@ -33,6 +33,7 @@ interface ReviewQueueProps {
   currentFilters: UIFilterOptions;
   sortBy: string;
   sortOrder: string;
+  compact?: boolean;
 }
 
 export function ReviewQueue({
@@ -43,6 +44,7 @@ export function ReviewQueue({
   currentFilters,
   sortBy,
   sortOrder,
+  compact = false,
 }: ReviewQueueProps) {
   const router = useRouter();
   const pathname = usePathname();

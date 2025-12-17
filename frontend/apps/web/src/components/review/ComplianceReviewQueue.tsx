@@ -31,6 +31,7 @@ interface ComplianceReviewQueueProps {
   currentFilters: ComplianceFilterOptions;
   sortBy: string;
   sortOrder: string;
+  compact?: boolean;
 }
 
 export function ComplianceReviewQueue({
@@ -41,6 +42,7 @@ export function ComplianceReviewQueue({
   currentFilters,
   sortBy,
   sortOrder,
+  compact = false,
 }: ComplianceReviewQueueProps) {
   const router = useRouter();
   const pathname = usePathname();
