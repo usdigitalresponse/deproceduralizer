@@ -7,9 +7,11 @@ import { Badge, SeverityBadge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { RedFlagsList } from '@/components/RedFlagsList';
+import { ComplianceIssuesList } from '@/components/ComplianceIssuesList';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
 import { HierarchyBreadcrumbsServer } from '@/components/regulations/HierarchyBreadcrumbsServer';
 import { ChildrenListServer } from '@/components/regulations/ChildrenListServer';
+import { getComplianceIssuesByDocumentId } from '@/lib/actions/compliance-issues';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,7 +33,10 @@ export default async function RegulationDetailPage({ params, searchParams }: Pag
   }
 
   const repo = new RegulatoryDocumentsRepository(db);
-  const regulation = await repo.getByIdWithAnalysis(regulationId);
+  const [regulation, complianceIssues] = await Promise.all([
+    repo.getByIdWithAnalysis(regulationId),
+    getComplianceIssuesByDocumentId(regulationId),
+  ]);
 
   if (!regulation) {
     notFound();
@@ -201,6 +206,14 @@ export default async function RegulationDetailPage({ params, searchParams }: Pag
           {/* Red Flags Details */}
           {regulation.redFlags && regulation.redFlags.length > 0 && (
             <RedFlagsList initialFlags={regulation.redFlags} />
+          )}
+
+          {/* Compliance Issues */}
+          {complianceIssues && complianceIssues.length > 0 && (
+            <ComplianceIssuesList
+              initialIssues={complianceIssues}
+              regulationContent={regulation.content}
+            />
           )}
 
           {/* Regulation Text */}

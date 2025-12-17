@@ -28,3 +28,33 @@ export const PRIORITY_OPTIONS = [
   { value: '4', label: '4 - Low' },
   { value: '5', label: '5 - Lowest' },
 ] as const;
+
+// Compliance issue types - requirements that add burden
+export const COMPLIANCE_ISSUE_TYPES = [
+  { value: 'wet_signature', label: 'Wet Signature Required' },
+  { value: 'in_person', label: 'In-Person Required' },
+  { value: 'paper_form', label: 'Paper Form Required' },
+  { value: 'notarized', label: 'Notarization Required' },
+  { value: 'certified', label: 'Certification Required' },
+  { value: 'reporting_requirement', label: 'Reporting Requirement' },
+  { value: 'other', label: 'Other' },
+] as const;
+
+export const ISSUE_TYPE_LABELS: Record<string, string> = {
+  wet_signature: 'Wet Signature',
+  in_person: 'In-Person',
+  paper_form: 'Paper Form',
+  notarized: 'Notarized',
+  certified: 'Certified',
+  reporting_requirement: 'Reporting',
+  other: 'Other',
+};
+
+// Review type for the review page tabs
+export const REVIEW_TYPES = [
+  { value: 'flags', label: 'Red Flags' },
+  { value: 'compliance', label: 'Compliance Issues' },
+  { value: 'all', label: 'All' },
+] as const;
+
+export type ReviewType = typeof REVIEW_TYPES[number]['value'];

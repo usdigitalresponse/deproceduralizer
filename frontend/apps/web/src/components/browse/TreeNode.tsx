@@ -208,6 +208,15 @@ export function TreeNode({
               {node.totalFlags} flags
             </Badge>
           )}
+          {node.totalComplianceIssues > 0 && (
+            <Badge
+              variant="warning"
+              className="text-xs"
+              title={`${node.complianceIssueCount} direct + ${node.totalComplianceIssues - node.complianceIssueCount} in descendants`}
+            >
+              {node.totalComplianceIssues} compliance
+            </Badge>
+          )}
           {node.maxSeverity !== null && (
             <SeverityBadge severity={node.maxSeverity} className="text-xs" />
           )}

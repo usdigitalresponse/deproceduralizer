@@ -22,6 +22,7 @@ interface PageProps {
     hasFlags?: string;
     severity?: string;
     hasDefs?: string;
+    hasCompliance?: string;
     selected?: string;
     search?: string;
   }>;
@@ -62,6 +63,9 @@ export default async function BrowsePage({ params, searchParams }: PageProps) {
   const hasDefinitions = parseBooleanParam(queryParams.hasDefs);
   if (hasDefinitions !== undefined) filters.hasDefinitions = hasDefinitions;
 
+  const hasComplianceIssues = parseBooleanParam(queryParams.hasCompliance);
+  if (hasComplianceIssues !== undefined) filters.hasComplianceIssues = hasComplianceIssues;
+
   // Parse search term
   const search = queryParams.search?.trim() || '';
   if (search) {
@@ -74,7 +78,8 @@ export default async function BrowsePage({ params, searchParams }: PageProps) {
     filters.hasAnalysis !== undefined ||
     filters.hasFlags !== undefined ||
     filters.severity !== undefined ||
-    filters.hasDefinitions !== undefined
+    filters.hasDefinitions !== undefined ||
+    filters.hasComplianceIssues !== undefined
   );
 
   // Fetch data filtered by state

@@ -45,6 +45,12 @@ const HAS_DEFINITIONS_OPTIONS = [
   { value: 'false', label: 'No Definitions' },
 ];
 
+const HAS_COMPLIANCE_ISSUES_OPTIONS = [
+  { value: 'all', label: 'All' },
+  { value: 'true', label: 'Has Compliance Issues' },
+  { value: 'false', label: 'No Compliance Issues' },
+];
+
 export function BrowseFilters({
   currentFilters,
   stats,
@@ -82,7 +88,8 @@ export function BrowseFilters({
     currentFilters.hasAnalysis !== undefined ||
     currentFilters.hasFlags !== undefined ||
     currentFilters.severity !== undefined ||
-    currentFilters.hasDefinitions !== undefined;
+    currentFilters.hasDefinitions !== undefined ||
+    currentFilters.hasComplianceIssues !== undefined;
 
   // Check if search or filters are active (for clear all)
   const hasSearchOrFilters = search || hasActiveFilters;
@@ -146,6 +153,19 @@ export function BrowseFilters({
           onValueChange={(value) => updateParams({ hasDefs: value })}
           options={HAS_DEFINITIONS_OPTIONS}
           aria-label="Filter by definitions"
+        />
+      </div>
+
+      {/* Compliance Issues filter */}
+      <div className="flex items-center gap-2">
+        <label className="text-sm text-[var(--color-text-secondary)]">
+          Compliance:
+        </label>
+        <Select
+          value={currentFilters.hasComplianceIssues === true ? 'true' : currentFilters.hasComplianceIssues === false ? 'false' : 'all'}
+          onValueChange={(value) => updateParams({ hasCompliance: value })}
+          options={HAS_COMPLIANCE_ISSUES_OPTIONS}
+          aria-label="Filter by compliance issues"
         />
       </div>
 

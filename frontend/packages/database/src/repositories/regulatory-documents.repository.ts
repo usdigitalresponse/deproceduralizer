@@ -3,6 +3,7 @@ import { BaseRepository } from './base.repository';
 import { regulatoryDocuments, RegulatoryDocument } from '../schema/regulatory-documents';
 import { analyses } from '../schema/analyses';
 import { redFlags } from '../schema/red-flags';
+import { complianceIssues } from '../schema/compliance-issues';
 
 export interface RegulationWithAnalysis extends RegulatoryDocument {
   hasImplementationIssues: boolean | null;
@@ -69,6 +70,9 @@ export interface HierarchyNode {
   maxSeverity: number | null;
   hasDefinitions: boolean;
   childCount: number;
+  // Compliance issue counts
+  complianceIssueCount: number;           // Direct issues on this document
+  totalComplianceIssues: number;          // Combined (own + descendants)
   // Filter-aware counts (when filters applied)
   matchingChildCount: number;      // Direct children matching filter
   matchingDescendantCount: number; // All descendants matching filter
@@ -80,6 +84,7 @@ export interface HierarchyFilterOptions {
   hasFlags?: boolean;
   severity?: 'high' | 'medium' | 'low';
   hasDefinitions?: boolean;
+  hasComplianceIssues?: boolean;
   search?: string; // Text search on title
 }
 
@@ -112,6 +117,11 @@ export interface DashboardStats {
     low: number;    // severity 1-3
   };
   unreviewedFlags: number;
+  complianceIssues: {
+    total: number;
+    byType: Record<string, number>;
+    unreviewed: number;
+  };
 }
 
 export class RegulatoryDocumentsRepository extends BaseRepository {
@@ -133,11 +143,17 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         nycrrTitle: regulatoryDocuments.nycrrTitle,
         nycrrPart: regulatoryDocuments.nycrrPart,
         nycrrSection: regulatoryDocuments.nycrrSection,
+        njacTitle: regulatoryDocuments.njacTitle,
+        njacChapter: regulatoryDocuments.njacChapter,
+        njacSubchapter: regulatoryDocuments.njacSubchapter,
+        scrapedFromUrl: regulatoryDocuments.scrapedFromUrl,
         directChildCount: regulatoryDocuments.directChildCount,
         descendantCount: regulatoryDocuments.descendantCount,
         descendantFlagCount: regulatoryDocuments.descendantFlagCount,
         descendantMaxSeverity: regulatoryDocuments.descendantMaxSeverity,
         hasDescendantAnalysis: regulatoryDocuments.hasDescendantAnalysis,
+        complianceIssueCount: regulatoryDocuments.complianceIssueCount,
+        descendantComplianceIssueCount: regulatoryDocuments.descendantComplianceIssueCount,
         analysisId: analyses.id,
         hasImplementationIssues: analyses.hasImplementationIssues,
         overallComplexity: analyses.overallComplexity,
@@ -349,11 +365,17 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         nycrrTitle: regulatoryDocuments.nycrrTitle,
         nycrrPart: regulatoryDocuments.nycrrPart,
         nycrrSection: regulatoryDocuments.nycrrSection,
+        njacTitle: regulatoryDocuments.njacTitle,
+        njacChapter: regulatoryDocuments.njacChapter,
+        njacSubchapter: regulatoryDocuments.njacSubchapter,
+        scrapedFromUrl: regulatoryDocuments.scrapedFromUrl,
         directChildCount: regulatoryDocuments.directChildCount,
         descendantCount: regulatoryDocuments.descendantCount,
         descendantFlagCount: regulatoryDocuments.descendantFlagCount,
         descendantMaxSeverity: regulatoryDocuments.descendantMaxSeverity,
         hasDescendantAnalysis: regulatoryDocuments.hasDescendantAnalysis,
+        complianceIssueCount: regulatoryDocuments.complianceIssueCount,
+        descendantComplianceIssueCount: regulatoryDocuments.descendantComplianceIssueCount,
         analysisId: analyses.id,
         hasImplementationIssues: analyses.hasImplementationIssues,
         overallComplexity: analyses.overallComplexity,
@@ -443,11 +465,17 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         nycrrTitle: regulatoryDocuments.nycrrTitle,
         nycrrPart: regulatoryDocuments.nycrrPart,
         nycrrSection: regulatoryDocuments.nycrrSection,
+        njacTitle: regulatoryDocuments.njacTitle,
+        njacChapter: regulatoryDocuments.njacChapter,
+        njacSubchapter: regulatoryDocuments.njacSubchapter,
+        scrapedFromUrl: regulatoryDocuments.scrapedFromUrl,
         directChildCount: regulatoryDocuments.directChildCount,
         descendantCount: regulatoryDocuments.descendantCount,
         descendantFlagCount: regulatoryDocuments.descendantFlagCount,
         descendantMaxSeverity: regulatoryDocuments.descendantMaxSeverity,
         hasDescendantAnalysis: regulatoryDocuments.hasDescendantAnalysis,
+        complianceIssueCount: regulatoryDocuments.complianceIssueCount,
+        descendantComplianceIssueCount: regulatoryDocuments.descendantComplianceIssueCount,
         analysisId: analyses.id,
         hasImplementationIssues: analyses.hasImplementationIssues,
         overallComplexity: analyses.overallComplexity,
@@ -556,6 +584,9 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         child_stats.max_severity as "maxSeverity",
         COALESCE(child_stats.has_definitions, false) as "hasDefinitions",
         COALESCE(total_stats.total_child_count, 0)::int as "childCount",
+        -- Compliance issue counts (not computed in slow path, default to 0)
+        0 as "complianceIssueCount",
+        0 as "totalComplianceIssues",
         COALESCE(child_stats.matching_child_count, 0)::int as "matchingChildCount",
         COALESCE(descendant_stats.matching_descendant_count, 0)::int as "matchingDescendantCount"
       FROM regulatory_documents rd
@@ -641,6 +672,9 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         a.max_severity as "maxSeverity",
         EXISTS (SELECT 1 FROM definitions d WHERE d.document_id = rd.id) as "hasDefinitions",
         COALESCE(total_stats.total_child_count, 0)::int as "childCount",
+        -- Compliance issue counts (not computed in slow path, default to 0)
+        0 as "complianceIssueCount",
+        0 as "totalComplianceIssues",
         COALESCE(child_stats.matching_child_count, 0)::int as "matchingChildCount",
         COALESCE(descendant_stats.matching_descendant_count, 0)::int as "matchingDescendantCount"
       FROM regulatory_documents rd
@@ -711,6 +745,9 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         a.max_severity as "maxSeverity",
         EXISTS (SELECT 1 FROM definitions d WHERE d.document_id = rd.id) as "hasDefinitions",
         0 as "childCount",
+        -- Compliance issue counts (not computed in slow path, default to 0)
+        0 as "complianceIssueCount",
+        0 as "totalComplianceIssues",
         0 as "matchingChildCount",
         0 as "matchingDescendantCount"
       FROM regulatory_documents rd
@@ -811,6 +848,12 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
       conditions.push(sql.raw(`NOT EXISTS (SELECT 1 FROM definitions d WHERE d.document_id = ${docAlias}.id)`));
     }
 
+    if (filters.hasComplianceIssues === true) {
+      conditions.push(sql.raw(`EXISTS (SELECT 1 FROM compliance_issues ci WHERE ci.document_id = ${docAlias}.id)`));
+    } else if (filters.hasComplianceIssues === false) {
+      conditions.push(sql.raw(`NOT EXISTS (SELECT 1 FROM compliance_issues ci WHERE ci.document_id = ${docAlias}.id)`));
+    }
+
     // Text search on title (case-insensitive)
     if (filters.search) {
       // Escape single quotes to prevent SQL injection
@@ -856,6 +899,9 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         GREATEST(a.max_severity, rd.descendant_max_severity) as "maxSeverity",
         false as "hasDefinitions",
         COALESCE(rd.direct_child_count, 0)::int as "childCount",
+        -- Compliance issue counts
+        COALESCE(rd.compliance_issue_count, 0)::int as "complianceIssueCount",
+        (COALESCE(rd.compliance_issue_count, 0) + COALESCE(rd.descendant_compliance_issue_count, 0))::int as "totalComplianceIssues",
         0 as "matchingChildCount",
         COALESCE(rd.descendant_count, 0)::int as "matchingDescendantCount"
       FROM regulatory_documents rd
@@ -895,6 +941,9 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         GREATEST(a.max_severity, rd.descendant_max_severity) as "maxSeverity",
         false as "hasDefinitions",
         COALESCE(rd.direct_child_count, 0)::int as "childCount",
+        -- Compliance issue counts
+        COALESCE(rd.compliance_issue_count, 0)::int as "complianceIssueCount",
+        (COALESCE(rd.compliance_issue_count, 0) + COALESCE(rd.descendant_compliance_issue_count, 0))::int as "totalComplianceIssues",
         0 as "matchingChildCount",
         COALESCE(rd.descendant_count, 0)::int as "matchingDescendantCount"
       FROM regulatory_documents rd
@@ -1037,6 +1086,25 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
       ${stateCondition}
     `);
 
+    // Get compliance issue counts
+    const complianceStats = await this.db.execute(sql`
+      SELECT
+        COUNT(*)::int as "total",
+        COUNT(CASE WHEN ci.review_status = 'unreviewed' OR ci.review_status IS NULL THEN 1 END)::int as "unreviewed"
+      FROM compliance_issues ci
+      ${state ? sql`WHERE ci.state = ${state.toUpperCase()}` : sql``}
+    `);
+
+    // Get compliance issues by type
+    const complianceByType = await this.db.execute(sql`
+      SELECT
+        ci.issue_type as "issueType",
+        COUNT(*)::int as "count"
+      FROM compliance_issues ci
+      ${state ? sql`WHERE ci.state = ${state.toUpperCase()}` : sql``}
+      GROUP BY ci.issue_type
+    `);
+
     const docRow = docStats.rows[0] as {
       totalDocuments: number;
       analyzedDocuments: number;
@@ -1051,6 +1119,17 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
       unreviewedFlags: number;
     };
 
+    const complianceRow = complianceStats.rows[0] as {
+      total: number;
+      unreviewed: number;
+    };
+
+    // Build byType map from compliance type rows
+    const byType: Record<string, number> = {};
+    for (const row of complianceByType.rows as { issueType: string; count: number }[]) {
+      byType[row.issueType] = row.count;
+    }
+
     return {
       totalDocuments: docRow.totalDocuments,
       analyzedDocuments: docRow.analyzedDocuments,
@@ -1062,6 +1141,11 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         low: flagRow.lowSeverity,
       },
       unreviewedFlags: flagRow.unreviewedFlags,
+      complianceIssues: {
+        total: complianceRow.total,
+        byType,
+        unreviewed: complianceRow.unreviewed,
+      },
     };
   }
 

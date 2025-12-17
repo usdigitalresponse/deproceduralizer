@@ -81,9 +81,19 @@ export function StateCard({ state, stats }: StateCardProps) {
               {stats.documentsWithFlags.toLocaleString()} with flags
             </Badge>
           )}
+          {stats.complianceIssues && stats.complianceIssues.total > 0 && (
+            <Badge variant="warning">
+              {stats.complianceIssues.total.toLocaleString()} compliance issues
+            </Badge>
+          )}
           {stats.unreviewedFlags > 0 && (
             <Badge variant="danger">
-              {stats.unreviewedFlags.toLocaleString()} unreviewed
+              {stats.unreviewedFlags.toLocaleString()} unreviewed flags
+            </Badge>
+          )}
+          {stats.complianceIssues && stats.complianceIssues.unreviewed > 0 && (
+            <Badge variant="danger">
+              {stats.complianceIssues.unreviewed.toLocaleString()} unreviewed issues
             </Badge>
           )}
         </div>

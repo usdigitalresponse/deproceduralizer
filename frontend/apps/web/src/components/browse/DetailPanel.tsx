@@ -3,13 +3,15 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
-import type { RegulationWithAnalysis } from '@deproceduralizer/database';
+import type { RegulationWithAnalysis, ComplianceIssue } from '@deproceduralizer/database';
 import { getDocumentForPanel } from '@/lib/actions/hierarchy';
-import { Card, Badge, SeverityBadge, Button } from '@/components/ui';
+import { getComplianceIssuesByDocumentId } from '@/lib/actions/compliance-issues';
+import { Card, Badge, SeverityBadge, Button, Tag } from '@/components/ui';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
 import { HierarchyBreadcrumbs } from './HierarchyBreadcrumbs';
-import { FileText, ExternalLink, AlertTriangle, BookOpen, X, Loader2 } from 'lucide-react';
+import { FileText, ExternalLink, AlertTriangle, BookOpen, X, Loader2, ClipboardList } from 'lucide-react';
 import { getStateFromPathname } from '@/hooks';
+import { ISSUE_TYPE_LABELS } from '@/types/regulation';
 
 interface DetailPanelProps {
   documentId: number | null;
@@ -33,6 +35,7 @@ export function DetailPanel({ documentId, onClose, onNavigate, fullScreen = fals
     : pathname;
 
   const [document, setDocument] = useState<RegulationWithAnalysis | null>(null);
+  const [complianceIssues, setComplianceIssues] = useState<ComplianceIssue[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,6 +44,7 @@ export function DetailPanel({ documentId, onClose, onNavigate, fullScreen = fals
       loadDocument(documentId);
     } else {
       setDocument(null);
+      setComplianceIssues([]);
     }
   }, [documentId]);
 
@@ -48,8 +52,12 @@ export function DetailPanel({ documentId, onClose, onNavigate, fullScreen = fals
     setIsLoading(true);
     setError(null);
     try {
-      const doc = await getDocumentForPanel(id);
+      const [doc, issues] = await Promise.all([
+        getDocumentForPanel(id),
+        getComplianceIssuesByDocumentId(id),
+      ]);
       setDocument(doc);
+      setComplianceIssues(issues || []);
     } catch (err) {
       console.error('Failed to load document:', err);
       setError('Failed to load document details');
@@ -205,6 +213,47 @@ export function DetailPanel({ documentId, onClose, onNavigate, fullScreen = fals
                   className="text-sm text-[var(--color-link)] hover:text-[var(--color-link-hover)]"
                 >
                   View all {document.redFlags.length} flags...
+                </Link>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Compliance Issues */}
+        {complianceIssues.length > 0 && (
+          <div>
+            <h3 className="text-sm font-semibold text-[var(--color-text-secondary)] mb-2 flex items-center gap-2">
+              <ClipboardList className="w-4 h-4 text-[var(--color-warning)]" />
+              Compliance Issues ({complianceIssues.length})
+            </h3>
+            <div className="space-y-3">
+              {complianceIssues.slice(0, 3).map((issue) => (
+                <div
+                  key={issue.id}
+                  className="p-3 bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] border border-[var(--color-neutral-200)]"
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <Badge variant="warning" className="text-xs">
+                      {ISSUE_TYPE_LABELS[issue.issueType] || issue.issueType}
+                    </Badge>
+                    {issue.llmConfirmed && (
+                      <Badge variant="success" className="text-xs">LLM Confirmed</Badge>
+                    )}
+                  </div>
+                  {issue.termMatched && (
+                    <div className="mb-1">
+                      <Tag variant="warning" size="sm">{issue.termMatched}</Tag>
+                    </div>
+                  )}
+                  <p className="text-sm text-[var(--color-text)] line-clamp-2">{issue.context}</p>
+                </div>
+              ))}
+              {complianceIssues.length > 3 && (
+                <Link
+                  href={`/${state}/regulations/${document.id}?from=${encodeURIComponent(currentUrl)}`}
+                  className="text-sm text-[var(--color-link)] hover:text-[var(--color-link-hover)]"
+                >
+                  View all {complianceIssues.length} compliance issues...
                 </Link>
               )}
             </div>

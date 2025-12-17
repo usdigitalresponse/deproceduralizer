@@ -8,6 +8,8 @@ This script populates the denormalized columns on regulatory_documents:
 - descendant_flag_count: Sum of red flags in descendants
 - descendant_max_severity: Max severity across descendants
 - has_descendant_analysis: Whether any descendant has been analyzed
+- compliance_issue_count: Direct compliance issues on this document
+- descendant_compliance_issue_count: Sum of compliance issues in subtree
 
 Usage:
     python refresh_hierarchy_stats.py              # Refresh all stats for all states
@@ -15,6 +17,7 @@ Usage:
     python refresh_hierarchy_stats.py --state NJ   # Refresh single state
     python refresh_hierarchy_stats.py --structure  # Only structural stats (children counts)
     python refresh_hierarchy_stats.py --analysis   # Only analysis stats (flags, severity)
+    python refresh_hierarchy_stats.py --compliance # Only compliance stats (compliance issues)
 """
 
 import sys
@@ -183,11 +186,94 @@ def refresh_analysis_stats(conn, state: str) -> int:
     return updated_count
 
 
+def refresh_compliance_stats(conn, state: str) -> int:
+    """
+    Refresh compliance issue stats for all documents in a state.
+
+    This should be called after compliance issue detection since these
+    stats aggregate compliance issues from the document and its descendants.
+
+    Updates: compliance_issue_count, descendant_compliance_issue_count
+
+    Uses two queries:
+    1. Direct compliance issue count per document
+    2. Recursive CTE for descendant compliance issue count
+
+    Returns the number of documents updated.
+    """
+    print(f"  Computing compliance stats for {state}...")
+    start = time.time()
+
+    with conn.cursor() as cur:
+        # First: direct compliance issue counts per document
+        cur.execute("""
+            WITH direct_issues AS (
+                SELECT document_id, COUNT(*) as issue_count
+                FROM compliance_issues
+                WHERE state = %s
+                GROUP BY document_id
+            )
+            UPDATE regulatory_documents rd
+            SET compliance_issue_count = COALESCE(di.issue_count, 0)
+            FROM (
+                SELECT rd2.id, COALESCE(di.issue_count, 0) as issue_count
+                FROM regulatory_documents rd2
+                LEFT JOIN direct_issues di ON rd2.id = di.document_id
+                WHERE rd2.state = %s
+            ) di
+            WHERE rd.id = di.id
+        """, (state, state))
+
+        conn.commit()
+
+        # Second: descendant compliance issue counts using recursive CTE
+        cur.execute("""
+            WITH RECURSIVE descendant_issues AS (
+                -- Base case: all documents with their direct compliance issue count
+                SELECT
+                    rd.id as descendant_id,
+                    rd.parent_id,
+                    COALESCE(rd.compliance_issue_count, 0) as issue_count
+                FROM regulatory_documents rd
+                WHERE rd.state = %s
+
+                UNION ALL
+
+                -- Recursive case: aggregate up to parents
+                SELECT
+                    di.descendant_id,
+                    p.parent_id,
+                    di.issue_count
+                FROM descendant_issues di
+                JOIN regulatory_documents p ON p.id = di.parent_id
+            ),
+            descendant_counts AS (
+                SELECT
+                    parent_id as id,
+                    COALESCE(SUM(issue_count), 0)::int as descendant_compliance_issue_count
+                FROM descendant_issues
+                WHERE parent_id IS NOT NULL
+                GROUP BY parent_id
+            )
+            UPDATE regulatory_documents rd
+            SET descendant_compliance_issue_count = dc.descendant_compliance_issue_count
+            FROM descendant_counts dc
+            WHERE rd.id = dc.id AND rd.state = %s
+        """, (state, state))
+
+        updated_count = cur.rowcount
+        conn.commit()
+
+    elapsed = time.time() - start
+    print(f"  Updated {updated_count:,} documents in {elapsed:.1f}s")
+    return updated_count
+
+
 def refresh_all_stats(conn, state: str) -> int:
     """
-    Refresh ALL hierarchy stats (both structural and analysis) for a state.
+    Refresh ALL hierarchy stats (structural, analysis, and compliance) for a state.
 
-    Uses two separate optimized queries instead of one combined query to avoid
+    Uses separate optimized queries instead of one combined query to avoid
     memory issues and statement timeouts.
 
     Returns the number of documents updated.
@@ -201,9 +287,12 @@ def refresh_all_stats(conn, state: str) -> int:
     # Then run analysis stats
     updated2 = refresh_analysis_stats(conn, state)
 
+    # Then run compliance stats
+    updated3 = refresh_compliance_stats(conn, state)
+
     elapsed = time.time() - start
-    # Return max since both update same rows
-    updated_count = max(updated1, updated2)
+    # Return max since all update same rows
+    updated_count = max(updated1, updated2, updated3)
     print(f"  All stats complete in {elapsed:.1f}s")
     return updated_count
 
@@ -214,7 +303,7 @@ def run_refresh(states: list[str] = None, mode: str = 'all'):
 
     Args:
         states: List of state codes to refresh (default: all states)
-        mode: 'all', 'structure', or 'analysis'
+        mode: 'all', 'structure', 'analysis', or 'compliance'
     """
     if states is None:
         states = ['NY', 'NJ']
@@ -222,7 +311,8 @@ def run_refresh(states: list[str] = None, mode: str = 'all'):
     mode_label = {
         'all': 'all hierarchy stats',
         'structure': 'structure stats (children counts)',
-        'analysis': 'analysis stats (flags, severity)'
+        'analysis': 'analysis stats (flags, severity)',
+        'compliance': 'compliance stats (compliance issues)'
     }
 
     print(f"Refreshing {mode_label[mode]} for: {', '.join(states)}")
@@ -237,6 +327,8 @@ def run_refresh(states: list[str] = None, mode: str = 'all'):
                 updated = refresh_structure_stats(conn, state)
             elif mode == 'analysis':
                 updated = refresh_analysis_stats(conn, state)
+            elif mode == 'compliance':
+                updated = refresh_compliance_stats(conn, state)
             else:  # 'all'
                 updated = refresh_all_stats(conn, state)
             total_updated += updated
@@ -266,20 +358,29 @@ def main():
         action='store_true',
         help='Only refresh analysis stats (flags, severity) - use after red_flags.py'
     )
+    parser.add_argument(
+        '--compliance',
+        action='store_true',
+        help='Only refresh compliance stats (compliance issues) - use after compliance detection'
+    )
 
     args = parser.parse_args()
 
     states = [args.state] if args.state else None
 
-    # Determine mode
-    if args.structure and args.analysis:
-        mode = 'all'  # Both flags = do everything
+    # Determine mode - count how many specific modes are requested
+    modes_requested = sum([args.structure, args.analysis, args.compliance])
+
+    if modes_requested == 0 or modes_requested > 1:
+        mode = 'all'  # Default or multiple = do everything
     elif args.structure:
         mode = 'structure'
     elif args.analysis:
         mode = 'analysis'
+    elif args.compliance:
+        mode = 'compliance'
     else:
-        mode = 'all'  # Default: refresh everything
+        mode = 'all'
 
     run_refresh(states, mode)
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { Card } from '@/components/ui/Card';
-import { FileText, Search, AlertTriangle, CheckCircle } from 'lucide-react';
+import { FileText, Search, AlertTriangle, CheckCircle, ClipboardList, PenTool } from 'lucide-react';
 import type { DashboardStats as DashboardStatsType } from '@deproceduralizer/database';
 
 interface DashboardStatsProps {
@@ -33,31 +33,58 @@ function StatCard({ label, value, icon, iconColor }: StatCardProps) {
 
 export function DashboardStats({ stats }: DashboardStatsProps) {
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-      <StatCard
-        label="Total Regulations"
-        value={stats.totalDocuments}
-        icon={<FileText className="w-6 h-6 text-[var(--color-primary)]" />}
-        iconColor="bg-[var(--color-primary-weaker)]"
-      />
-      <StatCard
-        label="Analyzed"
-        value={stats.analyzedDocuments}
-        icon={<Search className="w-6 h-6 text-[var(--color-info)]" />}
-        iconColor="bg-[var(--color-info-bg)]"
-      />
-      <StatCard
-        label="With Flags"
-        value={stats.documentsWithFlags}
-        icon={<AlertTriangle className="w-6 h-6 text-[var(--color-warning)]" />}
-        iconColor="bg-[var(--color-warning-bg)]"
-      />
-      <StatCard
-        label="Unreviewed Flags"
-        value={stats.unreviewedFlags}
-        icon={<CheckCircle className="w-6 h-6 text-[var(--color-danger)]" />}
-        iconColor="bg-[var(--color-danger-bg)]"
-      />
+    <div className="space-y-4">
+      {/* Document & Flag Stats */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          label="Total Regulations"
+          value={stats.totalDocuments}
+          icon={<FileText className="w-6 h-6 text-[var(--color-primary)]" />}
+          iconColor="bg-[var(--color-primary-weaker)]"
+        />
+        <StatCard
+          label="Analyzed"
+          value={stats.analyzedDocuments}
+          icon={<Search className="w-6 h-6 text-[var(--color-info)]" />}
+          iconColor="bg-[var(--color-info-bg)]"
+        />
+        <StatCard
+          label="With Flags"
+          value={stats.documentsWithFlags}
+          icon={<AlertTriangle className="w-6 h-6 text-[var(--color-warning)]" />}
+          iconColor="bg-[var(--color-warning-bg)]"
+        />
+        <StatCard
+          label="Unreviewed Flags"
+          value={stats.unreviewedFlags}
+          icon={<CheckCircle className="w-6 h-6 text-[var(--color-danger)]" />}
+          iconColor="bg-[var(--color-danger-bg)]"
+        />
+      </div>
+
+      {/* Compliance Issues Stats */}
+      {stats.complianceIssues && stats.complianceIssues.total > 0 && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard
+            label="Compliance Issues"
+            value={stats.complianceIssues.total}
+            icon={<ClipboardList className="w-6 h-6 text-[var(--color-warning)]" />}
+            iconColor="bg-[var(--color-warning-bg)]"
+          />
+          <StatCard
+            label="Wet Signatures"
+            value={stats.complianceIssues.byType.wet_signature || 0}
+            icon={<PenTool className="w-6 h-6 text-[var(--color-warning)]" />}
+            iconColor="bg-[var(--color-warning-bg)]"
+          />
+          <StatCard
+            label="Unreviewed Issues"
+            value={stats.complianceIssues.unreviewed}
+            icon={<CheckCircle className="w-6 h-6 text-[var(--color-danger)]" />}
+            iconColor="bg-[var(--color-danger-bg)]"
+          />
+        </div>
+      )}
     </div>
   );
 }
