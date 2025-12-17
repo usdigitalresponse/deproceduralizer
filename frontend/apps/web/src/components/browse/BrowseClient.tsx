@@ -113,7 +113,8 @@ export function BrowseClient({
     filters.hasAnalysis !== undefined ||
     filters.hasFlags !== undefined ||
     filters.severity !== undefined ||
-    filters.hasDefinitions !== undefined
+    filters.hasDefinitions !== undefined ||
+    filters.hasComplianceIssues !== undefined
   );
 
   // Sync state to URL when selectedId or expandedIds change
@@ -142,6 +143,9 @@ export function BrowseClient({
     }
     if (filters.hasDefinitions !== undefined) {
       params.set('hasDefs', String(filters.hasDefinitions));
+    }
+    if (filters.hasComplianceIssues !== undefined) {
+      params.set('hasCompliance', String(filters.hasComplianceIssues));
     }
 
     // Add tree state params

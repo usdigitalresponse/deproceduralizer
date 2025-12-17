@@ -849,9 +849,10 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
     }
 
     if (filters.hasComplianceIssues === true) {
-      conditions.push(sql.raw(`EXISTS (SELECT 1 FROM compliance_issues ci WHERE ci.document_id = ${docAlias}.id)`));
+      // Use precomputed columns to include both direct and descendant compliance issues
+      conditions.push(sql.raw(`(COALESCE(${docAlias}.compliance_issue_count, 0) > 0 OR COALESCE(${docAlias}.descendant_compliance_issue_count, 0) > 0)`));
     } else if (filters.hasComplianceIssues === false) {
-      conditions.push(sql.raw(`NOT EXISTS (SELECT 1 FROM compliance_issues ci WHERE ci.document_id = ${docAlias}.id)`));
+      conditions.push(sql.raw(`(COALESCE(${docAlias}.compliance_issue_count, 0) = 0 AND COALESCE(${docAlias}.descendant_compliance_issue_count, 0) = 0)`));
     }
 
     // Text search on title (case-insensitive)

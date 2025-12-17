@@ -33,8 +33,6 @@ export function ReviewTypeTabs({ activeType, counts }: ReviewTypeTabsProps) {
         return counts.flags;
       case 'compliance':
         return counts.compliance;
-      case 'all':
-        return counts.flags + counts.compliance;
     }
   };
 
