@@ -233,11 +233,8 @@ export function AnnotatableContent({
           <div
             className="annotation-popover fixed z-50 bg-white rounded-[var(--radius-md)] shadow-lg border border-[var(--color-neutral-200)] p-3 w-72"
             style={{
-              top: selection.rect.bottom + window.scrollY + 8,
-              left: Math.min(
-                selection.rect.left + window.scrollX,
-                window.innerWidth - 300
-              ),
+              top: selection.rect.bottom + 8,
+              left: Math.min(selection.rect.left, window.innerWidth - 300),
             }}
           >
             <div className="flex items-center justify-between mb-2">
