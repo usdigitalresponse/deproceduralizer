@@ -30,10 +30,10 @@ psql -h your-host -U your-user -d your-database < schema.sql
 
 ## Migrate Existing Data
 
-Once tables are created, run the migration script to import your existing CSV analysis results:
+Once tables are created, run the migration script to import your existing CSV analysis results. From the project root directory:
 
 ```bash
-python3 migrate_to_postgres.py
+python3 backend/scripts/migrate_to_postgres.py
 ```
 
 This will:
