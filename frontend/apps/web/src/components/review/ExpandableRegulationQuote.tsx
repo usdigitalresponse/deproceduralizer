@@ -1,0 +1,165 @@
+'use client';
+
+import { useState, useCallback, ReactNode } from 'react';
+import { getExpandedContext } from '@/lib/actions/compliance-issues';
+import { Button } from '@/components/ui';
+import { ChevronDown, ChevronUp } from 'lucide-react';
+
+interface ExpandableRegulationQuoteProps {
+  /** The quote/snippet text to display */
+  text: string;
+  /** Label to display above the quote (e.g., "Regulation Text", "Explanation") */
+  label: string;
+  /** Document ID for fetching expanded context */
+  documentId: number;
+  /** Optional term to highlight in the text */
+  highlightTerm?: string | null;
+  /** Border color variant */
+  variant?: 'default' | 'warning' | 'danger' | 'info';
+  /** Number of characters to fetch before/after when expanding */
+  expandChars?: number;
+}
+
+/**
+ * Displays a regulation quote with optional expand/collapse functionality.
+ * Used consistently across review cards for regulation text display.
+ */
+export function ExpandableRegulationQuote({
+  text,
+  label,
+  documentId,
+  highlightTerm,
+  variant = 'default',
+  expandChars = 800,
+}: ExpandableRegulationQuoteProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [expandedText, setExpandedText] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [canExpand, setCanExpand] = useState(true);
+
+  const borderColorClass = {
+    default: 'border-[var(--color-neutral-300)]',
+    warning: 'border-[var(--color-warning)]',
+    danger: 'border-[var(--color-danger)]',
+    info: 'border-[var(--color-info)]',
+  }[variant];
+
+  const handleToggleExpand = useCallback(async () => {
+    if (isExpanded) {
+      setIsExpanded(false);
+      return;
+    }
+
+    // If we already have expanded text, just show it
+    if (expandedText) {
+      setIsExpanded(true);
+      return;
+    }
+
+    // Fetch expanded context
+    setIsLoading(true);
+    try {
+      const result = await getExpandedContext(documentId, text, expandChars);
+      if (result.couldExpand) {
+        setExpandedText(result.expandedText);
+        setIsExpanded(true);
+      } else {
+        setCanExpand(false);
+      }
+    } catch (err) {
+      console.error('Failed to expand context:', err);
+      setCanExpand(false);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [isExpanded, expandedText, documentId, text, expandChars]);
+
+  // Highlight a term in text
+  const highlightInText = useCallback((content: string, term: string | null): ReactNode => {
+    if (!term) return content;
+
+    const regex = new RegExp(`(${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    const parts = content.split(regex);
+
+    return parts.map((part, i) =>
+      regex.test(part) ? (
+        <mark key={i} className="bg-[var(--color-warning-bg)] px-0.5 rounded font-medium">
+          {part}
+        </mark>
+      ) : (
+        part
+      )
+    );
+  }, []);
+
+  // Highlight the original context within expanded text
+  const renderExpandedWithHighlight = useCallback((expanded: string, original: string, term: string | null): ReactNode => {
+    const normalizedOriginal = original.replace(/\s+/g, ' ').trim();
+    const normalizedExpanded = expanded.replace(/\s+/g, ' ');
+    const contextIndex = normalizedExpanded.indexOf(normalizedOriginal);
+
+    if (contextIndex === -1) {
+      return highlightInText(expanded, term);
+    }
+
+    const beforeContext = expanded.slice(0, contextIndex);
+    const contextPortion = expanded.slice(contextIndex, contextIndex + normalizedOriginal.length);
+    const afterContext = expanded.slice(contextIndex + normalizedOriginal.length);
+
+    return (
+      <>
+        <span className="text-[var(--color-text-muted)]">{beforeContext}</span>
+        <span className="bg-[var(--color-primary-weaker)] px-1 py-0.5 rounded border-l-2 border-[var(--color-primary)]">
+          {highlightInText(contextPortion, term)}
+        </span>
+        <span className="text-[var(--color-text-muted)]">{afterContext}</span>
+      </>
+    );
+  }, [highlightInText]);
+
+  const termToHighlight = highlightTerm ?? null;
+  const renderedContent = isExpanded && expandedText
+    ? renderExpandedWithHighlight(expandedText, text, termToHighlight)
+    : highlightInText(text, termToHighlight);
+
+  return (
+    <div className="mb-4">
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-xs font-medium text-[var(--color-text-secondary)]">
+          {label}
+        </span>
+        {canExpand && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={handleToggleExpand}
+            disabled={isLoading}
+            className="text-xs py-0.5 px-2 h-auto flex items-center gap-1"
+          >
+            {isLoading ? (
+              'Loading...'
+            ) : isExpanded ? (
+              <>
+                <ChevronUp className="w-3 h-3" />
+                Show less
+              </>
+            ) : (
+              <>
+                <ChevronDown className="w-3 h-3" />
+                Show more context
+              </>
+            )}
+          </Button>
+        )}
+      </div>
+      <div className={`p-3 bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] border-l-4 ${borderColorClass}`}>
+        <p className="text-sm text-[var(--color-text)] whitespace-pre-wrap">
+          {renderedContent}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+export default ExpandableRegulationQuote;

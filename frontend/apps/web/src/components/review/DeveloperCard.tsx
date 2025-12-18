@@ -6,6 +6,7 @@ import { useDeveloperName } from '@/hooks/useDeveloperName';
 import { Button, Textarea, Badge, SeverityBadge, Card, Select, Tag } from '@/components/ui';
 import { DEVELOPER_STATUSES, RESOLUTION_TYPES, DEVELOPERS, DEVELOPER_STATUS_LABELS } from '@/types/regulation';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
+import { ExpandableRegulationQuote } from './ExpandableRegulationQuote';
 import { Flag, FileWarning } from 'lucide-react';
 
 interface DeveloperCardProps {
@@ -119,9 +120,12 @@ export const DeveloperCard = forwardRef<HTMLDivElement, DeveloperCardProps>(
               {nycrrCitation && flag.regulation.title && ' - '}
               <span className="text-[var(--color-text-secondary)]">{flag.regulation.title}</span>
             </div>
-            <div className="p-3 bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] border-l-4 border-[var(--color-neutral-300)] text-sm">
-              {flag.explanation}
-            </div>
+            <ExpandableRegulationQuote
+              text={flag.explanation}
+              label="Regulation Text"
+              documentId={flag.regulation.id}
+              variant="default"
+            />
           </>
         );
       }
@@ -152,9 +156,13 @@ export const DeveloperCard = forwardRef<HTMLDivElement, DeveloperCardProps>(
                 <Tag variant="primary" size="sm">{issue.termMatched}</Tag>
               </div>
             )}
-            <div className="p-3 bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] border-l-4 border-[var(--color-neutral-300)] text-sm">
-              {issue.requirementQuote}
-            </div>
+            <ExpandableRegulationQuote
+              text={issue.requirementQuote}
+              label="Regulation Text"
+              documentId={issue.regulation.id}
+              highlightTerm={issue.termMatched}
+              variant="warning"
+            />
           </>
         );
       }
@@ -162,9 +170,9 @@ export const DeveloperCard = forwardRef<HTMLDivElement, DeveloperCardProps>(
       return null;
     };
 
-    const developerOptions = [{ value: '', label: 'Select developer' }, ...DEVELOPERS];
+    const developerOptions = [...DEVELOPERS];
     const statusOptions = [...DEVELOPER_STATUSES];
-    const resolutionOptions = [{ value: '', label: '--' }, ...RESOLUTION_TYPES];
+    const resolutionOptions = [...RESOLUTION_TYPES];
 
     return (
       <Card
@@ -242,9 +250,10 @@ export const DeveloperCard = forwardRef<HTMLDivElement, DeveloperCardProps>(
                 Developer *
               </label>
               <Select
-                value={formData.developerAssigned}
+                value={formData.developerAssigned || undefined}
                 onValueChange={(value) => setFormData((prev) => ({ ...prev, developerAssigned: value }))}
                 options={developerOptions}
+                placeholder="Select developer"
                 disabled={isPending}
               />
             </div>
@@ -269,9 +278,10 @@ export const DeveloperCard = forwardRef<HTMLDivElement, DeveloperCardProps>(
                   Resolution
                 </label>
                 <Select
-                  value={formData.resolutionType || ''}
+                  value={formData.resolutionType || undefined}
                   onValueChange={(value) => setFormData((prev) => ({ ...prev, resolutionType: value }))}
                   options={resolutionOptions}
+                  placeholder="--"
                   disabled={isPending}
                 />
               </div>

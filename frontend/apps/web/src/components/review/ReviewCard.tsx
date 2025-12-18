@@ -6,6 +6,7 @@ import { useReviewerName } from '@/hooks/useReviewerName';
 import { Button, Input, Textarea, Badge, SeverityBadge, Card, Select, Tag } from '@/components/ui';
 import { REVIEW_STATUSES, PRIORITY_OPTIONS, IMPACT_TYPES } from '@/types/regulation';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
+import { ExpandableRegulationQuote } from './ExpandableRegulationQuote';
 import type { RedFlagWithContext } from '@deproceduralizer/database';
 
 interface ReviewCardProps {
@@ -130,10 +131,13 @@ export const ReviewCard = forwardRef<HTMLDivElement, ReviewCardProps>(
           <span className="text-[var(--color-text-secondary)]">{flag.regulation.title}</span>
         </div>
 
-        {/* Explanation */}
-        <div className="mb-4 p-3 bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] border-l-4 border-[var(--color-neutral-300)]">
-          <p className="text-sm text-[var(--color-text)]">{flag.explanation}</p>
-        </div>
+        {/* Explanation - expandable to show regulation context */}
+        <ExpandableRegulationQuote
+          text={flag.explanation}
+          label="Regulation Text"
+          documentId={flag.regulation.id}
+          variant="default"
+        />
 
         {/* Matched phrases */}
         {flag.matchedPhrases && flag.matchedPhrases.length > 0 && (

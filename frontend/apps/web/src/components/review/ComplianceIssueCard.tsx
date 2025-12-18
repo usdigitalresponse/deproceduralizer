@@ -238,7 +238,7 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
         <div className="mb-4">
           <div className="flex items-center justify-between mb-1">
             <span className="text-xs font-medium text-[var(--color-text-secondary)]">
-              {isExpanded ? 'Expanded context:' : 'Context:'}
+              Regulation Text
             </span>
             <Button
               type="button"

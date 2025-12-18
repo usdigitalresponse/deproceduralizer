@@ -6,6 +6,7 @@ import { updateComplianceIssueReview } from '@/lib/actions/compliance-issues';
 import type { DeveloperItem } from '@/lib/actions/developer';
 import { Button, Textarea, Badge, Card, Tag } from '@/components/ui';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
+import { ExpandableRegulationQuote } from './ExpandableRegulationQuote';
 import { Flag, FileWarning, MessageCircleQuestion } from 'lucide-react';
 
 interface NeedMoreInfoCardProps {
@@ -66,13 +67,18 @@ export const NeedMoreInfoCard = forwardRef<HTMLDivElement, NeedMoreInfoCardProps
 
         return (
           <div className="text-sm">
-            <span className="font-semibold">{flag.category}</span>
-            {nycrrCitation && (
-              <span className="text-[var(--color-text-muted)] ml-2 font-mono">{nycrrCitation}</span>
-            )}
-            <p className="text-[var(--color-text-secondary)] mt-1 line-clamp-2">
-              {flag.explanation}
-            </p>
+            <div className="mb-2">
+              <span className="font-semibold">{flag.category}</span>
+              {nycrrCitation && (
+                <span className="text-[var(--color-text-muted)] ml-2 font-mono">{nycrrCitation}</span>
+              )}
+            </div>
+            <ExpandableRegulationQuote
+              text={flag.explanation}
+              label="Regulation Text"
+              documentId={flag.regulation.id}
+              variant="default"
+            />
           </div>
         );
       }
@@ -89,14 +95,20 @@ export const NeedMoreInfoCard = forwardRef<HTMLDivElement, NeedMoreInfoCardProps
 
         return (
           <div className="text-sm">
-            <Badge variant="warning" className="mr-2">{issue.issueType.replace(/_/g, ' ')}</Badge>
-            {issue.termMatched && <Tag variant="primary" size="sm">{issue.termMatched}</Tag>}
-            {nycrrCitation && (
-              <span className="text-[var(--color-text-muted)] ml-2 font-mono">{nycrrCitation}</span>
-            )}
-            <p className="text-[var(--color-text-secondary)] mt-1 line-clamp-2">
-              {issue.requirementQuote}
-            </p>
+            <div className="mb-2">
+              <Badge variant="warning" className="mr-2">{issue.issueType.replace(/_/g, ' ')}</Badge>
+              {issue.termMatched && <Tag variant="primary" size="sm">{issue.termMatched}</Tag>}
+              {nycrrCitation && (
+                <span className="text-[var(--color-text-muted)] ml-2 font-mono">{nycrrCitation}</span>
+              )}
+            </div>
+            <ExpandableRegulationQuote
+              text={issue.requirementQuote}
+              label="Regulation Text"
+              documentId={issue.regulation.id}
+              highlightTerm={issue.termMatched}
+              variant="warning"
+            />
           </div>
         );
       }
@@ -149,7 +161,7 @@ export const NeedMoreInfoCard = forwardRef<HTMLDivElement, NeedMoreInfoCardProps
         </div>
 
         {/* Item summary */}
-        <div className="mb-4 p-3 bg-[var(--color-neutral-50)] rounded-[var(--radius-md)]">
+        <div className="mb-4">
           {renderItemSummary()}
         </div>
 
