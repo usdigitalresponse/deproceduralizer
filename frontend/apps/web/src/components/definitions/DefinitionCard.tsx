@@ -91,6 +91,8 @@ export function DefinitionCard({
               variant="ghost"
               size="sm"
               onClick={() => setIsExpanded(!isExpanded)}
+              aria-label={isExpanded ? 'Collapse definition' : 'Expand definition'}
+              aria-expanded={isExpanded}
               className="mt-2 text-xs py-0.5 px-2 h-auto flex items-center gap-1"
             >
               {isExpanded ? (

@@ -90,8 +90,10 @@ export function HierarchyTree({
                 : 'hover:bg-[var(--color-neutral-100)] text-[var(--color-text-secondary)]'}
             `}
             onClick={onToggleOrphans}
+            aria-label={`Toggle unlinked documents, ${orphans.length} items`}
+            aria-expanded={showOrphans}
           >
-            <FolderX className="w-4 h-4" />
+            <FolderX className="w-4 h-4" aria-hidden="true" />
             <span>Unlinked Documents</span>
             <span className="text-xs ml-auto">({orphans.length})</span>
           </button>

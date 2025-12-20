@@ -26,6 +26,11 @@ export interface UpdateRedFlagInput {
   impactType?: string;
 }
 
+/**
+ * Updates the review status and notes for a red flag.
+ * @param input - The update input including id, review status, reviewer info, and optional priority/impact
+ * @returns The updated red flag or an error
+ */
 export async function updateRedFlagReview(
   input: UpdateRedFlagInput
 ): Promise<ActionResult<RedFlag>> {
@@ -58,6 +63,11 @@ export async function updateRedFlagReview(
   }
 }
 
+/**
+ * Fetches a red flag by its ID.
+ * @param id - The red flag ID
+ * @returns The red flag or null if not found
+ */
 export async function getRedFlagById(
   id: number
 ): Promise<ActionResult<RedFlag | null>> {
@@ -70,6 +80,11 @@ export async function getRedFlagById(
   }
 }
 
+/**
+ * Gets all unique red flag categories for a state.
+ * @param state - The state code (e.g., 'NY', 'NJ')
+ * @returns Array of unique category names
+ */
 export async function getRedFlagCategories(
   state: StateCode
 ): Promise<ActionResult<string[]>> {
@@ -92,6 +107,11 @@ export interface ReviewStatusCounts {
   total: number;
 }
 
+/**
+ * Gets counts of red flags grouped by review status for a state.
+ * @param state - The state code (e.g., 'NY', 'NJ')
+ * @returns Object with counts per status and total
+ */
 export async function getRedFlagStatusCounts(
   state: StateCode
 ): Promise<ActionResult<ReviewStatusCounts>> {
@@ -104,6 +124,12 @@ export async function getRedFlagStatusCounts(
   }
 }
 
+/**
+ * Gets paginated red flags with filtering and sorting options.
+ * @param state - The state code (e.g., 'NY', 'NJ')
+ * @param options - Pagination, sorting, and filter options
+ * @returns Paginated result with red flags and metadata
+ */
 export async function getRedFlagsPaginated(
   state: StateCode,
   options: {
