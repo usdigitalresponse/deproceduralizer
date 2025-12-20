@@ -54,6 +54,14 @@ CREATE TABLE regulatory_documents (
   njac_section VARCHAR(50),            -- Section number
   njac_section_name TEXT,              -- Section name
 
+  -- Parsed NJSA citation components - New Jersey Statutes
+  njsa_title VARCHAR(10),              -- Title number
+  njsa_title_name TEXT,                -- Title name
+  njsa_chapter VARCHAR(20),            -- Chapter identifier
+  njsa_section VARCHAR(20),            -- Section number
+  njsa_section_name TEXT,              -- Section name
+  njsa_citation VARCHAR(50),           -- Full citation (e.g., "52:27D-119")
+
   -- Metadata
   scraped_from_url TEXT,               -- Original URL the content was scraped from
 
@@ -126,6 +134,18 @@ CREATE TABLE statute_references (
   state_section VARCHAR(100)           -- Section within state law
 );
 
+-- Regulation-Statute Links: Many-to-many relationship between regulations and statutes
+CREATE TABLE regulation_statute_links (
+  id BIGSERIAL PRIMARY KEY,
+  regulation_id BIGINT NOT NULL REFERENCES regulatory_documents(id) ON DELETE CASCADE,
+  statute_id BIGINT NOT NULL REFERENCES regulatory_documents(id) ON DELETE CASCADE,
+  citation VARCHAR(50) NOT NULL,       -- The citation (e.g., "52:27D-119")
+  context TEXT,                        -- Surrounding text where citation was found
+  link_type VARCHAR(50) DEFAULT 'reference',  -- 'enabling_authority', 'reference', 'amendment', etc.
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT unique_regulation_statute_link UNIQUE(regulation_id, statute_id, citation)
+);
+
 -- Indexes
 CREATE INDEX idx_documents_state ON regulatory_documents(state);
 CREATE INDEX idx_documents_type ON regulatory_documents(type);
@@ -149,6 +169,9 @@ CREATE INDEX idx_red_flags_priority ON red_flags(priority) WHERE priority IS NOT
 CREATE INDEX idx_red_flags_developer_status ON red_flags(developer_status);
 CREATE INDEX idx_red_flags_developer_assigned ON red_flags(developer_assigned);
 CREATE INDEX idx_statute_references_document ON statute_references(document_id);
+CREATE INDEX idx_reg_statute_links_regulation ON regulation_statute_links(regulation_id);
+CREATE INDEX idx_reg_statute_links_statute ON regulation_statute_links(statute_id);
+CREATE INDEX idx_reg_statute_links_citation ON regulation_statute_links(citation);
 
 -- View: Latest analysis for each document
 CREATE VIEW latest_analyses AS
