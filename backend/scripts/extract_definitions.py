@@ -296,6 +296,53 @@ Only extract actual term definitions, not general descriptions."""
     # Convert Pydantic models to dicts
     return [d.model_dump() for d in parsed.definitions]
 
+
+async def extract_with_llm_async(content: str, title: str, client=None, max_retries: int = 3) -> List[Dict]:
+    """Extract definitions using LLM with Pydantic structured output (async version).
+
+    Args:
+        content: Regulation content text
+        title: Regulation title
+        client: AsyncAnthropic client (optional, will create one if not provided)
+        max_retries: Number of retries on failed responses
+
+    Returns:
+        List of definition dicts with term, definition, scope, source_location
+    """
+    if client is None:
+        from shared_utils import get_async_openai_client
+        client = get_async_openai_client()
+
+    prompt = f"""Extract all term definitions from this regulation section.
+
+TITLE: {title}
+CONTENT (first 3000 chars):
+{content[:3000]}
+
+For each definition found, extract:
+- The term being defined (required)
+- The definition text (required)
+- The scope (e.g., "in this section", "in this part", "throughout this title")
+- The source location where it appears (e.g., "definitions section", "section 1.1")
+
+Only extract actual term definitions, not general descriptions."""
+
+    from shared_utils import call_llm_parse_async
+    parsed = await call_llm_parse_async(
+        client=client,
+        prompt=prompt,
+        response_format=DefinitionsResponse,
+        model=MODEL_VERSION,
+        max_retries=max_retries
+    )
+
+    if parsed is None:
+        return []
+
+    # Convert Pydantic models to dicts
+    return [d.model_dump() for d in parsed.definitions]
+
+
 def store_to_database(regulations: List[Dict], state: str = "NY"):
     """Store definitions in Neon database using shared_utils connection"""
     print(f"[2/3] Storing results in Neon database...")

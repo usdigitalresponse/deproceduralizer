@@ -52,6 +52,7 @@ from red_flags import (
 )
 from extract_definitions import (
     extract_with_llm,
+    extract_with_llm_async,
     store_to_database as store_definitions_to_database,
     generate_viewer,
     log_extraction,
@@ -422,15 +423,17 @@ async def run_red_flags_analysis(
                 pass
 
 
-def run_definitions_extraction(
+async def run_definitions_extraction(
     regulations: List[Dict],
     state: str,
-    no_database: bool = False
+    no_database: bool = False,
+    batch_size: int = 20,
+    delay: float = 0
 ) -> List[Dict]:
-    """Run definitions extraction on filtered regulations."""
+    """Run definitions extraction on filtered regulations (parallelized)."""
 
     print(f"\n{'='*60}")
-    print(f"DEFINITIONS EXTRACTION ({len(regulations)} regulations)")
+    print(f"DEFINITIONS EXTRACTION ({len(regulations)} regulations, concurrency={batch_size})")
     print(f"{'='*60}")
 
     # Setup output file for local backup
@@ -452,23 +455,58 @@ def run_definitions_extraction(
         print("No regulations with definition content found!")
         return []
 
-    # Create client
-    client = get_openai_client()
+    # Create async client
+    client = get_async_openai_client()
 
-    # Extract definitions with progress bar
-    for reg in tqdm(regs_with_defs, desc="Extracting definitions", unit="reg"):
-        definitions = extract_with_llm(reg.get('content', ''), reg.get('title', ''), client=client)
-        reg['llm_definitions'] = definitions
-        tqdm.write(f"  {reg.get('title', 'Unknown')[:50]}... → {len(definitions)} definitions")
+    # Use semaphore for controlled concurrency
+    semaphore = asyncio.Semaphore(batch_size)
+    pbar = tqdm(total=len(regs_with_defs), desc="Extracting definitions", unit="reg")
+    results_lock = asyncio.Lock()
+    processed_count = 0
 
-        # Log extraction
-        source_index = reg.get('source_index')
-        if source_index is not None:
-            log_extraction(source_index, len(definitions))
+    async def process_one(reg, retry_count=0):
+        nonlocal processed_count
+        async with semaphore:
+            try:
+                if delay > 0:
+                    await asyncio.sleep(delay)
 
-        # Save progress every 10 extractions
-        if len([r for r in regs_with_defs if 'llm_definitions' in r]) % 10 == 0:
-            _save_definitions_json(regs_with_defs, output_file)
+                definitions = await extract_with_llm_async(
+                    reg.get('content', ''),
+                    reg.get('title', ''),
+                    client=client
+                )
+                reg['llm_definitions'] = definitions
+
+                async with results_lock:
+                    processed_count += 1
+                    # Log extraction
+                    source_index = reg.get('source_index')
+                    if source_index is not None:
+                        log_extraction(source_index, len(definitions))
+
+                    # Save progress every 10 extractions
+                    if processed_count % 10 == 0:
+                        _save_definitions_json(regs_with_defs, output_file)
+
+                tqdm.write(f"  {reg.get('title', 'Unknown')[:50]}... → {len(definitions)} definitions")
+                pbar.update(1)
+
+            except Exception as e:
+                error_str = str(e).lower()
+                if ('rate' in error_str or 'limit' in error_str or '429' in error_str) and retry_count < 3:
+                    wait_time = (2 ** retry_count) * 5
+                    tqdm.write(f"⚠️ Rate limit hit, waiting {wait_time}s before retry...")
+                    await asyncio.sleep(wait_time)
+                    await process_one(reg, retry_count + 1)
+                    return
+                tqdm.write(f"⚠️ Error processing {reg.get('source_index')}: {e}")
+                pbar.update(1)
+
+    # Launch all tasks with semaphore controlling concurrency
+    tasks = [process_one(reg) for reg in regs_with_defs]
+    await asyncio.gather(*tasks)
+    pbar.close()
 
     # Final save to JSON
     _save_definitions_json(regs_with_defs, output_file)
@@ -639,10 +677,12 @@ async def run_single_target(
         )
 
     if run_definitions:
-        run_definitions_extraction(
+        await run_definitions_extraction(
             regulations,
             state,
-            no_database=no_database
+            no_database=no_database,
+            batch_size=batch_size,
+            delay=delay
         )
 
     print()
@@ -762,10 +802,12 @@ async def main():
                     skip_source_indices=def_skip if def_skip else None
                 )
                 if def_regs:
-                    run_definitions_extraction(
+                    await run_definitions_extraction(
                         def_regs,
                         state,
-                        no_database=args.no_database
+                        no_database=args.no_database,
+                        batch_size=args.batch_size,
+                        delay=args.delay
                     )
                 else:
                     print("  Definitions: All regulations already extracted ✓")
@@ -852,10 +894,12 @@ async def main():
         )
 
     if args.definitions:
-        run_definitions_extraction(
+        await run_definitions_extraction(
             regulations,
             args.state,
-            no_database=args.no_database
+            no_database=args.no_database,
+            batch_size=args.batch_size,
+            delay=args.delay
         )
 
     print("\n" + "="*60)
