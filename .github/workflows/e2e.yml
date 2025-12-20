@@ -43,3 +43,9 @@ jobs:
           name: playwright-report
           path: frontend/apps/web/playwright-report/
           retention-days: 7
+
+      - name: Notify Vercel
+        if: always()
+        uses: vercel/repository-dispatch/actions/status@v1
+        with:
+          name: E2E Smoke Tests
