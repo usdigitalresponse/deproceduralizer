@@ -28,8 +28,20 @@ export const regulatoryDocuments = pgTable('regulatory_documents', {
   nycrrSection: varchar('nycrr_section', { length: 50 }),
   // NJAC (New Jersey Administrative Code) columns
   njacTitle: varchar('njac_title', { length: 50 }),
+  njacTitleName: text('njac_title_name'),
   njacChapter: varchar('njac_chapter', { length: 50 }),
+  njacChapterName: text('njac_chapter_name'),
   njacSubchapter: varchar('njac_subchapter', { length: 100 }),
+  njacSubchapterName: text('njac_subchapter_name'),
+  njacSection: varchar('njac_section', { length: 50 }),
+  njacSectionName: text('njac_section_name'),
+  // NJSA (New Jersey Statutes) columns
+  njsaTitle: varchar('njsa_title', { length: 10 }),
+  njsaTitleName: text('njsa_title_name'),
+  njsaChapter: varchar('njsa_chapter', { length: 20 }),
+  njsaSection: varchar('njsa_section', { length: 20 }),
+  njsaSectionName: text('njsa_section_name'),
+  njsaCitation: varchar('njsa_citation', { length: 50 }),
   scrapedFromUrl: text('scraped_from_url'),
   // Precomputed hierarchy stats (for fast browse queries)
   directChildCount: integer('direct_child_count').default(0),
