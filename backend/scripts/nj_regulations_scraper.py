@@ -30,6 +30,12 @@ from config import (
     NJ_REGULATIONS_CACHE_FILE,
     NJ_REGULATIONS_COMPLETE_FILE,
 )
+from scripts.scraper_utils import (
+    fix_extraneous_newlines,
+    extract_text_smart,
+    clean_regulation_text,
+    convert_tables_to_markdown,
+)
 
 
 # =============================================================================
@@ -79,7 +85,9 @@ def is_index_page_content(title: str, content: str) -> bool:
 
     # Index page has generic title and starts with list of titles
     is_generic_title = title.strip() == "New Jersey Administrative Code"
-    has_toc_content = content.strip().startswith("New Jersey Administrative Code\n\nTitle 1")
+    # Check for TOC content (with or without newlines)
+    content_start = content.strip()[:100]
+    has_toc_content = "New Jersey Administrative Code" in content_start and "Title 1" in content_start
 
     return is_generic_title and has_toc_content
 
@@ -257,6 +265,104 @@ def parse_breadcrumb(soup: BeautifulSoup) -> Dict:
 
     # hierarchy_path is already set from the raw breadcrumb above
     return result
+
+
+def process_cached_file(file_path: str) -> Optional[Dict]:
+    """
+    Process a single cached HTML file. Used for parallel processing.
+
+    Args:
+        file_path: Path to the cached JSON file
+
+    Returns:
+        Regulation dict or None if processing fails
+    """
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            cached_data = json.load(f)
+
+        if 'html' not in cached_data or 'url' not in cached_data:
+            return None
+
+        url = cached_data['url']
+        html = cached_data['html']
+
+        soup = BeautifulSoup(html, 'html.parser')
+
+        title_elem = soup.find('h1') or soup.find('title')
+        title = title_elem.get_text(strip=True) if title_elem else "No title found"
+
+        # Skip index page content
+        if is_index_page_content(title, ""):
+            return None
+
+        content = ""
+        reg_content = soup.find('div', class_='statereg-text')
+        if reg_content:
+            convert_tables_to_markdown(reg_content)
+            content = extract_text_smart(reg_content)
+        else:
+            main_content = soup.find('div', {'id': 'content'}) or soup.find('main')
+            if main_content:
+                for unwanted in main_content(['nav', 'aside', 'footer', 'script', 'style', 'noscript', 'header']):
+                    unwanted.decompose()
+                convert_tables_to_markdown(main_content)
+                content = extract_text_smart(main_content)
+
+        # Skip if no content or index page
+        if is_index_page_content(title, content):
+            return None
+
+        # Clean the content
+        cleaned_content = clean_regulation_text(content)
+        hierarchy = parse_breadcrumb(soup)
+
+        # Classify URL
+        url_type = 'unknown'
+        if '/title-' in url:
+            url_type = 'title'
+        elif '-NJAC-' in url or 'NJAC' in url:
+            url_type = 'regulation'
+        elif '/chapter-' in url:
+            url_type = 'chapter'
+        elif '/part-' in url:
+            url_type = 'part'
+        elif '/section-' in url:
+            url_type = 'section'
+        elif '/subchapter-' in url:
+            url_type = 'subchapter'
+        elif '/app-' in url or '/appendix' in url:
+            url_type = 'appendix'
+
+        return {
+            'url': url,
+            'title': title,
+            'content': content,
+            'cleaned_content': cleaned_content,
+            'url_type': url_type,
+            'hierarchy_level': hierarchy.get('hierarchy_level'),
+            'hierarchy_path': hierarchy.get('hierarchy_path'),
+            'njac_title': hierarchy.get('njac_title'),
+            'njac_title_name': hierarchy.get('njac_title_name'),
+            'njac_subtitle': hierarchy.get('njac_subtitle'),
+            'njac_subtitle_name': hierarchy.get('njac_subtitle_name'),
+            'njac_chapter': hierarchy.get('njac_chapter'),
+            'njac_chapter_name': hierarchy.get('njac_chapter_name'),
+            'njac_subchapter': hierarchy.get('njac_subchapter'),
+            'njac_subchapter_name': hierarchy.get('njac_subchapter_name'),
+            'njac_article': hierarchy.get('njac_article'),
+            'njac_article_name': hierarchy.get('njac_article_name'),
+            'njac_part': hierarchy.get('njac_part'),
+            'njac_part_name': hierarchy.get('njac_part_name'),
+            'njac_subpart': hierarchy.get('njac_subpart'),
+            'njac_subpart_name': hierarchy.get('njac_subpart_name'),
+            'njac_section': hierarchy.get('njac_section'),
+            'njac_section_name': hierarchy.get('njac_section_name'),
+            'scraped_from_url': None,  # Will need to be populated from scraped_from_map
+        }
+
+    except Exception:
+        return None
 
 
 class NJRegulationsScraper:
@@ -448,11 +554,15 @@ class NJRegulationsScraper:
         if main_content:
             for unwanted in main_content(['nav', 'aside', 'footer', 'script', 'style', 'noscript']):
                 unwanted.decompose()
-            content = main_content.get_text(separator='\n', strip=True)
+            # Convert tables to markdown before extracting text
+            convert_tables_to_markdown(main_content)
+            content = extract_text_smart(main_content)
         else:
             for script in soup(["script", "style", "nav", "footer"]):
                 script.decompose()
-            content = soup.get_text(separator='\n', strip=True)
+            # Convert tables to markdown before extracting text
+            convert_tables_to_markdown(soup)
+            content = extract_text_smart(soup)
 
         # Skip index page content (404s/redirects that show TOC instead of regulation)
         if is_index_page_content(title, content):
@@ -536,6 +646,10 @@ class NJRegulationsScraper:
 
         cleaned_content = '\n'.join(cleaned_lines)
         cleaned_content = re.sub(r'\\n', '\n', cleaned_content)
+
+        # Fix extraneous newlines from HTML inline element extraction
+        cleaned_content = fix_extraneous_newlines(cleaned_content)
+
         cleaned_content = re.sub(r'([0-9)])\n([A-Z][a-z])', r'\1\n\n\2', cleaned_content)
         cleaned_content = re.sub(r'([a-z])\n([A-Z][a-z])', r'\1\n\n\2', cleaned_content)
         cleaned_content = re.sub(r'\n\s*\n\s*\n+', '\n\n', cleaned_content)
@@ -805,10 +919,12 @@ class FullPipeline:
 
         return data
 
-    def step2_process_cache_to_clean_data(self):
+    def step2_process_cache_to_clean_data(self, max_workers=8):
         print("\n" + "=" * 60)
-        print("STEP 2: PROCESSING CACHED FILES TO CLEAN DATA")
+        print("STEP 2: PROCESSING CACHED FILES TO CLEAN DATA (PARALLEL)")
         print("=" * 60)
+
+        from concurrent.futures import ProcessPoolExecutor, as_completed
 
         scraper = NJRegulationsScraper()
         cache_dir = NJ_SCRAPED_DATA_DIR
@@ -817,82 +933,33 @@ class FullPipeline:
             print(f"No scraped_data directory found at {cache_dir}")
             return False
 
-        html_files = list(cache_dir.glob('*.json'))
+        html_files = [f for f in cache_dir.glob('*.json')
+                      if f.name not in ['progress.json', 'failed_urls.json', 'scraped_from_urls.json']]
+
+        print(f"Processing {len(html_files)} cached files with {max_workers} workers...")
+
         regulation_data = []
-
-        print(f"Processing {len(html_files)} cached files...")
-
         processed_count = 0
-        for html_file in html_files:
-            if html_file.name in ['progress.json', 'failed_urls.json', 'scraped_from_urls.json']:
-                continue
 
-            try:
-                with open(html_file, 'r', encoding='utf-8') as f:
-                    cached_data = json.load(f)
+        with ProcessPoolExecutor(max_workers=max_workers) as executor:
+            futures = {executor.submit(process_cached_file, str(f)): f for f in html_files}
 
-                if 'html' in cached_data and 'url' in cached_data:
-                    url = cached_data['url']
-                    html = cached_data['html']
-
-                    soup = BeautifulSoup(html, 'html.parser')
-
-                    title_elem = soup.find('h1') or soup.find('title')
-                    title = title_elem.get_text(strip=True) if title_elem else "No title found"
-
-                    content = ""
-                    reg_content = soup.find('div', class_='statereg-text')
-                    if reg_content:
-                        content = reg_content.get_text(separator='\n', strip=True)
-                    else:
-                        main_content = soup.find('div', {'id': 'content'}) or soup.find('main')
-                        if main_content:
-                            for unwanted in main_content(['nav', 'aside', 'footer', 'script', 'style', 'noscript', 'header']):
-                                unwanted.decompose()
-                            content = main_content.get_text(separator='\n', strip=True)
-
-                    cleaned_content = scraper.clean_regulation_text(content)
-                    hierarchy = parse_breadcrumb(soup)
-
-                    regulation = {
-                        'url': url,
-                        'title': title,
-                        'content': content,
-                        'cleaned_content': cleaned_content,
-                        'url_type': scraper.classify_url(url),
-                        'hierarchy_level': hierarchy.get('hierarchy_level'),
-                        'hierarchy_path': hierarchy.get('hierarchy_path'),
-                        'njac_title': hierarchy.get('njac_title'),
-                        'njac_title_name': hierarchy.get('njac_title_name'),
-                        'njac_subtitle': hierarchy.get('njac_subtitle'),
-                        'njac_subtitle_name': hierarchy.get('njac_subtitle_name'),
-                        'njac_chapter': hierarchy.get('njac_chapter'),
-                        'njac_chapter_name': hierarchy.get('njac_chapter_name'),
-                        'njac_subchapter': hierarchy.get('njac_subchapter'),
-                        'njac_subchapter_name': hierarchy.get('njac_subchapter_name'),
-                        'njac_article': hierarchy.get('njac_article'),
-                        'njac_article_name': hierarchy.get('njac_article_name'),
-                        'njac_part': hierarchy.get('njac_part'),
-                        'njac_part_name': hierarchy.get('njac_part_name'),
-                        'njac_subpart': hierarchy.get('njac_subpart'),
-                        'njac_subpart_name': hierarchy.get('njac_subpart_name'),
-                        'njac_section': hierarchy.get('njac_section'),
-                        'njac_section_name': hierarchy.get('njac_section_name'),
-                        'scraped_from_url': scraper.scraped_from_map.get(url),
-                    }
-
-                    regulation_data.append(regulation)
-                    processed_count += 1
-
-                    if processed_count % 500 == 0:
-                        print(f"  Processed {processed_count} files...")
-
-            except Exception:
-                continue
+            for future in as_completed(futures):
+                try:
+                    result = future.result()
+                    if result:
+                        regulation_data.append(result)
+                        processed_count += 1
+                        if processed_count % 500 == 0:
+                            print(f"  Processed {processed_count} files...")
+                except Exception as e:
+                    pass  # Skip failed files
 
         if not regulation_data:
             print("No valid regulation data found")
             return False
+
+        print(f"  Processed {len(regulation_data)} total files")
 
         for idx, item in enumerate(regulation_data):
             item['source_index'] = idx

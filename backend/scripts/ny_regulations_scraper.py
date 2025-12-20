@@ -22,6 +22,12 @@ from config import (
     NY_REGULATIONS_CACHE_FILE,
     NY_REGULATIONS_COMPLETE_FILE,
 )
+from scripts.scraper_utils import (
+    fix_extraneous_newlines,
+    extract_text_smart,
+    clean_regulation_text,
+    convert_tables_to_markdown,
+)
 
 
 # =============================================================================
@@ -188,6 +194,94 @@ def parse_breadcrumb(soup: BeautifulSoup) -> Dict:
 
     # hierarchy_path is already set from the raw breadcrumb above
     return result
+
+
+def process_cached_file_ny(file_path: str) -> Optional[Dict]:
+    """
+    Process a single cached HTML file for NY. Used for parallel processing.
+
+    Args:
+        file_path: Path to the cached JSON file
+
+    Returns:
+        Regulation dict or None if processing fails
+    """
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            cached_data = json.load(f)
+
+        if 'html' not in cached_data or 'url' not in cached_data:
+            return None
+
+        url = cached_data['url']
+        html = cached_data['html']
+
+        soup = BeautifulSoup(html, 'html.parser')
+
+        title_elem = soup.find('h1') or soup.find('title')
+        title = title_elem.get_text(strip=True) if title_elem else "No title found"
+
+        content = ""
+        reg_content = soup.find('div', class_='statereg-text')
+        if reg_content:
+            convert_tables_to_markdown(reg_content)
+            content = extract_text_smart(reg_content)
+        else:
+            main_content = soup.find('div', {'id': 'content'}) or soup.find('main')
+            if main_content:
+                for unwanted in main_content(['nav', 'aside', 'footer', 'script', 'style', 'noscript', 'header']):
+                    unwanted.decompose()
+                convert_tables_to_markdown(main_content)
+                content = extract_text_smart(main_content)
+
+        # Clean the content
+        cleaned_content = clean_regulation_text(content)
+        hierarchy = parse_breadcrumb(soup)
+
+        # Classify URL
+        url_type = 'unknown'
+        if '/title-' in url:
+            url_type = 'title'
+        elif '-NYCRR-' in url:
+            url_type = 'regulation'
+        elif '/chapter-' in url:
+            url_type = 'chapter'
+        elif '/part-' in url:
+            url_type = 'part'
+        elif '/section-' in url:
+            url_type = 'section'
+        elif '/app-' in url or '/appendix' in url:
+            url_type = 'appendix'
+
+        return {
+            'url': url,
+            'title': title,
+            'content': content,
+            'cleaned_content': cleaned_content,
+            'url_type': url_type,
+            'hierarchy_level': hierarchy.get('hierarchy_level'),
+            'hierarchy_path': hierarchy.get('hierarchy_path'),
+            'nycrr_title': hierarchy.get('nycrr_title'),
+            'nycrr_title_name': hierarchy.get('nycrr_title_name'),
+            'nycrr_subtitle': hierarchy.get('nycrr_subtitle'),
+            'nycrr_subtitle_name': hierarchy.get('nycrr_subtitle_name'),
+            'nycrr_chapter': hierarchy.get('nycrr_chapter'),
+            'nycrr_chapter_name': hierarchy.get('nycrr_chapter_name'),
+            'nycrr_subchapter': hierarchy.get('nycrr_subchapter'),
+            'nycrr_subchapter_name': hierarchy.get('nycrr_subchapter_name'),
+            'nycrr_article': hierarchy.get('nycrr_article'),
+            'nycrr_article_name': hierarchy.get('nycrr_article_name'),
+            'nycrr_part': hierarchy.get('nycrr_part'),
+            'nycrr_part_name': hierarchy.get('nycrr_part_name'),
+            'nycrr_subpart': hierarchy.get('nycrr_subpart'),
+            'nycrr_subpart_name': hierarchy.get('nycrr_subpart_name'),
+            'nycrr_section': hierarchy.get('nycrr_section'),
+            'nycrr_section_name': hierarchy.get('nycrr_section_name'),
+            'scraped_from_url': None,
+        }
+
+    except Exception:
+        return None
 
 
 class NYRegulationsScraper:
@@ -384,18 +478,22 @@ class NYRegulationsScraper:
         
         # Look for main content containers
         main_content = soup.find('div', {'id': 'content'}) or soup.find('main') or soup.find('article')
-        
+
         if main_content:
             # Remove navigation, ads, and other non-content elements
             for unwanted in main_content(['nav', 'aside', 'footer', 'script', 'style', 'noscript']):
                 unwanted.decompose()
-            
-            content = main_content.get_text(separator='\n', strip=True)
+
+            # Convert tables to markdown before extracting text
+            convert_tables_to_markdown(main_content)
+            content = extract_text_smart(main_content)
         else:
             # Fallback: get all text but filter out obvious navigation
             for script in soup(["script", "style", "nav", "footer"]):
                 script.decompose()
-            content = soup.get_text(separator='\n', strip=True)
+            # Convert tables to markdown before extracting text
+            convert_tables_to_markdown(soup)
+            content = extract_text_smart(soup)
         
         # Clean the content for better readability
         cleaned_content = self.clean_regulation_text(content)
@@ -483,11 +581,14 @@ class NYRegulationsScraper:
         
         # Join lines with proper spacing
         cleaned_content = '\n'.join(cleaned_lines)
-        
+
         # Fix all types of newline issues
         # Handle literal \n sequences that appear as text
         cleaned_content = re.sub(r'\\n', '\n', cleaned_content)
-        
+
+        # Fix extraneous newlines from HTML inline element extraction
+        cleaned_content = fix_extraneous_newlines(cleaned_content)
+
         # Handle patterns like "7802)\nChapter" -> "7802)\n\nChapter"
         cleaned_content = re.sub(r'([0-9)])\n([A-Z][a-z])', r'\1\n\n\2', cleaned_content)
         cleaned_content = re.sub(r'([a-z])\n([A-Z][a-z])', r'\1\n\n\2', cleaned_content)
@@ -797,95 +898,47 @@ class FullPipeline:
 
         return data
 
-    def step2_process_cache_to_clean_data(self):
-        """Step 2: Convert cached HTML to clean regulation data"""
+    def step2_process_cache_to_clean_data(self, max_workers=8):
+        """Step 2: Convert cached HTML to clean regulation data (parallel)"""
         print("\n" + "=" * 60)
-        print("STEP 2: PROCESSING CACHED FILES TO CLEAN DATA")
+        print("STEP 2: PROCESSING CACHED FILES TO CLEAN DATA (PARALLEL)")
         print("=" * 60)
 
-        scraper = NYRegulationsScraper()
+        from concurrent.futures import ProcessPoolExecutor, as_completed
+
         cache_dir = SCRAPED_DATA_DIR
 
         if not cache_dir.exists():
             print(f"No scraped_data directory found at {cache_dir}")
             return False
 
-        html_files = list(cache_dir.glob('*.json'))
+        html_files = [f for f in cache_dir.glob('*.json')
+                      if f.name not in ['progress.json', 'failed_urls.json', 'scraped_from_urls.json']]
+
+        print(f"Processing {len(html_files)} cached files with {max_workers} workers...")
+
         regulation_data = []
-
-        print(f"Processing {len(html_files)} cached files...")
-
         processed_count = 0
-        for html_file in html_files:
-            if html_file.name in ['progress.json', 'failed_urls.json']:
-                continue
 
-            try:
-                with open(html_file, 'r', encoding='utf-8') as f:
-                    cached_data = json.load(f)
+        with ProcessPoolExecutor(max_workers=max_workers) as executor:
+            futures = {executor.submit(process_cached_file_ny, str(f)): f for f in html_files}
 
-                if 'html' in cached_data and 'url' in cached_data:
-                    url = cached_data['url']
-                    html = cached_data['html']
-
-                    soup = BeautifulSoup(html, 'html.parser')
-
-                    title_elem = soup.find('h1') or soup.find('title')
-                    title = title_elem.get_text(strip=True) if title_elem else "No title found"
-
-                    content = ""
-                    reg_content = soup.find('div', class_='statereg-text')
-                    if reg_content:
-                        content = reg_content.get_text(separator='\n', strip=True)
-                    else:
-                        main_content = soup.find('div', {'id': 'content'}) or soup.find('main')
-                        if main_content:
-                            for unwanted in main_content(['nav', 'aside', 'footer', 'script', 'style', 'noscript', 'header']):
-                                unwanted.decompose()
-                            content = main_content.get_text(separator='\n', strip=True)
-
-                    cleaned_content = scraper.clean_regulation_text(content)
-                    hierarchy = parse_breadcrumb(soup)
-
-                    regulation = {
-                        'url': url,
-                        'title': title,
-                        'content': content,
-                        'cleaned_content': cleaned_content,
-                        'url_type': scraper.classify_url(url),
-                        'hierarchy_level': hierarchy.get('hierarchy_level'),
-                        'hierarchy_path': hierarchy.get('hierarchy_path'),
-                        'nycrr_title': hierarchy.get('nycrr_title'),
-                        'nycrr_title_name': hierarchy.get('nycrr_title_name'),
-                        'nycrr_subtitle': hierarchy.get('nycrr_subtitle'),
-                        'nycrr_subtitle_name': hierarchy.get('nycrr_subtitle_name'),
-                        'nycrr_chapter': hierarchy.get('nycrr_chapter'),
-                        'nycrr_chapter_name': hierarchy.get('nycrr_chapter_name'),
-                        'nycrr_subchapter': hierarchy.get('nycrr_subchapter'),
-                        'nycrr_subchapter_name': hierarchy.get('nycrr_subchapter_name'),
-                        'nycrr_article': hierarchy.get('nycrr_article'),
-                        'nycrr_article_name': hierarchy.get('nycrr_article_name'),
-                        'nycrr_part': hierarchy.get('nycrr_part'),
-                        'nycrr_part_name': hierarchy.get('nycrr_part_name'),
-                        'nycrr_subpart': hierarchy.get('nycrr_subpart'),
-                        'nycrr_subpart_name': hierarchy.get('nycrr_subpart_name'),
-                        'nycrr_section': hierarchy.get('nycrr_section'),
-                        'nycrr_section_name': hierarchy.get('nycrr_section_name'),
-                        'scraped_from_url': scraper.scraped_from_map.get(url),
-                    }
-
-                    regulation_data.append(regulation)
-                    processed_count += 1
-
-                    if processed_count % 500 == 0:
-                        print(f"  Processed {processed_count} files...")
-
-            except Exception:
-                continue
+            for future in as_completed(futures):
+                try:
+                    result = future.result()
+                    if result:
+                        regulation_data.append(result)
+                        processed_count += 1
+                        if processed_count % 500 == 0:
+                            print(f"  Processed {processed_count} files...")
+                except Exception:
+                    pass  # Skip failed files
 
         if not regulation_data:
             print("No valid regulation data found")
             return False
+
+        print(f"  Processed {len(regulation_data)} total files")
 
         # Assign source_index and link parents
         for idx, item in enumerate(regulation_data):
