@@ -1,12 +1,10 @@
 'use client';
 
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
-import { useCallback } from 'react';
-import { Button } from '@/components/ui/Button';
-import { Select } from '@/components/ui/Select';
+import { useCallback, useTransition } from 'react';
+import { Button, Select, SearchInput } from '@/components/ui';
 import type { HierarchyFilterOptions } from '@deproceduralizer/database';
 import { X } from 'lucide-react';
-import { BrowseSearchInput } from './BrowseSearchInput';
 
 interface BrowseFiltersProps {
   currentFilters: HierarchyFilterOptions;
@@ -60,6 +58,7 @@ export function BrowseFilters({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const [isPending, startTransition] = useTransition();
 
   const updateParams = useCallback(
     (updates: Record<string, string | undefined>) => {
@@ -75,6 +74,28 @@ export function BrowseFilters({
 
       const queryString = params.toString();
       router.push(queryString ? `${pathname}?${queryString}` : pathname);
+    },
+    [router, pathname, searchParams]
+  );
+
+  // Handle search - clears expanded state when search changes
+  const handleSearch = useCallback(
+    (searchValue: string) => {
+      const params = new URLSearchParams(searchParams.toString());
+
+      if (searchValue.trim()) {
+        params.set('search', searchValue.trim());
+      } else {
+        params.delete('search');
+      }
+
+      // Clear expanded state when search changes (tree will reset)
+      params.delete('expanded');
+
+      const queryString = params.toString();
+      startTransition(() => {
+        router.push(queryString ? `${pathname}?${queryString}` : pathname);
+      });
     },
     [router, pathname, searchParams]
   );
@@ -102,7 +123,14 @@ export function BrowseFilters({
   return (
     <div className={`flex flex-wrap items-center gap-3 ${className}`}>
       {/* Search input */}
-      <BrowseSearchInput initialValue={search} />
+      <SearchInput
+        value={search}
+        onSearch={handleSearch}
+        placeholder="Search by title..."
+        size="sm"
+        className="w-48"
+        isLoading={isPending}
+      />
 
       {/* Analyzed filter */}
       <div className="flex items-center gap-2">

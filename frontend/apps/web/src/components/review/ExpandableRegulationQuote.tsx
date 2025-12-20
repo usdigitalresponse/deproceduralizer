@@ -60,8 +60,13 @@ export function ExpandableRegulationQuote({
     setIsLoading(true);
     try {
       const result = await getExpandedContext(documentId, text, expandChars);
-      if (result.couldExpand) {
-        setExpandedText(result.expandedText);
+      if (!result.success) {
+        console.error('Failed to expand context:', result.error);
+        setCanExpand(false);
+        return;
+      }
+      if (result.data.couldExpand) {
+        setExpandedText(result.data.expandedText);
         setIsExpanded(true);
       } else {
         setCanExpand(false);

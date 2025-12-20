@@ -356,6 +356,72 @@ WITH RECURSIVE ancestors AS (
 SELECT * FROM ancestors ORDER BY id;
 ```
 
+## Database Health & Auditing
+
+### Find Unused Columns
+
+To check for columns with no data (all NULL values), use this query pattern:
+
+```sql
+-- Check column usage for a specific table
+SELECT
+  'table_name' as table_name,
+  'column_name' as column_name,
+  COUNT(*) as total,
+  COUNT(column_name) as non_null
+FROM table_name;
+```
+
+**Quick audit across key tables:**
+
+```bash
+# Check multiple columns at once using UNION ALL
+./scripts/db-query.sh "SELECT
+  'red_flags' as table_name, 'developer_assigned' as column, COUNT(*) as total, COUNT(developer_assigned) as non_null FROM red_flags
+UNION ALL
+SELECT 'red_flags', 'priority', COUNT(*), COUNT(priority) FROM red_flags
+UNION ALL
+SELECT 'definitions', 'document_id', COUNT(*), COUNT(document_id) FROM definitions
+UNION ALL
+SELECT 'statute_references', 'id', COUNT(*), COUNT(id) FROM statute_references"
+```
+
+### Known Unused Columns (as of Dec 2025)
+
+**Completely empty (0 values):**
+
+| Table | Column | Notes |
+|-------|--------|-------|
+| `statute_references` | (entire table) | 0 rows |
+| `regulatory_documents` | `scraped_from_url` | Never populated |
+| `definitions` | `document_id` | Uses `url` field instead |
+| `definitions` | `notes` | Never used |
+| `red_flags` | `developer_*` fields | All developer tracking fields unused |
+| `red_flags` | `priority`, `impact_type` | Review workflow fields unused |
+| `compliance_issues` | `developer_*` fields | All developer tracking fields unused |
+| `compliance_issues` | `statute_citation` | Never populated |
+
+**Barely used (<1%):**
+
+| Table | Column | Notes |
+|-------|--------|-------|
+| `red_flags` | `reviewed_by/at/notes` | Only 2 of 3,400 reviewed |
+
+### Find Empty Tables
+
+```bash
+./scripts/db-query.sh tables
+```
+
+### Check Foreign Key Integrity
+
+```sql
+-- Find orphaned definitions (document_id pointing to non-existent documents)
+SELECT COUNT(*) FROM definitions d
+WHERE d.document_id IS NOT NULL
+AND NOT EXISTS (SELECT 1 FROM regulatory_documents rd WHERE rd.id = d.document_id);
+```
+
 ## ORM Access
 
 The codebase uses Drizzle ORM. Access via:

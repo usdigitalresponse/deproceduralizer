@@ -48,9 +48,14 @@ export function HierarchyBreadcrumbs({
     async function loadAncestors() {
       setIsLoading(true);
       try {
-        const chain = await getAncestorChain(documentId);
+        const result = await getAncestorChain(documentId);
         if (!cancelled) {
-          setAncestors(chain);
+          if (result.success) {
+            setAncestors(result.data);
+          } else {
+            console.error('Failed to load ancestor chain:', result.error);
+            setAncestors([]);
+          }
         }
       } catch (error) {
         console.error('Failed to load ancestor chain:', error);

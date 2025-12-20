@@ -3,15 +3,22 @@ import Link from 'next/link';
 import { db, RegulatoryDocumentsRepository } from '@deproceduralizer/database';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Container } from '@/components/layout/Container';
-import { Badge, SeverityBadge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { Alert } from '@/components/ui';
 import { RedFlagsList } from '@/components/RedFlagsList';
 import { ComplianceIssuesList } from '@/components/ComplianceIssuesList';
+import { DefinitionsList } from '@/components/definitions';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
+import {
+  RegulationHierarchyDetails,
+  RegulationMetadata,
+  RegulationSummary,
+} from '@/components/regulations';
 import { HierarchyBreadcrumbsServer } from '@/components/regulations/HierarchyBreadcrumbsServer';
 import { ChildrenListServer } from '@/components/regulations/ChildrenListServer';
 import { getComplianceIssuesByDocumentId } from '@/lib/actions/compliance-issues';
+import { getDefinitionsForDocument } from '@/lib/actions/definitions';
 import { getNotesByDocumentId } from '@/lib/actions/document-notes';
 import { RegulationDetailClient } from './RegulationDetailClient';
 
@@ -35,15 +42,69 @@ export default async function RegulationDetailPage({ params, searchParams }: Pag
   }
 
   const repo = new RegulatoryDocumentsRepository(db);
-  const [regulation, complianceIssues, notes] = await Promise.all([
+  const [regulation, complianceIssuesResult, definitionsResult, notesResult] = await Promise.all([
     repo.getByIdWithAnalysis(regulationId),
     getComplianceIssuesByDocumentId(regulationId),
+    getDefinitionsForDocument(regulationId),
     getNotesByDocumentId(regulationId),
   ]);
 
   if (!regulation) {
     notFound();
   }
+
+  // Handle errors - display them obviously
+  if (!complianceIssuesResult.success) {
+    return (
+      <div className="bg-[var(--color-background)] min-h-screen">
+        <PageHeader
+          title={regulation.title || 'Untitled Regulation'}
+          description={undefined}
+        />
+        <Container size="xl" className="py-6">
+          <Alert variant="error">
+            Failed to load compliance issues: {complianceIssuesResult.error}
+          </Alert>
+        </Container>
+      </div>
+    );
+  }
+
+  if (!definitionsResult.success) {
+    return (
+      <div className="bg-[var(--color-background)] min-h-screen">
+        <PageHeader
+          title={regulation.title || 'Untitled Regulation'}
+          description={undefined}
+        />
+        <Container size="xl" className="py-6">
+          <Alert variant="error">
+            Failed to load definitions: {definitionsResult.error}
+          </Alert>
+        </Container>
+      </div>
+    );
+  }
+
+  if (!notesResult.success) {
+    return (
+      <div className="bg-[var(--color-background)] min-h-screen">
+        <PageHeader
+          title={regulation.title || 'Untitled Regulation'}
+          description={undefined}
+        />
+        <Container size="xl" className="py-6">
+          <Alert variant="error">
+            Failed to load document notes: {notesResult.error}
+          </Alert>
+        </Container>
+      </div>
+    );
+  }
+
+  const complianceIssues = complianceIssuesResult.data;
+  const definitions = definitionsResult.data;
+  const notes = notesResult.data;
 
   const nycrrCitation = formatNycrrCitation(
     regulation.nycrrTitle,
@@ -87,120 +148,21 @@ export default async function RegulationDetailPage({ params, searchParams }: Pag
             />
 
             {/* Additional hierarchy details */}
-            {(regulation.hierarchyLevel || regulation.nycrrTitle || regulation.nycrrPart || regulation.nycrrSection) && (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mt-4 pt-4 border-t border-[var(--color-neutral-200)]">
-                {regulation.hierarchyLevel && (
-                  <div>
-                    <span className="font-medium text-[var(--color-text-secondary)]">Level:</span>
-                    <span className="ml-2 capitalize">{regulation.hierarchyLevel}</span>
-                  </div>
-                )}
-                {regulation.nycrrTitle && (
-                  <div>
-                    <span className="font-medium text-[var(--color-text-secondary)]">Title:</span>
-                    <span className="ml-2">{regulation.nycrrTitle}</span>
-                  </div>
-                )}
-                {regulation.nycrrPart && (
-                  <div>
-                    <span className="font-medium text-[var(--color-text-secondary)]">Part:</span>
-                    <span className="ml-2">{regulation.nycrrPart}</span>
-                  </div>
-                )}
-                {regulation.nycrrSection && (
-                  <div>
-                    <span className="font-medium text-[var(--color-text-secondary)]">Section:</span>
-                    <span className="ml-2">{regulation.nycrrSection}</span>
-                  </div>
-                )}
-              </div>
-            )}
+            <RegulationHierarchyDetails
+              regulation={regulation}
+              className="mt-4 pt-4 border-t border-[var(--color-neutral-200)]"
+            />
           </Card>
 
           {/* Metadata Grid */}
           <Card>
             <h2 className="font-semibold text-[var(--color-text)] mb-3">Metadata</h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div>
-                <span className="font-semibold text-[var(--color-text-secondary)] text-sm block">Source</span>
-                <a
-                  href={regulation.url ?? ''}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[var(--color-link)] hover:text-[var(--color-link-hover)] hover:underline text-sm"
-                >
-                  View Original
-                </a>
-              </div>
-              <div>
-                <span className="font-semibold text-[var(--color-text-secondary)] text-sm block">Red Flags</span>
-                <Badge variant={(regulation.numFlags ?? 0) > 0 ? 'danger' : 'default'}>
-                  {regulation.numFlags || 0} flags
-                </Badge>
-              </div>
-              <div>
-                <span className="font-semibold text-[var(--color-text-secondary)] text-sm block">Severity</span>
-                {regulation.maxSeverity ? (
-                  <SeverityBadge severity={regulation.maxSeverity} />
-                ) : (
-                  <span className="text-[var(--color-text-muted)]">–</span>
-                )}
-              </div>
-              <div>
-                <span className="font-semibold text-[var(--color-text-secondary)] text-sm block">Complexity</span>
-                {regulation.overallComplexity ? (
-                  <Badge
-                    variant={
-                      regulation.overallComplexity === 'HIGH' ? 'danger' :
-                      regulation.overallComplexity === 'MEDIUM' || regulation.overallComplexity === 'MEDIUM-HIGH' ? 'warning' :
-                      'success'
-                    }
-                  >
-                    {regulation.overallComplexity}
-                  </Badge>
-                ) : (
-                  <span className="text-[var(--color-text-muted)]">–</span>
-                )}
-              </div>
-              <div>
-                <span className="font-semibold text-[var(--color-text-secondary)] text-sm block">Implementation Issues</span>
-                <span className="text-sm">
-                  {regulation.hasImplementationIssues ? (
-                    <span className="text-[var(--color-danger)]">Yes</span>
-                  ) : (
-                    <span className="text-[var(--color-text-muted)]">No</span>
-                  )}
-                </span>
-              </div>
-              <div>
-                <span className="font-semibold text-[var(--color-text-secondary)] text-sm block">Tech Review Required</span>
-                <span className="text-sm">
-                  {regulation.requiresTechnicalReview ? (
-                    <span className="text-[var(--color-info)]">Yes</span>
-                  ) : (
-                    <span className="text-[var(--color-text-muted)]">No</span>
-                  )}
-                </span>
-              </div>
-              <div>
-                <span className="font-semibold text-[var(--color-text-secondary)] text-sm block">Reporting Requirement</span>
-                <span className="text-sm">
-                  {regulation.hasReportingRequirement ? (
-                    <span className="text-[var(--color-warning)]">Yes</span>
-                  ) : (
-                    <span className="text-[var(--color-text-muted)]">No</span>
-                  )}
-                </span>
-              </div>
-            </div>
+            <RegulationMetadata regulation={regulation} layout="grid" />
           </Card>
 
           {/* Summary */}
           <Card>
-            <h2 className="font-semibold text-[var(--color-text)] mb-3">Summary</h2>
-            <div className="bg-[var(--color-info-bg)] border-l-4 border-[var(--color-info)] p-4 rounded-[var(--radius-md)] text-sm">
-              {regulation.summary || 'No summary available'}
-            </div>
+            <RegulationSummary summary={regulation.summary} showHeading />
           </Card>
 
           {/* Children (sub-sections, parts, etc.) - only renders if document has children */}
@@ -216,6 +178,14 @@ export default async function RegulationDetailPage({ params, searchParams }: Pag
             <ComplianceIssuesList
               initialIssues={complianceIssues}
               regulationContent={regulation.content}
+            />
+          )}
+
+          {/* Definitions from this regulation */}
+          {definitions && definitions.length > 0 && (
+            <DefinitionsList
+              definitions={definitions}
+              state={state}
             />
           )}
 

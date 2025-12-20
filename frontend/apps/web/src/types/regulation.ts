@@ -94,3 +94,34 @@ export type DeveloperValue = typeof DEVELOPERS[number]['value'];
 
 // Review mode for the toggle
 export type ReviewMode = 'review' | 'developer';
+
+// Complexity levels
+export const COMPLEXITY_LEVELS = ['LOW', 'MEDIUM', 'MEDIUM-HIGH', 'HIGH'] as const;
+export type ComplexityLevel = typeof COMPLEXITY_LEVELS[number];
+
+/**
+ * Maps complexity level to Badge variant
+ * Used consistently across DataTable, ReviewCard, RedFlagsList, DetailModal
+ */
+export function getComplexityVariant(complexity: string | null | undefined): 'danger' | 'warning' | 'success' {
+  if (complexity === 'HIGH') return 'danger';
+  if (complexity === 'MEDIUM' || complexity === 'MEDIUM-HIGH') return 'warning';
+  return 'success';
+}
+
+// Severity thresholds for badge coloring
+export const SEVERITY_THRESHOLDS = {
+  HIGH: 7,    // severity >= 7 → danger (red)
+  MEDIUM: 4,  // severity >= 4 → warning (yellow)
+  LOW: 1,     // severity >= 1 → success (green)
+} as const;
+
+/**
+ * Maps severity (1-10) to Badge variant
+ */
+export function getSeverityVariant(severity: number): 'danger' | 'warning' | 'success' | 'default' {
+  if (severity >= SEVERITY_THRESHOLDS.HIGH) return 'danger';
+  if (severity >= SEVERITY_THRESHOLDS.MEDIUM) return 'warning';
+  if (severity >= SEVERITY_THRESHOLDS.LOW) return 'success';
+  return 'default';
+}

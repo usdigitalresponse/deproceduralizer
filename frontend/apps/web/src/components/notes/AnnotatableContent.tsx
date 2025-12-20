@@ -119,7 +119,7 @@ export function AnnotatableContent({
     setIsSubmitting(true);
 
     try {
-      const newNote = await createNote({
+      const result = await createNote({
         documentId,
         noteType: 'anchored',
         content: noteContent.trim(),
@@ -130,12 +130,17 @@ export function AnnotatableContent({
         anchorText: selection.text,
       });
 
+      if (!result.success) {
+        setError(result.error);
+        return;
+      }
+
       // Save author name for next time
       if (authorName.trim()) {
         saveReviewerName(authorName.trim());
       }
 
-      onNoteCreated(newNote);
+      onNoteCreated(result.data);
       handleClosePopover();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create note');

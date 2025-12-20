@@ -8,6 +8,9 @@ export { ReviewTypeTabs } from './ReviewTypeTabs';
 export { ComplianceIssueCard } from './ComplianceIssueCard';
 export { ComplianceReviewQueue } from './ComplianceReviewQueue';
 
+// Shared review form
+export { ReviewForm, type ReviewItemType, type ReviewableItem } from './ReviewForm';
+
 // Developer mode components
 export { ReviewModeSwitcher } from './ReviewModeSwitcher';
 export { DeveloperQueue } from './DeveloperQueue';

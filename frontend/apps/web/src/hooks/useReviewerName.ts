@@ -1,25 +1,19 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useLocalStorageName } from './useLocalStorageName';
 
 const STORAGE_KEY = 'reviewerName';
 
+/**
+ * Hook for managing the reviewer's name in localStorage.
+ * Returns empty string until client-side hydration completes.
+ */
 export function useReviewerName() {
-  const [reviewerName, setReviewerName] = useState('');
-  const [isLoaded, setIsLoaded] = useState(false);
+  const { name, saveName, isLoaded } = useLocalStorageName({ key: STORAGE_KEY });
 
-  useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      setReviewerName(stored);
-    }
-    setIsLoaded(true);
-  }, []);
-
-  const saveReviewerName = (name: string) => {
-    localStorage.setItem(STORAGE_KEY, name);
-    setReviewerName(name);
+  return {
+    reviewerName: name,
+    saveReviewerName: saveName,
+    isLoaded,
   };
-
-  return { reviewerName, saveReviewerName, isLoaded };
 }

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { Card } from '@/components/ui/Card';
-import { FolderTree, ClipboardCheck, Table, ArrowRight } from 'lucide-react';
+import { FolderTree, ClipboardCheck, Table, BookOpen, ArrowRight } from 'lucide-react';
 
 interface QuickLinkProps {
   href: string;

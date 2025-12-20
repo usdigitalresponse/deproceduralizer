@@ -4,4 +4,5 @@ export * from './red-flags';
 export * from './compliance-issues';
 export * from './statute-references';
 export * from './document-notes';
+export * from './definitions';
 export * from './relations';

@@ -4,6 +4,7 @@ import { analyses } from './analyses';
 import { redFlags } from './red-flags';
 import { statuteReferences } from './statute-references';
 import { documentNotes } from './document-notes';
+import { definitions } from './definitions';
 
 export const regulatoryDocumentsRelations = relations(regulatoryDocuments, ({ one, many }) => ({
   parent: one(regulatoryDocuments, {
@@ -15,6 +16,7 @@ export const regulatoryDocumentsRelations = relations(regulatoryDocuments, ({ on
   analyses: many(analyses),
   statuteReferences: many(statuteReferences),
   notes: many(documentNotes),
+  definitions: many(definitions),
 }));
 
 export const documentNotesRelations = relations(documentNotes, ({ one }) => ({
@@ -42,6 +44,13 @@ export const redFlagsRelations = relations(redFlags, ({ one }) => ({
 export const statuteReferencesRelations = relations(statuteReferences, ({ one }) => ({
   document: one(regulatoryDocuments, {
     fields: [statuteReferences.documentId],
+    references: [regulatoryDocuments.id],
+  }),
+}));
+
+export const definitionsRelations = relations(definitions, ({ one }) => ({
+  document: one(regulatoryDocuments, {
+    fields: [definitions.documentId],
     references: [regulatoryDocuments.id],
   }),
 }));

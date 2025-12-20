@@ -122,7 +122,7 @@ export const DeveloperCard = forwardRef<HTMLDivElement, DeveloperCardProps>(
             </div>
             <ExpandableRegulationQuote
               text={flag.explanation}
-              label="Regulation Text"
+              label="Why Flagged"
               documentId={flag.regulation.id}
               variant="default"
             />

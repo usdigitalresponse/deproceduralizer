@@ -1,6 +1,7 @@
 'use client';
 
 import { HTMLAttributes } from 'react';
+import { SEVERITY_THRESHOLDS } from '@/types/regulation';
 
 type BadgeVariant =
   | 'default'
@@ -64,13 +65,13 @@ export function SeverityBadge({ severity, className = '', ...props }: SeverityBa
   let variant: BadgeVariant = 'default';
   let label = 'Low';
 
-  if (severity >= 7) {
+  if (severity >= SEVERITY_THRESHOLDS.HIGH) {
     variant = 'danger';
     label = 'High';
-  } else if (severity >= 4) {
+  } else if (severity >= SEVERITY_THRESHOLDS.MEDIUM) {
     variant = 'warning';
     label = 'Medium';
-  } else if (severity >= 1) {
+  } else if (severity >= SEVERITY_THRESHOLDS.LOW) {
     variant = 'success';
     label = 'Low';
   }

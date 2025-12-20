@@ -167,10 +167,14 @@ export function BrowseClient({
       for (const id of expandedIds) {
         if (!loadedChildren.has(id)) {
           try {
-            const children = hasActiveFilters
+            const result = hasActiveFilters
               ? await getHierarchyChildren(id, state, filters)
               : await getHierarchyChildrenFast(id);
-            setLoadedChildren(prev => new Map(prev).set(id, children));
+            if (result.success) {
+              setLoadedChildren(prev => new Map(prev).set(id, result.data));
+            } else {
+              console.error('Failed to load children for expanded node:', result.error);
+            }
           } catch (error) {
             console.error('Failed to load children for expanded node:', error);
           }
@@ -201,10 +205,14 @@ export function BrowseClient({
         // Load children - use fast query when no filters active
         setLoadingIds(prev => new Set(prev).add(id));
         try {
-          const children = hasActiveFilters
+          const result = hasActiveFilters
             ? await getHierarchyChildren(id, state, filters)
             : await getHierarchyChildrenFast(id);
-          setLoadedChildren(prev => new Map(prev).set(id, children));
+          if (result.success) {
+            setLoadedChildren(prev => new Map(prev).set(id, result.data));
+          } else {
+            console.error('Failed to load children:', result.error);
+          }
         } catch (error) {
           console.error('Failed to load children:', error);
         } finally {

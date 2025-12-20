@@ -15,8 +15,15 @@ import {
   Button,
   Tag,
 } from '@/components/ui';
+import {
+  RegulationHierarchyDetails,
+  RegulationMetadata,
+  RegulationSummary,
+  RegulationContent,
+} from '@/components/regulations';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
 import { useStateFromPath } from '@/hooks';
+import { getComplexityVariant } from '@/types/regulation';
 
 interface DetailModalProps {
   regulation: RegulationWithAnalysis | null;
@@ -86,130 +93,12 @@ export default function DetailModal({ regulation, onClose, onFlagUpdated }: Deta
           {(regulation.hierarchyLevel || regulation.hierarchyPath) && (
             <div className="mb-6 bg-[var(--color-primary-weaker)] border-l-4 border-[var(--color-primary-mid)] p-4 rounded-[var(--radius-md)]">
               <h3 className="font-semibold text-[var(--color-primary)] mb-2">Hierarchy Information</h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
-                {regulation.hierarchyLevel && (
-                  <div>
-                    <span className="font-medium text-[var(--color-text-secondary)]">Level:</span>
-                    <span className="ml-2 capitalize">{regulation.hierarchyLevel}</span>
-                  </div>
-                )}
-                {regulation.nycrrTitle && (
-                  <div>
-                    <span className="font-medium text-[var(--color-text-secondary)]">Title:</span>
-                    <span className="ml-2">{regulation.nycrrTitle}</span>
-                  </div>
-                )}
-                {regulation.nycrrPart && (
-                  <div>
-                    <span className="font-medium text-[var(--color-text-secondary)]">Part:</span>
-                    <span className="ml-2">{regulation.nycrrPart}</span>
-                  </div>
-                )}
-                {regulation.nycrrSection && (
-                  <div>
-                    <span className="font-medium text-[var(--color-text-secondary)]">Section:</span>
-                    <span className="ml-2">{regulation.nycrrSection}</span>
-                  </div>
-                )}
-                {regulation.parentId && (
-                  <div>
-                    <span className="font-medium text-[var(--color-text-secondary)]">Parent ID:</span>
-                    <span className="ml-2">{regulation.parentId}</span>
-                  </div>
-                )}
-                {regulation.hierarchyPath && (
-                  <div className="col-span-2 md:col-span-3">
-                    <span className="font-medium text-[var(--color-text-secondary)]">Path:</span>
-                    <span className="ml-2 font-mono text-xs">{regulation.hierarchyPath}</span>
-                  </div>
-                )}
-              </div>
+              <RegulationHierarchyDetails regulation={regulation} showAllFields />
             </div>
           )}
 
           {/* Metadata Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <div className="border-b border-[var(--color-neutral-200)] pb-2">
-              <span className="font-semibold text-[var(--color-text-secondary)] text-sm">Source:</span>
-              <a
-                href={regulation.url ?? ''}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="ml-2 text-[var(--color-link)] hover:text-[var(--color-link-hover)] hover:underline text-sm"
-              >
-                View Original
-              </a>
-            </div>
-            <div className="border-b border-[var(--color-neutral-200)] pb-2">
-              <span className="font-semibold text-[var(--color-text-secondary)] text-sm">URL Type:</span>
-              <span className="ml-2 text-sm">{regulation.urlType || '–'}</span>
-            </div>
-            <div className="border-b border-[var(--color-neutral-200)] pb-2">
-              <span className="font-semibold text-[var(--color-text-secondary)] text-sm">Source Index:</span>
-              <span className="ml-2 text-sm font-mono">{regulation.sourceIndex || '–'}</span>
-            </div>
-            <div className="border-b border-[var(--color-neutral-200)] pb-2">
-              <span className="font-semibold text-[var(--color-text-secondary)] text-sm">Red Flags:</span>
-              <Badge variant={(regulation.numFlags ?? 0) > 0 ? 'danger' : 'default'} className="ml-2">
-                {regulation.numFlags || 0} flags
-              </Badge>
-            </div>
-            <div className="border-b border-[var(--color-neutral-200)] pb-2">
-              <span className="font-semibold text-[var(--color-text-secondary)] text-sm">Severity:</span>
-              {regulation.maxSeverity ? (
-                <SeverityBadge severity={regulation.maxSeverity} className="ml-2" />
-              ) : (
-                <span className="ml-2 text-[var(--color-text-muted)]">–</span>
-              )}
-            </div>
-            <div className="border-b border-[var(--color-neutral-200)] pb-2">
-              <span className="font-semibold text-[var(--color-text-secondary)] text-sm">Complexity:</span>
-              {regulation.overallComplexity ? (
-                <Badge
-                  variant={
-                    regulation.overallComplexity === 'HIGH' ? 'danger' :
-                    regulation.overallComplexity === 'MEDIUM' || regulation.overallComplexity === 'MEDIUM-HIGH' ? 'warning' :
-                    'success'
-                  }
-                  className="ml-2"
-                >
-                  {regulation.overallComplexity}
-                </Badge>
-              ) : (
-                <span className="ml-2 text-[var(--color-text-muted)]">–</span>
-              )}
-            </div>
-            <div className="border-b border-[var(--color-neutral-200)] pb-2">
-              <span className="font-semibold text-[var(--color-text-secondary)] text-sm">Impl Issues:</span>
-              <span className="ml-2 text-sm">
-                {regulation.hasImplementationIssues ? (
-                  <span className="text-[var(--color-danger)]">● Yes</span>
-                ) : (
-                  <span className="text-[var(--color-text-muted)]">– No</span>
-                )}
-              </span>
-            </div>
-            <div className="border-b border-[var(--color-neutral-200)] pb-2">
-              <span className="font-semibold text-[var(--color-text-secondary)] text-sm">Tech Review:</span>
-              <span className="ml-2 text-sm">
-                {regulation.requiresTechnicalReview ? (
-                  <span className="text-[var(--color-info)]">● Yes</span>
-                ) : (
-                  <span className="text-[var(--color-text-muted)]">– No</span>
-                )}
-              </span>
-            </div>
-            <div className="border-b border-[var(--color-neutral-200)] pb-2 col-span-2">
-              <span className="font-semibold text-[var(--color-text-secondary)] text-sm">Reporting Req:</span>
-              <span className="ml-2 text-sm">
-                {regulation.hasReportingRequirement ? (
-                  <span className="text-[var(--color-warning)]">● Yes</span>
-                ) : (
-                  <span className="text-[var(--color-text-muted)]">– No</span>
-                )}
-              </span>
-            </div>
-          </div>
+          <RegulationMetadata regulation={regulation} layout="compact" className="mb-6" />
 
           {/* Red Flags Details */}
           {regulation.redFlags && regulation.redFlags.length > 0 && (
@@ -230,15 +119,7 @@ export default function DetailModal({ regulation, onClose, onFlagUpdated }: Deta
                         </div>
                         <div className="flex items-center gap-1">
                           <span className="text-xs text-[var(--color-text-muted)]">Complexity:</span>
-                          <Badge
-                            variant={
-                              flag.complexity === 'HIGH'
-                                ? 'danger'
-                                : flag.complexity === 'MEDIUM' || flag.complexity === 'MEDIUM-HIGH'
-                                ? 'warning'
-                                : 'success'
-                            }
-                          >
+                          <Badge variant={getComplexityVariant(flag.complexity)}>
                             {flag.complexity}
                           </Badge>
                         </div>
@@ -292,20 +173,10 @@ export default function DetailModal({ regulation, onClose, onFlagUpdated }: Deta
           )}
 
           {/* Summary */}
-          <div className="mb-6">
-            <h3 className="font-semibold text-[var(--color-text)] mb-3">Summary</h3>
-            <div className="bg-[var(--color-info-bg)] border-l-4 border-[var(--color-info)] p-4 rounded-[var(--radius-md)] text-sm">
-              {regulation.summary || 'No summary available'}
-            </div>
-          </div>
+          <RegulationSummary summary={regulation.summary} className="mb-6" />
 
           {/* Regulation Text */}
-          <div>
-            <h3 className="font-semibold text-[var(--color-text)] mb-3">Regulation Text</h3>
-            <div className="bg-[var(--color-neutral-50)] border-l-4 border-[var(--color-neutral-400)] p-4 rounded-[var(--radius-md)] text-sm font-mono whitespace-pre-wrap max-h-64 overflow-y-auto">
-              {regulation.content || 'No content available'}
-            </div>
-          </div>
+          <RegulationContent content={regulation.content} />
         </ModalBody>
       </ModalContent>
     </Modal>

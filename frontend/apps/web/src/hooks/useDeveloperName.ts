@@ -1,26 +1,28 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useLocalStorageName } from './useLocalStorageName';
 import type { DeveloperValue } from '@/types/regulation';
 
 const STORAGE_KEY = 'developerName';
 
+// Validation function to ensure stored value is a valid developer
+const validateDeveloper = (value: string): value is DeveloperValue =>
+  value === 'Michael' || value === 'Abigail';
+
+/**
+ * Hook for managing the developer's name in localStorage.
+ * Only accepts valid developer values ('Michael' or 'Abigail').
+ * Returns empty string until client-side hydration completes.
+ */
 export function useDeveloperName() {
-  const [developerName, setDeveloperName] = useState<DeveloperValue | ''>('');
-  const [isLoaded, setIsLoaded] = useState(false);
+  const { name, saveName, isLoaded } = useLocalStorageName<DeveloperValue>({
+    key: STORAGE_KEY,
+    validate: validateDeveloper,
+  });
 
-  useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY) as DeveloperValue | null;
-    if (stored === 'Michael' || stored === 'Abigail') {
-      setDeveloperName(stored);
-    }
-    setIsLoaded(true);
-  }, []);
-
-  const saveDeveloperName = (name: DeveloperValue) => {
-    localStorage.setItem(STORAGE_KEY, name);
-    setDeveloperName(name);
+  return {
+    developerName: name,
+    saveDeveloperName: saveName,
+    isLoaded,
   };
-
-  return { developerName, saveDeveloperName, isLoaded };
 }

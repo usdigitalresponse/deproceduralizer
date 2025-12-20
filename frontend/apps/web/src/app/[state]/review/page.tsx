@@ -1,7 +1,7 @@
 import { redirect, notFound } from 'next/navigation';
-import { cookies } from 'next/headers';
 import { Container } from '@/components/layout/Container';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { Alert } from '@/components/ui';
 import {
   ReviewQueue,
   ReviewTypeTabs,
@@ -86,10 +86,46 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
   // Fetch counts for tabs based on mode
   if (mode === 'developer') {
     // Developer mode: fetch developer status counts
-    const [developerStatusCounts, needsInfoCounts] = await Promise.all([
+    const [developerStatusCountsResult, needsInfoCountsResult] = await Promise.all([
       getCombinedDeveloperStatusCounts(stateCode),
       getNeedMoreInfoCounts(stateCode),
     ]);
+
+    // Handle errors - display them obviously
+    if (!developerStatusCountsResult.success) {
+      return (
+        <div className="bg-[var(--color-background)]">
+          <PageHeader
+            title={`Developer Review - ${stateConfig.name}`}
+            description="Track implementation status of reviewed regulatory items"
+          />
+          <Container size="2xl" className="py-6">
+            <Alert variant="error">
+              Failed to load developer status counts: {developerStatusCountsResult.error}
+            </Alert>
+          </Container>
+        </div>
+      );
+    }
+
+    if (!needsInfoCountsResult.success) {
+      return (
+        <div className="bg-[var(--color-background)]">
+          <PageHeader
+            title={`Developer Review - ${stateConfig.name}`}
+            description="Track implementation status of reviewed regulatory items"
+          />
+          <Container size="2xl" className="py-6">
+            <Alert variant="error">
+              Failed to load needs info counts: {needsInfoCountsResult.error}
+            </Alert>
+          </Container>
+        </div>
+      );
+    }
+
+    const developerStatusCounts = developerStatusCountsResult.data;
+    const needsInfoCounts = needsInfoCountsResult.data;
 
     // In developer mode, tabs show "All Reviewed Items" (combined) and "Needs More Info"
     // The flags + compliance sum is shown for "All Reviewed Items"
@@ -101,10 +137,30 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
 
     // Handle needs_info tab in developer mode
     if (reviewType === 'needs_info') {
-      const needsInfoItems = await getNeedMoreInfoItems(stateCode, {
+      const needsInfoItemsResult = await getNeedMoreInfoItems(stateCode, {
         page,
         pageSize,
       });
+
+      if (!needsInfoItemsResult.success) {
+        return (
+          <div className="bg-[var(--color-background)]">
+            <PageHeader
+              title={`Developer Review - ${stateConfig.name}`}
+              description="Track implementation status of reviewed regulatory items"
+            />
+            <Container size="2xl" className="py-6">
+              <ReviewModeSwitcher mode={mode} />
+              <ReviewTypeTabs activeType={reviewType} counts={tabCounts} mode={mode} />
+              <Alert variant="error">
+                Failed to load needs more info items: {needsInfoItemsResult.error}
+              </Alert>
+            </Container>
+          </div>
+        );
+      }
+
+      const needsInfoItems = needsInfoItemsResult.data;
 
       return (
         <div className="bg-[var(--color-background)]">
@@ -135,13 +191,33 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
     const developerStatus = queryParams.developerStatus || undefined;
     const developerAssigned = queryParams.developer || undefined;
 
-    const reviewedItems = await getCombinedReviewedItems(stateCode, {
+    const reviewedItemsResult = await getCombinedReviewedItems(stateCode, {
       page,
       pageSize,
       sortOrder,
       developerStatus,
       developerAssigned,
     });
+
+    if (!reviewedItemsResult.success) {
+      return (
+        <div className="bg-[var(--color-background)]">
+          <PageHeader
+            title={`Developer Review - ${stateConfig.name}`}
+            description="Track implementation status of reviewed regulatory items"
+          />
+          <Container size="2xl" className="py-6">
+            <ReviewModeSwitcher mode={mode} />
+            <ReviewTypeTabs activeType={reviewType} counts={tabCounts} mode={mode} />
+            <Alert variant="error">
+              Failed to load reviewed items: {reviewedItemsResult.error}
+            </Alert>
+          </Container>
+        </div>
+      );
+    }
+
+    const reviewedItems = reviewedItemsResult.data;
 
     return (
       <div className="bg-[var(--color-background)]">
@@ -173,11 +249,64 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
   }
 
   // Review mode: fetch review status counts
-  const [flagStatusCounts, complianceStatusCounts, needsInfoCounts] = await Promise.all([
+  const [flagStatusCountsResult, complianceStatusCountsResult, needsInfoCountsResult] = await Promise.all([
     getRedFlagStatusCounts(stateCode),
     getComplianceIssueStatusCounts(stateCode),
     getNeedMoreInfoCounts(stateCode),
   ]);
+
+  // Handle errors - display them obviously
+  if (!flagStatusCountsResult.success) {
+    return (
+      <div className="bg-[var(--color-background)]">
+        <PageHeader
+          title={`Review ${stateConfig.name} Regulations`}
+          description={`Efficiently triage red flags identified in ${stateConfig.regulationsLabel}`}
+        />
+        <Container size="2xl" className="py-6">
+          <Alert variant="error">
+            Failed to load red flag status counts: {flagStatusCountsResult.error}
+          </Alert>
+        </Container>
+      </div>
+    );
+  }
+
+  if (!complianceStatusCountsResult.success) {
+    return (
+      <div className="bg-[var(--color-background)]">
+        <PageHeader
+          title={`Review ${stateConfig.name} Regulations`}
+          description={`Efficiently triage compliance issues identified in ${stateConfig.regulationsLabel}`}
+        />
+        <Container size="2xl" className="py-6">
+          <Alert variant="error">
+            Failed to load compliance issue status counts: {complianceStatusCountsResult.error}
+          </Alert>
+        </Container>
+      </div>
+    );
+  }
+
+  if (!needsInfoCountsResult.success) {
+    return (
+      <div className="bg-[var(--color-background)]">
+        <PageHeader
+          title={`Review ${stateConfig.name} Regulations`}
+          description="Items that need additional information from reviewers"
+        />
+        <Container size="2xl" className="py-6">
+          <Alert variant="error">
+            Failed to load needs info counts: {needsInfoCountsResult.error}
+          </Alert>
+        </Container>
+      </div>
+    );
+  }
+
+  const flagStatusCounts = flagStatusCountsResult.data;
+  const complianceStatusCounts = complianceStatusCountsResult.data;
+  const needsInfoCounts = needsInfoCountsResult.data;
 
   const tabCounts = {
     flags: flagStatusCounts.total,
@@ -187,10 +316,30 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
 
   // Handle needs_info tab in review mode
   if (reviewType === 'needs_info') {
-    const needsInfoItems = await getNeedMoreInfoItems(stateCode, {
+    const needsInfoItemsResult = await getNeedMoreInfoItems(stateCode, {
       page,
       pageSize,
     });
+
+    if (!needsInfoItemsResult.success) {
+      return (
+        <div className="bg-[var(--color-background)]">
+          <PageHeader
+            title={`Review ${stateConfig.name} Regulations`}
+            description="Items that need additional information from reviewers"
+          />
+          <Container size="2xl" className="py-6">
+            <ReviewModeSwitcher mode={mode} />
+            <ReviewTypeTabs activeType={reviewType} counts={tabCounts} mode={mode} />
+            <Alert variant="error">
+              Failed to load needs more info items: {needsInfoItemsResult.error}
+            </Alert>
+          </Container>
+        </div>
+      );
+    }
+
+    const needsInfoItems = needsInfoItemsResult.data;
 
     return (
       <div className="bg-[var(--color-background)]">
@@ -225,7 +374,7 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
       issueType: queryParams.issueType || undefined,
     };
 
-    const [issuesResult, issueTypes] = await Promise.all([
+    const [issuesResultAction, issueTypesResult] = await Promise.all([
       getComplianceIssuesPaginated(stateCode, {
         page,
         pageSize,
@@ -235,6 +384,45 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
       }),
       getComplianceIssueTypes(stateCode),
     ]);
+
+    if (!issuesResultAction.success) {
+      return (
+        <div className="bg-[var(--color-background)]">
+          <PageHeader
+            title={`Review ${stateConfig.name} Regulations`}
+            description={`Efficiently triage compliance issues identified in ${stateConfig.regulationsLabel}`}
+          />
+          <Container size="2xl" className="py-6">
+            <ReviewModeSwitcher mode={mode} />
+            <ReviewTypeTabs activeType={reviewType} counts={tabCounts} mode={mode} />
+            <Alert variant="error">
+              Failed to load compliance issues: {issuesResultAction.error}
+            </Alert>
+          </Container>
+        </div>
+      );
+    }
+
+    if (!issueTypesResult.success) {
+      return (
+        <div className="bg-[var(--color-background)]">
+          <PageHeader
+            title={`Review ${stateConfig.name} Regulations`}
+            description={`Efficiently triage compliance issues identified in ${stateConfig.regulationsLabel}`}
+          />
+          <Container size="2xl" className="py-6">
+            <ReviewModeSwitcher mode={mode} />
+            <ReviewTypeTabs activeType={reviewType} counts={tabCounts} mode={mode} />
+            <Alert variant="error">
+              Failed to load issue types: {issueTypesResult.error}
+            </Alert>
+          </Container>
+        </div>
+      );
+    }
+
+    const issuesResult = issuesResultAction.data;
+    const issueTypes = issueTypesResult.data;
 
     return (
       <div className="bg-[var(--color-background)]">
@@ -273,7 +461,7 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
     category: queryParams.category || undefined,
   };
 
-  const [flagsResult, categories] = await Promise.all([
+  const [flagsResultAction, categoriesResult] = await Promise.all([
     getRedFlagsPaginated(stateCode, {
       page,
       pageSize,
@@ -287,6 +475,45 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
     }),
     getRedFlagCategories(stateCode),
   ]);
+
+  if (!flagsResultAction.success) {
+    return (
+      <div className="bg-[var(--color-background)]">
+        <PageHeader
+          title={`Review ${stateConfig.name} Regulations`}
+          description={`Efficiently triage red flags identified in ${stateConfig.regulationsLabel}`}
+        />
+        <Container size="2xl" className="py-6">
+          <ReviewModeSwitcher mode={mode} />
+          <ReviewTypeTabs activeType={reviewType} counts={tabCounts} mode={mode} />
+          <Alert variant="error">
+            Failed to load red flags: {flagsResultAction.error}
+          </Alert>
+        </Container>
+      </div>
+    );
+  }
+
+  if (!categoriesResult.success) {
+    return (
+      <div className="bg-[var(--color-background)]">
+        <PageHeader
+          title={`Review ${stateConfig.name} Regulations`}
+          description={`Efficiently triage red flags identified in ${stateConfig.regulationsLabel}`}
+        />
+        <Container size="2xl" className="py-6">
+          <ReviewModeSwitcher mode={mode} />
+          <ReviewTypeTabs activeType={reviewType} counts={tabCounts} mode={mode} />
+          <Alert variant="error">
+            Failed to load categories: {categoriesResult.error}
+          </Alert>
+        </Container>
+      </div>
+    );
+  }
+
+  const flagsResult = flagsResultAction.data;
+  const categories = categoriesResult.data;
 
   return (
     <div className="bg-[var(--color-background)]">

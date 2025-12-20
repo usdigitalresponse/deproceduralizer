@@ -54,7 +54,7 @@ export function NotesSidePanel({
     setIsSubmitting(true);
 
     try {
-      const newNote = await createNote({
+      const result = await createNote({
         documentId,
         noteType: 'document',
         content: newNoteContent.trim(),
@@ -62,12 +62,17 @@ export function NotesSidePanel({
         state,
       });
 
+      if (!result.success) {
+        setError(result.error);
+        return;
+      }
+
       // Save author name for next time
       if (authorName.trim()) {
         saveReviewerName(authorName.trim());
       }
 
-      onNotesChange([...notes, newNote]);
+      onNotesChange([...notes, result.data]);
       setNewNoteContent('');
       setIsAddingNote(false);
     } catch (err) {

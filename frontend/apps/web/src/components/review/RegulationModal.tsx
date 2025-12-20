@@ -42,8 +42,13 @@ export function RegulationModal({ regulationId, onClose }: RegulationModalProps)
     setError(null);
 
     getRegulationById(regulationId)
-      .then((data) => {
-        setRegulation(data);
+      .then((result) => {
+        if (!result.success) {
+          setError(result.error);
+          setIsLoading(false);
+          return;
+        }
+        setRegulation(result.data);
         setIsLoading(false);
       })
       .catch((err) => {

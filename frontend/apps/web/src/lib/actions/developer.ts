@@ -12,9 +12,12 @@ import {
   RESOLUTION_TYPES,
   DEVELOPERS,
   type StateCode,
+  type RedFlag,
+  type ComplianceIssue,
   type RedFlagWithContext,
   type ComplianceIssueWithContext,
 } from '@deproceduralizer/database';
+import { type ActionResult, success, failure, getErrorMessage } from './types';
 
 const redFlagsRepo = new RedFlagsRepository(db);
 const complianceIssuesRepo = new ComplianceIssuesRepository(db);
@@ -86,64 +89,79 @@ export interface NeedMoreInfoCounts {
 
 /**
  * Update developer status for a red flag or compliance issue
+ * Returns the base type (without regulation context) since update doesn't re-fetch relations
  */
-export async function updateDeveloperStatus(input: UpdateDeveloperStatusInput) {
-  // Validate developer status
-  if (!DEVELOPER_STATUSES.includes(input.developerStatus as DeveloperStatus)) {
-    throw new Error(`Invalid developer status: ${input.developerStatus}`);
+export async function updateDeveloperStatus(
+  input: UpdateDeveloperStatusInput
+): Promise<ActionResult<RedFlag | ComplianceIssue>> {
+  try {
+    // Validate developer status
+    if (!DEVELOPER_STATUSES.includes(input.developerStatus as DeveloperStatus)) {
+      return failure(`Invalid developer status: ${input.developerStatus}`);
+    }
+
+    // Validate developer assignment
+    if (!DEVELOPERS.includes(input.developerAssigned as Developer)) {
+      return failure(`Invalid developer: ${input.developerAssigned}`);
+    }
+
+    // Validate resolution type if provided
+    if (input.resolutionType && !RESOLUTION_TYPES.includes(input.resolutionType as ResolutionType)) {
+      return failure(`Invalid resolution type: ${input.resolutionType}`);
+    }
+
+    const data = {
+      developerStatus: input.developerStatus as DeveloperStatus,
+      developerAssigned: input.developerAssigned as Developer,
+      developerNotes: input.developerNotes,
+      resolutionType: input.resolutionType as ResolutionType | undefined,
+      resolutionComments: input.resolutionComments,
+      developerQuestion: input.developerQuestion,
+    };
+
+    let result;
+    if (input.type === 'red_flag') {
+      result = await redFlagsRepo.updateDeveloperStatus(input.id, data);
+    } else {
+      result = await complianceIssuesRepo.updateDeveloperStatus(input.id, data);
+    }
+
+    if (!result) {
+      return failure(`${input.type} with id ${input.id} not found`);
+    }
+
+    revalidatePath('/');
+    return success(result);
+  } catch (error) {
+    console.error('[updateDeveloperStatus]', error);
+    return failure(getErrorMessage(error));
   }
-
-  // Validate developer assignment
-  if (!DEVELOPERS.includes(input.developerAssigned as Developer)) {
-    throw new Error(`Invalid developer: ${input.developerAssigned}`);
-  }
-
-  // Validate resolution type if provided
-  if (input.resolutionType && !RESOLUTION_TYPES.includes(input.resolutionType as ResolutionType)) {
-    throw new Error(`Invalid resolution type: ${input.resolutionType}`);
-  }
-
-  const data = {
-    developerStatus: input.developerStatus as DeveloperStatus,
-    developerAssigned: input.developerAssigned as Developer,
-    developerNotes: input.developerNotes,
-    resolutionType: input.resolutionType as ResolutionType | undefined,
-    resolutionComments: input.resolutionComments,
-    developerQuestion: input.developerQuestion,
-  };
-
-  let result;
-  if (input.type === 'red_flag') {
-    result = await redFlagsRepo.updateDeveloperStatus(input.id, data);
-  } else {
-    result = await complianceIssuesRepo.updateDeveloperStatus(input.id, data);
-  }
-
-  if (!result) {
-    throw new Error(`${input.type} with id ${input.id} not found`);
-  }
-
-  revalidatePath('/');
-  return result;
 }
 
 /**
  * Get combined developer status counts from both tables
  */
-export async function getCombinedDeveloperStatusCounts(state: StateCode): Promise<CombinedDeveloperStatusCounts> {
-  const [flagCounts, issueCounts] = await Promise.all([
-    redFlagsRepo.getDeveloperStatusCounts(state),
-    complianceIssuesRepo.getDeveloperStatusCounts(state),
-  ]);
+export async function getCombinedDeveloperStatusCounts(
+  state: StateCode
+): Promise<ActionResult<CombinedDeveloperStatusCounts>> {
+  try {
+    const [flagCounts, issueCounts] = await Promise.all([
+      redFlagsRepo.getDeveloperStatusCounts(state),
+      complianceIssuesRepo.getDeveloperStatusCounts(state),
+    ]);
 
-  return {
-    unresolved: flagCounts.unresolved + issueCounts.unresolved,
-    resolved: flagCounts.resolved + issueCounts.resolved,
-    pending: flagCounts.pending + issueCounts.pending,
-    backlogged: flagCounts.backlogged + issueCounts.backlogged,
-    need_more_info: flagCounts.need_more_info + issueCounts.need_more_info,
-    total: flagCounts.total + issueCounts.total,
-  };
+    return success({
+      unresolved: flagCounts.unresolved + issueCounts.unresolved,
+      resolved: flagCounts.resolved + issueCounts.resolved,
+      pending: flagCounts.pending + issueCounts.pending,
+      backlogged: flagCounts.backlogged + issueCounts.backlogged,
+      need_more_info: flagCounts.need_more_info + issueCounts.need_more_info,
+      total: flagCounts.total + issueCounts.total,
+    });
+  } catch (error) {
+    console.error('[getCombinedDeveloperStatusCounts]', error);
+    return failure(getErrorMessage(error));
+  }
 }
 
 /**
@@ -159,107 +177,112 @@ export async function getCombinedReviewedItems(
     sortBy?: 'reviewedAt' | 'developerCheckedAt';
     sortOrder?: 'asc' | 'desc';
   }
-): Promise<PaginatedDeveloperItemsResult> {
-  const { page, pageSize, developerStatus, developerAssigned, sortBy = 'reviewedAt', sortOrder = 'desc' } = options;
+): Promise<ActionResult<PaginatedDeveloperItemsResult>> {
+  try {
+    const { page, pageSize, developerStatus, developerAssigned, sortBy = 'reviewedAt', sortOrder = 'desc' } = options;
 
-  // Fetch from both repositories
-  const [flagsResult, issuesResult] = await Promise.all([
-    redFlagsRepo.getReviewedPaginated({
-      state,
-      page: 1,
-      pageSize: 1000, // Get all for merging
-      developerStatus: developerStatus as DeveloperStatus | 'all' | undefined,
-      developerAssigned: developerAssigned as Developer | undefined,
-      sortBy: sortBy as 'reviewedAt' | 'severity' | 'category',
-      sortOrder,
-    }),
-    complianceIssuesRepo.getReviewedPaginated({
-      state,
-      page: 1,
-      pageSize: 1000, // Get all for merging
-      developerStatus: developerStatus as DeveloperStatus | 'all' | undefined,
-      developerAssigned: developerAssigned as Developer | undefined,
-      sortBy: sortBy as 'reviewedAt' | 'issueType' | 'createdAt',
-      sortOrder,
-    }),
-  ]);
+    // Fetch from both repositories
+    const [flagsResult, issuesResult] = await Promise.all([
+      redFlagsRepo.getReviewedPaginated({
+        state,
+        page: 1,
+        pageSize: 1000, // Get all for merging
+        developerStatus: developerStatus as DeveloperStatus | 'all' | undefined,
+        developerAssigned: developerAssigned as Developer | undefined,
+        sortBy: sortBy as 'reviewedAt' | 'severity' | 'category',
+        sortOrder,
+      }),
+      complianceIssuesRepo.getReviewedPaginated({
+        state,
+        page: 1,
+        pageSize: 1000, // Get all for merging
+        developerStatus: developerStatus as DeveloperStatus | 'all' | undefined,
+        developerAssigned: developerAssigned as Developer | undefined,
+        sortBy: sortBy as 'reviewedAt' | 'issueType' | 'createdAt',
+        sortOrder,
+      }),
+    ]);
 
-  // Transform and combine
-  const flagItems: DeveloperItem[] = flagsResult.data.map(flag => ({
-    id: flag.id,
-    type: 'red_flag' as const,
-    reviewStatus: flag.reviewStatus,
-    reviewedBy: flag.reviewedBy,
-    reviewedAt: flag.reviewedAt,
-    reviewerNotes: flag.reviewerNotes,
-    priority: flag.priority,
-    impactType: flag.impactType,
-    developerStatus: flag.developerStatus,
-    developerAssigned: flag.developerAssigned,
-    developerNotes: flag.developerNotes,
-    resolutionType: flag.resolutionType,
-    resolutionComments: flag.resolutionComments,
-    developerQuestion: flag.developerQuestion,
-    developerCheckedAt: flag.developerCheckedAt,
-    regulation: {
-      id: flag.regulation.id,
-      title: flag.regulation.title,
-      url: flag.regulation.url,
-    },
-    redFlagData: flag,
-  }));
+    // Transform and combine
+    const flagItems: DeveloperItem[] = flagsResult.data.map(flag => ({
+      id: flag.id,
+      type: 'red_flag' as const,
+      reviewStatus: flag.reviewStatus,
+      reviewedBy: flag.reviewedBy,
+      reviewedAt: flag.reviewedAt,
+      reviewerNotes: flag.reviewerNotes,
+      priority: flag.priority,
+      impactType: flag.impactType,
+      developerStatus: flag.developerStatus,
+      developerAssigned: flag.developerAssigned,
+      developerNotes: flag.developerNotes,
+      resolutionType: flag.resolutionType,
+      resolutionComments: flag.resolutionComments,
+      developerQuestion: flag.developerQuestion,
+      developerCheckedAt: flag.developerCheckedAt,
+      regulation: {
+        id: flag.regulation.id,
+        title: flag.regulation.title,
+        url: flag.regulation.url,
+      },
+      redFlagData: flag,
+    }));
 
-  const issueItems: DeveloperItem[] = issuesResult.data.map(issue => ({
-    id: issue.id,
-    type: 'compliance_issue' as const,
-    reviewStatus: issue.reviewStatus,
-    reviewedBy: issue.reviewedBy,
-    reviewedAt: issue.reviewedAt,
-    reviewerNotes: issue.reviewerNotes,
-    priority: issue.priority,
-    impactType: issue.impactType,
-    developerStatus: issue.developerStatus,
-    developerAssigned: issue.developerAssigned,
-    developerNotes: issue.developerNotes,
-    resolutionType: issue.resolutionType,
-    resolutionComments: issue.resolutionComments,
-    developerQuestion: issue.developerQuestion,
-    developerCheckedAt: issue.developerCheckedAt,
-    regulation: {
-      id: issue.regulation.id,
-      title: issue.regulation.title,
-      url: issue.regulation.url,
-    },
-    complianceIssueData: issue,
-  }));
+    const issueItems: DeveloperItem[] = issuesResult.data.map(issue => ({
+      id: issue.id,
+      type: 'compliance_issue' as const,
+      reviewStatus: issue.reviewStatus,
+      reviewedBy: issue.reviewedBy,
+      reviewedAt: issue.reviewedAt,
+      reviewerNotes: issue.reviewerNotes,
+      priority: issue.priority,
+      impactType: issue.impactType,
+      developerStatus: issue.developerStatus,
+      developerAssigned: issue.developerAssigned,
+      developerNotes: issue.developerNotes,
+      resolutionType: issue.resolutionType,
+      resolutionComments: issue.resolutionComments,
+      developerQuestion: issue.developerQuestion,
+      developerCheckedAt: issue.developerCheckedAt,
+      regulation: {
+        id: issue.regulation.id,
+        title: issue.regulation.title,
+        url: issue.regulation.url,
+      },
+      complianceIssueData: issue,
+    }));
 
-  // Combine and sort
-  const combined = [...flagItems, ...issueItems];
-  combined.sort((a, b) => {
-    const aDate = sortBy === 'developerCheckedAt' ? a.developerCheckedAt : a.reviewedAt;
-    const bDate = sortBy === 'developerCheckedAt' ? b.developerCheckedAt : b.reviewedAt;
+    // Combine and sort
+    const combined = [...flagItems, ...issueItems];
+    combined.sort((a, b) => {
+      const aDate = sortBy === 'developerCheckedAt' ? a.developerCheckedAt : a.reviewedAt;
+      const bDate = sortBy === 'developerCheckedAt' ? b.developerCheckedAt : b.reviewedAt;
 
-    if (!aDate && !bDate) return 0;
-    if (!aDate) return sortOrder === 'desc' ? 1 : -1;
-    if (!bDate) return sortOrder === 'desc' ? -1 : 1;
+      if (!aDate && !bDate) return 0;
+      if (!aDate) return sortOrder === 'desc' ? 1 : -1;
+      if (!bDate) return sortOrder === 'desc' ? -1 : 1;
 
-    const diff = new Date(bDate).getTime() - new Date(aDate).getTime();
-    return sortOrder === 'desc' ? diff : -diff;
-  });
+      const diff = new Date(bDate).getTime() - new Date(aDate).getTime();
+      return sortOrder === 'desc' ? diff : -diff;
+    });
 
-  // Paginate
-  const total = combined.length;
-  const totalPages = Math.ceil(total / pageSize);
-  const offset = (page - 1) * pageSize;
-  const data = combined.slice(offset, offset + pageSize);
+    // Paginate
+    const total = combined.length;
+    const totalPages = Math.ceil(total / pageSize);
+    const offset = (page - 1) * pageSize;
+    const data = combined.slice(offset, offset + pageSize);
 
-  return {
-    data,
-    total,
-    page,
-    pageSize,
-    totalPages,
-  };
+    return success({
+      data,
+      total,
+      page,
+      pageSize,
+      totalPages,
+    });
+  } catch (error) {
+    console.error('[getCombinedReviewedItems]', error);
+    return failure(getErrorMessage(error));
+  }
 }
 
 /**
@@ -272,97 +295,102 @@ export async function getNeedMoreInfoItems(
     pageSize: number;
     reviewerName?: string;
   }
-): Promise<PaginatedDeveloperItemsResult> {
-  const { page, pageSize, reviewerName } = options;
+): Promise<ActionResult<PaginatedDeveloperItemsResult>> {
+  try {
+    const { page, pageSize, reviewerName } = options;
 
-  // Fetch from both repositories
-  const [flagsResult, issuesResult] = await Promise.all([
-    redFlagsRepo.getNeedMoreInfoFlags(state, { page: 1, pageSize: 1000, reviewerName }),
-    complianceIssuesRepo.getNeedMoreInfoIssues(state, { page: 1, pageSize: 1000, reviewerName }),
-  ]);
+    // Fetch from both repositories
+    const [flagsResult, issuesResult] = await Promise.all([
+      redFlagsRepo.getNeedMoreInfoFlags(state, { page: 1, pageSize: 1000, reviewerName }),
+      complianceIssuesRepo.getNeedMoreInfoIssues(state, { page: 1, pageSize: 1000, reviewerName }),
+    ]);
 
-  // Transform and combine
-  const flagItems: DeveloperItem[] = flagsResult.data.map(flag => ({
-    id: flag.id,
-    type: 'red_flag' as const,
-    reviewStatus: flag.reviewStatus,
-    reviewedBy: flag.reviewedBy,
-    reviewedAt: flag.reviewedAt,
-    reviewerNotes: flag.reviewerNotes,
-    priority: flag.priority,
-    impactType: flag.impactType,
-    developerStatus: flag.developerStatus,
-    developerAssigned: flag.developerAssigned,
-    developerNotes: flag.developerNotes,
-    resolutionType: flag.resolutionType,
-    resolutionComments: flag.resolutionComments,
-    developerQuestion: flag.developerQuestion,
-    developerCheckedAt: flag.developerCheckedAt,
-    regulation: {
-      id: flag.regulation.id,
-      title: flag.regulation.title,
-      url: flag.regulation.url,
-    },
-    redFlagData: flag,
-  }));
+    // Transform and combine
+    const flagItems: DeveloperItem[] = flagsResult.data.map(flag => ({
+      id: flag.id,
+      type: 'red_flag' as const,
+      reviewStatus: flag.reviewStatus,
+      reviewedBy: flag.reviewedBy,
+      reviewedAt: flag.reviewedAt,
+      reviewerNotes: flag.reviewerNotes,
+      priority: flag.priority,
+      impactType: flag.impactType,
+      developerStatus: flag.developerStatus,
+      developerAssigned: flag.developerAssigned,
+      developerNotes: flag.developerNotes,
+      resolutionType: flag.resolutionType,
+      resolutionComments: flag.resolutionComments,
+      developerQuestion: flag.developerQuestion,
+      developerCheckedAt: flag.developerCheckedAt,
+      regulation: {
+        id: flag.regulation.id,
+        title: flag.regulation.title,
+        url: flag.regulation.url,
+      },
+      redFlagData: flag,
+    }));
 
-  const issueItems: DeveloperItem[] = issuesResult.data.map(issue => ({
-    id: issue.id,
-    type: 'compliance_issue' as const,
-    reviewStatus: issue.reviewStatus,
-    reviewedBy: issue.reviewedBy,
-    reviewedAt: issue.reviewedAt,
-    reviewerNotes: issue.reviewerNotes,
-    priority: issue.priority,
-    impactType: issue.impactType,
-    developerStatus: issue.developerStatus,
-    developerAssigned: issue.developerAssigned,
-    developerNotes: issue.developerNotes,
-    resolutionType: issue.resolutionType,
-    resolutionComments: issue.resolutionComments,
-    developerQuestion: issue.developerQuestion,
-    developerCheckedAt: issue.developerCheckedAt,
-    regulation: {
-      id: issue.regulation.id,
-      title: issue.regulation.title,
-      url: issue.regulation.url,
-    },
-    complianceIssueData: issue,
-  }));
+    const issueItems: DeveloperItem[] = issuesResult.data.map(issue => ({
+      id: issue.id,
+      type: 'compliance_issue' as const,
+      reviewStatus: issue.reviewStatus,
+      reviewedBy: issue.reviewedBy,
+      reviewedAt: issue.reviewedAt,
+      reviewerNotes: issue.reviewerNotes,
+      priority: issue.priority,
+      impactType: issue.impactType,
+      developerStatus: issue.developerStatus,
+      developerAssigned: issue.developerAssigned,
+      developerNotes: issue.developerNotes,
+      resolutionType: issue.resolutionType,
+      resolutionComments: issue.resolutionComments,
+      developerQuestion: issue.developerQuestion,
+      developerCheckedAt: issue.developerCheckedAt,
+      regulation: {
+        id: issue.regulation.id,
+        title: issue.regulation.title,
+        url: issue.regulation.url,
+      },
+      complianceIssueData: issue,
+    }));
 
-  // Combine and sort - reviewer's items first, then by developerCheckedAt
-  const combined = [...flagItems, ...issueItems];
-  combined.sort((a, b) => {
-    // Reviewer's items first
-    if (reviewerName) {
-      const aIsReviewer = a.reviewedBy === reviewerName;
-      const bIsReviewer = b.reviewedBy === reviewerName;
-      if (aIsReviewer && !bIsReviewer) return -1;
-      if (!aIsReviewer && bIsReviewer) return 1;
-    }
+    // Combine and sort - reviewer's items first, then by developerCheckedAt
+    const combined = [...flagItems, ...issueItems];
+    combined.sort((a, b) => {
+      // Reviewer's items first
+      if (reviewerName) {
+        const aIsReviewer = a.reviewedBy === reviewerName;
+        const bIsReviewer = b.reviewedBy === reviewerName;
+        if (aIsReviewer && !bIsReviewer) return -1;
+        if (!aIsReviewer && bIsReviewer) return 1;
+      }
 
-    // Then by developerCheckedAt desc
-    const aDate = a.developerCheckedAt;
-    const bDate = b.developerCheckedAt;
-    if (!aDate && !bDate) return 0;
-    if (!aDate) return 1;
-    if (!bDate) return -1;
-    return new Date(bDate).getTime() - new Date(aDate).getTime();
-  });
+      // Then by developerCheckedAt desc
+      const aDate = a.developerCheckedAt;
+      const bDate = b.developerCheckedAt;
+      if (!aDate && !bDate) return 0;
+      if (!aDate) return 1;
+      if (!bDate) return -1;
+      return new Date(bDate).getTime() - new Date(aDate).getTime();
+    });
 
-  // Paginate
-  const total = combined.length;
-  const totalPages = Math.ceil(total / pageSize);
-  const offset = (page - 1) * pageSize;
-  const data = combined.slice(offset, offset + pageSize);
+    // Paginate
+    const total = combined.length;
+    const totalPages = Math.ceil(total / pageSize);
+    const offset = (page - 1) * pageSize;
+    const data = combined.slice(offset, offset + pageSize);
 
-  return {
-    data,
-    total,
-    page,
-    pageSize,
-    totalPages,
-  };
+    return success({
+      data,
+      total,
+      page,
+      pageSize,
+      totalPages,
+    });
+  } catch (error) {
+    console.error('[getNeedMoreInfoItems]', error);
+    return failure(getErrorMessage(error));
+  }
 }
 
 /**
@@ -371,32 +399,62 @@ export async function getNeedMoreInfoItems(
 export async function getNeedMoreInfoCounts(
   state: StateCode,
   reviewerName?: string
-): Promise<NeedMoreInfoCounts> {
-  const [flagCounts, issueCounts] = await Promise.all([
-    redFlagsRepo.getNeedMoreInfoCount(state, reviewerName),
-    complianceIssuesRepo.getNeedMoreInfoCount(state, reviewerName),
-  ]);
+): Promise<ActionResult<NeedMoreInfoCounts>> {
+  try {
+    const [flagCounts, issueCounts] = await Promise.all([
+      redFlagsRepo.getNeedMoreInfoCount(state, reviewerName),
+      complianceIssuesRepo.getNeedMoreInfoCount(state, reviewerName),
+    ]);
 
-  return {
-    flags: flagCounts,
-    compliance: issueCounts,
-    combined: {
-      total: flagCounts.total + issueCounts.total,
-      forReviewer: flagCounts.forReviewer + issueCounts.forReviewer,
-    },
-  };
+    return success({
+      flags: flagCounts,
+      compliance: issueCounts,
+      combined: {
+        total: flagCounts.total + issueCounts.total,
+        forReviewer: flagCounts.forReviewer + issueCounts.forReviewer,
+      },
+    });
+  } catch (error) {
+    console.error('[getNeedMoreInfoCounts]', error);
+    return failure(getErrorMessage(error));
+  }
+}
+
+interface DeveloperStatusCounts {
+  unresolved: number;
+  resolved: number;
+  pending: number;
+  backlogged: number;
+  need_more_info: number;
+  total: number;
 }
 
 /**
  * Get separate developer status counts for red flags
  */
-export async function getRedFlagDeveloperStatusCounts(state: StateCode) {
-  return redFlagsRepo.getDeveloperStatusCounts(state);
+export async function getRedFlagDeveloperStatusCounts(
+  state: StateCode
+): Promise<ActionResult<DeveloperStatusCounts>> {
+  try {
+    const result = await redFlagsRepo.getDeveloperStatusCounts(state);
+    return success(result);
+  } catch (error) {
+    console.error('[getRedFlagDeveloperStatusCounts]', error);
+    return failure(getErrorMessage(error));
+  }
 }
 
 /**
  * Get separate developer status counts for compliance issues
  */
-export async function getComplianceIssueDeveloperStatusCounts(state: StateCode) {
-  return complianceIssuesRepo.getDeveloperStatusCounts(state);
+export async function getComplianceIssueDeveloperStatusCounts(
+  state: StateCode
+): Promise<ActionResult<DeveloperStatusCounts>> {
+  try {
+    const result = await complianceIssuesRepo.getDeveloperStatusCounts(state);
+    return success(result);
+  } catch (error) {
+    console.error('[getComplianceIssueDeveloperStatusCounts]', error);
+    return failure(getErrorMessage(error));
+  }
 }

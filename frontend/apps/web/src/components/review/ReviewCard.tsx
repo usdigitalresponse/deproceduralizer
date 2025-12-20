@@ -4,7 +4,7 @@ import { useState, useTransition, useEffect, forwardRef } from 'react';
 import { updateRedFlagReview } from '@/lib/actions/red-flags';
 import { useReviewerName } from '@/hooks/useReviewerName';
 import { Button, Input, Textarea, Badge, SeverityBadge, Card, Select, Tag, CopyLinkButton } from '@/components/ui';
-import { REVIEW_STATUSES, PRIORITY_OPTIONS, IMPACT_TYPES } from '@/types/regulation';
+import { REVIEW_STATUSES, PRIORITY_OPTIONS, IMPACT_TYPES, getComplexityVariant } from '@/types/regulation';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
 import { ExpandableRegulationQuote } from './ExpandableRegulationQuote';
 import type { RedFlagWithContext } from '@deproceduralizer/database';
@@ -63,18 +63,23 @@ export const ReviewCard = forwardRef<HTMLDivElement, ReviewCardProps>(
             impactType: formData.impactType || undefined,
           });
 
+          if (!result.success) {
+            setError(result.error);
+            return;
+          }
+
           // Save reviewer name for next time
           saveReviewerName(formData.reviewedBy);
 
           // Update parent with new data
           onUpdated({
             ...flag,
-            reviewStatus: result.reviewStatus ?? null,
-            reviewedBy: result.reviewedBy ?? null,
-            reviewedAt: result.reviewedAt ?? null,
-            reviewerNotes: result.reviewerNotes ?? null,
-            priority: result.priority ?? null,
-            impactType: result.impactType ?? null,
+            reviewStatus: result.data.reviewStatus ?? null,
+            reviewedBy: result.data.reviewedBy ?? null,
+            reviewedAt: result.data.reviewedAt ?? null,
+            reviewerNotes: result.data.reviewerNotes ?? null,
+            priority: result.data.priority ?? null,
+            impactType: result.data.impactType ?? null,
           });
         } catch (err) {
           setError(err instanceof Error ? err.message : 'Failed to update review');
@@ -109,15 +114,7 @@ export const ReviewCard = forwardRef<HTMLDivElement, ReviewCardProps>(
             </div>
             <div className="flex items-center gap-1">
               <span className="text-xs text-[var(--color-text-muted)]">Complexity:</span>
-              <Badge
-                variant={
-                  flag.complexity === 'HIGH'
-                    ? 'danger'
-                    : flag.complexity === 'MEDIUM' || flag.complexity === 'MEDIUM-HIGH'
-                    ? 'warning'
-                    : 'success'
-                }
-              >
+              <Badge variant={getComplexityVariant(flag.complexity)}>
                 {flag.complexity}
               </Badge>
             </div>
@@ -136,7 +133,7 @@ export const ReviewCard = forwardRef<HTMLDivElement, ReviewCardProps>(
         {/* Explanation - expandable to show regulation context */}
         <ExpandableRegulationQuote
           text={flag.explanation}
-          label="Regulation Text"
+          label="Why Flagged"
           documentId={flag.regulation.id}
           variant="default"
         />

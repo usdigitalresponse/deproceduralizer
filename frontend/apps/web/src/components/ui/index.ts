@@ -67,3 +67,7 @@ export type { LevelBadgeProps } from './LevelBadge';
 
 // CopyLinkButton
 export { CopyLinkButton } from './CopyLinkButton';
+
+// EmptyState
+export { EmptyState } from './EmptyState';
+export type { EmptyStateProps } from './EmptyState';

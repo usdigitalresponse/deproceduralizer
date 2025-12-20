@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react';
 import { Badge, SeverityBadge, ReviewStatusBadge, Card, Tag } from '@/components/ui';
 import RedFlagReviewForm from '@/components/RedFlagReviewForm';
+import { getComplexityVariant } from '@/types/regulation';
 
 interface RedFlag {
   id: number;
@@ -77,15 +78,7 @@ export function RedFlagsList({ initialFlags }: RedFlagsListProps) {
                 </div>
                 <div className="flex items-center gap-1">
                   <span className="text-xs text-[var(--color-text-muted)]">Complexity:</span>
-                  <Badge
-                    variant={
-                      flag.complexity === 'HIGH'
-                        ? 'danger'
-                        : flag.complexity === 'MEDIUM' || flag.complexity === 'MEDIUM-HIGH'
-                        ? 'warning'
-                        : 'success'
-                    }
-                  >
+                  <Badge variant={getComplexityVariant(flag.complexity)}>
                     {flag.complexity}
                   </Badge>
                 </div>

@@ -70,9 +70,11 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
       setIsLoadingContext(true);
       try {
         const result = await getExpandedContext(issue.documentId, issue.context, 800);
-        if (result.couldExpand) {
-          setExpandedText(result.expandedText);
+        if (result.success && result.data.couldExpand) {
+          setExpandedText(result.data.expandedText);
           setIsExpanded(true);
+        } else if (!result.success) {
+          console.error('Failed to expand context:', result.error);
         }
       } catch (err) {
         console.error('Failed to expand context:', err);
@@ -101,18 +103,23 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
             impactType: formData.impactType || undefined,
           });
 
+          if (!result.success) {
+            setError(result.error);
+            return;
+          }
+
           // Save reviewer name for next time
           saveReviewerName(formData.reviewedBy);
 
           // Update parent with new data
           onUpdated({
             ...issue,
-            reviewStatus: result.reviewStatus ?? null,
-            reviewedBy: result.reviewedBy ?? null,
-            reviewedAt: result.reviewedAt ?? null,
-            reviewerNotes: result.reviewerNotes ?? null,
-            priority: result.priority ?? null,
-            impactType: result.impactType ?? null,
+            reviewStatus: result.data.reviewStatus ?? null,
+            reviewedBy: result.data.reviewedBy ?? null,
+            reviewedAt: result.data.reviewedAt ?? null,
+            reviewerNotes: result.data.reviewerNotes ?? null,
+            priority: result.data.priority ?? null,
+            impactType: result.data.impactType ?? null,
           });
         } catch (err) {
           setError(err instanceof Error ? err.message : 'Failed to update review');

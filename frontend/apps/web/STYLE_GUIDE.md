@@ -297,6 +297,45 @@ import { LevelBadge } from '@/components/ui';
 
 Renders uppercase text with neutral background: `[SECTION]`
 
+### EmptyState
+
+Component for when there's no data to display:
+
+```tsx
+import { EmptyState } from '@/components/ui';
+import { Search, CheckCircle } from 'lucide-react';
+
+// Basic usage
+<EmptyState title="No results found" />
+
+// With description and action
+<EmptyState
+  icon={Search}
+  title="No red flags found"
+  description="Try adjusting your filters or search terms"
+  action={{ label: "Clear filters", onClick: handleClear }}
+/>
+
+// In a queue component
+{items.length === 0 ? (
+  <EmptyState
+    icon={CheckCircle}
+    title="All caught up!"
+    description="No items need review"
+  />
+) : (
+  <ItemList items={items} />
+)}
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `icon` | `LucideIcon` | `FileSearch` | Icon to display |
+| `title` | `string` | required | Primary message |
+| `description` | `string` | - | Secondary descriptive text |
+| `action` | `{ label: string; onClick: () => void }` | - | Optional action button |
+| `className` | `string` | `''` | Additional CSS classes |
+
 ### CopyLinkButton
 
 Button for copying deep links to specific items:
@@ -643,6 +682,176 @@ import { NeedMoreInfoCard } from '@/components/review';
 
 ---
 
+## Error Handling Pattern
+
+Server actions use the `ActionResult<T>` type for consistent error handling that is **obvious, not silent**.
+
+### ActionResult Type
+
+```tsx
+import { type ActionResult, success, failure, getErrorMessage } from '@/lib/actions/types';
+
+// Success result
+return success(data);
+
+// Failure result
+return failure('Failed to load data');
+
+// In try/catch
+try {
+  const result = await someOperation();
+  return success(result);
+} catch (error) {
+  console.error('[functionName]', error);
+  return failure(getErrorMessage(error));
+}
+```
+
+### Server Action Pattern
+
+```tsx
+// lib/actions/example.ts
+'use server';
+
+import { type ActionResult, success, failure, getErrorMessage } from './types';
+
+export async function getItems(): Promise<ActionResult<Item[]>> {
+  try {
+    const items = await repo.getAll();
+    return success(items);
+  } catch (error) {
+    console.error('[getItems]', error);
+    return failure(getErrorMessage(error));
+  }
+}
+```
+
+### Consumer Pattern
+
+```tsx
+// In component
+const result = await getItems();
+
+if (!result.success) {
+  // Display error to user - NEVER silently fail
+  return <Alert variant="error">{result.error}</Alert>;
+}
+
+// Use the data
+const items = result.data;
+```
+
+### Key Principles
+
+1. **Visible errors**: Always display errors to users with Alert component
+2. **Logged errors**: Console.error with function name for debugging
+3. **Typed returns**: ActionResult union type prevents accessing data without checking success
+4. **No silent failures**: Every action returns success or failure, never throws to consumers
+
+---
+
+## Constants and Helpers
+
+Centralized constants in `types/regulation.ts`:
+
+### Complexity Mapping
+
+```tsx
+import { getComplexityVariant, COMPLEXITY_LEVELS } from '@/types/regulation';
+
+// Maps complexity to Badge variant
+const variant = getComplexityVariant(complexity);
+// 'HIGH' → 'danger'
+// 'MEDIUM' | 'MEDIUM-HIGH' → 'warning'
+// 'LOW' or other → 'success'
+
+<Badge variant={getComplexityVariant(flag.complexity)}>
+  {flag.complexity}
+</Badge>
+```
+
+### Severity Thresholds
+
+```tsx
+import { SEVERITY_THRESHOLDS, getSeverityVariant } from '@/types/regulation';
+
+// SEVERITY_THRESHOLDS = { HIGH: 7, MEDIUM: 4, LOW: 1 }
+// getSeverityVariant maps severity to Badge variant:
+// severity >= 7 → 'danger'
+// severity >= 4 → 'warning'
+// severity >= 1 → 'success'
+// else → 'default'
+```
+
+### Available Constants
+
+| Constant | Usage |
+|----------|-------|
+| `REVIEW_STATUSES` | Dropdown options for review status |
+| `DEVELOPER_STATUSES` | Dropdown options for developer status |
+| `PRIORITY_OPTIONS` | Priority 1-5 dropdown options |
+| `IMPACT_TYPES` | Impact type dropdown options |
+| `COMPLIANCE_ISSUE_TYPES` | Compliance issue type options |
+| `ISSUE_TYPE_LABELS` | Display labels for issue types |
+| `RESOLUTION_TYPES` | Implemented / Not Implemented |
+| `DEVELOPERS` | Michael / Abigail |
+| `REVIEW_TYPES` | flags / compliance / needs_info |
+| `COMPLEXITY_LEVELS` | LOW / MEDIUM / MEDIUM-HIGH / HIGH |
+| `SEVERITY_THRESHOLDS` | HIGH: 7, MEDIUM: 4, LOW: 1 |
+
+---
+
+## URL Query Params
+
+The app uses `nuqs` for type-safe URL query parameter management.
+
+### Setup
+
+NuqsAdapter is configured in the root layout:
+
+```tsx
+// app/layout.tsx
+import { NuqsAdapter } from "nuqs/adapters/next/app";
+
+<body>
+  <NuqsAdapter>
+    {children}
+  </NuqsAdapter>
+</body>
+```
+
+### Available Parsers
+
+```tsx
+import {
+  pageParser,
+  pageSizeParser,
+  sortOrderParser,
+  reviewStatusParser,
+  developerStatusParser,
+  severityParser,
+  reviewTypeParser,
+  reviewModeParser,
+  categoryParser,
+  searchParser,
+} from '@/lib/url/parsers';
+```
+
+### Query String Helpers
+
+```tsx
+import { createQueryString, mergeQueryParams } from '@/lib/url/parsers';
+
+// Create query string, omitting null/undefined/'all' values
+const qs = createQueryString({ page: 1, status: 'unreviewed', category: null });
+// → "page=1&status=unreviewed"
+
+// Merge into existing params, resetting page to 1
+const newQs = mergeQueryParams(searchParams, { status: 'confirmed' });
+```
+
+---
+
 ## Resizable Panels
 
 ### ResizableDivider
@@ -684,6 +893,223 @@ Features:
 - Max width: 60% of container
 - Persists to localStorage (`browse-panel-width`)
 - Hidden on mobile (uses drawer pattern instead)
+
+---
+
+## Shared Regulation Components
+
+Reusable components for displaying regulation details across DetailModal, DetailPanel, and the regulation page.
+
+### RegulationHierarchyDetails
+
+Displays hierarchy details (level, title, part, section):
+
+```tsx
+import { RegulationHierarchyDetails } from '@/components/regulations';
+
+// Basic usage - level, title, part, section
+<RegulationHierarchyDetails regulation={regulation} />
+
+// Show all fields including parent ID and path
+<RegulationHierarchyDetails regulation={regulation} showAllFields />
+```
+
+### RegulationMetadata
+
+Metadata grid (source, flags, severity, complexity, etc.):
+
+```tsx
+import { RegulationMetadata } from '@/components/regulations';
+
+// Full grid for regulation page
+<RegulationMetadata regulation={regulation} layout="grid" />
+
+// Compact layout for modals
+<RegulationMetadata regulation={regulation} layout="compact" />
+```
+
+### RegulationSummary
+
+Summary section with info styling:
+
+```tsx
+import { RegulationSummary } from '@/components/regulations';
+
+<RegulationSummary summary={regulation.summary} />
+<RegulationSummary summary={regulation.summary} showHeading={false} />
+```
+
+### RegulationContent
+
+Content display with optional truncation:
+
+```tsx
+import { RegulationContent } from '@/components/regulations';
+
+// Full content in modal
+<RegulationContent content={regulation.content} maxHeight="16rem" />
+
+// Truncated preview
+<RegulationContent content={regulation.content} truncateAt={500} heading="Content Preview" />
+```
+
+### RegulationQuickStats
+
+Inline badges for quick overview:
+
+```tsx
+import { RegulationQuickStats } from '@/components/regulations';
+
+<RegulationQuickStats regulation={document} />
+```
+
+---
+
+## Shared Review Form Components
+
+### ReviewForm
+
+Generic review form used by RedFlagReviewForm and ComplianceIssueReviewForm:
+
+```tsx
+import { ReviewForm } from '@/components/review';
+
+<ReviewForm
+  itemType="red_flag"  // or "compliance_issue"
+  item={flag}
+  onUpdated={handleUpdated}
+  onSubmit={updateRedFlagReview}
+/>
+```
+
+### useReviewForm Hook
+
+Shared state management for review forms:
+
+```tsx
+import { useReviewForm } from '@/hooks';
+
+const { formData, updateField, isEditing, setIsEditing, isPending, error, handleSubmit } =
+  useReviewForm({
+    initialData: item,
+    onSubmit: updateRedFlagReview,
+    onUpdated: handleUpdated,
+  });
+```
+
+---
+
+## Shared Card Components
+
+Located in `components/review/shared/`:
+
+### CardWrapper
+
+Focus-aware card wrapper:
+
+```tsx
+import { CardWrapper } from '@/components/review/shared';
+
+<CardWrapper id={`flag-${flag.id}`} isFocused={isFocused} ref={ref}>
+  {children}
+</CardWrapper>
+```
+
+### RegulationContext
+
+Regulation citation and title display:
+
+```tsx
+import { RegulationContext } from '@/components/review/shared';
+
+<RegulationContext regulation={flag.regulation} className="mb-4" />
+```
+
+### CardFormError
+
+Form error message:
+
+```tsx
+import { CardFormError } from '@/components/review/shared';
+
+<CardFormError error={error} />
+```
+
+### CardActions
+
+Submit and View Regulation buttons:
+
+```tsx
+import { CardActions } from '@/components/review/shared';
+
+<CardActions
+  onViewRegulation={() => handleViewRegulation(id)}
+  isPending={isPending}
+  submitLabel="Save Review"
+/>
+```
+
+---
+
+## Shared Queue Components
+
+### QueuePagination
+
+Pagination controls:
+
+```tsx
+import { QueuePagination } from '@/components/review/shared';
+
+<QueuePagination pagination={pagination} onPageChange={goToPage} />
+```
+
+### QueueResultsInfo
+
+"Showing X-Y of Z items" display:
+
+```tsx
+import { QueueResultsInfo } from '@/components/review/shared';
+
+<QueueResultsInfo
+  pagination={pagination}
+  currentCount={items.length}
+  itemLabel="flags"
+  showKeyboardHint
+/>
+```
+
+### QueueEmptyState
+
+Empty state for queues:
+
+```tsx
+import { QueueEmptyState } from '@/components/review/shared';
+
+<QueueEmptyState
+  title="No flags found"
+  description="Try adjusting your filters."
+/>
+```
+
+### useQueueNavigation Hook
+
+Keyboard navigation for queues (j/k navigation, focus management):
+
+```tsx
+import { useQueueNavigation } from '@/hooks';
+
+const { focusedIndex, setCardRef, handleKeyDown, currentItem } = useQueueNavigation({
+  items: flags,
+  getItemId: (f) => `flag-${f.id}`,
+  onViewRegulation: (f) => setSelectedId(f.regulation.id),
+  findNextUnreviewed: (idx) => flags.findIndex((f, i) => i > idx && !f.reviewStatus),
+});
+
+useEffect(() => {
+  window.addEventListener('keydown', handleKeyDown);
+  return () => window.removeEventListener('keydown', handleKeyDown);
+}, [handleKeyDown]);
+```
 
 ---
 
@@ -754,15 +1180,24 @@ apps/web/src/
 │       └── index.ts
 ├── lib/
 │   ├── actions/
+│   │   ├── types.ts        # ActionResult type and helpers
 │   │   ├── dashboard.ts    # Dashboard stats server actions
-│   │   ├── hierarchy.ts    # Hierarchy navigation server actions
+│   │   ├── hierarchy.ts    # Hierarchy navigation
 │   │   ├── regulations.ts
-│   │   └── red-flags.ts
+│   │   ├── red-flags.ts
+│   │   ├── compliance-issues.ts
+│   │   ├── developer.ts    # Developer mode actions
+│   │   └── document-notes.ts
+│   ├── url/
+│   │   ├── parsers.ts      # nuqs query param parsers
+│   │   └── index.ts
 │   ├── constants/
 │   │   └── hierarchy.ts    # Hierarchy level labels
 │   ├── format.ts           # Shared formatting utilities
 │   └── formatters/
 │       └── nycrr.ts        # NYCRR citation formatting
+├── types/
+│   └── regulation.ts       # Constants, helpers, types
 └── tailwind.config.ts      # Extended Tailwind theme
 ```
 

@@ -7,9 +7,10 @@ import type { RegulationWithAnalysis, ComplianceIssue } from '@deproceduralizer/
 import { getDocumentForPanel } from '@/lib/actions/hierarchy';
 import { getComplianceIssuesByDocumentId } from '@/lib/actions/compliance-issues';
 import { Card, Badge, SeverityBadge, Button, Tag } from '@/components/ui';
+import { RegulationQuickStats, RegulationContent } from '@/components/regulations';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
 import { HierarchyBreadcrumbs } from './HierarchyBreadcrumbs';
-import { FileText, ExternalLink, AlertTriangle, BookOpen, X, Loader2, ClipboardList } from 'lucide-react';
+import { FileText, ExternalLink, AlertTriangle, X, Loader2, ClipboardList } from 'lucide-react';
 import { getStateFromPathname } from '@/hooks';
 import { ISSUE_TYPE_LABELS } from '@/types/regulation';
 
@@ -52,12 +53,23 @@ export function DetailPanel({ documentId, onClose, onNavigate, fullScreen = fals
     setIsLoading(true);
     setError(null);
     try {
-      const [doc, issues] = await Promise.all([
+      const [docResult, issuesResult] = await Promise.all([
         getDocumentForPanel(id),
         getComplianceIssuesByDocumentId(id),
       ]);
-      setDocument(doc);
-      setComplianceIssues(issues || []);
+
+      if (!docResult.success) {
+        setError(`Failed to load document: ${docResult.error}`);
+        return;
+      }
+
+      if (!issuesResult.success) {
+        console.error('Failed to load compliance issues:', issuesResult.error);
+        // Continue with document, just show no compliance issues
+      }
+
+      setDocument(docResult.data);
+      setComplianceIssues(issuesResult.success ? issuesResult.data : []);
     } catch (err) {
       console.error('Failed to load document:', err);
       setError('Failed to load document details');
@@ -138,31 +150,7 @@ export function DetailPanel({ documentId, onClose, onNavigate, fullScreen = fals
         </div>
 
         {/* Quick stats */}
-        <div className="flex flex-wrap gap-2 mt-3">
-          {document.hierarchyLevel && (
-            <Badge variant="default" className="capitalize">
-              {document.hierarchyLevel}
-            </Badge>
-          )}
-          {document.maxSeverity !== null && (
-            <SeverityBadge severity={document.maxSeverity} />
-          )}
-          {document.numFlags !== null && document.numFlags > 0 && (
-            <Badge variant="danger">
-              {document.numFlags} {document.numFlags === 1 ? 'flag' : 'flags'}
-            </Badge>
-          )}
-          {document.overallComplexity && (
-            <Badge variant={
-              document.overallComplexity === 'HIGH' ? 'danger' :
-              document.overallComplexity === 'MEDIUM-HIGH' ? 'warning' :
-              document.overallComplexity === 'MEDIUM' ? 'warning' :
-              'success'
-            }>
-              {document.overallComplexity} complexity
-            </Badge>
-          )}
-        </div>
+        <RegulationQuickStats regulation={document} className="mt-3" />
       </div>
 
       {/* Hierarchy Breadcrumbs */}
@@ -280,15 +268,12 @@ export function DetailPanel({ documentId, onClose, onNavigate, fullScreen = fals
 
         {/* Content preview */}
         {document.content && (
-          <div>
-            <h3 className="text-sm font-semibold text-[var(--color-text-secondary)] mb-2">
-              Content Preview
-            </h3>
-            <div className="text-sm text-[var(--color-text-secondary)] bg-[var(--color-neutral-50)] p-3 rounded-[var(--radius-md)] max-h-40 overflow-y-auto">
-              {document.content.substring(0, 500)}
-              {document.content.length > 500 && '...'}
-            </div>
-          </div>
+          <RegulationContent
+            content={document.content}
+            heading="Content Preview"
+            truncateAt={500}
+            maxHeight="10rem"
+          />
         )}
       </div>
     </Card>

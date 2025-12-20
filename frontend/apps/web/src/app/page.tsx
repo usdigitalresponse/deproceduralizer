@@ -1,16 +1,53 @@
 import { Container, PageHeader } from '@/components/layout';
 import { DashboardStats, StateCard, QuickLinks } from '@/components/home';
 import { getDashboardStats, getAllStateStats } from '@/lib/actions/dashboard';
+import { Alert } from '@/components/ui';
 
 /**
  * Home page dashboard with aggregate stats, state selector, and quick links.
  */
 export default async function HomePage() {
   // Fetch stats for all states combined and per-state
-  const [aggregateStats, stateStats] = await Promise.all([
+  const [aggregateResult, stateStatsResult] = await Promise.all([
     getDashboardStats(),
     getAllStateStats(),
   ]);
+
+  // Handle errors - display them obviously
+  if (!aggregateResult.success) {
+    return (
+      <>
+        <PageHeader
+          title="Regulatory Analysis Dashboard"
+          description="AI-powered analysis of state regulations to identify procedural complexity and potential issues"
+        />
+        <Container size="2xl" className="py-6">
+          <Alert variant="error">
+            Failed to load dashboard stats: {aggregateResult.error}
+          </Alert>
+        </Container>
+      </>
+    );
+  }
+
+  if (!stateStatsResult.success) {
+    return (
+      <>
+        <PageHeader
+          title="Regulatory Analysis Dashboard"
+          description="AI-powered analysis of state regulations to identify procedural complexity and potential issues"
+        />
+        <Container size="2xl" className="py-6">
+          <Alert variant="error">
+            Failed to load state stats: {stateStatsResult.error}
+          </Alert>
+        </Container>
+      </>
+    );
+  }
+
+  const aggregateStats = aggregateResult.data;
+  const stateStats = stateStatsResult.data;
 
   return (
     <>

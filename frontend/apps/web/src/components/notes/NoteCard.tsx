@@ -35,9 +35,13 @@ export function NoteCard({
     setError(null);
     startTransition(async () => {
       try {
-        const updated = await updateNote(note.id, editContent.trim(), note.authorName || undefined);
-        if (updated) {
-          onUpdate(updated);
+        const result = await updateNote(note.id, editContent.trim(), note.authorName || undefined);
+        if (!result.success) {
+          setError(result.error);
+          return;
+        }
+        if (result.data) {
+          onUpdate(result.data);
           setIsEditing(false);
         }
       } catch (err) {
@@ -51,7 +55,11 @@ export function NoteCard({
 
     startTransition(async () => {
       try {
-        await deleteNote(note.id);
+        const result = await deleteNote(note.id);
+        if (!result.success) {
+          setError(result.error);
+          return;
+        }
         onDelete(note.id);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to delete note');

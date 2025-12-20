@@ -12,6 +12,7 @@ import type { RegulationWithAnalysis, PaginationOptions, FilterOptions } from '@
 import { Badge, SeverityBadge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { getComplexityVariant } from '@/types/regulation';
 
 interface PaginationInfo {
   page: number;
@@ -225,7 +226,7 @@ const columns = [
       const complexity = info.getValue();
       if (!complexity) return <span className="text-[var(--color-text-muted)]">–</span>;
 
-      const variant = complexity === 'HIGH' ? 'danger' : complexity === 'MEDIUM' || complexity === 'MEDIUM-HIGH' ? 'warning' : 'success';
+      const variant = getComplexityVariant(complexity);
       return <Badge variant={variant}>{complexity}</Badge>;
     },
   }),

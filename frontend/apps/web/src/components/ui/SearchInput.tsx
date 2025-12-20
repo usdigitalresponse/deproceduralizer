@@ -58,14 +58,17 @@ export function SearchInput({
 }: SearchInputProps) {
   const [internalValue, setInternalValue] = useState(controlledValue ?? '');
   const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
+  const lastControlledValue = useRef(controlledValue);
   const isControlled = controlledValue !== undefined;
 
-  // Sync internal value when controlled value changes
+  // Sync internal value only when controlled value changes from outside
+  // (not when internal value changes from typing)
   useEffect(() => {
-    if (isControlled && controlledValue !== internalValue) {
+    if (isControlled && controlledValue !== lastControlledValue.current) {
       setInternalValue(controlledValue);
+      lastControlledValue.current = controlledValue;
     }
-  }, [controlledValue, isControlled, internalValue]);
+  }, [controlledValue, isControlled]);
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -166,6 +169,8 @@ export function SearchInput({
           transition-colors duration-[var(--duration-fast)]
           hover:border-[var(--color-neutral-400)]
           focus:outline-none focus:ring-2 focus:ring-[var(--color-focus)] focus:ring-offset-1
+          [&::-webkit-search-cancel-button]:hidden
+          [&::-webkit-search-decoration]:hidden
         `}
       />
 

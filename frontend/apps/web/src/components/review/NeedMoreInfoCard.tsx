@@ -75,7 +75,7 @@ export const NeedMoreInfoCard = forwardRef<HTMLDivElement, NeedMoreInfoCardProps
             </div>
             <ExpandableRegulationQuote
               text={flag.explanation}
-              label="Regulation Text"
+              label="Why Flagged"
               documentId={flag.regulation.id}
               variant="default"
             />
