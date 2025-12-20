@@ -92,6 +92,8 @@ Main table storing regulatory document data with hierarchy information. **50 col
 | `descendant_max_severity` | integer | Max severity in subtree |
 | `has_descendant_analysis` | boolean | Whether any descendant has analysis |
 
+> **⚠️ Important:** These fields are denormalized for performance and must be recomputed after data imports or when parent_id relationships change. See [Recomputing Hierarchy Stats](#recomputing-hierarchy-stats) section below.
+
 **Unique Constraint**: `(state, source_index, type)`
 
 ### analyses
@@ -378,3 +380,78 @@ const stats = await docsRepo.getDashboardStats('NY');
 - Client: `frontend/packages/database/src/client.ts`
 - Repositories: `frontend/packages/database/src/repositories/`
 - Server Actions: `frontend/apps/web/src/lib/actions/`
+
+## Recomputing Hierarchy Stats
+
+The precomputed hierarchy statistics in `regulatory_documents` must be refreshed after:
+- Data imports or scraping runs
+- Changes to `parent_id` relationships
+- New analyses are added
+
+**When to recompute:** If the browse page shows titles without expand arrows that should have children, or flag counts seem wrong.
+
+**How to check for issues:**
+```sql
+-- Check for mismatched child counts
+SELECT state, COUNT(*) as mismatches
+FROM (
+  SELECT rd.id, rd.state, rd.direct_child_count,
+    (SELECT COUNT(*) FROM regulatory_documents c WHERE c.parent_id = rd.id) as actual
+  FROM regulatory_documents rd
+) rd
+WHERE rd.direct_child_count != rd.actual
+GROUP BY state;
+```
+
+**Run these queries in order to recompute all stats:**
+
+```bash
+# Step 1: Update direct_child_count
+./scripts/db-query.sh "UPDATE regulatory_documents rd SET direct_child_count = (SELECT COUNT(*) FROM regulatory_documents c WHERE c.parent_id = rd.id)"
+
+# Step 2: Update descendant_count
+./scripts/db-query.sh "WITH descendant_counts AS (
+  SELECT rd.id, (
+    WITH RECURSIVE descendants AS (
+      SELECT id FROM regulatory_documents WHERE parent_id = rd.id
+      UNION ALL
+      SELECT c.id FROM regulatory_documents c JOIN descendants d ON c.parent_id = d.id
+    ) SELECT COUNT(*) FROM descendants
+  ) as cnt
+  FROM regulatory_documents rd WHERE rd.direct_child_count > 0
+)
+UPDATE regulatory_documents rd SET descendant_count = dc.cnt FROM descendant_counts dc WHERE rd.id = dc.id"
+
+# Step 3: Update flag stats for non-leaf nodes
+./scripts/db-query.sh "WITH flag_stats AS (
+  SELECT rd.id,
+    (WITH RECURSIVE descendants AS (
+      SELECT id FROM regulatory_documents WHERE id = rd.id UNION ALL
+      SELECT c.id FROM regulatory_documents c JOIN descendants d ON c.parent_id = d.id
+    ) SELECT COALESCE(SUM(a.num_flags), 0) FROM analyses a WHERE a.is_current = true AND a.document_id IN (SELECT id FROM descendants)) as total_flags,
+    (WITH RECURSIVE descendants AS (
+      SELECT id FROM regulatory_documents WHERE id = rd.id UNION ALL
+      SELECT c.id FROM regulatory_documents c JOIN descendants d ON c.parent_id = d.id
+    ) SELECT MAX(a.max_severity) FROM analyses a WHERE a.is_current = true AND a.document_id IN (SELECT id FROM descendants)) as max_sev,
+    (WITH RECURSIVE descendants AS (
+      SELECT id FROM regulatory_documents WHERE id = rd.id UNION ALL
+      SELECT c.id FROM regulatory_documents c JOIN descendants d ON c.parent_id = d.id
+    ) SELECT EXISTS(SELECT 1 FROM analyses a WHERE a.is_current = true AND a.document_id IN (SELECT id FROM descendants))) as has_analysis
+  FROM regulatory_documents rd WHERE rd.direct_child_count > 0
+)
+UPDATE regulatory_documents rd SET descendant_flag_count = fs.total_flags, descendant_max_severity = fs.max_sev, has_descendant_analysis = fs.has_analysis FROM flag_stats fs WHERE rd.id = fs.id"
+
+# Step 4: Update flag stats for leaf nodes
+./scripts/db-query.sh "UPDATE regulatory_documents rd SET
+  descendant_flag_count = COALESCE(a.num_flags, 0),
+  descendant_max_severity = a.max_severity,
+  has_descendant_analysis = (a.id IS NOT NULL)
+FROM (
+  SELECT rd2.id, a2.id, a2.num_flags, a2.max_severity
+  FROM regulatory_documents rd2
+  LEFT JOIN analyses a2 ON a2.document_id = rd2.id AND a2.is_current = true
+  WHERE rd2.direct_child_count = 0
+) a WHERE rd.id = a.id"
+```
+
+See also: `schema.sql` contains the full SQL queries with detailed comments.
