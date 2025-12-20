@@ -51,4 +51,24 @@ test.describe('Smoke Tests', () => {
     await expect(page.getByText('New Jersey')).toBeVisible();
   });
 
+  test('definitions glossary shows terms', async ({ page }) => {
+    await page.goto('/ny/definitions');
+
+    // Wait for glossary heading (h1 includes state name)
+    await expect(page.getByRole('heading', { name: /New York Definitions Glossary/i })).toBeVisible();
+
+    // Should show total definitions count
+    await expect(page.getByText(/Total Definitions/i)).toBeVisible();
+
+    // Should have definition cards with terms (h3 headings)
+    const definitionTerms = page.locator('h3');
+    await expect(definitionTerms.first()).toBeVisible();
+
+    // Should show at least some definitions (check for quality badges which appear on cards)
+    await expect(page.getByText(/Quality/i).first()).toBeVisible();
+
+    // Should have pagination showing page info
+    await expect(page.getByText(/Page \d+ of \d+/i)).toBeVisible();
+  });
+
 });

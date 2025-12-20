@@ -5,14 +5,16 @@ import {
   getCoreRowModel,
   flexRender,
   createColumnHelper,
+  type VisibilityState,
 } from '@tanstack/react-table';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import type { RegulationWithAnalysis, PaginationOptions, FilterOptions } from '@deproceduralizer/database';
 import { Badge, SeverityBadge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { getComplexityVariant } from '@/types/regulation';
+import { useResponsive } from '@/hooks';
 
 interface PaginationInfo {
   page: number;
@@ -289,9 +291,36 @@ interface DataTableProps {
   filters: FilterOptions;
 }
 
+// Columns to hide on mobile (keep: title, numFlags, maxSeverity)
+const MOBILE_HIDDEN_COLUMNS = [
+  'categories',
+  'explanations',
+  'hasImplementationIssues',
+  'overallComplexity',
+  'requiresTechnicalReview',
+  'hasReportingRequirement',
+  'summary',
+];
+
 export default function DataTable({ data, onRowClick, pagination, search, sortBy = 'maxSeverity', sortOrder = 'desc', filters }: DataTableProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { isMobile, isTablet } = useResponsive();
+
+  // Column visibility based on screen size
+  const columnVisibility: VisibilityState = useMemo(() => {
+    if (isMobile) {
+      return MOBILE_HIDDEN_COLUMNS.reduce((acc, col) => ({ ...acc, [col]: false }), {});
+    }
+    if (isTablet) {
+      // On tablet, hide just the longest columns
+      return {
+        explanations: false,
+        summary: false,
+      };
+    }
+    return {};
+  }, [isMobile, isTablet]);
 
   // Navigate to a new page while preserving other params
   const navigateToPage = (page: number) => {
@@ -355,6 +384,9 @@ export default function DataTable({ data, onRowClick, pagination, search, sortBy
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
+    state: {
+      columnVisibility,
+    },
     // No client-side sorting/pagination - server handles it
   });
 
@@ -390,7 +422,7 @@ export default function DataTable({ data, onRowClick, pagination, search, sortBy
       <div className="overflow-x-auto">
         <table
           className="text-[var(--color-text)] table-fixed w-full"
-          style={{ minWidth: '1400px' }}
+          style={{ minWidth: isMobile ? '400px' : isTablet ? '800px' : '1400px' }}
           aria-label="Regulations data table"
           role="grid"
         >

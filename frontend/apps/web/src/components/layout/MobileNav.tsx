@@ -127,6 +127,8 @@ function StateButton({ state, label, isActive, onClick }: StateButtonProps) {
     <Link
       href={`/${state}`}
       onClick={onClick}
+      aria-label={`Switch to ${label}`}
+      aria-current={isActive ? 'page' : undefined}
       className={`
         flex-1 px-4 py-3
         text-center text-sm font-medium

@@ -73,12 +73,14 @@ export function GlossarySearch({
       </div>
 
       {/* A-Z letter bar */}
-      <div className="flex flex-wrap gap-1">
+      <div role="group" aria-label="Filter by first letter" className="flex flex-wrap gap-1">
         <Button
           type="button"
           variant={selectedLetter === null ? 'primary' : 'ghost'}
           size="sm"
           onClick={() => onLetterChange(null)}
+          aria-label="Show all terms"
+          aria-pressed={selectedLetter === null}
           className="px-3 py-1 h-auto text-xs font-medium"
         >
           All
@@ -96,6 +98,8 @@ export function GlossarySearch({
               size="sm"
               onClick={() => onLetterChange(isSelected ? null : letter)}
               disabled={!hasItems && !isSelected}
+              aria-label={`Filter by letter ${letter}${hasItems ? `, ${count} definition${count === 1 ? '' : 's'}` : ', no definitions'}`}
+              aria-pressed={isSelected}
               className={`
                 px-2.5 py-1 h-auto text-xs font-medium min-w-[32px]
                 ${!hasItems && !isSelected ? 'opacity-40 cursor-not-allowed' : ''}

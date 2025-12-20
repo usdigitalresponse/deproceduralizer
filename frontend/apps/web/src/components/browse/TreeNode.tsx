@@ -135,9 +135,9 @@ export function TreeNode({
             aria-label={isExpanded ? 'Collapse' : 'Expand'}
           >
             {isExpanded ? (
-              <ChevronDown className="w-4 h-4" />
+              <ChevronDown className="w-4 h-4" aria-hidden="true" />
             ) : (
-              <ChevronRight className="w-4 h-4" />
+              <ChevronRight className="w-4 h-4" aria-hidden="true" />
             )}
           </button>
         ) : (
@@ -145,7 +145,7 @@ export function TreeNode({
         )}
 
         {/* Icon */}
-        <Icon className="w-4 h-4 shrink-0 text-[var(--color-text-muted)]" />
+        <Icon className="w-4 h-4 shrink-0 text-[var(--color-text-muted)]" aria-hidden="true" />
 
         {/* Node content */}
         <div className="flex-1 min-w-0">

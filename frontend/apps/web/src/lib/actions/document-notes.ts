@@ -22,6 +22,11 @@ export interface CreateNoteInput {
   anchorText?: string;
 }
 
+/**
+ * Creates a new note for a regulatory document.
+ * @param input - The note data including document ID, type, content, and optional anchor info
+ * @returns The created note
+ */
 export async function createNote(
   input: CreateNoteInput
 ): Promise<ActionResult<DocumentNote>> {
@@ -45,6 +50,13 @@ export async function createNote(
   }
 }
 
+/**
+ * Updates an existing note's content.
+ * @param id - The note ID
+ * @param content - The new note content
+ * @param authorName - Optional author name to update
+ * @returns The updated note or an error if not found
+ */
 export async function updateNote(
   id: number,
   content: string,
@@ -68,6 +80,11 @@ export async function updateNote(
   }
 }
 
+/**
+ * Deletes a note by its ID.
+ * @param id - The note ID to delete
+ * @returns True if deleted, or an error if not found
+ */
 export async function deleteNote(id: number): Promise<ActionResult<boolean>> {
   try {
     const deleted = await notesRepo.delete(id);
@@ -84,6 +101,11 @@ export async function deleteNote(id: number): Promise<ActionResult<boolean>> {
   }
 }
 
+/**
+ * Gets all notes for a specific document.
+ * @param documentId - The regulatory document ID
+ * @returns Array of notes for the document
+ */
 export async function getNotesByDocumentId(
   documentId: number
 ): Promise<ActionResult<DocumentNote[]>> {
@@ -96,6 +118,11 @@ export async function getNotesByDocumentId(
   }
 }
 
+/**
+ * Gets a single note by its ID.
+ * @param id - The note ID
+ * @returns The note or undefined if not found
+ */
 export async function getNoteById(
   id: number
 ): Promise<ActionResult<DocumentNote | undefined>> {

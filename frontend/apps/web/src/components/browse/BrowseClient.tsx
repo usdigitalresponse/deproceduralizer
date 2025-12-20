@@ -266,7 +266,7 @@ export function BrowseClient({
           className="w-full lg:shrink-0"
           style={isMobile ? undefined : { width: panelWidth }}
         >
-          <Card padding="none" className="h-[50vh] lg:h-[calc(100vh-16rem)] overflow-hidden">
+          <Card padding="none" className="min-h-[300px] h-[40vh] lg:h-[calc(100vh-16rem)] overflow-hidden">
             <HierarchyTree
               roots={initialRoots}
               orphans={initialOrphans}

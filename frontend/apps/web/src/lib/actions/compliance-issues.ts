@@ -29,6 +29,11 @@ export interface UpdateComplianceIssueInput {
   impactType?: string;
 }
 
+/**
+ * Updates the review status and notes for a compliance issue.
+ * @param input - The update input including id, review status, reviewer info, and optional priority/impact
+ * @returns The updated compliance issue or an error
+ */
 export async function updateComplianceIssueReview(
   input: UpdateComplianceIssueInput
 ): Promise<ActionResult<ComplianceIssue>> {
@@ -61,6 +66,11 @@ export async function updateComplianceIssueReview(
   }
 }
 
+/**
+ * Fetches a compliance issue by its ID.
+ * @param id - The compliance issue ID
+ * @returns The compliance issue or null if not found
+ */
 export async function getComplianceIssueById(
   id: number
 ): Promise<ActionResult<ComplianceIssue | null>> {
@@ -73,6 +83,11 @@ export async function getComplianceIssueById(
   }
 }
 
+/**
+ * Gets all compliance issues for a specific document.
+ * @param documentId - The regulatory document ID
+ * @returns Array of compliance issues for the document
+ */
 export async function getComplianceIssuesByDocumentId(
   documentId: number
 ): Promise<ActionResult<ComplianceIssue[]>> {
@@ -85,6 +100,11 @@ export async function getComplianceIssuesByDocumentId(
   }
 }
 
+/**
+ * Gets all unique compliance issue types for a state.
+ * @param state - The state code (e.g., 'NY', 'NJ')
+ * @returns Array of unique issue type names (e.g., 'wet_signature', 'in_person')
+ */
 export async function getComplianceIssueTypes(
   state: StateCode
 ): Promise<ActionResult<string[]>> {
@@ -107,6 +127,11 @@ export interface ComplianceIssueStatusCounts {
   total: number;
 }
 
+/**
+ * Gets counts of compliance issues grouped by review status for a state.
+ * @param state - The state code (e.g., 'NY', 'NJ')
+ * @returns Object with counts per status and total
+ */
 export async function getComplianceIssueStatusCounts(
   state: StateCode
 ): Promise<ActionResult<ComplianceIssueStatusCounts>> {
@@ -119,6 +144,11 @@ export async function getComplianceIssueStatusCounts(
   }
 }
 
+/**
+ * Gets counts of compliance issues grouped by issue type for a state.
+ * @param state - The state code (e.g., 'NY', 'NJ')
+ * @returns Object mapping issue type to count
+ */
 export async function getComplianceIssueCountsByType(
   state: StateCode
 ): Promise<ActionResult<Record<string, number>>> {
@@ -136,6 +166,11 @@ export interface ComplianceIssueStats {
   byType: Record<string, number>;
 }
 
+/**
+ * Gets aggregate statistics for compliance issues.
+ * @param state - Optional state code to filter by (returns all states if omitted)
+ * @returns Total count and counts by issue type
+ */
 export async function getComplianceIssueStats(
   state?: StateCode
 ): Promise<ActionResult<ComplianceIssueStats>> {
@@ -148,6 +183,12 @@ export async function getComplianceIssueStats(
   }
 }
 
+/**
+ * Gets paginated compliance issues with filtering and sorting options.
+ * @param state - The state code (e.g., 'NY', 'NJ')
+ * @param options - Pagination, sorting, and filter options
+ * @returns Paginated result with compliance issues and metadata
+ */
 export async function getComplianceIssuesPaginated(
   state: StateCode,
   options: {

@@ -47,6 +47,7 @@ export function CopyLinkButton({ anchor, className = '', size = 'sm' }: CopyLink
     <button
       type="button"
       onClick={handleCopy}
+      aria-label={copied ? 'Link copied' : 'Copy link to this item'}
       title={copied ? 'Copied!' : 'Copy link to this item'}
       className={`
         inline-flex items-center justify-center
