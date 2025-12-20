@@ -43,4 +43,3 @@ node_modules
 # Data files
 data/raw/
 data/*.csv
-CLAUDE.md
