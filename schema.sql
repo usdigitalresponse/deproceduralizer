@@ -2,6 +2,7 @@
 -- Stores regulations from Cornell Law and LLM-generated red flag analysis results.
 -- Hierarchy: Title -> Subtitle -> Chapter -> Subchapter -> Article -> Part -> Subpart -> Section
 
+
 CREATE TABLE regulatory_documents (
   id BIGSERIAL PRIMARY KEY,
   source_index INTEGER,                -- Index from scraping process, used for ordering and deduplication
@@ -410,3 +411,4 @@ CREATE TABLE extracted_definitions (
 --   WHERE rd2.direct_child_count = 0
 -- ) a
 -- WHERE rd.id = a.id;
+

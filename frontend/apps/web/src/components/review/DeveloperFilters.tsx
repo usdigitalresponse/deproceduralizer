@@ -105,7 +105,7 @@ export function DeveloperFilters({
         <Button
           variant="secondary"
           size="sm"
-          onClick={() => setFilters({ sortOrder: filters.sortOrder === 'desc' ? 'asc' : 'desc' })}
+          onClick={() => setFilters({ sortOrder: filters.sortOrder === 'desc' ? 'asc' : 'desc', page: 1 })}
           aria-label={`Sort ${filters.sortOrder === 'desc' ? 'ascending' : 'descending'}`}
         >
           {filters.sortOrder === 'desc' ? '↓' : '↑'}
