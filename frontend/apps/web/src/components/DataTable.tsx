@@ -542,6 +542,12 @@ export default function DataTable({ data, onRowClick, pagination, search }: Data
                     focus:outline-none focus:ring-2 focus:ring-[var(--color-focus)] focus:ring-inset
                   "
                   onClick={() => onRowClick(row.original)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      onRowClick(row.original);
+                    }
+                  }}
                   tabIndex={0}
                   role="row"
                   aria-label={`${row.original.title || 'Untitled'}, ${row.original.numFlags || 0} flags`}

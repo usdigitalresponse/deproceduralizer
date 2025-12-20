@@ -410,3 +410,4 @@ CREATE TABLE extracted_definitions (
 --   WHERE rd2.direct_child_count = 0
 -- ) a
 -- WHERE rd.id = a.id;
+

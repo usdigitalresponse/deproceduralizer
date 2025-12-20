@@ -21,14 +21,14 @@ export function ReviewModeSwitcher({ mode }: ReviewModeSwitcherProps) {
     if (newMode === 'developer') {
       params.set('mode', 'developer');
       // Reset to show all developer statuses
-      params.delete('status');
+      params.delete('reviewStatus');
       params.set('developerStatus', 'all');
     } else {
       params.delete('mode');
       params.delete('developerStatus');
-      params.delete('developer');
+      params.delete('developerAssigned');
       // Default to unreviewed for review mode
-      params.set('status', 'unreviewed');
+      params.set('reviewStatus', 'unreviewed');
     }
 
     params.set('page', '1');

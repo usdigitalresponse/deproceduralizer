@@ -49,7 +49,7 @@ export function QueueResultsInfo({
       </span>
       {showKeyboardHint && (
         <span className="text-xs text-[var(--color-text-muted)]">
-          {keyboardHintText === 'jk' ? jkHint : defaultHint}
+          {keyboardHintText?.includes('j') && keyboardHintText?.includes('k') ? jkHint : defaultHint}
         </span>
       )}
     </div>
