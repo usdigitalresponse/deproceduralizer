@@ -50,7 +50,7 @@ export function QuickLinks({ state }: QuickLinksProps) {
         description="Explore regulations in a tree view organized by titles, parts, and sections"
       />
       <QuickLink
-        href={`/${state}/review?status=unreviewed`}
+        href={`/${state}/review?reviewStatus=unreviewed`}
         icon={<ClipboardCheck className="w-6 h-6 text-[var(--color-text-secondary)] group-hover:text-[var(--color-primary)] transition-colors" />}
         title="Review Queue"
         description="Review and triage flagged regulations that need attention"

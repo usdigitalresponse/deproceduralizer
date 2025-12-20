@@ -54,6 +54,7 @@ export const ISSUE_TYPES = [
   'paper_form',
   'notarized',
   'certified',
+  'reporting_requirement',
   'other'
 ] as const;
 export type IssueType = typeof ISSUE_TYPES[number];

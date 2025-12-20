@@ -253,11 +253,7 @@ export function BrowseClient({
   return (
     <div className="space-y-4">
       {/* Filters */}
-      <BrowseFilters
-        currentFilters={filters}
-        stats={stats}
-        search={search}
-      />
+      <BrowseFilters stats={stats} />
 
       {/* Main content: tree + detail panel */}
       <div ref={containerRef} className="flex flex-col lg:flex-row gap-4 lg:gap-0">

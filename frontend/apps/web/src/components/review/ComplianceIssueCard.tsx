@@ -3,10 +3,11 @@
 import { useState, useTransition, useEffect, forwardRef, useCallback } from 'react';
 import { updateComplianceIssueReview, getExpandedContext } from '@/lib/actions/compliance-issues';
 import { useReviewerName } from '@/hooks/useReviewerName';
-import { Button, Input, Textarea, Badge, Card, Select, Tag, CopyLinkButton } from '@/components/ui';
+import { Button, Input, Textarea, Badge, Select, Tag, CopyLinkButton } from '@/components/ui';
 import { REVIEW_STATUSES, PRIORITY_OPTIONS, IMPACT_TYPES, ISSUE_TYPE_LABELS } from '@/types/regulation';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
 import { formatNjacCitation } from '@/lib/formatters/njac';
+import { CardWrapper } from './shared';
 import type { ComplianceIssueWithContext } from '@deproceduralizer/database';
 
 interface ComplianceIssueCardProps {
@@ -176,14 +177,10 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
     const issueTypeLabel = ISSUE_TYPE_LABELS[issue.issueType] || issue.issueType;
 
     return (
-      <Card
+      <CardWrapper
         ref={ref}
         id={`compliance-${issue.id}`}
-        className={`
-          transition-shadow duration-[var(--duration-fast)]
-          ${isFocused ? 'ring-2 ring-[var(--color-focus)] ring-offset-2' : ''}
-        `}
-        tabIndex={0}
+        isFocused={isFocused}
       >
         {/* Header */}
         <div className="flex items-start justify-between gap-4 mb-4">
@@ -388,7 +385,7 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
             </Button>
           </div>
         </form>
-      </Card>
+      </CardWrapper>
     );
   }
 );

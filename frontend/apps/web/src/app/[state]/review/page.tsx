@@ -35,12 +35,12 @@ interface PageProps {
   searchParams: Promise<{
     mode?: string;
     type?: string;
-    status?: string;
+    reviewStatus?: string;
     severity?: string;
     category?: string;
     issueType?: string;
     developerStatus?: string;
-    developer?: string;
+    developerAssigned?: string;
     sortBy?: string;
     sortOrder?: string;
     page?: string;
@@ -73,8 +73,8 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
     }
   } else {
     // Review mode: default to unreviewed items
-    if (!queryParams.status && reviewType !== 'needs_info') {
-      redirect(`/${state}/review?type=${reviewType}&status=unreviewed`);
+    if (!queryParams.reviewStatus && reviewType !== 'needs_info') {
+      redirect(`/${state}/review?type=${reviewType}&reviewStatus=unreviewed`);
     }
   }
 
@@ -189,7 +189,7 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
 
     // Developer mode: combined queue view
     const developerStatus = queryParams.developerStatus || undefined;
-    const developerAssigned = queryParams.developer || undefined;
+    const developerAssigned = queryParams.developerAssigned || undefined;
 
     const reviewedItemsResult = await getCombinedReviewedItems(stateCode, {
       page,
@@ -238,10 +238,6 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
               totalPages: reviewedItems.totalPages,
             }}
             statusCounts={developerStatusCounts}
-            currentDeveloperStatus={developerStatus}
-            currentDeveloperAssigned={developerAssigned}
-            sortBy="reviewedAt"
-            sortOrder={sortOrder}
           />
         </Container>
       </div>
@@ -370,7 +366,7 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
   if (reviewType === 'compliance') {
     const sortBy = (queryParams.sortBy || 'createdAt') as 'issueType' | 'createdAt' | 'reviewedAt';
     const filters = {
-      status: queryParams.status === 'all' ? undefined : queryParams.status,
+      status: queryParams.reviewStatus === 'all' ? undefined : queryParams.reviewStatus,
       issueType: queryParams.issueType || undefined,
     };
 
@@ -444,9 +440,6 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
             }}
             statusCounts={complianceStatusCounts}
             issueTypes={issueTypes}
-            currentFilters={filters}
-            sortBy={sortBy}
-            sortOrder={sortOrder}
           />
         </Container>
       </div>
@@ -456,7 +449,7 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
   // Default: Red Flags view
   const sortBy = (queryParams.sortBy || 'severity') as 'severity' | 'category' | 'reviewedAt';
   const filters: Omit<RedFlagFilterOptions, 'state'> = {
-    status: queryParams.status === 'all' ? 'all' : (queryParams.status as RedFlagFilterOptions['status']),
+    status: queryParams.reviewStatus === 'all' ? 'all' : (queryParams.reviewStatus as RedFlagFilterOptions['status']),
     severity: queryParams.severity as 'high' | 'medium' | 'low' | undefined,
     category: queryParams.category || undefined,
   };
@@ -535,9 +528,6 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
           }}
           statusCounts={flagStatusCounts}
           categories={categories}
-          currentFilters={filters}
-          sortBy={sortBy}
-          sortOrder={sortOrder}
         />
       </Container>
     </div>

@@ -2,7 +2,7 @@ import { eq, and, asc, desc, sql, count, like, ilike } from 'drizzle-orm';
 import { BaseRepository } from './base.repository';
 import { definitions, Definition } from '../schema/definitions';
 import { regulatoryDocuments } from '../schema/regulatory-documents';
-import { StateCode } from './regulatory-documents.repository';
+import { StateCode } from '../schema/constants';
 
 export interface DefinitionWithContext extends Definition {
   regulation?: {

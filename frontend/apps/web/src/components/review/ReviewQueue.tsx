@@ -1,19 +1,22 @@
 'use client';
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import type {
   RedFlagWithContext,
   ReviewStatusCounts,
-  RedFlagFilterOptions,
 } from '@deproceduralizer/database';
 import { ReviewProgress } from './ReviewProgress';
 import { ReviewFilters } from './ReviewFilters';
 import { ReviewCard } from './ReviewCard';
 import { ReviewKeyboardNav } from './ReviewKeyboardNav';
-import { Button } from '@/components/ui/Button';
 import RegulationModal from './RegulationModal';
-import { getStateFromPathname, useDeepLink } from '@/hooks';
+import { 
+  QueueResultsInfo, 
+  QueueEmptyState, 
+  QueuePagination 
+} from './shared';
+import { getStateFromPathname, useDeepLink, useQueueNavigation } from '@/hooks';
 
 interface PaginationInfo {
   page: number;
@@ -22,18 +25,11 @@ interface PaginationInfo {
   totalPages: number;
 }
 
-// Filter options without state - state is handled at the page level
-type UIFilterOptions = Omit<RedFlagFilterOptions, 'state'>;
-
 interface ReviewQueueProps {
   initialFlags: RedFlagWithContext[];
   pagination: PaginationInfo;
   statusCounts: ReviewStatusCounts;
   categories: string[];
-  currentFilters: UIFilterOptions;
-  sortBy: string;
-  sortOrder: string;
-  compact?: boolean;
 }
 
 export function ReviewQueue({
@@ -41,10 +37,6 @@ export function ReviewQueue({
   pagination,
   statusCounts,
   categories,
-  currentFilters,
-  sortBy,
-  sortOrder,
-  compact = false,
 }: ReviewQueueProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -57,12 +49,25 @@ export function ReviewQueue({
   const [flags, setFlags] = useState<RedFlagWithContext[]>(initialFlags);
   const [counts, setCounts] = useState<ReviewStatusCounts>(statusCounts);
 
-  // Focused card for keyboard navigation
-  const [focusedIndex, setFocusedIndex] = useState<number>(0);
-  const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
-
   // Modal state for viewing regulation
   const [selectedRegulationId, setSelectedRegulationId] = useState<number | null>(null);
+
+  // Keyboard navigation hook
+  const { 
+    focusedIndex, 
+    setFocusedIndex, 
+    setCardRef, 
+    navigate, 
+    goToNextUnreviewed,
+    cardRefs 
+  } = useQueueNavigation({
+    items: flags,
+    getItemId: (f) => `flag-${f.id}`,
+    onViewRegulation: (f) => setSelectedRegulationId(f.regulation.id),
+    findNextUnreviewed: (idx) => flags.findIndex(
+      (f, i) => i > idx && (f.reviewStatus === 'unreviewed' || !f.reviewStatus)
+    ),
+  });
 
   // Deep link handling - scroll to item if hash is present
   useDeepLink({
@@ -116,36 +121,6 @@ export function ReviewQueue({
     setSelectedRegulationId(regulationId);
   }, []);
 
-  // Keyboard navigation handlers
-  const handleNavigate = useCallback((direction: 'up' | 'down') => {
-    setFocusedIndex((prev) => {
-      const newIndex = direction === 'down'
-        ? Math.min(prev + 1, flags.length - 1)
-        : Math.max(prev - 1, 0);
-
-      // Scroll card into view
-      cardRefs.current[newIndex]?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center',
-      });
-
-      return newIndex;
-    });
-  }, [flags.length]);
-
-  const handleNextUnreviewed = useCallback(() => {
-    const nextUnreviewedIndex = flags.findIndex(
-      (f, i) => i > focusedIndex && (f.reviewStatus === 'unreviewed' || !f.reviewStatus)
-    );
-    if (nextUnreviewedIndex !== -1) {
-      setFocusedIndex(nextUnreviewedIndex);
-      cardRefs.current[nextUnreviewedIndex]?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center',
-      });
-    }
-  }, [flags, focusedIndex]);
-
   // Pagination helpers
   const goToPage = useCallback((page: number) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -161,15 +136,13 @@ export function ReviewQueue({
       {/* Filters */}
       <ReviewFilters
         categories={categories}
-        currentFilters={currentFilters}
-        sortBy={sortBy}
-        sortOrder={sortOrder}
+        className="mb-2"
       />
 
       {/* Keyboard navigation */}
       <ReviewKeyboardNav
-        onNavigate={handleNavigate}
-        onNextUnreviewed={handleNextUnreviewed}
+        onNavigate={navigate}
+        onNextUnreviewed={goToNextUnreviewed}
         onViewRegulation={() => {
           if (flags[focusedIndex]) {
             handleViewRegulation(flags[focusedIndex].regulation.id);
@@ -178,28 +151,25 @@ export function ReviewQueue({
       />
 
       {/* Results info */}
-      <div className="flex items-center justify-between text-sm text-[var(--color-text-secondary)]">
-        <span>
-          Showing {flags.length > 0 ? (pagination.page - 1) * pagination.pageSize + 1 : 0}
-          –{Math.min(pagination.page * pagination.pageSize, pagination.total)} of {pagination.total} flags
-        </span>
-        <span className="text-xs text-[var(--color-text-muted)]">
-          Press <kbd className="px-1.5 py-0.5 bg-[var(--color-neutral-100)] rounded text-xs font-mono">?</kbd> for keyboard shortcuts
-        </span>
-      </div>
+      <QueueResultsInfo
+        startItem={flags.length > 0 ? (pagination.page - 1) * pagination.pageSize + 1 : 0}
+        endItem={Math.min(pagination.page * pagination.pageSize, pagination.total)}
+        total={pagination.total}
+        itemLabel="flags"
+      />
 
       {/* Flag cards */}
       {flags.length === 0 ? (
-        <div className="text-center py-12 text-[var(--color-text-muted)]">
-          <p className="text-lg mb-2">No flags found</p>
-          <p className="text-sm">Try adjusting your filters or check back later.</p>
-        </div>
+        <QueueEmptyState 
+          title="No flags found" 
+          description="Try adjusting your filters or check back later." 
+        />
       ) : (
         <div className="space-y-4">
           {flags.map((flag, index) => (
             <ReviewCard
               key={flag.id}
-              ref={(el) => { cardRefs.current[index] = el; }}
+              ref={(el) => setCardRef(index, el)}
               flag={flag}
               onUpdated={handleFlagUpdated}
               onViewRegulation={handleViewRegulation}
@@ -210,29 +180,11 @@ export function ReviewQueue({
       )}
 
       {/* Pagination */}
-      {pagination.totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2 pt-4">
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => goToPage(pagination.page - 1)}
-            disabled={pagination.page <= 1}
-          >
-            Previous
-          </Button>
-          <span className="px-4 text-sm text-[var(--color-text-secondary)]">
-            Page {pagination.page} of {pagination.totalPages}
-          </span>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => goToPage(pagination.page + 1)}
-            disabled={pagination.page >= pagination.totalPages}
-          >
-            Next
-          </Button>
-        </div>
-      )}
+      <QueuePagination
+        page={pagination.page}
+        totalPages={pagination.totalPages}
+        onPageChange={goToPage}
+      />
 
       {/* Regulation Modal */}
       <RegulationModal

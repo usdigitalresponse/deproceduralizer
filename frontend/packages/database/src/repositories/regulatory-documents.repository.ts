@@ -4,6 +4,7 @@ import { regulatoryDocuments, RegulatoryDocument } from '../schema/regulatory-do
 import { analyses } from '../schema/analyses';
 import { redFlags } from '../schema/red-flags';
 import { complianceIssues } from '../schema/compliance-issues';
+import { StateCode } from '../schema/constants';
 
 export interface RegulationWithAnalysis extends RegulatoryDocument {
   hasImplementationIssues: boolean | null;
@@ -50,9 +51,6 @@ export interface FilterOptions {
   summarySearch?: string; // Text search in summary
   explanationSearch?: string; // Text search in explanations
 }
-
-// State code type (imported from types/state.ts in frontend, mirrored here)
-export type StateCode = 'ny' | 'nj';
 
 // Hierarchy browsing interfaces
 export interface HierarchyNode {

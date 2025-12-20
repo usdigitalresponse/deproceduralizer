@@ -4,9 +4,10 @@ import { useState, useTransition, forwardRef } from 'react';
 import { updateRedFlagReview } from '@/lib/actions/red-flags';
 import { updateComplianceIssueReview } from '@/lib/actions/compliance-issues';
 import type { DeveloperItem } from '@/lib/actions/developer';
-import { Button, Textarea, Badge, Card, Tag, CopyLinkButton } from '@/components/ui';
+import { Button, Textarea, Badge, Tag, CopyLinkButton } from '@/components/ui';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
 import { ExpandableRegulationQuote } from './ExpandableRegulationQuote';
+import { CardWrapper } from './shared';
 import { Flag, FileWarning, MessageCircleQuestion } from 'lucide-react';
 
 interface NeedMoreInfoCardProps {
@@ -119,15 +120,11 @@ export const NeedMoreInfoCard = forwardRef<HTMLDivElement, NeedMoreInfoCardProps
     const anchor = item.type === 'red_flag' ? `flag-${item.id}` : `compliance-${item.id}`;
 
     return (
-      <Card
+      <CardWrapper
         ref={ref}
         id={anchor}
-        className={`
-          transition-shadow duration-[var(--duration-fast)]
-          ${isFocused ? 'ring-2 ring-[var(--color-focus)] ring-offset-2' : ''}
-          ${isOwner ? 'border-l-4 border-l-[var(--color-info)]' : ''}
-        `}
-        tabIndex={0}
+        isFocused={isFocused}
+        className={isOwner ? 'border-l-4 border-l-[var(--color-info)]' : ''}
       >
         {/* Header with type badge and owner indicator */}
         <div className="flex items-start justify-between gap-4 mb-4">
@@ -228,7 +225,7 @@ export const NeedMoreInfoCard = forwardRef<HTMLDivElement, NeedMoreInfoCardProps
             </div>
           </div>
         )}
-      </Card>
+      </CardWrapper>
     );
   }
 );

@@ -3,7 +3,7 @@ import { BaseRepository } from './base.repository';
 import { redFlags, RedFlag, ReviewStatus, ImpactType, DeveloperStatus, ResolutionType, Developer, REVIEW_STATUSES, DEVELOPER_STATUSES } from '../schema/red-flags';
 import { analyses } from '../schema/analyses';
 import { regulatoryDocuments } from '../schema/regulatory-documents';
-import { StateCode } from './regulatory-documents.repository';
+import { StateCode } from '../schema/constants';
 
 export interface UpdateRedFlagReviewInput {
   reviewStatus: ReviewStatus;

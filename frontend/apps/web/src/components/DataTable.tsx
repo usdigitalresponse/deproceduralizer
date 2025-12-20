@@ -7,13 +7,15 @@ import {
   createColumnHelper,
   type VisibilityState,
 } from '@tanstack/react-table';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useCallback, useMemo } from 'react';
+import { useQueryStates, parseAsInteger, parseAsString, parseAsBoolean } from 'nuqs';
 import type { RegulationWithAnalysis, PaginationOptions, FilterOptions } from '@deproceduralizer/database';
+import { RED_FLAG_CATEGORIES } from '@deproceduralizer/database/schema';
 import { Badge, SeverityBadge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { getComplexityVariant } from '@/types/regulation';
+import { getComplexityVariant, formatLabel } from '@/types/regulation';
 import { useResponsive } from '@/hooks';
 
 interface PaginationInfo {
@@ -38,23 +40,33 @@ const SORTABLE_COLUMNS: Record<string, PaginationOptions['sortBy']> = {
 // Available red flag categories for filter dropdown
 const CATEGORY_OPTIONS = [
   { value: '', label: 'All' },
-  { value: 'administrative_burdens', label: 'Administrative Burdens' },
-  { value: 'cascade_of_rigidity', label: 'Cascade of Rigidity' },
-  { value: 'complexity_policy_debt', label: 'Complexity/Policy Debt' },
-  { value: 'implementation_opportunity', label: 'Implementation Opportunity' },
-  { value: 'mandated_steps_not_outcomes', label: 'Mandated Steps Not Outcomes' },
-  { value: 'no_feedback_loops', label: 'No Feedback Loops' },
-  { value: 'overwrought_legalese', label: 'Overwrought Legalese' },
-  { value: 'process_worship_oversight', label: 'Process Worship/Oversight' },
-  { value: 'zero_risk_language', label: 'Zero Risk Language' },
+  ...RED_FLAG_CATEGORIES.map(cat => ({
+    value: cat,
+    label: formatLabel(cat)
+  }))
 ];
+
+// Parser configuration for DataTable filters
+const dataTableParsers = {
+  page: parseAsInteger.withDefault(1),
+  hasFlags: parseAsBoolean,
+  category: parseAsString,
+  explanationSearch: parseAsString,
+  hasImplIssues: parseAsString, // Use string to support 'null'
+  complexity: parseAsString,    // Use string to support 'null'
+  severity: parseAsString,
+  techReview: parseAsString,    // Use string to support 'null'
+  reporting: parseAsString,     // Use string to support 'null'
+  summarySearch: parseAsString,
+  sortBy: parseAsString.withDefault('maxSeverity'),
+  sortOrder: parseAsString.withDefault('desc'),
+};
 
 // Filter configuration for each column
 interface ColumnFilterConfig {
-  urlParam: string;
+  urlParam: keyof typeof dataTableParsers;
   type: 'select' | 'text';
   options?: { value: string; label: string }[];
-  getValue: (filters: FilterOptions) => string;
   placeholder?: string;
 }
 
@@ -67,19 +79,16 @@ const COLUMN_FILTERS: Record<string, ColumnFilterConfig> = {
       { value: 'true', label: 'With Flags' },
       { value: 'false', label: 'No Flags' },
     ],
-    getValue: (f) => f.hasFlags === undefined ? '' : f.hasFlags.toString(),
   },
   categories: {
     urlParam: 'category',
     type: 'select',
     options: CATEGORY_OPTIONS,
-    getValue: (f) => f.category || '',
   },
   explanations: {
     urlParam: 'explanationSearch',
     type: 'text',
     placeholder: 'Search...',
-    getValue: (f) => f.explanationSearch || '',
   },
   hasImplementationIssues: {
     urlParam: 'hasImplIssues',
@@ -90,11 +99,6 @@ const COLUMN_FILTERS: Record<string, ColumnFilterConfig> = {
       { value: 'false', label: 'No' },
       { value: 'null', label: 'Not Analyzed' },
     ],
-    getValue: (f) => {
-      if (f.hasImplementationIssues === undefined) return '';
-      if (f.hasImplementationIssues === null) return 'null';
-      return f.hasImplementationIssues.toString();
-    },
   },
   overallComplexity: {
     urlParam: 'complexity',
@@ -107,11 +111,6 @@ const COLUMN_FILTERS: Record<string, ColumnFilterConfig> = {
       { value: 'LOW', label: 'Low' },
       { value: 'null', label: 'Not Analyzed' },
     ],
-    getValue: (f) => {
-      if (f.complexity === undefined) return '';
-      if (f.complexity === null) return 'null';
-      return f.complexity;
-    },
   },
   maxSeverity: {
     urlParam: 'severity',
@@ -123,7 +122,6 @@ const COLUMN_FILTERS: Record<string, ColumnFilterConfig> = {
       { value: 'low', label: 'Low (1-3)' },
       { value: 'null', label: 'Not Analyzed' },
     ],
-    getValue: (f) => f.severity || '',
   },
   requiresTechnicalReview: {
     urlParam: 'techReview',
@@ -134,11 +132,6 @@ const COLUMN_FILTERS: Record<string, ColumnFilterConfig> = {
       { value: 'false', label: 'No' },
       { value: 'null', label: 'Not Analyzed' },
     ],
-    getValue: (f) => {
-      if (f.requiresTechnicalReview === undefined) return '';
-      if (f.requiresTechnicalReview === null) return 'null';
-      return f.requiresTechnicalReview.toString();
-    },
   },
   hasReportingRequirement: {
     urlParam: 'reporting',
@@ -149,17 +142,11 @@ const COLUMN_FILTERS: Record<string, ColumnFilterConfig> = {
       { value: 'false', label: 'No' },
       { value: 'null', label: 'Not Analyzed' },
     ],
-    getValue: (f) => {
-      if (f.hasReportingRequirement === undefined) return '';
-      if (f.hasReportingRequirement === null) return 'null';
-      return f.hasReportingRequirement.toString();
-    },
   },
   summary: {
     urlParam: 'summarySearch',
     type: 'text',
     placeholder: 'Search...',
-    getValue: (f) => f.summarySearch || '',
   },
 };
 
@@ -286,9 +273,6 @@ interface DataTableProps {
   onRowClick: (regulation: RegulationWithAnalysis) => void;
   pagination: PaginationInfo;
   search: string;
-  sortBy?: PaginationOptions['sortBy'];
-  sortOrder?: PaginationOptions['sortOrder'];
-  filters: FilterOptions;
 }
 
 // Columns to hide on mobile (keep: title, numFlags, maxSeverity)
@@ -302,10 +286,11 @@ const MOBILE_HIDDEN_COLUMNS = [
   'summary',
 ];
 
-export default function DataTable({ data, onRowClick, pagination, search, sortBy = 'maxSeverity', sortOrder = 'desc', filters }: DataTableProps) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
+export default function DataTable({ data, onRowClick, pagination, search }: DataTableProps) {
   const { isMobile, isTablet } = useResponsive();
+  const [queryParams, setQueryParams] = useQueryStates(dataTableParsers, {
+    shallow: false,
+  });
 
   // Column visibility based on screen size
   const columnVisibility: VisibilityState = useMemo(() => {
@@ -322,11 +307,9 @@ export default function DataTable({ data, onRowClick, pagination, search, sortBy
     return {};
   }, [isMobile, isTablet]);
 
-  // Navigate to a new page while preserving other params
+  // Navigate to a new page
   const navigateToPage = (page: number) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set('page', page.toString());
-    router.push(`?${params.toString()}`);
+    setQueryParams({ page });
   };
 
   // Handle server-side sorting
@@ -334,51 +317,62 @@ export default function DataTable({ data, onRowClick, pagination, search, sortBy
     const serverSortKey = SORTABLE_COLUMNS[columnId];
     if (!serverSortKey) return; // Not a sortable column
 
-    const params = new URLSearchParams(searchParams.toString());
-
     // If clicking the same column, toggle order; otherwise, default to desc
-    if (sortBy === serverSortKey) {
-      params.set('sortOrder', sortOrder === 'desc' ? 'asc' : 'desc');
+    if (queryParams.sortBy === serverSortKey) {
+      setQueryParams({ 
+        sortOrder: queryParams.sortOrder === 'desc' ? 'asc' : 'desc',
+        page: 1 
+      });
     } else {
-      params.set('sortBy', serverSortKey);
-      params.set('sortOrder', 'desc');
+      setQueryParams({ 
+        sortBy: serverSortKey, 
+        sortOrder: 'desc',
+        page: 1 
+      });
     }
-    params.set('page', '1'); // Reset to first page on sort change
-
-    router.push(`?${params.toString()}`);
   };
 
   // Handle filter change
-  const handleFilter = useCallback((urlParam: string, value: string) => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (value) {
-      params.set(urlParam, value);
+  const handleFilter = useCallback((urlParam: keyof typeof dataTableParsers, value: string) => {
+    // Special handling for boolean
+    if (urlParam === 'hasFlags') {
+      const boolValue = value === 'true' ? true : value === 'false' ? false : null;
+      setQueryParams({ [urlParam]: boolValue, page: 1 });
     } else {
-      params.delete(urlParam);
+      setQueryParams({ [urlParam]: value || null, page: 1 });
     }
-    params.set('page', '1'); // Reset to first page on filter change
-    router.push(`?${params.toString()}`);
-  }, [router, searchParams]);
+  }, [setQueryParams]);
 
   // Clear all filters
   const clearAllFilters = useCallback(() => {
-    const params = new URLSearchParams(searchParams.toString());
-    // Remove all filter params
-    params.delete('hasFlags');
-    params.delete('hasImplIssues');
-    params.delete('complexity');
-    params.delete('severity');
-    params.delete('techReview');
-    params.delete('reporting');
-    params.delete('category');
-    params.delete('summarySearch');
-    params.delete('explanationSearch');
-    params.set('page', '1');
-    router.push(`?${params.toString()}`);
-  }, [router, searchParams]);
+    setQueryParams({
+      hasFlags: null,
+      hasImplIssues: null,
+      complexity: null,
+      severity: null,
+      techReview: null,
+      reporting: null,
+      category: null,
+      summarySearch: null,
+      explanationSearch: null,
+      page: 1,
+    });
+  }, [setQueryParams]);
 
   // Check if any filter is active
-  const hasActiveFilters = Object.keys(filters).length > 0;
+  const hasActiveFilters = useMemo(() => {
+    return (
+      queryParams.hasFlags !== null ||
+      queryParams.hasImplIssues !== null ||
+      queryParams.complexity !== null ||
+      queryParams.severity !== null ||
+      queryParams.techReview !== null ||
+      queryParams.reporting !== null ||
+      queryParams.category !== null ||
+      queryParams.summarySearch !== null ||
+      queryParams.explanationSearch !== null
+    );
+  }, [queryParams]);
 
   const table = useReactTable({
     data,
@@ -387,34 +381,20 @@ export default function DataTable({ data, onRowClick, pagination, search, sortBy
     state: {
       columnVisibility,
     },
-    // No client-side sorting/pagination - server handles it
   });
 
-  // Helper to get aria-sort value based on server sort state
+  // Helper to get aria-sort value
   const getAriaSort = (columnId: string): 'ascending' | 'descending' | 'none' => {
     const serverSortKey = SORTABLE_COLUMNS[columnId];
-    if (!serverSortKey || sortBy !== serverSortKey) return 'none';
-    return sortOrder === 'desc' ? 'descending' : 'ascending';
-  };
-
-  // Check if a column is sortable
-  const isSortable = (columnId: string): boolean => {
-    return columnId in SORTABLE_COLUMNS;
+    if (!serverSortKey || queryParams.sortBy !== serverSortKey) return 'none';
+    return queryParams.sortOrder === 'desc' ? 'descending' : 'ascending';
   };
 
   // Get sort indicator for a column
   const getSortIndicator = (columnId: string): string => {
     const serverSortKey = SORTABLE_COLUMNS[columnId];
-    if (!serverSortKey || sortBy !== serverSortKey) return '';
-    return sortOrder === 'asc' ? ' ↑' : ' ↓';
-  };
-
-  // Handle keyboard navigation on rows
-  const handleRowKeyDown = (e: React.KeyboardEvent<HTMLTableRowElement>, row: RegulationWithAnalysis) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      onRowClick(row);
-    }
+    if (!serverSortKey || queryParams.sortBy !== serverSortKey) return '';
+    return queryParams.sortOrder === 'asc' ? ' ↑' : ' ↓';
   };
 
   return (
@@ -439,18 +419,18 @@ export default function DataTable({ data, onRowClick, pagination, search, sortBy
                       uppercase tracking-wider
                       transition-colors duration-[var(--duration-fast)]
                       focus:outline-none focus:ring-2 focus:ring-white focus:ring-inset
-                      ${isSortable(header.id) ? 'cursor-pointer hover:bg-[var(--color-primary-strong)]' : ''}
+                      ${header.id in SORTABLE_COLUMNS ? 'cursor-pointer hover:bg-[var(--color-primary-strong)]' : ''}
                     `}
-                    onClick={() => isSortable(header.id) && handleSort(header.id)}
+                    onClick={() => header.id in SORTABLE_COLUMNS && handleSort(header.id)}
                     onKeyDown={(e) => {
-                      if (isSortable(header.id) && (e.key === 'Enter' || e.key === ' ')) {
+                      if (header.id in SORTABLE_COLUMNS && (e.key === 'Enter' || e.key === ' ')) {
                         e.preventDefault();
                         handleSort(header.id);
                       }
                     }}
-                    tabIndex={isSortable(header.id) ? 0 : undefined}
+                    tabIndex={header.id in SORTABLE_COLUMNS ? 0 : undefined}
                     role="columnheader"
-                    aria-sort={isSortable(header.id) ? getAriaSort(header.id) : undefined}
+                    aria-sort={header.id in SORTABLE_COLUMNS ? getAriaSort(header.id) : undefined}
                     scope="col"
                   >
                     <div className="flex items-center gap-1">
@@ -458,7 +438,7 @@ export default function DataTable({ data, onRowClick, pagination, search, sortBy
                         header.column.columnDef.header,
                         header.getContext()
                       )}
-                      {isSortable(header.id) && (
+                      {header.id in SORTABLE_COLUMNS && (
                         <span className="text-white/70" aria-hidden="true">
                           {getSortIndicator(header.id)}
                         </span>
@@ -472,50 +452,53 @@ export default function DataTable({ data, onRowClick, pagination, search, sortBy
             <tr className="bg-[var(--color-primary-strong)]">
               {table.getHeaderGroups()[0]?.headers.map((header) => {
                 const filterConfig = COLUMN_FILTERS[header.id];
+                if (!filterConfig) return <th key={`filter-${header.id}`} className="px-2 py-2" />;
+                
+                const currentValue = queryParams[filterConfig.urlParam];
+                const displayValue = currentValue === null || currentValue === undefined ? '' : String(currentValue);
+
                 return (
                   <th
                     key={`filter-${header.id}`}
                     style={{ width: header.getSize() }}
                     className="px-2 py-2"
                   >
-                    {filterConfig ? (
-                      filterConfig.type === 'select' ? (
-                        <select
-                          value={filterConfig.getValue(filters)}
-                          onChange={(e) => handleFilter(filterConfig.urlParam, e.target.value)}
-                          className={`
-                            w-full text-xs py-1 px-1.5
-                            bg-white/90 text-[var(--color-text)]
-                            border-0 rounded
-                            cursor-pointer
-                            focus:outline-none focus:ring-2 focus:ring-white
-                            ${filterConfig.getValue(filters) ? 'bg-[var(--color-warning-bg)] font-medium' : ''}
-                          `}
-                          aria-label={`Filter ${header.column.columnDef.header}`}
-                        >
-                          {filterConfig.options?.map((opt) => (
-                            <option key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        <input
-                          type="text"
-                          value={filterConfig.getValue(filters)}
-                          onChange={(e) => handleFilter(filterConfig.urlParam, e.target.value)}
-                          placeholder={filterConfig.placeholder || 'Search...'}
-                          className={`
-                            w-full text-xs py-1 px-1.5
-                            bg-white/90 text-[var(--color-text)]
-                            border-0 rounded
-                            focus:outline-none focus:ring-2 focus:ring-white
-                            ${filterConfig.getValue(filters) ? 'bg-[var(--color-warning-bg)] font-medium' : ''}
-                          `}
-                          aria-label={`Search ${header.column.columnDef.header}`}
-                        />
-                      )
-                    ) : null}
+                    {filterConfig.type === 'select' ? (
+                      <select
+                        value={displayValue}
+                        onChange={(e) => handleFilter(filterConfig.urlParam, e.target.value)}
+                        className={`
+                          w-full text-xs py-1 px-1.5
+                          bg-white/90 text-[var(--color-text)]
+                          border-0 rounded
+                          cursor-pointer
+                          focus:outline-none focus:ring-2 focus:ring-white
+                          ${displayValue ? 'bg-[var(--color-warning-bg)] font-medium' : ''}
+                        `}
+                        aria-label={`Filter ${header.column.columnDef.header}`}
+                      >
+                        {filterConfig.options?.map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type="text"
+                        value={displayValue}
+                        onChange={(e) => handleFilter(filterConfig.urlParam, e.target.value)}
+                        placeholder={filterConfig.placeholder || 'Search...'}
+                        className={`
+                          w-full text-xs py-1 px-1.5
+                          bg-white/90 text-[var(--color-text)]
+                          border-0 rounded
+                          focus:outline-none focus:ring-2 focus:ring-white
+                          ${displayValue ? 'bg-[var(--color-warning-bg)] font-medium' : ''}
+                        `}
+                        aria-label={`Search ${header.column.columnDef.header}`}
+                      />
+                    )}
                   </th>
                 );
               })}
@@ -559,7 +542,6 @@ export default function DataTable({ data, onRowClick, pagination, search, sortBy
                     focus:outline-none focus:ring-2 focus:ring-[var(--color-focus)] focus:ring-inset
                   "
                   onClick={() => onRowClick(row.original)}
-                  onKeyDown={(e) => handleRowKeyDown(e, row.original)}
                   tabIndex={0}
                   role="row"
                   aria-label={`${row.original.title || 'Untitled'}, ${row.original.numFlags || 0} flags`}

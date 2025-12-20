@@ -3,10 +3,11 @@
 import { useState, useTransition, useEffect, forwardRef } from 'react';
 import { updateRedFlagReview } from '@/lib/actions/red-flags';
 import { useReviewerName } from '@/hooks/useReviewerName';
-import { Button, Input, Textarea, Badge, SeverityBadge, Card, Select, Tag, CopyLinkButton } from '@/components/ui';
+import { Button, Input, Textarea, Badge, SeverityBadge, Select, Tag, CopyLinkButton } from '@/components/ui';
 import { REVIEW_STATUSES, PRIORITY_OPTIONS, IMPACT_TYPES, getComplexityVariant } from '@/types/regulation';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
 import { ExpandableRegulationQuote } from './ExpandableRegulationQuote';
+import { CardWrapper } from './shared';
 import type { RedFlagWithContext } from '@deproceduralizer/database';
 
 interface ReviewCardProps {
@@ -92,14 +93,10 @@ export const ReviewCard = forwardRef<HTMLDivElement, ReviewCardProps>(
     const impactOptions = [{ value: 'none', label: '--' }, ...IMPACT_TYPES];
 
     return (
-      <Card
+      <CardWrapper
         ref={ref}
         id={`flag-${flag.id}`}
-        className={`
-          transition-shadow duration-[var(--duration-fast)]
-          ${isFocused ? 'ring-2 ring-[var(--color-focus)] ring-offset-2' : ''}
-        `}
-        tabIndex={0}
+        isFocused={isFocused}
       >
         {/* Header */}
         <div className="flex items-start justify-between gap-4 mb-4">
@@ -261,7 +258,7 @@ export const ReviewCard = forwardRef<HTMLDivElement, ReviewCardProps>(
             </Button>
           </div>
         </form>
-      </Card>
+      </CardWrapper>
     );
   }
 );

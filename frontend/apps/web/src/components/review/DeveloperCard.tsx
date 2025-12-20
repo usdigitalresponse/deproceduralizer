@@ -3,10 +3,11 @@
 import { useState, useTransition, useEffect, forwardRef } from 'react';
 import { updateDeveloperStatus, type DeveloperItem } from '@/lib/actions/developer';
 import { useDeveloperName } from '@/hooks/useDeveloperName';
-import { Button, Textarea, Badge, SeverityBadge, Card, Select, Tag, CopyLinkButton } from '@/components/ui';
+import { Button, Textarea, Badge, SeverityBadge, Select, Tag, CopyLinkButton } from '@/components/ui';
 import { DEVELOPER_STATUSES, RESOLUTION_TYPES, DEVELOPERS, DEVELOPER_STATUS_LABELS } from '@/types/regulation';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
 import { ExpandableRegulationQuote } from './ExpandableRegulationQuote';
+import { CardWrapper } from './shared';
 import { Flag, FileWarning } from 'lucide-react';
 
 interface DeveloperCardProps {
@@ -177,14 +178,10 @@ export const DeveloperCard = forwardRef<HTMLDivElement, DeveloperCardProps>(
     const anchor = item.type === 'red_flag' ? `flag-${item.id}` : `compliance-${item.id}`;
 
     return (
-      <Card
+      <CardWrapper
         ref={ref}
         id={anchor}
-        className={`
-          transition-shadow duration-[var(--duration-fast)]
-          ${isFocused ? 'ring-2 ring-[var(--color-focus)] ring-offset-2' : ''}
-        `}
-        tabIndex={0}
+        isFocused={isFocused}
       >
         {/* Header with type badge and developer status */}
         <div className="flex items-start justify-between gap-4 mb-4">
@@ -353,7 +350,7 @@ export const DeveloperCard = forwardRef<HTMLDivElement, DeveloperCardProps>(
             </Button>
           </div>
         </form>
-      </Card>
+      </CardWrapper>
     );
   }
 );
