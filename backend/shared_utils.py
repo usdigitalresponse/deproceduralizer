@@ -9,11 +9,81 @@ import os
 import time
 import json
 import asyncio
-from typing import Optional, Type, Any
+from pathlib import Path
+from typing import Optional, Type, Any, Dict
+import yaml
 import psycopg
 from psycopg import Connection
 import anthropic
 from pydantic import BaseModel
+
+
+# ============================================================================
+# Prompt Loading Utilities
+# ============================================================================
+
+# Cache for loaded prompts
+_prompts_cache: Optional[Dict] = None
+
+
+def _get_prompts_path() -> Path:
+    """Get the path to prompts.yaml in the project root."""
+    # shared_utils.py is in backend/, prompts.yaml is in root
+    return Path(__file__).parent.parent / "prompts.yaml"
+
+
+def _load_prompts() -> Dict:
+    """Load prompts from YAML file (cached)."""
+    global _prompts_cache
+    if _prompts_cache is None:
+        prompts_path = _get_prompts_path()
+        with open(prompts_path, 'r') as f:
+            _prompts_cache = yaml.safe_load(f)
+    return _prompts_cache
+
+
+def load_prompt(prompt_name: str, **kwargs) -> str:
+    """
+    Load a prompt template and fill in variables.
+
+    Args:
+        prompt_name: Name of the prompt in prompts.yaml (e.g., "red_flags_analysis")
+        **kwargs: Variables to substitute in the template (e.g., section_text="...", citation="...")
+
+    Returns:
+        Formatted prompt string with variables filled in
+
+    Example:
+        prompt = load_prompt("red_flags_analysis",
+                            section_text="The regulation text...",
+                            citation="N.J.A.C. 1:1-1.1",
+                            heading="General Provisions")
+    """
+    prompts = _load_prompts()
+
+    if prompt_name not in prompts:
+        available = list(prompts.keys())
+        raise ValueError(f"Unknown prompt '{prompt_name}'. Available: {available}")
+
+    prompt_data = prompts[prompt_name]
+    template = prompt_data.get("template", "")
+
+    # Fill in variables
+    return template.format(**kwargs)
+
+
+def get_prompt_description(prompt_name: str) -> str:
+    """Get the description of a prompt."""
+    prompts = _load_prompts()
+    if prompt_name not in prompts:
+        raise ValueError(f"Unknown prompt '{prompt_name}'")
+    return prompts[prompt_name].get("description", "")
+
+
+def list_prompts() -> list:
+    """List all available prompt names."""
+    prompts = _load_prompts()
+    return list(prompts.keys())
 
 
 def get_db_connection(timeout: int = 30) -> Optional[Connection]:

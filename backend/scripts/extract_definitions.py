@@ -22,7 +22,7 @@ from dotenv import load_dotenv
 # Add backend directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import PROJECT_ROOT, INDIVIDUAL_REGULATIONS_DIR, OUTPUTS_DIR
-from shared_utils import get_db_connection, get_openai_client, call_llm_parse
+from shared_utils import get_db_connection, get_openai_client, call_llm_parse, load_prompt
 
 load_dotenv(PROJECT_ROOT / '.env')
 
@@ -268,19 +268,7 @@ def extract_with_llm(content: str, title: str, client=None, max_retries: int = 3
     if client is None:
         client = get_openai_client()
 
-    prompt = f"""Extract all term definitions from this regulation section.
-
-TITLE: {title}
-CONTENT (first 3000 chars):
-{content[:3000]}
-
-For each definition found, extract:
-- The term being defined (required)
-- The definition text (required)
-- The scope (e.g., "in this section", "in this part", "throughout this title")
-- The source location where it appears (e.g., "definitions section", "section 1.1")
-
-Only extract actual term definitions, not general descriptions."""
+    prompt = load_prompt("definition_extraction", title=title, content=content[:3000])
 
     parsed = call_llm_parse(
         client=client,
@@ -313,19 +301,7 @@ async def extract_with_llm_async(content: str, title: str, client=None, max_retr
         from shared_utils import get_async_openai_client
         client = get_async_openai_client()
 
-    prompt = f"""Extract all term definitions from this regulation section.
-
-TITLE: {title}
-CONTENT (first 3000 chars):
-{content[:3000]}
-
-For each definition found, extract:
-- The term being defined (required)
-- The definition text (required)
-- The scope (e.g., "in this section", "in this part", "throughout this title")
-- The source location where it appears (e.g., "definitions section", "section 1.1")
-
-Only extract actual term definitions, not general descriptions."""
+    prompt = load_prompt("definition_extraction", title=title, content=content[:3000])
 
     from shared_utils import call_llm_parse_async
     parsed = await call_llm_parse_async(

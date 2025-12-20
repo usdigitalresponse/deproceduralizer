@@ -31,7 +31,7 @@ from config import (
     OUTPUTS_DIR,
     PROJECT_ROOT,
 )
-from shared_utils import get_async_openai_client, call_llm_parse_async
+from shared_utils import get_async_openai_client, call_llm_parse_async, load_prompt
 
 # Load environment variables
 load_dotenv(PROJECT_ROOT / '.env')
@@ -240,41 +240,16 @@ def search_files(statute_checker: StatuteChecker) -> list:
 # =============================================================================
 
 def create_analysis_prompt(regulation: dict, statute_context: str) -> str:
-    """Build prompt for LLM analysis."""
+    """Build prompt for LLM analysis. Uses centralized prompts from prompts.yaml."""
+    # Base prompt with regulation context
+    prompt = load_prompt("wet_signature_detection", regulation_context=regulation['context'])
 
-    prompt = f"""Does this New Jersey regulation require a WET SIGNATURE?
-
-IMPORTANT: A "wet signature" requirement means the text EXPLICITLY requires one of:
-- "wet signature"
-- "original signature"
-- "ink signature"
-- "handwritten signature"
-- "physical signature"
-- "signed in ink"
-- "manually signed"
-- Explicit prohibition of electronic/digital/fax signatures
-
-Generic phrases like "shall be signed", "must be signed", "signature required", or "bear the signature of" do NOT count as wet signature requirements. These allow electronic signatures under modern law.
-
-REGULATION TEXT:
-{regulation['context']}
-
-"""
-
+    # Add statute section if available
     if statute_context:
-        prompt += f"""
-STATUTE TEXT (N.J.S.A. references found in regulation):
-{statute_context}
+        prompt += "\n" + load_prompt("wet_signature_detection_with_statute", statute_context=statute_context)
 
-If there IS a wet signature requirement, check if it appears in the statute text above.
-"""
-
-    prompt += """
-Answer:
-1. has_wet_signature_requirement: Is there an EXPLICIT wet/ink/handwritten/original/physical signature requirement? (true/false)
-2. requirement_quote: If true, the exact quote. If false, null.
-3. from_statute: If true AND statute text provided, does the requirement come from the statute? (true/false/null)
-"""
+    # Add response format
+    prompt += "\n" + load_prompt("wet_signature_response_format")
 
     return prompt
 
