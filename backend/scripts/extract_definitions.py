@@ -357,6 +357,7 @@ def store_to_database(regulations: List[Dict]):
 
                 # Insert definitions
                 defs_for_this_doc = 0
+                reg_url = reg.get('url', '')
                 for defn in definitions_list:
                     # Calculate definition overlap
                     definition_text = defn.get('definition', '')
@@ -364,10 +365,11 @@ def store_to_database(regulations: List[Dict]):
 
                     conn.execute("""
                         INSERT INTO definitions
-                        (document_id, term, definition, scope, source_location, definition_overlap, model_version)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        (document_id, url, term, definition, scope, source_location, definition_overlap, model_version)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                     """, (
                         doc_id,
+                        reg_url,
                         defn.get('term'),
                         definition_text,
                         defn.get('scope'),

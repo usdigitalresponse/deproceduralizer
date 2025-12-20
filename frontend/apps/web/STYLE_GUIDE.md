@@ -1170,6 +1170,12 @@ apps/web/src/
 │   │   ├── HierarchyTree.tsx
 │   │   ├── DetailPanel.tsx     # Supports fullScreen mode
 │   │   └── index.ts
+│   ├── definitions/        # Definitions glossary components
+│   │   ├── DefinitionCard.tsx  # Single definition display
+│   │   ├── DefinitionsList.tsx # Collapsible list for regulation pages
+│   │   ├── GlossarySearch.tsx  # Search + A-Z filter bar
+│   │   ├── GlossaryClient.tsx  # Main glossary page client
+│   │   └── index.ts
 │   └── review/             # Review mode components
 │       ├── ReviewQueue.tsx
 │       ├── ReviewCard.tsx
@@ -1186,6 +1192,7 @@ apps/web/src/
 │   │   ├── regulations.ts
 │   │   ├── red-flags.ts
 │   │   ├── compliance-issues.ts
+│   │   ├── definitions.ts  # Definitions glossary actions
 │   │   ├── developer.ts    # Developer mode actions
 │   │   └── document-notes.ts
 │   ├── url/
@@ -1429,7 +1436,106 @@ import { QuickLinks } from '@/components/home';
 Links to:
 - Browse Hierarchy
 - Review Queue
+- Definitions Glossary
 - Table View
+
+---
+
+## Definitions Components
+
+Components for displaying regulatory definitions extracted from regulations.
+
+### DefinitionCard
+
+Displays a single definition with term, definition text, scope badge, quality indicator, and source link:
+
+```tsx
+import { DefinitionCard } from '@/components/definitions';
+
+<DefinitionCard
+  definition={definition}
+  showSource={true}  // Show link to source regulation
+  state="ny"
+  compact={false}    // Use compact mode for lists
+/>
+```
+
+Features:
+- Term as heading with scope badge (e.g., "in this Part")
+- Quality badge based on overlap score (High/Medium/Low)
+- Expandable definition text for long definitions
+- Link to source regulation with NYCRR citation
+
+### DefinitionsList
+
+Collapsible list of definitions for regulation detail pages:
+
+```tsx
+import { DefinitionsList } from '@/components/definitions';
+
+<DefinitionsList
+  definitions={definitions}
+  state="ny"
+  collapsible={true}
+  initialCollapsed={false}
+/>
+```
+
+Pattern follows `ComplianceIssuesList` with:
+- Collapsible header showing count
+- Alphabetically sorted definitions
+- Expandable long definition text
+- Scope badges and source locations
+
+### GlossarySearch
+
+Search input with A-Z letter filter bar:
+
+```tsx
+import { GlossarySearch } from '@/components/definitions';
+
+<GlossarySearch
+  search={search}
+  onSearchChange={handleSearchChange}
+  selectedLetter={selectedLetter}
+  onLetterChange={handleLetterChange}
+  alphabeticalIndex={alphabeticalIndex}
+  isLoading={isPending}
+/>
+```
+
+Features:
+- Debounced search input using SearchInput component
+- A-Z letter bar with counts from alphabeticalIndex
+- "All" button to clear letter filter
+- Disabled letters for empty counts
+- Active filter summary
+
+### GlossaryClient
+
+Main client component for the glossary page:
+
+```tsx
+import { GlossaryClient } from '@/components/definitions';
+
+<GlossaryClient
+  state={stateCode}
+  initialData={{
+    definitions,
+    total,
+    totalPages,
+    stats,
+    alphabeticalIndex,
+  }}
+/>
+```
+
+Features:
+- Stats header (total definitions, unique terms, average quality, scope types)
+- Search and A-Z filter integration
+- Paginated definition cards
+- URL-based state for search, letter, and page
+- Links to source regulations
 
 ---
 

@@ -169,7 +169,8 @@ Extracted terms and definitions from regulations.
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | bigserial | Primary key |
-| `document_id` | bigint | FK to regulatory_documents |
+| `document_id` | bigint | FK to regulatory_documents (populated via URL matching - see [Definitions Migration](#definitions-migration)) |
+| `url` | text | Source URL (used to link to regulatory_documents) |
 | `term` | text | The term being defined |
 | `definition` | text | The definition text |
 | `scope` | text | Scope/applicability (e.g., "in this section") |
@@ -178,6 +179,8 @@ Extracted terms and definitions from regulations.
 | `model_version` | varchar(100) | LLM model used for extraction |
 | `extracted_at` | timestamp | When extracted |
 | `notes` | text | Additional notes |
+
+> **Note**: The `document_id` column is populated by matching `url` to `regulatory_documents.url`. Run the [definitions migration](#definitions-migration) after importing new definitions.
 
 ### definition_extraction_log
 
@@ -394,7 +397,6 @@ SELECT 'statute_references', 'id', COUNT(*), COUNT(id) FROM statute_references"
 |-------|--------|-------|
 | `statute_references` | (entire table) | 0 rows |
 | `regulatory_documents` | `scraped_from_url` | Never populated |
-| `definitions` | `document_id` | Uses `url` field instead |
 | `definitions` | `notes` | Never used |
 | `red_flags` | `developer_*` fields | All developer tracking fields unused |
 | `red_flags` | `priority`, `impact_type` | Review workflow fields unused |
@@ -521,3 +523,35 @@ FROM (
 ```
 
 See also: `schema.sql` contains the full SQL queries with detailed comments.
+
+## Definitions Migration
+
+The `definitions` table contains extracted terms and definitions from regulations. Definitions are linked to regulatory documents via the `document_id` column.
+
+### Populating document_id from URL
+
+After importing new definitions, run this migration to populate `document_id` by matching the definition's `url` to `regulatory_documents.url`:
+
+```bash
+./scripts/db-query.sh "UPDATE definitions d SET document_id = rd.id FROM regulatory_documents rd WHERE rd.url = d.url AND d.document_id IS NULL"
+```
+
+This is important because:
+- New definition extractions may only have `url` populated
+- The frontend uses `document_id` for efficient joins to display definitions on regulation pages
+- The glossary page links definitions back to their source regulations
+
+**When to run:**
+- After any new definition extraction batch
+- After importing definitions from external sources
+- If definitions are showing without source regulation links
+
+**Verify the migration:**
+
+```bash
+# Check for definitions missing document_id
+./scripts/db-query.sh "SELECT COUNT(*) as missing_doc_id FROM definitions WHERE document_id IS NULL"
+
+# Check total definitions with document_id
+./scripts/db-query.sh "SELECT COUNT(*) as with_doc_id FROM definitions WHERE document_id IS NOT NULL"
+```

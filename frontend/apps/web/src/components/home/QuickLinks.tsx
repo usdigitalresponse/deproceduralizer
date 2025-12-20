@@ -42,7 +42,7 @@ interface QuickLinksProps {
 
 export function QuickLinks({ state }: QuickLinksProps) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       <QuickLink
         href={`/${state}/browse`}
         icon={<FolderTree className="w-6 h-6 text-[var(--color-text-secondary)] group-hover:text-[var(--color-primary)] transition-colors" />}
@@ -54,6 +54,12 @@ export function QuickLinks({ state }: QuickLinksProps) {
         icon={<ClipboardCheck className="w-6 h-6 text-[var(--color-text-secondary)] group-hover:text-[var(--color-primary)] transition-colors" />}
         title="Review Queue"
         description="Review and triage flagged regulations that need attention"
+      />
+      <QuickLink
+        href={`/${state}/definitions`}
+        icon={<BookOpen className="w-6 h-6 text-[var(--color-text-secondary)] group-hover:text-[var(--color-primary)] transition-colors" />}
+        title="Definitions Glossary"
+        description="Browse and search regulatory definitions extracted from regulations"
       />
       <QuickLink
         href={`/${state}`}

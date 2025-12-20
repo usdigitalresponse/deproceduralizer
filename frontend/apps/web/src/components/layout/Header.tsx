@@ -21,6 +21,7 @@ function getNavLinks(state: string) {
     { href: `/${state}`, label: 'Table View', matchPath: `/${state}` },
     { href: `/${state}/browse`, label: 'Browse', matchPath: `/${state}/browse` },
     { href: `/${state}/review?status=unreviewed`, label: 'Review Mode', matchPath: `/${state}/review` },
+    { href: `/${state}/definitions`, label: 'Glossary', matchPath: `/${state}/definitions` },
   ];
 }
 

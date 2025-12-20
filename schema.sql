@@ -168,7 +168,11 @@ JOIN regulatory_documents c ON c.parent_id = p.id;
 -- Definitions table: Extracted terms and definitions from regulations
 CREATE TABLE definitions (
   id BIGSERIAL PRIMARY KEY,
-  document_id BIGINT NOT NULL REFERENCES regulatory_documents(id) ON DELETE CASCADE,
+  document_id BIGINT REFERENCES regulatory_documents(id) ON DELETE CASCADE,
+
+  -- Source URL for linking to regulatory_documents (redundant with document_id for flexibility)
+  -- Used to populate document_id via URL matching if document_id is NULL
+  url TEXT,
 
   -- The term being defined
   term TEXT NOT NULL,
@@ -196,6 +200,7 @@ CREATE TABLE definitions (
 
 -- Indexes
 CREATE INDEX idx_definitions_document ON definitions(document_id);
+CREATE INDEX idx_definitions_url ON definitions(url);
 CREATE INDEX idx_definitions_term ON definitions(term);
 CREATE INDEX idx_definitions_overlap ON definitions(definition_overlap);
 CREATE INDEX idx_definitions_document_term ON definitions(document_id, term);
