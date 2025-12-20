@@ -82,6 +82,8 @@ Main table storing regulatory document data with hierarchy information. **50 col
 
 **NJAC columns (New Jersey):** `njac_title`, `njac_title_name`, `njac_subtitle`, `njac_subtitle_name`, `njac_chapter`, `njac_chapter_name`, `njac_subchapter`, `njac_subchapter_name`, `njac_article`, `njac_article_name`, `njac_part`, `njac_part_name`, `njac_subpart`, `njac_subpart_name`, `njac_section`, `njac_section_name`
 
+**NJSA columns (New Jersey Statutes):** `njsa_title`, `njsa_title_name`, `njsa_chapter`, `njsa_section`, `njsa_section_name`, `njsa_citation`
+
 **Precomputed stats (for hierarchy performance):**
 
 | Column | Type | Description |
@@ -161,6 +163,22 @@ Statute citations for documents.
 | `acts` | text[] | Act references |
 | `state_title` | text | State title |
 | `state_section` | text | State section |
+
+### regulation_statute_links
+
+Many-to-many relationship between regulations and statutes.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | bigserial | Primary key |
+| `regulation_id` | bigint | FK to regulatory_documents (the regulation) |
+| `statute_id` | bigint | FK to regulatory_documents (the statute) |
+| `citation` | varchar(50) | The citation (e.g., "52:27D-119") |
+| `context` | text | Surrounding text where citation was found |
+| `link_type` | varchar(50) | 'enabling_authority', 'reference', 'amendment', etc. |
+| `created_at` | timestamp | Creation timestamp |
+
+**Unique Constraint**: `(regulation_id, statute_id, citation)`
 
 ### definitions
 
