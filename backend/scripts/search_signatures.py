@@ -36,7 +36,8 @@ from shared_utils import get_async_openai_client, call_llm_parse_async
 # Load environment variables
 load_dotenv(PROJECT_ROOT / '.env')
 
-MODEL_VERSION = "gpt-4o-mini"
+# Model version imported from shared_utils for centralized management
+from shared_utils import DEFAULT_MODEL as MODEL_VERSION
 
 # Terms that might indicate wet/physical signature requirements
 SIGNATURE_TERMS = [

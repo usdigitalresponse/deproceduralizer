@@ -7,10 +7,12 @@ to reduce duplication and enable easier maintenance.
 
 import os
 import time
+import json
+import asyncio
 from typing import Optional, Type, Any
 import psycopg
 from psycopg import Connection
-from openai import OpenAI, AsyncOpenAI
+import anthropic
 from pydantic import BaseModel
 
 
@@ -47,83 +49,112 @@ def get_db_connection(timeout: int = 30) -> Optional[Connection]:
 
 
 # ============================================================================
-# LLM Utilities
+# LLM Utilities (Anthropic)
 # ============================================================================
 
-def get_openai_client(api_key: Optional[str] = None) -> OpenAI:
+# Default model
+DEFAULT_MODEL = "claude-haiku-4-5-20251001"
+
+
+def get_openai_client(api_key: Optional[str] = None) -> anthropic.Anthropic:
     """
-    Create OpenAI client (sync).
+    Create Anthropic client (sync).
+    Named get_openai_client for backwards compatibility.
 
     Args:
-        api_key: API key (default: OPENAI_API_KEY env var)
+        api_key: API key (default: ANTHROPIC_API_KEY env var)
 
     Returns:
-        OpenAI client instance
+        Anthropic client instance
     """
     if api_key is None:
-        api_key = os.getenv("OPENAI_API_KEY")
-    return OpenAI(api_key=api_key)
+        api_key = os.getenv("ANTHROPIC_API_KEY")
+    return anthropic.Anthropic(api_key=api_key)
 
 
-def get_async_openai_client(api_key: Optional[str] = None) -> AsyncOpenAI:
+def get_async_openai_client(api_key: Optional[str] = None) -> anthropic.AsyncAnthropic:
     """
-    Create AsyncOpenAI client (async).
+    Create AsyncAnthropic client (async).
+    Named get_async_openai_client for backwards compatibility.
 
     Args:
-        api_key: API key (default: OPENAI_API_KEY env var)
+        api_key: API key (default: ANTHROPIC_API_KEY env var)
 
     Returns:
-        AsyncOpenAI client instance
+        AsyncAnthropic client instance
     """
     if api_key is None:
-        api_key = os.getenv("OPENAI_API_KEY")
-    return AsyncOpenAI(api_key=api_key)
+        api_key = os.getenv("ANTHROPIC_API_KEY")
+    return anthropic.AsyncAnthropic(api_key=api_key)
+
+
+def _pydantic_to_tool_schema(model: Type[BaseModel]) -> dict:
+    """Convert a Pydantic model to Anthropic tool schema."""
+    schema = model.model_json_schema()
+    return {
+        "name": model.__name__,
+        "description": f"Extract {model.__name__} from the text",
+        "input_schema": schema
+    }
 
 
 def call_llm_parse(
-    client: OpenAI,
+    client: anthropic.Anthropic,
     prompt: str,
     response_format: Type[BaseModel],
-    model: str = "gpt-5-nano",
+    model: str = None,
     max_retries: int = 3,
 ) -> Optional[BaseModel]:
     """
-    Call OpenAI API with structured output (Pydantic model).
+    Call Anthropic API with structured output (Pydantic model via tool_use).
 
     Handles retries automatically.
 
     Args:
-        client: OpenAI client instance
+        client: Anthropic client instance
         prompt: User prompt/message
         response_format: Pydantic model for structured output
-        model: Model name (default: gpt-5-nano)
+        model: Model name (default: DEFAULT_MODEL)
         max_retries: Number of retries on failure (default: 3)
 
     Returns:
         Parsed Pydantic model instance, or None if all retries fail
     """
+    if model is None:
+        model = DEFAULT_MODEL
+
+    tool = _pydantic_to_tool_schema(response_format)
+
     for attempt in range(max_retries):
         try:
-            response = client.beta.chat.completions.parse(
+            response = client.messages.create(
                 model=model,
+                max_tokens=4096,
+                tools=[tool],
+                tool_choice={"type": "tool", "name": tool["name"]},
                 messages=[{"role": "user", "content": prompt}],
-                response_format=response_format,
             )
 
-            parsed = response.choices[0].message.parsed
+            # Extract tool use from response
+            tool_use = None
+            for block in response.content:
+                if block.type == "tool_use":
+                    tool_use = block
+                    break
 
-            if parsed is None:
-                finish_reason = response.choices[0].finish_reason
+            if tool_use is None:
                 print(
-                    f"      ⚠️  Parse failed (attempt {attempt + 1}/{max_retries}, "
-                    f"finish_reason={finish_reason})"
+                    f"      ⚠️  No tool_use in response (attempt {attempt + 1}/{max_retries})"
                 )
                 if attempt < max_retries - 1:
                     time.sleep(2)
                     continue
                 else:
-                    print(f"      ❌ All {max_retries} attempts failed to parse")
+                    print(f"      ❌ All {max_retries} attempts failed to get tool_use")
                     return None
+
+            # Parse the tool input with Pydantic
+            parsed = response_format.model_validate(tool_use.input)
 
             if attempt > 0:
                 print(f"      ✓ Success on attempt {attempt + 1}")
@@ -145,49 +176,62 @@ def call_llm_parse(
 
 
 async def call_llm_parse_async(
-    client: AsyncOpenAI,
+    client: anthropic.AsyncAnthropic,
     prompt: str,
     response_format: Type[BaseModel],
-    model: str = "gpt-5-nano",
+    model: str = None,
     max_retries: int = 3,
 ) -> Optional[BaseModel]:
     """
-    Call OpenAI API async with structured output (Pydantic model).
+    Call Anthropic API async with structured output (Pydantic model via tool_use).
 
     Handles retries automatically.
 
     Args:
-        client: AsyncOpenAI client instance
+        client: AsyncAnthropic client instance
         prompt: User prompt/message
         response_format: Pydantic model for structured output
-        model: Model name (default: gpt-5-nano)
+        model: Model name (default: DEFAULT_MODEL)
         max_retries: Number of retries on failure (default: 3)
 
     Returns:
         Parsed Pydantic model instance, or None if all retries fail
     """
+    if model is None:
+        model = DEFAULT_MODEL
+
+    tool = _pydantic_to_tool_schema(response_format)
+
     for attempt in range(max_retries):
         try:
-            response = await client.beta.chat.completions.parse(
+            response = await client.messages.create(
                 model=model,
+                max_tokens=4096,
+                tools=[tool],
+                tool_choice={"type": "tool", "name": tool["name"]},
                 messages=[{"role": "user", "content": prompt}],
-                response_format=response_format,
             )
 
-            parsed = response.choices[0].message.parsed
+            # Extract tool use from response
+            tool_use = None
+            for block in response.content:
+                if block.type == "tool_use":
+                    tool_use = block
+                    break
 
-            if parsed is None:
-                finish_reason = response.choices[0].finish_reason
+            if tool_use is None:
                 print(
-                    f"      ⚠️  Parse failed (attempt {attempt + 1}/{max_retries}, "
-                    f"finish_reason={finish_reason})"
+                    f"      ⚠️  No tool_use in response (attempt {attempt + 1}/{max_retries})"
                 )
                 if attempt < max_retries - 1:
-                    time.sleep(2)
+                    await asyncio.sleep(2)
                     continue
                 else:
-                    print(f"      ❌ All {max_retries} attempts failed to parse")
+                    print(f"      ❌ All {max_retries} attempts failed to get tool_use")
                     return None
+
+            # Parse the tool input with Pydantic
+            parsed = response_format.model_validate(tool_use.input)
 
             if attempt > 0:
                 print(f"      ✓ Success on attempt {attempt + 1}")
@@ -200,7 +244,7 @@ async def call_llm_parse_async(
                 f"(attempt {attempt + 1}/{max_retries})"
             )
             if attempt < max_retries - 1:
-                time.sleep(2)
+                await asyncio.sleep(2)
                 continue
             print(f"      ❌ All {max_retries} attempts failed")
             return None

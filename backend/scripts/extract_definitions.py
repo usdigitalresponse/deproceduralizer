@@ -40,7 +40,9 @@ class DefinitionsResponse(BaseModel):
     definitions: List[Definition] = Field(default_factory=list)
 
 REG_DIR = str(INDIVIDUAL_REGULATIONS_DIR)
-MODEL_VERSION = "gpt-5-nano"
+
+# Model version imported from shared_utils for centralized management
+from shared_utils import DEFAULT_MODEL as MODEL_VERSION
 
 
 def get_processed_source_indices() -> set:
@@ -294,7 +296,7 @@ Only extract actual term definitions, not general descriptions."""
     # Convert Pydantic models to dicts
     return [d.model_dump() for d in parsed.definitions]
 
-def store_to_database(regulations: List[Dict]):
+def store_to_database(regulations: List[Dict], state: str = "NY"):
     """Store definitions in Neon database using shared_utils connection"""
     print(f"[2/3] Storing results in Neon database...")
     print(f"      Input: {len(regulations)} regulations to process")
@@ -340,7 +342,7 @@ def store_to_database(regulations: List[Dict]):
                 """, (
                     source_idx,
                     "regulation",
-                    "NY",
+                    state.upper(),
                     reg['title'],
                     reg['url'],
                     "regulation",
@@ -441,14 +443,15 @@ def generate_viewer(regulations: List[Dict]):
         if not defs:
             continue
 
-        topics_html = ''.join(f'<span class="badge">{t.replace("_", " ")}</span>' for t in reg['topics'])
+        topics = reg.get('topics', [])
+        topics_html = ''.join(f'<span class="badge">{t.replace("_", " ")}</span>' for t in topics) if topics else ''
 
         html += f"""
     <div class="reg-item">
-        <div class="reg-title">{reg['title']}</div>
+        <div class="reg-title">{reg.get('title', 'Unknown')}</div>
         <div class="reg-meta">
-            <strong>File:</strong> {reg['filename']}<br>
-            <strong>URL:</strong> <a href="{reg['url']}" target="_blank">{reg['url']}</a><br>
+            <strong>File:</strong> {reg.get('filename', reg.get('_filepath', 'N/A'))}<br>
+            <strong>URL:</strong> <a href="{reg.get('url', '#')}" target="_blank">{reg.get('url', 'N/A')}</a><br>
             <div class="topics">{topics_html}</div>
         </div>
         <div class="definitions">

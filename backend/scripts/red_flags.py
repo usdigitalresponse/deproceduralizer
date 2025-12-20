@@ -31,8 +31,8 @@ from shared_utils import get_db_connection, get_async_openai_client, call_llm_pa
 # Load environment variables from project root
 load_dotenv(PROJECT_ROOT / '.env')
 
-# Model to use for analysis
-MODEL_VERSION = "gpt-5-nano"
+# Model version imported from shared_utils for centralized management
+from shared_utils import DEFAULT_MODEL as MODEL_VERSION
 
 
 class ComplexityLevel(str, Enum):
@@ -511,13 +511,15 @@ Example output:
 
 def save_analysis_to_database(conn: Connection,
                              regulation: RegulationData,
-                             analysis: RegulationAnalysis) -> Optional[int]:
+                             analysis: RegulationAnalysis,
+                             state: str = "NY") -> Optional[int]:
     """Save regulation analysis to database
 
     Args:
         conn: Database connection
         regulation: Regulation data
         analysis: Analysis results
+        state: State code (NY or NJ)
 
     Returns:
         analysis_id if successful, None otherwise
@@ -536,7 +538,7 @@ def save_analysis_to_database(conn: Connection,
                     content = EXCLUDED.content
                 RETURNING id
             """, (
-                regulation.source_index, "regulation", "NY",
+                regulation.source_index, "regulation", state.upper(),
                 regulation.title, regulation.url, regulation.url_type,
                 regulation.content, regulation.hierarchy_level,
                 regulation.hierarchy_path, regulation.nycrr_title,
