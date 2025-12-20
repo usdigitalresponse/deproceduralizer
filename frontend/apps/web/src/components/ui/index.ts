@@ -64,3 +64,6 @@ export type { TagProps, TagVariant, TagSize } from './Tag';
 // LevelBadge
 export { LevelBadge } from './LevelBadge';
 export type { LevelBadgeProps } from './LevelBadge';
+
+// CopyLinkButton
+export { CopyLinkButton } from './CopyLinkButton';

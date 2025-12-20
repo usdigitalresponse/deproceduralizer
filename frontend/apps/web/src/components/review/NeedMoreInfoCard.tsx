@@ -4,7 +4,7 @@ import { useState, useTransition, forwardRef } from 'react';
 import { updateRedFlagReview } from '@/lib/actions/red-flags';
 import { updateComplianceIssueReview } from '@/lib/actions/compliance-issues';
 import type { DeveloperItem } from '@/lib/actions/developer';
-import { Button, Textarea, Badge, Card, Tag } from '@/components/ui';
+import { Button, Textarea, Badge, Card, Tag, CopyLinkButton } from '@/components/ui';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
 import { ExpandableRegulationQuote } from './ExpandableRegulationQuote';
 import { Flag, FileWarning, MessageCircleQuestion } from 'lucide-react';
@@ -116,9 +116,12 @@ export const NeedMoreInfoCard = forwardRef<HTMLDivElement, NeedMoreInfoCardProps
       return null;
     };
 
+    const anchor = item.type === 'red_flag' ? `flag-${item.id}` : `compliance-${item.id}`;
+
     return (
       <Card
         ref={ref}
+        id={anchor}
         className={`
           transition-shadow duration-[var(--duration-fast)]
           ${isFocused ? 'ring-2 ring-[var(--color-focus)] ring-offset-2' : ''}
@@ -129,6 +132,7 @@ export const NeedMoreInfoCard = forwardRef<HTMLDivElement, NeedMoreInfoCardProps
         {/* Header with type badge and owner indicator */}
         <div className="flex items-start justify-between gap-4 mb-4">
           <div className="flex items-center gap-2">
+            <CopyLinkButton anchor={anchor} />
             {item.type === 'red_flag' ? (
               <Badge variant="danger" className="flex items-center gap-1">
                 <Flag className="w-3 h-3" />

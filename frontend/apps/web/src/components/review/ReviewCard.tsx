@@ -3,7 +3,7 @@
 import { useState, useTransition, useEffect, forwardRef } from 'react';
 import { updateRedFlagReview } from '@/lib/actions/red-flags';
 import { useReviewerName } from '@/hooks/useReviewerName';
-import { Button, Input, Textarea, Badge, SeverityBadge, Card, Select, Tag } from '@/components/ui';
+import { Button, Input, Textarea, Badge, SeverityBadge, Card, Select, Tag, CopyLinkButton } from '@/components/ui';
 import { REVIEW_STATUSES, PRIORITY_OPTIONS, IMPACT_TYPES } from '@/types/regulation';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
 import { ExpandableRegulationQuote } from './ExpandableRegulationQuote';
@@ -89,6 +89,7 @@ export const ReviewCard = forwardRef<HTMLDivElement, ReviewCardProps>(
     return (
       <Card
         ref={ref}
+        id={`flag-${flag.id}`}
         className={`
           transition-shadow duration-[var(--duration-fast)]
           ${isFocused ? 'ring-2 ring-[var(--color-focus)] ring-offset-2' : ''}
@@ -98,6 +99,7 @@ export const ReviewCard = forwardRef<HTMLDivElement, ReviewCardProps>(
         {/* Header */}
         <div className="flex items-start justify-between gap-4 mb-4">
           <div className="flex items-center gap-3">
+            <CopyLinkButton anchor={`flag-${flag.id}`} />
             <span className="font-semibold text-[var(--color-text)]">{flag.category}</span>
           </div>
           <div className="flex items-center gap-2">

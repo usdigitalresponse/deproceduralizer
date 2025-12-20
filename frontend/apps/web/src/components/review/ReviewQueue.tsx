@@ -13,7 +13,7 @@ import { ReviewCard } from './ReviewCard';
 import { ReviewKeyboardNav } from './ReviewKeyboardNav';
 import { Button } from '@/components/ui/Button';
 import RegulationModal from './RegulationModal';
-import { getStateFromPathname } from '@/hooks';
+import { getStateFromPathname, useDeepLink } from '@/hooks';
 
 interface PaginationInfo {
   page: number;
@@ -63,6 +63,14 @@ export function ReviewQueue({
 
   // Modal state for viewing regulation
   const [selectedRegulationId, setSelectedRegulationId] = useState<number | null>(null);
+
+  // Deep link handling - scroll to item if hash is present
+  useDeepLink({
+    items: flags.map((f) => ({ id: f.id })),
+    cardRefs,
+    setFocusedIndex,
+    itemType: 'flag',
+  });
 
   // Sync with server data when props change
   useEffect(() => {

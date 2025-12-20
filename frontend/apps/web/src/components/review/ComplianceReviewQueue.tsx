@@ -8,7 +8,7 @@ import { ComplianceIssueCard } from './ComplianceIssueCard';
 import { ReviewKeyboardNav } from './ReviewKeyboardNav';
 import { Button, Select } from '@/components/ui';
 import RegulationModal from './RegulationModal';
-import { getStateFromPathname } from '@/hooks';
+import { getStateFromPathname, useDeepLink } from '@/hooks';
 import { REVIEW_STATUSES, COMPLIANCE_ISSUE_TYPES } from '@/types/regulation';
 
 interface PaginationInfo {
@@ -61,6 +61,14 @@ export function ComplianceReviewQueue({
 
   // Modal state for viewing regulation
   const [selectedRegulationId, setSelectedRegulationId] = useState<number | null>(null);
+
+  // Deep link handling - scroll to item if hash is present
+  useDeepLink({
+    items: issues.map((i) => ({ id: i.id })),
+    cardRefs,
+    setFocusedIndex,
+    itemType: 'compliance',
+  });
 
   // Sync with server data when props change
   useEffect(() => {

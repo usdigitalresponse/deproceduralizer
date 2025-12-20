@@ -6,7 +6,7 @@ import type { DeveloperItem, NeedMoreInfoCounts } from '@/lib/actions/developer'
 import { NeedMoreInfoCard } from './NeedMoreInfoCard';
 import { Button, Card } from '@/components/ui';
 import RegulationModal from './RegulationModal';
-import { getStateFromPathname } from '@/hooks';
+import { getStateFromPathname, useDeepLink } from '@/hooks';
 import { MessageCircleQuestion, User } from 'lucide-react';
 
 interface PaginationInfo {
@@ -41,6 +41,13 @@ export function NeedMoreInfoQueue({
   const [focusedIndex, setFocusedIndex] = useState<number>(0);
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [selectedRegulationId, setSelectedRegulationId] = useState<number | null>(null);
+
+  // Deep link handling - scroll to item if hash is present
+  useDeepLink({
+    items: items.map((i) => ({ id: i.id, type: i.type })),
+    cardRefs,
+    setFocusedIndex,
+  });
 
   // Sync with server data when props change
   useEffect(() => {

@@ -297,6 +297,30 @@ import { LevelBadge } from '@/components/ui';
 
 Renders uppercase text with neutral background: `[SECTION]`
 
+### CopyLinkButton
+
+Button for copying deep links to specific items:
+
+```tsx
+import { CopyLinkButton } from '@/components/ui';
+
+<CopyLinkButton anchor="flag-123" />
+<CopyLinkButton anchor="compliance-456" size="md" />
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `anchor` | `string` | required | The anchor ID (without #) to append to current URL |
+| `size` | `'sm' \| 'md'` | `'sm'` | Button size |
+| `className` | `string` | `''` | Additional CSS classes |
+
+Features:
+- Link2 icon from Lucide, switches to Check icon after copy
+- Copies full URL with hash to clipboard
+- Shows "Copied!" tooltip feedback for 2 seconds
+- Ghost-style button with hover states
+- Uses `navigator.clipboard` API
+
 ---
 
 ## Layout Components
@@ -684,6 +708,7 @@ apps/web/src/
 │   ├── useResponsive.ts    # Breakpoint detection
 │   ├── useStateFromPath.ts # Extract state (ny/nj) from URL path
 │   ├── useReviewerName.ts  # Persist reviewer name in localStorage
+│   ├── useDeepLink.ts      # Deep link navigation for review items
 │   └── index.ts
 ├── components/
 │   ├── ui/                 # Reusable UI primitives
@@ -691,6 +716,7 @@ apps/web/src/
 │   │   ├── Badge.tsx
 │   │   ├── Button.tsx
 │   │   ├── Card.tsx
+│   │   ├── CopyLinkButton.tsx # Copy deep link to clipboard
 │   │   ├── Drawer.tsx      # Mobile-friendly slide-in panel
 │   │   ├── Input.tsx
 │   │   ├── LevelBadge.tsx  # Hierarchy level badges
