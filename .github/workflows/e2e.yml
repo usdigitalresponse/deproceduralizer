@@ -1,16 +1,25 @@
 name: E2E Smoke Tests
 
 on:
-  deployment_status:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
 
 jobs:
   e2e:
-    if: github.event.deployment_status.state == 'success'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Wait for Vercel deployment
+        uses: patrickedqvist/wait-for-vercel-preview@v1.3.2
+        id: vercel
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          max_timeout: 300
 
       - uses: pnpm/action-setup@v2
         with:
@@ -34,7 +43,7 @@ jobs:
         run: pnpm test:e2e
         working-directory: frontend/apps/web
         env:
-          PLAYWRIGHT_TEST_BASE_URL: ${{ github.event.deployment_status.target_url }}
+          PLAYWRIGHT_TEST_BASE_URL: ${{ steps.vercel.outputs.url }}
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
 
       - uses: actions/upload-artifact@v4
