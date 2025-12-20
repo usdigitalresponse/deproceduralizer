@@ -317,6 +317,19 @@ The web app builds from `frontend/apps/web` with the build command configured in
 | New York | NYCRR (23 titles) | ~60,000 sections |
 | New Jersey | NJAC | ~61,000 documents |
 
+## Claude Code Hooks
+
+This project uses Claude Code hooks to automate development workflow reminders:
+
+| Hook | Event | Purpose |
+|------|-------|---------|
+| `check-remote-changes.sh` | SessionStart | Alerts when main branch has new commits not in current branch |
+| `pre-push-reminder.py` | PreToolUse (git push) | Prompts to run smoke tests before pushing |
+| `pre-commit-docs-reminder.py` | PreToolUse (git commit) | Prompts to update documentation before committing |
+| `schema-update-reminder.py` | PostToolUse (schema.sql edit) | Requires database.md update when schema changes |
+
+Hooks are configured in `.claude/settings.json` and scripts are in `.claude/hooks/`.
+
 ## Contributing
 
 1. **Backend**: Add new scrapers or analysis scripts in `backend/scripts/`
