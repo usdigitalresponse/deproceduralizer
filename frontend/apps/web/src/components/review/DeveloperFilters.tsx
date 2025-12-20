@@ -1,17 +1,15 @@
 'use client';
 
-import { useRouter, useSearchParams, usePathname } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useCallback } from 'react';
+import { useQueryStates } from 'nuqs';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 import { getStateFromPathname } from '@/hooks';
 import { DEVELOPER_STATUSES, DEVELOPERS } from '@/types/regulation';
+import { developerQueueParsers } from '@/lib/url/parsers';
 
 interface DeveloperFiltersProps {
-  currentDeveloperStatus?: string;
-  currentDeveloperAssigned?: string;
-  sortBy: string;
-  sortOrder: string;
   className?: string;
 }
 
@@ -31,49 +29,29 @@ const SORT_OPTIONS = [
 ];
 
 export function DeveloperFilters({
-  currentDeveloperStatus = 'all',
-  currentDeveloperAssigned = 'all',
-  sortBy,
-  sortOrder,
   className = '',
 }: DeveloperFiltersProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const [filters, setFilters] = useQueryStates(developerQueueParsers, {
+    shallow: false,
+  });
 
   // Extract state from pathname (e.g., /nj/review -> nj)
   const state = getStateFromPathname(pathname, 'nj');
 
-  const updateParams = useCallback(
-    (updates: Record<string, string | undefined>) => {
-      const params = new URLSearchParams(searchParams.toString());
-
-      // Reset to page 1 when filters change
-      params.set('page', '1');
-
-      for (const [key, value] of Object.entries(updates)) {
-        if (value === undefined || value === '' || value === 'all') {
-          params.delete(key);
-        } else {
-          params.set(key, value);
-        }
-      }
-
-      router.push(`/${state}/review?${params.toString()}`);
-    },
-    [router, searchParams, state]
-  );
-
   const clearFilters = useCallback(() => {
-    const params = new URLSearchParams();
-    params.set('mode', 'developer');
-    router.push(`/${state}/review?${params.toString()}`);
-  }, [router, state]);
+    setFilters({
+      developerStatus: 'all',
+      developerAssigned: null,
+      page: 1,
+    });
+  }, [setFilters]);
 
   // Check if any filters are active (not default)
   const hasActiveFilters =
-    (currentDeveloperStatus && currentDeveloperStatus !== 'all') ||
-    (currentDeveloperAssigned && currentDeveloperAssigned !== 'all');
+    (filters.developerStatus && filters.developerStatus !== 'all') ||
+    filters.developerAssigned;
 
   return (
     <div className={`flex flex-wrap items-center gap-3 ${className}`}>
@@ -83,8 +61,8 @@ export function DeveloperFilters({
           Status:
         </label>
         <Select
-          value={currentDeveloperStatus || 'all'}
-          onValueChange={(value) => updateParams({ developerStatus: value })}
+          value={filters.developerStatus || 'all'}
+          onValueChange={(value) => setFilters({ developerStatus: value as any, page: 1 })}
           options={DEV_STATUS_OPTIONS}
           aria-label="Filter by developer status"
         />
@@ -96,8 +74,8 @@ export function DeveloperFilters({
           Developer:
         </label>
         <Select
-          value={currentDeveloperAssigned || 'all'}
-          onValueChange={(value) => updateParams({ developer: value })}
+          value={filters.developerAssigned || 'all'}
+          onValueChange={(value) => setFilters({ developerAssigned: value === 'all' ? null : value, page: 1 })}
           options={DEVELOPER_OPTIONS}
           aria-label="Filter by developer"
         />
@@ -119,18 +97,18 @@ export function DeveloperFilters({
           Sort by:
         </label>
         <Select
-          value={sortBy}
-          onValueChange={(value) => updateParams({ sortBy: value })}
+          value={filters.sortBy}
+          onValueChange={(value) => setFilters({ sortBy: value as any, page: 1 })}
           options={SORT_OPTIONS}
           aria-label="Sort by"
         />
         <Button
           variant="secondary"
           size="sm"
-          onClick={() => updateParams({ sortOrder: sortOrder === 'desc' ? 'asc' : 'desc' })}
-          aria-label={`Sort ${sortOrder === 'desc' ? 'ascending' : 'descending'}`}
+          onClick={() => setFilters({ sortOrder: filters.sortOrder === 'desc' ? 'asc' : 'desc' })}
+          aria-label={`Sort ${filters.sortOrder === 'desc' ? 'ascending' : 'descending'}`}
         >
-          {sortOrder === 'desc' ? '↓' : '↑'}
+          {filters.sortOrder === 'desc' ? '↓' : '↑'}
         </Button>
       </div>
     </div>

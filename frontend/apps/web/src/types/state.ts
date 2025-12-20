@@ -1,10 +1,11 @@
 /**
  * State type definitions for multi-state regulatory document support
  */
+import type { StateCode } from '@deproceduralizer/database/schema';
+import { VALID_STATES } from '@deproceduralizer/database/schema';
 
-export type StateCode = 'ny' | 'nj';
-
-export const VALID_STATES: StateCode[] = ['ny', 'nj'];
+export type { StateCode };
+export { VALID_STATES };
 
 export interface StateConfig {
   name: string;

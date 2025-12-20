@@ -12,6 +12,7 @@ import { Container } from '@/components/layout/Container';
 import { HierarchyTreeSkeleton } from '@/components/browse/HierarchyTree';
 import { Card } from '@/components/ui/Card';
 import { isValidState, STATE_CONFIG } from '@/types/state';
+import { parseBooleanParam } from '@/lib/url/server-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,13 +27,6 @@ interface PageProps {
     selected?: string;
     search?: string;
   }>;
-}
-
-// Parse boolean filter from URL param
-function parseBooleanParam(value: string | undefined): boolean | undefined {
-  if (value === 'true') return true;
-  if (value === 'false') return false;
-  return undefined;
 }
 
 export default async function BrowsePage({ params, searchParams }: PageProps) {

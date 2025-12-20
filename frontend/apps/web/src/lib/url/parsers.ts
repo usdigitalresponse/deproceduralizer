@@ -1,25 +1,8 @@
-/**
- * URL Query Parameter Parsers using nuqs
- *
- * These parsers provide type-safe URL query parameter handling for the app.
- * Use with nuqs hooks like useQueryState and useQueryStates in client components.
- *
- * @example
- * ```tsx
- * import { useQueryState } from 'nuqs';
- * import { reviewStatusParser, pageParser } from '@/lib/url/parsers';
- *
- * function MyComponent() {
- *   const [status, setStatus] = useQueryState('status', reviewStatusParser);
- *   const [page, setPage] = useQueryState('page', pageParser);
- * }
- * ```
- */
-
 import {
   parseAsString,
   parseAsInteger,
   parseAsStringEnum,
+  parseAsBoolean,
 } from 'nuqs';
 
 // Review status values
@@ -78,10 +61,15 @@ export const severityParser = parseAsStringEnum([...SEVERITY_VALUES]).withDefaul
 export const reviewTypeParser = parseAsStringEnum([...REVIEW_TYPE_VALUES]).withDefault('flags');
 export const reviewModeParser = parseAsStringEnum([...REVIEW_MODE_VALUES]).withDefault('review');
 
+// Boolean filter parsers
+export const booleanParser = parseAsBoolean;
+
 // Generic string parsers with no default (returns null if missing)
 export const categoryParser = parseAsString;
 export const searchParser = parseAsString;
 export const developerAssignedParser = parseAsString;
+export const letterParser = parseAsString;
+export const reviewerParser = parseAsString;
 
 // Sort by parsers for different contexts
 export const flagSortByParser = parseAsStringEnum([
@@ -125,7 +113,7 @@ export const paginationParsers = {
  */
 export const reviewQueueParsers = {
   page: pageParser,
-  status: reviewStatusParser,
+  reviewStatus: reviewStatusParser,
   severity: severityParser,
   category: categoryParser,
   sortBy: flagSortByParser,
@@ -150,13 +138,25 @@ export const reviewPageParsers = {
   type: reviewTypeParser,
   mode: reviewModeParser,
   page: pageParser,
-  status: reviewStatusParser,
+  reviewStatus: reviewStatusParser,
   severity: severityParser,
   category: categoryParser,
   sortBy: flagSortByParser,
   sortOrder: sortOrderParser,
   developerStatus: developerStatusParser,
   developerAssigned: developerAssignedParser,
+};
+
+/**
+ * Parser configuration for the browse hierarchy filters
+ */
+export const browseFiltersParsers = {
+  analyzed: booleanParser,
+  hasFlags: booleanParser,
+  severity: severityParser,
+  hasDefs: booleanParser,
+  hasCompliance: booleanParser,
+  search: searchParser,
 };
 
 // ============================================

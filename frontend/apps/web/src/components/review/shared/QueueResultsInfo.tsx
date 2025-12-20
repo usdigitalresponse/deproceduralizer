@@ -1,14 +1,9 @@
 'use client';
 
-interface PaginationInfo {
-  page: number;
-  pageSize: number;
-  total: number;
-}
-
 interface QueueResultsInfoProps {
-  pagination: PaginationInfo;
-  currentCount: number;
+  startItem: number;
+  endItem: number;
+  total: number;
   itemLabel?: string;
   showKeyboardHint?: boolean;
   keyboardHintText?: string;
@@ -19,21 +14,21 @@ interface QueueResultsInfoProps {
  *
  * @example
  * <QueueResultsInfo
- *   pagination={pagination}
- *   currentCount={flags.length}
+ *   startItem={flags.length > 0 ? (page - 1) * pageSize + 1 : 0}
+ *   endItem={Math.min(page * pageSize, total)}
+ *   total={total}
  *   itemLabel="flags"
  *   showKeyboardHint
  * />
  */
 export function QueueResultsInfo({
-  pagination,
-  currentCount,
+  startItem,
+  endItem,
+  total,
   itemLabel = 'items',
   showKeyboardHint = true,
   keyboardHintText,
 }: QueueResultsInfoProps) {
-  const startItem = currentCount > 0 ? (pagination.page - 1) * pagination.pageSize + 1 : 0;
-  const endItem = Math.min(pagination.page * pagination.pageSize, pagination.total);
 
   const defaultHint = (
     <>
@@ -50,7 +45,7 @@ export function QueueResultsInfo({
   return (
     <div className="flex items-center justify-between text-sm text-[var(--color-text-secondary)]">
       <span>
-        Showing {startItem}–{endItem} of {pagination.total} {itemLabel}
+        Showing {startItem}–{endItem} of {total} {itemLabel}
       </span>
       {showKeyboardHint && (
         <span className="text-xs text-[var(--color-text-muted)]">

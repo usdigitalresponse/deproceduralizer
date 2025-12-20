@@ -3,7 +3,7 @@ import { BaseRepository } from './base.repository';
 import { complianceIssues, ComplianceIssue, IssueType } from '../schema/compliance-issues';
 import { regulatoryDocuments } from '../schema/regulatory-documents';
 import { ReviewStatus, ImpactType, DeveloperStatus, ResolutionType, Developer } from '../schema/red-flags';
-import { StateCode } from './regulatory-documents.repository';
+import { StateCode } from '../schema/constants';
 import { DeveloperStatusCounts } from './red-flags.repository';
 
 export interface UpdateComplianceIssueReviewInput {

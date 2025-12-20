@@ -1,14 +1,18 @@
 'use client';
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import type { DeveloperItem, CombinedDeveloperStatusCounts } from '@/lib/actions/developer';
 import { DeveloperProgress } from './DeveloperProgress';
 import { DeveloperFilters } from './DeveloperFilters';
 import { DeveloperCard } from './DeveloperCard';
-import { Button } from '@/components/ui/Button';
 import RegulationModal from './RegulationModal';
-import { getStateFromPathname, useDeepLink } from '@/hooks';
+import { 
+  QueueResultsInfo, 
+  QueueEmptyState, 
+  QueuePagination 
+} from './shared';
+import { getStateFromPathname, useDeepLink, useQueueNavigation } from '@/hooks';
 
 interface PaginationInfo {
   page: number;
@@ -21,20 +25,12 @@ interface DeveloperQueueProps {
   initialItems: DeveloperItem[];
   pagination: PaginationInfo;
   statusCounts: CombinedDeveloperStatusCounts;
-  currentDeveloperStatus?: string;
-  currentDeveloperAssigned?: string;
-  sortBy: string;
-  sortOrder: string;
 }
 
 export function DeveloperQueue({
   initialItems,
   pagination,
   statusCounts,
-  currentDeveloperStatus,
-  currentDeveloperAssigned,
-  sortBy,
-  sortOrder,
 }: DeveloperQueueProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -47,12 +43,21 @@ export function DeveloperQueue({
   const [items, setItems] = useState<DeveloperItem[]>(initialItems);
   const [counts, setCounts] = useState<CombinedDeveloperStatusCounts>(statusCounts);
 
-  // Focused card for keyboard navigation
-  const [focusedIndex, setFocusedIndex] = useState<number>(0);
-  const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
-
   // Modal state for viewing regulation
   const [selectedRegulationId, setSelectedRegulationId] = useState<number | null>(null);
+
+  // Keyboard navigation hook
+  const { 
+    focusedIndex, 
+    setFocusedIndex, 
+    setCardRef, 
+    handleKeyDown,
+    cardRefs 
+  } = useQueueNavigation({
+    items: items,
+    getItemId: (i) => `${i.type}-${i.id}`,
+    onViewRegulation: (i) => setSelectedRegulationId(i.regulation.id),
+  });
 
   // Deep link handling - scroll to item if hash is present
   useDeepLink({
@@ -107,45 +112,6 @@ export function DeveloperQueue({
     setSelectedRegulationId(regulationId);
   }, []);
 
-  // Keyboard navigation handlers
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-      return;
-    }
-
-    switch (e.key) {
-      case 'j':
-      case 'ArrowDown':
-        e.preventDefault();
-        setFocusedIndex((prev) => {
-          const newIndex = Math.min(prev + 1, items.length - 1);
-          cardRefs.current[newIndex]?.scrollIntoView({
-            behavior: 'smooth',
-            block: 'center',
-          });
-          return newIndex;
-        });
-        break;
-      case 'k':
-      case 'ArrowUp':
-        e.preventDefault();
-        setFocusedIndex((prev) => {
-          const newIndex = Math.max(prev - 1, 0);
-          cardRefs.current[newIndex]?.scrollIntoView({
-            behavior: 'smooth',
-            block: 'center',
-          });
-          return newIndex;
-        });
-        break;
-      case 'v':
-        if (items[focusedIndex]) {
-          handleViewRegulation(items[focusedIndex].regulation.id);
-        }
-        break;
-    }
-  }, [items, focusedIndex, handleViewRegulation]);
-
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
@@ -164,36 +130,29 @@ export function DeveloperQueue({
       <DeveloperProgress counts={counts} />
 
       {/* Filters */}
-      <DeveloperFilters
-        currentDeveloperStatus={currentDeveloperStatus}
-        currentDeveloperAssigned={currentDeveloperAssigned}
-        sortBy={sortBy}
-        sortOrder={sortOrder}
-      />
+      <DeveloperFilters className="mb-2" />
 
       {/* Results info */}
-      <div className="flex items-center justify-between text-sm text-[var(--color-text-secondary)]">
-        <span>
-          Showing {items.length > 0 ? (pagination.page - 1) * pagination.pageSize + 1 : 0}
-          –{Math.min(pagination.page * pagination.pageSize, pagination.total)} of {pagination.total} items
-        </span>
-        <span className="text-xs text-[var(--color-text-muted)]">
-          Use <kbd className="px-1.5 py-0.5 bg-[var(--color-neutral-100)] rounded text-xs font-mono">j</kbd>/<kbd className="px-1.5 py-0.5 bg-[var(--color-neutral-100)] rounded text-xs font-mono">k</kbd> to navigate
-        </span>
-      </div>
+      <QueueResultsInfo
+        startItem={items.length > 0 ? (pagination.page - 1) * pagination.pageSize + 1 : 0}
+        endItem={Math.min(pagination.page * pagination.pageSize, pagination.total)}
+        total={pagination.total}
+        itemLabel="items"
+        keyboardHintText="Use j/k to navigate"
+      />
 
       {/* Item cards */}
       {items.length === 0 ? (
-        <div className="text-center py-12 text-[var(--color-text-muted)]">
-          <p className="text-lg mb-2">No reviewed items found</p>
-          <p className="text-sm">Items will appear here after they have been reviewed in Review Mode.</p>
-        </div>
+        <QueueEmptyState 
+          title="No reviewed items found" 
+          description="Items will appear here after they have been reviewed in Review Mode." 
+        />
       ) : (
         <div className="space-y-4">
           {items.map((item, index) => (
             <DeveloperCard
               key={`${item.type}-${item.id}`}
-              ref={(el) => { cardRefs.current[index] = el; }}
+              ref={(el) => setCardRef(index, el)}
               item={item}
               onUpdated={handleItemUpdated}
               onViewRegulation={handleViewRegulation}
@@ -204,29 +163,11 @@ export function DeveloperQueue({
       )}
 
       {/* Pagination */}
-      {pagination.totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2 pt-4">
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => goToPage(pagination.page - 1)}
-            disabled={pagination.page <= 1}
-          >
-            Previous
-          </Button>
-          <span className="px-4 text-sm text-[var(--color-text-secondary)]">
-            Page {pagination.page} of {pagination.totalPages}
-          </span>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => goToPage(pagination.page + 1)}
-            disabled={pagination.page >= pagination.totalPages}
-          >
-            Next
-          </Button>
-        </div>
-      )}
+      <QueuePagination
+        page={pagination.page}
+        totalPages={pagination.totalPages}
+        onPageChange={goToPage}
+      />
 
       {/* Regulation Modal */}
       <RegulationModal

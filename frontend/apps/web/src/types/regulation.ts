@@ -1,23 +1,35 @@
+import {
+  REVIEW_STATUSES as DB_REVIEW_STATUSES,
+  DEVELOPER_STATUSES as DB_DEVELOPER_STATUSES,
+  IMPACT_TYPES as DB_IMPACT_TYPES,
+  RESOLUTION_TYPES as DB_RESOLUTION_TYPES,
+  DEVELOPERS as DB_DEVELOPERS,
+  ISSUE_TYPES as DB_ISSUE_TYPES
+} from '@deproceduralizer/database/schema';
+
+/**
+ * Humanize a snake_case or kebab-case string for display
+ */
+export function formatLabel(value: string): string {
+  if (!value) return '';
+  return value
+    .split(/[_-]/)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+}
+
 // Dropdown options for the review form UI
 // These extend the database constants with display labels
 
-export const REVIEW_STATUSES = [
-  { value: 'unreviewed', label: 'Unreviewed' },
-  { value: 'confirmed', label: 'Confirmed' },
-  { value: 'false_positive', label: 'False Positive' },
-  { value: 'needs_context', label: 'Needs Context' },
-  { value: 'deferred', label: 'Deferred' },
-] as const;
+export const REVIEW_STATUSES = DB_REVIEW_STATUSES.map(value => ({
+  value,
+  label: formatLabel(value)
+}));
 
-export const IMPACT_TYPES = [
-  { value: 'cost_savings', label: 'Cost Savings' },
-  { value: 'time_savings', label: 'Time Savings' },
-  { value: 'accessibility', label: 'Accessibility' },
-  { value: 'compliance_risk', label: 'Compliance Risk' },
-  { value: 'operational_efficiency', label: 'Operational Efficiency' },
-  { value: 'citizen_experience', label: 'Citizen Experience' },
-  { value: 'other', label: 'Other' },
-] as const;
+export const IMPACT_TYPES = DB_IMPACT_TYPES.map(value => ({
+  value,
+  label: formatLabel(value)
+}));
 
 // Note: values are strings for Radix Select compatibility
 // Parse with parseInt() when saving to database
@@ -30,24 +42,14 @@ export const PRIORITY_OPTIONS = [
 ] as const;
 
 // Compliance issue types - requirements that add burden
-export const COMPLIANCE_ISSUE_TYPES = [
-  { value: 'wet_signature', label: 'Wet Signature Required' },
-  { value: 'in_person', label: 'In-Person Required' },
-  { value: 'paper_form', label: 'Paper Form Required' },
-  { value: 'notarized', label: 'Notarization Required' },
-  { value: 'certified', label: 'Certification Required' },
-  { value: 'reporting_requirement', label: 'Reporting Requirement' },
-  { value: 'other', label: 'Other' },
-] as const;
+export const COMPLIANCE_ISSUE_TYPES = DB_ISSUE_TYPES.map(value => ({
+  value,
+  label: value === 'reporting_requirement' ? 'Reporting Requirement' : formatLabel(value)
+}));
 
 export const ISSUE_TYPE_LABELS: Record<string, string> = {
-  wet_signature: 'Wet Signature',
-  in_person: 'In-Person',
-  paper_form: 'Paper Form',
-  notarized: 'Notarized',
-  certified: 'Certified',
+  ...Object.fromEntries(DB_ISSUE_TYPES.map(type => [type, formatLabel(type)])),
   reporting_requirement: 'Reporting',
-  other: 'Other',
 };
 
 // Review type for the review page tabs
@@ -60,37 +62,31 @@ export const REVIEW_TYPES = [
 export type ReviewType = typeof REVIEW_TYPES[number]['value'];
 
 // Developer mode constants
-export const DEVELOPER_STATUSES = [
-  { value: 'unresolved', label: 'Unresolved' },
-  { value: 'resolved', label: 'Resolved' },
-  { value: 'pending', label: 'Pending' },
-  { value: 'backlogged', label: 'Backlogged' },
-  { value: 'need_more_info', label: 'Need More Info' },
-] as const;
+export const DEVELOPER_STATUSES = DB_DEVELOPER_STATUSES.map(value => ({
+  value,
+  label: formatLabel(value)
+}));
 
 export type DeveloperStatusValue = typeof DEVELOPER_STATUSES[number]['value'];
 
-export const DEVELOPER_STATUS_LABELS: Record<string, string> = {
-  unresolved: 'Unresolved',
-  resolved: 'Resolved',
-  pending: 'Pending',
-  backlogged: 'Backlogged',
-  need_more_info: 'Need More Info',
-};
+export const DEVELOPER_STATUS_LABELS: Record<string, string> = Object.fromEntries(
+  DB_DEVELOPER_STATUSES.map(status => [status, formatLabel(status)])
+);
 
-export const RESOLUTION_TYPES = [
-  { value: 'implemented', label: 'Implemented' },
-  { value: 'not_implemented', label: 'Not Implemented' },
-] as const;
+export const RESOLUTION_TYPES = DB_RESOLUTION_TYPES.map(value => ({
+  value,
+  label: formatLabel(value)
+}));
 
 export type ResolutionTypeValue = typeof RESOLUTION_TYPES[number]['value'];
 
-export const DEVELOPERS = [
-  { value: 'Michael', label: 'Michael' },
-  { value: 'Abigail', label: 'Abigail' },
-] as const;
+export const DEVELOPERS = DB_DEVELOPERS.map(value => ({
+  value,
+  label: value
+}));
 
 export type DeveloperValue = typeof DEVELOPERS[number]['value'];
+
 
 // Review mode for the toggle
 export type ReviewMode = 'review' | 'developer';

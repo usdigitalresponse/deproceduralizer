@@ -1,20 +1,19 @@
 'use client';
 
-import { useRouter, useSearchParams, usePathname } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useCallback, useTransition } from 'react';
+import { useQueryStates } from 'nuqs';
 import { Button, Select, SearchInput } from '@/components/ui';
-import type { HierarchyFilterOptions } from '@deproceduralizer/database';
+import { browseFiltersParsers } from '@/lib/url/parsers';
 import { X } from 'lucide-react';
 
 interface BrowseFiltersProps {
-  currentFilters: HierarchyFilterOptions;
   stats: {
     level: string;
     count: number;
     analyzedCount: number;
     flaggedCount: number;
   }[];
-  search?: string;
   className?: string;
 }
 
@@ -50,70 +49,37 @@ const HAS_COMPLIANCE_ISSUES_OPTIONS = [
 ];
 
 export function BrowseFilters({
-  currentFilters,
   stats,
-  search = '',
   className = '',
 }: BrowseFiltersProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
 
-  const updateParams = useCallback(
-    (updates: Record<string, string | undefined>) => {
-      const params = new URLSearchParams(searchParams.toString());
-
-      for (const [key, value] of Object.entries(updates)) {
-        if (value === undefined || value === '' || value === 'all') {
-          params.delete(key);
-        } else {
-          params.set(key, value);
-        }
-      }
-
-      const queryString = params.toString();
-      router.push(queryString ? `${pathname}?${queryString}` : pathname);
-    },
-    [router, pathname, searchParams]
-  );
-
-  // Handle search - clears expanded state when search changes
-  const handleSearch = useCallback(
-    (searchValue: string) => {
-      const params = new URLSearchParams(searchParams.toString());
-
-      if (searchValue.trim()) {
-        params.set('search', searchValue.trim());
-      } else {
-        params.delete('search');
-      }
-
-      // Clear expanded state when search changes (tree will reset)
-      params.delete('expanded');
-
-      const queryString = params.toString();
-      startTransition(() => {
-        router.push(queryString ? `${pathname}?${queryString}` : pathname);
-      });
-    },
-    [router, pathname, searchParams]
-  );
+  const [filters, setFilters] = useQueryStates(browseFiltersParsers, {
+    shallow: false,
+    startTransition,
+  });
 
   const clearFilters = useCallback(() => {
-    router.push(pathname);
-  }, [router, pathname]);
+    setFilters({
+      analyzed: null,
+      hasFlags: null,
+      severity: 'all',
+      hasDefs: null,
+      hasCompliance: null,
+      search: null,
+    });
+  }, [setFilters]);
 
-  // Check if any filters are active (excluding search which has its own clear)
+  // Check if any filters are active
   const hasActiveFilters =
-    currentFilters.hasAnalysis !== undefined ||
-    currentFilters.hasFlags !== undefined ||
-    currentFilters.severity !== undefined ||
-    currentFilters.hasDefinitions !== undefined ||
-    currentFilters.hasComplianceIssues !== undefined;
-
-  // Check if search or filters are active (for clear all)
-  const hasSearchOrFilters = search || hasActiveFilters;
+    filters.analyzed !== null ||
+    filters.hasFlags !== null ||
+    (filters.severity && filters.severity !== 'all') ||
+    filters.hasDefs !== null ||
+    filters.hasCompliance !== null ||
+    filters.search !== null;
 
   // Calculate totals from stats
   const totalDocs = stats.reduce((sum, s) => sum + s.count, 0);
@@ -124,8 +90,8 @@ export function BrowseFilters({
     <div className={`flex flex-wrap items-center gap-3 ${className}`}>
       {/* Search input */}
       <SearchInput
-        value={search}
-        onSearch={handleSearch}
+        value={filters.search || ''}
+        onSearch={(val) => setFilters({ search: val || null })}
         placeholder="Search by title..."
         size="sm"
         className="w-48"
@@ -138,8 +104,8 @@ export function BrowseFilters({
           Analyzed:
         </label>
         <Select
-          value={currentFilters.hasAnalysis === true ? 'true' : currentFilters.hasAnalysis === false ? 'false' : 'all'}
-          onValueChange={(value) => updateParams({ analyzed: value })}
+          value={filters.analyzed === true ? 'true' : filters.analyzed === false ? 'false' : 'all'}
+          onValueChange={(value) => setFilters({ analyzed: value === 'all' ? null : value === 'true' })}
           options={ANALYZED_OPTIONS}
           aria-label="Filter by analysis status"
         />
@@ -151,8 +117,8 @@ export function BrowseFilters({
           Flags:
         </label>
         <Select
-          value={currentFilters.hasFlags === true ? 'true' : currentFilters.hasFlags === false ? 'false' : 'all'}
-          onValueChange={(value) => updateParams({ hasFlags: value })}
+          value={filters.hasFlags === true ? 'true' : filters.hasFlags === false ? 'false' : 'all'}
+          onValueChange={(value) => setFilters({ hasFlags: value === 'all' ? null : value === 'true' })}
           options={HAS_FLAGS_OPTIONS}
           aria-label="Filter by flags"
         />
@@ -164,8 +130,8 @@ export function BrowseFilters({
           Severity:
         </label>
         <Select
-          value={currentFilters.severity || 'all'}
-          onValueChange={(value) => updateParams({ severity: value })}
+          value={filters.severity || 'all'}
+          onValueChange={(value) => setFilters({ severity: value as any })}
           options={SEVERITY_OPTIONS}
           aria-label="Filter by severity"
         />
@@ -177,8 +143,8 @@ export function BrowseFilters({
           Definitions:
         </label>
         <Select
-          value={currentFilters.hasDefinitions === true ? 'true' : currentFilters.hasDefinitions === false ? 'false' : 'all'}
-          onValueChange={(value) => updateParams({ hasDefs: value })}
+          value={filters.hasDefs === true ? 'true' : filters.hasDefs === false ? 'false' : 'all'}
+          onValueChange={(value) => setFilters({ hasDefs: value === 'all' ? null : value === 'true' })}
           options={HAS_DEFINITIONS_OPTIONS}
           aria-label="Filter by definitions"
         />
@@ -190,15 +156,15 @@ export function BrowseFilters({
           Compliance:
         </label>
         <Select
-          value={currentFilters.hasComplianceIssues === true ? 'true' : currentFilters.hasComplianceIssues === false ? 'false' : 'all'}
-          onValueChange={(value) => updateParams({ hasCompliance: value })}
+          value={filters.hasCompliance === true ? 'true' : filters.hasCompliance === false ? 'false' : 'all'}
+          onValueChange={(value) => setFilters({ hasCompliance: value === 'all' ? null : value === 'true' })}
           options={HAS_COMPLIANCE_ISSUES_OPTIONS}
           aria-label="Filter by compliance issues"
         />
       </div>
 
       {/* Clear all button */}
-      {hasSearchOrFilters && (
+      {hasActiveFilters && (
         <Button
           variant="ghost"
           size="sm"

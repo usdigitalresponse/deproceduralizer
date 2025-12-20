@@ -34,8 +34,8 @@ test.describe('Smoke Tests', () => {
   test('review mode shows red flags', async ({ page }) => {
     await page.goto('/ny/review');
 
-    // Wait for red flags tab to be active and show count
-    await expect(page.getByRole('button', { name: /Red Flags/i })).toBeVisible();
+    // Wait for red flags tab to be visible and show count
+    await expect(page.getByText(/Red Flags/i).first()).toBeVisible();
 
     // Should show flag cards with severity
     await expect(page.getByText(/Severity:/i).first()).toBeVisible();

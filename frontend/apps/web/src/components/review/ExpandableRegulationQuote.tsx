@@ -36,6 +36,7 @@ export function ExpandableRegulationQuote({
   const [expandedText, setExpandedText] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [canExpand, setCanExpand] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const borderColorClass = {
     default: 'border-[var(--color-neutral-300)]',
@@ -58,10 +59,11 @@ export function ExpandableRegulationQuote({
 
     // Fetch expanded context
     setIsLoading(true);
+    setError(null);
     try {
       const result = await getExpandedContext(documentId, text, expandChars);
       if (!result.success) {
-        console.error('Failed to expand context:', result.error);
+        setError('Failed to load more context');
         setCanExpand(false);
         return;
       }
@@ -72,7 +74,7 @@ export function ExpandableRegulationQuote({
         setCanExpand(false);
       }
     } catch (err) {
-      console.error('Failed to expand context:', err);
+      setError('Could not connect to database');
       setCanExpand(false);
     } finally {
       setIsLoading(false);
@@ -156,6 +158,11 @@ export function ExpandableRegulationQuote({
               </>
             )}
           </Button>
+        )}
+        {!canExpand && error && (
+          <span className="text-[10px] text-[var(--color-danger)] font-medium uppercase tracking-tighter">
+            {error}
+          </span>
         )}
       </div>
       <div className={`p-3 bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] border-l-4 ${borderColorClass}`}>

@@ -2,15 +2,9 @@
 
 import { Button } from '@/components/ui';
 
-interface PaginationInfo {
-  page: number;
-  pageSize: number;
-  total: number;
-  totalPages: number;
-}
-
 interface QueuePaginationProps {
-  pagination: PaginationInfo;
+  page: number;
+  totalPages: number;
   onPageChange: (page: number) => void;
 }
 
@@ -19,12 +13,13 @@ interface QueuePaginationProps {
  *
  * @example
  * <QueuePagination
- *   pagination={pagination}
+ *   page={pagination.page}
+ *   totalPages={pagination.totalPages}
  *   onPageChange={goToPage}
  * />
  */
-export function QueuePagination({ pagination, onPageChange }: QueuePaginationProps) {
-  if (pagination.totalPages <= 1) {
+export function QueuePagination({ page, totalPages, onPageChange }: QueuePaginationProps) {
+  if (totalPages <= 1) {
     return null;
   }
 
@@ -33,19 +28,19 @@ export function QueuePagination({ pagination, onPageChange }: QueuePaginationPro
       <Button
         variant="secondary"
         size="sm"
-        onClick={() => onPageChange(pagination.page - 1)}
-        disabled={pagination.page <= 1}
+        onClick={() => onPageChange(page - 1)}
+        disabled={page <= 1}
       >
         Previous
       </Button>
       <span className="px-4 text-sm text-[var(--color-text-secondary)]">
-        Page {pagination.page} of {pagination.totalPages}
+        Page {page} of {totalPages}
       </span>
       <Button
         variant="secondary"
         size="sm"
-        onClick={() => onPageChange(pagination.page + 1)}
-        disabled={pagination.page >= pagination.totalPages}
+        onClick={() => onPageChange(page + 1)}
+        disabled={page >= totalPages}
       >
         Next
       </Button>

@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback, useTransition } from 'react';
-import { useRouter, useSearchParams, usePathname } from 'next/navigation';
+import { usePathname } from 'next/navigation';
+import { useQueryStates } from 'nuqs';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
@@ -11,8 +12,8 @@ import { ChevronLeft, ChevronRight, BookOpen } from 'lucide-react';
 import {
   getDefinitionsPaginated,
   getAlphabeticalIndex,
-  getDefinitionStats,
 } from '@/lib/actions/definitions';
+import { pageParser, searchParser, letterParser } from '@/lib/url/parsers';
 import type {
   DefinitionWithContext,
   DefinitionStats,
@@ -37,94 +38,71 @@ const PAGE_SIZE = 20;
  * Client component for the glossary page with search, filtering, and pagination
  */
 export function GlossaryClient({ state, initialData }: GlossaryClientProps) {
-  const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const [isPending, startTransition] = useTransition();
 
-  // State from URL params
-  const initialSearch = searchParams.get('search') || '';
-  const initialLetter = searchParams.get('letter') || null;
-  const initialPage = parseInt(searchParams.get('page') || '1', 10);
+  // URL state management with nuqs
+  const [params, setParams] = useQueryStates({
+    search: searchParser,
+    letter: letterParser,
+    page: pageParser,
+  }, {
+    shallow: false,
+    startTransition,
+  });
 
-  // Local state
-  const [search, setSearch] = useState(initialSearch);
-  const [selectedLetter, setSelectedLetter] = useState<string | null>(initialLetter);
-  const [page, setPage] = useState(initialPage);
+  // Local state for definitions (updated on transitions)
   const [definitions, setDefinitions] = useState(initialData.definitions);
   const [total, setTotal] = useState(initialData.total);
   const [totalPages, setTotalPages] = useState(initialData.totalPages);
   const [alphabeticalIndex, setAlphabeticalIndex] = useState(initialData.alphabeticalIndex);
-  const [stats] = useState(initialData.stats);
   const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
 
-  // Update URL when filters change
-  const updateUrl = useCallback(
-    (newSearch: string, newLetter: string | null, newPage: number) => {
-      const params = new URLSearchParams();
-      if (newSearch) params.set('search', newSearch);
-      if (newLetter) params.set('letter', newLetter);
-      if (newPage > 1) params.set('page', newPage.toString());
+  // Sync state with server action when URL params change
+  useEffect(() => {
+    // Skip initial fetch as we have initialData
+    if (!params.search && !params.letter && params.page === 1) return;
 
-      const queryString = params.toString();
-      const newUrl = queryString ? `${pathname}?${queryString}` : pathname;
-      router.push(newUrl, { scroll: false });
-    },
-    [pathname, router]
-  );
-
-  // Fetch definitions when filters change
-  const fetchDefinitions = useCallback(
-    async (newSearch: string, newLetter: string | null, newPage: number) => {
-      startTransition(async () => {
-        const result = await getDefinitionsPaginated(state, {
-          page: newPage,
-          pageSize: PAGE_SIZE,
-          search: newSearch || undefined,
-          letter: newLetter || undefined,
-          sortBy: 'term',
-          sortOrder: 'asc',
-        });
-
-        if (result.success) {
-          setDefinitions(result.data.data);
-          setTotal(result.data.total);
-          setTotalPages(result.data.totalPages);
-          setError(null);
-        } else {
-          setError(result.error);
-        }
+    const fetchData = async () => {
+      const result = await getDefinitionsPaginated(state, {
+        page: params.page,
+        pageSize: PAGE_SIZE,
+        search: params.search || undefined,
+        letter: params.letter || undefined,
+        sortBy: 'term',
+        sortOrder: 'asc',
       });
-    },
-    [state]
-  );
+
+      if (result.success) {
+        setDefinitions(result.data.data);
+        setTotal(result.data.total);
+        setTotalPages(result.data.totalPages);
+        setError(null);
+      } else {
+        setError(result.error);
+      }
+    };
+
+    startTransition(fetchData);
+  }, [state, params.search, params.letter, params.page]);
 
   // Handle search change
   const handleSearchChange = (value: string) => {
-    setSearch(value);
-    setPage(1);
-    updateUrl(value, selectedLetter, 1);
-    fetchDefinitions(value, selectedLetter, 1);
+    setParams({ search: value || null, page: 1, letter: null });
   };
 
   // Handle letter change
   const handleLetterChange = (letter: string | null) => {
-    setSelectedLetter(letter);
-    setPage(1);
-    updateUrl(search, letter, 1);
-    fetchDefinitions(search, letter, 1);
+    setParams({ letter, page: 1 });
   };
 
   // Handle page change
   const handlePageChange = (newPage: number) => {
-    setPage(newPage);
-    updateUrl(search, selectedLetter, newPage);
-    fetchDefinitions(search, selectedLetter, newPage);
-    // Scroll to top of results
+    setParams({ page: newPage });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Refresh alphabetical index when search changes
+  // Refresh alphabetical index when state changes
   useEffect(() => {
     const refreshIndex = async () => {
       const result = await getAlphabeticalIndex(state);
@@ -134,6 +112,8 @@ export function GlossaryClient({ state, initialData }: GlossaryClientProps) {
     };
     refreshIndex();
   }, [state]);
+
+  const stats = initialData.stats;
 
   return (
     <div className="space-y-6">
@@ -176,9 +156,9 @@ export function GlossaryClient({ state, initialData }: GlossaryClientProps) {
       {/* Search and filters */}
       <Card>
         <GlossarySearch
-          search={search}
+          search={params.search || ''}
           onSearchChange={handleSearchChange}
-          selectedLetter={selectedLetter}
+          selectedLetter={params.letter}
           onLetterChange={handleLetterChange}
           alphabeticalIndex={alphabeticalIndex}
           isLoading={isPending}
@@ -196,11 +176,11 @@ export function GlossaryClient({ state, initialData }: GlossaryClientProps) {
       <div className="flex items-center justify-between">
         <p className="text-sm text-[var(--color-text-muted)]">
           Showing {definitions.length} of {total.toLocaleString()} definition{total !== 1 ? 's' : ''}
-          {(search || selectedLetter) && ' (filtered)'}
+          {(params.search || params.letter) && ' (filtered)'}
         </p>
         {totalPages > 1 && (
           <p className="text-sm text-[var(--color-text-muted)]">
-            Page {page} of {totalPages}
+            Page {params.page} of {totalPages}
           </p>
         )}
       </div>
@@ -223,20 +203,16 @@ export function GlossaryClient({ state, initialData }: GlossaryClientProps) {
             <BookOpen className="w-12 h-12 text-[var(--color-text-muted)] mx-auto mb-3" />
             <p className="text-[var(--color-text-muted)]">
               No definitions found
-              {search && ` matching "${search}"`}
-              {selectedLetter && ` starting with "${selectedLetter}"`}
+              {params.search && ` matching "${params.search}"`}
+              {params.letter && ` starting with "${params.letter}"`}
             </p>
-            {(search || selectedLetter) && (
+            {(params.search || params.letter) && (
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
                 onClick={() => {
-                  setSearch('');
-                  setSelectedLetter(null);
-                  setPage(1);
-                  updateUrl('', null, 1);
-                  fetchDefinitions('', null, 1);
+                  setParams({ search: null, letter: null, page: 1 });
                 }}
                 className="mt-3"
               >
@@ -254,8 +230,8 @@ export function GlossaryClient({ state, initialData }: GlossaryClientProps) {
             type="button"
             variant="secondary"
             size="sm"
-            onClick={() => handlePageChange(page - 1)}
-            disabled={page <= 1 || isPending}
+            onClick={() => handlePageChange(params.page - 1)}
+            disabled={params.page <= 1 || isPending}
             className="flex items-center gap-1"
           >
             <ChevronLeft className="w-4 h-4" />
@@ -268,19 +244,19 @@ export function GlossaryClient({ state, initialData }: GlossaryClientProps) {
               let pageNum: number;
               if (totalPages <= 5) {
                 pageNum = i + 1;
-              } else if (page <= 3) {
+              } else if (params.page <= 3) {
                 pageNum = i + 1;
-              } else if (page >= totalPages - 2) {
+              } else if (params.page >= totalPages - 2) {
                 pageNum = totalPages - 4 + i;
               } else {
-                pageNum = page - 2 + i;
+                pageNum = params.page - 2 + i;
               }
 
               return (
                 <Button
                   key={pageNum}
                   type="button"
-                  variant={pageNum === page ? 'primary' : 'ghost'}
+                  variant={pageNum === params.page ? 'primary' : 'ghost'}
                   size="sm"
                   onClick={() => handlePageChange(pageNum)}
                   disabled={isPending}
@@ -296,8 +272,8 @@ export function GlossaryClient({ state, initialData }: GlossaryClientProps) {
             type="button"
             variant="secondary"
             size="sm"
-            onClick={() => handlePageChange(page + 1)}
-            disabled={page >= totalPages || isPending}
+            onClick={() => handlePageChange(params.page + 1)}
+            disabled={params.page >= totalPages || isPending}
             className="flex items-center gap-1"
           >
             Next

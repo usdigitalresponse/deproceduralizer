@@ -1,12 +1,17 @@
 'use client';
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import type { DeveloperItem, NeedMoreInfoCounts } from '@/lib/actions/developer';
 import { NeedMoreInfoCard } from './NeedMoreInfoCard';
-import { Button, Card } from '@/components/ui';
+import { Card } from '@/components/ui';
 import RegulationModal from './RegulationModal';
-import { getStateFromPathname, useDeepLink } from '@/hooks';
+import { 
+  QueueResultsInfo, 
+  QueueEmptyState, 
+  QueuePagination 
+} from './shared';
+import { getStateFromPathname, useDeepLink, useQueueNavigation } from '@/hooks';
 import { MessageCircleQuestion, User } from 'lucide-react';
 
 interface PaginationInfo {
@@ -38,13 +43,32 @@ export function NeedMoreInfoQueue({
 
   // Local state
   const [items, setItems] = useState<DeveloperItem[]>(initialItems);
-  const [focusedIndex, setFocusedIndex] = useState<number>(0);
-  const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [selectedRegulationId, setSelectedRegulationId] = useState<number | null>(null);
+
+  // Derive a single visibleItems array so refs/indexing match render order (Phase 4.2 fix)
+  const visibleItems = useMemo(() => {
+    if (!reviewerName) return items;
+    const ownerItems = items.filter((item) => item.reviewedBy === reviewerName);
+    const otherItems = items.filter((item) => item.reviewedBy !== reviewerName);
+    return [...ownerItems, ...otherItems];
+  }, [items, reviewerName]);
+
+  // Keyboard navigation hook
+  const { 
+    focusedIndex, 
+    setFocusedIndex, 
+    setCardRef, 
+    handleKeyDown,
+    cardRefs 
+  } = useQueueNavigation({
+    items: visibleItems,
+    getItemId: (i) => `${i.type}-${i.id}`,
+    onViewRegulation: (i) => setSelectedRegulationId(i.regulation.id),
+  });
 
   // Deep link handling - scroll to item if hash is present
   useDeepLink({
-    items: items.map((i) => ({ id: i.id, type: i.type })),
+    items: visibleItems.map((i) => ({ id: i.id, type: i.type })),
     cardRefs,
     setFocusedIndex,
   });
@@ -68,45 +92,6 @@ export function NeedMoreInfoQueue({
     setSelectedRegulationId(regulationId);
   }, []);
 
-  // Keyboard navigation
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-      return;
-    }
-
-    switch (e.key) {
-      case 'j':
-      case 'ArrowDown':
-        e.preventDefault();
-        setFocusedIndex((prev) => {
-          const newIndex = Math.min(prev + 1, items.length - 1);
-          cardRefs.current[newIndex]?.scrollIntoView({
-            behavior: 'smooth',
-            block: 'center',
-          });
-          return newIndex;
-        });
-        break;
-      case 'k':
-      case 'ArrowUp':
-        e.preventDefault();
-        setFocusedIndex((prev) => {
-          const newIndex = Math.max(prev - 1, 0);
-          cardRefs.current[newIndex]?.scrollIntoView({
-            behavior: 'smooth',
-            block: 'center',
-          });
-          return newIndex;
-        });
-        break;
-      case 'v':
-        if (items[focusedIndex]) {
-          handleViewRegulation(items[focusedIndex].regulation.id);
-        }
-        break;
-    }
-  }, [items, focusedIndex, handleViewRegulation]);
-
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
@@ -119,13 +104,8 @@ export function NeedMoreInfoQueue({
     router.push(`/${state}/review?${params.toString()}`);
   }, [router, searchParams, state]);
 
-  // Separate items into owner's and others
-  const ownerItems = reviewerName
-    ? items.filter((item) => item.reviewedBy === reviewerName)
-    : [];
-  const otherItems = reviewerName
-    ? items.filter((item) => item.reviewedBy !== reviewerName)
-    : items;
+  // Split indices for rendering sections
+  const ownerCount = reviewerName ? items.filter(i => i.reviewedBy === reviewerName).length : 0;
 
   return (
     <div className="space-y-6">
@@ -173,38 +153,34 @@ export function NeedMoreInfoQueue({
       </Card>
 
       {/* Results info */}
-      <div className="flex items-center justify-between text-sm text-[var(--color-text-secondary)]">
-        <span>
-          Showing {items.length > 0 ? (pagination.page - 1) * pagination.pageSize + 1 : 0}
-          –{Math.min(pagination.page * pagination.pageSize, pagination.total)} of {pagination.total} items
-        </span>
-        <span className="text-xs text-[var(--color-text-muted)]">
-          Use <kbd className="px-1.5 py-0.5 bg-[var(--color-neutral-100)] rounded text-xs font-mono">j</kbd>/<kbd className="px-1.5 py-0.5 bg-[var(--color-neutral-100)] rounded text-xs font-mono">k</kbd> to navigate
-        </span>
-      </div>
+      <QueueResultsInfo
+        startItem={visibleItems.length > 0 ? (pagination.page - 1) * pagination.pageSize + 1 : 0}
+        endItem={Math.min(pagination.page * pagination.pageSize, pagination.total)}
+        total={pagination.total}
+        itemLabel="items"
+        keyboardHintText="Use j/k to navigate"
+      />
 
       {/* No items */}
-      {items.length === 0 ? (
-        <div className="text-center py-12 text-[var(--color-text-muted)]">
-          <MessageCircleQuestion className="w-12 h-12 mx-auto mb-4 opacity-50" />
-          <p className="text-lg mb-2">No items need more information</p>
-          <p className="text-sm">
-            When developers need clarification on reviewed items, they will appear here.
-          </p>
-        </div>
+      {visibleItems.length === 0 ? (
+        <QueueEmptyState
+          title="No items need more information"
+          description="When developers need clarification on reviewed items, they will appear here."
+          icon={MessageCircleQuestion}
+        />
       ) : (
         <>
           {/* Owner's items first (if any) */}
-          {ownerItems.length > 0 && (
+          {ownerCount > 0 && (
             <div className="space-y-4">
               <h4 className="text-sm font-medium text-[var(--color-info)] flex items-center gap-2">
                 <User className="w-4 h-4" />
-                Questions About Your Reviews ({ownerItems.length})
+                Questions About Your Reviews ({ownerCount})
               </h4>
-              {ownerItems.map((item, index) => (
+              {visibleItems.slice(0, ownerCount).map((item, index) => (
                 <NeedMoreInfoCard
                   key={`${item.type}-${item.id}`}
-                  ref={(el) => { cardRefs.current[index] = el; }}
+                  ref={(el) => setCardRef(index, el)}
                   item={item}
                   isOwner={true}
                   onUpdated={handleItemUpdated}
@@ -216,19 +192,19 @@ export function NeedMoreInfoQueue({
           )}
 
           {/* Other items */}
-          {otherItems.length > 0 && (
+          {visibleItems.length > ownerCount && (
             <div className="space-y-4">
-              {ownerItems.length > 0 && (
+              {ownerCount > 0 && (
                 <h4 className="text-sm font-medium text-[var(--color-text-secondary)]">
-                  Other Items ({otherItems.length})
+                  Other Items ({visibleItems.length - ownerCount})
                 </h4>
               )}
-              {otherItems.map((item, index) => {
-                const actualIndex = ownerItems.length + index;
+              {visibleItems.slice(ownerCount).map((item, index) => {
+                const actualIndex = ownerCount + index;
                 return (
                   <NeedMoreInfoCard
                     key={`${item.type}-${item.id}`}
-                    ref={(el) => { cardRefs.current[actualIndex] = el; }}
+                    ref={(el) => setCardRef(actualIndex, el)}
                     item={item}
                     isOwner={false}
                     onUpdated={handleItemUpdated}
@@ -243,29 +219,11 @@ export function NeedMoreInfoQueue({
       )}
 
       {/* Pagination */}
-      {pagination.totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2 pt-4">
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => goToPage(pagination.page - 1)}
-            disabled={pagination.page <= 1}
-          >
-            Previous
-          </Button>
-          <span className="px-4 text-sm text-[var(--color-text-secondary)]">
-            Page {pagination.page} of {pagination.totalPages}
-          </span>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => goToPage(pagination.page + 1)}
-            disabled={pagination.page >= pagination.totalPages}
-          >
-            Next
-          </Button>
-        </div>
-      )}
+      <QueuePagination
+        page={pagination.page}
+        totalPages={pagination.totalPages}
+        onPageChange={goToPage}
+      />
 
       {/* Regulation Modal */}
       <RegulationModal

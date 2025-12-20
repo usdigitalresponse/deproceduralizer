@@ -143,9 +143,6 @@ export default function RegulationsClient({ initialData, pagination, search, fil
         onRowClick={setSelectedRegulation}
         pagination={pagination}
         search={search}
-        sortBy={sortBy}
-        sortOrder={sortOrder}
-        filters={filters}
       />
 
       {/* Detail Modal */}

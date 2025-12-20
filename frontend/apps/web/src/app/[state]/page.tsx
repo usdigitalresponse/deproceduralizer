@@ -5,6 +5,7 @@ import RegulationsClient from '@/components/RegulationsClient';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Container } from '@/components/layout/Container';
 import { STATE_CONFIG, isValidState } from '@/types/state';
+import { parseBooleanParam } from '@/lib/url/server-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,13 +26,6 @@ interface PageProps {
     summarySearch?: string;
     explanationSearch?: string;
   }>;
-}
-
-// Parse boolean filter from URL param
-function parseBooleanParam(value: string | undefined): boolean | undefined {
-  if (value === 'true') return true;
-  if (value === 'false') return false;
-  return undefined;
 }
 
 export default async function Home({ params, searchParams }: PageProps) {

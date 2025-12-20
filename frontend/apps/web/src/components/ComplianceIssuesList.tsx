@@ -178,7 +178,7 @@ export function ComplianceIssuesList({ initialIssues, regulationContent }: Compl
                     </Button>
                   )}
                 </div>
-                <div className="p-3 bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] border-l-4 border-[var(--color-warning-dark)]">
+                <div className="p-3 bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] border-l-4 border-[var(--color-warning)]">
                   <p className="text-sm text-[var(--color-text)] whitespace-pre-wrap">
                     {isExpanded && expanded?.couldExpand
                       ? highlightContext(expanded.expandedText, issue.context, issue.termMatched)

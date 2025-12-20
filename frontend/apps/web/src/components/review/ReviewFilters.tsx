@@ -1,20 +1,14 @@
 'use client';
 
-import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useCallback, useMemo } from 'react';
+import { useQueryStates } from 'nuqs';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
-import type { RedFlagFilterOptions } from '@deproceduralizer/database';
-import { getStateFromPathname } from '@/hooks';
-
-// Filter options without state - state is handled at the page level
-type UIFilterOptions = Omit<RedFlagFilterOptions, 'state'>;
+import { reviewQueueParsers, type ReviewStatusValue, type SeverityValue } from '@/lib/url/parsers';
+import { formatLabel } from '@/types/regulation';
 
 interface ReviewFiltersProps {
   categories: string[];
-  currentFilters: UIFilterOptions;
-  sortBy: string;
-  sortOrder: string;
   className?: string;
 }
 
@@ -42,52 +36,32 @@ const SORT_OPTIONS = [
 
 export function ReviewFilters({
   categories,
-  currentFilters,
-  sortBy,
-  sortOrder,
   className = '',
 }: ReviewFiltersProps) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-
-  // Extract state from pathname (e.g., /nj/review -> nj)
-  const state = getStateFromPathname(pathname, 'nj');
-
-  const updateParams = useCallback(
-    (updates: Record<string, string | undefined>) => {
-      const params = new URLSearchParams(searchParams.toString());
-
-      // Reset to page 1 when filters change
-      params.set('page', '1');
-
-      for (const [key, value] of Object.entries(updates)) {
-        if (value === undefined || value === '' || value === 'all') {
-          params.delete(key);
-        } else {
-          params.set(key, value);
-        }
-      }
-
-      router.push(`/${state}/review?${params.toString()}`);
-    },
-    [router, searchParams, state]
-  );
+  const [filters, setFilters] = useQueryStates(reviewQueueParsers, {
+    shallow: false, // Ensure server-side navigation for SEO/SSR
+  });
 
   const clearFilters = useCallback(() => {
-    router.push(`/${state}/review?status=all`);
-  }, [router, state]);
+    // Reset to defaults
+    setFilters({
+      reviewStatus: 'unreviewed',
+      severity: 'all',
+      category: null,
+      page: 1,
+    });
+  }, [setFilters]);
 
   // Check if any filters are active (not default)
   const hasActiveFilters =
-    (currentFilters.status && currentFilters.status !== 'all' && currentFilters.status !== 'unreviewed') ||
-    currentFilters.severity ||
-    currentFilters.category;
+    (filters.reviewStatus && filters.reviewStatus !== 'unreviewed') ||
+    (filters.severity && filters.severity !== 'all') ||
+    filters.category;
 
   // Build category options dynamically
   const categoryOptions = useMemo(() => [
     { value: 'all', label: 'All Categories' },
-    ...categories.map(cat => ({ value: cat, label: cat }))
+    ...categories.map(cat => ({ value: cat, label: formatLabel(cat) }))
   ], [categories]);
 
   return (
@@ -98,8 +72,8 @@ export function ReviewFilters({
           Status:
         </label>
         <Select
-          value={currentFilters.status || 'all'}
-          onValueChange={(value) => updateParams({ status: value })}
+          value={filters.reviewStatus || 'unreviewed'}
+          onValueChange={(value) => setFilters({ reviewStatus: value as ReviewStatusValue, page: 1 })}
           options={STATUS_OPTIONS}
           aria-label="Filter by status"
         />
@@ -111,8 +85,8 @@ export function ReviewFilters({
           Severity:
         </label>
         <Select
-          value={currentFilters.severity || 'all'}
-          onValueChange={(value) => updateParams({ severity: value })}
+          value={filters.severity || 'all'}
+          onValueChange={(value) => setFilters({ severity: value as SeverityValue, page: 1 })}
           options={SEVERITY_OPTIONS}
           aria-label="Filter by severity"
         />
@@ -124,8 +98,8 @@ export function ReviewFilters({
           Category:
         </label>
         <Select
-          value={currentFilters.category || 'all'}
-          onValueChange={(value) => updateParams({ category: value })}
+          value={filters.category || 'all'}
+          onValueChange={(value) => setFilters({ category: value === 'all' ? null : value, page: 1 })}
           options={categoryOptions}
           aria-label="Filter by category"
         />
@@ -147,18 +121,18 @@ export function ReviewFilters({
           Sort by:
         </label>
         <Select
-          value={sortBy}
-          onValueChange={(value) => updateParams({ sortBy: value })}
+          value={filters.sortBy}
+          onValueChange={(value) => setFilters({ sortBy: value as any, page: 1 })}
           options={SORT_OPTIONS}
           aria-label="Sort by"
         />
         <Button
           variant="secondary"
           size="sm"
-          onClick={() => updateParams({ sortOrder: sortOrder === 'desc' ? 'asc' : 'desc' })}
-          aria-label={`Sort ${sortOrder === 'desc' ? 'ascending' : 'descending'}`}
+          onClick={() => setFilters({ sortOrder: filters.sortOrder === 'desc' ? 'asc' : 'desc' })}
+          aria-label={`Sort ${filters.sortOrder === 'desc' ? 'ascending' : 'descending'}`}
         >
-          {sortOrder === 'desc' ? '↓' : '↑'}
+          {filters.sortOrder === 'desc' ? '↓' : '↑'}
         </Button>
       </div>
     </div>

@@ -22,7 +22,7 @@ const navItems = [
   { key: 'home', href: '/', label: 'Dashboard', icon: Home, matchPath: '/' },
   { key: 'table', href: (state: string) => `/${state}`, label: 'Table View', icon: Table, matchPath: (state: string) => `/${state}` },
   { key: 'browse', href: (state: string) => `/${state}/browse`, label: 'Browse', icon: FolderTree, matchPath: (state: string) => `/${state}/browse` },
-  { key: 'review', href: (state: string) => `/${state}/review?status=unreviewed`, label: 'Review Mode', icon: ClipboardCheck, matchPath: (state: string) => `/${state}/review` },
+  { key: 'review', href: (state: string) => `/${state}/review?reviewStatus=unreviewed`, label: 'Review Mode', icon: ClipboardCheck, matchPath: (state: string) => `/${state}/review` },
   { key: 'glossary', href: (state: string) => `/${state}/definitions`, label: 'Glossary', icon: BookOpen, matchPath: (state: string) => `/${state}/definitions` },
 ];
 
