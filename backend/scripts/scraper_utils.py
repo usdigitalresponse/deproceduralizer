@@ -121,17 +121,18 @@ BLOCK_ELEMENTS = {
 
 def extract_text_smart(element: Tag) -> str:
     """
-    Extract text from HTML element without adding artificial newlines.
+    Extract text from HTML element with proper line breaks and indentation.
 
-    Just pulls the text content, normalizing whitespace to single spaces.
-    No newlines are injected - only extracts what's actually there.
+    Adds newlines after block-level elements (p, div, br, li, h1-h6, etc.)
+    while keeping inline content flowing together.
+    Preserves indentation from CSS classes like 'indent0', 'indent1', etc.
     Markdown tables (converted from HTML tables) are preserved with their structure.
 
     Args:
         element: BeautifulSoup Tag element
 
     Returns:
-        Extracted text as flowing content
+        Extracted text with appropriate line breaks and indentation
     """
     if element is None:
         return ""
@@ -149,15 +150,30 @@ def extract_text_smart(element: Tag) -> str:
                 len(lines) > 1 and
                 '---' in lines[1])
 
-    def walk(node):
+    def get_indent_level(node: Tag) -> int:
+        """Extract indent level from class like 'indent0', 'indent1', etc."""
+        if not hasattr(node, 'get'):
+            return 0
+        classes = node.get('class', [])
+        if isinstance(classes, str):
+            classes = classes.split()
+        for cls in classes:
+            if cls.startswith('indent'):
+                try:
+                    return int(cls.replace('indent', ''))
+                except ValueError:
+                    pass
+        return 0
+
+    def walk(node, current_indent=0):
         if isinstance(node, NavigableString):
             text = str(node)
             # Check if this is a markdown table (from our table conversion)
             if is_markdown_table(text):
-                # Preserve the markdown table as-is
-                parts.append(text.strip())
+                # Preserve the markdown table as-is with surrounding newlines
+                parts.append('\n\n' + text.strip() + '\n\n')
             else:
-                # Normalize ALL whitespace to single spaces
+                # Normalize whitespace within text nodes to single spaces
                 text = re.sub(r'\s+', ' ', text)
                 if text.strip():
                     parts.append(text)
@@ -166,26 +182,32 @@ def extract_text_smart(element: Tag) -> str:
             if node.name in ('script', 'style', 'noscript', 'nav', 'footer'):
                 return
 
+            # Check for indent class on this element
+            indent_level = get_indent_level(node)
+            if indent_level > 0:
+                # Add newline and indentation before indented content
+                parts.append('\n' + '\t' * indent_level)
+
             # Process children
             for child in node.children:
-                walk(child)
+                walk(child, indent_level if indent_level > 0 else current_indent)
+
+            # Add newline after block-level elements
+            if node.name in BLOCK_ELEMENTS:
+                parts.append('\n')
 
     walk(element)
 
-    # Join parts with space, but use double newlines around markdown tables
-    result_parts = []
-    for part in parts:
-        if is_markdown_table(part):
-            result_parts.append('\n\n' + part + '\n\n')
-        else:
-            result_parts.append(part)
+    # Join all parts
+    text = ''.join(parts)
 
-    text = ' '.join(result_parts)
-
-    # Clean up multiple spaces (but preserve newlines)
+    # Clean up multiple spaces (but preserve newlines and tabs)
     text = re.sub(r' +', ' ', text)
-    # Clean up excessive newlines
-    text = re.sub(r'\n\s*\n\s*\n+', '\n\n', text)
+    # Clean up spaces around newlines (but keep tabs)
+    text = re.sub(r' *\n', '\n', text)
+    text = re.sub(r'\n +', '\n', text)
+    # Clean up excessive newlines (more than 2 consecutive)
+    text = re.sub(r'\n{3,}', '\n\n', text)
 
     return text.strip()
 
