@@ -4,7 +4,7 @@ import { useState, useTransition, useEffect, forwardRef } from 'react';
 import { updateRedFlagReview } from '@/lib/actions/red-flags';
 import { useReviewerName } from '@/hooks/useReviewerName';
 import { Button, Input, Textarea, Badge, SeverityBadge, Select, Tag, CopyLinkButton } from '@/components/ui';
-import { REVIEW_STATUSES, PRIORITY_OPTIONS, IMPACT_TYPES, getComplexityVariant } from '@/types/regulation';
+import { REVIEW_STATUSES, PRIORITY_OPTIONS, IMPACT_TYPES, getComplexityVariant, formatLabel } from '@/types/regulation';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
 import { ExpandableRegulationQuote } from './ExpandableRegulationQuote';
 import { CardWrapper } from './shared';
@@ -102,7 +102,7 @@ export const ReviewCard = forwardRef<HTMLDivElement, ReviewCardProps>(
         <div className="flex items-start justify-between gap-4 mb-4">
           <div className="flex items-center gap-3">
             <CopyLinkButton anchor={`flag-${flag.id}`} />
-            <span className="font-semibold text-[var(--color-text)]">{flag.category}</span>
+            <span className="font-semibold text-[var(--color-text)]">{formatLabel(flag.category)}</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1">

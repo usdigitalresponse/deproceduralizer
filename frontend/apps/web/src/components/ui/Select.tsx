@@ -87,7 +87,10 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
             position="popper"
             sideOffset={4}
           >
-            <RadixSelect.Viewport className="p-1">
+            <RadixSelect.ScrollUpButton className="flex items-center justify-center h-6 bg-[var(--color-surface)] cursor-default">
+              <ChevronUpIcon />
+            </RadixSelect.ScrollUpButton>
+            <RadixSelect.Viewport className="p-1 max-h-[min(300px,var(--radix-select-content-available-height))] overflow-y-auto">
               {options.map((option) => (
                 <RadixSelect.Item
                   key={option.value}
@@ -115,6 +118,9 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
                 </RadixSelect.Item>
               ))}
             </RadixSelect.Viewport>
+            <RadixSelect.ScrollDownButton className="flex items-center justify-center h-6 bg-[var(--color-surface)] cursor-default">
+              <ChevronDownIcon />
+            </RadixSelect.ScrollDownButton>
           </RadixSelect.Content>
         </RadixSelect.Portal>
       </RadixSelect.Root>
@@ -136,6 +142,27 @@ function ChevronDownIcon() {
     >
       <path
         d="M2.5 4.5L6 8L9.5 4.5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function ChevronUpIcon() {
+  return (
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 12 12"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <path
+        d="M2.5 7.5L6 4L9.5 7.5"
         stroke="currentColor"
         strokeWidth="1.5"
         strokeLinecap="round"

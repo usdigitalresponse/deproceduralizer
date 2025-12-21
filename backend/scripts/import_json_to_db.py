@@ -16,6 +16,46 @@ load_dotenv(Path(__file__).parent.parent.parent / '.env')
 
 from shared_utils import get_db_connection
 
+# Valid red flag categories (must match backend/scripts/red_flags.py enum)
+# Based on Jennifer Pahlka's framework - exactly 12 categories
+VALID_CATEGORIES = {
+    'administrative_burdens',
+    'cascade_of_rigidity',
+    'complexity_policy_debt',
+    'frozen_technology',
+    'implementation_opportunity',
+    'mandated_steps_not_outcomes',
+    'no_feedback_loops',
+    'options_become_requirements',
+    'overwrought_legalese',
+    'policy_implementation_separation',
+    'process_worship_oversight',
+    'zero_risk_language',
+}
+
+# Known typos/variants to normalize
+CATEGORY_ALIASES = {
+    'admin_burdens': 'administrative_burdens',
+}
+
+
+def normalize_category(category: str) -> str:
+    """Normalize category to lowercase and fix known typos."""
+    if not category:
+        return 'unknown'
+
+    normalized = category.lower().strip()
+
+    # Fix known aliases/typos
+    if normalized in CATEGORY_ALIASES:
+        normalized = CATEGORY_ALIASES[normalized]
+
+    # Warn if category is not in valid set
+    if normalized not in VALID_CATEGORIES and normalized != 'unknown':
+        tqdm.write(f"  Warning: Unknown category '{normalized}'")
+
+    return normalized
+
 
 def import_red_flags_from_json(json_path: str, state: str = 'NY'):
     """Import red flags from a JSON file into the database."""
@@ -102,7 +142,7 @@ def import_red_flags_from_json(json_path: str, state: str = 'NY'):
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, (
                     analysis_id,
-                    flag.get('category', 'unknown'),
+                    normalize_category(flag.get('category', 'unknown')),
                     flag.get('explanation', ''),
                     flag.get('severity', 5),
                     flag.get('complexity', 'MEDIUM'),
