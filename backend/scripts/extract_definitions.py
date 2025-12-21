@@ -14,6 +14,7 @@ import re
 import argparse
 import random
 import sys
+import time
 from pathlib import Path
 from typing import Dict, List, Optional
 from pydantic import BaseModel, Field
@@ -25,6 +26,43 @@ from config import PROJECT_ROOT, INDIVIDUAL_REGULATIONS_DIR, OUTPUTS_DIR
 from shared_utils import get_db_connection, get_openai_client, call_llm_parse, load_prompt
 
 load_dotenv(PROJECT_ROOT / '.env')
+
+
+def format_time(seconds: float) -> str:
+    """Format seconds into human-readable time string."""
+    if seconds < 60:
+        return f"{seconds:.0f}s"
+    elif seconds < 3600:
+        mins = int(seconds // 60)
+        secs = int(seconds % 60)
+        return f"{mins}m {secs}s"
+    else:
+        hours = int(seconds // 3600)
+        mins = int((seconds % 3600) // 60)
+        return f"{hours}h {mins}m"
+
+
+def print_progress(current: int, total: int, start_time: float, defs_so_far: int, title: str):
+    """Print progress with time estimates and running totals."""
+    elapsed = time.time() - start_time
+    pct = (current / total) * 100
+
+    # Calculate ETA
+    if current > 0:
+        avg_time_per_item = elapsed / current
+        remaining_items = total - current
+        eta_seconds = avg_time_per_item * remaining_items
+        eta_str = format_time(eta_seconds)
+    else:
+        eta_str = "calculating..."
+
+    # Truncate title for display
+    max_title_len = 45
+    display_title = title[:max_title_len] + "..." if len(title) > max_title_len else title
+
+    # Print progress line
+    print(f"  [{current}/{total}] ({pct:5.1f}%) {display_title}")
+    print(f"           Elapsed: {format_time(elapsed)} | ETA: {eta_str} | Definitions: {defs_so_far}")
 
 
 class Definition(BaseModel):
@@ -815,13 +853,20 @@ def main():
 
         # Create client once for efficiency
         client = get_openai_client()
+        start_time = time.time()
+        total_defs_found = 0
 
         for i, section in enumerate(sections, 1):
-            print(f"  [{i}/{len(sections)}] {section['title'][:50]}...")
+            print_progress(i, len(sections), start_time, total_defs_found, section['title'])
             section['llm_definitions'] = extract_with_llm(section['content'], section['title'], client=client)
             num_defs = len(section['llm_definitions'])
-            print(f"      → {num_defs} definitions found")
+            total_defs_found += num_defs
+            print(f"           → {num_defs} definitions extracted")
+            print()
 
+        # Print final summary
+        elapsed = time.time() - start_time
+        print(f"  ✓ Completed in {format_time(elapsed)} ({total_defs_found} definitions)")
         print()
 
         # Store to database
@@ -857,17 +902,24 @@ def main():
 
         # Create client once for efficiency
         client = get_openai_client()
+        start_time = time.time()
+        total_defs_found = 0
 
         for i, reg in enumerate(regulations, 1):
-            print(f"  [{i}/{len(regulations)}] {reg['filename'][:40]}...")
+            print_progress(i, len(regulations), start_time, total_defs_found, reg['filename'])
             reg['llm_definitions'] = extract_with_llm(reg['content'], reg['title'], client=client)
             num_defs = len(reg['llm_definitions'])
-            print(f"      → {num_defs} definitions found")
+            total_defs_found += num_defs
+            print(f"           → {num_defs} definitions extracted")
+            print()
 
             # Log that we processed this regulation
             if reg.get('source_index') is not None:
                 log_extraction(reg['source_index'], num_defs)
 
+        # Print final summary
+        elapsed = time.time() - start_time
+        print(f"  ✓ Completed in {format_time(elapsed)} ({total_defs_found} definitions)")
         print()
 
         # Step 3: Store to database
