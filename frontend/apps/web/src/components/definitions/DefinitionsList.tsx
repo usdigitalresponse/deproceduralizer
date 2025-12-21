@@ -7,6 +7,16 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import type { DefinitionWithContext } from '@deproceduralizer/database';
 
+/**
+ * Get the display definition text based on verbatim/rephrased logic
+ */
+function getDisplayDefinitionText(definition: DefinitionWithContext): string {
+  if (definition.isVerbatim) {
+    return definition.verbatimText;
+  }
+  return definition.rephrasedDefinition ?? definition.verbatimText;
+}
+
 interface DefinitionsListProps {
   definitions: DefinitionWithContext[];
   /** State for context (used in display) */
@@ -90,10 +100,11 @@ export function DefinitionsList({
           {sortedDefinitions.map((definition) => {
             const isExpanded = expandedDefinitions.has(definition.id);
             const maxLength = 200;
-            const isLongDefinition = definition.definition.length > maxLength;
+            const definitionText = getDisplayDefinitionText(definition);
+            const isLongDefinition = definitionText.length > maxLength;
             const displayDefinition = isExpanded
-              ? definition.definition
-              : definition.definition.slice(0, maxLength) + (isLongDefinition ? '...' : '');
+              ? definitionText
+              : definitionText.slice(0, maxLength) + (isLongDefinition ? '...' : '');
 
             return (
               <div

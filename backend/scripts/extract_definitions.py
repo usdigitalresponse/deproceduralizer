@@ -30,9 +30,15 @@ load_dotenv(PROJECT_ROOT / '.env')
 class Definition(BaseModel):
     """A single term definition extracted from regulation text."""
     term: str = Field(description="The term being defined")
-    definition: str = Field(description="The definition text")
+    verbatim_text: str = Field(description="The exact text extracted from the regulation")
+    is_verbatim: bool = Field(default=True, description="True if verbatim_text is a complete, usable definition")
+    rephrased_definition: Optional[str] = Field(default=None, description="Plain-language definition when verbatim is insufficient")
     scope: Optional[str] = Field(default=None, description="Scope like 'in this section', 'in this part'")
     source_location: Optional[str] = Field(default=None, description="Where it appears, e.g. 'section 1.1'")
+    # Phase 1 fields
+    scope_level: Optional[str] = Field(default=None, description="section/subpart/part/chapter/title")
+    definition_type: str = Field(default="formal", description="'formal' or 'abbreviation'")
+    is_cross_reference: bool = Field(default=False, description="True if points to another definition")
 
 
 class DefinitionsResponse(BaseModel):
@@ -115,6 +121,105 @@ def check_topic_match(content: str, title: str) -> List[str]:
                 matched_topics.append(topic)
                 break
     return list(set(matched_topics))
+
+
+def get_sections_from_db(
+    state: str,
+    title: Optional[str] = None,
+    chapter: Optional[str] = None,
+    limit: Optional[int] = None,
+) -> List[Dict]:
+    """
+    Query sections from database matching definition patterns.
+
+    Args:
+        state: State code ('NY' or 'NJ')
+        title: Title to filter (e.g., '3A')
+        chapter: Chapter to filter
+        limit: Max documents to process
+
+    Returns:
+        List of document dicts with id, title, content, url, etc.
+    """
+    conn = get_db_connection()
+    if not conn:
+        print("ERROR: Could not connect to database")
+        return []
+
+    # State-specific column prefix
+    prefix = 'njac' if state.upper() == 'NJ' else 'nycrr'
+
+    # Build query with definition patterns dynamically based on filters
+    conditions = [
+        "state = %s",
+        "hierarchy_level = 'section'",
+        """(
+            -- Title patterns
+            title ~* 'definition'
+            OR title ~* 'glossary'
+            OR title ~* 'meaning of'
+            OR title ~* 'words (and|&) (terms|phrases)'
+            OR title ~* 'terminology'
+            -- Content patterns
+            OR content ~* 'shall mean'
+            OR content ~* 'shall have the following meaning'
+            OR content ~* 'have the meanings'
+            OR content ~* 'as used in this'
+            OR content ~* 'when used in this'
+            OR content ~* 'for (the )?purpose(s)? of this'
+            OR content ~* 'the term.*means'
+            OR content ~* 'hereinafter'
+            OR content ~ '\\("[\\w]+"\\)'
+            OR content ~* 'referred to as'
+        )"""
+    ]
+    params = [state.upper()]
+
+    # Add optional title filter
+    if title:
+        conditions.append(f"{prefix}_title = %s")
+        params.append(title)
+
+    # Add optional chapter filter
+    if chapter:
+        conditions.append(f"{prefix}_chapter = %s")
+        params.append(chapter)
+
+    query = f"""
+    SELECT id, title, content, url, {prefix}_title, {prefix}_chapter, hierarchy_level
+    FROM regulatory_documents
+    WHERE {' AND '.join(conditions)}
+    ORDER BY id
+    """
+
+    if limit:
+        query += " LIMIT %s"
+        params.append(limit)
+
+    try:
+        result = conn.execute(query, params)
+        rows = result.fetchall()
+        conn.close()
+
+        # Convert to dicts
+        sections = []
+        for row in rows:
+            sections.append({
+                'id': row[0],
+                'title': row[1],
+                'content': row[2],
+                'url': row[3],
+                f'{prefix}_title': row[4],
+                f'{prefix}_chapter': row[5],
+                'hierarchy_level': row[6],
+            })
+
+        return sections
+    except Exception as e:
+        print(f"ERROR querying database: {e}")
+        if conn:
+            conn.close()
+        return []
 
 
 def levenshtein_distance(s1: str, s2: str) -> int:
@@ -384,23 +489,30 @@ def store_to_database(regulations: List[Dict], state: str = "NY"):
                 defs_for_this_doc = 0
                 reg_url = reg.get('url', '')
                 for defn in definitions_list:
-                    # Calculate definition overlap
-                    definition_text = defn.get('definition', '')
-                    overlap = calculate_definition_overlap(definition_text, reg['content'])
+                    # Calculate definition overlap using verbatim_text
+                    verbatim_text = defn.get('verbatim_text', '')
+                    overlap = calculate_definition_overlap(verbatim_text, reg['content'])
 
                     conn.execute("""
                         INSERT INTO definitions
-                        (document_id, url, term, definition, scope, source_location, definition_overlap, model_version)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                        (document_id, url, term, verbatim_text, is_verbatim, rephrased_definition,
+                         scope, source_location, definition_overlap, model_version,
+                         scope_level, definition_type, is_cross_reference)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """, (
                         doc_id,
                         reg_url,
                         defn.get('term'),
-                        definition_text,
+                        verbatim_text,
+                        defn.get('is_verbatim', True),
+                        defn.get('rephrased_definition'),
                         defn.get('scope'),
                         defn.get('source_location'),
                         overlap,
-                        MODEL_VERSION
+                        MODEL_VERSION,
+                        defn.get('scope_level'),
+                        defn.get('definition_type', 'formal'),
+                        defn.get('is_cross_reference', False),
                     ))
                     total_defs += 1
                     defs_for_this_doc += 1
@@ -483,7 +595,11 @@ def generate_viewer(regulations: List[Dict]):
 
         for defn in defs:
             term = defn.get('term', 'Unknown')
-            definition = defn.get('definition', '')
+            # Use rephrased_definition if available and not verbatim, else verbatim_text
+            if defn.get('is_verbatim', True):
+                display_def = defn.get('verbatim_text', '')
+            else:
+                display_def = defn.get('rephrased_definition') or defn.get('verbatim_text', '')
             scope = defn.get('scope')
             source = defn.get('source_location')
 
@@ -493,7 +609,7 @@ def generate_viewer(regulations: List[Dict]):
             html += f"""
             <div class="def-item">
                 <div class="def-term">{term}</div>
-                <div class="def-text">{definition[:200]}{'...' if len(definition) > 200 else ''}</div>
+                <div class="def-text">{display_def[:200]}{'...' if len(display_def) > 200 else ''}</div>
                 {scope_text}
                 {source_text}
             </div>
@@ -517,11 +633,131 @@ def generate_viewer(regulations: List[Dict]):
     print(f"      ✓ Viewer generated: {output_file}")
     print()
 
+def store_definitions_from_db(
+    sections: List[Dict],
+    state: str,
+    delete_existing: bool = False
+):
+    """Store extracted definitions from database sections."""
+    print(f"[2/3] Storing results in Neon database...")
+    print(f"      Input: {len(sections)} sections to process")
+
+    # Count definitions before storing
+    total_input_defs = sum(len(s.get('llm_definitions', [])) for s in sections)
+    print(f"      Input: {total_input_defs} total definitions to store")
+
+    conn = get_db_connection()
+    if not conn:
+        print("      ERROR: Could not connect to database")
+        return
+
+    try:
+        print("      ✓ Connected to database")
+
+        # Check definitions count before
+        before_count = conn.execute("SELECT COUNT(*) FROM definitions").fetchone()[0]
+        print(f"      Definitions in DB before: {before_count}")
+
+        # Insert data
+        total_defs = 0
+        docs_processed = 0
+        for section in sections:
+            # Skip sections with no definitions
+            definitions_list = section.get('llm_definitions', [])
+            if not definitions_list:
+                continue
+
+            try:
+                doc_id = section['id']
+
+                # Optionally delete existing definitions for this document
+                if delete_existing:
+                    conn.execute("DELETE FROM definitions WHERE document_id = %s", (doc_id,))
+
+                # Insert definitions
+                defs_for_this_doc = 0
+                section_url = section.get('url', '')
+                for defn in definitions_list:
+                    # Calculate definition overlap using verbatim_text
+                    verbatim_text = defn.get('verbatim_text', '')
+                    overlap = calculate_definition_overlap(verbatim_text, section['content'])
+
+                    conn.execute("""
+                        INSERT INTO definitions
+                        (document_id, url, term, verbatim_text, is_verbatim, rephrased_definition,
+                         scope, source_location, definition_overlap, model_version,
+                         scope_level, definition_type, is_cross_reference)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    """, (
+                        doc_id,
+                        section_url,
+                        defn.get('term'),
+                        verbatim_text,
+                        defn.get('is_verbatim', True),
+                        defn.get('rephrased_definition'),
+                        defn.get('scope'),
+                        defn.get('source_location'),
+                        overlap,
+                        MODEL_VERSION,
+                        defn.get('scope_level'),
+                        defn.get('definition_type', 'formal'),
+                        defn.get('is_cross_reference', False),
+                    ))
+                    total_defs += 1
+                    defs_for_this_doc += 1
+
+                docs_processed += 1
+                print(f"        Doc {doc_id}: {defs_for_this_doc} definitions inserted")
+
+            except Exception as doc_err:
+                print(f"      ERROR processing section {section.get('title', 'unknown')[:40]}: {doc_err}")
+                import traceback
+                traceback.print_exc()
+
+        print(f"      Committing transaction...")
+        conn.commit()
+
+        # Check definitions count after
+        after_count = conn.execute("SELECT COUNT(*) FROM definitions").fetchone()[0]
+        print(f"      Definitions in DB after: {after_count} (added {after_count - before_count})")
+
+        conn.close()
+
+        print(f"      ✓ Stored {docs_processed} sections with {total_defs} definitions")
+        print()
+
+    except Exception as e:
+        print(f"      ERROR: {e}")
+        import traceback
+        traceback.print_exc()
+
+
 def main():
     parser = argparse.ArgumentParser(description='Extract definitions with LLM and store to database')
-    parser.add_argument('-n', '--num', type=int, default=20, help='Number of regulations to sample')
-    parser.add_argument('--seed', type=int, default=42, help='Random seed for reproducible sampling (default: 42)')
-    parser.add_argument('--reprocess', action='store_true', help='Re-process even if already done')
+
+    # Source selection
+    parser.add_argument('--source', choices=['db', 'files'], default='db',
+                        help='Data source: database or local files (legacy)')
+
+    # Database mode arguments
+    parser.add_argument('--state', type=str, choices=['NY', 'NJ'],
+                        help='State to process (required for db source)')
+    parser.add_argument('--title', type=str,
+                        help='Title to filter (e.g., "3A")')
+    parser.add_argument('--chapter', type=str,
+                        help='Chapter to filter')
+    parser.add_argument('--limit', type=int,
+                        help='Max documents to process')
+    parser.add_argument('--delete-existing', action='store_true',
+                        help='Delete existing definitions for matched documents before extraction')
+    parser.add_argument('--dry-run', action='store_true',
+                        help='Show what would be processed without making LLM calls')
+
+    # Legacy file mode arguments
+    parser.add_argument('-n', '--num', type=int, default=20,
+                        help='Number of regulations to sample (files mode only)')
+    parser.add_argument('--seed', type=int, default=42,
+                        help='Random seed for reproducible sampling (default: 42)')
 
     args = parser.parse_args()
 
@@ -533,50 +769,124 @@ def main():
     print("=" * 80)
     print()
 
-    # Step 1: Get regulations (skip already-processed unless --reprocess)
-    skip_processed = not args.reprocess
-    regulations = get_regulations_for_extraction(args.num, skip_processed=skip_processed)
+    if args.source == 'db':
+        # Database mode - use new targeting features
+        if not args.state:
+            print("ERROR: --state is required for database mode")
+            print("Usage: python extract_definitions.py --state NJ --title 3A")
+            return
 
-    if not regulations:
-        print("No regulations found!")
-        return
+        print(f"[1/3] Querying sections from database...")
+        print(f"      State: {args.state}")
+        if args.title:
+            print(f"      Title: {args.title}")
+        if args.chapter:
+            print(f"      Chapter: {args.chapter}")
+        if args.limit:
+            print(f"      Limit: {args.limit}")
 
-    # Step 2: Extract with LLM
-    print(f"Extracting definitions with LLM ({args.num} regulations)...")
-    print()
+        sections = get_sections_from_db(
+            state=args.state,
+            title=args.title,
+            chapter=args.chapter,
+            limit=args.limit
+        )
 
-    # Create client once for efficiency
-    client = get_openai_client()
+        if not sections:
+            print("No sections found matching criteria!")
+            return
 
-    for i, reg in enumerate(regulations, 1):
-        print(f"  [{i}/{len(regulations)}] {reg['filename'][:40]}...")
-        reg['llm_definitions'] = extract_with_llm(reg['content'], reg['title'], client=client)
-        num_defs = len(reg['llm_definitions'])
-        print(f"      → {num_defs} definitions found")
+        print(f"      ✓ Found {len(sections)} sections matching definition patterns")
+        print()
 
-        # Log that we processed this regulation
-        if reg.get('source_index') is not None:
-            log_extraction(reg['source_index'], num_defs)
+        if args.dry_run:
+            print("DRY RUN - Would process these sections:")
+            for i, section in enumerate(sections[:20], 1):
+                print(f"  {i}. [{section['id']}] {section['title'][:60]}")
+            if len(sections) > 20:
+                print(f"  ... and {len(sections) - 20} more")
+            print()
+            print("Rerun without --dry-run to process.")
+            return
 
-    print()
+        # Extract with LLM
+        print(f"Extracting definitions with LLM ({len(sections)} sections)...")
+        print()
 
-    # Step 3: Store to database
-    store_to_database(regulations)
+        # Create client once for efficiency
+        client = get_openai_client()
 
-    # Step 4: Generate viewer
-    generate_viewer(regulations)
+        for i, section in enumerate(sections, 1):
+            print(f"  [{i}/{len(sections)}] {section['title'][:50]}...")
+            section['llm_definitions'] = extract_with_llm(section['content'], section['title'], client=client)
+            num_defs = len(section['llm_definitions'])
+            print(f"      → {num_defs} definitions found")
 
-    # Summary
-    total_defs = sum(len(r.get('llm_definitions', [])) for r in regulations)
-    print("=" * 80)
-    print("SUMMARY")
-    print("=" * 80)
-    print(f"Regulations processed: {len(regulations)}")
-    print(f"Total definitions: {total_defs}")
-    print()
-    print(f"✓ Results stored in Neon database")
-    print(f"✓ Local viewer: {OUTPUTS_DIR / 'viewer_extracted_definitions.html'}")
-    print()
+        print()
+
+        # Store to database
+        store_definitions_from_db(sections, args.state, delete_existing=args.delete_existing)
+
+        # Summary
+        total_defs = sum(len(s.get('llm_definitions', [])) for s in sections)
+        print("=" * 80)
+        print("SUMMARY")
+        print("=" * 80)
+        print(f"State: {args.state}")
+        print(f"Sections processed: {len(sections)}")
+        print(f"Total definitions: {total_defs}")
+        print()
+        print(f"✓ Results stored in Neon database")
+        print()
+
+    else:
+        # Legacy file mode
+        print("Using legacy file mode (NY only)")
+        print()
+
+        # Step 1: Get regulations (skip already-processed unless --reprocess)
+        regulations = get_regulations_for_extraction(args.num, skip_processed=True)
+
+        if not regulations:
+            print("No regulations found!")
+            return
+
+        # Step 2: Extract with LLM
+        print(f"Extracting definitions with LLM ({args.num} regulations)...")
+        print()
+
+        # Create client once for efficiency
+        client = get_openai_client()
+
+        for i, reg in enumerate(regulations, 1):
+            print(f"  [{i}/{len(regulations)}] {reg['filename'][:40]}...")
+            reg['llm_definitions'] = extract_with_llm(reg['content'], reg['title'], client=client)
+            num_defs = len(reg['llm_definitions'])
+            print(f"      → {num_defs} definitions found")
+
+            # Log that we processed this regulation
+            if reg.get('source_index') is not None:
+                log_extraction(reg['source_index'], num_defs)
+
+        print()
+
+        # Step 3: Store to database
+        store_to_database(regulations)
+
+        # Step 4: Generate viewer
+        generate_viewer(regulations)
+
+        # Summary
+        total_defs = sum(len(r.get('llm_definitions', [])) for r in regulations)
+        print("=" * 80)
+        print("SUMMARY")
+        print("=" * 80)
+        print(f"Regulations processed: {len(regulations)}")
+        print(f"Total definitions: {total_defs}")
+        print()
+        print(f"✓ Results stored in Neon database")
+        print(f"✓ Local viewer: {OUTPUTS_DIR / 'viewer_extracted_definitions.html'}")
+        print()
 
 if __name__ == '__main__':
     main()

@@ -22,6 +22,16 @@ interface DefinitionCardProps {
 /**
  * Displays a single definition with optional expand/collapse for long text
  */
+/**
+ * Get the display definition text based on verbatim/rephrased logic
+ */
+function getDisplayDefinitionText(definition: DefinitionWithContext): string {
+  if (definition.isVerbatim) {
+    return definition.verbatimText;
+  }
+  return definition.rephrasedDefinition ?? definition.verbatimText;
+}
+
 export function DefinitionCard({
   definition,
   showSource = true,
@@ -30,12 +40,15 @@ export function DefinitionCard({
 }: DefinitionCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
+  // Get the appropriate definition text to display
+  const definitionText = getDisplayDefinitionText(definition);
+
   // Truncate long definitions
   const maxLength = compact ? 150 : 300;
-  const isLongDefinition = definition.definition.length > maxLength;
+  const isLongDefinition = definitionText.length > maxLength;
   const displayDefinition = isExpanded
-    ? definition.definition
-    : definition.definition.slice(0, maxLength) + (isLongDefinition ? '...' : '');
+    ? definitionText
+    : definitionText.slice(0, maxLength) + (isLongDefinition ? '...' : '');
 
   // Format overlap as quality indicator
   const getQualityBadge = () => {

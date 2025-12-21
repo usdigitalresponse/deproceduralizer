@@ -233,12 +233,115 @@ wet_signature_response_format:
 # -----------------------------------------------------------------------------
 # Used by: backend/scripts/extract_definitions.py
 # Variables: title, content
+#
+# This prompt is structured for optimal caching:
+# - System prompt (static) is cached across all requests in a batch
+# - User template (dynamic) varies per request
 
 definition_extraction:
   description: |
-    Extracts term definitions from regulation sections, identifying the term,
-    its definition text, scope of applicability, and source location.
+    Extracts term definitions from regulation sections.
+    Prompt is structured for optimal caching - static instructions first.
 
+  # Static system prompt (cached across all requests in a batch)
+  system: |
+    You are an expert at extracting term definitions from legal regulations.
+
+    CRITICAL PRINCIPLE: When uncertain, choose the option that reduces false positives.
+    It is better to miss a definition than to extract something that is not a definition.
+
+    DEFINITELY A DEFINITION (ALWAYS EXTRACT):
+    Patterns that explicitly assign meaning to a term:
+    - "X means Y"
+    - "X shall mean Y"
+    - "For purposes of this [section/part], X is defined as Y"
+    - "(a) X. [definition text]" in a definitions section
+
+    MIGHT BE A DEFINITION (EXTRACT IF CLEARLY PROVIDING MEANING):
+    - Cross-references that establish what a term means: "X, as defined in [external source]"
+    - Inline explanations: "X (meaning Y)"
+    - Contextual definitions: "X refers to Y"
+    Use judgment - extract if the text is clearly providing the meaning of a term
+
+    NOT A DEFINITION (DO NOT EXTRACT):
+    - Numeric thresholds or criteria (e.g., "300 beds", "10 days", "$500")
+    - Category labels in parentheses (e.g., "("-300 bed")", "(HBF)" without expansion)
+    - Citations to laws without definitions (e.g., "chapter 506 of the laws of 2009")
+    - General descriptions of requirements or procedures
+    - Examples or illustrations
+
+    VERBATIM TEXT vs COMPLETE DEFINITION:
+    - verbatim_text: Always extract the EXACT text from the regulation
+    - is_verbatim: Set to TRUE only if verbatim_text is a complete, usable definition
+    - is_verbatim: Set to FALSE when the text is a cross-reference or incomplete
+
+    Example 1 (is_verbatim=true):
+      Text: '"Applicant" means any person who submits an application'
+      verbatim_text: "means any person who submits an application"
+      is_verbatim: true
+
+    Example 2 (is_verbatim=false, cross-reference):
+      Text: 'must not be in a 100-year flood plain, as defined in Executive Order 11988'
+      term: "100-year flood plain"
+      verbatim_text: "as defined in Executive Order 11988, Floodplain Management Guidelines"
+      is_verbatim: false
+      is_cross_reference: true
+
+    Example 3 (abbreviation):
+      Text: 'Division of Child and Family Services ("DCF")'
+      term: "DCF"
+      verbatim_text: "Division of Child and Family Services"
+      is_verbatim: true
+      definition_type: "abbreviation"
+
+    Example 4 (complex definition needing rephrasing):
+      Text: '"facilities" means those facilities or discrete units of facilities
+             described in paragraph (c) of subdivision 2-c of section 2808
+             of the Public Health Law...'
+      term: "facilities"
+      verbatim_text: "means those facilities or discrete units of facilities described
+                      in paragraph (c) of subdivision 2-c of section 2808 of the Public
+                      Health Law..."
+      is_verbatim: false
+      rephrased_definition: "residential health care facilities and their discrete units
+                             as specified in Public Health Law section 2808(2-c)(c)"
+      is_cross_reference: true
+
+    REPHRASED DEFINITION:
+    - Only provide rephrased_definition when verbatim_text is NOT a complete, usable definition
+    - Leave blank/null if verbatim_text is sufficient (is_verbatim=true)
+    - The rephrased version should be a plain-language summary of what the term means
+    - This is OPTIONAL - when uncertain, leave it blank
+
+    DEFINITION TYPES:
+    - type="formal": Found in definitions sections, uses "means"/"shall mean" patterns
+    - type="abbreviation": Inline shorthand like "New York State ("State")"
+
+    NOTE: Two types are sufficient because:
+    - Cross-references are captured via `is_cross_reference` boolean (not a type)
+    - Scope/context is captured via `scope` and `scope_level` fields
+    - Source (statute vs regulation) is inferable from `document_id`
+    - The schema uses VARCHAR(20) without CHECK constraint for future extensibility
+
+    SCOPE LEVEL MAPPING:
+    - "in this section" → scope_level="section"
+    - "in this part" or "in this Part" → scope_level="part"
+    - "in this subpart" → scope_level="subpart"
+    - "in this chapter" → scope_level="chapter"
+    - "in this title" → scope_level="title"
+    - No scope phrase → scope_level=null
+
+    CROSS-REFERENCE DETECTION:
+    - Set is_cross_reference=true AND is_verbatim=false for phrases like:
+      * "has the meaning given in section X"
+      * "as defined in [external reference]"
+      * "has the same meaning as"
+      * "see section X for definition"
+
+    IMPORTANT: When uncertain about whether something is a definition,
+    DO NOT extract it. False positives are costly to clean up.
+
+  # User message template (varies per request)
   template: |
     Extract all term definitions from this regulation section.
 
@@ -247,9 +350,14 @@ definition_extraction:
     {content}
 
     For each definition found, extract:
-    - The term being defined (required)
-    - The definition text (required)
-    - The scope (e.g., "in this section", "in this part", "throughout this title")
-    - The source location where it appears (e.g., "definitions section", "section 1.1")
+    - term: The term being defined (noun phrase, not a number)
+    - verbatim_text: The EXACT text from the regulation that defines or references the term
+    - is_verbatim: true if verbatim_text is a complete usable definition, false otherwise
+    - rephrased_definition: (optional) Plain-language definition when verbatim_text is not self-explanatory
+    - scope: The scope text (e.g., "in this Part", "in this section")
+    - source_location: Where it appears (e.g., "section 1.1", "definitions section")
+    - scope_level: The hierarchy level from scope phrase (section/part/chapter/title/null)
+    - definition_type: "formal" or "abbreviation"
+    - is_cross_reference: true if this points to another source for the definition
 
-    Only extract actual term definitions, not general descriptions.
+    Remember: When uncertain, DO NOT extract. False negatives are acceptable; false positives are not.

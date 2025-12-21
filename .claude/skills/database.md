@@ -200,21 +200,48 @@ Many-to-many relationship between regulations and statutes.
 
 Extracted terms and definitions from regulations.
 
+**Definition text fields:**
+- `verbatim_text`: The exact text extracted from the regulation (always populated)
+- `is_verbatim`: True if verbatim_text is a complete, usable definition
+- `rephrased_definition`: Plain-language definition when verbatim_text is insufficient
+
+For display purposes, use `verbatim_text` when `is_verbatim=true`, otherwise use `rephrased_definition` (fallback to `verbatim_text` if null).
+
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | bigserial | Primary key |
 | `document_id` | bigint | FK to regulatory_documents (populated via URL matching - see [Definitions Migration](#definitions-migration)) |
 | `url` | text | Source URL (used to link to regulatory_documents) |
 | `term` | text | The term being defined |
-| `definition` | text | The definition text |
+| `verbatim_text` | text | The exact text extracted from the regulation |
+| `is_verbatim` | boolean | TRUE if verbatim_text is a complete, usable definition (default: TRUE) |
+| `rephrased_definition` | text | Plain-language definition when verbatim_text is insufficient (optional) |
 | `scope` | text | Scope/applicability (e.g., "in this section") |
-| `definition_overlap` | float | 0.0-1.0 overlap with regulation text |
+| `definition_overlap` | float | 0.0-1.0 overlap with regulation text (based on verbatim_text) |
 | `source_location` | text | Where in the document it was found |
 | `model_version` | varchar(100) | LLM model used for extraction |
 | `extracted_at` | timestamp | When extracted |
 | `notes` | text | Additional notes |
+| `scope_level` | varchar(20) | Structured scope level: section, subpart, part, subchapter, chapter, subtitle, title |
+| `scope_document_id` | bigint | FK to regulatory_documents - the document this definition applies to |
+| `definition_type` | varchar(20) | Classification: 'formal' or 'abbreviation' (default: 'formal') |
+| `normalized_term` | text | Generated column: LOWER(TRIM(term)) - auto-populated, read-only |
+| `is_cross_reference` | boolean | TRUE if definition points to another definition (default: FALSE) |
 
 > **Note**: The `document_id` column is populated by matching `url` to `regulatory_documents.url`. Run the [definitions migration](#definitions-migration) after importing new definitions.
+
+**Scope Level Values** (known values, extensible - no DB constraint):
+- `section` - Applies only to this section
+- `subpart` - Applies to entire subpart
+- `part` - Applies to entire part
+- `subchapter` - Applies to entire subchapter
+- `chapter` - Applies to entire chapter
+- `subtitle` - Applies to entire subtitle
+- `title` - Applies to entire title
+
+**Definition Type Values** (known values, extensible - no DB constraint):
+- `formal` - Traditional definition with "means"/"shall mean" patterns
+- `abbreviation` - Inline shorthand like "New York State ("State")"
 
 ### definition_extraction_log
 
@@ -475,6 +502,82 @@ const doc = await docsRepo.getByIdWithAnalysis(123);
 // Get dashboard stats
 const stats = await docsRepo.getDashboardStats('NY');
 ```
+
+## Drizzle ORM Commands & Schema Sync
+
+### Package Location & Scripts
+
+The database package is at `frontend/packages/database/`. Available scripts:
+
+| Script | Command | Purpose |
+|--------|---------|---------|
+| `generate` | `drizzle-kit generate` | Generate migration files from schema changes |
+| `studio` | `drizzle-kit studio` | Open visual database browser |
+| `push` | `drizzle-kit push` | Push schema directly to database (no migrations) |
+
+**⚠️ Common Pitfalls:**
+- The script is `pnpm generate`, NOT `pnpm db:generate`
+- Always run from the correct directory: `cd frontend/packages/database && pnpm generate`
+- Or use absolute path: `cd /path/to/project/frontend/packages/database && pnpm generate`
+
+### Schema Change Workflow
+
+This project uses `schema.sql` as the source of truth. The workflow is:
+
+1. **Update `schema.sql`** - Add/modify columns, indexes, constraints
+2. **Run ALTER TABLE on Neon** - Apply changes to live database via `./scripts/db-query.sh`
+3. **Update Drizzle schema** - Modify `frontend/packages/database/src/schema/*.ts` to match
+4. **Update relations** - If new FKs, update `relations.ts`
+5. **Generate migration files** - Run `pnpm generate` in database package (for documentation)
+6. **Update repository** - If new columns, add to select/map in repository files
+7. **Verify build** - Run `pnpm build` in frontend to check types
+8. **Update database.md** - Document new columns in this skill file
+
+### Example: Adding a Column
+
+```bash
+# 1. Edit schema.sql to add column
+
+# 2. Run migration on Neon
+./scripts/db-query.sh "ALTER TABLE definitions ADD COLUMN new_column VARCHAR(50)"
+
+# 3. Update Drizzle schema (frontend/packages/database/src/schema/definitions.ts)
+# Add: newColumn: varchar('new_column', { length: 50 }),
+
+# 4. Generate migration files
+cd frontend/packages/database && pnpm generate
+
+# 5. Verify build
+cd frontend && pnpm build
+```
+
+### Drizzle Kit Commands Reference
+
+```bash
+# Generate migration files from schema changes
+cd frontend/packages/database && pnpm generate
+
+# Open Drizzle Studio (visual database browser)
+cd frontend/packages/database && pnpm studio
+
+# Push schema directly to database (alternative to manual ALTER TABLE)
+cd frontend/packages/database && pnpm push
+```
+
+### Keeping Drizzle & Database in Sync
+
+**When adding columns:**
+1. Add to PostgreSQL schema (`schema.sql`)
+2. Run ALTER TABLE on Neon database
+3. Add to Drizzle schema (`frontend/packages/database/src/schema/*.ts`)
+4. Add to repository select/map if the column is used in queries
+5. Types are auto-generated via `$inferSelect`/`$inferInsert`
+
+**When adding relations:**
+1. Add FK in schema.sql
+2. Run ALTER TABLE with REFERENCES
+3. Add `.references()` in Drizzle schema
+4. Add relation in `relations.ts` if needed for relational queries
 
 ## Key Files
 
