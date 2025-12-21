@@ -323,13 +323,17 @@ definition_extraction:
     - Source (statute vs regulation) is inferable from `document_id`
     - The schema uses VARCHAR(20) without CHECK constraint for future extensibility
 
-    SCOPE LEVEL MAPPING:
+    SCOPE LEVEL MAPPING (use exact match - do not confuse similar terms):
     - "in this section" → scope_level="section"
-    - "in this part" or "in this Part" → scope_level="part"
     - "in this subpart" → scope_level="subpart"
+    - "in this part" or "in this Part" → scope_level="part"
+    - "in this subchapter" → scope_level="subchapter"
     - "in this chapter" → scope_level="chapter"
+    - "in this subtitle" → scope_level="subtitle"
     - "in this title" → scope_level="title"
     - No scope phrase → scope_level=null
+
+    IMPORTANT: "subpart" and "subchapter" are DIFFERENT levels. Match exactly.
 
     CROSS-REFERENCE DETECTION:
     - Set is_cross_reference=true AND is_verbatim=false for phrases like:
