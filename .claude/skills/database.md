@@ -692,3 +692,38 @@ This is important because:
 # Check total definitions with document_id
 ./scripts/db-query.sh "SELECT COUNT(*) as with_doc_id FROM definitions WHERE document_id IS NOT NULL"
 ```
+
+### Populating scope_document_id from Hierarchy
+
+The `scope_document_id` links each definition to the ancestor document that matches its `scope_level`. For example, a definition with `scope_level='chapter'` will have `scope_document_id` pointing to its chapter-level ancestor.
+
+**Run the population script:**
+
+```bash
+cd backend && uv run python scripts/populate_scope_documents.py
+
+# Dry run first to see what would be done:
+cd backend && uv run python scripts/populate_scope_documents.py --dry-run
+```
+
+The script:
+- Finds definitions with `scope_level` set but `scope_document_id` NULL
+- Walks up the `parent_id` chain from `document_id` to find the ancestor at matching `hierarchy_level`
+- Updates `scope_document_id` with the found ancestor
+
+**When to run:**
+- After running definition extraction with `--state` targeting
+- After backfilling `scope_level` on existing definitions
+- If definitions are not showing proper scope hierarchy
+
+**Verify the population:**
+
+```bash
+# Check scope_document_id population stats
+./scripts/db-query.sh "SELECT COUNT(*) as total, COUNT(scope_document_id) as linked, COUNT(*) - COUNT(scope_document_id) as missing FROM definitions WHERE scope_level IS NOT NULL"
+
+# Verify links are correct (scope_level should match scope_document.hierarchy_level)
+./scripts/db-query.sh "SELECT d.term, d.scope_level, rd.hierarchy_level FROM definitions d JOIN regulatory_documents rd ON d.scope_document_id = rd.id LIMIT 10"
+```
+
+**Note:** Some definitions may not get linked if their `scope_level` doesn't match any ancestor's `hierarchy_level` (e.g., `scope_level='subpart'` in NJ regulations that don't have subpart hierarchy levels).
