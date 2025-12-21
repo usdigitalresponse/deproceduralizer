@@ -11,6 +11,24 @@ This document outlines improvements to the definitions extraction, visualization
 - **5,887** NY sections match definition patterns (optimized from 6,202 with loose patterns)
 - Estimated extraction cost: **~$17** (Sonnet 4.5 Batch API)
 
+## Active Batch (Dec 21, 2025)
+
+NY full extraction batch submitted:
+
+```bash
+# Batch ID: msgbatch_015Gxr7Qy8ck9UcXGKsTc3Jp
+# Sections: 5,068
+# Status: in_progress
+
+# Check status:
+uv run python backend/scripts/batch_definitions.py status
+
+# Process when complete (replaces existing 4,357 NY definitions):
+uv run python backend/scripts/batch_definitions.py process \
+  --batch-id msgbatch_015Gxr7Qy8ck9UcXGKsTc3Jp \
+  --delete-existing
+```
+
 ---
 
 # Phase 1: Schema Foundation
