@@ -727,3 +727,67 @@ The script:
 ```
 
 **Note:** Some definitions may not get linked if their `scope_level` doesn't match any ancestor's `hierarchy_level` (e.g., `scope_level='subpart'` in NJ regulations that don't have subpart hierarchy levels).
+
+## Batch Definition Extraction
+
+For large-scale definition extraction, use the batch processing script which provides **50% cost reduction** via Anthropic's Message Batches API.
+
+### Usage
+
+```bash
+# Submit sections for batch processing (async)
+uv run python backend/scripts/batch_definitions.py submit --state NJ --title 3A
+
+# Check batch status
+uv run python backend/scripts/batch_definitions.py status
+
+# Process completed batch results
+uv run python backend/scripts/batch_definitions.py process --batch-id msgbatch_xxx
+
+# Retry failed requests
+uv run python backend/scripts/batch_definitions.py resume --batch-id msgbatch_xxx
+```
+
+### Options
+
+| Command | Flag | Description |
+|---------|------|-------------|
+| `submit` | `--state` | Required. 'NY' or 'NJ' |
+| `submit` | `--title` | Filter by title (e.g., '3A') |
+| `submit` | `--limit` | Max sections to process |
+| `submit` | `--dry-run` | Show what would be submitted |
+| `status` | `--batch-id` | Check specific batch |
+| `status` | `-v` | Show detailed status |
+| `process` | `--batch-id` | Required. Batch to process |
+| `process` | `--delete-existing` | Delete existing definitions first |
+
+### How It Works
+
+1. **Submit**: Queries sections matching definition patterns, formats batch requests, submits to Anthropic API
+2. **Status**: Polls Anthropic API for batch progress (succeeded/errored/pending counts)
+3. **Process**: Retrieves completed results, extracts definitions from tool_use responses, stores in database
+4. **Resume**: Re-submits failed/expired requests from error log
+
+### Batch Directory Structure
+
+Batches are tracked in `data/outputs/batches/`:
+
+```
+outputs/batches/
+├── NJ_3A_20251221_103000/
+│   ├── batch_info.json    # Batch ID, state, doc IDs
+│   └── errors.log         # Any processing errors
+```
+
+### When to Use
+
+- **Large runs (100+ sections)**: Batch saves ~50% on costs
+- **Overnight processing**: Submit before leaving, process next day
+- **Full state extraction**: NY (~3,346 sections) or NJ (~2,675 sections)
+
+### Comparison
+
+| Approach | Cost | Time |
+|----------|------|------|
+| Sequential (`extract_definitions.py`) | Full price | ~2 sec/section |
+| Batch (`batch_definitions.py`) | 50% off | Up to 24 hours |
