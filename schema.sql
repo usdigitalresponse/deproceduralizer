@@ -96,7 +96,21 @@ CREATE TABLE analyses (
 CREATE TABLE red_flags (
   id BIGSERIAL PRIMARY KEY,
   analysis_id BIGINT NOT NULL REFERENCES analyses(id) ON DELETE CASCADE,
-  category VARCHAR(100) NOT NULL,      -- Type of implementation concern
+  category VARCHAR(100) NOT NULL       -- Type of implementation concern (12 categories from Jennifer Pahlka's framework)
+    CHECK (category IN (
+      'administrative_burdens',
+      'cascade_of_rigidity',
+      'complexity_policy_debt',
+      'frozen_technology',
+      'implementation_opportunity',
+      'mandated_steps_not_outcomes',
+      'no_feedback_loops',
+      'options_become_requirements',
+      'overwrought_legalese',
+      'policy_implementation_separation',
+      'process_worship_oversight',
+      'zero_risk_language'
+    )),
   explanation TEXT NOT NULL,           -- Why this is flagged
   severity INTEGER NOT NULL CHECK (severity >= 1 AND severity <= 10),  -- Impact severity (1-10)
   complexity VARCHAR(20) NOT NULL,     -- HIGH/MEDIUM/LOW/MEDIUM-HIGH for this specific issue

@@ -3,6 +3,7 @@ export type StateCode = 'ny' | 'nj';
 export const VALID_STATES: StateCode[] = ['ny', 'nj'];
 
 // Red flag categories (must match backend/scripts/red_flags.py enum)
+// Based on Jennifer Pahlka's framework - exactly 12 categories
 export const RED_FLAG_CATEGORIES = [
   'administrative_burdens',
   'cascade_of_rigidity',
@@ -15,7 +16,6 @@ export const RED_FLAG_CATEGORIES = [
   'overwrought_legalese',
   'policy_implementation_separation',
   'process_worship_oversight',
-  'reporting_requirement',
   'zero_risk_language',
 ] as const;
 

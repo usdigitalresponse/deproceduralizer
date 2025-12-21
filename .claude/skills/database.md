@@ -127,7 +127,7 @@ Individual red flags identified during analysis.
 |--------|------|-------------|
 | `id` | bigserial | Primary key |
 | `analysis_id` | bigint | FK to analyses |
-| `category` | varchar(100) | Red flag category |
+| `category` | varchar(100) | Red flag category (constrained to 12 valid values - see below) |
 | `explanation` | text | Detailed explanation |
 | `severity` | integer | Severity score (1-10) |
 | `complexity` | varchar(20) | Complexity rating |
@@ -148,6 +148,22 @@ Individual red flags identified during analysis.
 | `resolution_comments` | text | Comments about the resolution |
 | `developer_question` | text | Question for reviewer (when need_more_info) |
 | `developer_checked_at` | timestamp | When developer last checked this item |
+
+**Valid Categories (12 - based on Jennifer Pahlka's framework):**
+- `administrative_burdens`
+- `cascade_of_rigidity`
+- `complexity_policy_debt`
+- `frozen_technology`
+- `implementation_opportunity`
+- `mandated_steps_not_outcomes`
+- `no_feedback_loops`
+- `options_become_requirements`
+- `overwrought_legalese`
+- `policy_implementation_separation`
+- `process_worship_oversight`
+- `zero_risk_language`
+
+**Constraint**: The database enforces `valid_category` CHECK constraint to only allow these 12 values.
 
 ### statute_references
 
