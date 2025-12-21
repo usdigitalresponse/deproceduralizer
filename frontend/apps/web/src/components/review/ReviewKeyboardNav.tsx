@@ -42,6 +42,20 @@ export function ReviewKeyboardNav({
         return;
       }
 
+      // Ignore if interacting with a dropdown/combobox (Radix UI Select)
+      // Check for role attributes that indicate dropdown interaction
+      const target = e.target as HTMLElement;
+      const role = target.getAttribute('role');
+      if (role === 'combobox' || role === 'listbox' || role === 'option') {
+        return;
+      }
+
+      // Also check if inside an open Radix Select portal
+      if (target.closest('[data-radix-select-viewport]') ||
+          target.closest('[role="listbox"]')) {
+        return;
+      }
+
       switch (e.key) {
         case 'j':
         case 'ArrowDown':
