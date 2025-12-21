@@ -4,7 +4,7 @@ import { useState, useTransition, useEffect, forwardRef } from 'react';
 import { updateDeveloperStatus, type DeveloperItem } from '@/lib/actions/developer';
 import { useDeveloperName } from '@/hooks/useDeveloperName';
 import { Button, Textarea, Badge, SeverityBadge, Select, Tag, CopyLinkButton } from '@/components/ui';
-import { DEVELOPER_STATUSES, RESOLUTION_TYPES, DEVELOPERS, DEVELOPER_STATUS_LABELS } from '@/types/regulation';
+import { DEVELOPER_STATUSES, RESOLUTION_TYPES, DEVELOPERS, DEVELOPER_STATUS_LABELS, ISSUE_TYPE_LABELS, formatLabel } from '@/types/regulation';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
 import { ExpandableRegulationQuote } from './ExpandableRegulationQuote';
 import { CardWrapper } from './shared';
@@ -113,7 +113,7 @@ export const DeveloperCard = forwardRef<HTMLDivElement, DeveloperCardProps>(
         return (
           <>
             <div className="flex items-center gap-2 mb-2">
-              <span className="font-semibold text-[var(--color-text)]">{flag.category}</span>
+              <span className="font-semibold text-[var(--color-text)]">{formatLabel(flag.category)}</span>
               <SeverityBadge severity={flag.severity} />
             </div>
             <div className="text-sm text-[var(--color-text-muted)] mb-2">
@@ -144,7 +144,7 @@ export const DeveloperCard = forwardRef<HTMLDivElement, DeveloperCardProps>(
         return (
           <>
             <div className="flex items-center gap-2 mb-2">
-              <Badge variant="warning">{issue.issueType.replace(/_/g, ' ')}</Badge>
+              <Badge variant="warning">{ISSUE_TYPE_LABELS[issue.issueType] || formatLabel(issue.issueType)}</Badge>
               {issue.llmConfirmed && <Badge variant="success">LLM Confirmed</Badge>}
             </div>
             <div className="text-sm text-[var(--color-text-muted)] mb-2">
@@ -220,7 +220,7 @@ export const DeveloperCard = forwardRef<HTMLDivElement, DeveloperCardProps>(
           <div className="flex items-center gap-4 text-sm">
             <div>
               <span className="text-[var(--color-text-muted)]">Status: </span>
-              <span className="text-[var(--color-text)]">{item.reviewStatus || 'unreviewed'}</span>
+              <span className="text-[var(--color-text)]">{formatLabel(item.reviewStatus || 'unreviewed')}</span>
             </div>
             {item.reviewedBy && (
               <div>

@@ -5,6 +5,7 @@ import { updateRedFlagReview } from '@/lib/actions/red-flags';
 import { updateComplianceIssueReview } from '@/lib/actions/compliance-issues';
 import type { DeveloperItem } from '@/lib/actions/developer';
 import { Button, Textarea, Badge, Tag, CopyLinkButton } from '@/components/ui';
+import { ISSUE_TYPE_LABELS, formatLabel } from '@/types/regulation';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
 import { ExpandableRegulationQuote } from './ExpandableRegulationQuote';
 import { CardWrapper } from './shared';
@@ -69,7 +70,7 @@ export const NeedMoreInfoCard = forwardRef<HTMLDivElement, NeedMoreInfoCardProps
         return (
           <div className="text-sm">
             <div className="mb-2">
-              <span className="font-semibold">{flag.category}</span>
+              <span className="font-semibold">{formatLabel(flag.category)}</span>
               {nycrrCitation && (
                 <span className="text-[var(--color-text-muted)] ml-2 font-mono">{nycrrCitation}</span>
               )}
@@ -97,7 +98,7 @@ export const NeedMoreInfoCard = forwardRef<HTMLDivElement, NeedMoreInfoCardProps
         return (
           <div className="text-sm">
             <div className="mb-2">
-              <Badge variant="warning" className="mr-2">{issue.issueType.replace(/_/g, ' ')}</Badge>
+              <Badge variant="warning" className="mr-2">{ISSUE_TYPE_LABELS[issue.issueType] || formatLabel(issue.issueType)}</Badge>
               {issue.termMatched && <Tag variant="primary" size="sm">{issue.termMatched}</Tag>}
               {nycrrCitation && (
                 <span className="text-[var(--color-text-muted)] ml-2 font-mono">{nycrrCitation}</span>
