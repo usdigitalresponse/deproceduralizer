@@ -278,6 +278,10 @@ CREATE INDEX idx_definitions_scope_level ON definitions(scope_level);
 CREATE INDEX idx_definitions_normalized_term ON definitions(normalized_term);
 CREATE INDEX idx_definitions_type ON definitions(definition_type);
 
+-- Trigram indexes for fast ILIKE search (requires pg_trgm extension)
+CREATE INDEX idx_definitions_term_trgm ON definitions USING GIN (term gin_trgm_ops);
+CREATE INDEX idx_definitions_normalized_term_trgm ON definitions USING GIN (normalized_term gin_trgm_ops);
+
 -- Track which regulations have been processed for definition extraction
 CREATE TABLE definition_extraction_log (
   id BIGSERIAL PRIMARY KEY,
