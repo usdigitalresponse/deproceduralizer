@@ -6,5 +6,6 @@ export * from './statute-references';
 export * from './document-notes';
 export * from './definitions';
 export * from './regulation-statute-links';
+export * from './prompt-feedback';
 export * from './relations';
 export * from './constants';

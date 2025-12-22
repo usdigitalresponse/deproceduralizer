@@ -100,6 +100,24 @@ export function Header({ className = '' }: HeaderProps) {
                     </Link>
                   );
                 })}
+
+                {/* Divider */}
+                <div className="w-px h-5 bg-[var(--color-neutral-200)] mx-1" />
+
+                {/* Prompts link (global, not state-specific) */}
+                <Link
+                  href="/prompts"
+                  className={`
+                    px-3 py-2 text-sm font-medium rounded-[var(--radius-md)]
+                    transition-colors duration-[var(--duration-fast)]
+                    ${pathname === '/prompts'
+                      ? 'bg-[var(--color-primary-weaker)] text-[var(--color-primary)]'
+                      : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-[var(--color-neutral-100)]'
+                    }
+                  `}
+                >
+                  Prompts
+                </Link>
               </nav>
 
               {/* Mobile Menu Button - visible on mobile only */}

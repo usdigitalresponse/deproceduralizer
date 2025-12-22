@@ -359,6 +359,24 @@ CREATE TABLE extracted_definitions (
   created_at TIMESTAMP DEFAULT NOW()
 );
 
+-- Prompt Feedback: Track feedback on LLM prompts from prompts.yaml
+CREATE TYPE feedback_type AS ENUM ('suggestion', 'bug', 'question', 'other');
+
+CREATE TABLE prompt_feedback (
+  id BIGSERIAL PRIMARY KEY,
+  prompt_name VARCHAR(100) NOT NULL,           -- Key in prompts.yaml (e.g., 'red_flags_analysis')
+  feedback_type feedback_type NOT NULL,         -- Type of feedback
+  content TEXT NOT NULL,                        -- Feedback content
+  highlighted_text TEXT,                        -- Optional: specific part of template
+  author_name VARCHAR(255),                     -- Who submitted the feedback
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_prompt_feedback_prompt_name ON prompt_feedback(prompt_name);
+CREATE INDEX idx_prompt_feedback_created_at ON prompt_feedback(created_at DESC);
+CREATE INDEX idx_prompt_feedback_feedback_type ON prompt_feedback(feedback_type);
+
 -- =============================================================================
 -- Recomputing Hierarchy Stats
 -- =============================================================================

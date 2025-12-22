@@ -10,7 +10,7 @@ import {
   DrawerBody,
   DrawerClose,
 } from '@/components/ui';
-import { Table, FolderTree, ClipboardCheck, BookOpen, Home } from 'lucide-react';
+import { Table, FolderTree, ClipboardCheck, BookOpen, Home, Code } from 'lucide-react';
 import { getStateFromPathname } from '@/hooks';
 
 interface MobileNavProps {
@@ -24,6 +24,7 @@ const navItems = [
   { key: 'browse', href: (state: string) => `/${state}/browse`, label: 'Browse', icon: FolderTree, matchPath: (state: string) => `/${state}/browse` },
   { key: 'review', href: (state: string) => `/${state}/review?reviewStatus=unreviewed`, label: 'Review Mode', icon: ClipboardCheck, matchPath: (state: string) => `/${state}/review` },
   { key: 'glossary', href: (state: string) => `/${state}/definitions`, label: 'Glossary', icon: BookOpen, matchPath: (state: string) => `/${state}/definitions` },
+  { key: 'prompts', href: '/prompts', label: 'Prompts', icon: Code, matchPath: '/prompts' },
 ];
 
 /**
@@ -75,7 +76,9 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
                 ? pathname === '/'
                 : item.key === 'table'
                   ? pathname === `/${currentState}` || pathname === `/${currentState}/`
-                  : pathname.startsWith(matchPath);
+                  : item.key === 'prompts'
+                    ? pathname === '/prompts'
+                    : pathname.startsWith(matchPath);
 
               const Icon = item.icon;
 
