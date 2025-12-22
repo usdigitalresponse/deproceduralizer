@@ -53,6 +53,22 @@ export interface AlphabeticalIndex {
   count: number;
 }
 
+export interface AggregatedTerm {
+  normalizedTerm: string;
+  displayTerm: string;
+  variantCount: number;
+  previewDefinition: string | null;
+  scopeLevels: (string | null)[];
+}
+
+export interface PaginatedAggregatedResult {
+  data: AggregatedTerm[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
 export class DefinitionsRepository extends BaseRepository {
   /**
    * Get a definition by ID
@@ -449,5 +465,147 @@ export class DefinitionsRepository extends BaseRepository {
       .orderBy(asc(definitions.scope));
 
     return results.map(r => r.scope!).filter(Boolean);
+  }
+
+  /**
+   * Get aggregated terms for glossary (grouped by normalized_term)
+   */
+  async getAggregatedTerms(options: {
+    state: StateCode;
+    search?: string;
+    letter?: string;
+    page?: number;
+    pageSize?: number;
+  }): Promise<PaginatedAggregatedResult> {
+    const { state, search, letter, page = 1, pageSize = 20 } = options;
+    const offset = (page - 1) * pageSize;
+    const statePattern = state.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
+
+    const conditions: ReturnType<typeof eq>[] = [like(definitions.url, statePattern)];
+
+    if (search) {
+      conditions.push(ilike(definitions.normalizedTerm, `%${search.toLowerCase()}%`));
+    }
+    if (letter && letter.length === 1) {
+      conditions.push(ilike(definitions.normalizedTerm, `${letter.toLowerCase()}%`));
+    }
+
+    const whereClause = and(...conditions);
+
+    // Get total unique terms count
+    const [{ count: total }] = await this.db
+      .select({ count: sql<number>`count(distinct ${definitions.normalizedTerm})` })
+      .from(definitions)
+      .where(whereClause);
+
+    // Get aggregated terms
+    const results = await this.db
+      .select({
+        normalizedTerm: definitions.normalizedTerm,
+        displayTerm: sql<string>`max(${definitions.term})`,
+        variantCount: sql<number>`count(*)::int`,
+        previewDefinition: sql<string | null>`max(${definitions.verbatimText}) filter (where ${definitions.definitionOverlap} = 1.0)`,
+        scopeLevels: sql<(string | null)[]>`array_agg(distinct ${definitions.scopeLevel})`,
+      })
+      .from(definitions)
+      .where(whereClause)
+      .groupBy(definitions.normalizedTerm)
+      .orderBy(asc(definitions.normalizedTerm))
+      .limit(pageSize)
+      .offset(offset);
+
+    return {
+      data: results.map(r => ({
+        normalizedTerm: r.normalizedTerm ?? '',
+        displayTerm: r.displayTerm,
+        variantCount: r.variantCount,
+        previewDefinition: r.previewDefinition,
+        scopeLevels: r.scopeLevels?.filter(Boolean) ?? [],
+      })),
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
+  }
+
+  /**
+   * Get all definitions for a specific normalized term
+   */
+  async getDefinitionsForTerm(
+    normalizedTerm: string,
+    state: StateCode
+  ): Promise<DefinitionWithContext[]> {
+    const statePattern = state.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
+
+    const results = await this.db
+      .select({
+        id: definitions.id,
+        documentId: definitions.documentId,
+        term: definitions.term,
+        verbatimText: definitions.verbatimText,
+        isVerbatim: definitions.isVerbatim,
+        rephrasedDefinition: definitions.rephrasedDefinition,
+        scope: definitions.scope,
+        definitionOverlap: definitions.definitionOverlap,
+        sourceLocation: definitions.sourceLocation,
+        url: definitions.url,
+        modelVersion: definitions.modelVersion,
+        extractedAt: definitions.extractedAt,
+        notes: definitions.notes,
+        scopeLevel: definitions.scopeLevel,
+        scopeDocumentId: definitions.scopeDocumentId,
+        definitionType: definitions.definitionType,
+        normalizedTerm: definitions.normalizedTerm,
+        isCrossReference: definitions.isCrossReference,
+        regulationId: regulatoryDocuments.id,
+        regulationTitle: regulatoryDocuments.title,
+        regulationNycrrTitle: regulatoryDocuments.nycrrTitle,
+        regulationNycrrPart: regulatoryDocuments.nycrrPart,
+        regulationNycrrSection: regulatoryDocuments.nycrrSection,
+        regulationNjacTitle: regulatoryDocuments.njacTitle,
+        regulationNjacChapter: regulatoryDocuments.njacChapter,
+        regulationNjacSubchapter: regulatoryDocuments.njacSubchapter,
+        regulationState: regulatoryDocuments.state,
+      })
+      .from(definitions)
+      .leftJoin(regulatoryDocuments, eq(definitions.url, regulatoryDocuments.url))
+      .where(and(
+        like(definitions.url, statePattern),
+        eq(definitions.normalizedTerm, normalizedTerm)
+      ))
+      .orderBy(desc(definitions.definitionOverlap), asc(definitions.term));
+
+    return results.map(row => ({
+      id: row.id,
+      documentId: row.documentId,
+      term: row.term,
+      verbatimText: row.verbatimText,
+      isVerbatim: row.isVerbatim,
+      rephrasedDefinition: row.rephrasedDefinition,
+      scope: row.scope,
+      definitionOverlap: row.definitionOverlap,
+      sourceLocation: row.sourceLocation,
+      url: row.url,
+      modelVersion: row.modelVersion,
+      extractedAt: row.extractedAt,
+      notes: row.notes,
+      scopeLevel: row.scopeLevel,
+      scopeDocumentId: row.scopeDocumentId,
+      definitionType: row.definitionType,
+      normalizedTerm: row.normalizedTerm,
+      isCrossReference: row.isCrossReference,
+      regulation: row.regulationId ? {
+        id: row.regulationId,
+        title: row.regulationTitle,
+        nycrrTitle: row.regulationNycrrTitle,
+        nycrrPart: row.regulationNycrrPart,
+        nycrrSection: row.regulationNycrrSection,
+        njacTitle: row.regulationNjacTitle,
+        njacChapter: row.regulationNjacChapter,
+        njacSubchapter: row.regulationNjacSubchapter,
+        state: row.regulationState,
+      } : undefined,
+    }));
   }
 }

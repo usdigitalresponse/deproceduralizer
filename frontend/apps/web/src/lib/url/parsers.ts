@@ -43,6 +43,10 @@ export type ReviewTypeValue = (typeof REVIEW_TYPE_VALUES)[number];
 export const REVIEW_MODE_VALUES = ['review', 'developer'] as const;
 export type ReviewModeValue = (typeof REVIEW_MODE_VALUES)[number];
 
+// Glossary view mode values
+export const GLOSSARY_VIEW_VALUES = ['flat', 'aggregated'] as const;
+export type GlossaryViewValue = (typeof GLOSSARY_VIEW_VALUES)[number];
+
 // ============================================
 // Parsers
 // ============================================
@@ -60,6 +64,7 @@ export const developerStatusParser = parseAsStringEnum([...DEVELOPER_STATUS_VALU
 export const severityParser = parseAsStringEnum([...SEVERITY_VALUES]).withDefault('all');
 export const reviewTypeParser = parseAsStringEnum([...REVIEW_TYPE_VALUES]).withDefault('flags');
 export const reviewModeParser = parseAsStringEnum([...REVIEW_MODE_VALUES]).withDefault('review');
+export const glossaryViewParser = parseAsStringEnum([...GLOSSARY_VIEW_VALUES]).withDefault('flat');
 
 // Boolean filter parsers
 export const booleanParser = parseAsBoolean;
