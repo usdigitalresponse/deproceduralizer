@@ -1,59 +1,82 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Button } from '@/components/ui/Button';
 import { X } from 'lucide-react';
+import { useDebouncedValue } from '@/lib/hooks/useDebouncedValue';
 import type { AlphabeticalIndex } from '@deproceduralizer/database';
 
 interface GlossarySearchProps {
-  /** Current search value */
+  /** Current search value (from URL state) */
   search: string;
-  /** Called when search changes */
+  /** Called when search changes (after debounce) */
   onSearchChange: (value: string) => void;
   /** Current selected letter */
   selectedLetter: string | null;
   /** Called when letter changes */
   onLetterChange: (letter: string | null) => void;
+  /** Called when clear all is clicked - clears ALL filters */
+  onClearAll: () => void;
   /** Alphabetical index with counts */
   alphabeticalIndex: AlphabeticalIndex[];
   /** Whether search is loading */
   isLoading?: boolean;
+  /** Whether any filters are active (from parent, includes all filter types) */
+  hasActiveFilters: boolean;
 }
 
 // All letters for the alphabet bar
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
+// Debounce delay for search input
+const SEARCH_DEBOUNCE_MS = 300;
+
 /**
- * Search and A-Z filter component for the glossary page
+ * Search and A-Z filter component for the glossary page.
+ * Uses debounced search input to reduce URL updates during typing.
  */
 export function GlossarySearch({
   search,
   onSearchChange,
   selectedLetter,
   onLetterChange,
+  onClearAll,
   alphabeticalIndex,
   isLoading = false,
+  hasActiveFilters,
 }: GlossarySearchProps) {
+  // Local state for immediate UI feedback during typing
+  const [localSearch, setLocalSearch] = useState(search);
+  const debouncedSearch = useDebouncedValue(localSearch, SEARCH_DEBOUNCE_MS);
+
+  // Sync local state when external search prop changes (e.g., from URL navigation)
+  useEffect(() => {
+    setLocalSearch(search);
+  }, [search]);
+
+  // Update parent when debounced value changes (and differs from current)
+  useEffect(() => {
+    if (debouncedSearch !== search) {
+      onSearchChange(debouncedSearch);
+    }
+  }, [debouncedSearch, search, onSearchChange]);
+
   // Create a map for quick letter count lookup
   const letterCounts = new Map(
     alphabeticalIndex.map((item) => [item.letter.toUpperCase(), item.count])
   );
 
-  // Check if any filters are active
-  const hasActiveFilters = search.length > 0 || selectedLetter !== null;
-
-  const handleClearAll = () => {
-    onSearchChange('');
-    onLetterChange(null);
-  };
+  // Local filters (search input + letter) - used for the filter summary text
+  const hasLocalFilters = localSearch.length > 0 || selectedLetter !== null;
 
   return (
     <div className="space-y-4">
       {/* Search input */}
       <div className="flex items-center gap-3">
         <SearchInput
-          value={search}
-          onSearch={onSearchChange}
+          value={localSearch}
+          onSearch={setLocalSearch}
           placeholder="Search definitions by term..."
           isLoading={isLoading}
           className="flex-1"
@@ -63,11 +86,11 @@ export function GlossarySearch({
             type="button"
             variant="ghost"
             size="sm"
-            onClick={handleClearAll}
+            onClick={onClearAll}
             className="flex items-center gap-1 whitespace-nowrap"
           >
             <X className="w-4 h-4" />
-            Clear filters
+            Clear all
           </Button>
         )}
       </div>
@@ -113,10 +136,10 @@ export function GlossarySearch({
       </div>
 
       {/* Active filter summary */}
-      {hasActiveFilters && (
+      {hasLocalFilters && (
         <div className="text-sm text-[var(--color-text-muted)]">
           Showing definitions
-          {search && <span className="font-medium"> matching "{search}"</span>}
+          {localSearch && <span className="font-medium"> matching "{localSearch}"</span>}
           {selectedLetter && (
             <span className="font-medium"> starting with "{selectedLetter}"</span>
           )}

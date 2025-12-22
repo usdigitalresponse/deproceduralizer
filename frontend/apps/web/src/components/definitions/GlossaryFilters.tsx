@@ -1,14 +1,11 @@
 'use client';
 
-import { useCallback } from 'react';
-import { useQueryStates } from 'nuqs';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
-import {
-  glossaryFiltersParsers,
-  type DefinitionScopeLevelValue,
-  type DefinitionTypeValue,
-  type DefinitionQualityValue,
+import type {
+  DefinitionScopeLevelValue,
+  DefinitionTypeValue,
+  DefinitionQualityValue,
 } from '@/lib/url/parsers';
 
 const SCOPE_LEVEL_OPTIONS = [
@@ -34,26 +31,36 @@ const QUALITY_OPTIONS = [
 
 interface GlossaryFiltersProps {
   className?: string;
+  scopeLevel: DefinitionScopeLevelValue;
+  definitionType: DefinitionTypeValue;
+  quality: DefinitionQualityValue;
+  onScopeLevelChange: (value: DefinitionScopeLevelValue) => void;
+  onDefinitionTypeChange: (value: DefinitionTypeValue) => void;
+  onQualityChange: (value: DefinitionQualityValue) => void;
+  onResetFilters: () => void;
+  hasActiveFilters: boolean;
 }
 
-export function GlossaryFilters({ className = '' }: GlossaryFiltersProps) {
-  const [filters, setFilters] = useQueryStates(glossaryFiltersParsers, {
-    shallow: false,
-  });
-
-  const clearFilters = useCallback(() => {
-    setFilters({
-      scopeLevel: 'all',
-      definitionType: 'all',
-      quality: 'all',
-      page: 1,
-    });
-  }, [setFilters]);
-
-  const hasActiveFilters =
-    (filters.scopeLevel && filters.scopeLevel !== 'all') ||
-    (filters.definitionType && filters.definitionType !== 'all') ||
-    (filters.quality && filters.quality !== 'all');
+/**
+ * Controlled filter component for the glossary page.
+ * Receives filter state and callbacks from parent (GlossaryClient).
+ */
+export function GlossaryFilters({
+  className = '',
+  scopeLevel,
+  definitionType,
+  quality,
+  onScopeLevelChange,
+  onDefinitionTypeChange,
+  onQualityChange,
+  onResetFilters,
+  hasActiveFilters,
+}: GlossaryFiltersProps) {
+  // Check if any filter-specific values are active (not 'all')
+  const hasFilterValues =
+    scopeLevel !== 'all' ||
+    definitionType !== 'all' ||
+    quality !== 'all';
 
   return (
     <div className={`flex flex-wrap items-center gap-3 ${className}`}>
@@ -63,11 +70,8 @@ export function GlossaryFilters({ className = '' }: GlossaryFiltersProps) {
           Scope:
         </label>
         <Select
-          value={filters.scopeLevel || 'all'}
-          onValueChange={(value) => setFilters({
-            scopeLevel: value as DefinitionScopeLevelValue,
-            page: 1
-          })}
+          value={scopeLevel}
+          onValueChange={(value) => onScopeLevelChange(value as DefinitionScopeLevelValue)}
           options={SCOPE_LEVEL_OPTIONS}
           aria-label="Filter by scope level"
         />
@@ -79,11 +83,8 @@ export function GlossaryFilters({ className = '' }: GlossaryFiltersProps) {
           Type:
         </label>
         <Select
-          value={filters.definitionType || 'all'}
-          onValueChange={(value) => setFilters({
-            definitionType: value as DefinitionTypeValue,
-            page: 1
-          })}
+          value={definitionType}
+          onValueChange={(value) => onDefinitionTypeChange(value as DefinitionTypeValue)}
           options={DEFINITION_TYPE_OPTIONS}
           aria-label="Filter by definition type"
         />
@@ -95,19 +96,16 @@ export function GlossaryFilters({ className = '' }: GlossaryFiltersProps) {
           Quality:
         </label>
         <Select
-          value={filters.quality || 'all'}
-          onValueChange={(value) => setFilters({
-            quality: value as DefinitionQualityValue,
-            page: 1
-          })}
+          value={quality}
+          onValueChange={(value) => onQualityChange(value as DefinitionQualityValue)}
           options={QUALITY_OPTIONS}
           aria-label="Filter by quality"
         />
       </div>
 
-      {/* Clear filters button */}
-      {hasActiveFilters && (
-        <Button variant="ghost" size="sm" onClick={clearFilters}>
+      {/* Clear filters button - only show when filter dropdowns have non-default values */}
+      {hasFilterValues && (
+        <Button variant="ghost" size="sm" onClick={onResetFilters}>
           Clear filters
         </Button>
       )}

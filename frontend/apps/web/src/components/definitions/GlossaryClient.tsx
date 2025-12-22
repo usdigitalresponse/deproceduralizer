@@ -5,6 +5,7 @@ import { useQueryStates } from 'nuqs';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { GlossarySearch } from './GlossarySearch';
 import { GlossaryFilters } from './GlossaryFilters';
 import { DefinitionCard } from './DefinitionCard';
@@ -23,6 +24,9 @@ import {
   definitionTypeParser,
   definitionQualityParser,
   glossaryViewParser,
+  type DefinitionScopeLevelValue,
+  type DefinitionTypeValue,
+  type DefinitionQualityValue,
 } from '@/lib/url/parsers';
 import type {
   DefinitionWithContext,
@@ -47,12 +51,13 @@ interface GlossaryClientProps {
 const PAGE_SIZE = 20;
 
 /**
- * Client component for the glossary page with search, filtering, and pagination
+ * Client component for the glossary page with search, filtering, and pagination.
+ * Owns all URL state and passes controlled props to child components.
  */
 export function GlossaryClient({ state, initialData }: GlossaryClientProps) {
   const [isLoading, setIsLoading] = useState(false);
 
-  // URL state management with nuqs
+  // Single source of truth for all URL state (shallow: true for client-side fetching)
   const [params, setParams] = useQueryStates({
     search: searchParser,
     letter: letterParser,
@@ -62,10 +67,10 @@ export function GlossaryClient({ state, initialData }: GlossaryClientProps) {
     quality: definitionQualityParser,
     view: glossaryViewParser,
   }, {
-    shallow: true, // Use client-side fetching via useEffect, not RSC navigation
+    shallow: true,
   });
 
-  // Local state for definitions and aggregated terms (updated on transitions)
+  // Local state for definitions and aggregated terms
   const [definitions, setDefinitions] = useState(initialData.definitions);
   const [aggregatedTerms, setAggregatedTerms] = useState(initialData.aggregatedTerms);
   const [total, setTotal] = useState(initialData.total);
@@ -73,11 +78,87 @@ export function GlossaryClient({ state, initialData }: GlossaryClientProps) {
   const [alphabeticalIndex, setAlphabeticalIndex] = useState(initialData.alphabeticalIndex);
   const [error, setError] = useState<string | null>(null);
 
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Helper functions (centralized to avoid duplication)
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  /** Check if any filters are active (unified across all components) */
+  const hasActiveFilters = !!(
+    params.search ||
+    params.letter ||
+    params.scopeLevel !== 'all' ||
+    params.definitionType !== 'all' ||
+    params.quality !== 'all'
+  );
+
+  /** Reset all filters to defaults */
+  const handleResetAllFilters = () => {
+    setParams({
+      search: null,
+      letter: null,
+      page: 1,
+      scopeLevel: 'all',
+      definitionType: 'all',
+      quality: 'all',
+    });
+  };
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Event handlers for child components
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  const handleSearchChange = (value: string) => {
+    setParams({ search: value || null, page: 1, letter: null });
+  };
+
+  const handleLetterChange = (letter: string | null) => {
+    setParams({ letter, page: 1 });
+  };
+
+  const handleScopeLevelChange = (value: DefinitionScopeLevelValue) => {
+    setParams({ scopeLevel: value, page: 1 });
+  };
+
+  const handleDefinitionTypeChange = (value: DefinitionTypeValue) => {
+    setParams({ definitionType: value, page: 1 });
+  };
+
+  const handleQualityChange = (value: DefinitionQualityValue) => {
+    setParams({ quality: value, page: 1 });
+  };
+
+  const handlePageChange = (newPage: number) => {
+    setParams({ page: newPage });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleViewChange = (view: 'flat' | 'aggregated') => {
+    // Clear filters that don't apply to aggregated view when switching
+    if (view === 'aggregated') {
+      setParams({
+        view,
+        page: 1,
+        scopeLevel: 'all',
+        definitionType: 'all',
+        quality: 'all',
+      });
+    } else {
+      setParams({ view, page: 1 });
+    }
+  };
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Data fetching effects
+  // ─────────────────────────────────────────────────────────────────────────────
+
   // Sync state with server action when URL params change
   useEffect(() => {
     // Skip initial fetch as we have initialData (only when at defaults)
-    if (!params.search && !params.letter && params.page === 1 && params.view === 'flat' &&
-        params.scopeLevel === 'all' && params.definitionType === 'all' && params.quality === 'all') return;
+    const isAtDefaults = !params.search && !params.letter && params.page === 1 &&
+      params.view === 'flat' && params.scopeLevel === 'all' &&
+      params.definitionType === 'all' && params.quality === 'all';
+
+    if (isAtDefaults) return;
 
     const fetchData = async () => {
       if (params.view === 'aggregated') {
@@ -120,26 +201,9 @@ export function GlossaryClient({ state, initialData }: GlossaryClientProps) {
       }
     };
 
-    // Execute the fetch with loading state
     setIsLoading(true);
     fetchData().finally(() => setIsLoading(false));
   }, [state, params.search, params.letter, params.page, params.view, params.scopeLevel, params.definitionType, params.quality]);
-
-  // Handle search change
-  const handleSearchChange = (value: string) => {
-    setParams({ search: value || null, page: 1, letter: null });
-  };
-
-  // Handle letter change
-  const handleLetterChange = (letter: string | null) => {
-    setParams({ letter, page: 1 });
-  };
-
-  // Handle page change
-  const handlePageChange = (newPage: number) => {
-    setParams({ page: newPage });
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
 
   // Refresh alphabetical index when state changes
   useEffect(() => {
@@ -154,11 +218,9 @@ export function GlossaryClient({ state, initialData }: GlossaryClientProps) {
 
   const stats = initialData.stats;
 
-  // Check if any filters are active
-  const hasActiveFilters = params.search || params.letter ||
-    params.scopeLevel !== 'all' ||
-    params.definitionType !== 'all' ||
-    params.quality !== 'all';
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Render
+  // ─────────────────────────────────────────────────────────────────────────────
 
   return (
     <div className="space-y-6">
@@ -208,7 +270,7 @@ export function GlossaryClient({ state, initialData }: GlossaryClientProps) {
                 type="button"
                 variant={params.view === 'flat' ? 'primary' : 'ghost'}
                 size="sm"
-                onClick={() => setParams({ view: 'flat', page: 1 })}
+                onClick={() => handleViewChange('flat')}
                 className="rounded-none border-0"
               >
                 <List className="w-4 h-4 mr-1" />
@@ -218,7 +280,7 @@ export function GlossaryClient({ state, initialData }: GlossaryClientProps) {
                 type="button"
                 variant={params.view === 'aggregated' ? 'primary' : 'ghost'}
                 size="sm"
-                onClick={() => setParams({ view: 'aggregated', page: 1 })}
+                onClick={() => handleViewChange('aggregated')}
                 className="rounded-none border-0 border-l border-[var(--color-neutral-200)]"
               >
                 <Layers className="w-4 h-4 mr-1" />
@@ -232,10 +294,24 @@ export function GlossaryClient({ state, initialData }: GlossaryClientProps) {
           onSearchChange={handleSearchChange}
           selectedLetter={params.letter}
           onLetterChange={handleLetterChange}
+          onClearAll={handleResetAllFilters}
           alphabeticalIndex={alphabeticalIndex}
           isLoading={isLoading}
+          hasActiveFilters={hasActiveFilters}
         />
-        {params.view === 'flat' && <GlossaryFilters className="mt-4" />}
+        {params.view === 'flat' && (
+          <GlossaryFilters
+            className="mt-4"
+            scopeLevel={params.scopeLevel}
+            definitionType={params.definitionType}
+            quality={params.quality}
+            onScopeLevelChange={handleScopeLevelChange}
+            onDefinitionTypeChange={handleDefinitionTypeChange}
+            onQualityChange={handleQualityChange}
+            onResetFilters={handleResetAllFilters}
+            hasActiveFilters={hasActiveFilters}
+          />
+        )}
       </Card>
 
       {/* Error state */}
@@ -273,27 +349,16 @@ export function GlossaryClient({ state, initialData }: GlossaryClientProps) {
           </div>
         ) : (
           <Card>
-            <div className="text-center py-8">
-              <Layers className="w-12 h-12 text-[var(--color-text-muted)] mx-auto mb-3" />
-              <p className="text-[var(--color-text-muted)]">
-                No terms found
-                {params.search && ` matching "${params.search}"`}
-                {params.letter && ` starting with "${params.letter}"`}
-              </p>
-              {(params.search || params.letter) && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setParams({ search: null, letter: null, page: 1 });
-                  }}
-                  className="mt-3"
-                >
-                  Clear filters
-                </Button>
-              )}
-            </div>
+            <EmptyState
+              icon={Layers}
+              title="No terms found"
+              description={
+                params.search || params.letter
+                  ? `No terms ${params.search ? `matching "${params.search}"` : ''}${params.search && params.letter ? ' and ' : ''}${params.letter ? `starting with "${params.letter}"` : ''}`
+                  : undefined
+              }
+              action={hasActiveFilters ? { label: 'Clear filters', onClick: handleResetAllFilters } : undefined}
+            />
           </Card>
         )
       ) : (
@@ -310,34 +375,16 @@ export function GlossaryClient({ state, initialData }: GlossaryClientProps) {
           </div>
         ) : (
           <Card>
-            <div className="text-center py-8">
-              <BookOpen className="w-12 h-12 text-[var(--color-text-muted)] mx-auto mb-3" />
-              <p className="text-[var(--color-text-muted)]">
-                No definitions found
-                {params.search && ` matching "${params.search}"`}
-                {params.letter && ` starting with "${params.letter}"`}
-              </p>
-              {hasActiveFilters && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setParams({
-                      search: null,
-                      letter: null,
-                      page: 1,
-                      scopeLevel: 'all',
-                      definitionType: 'all',
-                      quality: 'all',
-                    });
-                  }}
-                  className="mt-3"
-                >
-                  Clear filters
-                </Button>
-              )}
-            </div>
+            <EmptyState
+              icon={BookOpen}
+              title="No definitions found"
+              description={
+                hasActiveFilters
+                  ? `No definitions ${params.search ? `matching "${params.search}"` : ''}${params.search && params.letter ? ' and ' : ''}${params.letter ? `starting with "${params.letter}"` : ''}`
+                  : undefined
+              }
+              action={hasActiveFilters ? { label: 'Clear filters', onClick: handleResetAllFilters } : undefined}
+            />
           </Card>
         )
       )}
