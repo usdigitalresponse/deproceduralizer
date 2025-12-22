@@ -11,11 +11,21 @@ Commands:
     process - Process completed batch results
     resume  - Retry failed requests from a batch
 
-Usage:
+Examples:
+    # Submit all NJ definitions
+    python batch_definitions.py submit --state NJ
+
+    # Submit NJ Title 3A only
     python batch_definitions.py submit --state NJ --title 3A
+
+    # Submit NY Title 18, Chapter II, skip already-processed
+    python batch_definitions.py submit --state NY --title 18 --chapter II --skip-done
+
+    # Check status of all batches
     python batch_definitions.py status
+
+    # Process completed batch
     python batch_definitions.py process --batch-id msgbatch_xxx
-    python batch_definitions.py resume --batch-id msgbatch_xxx
 """
 
 import argparse
@@ -42,6 +52,8 @@ from shared_utils import (
     load_prompt,
     normalize_scope_level,
     format_time,
+    get_filtered_documents,
+    get_already_extracted_ids,
     DEFAULT_MODEL,
 )
 
@@ -556,6 +568,12 @@ def cmd_submit(args):
     print(f"      State: {args.state}")
     if args.title:
         print(f"      Title: {args.title}")
+    if args.chapter:
+        print(f"      Chapter: {args.chapter}")
+    if getattr(args, 'subchapter', None):
+        print(f"      Subchapter: {args.subchapter}")
+    if getattr(args, 'part', None):
+        print(f"      Part: {args.part}")
     if args.limit:
         print(f"      Limit: {args.limit}")
 
@@ -571,6 +589,21 @@ def cmd_submit(args):
         return
 
     print(f"      ✓ Found {len(sections)} sections")
+
+    # Skip already-processed if requested
+    if getattr(args, 'skip_done', False):
+        already_done = get_already_extracted_ids(args.state)
+        before_count = len(sections)
+        sections = [s for s in sections if s['id'] not in already_done]
+        skipped = before_count - len(sections)
+        if skipped > 0:
+            print(f"      Skipped {skipped} already-processed sections")
+        print(f"      ✓ {len(sections)} sections to process")
+
+    if not sections:
+        print("All matching sections already processed!")
+        return
+
     print()
 
     if args.dry_run:
@@ -1168,11 +1201,17 @@ Batch processing provides 50% cost reduction but takes up to 24 hours.
     submit_parser.add_argument('--state', required=True, choices=['NY', 'NJ'],
                                help='State to process')
     submit_parser.add_argument('--title', type=str,
-                               help='Title to filter (e.g., "3A")')
+                               help='Filter by title (e.g., "3A", "18")')
     submit_parser.add_argument('--chapter', type=str,
-                               help='Chapter to filter')
+                               help='Filter by chapter (e.g., "II", "23")')
+    submit_parser.add_argument('--subchapter', type=str,
+                               help='Filter by subchapter (e.g., "C")')
+    submit_parser.add_argument('--part', type=str,
+                               help='Filter by part (e.g., "1202")')
     submit_parser.add_argument('--limit', type=int,
                                help='Max documents to process')
+    submit_parser.add_argument('--skip-done', action='store_true',
+                               help='Skip documents that already have definitions')
     submit_parser.add_argument('--dry-run', action='store_true',
                                help='Show what would be submitted without actually submitting')
 

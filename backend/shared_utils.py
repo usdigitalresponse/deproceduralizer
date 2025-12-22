@@ -158,6 +158,151 @@ def normalize_scope_level(scope_level: str) -> str:
     return singular_forms.get(level, level)
 
 
+# =============================================================================
+# FILTERING AND SKIP-IF-DONE HELPERS
+# =============================================================================
+
+def get_filtered_documents(
+    state: str,
+    title: str = None,
+    chapter: str = None,
+    subchapter: str = None,
+    part: str = None,
+    hierarchy_level: str = None,
+    limit: int = None,
+) -> list:
+    """
+    Query regulatory_documents with hierarchy filters.
+
+    Args:
+        state: 'NY' or 'NJ'
+        title: Filter by nycrr_title/njac_title
+        chapter: Filter by nycrr_chapter/njac_chapter
+        subchapter: Filter by nycrr_subchapter/njac_subchapter
+        part: Filter by nycrr_part/njac_part
+        hierarchy_level: Filter by hierarchy_level (e.g., 'section')
+        limit: Max rows to return
+
+    Returns:
+        List of dicts with id, title, content, url, and hierarchy fields
+    """
+    conn = get_db_connection()
+    if not conn:
+        return []
+
+    prefix = 'njac' if state.upper() == 'NJ' else 'nycrr'
+
+    conditions = ["state = %s"]
+    params = [state.upper()]
+
+    if title:
+        conditions.append(f"{prefix}_title = %s")
+        params.append(title)
+
+    if chapter:
+        conditions.append(f"{prefix}_chapter = %s")
+        params.append(chapter)
+
+    if subchapter:
+        conditions.append(f"{prefix}_subchapter = %s")
+        params.append(subchapter)
+
+    if part:
+        conditions.append(f"{prefix}_part = %s")
+        params.append(part)
+
+    if hierarchy_level:
+        conditions.append("hierarchy_level = %s")
+        params.append(hierarchy_level)
+
+    query = f"""
+        SELECT id, title, content, url, hierarchy_level, hierarchy_path,
+               {prefix}_title, {prefix}_chapter, {prefix}_subchapter, {prefix}_part, {prefix}_section
+        FROM regulatory_documents
+        WHERE {' AND '.join(conditions)}
+        ORDER BY id
+    """
+
+    if limit:
+        query += " LIMIT %s"
+        params.append(limit)
+
+    try:
+        rows = conn.execute(query, params).fetchall()
+        conn.close()
+
+        results = []
+        for row in rows:
+            results.append({
+                'id': row[0],
+                'title': row[1],
+                'content': row[2],
+                'url': row[3],
+                'hierarchy_level': row[4],
+                'hierarchy_path': row[5],
+                f'{prefix}_title': row[6],
+                f'{prefix}_chapter': row[7],
+                f'{prefix}_subchapter': row[8],
+                f'{prefix}_part': row[9],
+                f'{prefix}_section': row[10],
+            })
+        return results
+    except Exception as e:
+        print(f"ERROR querying documents: {e}")
+        if conn:
+            conn.close()
+        return []
+
+
+def get_already_analyzed_ids(state: str) -> set:
+    """Get document IDs that already have red flag analyses."""
+    conn = get_db_connection()
+    if not conn:
+        return set()
+
+    try:
+        result = conn.execute("""
+            SELECT DISTINCT document_id
+            FROM analyses
+            WHERE is_current = TRUE
+              AND document_id IN (
+                  SELECT id FROM regulatory_documents WHERE state = %s
+              )
+        """, (state.upper(),))
+        ids = {row[0] for row in result.fetchall()}
+        conn.close()
+        return ids
+    except Exception as e:
+        print(f"Warning: Could not fetch analyzed IDs: {e}")
+        if conn:
+            conn.close()
+        return set()
+
+
+def get_already_extracted_ids(state: str) -> set:
+    """Get document IDs that already have definitions extracted."""
+    conn = get_db_connection()
+    if not conn:
+        return set()
+
+    try:
+        result = conn.execute("""
+            SELECT DISTINCT document_id
+            FROM definitions
+            WHERE document_id IN (
+                SELECT id FROM regulatory_documents WHERE state = %s
+            )
+        """, (state.upper(),))
+        ids = {row[0] for row in result.fetchall()}
+        conn.close()
+        return ids
+    except Exception as e:
+        print(f"Warning: Could not fetch extracted IDs: {e}")
+        if conn:
+            conn.close()
+        return set()
+
+
 def format_time(seconds: float) -> str:
     """
     Format seconds into human-readable time string.

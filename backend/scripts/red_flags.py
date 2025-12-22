@@ -1,9 +1,22 @@
 #!/usr/bin/env python3
 """
-Red Flag Analysis Script for New York State Regulations
+Red Flag Analysis - Identify implementation complexity in regulations.
 
-This script processes individual regulation JSON files and uses GPT-5 mini with structured output
-to identify regulatory "red flags" based on the patterns identified by Jennifer Pahlka.
+Analyzes regulations for 12 categories of "red flags" based on Jennifer Pahlka's
+framework from "Recoding America".
+
+Examples:
+    # Analyze sample of NY regulations
+    python red_flags.py --state NY --sample-size 100
+
+    # Analyze specific NJ title
+    python red_flags.py --state NJ --title 3A
+
+    # Analyze NY Title 18, Chapter II, skip already-processed
+    python red_flags.py --state NY --title 18 --chapter II --skip-done
+
+    # Dry run to see what would be analyzed
+    python red_flags.py --state NJ --title 5 --dry-run
 """
 
 import json
@@ -26,7 +39,14 @@ from psycopg import Connection
 # Add backend directory to path for config import
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import INDIVIDUAL_REGULATIONS_DIR, WEB_PUBLIC_DIR, PROJECT_ROOT, OUTPUTS_DIR
-from shared_utils import get_db_connection, get_async_openai_client, call_llm_parse_async, load_prompt
+from shared_utils import (
+    get_db_connection,
+    get_async_openai_client,
+    call_llm_parse_async,
+    load_prompt,
+    get_filtered_documents,
+    get_already_analyzed_ids,
+)
 
 # Load environment variables from project root
 load_dotenv(PROJECT_ROOT / '.env')
@@ -618,14 +638,54 @@ async def analyze_regulations_batch(regulations: List[RegulationData],
 def parse_arguments():
     """Parse command-line arguments"""
     parser = argparse.ArgumentParser(
-        description='Analyze NY regulations for red flags with multi-category sampling'
+        description='Analyze regulations for red flags (implementation complexity)'
+    )
+
+    # State selection (required for DB mode)
+    parser.add_argument(
+        '--state',
+        type=str,
+        choices=['NY', 'NJ'],
+        help='State to analyze (uses database)'
+    )
+
+    # Hierarchy filters
+    parser.add_argument(
+        '--title',
+        type=str,
+        help='Filter by title (e.g., "3A", "18")'
     )
 
     parser.add_argument(
+        '--chapter',
+        type=str,
+        help='Filter by chapter (e.g., "II", "23")'
+    )
+
+    parser.add_argument(
+        '--subchapter',
+        type=str,
+        help='Filter by subchapter (e.g., "C")'
+    )
+
+    parser.add_argument(
+        '--part',
+        type=str,
+        help='Filter by part (e.g., "1202")'
+    )
+
+    # Processing options
+    parser.add_argument(
         '--sample-size', '-n',
         type=int,
-        default=100,
-        help='Total number of regulations to analyze (default: 100)'
+        default=None,
+        help='Max number of regulations to analyze (default: all matching)'
+    )
+
+    parser.add_argument(
+        '--skip-done',
+        action='store_true',
+        help='Skip documents that already have analyses'
     )
 
     parser.add_argument(
@@ -633,7 +693,7 @@ def parse_arguments():
         nargs='+',
         choices=['housing', 'child_care', 'permitting', 'all'],
         default=['all'],
-        help='Categories to include (default: all three)'
+        help='Categories to include when using JSON files (default: all)'
     )
 
     parser.add_argument(
@@ -647,6 +707,12 @@ def parse_arguments():
         type=int,
         default=10,
         help='Parallel batch size for API calls (default: 10)'
+    )
+
+    parser.add_argument(
+        '--dry-run',
+        action='store_true',
+        help='Show what would be analyzed without running'
     )
 
     parser.add_argument(
@@ -678,22 +744,96 @@ async def main():
     # Initialize async OpenAI client
     client = get_async_openai_client()
 
-    # Load regulations with balanced multi-category sampling
-    print(f"Loading regulations with balanced multi-category sampling...")
-    print(f"  Target: {args.sample_size} total")
-    print(f"  Categories: {', '.join(args.categories) if 'all' not in args.categories else 'all'}")
+    # Determine state for DB operations
+    state = getattr(args, 'state', None) or 'NY'
 
-    regulations = load_regulations_multi_category(
-        str(INDIVIDUAL_REGULATIONS_DIR),
-        CATEGORY_KEYWORDS,
-        args.sample_size,
-        selected_categories=args.categories if 'all' not in args.categories else None
-    )
+    # Load regulations - from DB if state specified, otherwise from JSON
+    if args.state:
+        print(f"Loading regulations from database...")
+        print(f"  State: {args.state}")
+        if args.title:
+            print(f"  Title: {args.title}")
+        if args.chapter:
+            print(f"  Chapter: {args.chapter}")
+        if getattr(args, 'subchapter', None):
+            print(f"  Subchapter: {args.subchapter}")
+        if getattr(args, 'part', None):
+            print(f"  Part: {args.part}")
 
-    print(f"Loaded {len(regulations)} regulation files")
+        docs = get_filtered_documents(
+            state=args.state,
+            title=args.title,
+            chapter=args.chapter,
+            subchapter=getattr(args, 'subchapter', None),
+            part=getattr(args, 'part', None),
+            hierarchy_level='section',
+            limit=args.sample_size,
+        )
+
+        if not docs:
+            print("No documents found matching criteria!")
+            return
+
+        print(f"  Found {len(docs)} documents")
+
+        # Skip already-processed if requested
+        if getattr(args, 'skip_done', False):
+            already_done = get_already_analyzed_ids(args.state)
+            before_count = len(docs)
+            docs = [d for d in docs if d['id'] not in already_done]
+            skipped = before_count - len(docs)
+            if skipped > 0:
+                print(f"  Skipped {skipped} already-analyzed documents")
+            print(f"  {len(docs)} documents to analyze")
+
+        if not docs:
+            print("All matching documents already analyzed!")
+            return
+
+        # Dry run
+        if getattr(args, 'dry_run', False):
+            print("\nDRY RUN - Would analyze these documents:")
+            for i, doc in enumerate(docs[:10], 1):
+                print(f"  {i}. [{doc['id']}] {doc['title'][:60]}")
+            if len(docs) > 10:
+                print(f"  ... and {len(docs) - 10} more")
+            return
+
+        # Convert to RegulationData
+        prefix = 'njac' if args.state == 'NJ' else 'nycrr'
+        regulations = []
+        for doc in docs:
+            regulations.append(RegulationData(
+                url=doc.get('url', ''),
+                title=doc.get('title', ''),
+                content=doc.get('content', ''),
+                url_type='regulation',
+                source_index=doc.get('id', 0),  # Use DB id as source_index
+                hierarchy_level=doc.get('hierarchy_level'),
+                hierarchy_path=doc.get('hierarchy_path'),
+                nycrr_title=doc.get(f'{prefix}_title'),
+                nycrr_part=doc.get(f'{prefix}_part'),
+                nycrr_subpart=doc.get(f'{prefix}_subpart'),
+                nycrr_section=doc.get(f'{prefix}_section'),
+            ))
+    else:
+        # Legacy JSON file mode
+        print(f"Loading regulations from JSON files...")
+        sample_size = args.sample_size or 100
+        print(f"  Target: {sample_size} total")
+        print(f"  Categories: {', '.join(args.categories) if 'all' not in args.categories else 'all'}")
+
+        regulations = load_regulations_multi_category(
+            str(INDIVIDUAL_REGULATIONS_DIR),
+            CATEGORY_KEYWORDS,
+            sample_size,
+            selected_categories=args.categories if 'all' not in args.categories else None
+        )
+
+    print(f"Loaded {len(regulations)} regulations")
 
     if not regulations:
-        print("No regulation files found!")
+        print("No regulations found!")
         return
 
     # Print category distribution
