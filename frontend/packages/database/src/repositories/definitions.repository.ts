@@ -18,6 +18,14 @@ export interface DefinitionWithContext extends Definition {
   };
 }
 
+/**
+ * Extended definition with scope document info for applicable definitions display
+ */
+export interface ApplicableDefinition extends DefinitionWithContext {
+  scopeDocTitle?: string | null;
+  scopeDocLevel?: string | null;
+}
+
 export interface DefinitionPaginationOptions {
   state: StateCode;
   page: number;
@@ -139,6 +147,115 @@ export class DefinitionsRepository extends BaseRepository {
       .orderBy(asc(definitions.term));
 
     return byUrl.map(d => ({ ...d }));
+  }
+
+  /**
+   * Get all definitions that apply to a document via scope percolation.
+   * Walks up ancestor chain and finds definitions whose scope_document_id
+   * is in that chain (including the document itself).
+   */
+  async getApplicableDefinitions(documentId: number): Promise<ApplicableDefinition[]> {
+    const results = await this.db.execute(sql`
+      WITH RECURSIVE ancestors AS (
+        -- Start with the current document
+        SELECT id, parent_id, hierarchy_level, 0 as depth
+        FROM regulatory_documents
+        WHERE id = ${documentId}
+
+        UNION ALL
+
+        -- Walk up parent chain
+        SELECT rd.id, rd.parent_id, rd.hierarchy_level, a.depth + 1
+        FROM regulatory_documents rd
+        INNER JOIN ancestors a ON rd.id = a.parent_id
+        WHERE a.depth < 20
+      )
+      SELECT
+        d.id,
+        d.document_id as "documentId",
+        d.url,
+        d.term,
+        d.verbatim_text as "verbatimText",
+        d.is_verbatim as "isVerbatim",
+        d.rephrased_definition as "rephrasedDefinition",
+        d.scope,
+        d.source_location as "sourceLocation",
+        d.definition_overlap as "definitionOverlap",
+        d.model_version as "modelVersion",
+        d.extracted_at as "extractedAt",
+        d.notes,
+        d.scope_level as "scopeLevel",
+        d.scope_document_id as "scopeDocumentId",
+        d.definition_type as "definitionType",
+        d.normalized_term as "normalizedTerm",
+        d.is_cross_reference as "isCrossReference",
+        -- Regulation context (where definition is defined)
+        rd.id as "regId",
+        rd.title as "regTitle",
+        rd.nycrr_title as "nycrrTitle",
+        rd.nycrr_part as "nycrrPart",
+        rd.nycrr_section as "nycrrSection",
+        rd.njac_title as "njacTitle",
+        rd.njac_chapter as "njacChapter",
+        rd.njac_subchapter as "njacSubchapter",
+        rd.state as "regState",
+        -- Scope document for display
+        scope_doc.title as "scopeDocTitle",
+        scope_doc.hierarchy_level as "scopeDocLevel"
+      FROM definitions d
+      JOIN ancestors a ON d.scope_document_id = a.id
+      LEFT JOIN regulatory_documents rd ON d.document_id = rd.id
+      LEFT JOIN regulatory_documents scope_doc ON d.scope_document_id = scope_doc.id
+      ORDER BY
+        CASE d.scope_level
+          WHEN 'title' THEN 1
+          WHEN 'subtitle' THEN 2
+          WHEN 'chapter' THEN 3
+          WHEN 'subchapter' THEN 4
+          WHEN 'article' THEN 5
+          WHEN 'part' THEN 6
+          WHEN 'subpart' THEN 7
+          WHEN 'section' THEN 8
+          ELSE 9
+        END,
+        d.term
+    `);
+
+    // Map results to ApplicableDefinition
+    return (results.rows as any[]).map(row => ({
+      id: Number(row.id),
+      documentId: row.documentId ? Number(row.documentId) : null,
+      url: row.url,
+      term: row.term,
+      verbatimText: row.verbatimText,
+      isVerbatim: row.isVerbatim,
+      rephrasedDefinition: row.rephrasedDefinition,
+      scope: row.scope,
+      sourceLocation: row.sourceLocation,
+      definitionOverlap: row.definitionOverlap,
+      modelVersion: row.modelVersion,
+      extractedAt: row.extractedAt,
+      notes: row.notes,
+      scopeLevel: row.scopeLevel,
+      scopeDocumentId: row.scopeDocumentId ? Number(row.scopeDocumentId) : null,
+      definitionType: row.definitionType,
+      normalizedTerm: row.normalizedTerm,
+      isCrossReference: row.isCrossReference,
+      regulation: row.regId ? {
+        id: Number(row.regId),
+        title: row.regTitle,
+        nycrrTitle: row.nycrrTitle ? Number(row.nycrrTitle) : null,
+        nycrrPart: row.nycrrPart,
+        nycrrSection: row.nycrrSection,
+        njacTitle: row.njacTitle,
+        njacChapter: row.njacChapter,
+        njacSubchapter: row.njacSubchapter,
+        state: row.regState,
+      } : undefined,
+      // Scope document info for display
+      scopeDocTitle: row.scopeDocTitle,
+      scopeDocLevel: row.scopeDocLevel,
+    }));
   }
 
   /**

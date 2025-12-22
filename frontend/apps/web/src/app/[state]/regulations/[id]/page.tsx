@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui';
 import { RedFlagsList } from '@/components/RedFlagsList';
 import { ComplianceIssuesList } from '@/components/ComplianceIssuesList';
-import { DefinitionsList } from '@/components/definitions';
+import { DefinitionsList, ApplicableDefinitions } from '@/components/definitions';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
 import {
   RegulationHierarchyDetails,
@@ -18,7 +18,7 @@ import {
 import { HierarchyBreadcrumbsServer } from '@/components/regulations/HierarchyBreadcrumbsServer';
 import { ChildrenListServer } from '@/components/regulations/ChildrenListServer';
 import { getComplianceIssuesByDocumentId } from '@/lib/actions/compliance-issues';
-import { getDefinitionsForDocument } from '@/lib/actions/definitions';
+import { getDefinitionsForDocument, getApplicableDefinitionsForDocument } from '@/lib/actions/definitions';
 import { getNotesByDocumentId } from '@/lib/actions/document-notes';
 import { RegulationDetailClient } from './RegulationDetailClient';
 
@@ -42,10 +42,11 @@ export default async function RegulationDetailPage({ params, searchParams }: Pag
   }
 
   const repo = new RegulatoryDocumentsRepository(db);
-  const [regulation, complianceIssuesResult, definitionsResult, notesResult] = await Promise.all([
+  const [regulation, complianceIssuesResult, definitionsResult, applicableDefinitionsResult, notesResult] = await Promise.all([
     repo.getByIdWithAnalysis(regulationId),
     getComplianceIssuesByDocumentId(regulationId),
     getDefinitionsForDocument(regulationId),
+    getApplicableDefinitionsForDocument(regulationId),
     getNotesByDocumentId(regulationId),
   ]);
 
@@ -86,6 +87,22 @@ export default async function RegulationDetailPage({ params, searchParams }: Pag
     );
   }
 
+  if (!applicableDefinitionsResult.success) {
+    return (
+      <div className="bg-[var(--color-background)] min-h-screen">
+        <PageHeader
+          title={regulation.title || 'Untitled Regulation'}
+          description={undefined}
+        />
+        <Container size="xl" className="py-6">
+          <Alert variant="error">
+            Failed to load applicable definitions: {applicableDefinitionsResult.error}
+          </Alert>
+        </Container>
+      </div>
+    );
+  }
+
   if (!notesResult.success) {
     return (
       <div className="bg-[var(--color-background)] min-h-screen">
@@ -104,6 +121,7 @@ export default async function RegulationDetailPage({ params, searchParams }: Pag
 
   const complianceIssues = complianceIssuesResult.data;
   const definitions = definitionsResult.data;
+  const applicableDefinitions = applicableDefinitionsResult.data;
   const notes = notesResult.data;
 
   const nycrrCitation = formatNycrrCitation(
@@ -185,6 +203,14 @@ export default async function RegulationDetailPage({ params, searchParams }: Pag
           {definitions && definitions.length > 0 && (
             <DefinitionsList
               definitions={definitions}
+              state={state}
+            />
+          )}
+
+          {/* Applicable Definitions from ancestor hierarchy */}
+          {applicableDefinitions && applicableDefinitions.length > 0 && (
+            <ApplicableDefinitions
+              definitions={applicableDefinitions}
               state={state}
             />
           )}
