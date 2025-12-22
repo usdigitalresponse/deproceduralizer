@@ -44,7 +44,6 @@ from shared_utils import (
     get_openai_client,
     get_async_openai_client,
     call_llm_parse_async,
-    load_prompt,
     load_prompt_parts,
     format_batch_request,
     get_filtered_documents,
@@ -383,13 +382,19 @@ def create_analysis_prompt(section_text: str = "", citation: str = "", heading: 
     """
     Build comprehensive Pahlka implementation analysis prompt with pattern library examples.
     Uses centralized prompt from prompts.yaml.
+
+    Combines system + user prompts for non-batch calls.
     """
-    return load_prompt(
+    parts = load_prompt_parts(
         "red_flags_analysis",
         section_text=section_text,
         citation=citation,
         heading=heading
     )
+    # Combine system and user for non-batch calls
+    if parts.get('system'):
+        return f"{parts['system']}\n\n{parts['user']}"
+    return parts['user']
 
 def save_analysis_to_database(conn: Connection,
                              regulation: RegulationData,
