@@ -91,7 +91,7 @@ def get_db_connection(timeout: int = 30) -> Optional[Connection]:
     Create connection to Neon PostgreSQL database.
 
     Consolidates duplicate implementation from multiple scripts.
-    Used by: migrate_to_postgres, populate_parent_ids, analyze_definition_usage,
+    Used by: migrate_regulations, populate_parent_ids, analyze_definition_usage,
              analyze_red_flags, run_pipeline, extract_definitions
 
     Args:
@@ -156,6 +156,28 @@ def normalize_scope_level(scope_level: str) -> str:
     }
 
     return singular_forms.get(level, level)
+
+
+def format_time(seconds: float) -> str:
+    """
+    Format seconds into human-readable time string.
+
+    Args:
+        seconds: Number of seconds to format
+
+    Returns:
+        Formatted string like "45s", "5m 30s", or "2h 15m"
+    """
+    if seconds < 60:
+        return f"{seconds:.0f}s"
+    elif seconds < 3600:
+        mins = int(seconds // 60)
+        secs = int(seconds % 60)
+        return f"{mins}m {secs}s"
+    else:
+        hours = int(seconds // 3600)
+        mins = int((seconds % 3600) // 60)
+        return f"{hours}h {mins}m"
 
 
 # ============================================================================
@@ -419,3 +441,523 @@ async def call_llm_parse_async(
             return None
 
     return None
+
+
+# ============================================================================
+# Database Migration Utilities
+# ============================================================================
+
+def get_state_config(state: str) -> dict:
+    """Get configuration for a state's regulation fields."""
+    if state == "NJ":
+        return {
+            "prefix": "njac",
+            "fields": [
+                "njac_title", "njac_title_name",
+                "njac_subtitle", "njac_subtitle_name",
+                "njac_chapter", "njac_chapter_name",
+                "njac_subchapter", "njac_subchapter_name",
+                "njac_article", "njac_article_name",
+                "njac_part", "njac_part_name",
+                "njac_subpart", "njac_subpart_name",
+                "njac_section", "njac_section_name",
+            ]
+        }
+    elif state == "NY":
+        return {
+            "prefix": "nycrr",
+            "fields": [
+                "nycrr_title", "nycrr_title_name",
+                "nycrr_subtitle", "nycrr_subtitle_name",
+                "nycrr_chapter", "nycrr_chapter_name",
+                "nycrr_subchapter", "nycrr_subchapter_name",
+                "nycrr_article", "nycrr_article_name",
+                "nycrr_part", "nycrr_part_name",
+                "nycrr_subpart", "nycrr_subpart_name",
+                "nycrr_section", "nycrr_section_name",
+            ]
+        }
+    else:
+        raise ValueError(f"Unknown state: {state}")
+
+
+def migrate_regulations_to_db(state: str, regulations: list = None, reg_dir: Path = None) -> int:
+    """
+    Migrate regulations to database using upsert (ON CONFLICT).
+
+    This preserves existing IDs by matching on (state, source_index, type).
+
+    Args:
+        state: State code ('NY' or 'NJ')
+        regulations: List of regulation dicts (from scraper or JSON files)
+        reg_dir: Optional directory to load from JSON files instead
+
+    Returns:
+        Number of regulations migrated
+    """
+    config = get_state_config(state)
+    fields = config["fields"]
+
+    # If reg_dir provided, load from JSON files
+    if reg_dir is not None:
+        json_files = list(Path(reg_dir).glob("*.json"))
+        if not json_files:
+            print(f"✗ No JSON files found in {reg_dir}/")
+            return 0
+        regulations = []
+        for json_file in sorted(json_files):
+            with open(json_file) as f:
+                regulations.append(json.load(f))
+
+    if not regulations:
+        print(f"✗ No regulations to migrate")
+        return 0
+
+    print(f"Migrating {len(regulations):,} {state} regulations to database...")
+
+    # Build SQL dynamically based on state fields
+    field_names = ", ".join(fields)
+    field_placeholders = ", ".join(["%s"] * len(fields))
+    field_updates = ", ".join([f"{f} = EXCLUDED.{f}" for f in fields])
+
+    insert_sql = f"""
+        INSERT INTO regulatory_documents
+        (source_index, type, state, title, url, url_type, content,
+         hierarchy_level, hierarchy_path, {field_names}, scraped_from_url)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, {field_placeholders}, %s)
+        ON CONFLICT (state, source_index, type) DO UPDATE SET
+            title = EXCLUDED.title,
+            url = EXCLUDED.url,
+            content = EXCLUDED.content,
+            hierarchy_level = EXCLUDED.hierarchy_level,
+            hierarchy_path = EXCLUDED.hierarchy_path,
+            {field_updates},
+            scraped_from_url = EXCLUDED.scraped_from_url
+    """
+
+    total = 0
+    conn = None
+    cur = None
+    commit_every = 50
+
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        for reg in regulations:
+            retries = 3
+            while retries > 0:
+                try:
+                    # Base fields
+                    row = [
+                        reg.get("source_index"),
+                        "regulation",
+                        state,
+                        reg.get("title", ""),
+                        reg.get("url", ""),
+                        reg.get("url_type", "regulation"),
+                        reg.get("content", ""),
+                        reg.get("hierarchy_level"),
+                        reg.get("hierarchy_path"),
+                    ]
+
+                    # State-specific hierarchy fields
+                    for field in fields:
+                        row.append(reg.get(field))
+
+                    # Trailing field
+                    row.append(reg.get("scraped_from_url"))
+
+                    cur.execute(insert_sql, row)
+                    total += 1
+
+                    if total % commit_every == 0:
+                        conn.commit()
+
+                    if total % 1000 == 0:
+                        print(f"  ✓ {total:,} / {len(regulations):,}")
+
+                    break
+
+                except (psycopg.OperationalError, psycopg.InterfaceError):
+                    retries -= 1
+                    print(f"  ⚠ Connection error, retries: {retries}")
+                    if retries > 0:
+                        time.sleep(2)
+                        try:
+                            cur.close()
+                            conn.close()
+                        except:
+                            pass
+                        conn = get_db_connection()
+                        cur = conn.cursor()
+                    else:
+                        raise
+
+        conn.commit()
+
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
+    print(f"✓ Migrated {total:,} {state} regulations")
+    return total
+
+
+def populate_parent_ids(state: str, regulations: list = None, reg_dir: Path = None):
+    """
+    Populate parent_id for regulations by converting parent_source_index to parent_id.
+
+    Args:
+        state: State code ('NY' or 'NJ')
+        regulations: List of regulation dicts with parent_source_index
+        reg_dir: Optional directory to load parent mappings from JSON files
+    """
+    # Build parent mappings
+    parent_mappings = {}
+
+    if reg_dir is not None:
+        print(f"Loading {state} parent mappings from {reg_dir}...")
+        for filepath in Path(reg_dir).glob("*.json"):
+            try:
+                with open(filepath) as f:
+                    data = json.load(f)
+                si = data.get('source_index')
+                psi = data.get('parent_source_index')
+                if si is not None:
+                    parent_mappings[si] = psi
+            except:
+                continue
+    elif regulations is not None:
+        print(f"Loading {state} parent mappings from {len(regulations)} regulations...")
+        for reg in regulations:
+            si = reg.get('source_index')
+            psi = reg.get('parent_source_index')
+            if si is not None:
+                parent_mappings[si] = psi
+    else:
+        print("✗ No regulations or reg_dir provided")
+        return
+
+    with_parents = sum(1 for v in parent_mappings.values() if v is not None)
+    roots = sum(1 for v in parent_mappings.values() if v is None)
+    print(f"  {len(parent_mappings):,} docs, {with_parents:,} have parents, {roots:,} are roots")
+
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT id, source_index FROM regulatory_documents
+                WHERE state = %s AND type = 'regulation'
+            """, (state,))
+            source_to_id = {r[1]: r[0] for r in cur.fetchall() if r[1] is not None}
+
+            # First, clear ALL parent_ids for this state (to remove stale data)
+            print(f"  Clearing existing parent_ids...")
+            cur.execute("""
+                UPDATE regulatory_documents SET parent_id = NULL
+                WHERE state = %s AND type = 'regulation'
+            """, (state,))
+
+            # Now set parent_ids for docs that have parents
+            updates = []
+            for si, psi in parent_mappings.items():
+                if psi is None:
+                    continue
+                child_id = source_to_id.get(si)
+                parent_id = source_to_id.get(psi)
+                if child_id and parent_id:
+                    updates.append((parent_id, child_id))
+
+            print(f"  Applying {len(updates):,} parent updates...")
+            cur.executemany("UPDATE regulatory_documents SET parent_id = %s WHERE id = %s", updates)
+            conn.commit()
+
+    print(f"✓ Updated {len(updates):,} {state} parent relationships ({roots:,} roots with no parent)")
+
+
+def cleanup_stale_documents(state: str, valid_source_indices: set = None, reg_dir: Path = None):
+    """
+    Remove documents from DB that aren't in current data.
+
+    Args:
+        state: State code ('NY' or 'NJ')
+        valid_source_indices: Set of valid source_index values
+        reg_dir: Optional directory to load valid indices from JSON files
+    """
+    if valid_source_indices is None and reg_dir is not None:
+        print(f"Loading valid {state} source_indices from {reg_dir}...")
+        valid_source_indices = set()
+        for filepath in Path(reg_dir).glob("*.json"):
+            try:
+                with open(filepath) as f:
+                    data = json.load(f)
+                si = data.get('source_index')
+                if si is not None:
+                    valid_source_indices.add(si)
+            except:
+                continue
+    elif valid_source_indices is None:
+        print("✗ No valid_source_indices or reg_dir provided")
+        return
+
+    print(f"  {len(valid_source_indices):,} valid documents")
+
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT id, source_index FROM regulatory_documents
+                WHERE state = %s AND type = 'regulation'
+            """, (state,))
+            db_docs = cur.fetchall()
+
+            stale_ids = [doc_id for doc_id, si in db_docs if si not in valid_source_indices]
+
+            if not stale_ids:
+                print(f"  No stale documents to remove")
+                return
+
+            print(f"  Found {len(stale_ids):,} stale documents to remove...")
+
+            # Delete in batches
+            batch_size = 100
+            for i in range(0, len(stale_ids), batch_size):
+                batch = stale_ids[i:i + batch_size]
+                cur.execute("""
+                    DELETE FROM regulatory_documents
+                    WHERE id = ANY(%s)
+                """, (batch,))
+
+            conn.commit()
+
+    print(f"✓ Removed {len(stale_ids):,} stale {state} documents")
+
+
+# ============================================================================
+# Hierarchy Stats Utilities
+# ============================================================================
+
+def refresh_structure_stats(conn, state: str) -> int:
+    """
+    Refresh structural hierarchy stats (children counts) for all documents.
+
+    Updates: direct_child_count, descendant_count
+
+    Should be called after data import.
+    """
+    print(f"  Computing structure stats for {state}...")
+    start = time.time()
+
+    with conn.cursor() as cur:
+        # Direct children count
+        cur.execute("""
+            WITH direct_children AS (
+                SELECT parent_id, COUNT(*) as direct_child_count
+                FROM regulatory_documents
+                WHERE state = %s AND parent_id IS NOT NULL
+                GROUP BY parent_id
+            ),
+            structure_stats AS (
+                SELECT
+                    rd.id,
+                    COALESCE(dc.direct_child_count, 0) as direct_child_count
+                FROM regulatory_documents rd
+                LEFT JOIN direct_children dc ON rd.id = dc.parent_id
+                WHERE rd.state = %s
+            )
+            UPDATE regulatory_documents rd
+            SET direct_child_count = ss.direct_child_count
+            FROM structure_stats ss
+            WHERE rd.id = ss.id
+        """, (state, state))
+
+        conn.commit()
+
+        # Descendants using recursive CTE
+        cur.execute("""
+            WITH RECURSIVE all_descendants AS (
+                SELECT id, parent_id, 1 as depth
+                FROM regulatory_documents
+                WHERE state = %s
+
+                UNION ALL
+
+                SELECT ad.id, p.parent_id, ad.depth + 1
+                FROM all_descendants ad
+                JOIN regulatory_documents p ON p.id = ad.parent_id
+                WHERE ad.depth < 100
+            ),
+            descendant_counts AS (
+                SELECT parent_id, COUNT(DISTINCT id) as descendant_count
+                FROM all_descendants
+                WHERE parent_id IS NOT NULL
+                GROUP BY parent_id
+            )
+            UPDATE regulatory_documents rd
+            SET descendant_count = COALESCE(dc.descendant_count, 0)
+            FROM descendant_counts dc
+            WHERE rd.id = dc.parent_id
+        """, (state,))
+
+        updated_count = cur.rowcount
+        conn.commit()
+
+    elapsed = time.time() - start
+    print(f"    Updated {updated_count:,} documents in {elapsed:.1f}s")
+    return updated_count
+
+
+def refresh_analysis_stats(conn, state: str) -> int:
+    """
+    Refresh analysis-related hierarchy stats.
+
+    Updates: descendant_flag_count, descendant_max_severity, has_descendant_analysis
+
+    Should be called after red flag analysis.
+    """
+    print(f"  Computing analysis stats for {state}...")
+    start = time.time()
+
+    with conn.cursor() as cur:
+        cur.execute("""
+            WITH RECURSIVE descendant_analysis AS (
+                SELECT
+                    rd.id as descendant_id,
+                    rd.parent_id,
+                    COALESCE(a.num_flags, 0) as num_flags,
+                    a.max_severity,
+                    a.id IS NOT NULL as has_analysis
+                FROM regulatory_documents rd
+                LEFT JOIN analyses a ON a.document_id = rd.id AND a.is_current = true
+                WHERE rd.state = %s
+
+                UNION ALL
+
+                SELECT
+                    da.descendant_id,
+                    p.parent_id,
+                    da.num_flags,
+                    da.max_severity,
+                    da.has_analysis
+                FROM descendant_analysis da
+                JOIN regulatory_documents p ON p.id = da.parent_id
+            ),
+            analysis_stats AS (
+                SELECT
+                    parent_id as id,
+                    COALESCE(SUM(num_flags), 0)::int as descendant_flag_count,
+                    MAX(max_severity) as descendant_max_severity,
+                    BOOL_OR(has_analysis) as has_descendant_analysis
+                FROM descendant_analysis
+                WHERE parent_id IS NOT NULL
+                GROUP BY parent_id
+            )
+            UPDATE regulatory_documents rd
+            SET
+                descendant_flag_count = ast.descendant_flag_count,
+                descendant_max_severity = ast.descendant_max_severity,
+                has_descendant_analysis = COALESCE(ast.has_descendant_analysis, false)
+            FROM analysis_stats ast
+            WHERE rd.id = ast.id AND rd.state = %s
+        """, (state, state))
+
+        updated_count = cur.rowcount
+        conn.commit()
+
+    elapsed = time.time() - start
+    print(f"    Updated {updated_count:,} documents in {elapsed:.1f}s")
+    return updated_count
+
+
+def refresh_compliance_stats(conn, state: str) -> int:
+    """
+    Refresh compliance issue stats.
+
+    Updates: compliance_issue_count, descendant_compliance_issue_count
+
+    Should be called after compliance issue detection.
+    """
+    print(f"  Computing compliance stats for {state}...")
+    start = time.time()
+
+    with conn.cursor() as cur:
+        # Direct compliance issue counts
+        cur.execute("""
+            WITH direct_issues AS (
+                SELECT document_id, COUNT(*) as issue_count
+                FROM compliance_issues
+                WHERE state = %s
+                GROUP BY document_id
+            )
+            UPDATE regulatory_documents rd
+            SET compliance_issue_count = COALESCE(di.issue_count, 0)
+            FROM (
+                SELECT rd2.id, COALESCE(di.issue_count, 0) as issue_count
+                FROM regulatory_documents rd2
+                LEFT JOIN direct_issues di ON rd2.id = di.document_id
+                WHERE rd2.state = %s
+            ) di
+            WHERE rd.id = di.id
+        """, (state, state))
+
+        conn.commit()
+
+        # Descendant compliance issue counts
+        cur.execute("""
+            WITH RECURSIVE descendant_issues AS (
+                SELECT
+                    rd.id as descendant_id,
+                    rd.parent_id,
+                    COALESCE(rd.compliance_issue_count, 0) as issue_count
+                FROM regulatory_documents rd
+                WHERE rd.state = %s
+
+                UNION ALL
+
+                SELECT
+                    di.descendant_id,
+                    p.parent_id,
+                    di.issue_count
+                FROM descendant_issues di
+                JOIN regulatory_documents p ON p.id = di.parent_id
+            ),
+            descendant_counts AS (
+                SELECT
+                    parent_id as id,
+                    COALESCE(SUM(issue_count), 0)::int as descendant_compliance_issue_count
+                FROM descendant_issues
+                WHERE parent_id IS NOT NULL
+                GROUP BY parent_id
+            )
+            UPDATE regulatory_documents rd
+            SET descendant_compliance_issue_count = dc.descendant_compliance_issue_count
+            FROM descendant_counts dc
+            WHERE rd.id = dc.id AND rd.state = %s
+        """, (state, state))
+
+        updated_count = cur.rowcount
+        conn.commit()
+
+    elapsed = time.time() - start
+    print(f"    Updated {updated_count:,} documents in {elapsed:.1f}s")
+    return updated_count
+
+
+def refresh_all_stats(conn, state: str) -> int:
+    """
+    Refresh ALL hierarchy stats (structural, analysis, and compliance).
+
+    Returns the number of documents updated.
+    """
+    print(f"Refreshing all hierarchy stats for {state}...")
+    start = time.time()
+
+    updated1 = refresh_structure_stats(conn, state)
+    updated2 = refresh_analysis_stats(conn, state)
+    updated3 = refresh_compliance_stats(conn, state)
+
+    elapsed = time.time() - start
+    updated_count = max(updated1, updated2, updated3)
+    print(f"✓ All stats complete in {elapsed:.1f}s")
+    return updated_count

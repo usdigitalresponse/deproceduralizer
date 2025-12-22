@@ -23,23 +23,9 @@ from dotenv import load_dotenv
 # Add backend directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import PROJECT_ROOT, INDIVIDUAL_REGULATIONS_DIR, OUTPUTS_DIR
-from shared_utils import get_db_connection, get_openai_client, call_llm_parse, load_prompt, normalize_scope_level
+from shared_utils import get_db_connection, get_openai_client, call_llm_parse, load_prompt, normalize_scope_level, format_time
 
 load_dotenv(PROJECT_ROOT / '.env')
-
-
-def format_time(seconds: float) -> str:
-    """Format seconds into human-readable time string."""
-    if seconds < 60:
-        return f"{seconds:.0f}s"
-    elif seconds < 3600:
-        mins = int(seconds // 60)
-        secs = int(seconds % 60)
-        return f"{mins}m {secs}s"
-    else:
-        hours = int(seconds // 3600)
-        mins = int((seconds % 3600) // 60)
-        return f"{hours}h {mins}m"
 
 
 def print_progress(current: int, total: int, start_time: float, defs_so_far: int, title: str):

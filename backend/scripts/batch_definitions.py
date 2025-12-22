@@ -38,6 +38,7 @@ from shared_utils import (
     format_batch_request,
     load_prompt,
     normalize_scope_level,
+    format_time,
     DEFAULT_MODEL,
 )
 
@@ -72,20 +73,6 @@ class DefinitionsResponse(BaseModel):
 # ============================================================================
 # Helper Functions
 # ============================================================================
-
-def format_time(seconds: float) -> str:
-    """Format seconds into human-readable time string."""
-    if seconds < 60:
-        return f"{seconds:.0f}s"
-    elif seconds < 3600:
-        mins = int(seconds // 60)
-        secs = int(seconds % 60)
-        return f"{mins}m {secs}s"
-    else:
-        hours = int(seconds // 3600)
-        mins = int((seconds % 3600) // 60)
-        return f"{hours}h {mins}m"
-
 
 def get_sections_from_db(
     state: str,

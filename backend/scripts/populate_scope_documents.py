@@ -18,23 +18,9 @@ from dotenv import load_dotenv
 # Add backend directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import PROJECT_ROOT
-from shared_utils import get_db_connection, normalize_scope_level
+from shared_utils import get_db_connection, normalize_scope_level, format_time
 
 load_dotenv(PROJECT_ROOT / '.env')
-
-
-def format_time(seconds: float) -> str:
-    """Format seconds into human-readable time string."""
-    if seconds < 60:
-        return f"{seconds:.1f}s"
-    elif seconds < 3600:
-        mins = int(seconds // 60)
-        secs = int(seconds % 60)
-        return f"{mins}m {secs}s"
-    else:
-        hours = int(seconds // 3600)
-        mins = int((seconds % 3600) // 60)
-        return f"{hours}h {mins}m"
 
 
 def find_ancestor_at_level(conn, start_doc_id: int, target_level: str) -> int | None:

@@ -1,0 +1,142 @@
+{
+  "description": "Rules for extracting display fields from hierarchy_path breadcrumbs. All extraction is done from the last element of the breadcrumb (split by ' > ').",
+
+  "fields": {
+    "short_title": "The human-readable title without citation prefix",
+    "level_identifier": "The identifier at this hierarchy level (e.g., section number)",
+    "citation": "Full formatted citation for legal reference"
+  },
+
+  "extraction_rules": {
+    "short_title": [
+      {
+        "name": "has_dash",
+        "description": "Most common - breadcrumb contains ' - ' delimiter",
+        "condition": "last_breadcrumb LIKE '% - %'",
+        "extract": "text after last ' - '",
+        "example": {
+          "input": "N.Y. Comp. Codes R. & Regs. Tit. 1 § 22.30 - Basis of classification",
+          "output": "Basis of classification"
+        }
+      },
+      {
+        "name": "nj_admin_no_dash",
+        "description": "NJ Admin citation without title (appendixes)",
+        "condition": "last_breadcrumb LIKE 'N.J. Admin%' AND NOT LIKE '% - %'",
+        "extract": "text after last comma",
+        "example": {
+          "input": "N.J. Admin. Code Tit. 7, ch. 26B, app B",
+          "output": "app B"
+        }
+      },
+      {
+        "name": "ny_comp_no_dash",
+        "description": "NY Comp citation without title (appendixes)",
+        "condition": "last_breadcrumb LIKE 'N.Y. Comp%' AND NOT LIKE '% - %'",
+        "extract": "text after last comma",
+        "example": {
+          "input": "N.Y. Comp. Codes R. & Regs. tit. 9, Appendices, app S-8",
+          "output": "app S-8"
+        }
+      },
+      {
+        "name": "plain_name",
+        "description": "Already a plain title (no citation prefix)",
+        "condition": "default fallback",
+        "extract": "use entire last_breadcrumb as-is",
+        "example": {
+          "input": "Expense of Administration",
+          "output": "Expense of Administration"
+        }
+      }
+    ],
+
+    "level_identifier": [
+      {
+        "name": "ny_section_symbol",
+        "description": "NY section with § symbol",
+        "condition": "last_breadcrumb LIKE 'N.Y. Comp%§%'",
+        "extract": "text between '§ ' and ' - ' (or end if no dash)",
+        "example": {
+          "input": "N.Y. Comp. Codes R. & Regs. Tit. 10 § 154.4 - Village of newark",
+          "output": "154.4"
+        }
+      },
+      {
+        "name": "nj_section_symbol",
+        "description": "NJ section with § symbol",
+        "condition": "last_breadcrumb LIKE 'N.J. Admin%§%'",
+        "extract": "text between '§ ' and ' - ' (the full citation like 8:43D-4.6)",
+        "example": {
+          "input": "N.J. Admin. Code § 8:43D-4.6 - Written agreements",
+          "output": "8:43D-4.6"
+        }
+      },
+      {
+        "name": "part_roman",
+        "description": "Part with Roman numeral",
+        "condition": "last_breadcrumb LIKE 'Part %'",
+        "extract": "text between 'Part ' and ' - '",
+        "example": {
+          "input": "Part VII - ADOPTION OF RULES",
+          "output": "VII"
+        }
+      },
+      {
+        "name": "subchapter_number",
+        "description": "Subchapter with number",
+        "condition": "last_breadcrumb LIKE 'Subchapter %'",
+        "extract": "text between 'Subchapter ' and ' - '",
+        "example": {
+          "input": "Subchapter 1 - GENERAL PROVISIONS",
+          "output": "1"
+        }
+      },
+      {
+        "name": "title_number",
+        "description": "Title with number",
+        "condition": "last_breadcrumb LIKE 'Title %'",
+        "extract": "text between 'Title ' and ' - '",
+        "example": {
+          "input": "Title 7 - ENVIRONMENTAL PROTECTION",
+          "output": "7"
+        }
+      }
+    ],
+
+    "citation": [
+      {
+        "name": "ny_section",
+        "description": "NY section - extract title number and section",
+        "condition": "last_breadcrumb LIKE 'N.Y. Comp%Tit.%§%'",
+        "extract": "{title_num} NYCRR {section_num}",
+        "parse": {
+          "title_num": "number after 'Tit. ' or 'tit. '",
+          "section_num": "text between '§ ' and ' - '"
+        },
+        "example": {
+          "input": "N.Y. Comp. Codes R. & Regs. Tit. 10 § 154.4 - Village",
+          "output": "10 NYCRR 154.4"
+        }
+      },
+      {
+        "name": "nj_section",
+        "description": "NJ section - extract full citation",
+        "condition": "last_breadcrumb LIKE 'N.J. Admin%§%'",
+        "extract": "N.J.A.C. {citation}",
+        "parse": {
+          "citation": "text between '§ ' and ' - '"
+        },
+        "example": {
+          "input": "N.J. Admin. Code § 8:43D-4.6 - Written agreements",
+          "output": "N.J.A.C. 8:43D-4.6"
+        }
+      }
+    ]
+  },
+
+  "sql_implementation": {
+    "short_title": "See migration 0008_populate_display_columns.sql",
+    "note": "All extraction uses ONLY hierarchy_path - no state-specific fields"
+  }
+}

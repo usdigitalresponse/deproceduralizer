@@ -28,6 +28,14 @@ from scripts.scraper_utils import (
     clean_regulation_text,
     convert_tables_to_markdown,
 )
+from shared_utils import (
+    migrate_regulations_to_db,
+    populate_parent_ids,
+    cleanup_stale_documents,
+    refresh_all_stats,
+    get_db_connection,
+    format_time,
+)
 
 
 # =============================================================================
@@ -1028,11 +1036,50 @@ class FullPipeline:
 
         return True
 
-    def run_full_pipeline(self, max_pages=None):
+    def step4_migrate_to_database(self):
+        """Step 4: Migrate regulations to database and refresh stats"""
+        print("\n" + "=" * 60)
+        print("STEP 4: MIGRATING TO DATABASE")
+        print("=" * 60)
+
+        start_time = time.time()
+
+        # Migrate regulations to DB (upserts with ON CONFLICT)
+        print("\n[4.1] Migrating regulations to database...")
+        migrated = migrate_regulations_to_db("NY")
+        if migrated == 0:
+            print("WARNING: No regulations migrated")
+            return False
+
+        # Populate parent_id from parent_source_index
+        print("\n[4.2] Populating parent IDs...")
+        populate_parent_ids("NY")
+
+        # Clean up stale documents (orphaned from previous runs)
+        print("\n[4.3] Cleaning up stale documents...")
+        cleanup_stale_documents("NY")
+
+        # Refresh hierarchy stats
+        print("\n[4.4] Refreshing hierarchy stats...")
+        conn = get_db_connection()
+        if conn:
+            updated = refresh_all_stats(conn, "NY")
+            conn.close()
+            print(f"  Updated stats for {updated} documents")
+        else:
+            print("WARNING: Could not connect to database for stats refresh")
+
+        elapsed = time.time() - start_time
+        print(f"\nStep 4 Complete: {migrated} regulations in database")
+        print(f"Time: {format_time(elapsed)}")
+
+        return True
+
+    def run_full_pipeline(self, max_pages=None, skip_db=False):
         """Run the complete pipeline"""
         print("=" * 60)
         print("NY REGULATIONS COMPLETE PIPELINE")
-        print("From 0 to Individual Clean Files")
+        print("Scrape → Clean → Individual Files → Database")
         print("=" * 60)
         print()
 
@@ -1052,12 +1099,21 @@ class FullPipeline:
             if not success:
                 return False
 
+            if not skip_db:
+                success = self.step4_migrate_to_database()
+                if not success:
+                    return False
+            else:
+                print("\n[SKIPPED] Step 4: Database migration (--skip-db flag)")
+
             print("\n" + "=" * 60)
             print("PIPELINE COMPLETE!")
             print("=" * 60)
             print(f"Regulations scraped and cleaned: {len(clean_data)}")
             print(f"Individual files: {INDIVIDUAL_REGULATIONS_DIR}")
             print(f"Master file: {NY_REGULATIONS_CACHE_FILE}")
+            if not skip_db:
+                print(f"Database: regulations migrated and stats refreshed")
 
             return True
 
@@ -1083,6 +1139,7 @@ def main():
     parser.add_argument('--yes', '-y', action='store_true', help='Auto-confirm (skip prompt)')
     parser.add_argument('--max-pages', type=int, help='Custom max pages limit')
     parser.add_argument('--fresh', action='store_true', help='Clear progress and start fresh')
+    parser.add_argument('--skip-db', action='store_true', help='Skip database migration step')
 
     args = parser.parse_args()
 
@@ -1114,7 +1171,7 @@ def main():
             return
 
     pipeline = FullPipeline()
-    success = pipeline.run_full_pipeline(max_pages)
+    success = pipeline.run_full_pipeline(max_pages, skip_db=args.skip_db)
 
     if success:
         print(f"\nReady to use! Check {INDIVIDUAL_REGULATIONS_DIR}")
