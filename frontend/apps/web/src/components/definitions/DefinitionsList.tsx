@@ -109,6 +109,7 @@ export function DefinitionsList({
             return (
               <div
                 key={definition.id}
+                id={`definition-${definition.id}`}
                 className="bg-[var(--color-info-bg)] border-l-4 border-[var(--color-info)] p-4 rounded-[var(--radius-md)]"
               >
                 {/* Term and scope */}

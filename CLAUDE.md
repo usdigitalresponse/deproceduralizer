@@ -5,4 +5,6 @@
 - I am using vercel for deployment of the frontend by either pushing a branch and promoting, or pushing from main
 - whenever you are planning to create or modify a prompt, add a todo or integrate the prompt into @prompts.yaml
 - when implementing batch processing, always implement caching to avoid redundant operations (especially before committing)
+- avoid typecasts (`as Type`) and casting to `unknown` unless truly necessary - prefer proper type guards, generics, or fixing the underlying type issue
+- when setting max_tokens for LLM API calls, look up the model's maximum output token limit and use that value (e.g., Claude 3.5 Sonnet supports 8192 output tokens, Claude 3 Opus supports 4096)
 
