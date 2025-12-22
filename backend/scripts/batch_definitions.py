@@ -35,6 +35,9 @@ from config import PROJECT_ROOT, OUTPUTS_DIR
 from shared_utils import (
     get_db_connection,
     get_openai_client,
+    get_async_openai_client,
+    call_llm_parse,
+    call_llm_parse_async,
     format_batch_request,
     load_prompt,
     normalize_scope_level,
@@ -43,6 +46,9 @@ from shared_utils import (
 )
 
 load_dotenv(PROJECT_ROOT / '.env')
+
+# Re-export DEFAULT_MODEL as MODEL_VERSION for backwards compatibility
+MODEL_VERSION = DEFAULT_MODEL
 
 # Batches directory
 BATCHES_DIR = OUTPUTS_DIR / 'batches'
@@ -159,7 +165,7 @@ def get_sections_from_db(
 
 
 def calculate_definition_overlap(definition: str, content: str) -> float:
-    """Calculate definition overlap (same as extract_definitions.py)."""
+    """Calculate definition overlap using substring or fuzzy matching."""
     definition_lower = definition.lower()
     content_lower = content.lower()
 
@@ -168,6 +174,248 @@ def calculate_definition_overlap(definition: str, content: str) -> float:
 
     matcher = SequenceMatcher(None, definition_lower, content_lower)
     return matcher.ratio()
+
+
+def has_definition_content(content: str, title: str) -> bool:
+    """Check if regulation likely contains definitions."""
+    import re
+    text = (content + ' ' + title).lower()
+    patterns = [
+        r'\bdefinition\b',
+        r'\bmeans\b',
+        r'shall mean',
+        r'for purposes of',
+    ]
+    return any(re.search(p, text) for p in patterns)
+
+
+def log_extraction(source_index: int, definitions_found: int):
+    """Log that a regulation has been processed for definitions."""
+    conn = get_db_connection()
+    if not conn:
+        return
+
+    try:
+        conn.execute("""
+            INSERT INTO definition_extraction_log (source_index, model_version, definitions_found)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (source_index) DO UPDATE SET
+                processed_at = CURRENT_TIMESTAMP,
+                model_version = EXCLUDED.model_version,
+                definitions_found = EXCLUDED.definitions_found
+        """, (source_index, MODEL_VERSION, definitions_found))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Warning: Could not log extraction: {e}")
+        if conn:
+            conn.close()
+
+
+def extract_with_llm(content: str, title: str, client=None, max_retries: int = 3) -> List[Dict]:
+    """Extract definitions using LLM with Pydantic structured output (sync)."""
+    if client is None:
+        client = get_openai_client()
+
+    prompt = load_prompt("definition_extraction", title=title, content=content[:3000])
+
+    parsed = call_llm_parse(
+        client=client,
+        prompt=prompt,
+        response_format=DefinitionsResponse,
+        model=MODEL_VERSION,
+        max_retries=max_retries
+    )
+
+    if parsed is None:
+        return []
+
+    return [d.model_dump() for d in parsed.definitions]
+
+
+async def extract_with_llm_async(content: str, title: str, client=None, max_retries: int = 3) -> List[Dict]:
+    """Extract definitions using LLM with Pydantic structured output (async)."""
+    if client is None:
+        client = get_async_openai_client()
+
+    prompt = load_prompt("definition_extraction", title=title, content=content[:3000])
+
+    parsed = await call_llm_parse_async(
+        client=client,
+        prompt=prompt,
+        response_format=DefinitionsResponse,
+        model=MODEL_VERSION,
+        max_retries=max_retries
+    )
+
+    if parsed is None:
+        return []
+
+    return [d.model_dump() for d in parsed.definitions]
+
+
+def store_to_database(regulations: List[Dict], state: str = "NY"):
+    """Store definitions in database from file-based regulations."""
+    print(f"Storing results in database...")
+    print(f"  Input: {len(regulations)} regulations")
+
+    total_input_defs = sum(len(r.get('llm_definitions', [])) for r in regulations)
+    print(f"  Input: {total_input_defs} total definitions")
+
+    conn = get_db_connection()
+    if not conn:
+        print("  ERROR: Could not connect to database")
+        return
+
+    try:
+        before_count = conn.execute("SELECT COUNT(*) FROM definitions").fetchone()[0]
+        print(f"  Definitions in DB before: {before_count}")
+
+        total_defs = 0
+        docs_processed = 0
+
+        for reg in regulations:
+            definitions_list = reg.get('llm_definitions', [])
+            if not definitions_list:
+                continue
+
+            try:
+                source_idx = reg.get('source_index', 0)
+
+                # Get document_id from source_index (don't create new docs)
+                result = conn.execute("""
+                    SELECT id FROM regulatory_documents
+                    WHERE source_index = %s AND state = %s
+                    LIMIT 1
+                """, (source_idx, state.upper())).fetchone()
+
+                if not result:
+                    print(f"    Warning: No document found for source_index {source_idx}")
+                    continue
+
+                doc_id = result[0]
+                docs_processed += 1
+
+                # Delete previous definitions for this document
+                conn.execute("DELETE FROM definitions WHERE document_id = %s", (doc_id,))
+
+                # Insert definitions
+                reg_url = reg.get('url', '')
+                for defn in definitions_list:
+                    verbatim_text = defn.get('verbatim_text', '')
+                    overlap = calculate_definition_overlap(verbatim_text, reg.get('content', ''))
+
+                    conn.execute("""
+                        INSERT INTO definitions
+                        (document_id, url, term, verbatim_text, is_verbatim, rephrased_definition,
+                         scope, source_location, definition_overlap, model_version,
+                         scope_level, definition_type, is_cross_reference)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    """, (
+                        doc_id,
+                        reg_url,
+                        defn.get('term'),
+                        verbatim_text,
+                        defn.get('is_verbatim', True),
+                        defn.get('rephrased_definition'),
+                        defn.get('scope'),
+                        defn.get('source_location'),
+                        overlap,
+                        MODEL_VERSION,
+                        normalize_scope_level(defn.get('scope_level')) if defn.get('scope_level') else None,
+                        defn.get('definition_type', 'formal'),
+                        defn.get('is_cross_reference', False),
+                    ))
+                    total_defs += 1
+
+            except Exception as doc_err:
+                print(f"    ERROR processing reg {reg.get('title', 'unknown')[:40]}: {doc_err}")
+
+        conn.commit()
+
+        after_count = conn.execute("SELECT COUNT(*) FROM definitions").fetchone()[0]
+        print(f"  Definitions in DB after: {after_count} (added {after_count - before_count})")
+        print(f"  Stored {docs_processed} regulations with {total_defs} definitions")
+
+    except Exception as e:
+        print(f"  ERROR: {e}")
+        import traceback
+        traceback.print_exc()
+    finally:
+        conn.close()
+
+
+def generate_viewer(regulations: List[Dict]):
+    """Generate HTML viewer for local browsing."""
+    html = """<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>LLM Extracted Definitions</title>
+    <style>
+        body { font-family: Arial; margin: 20px; background: #f5f5f5; }
+        .header { background: white; padding: 20px; border-radius: 5px; margin-bottom: 20px; }
+        .reg-item { background: white; padding: 20px; margin-bottom: 15px; border-radius: 5px; }
+        .reg-title { font-size: 1.1em; font-weight: bold; color: #2c3e50; margin-bottom: 10px; }
+        .reg-meta { font-size: 0.9em; color: #666; margin-bottom: 15px; }
+        .definitions { margin-top: 15px; }
+        .def-item { background: #f9f9f9; padding: 10px; margin: 8px 0; border-left: 3px solid #3498db; }
+        .def-term { font-weight: bold; color: #2c3e50; }
+        .def-text { color: #555; margin-top: 5px; font-size: 0.9em; }
+        .def-scope { font-size: 0.85em; color: #888; margin-top: 5px; font-style: italic; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>LLM Extracted Definitions</h1>
+    </div>
+"""
+
+    for reg in regulations:
+        defs = reg.get('llm_definitions', [])
+        if not defs:
+            continue
+
+        html += f"""
+    <div class="reg-item">
+        <div class="reg-title">{reg.get('title', 'Unknown')}</div>
+        <div class="reg-meta">
+            <strong>URL:</strong> <a href="{reg.get('url', '#')}" target="_blank">{reg.get('url', 'N/A')}</a>
+        </div>
+        <div class="definitions">
+            <strong>{len(defs)} definitions extracted:</strong>
+"""
+
+        for defn in defs:
+            term = defn.get('term', 'Unknown')
+            display_def = defn.get('verbatim_text', '') if defn.get('is_verbatim', True) else (defn.get('rephrased_definition') or defn.get('verbatim_text', ''))
+            scope = defn.get('scope')
+            scope_text = f"<div class='def-scope'>Scope: {scope}</div>" if scope else ""
+
+            html += f"""
+            <div class="def-item">
+                <div class="def-term">{term}</div>
+                <div class="def-text">{display_def[:200]}{'...' if len(display_def) > 200 else ''}</div>
+                {scope_text}
+            </div>
+"""
+
+        html += """
+        </div>
+    </div>
+"""
+
+    html += """
+</body>
+</html>
+"""
+
+    OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
+    output_file = OUTPUTS_DIR / "viewer_extracted_definitions.html"
+    with open(output_file, 'w') as f:
+        f.write(html)
+
+    print(f"  Viewer generated: {output_file}")
 
 
 def find_batch_dir(batch_id: str) -> Optional[Path]:

@@ -50,7 +50,7 @@ from red_flags import (
     save_analysis_to_database,
     MODEL_VERSION
 )
-from extract_definitions import (
+from batch_definitions import (
     extract_with_llm,
     extract_with_llm_async,
     store_to_database as store_definitions_to_database,
@@ -407,7 +407,7 @@ async def run_red_flags_analysis(
         # Refresh hierarchy stats if we wrote to DB
         if db_conn:
             try:
-                from refresh_hierarchy_stats import refresh_analysis_stats
+                from shared_utils import refresh_analysis_stats
                 print("\nRefreshing analysis stats...")
                 refresh_analysis_stats(db_conn, state.upper())
             except Exception as e:
