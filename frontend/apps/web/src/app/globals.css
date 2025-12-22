@@ -197,3 +197,28 @@ table {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-neutral-400);
 }
+
+/* ========================================
+   TERM HIGHLIGHTING
+   For highlighting defined terms in regulation text
+   ======================================== */
+
+.term-highlight {
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-decoration-color: var(--color-info);
+  text-underline-offset: 2px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.term-highlight:hover {
+  text-decoration-style: solid;
+  background-color: var(--color-info-bg);
+}
+
+.term-highlight:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 1px;
+  background-color: var(--color-info-bg);
+}

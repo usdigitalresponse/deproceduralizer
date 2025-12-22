@@ -3,13 +3,15 @@
 import { useState } from 'react';
 import { Card } from '@/components/ui/Card';
 import { AnnotatableContent, NotesSidePanel } from '@/components/notes';
-import type { DocumentNote } from '@deproceduralizer/database';
+import type { DocumentNote, ApplicableDefinition } from '@deproceduralizer/database';
 
 interface RegulationDetailClientProps {
   content: string;
   documentId: number;
   state: string;
   initialNotes: DocumentNote[];
+  /** Applicable definitions for term highlighting */
+  applicableDefinitions?: ApplicableDefinition[];
 }
 
 export function RegulationDetailClient({
@@ -17,6 +19,7 @@ export function RegulationDetailClient({
   documentId,
   state,
   initialNotes,
+  applicableDefinitions,
 }: RegulationDetailClientProps) {
   const [notes, setNotes] = useState<DocumentNote[]>(initialNotes);
   const [activeNoteId, setActiveNoteId] = useState<number | null>(null);
@@ -60,6 +63,7 @@ export function RegulationDetailClient({
                 activeNoteId={activeNoteId}
                 onNoteCreated={handleNoteCreated}
                 onNoteClick={handleNoteClick}
+                applicableDefinitions={applicableDefinitions}
               />
             ) : (
               <span className="text-[var(--color-text-muted)]">No content available</span>
