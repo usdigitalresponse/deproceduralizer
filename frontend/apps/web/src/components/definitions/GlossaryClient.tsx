@@ -7,13 +7,21 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
 import { GlossarySearch } from './GlossarySearch';
+import { GlossaryFilters } from './GlossaryFilters';
 import { DefinitionCard } from './DefinitionCard';
 import { ChevronLeft, ChevronRight, BookOpen } from 'lucide-react';
 import {
   getDefinitionsPaginated,
   getAlphabeticalIndex,
 } from '@/lib/actions/definitions';
-import { pageParser, searchParser, letterParser } from '@/lib/url/parsers';
+import {
+  pageParser,
+  searchParser,
+  letterParser,
+  definitionScopeLevelParser,
+  definitionTypeParser,
+  definitionQualityParser,
+} from '@/lib/url/parsers';
 import type {
   DefinitionWithContext,
   DefinitionStats,
@@ -46,6 +54,9 @@ export function GlossaryClient({ state, initialData }: GlossaryClientProps) {
     search: searchParser,
     letter: letterParser,
     page: pageParser,
+    scopeLevel: definitionScopeLevelParser,
+    definitionType: definitionTypeParser,
+    quality: definitionQualityParser,
   }, {
     shallow: false,
     startTransition,
@@ -61,7 +72,8 @@ export function GlossaryClient({ state, initialData }: GlossaryClientProps) {
   // Sync state with server action when URL params change
   useEffect(() => {
     // Skip initial fetch as we have initialData
-    if (!params.search && !params.letter && params.page === 1) return;
+    if (!params.search && !params.letter && params.page === 1 &&
+        params.scopeLevel === 'all' && params.definitionType === 'all' && params.quality === 'all') return;
 
     const fetchData = async () => {
       const result = await getDefinitionsPaginated(state, {
@@ -69,6 +81,9 @@ export function GlossaryClient({ state, initialData }: GlossaryClientProps) {
         pageSize: PAGE_SIZE,
         search: params.search || undefined,
         letter: params.letter || undefined,
+        scopeLevel: params.scopeLevel === 'all' ? undefined : params.scopeLevel,
+        definitionType: params.definitionType === 'all' ? undefined : params.definitionType,
+        quality: params.quality === 'all' ? undefined : params.quality,
         sortBy: 'term',
         sortOrder: 'asc',
       });
@@ -84,7 +99,7 @@ export function GlossaryClient({ state, initialData }: GlossaryClientProps) {
     };
 
     startTransition(fetchData);
-  }, [state, params.search, params.letter, params.page]);
+  }, [state, params.search, params.letter, params.page, params.scopeLevel, params.definitionType, params.quality]);
 
   // Handle search change
   const handleSearchChange = (value: string) => {
@@ -163,6 +178,7 @@ export function GlossaryClient({ state, initialData }: GlossaryClientProps) {
           alphabeticalIndex={alphabeticalIndex}
           isLoading={isPending}
         />
+        <GlossaryFilters className="mt-4" />
       </Card>
 
       {/* Error state */}
@@ -176,7 +192,10 @@ export function GlossaryClient({ state, initialData }: GlossaryClientProps) {
       <div className="flex items-center justify-between">
         <p className="text-sm text-[var(--color-text-muted)]">
           Showing {definitions.length} of {total.toLocaleString()} definition{total !== 1 ? 's' : ''}
-          {(params.search || params.letter) && ' (filtered)'}
+          {(params.search || params.letter ||
+            params.scopeLevel !== 'all' ||
+            params.definitionType !== 'all' ||
+            params.quality !== 'all') && ' (filtered)'}
         </p>
         {totalPages > 1 && (
           <p className="text-sm text-[var(--color-text-muted)]">
@@ -206,13 +225,23 @@ export function GlossaryClient({ state, initialData }: GlossaryClientProps) {
               {params.search && ` matching "${params.search}"`}
               {params.letter && ` starting with "${params.letter}"`}
             </p>
-            {(params.search || params.letter) && (
+            {(params.search || params.letter ||
+              params.scopeLevel !== 'all' ||
+              params.definitionType !== 'all' ||
+              params.quality !== 'all') && (
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
                 onClick={() => {
-                  setParams({ search: null, letter: null, page: 1 });
+                  setParams({
+                    search: null,
+                    letter: null,
+                    page: 1,
+                    scopeLevel: 'all',
+                    definitionType: 'all',
+                    quality: 'all',
+                  });
                 }}
                 className="mt-3"
               >

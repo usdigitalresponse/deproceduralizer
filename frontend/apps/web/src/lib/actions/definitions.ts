@@ -43,6 +43,10 @@ export async function getDefinitionsPaginated(
     scope?: string;
     sortBy?: 'term' | 'extractedAt' | 'overlap';
     sortOrder?: 'asc' | 'desc';
+    // Phase 4.1 filters
+    scopeLevel?: 'section' | 'part' | 'chapter' | 'title';
+    definitionType?: 'formal' | 'abbreviation';
+    quality?: 'high' | 'medium' | 'low';
   }
 ): Promise<ActionResult<PaginatedDefinitionsResult>> {
   try {

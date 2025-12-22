@@ -1,4 +1,4 @@
-import { eq, and, asc, desc, sql, count, like, ilike } from 'drizzle-orm';
+import { eq, and, asc, desc, sql, count, like, ilike, gte, lt } from 'drizzle-orm';
 import { BaseRepository } from './base.repository';
 import { definitions, Definition } from '../schema/definitions';
 import { regulatoryDocuments } from '../schema/regulatory-documents';
@@ -27,6 +27,10 @@ export interface DefinitionPaginationOptions {
   scope?: string;
   sortBy?: 'term' | 'extractedAt' | 'overlap';
   sortOrder?: 'asc' | 'desc';
+  // Phase 4.1 filters
+  scopeLevel?: 'section' | 'part' | 'chapter' | 'title';
+  definitionType?: 'formal' | 'abbreviation';
+  quality?: 'high' | 'medium' | 'low';
 }
 
 export interface PaginatedDefinitionsResult {
@@ -127,7 +131,7 @@ export class DefinitionsRepository extends BaseRepository {
   async getAllPaginated(
     options: DefinitionPaginationOptions
   ): Promise<PaginatedDefinitionsResult> {
-    const { state, page, pageSize, search, letter, scope, sortBy = 'term', sortOrder = 'asc' } = options;
+    const { state, page, pageSize, search, letter, scope, sortBy = 'term', sortOrder = 'asc', scopeLevel, definitionType, quality } = options;
     const offset = (page - 1) * pageSize;
 
     // Build base conditions - join via URL to get state
@@ -153,6 +157,26 @@ export class DefinitionsRepository extends BaseRepository {
     // Scope filter
     if (scope) {
       conditions.push(eq(definitions.scope, scope));
+    }
+
+    // Scope level filter (Phase 4.1)
+    if (scopeLevel) {
+      conditions.push(eq(definitions.scopeLevel, scopeLevel));
+    }
+
+    // Definition type filter (Phase 4.1)
+    if (definitionType) {
+      conditions.push(eq(definitions.definitionType, definitionType));
+    }
+
+    // Quality filter based on definition_overlap (Phase 4.1)
+    if (quality === 'high') {
+      conditions.push(eq(definitions.definitionOverlap, 1.0));
+    } else if (quality === 'medium') {
+      conditions.push(gte(definitions.definitionOverlap, 0.3));
+      conditions.push(lt(definitions.definitionOverlap, 1.0));
+    } else if (quality === 'low') {
+      conditions.push(lt(definitions.definitionOverlap, 0.3));
     }
 
     // State filter via URL pattern
