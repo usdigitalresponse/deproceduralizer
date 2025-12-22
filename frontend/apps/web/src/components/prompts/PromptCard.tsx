@@ -135,10 +135,28 @@ export function PromptCard({
             <PromptVariables variables={prompt.variables} />
           </div>
 
-          {/* Template */}
+          {/* System Prompt (if present) */}
+          {prompt.system && (
+            <div>
+              <h4 className="text-sm font-medium text-[var(--color-text)] mb-2">
+                System Prompt{' '}
+                <span className="text-[var(--color-text-muted)] font-normal">
+                  (cached across requests)
+                </span>
+              </h4>
+              <PromptTemplate template={prompt.system} />
+            </div>
+          )}
+
+          {/* User Template */}
           <div>
             <h4 className="text-sm font-medium text-[var(--color-text)] mb-2">
-              Template
+              {prompt.system ? 'User Template' : 'Template'}
+              {prompt.system && (
+                <span className="text-[var(--color-text-muted)] font-normal ml-1">
+                  (unique per request)
+                </span>
+              )}
             </h4>
             <PromptTemplate template={prompt.template} />
           </div>

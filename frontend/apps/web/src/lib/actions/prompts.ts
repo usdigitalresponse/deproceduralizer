@@ -13,12 +13,14 @@ export interface PromptVariable {
 export interface PromptData {
   name: string;
   description: string;
+  system: string | null;
   template: string;
   variables: PromptVariable[];
 }
 
 interface RawPromptData {
   description?: string;
+  system?: string;
   template?: string;
 }
 
@@ -52,12 +54,19 @@ export async function getPrompts(): Promise<ActionResult<PromptData[]>> {
     const parsed = yaml.load(fileContent) as Record<string, RawPromptData>;
 
     const prompts: PromptData[] = Object.entries(parsed).map(
-      ([name, data]) => ({
-        name,
-        description: data.description?.trim() || '',
-        template: data.template?.trim() || '',
-        variables: extractVariables(data.template || ''),
-      })
+      ([name, data]) => {
+        const system = data.system?.trim() || null;
+        const template = data.template?.trim() || '';
+        // Extract variables from both system and template
+        const allVariables = extractVariables((system || '') + template);
+        return {
+          name,
+          description: data.description?.trim() || '',
+          system,
+          template,
+          variables: allVariables,
+        };
+      }
     );
 
     return success(prompts);
