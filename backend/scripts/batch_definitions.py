@@ -50,6 +50,7 @@ from shared_utils import (
     call_llm_parse_async,
     format_batch_request,
     load_prompt,
+    load_prompt_parts,
     normalize_scope_level,
     format_time,
     get_filtered_documents,
@@ -229,7 +230,10 @@ def extract_with_llm(content: str, title: str, client=None, max_retries: int = 3
     if client is None:
         client = get_openai_client()
 
-    prompt = load_prompt("definition_extraction", title=title, content=content[:3000])
+    # Use load_prompt_parts to get both system and user prompts
+    parts = load_prompt_parts("definition_extraction", title=title, content=content[:3000])
+    # Combine system and user for non-batch calls
+    prompt = f"{parts['system']}\n\n{parts['user']}" if parts.get('system') else parts['user']
 
     parsed = call_llm_parse(
         client=client,
@@ -250,7 +254,10 @@ async def extract_with_llm_async(content: str, title: str, client=None, max_retr
     if client is None:
         client = get_async_openai_client()
 
-    prompt = load_prompt("definition_extraction", title=title, content=content[:3000])
+    # Use load_prompt_parts to get both system and user prompts
+    parts = load_prompt_parts("definition_extraction", title=title, content=content[:3000])
+    # Combine system and user for non-batch calls
+    prompt = f"{parts['system']}\n\n{parts['user']}" if parts.get('system') else parts['user']
 
     parsed = await call_llm_parse_async(
         client=client,
@@ -625,19 +632,29 @@ def cmd_submit(args):
 
     print(f"[2/3] Formatting batch requests...")
 
-    # Format requests
+    # Format requests - use load_prompt_parts for system prompt caching
     requests = []
     doc_ids = []
+
+    # Get system prompt once (cached across all requests)
+    first_parts = load_prompt_parts(
+        "definition_extraction",
+        title="",  # Placeholder - only need system prompt
+        content=""
+    )
+    system_prompt = first_parts.get('system')
+
     for section in sections:
-        prompt = load_prompt(
+        parts = load_prompt_parts(
             "definition_extraction",
             title=section['title'],
             content=section['content'][:3000]
         )
         request = format_batch_request(
             custom_id=f"doc_{section['id']}",
-            prompt=prompt,
-            response_format=DefinitionsResponse
+            prompt=parts['user'],
+            response_format=DefinitionsResponse,
+            system=system_prompt,  # Include system prompt with detailed instructions
         )
         requests.append(request)
         doc_ids.append(section['id'])
@@ -1107,19 +1124,29 @@ def cmd_resume(args):
 
     print(f"[1/2] Formatting {len(sections_list)} retry requests...")
 
-    # Format requests
+    # Format requests - use load_prompt_parts for system prompt caching
     requests = []
     doc_ids = []
+
+    # Get system prompt once (cached across all requests)
+    first_parts = load_prompt_parts(
+        "definition_extraction",
+        title="",
+        content=""
+    )
+    system_prompt = first_parts.get('system')
+
     for section in sections_list:
-        prompt = load_prompt(
+        parts = load_prompt_parts(
             "definition_extraction",
             title=section['title'],
             content=section['content'][:3000]
         )
         request = format_batch_request(
             custom_id=f"doc_{section['id']}",
-            prompt=prompt,
-            response_format=DefinitionsResponse
+            prompt=parts['user'],
+            response_format=DefinitionsResponse,
+            system=system_prompt,
         )
         requests.append(request)
         doc_ids.append(section['id'])
