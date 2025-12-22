@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ChevronDown, ChevronUp, ExternalLink, BookOpen } from 'lucide-react';
+import { ChevronDown, ChevronUp, ExternalLink, BookOpen, Quote } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -20,16 +20,27 @@ interface DefinitionCardProps {
 }
 
 /**
- * Displays a single definition with optional expand/collapse for long text
+ * Displays a single definition with optional expand/collapse for long text.
+ * When isVerbatim=false, shows both the rephrased definition and the original verbatim text.
  */
+
 /**
- * Get the display definition text based on verbatim/rephrased logic
+ * Capitalize the first letter of a string
+ */
+function capitalizeFirst(text: string): string {
+  if (!text) return text;
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+/**
+ * Get the primary display definition text based on verbatim/rephrased logic.
+ * Always capitalizes the first letter.
  */
 function getDisplayDefinitionText(definition: DefinitionWithContext): string {
-  if (definition.isVerbatim) {
-    return definition.verbatimText;
-  }
-  return definition.rephrasedDefinition ?? definition.verbatimText;
+  const text = definition.isVerbatim
+    ? definition.verbatimText
+    : (definition.rephrasedDefinition ?? definition.verbatimText);
+  return capitalizeFirst(text);
 }
 
 export function DefinitionCard({
@@ -39,9 +50,15 @@ export function DefinitionCard({
   compact = false,
 }: DefinitionCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [showVerbatim, setShowVerbatim] = useState(false);
 
   // Get the appropriate definition text to display
   const definitionText = getDisplayDefinitionText(definition);
+
+  // Check if we have a rephrased definition that differs from verbatim
+  const hasRephrasedDefinition = !definition.isVerbatim &&
+    definition.rephrasedDefinition &&
+    definition.rephrasedDefinition !== definition.verbatimText;
 
   // Truncate long definitions
   const maxLength = compact ? 150 : 300;
@@ -90,6 +107,9 @@ export function DefinitionCard({
               <Badge variant="info">{definition.scope}</Badge>
             )}
             {!compact && getQualityBadge()}
+            {hasRephrasedDefinition && (
+              <Badge variant="default">Rephrased</Badge>
+            )}
           </div>
 
           {/* Definition text */}
@@ -122,6 +142,33 @@ export function DefinitionCard({
             </Button>
           )}
 
+          {/* Show original verbatim text when definition is rephrased */}
+          {hasRephrasedDefinition && (
+            <div className="mt-3">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowVerbatim(!showVerbatim)}
+                className="text-xs py-0.5 px-2 h-auto flex items-center gap-1"
+              >
+                <Quote className="w-3 h-3" />
+                {showVerbatim ? 'Hide original text' : 'Show original text'}
+                {showVerbatim ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+              </Button>
+              {showVerbatim && (
+                <div className="mt-2 p-3 bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] border-l-2 border-[var(--color-neutral-300)]">
+                  <p className="text-xs text-[var(--color-text-muted)] mb-1 font-medium">
+                    Original text from regulation:
+                  </p>
+                  <p className="text-sm text-[var(--color-text-secondary)] italic whitespace-pre-wrap">
+                    {capitalizeFirst(definition.verbatimText)}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Source location */}
           {!compact && definition.sourceLocation && (
             <p className="text-xs text-[var(--color-text-muted)] mt-2">
@@ -129,23 +176,25 @@ export function DefinitionCard({
             </p>
           )}
 
-          {/* Regulation link */}
+          {/* Regulation link - always show when available (including compact mode) */}
           {showSource && regulationLink && (
-            <div className="mt-3 pt-3 border-t border-[var(--color-neutral-100)] flex items-center gap-3">
-              <BookOpen className="w-4 h-4 text-[var(--color-text-muted)]" />
-              <div className="flex-1 min-w-0">
+            <div className={`flex items-center gap-2 ${compact ? 'mt-2' : 'mt-3 pt-3 border-t border-[var(--color-neutral-100)]'}`}>
+              <BookOpen className="w-3.5 h-3.5 text-[var(--color-text-muted)] flex-shrink-0" />
+              <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
                 {citation && (
-                  <span className="text-xs font-mono text-[var(--color-text-muted)] mr-2">
+                  <span className="text-xs font-mono text-[var(--color-text-muted)]">
                     {citation}
                   </span>
                 )}
                 <Link
                   href={regulationLink}
-                  className="text-sm text-[var(--color-link)] hover:text-[var(--color-link-hover)] hover:underline inline-flex items-center gap-1"
+                  className={`text-[var(--color-link)] hover:text-[var(--color-link-hover)] hover:underline inline-flex items-center gap-1 ${compact ? 'text-xs' : 'text-sm'}`}
                 >
-                  {definition.regulation?.title
-                    ? definition.regulation.title.slice(0, 60) + (definition.regulation.title.length > 60 ? '...' : '')
-                    : 'View Regulation'}
+                  {compact
+                    ? 'View section'
+                    : definition.regulation?.title
+                      ? definition.regulation.title.slice(0, 60) + (definition.regulation.title.length > 60 ? '...' : '')
+                      : 'View Regulation'}
                   <ExternalLink className="w-3 h-3" />
                 </Link>
               </div>

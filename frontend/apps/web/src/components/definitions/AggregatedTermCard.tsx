@@ -38,9 +38,15 @@ export function AggregatedTermCard({ term, state }: AggregatedTermCardProps) {
     }
   };
 
-  // Truncate preview definition
+  // Capitalize the first letter of a string
+  const capitalizeFirst = (text: string): string => {
+    if (!text) return text;
+    return text.charAt(0).toUpperCase() + text.slice(1);
+  };
+
+  // Truncate preview definition and capitalize first letter
   const previewText = term.previewDefinition
-    ? term.previewDefinition.slice(0, 200) + (term.previewDefinition.length > 200 ? '...' : '')
+    ? capitalizeFirst(term.previewDefinition.slice(0, 200)) + (term.previewDefinition.length > 200 ? '...' : '')
     : 'No high-quality definition available';
 
   // Filter out null scope levels and format
