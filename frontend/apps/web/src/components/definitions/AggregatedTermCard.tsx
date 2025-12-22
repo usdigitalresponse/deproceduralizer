@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { ChevronDown, ChevronUp, Layers } from 'lucide-react';
+import Link from 'next/link';
+import { ChevronDown, ChevronUp, Layers, BookOpen, ExternalLink } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -78,6 +79,23 @@ export function AggregatedTermCard({ term, state }: AggregatedTermCardProps) {
               <span className="text-xs text-[var(--color-text-muted)]">
                 Scopes: {validScopeLevels.join(', ')}
               </span>
+            </div>
+          )}
+
+          {/* Source citation - show for single variant terms or as preview source */}
+          {term.previewCitation && term.previewDocumentId && (
+            <div className="flex items-center gap-2 mt-2">
+              <BookOpen className="w-3 h-3 text-[var(--color-text-muted)] flex-shrink-0" />
+              <span className="text-xs font-mono text-[var(--color-text-muted)]">
+                {term.previewCitation}
+              </span>
+              <Link
+                href={`/${state}/regulations/${term.previewDocumentId}`}
+                className="text-xs text-[var(--color-link)] hover:text-[var(--color-link-hover)] hover:underline inline-flex items-center gap-1"
+              >
+                View section
+                <ExternalLink className="w-3 h-3" />
+              </Link>
             </div>
           )}
 

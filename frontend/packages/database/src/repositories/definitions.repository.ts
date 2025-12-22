@@ -1,4 +1,4 @@
-import { eq, and, asc, desc, sql, count, like, ilike, gte, lt } from 'drizzle-orm';
+import { eq, and, asc, desc, sql, count, like, ilike, gte, lt, inArray } from 'drizzle-orm';
 import { BaseRepository } from './base.repository';
 import { definitions, Definition } from '../schema/definitions';
 import { regulatoryDocuments } from '../schema/regulatory-documents';
@@ -67,6 +67,9 @@ export interface AggregatedTerm {
   variantCount: number;
   previewDefinition: string | null;
   scopeLevels: (string | null)[];
+  // Source info for single-variant terms (or preview source for multi-variant)
+  previewDocumentId: number | null;
+  previewCitation: string | null;  // e.g., "11 NYCRR § 310.3"
 }
 
 export interface PaginatedAggregatedResult {
@@ -615,7 +618,9 @@ export class DefinitionsRepository extends BaseRepository {
       .from(definitions)
       .where(whereClause);
 
-    // Get aggregated terms
+    // Get aggregated terms with source info
+    // For the preview, we pick the definition with overlap = 1.0 (high quality)
+    // We also get its document_id to construct the citation
     const results = await this.db
       .select({
         normalizedTerm: definitions.normalizedTerm,
@@ -623,6 +628,8 @@ export class DefinitionsRepository extends BaseRepository {
         variantCount: sql<number>`count(*)::int`,
         previewDefinition: sql<string | null>`max(${definitions.verbatimText}) filter (where ${definitions.definitionOverlap} = 1.0)`,
         scopeLevels: sql<(string | null)[]>`array_agg(distinct ${definitions.scopeLevel})`,
+        // Get document_id for preview (for building citation)
+        previewDocumentId: sql<number | null>`max(${definitions.documentId}) filter (where ${definitions.definitionOverlap} = 1.0)`,
       })
       .from(definitions)
       .where(whereClause)
@@ -631,6 +638,46 @@ export class DefinitionsRepository extends BaseRepository {
       .limit(pageSize)
       .offset(offset);
 
+    // Fetch regulation info for documents that have previewDocumentId
+    // Note: SQL aggregation returns strings, so we need to convert to numbers
+    const documentIds = results
+      .filter(r => r.previewDocumentId !== null)
+      .map(r => Number(r.previewDocumentId));
+
+    let citationMap: Map<number, string> = new Map();
+    if (documentIds.length > 0) {
+      const regInfo = await this.db
+        .select({
+          id: regulatoryDocuments.id,
+          nycrrTitle: regulatoryDocuments.nycrrTitle,
+          nycrrPart: regulatoryDocuments.nycrrPart,
+          nycrrSection: regulatoryDocuments.nycrrSection,
+          njacTitle: regulatoryDocuments.njacTitle,
+          njacChapter: regulatoryDocuments.njacChapter,
+          njacSubchapter: regulatoryDocuments.njacSubchapter,
+        })
+        .from(regulatoryDocuments)
+        .where(inArray(regulatoryDocuments.id, documentIds));
+
+      for (const reg of regInfo) {
+        let citation: string | null = null;
+        if (reg.nycrrTitle) {
+          const parts = [reg.nycrrTitle.toString(), 'NYCRR'];
+          if (reg.nycrrPart) parts.push(reg.nycrrPart);
+          if (reg.nycrrSection) parts.push(`§ ${reg.nycrrSection}`);
+          citation = parts.join(' ');
+        } else if (reg.njacTitle) {
+          const parts = ['N.J.A.C.', reg.njacTitle];
+          if (reg.njacChapter) parts.push(reg.njacChapter);
+          if (reg.njacSubchapter) parts.push(reg.njacSubchapter);
+          citation = parts.join(':');
+        }
+        if (citation) {
+          citationMap.set(reg.id, citation);
+        }
+      }
+    }
+
     return {
       data: results.map(r => ({
         normalizedTerm: r.normalizedTerm ?? '',
@@ -638,6 +685,8 @@ export class DefinitionsRepository extends BaseRepository {
         variantCount: r.variantCount,
         previewDefinition: r.previewDefinition,
         scopeLevels: r.scopeLevels?.filter(Boolean) ?? [],
+        previewDocumentId: r.previewDocumentId ? Number(r.previewDocumentId) : null,
+        previewCitation: r.previewDocumentId ? (citationMap.get(Number(r.previewDocumentId)) ?? null) : null,
       })),
       total,
       page,
