@@ -33,7 +33,7 @@ Root causes documented in GitHub Issue #31.
 | **Phase 2: Extraction Pipeline** | ✅ Complete | Batch processed 5,067 sections, 27,001 definitions stored |
 | **Phase 3: Data Migration** | ✅ Mostly Complete | 89% linked; 3,146 unlinked tracked in Issue #31 |
 | **Phase 4: Core UI Features** | ✅ Complete | Filtering, term aggregation, applicable definitions, trigram search indexes |
-| **Phase 5: Enhanced Discovery** | 🔜 Next | Term highlighting, tooltips, full-text search |
+| **Phase 5: Enhanced Discovery** | 🔜 Next | Term highlighting, tooltips |
 | **Phase 6: State Expansion** | 📋 Planned | NJ extraction, cross-state comparison |
 | **Phase 7: Quality Assurance** | 📋 Optional | Review pipeline, conflict detection (backlogged - not needed currently) |
 
@@ -745,18 +745,7 @@ Show definition previews on hover:
 - "See more" link to full definition in glossary
 - Keyboard accessible (focus states)
 
-## 6.3 Full-Text Search
-
-```sql
-CREATE INDEX idx_definitions_search ON definitions
-  USING GIN (to_tsvector('english', term || ' ' || definition));
-```
-
-- Fuzzy matching
-- Phrase search
-- Relevance ranking
-
-## 6.4 Definition Usage Analysis
+## 6.3 Definition Usage Analysis
 
 Track how terms are used:
 
@@ -820,7 +809,7 @@ Track how terms are used:
 | **2** | Extraction Pipeline | Improved prompt, prioritize definition sections, scope inference | Phase 1 |
 | **3** | Data Migration | Backfill scope_level, scope_document_id, definition_type | Phase 1 |
 | **4** | Core UI | Filtering, term aggregation, applicable definitions on sections | Phase 1, 3 |
-| **5** | Enhanced Discovery | Term highlighting, tooltips, full-text search | Phase 4 |
+| **5** | Enhanced Discovery | Term highlighting, tooltips | Phase 4 |
 | **6** | State Expansion | NJ extraction, cross-state comparison | Phase 1-4 |
 | **7** | Quality Assurance (Optional) | Review pipeline, conflict detection | Phase 4 |
 
@@ -836,3 +825,26 @@ Track how terms are used:
 | 4 | Add basic scope filter to glossary | Low | Immediate user value |
 | 5 | Term highlighting with CSS underlines | Low | Immediate UX improvement |
 | 7 | Surface low-overlap definitions for review | Low | Quality wins (optional) |
+
+---
+
+# Backlogged Features
+
+These features have been deprioritized but may be revisited later.
+
+## Full-Text Search
+
+Add GIN index for fuzzy matching, phrase search, and relevance ranking:
+
+```sql
+CREATE INDEX idx_definitions_search ON definitions
+  USING GIN (to_tsvector('english', term || ' ' || verbatim_text));
+```
+
+Features:
+- Fuzzy matching (e.g., "facilities" matches "facility")
+- Phrase search
+- Relevance ranking
+- English stemming
+
+**Status**: Backlogged - current trigram indexes provide adequate search performance for ILIKE queries.
