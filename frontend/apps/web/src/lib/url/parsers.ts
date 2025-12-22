@@ -43,6 +43,10 @@ export type ReviewTypeValue = (typeof REVIEW_TYPE_VALUES)[number];
 export const REVIEW_MODE_VALUES = ['review', 'developer'] as const;
 export type ReviewModeValue = (typeof REVIEW_MODE_VALUES)[number];
 
+// Glossary view mode values
+export const GLOSSARY_VIEW_VALUES = ['flat', 'aggregated'] as const;
+export type GlossaryViewValue = (typeof GLOSSARY_VIEW_VALUES)[number];
+
 // ============================================
 // Parsers
 // ============================================
@@ -60,6 +64,7 @@ export const developerStatusParser = parseAsStringEnum([...DEVELOPER_STATUS_VALU
 export const severityParser = parseAsStringEnum([...SEVERITY_VALUES]).withDefault('all');
 export const reviewTypeParser = parseAsStringEnum([...REVIEW_TYPE_VALUES]).withDefault('flags');
 export const reviewModeParser = parseAsStringEnum([...REVIEW_MODE_VALUES]).withDefault('review');
+export const glossaryViewParser = parseAsStringEnum([...GLOSSARY_VIEW_VALUES]).withDefault('flat');
 
 // Boolean filter parsers
 export const booleanParser = parseAsBoolean;
@@ -70,6 +75,33 @@ export const searchParser = parseAsString;
 export const developerAssignedParser = parseAsString;
 export const letterParser = parseAsString;
 export const reviewerParser = parseAsString;
+
+// ============================================
+// Definition filter values and parsers
+// ============================================
+
+// Scope level values for definitions
+export const DEFINITION_SCOPE_LEVEL_VALUES = [
+  'all',
+  'section',
+  'part',
+  'chapter',
+  'title',
+] as const;
+export type DefinitionScopeLevelValue = (typeof DEFINITION_SCOPE_LEVEL_VALUES)[number];
+
+// Definition type values
+export const DEFINITION_TYPE_VALUES = ['all', 'formal', 'abbreviation'] as const;
+export type DefinitionTypeValue = (typeof DEFINITION_TYPE_VALUES)[number];
+
+// Definition quality values
+export const DEFINITION_QUALITY_VALUES = ['all', 'high', 'medium', 'low'] as const;
+export type DefinitionQualityValue = (typeof DEFINITION_QUALITY_VALUES)[number];
+
+// Definition filter parsers
+export const definitionScopeLevelParser = parseAsStringEnum([...DEFINITION_SCOPE_LEVEL_VALUES]).withDefault('all');
+export const definitionTypeParser = parseAsStringEnum([...DEFINITION_TYPE_VALUES]).withDefault('all');
+export const definitionQualityParser = parseAsStringEnum([...DEFINITION_QUALITY_VALUES]).withDefault('all');
 
 // Sort by parsers for different contexts
 export const flagSortByParser = parseAsStringEnum([
@@ -157,6 +189,18 @@ export const browseFiltersParsers = {
   hasDefs: booleanParser,
   hasCompliance: booleanParser,
   search: searchParser,
+};
+
+/**
+ * Parser configuration for glossary (definitions) page filters
+ */
+export const glossaryFiltersParsers = {
+  page: pageParser,
+  search: searchParser,
+  letter: letterParser,
+  scopeLevel: definitionScopeLevelParser,
+  definitionType: definitionTypeParser,
+  quality: definitionQualityParser,
 };
 
 // ============================================

@@ -1,4 +1,4 @@
-import { eq, and, asc, desc, sql, count, like, ilike } from 'drizzle-orm';
+import { eq, and, asc, desc, sql, count, like, ilike, gte, lt } from 'drizzle-orm';
 import { BaseRepository } from './base.repository';
 import { definitions, Definition } from '../schema/definitions';
 import { regulatoryDocuments } from '../schema/regulatory-documents';
@@ -18,6 +18,14 @@ export interface DefinitionWithContext extends Definition {
   };
 }
 
+/**
+ * Extended definition with scope document info for applicable definitions display
+ */
+export interface ApplicableDefinition extends DefinitionWithContext {
+  scopeDocTitle?: string | null;
+  scopeDocLevel?: string | null;
+}
+
 export interface DefinitionPaginationOptions {
   state: StateCode;
   page: number;
@@ -27,6 +35,10 @@ export interface DefinitionPaginationOptions {
   scope?: string;
   sortBy?: 'term' | 'extractedAt' | 'overlap';
   sortOrder?: 'asc' | 'desc';
+  // Phase 4.1 filters
+  scopeLevel?: 'section' | 'part' | 'chapter' | 'title';
+  definitionType?: 'formal' | 'abbreviation';
+  quality?: 'high' | 'medium' | 'low';
 }
 
 export interface PaginatedDefinitionsResult {
@@ -47,6 +59,22 @@ export interface DefinitionStats {
 export interface AlphabeticalIndex {
   letter: string;
   count: number;
+}
+
+export interface AggregatedTerm {
+  normalizedTerm: string;
+  displayTerm: string;
+  variantCount: number;
+  previewDefinition: string | null;
+  scopeLevels: (string | null)[];
+}
+
+export interface PaginatedAggregatedResult {
+  data: AggregatedTerm[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
 }
 
 export class DefinitionsRepository extends BaseRepository {
@@ -122,12 +150,121 @@ export class DefinitionsRepository extends BaseRepository {
   }
 
   /**
+   * Get all definitions that apply to a document via scope percolation.
+   * Walks up ancestor chain and finds definitions whose scope_document_id
+   * is in that chain (including the document itself).
+   */
+  async getApplicableDefinitions(documentId: number): Promise<ApplicableDefinition[]> {
+    const results = await this.db.execute(sql`
+      WITH RECURSIVE ancestors AS (
+        -- Start with the current document
+        SELECT id, parent_id, hierarchy_level, 0 as depth
+        FROM regulatory_documents
+        WHERE id = ${documentId}
+
+        UNION ALL
+
+        -- Walk up parent chain
+        SELECT rd.id, rd.parent_id, rd.hierarchy_level, a.depth + 1
+        FROM regulatory_documents rd
+        INNER JOIN ancestors a ON rd.id = a.parent_id
+        WHERE a.depth < 20
+      )
+      SELECT
+        d.id,
+        d.document_id as "documentId",
+        d.url,
+        d.term,
+        d.verbatim_text as "verbatimText",
+        d.is_verbatim as "isVerbatim",
+        d.rephrased_definition as "rephrasedDefinition",
+        d.scope,
+        d.source_location as "sourceLocation",
+        d.definition_overlap as "definitionOverlap",
+        d.model_version as "modelVersion",
+        d.extracted_at as "extractedAt",
+        d.notes,
+        d.scope_level as "scopeLevel",
+        d.scope_document_id as "scopeDocumentId",
+        d.definition_type as "definitionType",
+        d.normalized_term as "normalizedTerm",
+        d.is_cross_reference as "isCrossReference",
+        -- Regulation context (where definition is defined)
+        rd.id as "regId",
+        rd.title as "regTitle",
+        rd.nycrr_title as "nycrrTitle",
+        rd.nycrr_part as "nycrrPart",
+        rd.nycrr_section as "nycrrSection",
+        rd.njac_title as "njacTitle",
+        rd.njac_chapter as "njacChapter",
+        rd.njac_subchapter as "njacSubchapter",
+        rd.state as "regState",
+        -- Scope document for display
+        scope_doc.title as "scopeDocTitle",
+        scope_doc.hierarchy_level as "scopeDocLevel"
+      FROM definitions d
+      JOIN ancestors a ON d.scope_document_id = a.id
+      LEFT JOIN regulatory_documents rd ON d.document_id = rd.id
+      LEFT JOIN regulatory_documents scope_doc ON d.scope_document_id = scope_doc.id
+      ORDER BY
+        CASE d.scope_level
+          WHEN 'title' THEN 1
+          WHEN 'subtitle' THEN 2
+          WHEN 'chapter' THEN 3
+          WHEN 'subchapter' THEN 4
+          WHEN 'article' THEN 5
+          WHEN 'part' THEN 6
+          WHEN 'subpart' THEN 7
+          WHEN 'section' THEN 8
+          ELSE 9
+        END,
+        d.term
+    `);
+
+    // Map results to ApplicableDefinition
+    return (results.rows as any[]).map(row => ({
+      id: Number(row.id),
+      documentId: row.documentId ? Number(row.documentId) : null,
+      url: row.url,
+      term: row.term,
+      verbatimText: row.verbatimText,
+      isVerbatim: row.isVerbatim,
+      rephrasedDefinition: row.rephrasedDefinition,
+      scope: row.scope,
+      sourceLocation: row.sourceLocation,
+      definitionOverlap: row.definitionOverlap,
+      modelVersion: row.modelVersion,
+      extractedAt: row.extractedAt,
+      notes: row.notes,
+      scopeLevel: row.scopeLevel,
+      scopeDocumentId: row.scopeDocumentId ? Number(row.scopeDocumentId) : null,
+      definitionType: row.definitionType,
+      normalizedTerm: row.normalizedTerm,
+      isCrossReference: row.isCrossReference,
+      regulation: row.regId ? {
+        id: Number(row.regId),
+        title: row.regTitle,
+        nycrrTitle: row.nycrrTitle ? Number(row.nycrrTitle) : null,
+        nycrrPart: row.nycrrPart,
+        nycrrSection: row.nycrrSection,
+        njacTitle: row.njacTitle,
+        njacChapter: row.njacChapter,
+        njacSubchapter: row.njacSubchapter,
+        state: row.regState,
+      } : undefined,
+      // Scope document info for display
+      scopeDocTitle: row.scopeDocTitle,
+      scopeDocLevel: row.scopeDocLevel,
+    }));
+  }
+
+  /**
    * Get paginated definitions with regulation context for glossary page
    */
   async getAllPaginated(
     options: DefinitionPaginationOptions
   ): Promise<PaginatedDefinitionsResult> {
-    const { state, page, pageSize, search, letter, scope, sortBy = 'term', sortOrder = 'asc' } = options;
+    const { state, page, pageSize, search, letter, scope, sortBy = 'term', sortOrder = 'asc', scopeLevel, definitionType, quality } = options;
     const offset = (page - 1) * pageSize;
 
     // Build base conditions - join via URL to get state
@@ -153,6 +290,26 @@ export class DefinitionsRepository extends BaseRepository {
     // Scope filter
     if (scope) {
       conditions.push(eq(definitions.scope, scope));
+    }
+
+    // Scope level filter (Phase 4.1)
+    if (scopeLevel) {
+      conditions.push(eq(definitions.scopeLevel, scopeLevel));
+    }
+
+    // Definition type filter (Phase 4.1)
+    if (definitionType) {
+      conditions.push(eq(definitions.definitionType, definitionType));
+    }
+
+    // Quality filter based on definition_overlap (Phase 4.1)
+    if (quality === 'high') {
+      conditions.push(eq(definitions.definitionOverlap, 1.0));
+    } else if (quality === 'medium') {
+      conditions.push(gte(definitions.definitionOverlap, 0.3));
+      conditions.push(lt(definitions.definitionOverlap, 1.0));
+    } else if (quality === 'low') {
+      conditions.push(lt(definitions.definitionOverlap, 0.3));
     }
 
     // State filter via URL pattern
@@ -182,7 +339,9 @@ export class DefinitionsRepository extends BaseRepository {
         id: definitions.id,
         documentId: definitions.documentId,
         term: definitions.term,
-        definition: definitions.definition,
+        verbatimText: definitions.verbatimText,
+        isVerbatim: definitions.isVerbatim,
+        rephrasedDefinition: definitions.rephrasedDefinition,
         scope: definitions.scope,
         definitionOverlap: definitions.definitionOverlap,
         sourceLocation: definitions.sourceLocation,
@@ -190,6 +349,12 @@ export class DefinitionsRepository extends BaseRepository {
         modelVersion: definitions.modelVersion,
         extractedAt: definitions.extractedAt,
         notes: definitions.notes,
+        // Phase 1 schema additions
+        scopeLevel: definitions.scopeLevel,
+        scopeDocumentId: definitions.scopeDocumentId,
+        definitionType: definitions.definitionType,
+        normalizedTerm: definitions.normalizedTerm,
+        isCrossReference: definitions.isCrossReference,
         // Regulation context
         regulationId: regulatoryDocuments.id,
         regulationTitle: regulatoryDocuments.title,
@@ -213,7 +378,9 @@ export class DefinitionsRepository extends BaseRepository {
       id: row.id,
       documentId: row.documentId,
       term: row.term,
-      definition: row.definition,
+      verbatimText: row.verbatimText,
+      isVerbatim: row.isVerbatim,
+      rephrasedDefinition: row.rephrasedDefinition,
       scope: row.scope,
       definitionOverlap: row.definitionOverlap,
       sourceLocation: row.sourceLocation,
@@ -221,6 +388,12 @@ export class DefinitionsRepository extends BaseRepository {
       modelVersion: row.modelVersion,
       extractedAt: row.extractedAt,
       notes: row.notes,
+      // Phase 1 schema additions
+      scopeLevel: row.scopeLevel,
+      scopeDocumentId: row.scopeDocumentId,
+      definitionType: row.definitionType,
+      normalizedTerm: row.normalizedTerm,
+      isCrossReference: row.isCrossReference,
       regulation: row.regulationId ? {
         id: row.regulationId,
         title: row.regulationTitle,
@@ -302,7 +475,9 @@ export class DefinitionsRepository extends BaseRepository {
         id: definitions.id,
         documentId: definitions.documentId,
         term: definitions.term,
-        definition: definitions.definition,
+        verbatimText: definitions.verbatimText,
+        isVerbatim: definitions.isVerbatim,
+        rephrasedDefinition: definitions.rephrasedDefinition,
         scope: definitions.scope,
         definitionOverlap: definitions.definitionOverlap,
         sourceLocation: definitions.sourceLocation,
@@ -310,6 +485,12 @@ export class DefinitionsRepository extends BaseRepository {
         modelVersion: definitions.modelVersion,
         extractedAt: definitions.extractedAt,
         notes: definitions.notes,
+        // Phase 1 schema additions
+        scopeLevel: definitions.scopeLevel,
+        scopeDocumentId: definitions.scopeDocumentId,
+        definitionType: definitions.definitionType,
+        normalizedTerm: definitions.normalizedTerm,
+        isCrossReference: definitions.isCrossReference,
         regulationId: regulatoryDocuments.id,
         regulationTitle: regulatoryDocuments.title,
         regulationNycrrTitle: regulatoryDocuments.nycrrTitle,
@@ -333,7 +514,9 @@ export class DefinitionsRepository extends BaseRepository {
       id: row.id,
       documentId: row.documentId,
       term: row.term,
-      definition: row.definition,
+      verbatimText: row.verbatimText,
+      isVerbatim: row.isVerbatim,
+      rephrasedDefinition: row.rephrasedDefinition,
       scope: row.scope,
       definitionOverlap: row.definitionOverlap,
       sourceLocation: row.sourceLocation,
@@ -341,6 +524,12 @@ export class DefinitionsRepository extends BaseRepository {
       modelVersion: row.modelVersion,
       extractedAt: row.extractedAt,
       notes: row.notes,
+      // Phase 1 schema additions
+      scopeLevel: row.scopeLevel,
+      scopeDocumentId: row.scopeDocumentId,
+      definitionType: row.definitionType,
+      normalizedTerm: row.normalizedTerm,
+      isCrossReference: row.isCrossReference,
       regulation: row.regulationId ? {
         id: row.regulationId,
         title: row.regulationTitle,
@@ -393,5 +582,147 @@ export class DefinitionsRepository extends BaseRepository {
       .orderBy(asc(definitions.scope));
 
     return results.map(r => r.scope!).filter(Boolean);
+  }
+
+  /**
+   * Get aggregated terms for glossary (grouped by normalized_term)
+   */
+  async getAggregatedTerms(options: {
+    state: StateCode;
+    search?: string;
+    letter?: string;
+    page?: number;
+    pageSize?: number;
+  }): Promise<PaginatedAggregatedResult> {
+    const { state, search, letter, page = 1, pageSize = 20 } = options;
+    const offset = (page - 1) * pageSize;
+    const statePattern = state.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
+
+    const conditions: ReturnType<typeof eq>[] = [like(definitions.url, statePattern)];
+
+    if (search) {
+      conditions.push(ilike(definitions.normalizedTerm, `%${search.toLowerCase()}%`));
+    }
+    if (letter && letter.length === 1) {
+      conditions.push(ilike(definitions.normalizedTerm, `${letter.toLowerCase()}%`));
+    }
+
+    const whereClause = and(...conditions);
+
+    // Get total unique terms count
+    const [{ count: total }] = await this.db
+      .select({ count: sql<number>`count(distinct ${definitions.normalizedTerm})` })
+      .from(definitions)
+      .where(whereClause);
+
+    // Get aggregated terms
+    const results = await this.db
+      .select({
+        normalizedTerm: definitions.normalizedTerm,
+        displayTerm: sql<string>`max(${definitions.term})`,
+        variantCount: sql<number>`count(*)::int`,
+        previewDefinition: sql<string | null>`max(${definitions.verbatimText}) filter (where ${definitions.definitionOverlap} = 1.0)`,
+        scopeLevels: sql<(string | null)[]>`array_agg(distinct ${definitions.scopeLevel})`,
+      })
+      .from(definitions)
+      .where(whereClause)
+      .groupBy(definitions.normalizedTerm)
+      .orderBy(asc(definitions.normalizedTerm))
+      .limit(pageSize)
+      .offset(offset);
+
+    return {
+      data: results.map(r => ({
+        normalizedTerm: r.normalizedTerm ?? '',
+        displayTerm: r.displayTerm,
+        variantCount: r.variantCount,
+        previewDefinition: r.previewDefinition,
+        scopeLevels: r.scopeLevels?.filter(Boolean) ?? [],
+      })),
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
+  }
+
+  /**
+   * Get all definitions for a specific normalized term
+   */
+  async getDefinitionsForTerm(
+    normalizedTerm: string,
+    state: StateCode
+  ): Promise<DefinitionWithContext[]> {
+    const statePattern = state.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
+
+    const results = await this.db
+      .select({
+        id: definitions.id,
+        documentId: definitions.documentId,
+        term: definitions.term,
+        verbatimText: definitions.verbatimText,
+        isVerbatim: definitions.isVerbatim,
+        rephrasedDefinition: definitions.rephrasedDefinition,
+        scope: definitions.scope,
+        definitionOverlap: definitions.definitionOverlap,
+        sourceLocation: definitions.sourceLocation,
+        url: definitions.url,
+        modelVersion: definitions.modelVersion,
+        extractedAt: definitions.extractedAt,
+        notes: definitions.notes,
+        scopeLevel: definitions.scopeLevel,
+        scopeDocumentId: definitions.scopeDocumentId,
+        definitionType: definitions.definitionType,
+        normalizedTerm: definitions.normalizedTerm,
+        isCrossReference: definitions.isCrossReference,
+        regulationId: regulatoryDocuments.id,
+        regulationTitle: regulatoryDocuments.title,
+        regulationNycrrTitle: regulatoryDocuments.nycrrTitle,
+        regulationNycrrPart: regulatoryDocuments.nycrrPart,
+        regulationNycrrSection: regulatoryDocuments.nycrrSection,
+        regulationNjacTitle: regulatoryDocuments.njacTitle,
+        regulationNjacChapter: regulatoryDocuments.njacChapter,
+        regulationNjacSubchapter: regulatoryDocuments.njacSubchapter,
+        regulationState: regulatoryDocuments.state,
+      })
+      .from(definitions)
+      .leftJoin(regulatoryDocuments, eq(definitions.url, regulatoryDocuments.url))
+      .where(and(
+        like(definitions.url, statePattern),
+        eq(definitions.normalizedTerm, normalizedTerm)
+      ))
+      .orderBy(desc(definitions.definitionOverlap), asc(definitions.term));
+
+    return results.map(row => ({
+      id: row.id,
+      documentId: row.documentId,
+      term: row.term,
+      verbatimText: row.verbatimText,
+      isVerbatim: row.isVerbatim,
+      rephrasedDefinition: row.rephrasedDefinition,
+      scope: row.scope,
+      definitionOverlap: row.definitionOverlap,
+      sourceLocation: row.sourceLocation,
+      url: row.url,
+      modelVersion: row.modelVersion,
+      extractedAt: row.extractedAt,
+      notes: row.notes,
+      scopeLevel: row.scopeLevel,
+      scopeDocumentId: row.scopeDocumentId,
+      definitionType: row.definitionType,
+      normalizedTerm: row.normalizedTerm,
+      isCrossReference: row.isCrossReference,
+      regulation: row.regulationId ? {
+        id: row.regulationId,
+        title: row.regulationTitle,
+        nycrrTitle: row.regulationNycrrTitle,
+        nycrrPart: row.regulationNycrrPart,
+        nycrrSection: row.regulationNycrrSection,
+        njacTitle: row.regulationNjacTitle,
+        njacChapter: row.regulationNjacChapter,
+        njacSubchapter: row.regulationNjacSubchapter,
+        state: row.regulationState,
+      } : undefined,
+    }));
   }
 }

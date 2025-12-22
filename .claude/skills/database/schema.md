@@ -92,13 +92,24 @@ Main table with hierarchy. **50 columns** - use `./scripts/db-query.sh describe 
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | bigserial | Primary key |
-| `document_id` | bigint | FK to regulatory_documents (via URL match) |
+| `document_id` | bigint | FK to regulatory_documents |
 | `url` | text | Source URL |
 | `term` | text | Term being defined |
-| `definition` | text | Definition text |
-| `scope` | text | Applicability scope |
+| `verbatim_text` | text | Exact text from regulation |
+| `is_verbatim` | boolean | Whether verbatim_text is complete |
+| `rephrased_definition` | text | Plain-language definition |
+| `scope` | text | Applicability scope text |
+| `scope_level` | varchar(20) | Hierarchy level: section/part/chapter/title |
+| `scope_document_id` | bigint | FK to regulatory_documents (scope entity) |
+| `definition_type` | varchar(20) | formal or abbreviation |
+| `normalized_term` | text | GENERATED: LOWER(TRIM(term)) |
+| `is_cross_reference` | boolean | Points to another source |
 | `definition_overlap` | float | 0.0-1.0 overlap with regulation |
 | `source_location` | text | Where found in document |
+| `model_version` | varchar(100) | LLM model used |
+| `extracted_at` | timestamp | When extracted |
+
+**Indexes:** `idx_definitions_scope_document`, `idx_definitions_scope_level`, `idx_definitions_normalized_term`, `idx_definitions_type`
 
 ## compliance_issues
 

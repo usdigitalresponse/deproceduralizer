@@ -52,5 +52,11 @@ export const definitionsRelations = relations(definitions, ({ one }) => ({
   document: one(regulatoryDocuments, {
     fields: [definitions.documentId],
     references: [regulatoryDocuments.id],
+    relationName: 'definitionSource',
+  }),
+  scopeDocument: one(regulatoryDocuments, {
+    fields: [definitions.scopeDocumentId],
+    references: [regulatoryDocuments.id],
+    relationName: 'definitionScope',
   }),
 }));

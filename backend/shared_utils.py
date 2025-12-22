@@ -119,6 +119,46 @@ def get_db_connection(timeout: int = 30) -> Optional[Connection]:
 
 
 # ============================================================================
+# Definition Utilities
+# ============================================================================
+
+def normalize_scope_level(scope_level: str) -> str:
+    """
+    Normalize scope_level to match hierarchy_level values.
+    Only handles obvious variations like capitalization and pluralization.
+
+    This should be called when storing definitions to ensure consistent
+    scope_level values that can be linked to the document hierarchy.
+
+    Args:
+        scope_level: Raw scope level from LLM extraction (e.g., "Part", "Sections")
+
+    Returns:
+        Normalized scope level (e.g., "part", "section")
+    """
+    if not scope_level:
+        return ""
+
+    # Lowercase and strip whitespace
+    level = scope_level.lower().strip()
+
+    # Handle common pluralizations (remove trailing 's')
+    # Valid hierarchy levels: title, subtitle, chapter, subchapter, article, part, subpart, section
+    singular_forms = {
+        'titles': 'title',
+        'subtitles': 'subtitle',
+        'chapters': 'chapter',
+        'subchapters': 'subchapter',
+        'articles': 'article',
+        'parts': 'part',
+        'subparts': 'subpart',
+        'sections': 'section',
+    }
+
+    return singular_forms.get(level, level)
+
+
+# ============================================================================
 # LLM Utilities (Anthropic)
 # ============================================================================
 
@@ -243,6 +283,51 @@ def call_llm_parse(
             return None
 
     return None
+
+
+def format_batch_request(
+    custom_id: str,
+    prompt: str,
+    response_format: Type[BaseModel],
+    model: str = None,
+) -> dict:
+    """
+    Format a single request for Anthropic Message Batches API submission.
+
+    Used by batch_definitions.py for async batch processing.
+
+    Args:
+        custom_id: Unique identifier for matching results (e.g., "doc_12345")
+        prompt: User prompt/message
+        response_format: Pydantic model for structured output
+        model: Model name (default: DEFAULT_MODEL)
+
+    Returns:
+        Dict formatted for client.beta.messages.batches.create()
+
+    Example:
+        request = format_batch_request(
+            custom_id=f"doc_{doc_id}",
+            prompt=load_prompt("definition_extraction", title=title, content=content),
+            response_format=DefinitionsResponse
+        )
+        # Submit batch: client.beta.messages.batches.create(requests=[request, ...])
+    """
+    if model is None:
+        model = DEFAULT_MODEL
+
+    tool = _pydantic_to_tool_schema(response_format)
+
+    return {
+        "custom_id": custom_id,
+        "params": {
+            "model": model,
+            "max_tokens": 4096,
+            "messages": [{"role": "user", "content": prompt}],
+            "tools": [tool],
+            "tool_choice": {"type": "tool", "name": tool["name"]},
+        }
+    }
 
 
 async def call_llm_parse_async(

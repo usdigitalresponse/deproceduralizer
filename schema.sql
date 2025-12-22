@@ -203,6 +203,14 @@ FROM regulatory_documents p
 JOIN regulatory_documents c ON c.parent_id = p.id;
 
 -- Definitions table: Extracted terms and definitions from regulations
+--
+-- Definition text fields:
+-- - verbatim_text: The exact text extracted from the regulation (always populated)
+-- - is_verbatim: True if verbatim_text is a complete, usable definition
+-- - rephrased_definition: Plain-language definition when verbatim_text is insufficient
+--
+-- For display purposes, use verbatim_text when is_verbatim=true, otherwise
+-- use rephrased_definition (fallback to verbatim_text if null).
 CREATE TABLE definitions (
   id BIGSERIAL PRIMARY KEY,
   document_id BIGINT REFERENCES regulatory_documents(id) ON DELETE CASCADE,
@@ -214,13 +222,19 @@ CREATE TABLE definitions (
   -- The term being defined
   term TEXT NOT NULL,
 
-  -- The definition text as extracted
-  definition TEXT NOT NULL,
+  -- The definition text as extracted (exact text from regulation)
+  verbatim_text TEXT NOT NULL,
+
+  -- Whether verbatim_text is a complete, usable definition
+  is_verbatim BOOLEAN DEFAULT TRUE,
+
+  -- Plain-language definition when verbatim_text is insufficient (optional)
+  rephrased_definition TEXT,
 
   -- Scope/applicability (e.g., "in this section", "in this part", "throughout this title")
   scope TEXT,
 
-  -- Overlap metric (0.0-1.0) based on edit distance - indicates how much the definition overlaps with the regulation text
+  -- Overlap metric (0.0-1.0) based on edit distance - indicates how much the verbatim_text overlaps with the regulation text
   -- 1.0 = definition found verbatim in document, 0.0 = no overlap
   definition_overlap FLOAT DEFAULT 0.0,
 
@@ -232,7 +246,25 @@ CREATE TABLE definitions (
   extracted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
   -- Any additional notes about the definition
-  notes TEXT
+  notes TEXT,
+
+  -- Phase 1 schema additions for enhanced scope tracking
+  -- Structured scope level (enables percolation, filtering, conflict detection)
+  -- Known values: section, subpart, part, subchapter, chapter, subtitle, title
+  -- NOTE: No CHECK constraint - intentionally extensible for future scope types
+  scope_level VARCHAR(20),
+  scope_document_id BIGINT REFERENCES regulatory_documents(id) ON DELETE SET NULL,  -- FK to document this definition applies to
+
+  -- Definition classification
+  -- Known values: formal, abbreviation
+  -- NOTE: No CHECK constraint - intentionally extensible for future types
+  definition_type VARCHAR(20) DEFAULT 'formal',
+
+  -- Normalized term for aggregation and deduplication
+  normalized_term TEXT GENERATED ALWAYS AS (LOWER(TRIM(term))) STORED,
+
+  -- Cross-reference flag (for definitions that point to other definitions)
+  is_cross_reference BOOLEAN DEFAULT FALSE
 );
 
 -- Indexes
@@ -241,6 +273,14 @@ CREATE INDEX idx_definitions_url ON definitions(url);
 CREATE INDEX idx_definitions_term ON definitions(term);
 CREATE INDEX idx_definitions_overlap ON definitions(definition_overlap);
 CREATE INDEX idx_definitions_document_term ON definitions(document_id, term);
+CREATE INDEX idx_definitions_scope_document ON definitions(scope_document_id);
+CREATE INDEX idx_definitions_scope_level ON definitions(scope_level);
+CREATE INDEX idx_definitions_normalized_term ON definitions(normalized_term);
+CREATE INDEX idx_definitions_type ON definitions(definition_type);
+
+-- Trigram indexes for fast ILIKE search (requires pg_trgm extension)
+CREATE INDEX idx_definitions_term_trgm ON definitions USING GIN (term gin_trgm_ops);
+CREATE INDEX idx_definitions_normalized_term_trgm ON definitions USING GIN (normalized_term gin_trgm_ops);
 
 -- Track which regulations have been processed for definition extraction
 CREATE TABLE definition_extraction_log (

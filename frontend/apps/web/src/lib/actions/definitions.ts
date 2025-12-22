@@ -5,7 +5,9 @@ import {
   DefinitionsRepository,
   type Definition,
   type DefinitionWithContext,
+  type ApplicableDefinition,
   type PaginatedDefinitionsResult,
+  type PaginatedAggregatedResult,
   type DefinitionStats,
   type AlphabeticalIndex,
   type StateCode,
@@ -31,6 +33,22 @@ export async function getDefinitionsForDocument(
 }
 
 /**
+ * Get all definitions that apply to a document via scope percolation.
+ * Walks up the ancestor chain and returns definitions from parent scopes.
+ */
+export async function getApplicableDefinitionsForDocument(
+  documentId: number
+): Promise<ActionResult<ApplicableDefinition[]>> {
+  try {
+    const definitions = await definitionsRepo.getApplicableDefinitions(documentId);
+    return success(definitions);
+  } catch (error) {
+    console.error('[getApplicableDefinitionsForDocument]', error);
+    return failure(getErrorMessage(error));
+  }
+}
+
+/**
  * Get paginated definitions for the glossary page
  */
 export async function getDefinitionsPaginated(
@@ -43,6 +61,10 @@ export async function getDefinitionsPaginated(
     scope?: string;
     sortBy?: 'term' | 'extractedAt' | 'overlap';
     sortOrder?: 'asc' | 'desc';
+    // Phase 4.1 filters
+    scopeLevel?: 'section' | 'part' | 'chapter' | 'title';
+    definitionType?: 'formal' | 'abbreviation';
+    quality?: 'high' | 'medium' | 'low';
   }
 ): Promise<ActionResult<PaginatedDefinitionsResult>> {
   try {
@@ -129,6 +151,43 @@ export async function getDefinitionById(
     return success(definition);
   } catch (error) {
     console.error('[getDefinitionById]', error);
+    return failure(getErrorMessage(error));
+  }
+}
+
+/**
+ * Get aggregated terms for glossary (grouped by normalized_term)
+ */
+export async function getAggregatedTermsPaginated(
+  state: StateCode,
+  options: {
+    page: number;
+    pageSize: number;
+    search?: string;
+    letter?: string;
+  }
+): Promise<ActionResult<PaginatedAggregatedResult>> {
+  try {
+    const result = await definitionsRepo.getAggregatedTerms({ state, ...options });
+    return success(result);
+  } catch (error) {
+    console.error('[getAggregatedTermsPaginated]', error);
+    return failure(getErrorMessage(error));
+  }
+}
+
+/**
+ * Get all definitions for a specific normalized term
+ */
+export async function getDefinitionsForTermAction(
+  normalizedTerm: string,
+  state: StateCode
+): Promise<ActionResult<DefinitionWithContext[]>> {
+  try {
+    const definitions = await definitionsRepo.getDefinitionsForTerm(normalizedTerm, state);
+    return success(definitions);
+  } catch (error) {
+    console.error('[getDefinitionsForTermAction]', error);
     return failure(getErrorMessage(error));
   }
 }
