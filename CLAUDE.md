@@ -4,4 +4,5 @@
 - when modifying schema.sql, always update .claude/skills/database/ (especially schema.md) to reflect the schema changes
 - I am using vercel for deployment of the frontend by either pushing a branch and promoting, or pushing from main
 - whenever you are planning to create or modify a prompt, add a todo or integrate the prompt into @prompts.yaml
+- when implementing batch processing, always implement caching to avoid redundant operations (especially before committing)
 
