@@ -5,6 +5,7 @@ import {
   DefinitionsRepository,
   type Definition,
   type DefinitionWithContext,
+  type ApplicableDefinition,
   type PaginatedDefinitionsResult,
   type DefinitionStats,
   type AlphabeticalIndex,
@@ -26,6 +27,22 @@ export async function getDefinitionsForDocument(
     return success(definitions);
   } catch (error) {
     console.error('[getDefinitionsForDocument]', error);
+    return failure(getErrorMessage(error));
+  }
+}
+
+/**
+ * Get all definitions that apply to a document via scope percolation.
+ * Walks up the ancestor chain and returns definitions from parent scopes.
+ */
+export async function getApplicableDefinitionsForDocument(
+  documentId: number
+): Promise<ActionResult<ApplicableDefinition[]>> {
+  try {
+    const definitions = await definitionsRepo.getApplicableDefinitions(documentId);
+    return success(definitions);
+  } catch (error) {
+    console.error('[getApplicableDefinitionsForDocument]', error);
     return failure(getErrorMessage(error));
   }
 }
