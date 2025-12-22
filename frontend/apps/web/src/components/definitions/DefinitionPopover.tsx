@@ -3,7 +3,7 @@
 import { useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
-import { X, BookOpen, ExternalLink } from 'lucide-react';
+import { X, BookOpen, ExternalLink, ArrowDown } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import type { ApplicableDefinition } from '@deproceduralizer/database';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
@@ -19,6 +19,8 @@ interface DefinitionPopoverProps {
   onClose: () => void;
   /** State for constructing regulation links (e.g., 'ny') */
   state: string;
+  /** Current document ID to determine if definition is local */
+  currentDocumentId?: number;
 }
 
 /**
@@ -49,7 +51,25 @@ export function DefinitionPopover({
   anchorRect,
   onClose,
   state,
+  currentDocumentId,
 }: DefinitionPopoverProps) {
+  // Check if this is a local definition (defined in current document)
+  const isLocalDefinition = currentDocumentId !== undefined &&
+    definition.documentId === currentDocumentId;
+
+  // Handle scroll to definition
+  const handleScrollToDefinition = useCallback(() => {
+    const definitionElement = document.getElementById(`definition-${definition.id}`);
+    if (definitionElement) {
+      onClose();
+      definitionElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Brief highlight effect
+      definitionElement.classList.add('ring-2', 'ring-[var(--color-info)]');
+      setTimeout(() => {
+        definitionElement.classList.remove('ring-2', 'ring-[var(--color-info)]');
+      }, 2000);
+    }
+  }, [definition.id, onClose]);
   // Handle click outside to close
   const handleClickOutside = useCallback((e: MouseEvent) => {
     const target = e.target as Element;
@@ -150,8 +170,8 @@ export function DefinitionPopover({
         {displayText}
       </p>
 
-      {/* Source link */}
-      {regulationLink && (
+      {/* Source/navigation link */}
+      {(isLocalDefinition || regulationLink) && (
         <div className="mt-3 pt-3 border-t border-[var(--color-neutral-100)]">
           <div className="flex items-center gap-2">
             <BookOpen className="w-3.5 h-3.5 text-[var(--color-text-muted)] flex-shrink-0" />
@@ -161,14 +181,24 @@ export function DefinitionPopover({
                   {citation}
                 </span>
               )}
-              <Link
-                href={regulationLink}
-                className="text-xs text-[var(--color-link)] hover:text-[var(--color-link-hover)] hover:underline inline-flex items-center gap-1"
-                onClick={onClose}
-              >
-                View source
-                <ExternalLink className="w-3 h-3" />
-              </Link>
+              {isLocalDefinition ? (
+                <button
+                  onClick={handleScrollToDefinition}
+                  className="text-xs text-[var(--color-link)] hover:text-[var(--color-link-hover)] hover:underline inline-flex items-center gap-1"
+                >
+                  Go to definition
+                  <ArrowDown className="w-3 h-3" />
+                </button>
+              ) : regulationLink && (
+                <Link
+                  href={regulationLink}
+                  className="text-xs text-[var(--color-link)] hover:text-[var(--color-link-hover)] hover:underline inline-flex items-center gap-1"
+                  onClick={onClose}
+                >
+                  View source
+                  <ExternalLink className="w-3 h-3" />
+                </Link>
+              )}
             </div>
           </div>
         </div>

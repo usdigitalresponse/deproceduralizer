@@ -566,6 +566,12 @@ def cmd_process(args):
         # Extract definitions from tool_use
         try:
             message = result.result.message
+
+            # Check for truncation due to max_tokens
+            if message.stop_reason == "max_tokens":
+                log_error(batch_dir, doc_id, 'TRUNCATED',
+                    f'Response truncated (stop_reason=max_tokens). Output may be incomplete.')
+
             tool_use = None
             for block in message.content:
                 if block.type == 'tool_use':

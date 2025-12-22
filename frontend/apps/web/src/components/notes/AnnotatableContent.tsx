@@ -184,34 +184,14 @@ export function AnnotatableContent({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showPopover, handleClosePopover]);
 
-  // Handle term click - scroll to local definitions, show popover for external
+  // Handle term click - show definition popover
   const handleTermClick = useCallback((e: React.MouseEvent, termMatch: TermMatch) => {
     e.preventDefault();
     e.stopPropagation();
-
-    // Check if this is a local definition (defined in current document)
-    // Use documentId field directly since local definitions may not have regulation object populated
-    const isLocalDefinition = termMatch.definition.documentId === documentId;
-
-    if (isLocalDefinition) {
-      // Scroll to the definition on this page
-      const definitionElement = document.getElementById(`definition-${termMatch.definition.id}`);
-      if (definitionElement) {
-        definitionElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        // Brief highlight effect
-        definitionElement.classList.add('ring-2', 'ring-[var(--color-info)]');
-        setTimeout(() => {
-          definitionElement.classList.remove('ring-2', 'ring-[var(--color-info)]');
-        }, 2000);
-        return;
-      }
-    }
-
-    // For external definitions, show popover
     const target = e.currentTarget as HTMLElement;
     const rect = target.getBoundingClientRect();
     setSelectedTerm({ termMatch, rect });
-  }, [documentId]);
+  }, []);
 
   // Close term popover
   const handleCloseTermPopover = useCallback(() => {
@@ -429,6 +409,7 @@ export function AnnotatableContent({
           anchorRect={selectedTerm.rect}
           onClose={handleCloseTermPopover}
           state={state}
+          currentDocumentId={documentId}
         />
       )}
     </>

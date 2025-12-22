@@ -25,6 +25,24 @@ This document outlines improvements to the definitions extraction, visualization
 
 Root causes documented in GitHub Issue #31.
 
+### Potential Truncation in High-Definition Sections
+
+The original extraction used `max_tokens=4096`, which may have truncated responses for sections with many definitions. This has been fixed to `max_tokens=64000` (Claude 4.5's limit).
+
+**Sections needing re-extraction:** 982 sections with >8 definitions each
+
+| Definitions per Section | Sections |
+|------------------------|----------|
+| 29 | 2 |
+| 20-28 | 28 |
+| 15-19 | 139 |
+| 10-14 | 599 |
+| 9 | 223 |
+
+**Impact:** 11,730 definitions (41% of total) may be incomplete.
+
+**Action:** Re-run extraction on these 982 sections with the updated `max_tokens=64000` setting to capture any previously truncated definitions.
+
 ## Completed Phases
 
 | Phase | Status | Notes |

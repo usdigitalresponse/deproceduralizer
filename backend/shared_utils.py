@@ -239,11 +239,18 @@ def call_llm_parse(
         try:
             response = client.messages.create(
                 model=model,
-                max_tokens=4096,
+                max_tokens=64000,
                 tools=[tool],
                 tool_choice={"type": "tool", "name": tool["name"]},
                 messages=[{"role": "user", "content": prompt}],
             )
+
+            # Check for truncation due to max_tokens
+            if response.stop_reason == "max_tokens":
+                print(
+                    f"      ⚠️  Response truncated (stop_reason=max_tokens). "
+                    f"Output may be incomplete."
+                )
 
             # Extract tool use from response
             tool_use = None
@@ -322,7 +329,7 @@ def format_batch_request(
         "custom_id": custom_id,
         "params": {
             "model": model,
-            "max_tokens": 4096,
+            "max_tokens": 64000,
             "messages": [{"role": "user", "content": prompt}],
             "tools": [tool],
             "tool_choice": {"type": "tool", "name": tool["name"]},
@@ -361,11 +368,18 @@ async def call_llm_parse_async(
         try:
             response = await client.messages.create(
                 model=model,
-                max_tokens=4096,
+                max_tokens=64000,
                 tools=[tool],
                 tool_choice={"type": "tool", "name": tool["name"]},
                 messages=[{"role": "user", "content": prompt}],
             )
+
+            # Check for truncation due to max_tokens
+            if response.stop_reason == "max_tokens":
+                print(
+                    f"      ⚠️  Response truncated (stop_reason=max_tokens). "
+                    f"Output may be incomplete."
+                )
 
             # Extract tool use from response
             tool_use = None
