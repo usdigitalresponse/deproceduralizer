@@ -201,19 +201,20 @@ table {
 /* ========================================
    TERM HIGHLIGHTING
    For highlighting defined terms in regulation text
+   Using !important to override Tailwind's preflight reset
    ======================================== */
 
 .term-highlight {
-  text-decoration: underline;
-  text-decoration-style: dotted;
-  text-decoration-color: var(--color-info);
-  text-underline-offset: 2px;
-  cursor: pointer;
+  text-decoration: underline !important;
+  text-decoration-style: dotted !important;
+  text-decoration-color: var(--color-info) !important;
+  text-underline-offset: 2px !important;
+  cursor: pointer !important;
   transition: all var(--transition-fast);
 }
 
 .term-highlight:hover {
-  text-decoration-style: solid;
+  text-decoration-style: solid !important;
   background-color: var(--color-info-bg);
 }
 
