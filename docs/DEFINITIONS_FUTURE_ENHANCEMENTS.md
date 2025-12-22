@@ -2,14 +2,15 @@
 
 This document outlines improvements to the definitions extraction, visualization, and management features, organized into phases that build on each other incrementally.
 
-## Current State (Updated Dec 21, 2025)
+## Current State (Updated Dec 22, 2025)
 
-- **28,886** definitions extracted (all from NY)
+- **28,544** definitions extracted (all from NY)
 - **26,161** have scope_level populated
 - **25,724** have scope_document_id linked (89%)
 - **3,146** definitions unlinked - see [GitHub Issue #31](../../issues/31) for investigation
 - **5,719** are cross-references
-- **28,886** have definition_type (formal/abbreviation)
+- **28,544** have definition_type (formal/abbreviation)
+- **18,312** unique terms (normalized)
 
 ### Unlinked Definitions Breakdown
 
@@ -31,7 +32,8 @@ Root causes documented in GitHub Issue #31.
 | **Phase 1: Schema Foundation** | ✅ Complete | All columns added, indexes created |
 | **Phase 2: Extraction Pipeline** | ✅ Complete | Batch processed 5,067 sections, 27,001 definitions stored |
 | **Phase 3: Data Migration** | ✅ Mostly Complete | 89% linked; 3,146 unlinked tracked in Issue #31 |
-| **Phase 4: Core UI Features** | 🔜 Next | Filtering, term aggregation, applicable definitions |
+| **Phase 4: Core UI Features** | ✅ Complete | Filtering, term aggregation, applicable definitions, trigram search indexes |
+| **Phase 5: Quality Assurance** | 🔜 Next | Review pipeline, conflict detection, performance optimization |
 
 ---
 
