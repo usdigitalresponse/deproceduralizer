@@ -345,6 +345,102 @@ def store_to_database(regulations: List[Dict], state: str = "NY"):
         conn.close()
 
 
+def find_ancestor_at_level(conn, start_doc_id: int, target_level: str) -> Optional[int]:
+    """
+    Walk up from start_doc_id until we find a document at target_level.
+    Returns the document ID or None if not found.
+    """
+    normalized_level = normalize_scope_level(target_level)
+    if not normalized_level:
+        return None
+
+    result = conn.execute("""
+        WITH RECURSIVE ancestors AS (
+            SELECT id, parent_id, hierarchy_level, 0 as depth
+            FROM regulatory_documents
+            WHERE id = %s
+
+            UNION ALL
+
+            SELECT rd.id, rd.parent_id, rd.hierarchy_level, a.depth + 1
+            FROM regulatory_documents rd
+            INNER JOIN ancestors a ON rd.id = a.parent_id
+            WHERE a.depth < 20
+        )
+        SELECT id FROM ancestors
+        WHERE LOWER(hierarchy_level) = %s
+        ORDER BY depth ASC
+        LIMIT 1
+    """, (start_doc_id, normalized_level)).fetchone()
+
+    return result[0] if result else None
+
+
+def populate_scope_document_ids(dry_run: bool = False):
+    """
+    For each definition with scope_level set, walk up the hierarchy
+    to find the ancestor matching that level and set scope_document_id.
+    """
+    import time
+
+    conn = get_db_connection()
+    if not conn:
+        print("ERROR: Could not connect to database")
+        return
+
+    definitions = conn.execute("""
+        SELECT d.id, d.document_id, d.scope_level, d.term
+        FROM definitions d
+        WHERE d.document_id IS NOT NULL
+          AND d.scope_level IS NOT NULL
+          AND d.scope_document_id IS NULL
+        ORDER BY d.id
+    """).fetchall()
+
+    total = len(definitions)
+    print(f"  Found {total} definitions needing scope_document_id")
+
+    if total == 0:
+        conn.close()
+        return
+
+    if dry_run:
+        print("  DRY RUN - showing first 5:")
+        for i, defn in enumerate(definitions[:5], 1):
+            def_id, doc_id, target_level, term = defn
+            scope_doc_id = find_ancestor_at_level(conn, doc_id, target_level)
+            status = f"→ {scope_doc_id}" if scope_doc_id else "→ NOT FOUND"
+            print(f"    {i}. [{def_id}] \"{term[:30]}\" (scope: {target_level}) {status}")
+        conn.close()
+        return
+
+    start_time = time.time()
+    updated = 0
+    not_found = 0
+
+    for i, defn in enumerate(definitions, 1):
+        def_id, doc_id, target_level, term = defn
+        scope_doc_id = find_ancestor_at_level(conn, doc_id, target_level)
+
+        if scope_doc_id:
+            conn.execute("""
+                UPDATE definitions SET scope_document_id = %s WHERE id = %s
+            """, (scope_doc_id, def_id))
+            updated += 1
+        else:
+            not_found += 1
+
+        if i % 100 == 0 or i == total:
+            elapsed = time.time() - start_time
+            pct = (i / total) * 100
+            print(f"    [{i}/{total}] ({pct:.0f}%) Updated: {updated} | Not found: {not_found}")
+
+    conn.commit()
+    conn.close()
+
+    print(f"  ✓ Scope linking complete: {updated} updated, {not_found} not found")
+
+
 def generate_viewer(regulations: List[Dict]):
     """Generate HTML viewer for local browsing."""
     html = """<!DOCTYPE html>
@@ -896,11 +992,9 @@ def cmd_process(args):
     print("[4/4] Linking scope documents...")
 
     try:
-        from populate_scope_documents import populate_scope_document_ids
         populate_scope_document_ids(dry_run=False)
     except Exception as e:
         print(f"      ⚠️  Could not run scope linking: {e}")
-        print("      Run manually: python populate_scope_documents.py")
 
     print()
     print("=" * 70)
