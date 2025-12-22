@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useTransition } from 'react';
+import { useState, useEffect } from 'react';
 import { useQueryStates } from 'nuqs';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -50,7 +50,7 @@ const PAGE_SIZE = 20;
  * Client component for the glossary page with search, filtering, and pagination
  */
 export function GlossaryClient({ state, initialData }: GlossaryClientProps) {
-  const [isPending, startTransition] = useTransition();
+  const [isLoading, setIsLoading] = useState(false);
 
   // URL state management with nuqs
   const [params, setParams] = useQueryStates({
@@ -62,8 +62,7 @@ export function GlossaryClient({ state, initialData }: GlossaryClientProps) {
     quality: definitionQualityParser,
     view: glossaryViewParser,
   }, {
-    shallow: false,
-    startTransition,
+    shallow: true, // Use client-side fetching via useEffect, not RSC navigation
   });
 
   // Local state for definitions and aggregated terms (updated on transitions)
@@ -121,7 +120,9 @@ export function GlossaryClient({ state, initialData }: GlossaryClientProps) {
       }
     };
 
-    startTransition(fetchData);
+    // Execute the fetch with loading state
+    setIsLoading(true);
+    fetchData().finally(() => setIsLoading(false));
   }, [state, params.search, params.letter, params.page, params.view, params.scopeLevel, params.definitionType, params.quality]);
 
   // Handle search change
@@ -232,7 +233,7 @@ export function GlossaryClient({ state, initialData }: GlossaryClientProps) {
           selectedLetter={params.letter}
           onLetterChange={handleLetterChange}
           alphabeticalIndex={alphabeticalIndex}
-          isLoading={isPending}
+          isLoading={isLoading}
         />
         {params.view === 'flat' && <GlossaryFilters className="mt-4" />}
       </Card>
@@ -349,7 +350,7 @@ export function GlossaryClient({ state, initialData }: GlossaryClientProps) {
             variant="secondary"
             size="sm"
             onClick={() => handlePageChange(params.page - 1)}
-            disabled={params.page <= 1 || isPending}
+            disabled={params.page <= 1 || isLoading}
             className="flex items-center gap-1"
           >
             <ChevronLeft className="w-4 h-4" />
@@ -377,7 +378,7 @@ export function GlossaryClient({ state, initialData }: GlossaryClientProps) {
                   variant={pageNum === params.page ? 'primary' : 'ghost'}
                   size="sm"
                   onClick={() => handlePageChange(pageNum)}
-                  disabled={isPending}
+                  disabled={isLoading}
                   className="min-w-[36px]"
                 >
                   {pageNum}
@@ -391,7 +392,7 @@ export function GlossaryClient({ state, initialData }: GlossaryClientProps) {
             variant="secondary"
             size="sm"
             onClick={() => handlePageChange(params.page + 1)}
-            disabled={params.page >= totalPages || isPending}
+            disabled={params.page >= totalPages || isLoading}
             className="flex items-center gap-1"
           >
             Next
