@@ -41,11 +41,16 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import INDIVIDUAL_REGULATIONS_DIR, WEB_PUBLIC_DIR, PROJECT_ROOT, OUTPUTS_DIR
 from shared_utils import (
     get_db_connection,
+    get_openai_client,
     get_async_openai_client,
     call_llm_parse_async,
     load_prompt,
+    load_prompt_parts,
+    format_batch_request,
     get_filtered_documents,
     get_already_analyzed_ids,
+    BatchManager,
+    parse_batch_result_tool_use,
 )
 
 # Load environment variables from project root
@@ -722,21 +727,264 @@ def parse_arguments():
         help='Random seed for reproducible sampling (default: 42)'
     )
 
+    # Batch API options
     parser.add_argument(
-        '--state',
+        '--use-batch-api',
+        action='store_true',
+        help='Submit to Anthropic Batch API (50%% cheaper, up to 24h processing)'
+    )
+
+    parser.add_argument(
+        '--process-batch',
         type=str,
-        default='NY',
-        choices=['NY', 'NJ'],
-        help='State to analyze (default: NY)'
+        metavar='BATCH_ID',
+        help='Process a completed batch (e.g., msgbatch_xxx)'
     )
 
     return parser.parse_args()
+
+
+# Batches directory for red flags
+BATCHES_DIR = OUTPUTS_DIR / 'batches' / 'red_flags'
+
+
+def submit_batch_api(regulations: List[RegulationData], state: str, title: str = None) -> str:
+    """
+    Submit regulations for batch API processing (50% cheaper).
+
+    Args:
+        regulations: List of regulations to analyze
+        state: State code
+        title: Optional title filter (for batch naming)
+
+    Returns:
+        Batch API ID
+    """
+    print(f"\n[1/2] Formatting {len(regulations)} batch requests...")
+
+    # Load system prompt ONCE for caching (same across all requests)
+    # This gets cached by Anthropic's batch API
+    sample_parts = load_prompt_parts("red_flags_analysis", section_text="", citation="", heading="")
+    system_prompt = sample_parts['system']
+
+    # Format requests with shared system prompt
+    requests = []
+    doc_ids = []
+    for reg in regulations:
+        # Only the user message varies per document
+        parts = load_prompt_parts(
+            "red_flags_analysis",
+            section_text=reg.content,
+            citation=reg.url,
+            heading=reg.title
+        )
+        request = format_batch_request(
+            custom_id=f"doc_{reg.source_index}",
+            prompt=parts['user'],
+            response_format=RegulationAnalysis,
+            system=system_prompt,  # Cached across all requests
+        )
+        requests.append(request)
+        doc_ids.append(reg.source_index)
+
+    print(f"      ✓ Formatted {len(requests)} requests")
+
+    # Submit batch
+    print(f"\n[2/2] Submitting to Anthropic Batch API...")
+
+    batch_name = f"red_flags_{state}"
+    if title:
+        batch_name += f"_{title}"
+
+    manager = BatchManager(batches_dir=BATCHES_DIR)
+    batch_id = manager.submit_batch(
+        requests=requests,
+        batch_name=batch_name,
+        metadata={
+            'state': state,
+            'title': title,
+            'document_ids': doc_ids,
+        }
+    )
+
+    print(f"      ✓ Submitted batch: {batch_id}")
+    return batch_id
+
+
+def process_batch_results(batch_id: str, state: str):
+    """
+    Process results from a completed batch and save to database.
+
+    Args:
+        batch_id: Batch API ID to process
+        state: State code for database operations
+    """
+    import time as time_module
+
+    print("=" * 70)
+    print("PROCESSING RED FLAGS BATCH")
+    print("=" * 70)
+    print()
+
+    manager = BatchManager(batches_dir=BATCHES_DIR)
+
+    # Check batch status
+    print("[1/3] Checking batch status...")
+    try:
+        status = manager.get_batch_status(batch_id)
+    except Exception as e:
+        print(f"      ❌ Could not retrieve batch: {e}")
+        return
+
+    if status['status'] != 'ended':
+        print(f"      ⚠️  Batch is still processing: {status['status']}")
+        print(f"      Progress: {status['succeeded'] + status['errored']}/{status['total']}")
+        print("\nWait for batch to complete, then run this command again.")
+        return
+
+    print(f"      ✓ Batch completed")
+    print(f"      Succeeded: {status['succeeded']}")
+    print(f"      Errored: {status['errored']}")
+    print()
+
+    # Get batch directory for metadata
+    batch_dir = manager.find_batch_dir(batch_id)
+    metadata = {}
+    if batch_dir:
+        info_file = batch_dir / 'batch_info.json'
+        if info_file.exists():
+            with open(info_file) as f:
+                metadata = json.load(f)
+
+    # Retrieve and process results
+    print("[2/3] Retrieving and processing results...")
+
+    conn = get_db_connection()
+    if not conn:
+        print("      ❌ Could not connect to database")
+        return
+
+    results_iter = manager.get_batch_results(batch_id)
+
+    total_analyses = 0
+    succeeded = 0
+    errored = 0
+    processed = 0
+    total_expected = status['total']
+    start_time = time_module.time()
+
+    for result in results_iter:
+        custom_id = result.custom_id
+        doc_id = int(custom_id.replace('doc_', ''))
+
+        if result.result.type != 'succeeded':
+            if batch_dir:
+                manager.log_error(batch_dir, custom_id, result.result.type.upper(), str(result.result))
+            errored += 1
+            processed += 1
+            continue
+
+        # Parse the analysis
+        try:
+            analysis = parse_batch_result_tool_use(result, RegulationAnalysis)
+
+            if not analysis:
+                if batch_dir:
+                    manager.log_error(batch_dir, custom_id, 'PARSE_ERROR', 'Could not parse tool_use')
+                errored += 1
+                processed += 1
+                continue
+
+            # Get document info for saving
+            doc_result = conn.execute(
+                "SELECT title, url, content FROM regulatory_documents WHERE id = %s",
+                (doc_id,)
+            ).fetchone()
+
+            if doc_result:
+                reg_data = RegulationData(
+                    url=doc_result[1] or '',
+                    title=doc_result[0] or '',
+                    content=doc_result[2] or '',
+                    url_type='regulation',
+                    source_index=doc_id,
+                )
+
+                analysis_id = save_analysis_to_database(conn, reg_data, analysis, state)
+                if analysis_id:
+                    total_analyses += 1
+                    succeeded += 1
+                else:
+                    errored += 1
+            else:
+                errored += 1
+
+        except Exception as e:
+            if batch_dir:
+                manager.log_error(batch_dir, custom_id, 'ERROR', str(e))
+            errored += 1
+
+        processed += 1
+
+        # Progress update
+        if processed % 50 == 0 or processed == total_expected:
+            from shared_utils import format_time
+            elapsed = time_module.time() - start_time
+            pct = (processed / total_expected * 100) if total_expected > 0 else 0
+            eta = (elapsed / processed * (total_expected - processed)) if processed > 0 else 0
+            print(f"      [{processed}/{total_expected}] ({pct:.1f}%) | {total_analyses} saved | ETA: {format_time(eta)}")
+
+    conn.close()
+
+    # Update batch info
+    if batch_dir:
+        info_file = batch_dir / 'batch_info.json'
+        if info_file.exists():
+            with open(info_file) as f:
+                batch_info = json.load(f)
+            batch_info['status'] = 'processed'
+            batch_info['processed_at'] = datetime.now().isoformat()
+            batch_info['analyses_saved'] = total_analyses
+            batch_info['succeeded'] = succeeded
+            batch_info['errored'] = errored
+            with open(info_file, 'w') as f:
+                json.dump(batch_info, f, indent=2)
+
+    # Refresh stats
+    print("[3/3] Refreshing hierarchy stats...")
+    try:
+        conn = get_db_connection()
+        if conn:
+            from shared_utils import refresh_analysis_stats
+            refresh_analysis_stats(conn, state)
+            conn.close()
+    except Exception as e:
+        print(f"      ⚠️  Could not refresh stats: {e}")
+
+    print()
+    print("=" * 70)
+    print("PROCESSING COMPLETE")
+    print("=" * 70)
+    print(f"Analyses saved: {total_analyses}")
+    print(f"Succeeded: {succeeded}")
+    if errored > 0:
+        print(f"Errors: {errored}")
+        if batch_dir:
+            print(f"See: {batch_dir / 'errors.log'}")
+    print()
+
 
 async def main():
     """Main execution function"""
 
     # Parse arguments
     args = parse_arguments()
+
+    # Handle --process-batch (doesn't need other args)
+    if args.process_batch:
+        state = args.state or 'NY'
+        process_batch_results(args.process_batch, state)
+        return
 
     # Set random seed for reproducibility
     random.seed(args.seed)
@@ -845,6 +1093,33 @@ async def main():
     print(f"\nSampling distribution:")
     for cat, count in sorted(category_dist.items()):
         print(f"  {cat}: {count}")
+
+    # Handle batch API mode
+    if getattr(args, 'use_batch_api', False):
+        print()
+        print("=" * 70)
+        print("BATCH API SUBMISSION")
+        print("=" * 70)
+
+        batch_id = submit_batch_api(
+            regulations,
+            state=state,
+            title=args.title if hasattr(args, 'title') else None
+        )
+
+        print()
+        print("=" * 70)
+        print("BATCH SUBMITTED")
+        print("=" * 70)
+        print(f"Batch ID: {batch_id}")
+        print(f"Requests: {len(regulations)}")
+        print()
+        print("Batch processing takes up to 24 hours (50% cheaper).")
+        print()
+        print("Check status:")
+        print(f"  python red_flags.py --state {state} --process-batch {batch_id}")
+        print()
+        return
 
     # Set output file name upfront for incremental saves
     OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)

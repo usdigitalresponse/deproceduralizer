@@ -15,6 +15,9 @@
 # -----------------------------------------------------------------------------
 # Used by: backend/scripts/red_flags.py
 # Variables: section_text, citation, heading
+#
+# CACHING: The 'system' prompt is static and cached across all batch requests.
+# Only the 'template' (user message) varies per document.
 
 red_flags_analysis:
   description: |
@@ -22,17 +25,9 @@ red_flags_analysis:
     framework from "Recoding America". Identifies 12 categories of regulatory patterns
     that create implementation barriers or opportunities.
 
-  template: |
-    Analyze this regulation section for implementation complexity using Jennifer Pahlka's framework from "Recoding America".
-
-    SECTION INFO:
-    Citation: {citation}
-    Heading: {heading}
-
-    SECTION TEXT:
-    {section_text}
-
-    ---
+  # Static system prompt - cached across all requests in a batch
+  system: |
+    You analyze regulation sections for implementation complexity using Jennifer Pahlka's framework from "Recoding America".
 
     ANALYSIS FRAMEWORK - 12 CATEGORIES:
 
@@ -169,6 +164,16 @@ red_flags_analysis:
       "requires_technical_review": true,
       "has_reporting_requirement": true
     }}
+
+  # Dynamic user prompt - unique per document (not cached)
+  template: |
+    Analyze this regulation section:
+
+    CITATION: {citation}
+    HEADING: {heading}
+
+    SECTION TEXT:
+    {section_text}
 
 
 # -----------------------------------------------------------------------------

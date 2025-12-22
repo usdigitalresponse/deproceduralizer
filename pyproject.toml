@@ -1,0 +1,12 @@
+[tool.pytest.ini_options]
+testpaths = ["backend/tests"]
+python_files = "test_*.py"
+python_functions = "test_*"
+python_classes = "Test*"
+addopts = "-v --tb=short"
+markers = [
+    "llm: tests that make real LLM API calls (cost money, require API key)",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]

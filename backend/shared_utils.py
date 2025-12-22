@@ -72,6 +72,43 @@ def load_prompt(prompt_name: str, **kwargs) -> str:
     return template.format(**kwargs)
 
 
+def load_prompt_parts(prompt_name: str, **kwargs) -> dict:
+    """
+    Load a prompt with separate system and user parts for optimal caching.
+
+    For Anthropic's prompt caching to work, static content should go in
+    the system message (cached across requests) and dynamic content in
+    the user message (unique per request).
+
+    Args:
+        prompt_name: Name of the prompt in prompts.yaml
+        **kwargs: Variables for the user template
+
+    Returns:
+        Dict with 'system' (static, cached) and 'user' (dynamic) keys.
+        If prompt has no 'system' key, returns {'system': None, 'user': formatted_template}
+
+    Example:
+        parts = load_prompt_parts("definition_extraction", title="...", content="...")
+        # parts = {'system': "You are an expert...", 'user': "Extract from: ..."}
+    """
+    prompts = _load_prompts()
+
+    if prompt_name not in prompts:
+        available = list(prompts.keys())
+        raise ValueError(f"Unknown prompt '{prompt_name}'. Available: {available}")
+
+    prompt_data = prompts[prompt_name]
+
+    system = prompt_data.get("system")  # Static, cacheable
+    template = prompt_data.get("template", "")  # Dynamic per-request
+
+    return {
+        "system": system.strip() if system else None,
+        "user": template.format(**kwargs) if template else None,
+    }
+
+
 def get_prompt_description(prompt_name: str) -> str:
     """Get the description of a prompt."""
     prompts = _load_prompts()
@@ -464,6 +501,7 @@ def format_batch_request(
     prompt: str,
     response_format: Type[BaseModel],
     model: str = None,
+    system: str = None,
 ) -> dict:
     """
     Format a single request for Anthropic Message Batches API submission.
@@ -475,32 +513,47 @@ def format_batch_request(
         prompt: User prompt/message
         response_format: Pydantic model for structured output
         model: Model name (default: DEFAULT_MODEL)
+        system: Optional system message (static, cached across requests)
 
     Returns:
         Dict formatted for client.beta.messages.batches.create()
 
-    Example:
+    Example with caching:
+        parts = load_prompt_parts("definition_extraction", title=title, content=content)
         request = format_batch_request(
             custom_id=f"doc_{doc_id}",
-            prompt=load_prompt("definition_extraction", title=title, content=content),
-            response_format=DefinitionsResponse
+            prompt=parts['user'],
+            response_format=DefinitionsResponse,
+            system=parts['system'],  # Cached across all requests in batch
         )
-        # Submit batch: client.beta.messages.batches.create(requests=[request, ...])
+
+    Example without system (backwards compatible):
+        request = format_batch_request(
+            custom_id=f"doc_{doc_id}",
+            prompt=load_prompt("red_flags_analysis", ...),
+            response_format=RegulationAnalysis
+        )
     """
     if model is None:
         model = DEFAULT_MODEL
 
     tool = _pydantic_to_tool_schema(response_format)
 
+    params = {
+        "model": model,
+        "max_tokens": 64000,
+        "messages": [{"role": "user", "content": prompt}],
+        "tools": [tool],
+        "tool_choice": {"type": "tool", "name": tool["name"]},
+    }
+
+    # Add system message for caching if provided
+    if system:
+        params["system"] = system
+
     return {
         "custom_id": custom_id,
-        "params": {
-            "model": model,
-            "max_tokens": 64000,
-            "messages": [{"role": "user", "content": prompt}],
-            "tools": [tool],
-            "tool_choice": {"type": "tool", "name": tool["name"]},
-        }
+        "params": params,
     }
 
 
@@ -1106,3 +1159,224 @@ def refresh_all_stats(conn, state: str) -> int:
     updated_count = max(updated1, updated2, updated3)
     print(f"✓ All stats complete in {elapsed:.1f}s")
     return updated_count
+
+
+# ============================================================================
+# Batch API Helpers
+# ============================================================================
+
+from datetime import datetime
+
+
+class BatchManager:
+    """
+    Manages Anthropic Message Batches API operations.
+
+    Provides a reusable interface for:
+    - Submitting batches
+    - Checking batch status
+    - Processing batch results
+    - Managing batch directories for caching
+
+    Usage:
+        manager = BatchManager(batches_dir=Path("data/outputs/batches"))
+
+        # Submit a batch
+        batch_id = manager.submit_batch(
+            requests=formatted_requests,
+            batch_name="red_flags_NJ_3A",
+            metadata={"state": "NJ", "title": "3A"}
+        )
+
+        # Check status
+        status = manager.get_batch_status(batch_id)
+
+        # Process results when complete
+        for result in manager.get_batch_results(batch_id):
+            # result has custom_id, result.type, result.message, etc.
+            pass
+    """
+
+    def __init__(self, batches_dir: Path = None, client=None):
+        """
+        Initialize batch manager.
+
+        Args:
+            batches_dir: Directory to store batch metadata (default: None, no caching)
+            client: Anthropic client (default: creates one using env var)
+        """
+        self.batches_dir = batches_dir
+        self.client = client or get_openai_client()
+
+        if batches_dir:
+            batches_dir.mkdir(parents=True, exist_ok=True)
+
+    def submit_batch(
+        self,
+        requests: list,
+        batch_name: str = None,
+        metadata: dict = None,
+    ) -> str:
+        """
+        Submit a batch of requests to Anthropic.
+
+        Args:
+            requests: List of formatted batch requests (from format_batch_request)
+            batch_name: Optional name for the batch directory
+            metadata: Optional metadata to store with batch info
+
+        Returns:
+            Batch API ID (e.g., "msgbatch_xxx")
+
+        Raises:
+            Exception if batch submission fails
+        """
+        batch = self.client.beta.messages.batches.create(requests=requests)
+        batch_id = batch.id
+
+        # Save batch info locally if batches_dir is set
+        if self.batches_dir:
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            dir_name = f"{batch_name}_{timestamp}" if batch_name else f"batch_{timestamp}"
+            batch_dir = self.batches_dir / dir_name
+            batch_dir.mkdir(parents=True, exist_ok=True)
+
+            batch_info = {
+                'batch_api_id': batch_id,
+                'created_at': datetime.now().isoformat(),
+                'total_requests': len(requests),
+                'status': 'submitted',
+                **(metadata or {}),
+            }
+
+            with open(batch_dir / 'batch_info.json', 'w') as f:
+                json.dump(batch_info, f, indent=2)
+
+        return batch_id
+
+    def get_batch_status(self, batch_id: str) -> dict:
+        """
+        Get status of a batch.
+
+        Args:
+            batch_id: Batch API ID
+
+        Returns:
+            Dict with:
+                - status: 'in_progress', 'ended', 'canceling', 'canceled'
+                - succeeded: count of succeeded requests
+                - errored: count of errored requests
+                - expired: count of expired requests
+                - processing: count of still-processing requests
+                - total: total request count
+        """
+        batch = self.client.beta.messages.batches.retrieve(batch_id)
+        counts = batch.request_counts
+
+        return {
+            'status': batch.processing_status,
+            'succeeded': counts.succeeded if counts else 0,
+            'errored': counts.errored if counts else 0,
+            'expired': counts.expired if counts else 0,
+            'canceled': counts.canceled if counts else 0,
+            'processing': counts.processing if counts else 0,
+            'total': (counts.succeeded + counts.errored + counts.expired +
+                     counts.canceled + counts.processing) if counts else 0,
+        }
+
+    def get_batch_results(self, batch_id: str):
+        """
+        Get results from a completed batch.
+
+        Args:
+            batch_id: Batch API ID
+
+        Yields:
+            Result objects with:
+                - custom_id: The ID you provided when submitting
+                - result.type: 'succeeded', 'errored', 'expired', 'canceled'
+                - result.message: The response message (if succeeded)
+                - result.error: Error info (if errored)
+
+        Raises:
+            Exception if batch is not complete
+        """
+        status = self.get_batch_status(batch_id)
+        if status['status'] != 'ended':
+            raise Exception(f"Batch not complete: {status['status']}")
+
+        return self.client.beta.messages.batches.results(batch_id)
+
+    def find_batch_dir(self, batch_id: str) -> Optional[Path]:
+        """
+        Find local batch directory by batch API ID.
+
+        Args:
+            batch_id: Batch API ID
+
+        Returns:
+            Path to batch directory, or None if not found
+        """
+        if not self.batches_dir or not self.batches_dir.exists():
+            return None
+
+        for batch_dir in self.batches_dir.iterdir():
+            if not batch_dir.is_dir():
+                continue
+            info_file = batch_dir / 'batch_info.json'
+            if info_file.exists():
+                with open(info_file) as f:
+                    info = json.load(f)
+                if info.get('batch_api_id') == batch_id:
+                    return batch_dir
+
+        return None
+
+    def log_error(self, batch_dir: Path, custom_id: str, error_type: str, message: str):
+        """
+        Log an error to the batch's error log file.
+
+        Args:
+            batch_dir: Path to batch directory
+            custom_id: Custom ID of the failed request
+            error_type: Type of error (e.g., 'ERROR', 'EXPIRED', 'TRUNCATED')
+            message: Error message
+        """
+        errors_file = batch_dir / 'errors.log'
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        with open(errors_file, 'a') as f:
+            f.write(f"{timestamp} | {custom_id} | {error_type} | {message}\n")
+
+
+def parse_batch_result_tool_use(result, response_format: Type[BaseModel]) -> Optional[BaseModel]:
+    """
+    Parse a batch result's tool_use content into a Pydantic model.
+
+    Args:
+        result: A batch result object (from BatchManager.get_batch_results)
+        response_format: Pydantic model class to parse into
+
+    Returns:
+        Parsed Pydantic model, or None if parsing fails
+    """
+    if result.result.type != 'succeeded':
+        return None
+
+    message = result.result.message
+
+    # Find tool_use block
+    tool_use = None
+    for block in message.content:
+        if block.type == 'tool_use':
+            tool_use = block
+            break
+
+    if not tool_use:
+        return None
+
+    # Parse input
+    input_data = tool_use.input
+    if isinstance(input_data, str):
+        input_data = json.loads(input_data)
+
+    return response_format.model_validate(input_data)

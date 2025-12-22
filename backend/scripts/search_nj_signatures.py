@@ -35,7 +35,16 @@ from config import (
     OUTPUTS_DIR,
     PROJECT_ROOT,
 )
-from shared_utils import get_async_openai_client, call_llm_parse_async, load_prompt, get_db_connection
+from shared_utils import (
+    get_async_openai_client,
+    get_openai_client,
+    call_llm_parse_async,
+    load_prompt,
+    get_db_connection,
+    format_batch_request,
+    BatchManager,
+    parse_batch_result_tool_use,
+)
 
 # Load environment variables
 load_dotenv(PROJECT_ROOT / '.env')
@@ -750,6 +759,184 @@ def save_to_database(results: list, state: str = 'NJ') -> int:
 
 
 # =============================================================================
+# BATCH API
+# =============================================================================
+
+BATCHES_DIR = OUTPUTS_DIR / 'batches' / 'signatures'
+
+
+def submit_batch_api(matches: list, statute_checker) -> str:
+    """
+    Submit signature matches for batch API processing.
+
+    Args:
+        matches: List of regex matches to analyze
+        statute_checker: StatuteChecker instance for context
+
+    Returns:
+        Batch API ID
+    """
+    from datetime import datetime
+
+    print(f"\n[1/2] Formatting {len(matches)} batch requests...")
+
+    # Format requests
+    requests = []
+    for match in matches:
+        statute_context = statute_checker.get_statute_context(match['statute_citations'])
+        prompt = create_analysis_prompt(match, statute_context)
+
+        request = format_batch_request(
+            custom_id=f"match_{match['source_index']}",
+            prompt=prompt,
+            response_format=SignatureAnalysis
+        )
+        requests.append(request)
+
+    print(f"      ✓ Formatted {len(requests)} requests")
+
+    # Submit batch
+    print(f"\n[2/2] Submitting to Anthropic Batch API...")
+
+    manager = BatchManager(batches_dir=BATCHES_DIR)
+    batch_id = manager.submit_batch(
+        requests=requests,
+        batch_name="nj_signatures",
+        metadata={
+            'state': 'NJ',
+            'match_count': len(matches),
+        }
+    )
+
+    print(f"      ✓ Submitted batch: {batch_id}")
+    return batch_id
+
+
+def process_batch_results(batch_id: str, matches: list):
+    """
+    Process results from a completed batch.
+
+    Args:
+        batch_id: Batch API ID
+        matches: Original matches (for context)
+    """
+    from datetime import datetime
+    import time as time_module
+
+    print("=" * 70)
+    print("PROCESSING SIGNATURES BATCH")
+    print("=" * 70)
+    print()
+
+    manager = BatchManager(batches_dir=BATCHES_DIR)
+
+    # Check batch status
+    print("[1/3] Checking batch status...")
+    try:
+        status = manager.get_batch_status(batch_id)
+    except Exception as e:
+        print(f"      ❌ Could not retrieve batch: {e}")
+        return
+
+    if status['status'] != 'ended':
+        print(f"      ⚠️  Batch is still processing: {status['status']}")
+        print(f"      Progress: {status['succeeded'] + status['errored']}/{status['total']}")
+        print("\nWait for batch to complete, then run this command again.")
+        return
+
+    print(f"      ✓ Batch completed")
+    print(f"      Succeeded: {status['succeeded']}")
+    print(f"      Errored: {status['errored']}")
+    print()
+
+    # Build match lookup
+    match_lookup = {m['source_index']: m for m in matches}
+
+    # Get batch directory for logging
+    batch_dir = manager.find_batch_dir(batch_id)
+
+    # Retrieve and process results
+    print("[2/3] Retrieving and processing results...")
+
+    results_iter = manager.get_batch_results(batch_id)
+    results = []
+    processed = 0
+    errored = 0
+
+    for result in results_iter:
+        custom_id = result.custom_id
+        source_index = int(custom_id.replace('match_', ''))
+        match = match_lookup.get(source_index)
+
+        if not match:
+            errored += 1
+            processed += 1
+            continue
+
+        if result.result.type != 'succeeded':
+            if batch_dir:
+                manager.log_error(batch_dir, custom_id, result.result.type.upper(), str(result.result))
+            results.append({**match, 'llm_analysis': None, 'analysis_error': True})
+            errored += 1
+            processed += 1
+            continue
+
+        # Parse analysis
+        try:
+            analysis = parse_batch_result_tool_use(result, SignatureAnalysis)
+            if analysis:
+                results.append({
+                    **match,
+                    'llm_analysis': analysis.model_dump(),
+                    'analysis_error': False,
+                })
+            else:
+                results.append({**match, 'llm_analysis': None, 'analysis_error': True})
+                errored += 1
+        except Exception as e:
+            if batch_dir:
+                manager.log_error(batch_dir, custom_id, 'ERROR', str(e))
+            results.append({**match, 'llm_analysis': None, 'analysis_error': True})
+            errored += 1
+
+        processed += 1
+
+    print(f"      ✓ Processed {processed} results ({errored} errors)")
+
+    # Output
+    print("[3/3] Saving results...")
+    print_results(results)
+
+    # Save JSON
+    output_file = OUTPUTS_DIR / "nj_wet_signature_analysis.json"
+    save_results(results, output_file)
+
+    # Generate HTML
+    html_file = output_file.with_suffix('.html')
+    generate_html(results, html_file)
+
+    # Save to database
+    save_to_database(results, state='NJ')
+
+    # Update batch info
+    if batch_dir:
+        info_file = batch_dir / 'batch_info.json'
+        if info_file.exists():
+            with open(info_file) as f:
+                batch_info = json.load(f)
+            batch_info['status'] = 'processed'
+            batch_info['processed_at'] = datetime.now().isoformat()
+            with open(info_file, 'w') as f:
+                json.dump(batch_info, f, indent=2)
+
+    print()
+    print("=" * 70)
+    print("PROCESSING COMPLETE")
+    print("=" * 70)
+    print()
+
+
+# =============================================================================
 # MAIN
 # =============================================================================
 
@@ -767,6 +954,10 @@ def main():
                         help='Output file path')
     parser.add_argument('--batch-size', type=int, default=5,
                         help='Batch size for LLM calls (default: 5)')
+    parser.add_argument('--use-batch-api', action='store_true',
+                        help='Submit to Anthropic Batch API (50%% cheaper, up to 24h processing)')
+    parser.add_argument('--process-batch', type=str, metavar='BATCH_ID',
+                        help='Process a completed batch (e.g., msgbatch_xxx)')
 
     args = parser.parse_args()
 
@@ -785,7 +976,35 @@ def main():
         matches = matches[:args.limit]
         print(f"Limited to {len(matches)} matches")
 
-    # LLM analysis
+    # Handle --process-batch
+    if args.process_batch:
+        process_batch_results(args.process_batch, matches)
+        return
+
+    # Handle --use-batch-api
+    if args.use_batch_api:
+        print()
+        print("=" * 70)
+        print("BATCH API SUBMISSION")
+        print("=" * 70)
+
+        batch_id = submit_batch_api(matches, statute_checker)
+
+        print()
+        print("=" * 70)
+        print("BATCH SUBMITTED")
+        print("=" * 70)
+        print(f"Batch ID: {batch_id}")
+        print(f"Requests: {len(matches)}")
+        print()
+        print("Batch processing takes up to 24 hours (50% cheaper).")
+        print()
+        print("Check status and process:")
+        print(f"  python search_nj_signatures.py --process-batch {batch_id}")
+        print()
+        return
+
+    # LLM analysis (realtime)
     if not args.no_llm:
         results = asyncio.run(analyze_batch(
             matches,
