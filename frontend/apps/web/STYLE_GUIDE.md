@@ -360,6 +360,56 @@ Features:
 - Ghost-style button with hover states
 - Uses `navigator.clipboard` API
 
+### Term Highlighting
+
+Highlights defined terms in regulation text with clickable popover definitions.
+
+**CSS Classes** (defined in `globals.css`):
+```css
+.term-highlight {
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-decoration-color: var(--color-info);
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.term-highlight:hover {
+  text-decoration-style: solid;
+  background-color: var(--color-info-bg);
+}
+```
+
+**Components**:
+
+`useTermHighlighting` hook - finds term occurrences in content:
+```tsx
+import { useTermHighlighting } from '@/hooks';
+
+const termMatches = useTermHighlighting(content, applicableDefinitions);
+// Returns: TermMatch[] with { term, startOffset, endOffset, definition }
+```
+
+`DefinitionPopover` - shows definition on term click:
+```tsx
+import { DefinitionPopover } from '@/components/definitions';
+
+<DefinitionPopover
+  definition={selectedTerm.definition}
+  term={selectedTerm.term}
+  anchorRect={selectedTerm.rect}
+  onClose={() => setSelectedTerm(null)}
+  state="ny"
+/>
+```
+
+Features:
+- Dotted underline style (distinct from note highlights which use yellow background)
+- Click to show definition popover (not hover)
+- Popover shows: term, scope badge, definition text, "View source" link
+- Keyboard accessible (Tab to focus, Enter/Space to open)
+- Close on click outside or Escape key
+- Notes take priority when highlighting overlaps
+
 ---
 
 ## Layout Components

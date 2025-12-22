@@ -4,9 +4,10 @@ import { useRef, useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { MessageSquareQuote, X } from 'lucide-react';
 import { Button, Input, Textarea } from '@/components/ui';
-import { useReviewerName } from '@/hooks/useReviewerName';
+import { useReviewerName, useTermHighlighting, type TermMatch } from '@/hooks';
+import { DefinitionPopover } from '@/components/definitions';
 import { createNote } from '@/lib/actions/document-notes';
-import type { DocumentNote } from '@deproceduralizer/database';
+import type { DocumentNote, ApplicableDefinition } from '@deproceduralizer/database';
 
 interface SelectionInfo {
   text: string;
@@ -23,6 +24,22 @@ interface AnnotatableContentProps {
   activeNoteId?: number | null;
   onNoteCreated: (note: DocumentNote) => void;
   onNoteClick: (noteId: number) => void;
+  /** Applicable definitions for term highlighting */
+  applicableDefinitions?: ApplicableDefinition[];
+}
+
+/** Represents a highlighted region in the content */
+interface HighlightRegion {
+  type: 'note' | 'term';
+  startOffset: number;
+  endOffset: number;
+  data: DocumentNote | TermMatch;
+}
+
+/** State for the selected term popover */
+interface SelectedTermState {
+  termMatch: TermMatch;
+  rect: DOMRect;
 }
 
 export function AnnotatableContent({
@@ -33,6 +50,7 @@ export function AnnotatableContent({
   activeNoteId,
   onNoteCreated,
   onNoteClick,
+  applicableDefinitions,
 }: AnnotatableContentProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [selection, setSelection] = useState<SelectionInfo | null>(null);
@@ -41,8 +59,12 @@ export function AnnotatableContent({
   const [authorName, setAuthorName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedTerm, setSelectedTerm] = useState<SelectedTermState | null>(null);
 
   const { reviewerName: storedName, saveReviewerName, isLoaded } = useReviewerName();
+
+  // Get term matches from applicable definitions
+  const termMatches = useTermHighlighting(content, applicableDefinitions);
 
   // Pre-fill author name from localStorage
   useEffect(() => {
@@ -162,54 +184,129 @@ export function AnnotatableContent({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showPopover, handleClosePopover]);
 
-  // Render content with highlights
-  const renderContentWithHighlights = () => {
-    if (anchoredNotes.length === 0) {
-      return <span>{content}</span>;
+  // Handle term click - show definition popover
+  const handleTermClick = useCallback((e: React.MouseEvent, termMatch: TermMatch) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const target = e.currentTarget as HTMLElement;
+    const rect = target.getBoundingClientRect();
+    setSelectedTerm({ termMatch, rect });
+  }, []);
+
+  // Close term popover
+  const handleCloseTermPopover = useCallback(() => {
+    setSelectedTerm(null);
+  }, []);
+
+  // Merge note regions and term regions, with notes taking priority
+  const mergeHighlightRegions = useCallback((): HighlightRegion[] => {
+    const regions: HighlightRegion[] = [];
+
+    // Add note regions
+    for (const note of anchoredNotes) {
+      if (note.anchorStartOffset !== null && note.anchorEndOffset !== null) {
+        regions.push({
+          type: 'note',
+          startOffset: note.anchorStartOffset,
+          endOffset: note.anchorEndOffset,
+          data: note,
+        });
+      }
     }
 
-    // Sort notes by start offset
-    const sortedNotes = [...anchoredNotes].sort(
-      (a, b) => (a.anchorStartOffset ?? 0) - (b.anchorStartOffset ?? 0)
-    );
+    // Add term regions (filter out those overlapping with notes)
+    for (const match of termMatches) {
+      const overlapsNote = regions.some(
+        (r) =>
+          r.type === 'note' &&
+          match.startOffset < r.endOffset &&
+          match.endOffset > r.startOffset
+      );
+
+      if (!overlapsNote) {
+        regions.push({
+          type: 'term',
+          startOffset: match.startOffset,
+          endOffset: match.endOffset,
+          data: match,
+        });
+      }
+    }
+
+    // Sort by start offset
+    return regions.sort((a, b) => a.startOffset - b.startOffset);
+  }, [anchoredNotes, termMatches]);
+
+  // Render content with both note and term highlights
+  const renderContentWithHighlights = () => {
+    const regions = mergeHighlightRegions();
+
+    if (regions.length === 0) {
+      return <span>{content}</span>;
+    }
 
     const parts: React.ReactNode[] = [];
     let lastIndex = 0;
 
-    sortedNotes.forEach((note, idx) => {
-      const start = note.anchorStartOffset ?? 0;
-      const end = note.anchorEndOffset ?? 0;
-
-      // Add text before this highlight
-      if (start > lastIndex) {
+    regions.forEach((region, idx) => {
+      // Add text before this region
+      if (region.startOffset > lastIndex) {
         parts.push(
-          <span key={`text-${idx}`}>{content.slice(lastIndex, start)}</span>
+          <span key={`text-${idx}`}>{content.slice(lastIndex, region.startOffset)}</span>
         );
       }
 
-      // Add highlighted text
-      const isActive = activeNoteId === note.id;
-      parts.push(
-        <mark
-          key={`mark-${note.id}`}
-          onClick={(e) => {
-            e.preventDefault();
-            onNoteClick(note.id);
-          }}
-          className={`
-            cursor-pointer transition-colors
-            ${isActive
-              ? 'bg-[var(--color-accent)] text-[var(--color-text)]'
-              : 'bg-[var(--color-accent-muted)] hover:bg-[var(--color-accent)]'
-            }
-          `}
-          title={`Note: ${note.content.substring(0, 50)}...`}
-        >
-          {content.slice(start, end)}
-        </mark>
-      );
+      const text = content.slice(region.startOffset, region.endOffset);
 
-      lastIndex = end;
+      if (region.type === 'note') {
+        // Note highlight (yellow background)
+        const note = region.data as DocumentNote;
+        const isActive = activeNoteId === note.id;
+        parts.push(
+          <mark
+            key={`mark-${note.id}`}
+            onClick={(e) => {
+              e.preventDefault();
+              onNoteClick(note.id);
+            }}
+            className={`
+              cursor-pointer transition-colors
+              ${isActive
+                ? 'bg-[var(--color-accent)] text-[var(--color-text)]'
+                : 'bg-[var(--color-accent-muted)] hover:bg-[var(--color-accent)]'
+              }
+            `}
+            title={`Note: ${note.content.substring(0, 50)}...`}
+          >
+            {text}
+          </mark>
+        );
+      } else {
+        // Term highlight (dotted underline)
+        const termMatch = region.data as TermMatch;
+        parts.push(
+          <span
+            key={`term-${region.startOffset}`}
+            className="term-highlight"
+            onClick={(e) => handleTermClick(e, termMatch)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                const target = e.currentTarget as HTMLElement;
+                const rect = target.getBoundingClientRect();
+                setSelectedTerm({ termMatch, rect });
+              }
+            }}
+            title={`Defined term: ${termMatch.term}`}
+          >
+            {text}
+          </span>
+        );
+      }
+
+      lastIndex = region.endOffset;
     });
 
     // Add remaining text
@@ -304,6 +401,17 @@ export function AnnotatableContent({
           </div>,
           document.body
         )}
+
+      {/* Definition popover for highlighted terms */}
+      {selectedTerm && (
+        <DefinitionPopover
+          definition={selectedTerm.termMatch.definition}
+          term={selectedTerm.termMatch.term}
+          anchorRect={selectedTerm.rect}
+          onClose={handleCloseTermPopover}
+          state={state}
+        />
+      )}
     </>
   );
 }

@@ -221,6 +221,7 @@ export default async function RegulationDetailPage({ params, searchParams }: Pag
             documentId={regulationId}
             state={state}
             initialNotes={notes}
+            applicableDefinitions={applicableDefinitions}
           />
         </div>
       </Container>
