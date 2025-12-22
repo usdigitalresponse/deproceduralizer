@@ -33,7 +33,9 @@ Root causes documented in GitHub Issue #31.
 | **Phase 2: Extraction Pipeline** | ✅ Complete | Batch processed 5,067 sections, 27,001 definitions stored |
 | **Phase 3: Data Migration** | ✅ Mostly Complete | 89% linked; 3,146 unlinked tracked in Issue #31 |
 | **Phase 4: Core UI Features** | ✅ Complete | Filtering, term aggregation, applicable definitions, trigram search indexes |
-| **Phase 5: Quality Assurance** | 🔜 Next | Review pipeline, conflict detection, performance optimization |
+| **Phase 5: Enhanced Discovery** | 🔜 Next | Term highlighting, tooltips, full-text search |
+| **Phase 6: State Expansion** | 📋 Planned | NJ extraction, cross-state comparison |
+| **Phase 7: Quality Assurance** | 📋 Optional | Review pipeline, conflict detection (backlogged - not needed currently) |
 
 ---
 
@@ -818,9 +820,9 @@ Track how terms are used:
 | **2** | Extraction Pipeline | Improved prompt, prioritize definition sections, scope inference | Phase 1 |
 | **3** | Data Migration | Backfill scope_level, scope_document_id, definition_type | Phase 1 |
 | **4** | Core UI | Filtering, term aggregation, applicable definitions on sections | Phase 1, 3 |
-| **5** | Quality Assurance | Review pipeline, conflict detection, performance optimization | Phase 4 |
-| **6** | Enhanced Discovery | Term highlighting, tooltips, full-text search | Phase 4 |
-| **7** | State Expansion | NJ extraction, cross-state comparison | Phase 1-4 |
+| **5** | Enhanced Discovery | Term highlighting, tooltips, full-text search | Phase 4 |
+| **6** | State Expansion | NJ extraction, cross-state comparison | Phase 1-4 |
+| **7** | Quality Assurance (Optional) | Review pipeline, conflict detection | Phase 4 |
 
 ## Quick Wins Within Each Phase
 
@@ -832,4 +834,5 @@ Track how terms are used:
 | 2 | Use Sonnet 4.5 instead of Haiku | Low | Better quality, ~$17 total cost |
 | 3 | Backfill scope_level from text | Low | Enables filtering |
 | 4 | Add basic scope filter to glossary | Low | Immediate user value |
-| 5 | Surface low-overlap definitions for review | Low | Quick quality wins |
+| 5 | Term highlighting with CSS underlines | Low | Immediate UX improvement |
+| 7 | Surface low-overlap definitions for review | Low | Quality wins (optional) |
