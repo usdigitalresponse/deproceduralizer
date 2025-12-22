@@ -23,7 +23,7 @@ from dotenv import load_dotenv
 # Add backend directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import PROJECT_ROOT, INDIVIDUAL_REGULATIONS_DIR, OUTPUTS_DIR
-from shared_utils import get_db_connection, get_openai_client, call_llm_parse, load_prompt
+from shared_utils import get_db_connection, get_openai_client, call_llm_parse, load_prompt, normalize_scope_level
 
 load_dotenv(PROJECT_ROOT / '.env')
 
@@ -548,7 +548,7 @@ def store_to_database(regulations: List[Dict], state: str = "NY"):
                         defn.get('source_location'),
                         overlap,
                         MODEL_VERSION,
-                        defn.get('scope_level'),
+                        normalize_scope_level(defn.get('scope_level')) if defn.get('scope_level') else None,
                         defn.get('definition_type', 'formal'),
                         defn.get('is_cross_reference', False),
                     ))
@@ -737,7 +737,7 @@ def store_definitions_from_db(
                         defn.get('source_location'),
                         overlap,
                         MODEL_VERSION,
-                        defn.get('scope_level'),
+                        normalize_scope_level(defn.get('scope_level')) if defn.get('scope_level') else None,
                         defn.get('definition_type', 'formal'),
                         defn.get('is_cross_reference', False),
                     ))

@@ -18,7 +18,7 @@ from dotenv import load_dotenv
 # Add backend directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import PROJECT_ROOT
-from shared_utils import get_db_connection
+from shared_utils import get_db_connection, normalize_scope_level
 
 load_dotenv(PROJECT_ROOT / '.env')
 
@@ -41,7 +41,13 @@ def find_ancestor_at_level(conn, start_doc_id: int, target_level: str) -> int | 
     """
     Walk up from start_doc_id until we find a document at target_level.
     Returns the document ID or None if not found.
+    Uses case-insensitive matching.
     """
+    # Normalize the target level
+    normalized_level = normalize_scope_level(target_level)
+    if not normalized_level:
+        return None
+
     result = conn.execute("""
         WITH RECURSIVE ancestors AS (
             -- Start with the source document itself
@@ -58,10 +64,10 @@ def find_ancestor_at_level(conn, start_doc_id: int, target_level: str) -> int | 
             WHERE a.depth < 20
         )
         SELECT id FROM ancestors
-        WHERE hierarchy_level = %s
+        WHERE LOWER(hierarchy_level) = %s
         ORDER BY depth ASC
         LIMIT 1
-    """, (start_doc_id, target_level)).fetchone()
+    """, (start_doc_id, normalized_level)).fetchone()
 
     return result[0] if result else None
 

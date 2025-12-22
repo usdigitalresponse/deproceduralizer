@@ -37,6 +37,7 @@ from shared_utils import (
     get_openai_client,
     format_batch_request,
     load_prompt,
+    normalize_scope_level,
     DEFAULT_MODEL,
 )
 
@@ -499,21 +500,20 @@ def cmd_process(args):
     print(f"      Expired: {counts.expired}")
     print()
 
-    # Retrieve results
-    print("[2/4] Retrieving results...")
+    # Retrieve results (streaming)
+    print("[2/4] Retrieving and processing results...")
+    print(f"      Streaming {batch_info.get('total_requests', 0)} results...")
+    sys.stdout.flush()
 
     try:
         results_iter = client.beta.messages.batches.results(batch_id)
-        results = list(results_iter)
-        print(f"      ✓ Retrieved {len(results)} results")
     except Exception as e:
         print(f"      ❌ Could not retrieve results: {e}")
         return
 
-    print()
-
     # Process results and store definitions
     print("[3/4] Processing results and storing definitions...")
+    sys.stdout.flush()
 
     conn = get_db_connection()
     if not conn:
@@ -539,8 +539,11 @@ def cmd_process(args):
     total_defs = 0
     succeeded = 0
     errored = 0
+    processed = 0
+    total_expected = batch_info.get('total_requests', 0)
+    start_time = time.time()
 
-    for result in results:
+    for result in results_iter:
         custom_id = result.custom_id
         doc_id = int(custom_id.replace('doc_', ''))
 
@@ -574,7 +577,14 @@ def cmd_process(args):
                 errored += 1
                 continue
 
-            parsed = DefinitionsResponse.model_validate(tool_use.input)
+            # Handle case where model returns definitions as JSON string
+            input_data = tool_use.input
+            if isinstance(input_data, str):
+                input_data = json.loads(input_data)
+            if isinstance(input_data.get('definitions'), str):
+                input_data['definitions'] = json.loads(input_data['definitions'])
+
+            parsed = DefinitionsResponse.model_validate(input_data)
             definitions = parsed.definitions
 
             section_info = sections_map.get(doc_id, {})
@@ -603,7 +613,7 @@ def cmd_process(args):
                     defn.source_location,
                     overlap,
                     DEFAULT_MODEL,
-                    defn.scope_level,
+                    normalize_scope_level(defn.scope_level) if defn.scope_level else None,
                     defn.definition_type,
                     defn.is_cross_reference,
                 ))
@@ -614,6 +624,15 @@ def cmd_process(args):
         except Exception as e:
             log_error(batch_dir, doc_id, 'ERROR', str(e))
             errored += 1
+
+        # Progress update every 100 results
+        processed += 1
+        if processed % 100 == 0 or processed == total_expected:
+            elapsed = time.time() - start_time
+            pct = (processed / total_expected * 100) if total_expected > 0 else 0
+            eta = (elapsed / processed * (total_expected - processed)) if processed > 0 else 0
+            print(f"      [{processed}/{total_expected}] ({pct:.1f}%) | {total_defs} defs | ETA: {format_time(eta)}")
+            sys.stdout.flush()
 
     conn.commit()
     conn.close()

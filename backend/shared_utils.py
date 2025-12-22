@@ -119,6 +119,46 @@ def get_db_connection(timeout: int = 30) -> Optional[Connection]:
 
 
 # ============================================================================
+# Definition Utilities
+# ============================================================================
+
+def normalize_scope_level(scope_level: str) -> str:
+    """
+    Normalize scope_level to match hierarchy_level values.
+    Only handles obvious variations like capitalization and pluralization.
+
+    This should be called when storing definitions to ensure consistent
+    scope_level values that can be linked to the document hierarchy.
+
+    Args:
+        scope_level: Raw scope level from LLM extraction (e.g., "Part", "Sections")
+
+    Returns:
+        Normalized scope level (e.g., "part", "section")
+    """
+    if not scope_level:
+        return ""
+
+    # Lowercase and strip whitespace
+    level = scope_level.lower().strip()
+
+    # Handle common pluralizations (remove trailing 's')
+    # Valid hierarchy levels: title, subtitle, chapter, subchapter, article, part, subpart, section
+    singular_forms = {
+        'titles': 'title',
+        'subtitles': 'subtitle',
+        'chapters': 'chapter',
+        'subchapters': 'subchapter',
+        'articles': 'article',
+        'parts': 'part',
+        'subparts': 'subpart',
+        'sections': 'section',
+    }
+
+    return singular_forms.get(level, level)
+
+
+# ============================================================================
 # LLM Utilities (Anthropic)
 # ============================================================================
 

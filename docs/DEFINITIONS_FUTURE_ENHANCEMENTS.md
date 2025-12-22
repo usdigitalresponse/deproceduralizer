@@ -2,32 +2,36 @@
 
 This document outlines improvements to the definitions extraction, visualization, and management features, organized into phases that build on each other incrementally.
 
-## Current State
+## Current State (Updated Dec 21, 2025)
 
-- **4,357** definitions extracted (all from NY currently)
-- **70.5%** have exact overlap (1.0) - verbatim extractions
-- **24.9%** have low overlap (0-0.1) - paraphrased or reformatted
-- **0.4%** have zero overlap - likely hallucinated or cross-referenced
-- **5,887** NY sections match definition patterns (optimized from 6,202 with loose patterns)
-- Estimated extraction cost: **~$17** (Sonnet 4.5 Batch API)
+- **28,886** definitions extracted (all from NY)
+- **26,161** have scope_level populated
+- **25,724** have scope_document_id linked (89%)
+- **3,146** definitions unlinked - see [GitHub Issue #31](../../issues/31) for investigation
+- **5,719** are cross-references
+- **28,886** have definition_type (formal/abbreviation)
 
-## Active Batch (Dec 21, 2025)
+### Unlinked Definitions Breakdown
 
-NY full extraction batch submitted:
+| Reason | Count |
+|--------|-------|
+| Empty scope_level (LLM didn't extract) | 2,721 |
+| title (can't find title ancestor) | 260 |
+| subpart (can't find subpart ancestor) | 130 |
+| article | 11 |
+| subchapter | 9 |
+| other (order, chapter, statute, null) | 15 |
 
-```bash
-# Batch ID: msgbatch_015Gxr7Qy8ck9UcXGKsTc3Jp
-# Sections: 5,068
-# Status: in_progress
+Root causes documented in GitHub Issue #31.
 
-# Check status:
-uv run python backend/scripts/batch_definitions.py status
+## Completed Phases
 
-# Process when complete (replaces existing 4,357 NY definitions):
-uv run python backend/scripts/batch_definitions.py process \
-  --batch-id msgbatch_015Gxr7Qy8ck9UcXGKsTc3Jp \
-  --delete-existing
-```
+| Phase | Status | Notes |
+|-------|--------|-------|
+| **Phase 1: Schema Foundation** | ✅ Complete | All columns added, indexes created |
+| **Phase 2: Extraction Pipeline** | ✅ Complete | Batch processed 5,067 sections, 27,001 definitions stored |
+| **Phase 3: Data Migration** | ✅ Mostly Complete | 89% linked; 3,146 unlinked tracked in Issue #31 |
+| **Phase 4: Core UI Features** | 🔜 Next | Filtering, term aggregation, applicable definitions |
 
 ---
 
