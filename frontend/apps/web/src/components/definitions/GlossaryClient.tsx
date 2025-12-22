@@ -1,23 +1,25 @@
 'use client';
 
-import { useState, useEffect, useCallback, useTransition } from 'react';
-import { usePathname } from 'next/navigation';
+import { useState, useEffect, useTransition } from 'react';
 import { useQueryStates } from 'nuqs';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
 import { GlossarySearch } from './GlossarySearch';
 import { DefinitionCard } from './DefinitionCard';
-import { ChevronLeft, ChevronRight, BookOpen } from 'lucide-react';
+import { AggregatedTermCard } from './AggregatedTermCard';
+import { ChevronLeft, ChevronRight, BookOpen, List, Layers } from 'lucide-react';
 import {
   getDefinitionsPaginated,
   getAlphabeticalIndex,
+  getAggregatedTermsPaginated,
 } from '@/lib/actions/definitions';
-import { pageParser, searchParser, letterParser } from '@/lib/url/parsers';
+import { pageParser, searchParser, letterParser, glossaryViewParser } from '@/lib/url/parsers';
 import type {
   DefinitionWithContext,
   DefinitionStats,
   AlphabeticalIndex,
+  AggregatedTerm,
   StateCode,
 } from '@deproceduralizer/database';
 
@@ -25,6 +27,7 @@ interface GlossaryClientProps {
   state: StateCode;
   initialData: {
     definitions: DefinitionWithContext[];
+    aggregatedTerms: AggregatedTerm[];
     total: number;
     totalPages: number;
     stats: DefinitionStats;
@@ -38,7 +41,6 @@ const PAGE_SIZE = 20;
  * Client component for the glossary page with search, filtering, and pagination
  */
 export function GlossaryClient({ state, initialData }: GlossaryClientProps) {
-  const pathname = usePathname();
   const [isPending, startTransition] = useTransition();
 
   // URL state management with nuqs
@@ -46,13 +48,15 @@ export function GlossaryClient({ state, initialData }: GlossaryClientProps) {
     search: searchParser,
     letter: letterParser,
     page: pageParser,
+    view: glossaryViewParser,
   }, {
     shallow: false,
     startTransition,
   });
 
-  // Local state for definitions (updated on transitions)
+  // Local state for definitions and aggregated terms (updated on transitions)
   const [definitions, setDefinitions] = useState(initialData.definitions);
+  const [aggregatedTerms, setAggregatedTerms] = useState(initialData.aggregatedTerms);
   const [total, setTotal] = useState(initialData.total);
   const [totalPages, setTotalPages] = useState(initialData.totalPages);
   const [alphabeticalIndex, setAlphabeticalIndex] = useState(initialData.alphabeticalIndex);
@@ -60,31 +64,49 @@ export function GlossaryClient({ state, initialData }: GlossaryClientProps) {
 
   // Sync state with server action when URL params change
   useEffect(() => {
-    // Skip initial fetch as we have initialData
-    if (!params.search && !params.letter && params.page === 1) return;
+    // Skip initial fetch as we have initialData (only when at defaults)
+    if (!params.search && !params.letter && params.page === 1 && params.view === 'flat') return;
 
     const fetchData = async () => {
-      const result = await getDefinitionsPaginated(state, {
-        page: params.page,
-        pageSize: PAGE_SIZE,
-        search: params.search || undefined,
-        letter: params.letter || undefined,
-        sortBy: 'term',
-        sortOrder: 'asc',
-      });
+      if (params.view === 'aggregated') {
+        const result = await getAggregatedTermsPaginated(state, {
+          page: params.page,
+          pageSize: PAGE_SIZE,
+          search: params.search || undefined,
+          letter: params.letter || undefined,
+        });
 
-      if (result.success) {
-        setDefinitions(result.data.data);
-        setTotal(result.data.total);
-        setTotalPages(result.data.totalPages);
-        setError(null);
+        if (result.success) {
+          setAggregatedTerms(result.data.data);
+          setTotal(result.data.total);
+          setTotalPages(result.data.totalPages);
+          setError(null);
+        } else {
+          setError(result.error);
+        }
       } else {
-        setError(result.error);
+        const result = await getDefinitionsPaginated(state, {
+          page: params.page,
+          pageSize: PAGE_SIZE,
+          search: params.search || undefined,
+          letter: params.letter || undefined,
+          sortBy: 'term',
+          sortOrder: 'asc',
+        });
+
+        if (result.success) {
+          setDefinitions(result.data.data);
+          setTotal(result.data.total);
+          setTotalPages(result.data.totalPages);
+          setError(null);
+        } else {
+          setError(result.error);
+        }
       }
     };
 
     startTransition(fetchData);
-  }, [state, params.search, params.letter, params.page]);
+  }, [state, params.search, params.letter, params.page, params.view]);
 
   // Handle search change
   const handleSearchChange = (value: string) => {
@@ -153,8 +175,35 @@ export function GlossaryClient({ state, initialData }: GlossaryClientProps) {
         </div>
       </Card>
 
-      {/* Search and filters */}
+      {/* View toggle and search */}
       <Card>
+        <div className="flex items-center justify-between gap-4 mb-4">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-[var(--color-text-muted)]">View:</span>
+            <div className="flex rounded-[var(--radius-md)] border border-[var(--color-neutral-200)] overflow-hidden">
+              <Button
+                type="button"
+                variant={params.view === 'flat' ? 'primary' : 'ghost'}
+                size="sm"
+                onClick={() => setParams({ view: 'flat', page: 1 })}
+                className="rounded-none border-0"
+              >
+                <List className="w-4 h-4 mr-1" />
+                List
+              </Button>
+              <Button
+                type="button"
+                variant={params.view === 'aggregated' ? 'primary' : 'ghost'}
+                size="sm"
+                onClick={() => setParams({ view: 'aggregated', page: 1 })}
+                className="rounded-none border-0 border-l border-[var(--color-neutral-200)]"
+              >
+                <Layers className="w-4 h-4 mr-1" />
+                Grouped
+              </Button>
+            </div>
+          </div>
+        </div>
         <GlossarySearch
           search={params.search || ''}
           onSearchChange={handleSearchChange}
@@ -175,7 +224,8 @@ export function GlossaryClient({ state, initialData }: GlossaryClientProps) {
       {/* Results summary */}
       <div className="flex items-center justify-between">
         <p className="text-sm text-[var(--color-text-muted)]">
-          Showing {definitions.length} of {total.toLocaleString()} definition{total !== 1 ? 's' : ''}
+          Showing {params.view === 'aggregated' ? aggregatedTerms.length : definitions.length} of {total.toLocaleString()}
+          {params.view === 'aggregated' ? ' unique term' : ' definition'}{total !== 1 ? 's' : ''}
           {(params.search || params.letter) && ' (filtered)'}
         </p>
         {totalPages > 1 && (
@@ -185,42 +235,80 @@ export function GlossaryClient({ state, initialData }: GlossaryClientProps) {
         )}
       </div>
 
-      {/* Definition cards */}
-      {definitions.length > 0 ? (
-        <div className="space-y-4">
-          {definitions.map((definition) => (
-            <DefinitionCard
-              key={definition.id}
-              definition={definition}
-              state={state}
-              showSource={true}
-            />
-          ))}
-        </div>
-      ) : (
-        <Card>
-          <div className="text-center py-8">
-            <BookOpen className="w-12 h-12 text-[var(--color-text-muted)] mx-auto mb-3" />
-            <p className="text-[var(--color-text-muted)]">
-              No definitions found
-              {params.search && ` matching "${params.search}"`}
-              {params.letter && ` starting with "${params.letter}"`}
-            </p>
-            {(params.search || params.letter) && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setParams({ search: null, letter: null, page: 1 });
-                }}
-                className="mt-3"
-              >
-                Clear filters
-              </Button>
-            )}
+      {/* Definition/Term cards */}
+      {params.view === 'aggregated' ? (
+        aggregatedTerms.length > 0 ? (
+          <div className="space-y-4">
+            {aggregatedTerms.map((term) => (
+              <AggregatedTermCard
+                key={term.normalizedTerm}
+                term={term}
+                state={state}
+              />
+            ))}
           </div>
-        </Card>
+        ) : (
+          <Card>
+            <div className="text-center py-8">
+              <Layers className="w-12 h-12 text-[var(--color-text-muted)] mx-auto mb-3" />
+              <p className="text-[var(--color-text-muted)]">
+                No terms found
+                {params.search && ` matching "${params.search}"`}
+                {params.letter && ` starting with "${params.letter}"`}
+              </p>
+              {(params.search || params.letter) && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setParams({ search: null, letter: null, page: 1 });
+                  }}
+                  className="mt-3"
+                >
+                  Clear filters
+                </Button>
+              )}
+            </div>
+          </Card>
+        )
+      ) : (
+        definitions.length > 0 ? (
+          <div className="space-y-4">
+            {definitions.map((definition) => (
+              <DefinitionCard
+                key={definition.id}
+                definition={definition}
+                state={state}
+                showSource={true}
+              />
+            ))}
+          </div>
+        ) : (
+          <Card>
+            <div className="text-center py-8">
+              <BookOpen className="w-12 h-12 text-[var(--color-text-muted)] mx-auto mb-3" />
+              <p className="text-[var(--color-text-muted)]">
+                No definitions found
+                {params.search && ` matching "${params.search}"`}
+                {params.letter && ` starting with "${params.letter}"`}
+              </p>
+              {(params.search || params.letter) && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setParams({ search: null, letter: null, page: 1 });
+                  }}
+                  className="mt-3"
+                >
+                  Clear filters
+                </Button>
+              )}
+            </div>
+          </Card>
+        )
       )}
 
       {/* Pagination */}

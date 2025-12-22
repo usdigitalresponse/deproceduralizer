@@ -1171,10 +1171,11 @@ apps/web/src/
 │   │   ├── DetailPanel.tsx     # Supports fullScreen mode
 │   │   └── index.ts
 │   ├── definitions/        # Definitions glossary components
-│   │   ├── DefinitionCard.tsx  # Single definition display
-│   │   ├── DefinitionsList.tsx # Collapsible list for regulation pages
-│   │   ├── GlossarySearch.tsx  # Search + A-Z filter bar
-│   │   ├── GlossaryClient.tsx  # Main glossary page client
+│   │   ├── DefinitionCard.tsx      # Single definition display
+│   │   ├── AggregatedTermCard.tsx  # Grouped term with expandable variants
+│   │   ├── DefinitionsList.tsx     # Collapsible list for regulation pages
+│   │   ├── GlossarySearch.tsx      # Search + A-Z filter bar
+│   │   ├── GlossaryClient.tsx      # Main glossary page with view toggle
 │   │   └── index.ts
 │   └── review/             # Review mode components
 │       ├── ReviewQueue.tsx
@@ -1466,6 +1467,33 @@ Features:
 - Expandable definition text for long definitions
 - Link to source regulation with NYCRR citation
 
+### AggregatedTermCard
+
+Displays a grouped term with variant count badge and expandable list of all definitions:
+
+```tsx
+import { AggregatedTermCard } from '@/components/definitions';
+
+<AggregatedTermCard
+  term={aggregatedTerm}
+  state="ny"
+/>
+```
+
+Features:
+- Term heading with variant count badge (e.g., "[87 variants]")
+- Preview definition from highest quality source (overlap=1.0)
+- Scope levels display showing distinct scopes (e.g., "Part, Chapter, Title")
+- Lazy-loaded expansion to show all definitions on first click
+- Uses `useTransition` for loading state during expansion
+- Nested `DefinitionCard` components in compact mode for expanded view
+
+Props:
+| Prop | Type | Description |
+|------|------|-------------|
+| `term` | `AggregatedTerm` | Aggregated term with normalizedTerm, displayTerm, variantCount, previewDefinition, scopeLevels |
+| `state` | `StateCode` | State code ('ny' or 'nj') for fetching definitions |
+
 ### DefinitionsList
 
 Collapsible list of definitions for regulation detail pages:
@@ -1513,7 +1541,7 @@ Features:
 
 ### GlossaryClient
 
-Main client component for the glossary page:
+Main client component for the glossary page with view toggle:
 
 ```tsx
 import { GlossaryClient } from '@/components/definitions';
@@ -1522,6 +1550,7 @@ import { GlossaryClient } from '@/components/definitions';
   state={stateCode}
   initialData={{
     definitions,
+    aggregatedTerms,  // Grouped terms for aggregated view
     total,
     totalPages,
     stats,
@@ -1532,10 +1561,42 @@ import { GlossaryClient } from '@/components/definitions';
 
 Features:
 - Stats header (total definitions, unique terms, average quality, scope types)
-- Search and A-Z filter integration
-- Paginated definition cards
-- URL-based state for search, letter, and page
+- **View toggle** (List/Grouped) for switching between flat and aggregated views
+- Search and A-Z filter integration (works in both views)
+- Paginated results (by definitions in List view, by unique terms in Grouped view)
+- URL-based state for search, letter, page, and view (`?view=flat` or `?view=aggregated`)
 - Links to source regulations
+
+View Toggle Pattern:
+```tsx
+<div className="flex items-center gap-2">
+  <span className="text-sm text-[var(--color-text-muted)]">View:</span>
+  <div className="flex rounded-[var(--radius-md)] border border-[var(--color-neutral-200)] overflow-hidden">
+    <Button
+      variant={params.view === 'flat' ? 'primary' : 'ghost'}
+      size="sm"
+      onClick={() => setParams({ view: 'flat', page: 1 })}
+    >
+      <List className="w-4 h-4 mr-1" />
+      List
+    </Button>
+    <Button
+      variant={params.view === 'aggregated' ? 'primary' : 'ghost'}
+      size="sm"
+      onClick={() => setParams({ view: 'aggregated', page: 1 })}
+    >
+      <Layers className="w-4 h-4 mr-1" />
+      Grouped
+    </Button>
+  </div>
+</div>
+```
+
+This pattern uses a segmented button group with:
+- Border-separated buttons in a flex container
+- Active state uses `primary` variant, inactive uses `ghost`
+- View switch resets page to 1
+- Uses `nuqs` for URL state persistence
 
 ---
 

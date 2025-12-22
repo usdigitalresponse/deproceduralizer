@@ -7,6 +7,7 @@ import {
   getDefinitionsPaginated,
   getAlphabeticalIndex,
   getDefinitionStats,
+  getAggregatedTermsPaginated,
 } from '@/lib/actions/definitions';
 import { isValidState, STATE_CONFIG } from '@/types/state';
 import type { StateCode } from '@deproceduralizer/database';
@@ -17,6 +18,7 @@ interface PageProps {
     search?: string;
     letter?: string;
     page?: string;
+    view?: 'flat' | 'aggregated';
   }>;
 }
 
@@ -40,7 +42,7 @@ export default async function DefinitionsPage({ params, searchParams }: PageProp
   const page = Math.max(1, parseInt(queryParams.page || '1', 10));
 
   // Fetch initial data in parallel
-  const [definitionsResult, statsResult, alphabeticalIndexResult] = await Promise.all([
+  const [definitionsResult, aggregatedResult, statsResult, alphabeticalIndexResult] = await Promise.all([
     getDefinitionsPaginated(stateCode, {
       page,
       pageSize: PAGE_SIZE,
@@ -48,6 +50,12 @@ export default async function DefinitionsPage({ params, searchParams }: PageProp
       letter,
       sortBy: 'term',
       sortOrder: 'asc',
+    }),
+    getAggregatedTermsPaginated(stateCode, {
+      page,
+      pageSize: PAGE_SIZE,
+      search: search || undefined,
+      letter,
     }),
     getDefinitionStats(stateCode),
     getAlphabeticalIndex(stateCode),
@@ -103,6 +111,7 @@ export default async function DefinitionsPage({ params, searchParams }: PageProp
   }
 
   const { data: definitions, total, totalPages } = definitionsResult.data;
+  const aggregatedTerms = aggregatedResult.success ? aggregatedResult.data.data : [];
   const stats = statsResult.data;
   const alphabeticalIndex = alphabeticalIndexResult.data;
 
@@ -118,6 +127,7 @@ export default async function DefinitionsPage({ params, searchParams }: PageProp
           state={stateCode}
           initialData={{
             definitions,
+            aggregatedTerms,
             total,
             totalPages,
             stats,
