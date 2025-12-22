@@ -3,6 +3,7 @@
 import { type HierarchyNode } from '@deproceduralizer/database';
 import { Badge, SeverityBadge } from '@/components/ui/Badge';
 import { ChevronRight, ChevronDown, FileText, BookOpen, Folder } from 'lucide-react';
+import { formatDisplayTitle } from '@/lib/format';
 
 interface TreeNodeProps {
   node: HierarchyNode;
@@ -82,11 +83,8 @@ export function TreeNode({
   const showMatchCounts = hasActiveFilters && hasChildren;
   const hasMatches = node.matchingChildCount > 0 || node.matchingDescendantCount > 0;
 
-  // Extract display title (remove "N.Y. Comp. Codes R. & Regs." prefix if present)
-  const displayTitle = node.title
-    .replace(/^N\.Y\. Comp\. Codes R\. & Regs\.?\s*(tit\.\s*\d+,?\s*)?(ch\.\s*[^,]+,?\s*)?(subch\.\s*[^,]+,?\s*)?(art\.\s*[^,]+,?\s*)?(pt\.\s*[^,]+\s*)?-?\s*/i, '')
-    .replace(/^Title \d+ - /, '')
-    .trim() || node.title;
+  // Format display title using short_title + level_identifier
+  const displayTitle = formatDisplayTitle(node);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === ' ') {

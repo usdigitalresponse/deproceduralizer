@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { db, RegulatoryDocumentsRepository } from '@deproceduralizer/database';
 import { ChevronRight } from 'lucide-react';
-import { cleanTitle, truncateTitle } from '@/lib/format';
+import { formatDisplayTitle, truncateTitle } from '@/lib/format';
 
 interface HierarchyBreadcrumbsServerProps {
   documentId: number;
@@ -65,10 +65,7 @@ export async function HierarchyBreadcrumbsServer({
             "
             title={ancestor.title}
           >
-            <span className="font-medium text-[var(--color-text-secondary)] mr-1">
-              {levelLabels[ancestor.hierarchyLevel || ''] || ancestor.hierarchyLevel}:
-            </span>
-            {truncateTitle(cleanTitle(ancestor.title), 40)}
+            {truncateTitle(formatDisplayTitle(ancestor), 40)}
           </Link>
         </span>
       ))}
@@ -80,7 +77,7 @@ export async function HierarchyBreadcrumbsServer({
           className="px-2 py-1 text-[var(--color-text)] font-medium max-w-[250px] truncate inline-block"
           title={currentTitle}
         >
-          {truncateTitle(cleanTitle(currentTitle), 40)}
+          {truncateTitle(currentTitle, 40)}
         </span>
       </span>
     </nav>

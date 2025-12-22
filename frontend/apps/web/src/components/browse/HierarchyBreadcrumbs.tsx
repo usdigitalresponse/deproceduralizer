@@ -3,12 +3,22 @@
 import { useEffect, useState } from 'react';
 import { getAncestorChain } from '@/lib/actions/hierarchy';
 import { ChevronRight, Loader2 } from 'lucide-react';
-import { cleanTitle, truncateTitle } from '@/lib/format';
+import { formatDisplayTitle, truncateTitle } from '@/lib/format';
 
 interface AncestorNode {
   id: number;
   title: string;
   hierarchyLevel: string | null;
+  shortTitle: string | null;
+  levelIdentifier: string | null;
+  citation: string | null;
+  nycrrTitle: number | null;
+  nycrrPart: string | null;
+  nycrrChapter: string | null;
+  njacTitle: string | null;
+  njacChapter: string | null;
+  njacSubchapter: string | null;
+  state: string | null;
 }
 
 interface HierarchyBreadcrumbsProps {
@@ -103,10 +113,7 @@ export function HierarchyBreadcrumbs({
             "
             title={ancestor.title}
           >
-            <span className="font-medium text-[var(--color-text-secondary)] mr-1">
-              {levelLabels[ancestor.hierarchyLevel || ''] || ancestor.hierarchyLevel}:
-            </span>
-            {truncateTitle(cleanTitle(ancestor.title), 30)}
+            {truncateTitle(formatDisplayTitle(ancestor), 30)}
           </button>
         </span>
       ))}
@@ -124,7 +131,7 @@ export function HierarchyBreadcrumbs({
               {levelLabels[currentLevel] || currentLevel}:
             </span>
           )}
-          {truncateTitle(cleanTitle(currentTitle), 30)}
+          {truncateTitle(currentTitle, 30)}
         </span>
       </span>
     </nav>
