@@ -3,6 +3,8 @@ Configuration for compliance issue detection.
 
 Defines state configurations and issue type configurations that can be
 combined to search for specific compliance issues in specific states.
+
+Updated 2025-12-23: Added all 35 issue types with refined patterns.
 """
 
 import re
@@ -92,6 +94,27 @@ class ObsoleteTechAnalysis(BaseComplianceAnalysis):
     )
 
 
+class InPersonAnalysis(BaseComplianceAnalysis):
+    """LLM analysis for in-person requirements."""
+    has_issue: bool = Field(
+        description="True if physical presence is required. False if remote/electronic alternatives are available."
+    )
+
+
+class PaymentAnalysis(BaseComplianceAnalysis):
+    """LLM analysis for payment method restrictions."""
+    has_issue: bool = Field(
+        description="True if specific payment method is required with no modern alternatives."
+    )
+
+
+class DocumentFormatAnalysis(BaseComplianceAnalysis):
+    """LLM analysis for document format requirements."""
+    has_issue: bool = Field(
+        description="True if specific physical format is required."
+    )
+
+
 # =============================================================================
 # STATE CONFIGURATION
 # =============================================================================
@@ -162,6 +185,7 @@ class IssueTypeConfig:
         prompt_name: Key in prompts.yaml for this issue type
         response_model: Pydantic model class for LLM response
         description: Brief description of what this issue type detects
+        category: Category for grouping (Communication, Payment, etc.)
     """
     name: str
     display_name: str
@@ -170,147 +194,467 @@ class IssueTypeConfig:
     prompt_name: str
     response_model: Type[BaseComplianceAnalysis]
     description: str = ""
+    category: str = ""
 
 
 # =============================================================================
 # REGEX PATTERNS BY ISSUE TYPE
+# All patterns use our vetted selections from pattern_variants.md analysis
 # =============================================================================
 
-# Wet Signature patterns (from existing script)
-WET_SIGNATURE_TIERS = {
-    'tier1': [  # Strong indicators
-        r"wet signature",
-        r"original signature",
-        r"ink signature",
-        r"handwritten signature",
-        r"physical signature",
-        r"signed in ink",
-        r"manually signed",
-        r"hand-signed",
-        r"pen and ink",
-        r"signature.{0,20}original",
-        r"original.{0,20}signature",
-    ],
-    'tier2': [  # Likely indicators (notarization often implies wet signature)
-        r"notarized signature",
-        r"signature.{0,20}notari",
-        r"notari.{0,20}signature",
-        r"acknowledged before",
-        r"sworn.{0,20}before",
-        r"subscribed.{0,20}before",
-        r"affidavit",
-        r"under oath",
-    ],
-    'tier3': [  # Electronic exclusions
-        r"electronic.{0,20}signature.{0,20}not",
-        r"facsimile.{0,20}not.{0,20}accept",
-        r"no electronic.{0,20}signature",
-        r"not.{0,20}accept.{0,20}electronic",
-        r"fax.{0,20}not.{0,20}accept",
-    ],
-    'tier4': [  # General requirements (needs LLM confirmation)
-        r"must be signed",
-        r"shall be signed",
-        r"signature required",
-        r"signed by the applicant",
-        r"applicant.{0,10}signature",
-        r"signature of.{0,20}applicant",
-        r"personally sign",
-        r"in writing.{0,30}signed",
-        r"signed.{0,20}in writing",
-        r"bear.{0,10}signature",
-        r"signature.{0,10}required",
-        r"requires?.{0,10}signature",
-    ],
-}
+# === COMMUNICATION & SUBMISSION ===
 
-# Mail-Only Submission patterns
 MAIL_ONLY_TIERS = {
-    'tier1': [  # Strong indicators - mail as only option
-        r"submit.{0,20}by mail",
-        r"send by mail",
-        r"mail.{0,10}only",
-        r"mailed to.{0,30}address",
-        r"via.{0,10}mail.{0,10}only",
+    'tier1': [
         r"must be mailed",
         r"shall be mailed",
-    ],
-    'tier2': [  # Postal service references
-        r"by.{0,10}u\.?s\.?\s*mail",
-        r"via.{0,10}u\.?s\.?\s*mail",
-        r"united states.{0,10}mail",
-        r"postal.{0,10}service",
-        r"usps",
+        r"send by mail",
+        r"submit.{0,20}by mail",
+        r"mail.{0,10}only",
+        r"u\.?s\.?\s*mail",
+        r"\busps\b",
         r"first.{0,10}class.{0,10}mail",
-    ],
-    'tier3': [  # General mail references (needs LLM confirmation)
-        r"by mail",
-        r"mailed to",
-        r"mailing address",
-        r"mail the.{0,20}to",
-        r"send.{0,20}mail",
+        r"postal.{0,10}service",
+        r"postmarked by",
     ],
 }
 
-# Certified/Registered Mail patterns
 CERTIFIED_MAIL_TIERS = {
-    'tier1': [  # Strong indicators
+    'tier1': [
         r"certified mail",
         r"registered mail",
         r"return receipt",
         r"delivery confirmation",
-    ],
-    'tier2': [  # Deadline/proof requirements
         r"postmarked by",
         r"proof of mailing",
         r"certificate of mailing",
-        r"postmark.{0,20}deadline",
-    ],
-    'tier3': [  # General certified references
-        r"certified.{0,20}letter",
-        r"mail.{0,20}certified",
+        r"by certified",
+        r"via certified",
     ],
 }
 
-# Fax Requirements patterns
 FAX_TIERS = {
-    'tier1': [  # Strong indicators - fax as requirement
-        r"submit.{0,20}by fax",
-        r"fax.{0,10}only",
-        r"via.{0,10}fax",
-        r"fax.{0,10}to",
-        r"by.{0,10}facsimile",
-    ],
-    'tier2': [  # Fax number/contact
-        r"fax.{0,10}number",
-        r"fax.{0,10}:",
-        r"facsimile.{0,10}number",
+    'tier1': [
+        r"\bfax\b",
+        r"facsimile",
         r"telefax",
     ],
-    'tier3': [  # General fax references
-        r"fax",
-        r"facsimile",
-        r"fax.{0,10}transmission",
+}
+
+OBSOLETE_COMM_TIERS = {
+    'tier1': [
+        r"telegram",
+        r"telegraph",
+        r"\btelex\b",
+        r"\bpager\b",
+        r"\bbeeper\b",
     ],
 }
 
-# Obsolete Technology patterns
-OBSOLETE_TECH_TIERS = {
-    'tier1': [  # Clearly obsolete
-        r"telegram",
-        r"telegraph",
-        r"telex",
-        r"wire.{0,10}transfer.{0,10}message",  # Not money transfer
+LANDLINE_TIERS = {
+    'tier1': [
+        r"\blandline\b",
+        r"touch-tone",
+        r"by telephone",
+        r"telephone call",
+        r"verbal authorization",
+        r"oral authorization",
+        r"by phone",
     ],
-    'tier2': [  # Obsolete personal devices
-        r"pager",
-        r"beeper",
-        r"paging.{0,10}device",
+}
+
+# === PAYMENT ===
+
+CHECK_PAYMENT_TIERS = {
+    'tier1': [
+        r"money order",
+        r"certified check",
+        r"cashier.{0,3}s? check",
+        r"personal check",
+        r"payable to",
     ],
-    'tier3': [  # Potentially obsolete references
-        r"by.{0,10}wire",
-        r"by.{0,10}cable",
-        r"cablegram",
+}
+
+CASH_ONLY_TIERS = {
+    'tier1': [
+        r"cash.{0,5}only",
+        r"exact change",
+    ],
+}
+
+NO_CREDIT_CARDS_TIERS = {
+    'tier1': [
+        r"no credit cards?",
+        r"credit cards? not accepted",
+        r"cash or check only",
+        r"no electronic payment",
+    ],
+}
+
+IN_PERSON_PAYMENT_TIERS = {
+    'tier1': [
+        r"pay in person",
+        r"payment in person",
+        r"in.{0,3}person.{0,10}payment",
+    ],
+}
+
+# === SIGNATURES & AUTHENTICATION ===
+
+WET_SIGNATURE_TIERS = {
+    'tier1': [
+        r"wet signature",
+        r"ink signature",
+        r"handwritten signature",
+        r"original signature",
+        r"signed in ink",
+        r"blue ink",
+        r"black ink",
+        r"manually signed",
+        r"physical signature",
+        r"personally sign",
+        r"notarized.{0,20}signature",
+        r"signature.{0,20}notari",
+        r"bear.{0,10}signature",
+    ],
+}
+
+NOTARIZATION_TIERS = {
+    'tier1': [
+        r"must be notarized",
+        r"shall be notarized",
+        r"duly notarized",
+        r"\bnotarized\b",
+        r"notary public",
+        r"sworn.{0,20}before",
+        r"acknowledged before",
+        r"\bjurat\b",
+    ],
+}
+
+WITNESS_TIERS = {
+    'tier1': [
+        r"two witnesses",
+        r"2 witnesses",
+        r"witness.{0,5}signature",
+        r"witnessed by",
+        r"\battested\b",
+        r"attestation",
+        r"in the presence of",
+    ],
+}
+
+EMBOSSED_SEAL_TIERS = {
+    'tier1': [
+        r"embossed seal",
+        r"raised seal",
+        r"impressed seal",
+        r"corporate seal",
+        r"official seal",
+        r"seal.{0,5}affixed",
+    ],
+}
+
+ORIGINAL_DOCUMENT_TIERS = {
+    'tier1': [
+        r"no photocopies",
+        r"original only",
+        r"submit.{0,10}original",
+        r"provide.{0,10}original",
+        r"original document",
+        r"original certificate",
+        r"original letter",
+        r"must be.{0,5}original",
+        r"shall be.{0,5}original",
+    ],
+}
+
+# === PHYSICAL PRESENCE ===
+
+IN_PERSON_SUBMISSION_TIERS = {
+    'tier1': [
+        r"submit.{0,10}in person",
+        r"appear in person",
+        r"in.{0,3}person.{0,10}submission",
+        r"personal appearance",
+        r"hand.{0,3}deliver",
+    ],
+}
+
+IN_PERSON_HEARING_TIERS = {
+    'tier1': [
+        r"in.{0,3}person.{0,10}hearing",
+        r"appear at.{0,20}hearing",
+        r"physical.{0,5}attendance",
+        r"attend in person",
+        r"appear before.{0,20}board",
+        r"appear before.{0,20}commission",
+    ],
+}
+
+IN_PERSON_PICKUP_TIERS = {
+    'tier1': [
+        r"pick up in person",
+        r"picked up in person",
+        r"available for pickup",
+        r"available.{0,10}pick.{0,3}up",
+    ],
+}
+
+PHYSICAL_FORMS_TIERS = {
+    'tier1': [
+        r"forms available at",
+        r"forms.{0,10}available.{0,10}at",
+        r"obtain forms from",
+        r"forms may be obtained",
+    ],
+}
+
+PHYSICAL_INSPECTION_TIERS = {
+    'tier1': [
+        r"available for public inspection",
+        r"public inspection",
+        r"open to inspection",
+        r"maintain for inspection",
+        r"available for review at",
+        r"during business hours",
+    ],
+}
+
+PHYSICAL_POSTING_TIERS = {
+    'tier1': [
+        r"conspicuously posted",
+        r"conspicuously displayed",
+        r"prominently displayed",
+        r"prominently posted",
+        r"posted on the premises",
+        r"posted at all times",
+        r"post a notice",
+        r"display.{0,10}sign",
+        r"visible to the public",
+    ],
+}
+
+BULLETIN_BOARD_TIERS = {
+    'tier1': [
+        r"bulletin board",
+        r"notice board",
+        r"community board",
+        r"public board",
+        r"posted.{0,10}board",
+    ],
+}
+
+# === TECHNOLOGY & MEDIA ===
+
+OBSOLETE_MEDIA_TIERS = {
+    'tier1': [
+        r"floppy.{0,5}disk",
+        r"\bdiskette\b",
+        r"cd-rom",
+        r"\bdvd\b",
+        r"magnetic.{0,5}tape",
+        r"usb drive",
+        r"flash drive",
+    ],
+}
+
+MICROFICHE_TIERS = {
+    'tier1': [
+        r"microfiche",
+        r"microfilm",
+        r"microform",
+        r"aperture card",
+    ],
+}
+
+OBSOLETE_SOFTWARE_TIERS = {
+    'tier1': [
+        r"wordperfect",
+        r"\blotus\b",
+        r"\bdos\b",
+        r"\bdbase\b",
+        r"ascii.{0,10}format",
+    ],
+}
+
+TYPEWRITER_TIERS = {
+    'tier1': [
+        r"\btypewriter\b",
+        r"typewritten",
+        r"type.{0,3}written",
+        r"must be typed",
+        r"shall be typed",
+    ],
+}
+
+PDF_ONLY_TIERS = {
+    'tier1': [
+        r"pdf format",
+        r"submit as pdf",
+        r"adobe pdf",
+        r"\.pdf\b",
+    ],
+}
+
+CARBON_COPY_TIERS = {
+    'tier1': [
+        r"carbon copy",
+        r"carbon.{0,5}copies",
+        r"duplicate copy",
+        r"duplicate copies",
+    ],
+}
+
+NEWSPAPER_TIERS = {
+    'tier1': [
+        r"newspaper of general circulation",
+        r"publish.{0,20}newspaper",
+        r"published.{0,20}newspaper",
+        r"newspaper.{0,10}notice",
+        r"newspaper.{0,10}publication",
+        r"legal.{0,5}notice",
+        r"local newspaper",
+        r"official newspaper",
+    ],
+}
+
+# === DOCUMENT FORMAT ===
+
+MULTIPLE_COPIES_TIERS = {
+    'tier1': [
+        r"\bin duplicate\b",
+        r"\bin triplicate\b",
+        r"three copies",
+        r"four copies",
+        r"five copies",
+        r"submit.{0,10}\d+.{0,10}copies",
+        r"original and.{0,10}\d+.{0,10}cop",
+        r"multiple copies",
+    ],
+}
+
+PAPER_SPECS_TIERS = {
+    'tier1': [
+        r"8\.?5.{0,5}x.{0,5}11",
+        r"letter size",
+        r"8\.?5.{0,5}x.{0,5}14",
+        r"legal size",
+        r"bond paper",
+        r"20 lb",
+        r"paper stock",
+        r"white paper",
+        r"colored paper",
+    ],
+}
+
+PHOTO_SPECS_TIERS = {
+    'tier1': [
+        r"passport photo",
+        r"2.{0,3}x.{0,3}2",
+        r"recent photograph",
+        r"current photograph",
+    ],
+}
+
+LETTERHEAD_TIERS = {
+    'tier1': [
+        r"on letterhead",
+        r"official letterhead",
+        r"company letterhead",
+        r"agency letterhead",
+    ],
+}
+
+HANDWRITING_SPECS_TIERS = {
+    'tier1': [
+        r"block letters",
+        r"print clearly",
+        r"print in ink",
+        r"hand-printed",
+        r"hand printed",
+    ],
+}
+
+BINDING_REQUIRED_TIERS = {
+    'tier1': [
+        r"spiral bound",
+        r"three-ring binder",
+        r"ring binder",
+    ],
+}
+
+# === PROCESS & TRACKING ===
+
+PHYSICAL_LOG_TIERS = {
+    'tier1': [
+        r"sign-in sheet",
+        r"sign in sheet",
+        r"log book",
+        r"\blogbook\b",
+        r"visitor log",
+        r"sign the register",
+        r"entry log",
+        r"written log",
+        r"daily log",
+    ],
+}
+
+ROUTING_SLIP_TIERS = {
+    'tier1': [
+        r"transmittal form",
+        r"transmittal sheet",
+    ],
+}
+
+STORAGE_LOCATION_TIERS = {
+    'tier1': [
+        r"stored at",
+        r"maintained at",
+        r"kept at the premises",
+        r"kept on.{0,10}premises",
+        r"on.{0,3}site.{0,10}storage",
+        r"at the facility",
+        r"records.{0,10}kept",
+    ],
+}
+
+FIXED_WINDOW_TIERS = {
+    'tier1': [
+        r"filing period",
+        r"application window",
+        r"applications accepted",
+        r"accepted between",
+        r"open enrollment",
+        r"submission period",
+        r"only during",
+    ],
+}
+
+WAITING_PERIOD_TIERS = {
+    'tier1': [
+        r"waiting period",
+        r"must wait",
+        r"cooling off",
+        r"no sooner than",
+        r"not sooner than",
+        r"minimum of.{0,10}days before",
+        r"at least.{0,10}days before",
+    ],
+}
+
+# === REPORTING ===
+
+MANDATED_REPORTS_TIERS = {
+    'tier1': [
+        r"annual report",
+        r"quarterly report",
+        r"submit a report",
+        r"file a report",
+        r"reporting requirements",
+        r"report to the",
+        r"statistical report",
+        r"publish a report",
     ],
 }
 
@@ -320,32 +664,26 @@ OBSOLETE_TECH_TIERS = {
 # =============================================================================
 
 ISSUE_TYPES: dict[str, IssueTypeConfig] = {
-    'wet_signature': IssueTypeConfig(
-        name='wet_signature',
-        display_name='Wet Signature Requirements',
-        db_issue_type='wet_signature',
-        tiers=WET_SIGNATURE_TIERS,
-        prompt_name='compliance_wet_signature',
-        response_model=WetSignatureAnalysis,
-        description='Regulations requiring physical wet/ink/handwritten signatures',
-    ),
+    # === COMMUNICATION ===
     'mail_only': IssueTypeConfig(
         name='mail_only',
-        display_name='Mail-Only Submission Requirements',
+        display_name='Mail-Only Submission',
         db_issue_type='mail_only',
         tiers=MAIL_ONLY_TIERS,
         prompt_name='compliance_mail_only',
         response_model=MailOnlyAnalysis,
-        description='Regulations requiring mail submission with no electronic alternative',
+        description='Mail required with no electronic alternative',
+        category='Communication',
     ),
     'certified_mail': IssueTypeConfig(
         name='certified_mail',
-        display_name='Certified/Registered Mail Requirements',
+        display_name='Certified/Registered Mail',
         db_issue_type='certified_mail',
         tiers=CERTIFIED_MAIL_TIERS,
         prompt_name='compliance_certified_mail',
         response_model=CertifiedMailAnalysis,
-        description='Regulations requiring certified or registered mail',
+        description='Certified or registered mail required',
+        category='Communication',
     ),
     'fax': IssueTypeConfig(
         name='fax',
@@ -354,15 +692,391 @@ ISSUE_TYPES: dict[str, IssueTypeConfig] = {
         tiers=FAX_TIERS,
         prompt_name='compliance_fax',
         response_model=FaxAnalysis,
-        description='Regulations requiring or primarily relying on fax',
+        description='Fax required or only alternative to mail',
+        category='Communication',
     ),
-    'obsolete_tech': IssueTypeConfig(
-        name='obsolete_tech',
-        display_name='Obsolete Technology References',
-        db_issue_type='obsolete_tech',
-        tiers=OBSOLETE_TECH_TIERS,
+    'obsolete_comm': IssueTypeConfig(
+        name='obsolete_comm',
+        display_name='Obsolete Communication',
+        db_issue_type='obsolete_comm',
+        tiers=OBSOLETE_COMM_TIERS,
         prompt_name='compliance_obsolete_tech',
         response_model=ObsoleteTechAnalysis,
-        description='Regulations referencing telegrams, telex, pagers, etc.',
+        description='Telegram, telex, pager references',
+        category='Communication',
+    ),
+    'landline': IssueTypeConfig(
+        name='landline',
+        display_name='Landline/Telephone Required',
+        db_issue_type='landline',
+        tiers=LANDLINE_TIERS,
+        prompt_name='compliance_generic',
+        response_model=BaseComplianceAnalysis,
+        description='Telephone/landline required',
+        category='Communication',
+    ),
+
+    # === PAYMENT ===
+    'check_payment': IssueTypeConfig(
+        name='check_payment',
+        display_name='Check/Money Order Payment',
+        db_issue_type='check_payment',
+        tiers=CHECK_PAYMENT_TIERS,
+        prompt_name='compliance_generic',
+        response_model=PaymentAnalysis,
+        description='Check or money order payment required',
+        category='Payment',
+    ),
+    'cash_only': IssueTypeConfig(
+        name='cash_only',
+        display_name='Cash Only Payment',
+        db_issue_type='cash_only',
+        tiers=CASH_ONLY_TIERS,
+        prompt_name='compliance_generic',
+        response_model=PaymentAnalysis,
+        description='Cash-only payment required',
+        category='Payment',
+    ),
+    'no_credit_cards': IssueTypeConfig(
+        name='no_credit_cards',
+        display_name='No Credit Cards',
+        db_issue_type='no_credit_cards',
+        tiers=NO_CREDIT_CARDS_TIERS,
+        prompt_name='compliance_generic',
+        response_model=PaymentAnalysis,
+        description='Credit cards explicitly not accepted',
+        category='Payment',
+    ),
+    'in_person_payment': IssueTypeConfig(
+        name='in_person_payment',
+        display_name='In-Person Payment',
+        db_issue_type='in_person_payment',
+        tiers=IN_PERSON_PAYMENT_TIERS,
+        prompt_name='compliance_generic',
+        response_model=PaymentAnalysis,
+        description='Payment must be made in person',
+        category='Payment',
+    ),
+
+    # === SIGNATURES ===
+    'wet_signature': IssueTypeConfig(
+        name='wet_signature',
+        display_name='Wet Signature',
+        db_issue_type='wet_signature',
+        tiers=WET_SIGNATURE_TIERS,
+        prompt_name='compliance_wet_signature',
+        response_model=WetSignatureAnalysis,
+        description='Physical wet/ink signature required',
+        category='Signatures',
+    ),
+    'notarization': IssueTypeConfig(
+        name='notarization',
+        display_name='Notarization Required',
+        db_issue_type='notarization',
+        tiers=NOTARIZATION_TIERS,
+        prompt_name='compliance_generic',
+        response_model=BaseComplianceAnalysis,
+        description='Notarization required',
+        category='Signatures',
+    ),
+    'witness': IssueTypeConfig(
+        name='witness',
+        display_name='Witness Required',
+        db_issue_type='witness',
+        tiers=WITNESS_TIERS,
+        prompt_name='compliance_generic',
+        response_model=BaseComplianceAnalysis,
+        description='Witness signature required',
+        category='Signatures',
+    ),
+    'embossed_seal': IssueTypeConfig(
+        name='embossed_seal',
+        display_name='Embossed Seal/Stamp',
+        db_issue_type='embossed_seal',
+        tiers=EMBOSSED_SEAL_TIERS,
+        prompt_name='compliance_generic',
+        response_model=BaseComplianceAnalysis,
+        description='Embossed or official seal required',
+        category='Signatures',
+    ),
+    'original_document': IssueTypeConfig(
+        name='original_document',
+        display_name='Original Document Required',
+        db_issue_type='original_document',
+        tiers=ORIGINAL_DOCUMENT_TIERS,
+        prompt_name='compliance_generic',
+        response_model=BaseComplianceAnalysis,
+        description='Original document required (no copies)',
+        category='Signatures',
+    ),
+
+    # === PHYSICAL PRESENCE ===
+    'in_person_submission': IssueTypeConfig(
+        name='in_person_submission',
+        display_name='In-Person Submission',
+        db_issue_type='in_person_submission',
+        tiers=IN_PERSON_SUBMISSION_TIERS,
+        prompt_name='compliance_generic',
+        response_model=InPersonAnalysis,
+        description='Physical presence required for submission',
+        category='Physical Presence',
+    ),
+    'in_person_hearing': IssueTypeConfig(
+        name='in_person_hearing',
+        display_name='In-Person Hearing/Meeting',
+        db_issue_type='in_person_hearing',
+        tiers=IN_PERSON_HEARING_TIERS,
+        prompt_name='compliance_generic',
+        response_model=InPersonAnalysis,
+        description='Physical attendance at hearing required',
+        category='Physical Presence',
+    ),
+    'in_person_pickup': IssueTypeConfig(
+        name='in_person_pickup',
+        display_name='In-Person Pickup',
+        db_issue_type='in_person_pickup',
+        tiers=IN_PERSON_PICKUP_TIERS,
+        prompt_name='compliance_generic',
+        response_model=InPersonAnalysis,
+        description='Must pick up in person',
+        category='Physical Presence',
+    ),
+    'physical_forms': IssueTypeConfig(
+        name='physical_forms',
+        display_name='Physical Form Retrieval',
+        db_issue_type='physical_forms',
+        tiers=PHYSICAL_FORMS_TIERS,
+        prompt_name='compliance_generic',
+        response_model=InPersonAnalysis,
+        description='Forms must be obtained from physical location',
+        category='Physical Presence',
+    ),
+    'physical_inspection': IssueTypeConfig(
+        name='physical_inspection',
+        display_name='Physical Inspection Location',
+        db_issue_type='physical_inspection',
+        tiers=PHYSICAL_INSPECTION_TIERS,
+        prompt_name='compliance_generic',
+        response_model=InPersonAnalysis,
+        description='Documents available for inspection at location',
+        category='Physical Presence',
+    ),
+    'physical_posting': IssueTypeConfig(
+        name='physical_posting',
+        display_name='Physical Posting Required',
+        db_issue_type='physical_posting',
+        tiers=PHYSICAL_POSTING_TIERS,
+        prompt_name='compliance_generic',
+        response_model=InPersonAnalysis,
+        description='Signs/notices must be physically posted',
+        category='Physical Presence',
+    ),
+    'bulletin_board': IssueTypeConfig(
+        name='bulletin_board',
+        display_name='Bulletin Board',
+        db_issue_type='bulletin_board',
+        tiers=BULLETIN_BOARD_TIERS,
+        prompt_name='compliance_generic',
+        response_model=InPersonAnalysis,
+        description='Bulletin board posting required',
+        category='Physical Presence',
+    ),
+
+    # === TECHNOLOGY ===
+    'obsolete_media': IssueTypeConfig(
+        name='obsolete_media',
+        display_name='Obsolete Storage Media',
+        db_issue_type='obsolete_media',
+        tiers=OBSOLETE_MEDIA_TIERS,
+        prompt_name='compliance_obsolete_tech',
+        response_model=ObsoleteTechAnalysis,
+        description='Floppy disk, CD-ROM, magnetic tape',
+        category='Technology',
+    ),
+    'microfiche': IssueTypeConfig(
+        name='microfiche',
+        display_name='Microfiche/Microfilm',
+        db_issue_type='microfiche',
+        tiers=MICROFICHE_TIERS,
+        prompt_name='compliance_obsolete_tech',
+        response_model=ObsoleteTechAnalysis,
+        description='Microfiche or microfilm references',
+        category='Technology',
+    ),
+    'obsolete_software': IssueTypeConfig(
+        name='obsolete_software',
+        display_name='Obsolete Software/Format',
+        db_issue_type='obsolete_software',
+        tiers=OBSOLETE_SOFTWARE_TIERS,
+        prompt_name='compliance_obsolete_tech',
+        response_model=ObsoleteTechAnalysis,
+        description='WordPerfect, Lotus, DOS references',
+        category='Technology',
+    ),
+    'typewriter': IssueTypeConfig(
+        name='typewriter',
+        display_name='Typewriter Required',
+        db_issue_type='typewriter',
+        tiers=TYPEWRITER_TIERS,
+        prompt_name='compliance_obsolete_tech',
+        response_model=ObsoleteTechAnalysis,
+        description='Typewriter or typewritten document required',
+        category='Technology',
+    ),
+    'pdf_only': IssueTypeConfig(
+        name='pdf_only',
+        display_name='PDF Only Format',
+        db_issue_type='pdf_only',
+        tiers=PDF_ONLY_TIERS,
+        prompt_name='compliance_generic',
+        response_model=DocumentFormatAnalysis,
+        description='PDF format specifically required',
+        category='Technology',
+    ),
+    'carbon_copy': IssueTypeConfig(
+        name='carbon_copy',
+        display_name='Carbon/Duplicate Copy',
+        db_issue_type='carbon_copy',
+        tiers=CARBON_COPY_TIERS,
+        prompt_name='compliance_generic',
+        response_model=DocumentFormatAnalysis,
+        description='Carbon copy or duplicate required',
+        category='Technology',
+    ),
+    'newspaper': IssueTypeConfig(
+        name='newspaper',
+        display_name='Newspaper Publication',
+        db_issue_type='newspaper',
+        tiers=NEWSPAPER_TIERS,
+        prompt_name='compliance_generic',
+        response_model=BaseComplianceAnalysis,
+        description='Newspaper publication required',
+        category='Technology',
+    ),
+
+    # === DOCUMENT FORMAT ===
+    'multiple_copies': IssueTypeConfig(
+        name='multiple_copies',
+        display_name='Multiple Copy Submission',
+        db_issue_type='multiple_copies',
+        tiers=MULTIPLE_COPIES_TIERS,
+        prompt_name='compliance_generic',
+        response_model=DocumentFormatAnalysis,
+        description='Multiple physical copies required',
+        category='Document Format',
+    ),
+    'paper_specs': IssueTypeConfig(
+        name='paper_specs',
+        display_name='Paper Specifications',
+        db_issue_type='paper_specs',
+        tiers=PAPER_SPECS_TIERS,
+        prompt_name='compliance_generic',
+        response_model=DocumentFormatAnalysis,
+        description='Specific paper size/type required',
+        category='Document Format',
+    ),
+    'photo_specs': IssueTypeConfig(
+        name='photo_specs',
+        display_name='Photo Specifications',
+        db_issue_type='photo_specs',
+        tiers=PHOTO_SPECS_TIERS,
+        prompt_name='compliance_generic',
+        response_model=DocumentFormatAnalysis,
+        description='Specific photo size/format required',
+        category='Document Format',
+    ),
+    'letterhead': IssueTypeConfig(
+        name='letterhead',
+        display_name='Letterhead Required',
+        db_issue_type='letterhead',
+        tiers=LETTERHEAD_TIERS,
+        prompt_name='compliance_generic',
+        response_model=DocumentFormatAnalysis,
+        description='Official letterhead required',
+        category='Document Format',
+    ),
+    'handwriting_specs': IssueTypeConfig(
+        name='handwriting_specs',
+        display_name='Handwriting Specifications',
+        db_issue_type='handwriting_specs',
+        tiers=HANDWRITING_SPECS_TIERS,
+        prompt_name='compliance_generic',
+        response_model=DocumentFormatAnalysis,
+        description='Specific handwriting requirements',
+        category='Document Format',
+    ),
+    'binding_required': IssueTypeConfig(
+        name='binding_required',
+        display_name='Binding Required',
+        db_issue_type='binding_required',
+        tiers=BINDING_REQUIRED_TIERS,
+        prompt_name='compliance_generic',
+        response_model=DocumentFormatAnalysis,
+        description='Document binding required',
+        category='Document Format',
+    ),
+
+    # === PROCESS ===
+    'physical_log': IssueTypeConfig(
+        name='physical_log',
+        display_name='Physical Log/Sign-in',
+        db_issue_type='physical_log',
+        tiers=PHYSICAL_LOG_TIERS,
+        prompt_name='compliance_generic',
+        response_model=BaseComplianceAnalysis,
+        description='Physical log book or sign-in sheet required',
+        category='Process',
+    ),
+    'routing_slip': IssueTypeConfig(
+        name='routing_slip',
+        display_name='Routing/Transmittal Slip',
+        db_issue_type='routing_slip',
+        tiers=ROUTING_SLIP_TIERS,
+        prompt_name='compliance_generic',
+        response_model=BaseComplianceAnalysis,
+        description='Routing or transmittal form required',
+        category='Process',
+    ),
+    'storage_location': IssueTypeConfig(
+        name='storage_location',
+        display_name='Specific Storage Location',
+        db_issue_type='storage_location',
+        tiers=STORAGE_LOCATION_TIERS,
+        prompt_name='compliance_generic',
+        response_model=BaseComplianceAnalysis,
+        description='Records must be kept at specific location',
+        category='Process',
+    ),
+    'fixed_window': IssueTypeConfig(
+        name='fixed_window',
+        display_name='Fixed Processing Window',
+        db_issue_type='fixed_window',
+        tiers=FIXED_WINDOW_TIERS,
+        prompt_name='compliance_generic',
+        response_model=BaseComplianceAnalysis,
+        description='Applications only during fixed periods',
+        category='Process',
+    ),
+    'waiting_period': IssueTypeConfig(
+        name='waiting_period',
+        display_name='Mandatory Waiting Period',
+        db_issue_type='waiting_period',
+        tiers=WAITING_PERIOD_TIERS,
+        prompt_name='compliance_generic',
+        response_model=BaseComplianceAnalysis,
+        description='Mandatory waiting period required',
+        category='Process',
+    ),
+
+    # === REPORTING ===
+    'mandated_reports': IssueTypeConfig(
+        name='mandated_reports',
+        display_name='Mandated Reports',
+        db_issue_type='mandated_reports',
+        tiers=MANDATED_REPORTS_TIERS,
+        prompt_name='compliance_generic',
+        response_model=BaseComplianceAnalysis,
+        description='Mandated reporting requirements',
+        category='Reporting',
     ),
 }

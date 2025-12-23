@@ -35,15 +35,19 @@ ISSUE_PATTERNS = {
         'display': 'Mail-Only Submission',
         'category': 'Communication',
         'patterns': [
-            r"by mail",
-            r"mailed to",
+            # Core patterns - actual mail requirements
+            r"must be mailed",
+            r"shall be mailed",
             r"send by mail",
-            r"submit by mail",
-            r"mail the original",
-            r"mailing address",
-            r"\bpostal\b",
+            r"submit.{0,20}by mail",
+            r"mail.{0,10}only",
+            # Postal service references
             r"u\.?s\.?\s*mail",
             r"\busps\b",
+            r"first.{0,10}class.{0,10}mail",
+            r"postal.{0,10}service",
+            r"postmarked by",
+            # SKIP: "by mail", "mailed to", "mailing address" - too noisy
         ],
     },
     'certified_mail': {
@@ -81,8 +85,7 @@ ISSUE_PATTERNS = {
             r"\btelex\b",
             r"\bpager\b",
             r"\bbeeper\b",
-            r"\bwire\b",
-            r"\bcable\b",
+            # SKIP: \bwire\b, \bcable\b - catches wire transfers, not obsolete tech
         ],
     },
     'landline': {
@@ -119,12 +122,10 @@ ISSUE_PATTERNS = {
         'display': 'Cash Only Payment',
         'category': 'Payment',
         'patterns': [
-            r"cash only",
+            r"cash.{0,5}only",
             r"exact change",
             r"no change provided",
-            r"cash payment",
-            r"\bcurrency\b",
-            r"exact amount",
+            # SKIP: \bcurrency\b, cash payment - too many false positives (casino chips, etc)
         ],
     },
     'no_credit_cards': {
@@ -157,16 +158,26 @@ ISSUE_PATTERNS = {
         'display': 'Wet Signature',
         'category': 'Signatures',
         'patterns': [
-            r"original signature",
+            # Explicit wet/ink/handwritten
             r"wet signature",
-            r"sign in ink",
-            r"personally sign",
-            r"hand-signed",
-            r"signature required",
-            r"signed original",
-            r"manual signature",
             r"ink signature",
+            r"handwritten signature",
+            # Original signature
+            r"original signature",
+            # Signed in ink / blue/black ink
+            r"signed in ink",
             r"blue ink",
+            r"black ink",
+            # Manually/physically/personally signed
+            r"manually signed",
+            r"physical signature",
+            r"personally sign",
+            # Notarized signature (implies wet)
+            r"notarized.{0,20}signature",
+            r"signature.{0,20}notari",
+            # Bear the signature
+            r"bear.{0,10}signature",
+            # SKIP: applicant signature - too generic
         ],
     },
     'notarization': {
@@ -187,13 +198,14 @@ ISSUE_PATTERNS = {
         'display': 'Witness Required',
         'category': 'Signatures',
         'patterns': [
-            r"\bwitness\b",
-            r"witnessed by",
             r"two witnesses",
+            r"2 witnesses",
+            r"witness.{0,5}signature",
+            r"witnessed by",
             r"\battested\b",
             r"attestation",
             r"in the presence of",
-            r"witness signature",
+            # SKIP: \bwitness\b - too broad, catches court witnesses
         ],
     },
     'embossed_seal': {
@@ -214,13 +226,15 @@ ISSUE_PATTERNS = {
         'display': 'Original Document Required',
         'category': 'Signatures',
         'patterns': [
-            r"original document",
-            r"original copy",
             r"no photocopies",
             r"original only",
-            r"submit the original",
+            r"submit.{0,10}original",
+            r"provide.{0,10}original",
+            r"original document",
             r"original certificate",
             r"original letter",
+            r"must be.{0,5}original",
+            r"shall be.{0,5}original",
         ],
     },
 
@@ -229,15 +243,12 @@ ISSUE_PATTERNS = {
         'display': 'In-Person Submission',
         'category': 'Physical Presence',
         'patterns': [
-            r"submit in person",
+            r"submit.{0,10}in person",
             r"appear in person",
-            r"in-person submission",
-            r"present yourself",
-            r"come to the office",
-            r"visit the office",
-            r"appear at",
+            r"in.{0,3}person.{0,10}submission",
             r"personal appearance",
-            r"hand-deliver",
+            r"hand.{0,3}deliver",
+            # SKIP: "appear at", "must appear", "shall appear" - too broad
         ],
     },
     'in_person_pickup': {
@@ -396,14 +407,13 @@ ISSUE_PATTERNS = {
         'category': 'Technology',
         'patterns': [
             r"newspaper of general circulation",
-            r"publish in a newspaper",
-            r"newspaper notice",
-            r"legal notice",
-            r"published in print",
-            r"advertise in newspaper",
-            r"newspaper publication",
-            r"print media",
-            r"classified ad",
+            r"publish.{0,20}newspaper",
+            r"published.{0,20}newspaper",
+            r"newspaper.{0,10}notice",
+            r"newspaper.{0,10}publication",
+            r"legal.{0,5}notice",
+            r"local newspaper",
+            r"official newspaper",
         ],
     },
 
@@ -440,13 +450,10 @@ ISSUE_PATTERNS = {
         'display': 'Binding Required',
         'category': 'Document Format',
         'patterns': [
-            r"\bbound\b",
             r"spiral bound",
             r"three-ring binder",
-            r"\bstapled\b",
-            r"bound volume",
-            r"fastened",
-            r"\bclipped\b",
+            r"ring binder",
+            # SKIP: \bbound\b (catches "legally bound"), fastened (non-document uses)
         ],
     },
     'letterhead': {
