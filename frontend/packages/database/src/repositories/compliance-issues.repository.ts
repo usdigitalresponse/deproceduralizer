@@ -9,7 +9,8 @@ import { DeveloperStatusCounts } from './red-flags.repository';
 export interface UpdateComplianceIssueReviewInput {
   reviewStatus: ReviewStatus;
   reviewedBy: string;
-  reviewerNotes?: string;
+  justificationNotes?: string;
+  teamNotes?: string;
   priority?: number;
   impactType?: ImpactType;
 }
@@ -63,7 +64,8 @@ export interface PaginatedComplianceIssuesResult {
 export interface ComplianceIssueStatusCounts {
   unreviewed: number;
   confirmed: number;
-  false_positive: number;
+  rejected_clear_fp: number;
+  rejected_not_obvious_bad: number;
   needs_context: number;
   deferred: number;
   total: number;
@@ -101,7 +103,8 @@ export class ComplianceIssuesRepository extends BaseRepository {
         reviewStatus: data.reviewStatus,
         reviewedBy: data.reviewedBy,
         reviewedAt: new Date(),
-        reviewerNotes: data.reviewerNotes ?? null,
+        justificationNotes: data.justificationNotes ?? null,
+        teamNotes: data.teamNotes ?? null,
         priority: data.priority ?? null,
         impactType: data.impactType ?? null,
       })
@@ -141,7 +144,8 @@ export class ComplianceIssuesRepository extends BaseRepository {
     const counts: ComplianceIssueStatusCounts = {
       unreviewed: 0,
       confirmed: 0,
-      false_positive: 0,
+      rejected_clear_fp: 0,
+      rejected_not_obvious_bad: 0,
       needs_context: 0,
       deferred: 0,
       total: 0,
@@ -297,7 +301,8 @@ export class ComplianceIssuesRepository extends BaseRepository {
         reviewStatus: complianceIssues.reviewStatus,
         reviewedBy: complianceIssues.reviewedBy,
         reviewedAt: complianceIssues.reviewedAt,
-        reviewerNotes: complianceIssues.reviewerNotes,
+        justificationNotes: complianceIssues.justificationNotes,
+        teamNotes: complianceIssues.teamNotes,
         priority: complianceIssues.priority,
         impactType: complianceIssues.impactType,
         // Developer fields
@@ -342,7 +347,8 @@ export class ComplianceIssuesRepository extends BaseRepository {
       reviewStatus: row.reviewStatus,
       reviewedBy: row.reviewedBy,
       reviewedAt: row.reviewedAt,
-      reviewerNotes: row.reviewerNotes,
+      justificationNotes: row.justificationNotes,
+      teamNotes: row.teamNotes,
       priority: row.priority,
       impactType: row.impactType,
       developerStatus: row.developerStatus,
@@ -511,7 +517,8 @@ export class ComplianceIssuesRepository extends BaseRepository {
         reviewStatus: complianceIssues.reviewStatus,
         reviewedBy: complianceIssues.reviewedBy,
         reviewedAt: complianceIssues.reviewedAt,
-        reviewerNotes: complianceIssues.reviewerNotes,
+        justificationNotes: complianceIssues.justificationNotes,
+        teamNotes: complianceIssues.teamNotes,
         priority: complianceIssues.priority,
         impactType: complianceIssues.impactType,
         // Developer fields
@@ -556,7 +563,8 @@ export class ComplianceIssuesRepository extends BaseRepository {
       reviewStatus: row.reviewStatus,
       reviewedBy: row.reviewedBy,
       reviewedAt: row.reviewedAt,
-      reviewerNotes: row.reviewerNotes,
+      justificationNotes: row.justificationNotes,
+      teamNotes: row.teamNotes,
       priority: row.priority,
       impactType: row.impactType,
       developerStatus: row.developerStatus,
@@ -641,7 +649,8 @@ export class ComplianceIssuesRepository extends BaseRepository {
         reviewStatus: complianceIssues.reviewStatus,
         reviewedBy: complianceIssues.reviewedBy,
         reviewedAt: complianceIssues.reviewedAt,
-        reviewerNotes: complianceIssues.reviewerNotes,
+        justificationNotes: complianceIssues.justificationNotes,
+        teamNotes: complianceIssues.teamNotes,
         priority: complianceIssues.priority,
         impactType: complianceIssues.impactType,
         developerStatus: complianceIssues.developerStatus,
@@ -683,7 +692,8 @@ export class ComplianceIssuesRepository extends BaseRepository {
       reviewStatus: row.reviewStatus,
       reviewedBy: row.reviewedBy,
       reviewedAt: row.reviewedAt,
-      reviewerNotes: row.reviewerNotes,
+      justificationNotes: row.justificationNotes,
+      teamNotes: row.teamNotes,
       priority: row.priority,
       impactType: row.impactType,
       developerStatus: row.developerStatus,

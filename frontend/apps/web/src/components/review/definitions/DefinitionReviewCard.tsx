@@ -61,8 +61,8 @@ export const DefinitionReviewCard = forwardRef<HTMLDivElement, DefinitionReviewC
       definitionType: definition.definitionType || 'formal',
       isCrossReference: definition.isCrossReference ?? false,
       reviewerName: '',
-      correctionReason: '',
-      modelFeedback: '',
+      justificationNotes: '',
+      teamNotes: '',
     });
 
     // Pre-fill reviewer name from localStorage
@@ -138,7 +138,7 @@ export const DefinitionReviewCard = forwardRef<HTMLDivElement, DefinitionReviewC
         return;
       }
 
-      if (!formData.correctionReason.trim()) {
+      if (!formData.justificationNotes.trim()) {
         setError('Please explain why you made this correction');
         return;
       }
@@ -148,8 +148,8 @@ export const DefinitionReviewCard = forwardRef<HTMLDivElement, DefinitionReviewC
           const result = await updateDefinitionReview(definition.id, {
             reviewStatus: 'corrected',
             reviewerName: formData.reviewerName,
-            correctionReason: formData.correctionReason,
-            modelFeedback: formData.modelFeedback || undefined,
+            justificationNotes: formData.justificationNotes,
+            teamNotes: formData.teamNotes || undefined,
             term: formData.term,
             isVerbatim: formData.isVerbatim,
             verbatimText: formData.verbatimText,
@@ -182,7 +182,7 @@ export const DefinitionReviewCard = forwardRef<HTMLDivElement, DefinitionReviewC
         return;
       }
 
-      if (!formData.correctionReason.trim()) {
+      if (!formData.justificationNotes.trim()) {
         setError('Please explain why this is not a definition');
         return;
       }
@@ -192,8 +192,8 @@ export const DefinitionReviewCard = forwardRef<HTMLDivElement, DefinitionReviewC
           const result = await updateDefinitionReview(definition.id, {
             reviewStatus: 'false_positive',
             reviewerName: formData.reviewerName,
-            correctionReason: formData.correctionReason,
-            modelFeedback: formData.modelFeedback || undefined,
+            justificationNotes: formData.justificationNotes,
+            teamNotes: formData.teamNotes || undefined,
           });
 
           if (!result.success) {
@@ -514,15 +514,15 @@ export const DefinitionReviewCard = forwardRef<HTMLDivElement, DefinitionReviewC
           )}
         </div>
 
-        {/* Correction Notes */}
+        {/* Notes for Review */}
         <div className="mt-4 space-y-3">
           <div>
             <label className="text-sm font-medium text-[var(--color-text)]">
-              Why did you make this correction? {hasChanges() && <span className="text-[var(--color-danger)]">*</span>}
+              Justification and analysis for the model {hasChanges() && <span className="text-[var(--color-danger)]">*</span>}
             </label>
             <Textarea
-              value={formData.correctionReason}
-              onChange={(e) => setFormData(prev => ({ ...prev, correctionReason: e.target.value }))}
+              value={formData.justificationNotes}
+              onChange={(e) => setFormData(prev => ({ ...prev, justificationNotes: e.target.value }))}
               rows={2}
               placeholder="Required if correcting or marking as false positive"
             />
@@ -530,13 +530,13 @@ export const DefinitionReviewCard = forwardRef<HTMLDivElement, DefinitionReviewC
 
           <div>
             <label className="text-sm font-medium text-[var(--color-text)]">
-              Feedback for model (optional)
+              Notes for Development Team
             </label>
             <Textarea
-              value={formData.modelFeedback}
-              onChange={(e) => setFormData(prev => ({ ...prev, modelFeedback: e.target.value }))}
+              value={formData.teamNotes}
+              onChange={(e) => setFormData(prev => ({ ...prev, teamNotes: e.target.value }))}
               rows={2}
-              placeholder="Suggestions to improve future LLM extractions"
+              placeholder="Process notes, research tasks, questions..."
             />
           </div>
 

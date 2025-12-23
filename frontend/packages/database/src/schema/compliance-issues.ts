@@ -26,7 +26,8 @@ export const complianceIssues = pgTable('compliance_issues', {
   reviewStatus: varchar('review_status', { length: 50 }).default('unreviewed'),
   reviewedBy: varchar('reviewed_by', { length: 255 }),
   reviewedAt: timestamp('reviewed_at'),
-  reviewerNotes: text('reviewer_notes'),
+  justificationNotes: text('justification_notes'),
+  teamNotes: text('team_notes'),
   priority: integer('priority'),
   impactType: varchar('impact_type', { length: 100 }),
 
@@ -59,6 +60,13 @@ export const ISSUE_TYPES = [
 ] as const;
 export type IssueType = typeof ISSUE_TYPES[number];
 
-// Shared types from red-flags
+// Shared types and constants from red-flags
 export type { ReviewStatus, DeveloperStatus, ResolutionType, Developer } from './red-flags';
-export { DEVELOPER_STATUSES, RESOLUTION_TYPES, DEVELOPERS } from './red-flags';
+export {
+  REVIEW_STATUSES,
+  REVIEW_STATUS_LABELS,
+  REVIEW_STATUS_DESCRIPTIONS,
+  DEVELOPER_STATUSES,
+  RESOLUTION_TYPES,
+  DEVELOPERS
+} from './red-flags';

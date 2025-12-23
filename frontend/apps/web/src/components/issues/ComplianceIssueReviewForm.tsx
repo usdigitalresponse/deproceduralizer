@@ -25,7 +25,8 @@ export default function ComplianceIssueReviewForm({ issue, onUpdated }: Complian
           id: data.id,
           reviewStatus: data.reviewStatus,
           reviewedBy: data.reviewedBy,
-          reviewerNotes: data.reviewerNotes,
+          justificationNotes: data.justificationNotes,
+          teamNotes: data.teamNotes,
           priority: data.priority,
           impactType: data.impactType,
         });

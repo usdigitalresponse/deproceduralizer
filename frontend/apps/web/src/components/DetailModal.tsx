@@ -29,7 +29,8 @@ interface DetailModalProps {
     reviewStatus?: string;
     reviewedBy?: string;
     reviewedAt?: string;
-    reviewerNotes?: string;
+    justificationNotes?: string;
+    teamNotes?: string;
     priority?: number;
     impactType?: string;
   }) => void;

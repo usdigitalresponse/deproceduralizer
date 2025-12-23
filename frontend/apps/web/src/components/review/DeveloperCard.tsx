@@ -229,9 +229,14 @@ export const DeveloperCard = forwardRef<HTMLDivElement, DeveloperCardProps>(
               </div>
             )}
           </div>
-          {item.reviewerNotes && (
-            <div className="mt-2 text-sm text-[var(--color-text)]">
-              {item.reviewerNotes}
+          {(item.justificationNotes || item.teamNotes) && (
+            <div className="mt-2 text-sm text-[var(--color-text)] space-y-1">
+              {item.justificationNotes && (
+                <p><span className="text-[var(--color-text-muted)]">Justification:</span> {item.justificationNotes}</p>
+              )}
+              {item.teamNotes && (
+                <p><span className="text-[var(--color-text-muted)]">Team notes:</span> {item.teamNotes}</p>
+              )}
             </div>
           )}
         </div>

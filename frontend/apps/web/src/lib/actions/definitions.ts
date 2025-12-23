@@ -242,8 +242,8 @@ export async function updateDefinitionReview(
   update: {
     reviewStatus: 'confirmed' | 'corrected' | 'false_positive';
     reviewerName: string;
-    correctionReason?: string;
-    modelFeedback?: string;
+    justificationNotes?: string;
+    teamNotes?: string;
     // Editable fields (only included if being corrected)
     term?: string;
     isVerbatim?: boolean;
@@ -272,14 +272,14 @@ export async function bulkUpdateDefinitionReviewStatus(
   ids: number[],
   reviewStatus: 'confirmed' | 'false_positive',
   reviewerName: string,
-  correctionReason?: string
+  justificationNotes?: string
 ): Promise<ActionResult<number>> {
   try {
     const count = await definitionsRepo.bulkUpdateReviewStatus(
       ids,
       reviewStatus,
       reviewerName,
-      correctionReason
+      justificationNotes
     );
     return success(count);
   } catch (error) {

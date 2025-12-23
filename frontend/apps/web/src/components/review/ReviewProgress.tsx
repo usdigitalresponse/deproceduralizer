@@ -35,7 +35,8 @@ export function ReviewProgress({ counts, className = '' }: ReviewProgressProps) 
       <div className="flex flex-wrap gap-4 text-xs">
         <StatusCount label="Unreviewed" count={counts.unreviewed} color="neutral" />
         <StatusCount label="Confirmed" count={counts.confirmed} color="success" />
-        <StatusCount label="False Positive" count={counts.false_positive} color="muted" />
+        <StatusCount label="Rejected (Clear FP)" count={counts.rejected_clear_fp} color="muted" />
+        <StatusCount label="Rejected (Not Obvious)" count={counts.rejected_not_obvious_bad} color="muted" />
         <StatusCount label="Needs Context" count={counts.needs_context} color="warning" />
         <StatusCount label="Deferred" count={counts.deferred} color="info" />
       </div>

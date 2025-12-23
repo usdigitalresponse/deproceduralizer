@@ -12,6 +12,8 @@ type BadgeVariant =
   | 'unreviewed'
   | 'confirmed'
   | 'false_positive'
+  | 'rejected_clear_fp'
+  | 'rejected_not_obvious_bad'
   | 'needs_context'
   | 'deferred';
 
@@ -28,7 +30,9 @@ const variantStyles: Record<BadgeVariant, string> = {
   // Review status variants
   unreviewed: 'bg-[var(--color-neutral-100)] text-[var(--color-text-muted)]',
   confirmed: 'bg-[var(--color-success-bg)] text-[var(--color-success)]',
-  false_positive: 'bg-[var(--color-neutral-200)] text-[var(--color-neutral-600)]',
+  false_positive: 'bg-[var(--color-neutral-200)] text-[var(--color-neutral-600)]', // For definitions
+  rejected_clear_fp: 'bg-[var(--color-neutral-200)] text-[var(--color-neutral-600)]',
+  rejected_not_obvious_bad: 'bg-[var(--color-neutral-300)] text-[var(--color-neutral-700)]',
   needs_context: 'bg-[var(--color-warning-bg)] text-[var(--color-neutral-800)]',
   deferred: 'bg-[var(--color-info-bg)] text-[var(--color-info)]',
 };
@@ -91,7 +95,9 @@ interface ReviewStatusBadgeProps extends HTMLAttributes<HTMLSpanElement> {
 const statusLabels: Record<string, string> = {
   unreviewed: 'Unreviewed',
   confirmed: 'Confirmed',
-  false_positive: 'False Positive',
+  false_positive: 'False Positive', // For definitions
+  rejected_clear_fp: 'Rejected - Clear FP',
+  rejected_not_obvious_bad: 'Rejected - Not Obviously Bad',
   needs_context: 'Needs Context',
   deferred: 'Deferred',
 };

@@ -6,7 +6,8 @@ import { useReviewerName } from './useReviewerName';
 export interface ReviewFormData {
   reviewStatus: string;
   reviewedBy: string;
-  reviewerNotes: string | undefined;
+  justificationNotes: string | undefined;
+  teamNotes: string | undefined;
   priority: number | undefined;
   impactType: string | undefined;
 }
@@ -16,7 +17,8 @@ export interface ReviewFormCallbackData {
   reviewStatus?: string;
   reviewedBy?: string;
   reviewedAt?: string;
-  reviewerNotes?: string;
+  justificationNotes?: string;
+  teamNotes?: string;
   priority?: number;
   impactType?: string;
 }
@@ -26,7 +28,8 @@ interface UseReviewFormOptions {
     id: number;
     reviewStatus?: string | null;
     reviewedBy?: string | null;
-    reviewerNotes?: string | null;
+    justificationNotes?: string | null;
+    teamNotes?: string | null;
     priority?: number | null;
     impactType?: string | null;
   };
@@ -36,7 +39,8 @@ interface UseReviewFormOptions {
       reviewStatus?: string | null;
       reviewedBy?: string | null;
       reviewedAt?: Date | null;
-      reviewerNotes?: string | null;
+      justificationNotes?: string | null;
+      teamNotes?: string | null;
       priority?: number | null;
       impactType?: string | null;
     };
@@ -67,7 +71,8 @@ export function useReviewForm({ initialData, onSubmit, onUpdated }: UseReviewFor
   const [formData, setFormData] = useState<ReviewFormData>({
     reviewStatus: initialData.reviewStatus || 'unreviewed',
     reviewedBy: initialData.reviewedBy || '',
-    reviewerNotes: initialData.reviewerNotes || undefined,
+    justificationNotes: initialData.justificationNotes || undefined,
+    teamNotes: initialData.teamNotes || undefined,
     priority: initialData.priority || undefined,
     impactType: initialData.impactType || undefined,
   });
@@ -100,7 +105,8 @@ export function useReviewForm({ initialData, onSubmit, onUpdated }: UseReviewFor
           id: initialData.id,
           reviewStatus: formData.reviewStatus,
           reviewedBy: formData.reviewedBy,
-          reviewerNotes: formData.reviewerNotes || undefined,
+          justificationNotes: formData.justificationNotes || undefined,
+          teamNotes: formData.teamNotes || undefined,
           priority: formData.priority,
           impactType: formData.impactType || undefined,
         });
@@ -118,7 +124,8 @@ export function useReviewForm({ initialData, onSubmit, onUpdated }: UseReviewFor
           reviewStatus: result.data.reviewStatus ?? undefined,
           reviewedBy: result.data.reviewedBy ?? undefined,
           reviewedAt: result.data.reviewedAt?.toISOString(),
-          reviewerNotes: result.data.reviewerNotes ?? undefined,
+          justificationNotes: result.data.justificationNotes ?? undefined,
+          teamNotes: result.data.teamNotes ?? undefined,
           priority: result.data.priority ?? undefined,
           impactType: result.data.impactType ?? undefined,
         });

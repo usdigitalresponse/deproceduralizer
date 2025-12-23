@@ -18,7 +18,8 @@ interface RedFlag {
   reviewStatus: string | null;
   reviewedBy: string | null;
   reviewedAt: Date | null;
-  reviewerNotes: string | null;
+  justificationNotes: string | null;
+  teamNotes: string | null;
   priority: number | null;
   impactType: string | null;
 }
@@ -35,7 +36,8 @@ export function RedFlagsList({ initialFlags }: RedFlagsListProps) {
     reviewStatus?: string;
     reviewedBy?: string;
     reviewedAt?: string;
-    reviewerNotes?: string;
+    justificationNotes?: string;
+    teamNotes?: string;
     priority?: number;
     impactType?: string;
   }) => {
@@ -47,7 +49,8 @@ export function RedFlagsList({ initialFlags }: RedFlagsListProps) {
               reviewStatus: updatedFlag.reviewStatus ?? flag.reviewStatus,
               reviewedBy: updatedFlag.reviewedBy ?? flag.reviewedBy,
               reviewedAt: updatedFlag.reviewedAt ? new Date(updatedFlag.reviewedAt) : flag.reviewedAt,
-              reviewerNotes: updatedFlag.reviewerNotes ?? flag.reviewerNotes,
+              justificationNotes: updatedFlag.justificationNotes ?? flag.justificationNotes,
+              teamNotes: updatedFlag.teamNotes ?? flag.teamNotes,
               priority: updatedFlag.priority ?? flag.priority,
               impactType: updatedFlag.impactType ?? flag.impactType,
             }

@@ -23,7 +23,7 @@ export const NeedMoreInfoCard = forwardRef<HTMLDivElement, NeedMoreInfoCardProps
   ({ item, isOwner, onUpdated, onViewRegulation, isFocused = false }, ref) => {
     const [isPending, startTransition] = useTransition();
     const [error, setError] = useState<string | null>(null);
-    const [responseNotes, setResponseNotes] = useState(item.reviewerNotes || '');
+    const [responseNotes, setResponseNotes] = useState(item.teamNotes || '');
 
     const handleSubmitResponse = async (e: React.FormEvent) => {
       e.preventDefault();
@@ -36,20 +36,20 @@ export const NeedMoreInfoCard = forwardRef<HTMLDivElement, NeedMoreInfoCardProps
               id: item.id,
               reviewStatus: item.reviewStatus || 'unreviewed',
               reviewedBy: item.reviewedBy || '',
-              reviewerNotes: responseNotes,
+              teamNotes: responseNotes,
             });
           } else {
             await updateComplianceIssueReview({
               id: item.id,
               reviewStatus: item.reviewStatus || 'unreviewed',
               reviewedBy: item.reviewedBy || '',
-              reviewerNotes: responseNotes,
+              teamNotes: responseNotes,
             });
           }
 
           onUpdated({
             ...item,
-            reviewerNotes: responseNotes,
+            teamNotes: responseNotes,
           });
         } catch (err) {
           setError(err instanceof Error ? err.message : 'Failed to update response');
@@ -168,10 +168,20 @@ export const NeedMoreInfoCard = forwardRef<HTMLDivElement, NeedMoreInfoCardProps
         </div>
 
         {/* Original review notes */}
-        {item.reviewerNotes && (
-          <div className="mb-4 text-sm">
-            <span className="font-medium text-[var(--color-text-secondary)]">Current Notes:</span>
-            <p className="text-[var(--color-text)] mt-1">{item.reviewerNotes}</p>
+        {(item.justificationNotes || item.teamNotes) && (
+          <div className="mb-4 text-sm space-y-2">
+            {item.justificationNotes && (
+              <div>
+                <span className="font-medium text-[var(--color-text-secondary)]">Justification:</span>
+                <p className="text-[var(--color-text)] mt-1">{item.justificationNotes}</p>
+              </div>
+            )}
+            {item.teamNotes && (
+              <div>
+                <span className="font-medium text-[var(--color-text-secondary)]">Team Notes:</span>
+                <p className="text-[var(--color-text)] mt-1">{item.teamNotes}</p>
+              </div>
+            )}
           </div>
         )}
 

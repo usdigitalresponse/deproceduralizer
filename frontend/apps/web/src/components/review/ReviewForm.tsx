@@ -14,7 +14,8 @@ export interface ReviewableItem {
   id: number;
   reviewStatus?: string | null;
   reviewedBy?: string | null;
-  reviewerNotes?: string | null;
+  justificationNotes?: string | null;
+  teamNotes?: string | null;
   priority?: number | null;
   impactType?: string | null;
 }
@@ -27,8 +28,8 @@ interface ReviewFormProps<T extends ReviewableItem> {
   /** Callback when review is successfully updated */
   onUpdated: (data: ReviewFormCallbackData) => void;
   /** API function to update the review */
-  onSubmit: (data: { id: number; reviewStatus: string; reviewedBy: string; reviewerNotes?: string; priority?: number; impactType?: string }) => Promise<
-    | { success: true; data: { reviewStatus?: string | null; reviewedBy?: string | null; reviewedAt?: Date | null; reviewerNotes?: string | null; priority?: number | null; impactType?: string | null } }
+  onSubmit: (data: { id: number; reviewStatus: string; reviewedBy: string; justificationNotes?: string; teamNotes?: string; priority?: number; impactType?: string }) => Promise<
+    | { success: true; data: { reviewStatus?: string | null; reviewedBy?: string | null; reviewedAt?: Date | null; justificationNotes?: string | null; teamNotes?: string | null; priority?: number | null; impactType?: string | null } }
     | { success: false; error: string }
   >;
   /** Placeholder text for notes textarea */
@@ -79,7 +80,8 @@ export function ReviewForm<T extends ReviewableItem>({
         id: data.id,
         reviewStatus: data.reviewStatus,
         reviewedBy: data.reviewedBy,
-        reviewerNotes: data.reviewerNotes,
+        justificationNotes: data.justificationNotes,
+        teamNotes: data.teamNotes,
         priority: data.priority,
         impactType: data.impactType,
       });
@@ -121,10 +123,19 @@ export function ReviewForm<T extends ReviewableItem>({
             {!item.reviewStatus || item.reviewStatus === 'unreviewed' ? 'Review' : 'Edit Review'}
           </Button>
         </div>
-        {item.reviewerNotes && (
-          <p className="mt-2 text-sm text-[var(--color-text-secondary)] italic">
-            Notes: {item.reviewerNotes}
-          </p>
+        {(item.justificationNotes || item.teamNotes) && (
+          <div className="mt-2 space-y-1">
+            {item.justificationNotes && (
+              <p className="text-sm text-[var(--color-text-secondary)] italic">
+                Justification: {item.justificationNotes}
+              </p>
+            )}
+            {item.teamNotes && (
+              <p className="text-sm text-[var(--color-text-muted)] italic">
+                Team notes: {item.teamNotes}
+              </p>
+            )}
+          </div>
         )}
       </div>
     );
@@ -190,13 +201,26 @@ export function ReviewForm<T extends ReviewableItem>({
 
       <div>
         <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">
-          Reviewer Notes
+          Justification and analysis for the model
         </label>
         <Textarea
-          value={formData.reviewerNotes ?? ''}
-          onChange={(e) => updateField('reviewerNotes', e.target.value || undefined)}
+          value={formData.justificationNotes ?? ''}
+          onChange={(e) => updateField('justificationNotes', e.target.value || undefined)}
           rows={2}
-          placeholder={notesPlaceholder || defaultNotesPlaceholder}
+          placeholder="Explain your reasoning for this classification..."
+          disabled={isPending}
+        />
+      </div>
+
+      <div>
+        <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">
+          Notes for Development Team
+        </label>
+        <Textarea
+          value={formData.teamNotes ?? ''}
+          onChange={(e) => updateField('teamNotes', e.target.value || undefined)}
+          rows={2}
+          placeholder={notesPlaceholder || "Process notes, research tasks, questions..."}
           disabled={isPending}
         />
       </div>

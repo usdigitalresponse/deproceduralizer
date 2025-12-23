@@ -21,7 +21,8 @@ export interface UpdateRedFlagInput {
   id: number;
   reviewStatus: string;
   reviewedBy: string;
-  reviewerNotes?: string;
+  justificationNotes?: string;
+  teamNotes?: string;
   priority?: number;
   impactType?: string;
 }
@@ -46,7 +47,8 @@ export async function updateRedFlagReview(
     const result = await redFlagsRepo.updateReview(input.id, {
       reviewStatus: input.reviewStatus as ReviewStatus,
       reviewedBy: input.reviewedBy,
-      reviewerNotes: input.reviewerNotes,
+      justificationNotes: input.justificationNotes,
+      teamNotes: input.teamNotes,
       priority: input.priority,
       impactType: input.impactType as ImpactType | undefined,
     });
@@ -101,7 +103,8 @@ export async function getRedFlagCategories(
 export interface ReviewStatusCounts {
   unreviewed: number;
   confirmed: number;
-  false_positive: number;
+  rejected_clear_fp: number;
+  rejected_not_obvious_bad: number;
   needs_context: number;
   deferred: number;
   total: number;

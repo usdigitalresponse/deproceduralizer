@@ -27,7 +27,8 @@ export interface RegulationWithAnalysis extends RegulatoryDocument {
     reviewStatus: string | null;
     reviewedBy: string | null;
     reviewedAt: Date | null;
-    reviewerNotes: string | null;
+    justificationNotes: string | null;
+    teamNotes: string | null;
     priority: number | null;
     impactType: string | null;
   }>;

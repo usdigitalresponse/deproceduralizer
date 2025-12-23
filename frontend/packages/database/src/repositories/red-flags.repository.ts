@@ -8,7 +8,8 @@ import { StateCode } from '../schema/constants';
 export interface UpdateRedFlagReviewInput {
   reviewStatus: ReviewStatus;
   reviewedBy: string;
-  reviewerNotes?: string;
+  justificationNotes?: string;
+  teamNotes?: string;
   priority?: number;
   impactType?: ImpactType;
 }
@@ -61,7 +62,8 @@ export interface PaginatedRedFlagsResult {
 export interface ReviewStatusCounts {
   unreviewed: number;
   confirmed: number;
-  false_positive: number;
+  rejected_clear_fp: number;
+  rejected_not_obvious_bad: number;
   needs_context: number;
   deferred: number;
   total: number;
@@ -101,7 +103,8 @@ export class RedFlagsRepository extends BaseRepository {
         reviewStatus: data.reviewStatus,
         reviewedBy: data.reviewedBy,
         reviewedAt: new Date(),
-        reviewerNotes: data.reviewerNotes ?? null,
+        justificationNotes: data.justificationNotes ?? null,
+        teamNotes: data.teamNotes ?? null,
         priority: data.priority ?? null,
         impactType: data.impactType ?? null,
       })
@@ -165,7 +168,8 @@ export class RedFlagsRepository extends BaseRepository {
     const counts: ReviewStatusCounts = {
       unreviewed: 0,
       confirmed: 0,
-      false_positive: 0,
+      rejected_clear_fp: 0,
+      rejected_not_obvious_bad: 0,
       needs_context: 0,
       deferred: 0,
       total: 0,
@@ -265,7 +269,8 @@ export class RedFlagsRepository extends BaseRepository {
         reviewStatus: redFlags.reviewStatus,
         reviewedBy: redFlags.reviewedBy,
         reviewedAt: redFlags.reviewedAt,
-        reviewerNotes: redFlags.reviewerNotes,
+        justificationNotes: redFlags.justificationNotes,
+        teamNotes: redFlags.teamNotes,
         priority: redFlags.priority,
         impactType: redFlags.impactType,
         // Developer fields
@@ -307,7 +312,8 @@ export class RedFlagsRepository extends BaseRepository {
       reviewStatus: row.reviewStatus,
       reviewedBy: row.reviewedBy,
       reviewedAt: row.reviewedAt,
-      reviewerNotes: row.reviewerNotes,
+      justificationNotes: row.justificationNotes,
+      teamNotes: row.teamNotes,
       priority: row.priority,
       impactType: row.impactType,
       developerStatus: row.developerStatus,
@@ -486,7 +492,8 @@ export class RedFlagsRepository extends BaseRepository {
         reviewStatus: redFlags.reviewStatus,
         reviewedBy: redFlags.reviewedBy,
         reviewedAt: redFlags.reviewedAt,
-        reviewerNotes: redFlags.reviewerNotes,
+        justificationNotes: redFlags.justificationNotes,
+        teamNotes: redFlags.teamNotes,
         priority: redFlags.priority,
         impactType: redFlags.impactType,
         // Developer fields
@@ -528,7 +535,8 @@ export class RedFlagsRepository extends BaseRepository {
       reviewStatus: row.reviewStatus,
       reviewedBy: row.reviewedBy,
       reviewedAt: row.reviewedAt,
-      reviewerNotes: row.reviewerNotes,
+      justificationNotes: row.justificationNotes,
+      teamNotes: row.teamNotes,
       priority: row.priority,
       impactType: row.impactType,
       developerStatus: row.developerStatus,
@@ -611,7 +619,8 @@ export class RedFlagsRepository extends BaseRepository {
         reviewStatus: redFlags.reviewStatus,
         reviewedBy: redFlags.reviewedBy,
         reviewedAt: redFlags.reviewedAt,
-        reviewerNotes: redFlags.reviewerNotes,
+        justificationNotes: redFlags.justificationNotes,
+        teamNotes: redFlags.teamNotes,
         priority: redFlags.priority,
         impactType: redFlags.impactType,
         developerStatus: redFlags.developerStatus,
@@ -650,7 +659,8 @@ export class RedFlagsRepository extends BaseRepository {
       reviewStatus: row.reviewStatus,
       reviewedBy: row.reviewedBy,
       reviewedAt: row.reviewedAt,
-      reviewerNotes: row.reviewerNotes,
+      justificationNotes: row.justificationNotes,
+      teamNotes: row.teamNotes,
       priority: row.priority,
       impactType: row.impactType,
       developerStatus: row.developerStatus,

@@ -38,7 +38,8 @@ export const REVIEW_STATUS_FILTER_OPTIONS = [
   { value: 'all', label: 'All Statuses' },
   { value: 'unreviewed', label: 'Unreviewed' },
   { value: 'confirmed', label: 'Confirmed' },
-  { value: 'false_positive', label: 'False Positive' },
+  { value: 'rejected_clear_fp', label: 'Rejected - Clear FP' },
+  { value: 'rejected_not_obvious_bad', label: 'Rejected - Not Obviously Bad' },
   { value: 'needs_context', label: 'Needs Context' },
   { value: 'deferred', label: 'Deferred' },
 ];

@@ -204,8 +204,8 @@ export class DefinitionsRepository extends BaseRepository {
         d.review_status as "reviewStatus",
         d.reviewed_at as "reviewedAt",
         d.reviewer_name as "reviewerName",
-        d.correction_reason as "correctionReason",
-        d.model_feedback as "modelFeedback",
+        d.justification_notes as "justificationNotes",
+        d.team_notes as "teamNotes",
         d.original_values as "originalValues",
         -- Regulation context (where definition is defined)
         rd.id as "regId",
@@ -263,8 +263,8 @@ export class DefinitionsRepository extends BaseRepository {
       reviewStatus: row.reviewStatus,
       reviewedAt: row.reviewedAt,
       reviewerName: row.reviewerName,
-      correctionReason: row.correctionReason,
-      modelFeedback: row.modelFeedback,
+      justificationNotes: row.justificationNotes,
+      teamNotes: row.teamNotes,
       originalValues: row.originalValues,
       regulation: row.regId ? {
         id: Number(row.regId),
@@ -384,8 +384,8 @@ export class DefinitionsRepository extends BaseRepository {
         reviewStatus: definitions.reviewStatus,
         reviewedAt: definitions.reviewedAt,
         reviewerName: definitions.reviewerName,
-        correctionReason: definitions.correctionReason,
-        modelFeedback: definitions.modelFeedback,
+        justificationNotes: definitions.justificationNotes,
+        teamNotes: definitions.teamNotes,
         originalValues: definitions.originalValues,
         // Regulation context
         regulationId: regulatoryDocuments.id,
@@ -430,8 +430,8 @@ export class DefinitionsRepository extends BaseRepository {
       reviewStatus: row.reviewStatus,
       reviewedAt: row.reviewedAt,
       reviewerName: row.reviewerName,
-      correctionReason: row.correctionReason,
-      modelFeedback: row.modelFeedback,
+      justificationNotes: row.justificationNotes,
+      teamNotes: row.teamNotes,
       originalValues: row.originalValues,
       regulation: row.regulationId ? {
         id: row.regulationId,
@@ -534,8 +534,8 @@ export class DefinitionsRepository extends BaseRepository {
         reviewStatus: definitions.reviewStatus,
         reviewedAt: definitions.reviewedAt,
         reviewerName: definitions.reviewerName,
-        correctionReason: definitions.correctionReason,
-        modelFeedback: definitions.modelFeedback,
+        justificationNotes: definitions.justificationNotes,
+        teamNotes: definitions.teamNotes,
         originalValues: definitions.originalValues,
         regulationId: regulatoryDocuments.id,
         regulationTitle: regulatoryDocuments.title,
@@ -580,8 +580,8 @@ export class DefinitionsRepository extends BaseRepository {
       reviewStatus: row.reviewStatus,
       reviewedAt: row.reviewedAt,
       reviewerName: row.reviewerName,
-      correctionReason: row.correctionReason,
-      modelFeedback: row.modelFeedback,
+      justificationNotes: row.justificationNotes,
+      teamNotes: row.teamNotes,
       originalValues: row.originalValues,
       regulation: row.regulationId ? {
         id: row.regulationId,
@@ -778,8 +778,8 @@ export class DefinitionsRepository extends BaseRepository {
         reviewStatus: definitions.reviewStatus,
         reviewedAt: definitions.reviewedAt,
         reviewerName: definitions.reviewerName,
-        correctionReason: definitions.correctionReason,
-        modelFeedback: definitions.modelFeedback,
+        justificationNotes: definitions.justificationNotes,
+        teamNotes: definitions.teamNotes,
         originalValues: definitions.originalValues,
         regulationId: regulatoryDocuments.id,
         regulationTitle: regulatoryDocuments.title,
@@ -822,8 +822,8 @@ export class DefinitionsRepository extends BaseRepository {
       reviewStatus: row.reviewStatus,
       reviewedAt: row.reviewedAt,
       reviewerName: row.reviewerName,
-      correctionReason: row.correctionReason,
-      modelFeedback: row.modelFeedback,
+      justificationNotes: row.justificationNotes,
+      teamNotes: row.teamNotes,
       originalValues: row.originalValues,
       regulation: row.regulationId ? {
         id: row.regulationId,
@@ -929,8 +929,8 @@ export class DefinitionsRepository extends BaseRepository {
         reviewStatus: definitions.reviewStatus,
         reviewedAt: definitions.reviewedAt,
         reviewerName: definitions.reviewerName,
-        correctionReason: definitions.correctionReason,
-        modelFeedback: definitions.modelFeedback,
+        justificationNotes: definitions.justificationNotes,
+        teamNotes: definitions.teamNotes,
         originalValues: definitions.originalValues,
       })
       .from(definitionDocumentOccurrences)
@@ -1087,8 +1087,8 @@ export class DefinitionsRepository extends BaseRepository {
         reviewStatus: definitions.reviewStatus,
         reviewedAt: definitions.reviewedAt,
         reviewerName: definitions.reviewerName,
-        correctionReason: definitions.correctionReason,
-        modelFeedback: definitions.modelFeedback,
+        justificationNotes: definitions.justificationNotes,
+        teamNotes: definitions.teamNotes,
         originalValues: definitions.originalValues,
         regulationId: regulatoryDocuments.id,
         regulationTitle: regulatoryDocuments.title,
@@ -1146,8 +1146,8 @@ export class DefinitionsRepository extends BaseRepository {
         reviewStatus: row.reviewStatus,
         reviewedAt: row.reviewedAt,
         reviewerName: row.reviewerName,
-        correctionReason: row.correctionReason,
-        modelFeedback: row.modelFeedback,
+        justificationNotes: row.justificationNotes,
+        teamNotes: row.teamNotes,
         originalValues: row.originalValues,
         scopeIsAncestor: computedScopeIsAncestor,
         regulation: row.regulationId ? {
@@ -1207,8 +1207,8 @@ export class DefinitionsRepository extends BaseRepository {
     update: {
       reviewStatus: 'confirmed' | 'corrected' | 'false_positive';
       reviewerName: string;
-      correctionReason?: string;
-      modelFeedback?: string;
+      justificationNotes?: string;
+      teamNotes?: string;
       // Editable fields (only included if being corrected)
       term?: string;
       isVerbatim?: boolean;
@@ -1239,11 +1239,11 @@ export class DefinitionsRepository extends BaseRepository {
       reviewerName: update.reviewerName,
     };
 
-    if (update.correctionReason !== undefined) {
-      updateData.correctionReason = update.correctionReason;
+    if (update.justificationNotes !== undefined) {
+      updateData.justificationNotes = update.justificationNotes;
     }
-    if (update.modelFeedback !== undefined) {
-      updateData.modelFeedback = update.modelFeedback;
+    if (update.teamNotes !== undefined) {
+      updateData.teamNotes = update.teamNotes;
     }
 
     // If correcting, store original values and apply corrections
@@ -1311,7 +1311,7 @@ export class DefinitionsRepository extends BaseRepository {
     ids: number[],
     reviewStatus: 'confirmed' | 'false_positive',
     reviewerName: string,
-    correctionReason?: string
+    justificationNotes?: string
   ): Promise<number> {
     if (ids.length === 0) return 0;
 
@@ -1321,7 +1321,7 @@ export class DefinitionsRepository extends BaseRepository {
         reviewStatus,
         reviewedAt: new Date(),
         reviewerName,
-        correctionReason: correctionReason ?? null,
+        justificationNotes: justificationNotes ?? null,
       })
       .where(inArray(definitions.id, ids));
 
@@ -1531,8 +1531,8 @@ export class DefinitionsRepository extends BaseRepository {
         reviewStatus: definitions.reviewStatus,
         reviewedAt: definitions.reviewedAt,
         reviewerName: definitions.reviewerName,
-        correctionReason: definitions.correctionReason,
-        modelFeedback: definitions.modelFeedback,
+        justificationNotes: definitions.justificationNotes,
+        teamNotes: definitions.teamNotes,
         originalValues: definitions.originalValues,
         regulationId: regulatoryDocuments.id,
         regulationTitle: regulatoryDocuments.title,
@@ -1574,8 +1574,8 @@ export class DefinitionsRepository extends BaseRepository {
         reviewStatus: row.reviewStatus,
         reviewedAt: row.reviewedAt,
         reviewerName: row.reviewerName,
-        correctionReason: row.correctionReason,
-        modelFeedback: row.modelFeedback,
+        justificationNotes: row.justificationNotes,
+        teamNotes: row.teamNotes,
         originalValues: row.originalValues,
         regulation: row.regulationId ? {
           id: row.regulationId,

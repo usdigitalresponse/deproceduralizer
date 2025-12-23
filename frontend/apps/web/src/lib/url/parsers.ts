@@ -5,12 +5,13 @@ import {
   parseAsBoolean,
 } from 'nuqs';
 
-// Review status values
+// Review status values (for red flags and compliance issues)
 export const REVIEW_STATUS_VALUES = [
   'all',
   'unreviewed',
   'confirmed',
-  'false_positive',
+  'rejected_clear_fp',
+  'rejected_not_obvious_bad',
   'needs_context',
   'deferred',
 ] as const;

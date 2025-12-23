@@ -21,7 +21,8 @@ export function ComplianceIssuesList({ initialIssues, regulationContent }: Compl
     reviewStatus?: string;
     reviewedBy?: string;
     reviewedAt?: string;
-    reviewerNotes?: string;
+    justificationNotes?: string;
+    teamNotes?: string;
     priority?: number;
     impactType?: string;
   }) => {
@@ -33,7 +34,8 @@ export function ComplianceIssuesList({ initialIssues, regulationContent }: Compl
               reviewStatus: updatedIssue.reviewStatus ?? issue.reviewStatus,
               reviewedBy: updatedIssue.reviewedBy ?? issue.reviewedBy,
               reviewedAt: updatedIssue.reviewedAt ? new Date(updatedIssue.reviewedAt) : issue.reviewedAt,
-              reviewerNotes: updatedIssue.reviewerNotes ?? issue.reviewerNotes,
+              justificationNotes: updatedIssue.justificationNotes ?? issue.justificationNotes,
+              teamNotes: updatedIssue.teamNotes ?? issue.teamNotes,
               priority: updatedIssue.priority ?? issue.priority,
               impactType: updatedIssue.impactType ?? issue.impactType,
             }

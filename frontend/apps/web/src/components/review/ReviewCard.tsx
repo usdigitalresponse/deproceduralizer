@@ -4,10 +4,11 @@ import { forwardRef } from 'react';
 import { updateRedFlagReview } from '@/lib/actions/red-flags';
 import { useReviewForm } from '@/hooks';
 import { Button, Input, Textarea, Badge, SeverityBadge, Select, Tag, CopyLinkButton } from '@/components/ui';
-import { REVIEW_STATUSES, PRIORITY_OPTIONS, IMPACT_TYPES, getComplexityVariant, formatLabel } from '@/types/regulation';
+import { PRIORITY_OPTIONS, IMPACT_TYPES, getComplexityVariant, formatLabel } from '@/types/regulation';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
 import { ExpandableRegulationQuote } from './ExpandableRegulationQuote';
 import { CardWrapper } from './shared';
+import { REVIEW_STATUSES, REVIEW_STATUS_LABELS, REVIEW_STATUS_DESCRIPTIONS, type ReviewStatus } from '@deproceduralizer/database/schema';
 import type { RedFlagWithContext } from '@deproceduralizer/database';
 
 interface ReviewCardProps {
@@ -32,7 +33,8 @@ export const ReviewCard = forwardRef<HTMLDivElement, ReviewCardProps>(
         id: data.id,
         reviewStatus: data.reviewStatus,
         reviewedBy: data.reviewedBy,
-        reviewerNotes: data.reviewerNotes,
+        justificationNotes: data.justificationNotes,
+        teamNotes: data.teamNotes,
         priority: data.priority,
         impactType: data.impactType,
       }),
@@ -42,7 +44,8 @@ export const ReviewCard = forwardRef<HTMLDivElement, ReviewCardProps>(
           reviewStatus: data.reviewStatus ?? null,
           reviewedBy: data.reviewedBy ?? null,
           reviewedAt: data.reviewedAt ? new Date(data.reviewedAt) : null,
-          reviewerNotes: data.reviewerNotes ?? null,
+          justificationNotes: data.justificationNotes ?? null,
+          teamNotes: data.teamNotes ?? null,
           priority: data.priority ?? null,
           impactType: data.impactType ?? null,
         });
@@ -58,6 +61,15 @@ export const ReviewCard = forwardRef<HTMLDivElement, ReviewCardProps>(
     // Convert options to Select format with explicit "none" sentinel
     const priorityOptions = [{ value: 'none', label: '--' }, ...PRIORITY_OPTIONS];
     const impactOptions = [{ value: 'none', label: '--' }, ...IMPACT_TYPES];
+
+    // Convert REVIEW_STATUSES to Select format with labels
+    const statusOptions = REVIEW_STATUSES.map((status) => ({
+      value: status,
+      label: REVIEW_STATUS_LABELS[status],
+    }));
+
+    // Get current status description for helper text
+    const currentStatusDescription = REVIEW_STATUS_DESCRIPTIONS[formData.reviewStatus as ReviewStatus] || '';
 
     return (
       <CardWrapper
@@ -132,19 +144,21 @@ export const ReviewCard = forwardRef<HTMLDivElement, ReviewCardProps>(
             </div>
           )}
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
-            {/* Status */}
-            <div>
-              <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">
-                Status *
-              </label>
-              <Select
-                value={formData.reviewStatus}
-                onValueChange={(value) => updateField('reviewStatus', value)}
-                options={[...REVIEW_STATUSES]}
-                disabled={isPending}
-              />
-            </div>
+          {/* Status with description */}
+          <div className="mb-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {/* Status */}
+              <div>
+                <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">
+                  Status *
+                </label>
+                <Select
+                  value={formData.reviewStatus}
+                  onValueChange={(value) => updateField('reviewStatus', value)}
+                  options={statusOptions}
+                  disabled={isPending}
+                />
+              </div>
 
             {/* Priority */}
             <div>
@@ -184,18 +198,39 @@ export const ReviewCard = forwardRef<HTMLDivElement, ReviewCardProps>(
                 disabled={isPending}
               />
             </div>
+            </div>
+            {/* Status description helper text */}
+            {currentStatusDescription && formData.reviewStatus !== 'unreviewed' && (
+              <p className="mt-2 text-xs text-[var(--color-text-muted)] italic">
+                {currentStatusDescription}
+              </p>
+            )}
           </div>
 
-          {/* Notes */}
+          {/* Justification Notes - for model training */}
           <div className="mb-3">
             <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">
-              Notes
+              Justification and analysis for the model
             </label>
             <Textarea
-              value={formData.reviewerNotes ?? ''}
-              onChange={(e) => updateField('reviewerNotes', e.target.value || undefined)}
+              value={formData.justificationNotes ?? ''}
+              onChange={(e) => updateField('justificationNotes', e.target.value || undefined)}
               rows={2}
-              placeholder="Add any notes about this flag..."
+              placeholder="Explain your reasoning for this classification..."
+              disabled={isPending}
+            />
+          </div>
+
+          {/* Team Notes - for developers */}
+          <div className="mb-3">
+            <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">
+              Notes for Development Team
+            </label>
+            <Textarea
+              value={formData.teamNotes ?? ''}
+              onChange={(e) => updateField('teamNotes', e.target.value || undefined)}
+              rows={2}
+              placeholder="Process notes, research tasks, questions..."
               disabled={isPending}
             />
           </div>

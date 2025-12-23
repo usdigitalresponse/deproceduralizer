@@ -56,8 +56,8 @@ export const definitions = pgTable('definitions', {
   reviewStatus: varchar('review_status', { length: 50 }).default('unreviewed'),
   reviewedAt: timestamp('reviewed_at'),
   reviewerName: varchar('reviewer_name', { length: 255 }),
-  correctionReason: text('correction_reason'),  // Why the correction was made (required if correcting)
-  modelFeedback: text('model_feedback'),  // Optional feedback to improve future LLM extractions
+  justificationNotes: text('justification_notes'),  // Justification and analysis for the model
+  teamNotes: text('team_notes'),  // Notes for the development team
   originalValues: jsonb('original_values'),  // Stores original LLM values when corrections are made
 });
 

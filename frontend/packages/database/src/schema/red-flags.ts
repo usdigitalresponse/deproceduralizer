@@ -25,7 +25,8 @@ export const redFlags = pgTable('red_flags', {
   reviewStatus: varchar('review_status', { length: 50 }).default('unreviewed'),
   reviewedBy: varchar('reviewed_by', { length: 255 }),
   reviewedAt: timestamp('reviewed_at'),
-  reviewerNotes: text('reviewer_notes'),
+  justificationNotes: text('justification_notes'),
+  teamNotes: text('team_notes'),
   priority: integer('priority'),
   impactType: varchar('impact_type', { length: 100 }),
 
@@ -46,11 +47,32 @@ export type NewRedFlag = typeof redFlags.$inferInsert;
 export const REVIEW_STATUSES = [
   'unreviewed',
   'confirmed',
-  'false_positive',
+  'rejected_clear_fp',
+  'rejected_not_obvious_bad',
   'needs_context',
   'deferred'
 ] as const;
 export type ReviewStatus = typeof REVIEW_STATUSES[number];
+
+// Status labels for UI display
+export const REVIEW_STATUS_LABELS: Record<ReviewStatus, string> = {
+  unreviewed: 'Unreviewed',
+  confirmed: 'Confirmed',
+  rejected_clear_fp: 'Rejected - Clear False Positive',
+  rejected_not_obvious_bad: 'Rejected - Not Obviously Bad',
+  needs_context: 'Needs More Context',
+  deferred: 'Deferred',
+};
+
+// Status descriptions for UI helper text
+export const REVIEW_STATUS_DESCRIPTIONS: Record<ReviewStatus, string> = {
+  unreviewed: 'This item has not been reviewed yet.',
+  confirmed: 'Confirm that this is clearly a bad regulation. Provide justification or additional comments beyond what the model said.',
+  rejected_clear_fp: 'It is clear that this is not a policy mistake. Provide the reason why this is clearly not a problem.',
+  rejected_not_obvious_bad: 'This would require more research to show that it is a bad policy.',
+  needs_context: 'Use sparingly. Use this if a simple programmatic next step or question from developers would help categorize.',
+  deferred: 'Do not have enough time to look into this. Consider marking as "not obviously bad" unless in narrow circumstances.',
+};
 
 // Impact type constants
 export const IMPACT_TYPES = [

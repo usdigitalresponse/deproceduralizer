@@ -67,7 +67,9 @@ Main table with hierarchy. **50 columns** - use `./scripts/db-query.sh describe 
 | `complexity` | varchar(20) | Complexity rating |
 | `matched_phrases` | text[] | Trigger phrases |
 | `implementation_approach` | text | Suggested approach |
-| `review_status` | varchar(50) | unreviewed, confirmed, false_positive, needs_context, deferred |
+| `review_status` | varchar(50) | unreviewed, confirmed, rejected_clear_fp, rejected_not_obvious_bad, needs_context, deferred |
+| `justification_notes` | text | Justification and analysis for the model |
+| `team_notes` | text | Notes for development team |
 | `developer_status` | varchar(50) | unresolved, resolved, pending, backlogged, need_more_info |
 | `developer_assigned` | varchar(50) | Michael or Abigail |
 
@@ -112,11 +114,11 @@ Main table with hierarchy. **50 columns** - use `./scripts/db-query.sh describe 
 | `review_status` | varchar(50) | unreviewed, confirmed, corrected, false_positive |
 | `reviewed_at` | timestamp | When reviewed |
 | `reviewer_name` | varchar(255) | Who reviewed |
-| `correction_reason` | text | Why correction was made (required if correcting) |
-| `model_feedback` | text | Feedback to improve future LLM extractions |
+| `justification_notes` | text | Justification and analysis for the model (required if correcting) |
+| `team_notes` | text | Notes for development team |
 | `original_values` | jsonb | Original LLM values when corrections are made |
 
-**Review Status Values:**
+**Review Status Values (Definitions):**
 - `unreviewed` - Default, not yet reviewed
 - `confirmed` - LLM extraction was correct
 - `corrected` - Fields were edited/corrected
@@ -157,7 +159,9 @@ Uses word-boundary matching ('applicant' matches 'Applicant' but not 'reapplican
 | `requirement_quote` | text | Requirement text |
 | `from_statute` | boolean | From statute vs regulation |
 | `llm_confirmed` | boolean | LLM confirmed |
-| `review_status` | varchar(50) | unreviewed, confirmed, false_positive |
+| `review_status` | varchar(50) | unreviewed, confirmed, rejected_clear_fp, rejected_not_obvious_bad, needs_context, deferred |
+| `justification_notes` | text | Justification and analysis for the model |
+| `team_notes` | text | Notes for development team |
 | `state` | varchar(2) | NY or NJ |
 
 ## statute_references

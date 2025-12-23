@@ -42,7 +42,8 @@ export interface DeveloperItem {
   reviewStatus: string | null;
   reviewedBy: string | null;
   reviewedAt: Date | null;
-  reviewerNotes: string | null;
+  justificationNotes: string | null;
+  teamNotes: string | null;
   priority: number | null;
   impactType: string | null;
   // Developer fields
@@ -210,7 +211,8 @@ export async function getCombinedReviewedItems(
       reviewStatus: flag.reviewStatus,
       reviewedBy: flag.reviewedBy,
       reviewedAt: flag.reviewedAt,
-      reviewerNotes: flag.reviewerNotes,
+      justificationNotes: flag.justificationNotes,
+      teamNotes: flag.teamNotes,
       priority: flag.priority,
       impactType: flag.impactType,
       developerStatus: flag.developerStatus,
@@ -234,7 +236,8 @@ export async function getCombinedReviewedItems(
       reviewStatus: issue.reviewStatus,
       reviewedBy: issue.reviewedBy,
       reviewedAt: issue.reviewedAt,
-      reviewerNotes: issue.reviewerNotes,
+      justificationNotes: issue.justificationNotes,
+      teamNotes: issue.teamNotes,
       priority: issue.priority,
       impactType: issue.impactType,
       developerStatus: issue.developerStatus,
@@ -312,7 +315,8 @@ export async function getNeedMoreInfoItems(
       reviewStatus: flag.reviewStatus,
       reviewedBy: flag.reviewedBy,
       reviewedAt: flag.reviewedAt,
-      reviewerNotes: flag.reviewerNotes,
+      justificationNotes: flag.justificationNotes,
+      teamNotes: flag.teamNotes,
       priority: flag.priority,
       impactType: flag.impactType,
       developerStatus: flag.developerStatus,
@@ -336,7 +340,8 @@ export async function getNeedMoreInfoItems(
       reviewStatus: issue.reviewStatus,
       reviewedBy: issue.reviewedBy,
       reviewedAt: issue.reviewedAt,
-      reviewerNotes: issue.reviewerNotes,
+      justificationNotes: issue.justificationNotes,
+      teamNotes: issue.teamNotes,
       priority: issue.priority,
       impactType: issue.impactType,
       developerStatus: issue.developerStatus,
