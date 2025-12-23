@@ -121,6 +121,45 @@ export const developerSortByParser = parseAsStringEnum([
   'developerCheckedAt',
 ] as const).withDefault('reviewedAt');
 
+// Definitions review parsers
+export const DEFINITIONS_REVIEW_STATUS_VALUES = [
+  'all',
+  'unreviewed',
+  'confirmed',
+  'corrected',
+  'false_positive',
+] as const;
+export type DefinitionsReviewStatusValue = (typeof DEFINITIONS_REVIEW_STATUS_VALUES)[number];
+
+export const DEFINITIONS_SCOPE_RELATION_VALUES = ['all', 'self', 'parent'] as const;
+export type DefinitionsScopeRelationValue = (typeof DEFINITIONS_SCOPE_RELATION_VALUES)[number];
+
+export const DEFINITIONS_CROSS_REF_VALUES = ['all', 'true', 'false'] as const;
+export type DefinitionsCrossRefValue = (typeof DEFINITIONS_CROSS_REF_VALUES)[number];
+
+export const DEFINITIONS_SORT_BY_VALUES = ['document', 'term', 'extractedAt'] as const;
+export type DefinitionsSortByValue = (typeof DEFINITIONS_SORT_BY_VALUES)[number];
+
+// Extended scope level for definitions review (includes more levels)
+export const DEFINITIONS_REVIEW_SCOPE_LEVEL_VALUES = [
+  'all',
+  'section',
+  'subpart',
+  'part',
+  'subchapter',
+  'chapter',
+  'subtitle',
+  'title',
+] as const;
+export type DefinitionsReviewScopeLevelValue = (typeof DEFINITIONS_REVIEW_SCOPE_LEVEL_VALUES)[number];
+
+export const definitionsReviewStatusParser = parseAsStringEnum([...DEFINITIONS_REVIEW_STATUS_VALUES]).withDefault('all');
+export const definitionsReviewScopeLevelParser = parseAsStringEnum([...DEFINITIONS_REVIEW_SCOPE_LEVEL_VALUES]).withDefault('all');
+export const definitionsScopeRelationParser = parseAsStringEnum([...DEFINITIONS_SCOPE_RELATION_VALUES]).withDefault('all');
+export const definitionsCrossRefParser = parseAsStringEnum([...DEFINITIONS_CROSS_REF_VALUES]).withDefault('all');
+export const definitionsSortByParser = parseAsStringEnum([...DEFINITIONS_SORT_BY_VALUES]).withDefault('document');
+export const scopeTextParser = parseAsString;
+
 // ============================================
 // Combined parsers for common use cases
 // ============================================
@@ -170,4 +209,18 @@ export const glossaryFiltersParsers = {
   scopeLevel: definitionScopeLevelParser,
   definitionType: definitionTypeParser,
   quality: definitionQualityParser,
+};
+
+/**
+ * Parser configuration for definitions review queue filters
+ */
+export const definitionsReviewParsers = {
+  page: pageParser,
+  reviewStatus: definitionsReviewStatusParser,
+  scopeLevel: definitionsReviewScopeLevelParser,
+  definitionType: definitionTypeParser,
+  isCrossReference: definitionsCrossRefParser,
+  scopeRelation: definitionsScopeRelationParser,
+  scopeText: scopeTextParser,
+  sortBy: definitionsSortByParser,
 };

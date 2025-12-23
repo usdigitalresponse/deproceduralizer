@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useTransition, useEffect, forwardRef } from 'react';
+import { forwardRef } from 'react';
 import { updateRedFlagReview } from '@/lib/actions/red-flags';
-import { useReviewerName } from '@/hooks/useReviewerName';
+import { useReviewForm } from '@/hooks';
 import { Button, Input, Textarea, Badge, SeverityBadge, Select, Tag, CopyLinkButton } from '@/components/ui';
 import { REVIEW_STATUSES, PRIORITY_OPTIONS, IMPACT_TYPES, getComplexityVariant, formatLabel } from '@/types/regulation';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
@@ -19,74 +19,41 @@ interface ReviewCardProps {
 
 export const ReviewCard = forwardRef<HTMLDivElement, ReviewCardProps>(
   ({ flag, onUpdated, onViewRegulation, isFocused = false }, ref) => {
-    const [isPending, startTransition] = useTransition();
-    const [error, setError] = useState<string | null>(null);
-    const { reviewerName: storedName, saveReviewerName, isLoaded } = useReviewerName();
-
-    const [formData, setFormData] = useState({
-      reviewStatus: flag.reviewStatus || 'unreviewed',
-      reviewedBy: flag.reviewedBy || '',
-      reviewerNotes: flag.reviewerNotes || '',
-      priority: flag.priority || undefined,
-      impactType: flag.impactType || '',
+    // Use shared review form hook for state management
+    const {
+      formData,
+      updateField,
+      isPending,
+      error,
+      handleSubmit,
+    } = useReviewForm({
+      initialData: flag,
+      onSubmit: async (data) => updateRedFlagReview({
+        id: data.id,
+        reviewStatus: data.reviewStatus,
+        reviewedBy: data.reviewedBy,
+        reviewerNotes: data.reviewerNotes,
+        priority: data.priority,
+        impactType: data.impactType,
+      }),
+      onUpdated: (data) => {
+        onUpdated({
+          ...flag,
+          reviewStatus: data.reviewStatus ?? null,
+          reviewedBy: data.reviewedBy ?? null,
+          reviewedAt: data.reviewedAt ? new Date(data.reviewedAt) : null,
+          reviewerNotes: data.reviewerNotes ?? null,
+          priority: data.priority ?? null,
+          impactType: data.impactType ?? null,
+        });
+      },
     });
-
-    // Pre-fill reviewer name from localStorage
-    useEffect(() => {
-      if (isLoaded && storedName && !formData.reviewedBy) {
-        setFormData((prev) => ({ ...prev, reviewedBy: storedName }));
-      }
-    }, [isLoaded, storedName, formData.reviewedBy]);
 
     const nycrrCitation = formatNycrrCitation(
       flag.regulation.nycrrTitle,
       flag.regulation.nycrrPart,
       flag.regulation.nycrrSection
     );
-
-    const handleSubmit = async (e: React.FormEvent) => {
-      e.preventDefault();
-      setError(null);
-
-      if (!formData.reviewedBy.trim()) {
-        setError('Reviewer name is required');
-        return;
-      }
-
-      startTransition(async () => {
-        try {
-          const result = await updateRedFlagReview({
-            id: flag.id,
-            reviewStatus: formData.reviewStatus,
-            reviewedBy: formData.reviewedBy,
-            reviewerNotes: formData.reviewerNotes || undefined,
-            priority: formData.priority,
-            impactType: formData.impactType || undefined,
-          });
-
-          if (!result.success) {
-            setError(result.error);
-            return;
-          }
-
-          // Save reviewer name for next time
-          saveReviewerName(formData.reviewedBy);
-
-          // Update parent with new data
-          onUpdated({
-            ...flag,
-            reviewStatus: result.data.reviewStatus ?? null,
-            reviewedBy: result.data.reviewedBy ?? null,
-            reviewedAt: result.data.reviewedAt ?? null,
-            reviewerNotes: result.data.reviewerNotes ?? null,
-            priority: result.data.priority ?? null,
-            impactType: result.data.impactType ?? null,
-          });
-        } catch (err) {
-          setError(err instanceof Error ? err.message : 'Failed to update review');
-        }
-      });
-    };
 
     // Convert options to Select format with explicit "none" sentinel
     const priorityOptions = [{ value: 'none', label: '--' }, ...PRIORITY_OPTIONS];
@@ -173,7 +140,7 @@ export const ReviewCard = forwardRef<HTMLDivElement, ReviewCardProps>(
               </label>
               <Select
                 value={formData.reviewStatus}
-                onValueChange={(value) => setFormData((prev) => ({ ...prev, reviewStatus: value }))}
+                onValueChange={(value) => updateField('reviewStatus', value)}
                 options={[...REVIEW_STATUSES]}
                 disabled={isPending}
               />
@@ -186,12 +153,7 @@ export const ReviewCard = forwardRef<HTMLDivElement, ReviewCardProps>(
               </label>
               <Select
                 value={formData.priority?.toString() ?? 'none'}
-                onValueChange={(value) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    priority: value === 'none' ? undefined : parseInt(value),
-                  }))
-                }
+                onValueChange={(value) => updateField('priority', value === 'none' ? undefined : parseInt(value))}
                 options={priorityOptions}
                 disabled={isPending}
               />
@@ -204,12 +166,7 @@ export const ReviewCard = forwardRef<HTMLDivElement, ReviewCardProps>(
               </label>
               <Select
                 value={formData.impactType || 'none'}
-                onValueChange={(value) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    impactType: value === 'none' ? '' : value,
-                  }))
-                }
+                onValueChange={(value) => updateField('impactType', value === 'none' ? undefined : value)}
                 options={impactOptions}
                 disabled={isPending}
               />
@@ -222,7 +179,7 @@ export const ReviewCard = forwardRef<HTMLDivElement, ReviewCardProps>(
               </label>
               <Input
                 value={formData.reviewedBy}
-                onChange={(e) => setFormData((prev) => ({ ...prev, reviewedBy: e.target.value }))}
+                onChange={(e) => updateField('reviewedBy', e.target.value)}
                 placeholder="Your name"
                 disabled={isPending}
               />
@@ -235,8 +192,8 @@ export const ReviewCard = forwardRef<HTMLDivElement, ReviewCardProps>(
               Notes
             </label>
             <Textarea
-              value={formData.reviewerNotes}
-              onChange={(e) => setFormData((prev) => ({ ...prev, reviewerNotes: e.target.value }))}
+              value={formData.reviewerNotes ?? ''}
+              onChange={(e) => updateField('reviewerNotes', e.target.value || undefined)}
               rows={2}
               placeholder="Add any notes about this flag..."
               disabled={isPending}

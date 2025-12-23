@@ -5,3 +5,4 @@ export { CardWrapper } from './CardWrapper';
 export { QueuePagination } from './QueuePagination';
 export { QueueResultsInfo } from './QueueResultsInfo';
 export { QueueEmptyState } from './QueueEmptyState';
+export { KeyboardHelpModal } from './KeyboardHelpModal';

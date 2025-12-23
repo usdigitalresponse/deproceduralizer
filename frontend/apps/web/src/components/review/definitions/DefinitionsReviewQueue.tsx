@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { getDefinitionsForReview, getDefinitionReviewStats, getUniqueScopeTexts } from '@/lib/actions/definitions';
 import { DefinitionReviewCard } from './DefinitionReviewCard';
@@ -8,6 +8,7 @@ import { DefinitionsReviewFilters } from './DefinitionsReviewFilters';
 import { BulkActionsBar } from './BulkActionsBar';
 import { QueuePagination } from '../shared';
 import { RegulationModal } from '../RegulationModal';
+import { useQueueNavigation } from '@/hooks';
 import type { DefinitionWithContext, StateCode } from '@deproceduralizer/database';
 
 interface DefinitionsReviewQueueProps {
@@ -22,7 +23,6 @@ export function DefinitionsReviewQueue({ state }: DefinitionsReviewQueueProps) {
   const [totalPages, setTotalPages] = useState(0);
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  const [focusedIndex, setFocusedIndex] = useState(-1);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [stats, setStats] = useState({
     unreviewed: 0,
@@ -36,7 +36,35 @@ export function DefinitionsReviewQueue({ state }: DefinitionsReviewQueueProps) {
   // Modal state
   const [modalRegulationId, setModalRegulationId] = useState<number | null>(null);
 
-  const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
+  // Selection toggle for 'x' key
+  const toggleSelection = useCallback((id: number) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    );
+  }, []);
+
+  // Keyboard navigation hook (auto-attaches listener)
+  const {
+    focusedIndex,
+    setFocusedIndex,
+    setCardRef,
+  } = useQueueNavigation({
+    items: definitions,
+    getItemId: (d) => `def-${d.id}`,
+    onViewRegulation: (d) => {
+      if (d.regulation) {
+        setModalRegulationId(d.regulation.id);
+      }
+    },
+    onCustomKey: (key, item) => {
+      if (key === 'x' && item) {
+        toggleSelection(item.id);
+        return true;
+      }
+      return false;
+    },
+    itemLabel: 'definition',
+  });
 
   // Parse URL params
   const page = parseInt(searchParams.get('page') || '1');
@@ -97,42 +125,6 @@ export function DefinitionsReviewQueue({ state }: DefinitionsReviewQueueProps) {
     fetchDefinitions();
   }, [fetchDefinitions]);
 
-  // Keyboard navigation
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-        return;
-      }
-
-      if (e.key === 'j' || e.key === 'ArrowDown') {
-        e.preventDefault();
-        setFocusedIndex((prev) => Math.min(prev + 1, definitions.length - 1));
-      } else if (e.key === 'k' || e.key === 'ArrowUp') {
-        e.preventDefault();
-        setFocusedIndex((prev) => Math.max(prev - 1, 0));
-      } else if (e.key === 'x' && focusedIndex >= 0) {
-        e.preventDefault();
-        const def = definitions[focusedIndex];
-        if (def) {
-          toggleSelection(def.id);
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [definitions, focusedIndex]);
-
-  // Scroll focused card into view
-  useEffect(() => {
-    if (focusedIndex >= 0 && cardRefs.current[focusedIndex]) {
-      cardRefs.current[focusedIndex]?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'nearest',
-      });
-    }
-  }, [focusedIndex]);
-
   const handleDefinitionUpdated = useCallback((updated: DefinitionWithContext) => {
     setDefinitions((prev) =>
       prev.map((d) => (d.id === updated.id ? updated : d))
@@ -146,12 +138,6 @@ export function DefinitionsReviewQueue({ state }: DefinitionsReviewQueueProps) {
       }
     });
   }, [state]);
-
-  const toggleSelection = useCallback((id: number) => {
-    setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
-    );
-  }, []);
 
   const handleSelectAll = useCallback(() => {
     setSelectedIds(definitions.map((d) => d.id));
@@ -205,7 +191,7 @@ export function DefinitionsReviewQueue({ state }: DefinitionsReviewQueueProps) {
             {definitions.map((definition, index) => (
               <DefinitionReviewCard
                 key={definition.id}
-                ref={(el) => { cardRefs.current[index] = el; }}
+                ref={(el) => setCardRef(index, el)}
                 definition={definition}
                 onUpdated={handleDefinitionUpdated}
                 onViewRegulation={handleViewRegulation}

@@ -8,5 +8,8 @@ export type { DeepLinkTarget } from './useDeepLink';
 export { useReviewForm } from './useReviewForm';
 export type { ReviewFormData, ReviewFormCallbackData } from './useReviewForm';
 export { useQueueNavigation } from './useQueueNavigation';
+export type { KeyboardShortcut } from './useQueueNavigation';
+export { useQueue } from './useQueue';
+export type { PaginationInfo } from './useQueue';
 export { useTermHighlighting } from './useTermHighlighting';
 export type { TermMatch } from './useTermHighlighting';

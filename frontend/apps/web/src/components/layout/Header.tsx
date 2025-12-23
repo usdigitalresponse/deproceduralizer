@@ -8,27 +8,22 @@ import { Container } from './Container';
 import { MobileNav } from './MobileNav';
 import { getStateFromPathname } from '@/hooks';
 import { Button } from '@/components/ui';
+import {
+  getStateNavItems,
+  getGlobalNavItems,
+  getNavHref,
+  isNavActive,
+} from '@/lib/constants/navigation';
 
 interface HeaderProps {
   className?: string;
 }
 
-/**
- * Generate state-aware nav links based on current state
- */
-function getNavLinks(state: string) {
-  return [
-    { href: `/${state}`, label: 'Table View', matchPath: `/${state}` },
-    { href: `/${state}/browse`, label: 'Browse', matchPath: `/${state}/browse` },
-    { href: `/${state}/review?reviewStatus=unreviewed`, label: 'Review Mode', matchPath: `/${state}/review` },
-    { href: `/${state}/definitions`, label: 'Glossary', matchPath: `/${state}/definitions` },
-  ];
-}
-
 export function Header({ className = '' }: HeaderProps) {
   const pathname = usePathname();
   const currentState = getStateFromPathname(pathname);
-  const navLinks = getNavLinks(currentState);
+  const stateNavItems = getStateNavItems();
+  const globalNavItems = getGlobalNavItems();
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 
   return (
@@ -77,16 +72,14 @@ export function Header({ className = '' }: HeaderProps) {
 
               {/* Desktop Navigation - hidden on mobile */}
               <nav className="hidden md:flex items-center gap-1">
-                {navLinks.map((link) => {
-                  // Check if current path matches this nav link
-                  const isActive = link.matchPath === `/${currentState}`
-                    ? pathname === `/${currentState}` || pathname === `/${currentState}/`
-                    : pathname.startsWith(link.matchPath);
+                {stateNavItems.map((item) => {
+                  const href = getNavHref(item, currentState);
+                  const isActive = isNavActive(item, pathname, currentState);
 
                   return (
                     <Link
-                      key={link.href}
-                      href={link.href}
+                      key={item.key}
+                      href={href}
                       className={`
                         px-3 py-2 text-sm font-medium rounded-[var(--radius-md)]
                         transition-colors duration-[var(--duration-fast)]
@@ -96,28 +89,38 @@ export function Header({ className = '' }: HeaderProps) {
                         }
                       `}
                     >
-                      {link.label}
+                      {item.label}
                     </Link>
                   );
                 })}
 
                 {/* Divider */}
-                <div className="w-px h-5 bg-[var(--color-neutral-200)] mx-1" />
+                {globalNavItems.length > 0 && (
+                  <div className="w-px h-5 bg-[var(--color-neutral-200)] mx-1" />
+                )}
 
-                {/* Prompts link (global, not state-specific) */}
-                <Link
-                  href="/prompts"
-                  className={`
-                    px-3 py-2 text-sm font-medium rounded-[var(--radius-md)]
-                    transition-colors duration-[var(--duration-fast)]
-                    ${pathname === '/prompts'
-                      ? 'bg-[var(--color-primary-weaker)] text-[var(--color-primary)]'
-                      : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-[var(--color-neutral-100)]'
-                    }
-                  `}
-                >
-                  Prompts
-                </Link>
+                {/* Global nav items (Prompts, etc.) */}
+                {globalNavItems.map((item) => {
+                  const href = getNavHref(item, currentState);
+                  const isActive = isNavActive(item, pathname, currentState);
+
+                  return (
+                    <Link
+                      key={item.key}
+                      href={href}
+                      className={`
+                        px-3 py-2 text-sm font-medium rounded-[var(--radius-md)]
+                        transition-colors duration-[var(--duration-fast)]
+                        ${isActive
+                          ? 'bg-[var(--color-primary-weaker)] text-[var(--color-primary)]'
+                          : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-[var(--color-neutral-100)]'
+                        }
+                      `}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
               </nav>
 
               {/* Mobile Menu Button - visible on mobile only */}

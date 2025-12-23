@@ -1,7 +1,5 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
-import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import type {
   RedFlagWithContext,
   ReviewStatusCounts,
@@ -9,21 +7,14 @@ import type {
 import { ReviewProgress } from './ReviewProgress';
 import { ReviewFilters } from './ReviewFilters';
 import { ReviewCard } from './ReviewCard';
-import { ReviewKeyboardNav } from './ReviewKeyboardNav';
 import RegulationModal from './RegulationModal';
-import { 
-  QueueResultsInfo, 
-  QueueEmptyState, 
-  QueuePagination 
+import {
+  QueueResultsInfo,
+  QueueEmptyState,
+  QueuePagination,
+  KeyboardHelpModal,
 } from './shared';
-import { getStateFromPathname, useDeepLink, useQueueNavigation } from '@/hooks';
-
-interface PaginationInfo {
-  page: number;
-  pageSize: number;
-  total: number;
-  totalPages: number;
-}
+import { useDeepLink, useQueueNavigation, useQueue, type PaginationInfo } from '@/hooks';
 
 interface ReviewQueueProps {
   initialFlags: RedFlagWithContext[];
@@ -38,28 +29,33 @@ export function ReviewQueue({
   statusCounts,
   categories,
 }: ReviewQueueProps) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
+  // Use generic queue hook for state management
+  const {
+    items: flags,
+    counts,
+    selectedRegulationId,
+    setSelectedRegulationId,
+    handleViewRegulation,
+    handleItemUpdated: handleFlagUpdated,
+    goToPage,
+  } = useQueue<RedFlagWithContext, ReviewStatusCounts>({
+    initialItems: initialFlags,
+    initialCounts: statusCounts,
+    getItemId: (f) => f.id,
+    getItemStatus: (f) => f.reviewStatus || 'unreviewed',
+    defaultStatus: 'unreviewed',
+    getRegulationId: (f) => f.regulation.id,
+  });
 
-  // Extract state from pathname (e.g., /nj/review -> nj)
-  const state = getStateFromPathname(pathname, 'nj');
-
-  // Local state for optimistic updates
-  const [flags, setFlags] = useState<RedFlagWithContext[]>(initialFlags);
-  const [counts, setCounts] = useState<ReviewStatusCounts>(statusCounts);
-
-  // Modal state for viewing regulation
-  const [selectedRegulationId, setSelectedRegulationId] = useState<number | null>(null);
-
-  // Keyboard navigation hook
-  const { 
-    focusedIndex, 
-    setFocusedIndex, 
-    setCardRef, 
-    navigate, 
-    goToNextUnreviewed,
-    cardRefs 
+  // Keyboard navigation hook (auto-attaches listener)
+  const {
+    focusedIndex,
+    setFocusedIndex,
+    setCardRef,
+    cardRefs,
+    showHelp,
+    setShowHelp,
+    shortcuts,
   } = useQueueNavigation({
     items: flags,
     getItemId: (f) => `flag-${f.id}`,
@@ -67,6 +63,8 @@ export function ReviewQueue({
     findNextUnreviewed: (idx) => flags.findIndex(
       (f, i) => i > idx && (f.reviewStatus === 'unreviewed' || !f.reviewStatus)
     ),
+    enableHelpModal: true,
+    itemLabel: 'flag',
   });
 
   // Deep link handling - scroll to item if hash is present
@@ -76,57 +74,6 @@ export function ReviewQueue({
     setFocusedIndex,
     itemType: 'flag',
   });
-
-  // Sync with server data when props change
-  useEffect(() => {
-    setFlags(initialFlags);
-    setCounts(statusCounts);
-  }, [initialFlags, statusCounts]);
-
-  // Handle flag update (optimistic)
-  const handleFlagUpdated = useCallback((updatedFlag: RedFlagWithContext) => {
-    // Update flags and counts together to avoid stale closure issues
-    setFlags((prevFlags) => {
-      // Compute old status from the actual previous state, not a closure
-      const oldFlag = prevFlags.find((f) => f.id === updatedFlag.id);
-      const oldStatus = oldFlag?.reviewStatus || 'unreviewed';
-      const newStatus = updatedFlag.reviewStatus || 'unreviewed';
-
-      // Update counts if status changed
-      if (oldStatus !== newStatus) {
-        setCounts((prevCounts) => {
-          const newCounts = { ...prevCounts };
-          // Decrement old status count
-          if (oldStatus in newCounts && oldStatus !== 'total') {
-            newCounts[oldStatus as keyof ReviewStatusCounts] = Math.max(
-              0,
-              (newCounts[oldStatus as keyof ReviewStatusCounts] as number) - 1
-            );
-          }
-          // Increment new status count
-          if (newStatus in newCounts && newStatus !== 'total') {
-            newCounts[newStatus as keyof ReviewStatusCounts] =
-              (newCounts[newStatus as keyof ReviewStatusCounts] as number) + 1;
-          }
-          return newCounts;
-        });
-      }
-
-      return prevFlags.map((f) => (f.id === updatedFlag.id ? updatedFlag : f));
-    });
-  }, []);
-
-  // Handle view regulation
-  const handleViewRegulation = useCallback((regulationId: number) => {
-    setSelectedRegulationId(regulationId);
-  }, []);
-
-  // Pagination helpers
-  const goToPage = useCallback((page: number) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set('page', String(page));
-    router.push(`/${state}/review?${params.toString()}`);
-  }, [router, searchParams, state]);
 
   return (
     <div className="space-y-6">
@@ -139,15 +86,11 @@ export function ReviewQueue({
         className="mb-2"
       />
 
-      {/* Keyboard navigation */}
-      <ReviewKeyboardNav
-        onNavigate={navigate}
-        onNextUnreviewed={goToNextUnreviewed}
-        onViewRegulation={() => {
-          if (flags[focusedIndex]) {
-            handleViewRegulation(flags[focusedIndex].regulation.id);
-          }
-        }}
+      {/* Keyboard help modal */}
+      <KeyboardHelpModal
+        open={showHelp}
+        onOpenChange={setShowHelp}
+        shortcuts={shortcuts}
       />
 
       {/* Results info */}
@@ -160,9 +103,9 @@ export function ReviewQueue({
 
       {/* Flag cards */}
       {flags.length === 0 ? (
-        <QueueEmptyState 
-          title="No flags found" 
-          description="Try adjusting your filters or check back later." 
+        <QueueEmptyState
+          title="No flags found"
+          description="Try adjusting your filters or check back later."
         />
       ) : (
         <div className="space-y-4">

@@ -10,22 +10,13 @@ import {
   DrawerBody,
   DrawerClose,
 } from '@/components/ui';
-import { Table, FolderTree, ClipboardCheck, BookOpen, Home, Code } from 'lucide-react';
 import { getStateFromPathname } from '@/hooks';
+import { NAV_ITEMS, getNavHref, isNavActive } from '@/lib/constants/navigation';
 
 interface MobileNavProps {
   isOpen: boolean;
   onClose: () => void;
 }
-
-const navItems = [
-  { key: 'home', href: '/', label: 'Dashboard', icon: Home, matchPath: '/' },
-  { key: 'table', href: (state: string) => `/${state}`, label: 'Table View', icon: Table, matchPath: (state: string) => `/${state}` },
-  { key: 'browse', href: (state: string) => `/${state}/browse`, label: 'Browse', icon: FolderTree, matchPath: (state: string) => `/${state}/browse` },
-  { key: 'review', href: (state: string) => `/${state}/review?reviewStatus=unreviewed`, label: 'Review Mode', icon: ClipboardCheck, matchPath: (state: string) => `/${state}/review` },
-  { key: 'glossary', href: (state: string) => `/${state}/definitions`, label: 'Glossary', icon: BookOpen, matchPath: (state: string) => `/${state}/definitions` },
-  { key: 'prompts', href: '/prompts', label: 'Prompts', icon: Code, matchPath: '/prompts' },
-];
 
 /**
  * Mobile navigation drawer component.
@@ -67,19 +58,9 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
 
           {/* Navigation Links */}
           <nav className="py-2">
-            {navItems.map((item) => {
-              const href = typeof item.href === 'function' ? item.href(currentState) : item.href;
-              const matchPath = typeof item.matchPath === 'function' ? item.matchPath(currentState) : item.matchPath;
-
-              // Check if current path matches this nav link
-              const isActive = item.key === 'home'
-                ? pathname === '/'
-                : item.key === 'table'
-                  ? pathname === `/${currentState}` || pathname === `/${currentState}/`
-                  : item.key === 'prompts'
-                    ? pathname === '/prompts'
-                    : pathname.startsWith(matchPath);
-
+            {NAV_ITEMS.map((item) => {
+              const href = getNavHref(item, currentState);
+              const isActive = isNavActive(item, pathname, currentState);
               const Icon = item.icon;
 
               return (

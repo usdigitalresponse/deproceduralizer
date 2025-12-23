@@ -1,8 +1,25 @@
 'use client';
 
-import { useRouter, useSearchParams, usePathname } from 'next/navigation';
-import { Select, Button, Input } from '@/components/ui';
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
+import { useQueryStates } from 'nuqs';
+import { Select, Button } from '@/components/ui';
+import {
+  definitionsReviewParsers,
+  type DefinitionsReviewStatusValue,
+  type DefinitionsReviewScopeLevelValue,
+  type DefinitionTypeValue,
+  type DefinitionsCrossRefValue,
+  type DefinitionsScopeRelationValue,
+  type DefinitionsSortByValue,
+} from '@/lib/url/parsers';
+import {
+  DEFINITIONS_REVIEW_STATUS_OPTIONS,
+  DEFINITIONS_SCOPE_LEVEL_OPTIONS,
+  DEFINITIONS_TYPE_OPTIONS,
+  DEFINITIONS_CROSS_REFERENCE_OPTIONS,
+  DEFINITIONS_SCOPE_RELATION_OPTIONS,
+  DEFINITIONS_SORT_OPTIONS,
+} from '@/lib/constants/filters';
 
 interface DefinitionsReviewFiltersProps {
   counts: {
@@ -16,97 +33,46 @@ interface DefinitionsReviewFiltersProps {
   scopeTexts?: string[];
 }
 
-const REVIEW_STATUS_OPTIONS = [
-  { value: 'all', label: 'All Statuses' },
-  { value: 'unreviewed', label: 'Unreviewed' },
-  { value: 'confirmed', label: 'Confirmed' },
-  { value: 'corrected', label: 'Corrected' },
-  { value: 'false_positive', label: 'False Positive' },
-];
-
-const SCOPE_LEVEL_OPTIONS = [
-  { value: 'all', label: 'All Scope Levels' },
-  { value: 'section', label: 'Section' },
-  { value: 'subpart', label: 'Subpart' },
-  { value: 'part', label: 'Part' },
-  { value: 'subchapter', label: 'Subchapter' },
-  { value: 'chapter', label: 'Chapter' },
-  { value: 'subtitle', label: 'Subtitle' },
-  { value: 'title', label: 'Title' },
-];
-
-const DEFINITION_TYPE_OPTIONS = [
-  { value: 'all', label: 'All Types' },
-  { value: 'formal', label: 'Formal' },
-  { value: 'abbreviation', label: 'Abbreviation' },
-];
-
-const CROSS_REFERENCE_OPTIONS = [
-  { value: 'all', label: 'All Cross-Ref' },
-  { value: 'true', label: 'Cross-Reference Only' },
-  { value: 'false', label: 'Not Cross-Reference' },
-];
-
-const SCOPE_RELATION_OPTIONS = [
-  { value: 'all', label: 'All Scope Relations' },
-  { value: 'self', label: 'Scope = This Section' },
-  { value: 'parent', label: 'Scope = Parent' },
-];
-
-const SORT_OPTIONS = [
-  { value: 'document', label: 'By Document' },
-  { value: 'term', label: 'By Term' },
-  { value: 'extractedAt', label: 'By Date' },
-];
-
 export function DefinitionsReviewFilters({ counts, scopeTexts = [] }: DefinitionsReviewFiltersProps) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const [filters, setFilters] = useQueryStates(definitionsReviewParsers, {
+    shallow: false,
+  });
 
-  const currentStatus = searchParams.get('reviewStatus') || 'all';
-  const currentScopeLevel = searchParams.get('scopeLevel') || 'all';
-  const currentType = searchParams.get('definitionType') || 'all';
-  const currentSort = searchParams.get('sortBy') || 'document';
-  const currentCrossRef = searchParams.get('isCrossReference') || 'all';
-  const currentScopeRelation = searchParams.get('scopeRelation') || 'all';
-  const currentScopeText = searchParams.get('scopeText') || 'all';
+  const clearFilters = useCallback(() => {
+    setFilters({
+      reviewStatus: 'all',
+      scopeLevel: 'all',
+      definitionType: 'all',
+      isCrossReference: 'all',
+      scopeRelation: 'all',
+      scopeText: null,
+      sortBy: 'document',
+      page: 1,
+    });
+  }, [setFilters]);
+
+  // Check if any filters are active (not default)
+  const hasActiveFilters =
+    (filters.reviewStatus && filters.reviewStatus !== 'all') ||
+    (filters.scopeLevel && filters.scopeLevel !== 'all') ||
+    (filters.definitionType && filters.definitionType !== 'all') ||
+    (filters.isCrossReference && filters.isCrossReference !== 'all') ||
+    (filters.scopeRelation && filters.scopeRelation !== 'all') ||
+    filters.scopeText;
 
   // Build scope text options from provided unique values
   const scopeTextOptions = useMemo(() => {
     const options = [{ value: 'all', label: 'All Scope Texts' }];
     for (const text of scopeTexts) {
       if (text) {
-        options.push({ value: text, label: text.length > 30 ? text.substring(0, 30) + '...' : text });
+        options.push({
+          value: text,
+          label: text.length > 30 ? text.substring(0, 30) + '...' : text,
+        });
       }
     }
     return options;
   }, [scopeTexts]);
-
-  const updateFilter = (key: string, value: string) => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (value && value !== 'all') {
-      params.set(key, value);
-    } else {
-      params.delete(key);
-    }
-    params.set('page', '1'); // Reset to page 1 on filter change
-    router.push(`${pathname}?${params.toString()}`);
-  };
-
-  const clearFilters = () => {
-    const params = new URLSearchParams();
-    params.set('type', 'definitions');
-    params.set('page', '1');
-    router.push(`${pathname}?${params.toString()}`);
-  };
-
-  const hasFilters = (currentStatus && currentStatus !== 'all') ||
-                     (currentScopeLevel && currentScopeLevel !== 'all') ||
-                     (currentType && currentType !== 'all') ||
-                     (currentCrossRef && currentCrossRef !== 'all') ||
-                     (currentScopeRelation && currentScopeRelation !== 'all') ||
-                     (currentScopeText && currentScopeText !== 'all');
 
   return (
     <div className="bg-white rounded-lg border border-[var(--color-neutral-200)] p-4 mb-4">
@@ -133,33 +99,33 @@ export function DefinitionsReviewFilters({ counts, scopeTexts = [] }: Definition
       <div className="flex flex-wrap items-center gap-3 mb-3">
         <div className="flex-1 min-w-[140px] max-w-[170px]">
           <Select
-            value={currentStatus}
-            onValueChange={(value) => updateFilter('reviewStatus', value)}
-            options={REVIEW_STATUS_OPTIONS}
+            value={filters.reviewStatus || 'all'}
+            onValueChange={(value) => setFilters({ reviewStatus: value as DefinitionsReviewStatusValue, page: 1 })}
+            options={DEFINITIONS_REVIEW_STATUS_OPTIONS}
           />
         </div>
 
         <div className="flex-1 min-w-[140px] max-w-[170px]">
           <Select
-            value={currentScopeLevel}
-            onValueChange={(value) => updateFilter('scopeLevel', value)}
-            options={SCOPE_LEVEL_OPTIONS}
+            value={filters.scopeLevel || 'all'}
+            onValueChange={(value) => setFilters({ scopeLevel: value as DefinitionsReviewScopeLevelValue, page: 1 })}
+            options={DEFINITIONS_SCOPE_LEVEL_OPTIONS}
           />
         </div>
 
         <div className="flex-1 min-w-[140px] max-w-[170px]">
           <Select
-            value={currentType}
-            onValueChange={(value) => updateFilter('definitionType', value)}
-            options={DEFINITION_TYPE_OPTIONS}
+            value={filters.definitionType || 'all'}
+            onValueChange={(value) => setFilters({ definitionType: value as DefinitionTypeValue, page: 1 })}
+            options={DEFINITIONS_TYPE_OPTIONS}
           />
         </div>
 
         <div className="flex-1 min-w-[140px] max-w-[170px]">
           <Select
-            value={currentCrossRef}
-            onValueChange={(value) => updateFilter('isCrossReference', value)}
-            options={CROSS_REFERENCE_OPTIONS}
+            value={filters.isCrossReference || 'all'}
+            onValueChange={(value) => setFilters({ isCrossReference: value as DefinitionsCrossRefValue, page: 1 })}
+            options={DEFINITIONS_CROSS_REFERENCE_OPTIONS}
           />
         </div>
       </div>
@@ -168,17 +134,17 @@ export function DefinitionsReviewFilters({ counts, scopeTexts = [] }: Definition
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex-1 min-w-[140px] max-w-[170px]">
           <Select
-            value={currentScopeRelation}
-            onValueChange={(value) => updateFilter('scopeRelation', value)}
-            options={SCOPE_RELATION_OPTIONS}
+            value={filters.scopeRelation || 'all'}
+            onValueChange={(value) => setFilters({ scopeRelation: value as DefinitionsScopeRelationValue, page: 1 })}
+            options={DEFINITIONS_SCOPE_RELATION_OPTIONS}
           />
         </div>
 
         {scopeTextOptions.length > 1 && (
           <div className="flex-1 min-w-[180px] max-w-[250px]">
             <Select
-              value={currentScopeText}
-              onValueChange={(value) => updateFilter('scopeText', value)}
+              value={filters.scopeText || 'all'}
+              onValueChange={(value) => setFilters({ scopeText: value === 'all' ? null : value, page: 1 })}
               options={scopeTextOptions}
             />
           </div>
@@ -186,13 +152,13 @@ export function DefinitionsReviewFilters({ counts, scopeTexts = [] }: Definition
 
         <div className="flex-1 min-w-[140px] max-w-[170px]">
           <Select
-            value={currentSort}
-            onValueChange={(value) => updateFilter('sortBy', value)}
-            options={SORT_OPTIONS}
+            value={filters.sortBy || 'document'}
+            onValueChange={(value) => setFilters({ sortBy: value as DefinitionsSortByValue, page: 1 })}
+            options={DEFINITIONS_SORT_OPTIONS}
           />
         </div>
 
-        {hasFilters && (
+        {hasActiveFilters && (
           <Button
             variant="secondary"
             size="sm"

@@ -15,7 +15,10 @@ import {
   SeverityBadge,
   Button,
 } from '@/components/ui';
+import { RegulationSummary } from '@/components/regulations/RegulationSummary';
+import { RegulationContent } from '@/components/regulations/RegulationContent';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
+import { getComplexityVariant } from '@/types/regulation';
 import { useStateFromPath } from '@/hooks';
 
 interface RegulationModalProps {
@@ -154,14 +157,7 @@ export function RegulationModal({ regulationId, onClose }: RegulationModalProps)
                 <div className="border-b border-[var(--color-neutral-200)] pb-2">
                   <span className="font-semibold text-[var(--color-text-secondary)] text-sm">Complexity:</span>
                   {regulation.overallComplexity ? (
-                    <Badge
-                      variant={
-                        regulation.overallComplexity === 'HIGH' ? 'danger' :
-                        regulation.overallComplexity === 'MEDIUM' || regulation.overallComplexity === 'MEDIUM-HIGH' ? 'warning' :
-                        'success'
-                      }
-                      className="ml-2"
-                    >
+                    <Badge variant={getComplexityVariant(regulation.overallComplexity)} className="ml-2">
                       {regulation.overallComplexity}
                     </Badge>
                   ) : (
@@ -172,21 +168,11 @@ export function RegulationModal({ regulationId, onClose }: RegulationModalProps)
 
               {/* Summary */}
               {regulation.summary && (
-                <div className="mb-6">
-                  <h3 className="font-semibold text-[var(--color-text)] mb-3">Summary</h3>
-                  <div className="bg-[var(--color-info-bg)] border-l-4 border-[var(--color-info)] p-4 rounded-[var(--radius-md)] text-sm">
-                    {regulation.summary}
-                  </div>
-                </div>
+                <RegulationSummary summary={regulation.summary} className="mb-6" />
               )}
 
               {/* Regulation Text */}
-              <div>
-                <h3 className="font-semibold text-[var(--color-text)] mb-3">Regulation Text</h3>
-                <div className="bg-[var(--color-neutral-50)] border-l-4 border-[var(--color-neutral-400)] p-4 rounded-[var(--radius-md)] text-sm font-mono whitespace-pre-wrap max-h-64 overflow-y-auto">
-                  {regulation.content || 'No content available'}
-                </div>
-              </div>
+              <RegulationContent content={regulation.content} />
             </>
           )}
         </ModalBody>

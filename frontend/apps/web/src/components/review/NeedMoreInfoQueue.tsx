@@ -1,25 +1,17 @@
 'use client';
 
-import { useState, useCallback, useEffect, useMemo } from 'react';
-import { useRouter, useSearchParams, usePathname } from 'next/navigation';
+import { useMemo } from 'react';
 import type { DeveloperItem, NeedMoreInfoCounts } from '@/lib/actions/developer';
 import { NeedMoreInfoCard } from './NeedMoreInfoCard';
 import { Card } from '@/components/ui';
 import RegulationModal from './RegulationModal';
-import { 
-  QueueResultsInfo, 
-  QueueEmptyState, 
-  QueuePagination 
+import {
+  QueueResultsInfo,
+  QueueEmptyState,
+  QueuePagination
 } from './shared';
-import { getStateFromPathname, useDeepLink, useQueueNavigation } from '@/hooks';
+import { useDeepLink, useQueueNavigation, useQueue, type PaginationInfo } from '@/hooks';
 import { MessageCircleQuestion, User } from 'lucide-react';
-
-interface PaginationInfo {
-  page: number;
-  pageSize: number;
-  total: number;
-  totalPages: number;
-}
 
 interface NeedMoreInfoQueueProps {
   initialItems: DeveloperItem[];
@@ -34,16 +26,21 @@ export function NeedMoreInfoQueue({
   counts,
   reviewerName,
 }: NeedMoreInfoQueueProps) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-
-  // Extract state from pathname (e.g., /nj/review -> nj)
-  const state = getStateFromPathname(pathname, 'nj');
-
-  // Local state
-  const [items, setItems] = useState<DeveloperItem[]>(initialItems);
-  const [selectedRegulationId, setSelectedRegulationId] = useState<number | null>(null);
+  // Use generic queue hook for state management (no status tracking for this queue)
+  const {
+    items,
+    selectedRegulationId,
+    setSelectedRegulationId,
+    handleViewRegulation,
+    handleItemUpdated,
+    goToPage,
+  } = useQueue<DeveloperItem, NeedMoreInfoCounts>({
+    initialItems,
+    initialCounts: counts,
+    getItemId: (i) => `${i.type}-${i.id}`,
+    // No getItemStatus - this queue doesn't track status changes in counts
+    getRegulationId: (i) => i.regulation.id,
+  });
 
   // Derive a single visibleItems array so refs/indexing match render order (Phase 4.2 fix)
   const visibleItems = useMemo(() => {
@@ -53,17 +50,17 @@ export function NeedMoreInfoQueue({
     return [...ownerItems, ...otherItems];
   }, [items, reviewerName]);
 
-  // Keyboard navigation hook
-  const { 
-    focusedIndex, 
-    setFocusedIndex, 
-    setCardRef, 
-    handleKeyDown,
-    cardRefs 
+  // Keyboard navigation hook (auto-attaches listener)
+  const {
+    focusedIndex,
+    setFocusedIndex,
+    setCardRef,
+    cardRefs,
   } = useQueueNavigation({
     items: visibleItems,
     getItemId: (i) => `${i.type}-${i.id}`,
     onViewRegulation: (i) => setSelectedRegulationId(i.regulation.id),
+    itemLabel: 'item',
   });
 
   // Deep link handling - scroll to item if hash is present
@@ -72,37 +69,6 @@ export function NeedMoreInfoQueue({
     cardRefs,
     setFocusedIndex,
   });
-
-  // Sync with server data when props change
-  useEffect(() => {
-    setItems(initialItems);
-  }, [initialItems]);
-
-  // Handle item update
-  const handleItemUpdated = useCallback((updatedItem: DeveloperItem) => {
-    setItems((prevItems) =>
-      prevItems.map((item) =>
-        item.type === updatedItem.type && item.id === updatedItem.id ? updatedItem : item
-      )
-    );
-  }, []);
-
-  // Handle view regulation
-  const handleViewRegulation = useCallback((regulationId: number) => {
-    setSelectedRegulationId(regulationId);
-  }, []);
-
-  useEffect(() => {
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleKeyDown]);
-
-  // Pagination helpers
-  const goToPage = useCallback((page: number) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set('page', String(page));
-    router.push(`/${state}/review?${params.toString()}`);
-  }, [router, searchParams, state]);
 
   // Split indices for rendering sections
   const ownerCount = reviewerName ? items.filter(i => i.reviewedBy === reviewerName).length : 0;

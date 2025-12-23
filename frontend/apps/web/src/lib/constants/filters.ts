@@ -91,3 +91,50 @@ export const DEVELOPER_SORT_OPTIONS = [
   { value: 'reviewedAt', label: 'Last Reviewed' },
   { value: 'developerCheckedAt', label: 'Developer Checked' },
 ];
+
+// ============================================
+// Definitions Review Options
+// ============================================
+
+export const DEFINITIONS_REVIEW_STATUS_OPTIONS = [
+  { value: 'all', label: 'All Statuses' },
+  { value: 'unreviewed', label: 'Unreviewed' },
+  { value: 'confirmed', label: 'Confirmed' },
+  { value: 'corrected', label: 'Corrected' },
+  { value: 'false_positive', label: 'False Positive' },
+];
+
+export const DEFINITIONS_SCOPE_LEVEL_OPTIONS = [
+  { value: 'all', label: 'All Scope Levels' },
+  { value: 'section', label: 'Section' },
+  { value: 'subpart', label: 'Subpart' },
+  { value: 'part', label: 'Part' },
+  { value: 'subchapter', label: 'Subchapter' },
+  { value: 'chapter', label: 'Chapter' },
+  { value: 'subtitle', label: 'Subtitle' },
+  { value: 'title', label: 'Title' },
+];
+
+export const DEFINITIONS_TYPE_OPTIONS = [
+  { value: 'all', label: 'All Types' },
+  { value: 'formal', label: 'Formal' },
+  { value: 'abbreviation', label: 'Abbreviation' },
+];
+
+export const DEFINITIONS_CROSS_REFERENCE_OPTIONS = [
+  { value: 'all', label: 'All Cross-Ref' },
+  { value: 'true', label: 'Cross-Reference Only' },
+  { value: 'false', label: 'Not Cross-Reference' },
+];
+
+export const DEFINITIONS_SCOPE_RELATION_OPTIONS = [
+  { value: 'all', label: 'All Scope Relations' },
+  { value: 'self', label: 'Scope = This Section' },
+  { value: 'parent', label: 'Scope = Parent' },
+];
+
+export const DEFINITIONS_SORT_OPTIONS = [
+  { value: 'document', label: 'By Document' },
+  { value: 'term', label: 'By Term' },
+  { value: 'extractedAt', label: 'By Date' },
+];

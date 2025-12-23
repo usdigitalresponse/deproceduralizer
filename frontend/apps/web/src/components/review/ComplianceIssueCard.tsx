@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useTransition, useEffect, forwardRef, useCallback } from 'react';
+import { useState, forwardRef, useCallback } from 'react';
 import { updateComplianceIssueReview, getExpandedContext } from '@/lib/actions/compliance-issues';
-import { useReviewerName } from '@/hooks/useReviewerName';
+import { useReviewForm } from '@/hooks';
 import { Button, Input, Textarea, Badge, Select, Tag, CopyLinkButton } from '@/components/ui';
 import { REVIEW_STATUSES, PRIORITY_OPTIONS, IMPACT_TYPES, ISSUE_TYPE_LABELS } from '@/types/regulation';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
 import { formatNjacCitation } from '@/lib/formatters/njac';
+import { highlightTerm, highlightContext } from '@/lib/utils/highlight';
 import { CardWrapper } from './shared';
 import type { ComplianceIssueWithContext } from '@deproceduralizer/database';
 
@@ -19,29 +20,40 @@ interface ComplianceIssueCardProps {
 
 export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCardProps>(
   ({ issue, onUpdated, onViewRegulation, isFocused = false }, ref) => {
-    const [isPending, startTransition] = useTransition();
-    const [error, setError] = useState<string | null>(null);
-    const { reviewerName: storedName, saveReviewerName, isLoaded } = useReviewerName();
+    // Use shared review form hook for state management
+    const {
+      formData,
+      updateField,
+      isPending,
+      error,
+      handleSubmit,
+    } = useReviewForm({
+      initialData: issue,
+      onSubmit: async (data) => updateComplianceIssueReview({
+        id: data.id,
+        reviewStatus: data.reviewStatus,
+        reviewedBy: data.reviewedBy,
+        reviewerNotes: data.reviewerNotes,
+        priority: data.priority,
+        impactType: data.impactType,
+      }),
+      onUpdated: (data) => {
+        onUpdated({
+          ...issue,
+          reviewStatus: data.reviewStatus ?? null,
+          reviewedBy: data.reviewedBy ?? null,
+          reviewedAt: data.reviewedAt ? new Date(data.reviewedAt) : null,
+          reviewerNotes: data.reviewerNotes ?? null,
+          priority: data.priority ?? null,
+          impactType: data.impactType ?? null,
+        });
+      },
+    });
 
     // Expanded context state
     const [isExpanded, setIsExpanded] = useState(false);
     const [expandedText, setExpandedText] = useState<string | null>(null);
     const [isLoadingContext, setIsLoadingContext] = useState(false);
-
-    const [formData, setFormData] = useState({
-      reviewStatus: issue.reviewStatus || 'unreviewed',
-      reviewedBy: issue.reviewedBy || '',
-      reviewerNotes: issue.reviewerNotes || '',
-      priority: issue.priority || undefined,
-      impactType: issue.impactType || '',
-    });
-
-    // Pre-fill reviewer name from localStorage
-    useEffect(() => {
-      if (isLoaded && storedName && !formData.reviewedBy) {
-        setFormData((prev) => ({ ...prev, reviewedBy: storedName }));
-      }
-    }, [isLoaded, storedName, formData.reviewedBy]);
 
     // Format citation based on state
     const citation = issue.state === 'NJ'
@@ -83,92 +95,6 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
         setIsLoadingContext(false);
       }
     }, [isExpanded, expandedText, issue.documentId, issue.context]);
-
-    const handleSubmit = async (e: React.FormEvent) => {
-      e.preventDefault();
-      setError(null);
-
-      if (!formData.reviewedBy.trim()) {
-        setError('Reviewer name is required');
-        return;
-      }
-
-      startTransition(async () => {
-        try {
-          const result = await updateComplianceIssueReview({
-            id: issue.id,
-            reviewStatus: formData.reviewStatus,
-            reviewedBy: formData.reviewedBy,
-            reviewerNotes: formData.reviewerNotes || undefined,
-            priority: formData.priority,
-            impactType: formData.impactType || undefined,
-          });
-
-          if (!result.success) {
-            setError(result.error);
-            return;
-          }
-
-          // Save reviewer name for next time
-          saveReviewerName(formData.reviewedBy);
-
-          // Update parent with new data
-          onUpdated({
-            ...issue,
-            reviewStatus: result.data.reviewStatus ?? null,
-            reviewedBy: result.data.reviewedBy ?? null,
-            reviewedAt: result.data.reviewedAt ?? null,
-            reviewerNotes: result.data.reviewerNotes ?? null,
-            priority: result.data.priority ?? null,
-            impactType: result.data.impactType ?? null,
-          });
-        } catch (err) {
-          setError(err instanceof Error ? err.message : 'Failed to update review');
-        }
-      });
-    };
-
-    // Highlight the matched term in context
-    const highlightTerm = (text: string, term: string | null) => {
-      if (!term) return text;
-      const regex = new RegExp(`(${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-      const parts = text.split(regex);
-      return parts.map((part, i) =>
-        regex.test(part) ? (
-          <mark key={i} className="bg-[var(--color-warning-bg)] px-0.5 rounded font-medium">
-            {part}
-          </mark>
-        ) : (
-          part
-        )
-      );
-    };
-
-    // Highlight the original context within expanded text
-    const highlightContext = (expanded: string, originalContext: string, term: string | null) => {
-      const normalizedContext = originalContext.replace(/\s+/g, ' ').trim();
-      const normalizedExpanded = expanded.replace(/\s+/g, ' ');
-      const contextIndex = normalizedExpanded.indexOf(normalizedContext);
-
-      if (contextIndex === -1) {
-        return highlightTerm(expanded, term);
-      }
-
-      // Find approximate position in original (non-normalized) text
-      const beforeContext = expanded.slice(0, contextIndex);
-      const contextPortion = expanded.slice(contextIndex, contextIndex + normalizedContext.length);
-      const afterContext = expanded.slice(contextIndex + normalizedContext.length);
-
-      return (
-        <>
-          <span className="text-[var(--color-text-muted)]">{beforeContext}</span>
-          <span className="bg-[var(--color-warning-bg)]/50 px-1 py-0.5 rounded">
-            {highlightTerm(contextPortion, term)}
-          </span>
-          <span className="text-[var(--color-text-muted)]">{afterContext}</span>
-        </>
-      );
-    };
 
     // Convert options to Select format with explicit "none" sentinel
     const priorityOptions = [{ value: 'none', label: '--' }, ...PRIORITY_OPTIONS];
@@ -300,7 +226,7 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
               </label>
               <Select
                 value={formData.reviewStatus}
-                onValueChange={(value) => setFormData((prev) => ({ ...prev, reviewStatus: value }))}
+                onValueChange={(value) => updateField('reviewStatus', value)}
                 options={[...REVIEW_STATUSES]}
                 disabled={isPending}
               />
@@ -313,12 +239,7 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
               </label>
               <Select
                 value={formData.priority?.toString() ?? 'none'}
-                onValueChange={(value) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    priority: value === 'none' ? undefined : parseInt(value),
-                  }))
-                }
+                onValueChange={(value) => updateField('priority', value === 'none' ? undefined : parseInt(value))}
                 options={priorityOptions}
                 disabled={isPending}
               />
@@ -331,12 +252,7 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
               </label>
               <Select
                 value={formData.impactType || 'none'}
-                onValueChange={(value) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    impactType: value === 'none' ? '' : value,
-                  }))
-                }
+                onValueChange={(value) => updateField('impactType', value === 'none' ? undefined : value)}
                 options={impactOptions}
                 disabled={isPending}
               />
@@ -349,7 +265,7 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
               </label>
               <Input
                 value={formData.reviewedBy}
-                onChange={(e) => setFormData((prev) => ({ ...prev, reviewedBy: e.target.value }))}
+                onChange={(e) => updateField('reviewedBy', e.target.value)}
                 placeholder="Your name"
                 disabled={isPending}
               />
@@ -362,8 +278,8 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
               Notes
             </label>
             <Textarea
-              value={formData.reviewerNotes}
-              onChange={(e) => setFormData((prev) => ({ ...prev, reviewerNotes: e.target.value }))}
+              value={formData.reviewerNotes ?? ''}
+              onChange={(e) => updateField('reviewerNotes', e.target.value || undefined)}
               rows={2}
               placeholder="Add any notes about this issue..."
               disabled={isPending}

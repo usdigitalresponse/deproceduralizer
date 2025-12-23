@@ -5,6 +5,7 @@ import { Badge, ReviewStatusBadge, Card, Tag, Button } from '@/components/ui';
 import ComplianceIssueReviewForm from '@/components/ComplianceIssueReviewForm';
 import { ISSUE_TYPE_LABELS } from '@/types/regulation';
 import { expandContext } from '@/lib/utils/expandContext';
+import { highlightTerm, highlightContext } from '@/lib/utils/highlight';
 import type { ComplianceIssue } from '@deproceduralizer/database';
 
 interface ComplianceIssuesListProps {
@@ -54,50 +55,6 @@ export function ComplianceIssuesList({ initialIssues, regulationContent }: Compl
     });
   }, []);
 
-  // Highlight the matched term in text
-  const highlightTerm = (text: string, term: string | null) => {
-    if (!term) return text;
-    const regex = new RegExp(`(${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-    const parts = text.split(regex);
-    return parts.map((part, i) =>
-      regex.test(part) ? (
-        <mark key={i} className="bg-[var(--color-warning-bg)] px-0.5 rounded font-medium">
-          {part}
-        </mark>
-      ) : (
-        part
-      )
-    );
-  };
-
-  // Highlight the original context within expanded text
-  const highlightContext = (expandedText: string, originalContext: string, term: string | null) => {
-    // First, highlight the original context portion
-    const normalizedExpanded = expandedText;
-    const normalizedContext = originalContext.replace(/\s+/g, ' ').trim();
-
-    const contextIndex = normalizedExpanded.replace(/\s+/g, ' ').indexOf(normalizedContext);
-
-    if (contextIndex === -1) {
-      // Fallback: just highlight the term
-      return highlightTerm(expandedText, term);
-    }
-
-    // Split into before, context, and after
-    const beforeContext = expandedText.slice(0, contextIndex);
-    const contextPortion = expandedText.slice(contextIndex, contextIndex + normalizedContext.length);
-    const afterContext = expandedText.slice(contextIndex + normalizedContext.length);
-
-    return (
-      <>
-        <span className="text-[var(--color-text-muted)]">{beforeContext}</span>
-        <span className="bg-[var(--color-warning-bg)]/50 px-1 py-0.5 rounded">
-          {highlightTerm(contextPortion, term)}
-        </span>
-        <span className="text-[var(--color-text-muted)]">{afterContext}</span>
-      </>
-    );
-  };
 
   if (issues.length === 0) {
     return null;
