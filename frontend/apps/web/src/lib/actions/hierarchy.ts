@@ -50,6 +50,16 @@ interface AncestorNode {
   id: number;
   title: string;
   hierarchyLevel: string | null;
+  shortTitle: string | null;
+  levelIdentifier: string | null;
+  citation: string | null;
+  nycrrTitle: number | null;
+  nycrrPart: string | null;
+  nycrrChapter: string | null;
+  njacTitle: string | null;
+  njacChapter: string | null;
+  njacSubchapter: string | null;
+  state: string | null;
 }
 
 /**

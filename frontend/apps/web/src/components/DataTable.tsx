@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { getComplexityVariant, formatLabel } from '@/types/regulation';
 import { useResponsive } from '@/hooks';
+import { formatDisplayTitle } from '@/lib/format';
 
 interface PaginationInfo {
   page: number;
@@ -157,8 +158,11 @@ const columns = [
     header: 'Title',
     size: 220,
     cell: (info) => (
-      <div className="font-medium text-sm text-[var(--color-text)] line-clamp-2">
-        {info.getValue()}
+      <div
+        className="font-medium text-sm text-[var(--color-text)] line-clamp-2"
+        title={info.getValue()}
+      >
+        {formatDisplayTitle(info.row.original)}
       </div>
     ),
   }),

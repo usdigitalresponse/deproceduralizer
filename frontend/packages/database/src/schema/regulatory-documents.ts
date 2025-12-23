@@ -68,6 +68,11 @@ export const regulatoryDocuments = pgTable('regulatory_documents', {
   njsaSectionName: text('njsa_section_name'),
   njsaCitation: varchar('njsa_citation', { length: 50 }),
 
+  // Display-optimized fields (populated by backend scripts)
+  shortTitle: text('short_title'),
+  levelIdentifier: varchar('level_identifier', { length: 100 }),
+  citation: varchar('citation', { length: 100 }),
+
   scrapedFromUrl: text('scraped_from_url'),
 
   // Precomputed hierarchy stats (for fast browse queries)

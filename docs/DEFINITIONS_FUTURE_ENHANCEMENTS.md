@@ -51,8 +51,8 @@ The original extraction used `max_tokens=4096`, which may have truncated respons
 | **Phase 2: Extraction Pipeline** | ✅ Complete | Batch processed 5,067 sections, 27,001 definitions stored |
 | **Phase 3: Data Migration** | ✅ Mostly Complete | 89% linked; 3,146 unlinked tracked in Issue #31 |
 | **Phase 4: Core UI Features** | ✅ Complete | Filtering, term aggregation, applicable definitions, trigram search indexes |
-| **Phase 5: Enhanced Discovery** | 🔜 Next | Term highlighting, tooltips |
-| **Phase 6: State Expansion** | 📋 Planned | NJ extraction, cross-state comparison |
+| **Phase 5: Enhanced Discovery** | ✅ Mostly Complete | Term highlighting, tooltips implemented; definition usage analysis not done |
+| **Phase 6: State Expansion** | 📋 Planned | Infrastructure ready; NJ extraction not yet run |
 | **Phase 7: Quality Assurance** | 📋 Optional | Review pipeline, conflict detection (backlogged - not needed currently) |
 
 ---
@@ -643,13 +643,95 @@ ORDER BY
 
 ---
 
-# Phase 5: Quality Assurance
+# Phase 5: Enhanced Discovery
+
+**Status**: ✅ Mostly Complete (Term highlighting and tooltips implemented)
+
+**Goal**: Help users find and understand definitions in context.
+
+**Why fifth**: Core functionality complete. Now enhance discoverability.
+
+## 5.1 Term Highlighting in Regulation Text ✅ IMPLEMENTED
+
+Highlight defined terms within regulation content:
+
+**Implementation**:
+- `useTermHighlighting.ts` hook finds all occurrences of defined terms
+- Uses word-boundary regex matching with longest-first priority
+- Case-insensitive matching with character offset tracking
+- Integrated into `AnnotatableContent.tsx` for regulation display
+
+**Features**:
+- Detect when defined terms appear in regulation text
+- Apply subtle highlighting (dotted underline, background color)
+- Link highlighted terms to their definitions
+- Performance optimized for long regulations
+
+## 5.2 Tooltip Definitions on Click ✅ IMPLEMENTED
+
+Show definition previews when clicking highlighted terms:
+
+**Implementation**:
+- `DefinitionPopover.tsx` component with portal rendering
+- Shows term name, scope badge, definition type badge, cross-reference flag
+- Truncated definition preview (200 chars) with link to source
+- Keyboard accessible (Escape to close), click-outside handling
+
+**Features**:
+- Click highlighted term shows popover with definition
+- Include scope badge in popover
+- "See more" link to full definition in glossary
+- Keyboard accessible (focus states)
+
+## 5.3 Definition Usage Analysis ❌ NOT IMPLEMENTED
+
+Track how terms are used:
+
+- Count occurrences of defined terms in regulation text
+- Identify regulations that use terms but lack definitions
+- Surface commonly used but undefined terminology
+
+---
+
+# Phase 6: State Expansion
+
+**Status**: 📋 Infrastructure Ready
+
+**Goal**: Extend to New Jersey and enable cross-state comparison.
+
+**Why sixth**: NY is working well. Now replicate for NJ.
+
+## 6.1 NJ Definition Extraction
+
+**Infrastructure** (ready in `batch_definitions.py`):
+- Script accepts `--state NJ` parameter
+- State-aware database queries with `njac_*` prefix handling
+- Same Pydantic models work for both NY and NJ
+
+**Action needed**: Run extraction on NJ sections
+
+- Extract definitions from NJAC regulations
+- Handle NJAC-specific citation formats
+- Use same improved prompt and schema
+- Run document_id migration after import
+
+## 6.2 Cross-State Comparison ❌ NOT IMPLEMENTED
+
+- Same term, different state definitions
+- Identify common vs unique terminology
+- Multi-state regulation comparison view
+
+---
+
+# Phase 7: Quality Assurance (Optional)
+
+**Status**: 📋 Backlogged
 
 **Goal**: Add review workflows and conflict detection to ensure data quality.
 
-**Why fifth**: Core features work. Now add quality controls.
+**Why optional**: Core features work. Quality controls can be added when needed.
 
-## 5.1 Review Pipeline
+## 7.1 Review Pipeline
 
 Add review status tracking (similar to red flags and compliance issues):
 
@@ -671,7 +753,7 @@ CREATE INDEX idx_definitions_review_status ON definitions(review_status);
 - Reviewer notes input
 - Filter by overlap score to surface low-quality definitions first
 
-## 5.2 Conflict Detection
+## 7.2 Conflict Detection
 
 Detect when definitions conflict within overlapping scopes:
 
@@ -715,7 +797,7 @@ WHERE scopes_overlap(scope1, scope2);  -- Custom function checking ancestry
 - Flag for Review (needs legal/policy review)
 - Add Clarification Note
 
-## 5.3 Performance Optimization
+## 7.3 Performance Optimization
 
 For tens of thousands of definitions, add materialized view:
 
@@ -736,61 +818,6 @@ CREATE UNIQUE INDEX ON glossary_terms(normalized_term);
 -- Refresh after extractions
 REFRESH MATERIALIZED VIEW CONCURRENTLY glossary_terms;
 ```
-
----
-
-# Phase 6: Enhanced Discovery
-
-**Goal**: Help users find and understand definitions in context.
-
-**Why sixth**: Core functionality complete. Now enhance discoverability.
-
-## 6.1 Term Highlighting in Regulation Text
-
-Highlight defined terms within regulation content:
-
-- Detect when defined terms appear in regulation text
-- Apply subtle highlighting (dotted underline, background color)
-- Link highlighted terms to their definitions
-- Consider performance for long regulations
-
-## 6.2 Tooltip Definitions on Hover
-
-Show definition previews on hover:
-
-- Hover over highlighted term shows tooltip with definition
-- Include scope badge in tooltip
-- "See more" link to full definition in glossary
-- Keyboard accessible (focus states)
-
-## 6.3 Definition Usage Analysis
-
-Track how terms are used:
-
-- Count occurrences of defined terms in regulation text
-- Identify regulations that use terms but lack definitions
-- Surface commonly used but undefined terminology
-
----
-
-# Phase 7: State Expansion
-
-**Goal**: Extend to New Jersey and enable cross-state comparison.
-
-**Why last**: NY is working well. Now replicate for NJ.
-
-## 7.1 NJ Definition Extraction
-
-- Extract definitions from NJAC regulations
-- Handle NJAC-specific citation formats
-- Use same improved prompt and schema
-- Run document_id migration after import
-
-## 7.2 Cross-State Comparison
-
-- Same term, different state definitions
-- Identify common vs unique terminology
-- Multi-state regulation comparison view
 
 ---
 

@@ -58,9 +58,21 @@ export interface HierarchyNode {
   title: string;
   hierarchyLevel: string | null;
   hierarchyPath: string | null;
+  // Display-optimized fields
+  shortTitle: string | null;
+  levelIdentifier: string | null;
+  citation: string | null;
+  // NYCRR fields
   nycrrTitle: number | null;
   nycrrPart: string | null;
   nycrrSection: string | null;
+  nycrrChapter: string | null;
+  nycrrSubpart: string | null;
+  // NJAC fields
+  njacTitle: string | null;
+  njacChapter: string | null;
+  njacSubchapter: string | null;
+  njacSection: string | null;
   state: string | null;
   // Aggregated data
   hasAnalysis: boolean;
@@ -179,6 +191,10 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         njsaSection: regulatoryDocuments.njsaSection,
         njsaSectionName: regulatoryDocuments.njsaSectionName,
         njsaCitation: regulatoryDocuments.njsaCitation,
+        // Display-optimized fields
+        shortTitle: regulatoryDocuments.shortTitle,
+        levelIdentifier: regulatoryDocuments.levelIdentifier,
+        citation: regulatoryDocuments.citation,
         scrapedFromUrl: regulatoryDocuments.scrapedFromUrl,
         directChildCount: regulatoryDocuments.directChildCount,
         descendantCount: regulatoryDocuments.descendantCount,
@@ -436,6 +452,10 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         njsaSection: regulatoryDocuments.njsaSection,
         njsaSectionName: regulatoryDocuments.njsaSectionName,
         njsaCitation: regulatoryDocuments.njsaCitation,
+        // Display-optimized fields
+        shortTitle: regulatoryDocuments.shortTitle,
+        levelIdentifier: regulatoryDocuments.levelIdentifier,
+        citation: regulatoryDocuments.citation,
         scrapedFromUrl: regulatoryDocuments.scrapedFromUrl,
         directChildCount: regulatoryDocuments.directChildCount,
         descendantCount: regulatoryDocuments.descendantCount,
@@ -571,6 +591,10 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         njsaSection: regulatoryDocuments.njsaSection,
         njsaSectionName: regulatoryDocuments.njsaSectionName,
         njsaCitation: regulatoryDocuments.njsaCitation,
+        // Display-optimized fields
+        shortTitle: regulatoryDocuments.shortTitle,
+        levelIdentifier: regulatoryDocuments.levelIdentifier,
+        citation: regulatoryDocuments.citation,
         scrapedFromUrl: regulatoryDocuments.scrapedFromUrl,
         directChildCount: regulatoryDocuments.directChildCount,
         descendantCount: regulatoryDocuments.descendantCount,
@@ -678,9 +702,18 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         END as title,
         rd.hierarchy_level as "hierarchyLevel",
         rd.hierarchy_path as "hierarchyPath",
+        rd.short_title as "shortTitle",
+        rd.level_identifier as "levelIdentifier",
+        rd.citation as "citation",
         rd.nycrr_title as "nycrrTitle",
         rd.nycrr_part as "nycrrPart",
         rd.nycrr_section as "nycrrSection",
+        rd.nycrr_chapter as "nycrrChapter",
+        rd.nycrr_subpart as "nycrrSubpart",
+        rd.njac_title as "njacTitle",
+        rd.njac_chapter as "njacChapter",
+        rd.njac_subchapter as "njacSubchapter",
+        rd.njac_section as "njacSection",
         rd.state,
         COALESCE(child_stats.has_analysis, false) as "hasAnalysis",
         COALESCE(child_stats.total_flags, 0)::int as "totalFlags",
@@ -766,9 +799,18 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         rd.title,
         rd.hierarchy_level as "hierarchyLevel",
         rd.hierarchy_path as "hierarchyPath",
+        rd.short_title as "shortTitle",
+        rd.level_identifier as "levelIdentifier",
+        rd.citation as "citation",
         rd.nycrr_title as "nycrrTitle",
         rd.nycrr_part as "nycrrPart",
         rd.nycrr_section as "nycrrSection",
+        rd.nycrr_chapter as "nycrrChapter",
+        rd.nycrr_subpart as "nycrrSubpart",
+        rd.njac_title as "njacTitle",
+        rd.njac_chapter as "njacChapter",
+        rd.njac_subchapter as "njacSubchapter",
+        rd.njac_section as "njacSection",
         rd.state,
         COALESCE(a.id IS NOT NULL, false) as "hasAnalysis",
         COALESCE(a.num_flags, 0)::int as "totalFlags",
@@ -839,9 +881,18 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         rd.title,
         rd.hierarchy_level as "hierarchyLevel",
         rd.hierarchy_path as "hierarchyPath",
+        rd.short_title as "shortTitle",
+        rd.level_identifier as "levelIdentifier",
+        rd.citation as "citation",
         rd.nycrr_title as "nycrrTitle",
         rd.nycrr_part as "nycrrPart",
         rd.nycrr_section as "nycrrSection",
+        rd.nycrr_chapter as "nycrrChapter",
+        rd.nycrr_subpart as "nycrrSubpart",
+        rd.njac_title as "njacTitle",
+        rd.njac_chapter as "njacChapter",
+        rd.njac_subchapter as "njacSubchapter",
+        rd.njac_section as "njacSection",
         rd.state,
         COALESCE(a.id IS NOT NULL, false) as "hasAnalysis",
         COALESCE(a.num_flags, 0)::int as "totalFlags",
@@ -993,9 +1044,18 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         END as title,
         rd.hierarchy_level as "hierarchyLevel",
         rd.hierarchy_path as "hierarchyPath",
+        rd.short_title as "shortTitle",
+        rd.level_identifier as "levelIdentifier",
+        rd.citation as "citation",
         rd.nycrr_title as "nycrrTitle",
         rd.nycrr_part as "nycrrPart",
         rd.nycrr_section as "nycrrSection",
+        rd.nycrr_chapter as "nycrrChapter",
+        rd.nycrr_subpart as "nycrrSubpart",
+        rd.njac_title as "njacTitle",
+        rd.njac_chapter as "njacChapter",
+        rd.njac_subchapter as "njacSubchapter",
+        rd.njac_section as "njacSection",
         rd.state,
         -- Combine own analysis with precomputed descendant stats
         COALESCE(a.id IS NOT NULL OR rd.has_descendant_analysis, false) as "hasAnalysis",
@@ -1035,9 +1095,18 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         rd.title,
         rd.hierarchy_level as "hierarchyLevel",
         rd.hierarchy_path as "hierarchyPath",
+        rd.short_title as "shortTitle",
+        rd.level_identifier as "levelIdentifier",
+        rd.citation as "citation",
         rd.nycrr_title as "nycrrTitle",
         rd.nycrr_part as "nycrrPart",
         rd.nycrr_section as "nycrrSection",
+        rd.nycrr_chapter as "nycrrChapter",
+        rd.nycrr_subpart as "nycrrSubpart",
+        rd.njac_title as "njacTitle",
+        rd.njac_chapter as "njacChapter",
+        rd.njac_subchapter as "njacSubchapter",
+        rd.njac_section as "njacSection",
         rd.state,
         -- Combine own analysis with precomputed descendant stats
         COALESCE(a.id IS NOT NULL OR rd.has_descendant_analysis, false) as "hasAnalysis",
@@ -1070,6 +1139,16 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
     id: number;
     title: string;
     hierarchyLevel: string | null;
+    shortTitle: string | null;
+    levelIdentifier: string | null;
+    citation: string | null;
+    nycrrTitle: number | null;
+    nycrrPart: string | null;
+    nycrrChapter: string | null;
+    njacTitle: string | null;
+    njacChapter: string | null;
+    njacSubchapter: string | null;
+    state: string | null;
     hasAnalysis: boolean;
     maxSeverity: number | null;
     numFlags: number;
@@ -1079,6 +1158,16 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         rd.id,
         rd.title,
         rd.hierarchy_level as "hierarchyLevel",
+        rd.short_title as "shortTitle",
+        rd.level_identifier as "levelIdentifier",
+        rd.citation as "citation",
+        rd.nycrr_title as "nycrrTitle",
+        rd.nycrr_part as "nycrrPart",
+        rd.nycrr_chapter as "nycrrChapter",
+        rd.njac_title as "njacTitle",
+        rd.njac_chapter as "njacChapter",
+        rd.njac_subchapter as "njacSubchapter",
+        rd.state,
         COALESCE(a.id IS NOT NULL, false) as "hasAnalysis",
         a.max_severity as "maxSeverity",
         COALESCE(a.num_flags, 0)::int as "numFlags"
@@ -1095,6 +1184,16 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
       id: number;
       title: string;
       hierarchyLevel: string | null;
+      shortTitle: string | null;
+      levelIdentifier: string | null;
+      citation: string | null;
+      nycrrTitle: number | null;
+      nycrrPart: string | null;
+      nycrrChapter: string | null;
+      njacTitle: string | null;
+      njacChapter: string | null;
+      njacSubchapter: string | null;
+      state: string | null;
       hasAnalysis: boolean;
       maxSeverity: number | null;
       numFlags: number;
@@ -1109,6 +1208,16 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
     id: number;
     title: string;
     hierarchyLevel: string | null;
+    shortTitle: string | null;
+    levelIdentifier: string | null;
+    citation: string | null;
+    nycrrTitle: number | null;
+    nycrrPart: string | null;
+    nycrrChapter: string | null;
+    njacTitle: string | null;
+    njacChapter: string | null;
+    njacSubchapter: string | null;
+    state: string | null;
   }[]> {
     // Use a recursive CTE to walk up the parent chain
     const results = await this.db.execute(sql`
@@ -1118,6 +1227,16 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
           rd.id,
           rd.title,
           rd.hierarchy_level as "hierarchyLevel",
+          rd.short_title as "shortTitle",
+          rd.level_identifier as "levelIdentifier",
+          rd.citation as "citation",
+          rd.nycrr_title as "nycrrTitle",
+          rd.nycrr_part as "nycrrPart",
+          rd.nycrr_chapter as "nycrrChapter",
+          rd.njac_title as "njacTitle",
+          rd.njac_chapter as "njacChapter",
+          rd.njac_subchapter as "njacSubchapter",
+          rd.state,
           rd.parent_id as "parentId",
           1 as depth
         FROM regulatory_documents rd
@@ -1130,13 +1249,24 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
           rd.id,
           rd.title,
           rd.hierarchy_level as "hierarchyLevel",
+          rd.short_title as "shortTitle",
+          rd.level_identifier as "levelIdentifier",
+          rd.citation as "citation",
+          rd.nycrr_title as "nycrrTitle",
+          rd.nycrr_part as "nycrrPart",
+          rd.nycrr_chapter as "nycrrChapter",
+          rd.njac_title as "njacTitle",
+          rd.njac_chapter as "njacChapter",
+          rd.njac_subchapter as "njacSubchapter",
+          rd.state,
           rd.parent_id as "parentId",
           a.depth + 1
         FROM regulatory_documents rd
         INNER JOIN ancestors a ON rd.id = a."parentId"
         WHERE a.depth < 20  -- Safety limit to prevent infinite loops
       )
-      SELECT id, title, "hierarchyLevel"
+      SELECT id, title, "hierarchyLevel", "shortTitle", "levelIdentifier", "citation",
+             "nycrrTitle", "nycrrPart", "nycrrChapter", "njacTitle", "njacChapter", "njacSubchapter", state
       FROM ancestors
       ORDER BY depth DESC  -- Root first
     `);
@@ -1145,6 +1275,16 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
       id: number;
       title: string;
       hierarchyLevel: string | null;
+      shortTitle: string | null;
+      levelIdentifier: string | null;
+      citation: string | null;
+      nycrrTitle: number | null;
+      nycrrPart: string | null;
+      nycrrChapter: string | null;
+      njacTitle: string | null;
+      njacChapter: string | null;
+      njacSubchapter: string | null;
+      state: string | null;
     }[];
   }
 

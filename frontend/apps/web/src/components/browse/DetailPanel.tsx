@@ -9,6 +9,7 @@ import { getComplianceIssuesByDocumentId } from '@/lib/actions/compliance-issues
 import { Card, Badge, SeverityBadge, Button, Tag } from '@/components/ui';
 import { RegulationQuickStats, RegulationContent } from '@/components/regulations';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
+import { formatDisplayTitle } from '@/lib/format';
 import { HierarchyBreadcrumbs } from './HierarchyBreadcrumbs';
 import { FileText, ExternalLink, AlertTriangle, X, Loader2, ClipboardList } from 'lucide-react';
 import { getStateFromPathname } from '@/hooks';
@@ -124,8 +125,8 @@ export function DetailPanel({ documentId, onClose, onNavigate, fullScreen = fals
       <div className="p-4 border-b border-[var(--color-neutral-200)] shrink-0">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
-            <h2 className="text-lg font-semibold text-[var(--color-text)] truncate">
-              {document.title}
+            <h2 className="text-lg font-semibold text-[var(--color-text)] truncate" title={document.title}>
+              {formatDisplayTitle(document)}
             </h2>
             {nycrrCitation && (
               <p className="text-sm text-[var(--color-text-muted)] mt-0.5">{nycrrCitation}</p>

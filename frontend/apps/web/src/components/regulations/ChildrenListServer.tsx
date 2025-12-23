@@ -3,7 +3,7 @@ import { db, RegulatoryDocumentsRepository } from '@deproceduralizer/database';
 import { ChevronRight } from 'lucide-react';
 import { Badge, SeverityBadge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
-import { cleanTitle, truncateTitle } from '@/lib/format';
+import { formatDisplayTitle, truncateTitle } from '@/lib/format';
 
 interface ChildrenListServerProps {
   documentId: number;
@@ -57,19 +57,12 @@ export async function ChildrenListServer({
           >
             <div className="flex items-center gap-2 min-w-0 flex-1">
               <ChevronRight className="w-4 h-4 text-[var(--color-text-muted)] group-hover:text-[var(--color-link)] shrink-0" />
-              <div className="min-w-0">
-                {child.hierarchyLevel && (
-                  <span className="text-xs font-medium text-[var(--color-text-secondary)] mr-1.5">
-                    {levelLabels[child.hierarchyLevel] || child.hierarchyLevel}:
-                  </span>
-                )}
-                <span
-                  className="text-sm text-[var(--color-text)] group-hover:text-[var(--color-link)]"
-                  title={child.title}
-                >
-                  {truncateTitle(cleanTitle(child.title), 60)}
-                </span>
-              </div>
+              <span
+                className="text-sm text-[var(--color-text)] group-hover:text-[var(--color-link)] min-w-0"
+                title={child.title}
+              >
+                {truncateTitle(formatDisplayTitle(child), 60)}
+              </span>
             </div>
             <div className="flex items-center gap-2 shrink-0">
               {child.numFlags > 0 && (
