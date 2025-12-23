@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { Badge, SeverityBadge, ReviewStatusBadge, Card, Tag } from '@/components/ui';
-import RedFlagReviewForm from '@/components/RedFlagReviewForm';
+import RedFlagReviewForm from './RedFlagReviewForm';
 import { getComplexityVariant } from '@/types/regulation';
 
 interface RedFlag {

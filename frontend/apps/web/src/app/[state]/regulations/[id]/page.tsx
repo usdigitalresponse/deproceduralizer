@@ -6,8 +6,8 @@ import { Container } from '@/components/layout/Container';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui';
-import { RedFlagsList } from '@/components/RedFlagsList';
-import { ComplianceIssuesList } from '@/components/ComplianceIssuesList';
+import { RedFlagsList } from '@/components/flags';
+import { ComplianceIssuesList } from '@/components/issues';
 import { DefinitionsList, ApplicableDefinitions } from '@/components/definitions';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
 import {

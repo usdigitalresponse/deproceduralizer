@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback } from 'react';
 import { Badge, ReviewStatusBadge, Card, Tag, Button } from '@/components/ui';
-import ComplianceIssueReviewForm from '@/components/ComplianceIssueReviewForm';
+import ComplianceIssueReviewForm from './ComplianceIssueReviewForm';
 import { ISSUE_TYPE_LABELS } from '@/types/regulation';
 import { expandContext } from '@/lib/utils/expandContext';
 import { highlightTerm, highlightContext } from '@/lib/utils/highlight';

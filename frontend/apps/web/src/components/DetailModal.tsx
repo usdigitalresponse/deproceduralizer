@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import type { RegulationWithAnalysis } from '@deproceduralizer/database';
-import RedFlagReviewForm from './RedFlagReviewForm';
+import { RedFlagReviewForm } from '@/components/flags';
 import {
   Modal,
   ModalContent,

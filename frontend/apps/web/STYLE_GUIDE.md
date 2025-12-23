@@ -823,14 +823,16 @@ const variant = getComplexityVariant(complexity);
 ### Severity Thresholds
 
 ```tsx
-import { SEVERITY_THRESHOLDS, getSeverityVariant } from '@/types/regulation';
+import { SEVERITY_THRESHOLDS } from '@/types/regulation';
+import { SeverityBadge } from '@/components/ui';
 
 // SEVERITY_THRESHOLDS = { HIGH: 7, MEDIUM: 4, LOW: 1 }
-// getSeverityVariant maps severity to Badge variant:
+// SeverityBadge maps severity to Badge variant internally:
 // severity >= 7 → 'danger'
 // severity >= 4 → 'warning'
 // severity >= 1 → 'success'
-// else → 'default'
+
+<SeverityBadge severity={flag.severity} />
 ```
 
 ### Available Constants
