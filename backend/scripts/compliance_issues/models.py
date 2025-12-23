@@ -1,0 +1,113 @@
+"""
+Pydantic response models for compliance issue LLM analysis.
+
+These are the only Python definitions needed - everything else comes from YAML.
+"""
+
+from typing import Optional
+from pydantic import BaseModel, Field
+
+
+class BaseComplianceAnalysis(BaseModel):
+    """Base analysis response for all compliance issues."""
+    has_issue: bool = Field(
+        description="True if the regulation contains this compliance issue"
+    )
+    requirement_quote: Optional[str] = Field(
+        default=None,
+        description="Exact quote establishing the requirement, if found"
+    )
+    from_statute: Optional[bool] = Field(
+        default=None,
+        description="True if requirement is from statute, False if regulation adds it, null if no statute provided or no issue"
+    )
+    notes: Optional[str] = Field(
+        default=None,
+        description="Additional context about the finding"
+    )
+
+
+class WetSignatureAnalysis(BaseComplianceAnalysis):
+    """LLM analysis for wet signature requirements."""
+    has_issue: bool = Field(
+        description="True ONLY if the regulation explicitly requires a wet, ink, handwritten, original, or physical signature. Generic phrases like 'shall be signed' do NOT count."
+    )
+
+
+class MailOnlyAnalysis(BaseComplianceAnalysis):
+    """LLM analysis for mail-only submission requirements."""
+    has_issue: bool = Field(
+        description="True if mail is the ONLY permitted submission method. False if electronic/online submission is also offered as an alternative."
+    )
+    alternative_methods: Optional[str] = Field(
+        default=None,
+        description="Other submission methods mentioned (if any)"
+    )
+
+
+class CertifiedMailAnalysis(BaseComplianceAnalysis):
+    """LLM analysis for certified/registered mail requirements."""
+    has_issue: bool = Field(
+        description="True if certified/registered mail is required and appears unnecessary for routine correspondence. False if there's a clear legal rationale."
+    )
+    legal_rationale: Optional[str] = Field(
+        default=None,
+        description="Legal purpose if one is apparent (e.g., establishing deadline, legal notice)"
+    )
+
+
+class FaxAnalysis(BaseComplianceAnalysis):
+    """LLM analysis for fax requirements."""
+    has_issue: bool = Field(
+        description="True if fax is required or is the only alternative to physical mail. False if modern digital alternatives are equally available."
+    )
+    alternative_methods: Optional[str] = Field(
+        default=None,
+        description="Other submission methods mentioned (if any)"
+    )
+
+
+class ObsoleteTechAnalysis(BaseComplianceAnalysis):
+    """LLM analysis for obsolete technology requirements."""
+    has_issue: bool = Field(
+        description="True if the reference is to an active requirement or permitted method for current processes. False if it's historical, definitional, or an exemption."
+    )
+    technology_type: Optional[str] = Field(
+        default=None,
+        description="The obsolete technology referenced (telegram, telex, pager, etc.)"
+    )
+
+
+class InPersonAnalysis(BaseComplianceAnalysis):
+    """LLM analysis for in-person requirements."""
+    has_issue: bool = Field(
+        description="True if physical presence is required. False if remote/electronic alternatives are available."
+    )
+
+
+class PaymentAnalysis(BaseComplianceAnalysis):
+    """LLM analysis for payment method restrictions."""
+    has_issue: bool = Field(
+        description="True if specific payment method is required with no modern alternatives."
+    )
+
+
+class DocumentFormatAnalysis(BaseComplianceAnalysis):
+    """LLM analysis for document format requirements."""
+    has_issue: bool = Field(
+        description="True if specific physical format is required."
+    )
+
+
+# Map model names (from YAML) to actual classes
+RESPONSE_MODELS = {
+    "BaseComplianceAnalysis": BaseComplianceAnalysis,
+    "WetSignatureAnalysis": WetSignatureAnalysis,
+    "MailOnlyAnalysis": MailOnlyAnalysis,
+    "CertifiedMailAnalysis": CertifiedMailAnalysis,
+    "FaxAnalysis": FaxAnalysis,
+    "ObsoleteTechAnalysis": ObsoleteTechAnalysis,
+    "InPersonAnalysis": InPersonAnalysis,
+    "PaymentAnalysis": PaymentAnalysis,
+    "DocumentFormatAnalysis": DocumentFormatAnalysis,
+}

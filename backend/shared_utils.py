@@ -561,11 +561,13 @@ async def call_llm_parse_async(
     response_format: Type[BaseModel],
     model: str = None,
     max_retries: int = 3,
+    system: Optional[str] = None,
+    max_tokens: int = 8192,
 ) -> Optional[BaseModel]:
     """
     Call Anthropic API async with structured output (Pydantic model via tool_use).
 
-    Handles retries automatically.
+    Handles retries automatically. Uses system prompt for caching when provided.
 
     Args:
         client: AsyncAnthropic client instance
@@ -573,6 +575,8 @@ async def call_llm_parse_async(
         response_format: Pydantic model for structured output
         model: Model name (default: DEFAULT_MODEL)
         max_retries: Number of retries on failure (default: 3)
+        system: Optional system prompt (cached across batch requests)
+        max_tokens: Max output tokens (default: 8192)
 
     Returns:
         Parsed Pydantic model instance, or None if all retries fail
@@ -582,14 +586,27 @@ async def call_llm_parse_async(
 
     tool = _pydantic_to_tool_schema(response_format)
 
+    # Build request kwargs
+    request_kwargs = {
+        "model": model,
+        "max_tokens": max_tokens,
+        "tools": [tool],
+        "tool_choice": {"type": "tool", "name": tool["name"]},
+        "messages": [{"role": "user", "content": prompt}],
+    }
+    if system:
+        # Use cache_control for prompt caching on repeated system prompts
+        request_kwargs["system"] = [
+            {
+                "type": "text",
+                "text": system,
+                "cache_control": {"type": "ephemeral"}
+            }
+        ]
+
     for attempt in range(max_retries):
         try:
-            response = await client.messages.create(
-                model=model,
-                tools=[tool],
-                tool_choice={"type": "tool", "name": tool["name"]},
-                messages=[{"role": "user", "content": prompt}],
-            )
+            response = await client.messages.create(**request_kwargs)
 
             # Check for truncation due to max_tokens
             if response.stop_reason == "max_tokens":

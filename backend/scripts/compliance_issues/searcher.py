@@ -20,7 +20,6 @@ from shared_utils import (
     get_async_openai_client,
     get_openai_client,
     call_llm_parse_async,
-    load_prompt_parts,
     get_db_connection,
     format_batch_request,
     BatchManager,
@@ -29,7 +28,8 @@ from shared_utils import (
 )
 from config import OUTPUTS_DIR
 
-from .config import StateConfig, IssueTypeConfig, BaseComplianceAnalysis
+from .config import StateConfig, IssueTypeConfig
+from .models import BaseComplianceAnalysis
 from .statute_checker import StatuteChecker, NoOpStatuteChecker, create_statute_checker
 
 
@@ -80,13 +80,6 @@ class ComplianceIssueSearcher:
         # Create statute checker
         self.statute_checker = create_statute_checker(state_config, with_statutes)
 
-        # Compile regex patterns
-        self._compiled_tiers: dict[str, list[re.Pattern]] = {}
-        for tier_name, patterns in issue_config.tiers.items():
-            self._compiled_tiers[tier_name] = [
-                re.compile(p, re.IGNORECASE) for p in patterns
-            ]
-
         # Batches directory
         self.batches_dir = OUTPUTS_DIR / 'batches' / issue_config.name
 
@@ -94,13 +87,13 @@ class ComplianceIssueSearcher:
         """
         Search regulations in database for potential compliance issues.
 
-        Uses tiered regex matching - higher tiers are stronger indicators.
+        Uses regex pattern matching from the issue config.
 
         Args:
             limit: Optional limit on number of matches to return
 
         Returns:
-            List of match dicts with document info, tier, context, etc.
+            List of match dicts with document info, context, etc.
         """
         conn = get_db_connection()
         if not conn:
@@ -131,7 +124,7 @@ class ComplianceIssueSearcher:
             return []
 
         matches = []
-        tier_counts = {tier: 0 for tier in self.issue_config.tiers.keys()}
+        compiled_patterns = self.issue_config.compiled_patterns
 
         for row in rows:
             doc_id, title, content, url, hierarchy_level, hierarchy_path, \
@@ -140,29 +133,23 @@ class ComplianceIssueSearcher:
             if not content:
                 continue
 
-            content_lower = content.lower()
-
-            # Check tiers in priority order
-            matched_tier = None
+            # Check patterns
             matched_term = None
             matched_pattern = None
 
-            for tier_name in sorted(self._compiled_tiers.keys()):
-                for pattern in self._compiled_tiers[tier_name]:
-                    if pattern.search(content_lower):
-                        matched_tier = tier_name
-                        matched_term = pattern.pattern
-                        matched_pattern = pattern
-                        break
-                if matched_tier:
+            for pattern in compiled_patterns:
+                match_obj = pattern.search(content)
+                if match_obj:
+                    matched_term = pattern.pattern
+                    matched_pattern = pattern
                     break
 
-            if matched_tier:
+            if matched_pattern:
                 # Get context around match (larger for LLM)
-                match = matched_pattern.search(content, re.IGNORECASE)
-                if match:
-                    start = max(0, match.start() - 300)
-                    end = min(len(content), match.end() + 300)
+                match_obj = matched_pattern.search(content)
+                if match_obj:
+                    start = max(0, match_obj.start() - 300)
+                    end = min(len(content), match_obj.end() + 300)
                     context = content[start:end].strip()
                 else:
                     context = content[:600]
@@ -174,7 +161,6 @@ class ComplianceIssueSearcher:
                     'document_id': doc_id,
                     'title': title or '',
                     'url': url or '',
-                    'tier': matched_tier,
                     'term_matched': matched_term,
                     'context': context,
                     'full_content': content,
@@ -187,7 +173,6 @@ class ComplianceIssueSearcher:
                 }
 
                 matches.append(result)
-                tier_counts[matched_tier] += 1
 
                 if limit and len(matches) >= limit:
                     break
@@ -195,9 +180,7 @@ class ComplianceIssueSearcher:
         conn.close()
 
         # Print summary
-        print(f"Found {len(matches)} potential matches:")
-        for tier_name, count in sorted(tier_counts.items()):
-            print(f"  {tier_name}: {count}")
+        print(f"Found {len(matches)} potential matches")
 
         return matches
 
@@ -213,14 +196,18 @@ class ComplianceIssueSearcher:
             match.get('statute_citations', [])
         )
 
-        # Load prompt parts
-        parts = load_prompt_parts(
-            self.issue_config.prompt_name,
+        # Get prompt from issue config (loaded from YAML)
+        prompt_config = self.issue_config.prompt
+        system_prompt = prompt_config.get('system')
+        template = prompt_config.get('template', '')
+
+        # Fill in template variables
+        user_prompt = template.format(
             regulation_context=match['context'],
             statute_context=statute_context if statute_context else "No statute references found.",
         )
 
-        return parts.get('system'), parts.get('user')
+        return system_prompt, user_prompt
 
     async def analyze_match(
         self,
@@ -239,15 +226,13 @@ class ComplianceIssueSearcher:
         """
         system_prompt, user_prompt = self.create_prompt(match)
 
-        # Build messages
-        messages = [{"role": "user", "content": user_prompt}]
-
         try:
             analysis = await call_llm_parse_async(
                 client=client,
                 prompt=user_prompt,
                 response_format=self.issue_config.response_model,
                 model=DEFAULT_MODEL,
+                system=system_prompt,  # Static prompt for caching
             )
 
             if analysis is None:
@@ -275,7 +260,7 @@ class ComplianceIssueSearcher:
     async def analyze_async(
         self,
         matches: list[dict],
-        batch_size: int = 5,
+        batch_size: int = 10,
     ) -> list[dict]:
         """
         Analyze matches using async LLM calls.
