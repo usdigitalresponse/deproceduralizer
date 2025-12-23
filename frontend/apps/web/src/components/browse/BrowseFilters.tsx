@@ -1,10 +1,16 @@
 'use client';
 
-import { useRouter, usePathname } from 'next/navigation';
 import { useCallback, useTransition } from 'react';
 import { useQueryStates } from 'nuqs';
 import { Button, Select, SearchInput } from '@/components/ui';
 import { browseFiltersParsers } from '@/lib/url/parsers';
+import {
+  ANALYZED_FILTER_OPTIONS,
+  HAS_FLAGS_FILTER_OPTIONS,
+  SEVERITY_FILTER_OPTIONS,
+  HAS_DEFINITIONS_FILTER_OPTIONS,
+  HAS_COMPLIANCE_FILTER_OPTIONS,
+} from '@/lib/constants/filters';
 import { X } from 'lucide-react';
 
 interface BrowseFiltersProps {
@@ -17,43 +23,10 @@ interface BrowseFiltersProps {
   className?: string;
 }
 
-const ANALYZED_OPTIONS = [
-  { value: 'all', label: 'All' },
-  { value: 'true', label: 'Analyzed' },
-  { value: 'false', label: 'Not Analyzed' },
-];
-
-const HAS_FLAGS_OPTIONS = [
-  { value: 'all', label: 'All' },
-  { value: 'true', label: 'Has Flags' },
-  { value: 'false', label: 'No Flags' },
-];
-
-const SEVERITY_OPTIONS = [
-  { value: 'all', label: 'All Severities' },
-  { value: 'high', label: 'High (7-10)' },
-  { value: 'medium', label: 'Medium (4-6)' },
-  { value: 'low', label: 'Low (1-3)' },
-];
-
-const HAS_DEFINITIONS_OPTIONS = [
-  { value: 'all', label: 'All' },
-  { value: 'true', label: 'Has Definitions' },
-  { value: 'false', label: 'No Definitions' },
-];
-
-const HAS_COMPLIANCE_ISSUES_OPTIONS = [
-  { value: 'all', label: 'All' },
-  { value: 'true', label: 'Has Compliance Issues' },
-  { value: 'false', label: 'No Compliance Issues' },
-];
-
 export function BrowseFilters({
   stats,
   className = '',
 }: BrowseFiltersProps) {
-  const router = useRouter();
-  const pathname = usePathname();
   const [isPending, startTransition] = useTransition();
 
   const [filters, setFilters] = useQueryStates(browseFiltersParsers, {
@@ -106,7 +79,7 @@ export function BrowseFilters({
         <Select
           value={filters.analyzed === true ? 'true' : filters.analyzed === false ? 'false' : 'all'}
           onValueChange={(value) => setFilters({ analyzed: value === 'all' ? null : value === 'true' })}
-          options={ANALYZED_OPTIONS}
+          options={ANALYZED_FILTER_OPTIONS}
           aria-label="Filter by analysis status"
         />
       </div>
@@ -119,7 +92,7 @@ export function BrowseFilters({
         <Select
           value={filters.hasFlags === true ? 'true' : filters.hasFlags === false ? 'false' : 'all'}
           onValueChange={(value) => setFilters({ hasFlags: value === 'all' ? null : value === 'true' })}
-          options={HAS_FLAGS_OPTIONS}
+          options={HAS_FLAGS_FILTER_OPTIONS}
           aria-label="Filter by flags"
         />
       </div>
@@ -132,7 +105,7 @@ export function BrowseFilters({
         <Select
           value={filters.severity || 'all'}
           onValueChange={(value) => setFilters({ severity: value as any })}
-          options={SEVERITY_OPTIONS}
+          options={SEVERITY_FILTER_OPTIONS}
           aria-label="Filter by severity"
         />
       </div>
@@ -145,7 +118,7 @@ export function BrowseFilters({
         <Select
           value={filters.hasDefs === true ? 'true' : filters.hasDefs === false ? 'false' : 'all'}
           onValueChange={(value) => setFilters({ hasDefs: value === 'all' ? null : value === 'true' })}
-          options={HAS_DEFINITIONS_OPTIONS}
+          options={HAS_DEFINITIONS_FILTER_OPTIONS}
           aria-label="Filter by definitions"
         />
       </div>
@@ -158,7 +131,7 @@ export function BrowseFilters({
         <Select
           value={filters.hasCompliance === true ? 'true' : filters.hasCompliance === false ? 'false' : 'all'}
           onValueChange={(value) => setFilters({ hasCompliance: value === 'all' ? null : value === 'true' })}
-          options={HAS_COMPLIANCE_ISSUES_OPTIONS}
+          options={HAS_COMPLIANCE_FILTER_OPTIONS}
           aria-label="Filter by compliance issues"
         />
       </div>

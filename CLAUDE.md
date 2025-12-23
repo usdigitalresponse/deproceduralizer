@@ -9,3 +9,27 @@
 - avoid typecasts (`as Type`) and casting to `unknown` unless truly necessary - prefer proper type guards, generics, or fixing the underlying type issue
 - when setting max_tokens for LLM API calls, look up the model's maximum output token limit and use that value (e.g., Claude 4.5 models support 64000 output tokens, Claude 3.5 Sonnet supports 8192)
 
+## Frontend Architecture Guidelines (frontend/apps/web)
+
+When working on the Next.js frontend, follow these patterns:
+
+### Avoid Duplication Patterns
+- Before creating a new component, check if similar components exist (queues, cards, filters, modals)
+- If 3+ components share >50% logic, extract a shared hook or wrapper component
+- Never define filter options, status mappings, or nav config in multiple places - centralize in `lib/constants/`
+
+### URL State Management
+- Always use `nuqs` with predefined parsers from `lib/url/parsers.ts` for query state
+- Never use raw `useSearchParams()` + manual URLSearchParams manipulation
+- Add new parsers to `parsers.ts` rather than defining inline parsers in components
+
+### State & Constants
+- Use `DEFAULT_STATE` from `types/state.ts` - never hardcode state values ('nj', 'ny')
+- Use `VALID_STATES` when iterating over states
+- Centralize enums and option arrays in `lib/constants/`
+
+### Code Hygiene
+- Delete unused exports immediately - don't leave "might use later" code
+- After refactoring, audit index.ts barrel exports for dead code
+- Run unused import cleanup as part of any PR
+

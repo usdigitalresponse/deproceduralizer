@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import type { DefinitionWithContext } from '@deproceduralizer/database';
+import { DEFAULT_STATE } from '@/types/state';
 
 /**
  * Get the display definition text based on verbatim/rephrased logic
@@ -33,7 +34,7 @@ interface DefinitionsListProps {
  */
 export function DefinitionsList({
   definitions,
-  state = 'ny',
+  state = DEFAULT_STATE,
   collapsible = true,
   initialCollapsed = false,
 }: DefinitionsListProps) {

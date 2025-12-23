@@ -18,6 +18,7 @@ import { Card } from '@/components/ui/Card';
 import { getComplexityVariant, formatLabel } from '@/types/regulation';
 import { useResponsive } from '@/hooks';
 import { formatDisplayTitle } from '@/lib/format';
+import { SEVERITY_TABLE_OPTIONS } from '@/lib/constants/filters';
 
 interface PaginationInfo {
   page: number;
@@ -116,13 +117,7 @@ const COLUMN_FILTERS: Record<string, ColumnFilterConfig> = {
   maxSeverity: {
     urlParam: 'severity',
     type: 'select',
-    options: [
-      { value: '', label: 'All' },
-      { value: 'high', label: 'High (≥7)' },
-      { value: 'medium', label: 'Medium (4-6)' },
-      { value: 'low', label: 'Low (1-3)' },
-      { value: 'null', label: 'Not Analyzed' },
-    ],
+    options: [...SEVERITY_TABLE_OPTIONS],
   },
   requiresTechnicalReview: {
     urlParam: 'techReview',

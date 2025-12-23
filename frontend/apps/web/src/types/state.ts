@@ -43,19 +43,19 @@ export function isValidState(state: string): state is StateCode {
 }
 
 /**
- * Get state config with fallback to NY
+ * Default state when none is selected
+ */
+export const DEFAULT_STATE: StateCode = 'nj';
+
+/**
+ * Get state config with fallback to default state
  */
 export function getStateConfig(state: string): StateConfig {
   if (isValidState(state)) {
     return STATE_CONFIG[state];
   }
-  return STATE_CONFIG.ny;
+  return STATE_CONFIG[DEFAULT_STATE];
 }
-
-/**
- * Default state when none is selected
- */
-export const DEFAULT_STATE: StateCode = 'ny';
 
 /**
  * localStorage key for persisting selected state

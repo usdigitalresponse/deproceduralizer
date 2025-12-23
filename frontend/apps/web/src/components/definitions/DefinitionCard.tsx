@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import type { DefinitionWithContext } from '@deproceduralizer/database';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
+import { DEFAULT_STATE } from '@/types/state';
 
 interface DefinitionCardProps {
   definition: DefinitionWithContext;
@@ -46,7 +47,7 @@ function getDisplayDefinitionText(definition: DefinitionWithContext): string {
 export function DefinitionCard({
   definition,
   showSource = true,
-  state = 'ny',
+  state = DEFAULT_STATE,
   compact = false,
 }: DefinitionCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);

@@ -6,33 +6,16 @@ import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 import { reviewQueueParsers, type ReviewStatusValue, type SeverityValue } from '@/lib/url/parsers';
 import { formatLabel } from '@/types/regulation';
+import {
+  REVIEW_STATUS_FILTER_OPTIONS,
+  SEVERITY_FILTER_OPTIONS,
+  REVIEW_SORT_OPTIONS,
+} from '@/lib/constants/filters';
 
 interface ReviewFiltersProps {
   categories: string[];
   className?: string;
 }
-
-const STATUS_OPTIONS = [
-  { value: 'all', label: 'All Statuses' },
-  { value: 'unreviewed', label: 'Unreviewed' },
-  { value: 'confirmed', label: 'Confirmed' },
-  { value: 'false_positive', label: 'False Positive' },
-  { value: 'needs_context', label: 'Needs Context' },
-  { value: 'deferred', label: 'Deferred' },
-];
-
-const SEVERITY_OPTIONS = [
-  { value: 'all', label: 'All Severities' },
-  { value: 'high', label: 'High (7-10)' },
-  { value: 'medium', label: 'Medium (4-6)' },
-  { value: 'low', label: 'Low (1-3)' },
-];
-
-const SORT_OPTIONS = [
-  { value: 'severity', label: 'Severity' },
-  { value: 'category', label: 'Category' },
-  { value: 'reviewedAt', label: 'Last Reviewed' },
-];
 
 export function ReviewFilters({
   categories,
@@ -74,7 +57,7 @@ export function ReviewFilters({
         <Select
           value={filters.reviewStatus || 'unreviewed'}
           onValueChange={(value) => setFilters({ reviewStatus: value as ReviewStatusValue, page: 1 })}
-          options={STATUS_OPTIONS}
+          options={REVIEW_STATUS_FILTER_OPTIONS}
           aria-label="Filter by status"
         />
       </div>
@@ -87,7 +70,7 @@ export function ReviewFilters({
         <Select
           value={filters.severity || 'all'}
           onValueChange={(value) => setFilters({ severity: value as SeverityValue, page: 1 })}
-          options={SEVERITY_OPTIONS}
+          options={SEVERITY_FILTER_OPTIONS}
           aria-label="Filter by severity"
         />
       </div>
@@ -123,7 +106,7 @@ export function ReviewFilters({
         <Select
           value={filters.sortBy}
           onValueChange={(value) => setFilters({ sortBy: value as any, page: 1 })}
-          options={SORT_OPTIONS}
+          options={REVIEW_SORT_OPTIONS}
           aria-label="Sort by"
         />
         <Button

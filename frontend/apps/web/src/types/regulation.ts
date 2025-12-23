@@ -112,13 +112,3 @@ export const SEVERITY_THRESHOLDS = {
   MEDIUM: 4,  // severity >= 4 → warning (yellow)
   LOW: 1,     // severity >= 1 → success (green)
 } as const;
-
-/**
- * Maps severity (1-10) to Badge variant
- */
-export function getSeverityVariant(severity: number): 'danger' | 'warning' | 'success' | 'default' {
-  if (severity >= SEVERITY_THRESHOLDS.HIGH) return 'danger';
-  if (severity >= SEVERITY_THRESHOLDS.MEDIUM) return 'warning';
-  if (severity >= SEVERITY_THRESHOLDS.LOW) return 'success';
-  return 'default';
-}

@@ -121,24 +121,9 @@ export const developerSortByParser = parseAsStringEnum([
   'developerCheckedAt',
 ] as const).withDefault('reviewedAt');
 
-export const regulationSortByParser = parseAsStringEnum([
-  'title',
-  'numFlags',
-  'maxSeverity',
-  'overallComplexity',
-] as const).withDefault('numFlags');
-
 // ============================================
 // Combined parsers for common use cases
 // ============================================
-
-/**
- * Parser configuration for pagination controls
- */
-export const paginationParsers = {
-  page: pageParser,
-  pageSize: pageSizeParser,
-};
 
 /**
  * Parser configuration for the review queue filters
@@ -164,22 +149,6 @@ export const developerQueueParsers = {
 };
 
 /**
- * Parser configuration for the review page
- */
-export const reviewPageParsers = {
-  type: reviewTypeParser,
-  mode: reviewModeParser,
-  page: pageParser,
-  reviewStatus: reviewStatusParser,
-  severity: severityParser,
-  category: categoryParser,
-  sortBy: flagSortByParser,
-  sortOrder: sortOrderParser,
-  developerStatus: developerStatusParser,
-  developerAssigned: developerAssignedParser,
-};
-
-/**
  * Parser configuration for the browse hierarchy filters
  */
 export const browseFiltersParsers = {
@@ -202,54 +171,3 @@ export const glossaryFiltersParsers = {
   definitionType: definitionTypeParser,
   quality: definitionQualityParser,
 };
-
-// ============================================
-// Helper for creating URL strings
-// ============================================
-
-/**
- * Creates a query string from an object of key-value pairs.
- * Omits null, undefined, and 'all' values.
- */
-export function createQueryString(
-  params: Record<string, string | number | null | undefined>
-): string {
-  const searchParams = new URLSearchParams();
-
-  for (const [key, value] of Object.entries(params)) {
-    if (value === null || value === undefined || value === 'all') {
-      continue;
-    }
-    searchParams.set(key, String(value));
-  }
-
-  return searchParams.toString();
-}
-
-/**
- * Merges new params into existing search params, resetting page to 1 when filters change.
- */
-export function mergeQueryParams(
-  existingParams: URLSearchParams | string,
-  updates: Record<string, string | number | null | undefined>,
-  resetPage = true
-): string {
-  const params =
-    typeof existingParams === 'string'
-      ? new URLSearchParams(existingParams)
-      : new URLSearchParams(existingParams.toString());
-
-  if (resetPage) {
-    params.set('page', '1');
-  }
-
-  for (const [key, value] of Object.entries(updates)) {
-    if (value === null || value === undefined || value === '' || value === 'all') {
-      params.delete(key);
-    } else {
-      params.set(key, String(value));
-    }
-  }
-
-  return params.toString();
-}

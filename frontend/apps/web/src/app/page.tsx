@@ -76,12 +76,12 @@ export default async function HomePage() {
           </div>
         </section>
 
-        {/* Quick Links - default to NY */}
+        {/* Quick Links - default to NJ */}
         <section>
           <h2 className="text-lg font-semibold text-[var(--color-text)] mb-4">
             Quick Actions
           </h2>
-          <QuickLinks state="ny" />
+          <QuickLinks state="nj" />
         </section>
       </Container>
     </>
