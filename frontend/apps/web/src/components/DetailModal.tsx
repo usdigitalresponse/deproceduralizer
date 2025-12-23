@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import type { RegulationWithAnalysis } from '@deproceduralizer/database';
-import { RedFlagReviewForm } from '@/components/flags';
+import { RedFlagCard, RedFlagReviewForm } from '@/components/flags';
 import {
   Modal,
   ModalContent,
@@ -10,10 +10,7 @@ import {
   ModalTitle,
   ModalBody,
   ModalClose,
-  Badge,
-  SeverityBadge,
   Button,
-  Tag,
 } from '@/components/ui';
 import {
   RegulationHierarchyDetails,
@@ -23,7 +20,6 @@ import {
 } from '@/components/regulations';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
 import { useStateFromPath } from '@/hooks';
-import { getComplexityVariant } from '@/types/regulation';
 
 interface DetailModalProps {
   regulation: RegulationWithAnalysis | null;
@@ -106,67 +102,14 @@ export default function DetailModal({ regulation, onClose, onFlagUpdated }: Deta
               <h3 className="font-semibold text-[var(--color-text)] mb-3">Red Flags Details</h3>
               <div className="space-y-3">
                 {regulation.redFlags.map((flag, idx) => (
-                  <div
-                    key={idx}
-                    className="bg-[var(--color-danger-bg)] border-l-4 border-[var(--color-danger)] p-4 rounded-[var(--radius-md)]"
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-semibold text-[var(--color-danger)]">{flag.category}</span>
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-1">
-                          <span className="text-xs text-[var(--color-text-muted)]">Severity:</span>
-                          <SeverityBadge severity={flag.severity} />
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <span className="text-xs text-[var(--color-text-muted)]">Complexity:</span>
-                          <Badge variant={getComplexityVariant(flag.complexity)}>
-                            {flag.complexity}
-                          </Badge>
-                        </div>
-                      </div>
-                    </div>
-                    <p className="text-sm text-[var(--color-text-secondary)] mb-2">{flag.explanation}</p>
-                    {flag.implementationApproach && (
-                      <div className="mt-2 text-sm">
-                        <span className="font-medium text-[var(--color-text-secondary)]">Implementation:</span>
-                        <span className="ml-2">{flag.implementationApproach}</span>
-                      </div>
-                    )}
-                    {flag.effortEstimate && (
-                      <div className="mt-1 text-sm">
-                        <span className="font-medium text-[var(--color-text-secondary)]">Effort:</span>
-                        <span className="ml-2">{flag.effortEstimate}</span>
-                      </div>
-                    )}
-                    {flag.matchedPhrases && flag.matchedPhrases.length > 0 && (
-                      <div className="mt-2">
-                        <span className="text-xs font-medium text-[var(--color-text-secondary)]">Matched phrases:</span>
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {flag.matchedPhrases.map((phrase, i) => (
-                            <Tag key={i} variant="danger" size="sm">
-                              {phrase}
-                            </Tag>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {flag.textExamples && flag.textExamples.length > 0 && (
-                      <div className="mt-2">
-                        <span className="text-xs font-medium text-[var(--color-text-secondary)]">Examples from text:</span>
-                        <ul className="mt-1 text-xs text-[var(--color-text-muted)] list-disc list-inside">
-                          {flag.textExamples.map((ex, i) => (
-                            <li key={i} className="italic">&quot;{ex}&quot;</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
+                  <RedFlagCard key={idx} flag={flag} showReviewStatus={false}>
                     {flag.id && onFlagUpdated && (
                       <RedFlagReviewForm
                         flag={flag}
                         onUpdated={onFlagUpdated}
                       />
                     )}
-                  </div>
+                  </RedFlagCard>
                 ))}
               </div>
             </div>
