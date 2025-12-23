@@ -1,14 +1,20 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { useRouter, useSearchParams, usePathname } from 'next/navigation';
+import { useQueryStates } from 'nuqs';
 import { getDefinitionsForReview, getDefinitionReviewStats, getUniqueScopeTexts } from '@/lib/actions/definitions';
 import { DefinitionReviewCard } from './DefinitionReviewCard';
 import { DefinitionsReviewFilters } from './DefinitionsReviewFilters';
 import { BulkActionsBar } from './BulkActionsBar';
-import { QueuePagination } from '../shared';
+import {
+  QueuePagination,
+  QueueResultsInfo,
+  QueueEmptyState,
+  KeyboardHelpModal,
+} from '../shared';
 import { RegulationModal } from '../RegulationModal';
 import { useQueueNavigation } from '@/hooks';
+import { definitionsReviewParsers } from '@/lib/url/parsers';
 import type { DefinitionWithContext, StateCode } from '@deproceduralizer/database';
 
 interface DefinitionsReviewQueueProps {
@@ -16,9 +22,9 @@ interface DefinitionsReviewQueueProps {
 }
 
 export function DefinitionsReviewQueue({ state }: DefinitionsReviewQueueProps) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
+  // Use nuqs for URL state (consistent with filters)
+  const [filters, setFilters] = useQueryStates(definitionsReviewParsers, { shallow: false });
+
   const [definitions, setDefinitions] = useState<DefinitionWithContext[]>([]);
   const [totalPages, setTotalPages] = useState(0);
   const [total, setTotal] = useState(0);
@@ -36,6 +42,10 @@ export function DefinitionsReviewQueue({ state }: DefinitionsReviewQueueProps) {
   // Modal state
   const [modalRegulationId, setModalRegulationId] = useState<number | null>(null);
 
+  // Derived values from filters
+  const page = filters.page;
+  const pageSize = 10;
+
   // Selection toggle for 'x' key
   const toggleSelection = useCallback((id: number) => {
     setSelectedIds((prev) =>
@@ -48,6 +58,10 @@ export function DefinitionsReviewQueue({ state }: DefinitionsReviewQueueProps) {
     focusedIndex,
     setFocusedIndex,
     setCardRef,
+    cardRefs,
+    showHelp,
+    setShowHelp,
+    shortcuts,
   } = useQueueNavigation({
     items: definitions,
     getItemId: (d) => `def-${d.id}`,
@@ -63,20 +77,11 @@ export function DefinitionsReviewQueue({ state }: DefinitionsReviewQueueProps) {
       }
       return false;
     },
+    enableHelpModal: true,
     itemLabel: 'definition',
   });
 
-  // Parse URL params
-  const page = parseInt(searchParams.get('page') || '1');
-  const pageSize = 10;
-  const reviewStatus = searchParams.get('reviewStatus') as 'unreviewed' | 'confirmed' | 'corrected' | 'false_positive' | undefined;
-  const scopeLevel = searchParams.get('scopeLevel') || undefined;
-  const definitionType = searchParams.get('definitionType') as 'formal' | 'abbreviation' | undefined;
-  const sortBy = (searchParams.get('sortBy') || 'document') as 'term' | 'extractedAt' | 'document';
-  const isCrossReferenceParam = searchParams.get('isCrossReference');
-  const isCrossReference = isCrossReferenceParam === 'true' ? true : isCrossReferenceParam === 'false' ? false : undefined;
-  const scopeText = searchParams.get('scopeText') || undefined;
-  const scopeRelation = searchParams.get('scopeRelation') as 'self' | 'parent' | undefined;
+
 
   // Fetch scope texts for filter dropdown (only once)
   useEffect(() => {
@@ -91,6 +96,15 @@ export function DefinitionsReviewQueue({ state }: DefinitionsReviewQueueProps) {
   const fetchDefinitions = useCallback(async () => {
     setIsLoading(true);
     try {
+      // Convert nuqs filter values to API params
+      const reviewStatus = filters.reviewStatus === 'all' ? undefined : filters.reviewStatus as 'unreviewed' | 'confirmed' | 'corrected' | 'false_positive';
+      const scopeLevel = filters.scopeLevel === 'all' ? undefined : filters.scopeLevel;
+      const definitionType = filters.definitionType === 'all' ? undefined : filters.definitionType as 'formal' | 'abbreviation';
+      const sortBy = filters.sortBy as 'term' | 'extractedAt' | 'document';
+      const isCrossReference = filters.isCrossReference === 'all' ? undefined : filters.isCrossReference === 'true';
+      const scopeText = filters.scopeText || undefined;
+      const scopeRelation = filters.scopeRelation === 'all' ? undefined : filters.scopeRelation as 'self' | 'parent';
+
       const [defsResult, statsResult] = await Promise.all([
         getDefinitionsForReview(state, {
           page,
@@ -119,7 +133,7 @@ export function DefinitionsReviewQueue({ state }: DefinitionsReviewQueueProps) {
     } finally {
       setIsLoading(false);
     }
-  }, [state, page, pageSize, reviewStatus, scopeLevel, definitionType, sortBy, isCrossReference, scopeText, scopeRelation]);
+  }, [state, page, pageSize, filters]);
 
   useEffect(() => {
     fetchDefinitions();
@@ -157,10 +171,8 @@ export function DefinitionsReviewQueue({ state }: DefinitionsReviewQueueProps) {
   }, []);
 
   const handlePageChange = useCallback((newPage: number) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set('page', String(newPage));
-    router.push(`${pathname}?${params.toString()}`);
-  }, [router, pathname, searchParams]);
+    setFilters({ page: newPage });
+  }, [setFilters]);
 
   if (isLoading) {
     return (
@@ -171,21 +183,30 @@ export function DefinitionsReviewQueue({ state }: DefinitionsReviewQueueProps) {
   }
 
   return (
-    <div>
+    <div className="space-y-6">
       <DefinitionsReviewFilters counts={stats} scopeTexts={scopeTexts} />
 
+      {/* Keyboard help modal */}
+      <KeyboardHelpModal
+        open={showHelp}
+        onOpenChange={setShowHelp}
+        shortcuts={shortcuts}
+      />
+
       {definitions.length === 0 ? (
-        <div className="text-center py-12 text-[var(--color-text-secondary)]">
-          No definitions found matching your filters.
-        </div>
+        <QueueEmptyState
+          title="No definitions found"
+          description="No definitions found matching your filters."
+        />
       ) : (
         <>
-          <div className="mb-4 text-sm text-[var(--color-text-secondary)]">
-            Showing {(page - 1) * pageSize + 1}-{Math.min(page * pageSize, total)} of {total} definitions
-            <span className="ml-4 text-xs">
-              (Use j/k or arrows to navigate, x to select)
-            </span>
-          </div>
+          <QueueResultsInfo
+            startItem={(page - 1) * pageSize + 1}
+            endItem={Math.min(page * pageSize, total)}
+            total={total}
+            itemLabel="definitions"
+            keyboardHintText="Use j/k to navigate, x to select, ? for help"
+          />
 
           <div className="space-y-4">
             {definitions.map((definition, index) => (
