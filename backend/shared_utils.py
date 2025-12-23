@@ -443,7 +443,6 @@ def call_llm_parse(
         try:
             response = client.messages.create(
                 model=model,
-                max_tokens=64000,
                 tools=[tool],
                 tool_choice={"type": "tool", "name": tool["name"]},
                 messages=[{"role": "user", "content": prompt}],
@@ -541,7 +540,6 @@ def format_batch_request(
 
     params = {
         "model": model,
-        "max_tokens": 64000,
         "messages": [{"role": "user", "content": prompt}],
         "tools": [tool],
         "tool_choice": {"type": "tool", "name": tool["name"]},
@@ -588,7 +586,6 @@ async def call_llm_parse_async(
         try:
             response = await client.messages.create(
                 model=model,
-                max_tokens=64000,
                 tools=[tool],
                 tool_choice={"type": "tool", "name": tool["name"]},
                 messages=[{"role": "user", "content": prompt}],
