@@ -108,8 +108,42 @@ Main table with hierarchy. **50 columns** - use `./scripts/db-query.sh describe 
 | `source_location` | text | Where found in document |
 | `model_version` | varchar(100) | LLM model used |
 | `extracted_at` | timestamp | When extracted |
+| `notes` | text | General notes |
+| `review_status` | varchar(50) | unreviewed, confirmed, corrected, false_positive |
+| `reviewed_at` | timestamp | When reviewed |
+| `reviewer_name` | varchar(255) | Who reviewed |
+| `correction_reason` | text | Why correction was made (required if correcting) |
+| `model_feedback` | text | Feedback to improve future LLM extractions |
+| `original_values` | jsonb | Original LLM values when corrections are made |
 
-**Indexes:** `idx_definitions_scope_document`, `idx_definitions_scope_level`, `idx_definitions_normalized_term`, `idx_definitions_type`
+**Review Status Values:**
+- `unreviewed` - Default, not yet reviewed
+- `confirmed` - LLM extraction was correct
+- `corrected` - Fields were edited/corrected
+- `false_positive` - Not actually a definition
+
+**Indexes:** `idx_definitions_scope_document`, `idx_definitions_scope_level`, `idx_definitions_normalized_term`, `idx_definitions_type`, `idx_definitions_review_status`
+
+## definition_document_occurrences
+
+Many-to-many join table tracking where definition terms actually appear in document text.
+Uses word-boundary matching ('applicant' matches 'Applicant' but not 'reapplicant').
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `definition_id` | bigint | FK to definitions (composite PK) |
+| `document_id` | bigint | FK to regulatory_documents (composite PK) |
+| `created_at` | timestamp | When link was created |
+
+**Primary Key**: `(definition_id, document_id)` - composite
+
+**Indexes:** `idx_def_doc_occurrences_definition`, `idx_def_doc_occurrences_document`
+
+**Difference from scope-based applicability:**
+- `definitions.scope_document_id` = where definition APPLIES (hierarchy-based)
+- `definition_document_occurrences` = where term ACTUALLY APPEARS in text
+
+**Population:** Run `python link_definitions.py run --state NY` or integrated into `batch_definitions.py` pipeline.
 
 ## compliance_issues
 

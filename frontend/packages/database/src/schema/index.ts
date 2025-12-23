@@ -5,6 +5,7 @@ export * from './compliance-issues';
 export * from './statute-references';
 export * from './document-notes';
 export * from './definitions';
+export * from './definition-document-occurrences';
 export * from './regulation-statute-links';
 export * from './prompt-feedback';
 export * from './relations';

@@ -71,3 +71,6 @@ export { CopyLinkButton } from './CopyLinkButton';
 // EmptyState
 export { EmptyState } from './EmptyState';
 export type { EmptyStateProps } from './EmptyState';
+
+// SearchableContent
+export { SearchableContent } from './SearchableContent';

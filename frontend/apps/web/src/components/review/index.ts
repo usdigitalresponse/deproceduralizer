@@ -19,3 +19,12 @@ export { DeveloperFilters } from './DeveloperFilters';
 export { DeveloperProgress } from './DeveloperProgress';
 export { NeedMoreInfoQueue } from './NeedMoreInfoQueue';
 export { NeedMoreInfoCard } from './NeedMoreInfoCard';
+
+// Definition review components
+export {
+  DefinitionReviewCard,
+  DefinitionsReviewQueue,
+  DefinitionsReviewFilters,
+  ScopeDocumentTypeahead,
+  BulkActionsBar,
+} from './definitions';

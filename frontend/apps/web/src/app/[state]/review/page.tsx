@@ -9,6 +9,7 @@ import {
   ReviewModeSwitcher,
   DeveloperQueue,
   NeedMoreInfoQueue,
+  DefinitionsReviewQueue,
 } from '@/components/review';
 import {
   getRedFlagsPaginated,
@@ -26,6 +27,7 @@ import {
   getNeedMoreInfoItems,
   getNeedMoreInfoCounts,
 } from '@/lib/actions/developer';
+import { getDefinitionReviewStats } from '@/lib/actions/definitions';
 import type { RedFlagFilterOptions, StateCode } from '@deproceduralizer/database';
 import { isValidState, STATE_CONFIG } from '@/types/state';
 import type { ReviewType, ReviewMode } from '@/types/regulation';
@@ -132,6 +134,7 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
     const tabCounts = {
       flags: developerStatusCounts.total, // Total reviewed items
       compliance: 0, // Combined into flags for developer mode
+      definitions: 0, // Definitions not shown in developer mode
       needs_info: needsInfoCounts.combined.total,
     };
 
@@ -245,9 +248,10 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
   }
 
   // Review mode: fetch review status counts
-  const [flagStatusCountsResult, complianceStatusCountsResult, needsInfoCountsResult] = await Promise.all([
+  const [flagStatusCountsResult, complianceStatusCountsResult, definitionsStatsResult, needsInfoCountsResult] = await Promise.all([
     getRedFlagStatusCounts(stateCode),
     getComplianceIssueStatusCounts(stateCode),
+    getDefinitionReviewStats(stateCode),
     getNeedMoreInfoCounts(stateCode),
   ]);
 
@@ -284,6 +288,22 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
     );
   }
 
+  if (!definitionsStatsResult.success) {
+    return (
+      <div className="bg-[var(--color-background)]">
+        <PageHeader
+          title={`Review ${stateConfig.name} Regulations`}
+          description="Review extracted definitions"
+        />
+        <Container size="2xl" className="py-6">
+          <Alert variant="error">
+            Failed to load definitions counts: {definitionsStatsResult.error}
+          </Alert>
+        </Container>
+      </div>
+    );
+  }
+
   if (!needsInfoCountsResult.success) {
     return (
       <div className="bg-[var(--color-background)]">
@@ -302,11 +322,13 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
 
   const flagStatusCounts = flagStatusCountsResult.data;
   const complianceStatusCounts = complianceStatusCountsResult.data;
+  const definitionsStats = definitionsStatsResult.data;
   const needsInfoCounts = needsInfoCountsResult.data;
 
   const tabCounts = {
     flags: flagStatusCounts.total,
     compliance: complianceStatusCounts.total,
+    definitions: definitionsStats.total,
     needs_info: needsInfoCounts.combined.total,
   };
 
@@ -357,6 +379,24 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
             }}
             counts={needsInfoCounts}
           />
+        </Container>
+      </div>
+    );
+  }
+
+  // Handle definitions tab in review mode
+  if (reviewType === 'definitions') {
+    return (
+      <div className="bg-[var(--color-background)]">
+        <PageHeader
+          title={`Review ${stateConfig.name} Definitions`}
+          description="Review and correct LLM-extracted definitions"
+        />
+
+        <Container size="2xl" className="py-6">
+          <ReviewModeSwitcher mode={mode} />
+          <ReviewTypeTabs activeType={reviewType} counts={tabCounts} mode={mode} />
+          <DefinitionsReviewQueue state={stateCode} />
         </Container>
       </div>
     );
