@@ -56,6 +56,7 @@ export const ISSUE_TYPE_LABELS: Record<string, string> = {
 export const REVIEW_TYPES = [
   { value: 'flags', label: 'Red Flags' },
   { value: 'compliance', label: 'Compliance Issues' },
+  { value: 'definitions', label: 'Definitions' },
   { value: 'needs_info', label: 'Needs More Info' },
 ] as const;
 

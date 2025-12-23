@@ -5,6 +5,7 @@ import { redFlags } from './red-flags';
 import { statuteReferences } from './statute-references';
 import { documentNotes } from './document-notes';
 import { definitions } from './definitions';
+import { definitionDocumentOccurrences } from './definition-document-occurrences';
 
 export const regulatoryDocumentsRelations = relations(regulatoryDocuments, ({ one, many }) => ({
   parent: one(regulatoryDocuments, {
@@ -48,7 +49,7 @@ export const statuteReferencesRelations = relations(statuteReferences, ({ one })
   }),
 }));
 
-export const definitionsRelations = relations(definitions, ({ one }) => ({
+export const definitionsRelations = relations(definitions, ({ one, many }) => ({
   document: one(regulatoryDocuments, {
     fields: [definitions.documentId],
     references: [regulatoryDocuments.id],
@@ -59,4 +60,20 @@ export const definitionsRelations = relations(definitions, ({ one }) => ({
     references: [regulatoryDocuments.id],
     relationName: 'definitionScope',
   }),
+  // Documents where this definition's term actually appears in the text
+  occurrences: many(definitionDocumentOccurrences),
 }));
+
+export const definitionDocumentOccurrencesRelations = relations(
+  definitionDocumentOccurrences,
+  ({ one }) => ({
+    definition: one(definitions, {
+      fields: [definitionDocumentOccurrences.definitionId],
+      references: [definitions.id],
+    }),
+    document: one(regulatoryDocuments, {
+      fields: [definitionDocumentOccurrences.documentId],
+      references: [regulatoryDocuments.id],
+    }),
+  })
+);

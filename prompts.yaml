@@ -338,6 +338,15 @@ definition_extraction:
     - "in this title" → scope_level="title"
     - No scope phrase → scope_level=null
 
+    CRITICAL: Only extract scope from EXPLICIT phrases in the text like:
+    - "For purposes of this Part..."
+    - "As used in this Chapter..."
+    - "In this Title, X means..."
+
+    DO NOT infer or guess scope from context (e.g., "this definition is in Chapter V
+    so it probably applies to the chapter"). If there is no explicit scope phrase,
+    set BOTH scope=null AND scope_level=null. Never hallucinate a scope.
+
     IMPORTANT: "subpart" and "subchapter" are DIFFERENT levels. Match exactly.
 
     CROSS-REFERENCE DETECTION:

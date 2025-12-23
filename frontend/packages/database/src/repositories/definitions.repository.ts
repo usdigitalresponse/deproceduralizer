@@ -1,6 +1,8 @@
 import { eq, and, asc, desc, sql, count, like, ilike, gte, lt, inArray } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import { BaseRepository } from './base.repository';
 import { definitions, Definition } from '../schema/definitions';
+import { definitionDocumentOccurrences } from '../schema/definition-document-occurrences';
 import { regulatoryDocuments } from '../schema/regulatory-documents';
 import { StateCode } from '../schema/constants';
 
@@ -15,7 +17,13 @@ export interface DefinitionWithContext extends Definition {
     njacChapter: string | null;
     njacSubchapter: string | null;
     state: string | null;
+    content?: string | null;
+    parentId?: number | null;
+    parentTitle?: string | null;
+    parentHierarchyLevel?: string | null;
   };
+  /** Whether the scope document is an ancestor of the source document */
+  scopeIsAncestor?: boolean | null;
 }
 
 /**
@@ -192,6 +200,13 @@ export class DefinitionsRepository extends BaseRepository {
         d.definition_type as "definitionType",
         d.normalized_term as "normalizedTerm",
         d.is_cross_reference as "isCrossReference",
+        -- Review workflow fields
+        d.review_status as "reviewStatus",
+        d.reviewed_at as "reviewedAt",
+        d.reviewer_name as "reviewerName",
+        d.correction_reason as "correctionReason",
+        d.model_feedback as "modelFeedback",
+        d.original_values as "originalValues",
         -- Regulation context (where definition is defined)
         rd.id as "regId",
         rd.title as "regTitle",
@@ -244,6 +259,13 @@ export class DefinitionsRepository extends BaseRepository {
       definitionType: row.definitionType,
       normalizedTerm: row.normalizedTerm,
       isCrossReference: row.isCrossReference,
+      // Review workflow fields
+      reviewStatus: row.reviewStatus,
+      reviewedAt: row.reviewedAt,
+      reviewerName: row.reviewerName,
+      correctionReason: row.correctionReason,
+      modelFeedback: row.modelFeedback,
+      originalValues: row.originalValues,
       regulation: row.regId ? {
         id: Number(row.regId),
         title: row.regTitle,
@@ -358,6 +380,13 @@ export class DefinitionsRepository extends BaseRepository {
         definitionType: definitions.definitionType,
         normalizedTerm: definitions.normalizedTerm,
         isCrossReference: definitions.isCrossReference,
+        // Review workflow fields
+        reviewStatus: definitions.reviewStatus,
+        reviewedAt: definitions.reviewedAt,
+        reviewerName: definitions.reviewerName,
+        correctionReason: definitions.correctionReason,
+        modelFeedback: definitions.modelFeedback,
+        originalValues: definitions.originalValues,
         // Regulation context
         regulationId: regulatoryDocuments.id,
         regulationTitle: regulatoryDocuments.title,
@@ -397,6 +426,13 @@ export class DefinitionsRepository extends BaseRepository {
       definitionType: row.definitionType,
       normalizedTerm: row.normalizedTerm,
       isCrossReference: row.isCrossReference,
+      // Review workflow fields
+      reviewStatus: row.reviewStatus,
+      reviewedAt: row.reviewedAt,
+      reviewerName: row.reviewerName,
+      correctionReason: row.correctionReason,
+      modelFeedback: row.modelFeedback,
+      originalValues: row.originalValues,
       regulation: row.regulationId ? {
         id: row.regulationId,
         title: row.regulationTitle,
@@ -494,6 +530,13 @@ export class DefinitionsRepository extends BaseRepository {
         definitionType: definitions.definitionType,
         normalizedTerm: definitions.normalizedTerm,
         isCrossReference: definitions.isCrossReference,
+        // Review workflow fields
+        reviewStatus: definitions.reviewStatus,
+        reviewedAt: definitions.reviewedAt,
+        reviewerName: definitions.reviewerName,
+        correctionReason: definitions.correctionReason,
+        modelFeedback: definitions.modelFeedback,
+        originalValues: definitions.originalValues,
         regulationId: regulatoryDocuments.id,
         regulationTitle: regulatoryDocuments.title,
         regulationNycrrTitle: regulatoryDocuments.nycrrTitle,
@@ -533,6 +576,13 @@ export class DefinitionsRepository extends BaseRepository {
       definitionType: row.definitionType,
       normalizedTerm: row.normalizedTerm,
       isCrossReference: row.isCrossReference,
+      // Review workflow fields
+      reviewStatus: row.reviewStatus,
+      reviewedAt: row.reviewedAt,
+      reviewerName: row.reviewerName,
+      correctionReason: row.correctionReason,
+      modelFeedback: row.modelFeedback,
+      originalValues: row.originalValues,
       regulation: row.regulationId ? {
         id: row.regulationId,
         title: row.regulationTitle,
@@ -724,6 +774,13 @@ export class DefinitionsRepository extends BaseRepository {
         definitionType: definitions.definitionType,
         normalizedTerm: definitions.normalizedTerm,
         isCrossReference: definitions.isCrossReference,
+        // Review workflow fields
+        reviewStatus: definitions.reviewStatus,
+        reviewedAt: definitions.reviewedAt,
+        reviewerName: definitions.reviewerName,
+        correctionReason: definitions.correctionReason,
+        modelFeedback: definitions.modelFeedback,
+        originalValues: definitions.originalValues,
         regulationId: regulatoryDocuments.id,
         regulationTitle: regulatoryDocuments.title,
         regulationNycrrTitle: regulatoryDocuments.nycrrTitle,
@@ -761,6 +818,13 @@ export class DefinitionsRepository extends BaseRepository {
       definitionType: row.definitionType,
       normalizedTerm: row.normalizedTerm,
       isCrossReference: row.isCrossReference,
+      // Review workflow fields
+      reviewStatus: row.reviewStatus,
+      reviewedAt: row.reviewedAt,
+      reviewerName: row.reviewerName,
+      correctionReason: row.correctionReason,
+      modelFeedback: row.modelFeedback,
+      originalValues: row.originalValues,
       regulation: row.regulationId ? {
         id: row.regulationId,
         title: row.regulationTitle,
@@ -773,5 +837,762 @@ export class DefinitionsRepository extends BaseRepository {
         state: row.regulationState,
       } : undefined,
     }));
+  }
+
+  // ============================================================================
+  // Term Occurrence Methods (definition_document_occurrences table)
+  // ============================================================================
+
+  /**
+   * Get all documents where a definition's term actually appears in the text.
+   *
+   * This is different from scope-based applicability (getApplicableDefinitions):
+   * - Scope: where a definition APPLIES based on hierarchy
+   * - Occurrences: where a term ACTUALLY APPEARS in document text
+   */
+  async getDocumentsWithTerm(definitionId: number): Promise<{
+    id: number;
+    title: string | null;
+    hierarchyLevel: string | null;
+    state: string | null;
+    nycrrTitle: number | null;
+    nycrrPart: string | null;
+    nycrrSection: string | null;
+    njacTitle: string | null;
+    njacChapter: string | null;
+    njacSubchapter: string | null;
+  }[]> {
+    const results = await this.db
+      .select({
+        id: regulatoryDocuments.id,
+        title: regulatoryDocuments.title,
+        hierarchyLevel: regulatoryDocuments.hierarchyLevel,
+        state: regulatoryDocuments.state,
+        nycrrTitle: regulatoryDocuments.nycrrTitle,
+        nycrrPart: regulatoryDocuments.nycrrPart,
+        nycrrSection: regulatoryDocuments.nycrrSection,
+        njacTitle: regulatoryDocuments.njacTitle,
+        njacChapter: regulatoryDocuments.njacChapter,
+        njacSubchapter: regulatoryDocuments.njacSubchapter,
+      })
+      .from(definitionDocumentOccurrences)
+      .innerJoin(
+        regulatoryDocuments,
+        eq(definitionDocumentOccurrences.documentId, regulatoryDocuments.id)
+      )
+      .where(eq(definitionDocumentOccurrences.definitionId, definitionId))
+      .orderBy(asc(regulatoryDocuments.title));
+
+    return results;
+  }
+
+  /**
+   * Get count of documents where a definition's term appears.
+   */
+  async getTermOccurrenceCount(definitionId: number): Promise<number> {
+    const [result] = await this.db
+      .select({ count: count() })
+      .from(definitionDocumentOccurrences)
+      .where(eq(definitionDocumentOccurrences.definitionId, definitionId));
+
+    return result?.count ?? 0;
+  }
+
+  /**
+   * Get definitions that actually appear in a specific document's text.
+   *
+   * This is different from getApplicableDefinitions which uses scope hierarchy.
+   * Use this when you want to know which defined terms are used in the text.
+   */
+  async getDefinitionsAppearingInDocument(documentId: number): Promise<Definition[]> {
+    const results = await this.db
+      .select({
+        id: definitions.id,
+        documentId: definitions.documentId,
+        url: definitions.url,
+        term: definitions.term,
+        verbatimText: definitions.verbatimText,
+        isVerbatim: definitions.isVerbatim,
+        rephrasedDefinition: definitions.rephrasedDefinition,
+        scope: definitions.scope,
+        definitionOverlap: definitions.definitionOverlap,
+        sourceLocation: definitions.sourceLocation,
+        modelVersion: definitions.modelVersion,
+        extractedAt: definitions.extractedAt,
+        notes: definitions.notes,
+        scopeLevel: definitions.scopeLevel,
+        scopeDocumentId: definitions.scopeDocumentId,
+        definitionType: definitions.definitionType,
+        normalizedTerm: definitions.normalizedTerm,
+        isCrossReference: definitions.isCrossReference,
+        // Review workflow fields
+        reviewStatus: definitions.reviewStatus,
+        reviewedAt: definitions.reviewedAt,
+        reviewerName: definitions.reviewerName,
+        correctionReason: definitions.correctionReason,
+        modelFeedback: definitions.modelFeedback,
+        originalValues: definitions.originalValues,
+      })
+      .from(definitionDocumentOccurrences)
+      .innerJoin(
+        definitions,
+        eq(definitionDocumentOccurrences.definitionId, definitions.id)
+      )
+      .where(eq(definitionDocumentOccurrences.documentId, documentId))
+      .orderBy(asc(definitions.term));
+
+    return results;
+  }
+
+  /**
+   * Get occurrence statistics for a state.
+   */
+  async getOccurrenceStats(state: StateCode): Promise<{
+    totalLinks: number;
+    definitionsWithOccurrences: number;
+    documentsWithOccurrences: number;
+  }> {
+    const statePattern = state.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
+
+    // Total links for this state
+    const [linksResult] = await this.db
+      .select({ count: count() })
+      .from(definitionDocumentOccurrences)
+      .innerJoin(definitions, eq(definitionDocumentOccurrences.definitionId, definitions.id))
+      .where(like(definitions.url, statePattern));
+
+    // Definitions with occurrences
+    const [defsResult] = await this.db
+      .select({ count: sql<number>`count(distinct ${definitionDocumentOccurrences.definitionId})` })
+      .from(definitionDocumentOccurrences)
+      .innerJoin(definitions, eq(definitionDocumentOccurrences.definitionId, definitions.id))
+      .where(like(definitions.url, statePattern));
+
+    // Documents with occurrences
+    const [docsResult] = await this.db
+      .select({ count: sql<number>`count(distinct ${definitionDocumentOccurrences.documentId})` })
+      .from(definitionDocumentOccurrences)
+      .innerJoin(definitions, eq(definitionDocumentOccurrences.definitionId, definitions.id))
+      .where(like(definitions.url, statePattern));
+
+    return {
+      totalLinks: linksResult?.count ?? 0,
+      definitionsWithOccurrences: Number(defsResult?.count ?? 0),
+      documentsWithOccurrences: Number(docsResult?.count ?? 0),
+    };
+  }
+
+  // ============================================================================
+  // Review Workflow Methods
+  // ============================================================================
+
+  /**
+   * Get definitions for review with pagination and filters
+   */
+  async getDefinitionsForReview(options: {
+    state: StateCode;
+    page: number;
+    pageSize: number;
+    reviewStatus?: 'unreviewed' | 'confirmed' | 'corrected' | 'false_positive';
+    scopeLevel?: string;
+    definitionType?: 'formal' | 'abbreviation';
+    documentId?: number;
+    sortBy?: 'term' | 'extractedAt' | 'document';
+    sortOrder?: 'asc' | 'desc';
+    isCrossReference?: boolean;
+    scopeText?: string;
+    scopeRelation?: 'self' | 'parent';
+  }): Promise<{
+    data: DefinitionWithContext[];
+    total: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  }> {
+    const { state, page, pageSize, reviewStatus, scopeLevel, definitionType, documentId, sortBy = 'document', sortOrder = 'asc', isCrossReference, scopeText, scopeRelation } = options;
+    const offset = (page - 1) * pageSize;
+    const statePattern = state.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
+
+    const conditions: ReturnType<typeof eq>[] = [like(definitions.url, statePattern)];
+
+    if (reviewStatus) {
+      conditions.push(eq(definitions.reviewStatus, reviewStatus));
+    }
+    if (scopeLevel) {
+      conditions.push(eq(definitions.scopeLevel, scopeLevel));
+    }
+    if (definitionType) {
+      conditions.push(eq(definitions.definitionType, definitionType));
+    }
+    if (documentId) {
+      conditions.push(eq(definitions.documentId, documentId));
+    }
+    if (isCrossReference !== undefined) {
+      conditions.push(eq(definitions.isCrossReference, isCrossReference));
+    }
+    if (scopeText) {
+      conditions.push(eq(definitions.scope, scopeText));
+    }
+    // Filter by scope relationship: 'self' means scope_document_id = document_id, 'parent' means they differ
+    if (scopeRelation === 'self') {
+      conditions.push(sql`${definitions.scopeDocumentId} = ${definitions.documentId}`);
+    } else if (scopeRelation === 'parent') {
+      conditions.push(sql`${definitions.scopeDocumentId} IS NOT NULL AND ${definitions.scopeDocumentId} != ${definitions.documentId}`);
+    }
+
+    const whereClause = and(...conditions);
+
+    // Get total count
+    const [{ count: total }] = await this.db
+      .select({ count: count() })
+      .from(definitions)
+      .where(whereClause);
+
+    // Build sort
+    let orderByClause;
+    if (sortBy === 'document') {
+      orderByClause = sortOrder === 'asc'
+        ? [asc(definitions.documentId), asc(definitions.term)]
+        : [desc(definitions.documentId), asc(definitions.term)];
+    } else if (sortBy === 'extractedAt') {
+      orderByClause = [sortOrder === 'asc' ? asc(definitions.extractedAt) : desc(definitions.extractedAt)];
+    } else {
+      orderByClause = [sortOrder === 'asc' ? asc(definitions.term) : desc(definitions.term)];
+    }
+
+    // Create alias for parent document
+    const parentDoc = alias(regulatoryDocuments, 'parent_doc');
+
+    // Build the base query
+    const baseQuery = this.db
+      .select({
+        id: definitions.id,
+        documentId: definitions.documentId,
+        term: definitions.term,
+        verbatimText: definitions.verbatimText,
+        isVerbatim: definitions.isVerbatim,
+        rephrasedDefinition: definitions.rephrasedDefinition,
+        scope: definitions.scope,
+        definitionOverlap: definitions.definitionOverlap,
+        sourceLocation: definitions.sourceLocation,
+        url: definitions.url,
+        modelVersion: definitions.modelVersion,
+        extractedAt: definitions.extractedAt,
+        notes: definitions.notes,
+        scopeLevel: definitions.scopeLevel,
+        scopeDocumentId: definitions.scopeDocumentId,
+        definitionType: definitions.definitionType,
+        normalizedTerm: definitions.normalizedTerm,
+        isCrossReference: definitions.isCrossReference,
+        reviewStatus: definitions.reviewStatus,
+        reviewedAt: definitions.reviewedAt,
+        reviewerName: definitions.reviewerName,
+        correctionReason: definitions.correctionReason,
+        modelFeedback: definitions.modelFeedback,
+        originalValues: definitions.originalValues,
+        regulationId: regulatoryDocuments.id,
+        regulationTitle: regulatoryDocuments.title,
+        regulationNycrrTitle: regulatoryDocuments.nycrrTitle,
+        regulationNycrrPart: regulatoryDocuments.nycrrPart,
+        regulationNycrrSection: regulatoryDocuments.nycrrSection,
+        regulationNjacTitle: regulatoryDocuments.njacTitle,
+        regulationNjacChapter: regulatoryDocuments.njacChapter,
+        regulationNjacSubchapter: regulatoryDocuments.njacSubchapter,
+        regulationState: regulatoryDocuments.state,
+        regulationContent: regulatoryDocuments.content,
+        regulationParentId: regulatoryDocuments.parentId,
+        parentTitle: parentDoc.title,
+        parentHierarchyLevel: parentDoc.hierarchyLevel,
+      })
+      .from(definitions)
+      .leftJoin(regulatoryDocuments, eq(definitions.documentId, regulatoryDocuments.id))
+      .leftJoin(parentDoc, eq(regulatoryDocuments.parentId, parentDoc.id))
+      .where(whereClause)
+      .orderBy(...orderByClause);
+
+    // Apply pagination directly in SQL (scopeRelation filter is already in whereClause)
+    const results = await baseQuery.limit(pageSize).offset(offset);
+
+    // Map results to DefinitionWithContext
+    // scopeIsAncestor is computed based on whether scope == self or parent
+    // (We verified all scope documents ARE ancestors, so this is just self vs parent distinction)
+    const mappedResults = results.map(row => {
+      // Compute scope relationship: null if no scope, true if parent/ancestor, false if self
+      // Note: "scopeIsAncestor = true" means scope is a DIFFERENT document (parent/ancestor)
+      // "scopeIsAncestor = false" means scope is the same document (self)
+      const computedScopeIsAncestor = row.scopeDocumentId === null
+        ? null
+        : row.scopeDocumentId !== row.documentId;
+
+      return {
+        id: row.id,
+        documentId: row.documentId,
+        term: row.term,
+        verbatimText: row.verbatimText,
+        isVerbatim: row.isVerbatim,
+        rephrasedDefinition: row.rephrasedDefinition,
+        scope: row.scope,
+        definitionOverlap: row.definitionOverlap,
+        sourceLocation: row.sourceLocation,
+        url: row.url,
+        modelVersion: row.modelVersion,
+        extractedAt: row.extractedAt,
+        notes: row.notes,
+        scopeLevel: row.scopeLevel,
+        scopeDocumentId: row.scopeDocumentId,
+        definitionType: row.definitionType,
+        normalizedTerm: row.normalizedTerm,
+        isCrossReference: row.isCrossReference,
+        reviewStatus: row.reviewStatus,
+        reviewedAt: row.reviewedAt,
+        reviewerName: row.reviewerName,
+        correctionReason: row.correctionReason,
+        modelFeedback: row.modelFeedback,
+        originalValues: row.originalValues,
+        scopeIsAncestor: computedScopeIsAncestor,
+        regulation: row.regulationId ? {
+          id: row.regulationId,
+          title: row.regulationTitle,
+          nycrrTitle: row.regulationNycrrTitle,
+          nycrrPart: row.regulationNycrrPart,
+          nycrrSection: row.regulationNycrrSection,
+          njacTitle: row.regulationNjacTitle,
+          njacChapter: row.regulationNjacChapter,
+          njacSubchapter: row.regulationNjacSubchapter,
+          state: row.regulationState,
+          content: row.regulationContent,
+          parentId: row.regulationParentId,
+          parentTitle: row.parentTitle,
+          parentHierarchyLevel: row.parentHierarchyLevel,
+        } : undefined,
+      };
+    });
+
+    const totalPages = Math.ceil(total / pageSize);
+
+    return {
+      data: mappedResults,
+      total,
+      page,
+      pageSize,
+      totalPages,
+    };
+  }
+
+  /**
+   * Get unique scope text values for filter dropdown
+   */
+  async getUniqueScopeTexts(state: StateCode): Promise<string[]> {
+    const statePattern = state.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
+
+    const results = await this.db
+      .selectDistinct({ scope: definitions.scope })
+      .from(definitions)
+      .where(and(
+        like(definitions.url, statePattern),
+        sql`${definitions.scope} IS NOT NULL AND ${definitions.scope} != ''`
+      ))
+      .orderBy(asc(definitions.scope))
+      .limit(100); // Limit to prevent too many options
+
+    return results.map(r => r.scope).filter((s): s is string => s !== null);
+  }
+
+  /**
+   * Update a definition's review status and optionally correct its values.
+   * Stores original values in the originalValues JSONB column when corrections are made.
+   */
+  async updateDefinitionReview(
+    id: number,
+    update: {
+      reviewStatus: 'confirmed' | 'corrected' | 'false_positive';
+      reviewerName: string;
+      correctionReason?: string;
+      modelFeedback?: string;
+      // Editable fields (only included if being corrected)
+      term?: string;
+      isVerbatim?: boolean;
+      verbatimText?: string;
+      rephrasedDefinition?: string | null;
+      scope?: string | null;
+      scopeLevel?: string | null;
+      scopeDocumentId?: number | null;
+      definitionType?: string;
+      isCrossReference?: boolean;
+    }
+  ): Promise<Definition | undefined> {
+    // Get current values first
+    const [current] = await this.db
+      .select()
+      .from(definitions)
+      .where(eq(definitions.id, id))
+      .limit(1);
+
+    if (!current) {
+      return undefined;
+    }
+
+    // Build the update object
+    const updateData: Record<string, unknown> = {
+      reviewStatus: update.reviewStatus,
+      reviewedAt: new Date(),
+      reviewerName: update.reviewerName,
+    };
+
+    if (update.correctionReason !== undefined) {
+      updateData.correctionReason = update.correctionReason;
+    }
+    if (update.modelFeedback !== undefined) {
+      updateData.modelFeedback = update.modelFeedback;
+    }
+
+    // If correcting, store original values and apply corrections
+    if (update.reviewStatus === 'corrected') {
+      const originalValues: Record<string, unknown> = {};
+
+      // Track which fields are being changed
+      if (update.term !== undefined && update.term !== current.term) {
+        originalValues.term = current.term;
+        updateData.term = update.term;
+      }
+      if (update.isVerbatim !== undefined && update.isVerbatim !== current.isVerbatim) {
+        originalValues.isVerbatim = current.isVerbatim;
+        updateData.isVerbatim = update.isVerbatim;
+      }
+      if (update.verbatimText !== undefined && update.verbatimText !== current.verbatimText) {
+        originalValues.verbatimText = current.verbatimText;
+        updateData.verbatimText = update.verbatimText;
+      }
+      if (update.rephrasedDefinition !== undefined && update.rephrasedDefinition !== current.rephrasedDefinition) {
+        originalValues.rephrasedDefinition = current.rephrasedDefinition;
+        updateData.rephrasedDefinition = update.rephrasedDefinition;
+      }
+      if (update.scope !== undefined && update.scope !== current.scope) {
+        originalValues.scope = current.scope;
+        updateData.scope = update.scope;
+      }
+      if (update.scopeLevel !== undefined && update.scopeLevel !== current.scopeLevel) {
+        originalValues.scopeLevel = current.scopeLevel;
+        updateData.scopeLevel = update.scopeLevel;
+      }
+      if (update.scopeDocumentId !== undefined && update.scopeDocumentId !== current.scopeDocumentId) {
+        originalValues.scopeDocumentId = current.scopeDocumentId;
+        updateData.scopeDocumentId = update.scopeDocumentId;
+      }
+      if (update.definitionType !== undefined && update.definitionType !== current.definitionType) {
+        originalValues.definitionType = current.definitionType;
+        updateData.definitionType = update.definitionType;
+      }
+      if (update.isCrossReference !== undefined && update.isCrossReference !== current.isCrossReference) {
+        originalValues.isCrossReference = current.isCrossReference;
+        updateData.isCrossReference = update.isCrossReference;
+      }
+
+      // Only store original values if there are actual changes
+      if (Object.keys(originalValues).length > 0) {
+        updateData.originalValues = originalValues;
+      }
+    }
+
+    // Execute the update
+    const [updated] = await this.db
+      .update(definitions)
+      .set(updateData)
+      .where(eq(definitions.id, id))
+      .returning();
+
+    return updated;
+  }
+
+  /**
+   * Bulk update review status for multiple definitions
+   */
+  async bulkUpdateReviewStatus(
+    ids: number[],
+    reviewStatus: 'confirmed' | 'false_positive',
+    reviewerName: string,
+    correctionReason?: string
+  ): Promise<number> {
+    if (ids.length === 0) return 0;
+
+    const result = await this.db
+      .update(definitions)
+      .set({
+        reviewStatus,
+        reviewedAt: new Date(),
+        reviewerName,
+        correctionReason: correctionReason ?? null,
+      })
+      .where(inArray(definitions.id, ids));
+
+    return result.rowCount ?? 0;
+  }
+
+  /**
+   * Search regulatory documents for scope document typeahead.
+   * Searches by title and citation.
+   */
+  async searchDocumentsForScope(
+    query: string,
+    state: StateCode,
+    limit: number = 10
+  ): Promise<{
+    id: number;
+    title: string | null;
+    hierarchyLevel: string | null;
+    nycrrTitle: number | null;
+    nycrrPart: string | null;
+    njacTitle: string | null;
+    njacChapter: string | null;
+  }[]> {
+    const stateCondition = eq(regulatoryDocuments.state, state.toUpperCase());
+
+    const results = await this.db
+      .select({
+        id: regulatoryDocuments.id,
+        title: regulatoryDocuments.title,
+        hierarchyLevel: regulatoryDocuments.hierarchyLevel,
+        nycrrTitle: regulatoryDocuments.nycrrTitle,
+        nycrrPart: regulatoryDocuments.nycrrPart,
+        njacTitle: regulatoryDocuments.njacTitle,
+        njacChapter: regulatoryDocuments.njacChapter,
+      })
+      .from(regulatoryDocuments)
+      .where(and(
+        stateCondition,
+        ilike(regulatoryDocuments.title, `%${query}%`)
+      ))
+      .orderBy(asc(regulatoryDocuments.title))
+      .limit(limit);
+
+    return results;
+  }
+
+  /**
+   * Get a single document by ID for scope document typeahead prepopulation.
+   */
+  async getDocumentById(documentId: number): Promise<{
+    id: number;
+    title: string | null;
+    hierarchyLevel: string | null;
+    nycrrTitle: number | null;
+    nycrrPart: string | null;
+    njacTitle: string | null;
+    njacChapter: string | null;
+  } | null> {
+    const [result] = await this.db
+      .select({
+        id: regulatoryDocuments.id,
+        title: regulatoryDocuments.title,
+        hierarchyLevel: regulatoryDocuments.hierarchyLevel,
+        nycrrTitle: regulatoryDocuments.nycrrTitle,
+        nycrrPart: regulatoryDocuments.nycrrPart,
+        njacTitle: regulatoryDocuments.njacTitle,
+        njacChapter: regulatoryDocuments.njacChapter,
+      })
+      .from(regulatoryDocuments)
+      .where(eq(regulatoryDocuments.id, documentId))
+      .limit(1);
+
+    return result ?? null;
+  }
+
+  /**
+   * Get ancestor documents for a given document.
+   * Used for typeahead defaults to show parent/ancestor documents first.
+   */
+  async getAncestorDocuments(documentId: number): Promise<{
+    id: number;
+    title: string | null;
+    hierarchyLevel: string | null;
+    nycrrTitle: number | null;
+    nycrrPart: string | null;
+    njacTitle: string | null;
+    njacChapter: string | null;
+  }[]> {
+    const results = await this.db.execute(sql`
+      WITH RECURSIVE ancestors AS (
+        SELECT id, parent_id, hierarchy_level, title,
+               nycrr_title, nycrr_part, njac_title, njac_chapter, 0 as depth
+        FROM regulatory_documents
+        WHERE id = ${documentId}
+
+        UNION ALL
+
+        SELECT rd.id, rd.parent_id, rd.hierarchy_level, rd.title,
+               rd.nycrr_title, rd.nycrr_part, rd.njac_title, rd.njac_chapter, a.depth + 1
+        FROM regulatory_documents rd
+        INNER JOIN ancestors a ON rd.id = a.parent_id
+        WHERE a.depth < 10
+      )
+      SELECT id, title, hierarchy_level as "hierarchyLevel",
+             nycrr_title as "nycrrTitle", nycrr_part as "nycrrPart",
+             njac_title as "njacTitle", njac_chapter as "njacChapter"
+      FROM ancestors
+      ORDER BY depth
+    `);
+
+    return (results.rows as {
+      id: number;
+      title: string | null;
+      hierarchyLevel: string | null;
+      nycrrTitle: number | null;
+      nycrrPart: string | null;
+      njacTitle: string | null;
+      njacChapter: string | null;
+    }[]);
+  }
+
+  /**
+   * Get review statistics for definitions dashboard
+   */
+  async getReviewStats(state: StateCode): Promise<{
+    unreviewed: number;
+    confirmed: number;
+    corrected: number;
+    falsePositive: number;
+    total: number;
+  }> {
+    const statePattern = state.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
+
+    const results = await this.db
+      .select({
+        reviewStatus: definitions.reviewStatus,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(definitions)
+      .where(like(definitions.url, statePattern))
+      .groupBy(definitions.reviewStatus);
+
+    const stats: Record<string, number> = {};
+    let total = 0;
+    for (const row of results) {
+      stats[row.reviewStatus ?? 'unreviewed'] = row.count;
+      total += row.count;
+    }
+
+    return {
+      unreviewed: stats['unreviewed'] ?? 0,
+      confirmed: stats['confirmed'] ?? 0,
+      corrected: stats['corrected'] ?? 0,
+      falsePositive: stats['false_positive'] ?? 0,
+      total,
+    };
+  }
+
+  /**
+   * Get corrected definitions for developer review queue.
+   * Shows definitions that have been corrected with their original values.
+   */
+  async getCorrectedDefinitions(
+    state: StateCode,
+    page: number = 1,
+    pageSize: number = 20
+  ): Promise<{
+    data: DefinitionWithContext[];
+    total: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  }> {
+    const statePattern = state.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
+    const offset = (page - 1) * pageSize;
+
+    const whereClause = and(
+      like(definitions.url, statePattern),
+      eq(definitions.reviewStatus, 'corrected')
+    );
+
+    const [{ count: total }] = await this.db
+      .select({ count: count() })
+      .from(definitions)
+      .where(whereClause);
+
+    const results = await this.db
+      .select({
+        id: definitions.id,
+        documentId: definitions.documentId,
+        term: definitions.term,
+        verbatimText: definitions.verbatimText,
+        isVerbatim: definitions.isVerbatim,
+        rephrasedDefinition: definitions.rephrasedDefinition,
+        scope: definitions.scope,
+        definitionOverlap: definitions.definitionOverlap,
+        sourceLocation: definitions.sourceLocation,
+        url: definitions.url,
+        modelVersion: definitions.modelVersion,
+        extractedAt: definitions.extractedAt,
+        notes: definitions.notes,
+        scopeLevel: definitions.scopeLevel,
+        scopeDocumentId: definitions.scopeDocumentId,
+        definitionType: definitions.definitionType,
+        normalizedTerm: definitions.normalizedTerm,
+        isCrossReference: definitions.isCrossReference,
+        reviewStatus: definitions.reviewStatus,
+        reviewedAt: definitions.reviewedAt,
+        reviewerName: definitions.reviewerName,
+        correctionReason: definitions.correctionReason,
+        modelFeedback: definitions.modelFeedback,
+        originalValues: definitions.originalValues,
+        regulationId: regulatoryDocuments.id,
+        regulationTitle: regulatoryDocuments.title,
+        regulationNycrrTitle: regulatoryDocuments.nycrrTitle,
+        regulationNycrrPart: regulatoryDocuments.nycrrPart,
+        regulationNycrrSection: regulatoryDocuments.nycrrSection,
+        regulationNjacTitle: regulatoryDocuments.njacTitle,
+        regulationNjacChapter: regulatoryDocuments.njacChapter,
+        regulationNjacSubchapter: regulatoryDocuments.njacSubchapter,
+        regulationState: regulatoryDocuments.state,
+      })
+      .from(definitions)
+      .leftJoin(regulatoryDocuments, eq(definitions.documentId, regulatoryDocuments.id))
+      .where(whereClause)
+      .orderBy(desc(definitions.reviewedAt))
+      .limit(pageSize)
+      .offset(offset);
+
+    return {
+      data: results.map(row => ({
+        id: row.id,
+        documentId: row.documentId,
+        term: row.term,
+        verbatimText: row.verbatimText,
+        isVerbatim: row.isVerbatim,
+        rephrasedDefinition: row.rephrasedDefinition,
+        scope: row.scope,
+        definitionOverlap: row.definitionOverlap,
+        sourceLocation: row.sourceLocation,
+        url: row.url,
+        modelVersion: row.modelVersion,
+        extractedAt: row.extractedAt,
+        notes: row.notes,
+        scopeLevel: row.scopeLevel,
+        scopeDocumentId: row.scopeDocumentId,
+        definitionType: row.definitionType,
+        normalizedTerm: row.normalizedTerm,
+        isCrossReference: row.isCrossReference,
+        reviewStatus: row.reviewStatus,
+        reviewedAt: row.reviewedAt,
+        reviewerName: row.reviewerName,
+        correctionReason: row.correctionReason,
+        modelFeedback: row.modelFeedback,
+        originalValues: row.originalValues,
+        regulation: row.regulationId ? {
+          id: row.regulationId,
+          title: row.regulationTitle,
+          nycrrTitle: row.regulationNycrrTitle,
+          nycrrPart: row.regulationNycrrPart,
+          nycrrSection: row.regulationNycrrSection,
+          njacTitle: row.regulationNjacTitle,
+          njacChapter: row.regulationNjacChapter,
+          njacSubchapter: row.regulationNjacSubchapter,
+          state: row.regulationState,
+        } : undefined,
+      })),
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
   }
 }

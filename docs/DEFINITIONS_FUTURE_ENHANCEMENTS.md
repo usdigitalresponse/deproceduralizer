@@ -683,13 +683,74 @@ Show definition previews when clicking highlighted terms:
 - "See more" link to full definition in glossary
 - Keyboard accessible (focus states)
 
-## 5.3 Definition Usage Analysis ❌ NOT IMPLEMENTED
+## 5.3 Definition Usage Analysis ✅ IMPLEMENTED
 
-Track how terms are used:
+Track where defined terms actually appear in regulation text using the `definition_document_occurrences` join table.
 
-- Count occurrences of defined terms in regulation text
-- Identify regulations that use terms but lack definitions
-- Surface commonly used but undefined terminology
+### Schema
+
+```sql
+-- Definition-Document Term Occurrences: Links definitions to documents where terms appear
+CREATE TABLE definition_document_occurrences (
+  definition_id BIGINT NOT NULL REFERENCES definitions(id) ON DELETE CASCADE,
+  document_id BIGINT NOT NULL REFERENCES regulatory_documents(id) ON DELETE CASCADE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (definition_id, document_id)
+);
+
+CREATE INDEX idx_def_doc_occurrences_definition ON definition_document_occurrences(definition_id);
+CREATE INDEX idx_def_doc_occurrences_document ON definition_document_occurrences(document_id);
+```
+
+### Matching Logic
+
+Uses **word-boundary matching** (not substring) to avoid false positives:
+- `applicant` matches `Applicant` but NOT `reapplicant`
+- Regex pattern: `\b{escaped_term}\b` with `re.IGNORECASE`
+
+Stores **boolean presence only** (not counts or positions) for efficiency.
+
+### Backend Script
+
+Run `link_definitions.py` to populate the join table:
+
+```bash
+# Link all NY definitions
+python link_definitions.py run --state NY
+
+# Show statistics
+python link_definitions.py status
+
+# Clean stale links
+python link_definitions.py clean
+```
+
+Also integrated into `batch_definitions.py` pipeline as step [5/5].
+
+### Repository Methods
+
+```typescript
+// Get documents where a definition's term appears
+getDocumentsWithTerm(definitionId: number): Promise<DocumentSummary[]>
+
+// Get definitions that appear in a document's text
+getDefinitionsAppearingInDocument(documentId: number): Promise<Definition[]>
+
+// Get occurrence count for a definition
+getTermOccurrenceCount(definitionId: number): Promise<number>
+
+// Get occurrence statistics for a state
+getOccurrenceStats(state: StateCode): Promise<OccurrenceStats>
+```
+
+### Difference from Scope-Based Applicability
+
+| Concept | Table/Field | Meaning |
+|---------|-------------|---------|
+| **Scope** | `definitions.scope_document_id` | Where definition APPLIES (hierarchy-based) |
+| **Occurrence** | `definition_document_occurrences` | Where term ACTUALLY APPEARS in text |
+
+A definition may apply to 1000 sections via scope percolation, but only appear in the text of 50 sections.
 
 ---
 

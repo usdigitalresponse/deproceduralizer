@@ -1039,12 +1039,22 @@ def cmd_process(args):
         json.dump(batch_info, f, indent=2)
 
     # Run scope document linking
-    print("[4/4] Linking scope documents...")
+    print("[4/5] Linking scope documents...")
 
     try:
         populate_scope_document_ids(dry_run=False)
     except Exception as e:
         print(f"      ⚠️  Could not run scope linking: {e}")
+
+    # Link definitions to documents where terms appear
+    print("[5/5] Linking definitions to documents where terms appear...")
+
+    try:
+        from link_definitions import link_new_definitions
+        link_count = link_new_definitions(state=batch_info.get('state'))
+        print(f"      ✓ Created {link_count} term-document links")
+    except Exception as e:
+        print(f"      ⚠️  Could not run definition linking: {e}")
 
     print()
     print("=" * 70)

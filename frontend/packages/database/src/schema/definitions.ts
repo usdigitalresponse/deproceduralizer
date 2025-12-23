@@ -6,7 +6,8 @@ import {
   text,
   real,
   timestamp,
-  boolean
+  boolean,
+  jsonb
 } from 'drizzle-orm/pg-core';
 import { regulatoryDocuments } from './regulatory-documents';
 
@@ -50,6 +51,14 @@ export const definitions = pgTable('definitions', {
   definitionType: varchar('definition_type', { length: 20 }).default('formal'),  // 'formal' or 'abbreviation'
   normalizedTerm: text('normalized_term'),  // Generated column (LOWER(TRIM(term))), read-only
   isCrossReference: boolean('is_cross_reference').default(false),
+
+  // Review workflow fields (for correcting LLM extraction errors)
+  reviewStatus: varchar('review_status', { length: 50 }).default('unreviewed'),
+  reviewedAt: timestamp('reviewed_at'),
+  reviewerName: varchar('reviewer_name', { length: 255 }),
+  correctionReason: text('correction_reason'),  // Why the correction was made (required if correcting)
+  modelFeedback: text('model_feedback'),  // Optional feedback to improve future LLM extractions
+  originalValues: jsonb('original_values'),  // Stores original LLM values when corrections are made
 });
 
 export type Definition = typeof definitions.$inferSelect;
@@ -88,3 +97,25 @@ export const SCOPE_LEVELS = [
   'title',
 ] as const;
 export type ScopeLevel = typeof SCOPE_LEVELS[number];
+
+// Review status workflow for definitions (different from red flags review)
+export const DEFINITION_REVIEW_STATUSES = [
+  'unreviewed',
+  'confirmed',
+  'corrected',
+  'false_positive',
+] as const;
+export type DefinitionReviewStatus = typeof DEFINITION_REVIEW_STATUSES[number];
+
+// Type for original values stored in JSONB when corrections are made
+export interface DefinitionOriginalValues {
+  term?: string;
+  isVerbatim?: boolean;
+  verbatimText?: string;
+  rephrasedDefinition?: string;
+  scope?: string;
+  scopeLevel?: string;
+  scopeDocumentId?: number;
+  definitionType?: string;
+  isCrossReference?: boolean;
+}

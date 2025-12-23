@@ -9,6 +9,7 @@ interface ReviewTypeTabsProps {
   counts: {
     flags: number;
     compliance: number;
+    definitions: number;
     needs_info: number;
   };
   mode?: ReviewMode;
@@ -37,6 +38,8 @@ export function ReviewTypeTabs({ activeType, counts, mode = 'review' }: ReviewTy
         return counts.flags;
       case 'compliance':
         return counts.compliance;
+      case 'definitions':
+        return counts.definitions;
       case 'needs_info':
         return counts.needs_info;
       default:

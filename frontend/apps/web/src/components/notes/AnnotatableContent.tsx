@@ -26,14 +26,18 @@ interface AnnotatableContentProps {
   onNoteClick: (noteId: number) => void;
   /** Applicable definitions for term highlighting */
   applicableDefinitions?: ApplicableDefinition[];
+  /** Search query for highlighting */
+  searchQuery?: string;
+  /** Current match index for navigation */
+  currentMatchIndex?: number;
 }
 
 /** Represents a highlighted region in the content */
 interface HighlightRegion {
-  type: 'note' | 'term';
+  type: 'note' | 'term' | 'search';
   startOffset: number;
   endOffset: number;
-  data: DocumentNote | TermMatch;
+  data: DocumentNote | TermMatch | { matchIndex: number };
 }
 
 /** State for the selected term popover */
@@ -51,6 +55,8 @@ export function AnnotatableContent({
   onNoteCreated,
   onNoteClick,
   applicableDefinitions,
+  searchQuery = '',
+  currentMatchIndex = 0,
 }: AnnotatableContentProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [selection, setSelection] = useState<SelectionInfo | null>(null);
@@ -198,7 +204,26 @@ export function AnnotatableContent({
     setSelectedTerm(null);
   }, []);
 
-  // Merge note regions and term regions, with notes taking priority
+  // Find search matches in content
+  const searchMatches = useCallback((): { start: number; end: number }[] => {
+    if (!searchQuery.trim()) return [];
+
+    const query = searchQuery.toLowerCase();
+    const matches: { start: number; end: number }[] = [];
+    let pos = 0;
+    const lowerContent = content.toLowerCase();
+
+    while (pos < content.length) {
+      const idx = lowerContent.indexOf(query, pos);
+      if (idx === -1) break;
+      matches.push({ start: idx, end: idx + query.length });
+      pos = idx + 1;
+    }
+
+    return matches;
+  }, [content, searchQuery]);
+
+  // Merge note regions, term regions, and search matches, with notes taking priority
   const mergeHighlightRegions = useCallback((): HighlightRegion[] => {
     const regions: HighlightRegion[] = [];
 
@@ -233,26 +258,97 @@ export function AnnotatableContent({
       }
     }
 
+    // Add search matches (don't filter - they should highlight through other regions)
+    const matches = searchMatches();
+    matches.forEach((match, idx) => {
+      regions.push({
+        type: 'search',
+        startOffset: match.start,
+        endOffset: match.end,
+        data: { matchIndex: idx },
+      });
+    });
+
     // Sort by start offset
     return regions.sort((a, b) => a.startOffset - b.startOffset);
-  }, [anchoredNotes, termMatches]);
+  }, [anchoredNotes, termMatches, searchMatches]);
 
-  // Render content with both note and term highlights
+  // Render content with note, term, and search highlights
   const renderContentWithHighlights = () => {
-    const regions = mergeHighlightRegions();
+    // Get regions but separate search from others
+    const noteTermRegions: HighlightRegion[] = [];
+    const searchRegions: HighlightRegion[] = [];
 
-    if (regions.length === 0) {
-      return <span>{content}</span>;
+    for (const region of mergeHighlightRegions()) {
+      if (region.type === 'search') {
+        searchRegions.push(region);
+      } else {
+        noteTermRegions.push(region);
+      }
+    }
+
+    // Helper to wrap text in search highlight if it falls within a search match
+    const wrapWithSearchHighlight = (text: string, startOffset: number, key: string): React.ReactNode => {
+      if (searchRegions.length === 0) return text;
+
+      // Find search matches that overlap with this text segment
+      const relevantSearches = searchRegions.filter(
+        sr => sr.startOffset < startOffset + text.length && sr.endOffset > startOffset
+      );
+
+      if (relevantSearches.length === 0) return text;
+
+      // Build segments with search highlighting
+      const segments: React.ReactNode[] = [];
+      let pos = 0;
+
+      for (const sr of relevantSearches) {
+        const matchData = sr.data as { matchIndex: number };
+        const relStart = Math.max(0, sr.startOffset - startOffset);
+        const relEnd = Math.min(text.length, sr.endOffset - startOffset);
+
+        if (relStart > pos) {
+          segments.push(text.slice(pos, relStart));
+        }
+
+        const isCurrent = matchData.matchIndex === currentMatchIndex;
+        segments.push(
+          <span
+            key={`${key}-search-${matchData.matchIndex}`}
+            className={`search-highlight ${
+              isCurrent
+                ? 'bg-[var(--color-warning)] text-[var(--color-text)]'
+                : 'bg-yellow-200 text-[var(--color-text)]'
+            } rounded px-0.5`}
+          >
+            {text.slice(relStart, relEnd)}
+          </span>
+        );
+
+        pos = relEnd;
+      }
+
+      if (pos < text.length) {
+        segments.push(text.slice(pos));
+      }
+
+      return <>{segments}</>;
+    };
+
+    if (noteTermRegions.length === 0) {
+      // Only search highlights (or no highlights at all)
+      return <span>{wrapWithSearchHighlight(content, 0, 'root')}</span>;
     }
 
     const parts: React.ReactNode[] = [];
     let lastIndex = 0;
 
-    regions.forEach((region, idx) => {
+    noteTermRegions.forEach((region, idx) => {
       // Add text before this region
       if (region.startOffset > lastIndex) {
+        const beforeText = content.slice(lastIndex, region.startOffset);
         parts.push(
-          <span key={`text-${idx}`}>{content.slice(lastIndex, region.startOffset)}</span>
+          <span key={`text-${idx}`}>{wrapWithSearchHighlight(beforeText, lastIndex, `text-${idx}`)}</span>
         );
       }
 
@@ -278,10 +374,10 @@ export function AnnotatableContent({
             `}
             title={`Note: ${note.content.substring(0, 50)}...`}
           >
-            {text}
+            {wrapWithSearchHighlight(text, region.startOffset, `mark-${note.id}`)}
           </mark>
         );
-      } else {
+      } else if (region.type === 'term') {
         // Term highlight (dotted underline)
         const termMatch = region.data as TermMatch;
         parts.push(
@@ -294,13 +390,12 @@ export function AnnotatableContent({
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
-                // Simulate click event for keyboard accessibility
                 handleTermClick(e as unknown as React.MouseEvent, termMatch);
               }
             }}
             title={`Defined term: ${termMatch.term}`}
           >
-            {text}
+            {wrapWithSearchHighlight(text, region.startOffset, `term-${region.startOffset}`)}
           </span>
         );
       }
@@ -310,8 +405,9 @@ export function AnnotatableContent({
 
     // Add remaining text
     if (lastIndex < content.length) {
+      const remainingText = content.slice(lastIndex);
       parts.push(
-        <span key="text-end">{content.slice(lastIndex)}</span>
+        <span key="text-end">{wrapWithSearchHighlight(remainingText, lastIndex, 'text-end')}</span>
       );
     }
 

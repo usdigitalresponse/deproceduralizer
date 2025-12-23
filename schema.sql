@@ -264,7 +264,19 @@ CREATE TABLE definitions (
   normalized_term TEXT GENERATED ALWAYS AS (LOWER(TRIM(term))) STORED,
 
   -- Cross-reference flag (for definitions that point to other definitions)
-  is_cross_reference BOOLEAN DEFAULT FALSE
+  is_cross_reference BOOLEAN DEFAULT FALSE,
+
+  -- Review workflow fields (for correcting LLM extraction errors)
+  review_status VARCHAR(50) DEFAULT 'unreviewed',
+  reviewed_at TIMESTAMP,
+  reviewer_name VARCHAR(255),
+  correction_reason TEXT,       -- Why the correction was made (required if correcting)
+  model_feedback TEXT,          -- Optional feedback to improve future LLM extractions
+  original_values JSONB,        -- Stores original LLM values when corrections are made
+
+  -- Constraint for valid review statuses
+  CONSTRAINT definitions_review_status_check
+    CHECK (review_status IN ('unreviewed', 'confirmed', 'corrected', 'false_positive'))
 );
 
 -- Indexes
@@ -277,10 +289,27 @@ CREATE INDEX idx_definitions_scope_document ON definitions(scope_document_id);
 CREATE INDEX idx_definitions_scope_level ON definitions(scope_level);
 CREATE INDEX idx_definitions_normalized_term ON definitions(normalized_term);
 CREATE INDEX idx_definitions_type ON definitions(definition_type);
+CREATE INDEX idx_definitions_review_status ON definitions(review_status);
 
 -- Trigram indexes for fast ILIKE search (requires pg_trgm extension)
 CREATE INDEX idx_definitions_term_trgm ON definitions USING GIN (term gin_trgm_ops);
 CREATE INDEX idx_definitions_normalized_term_trgm ON definitions USING GIN (normalized_term gin_trgm_ops);
+
+-- Definition-Document Term Occurrences: Links definitions to documents where terms appear
+-- This is a many-to-many relationship tracking term presence (not counts/positions)
+-- Uses word-boundary matching: 'applicant' matches 'Applicant' but not 'reapplicant'
+CREATE TABLE definition_document_occurrences (
+  definition_id BIGINT NOT NULL REFERENCES definitions(id) ON DELETE CASCADE,
+  document_id BIGINT NOT NULL REFERENCES regulatory_documents(id) ON DELETE CASCADE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+  -- Composite primary key (no separate id column needed)
+  PRIMARY KEY (definition_id, document_id)
+);
+
+-- Indexes for efficient querying in both directions
+CREATE INDEX idx_def_doc_occurrences_definition ON definition_document_occurrences(definition_id);
+CREATE INDEX idx_def_doc_occurrences_document ON definition_document_occurrences(document_id);
 
 -- Track which regulations have been processed for definition extraction
 CREATE TABLE definition_extraction_log (
