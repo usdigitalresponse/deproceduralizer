@@ -149,20 +149,40 @@ Uses word-boundary matching ('applicant' matches 'Applicant' but not 'reapplican
 
 ## compliance_issues
 
+Tracks compliance issues found in regulations. Each (document_id, issue_type) pair is analyzed once - records are created for ALL analyzed documents (not just confirmed issues) to track what's been scanned.
+
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | bigserial | Primary key |
 | `document_id` | bigint | FK to regulatory_documents |
-| `issue_type` | varchar(50) | wet_signature, in_person, paper_form |
-| `term_matched` | varchar(255) | Trigger term |
-| `context` | text | Context snippet |
-| `requirement_quote` | text | Requirement text |
-| `from_statute` | boolean | From statute vs regulation |
-| `llm_confirmed` | boolean | LLM confirmed |
+| `issue_type` | varchar(50) | wet_signature, mail_only, certified_mail, notarization, in_person_submission, etc. |
+| `term_matched` | varchar(255) | Regex pattern that matched |
+| `context` | text | Context snippet around match |
+| `requirement_quote` | text | LLM-extracted requirement quote |
+| `from_statute` | boolean | Requirement from statute (true) or agency-added (false) |
+| `statute_citation` | varchar(255) | Statute citation if from_statute |
+| `llm_confirmed` | boolean | true = confirmed issue, false = analyzed but no issue found |
+| `url` | text | Source URL (NOT NULL) |
 | `review_status` | varchar(50) | unreviewed, confirmed, rejected_clear_fp, rejected_not_obvious_bad, needs_context, deferred |
 | `justification_notes` | text | Justification and analysis for the model |
 | `team_notes` | text | Notes for development team |
+| `priority` | integer | Priority level |
+| `impact_type` | varchar(100) | Impact classification |
+| `developer_status` | varchar(50) | unresolved, resolved, pending, backlogged, need_more_info |
+| `developer_assigned` | varchar(50) | Michael or Abigail |
+| `developer_notes` | text | Developer notes |
 | `state` | varchar(2) | NY or NJ |
+| `created_at` | timestamp | When record was created |
+
+**Unique Constraint**: `(document_id, issue_type)` - prevents duplicate analysis
+
+**Issue Types** (40 types defined in `compliance_issues.yaml`):
+- Communication: wet_signature, mail_only, certified_mail, fax, landline, obsolete_tech
+- Payment: check_payment, cash_only, no_credit_cards, in_person_payment
+- Signatures: notarization, witness, embossed_seal, original_document
+- Physical presence: in_person_submission, in_person_pickup, in_person_hearing, physical_forms
+- Technology: obsolete_media, obsolete_software, pdf_only, microfiche, typewriter
+- And more...
 
 ## statute_references
 

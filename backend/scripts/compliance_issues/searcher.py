@@ -102,6 +102,23 @@ class ComplianceIssueSearcher:
 
         prefix = self.state_config.citation_prefix
         state_code = self.state_config.state_code
+        issue_type = self.issue_config.db_issue_type
+
+        # Get already-analyzed document IDs for this specific issue type
+        already_analyzed = set()
+        try:
+            result = conn.execute(
+                """
+                SELECT document_id FROM compliance_issues
+                WHERE state = %s AND issue_type = %s
+                """,
+                (state_code, issue_type)
+            ).fetchall()
+            already_analyzed = {row[0] for row in result}
+            if already_analyzed:
+                print(f"Skipping {len(already_analyzed)} already-analyzed docs for {issue_type}")
+        except Exception as e:
+            print(f"Warning: Could not check existing analysis: {e}")
 
         # Query documents from database
         print(f"Querying {state_code} regulations from database...")
@@ -131,6 +148,10 @@ class ComplianceIssueSearcher:
                 doc_title, doc_chapter, doc_section, source_index = row
 
             if not content:
+                continue
+
+            # Skip if already analyzed for this issue type
+            if doc_id in already_analyzed:
                 continue
 
             # Check patterns
@@ -446,9 +467,10 @@ class ComplianceIssueSearcher:
 
     def save_to_database(self, results: list[dict]) -> int:
         """
-        Save confirmed issues to compliance_issues table.
+        Save all analyzed results to compliance_issues table.
 
-        Only saves results where LLM confirmed has_issue=True.
+        Saves ALL results (both confirmed issues and non-issues) so we can
+        track which documents have been scanned for which issue types.
 
         Args:
             results: List of analyzed matches
@@ -456,17 +478,18 @@ class ComplianceIssueSearcher:
         Returns:
             Number of records saved
         """
-        # Filter for confirmed issues
-        confirmed = [
+        # Filter for results that have LLM analysis (skip errors)
+        analyzed = [
             r for r in results
-            if r.get('llm_analysis', {}).get('has_issue') is True
+            if r.get('llm_analysis') is not None
         ]
 
-        if not confirmed:
-            print("No confirmed issues to save")
+        if not analyzed:
+            print("No analyzed results to save")
             return 0
 
-        print(f"\nSaving {len(confirmed)} confirmed issues to database...")
+        confirmed_count = sum(1 for r in analyzed if r.get('llm_analysis', {}).get('has_issue'))
+        print(f"\nSaving {len(analyzed)} analyzed results ({confirmed_count} confirmed issues) to database...")
 
         conn = get_db_connection()
         if not conn:
@@ -479,7 +502,7 @@ class ComplianceIssueSearcher:
         prefix = self.state_config.citation_prefix
 
         try:
-            for item in confirmed:
+            for item in analyzed:
                 try:
                     document_id = item.get('document_id')
                     if document_id is None:
@@ -511,7 +534,7 @@ class ComplianceIssueSearcher:
                             analysis.get('requirement_quote'),
                             analysis.get('from_statute'),
                             None,  # statute_citation - could add if needed
-                            True,  # llm_confirmed
+                            analysis.get('has_issue', False),  # llm_confirmed = has_issue
                             self.state_config.state_code,
                             item.get('url', ''),  # url from search results
                         )

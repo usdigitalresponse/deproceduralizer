@@ -181,17 +181,16 @@ async def run_tests(
                     'with_issue': confirmed_count,
                 }
 
-                # Save confirmed issues to database
-                if confirmed_count > 0:
-                    state_config = STATES[state_code]
-                    issue_config = ISSUE_TYPES[issue_type]
-                    searcher = ComplianceIssueSearcher(
-                        state_config=state_config,
-                        issue_config=issue_config,
-                        with_statutes=False,
-                    )
-                    saved = searcher.save_to_database(results)
-                    print(f"  Saved {saved} issues to database")
+                # Save all analyzed results to database (tracks what's been scanned)
+                state_config = STATES[state_code]
+                issue_config = ISSUE_TYPES[issue_type]
+                searcher = ComplianceIssueSearcher(
+                    state_config=state_config,
+                    issue_config=issue_config,
+                    with_statutes=False,
+                )
+                saved = searcher.save_to_database(results)
+                print(f"  Saved {saved} results to database ({confirmed_count} confirmed)")
             elif matches:
                 all_results[f"{state_code}_{issue_type}"] = {
                     'regex_matches': len(matches),
