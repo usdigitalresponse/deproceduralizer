@@ -493,14 +493,15 @@ class ComplianceIssueSearcher:
                         """
                         INSERT INTO compliance_issues
                         (document_id, issue_type, term_matched, context, requirement_quote,
-                         from_statute, statute_citation, llm_confirmed, state)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                         from_statute, statute_citation, llm_confirmed, state, url)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                         ON CONFLICT (document_id, issue_type) DO UPDATE SET
                             term_matched = EXCLUDED.term_matched,
                             context = EXCLUDED.context,
                             requirement_quote = EXCLUDED.requirement_quote,
                             from_statute = EXCLUDED.from_statute,
-                            llm_confirmed = EXCLUDED.llm_confirmed
+                            llm_confirmed = EXCLUDED.llm_confirmed,
+                            url = EXCLUDED.url
                         """,
                         (
                             document_id,
@@ -512,6 +513,7 @@ class ComplianceIssueSearcher:
                             None,  # statute_citation - could add if needed
                             True,  # llm_confirmed
                             self.state_config.state_code,
+                            item.get('url', ''),  # url from search results
                         )
                     )
                     saved += 1

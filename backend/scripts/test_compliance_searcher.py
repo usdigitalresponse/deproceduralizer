@@ -174,11 +174,24 @@ async def run_tests(
             if matches and not regex_only:
                 # Test LLM analysis
                 results = await test_llm_analysis(state_code, issue_type, matches)
+                confirmed_count = sum(1 for r in results if (r.get('llm_analysis') or {}).get('has_issue'))
                 all_results[f"{state_code}_{issue_type}"] = {
                     'regex_matches': len(matches),
                     'llm_analyzed': len(results),
-                    'with_issue': sum(1 for r in results if (r.get('llm_analysis') or {}).get('has_issue')),
+                    'with_issue': confirmed_count,
                 }
+
+                # Save confirmed issues to database
+                if confirmed_count > 0:
+                    state_config = STATES[state_code]
+                    issue_config = ISSUE_TYPES[issue_type]
+                    searcher = ComplianceIssueSearcher(
+                        state_config=state_config,
+                        issue_config=issue_config,
+                        with_statutes=False,
+                    )
+                    saved = searcher.save_to_database(results)
+                    print(f"  Saved {saved} issues to database")
             elif matches:
                 all_results[f"{state_code}_{issue_type}"] = {
                     'regex_matches': len(matches),
