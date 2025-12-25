@@ -1,5 +1,6 @@
 'use server';
 
+import 'server-only';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
 import yaml from 'js-yaml';

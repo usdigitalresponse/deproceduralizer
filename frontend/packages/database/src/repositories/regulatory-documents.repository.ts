@@ -6,7 +6,9 @@ import { redFlags } from '../schema/red-flags';
 import { complianceIssues } from '../schema/compliance-issues';
 import { StateCode } from '../schema/constants';
 
-export interface RegulationWithAnalysis extends RegulatoryDocument {
+// content is omitted from list queries for performance, only fetched in getByIdWithAnalysis
+export interface RegulationWithAnalysis extends Omit<RegulatoryDocument, 'content'> {
+  content?: string | null; // Optional - only present when fetched via getByIdWithAnalysis
   hasImplementationIssues: boolean | null;
   overallComplexity: string | null;
   summary: string | null;
@@ -146,7 +148,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         title: regulatoryDocuments.title,
         url: regulatoryDocuments.url,
         urlType: regulatoryDocuments.urlType,
-        content: regulatoryDocuments.content,
+        // content omitted from list queries for performance - fetch via getByIdWithAnalysis
         createdAt: regulatoryDocuments.createdAt,
         parentId: regulatoryDocuments.parentId,
         hierarchyLevel: regulatoryDocuments.hierarchyLevel,
@@ -204,6 +206,11 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         hasDescendantAnalysis: regulatoryDocuments.hasDescendantAnalysis,
         complianceIssueCount: regulatoryDocuments.complianceIssueCount,
         descendantComplianceIssueCount: regulatoryDocuments.descendantComplianceIssueCount,
+        // Analysis exclusion
+        excludeFromAnalysis: regulatoryDocuments.excludeFromAnalysis,
+        excludedAt: regulatoryDocuments.excludedAt,
+        excludedBy: regulatoryDocuments.excludedBy,
+        excludedReason: regulatoryDocuments.excludedReason,
         analysisId: analyses.id,
         hasImplementationIssues: analyses.hasImplementationIssues,
         overallComplexity: analyses.overallComplexity,
@@ -407,7 +414,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         title: regulatoryDocuments.title,
         url: regulatoryDocuments.url,
         urlType: regulatoryDocuments.urlType,
-        content: regulatoryDocuments.content,
+        // content omitted from list queries for performance - fetch via getByIdWithAnalysis
         createdAt: regulatoryDocuments.createdAt,
         parentId: regulatoryDocuments.parentId,
         hierarchyLevel: regulatoryDocuments.hierarchyLevel,
@@ -465,6 +472,11 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         hasDescendantAnalysis: regulatoryDocuments.hasDescendantAnalysis,
         complianceIssueCount: regulatoryDocuments.complianceIssueCount,
         descendantComplianceIssueCount: regulatoryDocuments.descendantComplianceIssueCount,
+        // Analysis exclusion
+        excludeFromAnalysis: regulatoryDocuments.excludeFromAnalysis,
+        excludedAt: regulatoryDocuments.excludedAt,
+        excludedBy: regulatoryDocuments.excludedBy,
+        excludedReason: regulatoryDocuments.excludedReason,
         analysisId: analyses.id,
         hasImplementationIssues: analyses.hasImplementationIssues,
         overallComplexity: analyses.overallComplexity,
@@ -604,6 +616,11 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         hasDescendantAnalysis: regulatoryDocuments.hasDescendantAnalysis,
         complianceIssueCount: regulatoryDocuments.complianceIssueCount,
         descendantComplianceIssueCount: regulatoryDocuments.descendantComplianceIssueCount,
+        // Analysis exclusion fields
+        excludeFromAnalysis: regulatoryDocuments.excludeFromAnalysis,
+        excludedAt: regulatoryDocuments.excludedAt,
+        excludedBy: regulatoryDocuments.excludedBy,
+        excludedReason: regulatoryDocuments.excludedReason,
         analysisId: analyses.id,
         hasImplementationIssues: analyses.hasImplementationIssues,
         overallComplexity: analyses.overallComplexity,

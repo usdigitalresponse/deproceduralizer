@@ -1,5 +1,6 @@
 'use server';
 
+import 'server-only';
 import {
   db,
   DefinitionsRepository,
@@ -11,7 +12,15 @@ import {
   type DefinitionStats,
   type AlphabeticalIndex,
   type StateCode,
+  type DefinitionDeveloperStatusCounts,
+  type DeveloperStatus,
+  type Developer,
+  type ResolutionType,
+  DEVELOPER_STATUSES,
+  RESOLUTION_TYPES,
+  DEVELOPERS,
 } from '@deproceduralizer/database';
+import { revalidatePath } from 'next/cache';
 import { type ActionResult, success, failure, getErrorMessage } from './types';
 
 const definitionsRepo = new DefinitionsRepository(db);
@@ -211,8 +220,11 @@ export async function getDefinitionsForReview(
     sortBy?: 'term' | 'extractedAt' | 'document';
     sortOrder?: 'asc' | 'desc';
     isCrossReference?: boolean;
+    inDefinitionsSection?: boolean;
     scopeText?: string;
     scopeRelation?: 'self' | 'parent';
+    termSearch?: string;
+    definitionId?: number;
   }
 ): Promise<ActionResult<{
   data: DefinitionWithContext[];
@@ -414,6 +426,151 @@ export async function getUniqueScopeTexts(
     return success(result);
   } catch (error) {
     console.error('[getUniqueScopeTexts]', error);
+    return failure(getErrorMessage(error));
+  }
+}
+
+// ============================================================================
+// Definition Developer Tracking Actions
+// ============================================================================
+
+export interface UpdateDefinitionDeveloperStatusInput {
+  id: number;
+  developerStatus: string;
+  developerAssigned: string;
+  developerNotes?: string;
+  resolutionType?: string;
+  resolutionComments?: string;
+  developerQuestion?: string;
+}
+
+/**
+ * Update developer status for a definition
+ */
+export async function updateDefinitionDeveloperStatus(
+  input: UpdateDefinitionDeveloperStatusInput
+): Promise<ActionResult<Definition>> {
+  try {
+    // Validate developer status
+    if (!DEVELOPER_STATUSES.includes(input.developerStatus as DeveloperStatus)) {
+      return failure(`Invalid developer status: ${input.developerStatus}`);
+    }
+
+    // Validate developer assignment
+    if (!DEVELOPERS.includes(input.developerAssigned as Developer)) {
+      return failure(`Invalid developer: ${input.developerAssigned}`);
+    }
+
+    // Validate resolution type if provided
+    if (input.resolutionType && !RESOLUTION_TYPES.includes(input.resolutionType as ResolutionType)) {
+      return failure(`Invalid resolution type: ${input.resolutionType}`);
+    }
+
+    const result = await definitionsRepo.updateDeveloperStatus(input.id, {
+      developerStatus: input.developerStatus as DeveloperStatus,
+      developerAssigned: input.developerAssigned as Developer,
+      developerNotes: input.developerNotes,
+      resolutionType: input.resolutionType as ResolutionType | undefined,
+      resolutionComments: input.resolutionComments,
+      developerQuestion: input.developerQuestion,
+    });
+
+    if (!result) {
+      return failure(`Definition with id ${input.id} not found`);
+    }
+
+    revalidatePath('/');
+    return success(result);
+  } catch (error) {
+    console.error('[updateDefinitionDeveloperStatus]', error);
+    return failure(getErrorMessage(error));
+  }
+}
+
+/**
+ * Get developer status counts for definitions
+ */
+export async function getDefinitionDeveloperStatusCounts(
+  state: StateCode
+): Promise<ActionResult<DefinitionDeveloperStatusCounts>> {
+  try {
+    const counts = await definitionsRepo.getDeveloperStatusCounts(state);
+    return success(counts);
+  } catch (error) {
+    console.error('[getDefinitionDeveloperStatusCounts]', error);
+    return failure(getErrorMessage(error));
+  }
+}
+
+/**
+ * Get reviewed definitions for developer mode with pagination and filters
+ */
+export async function getReviewedDefinitionsPaginated(
+  state: StateCode,
+  options: {
+    page: number;
+    pageSize: number;
+    developerStatus?: string;
+    developerAssigned?: string;
+    reviewStatus?: string;
+    hasJustification?: string;
+    hasTeamNotes?: string;
+    sortBy?: 'reviewedAt' | 'term' | 'developerCheckedAt';
+    sortOrder?: 'asc' | 'desc';
+  }
+): Promise<ActionResult<PaginatedDefinitionsResult>> {
+  try {
+    const result = await definitionsRepo.getReviewedDefinitionsPaginated({
+      state,
+      page: options.page,
+      pageSize: options.pageSize,
+      developerStatus: options.developerStatus as DeveloperStatus | 'all' | undefined,
+      developerAssigned: options.developerAssigned as Developer | undefined,
+      reviewStatus: options.reviewStatus as 'confirmed' | 'corrected' | 'false_positive' | 'all' | undefined,
+      hasJustification: options.hasJustification as 'yes' | 'no' | 'all' | undefined,
+      hasTeamNotes: options.hasTeamNotes as 'yes' | 'no' | 'all' | undefined,
+      sortBy: options.sortBy,
+      sortOrder: options.sortOrder,
+    });
+    return success(result);
+  } catch (error) {
+    console.error('[getReviewedDefinitionsPaginated]', error);
+    return failure(getErrorMessage(error));
+  }
+}
+
+/**
+ * Get definitions that need more info from developers
+ */
+export async function getNeedMoreInfoDefinitions(
+  state: StateCode,
+  options: {
+    page: number;
+    pageSize: number;
+    reviewerName?: string;
+  }
+): Promise<ActionResult<PaginatedDefinitionsResult>> {
+  try {
+    const result = await definitionsRepo.getNeedMoreInfoDefinitions(state, options);
+    return success(result);
+  } catch (error) {
+    console.error('[getNeedMoreInfoDefinitions]', error);
+    return failure(getErrorMessage(error));
+  }
+}
+
+/**
+ * Get counts of definitions that need more info
+ */
+export async function getDefinitionNeedMoreInfoCount(
+  state: StateCode,
+  reviewerName?: string
+): Promise<ActionResult<{ total: number; forReviewer: number }>> {
+  try {
+    const counts = await definitionsRepo.getNeedMoreInfoCount(state, reviewerName);
+    return success(counts);
+  } catch (error) {
+    console.error('[getDefinitionNeedMoreInfoCount]', error);
     return failure(getErrorMessage(error));
   }
 }

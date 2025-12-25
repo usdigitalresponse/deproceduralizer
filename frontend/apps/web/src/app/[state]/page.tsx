@@ -1,9 +1,11 @@
 import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
-import { db, RegulatoryDocumentsRepository, type PaginationOptions, type FilterOptions, type StateCode } from '@deproceduralizer/database';
+import type { PaginationOptions, FilterOptions, StateCode } from '@deproceduralizer/database';
+import { getRegulationsPaginated } from '@/lib/actions/regulations';
 import RegulationsClient from '@/components/RegulationsClient';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Container } from '@/components/layout/Container';
+import { Alert } from '@/components/ui';
 import { STATE_CONFIG, isValidState } from '@/types/state';
 import { parseBooleanParam } from '@/lib/url/server-utils';
 
@@ -102,8 +104,7 @@ export default async function Home({ params, searchParams }: PageProps) {
     filters.explanationSearch = queryParams.explanationSearch;
   }
 
-  const repo = new RegulatoryDocumentsRepository(db);
-  const result = await repo.getAllWithAnalysisPaginated({
+  const result = await getRegulationsPaginated({
     state: stateCode,
     page,
     pageSize: 25,
@@ -113,8 +114,24 @@ export default async function Home({ params, searchParams }: PageProps) {
     filters: Object.keys(filters).length > 0 ? filters : undefined,
   });
 
+  if (!result.success) {
+    return (
+      <div className="bg-[var(--color-background)] min-h-screen">
+        <PageHeader
+          title={`${stateConfig.name} Regulatory Analysis`}
+          description="Searchable database of compliance issues, procedural complexity, and technical review requirements"
+        />
+        <Container size="xl" className="py-6">
+          <Alert variant="error">
+            Failed to load regulations: {result.error}
+          </Alert>
+        </Container>
+      </div>
+    );
+  }
+
   // Filter out entries without titles (same behavior as before)
-  const regulations = result.data.filter(reg => reg.title);
+  const regulations = result.data.data.filter(reg => reg.title);
 
   return (
     <div className="bg-[var(--color-background)]">
@@ -154,10 +171,10 @@ export default async function Home({ params, searchParams }: PageProps) {
           <RegulationsClient
             initialData={regulations}
             pagination={{
-              page: result.page,
-              pageSize: result.pageSize,
-              total: result.total,
-              totalPages: result.totalPages,
+              page: result.data.page,
+              pageSize: result.data.pageSize,
+              total: result.data.total,
+              totalPages: result.data.totalPages,
             }}
             search={search}
             filters={filters}

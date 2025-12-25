@@ -1,7 +1,7 @@
-import { eq, and, asc, desc, sql, count, like, ilike, gte, lt, inArray } from 'drizzle-orm';
+import { eq, and, asc, desc, sql, count, like, ilike, gte, lt, inArray, ne, isNotNull } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { BaseRepository } from './base.repository';
-import { definitions, Definition } from '../schema/definitions';
+import { definitions, Definition, DeveloperStatus, ResolutionType, Developer } from '../schema/definitions';
 import { definitionDocumentOccurrences } from '../schema/definition-document-occurrences';
 import { regulatoryDocuments } from '../schema/regulatory-documents';
 import { StateCode } from '../schema/constants';
@@ -86,6 +86,24 @@ export interface PaginatedAggregatedResult {
   page: number;
   pageSize: number;
   totalPages: number;
+}
+
+export interface DefinitionDeveloperStatusCounts {
+  unresolved: number;
+  resolved: number;
+  pending: number;
+  backlogged: number;
+  need_more_info: number;
+  total: number;
+}
+
+export interface UpdateDefinitionDeveloperStatusInput {
+  developerStatus: DeveloperStatus;
+  developerAssigned: Developer;
+  developerNotes?: string;
+  resolutionType?: ResolutionType;
+  resolutionComments?: string;
+  developerQuestion?: string;
 }
 
 export class DefinitionsRepository extends BaseRepository {
@@ -207,6 +225,14 @@ export class DefinitionsRepository extends BaseRepository {
         d.justification_notes as "justificationNotes",
         d.team_notes as "teamNotes",
         d.original_values as "originalValues",
+        -- Developer tracking fields
+        d.developer_status as "developerStatus",
+        d.developer_assigned as "developerAssigned",
+        d.developer_notes as "developerNotes",
+        d.resolution_type as "resolutionType",
+        d.resolution_comments as "resolutionComments",
+        d.developer_question as "developerQuestion",
+        d.developer_checked_at as "developerCheckedAt",
         -- Regulation context (where definition is defined)
         rd.id as "regId",
         rd.title as "regTitle",
@@ -240,7 +266,7 @@ export class DefinitionsRepository extends BaseRepository {
     `);
 
     // Map results to ApplicableDefinition
-    return (results.rows as any[]).map(row => ({
+    return (results.rows as any[]).map((row): ApplicableDefinition => ({
       id: Number(row.id),
       documentId: row.documentId ? Number(row.documentId) : null,
       url: row.url,
@@ -266,6 +292,14 @@ export class DefinitionsRepository extends BaseRepository {
       justificationNotes: row.justificationNotes,
       teamNotes: row.teamNotes,
       originalValues: row.originalValues,
+      // Developer tracking fields
+      developerStatus: row.developerStatus,
+      developerAssigned: row.developerAssigned,
+      developerNotes: row.developerNotes,
+      resolutionType: row.resolutionType,
+      resolutionComments: row.resolutionComments,
+      developerQuestion: row.developerQuestion,
+      developerCheckedAt: row.developerCheckedAt,
       regulation: row.regId ? {
         id: Number(row.regId),
         title: row.regTitle,
@@ -387,6 +421,14 @@ export class DefinitionsRepository extends BaseRepository {
         justificationNotes: definitions.justificationNotes,
         teamNotes: definitions.teamNotes,
         originalValues: definitions.originalValues,
+        // Developer tracking fields
+        developerStatus: definitions.developerStatus,
+        developerAssigned: definitions.developerAssigned,
+        developerNotes: definitions.developerNotes,
+        resolutionType: definitions.resolutionType,
+        resolutionComments: definitions.resolutionComments,
+        developerQuestion: definitions.developerQuestion,
+        developerCheckedAt: definitions.developerCheckedAt,
         // Regulation context
         regulationId: regulatoryDocuments.id,
         regulationTitle: regulatoryDocuments.title,
@@ -433,6 +475,14 @@ export class DefinitionsRepository extends BaseRepository {
       justificationNotes: row.justificationNotes,
       teamNotes: row.teamNotes,
       originalValues: row.originalValues,
+      // Developer tracking fields
+      developerStatus: row.developerStatus,
+      developerAssigned: row.developerAssigned,
+      developerNotes: row.developerNotes,
+      resolutionType: row.resolutionType,
+      resolutionComments: row.resolutionComments,
+      developerQuestion: row.developerQuestion,
+      developerCheckedAt: row.developerCheckedAt,
       regulation: row.regulationId ? {
         id: row.regulationId,
         title: row.regulationTitle,
@@ -537,6 +587,14 @@ export class DefinitionsRepository extends BaseRepository {
         justificationNotes: definitions.justificationNotes,
         teamNotes: definitions.teamNotes,
         originalValues: definitions.originalValues,
+        // Developer tracking fields
+        developerStatus: definitions.developerStatus,
+        developerAssigned: definitions.developerAssigned,
+        developerNotes: definitions.developerNotes,
+        resolutionType: definitions.resolutionType,
+        resolutionComments: definitions.resolutionComments,
+        developerQuestion: definitions.developerQuestion,
+        developerCheckedAt: definitions.developerCheckedAt,
         regulationId: regulatoryDocuments.id,
         regulationTitle: regulatoryDocuments.title,
         regulationNycrrTitle: regulatoryDocuments.nycrrTitle,
@@ -583,6 +641,14 @@ export class DefinitionsRepository extends BaseRepository {
       justificationNotes: row.justificationNotes,
       teamNotes: row.teamNotes,
       originalValues: row.originalValues,
+      // Developer tracking fields
+      developerStatus: row.developerStatus,
+      developerAssigned: row.developerAssigned,
+      developerNotes: row.developerNotes,
+      resolutionType: row.resolutionType,
+      resolutionComments: row.resolutionComments,
+      developerQuestion: row.developerQuestion,
+      developerCheckedAt: row.developerCheckedAt,
       regulation: row.regulationId ? {
         id: row.regulationId,
         title: row.regulationTitle,
@@ -781,6 +847,14 @@ export class DefinitionsRepository extends BaseRepository {
         justificationNotes: definitions.justificationNotes,
         teamNotes: definitions.teamNotes,
         originalValues: definitions.originalValues,
+        // Developer tracking fields
+        developerStatus: definitions.developerStatus,
+        developerAssigned: definitions.developerAssigned,
+        developerNotes: definitions.developerNotes,
+        resolutionType: definitions.resolutionType,
+        resolutionComments: definitions.resolutionComments,
+        developerQuestion: definitions.developerQuestion,
+        developerCheckedAt: definitions.developerCheckedAt,
         regulationId: regulatoryDocuments.id,
         regulationTitle: regulatoryDocuments.title,
         regulationNycrrTitle: regulatoryDocuments.nycrrTitle,
@@ -825,6 +899,14 @@ export class DefinitionsRepository extends BaseRepository {
       justificationNotes: row.justificationNotes,
       teamNotes: row.teamNotes,
       originalValues: row.originalValues,
+      // Developer tracking fields
+      developerStatus: row.developerStatus,
+      developerAssigned: row.developerAssigned,
+      developerNotes: row.developerNotes,
+      resolutionType: row.resolutionType,
+      resolutionComments: row.resolutionComments,
+      developerQuestion: row.developerQuestion,
+      developerCheckedAt: row.developerCheckedAt,
       regulation: row.regulationId ? {
         id: row.regulationId,
         title: row.regulationTitle,
@@ -932,6 +1014,14 @@ export class DefinitionsRepository extends BaseRepository {
         justificationNotes: definitions.justificationNotes,
         teamNotes: definitions.teamNotes,
         originalValues: definitions.originalValues,
+        // Developer tracking fields
+        developerStatus: definitions.developerStatus,
+        developerAssigned: definitions.developerAssigned,
+        developerNotes: definitions.developerNotes,
+        resolutionType: definitions.resolutionType,
+        resolutionComments: definitions.resolutionComments,
+        developerQuestion: definitions.developerQuestion,
+        developerCheckedAt: definitions.developerCheckedAt,
       })
       .from(definitionDocumentOccurrences)
       .innerJoin(
@@ -1000,8 +1090,11 @@ export class DefinitionsRepository extends BaseRepository {
     sortBy?: 'term' | 'extractedAt' | 'document';
     sortOrder?: 'asc' | 'desc';
     isCrossReference?: boolean;
+    inDefinitionsSection?: boolean;
     scopeText?: string;
     scopeRelation?: 'self' | 'parent';
+    termSearch?: string;
+    definitionId?: number;
   }): Promise<{
     data: DefinitionWithContext[];
     total: number;
@@ -1009,7 +1102,7 @@ export class DefinitionsRepository extends BaseRepository {
     pageSize: number;
     totalPages: number;
   }> {
-    const { state, page, pageSize, reviewStatus, scopeLevel, definitionType, documentId, sortBy = 'document', sortOrder = 'asc', isCrossReference, scopeText, scopeRelation } = options;
+    const { state, page, pageSize, reviewStatus, scopeLevel, definitionType, documentId, sortBy = 'document', sortOrder = 'asc', isCrossReference, inDefinitionsSection, scopeText, scopeRelation, termSearch, definitionId } = options;
     const offset = (page - 1) * pageSize;
     const statePattern = state.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
 
@@ -1039,14 +1132,30 @@ export class DefinitionsRepository extends BaseRepository {
     } else if (scopeRelation === 'parent') {
       conditions.push(sql`${definitions.scopeDocumentId} IS NOT NULL AND ${definitions.scopeDocumentId} != ${definitions.documentId}`);
     }
+    // Filter by whether the source document title contains "definition" (case-insensitive)
+    if (inDefinitionsSection === true) {
+      conditions.push(sql`lower(${regulatoryDocuments.title}) like '%definition%'`);
+    } else if (inDefinitionsSection === false) {
+      conditions.push(sql`(${regulatoryDocuments.title} IS NULL OR lower(${regulatoryDocuments.title}) not like '%definition%')`);
+    }
+    // Filter by term search (case-insensitive partial match)
+    if (termSearch) {
+      conditions.push(ilike(definitions.term, `%${termSearch}%`));
+    }
+    // Filter by exact definition ID
+    if (definitionId !== undefined) {
+      conditions.push(eq(definitions.id, definitionId));
+    }
 
     const whereClause = and(...conditions);
 
-    // Get total count
-    const [{ count: total }] = await this.db
+    // Get total count (need join when filtering by inDefinitionsSection)
+    const countQuery = this.db
       .select({ count: count() })
       .from(definitions)
+      .leftJoin(regulatoryDocuments, eq(definitions.documentId, regulatoryDocuments.id))
       .where(whereClause);
+    const [{ count: total }] = await countQuery;
 
     // Build sort
     let orderByClause;
@@ -1090,6 +1199,14 @@ export class DefinitionsRepository extends BaseRepository {
         justificationNotes: definitions.justificationNotes,
         teamNotes: definitions.teamNotes,
         originalValues: definitions.originalValues,
+        // Developer tracking fields
+        developerStatus: definitions.developerStatus,
+        developerAssigned: definitions.developerAssigned,
+        developerNotes: definitions.developerNotes,
+        resolutionType: definitions.resolutionType,
+        resolutionComments: definitions.resolutionComments,
+        developerQuestion: definitions.developerQuestion,
+        developerCheckedAt: definitions.developerCheckedAt,
         regulationId: regulatoryDocuments.id,
         regulationTitle: regulatoryDocuments.title,
         regulationNycrrTitle: regulatoryDocuments.nycrrTitle,
@@ -1149,6 +1266,14 @@ export class DefinitionsRepository extends BaseRepository {
         justificationNotes: row.justificationNotes,
         teamNotes: row.teamNotes,
         originalValues: row.originalValues,
+        // Developer tracking fields
+        developerStatus: row.developerStatus,
+        developerAssigned: row.developerAssigned,
+        developerNotes: row.developerNotes,
+        resolutionType: row.resolutionType,
+        resolutionComments: row.resolutionComments,
+        developerQuestion: row.developerQuestion,
+        developerCheckedAt: row.developerCheckedAt,
         scopeIsAncestor: computedScopeIsAncestor,
         regulation: row.regulationId ? {
           id: row.regulationId,
@@ -1534,6 +1659,14 @@ export class DefinitionsRepository extends BaseRepository {
         justificationNotes: definitions.justificationNotes,
         teamNotes: definitions.teamNotes,
         originalValues: definitions.originalValues,
+        // Developer tracking fields
+        developerStatus: definitions.developerStatus,
+        developerAssigned: definitions.developerAssigned,
+        developerNotes: definitions.developerNotes,
+        resolutionType: definitions.resolutionType,
+        resolutionComments: definitions.resolutionComments,
+        developerQuestion: definitions.developerQuestion,
+        developerCheckedAt: definitions.developerCheckedAt,
         regulationId: regulatoryDocuments.id,
         regulationTitle: regulatoryDocuments.title,
         regulationNycrrTitle: regulatoryDocuments.nycrrTitle,
@@ -1577,6 +1710,14 @@ export class DefinitionsRepository extends BaseRepository {
         justificationNotes: row.justificationNotes,
         teamNotes: row.teamNotes,
         originalValues: row.originalValues,
+        // Developer tracking fields
+        developerStatus: row.developerStatus,
+        developerAssigned: row.developerAssigned,
+        developerNotes: row.developerNotes,
+        resolutionType: row.resolutionType,
+        resolutionComments: row.resolutionComments,
+        developerQuestion: row.developerQuestion,
+        developerCheckedAt: row.developerCheckedAt,
         regulation: row.regulationId ? {
           id: row.regulationId,
           title: row.regulationTitle,
@@ -1594,5 +1735,443 @@ export class DefinitionsRepository extends BaseRepository {
       pageSize,
       totalPages: Math.ceil(total / pageSize),
     };
+  }
+
+  // =========================================================================
+  // DEVELOPER TRACKING METHODS
+  // =========================================================================
+
+  /**
+   * Update developer status for a definition
+   */
+  async updateDeveloperStatus(
+    id: number,
+    data: UpdateDefinitionDeveloperStatusInput
+  ): Promise<Definition | undefined> {
+    const [result] = await this.db
+      .update(definitions)
+      .set({
+        developerStatus: data.developerStatus,
+        developerAssigned: data.developerAssigned,
+        developerNotes: data.developerNotes,
+        resolutionType: data.resolutionType,
+        resolutionComments: data.resolutionComments,
+        developerQuestion: data.developerQuestion,
+        developerCheckedAt: new Date(),
+      })
+      .where(eq(definitions.id, id))
+      .returning();
+
+    return result;
+  }
+
+  /**
+   * Get developer status counts for definitions in a state.
+   * Only counts definitions that have been reviewed (not 'unreviewed').
+   */
+  async getDeveloperStatusCounts(state: StateCode): Promise<DefinitionDeveloperStatusCounts> {
+    const statePattern = state.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
+
+    // Base condition: reviewed definitions only
+    const reviewedCondition = and(
+      like(definitions.url, statePattern),
+      ne(definitions.reviewStatus, 'unreviewed')
+    );
+
+    const results = await this.db
+      .select({
+        developerStatus: definitions.developerStatus,
+        count: count(),
+      })
+      .from(definitions)
+      .where(reviewedCondition)
+      .groupBy(definitions.developerStatus);
+
+    // Initialize counts
+    const counts: DefinitionDeveloperStatusCounts = {
+      unresolved: 0,
+      resolved: 0,
+      pending: 0,
+      backlogged: 0,
+      need_more_info: 0,
+      total: 0,
+    };
+
+    // Populate from results
+    for (const row of results) {
+      const status = (row.developerStatus || 'unresolved') as keyof DefinitionDeveloperStatusCounts;
+      if (status in counts && status !== 'total') {
+        counts[status] = row.count;
+      }
+      counts.total += row.count;
+    }
+
+    return counts;
+  }
+
+  /**
+   * Get reviewed definitions for developer mode with pagination and filters.
+   */
+  async getReviewedDefinitionsPaginated(options: {
+    state: StateCode;
+    page: number;
+    pageSize: number;
+    developerStatus?: DeveloperStatus | 'all';
+    developerAssigned?: Developer;
+    reviewStatus?: 'confirmed' | 'corrected' | 'false_positive' | 'all';
+    hasJustification?: 'yes' | 'no' | 'all';
+    hasTeamNotes?: 'yes' | 'no' | 'all';
+    sortBy?: 'reviewedAt' | 'term' | 'developerCheckedAt';
+    sortOrder?: 'asc' | 'desc';
+  }): Promise<PaginatedDefinitionsResult> {
+    const {
+      state,
+      page,
+      pageSize,
+      developerStatus,
+      developerAssigned,
+      reviewStatus,
+      hasJustification,
+      hasTeamNotes,
+      sortBy = 'reviewedAt',
+      sortOrder = 'desc',
+    } = options;
+
+    const statePattern = state.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
+    const offset = (page - 1) * pageSize;
+
+    // Build conditions: reviewed definitions only
+    const conditions = [
+      like(definitions.url, statePattern),
+      ne(definitions.reviewStatus, 'unreviewed'),
+    ];
+
+    // Filter by developer status
+    if (developerStatus && developerStatus !== 'all') {
+      conditions.push(eq(definitions.developerStatus, developerStatus));
+    }
+
+    // Filter by developer assigned
+    if (developerAssigned) {
+      conditions.push(eq(definitions.developerAssigned, developerAssigned));
+    }
+
+    // Filter by review status
+    if (reviewStatus && reviewStatus !== 'all') {
+      conditions.push(eq(definitions.reviewStatus, reviewStatus));
+    }
+
+    // Filter by has justification notes
+    if (hasJustification === 'yes') {
+      conditions.push(sql`${definitions.justificationNotes} IS NOT NULL AND ${definitions.justificationNotes} != ''`);
+    } else if (hasJustification === 'no') {
+      conditions.push(sql`${definitions.justificationNotes} IS NULL OR ${definitions.justificationNotes} = ''`);
+    }
+
+    // Filter by has team notes
+    if (hasTeamNotes === 'yes') {
+      conditions.push(sql`${definitions.teamNotes} IS NOT NULL AND ${definitions.teamNotes} != ''`);
+    } else if (hasTeamNotes === 'no') {
+      conditions.push(sql`${definitions.teamNotes} IS NULL OR ${definitions.teamNotes} = ''`);
+    }
+
+    const whereClause = and(...conditions);
+
+    // Get total count
+    const [{ count: total }] = await this.db
+      .select({ count: count() })
+      .from(definitions)
+      .where(whereClause);
+
+    // Determine sort column
+    let orderByColumn;
+    switch (sortBy) {
+      case 'term':
+        orderByColumn = definitions.term;
+        break;
+      case 'developerCheckedAt':
+        orderByColumn = definitions.developerCheckedAt;
+        break;
+      case 'reviewedAt':
+      default:
+        orderByColumn = definitions.reviewedAt;
+    }
+    const orderBy = sortOrder === 'asc' ? asc(orderByColumn) : desc(orderByColumn);
+
+    // Fetch definitions with regulation context
+    const results = await this.db
+      .select({
+        id: definitions.id,
+        documentId: definitions.documentId,
+        term: definitions.term,
+        verbatimText: definitions.verbatimText,
+        isVerbatim: definitions.isVerbatim,
+        rephrasedDefinition: definitions.rephrasedDefinition,
+        scope: definitions.scope,
+        definitionOverlap: definitions.definitionOverlap,
+        sourceLocation: definitions.sourceLocation,
+        url: definitions.url,
+        modelVersion: definitions.modelVersion,
+        extractedAt: definitions.extractedAt,
+        notes: definitions.notes,
+        scopeLevel: definitions.scopeLevel,
+        scopeDocumentId: definitions.scopeDocumentId,
+        definitionType: definitions.definitionType,
+        normalizedTerm: definitions.normalizedTerm,
+        isCrossReference: definitions.isCrossReference,
+        reviewStatus: definitions.reviewStatus,
+        reviewedAt: definitions.reviewedAt,
+        reviewerName: definitions.reviewerName,
+        justificationNotes: definitions.justificationNotes,
+        teamNotes: definitions.teamNotes,
+        originalValues: definitions.originalValues,
+        developerStatus: definitions.developerStatus,
+        developerAssigned: definitions.developerAssigned,
+        developerNotes: definitions.developerNotes,
+        resolutionType: definitions.resolutionType,
+        resolutionComments: definitions.resolutionComments,
+        developerQuestion: definitions.developerQuestion,
+        developerCheckedAt: definitions.developerCheckedAt,
+        regulationId: regulatoryDocuments.id,
+        regulationTitle: regulatoryDocuments.title,
+        regulationNycrrTitle: regulatoryDocuments.nycrrTitle,
+        regulationNycrrPart: regulatoryDocuments.nycrrPart,
+        regulationNycrrSection: regulatoryDocuments.nycrrSection,
+        regulationNjacTitle: regulatoryDocuments.njacTitle,
+        regulationNjacChapter: regulatoryDocuments.njacChapter,
+        regulationNjacSubchapter: regulatoryDocuments.njacSubchapter,
+        regulationState: regulatoryDocuments.state,
+        regulationUrl: regulatoryDocuments.url,
+      })
+      .from(definitions)
+      .leftJoin(regulatoryDocuments, eq(definitions.documentId, regulatoryDocuments.id))
+      .where(whereClause)
+      .orderBy(orderBy)
+      .limit(pageSize)
+      .offset(offset);
+
+    return {
+      data: results.map(row => ({
+        id: row.id,
+        documentId: row.documentId,
+        term: row.term,
+        verbatimText: row.verbatimText,
+        isVerbatim: row.isVerbatim,
+        rephrasedDefinition: row.rephrasedDefinition,
+        scope: row.scope,
+        definitionOverlap: row.definitionOverlap,
+        sourceLocation: row.sourceLocation,
+        url: row.url,
+        modelVersion: row.modelVersion,
+        extractedAt: row.extractedAt,
+        notes: row.notes,
+        scopeLevel: row.scopeLevel,
+        scopeDocumentId: row.scopeDocumentId,
+        definitionType: row.definitionType,
+        normalizedTerm: row.normalizedTerm,
+        isCrossReference: row.isCrossReference,
+        reviewStatus: row.reviewStatus,
+        reviewedAt: row.reviewedAt,
+        reviewerName: row.reviewerName,
+        justificationNotes: row.justificationNotes,
+        teamNotes: row.teamNotes,
+        originalValues: row.originalValues,
+        developerStatus: row.developerStatus,
+        developerAssigned: row.developerAssigned,
+        developerNotes: row.developerNotes,
+        resolutionType: row.resolutionType,
+        resolutionComments: row.resolutionComments,
+        developerQuestion: row.developerQuestion,
+        developerCheckedAt: row.developerCheckedAt,
+        regulation: row.regulationId ? {
+          id: row.regulationId,
+          title: row.regulationTitle,
+          nycrrTitle: row.regulationNycrrTitle,
+          nycrrPart: row.regulationNycrrPart,
+          nycrrSection: row.regulationNycrrSection,
+          njacTitle: row.regulationNjacTitle,
+          njacChapter: row.regulationNjacChapter,
+          njacSubchapter: row.regulationNjacSubchapter,
+          state: row.regulationState,
+          url: row.regulationUrl,
+        } : undefined,
+      })),
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
+  }
+
+  /**
+   * Get definitions that need more info from developers (for NeedMoreInfo queue).
+   */
+  async getNeedMoreInfoDefinitions(
+    state: StateCode,
+    options: {
+      page: number;
+      pageSize: number;
+      reviewerName?: string;
+    }
+  ): Promise<PaginatedDefinitionsResult> {
+    const { page, pageSize, reviewerName } = options;
+    const statePattern = state.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
+    const offset = (page - 1) * pageSize;
+
+    const conditions = [
+      like(definitions.url, statePattern),
+      eq(definitions.developerStatus, 'need_more_info'),
+    ];
+
+    const whereClause = and(...conditions);
+
+    const [{ count: total }] = await this.db
+      .select({ count: count() })
+      .from(definitions)
+      .where(whereClause);
+
+    // Fetch definitions with regulation context
+    const results = await this.db
+      .select({
+        id: definitions.id,
+        documentId: definitions.documentId,
+        term: definitions.term,
+        verbatimText: definitions.verbatimText,
+        isVerbatim: definitions.isVerbatim,
+        rephrasedDefinition: definitions.rephrasedDefinition,
+        scope: definitions.scope,
+        definitionOverlap: definitions.definitionOverlap,
+        sourceLocation: definitions.sourceLocation,
+        url: definitions.url,
+        modelVersion: definitions.modelVersion,
+        extractedAt: definitions.extractedAt,
+        notes: definitions.notes,
+        scopeLevel: definitions.scopeLevel,
+        scopeDocumentId: definitions.scopeDocumentId,
+        definitionType: definitions.definitionType,
+        normalizedTerm: definitions.normalizedTerm,
+        isCrossReference: definitions.isCrossReference,
+        reviewStatus: definitions.reviewStatus,
+        reviewedAt: definitions.reviewedAt,
+        reviewerName: definitions.reviewerName,
+        justificationNotes: definitions.justificationNotes,
+        teamNotes: definitions.teamNotes,
+        originalValues: definitions.originalValues,
+        developerStatus: definitions.developerStatus,
+        developerAssigned: definitions.developerAssigned,
+        developerNotes: definitions.developerNotes,
+        resolutionType: definitions.resolutionType,
+        resolutionComments: definitions.resolutionComments,
+        developerQuestion: definitions.developerQuestion,
+        developerCheckedAt: definitions.developerCheckedAt,
+        regulationId: regulatoryDocuments.id,
+        regulationTitle: regulatoryDocuments.title,
+        regulationNycrrTitle: regulatoryDocuments.nycrrTitle,
+        regulationNycrrPart: regulatoryDocuments.nycrrPart,
+        regulationNycrrSection: regulatoryDocuments.nycrrSection,
+        regulationNjacTitle: regulatoryDocuments.njacTitle,
+        regulationNjacChapter: regulatoryDocuments.njacChapter,
+        regulationNjacSubchapter: regulatoryDocuments.njacSubchapter,
+        regulationState: regulatoryDocuments.state,
+        regulationUrl: regulatoryDocuments.url,
+      })
+      .from(definitions)
+      .leftJoin(regulatoryDocuments, eq(definitions.documentId, regulatoryDocuments.id))
+      .where(whereClause)
+      .orderBy(desc(definitions.developerCheckedAt))
+      .limit(pageSize)
+      .offset(offset);
+
+    // Sort: reviewer's items first if reviewerName provided
+    let sortedResults = results;
+    if (reviewerName) {
+      sortedResults = [
+        ...results.filter(r => r.reviewerName === reviewerName),
+        ...results.filter(r => r.reviewerName !== reviewerName),
+      ];
+    }
+
+    return {
+      data: sortedResults.map(row => ({
+        id: row.id,
+        documentId: row.documentId,
+        term: row.term,
+        verbatimText: row.verbatimText,
+        isVerbatim: row.isVerbatim,
+        rephrasedDefinition: row.rephrasedDefinition,
+        scope: row.scope,
+        definitionOverlap: row.definitionOverlap,
+        sourceLocation: row.sourceLocation,
+        url: row.url,
+        modelVersion: row.modelVersion,
+        extractedAt: row.extractedAt,
+        notes: row.notes,
+        scopeLevel: row.scopeLevel,
+        scopeDocumentId: row.scopeDocumentId,
+        definitionType: row.definitionType,
+        normalizedTerm: row.normalizedTerm,
+        isCrossReference: row.isCrossReference,
+        reviewStatus: row.reviewStatus,
+        reviewedAt: row.reviewedAt,
+        reviewerName: row.reviewerName,
+        justificationNotes: row.justificationNotes,
+        teamNotes: row.teamNotes,
+        originalValues: row.originalValues,
+        developerStatus: row.developerStatus,
+        developerAssigned: row.developerAssigned,
+        developerNotes: row.developerNotes,
+        resolutionType: row.resolutionType,
+        resolutionComments: row.resolutionComments,
+        developerQuestion: row.developerQuestion,
+        developerCheckedAt: row.developerCheckedAt,
+        regulation: row.regulationId ? {
+          id: row.regulationId,
+          title: row.regulationTitle,
+          nycrrTitle: row.regulationNycrrTitle,
+          nycrrPart: row.regulationNycrrPart,
+          nycrrSection: row.regulationNycrrSection,
+          njacTitle: row.regulationNjacTitle,
+          njacChapter: row.regulationNjacChapter,
+          njacSubchapter: row.regulationNjacSubchapter,
+          state: row.regulationState,
+          url: row.regulationUrl,
+        } : undefined,
+      })),
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
+  }
+
+  /**
+   * Get counts for need_more_info definitions.
+   */
+  async getNeedMoreInfoCount(
+    state: StateCode,
+    reviewerName?: string
+  ): Promise<{ total: number; forReviewer: number }> {
+    const statePattern = state.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
+
+    const baseCondition = and(
+      like(definitions.url, statePattern),
+      eq(definitions.developerStatus, 'need_more_info')
+    );
+
+    const [{ count: total }] = await this.db
+      .select({ count: count() })
+      .from(definitions)
+      .where(baseCondition);
+
+    let forReviewer = 0;
+    if (reviewerName) {
+      const [result] = await this.db
+        .select({ count: count() })
+        .from(definitions)
+        .where(and(baseCondition, eq(definitions.reviewerName, reviewerName)));
+      forReviewer = result.count;
+    }
+
+    return { total, forReviewer };
   }
 }

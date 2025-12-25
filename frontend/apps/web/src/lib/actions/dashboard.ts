@@ -1,5 +1,6 @@
 'use server';
 
+import 'server-only';
 import { db, RegulatoryDocumentsRepository } from '@deproceduralizer/database';
 import type { StateCode, DashboardStats } from '@deproceduralizer/database';
 import { type ActionResult, success, failure, getErrorMessage } from './types';

@@ -1,6 +1,5 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { db, RegulatoryDocumentsRepository } from '@deproceduralizer/database';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Container } from '@/components/layout/Container';
 import { Card } from '@/components/ui/Card';
@@ -14,9 +13,11 @@ import {
   RegulationHierarchyDetails,
   RegulationMetadata,
   RegulationSummary,
+  ExclusionToggle,
 } from '@/components/regulations';
 import { HierarchyBreadcrumbsServer } from '@/components/regulations/HierarchyBreadcrumbsServer';
 import { ChildrenListServer } from '@/components/regulations/ChildrenListServer';
+import { getRegulationById } from '@/lib/actions/regulations';
 import { getComplianceIssuesByDocumentId } from '@/lib/actions/compliance-issues';
 import { getDefinitionsForDocument, getApplicableDefinitionsForDocument } from '@/lib/actions/definitions';
 import { getNotesByDocumentId } from '@/lib/actions/document-notes';
@@ -41,20 +42,36 @@ export default async function RegulationDetailPage({ params, searchParams }: Pag
     notFound();
   }
 
-  const repo = new RegulatoryDocumentsRepository(db);
-  const [regulation, complianceIssuesResult, definitionsResult, applicableDefinitionsResult, notesResult] = await Promise.all([
-    repo.getByIdWithAnalysis(regulationId),
+  const [regulationResult, complianceIssuesResult, definitionsResult, applicableDefinitionsResult, notesResult] = await Promise.all([
+    getRegulationById(regulationId),
     getComplianceIssuesByDocumentId(regulationId),
     getDefinitionsForDocument(regulationId),
     getApplicableDefinitionsForDocument(regulationId),
     getNotesByDocumentId(regulationId),
   ]);
 
+  // Handle errors - display them obviously
+  if (!regulationResult.success) {
+    return (
+      <div className="bg-[var(--color-background)] min-h-screen">
+        <PageHeader
+          title="Error Loading Regulation"
+          description={undefined}
+        />
+        <Container size="xl" className="py-6">
+          <Alert variant="error">
+            Failed to load regulation: {regulationResult.error}
+          </Alert>
+        </Container>
+      </div>
+    );
+  }
+
+  const regulation = regulationResult.data;
   if (!regulation) {
     notFound();
   }
 
-  // Handle errors - display them obviously
   if (!complianceIssuesResult.success) {
     return (
       <div className="bg-[var(--color-background)] min-h-screen">
@@ -176,6 +193,17 @@ export default async function RegulationDetailPage({ params, searchParams }: Pag
           <Card>
             <h2 className="font-semibold text-[var(--color-text)] mb-3">Metadata</h2>
             <RegulationMetadata regulation={regulation} layout="grid" />
+          </Card>
+
+          {/* Exclusion Toggle */}
+          <Card>
+            <ExclusionToggle
+              documentId={regulationId}
+              isExcluded={regulation.excludeFromAnalysis ?? false}
+              excludedBy={regulation.excludedBy}
+              excludedAt={regulation.excludedAt}
+              excludedReason={regulation.excludedReason}
+            />
           </Card>
 
           {/* Summary */}
