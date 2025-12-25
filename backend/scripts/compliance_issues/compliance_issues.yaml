@@ -1176,6 +1176,7 @@ obsolete_media:
     - "magnetic.{0,5}tape"
     - "usb drive"
     - "flash drive"
+    - "punch.{0,5}card"  # Added: 15 matches (some medication blister pack false positives)
   prompt:
     system: |
       You analyze regulations for OBSOLETE STORAGE MEDIA requirements.
@@ -1762,6 +1763,7 @@ handwriting_specs:
     - "print in ink"
     - "hand-printed"
     - "hand printed"
+    - "indelib"  # Added: 49 matches - indelible ink/pencil requirements
   prompt:
     system: |
       You analyze regulations for HANDWRITING SPECIFICATION requirements.
@@ -1920,6 +1922,7 @@ routing_slip:
   patterns:
     - "transmittal form"
     - "transmittal sheet"
+    - "cover.{0,10}sheet"  # Added: 30 matches - cover sheets for document submission
   prompt:
     system: |
       You analyze regulations for PHYSICAL ROUTING/TRACKING requirements.

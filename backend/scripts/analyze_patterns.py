@@ -339,6 +339,7 @@ ISSUE_PATTERNS = {
             r"\bdvd\b",
             r"compact disc",
             r"thumb drive",
+            r"punch.{0,5}card",  # Added: 15 matches - some are medication blister packs (false positives)
         ],
     },
     'obsolete_software': {
@@ -477,6 +478,7 @@ ISSUE_PATTERNS = {
             r"hand-printed",
             r"print in ink",
             r"neat handwriting",
+            r"indelib",  # Added: 49 matches - indelible ink/pencil requirements
         ],
     },
     'multiple_copies': {
@@ -516,6 +518,7 @@ ISSUE_PATTERNS = {
             r"routing form",
             r"tracking sheet",
             r"circulation slip",
+            r"cover.{0,10}sheet",  # Added: 30 matches - cover sheets for document submission
         ],
     },
     'fixed_window': {
