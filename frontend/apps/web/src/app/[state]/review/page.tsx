@@ -47,6 +47,16 @@ interface PageProps {
     sortBy?: string;
     sortOrder?: string;
     page?: string;
+    // Definition-specific filters (managed by nuqs in client components)
+    scopeLevel?: string;
+    definitionType?: string;
+    isCrossReference?: string;
+    inDefinitionsSection?: string;
+    scopeRelation?: string;
+    scopeMismatch?: string;
+    scopeText?: string;
+    termSearch?: string;
+    definitionId?: string;
   }>;
 }
 
@@ -68,18 +78,31 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
   // Determine review type (flags, compliance, or needs_info)
   const reviewType = (queryParams.type || 'flags') as ReviewType;
 
-  // Default redirects based on mode
+  // Default redirects based on mode - preserve all existing query params
   if (mode === 'developer') {
     // Developer mode: default to unresolved items
     if (!queryParams.developerStatus && reviewType !== 'needs_info') {
-      // Preserve type parameter for definitions
-      const typeParam = reviewType !== 'flags' ? `&type=${reviewType}` : '';
-      redirect(`/${state}/review?mode=developer${typeParam}&developerStatus=unresolved`);
+      const params = new URLSearchParams();
+      // Preserve all existing query params
+      Object.entries(queryParams).forEach(([key, value]) => {
+        if (value) params.set(key, value);
+      });
+      params.set('mode', 'developer');
+      params.set('developerStatus', 'unresolved');
+      if (reviewType !== 'flags') params.set('type', reviewType);
+      redirect(`/${state}/review?${params.toString()}`);
     }
   } else {
     // Review mode: default to unreviewed items
     if (!queryParams.reviewStatus && reviewType !== 'needs_info') {
-      redirect(`/${state}/review?type=${reviewType}&reviewStatus=unreviewed`);
+      const params = new URLSearchParams();
+      // Preserve all existing query params
+      Object.entries(queryParams).forEach(([key, value]) => {
+        if (value) params.set(key, value);
+      });
+      params.set('type', reviewType);
+      params.set('reviewStatus', 'unreviewed');
+      redirect(`/${state}/review?${params.toString()}`);
     }
   }
 
