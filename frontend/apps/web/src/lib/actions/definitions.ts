@@ -7,6 +7,7 @@ import {
   type Definition,
   type DefinitionWithContext,
   type ApplicableDefinition,
+  type SplitApplicableDefinitions,
   type PaginatedDefinitionsResult,
   type PaginatedAggregatedResult,
   type DefinitionStats,
@@ -53,6 +54,22 @@ export async function getApplicableDefinitionsForDocument(
     return success(definitions);
   } catch (error) {
     console.error('[getApplicableDefinitionsForDocument]', error);
+    return failure(getErrorMessage(error));
+  }
+}
+
+/**
+ * Get applicable definitions split into current document vs ancestors.
+ * This replaces the need for separate getDefinitionsForDocument + getApplicableDefinitionsForDocument calls.
+ */
+export async function getApplicableDefinitionsForDocumentSplit(
+  documentId: number
+): Promise<ActionResult<SplitApplicableDefinitions>> {
+  try {
+    const definitions = await definitionsRepo.getApplicableDefinitionsSplit(documentId);
+    return success(definitions);
+  } catch (error) {
+    console.error('[getApplicableDefinitionsForDocumentSplit]', error);
     return failure(getErrorMessage(error));
   }
 }

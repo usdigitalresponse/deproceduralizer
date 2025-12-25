@@ -39,34 +39,46 @@ export function ScopeDocumentTypeahead({
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Load ancestors when source document changes
+  // Load ancestors and resolve selected document in a single coordinated effect
+  // This avoids race conditions from having two separate effects that both depend on `value`
   useEffect(() => {
-    if (sourceDocumentId) {
-      getAncestorDocumentsForScope(sourceDocumentId).then((result) => {
-        if (result.success) {
-          setAncestors(result.data);
-          // If we have a value, find it in ancestors
-          if (value) {
-            const found = result.data.find((d) => d.id === value);
-            if (found) {
-              setSelectedDocument(found);
-            }
+    if (!sourceDocumentId) return;
+
+    let cancelled = false;
+
+    async function loadData() {
+      // First, fetch ancestors
+      const ancestorsResult = await getAncestorDocumentsForScope(sourceDocumentId!);
+      if (cancelled) return;
+
+      if (ancestorsResult.success) {
+        setAncestors(ancestorsResult.data);
+
+        // If we have a value, try to find it in ancestors first
+        if (value) {
+          const found = ancestorsResult.data.find((d) => d.id === value);
+          if (found) {
+            setSelectedDocument(found);
+            return; // Found in ancestors, no need for separate fetch
+          }
+
+          // Only fetch single document if NOT found in ancestors
+          const docResult = await getDocumentForScope(value);
+          if (cancelled) return;
+
+          if (docResult.success && docResult.data) {
+            setSelectedDocument(docResult.data);
           }
         }
-      });
+      }
     }
-  }, [sourceDocumentId, value]);
 
-  // Fetch the selected document if we have a value but it wasn't found in ancestors
-  useEffect(() => {
-    if (value && !selectedDocument) {
-      getDocumentForScope(value).then((result) => {
-        if (result.success && result.data) {
-          setSelectedDocument(result.data);
-        }
-      });
-    }
-  }, [value, selectedDocument]);
+    loadData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sourceDocumentId, value]);
 
   // Search for documents when query changes
   useEffect(() => {

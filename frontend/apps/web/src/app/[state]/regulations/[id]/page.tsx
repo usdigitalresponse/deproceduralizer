@@ -19,7 +19,7 @@ import { HierarchyBreadcrumbsServer } from '@/components/regulations/HierarchyBr
 import { ChildrenListServer } from '@/components/regulations/ChildrenListServer';
 import { getRegulationById } from '@/lib/actions/regulations';
 import { getComplianceIssuesByDocumentId } from '@/lib/actions/compliance-issues';
-import { getDefinitionsForDocument, getApplicableDefinitionsForDocument } from '@/lib/actions/definitions';
+import { getApplicableDefinitionsForDocumentSplit } from '@/lib/actions/definitions';
 import { getNotesByDocumentId } from '@/lib/actions/document-notes';
 import { RegulationDetailClient } from './RegulationDetailClient';
 
@@ -42,11 +42,10 @@ export default async function RegulationDetailPage({ params, searchParams }: Pag
     notFound();
   }
 
-  const [regulationResult, complianceIssuesResult, definitionsResult, applicableDefinitionsResult, notesResult] = await Promise.all([
+  const [regulationResult, complianceIssuesResult, definitionsResult, notesResult] = await Promise.all([
     getRegulationById(regulationId),
     getComplianceIssuesByDocumentId(regulationId),
-    getDefinitionsForDocument(regulationId),
-    getApplicableDefinitionsForDocument(regulationId),
+    getApplicableDefinitionsForDocumentSplit(regulationId),
     getNotesByDocumentId(regulationId),
   ]);
 
@@ -104,22 +103,6 @@ export default async function RegulationDetailPage({ params, searchParams }: Pag
     );
   }
 
-  if (!applicableDefinitionsResult.success) {
-    return (
-      <div className="bg-[var(--color-background)] min-h-screen">
-        <PageHeader
-          title={regulation.title || 'Untitled Regulation'}
-          description={undefined}
-        />
-        <Container size="xl" className="py-6">
-          <Alert variant="error">
-            Failed to load applicable definitions: {applicableDefinitionsResult.error}
-          </Alert>
-        </Container>
-      </div>
-    );
-  }
-
   if (!notesResult.success) {
     return (
       <div className="bg-[var(--color-background)] min-h-screen">
@@ -137,8 +120,7 @@ export default async function RegulationDetailPage({ params, searchParams }: Pag
   }
 
   const complianceIssues = complianceIssuesResult.data;
-  const definitions = definitionsResult.data;
-  const applicableDefinitions = applicableDefinitionsResult.data;
+  const { currentDocument: definitions, ancestors: applicableDefinitions } = definitionsResult.data;
   const notes = notesResult.data;
 
   const nycrrCitation = formatNycrrCitation(

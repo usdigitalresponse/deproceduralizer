@@ -88,11 +88,20 @@ export function DefinitionsReviewQueue({ state }: DefinitionsReviewQueueProps) {
 
 
 
-  // Fetch scope texts for filter dropdown (only once)
+  // Fetch scope texts for filter dropdown (only once per state)
   useEffect(() => {
     getUniqueScopeTexts(state).then((result) => {
       if (result.success) {
         setScopeTexts(result.data);
+      }
+    });
+  }, [state]);
+
+  // Fetch stats once on mount and when state changes (not on every filter/page change)
+  useEffect(() => {
+    getDefinitionReviewStats(state).then((result) => {
+      if (result.success) {
+        setStats(result.data);
       }
     });
   }, [state]);
@@ -114,33 +123,26 @@ export function DefinitionsReviewQueue({ state }: DefinitionsReviewQueueProps) {
       const termSearch = filters.termSearch || undefined;
       const definitionId = filters.definitionId || undefined;
 
-      const [defsResult, statsResult] = await Promise.all([
-        getDefinitionsForReview(state, {
-          page,
-          pageSize,
-          reviewStatus,
-          scopeLevel,
-          definitionType,
-          sortBy,
-          sortOrder,
-          isCrossReference,
-          inDefinitionsSection,
-          scopeText,
-          scopeRelation,
-          termSearch,
-          definitionId,
-        }),
-        getDefinitionReviewStats(state),
-      ]);
+      const defsResult = await getDefinitionsForReview(state, {
+        page,
+        pageSize,
+        reviewStatus,
+        scopeLevel,
+        definitionType,
+        sortBy,
+        sortOrder,
+        isCrossReference,
+        inDefinitionsSection,
+        scopeText,
+        scopeRelation,
+        termSearch,
+        definitionId,
+      });
 
       if (defsResult.success) {
         setDefinitions(defsResult.data.data);
         setTotalPages(defsResult.data.totalPages);
         setTotal(defsResult.data.total);
-      }
-
-      if (statsResult.success) {
-        setStats(statsResult.data);
       }
     } finally {
       setIsLoading(false);

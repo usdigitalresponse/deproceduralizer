@@ -69,7 +69,16 @@ export function DefinitionsDeveloperQueue({ state }: DefinitionsDeveloperQueuePr
     itemLabel: 'definition',
   });
 
-  // Fetch definitions and counts
+  // Fetch counts once on mount and when state changes (not on every filter/page change)
+  useEffect(() => {
+    getDefinitionDeveloperStatusCounts(state).then((result) => {
+      if (result.success) {
+        setCounts(result.data);
+      }
+    });
+  }, [state]);
+
+  // Fetch definitions (counts are fetched separately to avoid redundant calls)
   const fetchDefinitions = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -79,29 +88,22 @@ export function DefinitionsDeveloperQueue({ state }: DefinitionsDeveloperQueuePr
       const hasJustification = filters.hasJustification === 'all' ? undefined : filters.hasJustification;
       const hasTeamNotes = filters.hasTeamNotes === 'all' ? undefined : filters.hasTeamNotes;
 
-      const [defsResult, countsResult] = await Promise.all([
-        getReviewedDefinitionsPaginated(state, {
-          page,
-          pageSize,
-          developerStatus,
-          developerAssigned,
-          reviewStatus,
-          hasJustification,
-          hasTeamNotes,
-          sortBy: filters.sortBy || 'reviewedAt',
-          sortOrder: filters.sortOrder || 'desc',
-        }),
-        getDefinitionDeveloperStatusCounts(state),
-      ]);
+      const defsResult = await getReviewedDefinitionsPaginated(state, {
+        page,
+        pageSize,
+        developerStatus,
+        developerAssigned,
+        reviewStatus,
+        hasJustification,
+        hasTeamNotes,
+        sortBy: filters.sortBy || 'reviewedAt',
+        sortOrder: filters.sortOrder || 'desc',
+      });
 
       if (defsResult.success) {
         setDefinitions(defsResult.data.data);
         setTotalPages(defsResult.data.totalPages);
         setTotal(defsResult.data.total);
-      }
-
-      if (countsResult.success) {
-        setCounts(countsResult.data);
       }
     } finally {
       setIsLoading(false);

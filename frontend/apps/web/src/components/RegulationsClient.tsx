@@ -29,7 +29,7 @@ export default function RegulationsClient({ initialData, pagination, search, fil
   const searchParams = useSearchParams();
   const state = useStateFromPath();
   const [isPending, startTransition] = useTransition();
-  const [selectedRegulation, setSelectedRegulation] = useState<RegulationWithAnalysis | null>(null);
+  const [selectedRegulationId, setSelectedRegulationId] = useState<number | null>(null);
   const [data, setData] = useState(initialData);
 
   // Check if any filters are active
@@ -62,7 +62,7 @@ export default function RegulationsClient({ initialData, pagination, search, fil
     setData(initialData);
   }, [initialData]);
 
-  // Memoized to prevent unnecessary re-renders of DataTable and DetailModal
+  // Memoized to prevent unnecessary re-renders of DataTable
   const handleFlagUpdated = useCallback((updatedFlag: {
     id: number;
     reviewStatus?: string;
@@ -79,6 +79,7 @@ export default function RegulationsClient({ initialData, pagination, search, fil
       reviewedAt: updatedFlag.reviewedAt ? new Date(updatedFlag.reviewedAt) : null,
     };
 
+    // Update table data to reflect flag changes
     setData(prevData =>
       prevData.map(reg => ({
         ...reg,
@@ -89,20 +90,11 @@ export default function RegulationsClient({ initialData, pagination, search, fil
         )
       }))
     );
-
-    setSelectedRegulation(prev => prev ? {
-      ...prev,
-      redFlags: prev.redFlags.map(flag =>
-        flag.id === updatedFlag.id
-          ? { ...flag, ...flagUpdate }
-          : flag
-      )
-    } : null);
   }, []);
 
   // Memoized to prevent unnecessary re-renders of DetailModal
   const handleClose = useCallback(() => {
-    setSelectedRegulation(null);
+    setSelectedRegulationId(null);
   }, []);
 
   return (
@@ -141,14 +133,14 @@ export default function RegulationsClient({ initialData, pagination, search, fil
       {/* Data Table - always render to keep headers/filters visible */}
       <DataTable
         data={data}
-        onRowClick={setSelectedRegulation}
+        onRowClick={(reg) => setSelectedRegulationId(reg.id)}
         pagination={pagination}
         search={search}
       />
 
       {/* Detail Modal */}
       <DetailModal
-        regulation={selectedRegulation}
+        regulationId={selectedRegulationId}
         onClose={handleClose}
         onFlagUpdated={handleFlagUpdated}
       />

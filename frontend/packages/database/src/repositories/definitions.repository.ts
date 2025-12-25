@@ -34,6 +34,17 @@ export interface ApplicableDefinition extends DefinitionWithContext {
   scopeDocLevel?: string | null;
 }
 
+/**
+ * Split result for applicable definitions - separates current document's definitions
+ * from inherited ancestor definitions to avoid redundant fetching
+ */
+export interface SplitApplicableDefinitions {
+  /** Definitions scoped to the current document itself */
+  currentDocument: ApplicableDefinition[];
+  /** Definitions inherited from ancestor documents via scope percolation */
+  ancestors: ApplicableDefinition[];
+}
+
 export interface DefinitionPaginationOptions {
   state: StateCode;
   page: number;
@@ -315,6 +326,29 @@ export class DefinitionsRepository extends BaseRepository {
       scopeDocTitle: row.scopeDocTitle,
       scopeDocLevel: row.scopeDocLevel,
     }));
+  }
+
+  /**
+   * Get applicable definitions split into current document vs ancestors.
+   * This avoids the need for a separate getForDocument call by splitting
+   * the results of getApplicableDefinitions.
+   */
+  async getApplicableDefinitionsSplit(documentId: number): Promise<SplitApplicableDefinitions> {
+    const allDefinitions = await this.getApplicableDefinitions(documentId);
+
+    // Split by whether the definition is scoped to the current document or an ancestor
+    const currentDocument: ApplicableDefinition[] = [];
+    const ancestors: ApplicableDefinition[] = [];
+
+    for (const def of allDefinitions) {
+      if (def.scopeDocumentId === documentId) {
+        currentDocument.push(def);
+      } else {
+        ancestors.push(def);
+      }
+    }
+
+    return { currentDocument, ancestors };
   }
 
   /**
