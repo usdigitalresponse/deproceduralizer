@@ -4,6 +4,7 @@ export { RegulationMetadata } from './RegulationMetadata';
 export { RegulationSummary } from './RegulationSummary';
 export { RegulationContent } from './RegulationContent';
 export { RegulationQuickStats } from './RegulationQuickStats';
+export { ExclusionToggle } from './ExclusionToggle';
 
 // NOTE: Server components (HierarchyBreadcrumbsServer, ChildrenListServer) must be
 // imported directly from their files to avoid bundling database code into client components.

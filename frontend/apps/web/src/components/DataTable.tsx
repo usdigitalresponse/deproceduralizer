@@ -157,6 +157,11 @@ const columns = [
         className="font-medium text-sm text-[var(--color-text)] line-clamp-2"
         title={info.getValue()}
       >
+        {info.row.original.excludeFromAnalysis && (
+          <span className="inline-flex items-center px-1.5 py-0.5 mr-1.5 text-xs font-medium bg-[var(--color-neutral-100)] text-[var(--color-text-muted)] rounded">
+            Excluded
+          </span>
+        )}
         {formatDisplayTitle(info.row.original)}
       </div>
     ),

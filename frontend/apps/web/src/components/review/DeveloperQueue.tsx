@@ -4,6 +4,7 @@ import type { DeveloperItem, CombinedDeveloperStatusCounts } from '@/lib/actions
 import { DeveloperProgress } from './DeveloperProgress';
 import { DeveloperFilters } from './DeveloperFilters';
 import { DeveloperCard } from './DeveloperCard';
+import { ExcludedSectionsList } from './ExcludedSectionsList';
 import RegulationModal from './RegulationModal';
 import {
   QueueResultsInfo,
@@ -63,6 +64,9 @@ export function DeveloperQueue({
 
   return (
     <div className="space-y-6">
+      {/* Excluded Sections - collapsible */}
+      <ExcludedSectionsList />
+
       {/* Progress */}
       <DeveloperProgress counts={counts} />
 

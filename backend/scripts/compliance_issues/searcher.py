@@ -124,12 +124,14 @@ class ComplianceIssueSearcher:
         print(f"Querying {state_code} regulations from database...")
 
         try:
-            # Get all documents for this state
+            # Get all documents for this state (excluding documents marked for exclusion)
             query = f"""
                 SELECT id, title, content, url, hierarchy_level, hierarchy_path,
                        {prefix}_title, {prefix}_chapter, {prefix}_section, source_index
                 FROM regulatory_documents
-                WHERE state = %s AND content IS NOT NULL
+                WHERE state = %s
+                  AND content IS NOT NULL
+                  AND (exclude_from_analysis = FALSE OR exclude_from_analysis IS NULL)
                 ORDER BY id
             """
             rows = conn.execute(query, (state_code,)).fetchall()

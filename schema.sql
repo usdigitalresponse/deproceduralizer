@@ -75,6 +75,12 @@ CREATE TABLE regulatory_documents (
   descendant_max_severity INTEGER,             -- Max severity in subtree
   has_descendant_analysis BOOLEAN DEFAULT FALSE, -- Whether any descendant has analysis
 
+  -- Analysis exclusion (for marking documents that should not be processed)
+  exclude_from_analysis BOOLEAN DEFAULT FALSE,   -- TRUE to skip in red flag/definition/compliance analysis
+  excluded_at TIMESTAMP,                         -- When the exclusion was set
+  excluded_by VARCHAR(255),                      -- Who set the exclusion
+  excluded_reason TEXT,                          -- Optional reason for exclusion
+
   CONSTRAINT unique_per_pull UNIQUE(state, source_index, type)
 );
 

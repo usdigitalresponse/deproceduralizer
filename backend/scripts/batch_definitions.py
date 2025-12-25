@@ -113,6 +113,7 @@ def get_sections_from_db(
     conditions = [
         "state = %s",
         "hierarchy_level = 'section'",
+        "(exclude_from_analysis = FALSE OR exclude_from_analysis IS NULL)",
         """(
             title ~* 'definition'
             OR title ~* 'glossary'
@@ -393,6 +394,109 @@ def find_ancestor_at_level(conn, start_doc_id: int, target_level: str) -> Option
     """, (start_doc_id, normalized_level)).fetchone()
 
     return result[0] if result else None
+
+
+def infer_scope_from_parent_section(doc_ids: List[int] = None, dry_run: bool = False):
+    """
+    For definitions with null scope_level in documents titled "definition(s)",
+    set scope_level and scope_document_id by walking up to the first ancestor
+    with a DIFFERENT hierarchy_level than the source document.
+
+    This runs BEFORE populate_scope_document_ids() so that definitions in
+    "Definitions" sections get their scope inferred from context.
+
+    Args:
+        doc_ids: Optional list of document IDs to limit the update to (for batch processing)
+        dry_run: If True, show what would be updated without making changes
+    """
+    conn = get_db_connection()
+    if not conn:
+        print("ERROR: Could not connect to database")
+        return 0
+
+    # Build query with optional document filter
+    doc_filter = ""
+    params = []
+    if doc_ids:
+        doc_filter = "AND d.document_id = ANY(%s)"
+        params.append(doc_ids)
+
+    # Use recursive CTE to find first ancestor with different hierarchy_level
+    # This handles both cases:
+    # - Parent has different level: stops immediately, uses parent
+    # - Parent has same level: walks up until finding different level
+    base_cte = f"""
+        WITH RECURSIVE ancestors AS (
+            -- Base: start from the document where the definition lives
+            SELECT
+                d.id as def_id,
+                section.id as start_doc_id,
+                section.hierarchy_level as start_level,
+                section.parent_id as current_parent_id,
+                1 as depth
+            FROM definitions d
+            JOIN regulatory_documents section ON d.document_id = section.id
+            WHERE d.scope_level IS NULL
+              AND section.title ~* 'definition'
+              AND section.parent_id IS NOT NULL
+              {doc_filter}
+
+            UNION ALL
+
+            -- Recurse: keep walking up if parent has same level as start
+            SELECT
+                a.def_id,
+                a.start_doc_id,
+                a.start_level,
+                parent.parent_id as current_parent_id,
+                a.depth + 1
+            FROM ancestors a
+            JOIN regulatory_documents parent ON a.current_parent_id = parent.id
+            WHERE parent.hierarchy_level = a.start_level
+              AND parent.parent_id IS NOT NULL
+              AND a.depth < 10
+        ),
+        first_different_ancestor AS (
+            SELECT DISTINCT ON (a.def_id)
+                a.def_id,
+                ancestor.id as scope_doc_id,
+                ancestor.hierarchy_level as scope_level
+            FROM ancestors a
+            JOIN regulatory_documents ancestor ON a.current_parent_id = ancestor.id
+            WHERE ancestor.hierarchy_level != a.start_level
+            ORDER BY a.def_id, a.depth
+        )
+    """
+
+    # Count how many definitions would be affected
+    count_query = base_cte + "SELECT COUNT(*) FROM first_different_ancestor"
+    total = conn.execute(count_query, params).fetchone()[0]
+
+    if total == 0:
+        conn.close()
+        return 0
+
+    if dry_run:
+        print(f"  Would infer scope from parent for {total} definitions in 'definitions' documents")
+        conn.close()
+        return 0
+
+    # Apply the update
+    update_query = base_cte + """
+        UPDATE definitions d
+        SET
+            scope_level = fda.scope_level,
+            scope_document_id = fda.scope_doc_id
+        FROM first_different_ancestor fda
+        WHERE d.id = fda.def_id
+    """
+
+    result = conn.execute(update_query, params)
+    updated = result.rowcount
+    conn.commit()
+    conn.close()
+
+    return updated
 
 
 def populate_scope_document_ids(dry_run: bool = False):
@@ -1038,8 +1142,20 @@ def cmd_process(args):
     with open(info_file, 'w') as f:
         json.dump(batch_info, f, indent=2)
 
-    # Run scope document linking
-    print("[4/5] Linking scope documents...")
+    # Infer scope from parent for definitions in "Definitions" sections
+    print("[4/6] Inferring scope from parent for 'definitions' sections...")
+
+    try:
+        inferred = infer_scope_from_parent_section(doc_ids=doc_ids, dry_run=False)
+        if inferred > 0:
+            print(f"      ✓ Inferred scope for {inferred} definitions from parent section")
+        else:
+            print(f"      (no definitions needed parent-based scope inference)")
+    except Exception as e:
+        print(f"      ⚠️  Could not run parent scope inference: {e}")
+
+    # Run scope document linking for definitions with explicit scope_level
+    print("[5/6] Linking scope documents...")
 
     try:
         populate_scope_document_ids(dry_run=False)
@@ -1047,7 +1163,7 @@ def cmd_process(args):
         print(f"      ⚠️  Could not run scope linking: {e}")
 
     # Link definitions to documents where terms appear
-    print("[5/5] Linking definitions to documents where terms appear...")
+    print("[6/6] Linking definitions to documents where terms appear...")
 
     try:
         from link_definitions import link_new_definitions

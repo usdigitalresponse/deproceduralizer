@@ -26,4 +26,9 @@ export {
   DefinitionsReviewFilters,
   ScopeDocumentTypeahead,
   BulkActionsBar,
+  // Developer mode
+  DefinitionDeveloperCard,
+  DefinitionsDeveloperQueue,
+  DefinitionsDeveloperFilters,
+  DefinitionsDeveloperProgress,
 } from './definitions';

@@ -263,6 +263,67 @@ class TestLLMCalls:
 # CLI SMOKE TESTS
 # =============================================================================
 
+# =============================================================================
+# DATABASE TESTS - Require DB connection (READ-ONLY)
+# =============================================================================
+
+@pytest.mark.db
+class TestExclusionFilter:
+    """Test the exclude_from_analysis filtering in get_filtered_documents.
+
+    These tests are READ-ONLY and do not modify database data.
+    """
+
+    @pytest.fixture(autouse=True)
+    def check_db_connection(self):
+        """Skip if no database connection available."""
+        from shared_utils import get_db_connection
+        conn = get_db_connection()
+        if not conn:
+            pytest.skip("Database connection not available")
+        conn.close()
+
+    def test_exclusion_filter_queries_run_without_error(self):
+        """Verify both include_excluded modes run without SQL errors."""
+        from shared_utils import get_filtered_documents
+
+        # Test default mode (exclude_from_analysis filtered out)
+        docs_default = get_filtered_documents(state='NY', limit=5)
+        assert isinstance(docs_default, list)
+
+        # Test with include_excluded=True (no filtering)
+        docs_with_excluded = get_filtered_documents(state='NY', limit=5, include_excluded=True)
+        assert isinstance(docs_with_excluded, list)
+
+    def test_exclusion_filter_difference(self):
+        """If any documents are excluded, include_excluded=True should return more or equal."""
+        from shared_utils import get_filtered_documents, get_db_connection
+
+        # Check if there are any excluded documents in the database
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT COUNT(*) FROM regulatory_documents
+            WHERE state = 'NY' AND exclude_from_analysis = TRUE
+        """)
+        excluded_count = cur.fetchone()[0]
+        cur.close()
+        conn.close()
+
+        # Get counts with both modes
+        docs_filtered = get_filtered_documents(state='NY', limit=10000)
+        docs_all = get_filtered_documents(state='NY', limit=10000, include_excluded=True)
+
+        # include_excluded=True should return >= filtered results
+        assert len(docs_all) >= len(docs_filtered), \
+            "include_excluded=True should return at least as many documents"
+
+        # If there are excluded docs, include_excluded=True should return more
+        if excluded_count > 0:
+            assert len(docs_all) > len(docs_filtered), \
+                f"Expected more docs with include_excluded=True (found {excluded_count} excluded docs)"
+
+
 class TestCLI:
     """Test CLI commands work (dry-run mode)."""
 

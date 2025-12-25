@@ -207,6 +207,7 @@ def get_filtered_documents(
     part: str = None,
     hierarchy_level: str = None,
     limit: int = None,
+    include_excluded: bool = False,
 ) -> list:
     """
     Query regulatory_documents with hierarchy filters.
@@ -219,6 +220,7 @@ def get_filtered_documents(
         part: Filter by nycrr_part/njac_part
         hierarchy_level: Filter by hierarchy_level (e.g., 'section')
         limit: Max rows to return
+        include_excluded: If False (default), exclude documents marked as exclude_from_analysis
 
     Returns:
         List of dicts with id, title, content, url, and hierarchy fields
@@ -231,6 +233,10 @@ def get_filtered_documents(
 
     conditions = ["state = %s"]
     params = [state.upper()]
+
+    # By default, exclude documents marked for exclusion from analysis
+    if not include_excluded:
+        conditions.append("(exclude_from_analysis = FALSE OR exclude_from_analysis IS NULL)")
 
     if title:
         conditions.append(f"{prefix}_title = %s")
