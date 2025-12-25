@@ -11,10 +11,15 @@ The Deproceduralizer is a web application that helps policy reviewers and govern
 - **Home Dashboard**: Overview of stats across all states with quick navigation
 - **Multi-State Support**: View and analyze regulations from NY and NJ
 - **Red Flag Analysis**: AI-powered identification of regulatory complexity and compliance issues
+- **Compliance Issues**: Detection of 40+ compliance issue types (wet signatures, mail-only, etc.)
+- **Definitions Glossary**: Searchable A-Z glossary with List and Grouped view modes
 - **Browse Hierarchy**: Tree view of regulations organized by titles, parts, and sections
-- **Review Workflow**: Mark flags as confirmed, false positive, needs context, or deferred
+- **Review Workflow**: Mark items as confirmed, false positive, needs context, or deferred
+- **Developer Mode**: Track implementation status, developer assignment, resolution type
 - **Table View**: Sortable, filterable data table with full-text search
 - **Mobile Responsive**: Fully responsive design with drawer patterns for mobile browsing
+
+See [STYLE_GUIDE.md](./STYLE_GUIDE.md) for comprehensive component documentation including Review Mode, Developer Mode, and Definitions components.
 
 ## Getting Started
 
@@ -63,7 +68,8 @@ apps/web/
 │   │   └── [state]/            # State-specific routes (ny, nj)
 │   │       ├── page.tsx        # Table view
 │   │       ├── browse/         # Hierarchy browser
-│   │       └── review/         # Review workflow
+│   │       ├── definitions/    # Definitions glossary
+│   │       └── review/         # Review workflow (flags, issues, definitions)
 │   ├── components/
 │   │   ├── ui/                 # Reusable UI primitives
 │   │   │   ├── Button.tsx
@@ -78,7 +84,10 @@ apps/web/
 │   │   │   └── ...
 │   │   ├── home/               # Dashboard components
 │   │   ├── browse/             # Browse hierarchy components
-│   │   └── review/             # Review workflow components
+│   │   ├── definitions/        # Definitions glossary components
+│   │   ├── flags/              # Red flag display components
+│   │   ├── issues/             # Compliance issue components
+│   │   └── review/             # Review queue and shared components
 │   ├── hooks/                  # Custom React hooks
 │   │   ├── useMediaQuery.ts    # SSR-safe media query
 │   │   └── useResponsive.ts    # Breakpoint detection

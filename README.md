@@ -36,7 +36,7 @@ Cornell Law Website
 
 | Layer | Technology |
 |-------|------------|
-| Backend | Python 3.10+, OpenAI API (GPT-5 nano), psycopg, Pydantic |
+| Backend | Python 3.10+, Claude API (Anthropic), psycopg, Pydantic |
 | Database | PostgreSQL via Neon, Drizzle ORM |
 | Frontend | Next.js 16, React 19, TypeScript, Tailwind CSS 4, Radix UI |
 | Deployment | Vercel |
@@ -167,8 +167,11 @@ Open http://localhost:3000
 
 | Script | Purpose |
 |--------|---------|
-| `red_flags.py` | LLM-powered analysis identifying 12 categories of implementation red flags. Uses OpenAI GPT-5 nano with structured output. |
-| `extract_definitions.py` | Extract defined terms from regulations with overlap scoring. |
+| `red_flags.py` | LLM-powered analysis identifying 12 categories of implementation red flags. Uses Claude API with structured output. |
+| `batch_definitions.py` | Batch LLM-powered definition extraction with caching and progress tracking. |
+| `link_definitions.py` | Link extracted definitions to documents where terms appear. |
+| `compliance_issues/searcher.py` | Regex + LLM compliance issue detection (40+ issue types). |
+| `backfill_definition_scope.py` | Fix incomplete definition scopes. |
 
 ### Red Flag Categories
 
@@ -195,8 +198,11 @@ Based on Jennifer Pahlka's framework:
 |-------|-------------|
 | `/[state]` | Main regulations table with search and filters |
 | `/[state]/browse` | Interactive hierarchy tree browser |
-| `/[state]/review` | Red flag review queue for human triage |
+| `/[state]/review` | Review queues (red flags, compliance issues, definitions) |
+| `/[state]/review?mode=developer` | Developer mode for implementation tracking |
+| `/[state]/definitions` | Definitions glossary with A-Z filter |
 | `/[state]/regulations/[id]` | Regulation detail with analysis |
+| `/prompts` | View and provide feedback on LLM prompts |
 
 ### Features
 
@@ -211,16 +217,29 @@ Based on Jennifer Pahlka's framework:
 - Filter by: analyzed, has flags, severity level, has definitions
 - Shows descendant counts and max severity
 
-**Review Queue**
-- Queue of red flags for human review
-- Filter by status, severity, category
-- Keyboard navigation between cards
-- Update each flag with:
-  - Review status (unreviewed, confirmed, false_positive, needs_context, deferred)
-  - Priority (1-5)
-  - Impact type (cost_savings, time_savings, accessibility, compliance_risk, operational_efficiency, citizen_experience)
-  - Reviewer notes
-  - Reviewer name (persisted in localStorage)
+**Review Queues**
+- Separate queues for red flags, compliance issues, and definitions
+- Filter by status, severity, category, issue type
+- Keyboard navigation (j/k to navigate, n for next unreviewed, v to view regulation)
+- Update each item with review status, priority, impact type, notes, and reviewer name
+- Progress indicators showing review completion
+
+**Developer Mode**
+- Track implementation status of reviewed items
+- Developer assignment (Michael/Abigail)
+- Resolution tracking (Implemented/Not Implemented)
+- "Need More Info" queue for back-and-forth discussions
+
+**Definitions Glossary**
+- Searchable glossary with A-Z letter filter
+- Two view modes: List (flat) and Grouped (aggregated terms)
+- Quality indicators based on overlap scoring
+- Links to source regulations with citations
+
+**Compliance Issues**
+- 40+ issue types (wet signatures, mail-only, certified mail, fax, obsolete tech, etc.)
+- Regex-based candidate detection with LLM verification
+- Statute attribution (from_statute flag indicates if requirement is in statute or regulation-added)
 
 ## Database Schema
 
@@ -249,10 +268,16 @@ Based on Jennifer Pahlka's framework:
 - USC, CFR, public laws, state statutes
 
 **definitions**
-- Extracted defined terms
-- Definition text, scope, overlap score
+- Extracted defined terms with scope tracking
+- Definition text, scope level, cross-reference detection
+- Review and developer workflow fields
 
-See `frontend/packages/database/src/schema/` for full Drizzle definitions.
+**compliance_issues**
+- Detected compliance violations (40+ types)
+- Statute attribution (from_statute flag)
+- Review workflow with developer tracking
+
+See `.claude/skills/database/schema.md` for complete schema documentation, or `frontend/packages/database/src/schema/` for Drizzle definitions.
 
 ## Development
 

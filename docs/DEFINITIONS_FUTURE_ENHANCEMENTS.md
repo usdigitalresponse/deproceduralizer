@@ -954,3 +954,47 @@ Features:
 - English stemming
 
 **Status**: Backlogged - current trigram indexes provide adequate search performance for ILIKE queries.
+
+## Cross-Chapter Definition Incorporation
+
+Handle regulations that incorporate definitions from other chapters by reference.
+
+**Example** (N.J.A.C. 3A:51-1, document ID 187868):
+> "(a) The definitions in N.J.A.C. 10:122B are hereby incorporated into this chapter by reference."
+
+This pattern is different from:
+1. **Individual cross-references** (already tracked via `is_cross_reference`) - single term pointing elsewhere
+2. **Scope percolation** (parent-child hierarchy) - definitions applying down the tree
+
+This is **bulk incorporation** - an entire set of definitions from one regulatory location imported into another.
+
+**Detection patterns:**
+```python
+INCORPORATION_PATTERNS = [
+    r'definitions? in .{5,50} (are |is )?hereby incorporated',
+    r'definitions? (set forth|contained) in .{5,50} (shall )?apply',
+    r'shall have the (same )?meanings? (as )?(set forth|defined) in',
+    r'incorporates? by reference the definitions? (in|of)',
+]
+```
+
+**Schema addition:**
+```sql
+-- Track incorporation relationships
+CREATE TABLE definition_incorporations (
+    id SERIAL PRIMARY KEY,
+    incorporating_document_id BIGINT REFERENCES regulatory_documents(id),
+    source_citation TEXT,                    -- e.g., "N.J.A.C. 10:122B"
+    source_document_id BIGINT REFERENCES regulatory_documents(id),  -- resolved if possible
+    incorporation_text TEXT,                 -- verbatim text
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+**Implementation approach:**
+1. Detect incorporation statements during extraction
+2. Store the relationship in `definition_incorporations`
+3. When showing "applicable definitions" for a section, also include definitions from incorporated sources
+4. Handle citation resolution (parsing "N.J.A.C. 10:122B" to find the document)
+
+**Status**: Backlogged - needs investigation of how common this pattern is and citation resolution logic.

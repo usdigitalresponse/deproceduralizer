@@ -118,6 +118,51 @@ Install required Python packages:
 pip install psycopg pandas python-dotenv
 ```
 
+## Additional Tables
+
+Beyond the core tables (`regulatory_documents`, `analyses`, `red_flags`, `statute_references`), the database includes:
+
+| Table | Purpose |
+|-------|---------|
+| `definitions` | Extracted regulatory terms with scope tracking (28k+ records) |
+| `compliance_issues` | Compliance violations by type (wet_signature, mail_only, etc.) |
+| `definition_document_occurrences` | Many-to-many tracking of where terms appear |
+| `definition_extraction_log` | Processing history for batch extraction |
+| `document_notes` | User annotations on regulations |
+| `prompt_feedback` | Feedback on LLM prompts |
+| `regulation_statute_links` | Regulation-to-statute cross-references |
+
+See `.claude/skills/database/schema.md` for complete schema documentation.
+
+## Additional Queries
+
+### Find definitions by scope level
+```sql
+SELECT term, verbatim_text, scope_level
+FROM definitions
+WHERE scope_level = 'part' AND review_status = 'confirmed'
+ORDER BY term;
+```
+
+### Count compliance issues by type
+```sql
+SELECT issue_type, COUNT(*) as count
+FROM compliance_issues
+WHERE llm_confirmed = true AND state = 'NY'
+GROUP BY issue_type
+ORDER BY count DESC;
+```
+
+### Definition review statistics
+```sql
+SELECT
+  review_status,
+  COUNT(*) as count,
+  ROUND(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER(), 1) as pct
+FROM definitions
+GROUP BY review_status;
+```
+
 ## Notes
 
 - The migration script uses `ON CONFLICT` to handle re-runs gracefully

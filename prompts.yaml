@@ -350,7 +350,7 @@ definition_extraction:
     IMPORTANT: "subpart" and "subchapter" are DIFFERENT levels. Match exactly.
 
     CROSS-REFERENCE DETECTION:
-    - Set is_cross_reference=true AND is_verbatim=false for phrases like:
+    - Set is_cross_reference=true for phrases like:
       * "has the meaning given in section X"
       * "as defined in [external reference]"
       * "has the same meaning as"
