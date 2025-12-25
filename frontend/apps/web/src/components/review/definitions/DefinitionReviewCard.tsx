@@ -2,6 +2,7 @@
 
 import { useState, useTransition, useEffect, forwardRef, useCallback } from 'react';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import { updateDefinitionReview, getAncestorDocumentsForScope } from '@/lib/actions/definitions';
 import { useReviewerName } from '@/hooks/useReviewerName';
 import { Button, Input, Textarea, Badge, Select, SearchableContent } from '@/components/ui';
@@ -15,11 +16,13 @@ import type { DefinitionWithContext, DefinitionOriginalValues, StateCode } from 
 interface DefinitionReviewCardProps {
   definition: DefinitionWithContext;
   onUpdated: (updatedDefinition: DefinitionWithContext) => void;
+  onReviewComplete?: (definitionId: number, status: 'confirmed' | 'corrected' | 'false_positive') => void;
   onViewRegulation: (regulationId: number) => void;
   state: StateCode;
   isFocused?: boolean;
   isSelected?: boolean;
   onSelectionChange?: (id: number, selected: boolean) => void;
+  isExiting?: boolean;
 }
 
 const SCOPE_LEVELS = [
@@ -39,7 +42,7 @@ const DEFINITION_TYPES = [
 ];
 
 export const DefinitionReviewCard = forwardRef<HTMLDivElement, DefinitionReviewCardProps>(
-  ({ definition, onUpdated, onViewRegulation, state, isFocused = false, isSelected = false, onSelectionChange }, ref) => {
+  ({ definition, onUpdated, onReviewComplete, onViewRegulation, state, isFocused = false, isSelected = false, onSelectionChange, isExiting = false }, ref) => {
     const [isPending, startTransition] = useTransition();
     const [error, setError] = useState<string | null>(null);
     const [isMetadataExpanded, setIsMetadataExpanded] = useState(false);
@@ -124,6 +127,12 @@ export const DefinitionReviewCard = forwardRef<HTMLDivElement, DefinitionReviewC
 
           saveReviewerName(formData.reviewerName);
           onUpdated({ ...definition, ...result.data });
+
+          toast.success(`Definition confirmed`, {
+            description: `"${definition.term}" reviewed`,
+          });
+
+          onReviewComplete?.(definition.id, 'confirmed');
         } catch (err) {
           setError(err instanceof Error ? err.message : 'Failed to confirm');
         }
@@ -168,6 +177,12 @@ export const DefinitionReviewCard = forwardRef<HTMLDivElement, DefinitionReviewC
 
           saveReviewerName(formData.reviewerName);
           onUpdated({ ...definition, ...result.data });
+
+          toast.success(`Definition corrected`, {
+            description: `"${definition.term}" updated and reviewed`,
+          });
+
+          onReviewComplete?.(definition.id, 'corrected');
         } catch (err) {
           setError(err instanceof Error ? err.message : 'Failed to save corrections');
         }
@@ -203,6 +218,12 @@ export const DefinitionReviewCard = forwardRef<HTMLDivElement, DefinitionReviewC
 
           saveReviewerName(formData.reviewerName);
           onUpdated({ ...definition, ...result.data });
+
+          toast.success(`Marked as not a definition`, {
+            description: `"${definition.term}" removed`,
+          });
+
+          onReviewComplete?.(definition.id, 'false_positive');
         } catch (err) {
           setError(err instanceof Error ? err.message : 'Failed to mark as false positive');
         }
@@ -221,7 +242,7 @@ export const DefinitionReviewCard = forwardRef<HTMLDivElement, DefinitionReviewC
     const wasChanged = (key: keyof DefinitionOriginalValues) => originalValues[key] !== undefined;
 
     return (
-      <CardWrapper ref={ref} id={`definition-${definition.id}`} isFocused={isFocused}>
+      <CardWrapper ref={ref} id={`definition-${definition.id}`} isFocused={isFocused} isExiting={isExiting}>
         {/* Header */}
         <div className="flex items-start justify-between gap-4 mb-4">
           <div className="flex items-center gap-3">

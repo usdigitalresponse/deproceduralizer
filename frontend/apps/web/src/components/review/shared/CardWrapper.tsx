@@ -6,6 +6,7 @@ import { Card } from '@/components/ui';
 interface CardWrapperProps {
   id: string;
   isFocused?: boolean;
+  isExiting?: boolean;
   children: ReactNode;
   className?: string;
 }
@@ -19,14 +20,15 @@ interface CardWrapperProps {
  * </CardWrapper>
  */
 export const CardWrapper = forwardRef<HTMLDivElement, CardWrapperProps>(
-  ({ id, isFocused = false, children, className = '' }, ref) => {
+  ({ id, isFocused = false, isExiting = false, children, className = '' }, ref) => {
     return (
       <Card
         ref={ref}
         id={id}
         className={`
-          transition-shadow duration-[var(--duration-fast)]
+          transition-all duration-300 ease-out
           ${isFocused ? 'ring-2 ring-[var(--color-focus)] ring-offset-2' : ''}
+          ${isExiting ? 'opacity-0 scale-95 -translate-x-4' : 'opacity-100 scale-100 translate-x-0'}
           ${className}
         `}
         tabIndex={0}

@@ -73,13 +73,9 @@ export function SearchableContent({
     }
   }, [currentMatchIndex, matches.length]);
 
-  // Reset current match index when query changes
-  useEffect(() => {
-    setCurrentMatchIndex(0);
-  }, [searchQuery]);
-
   const handleSearchChange = useCallback((value: string) => {
     setSearchQuery(value);
+    setCurrentMatchIndex(0);  // Reset index when query changes
     onSearchChange?.(value);
   }, [onSearchChange]);
 
@@ -106,6 +102,7 @@ export function SearchableContent({
       }
     } else if (e.key === 'Escape') {
       setSearchQuery('');
+      setCurrentMatchIndex(0);
       setIsSearchVisible(false);
     }
   }, [goToNextMatch, goToPrevMatch]);
@@ -219,6 +216,7 @@ export function SearchableContent({
                 <button
                   onClick={() => {
                     setSearchQuery('');
+                    setCurrentMatchIndex(0);
                     onSearchChange?.('');
                   }}
                   className="p-1 hover:bg-[var(--color-neutral-100)] rounded"

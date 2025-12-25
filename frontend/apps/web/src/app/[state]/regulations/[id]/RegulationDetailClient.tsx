@@ -65,11 +65,6 @@ export function RegulationDetailClient({
     return () => clearTimeout(timer);
   }, [currentMatchIndex, matches.length, searchQuery]);
 
-  // Reset match index when query changes
-  useEffect(() => {
-    setCurrentMatchIndex(0);
-  }, [searchQuery]);
-
   const goToNextMatch = useCallback(() => {
     if (matches.length > 0) {
       setCurrentMatchIndex((prev) => (prev + 1) % matches.length);
@@ -135,7 +130,10 @@ export function RegulationDetailClient({
               <Input
                 type="text"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setCurrentMatchIndex(0);
+                }}
                 onKeyDown={handleKeyDown}
                 placeholder="Search in regulation text..."
                 className="text-sm py-1.5"
@@ -174,7 +172,10 @@ export function RegulationDetailClient({
                 )}
 
                 <button
-                  onClick={() => setSearchQuery('')}
+                  onClick={() => {
+                    setSearchQuery('');
+                    setCurrentMatchIndex(0);
+                  }}
                   className="p-1.5 hover:bg-[var(--color-neutral-100)] rounded"
                   title="Clear search"
                 >

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { getExcludedDocuments, type ExcludedDocument } from '@/lib/actions/regulations';
@@ -21,9 +21,12 @@ export function ExcludedSectionsList() {
   const [error, setError] = useState<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Load excluded documents when expanded
-  useEffect(() => {
-    if (isExpanded && !isLoaded) {
+  // Toggle expand/collapse and fetch on first expand
+  const handleToggle = () => {
+    const willExpand = !isExpanded;
+    setIsExpanded(willExpand);
+
+    if (willExpand && !isLoaded) {
       startTransition(async () => {
         const result = await getExcludedDocuments(state);
         if (result.success) {
@@ -35,7 +38,7 @@ export function ExcludedSectionsList() {
         setIsLoaded(true);
       });
     }
-  }, [isExpanded, isLoaded, state]);
+  };
 
   // Format date for display
   const formatDate = (date: Date | null) => {
@@ -63,7 +66,7 @@ export function ExcludedSectionsList() {
   return (
     <Card className="mb-4">
       <button
-        onClick={() => setIsExpanded(!isExpanded)}
+        onClick={handleToggle}
         className="w-full flex items-center justify-between text-left"
       >
         <div className="flex items-center gap-2">

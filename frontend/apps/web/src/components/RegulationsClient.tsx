@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect, useTransition } from 'react';
+import { useState, useCallback, useMemo, useTransition } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import DataTable from '@/components/DataTable';
 import DetailModal from '@/components/DetailModal';
@@ -30,7 +30,28 @@ export default function RegulationsClient({ initialData, pagination, search, fil
   const state = useStateFromPath();
   const [isPending, startTransition] = useTransition();
   const [selectedRegulationId, setSelectedRegulationId] = useState<number | null>(null);
-  const [data, setData] = useState(initialData);
+
+  // Store local flag patches (optimistic updates) instead of copying all initialData
+  const [flagPatches, setFlagPatches] = useState<Map<number, {
+    reviewStatus?: string;
+    reviewedBy?: string;
+    reviewedAt?: Date | null;
+    justificationNotes?: string;
+    teamNotes?: string;
+    priority?: number;
+    impactType?: string;
+  }>>(new Map());
+
+  // Derive data by applying patches to initialData
+  const data = useMemo(() => {
+    return initialData.map(reg => ({
+      ...reg,
+      redFlags: reg.redFlags.map(flag => {
+        const patch = flagPatches.get(flag.id);
+        return patch ? { ...flag, ...patch } : flag;
+      })
+    }));
+  }, [initialData, flagPatches]);
 
   // Check if any filters are active
   const hasActiveFilters = Object.keys(filters).length > 0;
@@ -57,12 +78,7 @@ export default function RegulationsClient({ initialData, pagination, search, fil
     router.push(`/${state}`);
   }, [router, state]);
 
-  // Sync data when server provides new initialData (e.g., after search/pagination)
-  useEffect(() => {
-    setData(initialData);
-  }, [initialData]);
-
-  // Memoized to prevent unnecessary re-renders of DataTable
+  // Update flag patches when a flag is updated (optimistic update)
   const handleFlagUpdated = useCallback((updatedFlag: {
     id: number;
     reviewStatus?: string;
@@ -79,17 +95,12 @@ export default function RegulationsClient({ initialData, pagination, search, fil
       reviewedAt: updatedFlag.reviewedAt ? new Date(updatedFlag.reviewedAt) : null,
     };
 
-    // Update table data to reflect flag changes
-    setData(prevData =>
-      prevData.map(reg => ({
-        ...reg,
-        redFlags: reg.redFlags.map(flag =>
-          flag.id === updatedFlag.id
-            ? { ...flag, ...flagUpdate }
-            : flag
-        )
-      }))
-    );
+    // Store the patch - will be merged with initialData via useMemo
+    setFlagPatches(prev => {
+      const next = new Map(prev);
+      next.set(updatedFlag.id, flagUpdate);
+      return next;
+    });
   }, []);
 
   // Memoized to prevent unnecessary re-renders of DetailModal

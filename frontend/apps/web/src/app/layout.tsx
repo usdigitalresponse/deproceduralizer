@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 import { Analytics } from "@vercel/analytics/next";
+import { Toaster } from "sonner";
 import "./globals.css";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
@@ -67,6 +68,7 @@ export default function RootLayout({
           </main>
           <Footer />
         </NuqsAdapter>
+        <Toaster position="bottom-right" richColors closeButton />
         <Analytics />
       </body>
     </html>
