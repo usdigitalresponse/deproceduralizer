@@ -9,6 +9,7 @@
 - avoid typecasts (`as Type`) and casting to `unknown` unless truly necessary - prefer proper type guards, generics, or fixing the underlying type issue
 - when setting max_tokens for LLM API calls, look up the model's maximum output token limit and use that value (e.g., Claude 4.5 models support 64000 output tokens, Claude 3.5 Sonnet supports 8192)
 - when creating database-touching modules (actions, query layers), add `import 'server-only'` at the top to prevent accidental client bundling. Page files should not import the database directly; use server actions instead.
+- before committing, check `git worktree list` - do not commit changes that belong to other worktrees/feature branches
 
 ## Frontend Architecture Guidelines (frontend/apps/web)
 
@@ -33,4 +34,16 @@ When working on the Next.js frontend, follow these patterns:
 - Delete unused exports immediately - don't leave "might use later" code
 - After refactoring, audit index.ts barrel exports for dead code
 - Run unused import cleanup as part of any PR
+
+## Backend Patterns
+
+### LLM Prompts
+- All LLM prompts are centralized in `prompts.yaml` at the project root
+- Prompts have `system` (static, cached) and `template` (dynamic) sections
+- When adding/modifying prompts, update prompts.yaml rather than inline strings
+
+### Compliance Issues
+- Issue patterns defined in `backend/scripts/compliance_issues/compliance_issues.yaml`
+- Uses regex-based candidate detection followed by LLM verification
+- See `.claude/skills/database/schema.md` for full schema documentation
 
