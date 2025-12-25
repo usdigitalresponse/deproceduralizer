@@ -10,6 +10,7 @@ import {
   DeveloperQueue,
   NeedMoreInfoQueue,
   DefinitionsReviewQueue,
+  DefinitionsDeveloperQueue,
 } from '@/components/review';
 import {
   getRedFlagsPaginated,
@@ -27,7 +28,7 @@ import {
   getNeedMoreInfoItems,
   getNeedMoreInfoCounts,
 } from '@/lib/actions/developer';
-import { getDefinitionReviewStats } from '@/lib/actions/definitions';
+import { getDefinitionReviewStats, getDefinitionDeveloperStatusCounts } from '@/lib/actions/definitions';
 import type { RedFlagFilterOptions, StateCode } from '@deproceduralizer/database';
 import { isValidState, STATE_CONFIG } from '@/types/state';
 import type { ReviewType, ReviewMode } from '@/types/regulation';
@@ -71,7 +72,9 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
   if (mode === 'developer') {
     // Developer mode: default to unresolved items
     if (!queryParams.developerStatus && reviewType !== 'needs_info') {
-      redirect(`/${state}/review?mode=developer&developerStatus=unresolved`);
+      // Preserve type parameter for definitions
+      const typeParam = reviewType !== 'flags' ? `&type=${reviewType}` : '';
+      redirect(`/${state}/review?mode=developer${typeParam}&developerStatus=unresolved`);
     }
   } else {
     // Review mode: default to unreviewed items
@@ -88,9 +91,10 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
   // Fetch counts for tabs based on mode
   if (mode === 'developer') {
     // Developer mode: fetch developer status counts
-    const [developerStatusCountsResult, needsInfoCountsResult] = await Promise.all([
+    const [developerStatusCountsResult, needsInfoCountsResult, definitionDevCountsResult] = await Promise.all([
       getCombinedDeveloperStatusCounts(stateCode),
       getNeedMoreInfoCounts(stateCode),
+      getDefinitionDeveloperStatusCounts(stateCode),
     ]);
 
     // Handle errors - display them obviously
@@ -128,15 +132,33 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
 
     const developerStatusCounts = developerStatusCountsResult.data;
     const needsInfoCounts = needsInfoCountsResult.data;
+    const definitionDevCounts = definitionDevCountsResult.success ? definitionDevCountsResult.data : { total: 0 };
 
-    // In developer mode, tabs show "All Reviewed Items" (combined) and "Needs More Info"
-    // The flags + compliance sum is shown for "All Reviewed Items"
+    // In developer mode, tabs show "All Reviewed Items" (combined), "Definitions", and "Needs More Info"
     const tabCounts = {
-      flags: developerStatusCounts.total, // Total reviewed items
+      flags: developerStatusCounts.total, // Total reviewed items (flags + compliance)
       compliance: 0, // Combined into flags for developer mode
-      definitions: 0, // Definitions not shown in developer mode
+      definitions: definitionDevCounts.total, // Definitions have their own tab
       needs_info: needsInfoCounts.combined.total,
     };
+
+    // Handle definitions tab in developer mode
+    if (reviewType === 'definitions') {
+      return (
+        <div className="bg-[var(--color-background)]">
+          <PageHeader
+            title={`Developer Review - ${stateConfig.name} Definitions`}
+            description="Track implementation status of reviewed definitions"
+          />
+
+          <Container size="2xl" className="py-6">
+            <ReviewModeSwitcher mode={mode} />
+            <ReviewTypeTabs activeType={reviewType} counts={tabCounts} mode={mode} />
+            <DefinitionsDeveloperQueue state={stateCode} />
+          </Container>
+        </div>
+      );
+    }
 
     // Handle needs_info tab in developer mode
     if (reviewType === 'needs_info') {

@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useQueryStates } from 'nuqs';
 import { getDefinitionsForReview, getDefinitionReviewStats, getUniqueScopeTexts } from '@/lib/actions/definitions';
 import { DefinitionReviewCard } from './DefinitionReviewCard';
 import { DefinitionsReviewFilters } from './DefinitionsReviewFilters';
+import { DefinitionsProgress } from './DefinitionsProgress';
 import { BulkActionsBar } from './BulkActionsBar';
 import {
   QueuePagination,
@@ -30,6 +31,7 @@ export function DefinitionsReviewQueue({ state }: DefinitionsReviewQueueProps) {
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [exitingIds, setExitingIds] = useState<Set<number>>(new Set());
   const [stats, setStats] = useState({
     unreviewed: 0,
     confirmed: 0,
@@ -45,6 +47,9 @@ export function DefinitionsReviewQueue({ state }: DefinitionsReviewQueueProps) {
   // Derived values from filters
   const page = filters.page;
   const pageSize = 10;
+
+  // Check if we're filtering by unreviewed (should remove cards after review)
+  const isFilteringUnreviewed = filters.reviewStatus === 'unreviewed';
 
   // Selection toggle for 'x' key
   const toggleSelection = useCallback((id: number) => {
@@ -101,9 +106,13 @@ export function DefinitionsReviewQueue({ state }: DefinitionsReviewQueueProps) {
       const scopeLevel = filters.scopeLevel === 'all' ? undefined : filters.scopeLevel;
       const definitionType = filters.definitionType === 'all' ? undefined : filters.definitionType as 'formal' | 'abbreviation';
       const sortBy = filters.sortBy as 'term' | 'extractedAt' | 'document';
+      const sortOrder = (filters.sortOrder || 'desc') as 'asc' | 'desc';
       const isCrossReference = filters.isCrossReference === 'all' ? undefined : filters.isCrossReference === 'true';
+      const inDefinitionsSection = filters.inDefinitionsSection === 'all' ? undefined : filters.inDefinitionsSection === 'true';
       const scopeText = filters.scopeText || undefined;
       const scopeRelation = filters.scopeRelation === 'all' ? undefined : filters.scopeRelation as 'self' | 'parent';
+      const termSearch = filters.termSearch || undefined;
+      const definitionId = filters.definitionId || undefined;
 
       const [defsResult, statsResult] = await Promise.all([
         getDefinitionsForReview(state, {
@@ -113,10 +122,13 @@ export function DefinitionsReviewQueue({ state }: DefinitionsReviewQueueProps) {
           scopeLevel,
           definitionType,
           sortBy,
-          sortOrder: 'asc',
+          sortOrder,
           isCrossReference,
+          inDefinitionsSection,
           scopeText,
           scopeRelation,
+          termSearch,
+          definitionId,
         }),
         getDefinitionReviewStats(state),
       ]);
@@ -153,6 +165,43 @@ export function DefinitionsReviewQueue({ state }: DefinitionsReviewQueueProps) {
     });
   }, [state]);
 
+  // Handle review completion: animate out and advance to next
+  const handleReviewComplete = useCallback((definitionId: number, _status: 'confirmed' | 'corrected' | 'false_positive') => {
+    // Find the current index of this definition
+    const currentIndex = definitions.findIndex(d => d.id === definitionId);
+
+    if (isFilteringUnreviewed) {
+      // Add to exiting set to trigger animation
+      setExitingIds(prev => new Set(prev).add(definitionId));
+
+      // After animation, remove from list and advance focus
+      setTimeout(() => {
+        setDefinitions(prev => prev.filter(d => d.id !== definitionId));
+        setExitingIds(prev => {
+          const next = new Set(prev);
+          next.delete(definitionId);
+          return next;
+        });
+        setTotal(prev => Math.max(0, prev - 1));
+
+        // Advance focus to next item (or stay at same index if more items exist)
+        if (currentIndex >= 0 && currentIndex < definitions.length - 1) {
+          // There are more items after this one - focus stays at same index
+          // (which will now be the next item)
+          setFocusedIndex(currentIndex);
+        } else if (currentIndex > 0) {
+          // This was the last item - focus the previous one
+          setFocusedIndex(currentIndex - 1);
+        }
+      }, 300); // Match the CSS transition duration
+    } else {
+      // Not filtering by unreviewed - just advance focus to next
+      if (currentIndex >= 0 && currentIndex < definitions.length - 1) {
+        setFocusedIndex(currentIndex + 1);
+      }
+    }
+  }, [definitions, isFilteringUnreviewed, setFocusedIndex]);
+
   const handleSelectAll = useCallback(() => {
     setSelectedIds(definitions.map((d) => d.id));
   }, [definitions]);
@@ -184,6 +233,7 @@ export function DefinitionsReviewQueue({ state }: DefinitionsReviewQueueProps) {
 
   return (
     <div className="space-y-6">
+      <DefinitionsProgress counts={stats} />
       <DefinitionsReviewFilters counts={stats} scopeTexts={scopeTexts} />
 
       {/* Keyboard help modal */}
@@ -215,10 +265,12 @@ export function DefinitionsReviewQueue({ state }: DefinitionsReviewQueueProps) {
                 ref={(el) => setCardRef(index, el)}
                 definition={definition}
                 onUpdated={handleDefinitionUpdated}
+                onReviewComplete={handleReviewComplete}
                 onViewRegulation={handleViewRegulation}
                 state={state}
                 isFocused={index === focusedIndex}
                 isSelected={selectedIds.includes(definition.id)}
+                isExiting={exitingIds.has(definition.id)}
                 onSelectionChange={(id, selected) => {
                   if (selected) {
                     setSelectedIds((prev) => [...prev, id]);

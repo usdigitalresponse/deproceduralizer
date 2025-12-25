@@ -59,6 +59,15 @@ export const definitions = pgTable('definitions', {
   justificationNotes: text('justification_notes'),  // Justification and analysis for the model
   teamNotes: text('team_notes'),  // Notes for the development team
   originalValues: jsonb('original_values'),  // Stores original LLM values when corrections are made
+
+  // Developer tracking fields (same as red-flags)
+  developerStatus: varchar('developer_status', { length: 50 }).default('unresolved'),
+  developerAssigned: varchar('developer_assigned', { length: 50 }),
+  developerNotes: text('developer_notes'),
+  resolutionType: varchar('resolution_type', { length: 50 }),
+  resolutionComments: text('resolution_comments'),
+  developerQuestion: text('developer_question'),
+  developerCheckedAt: timestamp('developer_checked_at'),
 });
 
 export type Definition = typeof definitions.$inferSelect;
@@ -119,3 +128,13 @@ export interface DefinitionOriginalValues {
   definitionType?: string;
   isCrossReference?: boolean;
 }
+
+// Re-export developer tracking constants from red-flags for convenience
+export {
+  DEVELOPER_STATUSES,
+  RESOLUTION_TYPES,
+  DEVELOPERS,
+  type DeveloperStatus,
+  type ResolutionType,
+  type Developer,
+} from './red-flags';

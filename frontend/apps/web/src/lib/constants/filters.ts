@@ -128,6 +128,12 @@ export const DEFINITIONS_CROSS_REFERENCE_OPTIONS = [
   { value: 'false', label: 'Not Cross-Reference' },
 ];
 
+export const DEFINITIONS_IN_DEF_SECTION_OPTIONS = [
+  { value: 'all', label: 'All Sections' },
+  { value: 'true', label: 'In "Definitions" Section' },
+  { value: 'false', label: 'Not in "Definitions" Section' },
+];
+
 export const DEFINITIONS_SCOPE_RELATION_OPTIONS = [
   { value: 'all', label: 'All Scope Relations' },
   { value: 'self', label: 'Scope = This Section' },

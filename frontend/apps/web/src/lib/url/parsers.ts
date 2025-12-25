@@ -138,6 +138,9 @@ export type DefinitionsScopeRelationValue = (typeof DEFINITIONS_SCOPE_RELATION_V
 export const DEFINITIONS_CROSS_REF_VALUES = ['all', 'true', 'false'] as const;
 export type DefinitionsCrossRefValue = (typeof DEFINITIONS_CROSS_REF_VALUES)[number];
 
+export const DEFINITIONS_IN_DEF_SECTION_VALUES = ['all', 'true', 'false'] as const;
+export type DefinitionsInDefSectionValue = (typeof DEFINITIONS_IN_DEF_SECTION_VALUES)[number];
+
 export const DEFINITIONS_SORT_BY_VALUES = ['document', 'term', 'extractedAt'] as const;
 export type DefinitionsSortByValue = (typeof DEFINITIONS_SORT_BY_VALUES)[number];
 
@@ -158,8 +161,11 @@ export const definitionsReviewStatusParser = parseAsStringEnum([...DEFINITIONS_R
 export const definitionsReviewScopeLevelParser = parseAsStringEnum([...DEFINITIONS_REVIEW_SCOPE_LEVEL_VALUES]).withDefault('all');
 export const definitionsScopeRelationParser = parseAsStringEnum([...DEFINITIONS_SCOPE_RELATION_VALUES]).withDefault('all');
 export const definitionsCrossRefParser = parseAsStringEnum([...DEFINITIONS_CROSS_REF_VALUES]).withDefault('all');
+export const definitionsInDefSectionParser = parseAsStringEnum([...DEFINITIONS_IN_DEF_SECTION_VALUES]).withDefault('all');
 export const definitionsSortByParser = parseAsStringEnum([...DEFINITIONS_SORT_BY_VALUES]).withDefault('document');
 export const scopeTextParser = parseAsString;
+export const termSearchParser = parseAsString;
+export const definitionIdParser = parseAsInteger;
 
 // ============================================
 // Combined parsers for common use cases
@@ -221,7 +227,31 @@ export const definitionsReviewParsers = {
   scopeLevel: definitionsReviewScopeLevelParser,
   definitionType: definitionTypeParser,
   isCrossReference: definitionsCrossRefParser,
+  inDefinitionsSection: definitionsInDefSectionParser,
   scopeRelation: definitionsScopeRelationParser,
   scopeText: scopeTextParser,
+  termSearch: termSearchParser,
+  definitionId: definitionIdParser,
   sortBy: definitionsSortByParser,
+  sortOrder: sortOrderParser,
+};
+
+// Has notes filter values (for filtering by presence of notes)
+export const HAS_NOTES_VALUES = ['all', 'yes', 'no'] as const;
+export type HasNotesValue = (typeof HAS_NOTES_VALUES)[number];
+
+export const hasNotesParser = parseAsStringEnum([...HAS_NOTES_VALUES]).withDefault('all');
+
+/**
+ * Parser configuration for definitions developer queue filters
+ */
+export const definitionsDeveloperParsers = {
+  page: pageParser,
+  developerStatus: developerStatusParser,
+  developerAssigned: developerAssignedParser,
+  reviewStatus: definitionsReviewStatusParser,
+  hasJustification: hasNotesParser,
+  hasTeamNotes: hasNotesParser,
+  sortBy: developerSortByParser,
+  sortOrder: sortOrderParser,
 };

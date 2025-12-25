@@ -34,6 +34,15 @@ Main table with hierarchy. **50 columns** - use `./scripts/db-query.sh describe 
 | `descendant_max_severity` | integer | Max severity in subtree |
 | `has_descendant_analysis` | boolean | Any descendant has analysis |
 
+**Analysis exclusion:**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `exclude_from_analysis` | boolean | TRUE to skip in red flag/definition/compliance analysis |
+| `excluded_at` | timestamp | When exclusion was set |
+| `excluded_by` | varchar(255) | Who set the exclusion |
+| `excluded_reason` | text | Optional reason for exclusion |
+
 **Unique Constraint**: `(state, source_index, type)`
 
 ## analyses
@@ -117,6 +126,13 @@ Main table with hierarchy. **50 columns** - use `./scripts/db-query.sh describe 
 | `justification_notes` | text | Justification and analysis for the model (required if correcting) |
 | `team_notes` | text | Notes for development team |
 | `original_values` | jsonb | Original LLM values when corrections are made |
+| `developer_status` | varchar(50) | unresolved, resolved, pending, backlogged, need_more_info |
+| `developer_assigned` | varchar(50) | Michael or Abigail |
+| `developer_notes` | text | Developer implementation notes |
+| `resolution_type` | varchar(50) | implemented, not_implemented |
+| `resolution_comments` | text | Comments about resolution |
+| `developer_question` | text | Question for reviewer (when need_more_info) |
+| `developer_checked_at` | timestamp | When developer last updated |
 
 **Review Status Values (Definitions):**
 - `unreviewed` - Default, not yet reviewed
@@ -124,7 +140,7 @@ Main table with hierarchy. **50 columns** - use `./scripts/db-query.sh describe 
 - `corrected` - Fields were edited/corrected
 - `false_positive` - Not actually a definition
 
-**Indexes:** `idx_definitions_scope_document`, `idx_definitions_scope_level`, `idx_definitions_normalized_term`, `idx_definitions_type`, `idx_definitions_review_status`
+**Indexes:** `idx_definitions_scope_document`, `idx_definitions_scope_level`, `idx_definitions_normalized_term`, `idx_definitions_type`, `idx_definitions_review_status`, `idx_definitions_developer_status`, `idx_definitions_developer_filters`
 
 ## definition_document_occurrences
 

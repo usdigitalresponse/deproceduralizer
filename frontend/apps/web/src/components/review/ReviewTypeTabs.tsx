@@ -54,6 +54,10 @@ export function ReviewTypeTabs({ activeType, counts, mode = 'review' }: ReviewTy
 
   // If in developer mode and showing combined view, show all items tab differently
   if (mode === 'developer') {
+    const isAllActive = activeType !== 'definitions' && activeType !== 'needs_info';
+    const isDefinitionsActive = activeType === 'definitions';
+    const isNeedsInfoActive = activeType === 'needs_info';
+
     return (
       <div className="flex gap-1 p-1 bg-[var(--color-neutral-100)] rounded-[var(--radius-lg)] mb-4">
         <button
@@ -67,19 +71,41 @@ export function ReviewTypeTabs({ activeType, counts, mode = 'review' }: ReviewTy
             flex items-center gap-2 px-4 py-2 rounded-[var(--radius-md)] text-sm font-medium
             transition-all duration-[var(--duration-fast)]
             ${
-              activeType !== 'needs_info'
+              isAllActive
                 ? 'bg-white text-[var(--color-text)] shadow-sm'
                 : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-white/50'
             }
           `}
         >
-          All Reviewed Items
+          Red Flags & Issues
           {(counts.flags + counts.compliance) > 0 && (
             <Badge
-              variant={activeType !== 'needs_info' ? 'info' : 'default'}
+              variant={isAllActive ? 'info' : 'default'}
               className="text-xs"
             >
               {counts.flags + counts.compliance}
+            </Badge>
+          )}
+        </button>
+        <button
+          onClick={() => handleTabChange('definitions')}
+          className={`
+            flex items-center gap-2 px-4 py-2 rounded-[var(--radius-md)] text-sm font-medium
+            transition-all duration-[var(--duration-fast)]
+            ${
+              isDefinitionsActive
+                ? 'bg-white text-[var(--color-text)] shadow-sm'
+                : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-white/50'
+            }
+          `}
+        >
+          Definitions
+          {counts.definitions > 0 && (
+            <Badge
+              variant={isDefinitionsActive ? 'info' : 'default'}
+              className="text-xs"
+            >
+              {counts.definitions}
             </Badge>
           )}
         </button>
@@ -89,7 +115,7 @@ export function ReviewTypeTabs({ activeType, counts, mode = 'review' }: ReviewTy
             flex items-center gap-2 px-4 py-2 rounded-[var(--radius-md)] text-sm font-medium
             transition-all duration-[var(--duration-fast)]
             ${
-              activeType === 'needs_info'
+              isNeedsInfoActive
                 ? 'bg-white text-[var(--color-text)] shadow-sm'
                 : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-white/50'
             }
@@ -98,7 +124,7 @@ export function ReviewTypeTabs({ activeType, counts, mode = 'review' }: ReviewTy
           Needs More Info
           {counts.needs_info > 0 && (
             <Badge
-              variant={activeType === 'needs_info' ? 'warning' : 'default'}
+              variant={isNeedsInfoActive ? 'warning' : 'default'}
               className="text-xs"
             >
               {counts.needs_info}
