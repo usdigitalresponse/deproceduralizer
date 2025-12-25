@@ -240,6 +240,7 @@ export async function getDefinitionsForReview(
     inDefinitionsSection?: boolean;
     scopeText?: string;
     scopeRelation?: 'self' | 'parent';
+    scopeMismatch?: boolean;
     termSearch?: string;
     definitionId?: number;
   }

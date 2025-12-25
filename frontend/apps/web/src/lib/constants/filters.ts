@@ -140,6 +140,12 @@ export const DEFINITIONS_SCOPE_RELATION_OPTIONS = [
   { value: 'parent', label: 'Scope = Parent' },
 ];
 
+export const DEFINITIONS_SCOPE_MISMATCH_OPTIONS = [
+  { value: 'all', label: 'All Scope Matches' },
+  { value: 'true', label: 'Scope Mismatch' },
+  { value: 'false', label: 'Scope Matches' },
+];
+
 export const DEFINITIONS_SORT_OPTIONS = [
   { value: 'document', label: 'By Document' },
   { value: 'term', label: 'By Term' },

@@ -12,6 +12,7 @@ import {
   type DefinitionsCrossRefValue,
   type DefinitionsInDefSectionValue,
   type DefinitionsScopeRelationValue,
+  type DefinitionsScopeMismatchValue,
   type DefinitionsSortByValue,
   type SortOrderValue,
 } from '@/lib/url/parsers';
@@ -22,6 +23,7 @@ import {
   DEFINITIONS_CROSS_REFERENCE_OPTIONS,
   DEFINITIONS_IN_DEF_SECTION_OPTIONS,
   DEFINITIONS_SCOPE_RELATION_OPTIONS,
+  DEFINITIONS_SCOPE_MISMATCH_OPTIONS,
   DEFINITIONS_SORT_OPTIONS,
 } from '@/lib/constants/filters';
 
@@ -54,6 +56,7 @@ export function DefinitionsReviewFilters({ counts, scopeTexts = [] }: Definition
       isCrossReference: 'all',
       inDefinitionsSection: 'all',
       scopeRelation: 'all',
+      scopeMismatch: 'all',
       scopeText: null,
       termSearch: null,
       definitionId: null,
@@ -71,6 +74,7 @@ export function DefinitionsReviewFilters({ counts, scopeTexts = [] }: Definition
     (filters.isCrossReference && filters.isCrossReference !== 'all') ||
     (filters.inDefinitionsSection && filters.inDefinitionsSection !== 'all') ||
     (filters.scopeRelation && filters.scopeRelation !== 'all') ||
+    (filters.scopeMismatch && filters.scopeMismatch !== 'all') ||
     filters.scopeText ||
     filters.termSearch ||
     filters.definitionId;
@@ -204,6 +208,14 @@ export function DefinitionsReviewFilters({ counts, scopeTexts = [] }: Definition
             value={filters.scopeRelation || 'all'}
             onValueChange={(value) => setFilters({ scopeRelation: value as DefinitionsScopeRelationValue, page: 1 })}
             options={DEFINITIONS_SCOPE_RELATION_OPTIONS}
+          />
+        </div>
+
+        <div className="flex-1 min-w-[140px] max-w-[170px]">
+          <Select
+            value={filters.scopeMismatch || 'all'}
+            onValueChange={(value) => setFilters({ scopeMismatch: value as DefinitionsScopeMismatchValue, page: 1 })}
+            options={DEFINITIONS_SCOPE_MISMATCH_OPTIONS}
           />
         </div>
 

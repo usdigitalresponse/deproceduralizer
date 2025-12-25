@@ -120,6 +120,7 @@ export function DefinitionsReviewQueue({ state }: DefinitionsReviewQueueProps) {
       const inDefinitionsSection = filters.inDefinitionsSection === 'all' ? undefined : filters.inDefinitionsSection === 'true';
       const scopeText = filters.scopeText || undefined;
       const scopeRelation = filters.scopeRelation === 'all' ? undefined : filters.scopeRelation as 'self' | 'parent';
+      const scopeMismatch = filters.scopeMismatch === 'all' ? undefined : filters.scopeMismatch === 'true';
       const termSearch = filters.termSearch || undefined;
       const definitionId = filters.definitionId || undefined;
 
@@ -135,6 +136,7 @@ export function DefinitionsReviewQueue({ state }: DefinitionsReviewQueueProps) {
         inDefinitionsSection,
         scopeText,
         scopeRelation,
+        scopeMismatch,
         termSearch,
         definitionId,
       });

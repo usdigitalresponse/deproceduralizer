@@ -141,6 +141,9 @@ export type DefinitionsCrossRefValue = (typeof DEFINITIONS_CROSS_REF_VALUES)[num
 export const DEFINITIONS_IN_DEF_SECTION_VALUES = ['all', 'true', 'false'] as const;
 export type DefinitionsInDefSectionValue = (typeof DEFINITIONS_IN_DEF_SECTION_VALUES)[number];
 
+export const DEFINITIONS_SCOPE_MISMATCH_VALUES = ['all', 'true', 'false'] as const;
+export type DefinitionsScopeMismatchValue = (typeof DEFINITIONS_SCOPE_MISMATCH_VALUES)[number];
+
 export const DEFINITIONS_SORT_BY_VALUES = ['document', 'term', 'extractedAt'] as const;
 export type DefinitionsSortByValue = (typeof DEFINITIONS_SORT_BY_VALUES)[number];
 
@@ -162,6 +165,7 @@ export const definitionsReviewScopeLevelParser = parseAsStringEnum([...DEFINITIO
 export const definitionsScopeRelationParser = parseAsStringEnum([...DEFINITIONS_SCOPE_RELATION_VALUES]).withDefault('all');
 export const definitionsCrossRefParser = parseAsStringEnum([...DEFINITIONS_CROSS_REF_VALUES]).withDefault('all');
 export const definitionsInDefSectionParser = parseAsStringEnum([...DEFINITIONS_IN_DEF_SECTION_VALUES]).withDefault('all');
+export const definitionsScopeMismatchParser = parseAsStringEnum([...DEFINITIONS_SCOPE_MISMATCH_VALUES]).withDefault('all');
 export const definitionsSortByParser = parseAsStringEnum([...DEFINITIONS_SORT_BY_VALUES]).withDefault('document');
 export const scopeTextParser = parseAsString;
 export const termSearchParser = parseAsString;
@@ -229,6 +233,7 @@ export const definitionsReviewParsers = {
   isCrossReference: definitionsCrossRefParser,
   inDefinitionsSection: definitionsInDefSectionParser,
   scopeRelation: definitionsScopeRelationParser,
+  scopeMismatch: definitionsScopeMismatchParser,
   scopeText: scopeTextParser,
   termSearch: termSearchParser,
   definitionId: definitionIdParser,

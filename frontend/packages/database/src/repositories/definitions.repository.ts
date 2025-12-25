@@ -1127,6 +1127,7 @@ export class DefinitionsRepository extends BaseRepository {
     inDefinitionsSection?: boolean;
     scopeText?: string;
     scopeRelation?: 'self' | 'parent';
+    scopeMismatch?: boolean;
     termSearch?: string;
     definitionId?: number;
   }): Promise<{
@@ -1136,7 +1137,7 @@ export class DefinitionsRepository extends BaseRepository {
     pageSize: number;
     totalPages: number;
   }> {
-    const { state, page, pageSize, reviewStatus, scopeLevel, definitionType, documentId, sortBy = 'document', sortOrder = 'asc', isCrossReference, inDefinitionsSection, scopeText, scopeRelation, termSearch, definitionId } = options;
+    const { state, page, pageSize, reviewStatus, scopeLevel, definitionType, documentId, sortBy = 'document', sortOrder = 'asc', isCrossReference, inDefinitionsSection, scopeText, scopeRelation, scopeMismatch, termSearch, definitionId } = options;
     const offset = (page - 1) * pageSize;
     const statePattern = state.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
 
@@ -1179,6 +1180,30 @@ export class DefinitionsRepository extends BaseRepository {
     // Filter by exact definition ID
     if (definitionId !== undefined) {
       conditions.push(eq(definitions.id, definitionId));
+    }
+    // Filter by scope mismatch: scope text contains a level keyword but scope_level doesn't match
+    // E.g., scope says "in this subchapter" but scope_level is "section"
+    if (scopeMismatch === true) {
+      conditions.push(sql`(
+        (lower(${definitions.scope}) like '%in this section%' AND ${definitions.scopeLevel} IS DISTINCT FROM 'section') OR
+        (lower(${definitions.scope}) like '%in this subpart%' AND ${definitions.scopeLevel} IS DISTINCT FROM 'subpart') OR
+        (lower(${definitions.scope}) like '%in this part%' AND lower(${definitions.scope}) NOT LIKE '%in this subpart%' AND ${definitions.scopeLevel} IS DISTINCT FROM 'part') OR
+        (lower(${definitions.scope}) like '%in this subchapter%' AND ${definitions.scopeLevel} IS DISTINCT FROM 'subchapter') OR
+        (lower(${definitions.scope}) like '%in this chapter%' AND lower(${definitions.scope}) NOT LIKE '%in this subchapter%' AND ${definitions.scopeLevel} IS DISTINCT FROM 'chapter') OR
+        (lower(${definitions.scope}) like '%in this subtitle%' AND ${definitions.scopeLevel} IS DISTINCT FROM 'subtitle') OR
+        (lower(${definitions.scope}) like '%in this title%' AND lower(${definitions.scope}) NOT LIKE '%in this subtitle%' AND ${definitions.scopeLevel} IS DISTINCT FROM 'title')
+      )`);
+    } else if (scopeMismatch === false) {
+      // Filter for definitions where scope text matches scope_level (or has no scope text with level keywords)
+      conditions.push(sql`NOT (
+        (lower(${definitions.scope}) like '%in this section%' AND ${definitions.scopeLevel} IS DISTINCT FROM 'section') OR
+        (lower(${definitions.scope}) like '%in this subpart%' AND ${definitions.scopeLevel} IS DISTINCT FROM 'subpart') OR
+        (lower(${definitions.scope}) like '%in this part%' AND lower(${definitions.scope}) NOT LIKE '%in this subpart%' AND ${definitions.scopeLevel} IS DISTINCT FROM 'part') OR
+        (lower(${definitions.scope}) like '%in this subchapter%' AND ${definitions.scopeLevel} IS DISTINCT FROM 'subchapter') OR
+        (lower(${definitions.scope}) like '%in this chapter%' AND lower(${definitions.scope}) NOT LIKE '%in this subchapter%' AND ${definitions.scopeLevel} IS DISTINCT FROM 'chapter') OR
+        (lower(${definitions.scope}) like '%in this subtitle%' AND ${definitions.scopeLevel} IS DISTINCT FROM 'subtitle') OR
+        (lower(${definitions.scope}) like '%in this title%' AND lower(${definitions.scope}) NOT LIKE '%in this subtitle%' AND ${definitions.scopeLevel} IS DISTINCT FROM 'title')
+      )`);
     }
 
     const whereClause = and(...conditions);
