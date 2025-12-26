@@ -32,6 +32,15 @@ export type DeveloperStatusValue = (typeof DEVELOPER_STATUS_VALUES)[number];
 export const SEVERITY_VALUES = ['all', 'high', 'medium', 'low'] as const;
 export type SeverityValue = (typeof SEVERITY_VALUES)[number];
 
+// Statute source values (for compliance issues)
+export const STATUTE_SOURCE_VALUES = ['all', 'true', 'false'] as const;
+export type StatuteSourceValue = (typeof STATUTE_SOURCE_VALUES)[number];
+
+// Requirement found values (for compliance issues LLM confirmation)
+// Default to 'true' to show only LLM-confirmed issues (not regex-only matches)
+export const REQUIREMENT_FOUND_VALUES = ['all', 'true', 'false'] as const;
+export type RequirementFoundValue = (typeof REQUIREMENT_FOUND_VALUES)[number];
+
 // Sort order
 export const SORT_ORDER_VALUES = ['asc', 'desc'] as const;
 export type SortOrderValue = (typeof SORT_ORDER_VALUES)[number];
@@ -63,6 +72,8 @@ export const sortOrderParser = parseAsStringEnum([...SORT_ORDER_VALUES]).withDef
 export const reviewStatusParser = parseAsStringEnum([...REVIEW_STATUS_VALUES]).withDefault('unreviewed');
 export const developerStatusParser = parseAsStringEnum([...DEVELOPER_STATUS_VALUES]).withDefault('all');
 export const severityParser = parseAsStringEnum([...SEVERITY_VALUES]).withDefault('all');
+export const statuteSourceParser = parseAsStringEnum([...STATUTE_SOURCE_VALUES]).withDefault('all');
+export const requirementFoundParser = parseAsStringEnum([...REQUIREMENT_FOUND_VALUES]).withDefault('true');
 export const reviewTypeParser = parseAsStringEnum([...REVIEW_TYPE_VALUES]).withDefault('flags');
 export const reviewModeParser = parseAsStringEnum([...REVIEW_MODE_VALUES]).withDefault('review');
 export const glossaryViewParser = parseAsStringEnum([...GLOSSARY_VIEW_VALUES]).withDefault('flat');

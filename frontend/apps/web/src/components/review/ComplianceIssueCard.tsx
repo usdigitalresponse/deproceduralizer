@@ -2,7 +2,7 @@
 
 import { useState, forwardRef, useCallback, useTransition } from 'react';
 import { updateComplianceIssueReview, getExpandedContext } from '@/lib/actions/compliance-issues';
-import { Button, Textarea, Badge, Select, Tag, CopyLinkButton } from '@/components/ui';
+import { Button, Textarea, Badge, SeverityBadge, Select, Tag, CopyLinkButton } from '@/components/ui';
 import { ISSUE_TYPE_LABELS } from '@/types/regulation';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
 import { formatNjacCitation } from '@/lib/formatters/njac';
@@ -127,6 +127,9 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
                 From Statute
               </Badge>
             )}
+            {issue.severity !== null && (
+              <SeverityBadge severity={issue.severity} />
+            )}
           </div>
           <div className="flex items-center gap-2">
             <Badge
@@ -168,40 +171,97 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
           </div>
         )}
 
-        {/* Context with highlighted term - with expand option */}
-        <div className="mb-4">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-xs font-medium text-[var(--color-text-secondary)]">
-              Regulation Text
-            </span>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={handleExpandContext}
-              disabled={isLoadingContext}
-              className="text-xs py-0.5 px-2 h-auto"
-            >
-              {isLoadingContext ? 'Loading...' : isExpanded ? 'Show less' : 'Show more context'}
-            </Button>
-          </div>
-          <div className="p-3 bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] border-l-4 border-[var(--color-warning)]">
-            <p className="text-sm text-[var(--color-text)] whitespace-pre-wrap">
-              {isExpanded && expandedText
-                ? highlightContext(expandedText, issue.matchedContext, issue.matchedPattern)
-                : highlightTerm(issue.matchedContext, issue.matchedPattern)}
-            </p>
-          </div>
-        </div>
-
-        {/* Requirement text */}
-        {issue.requirementText && issue.requirementText !== issue.matchedContext && (
+        {/* Primary: Requirement Text (if available) */}
+        {issue.requirementText && (
           <div className="mb-4">
-            <span className="text-xs font-medium text-[var(--color-text-secondary)]">Requirement:</span>
-            <blockquote className="mt-1 pl-3 border-l-2 border-[var(--color-neutral-300)] text-sm text-[var(--color-text)] italic">
-              &ldquo;{issue.requirementText}&rdquo;
-            </blockquote>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-medium text-[var(--color-text-secondary)]">
+                Requirement Text
+              </span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={handleExpandContext}
+                disabled={isLoadingContext}
+                className="text-xs py-0.5 px-2 h-auto"
+              >
+                {isLoadingContext ? 'Loading...' : isExpanded ? 'Show less' : 'Show more context'}
+              </Button>
+            </div>
+            <div className="p-3 bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] border-l-4 border-[var(--color-warning)]">
+              <p className="text-sm text-[var(--color-text)] whitespace-pre-wrap">
+                {isExpanded && expandedText
+                  ? highlightContext(expandedText, issue.requirementText, issue.matchedPattern)
+                  : highlightTerm(issue.requirementText, issue.matchedPattern)}
+              </p>
+            </div>
           </div>
+        )}
+
+        {/* Fallback: Matched Context (if no requirementText) */}
+        {!issue.requirementText && (
+          <div className="mb-4">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-medium text-[var(--color-text-secondary)]">
+                Matched Context
+              </span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={handleExpandContext}
+                disabled={isLoadingContext}
+                className="text-xs py-0.5 px-2 h-auto"
+              >
+                {isLoadingContext ? 'Loading...' : isExpanded ? 'Show less' : 'Show more context'}
+              </Button>
+            </div>
+            <div className="p-3 bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] border-l-4 border-[var(--color-warning)]">
+              <p className="text-sm text-[var(--color-text)] whitespace-pre-wrap">
+                {isExpanded && expandedText
+                  ? highlightContext(expandedText, issue.matchedContext, issue.matchedPattern)
+                  : highlightTerm(issue.matchedContext, issue.matchedPattern)}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Secondary: Original Match Context (collapsible, only if different from requirementText) */}
+        {issue.requirementText && issue.matchedContext && issue.requirementText !== issue.matchedContext && (
+          <details className="mb-4">
+            <summary className="text-xs font-medium text-[var(--color-text-secondary)] cursor-pointer hover:text-[var(--color-text)] py-1">
+              Original Match Context
+            </summary>
+            <div className="mt-2 p-3 bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] border-l-2 border-[var(--color-neutral-300)]">
+              <p className="text-sm text-[var(--color-text)] whitespace-pre-wrap">
+                {highlightTerm(issue.matchedContext, issue.matchedPattern)}
+              </p>
+            </div>
+          </details>
+        )}
+
+        {/* LLM Analysis section - collapsible */}
+        {(issue.impactAssessment || issue.statuteCitation) && (
+          <details className="mb-4">
+            <summary className="text-xs font-medium text-[var(--color-text-secondary)] cursor-pointer hover:text-[var(--color-text)] py-1">
+              LLM Analysis
+            </summary>
+            <div className="mt-2 space-y-3 pl-2 border-l-2 border-[var(--color-neutral-200)]">
+              {issue.impactAssessment && (
+                <div>
+                  <span className="text-xs font-medium text-[var(--color-text-secondary)]">Impact Assessment:</span>
+                  <p className="mt-1 text-sm text-[var(--color-text)]">{issue.impactAssessment}</p>
+                </div>
+              )}
+              {issue.statuteCitation && (
+                <div>
+                  <span className="text-xs font-medium text-[var(--color-text-secondary)]">Statute Citation:</span>
+                  <p className="mt-1 text-sm font-mono text-[var(--color-text)]">{issue.statuteCitation}</p>
+                </div>
+              )}
+            </div>
+          </details>
         )}
 
         {/* Review form */}

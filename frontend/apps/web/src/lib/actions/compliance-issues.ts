@@ -198,6 +198,9 @@ export async function getComplianceIssuesPaginated(
     filters?: {
       status?: string;
       issueType?: string;
+      severity?: 'high' | 'medium' | 'low' | 'all';
+      requiredByStatute?: boolean | 'all';
+      requirementFound?: boolean | 'all';
     };
   }
 ): Promise<ActionResult<PaginatedComplianceIssuesResult>> {
@@ -211,6 +214,9 @@ export async function getComplianceIssuesPaginated(
       filters: options.filters ? {
         status: options.filters.status as ReviewStatus | 'all' | undefined,
         issueType: options.filters.issueType as 'wet_signature' | 'in_person' | 'paper_form' | 'notarized' | 'certified' | 'other' | 'all' | undefined,
+        severity: options.filters.severity,
+        requiredByStatute: options.filters.requiredByStatute,
+        requirementFound: options.filters.requirementFound,
       } : undefined,
     });
     return success(result);

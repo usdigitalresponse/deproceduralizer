@@ -1,10 +1,27 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
 import { useCallback } from 'react';
 import { useQueryStates } from 'nuqs';
 import { Button, Select } from '@/components/ui';
-import { reviewStatusParser, complianceSortByParser, sortOrderParser, searchParser, pageParser, type ReviewStatusValue } from '@/lib/url/parsers';
+import {
+  reviewStatusParser,
+  complianceSortByParser,
+  sortOrderParser,
+  searchParser,
+  pageParser,
+  severityParser,
+  statuteSourceParser,
+  requirementFoundParser,
+  type ReviewStatusValue,
+  type SeverityValue,
+  type StatuteSourceValue,
+  type RequirementFoundValue,
+} from '@/lib/url/parsers';
+import {
+  SEVERITY_FILTER_OPTIONS,
+  STATUTE_SOURCE_FILTER_OPTIONS,
+  REQUIREMENT_FOUND_FILTER_OPTIONS,
+} from '@/lib/constants/filters';
 import { REVIEW_STATUSES, COMPLIANCE_ISSUE_TYPES } from '@/types/regulation';
 
 interface ComplianceFiltersProps {
@@ -19,6 +36,9 @@ export function ComplianceFilters({
   const [filters, setFilters] = useQueryStates({
     reviewStatus: reviewStatusParser,
     issueType: searchParser,
+    severity: severityParser,
+    statuteSource: statuteSourceParser,
+    requirementFound: requirementFoundParser,
     sortBy: complianceSortByParser,
     sortOrder: sortOrderParser,
     page: pageParser,
@@ -30,14 +50,20 @@ export function ComplianceFilters({
     setFilters({
       reviewStatus: 'unreviewed',
       issueType: null,
+      severity: 'all',
+      statuteSource: 'all',
+      requirementFound: 'true', // Default to showing only LLM-confirmed issues
       page: 1,
     });
   }, [setFilters]);
 
-  // Check if any filters are active
+  // Check if any filters are active (excluding requirementFound='true' which is the default)
   const hasActiveFilters =
     (filters.reviewStatus && filters.reviewStatus !== 'unreviewed') ||
-    filters.issueType;
+    filters.issueType ||
+    (filters.severity && filters.severity !== 'all') ||
+    (filters.statuteSource && filters.statuteSource !== 'all') ||
+    (filters.requirementFound && filters.requirementFound !== 'true');
 
   // Build filter options
   const statusOptions = [{ value: 'all', label: 'All Statuses' }, ...REVIEW_STATUSES];
@@ -71,6 +97,33 @@ export function ComplianceFilters({
           value={filters.issueType || 'all'}
           onValueChange={(value) => setFilters({ issueType: value === 'all' ? null : value, page: 1 })}
           options={typeOptions}
+        />
+      </div>
+
+      <div className="flex items-center gap-2">
+        <label className="text-sm font-medium text-[var(--color-text-secondary)]">Severity:</label>
+        <Select
+          value={filters.severity || 'all'}
+          onValueChange={(value) => setFilters({ severity: value as SeverityValue, page: 1 })}
+          options={SEVERITY_FILTER_OPTIONS}
+        />
+      </div>
+
+      <div className="flex items-center gap-2">
+        <label className="text-sm font-medium text-[var(--color-text-secondary)]">Source:</label>
+        <Select
+          value={filters.statuteSource || 'all'}
+          onValueChange={(value) => setFilters({ statuteSource: value as StatuteSourceValue, page: 1 })}
+          options={STATUTE_SOURCE_FILTER_OPTIONS}
+        />
+      </div>
+
+      <div className="flex items-center gap-2">
+        <label className="text-sm font-medium text-[var(--color-text-secondary)]">LLM:</label>
+        <Select
+          value={filters.requirementFound || 'true'}
+          onValueChange={(value) => setFilters({ requirementFound: value as RequirementFoundValue, page: 1 })}
+          options={REQUIREMENT_FOUND_FILTER_OPTIONS}
         />
       </div>
 
