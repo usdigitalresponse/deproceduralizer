@@ -219,6 +219,7 @@ export default async function RegulationDetailPage({ params, searchParams }: Pag
             <DefinitionsList
               definitions={usedDefinitions}
               definedHereIds={new Set(usedInText.definedHere.map(d => d.id))}
+              currentDocumentId={regulationId}
               state={state}
               title="Definitions Used"
               description="Terms that appear in this document"

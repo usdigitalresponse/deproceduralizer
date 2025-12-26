@@ -3,7 +3,7 @@
 - Before pushing, always run the smoke tests: `cd frontend/apps/web && pnpm test:e2e` unless you've run it recently. When starting a big feature, always add running smoke tests to the todos.
 - when modifying schema.sql, always update .claude/skills/database/ (especially schema.md) to reflect the schema changes
 - I am using vercel for deployment of the frontend by either pushing a branch and promoting, or pushing from main
-- whenever you are planning to create or modify a prompt, add a todo or integrate the prompt into @prompts.yaml
+- whenever you are planning to create or modify a prompt, add a todo or integrate the prompt into ./prompts.yaml
 - when implementing batch processing, always implement caching to avoid redundant operations (especially before committing)
 - when creating scripts that do batch/multi-document/multi-record processing, always display progress (e.g., "Processed 1000/5000 records, ETA: 2m30s") so the user knows it's working and can estimate completion time
 - avoid typecasts (`as Type`) and casting to `unknown` unless truly necessary - prefer proper type guards, generics, or fixing the underlying type issue

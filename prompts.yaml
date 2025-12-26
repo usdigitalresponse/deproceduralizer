@@ -2,8 +2,20 @@
 # Centralized Prompts for LLM Analysis
 # =============================================================================
 #
-# This file contains all prompt templates used across the codebase.
+# This file contains prompt templates loaded via shared_utils.load_prompt().
 # Templates use {variable_name} placeholders that get filled at runtime.
+#
+# ARCHITECTURE NOTE: This project has TWO prompt systems:
+#
+# 1. prompts.yaml (this file) - For analysis prompts loaded via load_prompt()
+#    - red_flags_analysis: Implementation complexity analysis
+#    - definition_extraction: Term definition extraction
+#    - wet_signature_*: DSPy prompt optimization training
+#
+# 2. backend/scripts/compliance_issues/compliance_issues.yaml
+#    - For all 40 compliance issue types (mail_only, fax, notarization, etc.)
+#    - Contains BOTH regex patterns AND LLM prompts together
+#    - Loaded by: backend/scripts/compliance_issues/config.py
 #
 # Usage:
 #   from shared_utils import load_prompt

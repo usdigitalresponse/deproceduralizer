@@ -1,17 +1,19 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { ChevronDown, ChevronUp, BookOpen } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import type { DefinitionWithContext } from '@deproceduralizer/database';
+import type { ApplicableDefinition } from '@deproceduralizer/database';
 import { DEFAULT_STATE } from '@/types/state';
+import { formatNjacCitation, formatNycrrCitation } from '@/lib/formatters';
 
 /**
  * Get the display definition text based on verbatim/rephrased logic
  */
-function getDisplayDefinitionText(definition: DefinitionWithContext): string {
+function getDisplayDefinitionText(definition: ApplicableDefinition): string {
   if (definition.isVerbatimTextComplete) {
     return definition.verbatimText;
   }
@@ -19,10 +21,12 @@ function getDisplayDefinitionText(definition: DefinitionWithContext): string {
 }
 
 interface DefinitionsListProps {
-  definitions: DefinitionWithContext[];
+  definitions: ApplicableDefinition[];
   /** Set of definition IDs that are defined in the current document (vs inherited) */
   definedHereIds?: Set<number>;
-  /** State for context (used in display) */
+  /** Current document ID for detecting "This document" source */
+  currentDocumentId?: number;
+  /** State for context (used in display and links) */
   state?: string;
   /** Whether the section is collapsible */
   collapsible?: boolean;
@@ -38,9 +42,31 @@ interface DefinitionsListProps {
  * Displays a list of definitions for a regulation detail page
  * Follows the same pattern as ComplianceIssuesList
  */
+/**
+ * Format a citation for display based on state
+ */
+function formatCitation(definition: ApplicableDefinition, state: string): string | null {
+  if (!definition.regulation) return null;
+
+  if (state === 'ny') {
+    return formatNycrrCitation(
+      definition.regulation.nycrrTitle,
+      definition.regulation.nycrrPart,
+      definition.regulation.nycrrSection
+    );
+  }
+
+  return formatNjacCitation(
+    definition.regulation.njacTitle,
+    definition.regulation.njacChapter,
+    definition.regulation.njacSubchapter
+  );
+}
+
 export function DefinitionsList({
   definitions,
   definedHereIds,
+  currentDocumentId,
   state = DEFAULT_STATE,
   collapsible = true,
   initialCollapsed = false,
@@ -172,12 +198,47 @@ export function DefinitionsList({
                   </Button>
                 )}
 
-                {/* Source location */}
-                {definition.sourceLocation && (
-                  <p className="text-xs text-[var(--color-text-muted)] mt-2">
-                    <span className="font-medium">Source:</span> {definition.sourceLocation}
+                {/* Source and Scope information */}
+                <div className="mt-2 space-y-1">
+                  {/* Source document */}
+                  <p className="text-xs text-[var(--color-text-muted)]">
+                    <span className="font-medium">Source:</span>{' '}
+                    {currentDocumentId && definition.documentId === currentDocumentId ? (
+                      <span>This document</span>
+                    ) : definition.regulation ? (
+                      <Link
+                        href={`/${state}/regulations/${definition.regulation.id}`}
+                        className="text-[var(--color-primary)] hover:underline"
+                      >
+                        {formatCitation(definition, state) || definition.regulation.title || 'Source regulation'}
+                      </Link>
+                    ) : definition.sourceLocation ? (
+                      <span>{definition.sourceLocation}</span>
+                    ) : (
+                      <span className="text-[var(--color-text-muted)]">Unknown</span>
+                    )}
                   </p>
-                )}
+
+                  {/* Scope - where the definition applies */}
+                  {(definition.scope || definition.scopeDocumentId) && (
+                    <p className="text-xs text-[var(--color-text-muted)]">
+                      <span className="font-medium">Applies:</span>{' '}
+                      {definition.scope && <span>{definition.scope}</span>}
+                      {definition.scopeDocumentId && definition.scopeDocTitle && (
+                        <>
+                          {definition.scope && ' ('}
+                          <Link
+                            href={`/${state}/regulations/${definition.scopeDocumentId}`}
+                            className="text-[var(--color-primary)] hover:underline"
+                          >
+                            {definition.scopeDocTitle}
+                          </Link>
+                          {definition.scope && ')'}
+                        </>
+                      )}
+                    </p>
+                  )}
+                </div>
               </div>
             );
           })}

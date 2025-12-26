@@ -46,15 +46,26 @@ export interface SplitApplicableDefinitions {
 }
 
 /**
+ * NOTE on "definedHere" vs "inherited" terminology:
+ * - "definedHere" = definition's SOURCE document (documentId) matches the current document
+ *   (i.e., the definition text is written in this document)
+ * - "inherited" = definition comes from a different document
+ *
+ * This is distinct from scope:
+ * - scopeDocumentId = where the definition APPLIES (may be an ancestor for broader scope)
+ * - documentId = where the definition is WRITTEN (the source)
+ */
+
+/**
  * Definitions with full context - separates definitions that appear in text
  * from those that are merely in scope
  */
 export interface DefinitionsWithContext {
   /** Definitions where the term actually appears in this document's text */
   usedInText: {
-    /** Definitions whose scope_document_id is this document */
+    /** Definitions whose SOURCE document (documentId) is this document */
     definedHere: ApplicableDefinition[];
-    /** Definitions inherited from ancestor documents */
+    /** Definitions whose SOURCE document is a different document */
     inherited: ApplicableDefinition[];
   };
   /** Definitions in scope but the term doesn't appear in this document's text */
@@ -379,8 +390,11 @@ export class DefinitionsRepository extends BaseRepository {
    * 2. Definitions that are in scope but the term doesn't appear
    *
    * And within "used in text", separates:
-   * - definedHere: scope_document_id matches the current document
-   * - inherited: scope_document_id is an ancestor
+   * - definedHere: definition's SOURCE document (documentId) matches the current document
+   * - inherited: definition's SOURCE document is a different document
+   *
+   * Note: This is distinct from scope (scopeDocumentId), which determines where
+   * a definition applies, not where it is written.
    */
   async getDefinitionsWithContext(documentId: number): Promise<DefinitionsWithContext> {
     // 1. Get definitions that appear in the document text (via occurrence links)
@@ -392,9 +406,10 @@ export class DefinitionsRepository extends BaseRepository {
     // 3. Create a set of used definition IDs for quick lookup
     const usedIds = new Set(usedDefinitions.map(d => d.id));
 
-    // 4. Split "used" into definedHere vs inherited
-    const definedHere = usedDefinitions.filter(d => d.scopeDocumentId === documentId);
-    const inherited = usedDefinitions.filter(d => d.scopeDocumentId !== documentId);
+    // 4. Split "used" into definedHere vs inherited based on SOURCE document (not scope)
+    // A definition is "defined here" if its source document matches the current document
+    const definedHere = usedDefinitions.filter(d => d.documentId === documentId);
+    const inherited = usedDefinitions.filter(d => d.documentId !== documentId);
 
     // 5. "Available but not used" = scope definitions NOT in usedIds
     const availableButNotUsed = scopeDefinitions.filter(d => !usedIds.has(d.id));
@@ -1089,6 +1104,7 @@ export class DefinitionsRepository extends BaseRepository {
    */
   async getDefinitionsAppearingInDocument(documentId: number): Promise<ApplicableDefinition[]> {
     const scopeDoc = alias(regulatoryDocuments, 'scope_doc');
+    const sourceDoc = alias(regulatoryDocuments, 'source_doc');
 
     const results = await this.db
       .select({
@@ -1130,6 +1146,16 @@ export class DefinitionsRepository extends BaseRepository {
         // Scope document context
         scopeDocTitle: scopeDoc.title,
         scopeDocLevel: scopeDoc.hierarchyLevel,
+        // Source document context (for linking to where definition is defined)
+        regId: sourceDoc.id,
+        regTitle: sourceDoc.title,
+        regState: sourceDoc.state,
+        njacTitle: sourceDoc.njacTitle,
+        njacChapter: sourceDoc.njacChapter,
+        njacSubchapter: sourceDoc.njacSubchapter,
+        nycrrTitle: sourceDoc.nycrrTitle,
+        nycrrPart: sourceDoc.nycrrPart,
+        nycrrSection: sourceDoc.nycrrSection,
       })
       .from(definitionDocumentOccurrences)
       .innerJoin(
@@ -1137,10 +1163,25 @@ export class DefinitionsRepository extends BaseRepository {
         eq(definitionDocumentOccurrences.definitionId, definitions.id)
       )
       .leftJoin(scopeDoc, eq(definitions.scopeDocumentId, scopeDoc.id))
+      .leftJoin(sourceDoc, eq(definitions.documentId, sourceDoc.id))
       .where(eq(definitionDocumentOccurrences.documentId, documentId))
       .orderBy(asc(definitions.term));
 
-    return results;
+    // Map results to include regulation context
+    return results.map(row => ({
+      ...row,
+      regulation: row.regId ? {
+        id: row.regId,
+        title: row.regTitle,
+        state: row.regState,
+        njacTitle: row.njacTitle,
+        njacChapter: row.njacChapter,
+        njacSubchapter: row.njacSubchapter,
+        nycrrTitle: row.nycrrTitle,
+        nycrrPart: row.nycrrPart,
+        nycrrSection: row.nycrrSection,
+      } : undefined,
+    }));
   }
 
   /**

@@ -1,12 +1,31 @@
--- New York & New Jersey Regulatory Analysis Database Schema
--- Stores regulations from Cornell Law and LLM-generated red flag analysis results.
+-- =============================================================================
+-- Deproceduralizer Database Schema
+-- =============================================================================
+-- Regulatory analysis database for NY & NJ regulations.
+-- Stores regulations, definitions, compliance issues, and LLM analysis results.
+--
 -- Hierarchy: Title -> Subtitle -> Chapter -> Subchapter -> Article -> Part -> Subpart -> Section
+-- =============================================================================
 
+-- =============================================================================
+-- ENUM TYPES
+-- =============================================================================
+
+CREATE TYPE note_type AS ENUM ('general', 'highlight', 'question', 'action_item');
+CREATE TYPE feedback_type AS ENUM ('suggestion', 'bug', 'question', 'other');
+
+-- =============================================================================
+-- CORE TABLES
+-- =============================================================================
+
+-- -----------------------------------------------------------------------------
+-- Regulatory Documents: Main table for regulations (67 columns)
+-- -----------------------------------------------------------------------------
 CREATE TABLE regulatory_documents (
   id BIGSERIAL PRIMARY KEY,
   source_index INTEGER,                -- Index from scraping process, used for ordering and deduplication
   type VARCHAR(50) NOT NULL,           -- 'regulation' or 'policy_document'
-  state VARCHAR(2) CHECK (state IN ('NY', 'NJ')),  -- Two-letter state code
+  state VARCHAR(2),                    -- Two-letter state code
   title TEXT NOT NULL,                 -- Human-readable title of the regulation
   url TEXT,                            -- Source URL from Cornell Law
   url_type VARCHAR(50),                -- 'regulation' (section) or 'title' (container)
@@ -14,416 +33,482 @@ CREATE TABLE regulatory_documents (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
   -- Hierarchy fields
-  parent_id BIGINT REFERENCES regulatory_documents(id) ON DELETE SET NULL,  -- FK to parent document
+  parent_id BIGINT REFERENCES regulatory_documents(id) ON DELETE SET NULL,
   hierarchy_level VARCHAR(50),         -- Position in tree: title/subtitle/chapter/subchapter/article/part/subpart/section
   hierarchy_path TEXT,                 -- Full path for hierarchy URLs (e.g., "title-18/part-433")
 
-  -- Parsed NYCRR citation components (extracted from page breadcrumbs) - New York
-  nycrr_title INTEGER,                 -- Title number (1-23)
-  nycrr_title_name TEXT,               -- Title name (e.g., "SOCIAL SERVICES")
-  nycrr_subtitle VARCHAR(50),          -- Subtitle identifier (e.g., "A")
-  nycrr_subtitle_name TEXT,            -- Subtitle name
-  nycrr_chapter VARCHAR(50),           -- Chapter identifier (e.g., "II")
-  nycrr_chapter_name TEXT,             -- Chapter name (e.g., "Medical Assistance")
-  nycrr_subchapter VARCHAR(50),        -- Subchapter identifier (e.g., "C")
-  nycrr_subchapter_name TEXT,          -- Subchapter name
-  nycrr_article VARCHAR(50),           -- Article identifier (e.g., "2")
-  nycrr_article_name TEXT,             -- Article name
-  nycrr_part VARCHAR(50),              -- Part number
-  nycrr_part_name TEXT,                -- Part name
-  nycrr_subpart VARCHAR(50),           -- Subpart number
-  nycrr_subpart_name TEXT,             -- Subpart name
-  nycrr_section VARCHAR(50),           -- Section number
-  nycrr_section_name TEXT,             -- Section name
+  -- Display helpers
+  short_title TEXT,                    -- Abbreviated title for display
+  level_identifier TEXT,               -- E.g., "1.1" or "A" for hierarchy level
+  citation TEXT,                       -- Formatted citation string
 
-  -- Parsed NJAC citation components - New Jersey
-  njac_title VARCHAR(50),              -- Title number
-  njac_title_name TEXT,                -- Title name
-  njac_subtitle VARCHAR(50),           -- Subtitle identifier
-  njac_subtitle_name TEXT,             -- Subtitle name
-  njac_chapter VARCHAR(50),            -- Chapter identifier
-  njac_chapter_name TEXT,              -- Chapter name
-  njac_subchapter VARCHAR(50),         -- Subchapter identifier
-  njac_subchapter_name TEXT,           -- Subchapter name
-  njac_article VARCHAR(50),            -- Article identifier
-  njac_article_name TEXT,              -- Article name
-  njac_part VARCHAR(50),               -- Part number
-  njac_part_name TEXT,                 -- Part name
-  njac_subpart VARCHAR(50),            -- Subpart number
-  njac_subpart_name TEXT,              -- Subpart name
-  njac_section VARCHAR(50),            -- Section number
-  njac_section_name TEXT,              -- Section name
+  -- Parsed NYCRR citation components (New York)
+  nycrr_title INTEGER,
+  nycrr_title_name TEXT,
+  nycrr_subtitle VARCHAR(50),
+  nycrr_subtitle_name TEXT,
+  nycrr_chapter VARCHAR(50),
+  nycrr_chapter_name TEXT,
+  nycrr_subchapter VARCHAR(50),
+  nycrr_subchapter_name TEXT,
+  nycrr_article VARCHAR(50),
+  nycrr_article_name TEXT,
+  nycrr_part VARCHAR(50),
+  nycrr_part_name TEXT,
+  nycrr_subpart VARCHAR(50),
+  nycrr_subpart_name TEXT,
+  nycrr_section VARCHAR(50),
+  nycrr_section_name TEXT,
 
-  -- Parsed NJSA citation components - New Jersey Statutes
-  njsa_title VARCHAR(10),              -- Title number
-  njsa_title_name TEXT,                -- Title name
-  njsa_chapter VARCHAR(20),            -- Chapter identifier
-  njsa_section VARCHAR(20),            -- Section number
-  njsa_section_name TEXT,              -- Section name
-  njsa_citation VARCHAR(50),           -- Full citation (e.g., "52:27D-119")
+  -- Parsed NJAC citation components (New Jersey)
+  njac_title VARCHAR(50),
+  njac_title_name TEXT,
+  njac_subtitle VARCHAR(50),
+  njac_subtitle_name TEXT,
+  njac_chapter VARCHAR(50),
+  njac_chapter_name TEXT,
+  njac_subchapter VARCHAR(50),
+  njac_subchapter_name TEXT,
+  njac_article VARCHAR(50),
+  njac_article_name TEXT,
+  njac_part VARCHAR(50),
+  njac_part_name TEXT,
+  njac_subpart VARCHAR(50),
+  njac_subpart_name TEXT,
+  njac_section VARCHAR(50),
+  njac_section_name TEXT,
 
-  -- Metadata
-  scraped_from_url TEXT,               -- Original URL the content was scraped from
+  -- Parsed NJSA citation components (New Jersey Statutes)
+  njsa_title VARCHAR(10),
+  njsa_title_name TEXT,
+  njsa_chapter VARCHAR(20),
+  njsa_section VARCHAR(20),
+  njsa_section_name TEXT,
+  njsa_citation VARCHAR(50),
 
-  -- Precomputed hierarchy statistics (for performance)
-  -- IMPORTANT: These fields are denormalized for query performance and must be
-  -- recomputed after data imports or when parent_id relationships change.
-  -- See "Recomputing Hierarchy Stats" section at the end of this file for SQL.
-  direct_child_count INTEGER DEFAULT 0,        -- Count of direct children
-  descendant_count INTEGER DEFAULT 0,          -- Count of all descendants
-  descendant_flag_count INTEGER DEFAULT 0,     -- Sum of red flags in subtree
-  descendant_max_severity INTEGER,             -- Max severity in subtree
-  has_descendant_analysis BOOLEAN DEFAULT FALSE, -- Whether any descendant has analysis
+  -- Source metadata
+  scraped_from_url TEXT,
 
-  -- Regulatory status (for reserved/repealed/recodified/expired sections)
+  -- Precomputed hierarchy statistics (denormalized for performance)
+  direct_child_count INTEGER DEFAULT 0,
+  descendant_count INTEGER DEFAULT 0,
+  descendant_flag_count INTEGER DEFAULT 0,
+  descendant_max_severity INTEGER,
+  has_descendant_analysis BOOLEAN DEFAULT FALSE,
+
+  -- Compliance issue statistics (denormalized)
+  compliance_issue_count INTEGER DEFAULT 0,
+  descendant_compliance_issue_count INTEGER DEFAULT 0,
+
+  -- Regulatory status
   regulatory_status VARCHAR(20) DEFAULT 'active',  -- 'active', 'reserved', 'repealed', 'recodified', 'expired'
-  recodified_to VARCHAR(100),                      -- Where content moved (e.g., "N.J.A.C. 16:44-3.2")
+  recodified_to VARCHAR(100),
 
-  CONSTRAINT unique_per_pull UNIQUE(state, source_index, type)
+  -- Exclusion from analysis
+  exclude_from_analysis BOOLEAN DEFAULT FALSE,
+  excluded_at TIMESTAMP,
+  excluded_by VARCHAR(255),
+  excluded_reason TEXT,
+
+  CONSTRAINT chk_rd_state CHECK (state IN ('NY', 'NJ')),
+  CONSTRAINT unique_per_url UNIQUE(url)
 );
 
+-- -----------------------------------------------------------------------------
+-- Analyses: LLM analysis results per document
+-- -----------------------------------------------------------------------------
 CREATE TABLE analyses (
   id BIGSERIAL PRIMARY KEY,
-  document_id BIGINT NOT NULL REFERENCES regulatory_documents(id) ON DELETE CASCADE,
+  document_id BIGINT REFERENCES regulatory_documents(id) ON DELETE CASCADE,
+  url TEXT NOT NULL,                   -- Source URL (for legacy linking when document_id is null)
   analyzed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  model_version VARCHAR(100),          -- LLM model used for analysis
-  has_implementation_issues BOOLEAN DEFAULT FALSE,  -- TRUE if any red flags found
+  model_version VARCHAR(100),
+  has_implementation_issues BOOLEAN DEFAULT FALSE,
   overall_complexity VARCHAR(10),      -- HIGH/MEDIUM/LOW
-  summary TEXT,                        -- LLM-generated summary of findings
-  requires_technical_review BOOLEAN DEFAULT FALSE,  -- TRUE if needs technical review
-  has_reporting_requirement BOOLEAN DEFAULT FALSE,  -- TRUE if creates reporting requirements
-  max_severity INTEGER,                -- Highest severity among red flags (1-10)
-  num_flags INTEGER DEFAULT 0,         -- Count of red flags
-  is_current BOOLEAN DEFAULT TRUE      -- TRUE for most recent analysis per document
+  summary TEXT,
+  requires_technical_review BOOLEAN DEFAULT FALSE,
+  has_reporting_requirement BOOLEAN DEFAULT FALSE,
+  max_severity INTEGER,
+  num_flags INTEGER DEFAULT 0,
+  is_current BOOLEAN DEFAULT TRUE
 );
 
+-- -----------------------------------------------------------------------------
+-- Red Flags: Implementation concerns from analysis
+-- -----------------------------------------------------------------------------
 CREATE TABLE red_flags (
   id BIGSERIAL PRIMARY KEY,
   analysis_id BIGINT NOT NULL REFERENCES analyses(id) ON DELETE CASCADE,
-  category VARCHAR(100) NOT NULL       -- Type of implementation concern (12 categories from Jennifer Pahlka's framework)
-    CHECK (category IN (
-      'administrative_burdens',
-      'cascade_of_rigidity',
-      'complexity_policy_debt',
-      'frozen_technology',
-      'implementation_opportunity',
-      'mandated_steps_not_outcomes',
-      'no_feedback_loops',
-      'options_become_requirements',
-      'overwrought_legalese',
-      'policy_implementation_separation',
-      'process_worship_oversight',
-      'zero_risk_language'
-    )),
-  explanation TEXT NOT NULL,           -- Why this is flagged
-  severity INTEGER NOT NULL CHECK (severity >= 1 AND severity <= 10),  -- Impact severity (1-10)
-  complexity VARCHAR(20) NOT NULL,     -- HIGH/MEDIUM/LOW/MEDIUM-HIGH for this specific issue
-  matched_phrases TEXT[] DEFAULT '{}', -- Key phrases from regulation that triggered flag
-  implementation_approach TEXT NOT NULL,  -- Suggested approach to address
-  effort_estimate VARCHAR(255),        -- Estimated effort to implement
-  text_examples TEXT[] DEFAULT '{}',   -- Direct quotes as evidence
+  category VARCHAR(100) NOT NULL,
+  explanation TEXT NOT NULL,
+  severity INTEGER NOT NULL,
+  complexity VARCHAR(20) NOT NULL,     -- HIGH/MEDIUM/LOW/MEDIUM-HIGH
+  matched_phrases TEXT[] DEFAULT '{}',
+  implementation_approach TEXT NOT NULL,
+  effort_estimate VARCHAR(255),
+  text_examples TEXT[] DEFAULT '{}',
 
-  -- Reviewer comment fields
-  review_status VARCHAR(50) DEFAULT 'unreviewed',  -- 'unreviewed', 'confirmed', 'false_positive', 'needs_context', 'deferred'
-  reviewed_by VARCHAR(255),            -- Name/ID of reviewer
-  reviewed_at TIMESTAMP,               -- When flag was reviewed
-  reviewer_notes TEXT,                 -- Detailed notes from reviewer
-  priority INTEGER,                    -- Priority ranking for announcing
-  impact_type VARCHAR(100),            -- Type of impact: 'cost_savings', 'time_savings', 'accessibility', etc.
+  -- Review fields
+  review_status VARCHAR(50) DEFAULT 'unreviewed',
+  reviewed_by VARCHAR(255),
+  reviewed_at TIMESTAMP,
+  justification_notes TEXT,            -- Justification and analysis for the model
+  team_notes TEXT,                     -- Notes for development team
+  priority INTEGER,
+  impact_type VARCHAR(100),
 
-  -- Developer tracking fields
-  developer_status VARCHAR(50) DEFAULT 'unresolved',  -- 'unresolved', 'resolved', 'pending', 'backlogged', 'need_more_info'
-  developer_assigned VARCHAR(50),      -- 'Michael' or 'Abigail'
-  developer_notes TEXT,                -- Notes from developer
-  resolution_type VARCHAR(50) CHECK (resolution_type IN ('implemented', 'not_implemented')),  -- When resolved
-  resolution_comments TEXT,            -- Comments about the resolution
-  developer_question TEXT,             -- Question for reviewer (when need_more_info)
-  developer_checked_at TIMESTAMP       -- When developer last checked this item
+  -- Developer tracking
+  developer_status VARCHAR(50) DEFAULT 'unresolved',
+  developer_assigned VARCHAR(50),
+  developer_notes TEXT,
+  resolution_type VARCHAR(50),
+  resolution_comments TEXT,
+  developer_question TEXT,
+  developer_checked_at TIMESTAMP,
+
+  CONSTRAINT red_flags_severity_check CHECK (severity >= 1 AND severity <= 10),
+  CONSTRAINT valid_category CHECK (category IN (
+    'administrative_burdens',
+    'cascade_of_rigidity',
+    'complexity_policy_debt',
+    'frozen_technology',
+    'implementation_opportunity',
+    'mandated_steps_not_outcomes',
+    'no_feedback_loops',
+    'options_become_requirements',
+    'overwrought_legalese',
+    'policy_implementation_separation',
+    'process_worship_oversight',
+    'zero_risk_language'
+  )),
+  CONSTRAINT chk_rf_resolution_type CHECK (resolution_type IN ('implemented', 'not_implemented'))
 );
 
+-- =============================================================================
+-- DEFINITIONS
+-- =============================================================================
+
+-- -----------------------------------------------------------------------------
+-- Definitions: Extracted terms and definitions from regulations
+-- -----------------------------------------------------------------------------
+-- Definition text fields:
+-- - verbatim_text: Exact text from regulation (always populated)
+-- - is_verbatim_text_complete: True if verbatim_text is complete and usable
+-- - rephrased_definition: Plain-language version when verbatim is insufficient
+--
+-- Cross-reference categorization:
+-- - reference_completeness: 'pure_pointer' or 'hybrid'
+-- - reference_target: 'same_corpus', 'federal', 'external_standard', 'other'
+-- -----------------------------------------------------------------------------
+CREATE TABLE definitions (
+  id BIGSERIAL PRIMARY KEY,
+  document_id BIGINT REFERENCES regulatory_documents(id) ON DELETE CASCADE,
+  url TEXT NOT NULL,
+  term TEXT NOT NULL,
+  verbatim_text TEXT NOT NULL,
+  is_verbatim_text_complete BOOLEAN DEFAULT TRUE,
+  rephrased_definition TEXT,
+  scope TEXT,
+  definition_overlap REAL DEFAULT 0.0,
+  source_location TEXT,
+  model_version VARCHAR(100),
+  extracted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  notes TEXT,
+
+  -- Scope tracking
+  scope_level VARCHAR(20),
+  scope_document_id BIGINT REFERENCES regulatory_documents(id) ON DELETE SET NULL,
+  definition_type VARCHAR(20) DEFAULT 'formal',
+  normalized_term TEXT,                -- Lowercase trimmed term (computed in app layer)
+  is_cross_reference BOOLEAN DEFAULT FALSE,
+
+  -- Cross-reference categorization
+  reference_completeness VARCHAR(20),
+  reference_target VARCHAR(30),
+
+  -- Review workflow
+  review_status VARCHAR(50) DEFAULT 'unreviewed',
+  reviewed_at TIMESTAMP,
+  reviewer_name VARCHAR(255),
+  justification_notes TEXT,
+  team_notes TEXT,
+  original_values JSONB,
+
+  -- Developer tracking
+  developer_status VARCHAR(50) DEFAULT 'unresolved',
+  developer_assigned VARCHAR(50),
+  developer_notes TEXT,
+  resolution_type VARCHAR(50),
+  resolution_comments TEXT,
+  developer_question TEXT,
+  developer_checked_at TIMESTAMP,
+
+  CONSTRAINT definitions_review_status_check CHECK (review_status IN ('unreviewed', 'confirmed', 'corrected', 'false_positive')),
+  CONSTRAINT chk_reference_completeness CHECK (reference_completeness IS NULL OR reference_completeness IN ('pure_pointer', 'hybrid')),
+  CONSTRAINT chk_reference_target CHECK (reference_target IS NULL OR reference_target IN ('same_corpus', 'federal', 'external_standard', 'other'))
+);
+
+-- -----------------------------------------------------------------------------
+-- Definition-Document Occurrences: Where terms appear in documents
+-- -----------------------------------------------------------------------------
+CREATE TABLE definition_document_occurrences (
+  definition_id BIGINT NOT NULL REFERENCES definitions(id) ON DELETE CASCADE,
+  document_id BIGINT NOT NULL REFERENCES regulatory_documents(id) ON DELETE CASCADE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (definition_id, document_id)
+);
+
+-- =============================================================================
+-- COMPLIANCE & ISSUES
+-- =============================================================================
+
+-- -----------------------------------------------------------------------------
+-- Compliance Issues: Specific compliance requirements found in regulations
+-- -----------------------------------------------------------------------------
+CREATE TABLE compliance_issues (
+  id BIGSERIAL PRIMARY KEY,
+  document_id BIGINT NOT NULL REFERENCES regulatory_documents(id) ON DELETE CASCADE,
+
+  -- Issue identification
+  issue_type VARCHAR(50) NOT NULL,
+  occurrence_number INTEGER NOT NULL DEFAULT 1,
+  matched_pattern VARCHAR(255),
+  matched_context TEXT NOT NULL,
+  url TEXT,
+
+  -- LLM analysis results
+  requirement_found BOOLEAN DEFAULT FALSE,
+  requirement_text TEXT,
+  required_by_statute BOOLEAN,
+  statute_citation VARCHAR(255),
+  severity INTEGER,
+  impact_assessment TEXT,
+
+  -- Review fields
+  review_status VARCHAR(50) DEFAULT 'unreviewed',
+  reviewed_by VARCHAR(255),
+  reviewed_at TIMESTAMP,
+  reviewer_notes TEXT,
+  justification_notes TEXT,
+  priority INTEGER,
+  impact_type VARCHAR(100),
+
+  -- Developer tracking
+  developer_status VARCHAR(50) DEFAULT 'unresolved',
+  developer_assigned VARCHAR(50),
+  developer_notes TEXT,
+  resolution_type VARCHAR(50),
+  resolution_comments TEXT,
+  developer_question TEXT,
+  developer_checked_at TIMESTAMP,
+
+  -- Metadata
+  state VARCHAR(2) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+  CONSTRAINT compliance_issues_severity_check CHECK (severity >= 1 AND severity <= 10),
+  CONSTRAINT compliance_issues_state_check CHECK (state IN ('NY', 'NJ')),
+  CONSTRAINT unique_document_issue_occurrence UNIQUE (document_id, issue_type, occurrence_number)
+);
+
+-- -----------------------------------------------------------------------------
+-- Incorporations by Reference: External standards incorporated into regulations
+-- -----------------------------------------------------------------------------
+CREATE TABLE incorporations_by_reference (
+  id BIGSERIAL PRIMARY KEY,
+  document_id BIGINT NOT NULL REFERENCES regulatory_documents(id) ON DELETE CASCADE,
+
+  -- Core IBR data
+  incorporated_document TEXT,
+  source_organization VARCHAR(100),
+  version TEXT,
+  requirement_quote TEXT,
+  term_matched VARCHAR(255),
+  context TEXT NOT NULL,
+  llm_confirmed BOOLEAN DEFAULT FALSE,
+  state VARCHAR(2) NOT NULL,
+  url TEXT NOT NULL,
+
+  -- Review workflow
+  review_status VARCHAR(50) DEFAULT 'unreviewed',
+  reviewed_by VARCHAR(255),
+  reviewed_at TIMESTAMP,
+  justification_notes TEXT,
+  team_notes TEXT,
+  priority INTEGER,
+
+  -- Developer tracking
+  developer_status VARCHAR(50) DEFAULT 'unresolved',
+  developer_assigned VARCHAR(50),
+  developer_notes TEXT,
+  resolution_type VARCHAR(50),
+  resolution_comments TEXT,
+  developer_question TEXT,
+  developer_checked_at TIMESTAMP,
+
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+  CONSTRAINT chk_ibr_state CHECK (state IN ('NY', 'NJ')),
+  CONSTRAINT chk_ibr_resolution_type CHECK (resolution_type IN ('implemented', 'not_implemented'))
+);
+
+-- =============================================================================
+-- STATUTES & REFERENCES
+-- =============================================================================
+
+-- -----------------------------------------------------------------------------
+-- Statutes: Statute content (N.J.S.A., N.Y. State laws)
+-- -----------------------------------------------------------------------------
+CREATE TABLE statutes (
+  id BIGSERIAL PRIMARY KEY,
+  citation VARCHAR(50) NOT NULL,
+  state VARCHAR(2) NOT NULL DEFAULT 'NJ',
+  title TEXT NOT NULL,
+  content TEXT NOT NULL,
+
+  -- NJ-specific fields (NJSA)
+  njsa_title VARCHAR(10),
+  njsa_title_name TEXT,
+  njsa_chapter VARCHAR(20),
+  njsa_section VARCHAR(20),
+  njsa_section_name TEXT,
+
+  -- Hierarchy
+  parent_id BIGINT REFERENCES statutes(id) ON DELETE SET NULL,
+  hierarchy_level VARCHAR(50),
+  hierarchy_path TEXT,
+
+  -- Metadata
+  source_index INTEGER,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+  CONSTRAINT chk_statutes_state CHECK (state IN ('NY', 'NJ')),
+  CONSTRAINT statutes_state_citation_key UNIQUE(state, citation)
+);
+
+-- -----------------------------------------------------------------------------
+-- Statute References: Federal/state law citations in documents
+-- -----------------------------------------------------------------------------
 CREATE TABLE statute_references (
   id BIGSERIAL PRIMARY KEY,
   document_id BIGINT NOT NULL REFERENCES regulatory_documents(id) ON DELETE CASCADE,
-  usc_citations TEXT,                  -- United States Code citations
-  cfr_citations TEXT,                  -- Code of Federal Regulations citations
-  public_laws TEXT,                    -- Public Law references
-  acts TEXT,                           -- Named federal acts
-  state_title VARCHAR(100),            -- NY State law title
-  state_section VARCHAR(100)           -- Section within state law
+  usc_citations TEXT,
+  cfr_citations TEXT,
+  public_laws TEXT,
+  acts TEXT,
+  state_title VARCHAR(100),
+  state_section VARCHAR(100)
 );
 
--- Statutes: Stores statute content (N.J.S.A., N.Y. State laws, etc.)
--- Separate from regulatory_documents because statutes have different structure
--- Hierarchy: Title -> Chapter -> Section (for NJ statutes)
-CREATE TABLE statutes (
-  id BIGSERIAL PRIMARY KEY,
-  citation VARCHAR(50) NOT NULL,       -- Full citation (e.g., "52:27D-119" for sections, "title:52" for titles)
-  state VARCHAR(2) NOT NULL CHECK (state IN ('NY', 'NJ')),  -- Two-letter state code
-  title TEXT,                          -- Human-readable title/name
-  content TEXT,                        -- Full text content (for sections)
-
-  -- NJ-specific fields (NJSA - New Jersey Statutes Annotated)
-  njsa_title VARCHAR(10),              -- Title number (e.g., "52")
-  njsa_title_name TEXT,                -- Title name (e.g., "STATE GOVERNMENT")
-  njsa_chapter VARCHAR(20),            -- Chapter number (e.g., "27D")
-  njsa_section VARCHAR(20),            -- Section number (e.g., "119")
-  njsa_section_name TEXT,              -- Section name
-
-  -- Hierarchy for tree navigation (Issue #48)
-  parent_id BIGINT REFERENCES statutes(id) ON DELETE SET NULL,
-  hierarchy_level VARCHAR(50),         -- 'title', 'chapter', 'section'
-  hierarchy_path TEXT,                 -- Full path for display
-
-  -- Metadata
-  source_index INTEGER,                -- Index from parsing process
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
-  -- Unique constraint on state + citation
-  CONSTRAINT unique_state_citation UNIQUE(state, citation)
-);
-
--- Indexes for statutes table
-CREATE INDEX idx_statutes_state ON statutes(state);
-CREATE INDEX idx_statutes_citation ON statutes(citation);
-CREATE INDEX idx_statutes_parent_id ON statutes(parent_id);
-CREATE INDEX idx_statutes_hierarchy_level ON statutes(hierarchy_level);
-CREATE INDEX idx_statutes_njsa_title ON statutes(njsa_title);
-
--- Regulation-Statute Links: Many-to-many relationship between regulations and statutes
--- Tracks all statute citations found in regulations, including unmatched/obsolete ones
+-- -----------------------------------------------------------------------------
+-- Regulation-Statute Links: Many-to-many between regulations and statutes
+-- -----------------------------------------------------------------------------
 CREATE TABLE regulation_statute_links (
   id BIGSERIAL PRIMARY KEY,
   regulation_id BIGINT NOT NULL REFERENCES regulatory_documents(id) ON DELETE CASCADE,
-  statute_id BIGINT REFERENCES statutes(id) ON DELETE CASCADE,  -- Nullable for unmatched citations
-  citation VARCHAR(50) NOT NULL,       -- The citation as found in text (e.g., "52:27D-119")
-  context TEXT,                        -- Surrounding text where citation was found
-
-  -- Link classification (auto-detected via regex patterns)
-  link_type VARCHAR(50) DEFAULT 'reference',  -- 'enabling_authority', 'definition', 'requirement', 'reference'
-
-  -- Match status tracking
-  match_status VARCHAR(50) DEFAULT 'matched',  -- 'matched', 'corrected', 'unmatched', 'obsolete'
-  original_citation VARCHAR(50),       -- If corrected, what was originally in the text
-  correction_notes TEXT,               -- Why correction was made
-
-  -- Review tracking
+  statute_id BIGINT REFERENCES statutes(id) ON DELETE CASCADE,
+  citation VARCHAR(50) NOT NULL,
+  context TEXT,
+  link_type VARCHAR(50) DEFAULT 'reference',
+  match_status VARCHAR(50) DEFAULT 'matched',
+  original_citation VARCHAR(50),
+  correction_notes TEXT,
   reviewed_at TIMESTAMP,
   reviewed_by VARCHAR(255),
-
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
   CONSTRAINT unique_regulation_statute_link UNIQUE(regulation_id, citation)
 );
 
--- Indexes
+-- =============================================================================
+-- NOTES & FEEDBACK
+-- =============================================================================
+
+-- -----------------------------------------------------------------------------
+-- Document Notes: User annotations on regulations
+-- -----------------------------------------------------------------------------
+CREATE TABLE document_notes (
+  id BIGSERIAL PRIMARY KEY,
+  document_id BIGINT NOT NULL REFERENCES regulatory_documents(id) ON DELETE CASCADE,
+  note_type note_type NOT NULL DEFAULT 'general',
+  anchor_start_offset INTEGER,
+  anchor_end_offset INTEGER,
+  anchor_text TEXT,
+  content TEXT NOT NULL,
+  author_name VARCHAR(255),
+  state VARCHAR(2) NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- -----------------------------------------------------------------------------
+-- Prompt Feedback: Feedback on LLM prompts
+-- -----------------------------------------------------------------------------
+CREATE TABLE prompt_feedback (
+  id BIGSERIAL PRIMARY KEY,
+  prompt_name VARCHAR(100) NOT NULL,
+  feedback_type feedback_type NOT NULL,
+  content TEXT NOT NULL,
+  highlighted_text TEXT,
+  author_name VARCHAR(255),
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- =============================================================================
+-- INDEXES
+-- =============================================================================
+
+-- Regulatory Documents
 CREATE INDEX idx_documents_state ON regulatory_documents(state);
 CREATE INDEX idx_documents_type ON regulatory_documents(type);
 CREATE INDEX idx_documents_state_type ON regulatory_documents(state, type);
 CREATE INDEX idx_documents_parent ON regulatory_documents(parent_id);
 CREATE INDEX idx_documents_hierarchy_level ON regulatory_documents(hierarchy_level);
+CREATE INDEX idx_documents_regulatory_status ON regulatory_documents(regulatory_status);
+CREATE INDEX idx_documents_regulatory_status_state ON regulatory_documents(state, regulatory_status);
+CREATE INDEX idx_documents_url ON regulatory_documents(url);
+CREATE INDEX idx_documents_short_title ON regulatory_documents(short_title);
+CREATE INDEX idx_documents_exclude_from_analysis ON regulatory_documents(exclude_from_analysis) WHERE exclude_from_analysis = TRUE;
+
+-- NYCRR indexes
 CREATE INDEX idx_documents_nycrr_title ON regulatory_documents(nycrr_title);
 CREATE INDEX idx_documents_nycrr_part ON regulatory_documents(nycrr_part);
 CREATE INDEX idx_documents_nycrr_title_part ON regulatory_documents(nycrr_title, nycrr_part);
 CREATE INDEX idx_documents_nycrr_subpart ON regulatory_documents(nycrr_subpart);
 CREATE INDEX idx_documents_nycrr_title_part_subpart ON regulatory_documents(nycrr_title, nycrr_part, nycrr_subpart);
-CREATE INDEX idx_documents_nycrr_chapter ON regulatory_documents(nycrr_chapter);
-CREATE INDEX idx_documents_nycrr_subchapter ON regulatory_documents(nycrr_subchapter);
-CREATE INDEX idx_documents_nycrr_article ON regulatory_documents(nycrr_article);
-CREATE INDEX idx_analyses_document ON analyses(document_id);
-CREATE INDEX idx_analyses_is_current ON analyses(is_current) WHERE is_current = TRUE;
-CREATE INDEX idx_documents_regulatory_status ON regulatory_documents(regulatory_status);
-CREATE INDEX idx_documents_regulatory_status_state ON regulatory_documents(state, regulatory_status);
+
+-- Analyses
+CREATE INDEX idx_analyses_url ON analyses(url);
+CREATE UNIQUE INDEX idx_analyses_one_current_per_document ON analyses(document_id) WHERE is_current = TRUE;
+
+-- Red Flags
 CREATE INDEX idx_red_flags_analysis ON red_flags(analysis_id);
 CREATE INDEX idx_red_flags_severity ON red_flags(severity);
 CREATE INDEX idx_red_flags_review_status ON red_flags(review_status);
 CREATE INDEX idx_red_flags_priority ON red_flags(priority) WHERE priority IS NOT NULL;
 CREATE INDEX idx_red_flags_developer_status ON red_flags(developer_status);
 CREATE INDEX idx_red_flags_developer_assigned ON red_flags(developer_assigned);
-CREATE INDEX idx_statute_references_document ON statute_references(document_id);
-CREATE INDEX idx_reg_statute_links_regulation ON regulation_statute_links(regulation_id);
-CREATE INDEX idx_reg_statute_links_statute ON regulation_statute_links(statute_id);
-CREATE INDEX idx_reg_statute_links_citation ON regulation_statute_links(citation);
 
--- View: Latest analysis for each document
-CREATE VIEW latest_analyses AS
-SELECT d.*, a.id as analysis_id, a.analyzed_at, a.has_implementation_issues,
-       a.overall_complexity, a.requires_technical_review, a.has_reporting_requirement,
-       a.num_flags, a.max_severity, a.summary
-FROM regulatory_documents d
-LEFT JOIN analyses a ON d.id = a.document_id AND a.is_current = TRUE;
-
--- View: Parent-child relationships
-CREATE VIEW document_hierarchy AS
-SELECT p.id as parent_id, p.title as parent_title, p.hierarchy_level as parent_level,
-       c.id as child_id, c.title as child_title, c.hierarchy_level as child_level
-FROM regulatory_documents p
-JOIN regulatory_documents c ON c.parent_id = p.id;
-
--- Definitions table: Extracted terms and definitions from regulations
---
--- Definition text fields:
--- - verbatim_text: The exact text extracted from the regulation (always populated)
--- - is_verbatim: True if verbatim_text is a complete, usable definition
--- - rephrased_definition: Plain-language definition when verbatim_text is insufficient
---
--- For display purposes, use verbatim_text when is_verbatim=true, otherwise
--- use rephrased_definition (fallback to verbatim_text if null).
-CREATE TABLE definitions (
-  id BIGSERIAL PRIMARY KEY,
-  document_id BIGINT REFERENCES regulatory_documents(id) ON DELETE CASCADE,
-
-  -- Source URL for linking to regulatory_documents (redundant with document_id for flexibility)
-  -- Used to populate document_id via URL matching if document_id is NULL
-  url TEXT,
-
-  -- The term being defined
-  term TEXT NOT NULL,
-
-  -- The definition text as extracted (exact text from regulation)
-  verbatim_text TEXT NOT NULL,
-
-  -- Whether verbatim_text is a complete, usable definition
-  is_verbatim BOOLEAN DEFAULT TRUE,
-
-  -- Plain-language definition when verbatim_text is insufficient (optional)
-  rephrased_definition TEXT,
-
-  -- Scope/applicability (e.g., "in this section", "in this part", "throughout this title")
-  scope TEXT,
-
-  -- Overlap metric (0.0-1.0) based on edit distance - indicates how much the verbatim_text overlaps with the regulation text
-  -- 1.0 = definition found verbatim in document, 0.0 = no overlap
-  definition_overlap FLOAT DEFAULT 0.0,
-
-  -- Source location (e.g., "section 1.1", "definitions section")
-  source_location TEXT,
-
-  -- Metadata about extraction
-  model_version VARCHAR(100),  -- LLM model used for extraction
-  extracted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
-  -- Any additional notes about the definition
-  notes TEXT,
-
-  -- Phase 1 schema additions for enhanced scope tracking
-  -- Structured scope level (enables percolation, filtering, conflict detection)
-  -- Known values: section, subpart, part, subchapter, chapter, subtitle, title
-  -- NOTE: No CHECK constraint - intentionally extensible for future scope types
-  scope_level VARCHAR(20),
-  scope_document_id BIGINT REFERENCES regulatory_documents(id) ON DELETE SET NULL,  -- FK to document this definition applies to
-
-  -- Definition classification
-  -- Known values: formal, abbreviation
-  -- NOTE: No CHECK constraint - intentionally extensible for future types
-  definition_type VARCHAR(20) DEFAULT 'formal',
-
-  -- Normalized term for aggregation and deduplication
-  normalized_term TEXT GENERATED ALWAYS AS (LOWER(TRIM(term))) STORED,
-
-  -- Cross-reference flag (for definitions that point to other definitions)
-  is_cross_reference BOOLEAN DEFAULT FALSE,
-
-  -- Review workflow fields (for correcting LLM extraction errors)
-  review_status VARCHAR(50) DEFAULT 'unreviewed',
-  reviewed_at TIMESTAMP,
-  reviewer_name VARCHAR(255),
-  correction_reason TEXT,       -- Why the correction was made (required if correcting)
-  model_feedback TEXT,          -- Optional feedback to improve future LLM extractions
-  original_values JSONB,        -- Stores original LLM values when corrections are made
-
-  -- Constraint for valid review statuses
-  CONSTRAINT definitions_review_status_check
-    CHECK (review_status IN ('unreviewed', 'confirmed', 'corrected', 'false_positive'))
-);
-
--- Indexes
-CREATE INDEX idx_definitions_document ON definitions(document_id);
+-- Definitions
 CREATE INDEX idx_definitions_url ON definitions(url);
 CREATE INDEX idx_definitions_term ON definitions(term);
 CREATE INDEX idx_definitions_overlap ON definitions(definition_overlap);
-CREATE INDEX idx_definitions_document_term ON definitions(document_id, term);
 CREATE INDEX idx_definitions_scope_document ON definitions(scope_document_id);
 CREATE INDEX idx_definitions_scope_level ON definitions(scope_level);
 CREATE INDEX idx_definitions_normalized_term ON definitions(normalized_term);
 CREATE INDEX idx_definitions_type ON definitions(definition_type);
 CREATE INDEX idx_definitions_review_status ON definitions(review_status);
-
--- Trigram indexes for fast ILIKE search (requires pg_trgm extension)
+CREATE INDEX idx_definitions_developer_status ON definitions(developer_status);
+CREATE INDEX idx_definitions_developer_filters ON definitions(developer_status, developer_assigned);
 CREATE INDEX idx_definitions_term_trgm ON definitions USING GIN (term gin_trgm_ops);
 CREATE INDEX idx_definitions_normalized_term_trgm ON definitions USING GIN (normalized_term gin_trgm_ops);
 
--- Definition-Document Term Occurrences: Links definitions to documents where terms appear
--- This is a many-to-many relationship tracking term presence (not counts/positions)
--- Uses word-boundary matching: 'applicant' matches 'Applicant' but not 'reapplicant'
-CREATE TABLE definition_document_occurrences (
-  definition_id BIGINT NOT NULL REFERENCES definitions(id) ON DELETE CASCADE,
-  document_id BIGINT NOT NULL REFERENCES regulatory_documents(id) ON DELETE CASCADE,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
-  -- Composite primary key (no separate id column needed)
-  PRIMARY KEY (definition_id, document_id)
-);
-
--- Indexes for efficient querying in both directions
+-- Definition Occurrences
 CREATE INDEX idx_def_doc_occurrences_definition ON definition_document_occurrences(definition_id);
 CREATE INDEX idx_def_doc_occurrences_document ON definition_document_occurrences(document_id);
 
--- Track which regulations have been processed for definition extraction
-CREATE TABLE definition_extraction_log (
-  id BIGSERIAL PRIMARY KEY,
-  source_index INTEGER NOT NULL,           -- Which regulation was processed
-  processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  model_version VARCHAR(100),              -- Model used for extraction
-  definitions_found INTEGER DEFAULT 0,     -- How many definitions were extracted
-  CONSTRAINT unique_def_extraction_source UNIQUE(source_index)
-);
-
-CREATE INDEX idx_def_extraction_source ON definition_extraction_log(source_index);
-
--- Compliance Issues: Track specific compliance requirements
--- (wet signatures, in-person requirements, paper forms, etc.)
-CREATE TABLE compliance_issues (
-  id BIGSERIAL PRIMARY KEY,
-  document_id BIGINT NOT NULL REFERENCES regulatory_documents(id) ON DELETE CASCADE,
-
-  -- Issue identification (from regex scan)
-  issue_type VARCHAR(50) NOT NULL,                    -- 'wet_signature', 'mail_only', 'fax', etc.
-  occurrence_number INTEGER NOT NULL DEFAULT 1,       -- 1, 2, 3... for multiple issues of same type per document
-  matched_pattern VARCHAR(255),                       -- Regex pattern that triggered scan (e.g., "bear.{0,10}signature")
-  matched_context TEXT NOT NULL,                      -- ~600 char text window around the regex match
-  url TEXT NOT NULL,                                  -- Link to the regulation
-
-  -- LLM analysis results
-  requirement_found BOOLEAN DEFAULT FALSE,            -- Did LLM find an actual requirement? (not a false positive)
-  requirement_text TEXT,                              -- The specific text creating the requirement
-  required_by_statute BOOLEAN,                        -- true=statute mandates, false=agency added, null=unknown
-  statute_citation VARCHAR(255),                      -- Citation to statute if applicable
-  severity INTEGER CHECK (severity >= 1 AND severity <= 10),  -- How problematic (1-10)
-  impact_assessment TEXT,                             -- LLM explanation of why this is/isn't problematic
-
-  -- Human review
-  review_status VARCHAR(50) DEFAULT 'unreviewed',     -- 'unreviewed', 'confirmed', 'false_positive', etc.
-  reviewed_by VARCHAR(255),                           -- Who reviewed it
-  reviewed_at TIMESTAMP,                              -- When it was reviewed
-  reviewer_notes TEXT,                                -- Human explanation of review decision
-  justification_notes TEXT,                           -- Justification and analysis for the model
-  priority INTEGER,                                   -- Priority ranking
-  impact_type VARCHAR(100),                           -- Type of impact
-
-  -- Developer tracking
-  developer_status VARCHAR(50) DEFAULT 'unresolved',  -- 'unresolved', 'resolved', 'pending', 'backlogged', 'need_more_info'
-  developer_assigned VARCHAR(50),                     -- 'Michael' or 'Abigail'
-  developer_notes TEXT,                               -- Notes from developer
-  resolution_type VARCHAR(50),                        -- 'implemented' or 'not_implemented' (when resolved)
-  resolution_comments TEXT,                           -- Comments about the resolution
-  developer_question TEXT,                            -- Question for reviewer (when need_more_info)
-  developer_checked_at TIMESTAMP,                     -- When developer last checked this item
-
-  -- Metadata
-  state VARCHAR(2) NOT NULL CHECK (state IN ('NY', 'NJ')),
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Indexes for compliance_issues
+-- Compliance Issues
 CREATE INDEX idx_compliance_issues_document ON compliance_issues(document_id);
 CREATE INDEX idx_compliance_issues_state ON compliance_issues(state);
 CREATE INDEX idx_compliance_issues_issue_type ON compliance_issues(issue_type);
@@ -434,45 +519,7 @@ CREATE INDEX idx_compliance_issues_severity ON compliance_issues(severity) WHERE
 CREATE INDEX idx_compliance_issues_developer_status ON compliance_issues(developer_status);
 CREATE INDEX idx_compliance_issues_developer_assigned ON compliance_issues(developer_assigned);
 
--- Incorporations by Reference: Track external standards incorporated into regulations
--- (NFPA codes, ICC codes, ASTM standards, CFR references, etc.)
--- Extracted from compliance_issues into dedicated table per GitHub issue #49
-CREATE TABLE incorporations_by_reference (
-  id BIGSERIAL PRIMARY KEY,
-  document_id BIGINT NOT NULL REFERENCES regulatory_documents(id) ON DELETE CASCADE,
-
-  -- Core IBR data
-  incorporated_document TEXT,                             -- e.g., "International Building Code/2021"
-  source_organization VARCHAR(100),                       -- e.g., "ICC", "NFPA", "CFR"
-  version TEXT,                                            -- e.g., "2021", "2020 edition" (TEXT for long version strings)
-  requirement_quote TEXT,                                 -- exact quote from regulation
-  term_matched VARCHAR(255),                              -- which pattern matched
-  context TEXT NOT NULL,                                  -- full snippet for context
-  llm_confirmed BOOLEAN DEFAULT FALSE,                    -- true = confirmed IBR
-  state VARCHAR(2) NOT NULL,                              -- 'NY' or 'NJ'
-  url TEXT NOT NULL,                                      -- source URL
-
-  -- Review workflow (matching compliance_issues pattern)
-  review_status VARCHAR(50) DEFAULT 'unreviewed',         -- 'unreviewed', 'confirmed', 'false_positive', etc.
-  reviewed_by VARCHAR(255),                               -- who reviewed it
-  reviewed_at TIMESTAMP,                                  -- when it was reviewed
-  justification_notes TEXT,                               -- reviewer notes
-  team_notes TEXT,                                        -- team notes
-  priority INTEGER,                                       -- priority ranking
-
-  -- Developer tracking
-  developer_status VARCHAR(50) DEFAULT 'unresolved',      -- 'unresolved', 'resolved', 'pending', 'backlogged', 'need_more_info'
-  developer_assigned VARCHAR(50),                         -- 'Michael' or 'Abigail'
-  developer_notes TEXT,                                   -- notes from developer
-  resolution_type VARCHAR(50),                            -- 'implemented' or 'not_implemented' (when resolved)
-  resolution_comments TEXT,                               -- comments about the resolution
-  developer_question TEXT,                                -- question for reviewer (when need_more_info)
-  developer_checked_at TIMESTAMP,                         -- when developer last checked this item
-
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Indexes for incorporations_by_reference
+-- Incorporations by Reference
 CREATE INDEX idx_ibr_document ON incorporations_by_reference(document_id);
 CREATE INDEX idx_ibr_organization ON incorporations_by_reference(source_organization);
 CREATE INDEX idx_ibr_llm_confirmed ON incorporations_by_reference(llm_confirmed);
@@ -480,148 +527,46 @@ CREATE INDEX idx_ibr_review_status ON incorporations_by_reference(review_status)
 CREATE INDEX idx_ibr_state ON incorporations_by_reference(state);
 CREATE INDEX idx_ibr_developer_status ON incorporations_by_reference(developer_status);
 
--- Legacy tables (from earlier definition extraction implementation)
--- These may be deprecated in favor of the definitions/definition_extraction_log tables
+-- Statutes
+CREATE INDEX idx_statutes_state ON statutes(state);
+CREATE INDEX idx_statutes_citation ON statutes(citation);
+CREATE INDEX idx_statutes_parent_id ON statutes(parent_id);
+CREATE INDEX idx_statutes_hierarchy_level ON statutes(hierarchy_level);
+CREATE INDEX idx_statutes_njsa_title ON statutes(njsa_title);
 
-CREATE TABLE definition_extractions (
-  id SERIAL PRIMARY KEY,
-  filename TEXT,
-  title TEXT,
-  url TEXT,
-  nycrr_title INTEGER,
-  nycrr_part TEXT,
-  nycrr_section TEXT,
-  topics TEXT[],
-  extraction_count INTEGER,
-  raw_response JSONB,
-  created_at TIMESTAMP DEFAULT NOW()
-);
+-- Statute References & Links
+CREATE INDEX idx_statute_references_document ON statute_references(document_id);
+CREATE INDEX idx_reg_statute_links_reg ON regulation_statute_links(regulation_id);
+CREATE INDEX idx_reg_statute_links_statute ON regulation_statute_links(statute_id);
 
-CREATE TABLE extracted_definitions (
-  id SERIAL PRIMARY KEY,
-  extraction_id INTEGER REFERENCES definition_extractions(id),
-  term TEXT,
-  definition TEXT,
-  created_at TIMESTAMP DEFAULT NOW()
-);
+-- Document Notes
+CREATE INDEX idx_document_notes_document_id ON document_notes(document_id);
 
--- Prompt Feedback: Track feedback on LLM prompts from prompts.yaml
-CREATE TYPE feedback_type AS ENUM ('suggestion', 'bug', 'question', 'other');
-
-CREATE TABLE prompt_feedback (
-  id BIGSERIAL PRIMARY KEY,
-  prompt_name VARCHAR(100) NOT NULL,           -- Key in prompts.yaml (e.g., 'red_flags_analysis')
-  feedback_type feedback_type NOT NULL,         -- Type of feedback
-  content TEXT NOT NULL,                        -- Feedback content
-  highlighted_text TEXT,                        -- Optional: specific part of template
-  author_name VARCHAR(255),                     -- Who submitted the feedback
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
-);
-
+-- Prompt Feedback
 CREATE INDEX idx_prompt_feedback_prompt_name ON prompt_feedback(prompt_name);
 CREATE INDEX idx_prompt_feedback_created_at ON prompt_feedback(created_at DESC);
 CREATE INDEX idx_prompt_feedback_feedback_type ON prompt_feedback(feedback_type);
 
 -- =============================================================================
--- Recomputing Hierarchy Stats
+-- VIEWS
 -- =============================================================================
--- The precomputed hierarchy statistics in regulatory_documents must be refreshed
--- after data imports, scraping runs, or when parent_id relationships change.
--- Run these queries in order to update all stats:
 
--- Step 1: Update direct_child_count (count of immediate children)
--- UPDATE regulatory_documents rd
--- SET direct_child_count = (
---   SELECT COUNT(*)
---   FROM regulatory_documents c
---   WHERE c.parent_id = rd.id
--- );
+CREATE VIEW latest_analyses AS
+SELECT d.*, a.id as analysis_id, a.analyzed_at, a.has_implementation_issues,
+       a.overall_complexity, a.requires_technical_review, a.has_reporting_requirement,
+       a.num_flags, a.max_severity, a.summary
+FROM regulatory_documents d
+LEFT JOIN analyses a ON d.id = a.document_id AND a.is_current = TRUE;
 
--- Step 2: Update descendant_count (total descendants in subtree)
--- WITH descendant_counts AS (
---   SELECT
---     rd.id,
---     (
---       WITH RECURSIVE descendants AS (
---         SELECT id FROM regulatory_documents WHERE parent_id = rd.id
---         UNION ALL
---         SELECT c.id FROM regulatory_documents c
---         JOIN descendants d ON c.parent_id = d.id
---       )
---       SELECT COUNT(*) FROM descendants
---     ) as cnt
---   FROM regulatory_documents rd
---   WHERE rd.direct_child_count > 0
--- )
--- UPDATE regulatory_documents rd
--- SET descendant_count = dc.cnt
--- FROM descendant_counts dc
--- WHERE rd.id = dc.id;
+CREATE VIEW document_hierarchy AS
+SELECT p.id as parent_id, p.title as parent_title, p.hierarchy_level as parent_level,
+       c.id as child_id, c.title as child_title, c.hierarchy_level as child_level
+FROM regulatory_documents p
+JOIN regulatory_documents c ON c.parent_id = p.id;
 
--- Step 3: Update flag stats for non-leaf nodes (documents with children)
--- WITH flag_stats AS (
---   SELECT
---     rd.id,
---     (
---       WITH RECURSIVE descendants AS (
---         SELECT id FROM regulatory_documents WHERE id = rd.id
---         UNION ALL
---         SELECT c.id FROM regulatory_documents c
---         JOIN descendants d ON c.parent_id = d.id
---       )
---       SELECT COALESCE(SUM(a.num_flags), 0)
---       FROM analyses a
---       WHERE a.is_current = true
---         AND a.document_id IN (SELECT id FROM descendants)
---     ) as total_flags,
---     (
---       WITH RECURSIVE descendants AS (
---         SELECT id FROM regulatory_documents WHERE id = rd.id
---         UNION ALL
---         SELECT c.id FROM regulatory_documents c
---         JOIN descendants d ON c.parent_id = d.id
---       )
---       SELECT MAX(a.max_severity)
---       FROM analyses a
---       WHERE a.is_current = true
---         AND a.document_id IN (SELECT id FROM descendants)
---     ) as max_sev,
---     (
---       WITH RECURSIVE descendants AS (
---         SELECT id FROM regulatory_documents WHERE id = rd.id
---         UNION ALL
---         SELECT c.id FROM regulatory_documents c
---         JOIN descendants d ON c.parent_id = d.id
---       )
---       SELECT EXISTS(
---         SELECT 1 FROM analyses a
---         WHERE a.is_current = true
---           AND a.document_id IN (SELECT id FROM descendants)
---       )
---     ) as has_analysis
---   FROM regulatory_documents rd
---   WHERE rd.direct_child_count > 0
--- )
--- UPDATE regulatory_documents rd
--- SET
---   descendant_flag_count = fs.total_flags,
---   descendant_max_severity = fs.max_sev,
---   has_descendant_analysis = fs.has_analysis
--- FROM flag_stats fs
--- WHERE rd.id = fs.id;
-
--- Step 4: Update flag stats for leaf nodes (documents without children)
--- UPDATE regulatory_documents rd
--- SET
---   descendant_flag_count = COALESCE(a.num_flags, 0),
---   descendant_max_severity = a.max_severity,
---   has_descendant_analysis = (a.id IS NOT NULL)
--- FROM (
---   SELECT rd2.id, a2.id as analysis_id, a2.num_flags, a2.max_severity
---   FROM regulatory_documents rd2
---   LEFT JOIN analyses a2 ON a2.document_id = rd2.id AND a2.is_current = true
---   WHERE rd2.direct_child_count = 0
--- ) a
--- WHERE rd.id = a.id;
-
+-- =============================================================================
+-- MAINTENANCE: Recomputing Hierarchy Stats
+-- =============================================================================
+-- Run these after data imports or when parent_id relationships change.
+-- See .claude/skills/database/maintenance.md for full SQL.
+-- =============================================================================

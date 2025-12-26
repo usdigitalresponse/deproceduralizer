@@ -2,7 +2,7 @@
 
 ## regulatory_documents
 
-Main table with hierarchy. **50 columns** - use `./scripts/db-query.sh describe regulatory_documents` for full list.
+Main table with hierarchy. **67 columns** - use `./scripts/db-query.sh describe regulatory_documents` for full list.
 
 **Core columns:**
 
@@ -10,17 +10,26 @@ Main table with hierarchy. **50 columns** - use `./scripts/db-query.sh describe 
 |--------|------|-------------|
 | `id` | bigserial | Primary key |
 | `source_index` | integer | Index from source data |
-| `type` | varchar(50) | TITLE, PART, SECTION, etc. |
+| `type` | varchar(50) | regulation or policy_document |
 | `state` | varchar(2) | NY, NJ (CHECK constraint) |
 | `title` | text | Document title |
 | `url` | text | Source URL |
+| `url_type` | varchar(50) | regulation (section) or title (container) |
 | `content` | text | Full document content |
 | `parent_id` | bigint | FK to parent document |
-| `hierarchy_level` | varchar(50) | Level in hierarchy |
+| `hierarchy_level` | varchar(50) | title/subtitle/chapter/subchapter/article/part/subpart/section |
 | `hierarchy_path` | text | Full path in hierarchy |
 
+**Display helpers:**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `short_title` | text | Abbreviated title for display |
+| `level_identifier` | text | E.g., "1.1" or "A" for hierarchy level |
+| `citation` | text | Formatted citation string |
+
 **State-specific columns:**
-- NYCRR: `nycrr_title`, `nycrr_title_name`, `nycrr_chapter`, `nycrr_part`, `nycrr_section`, etc.
+- NYCRR: `nycrr_title`, `nycrr_title_name`, `nycrr_subtitle`, `nycrr_chapter`, `nycrr_subchapter`, `nycrr_article`, `nycrr_part`, `nycrr_subpart`, `nycrr_section`, etc.
 - NJAC: `njac_title`, `njac_chapter`, `njac_subchapter`, `njac_section`, etc.
 - NJSA: `njsa_title`, `njsa_chapter`, `njsa_section`, `njsa_citation`
 
@@ -33,26 +42,38 @@ Main table with hierarchy. **50 columns** - use `./scripts/db-query.sh describe 
 | `descendant_flag_count` | integer | Sum of red flags in subtree |
 | `descendant_max_severity` | integer | Max severity in subtree |
 | `has_descendant_analysis` | boolean | Any descendant has analysis |
+| `compliance_issue_count` | integer | Compliance issues in this doc |
+| `descendant_compliance_issue_count` | integer | Compliance issues in subtree |
 
-**Regulatory status (for reserved/repealed/recodified sections):**
+**Regulatory status:**
 
 | Column | Type | Description |
 |--------|------|-------------|
-| `regulatory_status` | varchar(20) | 'active' (default), 'reserved', 'repealed', 'recodified', or 'expired' |
-| `recodified_to` | varchar(100) | Target citation where content moved (e.g., "16:44-3.2") |
+| `regulatory_status` | varchar(20) | 'active' (default), 'reserved', 'repealed', 'recodified', 'expired' |
+| `recodified_to` | varchar(100) | Target citation where content moved |
 
-**Indexes**: `idx_documents_regulatory_status`, `idx_documents_regulatory_status_state`
+**Exclusion from analysis:**
 
-**Detection**: Run `python backend/scripts/detect_regulatory_status.py` to populate from title patterns.
+| Column | Type | Description |
+|--------|------|-------------|
+| `exclude_from_analysis` | boolean | Whether to exclude from LLM analysis (default false) |
+| `excluded_at` | timestamp | When exclusion was set |
+| `excluded_by` | varchar(255) | Who excluded it |
+| `excluded_reason` | text | Why it was excluded |
 
-**Unique Constraint**: `(state, source_index, type)`
+**Constraints:**
+- `chk_rd_state CHECK (state IN ('NY', 'NJ'))`
+- `unique_per_url UNIQUE(url)`
+
+**Indexes:** `idx_documents_state`, `idx_documents_type`, `idx_documents_state_type`, `idx_documents_parent`, `idx_documents_hierarchy_level`, `idx_documents_regulatory_status`, `idx_documents_url`, `idx_documents_short_title`, `idx_documents_exclude_from_analysis` (partial)
 
 ## analyses
 
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | bigserial | Primary key |
-| `document_id` | bigint | FK to regulatory_documents |
+| `document_id` | bigint | FK to regulatory_documents (nullable) |
+| `url` | text NOT NULL | Source URL (for legacy linking) |
 | `analyzed_at` | timestamp | When analyzed |
 | `model_version` | varchar(100) | LLM model used |
 | `has_implementation_issues` | boolean | Has issues |
@@ -63,6 +84,8 @@ Main table with hierarchy. **50 columns** - use `./scripts/db-query.sh describe 
 | `max_severity` | integer | Highest severity (1-10) |
 | `num_flags` | integer | Number of red flags |
 | `is_current` | boolean | Latest analysis flag |
+
+**Indexes:** `idx_analyses_url`, `idx_analyses_one_current_per_document` (unique partial - ensures one current per doc)
 
 **Always filter by `is_current = true` for latest analysis.**
 
@@ -75,14 +98,25 @@ Main table with hierarchy. **50 columns** - use `./scripts/db-query.sh describe 
 | `category` | varchar(100) | Constrained to 12 values (see below) |
 | `explanation` | text | Detailed explanation |
 | `severity` | integer | 1-10 |
-| `complexity` | varchar(20) | Complexity rating |
+| `complexity` | varchar(20) | HIGH/MEDIUM/LOW/MEDIUM-HIGH |
 | `matched_phrases` | text[] | Trigger phrases |
 | `implementation_approach` | text | Suggested approach |
-| `review_status` | varchar(50) | unreviewed, confirmed, rejected_clear_fp, rejected_not_obvious_bad, needs_context, deferred |
-| `justification_notes` | text | Justification and analysis for the model |
+| `effort_estimate` | varchar(255) | Effort estimate |
+| `text_examples` | text[] | Example text from regulation |
+| `review_status` | varchar(50) | unreviewed, confirmed, etc. |
+| `reviewed_by` | varchar(255) | Who reviewed |
+| `reviewed_at` | timestamp | When reviewed |
+| `justification_notes` | text | Justification for the model |
 | `team_notes` | text | Notes for development team |
+| `priority` | integer | Priority ranking |
+| `impact_type` | varchar(100) | Type of impact |
 | `developer_status` | varchar(50) | unresolved, resolved, pending, backlogged, need_more_info |
 | `developer_assigned` | varchar(50) | Michael or Abigail |
+| `developer_notes` | text | Notes from developer |
+| `resolution_type` | varchar(50) | implemented or not_implemented |
+| `resolution_comments` | text | Resolution details |
+| `developer_question` | text | Question for reviewer |
+| `developer_checked_at` | timestamp | When developer last checked |
 
 **Valid Categories (12 - Jennifer Pahlka framework):**
 - `administrative_burdens`
@@ -98,25 +132,36 @@ Main table with hierarchy. **50 columns** - use `./scripts/db-query.sh describe 
 - `process_worship_oversight`
 - `zero_risk_language`
 
-**Constraint**: `valid_category` CHECK enforces these 12 values.
+**Constraints:** `valid_category`, `red_flags_severity_check`, `chk_rf_resolution_type`
 
 ## definitions
+
+**Definition text fields:**
+- `verbatim_text`: Exact text from regulation (always populated)
+- `is_verbatim_text_complete`: True if verbatim_text is complete and usable
+- `rephrased_definition`: Plain-language version when verbatim is insufficient
+
+**Cross-reference categorization:**
+- `reference_completeness`: 'pure_pointer' or 'hybrid'
+- `reference_target`: 'same_corpus', 'federal', 'external_standard', 'other'
 
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | bigserial | Primary key |
-| `document_id` | bigint | FK to regulatory_documents |
-| `url` | text | Source URL |
+| `document_id` | bigint | FK to regulatory_documents (source - where defined) |
+| `url` | text NOT NULL | Source URL |
 | `term` | text | Term being defined |
 | `verbatim_text` | text | Exact text from regulation |
-| `is_verbatim` | boolean | Whether verbatim_text is complete |
+| `is_verbatim_text_complete` | boolean | Whether verbatim_text is complete |
 | `rephrased_definition` | text | Plain-language definition |
 | `scope` | text | Applicability scope text |
 | `scope_level` | varchar(20) | Hierarchy level: section/part/chapter/title |
-| `scope_document_id` | bigint | FK to regulatory_documents (scope entity) |
+| `scope_document_id` | bigint | FK to regulatory_documents (where it applies) |
 | `definition_type` | varchar(20) | formal or abbreviation |
-| `normalized_term` | text | GENERATED: LOWER(TRIM(term)) |
+| `normalized_term` | text | Lowercase trimmed term |
 | `is_cross_reference` | boolean | Points to another source |
+| `reference_completeness` | varchar(20) | pure_pointer or hybrid |
+| `reference_target` | varchar(30) | same_corpus/federal/external_standard/other |
 | `definition_overlap` | float | 0.0-1.0 overlap with regulation |
 | `source_location` | text | Where found in document |
 | `model_version` | varchar(100) | LLM model used |
@@ -125,22 +170,28 @@ Main table with hierarchy. **50 columns** - use `./scripts/db-query.sh describe 
 | `review_status` | varchar(50) | unreviewed, confirmed, corrected, false_positive |
 | `reviewed_at` | timestamp | When reviewed |
 | `reviewer_name` | varchar(255) | Who reviewed |
-| `justification_notes` | text | Justification and analysis for the model (required if correcting) |
+| `justification_notes` | text | Justification (required if correcting) |
 | `team_notes` | text | Notes for development team |
-| `original_values` | jsonb | Original LLM values when corrections are made |
+| `original_values` | jsonb | Original LLM values when corrections made |
+| `developer_status` | varchar(50) | unresolved, resolved, pending, etc. |
+| `developer_assigned` | varchar(50) | Michael or Abigail |
+| `developer_notes` | text | Notes from developer |
+| `resolution_type` | varchar(50) | implemented or not_implemented |
+| `resolution_comments` | text | Resolution details |
+| `developer_question` | text | Question for reviewer |
+| `developer_checked_at` | timestamp | When developer checked |
 
-**Review Status Values (Definitions):**
-- `unreviewed` - Default, not yet reviewed
-- `confirmed` - LLM extraction was correct
-- `corrected` - Fields were edited/corrected
-- `false_positive` - Not actually a definition
+**Key distinction:**
+- `document_id` = **source** document (where definition text is written)
+- `scope_document_id` = **scope** document (where definition applies)
 
-**Indexes:** `idx_definitions_scope_document`, `idx_definitions_scope_level`, `idx_definitions_normalized_term`, `idx_definitions_type`, `idx_definitions_review_status`
+**Constraints:** `definitions_review_status_check`, `chk_reference_completeness`, `chk_reference_target`
+
+**Indexes:** `idx_definitions_url`, `idx_definitions_term`, `idx_definitions_scope_document`, `idx_definitions_scope_level`, `idx_definitions_normalized_term`, `idx_definitions_type`, `idx_definitions_review_status`, `idx_definitions_developer_status`, `idx_definitions_developer_filters`, plus trigram indexes
 
 ## definition_document_occurrences
 
 Many-to-many join table tracking where definition terms actually appear in document text.
-Uses word-boundary matching ('applicant' matches 'Applicant' but not 'reapplicant').
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -150,19 +201,14 @@ Uses word-boundary matching ('applicant' matches 'Applicant' but not 'reapplican
 
 **Primary Key**: `(definition_id, document_id)` - composite
 
-**Indexes:** `idx_def_doc_occurrences_definition`, `idx_def_doc_occurrences_document`
-
 **Difference from scope-based applicability:**
-- `definitions.scope_document_id` = where definition APPLIES (hierarchy-based)
+- `definitions.document_id` = where definition text IS WRITTEN (source)
+- `definitions.scope_document_id` = where definition APPLIES (hierarchy-based scope)
 - `definition_document_occurrences` = where term ACTUALLY APPEARS in text
-
-**Population:** Run `python link_definitions.py run --state NY` or integrated into `batch_definitions.py` pipeline.
 
 ## compliance_issues
 
-Tracks compliance issues found in regulations (wet signatures, mail-only submission, etc.). Multiple issues of the same type can exist per document, tracked by `occurrence_number`.
-
-**From regex scan:**
+Tracks compliance issues found in regulations (wet signatures, mail-only submission, etc.).
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -170,37 +216,22 @@ Tracks compliance issues found in regulations (wet signatures, mail-only submiss
 | `document_id` | bigint NOT NULL | FK to regulatory_documents |
 | `issue_type` | varchar(50) | `wet_signature`, `mail_only`, `fax`, etc. |
 | `occurrence_number` | integer | 1, 2, 3... for multiple issues of same type per document |
-| `matched_pattern` | varchar(255) | Regex pattern that triggered scan (e.g., `"bear.{0,10}signature"`) |
-| `matched_context` | text | ~600 char text window around the regex match |
-| `url` | text NOT NULL | Link to the regulation |
-
-**From LLM analysis:**
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `requirement_found` | boolean | Did LLM find an actual requirement? (not a false positive from regex) |
+| `matched_pattern` | varchar(255) | Regex pattern that triggered scan |
+| `matched_context` | text NOT NULL | Text window around the regex match |
+| `url` | text | Link to the regulation |
+| `requirement_found` | boolean | Did LLM find an actual requirement? |
 | `requirement_text` | text | The specific text creating the requirement |
-| `required_by_statute` | boolean | `true` = statute mandates, `false` = agency added, `null` = unknown |
+| `required_by_statute` | boolean | true = statute mandates, false = agency added, null = unknown |
 | `statute_citation` | varchar(255) | Citation to statute if applicable |
 | `severity` | integer (1-10) | How problematic is this requirement |
-| `impact_assessment` | text | LLM explanation of why this is/isn't problematic |
-
-**Human review:**
-
-| Column | Type | Description |
-|--------|------|-------------|
+| `impact_assessment` | text | LLM explanation of impact |
 | `review_status` | varchar(50) | `unreviewed`, `confirmed`, `false_positive`, etc. |
 | `reviewed_by` | varchar(255) | Who reviewed it |
-| `reviewed_at` | timestamp | When it was reviewed |
+| `reviewed_at` | timestamp | When reviewed |
 | `reviewer_notes` | text | Human explanation of review decision |
-| `justification_notes` | text | Justification and analysis for the model |
+| `justification_notes` | text | Justification for the model |
 | `priority` | integer | Priority ranking |
 | `impact_type` | varchar(100) | Type of impact |
-
-**Developer tracking:**
-
-| Column | Type | Description |
-|--------|------|-------------|
 | `developer_status` | varchar(50) | `unresolved`, `resolved`, `pending`, `backlogged`, `need_more_info` |
 | `developer_assigned` | varchar(50) | Michael or Abigail |
 | `developer_notes` | text | Notes from developer |
@@ -208,70 +239,46 @@ Tracks compliance issues found in regulations (wet signatures, mail-only submiss
 | `resolution_comments` | text | Comments about the resolution |
 | `developer_question` | text | Question for reviewer |
 | `developer_checked_at` | timestamp | When developer last checked |
-
-**Metadata:**
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `state` | varchar(2) | NY or NJ |
+| `state` | varchar(2) NOT NULL | NY or NJ |
 | `created_at` | timestamp | When record was created |
 
-**Issue Types** (40 types defined in `compliance_issues.yaml`):
-- Communication: `wet_signature`, `mail_only`, `certified_mail`, `fax`, `landline`, `obsolete_comm`
-- Payment: `check_payment`, `cash_only`, `no_credit_cards`, `in_person_payment`
-- Signatures: `notarization`, `witness`, `embossed_seal`, `original_document`
-- Physical presence: `in_person_submission`, `in_person_pickup`, `in_person_hearing`, `physical_forms`
-- Technology: `obsolete_media`, `obsolete_software`, `pdf_only`, `microfiche`, `typewriter`
-- And more...
+**Constraints:** `compliance_issues_severity_check`, `compliance_issues_state_check`, `unique_document_issue_occurrence UNIQUE(document_id, issue_type, occurrence_number)`
+
+**Issue Types** (40 types defined in `compliance_issues.yaml`)
 
 ## incorporations_by_reference
 
-Tracks external standards incorporated by reference (NFPA codes, ICC codes, ASTM standards, CFR references, etc.). Extracted from compliance_issues into dedicated table per GitHub issue #49.
+Tracks external standards incorporated by reference (NFPA codes, ICC codes, ASTM standards, CFR references, etc.).
 
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | bigserial | Primary key |
 | `document_id` | bigint | FK to regulatory_documents |
-| `incorporated_document` | text | Name of incorporated document (e.g., "International Building Code/2021") |
-| `source_organization` | varchar(100) | Publisher (e.g., "ICC", "NFPA", "ANSI", "ASTM", "CFR") |
-| `version` | varchar(50) | Version/edition (e.g., "2021", "2020 edition") |
+| `incorporated_document` | text | Name of incorporated document |
+| `source_organization` | varchar(100) | Publisher (ICC, NFPA, ANSI, ASTM, CFR) |
+| `version` | text | Version/edition |
 | `requirement_quote` | text | Exact quote from regulation |
 | `term_matched` | varchar(255) | Regex pattern that matched |
-| `context` | text | Context snippet around match |
+| `context` | text NOT NULL | Context snippet around match |
 | `llm_confirmed` | boolean | Always true for saved records |
-| `state` | varchar(2) | NY or NJ |
-| `url` | text | Source URL (NOT NULL) |
+| `state` | varchar(2) NOT NULL | NY or NJ |
+| `url` | text NOT NULL | Source URL |
 | `review_status` | varchar(50) | unreviewed, confirmed, false_positive, etc. |
 | `reviewed_by` | varchar(255) | Who reviewed |
 | `reviewed_at` | timestamp | When reviewed |
 | `justification_notes` | text | Reviewer notes |
 | `team_notes` | text | Notes for development team |
 | `priority` | integer | Priority level |
-| `developer_status` | varchar(50) | unresolved, resolved, pending, backlogged, need_more_info |
+| `developer_status` | varchar(50) | unresolved, resolved, pending, etc. |
 | `developer_assigned` | varchar(50) | Michael or Abigail |
 | `developer_notes` | text | Developer notes |
-| `resolution_type` | varchar(50) | implemented or not_implemented (CHECK constraint) |
+| `resolution_type` | varchar(50) | implemented or not_implemented |
 | `resolution_comments` | text | Resolution comments |
 | `developer_question` | text | Question for reviewer |
 | `developer_checked_at` | timestamp | When developer checked |
 | `created_at` | timestamp | When record was created |
 
-**Indexes:** `idx_ibr_document`, `idx_ibr_organization`, `idx_ibr_llm_confirmed`, `idx_ibr_review_status`, `idx_ibr_state`, `idx_ibr_developer_status`
-
-**Detection:** Run `python backend/scripts/ibr_scanner.py --state nj` to scan and populate.
-
-**Patterns detected:** "incorporated by reference", NFPA, ASTM, ANSI, IEEE, API, UL, International Building/Fire/Mechanical/Plumbing/Energy/Residential Code.
-
-## statute_references
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `id` | bigserial | Primary key |
-| `document_id` | bigint | FK to regulatory_documents |
-| `usc_citations` | text[] | US Code citations |
-| `cfr_citations` | text[] | CFR citations |
-| `public_laws` | text[] | Public law references |
-| `acts` | text[] | Act references |
+**Constraints:** `chk_ibr_state`, `chk_ibr_resolution_type`
 
 ## statutes
 
@@ -281,10 +288,10 @@ Hierarchy: Title → Chapter → Section (for NJ statutes).
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | bigserial | Primary key |
-| `citation` | varchar(50) | Full citation (e.g., "52:27D-119" for sections, "title:52" for titles, "52:27D" for chapters) |
-| `state` | varchar(2) | NY, NJ (CHECK constraint) |
-| `title` | text | Human-readable title/name |
-| `content` | text | Full text content (for sections) |
+| `citation` | varchar(50) NOT NULL | Full citation (e.g., "52:27D-119") |
+| `state` | varchar(2) NOT NULL | NY, NJ (default 'NJ') |
+| `title` | text NOT NULL | Human-readable title/name |
+| `content` | text NOT NULL | Full text content (for sections) |
 | `njsa_title` | varchar(10) | Title number |
 | `njsa_title_name` | text | Title name |
 | `njsa_chapter` | varchar(20) | Chapter number |
@@ -296,80 +303,59 @@ Hierarchy: Title → Chapter → Section (for NJ statutes).
 | `source_index` | integer | Index from parsing process |
 | `created_at` | timestamp | When created |
 
-**Unique Constraint**: `(state, citation)`
+**Constraints:** `chk_statutes_state`, `statutes_state_citation_key UNIQUE(state, citation)`
 
-**Hierarchy:**
-- **Titles** (68): `citation = "title:52"`, `hierarchy_level = "title"`, `parent_id = NULL`
-- **Chapters** (1,891): `citation = "52:27D"`, `hierarchy_level = "chapter"`, `parent_id = title.id`
-- **Sections** (54,800+): `citation = "52:27D-119"`, `hierarchy_level = "section"`, `parent_id = chapter.id`
+## statute_references
 
-**Population:** Run `python backend/scripts/nj_statutes.py` to parse and populate.
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | bigserial | Primary key |
+| `document_id` | bigint NOT NULL | FK to regulatory_documents |
+| `usc_citations` | text | US Code citations |
+| `cfr_citations` | text | CFR citations |
+| `public_laws` | text | Public law references |
+| `acts` | text | Act references |
+| `state_title` | varchar(100) | State title reference |
+| `state_section` | varchar(100) | State section reference |
 
 ## regulation_statute_links
 
-Many-to-many crosswalk between regulations and statutes. Tracks all citations including unmatched/obsolete ones.
+Many-to-many crosswalk between regulations and statutes.
 
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | bigserial | Primary key |
-| `regulation_id` | bigint | FK to regulatory_documents |
-| `statute_id` | bigint | FK to **statutes** (nullable for unmatched) |
-| `citation` | varchar(50) | Citation as found in text (e.g., "52:27D-119") |
+| `regulation_id` | bigint NOT NULL | FK to regulatory_documents |
+| `statute_id` | bigint | FK to statutes (nullable for unmatched) |
+| `citation` | varchar(50) NOT NULL | Citation as found in text |
 | `context` | text | Surrounding text where citation was found |
-| `link_type` | varchar(50) | Auto-detected: `enabling_authority`, `definition`, `requirement`, `reference` |
+| `link_type` | varchar(50) | `enabling_authority`, `definition`, `requirement`, `reference` |
 | `match_status` | varchar(50) | `matched`, `corrected`, `unmatched`, `obsolete` |
-| `original_citation` | varchar(50) | If corrected, what was originally in text |
+| `original_citation` | varchar(50) | If corrected, original text |
 | `correction_notes` | text | Why correction was made |
 | `reviewed_at` | timestamp | When reviewed |
 | `reviewed_by` | varchar(255) | Who reviewed |
+| `created_at` | timestamp | When created |
 
-**Unique Constraint**: `(regulation_id, citation)`
+**Constraints:** `unique_regulation_statute_link UNIQUE(regulation_id, citation)`
 
-**Match Status Values:**
-- `matched` - Citation found exact match in statutes table
-- `corrected` - Subsection letter stripped (e.g., `52:14B-1e` → `52:14B-1`), `original_citation` has original text
-- `obsolete` - Chapter exists but section not found (auto-detected likely repealed), `correction_notes` explains
-- `unmatched` - No matching statute found and chapter doesn't exist (may be typo or different system)
+## document_notes
 
-**Link Type Detection (regex-based):**
-- `enabling_authority` - "pursuant to", "CHAPTER AUTHORITY:", "established pursuant to"
-- `definition` - "as defined in/by", "means ... N.J.S.A."
-- `requirement` - "as required by", "in accordance with", "subject to"
-- `reference` - default for general mentions
-
-## definition_extraction_log
+User annotations on regulations with optional text anchoring.
 
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | bigserial | Primary key |
-| `source_index` | integer | Which regulation processed |
-| `processed_at` | timestamp | When processed |
-| `model_version` | varchar(100) | Model used |
-| `definitions_found` | integer | Count extracted |
-
-**Unique Constraint**: `source_index`
-
-## Views
-
-### latest_analyses
-
-Documents with current analysis:
-```sql
-SELECT d.*, a.id as analysis_id, a.analyzed_at, a.has_implementation_issues,
-       a.overall_complexity, a.num_flags, a.max_severity, a.summary
-FROM regulatory_documents d
-LEFT JOIN analyses a ON d.id = a.document_id AND a.is_current = TRUE;
-```
-
-### document_hierarchy
-
-Parent-child relationships:
-```sql
-SELECT p.id as parent_id, p.title as parent_title,
-       c.id as child_id, c.title as child_title
-FROM regulatory_documents p
-JOIN regulatory_documents c ON c.parent_id = p.id;
-```
+| `document_id` | bigint NOT NULL | FK to regulatory_documents |
+| `note_type` | note_type enum | general, highlight, question, action_item |
+| `anchor_start_offset` | integer | Character offset for text anchoring |
+| `anchor_end_offset` | integer | End offset for anchored text |
+| `anchor_text` | text | The selected text (for validation) |
+| `content` | text NOT NULL | Note content |
+| `author_name` | varchar(255) | Who wrote it |
+| `state` | varchar(2) NOT NULL | NY or NJ |
+| `created_at` | timestamp | When created |
+| `updated_at` | timestamp | When last updated |
 
 ## prompt_feedback
 
@@ -378,17 +364,40 @@ Stores user feedback on LLM prompts defined in `prompts.yaml`.
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | bigserial | Primary key |
-| `prompt_name` | varchar(100) | Key in prompts.yaml (e.g., 'red_flags_analysis') |
+| `prompt_name` | varchar(100) NOT NULL | Key in prompts.yaml |
 | `feedback_type` | feedback_type enum | suggestion, bug, question, other |
-| `content` | text | Feedback content |
+| `content` | text NOT NULL | Feedback content |
 | `highlighted_text` | text | Optional: specific part of template |
 | `author_name` | varchar(255) | Who submitted |
 | `created_at` | timestamp | When submitted |
 | `updated_at` | timestamp | Last updated |
 
-**Indexes**: `prompt_name`, `created_at DESC`, `feedback_type`
+## Enum Types
 
-## Legacy Tables
+```sql
+CREATE TYPE note_type AS ENUM ('general', 'highlight', 'question', 'action_item');
+CREATE TYPE feedback_type AS ENUM ('suggestion', 'bug', 'question', 'other');
+```
 
-- `definition_extractions` - Earlier extraction implementation
-- `extracted_definitions` - Definitions from legacy system
+## Views
+
+### latest_analyses
+
+Documents with current analysis:
+```sql
+SELECT d.*, a.id as analysis_id, a.analyzed_at, a.has_implementation_issues,
+       a.overall_complexity, a.requires_technical_review, a.has_reporting_requirement,
+       a.num_flags, a.max_severity, a.summary
+FROM regulatory_documents d
+LEFT JOIN analyses a ON d.id = a.document_id AND a.is_current = TRUE;
+```
+
+### document_hierarchy
+
+Parent-child relationships:
+```sql
+SELECT p.id as parent_id, p.title as parent_title, p.hierarchy_level as parent_level,
+       c.id as child_id, c.title as child_title, c.hierarchy_level as child_level
+FROM regulatory_documents p
+JOIN regulatory_documents c ON c.parent_id = p.id;
+```
