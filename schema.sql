@@ -288,8 +288,8 @@ CREATE TABLE compliance_issues (
   review_status VARCHAR(50) DEFAULT 'unreviewed',
   reviewed_by VARCHAR(255),
   reviewed_at TIMESTAMP,
-  reviewer_notes TEXT,
   justification_notes TEXT,
+  team_notes TEXT,
   priority INTEGER,
   impact_type VARCHAR(100),
 

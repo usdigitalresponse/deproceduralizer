@@ -23,7 +23,6 @@ export interface UpdateComplianceIssueInput {
   id: number;
   reviewStatus: string;
   reviewedBy?: string;
-  reviewerNotes?: string;
   justificationNotes?: string;
   teamNotes?: string;
   priority?: number;
@@ -46,7 +45,6 @@ export async function updateComplianceIssueReview(
     const result = await complianceIssuesRepo.updateReview(input.id, {
       reviewStatus: input.reviewStatus as ReviewStatus,
       reviewedBy: input.reviewedBy,
-      reviewerNotes: input.reviewerNotes,
       justificationNotes: input.justificationNotes,
       priority: input.priority,
       impactType: input.impactType,
@@ -193,7 +191,7 @@ export async function getComplianceIssuesPaginated(
   options: {
     page: number;
     pageSize: number;
-    sortBy?: 'issueType' | 'createdAt' | 'reviewedAt';
+    sortBy?: 'issueType' | 'createdAt' | 'reviewedAt' | 'severity';
     sortOrder?: 'asc' | 'desc';
     filters?: {
       status?: string;

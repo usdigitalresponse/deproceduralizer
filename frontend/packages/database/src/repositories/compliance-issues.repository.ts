@@ -8,7 +8,6 @@ import { DeveloperStatusCounts } from './red-flags.repository';
 
 export interface UpdateComplianceIssueReviewInput {
   reviewStatus: ReviewStatus;
-  reviewerNotes?: string;
   reviewedBy?: string;
   justificationNotes?: string;
   priority?: number;
@@ -51,7 +50,7 @@ export interface ComplianceIssuePaginationOptions {
   state: StateCode;
   page: number;
   pageSize: number;
-  sortBy?: 'issueType' | 'createdAt' | 'reviewedAt';
+  sortBy?: 'issueType' | 'createdAt' | 'reviewedAt' | 'severity';
   sortOrder?: 'asc' | 'desc';
   filters?: Omit<ComplianceIssueFilterOptions, 'state'>;
 }
@@ -104,7 +103,6 @@ export class ComplianceIssuesRepository extends BaseRepository {
       .update(complianceIssues)
       .set({
         reviewStatus: data.reviewStatus,
-        reviewerNotes: data.reviewerNotes ?? null,
         reviewedBy: data.reviewedBy ?? null,
         reviewedAt: new Date(),
         justificationNotes: data.justificationNotes ?? null,
@@ -305,6 +303,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       issueType: complianceIssues.issueType,
       createdAt: complianceIssues.createdAt,
       reviewedAt: complianceIssues.reviewedAt,
+      severity: complianceIssues.severity,
     }[sortBy] ?? complianceIssues.createdAt;
 
     const orderByClause = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
@@ -329,8 +328,8 @@ export class ComplianceIssuesRepository extends BaseRepository {
         reviewStatus: complianceIssues.reviewStatus,
         reviewedBy: complianceIssues.reviewedBy,
         reviewedAt: complianceIssues.reviewedAt,
-        reviewerNotes: complianceIssues.reviewerNotes,
         justificationNotes: complianceIssues.justificationNotes,
+        teamNotes: complianceIssues.teamNotes,
         priority: complianceIssues.priority,
         impactType: complianceIssues.impactType,
         // Developer fields
@@ -379,8 +378,8 @@ export class ComplianceIssuesRepository extends BaseRepository {
       reviewStatus: row.reviewStatus,
       reviewedBy: row.reviewedBy,
       reviewedAt: row.reviewedAt,
-      reviewerNotes: row.reviewerNotes,
       justificationNotes: row.justificationNotes,
+      teamNotes: row.teamNotes,
       priority: row.priority,
       impactType: row.impactType,
       developerStatus: row.developerStatus,
@@ -528,6 +527,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       issueType: complianceIssues.issueType,
       createdAt: complianceIssues.createdAt,
       reviewedAt: complianceIssues.reviewedAt,
+      severity: complianceIssues.severity,
     }[sortBy] ?? complianceIssues.createdAt;
 
     const orderByClause = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
@@ -552,8 +552,8 @@ export class ComplianceIssuesRepository extends BaseRepository {
         reviewStatus: complianceIssues.reviewStatus,
         reviewedBy: complianceIssues.reviewedBy,
         reviewedAt: complianceIssues.reviewedAt,
-        reviewerNotes: complianceIssues.reviewerNotes,
         justificationNotes: complianceIssues.justificationNotes,
+        teamNotes: complianceIssues.teamNotes,
         priority: complianceIssues.priority,
         impactType: complianceIssues.impactType,
         // Developer fields
@@ -602,8 +602,8 @@ export class ComplianceIssuesRepository extends BaseRepository {
       reviewStatus: row.reviewStatus,
       reviewedBy: row.reviewedBy,
       reviewedAt: row.reviewedAt,
-      reviewerNotes: row.reviewerNotes,
       justificationNotes: row.justificationNotes,
+      teamNotes: row.teamNotes,
       priority: row.priority,
       impactType: row.impactType,
       developerStatus: row.developerStatus,
@@ -686,8 +686,8 @@ export class ComplianceIssuesRepository extends BaseRepository {
         reviewStatus: complianceIssues.reviewStatus,
         reviewedBy: complianceIssues.reviewedBy,
         reviewedAt: complianceIssues.reviewedAt,
-        reviewerNotes: complianceIssues.reviewerNotes,
         justificationNotes: complianceIssues.justificationNotes,
+        teamNotes: complianceIssues.teamNotes,
         priority: complianceIssues.priority,
         impactType: complianceIssues.impactType,
         developerStatus: complianceIssues.developerStatus,
@@ -733,8 +733,8 @@ export class ComplianceIssuesRepository extends BaseRepository {
       reviewStatus: row.reviewStatus,
       reviewedBy: row.reviewedBy,
       reviewedAt: row.reviewedAt,
-      reviewerNotes: row.reviewerNotes,
       justificationNotes: row.justificationNotes,
+      teamNotes: row.teamNotes,
       priority: row.priority,
       impactType: row.impactType,
       developerStatus: row.developerStatus,

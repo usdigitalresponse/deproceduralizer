@@ -43,7 +43,6 @@ export interface DeveloperItem {
   reviewStatus: string | null;
   reviewedBy: string | null;
   reviewedAt: Date | null;
-  reviewerNotes: string | null;
   justificationNotes: string | null;
   teamNotes: string | null;
   // Developer fields
@@ -211,7 +210,6 @@ export async function getCombinedReviewedItems(
       reviewStatus: flag.reviewStatus,
       reviewedBy: flag.reviewedBy,
       reviewedAt: flag.reviewedAt,
-      reviewerNotes: flag.justificationNotes,
       justificationNotes: flag.justificationNotes,
       teamNotes: flag.teamNotes,
       developerStatus: flag.developerStatus,
@@ -235,9 +233,8 @@ export async function getCombinedReviewedItems(
       reviewStatus: issue.reviewStatus,
       reviewedBy: issue.reviewedBy,
       reviewedAt: issue.reviewedAt,
-      reviewerNotes: issue.reviewerNotes,
       justificationNotes: issue.justificationNotes,
-      teamNotes: null, // Compliance issues don't have teamNotes
+      teamNotes: issue.teamNotes,
       developerStatus: issue.developerStatus,
       developerAssigned: issue.developerAssigned,
       developerNotes: issue.developerNotes,
@@ -312,7 +309,6 @@ export async function getNeedMoreInfoItems(
       reviewStatus: flag.reviewStatus,
       reviewedBy: flag.reviewedBy,
       reviewedAt: flag.reviewedAt,
-      reviewerNotes: flag.justificationNotes,
       justificationNotes: flag.justificationNotes,
       teamNotes: flag.teamNotes,
       developerStatus: flag.developerStatus,
@@ -336,9 +332,8 @@ export async function getNeedMoreInfoItems(
       reviewStatus: issue.reviewStatus,
       reviewedBy: issue.reviewedBy,
       reviewedAt: issue.reviewedAt,
-      reviewerNotes: issue.reviewerNotes,
       justificationNotes: issue.justificationNotes,
-      teamNotes: null, // Compliance issues don't have teamNotes
+      teamNotes: issue.teamNotes,
       developerStatus: issue.developerStatus,
       developerAssigned: issue.developerAssigned,
       developerNotes: issue.developerNotes,

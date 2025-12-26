@@ -98,6 +98,7 @@ export const REVIEW_SORT_OPTIONS = [
 ];
 
 export const COMPLIANCE_SORT_OPTIONS = [
+  { value: 'severity', label: 'Severity' },
   { value: 'createdAt', label: 'Created' },
   { value: 'issueType', label: 'Issue Type' },
   { value: 'reviewedAt', label: 'Last Reviewed' },

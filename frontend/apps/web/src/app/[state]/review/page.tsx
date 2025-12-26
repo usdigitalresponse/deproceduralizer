@@ -452,7 +452,7 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
 
   // Render based on review type
   if (reviewType === 'compliance') {
-    const sortBy = (queryParams.sortBy || 'createdAt') as 'issueType' | 'createdAt' | 'reviewedAt';
+    const sortBy = (queryParams.sortBy || 'createdAt') as 'issueType' | 'createdAt' | 'reviewedAt' | 'severity';
 
     // Parse boolean string filters
     const parseSeverity = (val?: string): 'high' | 'medium' | 'low' | 'all' | undefined => {
@@ -466,12 +466,19 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
       return val === 'true';
     };
 
+    // For requirementFound, default to true (only confirmed) to match client-side nuqs parser
+    const parseRequirementFound = (val?: string): boolean | 'all' => {
+      if (val === 'all') return 'all';
+      if (val === 'false') return false;
+      return true; // Default to true (LLM confirmed only)
+    };
+
     const filters = {
       status: queryParams.reviewStatus === 'all' ? undefined : queryParams.reviewStatus,
       issueType: queryParams.issueType || undefined,
       severity: parseSeverity(queryParams.severity),
       requiredByStatute: parseBooleanFilter(queryParams.requiredByStatute),
-      requirementFound: parseBooleanFilter(queryParams.requirementFound),
+      requirementFound: parseRequirementFound(queryParams.requirementFound),
     };
 
     const [issuesResultAction, issueTypesResult] = await Promise.all([

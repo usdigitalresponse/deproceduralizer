@@ -228,8 +228,8 @@ Tracks compliance issues found in regulations (wet signatures, mail-only submiss
 | `review_status` | varchar(50) | `unreviewed`, `confirmed`, `false_positive`, etc. |
 | `reviewed_by` | varchar(255) | Who reviewed it |
 | `reviewed_at` | timestamp | When reviewed |
-| `reviewer_notes` | text | Human explanation of review decision |
 | `justification_notes` | text | Justification for the model |
+| `team_notes` | text | Notes for development team (replaced reviewer_notes) |
 | `priority` | integer | Priority ranking |
 | `impact_type` | varchar(100) | Type of impact |
 | `developer_status` | varchar(50) | `unresolved`, `resolved`, `pending`, `backlogged`, `need_more_info` |
@@ -245,6 +245,33 @@ Tracks compliance issues found in regulations (wet signatures, mail-only submiss
 **Constraints:** `compliance_issues_severity_check`, `compliance_issues_state_check`, `unique_document_issue_occurrence UNIQUE(document_id, issue_type, occurrence_number)`
 
 **Issue Types** (40 types defined in `compliance_issues.yaml`)
+
+### Compliance Issue Filtering
+
+#### LLM Confirmation Status
+- `requirement_found = true`: LLM confirmed this is a real compliance issue (has `severity` 1-10)
+- `requirement_found = false`: LLM analyzed the regex match but found no actual issue (`severity` is NULL)
+
+The `requirement_found` field indicates whether the LLM found a genuine compliance issue after analyzing the regex-matched context. When `false`, the `requirement_text` field contains an explanation of why no issue was found.
+
+#### Where Filtering is Applied
+
+| Location | Shows | Filter |
+|----------|-------|--------|
+| Browse tree badges | Confirmed only | `requirement_found = TRUE` |
+| Dashboard stats | Confirmed only | `requirement_found = TRUE` |
+| Table view counts | Confirmed only | Uses precomputed columns |
+| Review mode | All issues | No filter (for QA review) |
+
+Review mode intentionally shows ALL issues (including LLM-rejected matches) so users can verify the LLM's reasoning and identify any false negatives.
+
+#### Precomputed Columns
+
+The following columns on `regulatory_documents` store compliance issue counts:
+- `compliance_issue_count`: Direct confirmed issues on this document
+- `descendant_compliance_issue_count`: Confirmed issues in all descendant documents
+
+These are updated by `refresh_compliance_stats()` in `backend/shared_utils.py` and only count issues where `requirement_found = TRUE`.
 
 ## incorporations_by_reference
 

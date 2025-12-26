@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, forwardRef, useCallback, useTransition } from 'react';
+import { useState, forwardRef, useCallback } from 'react';
 import { updateComplianceIssueReview, getExpandedContext } from '@/lib/actions/compliance-issues';
-import { Button, Textarea, Badge, SeverityBadge, Select, Tag, CopyLinkButton } from '@/components/ui';
-import { ISSUE_TYPE_LABELS } from '@/types/regulation';
+import { useReviewForm } from '@/hooks';
+import { Button, Input, Textarea, Badge, SeverityBadge, Select, Tag, CopyLinkButton } from '@/components/ui';
+import { ISSUE_TYPE_LABELS, PRIORITY_OPTIONS, IMPACT_TYPES } from '@/types/regulation';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
 import { formatNjacCitation } from '@/lib/formatters/njac';
 import { highlightTerm, highlightContext } from '@/lib/utils/highlight';
@@ -20,35 +21,37 @@ interface ComplianceIssueCardProps {
 
 export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCardProps>(
   ({ issue, onUpdated, onViewRegulation, isFocused = false }, ref) => {
-    // Simple inline form state for compliance issues
-    const [isPending, startTransition] = useTransition();
-    const [error, setError] = useState<string | null>(null);
-    const [reviewStatus, setReviewStatus] = useState(issue.reviewStatus || 'unreviewed');
-    const [reviewerNotes, setReviewerNotes] = useState(issue.reviewerNotes || '');
-
-    const handleSubmit = useCallback(async (e: React.FormEvent) => {
-      e.preventDefault();
-      setError(null);
-
-      startTransition(async () => {
-        const result = await updateComplianceIssueReview({
-          id: issue.id,
-          reviewStatus,
-          reviewerNotes: reviewerNotes || undefined,
-        });
-
-        if (!result.success) {
-          setError(result.error);
-          return;
-        }
-
+    // Use shared review form hook for state management
+    const {
+      formData,
+      updateField,
+      isPending,
+      error,
+      handleSubmit,
+    } = useReviewForm({
+      initialData: issue,
+      onSubmit: async (data) => updateComplianceIssueReview({
+        id: data.id,
+        reviewStatus: data.reviewStatus,
+        reviewedBy: data.reviewedBy,
+        justificationNotes: data.justificationNotes,
+        teamNotes: data.teamNotes,
+        priority: data.priority,
+        impactType: data.impactType,
+      }),
+      onUpdated: (data) => {
         onUpdated({
           ...issue,
-          reviewStatus: result.data.reviewStatus ?? null,
-          reviewerNotes: result.data.reviewerNotes ?? null,
+          reviewStatus: data.reviewStatus ?? null,
+          reviewedBy: data.reviewedBy ?? null,
+          reviewedAt: data.reviewedAt ? new Date(data.reviewedAt) : null,
+          justificationNotes: data.justificationNotes ?? null,
+          teamNotes: data.teamNotes ?? null,
+          priority: data.priority ?? null,
+          impactType: data.impactType ?? null,
         });
-      });
-    }, [issue, reviewStatus, reviewerNotes, onUpdated]);
+      },
+    });
 
     // Expanded context state
     const [isExpanded, setIsExpanded] = useState(false);
@@ -96,11 +99,18 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
       }
     }, [isExpanded, expandedText, issue.documentId, issue.matchedContext]);
 
+    // Convert options to Select format with explicit "none" sentinel
+    const priorityOptions = [{ value: 'none', label: '--' }, ...PRIORITY_OPTIONS];
+    const impactOptions = [{ value: 'none', label: '--' }, ...IMPACT_TYPES];
+
     // Convert REVIEW_STATUSES to Select format with labels
     const statusOptions = REVIEW_STATUSES.map((status) => ({
       value: status,
       label: REVIEW_STATUS_LABELS[status],
     }));
+
+    // Get current status description for helper text
+    const currentStatusDescription = REVIEW_STATUS_DESCRIPTIONS[formData.reviewStatus as ReviewStatus] || '';
 
     const issueTypeLabel = ISSUE_TYPE_LABELS[issue.issueType] || issue.issueType;
 
@@ -272,37 +282,93 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
             </div>
           )}
 
-          {/* Status */}
+          {/* Status with description */}
           <div className="mb-3">
-            <div>
-              <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">
-                Status *
-              </label>
-              <Select
-                value={reviewStatus}
-                onValueChange={(value) => setReviewStatus(value)}
-                options={statusOptions}
-                disabled={isPending}
-              />
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {/* Status */}
+              <div>
+                <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">
+                  Status *
+                </label>
+                <Select
+                  value={formData.reviewStatus}
+                  onValueChange={(value) => updateField('reviewStatus', value)}
+                  options={statusOptions}
+                  disabled={isPending}
+                />
+              </div>
+
+              {/* Priority */}
+              <div>
+                <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">
+                  Priority
+                </label>
+                <Select
+                  value={formData.priority?.toString() ?? 'none'}
+                  onValueChange={(value) => updateField('priority', value === 'none' ? undefined : parseInt(value))}
+                  options={priorityOptions}
+                  disabled={isPending}
+                />
+              </div>
+
+              {/* Impact Type */}
+              <div>
+                <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">
+                  Impact
+                </label>
+                <Select
+                  value={formData.impactType || 'none'}
+                  onValueChange={(value) => updateField('impactType', value === 'none' ? undefined : value)}
+                  options={impactOptions}
+                  disabled={isPending}
+                />
+              </div>
+
+              {/* Reviewer */}
+              <div>
+                <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">
+                  Reviewer *
+                </label>
+                <Input
+                  value={formData.reviewedBy}
+                  onChange={(e) => updateField('reviewedBy', e.target.value)}
+                  placeholder="Your name"
+                  disabled={isPending}
+                />
+              </div>
             </div>
             {/* Status description helper text */}
-            {REVIEW_STATUS_DESCRIPTIONS[reviewStatus as ReviewStatus] && reviewStatus !== 'unreviewed' && (
+            {currentStatusDescription && formData.reviewStatus !== 'unreviewed' && (
               <p className="mt-2 text-xs text-[var(--color-text-muted)] italic">
-                {REVIEW_STATUS_DESCRIPTIONS[reviewStatus as ReviewStatus]}
+                {currentStatusDescription}
               </p>
             )}
           </div>
 
-          {/* Reviewer Notes */}
+          {/* Justification Notes - for model training */}
           <div className="mb-3">
             <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">
-              Notes
+              Justification and analysis for the model
             </label>
             <Textarea
-              value={reviewerNotes}
-              onChange={(e) => setReviewerNotes(e.target.value)}
+              value={formData.justificationNotes ?? ''}
+              onChange={(e) => updateField('justificationNotes', e.target.value || undefined)}
               rows={2}
-              placeholder="Your notes on this issue..."
+              placeholder="Explain your reasoning for this classification..."
+              disabled={isPending}
+            />
+          </div>
+
+          {/* Team Notes - for developers */}
+          <div className="mb-3">
+            <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">
+              Notes for Development Team
+            </label>
+            <Textarea
+              value={formData.teamNotes ?? ''}
+              onChange={(e) => updateField('teamNotes', e.target.value || undefined)}
+              rows={2}
+              placeholder="Process notes, research tasks, questions..."
               disabled={isPending}
             />
           </div>
