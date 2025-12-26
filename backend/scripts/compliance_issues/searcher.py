@@ -513,32 +513,46 @@ class ComplianceIssueSearcher:
 
                     analysis = item.get('llm_analysis', {})
 
+                    # Collect extra analysis fields into justification_notes as JSON
+                    extra_fields = {}
+                    for key in ['incorporated_document', 'source_organization', 'version',
+                                'technology_type', 'alternative_methods', 'legal_rationale']:
+                        if analysis.get(key):
+                            extra_fields[key] = analysis[key]
+                    # Also include notes from LLM
+                    if analysis.get('notes'):
+                        extra_fields['llm_notes'] = analysis['notes']
+
+                    justification_notes = json.dumps(extra_fields) if extra_fields else None
+
                     # Insert into compliance_issues (upsert)
                     conn.execute(
                         """
                         INSERT INTO compliance_issues
                         (document_id, issue_type, term_matched, context, requirement_quote,
-                         from_statute, statute_citation, llm_confirmed, state, url)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                         from_statute, statute_citation, llm_confirmed, state, url, justification_notes)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                         ON CONFLICT (document_id, issue_type) DO UPDATE SET
                             term_matched = EXCLUDED.term_matched,
                             context = EXCLUDED.context,
                             requirement_quote = EXCLUDED.requirement_quote,
                             from_statute = EXCLUDED.from_statute,
                             llm_confirmed = EXCLUDED.llm_confirmed,
-                            url = EXCLUDED.url
+                            url = EXCLUDED.url,
+                            justification_notes = EXCLUDED.justification_notes
                         """,
                         (
                             document_id,
                             self.issue_config.db_issue_type,
                             item.get('term_matched'),
                             item.get('context'),
-                            analysis.get('requirement_quote'),
+                            analysis.get('requirement_quote') or '',  # NOT NULL field
                             analysis.get('from_statute'),
                             None,  # statute_citation - could add if needed
                             analysis.get('has_issue', False),  # llm_confirmed = has_issue
                             self.state_config.state_code,
                             item.get('url', ''),  # url from search results
+                            justification_notes,
                         )
                     )
                     saved += 1
@@ -546,6 +560,11 @@ class ComplianceIssueSearcher:
                 except Exception as e:
                     errors += 1
                     print(f"  Error saving {item.get('title', 'unknown')[:50]}: {e}")
+                    # Rollback to recover from aborted transaction state
+                    try:
+                        conn.rollback()
+                    except Exception:
+                        pass
 
             conn.commit()
 

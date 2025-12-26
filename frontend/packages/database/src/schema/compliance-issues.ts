@@ -49,14 +49,65 @@ export type ComplianceIssue = typeof complianceIssues.$inferSelect;
 export type NewComplianceIssue = typeof complianceIssues.$inferInsert;
 
 // Issue type constants
+// Keep in sync with: backend/scripts/compliance_issues/compliance_issues.yaml
 export const ISSUE_TYPES = [
+  // Communication & Submission
+  'mail_only',
+  'certified_mail',
+  'fax',
+  'obsolete_comm',
+  'landline',
+  // Payment
+  'check_payment',
+  'cash_only',
+  'no_credit_cards',
+  'in_person_payment',
+  // Signatures & Authentication
   'wet_signature',
+  'notarization',
+  'witness',
+  'embossed_seal',
+  'original_document',
+  // Physical Presence & Access
+  'in_person_submission',
+  'in_person_hearing',
+  'in_person_pickup',
+  'physical_forms',
+  'physical_inspection',
+  'physical_posting',
+  'bulletin_board',
+  // Technology & Media
+  'obsolete_media',
+  'microfiche',
+  'obsolete_software',
+  'typewriter',
+  'pdf_only',
+  'carbon_copy',
+  'newspaper',
+  // Document Format & Handling
+  'multiple_copies',
+  'paper_specs',
+  'photo_specs',
+  'letterhead',
+  'handwriting_specs',
+  'binding_required',
+  // Process & Tracking
+  'physical_log',
+  'routing_slip',
+  'storage_location',
+  'fixed_window',
+  'waiting_period',
+  // Reporting
+  'mandated_reports',
+  // External Standards
+  'incorporation_by_reference',
+  // Legacy (for backwards compatibility)
   'in_person',
   'paper_form',
   'notarized',
   'certified',
   'reporting_requirement',
-  'other'
+  'other',
 ] as const;
 export type IssueType = typeof ISSUE_TYPES[number];
 

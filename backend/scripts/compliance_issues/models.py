@@ -99,6 +99,25 @@ class DocumentFormatAnalysis(BaseComplianceAnalysis):
     )
 
 
+class IncorporationByReferenceAnalysis(BaseComplianceAnalysis):
+    """LLM analysis for incorporation by reference requirements."""
+    has_issue: bool = Field(
+        description="True if the regulation incorporates an external standard, code, or document by reference."
+    )
+    incorporated_document: Optional[str] = Field(
+        default=None,
+        description="The name of the document/standard being incorporated (e.g., 'International Building Code 2021', 'NFPA 101')"
+    )
+    source_organization: Optional[str] = Field(
+        default=None,
+        description="The organization that publishes the incorporated document (e.g., 'ICC', 'NFPA', 'ANSI', 'CFR')"
+    )
+    version: Optional[str] = Field(
+        default=None,
+        description="The version or year of the incorporated document if specified"
+    )
+
+
 # Map model names (from YAML) to actual classes
 RESPONSE_MODELS = {
     "BaseComplianceAnalysis": BaseComplianceAnalysis,
@@ -110,4 +129,5 @@ RESPONSE_MODELS = {
     "InPersonAnalysis": InPersonAnalysis,
     "PaymentAnalysis": PaymentAnalysis,
     "DocumentFormatAnalysis": DocumentFormatAnalysis,
+    "IncorporationByReferenceAnalysis": IncorporationByReferenceAnalysis,
 }
