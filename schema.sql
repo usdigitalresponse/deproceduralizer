@@ -420,7 +420,10 @@ CREATE TABLE compliance_issues (
 
   -- Metadata
   state VARCHAR(2) NOT NULL CHECK (state IN ('NY', 'NJ')),
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+  -- Unique constraint: one row per document/issue_type/occurrence
+  CONSTRAINT unique_document_issue_occurrence UNIQUE (document_id, issue_type, occurrence_number)
 );
 
 -- Indexes for compliance_issues
