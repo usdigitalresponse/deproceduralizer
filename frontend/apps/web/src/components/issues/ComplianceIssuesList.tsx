@@ -19,7 +19,6 @@ export function ComplianceIssuesList({ initialIssues, regulationContent }: Compl
   const handleIssueUpdated = useCallback((updatedIssue: {
     id: number;
     reviewStatus?: string;
-    reviewerNotes?: string;
   }) => {
     setIssues((prev) =>
       prev.map((issue) =>
@@ -27,7 +26,6 @@ export function ComplianceIssuesList({ initialIssues, regulationContent }: Compl
           ? {
               ...issue,
               reviewStatus: updatedIssue.reviewStatus ?? issue.reviewStatus,
-              reviewerNotes: updatedIssue.reviewerNotes ?? issue.reviewerNotes,
             }
           : issue
       )

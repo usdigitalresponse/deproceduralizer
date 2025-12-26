@@ -1138,18 +1138,22 @@ def refresh_compliance_stats(conn, state: str) -> int:
 
     Updates: compliance_issue_count, descendant_compliance_issue_count
 
+    NOTE: Only counts issues where requirement_found = TRUE (LLM-confirmed).
+    LLM-rejected matches (requirement_found = FALSE) are excluded from counts
+    but remain visible in review mode for QA purposes.
+
     Should be called after compliance issue detection.
     """
     print(f"  Computing compliance stats for {state}...")
     start = time.time()
 
     with conn.cursor() as cur:
-        # Direct compliance issue counts
+        # Direct compliance issue counts (only LLM-confirmed issues)
         cur.execute("""
             WITH direct_issues AS (
                 SELECT document_id, COUNT(*) as issue_count
                 FROM compliance_issues
-                WHERE state = %s
+                WHERE state = %s AND requirement_found = TRUE
                 GROUP BY document_id
             )
             UPDATE regulatory_documents rd

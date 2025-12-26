@@ -34,8 +34,8 @@ export const complianceIssues = pgTable('compliance_issues', {
   reviewStatus: varchar('review_status', { length: 50 }).default('unreviewed'), // 'unreviewed', 'confirmed', 'rejected_false_positive'
   reviewedBy: varchar('reviewed_by', { length: 255 }), // Who reviewed it
   reviewedAt: timestamp('reviewed_at'), // When it was reviewed
-  reviewerNotes: text('reviewer_notes'), // Human explanation of review decision
   justificationNotes: text('justification_notes'), // Justification and analysis for the model
+  teamNotes: text('team_notes'), // Notes for development team (replaces reviewer_notes)
   priority: integer('priority'), // Priority ranking
   impactType: varchar('impact_type', { length: 100 }), // Type of impact
 

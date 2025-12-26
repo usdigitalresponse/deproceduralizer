@@ -8,7 +8,6 @@ import { DeveloperStatusCounts } from './red-flags.repository';
 
 export interface UpdateComplianceIssueReviewInput {
   reviewStatus: ReviewStatus;
-  reviewerNotes?: string;
   reviewedBy?: string;
   justificationNotes?: string;
   priority?: number;
@@ -104,7 +103,6 @@ export class ComplianceIssuesRepository extends BaseRepository {
       .update(complianceIssues)
       .set({
         reviewStatus: data.reviewStatus,
-        reviewerNotes: data.reviewerNotes ?? null,
         reviewedBy: data.reviewedBy ?? null,
         reviewedAt: new Date(),
         justificationNotes: data.justificationNotes ?? null,
@@ -329,8 +327,8 @@ export class ComplianceIssuesRepository extends BaseRepository {
         reviewStatus: complianceIssues.reviewStatus,
         reviewedBy: complianceIssues.reviewedBy,
         reviewedAt: complianceIssues.reviewedAt,
-        reviewerNotes: complianceIssues.reviewerNotes,
         justificationNotes: complianceIssues.justificationNotes,
+        teamNotes: complianceIssues.teamNotes,
         priority: complianceIssues.priority,
         impactType: complianceIssues.impactType,
         // Developer fields
@@ -379,8 +377,8 @@ export class ComplianceIssuesRepository extends BaseRepository {
       reviewStatus: row.reviewStatus,
       reviewedBy: row.reviewedBy,
       reviewedAt: row.reviewedAt,
-      reviewerNotes: row.reviewerNotes,
       justificationNotes: row.justificationNotes,
+      teamNotes: row.teamNotes,
       priority: row.priority,
       impactType: row.impactType,
       developerStatus: row.developerStatus,
@@ -552,8 +550,8 @@ export class ComplianceIssuesRepository extends BaseRepository {
         reviewStatus: complianceIssues.reviewStatus,
         reviewedBy: complianceIssues.reviewedBy,
         reviewedAt: complianceIssues.reviewedAt,
-        reviewerNotes: complianceIssues.reviewerNotes,
         justificationNotes: complianceIssues.justificationNotes,
+        teamNotes: complianceIssues.teamNotes,
         priority: complianceIssues.priority,
         impactType: complianceIssues.impactType,
         // Developer fields
@@ -602,8 +600,8 @@ export class ComplianceIssuesRepository extends BaseRepository {
       reviewStatus: row.reviewStatus,
       reviewedBy: row.reviewedBy,
       reviewedAt: row.reviewedAt,
-      reviewerNotes: row.reviewerNotes,
       justificationNotes: row.justificationNotes,
+      teamNotes: row.teamNotes,
       priority: row.priority,
       impactType: row.impactType,
       developerStatus: row.developerStatus,
@@ -686,8 +684,8 @@ export class ComplianceIssuesRepository extends BaseRepository {
         reviewStatus: complianceIssues.reviewStatus,
         reviewedBy: complianceIssues.reviewedBy,
         reviewedAt: complianceIssues.reviewedAt,
-        reviewerNotes: complianceIssues.reviewerNotes,
         justificationNotes: complianceIssues.justificationNotes,
+        teamNotes: complianceIssues.teamNotes,
         priority: complianceIssues.priority,
         impactType: complianceIssues.impactType,
         developerStatus: complianceIssues.developerStatus,
@@ -733,8 +731,8 @@ export class ComplianceIssuesRepository extends BaseRepository {
       reviewStatus: row.reviewStatus,
       reviewedBy: row.reviewedBy,
       reviewedAt: row.reviewedAt,
-      reviewerNotes: row.reviewerNotes,
       justificationNotes: row.justificationNotes,
+      teamNotes: row.teamNotes,
       priority: row.priority,
       impactType: row.impactType,
       developerStatus: row.developerStatus,
