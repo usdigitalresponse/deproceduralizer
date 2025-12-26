@@ -75,6 +75,7 @@ export function ComplianceFilters({
     }),
   ];
   const sortOptions = [
+    { value: 'severity', label: 'Severity' },
     { value: 'createdAt', label: 'Date Created' },
     { value: 'issueType', label: 'Issue Type' },
     { value: 'reviewedAt', label: 'Last Reviewed' },

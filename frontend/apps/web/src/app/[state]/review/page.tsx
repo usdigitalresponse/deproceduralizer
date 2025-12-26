@@ -452,7 +452,7 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
 
   // Render based on review type
   if (reviewType === 'compliance') {
-    const sortBy = (queryParams.sortBy || 'createdAt') as 'issueType' | 'createdAt' | 'reviewedAt';
+    const sortBy = (queryParams.sortBy || 'createdAt') as 'issueType' | 'createdAt' | 'reviewedAt' | 'severity';
 
     // Parse boolean string filters
     const parseSeverity = (val?: string): 'high' | 'medium' | 'low' | 'all' | undefined => {

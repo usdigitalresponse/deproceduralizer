@@ -191,7 +191,7 @@ export async function getComplianceIssuesPaginated(
   options: {
     page: number;
     pageSize: number;
-    sortBy?: 'issueType' | 'createdAt' | 'reviewedAt';
+    sortBy?: 'issueType' | 'createdAt' | 'reviewedAt' | 'severity';
     sortOrder?: 'asc' | 'desc';
     filters?: {
       status?: string;

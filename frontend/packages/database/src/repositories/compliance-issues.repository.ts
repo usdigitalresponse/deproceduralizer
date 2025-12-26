@@ -50,7 +50,7 @@ export interface ComplianceIssuePaginationOptions {
   state: StateCode;
   page: number;
   pageSize: number;
-  sortBy?: 'issueType' | 'createdAt' | 'reviewedAt';
+  sortBy?: 'issueType' | 'createdAt' | 'reviewedAt' | 'severity';
   sortOrder?: 'asc' | 'desc';
   filters?: Omit<ComplianceIssueFilterOptions, 'state'>;
 }
@@ -303,6 +303,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       issueType: complianceIssues.issueType,
       createdAt: complianceIssues.createdAt,
       reviewedAt: complianceIssues.reviewedAt,
+      severity: complianceIssues.severity,
     }[sortBy] ?? complianceIssues.createdAt;
 
     const orderByClause = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
@@ -526,6 +527,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       issueType: complianceIssues.issueType,
       createdAt: complianceIssues.createdAt,
       reviewedAt: complianceIssues.reviewedAt,
+      severity: complianceIssues.severity,
     }[sortBy] ?? complianceIssues.createdAt;
 
     const orderByClause = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
