@@ -208,30 +208,31 @@ class ComplianceIssueSearcher:
         return matches
 
     # Common instructions appended to all compliance issue prompts
+    # Field names match database columns: requirement_found, requirement_text, required_by_statute, severity, impact_assessment
     LIST_OUTPUT_INSTRUCTIONS = """
 
-    IMPORTANT: Return a LIST with at least one item. Each item needs: has_issue, requirement_quote, from_statute, severity, notes.
+    IMPORTANT: Return a LIST with at least one item. Each item needs: requirement_found, requirement_text, required_by_statute, severity, impact_assessment.
 
     OUTPUT FORMAT:
-    - If you find issue(s): return each with has_issue=true and severity 1-10
-    - If NO issue: return ONE item with has_issue=false, severity=null, quote showing WHY there's no issue
+    - If you find issue(s): return each with requirement_found=true and severity 1-10
+    - If NO issue: return ONE item with requirement_found=false, severity=null, requirement_text showing WHY there's no issue
 
     Example with 2 issues found:
     {
       "issues": [
-        {"has_issue": true, "requirement_quote": "shall be signed in ink", "from_statute": false, "severity": 7, "notes": "Explicit ink requirement"},
-        {"has_issue": true, "requirement_quote": "original signature required", "from_statute": true, "severity": 8, "notes": "Statute mandates original"}
+        {"requirement_found": true, "requirement_text": "shall be signed in ink", "required_by_statute": false, "severity": 7, "impact_assessment": "Explicit ink requirement"},
+        {"requirement_found": true, "requirement_text": "original signature required", "required_by_statute": true, "severity": 8, "impact_assessment": "Statute mandates original"}
       ]
     }
 
     Example with NO issue (always return one item explaining why):
     {
       "issues": [
-        {"has_issue": false, "requirement_quote": "electronic or digital signatures are acceptable", "from_statute": null, "severity": null, "notes": "Regulation explicitly permits electronic signatures, no wet signature requirement"}
+        {"requirement_found": false, "requirement_text": "electronic or digital signatures are acceptable", "required_by_statute": null, "severity": null, "impact_assessment": "Regulation explicitly permits electronic signatures, no wet signature requirement"}
       ]
     }
 
-    SEVERITY RATING (1-10 scale, only when has_issue=true):
+    SEVERITY RATING (1-10 scale, only when requirement_found=true):
     - 10: Complete barrier (no alternatives, major burden on public)
     - 7-9: Significant barrier (limited alternatives, notable burden)
     - 4-6: Moderate issue (some alternatives exist, inconvenient)
@@ -581,7 +582,7 @@ class ComplianceIssueSearcher:
         confirmed_issues = sum(
             1 for r in analyzed
             for issue in r.get('llm_analysis', {}).get('issues', [])
-            if issue.get('has_issue')
+            if issue.get('requirement_found')
         )
         print(f"\nSaving {len(analyzed)} documents ({confirmed_issues} confirmed issues, {total_rows} total rows)...")
 
@@ -607,18 +608,6 @@ class ComplianceIssueSearcher:
 
                     # Save each issue as a separate row (including "no issue" explanations)
                     for occurrence_num, issue in enumerate(issues, start=1):
-                        has_issue = issue.get('has_issue', False)
-
-                        # Build impact_assessment from notes and extra fields
-                        impact_parts = []
-                        if issue.get('notes'):
-                            impact_parts.append(issue['notes'])
-                        # Include any issue-specific details
-                        for key in ['technology_type', 'alternative_methods', 'legal_rationale']:
-                            if issue.get(key):
-                                impact_parts.append(f"{key}: {issue[key]}")
-                        impact_assessment = ' | '.join(impact_parts) if impact_parts else None
-
                         conn.execute(
                             """
                             INSERT INTO compliance_issues
@@ -634,11 +623,11 @@ class ComplianceIssueSearcher:
                                 item.get('term_matched'),  # matched_pattern
                                 item.get('context'),  # matched_context
                                 item.get('url', ''),
-                                has_issue,  # requirement_found
-                                issue.get('requirement_quote'),  # requirement_text
-                                issue.get('from_statute'),  # required_by_statute
-                                issue.get('severity'),  # severity (null if has_issue=False)
-                                impact_assessment,
+                                issue.get('requirement_found', False),
+                                issue.get('requirement_text'),
+                                issue.get('required_by_statute'),
+                                issue.get('severity'),
+                                issue.get('impact_assessment'),
                                 self.state_config.state_code,
                             )
                         )
@@ -674,11 +663,11 @@ class ComplianceIssueSearcher:
         confirmed_issues = sum(
             1 for r in results
             for issue in r.get('llm_analysis', {}).get('issues', [])
-            if issue.get('has_issue')
+            if issue.get('requirement_found')
         )
         docs_with_issues = sum(
             1 for r in results
-            if any(issue.get('has_issue') for issue in r.get('llm_analysis', {}).get('issues', []))
+            if any(issue.get('requirement_found') for issue in r.get('llm_analysis', {}).get('issues', []))
         )
         with_statute_refs = sum(1 for r in results if r.get('statute_citations'))
 
@@ -687,10 +676,10 @@ class ComplianceIssueSearcher:
         from_agency_count = 0
         for r in results:
             for issue in r.get('llm_analysis', {}).get('issues', []):
-                if issue.get('has_issue'):
-                    if issue.get('from_statute') is True:
+                if issue.get('requirement_found'):
+                    if issue.get('required_by_statute') is True:
                         from_statute_count += 1
-                    elif issue.get('from_statute') is False:
+                    elif issue.get('required_by_statute') is False:
                         from_agency_count += 1
 
         print(f"\nTotal documents searched: {total_docs}")
@@ -716,14 +705,14 @@ class ComplianceIssueSearcher:
                 for i, issue in enumerate(issues, 1):
                     if shown >= 30:
                         break
-                    if not issue.get('has_issue'):
+                    if not issue.get('requirement_found'):
                         continue  # Skip "no issue" explanations
-                    from_stat = issue.get('from_statute')
+                    from_stat = issue.get('required_by_statute')
                     source = "FROM STATUTE" if from_stat is True else "AGENCY-ADDED" if from_stat is False else "?"
                     severity = issue.get('severity', '?')
                     print(f"\n[{source}] [Sev:{severity}] {r['title'][:50]}... (#{i})")
                     print(f"   {prefix.upper()} {r.get(f'{prefix}_section', 'Unknown')}")
-                    quote = issue.get('requirement_quote', 'N/A')
+                    quote = issue.get('requirement_text', 'N/A')
                     print(f"   Quote: \"{quote[:100] if quote else 'N/A'}\"")
                     if r.get('statute_citations'):
                         print(f"   Statute refs: {', '.join(r['statute_citations'][:3])}")
@@ -757,7 +746,7 @@ class ComplianceIssueSearcher:
                         'doc': r,
                         'issue': issue,
                         'occurrence': i,
-                        'has_issue': True,
+                        'requirement_found': issue.get('requirement_found', False),
                     })
             else:
                 # No issues found for this document
@@ -765,15 +754,15 @@ class ComplianceIssueSearcher:
                     'doc': r,
                     'issue': None,
                     'occurrence': 0,
-                    'has_issue': False,
+                    'requirement_found': False,
                 })
 
         # Count stats
         total = len(rows)
-        has_issue_yes = sum(1 for row in rows if row['has_issue'])
+        has_issue_yes = sum(1 for row in rows if row['requirement_found'])
         has_issue_no = total - has_issue_yes
-        from_statute = sum(1 for row in rows if row['issue'] and row['issue'].get('from_statute') is True)
-        from_agency = sum(1 for row in rows if row['issue'] and row['issue'].get('from_statute') is False)
+        from_statute = sum(1 for row in rows if row['issue'] and row['issue'].get('required_by_statute') is True)
+        from_agency = sum(1 for row in rows if row['issue'] and row['issue'].get('required_by_statute') is False)
 
         html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -886,20 +875,20 @@ class ComplianceIssueSearcher:
         for row in rows:
             r = row['doc']
             issue = row['issue']
-            has_issue = row['has_issue']
+            requirement_found = row['requirement_found']
             occurrence = row['occurrence']
 
-            quote = issue.get('requirement_quote', '') if issue else ''
-            from_stat = issue.get('from_statute') if issue else None
+            quote = issue.get('requirement_text', '') if issue else ''
+            from_stat = issue.get('required_by_statute') if issue else None
             severity = issue.get('severity', '') if issue else ''
             statute_refs = r.get('statute_citations', [])
 
-            issue_display = f'<span class="yes">YES #{occurrence}</span>' if has_issue else '<span class="no">no</span>'
+            issue_display = f'<span class="yes">YES #{occurrence}</span>' if requirement_found else '<span class="no">no</span>'
 
-            if has_issue and from_stat is True:
+            if requirement_found and from_stat is True:
                 source_display = '<span class="from-statute">From Statute</span>'
                 source_data = 'statute'
-            elif has_issue and from_stat is False:
+            elif requirement_found and from_stat is False:
                 source_display = '<span class="from-agency">Agency-Added</span>'
                 source_data = 'agency'
             else:
@@ -913,7 +902,7 @@ class ComplianceIssueSearcher:
             search_text = f"{r.get('title', '')} {quote}".lower()
             severity_display = f'<span style="font-weight:bold">{severity}</span>' if severity else '-'
 
-            html += f"""                    <tr data-issue="{'yes' if has_issue else 'no'}" data-source="{source_data}" data-search="{escape(search_text)}">
+            html += f"""                    <tr data-issue="{'yes' if requirement_found else 'no'}" data-source="{source_data}" data-search="{escape(search_text)}">
                         <td>{issue_display}</td>
                         <td>{source_display}</td>
                         <td>{severity_display}</td>
