@@ -73,7 +73,6 @@ deproceduralizer/
 │           ├── src/schema/           # Table definitions
 │           └── src/repositories/     # Data access layer
 │
-├── schema.sql                        # PostgreSQL schema
 ├── DATABASE_SETUP.md                 # Database setup guide
 └── .env                              # Environment variables (gitignored)
 ```
@@ -111,11 +110,7 @@ For the web app, also create `frontend/apps/web/.env.local` with the same `DATAB
 
 ### 3. Set Up Database
 
-```bash
-psql $DATABASE_URL < schema.sql
-```
-
-See `DATABASE_SETUP.md` for detailed Postgres/Neon setup instructions.
+See `DATABASE_SETUP.md` for detailed Postgres/Neon setup instructions and how to run migrations.
 
 ### 4. Run the Pipeline
 
@@ -351,7 +346,7 @@ This project uses Claude Code hooks to automate development workflow reminders:
 | `check-remote-changes.sh` | SessionStart | Alerts when main branch has new commits not in current branch |
 | `pre-push-reminder.py` | PreToolUse (git push) | Prompts to run smoke tests before pushing |
 | `pre-commit-docs-reminder.py` | PreToolUse (git commit) | Prompts to update documentation before committing |
-| `schema-update-reminder.py` | PostToolUse (schema.sql edit) | Requires database.md update when schema changes |
+| `schema-update-reminder.py` | PostToolUse (schema edit) | Requires schema.md update when schema changes |
 
 Hooks are configured in `.claude/settings.json` and scripts are in `.claude/hooks/`.
 
@@ -359,7 +354,7 @@ Hooks are configured in `.claude/settings.json` and scripts are in `.claude/hook
 
 1. **Backend**: Add new scrapers or analysis scripts in `backend/scripts/`
 2. **Frontend**: Components in `frontend/apps/web/src/components/`, server actions in `lib/actions/`
-3. **Database**: Schema changes in `frontend/packages/database/src/schema/`, update `schema.sql`
+3. **Database**: Schema in `frontend/packages/database/src/schema/`, migrations in `frontend/packages/database/migrations/`
 
 ## License
 

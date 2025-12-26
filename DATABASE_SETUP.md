@@ -17,15 +17,20 @@ DATABASE_URL=postgresql://user:password@host/dbname
 
 ### 3. Create Tables
 
-Run the schema to create all tables and indexes:
+The database schema is defined in `frontend/packages/database/src/schema/`.
+
+For a new database, run all migrations in order:
 
 ```bash
-psql $DATABASE_URL < schema.sql
+for f in frontend/packages/database/migrations/*.sql; do
+  echo "Running $f..."
+  psql $DATABASE_URL -f "$f"
+done
 ```
 
-Or if using a psql connection directly:
+Or run a specific migration:
 ```bash
-psql -h your-host -U your-user -d your-database < schema.sql
+psql $DATABASE_URL -f frontend/packages/database/migrations/0007_add_display_columns.sql
 ```
 
 ## Migrate Existing Data

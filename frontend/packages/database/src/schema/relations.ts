@@ -3,6 +3,8 @@ import { regulatoryDocuments } from './regulatory-documents';
 import { analyses } from './analyses';
 import { redFlags } from './red-flags';
 import { statuteReferences } from './statute-references';
+import { statutes } from './statutes';
+import { regulationStatuteLinks } from './regulation-statute-links';
 import { documentNotes } from './document-notes';
 import { definitions } from './definitions';
 import { definitionDocumentOccurrences } from './definition-document-occurrences';
@@ -16,6 +18,7 @@ export const regulatoryDocumentsRelations = relations(regulatoryDocuments, ({ on
   children: many(regulatoryDocuments, { relationName: 'parentChild' }),
   analyses: many(analyses),
   statuteReferences: many(statuteReferences),
+  statuteLinks: many(regulationStatuteLinks),
   notes: many(documentNotes),
   definitions: many(definitions),
 }));
@@ -77,3 +80,26 @@ export const definitionDocumentOccurrencesRelations = relations(
     }),
   })
 );
+
+// Statutes table relations (self-referencing hierarchy + links to regulations)
+export const statutesRelations = relations(statutes, ({ one, many }) => ({
+  parent: one(statutes, {
+    fields: [statutes.parentId],
+    references: [statutes.id],
+    relationName: 'statuteParentChild',
+  }),
+  children: many(statutes, { relationName: 'statuteParentChild' }),
+  regulationLinks: many(regulationStatuteLinks),
+}));
+
+// Regulation-statute links crosswalk table relations
+export const regulationStatuteLinksRelations = relations(regulationStatuteLinks, ({ one }) => ({
+  regulation: one(regulatoryDocuments, {
+    fields: [regulationStatuteLinks.regulationId],
+    references: [regulatoryDocuments.id],
+  }),
+  statute: one(statutes, {
+    fields: [regulationStatuteLinks.statuteId],
+    references: [statutes.id],
+  }),
+}));

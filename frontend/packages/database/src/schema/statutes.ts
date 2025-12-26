@@ -1,0 +1,48 @@
+import {
+  pgTable,
+  bigserial,
+  integer,
+  varchar,
+  text,
+  timestamp,
+  bigint,
+  unique
+} from 'drizzle-orm/pg-core';
+
+/**
+ * Statutes table - stores state statutes (NJ, NY) for linking to regulations.
+ *
+ * Related to:
+ * - regulation_statute_links: Links regulations to statutes they reference
+ *
+ * For NJ: Citation format is "Title:Chapter-Section" (e.g., "52:27D-119")
+ */
+export const statutes = pgTable('statutes', {
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
+  citation: varchar('citation', { length: 50 }).notNull(),
+  state: varchar('state', { length: 2 }).notNull(),
+  title: text('title'),
+  content: text('content'),
+
+  // NJ-specific fields (NJSA - New Jersey Statutes Annotated)
+  njsaTitle: varchar('njsa_title', { length: 10 }),
+  njsaTitleName: text('njsa_title_name'),
+  njsaChapter: varchar('njsa_chapter', { length: 20 }),
+  njsaSection: varchar('njsa_section', { length: 20 }),
+  njsaSectionName: text('njsa_section_name'),
+
+  // Hierarchy for tree navigation (Issue #48)
+  parentId: bigint('parent_id', { mode: 'number' }),
+  hierarchyLevel: varchar('hierarchy_level', { length: 50 }),  // 'title', 'chapter', 'section'
+  hierarchyPath: text('hierarchy_path'),
+
+  // Metadata
+  sourceIndex: integer('source_index'),
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  // Unique constraint on state + citation
+  uniqueStateCitation: unique().on(table.state, table.citation),
+}));
+
+export type Statute = typeof statutes.$inferSelect;
+export type NewStatute = typeof statutes.$inferInsert;

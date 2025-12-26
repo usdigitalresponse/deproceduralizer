@@ -3,6 +3,7 @@ export * from './analyses';
 export * from './red-flags';
 export * from './compliance-issues';
 export * from './statute-references';
+export * from './statutes';
 export * from './document-notes';
 export * from './definitions';
 export * from './definition-document-occurrences';

@@ -86,11 +86,9 @@ export const regulatoryDocuments = pgTable('regulatory_documents', {
   complianceIssueCount: integer('compliance_issue_count').default(0),
   descendantComplianceIssueCount: integer('descendant_compliance_issue_count').default(0),
 
-  // Analysis exclusion
-  excludeFromAnalysis: boolean('exclude_from_analysis').default(false),
-  excludedAt: timestamp('excluded_at'),
-  excludedBy: varchar('excluded_by', { length: 255 }),
-  excludedReason: text('excluded_reason'),
+  // Regulatory status (for reserved/repealed/recodified sections)
+  regulatoryStatus: varchar('regulatory_status', { length: 20 }).default('active'),
+  recodifiedTo: varchar('recodified_to', { length: 100 }),
 }, (table) => ({
   uniquePerPull: unique().on(table.state, table.sourceIndex, table.type),
 }));

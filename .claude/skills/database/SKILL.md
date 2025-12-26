@@ -32,12 +32,13 @@ description: Query and manage the Deproceduralizer Neon PostgreSQL database. Use
 | Table | Purpose |
 |-------|---------|
 | `regulatory_documents` | Main table - regulatory docs with hierarchy (50 cols) |
+| `statutes` | NJ statutes with hierarchy (title→chapter→section) |
 | `analyses` | Analysis results per document |
 | `red_flags` | Individual red flags (12 categories) |
 | `definitions` | Extracted terms and definitions |
 | `compliance_issues` | Wet signatures, in-person requirements |
 | `statute_references` | Statute citations |
-| `regulation_statute_links` | Regulation-to-statute relationships |
+| `regulation_statute_links` | Regulation-to-statute links with link_type classification |
 | `definition_extraction_log` | Tracks processed regulations |
 
 **Views**: `latest_analyses`, `document_hierarchy`
@@ -47,6 +48,7 @@ description: Query and manage the Deproceduralizer Neon PostgreSQL database. Use
 - **[schema.md](schema.md)** - Full table schemas, columns, constraints
 - **[queries.md](queries.md)** - Common SQL patterns by domain
 - **[maintenance.md](maintenance.md)** - Hierarchy recomputation, migrations, auditing
+- **[bulk-operations.md](bulk-operations.md)** - Batch inserts, upserts, performance patterns
 
 ## ORM Access
 

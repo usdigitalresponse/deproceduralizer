@@ -34,14 +34,16 @@ Main table with hierarchy. **50 columns** - use `./scripts/db-query.sh describe 
 | `descendant_max_severity` | integer | Max severity in subtree |
 | `has_descendant_analysis` | boolean | Any descendant has analysis |
 
-**Analysis exclusion:**
+**Regulatory status (for reserved/repealed/recodified sections):**
 
 | Column | Type | Description |
 |--------|------|-------------|
-| `exclude_from_analysis` | boolean | TRUE to skip in red flag/definition/compliance analysis |
-| `excluded_at` | timestamp | When exclusion was set |
-| `excluded_by` | varchar(255) | Who set the exclusion |
-| `excluded_reason` | text | Optional reason for exclusion |
+| `regulatory_status` | varchar(20) | 'active' (default), 'reserved', 'repealed', 'recodified', or 'expired' |
+| `recodified_to` | varchar(100) | Target citation where content moved (e.g., "16:44-3.2") |
+
+**Indexes**: `idx_documents_regulatory_status`, `idx_documents_regulatory_status_state`
+
+**Detection**: Run `python backend/scripts/detect_regulatory_status.py` to populate from title patterns.
 
 **Unique Constraint**: `(state, source_index, type)`
 
@@ -107,7 +109,7 @@ Main table with hierarchy. **50 columns** - use `./scripts/db-query.sh describe 
 | `url` | text | Source URL |
 | `term` | text | Term being defined |
 | `verbatim_text` | text | Exact text from regulation |
-| `is_verbatim_text_complete` | boolean | Whether verbatim_text is a complete, usable definition on its own |
+| `is_verbatim` | boolean | Whether verbatim_text is complete |
 | `rephrased_definition` | text | Plain-language definition |
 | `scope` | text | Applicability scope text |
 | `scope_level` | varchar(20) | Hierarchy level: section/part/chapter/title |
@@ -115,8 +117,6 @@ Main table with hierarchy. **50 columns** - use `./scripts/db-query.sh describe 
 | `definition_type` | varchar(20) | formal or abbreviation |
 | `normalized_term` | text | GENERATED: LOWER(TRIM(term)) |
 | `is_cross_reference` | boolean | Points to another source |
-| `reference_completeness` | varchar(20) | pure_pointer (no inline def) or hybrid (inline + reference) |
-| `reference_target` | varchar(30) | same_corpus, federal, external_standard, or other |
 | `definition_overlap` | float | 0.0-1.0 overlap with regulation |
 | `source_location` | text | Where found in document |
 | `model_version` | varchar(100) | LLM model used |
@@ -128,25 +128,6 @@ Main table with hierarchy. **50 columns** - use `./scripts/db-query.sh describe 
 | `justification_notes` | text | Justification and analysis for the model (required if correcting) |
 | `team_notes` | text | Notes for development team |
 | `original_values` | jsonb | Original LLM values when corrections are made |
-| `developer_status` | varchar(50) | unresolved, resolved, pending, backlogged, need_more_info |
-| `developer_assigned` | varchar(50) | Michael or Abigail |
-| `developer_notes` | text | Developer implementation notes |
-| `resolution_type` | varchar(50) | implemented, not_implemented |
-| `resolution_comments` | text | Comments about resolution |
-| `developer_question` | text | Question for reviewer (when need_more_info) |
-| `developer_checked_at` | timestamp | When developer last updated |
-
-**Cross-Reference Categorization (two dimensions):**
-
-1. `reference_completeness`: How much of the definition is self-contained
-   - `pure_pointer`: Definition exists entirely elsewhere (e.g., "as defined in N.J.A.C. 3A:23-1.1")
-   - `hybrid`: Has substantive inline definition PLUS external reference
-
-2. `reference_target`: Where the reference points
-   - `same_corpus`: Other NJ/NY regulations (N.J.A.C., N.J.S.A., NYCRR)
-   - `federal`: Federal law/regulations (CFR, USC, Internal Revenue Code)
-   - `external_standard`: Industry orgs, professional bodies (AMA, Coast Guard, NFPA, ASTM)
-   - `other`: Other jurisdictions, international standards, unclear references
 
 **Review Status Values (Definitions):**
 - `unreviewed` - Default, not yet reviewed
@@ -154,7 +135,7 @@ Main table with hierarchy. **50 columns** - use `./scripts/db-query.sh describe 
 - `corrected` - Fields were edited/corrected
 - `false_positive` - Not actually a definition
 
-**Indexes:** `idx_definitions_scope_document`, `idx_definitions_scope_level`, `idx_definitions_normalized_term`, `idx_definitions_type`, `idx_definitions_review_status`, `idx_definitions_developer_status`, `idx_definitions_developer_filters`
+**Indexes:** `idx_definitions_scope_document`, `idx_definitions_scope_level`, `idx_definitions_normalized_term`, `idx_definitions_type`, `idx_definitions_review_status`
 
 ## definition_document_occurrences
 
@@ -225,18 +206,69 @@ Tracks compliance issues found in regulations. Each (document_id, issue_type) pa
 | `public_laws` | text[] | Public law references |
 | `acts` | text[] | Act references |
 
-## regulation_statute_links
+## statutes
+
+Stores statute content (N.J.S.A., etc.) - separate from regulatory_documents.
+Hierarchy: Title → Chapter → Section (for NJ statutes).
 
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | bigserial | Primary key |
-| `regulation_id` | bigint | FK to regulatory_documents (regulation) |
-| `statute_id` | bigint | FK to regulatory_documents (statute) |
-| `citation` | varchar(50) | Citation (e.g., "52:27D-119") |
-| `context` | text | Surrounding text |
-| `link_type` | varchar(50) | enabling_authority, reference, amendment |
+| `citation` | varchar(50) | Full citation (e.g., "52:27D-119" for sections, "title:52" for titles, "52:27D" for chapters) |
+| `state` | varchar(2) | NY, NJ |
+| `title` | text | Human-readable title/name |
+| `content` | text | Full text content (for sections) |
+| `njsa_title` | varchar(10) | Title number |
+| `njsa_title_name` | text | Title name |
+| `njsa_chapter` | varchar(20) | Chapter number |
+| `njsa_section` | varchar(20) | Section number |
+| `njsa_section_name` | text | Section name |
+| `parent_id` | bigint | FK to parent statute (self-referencing) |
+| `hierarchy_level` | varchar(50) | title, chapter, section |
+| `hierarchy_path` | text | Full path for display |
+| `source_index` | integer | Index from parsing process |
+| `created_at` | timestamp | When created |
 
-**Unique Constraint**: `(regulation_id, statute_id, citation)`
+**Unique Constraint**: `(state, citation)`
+
+**Hierarchy:**
+- **Titles** (68): `citation = "title:52"`, `hierarchy_level = "title"`, `parent_id = NULL`
+- **Chapters** (1,891): `citation = "52:27D"`, `hierarchy_level = "chapter"`, `parent_id = title.id`
+- **Sections** (54,800+): `citation = "52:27D-119"`, `hierarchy_level = "section"`, `parent_id = chapter.id`
+
+**Population:** Run `python backend/scripts/nj_statutes.py` to parse and populate.
+
+## regulation_statute_links
+
+Many-to-many crosswalk between regulations and statutes. Tracks all citations including unmatched/obsolete ones.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | bigserial | Primary key |
+| `regulation_id` | bigint | FK to regulatory_documents |
+| `statute_id` | bigint | FK to **statutes** (nullable for unmatched) |
+| `citation` | varchar(50) | Citation as found in text (e.g., "52:27D-119") |
+| `context` | text | Surrounding text where citation was found |
+| `link_type` | varchar(50) | Auto-detected: `enabling_authority`, `definition`, `requirement`, `reference` |
+| `match_status` | varchar(50) | `matched`, `corrected`, `unmatched`, `obsolete` |
+| `original_citation` | varchar(50) | If corrected, what was originally in text |
+| `correction_notes` | text | Why correction was made |
+| `reviewed_at` | timestamp | When reviewed |
+| `reviewed_by` | varchar(255) | Who reviewed |
+
+**Unique Constraint**: `(regulation_id, citation)`
+
+**Match Status Values:**
+- `matched` - Citation found exact match in statutes table
+- `corrected` - Subsection letter stripped (e.g., `52:14B-1e` → `52:14B-1`), `original_citation` has original text
+- `obsolete` - Chapter exists but section not found (auto-detected likely repealed), `correction_notes` explains
+- `unmatched` - No matching statute found and chapter doesn't exist (may be typo or different system)
+
+**Link Type Detection (regex-based):**
+- `enabling_authority` - "pursuant to", "CHAPTER AUTHORITY:", "established pursuant to"
+- `definition` - "as defined in/by", "means ... N.J.S.A."
+- `requirement` - "as required by", "in accordance with", "subject to"
+- `reference` - default for general mentions
 
 ## definition_extraction_log
 

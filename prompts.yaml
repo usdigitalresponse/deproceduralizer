@@ -689,3 +689,1603 @@ compliance_obsolete_tech:
 
     Determine whether the reference to obsolete technology (telegram, telex, pager, etc.)
     is an active requirement or permitted method, or just historical/definitional.
+
+
+# =============================================================================
+# SPECIALIZED COMPLIANCE ISSUE PROMPTS (40 types)
+# =============================================================================
+#
+# Each prompt is tailored to detect a specific type of compliance issue.
+# All prompts follow the same structure:
+#   - system: Static verification logic (cached across batch requests)
+#   - template: Dynamic content with {regulation_context} and {statute_context}
+#
+
+# -----------------------------------------------------------------------------
+# COMMUNICATION & SUBMISSION METHODS
+# -----------------------------------------------------------------------------
+
+# Note: compliance_mail_only, compliance_certified_mail, compliance_fax,
+# compliance_obsolete_tech, compliance_wet_signature are defined above
+
+compliance_landline:
+  description: |
+    Detects requirements for landline/telephone-specific communication.
+    Keywords: "by telephone," "telephone call," "verbal authorization," "landline," "touch-tone"
+
+  system: |
+    You analyze regulations for LANDLINE/TELEPHONE-SPECIFIC requirements.
+
+    This section references telephone communication. Determine whether a phone call
+    is REQUIRED for a process that could reasonably be handled online or in writing,
+    or whether it is simply offered as one contact option among many.
+
+    Flag only if a phone call is mandated for something that could be accomplished
+    through a web form or written submission.
+
+    This IS a compliance issue when:
+    - A phone call is REQUIRED (not optional)
+    - The process could reasonably be handled online or in writing
+    - No modern alternatives (web form, email, online portal) are mentioned
+
+    This is NOT a compliance issue when:
+    - Telephone is just one contact option among several
+    - Phone is offered as a convenience, not a requirement
+    - The nature of the interaction genuinely requires verbal communication
+
+    Respond with:
+    - has_issue: true if phone call is mandated for something that could be done online/in writing
+    - requirement_quote: exact quote establishing the telephone requirement
+    - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+    - notes: any additional context
+
+  template: |
+    Analyze this regulation for landline/telephone requirements:
+
+    REGULATION TEXT:
+    {regulation_context}
+
+    STATUTE CONTEXT:
+    {statute_context}
+
+    Determine whether a phone call is REQUIRED for a process that could reasonably
+    be handled online or in writing.
+
+
+# -----------------------------------------------------------------------------
+# PAYMENT
+# -----------------------------------------------------------------------------
+
+compliance_check_payment:
+  description: |
+    Detects requirements for check or money order payment only.
+    Keywords: "check," "money order," "cashier's check," "certified check," "payable to"
+
+  system: |
+    You analyze regulations for CHECK/MONEY ORDER payment requirements.
+
+    This section references payment by check or money order. Determine whether this
+    is the ONLY permitted payment method, or whether credit card, debit card, ACH,
+    or online payment options are also available.
+
+    If modern electronic payment is equally permitted, this is a false positive.
+    Flag only if check/money order appears to be required or is the only option.
+
+    This IS a compliance issue when:
+    - Check or money order is the ONLY payment method mentioned
+    - Electronic payment methods are not offered as alternatives
+    - The language suggests check/money order is required
+
+    This is NOT a compliance issue when:
+    - Check is one option among several including electronic payment
+    - Credit card, debit, ACH, or online payment is also mentioned
+    - The regulation just provides payment address without mandating method
+
+    Respond with:
+    - has_issue: true if check/money order is required or only option
+    - requirement_quote: exact quote about the payment requirement
+    - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+    - notes: any additional context
+
+  template: |
+    Analyze this regulation for check/money order payment requirements:
+
+    REGULATION TEXT:
+    {regulation_context}
+
+    STATUTE CONTEXT:
+    {statute_context}
+
+    Determine whether check/money order is the ONLY payment method, or whether
+    electronic payment options are also available.
+
+
+compliance_cash_only:
+  description: |
+    Detects cash-only or exact-change payment requirements.
+    Keywords: "cash only," "exact change," "no change provided," "cash payment"
+
+  system: |
+    You analyze regulations for CASH-ONLY payment requirements.
+
+    This section references cash payment. Confirm that cash is REQUIRED or is the
+    only payment option, rather than simply being one of several accepted methods.
+
+    If electronic payment methods are also accepted, this is a false positive.
+
+    This IS a compliance issue when:
+    - Cash is explicitly required ("cash only")
+    - Exact change is required with no alternatives
+    - No electronic or check payment options are mentioned
+
+    This is NOT a compliance issue when:
+    - Cash is one accepted method among several
+    - Electronic payment is also available
+    - The reference is incidental rather than a requirement
+
+    Respond with:
+    - has_issue: true if cash is required or only option
+    - requirement_quote: exact quote about the cash requirement
+    - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+    - notes: any additional context
+
+  template: |
+    Analyze this regulation for cash-only payment requirements:
+
+    REGULATION TEXT:
+    {regulation_context}
+
+    STATUTE CONTEXT:
+    {statute_context}
+
+    Confirm whether cash is REQUIRED or is the only payment option.
+
+
+compliance_no_credit_cards:
+  description: |
+    Detects prohibitions on credit/debit card payments.
+    Keywords: "no credit cards," "credit cards not accepted," "cash or check only"
+
+  system: |
+    You analyze regulations for PROHIBITIONS ON ELECTRONIC PAYMENT.
+
+    This section appears to prohibit or exclude electronic payment methods. Confirm
+    that this is an active prohibition rather than outdated language that has been
+    superseded by current practice.
+
+    Flag if the prohibition appears to be in force.
+
+    This IS a compliance issue when:
+    - Credit/debit cards are explicitly prohibited
+    - Electronic payment is explicitly excluded
+    - Only cash or check are listed as accepted methods
+
+    This is NOT a compliance issue when:
+    - The language is clearly outdated or superseded
+    - Other sections or current practice allow electronic payment
+    - The prohibition is for a specific narrow purpose with rationale
+
+    Respond with:
+    - has_issue: true if electronic payment prohibition is active
+    - requirement_quote: exact quote about the prohibition
+    - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+    - notes: any additional context
+
+  template: |
+    Analyze this regulation for credit/debit card prohibitions:
+
+    REGULATION TEXT:
+    {regulation_context}
+
+    STATUTE CONTEXT:
+    {statute_context}
+
+    Confirm whether the prohibition on electronic payment is active.
+
+
+compliance_in_person_payment:
+  description: |
+    Detects requirements for in-person payment.
+    Keywords: "pay in person," "payment at the office," "pay at the counter"
+
+  system: |
+    You analyze regulations for IN-PERSON PAYMENT requirements.
+
+    This section requires payment to be made in person. Determine whether there is
+    a clear rationale for in-person payment (e.g., combined with a required in-person
+    inspection or identity verification), or whether this is simply a legacy requirement.
+
+    If online or mail-in payment would reasonably suffice, flag it.
+
+    This IS a compliance issue when:
+    - In-person payment is required without clear rationale
+    - Online or mail payment would reasonably work
+    - The in-person requirement appears to be legacy rather than purposeful
+
+    This is NOT a compliance issue when:
+    - In-person payment is combined with required inspection or ID verification
+    - There is a stated rationale for physical presence
+    - Online/mail payment is also offered as an alternative
+
+    Respond with:
+    - has_issue: true if in-person payment is required without clear rationale
+    - requirement_quote: exact quote about the in-person payment requirement
+    - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+    - notes: any additional context including rationale if present
+
+  template: |
+    Analyze this regulation for in-person payment requirements:
+
+    REGULATION TEXT:
+    {regulation_context}
+
+    STATUTE CONTEXT:
+    {statute_context}
+
+    Determine whether there is a clear rationale for in-person payment.
+
+
+# -----------------------------------------------------------------------------
+# SIGNATURES & AUTHENTICATION
+# -----------------------------------------------------------------------------
+
+# Note: compliance_wet_signature is defined above
+
+compliance_notarization:
+  description: |
+    Detects notarization requirements.
+    Keywords: "notarized," "notary public," "notarization," "acknowledged before," "sworn before"
+
+  system: |
+    You analyze regulations for NOTARIZATION requirements.
+
+    This section requires notarization. Determine whether:
+    (1) the notarization serves a clear legal purpose required by statute for this type of document,
+    (2) remote online notarization is permitted as an alternative, or
+    (3) the requirement appears to be administrative rather than legally mandated.
+
+    Flag if notarization appears to be an administrative addition rather than a
+    statutory requirement, or if remote notarization is not mentioned as an option
+    where it could apply.
+
+    This IS a compliance issue when:
+    - Notarization is required without clear statutory mandate
+    - Remote online notarization is not mentioned as an alternative
+    - The requirement appears to be administrative rather than legal necessity
+
+    This is NOT a compliance issue when:
+    - Statute specifically requires notarization for this document type
+    - Remote online notarization is explicitly permitted
+    - There is a clear anti-fraud or identity verification purpose
+
+    Respond with:
+    - has_issue: true if notarization appears administrative or remote not permitted
+    - requirement_quote: exact quote about the notarization requirement
+    - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+    - notes: any additional context
+
+  template: |
+    Analyze this regulation for notarization requirements:
+
+    REGULATION TEXT:
+    {regulation_context}
+
+    STATUTE CONTEXT:
+    {statute_context}
+
+    Determine whether notarization serves a clear legal purpose and whether
+    remote notarization is permitted.
+
+
+compliance_witness:
+  description: |
+    Detects witness signature requirements.
+    Keywords: "witness," "witnessed by," "two witnesses," "attested," "attestation"
+
+  system: |
+    You analyze regulations for WITNESS requirements.
+
+    This section requires one or more witnesses. Determine whether the witness
+    requirement is mandated by statute for this document type (e.g., certain
+    contracts, wills), or whether it appears to be an administrative addition.
+
+    Also note how many witnesses are required. Flag if the witness requirement
+    appears discretionary or if the number of required witnesses seems excessive
+    for the document type.
+
+    This IS a compliance issue when:
+    - Witness requirement is not mandated by statute
+    - Number of witnesses seems excessive for the document type
+    - The requirement appears to be administrative rather than legal necessity
+
+    This is NOT a compliance issue when:
+    - Statute specifically requires witnesses for this document type
+    - The document type traditionally requires witnesses (wills, certain contracts)
+    - There is a clear anti-fraud purpose
+
+    Respond with:
+    - has_issue: true if witness requirement appears discretionary or excessive
+    - requirement_quote: exact quote about the witness requirement
+    - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+    - notes: number of witnesses required and any context
+
+  template: |
+    Analyze this regulation for witness requirements:
+
+    REGULATION TEXT:
+    {regulation_context}
+
+    STATUTE CONTEXT:
+    {statute_context}
+
+    Determine whether the witness requirement is mandated by statute or appears
+    to be an administrative addition.
+
+
+compliance_embossed_seal:
+  description: |
+    Detects embossed seal or wet stamp requirements.
+    Keywords: "embossed seal," "raised seal," "official seal," "corporate seal," "seal affixed"
+
+  system: |
+    You analyze regulations for PHYSICAL SEAL/STAMP requirements.
+
+    This section requires a physical seal or stamp. Determine whether this is
+    required by statute or whether a digital seal, electronic certification,
+    or no seal at all would suffice.
+
+    Flag if the physical seal requirement appears to be administrative rather
+    than legally mandated.
+
+    This IS a compliance issue when:
+    - Physical seal is required without statutory mandate
+    - Digital seal or electronic certification would suffice
+    - The requirement appears to be formality rather than necessity
+
+    This is NOT a compliance issue when:
+    - Statute specifically requires physical seal for this document type
+    - The seal serves a clear authentication purpose
+    - Digital alternatives are explicitly permitted
+
+    Respond with:
+    - has_issue: true if physical seal appears administrative or unnecessary
+    - requirement_quote: exact quote about the seal requirement
+    - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+    - notes: any additional context
+
+  template: |
+    Analyze this regulation for embossed seal/stamp requirements:
+
+    REGULATION TEXT:
+    {regulation_context}
+
+    STATUTE CONTEXT:
+    {statute_context}
+
+    Determine whether the physical seal requirement is legally mandated or
+    could be replaced by digital certification.
+
+
+compliance_original_document:
+  description: |
+    Detects requirements for original documents (no copies).
+    Keywords: "original document," "no photocopies," "original only," "submit the original"
+
+  system: |
+    You analyze regulations for ORIGINAL DOCUMENT requirements.
+
+    This section requires an original document. Determine whether there is a clear
+    legal rationale for requiring the original (e.g., preventing fraud in negotiable
+    instruments, chain of custody for evidence), or whether a photocopy, scanned
+    copy, or certified copy would reasonably suffice.
+
+    Flag if the original requirement appears to be administrative rather than
+    serving a clear anti-fraud purpose.
+
+    This IS a compliance issue when:
+    - Original is required without anti-fraud rationale
+    - A photocopy or scanned copy would reasonably suffice
+    - The requirement appears to be administrative
+
+    This is NOT a compliance issue when:
+    - Document is a negotiable instrument or has chain-of-custody requirements
+    - There is clear anti-fraud or authentication purpose
+    - The document type inherently requires original (e.g., checks, bonds)
+
+    Respond with:
+    - has_issue: true if original requirement appears administrative
+    - requirement_quote: exact quote about the original document requirement
+    - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+    - notes: any rationale for original requirement if stated
+
+  template: |
+    Analyze this regulation for original document requirements:
+
+    REGULATION TEXT:
+    {regulation_context}
+
+    STATUTE CONTEXT:
+    {statute_context}
+
+    Determine whether requiring the original serves a clear anti-fraud purpose
+    or whether copies would suffice.
+
+
+# -----------------------------------------------------------------------------
+# PHYSICAL PRESENCE & ACCESS
+# -----------------------------------------------------------------------------
+
+compliance_in_person_submission:
+  description: |
+    Detects mandatory in-person submission requirements.
+    Keywords: "submit in person," "appear in person," "personal appearance," "hand-deliver"
+
+  system: |
+    You analyze regulations for IN-PERSON SUBMISSION requirements.
+
+    This section requires in-person appearance or submission. Determine whether
+    there is a clear rationale for physical presence (e.g., identity verification
+    via photo ID, physical inspection, fingerprinting, oath administration).
+
+    If the in-person requirement appears to be for document submission that could
+    be handled by mail or electronically, flag it. If there is a legitimate identity
+    verification or inspection purpose, note that as context but still flag for
+    review of whether remote alternatives exist.
+
+    This IS a compliance issue when:
+    - In-person is required for document submission that could be mailed/electronic
+    - No clear rationale for physical presence
+    - Remote alternatives are not mentioned
+
+    This may still be flagged (with context) when:
+    - There is identity verification purpose, but remote verification could work
+    - Physical inspection could potentially be done via video
+
+    This is NOT a compliance issue when:
+    - Physical presence is genuinely necessary (fingerprinting, physical sample)
+    - In-person is one option among several including mail/electronic
+
+    Respond with:
+    - has_issue: true if in-person appears required without clear rationale
+    - requirement_quote: exact quote about the in-person requirement
+    - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+    - notes: any stated rationale for in-person requirement
+
+  template: |
+    Analyze this regulation for in-person submission requirements:
+
+    REGULATION TEXT:
+    {regulation_context}
+
+    STATUTE CONTEXT:
+    {statute_context}
+
+    Determine whether there is a clear rationale for requiring physical presence.
+
+
+compliance_in_person_pickup:
+  description: |
+    Detects in-person pickup requirements.
+    Keywords: "pick up in person," "must be picked up," "collect in person," "available for pickup"
+
+  system: |
+    You analyze regulations for IN-PERSON PICKUP requirements.
+
+    This section requires documents or permits to be picked up in person. Determine
+    whether there is a rationale for physical pickup (e.g., identity verification,
+    physical item like a license plate).
+
+    If the item could reasonably be mailed or delivered electronically, flag it.
+
+    This IS a compliance issue when:
+    - Document/permit could be mailed or emailed
+    - No clear rationale for physical pickup
+    - Identity verification could be done through other means
+
+    This is NOT a compliance issue when:
+    - Item is physical and cannot be mailed (e.g., license plates)
+    - Identity verification requires in-person photo ID check
+    - Mailing is also offered as an alternative
+
+    Respond with:
+    - has_issue: true if item could reasonably be mailed/delivered electronically
+    - requirement_quote: exact quote about the pickup requirement
+    - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+    - notes: any stated rationale for in-person pickup
+
+  template: |
+    Analyze this regulation for in-person pickup requirements:
+
+    REGULATION TEXT:
+    {regulation_context}
+
+    STATUTE CONTEXT:
+    {statute_context}
+
+    Determine whether there is a rationale for physical pickup or if
+    mailing/electronic delivery would work.
+
+
+compliance_in_person_hearing:
+  description: |
+    Detects in-person hearing/meeting requirements.
+    Keywords: "appear at the hearing," "in-person hearing," "physical attendance," "attend in person"
+
+  system: |
+    You analyze regulations for IN-PERSON HEARING/MEETING requirements.
+
+    This section requires in-person attendance at a hearing or meeting. Determine
+    whether remote participation (video conference, telephone) is offered as an
+    alternative.
+
+    If in-person is the only option, flag it for review of whether remote
+    participation could be permitted.
+
+    This IS a compliance issue when:
+    - In-person attendance is required with no remote option
+    - Video conference or telephone participation is not mentioned
+    - The nature of the hearing does not require physical presence
+
+    This is NOT a compliance issue when:
+    - Remote participation is explicitly permitted
+    - The hearing involves physical evidence or inspection
+    - Video/phone options are mentioned as alternatives
+
+    Respond with:
+    - has_issue: true if in-person is required with no remote alternative
+    - requirement_quote: exact quote about the attendance requirement
+    - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+    - notes: any mention of remote participation options
+
+  template: |
+    Analyze this regulation for in-person hearing/meeting requirements:
+
+    REGULATION TEXT:
+    {regulation_context}
+
+    STATUTE CONTEXT:
+    {statute_context}
+
+    Determine whether remote participation (video, telephone) is offered as
+    an alternative to in-person attendance.
+
+
+compliance_physical_forms:
+  description: |
+    Detects requirements to obtain forms from physical locations.
+    Keywords: "forms available at," "obtain forms from," "forms may be obtained," "pick up an application"
+
+  system: |
+    You analyze regulations for PHYSICAL FORM RETRIEVAL requirements.
+
+    This section indicates forms must be obtained from a physical location.
+    Determine whether forms are also available online or by mail.
+
+    If physical retrieval appears to be the only option, flag it.
+    If online availability is also mentioned, this is a false positive.
+
+    This IS a compliance issue when:
+    - Forms are only available at a physical location
+    - Online availability is not mentioned
+    - Mailing forms to applicants is not offered
+
+    This is NOT a compliance issue when:
+    - Forms are also available online
+    - Forms can be mailed upon request
+    - Physical availability is in addition to electronic
+
+    Respond with:
+    - has_issue: true if physical retrieval is the only option
+    - requirement_quote: exact quote about form availability
+    - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+    - notes: any mention of online or mail availability
+
+  template: |
+    Analyze this regulation for physical form retrieval requirements:
+
+    REGULATION TEXT:
+    {regulation_context}
+
+    STATUTE CONTEXT:
+    {statute_context}
+
+    Determine whether forms are also available online or by mail, or only
+    at a physical location.
+
+
+compliance_physical_inspection:
+  description: |
+    Detects physical document storage for public inspection requirements.
+    Keywords: "available for public inspection," "open to inspection," "examine during business hours"
+
+  system: |
+    You analyze regulations for PHYSICAL INSPECTION requirements.
+
+    This section requires documents to be maintained at a physical location for
+    public inspection. Determine whether online access to the same documents is
+    also provided.
+
+    If physical inspection is the only option and the documents could reasonably
+    be posted online, flag it. Note that some documents may have legitimate reasons
+    for in-person-only access (e.g., security-sensitive materials).
+
+    This IS a compliance issue when:
+    - Physical inspection is the only access method
+    - Documents could reasonably be posted online
+    - Online access is not mentioned
+
+    This is NOT a compliance issue when:
+    - Online access is also provided
+    - Documents contain security-sensitive information
+    - Physical inspection is in addition to online access
+
+    Respond with:
+    - has_issue: true if physical inspection is the only option
+    - requirement_quote: exact quote about the inspection requirement
+    - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+    - notes: any mention of online access or sensitivity concerns
+
+  template: |
+    Analyze this regulation for physical inspection requirements:
+
+    REGULATION TEXT:
+    {regulation_context}
+
+    STATUTE CONTEXT:
+    {statute_context}
+
+    Determine whether online access is also provided or if physical inspection
+    is the only option.
+
+
+compliance_physical_posting:
+  description: |
+    Detects physical posting/display requirements.
+    Keywords: "conspicuously posted," "prominently displayed," "posted on the premises," "display a sign"
+
+  system: |
+    You analyze regulations for PHYSICAL POSTING/DISPLAY requirements.
+
+    This section requires physical posting or display of a notice or sign.
+    Determine whether this is in addition to online posting or the only requirement.
+
+    For requirements that serve on-site informational purposes (e.g., safety notices,
+    licenses at a business location), physical posting may be appropriate and this
+    is a lower priority flag.
+
+    For notices that are primarily informational to the general public rather than
+    on-site visitors, flag if online posting is not also required.
+
+    This IS a compliance issue when:
+    - Physical posting is the only notification method for public notices
+    - Online posting is not mentioned for general public information
+    - The notice is primarily for off-site audiences
+
+    This is a LOWER PRIORITY issue when:
+    - Physical posting serves on-site safety or informational purposes
+    - The notice is for customers/visitors at a physical location
+    - License display is required at place of business
+
+    This is NOT a compliance issue when:
+    - Online posting is also required
+    - Physical posting is in addition to other notification methods
+
+    Respond with:
+    - has_issue: true if physical posting is required without online alternative for public notices
+    - requirement_quote: exact quote about the posting requirement
+    - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+    - notes: whether this is on-site informational or general public notice
+
+  template: |
+    Analyze this regulation for physical posting/display requirements:
+
+    REGULATION TEXT:
+    {regulation_context}
+
+    STATUTE CONTEXT:
+    {statute_context}
+
+    Determine whether this is in addition to online posting or the only requirement,
+    and whether it serves on-site or general public purposes.
+
+
+compliance_bulletin_board:
+  description: |
+    Detects physical bulletin board requirements.
+    Keywords: "bulletin board," "notice board," "posted on the board," "community board"
+
+  system: |
+    You analyze regulations for PHYSICAL BULLETIN BOARD requirements.
+
+    This section references a physical bulletin board. Determine whether this is
+    for posting public notices and whether online alternatives are also mentioned.
+
+    If the bulletin board is the only or primary method of public notice, flag it.
+
+    This IS a compliance issue when:
+    - Bulletin board is the only method of public notice
+    - Online alternatives are not mentioned
+    - The notice is intended for general public
+
+    This is NOT a compliance issue when:
+    - Online posting is also required
+    - Bulletin board is for internal/workplace notices
+    - Multiple notification methods are mentioned
+
+    Respond with:
+    - has_issue: true if bulletin board is the only public notice method
+    - requirement_quote: exact quote about the bulletin board requirement
+    - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+    - notes: any mention of online alternatives
+
+  template: |
+    Analyze this regulation for bulletin board requirements:
+
+    REGULATION TEXT:
+    {regulation_context}
+
+    STATUTE CONTEXT:
+    {statute_context}
+
+    Determine whether this is the only public notice method or whether online
+    alternatives are also mentioned.
+
+
+# -----------------------------------------------------------------------------
+# TECHNOLOGY & MEDIA
+# -----------------------------------------------------------------------------
+
+compliance_obsolete_media:
+  description: |
+    Detects obsolete storage media requirements.
+    Keywords: "CD-ROM," "floppy disk," "diskette," "USB drive," "magnetic tape," "DVD"
+
+  system: |
+    You analyze regulations for OBSOLETE STORAGE MEDIA requirements.
+
+    This section references physical storage media for document submission.
+    Determine whether this is the required or only method, or whether online
+    submission/upload is also permitted.
+
+    If online submission is equally available, this is a lower priority flag.
+    If physical media is required, flag it.
+
+    This IS a compliance issue when:
+    - Physical media (CD, DVD, USB, floppy) is required
+    - Online submission/upload is not mentioned
+    - The requirement specifies a specific obsolete format
+
+    This is a LOWER PRIORITY issue when:
+    - Physical media is one option among several including online
+    - The media type is still common (USB drives)
+
+    This is NOT a compliance issue when:
+    - Online submission is equally available
+    - Physical media is just one of several options
+
+    Respond with:
+    - has_issue: true if physical media is required or only option
+    - requirement_quote: exact quote about the media requirement
+    - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+    - technology_type: the specific media type referenced
+    - notes: any mention of online alternatives
+
+  template: |
+    Analyze this regulation for obsolete storage media requirements:
+
+    REGULATION TEXT:
+    {regulation_context}
+
+    STATUTE CONTEXT:
+    {statute_context}
+
+    Determine whether physical media is required or if online submission is
+    also permitted.
+
+
+compliance_obsolete_software:
+  description: |
+    Detects obsolete software/format requirements.
+    Keywords: "WordPerfect," "Lotus," "DOS," "dBase," "ASCII format," "specific software"
+
+  system: |
+    You analyze regulations for OBSOLETE SOFTWARE/FORMAT requirements.
+
+    This section references a specific software program or file format. Determine
+    whether the referenced software or format is obsolete.
+
+    If the regulation mandates a format that is no longer in common use or requires
+    proprietary software that is discontinued, flag it.
+
+    This IS a compliance issue when:
+    - Obsolete software is specifically required (WordPerfect, Lotus, etc.)
+    - Discontinued file formats are mandated
+    - The software/format is no longer commonly available
+
+    This is NOT a compliance issue when:
+    - The format is still in common use
+    - Multiple formats are accepted
+    - Modern equivalents are explicitly permitted
+
+    Respond with:
+    - has_issue: true if obsolete software/format is required
+    - requirement_quote: exact quote about the software/format requirement
+    - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+    - technology_type: the specific software or format referenced
+    - notes: any additional context
+
+  template: |
+    Analyze this regulation for obsolete software/format requirements:
+
+    REGULATION TEXT:
+    {regulation_context}
+
+    STATUTE CONTEXT:
+    {statute_context}
+
+    Determine whether the referenced software or format is obsolete.
+
+
+compliance_pdf_only:
+  description: |
+    Detects PDF-only format requirements.
+    Keywords: "PDF format," "submit as PDF," "Adobe PDF," "PDF only," ".pdf"
+
+  system: |
+    You analyze regulations for PDF-ONLY FORMAT requirements.
+
+    This section requires documents in PDF format. Determine whether PDF is the
+    ONLY accepted format, or whether other formats (Word, plain text, online form
+    entry) are also accepted.
+
+    If PDF is required to the exclusion of other formats that might be more
+    accessible or interoperable, flag it as a potential barrier.
+
+    Note: PDF requirements are lower severity than obsolete formats but worth
+    reviewing for accessibility.
+
+    This IS a compliance issue (lower priority) when:
+    - PDF is the ONLY accepted format
+    - Other common formats are not accepted
+    - Online form entry is not available
+
+    This is NOT a compliance issue when:
+    - PDF is one of several accepted formats
+    - Online form submission is available
+    - The requirement is for final/archival documents where PDF is standard
+
+    Respond with:
+    - has_issue: true if PDF is the only accepted format
+    - requirement_quote: exact quote about the format requirement
+    - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+    - notes: any mention of alternative formats
+
+  template: |
+    Analyze this regulation for PDF-only format requirements:
+
+    REGULATION TEXT:
+    {regulation_context}
+
+    STATUTE CONTEXT:
+    {statute_context}
+
+    Determine whether PDF is the ONLY accepted format or if other formats are
+    also permitted.
+
+
+compliance_microfiche:
+  description: |
+    Detects microfiche/microfilm requirements.
+    Keywords: "microfiche," "microfilm," "microform," "microcard," "aperture card"
+
+  system: |
+    You analyze regulations for MICROFICHE/MICROFILM requirements.
+
+    This section references microfiche or microfilm. Determine whether this is
+    for archival storage, submission, or retrieval.
+
+    Any active requirement to use microfilm/microfiche should be flagged as
+    obsolete technology.
+
+    This IS a compliance issue when:
+    - Microfiche/microfilm is required for submission
+    - Records must be maintained on microfiche
+    - Access requires microfiche readers
+
+    This may be lower priority when:
+    - Reference is to historical archives
+    - Microfiche is mentioned as one storage option among several
+
+    Respond with:
+    - has_issue: true if microfiche/microfilm is an active requirement
+    - requirement_quote: exact quote about the microfiche requirement
+    - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+    - technology_type: the specific technology referenced
+    - notes: whether this is for archival, submission, or retrieval
+
+  template: |
+    Analyze this regulation for microfiche/microfilm requirements:
+
+    REGULATION TEXT:
+    {regulation_context}
+
+    STATUTE CONTEXT:
+    {statute_context}
+
+    Determine whether microfiche/microfilm is an active requirement for
+    submission, storage, or retrieval.
+
+
+compliance_typewriter:
+  description: |
+    Detects typewriter-specific requirements.
+    Keywords: "typewritten," "typed copy," "typewriter," "machine-typed," "type-written"
+
+  system: |
+    You analyze regulations for TYPEWRITER-SPECIFIC requirements.
+
+    This section references typewritten documents. Determine whether 'typed' is
+    being used generically (to mean 'not handwritten') or specifically requires
+    a typewriter.
+
+    If electronic document preparation and printing is acceptable, this may be
+    a false positive. If a literal typewriter or specific typed format is required,
+    flag it.
+
+    This IS a compliance issue when:
+    - A literal typewriter is required
+    - Computer-generated documents are not accepted
+    - The language clearly refers to typewriter-era technology
+
+    This is NOT a compliance issue when:
+    - "Typed" means "not handwritten" and includes computer-generated
+    - Electronic document preparation is acceptable
+    - Printed documents are permitted
+
+    Respond with:
+    - has_issue: true if literal typewriter is required
+    - requirement_quote: exact quote about the typewritten requirement
+    - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+    - technology_type: the specific terminology used
+    - notes: whether computer-generated documents appear acceptable
+
+  template: |
+    Analyze this regulation for typewriter-specific requirements:
+
+    REGULATION TEXT:
+    {regulation_context}
+
+    STATUTE CONTEXT:
+    {statute_context}
+
+    Determine whether 'typed' means 'not handwritten' generally or specifically
+    requires a typewriter.
+
+
+compliance_carbon_copy:
+  description: |
+    Detects carbon copy/triplicate requirements.
+    Keywords: "carbon copy," "triplicate," "duplicate copy," "in duplicate," "multiple copies"
+
+  system: |
+    You analyze regulations for CARBON COPY/MULTIPLE COPY requirements.
+
+    This section requires multiple physical copies of a document. Determine whether
+    this is for a legitimate distribution purpose that could not be served by
+    electronic distribution or photocopying.
+
+    If multiple originals must be prepared rather than copied, or if electronic
+    distribution could replace the multiple copy requirement, flag it.
+
+    This IS a compliance issue when:
+    - Multiple physical originals are required (not just photocopies)
+    - Carbon copies are specifically required
+    - Electronic distribution could replace the requirement
+    - The number of copies seems excessive
+
+    This is NOT a compliance issue when:
+    - Photocopies are acceptable
+    - Electronic distribution is also permitted
+    - Multiple copies serve a clear distribution purpose
+
+    Respond with:
+    - has_issue: true if multiple physical originals or carbon copies required
+    - requirement_quote: exact quote about the copy requirement
+    - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+    - notes: number of copies required and whether photocopies are acceptable
+
+  template: |
+    Analyze this regulation for carbon copy/multiple copy requirements:
+
+    REGULATION TEXT:
+    {regulation_context}
+
+    STATUTE CONTEXT:
+    {statute_context}
+
+    Determine whether multiple physical copies are required and whether electronic
+    distribution could replace the requirement.
+
+
+compliance_newspaper:
+  description: |
+    Detects print newspaper publication requirements.
+    Keywords: "newspaper of general circulation," "publish in a newspaper," "newspaper notice," "legal notice"
+
+  system: |
+    You analyze regulations for PRINT NEWSPAPER PUBLICATION requirements.
+
+    This section requires publication in a print newspaper. Determine whether
+    online publication is accepted as an alternative or supplement.
+
+    If print newspaper publication is required without online alternatives, flag it.
+    Note that some legal notice requirements may be statutory and require legislative
+    change.
+
+    This IS a compliance issue when:
+    - Print newspaper is the only publication method
+    - Online publication is not mentioned as alternative
+    - The requirement appears administrative rather than statutory
+
+    This is NOT a compliance issue when:
+    - Online publication is also accepted
+    - Statute specifically requires newspaper publication
+    - Both print and online are mentioned
+
+    Respond with:
+    - has_issue: true if print newspaper is required without online alternative
+    - requirement_quote: exact quote about the publication requirement
+    - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+    - notes: any mention of online publication alternatives
+
+  template: |
+    Analyze this regulation for newspaper publication requirements:
+
+    REGULATION TEXT:
+    {regulation_context}
+
+    STATUTE CONTEXT:
+    {statute_context}
+
+    Determine whether online publication is accepted as an alternative to
+    print newspaper.
+
+
+# -----------------------------------------------------------------------------
+# DOCUMENT FORMAT & HANDLING
+# -----------------------------------------------------------------------------
+
+compliance_multiple_copies:
+  description: |
+    Detects multiple physical copy submission requirements.
+    Keywords: "submit X copies," "provide copies," "original and copy," "in duplicate," "in triplicate"
+
+  system: |
+    You analyze regulations for MULTIPLE PHYSICAL COPY requirements.
+
+    This section requires submission or retention of multiple physical copies.
+    Determine whether electronic distribution or single submission with agency
+    copying would suffice.
+
+    Flag if multiple physical copies are required where electronic alternatives
+    could work.
+
+    This IS a compliance issue when:
+    - Multiple physical copies must be submitted
+    - Electronic submission is not mentioned as alternative
+    - Single submission with agency copying is not offered
+
+    This is NOT a compliance issue when:
+    - Electronic submission is equally available
+    - Single copy submission is accepted
+    - Multiple copies serve a clear purpose and electronic won't work
+
+    Respond with:
+    - has_issue: true if multiple physical copies required without electronic alternative
+    - requirement_quote: exact quote about the copy requirement
+    - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+    - notes: number of copies required and any stated purpose
+
+  template: |
+    Analyze this regulation for multiple copy requirements:
+
+    REGULATION TEXT:
+    {regulation_context}
+
+    STATUTE CONTEXT:
+    {statute_context}
+
+    Determine whether multiple physical copies are required or if electronic
+    submission is also permitted.
+
+
+compliance_paper_specs:
+  description: |
+    Detects paper size, weight, or color requirements.
+    Keywords: "8.5 x 11," "letter size," "legal size," "bond paper," "20 lb," "white paper"
+
+  system: |
+    You analyze regulations for PAPER SPECIFICATION requirements.
+
+    This section specifies paper characteristics. Determine whether this is for
+    legitimate archival or processing purposes, or whether it appears arbitrary.
+
+    If electronic submission would eliminate the need for paper specifications
+    entirely, flag it as part of a broader print-centric process.
+
+    This IS a compliance issue when:
+    - Specific paper specifications are required
+    - Electronic submission is not available
+    - The specifications appear arbitrary
+
+    This is a LOWER PRIORITY issue when:
+    - Paper specs are standard (8.5x11 letter size)
+    - Archival purposes justify the specs
+
+    This is NOT a compliance issue when:
+    - Electronic submission is also available
+    - Paper specs are for optional paper submissions
+
+    Respond with:
+    - has_issue: true if specific paper specs required without electronic alternative
+    - requirement_quote: exact quote about the paper requirement
+    - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+    - notes: whether electronic submission is mentioned
+
+  template: |
+    Analyze this regulation for paper specification requirements:
+
+    REGULATION TEXT:
+    {regulation_context}
+
+    STATUTE CONTEXT:
+    {statute_context}
+
+    Determine whether paper specifications are required and whether electronic
+    submission is available.
+
+
+compliance_photo_specs:
+  description: |
+    Detects photo format specification requirements.
+    Keywords: "2x2," "passport photo," "photograph size," "recent photograph," "photo dimensions"
+
+  system: |
+    You analyze regulations for PHOTO SPECIFICATION requirements.
+
+    This section specifies photo requirements. Determine whether the photo
+    requirement itself is necessary and whether the specific dimensions are
+    standard (e.g., passport-standard 2x2) or unusual.
+
+    Flag if photo submission could reasonably be digital upload rather than
+    physical attachment, or if specifications seem arbitrary.
+
+    This IS a compliance issue when:
+    - Physical photo attachment is required (no digital upload)
+    - Photo specifications are unusual or arbitrary
+    - Digital photo submission is not mentioned
+
+    This is NOT a compliance issue when:
+    - Digital photo upload is permitted
+    - Specifications are standard (passport, ID card sizes)
+    - Photo requirement itself serves identity verification purpose
+
+    Respond with:
+    - has_issue: true if physical photo required or specs are unusual
+    - requirement_quote: exact quote about the photo requirement
+    - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+    - notes: specific dimensions required and whether digital upload is mentioned
+
+  template: |
+    Analyze this regulation for photo specification requirements:
+
+    REGULATION TEXT:
+    {regulation_context}
+
+    STATUTE CONTEXT:
+    {statute_context}
+
+    Determine whether photo requirements are reasonable and whether digital
+    upload is permitted.
+
+
+compliance_letterhead:
+  description: |
+    Detects letterhead requirements.
+    Keywords: "on letterhead," "official letterhead," "company letterhead," "agency letterhead"
+
+  system: |
+    You analyze regulations for LETTERHEAD requirements.
+
+    This section requires documents on letterhead. Determine whether this serves
+    an authentication purpose that could not be met by electronic submission with
+    digital signature or verification, or whether it is a legacy formality.
+
+    Flag if letterhead requirements prevent electronic submission.
+
+    This IS a compliance issue when:
+    - Letterhead is required, preventing electronic submission
+    - Digital signature or verification is not accepted as alternative
+    - The requirement appears to be formality rather than authentication
+
+    This is NOT a compliance issue when:
+    - Electronic submission with digital signature is permitted
+    - Letterhead is optional or "preferred"
+    - The letterhead serves a clear identification purpose
+
+    Respond with:
+    - has_issue: true if letterhead prevents electronic submission
+    - requirement_quote: exact quote about the letterhead requirement
+    - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+    - notes: whether electronic alternatives are mentioned
+
+  template: |
+    Analyze this regulation for letterhead requirements:
+
+    REGULATION TEXT:
+    {regulation_context}
+
+    STATUTE CONTEXT:
+    {statute_context}
+
+    Determine whether letterhead is required and whether electronic submission
+    with digital signature is permitted as an alternative.
+
+
+compliance_handwriting_specs:
+  description: |
+    Detects handwriting specification requirements.
+    Keywords: "block letters," "print clearly," "legible handwriting," "hand-printed," "print in ink"
+
+  system: |
+    You analyze regulations for HANDWRITING SPECIFICATION requirements.
+
+    This section specifies handwriting requirements. Determine whether the form
+    or process is only available in handwritten format, or whether electronic
+    alternatives exist.
+
+    If the regulation assumes handwriting is the only option and electronic form
+    submission is not offered, flag it.
+
+    This IS a compliance issue when:
+    - Handwritten forms are the only option
+    - Electronic form submission is not available
+    - The language assumes paper/pen completion
+
+    This is NOT a compliance issue when:
+    - Electronic form submission is available
+    - Handwriting specs are for optional paper forms
+    - The requirements are just for legibility on paper backup
+
+    Respond with:
+    - has_issue: true if handwritten forms are the only option
+    - requirement_quote: exact quote about the handwriting requirement
+    - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+    - notes: whether electronic form submission is mentioned
+
+  template: |
+    Analyze this regulation for handwriting specification requirements:
+
+    REGULATION TEXT:
+    {regulation_context}
+
+    STATUTE CONTEXT:
+    {statute_context}
+
+    Determine whether handwritten forms are the only option or if electronic
+    form submission is available.
+
+
+compliance_binding_required:
+  description: |
+    Detects document binding requirements.
+    Keywords: "bound," "spiral bound," "three-ring binder," "stapled," "bound volume"
+
+  system: |
+    You analyze regulations for DOCUMENT BINDING requirements.
+
+    This section requires specific document binding. Determine whether physical
+    binding is necessary for the use case (e.g., large reference documents for
+    in-person proceedings) or whether electronic submission would eliminate the
+    need.
+
+    Flag if binding requirements appear to be legacy formatting rules.
+
+    This IS a compliance issue when:
+    - Specific binding is required
+    - Electronic submission would eliminate the need
+    - The binding requirement appears to be legacy formatting
+
+    This is NOT a compliance issue when:
+    - Electronic submission is also available
+    - Binding is for physical documents that must be physical
+    - Binding serves a clear purpose (large reference documents)
+
+    Respond with:
+    - has_issue: true if binding required without electronic alternative
+    - requirement_quote: exact quote about the binding requirement
+    - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+    - notes: specific binding type required and any stated purpose
+
+  template: |
+    Analyze this regulation for document binding requirements:
+
+    REGULATION TEXT:
+    {regulation_context}
+
+    STATUTE CONTEXT:
+    {statute_context}
+
+    Determine whether binding is required and whether electronic submission
+    is available as an alternative.
+
+
+# -----------------------------------------------------------------------------
+# PROCESS & TRACKING
+# -----------------------------------------------------------------------------
+
+compliance_physical_log:
+  description: |
+    Detects physical logging/sign-in requirements.
+    Keywords: "sign-in sheet," "log book," "visitor log," "sign the register," "written log"
+
+  system: |
+    You analyze regulations for PHYSICAL LOG/SIGN-IN requirements.
+
+    This section requires a physical log or sign-in sheet. Determine whether the
+    logging could be accomplished electronically while serving the same purpose.
+
+    If physical paper logging is required where electronic logging would suffice,
+    flag it.
+
+    This IS a compliance issue when:
+    - Physical paper log is required
+    - Electronic logging would serve the same purpose
+    - No electronic alternative is mentioned
+
+    This is NOT a compliance issue when:
+    - Electronic logging is also permitted
+    - Physical log is a backup to electronic system
+    - Paper log serves a specific purpose electronic can't (e.g., signature samples)
+
+    Respond with:
+    - has_issue: true if physical log required without electronic alternative
+    - requirement_quote: exact quote about the log requirement
+    - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+    - notes: whether electronic alternatives are mentioned
+
+  template: |
+    Analyze this regulation for physical logging requirements:
+
+    REGULATION TEXT:
+    {regulation_context}
+
+    STATUTE CONTEXT:
+    {statute_context}
+
+    Determine whether physical logging is required or if electronic logging
+    would suffice.
+
+
+compliance_routing_slip:
+  description: |
+    Detects routing slip/physical tracking requirements.
+    Keywords: "routing slip," "transmittal form," "routing form," "tracking sheet"
+
+  system: |
+    You analyze regulations for PHYSICAL ROUTING/TRACKING requirements.
+
+    This section references physical tracking documents. Determine whether this
+    is for internal agency workflow that could be handled by electronic workflow
+    systems.
+
+    If physical routing slips are required where digital workflow would work,
+    flag it.
+
+    This IS a compliance issue when:
+    - Physical routing/transmittal forms are required
+    - Electronic workflow systems could replace them
+    - The requirement appears to be legacy process
+
+    This is NOT a compliance issue when:
+    - Electronic workflow is used
+    - Physical forms are for external parties who may not have electronic access
+    - Routing slips are optional
+
+    Respond with:
+    - has_issue: true if physical routing slips required without electronic alternative
+    - requirement_quote: exact quote about the routing requirement
+    - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+    - notes: whether electronic workflow is mentioned
+
+  template: |
+    Analyze this regulation for routing slip requirements:
+
+    REGULATION TEXT:
+    {regulation_context}
+
+    STATUTE CONTEXT:
+    {statute_context}
+
+    Determine whether physical routing slips are required or if electronic
+    workflow would work.
+
+
+compliance_storage_location:
+  description: |
+    Detects specific storage location requirements.
+    Keywords: "stored at," "maintained at," "kept at the premises," "on-site storage"
+
+  system: |
+    You analyze regulations for SPECIFIC STORAGE LOCATION requirements.
+
+    This section requires records to be stored at a specific physical location.
+    Determine whether physical storage is necessary (e.g., physical samples) or
+    whether electronic storage with remote access would suffice.
+
+    Flag if physical location storage is required for records that could be
+    maintained electronically.
+
+    This IS a compliance issue when:
+    - Physical location storage is required for records
+    - Electronic storage would suffice
+    - Remote access is not permitted
+
+    This is NOT a compliance issue when:
+    - Physical samples must be stored (cannot be electronic)
+    - Electronic storage is also permitted
+    - On-site access is for convenience, not requirement
+
+    Respond with:
+    - has_issue: true if physical storage required without electronic alternative
+    - requirement_quote: exact quote about the storage requirement
+    - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+    - notes: what must be stored and whether electronic would work
+
+  template: |
+    Analyze this regulation for storage location requirements:
+
+    REGULATION TEXT:
+    {regulation_context}
+
+    STATUTE CONTEXT:
+    {statute_context}
+
+    Determine whether physical location storage is required or if electronic
+    storage with remote access would suffice.
+
+
+compliance_fixed_window:
+  description: |
+    Detects fixed processing/filing window requirements.
+    Keywords: "applications accepted," "filing period," "only during," "application window," "open enrollment"
+
+  system: |
+    You analyze regulations for FIXED PROCESSING WINDOW requirements.
+
+    This section indicates a limited time window for applications or submissions.
+    Determine whether the fixed window serves a legitimate purpose (e.g.,
+    coordinating cohort-based programs, budget cycles) or whether it appears
+    arbitrary and could be replaced by rolling acceptance.
+
+    Flag if the window appears to create unnecessary barriers without clear
+    rationale.
+
+    This IS a compliance issue when:
+    - Fixed window appears arbitrary
+    - Rolling acceptance would be feasible
+    - No rationale is provided for the time limit
+
+    This is NOT a compliance issue when:
+    - Window serves a clear purpose (budget cycle, cohort programs)
+    - Program structure requires coordinated timing
+    - Rationale for fixed window is stated
+
+    Respond with:
+    - has_issue: true if fixed window appears arbitrary
+    - requirement_quote: exact quote about the filing window
+    - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+    - notes: any stated rationale for the fixed window
+
+  template: |
+    Analyze this regulation for fixed processing window requirements:
+
+    REGULATION TEXT:
+    {regulation_context}
+
+    STATUTE CONTEXT:
+    {statute_context}
+
+    Determine whether the fixed window serves a legitimate purpose or appears
+    arbitrary.
+
+
+compliance_waiting_period:
+  description: |
+    Detects mandatory waiting period requirements.
+    Keywords: "waiting period," "must wait," "cooling off," "no sooner than," "minimum of X days before"
+
+  system: |
+    You analyze regulations for MANDATORY WAITING PERIOD requirements.
+
+    This section imposes a waiting period. Determine whether the waiting period
+    serves a stated purpose (e.g., safety, public comment period, background check
+    processing time) or appears arbitrary.
+
+    Flag if no rationale is provided, but note this may require policy judgment
+    beyond text analysis.
+
+    This IS a compliance issue when:
+    - Waiting period has no stated rationale
+    - The wait appears arbitrary
+    - Faster processing would be feasible without harm
+
+    This is NOT a compliance issue when:
+    - Clear safety rationale (cooling-off periods for firearms)
+    - Public comment period required by law
+    - Processing time is genuinely needed (background checks)
+
+    Respond with:
+    - has_issue: true if waiting period appears arbitrary
+    - requirement_quote: exact quote about the waiting period
+    - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+    - notes: any stated rationale for the waiting period
+
+  template: |
+    Analyze this regulation for waiting period requirements:
+
+    REGULATION TEXT:
+    {regulation_context}
+
+    STATUTE CONTEXT:
+    {statute_context}
+
+    Determine whether the waiting period serves a stated purpose or appears
+    arbitrary.
+
+
+# -----------------------------------------------------------------------------
+# REPORTING
+# -----------------------------------------------------------------------------
+
+compliance_mandated_reports:
+  description: |
+    Detects mandated government reporting requirements.
+    Keywords: "annual report," "quarterly report," "submit a report," "file a report," "reporting requirements"
+
+  system: |
+    You analyze regulations for MANDATED GOVERNMENT REPORT requirements.
+
+    This section mandates that a government entity produce a report. Note the
+    report's stated purpose, frequency, and recipient.
+
+    Flag for review to determine whether:
+    (1) the report is actually produced,
+    (2) anyone uses or reads the report,
+    (3) the reporting frequency is appropriate, and
+    (4) the information could be provided through other means (e.g., dashboard,
+        existing data publications).
+
+    This category requires human judgment on the report's ongoing utility rather
+    than a simple yes/no determination.
+
+    Always flag mandated reports for human review, as this is informational
+    rather than a clear compliance issue.
+
+    Respond with:
+    - has_issue: true (always flag for human review)
+    - requirement_quote: exact quote about the report requirement
+    - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+    - notes: report purpose, frequency, and recipient if stated
+
+  template: |
+    Analyze this regulation for mandated reporting requirements:
+
+    REGULATION TEXT:
+    {regulation_context}
+
+    STATUTE CONTEXT:
+    {statute_context}
+
+    Note the report's stated purpose, frequency, and recipient for human review
+    of whether the report serves an ongoing useful purpose.

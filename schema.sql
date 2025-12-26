@@ -75,11 +75,9 @@ CREATE TABLE regulatory_documents (
   descendant_max_severity INTEGER,             -- Max severity in subtree
   has_descendant_analysis BOOLEAN DEFAULT FALSE, -- Whether any descendant has analysis
 
-  -- Analysis exclusion (for marking documents that should not be processed)
-  exclude_from_analysis BOOLEAN DEFAULT FALSE,   -- TRUE to skip in red flag/definition/compliance analysis
-  excluded_at TIMESTAMP,                         -- When the exclusion was set
-  excluded_by VARCHAR(255),                      -- Who set the exclusion
-  excluded_reason TEXT,                          -- Optional reason for exclusion
+  -- Regulatory status (for reserved/repealed/recodified/expired sections)
+  regulatory_status VARCHAR(20) DEFAULT 'active',  -- 'active', 'reserved', 'repealed', 'recodified', 'expired'
+  recodified_to VARCHAR(100),                      -- Where content moved (e.g., "N.J.A.C. 16:44-3.2")
 
   CONSTRAINT unique_per_pull UNIQUE(state, source_index, type)
 );
@@ -154,16 +152,66 @@ CREATE TABLE statute_references (
   state_section VARCHAR(100)           -- Section within state law
 );
 
+-- Statutes: Stores statute content (N.J.S.A., N.Y. State laws, etc.)
+-- Separate from regulatory_documents because statutes have different structure
+-- Hierarchy: Title -> Chapter -> Section (for NJ statutes)
+CREATE TABLE statutes (
+  id BIGSERIAL PRIMARY KEY,
+  citation VARCHAR(50) NOT NULL,       -- Full citation (e.g., "52:27D-119" for sections, "title:52" for titles)
+  state VARCHAR(2) NOT NULL,           -- Two-letter state code (e.g., 'NJ')
+  title TEXT,                          -- Human-readable title/name
+  content TEXT,                        -- Full text content (for sections)
+
+  -- NJ-specific fields (NJSA - New Jersey Statutes Annotated)
+  njsa_title VARCHAR(10),              -- Title number (e.g., "52")
+  njsa_title_name TEXT,                -- Title name (e.g., "STATE GOVERNMENT")
+  njsa_chapter VARCHAR(20),            -- Chapter number (e.g., "27D")
+  njsa_section VARCHAR(20),            -- Section number (e.g., "119")
+  njsa_section_name TEXT,              -- Section name
+
+  -- Hierarchy for tree navigation (Issue #48)
+  parent_id BIGINT REFERENCES statutes(id) ON DELETE SET NULL,
+  hierarchy_level VARCHAR(50),         -- 'title', 'chapter', 'section'
+  hierarchy_path TEXT,                 -- Full path for display
+
+  -- Metadata
+  source_index INTEGER,                -- Index from parsing process
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+  -- Unique constraint on state + citation
+  CONSTRAINT unique_state_citation UNIQUE(state, citation)
+);
+
+-- Indexes for statutes table
+CREATE INDEX idx_statutes_state ON statutes(state);
+CREATE INDEX idx_statutes_citation ON statutes(citation);
+CREATE INDEX idx_statutes_parent_id ON statutes(parent_id);
+CREATE INDEX idx_statutes_hierarchy_level ON statutes(hierarchy_level);
+CREATE INDEX idx_statutes_njsa_title ON statutes(njsa_title);
+
 -- Regulation-Statute Links: Many-to-many relationship between regulations and statutes
+-- Tracks all statute citations found in regulations, including unmatched/obsolete ones
 CREATE TABLE regulation_statute_links (
   id BIGSERIAL PRIMARY KEY,
   regulation_id BIGINT NOT NULL REFERENCES regulatory_documents(id) ON DELETE CASCADE,
-  statute_id BIGINT NOT NULL REFERENCES regulatory_documents(id) ON DELETE CASCADE,
-  citation VARCHAR(50) NOT NULL,       -- The citation (e.g., "52:27D-119")
+  statute_id BIGINT REFERENCES statutes(id) ON DELETE CASCADE,  -- Nullable for unmatched citations
+  citation VARCHAR(50) NOT NULL,       -- The citation as found in text (e.g., "52:27D-119")
   context TEXT,                        -- Surrounding text where citation was found
-  link_type VARCHAR(50) DEFAULT 'reference',  -- 'enabling_authority', 'reference', 'amendment', etc.
+
+  -- Link classification (auto-detected via regex patterns)
+  link_type VARCHAR(50) DEFAULT 'reference',  -- 'enabling_authority', 'definition', 'requirement', 'reference'
+
+  -- Match status tracking
+  match_status VARCHAR(50) DEFAULT 'matched',  -- 'matched', 'corrected', 'unmatched', 'obsolete'
+  original_citation VARCHAR(50),       -- If corrected, what was originally in the text
+  correction_notes TEXT,               -- Why correction was made
+
+  -- Review tracking
+  reviewed_at TIMESTAMP,
+  reviewed_by VARCHAR(255),
+
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  CONSTRAINT unique_regulation_statute_link UNIQUE(regulation_id, statute_id, citation)
+  CONSTRAINT unique_regulation_statute_link UNIQUE(regulation_id, citation)
 );
 
 -- Indexes
@@ -182,6 +230,8 @@ CREATE INDEX idx_documents_nycrr_subchapter ON regulatory_documents(nycrr_subcha
 CREATE INDEX idx_documents_nycrr_article ON regulatory_documents(nycrr_article);
 CREATE INDEX idx_analyses_document ON analyses(document_id);
 CREATE INDEX idx_analyses_is_current ON analyses(is_current) WHERE is_current = TRUE;
+CREATE INDEX idx_documents_regulatory_status ON regulatory_documents(regulatory_status);
+CREATE INDEX idx_documents_regulatory_status_state ON regulatory_documents(state, regulatory_status);
 CREATE INDEX idx_red_flags_analysis ON red_flags(analysis_id);
 CREATE INDEX idx_red_flags_severity ON red_flags(severity);
 CREATE INDEX idx_red_flags_review_status ON red_flags(review_status);
