@@ -8,11 +8,11 @@ import { DeveloperStatusCounts } from './red-flags.repository';
 
 export interface UpdateComplianceIssueReviewInput {
   reviewStatus: ReviewStatus;
-  reviewedBy: string;
+  reviewerNotes?: string;
+  reviewedBy?: string;
   justificationNotes?: string;
-  teamNotes?: string;
   priority?: number;
-  impactType?: ImpactType;
+  impactType?: string;
 }
 
 export interface UpdateComplianceIssueDeveloperInput {
@@ -101,10 +101,10 @@ export class ComplianceIssuesRepository extends BaseRepository {
       .update(complianceIssues)
       .set({
         reviewStatus: data.reviewStatus,
-        reviewedBy: data.reviewedBy,
+        reviewerNotes: data.reviewerNotes ?? null,
+        reviewedBy: data.reviewedBy ?? null,
         reviewedAt: new Date(),
         justificationNotes: data.justificationNotes ?? null,
-        teamNotes: data.teamNotes ?? null,
         priority: data.priority ?? null,
         impactType: data.impactType ?? null,
       })
@@ -281,7 +281,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       issueType: complianceIssues.issueType,
       createdAt: complianceIssues.createdAt,
       reviewedAt: complianceIssues.reviewedAt,
-    }[sortBy];
+    }[sortBy] ?? complianceIssues.createdAt;
 
     const orderByClause = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
 
@@ -292,17 +292,21 @@ export class ComplianceIssuesRepository extends BaseRepository {
         id: complianceIssues.id,
         documentId: complianceIssues.documentId,
         issueType: complianceIssues.issueType,
-        termMatched: complianceIssues.termMatched,
-        context: complianceIssues.context,
-        requirementQuote: complianceIssues.requirementQuote,
-        fromStatute: complianceIssues.fromStatute,
+        matchedPattern: complianceIssues.matchedPattern,
+        matchedContext: complianceIssues.matchedContext,
+        url: complianceIssues.url,
+        requirementFound: complianceIssues.requirementFound,
+        requirementText: complianceIssues.requirementText,
+        requiredByStatute: complianceIssues.requiredByStatute,
+        severity: complianceIssues.severity,
+        occurrenceNumber: complianceIssues.occurrenceNumber,
         statuteCitation: complianceIssues.statuteCitation,
-        llmConfirmed: complianceIssues.llmConfirmed,
+        impactAssessment: complianceIssues.impactAssessment,
         reviewStatus: complianceIssues.reviewStatus,
         reviewedBy: complianceIssues.reviewedBy,
         reviewedAt: complianceIssues.reviewedAt,
+        reviewerNotes: complianceIssues.reviewerNotes,
         justificationNotes: complianceIssues.justificationNotes,
-        teamNotes: complianceIssues.teamNotes,
         priority: complianceIssues.priority,
         impactType: complianceIssues.impactType,
         // Developer fields
@@ -338,17 +342,21 @@ export class ComplianceIssuesRepository extends BaseRepository {
       id: Number(row.id),
       documentId: Number(row.documentId),
       issueType: row.issueType,
-      termMatched: row.termMatched,
-      context: row.context,
-      requirementQuote: row.requirementQuote,
-      fromStatute: row.fromStatute,
+      matchedPattern: row.matchedPattern,
+      matchedContext: row.matchedContext,
+      url: row.url,
+      requirementFound: row.requirementFound,
+      requirementText: row.requirementText,
+      requiredByStatute: row.requiredByStatute,
+      severity: row.severity,
+      occurrenceNumber: row.occurrenceNumber,
       statuteCitation: row.statuteCitation,
-      llmConfirmed: row.llmConfirmed,
+      impactAssessment: row.impactAssessment,
       reviewStatus: row.reviewStatus,
       reviewedBy: row.reviewedBy,
       reviewedAt: row.reviewedAt,
+      reviewerNotes: row.reviewerNotes,
       justificationNotes: row.justificationNotes,
-      teamNotes: row.teamNotes,
       priority: row.priority,
       impactType: row.impactType,
       developerStatus: row.developerStatus,
@@ -451,7 +459,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       developerAssigned?: Developer;
     }
   ): Promise<PaginatedComplianceIssuesResult> {
-    const { state, page, pageSize, sortBy = 'reviewedAt', sortOrder = 'desc', filters, developerStatus, developerAssigned } = options;
+    const { state, page, pageSize, sortBy = 'createdAt', sortOrder = 'desc', filters, developerStatus, developerAssigned } = options;
     const offset = (page - 1) * pageSize;
 
     // Build where conditions - only reviewed items
@@ -496,8 +504,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       issueType: complianceIssues.issueType,
       createdAt: complianceIssues.createdAt,
       reviewedAt: complianceIssues.reviewedAt,
-      developerCheckedAt: complianceIssues.developerCheckedAt,
-    }[sortBy] ?? complianceIssues.reviewedAt;
+    }[sortBy] ?? complianceIssues.createdAt;
 
     const orderByClause = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
 
@@ -508,17 +515,21 @@ export class ComplianceIssuesRepository extends BaseRepository {
         id: complianceIssues.id,
         documentId: complianceIssues.documentId,
         issueType: complianceIssues.issueType,
-        termMatched: complianceIssues.termMatched,
-        context: complianceIssues.context,
-        requirementQuote: complianceIssues.requirementQuote,
-        fromStatute: complianceIssues.fromStatute,
+        matchedPattern: complianceIssues.matchedPattern,
+        matchedContext: complianceIssues.matchedContext,
+        url: complianceIssues.url,
+        requirementFound: complianceIssues.requirementFound,
+        requirementText: complianceIssues.requirementText,
+        requiredByStatute: complianceIssues.requiredByStatute,
+        severity: complianceIssues.severity,
+        occurrenceNumber: complianceIssues.occurrenceNumber,
         statuteCitation: complianceIssues.statuteCitation,
-        llmConfirmed: complianceIssues.llmConfirmed,
+        impactAssessment: complianceIssues.impactAssessment,
         reviewStatus: complianceIssues.reviewStatus,
         reviewedBy: complianceIssues.reviewedBy,
         reviewedAt: complianceIssues.reviewedAt,
+        reviewerNotes: complianceIssues.reviewerNotes,
         justificationNotes: complianceIssues.justificationNotes,
-        teamNotes: complianceIssues.teamNotes,
         priority: complianceIssues.priority,
         impactType: complianceIssues.impactType,
         // Developer fields
@@ -554,17 +565,21 @@ export class ComplianceIssuesRepository extends BaseRepository {
       id: Number(row.id),
       documentId: Number(row.documentId),
       issueType: row.issueType,
-      termMatched: row.termMatched,
-      context: row.context,
-      requirementQuote: row.requirementQuote,
-      fromStatute: row.fromStatute,
+      matchedPattern: row.matchedPattern,
+      matchedContext: row.matchedContext,
+      url: row.url,
+      requirementFound: row.requirementFound,
+      requirementText: row.requirementText,
+      requiredByStatute: row.requiredByStatute,
+      severity: row.severity,
+      occurrenceNumber: row.occurrenceNumber,
       statuteCitation: row.statuteCitation,
-      llmConfirmed: row.llmConfirmed,
+      impactAssessment: row.impactAssessment,
       reviewStatus: row.reviewStatus,
       reviewedBy: row.reviewedBy,
       reviewedAt: row.reviewedAt,
+      reviewerNotes: row.reviewerNotes,
       justificationNotes: row.justificationNotes,
-      teamNotes: row.teamNotes,
       priority: row.priority,
       impactType: row.impactType,
       developerStatus: row.developerStatus,
@@ -599,17 +614,16 @@ export class ComplianceIssuesRepository extends BaseRepository {
   }
 
   /**
-   * Get compliance issues that need more info, with reviewer's items first
+   * Get compliance issues that need more info
    */
   async getNeedMoreInfoIssues(
     state: StateCode,
     options: {
       page: number;
       pageSize: number;
-      reviewerName?: string;
     }
   ): Promise<PaginatedComplianceIssuesResult> {
-    const { page, pageSize, reviewerName } = options;
+    const { page, pageSize } = options;
     const offset = (page - 1) * pageSize;
 
     const conditions = [
@@ -626,13 +640,8 @@ export class ComplianceIssuesRepository extends BaseRepository {
       .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
       .where(whereClause);
 
-    // Order: reviewer's items first, then by developerCheckedAt desc
-    const orderBy = reviewerName
-      ? [
-          sql`CASE WHEN ${complianceIssues.reviewedBy} = ${reviewerName} THEN 0 ELSE 1 END`,
-          desc(complianceIssues.developerCheckedAt),
-        ]
-      : [desc(complianceIssues.developerCheckedAt)];
+    // Order by developerCheckedAt desc
+    const orderBy = [desc(complianceIssues.developerCheckedAt)];
 
     // Get paginated results
     const results = await this.db
@@ -640,17 +649,21 @@ export class ComplianceIssuesRepository extends BaseRepository {
         id: complianceIssues.id,
         documentId: complianceIssues.documentId,
         issueType: complianceIssues.issueType,
-        termMatched: complianceIssues.termMatched,
-        context: complianceIssues.context,
-        requirementQuote: complianceIssues.requirementQuote,
-        fromStatute: complianceIssues.fromStatute,
+        matchedPattern: complianceIssues.matchedPattern,
+        matchedContext: complianceIssues.matchedContext,
+        url: complianceIssues.url,
+        requirementFound: complianceIssues.requirementFound,
+        requirementText: complianceIssues.requirementText,
+        requiredByStatute: complianceIssues.requiredByStatute,
+        severity: complianceIssues.severity,
+        occurrenceNumber: complianceIssues.occurrenceNumber,
         statuteCitation: complianceIssues.statuteCitation,
-        llmConfirmed: complianceIssues.llmConfirmed,
+        impactAssessment: complianceIssues.impactAssessment,
         reviewStatus: complianceIssues.reviewStatus,
         reviewedBy: complianceIssues.reviewedBy,
         reviewedAt: complianceIssues.reviewedAt,
+        reviewerNotes: complianceIssues.reviewerNotes,
         justificationNotes: complianceIssues.justificationNotes,
-        teamNotes: complianceIssues.teamNotes,
         priority: complianceIssues.priority,
         impactType: complianceIssues.impactType,
         developerStatus: complianceIssues.developerStatus,
@@ -683,17 +696,21 @@ export class ComplianceIssuesRepository extends BaseRepository {
       id: Number(row.id),
       documentId: Number(row.documentId),
       issueType: row.issueType,
-      termMatched: row.termMatched,
-      context: row.context,
-      requirementQuote: row.requirementQuote,
-      fromStatute: row.fromStatute,
+      matchedPattern: row.matchedPattern,
+      matchedContext: row.matchedContext,
+      url: row.url,
+      requirementFound: row.requirementFound,
+      requirementText: row.requirementText,
+      requiredByStatute: row.requiredByStatute,
+      severity: row.severity,
+      occurrenceNumber: row.occurrenceNumber,
       statuteCitation: row.statuteCitation,
-      llmConfirmed: row.llmConfirmed,
+      impactAssessment: row.impactAssessment,
       reviewStatus: row.reviewStatus,
       reviewedBy: row.reviewedBy,
       reviewedAt: row.reviewedAt,
+      reviewerNotes: row.reviewerNotes,
       justificationNotes: row.justificationNotes,
-      teamNotes: row.teamNotes,
       priority: row.priority,
       impactType: row.impactType,
       developerStatus: row.developerStatus,
@@ -728,9 +745,9 @@ export class ComplianceIssuesRepository extends BaseRepository {
   }
 
   /**
-   * Get count of need_more_info issues, optionally filtered by reviewer
+   * Get count of need_more_info issues
    */
-  async getNeedMoreInfoCount(state: StateCode, reviewerName?: string): Promise<{ total: number; forReviewer: number }> {
+  async getNeedMoreInfoCount(state: StateCode): Promise<{ total: number }> {
     const baseConditions = [
       eq(complianceIssues.state, state.toUpperCase()),
       eq(complianceIssues.developerStatus, 'need_more_info'),
@@ -742,16 +759,6 @@ export class ComplianceIssuesRepository extends BaseRepository {
       .from(complianceIssues)
       .where(and(...baseConditions));
 
-    // Get count for specific reviewer
-    let forReviewer = 0;
-    if (reviewerName) {
-      const [{ count: reviewerCount }] = await this.db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(complianceIssues)
-        .where(and(...baseConditions, eq(complianceIssues.reviewedBy, reviewerName)));
-      forReviewer = reviewerCount;
-    }
-
-    return { total, forReviewer };
+    return { total };
   }
 }

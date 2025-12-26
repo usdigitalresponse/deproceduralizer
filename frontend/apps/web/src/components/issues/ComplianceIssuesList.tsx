@@ -19,12 +19,7 @@ export function ComplianceIssuesList({ initialIssues, regulationContent }: Compl
   const handleIssueUpdated = useCallback((updatedIssue: {
     id: number;
     reviewStatus?: string;
-    reviewedBy?: string;
-    reviewedAt?: string;
-    justificationNotes?: string;
-    teamNotes?: string;
-    priority?: number;
-    impactType?: string;
+    reviewerNotes?: string;
   }) => {
     setIssues((prev) =>
       prev.map((issue) =>
@@ -32,12 +27,7 @@ export function ComplianceIssuesList({ initialIssues, regulationContent }: Compl
           ? {
               ...issue,
               reviewStatus: updatedIssue.reviewStatus ?? issue.reviewStatus,
-              reviewedBy: updatedIssue.reviewedBy ?? issue.reviewedBy,
-              reviewedAt: updatedIssue.reviewedAt ? new Date(updatedIssue.reviewedAt) : issue.reviewedAt,
-              justificationNotes: updatedIssue.justificationNotes ?? issue.justificationNotes,
-              teamNotes: updatedIssue.teamNotes ?? issue.teamNotes,
-              priority: updatedIssue.priority ?? issue.priority,
-              impactType: updatedIssue.impactType ?? issue.impactType,
+              reviewerNotes: updatedIssue.reviewerNotes ?? issue.reviewerNotes,
             }
           : issue
       )
@@ -72,7 +62,7 @@ export function ComplianceIssuesList({ initialIssues, regulationContent }: Compl
 
           // Get expanded context if we have regulation content
           const expanded = regulationContent && isExpanded
-            ? expandContext(regulationContent, issue.context, 800)
+            ? expandContext(regulationContent, issue.matchedContext, 800)
             : null;
 
           const canExpand = Boolean(regulationContent) && !isExpanded;

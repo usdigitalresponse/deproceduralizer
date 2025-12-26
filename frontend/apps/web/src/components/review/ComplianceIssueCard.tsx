@@ -1,10 +1,9 @@
 'use client';
 
-import { useState, forwardRef, useCallback } from 'react';
+import { useState, forwardRef, useCallback, useTransition } from 'react';
 import { updateComplianceIssueReview, getExpandedContext } from '@/lib/actions/compliance-issues';
-import { useReviewForm } from '@/hooks';
-import { Button, Input, Textarea, Badge, Select, Tag, CopyLinkButton } from '@/components/ui';
-import { PRIORITY_OPTIONS, IMPACT_TYPES, ISSUE_TYPE_LABELS } from '@/types/regulation';
+import { Button, Textarea, Badge, Select, Tag, CopyLinkButton } from '@/components/ui';
+import { ISSUE_TYPE_LABELS } from '@/types/regulation';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
 import { formatNjacCitation } from '@/lib/formatters/njac';
 import { highlightTerm, highlightContext } from '@/lib/utils/highlight';
@@ -21,37 +20,35 @@ interface ComplianceIssueCardProps {
 
 export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCardProps>(
   ({ issue, onUpdated, onViewRegulation, isFocused = false }, ref) => {
-    // Use shared review form hook for state management
-    const {
-      formData,
-      updateField,
-      isPending,
-      error,
-      handleSubmit,
-    } = useReviewForm({
-      initialData: issue,
-      onSubmit: async (data) => updateComplianceIssueReview({
-        id: data.id,
-        reviewStatus: data.reviewStatus,
-        reviewedBy: data.reviewedBy,
-        justificationNotes: data.justificationNotes,
-        teamNotes: data.teamNotes,
-        priority: data.priority,
-        impactType: data.impactType,
-      }),
-      onUpdated: (data) => {
+    // Simple inline form state for compliance issues
+    const [isPending, startTransition] = useTransition();
+    const [error, setError] = useState<string | null>(null);
+    const [reviewStatus, setReviewStatus] = useState(issue.reviewStatus || 'unreviewed');
+    const [reviewerNotes, setReviewerNotes] = useState(issue.reviewerNotes || '');
+
+    const handleSubmit = useCallback(async (e: React.FormEvent) => {
+      e.preventDefault();
+      setError(null);
+
+      startTransition(async () => {
+        const result = await updateComplianceIssueReview({
+          id: issue.id,
+          reviewStatus,
+          reviewerNotes: reviewerNotes || undefined,
+        });
+
+        if (!result.success) {
+          setError(result.error);
+          return;
+        }
+
         onUpdated({
           ...issue,
-          reviewStatus: data.reviewStatus ?? null,
-          reviewedBy: data.reviewedBy ?? null,
-          reviewedAt: data.reviewedAt ? new Date(data.reviewedAt) : null,
-          justificationNotes: data.justificationNotes ?? null,
-          teamNotes: data.teamNotes ?? null,
-          priority: data.priority ?? null,
-          impactType: data.impactType ?? null,
+          reviewStatus: result.data.reviewStatus ?? null,
+          reviewerNotes: result.data.reviewerNotes ?? null,
         });
-      },
-    });
+      });
+    }, [issue, reviewStatus, reviewerNotes, onUpdated]);
 
     // Expanded context state
     const [isExpanded, setIsExpanded] = useState(false);
@@ -85,7 +82,7 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
 
       setIsLoadingContext(true);
       try {
-        const result = await getExpandedContext(issue.documentId, issue.context, 800);
+        const result = await getExpandedContext(issue.documentId, issue.matchedContext, 800);
         if (result.success && result.data.couldExpand) {
           setExpandedText(result.data.expandedText);
           setIsExpanded(true);
@@ -97,20 +94,13 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
       } finally {
         setIsLoadingContext(false);
       }
-    }, [isExpanded, expandedText, issue.documentId, issue.context]);
-
-    // Convert options to Select format with explicit "none" sentinel
-    const priorityOptions = [{ value: 'none', label: '--' }, ...PRIORITY_OPTIONS];
-    const impactOptions = [{ value: 'none', label: '--' }, ...IMPACT_TYPES];
+    }, [isExpanded, expandedText, issue.documentId, issue.matchedContext]);
 
     // Convert REVIEW_STATUSES to Select format with labels
     const statusOptions = REVIEW_STATUSES.map((status) => ({
       value: status,
       label: REVIEW_STATUS_LABELS[status],
     }));
-
-    // Get current status description for helper text
-    const currentStatusDescription = REVIEW_STATUS_DESCRIPTIONS[formData.reviewStatus as ReviewStatus] || '';
 
     const issueTypeLabel = ISSUE_TYPE_LABELS[issue.issueType] || issue.issueType;
 
@@ -127,12 +117,12 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
             <Badge variant="warning" className="font-semibold">
               {issueTypeLabel}
             </Badge>
-            {issue.llmConfirmed && (
+            {issue.requirementFound && (
               <Badge variant="success" className="text-xs">
                 LLM Confirmed
               </Badge>
             )}
-            {issue.fromStatute && (
+            {issue.requiredByStatute && (
               <Badge variant="info" className="text-xs">
                 From Statute
               </Badge>
@@ -166,13 +156,13 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
           <span className="text-[var(--color-text-secondary)]">{issue.regulation.title}</span>
         </div>
 
-        {/* Term matched */}
-        {issue.termMatched && (
+        {/* Pattern matched */}
+        {issue.matchedPattern && (
           <div className="mb-3">
-            <span className="text-xs font-medium text-[var(--color-text-secondary)]">Term matched:</span>
+            <span className="text-xs font-medium text-[var(--color-text-secondary)]">Pattern matched:</span>
             <div className="mt-1">
               <Tag variant="warning" size="sm">
-                {issue.termMatched}
+                {issue.matchedPattern}
               </Tag>
             </div>
           </div>
@@ -198,27 +188,19 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
           <div className="p-3 bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] border-l-4 border-[var(--color-warning)]">
             <p className="text-sm text-[var(--color-text)] whitespace-pre-wrap">
               {isExpanded && expandedText
-                ? highlightContext(expandedText, issue.context, issue.termMatched)
-                : highlightTerm(issue.context, issue.termMatched)}
+                ? highlightContext(expandedText, issue.matchedContext, issue.matchedPattern)
+                : highlightTerm(issue.matchedContext, issue.matchedPattern)}
             </p>
           </div>
         </div>
 
-        {/* Requirement quote */}
-        {issue.requirementQuote && issue.requirementQuote !== issue.context && (
+        {/* Requirement text */}
+        {issue.requirementText && issue.requirementText !== issue.matchedContext && (
           <div className="mb-4">
             <span className="text-xs font-medium text-[var(--color-text-secondary)]">Requirement:</span>
             <blockquote className="mt-1 pl-3 border-l-2 border-[var(--color-neutral-300)] text-sm text-[var(--color-text)] italic">
-              &ldquo;{issue.requirementQuote}&rdquo;
+              &ldquo;{issue.requirementText}&rdquo;
             </blockquote>
-          </div>
-        )}
-
-        {/* Statute citation */}
-        {issue.statuteCitation && (
-          <div className="mb-4 text-sm">
-            <span className="font-medium text-[var(--color-text-secondary)]">Statute:</span>
-            <span className="ml-2 font-mono text-[var(--color-text)]">{issue.statuteCitation}</span>
           </div>
         )}
 
@@ -230,93 +212,37 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
             </div>
           )}
 
-          {/* Status with description */}
+          {/* Status */}
           <div className="mb-3">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {/* Status */}
-              <div>
-                <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">
-                  Status *
-                </label>
-                <Select
-                  value={formData.reviewStatus}
-                  onValueChange={(value) => updateField('reviewStatus', value)}
-                  options={statusOptions}
-                  disabled={isPending}
-                />
-              </div>
-
-            {/* Priority */}
             <div>
               <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">
-                Priority
+                Status *
               </label>
               <Select
-                value={formData.priority?.toString() ?? 'none'}
-                onValueChange={(value) => updateField('priority', value === 'none' ? undefined : parseInt(value))}
-                options={priorityOptions}
+                value={reviewStatus}
+                onValueChange={(value) => setReviewStatus(value)}
+                options={statusOptions}
                 disabled={isPending}
               />
-            </div>
-
-            {/* Impact Type */}
-            <div>
-              <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">
-                Impact
-              </label>
-              <Select
-                value={formData.impactType || 'none'}
-                onValueChange={(value) => updateField('impactType', value === 'none' ? undefined : value)}
-                options={impactOptions}
-                disabled={isPending}
-              />
-            </div>
-
-            {/* Reviewer */}
-            <div>
-              <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">
-                Reviewer *
-              </label>
-              <Input
-                value={formData.reviewedBy}
-                onChange={(e) => updateField('reviewedBy', e.target.value)}
-                placeholder="Your name"
-                disabled={isPending}
-              />
-            </div>
             </div>
             {/* Status description helper text */}
-            {currentStatusDescription && formData.reviewStatus !== 'unreviewed' && (
+            {REVIEW_STATUS_DESCRIPTIONS[reviewStatus as ReviewStatus] && reviewStatus !== 'unreviewed' && (
               <p className="mt-2 text-xs text-[var(--color-text-muted)] italic">
-                {currentStatusDescription}
+                {REVIEW_STATUS_DESCRIPTIONS[reviewStatus as ReviewStatus]}
               </p>
             )}
           </div>
 
-          {/* Justification Notes - for model training */}
+          {/* Reviewer Notes */}
           <div className="mb-3">
             <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">
-              Justification and analysis for the model
+              Notes
             </label>
             <Textarea
-              value={formData.justificationNotes ?? ''}
-              onChange={(e) => updateField('justificationNotes', e.target.value || undefined)}
+              value={reviewerNotes}
+              onChange={(e) => setReviewerNotes(e.target.value)}
               rows={2}
-              placeholder="Explain your reasoning for this classification..."
-              disabled={isPending}
-            />
-          </div>
-
-          {/* Team Notes - for developers */}
-          <div className="mb-3">
-            <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">
-              Notes for Development Team
-            </label>
-            <Textarea
-              value={formData.teamNotes ?? ''}
-              onChange={(e) => updateField('teamNotes', e.target.value || undefined)}
-              rows={2}
-              placeholder="Process notes, research tasks, questions..."
+              placeholder="Your notes on this issue..."
               disabled={isPending}
             />
           </div>

@@ -99,16 +99,16 @@ export const NeedMoreInfoCard = forwardRef<HTMLDivElement, NeedMoreInfoCardProps
           <div className="text-sm">
             <div className="mb-2">
               <Badge variant="warning" className="mr-2">{ISSUE_TYPE_LABELS[issue.issueType] || formatLabel(issue.issueType)}</Badge>
-              {issue.termMatched && <Tag variant="primary" size="sm">{issue.termMatched}</Tag>}
+              {issue.matchedPattern && <Tag variant="primary" size="sm">{issue.matchedPattern}</Tag>}
               {nycrrCitation && (
                 <span className="text-[var(--color-text-muted)] ml-2 font-mono">{nycrrCitation}</span>
               )}
             </div>
             <ExpandableRegulationQuote
-              text={issue.requirementQuote}
+              text={issue.requirementText ?? ''}
               label="Regulation Text"
               documentId={issue.regulation.id}
-              highlightTerm={issue.termMatched}
+              highlightTerm={issue.matchedPattern}
               variant="warning"
             />
           </div>

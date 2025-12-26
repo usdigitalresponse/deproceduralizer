@@ -9,13 +9,12 @@ interface ComplianceIssueDisplayCardProps {
   /** The compliance issue data to display */
   issue: {
     issueType: string;
-    llmConfirmed: boolean | null;
-    fromStatute: boolean | null;
+    requirementFound: boolean | null;
+    requiredByStatute: boolean | null;
     reviewStatus: string | null;
-    termMatched: string | null;
-    context: string;
-    requirementQuote: string | null;
-    statuteCitation: string | null;
+    matchedPattern: string | null;
+    matchedContext: string;
+    requirementText: string | null;
   };
   /** Whether to show the review status badge in the header */
   showReviewStatus?: boolean;
@@ -53,12 +52,12 @@ export function ComplianceIssueDisplayCard({
           <Badge variant="warning" className="font-semibold">
             {issueTypeLabel}
           </Badge>
-          {issue.llmConfirmed && (
+          {issue.requirementFound && (
             <Badge variant="success" className="text-xs">
               LLM Confirmed
             </Badge>
           )}
-          {issue.fromStatute && (
+          {issue.requiredByStatute && (
             <Badge variant="info" className="text-xs">
               From Statute
             </Badge>
@@ -69,15 +68,15 @@ export function ComplianceIssueDisplayCard({
         )}
       </div>
 
-      {/* Term matched */}
-      {issue.termMatched && (
+      {/* Pattern matched */}
+      {issue.matchedPattern && (
         <div className="mb-3">
           <span className="text-xs font-medium text-[var(--color-text-secondary)]">
-            Term matched:
+            Pattern matched:
           </span>
           <div className="flex flex-wrap gap-1 mt-1">
             <Tag variant="warning" size="sm">
-              {issue.termMatched}
+              {issue.matchedPattern}
             </Tag>
           </div>
         </div>
@@ -103,31 +102,21 @@ export function ComplianceIssueDisplayCard({
         <div className="p-3 bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] border-l-4 border-[var(--color-warning)]">
           <p className="text-sm text-[var(--color-text)] whitespace-pre-wrap">
             {isExpanded && expandedText
-              ? highlightContext(expandedText, issue.context, issue.termMatched)
-              : highlightTerm(issue.context, issue.termMatched)}
+              ? highlightContext(expandedText, issue.matchedContext, issue.matchedPattern)
+              : highlightTerm(issue.matchedContext, issue.matchedPattern)}
           </p>
         </div>
       </div>
 
-      {/* Requirement quote */}
-      {issue.requirementQuote && issue.requirementQuote !== issue.context && (
+      {/* Requirement text */}
+      {issue.requirementText && issue.requirementText !== issue.matchedContext && (
         <div className="mb-3">
           <span className="text-xs font-medium text-[var(--color-text-secondary)]">
             Requirement:
           </span>
           <blockquote className="mt-1 pl-3 border-l-2 border-[var(--color-neutral-300)] text-sm text-[var(--color-text)] italic">
-            &ldquo;{issue.requirementQuote}&rdquo;
+            &ldquo;{issue.requirementText}&rdquo;
           </blockquote>
-        </div>
-      )}
-
-      {/* Statute citation */}
-      {issue.statuteCitation && (
-        <div className="mb-3 text-sm">
-          <span className="font-medium text-[var(--color-text-secondary)]">Statute:</span>
-          <span className="ml-2 font-mono text-[var(--color-text)]">
-            {issue.statuteCitation}
-          </span>
         </div>
       )}
 

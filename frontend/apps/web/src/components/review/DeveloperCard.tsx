@@ -145,23 +145,23 @@ export const DeveloperCard = forwardRef<HTMLDivElement, DeveloperCardProps>(
           <>
             <div className="flex items-center gap-2 mb-2">
               <Badge variant="warning">{ISSUE_TYPE_LABELS[issue.issueType] || formatLabel(issue.issueType)}</Badge>
-              {issue.llmConfirmed && <Badge variant="success">LLM Confirmed</Badge>}
+              {issue.requirementFound && <Badge variant="success">LLM Confirmed</Badge>}
             </div>
             <div className="text-sm text-[var(--color-text-muted)] mb-2">
               {nycrrCitation && <span className="font-mono">{nycrrCitation}</span>}
               {nycrrCitation && issue.regulation.title && ' - '}
               <span className="text-[var(--color-text-secondary)]">{issue.regulation.title}</span>
             </div>
-            {issue.termMatched && (
+            {issue.matchedPattern && (
               <div className="mb-2">
-                <Tag variant="primary" size="sm">{issue.termMatched}</Tag>
+                <Tag variant="primary" size="sm">{issue.matchedPattern}</Tag>
               </div>
             )}
             <ExpandableRegulationQuote
-              text={issue.requirementQuote}
+              text={issue.requirementText ?? ''}
               label="Regulation Text"
               documentId={issue.regulation.id}
-              highlightTerm={issue.termMatched}
+              highlightTerm={issue.matchedPattern}
               variant="warning"
             />
           </>
