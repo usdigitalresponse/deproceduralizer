@@ -14,24 +14,25 @@ import { regulatoryDocuments } from './regulatory-documents';
 export const complianceIssues = pgTable('compliance_issues', {
   id: bigserial('id', { mode: 'number' }).primaryKey(),
   documentId: bigint('document_id', { mode: 'number' }).notNull().references(() => regulatoryDocuments.id, { onDelete: 'cascade' }),
-  issueType: varchar('issue_type', { length: 50 }).notNull(), // 'wet_signature', 'in_person', 'paper_form', etc.
-  termMatched: varchar('term_matched', { length: 255 }),
-  context: text('context').notNull(),
-  requirementQuote: text('requirement_quote').notNull(),
-  fromStatute: boolean('from_statute'),
-  statuteCitation: varchar('statute_citation', { length: 255 }),
-  llmConfirmed: boolean('llm_confirmed').default(false),
 
-  // Review fields
-  reviewStatus: varchar('review_status', { length: 50 }).default('unreviewed'),
-  reviewedBy: varchar('reviewed_by', { length: 255 }),
-  reviewedAt: timestamp('reviewed_at'),
-  justificationNotes: text('justification_notes'),
-  teamNotes: text('team_notes'),
-  priority: integer('priority'),
-  impactType: varchar('impact_type', { length: 100 }),
+  // Issue identification (from regex scan)
+  issueType: varchar('issue_type', { length: 50 }).notNull(), // 'wet_signature', 'mail_only', 'fax', etc.
+  matchedPattern: varchar('matched_pattern', { length: 255 }), // Regex pattern that triggered scan
+  matchedContext: text('matched_context').notNull(), // ~600 char text window around the regex match
+  url: text('url'), // Link to the regulation
 
-  // Developer tracking fields
+  // LLM analysis results
+  requirementFound: boolean('requirement_found').default(false), // Did LLM find an actual requirement?
+  requirementText: text('requirement_text'), // The specific text creating the requirement
+  requiredByStatute: boolean('required_by_statute'), // true=statute mandates, false=agency added
+  severity: integer('severity'), // 1-10 scale of how problematic
+  impactAssessment: text('impact_assessment'), // LLM explanation of why this is/isn't problematic
+
+  // Human review
+  reviewStatus: varchar('review_status', { length: 50 }).default('unreviewed'), // 'unreviewed', 'confirmed', 'rejected_false_positive'
+  reviewerNotes: text('reviewer_notes'), // Human explanation of review decision
+
+  // Developer tracking
   developerStatus: varchar('developer_status', { length: 50 }).default('unresolved'),
   developerAssigned: varchar('developer_assigned', { length: 50 }),
   developerNotes: text('developer_notes'),

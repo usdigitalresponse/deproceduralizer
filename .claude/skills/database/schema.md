@@ -190,6 +190,18 @@ Tracks compliance issues found in regulations (wet signatures, mail-only submiss
 | `review_status` | varchar(50) | `unreviewed`, `confirmed`, `rejected_false_positive` |
 | `reviewer_notes` | text | Human explanation of review decision |
 
+**Developer tracking:**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `developer_status` | varchar(50) | `unresolved`, `resolved`, `pending`, `backlogged`, `need_more_info` |
+| `developer_assigned` | varchar(50) | Michael or Abigail |
+| `developer_notes` | text | Notes from developer |
+| `resolution_type` | varchar(50) | `implemented` or `not_implemented` |
+| `resolution_comments` | text | Comments about the resolution |
+| `developer_question` | text | Question for reviewer |
+| `developer_checked_at` | timestamp | When developer last checked |
+
 **Metadata:**
 
 | Column | Type | Description |

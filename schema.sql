@@ -402,6 +402,15 @@ CREATE TABLE compliance_issues (
   review_status VARCHAR(50) DEFAULT 'unreviewed',     -- 'unreviewed', 'confirmed', 'rejected_false_positive'
   reviewer_notes TEXT,                                -- Human explanation of review decision
 
+  -- Developer tracking
+  developer_status VARCHAR(50) DEFAULT 'unresolved',  -- 'unresolved', 'resolved', 'pending', 'backlogged', 'need_more_info'
+  developer_assigned VARCHAR(50),                     -- 'Michael' or 'Abigail'
+  developer_notes TEXT,                               -- Notes from developer
+  resolution_type VARCHAR(50),                        -- 'implemented' or 'not_implemented' (when resolved)
+  resolution_comments TEXT,                           -- Comments about the resolution
+  developer_question TEXT,                            -- Question for reviewer (when need_more_info)
+  developer_checked_at TIMESTAMP,                     -- When developer last checked this item
+
   -- Metadata
   state VARCHAR(2) NOT NULL CHECK (state IN ('NY', 'NJ')),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -418,6 +427,8 @@ CREATE INDEX idx_compliance_issues_review_status ON compliance_issues(review_sta
 CREATE INDEX idx_compliance_issues_state_issue ON compliance_issues(state, issue_type);
 CREATE INDEX idx_compliance_issues_requirement_found ON compliance_issues(requirement_found);
 CREATE INDEX idx_compliance_issues_severity ON compliance_issues(severity) WHERE severity IS NOT NULL;
+CREATE INDEX idx_compliance_issues_developer_status ON compliance_issues(developer_status);
+CREATE INDEX idx_compliance_issues_developer_assigned ON compliance_issues(developer_assigned);
 
 -- Incorporations by Reference: Track external standards incorporated into regulations
 -- (NFPA codes, ICC codes, ASTM standards, CFR references, etc.)

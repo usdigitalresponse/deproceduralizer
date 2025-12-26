@@ -62,17 +62,13 @@ ALTER TABLE compliance_issues DROP COLUMN IF EXISTS reviewed_at;
 ALTER TABLE compliance_issues DROP COLUMN IF EXISTS priority;
 ALTER TABLE compliance_issues DROP COLUMN IF EXISTS impact_type;
 
--- Developer workflow fields - not used
-ALTER TABLE compliance_issues DROP COLUMN IF EXISTS developer_status;
-ALTER TABLE compliance_issues DROP COLUMN IF EXISTS developer_assigned;
-ALTER TABLE compliance_issues DROP COLUMN IF EXISTS developer_notes;
-ALTER TABLE compliance_issues DROP COLUMN IF EXISTS resolution_type;
-ALTER TABLE compliance_issues DROP COLUMN IF EXISTS resolution_comments;
-ALTER TABLE compliance_issues DROP COLUMN IF EXISTS developer_question;
-ALTER TABLE compliance_issues DROP COLUMN IF EXISTS developer_checked_at;
-
 -- Also drop justification_notes if it exists (was being misused for LLM metadata)
 ALTER TABLE compliance_issues DROP COLUMN IF EXISTS justification_notes;
+
+-- Also drop team_notes if it exists
+ALTER TABLE compliance_issues DROP COLUMN IF EXISTS team_notes;
+
+-- NOTE: Keeping developer_* fields for developer review workflow
 
 -- ============================================================================
 -- Step 4: Update indexes (drop old, create new with correct names)
