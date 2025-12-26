@@ -508,7 +508,7 @@ CREATE INDEX idx_definitions_normalized_term_trgm ON definitions USING GIN (norm
 CREATE INDEX idx_def_doc_occurrences_definition ON definition_document_occurrences(definition_id);
 CREATE INDEX idx_def_doc_occurrences_document ON definition_document_occurrences(document_id);
 
--- Compliance Issues
+-- Compliance Issues (indexes)
 CREATE INDEX idx_compliance_issues_document ON compliance_issues(document_id);
 CREATE INDEX idx_compliance_issues_state ON compliance_issues(state);
 CREATE INDEX idx_compliance_issues_issue_type ON compliance_issues(issue_type);
