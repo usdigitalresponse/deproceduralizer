@@ -234,16 +234,17 @@ def extract_with_llm(content: str, title: str, client=None, max_retries: int = 3
     if client is None:
         client = get_openai_client()
 
-    # Use load_prompt_parts to get both system and user prompts
-    parts = load_prompt_parts("definition_extraction", title=title, content=content[:3000])
+    # Use load_prompt_parts to get both system and user prompts, DO NOT TRUNCATE the content
+    parts = load_prompt_parts("definition_extraction", title=title, content=content)
+    # Combine system and user for non-batch calls
+    prompt = f"{parts['system']}\n\n{parts['user']}" if parts.get('system') else parts['user']
 
     parsed = call_llm_parse(
         client=client,
-        prompt=parts['user'],
+        prompt=prompt,
         response_format=DefinitionsResponse,
         model=MODEL_VERSION,
-        max_retries=max_retries,
-        system=parts.get('system'),  # Pass system separately for caching
+        max_retries=max_retries
     )
 
     if parsed is None:
@@ -257,16 +258,17 @@ async def extract_with_llm_async(content: str, title: str, client=None, max_retr
     if client is None:
         client = get_async_openai_client()
 
-    # Use load_prompt_parts to get both system and user prompts
-    parts = load_prompt_parts("definition_extraction", title=title, content=content[:3000])
+    # Use load_prompt_parts to get both system and user prompts, DO NOT TRUNCATE the content
+    parts = load_prompt_parts("definition_extraction", title=title, content=content)
+    # Combine system and user for non-batch calls
+    prompt = f"{parts['system']}\n\n{parts['user']}" if parts.get('system') else parts['user']
 
     parsed = await call_llm_parse_async(
         client=client,
-        prompt=parts['user'],
+        prompt=prompt,
         response_format=DefinitionsResponse,
         model=MODEL_VERSION,
-        max_retries=max_retries,
-        system=parts.get('system'),  # Pass system separately for caching
+        max_retries=max_retries
     )
 
     if parsed is None:

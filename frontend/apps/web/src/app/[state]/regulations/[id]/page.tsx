@@ -120,9 +120,12 @@ export default async function RegulationDetailPage({ params, searchParams }: Pag
   }
 
   const complianceIssues = complianceIssuesResult.data;
-  const { usedInText, availableButNotUsed } = definitionsResult.data;
+  // Safely destructure definitions data with fallbacks
+  const definitionsData = definitionsResult.data ?? { usedInText: { definedHere: [], inherited: [] }, availableButNotUsed: [] };
+  const usedInText = definitionsData.usedInText ?? { definedHere: [], inherited: [] };
+  const availableButNotUsed = definitionsData.availableButNotUsed ?? [];
   // Combine all definitions that appear in text (both defined here and inherited)
-  const usedDefinitions = [...usedInText.definedHere, ...usedInText.inherited];
+  const usedDefinitions = [...(usedInText.definedHere ?? []), ...(usedInText.inherited ?? [])];
   const notes = notesResult.data;
 
   const nycrrCitation = formatNycrrCitation(

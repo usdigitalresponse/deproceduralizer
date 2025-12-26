@@ -159,18 +159,32 @@ def get_definitions_to_process(
     ]
 
 
-def get_all_definition_ids_for_term(conn, normalized_term: str) -> List[int]:
+def get_all_definition_ids_for_term(conn, normalized_term: str, state: Optional[str] = None) -> List[int]:
     """
     Get all definition IDs that share the same normalized term.
 
     When we find a term in a document, we link ALL definitions with that
     normalized term (not just one) to properly track usage.
+
+    Args:
+        conn: Database connection
+        normalized_term: The normalized (lowercased, trimmed) term
+        state: Optional state filter (NY or NJ) - only return definitions from this state
     """
+    if state:
+        # Filter by state via the document's state
+        query = """
+            SELECT d.id FROM definitions d
+            JOIN regulatory_documents r ON d.document_id = r.id
+            WHERE d.normalized_term = %s AND r.state = %s
+        """
+        params = (normalized_term, state.upper())
+    else:
+        query = "SELECT id FROM definitions WHERE normalized_term = %s"
+        params = (normalized_term,)
+
     with conn.cursor() as cur:
-        cur.execute(
-            "SELECT id FROM definitions WHERE normalized_term = %s",
-            (normalized_term,)
-        )
+        cur.execute(query, params)
         return [row[0] for row in cur.fetchall()]
 
 
@@ -294,6 +308,7 @@ def build_scope_to_definitions_map(
 
 
 def get_applicable_definitions(
+    doc_id: int,
     doc_ancestors: Set[int],
     scope_to_defs: Dict[Optional[int], List[Dict]],
 ) -> List[Dict]:
@@ -301,8 +316,10 @@ def get_applicable_definitions(
     Get definitions that apply to a document based on its ancestry.
 
     A definition applies if its scope_document_id is in the document's ancestor chain.
+    Definitions with NULL scope only apply to their own source document.
 
     Args:
+        doc_id: The document ID being scanned
         doc_ancestors: Set of ancestor document IDs (including self)
         scope_to_defs: Map of scope_document_id -> definitions
 
@@ -316,9 +333,11 @@ def get_applicable_definitions(
         if scope_id in scope_to_defs:
             applicable.extend(scope_to_defs[scope_id])
 
-    # Also include definitions with NULL scope (global definitions, if any)
+    # Definitions with NULL scope only apply to their own source document
     if None in scope_to_defs:
-        applicable.extend(scope_to_defs[None])
+        for defn in scope_to_defs[None]:
+            if defn['document_id'] == doc_id:
+                applicable.append(defn)
 
     return applicable
 
@@ -571,7 +590,8 @@ def link_definitions_to_documents(
             for defn in defs:
                 normalized = defn['normalized_term']
                 if normalized not in term_to_def_ids:
-                    term_to_def_ids[normalized] = get_all_definition_ids_for_term(conn, normalized)
+                    # Pass state to avoid cross-state linking
+                    term_to_def_ids[normalized] = get_all_definition_ids_for_term(conn, normalized, state)
         print(f"  Mapped {len(term_to_def_ids)} unique terms")
 
     finally:
@@ -606,19 +626,19 @@ def link_definitions_to_documents(
 
                 # Get only definitions that are in scope for this document
                 ancestors = doc_ancestry.get(doc_id, {doc_id})
-                applicable_defs = get_applicable_definitions(ancestors, scope_to_defs)
+                applicable_defs = get_applicable_definitions(doc_id, ancestors, scope_to_defs)
 
                 doc_matches = 0
 
                 for defn in applicable_defs:
                     term = defn['term']
-                    normalized = defn['normalized_term']
                     total_comparisons += 1
 
                     if term_appears_in_content(term, content, pattern_cache):
-                        for def_id in term_to_def_ids.get(normalized, [defn['id']]):
-                            all_occurrences.append((def_id, doc_id))
-                            doc_matches += 1
+                        # Only link to THIS definition (already scope-filtered)
+                        # Don't link to all definitions with same term name
+                        all_occurrences.append((defn['id'], doc_id))
+                        doc_matches += 1
 
                 if doc_matches > 0:
                     docs_with_matches += 1

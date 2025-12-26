@@ -206,6 +206,9 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         hasDescendantAnalysis: regulatoryDocuments.hasDescendantAnalysis,
         complianceIssueCount: regulatoryDocuments.complianceIssueCount,
         descendantComplianceIssueCount: regulatoryDocuments.descendantComplianceIssueCount,
+        // Regulatory status
+        regulatoryStatus: regulatoryDocuments.regulatoryStatus,
+        recodifiedTo: regulatoryDocuments.recodifiedTo,
         // Analysis exclusion
         excludeFromAnalysis: regulatoryDocuments.excludeFromAnalysis,
         excludedAt: regulatoryDocuments.excludedAt,
@@ -472,6 +475,9 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         hasDescendantAnalysis: regulatoryDocuments.hasDescendantAnalysis,
         complianceIssueCount: regulatoryDocuments.complianceIssueCount,
         descendantComplianceIssueCount: regulatoryDocuments.descendantComplianceIssueCount,
+        // Regulatory status
+        regulatoryStatus: regulatoryDocuments.regulatoryStatus,
+        recodifiedTo: regulatoryDocuments.recodifiedTo,
         // Analysis exclusion
         excludeFromAnalysis: regulatoryDocuments.excludeFromAnalysis,
         excludedAt: regulatoryDocuments.excludedAt,
@@ -616,6 +622,9 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         hasDescendantAnalysis: regulatoryDocuments.hasDescendantAnalysis,
         complianceIssueCount: regulatoryDocuments.complianceIssueCount,
         descendantComplianceIssueCount: regulatoryDocuments.descendantComplianceIssueCount,
+        // Regulatory status
+        regulatoryStatus: regulatoryDocuments.regulatoryStatus,
+        recodifiedTo: regulatoryDocuments.recodifiedTo,
         // Analysis exclusion fields
         excludeFromAnalysis: regulatoryDocuments.excludeFromAnalysis,
         excludedAt: regulatoryDocuments.excludedAt,
