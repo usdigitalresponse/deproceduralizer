@@ -45,6 +45,22 @@ export interface SplitApplicableDefinitions {
   ancestors: ApplicableDefinition[];
 }
 
+/**
+ * Definitions with full context - separates definitions that appear in text
+ * from those that are merely in scope
+ */
+export interface DefinitionsWithContext {
+  /** Definitions where the term actually appears in this document's text */
+  usedInText: {
+    /** Definitions whose scope_document_id is this document */
+    definedHere: ApplicableDefinition[];
+    /** Definitions inherited from ancestor documents */
+    inherited: ApplicableDefinition[];
+  };
+  /** Definitions in scope but the term doesn't appear in this document's text */
+  availableButNotUsed: ApplicableDefinition[];
+}
+
 export interface DefinitionPaginationOptions {
   state: StateCode;
   page: number;
@@ -353,6 +369,40 @@ export class DefinitionsRepository extends BaseRepository {
     }
 
     return { currentDocument, ancestors };
+  }
+
+  /**
+   * Get definitions with full context for a document.
+   *
+   * This distinguishes between:
+   * 1. Definitions where the term appears in the document's text (from definition_document_occurrences)
+   * 2. Definitions that are in scope but the term doesn't appear
+   *
+   * And within "used in text", separates:
+   * - definedHere: scope_document_id matches the current document
+   * - inherited: scope_document_id is an ancestor
+   */
+  async getDefinitionsWithContext(documentId: number): Promise<DefinitionsWithContext> {
+    // 1. Get definitions that appear in the document text (via occurrence links)
+    const usedDefinitions = await this.getDefinitionsAppearingInDocument(documentId);
+
+    // 2. Get all scope-applicable definitions
+    const scopeDefinitions = await this.getApplicableDefinitions(documentId);
+
+    // 3. Create a set of used definition IDs for quick lookup
+    const usedIds = new Set(usedDefinitions.map(d => d.id));
+
+    // 4. Split "used" into definedHere vs inherited
+    const definedHere = usedDefinitions.filter(d => d.scopeDocumentId === documentId);
+    const inherited = usedDefinitions.filter(d => d.scopeDocumentId !== documentId);
+
+    // 5. "Available but not used" = scope definitions NOT in usedIds
+    const availableButNotUsed = scopeDefinitions.filter(d => !usedIds.has(d.id));
+
+    return {
+      usedInText: { definedHere, inherited },
+      availableButNotUsed
+    };
   }
 
   /**
@@ -1035,8 +1085,11 @@ export class DefinitionsRepository extends BaseRepository {
    *
    * This is different from getApplicableDefinitions which uses scope hierarchy.
    * Use this when you want to know which defined terms are used in the text.
+   * Returns ApplicableDefinition with scope document context.
    */
-  async getDefinitionsAppearingInDocument(documentId: number): Promise<Definition[]> {
+  async getDefinitionsAppearingInDocument(documentId: number): Promise<ApplicableDefinition[]> {
+    const scopeDoc = alias(regulatoryDocuments, 'scope_doc');
+
     const results = await this.db
       .select({
         id: definitions.id,
@@ -1074,12 +1127,16 @@ export class DefinitionsRepository extends BaseRepository {
         resolutionComments: definitions.resolutionComments,
         developerQuestion: definitions.developerQuestion,
         developerCheckedAt: definitions.developerCheckedAt,
+        // Scope document context
+        scopeDocTitle: scopeDoc.title,
+        scopeDocLevel: scopeDoc.hierarchyLevel,
       })
       .from(definitionDocumentOccurrences)
       .innerJoin(
         definitions,
         eq(definitionDocumentOccurrences.definitionId, definitions.id)
       )
+      .leftJoin(scopeDoc, eq(definitions.scopeDocumentId, scopeDoc.id))
       .where(eq(definitionDocumentOccurrences.documentId, documentId))
       .orderBy(asc(definitions.term));
 

@@ -20,12 +20,18 @@ function getDisplayDefinitionText(definition: DefinitionWithContext): string {
 
 interface DefinitionsListProps {
   definitions: DefinitionWithContext[];
+  /** Set of definition IDs that are defined in the current document (vs inherited) */
+  definedHereIds?: Set<number>;
   /** State for context (used in display) */
   state?: string;
   /** Whether the section is collapsible */
   collapsible?: boolean;
   /** Initial collapsed state */
   initialCollapsed?: boolean;
+  /** Custom title for the section */
+  title?: string;
+  /** Description text below the title */
+  description?: string;
 }
 
 /**
@@ -34,9 +40,12 @@ interface DefinitionsListProps {
  */
 export function DefinitionsList({
   definitions,
+  definedHereIds,
   state = DEFAULT_STATE,
   collapsible = true,
   initialCollapsed = false,
+  title = 'Definitions',
+  description,
 }: DefinitionsListProps) {
   const [isCollapsed, setIsCollapsed] = useState(initialCollapsed);
   const [expandedDefinitions, setExpandedDefinitions] = useState<Set<number>>(new Set());
@@ -71,9 +80,14 @@ export function DefinitionsList({
       >
         <div className="flex items-center gap-2">
           <BookOpen className="w-5 h-5 text-[var(--color-info)]" />
-          <h2 className="font-semibold text-[var(--color-text)]">
-            Definitions ({definitions.length})
-          </h2>
+          <div>
+            <h2 className="font-semibold text-[var(--color-text)]">
+              {title} ({definitions.length})
+            </h2>
+            {description && (
+              <p className="text-sm text-[var(--color-text-muted)]">{description}</p>
+            )}
+          </div>
         </div>
         {collapsible && (
           <Button
@@ -113,11 +127,18 @@ export function DefinitionsList({
                 id={`definition-${definition.id}`}
                 className="bg-[var(--color-info-bg)] border-l-4 border-[var(--color-info)] p-4 rounded-[var(--radius-md)]"
               >
-                {/* Term and scope */}
+                {/* Term, origin badge, and scope */}
                 <div className="flex items-center gap-2 flex-wrap mb-2">
                   <span className="font-semibold text-[var(--color-text)]">
                     {definition.term}
                   </span>
+                  {definedHereIds && (
+                    definedHereIds.has(definition.id) ? (
+                      <Badge variant="success" className="text-xs">Defined here</Badge>
+                    ) : (
+                      <Badge variant="default" className="text-xs">Inherited</Badge>
+                    )
+                  )}
                   {definition.scope && (
                     <Badge variant="info">{definition.scope}</Badge>
                   )}

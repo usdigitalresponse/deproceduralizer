@@ -12,7 +12,11 @@ interface ApplicableDefinitionsProps {
   definitions: ApplicableDefinition[];
   state: string;
   /** Whether to start collapsed (default: true to save space) */
-  initialCollapsed?: boolean;
+  collapsed?: boolean;
+  /** Custom title for the section */
+  title?: string;
+  /** Description text below the title */
+  description?: string;
 }
 
 /**
@@ -32,9 +36,11 @@ function getDisplayDefinitionText(definition: ApplicableDefinition): string {
 export function ApplicableDefinitions({
   definitions,
   state,
-  initialCollapsed = true,
+  collapsed = true,
+  title = 'Available Definitions',
+  description,
 }: ApplicableDefinitionsProps) {
-  const [isCollapsed, setIsCollapsed] = useState(initialCollapsed);
+  const [isCollapsed, setIsCollapsed] = useState(collapsed);
   const [expandedTerms, setExpandedTerms] = useState<Set<number>>(new Set());
 
   const toggleTerm = (id: number) => {
@@ -72,10 +78,15 @@ export function ApplicableDefinitions({
         onClick={() => setIsCollapsed(!isCollapsed)}
       >
         <div className="flex items-center gap-2">
-          <BookOpen className="w-5 h-5 text-[var(--color-info)]" />
-          <h2 className="font-semibold text-[var(--color-text)]">
-            Applicable Definitions ({definitions.length})
-          </h2>
+          <BookOpen className="w-5 h-5 text-[var(--color-text-muted)]" />
+          <div>
+            <h2 className="font-semibold text-[var(--color-text-muted)]">
+              {title} ({definitions.length})
+            </h2>
+            {description && (
+              <p className="text-sm text-[var(--color-text-muted)]">{description}</p>
+            )}
+          </div>
         </div>
         <Button
           type="button"

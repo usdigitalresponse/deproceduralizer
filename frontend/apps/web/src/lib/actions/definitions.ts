@@ -8,6 +8,7 @@ import {
   type DefinitionWithContext,
   type ApplicableDefinition,
   type SplitApplicableDefinitions,
+  type DefinitionsWithContext,
   type PaginatedDefinitionsResult,
   type PaginatedAggregatedResult,
   type DefinitionStats,
@@ -70,6 +71,26 @@ export async function getApplicableDefinitionsForDocumentSplit(
     return success(definitions);
   } catch (error) {
     console.error('[getApplicableDefinitionsForDocumentSplit]', error);
+    return failure(getErrorMessage(error));
+  }
+}
+
+/**
+ * Get definitions with full context for a document.
+ *
+ * Distinguishes between:
+ * - usedInText.definedHere: Terms that appear in text and are defined in this document
+ * - usedInText.inherited: Terms that appear in text and are inherited from ancestor scope
+ * - availableButNotUsed: Terms that are in scope but don't appear in the document text
+ */
+export async function getDefinitionsWithContext(
+  documentId: number
+): Promise<ActionResult<DefinitionsWithContext>> {
+  try {
+    const data = await definitionsRepo.getDefinitionsWithContext(documentId);
+    return success(data);
+  } catch (error) {
+    console.error('[getDefinitionsWithContext]', error);
     return failure(getErrorMessage(error));
   }
 }

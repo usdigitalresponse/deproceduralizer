@@ -19,7 +19,7 @@ import { HierarchyBreadcrumbsServer } from '@/components/regulations/HierarchyBr
 import { ChildrenListServer } from '@/components/regulations/ChildrenListServer';
 import { getRegulationById } from '@/lib/actions/regulations';
 import { getComplianceIssuesByDocumentId } from '@/lib/actions/compliance-issues';
-import { getApplicableDefinitionsForDocumentSplit } from '@/lib/actions/definitions';
+import { getDefinitionsWithContext } from '@/lib/actions/definitions';
 import { getNotesByDocumentId } from '@/lib/actions/document-notes';
 import { RegulationDetailClient } from './RegulationDetailClient';
 
@@ -45,7 +45,7 @@ export default async function RegulationDetailPage({ params, searchParams }: Pag
   const [regulationResult, complianceIssuesResult, definitionsResult, notesResult] = await Promise.all([
     getRegulationById(regulationId),
     getComplianceIssuesByDocumentId(regulationId),
-    getApplicableDefinitionsForDocumentSplit(regulationId),
+    getDefinitionsWithContext(regulationId),
     getNotesByDocumentId(regulationId),
   ]);
 
@@ -120,7 +120,9 @@ export default async function RegulationDetailPage({ params, searchParams }: Pag
   }
 
   const complianceIssues = complianceIssuesResult.data;
-  const { currentDocument: definitions, ancestors: applicableDefinitions } = definitionsResult.data;
+  const { usedInText, availableButNotUsed } = definitionsResult.data;
+  // Combine all definitions that appear in text (both defined here and inherited)
+  const usedDefinitions = [...usedInText.definedHere, ...usedInText.inherited];
   const notes = notesResult.data;
 
   const nycrrCitation = formatNycrrCitation(
@@ -209,19 +211,25 @@ export default async function RegulationDetailPage({ params, searchParams }: Pag
             />
           )}
 
-          {/* Definitions from this regulation */}
-          {definitions && definitions.length > 0 && (
+          {/* Definitions Used - terms that appear in this document's text */}
+          {usedDefinitions.length > 0 && (
             <DefinitionsList
-              definitions={definitions}
+              definitions={usedDefinitions}
+              definedHereIds={new Set(usedInText.definedHere.map(d => d.id))}
               state={state}
+              title="Definitions Used"
+              description="Terms that appear in this document"
             />
           )}
 
-          {/* Applicable Definitions from ancestor hierarchy */}
-          {applicableDefinitions && applicableDefinitions.length > 0 && (
+          {/* Available Definitions - in scope but not used */}
+          {availableButNotUsed.length > 0 && (
             <ApplicableDefinitions
-              definitions={applicableDefinitions}
+              definitions={availableButNotUsed}
               state={state}
+              title="Other Available Definitions"
+              description="Terms in scope but not used in this document"
+              collapsed={true}
             />
           )}
 
@@ -231,7 +239,7 @@ export default async function RegulationDetailPage({ params, searchParams }: Pag
             documentId={regulationId}
             state={state}
             initialNotes={notes}
-            applicableDefinitions={[...definitions, ...applicableDefinitions]}
+            applicableDefinitions={usedDefinitions}
           />
         </div>
       </Container>
