@@ -72,6 +72,21 @@ export const HAS_COMPLIANCE_FILTER_OPTIONS = [
   { value: 'false', label: 'No Compliance Issues' },
 ];
 
+export const STATUTE_SOURCE_FILTER_OPTIONS = [
+  { value: 'all', label: 'All Sources' },
+  { value: 'true', label: 'Statute Required' },
+  { value: 'false', label: 'Agency Added' },
+];
+
+// LLM Requirement Found filter
+// Note: requirementFound=false means the regex matched but LLM found nothing of concern.
+// Default to 'true' to show only confirmed issues (where LLM verified an actual requirement).
+export const REQUIREMENT_FOUND_FILTER_OPTIONS = [
+  { value: 'all', label: 'All' },
+  { value: 'true', label: 'LLM Confirmed' },
+  { value: 'false', label: 'LLM Rejected' },
+];
+
 // ============================================
 // Sort Options
 // ============================================

@@ -1,4 +1,4 @@
-import { eq, and, desc, asc, sql, count, or, isNull, ne } from 'drizzle-orm';
+import { eq, and, desc, asc, sql, count, or, isNull, ne, gte, lt } from 'drizzle-orm';
 import { BaseRepository } from './base.repository';
 import { complianceIssues, ComplianceIssue, IssueType } from '../schema/compliance-issues';
 import { regulatoryDocuments } from '../schema/regulatory-documents';
@@ -42,6 +42,9 @@ export interface ComplianceIssueFilterOptions {
   state: StateCode;
   status?: ReviewStatus | 'all';
   issueType?: IssueType | 'all';
+  severity?: 'high' | 'medium' | 'low' | 'all';
+  requiredByStatute?: boolean | 'all';
+  requirementFound?: boolean | 'all';
 }
 
 export interface ComplianceIssuePaginationOptions {
@@ -264,6 +267,27 @@ export class ComplianceIssuesRepository extends BaseRepository {
       // Issue type filter
       if (filters.issueType && filters.issueType !== 'all') {
         conditions.push(eq(complianceIssues.issueType, filters.issueType));
+      }
+
+      // Severity filter (high=7-10, medium=4-6, low=1-3)
+      if (filters.severity && filters.severity !== 'all') {
+        if (filters.severity === 'high') {
+          conditions.push(gte(complianceIssues.severity, 7));
+        } else if (filters.severity === 'medium') {
+          conditions.push(and(gte(complianceIssues.severity, 4), lt(complianceIssues.severity, 7))!);
+        } else if (filters.severity === 'low') {
+          conditions.push(lt(complianceIssues.severity, 4));
+        }
+      }
+
+      // Required by statute filter
+      if (filters.requiredByStatute !== undefined && filters.requiredByStatute !== 'all') {
+        conditions.push(eq(complianceIssues.requiredByStatute, filters.requiredByStatute));
+      }
+
+      // Requirement found filter (LLM confirmation)
+      if (filters.requirementFound !== undefined && filters.requirementFound !== 'all') {
+        conditions.push(eq(complianceIssues.requirementFound, filters.requirementFound));
       }
     }
 
