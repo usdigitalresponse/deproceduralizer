@@ -47,6 +47,9 @@ interface PageProps {
     sortBy?: string;
     sortOrder?: string;
     page?: string;
+    // Compliance issue filters
+    requiredByStatute?: string;
+    requirementFound?: string;
     // Definition-specific filters (managed by nuqs in client components)
     scopeLevel?: string;
     definitionType?: string;
@@ -450,9 +453,25 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
   // Render based on review type
   if (reviewType === 'compliance') {
     const sortBy = (queryParams.sortBy || 'createdAt') as 'issueType' | 'createdAt' | 'reviewedAt';
+
+    // Parse boolean string filters
+    const parseSeverity = (val?: string): 'high' | 'medium' | 'low' | 'all' | undefined => {
+      if (!val || val === 'all') return 'all';
+      if (val === 'high' || val === 'medium' || val === 'low') return val;
+      return 'all';
+    };
+
+    const parseBooleanFilter = (val?: string): boolean | 'all' => {
+      if (!val || val === 'all') return 'all';
+      return val === 'true';
+    };
+
     const filters = {
       status: queryParams.reviewStatus === 'all' ? undefined : queryParams.reviewStatus,
       issueType: queryParams.issueType || undefined,
+      severity: parseSeverity(queryParams.severity),
+      requiredByStatute: parseBooleanFilter(queryParams.requiredByStatute),
+      requirementFound: parseBooleanFilter(queryParams.requirementFound),
     };
 
     const [issuesResultAction, issueTypesResult] = await Promise.all([
