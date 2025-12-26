@@ -132,10 +132,11 @@ Beyond the core tables (`regulatory_documents`, `analyses`, `red_flags`, `statut
 | `definitions` | Extracted regulatory terms with scope tracking (28k+ records) |
 | `compliance_issues` | Compliance violations by type (wet_signature, mail_only, etc.) |
 | `definition_document_occurrences` | Many-to-many tracking of where terms appear |
-| `definition_extraction_log` | Processing history for batch extraction |
+| `incorporations_by_reference` | External standards (NFPA, ICC, ASTM) referenced in regulations |
 | `document_notes` | User annotations on regulations |
 | `prompt_feedback` | Feedback on LLM prompts |
 | `regulation_statute_links` | Regulation-to-statute cross-references |
+| `statutes` | NJ/NY statutes for linking to regulations |
 
 See `.claude/skills/database/schema.md` for complete schema documentation.
 
@@ -153,7 +154,7 @@ ORDER BY term;
 ```sql
 SELECT issue_type, COUNT(*) as count
 FROM compliance_issues
-WHERE llm_confirmed = true AND state = 'NY'
+WHERE requirement_found = true AND state = 'NJ'
 GROUP BY issue_type
 ORDER BY count DESC;
 ```

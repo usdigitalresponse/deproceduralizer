@@ -43,10 +43,9 @@ export interface DeveloperItem {
   reviewStatus: string | null;
   reviewedBy: string | null;
   reviewedAt: Date | null;
+  reviewerNotes: string | null;
   justificationNotes: string | null;
   teamNotes: string | null;
-  priority: number | null;
-  impactType: string | null;
   // Developer fields
   developerStatus: string | null;
   developerAssigned: string | null;
@@ -84,9 +83,9 @@ export interface CombinedDeveloperStatusCounts {
 }
 
 export interface NeedMoreInfoCounts {
-  flags: { total: number; forReviewer: number };
-  compliance: { total: number; forReviewer: number };
-  combined: { total: number; forReviewer: number };
+  flags: { total: number };
+  compliance: { total: number };
+  combined: { total: number };
 }
 
 /**
@@ -212,10 +211,9 @@ export async function getCombinedReviewedItems(
       reviewStatus: flag.reviewStatus,
       reviewedBy: flag.reviewedBy,
       reviewedAt: flag.reviewedAt,
+      reviewerNotes: flag.justificationNotes,
       justificationNotes: flag.justificationNotes,
       teamNotes: flag.teamNotes,
-      priority: flag.priority,
-      impactType: flag.impactType,
       developerStatus: flag.developerStatus,
       developerAssigned: flag.developerAssigned,
       developerNotes: flag.developerNotes,
@@ -237,10 +235,9 @@ export async function getCombinedReviewedItems(
       reviewStatus: issue.reviewStatus,
       reviewedBy: issue.reviewedBy,
       reviewedAt: issue.reviewedAt,
+      reviewerNotes: issue.reviewerNotes,
       justificationNotes: issue.justificationNotes,
-      teamNotes: issue.teamNotes,
-      priority: issue.priority,
-      impactType: issue.impactType,
+      teamNotes: null, // Compliance issues don't have teamNotes
       developerStatus: issue.developerStatus,
       developerAssigned: issue.developerAssigned,
       developerNotes: issue.developerNotes,
@@ -256,11 +253,11 @@ export async function getCombinedReviewedItems(
       complianceIssueData: issue,
     }));
 
-    // Combine and sort
+    // Combine and sort by developerCheckedAt
     const combined = [...flagItems, ...issueItems];
     combined.sort((a, b) => {
-      const aDate = sortBy === 'developerCheckedAt' ? a.developerCheckedAt : a.reviewedAt;
-      const bDate = sortBy === 'developerCheckedAt' ? b.developerCheckedAt : b.reviewedAt;
+      const aDate = a.developerCheckedAt;
+      const bDate = b.developerCheckedAt;
 
       if (!aDate && !bDate) return 0;
       if (!aDate) return sortOrder === 'desc' ? 1 : -1;
@@ -297,16 +294,15 @@ export async function getNeedMoreInfoItems(
   options: {
     page: number;
     pageSize: number;
-    reviewerName?: string;
   }
 ): Promise<ActionResult<PaginatedDeveloperItemsResult>> {
   try {
-    const { page, pageSize, reviewerName } = options;
+    const { page, pageSize } = options;
 
     // Fetch from both repositories
     const [flagsResult, issuesResult] = await Promise.all([
-      redFlagsRepo.getNeedMoreInfoFlags(state, { page: 1, pageSize: 1000, reviewerName }),
-      complianceIssuesRepo.getNeedMoreInfoIssues(state, { page: 1, pageSize: 1000, reviewerName }),
+      redFlagsRepo.getNeedMoreInfoFlags(state, { page: 1, pageSize: 1000 }),
+      complianceIssuesRepo.getNeedMoreInfoIssues(state, { page: 1, pageSize: 1000 }),
     ]);
 
     // Transform and combine
@@ -316,10 +312,9 @@ export async function getNeedMoreInfoItems(
       reviewStatus: flag.reviewStatus,
       reviewedBy: flag.reviewedBy,
       reviewedAt: flag.reviewedAt,
+      reviewerNotes: flag.justificationNotes,
       justificationNotes: flag.justificationNotes,
       teamNotes: flag.teamNotes,
-      priority: flag.priority,
-      impactType: flag.impactType,
       developerStatus: flag.developerStatus,
       developerAssigned: flag.developerAssigned,
       developerNotes: flag.developerNotes,
@@ -341,10 +336,9 @@ export async function getNeedMoreInfoItems(
       reviewStatus: issue.reviewStatus,
       reviewedBy: issue.reviewedBy,
       reviewedAt: issue.reviewedAt,
+      reviewerNotes: issue.reviewerNotes,
       justificationNotes: issue.justificationNotes,
-      teamNotes: issue.teamNotes,
-      priority: issue.priority,
-      impactType: issue.impactType,
+      teamNotes: null, // Compliance issues don't have teamNotes
       developerStatus: issue.developerStatus,
       developerAssigned: issue.developerAssigned,
       developerNotes: issue.developerNotes,
@@ -360,18 +354,9 @@ export async function getNeedMoreInfoItems(
       complianceIssueData: issue,
     }));
 
-    // Combine and sort - reviewer's items first, then by developerCheckedAt
+    // Combine and sort by developerCheckedAt desc
     const combined = [...flagItems, ...issueItems];
     combined.sort((a, b) => {
-      // Reviewer's items first
-      if (reviewerName) {
-        const aIsReviewer = a.reviewedBy === reviewerName;
-        const bIsReviewer = b.reviewedBy === reviewerName;
-        if (aIsReviewer && !bIsReviewer) return -1;
-        if (!aIsReviewer && bIsReviewer) return 1;
-      }
-
-      // Then by developerCheckedAt desc
       const aDate = a.developerCheckedAt;
       const bDate = b.developerCheckedAt;
       if (!aDate && !bDate) return 0;
@@ -403,21 +388,19 @@ export async function getNeedMoreInfoItems(
  * Get counts of items needing more info
  */
 export async function getNeedMoreInfoCounts(
-  state: StateCode,
-  reviewerName?: string
+  state: StateCode
 ): Promise<ActionResult<NeedMoreInfoCounts>> {
   try {
     const [flagCounts, issueCounts] = await Promise.all([
-      redFlagsRepo.getNeedMoreInfoCount(state, reviewerName),
-      complianceIssuesRepo.getNeedMoreInfoCount(state, reviewerName),
+      redFlagsRepo.getNeedMoreInfoCount(state),
+      complianceIssuesRepo.getNeedMoreInfoCount(state),
     ]);
 
     return success({
-      flags: flagCounts,
-      compliance: issueCounts,
+      flags: { total: flagCounts.total },
+      compliance: { total: issueCounts.total },
       combined: {
         total: flagCounts.total + issueCounts.total,
-        forReviewer: flagCounts.forReviewer + issueCounts.forReviewer,
       },
     });
   } catch (error) {

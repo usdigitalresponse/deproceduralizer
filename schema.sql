@@ -11,7 +11,7 @@
 -- ENUM TYPES
 -- =============================================================================
 
-CREATE TYPE note_type AS ENUM ('general', 'highlight', 'question', 'action_item');
+CREATE TYPE note_type AS ENUM ('anchored', 'document');
 CREATE TYPE feedback_type AS ENUM ('suggestion', 'bug', 'question', 'other');
 
 -- =============================================================================

@@ -108,16 +108,15 @@ WHERE d.document_id IS NOT NULL
 AND NOT EXISTS (SELECT 1 FROM regulatory_documents rd WHERE rd.id = d.document_id);
 ```
 
-## Known Unused Columns (Dec 2025)
+## Known Unused Columns (Dec 2025, verified Dec 26)
 
 **Completely empty:**
 - `statute_references` - entire table (0 rows)
-- `regulatory_documents.scraped_from_url`
-- `definitions.notes`
-- `red_flags.developer_*` fields
-- `red_flags.priority`, `impact_type`
-- `compliance_issues.developer_*` fields
-- `compliance_issues.statute_citation`
+- `regulatory_documents.scraped_from_url` - 0 of 123k rows
+- `definitions.notes` - 0 of 50k rows
+- `red_flags.developer_*` fields - all 3,400 rows have developer_status='unresolved'
+- `compliance_issues.statute_citation` - 0 of 189 rows
 
 **Barely used (<1%):**
-- `red_flags.reviewed_by/at/notes` - only 2 of 3,400 reviewed
+- `red_flags.reviewed_by/at` - 11 of 3,400 rows reviewed
+- `red_flags.priority`, `impact_type` - rarely populated

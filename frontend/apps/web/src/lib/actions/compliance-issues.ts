@@ -7,10 +7,8 @@ import {
   ComplianceIssuesRepository,
   RegulatoryDocumentsRepository,
   REVIEW_STATUSES,
-  IMPACT_TYPES,
   type StateCode,
   type ReviewStatus,
-  type ImpactType,
   type ComplianceIssue,
   type ComplianceIssueWithContext,
   type PaginatedComplianceIssuesResult,
@@ -24,7 +22,8 @@ const regulatoryDocumentsRepo = new RegulatoryDocumentsRepository(db);
 export interface UpdateComplianceIssueInput {
   id: number;
   reviewStatus: string;
-  reviewedBy: string;
+  reviewedBy?: string;
+  reviewerNotes?: string;
   justificationNotes?: string;
   teamNotes?: string;
   priority?: number;
@@ -33,7 +32,7 @@ export interface UpdateComplianceIssueInput {
 
 /**
  * Updates the review status and notes for a compliance issue.
- * @param input - The update input including id, review status, reviewer info, and optional priority/impact
+ * @param input - The update input including id, review status, and notes
  * @returns The updated compliance issue or an error
  */
 export async function updateComplianceIssueReview(
@@ -44,17 +43,13 @@ export async function updateComplianceIssueReview(
       return failure(`Invalid review status: ${input.reviewStatus}`);
     }
 
-    if (input.impactType && !IMPACT_TYPES.includes(input.impactType as ImpactType)) {
-      return failure(`Invalid impact type: ${input.impactType}`);
-    }
-
     const result = await complianceIssuesRepo.updateReview(input.id, {
       reviewStatus: input.reviewStatus as ReviewStatus,
       reviewedBy: input.reviewedBy,
+      reviewerNotes: input.reviewerNotes,
       justificationNotes: input.justificationNotes,
-      teamNotes: input.teamNotes,
       priority: input.priority,
-      impactType: input.impactType as ImpactType | undefined,
+      impactType: input.impactType,
     });
 
     if (!result) {

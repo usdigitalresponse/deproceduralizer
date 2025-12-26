@@ -21,8 +21,8 @@ export const statutes = pgTable('statutes', {
   id: bigserial('id', { mode: 'number' }).primaryKey(),
   citation: varchar('citation', { length: 50 }).notNull(),
   state: varchar('state', { length: 2 }).notNull(),
-  title: text('title'),
-  content: text('content'),
+  title: text('title').notNull(),
+  content: text('content').notNull(),
 
   // NJ-specific fields (NJSA - New Jersey Statutes Annotated)
   njsaTitle: varchar('njsa_title', { length: 10 }),

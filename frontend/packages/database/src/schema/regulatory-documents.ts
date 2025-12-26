@@ -49,7 +49,7 @@ export const regulatoryDocuments = pgTable('regulatory_documents', {
   njacSubtitleName: text('njac_subtitle_name'),
   njacChapter: varchar('njac_chapter', { length: 50 }),
   njacChapterName: text('njac_chapter_name'),
-  njacSubchapter: varchar('njac_subchapter', { length: 100 }),
+  njacSubchapter: varchar('njac_subchapter', { length: 50 }),
   njacSubchapterName: text('njac_subchapter_name'),
   njacArticle: varchar('njac_article', { length: 50 }),
   njacArticleName: text('njac_article_name'),
@@ -70,8 +70,8 @@ export const regulatoryDocuments = pgTable('regulatory_documents', {
 
   // Display-optimized fields (populated by backend scripts)
   shortTitle: text('short_title'),
-  levelIdentifier: varchar('level_identifier', { length: 100 }),
-  citation: varchar('citation', { length: 100 }),
+  levelIdentifier: text('level_identifier'),
+  citation: text('citation'),
 
   scrapedFromUrl: text('scraped_from_url'),
 
@@ -96,7 +96,7 @@ export const regulatoryDocuments = pgTable('regulatory_documents', {
   excludedBy: varchar('excluded_by', { length: 255 }),
   excludedReason: text('excluded_reason'),
 }, (table) => ({
-  uniquePerPull: unique().on(table.state, table.sourceIndex, table.type),
+  uniquePerUrl: unique().on(table.url),
 }));
 
 export type RegulatoryDocument = typeof regulatoryDocuments.$inferSelect;

@@ -109,12 +109,6 @@ export function NeedMoreInfoQueue({
             <span className="text-[var(--color-text-muted)]">Compliance Issues:</span>
             <span className="font-medium">{counts.compliance.total}</span>
           </div>
-          {reviewerName && counts.combined.forReviewer > 0 && (
-            <div className="flex items-center gap-2 ml-auto text-[var(--color-info)]">
-              <User className="w-4 h-4" />
-              <span className="font-medium">{counts.combined.forReviewer} assigned to you</span>
-            </div>
-          )}
         </div>
       </Card>
 
