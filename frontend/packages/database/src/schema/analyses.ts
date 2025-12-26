@@ -13,6 +13,7 @@ import { regulatoryDocuments } from './regulatory-documents';
 export const analyses = pgTable('analyses', {
   id: bigserial('id', { mode: 'number' }).primaryKey(),
   documentId: bigint('document_id', { mode: 'number' }).notNull().references(() => regulatoryDocuments.id, { onDelete: 'cascade' }),
+  url: text('url').notNull(),
   analyzedAt: timestamp('analyzed_at').defaultNow(),
   modelVersion: varchar('model_version', { length: 100 }),
   hasImplementationIssues: boolean('has_implementation_issues').default(false),

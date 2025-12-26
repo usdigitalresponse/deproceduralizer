@@ -25,7 +25,7 @@ Cornell Law Website
         ↓
     PostgreSQL (Neon)
         ↓
-    red_flags.py (LLM analysis via OpenAI)
+    red_flags.py (LLM analysis via Claude API)
         ↓
     Next.js Web App (Drizzle ORM)
         ↓
@@ -85,13 +85,14 @@ deproceduralizer/
 - Node.js 18+
 - pnpm (`npm install -g pnpm`)
 - PostgreSQL (or Neon cloud database)
-- OpenAI API key (for LLM analysis)
+- Anthropic API key (for Claude LLM analysis)
 
 ### 1. Install Dependencies
 
 ```bash
-# Python dependencies
-pip install -r backend/requirements.txt
+# Python dependencies (use uv for package management per project standards)
+uv pip install -r backend/requirements.txt
+# Or with pip: pip install -r backend/requirements.txt
 
 # Node.js dependencies
 cd frontend && pnpm install
@@ -103,7 +104,7 @@ Create a `.env` file in the project root:
 
 ```bash
 DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
-OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=sk-ant-...
 ```
 
 For the web app, also create `frontend/apps/web/.env.local` with the same `DATABASE_URL`.
