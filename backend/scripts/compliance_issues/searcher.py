@@ -208,15 +208,34 @@ class ComplianceIssueSearcher:
         return matches
 
     # Common instructions appended to all compliance issue prompts
-    SEVERITY_INSTRUCTIONS = """
+    LIST_OUTPUT_INSTRUCTIONS = """
 
-    SEVERITY RATING (required for all responses):
-    Always provide a severity rating from 1-10 when has_issue is true:
+    IMPORTANT: Return a LIST with at least one item. Each item needs: has_issue, requirement_quote, from_statute, severity, notes.
+
+    OUTPUT FORMAT:
+    - If you find issue(s): return each with has_issue=true and severity 1-10
+    - If NO issue: return ONE item with has_issue=false, severity=null, quote showing WHY there's no issue
+
+    Example with 2 issues found:
+    {
+      "issues": [
+        {"has_issue": true, "requirement_quote": "shall be signed in ink", "from_statute": false, "severity": 7, "notes": "Explicit ink requirement"},
+        {"has_issue": true, "requirement_quote": "original signature required", "from_statute": true, "severity": 8, "notes": "Statute mandates original"}
+      ]
+    }
+
+    Example with NO issue (always return one item explaining why):
+    {
+      "issues": [
+        {"has_issue": false, "requirement_quote": "electronic or digital signatures are acceptable", "from_statute": null, "severity": null, "notes": "Regulation explicitly permits electronic signatures, no wet signature requirement"}
+      ]
+    }
+
+    SEVERITY RATING (1-10 scale, only when has_issue=true):
     - 10: Complete barrier (no alternatives, major burden on public)
     - 7-9: Significant barrier (limited alternatives, notable burden)
     - 4-6: Moderate issue (some alternatives exist, inconvenient)
     - 1-3: Minor issue (easy workarounds, minimal burden)
-    Set severity to null if has_issue is false.
     """
 
     def create_prompt(self, match: dict) -> tuple[Optional[str], str]:
@@ -234,8 +253,8 @@ class ComplianceIssueSearcher:
         # Get prompt from issue config (loaded from YAML)
         prompt_config = self.issue_config.prompt
         base_system_prompt = prompt_config.get('system', '')
-        # Append common severity instructions to all prompts
-        system_prompt = base_system_prompt + self.SEVERITY_INSTRUCTIONS
+        # Append common list output instructions to all prompts
+        system_prompt = base_system_prompt + self.LIST_OUTPUT_INSTRUCTIONS
         template = prompt_config.get('template', '')
 
         # Use full content for small docs, windowed content for large docs
@@ -535,8 +554,8 @@ class ComplianceIssueSearcher:
         """
         Save all analyzed results to compliance_issues table.
 
-        Saves ALL results (both confirmed issues and non-issues) so we can
-        track which documents have been scanned for which issue types.
+        Each issue instance becomes a separate row with occurrence_number 1, 2, 3...
+        If no issues found, saves one row with requirement_found=False.
 
         Args:
             results: List of analyzed matches
@@ -554,8 +573,17 @@ class ComplianceIssueSearcher:
             print("No analyzed results to save")
             return 0
 
-        confirmed_count = sum(1 for r in analyzed if r.get('llm_analysis', {}).get('has_issue'))
-        print(f"\nSaving {len(analyzed)} analyzed results ({confirmed_count} confirmed issues) to database...")
+        # Count total issues across all documents
+        total_rows = sum(
+            len(r.get('llm_analysis', {}).get('issues', []))
+            for r in analyzed
+        )
+        confirmed_issues = sum(
+            1 for r in analyzed
+            for issue in r.get('llm_analysis', {}).get('issues', [])
+            if issue.get('has_issue')
+        )
+        print(f"\nSaving {len(analyzed)} documents ({confirmed_issues} confirmed issues, {total_rows} total rows)...")
 
         conn = get_db_connection()
         if not conn:
@@ -575,50 +603,46 @@ class ComplianceIssueSearcher:
                         continue
 
                     analysis = item.get('llm_analysis', {})
+                    issues = analysis.get('issues', [])
 
-                    # Build impact_assessment from LLM notes and extra fields
-                    impact_parts = []
-                    if analysis.get('notes'):
-                        impact_parts.append(analysis['notes'])
-                    # Include any issue-specific details
-                    for key in ['technology_type', 'alternative_methods', 'legal_rationale']:
-                        if analysis.get(key):
-                            impact_parts.append(f"{key}: {analysis[key]}")
-                    impact_assessment = ' | '.join(impact_parts) if impact_parts else None
+                    # Save each issue as a separate row (including "no issue" explanations)
+                    for occurrence_num, issue in enumerate(issues, start=1):
+                        has_issue = issue.get('has_issue', False)
 
-                    # Insert into compliance_issues (upsert)
-                    conn.execute(
-                        """
-                        INSERT INTO compliance_issues
-                        (document_id, issue_type, matched_pattern, matched_context, url,
-                         requirement_found, requirement_text, required_by_statute,
-                         severity, impact_assessment, state)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                        ON CONFLICT (document_id, issue_type) DO UPDATE SET
-                            matched_pattern = EXCLUDED.matched_pattern,
-                            matched_context = EXCLUDED.matched_context,
-                            url = EXCLUDED.url,
-                            requirement_found = EXCLUDED.requirement_found,
-                            requirement_text = EXCLUDED.requirement_text,
-                            required_by_statute = EXCLUDED.required_by_statute,
-                            severity = EXCLUDED.severity,
-                            impact_assessment = EXCLUDED.impact_assessment
-                        """,
-                        (
-                            document_id,
-                            self.issue_config.db_issue_type,
-                            item.get('term_matched'),  # matched_pattern
-                            item.get('context'),  # matched_context
-                            item.get('url', ''),
-                            analysis.get('has_issue', False),  # requirement_found
-                            analysis.get('requirement_quote'),  # requirement_text
-                            analysis.get('from_statute'),  # required_by_statute
-                            analysis.get('severity'),  # severity (new field)
-                            impact_assessment,
-                            self.state_config.state_code,
+                        # Build impact_assessment from notes and extra fields
+                        impact_parts = []
+                        if issue.get('notes'):
+                            impact_parts.append(issue['notes'])
+                        # Include any issue-specific details
+                        for key in ['technology_type', 'alternative_methods', 'legal_rationale']:
+                            if issue.get(key):
+                                impact_parts.append(f"{key}: {issue[key]}")
+                        impact_assessment = ' | '.join(impact_parts) if impact_parts else None
+
+                        conn.execute(
+                            """
+                            INSERT INTO compliance_issues
+                            (document_id, issue_type, occurrence_number, matched_pattern, matched_context, url,
+                             requirement_found, requirement_text, required_by_statute,
+                             severity, impact_assessment, state)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                            """,
+                            (
+                                document_id,
+                                self.issue_config.db_issue_type,
+                                occurrence_num,
+                                item.get('term_matched'),  # matched_pattern
+                                item.get('context'),  # matched_context
+                                item.get('url', ''),
+                                has_issue,  # requirement_found
+                                issue.get('requirement_quote'),  # requirement_text
+                                issue.get('from_statute'),  # required_by_statute
+                                issue.get('severity'),  # severity (null if has_issue=False)
+                                impact_assessment,
+                                self.state_config.state_code,
+                            )
                         )
-                    )
-                    saved += 1
+                        saved += 1
 
                 except Exception as e:
                     errors += 1
@@ -637,7 +661,7 @@ class ComplianceIssueSearcher:
         finally:
             conn.close()
 
-        print(f"Database save complete: {saved} saved, {skipped} skipped, {errors} errors")
+        print(f"Database save complete: {saved} rows saved, {skipped} skipped, {errors} errors")
         return saved
 
     def print_results(self, results: list[dict]) -> None:
@@ -646,51 +670,64 @@ class ComplianceIssueSearcher:
         print(f"{self.issue_config.display_name.upper()} RESULTS")
         print("=" * 80)
 
-        total = len(results)
-        with_issue = sum(
+        total_docs = len(results)
+        confirmed_issues = sum(
             1 for r in results
-            if r.get('llm_analysis', {}).get('has_issue', False)
+            for issue in r.get('llm_analysis', {}).get('issues', [])
+            if issue.get('has_issue')
+        )
+        docs_with_issues = sum(
+            1 for r in results
+            if any(issue.get('has_issue') for issue in r.get('llm_analysis', {}).get('issues', []))
         )
         with_statute_refs = sum(1 for r in results if r.get('statute_citations'))
-        from_statute = sum(
-            1 for r in results
-            if r.get('llm_analysis', {}).get('from_statute') is True
-        )
-        from_agency = sum(
-            1 for r in results
-            if r.get('llm_analysis', {}).get('has_issue') and
-               r.get('llm_analysis', {}).get('from_statute') is False
-        )
 
-        print(f"\nTotal regex matches searched: {total}")
-        print(f"Confirmed {self.issue_config.display_name}: {with_issue}")
+        # Count issues from statute vs agency
+        from_statute_count = 0
+        from_agency_count = 0
+        for r in results:
+            for issue in r.get('llm_analysis', {}).get('issues', []):
+                if issue.get('has_issue'):
+                    if issue.get('from_statute') is True:
+                        from_statute_count += 1
+                    elif issue.get('from_statute') is False:
+                        from_agency_count += 1
+
+        print(f"\nTotal documents searched: {total_docs}")
+        print(f"Documents with {self.issue_config.display_name}: {docs_with_issues}")
+        print(f"Total confirmed issues: {confirmed_issues}")
         print(f"  - With statute references: {with_statute_refs}")
-        print(f"  - Requirement from statute: {from_statute}")
-        print(f"  - Requirement from agency (not in statute): {from_agency}")
+        print(f"  - Requirements from statute: {from_statute_count}")
+        print(f"  - Requirements from agency (not in statute): {from_agency_count}")
 
         # Show confirmed issues
-        confirmed = [
-            r for r in results
-            if r.get('llm_analysis', {}).get('has_issue', False)
-        ]
-
-        if confirmed:
+        if confirmed_issues > 0:
             print("\n" + "-" * 80)
             print(f"{self.issue_config.display_name.upper()} FOUND:")
             print("-" * 80)
 
             prefix = self.state_config.citation_prefix
+            shown = 0
 
-            for r in confirmed[:30]:
-                analysis = r.get('llm_analysis', {})
-                from_stat = analysis.get('from_statute')
-                source = "FROM STATUTE" if from_stat is True else "AGENCY-ADDED" if from_stat is False else "?"
-                print(f"\n[{source}] {r['title'][:60]}...")
-                print(f"   {prefix.upper()} {r.get(f'{prefix}_section', 'Unknown')}")
-                quote = analysis.get('requirement_quote', 'N/A')
-                print(f"   Quote: \"{quote[:100] if quote else 'N/A'}\"")
-                if r.get('statute_citations'):
-                    print(f"   Statute refs: {', '.join(r['statute_citations'][:3])}")
+            for r in results:
+                if shown >= 30:
+                    break
+                issues = r.get('llm_analysis', {}).get('issues', [])
+                for i, issue in enumerate(issues, 1):
+                    if shown >= 30:
+                        break
+                    if not issue.get('has_issue'):
+                        continue  # Skip "no issue" explanations
+                    from_stat = issue.get('from_statute')
+                    source = "FROM STATUTE" if from_stat is True else "AGENCY-ADDED" if from_stat is False else "?"
+                    severity = issue.get('severity', '?')
+                    print(f"\n[{source}] [Sev:{severity}] {r['title'][:50]}... (#{i})")
+                    print(f"   {prefix.upper()} {r.get(f'{prefix}_section', 'Unknown')}")
+                    quote = issue.get('requirement_quote', 'N/A')
+                    print(f"   Quote: \"{quote[:100] if quote else 'N/A'}\"")
+                    if r.get('statute_citations'):
+                        print(f"   Statute refs: {', '.join(r['statute_citations'][:3])}")
+                    shown += 1
 
     def save_results_json(self, results: list[dict], output_file: Path) -> None:
         """Save results to JSON file."""
@@ -710,16 +747,33 @@ class ComplianceIssueSearcher:
         """Generate HTML table viewer with analysis results."""
         prefix = self.state_config.citation_prefix
 
+        # Flatten results: one row per issue instance
+        rows = []
+        for r in results:
+            issues = r.get('llm_analysis', {}).get('issues', [])
+            if issues:
+                for i, issue in enumerate(issues, 1):
+                    rows.append({
+                        'doc': r,
+                        'issue': issue,
+                        'occurrence': i,
+                        'has_issue': True,
+                    })
+            else:
+                # No issues found for this document
+                rows.append({
+                    'doc': r,
+                    'issue': None,
+                    'occurrence': 0,
+                    'has_issue': False,
+                })
+
         # Count stats
-        total = len(results)
-        has_issue_yes = sum(1 for r in results if r.get('llm_analysis', {}).get('has_issue'))
+        total = len(rows)
+        has_issue_yes = sum(1 for row in rows if row['has_issue'])
         has_issue_no = total - has_issue_yes
-        with_statute = sum(1 for r in results if r.get('statute_citations'))
-        from_statute = sum(1 for r in results if r.get('llm_analysis', {}).get('from_statute') is True)
-        from_agency = sum(
-            1 for r in results
-            if r.get('llm_analysis', {}).get('has_issue') and r.get('llm_analysis', {}).get('from_statute') is False
-        )
+        from_statute = sum(1 for row in rows if row['issue'] and row['issue'].get('from_statute') is True)
+        from_agency = sum(1 for row in rows if row['issue'] and row['issue'].get('from_statute') is False)
 
         html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -818,6 +872,7 @@ class ComplianceIssueSearcher:
                     <tr>
                         <th>Issue?</th>
                         <th>Source</th>
+                        <th>Severity</th>
                         <th>Citation</th>
                         <th>Title</th>
                         <th>Requirement Quote</th>
@@ -828,14 +883,18 @@ class ComplianceIssueSearcher:
                 <tbody>
 """
 
-        for r in results:
-            analysis = r.get('llm_analysis', {}) or {}
-            has_issue = analysis.get('has_issue', False)
-            quote = analysis.get('requirement_quote') or ''
-            from_stat = analysis.get('from_statute')
+        for row in rows:
+            r = row['doc']
+            issue = row['issue']
+            has_issue = row['has_issue']
+            occurrence = row['occurrence']
+
+            quote = issue.get('requirement_quote', '') if issue else ''
+            from_stat = issue.get('from_statute') if issue else None
+            severity = issue.get('severity', '') if issue else ''
             statute_refs = r.get('statute_citations', [])
 
-            issue_display = '<span class="yes">YES</span>' if has_issue else '<span class="no">no</span>'
+            issue_display = f'<span class="yes">YES #{occurrence}</span>' if has_issue else '<span class="no">no</span>'
 
             if has_issue and from_stat is True:
                 source_display = '<span class="from-statute">From Statute</span>'
@@ -852,10 +911,12 @@ class ComplianceIssueSearcher:
                 statute_refs_display += f' (+{len(statute_refs)-3})'
 
             search_text = f"{r.get('title', '')} {quote}".lower()
+            severity_display = f'<span style="font-weight:bold">{severity}</span>' if severity else '-'
 
             html += f"""                    <tr data-issue="{'yes' if has_issue else 'no'}" data-source="{source_data}" data-search="{escape(search_text)}">
                         <td>{issue_display}</td>
                         <td>{source_display}</td>
+                        <td>{severity_display}</td>
                         <td class="citation">{r.get(f'{prefix}_section') or '-'}</td>
                         <td>{escape(r.get('title', '')[:80])}</td>
                         <td class="quote">{escape(quote[:200]) if quote else '-'}</td>
