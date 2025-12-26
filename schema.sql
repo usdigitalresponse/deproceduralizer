@@ -387,20 +387,27 @@ CREATE TABLE compliance_issues (
 
   -- Issue identification (from regex scan)
   issue_type VARCHAR(50) NOT NULL,                    -- 'wet_signature', 'mail_only', 'fax', etc.
+  occurrence_number INTEGER NOT NULL DEFAULT 1,       -- 1, 2, 3... for multiple issues of same type per document
   matched_pattern VARCHAR(255),                       -- Regex pattern that triggered scan (e.g., "bear.{0,10}signature")
   matched_context TEXT NOT NULL,                      -- ~600 char text window around the regex match
-  url TEXT,                                           -- Link to the regulation
+  url TEXT NOT NULL,                                  -- Link to the regulation
 
   -- LLM analysis results
   requirement_found BOOLEAN DEFAULT FALSE,            -- Did LLM find an actual requirement? (not a false positive)
   requirement_text TEXT,                              -- The specific text creating the requirement
   required_by_statute BOOLEAN,                        -- true=statute mandates, false=agency added, null=unknown
+  statute_citation VARCHAR(255),                      -- Citation to statute if applicable
   severity INTEGER CHECK (severity >= 1 AND severity <= 10),  -- How problematic (1-10)
   impact_assessment TEXT,                             -- LLM explanation of why this is/isn't problematic
 
   -- Human review
-  review_status VARCHAR(50) DEFAULT 'unreviewed',     -- 'unreviewed', 'confirmed', 'rejected_false_positive'
+  review_status VARCHAR(50) DEFAULT 'unreviewed',     -- 'unreviewed', 'confirmed', 'false_positive', etc.
+  reviewed_by VARCHAR(255),                           -- Who reviewed it
+  reviewed_at TIMESTAMP,                              -- When it was reviewed
   reviewer_notes TEXT,                                -- Human explanation of review decision
+  justification_notes TEXT,                           -- Justification and analysis for the model
+  priority INTEGER,                                   -- Priority ranking
+  impact_type VARCHAR(100),                           -- Type of impact
 
   -- Developer tracking
   developer_status VARCHAR(50) DEFAULT 'unresolved',  -- 'unresolved', 'resolved', 'pending', 'backlogged', 'need_more_info'
@@ -413,10 +420,7 @@ CREATE TABLE compliance_issues (
 
   -- Metadata
   state VARCHAR(2) NOT NULL CHECK (state IN ('NY', 'NJ')),
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
-  -- Unique constraint: one record per document per issue type
-  CONSTRAINT unique_document_issue UNIQUE (document_id, issue_type)
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Indexes for compliance_issues

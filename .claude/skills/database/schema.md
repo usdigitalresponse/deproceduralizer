@@ -160,18 +160,19 @@ Uses word-boundary matching ('applicant' matches 'Applicant' but not 'reapplican
 
 ## compliance_issues
 
-Tracks compliance issues found in regulations (wet signatures, mail-only submission, etc.). Each (document_id, issue_type) pair is analyzed once - records are created for ALL analyzed documents (not just confirmed issues) to track what's been scanned.
+Tracks compliance issues found in regulations (wet signatures, mail-only submission, etc.). Multiple issues of the same type can exist per document, tracked by `occurrence_number`.
 
 **From regex scan:**
 
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | bigserial | Primary key |
-| `document_id` | bigint | FK to regulatory_documents |
+| `document_id` | bigint NOT NULL | FK to regulatory_documents |
 | `issue_type` | varchar(50) | `wet_signature`, `mail_only`, `fax`, etc. |
+| `occurrence_number` | integer | 1, 2, 3... for multiple issues of same type per document |
 | `matched_pattern` | varchar(255) | Regex pattern that triggered scan (e.g., `"bear.{0,10}signature"`) |
 | `matched_context` | text | ~600 char text window around the regex match |
-| `url` | text | Link to the regulation |
+| `url` | text NOT NULL | Link to the regulation |
 
 **From LLM analysis:**
 
@@ -180,6 +181,7 @@ Tracks compliance issues found in regulations (wet signatures, mail-only submiss
 | `requirement_found` | boolean | Did LLM find an actual requirement? (not a false positive from regex) |
 | `requirement_text` | text | The specific text creating the requirement |
 | `required_by_statute` | boolean | `true` = statute mandates, `false` = agency added, `null` = unknown |
+| `statute_citation` | varchar(255) | Citation to statute if applicable |
 | `severity` | integer (1-10) | How problematic is this requirement |
 | `impact_assessment` | text | LLM explanation of why this is/isn't problematic |
 
@@ -187,8 +189,13 @@ Tracks compliance issues found in regulations (wet signatures, mail-only submiss
 
 | Column | Type | Description |
 |--------|------|-------------|
-| `review_status` | varchar(50) | `unreviewed`, `confirmed`, `rejected_false_positive` |
+| `review_status` | varchar(50) | `unreviewed`, `confirmed`, `false_positive`, etc. |
+| `reviewed_by` | varchar(255) | Who reviewed it |
+| `reviewed_at` | timestamp | When it was reviewed |
 | `reviewer_notes` | text | Human explanation of review decision |
+| `justification_notes` | text | Justification and analysis for the model |
+| `priority` | integer | Priority ranking |
+| `impact_type` | varchar(100) | Type of impact |
 
 **Developer tracking:**
 
@@ -208,8 +215,6 @@ Tracks compliance issues found in regulations (wet signatures, mail-only submiss
 |--------|------|-------------|
 | `state` | varchar(2) | NY or NJ |
 | `created_at` | timestamp | When record was created |
-
-**Unique Constraint**: `(document_id, issue_type)` - one record per document per issue type
 
 **Issue Types** (40 types defined in `compliance_issues.yaml`):
 - Communication: `wet_signature`, `mail_only`, `certified_mail`, `fax`, `landline`, `obsolete_comm`
