@@ -438,13 +438,10 @@ class BasePatternSearcher(ABC):
         print("=" * 80)
 
         total = len(results)
-        with_issue = sum(1 for r in results if (r.get('llm_analysis') or {}).get('has_issue', False))
-        from_statute = sum(1 for r in results if (r.get('llm_analysis') or {}).get('from_statute') is True)
+        confirmed = sum(1 for r in results if (r.get('llm_analysis') or {}).get('llm_confirmed', False))
 
         print(f"\nTotal regex matches searched: {total}")
-        print(f"Confirmed issues: {with_issue}")
-        print(f"  - From statute: {from_statute}")
-        print(f"  - Agency-added: {with_issue - from_statute}")
+        print(f"Confirmed: {confirmed}")
 
     def save_results_json(self, results: list[dict], output_file: Path) -> None:
         """Save results to JSON file."""

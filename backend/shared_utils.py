@@ -413,14 +413,31 @@ def get_async_openai_client(api_key: Optional[str] = None) -> anthropic.AsyncAnt
     )
 
 
-def _pydantic_to_tool_schema(model: Type[BaseModel]) -> dict:
-    """Convert a Pydantic model to Anthropic tool schema."""
+def _pydantic_to_tool_schema(model: Type[BaseModel], with_cache_control: bool = True) -> dict:
+    """
+    Convert a Pydantic model to Anthropic tool schema.
+
+    Args:
+        model: Pydantic model class to convert
+        with_cache_control: If True, add cache_control for prompt caching
+                           (should be True for the last tool in the array)
+
+    Returns:
+        Tool schema dict for Anthropic API
+    """
     schema = model.model_json_schema()
-    return {
+    tool = {
         "name": model.__name__,
         "description": f"Extract {model.__name__} from the text",
         "input_schema": schema
     }
+
+    # Add cache_control for prompt caching
+    # See: https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching
+    if with_cache_control:
+        tool["cache_control"] = {"type": "ephemeral"}
+
+    return tool
 
 
 def call_llm_parse(
@@ -644,6 +661,14 @@ async def call_llm_parse_async(
     for attempt in range(max_retries):
         try:
             response = await client.messages.create(**request_kwargs)
+
+            # Log cache performance (only on first successful attempt)
+            if attempt == 0 and hasattr(response, 'usage'):
+                usage = response.usage
+                cache_created = getattr(usage, 'cache_creation_input_tokens', 0) or 0
+                cache_read = getattr(usage, 'cache_read_input_tokens', 0) or 0
+                input_tokens = getattr(usage, 'input_tokens', 0) or 0
+                print(f"      📦 Tokens: input={input_tokens}, cache_create={cache_created}, cache_read={cache_read}")
 
             # Check for truncation due to max_tokens
             if response.stop_reason == "max_tokens":

@@ -53,7 +53,7 @@ class BaseComplianceAnalysis(BaseModel):
         return any(issue.requirement_found for issue in self.issues)
 
 
-# All issue types use the same base model
+# All compliance issue types use the same base model
 WetSignatureAnalysis = BaseComplianceAnalysis
 MailOnlyAnalysis = BaseComplianceAnalysis
 CertifiedMailAnalysis = BaseComplianceAnalysis
@@ -62,6 +62,38 @@ ObsoleteTechAnalysis = BaseComplianceAnalysis
 InPersonAnalysis = BaseComplianceAnalysis
 PaymentAnalysis = BaseComplianceAnalysis
 DocumentFormatAnalysis = BaseComplianceAnalysis
+
+
+# =============================================================================
+# Incorporation by Reference (IBR) - uses separate table with different columns
+# =============================================================================
+
+class IncorporationByReferenceAnalysis(BaseModel):
+    """
+    LLM analysis for incorporation by reference.
+
+    Field names match incorporations_by_reference table columns.
+    Note: This uses a DIFFERENT table than compliance_issues.
+    """
+    llm_confirmed: bool = Field(
+        description="True if this is a confirmed incorporation by reference"
+    )
+    incorporated_document: Optional[str] = Field(
+        default=None,
+        description="Name of the document/standard being incorporated (e.g., 'International Building Code 2021')"
+    )
+    source_organization: Optional[str] = Field(
+        default=None,
+        description="Organization that publishes the document (e.g., 'ICC', 'NFPA', 'ANSI')"
+    )
+    version: Optional[str] = Field(
+        default=None,
+        description="Version or year of the incorporated document"
+    )
+    requirement_quote: Optional[str] = Field(
+        default=None,
+        description="Exact quote from regulation referencing the external standard"
+    )
 
 
 # Map model names (from YAML) to actual classes
@@ -75,4 +107,5 @@ RESPONSE_MODELS = {
     "InPersonAnalysis": InPersonAnalysis,
     "PaymentAnalysis": PaymentAnalysis,
     "DocumentFormatAnalysis": DocumentFormatAnalysis,
+    "IncorporationByReferenceAnalysis": IncorporationByReferenceAnalysis,
 }

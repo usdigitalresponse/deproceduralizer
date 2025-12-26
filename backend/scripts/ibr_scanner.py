@@ -84,7 +84,7 @@ class IBRSearcher(BasePatternSearcher):
             print("No analyzed results to save")
             return 0
 
-        confirmed_count = sum(1 for r in analyzed if r.get('llm_analysis', {}).get('has_issue'))
+        confirmed_count = sum(1 for r in analyzed if r.get('llm_analysis', {}).get('llm_confirmed'))
         print(f"\nSaving {len(analyzed)} analyzed results ({confirmed_count} confirmed IBRs) to database...")
 
         conn = get_db_connection()
@@ -106,9 +106,9 @@ class IBRSearcher(BasePatternSearcher):
 
                     analysis = item.get('llm_analysis', {})
 
-                    # Only save confirmed IBRs (has_issue=true)
+                    # Only save confirmed IBRs (llm_confirmed=true)
                     # Skip non-IBR matches to keep table clean
-                    if not analysis.get('has_issue', False):
+                    if not analysis.get('llm_confirmed', False):
                         skipped += 1
                         continue
 

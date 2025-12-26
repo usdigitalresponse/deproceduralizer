@@ -135,16 +135,18 @@ async def test_llm_analysis(state_code: str, issue_type: str, matches: list[dict
                 print(f"  Result {i}: No analysis")
             continue
 
-        # Check required fields
-        has_issue = analysis.get('has_issue')
-        req_quote = analysis.get('requirement_quote')
-        from_statute = analysis.get('from_statute')
-
-        print(f"  Result {i}:")
-        print(f"      has_issue: {has_issue}")
-        quote_preview = req_quote[:60] if req_quote else 'None'
-        print(f"      requirement_quote: {quote_preview}...")
-        print(f"      from_statute: {from_statute}")
+        # Check required fields (new field names match DB columns)
+        issues = analysis.get('issues', [])
+        print(f"  Result {i}: {len(issues)} issue(s)")
+        for j, issue in enumerate(issues[:3], 1):
+            req_found = issue.get('requirement_found')
+            req_text = issue.get('requirement_text')
+            req_by_statute = issue.get('required_by_statute')
+            print(f"      Issue {j}:")
+            print(f"        requirement_found: {req_found}")
+            quote_preview = req_text[:60] if req_text else 'None'
+            print(f"        requirement_text: {quote_preview}...")
+            print(f"        required_by_statute: {req_by_statute}")
 
     return results
 
@@ -174,7 +176,11 @@ async def run_tests(
             if matches and not regex_only:
                 # Test LLM analysis
                 results = await test_llm_analysis(state_code, issue_type, matches)
-                confirmed_count = sum(1 for r in results if (r.get('llm_analysis') or {}).get('has_issue'))
+                confirmed_count = sum(
+                    1 for r in results
+                    for issue in (r.get('llm_analysis') or {}).get('issues', [])
+                    if issue.get('requirement_found')
+                )
                 all_results[f"{state_code}_{issue_type}"] = {
                     'regex_matches': len(matches),
                     'llm_analyzed': len(results),
