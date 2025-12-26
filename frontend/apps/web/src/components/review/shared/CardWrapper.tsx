@@ -9,6 +9,7 @@ interface CardWrapperProps {
   isExiting?: boolean;
   children: ReactNode;
   className?: string;
+  'data-testid'?: string;
 }
 
 /**
@@ -20,11 +21,12 @@ interface CardWrapperProps {
  * </CardWrapper>
  */
 export const CardWrapper = forwardRef<HTMLDivElement, CardWrapperProps>(
-  ({ id, isFocused = false, isExiting = false, children, className = '' }, ref) => {
+  ({ id, isFocused = false, isExiting = false, children, className = '', 'data-testid': testId }, ref) => {
     return (
       <Card
         ref={ref}
         id={id}
+        data-testid={testId}
         className={`
           transition-all duration-300 ease-out
           ${isFocused ? 'ring-2 ring-[var(--color-focus)] ring-offset-2' : ''}

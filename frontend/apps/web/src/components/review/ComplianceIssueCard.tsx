@@ -119,6 +119,7 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
         ref={ref}
         id={`compliance-${issue.id}`}
         isFocused={isFocused}
+        data-testid="compliance-issue-card"
       >
         {/* Header */}
         <div className="flex items-start justify-between gap-4 mb-4">

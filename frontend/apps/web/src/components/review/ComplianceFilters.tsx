@@ -22,7 +22,7 @@ import {
   STATUTE_SOURCE_FILTER_OPTIONS,
   REQUIREMENT_FOUND_FILTER_OPTIONS,
 } from '@/lib/constants/filters';
-import { REVIEW_STATUSES, COMPLIANCE_ISSUE_TYPES } from '@/types/regulation';
+import { REVIEW_STATUSES, COMPLIANCE_ISSUE_TYPES, formatLabel } from '@/types/regulation';
 
 interface ComplianceFiltersProps {
   issueTypes: string[];
@@ -71,7 +71,8 @@ export function ComplianceFilters({
     { value: 'all', label: 'All Types' },
     ...issueTypes.map(t => {
       const found = COMPLIANCE_ISSUE_TYPES.find(ct => ct.value === t);
-      return { value: t, label: found?.label || t };
+      // Use formatLabel as fallback for issue types not in the constant list
+      return { value: t, label: found?.label || formatLabel(t) };
     }),
   ];
   const sortOptions = [
