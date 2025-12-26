@@ -347,7 +347,7 @@ User annotations on regulations with optional text anchoring.
 |--------|------|-------------|
 | `id` | bigserial | Primary key |
 | `document_id` | bigint NOT NULL | FK to regulatory_documents |
-| `note_type` | note_type enum | general, highlight, question, action_item |
+| `note_type` | note_type enum | anchored, document |
 | `anchor_start_offset` | integer | Character offset for text anchoring |
 | `anchor_end_offset` | integer | End offset for anchored text |
 | `anchor_text` | text | The selected text (for validation) |
@@ -375,7 +375,7 @@ Stores user feedback on LLM prompts defined in `prompts.yaml`.
 ## Enum Types
 
 ```sql
-CREATE TYPE note_type AS ENUM ('general', 'highlight', 'question', 'action_item');
+CREATE TYPE note_type AS ENUM ('anchored', 'document');
 CREATE TYPE feedback_type AS ENUM ('suggestion', 'bug', 'question', 'other');
 ```
 
