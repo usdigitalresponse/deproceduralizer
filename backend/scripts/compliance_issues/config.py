@@ -102,8 +102,18 @@ class IssueTypeConfig:
         return self._compiled_patterns
 
 
-def _load_issue_types() -> dict[str, IssueTypeConfig]:
-    """Load issue type configurations from YAML file."""
+# Issue types that use dedicated tables (not compliance_issues table)
+# These are excluded from ISSUE_TYPES but can be loaded separately via _load_issue_config()
+DEDICATED_TABLE_ISSUE_TYPES = {'incorporation_by_reference'}
+
+
+def _load_issue_types(include_dedicated: bool = False) -> dict[str, IssueTypeConfig]:
+    """Load issue type configurations from YAML file.
+
+    Args:
+        include_dedicated: If True, include issue types that use dedicated tables.
+                          Default False to avoid accidental duplicate processing.
+    """
     yaml_path = Path(__file__).parent / 'compliance_issues.yaml'
 
     with open(yaml_path, 'r') as f:
@@ -111,6 +121,10 @@ def _load_issue_types() -> dict[str, IssueTypeConfig]:
 
     issue_types = {}
     for name, config in data.items():
+        # Skip issue types with dedicated tables unless explicitly requested
+        if not include_dedicated and name in DEDICATED_TABLE_ISSUE_TYPES:
+            continue
+
         # Get response model class from name
         model_name = config.get('response_model', 'BaseComplianceAnalysis')
         response_model = RESPONSE_MODELS.get(model_name, BaseComplianceAnalysis)
@@ -129,7 +143,15 @@ def _load_issue_types() -> dict[str, IssueTypeConfig]:
     return issue_types
 
 
-# Load issue types from YAML
+def _load_issue_config(name: str) -> IssueTypeConfig:
+    """Load a single issue type config by name (including dedicated table types)."""
+    all_types = _load_issue_types(include_dedicated=True)
+    if name not in all_types:
+        raise ValueError(f"Unknown issue type: {name}")
+    return all_types[name]
+
+
+# Load issue types from YAML (excluding dedicated table types by default)
 ISSUE_TYPES: dict[str, IssueTypeConfig] = _load_issue_types()
 
 

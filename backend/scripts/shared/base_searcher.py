@@ -217,8 +217,29 @@ class BasePatternSearcher(ABC):
         system_prompt = prompt_config.get('system')
         template = prompt_config.get('template', '')
 
+        # Use full content for small docs, windowed content for large docs
+        # 15K char threshold covers 88% of docs fully
+        full_content = match.get('full_content') or match['context']
+        MAX_CONTENT_CHARS = 15000
+
+        if len(full_content) <= MAX_CONTENT_CHARS:
+            regulation_text = full_content
+        else:
+            # For large docs, center window around the regex match
+            # match['context'] was extracted around the match position
+            # We'll use a larger window: ±7500 chars around match center
+            context = match['context']
+            match_start = full_content.find(context[:100])  # Find where context starts
+            if match_start == -1:
+                match_start = 0
+            match_center = match_start + len(context) // 2
+
+            window_start = max(0, match_center - MAX_CONTENT_CHARS // 2)
+            window_end = min(len(full_content), window_start + MAX_CONTENT_CHARS)
+            regulation_text = full_content[window_start:window_end]
+
         user_prompt = template.format(
-            regulation_context=match['context'],
+            regulation_context=regulation_text,
             statute_context=statute_context if statute_context else "No statute references found.",
         )
 

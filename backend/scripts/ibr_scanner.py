@@ -29,7 +29,7 @@ from shared_utils import get_db_connection
 from config import OUTPUTS_DIR
 
 from scripts.shared.base_searcher import BasePatternSearcher
-from scripts.compliance_issues.config import STATES, ISSUE_TYPES
+from scripts.compliance_issues.config import STATES, _load_issue_config
 
 
 class IBRSearcher(BasePatternSearcher):
@@ -173,8 +173,9 @@ def main():
         sys.exit(1)
 
     # Get IBR config from loaded issue types
-    ibr_config = ISSUE_TYPES.get('incorporation_by_reference')
-    if not ibr_config:
+    try:
+        ibr_config = _load_issue_config('incorporation_by_reference')
+    except ValueError:
         print("ERROR: incorporation_by_reference not found in compliance_issues.yaml")
         sys.exit(1)
 
