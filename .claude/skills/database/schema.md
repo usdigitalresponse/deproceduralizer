@@ -160,39 +160,51 @@ Uses word-boundary matching ('applicant' matches 'Applicant' but not 'reapplican
 
 ## compliance_issues
 
-Tracks compliance issues found in regulations. Each (document_id, issue_type) pair is analyzed once - records are created for ALL analyzed documents (not just confirmed issues) to track what's been scanned.
+Tracks compliance issues found in regulations (wet signatures, mail-only submission, etc.). Each (document_id, issue_type) pair is analyzed once - records are created for ALL analyzed documents (not just confirmed issues) to track what's been scanned.
+
+**From regex scan:**
 
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | bigserial | Primary key |
 | `document_id` | bigint | FK to regulatory_documents |
-| `issue_type` | varchar(50) | wet_signature, mail_only, certified_mail, notarization, in_person_submission, etc. |
-| `term_matched` | varchar(255) | Regex pattern that matched |
-| `context` | text | Context snippet around match |
-| `requirement_quote` | text | LLM-extracted requirement quote |
-| `from_statute` | boolean | Requirement from statute (true) or agency-added (false) |
-| `statute_citation` | varchar(255) | Statute citation if from_statute |
-| `llm_confirmed` | boolean | true = confirmed issue, false = analyzed but no issue found |
-| `url` | text | Source URL (NOT NULL) |
-| `review_status` | varchar(50) | unreviewed, confirmed, rejected_clear_fp, rejected_not_obvious_bad, needs_context, deferred |
-| `justification_notes` | text | Justification and analysis for the model |
-| `team_notes` | text | Notes for development team |
-| `priority` | integer | Priority level |
-| `impact_type` | varchar(100) | Impact classification |
-| `developer_status` | varchar(50) | unresolved, resolved, pending, backlogged, need_more_info |
-| `developer_assigned` | varchar(50) | Michael or Abigail |
-| `developer_notes` | text | Developer notes |
+| `issue_type` | varchar(50) | `wet_signature`, `mail_only`, `fax`, etc. |
+| `matched_pattern` | varchar(255) | Regex pattern that triggered scan (e.g., `"bear.{0,10}signature"`) |
+| `matched_context` | text | ~600 char text window around the regex match |
+| `url` | text | Link to the regulation |
+
+**From LLM analysis:**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `requirement_found` | boolean | Did LLM find an actual requirement? (not a false positive from regex) |
+| `requirement_text` | text | The specific text creating the requirement |
+| `required_by_statute` | boolean | `true` = statute mandates, `false` = agency added, `null` = unknown |
+| `severity` | integer (1-10) | How problematic is this requirement |
+| `impact_assessment` | text | LLM explanation of why this is/isn't problematic |
+
+**Human review:**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `review_status` | varchar(50) | `unreviewed`, `confirmed`, `rejected_false_positive` |
+| `reviewer_notes` | text | Human explanation of review decision |
+
+**Metadata:**
+
+| Column | Type | Description |
+|--------|------|-------------|
 | `state` | varchar(2) | NY or NJ |
 | `created_at` | timestamp | When record was created |
 
-**Unique Constraint**: `(document_id, issue_type)` - prevents duplicate analysis
+**Unique Constraint**: `(document_id, issue_type)` - one record per document per issue type
 
 **Issue Types** (40 types defined in `compliance_issues.yaml`):
-- Communication: wet_signature, mail_only, certified_mail, fax, landline, obsolete_tech
-- Payment: check_payment, cash_only, no_credit_cards, in_person_payment
-- Signatures: notarization, witness, embossed_seal, original_document
-- Physical presence: in_person_submission, in_person_pickup, in_person_hearing, physical_forms
-- Technology: obsolete_media, obsolete_software, pdf_only, microfiche, typewriter
+- Communication: `wet_signature`, `mail_only`, `certified_mail`, `fax`, `landline`, `obsolete_comm`
+- Payment: `check_payment`, `cash_only`, `no_credit_cards`, `in_person_payment`
+- Signatures: `notarization`, `witness`, `embossed_seal`, `original_document`
+- Physical presence: `in_person_submission`, `in_person_pickup`, `in_person_hearing`, `physical_forms`
+- Technology: `obsolete_media`, `obsolete_software`, `pdf_only`, `microfiche`, `typewriter`
 - And more...
 
 ## incorporations_by_reference

@@ -384,34 +384,30 @@ CREATE INDEX idx_def_extraction_source ON definition_extraction_log(source_index
 CREATE TABLE compliance_issues (
   id BIGSERIAL PRIMARY KEY,
   document_id BIGINT NOT NULL REFERENCES regulatory_documents(id) ON DELETE CASCADE,
-  issue_type VARCHAR(50) NOT NULL,                    -- 'wet_signature', 'in_person', 'paper_form', etc.
-  term_matched VARCHAR(255),                          -- The term/phrase that triggered the match
-  context TEXT NOT NULL,                              -- Full context snippet from regulation
-  requirement_quote TEXT NOT NULL,                    -- The requirement text
-  from_statute BOOLEAN,                               -- Whether it's from statute vs regulation
-  statute_citation VARCHAR(255),                      -- Citation to statute if applicable
-  llm_confirmed BOOLEAN DEFAULT FALSE,                -- Whether LLM analysis confirmed it
 
-  -- Review fields
-  review_status VARCHAR(50) DEFAULT 'unreviewed',     -- 'unreviewed', 'confirmed', 'false_positive', etc.
-  reviewed_by VARCHAR(255),                           -- Who reviewed it
-  reviewed_at TIMESTAMP,                              -- When it was reviewed
-  reviewer_notes TEXT,                                -- Notes from reviewer
-  priority INTEGER,                                   -- Priority ranking
-  impact_type VARCHAR(100),                           -- Type of impact
+  -- Issue identification (from regex scan)
+  issue_type VARCHAR(50) NOT NULL,                    -- 'wet_signature', 'mail_only', 'fax', etc.
+  matched_pattern VARCHAR(255),                       -- Regex pattern that triggered scan (e.g., "bear.{0,10}signature")
+  matched_context TEXT NOT NULL,                      -- ~600 char text window around the regex match
+  url TEXT,                                           -- Link to the regulation
 
-  -- Developer tracking fields
-  developer_status VARCHAR(50) DEFAULT 'unresolved',  -- 'unresolved', 'resolved', 'pending', 'backlogged', 'need_more_info'
-  developer_assigned VARCHAR(50),                     -- 'Michael' or 'Abigail'
-  developer_notes TEXT,                               -- Notes from developer
-  resolution_type VARCHAR(50),                        -- 'implemented' or 'not_implemented' (when resolved)
-  resolution_comments TEXT,                           -- Comments about the resolution
-  developer_question TEXT,                            -- Question for reviewer (when need_more_info)
-  developer_checked_at TIMESTAMP,                     -- When developer last checked this item
+  -- LLM analysis results
+  requirement_found BOOLEAN DEFAULT FALSE,            -- Did LLM find an actual requirement? (not a false positive)
+  requirement_text TEXT,                              -- The specific text creating the requirement
+  required_by_statute BOOLEAN,                        -- true=statute mandates, false=agency added, null=unknown
+  severity INTEGER CHECK (severity >= 1 AND severity <= 10),  -- How problematic (1-10)
+  impact_assessment TEXT,                             -- LLM explanation of why this is/isn't problematic
+
+  -- Human review
+  review_status VARCHAR(50) DEFAULT 'unreviewed',     -- 'unreviewed', 'confirmed', 'rejected_false_positive'
+  reviewer_notes TEXT,                                -- Human explanation of review decision
 
   -- Metadata
-  state VARCHAR(2) NOT NULL CHECK (state IN ('NY', 'NJ')),  -- 'NY' or 'NJ'
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  state VARCHAR(2) NOT NULL CHECK (state IN ('NY', 'NJ')),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+  -- Unique constraint: one record per document per issue type
+  CONSTRAINT unique_document_issue UNIQUE (document_id, issue_type)
 );
 
 -- Indexes for compliance_issues
@@ -419,9 +415,9 @@ CREATE INDEX idx_compliance_issues_document ON compliance_issues(document_id);
 CREATE INDEX idx_compliance_issues_state ON compliance_issues(state);
 CREATE INDEX idx_compliance_issues_issue_type ON compliance_issues(issue_type);
 CREATE INDEX idx_compliance_issues_review_status ON compliance_issues(review_status);
-CREATE INDEX idx_compliance_issues_developer_status ON compliance_issues(developer_status);
-CREATE INDEX idx_compliance_issues_developer_assigned ON compliance_issues(developer_assigned);
 CREATE INDEX idx_compliance_issues_state_issue ON compliance_issues(state, issue_type);
+CREATE INDEX idx_compliance_issues_requirement_found ON compliance_issues(requirement_found);
+CREATE INDEX idx_compliance_issues_severity ON compliance_issues(severity) WHERE severity IS NOT NULL;
 
 -- Incorporations by Reference: Track external standards incorporated into regulations
 -- (NFPA codes, ICC codes, ASTM standards, CFR references, etc.)

@@ -207,6 +207,18 @@ class ComplianceIssueSearcher:
 
         return matches
 
+    # Common instructions appended to all compliance issue prompts
+    SEVERITY_INSTRUCTIONS = """
+
+    SEVERITY RATING (required for all responses):
+    Always provide a severity rating from 1-10 when has_issue is true:
+    - 10: Complete barrier (no alternatives, major burden on public)
+    - 7-9: Significant barrier (limited alternatives, notable burden)
+    - 4-6: Moderate issue (some alternatives exist, inconvenient)
+    - 1-3: Minor issue (easy workarounds, minimal burden)
+    Set severity to null if has_issue is false.
+    """
+
     def create_prompt(self, match: dict) -> tuple[Optional[str], str]:
         """
         Create LLM prompt for analyzing a match.
@@ -221,7 +233,9 @@ class ComplianceIssueSearcher:
 
         # Get prompt from issue config (loaded from YAML)
         prompt_config = self.issue_config.prompt
-        system_prompt = prompt_config.get('system')
+        base_system_prompt = prompt_config.get('system', '')
+        # Append common severity instructions to all prompts
+        system_prompt = base_system_prompt + self.SEVERITY_INSTRUCTIONS
         template = prompt_config.get('template', '')
 
         # Use full content for small docs, windowed content for large docs
@@ -551,7 +565,6 @@ class ComplianceIssueSearcher:
         saved = 0
         skipped = 0
         errors = 0
-        prefix = self.state_config.citation_prefix
 
         try:
             for item in analyzed:
@@ -563,46 +576,46 @@ class ComplianceIssueSearcher:
 
                     analysis = item.get('llm_analysis', {})
 
-                    # Collect extra analysis fields into justification_notes as JSON
-                    extra_fields = {}
-                    for key in ['incorporated_document', 'source_organization', 'version',
-                                'technology_type', 'alternative_methods', 'legal_rationale']:
-                        if analysis.get(key):
-                            extra_fields[key] = analysis[key]
-                    # Also include notes from LLM
+                    # Build impact_assessment from LLM notes and extra fields
+                    impact_parts = []
                     if analysis.get('notes'):
-                        extra_fields['llm_notes'] = analysis['notes']
-
-                    justification_notes = json.dumps(extra_fields) if extra_fields else None
+                        impact_parts.append(analysis['notes'])
+                    # Include any issue-specific details
+                    for key in ['technology_type', 'alternative_methods', 'legal_rationale']:
+                        if analysis.get(key):
+                            impact_parts.append(f"{key}: {analysis[key]}")
+                    impact_assessment = ' | '.join(impact_parts) if impact_parts else None
 
                     # Insert into compliance_issues (upsert)
                     conn.execute(
                         """
                         INSERT INTO compliance_issues
-                        (document_id, issue_type, term_matched, context, requirement_quote,
-                         from_statute, statute_citation, llm_confirmed, state, url, justification_notes)
+                        (document_id, issue_type, matched_pattern, matched_context, url,
+                         requirement_found, requirement_text, required_by_statute,
+                         severity, impact_assessment, state)
                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                         ON CONFLICT (document_id, issue_type) DO UPDATE SET
-                            term_matched = EXCLUDED.term_matched,
-                            context = EXCLUDED.context,
-                            requirement_quote = EXCLUDED.requirement_quote,
-                            from_statute = EXCLUDED.from_statute,
-                            llm_confirmed = EXCLUDED.llm_confirmed,
+                            matched_pattern = EXCLUDED.matched_pattern,
+                            matched_context = EXCLUDED.matched_context,
                             url = EXCLUDED.url,
-                            justification_notes = EXCLUDED.justification_notes
+                            requirement_found = EXCLUDED.requirement_found,
+                            requirement_text = EXCLUDED.requirement_text,
+                            required_by_statute = EXCLUDED.required_by_statute,
+                            severity = EXCLUDED.severity,
+                            impact_assessment = EXCLUDED.impact_assessment
                         """,
                         (
                             document_id,
                             self.issue_config.db_issue_type,
-                            item.get('term_matched'),
-                            item.get('context'),
-                            analysis.get('requirement_quote') or '',  # NOT NULL field
-                            analysis.get('from_statute'),
-                            None,  # statute_citation - could add if needed
-                            analysis.get('has_issue', False),  # llm_confirmed = has_issue
+                            item.get('term_matched'),  # matched_pattern
+                            item.get('context'),  # matched_context
+                            item.get('url', ''),
+                            analysis.get('has_issue', False),  # requirement_found
+                            analysis.get('requirement_quote'),  # requirement_text
+                            analysis.get('from_statute'),  # required_by_statute
+                            analysis.get('severity'),  # severity (new field)
+                            impact_assessment,
                             self.state_config.state_code,
-                            item.get('url', ''),  # url from search results
-                            justification_notes,
                         )
                     )
                     saved += 1

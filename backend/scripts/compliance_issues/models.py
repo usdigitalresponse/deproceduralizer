@@ -11,19 +11,25 @@ from pydantic import BaseModel, Field
 class BaseComplianceAnalysis(BaseModel):
     """Base analysis response for all compliance issues."""
     has_issue: bool = Field(
-        description="True if the regulation contains this compliance issue"
+        description="True if the regulation actually contains this requirement (not a false positive from regex)"
     )
     requirement_quote: Optional[str] = Field(
         default=None,
-        description="Exact quote establishing the requirement, if found"
+        description="The specific text from the regulation creating the requirement"
     )
     from_statute: Optional[bool] = Field(
         default=None,
-        description="True if requirement is from statute, False if regulation adds it, null if no statute provided or no issue"
+        description="True if statute mandates this, False if agency added it, null if unknown"
+    )
+    severity: Optional[int] = Field(
+        default=None,
+        ge=1,
+        le=10,
+        description="How problematic is this requirement (1-10 scale, 10 = most problematic)"
     )
     notes: Optional[str] = Field(
         default=None,
-        description="Additional context about the finding"
+        description="Explanation of why this requirement is or isn't problematic"
     )
 
 
