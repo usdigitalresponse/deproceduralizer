@@ -225,25 +225,54 @@ class ComplianceIssueSearcher:
         template = prompt_config.get('template', '')
 
         # Use full content for small docs, windowed content for large docs
-        # 15K char threshold covers 88% of docs fully
         full_content = match.get('full_content') or match['context']
         MAX_CONTENT_CHARS = 15000
+        WINDOW_RADIUS = 1500  # ±1500 chars around each match (enough context, captures all matches)
 
         if len(full_content) <= MAX_CONTENT_CHARS:
             regulation_text = full_content
         else:
-            # For large docs, center window around the regex match
-            # match['context'] was extracted around the match position
-            # We'll use a larger window: ±7500 chars around match center
-            context = match['context']
-            match_start = full_content.find(context[:100])  # Find where context starts
-            if match_start == -1:
-                match_start = 0
-            match_center = match_start + len(context) // 2
+            # For large docs, find ALL regex matches and create merged windows
+            # This ensures we capture all instances without duplication
+            pattern_str = match.get('term_matched', '')
+            if pattern_str:
+                import re
+                try:
+                    pattern = re.compile(pattern_str, re.IGNORECASE)
+                    all_matches = list(pattern.finditer(full_content))
+                except re.error:
+                    all_matches = []
+            else:
+                all_matches = []
 
-            window_start = max(0, match_center - MAX_CONTENT_CHARS // 2)
-            window_end = min(len(full_content), window_start + MAX_CONTENT_CHARS)
-            regulation_text = full_content[window_start:window_end]
+            if not all_matches:
+                # Fallback: use beginning of doc
+                regulation_text = full_content[:MAX_CONTENT_CHARS]
+            else:
+                # Create windows around each match
+                windows = []
+                for m in all_matches:
+                    match_center = (m.start() + m.end()) // 2
+                    win_start = max(0, match_center - WINDOW_RADIUS)
+                    win_end = min(len(full_content), match_center + WINDOW_RADIUS)
+                    windows.append((win_start, win_end))
+
+                # Merge overlapping windows
+                windows.sort()
+                merged = [windows[0]]
+                for start, end in windows[1:]:
+                    last_start, last_end = merged[-1]
+                    if start <= last_end:  # Overlapping
+                        merged[-1] = (last_start, max(last_end, end))
+                    else:
+                        merged.append((start, end))
+
+                # Extract merged regions (with separator if multiple)
+                regions = []
+                for start, end in merged:
+                    regions.append(full_content[start:end])
+
+                regulation_text = "\n\n[...]\n\n".join(regions)
 
         # Fill in template variables
         user_prompt = template.format(
