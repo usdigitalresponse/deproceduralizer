@@ -277,44 +277,14 @@ definition_extraction:
 
     VERBATIM TEXT vs COMPLETE DEFINITION:
     - verbatim_text: Always extract the EXACT text from the regulation
-    - is_verbatim: Set to TRUE only if verbatim_text is a complete, usable definition
-    - is_verbatim: Set to FALSE when the text is a cross-reference or incomplete
-
-    Example 1 (is_verbatim=true):
-      Text: '"Applicant" means any person who submits an application'
-      verbatim_text: "means any person who submits an application"
-      is_verbatim: true
-
-    Example 2 (is_verbatim=false, cross-reference):
-      Text: 'must not be in a 100-year flood plain, as defined in Executive Order 11988'
-      term: "100-year flood plain"
-      verbatim_text: "as defined in Executive Order 11988, Floodplain Management Guidelines"
-      is_verbatim: false
-      is_cross_reference: true
-
-    Example 3 (abbreviation):
-      Text: 'Division of Child and Family Services ("DCF")'
-      term: "DCF"
-      verbatim_text: "Division of Child and Family Services"
-      is_verbatim: true
-      definition_type: "abbreviation"
-
-    Example 4 (complex definition needing rephrasing):
-      Text: '"facilities" means those facilities or discrete units of facilities
-             described in paragraph (c) of subdivision 2-c of section 2808
-             of the Public Health Law...'
-      term: "facilities"
-      verbatim_text: "means those facilities or discrete units of facilities described
-                      in paragraph (c) of subdivision 2-c of section 2808 of the Public
-                      Health Law..."
-      is_verbatim: false
-      rephrased_definition: "residential health care facilities and their discrete units
-                             as specified in Public Health Law section 2808(2-c)(c)"
-      is_cross_reference: true
+    - is_verbatim_text_complete: Set to TRUE only if verbatim_text is a complete, usable definition
+    - is_verbatim_text_complete: Set to FALSE when the text is a cross-reference or incomplete
+    - Do NOT include "X means..." prefix in verbatim_text - it's redundant
+    - Do NOT include "hereinafter referred to as X" suffix for abbreviations
 
     REPHRASED DEFINITION:
     - Only provide rephrased_definition when verbatim_text is NOT a complete, usable definition
-    - Leave blank/null if verbatim_text is sufficient (is_verbatim=true)
+    - Leave blank/null if verbatim_text is sufficient (is_verbatim_text_complete=true)
     - The rephrased version should be a plain-language summary of what the term means
     - This is OPTIONAL - when uncertain, leave it blank
 
@@ -355,9 +325,119 @@ definition_extraction:
       * "as defined in [external reference]"
       * "has the same meaning as"
       * "see section X for definition"
+      * "pursuant to..." or "in accordance with..." followed by statute/regulation
+
+    CROSS-REFERENCE CATEGORIZATION (two dimensions):
+    When is_cross_reference is true, also categorize:
+
+    1. reference_completeness:
+       - "pure_pointer": The definition exists entirely elsewhere, verbatim_text is just a pointer
+         Example: "as defined in N.J.A.C. 3A:23-1.1"
+       - "hybrid": Has substantive inline definition PLUS external reference
+         Example: "a person certified... in accordance with N.J.S.A. 45:11-45"
+
+    2. reference_target:
+       - "same_corpus": References other NJ/NY regulations (N.J.A.C., N.J.S.A., NYCRR, etc.)
+       - "federal": References federal law/regulations (CFR, USC, U.S.C., Internal Revenue Code)
+       - "external_standard": References industry orgs, professional bodies (AMA, Coast Guard, NFPA, ASTM)
+       - "other": Other jurisdictions, international standards, or unclear references
+
+    NOT A CROSS-REFERENCE (do NOT set is_cross_reference):
+    - "Manual of Requirements" referenced but full definition is inline → is_cross_reference=true (reference to requirements)
+    - Simple abbreviations like "Department means the Department of Health" → is_cross_reference=false
+
+    INCORPORATION BY REFERENCE - DO NOT EXTRACT:
+    Statements like "The definitions in N.J.A.C. 3A:11 are incorporated by reference"
+    are NOT definitions - they incorporate MULTIPLE definitions. Do not extract these.
 
     IMPORTANT: When uncertain about whether something is a definition,
     DO NOT extract it. False positives are costly to clean up.
+
+    ---
+    TRAINING EXAMPLES FROM HUMAN REVIEW
+    ---
+
+    CORRECT EXTRACTION EXAMPLE 1 - Hybrid cross-reference to same corpus:
+    SOURCE: "Civil union" means the legally recognized union of two eligible individuals
+            of the same sex, established pursuant to P.L. 2006 c. 103, N.J.S.A. 37:1-28
+            et seq. Parties to a civil union shall receive the same benefits...
+    EXTRACTION:
+      term: "Civil union"
+      verbatim_text: "the legally recognized union of two eligible individuals of the same sex, established pursuant to P.L. 2006 c. 103, N.J.S.A. 37:1-28 et seq..."
+      is_verbatim_text_complete: true
+      is_cross_reference: true
+      reference_completeness: "hybrid"
+      reference_target: "same_corpus"
+    WHY: is_verbatim_text_complete=true because inline text fully explains the term;
+         is_cross_reference=true because it references N.J.S.A.; hybrid because has inline + reference
+
+    CORRECT EXTRACTION EXAMPLE 2 - Pure pointer to same corpus:
+    SOURCE: "Child with special needs" means as defined in N.J.A.C. 3A:23-1.1.
+    EXTRACTION:
+      term: "child with special needs"
+      verbatim_text: "as defined in N.J.A.C. 3A:23-1.1"
+      is_verbatim_text_complete: false
+      rephrased_definition: "A child with special needs as defined in N.J.A.C. 3A:23-1.1"
+      is_cross_reference: true
+      reference_completeness: "pure_pointer"
+      reference_target: "same_corpus"
+    WHY: pure_pointer because definition exists entirely elsewhere; rephrased_definition makes it displayable
+
+    CORRECT EXTRACTION EXAMPLE 3 - Hybrid to external standard:
+    SOURCE: Personal flotation devices (PFD) (life jackets) rated Class I, II, or III
+            by the United States (U.S.) Coast Guard.
+    EXTRACTION:
+      term: "personal flotation devices (PFD)"
+      verbatim_text: "personal flotation devices (PFD) (life jackets) rated Class I, II, or III by the U.S. Coast Guard"
+      is_verbatim_text_complete: false
+      rephrased_definition: "A Class I, II, or III personal flotation device as rated by the U.S. Coast Guard"
+      is_cross_reference: true
+      reference_completeness: "hybrid"
+      reference_target: "external_standard"
+    WHY: external_standard because Coast Guard ratings are external; hybrid because has inline context
+
+    CORRECT EXTRACTION EXAMPLE 4 - Simple abbreviation (no cross-reference):
+    SOURCE: "Department" means the New Jersey Department of Children and Families.
+    EXTRACTION:
+      term: "Department"
+      verbatim_text: "the New Jersey Department of Children and Families"
+      is_verbatim_text_complete: true
+      is_cross_reference: false
+      reference_completeness: null
+      reference_target: null
+      definition_type: "abbreviation"
+    WHY: No external reference, so cross-reference fields are null
+
+    COMMON ERRORS TO AVOID:
+
+    ERROR 1 - Including "X means..." in verbatim_text:
+    BAD:  verbatim_text: "Chapter\" means the rules contained in the Manual..."
+    GOOD: verbatim_text: "the rules contained in the Manual of Requirements..."
+
+    ERROR 2 - Including "hereinafter" for abbreviations:
+    BAD:  verbatim_text: "the New Jersey Motor Vehicle Commission, hereinafter referred to as the MVC"
+    GOOD: verbatim_text: "the New Jersey Motor Vehicle Commission" (use rephrased_definition to clean up)
+
+    ERROR 3 - Not marking cross-references:
+    BAD:  is_cross_reference: false (when text says "in accordance with N.J.S.A. 45:11-45")
+    GOOD: is_cross_reference: true, reference_completeness: "hybrid", reference_target: "same_corpus"
+
+    ERROR 4 - Incomplete verbatim_text:
+    BAD:  verbatim_text: "an agency or organization that contracts with the Department" (truncated)
+    GOOD: verbatim_text: "an agency or organization that contracts with the Department of Human Services to assist in the voluntary registration..." (full text)
+
+    FALSE POSITIVE 1 - Incorporation by reference (DO NOT EXTRACT):
+    SOURCE: The definitions in N.J.A.C. 3A:11, Service Delivery General Provisions,
+            are hereby incorporated into this chapter by reference.
+    DO NOT EXTRACT: This is not defining a term, it's incorporating multiple definitions.
+
+    FALSE POSITIVE 2 - Procedural text (DO NOT EXTRACT):
+    SOURCE: If a resident has a court appointed guardian, consult with that guardian...
+    DO NOT EXTRACT: "court appointed guardian" is used but not defined here.
+
+    FALSE POSITIVE 3 - Capitalized but not defined (DO NOT EXTRACT):
+    SOURCE: If the resident has executed a DNR clause as part of an Advance Directive...
+    DO NOT EXTRACT: "Advance Directive" is referenced as a known term, not defined.
 
   # User message template (varies per request)
   template: |
@@ -369,14 +449,16 @@ definition_extraction:
 
     For each definition found, extract:
     - term: The term being defined (noun phrase, not a number)
-    - verbatim_text: The EXACT text from the regulation that defines or references the term
-    - is_verbatim: true if verbatim_text is a complete usable definition, false otherwise
+    - verbatim_text: The EXACT text from the regulation (without "X means..." prefix)
+    - is_verbatim_text_complete: true if verbatim_text is complete and usable, false otherwise
     - rephrased_definition: (optional) Plain-language definition when verbatim_text is not self-explanatory
     - scope: The scope text (e.g., "in this Part", "in this section")
     - source_location: Where it appears (e.g., "section 1.1", "definitions section")
     - scope_level: The hierarchy level from scope phrase (section/part/chapter/title/null)
     - definition_type: "formal" or "abbreviation"
     - is_cross_reference: true if this points to another source for the definition
+    - reference_completeness: (only if is_cross_reference) "pure_pointer" or "hybrid"
+    - reference_target: (only if is_cross_reference) "same_corpus", "federal", "external_standard", or "other"
 
     Remember: When uncertain, DO NOT extract. False negatives are acceptable; false positives are not.
 

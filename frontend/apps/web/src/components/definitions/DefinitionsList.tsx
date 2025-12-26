@@ -12,7 +12,7 @@ import { DEFAULT_STATE } from '@/types/state';
  * Get the display definition text based on verbatim/rephrased logic
  */
 function getDisplayDefinitionText(definition: DefinitionWithContext): string {
-  if (definition.isVerbatim) {
+  if (definition.isVerbatimTextComplete) {
     return definition.verbatimText;
   }
   return definition.rephrasedDefinition ?? definition.verbatimText;

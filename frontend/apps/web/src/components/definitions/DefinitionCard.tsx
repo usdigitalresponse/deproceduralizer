@@ -38,7 +38,7 @@ function capitalizeFirst(text: string): string {
  * Always capitalizes the first letter.
  */
 function getDisplayDefinitionText(definition: DefinitionWithContext): string {
-  const text = definition.isVerbatim
+  const text = definition.isVerbatimTextComplete
     ? definition.verbatimText
     : (definition.rephrasedDefinition ?? definition.verbatimText);
   return capitalizeFirst(text);
@@ -57,7 +57,7 @@ export function DefinitionCard({
   const definitionText = getDisplayDefinitionText(definition);
 
   // Check if we have a rephrased definition that differs from verbatim
-  const hasRephrasedDefinition = !definition.isVerbatim &&
+  const hasRephrasedDefinition = !definition.isVerbatimTextComplete &&
     definition.rephrasedDefinition &&
     definition.rephrasedDefinition !== definition.verbatimText;
 

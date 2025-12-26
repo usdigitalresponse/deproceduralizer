@@ -107,7 +107,7 @@ Main table with hierarchy. **50 columns** - use `./scripts/db-query.sh describe 
 | `url` | text | Source URL |
 | `term` | text | Term being defined |
 | `verbatim_text` | text | Exact text from regulation |
-| `is_verbatim` | boolean | Whether verbatim_text is complete |
+| `is_verbatim_text_complete` | boolean | Whether verbatim_text is a complete, usable definition on its own |
 | `rephrased_definition` | text | Plain-language definition |
 | `scope` | text | Applicability scope text |
 | `scope_level` | varchar(20) | Hierarchy level: section/part/chapter/title |
@@ -115,6 +115,8 @@ Main table with hierarchy. **50 columns** - use `./scripts/db-query.sh describe 
 | `definition_type` | varchar(20) | formal or abbreviation |
 | `normalized_term` | text | GENERATED: LOWER(TRIM(term)) |
 | `is_cross_reference` | boolean | Points to another source |
+| `reference_completeness` | varchar(20) | pure_pointer (no inline def) or hybrid (inline + reference) |
+| `reference_target` | varchar(30) | same_corpus, federal, external_standard, or other |
 | `definition_overlap` | float | 0.0-1.0 overlap with regulation |
 | `source_location` | text | Where found in document |
 | `model_version` | varchar(100) | LLM model used |
@@ -133,6 +135,18 @@ Main table with hierarchy. **50 columns** - use `./scripts/db-query.sh describe 
 | `resolution_comments` | text | Comments about resolution |
 | `developer_question` | text | Question for reviewer (when need_more_info) |
 | `developer_checked_at` | timestamp | When developer last updated |
+
+**Cross-Reference Categorization (two dimensions):**
+
+1. `reference_completeness`: How much of the definition is self-contained
+   - `pure_pointer`: Definition exists entirely elsewhere (e.g., "as defined in N.J.A.C. 3A:23-1.1")
+   - `hybrid`: Has substantive inline definition PLUS external reference
+
+2. `reference_target`: Where the reference points
+   - `same_corpus`: Other NJ/NY regulations (N.J.A.C., N.J.S.A., NYCRR)
+   - `federal`: Federal law/regulations (CFR, USC, Internal Revenue Code)
+   - `external_standard`: Industry orgs, professional bodies (AMA, Coast Guard, NFPA, ASTM)
+   - `other`: Other jurisdictions, international standards, unclear references
 
 **Review Status Values (Definitions):**
 - `unreviewed` - Default, not yet reviewed

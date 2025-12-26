@@ -216,7 +216,9 @@ export class DefinitionsRepository extends BaseRepository {
         d.url,
         d.term,
         d.verbatim_text as "verbatimText",
-        d.is_verbatim as "isVerbatim",
+        d.is_verbatim_text_complete as "isVerbatimTextComplete",
+        d.reference_completeness as "referenceCompleteness",
+        d.reference_target as "referenceTarget",
         d.rephrased_definition as "rephrasedDefinition",
         d.scope,
         d.source_location as "sourceLocation",
@@ -283,7 +285,9 @@ export class DefinitionsRepository extends BaseRepository {
       url: row.url,
       term: row.term,
       verbatimText: row.verbatimText,
-      isVerbatim: row.isVerbatim,
+      isVerbatimTextComplete: row.isVerbatimTextComplete,
+      referenceCompleteness: row.referenceCompleteness,
+      referenceTarget: row.referenceTarget,
       rephrasedDefinition: row.rephrasedDefinition,
       scope: row.scope,
       sourceLocation: row.sourceLocation,
@@ -433,7 +437,9 @@ export class DefinitionsRepository extends BaseRepository {
         documentId: definitions.documentId,
         term: definitions.term,
         verbatimText: definitions.verbatimText,
-        isVerbatim: definitions.isVerbatim,
+        isVerbatimTextComplete: definitions.isVerbatimTextComplete,
+        referenceCompleteness: definitions.referenceCompleteness,
+        referenceTarget: definitions.referenceTarget,
         rephrasedDefinition: definitions.rephrasedDefinition,
         scope: definitions.scope,
         definitionOverlap: definitions.definitionOverlap,
@@ -487,7 +493,9 @@ export class DefinitionsRepository extends BaseRepository {
       documentId: row.documentId,
       term: row.term,
       verbatimText: row.verbatimText,
-      isVerbatim: row.isVerbatim,
+      isVerbatimTextComplete: row.isVerbatimTextComplete,
+      referenceCompleteness: row.referenceCompleteness,
+      referenceTarget: row.referenceTarget,
       rephrasedDefinition: row.rephrasedDefinition,
       scope: row.scope,
       definitionOverlap: row.definitionOverlap,
@@ -599,7 +607,9 @@ export class DefinitionsRepository extends BaseRepository {
         documentId: definitions.documentId,
         term: definitions.term,
         verbatimText: definitions.verbatimText,
-        isVerbatim: definitions.isVerbatim,
+        isVerbatimTextComplete: definitions.isVerbatimTextComplete,
+        referenceCompleteness: definitions.referenceCompleteness,
+        referenceTarget: definitions.referenceTarget,
         rephrasedDefinition: definitions.rephrasedDefinition,
         scope: definitions.scope,
         definitionOverlap: definitions.definitionOverlap,
@@ -653,7 +663,9 @@ export class DefinitionsRepository extends BaseRepository {
       documentId: row.documentId,
       term: row.term,
       verbatimText: row.verbatimText,
-      isVerbatim: row.isVerbatim,
+      isVerbatimTextComplete: row.isVerbatimTextComplete,
+      referenceCompleteness: row.referenceCompleteness,
+      referenceTarget: row.referenceTarget,
       rephrasedDefinition: row.rephrasedDefinition,
       scope: row.scope,
       definitionOverlap: row.definitionOverlap,
@@ -860,7 +872,9 @@ export class DefinitionsRepository extends BaseRepository {
         documentId: definitions.documentId,
         term: definitions.term,
         verbatimText: definitions.verbatimText,
-        isVerbatim: definitions.isVerbatim,
+        isVerbatimTextComplete: definitions.isVerbatimTextComplete,
+        referenceCompleteness: definitions.referenceCompleteness,
+        referenceTarget: definitions.referenceTarget,
         rephrasedDefinition: definitions.rephrasedDefinition,
         scope: definitions.scope,
         definitionOverlap: definitions.definitionOverlap,
@@ -912,7 +926,9 @@ export class DefinitionsRepository extends BaseRepository {
       documentId: row.documentId,
       term: row.term,
       verbatimText: row.verbatimText,
-      isVerbatim: row.isVerbatim,
+      isVerbatimTextComplete: row.isVerbatimTextComplete,
+      referenceCompleteness: row.referenceCompleteness,
+      referenceTarget: row.referenceTarget,
       rephrasedDefinition: row.rephrasedDefinition,
       scope: row.scope,
       definitionOverlap: row.definitionOverlap,
@@ -1028,7 +1044,9 @@ export class DefinitionsRepository extends BaseRepository {
         url: definitions.url,
         term: definitions.term,
         verbatimText: definitions.verbatimText,
-        isVerbatim: definitions.isVerbatim,
+        isVerbatimTextComplete: definitions.isVerbatimTextComplete,
+        referenceCompleteness: definitions.referenceCompleteness,
+        referenceTarget: definitions.referenceTarget,
         rephrasedDefinition: definitions.rephrasedDefinition,
         scope: definitions.scope,
         definitionOverlap: definitions.definitionOverlap,
@@ -1238,7 +1256,9 @@ export class DefinitionsRepository extends BaseRepository {
         documentId: definitions.documentId,
         term: definitions.term,
         verbatimText: definitions.verbatimText,
-        isVerbatim: definitions.isVerbatim,
+        isVerbatimTextComplete: definitions.isVerbatimTextComplete,
+        referenceCompleteness: definitions.referenceCompleteness,
+        referenceTarget: definitions.referenceTarget,
         rephrasedDefinition: definitions.rephrasedDefinition,
         scope: definitions.scope,
         definitionOverlap: definitions.definitionOverlap,
@@ -1305,7 +1325,9 @@ export class DefinitionsRepository extends BaseRepository {
         documentId: row.documentId,
         term: row.term,
         verbatimText: row.verbatimText,
-        isVerbatim: row.isVerbatim,
+        isVerbatimTextComplete: row.isVerbatimTextComplete,
+      referenceCompleteness: row.referenceCompleteness,
+      referenceTarget: row.referenceTarget,
         rephrasedDefinition: row.rephrasedDefinition,
         scope: row.scope,
         definitionOverlap: row.definitionOverlap,
@@ -1395,7 +1417,7 @@ export class DefinitionsRepository extends BaseRepository {
       teamNotes?: string;
       // Editable fields (only included if being corrected)
       term?: string;
-      isVerbatim?: boolean;
+      isVerbatimTextComplete?: boolean;
       verbatimText?: string;
       rephrasedDefinition?: string | null;
       scope?: string | null;
@@ -1403,6 +1425,8 @@ export class DefinitionsRepository extends BaseRepository {
       scopeDocumentId?: number | null;
       definitionType?: string;
       isCrossReference?: boolean;
+      referenceCompleteness?: string | null;
+      referenceTarget?: string | null;
     }
   ): Promise<Definition | undefined> {
     // Get current values first
@@ -1439,9 +1463,9 @@ export class DefinitionsRepository extends BaseRepository {
         originalValues.term = current.term;
         updateData.term = update.term;
       }
-      if (update.isVerbatim !== undefined && update.isVerbatim !== current.isVerbatim) {
-        originalValues.isVerbatim = current.isVerbatim;
-        updateData.isVerbatim = update.isVerbatim;
+      if (update.isVerbatimTextComplete !== undefined && update.isVerbatimTextComplete !== current.isVerbatimTextComplete) {
+        originalValues.isVerbatimTextComplete = current.isVerbatimTextComplete;
+        updateData.isVerbatimTextComplete = update.isVerbatimTextComplete;
       }
       if (update.verbatimText !== undefined && update.verbatimText !== current.verbatimText) {
         originalValues.verbatimText = current.verbatimText;
@@ -1470,6 +1494,14 @@ export class DefinitionsRepository extends BaseRepository {
       if (update.isCrossReference !== undefined && update.isCrossReference !== current.isCrossReference) {
         originalValues.isCrossReference = current.isCrossReference;
         updateData.isCrossReference = update.isCrossReference;
+      }
+      if (update.referenceCompleteness !== undefined && update.referenceCompleteness !== current.referenceCompleteness) {
+        originalValues.referenceCompleteness = current.referenceCompleteness;
+        updateData.referenceCompleteness = update.referenceCompleteness;
+      }
+      if (update.referenceTarget !== undefined && update.referenceTarget !== current.referenceTarget) {
+        originalValues.referenceTarget = current.referenceTarget;
+        updateData.referenceTarget = update.referenceTarget;
       }
 
       // Only store original values if there are actual changes
@@ -1698,7 +1730,9 @@ export class DefinitionsRepository extends BaseRepository {
         documentId: definitions.documentId,
         term: definitions.term,
         verbatimText: definitions.verbatimText,
-        isVerbatim: definitions.isVerbatim,
+        isVerbatimTextComplete: definitions.isVerbatimTextComplete,
+        referenceCompleteness: definitions.referenceCompleteness,
+        referenceTarget: definitions.referenceTarget,
         rephrasedDefinition: definitions.rephrasedDefinition,
         scope: definitions.scope,
         definitionOverlap: definitions.definitionOverlap,
@@ -1749,7 +1783,9 @@ export class DefinitionsRepository extends BaseRepository {
         documentId: row.documentId,
         term: row.term,
         verbatimText: row.verbatimText,
-        isVerbatim: row.isVerbatim,
+        isVerbatimTextComplete: row.isVerbatimTextComplete,
+      referenceCompleteness: row.referenceCompleteness,
+      referenceTarget: row.referenceTarget,
         rephrasedDefinition: row.rephrasedDefinition,
         scope: row.scope,
         definitionOverlap: row.definitionOverlap,
@@ -1964,7 +2000,9 @@ export class DefinitionsRepository extends BaseRepository {
         documentId: definitions.documentId,
         term: definitions.term,
         verbatimText: definitions.verbatimText,
-        isVerbatim: definitions.isVerbatim,
+        isVerbatimTextComplete: definitions.isVerbatimTextComplete,
+        referenceCompleteness: definitions.referenceCompleteness,
+        referenceTarget: definitions.referenceTarget,
         rephrasedDefinition: definitions.rephrasedDefinition,
         scope: definitions.scope,
         definitionOverlap: definitions.definitionOverlap,
@@ -2015,7 +2053,9 @@ export class DefinitionsRepository extends BaseRepository {
         documentId: row.documentId,
         term: row.term,
         verbatimText: row.verbatimText,
-        isVerbatim: row.isVerbatim,
+        isVerbatimTextComplete: row.isVerbatimTextComplete,
+      referenceCompleteness: row.referenceCompleteness,
+      referenceTarget: row.referenceTarget,
         rephrasedDefinition: row.rephrasedDefinition,
         scope: row.scope,
         definitionOverlap: row.definitionOverlap,
@@ -2096,7 +2136,9 @@ export class DefinitionsRepository extends BaseRepository {
         documentId: definitions.documentId,
         term: definitions.term,
         verbatimText: definitions.verbatimText,
-        isVerbatim: definitions.isVerbatim,
+        isVerbatimTextComplete: definitions.isVerbatimTextComplete,
+        referenceCompleteness: definitions.referenceCompleteness,
+        referenceTarget: definitions.referenceTarget,
         rephrasedDefinition: definitions.rephrasedDefinition,
         scope: definitions.scope,
         definitionOverlap: definitions.definitionOverlap,
@@ -2156,7 +2198,9 @@ export class DefinitionsRepository extends BaseRepository {
         documentId: row.documentId,
         term: row.term,
         verbatimText: row.verbatimText,
-        isVerbatim: row.isVerbatim,
+        isVerbatimTextComplete: row.isVerbatimTextComplete,
+      referenceCompleteness: row.referenceCompleteness,
+      referenceTarget: row.referenceTarget,
         rephrasedDefinition: row.rephrasedDefinition,
         scope: row.scope,
         definitionOverlap: row.definitionOverlap,

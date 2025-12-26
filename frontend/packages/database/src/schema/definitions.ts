@@ -20,10 +20,14 @@ import { regulatoryDocuments } from './regulatory-documents';
  *
  * Definition text fields:
  * - `verbatimText`: The exact text extracted from the regulation
- * - `isVerbatim`: True if verbatimText is a complete, usable definition
+ * - `isVerbatimTextComplete`: True if verbatimText is a complete, usable definition on its own
  * - `rephrasedDefinition`: Plain-language definition when verbatimText is insufficient
  *
- * For display purposes, use verbatimText when isVerbatim=true, otherwise
+ * Cross-reference categorization (two dimensions):
+ * - `referenceCompleteness`: 'pure_pointer' (no inline definition) or 'hybrid' (has inline + reference)
+ * - `referenceTarget`: 'same_corpus' | 'federal' | 'external_standard' | 'other'
+ *
+ * For display purposes, use verbatimText when isVerbatimTextComplete=true, otherwise
  * use rephrasedDefinition (fallback to verbatimText if null).
  *
  * After importing definitions, run the document_id migration to populate
@@ -35,7 +39,7 @@ export const definitions = pgTable('definitions', {
   url: text('url'),  // Source URL for linking to regulatory_documents
   term: text('term').notNull(),
   verbatimText: text('verbatim_text').notNull(),
-  isVerbatim: boolean('is_verbatim').default(true),
+  isVerbatimTextComplete: boolean('is_verbatim_text_complete').default(true),
   rephrasedDefinition: text('rephrased_definition'),
   scope: text('scope'),
   definitionOverlap: real('definition_overlap').default(0),
@@ -51,6 +55,10 @@ export const definitions = pgTable('definitions', {
   definitionType: varchar('definition_type', { length: 20 }).default('formal'),  // 'formal' or 'abbreviation'
   normalizedTerm: text('normalized_term'),  // Generated column (LOWER(TRIM(term))), read-only
   isCrossReference: boolean('is_cross_reference').default(false),
+
+  // Cross-reference categorization (two dimensions)
+  referenceCompleteness: varchar('reference_completeness', { length: 20 }),  // 'pure_pointer' or 'hybrid'
+  referenceTarget: varchar('reference_target', { length: 30 }),  // 'same_corpus', 'federal', 'external_standard', 'other'
 
   // Review workflow fields (for correcting LLM extraction errors)
   reviewStatus: varchar('review_status', { length: 50 }).default('unreviewed'),
@@ -93,6 +101,20 @@ export type DefinitionScope = typeof DEFINITION_SCOPES[number];
 export const DEFINITION_TYPES = ['formal', 'abbreviation'] as const;
 export type DefinitionType = typeof DEFINITION_TYPES[number];
 
+// Cross-reference completeness (dimension 1)
+// - pure_pointer: Definition exists entirely elsewhere, verbatim_text is just a pointer
+// - hybrid: Has substantive inline definition PLUS external reference
+export const REFERENCE_COMPLETENESS = ['pure_pointer', 'hybrid'] as const;
+export type ReferenceCompleteness = typeof REFERENCE_COMPLETENESS[number];
+
+// Cross-reference target (dimension 2)
+// - same_corpus: References other NJ/NY regulations (N.J.A.C., N.J.S.A., NYCRR, etc.)
+// - federal: References federal law/regulations (CFR, USC, U.S.C., Internal Revenue Code)
+// - external_standard: References industry orgs, professional bodies (AMA, Coast Guard, NFPA, ASTM)
+// - other: Other jurisdictions, international standards, or unclear references
+export const REFERENCE_TARGETS = ['same_corpus', 'federal', 'external_standard', 'other'] as const;
+export type ReferenceTarget = typeof REFERENCE_TARGETS[number];
+
 // Structured scope levels (matches hierarchy_level in regulatory_documents)
 // NOTE: These are known values, not hard constraints. New levels can be added.
 // The database column is VARCHAR without CHECK constraint for extensibility.
@@ -119,7 +141,7 @@ export type DefinitionReviewStatus = typeof DEFINITION_REVIEW_STATUSES[number];
 // Type for original values stored in JSONB when corrections are made
 export interface DefinitionOriginalValues {
   term?: string;
-  isVerbatim?: boolean;
+  isVerbatimTextComplete?: boolean;  // renamed from isVerbatim
   verbatimText?: string;
   rephrasedDefinition?: string;
   scope?: string;
@@ -127,6 +149,8 @@ export interface DefinitionOriginalValues {
   scopeDocumentId?: number;
   definitionType?: string;
   isCrossReference?: boolean;
+  referenceCompleteness?: string;
+  referenceTarget?: string;
 }
 
 // Re-export developer tracking constants from red-flags for convenience

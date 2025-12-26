@@ -424,6 +424,7 @@ def call_llm_parse(
     response_format: Type[BaseModel],
     model: str = None,
     max_retries: int = 3,
+    max_tokens: int = 64000,
 ) -> Optional[BaseModel]:
     """
     Call Anthropic API with structured output (Pydantic model via tool_use).
@@ -436,6 +437,7 @@ def call_llm_parse(
         response_format: Pydantic model for structured output
         model: Model name (default: DEFAULT_MODEL)
         max_retries: Number of retries on failure (default: 3)
+        max_tokens: Max output tokens (default: 64000 for Claude 4.5 models)
 
     Returns:
         Parsed Pydantic model instance, or None if all retries fail
@@ -449,6 +451,7 @@ def call_llm_parse(
         try:
             response = client.messages.create(
                 model=model,
+                max_tokens=max_tokens,
                 tools=[tool],
                 tool_choice={"type": "tool", "name": tool["name"]},
                 messages=[{"role": "user", "content": prompt}],
@@ -507,6 +510,7 @@ def format_batch_request(
     response_format: Type[BaseModel],
     model: str = None,
     system: str = None,
+    max_tokens: int = 64000,
 ) -> dict:
     """
     Format a single request for Anthropic Message Batches API submission.
@@ -546,14 +550,22 @@ def format_batch_request(
 
     params = {
         "model": model,
+        "max_tokens": max_tokens,
         "messages": [{"role": "user", "content": prompt}],
         "tools": [tool],
         "tool_choice": {"type": "tool", "name": tool["name"]},
     }
 
-    # Add system message for caching if provided
+    # Add system message with cache_control for prompt caching
+    # See: https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching
     if system:
-        params["system"] = system
+        params["system"] = [
+            {
+                "type": "text",
+                "text": system,
+                "cache_control": {"type": "ephemeral"}
+            }
+        ]
 
     return {
         "custom_id": custom_id,
@@ -568,7 +580,7 @@ async def call_llm_parse_async(
     model: str = None,
     max_retries: int = 3,
     system: Optional[str] = None,
-    max_tokens: int = 8192,
+    max_tokens: int = 64000,
 ) -> Optional[BaseModel]:
     """
     Call Anthropic API async with structured output (Pydantic model via tool_use).

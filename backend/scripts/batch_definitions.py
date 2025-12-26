@@ -75,13 +75,16 @@ class Definition(BaseModel):
     """A single term definition extracted from regulation text."""
     term: str = Field(description="The term being defined")
     verbatim_text: str = Field(description="The exact text extracted from the regulation")
-    is_verbatim: bool = Field(default=True, description="True if verbatim_text is a complete, usable definition")
+    is_verbatim_text_complete: bool = Field(default=True, description="True if verbatim_text is a complete, usable definition on its own")
     rephrased_definition: Optional[str] = Field(default=None, description="Plain-language definition when verbatim is insufficient")
     scope: Optional[str] = Field(default=None, description="Scope like 'in this section', 'in this part'")
     source_location: Optional[str] = Field(default=None, description="Where it appears, e.g. 'section 1.1'")
     scope_level: Optional[str] = Field(default=None, description="section/subpart/part/chapter/title")
     definition_type: str = Field(default="formal", description="'formal' or 'abbreviation'")
     is_cross_reference: bool = Field(default=False, description="True if points to another definition")
+    # Cross-reference categorization (two dimensions)
+    reference_completeness: Optional[str] = Field(default=None, description="'pure_pointer' or 'hybrid' when is_cross_reference=true")
+    reference_target: Optional[str] = Field(default=None, description="'same_corpus', 'federal', 'external_standard', or 'other'")
 
 
 class DefinitionsResponse(BaseModel):
@@ -327,16 +330,17 @@ def store_to_database(regulations: List[Dict], state: str = "NY"):
 
                     conn.execute("""
                         INSERT INTO definitions
-                        (document_id, url, term, verbatim_text, is_verbatim, rephrased_definition,
+                        (document_id, url, term, verbatim_text, is_verbatim_text_complete, rephrased_definition,
                          scope, source_location, definition_overlap, model_version,
-                         scope_level, definition_type, is_cross_reference)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                         scope_level, definition_type, is_cross_reference,
+                         reference_completeness, reference_target)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """, (
                         doc_id,
                         reg_url,
                         defn.get('term'),
                         verbatim_text,
-                        defn.get('is_verbatim', True),
+                        defn.get('is_verbatim_text_complete', True),
                         defn.get('rephrased_definition'),
                         defn.get('scope'),
                         defn.get('source_location'),
@@ -345,6 +349,8 @@ def store_to_database(regulations: List[Dict], state: str = "NY"):
                         normalize_scope_level(defn.get('scope_level')) if defn.get('scope_level') else None,
                         defn.get('definition_type', 'formal'),
                         defn.get('is_cross_reference', False),
+                        defn.get('reference_completeness'),
+                        defn.get('reference_target'),
                     ))
                     total_defs += 1
 
@@ -607,7 +613,7 @@ def generate_viewer(regulations: List[Dict]):
 
         for defn in defs:
             term = defn.get('term', 'Unknown')
-            display_def = defn.get('verbatim_text', '') if defn.get('is_verbatim', True) else (defn.get('rephrased_definition') or defn.get('verbatim_text', ''))
+            display_def = defn.get('verbatim_text', '') if defn.get('is_verbatim_text_complete', True) else (defn.get('rephrased_definition') or defn.get('verbatim_text', ''))
             scope = defn.get('scope')
             scope_text = f"<div class='def-scope'>Scope: {scope}</div>" if scope else ""
 
@@ -1089,16 +1095,17 @@ def cmd_process(args):
 
                 conn.execute("""
                     INSERT INTO definitions
-                    (document_id, url, term, verbatim_text, is_verbatim, rephrased_definition,
+                    (document_id, url, term, verbatim_text, is_verbatim_text_complete, rephrased_definition,
                      scope, source_location, definition_overlap, model_version,
-                     scope_level, definition_type, is_cross_reference)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                     scope_level, definition_type, is_cross_reference,
+                     reference_completeness, reference_target)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, (
                     doc_id,
                     section_url,
                     defn.term,
                     verbatim_text,
-                    defn.is_verbatim,
+                    defn.is_verbatim_text_complete,
                     defn.rephrased_definition,
                     defn.scope,
                     defn.source_location,
@@ -1107,6 +1114,8 @@ def cmd_process(args):
                     normalize_scope_level(defn.scope_level) if defn.scope_level else None,
                     defn.definition_type,
                     defn.is_cross_reference,
+                    defn.reference_completeness,
+                    defn.reference_target,
                 ))
                 total_defs += 1
 

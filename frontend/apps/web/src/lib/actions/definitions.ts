@@ -276,7 +276,7 @@ export async function updateDefinitionReview(
     teamNotes?: string;
     // Editable fields (only included if being corrected)
     term?: string;
-    isVerbatim?: boolean;
+    isVerbatimTextComplete?: boolean;
     verbatimText?: string;
     rephrasedDefinition?: string | null;
     scope?: string | null;
@@ -284,6 +284,8 @@ export async function updateDefinitionReview(
     scopeDocumentId?: number | null;
     definitionType?: string;
     isCrossReference?: boolean;
+    referenceCompleteness?: string | null;
+    referenceTarget?: string | null;
   }
 ): Promise<ActionResult<Definition | undefined>> {
   try {

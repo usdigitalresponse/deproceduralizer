@@ -151,3 +151,18 @@ export const DEFINITIONS_SORT_OPTIONS = [
   { value: 'term', label: 'By Term' },
   { value: 'extractedAt', label: 'By Date' },
 ];
+
+// Cross-reference categorization options (two dimensions)
+export const DEFINITIONS_REFERENCE_COMPLETENESS_OPTIONS = [
+  { value: 'all', label: 'All Completeness' },
+  { value: 'pure_pointer', label: 'Pure Pointer' },
+  { value: 'hybrid', label: 'Hybrid' },
+];
+
+export const DEFINITIONS_REFERENCE_TARGET_OPTIONS = [
+  { value: 'all', label: 'All Targets' },
+  { value: 'same_corpus', label: 'Same Corpus (NJ/NY)' },
+  { value: 'federal', label: 'Federal (CFR/USC)' },
+  { value: 'external_standard', label: 'External Standard' },
+  { value: 'other', label: 'Other' },
+];

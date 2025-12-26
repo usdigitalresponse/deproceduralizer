@@ -35,7 +35,7 @@ function capitalizeFirst(text: string): string {
  * Get the primary display definition text based on verbatim/rephrased logic.
  */
 function getDisplayDefinitionText(definition: ApplicableDefinition): string {
-  const text = definition.isVerbatim
+  const text = definition.isVerbatimTextComplete
     ? definition.verbatimText
     : (definition.rephrasedDefinition ?? definition.verbatimText);
   return capitalizeFirst(text);

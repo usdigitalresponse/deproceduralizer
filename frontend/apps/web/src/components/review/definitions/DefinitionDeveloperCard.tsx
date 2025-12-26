@@ -144,9 +144,23 @@ export const DefinitionDeveloperCard = forwardRef<HTMLDivElement, DefinitionDeve
     const anchor = `definition-${definition.id}`;
 
     // Get the display definition text
-    const displayDefinition = definition.isVerbatim
+    // Use type assertion since the DB column was renamed but type may lag
+    const isComplete = (definition as unknown as { isVerbatimTextComplete?: boolean }).isVerbatimTextComplete ?? true;
+    const displayDefinition = isComplete
       ? definition.verbatimText
       : definition.rephrasedDefinition || definition.verbatimText;
+
+    // Cross-reference categorization labels
+    const referenceCompletenessLabel = {
+      pure_pointer: 'Pure Pointer',
+      hybrid: 'Hybrid',
+    } as const;
+    const referenceTargetLabel = {
+      same_corpus: 'Same Corpus',
+      federal: 'Federal',
+      external_standard: 'External Standard',
+      other: 'Other',
+    } as const;
 
     return (
       <CardWrapper
@@ -184,6 +198,16 @@ export const DefinitionDeveloperCard = forwardRef<HTMLDivElement, DefinitionDeve
             )}
             {definition.isCrossReference && (
               <Badge variant="warning">Cross-ref</Badge>
+            )}
+            {(definition as unknown as { referenceCompleteness?: string }).referenceCompleteness && (
+              <Badge variant="default">
+                {referenceCompletenessLabel[(definition as unknown as { referenceCompleteness: keyof typeof referenceCompletenessLabel }).referenceCompleteness]}
+              </Badge>
+            )}
+            {(definition as unknown as { referenceTarget?: string }).referenceTarget && (
+              <Badge variant="info">
+                {referenceTargetLabel[(definition as unknown as { referenceTarget: keyof typeof referenceTargetLabel }).referenceTarget]}
+              </Badge>
             )}
           </div>
           <div className="text-sm text-[var(--color-text-muted)] mb-2">

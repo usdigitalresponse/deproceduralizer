@@ -11,7 +11,8 @@ import { formatNycrrCitation } from '@/lib/formatters/nycrr';
 import { formatNjacCitation } from '@/lib/formatters/njac';
 import { CardWrapper } from '../shared';
 import { ScopeDocumentTypeahead } from './ScopeDocumentTypeahead';
-import type { DefinitionWithContext, DefinitionOriginalValues, StateCode } from '@deproceduralizer/database';
+import type { DefinitionWithContext, DefinitionOriginalValues, StateCode, ReferenceCompleteness, ReferenceTarget } from '@deproceduralizer/database';
+import { REFERENCE_COMPLETENESS, REFERENCE_TARGETS } from '@deproceduralizer/database';
 
 interface DefinitionReviewCardProps {
   definition: DefinitionWithContext;
@@ -41,6 +42,20 @@ const DEFINITION_TYPES = [
   { value: 'abbreviation', label: 'Abbreviation' },
 ];
 
+const REFERENCE_COMPLETENESS_OPTIONS = [
+  { value: 'none', label: 'Not specified' },
+  { value: 'pure_pointer', label: 'Pure Pointer' },
+  { value: 'hybrid', label: 'Hybrid' },
+];
+
+const REFERENCE_TARGET_OPTIONS = [
+  { value: 'none', label: 'Not specified' },
+  { value: 'same_corpus', label: 'Same Corpus (NJ/NY)' },
+  { value: 'federal', label: 'Federal (CFR/USC)' },
+  { value: 'external_standard', label: 'External Standard' },
+  { value: 'other', label: 'Other' },
+];
+
 export const DefinitionReviewCard = forwardRef<HTMLDivElement, DefinitionReviewCardProps>(
   ({ definition, onUpdated, onReviewComplete, onViewRegulation, state, isFocused = false, isSelected = false, onSelectionChange, isExiting = false }, ref) => {
     const [isPending, startTransition] = useTransition();
@@ -55,7 +70,7 @@ export const DefinitionReviewCard = forwardRef<HTMLDivElement, DefinitionReviewC
     // Editable form data
     const [formData, setFormData] = useState({
       term: definition.term,
-      isVerbatim: definition.isVerbatim ?? true,
+      isVerbatimTextComplete: (definition as unknown as { isVerbatimTextComplete?: boolean }).isVerbatimTextComplete ?? true,
       verbatimText: definition.verbatimText,
       rephrasedDefinition: definition.rephrasedDefinition || '',
       scope: definition.scope || '',
@@ -63,6 +78,8 @@ export const DefinitionReviewCard = forwardRef<HTMLDivElement, DefinitionReviewC
       scopeDocumentId: definition.scopeDocumentId,
       definitionType: definition.definitionType || 'formal',
       isCrossReference: definition.isCrossReference ?? false,
+      referenceCompleteness: (definition as unknown as { referenceCompleteness?: string }).referenceCompleteness || 'none',
+      referenceTarget: (definition as unknown as { referenceTarget?: string }).referenceTarget || 'none',
       reviewerName: '',
       justificationNotes: '',
       teamNotes: '',
@@ -91,19 +108,26 @@ export const DefinitionReviewCard = forwardRef<HTMLDivElement, DefinitionReviewC
       : 'Unknown source';
 
     // Check if any fields have been modified
+    const defWithNewFields = definition as unknown as {
+      isVerbatimTextComplete?: boolean;
+      referenceCompleteness?: string;
+      referenceTarget?: string;
+    };
     const hasChanges = useCallback(() => {
       return (
         formData.term !== definition.term ||
-        formData.isVerbatim !== (definition.isVerbatim ?? true) ||
+        formData.isVerbatimTextComplete !== (defWithNewFields.isVerbatimTextComplete ?? true) ||
         formData.verbatimText !== definition.verbatimText ||
         formData.rephrasedDefinition !== (definition.rephrasedDefinition || '') ||
         formData.scope !== (definition.scope || '') ||
         formData.scopeLevel !== (definition.scopeLevel || '') ||
         formData.scopeDocumentId !== definition.scopeDocumentId ||
         formData.definitionType !== (definition.definitionType || 'formal') ||
-        formData.isCrossReference !== (definition.isCrossReference ?? false)
+        formData.isCrossReference !== (definition.isCrossReference ?? false) ||
+        formData.referenceCompleteness !== (defWithNewFields.referenceCompleteness || 'none') ||
+        formData.referenceTarget !== (defWithNewFields.referenceTarget || 'none')
       );
-    }, [formData, definition]);
+    }, [formData, definition, defWithNewFields]);
 
     const handleConfirm = async () => {
       setError(null);
@@ -160,7 +184,7 @@ export const DefinitionReviewCard = forwardRef<HTMLDivElement, DefinitionReviewC
             justificationNotes: formData.justificationNotes,
             teamNotes: formData.teamNotes || undefined,
             term: formData.term,
-            isVerbatim: formData.isVerbatim,
+            isVerbatimTextComplete: formData.isVerbatimTextComplete,
             verbatimText: formData.verbatimText,
             rephrasedDefinition: formData.rephrasedDefinition || null,
             scope: formData.scope || null,
@@ -168,6 +192,8 @@ export const DefinitionReviewCard = forwardRef<HTMLDivElement, DefinitionReviewC
             scopeDocumentId: formData.scopeDocumentId ?? null,
             definitionType: formData.definitionType,
             isCrossReference: formData.isCrossReference,
+            referenceCompleteness: formData.referenceCompleteness === 'none' ? null : formData.referenceCompleteness,
+            referenceTarget: formData.referenceTarget === 'none' ? null : formData.referenceTarget,
           });
 
           if (!result.success) {
@@ -321,8 +347,8 @@ export const DefinitionReviewCard = forwardRef<HTMLDivElement, DefinitionReviewC
               </div>
 
               <div>
-                <span className="text-[var(--color-text-secondary)]">Is Verbatim:</span>
-                <span className="ml-2">{(getOriginalValue('isVerbatim') ?? definition.isVerbatim) ? 'Yes' : 'No'}</span>
+                <span className="text-[var(--color-text-secondary)]">Is Complete:</span>
+                <span className="ml-2">{(getOriginalValue('isVerbatimTextComplete') ?? defWithNewFields.isVerbatimTextComplete) ? 'Yes' : 'No'}</span>
               </div>
 
               <div>
@@ -367,6 +393,19 @@ export const DefinitionReviewCard = forwardRef<HTMLDivElement, DefinitionReviewC
                 <span className="text-[var(--color-text-secondary)]">Cross-Reference:</span>
                 <span className="ml-2">{(getOriginalValue('isCrossReference') ?? definition.isCrossReference) ? 'Yes' : 'No'}</span>
               </div>
+
+              {(definition.isCrossReference || getOriginalValue('isCrossReference') as boolean) && (
+                <>
+                  <div>
+                    <span className="text-[var(--color-text-secondary)]">Ref Completeness:</span>
+                    <span className="ml-2">{(getOriginalValue('referenceCompleteness') as string) || defWithNewFields.referenceCompleteness || '(none)'}</span>
+                  </div>
+                  <div>
+                    <span className="text-[var(--color-text-secondary)]">Ref Target:</span>
+                    <span className="ml-2">{(getOriginalValue('referenceTarget') as string) || defWithNewFields.referenceTarget || '(none)'}</span>
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Source Regulation Text */}
@@ -414,13 +453,13 @@ export const DefinitionReviewCard = forwardRef<HTMLDivElement, DefinitionReviewC
               </div>
 
               <div className="flex items-center gap-4">
-                <label className="text-sm text-[var(--color-text-secondary)]">Is Verbatim:</label>
+                <label className="text-sm text-[var(--color-text-secondary)]">Is Complete:</label>
                 <div className="flex gap-4">
                   <label className="flex items-center gap-2 text-sm">
                     <input
                       type="radio"
-                      checked={formData.isVerbatim}
-                      onChange={() => setFormData(prev => ({ ...prev, isVerbatim: true }))}
+                      checked={formData.isVerbatimTextComplete}
+                      onChange={() => setFormData(prev => ({ ...prev, isVerbatimTextComplete: true }))}
                       className="text-[var(--color-primary)]"
                     />
                     Yes
@@ -428,8 +467,8 @@ export const DefinitionReviewCard = forwardRef<HTMLDivElement, DefinitionReviewC
                   <label className="flex items-center gap-2 text-sm">
                     <input
                       type="radio"
-                      checked={!formData.isVerbatim}
-                      onChange={() => setFormData(prev => ({ ...prev, isVerbatim: false }))}
+                      checked={!formData.isVerbatimTextComplete}
+                      onChange={() => setFormData(prev => ({ ...prev, isVerbatimTextComplete: false }))}
                       className="text-[var(--color-primary)]"
                     />
                     No
@@ -510,6 +549,30 @@ export const DefinitionReviewCard = forwardRef<HTMLDivElement, DefinitionReviewC
                   Is Cross-Reference
                 </label>
               </div>
+
+              {formData.isCrossReference && (
+                <>
+                  <div>
+                    <label className="text-sm text-[var(--color-text-secondary)]">Reference Completeness</label>
+                    <Select
+                      value={formData.referenceCompleteness}
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, referenceCompleteness: value }))}
+                      options={REFERENCE_COMPLETENESS_OPTIONS}
+                      className={wasChanged('referenceCompleteness') ? 'border-[var(--color-warning)]' : ''}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-sm text-[var(--color-text-secondary)]">Reference Target</label>
+                    <Select
+                      value={formData.referenceTarget}
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, referenceTarget: value }))}
+                      options={REFERENCE_TARGET_OPTIONS}
+                      className={wasChanged('referenceTarget') ? 'border-[var(--color-warning)]' : ''}
+                    />
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>

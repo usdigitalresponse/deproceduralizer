@@ -68,59 +68,79 @@ export function BulkActionsBar({
     });
   };
 
-  if (selectedIds.length === 0) {
-    return null;
-  }
+  const hasSelection = selectedIds.length > 0;
 
   return (
     <>
-      {/* Floating Action Bar */}
-      <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 bg-white border border-[var(--color-neutral-200)] rounded-lg shadow-lg px-4 py-3 flex items-center gap-4">
-        <div className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={selectedIds.length === totalItems}
-            onChange={() => {
-              if (selectedIds.length === totalItems) {
-                onClearSelection();
-              } else {
-                onSelectAll();
-              }
-            }}
-            className="w-4 h-4 rounded border-[var(--color-neutral-300)] text-[var(--color-primary)]"
-          />
-          <span className="text-sm font-medium text-[var(--color-text)]">
-            {selectedIds.length} selected
-          </span>
+      {/* Floating Bulk Action Bar - Always visible */}
+      <div className={`fixed bottom-4 left-1/2 -translate-x-1/2 z-40 bg-white border rounded-lg shadow-lg px-4 py-3 flex items-center gap-4 transition-all ${
+        hasSelection
+          ? 'border-[var(--color-primary)] ring-2 ring-[var(--color-primary)]/20'
+          : 'border-[var(--color-neutral-200)]'
+      }`}>
+        {/* Bulk Actions Label */}
+        <div className="flex items-center gap-2 text-sm font-medium text-[var(--color-text-secondary)]">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+          </svg>
+          <span>Bulk Actions</span>
         </div>
 
         <div className="h-6 w-px bg-[var(--color-neutral-200)]" />
 
-        <div className="flex items-center gap-2">
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => setShowConfirmDialog('confirmed')}
-            disabled={isPending}
-          >
-            Confirm Selected
-          </Button>
-          <Button
-            variant="danger"
-            size="sm"
-            onClick={() => setShowConfirmDialog('false_positive')}
-            disabled={isPending}
-          >
-            Mark as False Positive
-          </Button>
-        </div>
+        {hasSelection ? (
+          <>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={selectedIds.length === totalItems}
+                onChange={() => {
+                  if (selectedIds.length === totalItems) {
+                    onClearSelection();
+                  } else {
+                    onSelectAll();
+                  }
+                }}
+                className="w-4 h-4 rounded border-[var(--color-neutral-300)] text-[var(--color-primary)]"
+              />
+              <span className="text-sm font-medium text-[var(--color-text)]">
+                {selectedIds.length} of {totalItems} selected
+              </span>
+            </div>
 
-        <button
-          onClick={onClearSelection}
-          className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text)]"
-        >
-          Clear
-        </button>
+            <div className="h-6 w-px bg-[var(--color-neutral-200)]" />
+
+            <div className="flex items-center gap-2">
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => setShowConfirmDialog('confirmed')}
+                disabled={isPending}
+              >
+                Confirm Selected
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={() => setShowConfirmDialog('false_positive')}
+                disabled={isPending}
+              >
+                Mark as False Positive
+              </Button>
+            </div>
+
+            <button
+              onClick={onClearSelection}
+              className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text)]"
+            >
+              Clear
+            </button>
+          </>
+        ) : (
+          <span className="text-sm text-[var(--color-text-secondary)]">
+            Press <kbd className="px-1.5 py-0.5 bg-[var(--color-neutral-100)] border border-[var(--color-neutral-200)] rounded text-xs font-mono">x</kbd> on a focused card or use checkboxes to select items
+          </span>
+        )}
       </div>
 
       {/* Confirmation Dialog */}

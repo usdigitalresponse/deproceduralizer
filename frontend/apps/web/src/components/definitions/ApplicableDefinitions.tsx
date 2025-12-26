@@ -19,7 +19,7 @@ interface ApplicableDefinitionsProps {
  * Get the display definition text based on verbatim/rephrased logic
  */
 function getDisplayDefinitionText(definition: ApplicableDefinition): string {
-  if (definition.isVerbatim) {
+  if (definition.isVerbatimTextComplete) {
     return definition.verbatimText;
   }
   return definition.rephrasedDefinition ?? definition.verbatimText;
