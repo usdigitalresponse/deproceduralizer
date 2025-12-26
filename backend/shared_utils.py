@@ -430,11 +430,12 @@ def call_llm_parse(
     model: str = None,
     max_retries: int = 3,
     max_tokens: int = 64000,
+    system: Optional[str] = None,
 ) -> Optional[BaseModel]:
     """
     Call Anthropic API with structured output (Pydantic model via tool_use).
 
-    Handles retries automatically.
+    Handles retries automatically. Uses system prompt for caching when provided.
 
     Args:
         client: Anthropic client instance
@@ -443,6 +444,7 @@ def call_llm_parse(
         model: Model name (default: DEFAULT_MODEL)
         max_retries: Number of retries on failure (default: 3)
         max_tokens: Max output tokens (default: 64000 for Claude 4.5 models)
+        system: Optional system prompt (cached across requests)
 
     Returns:
         Parsed Pydantic model instance, or None if all retries fail
@@ -452,15 +454,27 @@ def call_llm_parse(
 
     tool = _pydantic_to_tool_schema(response_format)
 
+    # Build request kwargs
+    request_kwargs = {
+        "model": model,
+        "max_tokens": max_tokens,
+        "tools": [tool],
+        "tool_choice": {"type": "tool", "name": tool["name"]},
+        "messages": [{"role": "user", "content": prompt}],
+    }
+    if system:
+        # Use cache_control for prompt caching on repeated system prompts
+        request_kwargs["system"] = [
+            {
+                "type": "text",
+                "text": system,
+                "cache_control": {"type": "ephemeral"}
+            }
+        ]
+
     for attempt in range(max_retries):
         try:
-            response = client.messages.create(
-                model=model,
-                max_tokens=max_tokens,
-                tools=[tool],
-                tool_choice={"type": "tool", "name": tool["name"]},
-                messages=[{"role": "user", "content": prompt}],
-            )
+            response = client.messages.create(**request_kwargs)
 
             # Check for truncation due to max_tokens
             if response.stop_reason == "max_tokens":
