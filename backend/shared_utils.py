@@ -520,10 +520,8 @@ def call_llm_parse(
 
             # Parse the tool input with Pydantic
             parsed = response_format.model_validate(tool_use.input)
-
             if attempt > 0:
-                print(f"      ✓ Success on attempt {attempt + 1}")
-
+                print(f"      ✅ Retry succeeded on attempt {attempt + 1}")
             return parsed
 
         except Exception as e:
@@ -662,14 +660,6 @@ async def call_llm_parse_async(
         try:
             response = await client.messages.create(**request_kwargs)
 
-            # Log cache performance (only on first successful attempt)
-            if attempt == 0 and hasattr(response, 'usage'):
-                usage = response.usage
-                cache_created = getattr(usage, 'cache_creation_input_tokens', 0) or 0
-                cache_read = getattr(usage, 'cache_read_input_tokens', 0) or 0
-                input_tokens = getattr(usage, 'input_tokens', 0) or 0
-                print(f"      📦 Tokens: input={input_tokens}, cache_create={cache_created}, cache_read={cache_read}")
-
             # Check for truncation due to max_tokens
             if response.stop_reason == "max_tokens":
                 print(
@@ -697,10 +687,8 @@ async def call_llm_parse_async(
 
             # Parse the tool input with Pydantic
             parsed = response_format.model_validate(tool_use.input)
-
             if attempt > 0:
-                print(f"      ✓ Success on attempt {attempt + 1}")
-
+                print(f"      ✅ Retry succeeded on attempt {attempt + 1}")
             return parsed
 
         except Exception as e:
@@ -1329,6 +1317,28 @@ class BatchManager:
                 json.dump(batch_info, f, indent=2)
 
         return batch_id
+
+    def list_active_batches(self) -> list[dict]:
+        """
+        List all in-progress batches from the API.
+
+        Returns:
+            List of dicts with batch_id and request_counts for active batches
+        """
+        active = []
+        try:
+            batches = self.client.beta.messages.batches.list(limit=100)
+            for batch in batches.data:
+                if batch.processing_status == 'in_progress':
+                    active.append({
+                        'batch_id': batch.id,
+                        'created_at': batch.created_at,
+                        'processing': batch.request_counts.processing if batch.request_counts else 0,
+                        'succeeded': batch.request_counts.succeeded if batch.request_counts else 0,
+                    })
+        except Exception as e:
+            print(f"Warning: Could not list batches from API: {e}")
+        return active
 
     def get_batch_status(self, batch_id: str) -> dict:
         """

@@ -4,8 +4,9 @@ Pydantic response models for compliance issue LLM analysis.
 Field names match database columns exactly for clarity.
 """
 
+import json
 from typing import Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class ComplianceIssueInstance(BaseModel):
@@ -47,6 +48,14 @@ class BaseComplianceAnalysis(BaseModel):
         default_factory=list,
         description="List of compliance issues found. Each distinct requirement should be a separate item."
     )
+
+    @field_validator('issues', mode='before')
+    @classmethod
+    def parse_stringified_json(cls, v):
+        """Handle LLM sometimes returning issues as a JSON string instead of a list."""
+        if isinstance(v, str):
+            return json.loads(v)
+        return v
 
     @property
     def has_issue(self) -> bool:
