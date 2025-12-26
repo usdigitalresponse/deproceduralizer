@@ -1,5 +1,10 @@
 # Annotation-Based Extraction Approach
 
+> **Status: PROPOSED / FUTURE**
+>
+> This document describes a proposed unified extraction approach that has NOT been implemented.
+> Current extraction uses separate passes for definitions, compliance issues, and cross-references.
+
 This document explores a unified annotation approach for extracting multiple types of structured data from regulation sections in a single LLM pass.
 
 ## Motivation

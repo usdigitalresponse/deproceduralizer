@@ -1,5 +1,11 @@
 # Definitions - Future Enhancements
 
+> **Status: PARTIALLY IMPLEMENTED**
+>
+> - Phases 1-5: ✅ Complete (NY definitions extracted and linked)
+> - Phase 6 (NJ expansion): 📋 Planned
+> - Phase 7 (Quality assurance): 📋 Backlogged
+
 This document outlines improvements to the definitions extraction, visualization, and management features, organized into phases that build on each other incrementally.
 
 ## Current State (Updated Dec 22, 2025)

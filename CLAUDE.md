@@ -47,3 +47,36 @@ When working on the Next.js frontend, follow these patterns:
 - Uses regex-based candidate detection followed by LLM verification
 - See `.claude/skills/database/schema.md` for full schema documentation
 
+### Pipeline Scripts
+- When adding/removing backend scripts, update `docs/OPERATIONS.md` to keep the operational runbook accurate
+- `run_pipeline.py` is the entry point - ensure its help text and argument list match available scripts
+- Scrapers handle migration automatically via `shared_utils.migrate_regulations_to_db()` - no separate migration script
+
+## Documentation Guidelines
+
+### Key Documentation Files
+| File | Purpose | Update When |
+|------|---------|-------------|
+| `docs/OPERATIONS.md` | Operational runbook | Adding/removing scripts, changing pipeline steps |
+| `README.md` | Project overview, architecture | Architecture changes, new major features |
+| `DATABASE_SETUP.md` | DB setup and common queries | Schema changes, new query patterns |
+| `.claude/skills/database/schema.md` | Full schema reference | Any schema/migration changes |
+
+### Status Headers for Future Docs
+Documents describing unimplemented or partially implemented features must include a status header:
+```markdown
+> **Status: PROPOSED / FUTURE**
+> This document describes a proposed approach that has NOT been implemented.
+```
+Or for partial implementation:
+```markdown
+> **Status: PARTIALLY IMPLEMENTED**
+> - Phase 1-3: ✅ Complete
+> - Phase 4: 📋 Planned
+```
+
+### Script Reference Accuracy
+- Never reference scripts that don't exist in documentation
+- When removing a script, grep for references and update all docs
+- Backend scripts live in `backend/scripts/` - verify paths before documenting
+

@@ -9,7 +9,8 @@ Pipeline Steps:
 1. Scrape regulations (NY or NJ) → writes to DB
 2. Extract definitions from regulations → writes to DB
 3. Analyze red flags in regulations → writes to DB
-4. Search for compliance issues (NJ wet signatures) → writes to DB
+
+Note: For compliance issues, use backend/scripts/compliance_issues/searcher.py directly.
 
 Usage:
     # Show available commands
@@ -22,7 +23,6 @@ Usage:
     python run_pipeline.py --state NJ --scrape
     python run_pipeline.py --state NJ --definitions
     python run_pipeline.py --state NJ --red-flags
-    python run_pipeline.py --state NJ --signatures  # NJ only
 
     # Common options
     python run_pipeline.py --state NJ --definitions --title 3A --skip-done
@@ -116,11 +116,6 @@ Examples:
         action="store_true",
         help="Step 3: Analyze red flags using LLM",
     )
-    parser.add_argument(
-        "--signatures",
-        action="store_true",
-        help="Step 4: Search for wet signature requirements (NJ only)",
-    )
 
     # Filters
     parser.add_argument(
@@ -169,12 +164,8 @@ Examples:
     args = parser.parse_args()
 
     # Validate
-    if args.signatures and args.state != "NJ":
-        print("ERROR: --signatures is only available for NJ")
-        sys.exit(1)
-
-    if not any([args.all, args.scrape, args.definitions, args.red_flags, args.signatures]):
-        print("ERROR: Specify at least one step: --all, --scrape, --definitions, --red-flags, --signatures")
+    if not any([args.all, args.scrape, args.definitions, args.red_flags]):
+        print("ERROR: Specify at least one step: --all, --scrape, --definitions, --red-flags")
         sys.exit(1)
 
     # Determine which steps to run
@@ -185,8 +176,6 @@ Examples:
         steps.append("definitions")
     if args.all or args.red_flags:
         steps.append("red_flags")
-    if (args.all or args.signatures) and args.state == "NJ":
-        steps.append("signatures")
 
     print()
     print("=" * 70)
@@ -291,23 +280,6 @@ Examples:
         )
         if not success and not args.dry_run:
             print("\n⚠️ Red flags step had issues, continuing...")
-
-    # Step 4: Signatures (NJ only)
-    if "signatures" in steps:
-        cmd = [
-            sys.executable, str(SCRIPTS_DIR / "search_nj_signatures.py"),
-        ]
-
-        if args.limit:
-            cmd.extend(["--limit", str(args.limit)])
-
-        success = run_command(
-            cmd,
-            "Searching NJ wet signature requirements",
-            dry_run=args.dry_run,
-        )
-        if not success and not args.dry_run:
-            print("\n⚠️ Signature search had issues")
 
     # Summary
     print()

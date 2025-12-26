@@ -33,20 +33,33 @@ Or run a specific migration:
 psql $DATABASE_URL -f frontend/packages/database/migrations/0007_add_display_columns.sql
 ```
 
-## Migrate Existing Data
+## Migrate Data
 
-Once tables are created, run the migration script to import your existing CSV analysis results. From the project root directory:
+Data migration is handled automatically by the scraper scripts:
 
 ```bash
-python3 backend/scripts/migrate_to_postgres.py
+# Scrape and migrate in one step
+python backend/scripts/ny_regulations_scraper.py
+# or
+python backend/scripts/nj_regulations_scraper.py
 ```
 
-This will:
-- Read all `red_flag_analysis_*.csv` files in the current directory
-- Create `regulatory_documents` entries for each regulation
-- Create `analyses` entries with all analysis metadata
-- Create `red_flags` entries for each individual flag
-- Link `statute_references` if the CSV exists
+The scrapers call `shared_utils.migrate_regulations_to_db()` which:
+- Creates `regulatory_documents` entries for each regulation
+- Handles hierarchy relationships (parent_id)
+- Uses `ON CONFLICT` for safe re-runs
+- Refreshes denormalized statistics automatically
+
+## Schema Sources
+
+| Source | Purpose |
+|--------|---------|
+| `frontend/packages/database/migrations/*.sql` | Incremental migrations (run in order for new DBs) |
+| `schema.sql` | Reference schema with views (`latest_analyses`, `document_hierarchy`) |
+| `frontend/packages/database/src/schema/` | Drizzle type definitions |
+| `.claude/skills/database/schema.md` | Human-readable documentation |
+
+For new databases, run migrations in order. Views are created by migrations.
 
 ## Test Connection
 
@@ -167,6 +180,22 @@ SELECT
   ROUND(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER(), 1) as pct
 FROM definitions
 GROUP BY review_status;
+```
+
+## Verify Data
+
+Use the helper script to quickly check table counts:
+
+```bash
+./scripts/db-query.sh "SELECT 'regulatory_documents' as tbl, COUNT(*) FROM regulatory_documents
+UNION ALL SELECT 'definitions', COUNT(*) FROM definitions
+UNION ALL SELECT 'compliance_issues', COUNT(*) FROM compliance_issues
+UNION ALL SELECT 'red_flags', COUNT(*) FROM red_flags"
+```
+
+Or describe a table's schema:
+```bash
+./scripts/db-query.sh describe regulatory_documents
 ```
 
 ## Notes

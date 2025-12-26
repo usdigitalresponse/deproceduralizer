@@ -50,6 +50,8 @@ description: Query and manage the Deproceduralizer Neon PostgreSQL database. Use
 - **[maintenance.md](maintenance.md)** - Hierarchy recomputation, migrations, auditing
 - **[bulk-operations.md](bulk-operations.md)** - Batch inserts, upserts, performance patterns
 
+**Important**: When adding migrations or modifying schema, always update `schema.md` to reflect the changes.
+
 ## ORM Access
 
 ```typescript
