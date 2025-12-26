@@ -99,8 +99,7 @@ export const ISSUE_TYPES = [
   'waiting_period',
   // Reporting
   'mandated_reports',
-  // External Standards
-  'incorporation_by_reference',
+  // NOTE: 'incorporation_by_reference' moved to dedicated incorporations_by_reference table (issue #49)
   // Legacy (for backwards compatibility)
   'in_person',
   'paper_form',

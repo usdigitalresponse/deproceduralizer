@@ -195,6 +195,44 @@ Tracks compliance issues found in regulations. Each (document_id, issue_type) pa
 - Technology: obsolete_media, obsolete_software, pdf_only, microfiche, typewriter
 - And more...
 
+## incorporations_by_reference
+
+Tracks external standards incorporated by reference (NFPA codes, ICC codes, ASTM standards, CFR references, etc.). Extracted from compliance_issues into dedicated table per GitHub issue #49.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | bigserial | Primary key |
+| `document_id` | bigint | FK to regulatory_documents |
+| `incorporated_document` | text | Name of incorporated document (e.g., "International Building Code/2021") |
+| `source_organization` | varchar(100) | Publisher (e.g., "ICC", "NFPA", "ANSI", "ASTM", "CFR") |
+| `version` | varchar(50) | Version/edition (e.g., "2021", "2020 edition") |
+| `requirement_quote` | text | Exact quote from regulation |
+| `term_matched` | varchar(255) | Regex pattern that matched |
+| `context` | text | Context snippet around match |
+| `llm_confirmed` | boolean | Always true for saved records |
+| `state` | varchar(2) | NY or NJ |
+| `url` | text | Source URL (NOT NULL) |
+| `review_status` | varchar(50) | unreviewed, confirmed, false_positive, etc. |
+| `reviewed_by` | varchar(255) | Who reviewed |
+| `reviewed_at` | timestamp | When reviewed |
+| `justification_notes` | text | Reviewer notes |
+| `team_notes` | text | Notes for development team |
+| `priority` | integer | Priority level |
+| `developer_status` | varchar(50) | unresolved, resolved, pending, backlogged, need_more_info |
+| `developer_assigned` | varchar(50) | Michael or Abigail |
+| `developer_notes` | text | Developer notes |
+| `resolution_type` | varchar(50) | implemented or not_implemented |
+| `resolution_comments` | text | Resolution comments |
+| `developer_question` | text | Question for reviewer |
+| `developer_checked_at` | timestamp | When developer checked |
+| `created_at` | timestamp | When record was created |
+
+**Indexes:** `idx_ibr_document`, `idx_ibr_organization`, `idx_ibr_llm_confirmed`, `idx_ibr_review_status`, `idx_ibr_state`, `idx_ibr_developer_status`
+
+**Detection:** Run `python backend/scripts/ibr_scanner.py --state nj` to scan and populate.
+
+**Patterns detected:** "incorporated by reference", NFPA, ASTM, ANSI, IEEE, API, UL, International Building/Fire/Mechanical/Plumbing/Energy/Residential Code.
+
 ## statute_references
 
 | Column | Type | Description |

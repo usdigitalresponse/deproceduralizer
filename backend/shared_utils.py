@@ -405,7 +405,12 @@ def get_async_openai_client(api_key: Optional[str] = None) -> anthropic.AsyncAnt
     """
     if api_key is None:
         api_key = os.getenv("ANTHROPIC_API_KEY")
-    return anthropic.AsyncAnthropic(api_key=api_key)
+    # Set timeout to avoid streaming requirement for operations under 10 minutes
+    # See: https://github.com/anthropics/anthropic-sdk-python#long-requests
+    return anthropic.AsyncAnthropic(
+        api_key=api_key,
+        timeout=600.0,  # 10 minute timeout
+    )
 
 
 def _pydantic_to_tool_schema(model: Type[BaseModel]) -> dict:

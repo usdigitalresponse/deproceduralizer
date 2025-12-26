@@ -423,6 +423,52 @@ CREATE INDEX idx_compliance_issues_developer_status ON compliance_issues(develop
 CREATE INDEX idx_compliance_issues_developer_assigned ON compliance_issues(developer_assigned);
 CREATE INDEX idx_compliance_issues_state_issue ON compliance_issues(state, issue_type);
 
+-- Incorporations by Reference: Track external standards incorporated into regulations
+-- (NFPA codes, ICC codes, ASTM standards, CFR references, etc.)
+-- Extracted from compliance_issues into dedicated table per GitHub issue #49
+CREATE TABLE incorporations_by_reference (
+  id BIGSERIAL PRIMARY KEY,
+  document_id BIGINT NOT NULL REFERENCES regulatory_documents(id) ON DELETE CASCADE,
+
+  -- Core IBR data
+  incorporated_document TEXT,                             -- e.g., "International Building Code/2021"
+  source_organization VARCHAR(100),                       -- e.g., "ICC", "NFPA", "CFR"
+  version TEXT,                                            -- e.g., "2021", "2020 edition" (TEXT for long version strings)
+  requirement_quote TEXT,                                 -- exact quote from regulation
+  term_matched VARCHAR(255),                              -- which pattern matched
+  context TEXT NOT NULL,                                  -- full snippet for context
+  llm_confirmed BOOLEAN DEFAULT FALSE,                    -- true = confirmed IBR
+  state VARCHAR(2) NOT NULL,                              -- 'NY' or 'NJ'
+  url TEXT NOT NULL,                                      -- source URL
+
+  -- Review workflow (matching compliance_issues pattern)
+  review_status VARCHAR(50) DEFAULT 'unreviewed',         -- 'unreviewed', 'confirmed', 'false_positive', etc.
+  reviewed_by VARCHAR(255),                               -- who reviewed it
+  reviewed_at TIMESTAMP,                                  -- when it was reviewed
+  justification_notes TEXT,                               -- reviewer notes
+  team_notes TEXT,                                        -- team notes
+  priority INTEGER,                                       -- priority ranking
+
+  -- Developer tracking
+  developer_status VARCHAR(50) DEFAULT 'unresolved',      -- 'unresolved', 'resolved', 'pending', 'backlogged', 'need_more_info'
+  developer_assigned VARCHAR(50),                         -- 'Michael' or 'Abigail'
+  developer_notes TEXT,                                   -- notes from developer
+  resolution_type VARCHAR(50),                            -- 'implemented' or 'not_implemented' (when resolved)
+  resolution_comments TEXT,                               -- comments about the resolution
+  developer_question TEXT,                                -- question for reviewer (when need_more_info)
+  developer_checked_at TIMESTAMP,                         -- when developer last checked this item
+
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Indexes for incorporations_by_reference
+CREATE INDEX idx_ibr_document ON incorporations_by_reference(document_id);
+CREATE INDEX idx_ibr_organization ON incorporations_by_reference(source_organization);
+CREATE INDEX idx_ibr_llm_confirmed ON incorporations_by_reference(llm_confirmed);
+CREATE INDEX idx_ibr_review_status ON incorporations_by_reference(review_status);
+CREATE INDEX idx_ibr_state ON incorporations_by_reference(state);
+CREATE INDEX idx_ibr_developer_status ON incorporations_by_reference(developer_status);
+
 -- Legacy tables (from earlier definition extraction implementation)
 -- These may be deprecated in favor of the definitions/definition_extraction_log tables
 

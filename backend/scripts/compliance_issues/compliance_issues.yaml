@@ -2195,6 +2195,9 @@ mandated_reports:
 # =============================================================================
 
 incorporation_by_reference:
+  # NOTE: This issue type uses a DEDICATED TABLE (incorporations_by_reference)
+  # instead of compliance_issues table. See backend/scripts/ibr_scanner.py
+  # Config is kept here for pattern/prompt reuse. GitHub issue #49.
   display_name: "Incorporation by Reference"
   db_issue_type: "incorporation_by_reference"
   category: "External Standards"

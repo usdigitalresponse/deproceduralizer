@@ -1,0 +1,411 @@
+"""
+Base pattern searcher for regulation analysis.
+
+Provides a reusable regex+LLM pipeline that can be extended for different
+analysis types (compliance issues, incorporation by reference, etc.).
+"""
+
+import json
+import re
+import asyncio
+from abc import ABC, abstractmethod
+from datetime import datetime
+from pathlib import Path
+from typing import Optional, Type
+from html import escape
+from pydantic import BaseModel
+
+import sys
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+
+from shared_utils import (
+    get_async_openai_client,
+    get_db_connection,
+    call_llm_parse_async,
+    format_batch_request,
+    BatchManager,
+    parse_batch_result_tool_use,
+    DEFAULT_MODEL,
+)
+from config import OUTPUTS_DIR
+
+from scripts.compliance_issues.config import StateConfig, IssueTypeConfig
+from scripts.compliance_issues.statute_checker import create_statute_checker
+
+
+class BasePatternSearcher(ABC):
+    """
+    Abstract base class for pattern-based regulation searching.
+
+    Provides:
+    - Regex pattern matching against regulatory documents
+    - Context extraction around matches
+    - Statute reference extraction
+    - Async LLM analysis with batching
+    - Batch API submission and processing
+    - Console, JSON, and HTML reporting
+
+    Subclasses must implement:
+    - save_to_database(): How to persist analyzed results
+    - get_already_analyzed_ids(): Which documents to skip
+    """
+
+    def __init__(
+        self,
+        state_config: StateConfig,
+        issue_config: IssueTypeConfig,
+        with_statutes: bool = True,
+        batches_subdir: str = 'batches',
+    ):
+        """
+        Initialize searcher.
+
+        Args:
+            state_config: State configuration (NJ, NY, etc.)
+            issue_config: Issue type configuration with patterns and prompts
+            with_statutes: Whether to enable statute lookup
+            batches_subdir: Subdirectory for batch files
+        """
+        self.state_config = state_config
+        self.issue_config = issue_config
+        self.with_statutes = with_statutes
+
+        # Create statute checker
+        self.statute_checker = create_statute_checker(state_config, with_statutes)
+
+        # Batches directory
+        self.batches_dir = OUTPUTS_DIR / batches_subdir / issue_config.name
+
+    @abstractmethod
+    def get_already_analyzed_ids(self, conn) -> set[int]:
+        """
+        Get document IDs that have already been analyzed.
+
+        Args:
+            conn: Database connection
+
+        Returns:
+            Set of document IDs to skip
+        """
+        pass
+
+    @abstractmethod
+    def save_to_database(self, results: list[dict]) -> int:
+        """
+        Save analyzed results to the database.
+
+        Args:
+            results: List of analyzed matches with llm_analysis
+
+        Returns:
+            Number of records saved
+        """
+        pass
+
+    def search(self, limit: Optional[int] = None) -> list[dict]:
+        """
+        Search regulations for pattern matches.
+
+        Args:
+            limit: Optional limit on number of matches
+
+        Returns:
+            List of match dicts with document info, context, etc.
+        """
+        conn = get_db_connection()
+        if not conn:
+            print("ERROR: Could not connect to database")
+            return []
+
+        prefix = self.state_config.citation_prefix
+        state_code = self.state_config.state_code
+
+        # Get already-analyzed document IDs
+        already_analyzed = self.get_already_analyzed_ids(conn)
+        if already_analyzed:
+            print(f"Skipping {len(already_analyzed)} already-analyzed docs")
+
+        # Query documents
+        print(f"Querying {state_code} regulations from database...")
+
+        try:
+            query = f"""
+                SELECT id, title, content, url, hierarchy_level, hierarchy_path,
+                       {prefix}_title, {prefix}_chapter, {prefix}_section, source_index
+                FROM regulatory_documents
+                WHERE state = %s
+                  AND content IS NOT NULL
+                  AND (exclude_from_analysis = FALSE OR exclude_from_analysis IS NULL)
+                ORDER BY id
+            """
+            rows = conn.execute(query, (state_code,)).fetchall()
+            print(f"Found {len(rows)} {state_code} documents to search...")
+
+        except Exception as e:
+            print(f"Database query error: {e}")
+            conn.close()
+            return []
+
+        matches = []
+        compiled_patterns = self.issue_config.compiled_patterns
+
+        for row in rows:
+            doc_id, title, content, url, hierarchy_level, hierarchy_path, \
+                doc_title, doc_chapter, doc_section, source_index = row
+
+            if not content:
+                continue
+
+            if doc_id in already_analyzed:
+                continue
+
+            # Check patterns
+            matched_term = None
+            matched_pattern = None
+
+            for pattern in compiled_patterns:
+                match_obj = pattern.search(content)
+                if match_obj:
+                    matched_term = pattern.pattern
+                    matched_pattern = pattern
+                    break
+
+            if matched_pattern:
+                # Get context around match
+                match_obj = matched_pattern.search(content)
+                if match_obj:
+                    start = max(0, match_obj.start() - 300)
+                    end = min(len(content), match_obj.end() + 300)
+                    context = content[start:end].strip()
+                else:
+                    context = content[:600]
+
+                # Extract statute references
+                statute_refs = self.statute_checker.extract_references(content)
+
+                result = {
+                    'document_id': doc_id,
+                    'title': title or '',
+                    'url': url or '',
+                    'term_matched': matched_term,
+                    'context': context,
+                    'full_content': content,
+                    f'{prefix}_title': doc_title,
+                    f'{prefix}_chapter': doc_chapter,
+                    f'{prefix}_section': doc_section,
+                    'hierarchy_path': hierarchy_path or '',
+                    'source_index': source_index,
+                    'statute_citations': statute_refs,
+                }
+
+                matches.append(result)
+
+                if limit and len(matches) >= limit:
+                    break
+
+        conn.close()
+        print(f"Found {len(matches)} potential matches")
+        return matches
+
+    def create_prompt(self, match: dict) -> tuple[Optional[str], str]:
+        """Create LLM prompt for analyzing a match."""
+        statute_context = self.statute_checker.get_statute_context(
+            match.get('statute_citations', [])
+        )
+
+        prompt_config = self.issue_config.prompt
+        system_prompt = prompt_config.get('system')
+        template = prompt_config.get('template', '')
+
+        user_prompt = template.format(
+            regulation_context=match['context'],
+            statute_context=statute_context if statute_context else "No statute references found.",
+        )
+
+        return system_prompt, user_prompt
+
+    async def analyze_match(self, match: dict, client) -> dict:
+        """Analyze a single match with LLM."""
+        system_prompt, user_prompt = self.create_prompt(match)
+
+        try:
+            analysis = await call_llm_parse_async(
+                client=client,
+                prompt=user_prompt,
+                response_format=self.issue_config.response_model,
+                model=DEFAULT_MODEL,
+                system=system_prompt,
+            )
+
+            if analysis is None:
+                print(f"  Warning: LLM analysis failed for {match['title'][:50]}...")
+                return {**match, 'llm_analysis': None, 'analysis_error': True}
+
+            return {**match, 'llm_analysis': analysis.model_dump(), 'analysis_error': False}
+
+        except Exception as e:
+            print(f"  Error analyzing {match['title'][:50]}: {e}")
+            return {**match, 'llm_analysis': None, 'analysis_error': True}
+
+    async def analyze_async(self, matches: list[dict], batch_size: int = 10) -> list[dict]:
+        """Analyze matches using async LLM calls."""
+        client = get_async_openai_client()
+        results = []
+
+        print(f"\nAnalyzing {len(matches)} matches with LLM...")
+
+        for i in range(0, len(matches), batch_size):
+            batch = matches[i:i + batch_size]
+            batch_num = i // batch_size + 1
+            total_batches = (len(matches) + batch_size - 1) // batch_size
+            print(f"  Batch {batch_num}/{total_batches}...")
+
+            tasks = [self.analyze_match(m, client) for m in batch]
+            batch_results = await asyncio.gather(*tasks)
+            results.extend(batch_results)
+
+            completed = min(i + batch_size, len(matches))
+            if completed % 20 == 0:
+                print(f"    Completed {completed}/{len(matches)}")
+
+        return results
+
+    def submit_batch(self, matches: list[dict]) -> str:
+        """Submit matches for batch API processing."""
+        print(f"\n[1/2] Formatting {len(matches)} batch requests...")
+
+        requests = []
+        for match in matches:
+            system_prompt, user_prompt = self.create_prompt(match)
+            request = format_batch_request(
+                custom_id=f"doc_{match['document_id']}",
+                prompt=user_prompt,
+                response_format=self.issue_config.response_model,
+                system=system_prompt,
+            )
+            requests.append(request)
+
+        print(f"      Formatted {len(requests)} requests")
+
+        print(f"\n[2/2] Submitting to Anthropic Batch API...")
+
+        manager = BatchManager(batches_dir=self.batches_dir)
+        batch_id = manager.submit_batch(
+            requests=requests,
+            batch_name=f"{self.state_config.state_code.lower()}_{self.issue_config.name}",
+            metadata={
+                'state': self.state_config.state_code,
+                'issue_type': self.issue_config.name,
+                'match_count': len(matches),
+            }
+        )
+
+        print(f"      Submitted batch: {batch_id}")
+        return batch_id
+
+    def process_batch_results(self, batch_id: str, matches: list[dict]) -> list[dict]:
+        """Process results from a completed batch."""
+        print("=" * 70)
+        print(f"PROCESSING {self.issue_config.display_name.upper()} BATCH")
+        print("=" * 70)
+
+        manager = BatchManager(batches_dir=self.batches_dir)
+
+        print("[1/3] Checking batch status...")
+        try:
+            status = manager.get_batch_status(batch_id)
+        except Exception as e:
+            print(f"      Could not retrieve batch: {e}")
+            return []
+
+        if status['status'] != 'ended':
+            print(f"      Batch is still processing: {status['status']}")
+            print(f"      Progress: {status['succeeded'] + status['errored']}/{status['total']}")
+            return []
+
+        print(f"      Batch completed: {status['succeeded']} succeeded, {status['errored']} errored")
+
+        match_lookup = {m['document_id']: m for m in matches}
+        batch_dir = manager.find_batch_dir(batch_id)
+
+        print("[2/3] Retrieving and processing results...")
+
+        results_iter = manager.get_batch_results(batch_id)
+        results = []
+        processed = 0
+        errored = 0
+
+        for result in results_iter:
+            custom_id = result.custom_id
+            doc_id = int(custom_id.replace('doc_', ''))
+            match = match_lookup.get(doc_id)
+
+            if not match:
+                errored += 1
+                processed += 1
+                continue
+
+            if result.result.type != 'succeeded':
+                if batch_dir:
+                    manager.log_error(batch_dir, custom_id, result.result.type.upper(), str(result.result))
+                results.append({**match, 'llm_analysis': None, 'analysis_error': True})
+                errored += 1
+                processed += 1
+                continue
+
+            try:
+                analysis = parse_batch_result_tool_use(result, self.issue_config.response_model)
+                if analysis:
+                    results.append({**match, 'llm_analysis': analysis.model_dump(), 'analysis_error': False})
+                else:
+                    results.append({**match, 'llm_analysis': None, 'analysis_error': True})
+                    errored += 1
+            except Exception as e:
+                if batch_dir:
+                    manager.log_error(batch_dir, custom_id, 'ERROR', str(e))
+                results.append({**match, 'llm_analysis': None, 'analysis_error': True})
+                errored += 1
+
+            processed += 1
+
+        print(f"      Processed {processed} results ({errored} errors)")
+
+        if batch_dir:
+            info_file = batch_dir / 'batch_info.json'
+            if info_file.exists():
+                with open(info_file) as f:
+                    batch_info = json.load(f)
+                batch_info['status'] = 'processed'
+                batch_info['processed_at'] = datetime.now().isoformat()
+                with open(info_file, 'w') as f:
+                    json.dump(batch_info, f, indent=2)
+
+        return results
+
+    def print_results(self, results: list[dict]) -> None:
+        """Print results summary to console."""
+        print("\n" + "=" * 80)
+        print(f"{self.issue_config.display_name.upper()} RESULTS")
+        print("=" * 80)
+
+        total = len(results)
+        with_issue = sum(1 for r in results if (r.get('llm_analysis') or {}).get('has_issue', False))
+        from_statute = sum(1 for r in results if (r.get('llm_analysis') or {}).get('from_statute') is True)
+
+        print(f"\nTotal regex matches searched: {total}")
+        print(f"Confirmed issues: {with_issue}")
+        print(f"  - From statute: {from_statute}")
+        print(f"  - Agency-added: {with_issue - from_statute}")
+
+    def save_results_json(self, results: list[dict], output_file: Path) -> None:
+        """Save results to JSON file."""
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+
+        cleaned_results = []
+        for r in results:
+            cleaned = {k: v for k, v in r.items() if k != 'full_content'}
+            cleaned_results.append(cleaned)
+
+        with open(output_file, 'w') as f:
+            json.dump(cleaned_results, f, indent=2, ensure_ascii=False)
+        print(f"\nSaved results to {output_file}")
