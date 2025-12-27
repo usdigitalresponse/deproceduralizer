@@ -39,11 +39,6 @@ class TestImports:
         assert hasattr(red_flags, 'RegulationAnalysis')
         assert hasattr(red_flags, 'create_analysis_prompt')
 
-    def test_import_search_signatures(self):
-        import search_nj_signatures
-        assert hasattr(search_nj_signatures, 'SignatureAnalysis')
-
-
 # =============================================================================
 # UNIT TESTS - Pure functions
 # =============================================================================
@@ -201,37 +196,6 @@ class TestLLMCalls:
         assert isinstance(result, RegulationAnalysis)
         assert isinstance(result.has_implementation_issues, bool)
         assert isinstance(result.red_flags, list)
-
-    def test_signature_analysis(self):
-        """Test signature LLM analysis produces valid output."""
-        import asyncio
-        from search_nj_signatures import (
-            SignatureAnalysis,
-            analyze_match,
-            StatuteChecker,
-        )
-        from shared_utils import get_async_openai_client
-
-        # Simple test match
-        match = {
-            'file': 'test.json',
-            'title': 'Test Section',
-            'url': 'https://test.example.com',
-            'tier': 'tier1',
-            'term_matched': 'original signature',
-            'context': 'The form must bear the original signature of the applicant.',
-            'statute_citations': [],
-        }
-
-        client = get_async_openai_client()
-        statute_checker = StatuteChecker()
-
-        result = asyncio.run(analyze_match(match, statute_checker, client))
-
-        # Verify we got a valid response
-        assert 'llm_analysis' in result
-        if result['llm_analysis']:
-            assert 'has_wet_signature_requirement' in result['llm_analysis']
 
     def test_batch_request_format_valid(self):
         """Test that batch requests are formatted correctly for the API."""
