@@ -7,7 +7,7 @@ import { Button, Input, Textarea, Badge, SeverityBadge, Select, Tag, CopyLinkBut
 import { ISSUE_TYPE_LABELS, PRIORITY_OPTIONS, IMPACT_TYPES } from '@/types/regulation';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
 import { formatNjacCitation } from '@/lib/formatters/njac';
-import { highlightTerm, highlightContext } from '@/lib/utils/highlight';
+import { highlightContext } from '@/lib/utils/highlight';
 import { CardWrapper } from './shared';
 import { REVIEW_STATUSES, REVIEW_STATUS_LABELS, REVIEW_STATUS_DESCRIPTIONS, type ReviewStatus } from '@deproceduralizer/database/schema';
 import type { ComplianceIssueWithContext } from '@deproceduralizer/database';
@@ -214,52 +214,41 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
           </div>
         )}
 
-        {/* Technical Details - collapsible (pattern matched + original context) */}
-        {(issue.matchedPattern || issue.matchedContext) && (
+        {/* View Full Section - expandable */}
+        {issue.matchedContext && (
+          <div className="mb-4">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={handleExpandContext}
+              disabled={isLoadingContext}
+            >
+              {isLoadingContext ? 'Loading...' : isExpanded ? 'Hide Section Text' : 'View Full Section'}
+            </Button>
+            {isExpanded && expandedText && (
+              <div className="mt-3 p-4 bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] border border-[var(--color-neutral-200)]">
+                <p className="text-sm text-[var(--color-text)] whitespace-pre-wrap leading-relaxed">
+                  {highlightContext(expandedText, issue.matchedContext, issue.matchedPattern)}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Technical Details - collapsible (regex pattern only) */}
+        {issue.matchedPattern && (
           <details className="mb-4">
             <summary className="text-xs font-medium text-[var(--color-text-secondary)] cursor-pointer hover:text-[var(--color-text)] py-1">
-              Technical Details (regex match + context)
+              Technical Details
             </summary>
-            <div className="mt-2 space-y-3 pl-2 border-l-2 border-[var(--color-neutral-200)]">
-              {/* Pattern matched */}
-              {issue.matchedPattern && (
-                <div>
-                  <span className="text-xs font-medium text-[var(--color-text-secondary)]">Pattern matched:</span>
-                  <div className="mt-1">
-                    <Tag variant="warning" size="sm">
-                      {issue.matchedPattern}
-                    </Tag>
-                  </div>
-                </div>
-              )}
-
-              {/* Matched Context */}
-              {issue.matchedContext && (
-                <div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-[var(--color-text-secondary)]">
-                      Original Matched Context
-                    </span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleExpandContext}
-                      disabled={isLoadingContext}
-                      className="text-xs py-0.5 px-2 h-auto"
-                    >
-                      {isLoadingContext ? 'Loading...' : isExpanded ? 'Show less' : 'Expand context'}
-                    </Button>
-                  </div>
-                  <div className="mt-1 p-3 bg-[var(--color-neutral-50)] rounded-[var(--radius-md)]">
-                    <p className="text-sm text-[var(--color-text)] whitespace-pre-wrap">
-                      {isExpanded && expandedText
-                        ? highlightContext(expandedText, issue.matchedContext, issue.matchedPattern)
-                        : highlightTerm(issue.matchedContext, issue.matchedPattern)}
-                    </p>
-                  </div>
-                </div>
-              )}
+            <div className="mt-2 pl-2 border-l-2 border-[var(--color-neutral-200)]">
+              <span className="text-xs font-medium text-[var(--color-text-secondary)]">Pattern matched:</span>
+              <div className="mt-1">
+                <Tag variant="warning" size="sm">
+                  {issue.matchedPattern}
+                </Tag>
+              </div>
             </div>
           </details>
         )}
