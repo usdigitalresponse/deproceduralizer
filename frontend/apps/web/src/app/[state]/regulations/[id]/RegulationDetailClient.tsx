@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useMemo, useEffect, useCallback } from 'react';
+import { useState, useRef, useMemo, useEffect, useCallback, useDeferredValue } from 'react';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { AnnotatableContent, NotesSidePanel } from '@/components/notes';
@@ -28,16 +28,21 @@ export function RegulationDetailClient({
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
   const contentRef = useRef<HTMLDivElement>(null);
 
-  // Find all matches in content
-  const matches = useMemo(() => {
-    if (!searchQuery.trim() || !content) return [];
+  // Debounce search query using useDeferredValue for smoother typing
+  const deferredSearchQuery = useDeferredValue(searchQuery);
 
-    const query = searchQuery.toLowerCase();
+  // Cache lowercase content (only recalculates when content changes, not on every query change)
+  const lowerContent = useMemo(() => content?.toLowerCase() ?? '', [content]);
+
+  // Find all matches in content using cached lowercase and deferred query
+  const matches = useMemo(() => {
+    if (!deferredSearchQuery.trim() || !lowerContent) return [];
+
+    const query = deferredSearchQuery.toLowerCase();
     const matchPositions: number[] = [];
     let pos = 0;
-    const lowerContent = content.toLowerCase();
 
-    while (pos < content.length) {
+    while (pos < lowerContent.length) {
       const idx = lowerContent.indexOf(query, pos);
       if (idx === -1) break;
       matchPositions.push(idx);
@@ -45,7 +50,7 @@ export function RegulationDetailClient({
     }
 
     return matchPositions;
-  }, [content, searchQuery]);
+  }, [lowerContent, deferredSearchQuery]);
 
   // Scroll to current match using CSS Highlight API or fallback
   useEffect(() => {
@@ -63,7 +68,7 @@ export function RegulationDetailClient({
     }, 100);
 
     return () => clearTimeout(timer);
-  }, [currentMatchIndex, matches.length, searchQuery]);
+  }, [currentMatchIndex, matches.length, deferredSearchQuery]);
 
   const goToNextMatch = useCallback(() => {
     if (matches.length > 0) {

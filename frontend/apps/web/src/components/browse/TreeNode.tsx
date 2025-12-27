@@ -4,6 +4,7 @@ import { type HierarchyNode } from '@deproceduralizer/database';
 import { Badge, SeverityBadge } from '@/components/ui/Badge';
 import { ChevronRight, ChevronDown, FileText, BookOpen, Folder } from 'lucide-react';
 import { formatDisplayTitle } from '@/lib/format';
+import { HIERARCHY_LEVEL_LABELS } from '@/lib/constants/hierarchy';
 
 interface TreeNodeProps {
   node: HierarchyNode;
@@ -51,17 +52,6 @@ const levelIcons: Record<string, typeof Folder> = {
   section: FileText,
 };
 
-const levelLabels: Record<string, string> = {
-  title: 'Title',
-  subtitle: 'Subtitle',
-  chapter: 'Chapter',
-  subchapter: 'Subchapter',
-  article: 'Article',
-  part: 'Part',
-  subpart: 'Subpart',
-  section: 'Section',
-};
-
 export function TreeNode({
   node,
   depth,
@@ -77,7 +67,7 @@ export function TreeNode({
   const hasChildren = node.childCount > 0;
   const indentPx = depth * 20;
   const Icon = levelIcons[node.hierarchyLevel || ''] || FileText;
-  const levelLabel = levelLabels[node.hierarchyLevel || ''] || node.hierarchyLevel || 'Document';
+  const levelLabel = HIERARCHY_LEVEL_LABELS[node.hierarchyLevel || ''] || node.hierarchyLevel || 'Document';
 
   // Filter match indicators
   const showMatchCounts = hasActiveFilters && hasChildren;

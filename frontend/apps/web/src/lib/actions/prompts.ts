@@ -17,12 +17,39 @@ export interface PromptData {
   system: string | null;
   template: string;
   variables: PromptVariable[];
+  updatedAt: string | null;
 }
 
 interface RawPromptData {
   description?: string;
   system?: string;
   template?: string;
+  updated_at?: string;
+}
+
+export interface CompliancePromptData {
+  name: string;
+  displayName: string;
+  category: string;
+  description: string;
+  prompt: {
+    system: string;
+    template: string;
+  } | null;
+  patterns: string[];
+  updatedAt: string | null;
+}
+
+interface RawCompliancePromptData {
+  display_name?: string;
+  category?: string;
+  description?: string;
+  prompt?: {
+    system?: string;
+    template?: string;
+  };
+  patterns?: string[];
+  updated_at?: string;
 }
 
 /**
@@ -45,8 +72,8 @@ function extractVariables(template: string): PromptVariable[] {
 }
 
 /**
- * Load and parse prompts.yaml, returning structured prompt data.
- * The file is copied from project root during build (see prebuild script).
+ * Load and parse core prompts from prompts/core.yaml.
+ * The file is copied from prompts/core.yaml during build (see prebuild script in package.json).
  */
 export async function getPrompts(): Promise<ActionResult<PromptData[]>> {
   try {
@@ -66,6 +93,7 @@ export async function getPrompts(): Promise<ActionResult<PromptData[]>> {
           system,
           template,
           variables: allVariables,
+          updatedAt: data.updated_at || null,
         };
       }
     );
@@ -98,4 +126,44 @@ export async function getPromptNames(): Promise<ActionResult<string[]>> {
   if (!result.success) return result;
 
   return success(result.data.map((p) => p.name));
+}
+
+/**
+ * Load and parse compliance issue prompts from prompts/compliance_issues.yaml.
+ * The file is copied during build (see prebuild script in package.json).
+ */
+export async function getCompliancePrompts(): Promise<ActionResult<CompliancePromptData[]>> {
+  try {
+    const promptsPath = join(process.cwd(), 'src/data/compliance_issues.yaml');
+    const fileContent = await readFile(promptsPath, 'utf-8');
+    const parsed = yaml.load(fileContent) as Record<string, RawCompliancePromptData>;
+
+    const prompts: CompliancePromptData[] = Object.entries(parsed).map(
+      ([name, data]) => ({
+        name,
+        displayName: data.display_name || name,
+        category: data.category || 'Uncategorized',
+        description: data.description || '',
+        prompt: data.prompt
+          ? {
+              system: data.prompt.system?.trim() || '',
+              template: data.prompt.template?.trim() || '',
+            }
+          : null,
+        patterns: data.patterns || [],
+        updatedAt: data.updated_at || null,
+      })
+    );
+
+    // Sort by category, then by display name
+    prompts.sort((a, b) => {
+      if (a.category !== b.category) return a.category.localeCompare(b.category);
+      return a.displayName.localeCompare(b.displayName);
+    });
+
+    return success(prompts);
+  } catch (error) {
+    console.error('[getCompliancePrompts]', error);
+    return failure(getErrorMessage(error));
+  }
 }

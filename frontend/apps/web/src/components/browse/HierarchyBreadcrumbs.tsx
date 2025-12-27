@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { getAncestorChain } from '@/lib/actions/hierarchy';
 import { ChevronRight, Loader2 } from 'lucide-react';
 import { formatDisplayTitle, truncateTitle } from '@/lib/format';
+import { HIERARCHY_LEVEL_LABELS } from '@/lib/constants/hierarchy';
 
 interface AncestorNode {
   id: number;
@@ -27,17 +28,6 @@ interface HierarchyBreadcrumbsProps {
   currentLevel?: string | null;
   onNavigate?: (id: number) => void;
 }
-
-const levelLabels: Record<string, string> = {
-  title: 'Title',
-  subtitle: 'Subtitle',
-  chapter: 'Chapter',
-  subchapter: 'Subchapter',
-  article: 'Article',
-  part: 'Part',
-  subpart: 'Subpart',
-  section: 'Section',
-};
 
 /**
  * Displays the hierarchy breadcrumb path for a document
@@ -128,7 +118,7 @@ export function HierarchyBreadcrumbs({
         >
           {currentLevel && (
             <span className="font-medium text-[var(--color-text-secondary)] mr-1">
-              {levelLabels[currentLevel] || currentLevel}:
+              {HIERARCHY_LEVEL_LABELS[currentLevel] || currentLevel}:
             </span>
           )}
           {truncateTitle(currentTitle, 30)}

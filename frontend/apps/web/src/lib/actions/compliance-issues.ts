@@ -6,9 +6,9 @@ import {
   db,
   ComplianceIssuesRepository,
   RegulatoryDocumentsRepository,
-  REVIEW_STATUSES,
   type StateCode,
   type ReviewStatus,
+  type ImpactType,
   type ComplianceIssue,
   type ComplianceIssueWithContext,
   type PaginatedComplianceIssuesResult,
@@ -19,13 +19,20 @@ import { type ActionResult, success, failure, getErrorMessage } from './types';
 const complianceIssuesRepo = new ComplianceIssuesRepository(db);
 const regulatoryDocumentsRepo = new RegulatoryDocumentsRepository(db);
 
+/**
+ * Input for updating a compliance issue review.
+ * Note: reviewStatus and impactType accept strings for form compatibility,
+ * but must be valid ReviewStatus/ImpactType values.
+ */
 export interface UpdateComplianceIssueInput {
   id: number;
+  /** Must be a valid ReviewStatus value */
   reviewStatus: string;
   reviewedBy?: string;
   justificationNotes?: string;
   teamNotes?: string;
   priority?: number;
+  /** Must be a valid ImpactType value if provided */
   impactType?: string;
 }
 
@@ -38,16 +45,13 @@ export async function updateComplianceIssueReview(
   input: UpdateComplianceIssueInput
 ): Promise<ActionResult<ComplianceIssue>> {
   try {
-    if (!REVIEW_STATUSES.includes(input.reviewStatus as ReviewStatus)) {
-      return failure(`Invalid review status: ${input.reviewStatus}`);
-    }
-
+    // Cast to proper types - forms pass strings, but these must be valid enum values
     const result = await complianceIssuesRepo.updateReview(input.id, {
       reviewStatus: input.reviewStatus as ReviewStatus,
       reviewedBy: input.reviewedBy,
       justificationNotes: input.justificationNotes,
       priority: input.priority,
-      impactType: input.impactType,
+      impactType: input.impactType as ImpactType | undefined,
     });
 
     if (!result) {

@@ -1,18 +1,15 @@
 import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
-import {
-  db,
-  RegulatoryDocumentsRepository,
-  type HierarchyFilterOptions,
-  type StateCode,
-} from '@deproceduralizer/database';
+import type { HierarchyFilterOptions, StateCode } from '@deproceduralizer/database';
 import { BrowseClient } from '@/components/browse';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Container } from '@/components/layout/Container';
 import { HierarchyTreeSkeleton } from '@/components/browse/HierarchyTree';
 import { Card } from '@/components/ui/Card';
+import { Alert } from '@/components/ui';
 import { isValidState, STATE_CONFIG } from '@/types/state';
 import { parseBooleanParam } from '@/lib/url/server-utils';
+import { getHierarchyBrowseData } from '@/lib/actions/hierarchy';
 
 export const dynamic = 'force-dynamic';
 
@@ -76,18 +73,24 @@ export default async function BrowsePage({ params, searchParams }: PageProps) {
     filters.hasComplianceIssues !== undefined
   );
 
-  // Fetch data filtered by state
-  const repo = new RegulatoryDocumentsRepository(db);
+  // Fetch data via server action
+  const result = await getHierarchyBrowseData(stateCode, filters, hasActiveFilters);
 
-  // Use fast queries when no filters active (uses precomputed stats)
-  // This is especially important for NJ which has 61k+ documents
-  const [roots, orphans, stats] = await Promise.all([
-    hasActiveFilters
-      ? repo.getHierarchyRoots(filters)
-      : repo.getHierarchyRootsFast(stateCode),
-    repo.getOrphanDocuments(filters),
-    repo.getHierarchyStats(filters),
-  ]);
+  if (!result.success) {
+    return (
+      <div className="bg-[var(--color-background)] min-h-screen">
+        <PageHeader
+          title={`Browse ${stateConfig.name} Regulations`}
+          description={`Navigate the ${stateConfig.regulationsLabel} hierarchy by title, chapter, part, and section`}
+        />
+        <Container size="2xl" className="py-6">
+          <Alert variant="error">Failed to load browse data: {result.error}</Alert>
+        </Container>
+      </div>
+    );
+  }
+
+  const { roots, orphans, stats } = result.data;
 
   return (
     <div className="bg-[var(--color-background)] min-h-screen">

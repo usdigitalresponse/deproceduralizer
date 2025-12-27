@@ -1,14 +1,15 @@
 import { Container } from '@/components/layout/Container';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Alert } from '@/components/ui';
-import { PromptsList } from '@/components/prompts';
-import { getPrompts } from '@/lib/actions/prompts';
+import { PromptsList, PromptNav } from '@/components/prompts';
+import { getPrompts, getCompliancePrompts } from '@/lib/actions/prompts';
 import { getAllFeedback, getFeedbackCounts } from '@/lib/actions/prompt-feedback';
 
 export default async function PromptsPage() {
   // Fetch prompts and feedback data in parallel
-  const [promptsResult, feedbackCountsResult, allFeedbackResult] = await Promise.all([
+  const [promptsResult, compliancePromptsResult, feedbackCountsResult, allFeedbackResult] = await Promise.all([
     getPrompts(),
+    getCompliancePrompts(),
     getFeedbackCounts(),
     getAllFeedback(),
   ]);
@@ -31,6 +32,7 @@ export default async function PromptsPage() {
   }
 
   const prompts = promptsResult.data;
+  const compliancePrompts = compliancePromptsResult.success ? compliancePromptsResult.data : [];
   const feedbackCounts = feedbackCountsResult.success ? feedbackCountsResult.data : {};
   const allFeedback = allFeedbackResult.success ? allFeedbackResult.data : [];
 
@@ -38,19 +40,32 @@ export default async function PromptsPage() {
   const promptNames = new Set(prompts.map((p) => p.name));
   const orphanedFeedback = allFeedback.filter((f) => !promptNames.has(f.promptName));
 
+  const totalPrompts = prompts.length + compliancePrompts.length;
+
   return (
     <div className="bg-[var(--color-background)]">
       <PageHeader
         title="LLM Prompts"
-        description={`View ${prompts.length} analysis prompts used by the regulatory analysis system. Submit feedback to help improve prompt quality.`}
+        description={`View ${totalPrompts} prompts used by the regulatory analysis system (${prompts.length} core, ${compliancePrompts.length} compliance). Submit feedback to help improve prompt quality.`}
       />
 
       <Container size="2xl" className="py-6">
-        <PromptsList
-          prompts={prompts}
-          feedbackCounts={feedbackCounts}
-          orphanedFeedback={orphanedFeedback}
-        />
+        <div className="flex gap-6">
+          {/* Main content */}
+          <div className="flex-1 min-w-0">
+            <PromptsList
+              prompts={prompts}
+              compliancePrompts={compliancePrompts}
+              feedbackCounts={feedbackCounts}
+              orphanedFeedback={orphanedFeedback}
+            />
+          </div>
+
+          {/* Sidebar navigation - hidden on mobile */}
+          <aside className="hidden lg:block w-56 flex-shrink-0">
+            <PromptNav prompts={prompts} compliancePrompts={compliancePrompts} />
+          </aside>
+        </div>
       </Container>
     </div>
   );

@@ -1,24 +1,14 @@
 import Link from 'next/link';
-import { db, RegulatoryDocumentsRepository } from '@deproceduralizer/database';
 import { ChevronRight } from 'lucide-react';
 import { formatDisplayTitle, truncateTitle } from '@/lib/format';
+import { getAncestorChain } from '@/lib/actions/hierarchy';
+import { getHierarchyLevelLabel } from '@/lib/constants/hierarchy';
 
 interface HierarchyBreadcrumbsServerProps {
   documentId: number;
   currentTitle: string;
   state: string;
 }
-
-const levelLabels: Record<string, string> = {
-  title: 'Title',
-  subtitle: 'Subtitle',
-  chapter: 'Chapter',
-  subchapter: 'Subchapter',
-  article: 'Article',
-  part: 'Part',
-  subpart: 'Subpart',
-  section: 'Section',
-};
 
 /**
  * Server-side hierarchy breadcrumbs for regulation detail pages
@@ -29,12 +19,13 @@ export async function HierarchyBreadcrumbsServer({
   currentTitle,
   state,
 }: HierarchyBreadcrumbsServerProps) {
-  const repo = new RegulatoryDocumentsRepository(db);
-  const ancestors = await repo.getAncestorChain(documentId);
+  const result = await getAncestorChain(documentId);
 
-  if (ancestors.length === 0) {
+  if (!result.success || result.data.length === 0) {
     return null;
   }
+
+  const ancestors = result.data;
 
   return (
     <nav className="flex flex-wrap items-center gap-1 text-sm" aria-label="Hierarchy breadcrumb">

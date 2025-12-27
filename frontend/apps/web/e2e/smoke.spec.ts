@@ -282,13 +282,7 @@ test.describe('Compliance Issues', () => {
 test.describe('Prompts Alignment', () => {
 
   // Expected core prompts from prompts/core.yaml
-  const EXPECTED_CORE_PROMPTS = [
-    'red_flags_analysis',
-    'wet_signature_detection',
-    'wet_signature_detection_with_statute',
-    'wet_signature_response_format',
-    'definition_extraction',
-  ];
+  const EXPECTED_CORE_PROMPTS = ['red_flags_analysis', 'definition_extraction'];
 
   test('prompts page displays all core prompts from YAML', async ({ page }) => {
     await page.goto('/prompts');
