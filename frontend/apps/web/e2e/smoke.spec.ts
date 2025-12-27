@@ -278,3 +278,100 @@ test.describe('Compliance Issues', () => {
   });
 
 });
+
+test.describe('Prompts Alignment', () => {
+
+  // Expected core prompts from prompts/core.yaml
+  const EXPECTED_CORE_PROMPTS = [
+    'red_flags_analysis',
+    'wet_signature_detection',
+    'wet_signature_detection_with_statute',
+    'wet_signature_response_format',
+    'definition_extraction',
+  ];
+
+  test('prompts page displays all core prompts from YAML', async ({ page }) => {
+    await page.goto('/prompts');
+
+    // Wait for prompts to load
+    await expect(page.locator('h1').filter({ hasText: /Prompts/i }).first()).toBeVisible();
+
+    // Verify each expected prompt exists on the page
+    for (const promptName of EXPECTED_CORE_PROMPTS) {
+      // Prompt names are displayed, check they exist (use first() due to nav sidebar)
+      await expect(page.getByText(promptName, { exact: false }).first()).toBeVisible();
+    }
+  });
+
+  test('prompt details include system and template sections', async ({ page }) => {
+    await page.goto('/prompts');
+
+    // Wait for prompts to load
+    await expect(page.locator('h1').filter({ hasText: /Prompts/i }).first()).toBeVisible();
+
+    // Find red_flags_analysis prompt card and click to expand
+    const promptCard = page.locator('#prompt-red_flags_analysis');
+    await expect(promptCard).toBeVisible();
+    await promptCard.click();
+
+    // Wait for expanded content
+    await page.waitForTimeout(500);
+
+    // Should show system prompt section header (expanded view shows this)
+    await expect(page.getByText(/System Prompt/i).first()).toBeVisible();
+
+    // Should show content from red_flags_analysis (Jennifer Pahlka reference)
+    await expect(page.getByText(/Jennifer Pahlka/i).first()).toBeVisible();
+  });
+
+  test('compliance issue types in filters match expected types from YAML', async ({ page }) => {
+    await page.goto('/nj/review?mode=review&type=compliance');
+    await expect(page.getByRole('heading', { name: /Review New Jersey/i })).toBeVisible();
+
+    // Wait for page to fully load
+    await page.waitForLoadState('networkidle');
+
+    // Open issue type dropdown
+    const typeFilter = page.locator('label:has-text("Type:") + button, label:has-text("Type:") ~ button').first();
+    await typeFilter.click();
+
+    // Get all option texts
+    const options = page.getByRole('option');
+    const optionTexts: string[] = [];
+    const optionCount = await options.count();
+
+    for (let i = 0; i < optionCount; i++) {
+      const text = await options.nth(i).textContent();
+      if (text) optionTexts.push(text.toLowerCase());
+    }
+
+    // Verify expected issue types are present (check display names exist)
+    // Note: These are the display names from YAML (not snake_case)
+    const expectedDisplayNames = [
+      'wet signature',
+      'mail',  // Mail-Only Submission
+      'certified',
+      'fax',
+      'notarization',
+      'newspaper',
+      'microfiche',
+    ];
+
+    for (const name of expectedDisplayNames) {
+      const found = optionTexts.some(opt => opt.toLowerCase().includes(name));
+      expect(found, `Expected to find "${name}" in issue type options`).toBeTruthy();
+    }
+  });
+
+  test('prompt updated_at dates are displayed', async ({ page }) => {
+    await page.goto('/prompts');
+
+    // Wait for prompts to load
+    await expect(page.locator('h1').filter({ hasText: /Prompts/i }).first()).toBeVisible();
+
+    // Look for "Last updated" or date format (YYYY-MM-DD)
+    const datePattern = page.getByText(/Last updated:|Updated:|\d{4}-\d{2}-\d{2}/i);
+    await expect(datePattern.first()).toBeVisible();
+  });
+
+});
