@@ -283,7 +283,7 @@ async function renderReviewMode(
 
   // Compliance tab
   if (reviewType === 'compliance') {
-    const sortBy = (queryParams.sortBy || 'createdAt') as 'issueType' | 'createdAt' | 'reviewedAt' | 'severity';
+    const sortBy = (queryParams.sortBy || 'severity') as 'issueType' | 'createdAt' | 'reviewedAt' | 'severity';
     const filters = {
       status: queryParams.reviewStatus === 'all' ? undefined : queryParams.reviewStatus,
       issueType: queryParams.issueType || undefined,
