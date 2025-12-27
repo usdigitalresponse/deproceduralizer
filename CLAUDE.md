@@ -2,8 +2,8 @@
 - before pushing, please always update the documentation about the latest state of the project
 - Before pushing, always run the smoke tests: `cd frontend/apps/web && pnpm test:e2e` unless you've run it recently. When starting a big feature, always add running smoke tests to the todos.
 - when modifying schema.sql, always update .claude/skills/database/ (especially schema.md) to reflect the schema changes
-- I am using vercel for deployment of the frontend by either pushing a branch and promoting, or pushing from main
-- whenever you are planning to create or modify a prompt, add a todo or integrate the prompt into ./prompts.yaml
+- I am using vercel for deployment of the frontend by either pushing a branch and promoting, or pushing from main. Do NOT run `vercel --prod` directly - always deploy via git push
+- whenever you are planning to create or modify a prompt, add a todo or integrate the prompt into the appropriate file in ./prompts/
 - when implementing batch processing, always implement caching to avoid redundant operations (especially before committing)
 - when creating scripts that do batch/multi-document/multi-record processing, always display progress (e.g., "Processed 1000/5000 records, ETA: 2m30s") so the user knows it's working and can estimate completion time
 - avoid typecasts (`as Type`) and casting to `unknown` unless truly necessary - prefer proper type guards, generics, or fixing the underlying type issue
@@ -38,13 +38,17 @@ When working on the Next.js frontend, follow these patterns:
 ## Backend Patterns
 
 ### LLM Prompts
-- All LLM prompts are centralized in `prompts.yaml` at the project root
+- All prompts are centralized in the `/prompts/` directory:
+  - `prompts/core.yaml` - Core analysis prompts (red_flags, definitions)
+  - `prompts/compliance_issues.yaml` - All 43 compliance issue types with patterns and prompts
 - Prompts have `system` (static, cached) and `template` (dynamic) sections
-- When adding/modifying prompts, update prompts.yaml rather than inline strings
+- When adding/modifying prompts, update the appropriate file in `/prompts/`
+- **Important:** When modifying any prompt, update its `updated_at` field to today's date (YYYY-MM-DD format)
 
 ### Compliance Issues
-- Issue patterns defined in `backend/scripts/compliance_issues/compliance_issues.yaml`
+- Issue types, regex patterns, and LLM prompts all defined in `prompts/compliance_issues.yaml`
 - Uses regex-based candidate detection followed by LLM verification
+- TypeScript types auto-generated from YAML - run `python scripts/generate_prompt_types.py`
 - See `.claude/skills/database/schema.md` for full schema documentation
 
 ### Pipeline Scripts
