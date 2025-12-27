@@ -31,6 +31,7 @@ from config import OUTPUTS_DIR
 from .config import StateConfig, IssueTypeConfig
 from .models import BaseComplianceAnalysis
 from .statute_checker import StatuteChecker, NoOpStatuteChecker, create_statute_checker
+from .validation import is_verbatim_match
 
 
 class ComplianceIssueSearcher:
@@ -608,27 +609,39 @@ class ComplianceIssueSearcher:
 
                     # Save each issue as a separate row (including "no issue" explanations)
                     for occurrence_num, issue in enumerate(issues, start=1):
+                        requirement_text = issue.get('requirement_text')
+                        full_content = item.get('full_content') or ''
+                        matched_context = item.get('context') or ''
+
+                        # Compute verbatim status
+                        is_verbatim = is_verbatim_match(
+                            requirement_text=requirement_text,
+                            source_text=full_content,
+                            fallback_context=matched_context,
+                        )
+
                         conn.execute(
                             """
                             INSERT INTO compliance_issues
                             (document_id, issue_type, occurrence_number, matched_pattern, matched_context, url,
                              requirement_found, requirement_text, required_by_statute,
-                             severity, impact_assessment, state)
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                             severity, impact_assessment, state, is_verbatim)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                             """,
                             (
                                 document_id,
                                 self.issue_config.db_issue_type,
                                 occurrence_num,
                                 item.get('term_matched'),  # matched_pattern
-                                item.get('context'),  # matched_context
+                                matched_context,  # matched_context
                                 item.get('url', ''),
                                 issue.get('requirement_found', False),
-                                issue.get('requirement_text'),
+                                requirement_text,
                                 issue.get('required_by_statute'),
                                 issue.get('severity'),
                                 issue.get('impact_assessment'),
                                 self.state_config.state_code,
+                                is_verbatim,  # New field
                             )
                         )
                         saved += 1

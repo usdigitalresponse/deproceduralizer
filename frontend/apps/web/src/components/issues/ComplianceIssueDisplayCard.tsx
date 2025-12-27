@@ -15,6 +15,7 @@ interface ComplianceIssueDisplayCardProps {
     matchedPattern: string | null;
     matchedContext: string;
     requirementText: string | null;
+    isVerbatim: boolean | null;
     severity: number | null;
     impactAssessment: string | null;
     statuteCitation: string | null;
@@ -92,9 +93,19 @@ export function ComplianceIssueDisplayCard({
       {issue.requirementText && (
         <div className="mb-3">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-xs font-medium text-[var(--color-text-secondary)]">
-              Requirement Text
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-[var(--color-text-secondary)]">
+                {issue.isVerbatim ? 'Verbatim Quote' : issue.isVerbatim === false ? 'Extracted Summary' : 'Requirement Text'}
+              </span>
+              {issue.isVerbatim !== null && (
+                <Badge
+                  variant={issue.isVerbatim ? 'info' : 'default'}
+                  className="text-[10px] py-0 px-1.5"
+                >
+                  {issue.isVerbatim ? 'Verbatim' : 'Paraphrased'}
+                </Badge>
+              )}
+            </div>
             {(canExpand || isExpanded) && expandedContext?.onToggle && (
               <Button
                 variant="ghost"
@@ -106,11 +117,17 @@ export function ComplianceIssueDisplayCard({
               </Button>
             )}
           </div>
-          <div className="p-3 bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] border-l-4 border-[var(--color-warning)]">
+          <div className={`p-3 bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] border-l-4 ${
+            issue.isVerbatim
+              ? 'border-[var(--color-info)]'
+              : 'border-[var(--color-warning)]'
+          }`}>
             <p className="text-sm text-[var(--color-text)] whitespace-pre-wrap">
+              {issue.isVerbatim && '"'}
               {isExpanded && expandedText
                 ? highlightContext(expandedText, issue.requirementText, issue.matchedPattern)
                 : highlightTerm(issue.requirementText, issue.matchedPattern)}
+              {issue.isVerbatim && '"'}
             </p>
           </div>
         </div>

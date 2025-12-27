@@ -221,6 +221,7 @@ Tracks compliance issues found in regulations (wet signatures, mail-only submiss
 | `url` | text | Link to the regulation |
 | `requirement_found` | boolean | Did LLM find an actual requirement? |
 | `requirement_text` | text | The specific text creating the requirement |
+| `is_verbatim` | boolean | True if requirement_text is verbatim from regulation, False if paraphrased, NULL for legacy records |
 | `required_by_statute` | boolean | true = statute mandates, false = agency added, null = unknown |
 | `statute_citation` | varchar(255) | Citation to statute if applicable |
 | `severity` | integer (1-10) | How problematic is this requirement |
@@ -244,7 +245,7 @@ Tracks compliance issues found in regulations (wet signatures, mail-only submiss
 
 **Constraints:** `compliance_issues_severity_check`, `compliance_issues_state_check`, `unique_document_issue_occurrence UNIQUE(document_id, issue_type, occurrence_number)`
 
-**Issue Types** (40 types defined in `compliance_issues.yaml`)
+**Issue Types** (41 types defined in `prompts/compliance_issues.yaml`)
 
 ### Compliance Issue Filtering
 
@@ -386,12 +387,12 @@ User annotations on regulations with optional text anchoring.
 
 ## prompt_feedback
 
-Stores user feedback on LLM prompts defined in `prompts.yaml`.
+Stores user feedback on LLM prompts defined in `prompts/core.yaml`.
 
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | bigserial | Primary key |
-| `prompt_name` | varchar(100) NOT NULL | Key in prompts.yaml |
+| `prompt_name` | varchar(100) NOT NULL | Key in prompts/core.yaml |
 | `feedback_type` | feedback_type enum | suggestion, bug, question, other |
 | `content` | text NOT NULL | Feedback content |
 | `highlighted_text` | text | Optional: specific part of template |
