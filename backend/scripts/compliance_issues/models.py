@@ -6,7 +6,7 @@ Field names match database columns exactly for clarity.
 
 import json
 from typing import Optional
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class ComplianceIssueInstance(BaseModel):
@@ -35,6 +35,17 @@ class ComplianceIssueInstance(BaseModel):
     impact_assessment: str = Field(
         description="Explanation - why this IS problematic, or why there's NO issue"
     )
+
+    @model_validator(mode='after')
+    def validate_severity_required(self) -> 'ComplianceIssueInstance':
+        """Ensure severity is set when requirement_found=True.
+
+        Philosophy: Default to minimum (1) - issue must prove it's higher severity.
+        Severity can be null if requirement_found=False (not a legitimate issue).
+        """
+        if self.requirement_found and self.severity is None:
+            self.severity = 1
+        return self
 
 
 class BaseComplianceAnalysis(BaseModel):
