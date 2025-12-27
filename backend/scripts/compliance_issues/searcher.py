@@ -620,6 +620,13 @@ class ComplianceIssueSearcher:
                             fallback_context=matched_context,
                         )
 
+                        # Enforce severity for confirmed issues - default to minimum
+                        requirement_found = issue.get('requirement_found', False)
+                        severity = issue.get('severity')
+                        if requirement_found and severity is None:
+                            print(f"  Warning: Missing severity for doc {document_id}, defaulting to 1")
+                            severity = 1
+
                         conn.execute(
                             """
                             INSERT INTO compliance_issues
@@ -635,10 +642,10 @@ class ComplianceIssueSearcher:
                                 item.get('term_matched'),  # matched_pattern
                                 matched_context,  # matched_context
                                 item.get('url', ''),
-                                issue.get('requirement_found', False),
+                                requirement_found,
                                 requirement_text,
                                 issue.get('required_by_statute'),
-                                issue.get('severity'),
+                                severity,
                                 issue.get('impact_assessment'),
                                 self.state_config.state_code,
                                 is_verbatim,  # New field
