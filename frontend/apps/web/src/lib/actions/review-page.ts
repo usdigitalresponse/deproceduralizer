@@ -1,0 +1,265 @@
+'use server';
+
+import 'server-only';
+import type { StateCode, RedFlagFilterOptions } from '@deproceduralizer/database';
+import {
+  getRedFlagsPaginated,
+  getRedFlagStatusCounts,
+  getRedFlagCategories,
+} from './red-flags';
+import {
+  getComplianceIssuesPaginated,
+  getComplianceIssueStatusCounts,
+  getComplianceIssueTypes,
+} from './compliance-issues';
+import {
+  getCombinedDeveloperStatusCounts,
+  getCombinedReviewedItems,
+  getNeedMoreInfoItems,
+  getNeedMoreInfoCounts,
+} from './developer';
+import {
+  getDefinitionReviewStats,
+  getDefinitionDeveloperStatusCounts,
+} from './definitions';
+import { type ActionResult, success, failure } from './types';
+
+// ============================================
+// Types
+// ============================================
+
+export interface TabCounts {
+  flags: number;
+  compliance: number;
+  definitions: number;
+  needs_info: number;
+}
+
+export interface DeveloperModeCountsData {
+  tabCounts: TabCounts;
+  developerStatusCounts: Awaited<ReturnType<typeof getCombinedDeveloperStatusCounts>> extends ActionResult<infer T> ? T : never;
+  needsInfoCounts: Awaited<ReturnType<typeof getNeedMoreInfoCounts>> extends ActionResult<infer T> ? T : never;
+}
+
+export interface ReviewModeCountsData {
+  tabCounts: TabCounts;
+  flagStatusCounts: Awaited<ReturnType<typeof getRedFlagStatusCounts>> extends ActionResult<infer T> ? T : never;
+  complianceStatusCounts: Awaited<ReturnType<typeof getComplianceIssueStatusCounts>> extends ActionResult<infer T> ? T : never;
+  definitionsStats: Awaited<ReturnType<typeof getDefinitionReviewStats>> extends ActionResult<infer T> ? T : never;
+  needsInfoCounts: Awaited<ReturnType<typeof getNeedMoreInfoCounts>> extends ActionResult<infer T> ? T : never;
+}
+
+// ============================================
+// Developer Mode Data Fetching
+// ============================================
+
+/**
+ * Fetch all counts needed for developer mode tabs
+ */
+export async function getDeveloperModeCountsData(
+  stateCode: StateCode
+): Promise<ActionResult<DeveloperModeCountsData>> {
+  const [developerStatusCountsResult, needsInfoCountsResult, definitionDevCountsResult] =
+    await Promise.all([
+      getCombinedDeveloperStatusCounts(stateCode),
+      getNeedMoreInfoCounts(stateCode),
+      getDefinitionDeveloperStatusCounts(stateCode),
+    ]);
+
+  if (!developerStatusCountsResult.success) {
+    return failure(`Failed to load developer status counts: ${developerStatusCountsResult.error}`);
+  }
+
+  if (!needsInfoCountsResult.success) {
+    return failure(`Failed to load needs info counts: ${needsInfoCountsResult.error}`);
+  }
+
+  const developerStatusCounts = developerStatusCountsResult.data;
+  const needsInfoCounts = needsInfoCountsResult.data;
+  const definitionDevCounts = definitionDevCountsResult.success
+    ? definitionDevCountsResult.data
+    : { total: 0 };
+
+  const tabCounts: TabCounts = {
+    flags: developerStatusCounts.total,
+    compliance: 0, // Combined into flags for developer mode
+    definitions: definitionDevCounts.total,
+    needs_info: needsInfoCounts.combined.total,
+  };
+
+  return success({
+    tabCounts,
+    developerStatusCounts,
+    needsInfoCounts,
+  });
+}
+
+/**
+ * Fetch developer queue items (combined red flags + compliance issues)
+ */
+export async function getDeveloperQueueData(
+  stateCode: StateCode,
+  options: {
+    page: number;
+    pageSize: number;
+    sortOrder: 'asc' | 'desc';
+    developerStatus?: string;
+    developerAssigned?: string;
+  }
+) {
+  return getCombinedReviewedItems(stateCode, options);
+}
+
+// ============================================
+// Review Mode Data Fetching
+// ============================================
+
+/**
+ * Fetch all counts needed for review mode tabs
+ */
+export async function getReviewModeCountsData(
+  stateCode: StateCode
+): Promise<ActionResult<ReviewModeCountsData>> {
+  const [
+    flagStatusCountsResult,
+    complianceStatusCountsResult,
+    definitionsStatsResult,
+    needsInfoCountsResult,
+  ] = await Promise.all([
+    getRedFlagStatusCounts(stateCode),
+    getComplianceIssueStatusCounts(stateCode),
+    getDefinitionReviewStats(stateCode),
+    getNeedMoreInfoCounts(stateCode),
+  ]);
+
+  if (!flagStatusCountsResult.success) {
+    return failure(`Failed to load red flag status counts: ${flagStatusCountsResult.error}`);
+  }
+
+  if (!complianceStatusCountsResult.success) {
+    return failure(`Failed to load compliance issue status counts: ${complianceStatusCountsResult.error}`);
+  }
+
+  if (!definitionsStatsResult.success) {
+    return failure(`Failed to load definitions counts: ${definitionsStatsResult.error}`);
+  }
+
+  if (!needsInfoCountsResult.success) {
+    return failure(`Failed to load needs info counts: ${needsInfoCountsResult.error}`);
+  }
+
+  const flagStatusCounts = flagStatusCountsResult.data;
+  const complianceStatusCounts = complianceStatusCountsResult.data;
+  const definitionsStats = definitionsStatsResult.data;
+  const needsInfoCounts = needsInfoCountsResult.data;
+
+  const tabCounts: TabCounts = {
+    flags: flagStatusCounts.total,
+    compliance: complianceStatusCounts.total,
+    definitions: definitionsStats.total,
+    needs_info: needsInfoCounts.combined.total,
+  };
+
+  return success({
+    tabCounts,
+    flagStatusCounts,
+    complianceStatusCounts,
+    definitionsStats,
+    needsInfoCounts,
+  });
+}
+
+/**
+ * Fetch red flags queue data
+ */
+export async function getRedFlagsQueueData(
+  stateCode: StateCode,
+  options: {
+    page: number;
+    pageSize: number;
+    sortBy: 'severity' | 'category' | 'reviewedAt';
+    sortOrder: 'asc' | 'desc';
+    filters: Omit<RedFlagFilterOptions, 'state'>;
+  }
+) {
+  const [flagsResult, categoriesResult] = await Promise.all([
+    getRedFlagsPaginated(stateCode, {
+      page: options.page,
+      pageSize: options.pageSize,
+      sortBy: options.sortBy,
+      sortOrder: options.sortOrder,
+      filters: options.filters,
+    }),
+    getRedFlagCategories(stateCode),
+  ]);
+
+  if (!flagsResult.success) {
+    return failure(`Failed to load red flags: ${flagsResult.error}`);
+  }
+
+  if (!categoriesResult.success) {
+    return failure(`Failed to load categories: ${categoriesResult.error}`);
+  }
+
+  return success({
+    flags: flagsResult.data,
+    categories: categoriesResult.data,
+  });
+}
+
+/**
+ * Fetch compliance issues queue data
+ */
+export async function getComplianceQueueData(
+  stateCode: StateCode,
+  options: {
+    page: number;
+    pageSize: number;
+    sortBy: 'issueType' | 'createdAt' | 'reviewedAt' | 'severity';
+    sortOrder: 'asc' | 'desc';
+    filters: {
+      status?: string;
+      issueType?: string;
+      severity?: 'high' | 'medium' | 'low' | 'all';
+      requiredByStatute?: boolean | 'all';
+      requirementFound?: boolean | 'all';
+    };
+  }
+) {
+  const [issuesResult, issueTypesResult] = await Promise.all([
+    getComplianceIssuesPaginated(stateCode, {
+      page: options.page,
+      pageSize: options.pageSize,
+      sortBy: options.sortBy,
+      sortOrder: options.sortOrder,
+      filters: options.filters,
+    }),
+    getComplianceIssueTypes(stateCode),
+  ]);
+
+  if (!issuesResult.success) {
+    return failure(`Failed to load compliance issues: ${issuesResult.error}`);
+  }
+
+  if (!issueTypesResult.success) {
+    return failure(`Failed to load issue types: ${issueTypesResult.error}`);
+  }
+
+  return success({
+    issues: issuesResult.data,
+    issueTypes: issueTypesResult.data,
+  });
+}
+
+/**
+ * Fetch needs more info items
+ */
+export async function getNeedsInfoQueueData(
+  stateCode: StateCode,
+  options: {
+    page: number;
+    pageSize: number;
+  }
+) {
+  return getNeedMoreInfoItems(stateCode, options);
+}

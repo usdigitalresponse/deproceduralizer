@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { useRouter, useSearchParams, usePathname } from 'next/navigation';
+import { usePathname } from 'next/navigation';
+import { useQueryState } from 'nuqs';
 import { getStateFromPathname } from './useStateFromPath';
+import { pageParser } from '@/lib/url/parsers';
 
 /**
  * Generic pagination info type used across all queues
@@ -30,8 +32,6 @@ interface UseQueueConfig<TItem, TCounts> {
   defaultStatus?: string;
   /** Get regulation ID from an item (for modal) */
   getRegulationId: (item: TItem) => number;
-  /** Optional: custom path for pagination (defaults to current pathname) */
-  paginationPath?: string;
 }
 
 /**
@@ -67,11 +67,9 @@ export function useQueue<TItem, TCounts extends object>({
   getItemStatus,
   defaultStatus = 'unreviewed',
   getRegulationId,
-  paginationPath,
 }: UseQueueConfig<TItem, TCounts>): UseQueueReturn<TItem, TCounts> {
-  const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const [, setPage] = useQueryState('page', pageParser);
 
   // Extract state from pathname
   const state = getStateFromPathname(pathname);
@@ -136,11 +134,8 @@ export function useQueue<TItem, TCounts extends object>({
 
   // Pagination helper
   const goToPage = useCallback((page: number) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set('page', String(page));
-    const basePath = paginationPath || pathname;
-    router.push(`${basePath}?${params.toString()}`);
-  }, [router, pathname, searchParams, paginationPath]);
+    setPage(page);
+  }, [setPage]);
 
   return {
     items,

@@ -1,8 +1,15 @@
 'use client';
 
-import { useRouter, useSearchParams, usePathname } from 'next/navigation';
+import { useQueryStates } from 'nuqs';
 import { Badge } from '@/components/ui';
 import { REVIEW_TYPES, type ReviewType, type ReviewMode } from '@/types/regulation';
+import {
+  reviewTypeParser,
+  pageParser,
+  categoryParser,
+  developerStatusParser,
+  developerAssignedParser,
+} from '@/lib/url/parsers';
 
 interface ReviewTypeTabsProps {
   activeType: ReviewType;
@@ -16,20 +23,28 @@ interface ReviewTypeTabsProps {
 }
 
 export function ReviewTypeTabs({ activeType, counts, mode = 'review' }: ReviewTypeTabsProps) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const [, setParams] = useQueryStates(
+    {
+      type: reviewTypeParser,
+      page: pageParser,
+      category: categoryParser,
+      issueType: categoryParser, // Same parser as category
+      developerStatus: developerStatusParser,
+      developerAssigned: developerAssignedParser,
+    },
+    { shallow: false } // Preserve other query params
+  );
 
   const handleTabChange = (type: ReviewType) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set('type', type);
-    // Reset to page 1 and default filters when switching tabs
-    params.set('page', '1');
-    params.delete('category');
-    params.delete('issueType');
-    params.delete('developerStatus');
-    params.delete('developer');
-    router.push(`${pathname}?${params.toString()}`);
+    // Reset to page 1 and clear tab-specific filters when switching tabs
+    setParams({
+      type,
+      page: 1,
+      category: null,
+      issueType: null,
+      developerStatus: null,
+      developerAssigned: null,
+    });
   };
 
   const getCount = (type: ReviewType): number => {
@@ -47,11 +62,6 @@ export function ReviewTypeTabs({ activeType, counts, mode = 'review' }: ReviewTy
     }
   };
 
-  // In developer mode, show different tabs
-  const tabsToShow = mode === 'developer'
-    ? REVIEW_TYPES.filter(tab => tab.value === 'needs_info') // Only needs_info in dev mode (main view is combined)
-    : REVIEW_TYPES;
-
   // If in developer mode and showing combined view, show all items tab differently
   if (mode === 'developer') {
     const isAllActive = activeType !== 'definitions' && activeType !== 'needs_info';
@@ -62,10 +72,10 @@ export function ReviewTypeTabs({ activeType, counts, mode = 'review' }: ReviewTy
       <div className="flex gap-1 p-1 bg-[var(--color-neutral-100)] rounded-[var(--radius-lg)] mb-4">
         <button
           onClick={() => {
-            const params = new URLSearchParams(searchParams.toString());
-            params.delete('type');
-            params.set('page', '1');
-            router.push(`${pathname}?${params.toString()}`);
+            setParams({
+              type: null, // Remove type to show combined view
+              page: 1,
+            });
           }}
           className={`
             flex items-center gap-2 px-4 py-2 rounded-[var(--radius-md)] text-sm font-medium

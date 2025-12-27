@@ -17,20 +17,22 @@ Deproceduralizer scrapes state regulations from Cornell Law's Legal Information 
 ```
 Cornell Law Website
         ↓
-    Scraper Scripts (Python)
+    Scraper Scripts (ny/nj_regulations_scraper.py)
         ↓
-    JSON files (per regulation)
+    JSON cache (data/scraped_data/, data/nj_scraped_data/)
         ↓
-    migrate_to_postgres.py
+    [Built-in: migrate_regulations_to_db() + refresh_all_stats()]
         ↓
     PostgreSQL (Neon)
         ↓
-    red_flags.py (LLM analysis via Claude API)
+    Analysis Scripts (red_flags.py, batch_definitions.py, compliance_issues/searcher.py)
         ↓
-    Next.js Web App (Drizzle ORM)
+    Next.js Web App (server actions query DB directly via Drizzle)
         ↓
     Human Review Queue
 ```
+
+> **Note:** The scrapers handle migration automatically. The UI queries PostgreSQL directly via server actions — it does not call the Python backend.
 
 ## Tech Stack
 
@@ -50,12 +52,13 @@ deproceduralizer/
 │   ├── shared_utils.py               # DB, LLM, parsing utilities
 │   ├── requirements.txt              # Python dependencies
 │   └── scripts/                      # Executable scripts
-│       ├── ny_regulations_scraper.py # NY regulations scraper
-│       ├── nj_regulations_scraper.py # NJ regulations scraper
-│       ├── migrate_to_postgres.py    # Import data to DB
+│       ├── ny_regulations_scraper.py # NY scraper (includes DB migration)
+│       ├── nj_regulations_scraper.py # NJ scraper (includes DB migration)
 │       ├── red_flags.py              # LLM red flag analysis
-│       ├── extract_definitions.py    # Definition extraction
-│       ├── refresh_hierarchy_stats.py# Update denormalized stats
+│       ├── batch_definitions.py      # Batch definition extraction
+│       ├── link_definitions.py       # Link definitions to documents
+│       ├── compliance_issues/        # Compliance issue detection
+│       │   └── searcher.py           # Regex + LLM compliance scanner
 │       └── ...
 │
 ├── frontend/                         # Next.js monorepo
@@ -116,23 +119,21 @@ See `DATABASE_SETUP.md` for detailed Postgres/Neon setup instructions and how to
 ### 4. Run the Pipeline
 
 ```bash
-# Scrape regulations (choose state)
+# Scrape regulations (includes DB migration and stats refresh)
 python backend/scripts/ny_regulations_scraper.py
 # or
 python backend/scripts/nj_regulations_scraper.py
 
-# Import to database
-python backend/scripts/migrate_to_postgres.py
-
-# Update hierarchy statistics
-python backend/scripts/refresh_hierarchy_stats.py --structure
-
-# Run LLM analysis
-python backend/scripts/red_flags.py
-
-# Update analysis statistics
-python backend/scripts/refresh_hierarchy_stats.py --analysis
+# Run analysis pipelines (after scraping)
+python backend/scripts/batch_definitions.py submit --state NJ
+python backend/scripts/batch_definitions.py process
+python backend/scripts/link_definitions.py --state NJ
+python backend/scripts/compliance_issues/searcher.py --state NJ
+python backend/scripts/red_flags.py --state NY
+python backend/scripts/detect_regulatory_status.py --state NJ
 ```
+
+See `docs/OPERATIONS.md` for detailed step-by-step instructions.
 
 ### 5. Start the Web App
 
@@ -154,10 +155,15 @@ Open http://localhost:3000
 
 ### Data Processing
 
+The scrapers handle migration automatically via `shared_utils.migrate_regulations_to_db()`:
+- Imports scraped JSON into PostgreSQL
+- Creates `regulatory_documents` records with hierarchy
+- Handles re-runs safely with `ON CONFLICT`
+- Refreshes denormalized stats (child counts, descendant flag counts, max severity)
+
 | Script | Purpose |
 |--------|---------|
-| `migrate_to_postgres.py` | Import scraped JSON into PostgreSQL. Creates `regulatory_documents`, `analyses`, and `red_flags` records. Handles re-runs safely with `ON CONFLICT`. |
-| `refresh_hierarchy_stats.py` | Update denormalized statistics (child counts, descendant flag counts, max severity) for fast browse queries. Run with `--structure` after import, `--analysis` after analysis. |
+| `refresh_hierarchy_stats.py` | Manually refresh denormalized statistics if needed. Use `--structure` for hierarchy stats, `--analysis` for flag stats, `--compliance` for compliance stats. |
 
 ### Analysis
 
@@ -309,6 +315,18 @@ cd frontend/packages/database
 
 pnpm generate  # Drizzle code generation
 ```
+
+### Prompts Page
+
+The `/prompts` page displays LLM prompts from `frontend/apps/web/src/data/prompts.yaml`.
+This file is copied from the project root during build:
+
+```bash
+# In dev, if /prompts shows "file not found", run:
+cd frontend/apps/web && pnpm prebuild
+```
+
+The prebuild script (`package.json`) copies `prompts.yaml` → `src/data/prompts.yaml`.
 
 ## Deployment
 

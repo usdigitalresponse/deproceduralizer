@@ -9,7 +9,7 @@ import {
 } from '@tanstack/react-table';
 import { useRouter } from 'next/navigation';
 import { useCallback, useMemo } from 'react';
-import { useQueryStates, parseAsInteger, parseAsString, parseAsBoolean } from 'nuqs';
+import { useQueryStates } from 'nuqs';
 import type { RegulationWithAnalysis, PaginationOptions, FilterOptions } from '@deproceduralizer/database';
 import { RED_FLAG_CATEGORIES } from '@deproceduralizer/database/schema';
 import { Badge, SeverityBadge } from '@/components/ui/Badge';
@@ -19,6 +19,7 @@ import { getComplexityVariant, formatLabel } from '@/types/regulation';
 import { useResponsive } from '@/hooks';
 import { formatDisplayTitle } from '@/lib/format';
 import { SEVERITY_TABLE_OPTIONS } from '@/lib/constants/filters';
+import { dataTableFiltersParsers } from '@/lib/url/parsers';
 
 interface PaginationInfo {
   page: number;
@@ -48,25 +49,9 @@ const CATEGORY_OPTIONS = [
   }))
 ];
 
-// Parser configuration for DataTable filters
-const dataTableParsers = {
-  page: parseAsInteger.withDefault(1),
-  hasFlags: parseAsBoolean,
-  category: parseAsString,
-  explanationSearch: parseAsString,
-  hasImplIssues: parseAsString, // Use string to support 'null'
-  complexity: parseAsString,    // Use string to support 'null'
-  severity: parseAsString,
-  techReview: parseAsString,    // Use string to support 'null'
-  reporting: parseAsString,     // Use string to support 'null'
-  summarySearch: parseAsString,
-  sortBy: parseAsString.withDefault('maxSeverity'),
-  sortOrder: parseAsString.withDefault('desc'),
-};
-
 // Filter configuration for each column
 interface ColumnFilterConfig {
-  urlParam: keyof typeof dataTableParsers;
+  urlParam: keyof typeof dataTableFiltersParsers;
   type: 'select' | 'text';
   options?: { value: string; label: string }[];
   placeholder?: string;
@@ -292,7 +277,7 @@ const MOBILE_HIDDEN_COLUMNS = [
 
 export default function DataTable({ data, onRowClick, pagination, search }: DataTableProps) {
   const { isMobile, isTablet } = useResponsive();
-  const [queryParams, setQueryParams] = useQueryStates(dataTableParsers, {
+  const [queryParams, setQueryParams] = useQueryStates(dataTableFiltersParsers, {
     shallow: false,
   });
 
@@ -337,7 +322,7 @@ export default function DataTable({ data, onRowClick, pagination, search }: Data
   };
 
   // Handle filter change
-  const handleFilter = useCallback((urlParam: keyof typeof dataTableParsers, value: string) => {
+  const handleFilter = useCallback((urlParam: keyof typeof dataTableFiltersParsers, value: string) => {
     // Special handling for boolean
     if (urlParam === 'hasFlags') {
       const boolValue = value === 'true' ? true : value === 'false' ? false : null;

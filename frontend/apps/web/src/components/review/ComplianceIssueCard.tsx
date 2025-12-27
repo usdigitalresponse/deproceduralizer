@@ -1,13 +1,14 @@
 'use client';
 
 import { useState, forwardRef, useCallback } from 'react';
+import { ExternalLink } from 'lucide-react';
 import { updateComplianceIssueReview, getExpandedContext } from '@/lib/actions/compliance-issues';
 import { useReviewForm } from '@/hooks';
 import { Button, Input, Textarea, Badge, SeverityBadge, Select, Tag, CopyLinkButton } from '@/components/ui';
 import { ISSUE_TYPE_LABELS, PRIORITY_OPTIONS, IMPACT_TYPES } from '@/types/regulation';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
 import { formatNjacCitation } from '@/lib/formatters/njac';
-import { highlightTerm, highlightContext } from '@/lib/utils/highlight';
+import { highlightContext } from '@/lib/utils/highlight';
 import { CardWrapper } from './shared';
 import { REVIEW_STATUSES, REVIEW_STATUS_LABELS, REVIEW_STATUS_DESCRIPTIONS, type ReviewStatus } from '@deproceduralizer/database/schema';
 import type { ComplianceIssueWithContext } from '@deproceduralizer/database';
@@ -119,14 +120,24 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
         ref={ref}
         id={`compliance-${issue.id}`}
         isFocused={isFocused}
+        data-testid="compliance-issue-card"
       >
         {/* Header */}
         <div className="flex items-start justify-between gap-4 mb-4">
           <div className="flex items-center gap-3">
             <CopyLinkButton anchor={`compliance-${issue.id}`} />
-            <Badge variant="warning" className="font-semibold">
-              {issueTypeLabel}
-            </Badge>
+            <a
+              href={`/prompts#prompt-${issue.issueType}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 group"
+              title="View prompt definition (opens in new tab)"
+            >
+              <Badge variant="warning" className="font-semibold group-hover:ring-2 group-hover:ring-[var(--color-warning)]/30 transition-shadow">
+                {issueTypeLabel}
+              </Badge>
+              <ExternalLink className="w-3.5 h-3.5 text-[var(--color-text-muted)] group-hover:text-[var(--color-warning)] transition-colors" />
+            </a>
             {issue.requirementFound && (
               <Badge variant="success" className="text-xs">
                 LLM Confirmed
@@ -169,107 +180,95 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
           <span className="text-[var(--color-text-secondary)]">{issue.regulation.title}</span>
         </div>
 
-        {/* Pattern matched */}
+        {/* LLM Analysis - Primary content, always visible */}
+        {(issue.impactAssessment || issue.requirementText) && (
+          <div className="mb-4 p-4 bg-[var(--color-primary-bg)] rounded-[var(--radius-md)] border border-[var(--color-primary)]/20">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-sm font-semibold text-[var(--color-primary)]">LLM Analysis</span>
+              {issue.isVerbatim !== null && (
+                <Badge
+                  variant={issue.isVerbatim ? 'info' : 'default'}
+                  className="text-[10px] py-0 px-1.5"
+                >
+                  {issue.isVerbatim ? 'Verbatim Quote' : 'Paraphrased'}
+                </Badge>
+              )}
+            </div>
+
+            {/* Requirement Text - the key finding */}
+            {issue.requirementText && (
+              <div className="mb-3">
+                <p className="text-sm text-[var(--color-text)] whitespace-pre-wrap leading-relaxed">
+                  {issue.isVerbatim && <span className="text-[var(--color-text-muted)]">"</span>}
+                  {issue.requirementText}
+                  {issue.isVerbatim && <span className="text-[var(--color-text-muted)]">"</span>}
+                </p>
+              </div>
+            )}
+
+            {/* Impact Assessment */}
+            {issue.impactAssessment && (
+              <div className="pt-3 border-t border-[var(--color-primary)]/10">
+                <span className="text-xs font-medium text-[var(--color-text-secondary)]">Impact Assessment:</span>
+                <p className="mt-1 text-sm text-[var(--color-text)]">{issue.impactAssessment}</p>
+              </div>
+            )}
+
+            {/* Statute Citation */}
+            {issue.statuteCitation && (
+              <div className="pt-3 border-t border-[var(--color-primary)]/10">
+                <span className="text-xs font-medium text-[var(--color-text-secondary)]">Statute Citation:</span>
+                <p className="mt-1 text-sm font-mono text-[var(--color-text)]">{issue.statuteCitation}</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* View Full Regulation + View Full Section */}
+        <div className="mb-4 flex items-center gap-3">
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => onViewRegulation(issue.regulation.id)}
+          >
+            View Full Regulation
+          </Button>
+          {issue.matchedContext && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={handleExpandContext}
+              disabled={isLoadingContext}
+            >
+              {isLoadingContext ? 'Loading...' : isExpanded ? 'Hide Section Text' : 'View Full Section'}
+            </Button>
+          )}
+        </div>
+
+        {/* Expanded Section Text */}
+        {isExpanded && expandedText && (
+          <div className="mb-4 p-4 bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] border border-[var(--color-neutral-200)]">
+            <p className="text-sm text-[var(--color-text)] whitespace-pre-wrap leading-relaxed">
+              {highlightContext(expandedText, issue.matchedContext, issue.matchedPattern)}
+            </p>
+          </div>
+        )}
+
+        {/* Technical Details - collapsible (regex pattern only) */}
         {issue.matchedPattern && (
-          <div className="mb-3">
-            <span className="text-xs font-medium text-[var(--color-text-secondary)]">Pattern matched:</span>
-            <div className="mt-1">
-              <Tag variant="warning" size="sm">
-                {issue.matchedPattern}
-              </Tag>
-            </div>
-          </div>
-        )}
-
-        {/* Primary: Requirement Text (if available) */}
-        {issue.requirementText && (
-          <div className="mb-4">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs font-medium text-[var(--color-text-secondary)]">
-                Requirement Text
-              </span>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={handleExpandContext}
-                disabled={isLoadingContext}
-                className="text-xs py-0.5 px-2 h-auto"
-              >
-                {isLoadingContext ? 'Loading...' : isExpanded ? 'Show less' : 'Show more context'}
-              </Button>
-            </div>
-            <div className="p-3 bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] border-l-4 border-[var(--color-warning)]">
-              <p className="text-sm text-[var(--color-text)] whitespace-pre-wrap">
-                {isExpanded && expandedText
-                  ? highlightContext(expandedText, issue.requirementText, issue.matchedPattern)
-                  : highlightTerm(issue.requirementText, issue.matchedPattern)}
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Fallback: Matched Context (if no requirementText) */}
-        {!issue.requirementText && (
-          <div className="mb-4">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs font-medium text-[var(--color-text-secondary)]">
-                Matched Context
-              </span>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={handleExpandContext}
-                disabled={isLoadingContext}
-                className="text-xs py-0.5 px-2 h-auto"
-              >
-                {isLoadingContext ? 'Loading...' : isExpanded ? 'Show less' : 'Show more context'}
-              </Button>
-            </div>
-            <div className="p-3 bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] border-l-4 border-[var(--color-warning)]">
-              <p className="text-sm text-[var(--color-text)] whitespace-pre-wrap">
-                {isExpanded && expandedText
-                  ? highlightContext(expandedText, issue.matchedContext, issue.matchedPattern)
-                  : highlightTerm(issue.matchedContext, issue.matchedPattern)}
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Secondary: Original Match Context (collapsible, only if different from requirementText) */}
-        {issue.requirementText && issue.matchedContext && issue.requirementText !== issue.matchedContext && (
           <details className="mb-4">
             <summary className="text-xs font-medium text-[var(--color-text-secondary)] cursor-pointer hover:text-[var(--color-text)] py-1">
-              Original Match Context
+              Technical Details
             </summary>
-            <div className="mt-2 p-3 bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] border-l-2 border-[var(--color-neutral-300)]">
-              <p className="text-sm text-[var(--color-text)] whitespace-pre-wrap">
-                {highlightTerm(issue.matchedContext, issue.matchedPattern)}
-              </p>
-            </div>
-          </details>
-        )}
-
-        {/* LLM Analysis section - collapsible */}
-        {(issue.impactAssessment || issue.statuteCitation) && (
-          <details className="mb-4">
-            <summary className="text-xs font-medium text-[var(--color-text-secondary)] cursor-pointer hover:text-[var(--color-text)] py-1">
-              LLM Analysis
-            </summary>
-            <div className="mt-2 space-y-3 pl-2 border-l-2 border-[var(--color-neutral-200)]">
-              {issue.impactAssessment && (
-                <div>
-                  <span className="text-xs font-medium text-[var(--color-text-secondary)]">Impact Assessment:</span>
-                  <p className="mt-1 text-sm text-[var(--color-text)]">{issue.impactAssessment}</p>
-                </div>
-              )}
-              {issue.statuteCitation && (
-                <div>
-                  <span className="text-xs font-medium text-[var(--color-text-secondary)]">Statute Citation:</span>
-                  <p className="mt-1 text-sm font-mono text-[var(--color-text)]">{issue.statuteCitation}</p>
-                </div>
-              )}
+            <div className="mt-2 pl-2 border-l-2 border-[var(--color-neutral-200)]">
+              <span className="text-xs font-medium text-[var(--color-text-secondary)]">Pattern matched:</span>
+              <div className="mt-1">
+                <Tag variant="warning" size="sm">
+                  {issue.matchedPattern}
+                </Tag>
+              </div>
             </div>
           </details>
         )}
@@ -348,13 +347,13 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
           {/* Justification Notes - for model training */}
           <div className="mb-3">
             <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">
-              Justification and analysis for the model
+              Justification for the model (will be shown with original text and your verdict)
             </label>
             <Textarea
               value={formData.justificationNotes ?? ''}
               onChange={(e) => updateField('justificationNotes', e.target.value || undefined)}
-              rows={2}
-              placeholder="Explain your reasoning for this classification..."
+              rows={3}
+              placeholder="e.g., 'This should not be flagged as severe - while it mentions in-person work, cardiovascular surgery must always be performed in person.' or 'Excellent example of outdated technology - requires CD-ROM submission with no alternative for a mandatory process.'"
               disabled={isPending}
             />
           </div>
@@ -374,15 +373,7 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
           </div>
 
           {/* Actions */}
-          <div className="flex items-center justify-between">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => onViewRegulation(issue.regulation.id)}
-            >
-              View Full Regulation
-            </Button>
+          <div className="flex items-center justify-end">
             <Button type="submit" variant="primary" size="sm" isLoading={isPending}>
               {isPending ? 'Saving...' : 'Save Review'}
             </Button>

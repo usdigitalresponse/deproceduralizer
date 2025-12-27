@@ -146,3 +146,226 @@ test.describe('Smoke Tests', () => {
   });
 
 });
+
+test.describe('Compliance Issues', () => {
+
+  test('compliance issues filter by issue type', async ({ page }) => {
+    await page.goto('/nj/review?mode=review&type=compliance');
+    await expect(page.getByRole('heading', { name: /Review New Jersey/i })).toBeVisible();
+
+    // Wait for compliance issues to load
+    await page.waitForLoadState('networkidle');
+
+    // Apply filter - find the Type dropdown
+    const typeFilter = page.locator('label:has-text("Type:") + button, label:has-text("Type:") ~ button').first();
+    await typeFilter.click();
+
+    // Select "Wet Signature" option
+    await page.getByRole('option', { name: /wet signature/i }).click();
+
+    // Wait for filter to apply
+    await page.waitForLoadState('networkidle');
+
+    // Verify filtered results show wet signature issues
+    const filteredCards = page.locator('[data-testid="compliance-issue-card"]');
+    const cardCount = await filteredCards.count();
+
+    // If there are cards, they should be wet signature type
+    if (cardCount > 0) {
+      await expect(filteredCards.first()).toContainText(/wet signature/i);
+    }
+  });
+
+  test('issue type filter options are properly formatted (no snake_case)', async ({ page }) => {
+    await page.goto('/nj/review?mode=review&type=compliance');
+    await expect(page.getByRole('heading', { name: /Review New Jersey/i })).toBeVisible();
+
+    // Wait for page to fully load
+    await page.waitForLoadState('networkidle');
+
+    // Open issue type dropdown
+    const typeFilter = page.locator('label:has-text("Type:") + button, label:has-text("Type:") ~ button').first();
+    await typeFilter.click();
+
+    // Get all option texts
+    const options = page.getByRole('option');
+    const optionCount = await options.count();
+
+    // Verify we have options
+    expect(optionCount).toBeGreaterThan(0);
+
+    for (let i = 0; i < optionCount; i++) {
+      const text = await options.nth(i).textContent();
+      // Verify no underscores in display text (snake_case would have underscores)
+      expect(text).not.toMatch(/_/);
+      // Verify Title Case (first letter of each word capitalized, except "All Types")
+      if (text && text !== 'All Types') {
+        expect(text).toMatch(/^[A-Z]/);
+      }
+    }
+  });
+
+  test('compliance review defaults to showing only LLM confirmed issues', async ({ page }) => {
+    // Navigate without specifying requirementFound - should default to true
+    await page.goto('/nj/review?mode=review&type=compliance');
+    await expect(page.getByRole('heading', { name: /Review New Jersey/i })).toBeVisible();
+
+    // Wait for page to fully load
+    await page.waitForLoadState('networkidle');
+
+    // Check that LLM filter shows "LLM Confirmed" as the selected value
+    const llmFilter = page.locator('label:has-text("LLM:") + button, label:has-text("LLM:") ~ button').first();
+    await expect(llmFilter).toContainText(/LLM Confirmed/i);
+
+    // Verify URL does NOT contain requirementFound=false
+    expect(page.url()).not.toContain('requirementFound=false');
+  });
+
+  test('browse view compliance badge shows only confirmed issue count', async ({ page }) => {
+    // Navigate to NJ browse and find a section with compliance issues
+    await page.goto('/nj/browse');
+    await expect(page.getByRole('heading', { name: /Browse New Jersey/i })).toBeVisible();
+
+    // Wait for tree to load
+    await page.waitForLoadState('networkidle');
+
+    // Find a compliance badge and verify it exists
+    const complianceBadge = page.getByText(/\d+ compliance/i).first();
+    await expect(complianceBadge).toBeVisible();
+
+    // The count should be a number followed by "compliance"
+    const badgeText = await complianceBadge.textContent();
+    expect(badgeText).toMatch(/^\d+ compliance$/);
+  });
+
+  test('section detail does not display LLM-rejected compliance issues', async ({ page }) => {
+    // This test verifies that section pages do not show "LLM Rejected" badges.
+    // We use a document known to have a rejected compliance issue.
+    const TEST_DOC_ID = '150387';
+
+    // Step 1: Verify there ARE rejected issues in the system by checking the review page
+    await page.goto('/nj/review?mode=review&type=compliance&requirementFound=false');
+    await expect(page.getByRole('heading', { name: /Review New Jersey/i })).toBeVisible();
+
+    // Wait for issues to load
+    await page.waitForLoadState('networkidle');
+
+    // Check for the issue count indicator (e.g., "4289 issues")
+    const issueCountText = page.getByText(/\d+ issues?$/i);
+    const hasRejectedIssues = await issueCountText.count() > 0;
+
+    if (!hasRejectedIssues) {
+      // Also check if cards loaded
+      const cards = page.locator('[data-testid="compliance-issue-card"]');
+      const cardCount = await cards.count();
+      if (cardCount === 0) {
+        throw new Error(
+          `TEST DATA STALE: No compliance issues with requirement_found=false exist. ` +
+          `Run: SELECT COUNT(*) FROM compliance_issues WHERE requirement_found = false`
+        );
+      }
+    }
+
+    // Step 2: Navigate to a section page that has rejected issues
+    await page.goto(`/nj/regulations/${TEST_DOC_ID}`);
+    // Wait for the main section heading to load
+    await expect(page.getByRole('heading', { name: /N\.J\. Admin\. Code/ })).toBeVisible();
+
+    // Step 3: Verify no "LLM Rejected" badge is visible on the section page
+    // Section pages should only show confirmed issues (requirement_found=true)
+    const rejectedBadge = page.locator('text=/LLM Rejected/i');
+    await expect(rejectedBadge).not.toBeVisible();
+  });
+
+});
+
+test.describe('Prompts Alignment', () => {
+
+  // Expected core prompts from prompts/core.yaml
+  const EXPECTED_CORE_PROMPTS = ['red_flags_analysis', 'definition_extraction'];
+
+  test('prompts page displays all core prompts from YAML', async ({ page }) => {
+    await page.goto('/prompts');
+
+    // Wait for prompts to load
+    await expect(page.locator('h1').filter({ hasText: /Prompts/i }).first()).toBeVisible();
+
+    // Verify each expected prompt exists on the page
+    for (const promptName of EXPECTED_CORE_PROMPTS) {
+      // Prompt names are displayed, check they exist (use first() due to nav sidebar)
+      await expect(page.getByText(promptName, { exact: false }).first()).toBeVisible();
+    }
+  });
+
+  test('prompt details include system and template sections', async ({ page }) => {
+    await page.goto('/prompts');
+
+    // Wait for prompts to load
+    await expect(page.locator('h1').filter({ hasText: /Prompts/i }).first()).toBeVisible();
+
+    // Find red_flags_analysis prompt card and click to expand
+    const promptCard = page.locator('#prompt-red_flags_analysis');
+    await expect(promptCard).toBeVisible();
+    await promptCard.click();
+
+    // Wait for expanded content
+    await page.waitForTimeout(500);
+
+    // Should show system prompt section header (expanded view shows this)
+    await expect(page.getByText(/System Prompt/i).first()).toBeVisible();
+
+    // Should show content from red_flags_analysis (Jennifer Pahlka reference)
+    await expect(page.getByText(/Jennifer Pahlka/i).first()).toBeVisible();
+  });
+
+  test('compliance issue types in filters match expected types from YAML', async ({ page }) => {
+    await page.goto('/nj/review?mode=review&type=compliance');
+    await expect(page.getByRole('heading', { name: /Review New Jersey/i })).toBeVisible();
+
+    // Wait for page to fully load
+    await page.waitForLoadState('networkidle');
+
+    // Open issue type dropdown
+    const typeFilter = page.locator('label:has-text("Type:") + button, label:has-text("Type:") ~ button').first();
+    await typeFilter.click();
+
+    // Get all option texts
+    const options = page.getByRole('option');
+    const optionTexts: string[] = [];
+    const optionCount = await options.count();
+
+    for (let i = 0; i < optionCount; i++) {
+      const text = await options.nth(i).textContent();
+      if (text) optionTexts.push(text.toLowerCase());
+    }
+
+    // Verify expected issue types are present (check display names exist)
+    // Note: These are the display names from YAML (not snake_case)
+    const expectedDisplayNames = [
+      'wet signature',
+      'mail',  // Mail-Only Submission
+      'certified',
+      'fax',
+      'notarization',
+      'newspaper',
+      'microfiche',
+    ];
+
+    for (const name of expectedDisplayNames) {
+      const found = optionTexts.some(opt => opt.toLowerCase().includes(name));
+      expect(found, `Expected to find "${name}" in issue type options`).toBeTruthy();
+    }
+  });
+
+  test('prompt updated_at dates are displayed', async ({ page }) => {
+    await page.goto('/prompts');
+
+    // Wait for prompts to load
+    await expect(page.locator('h1').filter({ hasText: /Prompts/i }).first()).toBeVisible();
+
+    // Look for "Last updated" or date format (YYYY-MM-DD)
+    const datePattern = page.getByText(/Last updated:|Updated:|\d{4}-\d{2}-\d{2}/i);
+    await expect(datePattern.first()).toBeVisible();
+  });
+
+});

@@ -4,6 +4,7 @@ export { ReviewFilters } from './ReviewFilters';
 export { ReviewProgress } from './ReviewProgress';
 export { RegulationModal } from './RegulationModal';
 export { ReviewTypeTabs } from './ReviewTypeTabs';
+export { ReviewPageError } from './ReviewPageError';
 export { ComplianceIssueCard } from './ComplianceIssueCard';
 export { ComplianceReviewQueue } from './ComplianceReviewQueue';
 

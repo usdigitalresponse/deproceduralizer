@@ -1,11 +1,13 @@
 'use client';
 
 import { useState, useCallback, useMemo, useTransition } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
+import { useQueryStates } from 'nuqs';
 import DataTable from '@/components/DataTable';
 import DetailModal from '@/components/DetailModal';
 import { Button, SearchInput } from '@/components/ui';
 import { useStateFromPath } from '@/hooks';
+import { searchParser, pageParser } from '@/lib/url/parsers';
 import type { RegulationWithAnalysis, FilterOptions, PaginationOptions } from '@deproceduralizer/database';
 
 interface PaginationInfo {
@@ -26,10 +28,17 @@ interface RegulationsClientProps {
 
 export default function RegulationsClient({ initialData, pagination, search, filters, sortBy, sortOrder }: RegulationsClientProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const state = useStateFromPath();
   const [isPending, startTransition] = useTransition();
   const [selectedRegulationId, setSelectedRegulationId] = useState<number | null>(null);
+
+  const [, setParams] = useQueryStates(
+    {
+      search: searchParser,
+      page: pageParser,
+    },
+    { shallow: false } // Preserve other query params
+  );
 
   // Store local flag patches (optimistic updates) instead of copying all initialData
   const [flagPatches, setFlagPatches] = useState<Map<number, {
@@ -58,20 +67,13 @@ export default function RegulationsClient({ initialData, pagination, search, fil
 
   // Handle search - update URL params with transition for loading state
   const handleSearch = useCallback((searchValue: string) => {
-    const params = new URLSearchParams(searchParams.toString());
-
-    if (searchValue.trim()) {
-      params.set('search', searchValue.trim());
-      params.set('page', '1');
-    } else {
-      params.delete('search');
-      params.set('page', '1');
-    }
-
     startTransition(() => {
-      router.push(`/${state}?${params.toString()}`);
+      setParams({
+        search: searchValue.trim() || null,
+        page: 1,
+      });
     });
-  }, [router, searchParams, state]);
+  }, [setParams]);
 
   // Clear all filters - navigate to state's root table view
   const clearFilters = useCallback(() => {

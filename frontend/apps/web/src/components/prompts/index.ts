@@ -1,7 +1,9 @@
 export { PromptsList } from './PromptsList';
 export { PromptCard } from './PromptCard';
+export { CompliancePromptCard } from './CompliancePromptCard';
 export { PromptTemplate } from './PromptTemplate';
 export { PromptVariables } from './PromptVariables';
+export { PromptNav } from './PromptNav';
 export { FeedbackForm } from './FeedbackForm';
 export { FeedbackList } from './FeedbackList';
 export { ArchivedFeedback } from './ArchivedFeedback';

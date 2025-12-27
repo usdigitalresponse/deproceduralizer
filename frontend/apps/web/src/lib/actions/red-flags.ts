@@ -5,10 +5,8 @@ import { revalidatePath } from 'next/cache';
 import {
   db,
   RedFlagsRepository,
-  ReviewStatus,
-  ImpactType,
-  REVIEW_STATUSES,
-  IMPACT_TYPES,
+  type ReviewStatus,
+  type ImpactType,
   type StateCode,
   type RedFlag,
   type RedFlagWithContext,
@@ -18,13 +16,20 @@ import { type ActionResult, success, failure, getErrorMessage } from './types';
 
 const redFlagsRepo = new RedFlagsRepository(db);
 
+/**
+ * Input for updating a red flag review.
+ * Note: reviewStatus and impactType accept strings for form compatibility,
+ * but must be valid ReviewStatus/ImpactType values.
+ */
 export interface UpdateRedFlagInput {
   id: number;
+  /** Must be a valid ReviewStatus value */
   reviewStatus: string;
   reviewedBy: string;
   justificationNotes?: string;
   teamNotes?: string;
   priority?: number;
+  /** Must be a valid ImpactType value if provided */
   impactType?: string;
 }
 
@@ -37,14 +42,7 @@ export async function updateRedFlagReview(
   input: UpdateRedFlagInput
 ): Promise<ActionResult<RedFlag>> {
   try {
-    if (!REVIEW_STATUSES.includes(input.reviewStatus as ReviewStatus)) {
-      return failure(`Invalid review status: ${input.reviewStatus}`);
-    }
-
-    if (input.impactType && !IMPACT_TYPES.includes(input.impactType as ImpactType)) {
-      return failure(`Invalid impact type: ${input.impactType}`);
-    }
-
+    // Cast to proper types - forms pass strings, but these must be valid enum values
     const result = await redFlagsRepo.updateReview(input.id, {
       reviewStatus: input.reviewStatus as ReviewStatus,
       reviewedBy: input.reviewedBy,

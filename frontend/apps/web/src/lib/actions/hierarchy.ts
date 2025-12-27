@@ -96,3 +96,82 @@ export async function getHierarchyChildrenFast(
     return failure(getErrorMessage(error));
   }
 }
+
+// ============================================
+// Browse Page Data
+// ============================================
+
+export interface HierarchyBrowseData {
+  roots: HierarchyNode[];
+  orphans: HierarchyNode[];
+  stats: {
+    level: string;
+    count: number;
+    analyzedCount: number;
+    flaggedCount: number;
+  }[];
+}
+
+/**
+ * Get all data needed for the browse page
+ * Uses fast queries when no filters are active
+ */
+export async function getHierarchyBrowseData(
+  stateCode: StateCode,
+  filters: HierarchyFilterOptions,
+  hasActiveFilters: boolean
+): Promise<ActionResult<HierarchyBrowseData>> {
+  try {
+    const [roots, orphans, stats] = await Promise.all([
+      hasActiveFilters
+        ? repo.getHierarchyRoots(filters)
+        : repo.getHierarchyRootsFast(stateCode),
+      repo.getOrphanDocuments(filters),
+      repo.getHierarchyStats(filters),
+    ]);
+
+    return success({ roots, orphans, stats });
+  } catch (error) {
+    console.error('[getHierarchyBrowseData]', error);
+    return failure(getErrorMessage(error));
+  }
+}
+
+// ============================================
+// Server Component Helpers
+// ============================================
+
+interface DirectChild {
+  id: number;
+  title: string;
+  hierarchyLevel: string | null;
+  shortTitle: string | null;
+  levelIdentifier: string | null;
+  citation: string | null;
+  nycrrTitle: number | null;
+  nycrrPart: string | null;
+  nycrrChapter: string | null;
+  njacTitle: string | null;
+  njacChapter: string | null;
+  njacSubchapter: string | null;
+  state: string | null;
+  hasAnalysis: boolean;
+  maxSeverity: number | null;
+  numFlags: number;
+}
+
+/**
+ * Get direct children of a document
+ * Used by ChildrenListServer for showing child documents
+ */
+export async function getDirectChildren(
+  documentId: number
+): Promise<ActionResult<DirectChild[]>> {
+  try {
+    const result = await repo.getDirectChildren(documentId);
+    return success(result);
+  } catch (error) {
+    console.error('[getDirectChildren]', error);
+    return failure(getErrorMessage(error));
+  }
+}

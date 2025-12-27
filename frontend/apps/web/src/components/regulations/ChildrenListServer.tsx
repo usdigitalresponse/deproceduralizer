@@ -1,25 +1,14 @@
 import Link from 'next/link';
-import { db, RegulatoryDocumentsRepository } from '@deproceduralizer/database';
 import { ChevronRight } from 'lucide-react';
 import { Badge, SeverityBadge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { formatDisplayTitle, truncateTitle } from '@/lib/format';
+import { getDirectChildren } from '@/lib/actions/hierarchy';
 
 interface ChildrenListServerProps {
   documentId: number;
   state: string;
 }
-
-const levelLabels: Record<string, string> = {
-  title: 'Title',
-  subtitle: 'Subtitle',
-  chapter: 'Chapter',
-  subchapter: 'Subchapter',
-  article: 'Article',
-  part: 'Part',
-  subpart: 'Subpart',
-  section: 'Section',
-};
 
 /**
  * Server-side children list for regulation detail pages
@@ -30,12 +19,13 @@ export async function ChildrenListServer({
   documentId,
   state,
 }: ChildrenListServerProps) {
-  const repo = new RegulatoryDocumentsRepository(db);
-  const children = await repo.getDirectChildren(documentId);
+  const result = await getDirectChildren(documentId);
 
-  if (children.length === 0) {
+  if (!result.success || result.data.length === 0) {
     return null;
   }
+
+  const children = result.data;
 
   return (
     <Card>
