@@ -108,7 +108,7 @@ export function DefinitionsReviewFilters({ counts, scopeTexts = [] }: Definition
 
   // Toggle sort order
   const toggleSortOrder = useCallback(() => {
-    setFilters({ sortOrder: filters.sortOrder === 'asc' ? 'desc' : 'asc' });
+    setFilters({ sortOrder: filters.sortOrder === 'asc' ? 'desc' : 'asc', page: 1 });
   }, [filters.sortOrder, setFilters]);
 
   return (

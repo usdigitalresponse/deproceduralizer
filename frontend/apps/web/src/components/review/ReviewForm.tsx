@@ -17,6 +17,7 @@ export interface ReviewableItem {
   justificationNotes?: string | null;
   teamNotes?: string | null;
   priority?: number | null;
+  severity?: number | null;
   impactType?: string | null;
 }
 
@@ -28,8 +29,8 @@ interface ReviewFormProps<T extends ReviewableItem> {
   /** Callback when review is successfully updated */
   onUpdated: (data: ReviewFormCallbackData) => void;
   /** API function to update the review */
-  onSubmit: (data: { id: number; reviewStatus: string; reviewedBy: string; justificationNotes?: string; teamNotes?: string; priority?: number; impactType?: string }) => Promise<
-    | { success: true; data: { reviewStatus?: string | null; reviewedBy?: string | null; reviewedAt?: Date | null; justificationNotes?: string | null; teamNotes?: string | null; priority?: number | null; impactType?: string | null } }
+  onSubmit: (data: { id: number; reviewStatus: string; reviewedBy: string; justificationNotes?: string; teamNotes?: string; priority?: number; severity?: number; impactType?: string }) => Promise<
+    | { success: true; data: { reviewStatus?: string | null; reviewedBy?: string | null; reviewedAt?: Date | null; justificationNotes?: string | null; teamNotes?: string | null; priority?: number | null; severity?: number | null; impactType?: string | null } }
     | { success: false; error: string }
   >;
   /** Placeholder text for notes textarea */
@@ -83,6 +84,7 @@ export function ReviewForm<T extends ReviewableItem>({
         justificationNotes: data.justificationNotes,
         teamNotes: data.teamNotes,
         priority: data.priority,
+        severity: data.severity,
         impactType: data.impactType,
       });
     },

@@ -26,7 +26,6 @@ import {
   REVIEW_TYPE_VALUES,
   SEVERITY_THRESHOLDS,
   COMPLEXITY_LEVELS,
-  PRIORITY_VALUES,
   type ComplexityLevel,
   type ReviewTypeValue,
 } from '@/lib/constants/values';
@@ -44,7 +43,7 @@ export type {
 };
 
 // Re-export values for convenience
-export { SEVERITY_THRESHOLDS, COMPLEXITY_LEVELS, PRIORITY_VALUES };
+export { SEVERITY_THRESHOLDS, COMPLEXITY_LEVELS };
 
 // ============================================
 // Utility Functions
@@ -85,8 +84,23 @@ export const IMPACT_TYPES = DB_IMPACT_TYPE_VALUES.map(value => ({
   label: formatLabel(value),
 }));
 
-// Note: values are strings for Radix Select compatibility
-// Parse with parseInt() when saving to database
+// Severity options for compliance issues (1-10 scale, matching model severity)
+// Values are strings for Radix Select compatibility - parse with parseInt() when saving
+export const UPDATED_SEVERITY_OPTIONS = [
+  { value: '1', label: '1 - Minimal' },
+  { value: '2', label: '2' },
+  { value: '3', label: '3' },
+  { value: '4', label: '4 - Low' },
+  { value: '5', label: '5' },
+  { value: '6', label: '6' },
+  { value: '7', label: '7 - Medium' },
+  { value: '8', label: '8' },
+  { value: '9', label: '9' },
+  { value: '10', label: '10 - Critical' },
+] as const;
+
+// Priority options for red flags (1-5 scale)
+// Values are strings for Radix Select compatibility - parse with parseInt() when saving
 export const PRIORITY_OPTIONS = [
   { value: '1', label: '1 - Highest' },
   { value: '2', label: '2 - High' },

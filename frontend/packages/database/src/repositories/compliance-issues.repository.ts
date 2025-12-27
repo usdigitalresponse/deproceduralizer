@@ -10,7 +10,7 @@ export interface UpdateComplianceIssueReviewInput {
   reviewStatus: ReviewStatus;
   reviewedBy?: string;
   justificationNotes?: string;
-  priority?: number;
+  severity?: number;
   impactType?: string;
 }
 
@@ -99,16 +99,32 @@ export class ComplianceIssuesRepository extends BaseRepository {
   }
 
   async updateReview(id: number, data: UpdateComplianceIssueReviewInput): Promise<ComplianceIssue | undefined> {
+    // Get current record to check if we need to preserve original severity
+    const current = await this.getById(id);
+    if (!current) return undefined;
+
+    // Build update data
+    const updateData: Partial<ComplianceIssue> = {
+      reviewStatus: data.reviewStatus,
+      reviewedBy: data.reviewedBy ?? null,
+      reviewedAt: new Date(),
+      justificationNotes: data.justificationNotes ?? null,
+      impactType: data.impactType ?? null,
+    };
+
+    // If reviewer is changing severity and original hasn't been preserved yet, save it
+    if (data.severity !== undefined && current.originalSeverity === null && current.severity !== null) {
+      updateData.originalSeverity = current.severity;
+    }
+
+    // Update severity if provided
+    if (data.severity !== undefined) {
+      updateData.severity = data.severity;
+    }
+
     const result = await this.db
       .update(complianceIssues)
-      .set({
-        reviewStatus: data.reviewStatus,
-        reviewedBy: data.reviewedBy ?? null,
-        reviewedAt: new Date(),
-        justificationNotes: data.justificationNotes ?? null,
-        priority: data.priority ?? null,
-        impactType: data.impactType ?? null,
-      })
+      .set(updateData)
       .where(eq(complianceIssues.id, id))
       .returning();
 
@@ -331,7 +347,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         reviewedAt: complianceIssues.reviewedAt,
         justificationNotes: complianceIssues.justificationNotes,
         teamNotes: complianceIssues.teamNotes,
-        priority: complianceIssues.priority,
+        originalSeverity: complianceIssues.originalSeverity,
         impactType: complianceIssues.impactType,
         // Developer fields
         developerStatus: complianceIssues.developerStatus,
@@ -382,7 +398,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       reviewedAt: row.reviewedAt,
       justificationNotes: row.justificationNotes,
       teamNotes: row.teamNotes,
-      priority: row.priority,
+      originalSeverity: row.originalSeverity,
       impactType: row.impactType,
       developerStatus: row.developerStatus,
       developerAssigned: row.developerAssigned,
@@ -557,7 +573,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         reviewedAt: complianceIssues.reviewedAt,
         justificationNotes: complianceIssues.justificationNotes,
         teamNotes: complianceIssues.teamNotes,
-        priority: complianceIssues.priority,
+        originalSeverity: complianceIssues.originalSeverity,
         impactType: complianceIssues.impactType,
         // Developer fields
         developerStatus: complianceIssues.developerStatus,
@@ -608,7 +624,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       reviewedAt: row.reviewedAt,
       justificationNotes: row.justificationNotes,
       teamNotes: row.teamNotes,
-      priority: row.priority,
+      originalSeverity: row.originalSeverity,
       impactType: row.impactType,
       developerStatus: row.developerStatus,
       developerAssigned: row.developerAssigned,
@@ -693,7 +709,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         reviewedAt: complianceIssues.reviewedAt,
         justificationNotes: complianceIssues.justificationNotes,
         teamNotes: complianceIssues.teamNotes,
-        priority: complianceIssues.priority,
+        originalSeverity: complianceIssues.originalSeverity,
         impactType: complianceIssues.impactType,
         developerStatus: complianceIssues.developerStatus,
         developerAssigned: complianceIssues.developerAssigned,
@@ -741,7 +757,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       reviewedAt: row.reviewedAt,
       justificationNotes: row.justificationNotes,
       teamNotes: row.teamNotes,
-      priority: row.priority,
+      originalSeverity: row.originalSeverity,
       impactType: row.impactType,
       developerStatus: row.developerStatus,
       developerAssigned: row.developerAssigned,

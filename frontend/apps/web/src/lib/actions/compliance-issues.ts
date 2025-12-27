@@ -31,7 +31,7 @@ export interface UpdateComplianceIssueInput {
   reviewedBy?: string;
   justificationNotes?: string;
   teamNotes?: string;
-  priority?: number;
+  severity?: number;
   /** Must be a valid ImpactType value if provided */
   impactType?: string;
 }
@@ -50,7 +50,7 @@ export async function updateComplianceIssueReview(
       reviewStatus: input.reviewStatus as ReviewStatus,
       reviewedBy: input.reviewedBy,
       justificationNotes: input.justificationNotes,
-      priority: input.priority,
+      severity: input.severity,
       impactType: input.impactType as ImpactType | undefined,
     });
 
