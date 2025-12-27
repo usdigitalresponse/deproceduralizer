@@ -1,7 +1,6 @@
 import { redirect, notFound } from 'next/navigation';
 import { Container } from '@/components/layout/Container';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { Alert } from '@/components/ui';
 import {
   ReviewQueue,
   ReviewTypeTabs,
@@ -11,25 +10,23 @@ import {
   NeedMoreInfoQueue,
   DefinitionsReviewQueue,
   DefinitionsDeveloperQueue,
+  ReviewPageError,
 } from '@/components/review';
 import {
-  getRedFlagsPaginated,
-  getRedFlagStatusCounts,
-  getRedFlagCategories,
-} from '@/lib/actions/red-flags';
+  getDeveloperModeCountsData,
+  getReviewModeCountsData,
+  getRedFlagsQueueData,
+  getComplianceQueueData,
+  getNeedsInfoQueueData,
+  getDeveloperQueueData,
+} from '@/lib/actions/review-page';
 import {
-  getComplianceIssuesPaginated,
-  getComplianceIssueStatusCounts,
-  getComplianceIssueTypes,
-} from '@/lib/actions/compliance-issues';
-import {
-  getCombinedDeveloperStatusCounts,
-  getCombinedReviewedItems,
-  getNeedMoreInfoItems,
-  getNeedMoreInfoCounts,
-} from '@/lib/actions/developer';
-import { getDefinitionReviewStats, getDefinitionDeveloperStatusCounts } from '@/lib/actions/definitions';
-import type { RedFlagFilterOptions, StateCode } from '@deproceduralizer/database';
+  parseSeverityFilter,
+  parseBooleanFilter,
+  parseRequirementFoundFilter,
+  getReviewPageConfig,
+} from '@/lib/url/filter-helpers';
+import type { StateCode, RedFlagFilterOptions } from '@deproceduralizer/database';
 import { isValidState, STATE_CONFIG } from '@/types/state';
 import type { ReviewType, ReviewMode } from '@/types/regulation';
 
@@ -47,19 +44,8 @@ interface PageProps {
     sortBy?: string;
     sortOrder?: string;
     page?: string;
-    // Compliance issue filters
     requiredByStatute?: string;
     requirementFound?: string;
-    // Definition-specific filters (managed by nuqs in client components)
-    scopeLevel?: string;
-    definitionType?: string;
-    isCrossReference?: string;
-    inDefinitionsSection?: string;
-    scopeRelation?: string;
-    scopeMismatch?: string;
-    scopeText?: string;
-    termSearch?: string;
-    definitionId?: string;
   }>;
 }
 
@@ -67,497 +53,272 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
   const { state } = await params;
   const queryParams = await searchParams;
 
-  // Validate state parameter
   if (!isValidState(state)) {
     notFound();
   }
 
   const stateCode = state as StateCode;
   const stateConfig = STATE_CONFIG[stateCode];
-
-  // Determine mode (review or developer)
   const mode = (queryParams.mode || 'review') as ReviewMode;
-
-  // Determine review type (flags, compliance, or needs_info)
   const reviewType = (queryParams.type || 'flags') as ReviewType;
 
-  // Default redirects based on mode - preserve all existing query params
-  if (mode === 'developer') {
-    // Developer mode: default to unresolved items
-    if (!queryParams.developerStatus && reviewType !== 'needs_info') {
-      const params = new URLSearchParams();
-      // Preserve all existing query params
-      Object.entries(queryParams).forEach(([key, value]) => {
-        if (value) params.set(key, value);
-      });
-      params.set('mode', 'developer');
-      params.set('developerStatus', 'unresolved');
-      if (reviewType !== 'flags') params.set('type', reviewType);
-      redirect(`/${state}/review?${params.toString()}`);
-    }
-  } else {
-    // Review mode: default to unreviewed items
-    if (!queryParams.reviewStatus && reviewType !== 'needs_info') {
-      const params = new URLSearchParams();
-      // Preserve all existing query params
-      Object.entries(queryParams).forEach(([key, value]) => {
-        if (value) params.set(key, value);
-      });
-      params.set('type', reviewType);
-      params.set('reviewStatus', 'unreviewed');
-      redirect(`/${state}/review?${params.toString()}`);
-    }
+  // Handle default redirects
+  if (shouldRedirect(mode, reviewType, queryParams)) {
+    const redirectUrl = buildRedirectUrl(state, mode, reviewType, queryParams);
+    redirect(redirectUrl);
   }
 
-  // Parse pagination params
+  // Parse common params
   const page = Math.max(1, parseInt(queryParams.page || '1', 10));
   const pageSize = 10;
   const sortOrder = (queryParams.sortOrder || 'desc') as 'asc' | 'desc';
 
-  // Fetch counts for tabs based on mode
+  const pageConfig = getReviewPageConfig(stateConfig.name, stateConfig.regulationsLabel, mode, reviewType);
+
+  // Developer mode
   if (mode === 'developer') {
-    // Developer mode: fetch developer status counts
-    const [developerStatusCountsResult, needsInfoCountsResult, definitionDevCountsResult] = await Promise.all([
-      getCombinedDeveloperStatusCounts(stateCode),
-      getNeedMoreInfoCounts(stateCode),
-      getDefinitionDeveloperStatusCounts(stateCode),
-    ]);
+    return renderDeveloperMode(stateCode, reviewType, page, pageSize, sortOrder, queryParams, pageConfig);
+  }
 
-    // Handle errors - display them obviously
-    if (!developerStatusCountsResult.success) {
-      return (
-        <div className="bg-[var(--color-background)]">
-          <PageHeader
-            title={`Developer Review - ${stateConfig.name}`}
-            description="Track implementation status of reviewed regulatory items"
-          />
-          <Container size="2xl" className="py-6">
-            <Alert variant="error">
-              Failed to load developer status counts: {developerStatusCountsResult.error}
-            </Alert>
-          </Container>
-        </div>
-      );
-    }
+  // Review mode
+  return renderReviewMode(stateCode, stateConfig, reviewType, page, pageSize, sortOrder, queryParams, pageConfig);
+}
 
-    if (!needsInfoCountsResult.success) {
-      return (
-        <div className="bg-[var(--color-background)]">
-          <PageHeader
-            title={`Developer Review - ${stateConfig.name}`}
-            description="Track implementation status of reviewed regulatory items"
-          />
-          <Container size="2xl" className="py-6">
-            <Alert variant="error">
-              Failed to load needs info counts: {needsInfoCountsResult.error}
-            </Alert>
-          </Container>
-        </div>
-      );
-    }
+// ============================================
+// Redirect Logic
+// ============================================
 
-    const developerStatusCounts = developerStatusCountsResult.data;
-    const needsInfoCounts = needsInfoCountsResult.data;
-    const definitionDevCounts = definitionDevCountsResult.success ? definitionDevCountsResult.data : { total: 0 };
+function shouldRedirect(
+  mode: ReviewMode,
+  reviewType: ReviewType,
+  queryParams: PageProps['searchParams'] extends Promise<infer T> ? T : never
+): boolean {
+  if (mode === 'developer') {
+    return !queryParams.developerStatus && reviewType !== 'needs_info';
+  }
+  return !queryParams.reviewStatus && reviewType !== 'needs_info';
+}
 
-    // In developer mode, tabs show "All Reviewed Items" (combined), "Definitions", and "Needs More Info"
-    const tabCounts = {
-      flags: developerStatusCounts.total, // Total reviewed items (flags + compliance)
-      compliance: 0, // Combined into flags for developer mode
-      definitions: definitionDevCounts.total, // Definitions have their own tab
-      needs_info: needsInfoCounts.combined.total,
-    };
+function buildRedirectUrl(
+  state: string,
+  mode: ReviewMode,
+  reviewType: ReviewType,
+  queryParams: PageProps['searchParams'] extends Promise<infer T> ? T : never
+): string {
+  const params = new URLSearchParams();
+  Object.entries(queryParams).forEach(([key, value]) => {
+    if (value) params.set(key, value);
+  });
 
-    // Handle definitions tab in developer mode
-    if (reviewType === 'definitions') {
-      return (
-        <div className="bg-[var(--color-background)]">
-          <PageHeader
-            title={`Developer Review - ${stateConfig.name} Definitions`}
-            description="Track implementation status of reviewed definitions"
-          />
+  if (mode === 'developer') {
+    params.set('mode', 'developer');
+    params.set('developerStatus', 'unresolved');
+    if (reviewType !== 'flags') params.set('type', reviewType);
+  } else {
+    params.set('type', reviewType);
+    params.set('reviewStatus', 'unreviewed');
+  }
 
-          <Container size="2xl" className="py-6">
-            <ReviewModeSwitcher mode={mode} />
-            <ReviewTypeTabs activeType={reviewType} counts={tabCounts} mode={mode} />
-            <DefinitionsDeveloperQueue state={stateCode} />
-          </Container>
-        </div>
-      );
-    }
+  return `/${state}/review?${params.toString()}`;
+}
 
-    // Handle needs_info tab in developer mode
-    if (reviewType === 'needs_info') {
-      const needsInfoItemsResult = await getNeedMoreInfoItems(stateCode, {
-        page,
-        pageSize,
-      });
+// ============================================
+// Developer Mode Rendering
+// ============================================
 
-      if (!needsInfoItemsResult.success) {
-        return (
-          <div className="bg-[var(--color-background)]">
-            <PageHeader
-              title={`Developer Review - ${stateConfig.name}`}
-              description="Track implementation status of reviewed regulatory items"
-            />
-            <Container size="2xl" className="py-6">
-              <ReviewModeSwitcher mode={mode} />
-              <ReviewTypeTabs activeType={reviewType} counts={tabCounts} mode={mode} />
-              <Alert variant="error">
-                Failed to load needs more info items: {needsInfoItemsResult.error}
-              </Alert>
-            </Container>
-          </div>
-        );
-      }
+async function renderDeveloperMode(
+  stateCode: StateCode,
+  reviewType: ReviewType,
+  page: number,
+  pageSize: number,
+  sortOrder: 'asc' | 'desc',
+  queryParams: PageProps['searchParams'] extends Promise<infer T> ? T : never,
+  pageConfig: { title: string; description: string }
+) {
+  const countsResult = await getDeveloperModeCountsData(stateCode);
 
-      const needsInfoItems = needsInfoItemsResult.data;
-
-      return (
-        <div className="bg-[var(--color-background)]">
-          <PageHeader
-            title={`Developer Review - ${stateConfig.name}`}
-            description="Track implementation status of reviewed regulatory items"
-          />
-
-          <Container size="2xl" className="py-6">
-            <ReviewModeSwitcher mode={mode} />
-            <ReviewTypeTabs activeType={reviewType} counts={tabCounts} mode={mode} />
-            <NeedMoreInfoQueue
-              initialItems={needsInfoItems.data}
-              pagination={{
-                page: needsInfoItems.page,
-                pageSize: needsInfoItems.pageSize,
-                total: needsInfoItems.total,
-                totalPages: needsInfoItems.totalPages,
-              }}
-              counts={needsInfoCounts}
-            />
-          </Container>
-        </div>
-      );
-    }
-
-    // Developer mode: combined queue view
-    const developerStatus = queryParams.developerStatus || undefined;
-    const developerAssigned = queryParams.developerAssigned || undefined;
-
-    const reviewedItemsResult = await getCombinedReviewedItems(stateCode, {
-      page,
-      pageSize,
-      sortOrder,
-      developerStatus,
-      developerAssigned,
-    });
-
-    if (!reviewedItemsResult.success) {
-      return (
-        <div className="bg-[var(--color-background)]">
-          <PageHeader
-            title={`Developer Review - ${stateConfig.name}`}
-            description="Track implementation status of reviewed regulatory items"
-          />
-          <Container size="2xl" className="py-6">
-            <ReviewModeSwitcher mode={mode} />
-            <ReviewTypeTabs activeType={reviewType} counts={tabCounts} mode={mode} />
-            <Alert variant="error">
-              Failed to load reviewed items: {reviewedItemsResult.error}
-            </Alert>
-          </Container>
-        </div>
-      );
-    }
-
-    const reviewedItems = reviewedItemsResult.data;
-
+  if (!countsResult.success) {
     return (
-      <div className="bg-[var(--color-background)]">
-        <PageHeader
-          title={`Developer Review - ${stateConfig.name}`}
-          description="Track implementation status of reviewed regulatory items"
-        />
-
-        <Container size="2xl" className="py-6">
-          <ReviewModeSwitcher mode={mode} />
-          <ReviewTypeTabs activeType={reviewType} counts={tabCounts} mode={mode} />
-          <DeveloperQueue
-            initialItems={reviewedItems.data}
-            pagination={{
-              page: reviewedItems.page,
-              pageSize: reviewedItems.pageSize,
-              total: reviewedItems.total,
-              totalPages: reviewedItems.totalPages,
-            }}
-            statusCounts={developerStatusCounts}
-          />
-        </Container>
-      </div>
+      <ReviewPageError
+        title={pageConfig.title}
+        description={pageConfig.description}
+        error={countsResult.error}
+      />
     );
   }
 
-  // Review mode: fetch review status counts
-  const [flagStatusCountsResult, complianceStatusCountsResult, definitionsStatsResult, needsInfoCountsResult] = await Promise.all([
-    getRedFlagStatusCounts(stateCode),
-    getComplianceIssueStatusCounts(stateCode),
-    getDefinitionReviewStats(stateCode),
-    getNeedMoreInfoCounts(stateCode),
-  ]);
+  const { tabCounts, developerStatusCounts, needsInfoCounts } = countsResult.data;
 
-  // Handle errors - display them obviously
-  if (!flagStatusCountsResult.success) {
-    return (
-      <div className="bg-[var(--color-background)]">
-        <PageHeader
-          title={`Review ${stateConfig.name} Regulations`}
-          description={`Efficiently triage red flags identified in ${stateConfig.regulationsLabel}`}
-        />
-        <Container size="2xl" className="py-6">
-          <Alert variant="error">
-            Failed to load red flag status counts: {flagStatusCountsResult.error}
-          </Alert>
-        </Container>
-      </div>
-    );
-  }
-
-  if (!complianceStatusCountsResult.success) {
-    return (
-      <div className="bg-[var(--color-background)]">
-        <PageHeader
-          title={`Review ${stateConfig.name} Regulations`}
-          description={`Efficiently triage compliance issues identified in ${stateConfig.regulationsLabel}`}
-        />
-        <Container size="2xl" className="py-6">
-          <Alert variant="error">
-            Failed to load compliance issue status counts: {complianceStatusCountsResult.error}
-          </Alert>
-        </Container>
-      </div>
-    );
-  }
-
-  if (!definitionsStatsResult.success) {
-    return (
-      <div className="bg-[var(--color-background)]">
-        <PageHeader
-          title={`Review ${stateConfig.name} Regulations`}
-          description="Review extracted definitions"
-        />
-        <Container size="2xl" className="py-6">
-          <Alert variant="error">
-            Failed to load definitions counts: {definitionsStatsResult.error}
-          </Alert>
-        </Container>
-      </div>
-    );
-  }
-
-  if (!needsInfoCountsResult.success) {
-    return (
-      <div className="bg-[var(--color-background)]">
-        <PageHeader
-          title={`Review ${stateConfig.name} Regulations`}
-          description="Items that need additional information from reviewers"
-        />
-        <Container size="2xl" className="py-6">
-          <Alert variant="error">
-            Failed to load needs info counts: {needsInfoCountsResult.error}
-          </Alert>
-        </Container>
-      </div>
-    );
-  }
-
-  const flagStatusCounts = flagStatusCountsResult.data;
-  const complianceStatusCounts = complianceStatusCountsResult.data;
-  const definitionsStats = definitionsStatsResult.data;
-  const needsInfoCounts = needsInfoCountsResult.data;
-
-  const tabCounts = {
-    flags: flagStatusCounts.total,
-    compliance: complianceStatusCounts.total,
-    definitions: definitionsStats.total,
-    needs_info: needsInfoCounts.combined.total,
-  };
-
-  // Handle needs_info tab in review mode
-  if (reviewType === 'needs_info') {
-    const needsInfoItemsResult = await getNeedMoreInfoItems(stateCode, {
-      page,
-      pageSize,
-    });
-
-    if (!needsInfoItemsResult.success) {
-      return (
-        <div className="bg-[var(--color-background)]">
-          <PageHeader
-            title={`Review ${stateConfig.name} Regulations`}
-            description="Items that need additional information from reviewers"
-          />
-          <Container size="2xl" className="py-6">
-            <ReviewModeSwitcher mode={mode} />
-            <ReviewTypeTabs activeType={reviewType} counts={tabCounts} mode={mode} />
-            <Alert variant="error">
-              Failed to load needs more info items: {needsInfoItemsResult.error}
-            </Alert>
-          </Container>
-        </div>
-      );
-    }
-
-    const needsInfoItems = needsInfoItemsResult.data;
-
-    return (
-      <div className="bg-[var(--color-background)]">
-        <PageHeader
-          title={`Review ${stateConfig.name} Regulations`}
-          description="Items that need additional information from reviewers"
-        />
-
-        <Container size="2xl" className="py-6">
-          <ReviewModeSwitcher mode={mode} />
-          <ReviewTypeTabs activeType={reviewType} counts={tabCounts} mode={mode} />
-          <NeedMoreInfoQueue
-            initialItems={needsInfoItems.data}
-            pagination={{
-              page: needsInfoItems.page,
-              pageSize: needsInfoItems.pageSize,
-              total: needsInfoItems.total,
-              totalPages: needsInfoItems.totalPages,
-            }}
-            counts={needsInfoCounts}
-          />
-        </Container>
-      </div>
-    );
-  }
-
-  // Handle definitions tab in review mode
+  // Definitions tab
   if (reviewType === 'definitions') {
     return (
-      <div className="bg-[var(--color-background)]">
-        <PageHeader
-          title={`Review ${stateConfig.name} Definitions`}
-          description="Review and correct LLM-extracted definitions"
-        />
-
-        <Container size="2xl" className="py-6">
-          <ReviewModeSwitcher mode={mode} />
-          <ReviewTypeTabs activeType={reviewType} counts={tabCounts} mode={mode} />
-          <DefinitionsReviewQueue state={stateCode} />
-        </Container>
-      </div>
+      <ReviewPageLayout pageConfig={pageConfig} mode="developer" reviewType={reviewType} tabCounts={tabCounts}>
+        <DefinitionsDeveloperQueue state={stateCode} />
+      </ReviewPageLayout>
     );
   }
 
-  // Render based on review type
+  // Needs info tab
+  if (reviewType === 'needs_info') {
+    const itemsResult = await getNeedsInfoQueueData(stateCode, { page, pageSize });
+
+    if (!itemsResult.success) {
+      return (
+        <ReviewPageError
+          title={pageConfig.title}
+          description={pageConfig.description}
+          error={itemsResult.error}
+          controls={{ mode: 'developer', reviewType, tabCounts }}
+        />
+      );
+    }
+
+    const items = itemsResult.data;
+    return (
+      <ReviewPageLayout pageConfig={pageConfig} mode="developer" reviewType={reviewType} tabCounts={tabCounts}>
+        <NeedMoreInfoQueue
+          initialItems={items.data}
+          pagination={{ page: items.page, pageSize: items.pageSize, total: items.total, totalPages: items.totalPages }}
+          counts={needsInfoCounts}
+        />
+      </ReviewPageLayout>
+    );
+  }
+
+  // Default: Combined developer queue
+  const itemsResult = await getDeveloperQueueData(stateCode, {
+    page,
+    pageSize,
+    sortOrder,
+    developerStatus: queryParams.developerStatus || undefined,
+    developerAssigned: queryParams.developerAssigned || undefined,
+  });
+
+  if (!itemsResult.success) {
+    return (
+      <ReviewPageError
+        title={pageConfig.title}
+        description={pageConfig.description}
+        error={itemsResult.error}
+        controls={{ mode: 'developer', reviewType, tabCounts }}
+      />
+    );
+  }
+
+  const items = itemsResult.data;
+  return (
+    <ReviewPageLayout pageConfig={pageConfig} mode="developer" reviewType={reviewType} tabCounts={tabCounts}>
+      <DeveloperQueue
+        initialItems={items.data}
+        pagination={{ page: items.page, pageSize: items.pageSize, total: items.total, totalPages: items.totalPages }}
+        statusCounts={developerStatusCounts}
+      />
+    </ReviewPageLayout>
+  );
+}
+
+// ============================================
+// Review Mode Rendering
+// ============================================
+
+async function renderReviewMode(
+  stateCode: StateCode,
+  stateConfig: { name: string; regulationsLabel: string },
+  reviewType: ReviewType,
+  page: number,
+  pageSize: number,
+  sortOrder: 'asc' | 'desc',
+  queryParams: PageProps['searchParams'] extends Promise<infer T> ? T : never,
+  pageConfig: { title: string; description: string }
+) {
+  const countsResult = await getReviewModeCountsData(stateCode);
+
+  if (!countsResult.success) {
+    return (
+      <ReviewPageError
+        title={pageConfig.title}
+        description={pageConfig.description}
+        error={countsResult.error}
+      />
+    );
+  }
+
+  const { tabCounts, flagStatusCounts, complianceStatusCounts, needsInfoCounts } = countsResult.data;
+
+  // Definitions tab
+  if (reviewType === 'definitions') {
+    return (
+      <ReviewPageLayout pageConfig={pageConfig} mode="review" reviewType={reviewType} tabCounts={tabCounts}>
+        <DefinitionsReviewQueue state={stateCode} />
+      </ReviewPageLayout>
+    );
+  }
+
+  // Needs info tab
+  if (reviewType === 'needs_info') {
+    const itemsResult = await getNeedsInfoQueueData(stateCode, { page, pageSize });
+
+    if (!itemsResult.success) {
+      return (
+        <ReviewPageError
+          title={pageConfig.title}
+          description={pageConfig.description}
+          error={itemsResult.error}
+          controls={{ mode: 'review', reviewType, tabCounts }}
+        />
+      );
+    }
+
+    const items = itemsResult.data;
+    return (
+      <ReviewPageLayout pageConfig={pageConfig} mode="review" reviewType={reviewType} tabCounts={tabCounts}>
+        <NeedMoreInfoQueue
+          initialItems={items.data}
+          pagination={{ page: items.page, pageSize: items.pageSize, total: items.total, totalPages: items.totalPages }}
+          counts={needsInfoCounts}
+        />
+      </ReviewPageLayout>
+    );
+  }
+
+  // Compliance tab
   if (reviewType === 'compliance') {
     const sortBy = (queryParams.sortBy || 'createdAt') as 'issueType' | 'createdAt' | 'reviewedAt' | 'severity';
-
-    // Parse boolean string filters
-    const parseSeverity = (val?: string): 'high' | 'medium' | 'low' | 'all' | undefined => {
-      if (!val || val === 'all') return 'all';
-      if (val === 'high' || val === 'medium' || val === 'low') return val;
-      return 'all';
-    };
-
-    const parseBooleanFilter = (val?: string): boolean | 'all' => {
-      if (!val || val === 'all') return 'all';
-      return val === 'true';
-    };
-
-    // For requirementFound, default to true (only confirmed) to match client-side nuqs parser
-    const parseRequirementFound = (val?: string): boolean | 'all' => {
-      if (val === 'all') return 'all';
-      if (val === 'false') return false;
-      return true; // Default to true (LLM confirmed only)
-    };
-
     const filters = {
       status: queryParams.reviewStatus === 'all' ? undefined : queryParams.reviewStatus,
       issueType: queryParams.issueType || undefined,
-      severity: parseSeverity(queryParams.severity),
+      severity: parseSeverityFilter(queryParams.severity),
       requiredByStatute: parseBooleanFilter(queryParams.requiredByStatute),
-      requirementFound: parseRequirementFound(queryParams.requirementFound),
+      requirementFound: parseRequirementFoundFilter(queryParams.requirementFound),
     };
 
-    const [issuesResultAction, issueTypesResult] = await Promise.all([
-      getComplianceIssuesPaginated(stateCode, {
-        page,
-        pageSize,
-        sortBy,
-        sortOrder,
-        filters,
-      }),
-      getComplianceIssueTypes(stateCode),
-    ]);
+    const dataResult = await getComplianceQueueData(stateCode, { page, pageSize, sortBy, sortOrder, filters });
 
-    if (!issuesResultAction.success) {
+    if (!dataResult.success) {
       return (
-        <div className="bg-[var(--color-background)]">
-          <PageHeader
-            title={`Review ${stateConfig.name} Regulations`}
-            description={`Efficiently triage compliance issues identified in ${stateConfig.regulationsLabel}`}
-          />
-          <Container size="2xl" className="py-6">
-            <ReviewModeSwitcher mode={mode} />
-            <ReviewTypeTabs activeType={reviewType} counts={tabCounts} mode={mode} />
-            <Alert variant="error">
-              Failed to load compliance issues: {issuesResultAction.error}
-            </Alert>
-          </Container>
-        </div>
-      );
-    }
-
-    if (!issueTypesResult.success) {
-      return (
-        <div className="bg-[var(--color-background)]">
-          <PageHeader
-            title={`Review ${stateConfig.name} Regulations`}
-            description={`Efficiently triage compliance issues identified in ${stateConfig.regulationsLabel}`}
-          />
-          <Container size="2xl" className="py-6">
-            <ReviewModeSwitcher mode={mode} />
-            <ReviewTypeTabs activeType={reviewType} counts={tabCounts} mode={mode} />
-            <Alert variant="error">
-              Failed to load issue types: {issueTypesResult.error}
-            </Alert>
-          </Container>
-        </div>
-      );
-    }
-
-    const issuesResult = issuesResultAction.data;
-    const issueTypes = issueTypesResult.data;
-
-    return (
-      <div className="bg-[var(--color-background)]">
-        <PageHeader
-          title={`Review ${stateConfig.name} Regulations`}
-          description={`Efficiently triage compliance issues identified in ${stateConfig.regulationsLabel}`}
+        <ReviewPageError
+          title={pageConfig.title}
+          description={pageConfig.description}
+          error={dataResult.error}
+          controls={{ mode: 'review', reviewType, tabCounts }}
         />
+      );
+    }
 
-        <Container size="2xl" className="py-6">
-          <ReviewModeSwitcher mode={mode} />
-          <ReviewTypeTabs activeType={reviewType} counts={tabCounts} mode={mode} />
-          <ComplianceReviewQueue
-            initialIssues={issuesResult.data}
-            pagination={{
-              page: issuesResult.page,
-              pageSize: issuesResult.pageSize,
-              total: issuesResult.total,
-              totalPages: issuesResult.totalPages,
-            }}
-            statusCounts={complianceStatusCounts}
-            issueTypes={issueTypes}
-          />
-        </Container>
-      </div>
+    const { issues, issueTypes } = dataResult.data;
+    return (
+      <ReviewPageLayout pageConfig={pageConfig} mode="review" reviewType={reviewType} tabCounts={tabCounts}>
+        <ComplianceReviewQueue
+          initialIssues={issues.data}
+          pagination={{ page: issues.page, pageSize: issues.pageSize, total: issues.total, totalPages: issues.totalPages }}
+          statusCounts={complianceStatusCounts}
+          issueTypes={issueTypes}
+        />
+      </ReviewPageLayout>
     );
   }
 
-  // Default: Red Flags view
+  // Default: Red Flags tab
   const sortBy = (queryParams.sortBy || 'severity') as 'severity' | 'category' | 'reviewedAt';
   const filters: Omit<RedFlagFilterOptions, 'state'> = {
     status: queryParams.reviewStatus === 'all' ? 'all' : (queryParams.reviewStatus as RedFlagFilterOptions['status']),
@@ -565,81 +326,56 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
     category: queryParams.category || undefined,
   };
 
-  const [flagsResultAction, categoriesResult] = await Promise.all([
-    getRedFlagsPaginated(stateCode, {
-      page,
-      pageSize,
-      sortBy,
-      sortOrder,
-      filters: {
-        status: filters.status,
-        severity: filters.severity,
-        category: filters.category,
-      },
-    }),
-    getRedFlagCategories(stateCode),
-  ]);
+  const dataResult = await getRedFlagsQueueData(stateCode, { page, pageSize, sortBy, sortOrder, filters });
 
-  if (!flagsResultAction.success) {
+  if (!dataResult.success) {
     return (
-      <div className="bg-[var(--color-background)]">
-        <PageHeader
-          title={`Review ${stateConfig.name} Regulations`}
-          description={`Efficiently triage red flags identified in ${stateConfig.regulationsLabel}`}
-        />
-        <Container size="2xl" className="py-6">
-          <ReviewModeSwitcher mode={mode} />
-          <ReviewTypeTabs activeType={reviewType} counts={tabCounts} mode={mode} />
-          <Alert variant="error">
-            Failed to load red flags: {flagsResultAction.error}
-          </Alert>
-        </Container>
-      </div>
+      <ReviewPageError
+        title={pageConfig.title}
+        description={pageConfig.description}
+        error={dataResult.error}
+        controls={{ mode: 'review', reviewType, tabCounts }}
+      />
     );
   }
 
-  if (!categoriesResult.success) {
-    return (
-      <div className="bg-[var(--color-background)]">
-        <PageHeader
-          title={`Review ${stateConfig.name} Regulations`}
-          description={`Efficiently triage red flags identified in ${stateConfig.regulationsLabel}`}
-        />
-        <Container size="2xl" className="py-6">
-          <ReviewModeSwitcher mode={mode} />
-          <ReviewTypeTabs activeType={reviewType} counts={tabCounts} mode={mode} />
-          <Alert variant="error">
-            Failed to load categories: {categoriesResult.error}
-          </Alert>
-        </Container>
-      </div>
-    );
-  }
+  const { flags, categories } = dataResult.data;
+  return (
+    <ReviewPageLayout pageConfig={pageConfig} mode="review" reviewType={reviewType} tabCounts={tabCounts}>
+      <ReviewQueue
+        initialFlags={flags.data}
+        pagination={{ page: flags.page, pageSize: flags.pageSize, total: flags.total, totalPages: flags.totalPages }}
+        statusCounts={flagStatusCounts}
+        categories={categories}
+      />
+    </ReviewPageLayout>
+  );
+}
 
-  const flagsResult = flagsResultAction.data;
-  const categories = categoriesResult.data;
+// ============================================
+// Shared Layout Component
+// ============================================
 
+function ReviewPageLayout({
+  pageConfig,
+  mode,
+  reviewType,
+  tabCounts,
+  children,
+}: {
+  pageConfig: { title: string; description: string };
+  mode: ReviewMode;
+  reviewType: ReviewType;
+  tabCounts: { flags: number; compliance: number; definitions: number; needs_info: number };
+  children: React.ReactNode;
+}) {
   return (
     <div className="bg-[var(--color-background)]">
-      <PageHeader
-        title={`Review ${stateConfig.name} Regulations`}
-        description={`Efficiently triage red flags identified in ${stateConfig.regulationsLabel}`}
-      />
-
+      <PageHeader title={pageConfig.title} description={pageConfig.description} />
       <Container size="2xl" className="py-6">
         <ReviewModeSwitcher mode={mode} />
         <ReviewTypeTabs activeType={reviewType} counts={tabCounts} mode={mode} />
-        <ReviewQueue
-          initialFlags={flagsResult.data}
-          pagination={{
-            page: flagsResult.page,
-            pageSize: flagsResult.pageSize,
-            total: flagsResult.total,
-            totalPages: flagsResult.totalPages,
-          }}
-          statusCounts={flagStatusCounts}
-          categories={categories}
-        />
+        {children}
       </Container>
     </div>
   );

@@ -2,8 +2,11 @@
 
 import 'server-only';
 import { revalidatePath } from 'next/cache';
-import { db, RegulatoryDocumentsRepository, regulatoryDocuments, eq, and, desc, type RegulationWithAnalysis, type PaginationOptions, type FilterOptions, type StateCode, type PaginatedResult } from '@deproceduralizer/database';
+import { db, RegulatoryDocumentsRepository, regulatoryDocuments, eq, and, desc, type RegulationWithAnalysis, type PaginationOptions, type FilterOptions, type StateCode, type PaginatedResult, type ComplianceIssue, type DefinitionWithContext, type DocumentNote } from '@deproceduralizer/database';
 import { type ActionResult, success, failure, getErrorMessage } from './types';
+import { getComplianceIssuesByDocumentId } from './compliance-issues';
+import { getApplicableDefinitionsForDocument } from './definitions';
+import { getNotesByDocumentId } from './document-notes';
 
 const regulationsRepo = new RegulatoryDocumentsRepository(db);
 
@@ -125,4 +128,144 @@ export async function getExcludedDocuments(
     console.error('[getExcludedDocuments]', error);
     return failure(getErrorMessage(error));
   }
+}
+
+// ============================================================================
+// Regulation Detail Bundle Action
+// ============================================================================
+
+/**
+ * Options for fetching regulation detail bundle.
+ */
+export interface BundleOptions {
+  /** Include applicable definitions for the document */
+  includeDefinitions?: boolean;
+  /** Include document notes/annotations */
+  includeNotes?: boolean;
+  /** Include compliance issues for the document */
+  includeComplianceIssues?: boolean;
+  /** Include full content (false = truncated preview for panel/modal views) */
+  includeContent?: boolean;
+}
+
+/**
+ * Result from regulation detail bundle.
+ * Uses partial success pattern - optional data can fail independently.
+ */
+export interface BundleResult {
+  regulation: RegulationWithAnalysis | null;
+  complianceIssues?: ComplianceIssue[];
+  definitions?: DefinitionWithContext[];
+  notes?: DocumentNote[];
+  /** Section-level errors for optional data that failed to load */
+  errors: {
+    complianceIssues?: string;
+    definitions?: string;
+    notes?: string;
+  };
+}
+
+/**
+ * Content preview length for truncated views (panel/modal)
+ */
+const CONTENT_PREVIEW_LENGTH = 500;
+
+/**
+ * Fetches a regulation with optional related data in a single action.
+ * Uses Promise.allSettled for partial success - the regulation is required,
+ * but optional data (definitions, notes, compliance issues) can fail
+ * independently without blocking the entire response.
+ *
+ * @param id - The regulatory document ID
+ * @param options - What optional data to include
+ * @returns Bundle with regulation, optional data, and any section-level errors
+ */
+export async function getRegulationDetailBundle(
+  id: number,
+  options: BundleOptions = {}
+): Promise<ActionResult<BundleResult>> {
+  const {
+    includeDefinitions = false,
+    includeNotes = false,
+    includeComplianceIssues = false,
+    includeContent = true,
+  } = options;
+
+  // Regulation is required - fail fast if it fails
+  const regResult = await getRegulationById(id);
+  if (!regResult.success) {
+    return failure(regResult.error);
+  }
+
+  const regulation = regResult.data;
+  if (!regulation) {
+    return success({ regulation: null, errors: {} });
+  }
+
+  // Fetch optional data in parallel using Promise.allSettled for partial success
+  const optionalFetches = await Promise.allSettled([
+    includeComplianceIssues ? getComplianceIssuesByDocumentId(id) : Promise.resolve({ success: true, data: undefined }),
+    includeDefinitions ? getApplicableDefinitionsForDocument(id) : Promise.resolve({ success: true, data: undefined }),
+    includeNotes ? getNotesByDocumentId(id) : Promise.resolve({ success: true, data: undefined }),
+  ]);
+
+  const [complianceResult, definitionsResult, notesResult] = optionalFetches;
+  const errors: BundleResult['errors'] = {};
+
+  // Process compliance issues result
+  let complianceIssues: ComplianceIssue[] | undefined;
+  if (complianceResult.status === 'fulfilled') {
+    const result = complianceResult.value as ActionResult<ComplianceIssue[] | undefined>;
+    if (result.success && result.data) {
+      complianceIssues = result.data;
+    } else if (!result.success) {
+      errors.complianceIssues = result.error;
+    }
+  } else {
+    errors.complianceIssues = complianceResult.reason?.message || 'Failed to load compliance issues';
+  }
+
+  // Process definitions result
+  let definitions: DefinitionWithContext[] | undefined;
+  if (definitionsResult.status === 'fulfilled') {
+    const result = definitionsResult.value as ActionResult<DefinitionWithContext[] | undefined>;
+    if (result.success && result.data) {
+      definitions = result.data;
+    } else if (!result.success) {
+      errors.definitions = result.error;
+    }
+  } else {
+    errors.definitions = definitionsResult.reason?.message || 'Failed to load definitions';
+  }
+
+  // Process notes result
+  let notes: DocumentNote[] | undefined;
+  if (notesResult.status === 'fulfilled') {
+    const result = notesResult.value as ActionResult<DocumentNote[] | undefined>;
+    if (result.success && result.data) {
+      notes = result.data;
+    } else if (!result.success) {
+      errors.notes = result.error;
+    }
+  } else {
+    errors.notes = notesResult.reason?.message || 'Failed to load notes';
+  }
+
+  // Optionally truncate content for panel/modal views
+  const finalRegulation: RegulationWithAnalysis = includeContent
+    ? regulation
+    : {
+        ...regulation,
+        content: regulation.content && regulation.content.length > CONTENT_PREVIEW_LENGTH
+          ? regulation.content.slice(0, CONTENT_PREVIEW_LENGTH) + '...'
+          : regulation.content,
+      };
+
+  return success({
+    regulation: finalRegulation,
+    complianceIssues,
+    definitions,
+    notes,
+    errors,
+  });
 }

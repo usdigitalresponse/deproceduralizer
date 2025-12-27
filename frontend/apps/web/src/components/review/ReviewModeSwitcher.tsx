@@ -1,38 +1,51 @@
 'use client';
 
-import { useRouter, useSearchParams, usePathname } from 'next/navigation';
+import { useQueryStates } from 'nuqs';
 import { ClipboardList, Code2 } from 'lucide-react';
 import type { ReviewMode } from '@/types/regulation';
+import {
+  reviewModeParser,
+  developerStatusParser,
+  developerAssignedParser,
+  reviewStatusParser,
+  pageParser,
+} from '@/lib/url/parsers';
 
 interface ReviewModeSwitcherProps {
   mode: ReviewMode;
 }
 
 export function ReviewModeSwitcher({ mode }: ReviewModeSwitcherProps) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const [, setParams] = useQueryStates(
+    {
+      mode: reviewModeParser,
+      developerStatus: developerStatusParser,
+      developerAssigned: developerAssignedParser,
+      reviewStatus: reviewStatusParser,
+      page: pageParser,
+    },
+    { shallow: false } // Preserve other query params
+  );
 
   const handleModeChange = (newMode: ReviewMode) => {
     if (newMode === mode) return;
 
-    const params = new URLSearchParams(searchParams.toString());
-
     if (newMode === 'developer') {
-      params.set('mode', 'developer');
-      // Reset to show all developer statuses
-      params.delete('reviewStatus');
-      params.set('developerStatus', 'all');
+      setParams({
+        mode: 'developer',
+        reviewStatus: null, // Remove reviewStatus
+        developerStatus: 'all',
+        page: 1,
+      });
     } else {
-      params.delete('mode');
-      params.delete('developerStatus');
-      params.delete('developerAssigned');
-      // Default to unreviewed for review mode
-      params.set('reviewStatus', 'unreviewed');
+      setParams({
+        mode: null, // Remove mode (defaults to 'review')
+        developerStatus: null,
+        developerAssigned: null,
+        reviewStatus: 'unreviewed',
+        page: 1,
+      });
     }
-
-    params.set('page', '1');
-    router.push(`${pathname}?${params.toString()}`);
   };
 
   return (
