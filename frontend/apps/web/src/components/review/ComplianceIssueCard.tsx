@@ -214,25 +214,35 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
           </div>
         )}
 
-        {/* View Full Section - expandable */}
-        {issue.matchedContext && (
-          <div className="mb-4">
+        {/* View Full Regulation + View Full Section */}
+        <div className="mb-4 flex items-center gap-3">
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => onViewRegulation(issue.regulation.id)}
+          >
+            View Full Regulation
+          </Button>
+          {issue.matchedContext && (
             <Button
               type="button"
-              variant="secondary"
+              variant="ghost"
               size="sm"
               onClick={handleExpandContext}
               disabled={isLoadingContext}
             >
               {isLoadingContext ? 'Loading...' : isExpanded ? 'Hide Section Text' : 'View Full Section'}
             </Button>
-            {isExpanded && expandedText && (
-              <div className="mt-3 p-4 bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] border border-[var(--color-neutral-200)]">
-                <p className="text-sm text-[var(--color-text)] whitespace-pre-wrap leading-relaxed">
-                  {highlightContext(expandedText, issue.matchedContext, issue.matchedPattern)}
-                </p>
-              </div>
-            )}
+          )}
+        </div>
+
+        {/* Expanded Section Text */}
+        {isExpanded && expandedText && (
+          <div className="mb-4 p-4 bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] border border-[var(--color-neutral-200)]">
+            <p className="text-sm text-[var(--color-text)] whitespace-pre-wrap leading-relaxed">
+              {highlightContext(expandedText, issue.matchedContext, issue.matchedPattern)}
+            </p>
           </div>
         )}
 
@@ -353,15 +363,7 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
           </div>
 
           {/* Actions */}
-          <div className="flex items-center justify-between">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => onViewRegulation(issue.regulation.id)}
-            >
-              View Full Regulation
-            </Button>
+          <div className="flex items-center justify-end">
             <Button type="submit" variant="primary" size="sm" isLoading={isPending}>
               {isPending ? 'Saving...' : 'Save Review'}
             </Button>
