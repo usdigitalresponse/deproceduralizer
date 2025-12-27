@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, forwardRef, useCallback } from 'react';
+import { ExternalLink } from 'lucide-react';
 import { updateComplianceIssueReview, getExpandedContext } from '@/lib/actions/compliance-issues';
 import { useReviewForm } from '@/hooks';
 import { Button, Input, Textarea, Badge, SeverityBadge, Select, Tag, CopyLinkButton } from '@/components/ui';
@@ -125,9 +126,18 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
         <div className="flex items-start justify-between gap-4 mb-4">
           <div className="flex items-center gap-3">
             <CopyLinkButton anchor={`compliance-${issue.id}`} />
-            <Badge variant="warning" className="font-semibold">
-              {issueTypeLabel}
-            </Badge>
+            <a
+              href={`/prompts#prompt-${issue.issueType}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 group"
+              title="View prompt definition (opens in new tab)"
+            >
+              <Badge variant="warning" className="font-semibold group-hover:ring-2 group-hover:ring-[var(--color-warning)]/30 transition-shadow">
+                {issueTypeLabel}
+              </Badge>
+              <ExternalLink className="w-3.5 h-3.5 text-[var(--color-text-muted)] group-hover:text-[var(--color-warning)] transition-colors" />
+            </a>
             {issue.requirementFound && (
               <Badge variant="success" className="text-xs">
                 LLM Confirmed
