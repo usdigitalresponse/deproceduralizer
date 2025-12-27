@@ -146,14 +146,14 @@ export function DefinitionsDeveloperFilters({
         </label>
         <Select
           value={filters.sortBy || 'reviewedAt'}
-          onValueChange={(value) => setFilters({ sortBy: value as 'reviewedAt' | 'developerCheckedAt' })}
+          onValueChange={(value) => setFilters({ sortBy: value as 'reviewedAt' | 'developerCheckedAt', page: 1 })}
           options={SORT_OPTIONS}
           aria-label="Sort by"
         />
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => setFilters({ sortOrder: filters.sortOrder === 'asc' ? 'desc' : 'asc' })}
+          onClick={() => setFilters({ sortOrder: filters.sortOrder === 'asc' ? 'desc' : 'asc', page: 1 })}
           aria-label={`Sort ${filters.sortOrder === 'asc' ? 'descending' : 'ascending'}`}
         >
           {filters.sortOrder === 'asc' ? '↑' : '↓'}

@@ -5,7 +5,7 @@ import { ExternalLink } from 'lucide-react';
 import { updateComplianceIssueReview, getExpandedContext } from '@/lib/actions/compliance-issues';
 import { useReviewForm } from '@/hooks';
 import { Button, Input, Textarea, Badge, SeverityBadge, Select, Tag, CopyLinkButton } from '@/components/ui';
-import { ISSUE_TYPE_LABELS, PRIORITY_OPTIONS, IMPACT_TYPES } from '@/types/regulation';
+import { ISSUE_TYPE_LABELS, UPDATED_SEVERITY_OPTIONS, IMPACT_TYPES } from '@/types/regulation';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
 import { formatNjacCitation } from '@/lib/formatters/njac';
 import { highlightContext } from '@/lib/utils/highlight';
@@ -37,7 +37,7 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
         reviewedBy: data.reviewedBy,
         justificationNotes: data.justificationNotes,
         teamNotes: data.teamNotes,
-        priority: data.priority,
+        severity: data.severity,
         impactType: data.impactType,
       }),
       onUpdated: (data) => {
@@ -48,7 +48,7 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
           reviewedAt: data.reviewedAt ? new Date(data.reviewedAt) : null,
           justificationNotes: data.justificationNotes ?? null,
           teamNotes: data.teamNotes ?? null,
-          priority: data.priority ?? null,
+          severity: data.severity ?? issue.severity,
           impactType: data.impactType ?? null,
         });
       },
@@ -101,7 +101,7 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
     }, [isExpanded, expandedText, issue.documentId, issue.matchedContext]);
 
     // Convert options to Select format with explicit "none" sentinel
-    const priorityOptions = [{ value: 'none', label: '--' }, ...PRIORITY_OPTIONS];
+    const severityOptions = [{ value: 'none', label: '--' }, ...UPDATED_SEVERITY_OPTIONS];
     const impactOptions = [{ value: 'none', label: '--' }, ...IMPACT_TYPES];
 
     // Convert REVIEW_STATUSES to Select format with labels
@@ -297,17 +297,25 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
                 />
               </div>
 
-              {/* Priority */}
+              {/* Severity */}
               <div>
                 <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">
-                  Priority
+                  Severity
+                  {issue.originalSeverity !== null && issue.originalSeverity !== issue.severity && (
+                    <span className="ml-1 font-normal text-[var(--color-text-muted)]">
+                      (Original: {issue.originalSeverity})
+                    </span>
+                  )}
                 </label>
                 <Select
-                  value={formData.priority?.toString() ?? 'none'}
-                  onValueChange={(value) => updateField('priority', value === 'none' ? undefined : parseInt(value))}
-                  options={priorityOptions}
+                  value={formData.severity?.toString() ?? 'none'}
+                  onValueChange={(value) => updateField('severity', value === 'none' ? undefined : parseInt(value))}
+                  options={severityOptions}
                   disabled={isPending}
                 />
+                <p className="mt-1 text-[10px] text-[var(--color-text-muted)]">
+                  Change if severity doesn&apos;t match your assessment
+                </p>
               </div>
 
               {/* Impact Type */}

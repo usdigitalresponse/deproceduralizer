@@ -231,7 +231,7 @@ Tracks compliance issues found in regulations (wet signatures, mail-only submiss
 | `reviewed_at` | timestamp | When reviewed |
 | `justification_notes` | text | Justification for the model |
 | `team_notes` | text | Notes for development team (replaced reviewer_notes) |
-| `priority` | integer | Priority ranking |
+| `original_severity` | integer (1-10) | LLM's original severity (preserved on first review) |
 | `impact_type` | varchar(100) | Type of impact |
 | `developer_status` | varchar(50) | `unresolved`, `resolved`, `pending`, `backlogged`, `need_more_info` |
 | `developer_assigned` | varchar(50) | Michael or Abigail |

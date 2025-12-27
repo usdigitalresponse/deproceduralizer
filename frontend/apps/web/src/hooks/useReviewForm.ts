@@ -8,7 +8,8 @@ export interface ReviewFormData {
   reviewedBy: string;
   justificationNotes: string | undefined;
   teamNotes: string | undefined;
-  priority: number | undefined;
+  priority: number | undefined; // Used by red flags
+  severity: number | undefined; // Used by compliance issues
   impactType: string | undefined;
 }
 
@@ -19,7 +20,8 @@ export interface ReviewFormCallbackData {
   reviewedAt?: string;
   justificationNotes?: string;
   teamNotes?: string;
-  priority?: number;
+  priority?: number; // Used by red flags
+  severity?: number; // Used by compliance issues
   impactType?: string;
 }
 
@@ -30,7 +32,9 @@ interface UseReviewFormOptions {
     reviewedBy?: string | null;
     justificationNotes?: string | null;
     teamNotes?: string | null;
-    priority?: number | null;
+    priority?: number | null; // Used by red flags
+    severity?: number | null; // Used by compliance issues
+    originalSeverity?: number | null; // LLM's original severity (for display)
     impactType?: string | null;
   };
   onSubmit: (data: ReviewFormData & { id: number }) => Promise<{
@@ -42,6 +46,7 @@ interface UseReviewFormOptions {
       justificationNotes?: string | null;
       teamNotes?: string | null;
       priority?: number | null;
+      severity?: number | null;
       impactType?: string | null;
     };
   } | { success: false; error: string }>;
@@ -73,7 +78,8 @@ export function useReviewForm({ initialData, onSubmit, onUpdated }: UseReviewFor
     reviewedBy: initialData.reviewedBy || '',
     justificationNotes: initialData.justificationNotes || undefined,
     teamNotes: initialData.teamNotes || undefined,
-    priority: initialData.priority || undefined,
+    priority: initialData.priority ?? undefined,
+    severity: initialData.severity ?? undefined,
     impactType: initialData.impactType || undefined,
   });
 
@@ -108,6 +114,7 @@ export function useReviewForm({ initialData, onSubmit, onUpdated }: UseReviewFor
           justificationNotes: formData.justificationNotes || undefined,
           teamNotes: formData.teamNotes || undefined,
           priority: formData.priority,
+          severity: formData.severity,
           impactType: formData.impactType || undefined,
         });
 
@@ -127,6 +134,7 @@ export function useReviewForm({ initialData, onSubmit, onUpdated }: UseReviewFor
           justificationNotes: result.data.justificationNotes ?? undefined,
           teamNotes: result.data.teamNotes ?? undefined,
           priority: result.data.priority ?? undefined,
+          severity: result.data.severity ?? undefined,
           impactType: result.data.impactType ?? undefined,
         });
 

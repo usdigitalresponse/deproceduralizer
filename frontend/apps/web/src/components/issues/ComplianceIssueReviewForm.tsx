@@ -27,7 +27,7 @@ export default function ComplianceIssueReviewForm({ issue, onUpdated }: Complian
           reviewedBy: data.reviewedBy,
           justificationNotes: data.justificationNotes,
           teamNotes: data.teamNotes,
-          priority: data.priority,
+          severity: data.severity,
           impactType: data.impactType,
         });
       }}

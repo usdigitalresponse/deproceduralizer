@@ -37,7 +37,7 @@ export const complianceIssues = pgTable('compliance_issues', {
   reviewedAt: timestamp('reviewed_at'), // When it was reviewed
   justificationNotes: text('justification_notes'), // Justification and analysis for the model
   teamNotes: text('team_notes'), // Notes for development team (replaces reviewer_notes)
-  priority: integer('priority'), // Priority ranking
+  originalSeverity: integer('original_severity'), // LLM-assigned severity (preserved on first review)
   impactType: varchar('impact_type', { length: 100 }), // Type of impact
 
   // Developer tracking
