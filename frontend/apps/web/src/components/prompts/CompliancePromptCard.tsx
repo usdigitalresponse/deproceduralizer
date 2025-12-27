@@ -44,7 +44,7 @@ export function CompliancePromptCard({
     <Card
       id={`prompt-${prompt.name}`}
       padding="md"
-      className={`hover:border-[var(--color-primary-weak)] transition-colors ${className}`}
+      className={`hover:border-[var(--color-primary-weak)] transition-colors scroll-mt-24 ${className}`}
     >
       {/* Header - always visible */}
       <div
@@ -130,11 +130,23 @@ export function CompliancePromptCard({
 
           {/* LLM Prompt */}
           {prompt.prompt && (
-            <div>
-              <h4 className="text-sm font-medium text-[var(--color-text)] mb-2">
-                LLM Verification Prompt
-              </h4>
-              <PromptTemplate template={prompt.prompt} />
+            <div className="space-y-3">
+              {prompt.prompt.system && (
+                <div>
+                  <h4 className="text-sm font-medium text-[var(--color-text)] mb-2">
+                    System Prompt
+                  </h4>
+                  <PromptTemplate template={prompt.prompt.system} />
+                </div>
+              )}
+              {prompt.prompt.template && (
+                <div>
+                  <h4 className="text-sm font-medium text-[var(--color-text)] mb-2">
+                    Template
+                  </h4>
+                  <PromptTemplate template={prompt.prompt.template} />
+                </div>
+              )}
             </div>
           )}
         </div>

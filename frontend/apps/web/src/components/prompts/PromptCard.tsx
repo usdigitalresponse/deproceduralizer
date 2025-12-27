@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ChevronDown, ChevronUp, MessageSquare, Code } from 'lucide-react';
+import { ChevronDown, ChevronUp, MessageSquare, Code, Calendar } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -12,6 +12,22 @@ import { FeedbackList } from './FeedbackList';
 import { getFeedbackByPrompt } from '@/lib/actions/prompt-feedback';
 import type { PromptData } from '@/lib/actions/prompts';
 import type { PromptFeedback } from '@deproceduralizer/database';
+
+/**
+ * Format a date string (YYYY-MM-DD) to a readable format (Dec 26, 2025)
+ */
+function formatDate(dateStr: string): string {
+  try {
+    const date = new Date(dateStr + 'T00:00:00');
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  } catch {
+    return dateStr;
+  }
+}
 
 interface PromptCardProps {
   prompt: PromptData;
@@ -61,8 +77,9 @@ export function PromptCard({
 
   return (
     <Card
+      id={`prompt-${prompt.name}`}
       padding="md"
-      className={`hover:border-[var(--color-primary-weak)] transition-colors ${className}`}
+      className={`hover:border-[var(--color-primary-weak)] transition-colors scroll-mt-24 ${className}`}
     >
       {/* Header - always visible */}
       <div
@@ -94,6 +111,12 @@ export function PromptCard({
           <p className="text-sm text-[var(--color-text-secondary)] line-clamp-2">
             {prompt.description.split('\n')[0]}
           </p>
+          {prompt.updatedAt && (
+            <div className="flex items-center gap-1 mt-1 text-xs text-[var(--color-text-muted)]">
+              <Calendar className="w-3 h-3" />
+              <span>Last updated: {formatDate(prompt.updatedAt)}</span>
+            </div>
+          )}
         </div>
 
         <Button
