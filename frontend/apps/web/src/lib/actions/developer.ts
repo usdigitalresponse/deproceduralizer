@@ -17,6 +17,7 @@ import {
   type ComplianceIssue,
   type RedFlagWithContext,
   type ComplianceIssueWithContext,
+  type IssueType,
 } from '@deproceduralizer/database';
 import { type ActionResult, success, failure, getErrorMessage } from './types';
 
@@ -439,6 +440,126 @@ export async function getComplianceIssueDeveloperStatusCounts(
     return success(result);
   } catch (error) {
     console.error('[getComplianceIssueDeveloperStatusCounts]', error);
+    return failure(getErrorMessage(error));
+  }
+}
+
+// ============================================
+// Separate Red Flag and Compliance Issue Developer Queues
+// ============================================
+
+export interface RedFlagDeveloperQueueParams {
+  page: number;
+  pageSize: number;
+  developerStatus?: string;
+  developerAssigned?: string;
+  severity?: 'high' | 'medium' | 'low' | 'all';
+  reviewStatus?: string;
+  category?: string;
+  sortBy?: 'severity' | 'category' | 'reviewedAt' | 'developerCheckedAt';
+  sortOrder?: 'asc' | 'desc';
+}
+
+export interface ComplianceDeveloperQueueParams {
+  page: number;
+  pageSize: number;
+  developerStatus?: string;
+  developerAssigned?: string;
+  severity?: 'high' | 'medium' | 'low' | 'all';
+  reviewStatus?: string;
+  issueType?: string;
+  sortBy?: 'severity' | 'issueType' | 'reviewedAt' | 'developerCheckedAt';
+  sortOrder?: 'asc' | 'desc';
+}
+
+/**
+ * Get paginated red flags for developer mode with full filtering support
+ */
+export async function getRedFlagDeveloperItems(
+  state: StateCode,
+  params: RedFlagDeveloperQueueParams
+): Promise<ActionResult<{ data: RedFlagWithContext[]; total: number; page: number; pageSize: number; totalPages: number }>> {
+  try {
+    const { page, pageSize, developerStatus, developerAssigned, severity, reviewStatus, category, sortBy = 'severity', sortOrder = 'desc' } = params;
+
+    // Build filters - typed to match repository expectations
+    type FilterType = {
+      status?: 'unreviewed' | 'confirmed' | 'rejected_clear_fp' | 'rejected_not_obvious_bad' | 'needs_context' | 'deferred' | 'all';
+      severity?: 'high' | 'medium' | 'low';
+      category?: string;
+    };
+    const filters: FilterType = {};
+
+    if (reviewStatus && reviewStatus !== 'all') {
+      filters.status = reviewStatus as FilterType['status'];
+    }
+    if (severity && severity !== 'all') {
+      filters.severity = severity as 'high' | 'medium' | 'low';
+    }
+    if (category) {
+      filters.category = category;
+    }
+
+    const result = await redFlagsRepo.getReviewedPaginated({
+      state,
+      page,
+      pageSize,
+      developerStatus: developerStatus as DeveloperStatus | 'all' | undefined,
+      developerAssigned: developerAssigned as Developer | undefined,
+      filters: Object.keys(filters).length > 0 ? filters : undefined,
+      sortBy: sortBy as 'severity' | 'category' | 'reviewedAt',
+      sortOrder,
+    });
+
+    return success(result);
+  } catch (error) {
+    console.error('[getRedFlagDeveloperItems]', error);
+    return failure(getErrorMessage(error));
+  }
+}
+
+/**
+ * Get paginated compliance issues for developer mode with full filtering support
+ */
+export async function getComplianceIssueDeveloperItems(
+  state: StateCode,
+  params: ComplianceDeveloperQueueParams
+): Promise<ActionResult<{ data: ComplianceIssueWithContext[]; total: number; page: number; pageSize: number; totalPages: number }>> {
+  try {
+    const { page, pageSize, developerStatus, developerAssigned, severity, reviewStatus, issueType, sortBy = 'severity', sortOrder = 'desc' } = params;
+
+    // Build filters - typed to match repository expectations
+    type FilterType = {
+      status?: 'unreviewed' | 'confirmed' | 'rejected_clear_fp' | 'rejected_not_obvious_bad' | 'needs_context' | 'deferred' | 'all';
+      severity?: 'high' | 'medium' | 'low' | 'all';
+      issueType?: IssueType | 'all';
+    };
+    const filters: FilterType = {};
+
+    if (reviewStatus && reviewStatus !== 'all') {
+      filters.status = reviewStatus as FilterType['status'];
+    }
+    if (severity && severity !== 'all') {
+      filters.severity = severity as 'high' | 'medium' | 'low';
+    }
+    if (issueType) {
+      filters.issueType = issueType as IssueType;
+    }
+
+    const result = await complianceIssuesRepo.getReviewedPaginated({
+      state,
+      page,
+      pageSize,
+      developerStatus: developerStatus as DeveloperStatus | 'all' | undefined,
+      developerAssigned: developerAssigned as Developer | undefined,
+      filters: Object.keys(filters).length > 0 ? filters : undefined,
+      sortBy: sortBy as 'severity' | 'issueType' | 'reviewedAt' | 'createdAt',
+      sortOrder,
+    });
+
+    return success(result);
+  } catch (error) {
+    console.error('[getComplianceIssueDeveloperItems]', error);
     return failure(getErrorMessage(error));
   }
 }

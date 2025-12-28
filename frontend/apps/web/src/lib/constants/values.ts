@@ -99,6 +99,13 @@ export type ComplianceSortByValue = (typeof COMPLIANCE_SORT_BY_VALUES)[number];
 export const DEVELOPER_SORT_BY_VALUES = ['reviewedAt', 'developerCheckedAt'] as const;
 export type DeveloperSortByValue = (typeof DEVELOPER_SORT_BY_VALUES)[number];
 
+// Extended sort options for developer mode with type-specific options
+export const RED_FLAG_DEVELOPER_SORT_BY_VALUES = ['severity', 'category', 'reviewedAt', 'developerCheckedAt'] as const;
+export type RedFlagDeveloperSortByValue = (typeof RED_FLAG_DEVELOPER_SORT_BY_VALUES)[number];
+
+export const COMPLIANCE_DEVELOPER_SORT_BY_VALUES = ['severity', 'issueType', 'reviewedAt', 'developerCheckedAt'] as const;
+export type ComplianceDeveloperSortByValue = (typeof COMPLIANCE_DEVELOPER_SORT_BY_VALUES)[number];
+
 // ============================================
 // Review page navigation
 // ============================================

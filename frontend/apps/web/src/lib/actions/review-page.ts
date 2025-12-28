@@ -17,6 +17,12 @@ import {
   getCombinedReviewedItems,
   getNeedMoreInfoItems,
   getNeedMoreInfoCounts,
+  getRedFlagDeveloperStatusCounts,
+  getComplianceIssueDeveloperStatusCounts,
+  getRedFlagDeveloperItems,
+  getComplianceIssueDeveloperItems,
+  type RedFlagDeveloperQueueParams,
+  type ComplianceDeveloperQueueParams,
 } from './developer';
 import {
   getDefinitionReviewStats,
@@ -38,6 +44,8 @@ export interface TabCounts {
 export interface DeveloperModeCountsData {
   tabCounts: TabCounts;
   developerStatusCounts: Awaited<ReturnType<typeof getCombinedDeveloperStatusCounts>> extends ActionResult<infer T> ? T : never;
+  redFlagDeveloperStatusCounts: Awaited<ReturnType<typeof getRedFlagDeveloperStatusCounts>> extends ActionResult<infer T> ? T : never;
+  complianceDeveloperStatusCounts: Awaited<ReturnType<typeof getComplianceIssueDeveloperStatusCounts>> extends ActionResult<infer T> ? T : never;
   needsInfoCounts: Awaited<ReturnType<typeof getNeedMoreInfoCounts>> extends ActionResult<infer T> ? T : never;
 }
 
@@ -59,15 +67,30 @@ export interface ReviewModeCountsData {
 export async function getDeveloperModeCountsData(
   stateCode: StateCode
 ): Promise<ActionResult<DeveloperModeCountsData>> {
-  const [developerStatusCountsResult, needsInfoCountsResult, definitionDevCountsResult] =
-    await Promise.all([
-      getCombinedDeveloperStatusCounts(stateCode),
-      getNeedMoreInfoCounts(stateCode),
-      getDefinitionDeveloperStatusCounts(stateCode),
-    ]);
+  const [
+    developerStatusCountsResult,
+    redFlagDevCountsResult,
+    complianceDevCountsResult,
+    needsInfoCountsResult,
+    definitionDevCountsResult,
+  ] = await Promise.all([
+    getCombinedDeveloperStatusCounts(stateCode),
+    getRedFlagDeveloperStatusCounts(stateCode),
+    getComplianceIssueDeveloperStatusCounts(stateCode),
+    getNeedMoreInfoCounts(stateCode),
+    getDefinitionDeveloperStatusCounts(stateCode),
+  ]);
 
   if (!developerStatusCountsResult.success) {
     return failure(`Failed to load developer status counts: ${developerStatusCountsResult.error}`);
+  }
+
+  if (!redFlagDevCountsResult.success) {
+    return failure(`Failed to load red flag developer status counts: ${redFlagDevCountsResult.error}`);
+  }
+
+  if (!complianceDevCountsResult.success) {
+    return failure(`Failed to load compliance developer status counts: ${complianceDevCountsResult.error}`);
   }
 
   if (!needsInfoCountsResult.success) {
@@ -75,14 +98,16 @@ export async function getDeveloperModeCountsData(
   }
 
   const developerStatusCounts = developerStatusCountsResult.data;
+  const redFlagDeveloperStatusCounts = redFlagDevCountsResult.data;
+  const complianceDeveloperStatusCounts = complianceDevCountsResult.data;
   const needsInfoCounts = needsInfoCountsResult.data;
   const definitionDevCounts = definitionDevCountsResult.success
     ? definitionDevCountsResult.data
     : { total: 0 };
 
   const tabCounts: TabCounts = {
-    flags: developerStatusCounts.total,
-    compliance: 0, // Combined into flags for developer mode
+    flags: redFlagDeveloperStatusCounts.total,
+    compliance: complianceDeveloperStatusCounts.total,
     definitions: definitionDevCounts.total,
     needs_info: needsInfoCounts.combined.total,
   };
@@ -90,6 +115,8 @@ export async function getDeveloperModeCountsData(
   return success({
     tabCounts,
     developerStatusCounts,
+    redFlagDeveloperStatusCounts,
+    complianceDeveloperStatusCounts,
     needsInfoCounts,
   });
 }
@@ -108,6 +135,58 @@ export async function getDeveloperQueueData(
   }
 ) {
   return getCombinedReviewedItems(stateCode, options);
+}
+
+/**
+ * Fetch red flag developer queue data with filters
+ */
+export async function getRedFlagDeveloperQueueData(
+  stateCode: StateCode,
+  params: RedFlagDeveloperQueueParams
+) {
+  const [itemsResult, categoriesResult] = await Promise.all([
+    getRedFlagDeveloperItems(stateCode, params),
+    getRedFlagCategories(stateCode),
+  ]);
+
+  if (!itemsResult.success) {
+    return failure(`Failed to load red flag developer items: ${itemsResult.error}`);
+  }
+
+  if (!categoriesResult.success) {
+    return failure(`Failed to load categories: ${categoriesResult.error}`);
+  }
+
+  return success({
+    items: itemsResult.data,
+    categories: categoriesResult.data,
+  });
+}
+
+/**
+ * Fetch compliance issue developer queue data with filters
+ */
+export async function getComplianceDeveloperQueueData(
+  stateCode: StateCode,
+  params: ComplianceDeveloperQueueParams
+) {
+  const [itemsResult, issueTypesResult] = await Promise.all([
+    getComplianceIssueDeveloperItems(stateCode, params),
+    getComplianceIssueTypes(stateCode),
+  ]);
+
+  if (!itemsResult.success) {
+    return failure(`Failed to load compliance developer items: ${itemsResult.error}`);
+  }
+
+  if (!issueTypesResult.success) {
+    return failure(`Failed to load issue types: ${issueTypesResult.error}`);
+  }
+
+  return success({
+    items: itemsResult.data,
+    issueTypes: issueTypesResult.data,
+  });
 }
 
 // ============================================
