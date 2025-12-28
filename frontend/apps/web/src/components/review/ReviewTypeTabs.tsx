@@ -62,38 +62,56 @@ export function ReviewTypeTabs({ activeType, counts, mode = 'review' }: ReviewTy
     }
   };
 
-  // If in developer mode and showing combined view, show all items tab differently
+  // Developer mode: show separate tabs for Red Flags, Compliance Issues, Definitions, and Needs Info
   if (mode === 'developer') {
-    const isAllActive = activeType !== 'definitions' && activeType !== 'needs_info';
+    const isFlagsActive = activeType === 'flags';
+    const isComplianceActive = activeType === 'compliance';
     const isDefinitionsActive = activeType === 'definitions';
     const isNeedsInfoActive = activeType === 'needs_info';
 
     return (
       <div className="flex gap-1 p-1 bg-[var(--color-neutral-100)] rounded-[var(--radius-lg)] mb-4">
         <button
-          onClick={() => {
-            setParams({
-              type: null, // Remove type to show combined view
-              page: 1,
-            });
-          }}
+          onClick={() => handleTabChange('flags')}
           className={`
             flex items-center gap-2 px-4 py-2 rounded-[var(--radius-md)] text-sm font-medium
             transition-all duration-[var(--duration-fast)]
             ${
-              isAllActive
+              isFlagsActive
                 ? 'bg-white text-[var(--color-text)] shadow-sm'
                 : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-white/50'
             }
           `}
         >
-          Red Flags & Issues
-          {(counts.flags + counts.compliance) > 0 && (
+          Red Flags
+          {counts.flags > 0 && (
             <Badge
-              variant={isAllActive ? 'info' : 'default'}
+              variant={isFlagsActive ? 'danger' : 'default'}
               className="text-xs"
             >
-              {counts.flags + counts.compliance}
+              {counts.flags}
+            </Badge>
+          )}
+        </button>
+        <button
+          onClick={() => handleTabChange('compliance')}
+          className={`
+            flex items-center gap-2 px-4 py-2 rounded-[var(--radius-md)] text-sm font-medium
+            transition-all duration-[var(--duration-fast)]
+            ${
+              isComplianceActive
+                ? 'bg-white text-[var(--color-text)] shadow-sm'
+                : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-white/50'
+            }
+          `}
+        >
+          Compliance Issues
+          {counts.compliance > 0 && (
+            <Badge
+              variant={isComplianceActive ? 'warning' : 'default'}
+              className="text-xs"
+            >
+              {counts.compliance}
             </Badge>
           )}
         </button>

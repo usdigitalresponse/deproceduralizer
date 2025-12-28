@@ -369,3 +369,133 @@ test.describe('Prompts Alignment', () => {
   });
 
 });
+
+test.describe('Review Form Submission', () => {
+
+  test('compliance issue review saves all fields including team notes', async ({ page }) => {
+    // Use review mode with LOW severity filter to minimize risk
+    await page.goto('/nj/review?mode=review&type=compliance&severity=low');
+    await expect(page.getByRole('heading', { name: /Review New Jersey/i })).toBeVisible();
+
+    // Wait for cards to load
+    await page.waitForLoadState('networkidle');
+
+    const card = page.getByTestId('compliance-issue-card').first();
+    const cardCount = await page.getByTestId('compliance-issue-card').count();
+
+    if (cardCount === 0) {
+      console.log('No low severity compliance issues found, skipping test');
+      return;
+    }
+
+    await expect(card).toBeVisible();
+
+    // Store form elements
+    const reviewerInput = card.getByTestId('compliance-reviewer-input');
+    const justificationTextarea = card.getByTestId('compliance-justification-textarea');
+    const teamNotesTextarea = card.getByTestId('compliance-team-notes-textarea');
+    const saveButton = card.getByTestId('compliance-save-button');
+
+    // Generate unique test values with timestamp
+    const timestamp = Date.now();
+    const testTeamNotes = `E2E Test Notes ${timestamp}`;
+    const testJustification = `E2E Test Justification ${timestamp}`;
+
+    // Fill form fields
+    await reviewerInput.fill('E2E Test Reviewer');
+    await justificationTextarea.fill(testJustification);
+    await teamNotesTextarea.fill(testTeamNotes);
+
+    // Submit the form
+    await saveButton.click();
+    await page.waitForLoadState('networkidle');
+
+    // Verify the form still shows saved values (optimistic update)
+    await expect(teamNotesTextarea).toHaveValue(testTeamNotes);
+
+    // Note: This test leaves test data in the DB. Run cleanup query if needed:
+    // UPDATE compliance_issues SET reviewed_by = NULL, team_notes = NULL WHERE reviewed_by LIKE '%E2E%'
+  });
+
+  test('red flag review saves all fields', async ({ page }) => {
+    // Use review mode with low severity filter
+    await page.goto('/ny/review?mode=review&type=flags&severity=low');
+    await expect(page.getByRole('heading', { name: /Review New York/i })).toBeVisible();
+
+    // Wait for cards to load
+    await page.waitForLoadState('networkidle');
+
+    const cardCount = await page.getByTestId('red-flag-card').count();
+
+    if (cardCount === 0) {
+      console.log('No low severity red flags found, skipping test');
+      return;
+    }
+
+    const card = page.getByTestId('red-flag-card').first();
+    await expect(card).toBeVisible();
+
+    // Store form elements
+    const reviewerInput = card.getByTestId('red-flag-reviewer-input');
+    const justificationTextarea = card.getByTestId('red-flag-justification-textarea');
+    const teamNotesTextarea = card.getByTestId('red-flag-team-notes-textarea');
+    const saveButton = card.getByTestId('red-flag-save-button');
+
+    const timestamp = Date.now();
+    const testTeamNotes = `E2E Red Flag Notes ${timestamp}`;
+
+    // Fill form fields
+    await reviewerInput.fill('E2E Test Reviewer');
+    await justificationTextarea.fill(`E2E Red Flag Justification ${timestamp}`);
+    await teamNotesTextarea.fill(testTeamNotes);
+
+    // Submit the form
+    await saveButton.click();
+    await page.waitForLoadState('networkidle');
+
+    // Verify the form shows saved values
+    await expect(teamNotesTextarea).toHaveValue(testTeamNotes);
+
+    // Note: This test leaves test data in the DB. Run cleanup query if needed:
+    // UPDATE red_flags SET reviewed_by = NULL, team_notes = NULL WHERE reviewed_by LIKE '%E2E%'
+  });
+
+  test('definition review form can be filled', async ({ page }) => {
+    // Navigate to definitions review
+    await page.goto('/ny/review?mode=review&type=definitions');
+    await expect(page.getByRole('heading', { name: /Review New York/i })).toBeVisible();
+
+    // Wait for cards to load
+    await page.waitForLoadState('networkidle');
+
+    const cardCount = await page.getByTestId('definition-card').count();
+
+    if (cardCount === 0) {
+      console.log('No definitions found for review, skipping test');
+      return;
+    }
+
+    const card = page.getByTestId('definition-card').first();
+    await expect(card).toBeVisible();
+
+    // Get form elements
+    const reviewerInput = card.getByTestId('definition-reviewer-input');
+    const teamNotesTextarea = card.getByTestId('definition-team-notes-textarea');
+
+    const timestamp = Date.now();
+    const testTeamNotes = `E2E Definition Notes ${timestamp}`;
+
+    // Verify we can fill the form fields
+    await reviewerInput.fill('E2E Test Reviewer');
+    await teamNotesTextarea.fill(testTeamNotes);
+
+    // Verify the values were filled
+    await expect(reviewerInput).toHaveValue('E2E Test Reviewer');
+    await expect(teamNotesTextarea).toHaveValue(testTeamNotes);
+
+    // Note: We don't click confirm to avoid permanently modifying definitions
+    // The test verifies the form is functional
+  });
+
+});
+

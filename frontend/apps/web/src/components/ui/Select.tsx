@@ -18,6 +18,7 @@ interface SelectProps {
   id?: string;
   name?: string;
   'aria-label'?: string;
+  'data-testid'?: string;
 }
 
 /**
@@ -38,6 +39,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
     id,
     name,
     'aria-label': ariaLabel,
+    'data-testid': dataTestId,
   }, ref) => {
     return (
       <RadixSelect.Root
@@ -50,6 +52,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
           ref={ref}
           id={id}
           aria-label={ariaLabel}
+          data-testid={dataTestId}
           className={`
             inline-flex items-center justify-between
             w-full

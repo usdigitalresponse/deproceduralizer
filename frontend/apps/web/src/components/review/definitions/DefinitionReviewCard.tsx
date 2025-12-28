@@ -268,7 +268,7 @@ export const DefinitionReviewCard = forwardRef<HTMLDivElement, DefinitionReviewC
     const wasChanged = (key: keyof DefinitionOriginalValues) => originalValues[key] !== undefined;
 
     return (
-      <CardWrapper ref={ref} id={`definition-${definition.id}`} isFocused={isFocused} isExiting={isExiting}>
+      <CardWrapper ref={ref} id={`definition-${definition.id}`} isFocused={isFocused} isExiting={isExiting} data-testid="definition-card">
         {/* Header */}
         <div className="flex items-start justify-between gap-4 mb-4">
           <div className="flex items-center gap-3">
@@ -461,6 +461,7 @@ export const DefinitionReviewCard = forwardRef<HTMLDivElement, DefinitionReviewC
                       checked={formData.isVerbatimTextComplete}
                       onChange={() => setFormData(prev => ({ ...prev, isVerbatimTextComplete: true }))}
                       className="text-[var(--color-primary)]"
+                      data-testid="definition-is-complete-yes"
                     />
                     Yes
                   </label>
@@ -470,6 +471,7 @@ export const DefinitionReviewCard = forwardRef<HTMLDivElement, DefinitionReviewC
                       checked={!formData.isVerbatimTextComplete}
                       onChange={() => setFormData(prev => ({ ...prev, isVerbatimTextComplete: false }))}
                       className="text-[var(--color-primary)]"
+                      data-testid="definition-is-complete-no"
                     />
                     No
                   </label>
@@ -609,6 +611,7 @@ export const DefinitionReviewCard = forwardRef<HTMLDivElement, DefinitionReviewC
               onChange={(e) => setFormData(prev => ({ ...prev, justificationNotes: e.target.value }))}
               rows={2}
               placeholder="Required if correcting or marking as false positive"
+              data-testid="definition-justification-textarea"
             />
           </div>
 
@@ -621,6 +624,7 @@ export const DefinitionReviewCard = forwardRef<HTMLDivElement, DefinitionReviewC
               onChange={(e) => setFormData(prev => ({ ...prev, teamNotes: e.target.value }))}
               rows={2}
               placeholder="Process notes, research tasks, questions..."
+              data-testid="definition-team-notes-textarea"
             />
           </div>
 
@@ -632,6 +636,7 @@ export const DefinitionReviewCard = forwardRef<HTMLDivElement, DefinitionReviewC
               value={formData.reviewerName}
               onChange={(e) => setFormData(prev => ({ ...prev, reviewerName: e.target.value }))}
               placeholder="Your name"
+              data-testid="definition-reviewer-input"
             />
           </div>
         </div>
@@ -649,6 +654,7 @@ export const DefinitionReviewCard = forwardRef<HTMLDivElement, DefinitionReviewC
             variant="danger"
             onClick={handleMarkFalsePositive}
             disabled={isPending}
+            data-testid="definition-false-positive-button"
           >
             Not a Definition
           </Button>
@@ -659,6 +665,7 @@ export const DefinitionReviewCard = forwardRef<HTMLDivElement, DefinitionReviewC
                 variant="primary"
                 onClick={handleSaveCorrections}
                 disabled={isPending}
+                data-testid="definition-save-corrections-button"
               >
                 {isPending ? 'Saving...' : 'Save Corrections'}
               </Button>
@@ -667,6 +674,7 @@ export const DefinitionReviewCard = forwardRef<HTMLDivElement, DefinitionReviewC
                 variant="primary"
                 onClick={handleConfirm}
                 disabled={isPending}
+                data-testid="definition-confirm-button"
               >
                 {isPending ? 'Confirming...' : 'Confirm'}
               </Button>

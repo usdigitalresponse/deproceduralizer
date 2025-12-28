@@ -4,17 +4,179 @@ import { useState, useTransition, useEffect, forwardRef } from 'react';
 import { updateDeveloperStatus, type DeveloperItem } from '@/lib/actions/developer';
 import { useDeveloperName } from '@/hooks/useDeveloperName';
 import { Button, Textarea, Badge, SeverityBadge, Select, Tag, CopyLinkButton } from '@/components/ui';
-import { DEVELOPER_STATUSES, RESOLUTION_TYPES, DEVELOPERS, DEVELOPER_STATUS_LABELS, ISSUE_TYPE_LABELS, formatLabel } from '@/types/regulation';
+import { DEVELOPER_STATUSES, RESOLUTION_TYPES, DEVELOPERS, DEVELOPER_STATUS_LABELS, ISSUE_TYPE_LABELS, formatLabel, PRIORITY_OPTIONS, IMPACT_TYPES } from '@/types/regulation';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
 import { ExpandableRegulationQuote } from './ExpandableRegulationQuote';
 import { CardWrapper } from './shared';
-import { Flag, FileWarning } from 'lucide-react';
+import { Flag, FileWarning, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface DeveloperCardProps {
   item: DeveloperItem;
   onUpdated: (updatedItem: DeveloperItem) => void;
   onViewRegulation: (regulationId: number) => void;
   isFocused?: boolean;
+}
+
+// Helper to format priority/impact values
+const getPriorityLabel = (priority: number | null) => {
+  if (!priority) return null;
+  const option = PRIORITY_OPTIONS.find(o => o.value === String(priority));
+  return option?.label || `P${priority}`;
+};
+
+const getImpactLabel = (impact: string | null) => {
+  if (!impact) return null;
+  const option = IMPACT_TYPES.find(o => o.value === impact);
+  return option?.label || formatLabel(impact);
+};
+
+// Review Summary Component
+function ReviewSummary({ item }: { item: DeveloperItem }) {
+  const [showDetails, setShowDetails] = useState(false);
+
+  // Get type-specific fields
+  const redFlag = item.redFlagData;
+  const compliance = item.complianceIssueData;
+
+  // Determine missing critical fields
+  const missingCritical: string[] = [];
+  if (!item.reviewedBy) missingCritical.push('Reviewer');
+  if (!item.justificationNotes) missingCritical.push('Justification');
+
+  // Type-specific missing fields
+  if (item.type === 'red_flag' && redFlag) {
+    if (!redFlag.priority) missingCritical.push('Priority');
+    if (!redFlag.impactType) missingCritical.push('Impact Type');
+  }
+
+  // Check for severity changes (compliance only)
+  const severityChanged = compliance && compliance.originalSeverity !== null &&
+    compliance.originalSeverity !== compliance.severity;
+
+  return (
+    <div className="mb-4 p-3 bg-[var(--color-primary-weaker)] rounded-[var(--radius-md)]">
+      <div className="flex items-center justify-between mb-2">
+        <div className="text-xs font-medium text-[var(--color-text-secondary)]">Review Summary</div>
+        {missingCritical.length > 0 && (
+          <div className="flex items-center gap-1 text-xs text-[var(--color-warning)]">
+            <AlertCircle className="w-3 h-3" />
+            Missing: {missingCritical.join(', ')}
+          </div>
+        )}
+      </div>
+
+      {/* Primary review info */}
+      <div className="flex items-center gap-4 text-sm flex-wrap">
+        <div>
+          <span className="text-[var(--color-text-muted)]">Status: </span>
+          <span className="text-[var(--color-text)]">{formatLabel(item.reviewStatus || 'unreviewed')}</span>
+        </div>
+        {item.reviewedBy ? (
+          <div>
+            <span className="text-[var(--color-text-muted)]">By: </span>
+            <span className="text-[var(--color-text)]">{item.reviewedBy}</span>
+          </div>
+        ) : (
+          <div className="text-[var(--color-text-muted)] italic">No reviewer</div>
+        )}
+        {item.reviewedAt && (
+          <div>
+            <span className="text-[var(--color-text-muted)]">Reviewed: </span>
+            <span className="text-[var(--color-text)]">
+              {new Date(item.reviewedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Type-specific fields */}
+      {item.type === 'red_flag' && redFlag && (
+        <div className="flex items-center gap-4 text-sm flex-wrap mt-2">
+          <div>
+            <span className="text-[var(--color-text-muted)]">Priority: </span>
+            <span className={redFlag.priority ? 'text-[var(--color-text)]' : 'text-[var(--color-text-muted)] italic'}>
+              {getPriorityLabel(redFlag.priority) || 'Not set'}
+            </span>
+          </div>
+          <div>
+            <span className="text-[var(--color-text-muted)]">Impact: </span>
+            <span className={redFlag.impactType ? 'text-[var(--color-text)]' : 'text-[var(--color-text-muted)] italic'}>
+              {getImpactLabel(redFlag.impactType) || 'Not set'}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {item.type === 'compliance_issue' && compliance && (
+        <div className="flex items-center gap-4 text-sm flex-wrap mt-2">
+          <div>
+            <span className="text-[var(--color-text-muted)]">Severity: </span>
+            <span className="text-[var(--color-text)]">{compliance.severity ?? 'Not set'}</span>
+            {severityChanged && (
+              <span className="ml-1 text-[var(--color-warning)] text-xs">
+                (was {compliance.originalSeverity})
+              </span>
+            )}
+          </div>
+          {compliance.impactType && (
+            <div>
+              <span className="text-[var(--color-text-muted)]">Impact: </span>
+              <span className="text-[var(--color-text)]">{getImpactLabel(compliance.impactType)}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Justification - always show (critical) */}
+      <div className="mt-2 text-sm">
+        <span className="text-[var(--color-text-muted)]">Justification: </span>
+        {item.justificationNotes ? (
+          <span className="text-[var(--color-text)]">{item.justificationNotes}</span>
+        ) : (
+          <span className="text-[var(--color-text-muted)] italic">Not provided</span>
+        )}
+      </div>
+
+      {/* Team notes - always show if present or if nothing else to show */}
+      {(item.teamNotes || !item.justificationNotes) && (
+        <div className="mt-1 text-sm">
+          <span className="text-[var(--color-text-muted)]">Team Notes: </span>
+          {item.teamNotes ? (
+            <span className="text-[var(--color-text)]">{item.teamNotes}</span>
+          ) : (
+            <span className="text-[var(--color-text-muted)] italic">None</span>
+          )}
+        </div>
+      )}
+
+      {/* Collapsible additional details */}
+      {(item.developerNotes || item.resolutionComments || item.developerQuestion) && (
+        <div className="mt-2 border-t border-[var(--color-neutral-200)] pt-2">
+          <button
+            type="button"
+            onClick={() => setShowDetails(!showDetails)}
+            className="flex items-center gap-1 text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text)]"
+          >
+            {showDetails ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+            {showDetails ? 'Hide' : 'Show'} developer details
+          </button>
+          {showDetails && (
+            <div className="mt-2 space-y-1 text-sm">
+              {item.developerNotes && (
+                <p><span className="text-[var(--color-text-muted)]">Dev Notes:</span> {item.developerNotes}</p>
+              )}
+              {item.resolutionComments && (
+                <p><span className="text-[var(--color-text-muted)]">Resolution:</span> {item.resolutionComments}</p>
+              )}
+              {item.developerQuestion && (
+                <p><span className="text-[var(--color-text-muted)]">Question:</span> {item.developerQuestion}</p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export const DeveloperCard = forwardRef<HTMLDivElement, DeveloperCardProps>(
@@ -215,31 +377,7 @@ export const DeveloperCard = forwardRef<HTMLDivElement, DeveloperCardProps>(
         </div>
 
         {/* Review info (read-only summary) */}
-        <div className="mb-4 p-3 bg-[var(--color-primary-weaker)] rounded-[var(--radius-md)]">
-          <div className="text-xs font-medium text-[var(--color-text-secondary)] mb-1">Review Summary</div>
-          <div className="flex items-center gap-4 text-sm">
-            <div>
-              <span className="text-[var(--color-text-muted)]">Status: </span>
-              <span className="text-[var(--color-text)]">{formatLabel(item.reviewStatus || 'unreviewed')}</span>
-            </div>
-            {item.reviewedBy && (
-              <div>
-                <span className="text-[var(--color-text-muted)]">By: </span>
-                <span className="text-[var(--color-text)]">{item.reviewedBy}</span>
-              </div>
-            )}
-          </div>
-          {(item.justificationNotes || item.teamNotes) && (
-            <div className="mt-2 text-sm text-[var(--color-text)] space-y-1">
-              {item.justificationNotes && (
-                <p><span className="text-[var(--color-text-muted)]">Justification:</span> {item.justificationNotes}</p>
-              )}
-              {item.teamNotes && (
-                <p><span className="text-[var(--color-text-muted)]">Team notes:</span> {item.teamNotes}</p>
-              )}
-            </div>
-          )}
-        </div>
+        <ReviewSummary item={item} />
 
         {/* Developer form */}
         <form onSubmit={handleSubmit} className="pt-4 border-t border-[var(--color-neutral-200)]">

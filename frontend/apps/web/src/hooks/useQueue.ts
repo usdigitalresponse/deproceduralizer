@@ -69,7 +69,8 @@ export function useQueue<TItem, TCounts extends object>({
   getRegulationId,
 }: UseQueueConfig<TItem, TCounts>): UseQueueReturn<TItem, TCounts> {
   const pathname = usePathname();
-  const [, setPage] = useQueryState('page', pageParser);
+  // Use shallow: false to trigger full navigation and server re-fetch
+  const [, setPage] = useQueryState('page', pageParser.withOptions({ shallow: false }));
 
   // Extract state from pathname
   const state = getStateFromPathname(pathname);

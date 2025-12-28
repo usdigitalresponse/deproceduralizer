@@ -11,6 +11,8 @@ import {
   DefinitionsReviewQueue,
   DefinitionsDeveloperQueue,
   ReviewPageError,
+  RedFlagDeveloperQueue,
+  ComplianceDeveloperQueue,
 } from '@/components/review';
 import {
   getDeveloperModeCountsData,
@@ -19,6 +21,8 @@ import {
   getComplianceQueueData,
   getNeedsInfoQueueData,
   getDeveloperQueueData,
+  getRedFlagDeveloperQueueData,
+  getComplianceDeveloperQueueData,
 } from '@/lib/actions/review-page';
 import {
   parseSeverityFilter,
@@ -147,7 +151,7 @@ async function renderDeveloperMode(
     );
   }
 
-  const { tabCounts, developerStatusCounts, needsInfoCounts } = countsResult.data;
+  const { tabCounts, redFlagDeveloperStatusCounts, complianceDeveloperStatusCounts, needsInfoCounts } = countsResult.data;
 
   // Definitions tab
   if (reviewType === 'definitions') {
@@ -185,33 +189,78 @@ async function renderDeveloperMode(
     );
   }
 
-  // Default: Combined developer queue
-  const itemsResult = await getDeveloperQueueData(stateCode, {
+  // Compliance issues tab
+  if (reviewType === 'compliance') {
+    const sortBy = (queryParams.sortBy || 'severity') as 'severity' | 'issueType' | 'reviewedAt' | 'developerCheckedAt';
+    const dataResult = await getComplianceDeveloperQueueData(stateCode, {
+      page,
+      pageSize,
+      sortBy,
+      sortOrder,
+      developerStatus: queryParams.developerStatus || undefined,
+      developerAssigned: queryParams.developerAssigned || undefined,
+      severity: (queryParams.severity || 'all') as 'high' | 'medium' | 'low' | 'all',
+      reviewStatus: queryParams.reviewStatus || undefined,
+      issueType: queryParams.issueType || undefined,
+    });
+
+    if (!dataResult.success) {
+      return (
+        <ReviewPageError
+          title={pageConfig.title}
+          description={pageConfig.description}
+          error={dataResult.error}
+          controls={{ mode: 'developer', reviewType, tabCounts }}
+        />
+      );
+    }
+
+    const { items, issueTypes } = dataResult.data;
+    return (
+      <ReviewPageLayout pageConfig={pageConfig} mode="developer" reviewType={reviewType} tabCounts={tabCounts}>
+        <ComplianceDeveloperQueue
+          initialItems={items.data}
+          pagination={{ page: items.page, pageSize: items.pageSize, total: items.total, totalPages: items.totalPages }}
+          statusCounts={complianceDeveloperStatusCounts}
+          issueTypes={issueTypes}
+        />
+      </ReviewPageLayout>
+    );
+  }
+
+  // Default: Red Flags tab
+  const sortBy = (queryParams.sortBy || 'severity') as 'severity' | 'category' | 'reviewedAt' | 'developerCheckedAt';
+  const dataResult = await getRedFlagDeveloperQueueData(stateCode, {
     page,
     pageSize,
+    sortBy,
     sortOrder,
     developerStatus: queryParams.developerStatus || undefined,
     developerAssigned: queryParams.developerAssigned || undefined,
+    severity: (queryParams.severity || 'all') as 'high' | 'medium' | 'low' | 'all',
+    reviewStatus: queryParams.reviewStatus || undefined,
+    category: queryParams.category || undefined,
   });
 
-  if (!itemsResult.success) {
+  if (!dataResult.success) {
     return (
       <ReviewPageError
         title={pageConfig.title}
         description={pageConfig.description}
-        error={itemsResult.error}
+        error={dataResult.error}
         controls={{ mode: 'developer', reviewType, tabCounts }}
       />
     );
   }
 
-  const items = itemsResult.data;
+  const { items, categories } = dataResult.data;
   return (
     <ReviewPageLayout pageConfig={pageConfig} mode="developer" reviewType={reviewType} tabCounts={tabCounts}>
-      <DeveloperQueue
+      <RedFlagDeveloperQueue
         initialItems={items.data}
         pagination={{ page: items.page, pageSize: items.pageSize, total: items.total, totalPages: items.totalPages }}
-        statusCounts={developerStatusCounts}
+        statusCounts={redFlagDeveloperStatusCounts}
+        categories={categories}
       />
     </ReviewPageLayout>
   );

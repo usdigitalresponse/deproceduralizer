@@ -19,6 +19,11 @@ export { DeveloperFilters } from './DeveloperFilters';
 export { DeveloperProgress } from './DeveloperProgress';
 export { NeedMoreInfoQueue } from './NeedMoreInfoQueue';
 export { NeedMoreInfoCard } from './NeedMoreInfoCard';
+// Separate developer queues
+export { RedFlagDeveloperQueue } from './RedFlagDeveloperQueue';
+export { RedFlagDeveloperFilters } from './RedFlagDeveloperFilters';
+export { ComplianceDeveloperQueue } from './ComplianceDeveloperQueue';
+export { ComplianceDeveloperFilters } from './ComplianceDeveloperFilters';
 
 // Definition review components
 export {

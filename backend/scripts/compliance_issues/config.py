@@ -1,7 +1,7 @@
 """
 Configuration for compliance issue detection.
 
-Loads issue type definitions from compliance_issues.yaml (single source of truth).
+Loads issue type definitions from prompts/compliance_issues.yaml (single source of truth).
 Only state configurations are defined here in Python.
 """
 
@@ -114,7 +114,8 @@ def _load_issue_types(include_dedicated: bool = False) -> dict[str, IssueTypeCon
         include_dedicated: If True, include issue types that use dedicated tables.
                           Default False to avoid accidental duplicate processing.
     """
-    yaml_path = Path(__file__).parent / 'compliance_issues.yaml'
+    # config.py is in backend/scripts/compliance_issues/, prompts/ is in root
+    yaml_path = Path(__file__).parent.parent.parent.parent / 'prompts' / 'compliance_issues.yaml'
 
     with open(yaml_path, 'r') as f:
         data = yaml.safe_load(f)

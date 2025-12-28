@@ -27,9 +27,9 @@ _prompts_cache: Optional[Dict] = None
 
 
 def _get_prompts_path() -> Path:
-    """Get the path to prompts.yaml in the project root."""
-    # shared_utils.py is in backend/, prompts.yaml is in root
-    return Path(__file__).parent.parent / "prompts.yaml"
+    """Get the path to core.yaml in the prompts directory."""
+    # shared_utils.py is in backend/, prompts/ is in root
+    return Path(__file__).parent.parent / "prompts" / "core.yaml"
 
 
 def _load_prompts() -> Dict:

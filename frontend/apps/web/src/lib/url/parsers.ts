@@ -21,6 +21,8 @@ import {
   SORT_ORDER_VALUES,
   FLAG_SORT_BY_VALUES,
   DEVELOPER_SORT_BY_VALUES,
+  RED_FLAG_DEVELOPER_SORT_BY_VALUES,
+  COMPLIANCE_DEVELOPER_SORT_BY_VALUES,
   REVIEW_TYPE_VALUES,
   REVIEW_MODE_VALUES,
   GLOSSARY_VIEW_VALUES,
@@ -50,6 +52,8 @@ export type {
   SortOrderValue,
   FlagSortByValue,
   DeveloperSortByValue,
+  RedFlagDeveloperSortByValue,
+  ComplianceDeveloperSortByValue,
   ReviewTypeValue,
   ReviewModeValue,
   GlossaryViewValue,
@@ -139,6 +143,8 @@ export const flagSortByParser = parseAsStringEnum([...FLAG_SORT_BY_VALUES]).with
 export const complianceSortByParser = parseAsStringEnum([...COMPLIANCE_SORT_BY_VALUES]).withDefault('severity');
 
 export const developerSortByParser = parseAsStringEnum([...DEVELOPER_SORT_BY_VALUES]).withDefault('reviewedAt');
+export const redFlagDeveloperSortByParser = parseAsStringEnum([...RED_FLAG_DEVELOPER_SORT_BY_VALUES]).withDefault('severity');
+export const complianceDeveloperSortByParser = parseAsStringEnum([...COMPLIANCE_DEVELOPER_SORT_BY_VALUES]).withDefault('severity');
 
 // Definitions review parsers
 export const definitionsReviewStatusParser = parseAsStringEnum([...DEFINITIONS_REVIEW_STATUS_VALUES]).withDefault('all');
@@ -269,5 +275,33 @@ export const dataTableFiltersParsers = {
   reporting: parseAsString,     // Tri-state: 'true'|'false'|'null'
   summarySearch: parseAsString,
   sortBy: parseAsString.withDefault('maxSeverity'),
+  sortOrder: sortOrderParser,
+};
+
+/**
+ * Parser configuration for red flag developer queue filters
+ */
+export const redFlagDeveloperQueueParsers = {
+  page: pageParser,
+  developerStatus: developerStatusParser,
+  developerAssigned: developerAssignedParser,
+  severity: severityParser,
+  reviewStatus: reviewStatusParser,
+  category: categoryParser,
+  sortBy: redFlagDeveloperSortByParser,
+  sortOrder: sortOrderParser,
+};
+
+/**
+ * Parser configuration for compliance issue developer queue filters
+ */
+export const complianceDeveloperQueueParsers = {
+  page: pageParser,
+  developerStatus: developerStatusParser,
+  developerAssigned: developerAssignedParser,
+  severity: severityParser,
+  reviewStatus: reviewStatusParser,
+  issueType: categoryParser,
+  sortBy: complianceDeveloperSortByParser,
   sortOrder: sortOrderParser,
 };

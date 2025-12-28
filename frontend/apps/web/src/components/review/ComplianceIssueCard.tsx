@@ -294,6 +294,7 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
                   onValueChange={(value) => updateField('reviewStatus', value)}
                   options={statusOptions}
                   disabled={isPending}
+                  data-testid="compliance-status-select"
                 />
               </div>
 
@@ -312,6 +313,7 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
                   onValueChange={(value) => updateField('severity', value === 'none' ? undefined : parseInt(value))}
                   options={severityOptions}
                   disabled={isPending}
+                  data-testid="compliance-severity-select"
                 />
                 <p className="mt-1 text-[10px] text-[var(--color-text-muted)]">
                   Change if severity doesn&apos;t match your assessment
@@ -328,6 +330,7 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
                   onValueChange={(value) => updateField('impactType', value === 'none' ? undefined : value)}
                   options={impactOptions}
                   disabled={isPending}
+                  data-testid="compliance-impact-select"
                 />
               </div>
 
@@ -341,6 +344,7 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
                   onChange={(e) => updateField('reviewedBy', e.target.value)}
                   placeholder="Your name"
                   disabled={isPending}
+                  data-testid="compliance-reviewer-input"
                 />
               </div>
             </div>
@@ -363,6 +367,7 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
               rows={3}
               placeholder="e.g., 'This should not be flagged as severe - while it mentions in-person work, cardiovascular surgery must always be performed in person.' or 'Excellent example of outdated technology - requires CD-ROM submission with no alternative for a mandatory process.'"
               disabled={isPending}
+              data-testid="compliance-justification-textarea"
             />
           </div>
 
@@ -377,12 +382,13 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
               rows={2}
               placeholder="Process notes, research tasks, questions..."
               disabled={isPending}
+              data-testid="compliance-team-notes-textarea"
             />
           </div>
 
           {/* Actions */}
           <div className="flex items-center justify-end">
-            <Button type="submit" variant="primary" size="sm" isLoading={isPending}>
+            <Button type="submit" variant="primary" size="sm" isLoading={isPending} data-testid="compliance-save-button">
               {isPending ? 'Saving...' : 'Save Review'}
             </Button>
           </div>
