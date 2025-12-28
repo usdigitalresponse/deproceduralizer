@@ -1,11 +1,14 @@
 'use client';
 
-import { useState, useTransition, useEffect, forwardRef } from 'react';
+import { useState, useTransition, useEffect, forwardRef, useCallback } from 'react';
 import { updateDeveloperStatus, type DeveloperItem } from '@/lib/actions/developer';
+import { getExpandedContext } from '@/lib/actions/compliance-issues';
 import { useDeveloperName } from '@/hooks/useDeveloperName';
 import { Button, Textarea, Badge, SeverityBadge, Select, Tag, CopyLinkButton } from '@/components/ui';
 import { DEVELOPER_STATUSES, RESOLUTION_TYPES, DEVELOPERS, DEVELOPER_STATUS_LABELS, ISSUE_TYPE_LABELS, formatLabel, PRIORITY_OPTIONS, IMPACT_TYPES } from '@/types/regulation';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
+import { formatNjacCitation } from '@/lib/formatters/njac';
+import { highlightContext } from '@/lib/utils/highlight';
 import { ExpandableRegulationQuote } from './ExpandableRegulationQuote';
 import { CardWrapper } from './shared';
 import { Flag, FileWarning, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
@@ -185,6 +188,11 @@ export const DeveloperCard = forwardRef<HTMLDivElement, DeveloperCardProps>(
     const [error, setError] = useState<string | null>(null);
     const { developerName: storedName, saveDeveloperName, isLoaded } = useDeveloperName();
 
+    // State for expandable context (compliance issues)
+    const [isContextExpanded, setIsContextExpanded] = useState(false);
+    const [expandedText, setExpandedText] = useState<string | null>(null);
+    const [isLoadingContext, setIsLoadingContext] = useState(false);
+
     const [formData, setFormData] = useState({
       developerStatus: item.developerStatus || 'unresolved',
       developerAssigned: item.developerAssigned || '',
@@ -262,6 +270,37 @@ export const DeveloperCard = forwardRef<HTMLDivElement, DeveloperCardProps>(
       }
     };
 
+    // Handle expanding context for compliance issues
+    const handleExpandContext = useCallback(async () => {
+      if (!item.complianceIssueData) return;
+      const issue = item.complianceIssueData;
+
+      if (isContextExpanded) {
+        setIsContextExpanded(false);
+        return;
+      }
+
+      if (expandedText) {
+        setIsContextExpanded(true);
+        return;
+      }
+
+      setIsLoadingContext(true);
+      try {
+        const result = await getExpandedContext(issue.documentId, issue.matchedContext ?? '', 800);
+        if (result.success && result.data.couldExpand) {
+          setExpandedText(result.data.expandedText);
+          setIsContextExpanded(true);
+        } else if (!result.success) {
+          console.error('Failed to expand context:', result.error);
+        }
+      } catch (err) {
+        console.error('Failed to expand context:', err);
+      } finally {
+        setIsLoadingContext(false);
+      }
+    }, [isContextExpanded, expandedText, item.complianceIssueData]);
+
     // Render type-specific content
     const renderItemContent = () => {
       if (item.type === 'red_flag' && item.redFlagData) {
@@ -289,43 +328,145 @@ export const DeveloperCard = forwardRef<HTMLDivElement, DeveloperCardProps>(
               documentId={flag.regulation.id}
               variant="default"
             />
+
+            {/* Matched phrases */}
+            {flag.matchedPhrases && flag.matchedPhrases.length > 0 && (
+              <div className="mb-4">
+                <span className="text-xs font-medium text-[var(--color-text-secondary)]">Matched phrases:</span>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {flag.matchedPhrases.map((phrase, i) => (
+                    <Tag key={i} variant="primary" size="sm">
+                      {phrase}
+                    </Tag>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Implementation approach */}
+            {flag.implementationApproach && (
+              <div className="mb-4 text-sm">
+                <span className="font-medium text-[var(--color-text-secondary)]">Implementation:</span>
+                <span className="ml-2 text-[var(--color-text)]">{flag.implementationApproach}</span>
+              </div>
+            )}
           </>
         );
       }
 
       if (item.type === 'compliance_issue' && item.complianceIssueData) {
         const issue = item.complianceIssueData;
-        const nycrrCitation = issue.state === 'NY'
-          ? formatNycrrCitation(
+        const citation = issue.state === 'NJ'
+          ? formatNjacCitation(
+              issue.regulation.njacTitle,
+              issue.regulation.njacChapter,
+              issue.regulation.njacSubchapter
+            )
+          : formatNycrrCitation(
               issue.regulation.nycrrTitle,
               issue.regulation.nycrrPart,
               issue.regulation.nycrrSection
-            )
-          : null;
+            );
 
         return (
           <>
-            <div className="flex items-center gap-2 mb-2">
+            {/* Header badges */}
+            <div className="flex items-center gap-2 mb-2 flex-wrap">
               <Badge variant="warning">{ISSUE_TYPE_LABELS[issue.issueType] || formatLabel(issue.issueType)}</Badge>
-              {issue.requirementFound && <Badge variant="success">LLM Confirmed</Badge>}
+              {issue.requirementFound && <Badge variant="success" className="text-xs">LLM Confirmed</Badge>}
+              {issue.requiredByStatute && <Badge variant="info" className="text-xs">From Statute</Badge>}
+              {issue.severity !== null && <SeverityBadge severity={issue.severity} />}
             </div>
-            <div className="text-sm text-[var(--color-text-muted)] mb-2">
-              {nycrrCitation && <span className="font-mono">{nycrrCitation}</span>}
-              {nycrrCitation && issue.regulation.title && ' - '}
+
+            {/* Regulation citation */}
+            <div className="text-sm text-[var(--color-text-muted)] mb-4">
+              {citation && <span className="font-mono">{citation}</span>}
+              {citation && issue.regulation.title && ' - '}
               <span className="text-[var(--color-text-secondary)]">{issue.regulation.title}</span>
             </div>
-            {issue.matchedPattern && (
-              <div className="mb-2">
-                <Tag variant="primary" size="sm">{issue.matchedPattern}</Tag>
+
+            {/* LLM Analysis box */}
+            {(issue.impactAssessment || issue.requirementText) && (
+              <div className="mb-4 p-4 bg-[var(--color-primary-bg)] rounded-[var(--radius-md)] border border-[var(--color-primary)]/20">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-sm font-semibold text-[var(--color-primary)]">LLM Analysis</span>
+                  {issue.isVerbatim !== null && (
+                    <Badge
+                      variant={issue.isVerbatim ? 'info' : 'default'}
+                      className="text-[10px] py-0 px-1.5"
+                    >
+                      {issue.isVerbatim ? 'Verbatim Quote' : 'Paraphrased'}
+                    </Badge>
+                  )}
+                </div>
+
+                {/* Requirement Text */}
+                {issue.requirementText && (
+                  <div className="mb-3">
+                    <p className="text-sm text-[var(--color-text)] whitespace-pre-wrap leading-relaxed">
+                      {issue.isVerbatim && <span className="text-[var(--color-text-muted)]">&quot;</span>}
+                      {issue.requirementText}
+                      {issue.isVerbatim && <span className="text-[var(--color-text-muted)]">&quot;</span>}
+                    </p>
+                  </div>
+                )}
+
+                {/* Impact Assessment */}
+                {issue.impactAssessment && (
+                  <div className="pt-3 border-t border-[var(--color-primary)]/10">
+                    <span className="text-xs font-medium text-[var(--color-text-secondary)]">Impact Assessment:</span>
+                    <p className="mt-1 text-sm text-[var(--color-text)]">{issue.impactAssessment}</p>
+                  </div>
+                )}
+
+                {/* Statute Citation */}
+                {issue.statuteCitation && (
+                  <div className="pt-3 border-t border-[var(--color-primary)]/10">
+                    <span className="text-xs font-medium text-[var(--color-text-secondary)]">Statute Citation:</span>
+                    <p className="mt-1 text-sm font-mono text-[var(--color-text)]">{issue.statuteCitation}</p>
+                  </div>
+                )}
               </div>
             )}
-            <ExpandableRegulationQuote
-              text={issue.requirementText ?? ''}
-              label="Regulation Text"
-              documentId={issue.regulation.id}
-              highlightTerm={issue.matchedPattern}
-              variant="warning"
-            />
+
+            {/* View Full Section button */}
+            {issue.matchedContext && (
+              <div className="mb-4">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleExpandContext}
+                  disabled={isLoadingContext}
+                >
+                  {isLoadingContext ? 'Loading...' : isContextExpanded ? 'Hide Section Text' : 'View Full Section'}
+                </Button>
+              </div>
+            )}
+
+            {/* Expanded context with highlighting */}
+            {isContextExpanded && expandedText && (
+              <div className="mb-4 p-4 bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] border border-[var(--color-neutral-200)]">
+                <p className="text-sm text-[var(--color-text)] whitespace-pre-wrap leading-relaxed">
+                  {highlightContext(expandedText, issue.matchedContext ?? '', issue.matchedPattern ?? undefined)}
+                </p>
+              </div>
+            )}
+
+            {/* Technical Details (collapsible) */}
+            {issue.matchedPattern && (
+              <details className="mb-4">
+                <summary className="text-xs font-medium text-[var(--color-text-secondary)] cursor-pointer hover:text-[var(--color-text)] py-1">
+                  Technical Details
+                </summary>
+                <div className="mt-2 pl-2 border-l-2 border-[var(--color-neutral-200)]">
+                  <span className="text-xs font-medium text-[var(--color-text-secondary)]">Pattern matched:</span>
+                  <div className="mt-1">
+                    <Tag variant="warning" size="sm">{issue.matchedPattern}</Tag>
+                  </div>
+                </div>
+              </details>
+            )}
           </>
         );
       }
