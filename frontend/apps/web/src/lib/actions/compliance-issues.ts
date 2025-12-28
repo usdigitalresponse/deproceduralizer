@@ -50,6 +50,7 @@ export async function updateComplianceIssueReview(
       reviewStatus: input.reviewStatus as ReviewStatus,
       reviewedBy: input.reviewedBy,
       justificationNotes: input.justificationNotes,
+      teamNotes: input.teamNotes,
       severity: input.severity,
       impactType: input.impactType as ImpactType | undefined,
     });

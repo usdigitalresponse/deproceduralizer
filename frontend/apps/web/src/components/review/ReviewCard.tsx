@@ -76,6 +76,7 @@ export const ReviewCard = forwardRef<HTMLDivElement, ReviewCardProps>(
         ref={ref}
         id={`flag-${flag.id}`}
         isFocused={isFocused}
+        data-testid="red-flag-card"
       >
         {/* Header */}
         <div className="flex items-start justify-between gap-4 mb-4">
@@ -157,6 +158,7 @@ export const ReviewCard = forwardRef<HTMLDivElement, ReviewCardProps>(
                   onValueChange={(value) => updateField('reviewStatus', value)}
                   options={statusOptions}
                   disabled={isPending}
+                  data-testid="red-flag-status-select"
                 />
               </div>
 
@@ -170,6 +172,7 @@ export const ReviewCard = forwardRef<HTMLDivElement, ReviewCardProps>(
                 onValueChange={(value) => updateField('priority', value === 'none' ? undefined : parseInt(value))}
                 options={priorityOptions}
                 disabled={isPending}
+                data-testid="red-flag-priority-select"
               />
             </div>
 
@@ -183,6 +186,7 @@ export const ReviewCard = forwardRef<HTMLDivElement, ReviewCardProps>(
                 onValueChange={(value) => updateField('impactType', value === 'none' ? undefined : value)}
                 options={impactOptions}
                 disabled={isPending}
+                data-testid="red-flag-impact-select"
               />
             </div>
 
@@ -196,6 +200,7 @@ export const ReviewCard = forwardRef<HTMLDivElement, ReviewCardProps>(
                 onChange={(e) => updateField('reviewedBy', e.target.value)}
                 placeholder="Your name"
                 disabled={isPending}
+                data-testid="red-flag-reviewer-input"
               />
             </div>
             </div>
@@ -218,6 +223,7 @@ export const ReviewCard = forwardRef<HTMLDivElement, ReviewCardProps>(
               rows={2}
               placeholder="Explain your reasoning for this classification..."
               disabled={isPending}
+              data-testid="red-flag-justification-textarea"
             />
           </div>
 
@@ -232,6 +238,7 @@ export const ReviewCard = forwardRef<HTMLDivElement, ReviewCardProps>(
               rows={2}
               placeholder="Process notes, research tasks, questions..."
               disabled={isPending}
+              data-testid="red-flag-team-notes-textarea"
             />
           </div>
 
@@ -245,7 +252,7 @@ export const ReviewCard = forwardRef<HTMLDivElement, ReviewCardProps>(
             >
               View Regulation
             </Button>
-            <Button type="submit" variant="primary" size="sm" isLoading={isPending}>
+            <Button type="submit" variant="primary" size="sm" isLoading={isPending} data-testid="red-flag-save-button">
               {isPending ? 'Saving...' : 'Save Review'}
             </Button>
           </div>

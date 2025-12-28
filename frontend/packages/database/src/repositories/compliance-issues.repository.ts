@@ -10,6 +10,7 @@ export interface UpdateComplianceIssueReviewInput {
   reviewStatus: ReviewStatus;
   reviewedBy?: string;
   justificationNotes?: string;
+  teamNotes?: string;
   severity?: number;
   impactType?: string;
 }
@@ -109,6 +110,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       reviewedBy: data.reviewedBy ?? null,
       reviewedAt: new Date(),
       justificationNotes: data.justificationNotes ?? null,
+      teamNotes: data.teamNotes ?? null,
       impactType: data.impactType ?? null,
     };
 
