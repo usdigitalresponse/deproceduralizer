@@ -77,7 +77,7 @@ function extractVariables(template: string): PromptVariable[] {
  */
 export async function getPrompts(): Promise<ActionResult<PromptData[]>> {
   try {
-    const promptsPath = join(process.cwd(), 'src/data/prompts.yaml');
+    const promptsPath = join(process.cwd(), 'src/data/core.yaml');
     const fileContent = await readFile(promptsPath, 'utf-8');
     const parsed = yaml.load(fileContent) as Record<string, RawPromptData>;
 
