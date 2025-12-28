@@ -161,24 +161,25 @@ Provide your analysis in this format:
 </examples>
 ```
 
-## Tags in prompts.yaml
+## Tags in prompts/
 
-When writing prompts for this project:
+When writing prompts for this project (in `prompts/core.yaml` or `prompts/compliance_issues.yaml`):
 
 ```yaml
 my_analysis_prompt:
-  template: |
+  system: |
     <instructions>
     1. Read the section carefully
     2. Identify key issues
     3. Rate severity 1-10
     </instructions>
 
+    Return your analysis as JSON with fields: issues, severity, summary
+
+  template: |
     <section>
     {section_text}
     </section>
-
-    Return your analysis as JSON with fields: issues, severity, summary
 ```
 
 ## What NOT to Do

@@ -37,17 +37,39 @@ Every prompt MUST have:
 2. **Structured output format** - How should the response be formatted?
 3. **XML tags** for any multi-part content
 
-## Integration with prompts.yaml
+## Integration with prompts/
 
-All prompts in this project go in `/prompts.yaml`. Each prompt has:
-- `description`: What the prompt does (shown on /prompts page)
-- `template`: The actual prompt with `{variable}` placeholders
+All prompts in this project go in the `/prompts/` directory:
+- `prompts/core.yaml` - Core analysis prompts (red_flags, definitions)
+- `prompts/compliance_issues.yaml` - Compliance issue prompts with patterns
+
+Each prompt has:
+- `updated_at`: Date of last modification (YYYY-MM-DD format)
+- `description`: What the prompt does
+- `system`: Static content (cached)
+- `template`: Dynamic content with `{variable}` placeholders
 
 ```yaml
+# In prompts/core.yaml
 my_new_prompt:
+  updated_at: "2025-12-26"  # Update this when modifying the prompt
   description: |
     Brief description of what this prompt analyzes or generates.
-
+  system: |
+    [Static instructions here - this gets cached]
   template: |
-    [Your prompt here with {variables}]
+    [Dynamic content with {variables}]
 ```
+
+## Updating Prompts
+
+When you modify any prompt in `/prompts/`, always update the `updated_at` field to today's date:
+
+```yaml
+my_prompt:
+  updated_at: "2025-12-26"  # <- Update to today's date
+  description: |
+    ...
+```
+
+This helps track when prompts were last changed and is displayed on the `/prompts` page.
