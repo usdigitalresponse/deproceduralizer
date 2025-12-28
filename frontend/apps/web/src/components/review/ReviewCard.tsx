@@ -252,7 +252,14 @@ export const ReviewCard = forwardRef<HTMLDivElement, ReviewCardProps>(
             >
               View Regulation
             </Button>
-            <Button type="submit" variant="primary" size="sm" isLoading={isPending} data-testid="red-flag-save-button">
+            <Button
+              type="submit"
+              variant="primary"
+              size="sm"
+              isLoading={isPending}
+              disabled={isPending || !formData.reviewedBy.trim()}
+              data-testid="red-flag-save-button"
+            >
               {isPending ? 'Saving...' : 'Save Review'}
             </Button>
           </div>

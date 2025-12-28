@@ -388,7 +388,14 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
 
           {/* Actions */}
           <div className="flex items-center justify-end">
-            <Button type="submit" variant="primary" size="sm" isLoading={isPending} data-testid="compliance-save-button">
+            <Button
+              type="submit"
+              variant="primary"
+              size="sm"
+              isLoading={isPending}
+              disabled={isPending || !formData.reviewedBy.trim()}
+              data-testid="compliance-save-button"
+            >
               {isPending ? 'Saving...' : 'Save Review'}
             </Button>
           </div>
