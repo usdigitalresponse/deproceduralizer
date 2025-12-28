@@ -138,9 +138,14 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
               </Badge>
               <ExternalLink className="w-3.5 h-3.5 text-[var(--color-text-muted)] group-hover:text-[var(--color-warning)] transition-colors" />
             </a>
-            {issue.requirementFound && (
+            {issue.requirementFound === true && (
               <Badge variant="success" className="text-xs">
                 LLM Confirmed
+              </Badge>
+            )}
+            {issue.requirementFound === false && (
+              <Badge variant="danger" className="text-xs">
+                LLM Rejected
               </Badge>
             )}
             {issue.requiredByStatute && (

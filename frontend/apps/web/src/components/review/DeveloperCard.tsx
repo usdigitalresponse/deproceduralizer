@@ -373,7 +373,8 @@ export const DeveloperCard = forwardRef<HTMLDivElement, DeveloperCardProps>(
             {/* Header badges */}
             <div className="flex items-center gap-2 mb-2 flex-wrap">
               <Badge variant="warning">{ISSUE_TYPE_LABELS[issue.issueType] || formatLabel(issue.issueType)}</Badge>
-              {issue.requirementFound && <Badge variant="success" className="text-xs">LLM Confirmed</Badge>}
+              {issue.requirementFound === true && <Badge variant="success" className="text-xs">LLM Confirmed</Badge>}
+              {issue.requirementFound === false && <Badge variant="danger" className="text-xs">LLM Rejected</Badge>}
               {issue.requiredByStatute && <Badge variant="info" className="text-xs">From Statute</Badge>}
               {issue.severity !== null && <SeverityBadge severity={issue.severity} />}
             </div>
