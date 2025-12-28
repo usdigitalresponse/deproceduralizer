@@ -43,3 +43,10 @@ node_modules
 # Data files
 data/raw/
 data/*.csv
+data/outputs/batches/
+
+# Codebase exports
+*_codebase_export.txt
+codebase_export*.txt
+*_codebase_export_compact.txt
+*_codebase_export_mini.txt
