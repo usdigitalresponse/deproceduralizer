@@ -4,7 +4,8 @@ import { useState, useRef, useMemo, useEffect, useCallback, useDeferredValue } f
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { AnnotatableContent, NotesSidePanel } from '@/components/notes';
-import type { DocumentNote, ApplicableDefinition } from '@deproceduralizer/database';
+import { useCrossRefHighlighting } from '@/hooks';
+import type { DocumentNote, ApplicableDefinition, HighlightRef } from '@deproceduralizer/database';
 
 interface RegulationDetailClientProps {
   content: string;
@@ -13,6 +14,8 @@ interface RegulationDetailClientProps {
   initialNotes: DocumentNote[];
   /** Applicable definitions for term highlighting */
   applicableDefinitions?: ApplicableDefinition[];
+  /** Cross-references for inline highlighting */
+  crossRefHighlights?: HighlightRef[];
 }
 
 export function RegulationDetailClient({
@@ -21,6 +24,7 @@ export function RegulationDetailClient({
   state,
   initialNotes,
   applicableDefinitions,
+  crossRefHighlights,
 }: RegulationDetailClientProps) {
   const [notes, setNotes] = useState<DocumentNote[]>(initialNotes);
   const [activeNoteId, setActiveNoteId] = useState<number | null>(null);
@@ -30,6 +34,9 @@ export function RegulationDetailClient({
 
   // Debounce search query using useDeferredValue for smoother typing
   const deferredSearchQuery = useDeferredValue(searchQuery);
+
+  // Process cross-reference data for highlighting
+  const crossRefMatches = useCrossRefHighlighting(crossRefHighlights);
 
   // Cache lowercase content (only recalculates when content changes, not on every query change)
   const lowerContent = useMemo(() => content?.toLowerCase() ?? '', [content]);
@@ -206,6 +213,7 @@ export function RegulationDetailClient({
                 onNoteCreated={handleNoteCreated}
                 onNoteClick={handleNoteClick}
                 applicableDefinitions={applicableDefinitions}
+                crossRefHighlights={crossRefMatches}
                 searchQuery={searchQuery}
                 currentMatchIndex={currentMatchIndex}
               />

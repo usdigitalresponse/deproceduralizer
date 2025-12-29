@@ -86,6 +86,8 @@ export interface HierarchyNode {
   // Compliance issue counts
   complianceIssueCount: number;           // Direct issues on this document
   totalComplianceIssues: number;          // Combined (own + descendants)
+  // Cross-reference count
+  crossReferenceCount: number;            // Outgoing cross-references from this document
   // Filter-aware counts (when filters applied)
   matchingChildCount: number;      // Direct children matching filter
   matchingDescendantCount: number; // All descendants matching filter
@@ -206,6 +208,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         hasDescendantAnalysis: regulatoryDocuments.hasDescendantAnalysis,
         complianceIssueCount: regulatoryDocuments.complianceIssueCount,
         descendantComplianceIssueCount: regulatoryDocuments.descendantComplianceIssueCount,
+        crossReferenceCount: regulatoryDocuments.crossReferenceCount,
         // Regulatory status
         regulatoryStatus: regulatoryDocuments.regulatoryStatus,
         recodifiedTo: regulatoryDocuments.recodifiedTo,
@@ -475,6 +478,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         hasDescendantAnalysis: regulatoryDocuments.hasDescendantAnalysis,
         complianceIssueCount: regulatoryDocuments.complianceIssueCount,
         descendantComplianceIssueCount: regulatoryDocuments.descendantComplianceIssueCount,
+        crossReferenceCount: regulatoryDocuments.crossReferenceCount,
         // Regulatory status
         regulatoryStatus: regulatoryDocuments.regulatoryStatus,
         recodifiedTo: regulatoryDocuments.recodifiedTo,
@@ -622,6 +626,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         hasDescendantAnalysis: regulatoryDocuments.hasDescendantAnalysis,
         complianceIssueCount: regulatoryDocuments.complianceIssueCount,
         descendantComplianceIssueCount: regulatoryDocuments.descendantComplianceIssueCount,
+        crossReferenceCount: regulatoryDocuments.crossReferenceCount,
         // Regulatory status
         regulatoryStatus: regulatoryDocuments.regulatoryStatus,
         recodifiedTo: regulatoryDocuments.recodifiedTo,
@@ -750,6 +755,8 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         -- Compliance issue counts (not computed in slow path, default to 0)
         0 as "complianceIssueCount",
         0 as "totalComplianceIssues",
+        -- Cross-reference count
+        COALESCE(rd.cross_reference_count, 0)::int as "crossReferenceCount",
         COALESCE(child_stats.matching_child_count, 0)::int as "matchingChildCount",
         COALESCE(descendant_stats.matching_descendant_count, 0)::int as "matchingDescendantCount"
       FROM regulatory_documents rd
@@ -847,6 +854,8 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         -- Compliance issue counts (not computed in slow path, default to 0)
         0 as "complianceIssueCount",
         0 as "totalComplianceIssues",
+        -- Cross-reference count
+        COALESCE(rd.cross_reference_count, 0)::int as "crossReferenceCount",
         COALESCE(child_stats.matching_child_count, 0)::int as "matchingChildCount",
         COALESCE(descendant_stats.matching_descendant_count, 0)::int as "matchingDescendantCount"
       FROM regulatory_documents rd
@@ -932,6 +941,8 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         -- Compliance issue counts (not computed in slow path, default to 0)
         0 as "complianceIssueCount",
         0 as "totalComplianceIssues",
+        -- Cross-reference count
+        COALESCE(rd.cross_reference_count, 0)::int as "crossReferenceCount",
         0 as "matchingChildCount",
         0 as "matchingDescendantCount"
       FROM regulatory_documents rd
@@ -1099,6 +1110,8 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         -- Compliance issue counts
         COALESCE(rd.compliance_issue_count, 0)::int as "complianceIssueCount",
         (COALESCE(rd.compliance_issue_count, 0) + COALESCE(rd.descendant_compliance_issue_count, 0))::int as "totalComplianceIssues",
+        -- Cross-reference count
+        COALESCE(rd.cross_reference_count, 0)::int as "crossReferenceCount",
         0 as "matchingChildCount",
         COALESCE(rd.descendant_count, 0)::int as "matchingDescendantCount"
       FROM regulatory_documents rd
@@ -1150,6 +1163,8 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         -- Compliance issue counts
         COALESCE(rd.compliance_issue_count, 0)::int as "complianceIssueCount",
         (COALESCE(rd.compliance_issue_count, 0) + COALESCE(rd.descendant_compliance_issue_count, 0))::int as "totalComplianceIssues",
+        -- Cross-reference count
+        COALESCE(rd.cross_reference_count, 0)::int as "crossReferenceCount",
         0 as "matchingChildCount",
         COALESCE(rd.descendant_count, 0)::int as "matchingDescendantCount"
       FROM regulatory_documents rd
