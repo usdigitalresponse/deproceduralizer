@@ -253,12 +253,6 @@ export const definitionsReviewParsers = {
   sortOrder: sortOrderParser,
 };
 
-// Has notes filter values (for filtering by presence of notes)
-export const HAS_NOTES_VALUES = ['all', 'yes', 'no'] as const;
-export type HasNotesValue = (typeof HAS_NOTES_VALUES)[number];
-
-export const hasNotesParser = parseAsStringEnum([...HAS_NOTES_VALUES]).withDefault('all');
-
 // ============================================
 // Section Type (AI-generated metadata) parsers
 // ============================================
@@ -330,6 +324,7 @@ export const dataTableFiltersParsers = {
   techReview: parseAsString,    // Tri-state: 'true'|'false'|'null'
   reporting: parseAsString,     // Tri-state: 'true'|'false'|'null'
   summarySearch: parseAsString,
+  sectionType: parseAsString,   // AI-generated section type filter
   sortBy: parseAsString.withDefault('maxSeverity'),
   sortOrder: sortOrderParser,
 };

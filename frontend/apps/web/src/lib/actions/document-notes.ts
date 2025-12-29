@@ -43,7 +43,8 @@ export async function createNote(
       anchorText: input.anchorText,
     });
 
-    revalidatePath('/');
+    // Targeted invalidation: only regulation detail pages need updating after note changes
+    revalidatePath(`/${input.state}/regulations`, 'page');
     return success(note);
   } catch (error) {
     console.error('[createNote]', error);
@@ -73,7 +74,8 @@ export async function updateNote(
       return failure(`Note with id ${id} not found`);
     }
 
-    revalidatePath('/');
+    // Targeted invalidation: only regulation detail pages need updating after note changes
+    revalidatePath('/[state]/regulations', 'page');
     return success(note);
   } catch (error) {
     console.error('[updateNote]', error);
@@ -94,7 +96,8 @@ export async function deleteNote(id: number): Promise<ActionResult<boolean>> {
       return failure(`Note with id ${id} not found`);
     }
 
-    revalidatePath('/');
+    // Targeted invalidation: only regulation detail pages need updating after note changes
+    revalidatePath('/[state]/regulations', 'page');
     return success(deleted);
   } catch (error) {
     console.error('[deleteNote]', error);

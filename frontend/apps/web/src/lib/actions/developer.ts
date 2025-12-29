@@ -131,7 +131,8 @@ export async function updateDeveloperStatus(
       return failure(`${input.type} with id ${input.id} not found`);
     }
 
-    revalidatePath('/');
+    // Targeted invalidation: only review pages need updating after developer status change
+    revalidatePath('/[state]/review', 'page');
     return success(result);
   } catch (error) {
     console.error('[updateDeveloperStatus]', error);

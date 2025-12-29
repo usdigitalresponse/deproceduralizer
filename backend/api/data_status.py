@@ -25,7 +25,6 @@ router = APIRouter()
 # =============================================================================
 
 class PromptType(str, Enum):
-    WET_SIGNATURE = "wet_signature_detection"
     RED_FLAGS = "red_flags_analysis"
     DEFINITION = "definition_extraction"
 
@@ -67,7 +66,6 @@ class DataReadiness(BaseModel):
 
 class AllDataReadiness(BaseModel):
     """Data readiness for all prompt types."""
-    wet_signature: DataReadiness
     red_flags: DataReadiness
     definitions: DataReadiness
 
@@ -90,7 +88,6 @@ async def get_readiness(prompt_type: PromptType) -> DataReadiness:
 async def get_all_readiness() -> AllDataReadiness:
     """Get data readiness status for all prompt types."""
     return AllDataReadiness(
-        wet_signature=_get_readiness_for_type("wet_signature_detection"),
         red_flags=_get_readiness_for_type("red_flags_analysis"),
         definitions=_get_readiness_for_type("definition_extraction")
     )

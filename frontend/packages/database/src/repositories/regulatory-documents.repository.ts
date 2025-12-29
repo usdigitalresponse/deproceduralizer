@@ -217,6 +217,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         hasDescendantAnalysis: regulatoryDocuments.hasDescendantAnalysis,
         complianceIssueCount: regulatoryDocuments.complianceIssueCount,
         descendantComplianceIssueCount: regulatoryDocuments.descendantComplianceIssueCount,
+        crossReferenceCount: regulatoryDocuments.crossReferenceCount,
         // Regulatory status
         regulatoryStatus: regulatoryDocuments.regulatoryStatus,
         recodifiedTo: regulatoryDocuments.recodifiedTo,
@@ -492,6 +493,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         hasDescendantAnalysis: regulatoryDocuments.hasDescendantAnalysis,
         complianceIssueCount: regulatoryDocuments.complianceIssueCount,
         descendantComplianceIssueCount: regulatoryDocuments.descendantComplianceIssueCount,
+        crossReferenceCount: regulatoryDocuments.crossReferenceCount,
         // Regulatory status
         regulatoryStatus: regulatoryDocuments.regulatoryStatus,
         recodifiedTo: regulatoryDocuments.recodifiedTo,
@@ -645,6 +647,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         hasDescendantAnalysis: regulatoryDocuments.hasDescendantAnalysis,
         complianceIssueCount: regulatoryDocuments.complianceIssueCount,
         descendantComplianceIssueCount: regulatoryDocuments.descendantComplianceIssueCount,
+        crossReferenceCount: regulatoryDocuments.crossReferenceCount,
         // Regulatory status
         regulatoryStatus: regulatoryDocuments.regulatoryStatus,
         recodifiedTo: regulatoryDocuments.recodifiedTo,

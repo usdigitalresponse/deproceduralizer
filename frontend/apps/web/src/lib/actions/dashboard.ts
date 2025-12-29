@@ -1,6 +1,7 @@
 'use server';
 
 import 'server-only';
+import { unstable_cache } from 'next/cache';
 import { db, RegulatoryDocumentsRepository } from '@deproceduralizer/database';
 import type { StateCode, DashboardStats } from '@deproceduralizer/database';
 import { type ActionResult, success, failure, getErrorMessage } from './types';
@@ -8,13 +9,19 @@ import { type ActionResult, success, failure, getErrorMessage } from './types';
 const regulationsRepo = new RegulatoryDocumentsRepository(db);
 
 /**
- * Get dashboard statistics for a specific state or all states combined
+ * Get dashboard statistics for a specific state or all states combined.
+ * Cached for 1 minute to reduce database traffic.
  */
 export async function getDashboardStats(
   state?: StateCode
 ): Promise<ActionResult<DashboardStats>> {
   try {
-    const result = await regulationsRepo.getDashboardStats(state);
+    const cachedGetStats = unstable_cache(
+      () => regulationsRepo.getDashboardStats(state),
+      [`dashboard-stats-${state ?? 'all'}`],
+      { revalidate: 60, tags: ['dashboard'] } // 1 minute
+    );
+    const result = await cachedGetStats();
     return success(result);
   } catch (error) {
     console.error('[getDashboardStats]', error);
@@ -23,11 +30,17 @@ export async function getDashboardStats(
 }
 
 /**
- * Get dashboard statistics for each state separately
+ * Get dashboard statistics for each state separately.
+ * Cached for 1 minute to reduce database traffic.
  */
 export async function getAllStateStats(): Promise<ActionResult<Record<StateCode, DashboardStats>>> {
   try {
-    const result = await regulationsRepo.getAllStateStats();
+    const cachedGetAllStats = unstable_cache(
+      () => regulationsRepo.getAllStateStats(),
+      ['dashboard-all-state-stats'],
+      { revalidate: 60, tags: ['dashboard'] } // 1 minute
+    );
+    const result = await cachedGetAllStats();
     return success(result);
   } catch (error) {
     console.error('[getAllStateStats]', error);
