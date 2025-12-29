@@ -3,9 +3,10 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
-import type { RegulationWithAnalysis, ComplianceIssue } from '@deproceduralizer/database';
+import type { RegulationWithAnalysis, ComplianceIssue, CrossReferenceWithTarget, CrossReferenceWithSource } from '@deproceduralizer/database';
 import { getDocumentForPanel } from '@/lib/actions/hierarchy';
 import { getComplianceIssuesByDocumentId } from '@/lib/actions/compliance-issues';
+import { getCrossReferencesForDocument, getIncomingReferences } from '@/lib/actions/cross-references';
 import { Card, Badge, SeverityBadge, Button, Tag } from '@/components/ui';
 import { SectionTypeBadge } from '@/components/ui/SectionTypeBadge';
 import { KeywordTags } from '@/components/ui/KeywordTags';
@@ -14,7 +15,8 @@ import { RegulationQuickStats, RegulationContent } from '@/components/regulation
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
 import { formatDisplayTitle } from '@/lib/format';
 import { HierarchyBreadcrumbs } from './HierarchyBreadcrumbs';
-import { FileText, ExternalLink, AlertTriangle, X, Loader2, ClipboardList } from 'lucide-react';
+import { FileText, ExternalLink, AlertTriangle, X, Loader2, ClipboardList, Link2 } from 'lucide-react';
+import { CrossReferenceCard, IncomingReferenceCard } from '@/components/cross-references';
 import { getStateFromPathname } from '@/hooks';
 import { ISSUE_TYPE_LABELS } from '@/types/regulation';
 
@@ -41,6 +43,8 @@ export function DetailPanel({ documentId, onClose, onNavigate, fullScreen = fals
 
   const [document, setDocument] = useState<RegulationWithAnalysis | null>(null);
   const [complianceIssues, setComplianceIssues] = useState<ComplianceIssue[]>([]);
+  const [crossRefs, setCrossRefs] = useState<CrossReferenceWithTarget[]>([]);
+  const [incomingRefs, setIncomingRefs] = useState<CrossReferenceWithSource[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,6 +54,8 @@ export function DetailPanel({ documentId, onClose, onNavigate, fullScreen = fals
     } else {
       setDocument(null);
       setComplianceIssues([]);
+      setCrossRefs([]);
+      setIncomingRefs([]);
     }
   }, [documentId]);
 
@@ -57,9 +63,11 @@ export function DetailPanel({ documentId, onClose, onNavigate, fullScreen = fals
     setIsLoading(true);
     setError(null);
     try {
-      const [docResult, issuesResult] = await Promise.all([
+      const [docResult, issuesResult, crossRefsResult, incomingRefsResult] = await Promise.all([
         getDocumentForPanel(id),
         getComplianceIssuesByDocumentId(id),
+        getCrossReferencesForDocument(id),
+        getIncomingReferences(id),
       ]);
 
       if (!docResult.success) {
@@ -72,8 +80,18 @@ export function DetailPanel({ documentId, onClose, onNavigate, fullScreen = fals
         // Continue with document, just show no compliance issues
       }
 
+      if (!crossRefsResult.success) {
+        console.error('Failed to load cross-references:', crossRefsResult.error);
+      }
+
+      if (!incomingRefsResult.success) {
+        console.error('Failed to load incoming references:', incomingRefsResult.error);
+      }
+
       setDocument(docResult.data);
       setComplianceIssues(issuesResult.success ? issuesResult.data : []);
+      setCrossRefs(crossRefsResult.success ? crossRefsResult.data : []);
+      setIncomingRefs(incomingRefsResult.success ? incomingRefsResult.data : []);
     } catch (err) {
       console.error('Failed to load document:', err);
       setError('Failed to load document details');
@@ -286,6 +304,62 @@ export function DetailPanel({ documentId, onClose, onNavigate, fullScreen = fals
                   className="text-sm text-[var(--color-link)] hover:text-[var(--color-link-hover)]"
                 >
                   View all {complianceIssues.length} compliance issues...
+                </Link>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Cross-References (outgoing) */}
+        {crossRefs.length > 0 && (
+          <div>
+            <h3 className="text-sm font-semibold text-[var(--color-text-secondary)] mb-2 flex items-center gap-2">
+              <Link2 className="w-4 h-4 text-[var(--color-primary)]" />
+              Cross-References ({crossRefs.length})
+            </h3>
+            <div className="space-y-2">
+              {crossRefs.slice(0, 3).map((ref) => (
+                <CrossReferenceCard
+                  key={ref.id}
+                  crossRef={ref}
+                  state={state}
+                  compact
+                />
+              ))}
+              {crossRefs.length > 3 && (
+                <Link
+                  href={`/${state}/regulations/${document.id}?from=${encodeURIComponent(currentUrl)}`}
+                  className="text-sm text-[var(--color-link)] hover:text-[var(--color-link-hover)]"
+                >
+                  View all {crossRefs.length} cross-references...
+                </Link>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Incoming References (who cites this) */}
+        {incomingRefs.length > 0 && (
+          <div>
+            <h3 className="text-sm font-semibold text-[var(--color-text-secondary)] mb-2 flex items-center gap-2">
+              <Link2 className="w-4 h-4 text-[var(--color-success)]" />
+              Cited By ({incomingRefs.length})
+            </h3>
+            <div className="space-y-2">
+              {incomingRefs.slice(0, 3).map((ref) => (
+                <IncomingReferenceCard
+                  key={ref.id}
+                  crossRef={ref}
+                  state={state}
+                  compact
+                />
+              ))}
+              {incomingRefs.length > 3 && (
+                <Link
+                  href={`/${state}/regulations/${document.id}?from=${encodeURIComponent(currentUrl)}`}
+                  className="text-sm text-[var(--color-link)] hover:text-[var(--color-link-hover)]"
+                >
+                  View all {incomingRefs.length} citing documents...
                 </Link>
               )}
             </div>

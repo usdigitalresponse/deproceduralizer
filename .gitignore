@@ -47,3 +47,7 @@ data/*.csv
 # Local summarization batch results
 backend/scripts/local_summarization/summaries_staging/
 modelfiles/
+
+# Export utilities (temporary/one-off scripts)
+codebase_export*.txt
+scripts/export_codebase*.py

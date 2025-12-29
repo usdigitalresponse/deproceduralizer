@@ -8,6 +8,7 @@ import { regulationStatuteLinks } from './regulation-statute-links';
 import { documentNotes } from './document-notes';
 import { definitions } from './definitions';
 import { definitionDocumentOccurrences } from './definition-document-occurrences';
+import { crossReferences } from './cross-references';
 
 export const regulatoryDocumentsRelations = relations(regulatoryDocuments, ({ one, many }) => ({
   parent: one(regulatoryDocuments, {
@@ -21,6 +22,10 @@ export const regulatoryDocumentsRelations = relations(regulatoryDocuments, ({ on
   statuteLinks: many(regulationStatuteLinks),
   notes: many(documentNotes),
   definitions: many(definitions),
+  // Cross-references: citations FROM this document to other documents
+  crossReferencesFrom: many(crossReferences, { relationName: 'sourceDoc' }),
+  // Cross-references: citations TO this document from other documents
+  crossReferencesTo: many(crossReferences, { relationName: 'targetDoc' }),
 }));
 
 export const documentNotesRelations = relations(documentNotes, ({ one }) => ({
@@ -101,5 +106,19 @@ export const regulationStatuteLinksRelations = relations(regulationStatuteLinks,
   statute: one(statutes, {
     fields: [regulationStatuteLinks.statuteId],
     references: [statutes.id],
+  }),
+}));
+
+// Cross-references table relations
+export const crossReferencesRelations = relations(crossReferences, ({ one }) => ({
+  sourceDocument: one(regulatoryDocuments, {
+    fields: [crossReferences.sourceDocumentId],
+    references: [regulatoryDocuments.id],
+    relationName: 'sourceDoc',
+  }),
+  targetDocument: one(regulatoryDocuments, {
+    fields: [crossReferences.targetDocumentId],
+    references: [regulatoryDocuments.id],
+    relationName: 'targetDoc',
   }),
 }));
