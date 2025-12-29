@@ -248,6 +248,7 @@ export class RedFlagsRepository extends BaseRepository {
       severity: redFlags.severity,
       category: redFlags.category,
       reviewedAt: redFlags.reviewedAt,
+      developerCheckedAt: redFlags.developerCheckedAt,
     }[sortBy];
 
     const orderByClause = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);

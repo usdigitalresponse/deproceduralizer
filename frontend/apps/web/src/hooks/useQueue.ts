@@ -83,10 +83,17 @@ export function useQueue<TItem, TCounts extends object>({
   const [selectedRegulationId, setSelectedRegulationId] = useState<number | null>(null);
 
   // Sync with server data when props change
+  // Use stable keys to prevent infinite re-render loops from object reference changes
+  const itemsKey = initialItems.length > 0
+    ? initialItems.map((i) => getItemId(i)).join(',')
+    : 'empty';
+  const countsKey = JSON.stringify(initialCounts);
+
   useEffect(() => {
     setItems(initialItems);
     setCounts(initialCounts);
-  }, [initialItems, initialCounts]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itemsKey, countsKey]);
 
   // Handle view regulation
   const handleViewRegulation = useCallback((regulationId: number) => {

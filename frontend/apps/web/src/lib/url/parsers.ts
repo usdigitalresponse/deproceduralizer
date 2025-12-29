@@ -39,6 +39,9 @@ import {
   DEFINITIONS_REVIEW_SCOPE_LEVEL_VALUES,
   HAS_NOTES_VALUES,
   COMPLIANCE_SORT_BY_VALUES,
+  // Suggestion mode
+  QUEUE_MODE_VALUES,
+  GROUPING_MODE_VALUES,
 } from '@/lib/constants/values';
 
 // Re-export types for convenience
@@ -69,6 +72,9 @@ export type {
   DefinitionsReviewScopeLevelValue,
   HasNotesValue,
   ComplianceSortByValue,
+  QueueModeValue,
+  GroupingModeValue,
+  BatchSizeValue,
 } from '@/lib/constants/values';
 
 // Re-export value arrays for backward compatibility
@@ -159,6 +165,18 @@ export const termSearchParser = parseAsString;
 export const definitionIdParser = parseAsInteger;
 
 export const hasNotesParser = parseAsStringEnum([...HAS_NOTES_VALUES]).withDefault('all');
+
+// ============================================
+// Suggestion mode parsers
+// ============================================
+
+export const queueModeParser = parseAsStringEnum([...QUEUE_MODE_VALUES]).withDefault('suggestion');
+export const groupingModeParser = parseAsStringEnum([...GROUPING_MODE_VALUES]).withDefault('issue_type');
+export const batchSizeParser = parseAsInteger.withDefault(3);
+export const shownIdsParser = parseAsString; // comma-separated IDs
+export const focusTypeParser = parseAsString; // current issue type focus
+export const focusSectionParser = parseAsString; // current section focus (hierarchy_path prefix)
+export const focusPatternParser = parseAsString; // current matched pattern focus
 
 // ============================================
 // Combined parsers for common use cases
@@ -304,4 +322,18 @@ export const complianceDeveloperQueueParsers = {
   issueType: categoryParser,
   sortBy: complianceDeveloperSortByParser,
   sortOrder: sortOrderParser,
+};
+
+/**
+ * Parser configuration for compliance suggestion mode
+ * Used when queueMode === 'suggestion' for smart batched review
+ */
+export const complianceSuggestionParsers = {
+  queueMode: queueModeParser,
+  groupingMode: groupingModeParser,
+  batchSize: batchSizeParser,
+  shownIds: shownIdsParser,
+  focusType: focusTypeParser,
+  focusSection: focusSectionParser,
+  focusPattern: focusPatternParser,
 };

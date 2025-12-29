@@ -213,3 +213,16 @@ export type PriorityValue = (typeof PRIORITY_VALUES)[number];
 
 export const COMPLEXITY_LEVELS = ['LOW', 'MEDIUM', 'MEDIUM-HIGH', 'HIGH'] as const;
 export type ComplexityLevel = (typeof COMPLEXITY_LEVELS)[number];
+
+// ============================================
+// Suggestion Mode (Smart Review Queue)
+// ============================================
+
+export const QUEUE_MODE_VALUES = ['filter', 'suggestion'] as const;
+export type QueueModeValue = (typeof QUEUE_MODE_VALUES)[number];
+
+export const GROUPING_MODE_VALUES = ['issue_type', 'section', 'combined'] as const;
+export type GroupingModeValue = (typeof GROUPING_MODE_VALUES)[number];
+
+export const BATCH_SIZE_VALUES = [2, 3, 4, 5] as const;
+export type BatchSizeValue = (typeof BATCH_SIZE_VALUES)[number];

@@ -809,4 +809,385 @@ export class ComplianceIssuesRepository extends BaseRepository {
 
     return { total };
   }
+
+  /**
+   * Get a smart batch of compliance issues for suggestion mode.
+   * Groups items by the specified grouping mode and returns a batch with metadata.
+   */
+  async getSuggestionBatch(options: {
+    state: StateCode;
+    batchSize: number;
+    excludeIds: number[];
+    groupingMode: 'issue_type' | 'section' | 'combined';
+    focus?: {
+      issueType?: string;
+      section?: string;
+      pattern?: string;
+    };
+    /** Issue types to avoid when selecting a new group (for diversity) */
+    recentIssueTypes?: string[];
+  }): Promise<{
+    data: ComplianceIssueWithContext[];
+    groupingMode: 'issue_type' | 'section' | 'combined';
+    focus: { issueType?: string; section?: string; pattern?: string };
+    remainingInFocus: number;
+    nextGroupingMode: 'issue_type' | 'section' | 'combined';
+    totalUnreviewed: number;
+  }> {
+    const { state, batchSize, excludeIds, groupingMode, focus, recentIssueTypes } = options;
+
+    // Base conditions: LLM confirmed + unreviewed + exclude shown IDs
+    const baseConditions = [
+      eq(complianceIssues.state, state.toUpperCase()),
+      eq(complianceIssues.requirementFound, true),
+      or(
+        eq(complianceIssues.reviewStatus, 'unreviewed'),
+        isNull(complianceIssues.reviewStatus)
+      )!,
+    ];
+
+    // Exclude already-shown IDs
+    if (excludeIds.length > 0) {
+      baseConditions.push(
+        sql`${complianceIssues.id} NOT IN (${sql.raw(excludeIds.join(','))})`
+      );
+    }
+
+    // Get total unreviewed count (for progress display)
+    const [totalResult] = await this.db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(complianceIssues)
+      .where(and(...baseConditions));
+    const totalUnreviewed = totalResult?.count ?? 0;
+
+    // Determine the next grouping mode in the cycle
+    const modeOrder: Array<'issue_type' | 'section' | 'combined'> = ['issue_type', 'section', 'combined'];
+    const currentIndex = modeOrder.indexOf(groupingMode);
+    const nextGroupingMode = modeOrder[(currentIndex + 1) % modeOrder.length];
+
+    // If no items left, return empty
+    if (totalUnreviewed === 0) {
+      return {
+        data: [],
+        groupingMode,
+        focus: {},
+        remainingInFocus: 0,
+        nextGroupingMode,
+        totalUnreviewed: 0,
+      };
+    }
+
+    // Determine focus based on grouping mode
+    let selectedFocus: { issueType?: string; section?: string; pattern?: string } = {};
+    let focusConditions = [...baseConditions];
+
+    if (groupingMode === 'issue_type') {
+      // Group by issue_type, pick randomly from top groups (weighted by count)
+      if (focus?.issueType) {
+        selectedFocus.issueType = focus.issueType;
+      } else {
+        // Build conditions for group selection, excluding recent issue types for diversity
+        const groupSelectionConditions = [...baseConditions];
+        if (recentIssueTypes && recentIssueTypes.length > 0) {
+          groupSelectionConditions.push(
+            sql`${complianceIssues.issueType} NOT IN (${sql.raw(recentIssueTypes.map(t => `'${t}'`).join(','))})`
+          );
+        }
+
+        // Get top 5 issue types by count for random selection
+        let typeGroups = await this.db
+          .select({
+            issueType: complianceIssues.issueType,
+            count: sql<number>`count(*)::int`,
+          })
+          .from(complianceIssues)
+          .where(and(...groupSelectionConditions))
+          .groupBy(complianceIssues.issueType)
+          .orderBy(desc(sql`count(*)`))
+          .limit(5);
+
+        // If no results (all types were recent), fall back to any type
+        if (typeGroups.length === 0 && recentIssueTypes && recentIssueTypes.length > 0) {
+          typeGroups = await this.db
+            .select({
+              issueType: complianceIssues.issueType,
+              count: sql<number>`count(*)::int`,
+            })
+            .from(complianceIssues)
+            .where(and(...baseConditions))
+            .groupBy(complianceIssues.issueType)
+            .orderBy(desc(sql`count(*)`))
+            .limit(5);
+        }
+
+        if (typeGroups.length > 0) {
+          // Weighted random selection: larger groups have higher probability
+          const totalCount = typeGroups.reduce((sum, g) => sum + g.count, 0);
+          const random = Math.random() * totalCount;
+          let cumulative = 0;
+          for (const group of typeGroups) {
+            cumulative += group.count;
+            if (random <= cumulative) {
+              selectedFocus.issueType = group.issueType;
+              break;
+            }
+          }
+          // Fallback to first if somehow not selected
+          if (!selectedFocus.issueType) {
+            selectedFocus.issueType = typeGroups[0].issueType;
+          }
+        }
+      }
+
+      if (selectedFocus.issueType) {
+        focusConditions.push(eq(complianceIssues.issueType, selectedFocus.issueType));
+      }
+    } else if (groupingMode === 'section') {
+      // Group by section (using njacTitle or nycrrTitle as section identifier)
+      if (focus?.section) {
+        selectedFocus.section = focus.section;
+      } else {
+        // Get top 5 sections by count for random selection
+        const sectionGroups = await this.db
+          .select({
+            section: sql<string>`COALESCE(${regulatoryDocuments.njacTitle}, ${regulatoryDocuments.nycrrTitle}::text)`,
+            count: sql<number>`count(*)::int`,
+          })
+          .from(complianceIssues)
+          .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
+          .where(and(...baseConditions))
+          .groupBy(sql`COALESCE(${regulatoryDocuments.njacTitle}, ${regulatoryDocuments.nycrrTitle}::text)`)
+          .orderBy(desc(sql`count(*)`))
+          .limit(5);
+
+        if (sectionGroups.length > 0) {
+          // Weighted random selection: larger sections have higher probability
+          const validGroups = sectionGroups.filter(g => g.section != null);
+          if (validGroups.length > 0) {
+            const totalCount = validGroups.reduce((sum, g) => sum + g.count, 0);
+            const random = Math.random() * totalCount;
+            let cumulative = 0;
+            for (const group of validGroups) {
+              cumulative += group.count;
+              if (random <= cumulative) {
+                selectedFocus.section = group.section;
+                break;
+              }
+            }
+            // Fallback to first if somehow not selected
+            if (!selectedFocus.section) {
+              selectedFocus.section = validGroups[0].section;
+            }
+          }
+        }
+      }
+
+      if (selectedFocus.section) {
+        focusConditions.push(
+          or(
+            eq(regulatoryDocuments.njacTitle, selectedFocus.section),
+            sql`${regulatoryDocuments.nycrrTitle}::text = ${selectedFocus.section}`
+          )!
+        );
+      }
+    } else {
+      // Combined: group by section + issue_type
+      if (focus?.issueType && focus?.section) {
+        selectedFocus = { issueType: focus.issueType, section: focus.section };
+      } else {
+        // Build conditions for group selection, excluding recent issue types for diversity
+        const groupSelectionConditions = [...baseConditions];
+        if (recentIssueTypes && recentIssueTypes.length > 0) {
+          groupSelectionConditions.push(
+            sql`${complianceIssues.issueType} NOT IN (${sql.raw(recentIssueTypes.map(t => `'${t}'`).join(','))})`
+          );
+        }
+
+        // Get top 5 section + issue_type combos for random selection
+        let combinedGroups = await this.db
+          .select({
+            issueType: complianceIssues.issueType,
+            section: sql<string>`COALESCE(${regulatoryDocuments.njacTitle}, ${regulatoryDocuments.nycrrTitle}::text)`,
+            count: sql<number>`count(*)::int`,
+          })
+          .from(complianceIssues)
+          .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
+          .where(and(...groupSelectionConditions))
+          .groupBy(
+            complianceIssues.issueType,
+            sql`COALESCE(${regulatoryDocuments.njacTitle}, ${regulatoryDocuments.nycrrTitle}::text)`
+          )
+          .orderBy(desc(sql`count(*)`))
+          .limit(5);
+
+        // If no results (all types were recent), fall back to any type
+        if (combinedGroups.length === 0 && recentIssueTypes && recentIssueTypes.length > 0) {
+          combinedGroups = await this.db
+            .select({
+              issueType: complianceIssues.issueType,
+              section: sql<string>`COALESCE(${regulatoryDocuments.njacTitle}, ${regulatoryDocuments.nycrrTitle}::text)`,
+              count: sql<number>`count(*)::int`,
+            })
+            .from(complianceIssues)
+            .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
+            .where(and(...baseConditions))
+            .groupBy(
+              complianceIssues.issueType,
+              sql`COALESCE(${regulatoryDocuments.njacTitle}, ${regulatoryDocuments.nycrrTitle}::text)`
+            )
+            .orderBy(desc(sql`count(*)`))
+            .limit(5);
+        }
+
+        if (combinedGroups.length > 0) {
+          // Weighted random selection: larger combos have higher probability
+          const totalCount = combinedGroups.reduce((sum, g) => sum + g.count, 0);
+          const random = Math.random() * totalCount;
+          let cumulative = 0;
+          for (const group of combinedGroups) {
+            cumulative += group.count;
+            if (random <= cumulative) {
+              selectedFocus = {
+                issueType: group.issueType,
+                section: group.section ?? undefined,
+              };
+              break;
+            }
+          }
+          // Fallback to first if somehow not selected
+          if (!selectedFocus.issueType) {
+            selectedFocus = {
+              issueType: combinedGroups[0].issueType,
+              section: combinedGroups[0].section ?? undefined,
+            };
+          }
+        }
+      }
+
+      if (selectedFocus.issueType) {
+        focusConditions.push(eq(complianceIssues.issueType, selectedFocus.issueType));
+      }
+      if (selectedFocus.section) {
+        focusConditions.push(
+          or(
+            eq(regulatoryDocuments.njacTitle, selectedFocus.section),
+            sql`${regulatoryDocuments.nycrrTitle}::text = ${selectedFocus.section}`
+          )!
+        );
+      }
+    }
+
+    // Get count of items matching the focus (for "remaining" display)
+    const whereClause = and(...focusConditions);
+    const [focusCountResult] = await this.db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(complianceIssues)
+      .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
+      .where(whereClause);
+    const remainingInFocus = focusCountResult?.count ?? 0;
+
+    // Get the batch of items
+    const results = await this.db
+      .select({
+        id: complianceIssues.id,
+        documentId: complianceIssues.documentId,
+        issueType: complianceIssues.issueType,
+        matchedPattern: complianceIssues.matchedPattern,
+        matchedContext: complianceIssues.matchedContext,
+        url: complianceIssues.url,
+        requirementFound: complianceIssues.requirementFound,
+        requirementText: complianceIssues.requirementText,
+        isVerbatim: complianceIssues.isVerbatim,
+        requiredByStatute: complianceIssues.requiredByStatute,
+        severity: complianceIssues.severity,
+        occurrenceNumber: complianceIssues.occurrenceNumber,
+        statuteCitation: complianceIssues.statuteCitation,
+        impactAssessment: complianceIssues.impactAssessment,
+        reviewStatus: complianceIssues.reviewStatus,
+        reviewedBy: complianceIssues.reviewedBy,
+        reviewedAt: complianceIssues.reviewedAt,
+        justificationNotes: complianceIssues.justificationNotes,
+        teamNotes: complianceIssues.teamNotes,
+        originalSeverity: complianceIssues.originalSeverity,
+        impactType: complianceIssues.impactType,
+        developerStatus: complianceIssues.developerStatus,
+        developerAssigned: complianceIssues.developerAssigned,
+        developerNotes: complianceIssues.developerNotes,
+        resolutionType: complianceIssues.resolutionType,
+        resolutionComments: complianceIssues.resolutionComments,
+        developerQuestion: complianceIssues.developerQuestion,
+        developerCheckedAt: complianceIssues.developerCheckedAt,
+        state: complianceIssues.state,
+        createdAt: complianceIssues.createdAt,
+        regulationId: regulatoryDocuments.id,
+        regulationTitle: regulatoryDocuments.title,
+        regulationNycrrTitle: regulatoryDocuments.nycrrTitle,
+        regulationNycrrPart: regulatoryDocuments.nycrrPart,
+        regulationNycrrSection: regulatoryDocuments.nycrrSection,
+        regulationNjacTitle: regulatoryDocuments.njacTitle,
+        regulationNjacChapter: regulatoryDocuments.njacChapter,
+        regulationNjacSubchapter: regulatoryDocuments.njacSubchapter,
+        regulationUrl: regulatoryDocuments.url,
+      })
+      .from(complianceIssues)
+      .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
+      .where(whereClause)
+      // Order by severity (high first) with random tiebreaker for same-severity items
+      .orderBy(desc(complianceIssues.severity), sql`RANDOM()`)
+      .limit(batchSize);
+
+    // Transform results to ComplianceIssueWithContext shape
+    const data: ComplianceIssueWithContext[] = results.map(row => ({
+      id: Number(row.id),
+      documentId: Number(row.documentId),
+      issueType: row.issueType,
+      matchedPattern: row.matchedPattern,
+      matchedContext: row.matchedContext,
+      url: row.url,
+      requirementFound: row.requirementFound,
+      requirementText: row.requirementText,
+      isVerbatim: row.isVerbatim,
+      requiredByStatute: row.requiredByStatute,
+      severity: row.severity,
+      occurrenceNumber: row.occurrenceNumber,
+      statuteCitation: row.statuteCitation,
+      impactAssessment: row.impactAssessment,
+      reviewStatus: row.reviewStatus,
+      reviewedBy: row.reviewedBy,
+      reviewedAt: row.reviewedAt,
+      justificationNotes: row.justificationNotes,
+      teamNotes: row.teamNotes,
+      originalSeverity: row.originalSeverity,
+      impactType: row.impactType,
+      developerStatus: row.developerStatus,
+      developerAssigned: row.developerAssigned,
+      developerNotes: row.developerNotes,
+      resolutionType: row.resolutionType,
+      resolutionComments: row.resolutionComments,
+      developerQuestion: row.developerQuestion,
+      developerCheckedAt: row.developerCheckedAt,
+      state: row.state,
+      createdAt: row.createdAt,
+      regulation: {
+        id: row.regulationId,
+        title: row.regulationTitle,
+        nycrrTitle: row.regulationNycrrTitle,
+        nycrrPart: row.regulationNycrrPart,
+        nycrrSection: row.regulationNycrrSection,
+        njacTitle: row.regulationNjacTitle,
+        njacChapter: row.regulationNjacChapter,
+        njacSubchapter: row.regulationNjacSubchapter,
+        url: row.regulationUrl,
+      },
+    }));
+
+    return {
+      data,
+      groupingMode,
+      focus: selectedFocus,
+      remainingInFocus,
+      nextGroupingMode,
+      totalUnreviewed,
+    };
+  }
 }

@@ -10,7 +10,7 @@ import { formatNycrrCitation } from '@/lib/formatters/nycrr';
 import { formatNjacCitation } from '@/lib/formatters/njac';
 import { highlightContext } from '@/lib/utils/highlight';
 import { ExpandableRegulationQuote } from './ExpandableRegulationQuote';
-import { CardWrapper } from './shared';
+import { CardWrapper, HierarchyBreadcrumbsInline } from './shared';
 import { Flag, FileWarning, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface DeveloperCardProps {
@@ -18,6 +18,8 @@ interface DeveloperCardProps {
   onUpdated: (updatedItem: DeveloperItem) => void;
   onViewRegulation: (regulationId: number) => void;
   isFocused?: boolean;
+  /** State code for hierarchy links */
+  state?: string;
 }
 
 // Helper to format priority/impact values
@@ -183,7 +185,7 @@ function ReviewSummary({ item }: { item: DeveloperItem }) {
 }
 
 export const DeveloperCard = forwardRef<HTMLDivElement, DeveloperCardProps>(
-  ({ item, onUpdated, onViewRegulation, isFocused = false }, ref) => {
+  ({ item, onUpdated, onViewRegulation, isFocused = false, state = 'nj' }, ref) => {
     const [isPending, startTransition] = useTransition();
     const [error, setError] = useState<string | null>(null);
     const { developerName: storedName, saveDeveloperName, isLoaded } = useDeveloperName();
@@ -317,6 +319,13 @@ export const DeveloperCard = forwardRef<HTMLDivElement, DeveloperCardProps>(
               <span className="font-semibold text-[var(--color-text)]">{formatLabel(flag.category)}</span>
               <SeverityBadge severity={flag.severity} />
             </div>
+            {/* Hierarchy breadcrumb */}
+            <div className="mb-1">
+              <HierarchyBreadcrumbsInline
+                documentId={flag.regulation.id}
+                state={state}
+              />
+            </div>
             <div className="text-sm text-[var(--color-text-muted)] mb-2">
               {nycrrCitation && <span className="font-mono">{nycrrCitation}</span>}
               {nycrrCitation && flag.regulation.title && ' - '}
@@ -377,6 +386,14 @@ export const DeveloperCard = forwardRef<HTMLDivElement, DeveloperCardProps>(
               {issue.requirementFound === false && <Badge variant="danger" className="text-xs">LLM Rejected</Badge>}
               {issue.requiredByStatute && <Badge variant="info" className="text-xs">From Statute</Badge>}
               {issue.severity !== null && <SeverityBadge severity={issue.severity} />}
+            </div>
+
+            {/* Hierarchy breadcrumb */}
+            <div className="mb-1">
+              <HierarchyBreadcrumbsInline
+                documentId={issue.regulation.id}
+                state={issue.state || state}
+              />
             </div>
 
             {/* Regulation citation */}

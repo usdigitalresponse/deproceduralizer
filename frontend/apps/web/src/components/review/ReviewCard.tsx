@@ -7,7 +7,7 @@ import { Button, Input, Textarea, Badge, SeverityBadge, Select, Tag, CopyLinkBut
 import { PRIORITY_OPTIONS, IMPACT_TYPES, getComplexityVariant, formatLabel } from '@/types/regulation';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
 import { ExpandableRegulationQuote } from './ExpandableRegulationQuote';
-import { CardWrapper } from './shared';
+import { CardWrapper, HierarchyBreadcrumbsInline } from './shared';
 import { REVIEW_STATUSES, REVIEW_STATUS_LABELS, REVIEW_STATUS_DESCRIPTIONS, type ReviewStatus } from '@deproceduralizer/database/schema';
 import type { RedFlagWithContext } from '@deproceduralizer/database';
 
@@ -16,10 +16,12 @@ interface ReviewCardProps {
   onUpdated: (updatedFlag: RedFlagWithContext) => void;
   onViewRegulation: (regulationId: number) => void;
   isFocused?: boolean;
+  /** State code for hierarchy links */
+  state?: string;
 }
 
 export const ReviewCard = forwardRef<HTMLDivElement, ReviewCardProps>(
-  ({ flag, onUpdated, onViewRegulation, isFocused = false }, ref) => {
+  ({ flag, onUpdated, onViewRegulation, isFocused = false, state = 'ny' }, ref) => {
     // Use shared review form hook for state management
     const {
       formData,
@@ -96,6 +98,14 @@ export const ReviewCard = forwardRef<HTMLDivElement, ReviewCardProps>(
               </Badge>
             </div>
           </div>
+        </div>
+
+        {/* Hierarchy breadcrumb */}
+        <div className="mb-2">
+          <HierarchyBreadcrumbsInline
+            documentId={flag.regulation.id}
+            state={state}
+          />
         </div>
 
         {/* Regulation context */}

@@ -9,7 +9,7 @@ import { ISSUE_TYPE_LABELS, UPDATED_SEVERITY_OPTIONS, IMPACT_TYPES } from '@/typ
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
 import { formatNjacCitation } from '@/lib/formatters/njac';
 import { highlightContext } from '@/lib/utils/highlight';
-import { CardWrapper } from './shared';
+import { CardWrapper, HierarchyBreadcrumbsInline } from './shared';
 import { REVIEW_STATUSES, REVIEW_STATUS_LABELS, REVIEW_STATUS_DESCRIPTIONS, type ReviewStatus } from '@deproceduralizer/database/schema';
 import type { ComplianceIssueWithContext } from '@deproceduralizer/database';
 
@@ -174,6 +174,14 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
               {issue.reviewStatus || 'unreviewed'}
             </Badge>
           </div>
+        </div>
+
+        {/* Hierarchy breadcrumb */}
+        <div className="mb-2">
+          <HierarchyBreadcrumbsInline
+            documentId={issue.regulation.id}
+            state={issue.state || 'nj'}
+          />
         </div>
 
         {/* Regulation context */}
