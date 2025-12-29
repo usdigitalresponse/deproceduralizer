@@ -1,6 +1,7 @@
 'use client';
 
 import { forwardRef } from 'react';
+import { ExternalLink } from 'lucide-react';
 import { updateRedFlagReview } from '@/lib/actions/red-flags';
 import { useReviewForm } from '@/hooks';
 import { Button, Input, Textarea, Badge, SeverityBadge, Select, Tag, CopyLinkButton } from '@/components/ui';
@@ -258,9 +259,10 @@ export const ReviewCard = forwardRef<HTMLDivElement, ReviewCardProps>(
               type="button"
               variant="ghost"
               size="sm"
-              onClick={() => onViewRegulation(flag.regulation.id)}
+              onClick={() => window.open(`/${state}/regulations/${flag.regulation.id}`, '_blank')}
             >
               View Regulation
+              <ExternalLink className="w-3 h-3 ml-1" />
             </Button>
             <Button
               type="submit"

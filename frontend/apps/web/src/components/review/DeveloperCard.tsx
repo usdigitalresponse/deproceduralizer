@@ -11,7 +11,7 @@ import { formatNjacCitation } from '@/lib/formatters/njac';
 import { highlightContext } from '@/lib/utils/highlight';
 import { ExpandableRegulationQuote } from './ExpandableRegulationQuote';
 import { CardWrapper, HierarchyBreadcrumbsInline } from './shared';
-import { Flag, FileWarning, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { Flag, FileWarning, AlertCircle, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
 
 interface DeveloperCardProps {
   item: DeveloperItem;
@@ -643,9 +643,10 @@ export const DeveloperCard = forwardRef<HTMLDivElement, DeveloperCardProps>(
               type="button"
               variant="ghost"
               size="sm"
-              onClick={() => onViewRegulation(item.regulation.id)}
+              onClick={() => window.open(`/${state}/regulations/${item.regulation.id}`, '_blank')}
             >
               View Regulation
+              <ExternalLink className="w-3 h-3 ml-1" />
             </Button>
             <Button type="submit" variant="primary" size="sm" isLoading={isPending}>
               {isPending ? 'Saving...' : 'Save'}
