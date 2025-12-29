@@ -2,7 +2,7 @@
 
 import { type HierarchyNode } from '@deproceduralizer/database';
 import { Badge, SeverityBadge } from '@/components/ui/Badge';
-import { ChevronRight, ChevronDown, FileText, BookOpen, Folder } from 'lucide-react';
+import { ChevronRight, ChevronDown, FileText, BookOpen, Folder, Link2 } from 'lucide-react';
 import { formatDisplayTitle } from '@/lib/format';
 import { HIERARCHY_LEVEL_LABELS } from '@/lib/constants/hierarchy';
 
@@ -189,6 +189,12 @@ export function TreeNode({
             <Badge variant="info" className="text-xs">
               <BookOpen className="w-3 h-3 mr-1" />
               Defs
+            </Badge>
+          )}
+          {node.crossReferenceCount > 0 && (
+            <Badge variant="default" className="text-xs" title={`${node.crossReferenceCount} cross-references`}>
+              <Link2 className="w-3 h-3 mr-1" />
+              {node.crossReferenceCount}
             </Badge>
           )}
           {node.totalFlags > 0 && (

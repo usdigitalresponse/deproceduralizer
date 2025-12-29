@@ -5,3 +5,4 @@ export * from './compliance-issues.repository';
 export * from './document-notes.repository';
 export * from './definitions.repository';
 export * from './prompt-feedback.repository';
+export * from './cross-references.repository';
