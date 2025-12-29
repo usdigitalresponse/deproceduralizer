@@ -256,7 +256,8 @@ export class RedFlagsRepository extends BaseRepository {
       developerCheckedAt: redFlags.developerCheckedAt,
     }[sortBy];
 
-    const orderByClause = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
+    const primarySort = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
+    const secondarySort = asc(redFlags.id); // Tiebreaker for consistent ordering
 
     // Get paginated results with regulation context
     const results = await this.db
@@ -303,7 +304,7 @@ export class RedFlagsRepository extends BaseRepository {
       .innerJoin(analyses, eq(redFlags.analysisId, analyses.id))
       .innerJoin(regulatoryDocuments, eq(analyses.documentId, regulatoryDocuments.id))
       .where(whereClause)
-      .orderBy(orderByClause)
+      .orderBy(primarySort, secondarySort)
       .limit(pageSize)
       .offset(offset);
 
@@ -487,7 +488,8 @@ export class RedFlagsRepository extends BaseRepository {
       developerCheckedAt: redFlags.developerCheckedAt,
     }[sortBy] ?? redFlags.reviewedAt;
 
-    const orderByClause = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
+    const primarySort = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
+    const secondarySort = asc(redFlags.id); // Tiebreaker for consistent ordering
 
     // Get paginated results with regulation context
     const results = await this.db
@@ -534,7 +536,7 @@ export class RedFlagsRepository extends BaseRepository {
       .innerJoin(analyses, eq(redFlags.analysisId, analyses.id))
       .innerJoin(regulatoryDocuments, eq(analyses.documentId, regulatoryDocuments.id))
       .where(whereClause)
-      .orderBy(orderByClause)
+      .orderBy(primarySort, secondarySort)
       .limit(pageSize)
       .offset(offset);
 

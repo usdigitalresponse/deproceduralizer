@@ -22,6 +22,8 @@ import {
   useSuggestionQueue,
   type PaginationInfo,
 } from '@/hooks';
+import { useQueryState } from 'nuqs';
+import { reviewStatusParser } from '@/lib/url/parsers';
 
 interface BaseProps {
   statusCounts: ComplianceIssueStatusCounts;
@@ -75,6 +77,9 @@ const EMPTY_PAGINATION: PaginationInfo = { page: 1, pageSize: 10, total: 0, tota
 export function ComplianceReviewQueue(props: ComplianceReviewQueueProps) {
   const { statusCounts, issueTypes, compact = false, mode } = props;
 
+  // Read current review status filter from URL for filter-aware item removal
+  const [reviewStatus] = useQueryState('reviewStatus', reviewStatusParser);
+
   // Extract mode-specific props with defaults for the unused mode
   // IMPORTANT: Use stable module-level constants to prevent infinite re-render loops
   const filterProps = mode === 'filter' ? props : { initialIssues: EMPTY_ITEMS, pagination: EMPTY_PAGINATION };
@@ -90,6 +95,7 @@ export function ComplianceReviewQueue(props: ComplianceReviewQueueProps) {
     getItemStatus: (i) => i.reviewStatus || 'unreviewed',
     defaultStatus: 'unreviewed',
     getRegulationId: (i) => i.regulation.id,
+    statusFilter: reviewStatus || 'unreviewed',
   });
 
   // =====================

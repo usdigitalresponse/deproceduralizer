@@ -497,7 +497,8 @@ export class DefinitionsRepository extends BaseRepository {
       overlap: definitions.definitionOverlap,
     }[sortBy];
 
-    const orderByClause = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
+    const primarySort = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
+    const secondarySort = asc(definitions.id); // Tiebreaker for consistent ordering
 
     // Get paginated results with regulation context via URL join
     const results = await this.db
@@ -553,7 +554,7 @@ export class DefinitionsRepository extends BaseRepository {
       .from(definitions)
       .leftJoin(regulatoryDocuments, eq(definitions.url, regulatoryDocuments.url))
       .where(whereClause)
-      .orderBy(orderByClause)
+      .orderBy(primarySort, secondarySort)
       .limit(pageSize)
       .offset(offset);
 
@@ -1337,16 +1338,16 @@ export class DefinitionsRepository extends BaseRepository {
       .where(whereClause);
     const [{ count: total }] = await countQuery;
 
-    // Build sort
+    // Build sort with secondary sort by id for consistent ordering
     let orderByClause;
     if (sortBy === 'document') {
       orderByClause = sortOrder === 'asc'
-        ? [asc(definitions.documentId), asc(definitions.term)]
-        : [desc(definitions.documentId), asc(definitions.term)];
+        ? [asc(definitions.documentId), asc(definitions.term), asc(definitions.id)]
+        : [desc(definitions.documentId), asc(definitions.term), asc(definitions.id)];
     } else if (sortBy === 'extractedAt') {
-      orderByClause = [sortOrder === 'asc' ? asc(definitions.extractedAt) : desc(definitions.extractedAt)];
+      orderByClause = [sortOrder === 'asc' ? asc(definitions.extractedAt) : desc(definitions.extractedAt), asc(definitions.id)];
     } else {
-      orderByClause = [sortOrder === 'asc' ? asc(definitions.term) : desc(definitions.term)];
+      orderByClause = [sortOrder === 'asc' ? asc(definitions.term) : desc(definitions.term), asc(definitions.id)];
     }
 
     // Create alias for parent document

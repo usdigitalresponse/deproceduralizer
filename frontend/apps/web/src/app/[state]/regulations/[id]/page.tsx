@@ -1,30 +1,16 @@
 import { notFound } from 'next/navigation';
-import Link from 'next/link';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Container } from '@/components/layout/Container';
-import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui';
-import { RedFlagsList } from '@/components/flags';
-import { ComplianceIssuesList } from '@/components/issues';
-import { DefinitionsList, ApplicableDefinitions } from '@/components/definitions';
-import { CrossReferenceList, IncomingReferenceList } from '@/components/cross-references';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
-import { formatDisplayTitle } from '@/lib/format';
-import {
-  RegulationHierarchyDetails,
-  RegulationMetadata,
-  RegulationSummary,
-  ExclusionToggle,
-} from '@/components/regulations';
-import { HierarchyBreadcrumbsServer } from '@/components/regulations/HierarchyBreadcrumbsServer';
-import { ChildrenListServer } from '@/components/regulations/ChildrenListServer';
 import { getRegulationById } from '@/lib/actions/regulations';
 import { getComplianceIssuesByDocumentId } from '@/lib/actions/compliance-issues';
 import { getDefinitionsWithContext } from '@/lib/actions/definitions';
 import { getNotesByDocumentId } from '@/lib/actions/document-notes';
 import { getCrossReferencesForDocument, getIncomingReferences, getCrossReferencesForHighlighting } from '@/lib/actions/cross-references';
 import { RegulationDetailClient } from './RegulationDetailClient';
+import { RegulationDetailLayout } from './RegulationDetailLayout';
+import { RegulationDetailSidebar } from './RegulationDetailSidebar';
 
 export const dynamic = 'force-dynamic';
 
@@ -125,7 +111,11 @@ export default async function RegulationDetailPage({ params, searchParams }: Pag
     );
   }
 
-  const complianceIssues = complianceIssuesResult.data;
+  // Filter to only show confirmed compliance issues (requirementFound === true)
+  // LLM-rejected issues (requirementFound === false) should not appear on detail pages
+  const complianceIssues = complianceIssuesResult.data.filter(
+    issue => issue.requirementFound !== false
+  );
   // Safely destructure definitions data with fallbacks
   const definitionsData = definitionsResult.data ?? { usedInText: { definedHere: [], inherited: [] }, availableButNotUsed: [] };
   const usedInText = definitionsData.usedInText ?? { definedHere: [], inherited: [] };
@@ -138,6 +128,8 @@ export default async function RegulationDetailPage({ params, searchParams }: Pag
   const incomingRefs = incomingRefsResult.success ? incomingRefsResult.data : [];
   // Cross-refs for inline highlighting
   const highlightRefs = highlightRefsResult.success ? highlightRefsResult.data : [];
+  // IDs of definitions defined here
+  const definedHereIds = new Set(usedInText.definedHere.map(d => d.id));
 
   const nycrrCitation = formatNycrrCitation(
     regulation.nycrrTitle,
@@ -153,133 +145,32 @@ export default async function RegulationDetailPage({ params, searchParams }: Pag
       />
 
       <Container size="xl" className="py-6">
-        {/* Back Button */}
-        <div className="mb-6">
-          <Link href={backUrl}>
-            <Button variant="ghost" size="sm">
-              <svg
-                className="w-4 h-4 mr-2"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
-              Back to Browse
-            </Button>
-          </Link>
-        </div>
-
-        <div className="space-y-6">
-          {/* Hierarchy Breadcrumbs */}
-          <Card>
-            <h2 className="font-semibold text-[var(--color-primary)] mb-3">Hierarchy</h2>
-            <HierarchyBreadcrumbsServer
-              documentId={regulationId}
-              currentTitle={formatDisplayTitle(regulation) || 'Untitled'}
-              state={state}
-            />
-
-            {/* Additional hierarchy details */}
-            <RegulationHierarchyDetails
+        <RegulationDetailLayout
+          sidebar={
+            <RegulationDetailSidebar
               regulation={regulation}
-              className="mt-4 pt-4 border-t border-[var(--color-neutral-200)]"
+              regulationId={regulationId}
+              state={state}
+              backUrl={backUrl}
+              complianceIssues={complianceIssues}
+              crossRefs={crossRefs}
+              incomingRefs={incomingRefs}
+              usedDefinitions={usedDefinitions}
+              availableButNotUsed={availableButNotUsed}
+              definedHereIds={definedHereIds}
             />
-          </Card>
-
-          {/* Metadata Grid */}
-          <Card>
-            <h2 className="font-semibold text-[var(--color-text)] mb-3">Metadata</h2>
-            <RegulationMetadata regulation={regulation} layout="grid" />
-          </Card>
-
-          {/* Exclusion Toggle */}
-          <Card>
-            <ExclusionToggle
+          }
+          content={
+            <RegulationDetailClient
+              content={regulation.content || ''}
               documentId={regulationId}
-              isExcluded={regulation.excludeFromAnalysis ?? false}
-              excludedBy={regulation.excludedBy}
-              excludedAt={regulation.excludedAt}
-              excludedReason={regulation.excludedReason}
-            />
-          </Card>
-
-          {/* Summary */}
-          <Card>
-            <RegulationSummary summary={regulation.summary} showHeading />
-          </Card>
-
-          {/* Children (sub-sections, parts, etc.) - only renders if document has children */}
-          <ChildrenListServer documentId={regulationId} state={state} />
-
-          {/* Red Flags Details */}
-          {regulation.redFlags && regulation.redFlags.length > 0 && (
-            <RedFlagsList initialFlags={regulation.redFlags} />
-          )}
-
-          {/* Compliance Issues */}
-          {complianceIssues && complianceIssues.length > 0 && (
-            <ComplianceIssuesList
-              initialIssues={complianceIssues}
-              regulationContent={regulation.content}
-            />
-          )}
-
-          {/* Cross-References - outgoing references to other regulations */}
-          {crossRefs.length > 0 && (
-            <Card>
-              <CrossReferenceList
-                crossRefs={crossRefs}
-                state={state as 'nj' | 'ny'}
-                title="Cross-References"
-              />
-            </Card>
-          )}
-
-          {/* Incoming References - other documents that cite this one */}
-          {incomingRefs.length > 0 && (
-            <Card>
-              <IncomingReferenceList
-                crossRefs={incomingRefs}
-                state={state as 'nj' | 'ny'}
-                title="Cited By"
-              />
-            </Card>
-          )}
-
-          {/* Definitions Used - terms that appear in this document's text */}
-          {usedDefinitions.length > 0 && (
-            <DefinitionsList
-              definitions={usedDefinitions}
-              definedHereIds={new Set(usedInText.definedHere.map(d => d.id))}
-              currentDocumentId={regulationId}
               state={state}
-              title="Definitions Used"
-              description="Terms that appear in this document"
+              initialNotes={notes}
+              applicableDefinitions={usedDefinitions}
+              crossRefHighlights={highlightRefs}
             />
-          )}
-
-          {/* Available Definitions - in scope but not used */}
-          {availableButNotUsed.length > 0 && (
-            <ApplicableDefinitions
-              definitions={availableButNotUsed}
-              state={state}
-              title="Other Available Definitions"
-              description="Terms in scope but not used in this document"
-              collapsed={true}
-            />
-          )}
-
-          {/* Regulation Text with Notes */}
-          <RegulationDetailClient
-            content={regulation.content || ''}
-            documentId={regulationId}
-            state={state}
-            initialNotes={notes}
-            applicableDefinitions={usedDefinitions}
-            crossRefHighlights={highlightRefs}
-          />
-        </div>
+          }
+        />
       </Container>
     </div>
   );

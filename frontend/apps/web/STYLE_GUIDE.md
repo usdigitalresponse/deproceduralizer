@@ -676,6 +676,93 @@ import { ReviewTypeTabs } from '@/components/review';
 
 ---
 
+## Review Queue Workflow Modes
+
+The review interface supports two distinct workflow patterns for reviewing compliance issues:
+
+### Filter Mode (Manual Queue)
+
+**URL**: `/[state]/review?type=compliance&queueMode=filter&reviewStatus=unreviewed`
+
+Filter mode provides a traditional paginated list that automatically refreshes:
+
+- **Paginated list**: Shows items matching the current filter criteria (e.g., unreviewed items)
+- **Auto-replacement**: When an item is reviewed and no longer matches the filter, it's removed and replaced with the next item from the queue
+- **Count stays constant**: The visible count remains at page size (10) until the queue is exhausted
+- **Sequential workflow**: Designed for working through a backlog methodically
+- **Filter-aware updates**: Uses `statusFilter` option in `useQueue` hook to remove items that no longer match
+
+```tsx
+// In ComplianceReviewQueue.tsx
+const [reviewStatus] = useQueryState('reviewStatus', reviewStatusParser);
+
+const filterQueue = useQueue<ComplianceIssueWithContext, ComplianceIssueStatusCounts>({
+  initialItems: filterProps.initialIssues,
+  initialCounts: statusCounts,
+  getItemId: (i) => i.id,
+  getItemStatus: (i) => i.reviewStatus || 'unreviewed',
+  defaultStatus: 'unreviewed',
+  getRegulationId: (i) => i.regulation.id,
+  statusFilter: reviewStatus || 'unreviewed',  // Items removed when status doesn't match
+});
+```
+
+### Smart Suggestions Mode (Batch Queue)
+
+**URL**: `/[state]/review?type=compliance&queueMode=suggestion`
+
+Smart suggestions mode provides focused batch review:
+
+- **Batch-based**: Loads discrete batches of items (configurable: 2-5 items)
+- **Items stay visible**: Reviewed items remain visible in the current batch
+- **Explicit next batch**: User manually requests the next batch when ready
+- **Grouped suggestions**: Can group by issue type, section, or pattern for focused review
+- **Preserves context**: See related items together for consistent decisions
+
+```tsx
+// In ComplianceReviewQueue.tsx (suggestion mode)
+const suggestionQueue = useSuggestionQueue({
+  initialBatch: suggestionProps.initialBatch,
+  initialCounts: statusCounts,
+  batchSize: suggestionProps.batchSize,
+  state: suggestionProps.state,
+  groupingMode: suggestionProps.groupingMode,
+});
+```
+
+### Choosing the Right Mode
+
+| Use Case | Recommended Mode |
+|----------|------------------|
+| Processing a backlog of items | Filter Mode |
+| Focused review of similar items | Smart Suggestions |
+| Quick triage of many items | Filter Mode |
+| Consistent decisions on related issues | Smart Suggestions |
+| Mobile/tablet review | Filter Mode (simpler UI) |
+
+### Implementation Details
+
+Both modes use the `useQueue` hook but with different behaviors:
+
+1. **Filter Mode**: Passes `statusFilter` option, causing items to be removed when their status changes
+2. **Suggestion Mode**: Uses `useSuggestionQueue` which explicitly manages batch state and doesn't auto-remove items
+
+The key code path in `useQueue.ts`:
+
+```typescript
+// In handleItemUpdated:
+if (oldStatus !== newStatus) {
+  // Update counts...
+
+  // Remove item if it no longer matches the filter
+  if (statusFilter && statusFilter !== 'all' && newStatus !== statusFilter) {
+    return prevItems.filter((item) => getItemId(item) !== updatedId);
+  }
+}
+```
+
+---
+
 ## Developer Mode Components
 
 Developer Mode provides a second layer for tracking implementation status of reviewed items.

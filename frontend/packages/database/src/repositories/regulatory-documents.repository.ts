@@ -407,7 +407,8 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
       summary: analyses.summary,
     }[sortBy];
 
-    const orderByClause = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
+    const primarySort = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
+    const secondarySort = asc(regulatoryDocuments.id); // Tiebreaker for consistent ordering
 
     // Get total count for pagination
     const countQuery = this.db
@@ -527,7 +528,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
           eq(analyses.isCurrent, true)
         )
       )
-      .orderBy(orderByClause)
+      .orderBy(primarySort, secondarySort)
       .limit(pageSize)
       .offset(offset);
 
