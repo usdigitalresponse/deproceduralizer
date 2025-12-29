@@ -120,123 +120,117 @@ export function RegulationDetailClient({
   };
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-[1fr_280px] gap-4">
+    <div className="space-y-4">
+      {/* Notes panel - stacked above regulation text */}
+      <NotesSidePanel
+        documentId={documentId}
+        state={state}
+        notes={notes}
+        activeNoteId={activeNoteId}
+        onNotesChange={handleNotesChange}
+        onNoteActivate={handleNoteActivate}
+      />
+
       {/* Regulation text area */}
-      <div className="min-w-0">
-        <Card>
-          <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-            <h2 className="font-semibold text-[var(--color-text)]">Full Regulation Text</h2>
-            <span className="text-xs text-[var(--color-text-muted)]">
-              Select text to add annotations
-            </span>
+      <Card>
+        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+          <h2 className="font-semibold text-[var(--color-text)]">Full Regulation Text</h2>
+          <span className="text-xs text-[var(--color-text-muted)]">
+            Select text to add annotations
+          </span>
+        </div>
+
+        {/* Search Bar */}
+        <div className="flex items-center gap-2 mb-3">
+          <div className="flex items-center gap-1.5 text-[var(--color-text-secondary)]">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+          <div className="flex-1 max-w-xs">
+            <Input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentMatchIndex(0);
+              }}
+              onKeyDown={handleKeyDown}
+              placeholder="Search in regulation text..."
+              className="text-sm py-1.5"
+            />
           </div>
 
-          {/* Search Bar */}
-          <div className="flex items-center gap-2 mb-3">
-            <div className="flex items-center gap-1.5 text-[var(--color-text-secondary)]">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </div>
-            <div className="flex-1 max-w-xs">
-              <Input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
+          {searchQuery && (
+            <div className="flex items-center gap-1 text-sm text-[var(--color-text-secondary)]">
+              <span>
+                {matches.length > 0
+                  ? `${currentMatchIndex + 1}/${matches.length}`
+                  : 'No matches'}
+              </span>
+
+              {matches.length > 1 && (
+                <>
+                  <button
+                    onClick={goToPrevMatch}
+                    className="p-1.5 hover:bg-[var(--color-neutral-100)] rounded"
+                    title="Previous match (Shift+Enter)"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={goToNextMatch}
+                    className="p-1.5 hover:bg-[var(--color-neutral-100)] rounded"
+                    title="Next match (Enter)"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                </>
+              )}
+
+              <button
+                onClick={() => {
+                  setSearchQuery('');
                   setCurrentMatchIndex(0);
                 }}
-                onKeyDown={handleKeyDown}
-                placeholder="Search in regulation text..."
-                className="text-sm py-1.5"
-              />
+                className="p-1.5 hover:bg-[var(--color-neutral-100)] rounded"
+                title="Clear search"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
-
-            {searchQuery && (
-              <div className="flex items-center gap-1 text-sm text-[var(--color-text-secondary)]">
-                <span>
-                  {matches.length > 0
-                    ? `${currentMatchIndex + 1}/${matches.length}`
-                    : 'No matches'}
-                </span>
-
-                {matches.length > 1 && (
-                  <>
-                    <button
-                      onClick={goToPrevMatch}
-                      className="p-1.5 hover:bg-[var(--color-neutral-100)] rounded"
-                      title="Previous match (Shift+Enter)"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                      </svg>
-                    </button>
-                    <button
-                      onClick={goToNextMatch}
-                      className="p-1.5 hover:bg-[var(--color-neutral-100)] rounded"
-                      title="Next match (Enter)"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
-                  </>
-                )}
-
-                <button
-                  onClick={() => {
-                    setSearchQuery('');
-                    setCurrentMatchIndex(0);
-                  }}
-                  className="p-1.5 hover:bg-[var(--color-neutral-100)] rounded"
-                  title="Clear search"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            )}
-          </div>
-
-          <div
-            ref={contentRef}
-            className="bg-[var(--color-neutral-50)] border-l-4 border-[var(--color-neutral-400)] p-4 rounded-[var(--radius-md)] text-sm font-mono max-h-[600px] overflow-y-auto"
-          >
-            {content ? (
-              <AnnotatableContent
-                content={content}
-                documentId={documentId}
-                state={state}
-                notes={notes}
-                activeNoteId={activeNoteId}
-                onNoteCreated={handleNoteCreated}
-                onNoteClick={handleNoteClick}
-                applicableDefinitions={applicableDefinitions}
-                crossRefHighlights={crossRefMatches}
-                searchQuery={searchQuery}
-                currentMatchIndex={currentMatchIndex}
-              />
-            ) : (
-              <span className="text-[var(--color-text-muted)]">No content available</span>
-            )}
-          </div>
-        </Card>
-      </div>
-
-      {/* Notes sidebar */}
-      <div className="hidden xl:block">
-        <div className="sticky top-6">
-          <NotesSidePanel
-            documentId={documentId}
-            state={state}
-            notes={notes}
-            activeNoteId={activeNoteId}
-            onNotesChange={handleNotesChange}
-            onNoteActivate={handleNoteActivate}
-          />
+          )}
         </div>
-      </div>
+
+        <div
+          ref={contentRef}
+          className="bg-[var(--color-neutral-50)] border-l-4 border-[var(--color-neutral-400)] p-4 rounded-[var(--radius-md)] text-sm font-mono max-h-[600px] overflow-y-auto"
+        >
+          {content ? (
+            <AnnotatableContent
+              content={content}
+              documentId={documentId}
+              state={state}
+              notes={notes}
+              activeNoteId={activeNoteId}
+              onNoteCreated={handleNoteCreated}
+              onNoteClick={handleNoteClick}
+              applicableDefinitions={applicableDefinitions}
+              crossRefHighlights={crossRefMatches}
+              searchQuery={searchQuery}
+              currentMatchIndex={currentMatchIndex}
+            />
+          ) : (
+            <span className="text-[var(--color-text-muted)]">No content available</span>
+          )}
+        </div>
+      </Card>
     </div>
   );
 }

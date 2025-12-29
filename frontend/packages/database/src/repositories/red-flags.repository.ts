@@ -51,7 +51,7 @@ export interface RedFlagPaginationOptions {
   state: StateCode;
   page: number;
   pageSize: number;
-  sortBy?: 'severity' | 'category' | 'reviewedAt';
+  sortBy?: 'severity' | 'category' | 'reviewedAt' | 'developerCheckedAt';
   sortOrder?: 'asc' | 'desc';
   filters?: Omit<RedFlagFilterOptions, 'state'>;
 }

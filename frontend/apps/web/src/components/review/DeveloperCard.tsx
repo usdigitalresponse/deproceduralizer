@@ -88,7 +88,7 @@ function ReviewSummary({ item }: { item: DeveloperItem }) {
           <div>
             <span className="text-[var(--color-text-muted)]">Reviewed: </span>
             <span className="text-[var(--color-text)]">
-              {new Date(item.reviewedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+              {new Date(item.reviewedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}
             </span>
           </div>
         )}

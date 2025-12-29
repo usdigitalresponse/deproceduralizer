@@ -56,7 +56,7 @@ export interface ComplianceIssuePaginationOptions {
   state: StateCode;
   page: number;
   pageSize: number;
-  sortBy?: 'issueType' | 'createdAt' | 'reviewedAt' | 'severity';
+  sortBy?: 'issueType' | 'createdAt' | 'reviewedAt' | 'severity' | 'developerCheckedAt';
   sortOrder?: 'asc' | 'desc';
   filters?: Omit<ComplianceIssueFilterOptions, 'state'>;
 }
@@ -327,6 +327,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       createdAt: complianceIssues.createdAt,
       reviewedAt: complianceIssues.reviewedAt,
       severity: complianceIssues.severity,
+      developerCheckedAt: complianceIssues.developerCheckedAt,
     }[sortBy] ?? complianceIssues.createdAt;
 
     const primarySort = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
@@ -562,6 +563,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       createdAt: complianceIssues.createdAt,
       reviewedAt: complianceIssues.reviewedAt,
       severity: complianceIssues.severity,
+      developerCheckedAt: complianceIssues.developerCheckedAt,
     }[sortBy] ?? complianceIssues.createdAt;
 
     const primarySort = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
