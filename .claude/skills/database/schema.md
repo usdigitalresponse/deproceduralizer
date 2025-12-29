@@ -2,7 +2,7 @@
 
 ## regulatory_documents
 
-Main table with hierarchy. **67 columns** - use `./scripts/db-query.sh describe regulatory_documents` for full list.
+Main table with hierarchy. **73 columns** - use `./scripts/db-query.sh describe regulatory_documents` for full list.
 
 **Core columns:**
 
@@ -61,11 +61,22 @@ Main table with hierarchy. **67 columns** - use `./scripts/db-query.sh describe 
 | `excluded_by` | varchar(255) | Who excluded it |
 | `excluded_reason` | text | Why it was excluded |
 
+**AI-generated summary metadata (from batch summarization pipeline):**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `summary` | text | 1-2 sentence AI-generated summary |
+| `section_type` | varchar(50) | Category: definitions, requirements, procedures, prohibitions, standards, eligibility, penalties, fees, forms, reporting, scope, exemptions, reserved |
+| `keywords` | text[] | 3-5 searchable keywords (PostgreSQL array) |
+| `applies_to` | text[] | Entities that must comply (licensees, employers, etc.) |
+| `has_form` | boolean | References a specific form (default false) |
+| `has_ibr` | boolean | Incorporates external standards by reference - ASTM, NFPA, ISO, etc. (default false) |
+
 **Constraints:**
 - `chk_rd_state CHECK (state IN ('NY', 'NJ'))`
 - `unique_per_url UNIQUE(url)`
 
-**Indexes:** `idx_documents_state`, `idx_documents_type`, `idx_documents_state_type`, `idx_documents_parent`, `idx_documents_hierarchy_level`, `idx_documents_regulatory_status`, `idx_documents_url`, `idx_documents_short_title`, `idx_documents_exclude_from_analysis` (partial)
+**Indexes:** `idx_documents_state`, `idx_documents_type`, `idx_documents_state_type`, `idx_documents_parent`, `idx_documents_hierarchy_level`, `idx_documents_regulatory_status`, `idx_documents_url`, `idx_documents_short_title`, `idx_documents_exclude_from_analysis` (partial), `idx_rd_keywords` (GIN), `idx_rd_applies_to` (GIN), `idx_rd_section_type` (partial), `idx_rd_has_form` (partial), `idx_rd_has_ibr` (partial)
 
 ## analyses
 

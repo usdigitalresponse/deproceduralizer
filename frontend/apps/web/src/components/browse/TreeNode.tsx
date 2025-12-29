@@ -2,6 +2,8 @@
 
 import { type HierarchyNode } from '@deproceduralizer/database';
 import { Badge, SeverityBadge } from '@/components/ui/Badge';
+import { SectionTypeBadge } from '@/components/ui/SectionTypeBadge';
+import { MetadataIndicators } from '@/components/ui/MetadataIndicators';
 import { ChevronRight, ChevronDown, FileText, BookOpen, Folder } from 'lucide-react';
 import { formatDisplayTitle } from '@/lib/format';
 
@@ -195,6 +197,10 @@ export function TreeNode({
 
         {/* Metadata badges */}
         <div className="flex items-center gap-1 shrink-0">
+          {node.sectionType && (
+            <SectionTypeBadge type={node.sectionType} compact />
+          )}
+          <MetadataIndicators hasForm={node.hasForm} hasIbr={node.hasIbr} />
           {node.hasDefinitions && (
             <Badge variant="info" className="text-xs">
               <BookOpen className="w-3 h-3 mr-1" />

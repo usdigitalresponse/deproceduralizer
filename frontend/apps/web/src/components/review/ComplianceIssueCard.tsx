@@ -3,6 +3,8 @@
 import { useState, forwardRef, useCallback, useTransition } from 'react';
 import { updateComplianceIssueReview, getExpandedContext } from '@/lib/actions/compliance-issues';
 import { Button, Textarea, Badge, SeverityBadge, Select, Tag, CopyLinkButton } from '@/components/ui';
+import { SectionTypeBadge } from '@/components/ui/SectionTypeBadge';
+import { MetadataIndicators } from '@/components/ui/MetadataIndicators';
 import { ISSUE_TYPE_LABELS } from '@/types/regulation';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
 import { formatNjacCitation } from '@/lib/formatters/njac';
@@ -149,6 +151,23 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
             </Badge>
           </div>
         </div>
+
+        {/* Summary context */}
+        {(issue.regulation.summary || issue.regulation.sectionType || issue.regulation.hasForm || issue.regulation.hasIbr) && (
+          <div className="bg-[var(--color-neutral-50)] rounded p-2 mb-3">
+            {issue.regulation.summary && (
+              <p className="text-xs text-[var(--color-text-secondary)] mb-1 line-clamp-2">
+                {issue.regulation.summary}
+              </p>
+            )}
+            <div className="flex items-center gap-2">
+              {issue.regulation.sectionType && (
+                <SectionTypeBadge type={issue.regulation.sectionType} compact />
+              )}
+              <MetadataIndicators hasForm={issue.regulation.hasForm} hasIbr={issue.regulation.hasIbr} />
+            </div>
+          </div>
+        )}
 
         {/* Regulation context */}
         <div className="mb-4 text-sm">

@@ -4,6 +4,8 @@ import { forwardRef } from 'react';
 import { updateRedFlagReview } from '@/lib/actions/red-flags';
 import { useReviewForm } from '@/hooks';
 import { Button, Input, Textarea, Badge, SeverityBadge, Select, Tag, CopyLinkButton } from '@/components/ui';
+import { SectionTypeBadge } from '@/components/ui/SectionTypeBadge';
+import { MetadataIndicators } from '@/components/ui/MetadataIndicators';
 import { PRIORITY_OPTIONS, IMPACT_TYPES, getComplexityVariant, formatLabel } from '@/types/regulation';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
 import { ExpandableRegulationQuote } from './ExpandableRegulationQuote';
@@ -96,6 +98,23 @@ export const ReviewCard = forwardRef<HTMLDivElement, ReviewCardProps>(
             </div>
           </div>
         </div>
+
+        {/* Summary context */}
+        {(flag.regulation.summary || flag.regulation.sectionType || flag.regulation.hasForm || flag.regulation.hasIbr) && (
+          <div className="bg-[var(--color-neutral-50)] rounded p-2 mb-3">
+            {flag.regulation.summary && (
+              <p className="text-xs text-[var(--color-text-secondary)] mb-1 line-clamp-2">
+                {flag.regulation.summary}
+              </p>
+            )}
+            <div className="flex items-center gap-2">
+              {flag.regulation.sectionType && (
+                <SectionTypeBadge type={flag.regulation.sectionType} compact />
+              )}
+              <MetadataIndicators hasForm={flag.regulation.hasForm} hasIbr={flag.regulation.hasIbr} />
+            </div>
+          </div>
+        )}
 
         {/* Regulation context */}
         <div className="mb-4 text-sm">

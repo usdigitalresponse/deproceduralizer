@@ -15,10 +15,13 @@ import { RED_FLAG_CATEGORIES } from '@deproceduralizer/database/schema';
 import { Badge, SeverityBadge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { SectionTypeBadge } from '@/components/ui/SectionTypeBadge';
+import { KeywordTags } from '@/components/ui/KeywordTags';
+import { MetadataIndicators } from '@/components/ui/MetadataIndicators';
 import { getComplexityVariant, formatLabel } from '@/types/regulation';
 import { useResponsive } from '@/hooks';
 import { formatDisplayTitle } from '@/lib/format';
-import { SEVERITY_TABLE_OPTIONS } from '@/lib/constants/filters';
+import { SEVERITY_TABLE_OPTIONS, SECTION_TYPE_OPTIONS } from '@/lib/constants/filters';
 
 interface PaginationInfo {
   page: number;
@@ -60,6 +63,7 @@ const dataTableParsers = {
   techReview: parseAsString,    // Use string to support 'null'
   reporting: parseAsString,     // Use string to support 'null'
   summarySearch: parseAsString,
+  sectionType: parseAsString,   // AI-generated section type filter
   sortBy: parseAsString.withDefault('maxSeverity'),
   sortOrder: parseAsString.withDefault('desc'),
 };
@@ -143,6 +147,11 @@ const COLUMN_FILTERS: Record<string, ColumnFilterConfig> = {
     urlParam: 'summarySearch',
     type: 'text',
     placeholder: 'Search...',
+  },
+  sectionType: {
+    urlParam: 'sectionType',
+    type: 'select',
+    options: SECTION_TYPE_OPTIONS.map(opt => ({ value: opt.value, label: opt.label })),
   },
 };
 
@@ -270,6 +279,27 @@ const columns = [
       );
     },
   }),
+  columnHelper.accessor('sectionType', {
+    header: 'Type',
+    size: 120,
+    cell: (info) => <SectionTypeBadge type={info.getValue()} />,
+  }),
+  columnHelper.accessor('keywords', {
+    header: 'Keywords',
+    size: 160,
+    cell: (info) => <KeywordTags keywords={info.getValue() ?? []} maxDisplay={2} />,
+  }),
+  columnHelper.display({
+    id: 'indicators',
+    header: '',
+    size: 60,
+    cell: (info) => (
+      <MetadataIndicators
+        hasForm={info.row.original.hasForm}
+        hasIbr={info.row.original.hasIbr}
+      />
+    ),
+  }),
 ];
 
 interface DataTableProps {
@@ -288,6 +318,9 @@ const MOBILE_HIDDEN_COLUMNS = [
   'requiresTechnicalReview',
   'hasReportingRequirement',
   'summary',
+  'sectionType',
+  'keywords',
+  'indicators',
 ];
 
 export default function DataTable({ data, onRowClick, pagination, search }: DataTableProps) {
@@ -306,6 +339,7 @@ export default function DataTable({ data, onRowClick, pagination, search }: Data
       return {
         explanations: false,
         summary: false,
+        keywords: false,
       };
     }
     return {};
@@ -359,6 +393,7 @@ export default function DataTable({ data, onRowClick, pagination, search }: Data
       category: null,
       summarySearch: null,
       explanationSearch: null,
+      sectionType: null,
       page: 1,
     });
   }, [setQueryParams]);
@@ -374,7 +409,8 @@ export default function DataTable({ data, onRowClick, pagination, search }: Data
       queryParams.reporting !== null ||
       queryParams.category !== null ||
       queryParams.summarySearch !== null ||
-      queryParams.explanationSearch !== null
+      queryParams.explanationSearch !== null ||
+      queryParams.sectionType !== null
     );
   }, [queryParams]);
 

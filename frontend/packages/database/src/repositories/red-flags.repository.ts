@@ -32,6 +32,11 @@ export interface RedFlagWithContext extends RedFlag {
     nycrrPart: string | null;
     nycrrSection: string | null;
     url: string | null;
+    // Summary metadata
+    summary: string | null;
+    sectionType: string | null;
+    hasForm: boolean | null;
+    hasIbr: boolean | null;
   };
 }
 
@@ -288,6 +293,10 @@ export class RedFlagsRepository extends BaseRepository {
         regulationNycrrPart: regulatoryDocuments.nycrrPart,
         regulationNycrrSection: regulatoryDocuments.nycrrSection,
         regulationUrl: regulatoryDocuments.url,
+        regulationSummary: regulatoryDocuments.summary,
+        regulationSectionType: regulatoryDocuments.sectionType,
+        regulationHasForm: regulatoryDocuments.hasForm,
+        regulationHasIbr: regulatoryDocuments.hasIbr,
       })
       .from(redFlags)
       .innerJoin(analyses, eq(redFlags.analysisId, analyses.id))
@@ -330,6 +339,10 @@ export class RedFlagsRepository extends BaseRepository {
         nycrrPart: row.regulationNycrrPart,
         nycrrSection: row.regulationNycrrSection,
         url: row.regulationUrl,
+        summary: row.regulationSummary,
+        sectionType: row.regulationSectionType,
+        hasForm: row.regulationHasForm,
+        hasIbr: row.regulationHasIbr,
       },
     }));
 
@@ -511,6 +524,10 @@ export class RedFlagsRepository extends BaseRepository {
         regulationNycrrPart: regulatoryDocuments.nycrrPart,
         regulationNycrrSection: regulatoryDocuments.nycrrSection,
         regulationUrl: regulatoryDocuments.url,
+        regulationSummary: regulatoryDocuments.summary,
+        regulationSectionType: regulatoryDocuments.sectionType,
+        regulationHasForm: regulatoryDocuments.hasForm,
+        regulationHasIbr: regulatoryDocuments.hasIbr,
       })
       .from(redFlags)
       .innerJoin(analyses, eq(redFlags.analysisId, analyses.id))
@@ -553,6 +570,10 @@ export class RedFlagsRepository extends BaseRepository {
         nycrrPart: row.regulationNycrrPart,
         nycrrSection: row.regulationNycrrSection,
         url: row.regulationUrl,
+        summary: row.regulationSummary,
+        sectionType: row.regulationSectionType,
+        hasForm: row.regulationHasForm,
+        hasIbr: row.regulationHasIbr,
       },
     }));
 
@@ -636,6 +657,10 @@ export class RedFlagsRepository extends BaseRepository {
         regulationNycrrPart: regulatoryDocuments.nycrrPart,
         regulationNycrrSection: regulatoryDocuments.nycrrSection,
         regulationUrl: regulatoryDocuments.url,
+        regulationSummary: regulatoryDocuments.summary,
+        regulationSectionType: regulatoryDocuments.sectionType,
+        regulationHasForm: regulatoryDocuments.hasForm,
+        regulationHasIbr: regulatoryDocuments.hasIbr,
       })
       .from(redFlags)
       .innerJoin(analyses, eq(redFlags.analysisId, analyses.id))
@@ -677,6 +702,10 @@ export class RedFlagsRepository extends BaseRepository {
         nycrrPart: row.regulationNycrrPart,
         nycrrSection: row.regulationNycrrSection,
         url: row.regulationUrl,
+        summary: row.regulationSummary,
+        sectionType: row.regulationSectionType,
+        hasForm: row.regulationHasForm,
+        hasIbr: row.regulationHasIbr,
       },
     }));
 

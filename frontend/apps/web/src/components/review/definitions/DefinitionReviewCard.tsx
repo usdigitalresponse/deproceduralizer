@@ -7,6 +7,8 @@ import { updateDefinitionReview, getAncestorDocumentsForScope } from '@/lib/acti
 import { useReviewerName } from '@/hooks/useReviewerName';
 import { Button, Input, Textarea, Badge, Select, SearchableContent } from '@/components/ui';
 import { CopyLinkButton } from '@/components/ui/CopyLinkButton';
+import { SectionTypeBadge } from '@/components/ui/SectionTypeBadge';
+import { MetadataIndicators } from '@/components/ui/MetadataIndicators';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
 import { formatNjacCitation } from '@/lib/formatters/njac';
 import { CardWrapper } from '../shared';
@@ -331,6 +333,23 @@ export const DefinitionReviewCard = forwardRef<HTMLDivElement, DefinitionReviewC
             <CopyLinkButton anchor={`definition-${definition.id}`} />
           </div>
         </div>
+
+        {/* Summary context */}
+        {definition.regulation && (definition.regulation.summary || definition.regulation.sectionType || definition.regulation.hasForm || definition.regulation.hasIbr) && (
+          <div className="bg-[var(--color-neutral-50)] rounded p-2 mb-4">
+            {definition.regulation.summary && (
+              <p className="text-xs text-[var(--color-text-secondary)] mb-1 line-clamp-2">
+                {definition.regulation.summary}
+              </p>
+            )}
+            <div className="flex items-center gap-2">
+              {definition.regulation.sectionType && (
+                <SectionTypeBadge type={definition.regulation.sectionType} compact />
+              )}
+              <MetadataIndicators hasForm={definition.regulation.hasForm} hasIbr={definition.regulation.hasIbr} />
+            </div>
+          </div>
+        )}
 
         {/* Two Column Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">

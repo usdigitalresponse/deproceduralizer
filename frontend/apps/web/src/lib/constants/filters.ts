@@ -181,3 +181,41 @@ export const DEFINITIONS_REFERENCE_TARGET_OPTIONS = [
   { value: 'external_standard', label: 'External Standard' },
   { value: 'other', label: 'Other' },
 ];
+
+// ============================================
+// Section Type Options (AI-generated metadata)
+// ============================================
+
+export const SECTION_TYPE_OPTIONS = [
+  { value: 'all', label: 'All Types' },
+  { value: 'definitions', label: 'Definitions' },
+  { value: 'requirements', label: 'Requirements' },
+  { value: 'procedures', label: 'Procedures' },
+  { value: 'prohibitions', label: 'Prohibitions' },
+  { value: 'standards', label: 'Standards' },
+  { value: 'eligibility', label: 'Eligibility' },
+  { value: 'penalties', label: 'Penalties' },
+  { value: 'fees', label: 'Fees' },
+  { value: 'forms', label: 'Forms' },
+  { value: 'reporting', label: 'Reporting' },
+  { value: 'scope', label: 'Scope' },
+  { value: 'exemptions', label: 'Exemptions' },
+  { value: 'reserved', label: 'Reserved' },
+] as const;
+
+// Metadata boolean filters (for has_form and has_ibr)
+export const METADATA_FLAG_OPTIONS = [
+  { value: 'all', label: 'All' },
+  { value: 'true', label: 'Yes' },
+  { value: 'false', label: 'No' },
+] as const;
+
+export const HAS_FORM_FILTER_OPTIONS = [
+  { value: 'all', label: 'All' },
+  { value: 'true', label: 'Has Form Reference' },
+] as const;
+
+export const HAS_IBR_FILTER_OPTIONS = [
+  { value: 'all', label: 'All' },
+  { value: 'true', label: 'Has External Standards (IBR)' },
+] as const;
