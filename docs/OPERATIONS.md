@@ -55,7 +55,7 @@ python backend/scripts/compliance_issues/searcher.py --state NJ
 
 - Regex triage → LLM verification → save results
 - Stores "no issue" rows (`requirement_found=false`) for audit trail
-- Issue patterns defined in `backend/scripts/compliance_issues/compliance_issues.yaml`
+- Issue patterns defined in `prompts/compliance_issues.yaml`
 
 ### 5. Scan Incorporations by Reference
 
@@ -157,8 +157,12 @@ python backend/scripts/batch_definitions.py resume --batch-dir data/outputs/batc
 
 ## Prompts
 
-- Main prompts: `prompts.yaml` (project root)
-- Compliance issues: `backend/scripts/compliance_issues/compliance_issues.yaml`
-- Frontend copy: `frontend/apps/web/src/data/prompts.yaml` (auto-generated via prebuild)
+All prompts live in the `/prompts/` directory:
+
+- Core analysis prompts: `prompts/core.yaml` (red_flags, definitions)
+- Compliance issues: `prompts/compliance_issues.yaml` (43 issue types with patterns + prompts)
+- Frontend copy: `frontend/apps/web/src/data/prompts.yaml` (copied from `prompts/core.yaml` via prebuild)
+
+TypeScript types are auto-generated from YAML - run `python scripts/generate_prompt_types.py` after modifying `prompts/compliance_issues.yaml`.
 
 Run `pnpm prebuild` in `frontend/apps/web/` if the `/prompts` page fails in development.
