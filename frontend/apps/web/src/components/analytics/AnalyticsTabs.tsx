@@ -5,7 +5,7 @@ import type { AnalyticsTabValue } from '@/lib/constants/values';
 
 interface AnalyticsTabsProps {
   activeTab: AnalyticsTabValue;
-  onTabChange: (tab: string) => void;
+  onTabChange: (tab: AnalyticsTabValue) => void;
 }
 
 const TABS: { value: AnalyticsTabValue; label: string; icon: React.ElementType }[] = [

@@ -405,3 +405,45 @@ export const analyticsParsers = {
 // ============================================
 
 export const viewModeParser = parseAsStringEnum([...VIEW_MODE_VALUES]).withDefault('table');
+
+// ============================================
+// Faceted filter parsers (for card grid view)
+// ============================================
+
+// Multi-value parsers store comma-separated values in URL
+// e.g., ?severity=high,medium or ?sectionTypes=definitions,requirements
+export const facetedSeverityParser = parseAsString; // comma-separated: "high,medium"
+export const facetedSectionTypesParser = parseAsString; // comma-separated: "definitions,requirements"
+export const facetedComplexityParser = parseAsString; // comma-separated: "LOW,MEDIUM"
+export const facetedHasFlagsParser = parseAsString; // 'true' | 'false' | null
+export const facetedHasFormParser = parseAsString; // 'true' | null
+export const facetedHasIbrParser = parseAsString; // 'true' | null
+
+/**
+ * Parser configuration for card grid faceted filters
+ */
+export const facetedFiltersParsers = {
+  viewMode: viewModeParser,
+  fSeverity: facetedSeverityParser,
+  fSectionTypes: facetedSectionTypesParser,
+  fComplexity: facetedComplexityParser,
+  fHasFlags: facetedHasFlagsParser,
+  fHasForm: facetedHasFormParser,
+  fHasIbr: facetedHasIbrParser,
+};
+
+/**
+ * Helper to parse comma-separated filter values from URL
+ */
+export function parseCommaSeparated(value: string | null): string[] {
+  if (!value) return [];
+  return value.split(',').filter(Boolean);
+}
+
+/**
+ * Helper to serialize array to comma-separated string for URL
+ */
+export function serializeCommaSeparated(values: string[]): string | null {
+  if (values.length === 0) return null;
+  return values.join(',');
+}

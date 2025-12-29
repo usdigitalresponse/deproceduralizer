@@ -74,3 +74,8 @@ export type { EmptyStateProps } from './EmptyState';
 
 // SearchableContent
 export { SearchableContent } from './SearchableContent';
+
+// AI-generated metadata components
+export { SectionTypeBadge } from './SectionTypeBadge';
+export { KeywordTags } from './KeywordTags';
+export { MetadataIndicators } from './MetadataIndicators';

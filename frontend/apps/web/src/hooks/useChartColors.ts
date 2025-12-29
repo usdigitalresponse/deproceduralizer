@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import * as d3Scale from 'd3-scale';
-import * as d3ScaleChromatic from 'd3-scale-chromatic';
+import * as d3Interpolate from 'd3-interpolate';
 
 /**
  * Design token colors resolved to hex values for D3 interpolation.
@@ -99,12 +99,12 @@ export function useChartColors() {
     const heatmapScale = d3Scale
       .scaleSequential<string>()
       .domain([0, 10])
-      .interpolator((t) =>
-        d3ScaleChromatic.interpolateRgbBasis([
+      .interpolator(
+        d3Interpolate.interpolateRgbBasis([
           RESOLVED_COLORS.primaryWeaker,
           RESOLVED_COLORS.warning,
           RESOLVED_COLORS.danger,
-        ])(t)
+        ])
       );
 
     // Categorical scale for section types, issue types, etc.

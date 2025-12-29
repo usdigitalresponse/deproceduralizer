@@ -1783,3 +1783,415 @@ import {
   padding: var(--space-4);
 }
 ```
+
+---
+
+## Data Visualization Components
+
+The application includes D3-powered data visualization components for the Analytics page and Card Grid view.
+
+### Chart Infrastructure
+
+**D3 Integration Pattern**: D3 for math (layouts, scales, generators), React for DOM (JSX rendering). All chart components are client-only (`'use client'`).
+
+#### Chart Hooks
+
+```tsx
+import { useChartDimensions } from '@/hooks/useChartDimensions';
+import { useChartColors } from '@/hooks/useChartColors';
+
+// Responsive dimensions with ResizeObserver
+const { containerRef, dimensions } = useChartDimensions({
+  aspectRatio: 16 / 9,
+  minHeight: 200,
+  maxHeight: 500,
+  margin: { top: 20, right: 20, bottom: 40, left: 50 },
+});
+
+// D3 color scales with design tokens
+const {
+  severityScale,      // high/medium/low → danger/warning/success
+  categoryScale,      // ordinal scale for categories
+  getSeverityColor,   // (severity: number) => color
+} = useChartColors();
+```
+
+#### ChartContainer
+
+Responsive container with title, description, and optional actions:
+
+```tsx
+import { ChartContainer } from '@/components/charts';
+
+<ChartContainer
+  title="Severity Distribution"
+  description="Breakdown of flags by severity level"
+  aspectRatio={16 / 9}
+  minHeight={200}
+  actions={<Button size="sm">Export</Button>}
+>
+  {({ dimensions }) => (
+    <svg width={dimensions.width} height={dimensions.height}>
+      {/* Chart content */}
+    </svg>
+  )}
+</ChartContainer>
+```
+
+#### ClientChart
+
+SSR wrapper ensuring charts only render client-side:
+
+```tsx
+import { ClientChart } from '@/components/charts';
+
+<ClientChart fallback={<ChartSkeleton />}>
+  <PieChart data={data} />
+</ClientChart>
+```
+
+### PieChart / SeverityDonutChart
+
+```tsx
+import { PieChart, SeverityDonutChart } from '@/components/charts';
+
+// Generic pie chart
+<PieChart
+  data={[
+    { label: 'Category A', value: 30 },
+    { label: 'Category B', value: 70 },
+  ]}
+  width={300}
+  height={300}
+  innerRadius={0}  // 0 for pie, >0 for donut
+/>
+
+// Severity-specific donut with center stat
+<SeverityDonutChart
+  data={[
+    { label: 'High', value: 50, severity: 'high' },
+    { label: 'Medium', value: 100, severity: 'medium' },
+    { label: 'Low', value: 200, severity: 'low' },
+  ]}
+  total={350}
+  label="Total Flags"
+/>
+```
+
+### BarChart / HorizontalBarChart
+
+```tsx
+import { BarChart, HorizontalBarChart } from '@/components/charts';
+
+// Vertical bar chart
+<BarChart
+  data={[
+    { label: 'Jan', value: 100 },
+    { label: 'Feb', value: 150 },
+  ]}
+  width={400}
+  height={300}
+/>
+
+// Horizontal bar chart (good for categories)
+<HorizontalBarChart
+  data={issueTypeCounts}
+  width={400}
+  height={300}
+  showValues={true}
+/>
+```
+
+### ChartTooltip
+
+```tsx
+import { ChartTooltip, useChartTooltip } from '@/components/charts';
+
+const { tooltip, showTooltip, hideTooltip } = useChartTooltip();
+
+<g
+  onMouseEnter={(e) => showTooltip(e, { label: 'Item', value: 100 })}
+  onMouseLeave={hideTooltip}
+>
+  {/* Chart element */}
+</g>
+<ChartTooltip {...tooltip} />
+```
+
+### ChartLegend
+
+```tsx
+import { ChartLegend, ChartLegendCompact, ChartLegendGradient } from '@/components/charts';
+
+// Standard legend (vertical list)
+<ChartLegend
+  items={[
+    { label: 'High', color: 'var(--color-danger)' },
+    { label: 'Medium', color: 'var(--color-warning)' },
+    { label: 'Low', color: 'var(--color-success)' },
+  ]}
+/>
+
+// Compact inline legend
+<ChartLegendCompact items={legendItems} />
+
+// Gradient legend for continuous scales
+<ChartLegendGradient
+  startColor="var(--color-success)"
+  endColor="var(--color-danger)"
+  startLabel="Low"
+  endLabel="High"
+/>
+```
+
+---
+
+## Analytics Page
+
+The Analytics page (`/[state]/analytics`) provides data visualization dashboards for regulatory analysis.
+
+### Tab Structure
+
+URL-based tabs using `nuqs`:
+
+```tsx
+import { analyticsTabParser } from '@/lib/url/parsers';
+
+// ?tab=overview | hierarchy | issues | keywords
+const [{ tab }, setParams] = useQueryStates({
+  tab: analyticsTabParser,
+});
+```
+
+### AnalyticsTabs
+
+```tsx
+import { AnalyticsTabs } from '@/components/analytics';
+
+<AnalyticsTabs
+  activeTab={tab}
+  onChange={(newTab) => setParams({ tab: newTab })}
+/>
+```
+
+### OverviewTab
+
+Stats cards, severity donut chart, and review progress bar:
+
+```tsx
+import { OverviewTab } from '@/components/analytics';
+
+<OverviewTab
+  stats={dashboardStats}
+  reviewProgress={reviewProgressData}
+  severityDistribution={severityData}
+/>
+```
+
+### HierarchyTab
+
+Zoomable treemap with customizable size and color metrics:
+
+```tsx
+import { HierarchyTab } from '@/components/analytics';
+
+<HierarchyTab
+  data={hierarchyData}
+  sizeMetric="flags"      // flags | documents | compliance
+  colorMetric="severity"   // severity | reviewStatus | none
+  depth={2}               // 1-3 levels deep
+/>
+```
+
+### IssuesTab
+
+Bar charts and heatmap for compliance issue analysis:
+
+```tsx
+import { IssuesTab } from '@/components/analytics';
+
+<IssuesTab
+  issueTypeCounts={countsByType}
+  severityMatrix={severityByType}
+/>
+```
+
+### KeywordsTab
+
+Section type pie chart and top keywords bar chart:
+
+```tsx
+import { KeywordsTab } from '@/components/analytics';
+
+<KeywordsTab
+  sectionTypeStats={sectionStats}
+  topKeywords={keywordsData}
+/>
+```
+
+---
+
+## Card Grid View
+
+Alternative to the DataTable for browsing regulations with a visual card layout.
+
+### ViewToggle
+
+Toggle between table and card grid views:
+
+```tsx
+import { ViewToggle } from '@/components/regulations';
+import { viewModeParser } from '@/lib/url/parsers';
+
+const [{ viewMode }, setParams] = useQueryStates({
+  viewMode: viewModeParser,  // 'table' | 'cards'
+});
+
+<ViewToggle viewMode={viewMode} onChange={(mode) => setParams({ viewMode: mode })} />
+```
+
+### RegulationCard
+
+Individual card for grid view:
+
+```tsx
+import { RegulationCard } from '@/components/regulations';
+
+<RegulationCard
+  regulation={regulation}
+  onClick={() => setSelectedId(regulation.id)}
+/>
+```
+
+Card displays:
+- Title with hierarchy level badge
+- Severity badge and flags count
+- Section type badge, complexity, metadata indicators
+- Summary excerpt (2-3 lines)
+- Keywords (max 3)
+- View Regulation link in footer
+
+### RegulationCardGrid
+
+Responsive grid (1/2/3 columns) with pagination:
+
+```tsx
+import { RegulationCardGrid } from '@/components/regulations';
+
+<RegulationCardGrid
+  data={regulations}
+  pagination={{ page, pageSize, total, totalPages }}
+  onCardClick={(reg) => setSelectedId(reg.id)}
+  onPageChange={(page) => setParams({ page })}
+/>
+```
+
+### FacetedFilters
+
+Sidebar with multi-select filters for the card grid view:
+
+```tsx
+import { FacetedFilters } from '@/components/regulations';
+
+<FacetedFilters
+  severity={severityValues}           // string[] of selected severities
+  sectionTypes={sectionTypeValues}    // string[] of selected types
+  complexity={complexityValues}       // string[] of selected levels
+  hasFlags={hasFlagsValue}           // 'true' | 'false' | null
+  hasForm={hasFormValue}             // 'true' | null
+  hasIbr={hasIbrValue}               // 'true' | null
+  onSeverityChange={handleSeverityChange}
+  onSectionTypesChange={handleSectionTypesChange}
+  onComplexityChange={handleComplexityChange}
+  onHasFlagsChange={handleHasFlagsChange}
+  onHasFormChange={handleHasFormChange}
+  onHasIbrChange={handleHasIbrChange}
+  onClearAll={handleClearAll}
+  // Mobile drawer mode
+  isOpen={isFilterOpen}
+  onClose={() => setIsFilterOpen(false)}
+/>
+```
+
+Filter sections:
+- **Severity**: High, Medium, Low, Not Analyzed (multi-select)
+- **Flags**: Has Flags, No Flags (radio)
+- **Section Type**: 13 categories (multi-select, collapsible)
+- **Complexity**: LOW, MEDIUM, MEDIUM-HIGH, HIGH (multi-select)
+- **Metadata**: Has Form, Has External Standards (radio)
+
+### URL State for Faceted Filters
+
+```tsx
+import {
+  facetedSeverityParser,
+  facetedSectionTypesParser,
+  facetedComplexityParser,
+  parseCommaSeparated,
+  serializeCommaSeparated,
+} from '@/lib/url/parsers';
+
+// Comma-separated values in URL
+// ?fSeverity=high,medium&fSectionTypes=definitions,requirements
+
+const severity = parseCommaSeparated(params.fSeverity);
+const newValue = serializeCommaSeparated(updatedArray);
+```
+
+### ActiveFilterChips
+
+Display active filters as removable pills:
+
+```tsx
+import { ActiveFilterChips } from '@/components/regulations';
+
+<ActiveFilterChips
+  filters={[
+    { key: 'severity', label: 'Severity', value: 'High' },
+    { key: 'sectionType', label: 'Type', value: 'Requirements' },
+  ]}
+  onRemove={(key, value) => handleRemoveFilter(key, value)}
+  onClearAll={handleClearAll}
+/>
+```
+
+### FilterSection
+
+Collapsible filter group:
+
+```tsx
+import { FilterSection } from '@/components/regulations';
+
+<FilterSection title="Severity" count={selectedCount} defaultExpanded>
+  <FilterCheckboxGroup
+    options={severityOptions}
+    selected={selectedSeverities}
+    onChange={handleChange}
+  />
+</FilterSection>
+```
+
+### FilterCheckboxGroup / FilterRadioGroup
+
+```tsx
+import { FilterCheckboxGroup, FilterRadioGroup } from '@/components/regulations';
+
+// Multi-select checkboxes
+<FilterCheckboxGroup
+  options={[
+    { value: 'high', label: 'High (7-10)', count: 50 },
+    { value: 'medium', label: 'Medium (4-6)', count: 100 },
+  ]}
+  selected={selectedValues}
+  onChange={(values) => setSelectedValues(values)}
+  maxVisible={6}  // Show "N more" link if exceeded
+/>
+
+// Single-select radios
+<FilterRadioGroup
+  options={hasFormOptions}
+  selected={selectedValue}
+  onChange={(value) => setSelectedValue(value)}
+  allowDeselect  // Click again to deselect
+/>
+```

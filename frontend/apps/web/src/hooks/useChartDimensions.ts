@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef, type RefObject } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo, type RefObject } from 'react';
 import type { ChartDimensions, ChartMargin } from '@/lib/charts/types';
 
 const DEFAULT_MARGIN: ChartMargin = {
@@ -43,10 +43,13 @@ export function useChartDimensions(
     debounceMs = 100,
   } = options;
 
-  const margin: ChartMargin = {
-    ...DEFAULT_MARGIN,
-    ...marginOverride,
-  };
+  // Memoize margin to prevent infinite loops from object reference changes
+  const margin: ChartMargin = useMemo(() => ({
+    top: marginOverride.top ?? DEFAULT_MARGIN.top,
+    right: marginOverride.right ?? DEFAULT_MARGIN.right,
+    bottom: marginOverride.bottom ?? DEFAULT_MARGIN.bottom,
+    left: marginOverride.left ?? DEFAULT_MARGIN.left,
+  }), [marginOverride.top, marginOverride.right, marginOverride.bottom, marginOverride.left]);
 
   const [dimensions, setDimensions] = useState<ChartDimensions>({
     width: 0,
@@ -69,12 +72,23 @@ export function useChartDimensions(
       const innerWidth = Math.max(0, width - margin.left - margin.right);
       const innerHeight = Math.max(0, height - margin.top - margin.bottom);
 
-      setDimensions({
-        width,
-        height,
-        margin,
-        innerWidth,
-        innerHeight,
+      setDimensions((prev) => {
+        // Avoid unnecessary updates if dimensions haven't changed
+        if (
+          prev.width === width &&
+          prev.height === height &&
+          prev.innerWidth === innerWidth &&
+          prev.innerHeight === innerHeight
+        ) {
+          return prev;
+        }
+        return {
+          width,
+          height,
+          margin,
+          innerWidth,
+          innerHeight,
+        };
       });
     },
     [aspectRatio, minHeight, maxHeight, margin]

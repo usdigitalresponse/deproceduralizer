@@ -1,7 +1,9 @@
 'use client';
 
+import { useCallback, useTransition } from 'react';
 import { useQueryStates } from 'nuqs';
 import { analyticsParsers } from '@/lib/url/parsers';
+import type { AnalyticsTabValue } from '@/lib/constants/values';
 import type { DashboardStats } from '@deproceduralizer/database';
 import type { SectionTypeStats, MetadataStats, KeywordStats } from '@/lib/actions/regulations';
 import type { ReviewStatusCounts } from '@/lib/actions/red-flags';
@@ -33,12 +35,15 @@ export function AnalyticsClient({
   complianceStatus,
   complianceByType,
 }: AnalyticsClientProps) {
-  const [params, setParams] = useQueryStates(analyticsParsers, { shallow: false });
+  const [, startTransition] = useTransition();
+  const [params, setParams] = useQueryStates(analyticsParsers, { shallow: true });
   const { tab } = params;
 
-  const handleTabChange = (newTab: string) => {
-    setParams({ tab: newTab as typeof tab });
-  };
+  const handleTabChange = useCallback((newTab: AnalyticsTabValue) => {
+    startTransition(() => {
+      setParams({ tab: newTab });
+    });
+  }, [setParams]);
 
   return (
     <div className="space-y-6">

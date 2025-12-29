@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
-import { isValidState, type StateCode } from '@deproceduralizer/database';
+import type { StateCode } from '@deproceduralizer/database';
+import { isValidState } from '@/types/state';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Container } from '@/components/layout/Container';
 import { getDashboardStats } from '@/lib/actions/dashboard';
