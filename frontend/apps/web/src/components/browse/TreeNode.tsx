@@ -99,7 +99,7 @@ export function TreeNode({
     <div role="treeitem" aria-expanded={hasChildren ? isExpanded : undefined}>
       <div
         className={`
-          flex items-center gap-2 py-1.5 px-2 rounded cursor-pointer
+          flex items-start gap-2 py-1.5 px-2 rounded cursor-pointer
           transition-colors duration-[var(--duration-fast)]
           ${isSelected
             ? 'bg-[var(--color-primary-weaker)] text-[var(--color-primary)]'
@@ -136,7 +136,7 @@ export function TreeNode({
         <Icon className="w-4 h-4 shrink-0 text-[var(--color-text-muted)]" aria-hidden="true" />
 
         {/* Node content */}
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 min-w-[120px]">
           <div className="text-sm font-medium truncate" title={node.title}>
             {highlightMatch(displayTitle, searchTerm)}
           </div>
@@ -184,7 +184,7 @@ export function TreeNode({
         </div>
 
         {/* Metadata badges */}
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex items-center gap-1 flex-wrap shrink">
           {node.hasDefinitions && (
             <Badge variant="info" className="text-xs">
               <BookOpen className="w-3 h-3 mr-1" />

@@ -44,6 +44,7 @@ Main table with hierarchy. **67 columns** - use `./scripts/db-query.sh describe 
 | `has_descendant_analysis` | boolean | Any descendant has analysis |
 | `compliance_issue_count` | integer | Compliance issues in this doc |
 | `descendant_compliance_issue_count` | integer | Compliance issues in subtree |
+| `cross_reference_count` | integer | Count of internal cross-references from this doc |
 
 **Regulatory status:**
 
@@ -367,6 +368,55 @@ Many-to-many crosswalk between regulations and statutes.
 
 **Constraints:** `unique_regulation_statute_link UNIQUE(regulation_id, citation)`
 
+## cross_references
+
+Internal cross-references between regulatory documents (e.g., "18 NYCRR 505.14" or "section 624.8 of this Part").
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | bigserial | Primary key |
+| `source_document_id` | bigint NOT NULL | FK to regulatory_documents (ON DELETE CASCADE) |
+| `ref_type` | varchar(50) NOT NULL | `nycrr`, `njac`, `ny_short_form`, `same_section` |
+| `raw_text` | text NOT NULL | Exact matched text from regulation |
+| `normalized_citation` | text NOT NULL | Cleaned citation for lookup |
+| `start_offset` | integer | Character offset where match starts |
+| `end_offset` | integer | Character offset where match ends |
+| `context_before` | text | ~50 chars before match for display |
+| `context_after` | text | ~50 chars after match for display |
+| `components` | jsonb | Parsed components (title, section, scope, etc.) |
+| `target_document_id` | bigint | FK to regulatory_documents (ON DELETE SET NULL) |
+| `is_resolved` | boolean | Whether citation was resolved to a target doc |
+| `resolution_notes` | text | Why resolution failed (for unresolved refs) |
+| `state` | varchar(2) NOT NULL | NY or NJ |
+| `created_at` | timestamp | When record was created |
+
+**Reference Types:**
+- `nycrr`: Full-form NY references (e.g., "18 NYCRR 505.14")
+- `njac`: Full-form NJ references (e.g., "N.J.A.C. 8:43-1.2")
+- `ny_short_form`: Context-dependent NY references (e.g., "section 624.8 of this Part")
+- `same_section`: Internal references (e.g., "paragraph (a) of this section")
+
+**Components JSONB Structure:**
+```json
+{
+  "title": "18",
+  "section": "505.14",
+  "section_base": "505",
+  "chapter": null,
+  "scope": "Part",           // For short-form: Part, Subpart, Title
+  "requires_context": true,  // For short-form refs
+  "subsection_ref": "(a)",   // For same-section refs
+  "is_relative": true,       // For same-section refs
+  "state": "NY"
+}
+```
+
+**Constraints:**
+- `cross_references_state_check CHECK (state IN ('NY', 'NJ'))`
+- `cross_references_source_document_id_raw_text_key UNIQUE(source_document_id, raw_text)`
+
+**Indexes:** `idx_crossrefs_source_doc`, `idx_crossrefs_target_doc`, `idx_crossrefs_state`, `idx_crossrefs_ref_type`, `idx_crossrefs_unresolved` (partial: WHERE is_resolved = FALSE)
+
 ## document_notes
 
 User annotations on regulations with optional text anchoring.
@@ -429,3 +479,33 @@ SELECT p.id as parent_id, p.title as parent_title, p.hierarchy_level as parent_l
 FROM regulatory_documents p
 JOIN regulatory_documents c ON c.parent_id = p.id;
 ```
+
+## Helper Functions
+
+### natural_sort_num(text) → integer
+
+Extracts numeric prefix from alphanumeric string for natural sorting.
+- `"24A"` → `24`
+- `"100"` → `100`
+- `"Part 3"` → `3`
+- `""` or `NULL` → `0`
+
+### natural_sort_alpha(text) → text
+
+Extracts alpha suffix from alphanumeric string for natural sorting.
+- `"24A"` → `"A"`
+- `"100"` → `""`
+- `"3B"` → `"B"`
+
+**Usage in ORDER BY (handles both NY and NJ):**
+```sql
+ORDER BY
+  natural_sort_num(COALESCE(rd.nycrr_part, rd.njac_chapter)) NULLS LAST,
+  natural_sort_alpha(COALESCE(rd.nycrr_part, rd.njac_chapter)) NULLS LAST,
+  natural_sort_num(COALESCE(rd.nycrr_section, rd.njac_subchapter, rd.njac_section)) NULLS LAST,
+  natural_sort_alpha(COALESCE(rd.nycrr_section, rd.njac_subchapter, rd.njac_section)) NULLS LAST,
+  natural_sort_num(regexp_replace(rd.title, '^[^0-9]*', '', 'g')) NULLS LAST,
+  rd.title NULLS LAST
+```
+
+This ensures "Chapter 2" sorts before "Chapter 11" and "Section 24A" sorts between "24" and "25".
