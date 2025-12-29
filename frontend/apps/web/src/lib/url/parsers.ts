@@ -279,9 +279,11 @@ export const SECTION_TYPE_VALUES = [
   'fees',
   'forms',
   'reporting',
+  'purpose',
   'scope',
   'exemptions',
   'reserved',
+  'other',
 ] as const;
 export type SectionTypeValue = (typeof SECTION_TYPE_VALUES)[number];
 

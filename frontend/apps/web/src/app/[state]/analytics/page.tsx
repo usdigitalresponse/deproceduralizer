@@ -1,13 +1,14 @@
 import { notFound } from 'next/navigation';
 import type { StateCode } from '@deproceduralizer/database';
-import { isValidState } from '@/types/state';
+import { getDashboardStats } from '@/lib/actions/dashboard';
+import { getSectionTypeStats, getMetadataStats, getTopKeywords, getTopAppliesTo } from '@/lib/actions/regulations';
+import { getRedFlagStatusCounts, getRedFlagCategories } from '@/lib/actions/red-flags';
+import { getComplianceIssueStatusCounts, getComplianceIssueCountsByType } from '@/lib/actions/compliance-issues';
+import { getDefinitionAnalyticsStats } from '@/lib/actions/definitions';
+import { AnalyticsClient } from '@/components/analytics/AnalyticsClient';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Container } from '@/components/layout/Container';
-import { getDashboardStats } from '@/lib/actions/dashboard';
-import { getSectionTypeStats, getTopKeywords, getMetadataStats } from '@/lib/actions/regulations';
-import { getRedFlagStatusCounts } from '@/lib/actions/red-flags';
-import { getComplianceIssueStatusCounts, getComplianceIssueCountsByType } from '@/lib/actions/compliance-issues';
-import { AnalyticsClient } from '@/components/analytics/AnalyticsClient';
+import { STATE_CONFIG, isValidState } from '@/types/state';
 
 interface AnalyticsPageProps {
   params: Promise<{ state: string }>;
@@ -21,53 +22,66 @@ export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
   }
 
   const stateCode = state.toUpperCase() as StateCode;
+  const stateConfig = STATE_CONFIG[state as keyof typeof STATE_CONFIG];
 
   // Fetch all analytics data in parallel
   const [
     dashboardStatsResult,
     sectionTypeStatsResult,
-    topKeywordsResult,
     metadataStatsResult,
+    topKeywordsResult,
+    topAppliesToResult,
     redFlagStatusResult,
+    redFlagCategoriesResult,
     complianceStatusResult,
-    complianceByTypeResult,
+    complianceTypeCountsResult,
+    definitionsStatsResult,
   ] = await Promise.all([
     getDashboardStats(stateCode),
     getSectionTypeStats(state),
-    getTopKeywords(state, 20),
     getMetadataStats(state),
+    getTopKeywords(state, 30),
+    getTopAppliesTo(state, 30),
     getRedFlagStatusCounts(stateCode),
+    getRedFlagCategories(stateCode),
     getComplianceIssueStatusCounts(stateCode),
     getComplianceIssueCountsByType(stateCode),
+    getDefinitionAnalyticsStats(stateCode),
   ]);
 
-  // Extract data with fallbacks
+  // Extract data, falling back to null on failure
   const dashboardStats = dashboardStatsResult.success ? dashboardStatsResult.data : null;
-  const sectionTypeStats = sectionTypeStatsResult.success ? sectionTypeStatsResult.data : [];
-  const topKeywords = topKeywordsResult.success ? topKeywordsResult.data : [];
+  const sectionTypeStats = sectionTypeStatsResult.success ? sectionTypeStatsResult.data : null;
   const metadataStats = metadataStatsResult.success ? metadataStatsResult.data : null;
+  const topKeywords = topKeywordsResult.success ? topKeywordsResult.data : null;
+  const topAppliesTo = topAppliesToResult.success ? topAppliesToResult.data : null;
   const redFlagStatus = redFlagStatusResult.success ? redFlagStatusResult.data : null;
+  const redFlagCategories = redFlagCategoriesResult.success ? redFlagCategoriesResult.data : null;
   const complianceStatus = complianceStatusResult.success ? complianceStatusResult.data : null;
-  const complianceByType = complianceByTypeResult.success ? complianceByTypeResult.data : {};
+  const complianceTypeCounts = complianceTypeCountsResult.success ? complianceTypeCountsResult.data : null;
+  const definitionsStats = definitionsStatsResult.success ? definitionsStatsResult.data : null;
 
   return (
-    <>
+    <div className="bg-[var(--color-background)] min-h-screen">
       <PageHeader
-        title="Analytics"
-        description={`Visualize regulatory analysis data for ${state.toUpperCase()}`}
+        title={`${stateConfig.name} Analytics`}
+        description="Comprehensive analytics, patterns, and insights across regulatory data"
       />
       <Container size="2xl" className="py-6">
         <AnalyticsClient
-          state={state}
+          state={stateCode}
           dashboardStats={dashboardStats}
           sectionTypeStats={sectionTypeStats}
-          topKeywords={topKeywords}
           metadataStats={metadataStats}
+          topKeywords={topKeywords}
+          topAppliesTo={topAppliesTo}
           redFlagStatus={redFlagStatus}
+          redFlagCategories={redFlagCategories}
           complianceStatus={complianceStatus}
-          complianceByType={complianceByType}
+          complianceTypeCounts={complianceTypeCounts}
+          definitionsStats={definitionsStats}
         />
       </Container>
-    </>
+    </div>
   );
 }

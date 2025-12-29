@@ -13,9 +13,11 @@ export type SectionType =
   | 'fees'
   | 'forms'
   | 'reporting'
+  | 'purpose'
   | 'scope'
   | 'exemptions'
-  | 'reserved';
+  | 'reserved'
+  | 'other';
 
 interface SectionTypeBadgeProps extends HTMLAttributes<HTMLSpanElement> {
   type: string | null | undefined;
@@ -34,9 +36,11 @@ const SECTION_TYPE_STYLES: Record<SectionType, { bg: string; text: string }> = {
   fees: { bg: 'bg-amber-100', text: 'text-amber-800' },
   forms: { bg: 'bg-indigo-100', text: 'text-indigo-800' },
   reporting: { bg: 'bg-cyan-100', text: 'text-cyan-800' },
+  purpose: { bg: 'bg-violet-100', text: 'text-violet-800' },
   scope: { bg: 'bg-slate-100', text: 'text-slate-800' },
   exemptions: { bg: 'bg-lime-100', text: 'text-lime-800' },
   reserved: { bg: 'bg-gray-100', text: 'text-gray-400' },
+  other: { bg: 'bg-stone-100', text: 'text-stone-800' },
 };
 
 const SECTION_TYPE_LABELS: Record<SectionType, string> = {
@@ -50,9 +54,11 @@ const SECTION_TYPE_LABELS: Record<SectionType, string> = {
   fees: 'Fees',
   forms: 'Forms',
   reporting: 'Reporting',
+  purpose: 'Purpose',
   scope: 'Scope',
   exemptions: 'Exemptions',
   reserved: 'Reserved',
+  other: 'Other',
 };
 
 const SECTION_TYPE_ABBREV: Record<SectionType, string> = {
@@ -66,9 +72,11 @@ const SECTION_TYPE_ABBREV: Record<SectionType, string> = {
   fees: 'FEES',
   forms: 'FORM',
   reporting: 'RPT',
+  purpose: 'PURP',
   scope: 'SCOPE',
   exemptions: 'EXM',
   reserved: 'RES',
+  other: 'OTHR',
 };
 
 /**

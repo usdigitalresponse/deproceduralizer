@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { Card } from '@/components/ui/Card';
-import { FolderTree, ClipboardCheck, Table, BookOpen, ArrowRight } from 'lucide-react';
+import { FolderTree, ClipboardCheck, Table, BookOpen, BarChart3, ArrowRight } from 'lucide-react';
 
 interface QuickLinkProps {
   href: string;
@@ -42,7 +42,7 @@ interface QuickLinksProps {
 
 export function QuickLinks({ state }: QuickLinksProps) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       <QuickLink
         href={`/${state}/browse`}
         icon={<FolderTree className="w-6 h-6 text-[var(--color-text-secondary)] group-hover:text-[var(--color-primary)] transition-colors" />}
@@ -54,6 +54,12 @@ export function QuickLinks({ state }: QuickLinksProps) {
         icon={<ClipboardCheck className="w-6 h-6 text-[var(--color-text-secondary)] group-hover:text-[var(--color-primary)] transition-colors" />}
         title="Review Queue"
         description="Review and triage flagged regulations that need attention"
+      />
+      <QuickLink
+        href={`/${state}/analytics`}
+        icon={<BarChart3 className="w-6 h-6 text-[var(--color-text-secondary)] group-hover:text-[var(--color-primary)] transition-colors" />}
+        title="Analytics"
+        description="View charts, patterns, and insights across all regulatory data"
       />
       <QuickLink
         href={`/${state}/definitions`}

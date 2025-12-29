@@ -50,6 +50,7 @@ When working on the Next.js frontend, follow these patterns:
 - Uses regex-based candidate detection followed by LLM verification
 - TypeScript types auto-generated from YAML - run `python scripts/generate_prompt_types.py`
 - See `.claude/skills/database/schema.md` for full schema documentation
+- See `.claude/skills/regulatory-analysis/bad-regulation-patterns.md` for taxonomy of problematic regulatory patterns with real-world examples
 
 ### Pipeline Scripts
 - When adding/removing backend scripts, update `docs/OPERATIONS.md` to keep the operational runbook accurate
@@ -65,6 +66,7 @@ When working on the Next.js frontend, follow these patterns:
 | `README.md` | Project overview, architecture | Architecture changes, new major features |
 | `DATABASE_SETUP.md` | DB setup and common queries | Schema changes, new query patterns |
 | `.claude/skills/database/schema.md` | Full schema reference | Any schema/migration changes |
+| `.claude/skills/regulatory-analysis/` | Bad regulation patterns & examples | Adding new anti-pattern categories |
 
 ### Status Headers for Future Docs
 Documents describing unimplemented or partially implemented features must include a status header:

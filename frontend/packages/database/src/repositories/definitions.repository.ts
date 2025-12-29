@@ -2380,4 +2380,184 @@ export class DefinitionsRepository extends BaseRepository {
 
     return { total, forReviewer };
   }
+
+  /**
+   * Get comprehensive analytics stats for the Definitions tab on the analytics page.
+   * Aggregates data about scope levels, types, cross-references, quality, and review progress.
+   */
+  async getAnalyticsStats(state: StateCode): Promise<{
+    total: number;
+    uniqueTerms: number;
+    averageOverlap: number;
+    byScopeLevel: Array<{ level: string; count: number }>;
+    byType: Array<{ type: string; count: number }>;
+    crossRefStats: {
+      total: number;
+      byCompleteness: Array<{ type: string; count: number }>;
+      byTarget: Array<{ target: string; count: number }>;
+    };
+    qualityDistribution: {
+      high: number;
+      medium: number;
+      low: number;
+    };
+    reviewStatus: {
+      unreviewed: number;
+      confirmed: number;
+      corrected: number;
+      falsePositive: number;
+    };
+  }> {
+    const statePattern = state.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
+    const stateCondition = like(definitions.url, statePattern);
+
+    // Get total and unique terms
+    const [totalResult] = await this.db
+      .select({ count: count() })
+      .from(definitions)
+      .where(stateCondition);
+    const total = totalResult.count;
+
+    const [uniqueResult] = await this.db
+      .select({ count: sql<number>`count(distinct ${definitions.term})` })
+      .from(definitions)
+      .where(stateCondition);
+    const uniqueTerms = uniqueResult.count;
+
+    // Get average overlap
+    const [avgResult] = await this.db
+      .select({ avg: sql<number>`avg(${definitions.definitionOverlap})` })
+      .from(definitions)
+      .where(stateCondition);
+    const averageOverlap = avgResult.avg ?? 0;
+
+    // Get counts by scope level
+    const scopeLevelResults = await this.db
+      .select({
+        level: definitions.scopeLevel,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(definitions)
+      .where(stateCondition)
+      .groupBy(definitions.scopeLevel)
+      .orderBy(sql`count(*) desc`);
+
+    const byScopeLevel = scopeLevelResults.map(row => ({
+      level: row.level ?? 'unknown',
+      count: row.count,
+    }));
+
+    // Get counts by definition type
+    const typeResults = await this.db
+      .select({
+        type: definitions.definitionType,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(definitions)
+      .where(stateCondition)
+      .groupBy(definitions.definitionType)
+      .orderBy(sql`count(*) desc`);
+
+    const byType = typeResults.map(row => ({
+      type: row.type ?? 'unknown',
+      count: row.count,
+    }));
+
+    // Get cross-reference stats
+    const [crossRefTotal] = await this.db
+      .select({ count: count() })
+      .from(definitions)
+      .where(and(stateCondition, eq(definitions.isCrossReference, true)));
+
+    const completenessResults = await this.db
+      .select({
+        type: definitions.referenceCompleteness,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(definitions)
+      .where(and(stateCondition, eq(definitions.isCrossReference, true)))
+      .groupBy(definitions.referenceCompleteness);
+
+    const targetResults = await this.db
+      .select({
+        target: definitions.referenceTarget,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(definitions)
+      .where(and(stateCondition, eq(definitions.isCrossReference, true)))
+      .groupBy(definitions.referenceTarget)
+      .orderBy(sql`count(*) desc`);
+
+    const crossRefStats = {
+      total: crossRefTotal.count,
+      byCompleteness: completenessResults.map(row => ({
+        type: row.type ?? 'unknown',
+        count: row.count,
+      })),
+      byTarget: targetResults.map(row => ({
+        target: row.target ?? 'unknown',
+        count: row.count,
+      })),
+    };
+
+    // Get quality distribution based on definition_overlap
+    // High: >= 1.0, Medium: 0.3-1.0, Low: < 0.3
+    const [highQuality] = await this.db
+      .select({ count: count() })
+      .from(definitions)
+      .where(and(stateCondition, sql`${definitions.definitionOverlap} >= 1.0`));
+
+    const [mediumQuality] = await this.db
+      .select({ count: count() })
+      .from(definitions)
+      .where(and(
+        stateCondition,
+        sql`${definitions.definitionOverlap} >= 0.3`,
+        sql`${definitions.definitionOverlap} < 1.0`
+      ));
+
+    const [lowQuality] = await this.db
+      .select({ count: count() })
+      .from(definitions)
+      .where(and(stateCondition, sql`${definitions.definitionOverlap} < 0.3`));
+
+    const qualityDistribution = {
+      high: highQuality.count,
+      medium: mediumQuality.count,
+      low: lowQuality.count,
+    };
+
+    // Get review status breakdown
+    const reviewResults = await this.db
+      .select({
+        status: definitions.reviewStatus,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(definitions)
+      .where(stateCondition)
+      .groupBy(definitions.reviewStatus);
+
+    const reviewStats: Record<string, number> = {};
+    for (const row of reviewResults) {
+      reviewStats[row.status ?? 'unreviewed'] = row.count;
+    }
+
+    const reviewStatus = {
+      unreviewed: reviewStats['unreviewed'] ?? 0,
+      confirmed: reviewStats['confirmed'] ?? 0,
+      corrected: reviewStats['corrected'] ?? 0,
+      falsePositive: reviewStats['false_positive'] ?? 0,
+    };
+
+    return {
+      total,
+      uniqueTerms,
+      averageOverlap,
+      byScopeLevel,
+      byType,
+      crossRefStats,
+      qualityDistribution,
+      reviewStatus,
+    };
+  }
 }

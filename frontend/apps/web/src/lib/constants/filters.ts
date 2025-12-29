@@ -241,9 +241,11 @@ export const SECTION_TYPE_OPTIONS = [
   { value: 'fees', label: 'Fees' },
   { value: 'forms', label: 'Forms' },
   { value: 'reporting', label: 'Reporting' },
+  { value: 'purpose', label: 'Purpose' },
   { value: 'scope', label: 'Scope' },
   { value: 'exemptions', label: 'Exemptions' },
   { value: 'reserved', label: 'Reserved' },
+  { value: 'other', label: 'Other' },
 ] as const;
 
 // Metadata boolean filters (for has_form and has_ibr)
