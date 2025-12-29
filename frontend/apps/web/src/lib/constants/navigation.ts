@@ -1,4 +1,4 @@
-import { Table, FolderTree, ClipboardCheck, BookOpen, Home, Code, type LucideIcon } from 'lucide-react';
+import { Table, FolderTree, ClipboardCheck, BookOpen, Home, Code, BarChart3, type LucideIcon } from 'lucide-react';
 
 /**
  * Navigation item configuration.
@@ -66,6 +66,13 @@ export const NAV_ITEMS: NavItem[] = [
     icon: BookOpen,
     isStateSpecific: true,
     pathSuffix: '/definitions',
+  },
+  {
+    key: 'analytics',
+    label: 'Analytics',
+    icon: BarChart3,
+    isStateSpecific: true,
+    pathSuffix: '/analytics',
   },
   {
     key: 'prompts',

@@ -168,7 +168,8 @@ def process_batches(state_code: str, issues: list[str] | None = None):
     print(f"Pending batches: {len(pending)}")
 
     completed = []
-    still_pending = {}
+    # Start with a copy of all pending - we'll remove as we complete
+    still_pending = dict(pending)
 
     issue_types_to_process = issues if issues else list(pending.keys())
 
@@ -193,20 +194,21 @@ def process_batches(state_code: str, issues: list[str] | None = None):
 
         if not results:
             print(f"    Not ready, keeping in pending")
-            still_pending[issue_type] = batch_info
             continue
 
         saved = searcher.save_to_database(results)
         confirmed = sum(
             1 for r in results
-            for issue in r.get('llm_analysis', {}).get('issues', [])
+            for issue in (r.get('llm_analysis') or {}).get('issues', [])
             if issue.get('requirement_found')
         )
 
         print(f"    Saved {saved} rows ({confirmed} confirmed)")
         completed.append(issue_type)
 
-    save_pending_batches(state_code, still_pending)
+        # Remove from pending and save immediately (crash-safe)
+        del still_pending[issue_type]
+        save_pending_batches(state_code, still_pending)
 
     print("\n" + "-" * 70)
     print(f"Completed: {len(completed)}, Still pending: {len(still_pending)}")
@@ -246,7 +248,7 @@ async def run_async(state_code: str, issues: list[str], limit: int | None, concu
         saved = searcher.save_to_database(results)
         confirmed = sum(
             1 for r in results
-            for issue in r.get('llm_analysis', {}).get('issues', [])
+            for issue in (r.get('llm_analysis') or {}).get('issues', [])
             if issue.get('requirement_found')
         )
 

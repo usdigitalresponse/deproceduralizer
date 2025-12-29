@@ -319,14 +319,14 @@ pnpm generate  # Drizzle code generation
 ### Prompts Page
 
 The `/prompts` page displays LLM prompts from `frontend/apps/web/src/data/prompts.yaml`.
-This file is copied from the project root during build:
+This file is copied from `prompts/core.yaml` during build:
 
 ```bash
 # In dev, if /prompts shows "file not found", run:
 cd frontend/apps/web && pnpm prebuild
 ```
 
-The prebuild script (`package.json`) copies `prompts.yaml` → `src/data/prompts.yaml`.
+The prebuild script copies `prompts/core.yaml` → `src/data/prompts.yaml`. Compliance issue prompts are in `prompts/compliance_issues.yaml` and used directly by the backend.
 
 ## Deployment
 

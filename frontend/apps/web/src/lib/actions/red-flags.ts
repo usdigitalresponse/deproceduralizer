@@ -1,7 +1,7 @@
 'use server';
 
 import 'server-only';
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, unstable_cache } from 'next/cache';
 import {
   db,
   RedFlagsRepository,
@@ -56,7 +56,8 @@ export async function updateRedFlagReview(
       return failure(`Red flag with id ${input.id} not found`);
     }
 
-    revalidatePath('/');
+    // Targeted invalidation: only review pages need updating after red flag review
+    revalidatePath('/[state]/review', 'page');
     return success(result);
   } catch (error) {
     console.error('[updateRedFlagReview]', error);
@@ -83,6 +84,7 @@ export async function getRedFlagById(
 
 /**
  * Gets all unique red flag categories for a state.
+ * Cached for 5 minutes to reduce database traffic.
  * @param state - The state code (e.g., 'NY', 'NJ')
  * @returns Array of unique category names
  */
@@ -90,7 +92,12 @@ export async function getRedFlagCategories(
   state: StateCode
 ): Promise<ActionResult<string[]>> {
   try {
-    const result = await redFlagsRepo.getCategories(state);
+    const cachedGetCategories = unstable_cache(
+      () => redFlagsRepo.getCategories(state),
+      [`red-flag-categories-${state}`],
+      { revalidate: 300 } // 5 minutes
+    );
+    const result = await cachedGetCategories();
     return success(result);
   } catch (error) {
     console.error('[getRedFlagCategories]', error);

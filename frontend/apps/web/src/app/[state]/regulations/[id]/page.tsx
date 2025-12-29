@@ -240,7 +240,7 @@ export default async function RegulationDetailPage({ params, searchParams }: Pag
           {incomingRefs.length > 0 && (
             <Card>
               <IncomingReferenceList
-                incomingRefs={incomingRefs}
+                crossRefs={incomingRefs}
                 state={state as 'nj' | 'ny'}
                 title="Cited By"
               />

@@ -21,6 +21,11 @@ export interface DefinitionWithContext extends Definition {
     parentId?: number | null;
     parentTitle?: string | null;
     parentHierarchyLevel?: string | null;
+    // Summary metadata
+    summary?: string | null;
+    sectionType?: string | null;
+    hasForm?: boolean | null;
+    hasIbr?: boolean | null;
   };
   /** Whether the scope document is an ancestor of the source document */
   scopeIsAncestor?: boolean | null;

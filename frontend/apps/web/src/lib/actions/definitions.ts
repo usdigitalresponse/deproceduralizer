@@ -520,7 +520,8 @@ export async function updateDefinitionDeveloperStatus(
       return failure(`Definition with id ${input.id} not found`);
     }
 
-    revalidatePath('/');
+    // Targeted invalidation: only review pages need updating after definition status change
+    revalidatePath('/[state]/review', 'page');
     return success(result);
   } catch (error) {
     console.error('[updateDefinitionDeveloperStatus]', error);

@@ -1,6 +1,7 @@
 'use server';
 
 import 'server-only';
+import { unstable_cache } from 'next/cache';
 import {
   db,
   ComplianceIssuesRepository,
@@ -104,6 +105,7 @@ export async function getComplianceIssuesByDocumentId(
 
 /**
  * Gets all unique compliance issue types for a state.
+ * Cached for 5 minutes to reduce database traffic.
  * @param state - The state code (e.g., 'NY', 'NJ')
  * @returns Array of unique issue type names (e.g., 'wet_signature', 'in_person')
  */
@@ -111,7 +113,12 @@ export async function getComplianceIssueTypes(
   state: StateCode
 ): Promise<ActionResult<string[]>> {
   try {
-    const result = await complianceIssuesRepo.getIssueTypes(state);
+    const cachedGetIssueTypes = unstable_cache(
+      () => complianceIssuesRepo.getIssueTypes(state),
+      [`compliance-issue-types-${state}`],
+      { revalidate: 300 } // 5 minutes
+    );
+    const result = await cachedGetIssueTypes();
     return success(result);
   } catch (error) {
     console.error('[getComplianceIssueTypes]', error);

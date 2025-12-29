@@ -86,6 +86,12 @@ export interface HierarchyNode {
   // Compliance issue counts
   complianceIssueCount: number;           // Direct issues on this document
   totalComplianceIssues: number;          // Combined (own + descendants)
+  // AI-generated summary metadata
+  summary: string | null;
+  sectionType: string | null;
+  keywords: string[] | null;
+  hasForm: boolean | null;
+  hasIbr: boolean | null;
   // Cross-reference count
   crossReferenceCount: number;            // Outgoing cross-references from this document
   // Filter-aware counts (when filters applied)
@@ -101,6 +107,11 @@ export interface HierarchyFilterOptions {
   hasDefinitions?: boolean;
   hasComplianceIssues?: boolean;
   search?: string; // Text search on title
+  // AI-generated metadata filters
+  sectionType?: string; // Filter by section type category
+  hasForm?: boolean; // Filter by has_form flag
+  hasIbr?: boolean; // Filter by has_ibr (incorporation by reference) flag
+  keyword?: string; // Search within keywords array
 }
 
 export interface PaginationOptions {
@@ -217,6 +228,12 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         excludedAt: regulatoryDocuments.excludedAt,
         excludedBy: regulatoryDocuments.excludedBy,
         excludedReason: regulatoryDocuments.excludedReason,
+        // AI-generated summary metadata
+        sectionType: regulatoryDocuments.sectionType,
+        keywords: regulatoryDocuments.keywords,
+        appliesTo: regulatoryDocuments.appliesTo,
+        hasForm: regulatoryDocuments.hasForm,
+        hasIbr: regulatoryDocuments.hasIbr,
         analysisId: analyses.id,
         hasImplementationIssues: analyses.hasImplementationIssues,
         overallComplexity: analyses.overallComplexity,
@@ -487,6 +504,12 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         excludedAt: regulatoryDocuments.excludedAt,
         excludedBy: regulatoryDocuments.excludedBy,
         excludedReason: regulatoryDocuments.excludedReason,
+        // AI-generated summary metadata
+        sectionType: regulatoryDocuments.sectionType,
+        keywords: regulatoryDocuments.keywords,
+        appliesTo: regulatoryDocuments.appliesTo,
+        hasForm: regulatoryDocuments.hasForm,
+        hasIbr: regulatoryDocuments.hasIbr,
         analysisId: analyses.id,
         hasImplementationIssues: analyses.hasImplementationIssues,
         overallComplexity: analyses.overallComplexity,
@@ -635,6 +658,12 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         excludedAt: regulatoryDocuments.excludedAt,
         excludedBy: regulatoryDocuments.excludedBy,
         excludedReason: regulatoryDocuments.excludedReason,
+        // AI-generated summary metadata
+        sectionType: regulatoryDocuments.sectionType,
+        keywords: regulatoryDocuments.keywords,
+        appliesTo: regulatoryDocuments.appliesTo,
+        hasForm: regulatoryDocuments.hasForm,
+        hasIbr: regulatoryDocuments.hasIbr,
         analysisId: analyses.id,
         hasImplementationIssues: analyses.hasImplementationIssues,
         overallComplexity: analyses.overallComplexity,
@@ -846,6 +875,11 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         rd.njac_subchapter as "njacSubchapter",
         rd.njac_section as "njacSection",
         rd.state,
+        rd.summary,
+        rd.section_type as "sectionType",
+        rd.keywords,
+        rd.has_form as "hasForm",
+        rd.has_ibr as "hasIbr",
         COALESCE(a.id IS NOT NULL, false) as "hasAnalysis",
         COALESCE(a.num_flags, 0)::int as "totalFlags",
         a.max_severity as "maxSeverity",
@@ -933,6 +967,11 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         rd.njac_subchapter as "njacSubchapter",
         rd.njac_section as "njacSection",
         rd.state,
+        rd.summary,
+        rd.section_type as "sectionType",
+        rd.keywords,
+        rd.has_form as "hasForm",
+        rd.has_ibr as "hasIbr",
         COALESCE(a.id IS NOT NULL, false) as "hasAnalysis",
         COALESCE(a.num_flags, 0)::int as "totalFlags",
         a.max_severity as "maxSeverity",
@@ -1060,6 +1099,30 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
       conditions.push(sql.raw(`${docAlias}.title ILIKE '%${escapedSearch}%'`));
     }
 
+    // AI-generated metadata filters
+    if (filters.sectionType && filters.sectionType !== 'all') {
+      const escapedType = filters.sectionType.replace(/'/g, "''");
+      conditions.push(sql.raw(`${docAlias}.section_type = '${escapedType}'`));
+    }
+
+    if (filters.hasForm === true) {
+      conditions.push(sql.raw(`${docAlias}.has_form = true`));
+    } else if (filters.hasForm === false) {
+      conditions.push(sql.raw(`(${docAlias}.has_form = false OR ${docAlias}.has_form IS NULL)`));
+    }
+
+    if (filters.hasIbr === true) {
+      conditions.push(sql.raw(`${docAlias}.has_ibr = true`));
+    } else if (filters.hasIbr === false) {
+      conditions.push(sql.raw(`(${docAlias}.has_ibr = false OR ${docAlias}.has_ibr IS NULL)`));
+    }
+
+    if (filters.keyword) {
+      // Search within keywords array using PostgreSQL array contains
+      const escapedKeyword = filters.keyword.replace(/'/g, "''");
+      conditions.push(sql.raw(`'${escapedKeyword}' = ANY(${docAlias}.keywords)`));
+    }
+
     return conditions;
   }
 
@@ -1101,6 +1164,11 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         rd.njac_subchapter as "njacSubchapter",
         rd.njac_section as "njacSection",
         rd.state,
+        rd.summary,
+        rd.section_type as "sectionType",
+        rd.keywords,
+        rd.has_form as "hasForm",
+        rd.has_ibr as "hasIbr",
         -- Combine own analysis with precomputed descendant stats
         COALESCE(a.id IS NOT NULL OR rd.has_descendant_analysis, false) as "hasAnalysis",
         (COALESCE(a.num_flags, 0) + COALESCE(rd.descendant_flag_count, 0))::int as "totalFlags",
@@ -1154,6 +1222,11 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         rd.njac_subchapter as "njacSubchapter",
         rd.njac_section as "njacSection",
         rd.state,
+        rd.summary,
+        rd.section_type as "sectionType",
+        rd.keywords,
+        rd.has_form as "hasForm",
+        rd.has_ibr as "hasIbr",
         -- Combine own analysis with precomputed descendant stats
         COALESCE(a.id IS NOT NULL OR rd.has_descendant_analysis, false) as "hasAnalysis",
         (COALESCE(a.num_flags, 0) + COALESCE(rd.descendant_flag_count, 0))::int as "totalFlags",
@@ -1462,5 +1535,126 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
       ny: nyStats,
       nj: njStats,
     };
+  }
+
+  // ========================================
+  // AI-generated metadata statistics
+  // ========================================
+
+  /**
+   * Get document counts grouped by section_type
+   */
+  async getSectionTypeStats(state: StateCode): Promise<{ sectionType: string; count: number }[]> {
+    const stateUpper = state.toUpperCase();
+
+    const results = await this.db.execute(sql`
+      SELECT
+        section_type as "sectionType",
+        COUNT(*)::int as count
+      FROM regulatory_documents
+      WHERE state = ${stateUpper}
+        AND section_type IS NOT NULL
+      GROUP BY section_type
+      ORDER BY count DESC
+    `);
+
+    return results.rows as { sectionType: string; count: number }[];
+  }
+
+  /**
+   * Get aggregate metadata statistics for a state
+   */
+  async getMetadataStats(state: StateCode): Promise<{
+    withSummary: number;
+    withForm: number;
+    withIbr: number;
+    total: number;
+    bySectionType: Record<string, number>;
+  }> {
+    const stateUpper = state.toUpperCase();
+
+    // Get aggregate counts
+    const statsResult = await this.db.execute(sql`
+      SELECT
+        COUNT(*) FILTER (WHERE summary IS NOT NULL)::int as "withSummary",
+        COUNT(*) FILTER (WHERE has_form = true)::int as "withForm",
+        COUNT(*) FILTER (WHERE has_ibr = true)::int as "withIbr",
+        COUNT(*)::int as total
+      FROM regulatory_documents
+      WHERE state = ${stateUpper}
+    `);
+
+    // Get counts by section type
+    const typeResult = await this.db.execute(sql`
+      SELECT
+        COALESCE(section_type, 'unknown') as "sectionType",
+        COUNT(*)::int as count
+      FROM regulatory_documents
+      WHERE state = ${stateUpper}
+      GROUP BY section_type
+    `);
+
+    const statsRow = statsResult.rows[0] as {
+      withSummary: number;
+      withForm: number;
+      withIbr: number;
+      total: number;
+    };
+
+    const bySectionType: Record<string, number> = {};
+    for (const row of typeResult.rows as { sectionType: string; count: number }[]) {
+      bySectionType[row.sectionType] = row.count;
+    }
+
+    return {
+      ...statsRow,
+      bySectionType,
+    };
+  }
+
+  /**
+   * Get most common keywords across all documents in a state
+   */
+  async getTopKeywords(state: StateCode, limit: number = 20): Promise<{ keyword: string; count: number }[]> {
+    const stateUpper = state.toUpperCase();
+
+    const results = await this.db.execute(sql`
+      SELECT
+        keyword,
+        COUNT(*)::int as count
+      FROM regulatory_documents,
+           UNNEST(keywords) as keyword
+      WHERE state = ${stateUpper}
+        AND keywords IS NOT NULL
+        AND array_length(keywords, 1) > 0
+      GROUP BY keyword
+      ORDER BY count DESC
+      LIMIT ${limit}
+    `);
+
+    return results.rows as { keyword: string; count: number }[];
+  }
+
+  /**
+   * Get most common applies_to values across all documents in a state
+   */
+  async getTopAppliesTo(state: StateCode, limit: number = 20): Promise<{ entity: string; count: number }[]> {
+    const stateUpper = state.toUpperCase();
+
+    const results = await this.db.execute(sql`
+      SELECT
+        entity,
+        COUNT(*)::int as count
+      FROM regulatory_documents,
+           UNNEST(applies_to) as entity
+      WHERE state = ${stateUpper}
+        AND applies_to IS NOT NULL
+        AND array_length(applies_to, 1) > 0
+      GROUP BY entity
+      ORDER BY count DESC
+      LIMIT ${limit}
+    `);
+
+    return results.rows as { entity: string; count: number }[];
   }
 }

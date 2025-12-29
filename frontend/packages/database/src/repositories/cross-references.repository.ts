@@ -1,10 +1,11 @@
-import { eq, and, sql, desc } from 'drizzle-orm';
+import { eq, and, desc, asc, sql, count } from 'drizzle-orm';
 import { BaseRepository } from './base.repository';
-import { crossReferences, CrossReference, regulatoryDocuments } from '../schema';
+import { crossReferences, CrossReference, RefType } from '../schema/cross-references';
+import { regulatoryDocuments } from '../schema/regulatory-documents';
 import { StateCode } from '../schema/constants';
 
 /**
- * Cross-reference with target document info for outgoing references.
+ * Cross-reference with target document info (for outgoing refs display)
  */
 export interface CrossReferenceWithTarget extends CrossReference {
   targetDocument: {
@@ -17,7 +18,7 @@ export interface CrossReferenceWithTarget extends CrossReference {
 }
 
 /**
- * Cross-reference with source document info for incoming references.
+ * Cross-reference with source document info (for incoming refs display)
  */
 export interface CrossReferenceWithSource extends CrossReference {
   sourceDocument: {
@@ -30,7 +31,7 @@ export interface CrossReferenceWithSource extends CrossReference {
 }
 
 /**
- * Lightweight reference info for inline highlighting.
+ * Minimal cross-reference data for inline highlighting
  */
 export interface HighlightRef {
   id: number;
@@ -44,154 +45,287 @@ export interface HighlightRef {
 }
 
 /**
- * Stats for cross-references.
+ * Stats for dashboard display
  */
 export interface CrossRefStats {
   total: number;
   resolved: number;
   unresolved: number;
-  byType: Record<string, number>;
+  byRefType: Record<string, number>;
+}
+
+export interface CrossRefPaginationOptions {
+  state: StateCode;
+  page: number;
+  pageSize: number;
+  isResolved?: boolean;
+}
+
+export interface PaginatedCrossRefsResult {
+  data: CrossReferenceWithSource[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
 }
 
 export class CrossReferencesRepository extends BaseRepository {
   /**
-   * Get all cross-references FROM a document (outgoing).
+   * Get a cross-reference by ID
+   */
+  async getById(id: number): Promise<CrossReference | undefined> {
+    const result = await this.db
+      .select()
+      .from(crossReferences)
+      .where(eq(crossReferences.id, id))
+      .limit(1);
+
+    return result[0];
+  }
+
+  /**
+   * Get all cross-references FROM a document (outgoing references)
+   * Returns refs with target document info for display
    */
   async getBySourceDocumentId(documentId: number): Promise<CrossReferenceWithTarget[]> {
-    const results = await this.db
+    const targetDoc = regulatoryDocuments;
+
+    const result = await this.db
       .select({
-        crossRef: crossReferences,
+        // Cross-reference fields
+        id: crossReferences.id,
+        sourceDocumentId: crossReferences.sourceDocumentId,
+        refType: crossReferences.refType,
+        rawText: crossReferences.rawText,
+        normalizedCitation: crossReferences.normalizedCitation,
+        startOffset: crossReferences.startOffset,
+        endOffset: crossReferences.endOffset,
+        contextBefore: crossReferences.contextBefore,
+        contextAfter: crossReferences.contextAfter,
+        components: crossReferences.components,
+        targetDocumentId: crossReferences.targetDocumentId,
+        isResolved: crossReferences.isResolved,
+        resolutionNotes: crossReferences.resolutionNotes,
+        state: crossReferences.state,
+        createdAt: crossReferences.createdAt,
+        // Target document fields
         targetDocument: {
-          id: regulatoryDocuments.id,
-          title: regulatoryDocuments.title,
-          shortTitle: regulatoryDocuments.shortTitle,
-          citation: regulatoryDocuments.citation,
-          hierarchyLevel: regulatoryDocuments.hierarchyLevel,
+          id: targetDoc.id,
+          title: targetDoc.title,
+          shortTitle: targetDoc.shortTitle,
+          citation: targetDoc.citation,
+          hierarchyLevel: targetDoc.hierarchyLevel,
         },
       })
       .from(crossReferences)
-      .leftJoin(
-        regulatoryDocuments,
-        eq(crossReferences.targetDocumentId, regulatoryDocuments.id)
-      )
+      .leftJoin(targetDoc, eq(crossReferences.targetDocumentId, targetDoc.id))
       .where(eq(crossReferences.sourceDocumentId, documentId))
-      .orderBy(crossReferences.startOffset);
+      .orderBy(asc(crossReferences.startOffset));
 
-    return results.map((row) => ({
-      ...row.crossRef,
-      targetDocument: row.targetDocument?.id ? row.targetDocument : null,
-    }));
+    return result as CrossReferenceWithTarget[];
   }
 
   /**
-   * Get all cross-references TO a document (incoming - who cites this doc).
+   * Get all cross-references TO a document (incoming references - who cites this doc)
+   * Returns refs with source document info for display
    */
   async getByTargetDocumentId(documentId: number): Promise<CrossReferenceWithSource[]> {
-    const results = await this.db
+    const sourceDoc = regulatoryDocuments;
+
+    const result = await this.db
       .select({
-        crossRef: crossReferences,
+        // Cross-reference fields
+        id: crossReferences.id,
+        sourceDocumentId: crossReferences.sourceDocumentId,
+        refType: crossReferences.refType,
+        rawText: crossReferences.rawText,
+        normalizedCitation: crossReferences.normalizedCitation,
+        startOffset: crossReferences.startOffset,
+        endOffset: crossReferences.endOffset,
+        contextBefore: crossReferences.contextBefore,
+        contextAfter: crossReferences.contextAfter,
+        components: crossReferences.components,
+        targetDocumentId: crossReferences.targetDocumentId,
+        isResolved: crossReferences.isResolved,
+        resolutionNotes: crossReferences.resolutionNotes,
+        state: crossReferences.state,
+        createdAt: crossReferences.createdAt,
+        // Source document fields
         sourceDocument: {
-          id: regulatoryDocuments.id,
-          title: regulatoryDocuments.title,
-          shortTitle: regulatoryDocuments.shortTitle,
-          citation: regulatoryDocuments.citation,
-          hierarchyLevel: regulatoryDocuments.hierarchyLevel,
+          id: sourceDoc.id,
+          title: sourceDoc.title,
+          shortTitle: sourceDoc.shortTitle,
+          citation: sourceDoc.citation,
+          hierarchyLevel: sourceDoc.hierarchyLevel,
         },
       })
       .from(crossReferences)
-      .innerJoin(
-        regulatoryDocuments,
-        eq(crossReferences.sourceDocumentId, regulatoryDocuments.id)
-      )
+      .innerJoin(sourceDoc, eq(crossReferences.sourceDocumentId, sourceDoc.id))
       .where(eq(crossReferences.targetDocumentId, documentId))
-      .orderBy(regulatoryDocuments.shortTitle);
+      .orderBy(asc(sourceDoc.citation));
 
-    return results.map((row) => ({
-      ...row.crossRef,
-      sourceDocument: row.sourceDocument,
-    }));
+    return result as CrossReferenceWithSource[];
   }
 
   /**
-   * Get cross-references for inline highlighting.
+   * Get minimal cross-reference data for inline text highlighting
+   * Only returns refs with valid offsets for highlighting
    */
   async getForHighlighting(documentId: number): Promise<HighlightRef[]> {
-    const results = await this.db
+    const targetDoc = regulatoryDocuments;
+
+    const result = await this.db
       .select({
         id: crossReferences.id,
         rawText: crossReferences.rawText,
         startOffset: crossReferences.startOffset,
         endOffset: crossReferences.endOffset,
         targetDocumentId: crossReferences.targetDocumentId,
-        targetTitle: regulatoryDocuments.shortTitle,
-        targetCitation: regulatoryDocuments.citation,
+        targetTitle: targetDoc.shortTitle,
+        targetCitation: targetDoc.citation,
         isResolved: crossReferences.isResolved,
       })
       .from(crossReferences)
-      .leftJoin(
-        regulatoryDocuments,
-        eq(crossReferences.targetDocumentId, regulatoryDocuments.id)
-      )
+      .leftJoin(targetDoc, eq(crossReferences.targetDocumentId, targetDoc.id))
       .where(eq(crossReferences.sourceDocumentId, documentId))
-      .orderBy(crossReferences.startOffset);
+      .orderBy(asc(crossReferences.startOffset));
 
-    return results;
+    return result;
   }
 
   /**
-   * Get stats by state.
+   * Get stats for dashboard display
    */
   async getStatsByState(state: StateCode): Promise<CrossRefStats> {
-    const results = await this.db
+    // Get total and resolution stats
+    const totals = await this.db
       .select({
-        total: sql<number>`count(*)::int`,
-        resolved: sql<number>`sum(case when is_resolved then 1 else 0 end)::int`,
-        unresolved: sql<number>`sum(case when not is_resolved then 1 else 0 end)::int`,
+        isResolved: crossReferences.isResolved,
+        count: sql<number>`count(*)::int`,
       })
       .from(crossReferences)
-      .where(eq(crossReferences.state, state));
+      .where(eq(crossReferences.state, state.toUpperCase()))
+      .groupBy(crossReferences.isResolved);
 
-    const typeResults = await this.db
+    // Get counts by ref type
+    const byType = await this.db
       .select({
         refType: crossReferences.refType,
         count: sql<number>`count(*)::int`,
       })
       .from(crossReferences)
-      .where(eq(crossReferences.state, state))
+      .where(eq(crossReferences.state, state.toUpperCase()))
       .groupBy(crossReferences.refType);
 
-    const byType: Record<string, number> = {};
-    for (const row of typeResults) {
-      byType[row.refType] = row.count;
+    const stats: CrossRefStats = {
+      total: 0,
+      resolved: 0,
+      unresolved: 0,
+      byRefType: {},
+    };
+
+    for (const row of totals) {
+      if (row.isResolved) {
+        stats.resolved = row.count;
+      } else {
+        stats.unresolved = row.count;
+      }
+      stats.total += row.count;
     }
 
+    for (const row of byType) {
+      stats.byRefType[row.refType] = row.count;
+    }
+
+    return stats;
+  }
+
+  /**
+   * Get unresolved cross-references for review queue (paginated)
+   */
+  async getUnresolvedByState(options: CrossRefPaginationOptions): Promise<PaginatedCrossRefsResult> {
+    const { state, page, pageSize, isResolved = false } = options;
+    const offset = (page - 1) * pageSize;
+
+    const sourceDoc = regulatoryDocuments;
+
+    // Build where condition
+    const whereCondition = and(
+      eq(crossReferences.state, state.toUpperCase()),
+      eq(crossReferences.isResolved, isResolved)
+    );
+
+    // Get total count
+    const countResult = await this.db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(crossReferences)
+      .where(whereCondition);
+
+    const total = countResult[0]?.count ?? 0;
+
+    // Get paginated data
+    const data = await this.db
+      .select({
+        id: crossReferences.id,
+        sourceDocumentId: crossReferences.sourceDocumentId,
+        refType: crossReferences.refType,
+        rawText: crossReferences.rawText,
+        normalizedCitation: crossReferences.normalizedCitation,
+        startOffset: crossReferences.startOffset,
+        endOffset: crossReferences.endOffset,
+        contextBefore: crossReferences.contextBefore,
+        contextAfter: crossReferences.contextAfter,
+        components: crossReferences.components,
+        targetDocumentId: crossReferences.targetDocumentId,
+        isResolved: crossReferences.isResolved,
+        resolutionNotes: crossReferences.resolutionNotes,
+        state: crossReferences.state,
+        createdAt: crossReferences.createdAt,
+        sourceDocument: {
+          id: sourceDoc.id,
+          title: sourceDoc.title,
+          shortTitle: sourceDoc.shortTitle,
+          citation: sourceDoc.citation,
+          hierarchyLevel: sourceDoc.hierarchyLevel,
+        },
+      })
+      .from(crossReferences)
+      .innerJoin(sourceDoc, eq(crossReferences.sourceDocumentId, sourceDoc.id))
+      .where(whereCondition)
+      .orderBy(desc(crossReferences.createdAt))
+      .limit(pageSize)
+      .offset(offset);
+
     return {
-      total: results[0]?.total ?? 0,
-      resolved: results[0]?.resolved ?? 0,
-      unresolved: results[0]?.unresolved ?? 0,
-      byType,
+      data: data as CrossReferenceWithSource[],
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
     };
   }
 
   /**
-   * Get count of outgoing cross-references for a document.
+   * Get count of cross-references from a document
    */
   async getCountBySourceDocumentId(documentId: number): Promise<number> {
     const result = await this.db
       .select({ count: sql<number>`count(*)::int` })
       .from(crossReferences)
       .where(eq(crossReferences.sourceDocumentId, documentId));
+
     return result[0]?.count ?? 0;
   }
 
   /**
-   * Get count of incoming cross-references for a document.
+   * Get count of cross-references to a document (incoming)
    */
   async getCountByTargetDocumentId(documentId: number): Promise<number> {
     const result = await this.db
       .select({ count: sql<number>`count(*)::int` })
       .from(crossReferences)
       .where(eq(crossReferences.targetDocumentId, documentId));
+
     return result[0]?.count ?? 0;
   }
 }

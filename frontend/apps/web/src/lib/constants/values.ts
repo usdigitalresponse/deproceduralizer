@@ -226,3 +226,26 @@ export type GroupingModeValue = (typeof GROUPING_MODE_VALUES)[number];
 
 export const BATCH_SIZE_VALUES = [2, 3, 4, 5] as const;
 export type BatchSizeValue = (typeof BATCH_SIZE_VALUES)[number];
+
+// ============================================
+// Analytics Page
+// ============================================
+
+export const ANALYTICS_TAB_VALUES = ['overview', 'hierarchy', 'issues', 'keywords'] as const;
+export type AnalyticsTabValue = (typeof ANALYTICS_TAB_VALUES)[number];
+
+export const TREEMAP_SIZE_METRIC_VALUES = ['flags', 'documents', 'compliance'] as const;
+export type TreemapSizeMetricValue = (typeof TREEMAP_SIZE_METRIC_VALUES)[number];
+
+export const TREEMAP_COLOR_METRIC_VALUES = ['severity', 'reviewStatus', 'none'] as const;
+export type TreemapColorMetricValue = (typeof TREEMAP_COLOR_METRIC_VALUES)[number];
+
+export const TREEMAP_DEPTH_VALUES = [1, 2, 3] as const;
+export type TreemapDepthValue = (typeof TREEMAP_DEPTH_VALUES)[number];
+
+// ============================================
+// View Mode (Table vs Cards)
+// ============================================
+
+export const VIEW_MODE_VALUES = ['table', 'cards'] as const;
+export type ViewModeValue = (typeof VIEW_MODE_VALUES)[number];

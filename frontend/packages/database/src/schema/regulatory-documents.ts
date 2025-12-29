@@ -98,6 +98,14 @@ export const regulatoryDocuments = pgTable('regulatory_documents', {
   excludedAt: timestamp('excluded_at'),
   excludedBy: varchar('excluded_by', { length: 255 }),
   excludedReason: text('excluded_reason'),
+
+  // AI-generated summary metadata
+  summary: text('summary'),
+  sectionType: varchar('section_type', { length: 50 }),
+  keywords: text('keywords').array().default([]),
+  appliesTo: text('applies_to').array().default([]),
+  hasForm: boolean('has_form').default(false),
+  hasIbr: boolean('has_ibr').default(false),
 }, (table) => ({
   uniquePerUrl: unique().on(table.url),
 }));

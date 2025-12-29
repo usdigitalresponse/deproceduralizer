@@ -269,3 +269,92 @@ export async function getRegulationDetailBundle(
     errors,
   });
 }
+
+// ============================================================================
+// Summary Metadata Actions
+// ============================================================================
+
+export interface SectionTypeStats {
+  sectionType: string;
+  count: number;
+}
+
+export interface MetadataStats {
+  withSummary: number;
+  withForm: number;
+  withIbr: number;
+  total: number;
+  bySectionType: Record<string, number>;
+}
+
+export interface KeywordStats {
+  keyword: string;
+  count: number;
+}
+
+export interface AppliesToStats {
+  entity: string;
+  count: number;
+}
+
+/**
+ * Gets section type distribution stats for a state.
+ */
+export async function getSectionTypeStats(
+  state: string
+): Promise<ActionResult<SectionTypeStats[]>> {
+  try {
+    const result = await regulationsRepo.getSectionTypeStats(state.toUpperCase() as StateCode);
+    return success(result);
+  } catch (error) {
+    console.error('[getSectionTypeStats]', error);
+    return failure(getErrorMessage(error));
+  }
+}
+
+/**
+ * Gets overall metadata statistics for a state (counts of documents with summaries, forms, IBR).
+ */
+export async function getMetadataStats(
+  state: string
+): Promise<ActionResult<MetadataStats>> {
+  try {
+    const result = await regulationsRepo.getMetadataStats(state.toUpperCase() as StateCode);
+    return success(result);
+  } catch (error) {
+    console.error('[getMetadataStats]', error);
+    return failure(getErrorMessage(error));
+  }
+}
+
+/**
+ * Gets top keywords across all documents for a state.
+ */
+export async function getTopKeywords(
+  state: string,
+  limit: number = 20
+): Promise<ActionResult<KeywordStats[]>> {
+  try {
+    const result = await regulationsRepo.getTopKeywords(state.toUpperCase() as StateCode, limit);
+    return success(result);
+  } catch (error) {
+    console.error('[getTopKeywords]', error);
+    return failure(getErrorMessage(error));
+  }
+}
+
+/**
+ * Gets top "applies to" entities across all documents for a state.
+ */
+export async function getTopAppliesTo(
+  state: string,
+  limit: number = 20
+): Promise<ActionResult<AppliesToStats[]>> {
+  try {
+    const result = await regulationsRepo.getTopAppliesTo(state.toUpperCase() as StateCode, limit);
+    return success(result);
+  } catch (error) {
+    console.error('[getTopAppliesTo]', error);
+    return failure(getErrorMessage(error));
+  }
+}

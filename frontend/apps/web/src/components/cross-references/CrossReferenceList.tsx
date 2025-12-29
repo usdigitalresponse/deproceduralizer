@@ -1,35 +1,55 @@
 'use client';
 
-import type { CrossReferenceWithTarget, CrossReferenceWithSource } from '@deproceduralizer/database';
+import { Link2, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { CrossReferenceCard, IncomingReferenceCard } from './CrossReferenceCard';
-import { Link2 } from 'lucide-react';
-import type { StateCode } from '@/types/state';
+import type { CrossReferenceWithTarget, CrossReferenceWithSource } from '@deproceduralizer/database';
+import { DEFAULT_STATE } from '@/types/state';
 
 interface CrossReferenceListProps {
+  /** Outgoing cross-references from this document */
   crossRefs: CrossReferenceWithTarget[];
-  state: StateCode;
-  title?: string;
+  /** State for constructing links */
+  state?: string;
+  /** Whether to show in compact mode */
   compact?: boolean;
+  /** Maximum items to show (0 = all) */
+  limit?: number;
+  /** Title override */
+  title?: string;
 }
 
+/**
+ * Displays a list of outgoing cross-references (citations from this document to others).
+ */
 export function CrossReferenceList({
   crossRefs,
-  state,
+  state = DEFAULT_STATE,
+  compact = false,
+  limit = 0,
   title = 'Cross-References',
-  compact = false
 }: CrossReferenceListProps) {
+  const displayRefs = limit > 0 ? crossRefs.slice(0, limit) : crossRefs;
+  const hasMore = limit > 0 && crossRefs.length > limit;
+
   if (crossRefs.length === 0) {
-    return null;
+    return (
+      <div className="text-sm text-[var(--color-text-muted)] py-4 text-center">
+        No cross-references found in this document.
+      </div>
+    );
   }
 
   return (
     <div>
-      <h3 className="text-sm font-semibold text-[var(--color-text-secondary)] mb-2 flex items-center gap-2">
-        <Link2 className="w-4 h-4 text-[var(--color-primary)]" />
-        {title} ({crossRefs.length})
-      </h3>
-      <div className="space-y-2">
-        {crossRefs.map((ref) => (
+      <div className="flex items-center gap-2 mb-4">
+        <ArrowUpRight className="w-4 h-4 text-[var(--color-primary)]" />
+        <h3 className="text-sm font-semibold text-[var(--color-text)]">
+          {title} ({crossRefs.length})
+        </h3>
+      </div>
+
+      <div className="space-y-3">
+        {displayRefs.map((ref) => (
           <CrossReferenceCard
             key={ref.id}
             crossRef={ref}
@@ -38,35 +58,61 @@ export function CrossReferenceList({
           />
         ))}
       </div>
+
+      {hasMore && (
+        <p className="text-xs text-[var(--color-text-muted)] mt-3 text-center">
+          +{crossRefs.length - limit} more cross-references
+        </p>
+      )}
     </div>
   );
 }
 
 interface IncomingReferenceListProps {
-  incomingRefs: CrossReferenceWithSource[];
-  state: StateCode;
-  title?: string;
+  /** Incoming cross-references to this document */
+  crossRefs: CrossReferenceWithSource[];
+  /** State for constructing links */
+  state?: string;
+  /** Whether to show in compact mode */
   compact?: boolean;
+  /** Maximum items to show (0 = all) */
+  limit?: number;
+  /** Title override */
+  title?: string;
 }
 
+/**
+ * Displays a list of incoming references (documents that cite this one).
+ */
 export function IncomingReferenceList({
-  incomingRefs,
-  state,
+  crossRefs,
+  state = DEFAULT_STATE,
+  compact = false,
+  limit = 0,
   title = 'Cited By',
-  compact = false
 }: IncomingReferenceListProps) {
-  if (incomingRefs.length === 0) {
-    return null;
+  const displayRefs = limit > 0 ? crossRefs.slice(0, limit) : crossRefs;
+  const hasMore = limit > 0 && crossRefs.length > limit;
+
+  if (crossRefs.length === 0) {
+    return (
+      <div className="text-sm text-[var(--color-text-muted)] py-4 text-center">
+        No documents cite this section.
+      </div>
+    );
   }
 
   return (
     <div>
-      <h3 className="text-sm font-semibold text-[var(--color-text-secondary)] mb-2 flex items-center gap-2">
-        <Link2 className="w-4 h-4 text-[var(--color-success)]" />
-        {title} ({incomingRefs.length})
-      </h3>
-      <div className="space-y-2">
-        {incomingRefs.map((ref) => (
+      <div className="flex items-center gap-2 mb-4">
+        <ArrowDownLeft className="w-4 h-4 text-[var(--color-success)]" />
+        <h3 className="text-sm font-semibold text-[var(--color-text)]">
+          {title} ({crossRefs.length})
+        </h3>
+      </div>
+
+      <div className="space-y-3">
+        {displayRefs.map((ref) => (
           <IncomingReferenceCard
             key={ref.id}
             crossRef={ref}
@@ -75,6 +121,14 @@ export function IncomingReferenceList({
           />
         ))}
       </div>
+
+      {hasMore && (
+        <p className="text-xs text-[var(--color-text-muted)] mt-3 text-center">
+          +{crossRefs.length - limit} more citing documents
+        </p>
+      )}
     </div>
   );
 }
+
+export default CrossReferenceList;
