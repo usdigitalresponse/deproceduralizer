@@ -120,9 +120,9 @@ export function RegulationDetailClient({
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      {/* Main content area */}
-      <div className="lg:col-span-2">
+    <div className="grid grid-cols-1 xl:grid-cols-[1fr_280px] gap-4">
+      {/* Regulation text area */}
+      <div className="min-w-0">
         <Card>
           <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
             <h2 className="font-semibold text-[var(--color-text)]">Full Regulation Text</h2>
@@ -225,7 +225,7 @@ export function RegulationDetailClient({
       </div>
 
       {/* Notes sidebar */}
-      <div className="lg:col-span-1">
+      <div className="hidden xl:block">
         <div className="sticky top-6">
           <NotesSidePanel
             documentId={documentId}

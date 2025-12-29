@@ -14,6 +14,8 @@ import {
   QueuePagination
 } from './shared';
 import { useDeepLink, useQueueNavigation, useQueue, type PaginationInfo } from '@/hooks';
+import { useQueryState } from 'nuqs';
+import { developerStatusParser } from '@/lib/url/parsers';
 
 interface RedFlagDeveloperQueueProps {
   initialItems: RedFlagWithContext[];
@@ -56,6 +58,9 @@ export function RedFlagDeveloperQueue({
   statusCounts,
   categories,
 }: RedFlagDeveloperQueueProps) {
+  // Read current developer status filter from URL for filter-aware item removal
+  const [developerStatus] = useQueryState('developerStatus', developerStatusParser);
+
   // Convert to DeveloperItem format - memoize to prevent infinite re-renders
   const initialDeveloperItems = useMemo(
     () => initialItems.map(toDeveloperItem),
@@ -79,6 +84,7 @@ export function RedFlagDeveloperQueue({
     getItemStatus: (i) => i.developerStatus || 'unresolved',
     defaultStatus: 'unresolved',
     getRegulationId: (i) => i.regulation.id,
+    statusFilter: developerStatus || 'all',
   });
 
   // Keyboard navigation hook (auto-attaches listener)

@@ -2,6 +2,7 @@
 export { RegulationHierarchyDetails } from './RegulationHierarchyDetails';
 export { RegulationMetadata } from './RegulationMetadata';
 export { RegulationSummary } from './RegulationSummary';
+export { EnhancedRegulationSummary } from './EnhancedRegulationSummary';
 export { RegulationContent } from './RegulationContent';
 export { RegulationQuickStats } from './RegulationQuickStats';
 export { ExclusionToggle } from './ExclusionToggle';

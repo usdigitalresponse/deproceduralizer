@@ -15,6 +15,8 @@ import {
   KeyboardHelpModal,
 } from './shared';
 import { useDeepLink, useQueueNavigation, useQueue, type PaginationInfo } from '@/hooks';
+import { useQueryState } from 'nuqs';
+import { reviewStatusParser } from '@/lib/url/parsers';
 
 interface ReviewQueueProps {
   initialFlags: RedFlagWithContext[];
@@ -29,6 +31,9 @@ export function ReviewQueue({
   statusCounts,
   categories,
 }: ReviewQueueProps) {
+  // Read current review status filter from URL for filter-aware item removal
+  const [reviewStatus] = useQueryState('reviewStatus', reviewStatusParser);
+
   // Use generic queue hook for state management
   const {
     items: flags,
@@ -46,6 +51,7 @@ export function ReviewQueue({
     getItemStatus: (f) => f.reviewStatus || 'unreviewed',
     defaultStatus: 'unreviewed',
     getRegulationId: (f) => f.regulation.id,
+    statusFilter: reviewStatus || 'unreviewed',
   });
 
   // Keyboard navigation hook (auto-attaches listener)

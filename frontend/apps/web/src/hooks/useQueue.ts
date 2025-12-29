@@ -32,6 +32,8 @@ interface UseQueueConfig<TItem, TCounts> {
   defaultStatus?: string;
   /** Get regulation ID from an item (for modal) */
   getRegulationId: (item: TItem) => number;
+  /** Current status filter - items not matching will be removed after update */
+  statusFilter?: string;
 }
 
 /**
@@ -67,6 +69,7 @@ export function useQueue<TItem, TCounts extends object>({
   getItemStatus,
   defaultStatus = 'unreviewed',
   getRegulationId,
+  statusFilter,
 }: UseQueueConfig<TItem, TCounts>): UseQueueReturn<TItem, TCounts> {
   const pathname = usePathname();
   // Use shallow: false to trigger full navigation and server re-fetch
@@ -131,6 +134,11 @@ export function useQueue<TItem, TCounts extends object>({
 
             return newCounts;
           });
+
+          // Remove item if it no longer matches the filter
+          if (statusFilter && statusFilter !== 'all' && newStatus !== statusFilter) {
+            return prevItems.filter((item) => getItemId(item) !== updatedId);
+          }
         }
       }
 
@@ -138,7 +146,7 @@ export function useQueue<TItem, TCounts extends object>({
         getItemId(item) === updatedId ? updatedItem : item
       );
     });
-  }, [getItemId, getItemStatus, defaultStatus]);
+  }, [getItemId, getItemStatus, defaultStatus, statusFilter]);
 
   // Pagination helper
   const goToPage = useCallback((page: number) => {

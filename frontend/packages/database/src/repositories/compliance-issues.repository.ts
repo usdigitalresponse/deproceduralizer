@@ -329,7 +329,8 @@ export class ComplianceIssuesRepository extends BaseRepository {
       severity: complianceIssues.severity,
     }[sortBy] ?? complianceIssues.createdAt;
 
-    const orderByClause = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
+    const primarySort = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
+    const secondarySort = asc(complianceIssues.id); // Tiebreaker for consistent ordering
 
     // Get paginated results with regulation context
     const results = await this.db
@@ -384,7 +385,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       .from(complianceIssues)
       .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
       .where(whereClause)
-      .orderBy(orderByClause)
+      .orderBy(primarySort, secondarySort)
       .limit(pageSize)
       .offset(offset);
 
@@ -563,7 +564,8 @@ export class ComplianceIssuesRepository extends BaseRepository {
       severity: complianceIssues.severity,
     }[sortBy] ?? complianceIssues.createdAt;
 
-    const orderByClause = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
+    const primarySort = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
+    const secondarySort = asc(complianceIssues.id); // Tiebreaker for consistent ordering
 
     // Get paginated results with regulation context
     const results = await this.db
@@ -618,7 +620,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       .from(complianceIssues)
       .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
       .where(whereClause)
-      .orderBy(orderByClause)
+      .orderBy(primarySort, secondarySort)
       .limit(pageSize)
       .offset(offset);
 
