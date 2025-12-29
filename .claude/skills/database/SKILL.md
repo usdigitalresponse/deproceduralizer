@@ -31,15 +31,18 @@ description: Query and manage the Deproceduralizer Neon PostgreSQL database. Use
 
 | Table | Purpose |
 |-------|---------|
-| `regulatory_documents` | Main table - regulatory docs with hierarchy (50 cols) |
+| `regulatory_documents` | Main table - regulatory docs with hierarchy (67 cols) |
 | `statutes` | NJ statutes with hierarchy (title→chapter→section) |
 | `analyses` | Analysis results per document |
 | `red_flags` | Individual red flags (12 categories) |
 | `definitions` | Extracted terms and definitions |
-| `compliance_issues` | Wet signatures, in-person requirements |
-| `statute_references` | Statute citations |
+| `definition_document_occurrences` | Many-to-many: where terms appear in documents |
+| `compliance_issues` | Wet signatures, in-person requirements, etc. |
+| `incorporations_by_reference` | External standards (NFPA, ICC, ASTM, CFR) |
+| `document_notes` | User annotations on regulations |
+| `prompt_feedback` | Feedback on LLM prompts |
+| `statute_references` | Statute citations in documents |
 | `regulation_statute_links` | Regulation-to-statute links with link_type classification |
-| `definition_extraction_log` | Tracks processed regulations |
 
 **Views**: `latest_analyses`, `document_hierarchy`
 
