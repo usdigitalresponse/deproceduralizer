@@ -12,6 +12,10 @@ export { ChartContainer, ChartWrapper } from './ChartContainer';
 export { ChartTooltip, useChartTooltip } from './ChartTooltip';
 export { ChartLegend, ChartLegendCompact, ChartLegendGradient } from './ChartLegend';
 
+// Chart Components
+export { PieChart, SeverityDonutChart } from './PieChart';
+export { BarChart, HorizontalBarChart, StackedBarChart } from './BarChart';
+
 // Re-export types
 export type {
   ChartDimensions,

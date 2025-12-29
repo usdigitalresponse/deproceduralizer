@@ -42,6 +42,12 @@ import {
   // Suggestion mode
   QUEUE_MODE_VALUES,
   GROUPING_MODE_VALUES,
+  // Analytics
+  ANALYTICS_TAB_VALUES,
+  TREEMAP_SIZE_METRIC_VALUES,
+  TREEMAP_COLOR_METRIC_VALUES,
+  // View mode
+  VIEW_MODE_VALUES,
 } from '@/lib/constants/values';
 
 // Re-export types for convenience
@@ -75,6 +81,10 @@ export type {
   QueueModeValue,
   GroupingModeValue,
   BatchSizeValue,
+  AnalyticsTabValue,
+  TreemapSizeMetricValue,
+  TreemapColorMetricValue,
+  ViewModeValue,
 } from '@/lib/constants/values';
 
 // Re-export value arrays for backward compatibility
