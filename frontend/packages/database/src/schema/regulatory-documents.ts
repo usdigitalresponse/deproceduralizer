@@ -86,7 +86,7 @@ export const regulatoryDocuments = pgTable('regulatory_documents', {
   complianceIssueCount: integer('compliance_issue_count').default(0),
   descendantComplianceIssueCount: integer('descendant_compliance_issue_count').default(0),
 
-  // Cross-reference count (citations from this document)
+  // Precomputed cross-reference count (outgoing refs from this document)
   crossReferenceCount: integer('cross_reference_count').default(0),
 
   // Regulatory status (for reserved/repealed/recodified sections)

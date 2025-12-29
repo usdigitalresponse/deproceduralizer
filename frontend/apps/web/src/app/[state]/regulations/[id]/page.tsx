@@ -8,6 +8,7 @@ import { Alert } from '@/components/ui';
 import { RedFlagsList } from '@/components/flags';
 import { ComplianceIssuesList } from '@/components/issues';
 import { DefinitionsList, ApplicableDefinitions } from '@/components/definitions';
+import { CrossReferenceList, IncomingReferenceList } from '@/components/cross-references';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
 import { formatDisplayTitle } from '@/lib/format';
 import {
@@ -22,6 +23,7 @@ import { getRegulationById } from '@/lib/actions/regulations';
 import { getComplianceIssuesByDocumentId } from '@/lib/actions/compliance-issues';
 import { getDefinitionsWithContext } from '@/lib/actions/definitions';
 import { getNotesByDocumentId } from '@/lib/actions/document-notes';
+import { getCrossReferencesForDocument, getIncomingReferences, getCrossReferencesForHighlighting } from '@/lib/actions/cross-references';
 import { RegulationDetailClient } from './RegulationDetailClient';
 
 export const dynamic = 'force-dynamic';
@@ -43,11 +45,14 @@ export default async function RegulationDetailPage({ params, searchParams }: Pag
     notFound();
   }
 
-  const [regulationResult, complianceIssuesResult, definitionsResult, notesResult] = await Promise.all([
+  const [regulationResult, complianceIssuesResult, definitionsResult, notesResult, crossRefsResult, incomingRefsResult, highlightRefsResult] = await Promise.all([
     getRegulationById(regulationId),
     getComplianceIssuesByDocumentId(regulationId),
     getDefinitionsWithContext(regulationId),
     getNotesByDocumentId(regulationId),
+    getCrossReferencesForDocument(regulationId),
+    getIncomingReferences(regulationId),
+    getCrossReferencesForHighlighting(regulationId),
   ]);
 
   // Handle errors - display them obviously
@@ -128,6 +133,11 @@ export default async function RegulationDetailPage({ params, searchParams }: Pag
   // Combine all definitions that appear in text (both defined here and inherited)
   const usedDefinitions = [...(usedInText.definedHere ?? []), ...(usedInText.inherited ?? [])];
   const notes = notesResult.data;
+  // Cross-references (outgoing and incoming)
+  const crossRefs = crossRefsResult.success ? crossRefsResult.data : [];
+  const incomingRefs = incomingRefsResult.success ? incomingRefsResult.data : [];
+  // Cross-refs for inline highlighting
+  const highlightRefs = highlightRefsResult.success ? highlightRefsResult.data : [];
 
   const nycrrCitation = formatNycrrCitation(
     regulation.nycrrTitle,
@@ -215,6 +225,28 @@ export default async function RegulationDetailPage({ params, searchParams }: Pag
             />
           )}
 
+          {/* Cross-References - outgoing references to other regulations */}
+          {crossRefs.length > 0 && (
+            <Card>
+              <CrossReferenceList
+                crossRefs={crossRefs}
+                state={state as 'nj' | 'ny'}
+                title="Cross-References"
+              />
+            </Card>
+          )}
+
+          {/* Incoming References - other documents that cite this one */}
+          {incomingRefs.length > 0 && (
+            <Card>
+              <IncomingReferenceList
+                incomingRefs={incomingRefs}
+                state={state as 'nj' | 'ny'}
+                title="Cited By"
+              />
+            </Card>
+          )}
+
           {/* Definitions Used - terms that appear in this document's text */}
           {usedDefinitions.length > 0 && (
             <DefinitionsList
@@ -245,6 +277,7 @@ export default async function RegulationDetailPage({ params, searchParams }: Pag
             state={state}
             initialNotes={notes}
             applicableDefinitions={usedDefinitions}
+            crossRefHighlights={highlightRefs}
           />
         </div>
       </Container>

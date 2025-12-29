@@ -380,3 +380,28 @@ export const complianceSuggestionParsers = {
   focusSection: focusSectionParser,
   focusPattern: focusPatternParser,
 };
+
+// ============================================
+// Analytics page parsers
+// ============================================
+
+export const analyticsTabParser = parseAsStringEnum([...ANALYTICS_TAB_VALUES]).withDefault('overview');
+export const treemapSizeMetricParser = parseAsStringEnum([...TREEMAP_SIZE_METRIC_VALUES]).withDefault('flags');
+export const treemapColorMetricParser = parseAsStringEnum([...TREEMAP_COLOR_METRIC_VALUES]).withDefault('severity');
+export const treemapDepthParser = parseAsInteger.withDefault(2);
+
+/**
+ * Parser configuration for analytics page
+ */
+export const analyticsParsers = {
+  tab: analyticsTabParser,
+  sizeMetric: treemapSizeMetricParser,
+  colorMetric: treemapColorMetricParser,
+  depth: treemapDepthParser,
+};
+
+// ============================================
+// View mode parser (table vs cards)
+// ============================================
+
+export const viewModeParser = parseAsStringEnum([...VIEW_MODE_VALUES]).withDefault('table');

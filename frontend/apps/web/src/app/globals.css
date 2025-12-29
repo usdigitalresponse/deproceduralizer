@@ -223,3 +223,29 @@ table {
   outline-offset: 1px;
   background-color: var(--color-info-bg);
 }
+
+/* ========================================
+   CROSS-REFERENCE HIGHLIGHTING
+   For highlighting citations/references in regulation text
+   Using !important to override Tailwind's preflight reset
+   ======================================== */
+
+.crossref-highlight {
+  text-decoration: underline !important;
+  text-decoration-style: dotted !important;
+  text-decoration-color: var(--color-success) !important;
+  text-underline-offset: 2px !important;
+  cursor: pointer !important;
+  transition: all var(--transition-fast);
+}
+
+.crossref-highlight:hover {
+  text-decoration-style: solid !important;
+  background-color: var(--color-success-bg);
+}
+
+.crossref-highlight:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 1px;
+  background-color: var(--color-success-bg);
+}
