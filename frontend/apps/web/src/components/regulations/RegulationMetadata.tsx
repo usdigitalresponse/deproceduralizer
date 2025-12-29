@@ -51,6 +51,10 @@ export function RegulationMetadata({
     hasReportingRequirement,
   } = regulation;
 
+  // Determine if analysis exists - show analysis section only when we have analysis data
+  // We check overallComplexity since it's a required output from the analysis pipeline
+  const hasAnalysis = overallComplexity != null;
+
   if (layout === 'compact') {
     return (
       <div className={`grid grid-cols-2 md:grid-cols-4 gap-4 ${className}`}>
@@ -106,7 +110,8 @@ export function RegulationMetadata({
 
   // Grid layout for full page
   return (
-    <div className={`grid grid-cols-2 md:grid-cols-4 gap-4 ${className}`}>
+    <div className={className}>
+      {/* Source section - always shown */}
       <div>
         <span className="font-semibold text-[var(--color-text-secondary)] text-sm block">Source</span>
         <a
@@ -118,60 +123,73 @@ export function RegulationMetadata({
           View Original
         </a>
       </div>
-      <div>
-        <span className="font-semibold text-[var(--color-text-secondary)] text-sm block">Red Flags</span>
-        <Badge variant={(numFlags ?? 0) > 0 ? 'danger' : 'default'}>
-          {numFlags || 0} flags
-        </Badge>
-      </div>
-      <div>
-        <span className="font-semibold text-[var(--color-text-secondary)] text-sm block">Severity</span>
-        {maxSeverity ? (
-          <SeverityBadge severity={maxSeverity} />
-        ) : (
-          <span className="text-[var(--color-text-muted)]">–</span>
-        )}
-      </div>
-      <div>
-        <span className="font-semibold text-[var(--color-text-secondary)] text-sm block">Complexity</span>
-        {overallComplexity ? (
-          <Badge variant={getComplexityVariant(overallComplexity)}>
-            {overallComplexity}
-          </Badge>
-        ) : (
-          <span className="text-[var(--color-text-muted)]">–</span>
-        )}
-      </div>
-      <div>
-        <span className="font-semibold text-[var(--color-text-secondary)] text-sm block">Implementation Issues</span>
-        <span className="text-sm">
-          {hasImplementationIssues ? (
-            <span className="text-[var(--color-danger)]">Yes</span>
-          ) : (
-            <span className="text-[var(--color-text-muted)]">No</span>
-          )}
-        </span>
-      </div>
-      <div>
-        <span className="font-semibold text-[var(--color-text-secondary)] text-sm block">Tech Review Required</span>
-        <span className="text-sm">
-          {requiresTechnicalReview ? (
-            <span className="text-[var(--color-info)]">Yes</span>
-          ) : (
-            <span className="text-[var(--color-text-muted)]">No</span>
-          )}
-        </span>
-      </div>
-      <div>
-        <span className="font-semibold text-[var(--color-text-secondary)] text-sm block">Reporting Requirement</span>
-        <span className="text-sm">
-          {hasReportingRequirement ? (
-            <span className="text-[var(--color-warning)]">Yes</span>
-          ) : (
-            <span className="text-[var(--color-text-muted)]">No</span>
-          )}
-        </span>
-      </div>
+
+      {/* Analysis Results section - only shown when analysis exists */}
+      {hasAnalysis && (
+        <>
+          <div className="mt-4 pt-4 border-t border-[var(--color-neutral-200)]">
+            <h3 className="font-semibold text-[var(--color-text-secondary)] text-sm mb-3">
+              Analysis Results
+            </h3>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div>
+              <span className="font-semibold text-[var(--color-text-secondary)] text-sm block">Red Flags</span>
+              <Badge variant={(numFlags ?? 0) > 0 ? 'danger' : 'default'}>
+                {numFlags || 0} flags
+              </Badge>
+            </div>
+            <div>
+              <span className="font-semibold text-[var(--color-text-secondary)] text-sm block">Severity</span>
+              {maxSeverity ? (
+                <SeverityBadge severity={maxSeverity} />
+              ) : (
+                <span className="text-[var(--color-text-muted)]">–</span>
+              )}
+            </div>
+            <div>
+              <span className="font-semibold text-[var(--color-text-secondary)] text-sm block">Complexity</span>
+              {overallComplexity ? (
+                <Badge variant={getComplexityVariant(overallComplexity)}>
+                  {overallComplexity}
+                </Badge>
+              ) : (
+                <span className="text-[var(--color-text-muted)]">–</span>
+              )}
+            </div>
+            <div>
+              <span className="font-semibold text-[var(--color-text-secondary)] text-sm block">Impl Issues</span>
+              <span className="text-sm">
+                {hasImplementationIssues ? (
+                  <span className="text-[var(--color-danger)]">Yes</span>
+                ) : (
+                  <span className="text-[var(--color-text-muted)]">No</span>
+                )}
+              </span>
+            </div>
+            <div>
+              <span className="font-semibold text-[var(--color-text-secondary)] text-sm block">Tech Review</span>
+              <span className="text-sm">
+                {requiresTechnicalReview ? (
+                  <span className="text-[var(--color-info)]">Yes</span>
+                ) : (
+                  <span className="text-[var(--color-text-muted)]">No</span>
+                )}
+              </span>
+            </div>
+            <div>
+              <span className="font-semibold text-[var(--color-text-secondary)] text-sm block">Reporting</span>
+              <span className="text-sm">
+                {hasReportingRequirement ? (
+                  <span className="text-[var(--color-warning)]">Yes</span>
+                ) : (
+                  <span className="text-[var(--color-text-muted)]">No</span>
+                )}
+              </span>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

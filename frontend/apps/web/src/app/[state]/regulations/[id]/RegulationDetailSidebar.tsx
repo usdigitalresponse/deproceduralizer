@@ -90,14 +90,11 @@ export async function RegulationDetailSidebar({
         />
       </Card>
 
-      {/* Metadata */}
+      {/* Document Info - Combined Summary and Metadata */}
       <Card className="p-4">
-        <h2 className="font-semibold text-[var(--color-text)] mb-3 text-sm">Metadata</h2>
-        <RegulationMetadata regulation={regulation} layout="grid" />
-      </Card>
+        <h2 className="font-semibold text-[var(--color-text)] mb-3 text-sm">Document Info</h2>
 
-      {/* Enhanced Summary with AI metadata */}
-      <Card className="p-4">
+        {/* Summary section */}
         <EnhancedRegulationSummary
           summary={regulation.summary}
           sectionType={regulation.sectionType}
@@ -105,8 +102,13 @@ export async function RegulationDetailSidebar({
           appliesTo={regulation.appliesTo}
           hasForm={regulation.hasForm}
           hasIbr={regulation.hasIbr}
-          showHeading
+          showHeading={false}
         />
+
+        {/* Source and Analysis section */}
+        <div className="mt-4 pt-4 border-t border-[var(--color-neutral-200)]">
+          <RegulationMetadata regulation={regulation} layout="grid" />
+        </div>
       </Card>
 
       {/* Exclusion Toggle */}
