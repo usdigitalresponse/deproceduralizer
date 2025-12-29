@@ -1,87 +1,91 @@
 'use client';
 
-import { useCallback, useTransition } from 'react';
 import { useQueryStates } from 'nuqs';
-import { analyticsParsers } from '@/lib/url/parsers';
-import type { AnalyticsTabValue } from '@/lib/constants/values';
-import type { DashboardStats } from '@deproceduralizer/database';
-import type { SectionTypeStats, MetadataStats, KeywordStats } from '@/lib/actions/regulations';
+import type { DashboardStats, StateCode } from '@deproceduralizer/database';
 import type { ReviewStatusCounts } from '@/lib/actions/red-flags';
 import type { ComplianceIssueStatusCounts } from '@/lib/actions/compliance-issues';
+import type { SectionTypeStats, MetadataStats, KeywordStats, AppliesToStats } from '@/lib/actions/regulations';
+import type { AnalyticsTabValue } from '@/lib/constants/values';
+import { analyticsParsers } from '@/lib/url/parsers';
 import { AnalyticsTabs } from './AnalyticsTabs';
 import { OverviewTab } from './OverviewTab';
-import { HierarchyTab } from './HierarchyTab';
 import { IssuesTab } from './IssuesTab';
 import { KeywordsTab } from './KeywordsTab';
+import { HierarchyTab } from './HierarchyTab';
 
-interface AnalyticsClientProps {
-  state: string;
+export interface AnalyticsClientProps {
+  state: StateCode;
   dashboardStats: DashboardStats | null;
-  sectionTypeStats: SectionTypeStats[];
-  topKeywords: KeywordStats[];
+  sectionTypeStats: SectionTypeStats[] | null;
   metadataStats: MetadataStats | null;
+  topKeywords: KeywordStats[] | null;
+  topAppliesTo: AppliesToStats[] | null;
   redFlagStatus: ReviewStatusCounts | null;
+  redFlagCategories: string[] | null;
   complianceStatus: ComplianceIssueStatusCounts | null;
-  complianceByType: Record<string, number>;
+  complianceTypeCounts: Record<string, number> | null;
 }
 
 export function AnalyticsClient({
   state,
   dashboardStats,
   sectionTypeStats,
-  topKeywords,
   metadataStats,
+  topKeywords,
   redFlagStatus,
   complianceStatus,
-  complianceByType,
+  complianceTypeCounts,
 }: AnalyticsClientProps) {
-  const [, startTransition] = useTransition();
   const [params, setParams] = useQueryStates(analyticsParsers, { shallow: true });
-  const { tab } = params;
+  const currentTab = params.tab;
 
-  const handleTabChange = useCallback((newTab: AnalyticsTabValue) => {
-    startTransition(() => {
-      setParams({ tab: newTab });
-    });
-  }, [setParams]);
+  const handleTabChange = (tab: AnalyticsTabValue) => {
+    setParams({ tab });
+  };
+
+  const handleParamsChange = (newParams: Record<string, unknown>) => {
+    setParams(newParams as Parameters<typeof setParams>[0]);
+  };
 
   return (
     <div className="space-y-6">
-      <AnalyticsTabs activeTab={tab} onTabChange={handleTabChange} />
+      <AnalyticsTabs activeTab={currentTab} onTabChange={handleTabChange} />
 
-      {tab === 'overview' && (
-        <OverviewTab
-          dashboardStats={dashboardStats}
-          redFlagStatus={redFlagStatus}
-          complianceStatus={complianceStatus}
-        />
-      )}
+      <div className="mt-6">
+        {currentTab === 'overview' && (
+          <OverviewTab
+            dashboardStats={dashboardStats}
+            redFlagStatus={redFlagStatus}
+            complianceStatus={complianceStatus}
+          />
+        )}
 
-      {tab === 'hierarchy' && (
-        <HierarchyTab
-          state={state}
-          sizeMetric={params.sizeMetric}
-          colorMetric={params.colorMetric}
-          depth={params.depth}
-          onParamsChange={setParams}
-        />
-      )}
+        {currentTab === 'issues' && (
+          <IssuesTab
+            complianceByType={complianceTypeCounts ?? {}}
+            redFlagStatus={redFlagStatus}
+            complianceStatus={complianceStatus}
+          />
+        )}
 
-      {tab === 'issues' && (
-        <IssuesTab
-          complianceByType={complianceByType}
-          redFlagStatus={redFlagStatus}
-          complianceStatus={complianceStatus}
-        />
-      )}
+        {currentTab === 'keywords' && (
+          <KeywordsTab
+            sectionTypeStats={sectionTypeStats ?? []}
+            topKeywords={topKeywords ?? []}
+            metadataStats={metadataStats}
+          />
+        )}
 
-      {tab === 'keywords' && (
-        <KeywordsTab
-          sectionTypeStats={sectionTypeStats}
-          topKeywords={topKeywords}
-          metadataStats={metadataStats}
-        />
-      )}
+        {currentTab === 'hierarchy' && (
+          <HierarchyTab
+            state={state}
+            sizeMetric={params.sizeMetric}
+            colorMetric={params.colorMetric}
+            depth={params.depth}
+            onParamsChange={handleParamsChange}
+          />
+        )}
+      </div>
     </div>
   );
 }
