@@ -653,7 +653,7 @@ export const DefinitionReviewCard = forwardRef<HTMLDivElement, DefinitionReviewC
           <Button
             variant="danger"
             onClick={handleMarkFalsePositive}
-            disabled={isPending}
+            disabled={isPending || !formData.reviewerName.trim()}
             data-testid="definition-false-positive-button"
           >
             Not a Definition
@@ -664,7 +664,7 @@ export const DefinitionReviewCard = forwardRef<HTMLDivElement, DefinitionReviewC
               <Button
                 variant="primary"
                 onClick={handleSaveCorrections}
-                disabled={isPending}
+                disabled={isPending || !formData.reviewerName.trim()}
                 data-testid="definition-save-corrections-button"
               >
                 {isPending ? 'Saving...' : 'Save Corrections'}
@@ -673,7 +673,7 @@ export const DefinitionReviewCard = forwardRef<HTMLDivElement, DefinitionReviewC
               <Button
                 variant="primary"
                 onClick={handleConfirm}
-                disabled={isPending}
+                disabled={isPending || !formData.reviewerName.trim()}
                 data-testid="definition-confirm-button"
               >
                 {isPending ? 'Confirming...' : 'Confirm'}
