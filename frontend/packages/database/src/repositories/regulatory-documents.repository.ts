@@ -229,6 +229,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         excludedBy: regulatoryDocuments.excludedBy,
         excludedReason: regulatoryDocuments.excludedReason,
         // AI-generated summary metadata
+        summary: regulatoryDocuments.summary,
         sectionType: regulatoryDocuments.sectionType,
         keywords: regulatoryDocuments.keywords,
         appliesTo: regulatoryDocuments.appliesTo,
@@ -237,7 +238,6 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         analysisId: analyses.id,
         hasImplementationIssues: analyses.hasImplementationIssues,
         overallComplexity: analyses.overallComplexity,
-        summary: analyses.summary,
         requiresTechnicalReview: analyses.requiresTechnicalReview,
         hasReportingRequirement: analyses.hasReportingRequirement,
         maxSeverity: analyses.maxSeverity,
@@ -404,7 +404,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
       hasImplementationIssues: analyses.hasImplementationIssues,
       requiresTechnicalReview: analyses.requiresTechnicalReview,
       hasReportingRequirement: analyses.hasReportingRequirement,
-      summary: analyses.summary,
+      summary: regulatoryDocuments.summary,
     }[sortBy];
 
     const primarySort = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
@@ -506,6 +506,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         excludedBy: regulatoryDocuments.excludedBy,
         excludedReason: regulatoryDocuments.excludedReason,
         // AI-generated summary metadata
+        summary: regulatoryDocuments.summary,
         sectionType: regulatoryDocuments.sectionType,
         keywords: regulatoryDocuments.keywords,
         appliesTo: regulatoryDocuments.appliesTo,
@@ -514,7 +515,6 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         analysisId: analyses.id,
         hasImplementationIssues: analyses.hasImplementationIssues,
         overallComplexity: analyses.overallComplexity,
-        summary: analyses.summary,
         requiresTechnicalReview: analyses.requiresTechnicalReview,
         hasReportingRequirement: analyses.hasReportingRequirement,
         maxSeverity: analyses.maxSeverity,
@@ -660,6 +660,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         excludedBy: regulatoryDocuments.excludedBy,
         excludedReason: regulatoryDocuments.excludedReason,
         // AI-generated summary metadata
+        summary: regulatoryDocuments.summary,
         sectionType: regulatoryDocuments.sectionType,
         keywords: regulatoryDocuments.keywords,
         appliesTo: regulatoryDocuments.appliesTo,
@@ -668,7 +669,6 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         analysisId: analyses.id,
         hasImplementationIssues: analyses.hasImplementationIssues,
         overallComplexity: analyses.overallComplexity,
-        summary: analyses.summary,
         requiresTechnicalReview: analyses.requiresTechnicalReview,
         hasReportingRequirement: analyses.hasReportingRequirement,
         maxSeverity: analyses.maxSeverity,
