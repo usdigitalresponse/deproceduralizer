@@ -297,6 +297,64 @@ import { LevelBadge } from '@/components/ui';
 
 Renders uppercase text with neutral background: `[SECTION]`
 
+### SectionTypeBadge
+
+Badge for displaying AI-generated section types:
+
+```tsx
+import { SectionTypeBadge } from '@/components/ui/SectionTypeBadge';
+
+<SectionTypeBadge type="definitions" />
+<SectionTypeBadge type="requirements" compact />
+<SectionTypeBadge type={document.sectionType} />
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `type` | `string \| null` | - | Section type category |
+| `compact` | `boolean` | `false` | Show abbreviated label |
+
+Section type categories (13): `definitions`, `requirements`, `procedures`, `prohibitions`, `standards`, `eligibility`, `penalties`, `fees`, `forms`, `reporting`, `scope`, `exemptions`, `reserved`
+
+Each type has a unique color scheme for quick visual identification.
+
+### KeywordTags
+
+Display array of keywords with overflow handling:
+
+```tsx
+import { KeywordTags } from '@/components/ui/KeywordTags';
+
+<KeywordTags keywords={['licensing', 'fees', 'application']} />
+<KeywordTags keywords={keywords} maxDisplay={2} size="sm" />
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `keywords` | `string[] \| null` | - | Array of keywords |
+| `maxDisplay` | `number` | `3` | Max tags before "+N" |
+| `size` | `'sm' \| 'md'` | `'sm'` | Tag size |
+
+### MetadataIndicators
+
+Icons for form references and external standards:
+
+```tsx
+import { MetadataIndicators } from '@/components/ui/MetadataIndicators';
+
+<MetadataIndicators hasForm hasIbr />
+<MetadataIndicators hasForm={document.hasForm} hasIbr={document.hasIbr} size="md" />
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `hasForm` | `boolean \| null` | - | Show form reference icon |
+| `hasIbr` | `boolean \| null` | - | Show external standards icon |
+| `size` | `'sm' \| 'md'` | `'sm'` | Icon size |
+
+- Form reference: indigo FileText icon
+- External standards (IBR): green ExternalLink icon
+
 ### EmptyState
 
 Component for when there's no data to display:

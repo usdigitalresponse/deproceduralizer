@@ -43,3 +43,7 @@ node_modules
 # Data files
 data/raw/
 data/*.csv
+
+# Local summarization batch results
+backend/scripts/local_summarization/summaries_staging/
+modelfiles/

@@ -215,6 +215,11 @@ export const browseFiltersParsers = {
   hasDefs: booleanParser,
   hasCompliance: booleanParser,
   search: searchParser,
+  // AI-generated metadata filters
+  sectionType: parseAsString,
+  hasForm: booleanParser,
+  hasIbr: booleanParser,
+  keyword: parseAsString,
 };
 
 /**
@@ -247,6 +252,39 @@ export const definitionsReviewParsers = {
   sortBy: definitionsSortByParser,
   sortOrder: sortOrderParser,
 };
+
+// Has notes filter values (for filtering by presence of notes)
+export const HAS_NOTES_VALUES = ['all', 'yes', 'no'] as const;
+export type HasNotesValue = (typeof HAS_NOTES_VALUES)[number];
+
+export const hasNotesParser = parseAsStringEnum([...HAS_NOTES_VALUES]).withDefault('all');
+
+// ============================================
+// Section Type (AI-generated metadata) parsers
+// ============================================
+
+export const SECTION_TYPE_VALUES = [
+  'all',
+  'definitions',
+  'requirements',
+  'procedures',
+  'prohibitions',
+  'standards',
+  'eligibility',
+  'penalties',
+  'fees',
+  'forms',
+  'reporting',
+  'scope',
+  'exemptions',
+  'reserved',
+] as const;
+export type SectionTypeValue = (typeof SECTION_TYPE_VALUES)[number];
+
+export const sectionTypeParser = parseAsStringEnum([...SECTION_TYPE_VALUES]).withDefault('all');
+export const hasFormParser = parseAsBoolean;
+export const hasIbrParser = parseAsBoolean;
+export const keywordSearchParser = parseAsString;
 
 /**
  * Parser configuration for definitions developer queue filters

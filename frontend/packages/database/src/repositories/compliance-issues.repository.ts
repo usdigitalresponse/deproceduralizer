@@ -35,6 +35,11 @@ export interface ComplianceIssueWithContext extends ComplianceIssue {
     njacChapter: string | null;
     njacSubchapter: string | null;
     url: string | null;
+    // Summary metadata
+    summary: string | null;
+    sectionType: string | null;
+    hasForm: boolean | null;
+    hasIbr: boolean | null;
   };
 }
 
@@ -371,6 +376,10 @@ export class ComplianceIssuesRepository extends BaseRepository {
         regulationNjacChapter: regulatoryDocuments.njacChapter,
         regulationNjacSubchapter: regulatoryDocuments.njacSubchapter,
         regulationUrl: regulatoryDocuments.url,
+        regulationSummary: regulatoryDocuments.summary,
+        regulationSectionType: regulatoryDocuments.sectionType,
+        regulationHasForm: regulatoryDocuments.hasForm,
+        regulationHasIbr: regulatoryDocuments.hasIbr,
       })
       .from(complianceIssues)
       .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
@@ -421,6 +430,10 @@ export class ComplianceIssuesRepository extends BaseRepository {
         njacChapter: row.regulationNjacChapter,
         njacSubchapter: row.regulationNjacSubchapter,
         url: row.regulationUrl,
+        summary: row.regulationSummary,
+        sectionType: row.regulationSectionType,
+        hasForm: row.regulationHasForm,
+        hasIbr: row.regulationHasIbr,
       },
     }));
 
@@ -597,6 +610,10 @@ export class ComplianceIssuesRepository extends BaseRepository {
         regulationNjacChapter: regulatoryDocuments.njacChapter,
         regulationNjacSubchapter: regulatoryDocuments.njacSubchapter,
         regulationUrl: regulatoryDocuments.url,
+        regulationSummary: regulatoryDocuments.summary,
+        regulationSectionType: regulatoryDocuments.sectionType,
+        regulationHasForm: regulatoryDocuments.hasForm,
+        regulationHasIbr: regulatoryDocuments.hasIbr,
       })
       .from(complianceIssues)
       .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
@@ -647,6 +664,10 @@ export class ComplianceIssuesRepository extends BaseRepository {
         njacChapter: row.regulationNjacChapter,
         njacSubchapter: row.regulationNjacSubchapter,
         url: row.regulationUrl,
+        summary: row.regulationSummary,
+        sectionType: row.regulationSectionType,
+        hasForm: row.regulationHasForm,
+        hasIbr: row.regulationHasIbr,
       },
     }));
 
@@ -731,6 +752,10 @@ export class ComplianceIssuesRepository extends BaseRepository {
         regulationNjacChapter: regulatoryDocuments.njacChapter,
         regulationNjacSubchapter: regulatoryDocuments.njacSubchapter,
         regulationUrl: regulatoryDocuments.url,
+        regulationSummary: regulatoryDocuments.summary,
+        regulationSectionType: regulatoryDocuments.sectionType,
+        regulationHasForm: regulatoryDocuments.hasForm,
+        regulationHasIbr: regulatoryDocuments.hasIbr,
       })
       .from(complianceIssues)
       .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
@@ -780,6 +805,10 @@ export class ComplianceIssuesRepository extends BaseRepository {
         njacChapter: row.regulationNjacChapter,
         njacSubchapter: row.regulationNjacSubchapter,
         url: row.regulationUrl,
+        summary: row.regulationSummary,
+        sectionType: row.regulationSectionType,
+        hasForm: row.regulationHasForm,
+        hasIbr: row.regulationHasIbr,
       },
     }));
 
