@@ -1,6 +1,6 @@
 'use client';
 
-import { BarChart3, Network, AlertTriangle, Tag } from 'lucide-react';
+import { BarChart3, Network, AlertTriangle, Tag, BookOpen } from 'lucide-react';
 import type { AnalyticsTabValue } from '@/lib/constants/values';
 
 interface AnalyticsTabsProps {
@@ -13,6 +13,7 @@ const TABS: { value: AnalyticsTabValue; label: string; icon: React.ElementType }
   { value: 'hierarchy', label: 'Hierarchy', icon: Network },
   { value: 'issues', label: 'Issues', icon: AlertTriangle },
   { value: 'keywords', label: 'Keywords', icon: Tag },
+  { value: 'definitions', label: 'Definitions', icon: BookOpen },
 ];
 
 export function AnalyticsTabs({ activeTab, onTabChange }: AnalyticsTabsProps) {

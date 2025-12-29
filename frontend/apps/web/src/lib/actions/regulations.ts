@@ -1,7 +1,7 @@
 'use server';
 
 import 'server-only';
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, unstable_cache } from 'next/cache';
 import { db, RegulatoryDocumentsRepository, regulatoryDocuments, eq, and, desc, type RegulationWithAnalysis, type PaginationOptions, type FilterOptions, type StateCode, type PaginatedResult, type ComplianceIssue, type DefinitionWithContext, type DocumentNote } from '@deproceduralizer/database';
 import { type ActionResult, success, failure, getErrorMessage } from './types';
 import { getComplianceIssuesByDocumentId } from './compliance-issues';
@@ -299,12 +299,19 @@ export interface AppliesToStats {
 
 /**
  * Gets section type distribution stats for a state.
+ * Cached for 60 seconds to reduce database load.
  */
 export async function getSectionTypeStats(
   state: string
 ): Promise<ActionResult<SectionTypeStats[]>> {
   try {
-    const result = await regulationsRepo.getSectionTypeStats(state.toUpperCase() as StateCode);
+    const stateCode = state.toUpperCase() as StateCode;
+    const cachedGetStats = unstable_cache(
+      () => regulationsRepo.getSectionTypeStats(stateCode),
+      [`section-type-stats-${stateCode}`],
+      { revalidate: 60, tags: ['analytics'] }
+    );
+    const result = await cachedGetStats();
     return success(result);
   } catch (error) {
     console.error('[getSectionTypeStats]', error);
@@ -314,12 +321,19 @@ export async function getSectionTypeStats(
 
 /**
  * Gets overall metadata statistics for a state (counts of documents with summaries, forms, IBR).
+ * Cached for 60 seconds to reduce database load.
  */
 export async function getMetadataStats(
   state: string
 ): Promise<ActionResult<MetadataStats>> {
   try {
-    const result = await regulationsRepo.getMetadataStats(state.toUpperCase() as StateCode);
+    const stateCode = state.toUpperCase() as StateCode;
+    const cachedGetStats = unstable_cache(
+      () => regulationsRepo.getMetadataStats(stateCode),
+      [`metadata-stats-${stateCode}`],
+      { revalidate: 60, tags: ['analytics'] }
+    );
+    const result = await cachedGetStats();
     return success(result);
   } catch (error) {
     console.error('[getMetadataStats]', error);
@@ -329,13 +343,20 @@ export async function getMetadataStats(
 
 /**
  * Gets top keywords across all documents for a state.
+ * Cached for 60 seconds to reduce database load.
  */
 export async function getTopKeywords(
   state: string,
   limit: number = 20
 ): Promise<ActionResult<KeywordStats[]>> {
   try {
-    const result = await regulationsRepo.getTopKeywords(state.toUpperCase() as StateCode, limit);
+    const stateCode = state.toUpperCase() as StateCode;
+    const cachedGetStats = unstable_cache(
+      () => regulationsRepo.getTopKeywords(stateCode, limit),
+      [`top-keywords-${stateCode}-${limit}`],
+      { revalidate: 60, tags: ['analytics'] }
+    );
+    const result = await cachedGetStats();
     return success(result);
   } catch (error) {
     console.error('[getTopKeywords]', error);
@@ -345,13 +366,20 @@ export async function getTopKeywords(
 
 /**
  * Gets top "applies to" entities across all documents for a state.
+ * Cached for 60 seconds to reduce database load.
  */
 export async function getTopAppliesTo(
   state: string,
   limit: number = 20
 ): Promise<ActionResult<AppliesToStats[]>> {
   try {
-    const result = await regulationsRepo.getTopAppliesTo(state.toUpperCase() as StateCode, limit);
+    const stateCode = state.toUpperCase() as StateCode;
+    const cachedGetStats = unstable_cache(
+      () => regulationsRepo.getTopAppliesTo(stateCode, limit),
+      [`top-applies-to-${stateCode}-${limit}`],
+      { revalidate: 60, tags: ['analytics'] }
+    );
+    const result = await cachedGetStats();
     return success(result);
   } catch (error) {
     console.error('[getTopAppliesTo]', error);

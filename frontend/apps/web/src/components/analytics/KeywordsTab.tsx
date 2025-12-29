@@ -31,10 +31,17 @@ const SECTION_TYPE_LABELS: Record<string, string> = {
   fees: 'Fees',
   forms: 'Forms',
   reporting: 'Reporting',
+  purpose: 'Purpose',
   scope: 'Scope',
   exemptions: 'Exemptions',
   reserved: 'Reserved',
+  other: 'Other',
 };
+
+/** Capitalize first letter for unlabeled section types */
+function formatSectionType(type: string): string {
+  return SECTION_TYPE_LABELS[type] || type.charAt(0).toUpperCase() + type.slice(1);
+}
 
 export function KeywordsTab({
   sectionTypeStats,
@@ -46,7 +53,7 @@ export function KeywordsTab({
   // Convert section type stats to pie chart data
   const sectionTypePieData: PieChartDatum[] = useMemo(() => {
     return sectionTypeStats.map((stat) => ({
-      label: SECTION_TYPE_LABELS[stat.sectionType] || stat.sectionType,
+      label: formatSectionType(stat.sectionType),
       value: stat.count,
       color: colors.categoryScale(stat.sectionType),
     }));
@@ -186,7 +193,7 @@ export function KeywordsTab({
                   style={{ backgroundColor: colors.categoryScale(stat.sectionType) }}
                 />
                 <span className="text-[var(--color-text-secondary)] truncate flex-1">
-                  {SECTION_TYPE_LABELS[stat.sectionType] || stat.sectionType}
+                  {formatSectionType(stat.sectionType)}
                 </span>
                 <span className="text-[var(--color-text-muted)] font-medium">
                   {stat.count}

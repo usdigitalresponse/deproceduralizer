@@ -22,7 +22,7 @@ import {
   RESOLUTION_TYPES,
   DEVELOPERS,
 } from '@deproceduralizer/database';
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, unstable_cache } from 'next/cache';
 import { type ActionResult, success, failure, getErrorMessage } from './types';
 
 const definitionsRepo = new DefinitionsRepository(db);
@@ -613,6 +613,59 @@ export async function getDefinitionNeedMoreInfoCount(
     return success(counts);
   } catch (error) {
     console.error('[getDefinitionNeedMoreInfoCount]', error);
+    return failure(getErrorMessage(error));
+  }
+}
+
+// ============================================
+// Analytics
+// ============================================
+
+/**
+ * Return type for definitions analytics stats
+ */
+export interface DefinitionsAnalyticsStats {
+  total: number;
+  uniqueTerms: number;
+  averageOverlap: number;
+  byScopeLevel: Array<{ level: string; count: number }>;
+  byType: Array<{ type: string; count: number }>;
+  crossRefStats: {
+    total: number;
+    byCompleteness: Array<{ type: string; count: number }>;
+    byTarget: Array<{ target: string; count: number }>;
+  };
+  qualityDistribution: {
+    high: number;
+    medium: number;
+    low: number;
+  };
+  reviewStatus: {
+    unreviewed: number;
+    confirmed: number;
+    corrected: number;
+    falsePositive: number;
+  };
+}
+
+/**
+ * Get comprehensive analytics stats for definitions.
+ * Used by the Definitions tab on the analytics page.
+ * Cached for 60 seconds to reduce database load.
+ */
+export async function getDefinitionAnalyticsStats(
+  state: StateCode
+): Promise<ActionResult<DefinitionsAnalyticsStats>> {
+  try {
+    const cachedGetStats = unstable_cache(
+      () => definitionsRepo.getAnalyticsStats(state),
+      [`definitions-analytics-${state}`],
+      { revalidate: 60, tags: ['definitions-analytics'] }
+    );
+    const stats = await cachedGetStats();
+    return success(stats);
+  } catch (error) {
+    console.error('[getDefinitionAnalyticsStats]', error);
     return failure(getErrorMessage(error));
   }
 }

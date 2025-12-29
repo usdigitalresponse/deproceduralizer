@@ -4,6 +4,7 @@ import { getDashboardStats } from '@/lib/actions/dashboard';
 import { getSectionTypeStats, getMetadataStats, getTopKeywords, getTopAppliesTo } from '@/lib/actions/regulations';
 import { getRedFlagStatusCounts, getRedFlagCategories } from '@/lib/actions/red-flags';
 import { getComplianceIssueStatusCounts, getComplianceIssueCountsByType } from '@/lib/actions/compliance-issues';
+import { getDefinitionAnalyticsStats } from '@/lib/actions/definitions';
 import { AnalyticsClient } from '@/components/analytics/AnalyticsClient';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Container } from '@/components/layout/Container';
@@ -34,6 +35,7 @@ export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
     redFlagCategoriesResult,
     complianceStatusResult,
     complianceTypeCountsResult,
+    definitionsStatsResult,
   ] = await Promise.all([
     getDashboardStats(stateCode),
     getSectionTypeStats(state),
@@ -44,6 +46,7 @@ export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
     getRedFlagCategories(stateCode),
     getComplianceIssueStatusCounts(stateCode),
     getComplianceIssueCountsByType(stateCode),
+    getDefinitionAnalyticsStats(stateCode),
   ]);
 
   // Extract data, falling back to null on failure
@@ -56,6 +59,7 @@ export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
   const redFlagCategories = redFlagCategoriesResult.success ? redFlagCategoriesResult.data : null;
   const complianceStatus = complianceStatusResult.success ? complianceStatusResult.data : null;
   const complianceTypeCounts = complianceTypeCountsResult.success ? complianceTypeCountsResult.data : null;
+  const definitionsStats = definitionsStatsResult.success ? definitionsStatsResult.data : null;
 
   return (
     <div className="bg-[var(--color-background)] min-h-screen">
@@ -75,6 +79,7 @@ export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
           redFlagCategories={redFlagCategories}
           complianceStatus={complianceStatus}
           complianceTypeCounts={complianceTypeCounts}
+          definitionsStats={definitionsStats}
         />
       </Container>
     </div>

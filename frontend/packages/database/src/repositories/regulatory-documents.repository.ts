@@ -1542,19 +1542,21 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
   // ========================================
 
   /**
-   * Get document counts grouped by section_type
+   * Get document counts grouped by section_type.
+   * Normalizes section types by lowercasing and trimming whitespace.
    */
   async getSectionTypeStats(state: StateCode): Promise<{ sectionType: string; count: number }[]> {
     const stateUpper = state.toUpperCase();
 
     const results = await this.db.execute(sql`
       SELECT
-        section_type as "sectionType",
+        LOWER(TRIM(section_type)) as "sectionType",
         COUNT(*)::int as count
       FROM regulatory_documents
       WHERE state = ${stateUpper}
         AND section_type IS NOT NULL
-      GROUP BY section_type
+        AND TRIM(section_type) != ''
+      GROUP BY LOWER(TRIM(section_type))
       ORDER BY count DESC
     `);
 
@@ -1613,21 +1615,24 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
   }
 
   /**
-   * Get most common keywords across all documents in a state
+   * Get most common keywords across all documents in a state.
+   * Normalizes keywords by: lowercasing, trimming whitespace, removing trailing 's' for plurals.
    */
   async getTopKeywords(state: StateCode, limit: number = 20): Promise<{ keyword: string; count: number }[]> {
     const stateUpper = state.toUpperCase();
 
     const results = await this.db.execute(sql`
       SELECT
-        keyword,
+        REGEXP_REPLACE(LOWER(TRIM(keyword)), 's$', '') as keyword,
         COUNT(*)::int as count
       FROM regulatory_documents,
            UNNEST(keywords) as keyword
       WHERE state = ${stateUpper}
         AND keywords IS NOT NULL
         AND array_length(keywords, 1) > 0
-      GROUP BY keyword
+        AND TRIM(keyword) != ''
+        AND keyword IS NOT NULL
+      GROUP BY REGEXP_REPLACE(LOWER(TRIM(keyword)), 's$', '')
       ORDER BY count DESC
       LIMIT ${limit}
     `);

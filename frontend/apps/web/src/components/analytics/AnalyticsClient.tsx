@@ -5,6 +5,7 @@ import type { DashboardStats, StateCode } from '@deproceduralizer/database';
 import type { ReviewStatusCounts } from '@/lib/actions/red-flags';
 import type { ComplianceIssueStatusCounts } from '@/lib/actions/compliance-issues';
 import type { SectionTypeStats, MetadataStats, KeywordStats, AppliesToStats } from '@/lib/actions/regulations';
+import type { DefinitionsAnalyticsStats } from '@/lib/actions/definitions';
 import type { AnalyticsTabValue } from '@/lib/constants/values';
 import { analyticsParsers } from '@/lib/url/parsers';
 import { AnalyticsTabs } from './AnalyticsTabs';
@@ -12,6 +13,7 @@ import { OverviewTab } from './OverviewTab';
 import { IssuesTab } from './IssuesTab';
 import { KeywordsTab } from './KeywordsTab';
 import { HierarchyTab } from './HierarchyTab';
+import { DefinitionsTab } from './DefinitionsTab';
 
 export interface AnalyticsClientProps {
   state: StateCode;
@@ -24,6 +26,7 @@ export interface AnalyticsClientProps {
   redFlagCategories: string[] | null;
   complianceStatus: ComplianceIssueStatusCounts | null;
   complianceTypeCounts: Record<string, number> | null;
+  definitionsStats: DefinitionsAnalyticsStats | null;
 }
 
 export function AnalyticsClient({
@@ -35,6 +38,7 @@ export function AnalyticsClient({
   redFlagStatus,
   complianceStatus,
   complianceTypeCounts,
+  definitionsStats,
 }: AnalyticsClientProps) {
   const [params, setParams] = useQueryStates(analyticsParsers, { shallow: true });
   const currentTab = params.tab;
@@ -84,6 +88,10 @@ export function AnalyticsClient({
             depth={params.depth}
             onParamsChange={handleParamsChange}
           />
+        )}
+
+        {currentTab === 'definitions' && (
+          <DefinitionsTab stats={definitionsStats} />
         )}
       </div>
     </div>
