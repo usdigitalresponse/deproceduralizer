@@ -481,7 +481,7 @@ export async function getRedFlagDeveloperItems(
   params: RedFlagDeveloperQueueParams
 ): Promise<ActionResult<{ data: RedFlagWithContext[]; total: number; page: number; pageSize: number; totalPages: number }>> {
   try {
-    const { page, pageSize, developerStatus, developerAssigned, severity, reviewStatus, category, sortBy = 'severity', sortOrder = 'desc' } = params;
+    const { page, pageSize, developerStatus, developerAssigned, severity, reviewStatus, category, sortBy = 'reviewedAt', sortOrder = 'desc' } = params;
 
     // Build filters - typed to match repository expectations
     type FilterType = {
@@ -508,7 +508,7 @@ export async function getRedFlagDeveloperItems(
       developerStatus: developerStatus as DeveloperStatus | 'all' | undefined,
       developerAssigned: developerAssigned as Developer | undefined,
       filters: Object.keys(filters).length > 0 ? filters : undefined,
-      sortBy: sortBy as 'severity' | 'category' | 'reviewedAt',
+      sortBy: sortBy as 'severity' | 'category' | 'reviewedAt' | 'developerCheckedAt',
       sortOrder,
     });
 
@@ -527,7 +527,7 @@ export async function getComplianceIssueDeveloperItems(
   params: ComplianceDeveloperQueueParams
 ): Promise<ActionResult<{ data: ComplianceIssueWithContext[]; total: number; page: number; pageSize: number; totalPages: number }>> {
   try {
-    const { page, pageSize, developerStatus, developerAssigned, severity, reviewStatus, issueType, sortBy = 'severity', sortOrder = 'desc' } = params;
+    const { page, pageSize, developerStatus, developerAssigned, severity, reviewStatus, issueType, sortBy = 'reviewedAt', sortOrder = 'desc' } = params;
 
     // Build filters - typed to match repository expectations
     type FilterType = {
@@ -554,7 +554,7 @@ export async function getComplianceIssueDeveloperItems(
       developerStatus: developerStatus as DeveloperStatus | 'all' | undefined,
       developerAssigned: developerAssigned as Developer | undefined,
       filters: Object.keys(filters).length > 0 ? filters : undefined,
-      sortBy: sortBy as 'severity' | 'issueType' | 'reviewedAt' | 'createdAt',
+      sortBy: sortBy as 'severity' | 'issueType' | 'reviewedAt' | 'createdAt' | 'developerCheckedAt',
       sortOrder,
     });
 
