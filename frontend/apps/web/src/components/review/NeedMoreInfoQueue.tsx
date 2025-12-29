@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import { usePathname } from 'next/navigation';
 import type { DeveloperItem, NeedMoreInfoCounts } from '@/lib/actions/developer';
 import { NeedMoreInfoCard } from './NeedMoreInfoCard';
 import { Card } from '@/components/ui';
@@ -11,6 +12,7 @@ import {
   QueuePagination
 } from './shared';
 import { useDeepLink, useQueueNavigation, useQueue, type PaginationInfo } from '@/hooks';
+import { getStateFromPathname } from '@/hooks/useStateFromPath';
 import { MessageCircleQuestion, User } from 'lucide-react';
 
 interface NeedMoreInfoQueueProps {
@@ -26,6 +28,8 @@ export function NeedMoreInfoQueue({
   counts,
   reviewerName,
 }: NeedMoreInfoQueueProps) {
+  const pathname = usePathname();
+  const stateCode = getStateFromPathname(pathname);
   // Use generic queue hook for state management (no status tracking for this queue)
   const {
     items,
@@ -146,6 +150,7 @@ export function NeedMoreInfoQueue({
                   onUpdated={handleItemUpdated}
                   onViewRegulation={handleViewRegulation}
                   isFocused={index === focusedIndex}
+                  state={stateCode}
                 />
               ))}
             </div>
@@ -170,6 +175,7 @@ export function NeedMoreInfoQueue({
                     onUpdated={handleItemUpdated}
                     onViewRegulation={handleViewRegulation}
                     isFocused={actualIndex === focusedIndex}
+                    state={stateCode}
                   />
                 );
               })}

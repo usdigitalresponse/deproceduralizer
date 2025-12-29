@@ -23,6 +23,7 @@ import {
   getDeveloperQueueData,
   getRedFlagDeveloperQueueData,
   getComplianceDeveloperQueueData,
+  getComplianceSuggestionQueueData,
 } from '@/lib/actions/review-page';
 import {
   parseSeverityFilter,
@@ -33,6 +34,14 @@ import {
 import type { StateCode, RedFlagFilterOptions } from '@deproceduralizer/database';
 import { isValidState, STATE_CONFIG } from '@/types/state';
 import type { ReviewType, ReviewMode } from '@/types/regulation';
+import type { QueueModeValue, GroupingModeValue } from '@/lib/constants/values';
+import { getComplianceSuggestionBatch } from '@/lib/actions/compliance-issues';
+
+// Helper to parse comma-separated IDs from URL
+function parseCommaSeparatedIds(value: string | undefined): number[] {
+  if (!value) return [];
+  return value.split(',').map(Number).filter(id => !isNaN(id));
+}
 
 interface PageProps {
   params: Promise<{ state: string }>;
@@ -50,6 +59,14 @@ interface PageProps {
     page?: string;
     requiredByStatute?: string;
     requirementFound?: string;
+    // Suggestion mode params
+    queueMode?: string;
+    groupingMode?: string;
+    batchSize?: string;
+    shownIds?: string;
+    focusType?: string;
+    focusSection?: string;
+    focusPattern?: string;
   }>;
 }
 
@@ -99,6 +116,10 @@ function shouldRedirect(
 ): boolean {
   if (mode === 'developer') {
     return !queryParams.developerStatus && reviewType !== 'needs_info';
+  }
+  // Suggestion mode doesn't need reviewStatus - it always shows unreviewed items
+  if (reviewType === 'compliance' && queryParams.queueMode === 'suggestion') {
+    return false;
   }
   return !queryParams.reviewStatus && reviewType !== 'needs_info';
 }
@@ -332,6 +353,73 @@ async function renderReviewMode(
 
   // Compliance tab
   if (reviewType === 'compliance') {
+    // Default to 'suggestion' mode unless explicitly set to 'filter'
+    const queueMode = queryParams.queueMode === 'filter' ? 'filter' : 'suggestion';
+
+    // Suggestion mode
+    if (queueMode === 'suggestion') {
+      const batchSize = Math.min(5, Math.max(2, parseInt(queryParams.batchSize || '3', 10)));
+      const groupingMode = (queryParams.groupingMode || 'issue_type') as GroupingModeValue;
+      const shownIds = parseCommaSeparatedIds(queryParams.shownIds);
+      const focus = {
+        issueType: queryParams.focusType || undefined,
+        section: queryParams.focusSection || undefined,
+        pattern: queryParams.focusPattern || undefined,
+      };
+
+      const dataResult = await getComplianceSuggestionQueueData(stateCode, {
+        batchSize,
+        excludeIds: shownIds,
+        groupingMode,
+        focus: Object.values(focus).some(v => v) ? focus : undefined,
+      });
+
+      if (!dataResult.success) {
+        return (
+          <ReviewPageError
+            title={pageConfig.title}
+            description={pageConfig.description}
+            error={dataResult.error}
+            controls={{ mode: 'review', reviewType, tabCounts }}
+          />
+        );
+      }
+
+      const { batch, issueTypes } = dataResult.data;
+
+      // Create a fetch function for the client to call for subsequent batches
+      async function fetchSuggestionBatch(options: {
+        batchSize: number;
+        excludeIds: number[];
+        groupingMode: GroupingModeValue;
+        focus?: { issueType?: string; section?: string; pattern?: string };
+        recentIssueTypes?: string[];
+      }) {
+        'use server';
+        const result = await getComplianceSuggestionBatch(stateCode, {
+          ...options,
+          recentIssueTypes: options.recentIssueTypes,
+        });
+        if (!result.success) {
+          throw new Error(result.error);
+        }
+        return result.data;
+      }
+
+      return (
+        <ReviewPageLayout pageConfig={pageConfig} mode="review" reviewType={reviewType} tabCounts={tabCounts}>
+          <ComplianceReviewQueue
+            mode="suggestion"
+            initialBatch={batch}
+            fetchBatch={fetchSuggestionBatch}
+            statusCounts={complianceStatusCounts}
+            issueTypes={issueTypes}
+          />
+        </ReviewPageLayout>
+      );
+    }
+
+    // Filter mode (default)
     const sortBy = (queryParams.sortBy || 'severity') as 'issueType' | 'createdAt' | 'reviewedAt' | 'severity';
     const filters = {
       status: queryParams.reviewStatus === 'all' ? undefined : queryParams.reviewStatus,
@@ -358,6 +446,7 @@ async function renderReviewMode(
     return (
       <ReviewPageLayout pageConfig={pageConfig} mode="review" reviewType={reviewType} tabCounts={tabCounts}>
         <ComplianceReviewQueue
+          mode="filter"
           initialIssues={issues.data}
           pagination={{ page: issues.page, pageSize: issues.pageSize, total: issues.total, totalPages: issues.totalPages }}
           statusCounts={complianceStatusCounts}

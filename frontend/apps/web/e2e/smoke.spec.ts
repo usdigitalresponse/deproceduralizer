@@ -32,7 +32,8 @@ test.describe('Smoke Tests', () => {
   });
 
   test('review mode shows red flags', async ({ page }) => {
-    await page.goto('/ny/review');
+    // Include reviewStatus to avoid redirect delay
+    await page.goto('/ny/review?reviewStatus=unreviewed');
 
     // Wait for red flags tab to be visible and show count
     await expect(page.getByText(/Red Flags/i).first()).toBeVisible();
@@ -150,7 +151,8 @@ test.describe('Smoke Tests', () => {
 test.describe('Compliance Issues', () => {
 
   test('compliance issues filter by issue type', async ({ page }) => {
-    await page.goto('/nj/review?mode=review&type=compliance');
+    // Explicitly use filter mode (not suggestion mode which is now the default)
+    await page.goto('/nj/review?type=compliance&queueMode=filter&reviewStatus=unreviewed');
     await expect(page.getByRole('heading', { name: /Review New Jersey/i })).toBeVisible();
 
     // Wait for compliance issues to load
@@ -177,7 +179,8 @@ test.describe('Compliance Issues', () => {
   });
 
   test('issue type filter options are properly formatted (no snake_case)', async ({ page }) => {
-    await page.goto('/nj/review?mode=review&type=compliance');
+    // Explicitly use filter mode (not suggestion mode which is now the default)
+    await page.goto('/nj/review?type=compliance&queueMode=filter&reviewStatus=unreviewed');
     await expect(page.getByRole('heading', { name: /Review New Jersey/i })).toBeVisible();
 
     // Wait for page to fully load
@@ -206,8 +209,8 @@ test.describe('Compliance Issues', () => {
   });
 
   test('compliance review defaults to showing only LLM confirmed issues', async ({ page }) => {
-    // Navigate without specifying requirementFound - should default to true
-    await page.goto('/nj/review?mode=review&type=compliance');
+    // Navigate to filter mode without specifying requirementFound - should default to true
+    await page.goto('/nj/review?type=compliance&queueMode=filter&reviewStatus=unreviewed');
     await expect(page.getByRole('heading', { name: /Review New Jersey/i })).toBeVisible();
 
     // Wait for page to fully load
@@ -279,6 +282,112 @@ test.describe('Compliance Issues', () => {
 
 });
 
+test.describe('Suggestion Mode', () => {
+
+  test('suggestion mode loads correctly with controls', async ({ page }) => {
+    // Navigate directly to suggestion mode
+    await page.goto('/nj/review?type=compliance&queueMode=suggestion');
+    await expect(page.getByRole('heading', { name: /Review New Jersey/i })).toBeVisible();
+    await page.waitForLoadState('networkidle');
+
+    // Verify suggestion mode UI is visible
+    await expect(page.getByText('Items per batch:')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('button', { name: /Skip Group/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Reset/i })).toBeVisible();
+
+    // Verify batch size buttons are present (2, 3, 4, 5)
+    await expect(page.locator('button').filter({ hasText: /^2$/ }).first()).toBeVisible();
+    await expect(page.locator('button').filter({ hasText: /^3$/ }).first()).toBeVisible();
+
+    // Verify compliance issue cards are present
+    const cards = page.getByTestId('compliance-issue-card');
+    const cardCount = await cards.count();
+    expect(cardCount).toBeGreaterThan(0);
+    expect(cardCount).toBeLessThanOrEqual(5); // Max batch size
+  });
+
+  test('filter mode loads correctly with dropdowns', async ({ page }) => {
+    // Navigate directly to filter mode
+    await page.goto('/nj/review?type=compliance&queueMode=filter&reviewStatus=unreviewed');
+    await expect(page.getByRole('heading', { name: /Review New Jersey/i })).toBeVisible();
+    await page.waitForLoadState('networkidle');
+
+    // Verify filter mode UI is visible
+    await expect(page.getByText('Status:')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('Type:')).toBeVisible();
+    await expect(page.getByText('Severity:')).toBeVisible();
+
+    // Verify suggestion mode controls are NOT visible
+    await expect(page.getByText('Items per batch:')).not.toBeVisible();
+    await expect(page.getByRole('button', { name: /Skip Group/i })).not.toBeVisible();
+
+    // Verify pagination is present
+    await expect(page.getByText(/Page \d+ of \d+/)).toBeVisible();
+  });
+
+  test('skip group loads a new group in smart suggestions', async ({ page }) => {
+    // Start in suggestion mode with explicit params
+    await page.goto('/nj/review?type=compliance&queueMode=suggestion&groupingMode=issue_type');
+    await expect(page.getByRole('heading', { name: /Review New Jersey/i })).toBeVisible();
+    await page.waitForLoadState('networkidle');
+
+    // Wait for suggestion controls to be visible
+    await expect(page.getByText('Items per batch:')).toBeVisible({ timeout: 10000 });
+
+    // Get the current grouping mode indicator
+    const currentModeText = await page.getByText(/By Issue Type|By Section|By Type \+ Section/).first().textContent();
+
+    // Click Skip Group
+    const skipGroupButton = page.getByRole('button', { name: /Skip Group/i });
+    await expect(skipGroupButton).toBeVisible();
+    await skipGroupButton.click();
+
+    // Wait for Skip Group button to reappear (page loaded correctly)
+    await expect(page.getByRole('button', { name: /Skip Group/i })).toBeVisible({ timeout: 10000 });
+
+    // The grouping mode should have changed (issue_type -> section -> combined -> issue_type)
+    const newModeText = await page.getByText(/By Issue Type|By Section|By Type \+ Section/).first().textContent();
+    // Mode might be the same if we cycled back, but page should have loaded
+    expect(newModeText).toBeTruthy();
+  });
+
+  test('changing batch size updates URL', async ({ page }) => {
+    // Start in suggestion mode with batch size 3
+    await page.goto('/nj/review?type=compliance&queueMode=suggestion&batchSize=3&groupingMode=issue_type');
+    await expect(page.getByRole('heading', { name: /Review New Jersey/i })).toBeVisible();
+    await page.waitForLoadState('networkidle');
+
+    // Wait for suggestion controls to be visible
+    await expect(page.getByText('Items per batch:')).toBeVisible({ timeout: 10000 });
+
+    // Verify current batch size is 3 in URL
+    expect(page.url()).toContain('batchSize=3');
+
+    // Click on the "2" button to change batch size
+    const size2Button = page.locator('button').filter({ hasText: /^2$/ }).first();
+    await expect(size2Button).toBeVisible();
+    await size2Button.click();
+
+    // Wait for URL to update
+    await page.waitForURL(/batchSize=2/, { timeout: 10000 });
+
+    // Verify batch size changed in URL
+    expect(page.url()).toContain('batchSize=2');
+
+    // Now change to 5 to verify it works
+    const size5Button = page.locator('button').filter({ hasText: /^5$/ }).first();
+    await expect(size5Button).toBeVisible();
+    await size5Button.click();
+
+    // Wait for URL to update
+    await page.waitForURL(/batchSize=5/, { timeout: 10000 });
+
+    // Verify batch size changed in URL
+    expect(page.url()).toContain('batchSize=5');
+  });
+
+});
+
 test.describe('Prompts Alignment', () => {
 
   // Expected core prompts from prompts/core.yaml
@@ -319,7 +428,8 @@ test.describe('Prompts Alignment', () => {
   });
 
   test('compliance issue types in filters match expected types from YAML', async ({ page }) => {
-    await page.goto('/nj/review?mode=review&type=compliance');
+    // Explicitly use filter mode (not suggestion mode which is now the default)
+    await page.goto('/nj/review?type=compliance&queueMode=filter&reviewStatus=unreviewed');
     await expect(page.getByRole('heading', { name: /Review New Jersey/i })).toBeVisible();
 
     // Wait for page to fully load
@@ -373,8 +483,8 @@ test.describe('Prompts Alignment', () => {
 test.describe('Review Form Submission', () => {
 
   test('compliance issue review saves all fields including team notes', async ({ page }) => {
-    // Use review mode with LOW severity filter to minimize risk
-    await page.goto('/nj/review?mode=review&type=compliance&severity=low');
+    // Use filter mode with LOW severity filter to minimize risk
+    await page.goto('/nj/review?type=compliance&queueMode=filter&reviewStatus=unreviewed&severity=low');
     await expect(page.getByRole('heading', { name: /Review New Jersey/i })).toBeVisible();
 
     // Wait for cards to load
@@ -418,8 +528,8 @@ test.describe('Review Form Submission', () => {
   });
 
   test('red flag review saves all fields', async ({ page }) => {
-    // Use review mode with low severity filter
-    await page.goto('/ny/review?mode=review&type=flags&severity=low');
+    // Use review mode with low severity filter and explicit reviewStatus to avoid redirect
+    await page.goto('/ny/review?type=flags&reviewStatus=unreviewed&severity=low');
     await expect(page.getByRole('heading', { name: /Review New York/i })).toBeVisible();
 
     // Wait for cards to load

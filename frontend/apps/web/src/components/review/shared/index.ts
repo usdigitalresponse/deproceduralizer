@@ -1,5 +1,6 @@
 // Card components
 export { CardWrapper } from './CardWrapper';
+export { HierarchyBreadcrumbsInline } from './HierarchyBreadcrumbsInline';
 
 // Queue components
 export { QueuePagination } from './QueuePagination';

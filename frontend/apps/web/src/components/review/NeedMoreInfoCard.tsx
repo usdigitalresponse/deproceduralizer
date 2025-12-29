@@ -9,7 +9,7 @@ import { ISSUE_TYPE_LABELS, formatLabel } from '@/types/regulation';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
 import { ExpandableRegulationQuote } from './ExpandableRegulationQuote';
 import { CardWrapper } from './shared';
-import { Flag, FileWarning, MessageCircleQuestion } from 'lucide-react';
+import { Flag, FileWarning, MessageCircleQuestion, ExternalLink } from 'lucide-react';
 
 interface NeedMoreInfoCardProps {
   item: DeveloperItem;
@@ -17,10 +17,12 @@ interface NeedMoreInfoCardProps {
   onUpdated: (updatedItem: DeveloperItem) => void;
   onViewRegulation: (regulationId: number) => void;
   isFocused?: boolean;
+  /** State code for regulation links */
+  state?: string;
 }
 
 export const NeedMoreInfoCard = forwardRef<HTMLDivElement, NeedMoreInfoCardProps>(
-  ({ item, isOwner, onUpdated, onViewRegulation, isFocused = false }, ref) => {
+  ({ item, isOwner, onUpdated, onViewRegulation, isFocused = false, state = 'nj' }, ref) => {
     const [isPending, startTransition] = useTransition();
     const [error, setError] = useState<string | null>(null);
     const [responseNotes, setResponseNotes] = useState(item.teamNotes || '');
@@ -212,9 +214,10 @@ export const NeedMoreInfoCard = forwardRef<HTMLDivElement, NeedMoreInfoCardProps
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={() => onViewRegulation(item.regulation.id)}
+                onClick={() => window.open(`/${state}/regulations/${item.regulation.id}`, '_blank')}
               >
                 View Regulation
+                <ExternalLink className="w-3 h-3 ml-1" />
               </Button>
               <Button type="submit" variant="primary" size="sm" isLoading={isPending}>
                 {isPending ? 'Saving...' : 'Update Notes'}
@@ -229,9 +232,10 @@ export const NeedMoreInfoCard = forwardRef<HTMLDivElement, NeedMoreInfoCardProps
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={() => onViewRegulation(item.regulation.id)}
+                onClick={() => window.open(`/${state}/regulations/${item.regulation.id}`, '_blank')}
               >
                 View Regulation
+                <ExternalLink className="w-3 h-3 ml-1" />
               </Button>
             </div>
           </div>

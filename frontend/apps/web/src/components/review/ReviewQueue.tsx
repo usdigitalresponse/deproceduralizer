@@ -34,6 +34,7 @@ export function ReviewQueue({
     items: flags,
     counts,
     selectedRegulationId,
+    state,
     setSelectedRegulationId,
     handleViewRegulation,
     handleItemUpdated: handleFlagUpdated,
@@ -117,6 +118,7 @@ export function ReviewQueue({
               onUpdated={handleFlagUpdated}
               onViewRegulation={handleViewRegulation}
               isFocused={index === focusedIndex}
+              state={state}
             />
           ))}
         </div>

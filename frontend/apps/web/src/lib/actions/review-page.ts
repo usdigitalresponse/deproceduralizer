@@ -11,6 +11,8 @@ import {
   getComplianceIssuesPaginated,
   getComplianceIssueStatusCounts,
   getComplianceIssueTypes,
+  getComplianceSuggestionBatch,
+  type SuggestionBatchResult,
 } from './compliance-issues';
 import {
   getCombinedDeveloperStatusCounts,
@@ -341,4 +343,54 @@ export async function getNeedsInfoQueueData(
   }
 ) {
   return getNeedMoreInfoItems(stateCode, options);
+}
+
+// ============================================
+// Suggestion Mode Data Fetching
+// ============================================
+
+export interface SuggestionQueueParams {
+  batchSize: number;
+  excludeIds: number[];
+  groupingMode: 'issue_type' | 'section' | 'combined';
+  focus?: {
+    issueType?: string;
+    section?: string;
+    pattern?: string;
+  };
+}
+
+/**
+ * Fetch compliance issues for suggestion mode with smart grouping.
+ * Also fetches issue types for display purposes.
+ */
+export async function getComplianceSuggestionQueueData(
+  stateCode: StateCode,
+  params: SuggestionQueueParams
+): Promise<ActionResult<{
+  batch: SuggestionBatchResult;
+  issueTypes: string[];
+}>> {
+  const [batchResult, issueTypesResult] = await Promise.all([
+    getComplianceSuggestionBatch(stateCode, {
+      batchSize: params.batchSize,
+      excludeIds: params.excludeIds,
+      groupingMode: params.groupingMode,
+      focus: params.focus,
+    }),
+    getComplianceIssueTypes(stateCode),
+  ]);
+
+  if (!batchResult.success) {
+    return failure(`Failed to load suggestion batch: ${batchResult.error}`);
+  }
+
+  if (!issueTypesResult.success) {
+    return failure(`Failed to load issue types: ${issueTypesResult.error}`);
+  }
+
+  return success({
+    batch: batchResult.data,
+    issueTypes: issueTypesResult.data,
+  });
 }

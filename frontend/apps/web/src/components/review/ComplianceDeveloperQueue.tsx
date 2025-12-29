@@ -67,6 +67,7 @@ export function ComplianceDeveloperQueue({
     items,
     counts,
     selectedRegulationId,
+    state,
     setSelectedRegulationId,
     handleViewRegulation,
     handleItemUpdated,
@@ -136,6 +137,7 @@ export function ComplianceDeveloperQueue({
               onUpdated={handleItemUpdated}
               onViewRegulation={handleViewRegulation}
               isFocused={index === focusedIndex}
+              state={state}
             />
           ))}
         </div>

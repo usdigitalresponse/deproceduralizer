@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, forwardRef, useCallback } from 'react';
+import { usePathname } from 'next/navigation';
 import { ExternalLink } from 'lucide-react';
 import { updateComplianceIssueReview, getExpandedContext } from '@/lib/actions/compliance-issues';
 import { useReviewForm } from '@/hooks';
@@ -9,9 +10,10 @@ import { ISSUE_TYPE_LABELS, UPDATED_SEVERITY_OPTIONS, IMPACT_TYPES } from '@/typ
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
 import { formatNjacCitation } from '@/lib/formatters/njac';
 import { highlightContext } from '@/lib/utils/highlight';
-import { CardWrapper } from './shared';
+import { CardWrapper, HierarchyBreadcrumbsInline } from './shared';
 import { REVIEW_STATUSES, REVIEW_STATUS_LABELS, REVIEW_STATUS_DESCRIPTIONS, type ReviewStatus } from '@deproceduralizer/database/schema';
 import type { ComplianceIssueWithContext } from '@deproceduralizer/database';
+import { getStateFromPathname } from '@/hooks/useStateFromPath';
 
 interface ComplianceIssueCardProps {
   issue: ComplianceIssueWithContext;
@@ -22,6 +24,10 @@ interface ComplianceIssueCardProps {
 
 export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCardProps>(
   ({ issue, onUpdated, onViewRegulation, isFocused = false }, ref) => {
+    // Get state from pathname for opening regulation in new tab
+    const pathname = usePathname();
+    const stateCode = getStateFromPathname(pathname);
+
     // Use shared review form hook for state management
     const {
       formData,
@@ -176,6 +182,14 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
           </div>
         </div>
 
+        {/* Hierarchy breadcrumb */}
+        <div className="mb-2">
+          <HierarchyBreadcrumbsInline
+            documentId={issue.regulation.id}
+            state={issue.state || 'nj'}
+          />
+        </div>
+
         {/* Regulation context */}
         <div className="mb-4 text-sm">
           <span className="text-[var(--color-text-muted)]">
@@ -235,9 +249,10 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
             type="button"
             variant="secondary"
             size="sm"
-            onClick={() => onViewRegulation(issue.regulation.id)}
+            onClick={() => window.open(`/${stateCode}/regulations/${issue.regulation.id}`, '_blank')}
           >
             View Full Regulation
+            <ExternalLink className="w-3 h-3 ml-1" />
           </Button>
           {issue.matchedContext && (
             <Button

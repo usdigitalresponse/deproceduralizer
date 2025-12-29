@@ -9,6 +9,7 @@ import { RedFlagsList } from '@/components/flags';
 import { ComplianceIssuesList } from '@/components/issues';
 import { DefinitionsList, ApplicableDefinitions } from '@/components/definitions';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
+import { formatDisplayTitle } from '@/lib/format';
 import {
   RegulationHierarchyDetails,
   RegulationMetadata,
@@ -165,7 +166,7 @@ export default async function RegulationDetailPage({ params, searchParams }: Pag
             <h2 className="font-semibold text-[var(--color-primary)] mb-3">Hierarchy</h2>
             <HierarchyBreadcrumbsServer
               documentId={regulationId}
-              currentTitle={regulation.title || 'Untitled'}
+              currentTitle={formatDisplayTitle(regulation) || 'Untitled'}
               state={state}
             />
 

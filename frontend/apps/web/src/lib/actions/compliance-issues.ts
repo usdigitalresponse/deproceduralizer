@@ -1,7 +1,6 @@
 'use server';
 
 import 'server-only';
-import { revalidatePath } from 'next/cache';
 import {
   db,
   ComplianceIssuesRepository,
@@ -59,7 +58,9 @@ export async function updateComplianceIssueReview(
       return failure(`Compliance issue with id ${input.id} not found`);
     }
 
-    revalidatePath('/');
+    // Don't revalidate - client manages queue state locally via optimistic updates.
+    // Revalidation would cause server to re-fetch with stale URL params,
+    // breaking suggestion mode batch behavior.
     return success(result);
   } catch (error) {
     console.error('[updateComplianceIssueReview]', error);
@@ -257,6 +258,57 @@ export async function getExpandedContext(
     });
   } catch (error) {
     console.error('[getExpandedContext]', error);
+    return failure(getErrorMessage(error));
+  }
+}
+
+/**
+ * Result type for suggestion batch queries
+ */
+export interface SuggestionBatchResult {
+  data: ComplianceIssueWithContext[];
+  groupingMode: 'issue_type' | 'section' | 'combined';
+  focus: { issueType?: string; section?: string; pattern?: string };
+  remainingInFocus: number;
+  nextGroupingMode: 'issue_type' | 'section' | 'combined';
+  totalUnreviewed: number;
+}
+
+/**
+ * Get a smart batch of compliance issues for suggestion mode.
+ * Groups items by the specified grouping mode and returns a batch with metadata.
+ *
+ * @param state - The state code (e.g., 'NY', 'NJ')
+ * @param options - Batch options including size, excluded IDs, and grouping mode
+ * @returns Batch of compliance issues with grouping metadata
+ */
+export async function getComplianceSuggestionBatch(
+  state: StateCode,
+  options: {
+    batchSize: number;
+    excludeIds: number[];
+    groupingMode: 'issue_type' | 'section' | 'combined';
+    focus?: {
+      issueType?: string;
+      section?: string;
+      pattern?: string;
+    };
+    /** Issue types to avoid when selecting a new group (for diversity) */
+    recentIssueTypes?: string[];
+  }
+): Promise<ActionResult<SuggestionBatchResult>> {
+  try {
+    const result = await complianceIssuesRepo.getSuggestionBatch({
+      state,
+      batchSize: options.batchSize,
+      excludeIds: options.excludeIds,
+      groupingMode: options.groupingMode,
+      focus: options.focus,
+      recentIssueTypes: options.recentIssueTypes,
+    });
+    return success(result);
+  } catch (error) {
+    console.error('[getComplianceSuggestionBatch]', error);
     return failure(getErrorMessage(error));
   }
 }

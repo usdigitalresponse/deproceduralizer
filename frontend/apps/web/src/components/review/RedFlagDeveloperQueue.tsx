@@ -67,6 +67,7 @@ export function RedFlagDeveloperQueue({
     items,
     counts,
     selectedRegulationId,
+    state,
     setSelectedRegulationId,
     handleViewRegulation,
     handleItemUpdated,
@@ -136,6 +137,7 @@ export function RedFlagDeveloperQueue({
               onUpdated={handleItemUpdated}
               onViewRegulation={handleViewRegulation}
               isFocused={index === focusedIndex}
+              state={state}
             />
           ))}
         </div>

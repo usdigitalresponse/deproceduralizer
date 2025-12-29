@@ -7,6 +7,8 @@ export { ReviewTypeTabs } from './ReviewTypeTabs';
 export { ReviewPageError } from './ReviewPageError';
 export { ComplianceIssueCard } from './ComplianceIssueCard';
 export { ComplianceReviewQueue } from './ComplianceReviewQueue';
+export { ComplianceQueueModeSwitcher } from './ComplianceQueueModeSwitcher';
+export { SuggestionModeControls } from './SuggestionModeControls';
 
 // Shared review form
 export { ReviewForm, type ReviewItemType, type ReviewableItem } from './ReviewForm';
