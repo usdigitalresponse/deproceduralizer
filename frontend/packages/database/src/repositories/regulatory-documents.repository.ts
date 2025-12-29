@@ -882,9 +882,12 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         descendant_stats.matching_descendant_count > 0
       )` : sql``}
       ORDER BY
-        rd.nycrr_part::int NULLS LAST,
-        rd.nycrr_section NULLS LAST,
-        rd.title
+        natural_sort_num(COALESCE(rd.nycrr_part, rd.njac_chapter)) NULLS LAST,
+        natural_sort_alpha(COALESCE(rd.nycrr_part, rd.njac_chapter)) NULLS LAST,
+        natural_sort_num(COALESCE(rd.nycrr_section, rd.njac_subchapter, rd.njac_section)) NULLS LAST,
+        natural_sort_alpha(COALESCE(rd.nycrr_section, rd.njac_subchapter, rd.njac_section)) NULLS LAST,
+        natural_sort_num(regexp_replace(rd.title, '^[^0-9]*', '', 'g')) NULLS LAST,
+        rd.title NULLS LAST
     `);
 
     return results.rows as unknown as HierarchyNode[];
@@ -940,9 +943,12 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         )
       ${filterClause}
       ORDER BY
-        rd.nycrr_title NULLS LAST,
-        rd.nycrr_part NULLS LAST,
-        rd.title
+        COALESCE(rd.nycrr_title, natural_sort_num(rd.njac_title)) NULLS LAST,
+        natural_sort_alpha(rd.njac_title) NULLS LAST,
+        natural_sort_num(COALESCE(rd.nycrr_part, rd.njac_chapter)) NULLS LAST,
+        natural_sort_alpha(COALESCE(rd.nycrr_part, rd.njac_chapter)) NULLS LAST,
+        natural_sort_num(regexp_replace(rd.title, '^[^0-9]*', '', 'g')) NULLS LAST,
+        rd.title NULLS LAST
       LIMIT 1000
     `);
 
@@ -1150,9 +1156,12 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
       LEFT JOIN analyses a ON a.document_id = rd.id AND a.is_current = true
       WHERE rd.parent_id = ${parentId}
       ORDER BY
-        rd.nycrr_part::int NULLS LAST,
-        rd.nycrr_section NULLS LAST,
-        rd.title
+        natural_sort_num(COALESCE(rd.nycrr_part, rd.njac_chapter)) NULLS LAST,
+        natural_sort_alpha(COALESCE(rd.nycrr_part, rd.njac_chapter)) NULLS LAST,
+        natural_sort_num(COALESCE(rd.nycrr_section, rd.njac_subchapter, rd.njac_section)) NULLS LAST,
+        natural_sort_alpha(COALESCE(rd.nycrr_section, rd.njac_subchapter, rd.njac_section)) NULLS LAST,
+        natural_sort_num(regexp_replace(rd.title, '^[^0-9]*', '', 'g')) NULLS LAST,
+        rd.title NULLS LAST
     `);
 
     return results.rows as unknown as HierarchyNode[];
@@ -1202,9 +1211,12 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
       LEFT JOIN analyses a ON a.document_id = rd.id AND a.is_current = true
       WHERE rd.parent_id = ${parentId}
       ORDER BY
-        rd.nycrr_part::int NULLS LAST,
-        rd.nycrr_section NULLS LAST,
-        rd.title
+        natural_sort_num(COALESCE(rd.nycrr_part, rd.njac_chapter)) NULLS LAST,
+        natural_sort_alpha(COALESCE(rd.nycrr_part, rd.njac_chapter)) NULLS LAST,
+        natural_sort_num(COALESCE(rd.nycrr_section, rd.njac_subchapter, rd.njac_section)) NULLS LAST,
+        natural_sort_alpha(COALESCE(rd.nycrr_section, rd.njac_subchapter, rd.njac_section)) NULLS LAST,
+        natural_sort_num(regexp_replace(rd.title, '^[^0-9]*', '', 'g')) NULLS LAST,
+        rd.title NULLS LAST
     `);
 
     return results.rows as unknown as {
