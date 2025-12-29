@@ -4,8 +4,9 @@ import { useRef, useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { MessageSquareQuote, X } from 'lucide-react';
 import { Button, Input, Textarea } from '@/components/ui';
-import { useReviewerName, useTermHighlighting, type TermMatch } from '@/hooks';
+import { useReviewerName, useTermHighlighting, type TermMatch, type CrossRefMatch } from '@/hooks';
 import { DefinitionPopover } from '@/components/definitions';
+import { CrossRefPopover } from '@/components/cross-references';
 import { createNote } from '@/lib/actions/document-notes';
 import type { DocumentNote, ApplicableDefinition } from '@deproceduralizer/database';
 
@@ -26,6 +27,8 @@ interface AnnotatableContentProps {
   onNoteClick: (noteId: number) => void;
   /** Applicable definitions for term highlighting */
   applicableDefinitions?: ApplicableDefinition[];
+  /** Cross-reference matches for inline highlighting */
+  crossRefHighlights?: CrossRefMatch[];
   /** Search query for highlighting */
   searchQuery?: string;
   /** Current match index for navigation */
@@ -34,15 +37,21 @@ interface AnnotatableContentProps {
 
 /** Represents a highlighted region in the content */
 interface HighlightRegion {
-  type: 'note' | 'term' | 'search';
+  type: 'note' | 'crossref' | 'term' | 'search';
   startOffset: number;
   endOffset: number;
-  data: DocumentNote | TermMatch | { matchIndex: number };
+  data: DocumentNote | CrossRefMatch | TermMatch | { matchIndex: number };
 }
 
 /** State for the selected term popover */
 interface SelectedTermState {
   termMatch: TermMatch;
+  rect: DOMRect;
+}
+
+/** State for the selected cross-ref popover */
+interface SelectedCrossRefState {
+  crossRef: CrossRefMatch;
   rect: DOMRect;
 }
 
@@ -55,6 +64,7 @@ export function AnnotatableContent({
   onNoteCreated,
   onNoteClick,
   applicableDefinitions,
+  crossRefHighlights,
   searchQuery = '',
   currentMatchIndex = 0,
 }: AnnotatableContentProps) {
@@ -66,6 +76,7 @@ export function AnnotatableContent({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedTerm, setSelectedTerm] = useState<SelectedTermState | null>(null);
+  const [selectedCrossRef, setSelectedCrossRef] = useState<SelectedCrossRefState | null>(null);
 
   const { reviewerName: storedName, saveReviewerName, isLoaded } = useReviewerName();
 
@@ -204,6 +215,20 @@ export function AnnotatableContent({
     setSelectedTerm(null);
   }, []);
 
+  // Handle cross-ref click - show cross-ref popover
+  const handleCrossRefClick = useCallback((e: React.MouseEvent, crossRef: CrossRefMatch) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const target = e.currentTarget as HTMLElement;
+    const rect = target.getBoundingClientRect();
+    setSelectedCrossRef({ crossRef, rect });
+  }, []);
+
+  // Close cross-ref popover
+  const handleCloseCrossRefPopover = useCallback(() => {
+    setSelectedCrossRef(null);
+  }, []);
+
   // Find search matches in content
   const searchMatches = useCallback((): { start: number; end: number }[] => {
     if (!searchQuery.trim()) return [];
@@ -223,11 +248,12 @@ export function AnnotatableContent({
     return matches;
   }, [content, searchQuery]);
 
-  // Merge note regions, term regions, and search matches, with notes taking priority
+  // Merge note regions, cross-ref regions, term regions, and search matches
+  // Priority: notes > cross-refs > terms
   const mergeHighlightRegions = useCallback((): HighlightRegion[] => {
     const regions: HighlightRegion[] = [];
 
-    // Add note regions
+    // Add note regions (highest priority)
     for (const note of anchoredNotes) {
       if (note.anchorStartOffset !== null && note.anchorEndOffset !== null) {
         regions.push({
@@ -239,16 +265,37 @@ export function AnnotatableContent({
       }
     }
 
-    // Add term regions (filter out those overlapping with notes)
+    // Add cross-ref regions (filter out those overlapping with notes)
+    if (crossRefHighlights) {
+      for (const crossRef of crossRefHighlights) {
+        const overlapsNote = regions.some(
+          (r) =>
+            r.type === 'note' &&
+            crossRef.startOffset < r.endOffset &&
+            crossRef.endOffset > r.startOffset
+        );
+
+        if (!overlapsNote) {
+          regions.push({
+            type: 'crossref',
+            startOffset: crossRef.startOffset,
+            endOffset: crossRef.endOffset,
+            data: crossRef,
+          });
+        }
+      }
+    }
+
+    // Add term regions (filter out those overlapping with notes or cross-refs)
     for (const match of termMatches) {
-      const overlapsNote = regions.some(
+      const overlapsHigherPriority = regions.some(
         (r) =>
-          r.type === 'note' &&
+          (r.type === 'note' || r.type === 'crossref') &&
           match.startOffset < r.endOffset &&
           match.endOffset > r.startOffset
       );
 
-      if (!overlapsNote) {
+      if (!overlapsHigherPriority) {
         regions.push({
           type: 'term',
           startOffset: match.startOffset,
@@ -271,7 +318,7 @@ export function AnnotatableContent({
 
     // Sort by start offset
     return regions.sort((a, b) => a.startOffset - b.startOffset);
-  }, [anchoredNotes, termMatches, searchMatches]);
+  }, [anchoredNotes, crossRefHighlights, termMatches, searchMatches]);
 
   // Render content with note, term, and search highlights
   const renderContentWithHighlights = () => {
@@ -376,6 +423,27 @@ export function AnnotatableContent({
           >
             {wrapWithSearchHighlight(text, region.startOffset, `mark-${note.id}`)}
           </mark>
+        );
+      } else if (region.type === 'crossref') {
+        // Cross-reference highlight (green dotted underline)
+        const crossRef = region.data as CrossRefMatch;
+        parts.push(
+          <span
+            key={`crossref-${crossRef.id}`}
+            className="crossref-highlight"
+            onClick={(e) => handleCrossRefClick(e, crossRef)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleCrossRefClick(e as unknown as React.MouseEvent, crossRef);
+              }
+            }}
+            title={`Cross-reference: ${crossRef.rawText}`}
+          >
+            {wrapWithSearchHighlight(text, region.startOffset, `crossref-${crossRef.id}`)}
+          </span>
         );
       } else if (region.type === 'term') {
         // Term highlight (dotted underline)
@@ -506,6 +574,16 @@ export function AnnotatableContent({
           onClose={handleCloseTermPopover}
           state={state}
           currentDocumentId={documentId}
+        />
+      )}
+
+      {/* Cross-reference popover for highlighted citations */}
+      {selectedCrossRef && (
+        <CrossRefPopover
+          crossRef={selectedCrossRef.crossRef}
+          anchorRect={selectedCrossRef.rect}
+          onClose={handleCloseCrossRefPopover}
+          state={state}
         />
       )}
     </>

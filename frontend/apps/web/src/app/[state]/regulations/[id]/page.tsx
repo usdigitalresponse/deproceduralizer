@@ -23,7 +23,7 @@ import { getRegulationById } from '@/lib/actions/regulations';
 import { getComplianceIssuesByDocumentId } from '@/lib/actions/compliance-issues';
 import { getDefinitionsWithContext } from '@/lib/actions/definitions';
 import { getNotesByDocumentId } from '@/lib/actions/document-notes';
-import { getCrossReferencesForDocument, getIncomingReferences } from '@/lib/actions/cross-references';
+import { getCrossReferencesForDocument, getIncomingReferences, getCrossReferencesForHighlighting } from '@/lib/actions/cross-references';
 import { RegulationDetailClient } from './RegulationDetailClient';
 
 export const dynamic = 'force-dynamic';
@@ -45,13 +45,14 @@ export default async function RegulationDetailPage({ params, searchParams }: Pag
     notFound();
   }
 
-  const [regulationResult, complianceIssuesResult, definitionsResult, notesResult, crossRefsResult, incomingRefsResult] = await Promise.all([
+  const [regulationResult, complianceIssuesResult, definitionsResult, notesResult, crossRefsResult, incomingRefsResult, highlightRefsResult] = await Promise.all([
     getRegulationById(regulationId),
     getComplianceIssuesByDocumentId(regulationId),
     getDefinitionsWithContext(regulationId),
     getNotesByDocumentId(regulationId),
     getCrossReferencesForDocument(regulationId),
     getIncomingReferences(regulationId),
+    getCrossReferencesForHighlighting(regulationId),
   ]);
 
   // Handle errors - display them obviously
@@ -135,6 +136,8 @@ export default async function RegulationDetailPage({ params, searchParams }: Pag
   // Cross-references (outgoing and incoming)
   const crossRefs = crossRefsResult.success ? crossRefsResult.data : [];
   const incomingRefs = incomingRefsResult.success ? incomingRefsResult.data : [];
+  // Cross-refs for inline highlighting
+  const highlightRefs = highlightRefsResult.success ? highlightRefsResult.data : [];
 
   const nycrrCitation = formatNycrrCitation(
     regulation.nycrrTitle,
@@ -274,6 +277,7 @@ export default async function RegulationDetailPage({ params, searchParams }: Pag
             state={state}
             initialNotes={notes}
             applicableDefinitions={usedDefinitions}
+            crossRefHighlights={highlightRefs}
           />
         </div>
       </Container>
