@@ -7,8 +7,7 @@ import type { DeveloperItem } from '@/lib/actions/developer';
 import { Button, Textarea, Badge, Tag, CopyLinkButton } from '@/components/ui';
 import { ISSUE_TYPE_LABELS, formatLabel } from '@/types/regulation';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
-import { ExpandableRegulationQuote } from './ExpandableRegulationQuote';
-import { CardWrapper } from './shared';
+import { CardWrapper, CornellLink, RegulationTextViewer, HierarchyTreeView } from './shared';
 import { Flag, FileWarning, MessageCircleQuestion, ExternalLink } from 'lucide-react';
 
 interface NeedMoreInfoCardProps {
@@ -77,12 +76,20 @@ export const NeedMoreInfoCard = forwardRef<HTMLDivElement, NeedMoreInfoCardProps
                 <span className="text-[var(--color-text-muted)] ml-2 font-mono">{nycrrCitation}</span>
               )}
             </div>
-            <ExpandableRegulationQuote
-              text={flag.explanation}
-              label="Why Flagged"
-              documentId={flag.regulation.id}
-              variant="default"
-            />
+            {/* Explanation */}
+            <div className="mb-4">
+              <span className="text-xs font-medium text-[var(--color-text-secondary)]">Why Flagged:</span>
+              <p className="mt-1 text-sm text-[var(--color-text)]">{flag.explanation}</p>
+            </div>
+            {/* Full Regulation Text Viewer */}
+            {(flag.regulation as unknown as { content?: string }).content && (
+              <RegulationTextViewer
+                content={(flag.regulation as unknown as { content: string }).content}
+                scrollToText={flag.explanation}
+                highlightPattern={flag.matchedPhrases?.length ? flag.matchedPhrases.map(p => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') : undefined}
+                label="Show Regulation Text"
+              />
+            )}
           </div>
         );
       }
@@ -106,13 +113,23 @@ export const NeedMoreInfoCard = forwardRef<HTMLDivElement, NeedMoreInfoCardProps
                 <span className="text-[var(--color-text-muted)] ml-2 font-mono">{nycrrCitation}</span>
               )}
             </div>
-            <ExpandableRegulationQuote
-              text={issue.requirementText ?? ''}
-              label="Regulation Text"
-              documentId={issue.regulation.id}
-              highlightTerm={issue.matchedPattern}
-              variant="warning"
-            />
+            {/* Regulation Text */}
+            {issue.requirementText && (
+              <div className="mb-4">
+                <span className="text-xs font-medium text-[var(--color-text-secondary)]">Regulation Text:</span>
+                <p className="mt-1 text-sm text-[var(--color-text)]">{issue.requirementText}</p>
+              </div>
+            )}
+            {/* Full Regulation Text Viewer */}
+            {(issue.regulation as unknown as { content?: string }).content && (
+              <RegulationTextViewer
+                content={(issue.regulation as unknown as { content: string }).content}
+                scrollToText={issue.requirementText}
+                highlightPattern={issue.matchedPattern}
+                isVerbatim={issue.isVerbatim ?? false}
+                label="Show Regulation Text"
+              />
+            )}
           </div>
         );
       }
@@ -187,6 +204,13 @@ export const NeedMoreInfoCard = forwardRef<HTMLDivElement, NeedMoreInfoCardProps
           </div>
         )}
 
+        {/* Hierarchy Tree View */}
+        <HierarchyTreeView
+          documentId={item.regulation.id}
+          state={state}
+          defaultExpanded
+        />
+
         {/* Response form (if owner) */}
         {isOwner ? (
           <form onSubmit={handleSubmitResponse} className="pt-4 border-t border-[var(--color-neutral-200)]">
@@ -210,15 +234,18 @@ export const NeedMoreInfoCard = forwardRef<HTMLDivElement, NeedMoreInfoCardProps
             </div>
 
             <div className="flex items-center justify-between">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => window.open(`/${state}/regulations/${item.regulation.id}`, '_blank')}
-              >
-                View Regulation
-                <ExternalLink className="w-3 h-3 ml-1" />
-              </Button>
+              <div className="flex items-center gap-3">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => window.open(`/${state.toLowerCase()}/regulations/${item.regulation.id}`, '_blank')}
+                >
+                  View Full Regulation Page
+                  <ExternalLink className="w-3 h-3 ml-1" />
+                </Button>
+                <CornellLink url={item.regulation.url} />
+              </div>
               <Button type="submit" variant="primary" size="sm" isLoading={isPending}>
                 {isPending ? 'Saving...' : 'Update Notes'}
               </Button>
@@ -228,15 +255,18 @@ export const NeedMoreInfoCard = forwardRef<HTMLDivElement, NeedMoreInfoCardProps
           <div className="pt-4 border-t border-[var(--color-neutral-200)]">
             <div className="flex items-center justify-between text-sm text-[var(--color-text-muted)]">
               <span>Reviewed by: {item.reviewedBy}</span>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => window.open(`/${state}/regulations/${item.regulation.id}`, '_blank')}
-              >
-                View Regulation
-                <ExternalLink className="w-3 h-3 ml-1" />
-              </Button>
+              <div className="flex items-center gap-3">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => window.open(`/${state.toLowerCase()}/regulations/${item.regulation.id}`, '_blank')}
+                >
+                  View Full Regulation Page
+                  <ExternalLink className="w-3 h-3 ml-1" />
+                </Button>
+                <CornellLink url={item.regulation.url} />
+              </div>
             </div>
           </div>
         )}

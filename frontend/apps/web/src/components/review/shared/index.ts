@@ -1,6 +1,10 @@
 // Card components
 export { CardWrapper } from './CardWrapper';
 export { HierarchyBreadcrumbsInline } from './HierarchyBreadcrumbsInline';
+export { CornellLink } from './CornellLink';
+export { RegulationTextViewer } from './RegulationTextViewer';
+export { HierarchyTreeView } from './HierarchyTreeView';
+export { HierarchyTreeNodeCompact } from './HierarchyTreeNodeCompact';
 
 // Queue components
 export { QueuePagination } from './QueuePagination';

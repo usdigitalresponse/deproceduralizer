@@ -1265,6 +1265,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
     title: string;
     hierarchyLevel: string | null;
     shortTitle: string | null;
+    summary: string | null;
     levelIdentifier: string | null;
     citation: string | null;
     nycrrTitle: number | null;
@@ -1284,6 +1285,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         rd.title,
         rd.hierarchy_level as "hierarchyLevel",
         rd.short_title as "shortTitle",
+        rd.summary,
         rd.level_identifier as "levelIdentifier",
         rd.citation as "citation",
         rd.nycrr_title as "nycrrTitle",
@@ -1313,6 +1315,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
       title: string;
       hierarchyLevel: string | null;
       shortTitle: string | null;
+      summary: string | null;
       levelIdentifier: string | null;
       citation: string | null;
       nycrrTitle: number | null;
@@ -1337,6 +1340,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
     title: string;
     hierarchyLevel: string | null;
     shortTitle: string | null;
+    summary: string | null;
     levelIdentifier: string | null;
     citation: string | null;
     nycrrTitle: number | null;
@@ -1356,6 +1360,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
           rd.title,
           rd.hierarchy_level as "hierarchyLevel",
           rd.short_title as "shortTitle",
+          rd.summary,
           rd.level_identifier as "levelIdentifier",
           rd.citation as "citation",
           rd.nycrr_title as "nycrrTitle",
@@ -1378,6 +1383,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
           rd.title,
           rd.hierarchy_level as "hierarchyLevel",
           rd.short_title as "shortTitle",
+          rd.summary,
           rd.level_identifier as "levelIdentifier",
           rd.citation as "citation",
           rd.nycrr_title as "nycrrTitle",
@@ -1393,7 +1399,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         INNER JOIN ancestors a ON rd.id = a."parentId"
         WHERE a.depth < 20  -- Safety limit to prevent infinite loops
       )
-      SELECT id, title, "hierarchyLevel", "shortTitle", "levelIdentifier", "citation",
+      SELECT id, title, "hierarchyLevel", "shortTitle", summary, "levelIdentifier", "citation",
              "nycrrTitle", "nycrrPart", "nycrrChapter", "njacTitle", "njacChapter", "njacSubchapter", state
       FROM ancestors
       ORDER BY depth DESC  -- Root first
@@ -1404,6 +1410,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
       title: string;
       hierarchyLevel: string | null;
       shortTitle: string | null;
+      summary: string | null;
       levelIdentifier: string | null;
       citation: string | null;
       nycrrTitle: number | null;

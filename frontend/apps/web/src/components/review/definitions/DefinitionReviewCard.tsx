@@ -5,13 +5,13 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import { updateDefinitionReview, getAncestorDocumentsForScope } from '@/lib/actions/definitions';
 import { useReviewerName } from '@/hooks/useReviewerName';
-import { Button, Input, Textarea, Badge, Select, SearchableContent } from '@/components/ui';
+import { Button, Input, Textarea, Badge, Select } from '@/components/ui';
 import { CopyLinkButton } from '@/components/ui/CopyLinkButton';
 import { SectionTypeBadge } from '@/components/ui/SectionTypeBadge';
 import { MetadataIndicators } from '@/components/ui/MetadataIndicators';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
 import { formatNjacCitation } from '@/lib/formatters/njac';
-import { CardWrapper } from '../shared';
+import { CardWrapper, CornellLink, RegulationTextViewer, HierarchyTreeView } from '../shared';
 import { ScopeDocumentTypeahead } from './ScopeDocumentTypeahead';
 import type { DefinitionWithContext, DefinitionOriginalValues, StateCode, ReferenceCompleteness, ReferenceTarget } from '@deproceduralizer/database';
 import { REFERENCE_COMPLETENESS, REFERENCE_TARGETS } from '@deproceduralizer/database';
@@ -290,13 +290,16 @@ export const DefinitionReviewCard = forwardRef<HTMLDivElement, DefinitionReviewC
                 {/* Source Document Link */}
                 <span className="text-[var(--color-text-secondary)]">Source:</span>
                 {definition.regulation ? (
-                  <Link
-                    href={`/${state.toLowerCase()}/regulations/${definition.regulation.id}`}
-                    className="text-[var(--color-link)] hover:text-[var(--color-link-hover)] hover:underline"
-                    target="_blank"
-                  >
-                    {citation}
-                  </Link>
+                  <>
+                    <Link
+                      href={`/${state.toLowerCase()}/regulations/${definition.regulation.id}`}
+                      className="text-[var(--color-link)] hover:text-[var(--color-link-hover)] hover:underline"
+                      target="_blank"
+                    >
+                      {citation}
+                    </Link>
+                    <CornellLink url={definition.regulation.url} />
+                  </>
                 ) : (
                   <span className="text-[var(--color-text-secondary)]">Unknown source</span>
                 )}
@@ -430,27 +433,15 @@ export const DefinitionReviewCard = forwardRef<HTMLDivElement, DefinitionReviewC
             {/* Source Regulation Text */}
             {definition.regulation?.content && (
               <div className="mt-4 border-t border-[var(--color-neutral-200)] pt-4">
-                <button
-                  onClick={() => setIsSourceExpanded(!isSourceExpanded)}
-                  className="flex items-center gap-2 text-sm font-medium text-[var(--color-primary)] hover:text-[var(--color-primary-strong)]"
-                >
-                  <span>{isSourceExpanded ? '▼' : '▶'}</span>
-                  View Source Regulation Text
-                </button>
-
-                {isSourceExpanded && (
-                  <div className="mt-3">
-                    <div className="text-xs text-[var(--color-text-secondary)] mb-2">
-                      {definition.regulation.title}
-                    </div>
-                    <SearchableContent
-                      content={definition.regulation.content}
-                      maxHeight="16rem"
-                      placeholder="Search in source text..."
-                      defaultExpanded
-                    />
-                  </div>
-                )}
+                <RegulationTextViewer
+                  content={definition.regulation.content}
+                  scrollToText={definition.verbatimText}
+                  highlightPattern={definition.term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}
+                  isVerbatim={formData.isVerbatimTextComplete}
+                  label="Show Regulation Text"
+                  maxHeight="16rem"
+                  defaultExpanded={isSourceExpanded}
+                />
               </div>
             )}
           </div>
@@ -597,6 +588,15 @@ export const DefinitionReviewCard = forwardRef<HTMLDivElement, DefinitionReviewC
             </div>
           </div>
         </div>
+
+        {/* Hierarchy Tree View */}
+        {definition.regulation && (
+          <HierarchyTreeView
+            documentId={definition.regulation.id}
+            state={state}
+            defaultExpanded
+          />
+        )}
 
         {/* Expandable Metadata Section */}
         <div className="border-t border-[var(--color-neutral-200)] pt-4">

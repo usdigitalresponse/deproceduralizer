@@ -1,16 +1,13 @@
 'use client';
 
-import { useState, useTransition, useEffect, forwardRef, useCallback } from 'react';
+import { useState, useTransition, useEffect, forwardRef } from 'react';
 import { updateDeveloperStatus, clearEntryForReview, type DeveloperItem } from '@/lib/actions/developer';
-import { getExpandedContext } from '@/lib/actions/compliance-issues';
 import { useDeveloperName } from '@/hooks/useDeveloperName';
 import { Button, Textarea, Badge, SeverityBadge, Select, Tag, CopyLinkButton } from '@/components/ui';
 import { DEVELOPER_STATUSES, RESOLUTION_TYPES, DEVELOPERS, DEVELOPER_STATUS_LABELS, ISSUE_TYPE_LABELS, formatLabel, PRIORITY_OPTIONS, IMPACT_TYPES } from '@/types/regulation';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
 import { formatNjacCitation } from '@/lib/formatters/njac';
-import { highlightContext } from '@/lib/utils/highlight';
-import { ExpandableRegulationQuote } from './ExpandableRegulationQuote';
-import { CardWrapper, HierarchyBreadcrumbsInline } from './shared';
+import { CardWrapper, HierarchyBreadcrumbsInline, CornellLink, RegulationTextViewer, HierarchyTreeView } from './shared';
 import { Flag, FileWarning, AlertCircle, ChevronDown, ChevronUp, ExternalLink, RotateCcw } from 'lucide-react';
 
 interface DeveloperCardProps {
@@ -194,11 +191,6 @@ export const DeveloperCard = forwardRef<HTMLDivElement, DeveloperCardProps>(
     const [showClearConfirm, setShowClearConfirm] = useState(false);
     const { developerName: storedName, saveDeveloperName, isLoaded } = useDeveloperName();
 
-    // State for expandable context (compliance issues)
-    const [isContextExpanded, setIsContextExpanded] = useState(false);
-    const [expandedText, setExpandedText] = useState<string | null>(null);
-    const [isLoadingContext, setIsLoadingContext] = useState(false);
-
     const [formData, setFormData] = useState({
       developerStatus: item.developerStatus || 'unresolved',
       developerAssigned: item.developerAssigned || '',
@@ -303,37 +295,6 @@ export const DeveloperCard = forwardRef<HTMLDivElement, DeveloperCardProps>(
       }
     };
 
-    // Handle expanding context for compliance issues
-    const handleExpandContext = useCallback(async () => {
-      if (!item.complianceIssueData) return;
-      const issue = item.complianceIssueData;
-
-      if (isContextExpanded) {
-        setIsContextExpanded(false);
-        return;
-      }
-
-      if (expandedText) {
-        setIsContextExpanded(true);
-        return;
-      }
-
-      setIsLoadingContext(true);
-      try {
-        const result = await getExpandedContext(issue.documentId, issue.matchedContext ?? '', 800);
-        if (result.success && result.data.couldExpand) {
-          setExpandedText(result.data.expandedText);
-          setIsContextExpanded(true);
-        } else if (!result.success) {
-          console.error('Failed to expand context:', result.error);
-        }
-      } catch (err) {
-        console.error('Failed to expand context:', err);
-      } finally {
-        setIsLoadingContext(false);
-      }
-    }, [isContextExpanded, expandedText, item.complianceIssueData]);
-
     // Render type-specific content
     const renderItemContent = () => {
       if (item.type === 'red_flag' && item.redFlagData) {
@@ -362,12 +323,12 @@ export const DeveloperCard = forwardRef<HTMLDivElement, DeveloperCardProps>(
               {nycrrCitation && flag.regulation.title && ' - '}
               <span className="text-[var(--color-text-secondary)]">{flag.regulation.title}</span>
             </div>
-            <ExpandableRegulationQuote
-              text={flag.explanation}
-              label="Why Flagged"
-              documentId={flag.regulation.id}
-              variant="default"
-            />
+
+            {/* Explanation */}
+            <div className="mb-4">
+              <span className="text-xs font-medium text-[var(--color-text-secondary)]">Why Flagged:</span>
+              <p className="mt-1 text-sm text-[var(--color-text)]">{flag.explanation}</p>
+            </div>
 
             {/* Matched phrases */}
             {flag.matchedPhrases && flag.matchedPhrases.length > 0 && (
@@ -389,6 +350,16 @@ export const DeveloperCard = forwardRef<HTMLDivElement, DeveloperCardProps>(
                 <span className="font-medium text-[var(--color-text-secondary)]">Implementation:</span>
                 <span className="ml-2 text-[var(--color-text)]">{flag.implementationApproach}</span>
               </div>
+            )}
+
+            {/* Full Regulation Text Viewer */}
+            {(flag.regulation as unknown as { content?: string }).content && (
+              <RegulationTextViewer
+                content={(flag.regulation as unknown as { content: string }).content}
+                scrollToText={flag.explanation}
+                highlightPattern={flag.matchedPhrases?.length ? flag.matchedPhrases.map(p => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') : undefined}
+                label="Show Regulation Text"
+              />
             )}
           </>
         );
@@ -478,28 +449,15 @@ export const DeveloperCard = forwardRef<HTMLDivElement, DeveloperCardProps>(
               </div>
             )}
 
-            {/* View Full Section button */}
-            {issue.matchedContext && (
-              <div className="mb-4">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleExpandContext}
-                  disabled={isLoadingContext}
-                >
-                  {isLoadingContext ? 'Loading...' : isContextExpanded ? 'Hide Section Text' : 'View Full Section'}
-                </Button>
-              </div>
-            )}
-
-            {/* Expanded context with highlighting */}
-            {isContextExpanded && expandedText && (
-              <div className="mb-4 p-4 bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] border border-[var(--color-neutral-200)]">
-                <p className="text-sm text-[var(--color-text)] whitespace-pre-wrap leading-relaxed">
-                  {highlightContext(expandedText, issue.matchedContext ?? '', issue.matchedPattern ?? undefined)}
-                </p>
-              </div>
+            {/* Full Regulation Text Viewer */}
+            {(issue.regulation as unknown as { content?: string }).content && (
+              <RegulationTextViewer
+                content={(issue.regulation as unknown as { content: string }).content}
+                scrollToText={issue.requirementText}
+                highlightPattern={issue.matchedPattern}
+                isVerbatim={issue.isVerbatim ?? false}
+                label="Show Regulation Text"
+              />
             )}
 
             {/* Technical Details (collapsible) */}
@@ -568,6 +526,13 @@ export const DeveloperCard = forwardRef<HTMLDivElement, DeveloperCardProps>(
 
         {/* Review info (read-only summary) */}
         <ReviewSummary item={item} />
+
+        {/* Hierarchy Tree View */}
+        <HierarchyTreeView
+          documentId={item.regulation.id}
+          state={state}
+          defaultExpanded
+        />
 
         {/* Developer form */}
         <form onSubmit={handleSubmit} className="pt-4 border-t border-[var(--color-neutral-200)]">
@@ -675,11 +640,12 @@ export const DeveloperCard = forwardRef<HTMLDivElement, DeveloperCardProps>(
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={() => window.open(`/${state}/regulations/${item.regulation.id}`, '_blank')}
+                onClick={() => window.open(`/${state.toLowerCase()}/regulations/${item.regulation.id}`, '_blank')}
               >
-                View Regulation
+                View Full Regulation Page
                 <ExternalLink className="w-3 h-3 ml-1" />
               </Button>
+              <CornellLink url={item.regulation.url} />
               <Button
                 type="button"
                 variant="ghost"

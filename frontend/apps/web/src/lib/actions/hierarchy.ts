@@ -52,6 +52,7 @@ interface AncestorNode {
   title: string;
   hierarchyLevel: string | null;
   shortTitle: string | null;
+  summary: string | null;
   levelIdentifier: string | null;
   citation: string | null;
   nycrrTitle: number | null;
@@ -146,6 +147,7 @@ interface DirectChild {
   title: string;
   hierarchyLevel: string | null;
   shortTitle: string | null;
+  summary: string | null;
   levelIdentifier: string | null;
   citation: string | null;
   nycrrTitle: number | null;

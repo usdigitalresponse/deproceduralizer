@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, forwardRef, useCallback } from 'react';
+import { forwardRef } from 'react';
 import { usePathname } from 'next/navigation';
 import { ExternalLink } from 'lucide-react';
-import { updateComplianceIssueReview, getExpandedContext } from '@/lib/actions/compliance-issues';
+import { updateComplianceIssueReview } from '@/lib/actions/compliance-issues';
 import { useReviewForm } from '@/hooks';
 import { Button, Input, Textarea, Badge, SeverityBadge, Select, Tag, CopyLinkButton } from '@/components/ui';
 import { SectionTypeBadge } from '@/components/ui/SectionTypeBadge';
@@ -11,8 +11,7 @@ import { MetadataIndicators } from '@/components/ui/MetadataIndicators';
 import { ISSUE_TYPE_LABELS, UPDATED_SEVERITY_OPTIONS, IMPACT_TYPES } from '@/types/regulation';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
 import { formatNjacCitation } from '@/lib/formatters/njac';
-import { highlightContext } from '@/lib/utils/highlight';
-import { CardWrapper, HierarchyBreadcrumbsInline } from './shared';
+import { CardWrapper, HierarchyBreadcrumbsInline, CornellLink, RegulationTextViewer, HierarchyTreeView } from './shared';
 import { REVIEW_STATUSES, REVIEW_STATUS_LABELS, REVIEW_STATUS_DESCRIPTIONS, type ReviewStatus } from '@deproceduralizer/database/schema';
 import type { ComplianceIssueWithContext } from '@deproceduralizer/database';
 import { getStateFromPathname } from '@/hooks/useStateFromPath';
@@ -62,11 +61,6 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
       },
     });
 
-    // Expanded context state
-    const [isExpanded, setIsExpanded] = useState(false);
-    const [expandedText, setExpandedText] = useState<string | null>(null);
-    const [isLoadingContext, setIsLoadingContext] = useState(false);
-
     // Format citation based on state
     const citation = issue.state === 'NJ'
       ? formatNjacCitation(
@@ -79,34 +73,6 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
           issue.regulation.nycrrPart,
           issue.regulation.nycrrSection
         );
-
-    // Handle expanding context
-    const handleExpandContext = useCallback(async () => {
-      if (isExpanded) {
-        setIsExpanded(false);
-        return;
-      }
-
-      if (expandedText) {
-        setIsExpanded(true);
-        return;
-      }
-
-      setIsLoadingContext(true);
-      try {
-        const result = await getExpandedContext(issue.documentId, issue.matchedContext, 800);
-        if (result.success && result.data.couldExpand) {
-          setExpandedText(result.data.expandedText);
-          setIsExpanded(true);
-        } else if (!result.success) {
-          console.error('Failed to expand context:', result.error);
-        }
-      } catch (err) {
-        console.error('Failed to expand context:', err);
-      } finally {
-        setIsLoadingContext(false);
-      }
-    }, [isExpanded, expandedText, issue.documentId, issue.matchedContext]);
 
     // Convert options to Select format with explicit "none" sentinel
     const severityOptions = [{ value: 'none', label: '--' }, ...UPDATED_SEVERITY_OPTIONS];
@@ -262,7 +228,7 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
           </div>
         )}
 
-        {/* View Full Regulation + View Full Section */}
+        {/* View Full Regulation Page + Cornell Link */}
         <div className="mb-4 flex items-center gap-3">
           <Button
             type="button"
@@ -270,30 +236,29 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
             size="sm"
             onClick={() => window.open(`/${stateCode}/regulations/${issue.regulation.id}`, '_blank')}
           >
-            View Full Regulation
+            View Full Regulation Page
             <ExternalLink className="w-3 h-3 ml-1" />
           </Button>
-          {issue.matchedContext && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={handleExpandContext}
-              disabled={isLoadingContext}
-            >
-              {isLoadingContext ? 'Loading...' : isExpanded ? 'Hide Section Text' : 'View Full Section'}
-            </Button>
-          )}
+          <CornellLink url={issue.regulation.url} />
         </div>
 
-        {/* Expanded Section Text */}
-        {isExpanded && expandedText && (
-          <div className="mb-4 p-4 bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] border border-[var(--color-neutral-200)]">
-            <p className="text-sm text-[var(--color-text)] whitespace-pre-wrap leading-relaxed">
-              {highlightContext(expandedText, issue.matchedContext, issue.matchedPattern)}
-            </p>
-          </div>
+        {/* Full Regulation Text Viewer */}
+        {issue.regulation.content && (
+          <RegulationTextViewer
+            content={issue.regulation.content}
+            scrollToText={issue.requirementText}
+            highlightPattern={issue.matchedPattern}
+            isVerbatim={issue.isVerbatim ?? false}
+            label="Show Regulation Text"
+          />
         )}
+
+        {/* Hierarchy Tree View */}
+        <HierarchyTreeView
+          documentId={issue.regulation.id}
+          state={stateCode}
+          defaultExpanded
+        />
 
         {/* Technical Details - collapsible (regex pattern only) */}
         {issue.matchedPattern && (

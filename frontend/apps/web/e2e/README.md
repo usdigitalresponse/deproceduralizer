@@ -136,3 +136,21 @@ pnpm test:e2e --headed
 # Show trace on failure
 pnpm test:e2e --trace on
 ```
+
+## Troubleshooting
+
+### Timeout Failures on Local Runs
+
+If you see multiple timeout errors like `page.goto: Test timeout of 30000ms exceeded`, the dev server may be overwhelmed by too many parallel test workers.
+
+**Solution**: Reduce the number of workers:
+
+```bash
+# Run with 2 workers (recommended for local development)
+npx playwright test --workers=2
+
+# Run with 1 worker (slowest but most reliable)
+npx playwright test --workers=1
+```
+
+The default configuration uses all available CPU cores locally, which can cause the Next.js dev server to become unresponsive under load. CI environments already use `workers: 1` for stability.
