@@ -59,8 +59,8 @@ jobs:
         run: pnpm exec playwright install-deps chromium
         working-directory: frontend/apps/web
 
-      - name: Run smoke tests (excluding mutations)
-        run: pnpm test:e2e --grep-invert @mutation
+      - name: Run smoke tests
+        run: pnpm test:e2e
         working-directory: frontend/apps/web
         env:
           PLAYWRIGHT_TEST_BASE_URL: ${{ github.event.client_payload.url }}
