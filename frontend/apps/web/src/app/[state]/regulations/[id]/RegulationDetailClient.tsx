@@ -27,7 +27,6 @@ export function RegulationDetailClient({
   crossRefHighlights,
 }: RegulationDetailClientProps) {
   const [notes, setNotes] = useState<DocumentNote[]>(initialNotes);
-  const [activeNoteId, setActiveNoteId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -102,21 +101,8 @@ export function RegulationDetailClient({
     }
   }, [goToNextMatch, goToPrevMatch]);
 
-  const handleNoteCreated = (note: DocumentNote) => {
-    setNotes((prev) => [...prev, note]);
-    setActiveNoteId(note.id);
-  };
-
   const handleNotesChange = (updatedNotes: DocumentNote[]) => {
     setNotes(updatedNotes);
-  };
-
-  const handleNoteActivate = (noteId: number | null) => {
-    setActiveNoteId(noteId);
-  };
-
-  const handleNoteClick = (noteId: number) => {
-    setActiveNoteId(noteId);
   };
 
   return (
@@ -126,18 +112,13 @@ export function RegulationDetailClient({
         documentId={documentId}
         state={state}
         notes={notes}
-        activeNoteId={activeNoteId}
         onNotesChange={handleNotesChange}
-        onNoteActivate={handleNoteActivate}
       />
 
       {/* Regulation text area */}
       <Card>
         <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
           <h2 className="font-semibold text-[var(--color-text)]">Full Regulation Text</h2>
-          <span className="text-xs text-[var(--color-text-muted)]">
-            Select text to add annotations
-          </span>
         </div>
 
         {/* Search Bar */}
@@ -217,10 +198,6 @@ export function RegulationDetailClient({
               content={content}
               documentId={documentId}
               state={state}
-              notes={notes}
-              activeNoteId={activeNoteId}
-              onNoteCreated={handleNoteCreated}
-              onNoteClick={handleNoteClick}
               applicableDefinitions={applicableDefinitions}
               crossRefHighlights={crossRefMatches}
               searchQuery={searchQuery}
