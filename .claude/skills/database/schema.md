@@ -2,7 +2,7 @@
 
 ## regulatory_documents
 
-Main table with hierarchy. **73 columns** - use `./scripts/db-query.sh describe regulatory_documents` for full list.
+Main table with hierarchy. **74 columns** - use `./scripts/db-query.sh describe regulatory_documents` for full list.
 
 **Core columns:**
 
@@ -424,9 +424,16 @@ Internal cross-references between regulatory documents (e.g., "18 NYCRR 505.14" 
 
 **Constraints:**
 - `cross_references_state_check CHECK (state IN ('NY', 'NJ'))`
-- `cross_references_source_document_id_raw_text_key UNIQUE(source_document_id, raw_text)`
+- `cross_references_source_document_id_raw_text_offset_key UNIQUE(source_document_id, raw_text, start_offset)` - allows same text at different positions
 
-**Indexes:** `idx_crossrefs_source_doc`, `idx_crossrefs_target_doc`, `idx_crossrefs_state`, `idx_crossrefs_ref_type`, `idx_crossrefs_unresolved` (partial: WHERE is_resolved = FALSE)
+**Indexes:** `idx_crossrefs_source_doc`, `idx_crossrefs_target_doc`, `idx_crossrefs_state`, `idx_crossrefs_ref_type`, `idx_crossrefs_unresolved` (partial: WHERE is_resolved = FALSE), `idx_cross_references_normalized_citation`
+
+**Abbreviated References:**
+For comma-separated citation lists like "N.J.A.C. 7:1A-3.1, 4.1, 5.1", each abbreviated section gets its own row:
+- `raw_text`: Just the abbreviated text (e.g., "4.1")
+- `normalized_citation`: Full inferred citation (e.g., "N.J.A.C. 7:1A-4.1")
+- `components.is_abbreviated`: true
+- `components.inferred_from`: Parent citation it was inferred from
 
 ## document_notes
 

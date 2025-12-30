@@ -10,6 +10,7 @@ export interface DefinitionWithContext extends Definition {
   regulation?: {
     id: number;
     title: string | null;
+    url: string | null;
     nycrrTitle: number | null;
     nycrrPart: string | null;
     nycrrSection: string | null;
@@ -281,6 +282,7 @@ export class DefinitionsRepository extends BaseRepository {
         -- Regulation context (where definition is defined)
         rd.id as "regId",
         rd.title as "regTitle",
+        rd.url as "regulationUrl",
         rd.nycrr_title as "nycrrTitle",
         rd.nycrr_part as "nycrrPart",
         rd.nycrr_section as "nycrrSection",
@@ -350,6 +352,7 @@ export class DefinitionsRepository extends BaseRepository {
       regulation: row.regId ? {
         id: Number(row.regId),
         title: row.regTitle,
+        url: row.regulationUrl,
         nycrrTitle: row.nycrrTitle ? Number(row.nycrrTitle) : null,
         nycrrPart: row.nycrrPart,
         nycrrSection: row.nycrrSection,
@@ -543,6 +546,7 @@ export class DefinitionsRepository extends BaseRepository {
         // Regulation context
         regulationId: regulatoryDocuments.id,
         regulationTitle: regulatoryDocuments.title,
+        regulationUrl: regulatoryDocuments.url,
         regulationNycrrTitle: regulatoryDocuments.nycrrTitle,
         regulationNycrrPart: regulatoryDocuments.nycrrPart,
         regulationNycrrSection: regulatoryDocuments.nycrrSection,
@@ -599,6 +603,7 @@ export class DefinitionsRepository extends BaseRepository {
       regulation: row.regulationId ? {
         id: row.regulationId,
         title: row.regulationTitle,
+        url: row.regulationUrl,
         nycrrTitle: row.regulationNycrrTitle,
         nycrrPart: row.regulationNycrrPart,
         nycrrSection: row.regulationNycrrSection,
@@ -712,6 +717,7 @@ export class DefinitionsRepository extends BaseRepository {
         developerCheckedAt: definitions.developerCheckedAt,
         regulationId: regulatoryDocuments.id,
         regulationTitle: regulatoryDocuments.title,
+        regulationUrl: regulatoryDocuments.url,
         regulationNycrrTitle: regulatoryDocuments.nycrrTitle,
         regulationNycrrPart: regulatoryDocuments.nycrrPart,
         regulationNycrrSection: regulatoryDocuments.nycrrSection,
@@ -769,6 +775,7 @@ export class DefinitionsRepository extends BaseRepository {
       regulation: row.regulationId ? {
         id: row.regulationId,
         title: row.regulationTitle,
+        url: row.regulationUrl,
         nycrrTitle: row.regulationNycrrTitle,
         nycrrPart: row.regulationNycrrPart,
         nycrrSection: row.regulationNycrrSection,
@@ -976,6 +983,7 @@ export class DefinitionsRepository extends BaseRepository {
         developerCheckedAt: definitions.developerCheckedAt,
         regulationId: regulatoryDocuments.id,
         regulationTitle: regulatoryDocuments.title,
+        regulationUrl: regulatoryDocuments.url,
         regulationNycrrTitle: regulatoryDocuments.nycrrTitle,
         regulationNycrrPart: regulatoryDocuments.nycrrPart,
         regulationNycrrSection: regulatoryDocuments.nycrrSection,
@@ -1031,6 +1039,7 @@ export class DefinitionsRepository extends BaseRepository {
       regulation: row.regulationId ? {
         id: row.regulationId,
         title: row.regulationTitle,
+        url: row.regulationUrl,
         nycrrTitle: row.regulationNycrrTitle,
         nycrrPart: row.regulationNycrrPart,
         nycrrSection: row.regulationNycrrSection,
@@ -1155,6 +1164,7 @@ export class DefinitionsRepository extends BaseRepository {
         // Source document context (for linking to where definition is defined)
         regId: sourceDoc.id,
         regTitle: sourceDoc.title,
+        regUrl: sourceDoc.url,
         regState: sourceDoc.state,
         njacTitle: sourceDoc.njacTitle,
         njacChapter: sourceDoc.njacChapter,
@@ -1179,6 +1189,7 @@ export class DefinitionsRepository extends BaseRepository {
       regulation: row.regId ? {
         id: row.regId,
         title: row.regTitle,
+        url: row.regUrl,
         state: row.regState,
         njacTitle: row.njacTitle,
         njacChapter: row.njacChapter,
@@ -1392,6 +1403,7 @@ export class DefinitionsRepository extends BaseRepository {
         developerCheckedAt: definitions.developerCheckedAt,
         regulationId: regulatoryDocuments.id,
         regulationTitle: regulatoryDocuments.title,
+        regulationUrl: regulatoryDocuments.url,
         regulationNycrrTitle: regulatoryDocuments.nycrrTitle,
         regulationNycrrPart: regulatoryDocuments.nycrrPart,
         regulationNycrrSection: regulatoryDocuments.nycrrSection,
@@ -1463,6 +1475,7 @@ export class DefinitionsRepository extends BaseRepository {
         regulation: row.regulationId ? {
           id: row.regulationId,
           title: row.regulationTitle,
+          url: row.regulationUrl,
           nycrrTitle: row.regulationNycrrTitle,
           nycrrPart: row.regulationNycrrPart,
           nycrrSection: row.regulationNycrrSection,
@@ -1866,6 +1879,7 @@ export class DefinitionsRepository extends BaseRepository {
         developerCheckedAt: definitions.developerCheckedAt,
         regulationId: regulatoryDocuments.id,
         regulationTitle: regulatoryDocuments.title,
+        regulationUrl: regulatoryDocuments.url,
         regulationNycrrTitle: regulatoryDocuments.nycrrTitle,
         regulationNycrrPart: regulatoryDocuments.nycrrPart,
         regulationNycrrSection: regulatoryDocuments.nycrrSection,
@@ -1920,6 +1934,7 @@ export class DefinitionsRepository extends BaseRepository {
         regulation: row.regulationId ? {
           id: row.regulationId,
           title: row.regulationTitle,
+          url: row.regulationUrl,
           nycrrTitle: row.regulationNycrrTitle,
           nycrrPart: row.regulationNycrrPart,
           nycrrSection: row.regulationNycrrSection,
@@ -2135,6 +2150,7 @@ export class DefinitionsRepository extends BaseRepository {
         developerCheckedAt: definitions.developerCheckedAt,
         regulationId: regulatoryDocuments.id,
         regulationTitle: regulatoryDocuments.title,
+        regulationUrl: regulatoryDocuments.url,
         regulationNycrrTitle: regulatoryDocuments.nycrrTitle,
         regulationNycrrPart: regulatoryDocuments.nycrrPart,
         regulationNycrrSection: regulatoryDocuments.nycrrSection,
@@ -2142,7 +2158,6 @@ export class DefinitionsRepository extends BaseRepository {
         regulationNjacChapter: regulatoryDocuments.njacChapter,
         regulationNjacSubchapter: regulatoryDocuments.njacSubchapter,
         regulationState: regulatoryDocuments.state,
-        regulationUrl: regulatoryDocuments.url,
       })
       .from(definitions)
       .leftJoin(regulatoryDocuments, eq(definitions.documentId, regulatoryDocuments.id))
@@ -2271,6 +2286,7 @@ export class DefinitionsRepository extends BaseRepository {
         developerCheckedAt: definitions.developerCheckedAt,
         regulationId: regulatoryDocuments.id,
         regulationTitle: regulatoryDocuments.title,
+        regulationUrl: regulatoryDocuments.url,
         regulationNycrrTitle: regulatoryDocuments.nycrrTitle,
         regulationNycrrPart: regulatoryDocuments.nycrrPart,
         regulationNycrrSection: regulatoryDocuments.nycrrSection,
@@ -2278,7 +2294,6 @@ export class DefinitionsRepository extends BaseRepository {
         regulationNjacChapter: regulatoryDocuments.njacChapter,
         regulationNjacSubchapter: regulatoryDocuments.njacSubchapter,
         regulationState: regulatoryDocuments.state,
-        regulationUrl: regulatoryDocuments.url,
       })
       .from(definitions)
       .leftJoin(regulatoryDocuments, eq(definitions.documentId, regulatoryDocuments.id))

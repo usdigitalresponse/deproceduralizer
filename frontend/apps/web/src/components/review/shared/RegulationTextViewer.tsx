@@ -261,12 +261,12 @@ export function RegulationTextViewer({
   if (!content) return null;
 
   return (
-    <div className="mb-4">
+    <div className="mb-4 p-4 bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] border border-[var(--color-neutral-200)]">
       {/* Expandable Header */}
       <button
         type="button"
         onClick={handleToggle}
-        className="flex items-center gap-1.5 text-xs font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text)] transition-colors py-1"
+        className="flex items-center gap-1.5 text-sm font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text)] transition-colors"
       >
         {isExpanded ? (
           <ChevronDown className="w-4 h-4" />
@@ -278,17 +278,12 @@ export function RegulationTextViewer({
 
       {/* Expanded Content */}
       {isExpanded && (
-        <div className="mt-2">
+        <div className="mt-3">
           {/* Search Controls */}
           <div className="flex items-center gap-2 mb-2">
-            <button
-              onClick={() => {}} // Search is always visible when expanded
-              className="flex items-center gap-1.5 text-xs text-[var(--color-text-secondary)]"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </button>
+            <svg className="w-4 h-4 text-[var(--color-text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
             <div className="flex-1 max-w-xs">
               <Input
                 type="text"
@@ -351,7 +346,7 @@ export function RegulationTextViewer({
           {/* Content Area */}
           <div
             ref={contentRef}
-            className="bg-[var(--color-neutral-50)] border border-[var(--color-neutral-200)] rounded p-3 text-sm font-mono whitespace-pre-wrap overflow-y-auto"
+            className="bg-white border border-[var(--color-neutral-200)] rounded-[var(--radius-sm)] p-3 text-sm font-mono whitespace-pre-wrap overflow-y-auto"
             style={{ maxHeight }}
           >
             {highlightedContent}

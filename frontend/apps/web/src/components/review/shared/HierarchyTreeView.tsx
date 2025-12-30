@@ -177,12 +177,12 @@ export function HierarchyTreeView({
   };
 
   return (
-    <div className="mb-4 mt-4 border-t border-[var(--color-neutral-200)] pt-4">
+    <div className="mb-4 p-4 bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] border border-[var(--color-neutral-200)]">
       {/* Expandable Header */}
       <button
         type="button"
         onClick={() => setIsExpanded(!isExpanded)}
-        className="flex items-center gap-2 text-sm font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text)] transition-colors py-1"
+        className="flex items-center gap-1.5 text-sm font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text)] transition-colors"
       >
         {isExpanded ? (
           <ChevronDown className="w-4 h-4" />
@@ -194,7 +194,7 @@ export function HierarchyTreeView({
 
       {/* Expanded Content */}
       {isExpanded && (
-        <div className="mt-3 bg-[var(--color-neutral-50)] border border-[var(--color-neutral-200)] rounded-[var(--radius-md)] p-3">
+        <div className="mt-3 bg-white border border-[var(--color-neutral-200)] rounded-[var(--radius-sm)] p-3">
           {isLoading ? (
             <div className="flex items-center gap-2 text-sm text-[var(--color-text-muted)] py-4 justify-center">
               <Loader2 className="w-4 h-4 animate-spin" />

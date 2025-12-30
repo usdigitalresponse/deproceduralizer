@@ -75,11 +75,19 @@ export function CrossRefPopover({
       role="dialog"
       aria-label={`Cross-reference: ${crossRef.rawText}`}
     >
-      {/* Header */}
+      {/* Header - show full citation if available, otherwise show matched text */}
       <div className="flex items-start justify-between gap-2 mb-2">
-        <code className="text-sm font-mono text-[var(--color-text)] bg-[var(--color-neutral-100)] px-1.5 py-0.5 rounded flex-1">
-          {crossRef.rawText}
-        </code>
+        <div className="flex-1">
+          <code className="text-sm font-mono text-[var(--color-text)] bg-[var(--color-neutral-100)] px-1.5 py-0.5 rounded">
+            {crossRef.targetCitation || crossRef.rawText}
+          </code>
+          {/* Show what was matched if different from target citation (for abbreviated refs) */}
+          {crossRef.targetCitation && crossRef.rawText !== crossRef.targetCitation && (
+            <p className="text-xs text-[var(--color-text-muted)] mt-1">
+              Matched: <code className="font-mono">{crossRef.rawText}</code>
+            </p>
+          )}
+        </div>
         <button
           onClick={onClose}
           className="p-1 text-[var(--color-text-muted)] hover:text-[var(--color-text)] rounded-[var(--radius-sm)] hover:bg-[var(--color-neutral-100)] transition-colors flex-shrink-0"
@@ -116,10 +124,12 @@ export function CrossRefPopover({
             </div>
           </div>
 
-          {/* Link to target document */}
+          {/* Link to target document - opens in new tab */}
           <div className="pt-2 border-t border-[var(--color-neutral-100)]">
             <Link
               href={`/${state}/regulations/${crossRef.targetDocumentId}`}
+              target="_blank"
+              rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 text-sm text-[var(--color-link)] hover:text-[var(--color-link-hover)] hover:underline"
               onClick={onClose}
             >

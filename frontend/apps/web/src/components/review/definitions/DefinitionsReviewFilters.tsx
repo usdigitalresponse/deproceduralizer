@@ -67,7 +67,7 @@ export function DefinitionsReviewFilters({ counts, scopeTexts = [] }: Definition
   }, [setFilters]);
 
   // Check if any filters are active (not default)
-  const hasActiveFilters =
+  const hasActiveFilters = Boolean(
     (filters.reviewStatus && filters.reviewStatus !== 'all') ||
     (filters.scopeLevel && filters.scopeLevel !== 'all') ||
     (filters.definitionType && filters.definitionType !== 'all') ||
@@ -77,7 +77,8 @@ export function DefinitionsReviewFilters({ counts, scopeTexts = [] }: Definition
     (filters.scopeMismatch && filters.scopeMismatch !== 'all') ||
     filters.scopeText ||
     filters.termSearch ||
-    filters.definitionId;
+    filters.definitionId
+  );
 
   // Build scope text options from provided unique values
   const scopeTextOptions = useMemo(() => {

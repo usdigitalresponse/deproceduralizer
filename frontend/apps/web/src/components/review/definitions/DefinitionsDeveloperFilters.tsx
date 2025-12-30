@@ -58,12 +58,13 @@ export function DefinitionsDeveloperFilters({
   }, [setFilters]);
 
   // Check if any filters are active (not default)
-  const hasActiveFilters =
+  const hasActiveFilters = Boolean(
     (filters.developerStatus && filters.developerStatus !== 'all') ||
     filters.developerAssigned ||
     (filters.reviewStatus && filters.reviewStatus !== 'all') ||
     (filters.hasJustification && filters.hasJustification !== 'all') ||
-    (filters.hasTeamNotes && filters.hasTeamNotes !== 'all');
+    (filters.hasTeamNotes && filters.hasTeamNotes !== 'all')
+  );
 
   return (
     <div className={`flex flex-wrap items-center gap-3 ${className}`}>
