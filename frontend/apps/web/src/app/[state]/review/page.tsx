@@ -212,7 +212,7 @@ async function renderDeveloperMode(
 
   // Compliance issues tab
   if (reviewType === 'compliance') {
-    const sortBy = (queryParams.sortBy || 'severity') as 'severity' | 'issueType' | 'reviewedAt' | 'developerCheckedAt';
+    const sortBy = (queryParams.sortBy || 'reviewedAt') as 'severity' | 'issueType' | 'reviewedAt' | 'developerCheckedAt';
     const dataResult = await getComplianceDeveloperQueueData(stateCode, {
       page,
       pageSize,
@@ -250,7 +250,7 @@ async function renderDeveloperMode(
   }
 
   // Default: Red Flags tab
-  const sortBy = (queryParams.sortBy || 'severity') as 'severity' | 'category' | 'reviewedAt' | 'developerCheckedAt';
+  const sortBy = (queryParams.sortBy || 'reviewedAt') as 'severity' | 'category' | 'reviewedAt' | 'developerCheckedAt';
   const dataResult = await getRedFlagDeveloperQueueData(stateCode, {
     page,
     pageSize,
