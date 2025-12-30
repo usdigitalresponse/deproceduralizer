@@ -85,7 +85,7 @@ export function AnalyticsClient({
         )}
 
         {currentTab === 'definitions' && (
-          <DefinitionsTab stats={definitionsStats} />
+          <DefinitionsTab stats={definitionsStats} state={state} />
         )}
       </div>
     </div>
