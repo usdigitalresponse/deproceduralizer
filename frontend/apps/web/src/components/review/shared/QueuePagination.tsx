@@ -1,6 +1,6 @@
 'use client';
 
-import { Button } from '@/components/ui';
+import { Pagination } from '@/components/ui';
 
 interface QueuePaginationProps {
   page: number;
@@ -9,7 +9,8 @@ interface QueuePaginationProps {
 }
 
 /**
- * Shared pagination component for review queues.
+ * Pagination component for review queues.
+ * Thin wrapper around the shared Pagination component for backward compatibility.
  *
  * @example
  * <QueuePagination
@@ -19,32 +20,13 @@ interface QueuePaginationProps {
  * />
  */
 export function QueuePagination({ page, totalPages, onPageChange }: QueuePaginationProps) {
-  if (totalPages <= 1) {
-    return null;
-  }
-
   return (
-    <div className="flex items-center justify-center gap-2 pt-4">
-      <Button
-        variant="secondary"
-        size="sm"
-        onClick={() => onPageChange(page - 1)}
-        disabled={page <= 1}
-      >
-        Previous
-      </Button>
-      <span className="px-4 text-sm text-[var(--color-text-secondary)]">
-        Page {page} of {totalPages}
-      </span>
-      <Button
-        variant="secondary"
-        size="sm"
-        onClick={() => onPageChange(page + 1)}
-        disabled={page >= totalPages}
-      >
-        Next
-      </Button>
-    </div>
+    <Pagination
+      page={page}
+      totalPages={totalPages}
+      onPageChange={onPageChange}
+      className="pt-4"
+    />
   );
 }
 

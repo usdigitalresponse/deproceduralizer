@@ -2,7 +2,7 @@
 
 import { useCallback } from 'react';
 import { useQueryStates } from 'nuqs';
-import { Button, Select } from '@/components/ui';
+import { Button, Select, FilterBar, FilterField } from '@/components/ui';
 import {
   reviewStatusParser,
   complianceSortByParser,
@@ -52,26 +52,24 @@ export function ComplianceFilters({
       issueType: null,
       severity: 'all',
       statuteSource: 'all',
-      requirementFound: 'true', // Default to showing only LLM-confirmed issues
+      requirementFound: 'true',
       page: 1,
     });
   }, [setFilters]);
 
-  // Check if any filters are active (excluding requirementFound='true' which is the default)
-  const hasActiveFilters =
+  const hasActiveFilters = Boolean(
     (filters.reviewStatus && filters.reviewStatus !== 'unreviewed') ||
     filters.issueType ||
     (filters.severity && filters.severity !== 'all') ||
     (filters.statuteSource && filters.statuteSource !== 'all') ||
-    (filters.requirementFound && filters.requirementFound !== 'true');
+    (filters.requirementFound && filters.requirementFound !== 'true')
+  );
 
-  // Build filter options
   const statusOptions = [{ value: 'all', label: 'All Statuses' }, ...REVIEW_STATUSES];
   const typeOptions = [
     { value: 'all', label: 'All Types' },
     ...issueTypes.map(t => {
       const found = COMPLIANCE_ISSUE_TYPES.find(ct => ct.value === t);
-      // Use formatLabel as fallback for issue types not in the constant list
       return { value: t, label: found?.label || formatLabel(t) };
     }),
   ];
@@ -83,60 +81,59 @@ export function ComplianceFilters({
   ];
 
   return (
-    <div className={`flex flex-wrap items-center gap-3 p-4 bg-[var(--color-neutral-50)] rounded-[var(--radius-lg)] ${className}`}>
-      <div className="flex items-center gap-2">
-        <label className="text-sm font-medium text-[var(--color-text-secondary)]">Status:</label>
+    <FilterBar
+      variant="panel"
+      hasActiveFilters={hasActiveFilters}
+      onClearFilters={clearFilters}
+      className={className}
+    >
+      <FilterField label="Status">
         <Select
           value={filters.reviewStatus || 'unreviewed'}
           onValueChange={(value) => setFilters({ reviewStatus: value as ReviewStatusValue, page: 1 })}
           options={statusOptions}
         />
-      </div>
+      </FilterField>
 
-      <div className="flex items-center gap-2">
-        <label className="text-sm font-medium text-[var(--color-text-secondary)]">Type:</label>
+      <FilterField label="Type">
         <Select
           value={filters.issueType || 'all'}
           onValueChange={(value) => setFilters({ issueType: value === 'all' ? null : value, page: 1 })}
           options={typeOptions}
         />
-      </div>
+      </FilterField>
 
-      <div className="flex items-center gap-2">
-        <label className="text-sm font-medium text-[var(--color-text-secondary)]">Severity:</label>
+      <FilterField label="Severity">
         <Select
           value={filters.severity || 'all'}
           onValueChange={(value) => setFilters({ severity: value as SeverityValue, page: 1 })}
           options={SEVERITY_FILTER_OPTIONS}
         />
-      </div>
+      </FilterField>
 
-      <div className="flex items-center gap-2">
-        <label className="text-sm font-medium text-[var(--color-text-secondary)]">Source:</label>
+      <FilterField label="Source">
         <Select
           value={filters.statuteSource || 'all'}
           onValueChange={(value) => setFilters({ statuteSource: value as StatuteSourceValue, page: 1 })}
           options={STATUTE_SOURCE_FILTER_OPTIONS}
         />
-      </div>
+      </FilterField>
 
-      <div className="flex items-center gap-2">
-        <label className="text-sm font-medium text-[var(--color-text-secondary)]">LLM:</label>
+      <FilterField label="LLM">
         <Select
           value={filters.requirementFound || 'true'}
           onValueChange={(value) => setFilters({ requirementFound: value as RequirementFoundValue, page: 1 })}
           options={REQUIREMENT_FOUND_FILTER_OPTIONS}
         />
-      </div>
+      </FilterField>
 
-      <div className="flex items-center gap-2">
-        <label className="text-sm font-medium text-[var(--color-text-secondary)]">Sort:</label>
+      <FilterField label="Sort">
         <Select
           value={filters.sortBy}
           onValueChange={(value) => setFilters({ sortBy: value as any, page: 1 })}
           options={sortOptions}
         />
-      </div>
+      </FilterField>
 
       <Button
         variant="secondary"
@@ -146,17 +143,7 @@ export function ComplianceFilters({
       >
         {filters.sortOrder === 'desc' ? '↓' : '↑'}
       </Button>
-
-      {hasActiveFilters && (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={clearFilters}
-        >
-          Clear Filters
-        </Button>
-      )}
-    </div>
+    </FilterBar>
   );
 }
 
