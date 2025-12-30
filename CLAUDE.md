@@ -10,6 +10,7 @@
 - when setting max_tokens for LLM API calls, look up the model's maximum output token limit and use that value (e.g., Claude 4.5 models support 64000 output tokens, Claude 3.5 Sonnet supports 8192)
 - when creating database-touching modules (actions, query layers), add `import 'server-only'` at the top to prevent accidental client bundling. Page files should not import the database directly; use server actions instead.
 - before committing, check `git worktree list` - do not commit changes that belong to other worktrees/feature branches
+- when starting local dev servers, use port 3010 instead of the default 3000 (e.g., `pnpm dev --port 3010`) to avoid conflicts with commonly used ports. Always check what's already running with `lsof -i :3000,3010` before starting a server, especially before running smoke tests. Multiple Claude agents may be running in the same folder simultaneously.
 
 ## Frontend Architecture Guidelines (frontend/apps/web)
 
