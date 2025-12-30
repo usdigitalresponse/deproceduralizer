@@ -435,6 +435,8 @@ export const DefinitionReviewCard = forwardRef<HTMLDivElement, DefinitionReviewC
               <div className="mt-4 border-t border-[var(--color-neutral-200)] pt-4">
                 <RegulationTextViewer
                   content={definition.regulation.content}
+                  documentId={definition.regulation.id}
+                  state={state}
                   scrollToText={definition.verbatimText}
                   highlightPattern={definition.term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}
                   isVerbatim={formData.isVerbatimTextComplete}
