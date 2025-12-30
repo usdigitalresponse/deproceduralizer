@@ -11,7 +11,7 @@ import { MetadataIndicators } from '@/components/ui/MetadataIndicators';
 import { ISSUE_TYPE_LABELS, UPDATED_SEVERITY_OPTIONS, IMPACT_TYPES } from '@/types/regulation';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
 import { formatNjacCitation } from '@/lib/formatters/njac';
-import { CardWrapper, HierarchyBreadcrumbsInline, CornellLink, RegulationTextViewer, HierarchyTreeView } from './shared';
+import { CardWrapper, HierarchyBreadcrumbsInline, CornellLink, HierarchyTreeView } from './shared';
 import { REVIEW_STATUSES, REVIEW_STATUS_LABELS, REVIEW_STATUS_DESCRIPTIONS, type ReviewStatus } from '@deproceduralizer/database/schema';
 import type { ComplianceIssueWithContext } from '@deproceduralizer/database';
 import { getStateFromPathname } from '@/hooks/useStateFromPath';
@@ -241,17 +241,6 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
           </Button>
           <CornellLink url={issue.regulation.url} />
         </div>
-
-        {/* Full Regulation Text Viewer */}
-        {issue.regulation.content && (
-          <RegulationTextViewer
-            content={issue.regulation.content}
-            scrollToText={issue.requirementText}
-            highlightPattern={issue.matchedPattern}
-            isVerbatim={issue.isVerbatim ?? false}
-            label="Show Regulation Text"
-          />
-        )}
 
         {/* Hierarchy Tree View */}
         <HierarchyTreeView
