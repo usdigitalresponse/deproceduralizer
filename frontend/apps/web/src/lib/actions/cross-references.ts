@@ -8,6 +8,10 @@ import {
   type CrossReferenceWithSource,
   type HighlightRef,
   type CrossRefStats,
+  type TitleReferenceEdge,
+  type DocumentHub,
+  type CircularReference,
+  type DocumentNeighborhood,
   type StateCode,
 } from '@deproceduralizer/database';
 import { type ActionResult, success, failure, getErrorMessage } from './types';
@@ -103,6 +107,77 @@ export async function getIncomingReferenceCount(
     return success(count);
   } catch (error) {
     console.error('[getIncomingReferenceCount]', error);
+    return failure(getErrorMessage(error));
+  }
+}
+
+// =============================================================================
+// Analytics & Graph Data
+// =============================================================================
+
+/**
+ * Get title-level reference graph for network visualization.
+ * Aggregates cross-references by source/target title for overview graph.
+ */
+export async function getTitleLevelReferenceGraph(
+  state: StateCode
+): Promise<ActionResult<TitleReferenceEdge[]>> {
+  try {
+    const edges = await crossRefsRepo.getTitleLevelReferenceGraph(state);
+    return success(edges);
+  } catch (error) {
+    console.error('[getTitleLevelReferenceGraph]', error);
+    return failure(getErrorMessage(error));
+  }
+}
+
+/**
+ * Get top hub documents by reference degree.
+ * Returns documents with highest in-degree, out-degree, or total degree.
+ */
+export async function getTopCitedDocuments(
+  state: StateCode,
+  limit: number = 20,
+  sortBy: 'in' | 'out' | 'total' = 'total'
+): Promise<ActionResult<DocumentHub[]>> {
+  try {
+    const hubs = await crossRefsRepo.getTopHubs(state, limit, sortBy);
+    return success(hubs);
+  } catch (error) {
+    console.error('[getTopCitedDocuments]', error);
+    return failure(getErrorMessage(error));
+  }
+}
+
+/**
+ * Detect circular references in the corpus.
+ * Returns cycles found within maxDepth hops.
+ */
+export async function getCircularReferences(
+  state: StateCode,
+  maxDepth: number = 4
+): Promise<ActionResult<CircularReference[]>> {
+  try {
+    const cycles = await crossRefsRepo.detectCircularReferences(state, maxDepth);
+    return success(cycles);
+  } catch (error) {
+    console.error('[getCircularReferences]', error);
+    return failure(getErrorMessage(error));
+  }
+}
+
+/**
+ * Get document reference neighborhood for tree highlighting.
+ * Returns both outgoing and incoming reference document IDs.
+ */
+export async function getDocumentReferenceContext(
+  documentId: number
+): Promise<ActionResult<DocumentNeighborhood>> {
+  try {
+    const neighborhood = await crossRefsRepo.getDocumentNeighborhood(documentId);
+    return success(neighborhood);
+  } catch (error) {
+    console.error('[getDocumentReferenceContext]', error);
     return failure(getErrorMessage(error));
   }
 }

@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import { BookOpen, Layers, Link2, CheckCircle } from 'lucide-react';
 import type { DefinitionsAnalyticsStats } from '@/lib/actions/definitions';
-import { Card } from '@/components/ui';
+import { Card, StatCard, StatGrid } from '@/components/ui';
 import {
   ClientChart,
   ChartContainer,
@@ -74,29 +74,6 @@ function formatCompleteness(type: string): string {
   return COMPLETENESS_LABELS[type] || capitalize(type.replace(/_/g, ' '));
 }
 
-interface StatCardProps {
-  title: string;
-  value: string | number;
-  icon: React.ElementType;
-  subtitle?: string;
-}
-
-function StatCard({ title, value, icon: Icon, subtitle }: StatCardProps) {
-  return (
-    <Card className="flex items-center gap-4">
-      <div className="p-3 rounded-[var(--radius-lg)] bg-[var(--color-neutral-50)] text-[var(--color-primary)]">
-        <Icon className="w-6 h-6" />
-      </div>
-      <div>
-        <p className="text-sm text-[var(--color-text-muted)]">{title}</p>
-        <p className="text-2xl font-bold text-[var(--color-text)]">
-          {typeof value === 'number' ? value.toLocaleString() : value}
-        </p>
-        {subtitle && <p className="text-xs text-[var(--color-text-muted)]">{subtitle}</p>}
-      </div>
-    </Card>
-  );
-}
 
 function ReviewProgressBar({
   counts,
@@ -219,32 +196,32 @@ export function DefinitionsTab({ stats }: DefinitionsTabProps) {
   return (
     <div className="space-y-6">
       {/* Summary Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <StatGrid columns={4}>
         <StatCard
-          title="Total Definitions"
+          label="Total Definitions"
           value={stats.total}
           icon={BookOpen}
           subtitle={`${stats.uniqueTerms.toLocaleString()} unique terms`}
         />
         <StatCard
-          title="Cross-References"
+          label="Cross-References"
           value={stats.crossRefStats.total}
           icon={Link2}
           subtitle={`${((stats.crossRefStats.total / stats.total) * 100).toFixed(1)}% of definitions`}
         />
         <StatCard
-          title="Avg Quality Score"
+          label="Avg Quality Score"
           value={avgQuality.toFixed(2)}
           icon={CheckCircle}
           subtitle={`${qualityLabel} quality`}
         />
         <StatCard
-          title="Scope Levels"
+          label="Scope Levels"
           value={stats.byScopeLevel.length}
           icon={Layers}
           subtitle="Different scope levels used"
         />
-      </div>
+      </StatGrid>
 
       {/* Review Progress */}
       <Card padding="md">

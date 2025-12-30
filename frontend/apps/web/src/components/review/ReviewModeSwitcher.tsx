@@ -2,6 +2,7 @@
 
 import { useQueryStates } from 'nuqs';
 import { ClipboardList, Code2 } from 'lucide-react';
+import { SegmentedControl, type SegmentedControlOption } from '@/components/ui';
 import type { ReviewMode } from '@/types/regulation';
 import {
   reviewModeParser,
@@ -15,6 +16,11 @@ interface ReviewModeSwitcherProps {
   mode: ReviewMode;
 }
 
+const MODE_OPTIONS: SegmentedControlOption<ReviewMode>[] = [
+  { value: 'review', label: 'Review Mode', icon: ClipboardList },
+  { value: 'developer', label: 'Developer Mode', icon: Code2 },
+];
+
 export function ReviewModeSwitcher({ mode }: ReviewModeSwitcherProps) {
   const [, setParams] = useQueryStates(
     {
@@ -24,7 +30,7 @@ export function ReviewModeSwitcher({ mode }: ReviewModeSwitcherProps) {
       reviewStatus: reviewStatusParser,
       page: pageParser,
     },
-    { shallow: false } // Preserve other query params
+    { shallow: false }
   );
 
   const handleModeChange = (newMode: ReviewMode) => {
@@ -33,13 +39,13 @@ export function ReviewModeSwitcher({ mode }: ReviewModeSwitcherProps) {
     if (newMode === 'developer') {
       setParams({
         mode: 'developer',
-        reviewStatus: null, // Remove reviewStatus
+        reviewStatus: null,
         developerStatus: 'all',
         page: 1,
       });
     } else {
       setParams({
-        mode: null, // Remove mode (defaults to 'review')
+        mode: null,
         developerStatus: null,
         developerAssigned: null,
         reviewStatus: 'unreviewed',
@@ -49,38 +55,13 @@ export function ReviewModeSwitcher({ mode }: ReviewModeSwitcherProps) {
   };
 
   return (
-    <div className="inline-flex items-center gap-1 p-1 bg-[var(--color-neutral-100)] rounded-[var(--radius-lg)] mb-3">
-      <button
-        onClick={() => handleModeChange('review')}
-        className={`
-          flex items-center gap-2 px-4 py-2 rounded-[var(--radius-md)] text-sm font-medium
-          transition-all duration-[var(--duration-fast)]
-          ${
-            mode === 'review'
-              ? 'bg-white text-[var(--color-text)] shadow-sm'
-              : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-white/50'
-          }
-        `}
-      >
-        <ClipboardList className="w-4 h-4" />
-        Review Mode
-      </button>
-      <button
-        onClick={() => handleModeChange('developer')}
-        className={`
-          flex items-center gap-2 px-4 py-2 rounded-[var(--radius-md)] text-sm font-medium
-          transition-all duration-[var(--duration-fast)]
-          ${
-            mode === 'developer'
-              ? 'bg-white text-[var(--color-text)] shadow-sm'
-              : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-white/50'
-          }
-        `}
-      >
-        <Code2 className="w-4 h-4" />
-        Developer Mode
-      </button>
-    </div>
+    <SegmentedControl
+      options={MODE_OPTIONS}
+      value={mode}
+      onChange={handleModeChange}
+      variant="filled"
+      className="mb-3"
+    />
   );
 }
 

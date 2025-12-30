@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { MessageSquare, Plus, X, Loader2 } from 'lucide-react';
+import { MessageSquare, Plus, X } from 'lucide-react';
 import { Button, Card, Input, Textarea } from '@/components/ui';
 import { useReviewerName } from '@/hooks/useReviewerName';
 import { createNote } from '@/lib/actions/document-notes';
@@ -12,18 +12,14 @@ interface NotesSidePanelProps {
   documentId: number;
   state: string;
   notes: DocumentNote[];
-  activeNoteId?: number | null;
   onNotesChange: (notes: DocumentNote[]) => void;
-  onNoteActivate: (noteId: number | null) => void;
 }
 
 export function NotesSidePanel({
   documentId,
   state,
   notes,
-  activeNoteId,
   onNotesChange,
-  onNoteActivate,
 }: NotesSidePanelProps) {
   const [isAddingNote, setIsAddingNote] = useState(false);
   const [newNoteContent, setNewNoteContent] = useState('');
@@ -40,8 +36,7 @@ export function NotesSidePanel({
     }
   }, [isLoaded, storedName, authorName]);
 
-  // Separate notes by type
-  const anchoredNotes = notes.filter((n) => n.noteType === 'anchored');
+  // Only show document-level notes
   const documentNotes = notes.filter((n) => n.noteType === 'document');
 
   const handleAddDocumentNote = async () => {
@@ -88,9 +83,6 @@ export function NotesSidePanel({
 
   const handleDeleteNote = (noteId: number) => {
     onNotesChange(notes.filter((n) => n.id !== noteId));
-    if (activeNoteId === noteId) {
-      onNoteActivate(null);
-    }
   };
 
   return (
@@ -101,7 +93,7 @@ export function NotesSidePanel({
           <div className="flex items-center gap-2">
             <MessageSquare className="w-5 h-5 text-[var(--color-text-secondary)]" />
             <h3 className="font-semibold text-[var(--color-text)]">
-              Notes ({notes.length})
+              Notes ({documentNotes.length})
             </h3>
           </div>
           {!isAddingNote && (
@@ -124,7 +116,7 @@ export function NotesSidePanel({
           <div className="p-3 bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] border border-[var(--color-neutral-200)]">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium text-[var(--color-text-secondary)]">
-                New Document Note
+                New Note
               </span>
               <button
                 onClick={() => {
@@ -169,57 +161,29 @@ export function NotesSidePanel({
           </div>
         )}
 
-        {/* Text Annotations section */}
-        {anchoredNotes.length > 0 && (
-          <div>
-            <h4 className="text-xs font-medium text-[var(--color-text-secondary)] uppercase tracking-wide mb-2">
-              Text Annotations ({anchoredNotes.length})
-            </h4>
-            <div className="space-y-2">
-              {anchoredNotes.map((note) => (
-                <NoteCard
-                  key={note.id}
-                  note={note}
-                  isActive={activeNoteId === note.id}
-                  onUpdate={handleUpdateNote}
-                  onDelete={handleDeleteNote}
-                  onActivate={() => onNoteActivate(note.id)}
-                />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* General Notes section */}
+        {/* Notes list */}
         {documentNotes.length > 0 && (
-          <div>
-            <h4 className="text-xs font-medium text-[var(--color-text-secondary)] uppercase tracking-wide mb-2">
-              General Notes ({documentNotes.length})
-            </h4>
-            <div className="space-y-2">
-              {documentNotes.map((note) => (
-                <NoteCard
-                  key={note.id}
-                  note={note}
-                  isActive={activeNoteId === note.id}
-                  onUpdate={handleUpdateNote}
-                  onDelete={handleDeleteNote}
-                  onActivate={() => onNoteActivate(note.id)}
-                />
-              ))}
-            </div>
+          <div className="space-y-2">
+            {documentNotes.map((note) => (
+              <NoteCard
+                key={note.id}
+                note={note}
+                onUpdate={handleUpdateNote}
+                onDelete={handleDeleteNote}
+              />
+            ))}
           </div>
         )}
 
         {/* Empty state */}
-        {notes.length === 0 && !isAddingNote && (
+        {documentNotes.length === 0 && !isAddingNote && (
           <div className="text-center py-8">
             <MessageSquare className="w-10 h-10 mx-auto mb-3 text-[var(--color-neutral-300)]" />
             <p className="text-sm text-[var(--color-text-muted)]">
               No notes yet
             </p>
             <p className="text-xs text-[var(--color-text-muted)] mt-1">
-              Select text to add annotations, or click &quot;Add Note&quot; for general notes
+              Click &quot;Add Note&quot; to add notes about this section
             </p>
           </div>
         )}

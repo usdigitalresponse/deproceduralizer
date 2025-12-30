@@ -470,6 +470,271 @@ Features:
 
 ---
 
+## Shared Data Display Components
+
+### StatCard + StatGrid
+
+Display statistics in a consistent card format with icon and variant styling:
+
+```tsx
+import { StatCard, StatGrid } from '@/components/ui';
+import { FileText, AlertTriangle, CheckCircle } from 'lucide-react';
+
+// Grid layout for multiple stat cards
+<StatGrid columns={4}>
+  <StatCard
+    label="Total Documents"
+    value={1000}
+    icon={FileText}
+    variant="default"
+  />
+  <StatCard
+    label="High Severity"
+    value={50}
+    icon={AlertTriangle}
+    variant="danger"
+  />
+  <StatCard
+    label="Reviewed"
+    value={750}
+    icon={CheckCircle}
+    variant="success"
+    subtitle="75% complete"
+  />
+</StatGrid>
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `label` | `string` | required | Description of the stat |
+| `value` | `number \| string` | required | The statistic value |
+| `icon` | `LucideIcon` | required | Icon component |
+| `variant` | `'default' \| 'success' \| 'warning' \| 'danger' \| 'info'` | `'default'` | Color variant |
+| `subtitle` | `string` | - | Optional subtitle text |
+| `className` | `string` | `''` | Additional CSS classes |
+
+**StatGrid Props**:
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `columns` | `2 \| 3 \| 4` | `4` | Number of columns |
+| `children` | `ReactNode` | required | StatCard components |
+| `className` | `string` | `''` | Additional CSS classes |
+
+### Pagination
+
+Pagination controls with page numbers and optional item count:
+
+```tsx
+import { Pagination } from '@/components/ui';
+
+<Pagination
+  page={currentPage}
+  totalPages={10}
+  onPageChange={(page) => setPage(page)}
+  total={100}
+  pageSize={10}
+  showItemCount
+/>
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `page` | `number` | required | Current page number |
+| `totalPages` | `number` | required | Total number of pages |
+| `onPageChange` | `(page: number) => void` | required | Callback when page changes |
+| `total` | `number` | - | Total item count (for "Showing X-Y of Z") |
+| `pageSize` | `number` | - | Items per page |
+| `showItemCount` | `boolean` | `false` | Show "Showing X-Y of Z" text |
+| `size` | `'sm' \| 'md'` | `'md'` | Button size |
+| `className` | `string` | `''` | Additional CSS classes |
+
+### ProgressCard
+
+Card showing progress with a bar and status breakdown:
+
+```tsx
+import { ProgressCard } from '@/components/ui';
+
+<ProgressCard
+  title="Review Progress"
+  completed={75}
+  total={100}
+  completedLabel="reviewed"
+  barColor="primary"
+  statuses={[
+    { label: 'Unreviewed', count: 25, variant: 'neutral' },
+    { label: 'Confirmed', count: 50, variant: 'success' },
+    { label: 'Corrected', count: 15, variant: 'warning' },
+    { label: 'False Positive', count: 10, variant: 'muted' },
+  ]}
+/>
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `title` | `string` | required | Card title |
+| `completed` | `number` | required | Number of completed items |
+| `total` | `number` | required | Total number of items |
+| `completedLabel` | `string` | `'completed'` | Label for completed count |
+| `barColor` | `'primary' \| 'success'` | `'primary'` | Progress bar color |
+| `statuses` | `StatusItem[]` | required | Status breakdown |
+| `className` | `string` | `''` | Additional CSS classes |
+
+**StatusItem**:
+```tsx
+interface StatusItem {
+  label: string;
+  count: number;
+  variant: 'neutral' | 'success' | 'warning' | 'info' | 'danger' | 'muted';
+}
+```
+
+### FilterBar System
+
+Composable filter bar with consistent layout, sort controls, and clear button:
+
+```tsx
+import { FilterBar, FilterField, SortControls, ClearFiltersButton } from '@/components/ui';
+import { Select } from '@/components/ui';
+
+<FilterBar
+  variant="panel"  // 'default' | 'panel' (adds background)
+  className="mb-4"
+>
+  <FilterField label="Status" htmlFor="status-filter">
+    <Select id="status-filter" value={status} onChange={setStatus}>
+      <option value="all">All</option>
+      <option value="unreviewed">Unreviewed</option>
+    </Select>
+  </FilterField>
+
+  <FilterField label="Severity" htmlFor="severity-filter">
+    <Select id="severity-filter" value={severity} onChange={setSeverity}>
+      <option value="all">All</option>
+      <option value="high">High</option>
+    </Select>
+  </FilterField>
+
+  <SortControls
+    sortBy={sortBy}
+    sortOrder={sortOrder}
+    sortOptions={[
+      { value: 'severity', label: 'Severity' },
+      { value: 'createdAt', label: 'Date' },
+    ]}
+    onSortByChange={setSortBy}
+    onSortOrderToggle={() => setSortOrder(o => o === 'asc' ? 'desc' : 'asc')}
+  />
+
+  <ClearFiltersButton
+    hasActiveFilters={hasActiveFilters}
+    onClear={handleClearFilters}
+  />
+</FilterBar>
+```
+
+**FilterBar Props**:
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `variant` | `'default' \| 'panel'` | `'default'` | Visual variant (panel adds background) |
+| `children` | `ReactNode` | required | Filter fields and controls |
+| `className` | `string` | `''` | Additional CSS classes |
+
+**FilterField Props**:
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `label` | `string` | required | Field label |
+| `htmlFor` | `string` | required | ID of the associated input |
+| `children` | `ReactNode` | required | Input element |
+| `className` | `string` | `''` | Additional CSS classes |
+
+**SortControls Props**:
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `sortBy` | `string` | required | Current sort field |
+| `sortOrder` | `'asc' \| 'desc'` | required | Current sort order |
+| `sortOptions` | `Array<{ value: string; label: string }>` | required | Available sort options |
+| `onSortByChange` | `(value: string) => void` | required | Sort field change handler |
+| `onSortOrderToggle` | `() => void` | required | Sort order toggle handler |
+
+**ClearFiltersButton Props**:
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `hasActiveFilters` | `boolean` | required | Whether filters are active |
+| `onClear` | `() => void` | required | Clear handler |
+
+### SegmentedControl
+
+Tab-like or toggle-like control for switching between options:
+
+```tsx
+import { SegmentedControl, type SegmentedControlOption } from '@/components/ui';
+import { BarChart3, List, Table, LayoutGrid } from 'lucide-react';
+
+// Filled variant (tab-like)
+const TABS: SegmentedControlOption<'overview' | 'details'>[] = [
+  { value: 'overview', label: 'Overview', icon: BarChart3 },
+  { value: 'details', label: 'Details', icon: List },
+];
+
+<SegmentedControl
+  options={TABS}
+  value={activeTab}
+  onChange={setActiveTab}
+  variant="filled"
+/>
+
+// Outlined variant (toggle-like)
+const VIEW_OPTIONS: SegmentedControlOption<'table' | 'cards'>[] = [
+  { value: 'table', label: 'Table', icon: Table },
+  { value: 'cards', label: 'Cards', icon: LayoutGrid },
+];
+
+<SegmentedControl
+  options={VIEW_OPTIONS}
+  value={viewMode}
+  onChange={setViewMode}
+  variant="outlined"
+  size="sm"
+  role="radiogroup"
+/>
+
+// With badge counts
+const REVIEW_TABS: SegmentedControlOption<'flags' | 'issues'>[] = [
+  { value: 'flags', label: 'Red Flags', badge: 25, badgeVariant: 'danger' },
+  { value: 'issues', label: 'Issues', badge: 10, badgeVariant: 'warning' },
+];
+
+<SegmentedControl options={REVIEW_TABS} value={type} onChange={setType} />
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `options` | `SegmentedControlOption<T>[]` | required | Available options |
+| `value` | `T` | required | Currently selected value |
+| `onChange` | `(value: T) => void` | required | Change handler |
+| `variant` | `'filled' \| 'outlined'` | `'filled'` | Visual style |
+| `size` | `'sm' \| 'md'` | `'md'` | Control size |
+| `role` | `'tablist' \| 'radiogroup'` | `'tablist'` | ARIA role |
+| `className` | `string` | `''` | Additional CSS classes |
+
+**SegmentedControlOption**:
+```tsx
+interface SegmentedControlOption<T extends string> {
+  value: T;
+  label: string;
+  icon?: ComponentType<{ className?: string }>;
+  badge?: number;
+  badgeVariant?: 'default' | 'danger' | 'warning' | 'info';
+}
+```
+
+**Variant Differences**:
+- `filled`: Gray background container, white active segment with shadow (tab-like)
+- `outlined`: Border container, primary blue active segment (toggle-like)
+
+---
+
 ## Layout Components
 
 ### Header

@@ -79,3 +79,28 @@ export { SearchableContent } from './SearchableContent';
 export { SectionTypeBadge } from './SectionTypeBadge';
 export { KeywordTags } from './KeywordTags';
 export { MetadataIndicators } from './MetadataIndicators';
+
+// StatCard
+export { StatCard, StatGrid } from './StatCard';
+export type { StatCardProps, StatGridProps } from './StatCard';
+
+// Pagination
+export { Pagination } from './Pagination';
+export type { PaginationProps } from './Pagination';
+
+// ProgressCard
+export { ProgressCard } from './ProgressCard';
+export type { ProgressCardProps, StatusItem, StatusVariant } from './ProgressCard';
+
+// FilterBar
+export { FilterBar, FilterField, SortControls, ClearFiltersButton } from './FilterBar';
+export type {
+  FilterBarProps,
+  FilterFieldProps,
+  SortControlsProps,
+  ClearFiltersButtonProps,
+} from './FilterBar';
+
+// SegmentedControl
+export { SegmentedControl } from './SegmentedControl';
+export type { SegmentedControlProps, SegmentedControlOption } from './SegmentedControl';

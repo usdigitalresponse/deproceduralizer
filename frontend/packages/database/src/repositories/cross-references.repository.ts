@@ -54,6 +54,56 @@ export interface CrossRefStats {
   byRefType: Record<string, number>;
 }
 
+/**
+ * Title-level reference edge for network graph
+ */
+export interface TitleReferenceEdge {
+  sourceTitle: string;
+  sourceTitleName: string;
+  targetTitle: string;
+  targetTitleName: string;
+  refCount: number;
+}
+
+/**
+ * Document hub with degree metrics
+ */
+export interface DocumentHub {
+  documentId: number;
+  title: string | null;
+  shortTitle: string | null;
+  citation: string | null;
+  hierarchyLevel: string | null;
+  inDegree: number;
+  outDegree: number;
+  totalDegree: number;
+}
+
+/**
+ * Circular reference cycle
+ */
+export interface CircularReference {
+  cycle: number[];
+  cycleLength: number;
+}
+
+/**
+ * Document neighborhood for tree highlighting
+ */
+export interface DocumentNeighborhood {
+  documentId: number;
+  outgoingRefs: Array<{
+    targetId: number;
+    targetTitle: string | null;
+    targetCitation: string | null;
+  }>;
+  incomingRefs: Array<{
+    sourceId: number;
+    sourceTitle: string | null;
+    sourceCitation: string | null;
+  }>;
+}
+
 export interface CrossRefPaginationOptions {
   state: StateCode;
   page: number;
@@ -327,5 +377,213 @@ export class CrossReferencesRepository extends BaseRepository {
       .where(eq(crossReferences.targetDocumentId, documentId));
 
     return result[0]?.count ?? 0;
+  }
+
+  /**
+   * Get title-level reference graph for network visualization
+   * Aggregates references by source/target title for overview
+   */
+  async getTitleLevelReferenceGraph(state: StateCode): Promise<TitleReferenceEdge[]> {
+    const stateUpper = state.toUpperCase();
+
+    // Use raw SQL for efficient aggregation
+    const result = await this.db.execute<{
+      source_title: string;
+      source_title_name: string;
+      target_title: string;
+      target_title_name: string;
+      ref_count: number;
+    }>(sql`
+      SELECT
+        COALESCE(src.nycrr_title::text, src.njac_title) as source_title,
+        COALESCE(src.nycrr_title_name, src.njac_title_name, 'Title ' || COALESCE(src.nycrr_title::text, src.njac_title)) as source_title_name,
+        COALESCE(tgt.nycrr_title::text, tgt.njac_title) as target_title,
+        COALESCE(tgt.nycrr_title_name, tgt.njac_title_name, 'Title ' || COALESCE(tgt.nycrr_title::text, tgt.njac_title)) as target_title_name,
+        COUNT(*)::int as ref_count
+      FROM cross_references cr
+      JOIN regulatory_documents src ON cr.source_document_id = src.id
+      JOIN regulatory_documents tgt ON cr.target_document_id = tgt.id
+      WHERE cr.state = ${stateUpper}
+        AND cr.is_resolved = true
+        AND (src.nycrr_title IS NOT NULL OR src.njac_title IS NOT NULL)
+        AND (tgt.nycrr_title IS NOT NULL OR tgt.njac_title IS NOT NULL)
+      GROUP BY 1, 2, 3, 4
+      HAVING COUNT(*) >= 1
+      ORDER BY ref_count DESC
+    `);
+
+    return result.rows.map(row => ({
+      sourceTitle: row.source_title,
+      sourceTitleName: row.source_title_name,
+      targetTitle: row.target_title,
+      targetTitleName: row.target_title_name,
+      refCount: row.ref_count,
+    }));
+  }
+
+  /**
+   * Get top hub documents by reference degree
+   */
+  async getTopHubs(
+    state: StateCode,
+    limit: number = 20,
+    sortBy: 'in' | 'out' | 'total' = 'total'
+  ): Promise<DocumentHub[]> {
+    const stateUpper = state.toUpperCase();
+
+    const orderColumn = sortBy === 'in' ? 'in_degree' : sortBy === 'out' ? 'out_degree' : 'total_degree';
+
+    const result = await this.db.execute<{
+      document_id: number;
+      title: string | null;
+      short_title: string | null;
+      citation: string | null;
+      hierarchy_level: string | null;
+      in_degree: number;
+      out_degree: number;
+      total_degree: number;
+    }>(sql`
+      WITH in_degrees AS (
+        SELECT target_document_id as doc_id, COUNT(*)::int as in_count
+        FROM cross_references
+        WHERE state = ${stateUpper} AND is_resolved = true
+        GROUP BY target_document_id
+      ),
+      out_degrees AS (
+        SELECT source_document_id as doc_id, COUNT(*)::int as out_count
+        FROM cross_references
+        WHERE state = ${stateUpper}
+        GROUP BY source_document_id
+      )
+      SELECT
+        rd.id as document_id,
+        rd.title,
+        rd.short_title,
+        rd.citation,
+        rd.hierarchy_level,
+        COALESCE(i.in_count, 0) as in_degree,
+        COALESCE(o.out_count, 0) as out_degree,
+        COALESCE(i.in_count, 0) + COALESCE(o.out_count, 0) as total_degree
+      FROM regulatory_documents rd
+      LEFT JOIN in_degrees i ON rd.id = i.doc_id
+      LEFT JOIN out_degrees o ON rd.id = o.doc_id
+      WHERE rd.state = ${stateUpper}
+        AND (i.in_count > 0 OR o.out_count > 0)
+      ORDER BY ${sql.raw(orderColumn)} DESC
+      LIMIT ${limit}
+    `);
+
+    return result.rows.map(row => ({
+      documentId: row.document_id,
+      title: row.title,
+      shortTitle: row.short_title,
+      citation: row.citation,
+      hierarchyLevel: row.hierarchy_level,
+      inDegree: row.in_degree,
+      outDegree: row.out_degree,
+      totalDegree: row.total_degree,
+    }));
+  }
+
+  /**
+   * Detect circular references using recursive CTE
+   * Returns cycles found within maxDepth hops
+   */
+  async detectCircularReferences(state: StateCode, maxDepth: number = 4): Promise<CircularReference[]> {
+    const stateUpper = state.toUpperCase();
+
+    // Use a recursive CTE to find cycles
+    // This is more efficient than doing it in application code
+    const result = await this.db.execute<{
+      cycle_path: number[];
+    }>(sql`
+      WITH RECURSIVE ref_chain AS (
+        -- Base case: start from each document
+        SELECT
+          source_document_id as start_id,
+          target_document_id as current_id,
+          ARRAY[source_document_id, target_document_id] as path,
+          1 as depth
+        FROM cross_references
+        WHERE state = ${stateUpper} AND is_resolved = true
+
+        UNION ALL
+
+        -- Recursive case: follow references
+        SELECT
+          rc.start_id,
+          cr.target_document_id,
+          rc.path || cr.target_document_id,
+          rc.depth + 1
+        FROM ref_chain rc
+        JOIN cross_references cr ON rc.current_id = cr.source_document_id
+        WHERE cr.state = ${stateUpper}
+          AND cr.is_resolved = true
+          AND rc.depth < ${maxDepth}
+          AND NOT cr.target_document_id = ANY(rc.path[2:])
+      )
+      SELECT DISTINCT ON (LEAST(path[1], path[array_length(path, 1)]), GREATEST(path[1], path[array_length(path, 1)]))
+        path as cycle_path
+      FROM ref_chain
+      WHERE current_id = start_id
+        AND depth >= 2
+      ORDER BY LEAST(path[1], path[array_length(path, 1)]), GREATEST(path[1], path[array_length(path, 1)]), array_length(path, 1)
+      LIMIT 100
+    `);
+
+    return result.rows.map(row => ({
+      cycle: row.cycle_path,
+      cycleLength: row.cycle_path.length - 1, // -1 because first and last are the same
+    }));
+  }
+
+  /**
+   * Get document neighborhood for tree highlighting
+   * Returns both outgoing and incoming reference document IDs
+   */
+  async getDocumentNeighborhood(documentId: number): Promise<DocumentNeighborhood> {
+    // Get outgoing refs (documents this document references)
+    const outgoing = await this.db
+      .select({
+        targetId: crossReferences.targetDocumentId,
+        targetTitle: regulatoryDocuments.shortTitle,
+        targetCitation: regulatoryDocuments.citation,
+      })
+      .from(crossReferences)
+      .leftJoin(regulatoryDocuments, eq(crossReferences.targetDocumentId, regulatoryDocuments.id))
+      .where(and(
+        eq(crossReferences.sourceDocumentId, documentId),
+        eq(crossReferences.isResolved, true)
+      ));
+
+    // Get incoming refs (documents that reference this document)
+    const incoming = await this.db
+      .select({
+        sourceId: crossReferences.sourceDocumentId,
+        sourceTitle: regulatoryDocuments.shortTitle,
+        sourceCitation: regulatoryDocuments.citation,
+      })
+      .from(crossReferences)
+      .innerJoin(regulatoryDocuments, eq(crossReferences.sourceDocumentId, regulatoryDocuments.id))
+      .where(and(
+        eq(crossReferences.targetDocumentId, documentId),
+        eq(crossReferences.isResolved, true)
+      ));
+
+    return {
+      documentId,
+      outgoingRefs: outgoing
+        .filter(r => r.targetId !== null)
+        .map(r => ({
+          targetId: r.targetId!,
+          targetTitle: r.targetTitle,
+          targetCitation: r.targetCitation,
+        })),
+      incomingRefs: incoming.map(r => ({
+        sourceId: r.sourceId,
+        sourceTitle: r.sourceTitle,
+        sourceCitation: r.sourceCitation,
+      })),
+    };
   }
 }

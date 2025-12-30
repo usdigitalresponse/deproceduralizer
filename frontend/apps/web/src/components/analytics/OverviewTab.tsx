@@ -1,10 +1,10 @@
 'use client';
 
-import { FileText, Flag, AlertTriangle, CheckCircle, Clock, XCircle } from 'lucide-react';
+import { FileText, Flag, AlertTriangle, CheckCircle } from 'lucide-react';
 import type { DashboardStats } from '@deproceduralizer/database';
 import type { ReviewStatusCounts } from '@/lib/actions/red-flags';
 import type { ComplianceIssueStatusCounts } from '@/lib/actions/compliance-issues';
-import { Card } from '@/components/ui';
+import { Card, StatCard, StatGrid } from '@/components/ui';
 import { ClientChart, ChartContainer, SeverityDonutChart, ChartLegend } from '@/components/charts';
 import { useChartColors } from '@/hooks/useChartColors';
 
@@ -12,42 +12,6 @@ interface OverviewTabProps {
   dashboardStats: DashboardStats | null;
   redFlagStatus: ReviewStatusCounts | null;
   complianceStatus: ComplianceIssueStatusCounts | null;
-}
-
-interface StatCardProps {
-  title: string;
-  value: number;
-  icon: React.ElementType;
-  variant?: 'default' | 'success' | 'warning' | 'danger';
-  subtitle?: string;
-}
-
-function StatCard({ title, value, icon: Icon, variant = 'default', subtitle }: StatCardProps) {
-  const variantStyles = {
-    default: 'text-[var(--color-primary)]',
-    success: 'text-[var(--color-success)]',
-    warning: 'text-[var(--color-warning)]',
-    danger: 'text-[var(--color-danger)]',
-  };
-
-  return (
-    <Card className="flex items-center gap-4">
-      <div
-        className={`
-          p-3 rounded-[var(--radius-lg)]
-          bg-[var(--color-neutral-50)]
-          ${variantStyles[variant]}
-        `}
-      >
-        <Icon className="w-6 h-6" />
-      </div>
-      <div>
-        <p className="text-sm text-[var(--color-text-muted)]">{title}</p>
-        <p className="text-2xl font-bold text-[var(--color-text)]">{value.toLocaleString()}</p>
-        {subtitle && <p className="text-xs text-[var(--color-text-muted)]">{subtitle}</p>}
-      </div>
-    </Card>
-  );
 }
 
 function ReviewProgressBar({
@@ -140,34 +104,34 @@ export function OverviewTab({
   return (
     <div className="space-y-6">
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <StatGrid columns={4}>
         <StatCard
-          title="Total Documents"
+          label="Total Documents"
           value={dashboardStats.totalDocuments}
           icon={FileText}
           subtitle={`${dashboardStats.analyzedDocuments} analyzed`}
         />
         <StatCard
-          title="Red Flags"
+          label="Red Flags"
           value={totalFlags}
           icon={Flag}
           variant={totalFlags > 0 ? 'danger' : 'default'}
           subtitle={`${dashboardStats.unreviewedFlags} unreviewed`}
         />
         <StatCard
-          title="Compliance Issues"
+          label="Compliance Issues"
           value={dashboardStats.complianceIssues.total}
           icon={AlertTriangle}
           variant={dashboardStats.complianceIssues.total > 0 ? 'warning' : 'default'}
           subtitle={`${dashboardStats.complianceIssues.unreviewed} unreviewed`}
         />
         <StatCard
-          title="Documents with Flags"
+          label="Documents with Flags"
           value={dashboardStats.documentsWithFlags}
           icon={CheckCircle}
           subtitle={`${((dashboardStats.documentsWithFlags / dashboardStats.analyzedDocuments) * 100).toFixed(0)}% of analyzed`}
         />
-      </div>
+      </StatGrid>
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

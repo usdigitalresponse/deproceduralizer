@@ -1,25 +1,21 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { Pencil, Trash2, MessageSquare, Quote, Check, X } from 'lucide-react';
+import { Pencil, Trash2, MessageSquare, Check, X } from 'lucide-react';
 import { Button, Textarea } from '@/components/ui';
 import { updateNote, deleteNote } from '@/lib/actions/document-notes';
 import type { DocumentNote } from '@deproceduralizer/database';
 
 interface NoteCardProps {
   note: DocumentNote;
-  isActive?: boolean;
   onUpdate: (updatedNote: DocumentNote) => void;
   onDelete: (noteId: number) => void;
-  onActivate?: () => void;
 }
 
 export function NoteCard({
   note,
-  isActive = false,
   onUpdate,
   onDelete,
-  onActivate,
 }: NoteCardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(note.content);
@@ -84,44 +80,25 @@ export function NoteCard({
 
   return (
     <div
-      onClick={onActivate}
-      className={`
-        p-3 rounded-[var(--radius-md)] border transition-all duration-[var(--duration-fast)] cursor-pointer
-        ${isActive
-          ? 'bg-[var(--color-accent-muted)] border-[var(--color-accent)]'
-          : 'bg-[var(--color-neutral-50)] border-[var(--color-neutral-200)] hover:border-[var(--color-neutral-300)]'
-        }
-      `}
+      className="p-3 rounded-[var(--radius-md)] border bg-[var(--color-neutral-50)] border-[var(--color-neutral-200)]"
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          {note.noteType === 'anchored' ? (
-            <Quote className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
-          ) : (
-            <MessageSquare className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
-          )}
-          <span className="text-xs text-[var(--color-text-muted)]">
-            {note.noteType === 'anchored' ? 'Text Note' : 'Document Note'}
-          </span>
+          <MessageSquare className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
+          <span className="text-xs text-[var(--color-text-muted)]">Note</span>
         </div>
         {!isEditing && (
           <div className="flex items-center gap-1">
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsEditing(true);
-              }}
+              onClick={() => setIsEditing(true)}
               className="p-1 text-[var(--color-text-muted)] hover:text-[var(--color-text)] rounded transition-colors"
               aria-label="Edit note"
             >
               <Pencil className="w-3.5 h-3.5" />
             </button>
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDelete();
-              }}
+              onClick={handleDelete}
               className="p-1 text-[var(--color-text-muted)] hover:text-[var(--color-danger)] rounded transition-colors"
               aria-label="Delete note"
               disabled={isPending}
@@ -132,18 +109,9 @@ export function NoteCard({
         )}
       </div>
 
-      {/* Anchor text preview (for anchored notes) */}
-      {note.noteType === 'anchored' && note.anchorText && (
-        <div className="mb-2 px-2 py-1.5 bg-[var(--color-accent-muted)] rounded border-l-2 border-[var(--color-accent)]">
-          <p className="text-xs text-[var(--color-text-secondary)] line-clamp-2 italic">
-            &quot;{note.anchorText}&quot;
-          </p>
-        </div>
-      )}
-
       {/* Content */}
       {isEditing ? (
-        <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
+        <div className="space-y-2">
           <Textarea
             value={editContent}
             onChange={(e) => setEditContent(e.target.value)}

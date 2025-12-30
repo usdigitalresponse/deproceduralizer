@@ -2,6 +2,7 @@
 
 import { useQueryStates } from 'nuqs';
 import { Filter, Sparkles } from 'lucide-react';
+import { SegmentedControl, type SegmentedControlOption } from '@/components/ui';
 import type { QueueModeValue } from '@/lib/constants/values';
 import {
   queueModeParser,
@@ -25,18 +26,21 @@ interface ComplianceQueueModeSwitcherProps {
   mode: QueueModeValue;
 }
 
+const QUEUE_MODE_OPTIONS: SegmentedControlOption<QueueModeValue>[] = [
+  { value: 'filter', label: 'Manual Filters', icon: Filter },
+  { value: 'suggestion', label: 'Smart Suggestions', icon: Sparkles },
+];
+
 export function ComplianceQueueModeSwitcher({ mode }: ComplianceQueueModeSwitcherProps) {
   const [, setParams] = useQueryStates(
     {
       queueMode: queueModeParser,
-      // Suggestion mode params
       groupingMode: groupingModeParser,
       batchSize: batchSizeParser,
       shownIds: shownIdsParser,
       focusType: focusTypeParser,
       focusSection: focusSectionParser,
       focusPattern: focusPatternParser,
-      // Filter mode params
       page: pageParser,
       reviewStatus: reviewStatusParser,
       severity: severityParser,
@@ -53,7 +57,6 @@ export function ComplianceQueueModeSwitcher({ mode }: ComplianceQueueModeSwitche
     if (newMode === mode) return;
 
     if (newMode === 'suggestion') {
-      // Switch to suggestion mode: clear filter params, set suggestion defaults
       setParams({
         queueMode: 'suggestion',
         groupingMode: 'issue_type',
@@ -62,7 +65,6 @@ export function ComplianceQueueModeSwitcher({ mode }: ComplianceQueueModeSwitche
         focusType: null,
         focusSection: null,
         focusPattern: null,
-        // Clear filter params
         page: null,
         reviewStatus: null,
         severity: null,
@@ -72,17 +74,14 @@ export function ComplianceQueueModeSwitcher({ mode }: ComplianceQueueModeSwitche
         sortOrder: null,
       });
     } else {
-      // Switch to filter mode: clear suggestion params, set filter defaults
       setParams({
         queueMode: 'filter',
-        // Clear suggestion params
         groupingMode: null,
         batchSize: null,
         shownIds: null,
         focusType: null,
         focusSection: null,
         focusPattern: null,
-        // Set filter defaults
         page: 1,
         reviewStatus: 'unreviewed',
         requirementFound: 'true',
@@ -92,38 +91,12 @@ export function ComplianceQueueModeSwitcher({ mode }: ComplianceQueueModeSwitche
   };
 
   return (
-    <div className="inline-flex items-center gap-1 p-1 bg-[var(--color-neutral-100)] rounded-[var(--radius-lg)]">
-      <button
-        onClick={() => handleModeChange('filter')}
-        className={`
-          flex items-center gap-2 px-4 py-2 rounded-[var(--radius-md)] text-sm font-medium
-          transition-all duration-[var(--duration-fast)]
-          ${
-            mode === 'filter'
-              ? 'bg-white text-[var(--color-text)] shadow-sm'
-              : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-white/50'
-          }
-        `}
-      >
-        <Filter className="w-4 h-4" />
-        Manual Filters
-      </button>
-      <button
-        onClick={() => handleModeChange('suggestion')}
-        className={`
-          flex items-center gap-2 px-4 py-2 rounded-[var(--radius-md)] text-sm font-medium
-          transition-all duration-[var(--duration-fast)]
-          ${
-            mode === 'suggestion'
-              ? 'bg-white text-[var(--color-text)] shadow-sm'
-              : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-white/50'
-          }
-        `}
-      >
-        <Sparkles className="w-4 h-4" />
-        Smart Suggestions
-      </button>
-    </div>
+    <SegmentedControl
+      options={QUEUE_MODE_OPTIONS}
+      value={mode}
+      onChange={handleModeChange}
+      variant="filled"
+    />
   );
 }
 
