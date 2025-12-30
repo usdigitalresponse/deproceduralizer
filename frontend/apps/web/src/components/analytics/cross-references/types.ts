@@ -1,4 +1,9 @@
-import type { TitleReferenceEdge, DocumentHub, CircularReference } from '@deproceduralizer/database';
+import type { ReferenceEdge, DocumentHub, CircularReference, GraphLevel } from '@deproceduralizer/database';
+
+/**
+ * Color mode for network graph nodes
+ */
+export type ColorMode = 'default' | 'direction' | 'degree' | 'type';
 
 /**
  * Graph node for network visualization
@@ -6,7 +11,8 @@ import type { TitleReferenceEdge, DocumentHub, CircularReference } from '@deproc
 export interface GraphNode {
   id: string;
   label: string;
-  titleNumber: string;
+  nodeId: string;
+  sectionType?: string | null; // Only populated at section level
   inDegree: number;
   outDegree: number;
   totalDegree: number;
@@ -30,20 +36,21 @@ export interface GraphData {
 }
 
 /**
- * Transform title-level edges into graph data
+ * Transform reference edges into graph data
  */
-export function transformToGraphData(edges: TitleReferenceEdge[]): GraphData {
+export function transformToGraphData(edges: ReferenceEdge[]): GraphData {
   const nodeMap = new Map<string, GraphNode>();
   const links: GraphLink[] = [];
 
   // Build nodes and links from edges
   for (const edge of edges) {
     // Ensure source node exists
-    if (!nodeMap.has(edge.sourceTitle)) {
-      nodeMap.set(edge.sourceTitle, {
-        id: edge.sourceTitle,
-        label: edge.sourceTitleName,
-        titleNumber: edge.sourceTitle,
+    if (!nodeMap.has(edge.sourceId)) {
+      nodeMap.set(edge.sourceId, {
+        id: edge.sourceId,
+        label: edge.sourceName,
+        nodeId: edge.sourceId,
+        sectionType: edge.sourceType,
         inDegree: 0,
         outDegree: 0,
         totalDegree: 0,
@@ -51,11 +58,12 @@ export function transformToGraphData(edges: TitleReferenceEdge[]): GraphData {
     }
 
     // Ensure target node exists
-    if (!nodeMap.has(edge.targetTitle)) {
-      nodeMap.set(edge.targetTitle, {
-        id: edge.targetTitle,
-        label: edge.targetTitleName,
-        titleNumber: edge.targetTitle,
+    if (!nodeMap.has(edge.targetId)) {
+      nodeMap.set(edge.targetId, {
+        id: edge.targetId,
+        label: edge.targetName,
+        nodeId: edge.targetId,
+        sectionType: edge.targetType,
         inDegree: 0,
         outDegree: 0,
         totalDegree: 0,
@@ -63,18 +71,18 @@ export function transformToGraphData(edges: TitleReferenceEdge[]): GraphData {
     }
 
     // Update degree counts
-    const sourceNode = nodeMap.get(edge.sourceTitle)!;
-    const targetNode = nodeMap.get(edge.targetTitle)!;
+    const sourceNode = nodeMap.get(edge.sourceId)!;
+    const targetNode = nodeMap.get(edge.targetId)!;
     sourceNode.outDegree += edge.refCount;
     sourceNode.totalDegree += edge.refCount;
     targetNode.inDegree += edge.refCount;
     targetNode.totalDegree += edge.refCount;
 
     // Add link (skip self-references)
-    if (edge.sourceTitle !== edge.targetTitle) {
+    if (edge.sourceId !== edge.targetId) {
       links.push({
-        source: edge.sourceTitle,
-        target: edge.targetTitle,
+        source: edge.sourceId,
+        target: edge.targetId,
         weight: edge.refCount,
       });
     }
@@ -87,4 +95,4 @@ export function transformToGraphData(edges: TitleReferenceEdge[]): GraphData {
 }
 
 // Re-export types from database for convenience
-export type { TitleReferenceEdge, DocumentHub, CircularReference };
+export type { ReferenceEdge, DocumentHub, CircularReference, GraphLevel };

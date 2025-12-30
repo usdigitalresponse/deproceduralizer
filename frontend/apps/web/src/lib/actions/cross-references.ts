@@ -8,7 +8,8 @@ import {
   type CrossReferenceWithSource,
   type HighlightRef,
   type CrossRefStats,
-  type TitleReferenceEdge,
+  type ReferenceEdge,
+  type GraphLevel,
   type DocumentHub,
   type CircularReference,
   type DocumentNeighborhood,
@@ -116,19 +117,30 @@ export async function getIncomingReferenceCount(
 // =============================================================================
 
 /**
- * Get title-level reference graph for network visualization.
- * Aggregates cross-references by source/target title for overview graph.
+ * Get reference graph for network visualization.
+ * Aggregates cross-references by hierarchy level (title, chapter, or part).
+ * @param level - 'title' (~50 nodes), 'chapter' (~200), 'part' (~500)
+ */
+export async function getReferenceGraph(
+  state: StateCode,
+  level: GraphLevel = 'title'
+): Promise<ActionResult<ReferenceEdge[]>> {
+  try {
+    const edges = await crossRefsRepo.getReferenceGraph(state, level);
+    return success(edges);
+  } catch (error) {
+    console.error('[getReferenceGraph]', error);
+    return failure(getErrorMessage(error));
+  }
+}
+
+/**
+ * @deprecated Use getReferenceGraph instead
  */
 export async function getTitleLevelReferenceGraph(
   state: StateCode
-): Promise<ActionResult<TitleReferenceEdge[]>> {
-  try {
-    const edges = await crossRefsRepo.getTitleLevelReferenceGraph(state);
-    return success(edges);
-  } catch (error) {
-    console.error('[getTitleLevelReferenceGraph]', error);
-    return failure(getErrorMessage(error));
-  }
+): Promise<ActionResult<ReferenceEdge[]>> {
+  return getReferenceGraph(state, 'title');
 }
 
 /**
