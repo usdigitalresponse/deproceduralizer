@@ -166,3 +166,13 @@ All prompts live in the `/prompts/` directory:
 TypeScript types are auto-generated from YAML - run `python scripts/generate_prompt_types.py` after modifying `prompts/compliance_issues.yaml`.
 
 Run `pnpm prebuild` in `frontend/apps/web/` if the `/prompts` page fails in development.
+
+## Cost Estimates
+
+Approximate LLM costs for pipeline operations (as of December 2024):
+
+| Operation | Model | State | Scope | Cost |
+|-----------|-------|-------|-------|------|
+| Summarization | Claude Haiku | NJ | All levels (section → title) | ~$100 |
+
+*Costs depend on document count and average length. NJ has ~123k regulatory documents.*

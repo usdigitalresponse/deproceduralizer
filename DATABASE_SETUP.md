@@ -146,6 +146,7 @@ Beyond the core tables (`regulatory_documents`, `analyses`, `red_flags`, `statut
 | `compliance_issues` | Compliance violations by type (wet_signature, mail_only, etc.) |
 | `definition_document_occurrences` | Many-to-many tracking of where terms appear |
 | `incorporations_by_reference` | External standards (NFPA, ICC, ASTM) referenced in regulations |
+| `cross_references` | Internal citations between regulatory documents (NYCRR, NJAC refs) |
 | `document_notes` | User annotations on regulations |
 | `prompt_feedback` | Feedback on LLM prompts |
 | `regulation_statute_links` | Regulation-to-statute cross-references |

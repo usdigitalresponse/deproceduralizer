@@ -12,7 +12,6 @@ import { AnalyticsTabs } from './AnalyticsTabs';
 import { OverviewTab } from './OverviewTab';
 import { IssuesTab } from './IssuesTab';
 import { KeywordsTab } from './KeywordsTab';
-import { HierarchyTab } from './HierarchyTab';
 import { DefinitionsTab } from './DefinitionsTab';
 import { CrossReferencesTab } from './CrossReferencesTab';
 
@@ -78,16 +77,6 @@ export function AnalyticsClient({
             sectionTypeStats={sectionTypeStats ?? []}
             topKeywords={topKeywords ?? []}
             metadataStats={metadataStats}
-          />
-        )}
-
-        {currentTab === 'hierarchy' && (
-          <HierarchyTab
-            state={state}
-            sizeMetric={params.sizeMetric}
-            colorMetric={params.colorMetric}
-            depth={params.depth}
-            onParamsChange={handleParamsChange}
           />
         )}
 

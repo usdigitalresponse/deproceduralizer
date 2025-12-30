@@ -96,6 +96,36 @@ class DefinitionsResponse(BaseModel):
 # Helper Functions
 # ============================================================================
 
+# Maximum characters per LLM request (~25K tokens, safe under Haiku 4.5's 200K context limit)
+MAX_CHARS_PER_REQUEST = 100000
+
+
+def chunk_content(content: str, chunk_size: int = MAX_CHARS_PER_REQUEST, overlap: int = 500) -> List[tuple]:
+    """Split long content into overlapping chunks.
+
+    Args:
+        content: The text content to chunk
+        chunk_size: Maximum characters per chunk (default: 100K)
+        overlap: Number of overlapping characters between chunks (default: 500)
+
+    Returns:
+        List of (start_offset, chunk_text) tuples.
+        For content <= chunk_size, returns [(0, content)].
+    """
+    if len(content) <= chunk_size:
+        return [(0, content)]
+
+    chunks = []
+    start = 0
+    while start < len(content):
+        end = min(start + chunk_size, len(content))
+        chunks.append((start, content[start:end]))
+        if end >= len(content):
+            break
+        start = end - overlap  # Overlap for context continuity
+    return chunks
+
+
 def get_sections_from_db(
     state: str,
     title: Optional[str] = None,
@@ -755,18 +785,29 @@ def cmd_submit(args):
     system_prompt = first_parts.get('system')
 
     for section in sections:
-        parts = load_prompt_parts(
-            "definition_extraction",
-            title=section['title'],
-            content=section['content'][:3000]
-        )
-        request = format_batch_request(
-            custom_id=f"doc_{section['id']}",
-            prompt=parts['user'],
-            response_format=DefinitionsResponse,
-            system=system_prompt,  # Include system prompt with detailed instructions
-        )
-        requests.append(request)
+        # Chunk long content to handle sections > 100K chars
+        content_chunks = chunk_content(section['content'])
+
+        for chunk_idx, (start_offset, chunk_text) in enumerate(content_chunks):
+            parts = load_prompt_parts(
+                "definition_extraction",
+                title=section['title'],
+                content=chunk_text
+            )
+            # Use chunk suffix for multi-chunk sections
+            if len(content_chunks) > 1:
+                custom_id = f"doc_{section['id']}_chunk_{chunk_idx}"
+            else:
+                custom_id = f"doc_{section['id']}"
+
+            request = format_batch_request(
+                custom_id=custom_id,
+                prompt=parts['user'],
+                response_format=DefinitionsResponse,
+                system=system_prompt,  # Include system prompt with detailed instructions
+            )
+            requests.append(request)
+
         doc_ids.append(section['id'])
 
     print(f"      ✓ Formatted {len(requests)} requests")
@@ -1028,15 +1069,21 @@ def cmd_process(args):
         print(f"      Deleted {deleted} existing definitions")
 
     total_defs = 0
+    skipped_dups = 0
     succeeded = 0
     errored = 0
     processed = 0
     total_expected = batch_info.get('total_requests', 0)
     start_time = time.time()
 
+    # Cache of existing terms per document (for deduplication)
+    existing_terms_cache = {}
+
     for result in results_iter:
         custom_id = result.custom_id
-        doc_id = int(custom_id.replace('doc_', ''))
+        # Parse doc_id from custom_id (handles doc_123, doc_123_chunk_0, doc_123_continue, doc_123_continue_chunk_0)
+        doc_id_str = custom_id.replace('doc_', '').split('_')[0]
+        doc_id = int(doc_id_str)
 
         if result.result.type == 'error':
             error_msg = str(result.result.error) if hasattr(result.result, 'error') else 'Unknown error'
@@ -1088,8 +1135,21 @@ def cmd_process(args):
             section_content = section_info.get('content', '')
             section_url = section_info.get('url', '')
 
-            # Store definitions
+            # Get existing terms for deduplication (cached per document)
+            if doc_id not in existing_terms_cache:
+                existing_terms_cache[doc_id] = get_existing_terms_for_document(conn, doc_id)
+
+            existing_terms = existing_terms_cache[doc_id]
+
+            # Store definitions (with deduplication)
             for defn in definitions:
+                normalized_term = defn.term.lower().strip()
+
+                # Skip if term already exists for this document
+                if normalized_term in existing_terms:
+                    skipped_dups += 1
+                    continue
+
                 verbatim_text = defn.verbatim_text
                 overlap = calculate_definition_overlap(verbatim_text, section_content)
 
@@ -1119,6 +1179,9 @@ def cmd_process(args):
                 ))
                 total_defs += 1
 
+                # Add to cache to avoid duplicates within same batch
+                existing_terms.add(normalized_term)
+
             succeeded += 1
 
         except Exception as e:
@@ -1139,6 +1202,8 @@ def cmd_process(args):
 
     print(f"      ✓ Processed {succeeded} sections, {errored} errors")
     print(f"      ✓ Stored {total_defs} definitions")
+    if skipped_dups > 0:
+        print(f"      ✓ Skipped {skipped_dups} duplicate definitions")
     print()
 
     # Update batch info
@@ -1272,18 +1337,29 @@ def cmd_resume(args):
     system_prompt = first_parts.get('system')
 
     for section in sections_list:
-        parts = load_prompt_parts(
-            "definition_extraction",
-            title=section['title'],
-            content=section['content'][:3000]
-        )
-        request = format_batch_request(
-            custom_id=f"doc_{section['id']}",
-            prompt=parts['user'],
-            response_format=DefinitionsResponse,
-            system=system_prompt,
-        )
-        requests.append(request)
+        # Chunk long content to handle sections > 100K chars
+        content_chunks = chunk_content(section['content'])
+
+        for chunk_idx, (start_offset, chunk_text) in enumerate(content_chunks):
+            parts = load_prompt_parts(
+                "definition_extraction",
+                title=section['title'],
+                content=chunk_text
+            )
+            # Use chunk suffix for multi-chunk sections
+            if len(content_chunks) > 1:
+                custom_id = f"doc_{section['id']}_chunk_{chunk_idx}"
+            else:
+                custom_id = f"doc_{section['id']}"
+
+            request = format_batch_request(
+                custom_id=custom_id,
+                prompt=parts['user'],
+                response_format=DefinitionsResponse,
+                system=system_prompt,
+            )
+            requests.append(request)
+
         doc_ids.append(section['id'])
 
     print(f"      ✓ Formatted {len(requests)} requests")
@@ -1338,6 +1414,228 @@ def cmd_resume(args):
 
 
 # ============================================================================
+# Continue Command - Extract from remainder of truncated sections
+# ============================================================================
+
+def get_truncated_sections(state: str) -> List[Dict]:
+    """Get sections with existing definitions that were truncated at 3000 chars.
+
+    Returns sections where:
+    - Already has definitions extracted
+    - Content is longer than 3000 chars (was truncated in original extraction)
+    """
+    conn = get_db_connection()
+    if not conn:
+        print("ERROR: Could not connect to database")
+        return []
+
+    try:
+        cursor = conn.execute("""
+            SELECT DISTINCT
+                rd.id,
+                rd.title,
+                rd.content,
+                rd.scraped_from_url as url,
+                LENGTH(rd.content) as content_length
+            FROM regulatory_documents rd
+            JOIN definitions d ON d.document_id = rd.id
+            WHERE rd.state = %s
+              AND LENGTH(rd.content) > 3000
+            ORDER BY LENGTH(rd.content) DESC
+        """, (state.upper(),))
+
+        sections = []
+        for row in cursor.fetchall():
+            sections.append({
+                'id': row[0],
+                'title': row[1],
+                'content': row[2],
+                'url': row[3],
+                'content_length': row[4],
+            })
+
+        conn.close()
+        return sections
+    except Exception as e:
+        print(f"ERROR querying database: {e}")
+        if conn:
+            conn.close()
+        return []
+
+
+def get_existing_terms_for_document(conn, document_id: int) -> set:
+    """Get set of normalized terms already extracted for a document."""
+    try:
+        cursor = conn.execute("""
+            SELECT LOWER(TRIM(term))
+            FROM definitions
+            WHERE document_id = %s
+        """, (document_id,))
+        return {row[0] for row in cursor.fetchall()}
+    except Exception as e:
+        print(f"Warning: Could not get existing terms for doc {document_id}: {e}")
+        return set()
+
+
+def cmd_continue(args):
+    """Continue extraction from truncated sections - process content after first 3000 chars."""
+    print("=" * 70)
+    print("CONTINUE EXTRACTION FROM TRUNCATED SECTIONS")
+    print("=" * 70)
+    print()
+
+    print(f"[1/3] Finding truncated sections for {args.state}...")
+
+    sections = get_truncated_sections(args.state)
+
+    if not sections:
+        print("No truncated sections found!")
+        return
+
+    print(f"      ✓ Found {len(sections)} sections with content >3000 chars that have definitions")
+
+    # Calculate stats
+    total_remainder_chars = sum(s['content_length'] - 3000 for s in sections)
+    sections_needing_chunks = sum(1 for s in sections if s['content_length'] - 3000 > MAX_CHARS_PER_REQUEST)
+
+    print(f"      Total remainder to process: {total_remainder_chars:,} chars")
+    print(f"      Sections needing chunking (remainder >100K): {sections_needing_chunks}")
+    print()
+
+    if args.limit:
+        sections = sections[:args.limit]
+        print(f"      Limited to {len(sections)} sections")
+        print()
+
+    if args.dry_run:
+        print("DRY RUN - Would process these sections:")
+        print()
+        for i, section in enumerate(sections[:10], 1):
+            remainder_start = 3000
+            remainder = section['content'][remainder_start:]
+            print(f"  {i}. [{section['id']}] {section['title'][:50]}...")
+            print(f"      Content: {section['content_length']:,} chars, Remainder: {len(remainder):,} chars")
+            print(f"      Remainder starts with: \"{remainder[:100]}...\"")
+            print()
+
+        if len(sections) > 10:
+            print(f"  ... and {len(sections) - 10} more sections")
+            print()
+
+        # Estimate total requests
+        total_requests = 0
+        for section in sections:
+            remainder = section['content'][3000:]
+            chunks = chunk_content(remainder)
+            total_requests += len(chunks)
+
+        print(f"Estimated batch size: {total_requests} requests")
+        print(f"Total chars to process: {total_remainder_chars:,}")
+        print()
+        print("Rerun without --dry-run to submit.")
+        return
+
+    # Create batch directory
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    batch_dir_name = f"{args.state}_continue_{timestamp}"
+    batch_dir = BATCHES_DIR / batch_dir_name
+    batch_dir.mkdir(parents=True, exist_ok=True)
+
+    print(f"[2/3] Formatting batch requests for remainder content...")
+
+    # Format requests - use load_prompt_parts for system prompt caching
+    requests = []
+    doc_ids = []
+
+    # Get system prompt once (cached across all requests)
+    first_parts = load_prompt_parts(
+        "definition_extraction",
+        title="",
+        content=""
+    )
+    system_prompt = first_parts.get('system')
+
+    for section in sections:
+        # Get remainder content (everything after first 3000 chars)
+        remainder = section['content'][3000:]
+
+        if not remainder.strip():
+            continue  # Skip if remainder is empty
+
+        # Chunk the remainder for long sections
+        content_chunks = chunk_content(remainder)
+
+        for chunk_idx, (start_offset, chunk_text) in enumerate(content_chunks):
+            parts = load_prompt_parts(
+                "definition_extraction",
+                title=section['title'],
+                content=chunk_text
+            )
+            # Use continue suffix to distinguish from original extraction
+            if len(content_chunks) > 1:
+                custom_id = f"doc_{section['id']}_continue_chunk_{chunk_idx}"
+            else:
+                custom_id = f"doc_{section['id']}_continue"
+
+            request = format_batch_request(
+                custom_id=custom_id,
+                prompt=parts['user'],
+                response_format=DefinitionsResponse,
+                system=system_prompt,
+            )
+            requests.append(request)
+
+        doc_ids.append(section['id'])
+
+    print(f"      ✓ Formatted {len(requests)} requests for {len(doc_ids)} sections")
+    print()
+
+    # Submit batch
+    print(f"[3/3] Submitting to Anthropic Batch API...")
+
+    client = get_openai_client()
+    try:
+        batch = client.beta.messages.batches.create(requests=requests)
+        batch_api_id = batch.id
+
+        print(f"      ✓ Submitted batch: {batch_api_id}")
+        print()
+    except Exception as e:
+        print(f"      ❌ Failed to submit batch: {e}")
+        return
+
+    # Save batch info
+    batch_info = {
+        'batch_api_id': batch_api_id,
+        'state': args.state,
+        'type': 'continue',
+        'created_at': datetime.now().isoformat(),
+        'total_requests': len(requests),
+        'document_ids': doc_ids,
+        'status': 'submitted',
+    }
+
+    info_file = batch_dir / 'batch_info.json'
+    with open(info_file, 'w') as f:
+        json.dump(batch_info, f, indent=2)
+
+    print("=" * 70)
+    print("CONTINUATION BATCH SUBMITTED")
+    print("=" * 70)
+    print(f"Batch ID:    {batch_api_id}")
+    print(f"Directory:   {batch_dir}")
+    print(f"Requests:    {len(requests)}")
+    print(f"Sections:    {len(doc_ids)}")
+    print()
+    print("Check status:")
+    print(f"  python batch_definitions.py status")
+    print()
+    print("Process results when complete (new definitions will be merged, duplicates skipped):")
+    print(f"  python batch_definitions.py process --batch-id {batch_api_id}")
+    print()
+
+
+# ============================================================================
 # Main
 # ============================================================================
 
@@ -1351,6 +1649,7 @@ Examples:
   python batch_definitions.py status
   python batch_definitions.py process --batch-id msgbatch_xxx
   python batch_definitions.py resume --batch-id msgbatch_xxx
+  python batch_definitions.py continue --state NY --dry-run
 
 Batch processing provides 50% cost reduction but takes up to 24 hours.
         """
@@ -1396,6 +1695,15 @@ Batch processing provides 50% cost reduction but takes up to 24 hours.
     resume_parser.add_argument('--batch-id', required=True,
                                help='Batch ID to resume')
 
+    # Continue command - process remainder of truncated sections
+    continue_parser = subparsers.add_parser('continue', help='Extract from remainder of truncated sections')
+    continue_parser.add_argument('--state', required=True, choices=['NY', 'NJ'],
+                                 help='State to process')
+    continue_parser.add_argument('--limit', type=int,
+                                 help='Max sections to process')
+    continue_parser.add_argument('--dry-run', action='store_true',
+                                 help='Show what would be submitted without actually submitting')
+
     args = parser.parse_args()
 
     if not args.command:
@@ -1410,6 +1718,8 @@ Batch processing provides 50% cost reduction but takes up to 24 hours.
         cmd_process(args)
     elif args.command == 'resume':
         cmd_resume(args)
+    elif args.command == 'continue':
+        cmd_continue(args)
 
 
 if __name__ == '__main__':

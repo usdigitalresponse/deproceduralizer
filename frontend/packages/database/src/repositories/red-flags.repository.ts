@@ -28,6 +28,7 @@ export interface RedFlagWithContext extends RedFlag {
   regulation: {
     id: number;
     title: string | null;
+    content: string | null;
     nycrrTitle: number | null;
     nycrrPart: string | null;
     nycrrSection: string | null;
@@ -299,6 +300,7 @@ export class RedFlagsRepository extends BaseRepository {
         regulationSectionType: regulatoryDocuments.sectionType,
         regulationHasForm: regulatoryDocuments.hasForm,
         regulationHasIbr: regulatoryDocuments.hasIbr,
+        regulationContent: regulatoryDocuments.content,
       })
       .from(redFlags)
       .innerJoin(analyses, eq(redFlags.analysisId, analyses.id))
@@ -337,6 +339,7 @@ export class RedFlagsRepository extends BaseRepository {
       regulation: {
         id: row.regulationId,
         title: row.regulationTitle,
+        content: row.regulationContent,
         nycrrTitle: row.regulationNycrrTitle,
         nycrrPart: row.regulationNycrrPart,
         nycrrSection: row.regulationNycrrSection,
@@ -531,6 +534,7 @@ export class RedFlagsRepository extends BaseRepository {
         regulationSectionType: regulatoryDocuments.sectionType,
         regulationHasForm: regulatoryDocuments.hasForm,
         regulationHasIbr: regulatoryDocuments.hasIbr,
+        regulationContent: regulatoryDocuments.content,
       })
       .from(redFlags)
       .innerJoin(analyses, eq(redFlags.analysisId, analyses.id))
@@ -569,6 +573,7 @@ export class RedFlagsRepository extends BaseRepository {
       regulation: {
         id: row.regulationId,
         title: row.regulationTitle,
+        content: row.regulationContent,
         nycrrTitle: row.regulationNycrrTitle,
         nycrrPart: row.regulationNycrrPart,
         nycrrSection: row.regulationNycrrSection,
@@ -664,6 +669,7 @@ export class RedFlagsRepository extends BaseRepository {
         regulationSectionType: regulatoryDocuments.sectionType,
         regulationHasForm: regulatoryDocuments.hasForm,
         regulationHasIbr: regulatoryDocuments.hasIbr,
+        regulationContent: regulatoryDocuments.content,
       })
       .from(redFlags)
       .innerJoin(analyses, eq(redFlags.analysisId, analyses.id))
@@ -701,6 +707,7 @@ export class RedFlagsRepository extends BaseRepository {
       regulation: {
         id: row.regulationId,
         title: row.regulationTitle,
+        content: row.regulationContent,
         nycrrTitle: row.regulationNycrrTitle,
         nycrrPart: row.regulationNycrrPart,
         nycrrSection: row.regulationNycrrSection,

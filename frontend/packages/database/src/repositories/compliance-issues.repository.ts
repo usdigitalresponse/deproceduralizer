@@ -28,6 +28,7 @@ export interface ComplianceIssueWithContext extends ComplianceIssue {
   regulation: {
     id: number;
     title: string | null;
+    content?: string | null;
     nycrrTitle: number | null;
     nycrrPart: string | null;
     nycrrSection: string | null;
@@ -382,6 +383,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         regulationSectionType: regulatoryDocuments.sectionType,
         regulationHasForm: regulatoryDocuments.hasForm,
         regulationHasIbr: regulatoryDocuments.hasIbr,
+        regulationContent: regulatoryDocuments.content,
       })
       .from(complianceIssues)
       .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
@@ -425,6 +427,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       regulation: {
         id: row.regulationId,
         title: row.regulationTitle,
+        content: row.regulationContent,
         nycrrTitle: row.regulationNycrrTitle,
         nycrrPart: row.regulationNycrrPart,
         nycrrSection: row.regulationNycrrSection,
@@ -618,6 +621,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         regulationSectionType: regulatoryDocuments.sectionType,
         regulationHasForm: regulatoryDocuments.hasForm,
         regulationHasIbr: regulatoryDocuments.hasIbr,
+        regulationContent: regulatoryDocuments.content,
       })
       .from(complianceIssues)
       .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
@@ -661,6 +665,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       regulation: {
         id: row.regulationId,
         title: row.regulationTitle,
+        content: row.regulationContent,
         nycrrTitle: row.regulationNycrrTitle,
         nycrrPart: row.regulationNycrrPart,
         nycrrSection: row.regulationNycrrSection,
@@ -760,6 +765,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         regulationSectionType: regulatoryDocuments.sectionType,
         regulationHasForm: regulatoryDocuments.hasForm,
         regulationHasIbr: regulatoryDocuments.hasIbr,
+        regulationContent: regulatoryDocuments.content,
       })
       .from(complianceIssues)
       .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
@@ -802,6 +808,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       regulation: {
         id: row.regulationId,
         title: row.regulationTitle,
+        content: row.regulationContent,
         nycrrTitle: row.regulationNycrrTitle,
         nycrrPart: row.regulationNycrrPart,
         nycrrSection: row.regulationNycrrSection,
@@ -1204,6 +1211,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         regulationSectionType: regulatoryDocuments.sectionType,
         regulationHasForm: regulatoryDocuments.hasForm,
         regulationHasIbr: regulatoryDocuments.hasIbr,
+        regulationContent: regulatoryDocuments.content,
       })
       .from(complianceIssues)
       .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
@@ -1247,6 +1255,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       regulation: {
         id: row.regulationId,
         title: row.regulationTitle,
+        content: row.regulationContent,
         nycrrTitle: row.regulationNycrrTitle,
         nycrrPart: row.regulationNycrrPart,
         nycrrSection: row.regulationNycrrSection,

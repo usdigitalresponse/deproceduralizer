@@ -9,8 +9,7 @@ import { SectionTypeBadge } from '@/components/ui/SectionTypeBadge';
 import { MetadataIndicators } from '@/components/ui/MetadataIndicators';
 import { PRIORITY_OPTIONS, IMPACT_TYPES, getComplexityVariant, formatLabel } from '@/types/regulation';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
-import { ExpandableRegulationQuote } from './ExpandableRegulationQuote';
-import { CardWrapper, HierarchyBreadcrumbsInline } from './shared';
+import { CardWrapper, HierarchyBreadcrumbsInline, CornellLink, RegulationTextViewer, HierarchyTreeView } from './shared';
 import { REVIEW_STATUSES, REVIEW_STATUS_LABELS, REVIEW_STATUS_DESCRIPTIONS, type ReviewStatus } from '@deproceduralizer/database/schema';
 import type { RedFlagWithContext } from '@deproceduralizer/database';
 
@@ -137,13 +136,11 @@ export const ReviewCard = forwardRef<HTMLDivElement, ReviewCardProps>(
           <span className="text-[var(--color-text-secondary)]">{flag.regulation.title}</span>
         </div>
 
-        {/* Explanation - expandable to show regulation context */}
-        <ExpandableRegulationQuote
-          text={flag.explanation}
-          label="Why Flagged"
-          documentId={flag.regulation.id}
-          variant="default"
-        />
+        {/* Explanation */}
+        <div className="mb-4">
+          <span className="text-xs font-medium text-[var(--color-text-secondary)]">Why Flagged:</span>
+          <p className="mt-1 text-sm text-[var(--color-text)]">{flag.explanation}</p>
+        </div>
 
         {/* Matched phrases */}
         {flag.matchedPhrases && flag.matchedPhrases.length > 0 && (
@@ -166,6 +163,22 @@ export const ReviewCard = forwardRef<HTMLDivElement, ReviewCardProps>(
             <span className="ml-2 text-[var(--color-text)]">{flag.implementationApproach}</span>
           </div>
         )}
+
+        {/* Full Regulation Text Viewer */}
+        {(flag.regulation as unknown as { content?: string }).content && (
+          <RegulationTextViewer
+            content={(flag.regulation as unknown as { content: string }).content}
+            scrollToText={flag.explanation}
+            highlightPattern={flag.matchedPhrases?.length ? flag.matchedPhrases.map(p => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') : undefined}
+            label="Show Regulation Text"
+          />
+        )}
+
+        {/* Hierarchy Tree View */}
+        <HierarchyTreeView
+          documentId={flag.regulation.id}
+          state={state}
+        />
 
         {/* Review form */}
         <form onSubmit={handleSubmit} className="mt-4 pt-4 border-t border-[var(--color-neutral-200)]">
@@ -274,15 +287,18 @@ export const ReviewCard = forwardRef<HTMLDivElement, ReviewCardProps>(
 
           {/* Actions */}
           <div className="flex items-center justify-between">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => window.open(`/${state}/regulations/${flag.regulation.id}`, '_blank')}
-            >
-              View Regulation
-              <ExternalLink className="w-3 h-3 ml-1" />
-            </Button>
+            <div className="flex items-center gap-3">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => window.open(`/${state.toLowerCase()}/regulations/${flag.regulation.id}`, '_blank')}
+              >
+                View Full Regulation Page
+                <ExternalLink className="w-3 h-3 ml-1" />
+              </Button>
+              <CornellLink url={flag.regulation.url} />
+            </div>
             <Button
               type="submit"
               variant="primary"

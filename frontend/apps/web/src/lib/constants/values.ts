@@ -231,7 +231,7 @@ export type BatchSizeValue = (typeof BATCH_SIZE_VALUES)[number];
 // Analytics Page
 // ============================================
 
-export const ANALYTICS_TAB_VALUES = ['overview', 'hierarchy', 'crossrefs', 'issues', 'keywords', 'definitions'] as const;
+export const ANALYTICS_TAB_VALUES = ['overview', 'crossrefs', 'issues', 'keywords', 'definitions'] as const;
 export type AnalyticsTabValue = (typeof ANALYTICS_TAB_VALUES)[number];
 
 export const TREEMAP_SIZE_METRIC_VALUES = ['flags', 'documents', 'compliance'] as const;

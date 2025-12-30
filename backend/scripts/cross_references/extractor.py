@@ -7,9 +7,9 @@ that's handled by resolver.py.
 
 WORKFLOW:
 1. Apply regex patterns from patterns.py
-2. Add surrounding context (for display and debugging)
-3. Deduplicate by raw_text (first occurrence wins)
-4. Return structured list of ExtractedReference objects
+2. Expand comma/and-separated citation lists into individual references
+3. Add surrounding context (for display and debugging)
+4. Return structured list of ExtractedReference objects (all occurrences kept)
 """
 
 from dataclasses import dataclass, field
@@ -209,14 +209,9 @@ class ReferenceExtractor:
         matches = extract_all_matches(content)
 
         # Convert to ExtractedReference objects with context
-        # Dedupe by raw_text (keep first occurrence)
-        seen_raw_texts = set()
-
+        # Note: We intentionally keep all occurrences (no deduplication)
+        # so that every instance of a citation gets highlighted
         for match in matches:
-            # Skip duplicates (same exact text appearing multiple times)
-            if match.raw_text in seen_raw_texts:
-                continue
-            seen_raw_texts.add(match.raw_text)
 
             # Extract surrounding context
             ctx_start = max(0, match.start - self.context_chars)

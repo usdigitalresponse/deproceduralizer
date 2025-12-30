@@ -99,7 +99,7 @@ export function HierarchyBreadcrumbsInline({
             <ChevronRight className="w-2.5 h-2.5 text-[var(--color-text-muted)] flex-shrink-0" />
           )}
           <Link
-            href={`/${state}/regulations/${ancestor.id}`}
+            href={`/${state.toLowerCase()}/regulations/${ancestor.id}`}
             className="
               text-[var(--color-link)] hover:text-[var(--color-link-hover)]
               hover:underline

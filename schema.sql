@@ -19,7 +19,7 @@ CREATE TYPE feedback_type AS ENUM ('suggestion', 'bug', 'question', 'other');
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
--- Regulatory Documents: Main table for regulations (67 columns)
+-- Regulatory Documents: Main table for regulations (74 columns)
 -- -----------------------------------------------------------------------------
 CREATE TABLE regulatory_documents (
   id BIGSERIAL PRIMARY KEY,
@@ -99,6 +99,17 @@ CREATE TABLE regulatory_documents (
   -- Compliance issue statistics (denormalized)
   compliance_issue_count INTEGER DEFAULT 0,
   descendant_compliance_issue_count INTEGER DEFAULT 0,
+
+  -- Cross-reference statistics
+  cross_reference_count INTEGER DEFAULT 0,
+
+  -- AI-generated summary metadata (from batch summarization pipeline)
+  summary TEXT,
+  section_type VARCHAR(50),              -- definitions, requirements, procedures, etc.
+  keywords TEXT[] DEFAULT '{}',
+  applies_to TEXT[] DEFAULT '{}',
+  has_form BOOLEAN DEFAULT FALSE,
+  has_ibr BOOLEAN DEFAULT FALSE,
 
   -- Regulatory status
   regulatory_status VARCHAR(20) DEFAULT 'active',  -- 'active', 'reserved', 'repealed', 'recodified', 'expired'
@@ -279,9 +290,11 @@ CREATE TABLE compliance_issues (
   -- LLM analysis results
   requirement_found BOOLEAN DEFAULT FALSE,
   requirement_text TEXT,
+  is_verbatim BOOLEAN,                    -- True if requirement_text is verbatim from regulation
   required_by_statute BOOLEAN,
   statute_citation VARCHAR(255),
   severity INTEGER,
+  original_severity INTEGER,              -- LLM's original severity (preserved on first review)
   impact_assessment TEXT,
 
   -- Review fields
@@ -290,7 +303,6 @@ CREATE TABLE compliance_issues (
   reviewed_at TIMESTAMP,
   justification_notes TEXT,
   team_notes TEXT,
-  priority INTEGER,
   impact_type VARCHAR(100),
 
   -- Developer tracking
@@ -420,6 +432,39 @@ CREATE TABLE regulation_statute_links (
   CONSTRAINT unique_regulation_statute_link UNIQUE(regulation_id, citation)
 );
 
+-- -----------------------------------------------------------------------------
+-- Cross References: Internal citations between regulatory documents
+-- -----------------------------------------------------------------------------
+-- Reference types:
+-- - nycrr: Full-form NY references (e.g., "18 NYCRR 505.14")
+-- - njac: Full-form NJ references (e.g., "N.J.A.C. 8:43-1.2")
+-- - ny_short_form: Context-dependent NY refs (e.g., "section 624.8 of this Part")
+-- - same_section: Internal refs (e.g., "paragraph (a) of this section")
+-- -----------------------------------------------------------------------------
+CREATE TABLE cross_references (
+  id BIGSERIAL PRIMARY KEY,
+  source_document_id BIGINT NOT NULL REFERENCES regulatory_documents(id) ON DELETE CASCADE,
+  ref_type VARCHAR(50) NOT NULL,          -- nycrr, njac, ny_short_form, same_section
+  raw_text TEXT NOT NULL,                 -- Exact matched text from regulation
+  normalized_citation TEXT NOT NULL,      -- Cleaned citation for lookup
+  start_offset INTEGER,                   -- Character offset where match starts
+  end_offset INTEGER,                     -- Character offset where match ends
+  context_before TEXT,                    -- ~50 chars before match for display
+  context_after TEXT,                     -- ~50 chars after match for display
+  components JSONB,                       -- Parsed components (title, section, scope, etc.)
+  target_document_id BIGINT REFERENCES regulatory_documents(id) ON DELETE SET NULL,
+  is_resolved BOOLEAN DEFAULT FALSE,      -- Whether citation was resolved to a target doc
+  resolution_notes TEXT,                  -- Why resolution failed (for unresolved refs)
+  state VARCHAR(2) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+  CONSTRAINT cross_references_state_check CHECK (state IN ('NY', 'NJ')),
+  CONSTRAINT cross_references_source_document_id_raw_text_offset_key UNIQUE(source_document_id, raw_text, start_offset)
+);
+
+-- Index for efficient lookups by normalized_citation during resolution
+CREATE INDEX idx_cross_references_normalized_citation ON cross_references(normalized_citation);
+
 -- =============================================================================
 -- NOTES & FEEDBACK
 -- =============================================================================
@@ -470,6 +515,13 @@ CREATE INDEX idx_documents_regulatory_status_state ON regulatory_documents(state
 CREATE INDEX idx_documents_url ON regulatory_documents(url);
 CREATE INDEX idx_documents_short_title ON regulatory_documents(short_title);
 CREATE INDEX idx_documents_exclude_from_analysis ON regulatory_documents(exclude_from_analysis) WHERE exclude_from_analysis = TRUE;
+
+-- AI metadata indexes (GIN for array columns)
+CREATE INDEX idx_rd_keywords ON regulatory_documents USING GIN (keywords);
+CREATE INDEX idx_rd_applies_to ON regulatory_documents USING GIN (applies_to);
+CREATE INDEX idx_rd_section_type ON regulatory_documents(section_type) WHERE section_type IS NOT NULL;
+CREATE INDEX idx_rd_has_form ON regulatory_documents(has_form) WHERE has_form = TRUE;
+CREATE INDEX idx_rd_has_ibr ON regulatory_documents(has_ibr) WHERE has_ibr = TRUE;
 
 -- NYCRR indexes
 CREATE INDEX idx_documents_nycrr_title ON regulatory_documents(nycrr_title);
@@ -538,6 +590,13 @@ CREATE INDEX idx_statutes_njsa_title ON statutes(njsa_title);
 CREATE INDEX idx_statute_references_document ON statute_references(document_id);
 CREATE INDEX idx_reg_statute_links_reg ON regulation_statute_links(regulation_id);
 CREATE INDEX idx_reg_statute_links_statute ON regulation_statute_links(statute_id);
+
+-- Cross References
+CREATE INDEX idx_crossrefs_source_doc ON cross_references(source_document_id);
+CREATE INDEX idx_crossrefs_target_doc ON cross_references(target_document_id);
+CREATE INDEX idx_crossrefs_state ON cross_references(state);
+CREATE INDEX idx_crossrefs_ref_type ON cross_references(ref_type);
+CREATE INDEX idx_crossrefs_unresolved ON cross_references(is_resolved) WHERE is_resolved = FALSE;
 
 -- Document Notes
 CREATE INDEX idx_document_notes_document_id ON document_notes(document_id);

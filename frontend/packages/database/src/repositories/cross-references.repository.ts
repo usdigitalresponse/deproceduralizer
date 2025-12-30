@@ -55,13 +55,20 @@ export interface CrossRefStats {
 }
 
 /**
- * Title-level reference edge for network graph
+ * Hierarchy level for graph aggregation
  */
-export interface TitleReferenceEdge {
-  sourceTitle: string;
-  sourceTitleName: string;
-  targetTitle: string;
-  targetTitleName: string;
+export type GraphLevel = 'title' | 'chapter' | 'part' | 'section';
+
+/**
+ * Reference edge for network graph (aggregated by level)
+ */
+export interface ReferenceEdge {
+  sourceId: string;
+  sourceName: string;
+  sourceType?: string | null; // section_type (only at section level)
+  targetId: string;
+  targetName: string;
+  targetType?: string | null;
   refCount: number;
 }
 
@@ -380,45 +387,105 @@ export class CrossReferencesRepository extends BaseRepository {
   }
 
   /**
-   * Get title-level reference graph for network visualization
-   * Aggregates references by source/target title for overview
+   * Get reference graph for network visualization
+   * Aggregates references by hierarchy level (title, chapter, or part)
+   * @param level - 'title' (~50 nodes), 'chapter' (~200), 'part' (~500)
    */
-  async getTitleLevelReferenceGraph(state: StateCode): Promise<TitleReferenceEdge[]> {
+  async getReferenceGraph(state: StateCode, level: GraphLevel = 'title'): Promise<ReferenceEdge[]> {
     const stateUpper = state.toUpperCase();
 
+    // Build level-specific column expressions
+    // NJ uses njac_*, NY uses nycrr_*
+    const levelColumns = {
+      title: {
+        id: `COALESCE(src.nycrr_title::text, src.njac_title)`,
+        name: `COALESCE(src.nycrr_title_name, src.njac_title_name, 'Title ' || COALESCE(src.nycrr_title::text, src.njac_title))`,
+        tgtId: `COALESCE(tgt.nycrr_title::text, tgt.njac_title)`,
+        tgtName: `COALESCE(tgt.nycrr_title_name, tgt.njac_title_name, 'Title ' || COALESCE(tgt.nycrr_title::text, tgt.njac_title))`,
+        filter: `(src.nycrr_title IS NOT NULL OR src.njac_title IS NOT NULL) AND (tgt.nycrr_title IS NOT NULL OR tgt.njac_title IS NOT NULL)`,
+        minCount: 1,
+      },
+      chapter: {
+        id: `COALESCE(src.nycrr_title::text, src.njac_title) || ':' || COALESCE(src.nycrr_chapter, src.njac_chapter, '')`,
+        name: `COALESCE(src.nycrr_chapter_name, src.njac_chapter_name, 'Ch ' || COALESCE(src.nycrr_chapter, src.njac_chapter, ''))`,
+        tgtId: `COALESCE(tgt.nycrr_title::text, tgt.njac_title) || ':' || COALESCE(tgt.nycrr_chapter, tgt.njac_chapter, '')`,
+        tgtName: `COALESCE(tgt.nycrr_chapter_name, tgt.njac_chapter_name, 'Ch ' || COALESCE(tgt.nycrr_chapter, tgt.njac_chapter, ''))`,
+        filter: `(src.nycrr_chapter IS NOT NULL OR src.njac_chapter IS NOT NULL) AND (tgt.nycrr_chapter IS NOT NULL OR tgt.njac_chapter IS NOT NULL)`,
+        minCount: 1,
+      },
+      part: {
+        id: `COALESCE(src.nycrr_title::text, src.njac_title) || ':' || COALESCE(src.nycrr_part, src.njac_subchapter, '')`,
+        name: `COALESCE(src.nycrr_part_name, src.njac_subchapter_name, 'Part ' || COALESCE(src.nycrr_part, src.njac_subchapter, ''))`,
+        tgtId: `COALESCE(tgt.nycrr_title::text, tgt.njac_title) || ':' || COALESCE(tgt.nycrr_part, tgt.njac_subchapter, '')`,
+        tgtName: `COALESCE(tgt.nycrr_part_name, tgt.njac_subchapter_name, 'Part ' || COALESCE(tgt.nycrr_part, tgt.njac_subchapter, ''))`,
+        filter: `(src.nycrr_part IS NOT NULL OR src.njac_subchapter IS NOT NULL) AND (tgt.nycrr_part IS NOT NULL OR tgt.njac_subchapter IS NOT NULL)`,
+        minCount: 1,
+      },
+      section: {
+        id: `src.id::text`,
+        name: `COALESCE(src.short_title, src.citation, 'Section ' || src.id)`,
+        type: `src.section_type`,
+        tgtId: `tgt.id::text`,
+        tgtName: `COALESCE(tgt.short_title, tgt.citation, 'Section ' || tgt.id)`,
+        tgtType: `tgt.section_type`,
+        filter: `true`, // All documents
+        minCount: 2, // Only show edges with 2+ refs to reduce noise
+      },
+    };
+
+    const cols = levelColumns[level];
+
     // Use raw SQL for efficient aggregation
+    // Section level includes type columns
+    const isSection = level === 'section';
+    const sectionCols = isSection ? levelColumns.section : null;
+    const typeSelect = sectionCols ? `, ${sectionCols.type} as source_type, ${sectionCols.tgtType} as target_type` : '';
+    const typeGroup = sectionCols ? ', 5, 6' : '';
+
     const result = await this.db.execute<{
-      source_title: string;
-      source_title_name: string;
-      target_title: string;
-      target_title_name: string;
+      source_id: string;
+      source_name: string;
+      source_type?: string | null;
+      target_id: string;
+      target_name: string;
+      target_type?: string | null;
       ref_count: number;
-    }>(sql`
+    }>(sql.raw(`
       SELECT
-        COALESCE(src.nycrr_title::text, src.njac_title) as source_title,
-        COALESCE(src.nycrr_title_name, src.njac_title_name, 'Title ' || COALESCE(src.nycrr_title::text, src.njac_title)) as source_title_name,
-        COALESCE(tgt.nycrr_title::text, tgt.njac_title) as target_title,
-        COALESCE(tgt.nycrr_title_name, tgt.njac_title_name, 'Title ' || COALESCE(tgt.nycrr_title::text, tgt.njac_title)) as target_title_name,
+        ${cols.id} as source_id,
+        ${cols.name} as source_name,
+        ${cols.tgtId} as target_id,
+        ${cols.tgtName} as target_name
+        ${typeSelect},
         COUNT(*)::int as ref_count
       FROM cross_references cr
       JOIN regulatory_documents src ON cr.source_document_id = src.id
       JOIN regulatory_documents tgt ON cr.target_document_id = tgt.id
-      WHERE cr.state = ${stateUpper}
+      WHERE cr.state = '${stateUpper}'
         AND cr.is_resolved = true
-        AND (src.nycrr_title IS NOT NULL OR src.njac_title IS NOT NULL)
-        AND (tgt.nycrr_title IS NOT NULL OR tgt.njac_title IS NOT NULL)
-      GROUP BY 1, 2, 3, 4
-      HAVING COUNT(*) >= 1
+        AND ${cols.filter}
+      GROUP BY 1, 2, 3, 4 ${typeGroup}
+      HAVING COUNT(*) >= ${cols.minCount}
       ORDER BY ref_count DESC
-    `);
+      LIMIT ${isSection ? 500 : 1000}
+    `));
 
     return result.rows.map(row => ({
-      sourceTitle: row.source_title,
-      sourceTitleName: row.source_title_name,
-      targetTitle: row.target_title,
-      targetTitleName: row.target_title_name,
+      sourceId: row.source_id,
+      sourceName: row.source_name,
+      sourceType: row.source_type,
+      targetId: row.target_id,
+      targetName: row.target_name,
+      targetType: row.target_type,
       refCount: row.ref_count,
     }));
+  }
+
+  /**
+   * @deprecated Use getReferenceGraph instead
+   */
+  async getTitleLevelReferenceGraph(state: StateCode): Promise<ReferenceEdge[]> {
+    return this.getReferenceGraph(state, 'title');
   }
 
   /**
