@@ -1,4 +1,15 @@
 import { test, expect } from '@playwright/test';
+import {
+  waitForBrowseReady,
+  waitForComplianceReviewReady,
+  waitForRedFlagReviewReady,
+  waitForDefinitionsReady,
+  waitForDashboardReady,
+  waitForSuggestionModeReady,
+  waitForFilterModeReady,
+  waitForPromptsReady,
+  waitForSaveComplete,
+} from './helpers';
 
 test.describe('Smoke Tests', () => {
 
@@ -118,11 +129,8 @@ test.describe('Smoke Tests', () => {
     // Type a search term
     await searchInput.fill('health');
 
-    // Results should filter (wait for filtering to complete)
-    await page.waitForTimeout(500);
-
-    // Should still show results after filtering
-    await expect(page.getByRole('button', { name: 'Expand' }).first()).toBeVisible();
+    // Wait for filter to apply - the expand button should still be visible after filtering
+    await expect(page.getByRole('button', { name: 'Expand' }).first()).toBeVisible({ timeout: 5000 });
   });
 
   test('glossary search filters definitions', async ({ page }) => {
@@ -138,12 +146,9 @@ test.describe('Smoke Tests', () => {
     // Type a search term
     await searchInput.fill('person');
 
-    // Wait for filtering
-    await page.waitForTimeout(500);
-
-    // Should show filtered results with definition cards
+    // Wait for filter to apply - definition cards should still be visible
     const definitionTerms = page.locator('h3');
-    await expect(definitionTerms.first()).toBeVisible();
+    await expect(definitionTerms.first()).toBeVisible({ timeout: 5000 });
   });
 
 });
@@ -417,11 +422,8 @@ test.describe('Prompts Alignment', () => {
     await expect(promptCard).toBeVisible();
     await promptCard.click();
 
-    // Wait for expanded content
-    await page.waitForTimeout(500);
-
-    // Should show system prompt section header (expanded view shows this)
-    await expect(page.getByText(/System Prompt/i).first()).toBeVisible();
+    // Wait for expanded content - system prompt section should appear
+    await expect(page.getByText(/System Prompt/i).first()).toBeVisible({ timeout: 5000 });
 
     // Should show content from red_flags_analysis (Jennifer Pahlka reference)
     await expect(page.getByText(/Jennifer Pahlka/i).first()).toBeVisible();
@@ -482,7 +484,7 @@ test.describe('Prompts Alignment', () => {
 
 test.describe('Review Form Submission', () => {
 
-  test('compliance issue review saves all fields including team notes', async ({ page }) => {
+  test('@mutation compliance issue review saves all fields including team notes', async ({ page }) => {
     // Use filter mode with LOW severity filter to minimize risk
     await page.goto('/nj/review?type=compliance&queueMode=filter&reviewStatus=unreviewed&severity=low');
     await expect(page.getByRole('heading', { name: /Review New Jersey/i })).toBeVisible();
@@ -536,17 +538,20 @@ test.describe('Review Form Submission', () => {
       const cleanupTeamNotes = cleanupCard.getByTestId('compliance-team-notes-textarea');
       const cleanupSaveButton = cleanupCard.getByTestId('compliance-save-button');
 
+      // Wait for form to be enabled again after previous save
+      await expect(cleanupReviewer).toBeEnabled({ timeout: 5000 });
+
       // Clear notes fields and use placeholder reviewer (can't be empty)
       await cleanupReviewer.clear();
       await cleanupReviewer.fill('_');  // Minimal placeholder to enable save
       await cleanupJustification.clear();
       await cleanupTeamNotes.clear();
       await cleanupSaveButton.click();
-      await page.waitForTimeout(500);
+      await waitForSaveComplete(page);
     }
   });
 
-  test('red flag review saves all fields', async ({ page }) => {
+  test('@mutation red flag review saves all fields', async ({ page }) => {
     // Use review mode with low severity filter and explicit reviewStatus to avoid redirect
     await page.goto('/ny/review?type=flags&reviewStatus=unreviewed&severity=low');
     await expect(page.getByRole('heading', { name: /Review New York/i })).toBeVisible();
@@ -598,17 +603,20 @@ test.describe('Review Form Submission', () => {
       const cleanupTeamNotes = cleanupCard.getByTestId('red-flag-team-notes-textarea');
       const cleanupSaveButton = cleanupCard.getByTestId('red-flag-save-button');
 
+      // Wait for form to be enabled again after previous save
+      await expect(cleanupReviewer).toBeEnabled({ timeout: 5000 });
+
       // Clear notes fields and use placeholder reviewer (can't be empty)
       await cleanupReviewer.clear();
       await cleanupReviewer.fill('_');  // Minimal placeholder to enable save
       await cleanupJustification.clear();
       await cleanupTeamNotes.clear();
       await cleanupSaveButton.click();
-      await page.waitForTimeout(500);
+      await waitForSaveComplete(page);
     }
   });
 
-  test('definition review form can be filled', async ({ page }) => {
+  test('@mutation definition review form can be filled', async ({ page }) => {
     // Navigate to definitions review
     await page.goto('/ny/review?mode=review&type=definitions');
     await expect(page.getByRole('heading', { name: /Review New York/i })).toBeVisible();
@@ -649,7 +657,7 @@ test.describe('Review Form Submission', () => {
 
 test.describe('Review Queue Filter Behavior', () => {
 
-  test('compliance issue is replaced after review in filter mode', async ({ page }) => {
+  test('@mutation compliance issue is replaced after review in filter mode', async ({ page }) => {
     // Navigate to filter mode with unreviewed status and low severity to minimize risk
     await page.goto('/nj/review?type=compliance&queueMode=filter&reviewStatus=unreviewed&severity=low');
     await expect(page.getByRole('heading', { name: /Review New Jersey/i })).toBeVisible();
@@ -685,16 +693,22 @@ test.describe('Review Queue Filter Behavior', () => {
     // Submit the form
     await saveButton.click();
 
-    // Wait for the page to refetch and replace the item
-    await page.waitForTimeout(1000);
+    // Wait for the OLD card to disappear (it no longer matches "unreviewed" filter)
+    // This confirms the save completed and refetch happened
+    const oldCardLocator = page.locator(`#${firstCardId}`);
+    await expect(oldCardLocator).toBeHidden({ timeout: 10000 });
 
-    // In filter mode, the reviewed item should be replaced with the next one from the queue
-    // The first card should now have a different ID (the next item in queue)
-    const newFirstCard = page.getByTestId('compliance-issue-card').first();
-    const newFirstCardId = await newFirstCard.getAttribute('id');
+    // Verify the item was removed - either new cards exist or list is empty
+    // (both are valid outcomes depending on available data)
+    const remainingCards = page.getByTestId('compliance-issue-card');
+    const remainingCount = await remainingCards.count();
 
-    // The item should have been replaced - verify the ID changed
-    expect(newFirstCardId).not.toBe(firstCardId);
+    if (remainingCount > 0) {
+      // If there are remaining cards, verify the first one is different
+      const newFirstCardId = await remainingCards.first().getAttribute('id');
+      expect(newFirstCardId).not.toBe(firstCardId);
+    }
+    // If no cards remain, the test still passes - the item was successfully filtered out
 
     // CLEANUP: Revert the reviewed item back to unreviewed
     // Navigate to confirmed filter to find the item we just reviewed
@@ -710,11 +724,11 @@ test.describe('Review Queue Filter Behavior', () => {
       await revertStatusSelect.click();
       await page.getByRole('option', { name: 'Unreviewed' }).click();
       await revertSaveButton.click();
-      await page.waitForTimeout(500);
+      await waitForSaveComplete(page);
     }
   });
 
-  test('red flag is replaced after review in filter mode', async ({ page }) => {
+  test('@mutation red flag is replaced after review in filter mode', async ({ page }) => {
     // Navigate to red flag review with unreviewed status and low severity
     await page.goto('/ny/review?type=flags&reviewStatus=unreviewed&severity=low');
     await expect(page.getByRole('heading', { name: /Review New York/i })).toBeVisible();
@@ -750,16 +764,22 @@ test.describe('Review Queue Filter Behavior', () => {
     // Submit the form
     await saveButton.click();
 
-    // Wait for the page to refetch and replace the item
-    await page.waitForTimeout(1000);
+    // Wait for the OLD card to disappear (it no longer matches "unreviewed" filter)
+    // This confirms the save completed and refetch happened
+    const oldCardLocator = page.locator(`#${firstCardId}`);
+    await expect(oldCardLocator).toBeHidden({ timeout: 10000 });
 
-    // In filter mode, the reviewed item should be replaced with the next one from the queue
-    // The first card should now have a different ID (the next item in queue)
-    const newFirstCard = page.getByTestId('red-flag-card').first();
-    const newFirstCardId = await newFirstCard.getAttribute('id');
+    // Verify the item was removed - either new cards exist or list is empty
+    // (both are valid outcomes depending on available data)
+    const remainingCards = page.getByTestId('red-flag-card');
+    const remainingCount = await remainingCards.count();
 
-    // The item should have been replaced - verify the ID changed
-    expect(newFirstCardId).not.toBe(firstCardId);
+    if (remainingCount > 0) {
+      // If there are remaining cards, verify the first one is different
+      const newFirstCardId = await remainingCards.first().getAttribute('id');
+      expect(newFirstCardId).not.toBe(firstCardId);
+    }
+    // If no cards remain, the test still passes - the item was successfully filtered out
 
     // CLEANUP: Revert the reviewed item back to unreviewed
     // Navigate to confirmed filter to find the item we just reviewed
@@ -775,11 +795,11 @@ test.describe('Review Queue Filter Behavior', () => {
       await revertStatusSelect.click();
       await page.getByRole('option', { name: 'Unreviewed' }).click();
       await revertSaveButton.click();
-      await page.waitForTimeout(500);
+      await waitForSaveComplete(page);
     }
   });
 
-  test('compliance issue stays visible when filter is all', async ({ page }) => {
+  test('@mutation compliance issue stays visible when filter is all', async ({ page }) => {
     // Navigate to filter mode with "all" status filter and low severity
     await page.goto('/nj/review?type=compliance&queueMode=filter&reviewStatus=all&severity=low');
     await expect(page.getByRole('heading', { name: /Review New Jersey/i })).toBeVisible();
@@ -813,7 +833,7 @@ test.describe('Review Queue Filter Behavior', () => {
     await saveButton.click();
 
     // Wait for the update
-    await page.waitForTimeout(500);
+    await waitForSaveComplete(page);
 
     // Verify the item is STILL visible (count unchanged)
     const newCount = await page.getByTestId('compliance-issue-card').count();

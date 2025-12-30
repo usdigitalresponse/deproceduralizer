@@ -844,6 +844,45 @@ export class ComplianceIssuesRepository extends BaseRepository {
   }
 
   /**
+   * Clear all review and developer fields, returning item to unreviewed queue.
+   * Restores severity to original value if it was changed.
+   */
+  async clearForReview(id: number): Promise<ComplianceIssue | undefined> {
+    // Get current record to check original severity
+    const current = await this.getById(id);
+    if (!current) return undefined;
+
+    // Restore severity from originalSeverity if it was changed
+    const restoredSeverity = current.originalSeverity ?? current.severity;
+
+    const result = await this.db
+      .update(complianceIssues)
+      .set({
+        // Review fields
+        reviewStatus: 'unreviewed',
+        reviewedBy: null,
+        reviewedAt: null,
+        justificationNotes: null,
+        teamNotes: null,
+        severity: restoredSeverity,
+        originalSeverity: null,
+        impactType: null,
+        // Developer fields
+        developerStatus: 'unresolved',
+        developerAssigned: null,
+        developerNotes: null,
+        resolutionType: null,
+        resolutionComments: null,
+        developerQuestion: null,
+        developerCheckedAt: null,
+      })
+      .where(eq(complianceIssues.id, id))
+      .returning();
+
+    return result[0];
+  }
+
+  /**
    * Get a smart batch of compliance issues for suggestion mode.
    * Groups items by the specified grouping mode and returns a batch with metadata.
    */

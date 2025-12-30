@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition, useEffect, forwardRef, useCallback } from 'react';
-import { updateDeveloperStatus, type DeveloperItem } from '@/lib/actions/developer';
+import { updateDeveloperStatus, clearEntryForReview, type DeveloperItem } from '@/lib/actions/developer';
 import { getExpandedContext } from '@/lib/actions/compliance-issues';
 import { useDeveloperName } from '@/hooks/useDeveloperName';
 import { Button, Textarea, Badge, SeverityBadge, Select, Tag, CopyLinkButton } from '@/components/ui';
@@ -11,11 +11,13 @@ import { formatNjacCitation } from '@/lib/formatters/njac';
 import { highlightContext } from '@/lib/utils/highlight';
 import { ExpandableRegulationQuote } from './ExpandableRegulationQuote';
 import { CardWrapper, HierarchyBreadcrumbsInline } from './shared';
-import { Flag, FileWarning, AlertCircle, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
+import { Flag, FileWarning, AlertCircle, ChevronDown, ChevronUp, ExternalLink, RotateCcw } from 'lucide-react';
 
 interface DeveloperCardProps {
   item: DeveloperItem;
   onUpdated: (updatedItem: DeveloperItem) => void;
+  /** Called after item is cleared and should be removed from the list */
+  onCleared?: (itemId: number, itemType: 'red_flag' | 'compliance_issue') => void;
   onViewRegulation: (regulationId: number) => void;
   isFocused?: boolean;
   /** State code for hierarchy links */
@@ -185,9 +187,11 @@ function ReviewSummary({ item }: { item: DeveloperItem }) {
 }
 
 export const DeveloperCard = forwardRef<HTMLDivElement, DeveloperCardProps>(
-  ({ item, onUpdated, onViewRegulation, isFocused = false, state = 'nj' }, ref) => {
+  ({ item, onUpdated, onCleared, onViewRegulation, isFocused = false, state = 'nj' }, ref) => {
     const [isPending, startTransition] = useTransition();
+    const [isClearPending, startClearTransition] = useTransition();
     const [error, setError] = useState<string | null>(null);
+    const [showClearConfirm, setShowClearConfirm] = useState(false);
     const { developerName: storedName, saveDeveloperName, isLoaded } = useDeveloperName();
 
     // State for expandable context (compliance issues)
@@ -251,6 +255,33 @@ export const DeveloperCard = forwardRef<HTMLDivElement, DeveloperCardProps>(
           });
         } catch (err) {
           setError(err instanceof Error ? err.message : 'Failed to update developer status');
+        }
+      });
+    };
+
+    // Handle clearing the entry and returning to review
+    const handleClearEntry = () => {
+      setError(null);
+      startClearTransition(async () => {
+        try {
+          const result = await clearEntryForReview({
+            type: item.type,
+            id: item.id,
+          });
+
+          if (!result.success) {
+            setError(result.error || 'Failed to clear entry');
+            return;
+          }
+
+          // Notify parent to remove this item from the list
+          if (onCleared) {
+            onCleared(item.id, item.type);
+          }
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Failed to clear entry');
+        } finally {
+          setShowClearConfirm(false);
         }
       });
     };
@@ -639,20 +670,75 @@ export const DeveloperCard = forwardRef<HTMLDivElement, DeveloperCardProps>(
 
           {/* Actions */}
           <div className="flex items-center justify-between">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => window.open(`/${state}/regulations/${item.regulation.id}`, '_blank')}
-            >
-              View Regulation
-              <ExternalLink className="w-3 h-3 ml-1" />
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => window.open(`/${state}/regulations/${item.regulation.id}`, '_blank')}
+              >
+                View Regulation
+                <ExternalLink className="w-3 h-3 ml-1" />
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowClearConfirm(true)}
+                className="text-[var(--color-danger)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-bg)]"
+                disabled={isClearPending}
+              >
+                <RotateCcw className="w-3 h-3 mr-1" />
+                Clear & Return
+              </Button>
+            </div>
             <Button type="submit" variant="primary" size="sm" isLoading={isPending}>
               {isPending ? 'Saving...' : 'Save'}
             </Button>
           </div>
         </form>
+
+        {/* Clear Confirmation Dialog */}
+        {showClearConfirm && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <div className="bg-[var(--color-surface)] rounded-[var(--radius-lg)] shadow-lg max-w-md w-full p-6">
+              <h3 className="text-lg font-semibold text-[var(--color-text)] mb-2">
+                Clear Entry and Return to Review?
+              </h3>
+              <p className="text-sm text-[var(--color-text-secondary)] mb-4">
+                This will clear all review data and developer notes. The item will return to the unreviewed queue.
+                {item.type === 'compliance_issue' && item.complianceIssueData?.originalSeverity && (
+                  <span className="block mt-2 text-[var(--color-warning)]">
+                    Severity will be restored from {item.complianceIssueData.severity} to {item.complianceIssueData.originalSeverity}.
+                  </span>
+                )}
+              </p>
+              <p className="text-xs text-[var(--color-danger)] mb-4">
+                This action cannot be undone.
+              </p>
+              <div className="flex justify-end gap-3">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowClearConfirm(false)}
+                  disabled={isClearPending}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  variant="danger"
+                  size="sm"
+                  onClick={handleClearEntry}
+                  isLoading={isClearPending}
+                >
+                  {isClearPending ? 'Clearing...' : 'Clear Entry'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </CardWrapper>
     );
   }

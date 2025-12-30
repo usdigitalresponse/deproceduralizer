@@ -753,4 +753,34 @@ export class RedFlagsRepository extends BaseRepository {
 
     return { total, forReviewer };
   }
+
+  /**
+   * Clear all review and developer fields, returning item to unreviewed queue.
+   */
+  async clearForReview(id: number): Promise<RedFlag | undefined> {
+    const result = await this.db
+      .update(redFlags)
+      .set({
+        // Review fields
+        reviewStatus: 'unreviewed',
+        reviewedBy: null,
+        reviewedAt: null,
+        justificationNotes: null,
+        teamNotes: null,
+        priority: null,
+        impactType: null,
+        // Developer fields
+        developerStatus: 'unresolved',
+        developerAssigned: null,
+        developerNotes: null,
+        resolutionType: null,
+        resolutionComments: null,
+        developerQuestion: null,
+        developerCheckedAt: null,
+      })
+      .where(eq(redFlags.id, id))
+      .returning();
+
+    return result[0];
+  }
 }
