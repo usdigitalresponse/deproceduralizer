@@ -208,7 +208,6 @@ export const NeedMoreInfoCard = forwardRef<HTMLDivElement, NeedMoreInfoCardProps
         <HierarchyTreeView
           documentId={item.regulation.id}
           state={state}
-          defaultExpanded
         />
 
         {/* Response form (if owner) */}

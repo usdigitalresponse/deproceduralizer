@@ -594,7 +594,6 @@ export const DefinitionReviewCard = forwardRef<HTMLDivElement, DefinitionReviewC
           <HierarchyTreeView
             documentId={definition.regulation.id}
             state={state}
-            defaultExpanded
           />
         )}
 

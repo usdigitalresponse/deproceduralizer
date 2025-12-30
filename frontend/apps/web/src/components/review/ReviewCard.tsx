@@ -178,7 +178,6 @@ export const ReviewCard = forwardRef<HTMLDivElement, ReviewCardProps>(
         <HierarchyTreeView
           documentId={flag.regulation.id}
           state={state}
-          defaultExpanded
         />
 
         {/* Review form */}

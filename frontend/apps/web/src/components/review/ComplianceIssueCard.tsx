@@ -257,7 +257,6 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
         <HierarchyTreeView
           documentId={issue.regulation.id}
           state={stateCode}
-          defaultExpanded
         />
 
         {/* Technical Details - collapsible (regex pattern only) */}

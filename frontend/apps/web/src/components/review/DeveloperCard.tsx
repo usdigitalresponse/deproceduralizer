@@ -534,7 +534,6 @@ export const DeveloperCard = forwardRef<HTMLDivElement, DeveloperCardProps>(
         <HierarchyTreeView
           documentId={item.regulation.id}
           state={state}
-          defaultExpanded
         />
 
         {/* Developer form */}
