@@ -140,6 +140,39 @@ export async function updateDeveloperStatus(
   }
 }
 
+export interface ClearEntryForReviewInput {
+  type: 'red_flag' | 'compliance_issue';
+  id: number;
+}
+
+/**
+ * Clear all review and developer fields, returning item to unreviewed queue.
+ * For compliance issues, also restores severity to original if it was changed.
+ */
+export async function clearEntryForReview(
+  input: ClearEntryForReviewInput
+): Promise<ActionResult<RedFlag | ComplianceIssue>> {
+  try {
+    let result;
+    if (input.type === 'red_flag') {
+      result = await redFlagsRepo.clearForReview(input.id);
+    } else {
+      result = await complianceIssuesRepo.clearForReview(input.id);
+    }
+
+    if (!result) {
+      return failure(`${input.type} with id ${input.id} not found`);
+    }
+
+    // Invalidate review pages so the item appears in unreviewed queue
+    revalidatePath('/[state]/review', 'page');
+    return success(result);
+  } catch (error) {
+    console.error('[clearEntryForReview]', error);
+    return failure(getErrorMessage(error));
+  }
+}
+
 /**
  * Get combined developer status counts from both tables
  */

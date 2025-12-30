@@ -25,7 +25,7 @@ export default defineConfig({
   },
 
   webServer: process.env.PLAYWRIGHT_TEST_BASE_URL ? undefined : {
-    command: 'pnpm dev',
+    command: 'pnpm prebuild && pnpm dev',
     url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
