@@ -4,9 +4,10 @@ import { type HierarchyNode } from '@deproceduralizer/database';
 import { Badge, SeverityBadge } from '@/components/ui/Badge';
 import { SectionTypeBadge } from '@/components/ui/SectionTypeBadge';
 import { MetadataIndicators } from '@/components/ui/MetadataIndicators';
-import { ChevronRight, ChevronDown, FileText, BookOpen, Folder, Link2 } from 'lucide-react';
+import { ChevronRight, ChevronDown, FileText, BookOpen, Folder, Link2, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { formatDisplayTitle } from '@/lib/format';
 import { HIERARCHY_LEVEL_LABELS } from '@/lib/constants/hierarchy';
+import type { HighlightType } from './ReferenceHighlightContext';
 
 interface TreeNodeProps {
   node: HierarchyNode;
@@ -17,9 +18,26 @@ interface TreeNodeProps {
   hasActiveFilters?: boolean;
   searchTerm?: string;
   children?: HierarchyNode[];
+  highlightType?: HighlightType;
   onToggleExpand: () => void;
   onSelect: () => void;
   renderChildren?: () => React.ReactNode;
+}
+
+/**
+ * Get CSS classes for reference highlight styling
+ */
+function getHighlightClasses(highlightType: HighlightType | undefined): string {
+  switch (highlightType) {
+    case 'references':
+      // Blue left border for documents this node references (outgoing)
+      return 'border-l-4 border-[var(--color-info)] bg-[var(--color-info-bg)]';
+    case 'referencedBy':
+      // Green left border for documents that reference this node (incoming)
+      return 'border-l-4 border-[var(--color-success)] bg-[var(--color-success-bg)]';
+    default:
+      return '';
+  }
 }
 
 // Highlight matching text in a string
@@ -62,6 +80,7 @@ export function TreeNode({
   isLoading,
   hasActiveFilters = false,
   searchTerm,
+  highlightType,
   onToggleExpand,
   onSelect,
   renderChildren,
@@ -70,6 +89,7 @@ export function TreeNode({
   const indentPx = depth * 20;
   const Icon = levelIcons[node.hierarchyLevel || ''] || FileText;
   const levelLabel = HIERARCHY_LEVEL_LABELS[node.hierarchyLevel || ''] || node.hierarchyLevel || 'Document';
+  const highlightClasses = getHighlightClasses(highlightType);
 
   // Filter match indicators
   const showMatchCounts = hasActiveFilters && hasChildren;
@@ -103,9 +123,12 @@ export function TreeNode({
         className={`
           flex items-start gap-2 py-1.5 px-2 rounded cursor-pointer
           transition-colors duration-[var(--duration-fast)]
+          ${highlightClasses}
           ${isSelected
             ? 'bg-[var(--color-primary-weaker)] text-[var(--color-primary)]'
-            : 'hover:bg-[var(--color-neutral-100)]'}
+            : highlightType
+              ? ''
+              : 'hover:bg-[var(--color-neutral-100)]'}
         `}
         style={{ paddingLeft: `${indentPx + 8}px` }}
         onClick={onSelect}
@@ -198,8 +221,8 @@ export function TreeNode({
             </Badge>
           )}
           {node.crossReferenceCount > 0 && (
-            <Badge variant="default" className="text-xs" title={`${node.crossReferenceCount} cross-references`}>
-              <Link2 className="w-3 h-3 mr-1" />
+            <Badge variant="default" className="text-xs" title={`${node.crossReferenceCount} outgoing cross-references`}>
+              <ArrowUpRight className="w-3 h-3 mr-0.5" />
               {node.crossReferenceCount}
             </Badge>
           )}

@@ -3,6 +3,7 @@
 import { type HierarchyNode } from '@deproceduralizer/database';
 import { TreeNode, TreeNodeSkeleton } from './TreeNode';
 import { AlertCircle, FolderX } from 'lucide-react';
+import type { HighlightType } from './ReferenceHighlightContext';
 
 interface HierarchyTreeProps {
   roots: HierarchyNode[];
@@ -13,6 +14,7 @@ interface HierarchyTreeProps {
   loadingIds: Set<number>;
   hasActiveFilters: boolean;
   searchTerm?: string;
+  getHighlightType?: (docId: number) => HighlightType;
   onToggleExpand: (id: number) => void;
   onSelect: (id: number) => void;
   showOrphans: boolean;
@@ -28,6 +30,7 @@ export function HierarchyTree({
   loadingIds,
   hasActiveFilters,
   searchTerm,
+  getHighlightType,
   onToggleExpand,
   onSelect,
   showOrphans,
@@ -38,6 +41,7 @@ export function HierarchyTree({
     const isSelected = selectedId === node.id;
     const isLoading = loadingIds.has(node.id);
     const children = loadedChildren.get(node.id);
+    const highlightType = getHighlightType?.(node.id);
 
     return (
       <TreeNode
@@ -49,6 +53,7 @@ export function HierarchyTree({
         isLoading={isLoading}
         hasActiveFilters={hasActiveFilters}
         searchTerm={searchTerm}
+        highlightType={highlightType}
         onToggleExpand={() => onToggleExpand(node.id)}
         onSelect={() => onSelect(node.id)}
         renderChildren={() =>
@@ -109,6 +114,7 @@ export function HierarchyTree({
                   isSelected={selectedId === node.id}
                   isLoading={false}
                   searchTerm={searchTerm}
+                  highlightType={getHighlightType?.(node.id)}
                   onToggleExpand={() => {}}
                   onSelect={() => onSelect(node.id)}
                 />

@@ -14,6 +14,7 @@ import { IssuesTab } from './IssuesTab';
 import { KeywordsTab } from './KeywordsTab';
 import { HierarchyTab } from './HierarchyTab';
 import { DefinitionsTab } from './DefinitionsTab';
+import { CrossReferencesTab } from './CrossReferencesTab';
 
 export interface AnalyticsClientProps {
   state: StateCode;
@@ -88,6 +89,10 @@ export function AnalyticsClient({
             depth={params.depth}
             onParamsChange={handleParamsChange}
           />
+        )}
+
+        {currentTab === 'crossrefs' && (
+          <CrossReferencesTab state={state} />
         )}
 
         {currentTab === 'definitions' && (

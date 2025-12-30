@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import type { HierarchyNode, HierarchyFilterOptions, StateCode } from '@deproceduralizer/database';
 import { getHierarchyChildren, getHierarchyChildrenFast } from '@/lib/actions/hierarchy';
+import { getDocumentReferenceContext } from '@/lib/actions/cross-references';
 import { Card } from '@/components/ui/Card';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerBody, DrawerClose } from '@/components/ui';
 import { ResizableDivider } from '@/components/ui/ResizableDivider';
@@ -11,6 +12,7 @@ import { useResponsive } from '@/hooks';
 import { HierarchyTree } from './HierarchyTree';
 import { BrowseFilters } from './BrowseFilters';
 import { DetailPanel } from './DetailPanel';
+import type { HighlightType } from './ReferenceHighlightContext';
 
 const PANEL_WIDTH_KEY = 'browse-panel-width';
 const DEFAULT_PANEL_WIDTH = 400;
@@ -103,6 +105,10 @@ export function BrowseClient({
   const [loadedChildren, setLoadedChildren] = useState<Map<number, HierarchyNode[]>>(new Map());
   const [loadingIds, setLoadingIds] = useState<Set<number>>(new Set());
   const [showOrphans, setShowOrphans] = useState(false);
+
+  // Reference highlight state for cross-reference visualization
+  const [referencesIds, setReferencesIds] = useState<Set<number>>(new Set());
+  const [referencedByIds, setReferencedByIds] = useState<Set<number>>(new Set());
 
   // Track if we've done initial URL sync to avoid loops
   const isInitialMount = useRef(true);
@@ -231,6 +237,40 @@ export function BrowseClient({
     setSelectedId(id);
   }, []);
 
+  // Fetch reference context when selection changes (for tree highlighting)
+  useEffect(() => {
+    if (!selectedId) {
+      setReferencesIds(new Set());
+      setReferencedByIds(new Set());
+      return;
+    }
+
+    const fetchReferenceContext = async () => {
+      try {
+        const result = await getDocumentReferenceContext(selectedId);
+        if (result.success) {
+          setReferencesIds(new Set(result.data.outgoingRefs.map((r) => r.targetId)));
+          setReferencedByIds(new Set(result.data.incomingRefs.map((r) => r.sourceId)));
+        }
+      } catch (error) {
+        console.error('Failed to fetch reference context:', error);
+      }
+    };
+
+    fetchReferenceContext();
+  }, [selectedId]);
+
+  // Get highlight type for a document based on its relationship to selected document
+  const getHighlightType = useCallback(
+    (docId: number): HighlightType => {
+      if (!selectedId) return null;
+      if (referencesIds.has(docId)) return 'references';
+      if (referencedByIds.has(docId)) return 'referencedBy';
+      return null;
+    },
+    [selectedId, referencesIds, referencedByIds]
+  );
+
   // Handle closing the detail panel
   const handleCloseDetail = useCallback(() => {
     setSelectedId(null);
@@ -272,6 +312,7 @@ export function BrowseClient({
               loadingIds={loadingIds}
               hasActiveFilters={hasActiveFilters}
               searchTerm={search}
+              getHighlightType={getHighlightType}
               onToggleExpand={handleToggleExpand}
               onSelect={handleSelect}
               showOrphans={showOrphans}
