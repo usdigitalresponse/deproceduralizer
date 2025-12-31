@@ -684,15 +684,17 @@ export async function getDefinitionAnalyticsStats(
  * Cached for 5 minutes to reduce database load.
  * @param state - StateCode ('NY' or 'NJ')
  * @param limit - Max edges to return (default 500)
+ * @param titleFilter - Optional title number to filter by
  */
 export async function getDefinitionGraph(
   state: StateCode,
-  limit: number = 500
+  limit: number = 500,
+  titleFilter?: string
 ): Promise<ActionResult<DefinitionEdge[]>> {
   try {
     const cachedGetGraph = unstable_cache(
-      () => definitionsRepo.getDefinitionGraph(state, limit),
-      [`definition-graph-${state}-${limit}`],
+      () => definitionsRepo.getDefinitionGraph(state, limit, titleFilter),
+      [`definition-graph-${state}-${limit}-${titleFilter ?? 'all'}`],
       { revalidate: 300, tags: ['definitions-analytics'] }
     );
     const edges = await cachedGetGraph();

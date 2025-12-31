@@ -2654,14 +2654,37 @@ export class DefinitionsRepository extends BaseRepository {
    * @param state - StateCode ('NY' or 'NJ')
    * @param limit - Max edges to return (default 500)
    */
-  async getDefinitionGraph(state: StateCode, limit: number = 500): Promise<DefinitionEdge[]> {
+  async getDefinitionGraph(
+    state: StateCode,
+    limit: number = 500,
+    titleFilter?: string
+  ): Promise<DefinitionEdge[]> {
     const statePattern = state.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
+    const isNY = state.toLowerCase() === 'ny';
 
     // Create aliases for self-join
     const d1 = alias(definitions, 'd1');
     const d2 = alias(definitions, 'd2');
     const rd1 = alias(regulatoryDocuments, 'rd1');
     const rd2 = alias(regulatoryDocuments, 'rd2');
+
+    // Build base conditions for Query 1
+    const query1Conditions = [
+      like(d1.url, statePattern),
+      like(d2.url, statePattern),
+      isNotNull(d1.documentId),
+      isNotNull(d2.documentId),
+      ne(d1.documentId, d2.documentId), // Different source documents
+    ];
+
+    // Add title filter if specified
+    if (titleFilter) {
+      if (isNY) {
+        query1Conditions.push(eq(rd1.nycrrTitle, parseInt(titleFilter, 10)));
+      } else {
+        query1Conditions.push(eq(rd1.njacTitle, titleFilter));
+      }
+    }
 
     // Query 1: Same normalized term from different sources
     const sameTermEdges = await this.db
@@ -2681,16 +2704,27 @@ export class DefinitionsRepository extends BaseRepository {
         eq(d1.normalizedTerm, d2.normalizedTerm),
         sql`${d1.id} < ${d2.id}` // Avoid duplicates and self-loops
       ))
-      .leftJoin(rd1, eq(d1.documentId, rd1.id))
+      .innerJoin(rd1, eq(d1.documentId, rd1.id)) // INNER JOIN since we need title filter
       .leftJoin(rd2, eq(d2.documentId, rd2.id))
-      .where(and(
-        like(d1.url, statePattern),
-        like(d2.url, statePattern),
-        isNotNull(d1.documentId),
-        isNotNull(d2.documentId),
-        ne(d1.documentId, d2.documentId) // Different source documents
-      ))
+      .where(and(...query1Conditions))
       .limit(Math.floor(limit / 3));
+
+    // Build base conditions for Query 2
+    const query2Conditions = [
+      like(d1.url, statePattern),
+      isNotNull(d1.scopeDocumentId),
+      isNotNull(d1.documentId),
+      isNotNull(d2.documentId),
+    ];
+
+    // Add title filter for Query 2
+    if (titleFilter) {
+      if (isNY) {
+        query2Conditions.push(eq(rd1.nycrrTitle, parseInt(titleFilter, 10)));
+      } else {
+        query2Conditions.push(eq(rd1.njacTitle, titleFilter));
+      }
+    }
 
     // Query 2: Shared scope document
     const sharedScopeEdges = await this.db
@@ -2711,15 +2745,26 @@ export class DefinitionsRepository extends BaseRepository {
         sql`${d1.id} < ${d2.id}`,
         ne(d1.normalizedTerm, d2.normalizedTerm) // Different terms
       ))
-      .leftJoin(rd1, eq(d1.documentId, rd1.id))
+      .innerJoin(rd1, eq(d1.documentId, rd1.id)) // INNER JOIN since we need title filter
       .leftJoin(rd2, eq(d2.documentId, rd2.id))
-      .where(and(
-        like(d1.url, statePattern),
-        isNotNull(d1.scopeDocumentId),
-        isNotNull(d1.documentId),
-        isNotNull(d2.documentId)
-      ))
+      .where(and(...query2Conditions))
       .limit(Math.floor(limit / 3));
+
+    // Build base conditions for Query 3
+    const query3Conditions = [
+      like(d1.url, statePattern),
+      isNotNull(d1.documentId),
+      isNotNull(d2.documentId),
+    ];
+
+    // Add title filter for Query 3
+    if (titleFilter) {
+      if (isNY) {
+        query3Conditions.push(eq(rd1.nycrrTitle, parseInt(titleFilter, 10)));
+      } else {
+        query3Conditions.push(eq(rd1.njacTitle, titleFilter));
+      }
+    }
 
     // Query 3: Shared occurrence documents (definitions appearing in same documents)
     const ddo1 = alias(definitionDocumentOccurrences, 'ddo1');
@@ -2745,13 +2790,9 @@ export class DefinitionsRepository extends BaseRepository {
         sql`${d1.id} < ${d2.id}`,
         ne(d1.normalizedTerm, d2.normalizedTerm)
       ))
-      .leftJoin(rd1, eq(d1.documentId, rd1.id))
+      .innerJoin(rd1, eq(d1.documentId, rd1.id)) // INNER JOIN since we need title filter
       .leftJoin(rd2, eq(d2.documentId, rd2.id))
-      .where(and(
-        like(d1.url, statePattern),
-        isNotNull(d1.documentId),
-        isNotNull(d2.documentId)
-      ))
+      .where(and(...query3Conditions))
       .groupBy(
         d1.id,
         d1.term,

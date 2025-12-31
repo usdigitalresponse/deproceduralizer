@@ -175,33 +175,30 @@ export function DefinitionsTab({ stats, state }: DefinitionsTabProps) {
   const [flows, setFlows] = useState<ScopeLevelFlow[]>([]);
   const [hierarchy, setHierarchy] = useState<DefinitionHierarchyNode | null>(null);
   const [isGraphLoading, setIsGraphLoading] = useState(false);
+  const [isEdgesLoading, setIsEdgesLoading] = useState(false);
   const [isHubsLoading, setIsHubsLoading] = useState(false);
   const [graphError, setGraphError] = useState<string | null>(null);
-  const [graphDataLoaded, setGraphDataLoaded] = useState(false);
+  const [staticDataLoaded, setStaticDataLoaded] = useState(false); // flows, hierarchy, titles
 
-  // Hubs filter state
+  // Hubs filter state (also affects graph edges now)
   const [hubsLimit, setHubsLimit] = useState(20);
   const [hubsTitleFilter, setHubsTitleFilter] = useState<string | undefined>(undefined);
   const [availableTitles, setAvailableTitles] = useState<string[]>([]);
 
-  // Load graph data only when network tab is selected (lazy loading)
+  // Load static graph data (flows, hierarchy, titles) only once when network tab is selected
   useEffect(() => {
-    if (subTab !== 'network' || graphDataLoaded) return;
+    if (subTab !== 'network' || staticDataLoaded) return;
 
-    async function loadGraphData() {
+    async function loadStaticData() {
       setIsGraphLoading(true);
       setGraphError(null);
 
       try {
-        const [edgesResult, flowsResult, hierarchyResult, titlesResult] = await Promise.all([
-          getDefinitionGraph(state),
+        const [flowsResult, hierarchyResult, titlesResult] = await Promise.all([
           getScopeLevelFlows(state),
           getDefinitionHierarchy(state),
           getAvailableTitles(state), // Efficient distinct query for filter dropdown
         ]);
-
-        if (edgesResult.success) setEdges(edgesResult.data);
-        else console.error('[DefinitionsTab] edges:', edgesResult.error);
 
         if (flowsResult.success) setFlows(flowsResult.data);
         else console.error('[DefinitionsTab] flows:', flowsResult.error);
@@ -212,22 +209,44 @@ export function DefinitionsTab({ stats, state }: DefinitionsTabProps) {
         if (titlesResult.success) setAvailableTitles(titlesResult.data);
         else console.error('[DefinitionsTab] titles:', titlesResult.error);
 
-        setGraphDataLoaded(true);
+        setStaticDataLoaded(true);
       } catch (err) {
-        console.error('[DefinitionsTab] Failed to load graph data:', err);
+        console.error('[DefinitionsTab] Failed to load static data:', err);
         setGraphError(err instanceof Error ? err.message : 'Failed to load graph data');
       } finally {
         setIsGraphLoading(false);
       }
     }
 
-    loadGraphData();
-  }, [subTab, state, graphDataLoaded]);
+    loadStaticData();
+  }, [subTab, state, staticDataLoaded]);
+
+  // Load edges - reloads when title filter changes
+  useEffect(() => {
+    if (subTab !== 'network') return;
+
+    async function loadEdges() {
+      setIsEdgesLoading(true);
+      try {
+        const edgesResult = await getDefinitionGraph(state, 500, hubsTitleFilter);
+        if (edgesResult.success) {
+          setEdges(edgesResult.data);
+        } else {
+          console.error('[DefinitionsTab] edges:', edgesResult.error);
+        }
+      } catch (err) {
+        console.error('[DefinitionsTab] Failed to load edges:', err);
+      } finally {
+        setIsEdgesLoading(false);
+      }
+    }
+
+    loadEdges();
+  }, [subTab, state, hubsTitleFilter]);
 
   // Load hubs separately - reloads when filters change
   useEffect(() => {
     if (subTab !== 'network') return;
-    if (!graphDataLoaded && !isGraphLoading) return; // Wait for initial graph load to start
 
     async function loadHubs() {
       setIsHubsLoading(true);
@@ -246,7 +265,7 @@ export function DefinitionsTab({ stats, state }: DefinitionsTabProps) {
     }
 
     loadHubs();
-  }, [subTab, state, hubsLimit, hubsTitleFilter, graphDataLoaded, isGraphLoading]);
+  }, [subTab, state, hubsLimit, hubsTitleFilter]);
 
   // Simple handlers that just update state - useEffect will handle the fetch
   const handleLimitChange = useCallback((limit: number) => {
@@ -553,7 +572,7 @@ export function DefinitionsTab({ stats, state }: DefinitionsTabProps) {
                 edges={edges}
                 flows={flows}
                 hierarchy={hierarchy ?? { id: 'root', name: state, level: 'root', children: [] }}
-                isLoading={isGraphLoading}
+                isLoading={isGraphLoading || isEdgesLoading}
               />
             )}
           </div>

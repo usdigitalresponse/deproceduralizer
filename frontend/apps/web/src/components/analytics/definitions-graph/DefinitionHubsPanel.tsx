@@ -125,7 +125,7 @@ export function DefinitionHubsPanel({
           No definitions found{titleFilter ? ` in Title ${titleFilter}` : ''}.
         </p>
       ) : (
-        <ul className="space-y-4">
+        <ul className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
           {hubs.map((hub, index) => {
             const barWidth = (hub.occurrenceCount / maxOccurrence) * 100;
             const scopeColor = SCOPE_COLORS[hub.scopeLevel ?? ''] ?? 'var(--color-neutral-400)';
