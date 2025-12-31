@@ -85,6 +85,8 @@ export const NeedMoreInfoCard = forwardRef<HTMLDivElement, NeedMoreInfoCardProps
             {(flag.regulation as unknown as { content?: string }).content && (
               <RegulationTextViewer
                 content={(flag.regulation as unknown as { content: string }).content}
+                documentId={flag.regulation.id}
+                state={state}
                 scrollToText={flag.explanation}
                 highlightPattern={flag.matchedPhrases?.length ? flag.matchedPhrases.map(p => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') : undefined}
                 label="Show Regulation Text"
@@ -124,6 +126,8 @@ export const NeedMoreInfoCard = forwardRef<HTMLDivElement, NeedMoreInfoCardProps
             {(issue.regulation as unknown as { content?: string }).content && (
               <RegulationTextViewer
                 content={(issue.regulation as unknown as { content: string }).content}
+                documentId={issue.regulation.id}
+                state={state}
                 scrollToText={issue.requirementText}
                 highlightPattern={issue.matchedPattern}
                 isVerbatim={issue.isVerbatim ?? false}

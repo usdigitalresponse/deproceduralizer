@@ -150,6 +150,68 @@ export interface UpdateDefinitionDeveloperStatusInput {
   developerQuestion?: string;
 }
 
+// =============================================================================
+// Graph/Analytics Types
+// =============================================================================
+
+/**
+ * Edge for definition network graph visualization.
+ * Represents relationships between definitions based on shared scope or co-occurrence.
+ */
+export interface DefinitionEdge {
+  sourceId: string;
+  sourceTerm: string;
+  sourceDocumentId: number;
+  sourceCitation: string | null;
+  targetId: string;
+  targetTerm: string;
+  targetDocumentId: number | null;
+  targetCitation: string | null;
+  edgeType: 'same_term' | 'shared_scope' | 'shared_occurrence';
+  weight: number;
+}
+
+/**
+ * Hub definition with high connectivity (most occurrences/references).
+ */
+export interface DefinitionHub {
+  definitionId: number;
+  term: string;
+  normalizedTerm: string;
+  documentId: number;
+  citation: string | null;
+  documentTitle: string | null;
+  occurrenceCount: number;
+  scopeLevel: string | null;
+  definitionType: string | null;
+  /** Snippet of the definition text (truncated) */
+  definitionSnippet: string | null;
+  /** Title number for filtering (nycrrTitle or njacTitle) */
+  titleNumber: string | null;
+}
+
+/**
+ * Scope-level matrix for chord diagram visualization.
+ * Shows flow of definitions between scope levels.
+ */
+export interface ScopeLevelFlow {
+  fromLevel: string;
+  toLevel: string;
+  count: number;
+}
+
+/**
+ * Hierarchy node for edge bundling visualization.
+ */
+export interface DefinitionHierarchyNode {
+  id: string;
+  name: string;
+  level: 'root' | 'title' | 'chapter' | 'part' | 'section';
+  documentId?: number;
+  children?: DefinitionHierarchyNode[];
+  definitions?: { term: string; definitionId: number; documentId: number }[];
+}
+
 export class DefinitionsRepository extends BaseRepository {
   /**
    * Get a definition by ID
@@ -2575,5 +2637,470 @@ export class DefinitionsRepository extends BaseRepository {
       qualityDistribution,
       reviewStatus,
     };
+  }
+
+  // =============================================================================
+  // Graph/Analytics Methods
+  // =============================================================================
+
+  /**
+   * Get definition network graph edges.
+   * Creates edges between definitions that:
+   * 1. Share the same normalized term (same_term)
+   * 2. Share the same scope document (shared_scope)
+   * 3. Appear in the same documents via occurrences (shared_occurrence)
+   *
+   * Returns edges with weight based on connection strength.
+   * @param state - StateCode ('NY' or 'NJ')
+   * @param limit - Max edges to return (default 500)
+   */
+  async getDefinitionGraph(
+    state: StateCode,
+    limit: number = 500,
+    titleFilter?: string
+  ): Promise<DefinitionEdge[]> {
+    const statePattern = state.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
+    const isNY = state.toLowerCase() === 'ny';
+
+    // Create aliases for self-join
+    const d1 = alias(definitions, 'd1');
+    const d2 = alias(definitions, 'd2');
+    const rd1 = alias(regulatoryDocuments, 'rd1');
+    const rd2 = alias(regulatoryDocuments, 'rd2');
+
+    // Build base conditions for Query 1
+    const query1Conditions = [
+      like(d1.url, statePattern),
+      like(d2.url, statePattern),
+      isNotNull(d1.documentId),
+      isNotNull(d2.documentId),
+      ne(d1.documentId, d2.documentId), // Different source documents
+    ];
+
+    // Add title filter if specified
+    if (titleFilter) {
+      if (isNY) {
+        query1Conditions.push(eq(rd1.nycrrTitle, parseInt(titleFilter, 10)));
+      } else {
+        query1Conditions.push(eq(rd1.njacTitle, titleFilter));
+      }
+    }
+
+    // Query 1: Same normalized term from different sources
+    const sameTermEdges = await this.db
+      .select({
+        sourceId: sql<string>`${d1.id}::text`,
+        sourceTerm: d1.term,
+        sourceDocumentId: d1.documentId,
+        sourceCitation: rd1.citation,
+        targetId: sql<string>`${d2.id}::text`,
+        targetTerm: d2.term,
+        targetDocumentId: d2.documentId,
+        targetCitation: rd2.citation,
+        weight: sql<number>`1`,
+      })
+      .from(d1)
+      .innerJoin(d2, and(
+        eq(d1.normalizedTerm, d2.normalizedTerm),
+        sql`${d1.id} < ${d2.id}` // Avoid duplicates and self-loops
+      ))
+      .innerJoin(rd1, eq(d1.documentId, rd1.id)) // INNER JOIN since we need title filter
+      .leftJoin(rd2, eq(d2.documentId, rd2.id))
+      .where(and(...query1Conditions))
+      .limit(Math.floor(limit / 3));
+
+    // Build base conditions for Query 2
+    const query2Conditions = [
+      like(d1.url, statePattern),
+      isNotNull(d1.scopeDocumentId),
+      isNotNull(d1.documentId),
+      isNotNull(d2.documentId),
+    ];
+
+    // Add title filter for Query 2
+    if (titleFilter) {
+      if (isNY) {
+        query2Conditions.push(eq(rd1.nycrrTitle, parseInt(titleFilter, 10)));
+      } else {
+        query2Conditions.push(eq(rd1.njacTitle, titleFilter));
+      }
+    }
+
+    // Query 2: Shared scope document
+    const sharedScopeEdges = await this.db
+      .select({
+        sourceId: sql<string>`${d1.id}::text`,
+        sourceTerm: d1.term,
+        sourceDocumentId: d1.documentId,
+        sourceCitation: rd1.citation,
+        targetId: sql<string>`${d2.id}::text`,
+        targetTerm: d2.term,
+        targetDocumentId: d2.documentId,
+        targetCitation: rd2.citation,
+        weight: sql<number>`1`,
+      })
+      .from(d1)
+      .innerJoin(d2, and(
+        eq(d1.scopeDocumentId, d2.scopeDocumentId),
+        sql`${d1.id} < ${d2.id}`,
+        ne(d1.normalizedTerm, d2.normalizedTerm) // Different terms
+      ))
+      .innerJoin(rd1, eq(d1.documentId, rd1.id)) // INNER JOIN since we need title filter
+      .leftJoin(rd2, eq(d2.documentId, rd2.id))
+      .where(and(...query2Conditions))
+      .limit(Math.floor(limit / 3));
+
+    // Build base conditions for Query 3
+    const query3Conditions = [
+      like(d1.url, statePattern),
+      isNotNull(d1.documentId),
+      isNotNull(d2.documentId),
+    ];
+
+    // Add title filter for Query 3
+    if (titleFilter) {
+      if (isNY) {
+        query3Conditions.push(eq(rd1.nycrrTitle, parseInt(titleFilter, 10)));
+      } else {
+        query3Conditions.push(eq(rd1.njacTitle, titleFilter));
+      }
+    }
+
+    // Query 3: Shared occurrence documents (definitions appearing in same documents)
+    const ddo1 = alias(definitionDocumentOccurrences, 'ddo1');
+    const ddo2 = alias(definitionDocumentOccurrences, 'ddo2');
+
+    const sharedOccurrenceEdges = await this.db
+      .select({
+        sourceId: sql<string>`${d1.id}::text`,
+        sourceTerm: d1.term,
+        sourceDocumentId: d1.documentId,
+        sourceCitation: rd1.citation,
+        targetId: sql<string>`${d2.id}::text`,
+        targetTerm: d2.term,
+        targetDocumentId: d2.documentId,
+        targetCitation: rd2.citation,
+        weight: sql<number>`count(distinct ${ddo1.documentId})::int`,
+      })
+      .from(d1)
+      .innerJoin(ddo1, eq(d1.id, ddo1.definitionId))
+      .innerJoin(ddo2, eq(ddo1.documentId, ddo2.documentId))
+      .innerJoin(d2, and(
+        eq(ddo2.definitionId, d2.id),
+        sql`${d1.id} < ${d2.id}`,
+        ne(d1.normalizedTerm, d2.normalizedTerm)
+      ))
+      .innerJoin(rd1, eq(d1.documentId, rd1.id)) // INNER JOIN since we need title filter
+      .leftJoin(rd2, eq(d2.documentId, rd2.id))
+      .where(and(...query3Conditions))
+      .groupBy(
+        d1.id,
+        d1.term,
+        d1.documentId,
+        rd1.citation,
+        d2.id,
+        d2.term,
+        d2.documentId,
+        rd2.citation
+      )
+      .having(sql`count(distinct ${ddo1.documentId}) >= 2`)
+      .limit(Math.floor(limit / 3));
+
+    // Combine and format results
+    const edges: DefinitionEdge[] = [];
+
+    for (const row of sameTermEdges) {
+      if (row.sourceDocumentId && row.targetDocumentId) {
+        edges.push({
+          ...row,
+          sourceDocumentId: row.sourceDocumentId,
+          targetDocumentId: row.targetDocumentId,
+          edgeType: 'same_term',
+        });
+      }
+    }
+
+    for (const row of sharedScopeEdges) {
+      if (row.sourceDocumentId && row.targetDocumentId) {
+        edges.push({
+          ...row,
+          sourceDocumentId: row.sourceDocumentId,
+          targetDocumentId: row.targetDocumentId,
+          edgeType: 'shared_scope',
+        });
+      }
+    }
+
+    for (const row of sharedOccurrenceEdges) {
+      if (row.sourceDocumentId && row.targetDocumentId) {
+        edges.push({
+          ...row,
+          sourceDocumentId: row.sourceDocumentId,
+          targetDocumentId: row.targetDocumentId,
+          edgeType: 'shared_occurrence',
+        });
+      }
+    }
+
+    return edges;
+  }
+
+  /**
+   * Get top definitions by occurrence count (hub definitions).
+   * These are the most connected/referenced definitions in the corpus.
+   * @param state - StateCode ('NY' or 'NJ')
+   * @param limit - Max definitions to return (default 20)
+   * @param titleFilter - Optional title number to filter by (e.g., "11" for NY, "8" for NJ)
+   */
+  async getTopDefinitions(
+    state: StateCode,
+    limit: number = 20,
+    titleFilter?: string
+  ): Promise<DefinitionHub[]> {
+    const statePattern = state.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
+    const isNY = state.toLowerCase() === 'ny';
+
+    // Build conditions
+    const conditions = [
+      like(definitions.url, statePattern),
+      isNotNull(definitions.documentId),
+    ];
+
+    // Add title filter if specified
+    if (titleFilter) {
+      if (isNY) {
+        conditions.push(eq(regulatoryDocuments.nycrrTitle, parseInt(titleFilter, 10)));
+      } else {
+        conditions.push(eq(regulatoryDocuments.njacTitle, titleFilter));
+      }
+    }
+
+    const results = await this.db
+      .select({
+        definitionId: definitions.id,
+        term: definitions.term,
+        normalizedTerm: definitions.normalizedTerm,
+        documentId: definitions.documentId,
+        citation: regulatoryDocuments.citation,
+        documentTitle: regulatoryDocuments.title,
+        occurrenceCount: sql<number>`count(${definitionDocumentOccurrences.documentId})::int`,
+        scopeLevel: definitions.scopeLevel,
+        definitionType: definitions.definitionType,
+        // Include definition text for snippet
+        rephrasedDefinition: definitions.rephrasedDefinition,
+        verbatimText: definitions.verbatimText,
+        // Include title number for display
+        nycrrTitle: regulatoryDocuments.nycrrTitle,
+        njacTitle: regulatoryDocuments.njacTitle,
+      })
+      .from(definitions)
+      .leftJoin(regulatoryDocuments, eq(definitions.documentId, regulatoryDocuments.id))
+      .leftJoin(definitionDocumentOccurrences, eq(definitions.id, definitionDocumentOccurrences.definitionId))
+      .where(and(...conditions))
+      .groupBy(
+        definitions.id,
+        definitions.term,
+        definitions.normalizedTerm,
+        definitions.documentId,
+        regulatoryDocuments.citation,
+        regulatoryDocuments.title,
+        definitions.scopeLevel,
+        definitions.definitionType,
+        definitions.rephrasedDefinition,
+        definitions.verbatimText,
+        regulatoryDocuments.nycrrTitle,
+        regulatoryDocuments.njacTitle
+      )
+      .orderBy(desc(sql`count(${definitionDocumentOccurrences.documentId})`))
+      .limit(limit);
+
+    return results.map(row => {
+      // Create snippet: prefer rephrased, fall back to verbatim, truncate to 120 chars
+      const fullText = row.rephrasedDefinition || row.verbatimText;
+      const snippet = fullText
+        ? fullText.length > 120 ? fullText.slice(0, 120) + '...' : fullText
+        : null;
+
+      return {
+        definitionId: row.definitionId,
+        term: row.term,
+        normalizedTerm: row.normalizedTerm ?? row.term.toLowerCase(),
+        documentId: row.documentId!,
+        citation: row.citation,
+        documentTitle: row.documentTitle,
+        occurrenceCount: row.occurrenceCount,
+        scopeLevel: row.scopeLevel,
+        definitionType: row.definitionType,
+        definitionSnippet: snippet,
+        titleNumber: isNY ? row.nycrrTitle?.toString() ?? null : row.njacTitle,
+      };
+    });
+  }
+
+  /**
+   * Get scope level flow matrix for chord diagram.
+   * Shows how definitions flow from source scope levels to target scope levels.
+   * @param state - StateCode ('NY' or 'NJ')
+   */
+  async getScopeLevelFlows(state: StateCode): Promise<ScopeLevelFlow[]> {
+    const statePattern = state.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
+
+    // For each definition, get its source scope level and compare with occurrence doc levels
+    // This shows how definitions at one level are used in documents at another level
+    const scopeDoc = alias(regulatoryDocuments, 'scope_doc');
+
+    const results = await this.db
+      .select({
+        fromLevel: definitions.scopeLevel,
+        toLevel: scopeDoc.hierarchyLevel,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(definitions)
+      .innerJoin(definitionDocumentOccurrences, eq(definitions.id, definitionDocumentOccurrences.definitionId))
+      .innerJoin(scopeDoc, eq(definitionDocumentOccurrences.documentId, scopeDoc.id))
+      .where(and(
+        like(definitions.url, statePattern),
+        isNotNull(definitions.scopeLevel),
+        isNotNull(scopeDoc.hierarchyLevel)
+      ))
+      .groupBy(definitions.scopeLevel, scopeDoc.hierarchyLevel)
+      .orderBy(desc(sql`count(*)`));
+
+    return results.map(row => ({
+      fromLevel: row.fromLevel ?? 'unknown',
+      toLevel: row.toLevel ?? 'unknown',
+      count: row.count,
+    }));
+  }
+
+  /**
+   * Get definition hierarchy data for edge bundling visualization.
+   * Builds a tree of titles → chapters → parts → sections with definitions at leaves.
+   * @param state - StateCode ('NY' or 'NJ')
+   * @param limit - Max definitions per section (default 10)
+   */
+  async getDefinitionHierarchy(state: StateCode, limit: number = 10): Promise<DefinitionHierarchyNode> {
+    const statePattern = state.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
+    const isNY = state.toLowerCase() === 'ny';
+
+    // Get definitions with their document hierarchy info
+    const results = await this.db
+      .select({
+        definitionId: definitions.id,
+        term: definitions.term,
+        documentId: definitions.documentId,
+        nycrrTitle: regulatoryDocuments.nycrrTitle,
+        nycrrPart: regulatoryDocuments.nycrrPart,
+        njacTitle: regulatoryDocuments.njacTitle,
+        njacChapter: regulatoryDocuments.njacChapter,
+        docTitle: regulatoryDocuments.title,
+      })
+      .from(definitions)
+      .innerJoin(regulatoryDocuments, eq(definitions.documentId, regulatoryDocuments.id))
+      .where(and(
+        like(definitions.url, statePattern),
+        isNotNull(definitions.documentId)
+      ))
+      .orderBy(
+        isNY ? regulatoryDocuments.nycrrTitle : regulatoryDocuments.njacTitle,
+        isNY ? regulatoryDocuments.nycrrPart : regulatoryDocuments.njacChapter,
+        definitions.term
+      )
+      .limit(500); // Cap for performance
+
+    // Build hierarchy tree
+    const root: DefinitionHierarchyNode = {
+      id: 'root',
+      name: state.toUpperCase(),
+      level: 'root',
+      children: [],
+    };
+
+    const titleMap = new Map<string, DefinitionHierarchyNode>();
+
+    for (const row of results) {
+      if (!row.documentId) continue;
+
+      const titleKey = isNY
+        ? `title-${row.nycrrTitle}`
+        : `title-${row.njacTitle}`;
+      const titleName = isNY
+        ? `Title ${row.nycrrTitle}`
+        : `Title ${row.njacTitle}`;
+
+      // Get or create title node
+      let titleNode = titleMap.get(titleKey);
+      if (!titleNode) {
+        titleNode = {
+          id: titleKey,
+          name: titleName,
+          level: 'title',
+          children: [],
+        };
+        titleMap.set(titleKey, titleNode);
+        root.children!.push(titleNode);
+      }
+
+      // For NY, group by part; for NJ, group by chapter
+      const partKey = isNY
+        ? `part-${row.nycrrTitle}-${row.nycrrPart}`
+        : `chapter-${row.njacTitle}-${row.njacChapter}`;
+      const partName = isNY
+        ? `Part ${row.nycrrPart}`
+        : `Chapter ${row.njacChapter}`;
+
+      // Get or create part/chapter node
+      let partNode = titleNode.children?.find(c => c.id === partKey);
+      if (!partNode) {
+        partNode = {
+          id: partKey,
+          name: partName,
+          level: isNY ? 'part' : 'chapter',
+          definitions: [],
+        };
+        titleNode.children!.push(partNode);
+      }
+
+      // Add definition to part (with limit per section)
+      if (!partNode.definitions) partNode.definitions = [];
+      if (partNode.definitions.length < limit) {
+        partNode.definitions.push({
+          term: row.term,
+          definitionId: row.definitionId,
+          documentId: row.documentId,
+        });
+      }
+    }
+
+    return root;
+  }
+
+  /**
+   * Get available title numbers for definition filtering.
+   * Efficient query that only fetches distinct titles.
+   * @param state - StateCode ('NY' or 'NJ')
+   */
+  async getAvailableTitles(state: StateCode): Promise<string[]> {
+    const statePattern = state.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
+    const isNY = state.toLowerCase() === 'ny';
+
+    const titleColumn = isNY ? regulatoryDocuments.nycrrTitle : regulatoryDocuments.njacTitle;
+
+    const results = await this.db
+      .selectDistinct({
+        title: titleColumn,
+      })
+      .from(definitions)
+      .innerJoin(regulatoryDocuments, eq(definitions.documentId, regulatoryDocuments.id))
+      .where(and(
+        like(definitions.url, statePattern),
+        isNotNull(definitions.documentId),
+        isNotNull(titleColumn)
+      ))
+      .orderBy(titleColumn);
+
+    return results
+      .map(r => r.title?.toString() ?? '')
+      .filter(t => t !== '');
   }
 }

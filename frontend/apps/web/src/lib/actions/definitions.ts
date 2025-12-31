@@ -18,6 +18,10 @@ import {
   type DeveloperStatus,
   type Developer,
   type ResolutionType,
+  type DefinitionEdge,
+  type DefinitionHub,
+  type ScopeLevelFlow,
+  type DefinitionHierarchyNode,
   DEVELOPER_STATUSES,
   RESOLUTION_TYPES,
   DEVELOPERS,
@@ -666,6 +670,132 @@ export async function getDefinitionAnalyticsStats(
     return success(stats);
   } catch (error) {
     console.error('[getDefinitionAnalyticsStats]', error);
+    return failure(getErrorMessage(error));
+  }
+}
+
+// =============================================================================
+// Definition Graph/Network Actions (Cached)
+// =============================================================================
+
+/**
+ * Get definition network graph edges.
+ * Shows relationships between definitions based on shared term, scope, or co-occurrence.
+ * Cached for 5 minutes to reduce database load.
+ * @param state - StateCode ('NY' or 'NJ')
+ * @param limit - Max edges to return (default 500)
+ * @param titleFilter - Optional title number to filter by
+ */
+export async function getDefinitionGraph(
+  state: StateCode,
+  limit: number = 500,
+  titleFilter?: string
+): Promise<ActionResult<DefinitionEdge[]>> {
+  try {
+    const cachedGetGraph = unstable_cache(
+      () => definitionsRepo.getDefinitionGraph(state, limit, titleFilter),
+      [`definition-graph-${state}-${limit}-${titleFilter ?? 'all'}`],
+      { revalidate: 300, tags: ['definitions-analytics'] }
+    );
+    const edges = await cachedGetGraph();
+    return success(edges);
+  } catch (error) {
+    console.error('[getDefinitionGraph]', error);
+    return failure(getErrorMessage(error));
+  }
+}
+
+/**
+ * Get top definitions by occurrence count (hub definitions).
+ * Cached for 5 minutes to reduce database load.
+ * @param state - StateCode ('NY' or 'NJ')
+ * @param limit - Max definitions to return (default 20)
+ * @param titleFilter - Optional title number to filter by
+ */
+export async function getTopDefinitions(
+  state: StateCode,
+  limit: number = 20,
+  titleFilter?: string
+): Promise<ActionResult<DefinitionHub[]>> {
+  try {
+    const cachedGetHubs = unstable_cache(
+      () => definitionsRepo.getTopDefinitions(state, limit, titleFilter),
+      [`definition-hubs-${state}-${limit}-${titleFilter ?? 'all'}`],
+      { revalidate: 300, tags: ['definitions-analytics'] }
+    );
+    const hubs = await cachedGetHubs();
+    return success(hubs);
+  } catch (error) {
+    console.error('[getTopDefinitions]', error);
+    return failure(getErrorMessage(error));
+  }
+}
+
+/**
+ * Get scope level flow matrix for chord diagram visualization.
+ * Shows how definitions flow between scope levels.
+ * Cached for 5 minutes to reduce database load.
+ * @param state - StateCode ('NY' or 'NJ')
+ */
+export async function getScopeLevelFlows(
+  state: StateCode
+): Promise<ActionResult<ScopeLevelFlow[]>> {
+  try {
+    const cachedGetFlows = unstable_cache(
+      () => definitionsRepo.getScopeLevelFlows(state),
+      [`definition-scope-flows-${state}`],
+      { revalidate: 300, tags: ['definitions-analytics'] }
+    );
+    const flows = await cachedGetFlows();
+    return success(flows);
+  } catch (error) {
+    console.error('[getScopeLevelFlows]', error);
+    return failure(getErrorMessage(error));
+  }
+}
+
+/**
+ * Get definition hierarchy data for edge bundling visualization.
+ * Builds a tree of titles → chapters → parts → sections with definitions at leaves.
+ * Cached for 5 minutes to reduce database load.
+ * @param state - StateCode ('NY' or 'NJ')
+ */
+export async function getDefinitionHierarchy(
+  state: StateCode
+): Promise<ActionResult<DefinitionHierarchyNode>> {
+  try {
+    const cachedGetHierarchy = unstable_cache(
+      () => definitionsRepo.getDefinitionHierarchy(state),
+      [`definition-hierarchy-${state}`],
+      { revalidate: 300, tags: ['definitions-analytics'] }
+    );
+    const hierarchy = await cachedGetHierarchy();
+    return success(hierarchy);
+  } catch (error) {
+    console.error('[getDefinitionHierarchy]', error);
+    return failure(getErrorMessage(error));
+  }
+}
+
+/**
+ * Get available title numbers for definition filtering dropdown.
+ * Efficient query that only fetches distinct titles.
+ * Cached for 5 minutes to reduce database load.
+ * @param state - StateCode ('NY' or 'NJ')
+ */
+export async function getAvailableTitles(
+  state: StateCode
+): Promise<ActionResult<string[]>> {
+  try {
+    const cachedGetTitles = unstable_cache(
+      () => definitionsRepo.getAvailableTitles(state),
+      [`definition-available-titles-${state}`],
+      { revalidate: 300, tags: ['definitions-analytics'] }
+    );
+    const titles = await cachedGetTitles();
+    return success(titles);
+  } catch (error) {
+    console.error('[getAvailableTitles]', error);
     return failure(getErrorMessage(error));
   }
 }

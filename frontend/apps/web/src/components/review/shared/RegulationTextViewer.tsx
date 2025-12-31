@@ -2,11 +2,21 @@
 
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { Input } from '@/components/ui/Input';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
+import { getDefinitionsWithContext } from '@/lib/actions/definitions';
+import { getCrossReferencesForHighlighting } from '@/lib/actions/cross-references';
+import { useTermHighlighting, useCrossRefHighlighting, type TermMatch, type CrossRefMatch } from '@/hooks';
+import { DefinitionPopover } from '@/components/definitions';
+import { CrossRefPopover } from '@/components/cross-references';
+import type { ApplicableDefinition, HighlightRef } from '@deproceduralizer/database';
 
 interface RegulationTextViewerProps {
   /** Full regulation content */
   content: string;
+  /** Document ID for fetching definitions and cross-references */
+  documentId: number;
+  /** State code for links (e.g., 'nj', 'ny') */
+  state: string;
   /** Text to auto-scroll to on open (e.g., matched requirement text) */
   scrollToText?: string | null;
   /** Regex pattern to highlight (only the match, not context) */
@@ -23,12 +33,27 @@ interface RegulationTextViewerProps {
   defaultExpanded?: boolean;
 }
 
+/** State for the selected term popover */
+interface SelectedTermState {
+  termMatch: TermMatch;
+  rect: DOMRect;
+}
+
+/** State for the selected cross-ref popover */
+interface SelectedCrossRefState {
+  crossRef: CrossRefMatch;
+  rect: DOMRect;
+}
+
 /**
  * Displays full regulation text in a collapsible, searchable container.
- * Highlights regex match patterns and auto-scrolls to verbatim quotes.
+ * Highlights regex match patterns, definitions, cross-references,
+ * and auto-scrolls to verbatim quotes.
  */
 export function RegulationTextViewer({
   content,
+  documentId,
+  state,
   scrollToText,
   highlightPattern,
   isVerbatim = false,
@@ -44,6 +69,74 @@ export function RegulationTextViewer({
   const contentRef = useRef<HTMLDivElement>(null);
   const matchRefs = useRef<(HTMLSpanElement | null)[]>([]);
   const targetTextRef = useRef<HTMLSpanElement | null>(null);
+
+  // Lazy loading state for definitions and cross-references
+  const [definitions, setDefinitions] = useState<ApplicableDefinition[] | null>(null);
+  const [crossRefs, setCrossRefs] = useState<HighlightRef[] | null>(null);
+  const [isLoadingHighlights, setIsLoadingHighlights] = useState(false);
+  const [highlightsLoaded, setHighlightsLoaded] = useState(false);
+
+  // Popover states
+  const [selectedTerm, setSelectedTerm] = useState<SelectedTermState | null>(null);
+  const [selectedCrossRef, setSelectedCrossRef] = useState<SelectedCrossRefState | null>(null);
+
+  // Lazy load definitions and cross-references when expanded
+  useEffect(() => {
+    if (isExpanded && !highlightsLoaded && !isLoadingHighlights) {
+      setIsLoadingHighlights(true);
+      Promise.all([
+        getDefinitionsWithContext(documentId),
+        getCrossReferencesForHighlighting(documentId),
+      ]).then(([defResult, crossRefResult]) => {
+        if (defResult.success && defResult.data) {
+          // Combine definedHere and inherited definitions
+          const usedInText = defResult.data.usedInText ?? { definedHere: [], inherited: [] };
+          const combined = [...(usedInText.definedHere ?? []), ...(usedInText.inherited ?? [])];
+          setDefinitions(combined);
+        }
+        if (crossRefResult.success) {
+          setCrossRefs(crossRefResult.data);
+        }
+        setIsLoadingHighlights(false);
+        setHighlightsLoaded(true);
+      }).catch(() => {
+        setIsLoadingHighlights(false);
+        setHighlightsLoaded(true);
+      });
+    }
+  }, [isExpanded, documentId, highlightsLoaded, isLoadingHighlights]);
+
+  // Use highlighting hooks
+  const termMatches = useTermHighlighting(content, definitions ?? undefined);
+  const crossRefMatches = useCrossRefHighlighting(crossRefs ?? undefined);
+
+  // Handle term click - show definition popover
+  const handleTermClick = useCallback((e: React.MouseEvent, termMatch: TermMatch) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const target = e.currentTarget as HTMLElement;
+    const rect = target.getBoundingClientRect();
+    setSelectedTerm({ termMatch, rect });
+  }, []);
+
+  // Close term popover
+  const handleCloseTermPopover = useCallback(() => {
+    setSelectedTerm(null);
+  }, []);
+
+  // Handle cross-ref click - show cross-ref popover
+  const handleCrossRefClick = useCallback((e: React.MouseEvent, crossRef: CrossRefMatch) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const target = e.currentTarget as HTMLElement;
+    const rect = target.getBoundingClientRect();
+    setSelectedCrossRef({ crossRef, rect });
+  }, []);
+
+  // Close cross-ref popover
+  const handleCloseCrossRefPopover = useCallback(() => {
+    setSelectedCrossRef(null);
+  }, []);
 
   // Find all search matches
   const searchMatches = useMemo(() => {
@@ -159,6 +252,7 @@ export function RegulationTextViewer({
   }, [goToNextMatch, goToPrevMatch]);
 
   // Render content with highlights
+  // Priority: search > crossref > term > pattern > scrollTo
   const highlightedContent = useMemo(() => {
     if (!content) return null;
 
@@ -166,36 +260,69 @@ export function RegulationTextViewer({
     type HighlightRegion = {
       start: number;
       end: number;
-      type: 'search' | 'pattern' | 'scrollTo';
+      type: 'search' | 'crossref' | 'term' | 'pattern' | 'scrollTo';
       isCurrentSearch?: boolean;
+      data?: TermMatch | CrossRefMatch;
     };
 
     const regions: HighlightRegion[] = [];
 
-    // Add search matches
-    searchMatches.forEach((match, idx) => {
-      regions.push({
-        ...match,
-        type: 'search',
-        isCurrentSearch: idx === currentMatchIndex,
+    // Add search matches (highest priority when active)
+    if (searchQuery.trim()) {
+      searchMatches.forEach((match, idx) => {
+        regions.push({
+          ...match,
+          type: 'search',
+          isCurrentSearch: idx === currentMatchIndex,
+        });
       });
-    });
+    } else {
+      // Only show other highlights when not searching
+      // Add cross-ref matches (high priority)
+      crossRefMatches.forEach((crossRef) => {
+        regions.push({
+          start: crossRef.startOffset,
+          end: crossRef.endOffset,
+          type: 'crossref',
+          data: crossRef,
+        });
+      });
 
-    // Add pattern matches (only if no search query)
-    if (!searchQuery.trim()) {
+      // Add term matches (filtered to avoid overlap with cross-refs)
+      termMatches.forEach((term) => {
+        const overlapsWithCrossRef = crossRefMatches.some(
+          (cr) => !(term.endOffset <= cr.startOffset || term.startOffset >= cr.endOffset)
+        );
+        if (!overlapsWithCrossRef) {
+          regions.push({
+            start: term.startOffset,
+            end: term.endOffset,
+            type: 'term',
+            data: term,
+          });
+        }
+      });
+
+      // Add pattern matches
       patternMatches.forEach((match) => {
         regions.push({ ...match, type: 'pattern' });
       });
-    }
 
-    // Add scrollTo text highlight (only if no search query and isVerbatim)
-    if (!searchQuery.trim() && isVerbatim && scrollToPosition) {
-      // Check if this overlaps with pattern matches
-      const overlapsPattern = patternMatches.some(
-        (p) => !(scrollToPosition.end <= p.start || scrollToPosition.start >= p.end)
-      );
-      if (!overlapsPattern) {
-        regions.push({ ...scrollToPosition, type: 'scrollTo' });
+      // Add scrollTo text highlight (only if isVerbatim)
+      if (isVerbatim && scrollToPosition) {
+        // Check if this overlaps with other highlights
+        const overlapsOther = [...crossRefMatches, ...termMatches].some(
+          (m) => {
+            const mStart = 'startOffset' in m ? m.startOffset : 0;
+            const mEnd = 'endOffset' in m ? m.endOffset : 0;
+            return !(scrollToPosition.end <= mStart || scrollToPosition.start >= mEnd);
+          }
+        ) || patternMatches.some(
+          (p) => !(scrollToPosition.end <= p.start || scrollToPosition.start >= p.end)
+        );
+        if (!overlapsOther) {
+          regions.push({ ...scrollToPosition, type: 'scrollTo' });
+        }
       }
     }
 
@@ -216,9 +343,10 @@ export function RegulationTextViewer({
         parts.push(content.substring(lastEnd, region.start));
       }
 
-      // Determine styling based on type
+      // Determine styling and handlers based on type
       let className = '';
       let refCallback: ((el: HTMLSpanElement | null) => void) | undefined;
+      let onClick: ((e: React.MouseEvent) => void) | undefined;
 
       if (region.type === 'search') {
         className = region.isCurrentSearch
@@ -226,6 +354,12 @@ export function RegulationTextViewer({
           : 'bg-yellow-200 text-[var(--color-text)] rounded px-0.5';
         const currentIdx = searchMatchIdx++;
         refCallback = (el) => { matchRefs.current[currentIdx] = el; };
+      } else if (region.type === 'crossref') {
+        className = 'crossref-highlight cursor-pointer';
+        onClick = (e) => handleCrossRefClick(e, region.data as CrossRefMatch);
+      } else if (region.type === 'term') {
+        className = 'term-highlight cursor-pointer';
+        onClick = (e) => handleTermClick(e, region.data as TermMatch);
       } else if (region.type === 'pattern') {
         className = 'bg-[var(--color-warning-bg)] text-[var(--color-text)] font-medium rounded px-0.5';
       } else if (region.type === 'scrollTo') {
@@ -234,7 +368,20 @@ export function RegulationTextViewer({
       }
 
       parts.push(
-        <span key={`region-${idx}`} ref={refCallback} className={className}>
+        <span
+          key={`region-${idx}`}
+          ref={refCallback}
+          className={className}
+          onClick={onClick}
+          role={onClick ? 'button' : undefined}
+          tabIndex={onClick ? 0 : undefined}
+          onKeyDown={onClick ? (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              onClick?.(e as unknown as React.MouseEvent);
+            }
+          } : undefined}
+        >
           {content.substring(region.start, region.end)}
         </span>
       );
@@ -248,7 +395,12 @@ export function RegulationTextViewer({
     }
 
     return parts;
-  }, [content, searchMatches, patternMatches, scrollToPosition, currentMatchIndex, searchQuery, isVerbatim]);
+  }, [
+    content, searchQuery, searchMatches, currentMatchIndex,
+    crossRefMatches, termMatches, patternMatches,
+    scrollToPosition, isVerbatim,
+    handleCrossRefClick, handleTermClick,
+  ]);
 
   const handleToggle = () => {
     setIsExpanded(!isExpanded);
@@ -274,6 +426,9 @@ export function RegulationTextViewer({
           <ChevronRight className="w-4 h-4" />
         )}
         {label}
+        {isLoadingHighlights && (
+          <Loader2 className="w-3 h-3 ml-1 animate-spin text-[var(--color-text-muted)]" />
+        )}
       </button>
 
       {/* Expanded Content */}
@@ -352,6 +507,28 @@ export function RegulationTextViewer({
             {highlightedContent}
           </div>
         </div>
+      )}
+
+      {/* Definition Popover */}
+      {selectedTerm && (
+        <DefinitionPopover
+          definition={selectedTerm.termMatch.definition}
+          term={selectedTerm.termMatch.term}
+          anchorRect={selectedTerm.rect}
+          onClose={handleCloseTermPopover}
+          state={state}
+          currentDocumentId={documentId}
+        />
+      )}
+
+      {/* Cross-Reference Popover */}
+      {selectedCrossRef && (
+        <CrossRefPopover
+          crossRef={selectedCrossRef.crossRef}
+          anchorRect={selectedCrossRef.rect}
+          onClose={handleCloseCrossRefPopover}
+          state={state}
+        />
       )}
     </div>
   );

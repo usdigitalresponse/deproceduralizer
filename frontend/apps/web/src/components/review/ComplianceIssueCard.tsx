@@ -246,6 +246,8 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
         {issue.regulation.content && (
           <RegulationTextViewer
             content={issue.regulation.content}
+            documentId={issue.regulation.id}
+            state={stateCode}
             scrollToText={issue.requirementText}
             highlightPattern={issue.matchedPattern}
             isVerbatim={issue.isVerbatim ?? false}
