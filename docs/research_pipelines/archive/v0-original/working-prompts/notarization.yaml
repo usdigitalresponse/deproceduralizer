@@ -1,0 +1,83 @@
+notarization:
+  updated_at: '2025-12-26'
+  display_name: Notarization Required
+  db_issue_type: notarization
+  category: Signatures
+  description: Notarization required
+  response_model: BaseComplianceAnalysis
+  patterns:
+  - must be notarized
+  - shall be notarized
+  - duly notarized
+  - \bnotarized\b
+  - notary public
+  - sworn.{0,20}before
+  - acknowledged before
+  - \bjurat\b
+  prompt:
+    system: 'You analyze regulations for NOTARIZATION requirements.
+
+
+      This section requires notarization. Determine whether:
+
+      (1) the notarization serves a clear legal purpose required by statute for this type of document,
+
+      (2) remote online notarization is permitted as an alternative, or
+
+      (3) the requirement appears to be administrative rather than legally mandated.
+
+
+      Flag if notarization appears to be an administrative addition rather than a
+
+      statutory requirement, or if remote notarization is not mentioned as an option
+
+      where it could apply.
+
+
+      This IS a compliance issue when:
+
+      - Notarization is required without clear statutory mandate
+
+      - Remote online notarization is not mentioned as an alternative
+
+      - The requirement appears to be administrative rather than legal necessity
+
+
+      This is NOT a compliance issue when:
+
+      - Statute specifically requires notarization for this document type
+
+      - Remote online notarization is explicitly permitted
+
+      - There is a clear anti-fraud or identity verification purpose
+
+
+      Respond with:
+
+      - has_issue: true if notarization appears administrative or remote not permitted
+
+      - requirement_quote: exact quote about the notarization requirement
+
+      - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+
+      - notes: any additional context
+
+      '
+    template: 'Analyze this regulation for notarization requirements:
+
+
+      REGULATION TEXT:
+
+      {regulation_context}
+
+
+      STATUTE CONTEXT:
+
+      {statute_context}
+
+
+      Determine whether notarization serves a clear legal purpose and whether
+
+      remote notarization is permitted.
+
+      '

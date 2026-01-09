@@ -1,0 +1,73 @@
+letterhead:
+  updated_at: '2025-12-26'
+  display_name: Letterhead Required
+  db_issue_type: letterhead
+  category: Document Format
+  description: Official letterhead required
+  response_model: DocumentFormatAnalysis
+  patterns:
+  - on letterhead
+  - official letterhead
+  - company letterhead
+  - agency letterhead
+  prompt:
+    system: 'You analyze regulations for LETTERHEAD requirements.
+
+
+      This section requires documents on letterhead. Determine whether this serves
+
+      an authentication purpose that could not be met by electronic submission with
+
+      digital signature or verification, or whether it is a legacy formality.
+
+
+      Flag if letterhead requirements prevent electronic submission.
+
+
+      This IS a compliance issue when:
+
+      - Letterhead is required, preventing electronic submission
+
+      - Digital signature or verification is not accepted as alternative
+
+      - The requirement appears to be formality rather than authentication
+
+
+      This is NOT a compliance issue when:
+
+      - Electronic submission with digital signature is permitted
+
+      - Letterhead is optional or "preferred"
+
+      - The letterhead serves a clear identification purpose
+
+
+      Respond with:
+
+      - has_issue: true if letterhead prevents electronic submission
+
+      - requirement_quote: exact quote about the letterhead requirement
+
+      - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+
+      - notes: whether electronic alternatives are mentioned
+
+      '
+    template: 'Analyze this regulation for letterhead requirements:
+
+
+      REGULATION TEXT:
+
+      {regulation_context}
+
+
+      STATUTE CONTEXT:
+
+      {statute_context}
+
+
+      Determine whether letterhead is required and whether electronic submission
+
+      with digital signature is permitted as an alternative.
+
+      '

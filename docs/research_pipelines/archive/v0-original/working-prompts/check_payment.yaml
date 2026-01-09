@@ -1,0 +1,76 @@
+check_payment:
+  updated_at: '2025-12-26'
+  display_name: Check/Money Order Payment
+  db_issue_type: check_payment
+  category: Payment
+  description: Check or money order payment required
+  response_model: PaymentAnalysis
+  patterns:
+  - money order
+  - certified check
+  - cashier.{0,3}s? check
+  - personal check
+  - payable to
+  prompt:
+    system: 'You analyze regulations for CHECK/MONEY ORDER payment requirements.
+
+
+      This section references payment by check or money order. Determine whether this
+
+      is the ONLY permitted payment method, or whether credit card, debit card, ACH,
+
+      or online payment options are also available.
+
+
+      If modern electronic payment is equally permitted, this is a false positive.
+
+      Flag only if check/money order appears to be required or is the only option.
+
+
+      This IS a compliance issue when:
+
+      - Check or money order is the ONLY payment method mentioned
+
+      - Electronic payment methods are not offered as alternatives
+
+      - The language suggests check/money order is required
+
+
+      This is NOT a compliance issue when:
+
+      - Check is one option among several including electronic payment
+
+      - Credit card, debit, ACH, or online payment is also mentioned
+
+      - The regulation just provides payment address without mandating method
+
+
+      Respond with:
+
+      - has_issue: true if check/money order is required or only option
+
+      - requirement_quote: exact quote about the payment requirement
+
+      - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+
+      - notes: any additional context
+
+      '
+    template: 'Analyze this regulation for check/money order payment requirements:
+
+
+      REGULATION TEXT:
+
+      {regulation_context}
+
+
+      STATUTE CONTEXT:
+
+      {statute_context}
+
+
+      Determine whether check/money order is the ONLY payment method, or whether
+
+      electronic payment options are also available.
+
+      '

@@ -1,0 +1,83 @@
+mail_only:
+  updated_at: '2025-12-26'
+  display_name: Mail-Only Submission
+  db_issue_type: mail_only
+  category: Communication
+  description: Mail required with no electronic alternative
+  response_model: MailOnlyAnalysis
+  patterns:
+  - must be mailed
+  - shall be mailed
+  - send by mail
+  - submit.{0,20}by mail
+  - mail.{0,10}only
+  - u\.?s\.?\s*mail
+  - \busps\b
+  - first.{0,10}class.{0,10}mail
+  - postal.{0,10}service
+  - postmarked by
+  prompt:
+    system: 'You analyze regulations for MAIL-ONLY SUBMISSION requirements.
+
+
+      This section contains references to mailing documents. Determine whether mail
+
+      is the ONLY permitted submission method, or whether electronic/online submission
+
+      is also offered as an alternative.
+
+
+      If electronic submission is equally permitted, this is a false positive.
+
+      Only flag if mail appears to be required or is the only option mentioned.
+
+
+      This IS a compliance issue when:
+
+      - Mail is explicitly required as the ONLY submission method
+
+      - No electronic/online alternative is mentioned
+
+      - The regulation says things like "must be mailed", "submit by mail only"
+
+
+      This is NOT a compliance issue when:
+
+      - Mail is offered as ONE option among several (including electronic)
+
+      - The regulation mentions email, online portal, electronic submission as alternatives
+
+      - Mail is mentioned for context but not as a requirement
+
+
+      Respond with:
+
+      - has_issue: true if mail is the ONLY permitted method, false if electronic is available
+
+      - requirement_quote: exact quote about the mail requirement
+
+      - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+
+      - alternative_methods: other submission methods mentioned (if any)
+
+      - notes: any additional context
+
+      '
+    template: 'Analyze this regulation for mail-only submission requirements:
+
+
+      REGULATION TEXT:
+
+      {regulation_context}
+
+
+      STATUTE CONTEXT:
+
+      {statute_context}
+
+
+      Determine whether mail is the ONLY permitted submission method, or whether
+
+      electronic/online submission is also offered as an alternative.
+
+      '

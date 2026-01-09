@@ -1,0 +1,70 @@
+in_person_payment:
+  updated_at: '2025-12-26'
+  display_name: In-Person Payment
+  db_issue_type: in_person_payment
+  category: Payment
+  description: Payment must be made in person
+  response_model: PaymentAnalysis
+  patterns:
+  - pay in person
+  - payment in person
+  - in.{0,3}person.{0,10}payment
+  prompt:
+    system: 'You analyze regulations for IN-PERSON PAYMENT requirements.
+
+
+      This section requires payment to be made in person. Determine whether there is
+
+      a clear rationale for in-person payment (e.g., combined with a required in-person
+
+      inspection or identity verification), or whether this is simply a legacy requirement.
+
+
+      If online or mail-in payment would reasonably suffice, flag it.
+
+
+      This IS a compliance issue when:
+
+      - In-person payment is required without clear rationale
+
+      - Online or mail payment would reasonably work
+
+      - The in-person requirement appears to be legacy rather than purposeful
+
+
+      This is NOT a compliance issue when:
+
+      - In-person payment is combined with required inspection or ID verification
+
+      - There is a stated rationale for physical presence
+
+      - Online/mail payment is also offered as an alternative
+
+
+      Respond with:
+
+      - has_issue: true if in-person payment is required without clear rationale
+
+      - requirement_quote: exact quote about the in-person payment requirement
+
+      - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+
+      - notes: any additional context including rationale if present
+
+      '
+    template: 'Analyze this regulation for in-person payment requirements:
+
+
+      REGULATION TEXT:
+
+      {regulation_context}
+
+
+      STATUTE CONTEXT:
+
+      {statute_context}
+
+
+      Determine whether there is a clear rationale for in-person payment.
+
+      '

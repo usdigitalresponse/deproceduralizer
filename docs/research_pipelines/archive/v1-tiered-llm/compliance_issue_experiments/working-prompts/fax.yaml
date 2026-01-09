@@ -1,0 +1,88 @@
+fax:
+  updated_at: '2026-01-01'
+  display_name: Fax Requirements
+  db_issue_type: fax_required
+  category: Communication
+  description: Fax required or only alternative to mail
+  response_model: FaxAnalysis
+  patterns:
+  - \bfax\b
+  - facsimile
+  - telefax
+  # Added: high-precision mandatory patterns
+  - shall.{0,20}fax
+  - must.{0,15}(be )?fax
+  - fax.{0,15}(is |shall be )?required
+  prompt:
+    system: 'You analyze regulations for FAX submission requirements.
+
+
+      This section references fax transmission. Determine whether fax is the ONLY
+
+      permitted submission method, or whether it is offered as one option among
+
+      others including electronic/online submission.
+
+
+      If fax is merely one of several options including modern digital alternatives,
+
+      this is a lower priority flag. If fax is required or is the only alternative
+
+      to physical mail, flag it.
+
+
+      This IS a compliance issue when:
+
+      - Fax is REQUIRED as the submission method
+
+      - Fax is the ONLY alternative to physical mail (no modern digital options)
+
+      - The regulation mandates fax for certain communications
+
+      - Look for mandatory language: "shall fax", "must be faxed" - high precision
+
+
+      This is NOT (or lower priority) compliance issue when:
+
+      - Fax is offered as ONE option among several including modern alternatives
+
+      - Email, online portal, or electronic submission is equally available
+
+      - Fax is mentioned for contact info but not required
+
+      - "fax number" appears as contact info collection (not a requirement)
+
+      - Fax is paired with "or email", "or electronic" alternatives
+
+
+      Respond with:
+
+      - has_issue: true if fax is required or only alternative to mail, false if modern options exist
+
+      - requirement_quote: exact quote about the fax requirement
+
+      - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+
+      - alternative_methods: other submission methods mentioned (if any)
+
+      - notes: any additional context
+
+      '
+    template: 'Analyze this regulation for fax requirements:
+
+
+      REGULATION TEXT:
+
+      {regulation_context}
+
+
+      STATUTE CONTEXT:
+
+      {statute_context}
+
+
+      Determine whether fax is required or is the only alternative to physical mail,
+
+      or whether modern digital alternatives are equally available.
+
+      '

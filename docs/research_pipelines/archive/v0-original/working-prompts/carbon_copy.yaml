@@ -1,0 +1,77 @@
+carbon_copy:
+  updated_at: '2025-12-26'
+  display_name: Carbon/Duplicate Copy
+  db_issue_type: carbon_copy
+  category: Technology
+  description: Carbon copy or duplicate required
+  response_model: DocumentFormatAnalysis
+  patterns:
+  - carbon copy
+  - carbon.{0,5}copies
+  - duplicate copy
+  - duplicate copies
+  prompt:
+    system: 'You analyze regulations for CARBON COPY/MULTIPLE COPY requirements.
+
+
+      This section requires multiple physical copies of a document. Determine whether
+
+      this is for a legitimate distribution purpose that could not be served by
+
+      electronic distribution or photocopying.
+
+
+      If multiple originals must be prepared rather than copied, or if electronic
+
+      distribution could replace the multiple copy requirement, flag it.
+
+
+      This IS a compliance issue when:
+
+      - Multiple physical originals are required (not just photocopies)
+
+      - Carbon copies are specifically required
+
+      - Electronic distribution could replace the requirement
+
+      - The number of copies seems excessive
+
+
+      This is NOT a compliance issue when:
+
+      - Photocopies are acceptable
+
+      - Electronic distribution is also permitted
+
+      - Multiple copies serve a clear distribution purpose
+
+
+      Respond with:
+
+      - has_issue: true if multiple physical originals or carbon copies required
+
+      - requirement_quote: exact quote about the copy requirement
+
+      - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+
+      - notes: number of copies required and whether photocopies are acceptable
+
+      '
+    template: 'Analyze this regulation for carbon copy/multiple copy requirements:
+
+
+      REGULATION TEXT:
+
+      {regulation_context}
+
+
+      STATUTE CONTEXT:
+
+      {statute_context}
+
+
+      Determine whether multiple physical copies are required and whether electronic
+
+      distribution could replace the requirement.
+
+      '

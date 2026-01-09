@@ -1,0 +1,78 @@
+storage_location:
+  updated_at: '2025-12-26'
+  display_name: Specific Storage Location
+  db_issue_type: storage_location
+  category: Process
+  description: Records must be kept at specific location
+  response_model: BaseComplianceAnalysis
+  patterns:
+  - stored at
+  - maintained at
+  - kept at the premises
+  - kept on.{0,10}premises
+  - on.{0,3}site.{0,10}storage
+  - at the facility
+  - records.{0,10}kept
+  prompt:
+    system: 'You analyze regulations for SPECIFIC STORAGE LOCATION requirements.
+
+
+      This section requires records to be stored at a specific physical location.
+
+      Determine whether physical storage is necessary (e.g., physical samples) or
+
+      whether electronic storage with remote access would suffice.
+
+
+      Flag if physical location storage is required for records that could be
+
+      maintained electronically.
+
+
+      This IS a compliance issue when:
+
+      - Physical location storage is required for records
+
+      - Electronic storage would suffice
+
+      - Remote access is not permitted
+
+
+      This is NOT a compliance issue when:
+
+      - Physical samples must be stored (cannot be electronic)
+
+      - Electronic storage is also permitted
+
+      - On-site access is for convenience, not requirement
+
+
+      Respond with:
+
+      - has_issue: true if physical storage required without electronic alternative
+
+      - requirement_quote: exact quote about the storage requirement
+
+      - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+
+      - notes: what must be stored and whether electronic would work
+
+      '
+    template: 'Analyze this regulation for storage location requirements:
+
+
+      REGULATION TEXT:
+
+      {regulation_context}
+
+
+      STATUTE CONTEXT:
+
+      {statute_context}
+
+
+      Determine whether physical location storage is required or if electronic
+
+      storage with remote access would suffice.
+
+      '

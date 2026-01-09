@@ -1,0 +1,84 @@
+routing_slip:
+  updated_at: '2025-12-26'
+  display_name: Routing/Transmittal Slip
+  db_issue_type: routing_slip
+  category: Process
+  description: Routing or transmittal form required
+  response_model: BaseComplianceAnalysis
+  patterns:
+  - transmittal form
+  - transmittal sheet
+  - cover.{0,10}sheet
+  prompt:
+    system: 'You analyze regulations for ERRONEOUS PHYSICAL DOCUMENT requirements.
+
+
+      This section references physical tracking documents like routing slips,
+
+      transmittal forms, or cover sheets. Flag requirements that impose physical
+
+      paperwork without legitimate justification, where electronic workflow or
+
+      simple electronic submission would suffice.
+
+
+      Cover sheets, routing slips, and transmittal forms are often legacy process
+
+      requirements that add burden without improving outcomes. Electronic document
+
+      management systems can track routing, provide cover information in metadata,
+
+      and handle transmittal automatically.
+
+
+      This IS a compliance issue when:
+
+      - Physical cover sheets are required for document submission
+
+      - Routing slips or transmittal forms are mandated for internal workflow
+
+      - The requirement adds paperwork burden without clear legal or operational need
+
+      - Electronic alternatives would work but are not offered
+
+
+      This is NOT a compliance issue when:
+
+      - Electronic workflow or submission is available
+
+      - The physical form serves a clear legal purpose (e.g., chain of custody)
+
+      - Forms are for external parties who genuinely lack electronic access
+
+      - Routing/transmittal is optional
+
+
+      Respond with:
+
+      - has_issue: true if physical routing/cover documents required without legitimate justification
+
+      - requirement_quote: exact quote about the routing or cover sheet requirement
+
+      - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+
+      - notes: whether electronic alternatives are mentioned or if there''s a legitimate justification
+
+      '
+    template: 'Analyze this regulation for routing slip or cover sheet requirements:
+
+
+      REGULATION TEXT:
+
+      {regulation_context}
+
+
+      STATUTE CONTEXT:
+
+      {statute_context}
+
+
+      Determine whether the physical document requirement (routing slip, transmittal
+
+      form, cover sheet) has legitimate justification or is erroneous process burden.
+
+      '

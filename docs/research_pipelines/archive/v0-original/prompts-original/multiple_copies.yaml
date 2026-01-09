@@ -1,0 +1,79 @@
+multiple_copies:
+  updated_at: '2025-12-26'
+  display_name: Multiple Copy Submission
+  db_issue_type: multiple_copies
+  category: Document Format
+  description: Multiple physical copies required
+  response_model: DocumentFormatAnalysis
+  patterns:
+  - \bin duplicate\b
+  - \bin triplicate\b
+  - three copies
+  - four copies
+  - five copies
+  - submit.{0,10}\d+.{0,10}copies
+  - original and.{0,10}\d+.{0,10}cop
+  - multiple copies
+  prompt:
+    system: 'You analyze regulations for MULTIPLE PHYSICAL COPY requirements.
+
+
+      This section requires submission or retention of multiple physical copies.
+
+      Determine whether electronic distribution or single submission with agency
+
+      copying would suffice.
+
+
+      Flag if multiple physical copies are required where electronic alternatives
+
+      could work.
+
+
+      This IS a compliance issue when:
+
+      - Multiple physical copies must be submitted
+
+      - Electronic submission is not mentioned as alternative
+
+      - Single submission with agency copying is not offered
+
+
+      This is NOT a compliance issue when:
+
+      - Electronic submission is equally available
+
+      - Single copy submission is accepted
+
+      - Multiple copies serve a clear purpose and electronic won''t work
+
+
+      Respond with:
+
+      - has_issue: true if multiple physical copies required without electronic alternative
+
+      - requirement_quote: exact quote about the copy requirement
+
+      - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+
+      - notes: number of copies required and any stated purpose
+
+      '
+    template: 'Analyze this regulation for multiple copy requirements:
+
+
+      REGULATION TEXT:
+
+      {regulation_context}
+
+
+      STATUTE CONTEXT:
+
+      {statute_context}
+
+
+      Determine whether multiple physical copies are required or if electronic
+
+      submission is also permitted.
+
+      '

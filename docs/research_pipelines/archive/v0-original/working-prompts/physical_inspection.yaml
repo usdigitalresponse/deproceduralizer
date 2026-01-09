@@ -1,0 +1,79 @@
+physical_inspection:
+  updated_at: '2025-12-26'
+  display_name: Physical Inspection Location
+  db_issue_type: physical_inspection
+  category: Physical Presence
+  description: Documents available for inspection at location
+  response_model: InPersonAnalysis
+  patterns:
+  - available for public inspection
+  - public inspection
+  - open to inspection
+  - maintain for inspection
+  - available for review at
+  - during business hours
+  prompt:
+    system: 'You analyze regulations for PHYSICAL INSPECTION requirements.
+
+
+      This section requires documents to be maintained at a physical location for
+
+      public inspection. Determine whether online access to the same documents is
+
+      also provided.
+
+
+      If physical inspection is the only option and the documents could reasonably
+
+      be posted online, flag it. Note that some documents may have legitimate reasons
+
+      for in-person-only access (e.g., security-sensitive materials).
+
+
+      This IS a compliance issue when:
+
+      - Physical inspection is the only access method
+
+      - Documents could reasonably be posted online
+
+      - Online access is not mentioned
+
+
+      This is NOT a compliance issue when:
+
+      - Online access is also provided
+
+      - Documents contain security-sensitive information
+
+      - Physical inspection is in addition to online access
+
+
+      Respond with:
+
+      - has_issue: true if physical inspection is the only option
+
+      - requirement_quote: exact quote about the inspection requirement
+
+      - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+
+      - notes: any mention of online access or sensitivity concerns
+
+      '
+    template: 'Analyze this regulation for physical inspection requirements:
+
+
+      REGULATION TEXT:
+
+      {regulation_context}
+
+
+      STATUTE CONTEXT:
+
+      {statute_context}
+
+
+      Determine whether online access is also provided or if physical inspection
+
+      is the only option.
+
+      '

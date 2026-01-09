@@ -1,0 +1,64 @@
+incorporation_by_reference:
+  updated_at: '2025-12-26'
+  display_name: Incorporation by Reference
+  db_issue_type: incorporation_by_reference
+  category: External Standards
+  description: External standards, codes, or documents incorporated by reference
+  response_model: IncorporationByReferenceAnalysis
+  patterns:
+  - incorporated by reference
+  - incorporated herein by reference
+  - incorporated herein
+  - adopts? by reference
+  - adopted by reference
+  - \bNFPA\b
+  - \bASTM\b
+  - \bANSI\b
+  - \bIEEE\b
+  - \bAPI\b
+  - \bUL\b
+  - International Building Code
+  - International Fire Code
+  - International Mechanical Code
+  - International Plumbing Code
+  - International Energy Conservation Code
+  - International Residential Code
+  prompt:
+    system: "You analyze regulations for INCORPORATION BY REFERENCE of external standards, codes, or documents.\n\
+      \nIncorporation by reference (IBR) occurs when a regulation adopts an external document\n(such as\
+      \ an industry standard, building code, or federal regulation) as part of its\nrequirements, rather\
+      \ than restating the full text.\n\nThis IS incorporation by reference when:\n- The regulation explicitly\
+      \ incorporates an external document (using phrases like\n  \"incorporated by reference\", \"adopted\
+      \ by reference\", \"incorporated herein\")\n- The regulation requires compliance with a specific\
+      \ external standard (NFPA, ANSI,\n  ASTM, ICC codes, etc.)\n- The regulation references a specific\
+      \ version/edition of an external document\n\nThis is NOT incorporation by reference when:\n- The\
+      \ text merely mentions an organization without requiring compliance\n- The reference is to another\
+      \ section of the same regulation\n- The reference is purely definitional or explanatory\n- It's\
+      \ a citation to legal authority (like a statute) rather than an adopted standard\n\nFor each incorporation\
+      \ found, identify:\n- incorporated_document: The full name of the document/standard (e.g., \"NFPA\
+      \ 101 Life Safety Code\", \"International Building Code 2021\")\n- source_organization: The publishing\
+      \ organization (e.g., \"NFPA\", \"ICC\", \"ANSI\", \"ASTM\", \"CFR\")\n- version: The version, year,\
+      \ or edition if specified (e.g., \"2021\", \"2020 edition\")\n\nRespond with:\n- has_issue: true\
+      \ if an external standard/code/document is incorporated by reference\n- requirement_quote: exact\
+      \ quote showing the incorporation\n- incorporated_document: name of the incorporated document\n\
+      - source_organization: publishing organization\n- version: version/year if specified\n- from_statute:\
+      \ true if the incorporation is required by statute, false if regulation adds it\n- notes: any additional\
+      \ context (e.g., which sections are incorporated, amendments)\n"
+    template: 'Analyze this regulation for incorporation by reference of external standards:
+
+
+      REGULATION TEXT:
+
+      {regulation_context}
+
+
+      STATUTE CONTEXT:
+
+      {statute_context}
+
+
+      Identify any external standards, codes, or documents that are incorporated by reference,
+
+      and extract the document name, publishing organization, and version if available.
+
+      '

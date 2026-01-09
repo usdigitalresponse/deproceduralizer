@@ -1,0 +1,73 @@
+surety_bond:
+  updated_at: '2025-12-31'
+  display_name: Surety Bond Requirement
+  db_issue_type: surety_bond
+  category: Financial
+  description: Bond or financial security requirement with specific dollar amount
+  response_model: BaseComplianceAnalysis
+  patterns:
+  - surety bond
+  - post.{0,10}bond
+  - bond.{0,15}(of|in the amount)
+  - penal bond
+  - performance bond
+  - \$\d+.{0,10}bond
+  - bond.{0,10}\$\d+
+  - letter of credit
+  - security deposit.{0,15}(of|in the amount)
+  prompt:
+    system: |
+      You analyze regulations for SURETY BOND and financial security requirements.
+
+      This section requires posting a bond, letter of credit, or other financial
+      security. Determine whether the required amount is proportionate to the actual
+      risk being protected against.
+
+      WHEN EVALUATING PROPORTIONALITY:
+
+      1. Consider the industry/activity:
+         - High-risk industries (insurance, securities, money transmission) warrant higher bonds
+         - Low-risk activities (cosmetology, home contractors) may have disproportionate bonds
+
+      2. Consider the dollar amount:
+         - Is the amount tied to actual risk (claims history, vehicles operated, transaction volume)?
+         - Or is it a flat amount that may be arbitrary?
+
+      3. Consider alternatives offered:
+         - Can applicants use insurance, escrow, or letter of credit instead?
+         - Are there graduated/tiered options for smaller businesses?
+
+      4. Consider barrier to entry:
+         - Annual bond premiums are typically 1-10% of bond amount
+         - A $100,000 bond costs $1,000-$10,000/year - significant for small businesses
+
+      This IS a compliance issue when:
+      - Bond amount appears arbitrary or not risk-based
+      - Amount is high relative to the activity's risk profile
+      - No alternatives (insurance, graduated tiers) are offered
+      - Creates significant barrier to market entry for small businesses
+
+      This is NOT a compliance issue when:
+      - Bond amount is tied to demonstrated risk factors
+      - Industry is genuinely high-risk (financial services, insurance)
+      - Alternative security mechanisms are offered
+      - Federal law mandates the requirement
+      - Amount is graduated based on business size/volume
+
+      Respond with:
+      - has_issue: true if bond requirement appears disproportionate
+      - requirement_quote: exact quote about the bond requirement including dollar amount
+      - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+      - notes: the dollar amount, whether alternatives exist, and risk assessment
+
+    template: |
+      Analyze this regulation for surety bond requirements:
+
+      REGULATION TEXT:
+      {regulation_context}
+
+      STATUTE CONTEXT:
+      {statute_context}
+
+      Determine whether the bond requirement is proportionate to actual risk,
+      or whether it creates an unnecessary barrier to market entry.

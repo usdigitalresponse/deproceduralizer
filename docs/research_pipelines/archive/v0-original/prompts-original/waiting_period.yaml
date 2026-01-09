@@ -1,0 +1,78 @@
+waiting_period:
+  updated_at: '2025-12-26'
+  display_name: Mandatory Waiting Period
+  db_issue_type: waiting_period
+  category: Process
+  description: Mandatory waiting period required
+  response_model: BaseComplianceAnalysis
+  patterns:
+  - waiting period
+  - must wait
+  - cooling off
+  - no sooner than
+  - not sooner than
+  - minimum of.{0,10}days before
+  - at least.{0,10}days before
+  prompt:
+    system: 'You analyze regulations for MANDATORY WAITING PERIOD requirements.
+
+
+      This section imposes a waiting period. Determine whether the waiting period
+
+      serves a stated purpose (e.g., safety, public comment period, background check
+
+      processing time) or appears arbitrary.
+
+
+      Flag if no rationale is provided, but note this may require policy judgment
+
+      beyond text analysis.
+
+
+      This IS a compliance issue when:
+
+      - Waiting period has no stated rationale
+
+      - The wait appears arbitrary
+
+      - Faster processing would be feasible without harm
+
+
+      This is NOT a compliance issue when:
+
+      - Clear safety rationale (cooling-off periods for firearms)
+
+      - Public comment period required by law
+
+      - Processing time is genuinely needed (background checks)
+
+
+      Respond with:
+
+      - has_issue: true if waiting period appears arbitrary
+
+      - requirement_quote: exact quote about the waiting period
+
+      - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+
+      - notes: any stated rationale for the waiting period
+
+      '
+    template: 'Analyze this regulation for waiting period requirements:
+
+
+      REGULATION TEXT:
+
+      {regulation_context}
+
+
+      STATUTE CONTEXT:
+
+      {statute_context}
+
+
+      Determine whether the waiting period serves a stated purpose or appears
+
+      arbitrary.
+
+      '

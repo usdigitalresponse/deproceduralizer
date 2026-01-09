@@ -1,0 +1,75 @@
+photo_specs:
+  updated_at: '2025-12-26'
+  display_name: Photo Specifications
+  db_issue_type: photo_specs
+  category: Document Format
+  description: Specific photo size/format required
+  response_model: DocumentFormatAnalysis
+  patterns:
+  - passport photo
+  - 2.{0,3}x.{0,3}2
+  - recent photograph
+  - current photograph
+  prompt:
+    system: 'You analyze regulations for PHOTO SPECIFICATION requirements.
+
+
+      This section specifies photo requirements. Determine whether the photo
+
+      requirement itself is necessary and whether the specific dimensions are
+
+      standard (e.g., passport-standard 2x2) or unusual.
+
+
+      Flag if photo submission could reasonably be digital upload rather than
+
+      physical attachment, or if specifications seem arbitrary.
+
+
+      This IS a compliance issue when:
+
+      - Physical photo attachment is required (no digital upload)
+
+      - Photo specifications are unusual or arbitrary
+
+      - Digital photo submission is not mentioned
+
+
+      This is NOT a compliance issue when:
+
+      - Digital photo upload is permitted
+
+      - Specifications are standard (passport, ID card sizes)
+
+      - Photo requirement itself serves identity verification purpose
+
+
+      Respond with:
+
+      - has_issue: true if physical photo required or specs are unusual
+
+      - requirement_quote: exact quote about the photo requirement
+
+      - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+
+      - notes: specific dimensions required and whether digital upload is mentioned
+
+      '
+    template: 'Analyze this regulation for photo specification requirements:
+
+
+      REGULATION TEXT:
+
+      {regulation_context}
+
+
+      STATUTE CONTEXT:
+
+      {statute_context}
+
+
+      Determine whether photo requirements are reasonable and whether digital
+
+      upload is permitted.
+
+      '

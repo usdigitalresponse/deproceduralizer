@@ -1,0 +1,76 @@
+in_person_submission:
+  updated_at: '2025-12-26'
+  display_name: In-Person Submission
+  db_issue_type: in_person_submission
+  category: Physical Presence
+  description: Physical presence required for submission
+  response_model: InPersonAnalysis
+  patterns:
+  - submit.{0,10}in person
+  - appear in person
+  - in.{0,3}person.{0,10}submission
+  - personal appearance
+  - hand.{0,3}deliver
+  prompt:
+    system: 'You analyze regulations for IN-PERSON SUBMISSION requirements.
+
+
+      This section requires in-person appearance or submission. Determine whether
+
+      there is a clear rationale for physical presence (e.g., identity verification
+
+      via photo ID, physical inspection, fingerprinting, oath administration).
+
+
+      If the in-person requirement appears to be for document submission that could
+
+      be handled by mail or electronically, flag it. If there is a legitimate identity
+
+      verification or inspection purpose, note that as context but still flag for
+
+      review of whether remote alternatives exist.
+
+
+      This IS a compliance issue when:
+
+      - In-person is required for document submission that could be mailed/electronic
+
+      - No clear rationale for physical presence
+
+      - Remote alternatives are not mentioned
+
+
+      This is NOT a compliance issue when:
+
+      - Physical presence is genuinely necessary (fingerprinting, physical sample)
+
+      - In-person is one option among several including mail/electronic
+
+
+      Respond with:
+
+      - has_issue: true if in-person appears required without clear rationale
+
+      - requirement_quote: exact quote about the in-person requirement
+
+      - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+
+      - notes: any stated rationale for in-person requirement
+
+      '
+    template: 'Analyze this regulation for in-person submission requirements:
+
+
+      REGULATION TEXT:
+
+      {regulation_context}
+
+
+      STATUTE CONTEXT:
+
+      {statute_context}
+
+
+      Determine whether there is a clear rationale for requiring physical presence.
+
+      '

@@ -1,0 +1,77 @@
+embossed_seal:
+  updated_at: '2025-12-26'
+  display_name: Embossed Seal/Stamp
+  db_issue_type: embossed_seal
+  category: Signatures
+  description: Embossed or official seal required
+  response_model: BaseComplianceAnalysis
+  patterns:
+  - embossed seal
+  - raised seal
+  - impressed seal
+  - corporate seal
+  - official seal
+  - seal.{0,5}affixed
+  prompt:
+    system: 'You analyze regulations for PHYSICAL SEAL/STAMP requirements.
+
+
+      This section requires a physical seal or stamp. Determine whether this is
+
+      required by statute or whether a digital seal, electronic certification,
+
+      or no seal at all would suffice.
+
+
+      Flag if the physical seal requirement appears to be administrative rather
+
+      than legally mandated.
+
+
+      This IS a compliance issue when:
+
+      - Physical seal is required without statutory mandate
+
+      - Digital seal or electronic certification would suffice
+
+      - The requirement appears to be formality rather than necessity
+
+
+      This is NOT a compliance issue when:
+
+      - Statute specifically requires physical seal for this document type
+
+      - The seal serves a clear authentication purpose
+
+      - Digital alternatives are explicitly permitted
+
+
+      Respond with:
+
+      - has_issue: true if physical seal appears administrative or unnecessary
+
+      - requirement_quote: exact quote about the seal requirement
+
+      - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+
+      - notes: any additional context
+
+      '
+    template: 'Analyze this regulation for embossed seal/stamp requirements:
+
+
+      REGULATION TEXT:
+
+      {regulation_context}
+
+
+      STATUTE CONTEXT:
+
+      {statute_context}
+
+
+      Determine whether the physical seal requirement is legally mandated or
+
+      could be replaced by digital certification.
+
+      '

@@ -1,0 +1,79 @@
+handwriting_specs:
+  updated_at: '2025-12-26'
+  display_name: Handwriting Specifications
+  db_issue_type: handwriting_specs
+  category: Document Format
+  description: Specific handwriting requirements
+  response_model: DocumentFormatAnalysis
+  patterns:
+  - block letters
+  - print clearly
+  - print in ink
+  - hand-printed
+  - hand printed
+  - indelib
+  prompt:
+    system: 'You analyze regulations for HANDWRITING SPECIFICATION requirements.
+
+
+      This section specifies handwriting or writing instrument requirements. Flag
+
+      regulations that impose very specific requirements without modern alternatives,
+
+      such as requiring indelible ink, indelible pencil, or specific pen types.
+
+
+      These requirements are outdated because modern electronic submission, typed
+
+      forms, and computer-printed documents have replaced handwritten submissions.
+
+
+      This IS a compliance issue when:
+
+      - Indelible ink or indelible pencil is required (outdated technology)
+
+      - Specific writing instruments are mandated (e.g., "ballpoint pen only")
+
+      - Block letters or specific handwriting styles are required without electronic option
+
+      - The regulation assumes paper/pen completion with no electronic alternative
+
+
+      This is NOT a compliance issue when:
+
+      - Electronic form submission is available as an alternative
+
+      - Requirements are just for legibility on optional paper backup forms
+
+      - The context is for signatures only (not entire form completion)
+
+
+      Respond with:
+
+      - has_issue: true if specific handwriting/ink requirements exist without electronic alternative
+
+      - requirement_quote: exact quote about the handwriting or ink requirement
+
+      - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+
+      - notes: whether electronic form submission is mentioned as an alternative
+
+      '
+    template: 'Analyze this regulation for handwriting specification requirements:
+
+
+      REGULATION TEXT:
+
+      {regulation_context}
+
+
+      STATUTE CONTEXT:
+
+      {statute_context}
+
+
+      Determine whether the regulation imposes specific handwriting or ink requirements
+
+      (like indelible ink) without offering electronic alternatives.
+
+      '

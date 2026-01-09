@@ -1,0 +1,89 @@
+# Mandated Reports Issue Configuration
+# V4-compatible format for research_pipeline.yaml
+mandated_reports:
+  updated_at: '2026-01-01'
+  display_name: Mandated Reports
+  db_issue_type: mandated_reports
+  category: Reporting
+
+  # Maps to {issue_description} in tier prompts
+  description: |
+    Government entities are mandated to produce reports. While some reporting
+    serves accountability and transparency, many reports are never read, duplicative,
+    or could be replaced by dashboards or existing data publications.
+
+  # Maps to {positive_indicators} - signals this IS a compliance issue
+  positive_indicators:
+    - 'Report mandated without clear audience or purpose'
+    - 'Frequency seems excessive (monthly, weekly)'
+    - 'Reporting appears not commensurate with the need of reporting'
+    - 'Other more meaningful ways of obtaining the information exist or could easily be implemented'
+    - 'Report duplicates information available elsewhere'
+    - 'High staff burden for production'
+    - 'No evidence report is used or read'
+
+  # Maps to {negative_indicators} - signals this is NOT a compliance issue
+  negative_indicators:
+    - 'Clear accountability purpose (annual financial audit) with limited redundancy'
+    - 'Report required by federal law/grant'
+    - 'Performance metrics with clear use well-scoped to the use case'
+    - 'Public transparency requirement that appears proportionate to the work required'
+
+  # Severity scoring
+  severity_baseline: 4
+  severity_modifiers:
+    increases:
+      - '+3: Monthly or more frequent reporting'
+      - '+2: Detailed/complex report format'
+      - '+1: No clear audience identified'
+    decreases:
+      - '-2: Clear statutory necessity'
+      - '-1: Annual or less frequent'
+      - '-1: Simple format/metrics'
+
+  # Regex patterns for candidate detection
+  patterns:
+    - annual report
+    - quarterly report
+    - submit a report
+    - file a report
+    - reporting requirements
+    - report to the
+    - statistical report
+    - publish a report
+
+  # Database statistics
+  statistics:
+    total_matches: 3023
+    true_positives: 2638
+    true_positive_rate: 87.26
+    sample_date: '2026-01-01'
+
+  # Real examples for few-shot learning
+  examples:
+    true_positives:
+      - citation: "N.J.A.C. 7:26-5.3"
+        quote: "quarterly statistical report on waste volumes"
+        reasoning: "Quarterly reporting burden. Could be annual or dashboard."
+        classification: burdensome
+        severity: 5
+
+      - citation: "N.J.A.C. 8:43G-2.1"
+        quote: "annual report to the Commissioner containing..."
+        reasoning: "Standard annual reporting requirement."
+        classification: burdensome
+        severity: 4
+
+    false_positives:
+      - citation: "N.J.A.C. 17:12-3.1"
+        quote: "annual audit report as required by OMB"
+        reasoning: "Federal requirement for financial accountability."
+        classification: justified
+        severity: 2
+
+    justified:
+      - citation: "N.J.A.C. 52:15-1"
+        quote: "annual report to Legislature on program outcomes"
+        reasoning: "Legislative accountability. Clear purpose."
+        classification: justified
+        severity: 2

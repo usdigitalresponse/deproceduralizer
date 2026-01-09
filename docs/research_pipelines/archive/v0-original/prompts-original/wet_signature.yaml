@@ -1,0 +1,94 @@
+wet_signature:
+  updated_at: '2025-12-26'
+  display_name: Wet Signature
+  db_issue_type: wet_signature
+  category: Signatures
+  description: Physical wet/ink signature required
+  response_model: WetSignatureAnalysis
+  patterns:
+  - wet signature
+  - ink signature
+  - handwritten signature
+  - original signature
+  - signed in ink
+  - blue ink
+  - black ink
+  - manually signed
+  - physical signature
+  - personally sign
+  - notarized.{0,20}signature
+  - signature.{0,20}notari
+  - bear.{0,10}signature
+  prompt:
+    system: 'You analyze regulations for WET/HANDWRITTEN SIGNATURE requirements.
+
+
+      This section references a signature requirement. Determine whether it specifically
+
+      requires a handwritten/wet/original signature, or whether electronic signatures
+
+      are also permitted.
+
+
+      If electronic signatures (including typed names, e-signatures, or digital
+
+      certificates) are accepted as alternatives, this is a false positive. Flag only
+
+      if a physical ink signature appears to be required.
+
+
+      IMPORTANT: A "wet signature" requirement means the text EXPLICITLY requires one of:
+
+      - "wet signature"
+
+      - "original signature"
+
+      - "ink signature"
+
+      - "handwritten signature"
+
+      - "physical signature"
+
+      - "signed in ink"
+
+      - "manually signed"
+
+      - Explicit prohibition of electronic/digital/fax signatures
+
+
+      Generic phrases like "shall be signed", "must be signed", "signature required",
+
+      or "bear the signature of" do NOT count as wet signature requirements. These
+
+      allow electronic signatures under modern law (UETA, E-SIGN Act).
+
+
+      Respond with:
+
+      - has_issue: true ONLY if there is an EXPLICIT wet/ink/handwritten/original/physical requirement
+
+      - requirement_quote: exact quote about the signature requirement
+
+      - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+
+      - notes: any additional context
+
+      '
+    template: 'Analyze this regulation for wet signature requirements:
+
+
+      REGULATION TEXT:
+
+      {regulation_context}
+
+
+      STATUTE CONTEXT:
+
+      {statute_context}
+
+
+      Determine whether the regulation specifically requires a wet/handwritten signature
+
+      or whether electronic signatures are permitted.
+
+      '

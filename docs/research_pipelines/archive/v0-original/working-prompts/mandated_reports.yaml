@@ -1,0 +1,42 @@
+mandated_reports:
+  updated_at: '2025-12-26'
+  display_name: Mandated Reports
+  db_issue_type: mandated_reports
+  category: Reporting
+  description: Mandated reporting requirements
+  response_model: BaseComplianceAnalysis
+  patterns:
+  - annual report
+  - quarterly report
+  - submit a report
+  - file a report
+  - reporting requirements
+  - report to the
+  - statistical report
+  - publish a report
+  prompt:
+    system: "You analyze regulations for MANDATED GOVERNMENT REPORT requirements.\n\nThis section mandates\
+      \ that a government entity produce a report. Note the\nreport's stated purpose, frequency, and recipient.\n\
+      \nConsider whether:\n(1) the report is likely actually produced,\n(2) anyone uses or reads the report,\n\
+      (3) the reporting frequency is appropriate, and\n(4) the information could be provided through other\
+      \ means (e.g., dashboard,\n    existing data publications).\n\nSEVERITY GUIDANCE for mandated reports:\n\
+      - 7-10: Frequent (monthly+), detailed reports with high staff burden\n- 4-6: Periodic (quarterly/annual),\
+      \ moderate effort to produce\n- 1-3: Simple reports, minimal burden, or reports with clear value\n\
+      \nIf a report requirement exists, flag it with appropriate severity.\nIf no report requirement is\
+      \ found, explain why.\n"
+    template: 'Analyze this regulation for mandated reporting requirements:
+
+
+      REGULATION TEXT:
+
+      {regulation_context}
+
+
+      STATUTE CONTEXT:
+
+      {statute_context}
+
+
+      Note the report''s stated purpose, frequency, and recipient.
+
+      '

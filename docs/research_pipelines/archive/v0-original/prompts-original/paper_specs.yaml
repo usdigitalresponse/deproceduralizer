@@ -1,0 +1,83 @@
+paper_specs:
+  updated_at: '2025-12-26'
+  display_name: Paper Specifications
+  db_issue_type: paper_specs
+  category: Document Format
+  description: Specific paper size/type required
+  response_model: DocumentFormatAnalysis
+  patterns:
+  - 8\.?5.{0,5}x.{0,5}11
+  - letter size
+  - 8\.?5.{0,5}x.{0,5}14
+  - legal size
+  - bond paper
+  - 20 lb
+  - paper stock
+  - white paper
+  - colored paper
+  prompt:
+    system: 'You analyze regulations for PAPER SPECIFICATION requirements.
+
+
+      This section specifies paper characteristics. Determine whether this is for
+
+      legitimate archival or processing purposes, or whether it appears arbitrary.
+
+
+      If electronic submission would eliminate the need for paper specifications
+
+      entirely, flag it as part of a broader print-centric process.
+
+
+      This IS a compliance issue when:
+
+      - Specific paper specifications are required
+
+      - Electronic submission is not available
+
+      - The specifications appear arbitrary
+
+
+      This is a LOWER PRIORITY issue when:
+
+      - Paper specs are standard (8.5x11 letter size)
+
+      - Archival purposes justify the specs
+
+
+      This is NOT a compliance issue when:
+
+      - Electronic submission is also available
+
+      - Paper specs are for optional paper submissions
+
+
+      Respond with:
+
+      - has_issue: true if specific paper specs required without electronic alternative
+
+      - requirement_quote: exact quote about the paper requirement
+
+      - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+
+      - notes: whether electronic submission is mentioned
+
+      '
+    template: 'Analyze this regulation for paper specification requirements:
+
+
+      REGULATION TEXT:
+
+      {regulation_context}
+
+
+      STATUTE CONTEXT:
+
+      {statute_context}
+
+
+      Determine whether paper specifications are required and whether electronic
+
+      submission is available.
+
+      '
