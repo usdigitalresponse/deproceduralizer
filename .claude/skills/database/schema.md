@@ -421,7 +421,7 @@ V5 uses a 3-tier architecture with proactive context, argument framing, and re-r
 
 | Column | Type | Description |
 |--------|------|-------------|
-| `tier3_flags` | jsonb | Structured verification flags with evidence. Contains `superseded_by_law`, `federal_mandate_confirmed`, `state_discretion_found`, `modernized_alternative_found`. Each is an EvidencedFlag with `value`, `scope`, `reason`, and `evidence` array. |
+| `tier3_flags` | jsonb | Structured verification flags with evidence. Contains `superseded_by_law`, `federal_mandate_confirmed`, `state_discretion_found`, `modernized_alternative_found`, `advocacy_for_change`. Each is an EvidencedFlag with `value`, `scope`, `reason`, and `evidence` array. |
 | `tier3_evidence_gap` | boolean | True if web search found no relevant evidence. |
 | `tier3_trigger_reason` | text | Human-readable reason for Tier 3 escalation (e.g., "High-risk issue (notarization) + justified", "Random sample (10%)", "Low confidence (0.82) + severity 7"). Added in migration 0025. |
 

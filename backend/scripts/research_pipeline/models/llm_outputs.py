@@ -389,7 +389,11 @@ class Tier3Output(BaseModel):
     )
     modernized_alternative_found: Optional[EvidencedFlag] = Field(
         default=None,
-        description="True if web search found modernized alternatives are used elsewhere"
+        description="True if other states or federal government implement the same program with modern alternatives"
+    )
+    advocacy_for_change: Optional[EvidencedFlag] = Field(
+        default=None,
+        description="True if meaningful advocacy (journalism, advocacy groups, publications) calls for this regulation to be changed"
     )
     evidence_gap: bool = Field(
         default=False,

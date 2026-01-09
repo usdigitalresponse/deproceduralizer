@@ -251,6 +251,7 @@ export interface Tier3Flags {
   federal_mandate_confirmed?: EvidencedFlag;
   state_discretion_found?: EvidencedFlag;
   modernized_alternative_found?: EvidencedFlag;
+  advocacy_for_change?: EvidencedFlag;  // V5.2: Advocacy from journalism/groups calling for change
 }
 
 // V5.1: Easy Cleanup Detection types

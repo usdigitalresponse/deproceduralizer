@@ -477,6 +477,8 @@ def save_tier3_results(
                     tier3_flags["state_discretion_found"] = output.state_discretion_found.model_dump(by_alias=True)
                 if output.modernized_alternative_found:
                     tier3_flags["modernized_alternative_found"] = output.modernized_alternative_found.model_dump(by_alias=True)
+                if output.advocacy_for_change:
+                    tier3_flags["advocacy_for_change"] = output.advocacy_for_change.model_dump(by_alias=True)
                 tier3_flags["evidence_gap"] = output.evidence_gap
 
                 # NOTE: We intentionally do NOT update context_used here.
