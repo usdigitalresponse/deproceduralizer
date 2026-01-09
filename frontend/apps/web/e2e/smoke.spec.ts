@@ -321,7 +321,7 @@ test.describe('Suggestion Mode', () => {
 
     // Verify filter mode UI is visible
     await expect(page.getByText('Status:')).toBeVisible({ timeout: 10000 });
-    await expect(page.getByText('Type:')).toBeVisible();
+    await expect(page.getByText('Type:', { exact: true })).toBeVisible();
     await expect(page.getByText('Severity:')).toBeVisible();
 
     // Verify suggestion mode controls are NOT visible
@@ -979,19 +979,22 @@ test.describe('Pipeline Analysis Page', () => {
   test('tier3 filter stateDiscretion=false loads correctly', async ({ page }) => {
     await page.goto('/nj/pipeline?stateDiscretion=false');
     await expect(page.getByRole('heading', { name: /Research Pipeline/i }).first()).toBeVisible();
-    await expect(page.locator('table')).toBeVisible({ timeout: 10000 });
+    // Either shows data table or "no records found" message (data-dependent)
+    await expect(page.locator('table').or(page.getByText('No pipeline records found'))).toBeVisible({ timeout: 10000 });
   });
 
   test('tier3 filter alternativeFound=false loads correctly', async ({ page }) => {
     await page.goto('/nj/pipeline?alternativeFound=false');
     await expect(page.getByRole('heading', { name: /Research Pipeline/i }).first()).toBeVisible();
-    await expect(page.locator('table')).toBeVisible({ timeout: 10000 });
+    // Either shows data table or "no records found" message (data-dependent)
+    await expect(page.locator('table').or(page.getByText('No pipeline records found'))).toBeVisible({ timeout: 10000 });
   });
 
   test('tier3Trigger filter high_risk_issue loads correctly', async ({ page }) => {
     await page.goto('/nj/pipeline?tier3Trigger=high_risk_issue');
     await expect(page.getByRole('heading', { name: /Research Pipeline/i }).first()).toBeVisible();
-    await expect(page.locator('table')).toBeVisible({ timeout: 10000 });
+    // Either shows data table or "no records found" message (data-dependent)
+    await expect(page.locator('table').or(page.getByText('No pipeline records found'))).toBeVisible({ timeout: 10000 });
   });
 
 });

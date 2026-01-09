@@ -2115,19 +2115,17 @@ export class ComplianceIssuesRepository extends BaseRepository {
       }
 
       // Federal mandate confirmed filter (Tier 3 flag from JSONB)
+      // Using pure SQL to avoid drizzle type inference issues with mixed and/or/sql
       if (filters.federalMandateConfirmed) {
         if (filters.federalMandateConfirmed === 'true') {
           conditions.push(sql`(${complianceIssueAnalyses.tier3Flags}->'federal_mandate_confirmed'->>'value')::boolean = true`);
         } else if (filters.federalMandateConfirmed === 'false') {
           // Only include rows that completed Tier 3 but have false/NULL for this flag
           conditions.push(
-            and(
-              isNotNull(complianceIssueAnalyses.tier3Classification),
-              or(
-                sql`(${complianceIssueAnalyses.tier3Flags}->'federal_mandate_confirmed'->>'value')::boolean = false`,
-                sql`${complianceIssueAnalyses.tier3Flags}->'federal_mandate_confirmed' IS NULL`
-              )!
-            )!
+            sql`${complianceIssueAnalyses.tier3Classification} IS NOT NULL AND (
+              (${complianceIssueAnalyses.tier3Flags}->'federal_mandate_confirmed'->>'value')::boolean = false
+              OR ${complianceIssueAnalyses.tier3Flags}->'federal_mandate_confirmed' IS NULL
+            )`
           );
         } else if (filters.federalMandateConfirmed === 'no_tier3') {
           conditions.push(isNull(complianceIssueAnalyses.tier3Classification));
@@ -2141,13 +2139,10 @@ export class ComplianceIssuesRepository extends BaseRepository {
         } else if (filters.stateDiscretion === 'false') {
           // Only include rows that completed Tier 3 but have false/NULL for this flag
           conditions.push(
-            and(
-              isNotNull(complianceIssueAnalyses.tier3Classification),
-              or(
-                sql`(${complianceIssueAnalyses.tier3Flags}->'state_discretion_found'->>'value')::boolean = false`,
-                sql`${complianceIssueAnalyses.tier3Flags}->'state_discretion_found' IS NULL`
-              )!
-            )!
+            sql`${complianceIssueAnalyses.tier3Classification} IS NOT NULL AND (
+              (${complianceIssueAnalyses.tier3Flags}->'state_discretion_found'->>'value')::boolean = false
+              OR ${complianceIssueAnalyses.tier3Flags}->'state_discretion_found' IS NULL
+            )`
           );
         } else if (filters.stateDiscretion === 'no_tier3') {
           conditions.push(isNull(complianceIssueAnalyses.tier3Classification));
@@ -2161,13 +2156,10 @@ export class ComplianceIssuesRepository extends BaseRepository {
         } else if (filters.alternativeFound === 'false') {
           // Only include rows that completed Tier 3 but have false/NULL for this flag
           conditions.push(
-            and(
-              isNotNull(complianceIssueAnalyses.tier3Classification),
-              or(
-                sql`(${complianceIssueAnalyses.tier3Flags}->'modernized_alternative_found'->>'value')::boolean = false`,
-                sql`${complianceIssueAnalyses.tier3Flags}->'modernized_alternative_found' IS NULL`
-              )!
-            )!
+            sql`${complianceIssueAnalyses.tier3Classification} IS NOT NULL AND (
+              (${complianceIssueAnalyses.tier3Flags}->'modernized_alternative_found'->>'value')::boolean = false
+              OR ${complianceIssueAnalyses.tier3Flags}->'modernized_alternative_found' IS NULL
+            )`
           );
         } else if (filters.alternativeFound === 'no_tier3') {
           conditions.push(isNull(complianceIssueAnalyses.tier3Classification));
@@ -2180,13 +2172,10 @@ export class ComplianceIssuesRepository extends BaseRepository {
           conditions.push(eq(complianceIssueAnalyses.tier3EvidenceGap, true));
         } else if (filters.evidenceGap === 'false') {
           conditions.push(
-            or(
-              eq(complianceIssueAnalyses.tier3EvidenceGap, false),
-              and(
-                sql`${complianceIssueAnalyses.tier3Classification} IS NOT NULL`,
-                isNull(complianceIssueAnalyses.tier3EvidenceGap)
-              )
-            )!
+            sql`(${complianceIssueAnalyses.tier3EvidenceGap} = false OR (
+              ${complianceIssueAnalyses.tier3Classification} IS NOT NULL
+              AND ${complianceIssueAnalyses.tier3EvidenceGap} IS NULL
+            ))`
           );
         } else if (filters.evidenceGap === 'no_tier3') {
           conditions.push(isNull(complianceIssueAnalyses.tier3Classification));

@@ -64,7 +64,7 @@ export async function waitForSuggestionModeReady(page: Page) {
 export async function waitForFilterModeReady(page: Page) {
   await expect(page.getByRole('heading', { name: /Review/i })).toBeVisible();
   await expect(page.getByText('Status:')).toBeVisible({ timeout: 10000 });
-  await expect(page.getByText('Type:')).toBeVisible();
+  await expect(page.getByText('Type:', { exact: true })).toBeVisible();
 }
 
 /** Wait for prompts page to be fully loaded */
