@@ -1338,7 +1338,7 @@ REQUIRED FLAGS:
   --enable-web-search     Enable Tier 3 web search verification: 'true' or 'false'
 
 OPTIONAL FLAGS:
-  --realtime              Use realtime API instead of batch (faster but more expensive)
+  --realtime              Use realtime API for ALL tiers (faster but 2x cost, no batch discount)
   --title                 Filter by regulatory title (e.g., '7' for Title 7)
   --dry-run               Show what would be processed without making API calls
   --force-rerun           Re-analyze documents even if they already have analyses
@@ -1350,10 +1350,9 @@ RESUME BEHAVIOR:
   Use --force-rerun to ignore previous runs and start fresh.
 
 BATCH API TIMING:
-  The Anthropic Batch API can take UP TO 24 HOURS to complete.
-  Typical timing: 10-40 minutes for batches under 200 requests.
-  The pipeline polls automatically and prints progress updates.
-  Use --realtime for immediate processing (higher cost, no 24-hour wait).
+  By default, ALL tiers (1-3) use the Batch API for 50% cost savings.
+  The Batch API can take up to 24 hours (typical: 10-40 min for <200 requests).
+  Use --realtime for immediate processing (2x cost, no wait).
 
 BATCH RECOVERY:
   If a batch completes but the DB save fails (e.g., connection timeout),
@@ -1455,7 +1454,7 @@ EXAMPLES:
     parser.add_argument(
         "--realtime",
         action="store_true",
-        help="Use realtime API instead of batch (faster for testing, more expensive)"
+        help="Use realtime API for ALL tiers (faster but 2x cost, no batch discount)"
     )
     parser.add_argument(
         "--title",

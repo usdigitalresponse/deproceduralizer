@@ -45,6 +45,8 @@ All of these must be specified:
 | `--dry-run` | false | Preview without API calls |
 | `--force-rerun` | false | Ignore previous analyses, reprocess all |
 | `--sequential` | false | Process issues one at a time (with `--all-issues`) |
+| `--resume-batch` | none | Resume from a specific batch directory |
+| `--resume-tier` | none | Resume from a specific tier (1, 2, or 3) |
 
 ## Tier Guide
 
@@ -55,10 +57,21 @@ All of these must be specified:
 | 3 | Web search validation | ~$0.020 | High-severity, federal citations |
 
 **Tier 3 triggers** (when `--enable-web-search true`):
-- High-risk issue types with severity >= 6 (`newspaper`, `notarization`, `wet_signature`, `witness`, `in_person_*`, `mandated_reports`)
-- Document cites federal statute
-- Claims no alternative with severity >= 7
-- Burdensome classification with severity >= 8
+
+| # | Trigger | Condition | Rationale |
+|---|---------|-----------|-----------|
+| 1a | High-risk + justified | High-risk issue type AND classification = "justified" | 54-63% valuable |
+| 1b | High-risk + severity | High-risk issue type AND severity >= 7 | 53% valuable |
+| 2 | Federal statute cited | `cites_federal_statute = true` | Federal citations need verification |
+| 3 | No alternative claimed | `claims_no_alternative = true` AND severity >= 7 | High-impact claims |
+| 4 | Low confidence | confidence < 0.85 AND severity >= 7 | 44% valuable |
+| 5 | Controversial justified | classification = "justified" AND controversial | Civil rights, vulnerable populations |
+| 6 | Federal mandate suspected | `federal_mandate_suspected = true` | Unverified federal mandates |
+| 7 | Random sample | 10% random sampling | Quality assurance |
+
+**High-risk issue types:** `newspaper`, `notarization`, `wet_signature`, `witness`, `mandated_reports`, `in_person_*`
+
+**Skip condition** (low value): Burdensome + high confidence (≥0.85) + high severity (≥7) + no federal statute cited → only 17% valuable, skipped unless random sampled
 
 ## Common Commands
 
@@ -143,6 +156,89 @@ The pipeline automatically saves state and resumes:
 - **Resume partial**: Documents with partial progress continue from last tier
 
 **Override resume**: Use `--force-rerun` to reprocess everything
+
+**Manual resume**: Use `--resume-batch <dir>` and `--resume-tier <N>` to recover from specific batch
+
+## State Machine
+
+The pipeline uses a 15-state machine to track processing units through tiers.
+
+### Processing States
+
+| State | Description |
+|-------|-------------|
+| `PENDING` | Initial state - not yet processed |
+| `TIER1_QUEUED` | Queued for Tier 1 batch |
+| `TIER1_SUBMITTED` | Tier 1 batch submitted, awaiting results |
+| `TIER1_COMPLETE` | Tier 1 complete, ready for routing |
+| `TIER2_PENDING` | Waiting for context fetch |
+| `TIER2_QUEUED` | Queued for Tier 2 batch |
+| `TIER2_SUBMITTED` | Tier 2 batch submitted, awaiting results |
+| `TIER2_RERUNNING` | Re-running with additional context (real-time API) |
+| `TIER2_COMPLETE` | Tier 2 complete, ready for routing |
+| `TIER3_PENDING` | Waiting for web search |
+| `TIER3_SUBMITTED` | Tier 3 batch submitted (V5.2) |
+| `TIER3_PROCESSING` | Processing with web search (real-time only) |
+| `TIER3_COMPLETE` | Tier 3 complete |
+| `DONE` | Classification complete |
+| `DONE_FALSE_POSITIVE` | All matches were false positives |
+| `ERROR` | Processing failed |
+
+### State Flow
+
+```
+PENDING → TIER1_QUEUED → TIER1_SUBMITTED → TIER1_COMPLETE
+                                              │
+                    ┌─────────────────────────┴─────────────────────────┐
+                    ↓                                                   ↓
+          all_false_positives                                  needs_research
+                    ↓                                                   ↓
+          DONE_FALSE_POSITIVE                         TIER2_PENDING → TIER2_QUEUED
+                                                                        ↓
+                                                      TIER2_SUBMITTED/TIER2_RERUNNING
+                                                                        ↓
+                                                                TIER2_COMPLETE
+                                                                        │
+                    ┌───────────────────────────────────────────────────┼───────────────┐
+                    ↓                                                   ↓               ↓
+               unrelated                                     justified/burdensome   Tier 3
+                    ↓                                        (no trigger)          trigger met
+                  DONE                                              ↓                   ↓
+                                                                  DONE          TIER3_PENDING
+                                                                                       ↓
+                                                               TIER3_SUBMITTED/TIER3_PROCESSING
+                                                                                       ↓
+                                                                               TIER3_COMPLETE
+                                                                                       ↓
+                                                                                     DONE
+```
+
+### Routing Logic
+
+- **After Tier 1**: `all_false_positives` → DONE_FALSE_POSITIVE, otherwise → TIER2
+- **After Tier 2**: `unrelated` → DONE, check Tier 3 triggers, otherwise → DONE
+- **After Tier 3**: → DONE (final tier)
+
+## Tier 3 Modes (V5.2)
+
+Tier 3 supports two execution modes:
+
+| Mode | Flag | Cost | Speed | Use Case |
+|------|------|------|-------|----------|
+| Batch (default) | (none) | 50% discount | 10-40 min | Production runs, cost optimization |
+| Real-time | `--realtime` | Full price | Immediate | Testing, debugging, urgent analysis |
+
+**Batch mode** (default):
+- Submits all Tier 3 requests as a single batch
+- Polls for completion with progress updates
+- Automatically handles batch result processing
+- Uses structured outputs for reliable JSON parsing
+
+**Real-time mode** (`--realtime`):
+- Processes Tier 3 requests sequentially
+- Uses rate limiting (5 concurrent requests)
+- Immediate results but 2x cost
+- Better for debugging or small batches
 
 ## API Timing
 

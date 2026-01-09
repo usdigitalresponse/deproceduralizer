@@ -60,7 +60,7 @@ wet_signature:
     true_positives: 103
     true_positive_rate: 61.31
     sample_date: '2026-01-01'
-  legal_context: 'Under UETA, generic signature requirements ("shall be signed")
+  legal_context: 'Under UETA and the E-SIGN Act, generic signature requirements ("shall be signed")
 
     are satisfied by electronic signatures. ONLY explicit requirements for "wet",
 

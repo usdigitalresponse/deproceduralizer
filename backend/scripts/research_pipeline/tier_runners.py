@@ -5,7 +5,7 @@ This module is a thin facade that re-exports from the tiers/ submodule.
 The actual implementation has been refactored into:
 - tiers/tier1_runner.py - Tier 1 batch preparation
 - tiers/tier2_runner.py - Tier 2 batch preparation and re-run support
-- tiers/tier3_runner.py - Tier 3 real-time web search execution
+- tiers/tier3_runner.py - Tier 3 batch/real-time web search execution
 - tiers/web_search.py - Web search utilities and response extraction
 """
 
@@ -24,7 +24,8 @@ from .tiers import (
     dedupe_context_requests,
     get_definition_scopes_batch,
     # Tier 3
-    run_tier3_realtime,
+    prepare_tier3_batch,  # V5.2: Batch preparation
+    run_tier3_realtime,   # Real-time mode (with --realtime flag)
     # Web search
     get_web_search_tool,
     WEB_SEARCH_TOOL,
@@ -69,7 +70,8 @@ __all__ = [
     "dedupe_context_requests",
     "get_definition_scopes_batch",
     # Tier 3
-    "run_tier3_realtime",
+    "prepare_tier3_batch",  # V5.2: Batch preparation
+    "run_tier3_realtime",   # Real-time mode
     # Web search
     "get_web_search_tool",
     "WEB_SEARCH_TOOL",

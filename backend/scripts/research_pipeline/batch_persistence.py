@@ -58,6 +58,7 @@ class RunManifest:
     # Batch tracking
     tier1_batch_id: Optional[str] = None
     tier2_batch_id: Optional[str] = None
+    tier3_batch_id: Optional[str] = None  # V5.2: Tier 3 batch support
 
     # Timestamps
     created_at: str = ""
@@ -224,6 +225,7 @@ class BatchPersistence:
         current_tier: Optional[int] = None,
         tier1_batch_id: Optional[str] = None,
         tier2_batch_id: Optional[str] = None,
+        tier3_batch_id: Optional[str] = None,
         total_units: Optional[int] = None,
         units_completed: Optional[int] = None,
         units_failed: Optional[int] = None,
@@ -246,6 +248,8 @@ class BatchPersistence:
             manifest.tier1_batch_id = tier1_batch_id
         if tier2_batch_id is not None:
             manifest.tier2_batch_id = tier2_batch_id
+        if tier3_batch_id is not None:
+            manifest.tier3_batch_id = tier3_batch_id
         if total_units is not None:
             manifest.total_units = total_units
         if units_completed is not None:
@@ -318,6 +322,7 @@ class BatchPersistence:
                 "state": unit.state.name,
                 "tier1_batch_id": unit.tier1_batch_id,
                 "tier2_batch_id": unit.tier2_batch_id,
+                "tier3_batch_id": unit.tier3_batch_id,
                 "error_message": unit.error_message,
                 "retry_count": unit.retry_count,
             })

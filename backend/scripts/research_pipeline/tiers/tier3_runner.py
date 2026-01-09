@@ -26,7 +26,7 @@ from ..routing import get_tier3_trigger_reason
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
-from shared_utils import call_llm_beta_async
+from shared_utils import call_llm_beta_async, format_batch_request, DEFAULT_MODEL
 from ..formatting import format_context_used_summary, format_tier1_argument
 from .web_search import (
     get_web_search_tool,
@@ -34,6 +34,40 @@ from .web_search import (
     format_citations_for_evidence,
     WebSearchCitation,
 )
+
+# Retry prompt for JSON extraction when initial parsing fails
+RETRY_JSON_PROMPT = """You provided an analysis but it wasn't in valid JSON format. Please convert your analysis to the required JSON structure.
+
+Your previous analysis:
+{original_text}
+
+Output ONLY a valid JSON object with these exact fields (no markdown, no explanation, just JSON starting with {{ and ending with }}):
+
+{{
+    "classification": "burdensome" | "justified" | "unrelated",
+    "confidence": <float 0.0-1.0>,
+    "reasoning": "<your reasoning explaining classification>",
+    "final_severity": <int 1-10 or null>,
+    "severity_adjustment": <int -3 to +3 or null>,
+    "severity_adjustment_reasoning": "<explanation or null>",
+    "argument_for_regulation": "<best case for why burden is justified>",
+    "argument_against_regulation": "<best case for why burden is problematic>",
+    "web_search_summary": "<summary of web search findings>",
+    "verbatim_requirements": ["<exact quote 1>", "<exact quote 2>"],
+    "context_used": [
+        {{"type": "web", "identifier": "<URL>", "quote": "<relevant quote>", "relevance": "<why relevant>"}}
+    ],
+    "federal_mandate_found": <boolean>,
+    "state_has_discretion": <boolean>,
+    "evidence_gap": <boolean>,
+    "easy_cleanup_candidate": <boolean>,
+    "cleanup_type": "alternative_in_practice" | "alternative_authorized" | "peer_state_solution" | null,
+    "cleanup_evidence": "<URL or citation>" | null,
+    "cleanup_recommendation": "<suggested text change>" | null,
+    "cleanup_effort": "trivial" | "easy" | "medium" | null
+}}
+
+CRITICAL: Output ONLY the JSON object. No markdown code blocks. No text before or after. Start with {{ and end with }}."""
 
 
 def _transform_schema_for_anthropic(schema: dict) -> dict:
@@ -230,6 +264,78 @@ def _parse_tier3_json_response(
         return None
     except Exception as e:
         print(f"    Warning: Parse error: {e}")
+        return None
+
+
+async def _retry_json_extraction(
+    client,
+    original_text: str,
+    citations: list[WebSearchCitation],
+    cost_tracker=None,
+) -> Optional[Tier3Output]:
+    """
+    Retry JSON extraction when initial parsing fails.
+
+    Uses a focused prompt that just asks Claude to format existing analysis as JSON.
+    No web search tool needed - we already have the analysis content.
+
+    Args:
+        client: Anthropic async client
+        original_text: The original prose response that failed to parse
+        citations: Citations from the original response
+        cost_tracker: Optional cost tracker
+
+    Returns:
+        Tier3Output if retry succeeds, None otherwise
+    """
+    # Truncate if too long to fit in context
+    text_for_retry = original_text[:6000] if len(original_text) > 6000 else original_text
+
+    retry_prompt = RETRY_JSON_PROMPT.format(original_text=text_for_retry)
+
+    try:
+        response, api_usage = await call_llm_beta_async(
+            client=client,
+            prompt=retry_prompt,
+            system="You are a JSON formatting assistant. Output only valid JSON, no markdown or explanation.",
+            tools=None,  # No web search - just formatting
+            model="claude-sonnet-4-5-20250929",
+            max_tokens=8000,
+            betas=None,
+            output_format=None,
+            cache_ttl=None,  # Don't cache retries
+        )
+
+        if response is None:
+            return None
+
+        # Track cost if available
+        if cost_tracker and api_usage:
+            cost_tracker.record_batch_usage(
+                tier=3,
+                input_tokens=api_usage.get("input_tokens", 0),
+                output_tokens=api_usage.get("output_tokens", 0),
+                cache_read_tokens=api_usage.get("cache_read_tokens", 0),
+                cache_write_tokens=api_usage.get("cache_write_tokens", 0),
+                request_count=1,
+                model="claude-sonnet-4-5-20250929",
+            )
+
+        # Extract text from response
+        retry_text = ""
+        if hasattr(response, 'content'):
+            for block in response.content:
+                if hasattr(block, 'text'):
+                    retry_text += block.text
+
+        if not retry_text:
+            return None
+
+        # Parse the retry response
+        return _parse_tier3_json_response(retry_text, citations, json_data=None)
+
+    except Exception as e:
+        print(f"    Retry error: {e}")
         return None
 
 
@@ -458,6 +564,20 @@ async def run_tier3_realtime(
                 json_data=web_response.json_data,  # V5.1: Direct JSON from structured outputs
             )
 
+            # If initial parse failed, retry with JSON extraction prompt
+            if result is None and web_response.text:
+                print(f"\n    Initial JSON parse failed. Retrying with JSON extraction prompt...")
+                result = await _retry_json_extraction(
+                    client=client,
+                    original_text=web_response.text,
+                    citations=web_response.citations,
+                    cost_tracker=cost_tracker,
+                )
+                if result:
+                    print(f"    Retry successful!")
+                else:
+                    print(f"    Retry also failed.")
+
             if result:
                 # Verbose: Show result
                 print(f"\n    TIER 3 RESULT:")
@@ -487,8 +607,8 @@ async def run_tier3_realtime(
                 unit.tier3_completed_at = datetime.now()
             else:
                 # Set error_message; orchestrator will handle state transition
-                unit.error_message = "Tier 3 returned no parseable result"
-                print(f"    ERROR: Could not parse JSON from response")
+                unit.error_message = "Tier 3 returned no parseable result (even after retry)"
+                print(f"    ERROR: Could not parse JSON from response (even after retry)")
                 print(f"       Response text: {web_response.text[:500]}...")
 
         except Exception as e:
@@ -503,3 +623,134 @@ async def run_tier3_realtime(
         await asyncio.sleep(TIER3_RATE_LIMIT_DELAY)
 
     return units
+
+
+def prepare_tier3_batch(
+    units: list[TrackedUnit],
+    issue_configs: dict[str, IssueConfig],
+    state: str = "NJ",
+) -> list[dict]:
+    """
+    V5.2: Prepare batch requests for Tier 3 Web Search verification.
+
+    Uses the same prompt logic as run_tier3_realtime() but formats for Batch API.
+    Web search tool is included in the batch request - Claude performs searches
+    and returns results with citations just like in real-time mode.
+
+    Args:
+        units: Units requiring Tier 3 processing
+        issue_configs: Dict mapping issue_type to IssueConfig
+        state: Two-letter state code for localizing searches (default "NJ")
+
+    Returns:
+        List of batch request dicts formatted for BatchManager.submit_batch()
+    """
+    if not units:
+        return []
+
+    tier_configs = load_tier_configs()
+    tier3_config = tier_configs['tier3']
+
+    # Get state-specific web search tool (same as real-time)
+    web_search_tool = get_web_search_tool(state=state, max_uses=5)
+
+    print(f"  Preparing Tier 3 batch requests...")
+    print(f"  State location: {state} ({web_search_tool['user_location']['city']}, {web_search_tool['user_location']['region']})")
+
+    requests = []
+    skipped = 0
+
+    for unit in units:
+        # Get issue config for this unit
+        issue_config = issue_configs.get(unit.issue_type)
+        if not issue_config:
+            print(f"    SKIP: No issue config for {unit.issue_type}")
+            skipped += 1
+            continue
+
+        # V5: Get Tier 2 output (Tier 3 now directly follows Tier 2)
+        prev_output = unit.tier2_output
+        if not prev_output:
+            print(f"    SKIP: No Tier 2 output for doc {unit.document_id}")
+            skipped += 1
+            continue
+
+        # Build search guidance from Tier 2
+        web_search_topics = getattr(prev_output, 'web_search_topics', []) or []
+
+        # Extract Tier 1 argument framing (if available)
+        t1 = unit.tier1_output
+        if t1:
+            tier1_argument_burdensome = format_tier1_argument(t1.best_argument_burdensome)
+            tier1_argument_justified = format_tier1_argument(t1.best_argument_justified)
+            tier1_argument_unrelated = format_tier1_argument(t1.best_argument_unrelated)
+        else:
+            tier1_argument_burdensome = "(Tier 1 not available)"
+            tier1_argument_justified = "(Tier 1 not available)"
+            tier1_argument_unrelated = "(Tier 1 not available)"
+
+        # V5.2: Extract disambiguation context from Tier 2
+        program_context = getattr(prev_output, 'program_context', None) or "(not provided by Tier 2)"
+        not_to_confuse_with = getattr(prev_output, 'not_to_confuse_with', []) or []
+        search_scope_guidance = getattr(prev_output, 'search_scope_guidance', None) or "(not provided by Tier 2)"
+
+        # Format not_to_confuse_with as bullet list
+        if not_to_confuse_with:
+            not_to_confuse_formatted = "\n".join(f"- {item}" for item in not_to_confuse_with)
+        else:
+            not_to_confuse_formatted = "(none specified)"
+
+        # Build tier3 variables (same as real-time)
+        from ..routing import get_tier3_trigger_reason
+        tier3_vars = {
+            # Tier 1 argument framing (initial perspectives)
+            "tier1_argument_burdensome": tier1_argument_burdensome,
+            "tier1_argument_justified": tier1_argument_justified,
+            "tier1_argument_unrelated": tier1_argument_unrelated,
+            # Tier 2 classification and analysis
+            "tier2_classification": prev_output.classification,
+            "tier2_severity": str(getattr(prev_output, 'severity', None) or "not set"),
+            "tier2_severity_calculation": getattr(prev_output, 'severity_calculation', '') or "(not provided)",
+            "tier2_confidence": f"{prev_output.confidence:.2f}",
+            "tier2_reasoning": prev_output.reasoning,
+            "tier2_context_summary": format_context_used_summary(prev_output.context_used),
+            # Tier 3 specific
+            "tier3_trigger_reason": get_tier3_trigger_reason(unit),
+            "verbatim_requirements": "\n".join(f"- {v}" for v in prev_output.verbatim_requirements),
+            "argument_for": prev_output.argument_for_regulation,
+            "argument_against": prev_output.argument_against_regulation,
+            "cites_federal_statute": str(getattr(prev_output, 'cites_federal_statute', False)).lower(),
+            "federal_citation": getattr(prev_output, 'federal_citation', None) or "none",
+            "claims_no_alternative": str(getattr(prev_output, 'claims_no_alternative', False)).lower(),
+            "potentially_controversial": str(getattr(prev_output, 'potentially_controversial', False)).lower(),
+            "web_search_topics": ", ".join(web_search_topics) if web_search_topics else "(none suggested)",
+            # V5.2: Web search disambiguation context from Tier 2
+            "program_context": program_context,
+            "not_to_confuse_with": not_to_confuse_formatted,
+            "search_scope_guidance": search_scope_guidance,
+            # Web search results will be populated by Claude during the call
+            "web_search_results": "(Claude will perform searches and analyze results)",
+        }
+
+        prompt_parts = format_tier_prompt(
+            tier=tier3_config,
+            issue=issue_config,
+            citation=unit.unit.citation,
+            title=unit.unit.title or "",
+            issue_type=issue_config.db_issue_type,
+            **tier3_vars,
+        )
+
+        # Format batch request with web search tool
+        request = format_batch_request(
+            custom_id=unit.custom_id,
+            prompt=prompt_parts["user"],
+            system=prompt_parts["system"],
+            model=DEFAULT_MODEL,
+            max_tokens=64000,
+            tools=[web_search_tool],  # Web search tool - model decides when to search
+        )
+        requests.append(request)
+
+    print(f"  Prepared {len(requests)} requests ({skipped} skipped)")
+    return requests

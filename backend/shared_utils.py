@@ -376,7 +376,7 @@ def format_time(seconds: float) -> str:
 # ============================================================================
 
 # Default model
-DEFAULT_MODEL = "claude-haiku-4-5-20251001"
+DEFAULT_MODEL = "claude-sonnet-4-5-20250929"
 
 
 def get_openai_client(api_key: Optional[str] = None) -> anthropic.Anthropic:
@@ -602,11 +602,12 @@ def _log_llm_call(
 def format_batch_request(
     custom_id: str,
     prompt: str,
-    response_format: Type[BaseModel],
+    response_format: Type[BaseModel] = None,
     model: str = None,
     system: str = None,
     max_tokens: int = 64000,
     user_cached_prefix: str = None,
+    tools: list[dict] = None,
 ) -> dict:
     """
     Format a single request for Anthropic Message Batches API submission.
@@ -616,35 +617,35 @@ def format_batch_request(
     Args:
         custom_id: Unique identifier for matching results (e.g., "doc_12345")
         prompt: User prompt/message (document-specific content)
-        response_format: Pydantic model for structured output
+        response_format: Pydantic model for structured output (mutually exclusive with tools)
         model: Model name (default: DEFAULT_MODEL)
         system: Optional system message (static, cached across requests)
         user_cached_prefix: Optional prefix for user message that's shared across
             requests (e.g., issue config, batch context). Gets cache_control applied.
+        tools: Optional list of tool definitions (e.g., web_search). When provided,
+            response_format is ignored and model decides when to use tools.
 
     Returns:
         Dict formatted for client.beta.messages.batches.create()
 
-    Example with caching:
-        parts = load_prompt_parts("definition_extraction", title=title, content=content)
+    Example with structured output (Pydantic model):
         request = format_batch_request(
             custom_id=f"doc_{doc_id}",
             prompt=parts['user'],
             response_format=DefinitionsResponse,
-            system=parts['system'],  # Cached across all requests in batch
+            system=parts['system'],
         )
 
-    Example without system (backwards compatible):
+    Example with server tools (e.g., web search):
         request = format_batch_request(
-            custom_id=f"doc_{doc_id}",
-            prompt=load_prompt("red_flags_analysis", ...),
-            response_format=RegulationAnalysis
+            custom_id=f"tier3_{unit_id}",
+            prompt=tier3_prompt,
+            system=system_prompt,
+            tools=[web_search_tool],  # Model decides when to search
         )
     """
     if model is None:
         model = DEFAULT_MODEL
-
-    tool = _pydantic_to_tool_schema(response_format)
 
     # Build user message content
     if user_cached_prefix:
@@ -667,9 +668,19 @@ def format_batch_request(
         "model": model,
         "max_tokens": max_tokens,
         "messages": [{"role": "user", "content": user_content}],
-        "tools": [tool],
-        "tool_choice": {"type": "tool", "name": tool["name"]},
     }
+
+    # Add tools - either server tools (like web_search) or structured output tool
+    if tools:
+        # Server tools (e.g., web_search) - model decides when to use them
+        params["tools"] = tools
+        # Don't set tool_choice - let model decide when to search
+    elif response_format:
+        # Structured output via Pydantic model
+        tool = _pydantic_to_tool_schema(response_format)
+        params["tools"] = [tool]
+        params["tool_choice"] = {"type": "tool", "name": tool["name"]}
+    # If neither tools nor response_format, no tools in request
 
     # Add system message with cache_control for prompt caching
     # See: https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching
@@ -1551,6 +1562,19 @@ class BatchManager:
             with open(batch_dir / 'batch_info.json', 'w') as f:
                 json.dump(batch_info, f, indent=2)
 
+            # Save requests for later retrieval (for Langfuse logging)
+            requests_file = batch_dir / 'requests.json'
+            with open(requests_file, 'w') as f:
+                json.dump({r['custom_id']: r for r in requests}, f, indent=2)
+
+            # Add batch_id -> directory mapping for fast lookup
+            mapping_file = self.batches_dir / 'batch_mapping.json'
+            mapping = {}
+            if mapping_file.exists():
+                mapping = json.loads(mapping_file.read_text())
+            mapping[batch_id] = str(batch_dir)
+            mapping_file.write_text(json.dumps(mapping, indent=2))
+
         return batch_id
 
     def list_active_batches(self) -> list[dict]:
@@ -1652,6 +1676,52 @@ class BatchManager:
                     return batch_dir
 
         return None
+
+    def load_requests(self, batch_id: str) -> dict:
+        """
+        Load original requests for a batch (for Langfuse logging).
+
+        Uses the batch_mapping.json index for fast lookup, with fallback to
+        directory scanning via find_batch_dir().
+
+        Args:
+            batch_id: Batch API ID (e.g., 'msgbatch_xxx')
+
+        Returns:
+            Dict mapping custom_id -> request dict, or empty dict if not found
+        """
+        if not self.batches_dir:
+            return {}
+
+        # Try fast lookup via mapping file
+        mapping_file = self.batches_dir / 'batch_mapping.json'
+        batch_dir = None
+
+        if mapping_file.exists():
+            try:
+                mapping = json.loads(mapping_file.read_text())
+                batch_dir_str = mapping.get(batch_id)
+                if batch_dir_str:
+                    batch_dir = Path(batch_dir_str)
+            except (json.JSONDecodeError, IOError):
+                pass  # Fall through to find_batch_dir
+
+        # Fallback to directory scanning
+        if batch_dir is None:
+            batch_dir = self.find_batch_dir(batch_id)
+
+        if batch_dir is None:
+            return {}
+
+        # Load requests file
+        requests_file = batch_dir / 'requests.json'
+        if not requests_file.exists():
+            return {}
+
+        try:
+            return json.loads(requests_file.read_text())
+        except (json.JSONDecodeError, IOError):
+            return {}
 
     def log_error(self, batch_dir: Path, custom_id: str, error_type: str, message: str):
         """

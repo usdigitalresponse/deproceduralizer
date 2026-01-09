@@ -420,6 +420,14 @@ CREATE TABLE compliance_issue_analyses (
   -- V5 Additions: Tier 3 Structured Flags (V5 Tier 3 = web verification)
   tier3_flags JSONB,                   -- {superseded_by_law, federal_mandate_confirmed, state_discretion_found, modernized_alternative_found}
   tier3_evidence_gap BOOLEAN DEFAULT FALSE,  -- True if web search found no relevant evidence
+  tier3_trigger_reason TEXT,           -- Human-readable reason for Tier 3 escalation
+
+  -- V5.1 Additions: Easy Cleanup Detection
+  easy_cleanup_candidate BOOLEAN DEFAULT FALSE,  -- True if low-hanging fruit cleanup opportunity
+  cleanup_type VARCHAR(50),            -- 'alternative_in_practice', 'alternative_authorized', 'peer_state_solution'
+  cleanup_evidence TEXT,               -- URL or citation proving the alternative exists
+  cleanup_recommendation TEXT,         -- Specific suggested regulation text change
+  cleanup_effort VARCHAR(20),          -- 'trivial', 'easy', 'medium'
 
   -- Derived Fields
   requirement_found BOOLEAN,
@@ -440,6 +448,8 @@ CREATE TABLE compliance_issue_analyses (
   CONSTRAINT cia_tier4_adjustment_check CHECK (tier4_severity_adjustment >= -3 AND tier4_severity_adjustment <= 3),
   CONSTRAINT cia_tier_check CHECK (highest_tier_completed >= 0 AND highest_tier_completed <= 4),
   CONSTRAINT cia_tier2_rerun_check CHECK (tier2_rerun_count >= 0 AND tier2_rerun_count <= 2),
+  CONSTRAINT cia_cleanup_type_check CHECK (cleanup_type IS NULL OR cleanup_type IN ('alternative_in_practice', 'alternative_authorized', 'peer_state_solution')),
+  CONSTRAINT cia_cleanup_effort_check CHECK (cleanup_effort IS NULL OR cleanup_effort IN ('trivial', 'easy', 'medium')),
   CONSTRAINT unique_cia_document_issue UNIQUE(document_id, issue_type)
 );
 
@@ -595,7 +605,7 @@ CREATE INDEX idx_cross_references_normalized_citation ON cross_references(normal
 CREATE TABLE document_notes (
   id BIGSERIAL PRIMARY KEY,
   document_id BIGINT NOT NULL REFERENCES regulatory_documents(id) ON DELETE CASCADE,
-  note_type note_type NOT NULL DEFAULT 'general',
+  note_type note_type NOT NULL DEFAULT 'document',
   anchor_start_offset INTEGER,
   anchor_end_offset INTEGER,
   anchor_text TEXT,
@@ -618,6 +628,46 @@ CREATE TABLE prompt_feedback (
   author_name VARCHAR(255),
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- -----------------------------------------------------------------------------
+-- Bookmarks: User bookmarks for analyses and documents
+-- -----------------------------------------------------------------------------
+CREATE TABLE bookmarks (
+  id BIGSERIAL PRIMARY KEY,
+  document_id BIGINT NOT NULL REFERENCES regulatory_documents(id) ON DELETE CASCADE,
+  analysis_id BIGINT REFERENCES compliance_issue_analyses(id) ON DELETE CASCADE,
+  issue_type VARCHAR(50),              -- Denormalized from analysis for filtering
+  state VARCHAR(2) NOT NULL,
+  notes TEXT,                          -- Optional user notes
+  created_by VARCHAR(255),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- -----------------------------------------------------------------------------
+-- Compliance Issue Analysis Reviews: Per-tier review tracking
+-- -----------------------------------------------------------------------------
+-- Supports reviewing the entire analysis (tier=NULL) or individual tier outputs.
+-- -----------------------------------------------------------------------------
+CREATE TABLE compliance_issue_analysis_reviews (
+  id BIGSERIAL PRIMARY KEY,
+  analysis_id BIGINT NOT NULL REFERENCES compliance_issue_analyses(id) ON DELETE CASCADE,
+  tier INTEGER,                        -- NULL = whole analysis, 1/2/3 = specific tier
+  review_status VARCHAR(50) NOT NULL DEFAULT 'unreviewed',
+  reviewed_by VARCHAR(255),
+  reviewed_at TIMESTAMP,
+  justification_notes TEXT,
+  team_notes TEXT,
+  override_classification VARCHAR(30), -- Reviewer can override classification
+  override_severity INTEGER,           -- Reviewer can override severity
+  override_reasoning TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+
+  CONSTRAINT ciar_tier_check CHECK (tier IS NULL OR tier BETWEEN 1 AND 3),
+  CONSTRAINT ciar_override_severity_check CHECK (override_severity IS NULL OR override_severity BETWEEN 1 AND 10),
+  CONSTRAINT unique_ciar_analysis_tier UNIQUE(analysis_id, tier)
 );
 
 -- =============================================================================
@@ -750,6 +800,35 @@ CREATE INDEX idx_document_notes_document_id ON document_notes(document_id);
 CREATE INDEX idx_prompt_feedback_prompt_name ON prompt_feedback(prompt_name);
 CREATE INDEX idx_prompt_feedback_created_at ON prompt_feedback(created_at DESC);
 CREATE INDEX idx_prompt_feedback_feedback_type ON prompt_feedback(feedback_type);
+
+-- Bookmarks
+CREATE UNIQUE INDEX idx_bookmarks_unique_analysis ON bookmarks(analysis_id) WHERE analysis_id IS NOT NULL;
+CREATE UNIQUE INDEX idx_bookmarks_unique_document ON bookmarks(document_id) WHERE analysis_id IS NULL;
+CREATE INDEX idx_bookmarks_document ON bookmarks(document_id);
+CREATE INDEX idx_bookmarks_analysis ON bookmarks(analysis_id);
+CREATE INDEX idx_bookmarks_state ON bookmarks(state);
+CREATE INDEX idx_bookmarks_created_at ON bookmarks(created_at DESC);
+
+-- Compliance Issue Analysis Reviews
+CREATE INDEX idx_analysis_reviews_analysis ON compliance_issue_analysis_reviews(analysis_id);
+CREATE INDEX idx_analysis_reviews_status ON compliance_issue_analysis_reviews(review_status);
+CREATE INDEX idx_analysis_reviews_tier ON compliance_issue_analysis_reviews(tier) WHERE tier IS NOT NULL;
+
+-- Additional V5.1/V5.2 indexes
+CREATE INDEX idx_compliance_issue_analyses_tier3_trigger_reason ON compliance_issue_analyses(tier3_trigger_reason) WHERE tier3_trigger_reason IS NOT NULL;
+CREATE INDEX idx_compliance_issue_analyses_easy_cleanup ON compliance_issue_analyses(easy_cleanup_candidate) WHERE easy_cleanup_candidate = TRUE;
+
+-- Composite indexes for query optimization (migrations 0029-0030)
+CREATE INDEX idx_ci_state_review_severity ON compliance_issues(state, review_status, severity);
+CREATE INDEX idx_ci_state_issue_severity ON compliance_issues(state, issue_type, severity);
+CREATE INDEX idx_cia_doc_issue ON compliance_issue_analyses(document_id, issue_type);
+CREATE INDEX idx_cia_state_tier2 ON compliance_issue_analyses(state, tier2_classification);
+
+-- Performance indexes (migration 0030)
+CREATE INDEX idx_reg_statute_links_statute_cascade ON regulation_statute_links(statute_id);
+CREATE INDEX idx_cia_highest_tier ON compliance_issue_analyses(highest_tier_completed) WHERE highest_tier_completed IS NOT NULL;
+CREATE INDEX idx_ci_state_req_severity ON compliance_issues(state, requirement_found, severity) WHERE requirement_found = TRUE;
+CREATE INDEX idx_crossrefs_source_resolved ON cross_references(source_document_id, is_resolved);
 
 -- =============================================================================
 -- HELPER FUNCTIONS

@@ -10,9 +10,14 @@ from typing import Optional
 import sys
 from pathlib import Path
 
+import psycopg
+
 # Add backend to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from shared_utils import get_db_connection
+
+# Import retry decorator for DB operations
+from scripts.research_pipeline.db.connection import retry_db_operation
 
 # Import existing batch queries
 from scripts.local_summarization.db_queries import get_ancestors_batch
@@ -30,6 +35,7 @@ from scripts.research_pipeline.models.context import (
 # =============================================================================
 
 
+@retry_db_operation(max_retries=5, base_delay=1.0)
 def get_sibling_summaries_batch(
     document_ids: list[int],
 ) -> dict[int, list[SiblingEntry]]:
@@ -49,6 +55,8 @@ def get_sibling_summaries_batch(
         return {}
 
     conn = get_db_connection()
+    if conn is None:
+        raise psycopg.OperationalError("Failed to establish database connection")
 
     # Get siblings by finding documents with the same parent
     # Exclude the original document itself
@@ -102,6 +110,7 @@ def get_sibling_summaries_batch(
     return result
 
 
+@retry_db_operation(max_retries=5, base_delay=1.0)
 def get_immediate_siblings_batch(
     document_ids: list[int],
 ) -> dict[int, dict[str, Optional[SiblingEntry]]]:
@@ -121,6 +130,8 @@ def get_immediate_siblings_batch(
         return {}
 
     conn = get_db_connection()
+    if conn is None:
+        raise psycopg.OperationalError("Failed to establish database connection")
 
     # Use window functions to get prev/next siblings
     query = """
@@ -232,6 +243,7 @@ def get_immediate_siblings_batch(
 # =============================================================================
 
 
+@retry_db_operation(max_retries=5, base_delay=1.0)
 def get_crossrefs_batch(
     document_ids: list[int],
 ) -> dict[int, list[CrossRefEntry]]:
@@ -251,6 +263,8 @@ def get_crossrefs_batch(
         return {}
 
     conn = get_db_connection()
+    if conn is None:
+        raise psycopg.OperationalError("Failed to establish database connection")
 
     query = """
         SELECT
@@ -295,6 +309,7 @@ def get_crossrefs_batch(
 # =============================================================================
 
 
+@retry_db_operation(max_retries=5, base_delay=1.0)
 def get_definitions_batch(
     document_ids: list[int],
     ancestors_map: Optional[dict] = None,
@@ -320,6 +335,8 @@ def get_definitions_batch(
         return {}
 
     conn = get_db_connection()
+    if conn is None:
+        raise psycopg.OperationalError("Failed to establish database connection")
 
     # Use provided ancestors or fetch them
     if ancestors_map is None:
@@ -367,6 +384,7 @@ def get_definitions_batch(
     return result
 
 
+@retry_db_operation(max_retries=5, base_delay=1.0)
 def get_definitions_with_text_batch(
     document_ids: list[int],
     ancestors_map: Optional[dict] = None,
@@ -390,6 +408,8 @@ def get_definitions_with_text_batch(
         return {}
 
     conn = get_db_connection()
+    if conn is None:
+        raise psycopg.OperationalError("Failed to establish database connection")
 
     # Use provided ancestors or fetch them
     if ancestors_map is None:
@@ -558,6 +578,7 @@ def get_subchapter_ids_batch(
     return result
 
 
+@retry_db_operation(max_retries=5, base_delay=1.0)
 def get_subchapter_info(subchapter_id: int) -> dict:
     """
     Get basic info for a subchapter document.
@@ -569,6 +590,8 @@ def get_subchapter_info(subchapter_id: int) -> dict:
         Dict with citation, title, etc.
     """
     conn = get_db_connection()
+    if conn is None:
+        raise psycopg.OperationalError("Failed to establish database connection")
     query = """
         SELECT id, citation, title, short_title, summary
         FROM regulatory_documents
@@ -590,6 +613,7 @@ def get_subchapter_info(subchapter_id: int) -> dict:
     }
 
 
+@retry_db_operation(max_retries=5, base_delay=1.0)
 def get_children_of_parent(parent_id: int) -> list[SiblingEntry]:
     """
     Get all children (siblings) of a parent document.
@@ -601,6 +625,8 @@ def get_children_of_parent(parent_id: int) -> list[SiblingEntry]:
         List of SiblingEntry objects for all children
     """
     conn = get_db_connection()
+    if conn is None:
+        raise psycopg.OperationalError("Failed to establish database connection")
     query = """
         SELECT
             id, citation, title, short_title, summary, section_type
@@ -631,6 +657,7 @@ def get_children_of_parent(parent_id: int) -> list[SiblingEntry]:
     return result
 
 
+@retry_db_operation(max_retries=5, base_delay=1.0)
 def get_definitions_for_scope(scope_id: int) -> list[str]:
     """
     Get definition terms scoped to a specific document.
@@ -642,6 +669,8 @@ def get_definitions_for_scope(scope_id: int) -> list[str]:
         List of term strings
     """
     conn = get_db_connection()
+    if conn is None:
+        raise psycopg.OperationalError("Failed to establish database connection")
 
     # Get ancestors of the scope document to include inherited definitions
     ancestors_map = get_ancestors_batch([scope_id])

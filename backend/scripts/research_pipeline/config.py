@@ -18,18 +18,18 @@ from shared_utils import DEFAULT_MODEL
 # Pipeline Version
 # =============================================================================
 
-# V5: 3-tier pipeline (Tier 3 is web search tier)
-PIPELINE_VERSION = "v5"
+# V5.2: 3-tier pipeline with batch support for all tiers
+PIPELINE_VERSION = "v5.2"
 
 
 # =============================================================================
 # Model Configuration
 # =============================================================================
 
-# Tiers 1-2 use batch API for cost efficiency
+# All tiers use batch API by default for cost efficiency
 BATCH_MODEL = DEFAULT_MODEL  # Currently claude-sonnet-4-5-20250929
 
-# Tier 3 uses real-time API (required for web search tool)
+# Tier 3 model (used for both batch and realtime modes)
 TIER3_REALTIME_MODEL = DEFAULT_MODEL
 
 
@@ -60,13 +60,14 @@ MAX_BATCH_RETRIES = 5
 # Tier 3 Web Search Configuration
 # =============================================================================
 
-# Batch size for Tier 3 processing (to avoid rate limits)
+# Batch size for Tier 3 realtime processing (to avoid rate limits)
+# Note: In batch mode, all requests are submitted at once
 TIER3_BATCH_SIZE = 5
 
-# Maximum web searches per request (cost control)
+# Maximum web searches per request (cost control, applies to both batch and realtime)
 MAX_WEB_SEARCHES_PER_REQUEST = 5
 
-# Rate limiting delay (seconds) between Tier 3 requests
+# Rate limiting delay (seconds) between Tier 3 requests (realtime mode only)
 TIER3_RATE_LIMIT_DELAY = 1.0
 
 

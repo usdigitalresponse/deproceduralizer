@@ -1,10 +1,14 @@
 'use client';
 
+import { useState } from 'react';
+
 interface SeverityProgressionProps {
   baseSeverity: number | null;
   tier3Adjustment: number | null;
   tier4Adjustment: number | null;
   finalSeverity: number | null;
+  tier2Calculation?: string | null;
+  tier3Reasoning?: string | null;
 }
 
 export function SeverityProgression({
@@ -12,7 +16,10 @@ export function SeverityProgression({
   tier3Adjustment,
   tier4Adjustment,
   finalSeverity,
+  tier2Calculation,
+  tier3Reasoning,
 }: SeverityProgressionProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
   if (baseSeverity === null && finalSeverity === null) {
     return null;
   }
@@ -23,12 +30,21 @@ export function SeverityProgression({
     steps.push({ label: 'Base (T2)', value: baseSeverity });
   }
 
+  // Calculate actual adjustment from the difference between final and base
+  // This ensures the display is always mathematically consistent, even if
+  // the LLM returned inconsistent severity_adjustment and final_severity values
+  const actualT3Adjustment = (baseSeverity !== null && finalSeverity !== null)
+    ? finalSeverity - baseSeverity
+    : tier3Adjustment;
+
   // V5: T3 is web search adjustment. V4 legacy: T4 was web search.
-  if (tier3Adjustment !== null && tier3Adjustment !== 0) {
+  // Use calculated adjustment for V5 (when we have both base and final)
+  // Fall back to raw tier3Adjustment for legacy cases
+  if (actualT3Adjustment !== null && actualT3Adjustment !== 0) {
     steps.push({
       label: 'Web Search',
-      value: tier3Adjustment > 0 ? `+${tier3Adjustment}` : String(tier3Adjustment),
-      delta: tier3Adjustment,
+      value: actualT3Adjustment > 0 ? `+${actualT3Adjustment}` : String(actualT3Adjustment),
+      delta: actualT3Adjustment,
     });
   }
 
@@ -79,6 +95,41 @@ export function SeverityProgression({
           </div>
         ))}
       </div>
+
+      {(tier2Calculation || tier3Reasoning) && (
+        <button
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)] mt-2 flex items-center gap-1"
+        >
+          <span>{isExpanded ? '▼' : '▶'}</span>
+          <span>Show calculation details</span>
+        </button>
+      )}
+
+      {isExpanded && (
+        <div className="mt-3 pt-3 border-t border-[var(--color-neutral-200)] space-y-2">
+          {tier2Calculation && (
+            <div>
+              <span className="text-[10px] font-medium text-[var(--color-text-muted)] block mb-1">
+                Tier 2 Calculation:
+              </span>
+              <p className="text-xs text-[var(--color-text-secondary)]">
+                {tier2Calculation}
+              </p>
+            </div>
+          )}
+          {tier3Reasoning && (
+            <div>
+              <span className="text-[10px] font-medium text-[var(--color-text-muted)] block mb-1">
+                Web Search Adjustment:
+              </span>
+              <p className="text-xs text-[var(--color-text-secondary)]">
+                {tier3Reasoning}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

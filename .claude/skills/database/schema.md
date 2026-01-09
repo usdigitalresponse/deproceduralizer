@@ -477,6 +477,41 @@ Helps Tier 3 web search avoid returning results about similar-sounding but diffe
 - Severity: `idx_cia_high_severity`, `idx_cia_state_severity`
 - Results: `idx_cia_burdensome`, `idx_cia_justified`
 - V5: `idx_compliance_issue_analyses_v5_tier3_triggers` (partial index for V5 Tier 3 routing)
+- V5.1: `idx_compliance_issue_analyses_tier3_trigger_reason` (partial), `idx_compliance_issue_analyses_easy_cleanup` (partial)
+- Query optimization: `idx_cia_doc_issue`, `idx_cia_state_tier2`, `idx_cia_highest_tier`
+
+## compliance_issue_analysis_reviews
+
+Per-tier review tracking for 3-tier pipeline analyses. Supports reviewing the entire analysis (tier=NULL) or individual tier outputs.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | bigserial | Primary key |
+| `analysis_id` | bigint NOT NULL | FK to compliance_issue_analyses (ON DELETE CASCADE) |
+| `tier` | integer | NULL = whole analysis, 1/2/3 = specific tier output |
+| `review_status` | varchar(50) | unreviewed, confirmed, rejected, etc. (default 'unreviewed') |
+| `reviewed_by` | varchar(255) | Who reviewed |
+| `reviewed_at` | timestamp | When reviewed |
+| `justification_notes` | text | Reviewer notes justifying the decision |
+| `team_notes` | text | Notes for the development team |
+| `override_classification` | varchar(30) | Reviewer can override to unrelated/justified/burdensome |
+| `override_severity` | integer (1-10) | Reviewer can override severity score |
+| `override_reasoning` | text | Explanation for the override |
+| `created_at` | timestamp | When created |
+| `updated_at` | timestamp | When last updated |
+
+**Tier Scope:**
+- `tier = NULL`: Review applies to the entire analysis (final classification/severity)
+- `tier = 1`: Review applies specifically to Tier 1 match filtering output
+- `tier = 2`: Review applies specifically to Tier 2 classification output
+- `tier = 3`: Review applies specifically to Tier 3 web search output
+
+**Constraints:**
+- `ciar_tier_check CHECK (tier IS NULL OR tier BETWEEN 1 AND 3)`
+- `ciar_override_severity_check CHECK (override_severity IS NULL OR override_severity BETWEEN 1 AND 10)`
+- `unique_ciar_analysis_tier UNIQUE(analysis_id, tier)` - one review per analysis+tier combination
+
+**Indexes:** `idx_analysis_reviews_analysis`, `idx_analysis_reviews_status`, `idx_analysis_reviews_tier`
 
 ## incorporations_by_reference
 

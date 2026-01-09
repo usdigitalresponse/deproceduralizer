@@ -27,14 +27,10 @@ fixed_window:
     - '+1: No stated rationale'
     - '+1: Short window (< 30 days)'
     - '+1: Creates significant backlog'
-    - '+1: Affects time-sensitive applications (housing, benefits)'
-    - '+1: Disproportionately impacts vulnerable populations'
     decreases:
     - '-2: Clear program rationale'
     - '-1: External deadline (federal, grant)'
     - '-1: Cohort-based program'
-    - '-1: Ample notice provided (60+ days)'
-    - '-1: Multiple windows per year'
   patterns:
   - filing period
   - application window

@@ -36,9 +36,10 @@ class ProcessingState(Enum):
     TIER2_RERUNNING = auto()  # V5: Re-running with additional context (real-time API)
     TIER2_COMPLETE = auto()
 
-    # Tier 3 states (V5: web search tier, real-time API)
+    # Tier 3 states (V5: web search tier, batch or real-time API)
     TIER3_PENDING = auto()  # Waiting for web search
-    TIER3_PROCESSING = auto()  # V5: Processing with web search (real-time)
+    TIER3_SUBMITTED = auto()  # V5.2: Batch submitted, waiting for completion
+    TIER3_PROCESSING = auto()  # V5: Processing with web search (real-time only)
     TIER3_COMPLETE = auto()
 
     # Terminal states
@@ -68,9 +69,10 @@ class TrackedUnit:
     tier2_output: Optional[Tier2Output] = None
     tier3_output: Optional[Tier3Output] = None
 
-    # Batch IDs for resumability (Tier 1-2 use batch, Tier 3 uses real-time)
+    # Batch IDs for resumability (all tiers support batch mode)
     tier1_batch_id: Optional[str] = None
     tier2_batch_id: Optional[str] = None
+    tier3_batch_id: Optional[str] = None  # V5.2: Tier 3 now supports batch
 
     # Timestamps
     created_at: datetime = field(default_factory=datetime.now)
@@ -227,6 +229,7 @@ def state_to_tier(state: ProcessingState) -> Optional[int]:
         ProcessingState.TIER2_RERUNNING: 2,
         ProcessingState.TIER2_COMPLETE: 2,
         ProcessingState.TIER3_PENDING: 3,
+        ProcessingState.TIER3_SUBMITTED: 3,  # V5.2: Batch mode
         ProcessingState.TIER3_PROCESSING: 3,
         ProcessingState.TIER3_COMPLETE: 3,
     }

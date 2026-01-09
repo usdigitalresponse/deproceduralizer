@@ -7,7 +7,7 @@ Each tier has its own module with batch preparation and/or realtime execution.
 Tiers:
 - Tier 1: Match Filtering (batch API)
 - Tier 2: Summary-Based Research (batch or realtime with re-runs)
-- Tier 3: Web Search Verification (realtime API only)
+- Tier 3: Web Search Verification (batch API default, realtime with --realtime flag)
 """
 
 from .base import TierRunner
@@ -31,7 +31,8 @@ from .tier2_runner import (
 
 # Tier 3
 from .tier3_runner import (
-    run_tier3_realtime,
+    prepare_tier3_batch,  # V5.2: Batch preparation (default mode)
+    run_tier3_realtime,   # Real-time mode (with --realtime flag)
 )
 
 # Web search utilities
@@ -69,7 +70,8 @@ __all__ = [
     "dedupe_context_requests",
     "get_definition_scopes_batch",
     # Tier 3
-    "run_tier3_realtime",
+    "prepare_tier3_batch",  # V5.2: Batch preparation
+    "run_tier3_realtime",   # Real-time mode
     # Web search
     "get_web_search_tool",
     "WEB_SEARCH_TOOL",

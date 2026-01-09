@@ -37,9 +37,11 @@ from .models.llm_outputs import Tier1Output, Tier2Output, Tier3Output
 from .tier_runners import (
     prepare_tier1_batch,
     prepare_tier2_batch,
-    run_tier3_realtime,  # V5: Tier 3 is now web search tier (real-time API)
+    prepare_tier3_batch,  # V5.2: Tier 3 batch preparation
+    run_tier3_realtime,  # V5: Tier 3 real-time mode (with --realtime flag)
     run_tier2_with_reruns,  # V5: Tier 2 with re-run support
 )
+from .result_processor import process_tier3_batch_results  # V5.2: Tier 3 batch result processing
 from .db_writer import (
     get_existing_analyses,
     get_db_connection,
@@ -690,14 +692,14 @@ class TierOrchestrator:
 
     async def _run_tier3(self):
         """
-        V5: Run Tier 3: Web Search Verification (real-time API).
+        V5.2: Run Tier 3: Web Search Verification.
 
-        Tier 3 is now the web search tier. It uses real-time API because
-        the web_search tool cannot be used with batch API.
+        By default uses Batch API (like Tiers 1-2) for cost savings.
+        When self.realtime is True, uses real-time API with rate limiting.
 
         STATE MANAGEMENT: The tier runner only sets intermediate states
-        (TIER3_PROCESSING) and populates outputs/errors. This orchestrator
-        method handles all terminal state transitions based on the results.
+        and populates outputs/errors. This orchestrator method handles
+        all terminal state transitions based on the results.
         """
         tier_out = self._tier_out(3)
 
@@ -711,7 +713,23 @@ class TierOrchestrator:
 
         tier_out.info(f"\n[TIER 3] Web Search Verification ({len(pending)} units)")
         tier_out.info("-" * 50)
-        tier_out.info("  (Using real-time API with web search)")
+
+        if self.realtime:
+            # Real-time mode: sequential with rate limiting
+            await self._run_tier3_realtime(pending)
+        else:
+            # Batch mode: submit and poll (default)
+            await self._run_tier3_batch(pending)
+
+    async def _run_tier3_realtime(self, pending: list[TrackedUnit]):
+        """
+        V5.2: Run Tier 3 using real-time API with rate limiting.
+
+        Used when --realtime flag is passed. Processes units sequentially
+        with rate limiting between requests.
+        """
+        tier_out = self._tier_out(3)
+        tier_out.info("  (Using REAL-TIME API with web search)")
 
         # Run in batches to avoid rate limits
         completed = 0
@@ -745,8 +763,68 @@ class TierOrchestrator:
                 failed.append(unit)
             # Units still in TIER3_PROCESSING without output or error stay pending
 
-        self._log_tier_complete("Tier 3", len(succeeded), len(failed))
+        self._log_tier_complete("Tier 3 (realtime)", len(succeeded), len(failed))
+        self._save_tier3_results(succeeded, tier_out)
 
+    async def _run_tier3_batch(self, pending: list[TrackedUnit]):
+        """
+        V5.2: Run Tier 3 using Batch API.
+
+        Default mode. Submits all requests as a batch, polls for completion,
+        then processes results. Provides 50% cost savings on token costs.
+        """
+        tier_out = self._tier_out(3)
+        tier_out.info("  (Using BATCH API with web search - 50% cost savings)")
+
+        # Prepare batch requests
+        requests = prepare_tier3_batch(
+            units=pending,
+            issue_configs=self.issue_configs,
+            state=self.state,
+        )
+
+        if not requests:
+            tier_out.info("  No valid requests to submit")
+            return
+
+        # Submit batch
+        batch_id = self._submit_batch(requests, "tier3")
+
+        # Update states and batch IDs
+        for unit in pending:
+            unit.tier3_batch_id = batch_id
+            unit.state = ProcessingState.TIER3_SUBMITTED
+
+        # Save batch info for persistence
+        if self.persistence and self.run_dir:
+            self.persistence.update_manifest(
+                self.run_dir,
+                current_tier=3,
+                tier3_batch_id=batch_id,
+            )
+            self.persistence.save_units(self.run_dir, list(self.units.values()))
+
+        # Poll until complete
+        await self._poll_batch(batch_id)
+
+        # Process results
+        succeeded, failed = process_tier3_batch_results(
+            batch_id=batch_id,
+            units=self.units,
+            manager=self.batch_manager,
+            cost_tracker=self.cost_tracker,
+            trace_context=self.trace_context,
+        )
+
+        # Transition successful units to DONE
+        for unit in succeeded:
+            unit.state = get_next_state(unit)  # Returns DONE for Tier 3
+
+        self._log_tier_complete("Tier 3 (batch)", len(succeeded), len(failed))
+        self._save_tier3_results(succeeded, tier_out)
+
+    def _save_tier3_results(self, succeeded: list[TrackedUnit], tier_out):
+        """Save Tier 3 results to database and persistence."""
         # Incremental save: persist Tier 3 results to database
         if self.incremental_save:
             tier3_units = [u for u in self.units.values() if u.tier3_output]
@@ -819,7 +897,7 @@ class TierOrchestrator:
         Poll batch until complete with progress reporting.
 
         Includes timeout and retry logic for robustness:
-        - 4 hour maximum poll time (batches shouldn't take this long)
+        - 48 hour maximum poll time (Anthropic batch API guarantees 24h)
         - Retry with exponential backoff on API errors
         - Updates persistence status on timeout/failure
         """
@@ -827,7 +905,7 @@ class TierOrchestrator:
         last_progress = 0
         retry_count = 0
         max_retries = 5
-        max_poll_time = 3600 * 4  # 4 hours
+        max_poll_time = 3600 * 48  # 48 hours
 
         while True:
             # Check for timeout
