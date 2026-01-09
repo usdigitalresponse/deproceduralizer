@@ -10,7 +10,10 @@ import time
 import json
 import asyncio
 from pathlib import Path
-from typing import Optional, Type, Any, Dict
+from typing import Optional, Type, Any, Dict, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from observability.types import LLMTraceContext
 import yaml
 import psycopg
 from psycopg import Connection
@@ -448,6 +451,7 @@ def call_llm_parse(
     max_retries: int = 3,
     max_tokens: int = 64000,
     system: Optional[str] = None,
+    trace_context: Optional["LLMTraceContext"] = None,
 ) -> Optional[BaseModel]:
     """
     Call Anthropic API with structured output (Pydantic model via tool_use).
@@ -462,6 +466,7 @@ def call_llm_parse(
         max_retries: Number of retries on failure (default: 3)
         max_tokens: Max output tokens (default: 64000 for Claude 4.5 models)
         system: Optional system prompt (cached across requests)
+        trace_context: Optional LLMTraceContext for observability logging
 
     Returns:
         Parsed Pydantic model instance, or None if all retries fail
@@ -490,8 +495,10 @@ def call_llm_parse(
         ]
 
     for attempt in range(max_retries):
+        start_time = time.time()
         try:
             response = client.messages.create(**request_kwargs)
+            latency_ms = (time.time() - start_time) * 1000
 
             # Check for truncation due to max_tokens
             if response.stop_reason == "max_tokens":
@@ -507,6 +514,14 @@ def call_llm_parse(
                     tool_use = block
                     break
 
+            # Extract usage for logging
+            usage = {
+                "input_tokens": getattr(response.usage, "input_tokens", 0),
+                "output_tokens": getattr(response.usage, "output_tokens", 0),
+                "cache_read_tokens": getattr(response.usage, "cache_read_input_tokens", 0),
+                "cache_write_tokens": getattr(response.usage, "cache_creation_input_tokens", 0),
+            }
+
             if tool_use is None:
                 print(
                     f"      ⚠️  No tool_use in response (attempt {attempt + 1}/{max_retries})"
@@ -516,15 +531,25 @@ def call_llm_parse(
                     continue
                 else:
                     print(f"      ❌ All {max_retries} attempts failed to get tool_use")
+                    # Log failure if trace_context provided
+                    if trace_context:
+                        _log_llm_call(trace_context, model, prompt, "", usage, latency_ms, success=False, error_message="No tool_use in response")
                     return None
 
             # Parse the tool input with Pydantic
             parsed = response_format.model_validate(tool_use.input)
             if attempt > 0:
                 print(f"      ✅ Retry succeeded on attempt {attempt + 1}")
+
+            # Log success if trace_context provided
+            if trace_context:
+                output_text = parsed.model_dump_json() if parsed else ""
+                _log_llm_call(trace_context, model, prompt, output_text, usage, latency_ms, success=True)
+
             return parsed
 
         except Exception as e:
+            latency_ms = (time.time() - start_time) * 1000
             print(
                 f"      ⚠️  API error: {type(e).__name__}: {e} "
                 f"(attempt {attempt + 1}/{max_retries})"
@@ -533,9 +558,45 @@ def call_llm_parse(
                 time.sleep(2)
                 continue
             print(f"      ❌ All {max_retries} attempts failed")
+            # Log failure if trace_context provided
+            if trace_context:
+                _log_llm_call(trace_context, model, prompt, "", {}, latency_ms, success=False, error_message=str(e))
             return None
 
     return None
+
+
+def _log_llm_call(
+    trace_context: "LLMTraceContext",
+    model: str,
+    input_text: str,
+    output_text: str,
+    usage: Dict,
+    latency_ms: float,
+    success: bool = True,
+    error_message: Optional[str] = None,
+) -> None:
+    """Helper to log LLM calls to Langfuse if available."""
+    try:
+        from observability.langfuse_client import log_generation
+        log_generation(
+            context=trace_context,
+            name="call_llm_parse",
+            model=model,
+            input_text=input_text,
+            output_text=output_text,
+            input_tokens=usage.get("input_tokens", 0),
+            output_tokens=usage.get("output_tokens", 0),
+            latency_ms=latency_ms,
+            success=success,
+            error_message=error_message,
+            cache_read_tokens=usage.get("cache_read_tokens", 0),
+            cache_write_tokens=usage.get("cache_write_tokens", 0),
+        )
+    except ImportError:
+        pass  # Observability not available
+    except Exception:
+        pass  # Don't let logging errors break the main flow
 
 
 def format_batch_request(

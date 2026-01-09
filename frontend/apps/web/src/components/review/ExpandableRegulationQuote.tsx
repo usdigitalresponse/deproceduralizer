@@ -110,7 +110,7 @@ export function ExpandableRegulationQuote({
   const termToHighlight = highlightTerm ?? null;
   const renderedContent = isExpanded && expandedText
     ? renderExpandedWithHighlight(expandedText, text, termToHighlight)
-    : highlightInText(text, termToHighlight);
+    : highlightTermInText(text, termToHighlight);
 
   return (
     <div className="mb-4">
