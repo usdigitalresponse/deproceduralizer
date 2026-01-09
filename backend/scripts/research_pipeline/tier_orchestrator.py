@@ -51,7 +51,7 @@ from .db_writer import (
 )
 from .db.connection import check_db_health, FailedUnitTracker
 from .prompt_loader import load_issue_config, IssueConfig
-from .config import TIER3_BATCH_SIZE
+from .config import TIER3_BATCH_SIZE, MAX_BATCH_POLL_TIME
 from .models.matches import ProcessingUnit
 from .context_builder import group_for_cache_efficiency
 from .batch_persistence import BatchPersistence, BatchInfo, RunStatus
@@ -905,7 +905,7 @@ class TierOrchestrator:
         last_progress = 0
         retry_count = 0
         max_retries = 5
-        max_poll_time = 3600 * 48  # 48 hours
+        max_poll_time = MAX_BATCH_POLL_TIME
 
         while True:
             # Check for timeout

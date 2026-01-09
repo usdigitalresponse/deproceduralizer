@@ -49,8 +49,9 @@ MAX_TIER2_RERUNS = 2
 # Default interval (seconds) between batch status polls
 DEFAULT_POLL_INTERVAL = 60
 
-# Maximum time (seconds) to wait for a batch to complete (4 hours)
-MAX_BATCH_POLL_TIME = 3600 * 4
+# Maximum time (seconds) to wait for a batch to complete
+# Anthropic guarantees batch completion within 24 hours; we use 48 for safety margin
+MAX_BATCH_POLL_TIME = 3600 * 48
 
 # Maximum retries for failed batch API calls
 MAX_BATCH_RETRIES = 5
