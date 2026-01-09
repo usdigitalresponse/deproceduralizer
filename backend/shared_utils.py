@@ -606,6 +606,7 @@ def format_batch_request(
     model: str = None,
     system: str = None,
     max_tokens: int = 64000,
+    user_cached_prefix: str = None,
 ) -> dict:
     """
     Format a single request for Anthropic Message Batches API submission.
@@ -614,10 +615,12 @@ def format_batch_request(
 
     Args:
         custom_id: Unique identifier for matching results (e.g., "doc_12345")
-        prompt: User prompt/message
+        prompt: User prompt/message (document-specific content)
         response_format: Pydantic model for structured output
         model: Model name (default: DEFAULT_MODEL)
         system: Optional system message (static, cached across requests)
+        user_cached_prefix: Optional prefix for user message that's shared across
+            requests (e.g., issue config, batch context). Gets cache_control applied.
 
     Returns:
         Dict formatted for client.beta.messages.batches.create()
@@ -643,10 +646,27 @@ def format_batch_request(
 
     tool = _pydantic_to_tool_schema(response_format)
 
+    # Build user message content
+    if user_cached_prefix:
+        # Use multi-part content with cache_control on the shared prefix
+        user_content = [
+            {
+                "type": "text",
+                "text": user_cached_prefix,
+                "cache_control": {"type": "ephemeral"}
+            },
+            {
+                "type": "text",
+                "text": prompt,
+            }
+        ]
+    else:
+        user_content = prompt
+
     params = {
         "model": model,
         "max_tokens": max_tokens,
-        "messages": [{"role": "user", "content": prompt}],
+        "messages": [{"role": "user", "content": user_content}],
         "tools": [tool],
         "tool_choice": {"type": "tool", "name": tool["name"]},
     }
