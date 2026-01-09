@@ -457,7 +457,11 @@ class Tier3Output(BaseModel):
     )
     modernized_alternative_found: Optional[EvidencedFlag] = Field(
         None,
-        description="Other states allow modern alternatives (e-signature, remote, etc.)"
+        description="Other states or federal government implement same program with modern alternatives"
+    )
+    advocacy_for_change: Optional[EvidencedFlag] = Field(
+        None,
+        description="Journalism/advocacy groups calling for this regulation to be changed"
     )
 
     # Evidence gap indicator

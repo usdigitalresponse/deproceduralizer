@@ -215,6 +215,7 @@ The pipeline detail page (`/[state]/pipeline/[documentId]/[issueType]`) surfaces
   - `federal_mandate_confirmed`
   - `state_discretion_found`
   - `modernized_alternative_found`
+  - `advocacy_for_change`
   - Each flag shows evidence with **clickable URLs**, quotes, and relevance
 
 ### Data Flow Notes
