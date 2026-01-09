@@ -52,6 +52,14 @@ const FLAG_CONFIGS: FlagConfig[] = [
     variantFalse: 'default',
     icon: '💡',
   },
+  {
+    key: 'advocacy_for_change',
+    labelTrue: 'Advocacy for Change Found',
+    labelFalse: 'No Advocacy Found',
+    variantTrue: 'warning',
+    variantFalse: 'default',
+    icon: '📢',
+  },
 ];
 
 /**
