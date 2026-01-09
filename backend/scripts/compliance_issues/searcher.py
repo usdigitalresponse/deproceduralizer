@@ -26,12 +26,13 @@ from shared_utils import (
     parse_batch_result_tool_use,
     DEFAULT_MODEL,
 )
+from observability import LLMTraceContext, flush_langfuse
 from config import OUTPUTS_DIR
 
 from .config import StateConfig, IssueTypeConfig
 from .models import BaseComplianceAnalysis
 from .statute_checker import StatuteChecker, NoOpStatuteChecker, create_statute_checker
-from .validation import is_verbatim_match
+from .validation import are_all_verbatim
 
 
 class ComplianceIssueSearcher:
@@ -48,6 +49,7 @@ class ComplianceIssueSearcher:
             state_config=STATES['nj'],
             issue_config=ISSUE_TYPES['wet_signature'],
             with_statutes=True,
+            run_id='abc123',  # Optional: for tracking pipeline runs
         )
 
         # Step 1: Regex triage
@@ -65,6 +67,7 @@ class ComplianceIssueSearcher:
         state_config: StateConfig,
         issue_config: IssueTypeConfig,
         with_statutes: bool = True,
+        run_id: Optional[str] = None,
     ):
         """
         Initialize searcher.
@@ -73,10 +76,12 @@ class ComplianceIssueSearcher:
             state_config: State configuration (NJ, NY, etc.)
             issue_config: Issue type configuration (wet_signature, mail_only, etc.)
             with_statutes: Whether to enable statute lookup
+            run_id: Optional pipeline run identifier for tracking
         """
         self.state_config = state_config
         self.issue_config = issue_config
         self.with_statutes = with_statutes
+        self.run_id = run_id
 
         # Create statute checker
         self.statute_checker = create_statute_checker(state_config, with_statutes)
@@ -209,27 +214,27 @@ class ComplianceIssueSearcher:
         return matches
 
     # Common instructions appended to all compliance issue prompts
-    # Field names match database columns: requirement_found, requirement_text, required_by_statute, severity, impact_assessment
+    # Field names match database columns: requirement_found, verbatim_supporting_text, required_by_statute, severity, decision_rationale
     LIST_OUTPUT_INSTRUCTIONS = """
 
-    IMPORTANT: Return a LIST with at least one item. Each item needs: requirement_found, requirement_text, required_by_statute, severity, impact_assessment.
+    IMPORTANT: Return a LIST with at least one item. Each item needs: requirement_found, verbatim_supporting_text, required_by_statute, severity, decision_rationale.
 
     OUTPUT FORMAT:
-    - If you find issue(s): return each with requirement_found=true and severity 1-10
-    - If NO issue: return ONE item with requirement_found=false, severity=null, requirement_text showing WHY there's no issue
+    - If you find issue(s): return each with requirement_found=true, severity 1-10, and verbatim_supporting_text with exact quotes
+    - If NO issue: return ONE item with requirement_found=false, severity=null, verbatim_supporting_text=[] (empty array)
 
     Example with 2 issues found:
     {
       "issues": [
-        {"requirement_found": true, "requirement_text": "shall be signed in ink", "required_by_statute": false, "severity": 7, "impact_assessment": "Explicit ink requirement"},
-        {"requirement_found": true, "requirement_text": "original signature required", "required_by_statute": true, "severity": 8, "impact_assessment": "Statute mandates original"}
+        {"requirement_found": true, "verbatim_supporting_text": ["shall be signed in ink"], "required_by_statute": false, "severity": 7, "decision_rationale": "Explicit ink requirement with no electronic alternative"},
+        {"requirement_found": true, "verbatim_supporting_text": ["original signature required", "signature in the presence of a notary"], "required_by_statute": true, "severity": 8, "decision_rationale": "Statute mandates original signatures"}
       ]
     }
 
     Example with NO issue (always return one item explaining why):
     {
       "issues": [
-        {"requirement_found": false, "requirement_text": "electronic or digital signatures are acceptable", "required_by_statute": null, "severity": null, "impact_assessment": "Regulation explicitly permits electronic signatures, no wet signature requirement"}
+        {"requirement_found": false, "verbatim_supporting_text": [], "required_by_statute": null, "severity": null, "decision_rationale": "Regulation explicitly permits electronic signatures, no wet signature requirement"}
       ]
     }
 
@@ -430,6 +435,17 @@ class ComplianceIssueSearcher:
 
         print(f"\n[2/2] Submitting to Anthropic Batch API...")
 
+        # Create trace context for observability
+        trace_context = LLMTraceContext(
+            run_id=self.run_id or "unknown",
+            session_name=f"compliance_{self.state_config.state_code}_{self.issue_config.name}",
+            stage="batch_submission",
+            state=self.state_config.state_code,
+            issue_type=self.issue_config.name,
+            prompt_name=f"compliance_{self.issue_config.name}",
+            extra={"match_count": len(matches)},
+        )
+
         manager = BatchManager(batches_dir=self.batches_dir)
         batch_id = manager.submit_batch(
             requests=requests,
@@ -438,7 +454,9 @@ class ComplianceIssueSearcher:
                 'state': self.state_config.state_code,
                 'issue_type': self.issue_config.name,
                 'match_count': len(matches),
-            }
+                'run_id': self.run_id,
+            },
+            trace_context=trace_context,
         )
 
         print(f"      ✓ Submitted batch: {batch_id}")
@@ -488,8 +506,19 @@ class ComplianceIssueSearcher:
         # Build match lookup by document_id
         match_lookup = {m['document_id']: m for m in matches}
 
-        # Get batch directory for logging
+        # Get batch directory for logging and metadata
         batch_dir = manager.find_batch_dir(batch_id)
+
+        # Retrieve run_id from batch metadata if not set on instance
+        if self.run_id is None and batch_dir:
+            info_file = batch_dir / 'batch_info.json'
+            if info_file.exists():
+                import json
+                with open(info_file) as f:
+                    batch_info = json.load(f)
+                if batch_info.get('run_id'):
+                    self.run_id = batch_info['run_id']
+                    print(f"      Using run_id from batch metadata: {self.run_id}")
 
         # Retrieve and process results
         print("[2/3] Retrieving and processing results...")
@@ -498,6 +527,11 @@ class ComplianceIssueSearcher:
         results = []
         processed = 0
         errored = 0
+        succeeded = 0
+
+        # Token tracking for observability
+        total_input_tokens = 0
+        total_output_tokens = 0
 
         for result in results_iter:
             custom_id = result.custom_id
@@ -519,6 +553,12 @@ class ComplianceIssueSearcher:
 
             # Parse analysis
             try:
+                # Extract token usage from result
+                if hasattr(result.result, 'message') and hasattr(result.result.message, 'usage'):
+                    usage = result.result.message.usage
+                    total_input_tokens += getattr(usage, 'input_tokens', 0)
+                    total_output_tokens += getattr(usage, 'output_tokens', 0)
+
                 analysis = parse_batch_result_tool_use(result, self.issue_config.response_model)
                 if analysis:
                     results.append({
@@ -526,6 +566,7 @@ class ComplianceIssueSearcher:
                         'llm_analysis': analysis.model_dump(),
                         'analysis_error': False,
                     })
+                    succeeded += 1
                 else:
                     results.append({**match, 'llm_analysis': None, 'analysis_error': True})
                     errored += 1
@@ -538,6 +579,7 @@ class ComplianceIssueSearcher:
             processed += 1
 
         print(f"      ✓ Processed {processed} results ({errored} errors)")
+        print(f"      Total tokens: {total_input_tokens:,} input, {total_output_tokens:,} output")
 
         # Update batch info
         if batch_dir:
@@ -547,8 +589,41 @@ class ComplianceIssueSearcher:
                     batch_info = json.load(f)
                 batch_info['status'] = 'processed'
                 batch_info['processed_at'] = datetime.now().isoformat()
+                batch_info['total_input_tokens'] = total_input_tokens
+                batch_info['total_output_tokens'] = total_output_tokens
                 with open(info_file, 'w') as f:
                     json.dump(batch_info, f, indent=2)
+
+        # Log batch completion to Langfuse
+        if self.run_id:
+            try:
+                from observability import log_batch_completion, calculate_cost
+                trace_context = LLMTraceContext(
+                    run_id=self.run_id,
+                    session_name=f"compliance_{self.state_config.state_code}_{self.issue_config.name}",
+                    stage="batch_processing",
+                    state=self.state_config.state_code,
+                    issue_type=self.issue_config.name,
+                    prompt_name=f"compliance_{self.issue_config.name}",
+                )
+                total_cost = calculate_cost(
+                    model="claude-sonnet-4-5-20250929",  # Sonnet 4.5
+                    input_tokens=total_input_tokens,
+                    output_tokens=total_output_tokens,
+                ) * 0.5  # 50% batch discount
+                log_batch_completion(
+                    context=trace_context,
+                    trace_id=None,
+                    succeeded=succeeded,
+                    errored=errored,
+                    expired=0,
+                    total_input_tokens=total_input_tokens,
+                    total_output_tokens=total_output_tokens,
+                    total_cost=total_cost,
+                )
+                flush_langfuse()
+            except Exception as e:
+                print(f"      ⚠️  Could not log to Langfuse: {e}")
 
         return results
 
@@ -609,15 +684,15 @@ class ComplianceIssueSearcher:
 
                     # Save each issue as a separate row (including "no issue" explanations)
                     for occurrence_num, issue in enumerate(issues, start=1):
-                        requirement_text = issue.get('requirement_text')
+                        verbatim_supporting_text = issue.get('verbatim_supporting_text', [])
                         full_content = item.get('full_content') or ''
-                        matched_context = item.get('context') or ''
+                        regex_match_context = item.get('context') or ''
 
-                        # Compute verbatim status
-                        is_verbatim = is_verbatim_match(
-                            requirement_text=requirement_text,
+                        # Compute verbatim status - all texts must match source
+                        is_verbatim = are_all_verbatim(
+                            texts=verbatim_supporting_text,
                             source_text=full_content,
-                            fallback_context=matched_context,
+                            fallback_context=regex_match_context,
                         )
 
                         # Enforce severity for confirmed issues - default to minimum
@@ -630,25 +705,26 @@ class ComplianceIssueSearcher:
                         conn.execute(
                             """
                             INSERT INTO compliance_issues
-                            (document_id, issue_type, occurrence_number, matched_pattern, matched_context, url,
-                             requirement_found, requirement_text, required_by_statute,
-                             severity, impact_assessment, state, is_verbatim)
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                            (document_id, issue_type, occurrence_number, regex_match_pattern, regex_match_context, url,
+                             requirement_found, verbatim_supporting_text, required_by_statute,
+                             severity, decision_rationale, state, is_verbatim, run_id)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                             """,
                             (
                                 document_id,
                                 self.issue_config.db_issue_type,
                                 occurrence_num,
-                                item.get('term_matched'),  # matched_pattern
-                                matched_context,  # matched_context
+                                item.get('term_matched'),  # regex_match_pattern
+                                regex_match_context,  # regex_match_context
                                 item.get('url', ''),
                                 requirement_found,
-                                requirement_text,
+                                verbatim_supporting_text,  # Now an array
                                 issue.get('required_by_statute'),
                                 severity,
-                                issue.get('impact_assessment'),
+                                issue.get('decision_rationale'),
                                 self.state_config.state_code,
-                                is_verbatim,  # New field
+                                is_verbatim,
+                                self.run_id,  # Pipeline run identifier
                             )
                         )
                         saved += 1
@@ -732,7 +808,8 @@ class ComplianceIssueSearcher:
                     severity = issue.get('severity', '?')
                     print(f"\n[{source}] [Sev:{severity}] {r['title'][:50]}... (#{i})")
                     print(f"   {prefix.upper()} {r.get(f'{prefix}_section', 'Unknown')}")
-                    quote = issue.get('requirement_text', 'N/A')
+                    quotes = issue.get('verbatim_supporting_text', [])
+                    quote = quotes[0] if quotes else 'N/A'
                     print(f"   Quote: \"{quote[:100] if quote else 'N/A'}\"")
                     if r.get('statute_citations'):
                         print(f"   Statute refs: {', '.join(r['statute_citations'][:3])}")
@@ -898,7 +975,8 @@ class ComplianceIssueSearcher:
             requirement_found = row['requirement_found']
             occurrence = row['occurrence']
 
-            quote = issue.get('requirement_text', '') if issue else ''
+            quotes = issue.get('verbatim_supporting_text', []) if issue else []
+            quote = quotes[0] if quotes else ''
             from_stat = issue.get('required_by_statute') if issue else None
             severity = issue.get('severity', '') if issue else ''
             statute_refs = r.get('statute_citations', [])

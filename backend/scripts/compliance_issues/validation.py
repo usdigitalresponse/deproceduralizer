@@ -3,7 +3,7 @@ Validation utilities for compliance issues.
 """
 
 import re
-from typing import Optional
+from typing import Optional, Sequence
 
 
 def normalize_text_for_comparison(text: str) -> str:
@@ -69,3 +69,37 @@ def is_verbatim_match(
             return True
 
     return False
+
+
+def are_all_verbatim(
+    texts: Optional[Sequence[str]],
+    source_text: str,
+    fallback_context: Optional[str] = None,
+) -> Optional[bool]:
+    """
+    Check if ALL texts in the array are verbatim substrings of the source text.
+
+    Args:
+        texts: Array of texts to check (from LLM analysis, e.g., verbatim_supporting_text)
+        source_text: The full regulation content to search within
+        fallback_context: Optional matched_context to check if source_text fails
+
+    Returns:
+        True if ALL texts are verbatim matches
+        False if ANY text is not a verbatim match
+        None if texts is empty/null
+    """
+    if not texts:
+        return None
+
+    for text in texts:
+        result = is_verbatim_match(text, source_text, fallback_context)
+        if result is None:
+            # Skip empty/null entries
+            continue
+        if result is False:
+            # Any non-match means not all are verbatim
+            return False
+
+    # All non-empty texts matched
+    return True
