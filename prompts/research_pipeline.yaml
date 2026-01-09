@@ -585,7 +585,8 @@ tier3:
        - superseded_by_law: Has a new law replaced/modernized this requirement?
        - federal_mandate_confirmed: Is this actually federally mandated?
        - state_discretion_found: Can the state modify/eliminate this?
-       - modernized_alternative_found: Do other states or federal guidance allow alternatives?
+       - modernized_alternative_found: Are other states or the federal government implementing the same program with modern alternatives?
+       - advocacy_for_change: Is there meaningful advocacy (journalism, advocacy groups, publications) calling for this regulation to be changed?
 
     ## Structured Flag Format (EvidencedFlag)
 
@@ -648,14 +649,31 @@ tier3:
 
     **Decrease severity (-1 to -3) when:**
     - Federal mandate confirmed (state has no choice) (-1 to -2)
-    - Modernization efforts underway in NJ (-1)
+    - Modernization efforts underway in {state} (-1)
     - Law has superseded the requirement (set to baseline 4)
 
     **Increase severity (+1 to +3) when:**
     - Evidence of widespread non-compliance (+1) - suggests impractical burden
-    - Other states have modernized but NJ hasn't (+1)
-    - The federal government has modernized or encourages alternatives that NJ lacks (+1)
-    - Advocacy groups actively opposing (+1)
+    - Other states have modernized but {state} hasn't (+1)
+    - The federal government has modernized or encourages alternatives that {state} lacks (+1)
+    - `advocacy_for_change.value = true` with credible sources (+1)
+
+    ## Advocacy for Change Flag Guidance
+
+    Search for advocacy calling for this regulation to be changed:
+    - News articles, investigative journalism
+    - Advocacy group reports and publications
+    - Industry trade group position papers
+    - Academic papers critiquing the requirement
+    - Op-eds from subject matter experts
+
+    **Credible sources include:** established news outlets (newspapers, trade publications),
+    recognized advocacy organizations, academic institutions, industry associations.
+
+    **Evaluate for:**
+    - Recency (within last 3-5 years preferred)
+    - Source credibility (not fringe/anonymous sources)
+    - Specificity (calls out this exact regulation or regulatory pattern)
 
     ## Easy Cleanup Detection
 
@@ -677,15 +695,13 @@ tier3:
     - Forms that include email/online options
 
     ### 2. ALTERNATIVE_AUTHORIZED (effort: easy)
-    New Jersey has AUTHORIZED a modern alternative that this regulation hasn't been updated to reference.
-
-    Key NJ Authorities:
-    - E-filing for various agencies
+    {state} has AUTHORIZED a modern alternative that this regulation hasn't been updated to reference.
 
     Evidence to look for:
-    - NJ laws authorizing electronic alternatives
-    - RON availability for notarization requirements
-    - Agency e-filing systems that could apply
+    - {state} laws authorizing electronic alternatives (e-signatures, e-filing, RON)
+    - State executive orders modernizing administrative processes
+    - Agency e-filing systems that could apply to this requirement
+    - Remote Online Notarization (RON) availability for notarization requirements
 
     ### 3. PEER_STATE_SOLUTION (effort: medium)
     Other states have successfully modernized this exact type of requirement.
@@ -704,10 +720,10 @@ tier3:
     1. **DO NOT classify as "unrelated"** - the regulation TEXT still creates a burden
     2. **KEEP the classification** as burdensome or justified based on the regulation's actual requirements
     3. **LOWER severity** if the alternative is in practice 1-2 points to reflect reduced practical burden
-    4. **INCREASE severity** if other states have modernized but NJ hasn't
+    4. **INCREASE severity** if other states have modernized but {state} hasn't
     4. **SET easy_cleanup_candidate = true**
     5. **PROVIDE specific evidence** - URL where you found the alternative
-    6. **RECOMMEND specific fix** - e.g., "Update N.J.A.C. 8:62-4.3 to add 'or electronic payment'"
+    6. **RECOMMEND specific fix** - e.g., "Update [regulatory citation] to add 'or electronic payment'"
 
     ## Source Evaluation
 
@@ -805,14 +821,20 @@ tier3:
       "modernized_alternative_found": {
         "value": true,
         "scope": "issue-type/domain",
-        "reason": "Nevada allows remote identity verification",
+        "reason": "Nevada allows remote identity verification for same licensing program",
+        "evidence": [{"type": "web", "identifier": "https://...", "quote": "...", "relevance": "..."}]
+      },
+      "advocacy_for_change": {
+        "value": true,
+        "scope": "reg-specific",
+        "reason": "Industry trade association published 2024 report calling for electronic alternatives",
         "evidence": [{"type": "web", "identifier": "https://...", "quote": "...", "relevance": "..."}]
       },
 
       "easy_cleanup_candidate": true,
       "cleanup_type": "alternative_in_practice",
-      "cleanup_evidence": "NJ DOH licensing portal at dohlicensing.nj.gov offers e-payment",
-      "cleanup_recommendation": "Update N.J.A.C. 8:62-4.3 to allow electronic payment methods",
+      "cleanup_evidence": "State licensing portal already offers e-payment option",
+      "cleanup_recommendation": "Update [regulatory citation] to allow electronic payment methods",
       "cleanup_effort": "trivial",
 
       "evidence_gap": false,
@@ -914,11 +936,12 @@ tier3:
 
     Focus on:
     1. Whether this requirement is federally mandated
-    2. Whether other states have modernized alternatives
-    3. Whether NJ has discretion to change this requirement
+    2. Whether other states have modernized alternatives for the same program
+    3. Whether {state} has discretion to change this requirement
+    4. Whether there is advocacy (journalism, advocacy groups) calling for this to be changed
 
     After completing your web searches, output your assessment as JSON with:
-    - Structured flags (superseded_by_law, federal_mandate_confirmed, state_discretion_found, modernized_alternative_found)
+    - Structured flags (superseded_by_law, federal_mandate_confirmed, state_discretion_found, modernized_alternative_found, advocacy_for_change)
     - Each flag with value, scope, reason, and evidence array
     - Set evidence_gap: true if web search was inconclusive
     - Adjust classification and severity based on findings
