@@ -2,52 +2,32 @@
 
 ## Executive Summary
 
-After merging the research-pipeline into the main deproceduralizer, a comprehensive analysis identified **3 critical issues**, **15 high-priority improvements**, and numerous code quality enhancements across frontend, backend, and database layers.
+After merging the research-pipeline into the main deproceduralizer, a comprehensive analysis identified **3 critical issues** (all now fixed ✅), **15 high-priority improvements**, and numerous code quality enhancements across frontend, backend, and database layers.
 
 ---
 
 ## CRITICAL ISSUES (Must Fix Before Production)
 
-### 1. Backend: Tuple Unpacking Runtime Error
+### 1. ✅ FIXED: Backend: Tuple Unpacking Runtime Error
 **Files:**
 - `backend/scripts/research_pipeline/tier_orchestrator.py:970`
 - `backend/scripts/research_pipeline/tiers/tier2_runner.py:679`
 
-**Problem:** These files expect `call_llm_parse_async()` to return `(result, usage)` tuple, but `shared_utils.py` returns single `Optional[BaseModel]`.
-
-**Fix:** Change to single value assignment:
-```python
-# BEFORE (broken)
-result, usage = await call_llm_parse_async(...)
-
-# AFTER (correct)
-result = await call_llm_parse_async(...)
-```
+**Status:** Fixed - `call_llm_parse_async()` now returns `(result, usage)` tuple as expected.
 
 ---
 
-### 2. Database: Duplicate Migration File Numbers
-**Problem:** Multiple migrations share the same number, causing unpredictable execution:
+### 2. ✅ FIXED: Database: Duplicate Migration File Numbers
+**Problem:** Multiple migrations shared the same number.
 
-| Number | Files (Conflicting) |
-|--------|---------------------|
-| 0007 | `0007_review_ui_refactor.sql`, `0007_add_display_columns.sql` |
-| 0009 | `0009_definition_cross_reference_types.sql`, `0009_drop_legacy_definition_tables.sql`, `0009_exclude_from_analysis.sql` |
-| 0014 | `0014_summary_metadata.sql`, `0014_original_severity.sql` |
-
-**Fix:** Rename with suffixes:
-- `0007_add_display_columns.sql` → `0008_add_display_columns.sql`
-- `0009_definition_cross_reference_types.sql` → `0009a_definition_cross_reference_types.sql`
-- etc.
+**Status:** Fixed - Renamed with suffixes (0007a, 0007b, 0008a, 0008b, 0009a, 0009b, 0009c, 0014a, 0014b).
 
 ---
 
-### 3. Backend: Duplicate Database Connection Function
-**File:** `backend/scripts/estimate_compliance_run.py:36-37`
+### 3. ✅ FIXED: Backend: Duplicate Database Connection Function
+**File:** `backend/scripts/estimate_compliance_run.py`
 
-**Problem:** Uses deprecated `psycopg2` instead of shared `shared_utils.get_db_connection()` (which uses `psycopg3`).
-
-**Fix:** Remove local function, import from shared_utils.
+**Status:** Fixed - Now imports `get_db_connection` from `shared_utils` (line 22).
 
 ---
 
