@@ -1048,7 +1048,7 @@ def migrate_regulations_to_db(state: str, regulations: list = None, reg_dir: Pat
                         try:
                             cur.close()
                             conn.close()
-                        except:
+                        except (psycopg.Error, AttributeError):
                             pass
                         conn = get_db_connection()
                         cur = conn.cursor()
@@ -1089,7 +1089,8 @@ def populate_parent_ids(state: str, regulations: list = None, reg_dir: Path = No
                 psi = data.get('parent_source_index')
                 if si is not None:
                     parent_mappings[si] = psi
-            except:
+            except (json.JSONDecodeError, OSError, KeyError) as e:
+                print(f"  Warning: Failed to load {filepath.name}: {type(e).__name__}")
                 continue
     elif regulations is not None:
         print(f"Loading {state} parent mappings from {len(regulations)} regulations...")
@@ -1162,7 +1163,8 @@ def cleanup_stale_documents(state: str, valid_source_indices: set = None, reg_di
                 si = data.get('source_index')
                 if si is not None:
                     valid_source_indices.add(si)
-            except:
+            except (json.JSONDecodeError, OSError, KeyError) as e:
+                print(f"  Warning: Failed to load {filepath.name}: {type(e).__name__}")
                 continue
     elif valid_source_indices is None:
         print("✗ No valid_source_indices or reg_dir provided")
