@@ -371,7 +371,7 @@ export function PipelineTimeline({ analysis }: PipelineTimelineProps) {
         tier4Adjustment={null} // No longer used in V5 display
         finalSeverity={analysis.finalSeverity}
         tier2Calculation={tier2?.severityCalculation || null}
-        tier3Reasoning={webSearchTier?.severityAdjustmentReasoning || null}
+        tier3Reasoning={webSearchTier && 'severityAdjustmentReasoning' in webSearchTier ? webSearchTier.severityAdjustmentReasoning : null}
       />
     </div>
   );
