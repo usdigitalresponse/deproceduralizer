@@ -24,6 +24,23 @@ load_dotenv(PROJECT_ROOT / ".env")
 
 
 # =============================================================================
+# Fixtures
+# =============================================================================
+
+
+@pytest.fixture
+def disable_random_sampling():
+    """Disable 10% random sampling in routing logic for deterministic tests.
+
+    The routing module uses random.random() to select 10% of items for
+    additional Tier 3 analysis. This fixture mocks that to return 0.5,
+    ensuring random sampling never triggers in tests unless explicitly tested.
+    """
+    with patch("scripts.research_pipeline.routing.random.random", return_value=0.5):
+        yield
+
+
+# =============================================================================
 # Helper Functions (used by tests, not fixtures)
 # =============================================================================
 

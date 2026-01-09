@@ -183,6 +183,7 @@ class TestTier2RoutingV5:
     """
 
     # Parametrized test for terminal cases (→ DONE)
+    # Note: confidence=0.9 to avoid low-confidence trigger (threshold is 0.85)
     @pytest.mark.parametrize("classification,severity,flags", [
         ("unrelated", None, {}),
         ("justified", 3, {}),
@@ -191,58 +192,68 @@ class TestTier2RoutingV5:
         ("burdensome", 7, {}),  # Below threshold (needs >= 8)
         ("burdensome", 6, {"claims_no_alternative": True}),  # Below threshold (needs sev >= 7)
     ])
+    @pytest.mark.usefixtures("disable_random_sampling")
     def test_tier2_to_done(self, classification, severity, flags):
-        """Tier 2 without triggers → DONE"""
+        """Tier 2 without triggers → DONE (random sampling disabled)"""
         from scripts.research_pipeline.state_machine import get_next_state, ProcessingState
+
+        output = make_tier2_output(
+            classification=classification,
+            severity=severity,
+            **flags,
+        )
+        output.confidence = 0.9  # High confidence to avoid low-confidence trigger
 
         unit = make_tracked_unit(
             tier1_output=make_tier1_output(),
-            tier2_output=make_tier2_output(
-                classification=classification,
-                severity=severity,
-                **flags,
-            ),
+            tier2_output=output,
             state=ProcessingState.TIER2_COMPLETE,
         )
 
         assert get_next_state(unit) == ProcessingState.DONE
 
     # Parametrized test for Tier 3 triggers
-    @pytest.mark.parametrize("classification,severity,flags,issue_type", [
-        # Trigger 1: High-risk issue types (require severity >= 6)
-        ("burdensome", 6, {}, "wet_signature"),
-        ("burdensome", 6, {}, "notarization"),
-        ("burdensome", 6, {}, "newspaper"),
-        ("burdensome", 6, {}, "witness"),
-        ("burdensome", 6, {}, "in_person"),
-        ("burdensome", 6, {}, "mandated_reports"),
-        # Trigger 2: cites_federal_statute
-        ("burdensome", 5, {"cites_federal_statute": True}, "mail_only"),
-        # Trigger 3: claims_no_alternative + severity >= 7
-        ("burdensome", 7, {"claims_no_alternative": True}, "mail_only"),
-        ("burdensome", 8, {"claims_no_alternative": True}, "mail_only"),
-        # Trigger 4: burdensome + severity >= 8
-        ("burdensome", 8, {}, "mail_only"),
-        ("burdensome", 9, {}, "mail_only"),
-        ("burdensome", 10, {}, "mail_only"),
-        # Trigger 5: justified + controversial
-        ("justified", 3, {"potentially_controversial": True}, "mail_only"),
-        ("justified", 1, {"potentially_controversial": True}, "mail_only"),
-        # Trigger 6: federal_mandate_suspected
-        ("burdensome", 2, {"federal_mandate_suspected": True}, "mail_only"),
-        ("burdensome", 5, {"federal_mandate_suspected": True}, "mail_only"),
+    # Note: V5.1 skip logic prevents high-conf + burdensome + severity >= 7 from escalating
+    # unless they cite federal statute. High-risk issue types with "justified" always escalate.
+    @pytest.mark.parametrize("classification,severity,confidence,flags,issue_type", [
+        # Trigger 1a: High-risk issue types + justified (always escalate)
+        ("justified", 3, 0.9, {}, "wet_signature"),
+        ("justified", 5, 0.9, {}, "notarization"),
+        ("justified", 4, 0.9, {}, "newspaper"),
+        ("justified", 2, 0.9, {}, "witness"),
+        ("justified", 6, 0.9, {}, "in_person_submission"),
+        ("justified", 3, 0.9, {}, "mandated_reports"),
+        # Trigger 1b: High-risk issue types + burdensome + low confidence (bypasses skip)
+        ("burdensome", 7, 0.75, {}, "wet_signature"),
+        ("burdensome", 8, 0.80, {}, "notarization"),
+        # Trigger 2: cites_federal_statute (bypasses skip logic)
+        ("burdensome", 5, 0.9, {"cites_federal_statute": True}, "mail_only"),
+        ("burdensome", 8, 0.9, {"cites_federal_statute": True}, "mail_only"),
+        # Trigger 3: Low confidence + severity >= 7
+        ("burdensome", 7, 0.75, {}, "mail_only"),
+        ("burdensome", 8, 0.80, {}, "mail_only"),
+        # Trigger 4: justified + controversial
+        ("justified", 3, 0.9, {"potentially_controversial": True}, "mail_only"),
+        ("justified", 1, 0.9, {"potentially_controversial": True}, "mail_only"),
+        # Trigger 5: federal_mandate_suspected (doesn't hit skip logic due to low severity)
+        ("burdensome", 2, 0.9, {"federal_mandate_suspected": True}, "mail_only"),
+        ("burdensome", 5, 0.9, {"federal_mandate_suspected": True}, "mail_only"),
     ])
-    def test_tier2_to_tier3(self, classification, severity, flags, issue_type):
-        """Tier 2 with V5 triggers → TIER3_PENDING"""
+    @pytest.mark.usefixtures("disable_random_sampling")
+    def test_tier2_to_tier3(self, classification, severity, confidence, flags, issue_type):
+        """Tier 2 with V5.1 triggers → TIER3_PENDING (random sampling disabled)"""
         from scripts.research_pipeline.state_machine import get_next_state, ProcessingState
+
+        output = make_tier2_output(
+            classification=classification,
+            severity=severity,
+            **flags,
+        )
+        output.confidence = confidence
 
         unit = make_tracked_unit(
             tier1_output=make_tier1_output(),
-            tier2_output=make_tier2_output(
-                classification=classification,
-                severity=severity,
-                **flags,
-            ),
+            tier2_output=output,
             state=ProcessingState.TIER2_COMPLETE,
             issue_type=issue_type,
         )

@@ -6,6 +6,7 @@ Run LLM tests: cd backend && pytest -m llm (requires API key)
 """
 import pytest
 import os
+import sys
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -271,29 +272,32 @@ class TestCLI:
 
     def test_batch_definitions_dryrun(self):
         import subprocess
+        backend_dir = Path(__file__).parent.parent
         result = subprocess.run(
-            ['python', 'scripts/batch_definitions.py', 'submit',
+            [sys.executable, 'scripts/batch_definitions.py', 'submit',
              '--state', 'NJ', '--title', '3A', '--limit', '1', '--dry-run'],
-            capture_output=True, text=True, cwd=str(__file__).replace('/tests/test_backend.py', '')
+            capture_output=True, text=True, cwd=str(backend_dir)
         )
         assert result.returncode == 0
         assert 'DRY RUN' in result.stdout
 
     def test_red_flags_dryrun(self):
         import subprocess
+        backend_dir = Path(__file__).parent.parent
         result = subprocess.run(
-            ['python', 'scripts/red_flags.py',
+            [sys.executable, 'scripts/red_flags.py',
              '--state', 'NJ', '--title', '3A', '--sample-size', '1', '--dry-run'],
-            capture_output=True, text=True, cwd=str(__file__).replace('/tests/test_backend.py', '')
+            capture_output=True, text=True, cwd=str(backend_dir)
         )
         assert result.returncode == 0
         assert 'DRY RUN' in result.stdout
 
     def test_run_pipeline_help(self):
         import subprocess
+        backend_dir = Path(__file__).parent.parent
         result = subprocess.run(
-            ['python', 'run_pipeline.py', '--help'],
-            capture_output=True, text=True, cwd=str(__file__).replace('/tests/test_backend.py', '')
+            [sys.executable, 'run_pipeline.py', '--help'],
+            capture_output=True, text=True, cwd=str(backend_dir)
         )
         assert result.returncode == 0
         assert '--state' in result.stdout

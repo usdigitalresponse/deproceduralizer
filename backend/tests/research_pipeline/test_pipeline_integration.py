@@ -1571,17 +1571,19 @@ class TestTier2Routing:
         assert next_state == ProcessingState.TIER3_PENDING
 
     def test_high_risk_issue_type_to_tier3(self):
-        """V5 T2-R6: High-risk issue type → TIER3_PENDING for web verification"""
+        """V5 T2-R6: High-risk issue type + justified → TIER3_PENDING for web verification"""
         from scripts.research_pipeline.state_machine import get_next_state, ProcessingState
 
+        # V5.1: High-risk + justified always escalates
+        # High-risk + burdensome requires severity >= 7 to escalate
         unit = make_tracked_unit(
             tier1_output=make_tier1_output(),
             tier2_output=make_tier2_output(
-                classification="burdensome",
+                classification="justified",  # V5.1: justified always escalates for high-risk
                 severity=5,
             ),
             state=ProcessingState.TIER2_COMPLETE,
-            issue_type="wet_signature",  # V5: High-risk issue type triggers Tier 3
+            issue_type="wet_signature",  # V5: High-risk issue type
         )
 
         next_state = get_next_state(unit)
@@ -1663,8 +1665,9 @@ class TestEscalationTriggers:
         next_state = get_next_state(unit)
         assert next_state == ProcessingState.TIER3_PENDING
 
+    @pytest.mark.usefixtures("disable_random_sampling")
     def test_no_federal_mandate_high_confidence_to_done(self):
-        """T2-E2: sev=5 + no federal_mandate + high confidence → DONE"""
+        """T2-E2: sev=5 + no federal_mandate + high confidence → DONE (random sampling disabled)"""
         from scripts.research_pipeline.state_machine import get_next_state, ProcessingState
 
         unit = make_tracked_unit(
@@ -1682,19 +1685,23 @@ class TestEscalationTriggers:
         next_state = get_next_state(unit)
         assert next_state == ProcessingState.DONE
 
+    @pytest.mark.usefixtures("disable_random_sampling")
     def test_low_severity_no_triggers_to_done(self):
-        """V5 T2-E3: sev=4 without canonical triggers → DONE"""
+        """V5 T2-E3: sev=4 without canonical triggers → DONE (random sampling disabled)"""
         from scripts.research_pipeline.state_machine import get_next_state, ProcessingState
 
         # In V5, needs_web_search alone doesn't trigger Tier 3
         # Only canonical triggers (federal statute, high-risk issue type, etc.) do
+        output = make_tier2_output(
+            classification="burdensome",
+            severity=4,
+            needs_web_search=True,  # Not a V5 trigger by itself
+        )
+        output.confidence = 0.9  # High confidence to avoid low-confidence trigger
+
         unit = make_tracked_unit(
             tier1_output=make_tier1_output(),
-            tier2_output=make_tier2_output(
-                classification="burdensome",
-                severity=4,
-                needs_web_search=True,  # Not a V5 trigger by itself
-            ),
+            tier2_output=output,
             state=ProcessingState.TIER2_COMPLETE,
         )
 
@@ -3258,10 +3265,17 @@ class TestPromptPlaceholderValidation:
         issue = load_issue_config("in_person_submission")
 
         # V5 4-layer caching: batch_context_vars (Layer 3)
+        # These are shared across documents in the same subchapter
         batch_context_vars = {
             "subchapter_citation": "N.J.A.C. 1:1",
             "definition_scope": "(definitions from N.J.A.C. 1:1)",
             "definitions": "- applicant: A person who applies",
+            # V5: Document context fields (batch_context layer)
+            "ancestor_summaries": "(no ancestor summaries)",
+            "sibling_count": "0",
+            "sibling_catalog_truncated": "",
+            "sibling_catalog": "(no sibling catalog)",
+            "keyword_sibling_summaries": "(no keyword matches)",
         }
 
         # Mock all expected Tier 2 context values
@@ -3726,13 +3740,13 @@ class TestTier2V5HandoffIntegration:
 
 
 class TestPipelineVersionV5:
-    """Test PIPELINE_VERSION is set to v5."""
+    """Test PIPELINE_VERSION is set to v5.x."""
 
     def test_pipeline_version_is_v5(self):
-        """PIPELINE_VERSION should be 'v5'."""
+        """PIPELINE_VERSION should start with 'v5'."""
         from scripts.research_pipeline.db_writer import PIPELINE_VERSION
 
-        assert PIPELINE_VERSION == "v5"
+        assert PIPELINE_VERSION.startswith("v5"), f"Expected v5.x, got {PIPELINE_VERSION}"
 
 
 class TestDbWriterV5ColumnsPresence:
