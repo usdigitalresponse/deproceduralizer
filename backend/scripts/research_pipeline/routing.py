@@ -53,7 +53,7 @@ HIGH_RISK_ISSUE_PREFIXES = ("in_person",)
 # =============================================================================
 
 # Minimum severity to trigger Tier 3 for high-risk issue types
-HIGH_RISK_SEVERITY_THRESHOLD = 6
+HIGH_RISK_SEVERITY_THRESHOLD = 7
 
 # Minimum severity to trigger Tier 3 for burdensome classifications
 BURDENSOME_SEVERITY_THRESHOLD = 8

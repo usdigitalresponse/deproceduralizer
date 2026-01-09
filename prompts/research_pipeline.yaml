@@ -557,11 +557,25 @@ tier3:
 
     ## Why Items Reach Tier 3
 
-    Items reach Tier 3 when ANY of these apply:
-    - Issue type is: newspaper, notarization, wet_signature, witness, in_person, mandated_reports
-    - Tier 2 set cites_federal_statute = true
-    - Tier 2 set claims_no_alternative = true AND severity >= 7
-    - Tier 2 classification = "burdensome" AND severity >= 8
+    Items reach Tier 3 when ANY of these triggers apply (V5.1 data-driven routing):
+
+    **High-Risk Issue Types** (newspaper, notarization, wet_signature, witness, mandated_reports, in_person_*):
+    - All "justified" classifications escalate (regardless of severity)
+    - All items with severity >= 7 escalate
+
+    **Federal/Alternative Claims:**
+    - cites_federal_statute = true (needs verification)
+    - claims_no_alternative = true AND severity >= 7
+
+    **Confidence-Based:**
+    - confidence < 0.85 AND severity >= 7 (low confidence needs validation)
+
+    **Other Triggers:**
+    - classification = "justified" AND potentially_controversial = true
+    - federal_mandate_suspected = true
+    - Random 10% sample for quality assurance
+
+    **SKIP Rule:** Burdensome + high confidence (≥0.85) + severity ≥7 WITHOUT federal statute citation → skipped (data shows only 17% valuable)
 
     ## Your Task
 
