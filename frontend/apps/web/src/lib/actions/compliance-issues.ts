@@ -1,7 +1,7 @@
 'use server';
 
 import 'server-only';
-import { unstable_cache } from 'next/cache';
+import { updateTag, unstable_cache } from 'next/cache';
 import {
   db,
   ComplianceIssuesRepository,
@@ -60,9 +60,11 @@ export async function updateComplianceIssueReview(
       return failure(`Compliance issue with id ${input.id} not found`);
     }
 
-    // Don't revalidate - client manages queue state locally via optimistic updates.
-    // Revalidation would cause server to re-fetch with stale URL params,
+    // Revalidate the status counts cache but not the full pages.
+    // Don't use revalidatePath - client manages queue state locally via optimistic updates.
+    // Path revalidation would cause server to re-fetch with stale URL params,
     // breaking suggestion mode batch behavior.
+    updateTag('compliance-issues');
     return success(result);
   } catch (error) {
     console.error('[updateComplianceIssueReview]', error);
@@ -140,6 +142,7 @@ export interface ComplianceIssueStatusCounts {
 
 /**
  * Gets counts of compliance issues grouped by review status for a state.
+ * Cached for 2 minutes to reduce database traffic.
  * @param state - The state code (e.g., 'NY', 'NJ')
  * @returns Object with counts per status and total
  */
@@ -147,7 +150,12 @@ export async function getComplianceIssueStatusCounts(
   state: StateCode
 ): Promise<ActionResult<ComplianceIssueStatusCounts>> {
   try {
-    const result = await complianceIssuesRepo.getCountsByStatus(state);
+    const cachedGetStatusCounts = unstable_cache(
+      () => complianceIssuesRepo.getCountsByStatus(state),
+      [`compliance-issue-status-counts-${state}`],
+      { revalidate: 120, tags: ['compliance-issues'] } // 2 minutes
+    );
+    const result = await cachedGetStatusCounts();
     return success(result);
   } catch (error) {
     console.error('[getComplianceIssueStatusCounts]', error);

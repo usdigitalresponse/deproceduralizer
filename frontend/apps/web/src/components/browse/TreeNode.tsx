@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { type HierarchyNode } from '@deproceduralizer/database';
 import { Badge, SeverityBadge } from '@/components/ui/Badge';
 import { SectionTypeBadge } from '@/components/ui/SectionTypeBadge';
@@ -52,7 +53,7 @@ const levelIcons: Record<string, typeof Folder> = {
   section: FileText,
 };
 
-export function TreeNode({
+export const TreeNode = memo(function TreeNode({
   node,
   depth,
   isExpanded,
@@ -238,7 +239,7 @@ export function TreeNode({
       )}
     </div>
   );
-}
+});
 
 // Loading skeleton for children
 interface TreeNodeSkeletonProps {

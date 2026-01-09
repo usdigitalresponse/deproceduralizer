@@ -1,12 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { formatLabel } from '@/types/regulation';
 import { getPriorityLabel, getImpactLabel } from './helpers';
 import type { ReviewSummaryProps } from './types';
 
-export function ReviewSummary({ item }: ReviewSummaryProps) {
+export const ReviewSummary = memo(function ReviewSummary({ item }: ReviewSummaryProps) {
   const [showDetails, setShowDetails] = useState(false);
 
   // Get type-specific fields
@@ -152,4 +152,4 @@ export function ReviewSummary({ item }: ReviewSummaryProps) {
       )}
     </div>
   );
-}
+});

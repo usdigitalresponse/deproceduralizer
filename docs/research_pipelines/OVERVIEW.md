@@ -97,7 +97,8 @@ Tier 3 (if triggered) outputs:
   │   ├── superseded_by_law
   │   ├── federal_mandate_confirmed
   │   ├── state_discretion_found
-  │   └── modernized_alternative_found
+  │   ├── modernized_alternative_found
+  │   └── advocacy_for_change
   └── Web search summary
 ```
 
@@ -174,7 +175,7 @@ Evidence is stored in `tier3_flags` column (not merged into `context_used`) to p
 
 ### Tier 3 Output (if triggered)
 - `classification`, `severity_adjustment`, `final_severity`
-- `superseded_by_law`, `federal_mandate_confirmed`, `state_discretion_found`, `modernized_alternative_found`
+- `superseded_by_law`, `federal_mandate_confirmed`, `state_discretion_found`, `modernized_alternative_found`, `advocacy_for_change`
 - `evidence_gap` (true if search found nothing)
 - `context_used` (web sources with quotes)
 - `web_search_summary`

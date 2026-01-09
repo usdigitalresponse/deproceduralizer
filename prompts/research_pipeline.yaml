@@ -279,13 +279,14 @@ tier2:
     6. **Determine if mandatory or optional** - "shall" vs "may"
     7. **Check for electronic/alternative options** - Modern alternatives?
     8. **Look for statute citations** - Statutory mandate?
-    9. **Consider legitimate purpose** - Safety, security, fraud prevention?
+    9. **Consider legitimate purpose** - Safety, security, fraud prevention? 
     10. **Assess impact on ALL affected parties** - Consider each group:
         - Citizens (applying for permits, buying homes, caring for children)
         - Businesses (compliance filings, permits, recordkeeping, hiring)
         - Government staff (processing paperwork, maintaining systems)
         - Professionals (maintaining licenses, serving clients)
         - Vulnerable populations (elderly, disabled, low-income, rural, youth/children)
+        - For each group, What is the risk this is mitigating?  The reward of implementation? How does that weigh against the inevitable burden and cost of implementation and/or compliance?
     11. **Calculate severity** - Baseline + modifiers
     12. **Extract verbatim requirement text** - Exact quotes
 
@@ -293,11 +294,11 @@ tier2:
 
     **UNRELATED**: The matched text does not actually represent this issue type
     - The language refers to something else entirely
-    - Context shows this is not a burden
+    - Context clearly and obviously shows this is not a burden and does not lessen state capacity
 
     **JUSTIFIED**: The burden exists but is clearly necessary
     - Mandated by state or federal statute
-    - Clear safety/security/fraud prevention rationale
+    - Clear safety/security/fraud prevention rationale proportionate the burden and/or cost of implementation
     - Limited scope or exceptions minimize impact
     - IMPORTANT: severity IS required (typically 1-3, reflecting low concern)
 
@@ -343,10 +344,9 @@ tier2:
 
     **potentially_controversial** (boolean):
     Set to TRUE when ANY of these apply:
-    - Requirement affects vulnerable populations (elderly, disabled, low-income)
-    - Requirement involves civil rights or accessibility concerns
-    - Creates significant geographic or transportation barriers
-    - Affects professional licensing for in-demand fields
+    - Requirement affects vulnerable populations (elderly, disabled, low-income) in ways that like provoke public outcry and political debate
+    - Requirement involves civil rights or accessibility concerns that are pressing or important in modern debates
+    - Relates to modern questions around affordability, power, politically sensitive, or high-profile issues
 
     These routing flags help determine if additional verification is needed.
 
@@ -450,7 +450,9 @@ tier2:
     - Federal statute is cited but state discretion is unclear
     - Claiming no alternative exists but you're uncertain
     - Issue is potentially controversial and needs external validation
-    - Industry standards or other state practices might inform the analysis
+    - Understanding the approach of other states, the federal government, or industry standards would inform the analysis
+    - It seems like it is something that has a clear public component that might be available on the internet with valuable context
+    - There are technical considerations in the burden that could be address by searching the web
 
     Provide 1-3 specific search topics that would help verify your classification.
 

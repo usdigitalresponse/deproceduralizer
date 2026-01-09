@@ -7,6 +7,9 @@ USAGE:
 This module handles persisting extraction results to the cross_references table.
 It uses a delete-then-insert strategy for each source document to ensure clean
 re-runs (idempotent behavior).
+
+PERFORMANCE: Uses batch INSERT operations to minimize database round-trips.
+For 1000 documents with 5 refs each, this reduces queries from ~7000 to ~10.
 """
 
 import os
@@ -14,9 +17,10 @@ import json
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Tuple
 
 import psycopg
+from psycopg import sql
 from dotenv import load_dotenv
 
 # Load environment
@@ -35,6 +39,8 @@ def write_to_database(
 
     Uses a clean-slate approach: for each source document, deletes existing
     cross-references before inserting new ones. This ensures idempotent re-runs.
+
+    OPTIMIZED: Uses batch operations to minimize database round-trips.
 
     Args:
         results: List of DocumentExtractionResult objects from extraction
@@ -59,93 +65,93 @@ def write_to_database(
         print("  No documents with references to save.")
         return stats
 
+    total_refs = sum(r.total_count for r in docs_with_refs)
     print(f"\n[DB] Writing {len(docs_with_refs)} documents to database...")
-    print(f"     Total references: {sum(r.total_count for r in docs_with_refs)}")
+    print(f"     Total references: {total_refs}")
 
     if dry_run:
         print("     (DRY RUN - no changes will be made)")
         stats['docs_updated'] = len(docs_with_refs)
-        stats['inserted'] = sum(r.total_count for r in docs_with_refs)
+        stats['inserted'] = total_refs
         return stats
 
     start_time = time.time()
 
     try:
         conn = psycopg.connect(os.getenv("DATABASE_URL"))
+        cur = conn.cursor()
 
-        for i, doc_result in enumerate(docs_with_refs):
-            try:
-                # Progress update every 50 docs or at the end
-                if (i + 1) % 50 == 0 or (i + 1) == len(docs_with_refs):
-                    elapsed = time.time() - start_time
-                    rate = (i + 1) / elapsed if elapsed > 0 else 0
-                    eta = (len(docs_with_refs) - i - 1) / rate if rate > 0 else 0
-                    print(f"     Progress: {i + 1}/{len(docs_with_refs)} docs "
-                          f"({stats['inserted']} refs, ETA: {eta:.0f}s)")
+        # STEP 1: Batch DELETE - collect all source document IDs
+        source_doc_ids = [r.source_document_id for r in docs_with_refs]
+        print(f"     Step 1/3: Deleting existing refs for {len(source_doc_ids)} documents...")
+        cur.execute(
+            "DELETE FROM cross_references WHERE source_document_id = ANY(%s)",
+            (source_doc_ids,)
+        )
+        deleted_count = cur.rowcount
+        print(f"              Deleted {deleted_count} existing references")
 
-                # Delete existing refs for this document (clean re-run)
-                conn.execute(
-                    "DELETE FROM cross_references WHERE source_document_id = %s",
-                    (doc_result.source_document_id,)
-                )
+        # STEP 2: Batch INSERT - collect all references into tuples
+        print(f"     Step 2/3: Preparing {total_refs} references for batch insert...")
+        all_refs: List[Tuple] = []
+        for doc_result in docs_with_refs:
+            for ref in doc_result.references:
+                all_refs.append((
+                    doc_result.source_document_id,
+                    ref.ref_type.value,
+                    ref.raw_text,
+                    ref.normalized_citation,
+                    ref.start_offset,
+                    ref.end_offset,
+                    ref.context_before,
+                    ref.context_after,
+                    json.dumps(ref.components) if ref.components else None,
+                    ref.target_document_id,
+                    ref.is_resolved,
+                    _get_resolution_notes(ref) if not ref.is_resolved else None,
+                    state.upper(),
+                ))
 
-                # Insert new refs
-                refs_inserted = 0
-                for ref in doc_result.references:
-                    conn.execute(
-                        """
-                        INSERT INTO cross_references
-                        (source_document_id, ref_type, raw_text, normalized_citation,
-                         start_offset, end_offset, context_before, context_after,
-                         components, target_document_id, is_resolved, resolution_notes, state)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                        """,
-                        (
-                            doc_result.source_document_id,
-                            ref.ref_type.value,
-                            ref.raw_text,
-                            ref.normalized_citation,
-                            ref.start_offset,
-                            ref.end_offset,
-                            ref.context_before,
-                            ref.context_after,
-                            json.dumps(ref.components) if ref.components else None,
-                            ref.target_document_id,
-                            ref.is_resolved,
-                            _get_resolution_notes(ref) if not ref.is_resolved else None,
-                            state.upper(),
-                        )
-                    )
-                    refs_inserted += 1
+        # Use executemany for batch insert (psycopg 3 handles this efficiently)
+        if all_refs:
+            print(f"              Inserting {len(all_refs)} references...")
+            cur.executemany(
+                """
+                INSERT INTO cross_references
+                (source_document_id, ref_type, raw_text, normalized_citation,
+                 start_offset, end_offset, context_before, context_after,
+                 components, target_document_id, is_resolved, resolution_notes, state)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """,
+                all_refs
+            )
+            stats['inserted'] = len(all_refs)
 
-                # Update cross_reference_count on source document
-                conn.execute(
-                    """
-                    UPDATE regulatory_documents
-                    SET cross_reference_count = %s
-                    WHERE id = %s
-                    """,
-                    (len(doc_result.references), doc_result.source_document_id)
-                )
-
-                stats['inserted'] += refs_inserted
-                stats['docs_updated'] += 1
-
-            except Exception as e:
-                stats['errors'] += 1
-                print(f"     Error on doc {doc_result.source_document_id}: {e}")
-                # Rollback to recover from aborted transaction state
-                try:
-                    conn.rollback()
-                except Exception:
-                    pass
+        # STEP 3: Batch UPDATE cross_reference_counts
+        print(f"     Step 3/3: Updating cross_reference_count for {len(docs_with_refs)} documents...")
+        update_data = [(len(r.references), r.source_document_id) for r in docs_with_refs]
+        cur.executemany(
+            """
+            UPDATE regulatory_documents
+            SET cross_reference_count = %s
+            WHERE id = %s
+            """,
+            update_data
+        )
+        stats['docs_updated'] = len(docs_with_refs)
 
         conn.commit()
+        cur.close()
         conn.close()
 
     except Exception as e:
-        print(f"\n[DB] Database connection error: {e}")
+        print(f"\n[DB] Database error: {e}")
         stats['errors'] += 1
+        try:
+            conn.rollback()
+            conn.close()
+        except Exception:
+            pass
 
     stats['duration_seconds'] = round(time.time() - start_time, 1)
 

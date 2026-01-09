@@ -1,7 +1,7 @@
 'use server';
 
 import 'server-only';
-import { revalidatePath, unstable_cache } from 'next/cache';
+import { revalidatePath, updateTag, unstable_cache } from 'next/cache';
 import {
   db,
   RedFlagsRepository,
@@ -57,6 +57,7 @@ export async function updateRedFlagReview(
     }
 
     // Targeted invalidation: only review pages need updating after red flag review
+    updateTag('red-flags');
     revalidatePath('/[state]/review', 'page');
     return success(result);
   } catch (error) {
@@ -118,6 +119,7 @@ export interface ReviewStatusCounts {
 
 /**
  * Gets counts of red flags grouped by review status for a state.
+ * Cached for 2 minutes to reduce database traffic.
  * @param state - The state code (e.g., 'NY', 'NJ')
  * @returns Object with counts per status and total
  */
@@ -125,7 +127,12 @@ export async function getRedFlagStatusCounts(
   state: StateCode
 ): Promise<ActionResult<ReviewStatusCounts>> {
   try {
-    const result = await redFlagsRepo.getCountsByStatus(state);
+    const cachedGetStatusCounts = unstable_cache(
+      () => redFlagsRepo.getCountsByStatus(state),
+      [`red-flag-status-counts-${state}`],
+      { revalidate: 120, tags: ['red-flags'] } // 2 minutes
+    );
+    const result = await cachedGetStatusCounts();
     return success(result);
   } catch (error) {
     console.error('[getRedFlagStatusCounts]', error);

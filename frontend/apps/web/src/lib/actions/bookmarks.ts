@@ -1,10 +1,11 @@
 'use server';
 
 import 'server-only';
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, updateTag, unstable_cache } from 'next/cache';
 import {
   db,
   BookmarksRepository,
+  bookmarks,
   complianceIssueAnalyses,
   type Bookmark,
   type BookmarkWithDetails,
@@ -32,6 +33,7 @@ export async function toggleAnalysisBookmark(
     if (existing) {
       // Remove bookmark
       await bookmarksRepo.delete(existing.id);
+      updateTag('bookmarks');
       revalidatePath('/[state]/pipeline', 'page');
       revalidatePath('/[state]/bookmarks', 'page');
       return success(null);
@@ -62,6 +64,7 @@ export async function toggleAnalysisBookmark(
       createdBy,
     });
 
+    updateTag('bookmarks');
     revalidatePath('/[state]/pipeline', 'page');
     revalidatePath('/[state]/bookmarks', 'page');
     return success(bookmark);
@@ -89,6 +92,7 @@ export async function toggleDocumentBookmark(
     if (existing) {
       // Remove bookmark
       await bookmarksRepo.delete(existing.id);
+      updateTag('bookmarks');
       revalidatePath('/[state]/regulations', 'page');
       revalidatePath('/[state]/bookmarks', 'page');
       return success(null);
@@ -102,6 +106,7 @@ export async function toggleDocumentBookmark(
       createdBy,
     });
 
+    updateTag('bookmarks');
     revalidatePath('/[state]/regulations', 'page');
     revalidatePath('/[state]/bookmarks', 'page');
     return success(bookmark);
@@ -162,6 +167,7 @@ export async function removeBookmark(
       return failure(`Bookmark with id ${bookmarkId} not found`);
     }
 
+    updateTag('bookmarks');
     revalidatePath('/[state]/pipeline', 'page');
     revalidatePath('/[state]/regulations', 'page');
     revalidatePath('/[state]/bookmarks', 'page');
@@ -205,18 +211,30 @@ export async function getBookmarkedAnalysisIds(
 
 /**
  * Get bookmark counts for a state.
+ * Cached for 2 minutes with parallel queries for performance.
  */
 export async function getBookmarkCounts(
   state: string
 ): Promise<ActionResult<{ analysis: number; document: number; total: number }>> {
   try {
-    const analysisCount = await bookmarksRepo.getCount(state, 'analysis');
-    const documentCount = await bookmarksRepo.getCount(state, 'document');
-    return success({
-      analysis: analysisCount,
-      document: documentCount,
-      total: analysisCount + documentCount,
-    });
+    const cachedGetBookmarkCounts = unstable_cache(
+      async () => {
+        // Parallel queries instead of sequential
+        const [analysisCount, documentCount] = await Promise.all([
+          bookmarksRepo.getCount(state, 'analysis'),
+          bookmarksRepo.getCount(state, 'document'),
+        ]);
+        return {
+          analysis: analysisCount,
+          document: documentCount,
+          total: analysisCount + documentCount,
+        };
+      },
+      [`bookmark-counts-${state}`],
+      { revalidate: 120, tags: ['bookmarks'] } // 2 minutes
+    );
+    const result = await cachedGetBookmarkCounts();
+    return success(result);
   } catch (error) {
     console.error('[getBookmarkCounts]', error);
     return failure(getErrorMessage(error));
@@ -225,7 +243,7 @@ export async function getBookmarkCounts(
 
 /**
  * Toggle bookmark for an analysis by document ID and issue type.
- * This is a convenience function for use in tables that don't have the analysis ID.
+ * Optimized to use a single query to get analysis + bookmark status.
  * @returns The created bookmark, or null if removed, or error if analysis not found
  */
 export async function toggleAnalysisBookmarkByDocIssue(
@@ -235,10 +253,15 @@ export async function toggleAnalysisBookmarkByDocIssue(
   createdBy?: string
 ): Promise<ActionResult<Bookmark | null>> {
   try {
-    // Find the analysis ID
-    const [analysis] = await db
-      .select({ id: complianceIssueAnalyses.id })
+    // Single query to get analysis ID and existing bookmark status
+    const [result] = await db
+      .select({
+        analysisId: complianceIssueAnalyses.id,
+        analysisState: complianceIssueAnalyses.state,
+        bookmarkId: bookmarks.id,
+      })
       .from(complianceIssueAnalyses)
+      .leftJoin(bookmarks, eq(bookmarks.analysisId, complianceIssueAnalyses.id))
       .where(
         and(
           eq(complianceIssueAnalyses.documentId, documentId),
@@ -247,12 +270,32 @@ export async function toggleAnalysisBookmarkByDocIssue(
       )
       .limit(1);
 
-    if (!analysis) {
+    if (!result) {
       return failure(`Analysis for document ${documentId} issue ${issueType} not found`);
     }
 
-    // Use the main toggle function
-    return toggleAnalysisBookmark(analysis.id, undefined, createdBy);
+    if (result.bookmarkId) {
+      // Bookmark exists - remove it
+      await bookmarksRepo.delete(result.bookmarkId);
+      updateTag('bookmarks');
+      revalidatePath('/[state]/pipeline', 'page');
+      revalidatePath('/[state]/bookmarks', 'page');
+      return success(null);
+    }
+
+    // Create new bookmark
+    const bookmark = await bookmarksRepo.create({
+      documentId,
+      analysisId: result.analysisId,
+      issueType,
+      state: result.analysisState,
+      createdBy,
+    });
+
+    updateTag('bookmarks');
+    revalidatePath('/[state]/pipeline', 'page');
+    revalidatePath('/[state]/bookmarks', 'page');
+    return success(bookmark);
   } catch (error) {
     console.error('[toggleAnalysisBookmarkByDocIssue]', error);
     return failure(getErrorMessage(error));

@@ -29,10 +29,14 @@ witness:
     - '+1: Multiple witnesses required (2+)'
     - '+1: No notarization alternative offered'
     - '+1: Administrative rather than legal necessity'
+    - '+1: High-frequency or routine documents'
+    - '+1: Affects vulnerable populations (elderly, rural, homebound)'
     decreases:
     - '-2: Statutory requirement for this document type'
     - '-1: Document type traditionally requires witnesses (wills, contracts)'
     - '-1: Clear anti-fraud purpose stated'
+    - '-1: Notarization explicitly permitted as alternative'
+    - '-1: Limited scope or exceptions minimize impact'
   patterns:
   - (shall|must).{0,15}(be )?witnessed
   - witness.{0,10}(is |shall be |are )?required

@@ -433,7 +433,8 @@ class WebEvidence(BaseModel):
 | `superseded_by_law` | Newer statute explicitly repeals/amends | Reform priority signal |
 | `federal_mandate_confirmed` | Federal law explicitly requires this | Justification strengthened |
 | `state_discretion_found` | Federal leaves discretion to states | Can push toward burdensome |
-| `modernized_alternative_found` | Other states allow modern alternatives | Severity upshift |
+| `modernized_alternative_found` | Other states implement same program with modern alternatives | Severity upshift |
+| `advocacy_for_change` | Journalism/advocacy groups calling for change | Severity +1 if credible |
 | `evidence_gap` | Search found nothing relevant | Neutral (prevents false conclusions) |
 
 ### Outputs
@@ -448,6 +449,7 @@ class WebEvidence(BaseModel):
 | `federal_mandate_confirmed` | EvidencedFlag | With evidence |
 | `state_discretion_found` | EvidencedFlag | With evidence |
 | `modernized_alternative_found` | EvidencedFlag | With evidence |
+| `advocacy_for_change` | EvidencedFlag | With evidence |
 | `evidence_gap` | bool | True if search inconclusive |
 | `context_used` | list[ContextEntryLLM] | Web sources with quotes |
 | `web_search_summary` | str | Summary of findings |

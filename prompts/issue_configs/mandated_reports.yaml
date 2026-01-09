@@ -28,10 +28,15 @@ mandated_reports:
     - '+3: Monthly or more frequent reporting'
     - '+2: Detailed/complex report format'
     - '+1: No clear audience identified'
+    - '+1: High staff time/resources needed'
+    - '+1: Duplicative of other reports/data'
+    - '+1: Report purpose vague or value unclear'
     decreases:
     - '-2: Clear statutory necessity'
     - '-1: Annual or less frequent'
     - '-1: Simple format/metrics'
+    - '-1: Clear audience and purpose'
+    - '-1: Automated data collection in place'  
   patterns:
   - annual report
   - quarterly report
