@@ -19,8 +19,9 @@ class ComplianceIssueInstance(BaseModel):
     requirement_found: bool = Field(
         description="True if this is a real compliance issue, False if explaining why there's NO issue"
     )
-    requirement_text: str = Field(
-        description="The specific text - either creating the requirement (if issue) or showing why there's no issue (e.g., 'electronic signatures permitted')"
+    verbatim_supporting_text: list[str] = Field(
+        default_factory=list,
+        description="Exact verbatim quotes from the regulation text that support this finding. Empty array if no issue found."
     )
     required_by_statute: Optional[bool] = Field(
         default=None,
@@ -32,8 +33,8 @@ class ComplianceIssueInstance(BaseModel):
         le=10,
         description="How problematic (1-10). Required if requirement_found=True, null if requirement_found=False."
     )
-    impact_assessment: str = Field(
-        description="Explanation - why this IS problematic, or why there's NO issue"
+    decision_rationale: str = Field(
+        description="Holistic explanation of the classification decision - why this IS or IS NOT a compliance issue"
     )
 
     @model_validator(mode='after')
