@@ -1,0 +1,73 @@
+obsolete_media:
+  updated_at: '2026-01-03'
+  display_name: Obsolete Storage Media
+  db_issue_type: obsolete_media
+  category: Technology
+  description: 'Physical storage media (floppy disk, CD-ROM, USB drive, magnetic tape) is required for
+    document submission, using technology that may be unavailable or pose security risks. This burdens:
+    citizens without drives for obsolete media; businesses maintaining legacy equipment; government staff
+    managing outdated formats; and particularly youth who have never used these technologies and may not
+    have access to equipment. Online submission is more secure and accessible.'
+  positive_indicators:
+  - Physical media (CD, DVD, USB, floppy) is required
+  - Online submission/upload is not mentioned
+  - Requirement specifies obsolete format
+  - '"submit on [media type]" explicit requirement'
+  - No cloud or online alternative
+  negative_indicators:
+  - Online submission is equally available
+  - Physical media is one of several options
+  - '"or upload" or "or email" alternatives'
+  - Media reference is historical/archival
+  - Large file transfers where media is practical
+  severity_baseline: 5
+  severity_modifiers:
+    increases:
+    - '+2: Obsolete media (floppy, ZIP drive)'
+    - '+1: No online alternative'
+    - '+1: Requires specialized equipment'
+    decreases:
+    - '-2: Online submission available'
+    - '-1: USB drive (still common)'
+    - '-1: Large data transfer context'
+  patterns:
+  - floppy.{0,5}disk
+  - \bdiskette\b
+  - cd-rom
+  - \bdvd\b
+  - magnetic.{0,5}tape
+  - usb drive
+  - flash drive
+  - punch.{0,5}card
+  statistics:
+    total_matches: 80
+    true_positives: 31
+    true_positive_rate: 38.75
+    sample_date: '2026-01-01'
+  examples:
+    true_positives:
+    - citation: N.J.A.C. 7:26-8.4
+      quote: data shall be submitted on CD-ROM
+      reasoning: CD-ROM required. Most computers lack drives now.
+      classification: burdensome
+      severity: 5
+    - citation: N.J.A.C. 14:3-7.2
+      quote: plans on 3.5 inch floppy disk
+      reasoning: Floppy disk requirement. Completely obsolete.
+      classification: burdensome
+      severity: 7
+    false_positives:
+    - citation: N.J.A.C. 17:12-2.3
+      quote: submit via portal, email, or USB drive
+      reasoning: USB is one option. Online alternatives available.
+      classification: unrelated
+    - citation: N.J.A.C. 8:43-12.1
+      quote: historical records on microfiche or tape
+      reasoning: Archival reference to historical records.
+      classification: unrelated
+    justified:
+    - citation: N.J.A.C. 7:26-2.4
+      quote: large datasets may be submitted on external drive
+      reasoning: Very large files. Physical media practical.
+      classification: justified
+      severity: 2

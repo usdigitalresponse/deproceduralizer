@@ -7,6 +7,7 @@ import { MetadataIndicators } from '@/components/ui/MetadataIndicators';
 import { ChevronRight, ChevronDown, FileText, BookOpen, Folder, Link2, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { formatDisplayTitle } from '@/lib/format';
 import { HIERARCHY_LEVEL_LABELS } from '@/lib/constants/hierarchy';
+import { highlightTerm } from '@/lib/utils/highlight';
 import type { HighlightType } from './ReferenceHighlightContext';
 
 interface TreeNodeProps {
@@ -38,27 +39,6 @@ function getHighlightClasses(highlightType: HighlightType | undefined): string {
     default:
       return '';
   }
-}
-
-// Highlight matching text in a string
-function highlightMatch(text: string, searchTerm: string | undefined): React.ReactNode {
-  if (!searchTerm || !text) return text;
-
-  const lowerText = text.toLowerCase();
-  const lowerSearch = searchTerm.toLowerCase();
-  const index = lowerText.indexOf(lowerSearch);
-
-  if (index === -1) return text;
-
-  return (
-    <>
-      {text.substring(0, index)}
-      <mark className="bg-[var(--color-accent-muted)] text-inherit rounded px-0.5">
-        {text.substring(index, index + searchTerm.length)}
-      </mark>
-      {text.substring(index + searchTerm.length)}
-    </>
-  );
 }
 
 const levelIcons: Record<string, typeof Folder> = {
@@ -163,7 +143,7 @@ export function TreeNode({
         {/* Node content */}
         <div className="flex-1 min-w-0 min-w-[120px]">
           <div className="text-sm font-medium truncate" title={node.title}>
-            {highlightMatch(displayTitle, searchTerm)}
+            {highlightTerm(displayTitle, searchTerm, 'bg-[var(--color-accent-muted)] text-inherit rounded px-0.5')}
           </div>
           <div className="text-xs text-[var(--color-text-muted)] flex items-center gap-2">
             {/* Level badge */}

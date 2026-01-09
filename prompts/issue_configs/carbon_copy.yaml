@@ -1,0 +1,65 @@
+carbon_copy:
+  updated_at: '2026-01-03'
+  display_name: Carbon/Duplicate Copy
+  db_issue_type: carbon_copy
+  category: Technology
+  description: 'Carbon copies or duplicate physical copies are required using obsolete technology when
+    photocopies or electronic distribution would suffice. This creates burden for: citizens who must obtain
+    and handle carbon paper or make multiple originals; businesses managing duplicate filing systems;
+    professionals submitting multi-part forms; and government staff storing and processing redundant physical
+    copies.'
+  positive_indicators:
+  - Carbon copies specifically required
+  - Multiple physical originals required (not just photocopies)
+  - Electronic distribution could replace requirement
+  - Number of copies seems excessive
+  - '"duplicate copy" with no electronic option'
+  negative_indicators:
+  - Photocopies are acceptable
+  - Electronic distribution is also permitted
+  - Multiple copies serve clear distribution purpose
+  - '"or electronic copies" alternative'
+  - Just CC notation on communications (email cc)
+  severity_baseline: 4
+  severity_modifiers:
+    increases:
+    - '+2: Carbon copies specifically required'
+    - '+1: Multiple originals required'
+    - '+1: No electronic alternative'
+    decreases:
+    - '-2: Photocopies acceptable'
+    - '-1: Electronic distribution permitted'
+    - '-1: Clear distribution rationale'
+  patterns:
+  - carbon copy
+  - carbon.{0,5}copies
+  - duplicate copy
+  - duplicate copies
+  statistics:
+    total_matches: 79
+    true_positives: 62
+    true_positive_rate: 78.48
+    sample_date: '2026-01-01'
+  examples:
+    true_positives:
+    - citation: N.J.A.C. 13:45A-7.3
+      quote: carbon copy of the receipt shall be retained
+      reasoning: Requires actual carbon copy technology.
+      classification: burdensome
+      severity: 5
+    - citation: N.J.A.C. 8:43-3.2
+      quote: duplicate copies shall be prepared simultaneously
+      reasoning: Requires multiple originals, not photocopies.
+      classification: burdensome
+      severity: 4
+    false_positives:
+    - citation: N.J.A.C. 17:1-2.1
+      quote: copy or electronic version
+      reasoning: Electronic alternative offered.
+      classification: unrelated
+    justified:
+    - citation: N.J.A.C. 3:6-5.3
+      quote: duplicate original for chain of custody
+      reasoning: Chain of custody may require simultaneous originals.
+      classification: justified
+      severity: 3

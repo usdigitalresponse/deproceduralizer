@@ -408,7 +408,7 @@ export const DeveloperCard = forwardRef<HTMLDivElement, DeveloperCardProps>(
             </div>
 
             {/* LLM Analysis box */}
-            {(issue.impactAssessment || issue.requirementText) && (
+            {(issue.decisionRationale || (issue.verbatimSupportingText && issue.verbatimSupportingText.length > 0)) && (
               <div className="mb-4 p-4 bg-[var(--color-primary-bg)] rounded-[var(--radius-md)] border border-[var(--color-primary)]/20">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-sm font-semibold text-[var(--color-primary)]">LLM Analysis</span>
@@ -422,22 +422,24 @@ export const DeveloperCard = forwardRef<HTMLDivElement, DeveloperCardProps>(
                   )}
                 </div>
 
-                {/* Requirement Text */}
-                {issue.requirementText && (
-                  <div className="mb-3">
-                    <p className="text-sm text-[var(--color-text)] whitespace-pre-wrap leading-relaxed">
-                      {issue.isVerbatim && <span className="text-[var(--color-text-muted)]">&quot;</span>}
-                      {issue.requirementText}
-                      {issue.isVerbatim && <span className="text-[var(--color-text-muted)]">&quot;</span>}
-                    </p>
+                {/* Verbatim Supporting Text */}
+                {issue.verbatimSupportingText && issue.verbatimSupportingText.length > 0 && (
+                  <div className="mb-3 space-y-2">
+                    {issue.verbatimSupportingText.map((text, index) => (
+                      <p key={index} className="text-sm text-[var(--color-text)] whitespace-pre-wrap leading-relaxed">
+                        {issue.isVerbatim && <span className="text-[var(--color-text-muted)]">&quot;</span>}
+                        {text}
+                        {issue.isVerbatim && <span className="text-[var(--color-text-muted)]">&quot;</span>}
+                      </p>
+                    ))}
                   </div>
                 )}
 
-                {/* Impact Assessment */}
-                {issue.impactAssessment && (
+                {/* Decision Rationale */}
+                {issue.decisionRationale && (
                   <div className="pt-3 border-t border-[var(--color-primary)]/10">
-                    <span className="text-xs font-medium text-[var(--color-text-secondary)]">Impact Assessment:</span>
-                    <p className="mt-1 text-sm text-[var(--color-text)]">{issue.impactAssessment}</p>
+                    <span className="text-xs font-medium text-[var(--color-text-secondary)]">Decision Rationale:</span>
+                    <p className="mt-1 text-sm text-[var(--color-text)]">{issue.decisionRationale}</p>
                   </div>
                 )}
 
@@ -457,15 +459,15 @@ export const DeveloperCard = forwardRef<HTMLDivElement, DeveloperCardProps>(
                 content={(issue.regulation as unknown as { content: string }).content}
                 documentId={issue.regulation.id}
                 state={state}
-                scrollToText={issue.requirementText}
-                highlightPattern={issue.matchedPattern}
+                scrollToText={issue.verbatimSupportingText?.[0]}
+                highlightPattern={issue.regexMatchPattern}
                 isVerbatim={issue.isVerbatim ?? false}
                 label="Show Regulation Text"
               />
             )}
 
             {/* Technical Details (collapsible) */}
-            {issue.matchedPattern && (
+            {issue.regexMatchPattern && (
               <details className="mb-4 p-4 bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] border border-[var(--color-neutral-200)] group">
                 <summary className="flex items-center gap-1.5 text-sm font-medium text-[var(--color-text-secondary)] cursor-pointer hover:text-[var(--color-text)] transition-colors list-none [&::-webkit-details-marker]:hidden">
                   <svg className="w-4 h-4 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -476,7 +478,7 @@ export const DeveloperCard = forwardRef<HTMLDivElement, DeveloperCardProps>(
                 <div className="mt-3 bg-white border border-[var(--color-neutral-200)] rounded-[var(--radius-sm)] p-3">
                   <span className="text-xs font-medium text-[var(--color-text-secondary)]">Pattern matched:</span>
                   <div className="mt-1">
-                    <Tag variant="warning" size="sm">{issue.matchedPattern}</Tag>
+                    <Tag variant="warning" size="sm">{issue.regexMatchPattern}</Tag>
                   </div>
                 </div>
               </details>

@@ -1,0 +1,103 @@
+wet_signature:
+  updated_at: '2026-01-03'
+  display_name: Wet Signature
+  db_issue_type: wet_signature
+  category: Signatures
+  description: 'A physical wet/ink signature is required on documents, prohibiting electronic signatures
+    and requiring physical document handling. This burdens: citizens who must print, sign, and mail documents
+    for permits, home purchases, or childcare paperwork; businesses with remote employees who cannot easily
+    sign physical documents; professionals signing certifications and filings; government staff managing
+    paper instead of electronic workflows; and particularly vulnerable populations including elderly with
+    mobility issues or hand tremors, rural residents far from delivery services, and disabled individuals
+    who struggle with physical document handling.'
+  positive_indicators:
+  - '"wet signature" - explicit requirement for physical ink signature'
+  - '"original signature" - indicates physical signature on original document'
+  - '"ink signature" or "signed in ink" - specifies physical signing'
+  - '"handwritten signature" - explicitly requires hand-signing'
+  - '"manually signed" or "physical signature" - requires physical action'
+  - Explicit prohibition of electronic/digital/fax signatures
+  - '"signature in blue/black ink" - color specification implies physical'
+  negative_indicators:
+  - Generic "shall be signed" or "must be signed" (allows electronic under UETA/E-SIGN)
+  - '"signature required" without wet/ink/handwritten modifier'
+  - '"bear the signature of" - generic signature requirement'
+  - Electronic signature explicitly permitted as alternative
+  - Context of electronic systems or digital workflows
+  - '"signed" appearing in electronic submission context'
+  severity_baseline: 5
+  severity_modifiers:
+    increases:
+    - '+1: No electronic signature alternative mentioned'
+    - '+1: High-volume or routine documents'
+    - '+2: Explicit prohibition of electronic signatures'
+    decreases:
+    - '-1: Statutory requirement mandates physical signature'
+    - '-1: Document type where physical signature genuinely needed (checks, deeds)'
+    - '-2: Electronic signature explicitly permitted as alternative'
+  patterns:
+  - wet signature
+  - ink signature
+  - handwritten signature
+  - original signature
+  - signed in ink
+  - blue ink
+  - black ink
+  - manually signed
+  - physical signature
+  - personally sign
+  - notarized.{0,20}signature
+  - signature.{0,20}notari
+  - bear.{0,10}signature
+  exclusion_patterns:
+  - shall be signed (generic, allows electronic)
+  - must be signed (generic, allows electronic)
+  - signature required (generic)
+  - signature.{0,10}of (generic)
+  - signed.{0,10}by (generic)
+  statistics:
+    total_matches: 168
+    true_positives: 103
+    true_positive_rate: 61.31
+    sample_date: '2026-01-01'
+  legal_context: 'Under UETA and the E-SIGN Act, generic signature requirements ("shall be signed")
+
+    are satisfied by electronic signatures. ONLY explicit requirements for "wet",
+
+    "ink", "handwritten", "original", or "physical" signatures, OR explicit prohibitions
+
+    of electronic signatures, constitute wet signature requirements.
+
+    '
+  examples:
+    true_positives:
+    - citation: N.J.A.C. 17:12-2.5
+      quote: shall bear the original signature of the authorized person
+      reasoning: '''Original signature'' explicitly requires physical, not electronic.'
+      classification: burdensome
+      severity: 5
+    - citation: N.J.A.C. 10:45-3.2
+      quote: The form must be signed in ink
+      reasoning: Explicit 'signed in ink' requirement prohibits electronic.
+      classification: burdensome
+      severity: 5
+    - citation: N.J.A.C. 8:42-3.1
+      quote: wet signature required; electronic signatures not accepted
+      reasoning: Explicit wet signature requirement with electronic prohibition.
+      classification: burdensome
+      severity: 6
+    false_positives:
+    - citation: N.J.A.C. 13:45A-5.1
+      quote: The application shall be signed by the applicant
+      reasoning: Generic 'shall be signed' allows electronic under UETA/E-SIGN.
+      classification: unrelated
+    - citation: N.J.A.C. 7:26-8.2
+      quote: must bear the signature of the responsible official
+      reasoning: Generic signature requirement without wet/ink specification.
+      classification: unrelated
+    justified:
+    - citation: N.J.A.C. 3:6-8.5
+      quote: checks must bear original signature of account holder
+      reasoning: Financial instruments genuinely require wet signature for security.
+      classification: justified
+      severity: 3

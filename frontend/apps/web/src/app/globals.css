@@ -249,3 +249,81 @@ table {
   outline-offset: 1px;
   background-color: var(--color-success-bg);
 }
+
+/* ===============================================
+   Print Styles - For regulatory document printing
+   =============================================== */
+@media print {
+  /* Hide interactive elements and site chrome */
+  .print\:hidden,
+  [data-print-hide],
+  header,
+  [role="banner"],
+  footer,
+  [role="contentinfo"],
+  .sticky,
+  nav {
+    display: none !important;
+  }
+
+  /* Show print-only elements */
+  .print\:block {
+    display: block !important;
+  }
+
+  /* Force page breaks at section boundaries */
+  .print\:break-before {
+    break-before: page;
+  }
+
+  .print\:break-after {
+    break-after: page;
+  }
+
+  .print\:break-inside-avoid {
+    break-inside: avoid;
+  }
+
+  /* Show full URLs for links in print */
+  a[href]:not(.print-no-url)::after {
+    content: " (" attr(href) ")";
+    font-size: 0.8em;
+    color: #666;
+  }
+
+  /* Don't show URL for internal links */
+  a[href^="#"]::after,
+  a[href^="javascript"]::after {
+    content: none;
+  }
+
+  /* Full width containers in print */
+  .container,
+  main {
+    width: 100% !important;
+    max-width: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Reset backgrounds for print */
+  body,
+  .bg-\[var\(--color-background\)\],
+  .bg-\[var\(--color-surface\)\] {
+    background: white !important;
+    color: black !important;
+  }
+
+  /* Ensure badges print with borders */
+  [class*="Badge"],
+  .badge {
+    border: 1px solid #ccc !important;
+    background: #f5f5f5 !important;
+    color: black !important;
+  }
+
+  /* Page margins */
+  @page {
+    margin: 1cm;
+  }
+}

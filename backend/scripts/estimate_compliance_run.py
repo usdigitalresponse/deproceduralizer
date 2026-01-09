@@ -19,7 +19,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from dotenv import load_dotenv
 load_dotenv(PROJECT_ROOT / '.env')
 
-import psycopg2
+from shared_utils import get_db_connection
 from compliance_issues.config import STATES, ISSUE_TYPES
 
 
@@ -31,10 +31,6 @@ OUTPUT_COST_PER_M = 4.00
 AVG_OUTPUT_TOKENS = 300  # typical structured response
 SYSTEM_PROMPT_TOKENS = 600  # avg system prompt size
 CALLS_PER_SECOND = 5  # conservative rate limit estimate
-
-
-def get_db_connection():
-    return psycopg2.connect(os.environ['DATABASE_URL'])
 
 
 def count_regex_matches_fast(conn, state_code: str, patterns: list[str]) -> tuple[int, list[dict]]:

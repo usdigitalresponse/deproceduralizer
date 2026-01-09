@@ -1,0 +1,91 @@
+mandated_reports:
+  updated_at: '2026-01-03'
+  display_name: Mandated Reports
+  db_issue_type: mandated_reports
+  category: Reporting
+  description: 'Government entities or regulated parties must produce mandated reports that may be duplicative,
+    excessive in frequency, or rarely read. This diverts resources from service delivery and affects:
+    government staff spending time preparing reports instead of serving the public; businesses bearing
+    compliance reporting costs; professionals filing periodic reports; and ultimately citizens and vulnerable
+    populations who receive reduced services while resources go to report production. Many could be replaced
+    by dashboards or automated data collection.'
+  positive_indicators:
+  - Report mandated without clear audience or purpose
+  - Frequency seems excessive (monthly, weekly)
+  - Reporting appears not commensurate with the need of reporting
+  - Other more meaningful ways of obtaining the information exist or could easily be implemented
+  - Report duplicates information available elsewhere
+  - High staff burden for production
+  - No evidence report is used or read
+  negative_indicators:
+  - Clear accountability purpose (annual financial audit) with limited redundancy
+  - Report required by federal law/grant
+  - Performance metrics with clear use well-scoped to the use case
+  - Public transparency requirement that appears proportionate to the work required
+  severity_baseline: 4
+  severity_modifiers:
+    increases:
+    - '+3: Monthly or more frequent reporting'
+    - '+2: Detailed/complex report format'
+    - '+1: No clear audience identified'
+    decreases:
+    - '-2: Clear statutory necessity'
+    - '-1: Annual or less frequent'
+    - '-1: Simple format/metrics'
+  patterns:
+  - annual report
+  - quarterly report
+  - submit a report
+  - file a report
+  - reporting requirements
+  - report to the
+  - statistical report
+  - publish a report
+  statistics:
+    total_matches: 3023
+    true_positives: 2638
+    true_positive_rate: 87.26
+    sample_date: '2026-01-01'
+  examples:
+    true_positives:
+    - citation: N.J.A.C. 13:69D-1.6
+      quote: Each casino licensee shall file monthly, quarterly, and annual reports of financial and statistical
+        data
+      reasoning: Monthly + quarterly + annual is excessive frequency. Monthly reports due on 10th at 9:00
+        A.M. creates tight deadline burden when quarterly and annual reports are also required.
+      classification: burdensome
+      severity: 6
+    - citation: N.J.A.C. 7:26-5.3
+      quote: quarterly statistical report on waste volumes
+      reasoning: Quarterly reporting burden. Could be annual or dashboard.
+      classification: burdensome
+      severity: 5
+    false_positives:
+    - citation: N.J.A.C. 13:34-32.8
+      quote: licensee who becomes aware of a breach in confidentiality of client information shall comply
+        with reporting requirements
+      reasoning: 'EVENT-TRIGGERED: Breach notification responding to known problem. Legitimate reporting
+        requirement.'
+      classification: unrelated
+    - citation: N.J.A.C. 8:31A-3.1
+      quote: Each covered facility shall submit an annual report to the Department in hardcopy or on an
+        electronic standardized form
+      reasoning: Annual frequency is reasonable, electronic submission permitted, supports audits and
+        operational oversight.
+      classification: unrelated
+    - citation: N.J.A.C. 7:26G-5.5
+      quote: comprehensive technical reports due within 180 days of contamination detection
+      reasoning: 'EVENT-TRIGGERED: Contamination event at hazardous waste facility requires investigation
+        report for safety.'
+      classification: unrelated
+    justified:
+    - citation: N.J.A.C. 52:15-1
+      quote: annual report to Legislature on program outcomes
+      reasoning: Legislative accountability. Clear purpose, annual frequency.
+      classification: justified
+      severity: 2
+    - citation: N.J.A.C. 17:12-3.1
+      quote: annual audit report as required by OMB
+      reasoning: Federal requirement for financial accountability.
+      classification: justified
+      severity: 2

@@ -1,0 +1,66 @@
+microfiche:
+  updated_at: '2026-01-03'
+  display_name: Microfiche/Microfilm
+  db_issue_type: microfiche
+  category: Technology
+  description: 'Microfiche or microfilm is required for storage, submission, or retrieval, using obsolete
+    technology that requires specialized equipment. This creates barriers for: citizens needing to access
+    records; businesses without microfiche equipment; researchers and professionals seeking historical
+    documents; government staff maintaining readers and film; and particularly vulnerable populations
+    including those in rural areas without library access to readers, elderly unfamiliar with the technology,
+    and disabled individuals who cannot easily use microfiche equipment.'
+  positive_indicators:
+  - Microfiche/microfilm is required for submission
+  - Records must be maintained on microfiche
+  - Access requires microfiche readers
+  - Active requirement for current processes
+  - No digital alternative mentioned
+  negative_indicators:
+  - Reference is to historical archives
+  - Microfiche mentioned as one storage option among several
+  - '"or electronic format" alternative'
+  - Historical preservation context
+  - Transitional language about digitizing existing records
+  severity_baseline: 5
+  severity_modifiers:
+    increases:
+    - '+2: Active submission requirement'
+    - '+1: No digital alternative'
+    - '+1: Requires specialized equipment'
+    decreases:
+    - '-2: Historical archive reference'
+    - '-1: One option among several'
+    - '-1: Digitization in progress'
+  patterns:
+  - microfiche
+  - microfilm
+  - microform
+  - aperture card
+  statistics:
+    total_matches: 94
+    true_positives: 66
+    true_positive_rate: 70.21
+    sample_date: '2026-01-01'
+  examples:
+    true_positives:
+    - citation: N.J.A.C. 8:43-12.2
+      quote: records shall be maintained on microfilm
+      reasoning: Active requirement to store on microfilm.
+      classification: burdensome
+      severity: 5
+    - citation: N.J.A.C. 13:69-2.1
+      quote: documents reproduced on microfiche for filing
+      reasoning: Requires microfiche format for filing.
+      classification: burdensome
+      severity: 5
+    false_positives:
+    - citation: N.J.A.C. 17:12-1.3
+      quote: historical records exist on microfilm
+      reasoning: Historical reference, not active requirement.
+      classification: unrelated
+    justified:
+    - citation: N.J.A.C. 52:1-2.3
+      quote: archives maintained on microfilm pending digitization
+      reasoning: Transitional state. Digitization in progress.
+      classification: justified
+      severity: 2

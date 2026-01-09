@@ -1,0 +1,92 @@
+storage_location:
+  updated_at: '2026-01-03'
+  display_name: Specific Storage Location
+  db_issue_type: storage_location
+  category: Process
+  description: 'Records must be kept at a specific physical location, preventing electronic or cloud storage
+    solutions. This burdens: businesses with real estate and equipment costs for document storage; government
+    agencies managing physical archives; professionals maintaining credential files at designated locations;
+    and limits access for staff, auditors, and authorized parties who cannot remotely retrieve needed
+    documents. Cloud storage would reduce costs and improve accessibility.'
+  positive_indicators:
+  - Physical location storage required for records
+  - Electronic storage not permitted
+  - Remote access not permitted
+  - '"on the premises" or "at the facility" storage requirement'
+  - Records that could be stored electronically
+  negative_indicators:
+  - PHYSICAL ITEMS stored (medications, blood samples, equipment, contraband) - not records
+  - Biological specimens (blood, tissue) - cannot be electronic by definition
+  - Emergency equipment maintained on-site - safety requirement for physical items
+  - Medications stored in locked cabinet - pharmaceutical storage, not records
+  - Evidence/contraband secured at facility - chain of custody for physical items
+  - Electronic storage is also permitted
+  - On-site access is for convenience, not requirement
+  - '"or electronic records" alternative'
+  - Security-sensitive materials with physical access controls
+  severity_baseline: 4
+  severity_modifiers:
+    increases:
+    - '+1: No electronic alternative'
+    - '+1: Multiple locations required to store copies'
+    - '+1: Long retention period'
+    decreases:
+    - '-1: Physical samples (cannot be electronic)'
+    - '-2: Electronic storage permitted'
+    - '-1: Security rationale stated'
+  patterns:
+  - stored at
+  - maintained at
+  - kept at the premises
+  - kept on.{0,10}premises
+  - on.{0,3}site.{0,10}storage
+  - at the facility
+  - records.{0,10}kept
+  statistics:
+    total_matches: 1043
+    true_positives: 349
+    true_positive_rate: 33.46
+    sample_date: '2026-01-01'
+  examples:
+    true_positives:
+    - citation: N.J.A.C. 8:43G-4.1
+      quote: records shall be maintained at the facility
+      reasoning: On-site RECORD storage required. Electronic would suffice.
+      classification: burdensome
+      severity: 4
+    - citation: N.J.A.C. 7:26-8.2
+      quote: records kept on the premises for inspection
+      reasoning: Physical premises storage for RECORDS/inspection purposes.
+      classification: burdensome
+      severity: 4
+    false_positives:
+    - citation: N.J.A.C. 8:8-10.1
+      quote: blood samples shall be stored at 1 to 6 degrees C for at least seven days
+      reasoning: 'PHYSICAL ITEM: Blood samples are biological specimens that require temperature control
+        - not a records issue.'
+      classification: unrelated
+    - citation: N.J.A.C. 10A:3-6.5
+      quote: contraband shall be claimed at the laboratory and secured at the facility
+      reasoning: 'PHYSICAL ITEM: Weapons, drugs, explosives must be physically secured for chain of custody
+        - not a records issue.'
+      classification: unrelated
+    - citation: N.J.A.C. 3A:55-10.20
+      quote: Provides a locked cabinet or box for storage of medications
+      reasoning: 'PHYSICAL ITEM: Medications must be stored in locked physical containers - not a records
+        issue.'
+      classification: unrelated
+    - citation: N.J.A.C. 8:111-16.3
+      quote: emergency equipment be maintained on-site
+      reasoning: 'PHYSICAL ITEM: Emergency equipment must be physically present for immediate use during
+        emergencies.'
+      classification: unrelated
+    - citation: N.J.A.C. 13:45A-2.1
+      quote: records may be maintained at facility or electronically
+      reasoning: Electronic alternative explicitly offered - no burden.
+      classification: unrelated
+    justified:
+    - citation: N.J.A.C. 2C:43-10
+      quote: evidence stored in secure facility
+      reasoning: Chain of custody for physical evidence requires physical storage.
+      classification: justified
+      severity: 2

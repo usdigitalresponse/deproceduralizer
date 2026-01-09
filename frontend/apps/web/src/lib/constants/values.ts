@@ -249,3 +249,74 @@ export type TreemapDepthValue = (typeof TREEMAP_DEPTH_VALUES)[number];
 
 export const VIEW_MODE_VALUES = ['table', 'cards'] as const;
 export type ViewModeValue = (typeof VIEW_MODE_VALUES)[number];
+
+// ============================================
+// Analysis Tier Filter (Research Pipeline)
+// ============================================
+
+// Filter by highest tier completed in research pipeline
+export const TIER_FILTER_VALUES = ['all', '0', '1', '2', '3', '4'] as const;
+export type TierFilterValue = (typeof TIER_FILTER_VALUES)[number];
+
+// Filter for federal mandate found
+export const FEDERAL_MANDATE_FILTER_VALUES = ['all', 'true', 'false'] as const;
+export type FederalMandateFilterValue = (typeof FEDERAL_MANDATE_FILTER_VALUES)[number];
+
+// Filter for has analysis (whether issue has been processed by research pipeline)
+export const HAS_ANALYSIS_FILTER_VALUES = ['all', 'true', 'false'] as const;
+export type HasAnalysisFilterValue = (typeof HAS_ANALYSIS_FILTER_VALUES)[number];
+
+// Classification filter values for analysis table (alphabetized after 'all')
+export const CLASSIFICATION_FILTER_VALUES = [
+  'all',
+  'all_false_positives',
+  'burdensome',
+  'justified',
+  'needs_full_context',
+  'needs_research',
+  'unrelated',
+] as const;
+export type ClassificationFilterValue = (typeof CLASSIFICATION_FILTER_VALUES)[number];
+
+// ============================================
+// Tier 3 Analysis Filters (V5 Pipeline)
+// ============================================
+
+// Severity filter with 'none' for null severity
+export const PIPELINE_SEVERITY_FILTER_VALUES = ['all', 'high', 'medium', 'low', 'none'] as const;
+export type PipelineSeverityFilterValue = (typeof PIPELINE_SEVERITY_FILTER_VALUES)[number];
+
+// Tier 3 severity change filter
+export const SEVERITY_CHANGED_FILTER_VALUES = ['all', 'increased', 'decreased', 'unchanged', 'no_tier3'] as const;
+export type SeverityChangedFilterValue = (typeof SEVERITY_CHANGED_FILTER_VALUES)[number];
+
+// Tier 3 finding filter (for boolean flags with no_tier3 option)
+export const TIER3_FINDING_FILTER_VALUES = ['all', 'true', 'false', 'no_tier3'] as const;
+export type Tier3FindingFilterValue = (typeof TIER3_FINDING_FILTER_VALUES)[number];
+
+// Tier 3 trigger filter (based on routing.py triggers)
+export const TIER3_TRIGGER_FILTER_VALUES = [
+  'all',
+  'high_risk_issue',      // High-risk type + severity >= 6
+  'federal_citation',     // cites_federal_statute = true
+  'no_alternative',       // claims_no_alternative + severity >= 7
+  'high_severity',        // burdensome + severity >= 8
+  'controversial',        // justified + potentially_controversial
+  'mandate_suspected',    // federal_mandate_suspected
+  'not_triggered',        // Did not escalate to Tier 3
+] as const;
+export type Tier3TriggerFilterValue = (typeof TIER3_TRIGGER_FILTER_VALUES)[number];
+
+// V5.1: Easy cleanup filter
+export const EASY_CLEANUP_FILTER_VALUES = [
+  'all',
+  'any',                  // Any easy cleanup candidate
+  'trivial',              // Trivial effort (alternative_in_practice)
+  'easy',                 // Easy effort (alternative_authorized)
+  'medium',               // Medium effort (peer_state_solution)
+] as const;
+export type EasyCleanupFilterValue = (typeof EASY_CLEANUP_FILTER_VALUES)[number];
+
+// Sort by options for analysis table
+export const ANALYSIS_SORT_BY_VALUES = ['issueType', 'severity', 'highestTier', 'createdAt'] as const;
+export type AnalysisSortByValue = (typeof ANALYSIS_SORT_BY_VALUES)[number];

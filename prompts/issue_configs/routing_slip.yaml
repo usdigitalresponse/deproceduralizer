@@ -1,0 +1,64 @@
+routing_slip:
+  updated_at: '2026-01-03'
+  display_name: Routing/Transmittal Slip
+  db_issue_type: routing_slip
+  category: Process
+  description: 'Physical routing slips, transmittal forms, or cover sheets are required as legacy process
+    requirements that add paperwork without improving outcomes. This burdens: government staff with extra
+    paperwork for internal document handling; businesses with interdepartmental processes; and creates
+    tracking and filing overhead when electronic workflow systems handle routing automatically, more reliably,
+    and with better audit trails.'
+  positive_indicators:
+  - Physical cover sheets required for document submission
+  - Routing slips or transmittal forms mandated for internal workflow
+  - Requirement adds paperwork burden without clear legal/operational need
+  - Electronic alternatives would work but are not offered
+  - '"transmittal form" or "cover sheet" explicit requirement'
+  negative_indicators:
+  - Electronic workflow or submission available
+  - Physical form serves clear legal purpose (chain of custody)
+  - Forms for external parties who genuinely lack electronic access
+  - Routing/transmittal is optional
+  - '"or electronic submission" alternative'
+  severity_baseline: 3
+  severity_modifiers:
+    increases:
+    - '+1: No electronic alternative'
+    - '+1: Required for each submission'
+    - '+1: Complex form requirements'
+    decreases:
+    - '-2: Electronic workflow available'
+    - '-1: Chain of custody purpose'
+    - '-1: Optional form'
+  patterns:
+  - transmittal form
+  - transmittal sheet
+  - cover.{0,10}sheet
+  statistics:
+    total_matches: 35
+    true_positives: 27
+    true_positive_rate: 77.14
+    sample_date: '2026-01-01'
+  examples:
+    true_positives:
+    - citation: N.J.A.C. 7:26-8.5
+      quote: transmittal form shall accompany each submission
+      reasoning: Physical transmittal form required. Electronic would work.
+      classification: burdensome
+      severity: 4
+    - citation: N.J.A.C. 13:45A-8.3
+      quote: cover sheet required with application
+      reasoning: Paper cover sheet required. Adds to paperwork.
+      classification: burdensome
+      severity: 3
+    false_positives:
+    - citation: N.J.A.C. 17:12-2.4
+      quote: electronic submission includes cover page
+      reasoning: Electronic submission available with digital cover.
+      classification: unrelated
+    justified:
+    - citation: N.J.A.C. 2C:35-5.2
+      quote: chain of custody transmittal form
+      reasoning: Evidence chain of custody. Legal requirement.
+      classification: justified
+      severity: 2

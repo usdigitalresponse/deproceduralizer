@@ -293,7 +293,7 @@ async def extract_with_llm_async(content: str, title: str, client=None, max_retr
     # Combine system and user for non-batch calls
     prompt = f"{parts['system']}\n\n{parts['user']}" if parts.get('system') else parts['user']
 
-    parsed = await call_llm_parse_async(
+    parsed, _ = await call_llm_parse_async(
         client=client,
         prompt=prompt,
         response_format=DefinitionsResponse,

@@ -1,0 +1,1 @@
+export { BookmarksContent } from './BookmarksContent';

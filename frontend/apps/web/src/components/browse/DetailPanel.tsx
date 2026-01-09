@@ -290,12 +290,12 @@ export function DetailPanel({ documentId, onClose, onNavigate, fullScreen = fals
                       <Badge variant="success" className="text-xs">LLM Confirmed</Badge>
                     )}
                   </div>
-                  {issue.matchedPattern && (
+                  {(issue.regexMatchPattern ?? issue.matchedPattern) && (
                     <div className="mb-1">
-                      <Tag variant="warning" size="sm">{issue.matchedPattern}</Tag>
+                      <Tag variant="warning" size="sm">{issue.regexMatchPattern ?? issue.matchedPattern}</Tag>
                     </div>
                   )}
-                  <p className="text-sm text-[var(--color-text)] line-clamp-2">{issue.matchedContext}</p>
+                  <p className="text-sm text-[var(--color-text)] line-clamp-2">{issue.regexMatchContext ?? issue.matchedContext}</p>
                 </div>
               ))}
               {complianceIssues.length > 3 && (

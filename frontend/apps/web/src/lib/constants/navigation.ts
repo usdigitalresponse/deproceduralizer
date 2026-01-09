@@ -1,4 +1,4 @@
-import { Table, FolderTree, ClipboardCheck, BookOpen, Home, Code, BarChart3, type LucideIcon } from 'lucide-react';
+import { Table, FolderTree, ClipboardCheck, BookOpen, Home, Code, BarChart3, FlaskConical, Star, type LucideIcon } from 'lucide-react';
 
 /**
  * Navigation item configuration.
@@ -21,9 +21,20 @@ export interface NavItem {
   query?: string;
   /** Whether to show on desktop nav (default true) */
   showOnDesktop?: boolean;
+  /** Group identifier for dropdowns */
+  groupId?: 'explorer' | 'review' | 'metrics';
   /** Whether this appears after the divider on desktop */
   isGlobalSection?: boolean;
 }
+
+/**
+ * Group labels for the UI.
+ */
+export const NAV_GROUPS = {
+  explorer: { label: 'Explorer', icon: FolderTree },
+  review: { label: 'Review', icon: ClipboardCheck },
+  metrics: { label: 'Metrics', icon: BarChart3 },
+};
 
 /**
  * Centralized navigation items configuration.
@@ -36,7 +47,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: Home,
     isStateSpecific: false,
     href: '/',
-    showOnDesktop: false, // Dashboard not shown in desktop nav (logo links to it)
+    showOnDesktop: false,
   },
   {
     key: 'table',
@@ -44,6 +55,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: Table,
     isStateSpecific: true,
     pathSuffix: '',
+    groupId: 'explorer',
   },
   {
     key: 'browse',
@@ -51,6 +63,15 @@ export const NAV_ITEMS: NavItem[] = [
     icon: FolderTree,
     isStateSpecific: true,
     pathSuffix: '/browse',
+    groupId: 'explorer',
+  },
+  {
+    key: 'glossary',
+    label: 'Glossary',
+    icon: BookOpen,
+    isStateSpecific: true,
+    pathSuffix: '/definitions',
+    groupId: 'explorer',
   },
   {
     key: 'review',
@@ -59,13 +80,24 @@ export const NAV_ITEMS: NavItem[] = [
     isStateSpecific: true,
     pathSuffix: '/review',
     query: '?reviewStatus=unreviewed',
+    groupId: 'review',
+    isGlobalSection: true,
   },
   {
-    key: 'glossary',
-    label: 'Glossary',
-    icon: BookOpen,
+    key: 'pipeline',
+    label: 'Pipeline',
+    icon: FlaskConical,
     isStateSpecific: true,
-    pathSuffix: '/definitions',
+    pathSuffix: '/pipeline',
+    groupId: 'metrics',
+  },
+  {
+    key: 'bookmarks',
+    label: 'Bookmarks',
+    icon: Star,
+    isStateSpecific: true,
+    pathSuffix: '/bookmarks',
+    groupId: 'metrics',
   },
   {
     key: 'analytics',
@@ -73,6 +105,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: BarChart3,
     isStateSpecific: true,
     pathSuffix: '/analytics',
+    groupId: 'metrics',
   },
   {
     key: 'prompts',
@@ -80,7 +113,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: Code,
     isStateSpecific: false,
     href: '/prompts',
-    isGlobalSection: true, // Shows after divider on desktop
+    isGlobalSection: true,
   },
 ];
 
@@ -141,7 +174,7 @@ export function getDesktopNavItems(): NavItem[] {
  * Get state-specific nav items (for desktop, before the divider).
  */
 export function getStateNavItems(): NavItem[] {
-  return getDesktopNavItems().filter(item => item.isStateSpecific);
+  return getDesktopNavItems().filter(item => item.isStateSpecific && !item.isGlobalSection);
 }
 
 /**

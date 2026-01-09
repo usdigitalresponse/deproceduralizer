@@ -15,6 +15,7 @@ export function Footer({ className = '' }: FooterProps) {
         bg-[var(--color-primary-stronger)] text-white
         ${className}
       `.trim().replace(/\s+/g, ' ')}
+      data-print-hide
     >
       <Container size="2xl">
         <div className="py-8">

@@ -1,0 +1,85 @@
+notarization:
+  updated_at: '2026-01-03'
+  display_name: Notarization Required
+  db_issue_type: notarization
+  category: Signatures
+  description: 'Notarization is required for documents, requiring finding a notary, scheduling appointments,
+    paying fees ($5-25+), and potentially traveling. This burdens: citizens executing legal documents,
+    buying homes, or handling matters for children; businesses with frequent notarization needs; professionals
+    certifying documents; and particularly vulnerable populations including elderly with mobility limitations,
+    disabled individuals, rural residents far from notaries, those with inflexible work schedules, and
+    low-income people who cannot afford fees. Remote online notarization may help but is often not mentioned
+    as an option.'
+  positive_indicators:
+  - '"shall be notarized" or "must be notarized" - high precision terminology'
+  - '"duly notarized" indicates completed notarization requirement'
+  - '"notary public" reference in submission requirements'
+  - '"sworn before" or "acknowledged before" a notary'
+  - No mention of remote online notarization as alternative
+  - Notarization appears administrative rather than legally mandated by statute
+  negative_indicators:
+  - Remote online notarization explicitly permitted as alternative
+  - Statute specifically requires notarization for this document type
+  - Clear anti-fraud or identity verification purpose stated
+  - Notarization requirement is for negotiable instruments or wills (legally necessary)
+  - Reference is to notary as option, not requirement
+  severity_baseline: 5
+  severity_modifiers:
+    increases:
+    - '+1: No remote online notarization option mentioned'
+    - '+1: High-volume or routine documents'
+    - '+1: Affects populations with limited notary access'
+    decreases:
+    - '-2: Statutory requirement mandates notarization'
+    - '-1: Clear anti-fraud purpose (real estate, legal documents)'
+    - '-1: Remote online notarization explicitly permitted'
+  patterns:
+  - must be notarized
+  - shall be notarized
+  - duly notarized
+  - \bnotarized\b
+  - notary public
+  - sworn.{0,20}before
+  - acknowledged before
+  - \bjurat\b
+  patterns_to_remove: []
+  exclusion_patterns: []
+  statistics:
+    total_matches: 396
+    true_positives: 360
+    true_positive_rate: 90.91
+    sample_date: '2026-01-01'
+  precision_notes: 'Notarization has 90.91% TPR because:
+
+    1. Terminology inherently implies requirement ("notarized" = action that was/must be done)
+
+    2. Few false-positive contexts exist (unlike "fax number" or "mail or email")
+
+    3. Participle form "notarized" signals action required
+
+    4. Alternatives to notarization are uncommon in regulations
+
+    '
+  examples:
+    true_positives:
+    - citation: N.J.A.C. 10:162-2.8
+      quote: The application shall be notarized
+      reasoning: Mandatory notarization requirement with 'shall'. Standard case.
+      classification: burdensome
+      severity: 5
+    - citation: N.J.A.C. 13:44F-4.3
+      quote: sworn to and subscribed before a notary public
+      reasoning: Requires appearing before notary to swear oath on document.
+      classification: burdensome
+      severity: 5
+    false_positives:
+    - citation: N.J.A.C. 13:45-2.1
+      quote: may be notarized or electronically signed
+      reasoning: Electronic signature offered as alternative to notarization.
+      classification: unrelated
+    justified:
+    - citation: N.J.A.C. 3:25-5.2
+      quote: The deed shall be notarized as required by N.J.S.A. 46:15-1
+      reasoning: Real estate deed notarization required by statute. Legally necessary.
+      classification: justified
+      severity: 3

@@ -11,7 +11,7 @@ import {
   DrawerClose,
 } from '@/components/ui';
 import { getStateFromPathname } from '@/hooks';
-import { NAV_ITEMS, getNavHref, isNavActive } from '@/lib/constants/navigation';
+import { NAV_ITEMS, getNavHref, isNavActive, NAV_GROUPS } from '@/lib/constants/navigation';
 
 interface MobileNavProps {
   isOpen: boolean;
@@ -56,35 +56,82 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
             </div>
           </div>
 
-          {/* Navigation Links */}
+          {/* Navigation Groups */}
           <nav className="py-2">
-            {NAV_ITEMS.map((item) => {
-              const href = getNavHref(item, currentState);
-              const isActive = isNavActive(item, pathname, currentState);
-              const Icon = item.icon;
+            {(['explorer', 'review', 'metrics'] as const).map((groupId) => {
+              const groupItems = NAV_ITEMS.filter(item => item.groupId === groupId);
+              if (groupItems.length === 0) return null;
+
+              const group = NAV_GROUPS[groupId];
+              const GroupIcon = group.icon;
 
               return (
-                <Link
-                  key={item.key}
-                  href={href}
-                  onClick={onClose}
-                  className={`
-                    flex items-center gap-3
-                    px-4 py-3
-                    min-h-[48px]
-                    text-base font-medium
-                    transition-colors duration-[var(--duration-fast)]
-                    ${isActive
-                      ? 'bg-[var(--color-primary-weaker)] text-[var(--color-primary)] border-l-3 border-[var(--color-primary)]'
-                      : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-[var(--color-neutral-100)]'
-                    }
-                  `}
-                >
-                  <Icon className="w-5 h-5" />
-                  {item.label}
-                </Link>
+                <div key={groupId} className="mb-4">
+                  <div className="px-4 py-2 flex items-center gap-2 text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wider">
+                    <GroupIcon className="w-3.5 h-3.5" />
+                    {group.label}
+                  </div>
+                  {groupItems.map((item) => {
+                    const href = getNavHref(item, currentState);
+                    const isActive = isNavActive(item, pathname, currentState);
+                    const Icon = item.icon;
+
+                    return (
+                      <Link
+                        key={item.key}
+                        href={href}
+                        onClick={onClose}
+                        className={`
+                          flex items-center gap-3
+                          px-6 py-3
+                          min-h-[48px]
+                          text-base font-medium
+                          transition-colors duration-[var(--duration-fast)]
+                          ${isActive
+                            ? 'bg-[var(--color-primary-weaker)] text-[var(--color-primary)] border-l-4 border-[var(--color-primary)]'
+                            : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-[var(--color-neutral-100)]'
+                          }
+                        `}
+                      >
+                        <Icon className="w-5 h-5 opacity-70" />
+                        {item.label}
+                      </Link>
+                    );
+                  })}
+                </div>
               );
             })}
+
+            {/* Global Items (Prompts, etc.) */}
+            <div className="mt-2 border-t border-[var(--color-neutral-100)] pt-2">
+              {NAV_ITEMS.filter(item => !item.groupId && item.key !== 'home').map((item) => {
+                const href = getNavHref(item, currentState);
+                const isActive = isNavActive(item, pathname, currentState);
+                const Icon = item.icon;
+
+                return (
+                  <Link
+                    key={item.key}
+                    href={href}
+                    onClick={onClose}
+                    className={`
+                      flex items-center gap-3
+                      px-4 py-3
+                      min-h-[48px]
+                      text-base font-medium
+                      transition-colors duration-[var(--duration-fast)]
+                      ${isActive
+                        ? 'bg-[var(--color-primary-weaker)] text-[var(--color-primary)] border-l-4 border-[var(--color-primary)]'
+                        : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-[var(--color-neutral-100)]'
+                      }
+                    `}
+                  >
+                    <Icon className="w-5 h-5 opacity-70" />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
           </nav>
         </DrawerBody>
 

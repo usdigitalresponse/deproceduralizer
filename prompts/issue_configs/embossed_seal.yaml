@@ -1,0 +1,76 @@
+embossed_seal:
+  updated_at: '2026-01-03'
+  display_name: Embossed Seal/Stamp
+  db_issue_type: embossed_seal
+  category: Signatures
+  description: 'A physical embossed seal or stamp is required on documents when digital certification
+    would suffice. This burdens: citizens needing notarized or sealed documents for legal matters, home
+    purchases, or child-related paperwork; businesses requiring authenticated documents; professionals
+    who must maintain seal equipment and physical document handling; and government staff verifying physical
+    seals instead of digital signatures.'
+  positive_indicators:
+  - Physical seal is required without statutory mandate
+  - Digital seal or electronic certification would suffice
+  - Requirement appears formality rather than necessity
+  - '"embossed seal" or "raised seal" explicit physical requirement'
+  - No digital alternative mentioned
+  negative_indicators:
+  - Statute specifically requires physical seal for document type
+  - Seal serves clear authentication purpose (notary seal)
+  - Digital alternatives are explicitly permitted
+  - '"or electronic seal" alternative'
+  - Professional license seal (engineer, architect) with legal basis
+  severity_baseline: 4
+  severity_modifiers:
+    increases:
+    - '+1: No digital alternative'
+    - '+1: Routine/administrative purpose'
+    - '+1: Prevents electronic submission'
+    decreases:
+    - '-2: Statutory requirement'
+    - '-1: Professional seal with legal basis'
+    - '-1: Digital seal permitted'
+  patterns:
+  - embossed seal
+  - raised seal
+  - impressed seal
+  - corporate seal
+  - official seal
+  - seal.{0,5}affixed
+  statistics:
+    total_matches: 53
+    true_positives: 50
+    true_positive_rate: 94.34
+    sample_date: '2026-01-01'
+  precision_notes: 'Embossed seal has 94.34% TPR because:
+
+    1. "Embossed" and "raised" specifically indicate physical requirement
+
+    2. Few contexts where physical seal isn''t a burden
+
+    3. Most seal requirements are legacy formalities
+
+    '
+  examples:
+    true_positives:
+    - citation: N.J.A.C. 13:44F-4.1
+      quote: corporate seal shall be embossed on the document
+      reasoning: Corporate seal requirement. Often formality.
+      classification: burdensome
+      severity: 4
+    - citation: N.J.A.C. 17:12-3.2
+      quote: official seal affixed to certification
+      reasoning: Physical seal requirement on certification.
+      classification: burdensome
+      severity: 4
+    false_positives:
+    - citation: N.J.A.C. 1:1-5.2
+      quote: notary seal or electronic notarization
+      reasoning: Electronic option offered.
+      classification: unrelated
+    justified:
+    - citation: N.J.A.C. 13:27-3.1
+      quote: professional engineer seal as required by N.J.S.A.
+      reasoning: Statutory requirement for engineering documents.
+      classification: justified
+      severity: 2

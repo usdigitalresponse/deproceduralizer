@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect, useTransition } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useQueryStates } from 'nuqs';
 import { getStateFromPathname } from './useStateFromPath';
-import type { ComplianceIssueWithContext } from '@deproceduralizer/database';
+import type { ComplianceIssueWithAnalysis } from '@deproceduralizer/database';
 import type { SuggestionBatchResult } from '@/lib/actions/compliance-issues';
 import type { GroupingModeValue, BatchSizeValue } from '@/lib/constants/values';
 import {
@@ -53,7 +53,7 @@ interface UseSuggestionQueueConfig {
 
 interface UseSuggestionQueueReturn {
   /** Current items in the batch */
-  items: ComplianceIssueWithContext[];
+  items: ComplianceIssueWithAnalysis[];
   /** Current grouping mode */
   groupingMode: GroupingModeValue;
   /** Current focus (issue type, section, pattern) */
@@ -77,7 +77,7 @@ interface UseSuggestionQueueReturn {
   /** Handle viewing a regulation (opens modal) */
   handleViewRegulation: (regulationId: number) => void;
   /** Handle item reviewed - marks as shown and potentially fetches new batch */
-  handleItemReviewed: (item: ComplianceIssueWithContext) => void;
+  handleItemReviewed: (item: ComplianceIssueWithAnalysis) => void;
   /** Skip to the next grouping mode */
   skipToNextMode: () => void;
   /** Change batch size */
@@ -114,7 +114,7 @@ export function useSuggestionQueue({
   );
 
   // Local state
-  const [items, setItems] = useState<ComplianceIssueWithContext[]>(initialBatch.data);
+  const [items, setItems] = useState<ComplianceIssueWithAnalysis[]>(initialBatch.data);
   const [batchMetadata, setBatchMetadata] = useState({
     groupingMode: initialBatch.groupingMode,
     focus: initialBatch.focus,
@@ -236,7 +236,7 @@ export function useSuggestionQueue({
   }, [batchSize, fetchBatch, setUrlParams, recentIssueTypes]);
 
   // Handle item reviewed
-  const handleItemReviewed = useCallback((item: ComplianceIssueWithContext) => {
+  const handleItemReviewed = useCallback((item: ComplianceIssueWithAnalysis) => {
     const itemId = item.id;
     const newShownIds = [...sessionShownIds, itemId];
 

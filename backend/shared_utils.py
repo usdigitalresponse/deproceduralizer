@@ -615,7 +615,8 @@ async def call_llm_parse_async(
     max_retries: int = 3,
     system: Optional[str] = None,
     max_tokens: int = 64000,
-) -> Optional[BaseModel]:
+    trace_context: Optional[dict] = None,
+) -> tuple[Optional[BaseModel], dict]:
     """
     Call Anthropic API async with structured output (Pydantic model via tool_use).
 
@@ -628,10 +629,11 @@ async def call_llm_parse_async(
         model: Model name (default: DEFAULT_MODEL)
         max_retries: Number of retries on failure (default: 3)
         system: Optional system prompt (cached across batch requests)
-        max_tokens: Max output tokens (default: 8192)
+        max_tokens: Max output tokens (default: 64000)
+        trace_context: Optional Langfuse trace context for observability
 
     Returns:
-        Parsed Pydantic model instance, or None if all retries fail
+        Tuple of (parsed Pydantic model instance or None, usage dict with token counts)
     """
     if model is None:
         model = DEFAULT_MODEL
@@ -674,6 +676,14 @@ async def call_llm_parse_async(
                     tool_use = block
                     break
 
+            # Extract usage from response
+            usage = {
+                "input_tokens": getattr(response.usage, "input_tokens", 0),
+                "output_tokens": getattr(response.usage, "output_tokens", 0),
+                "cache_read_tokens": getattr(response.usage, "cache_read_input_tokens", 0),
+                "cache_write_tokens": getattr(response.usage, "cache_creation_input_tokens", 0),
+            }
+
             if tool_use is None:
                 print(
                     f"      ⚠️  No tool_use in response (attempt {attempt + 1}/{max_retries})"
@@ -683,13 +693,13 @@ async def call_llm_parse_async(
                     continue
                 else:
                     print(f"      ❌ All {max_retries} attempts failed to get tool_use")
-                    return None
+                    return None, usage
 
             # Parse the tool input with Pydantic
             parsed = response_format.model_validate(tool_use.input)
             if attempt > 0:
                 print(f"      ✅ Retry succeeded on attempt {attempt + 1}")
-            return parsed
+            return parsed, usage
 
         except Exception as e:
             print(
@@ -700,9 +710,122 @@ async def call_llm_parse_async(
                 await asyncio.sleep(2)
                 continue
             print(f"      ❌ All {max_retries} attempts failed")
-            return None
+            return None, {"input_tokens": 0, "output_tokens": 0, "cache_read_tokens": 0, "cache_write_tokens": 0}
 
-    return None
+    return None, {"input_tokens": 0, "output_tokens": 0, "cache_read_tokens": 0, "cache_write_tokens": 0}
+
+
+async def call_llm_beta_async(
+    client: anthropic.AsyncAnthropic,
+    prompt: str,
+    system: str,
+    tools: list[dict],
+    model: str = None,
+    max_retries: int = 3,
+    max_tokens: int = 64000,
+    betas: list[str] = None,
+    output_format: dict = None,
+    cache_ttl: str = "1h",
+) -> tuple[Any, dict]:
+    """
+    Call Anthropic Beta API async with support for structured outputs and web search.
+
+    This function extends call_llm_parse_async to support beta features like:
+    - Structured outputs (output_format parameter)
+    - Web search tool
+    - Other beta features via betas parameter
+
+    Handles retries with exponential backoff automatically.
+
+    Args:
+        client: AsyncAnthropic client instance
+        prompt: User prompt/message
+        system: System prompt (required, will be cached)
+        tools: List of tool definitions (e.g., web search tool)
+        model: Model name (default: DEFAULT_MODEL)
+        max_retries: Number of retries on failure (default: 3)
+        max_tokens: Max output tokens (default: 64000 for Claude 4.5 models)
+        betas: List of beta features to enable (e.g., ["structured-outputs-2025-11-13"])
+        output_format: Structured output format spec (for beta structured outputs)
+        cache_ttl: Cache TTL for system prompt (default: "1h")
+
+    Returns:
+        Tuple of (API response object, usage dict).
+        Usage dict has: input_tokens, output_tokens, cache_read_tokens, cache_write_tokens.
+        Returns (None, {}) if all retries fail.
+    """
+    if model is None:
+        model = DEFAULT_MODEL
+
+    # Build request kwargs
+    request_kwargs = {
+        "model": model,
+        "max_tokens": max_tokens,
+        "system": [{
+            "type": "text",
+            "text": system,
+            "cache_control": {"type": "ephemeral", "ttl": cache_ttl}
+        }],
+        "messages": [{"role": "user", "content": prompt}],
+        "tools": tools,
+    }
+
+    # Add beta features if specified
+    if betas:
+        request_kwargs["betas"] = betas
+
+    # Add structured output format if specified
+    if output_format:
+        request_kwargs["output_format"] = output_format
+
+    for attempt in range(max_retries):
+        start_time = time.time()
+        try:
+            response = await client.beta.messages.create(**request_kwargs)
+
+            # Check for truncation due to max_tokens
+            if response.stop_reason == "max_tokens":
+                print(
+                    f"      ⚠️  Response truncated (stop_reason=max_tokens). "
+                    f"Output may be incomplete."
+                )
+
+            if attempt > 0:
+                print(f"      ✅ Retry succeeded on attempt {attempt + 1}")
+
+            # Extract token usage from response
+            usage = response.usage
+            input_tokens = usage.input_tokens if usage else 0
+            output_tokens = usage.output_tokens if usage else 0
+            cache_read = getattr(usage, 'cache_read_input_tokens', 0) or 0
+            cache_write = getattr(usage, 'cache_creation_input_tokens', 0) or 0
+
+            # Return response with usage dict for cost tracking
+            usage_dict = {
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "cache_read_tokens": cache_read,
+                "cache_write_tokens": cache_write,
+            }
+            return response, usage_dict
+
+        except Exception as e:
+            wait_time = 2 ** attempt  # Exponential backoff: 1s, 2s, 4s
+
+            print(
+                f"      ⚠️  API error: {type(e).__name__}: {e} "
+                f"(attempt {attempt + 1}/{max_retries})"
+            )
+
+            if attempt < max_retries - 1:
+                print(f"      Retrying in {wait_time}s...")
+                await asyncio.sleep(wait_time)
+                continue
+
+            print(f"      ❌ All {max_retries} attempts failed")
+            return None, {}
+
+    return None, {}
 
 
 # ============================================================================

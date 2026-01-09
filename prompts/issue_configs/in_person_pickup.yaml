@@ -1,0 +1,65 @@
+in_person_pickup:
+  updated_at: '2026-01-03'
+  display_name: In-Person Pickup
+  db_issue_type: in_person_pickup
+  category: Physical Presence
+  description: 'Documents or permits must be picked up in person rather than being mailed or delivered
+    electronically. This burdens: citizens obtaining permits, vital records for themselves or their children,
+    or documents for home purchases; businesses retrieving approved permits; professionals collecting
+    credentials; government staff managing pickup windows; and particularly vulnerable populations including
+    elderly with mobility issues, disabled individuals, rural residents, those without transportation,
+    and parents who must bring children or arrange childcare for pickup trips.'
+  positive_indicators:
+  - Document/permit could be mailed or emailed
+  - No clear rationale for physical pickup
+  - Identity verification could be done through other means
+  - '"pick up in person" without alternatives'
+  - Paper document that could be electronic
+  negative_indicators:
+  - Item is physical and cannot be mailed (e.g., license plates)
+  - Identity verification requires in-person photo ID check
+  - Mailing is also offered as an alternative
+  - Security-sensitive item
+  - '"or mailed" or "or electronic" alternatives'
+  severity_baseline: 4
+  severity_modifiers:
+    increases:
+    - '+1: No mailing alternative'
+    - '+1: Document could easily be electronic'
+    - '+1: Remote location'
+    decreases:
+    - '-2: Physical item (plates, badges)'
+    - '-1: Mailing option available'
+    - '-1: Security rationale'
+  patterns:
+  - pick up in person
+  - picked up in person
+  - available for pickup
+  - available.{0,10}pick.{0,3}up
+  statistics:
+    total_matches: 9
+    true_positives: 2
+    true_positive_rate: 22.22
+    sample_date: '2026-01-01'
+  examples:
+    true_positives:
+    - citation: N.J.A.C. 13:45A-8.5
+      quote: license must be picked up in person
+      reasoning: Paper license could be mailed.
+      classification: burdensome
+      severity: 4
+    false_positives:
+    - citation: N.J.A.C. 13:21-2.1
+      quote: license plates picked up in person
+      reasoning: Physical plates. Cannot be mailed safely.
+      classification: unrelated
+    - citation: N.J.A.C. 17:1-2.4
+      quote: available for pickup or mailed
+      reasoning: Mailing option available.
+      classification: unrelated
+    justified:
+    - citation: N.J.A.C. 13:59-2.5
+      quote: ID badge picked up in person with photo verification
+      reasoning: Security ID requires identity verification.
+      classification: justified
+      severity: 2

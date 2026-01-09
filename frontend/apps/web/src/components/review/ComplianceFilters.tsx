@@ -12,15 +12,24 @@ import {
   severityParser,
   statuteSourceParser,
   requirementFoundParser,
+  tierFilterParser,
+  federalMandateFilterParser,
+  hasAnalysisFilterParser,
   type ReviewStatusValue,
   type SeverityValue,
   type StatuteSourceValue,
   type RequirementFoundValue,
+  type TierFilterValue,
+  type FederalMandateFilterValue,
+  type HasAnalysisFilterValue,
 } from '@/lib/url/parsers';
 import {
   SEVERITY_FILTER_OPTIONS,
   STATUTE_SOURCE_FILTER_OPTIONS,
   REQUIREMENT_FOUND_FILTER_OPTIONS,
+  TIER_FILTER_OPTIONS,
+  FEDERAL_MANDATE_FILTER_OPTIONS,
+  HAS_ANALYSIS_FILTER_OPTIONS,
 } from '@/lib/constants/filters';
 import { REVIEW_STATUSES, COMPLIANCE_ISSUE_TYPES, formatLabel } from '@/types/regulation';
 
@@ -39,6 +48,9 @@ export function ComplianceFilters({
     severity: severityParser,
     statuteSource: statuteSourceParser,
     requirementFound: requirementFoundParser,
+    tierCompleted: tierFilterParser,
+    federalMandate: federalMandateFilterParser,
+    hasAnalysis: hasAnalysisFilterParser,
     sortBy: complianceSortByParser,
     sortOrder: sortOrderParser,
     page: pageParser,
@@ -53,6 +65,9 @@ export function ComplianceFilters({
       severity: 'all',
       statuteSource: 'all',
       requirementFound: 'true',
+      tierCompleted: 'all',
+      federalMandate: 'all',
+      hasAnalysis: 'all',
       page: 1,
     });
   }, [setFilters]);
@@ -62,7 +77,10 @@ export function ComplianceFilters({
     filters.issueType ||
     (filters.severity && filters.severity !== 'all') ||
     (filters.statuteSource && filters.statuteSource !== 'all') ||
-    (filters.requirementFound && filters.requirementFound !== 'true')
+    (filters.requirementFound && filters.requirementFound !== 'true') ||
+    (filters.tierCompleted && filters.tierCompleted !== 'all') ||
+    (filters.federalMandate && filters.federalMandate !== 'all') ||
+    (filters.hasAnalysis && filters.hasAnalysis !== 'all')
   );
 
   const statusOptions = [{ value: 'all', label: 'All Statuses' }, ...REVIEW_STATUSES];
@@ -100,6 +118,7 @@ export function ComplianceFilters({
           value={filters.issueType || 'all'}
           onValueChange={(value) => setFilters({ issueType: value === 'all' ? null : value, page: 1 })}
           options={typeOptions}
+          data-testid="issue-type-filter"
         />
       </FilterField>
 
@@ -124,6 +143,30 @@ export function ComplianceFilters({
           value={filters.requirementFound || 'true'}
           onValueChange={(value) => setFilters({ requirementFound: value as RequirementFoundValue, page: 1 })}
           options={REQUIREMENT_FOUND_FILTER_OPTIONS}
+        />
+      </FilterField>
+
+      <FilterField label="Tier">
+        <Select
+          value={filters.tierCompleted || 'all'}
+          onValueChange={(value) => setFilters({ tierCompleted: value as TierFilterValue, page: 1 })}
+          options={TIER_FILTER_OPTIONS}
+        />
+      </FilterField>
+
+      <FilterField label="Federal">
+        <Select
+          value={filters.federalMandate || 'all'}
+          onValueChange={(value) => setFilters({ federalMandate: value as FederalMandateFilterValue, page: 1 })}
+          options={FEDERAL_MANDATE_FILTER_OPTIONS}
+        />
+      </FilterField>
+
+      <FilterField label="Analysis">
+        <Select
+          value={filters.hasAnalysis || 'all'}
+          onValueChange={(value) => setFilters({ hasAnalysis: value as HasAnalysisFilterValue, page: 1 })}
+          options={HAS_ANALYSIS_FILTER_OPTIONS}
         />
       </FilterField>
 

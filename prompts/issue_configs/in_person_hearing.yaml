@@ -1,0 +1,74 @@
+in_person_hearing:
+  updated_at: '2026-01-03'
+  display_name: In-Person Hearing/Meeting
+  db_issue_type: in_person_hearing
+  category: Physical Presence
+  description: 'In-person attendance at a hearing or meeting is required without remote participation
+    options, when video or phone participation would suffice. This burdens: citizens who must take time
+    off work and arrange childcare; businesses sending representatives to distant locations; professionals
+    attending licensing board hearings; government staff managing physical hearing logistics; and particularly
+    vulnerable populations including elderly with mobility issues, disabled individuals, rural residents
+    facing long travel, low-income people without reliable transportation, and single parents who cannot
+    easily arrange coverage.'
+  positive_indicators:
+  - In-person attendance required with no remote option
+  - Video conference or telephone participation not mentioned
+  - Nature of hearing does not require physical presence
+  - '"appear before the board" with no virtual option'
+  - Travel to specific location required
+  negative_indicators:
+  - Remote participation explicitly permitted
+  - Hearing involves physical evidence or inspection
+  - Video/phone options mentioned as alternatives
+  - '"or by teleconference" or "or video" alternatives'
+  - Physical presence genuinely needed (oath, fingerprinting)
+  severity_baseline: 5
+  severity_modifiers:
+    increases:
+    - '+1: No remote option mentioned'
+    - '+1: Long-distance travel required'
+    - '+1: Affects vulnerable populations'
+    decreases:
+    - '-2: Remote participation permitted'
+    - '-1: Physical evidence must be examined'
+    - '-1: Statutory requirement'
+  patterns:
+  - in.{0,3}person.{0,10}hearing
+  - appear at.{0,20}hearing
+  - physical.{0,5}attendance
+  - attend in person
+  - appear before.{0,20}board
+  - appear before.{0,20}commission
+  statistics:
+    total_matches: 164
+    true_positives: 113
+    true_positive_rate: 68.9
+    sample_date: '2026-01-01'
+  examples:
+    true_positives:
+    - citation: N.J.A.C. 1:1-14.2
+      quote: parties shall appear before the ALJ in person
+      reasoning: Mandatory in-person appearance at hearing.
+      classification: burdensome
+      severity: 5
+    - citation: N.J.A.C. 13:44F-6.1
+      quote: applicant must attend the board meeting in person
+      reasoning: Board meeting requires physical attendance.
+      classification: burdensome
+      severity: 5
+    false_positives:
+    - citation: N.J.A.C. 1:1-14.5
+      quote: parties may appear in person or by telephone
+      reasoning: Telephone option explicitly permitted.
+      classification: unrelated
+    - citation: N.J.A.C. 7:7A-20.3
+      quote: site inspection hearing
+      reasoning: Physical site inspection requires presence.
+      classification: justified
+      severity: 2
+    justified:
+    - citation: N.J.A.C. 2C:43-5.1
+      quote: defendant shall appear for sentencing
+      reasoning: Constitutional requirement for criminal proceedings.
+      classification: justified
+      severity: 2

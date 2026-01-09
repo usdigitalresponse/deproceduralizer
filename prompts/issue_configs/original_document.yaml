@@ -1,0 +1,75 @@
+original_document:
+  updated_at: '2026-01-03'
+  display_name: Original Document Required
+  db_issue_type: original_document
+  category: Signatures
+  description: 'Original documents are required (no copies accepted), risking loss of irreplaceable materials
+    when certified copies or electronic originals would suffice. This burdens: citizens risking birth
+    certificates, deeds, or diplomas for routine transactions including home purchases and childcare enrollment;
+    businesses submitting formation documents; professionals providing credentials; government staff handling
+    and returning originals; and creates anxiety for anyone submitting documents that cannot be replaced.'
+  positive_indicators:
+  - '"original only" or "no photocopies" explicit prohibition'
+  - '"submit the original" requirement'
+  - Original required for documents that could be copied
+  - No clear anti-fraud rationale stated
+  - Scanned/electronic copies not accepted
+  negative_indicators:
+  - Document is negotiable instrument (checks, bonds)
+  - Chain of custody requirements (evidence)
+  - Clear anti-fraud or authentication purpose
+  - Document type inherently requires original (birth certificate, deed)
+  - '"certified copy" accepted as alternative'
+  severity_baseline: 4
+  severity_modifiers:
+    increases:
+    - '+1: No clear anti-fraud rationale'
+    - '+1: Risk of losing irreplaceable document'
+    - '+1: Routine/administrative purpose'
+    decreases:
+    - '-2: Negotiable instrument or chain-of-custody need'
+    - '-1: Certified copy accepted'
+    - '-1: Document type traditionally requires original'
+  patterns:
+  - no photocopies
+  - original only
+  - submit.{0,10}original
+  - provide.{0,10}original
+  - original document
+  - original certificate
+  - original letter
+  - must be.{0,5}original
+  - shall be.{0,5}original
+  statistics:
+    total_matches: 213
+    true_positives: 127
+    true_positive_rate: 59.62
+    sample_date: '2026-01-01'
+  examples:
+    true_positives:
+    - citation: N.J.A.C. 13:45A-7.2
+      quote: original documentation only; no photocopies
+      reasoning: Prohibits copies without clear reason. Could accept copies.
+      classification: burdensome
+      severity: 5
+    - citation: N.J.A.C. 8:43-3.1
+      quote: submit the original certificate
+      reasoning: Original certificate required. Risk of loss.
+      classification: burdensome
+      severity: 4
+    false_positives:
+    - citation: N.J.A.C. 3:6-5.2
+      quote: original or certified copy
+      reasoning: Certified copy accepted as alternative.
+      classification: unrelated
+    - citation: N.J.A.C. 13:69-1.1
+      quote: original check payable to
+      reasoning: Checks require original (negotiable instrument).
+      classification: justified
+      severity: 2
+    justified:
+    - citation: N.J.A.C. 2C:35-5.1
+      quote: original evidence maintained in custody
+      reasoning: Chain of custody for legal evidence.
+      classification: justified
+      severity: 2

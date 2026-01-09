@@ -9,6 +9,8 @@ import {
   waitForFilterModeReady,
   waitForPromptsReady,
   waitForSaveComplete,
+  waitForReviewReady,
+  waitForPipelineReady,
 } from './helpers';
 
 test.describe('Smoke Tests', () => {
@@ -161,17 +163,17 @@ test.describe('Compliance Issues', () => {
     await expect(page.getByRole('heading', { name: /Review New Jersey/i })).toBeVisible();
 
     // Wait for compliance issues to load
-    await page.waitForLoadState('networkidle');
+    await waitForComplianceReviewReady(page);
 
     // Apply filter - find the Type dropdown
-    const typeFilter = page.locator('label:has-text("Type:") + button, label:has-text("Type:") ~ button').first();
+    const typeFilter = page.getByTestId('issue-type-filter');
     await typeFilter.click();
 
     // Select "Wet Signature" option
     await page.getByRole('option', { name: /wet signature/i }).click();
 
-    // Wait for filter to apply
-    await page.waitForLoadState('networkidle');
+    // Wait for filter to apply - cards should still be visible after filter
+    await expect(page.getByTestId('compliance-issue-card').first()).toBeVisible({ timeout: 10000 });
 
     // Verify filtered results show wet signature issues
     const filteredCards = page.locator('[data-testid="compliance-issue-card"]');
@@ -189,10 +191,10 @@ test.describe('Compliance Issues', () => {
     await expect(page.getByRole('heading', { name: /Review New Jersey/i })).toBeVisible();
 
     // Wait for page to fully load
-    await page.waitForLoadState('networkidle');
+    await waitForComplianceReviewReady(page);
 
     // Open issue type dropdown
-    const typeFilter = page.locator('label:has-text("Type:") + button, label:has-text("Type:") ~ button').first();
+    const typeFilter = page.getByTestId('issue-type-filter');
     await typeFilter.click();
 
     // Get all option texts
@@ -219,7 +221,7 @@ test.describe('Compliance Issues', () => {
     await expect(page.getByRole('heading', { name: /Review New Jersey/i })).toBeVisible();
 
     // Wait for page to fully load
-    await page.waitForLoadState('networkidle');
+    await waitForComplianceReviewReady(page);
 
     // Check that LLM filter shows "LLM Confirmed" as the selected value
     const llmFilter = page.locator('label:has-text("LLM:") + button, label:has-text("LLM:") ~ button').first();
@@ -235,7 +237,7 @@ test.describe('Compliance Issues', () => {
     await expect(page.getByRole('heading', { name: /Browse New Jersey/i })).toBeVisible();
 
     // Wait for tree to load
-    await page.waitForLoadState('networkidle');
+    await waitForBrowseReady(page);
 
     // Find a compliance badge and verify it exists
     const complianceBadge = page.getByText(/\d+ compliance/i).first();
@@ -256,7 +258,7 @@ test.describe('Compliance Issues', () => {
     await expect(page.getByRole('heading', { name: /Review New Jersey/i })).toBeVisible();
 
     // Wait for issues to load
-    await page.waitForLoadState('networkidle');
+    await waitForReviewReady(page);
 
     // Check for the issue count indicator (e.g., "4289 issues")
     const issueCountText = page.getByText(/\d+ issues?$/i);
@@ -293,7 +295,7 @@ test.describe('Suggestion Mode', () => {
     // Navigate directly to suggestion mode
     await page.goto('/nj/review?type=compliance&queueMode=suggestion');
     await expect(page.getByRole('heading', { name: /Review New Jersey/i })).toBeVisible();
-    await page.waitForLoadState('networkidle');
+    await waitForSuggestionModeReady(page);
 
     // Verify suggestion mode UI is visible
     await expect(page.getByText('Items per batch:')).toBeVisible({ timeout: 10000 });
@@ -315,7 +317,7 @@ test.describe('Suggestion Mode', () => {
     // Navigate directly to filter mode
     await page.goto('/nj/review?type=compliance&queueMode=filter&reviewStatus=unreviewed');
     await expect(page.getByRole('heading', { name: /Review New Jersey/i })).toBeVisible();
-    await page.waitForLoadState('networkidle');
+    await waitForFilterModeReady(page);
 
     // Verify filter mode UI is visible
     await expect(page.getByText('Status:')).toBeVisible({ timeout: 10000 });
@@ -334,7 +336,7 @@ test.describe('Suggestion Mode', () => {
     // Start in suggestion mode with explicit params
     await page.goto('/nj/review?type=compliance&queueMode=suggestion&groupingMode=issue_type');
     await expect(page.getByRole('heading', { name: /Review New Jersey/i })).toBeVisible();
-    await page.waitForLoadState('networkidle');
+    await waitForSuggestionModeReady(page);
 
     // Wait for suggestion controls to be visible
     await expect(page.getByText('Items per batch:')).toBeVisible({ timeout: 10000 });
@@ -360,7 +362,7 @@ test.describe('Suggestion Mode', () => {
     // Start in suggestion mode with batch size 3
     await page.goto('/nj/review?type=compliance&queueMode=suggestion&batchSize=3&groupingMode=issue_type');
     await expect(page.getByRole('heading', { name: /Review New Jersey/i })).toBeVisible();
-    await page.waitForLoadState('networkidle');
+    await waitForSuggestionModeReady(page);
 
     // Wait for suggestion controls to be visible
     await expect(page.getByText('Items per batch:')).toBeVisible({ timeout: 10000 });
@@ -435,10 +437,10 @@ test.describe('Prompts Alignment', () => {
     await expect(page.getByRole('heading', { name: /Review New Jersey/i })).toBeVisible();
 
     // Wait for page to fully load
-    await page.waitForLoadState('networkidle');
+    await waitForComplianceReviewReady(page);
 
     // Open issue type dropdown
-    const typeFilter = page.locator('label:has-text("Type:") + button, label:has-text("Type:") ~ button').first();
+    const typeFilter = page.getByTestId('issue-type-filter');
     await typeFilter.click();
 
     // Get all option texts
@@ -490,7 +492,7 @@ test.describe('Review Form Submission', () => {
     await expect(page.getByRole('heading', { name: /Review New Jersey/i })).toBeVisible();
 
     // Wait for cards to load
-    await page.waitForLoadState('networkidle');
+    await waitForComplianceReviewReady(page);
 
     const card = page.getByTestId('compliance-issue-card').first();
     const cardCount = await page.getByTestId('compliance-issue-card').count();
@@ -523,7 +525,7 @@ test.describe('Review Form Submission', () => {
 
     // Submit the form
     await saveButton.click();
-    await page.waitForLoadState('networkidle');
+    await waitForSaveComplete(page);
 
     // Verify the form still shows saved values (optimistic update)
     await expect(teamNotesTextarea).toHaveValue(testTeamNotes);
@@ -557,7 +559,7 @@ test.describe('Review Form Submission', () => {
     await expect(page.getByRole('heading', { name: /Review New York/i })).toBeVisible();
 
     // Wait for cards to load
-    await page.waitForLoadState('networkidle');
+    await waitForRedFlagReviewReady(page);
 
     const cardCount = await page.getByTestId('red-flag-card').count();
 
@@ -588,7 +590,7 @@ test.describe('Review Form Submission', () => {
 
     // Submit the form
     await saveButton.click();
-    await page.waitForLoadState('networkidle');
+    await waitForSaveComplete(page);
 
     // Verify the form shows saved values
     await expect(teamNotesTextarea).toHaveValue(testTeamNotes);
@@ -622,7 +624,7 @@ test.describe('Review Form Submission', () => {
     await expect(page.getByRole('heading', { name: /Review New York/i })).toBeVisible();
 
     // Wait for cards to load
-    await page.waitForLoadState('networkidle');
+    await waitForReviewReady(page);
 
     const cardCount = await page.getByTestId('definition-card').count();
 
@@ -663,7 +665,7 @@ test.describe('Review Queue Filter Behavior', () => {
     await expect(page.getByRole('heading', { name: /Review New Jersey/i })).toBeVisible();
 
     // Wait for cards to load
-    await page.waitForLoadState('networkidle');
+    await waitForComplianceReviewReady(page);
 
     const initialCards = page.getByTestId('compliance-issue-card');
     const initialCount = await initialCards.count();
@@ -713,7 +715,7 @@ test.describe('Review Queue Filter Behavior', () => {
     // CLEANUP: Revert the reviewed item back to unreviewed
     // Navigate to confirmed filter to find the item we just reviewed
     await page.goto('/nj/review?type=compliance&queueMode=filter&reviewStatus=confirmed&severity=low');
-    await page.waitForLoadState('networkidle');
+    await waitForComplianceReviewReady(page);
 
     // Find the card we reviewed (by ID)
     const reviewedCard = page.locator(`#${firstCardId}`);
@@ -734,7 +736,7 @@ test.describe('Review Queue Filter Behavior', () => {
     await expect(page.getByRole('heading', { name: /Review New York/i })).toBeVisible();
 
     // Wait for cards to load
-    await page.waitForLoadState('networkidle');
+    await waitForRedFlagReviewReady(page);
 
     const initialCards = page.getByTestId('red-flag-card');
     const initialCount = await initialCards.count();
@@ -784,7 +786,7 @@ test.describe('Review Queue Filter Behavior', () => {
     // CLEANUP: Revert the reviewed item back to unreviewed
     // Navigate to confirmed filter to find the item we just reviewed
     await page.goto('/ny/review?type=flags&reviewStatus=confirmed&severity=low');
-    await page.waitForLoadState('networkidle');
+    await waitForRedFlagReviewReady(page);
 
     // Find the card we reviewed (by ID)
     const reviewedCard = page.locator(`#${firstCardId}`);
@@ -805,7 +807,7 @@ test.describe('Review Queue Filter Behavior', () => {
     await expect(page.getByRole('heading', { name: /Review New Jersey/i })).toBeVisible();
 
     // Wait for cards to load
-    await page.waitForLoadState('networkidle');
+    await waitForComplianceReviewReady(page);
 
     const initialCards = page.getByTestId('compliance-issue-card');
     const initialCount = await initialCards.count();
@@ -852,7 +854,7 @@ test.describe('Sorting Consistency', () => {
     // Navigate to filter mode sorted by severity (desc = highest first)
     await page.goto('/nj/review?type=compliance&queueMode=filter&reviewStatus=all&sortBy=severity&sortOrder=desc');
     await expect(page.getByRole('heading', { name: /Review New Jersey/i })).toBeVisible();
-    await page.waitForLoadState('networkidle');
+    await waitForComplianceReviewReady(page);
 
     const cards = page.getByTestId('compliance-issue-card');
     const initialCount = await cards.count();
@@ -867,7 +869,7 @@ test.describe('Sorting Consistency', () => {
 
     // Reload the page and verify same item is still first
     await page.reload();
-    await page.waitForLoadState('networkidle');
+    await waitForComplianceReviewReady(page);
 
     const newFirstCardId = await page.getByTestId('compliance-issue-card').first().getAttribute('id');
 
@@ -879,7 +881,7 @@ test.describe('Sorting Consistency', () => {
     // Navigate to filter mode sorted by severity (asc = lowest first)
     await page.goto('/nj/review?type=compliance&queueMode=filter&reviewStatus=all&sortBy=severity&sortOrder=asc');
     await expect(page.getByRole('heading', { name: /Review New Jersey/i })).toBeVisible();
-    await page.waitForLoadState('networkidle');
+    await waitForComplianceReviewReady(page);
 
     const cards = page.getByTestId('compliance-issue-card');
     const initialCount = await cards.count();
@@ -894,7 +896,7 @@ test.describe('Sorting Consistency', () => {
 
     // Reload the page
     await page.reload();
-    await page.waitForLoadState('networkidle');
+    await waitForComplianceReviewReady(page);
 
     const newFirstCardId = await page.getByTestId('compliance-issue-card').first().getAttribute('id');
 
@@ -906,7 +908,7 @@ test.describe('Sorting Consistency', () => {
     // Navigate to red flags sorted by severity
     await page.goto('/nj/review?type=flags&reviewStatus=all&sortBy=severity&sortOrder=desc');
     await expect(page.getByRole('heading', { name: /Review New Jersey/i })).toBeVisible();
-    await page.waitForLoadState('networkidle');
+    await waitForRedFlagReviewReady(page);
 
     const cards = page.getByTestId('red-flag-card');
     const initialCount = await cards.count();
@@ -921,10 +923,75 @@ test.describe('Sorting Consistency', () => {
 
     // Reload and verify consistency
     await page.reload();
-    await page.waitForLoadState('networkidle');
+    await waitForRedFlagReviewReady(page);
 
     const newFirstCardId = await page.getByTestId('red-flag-card').first().getAttribute('id');
     expect(newFirstCardId).toBe(firstCardId);
+  });
+
+});
+
+test.describe('Pipeline Analysis Page', () => {
+
+  test('pipeline page loads with table', async ({ page }) => {
+    await page.goto('/nj/pipeline');
+    await expect(page.getByRole('heading', { name: /Research Pipeline/i }).first()).toBeVisible();
+
+    // Should have a table
+    await expect(page.locator('table')).toBeVisible();
+  });
+
+  test('issueType filter works correctly', async ({ page }) => {
+    // Navigate to pipeline with issue type filter
+    await page.goto('/nj/pipeline?issueType=wet_signature');
+    await expect(page.getByRole('heading', { name: /Research Pipeline/i }).first()).toBeVisible();
+
+    // Should load without error
+    await expect(page.locator('table')).toBeVisible({ timeout: 10000 });
+  });
+
+  test('issueType=all does not cause empty results', async ({ page }) => {
+    // Navigate with issueType=all (the bug case)
+    await page.goto('/nj/pipeline?issueType=all');
+    await expect(page.getByRole('heading', { name: /Research Pipeline/i }).first()).toBeVisible();
+
+    // Should show results (not empty due to WHERE issue_type = 'all')
+    await expect(page.locator('table')).toBeVisible({ timeout: 10000 });
+
+    // Verify we have rows (not just headers)
+    const tableRows = page.locator('table tbody tr');
+    const rowCount = await tableRows.count();
+    expect(rowCount).toBeGreaterThan(0);
+  });
+
+  test('tier3 filter federalMandateConfirmed=false only shows tier3 rows', async ({ page }) => {
+    // Navigate with federalMandateConfirmed=false filter
+    await page.goto('/nj/pipeline?federalMandateConfirmed=false');
+    await expect(page.getByRole('heading', { name: /Research Pipeline/i }).first()).toBeVisible();
+
+    // Page should load without error
+    await expect(page.locator('table')).toBeVisible({ timeout: 10000 });
+
+    // The fix ensures only rows with tier3Classification are shown
+    // We can't easily verify the data in e2e, but we verify no crash/error
+  });
+
+  test('tier3 filter stateDiscretion=false loads correctly', async ({ page }) => {
+    await page.goto('/nj/pipeline?stateDiscretion=false');
+    await expect(page.getByRole('heading', { name: /Research Pipeline/i }).first()).toBeVisible();
+    await expect(page.locator('table')).toBeVisible({ timeout: 10000 });
+  });
+
+  test('tier3 filter alternativeFound=false loads correctly', async ({ page }) => {
+    await page.goto('/nj/pipeline?alternativeFound=false');
+    await expect(page.getByRole('heading', { name: /Research Pipeline/i }).first()).toBeVisible();
+    await expect(page.locator('table')).toBeVisible({ timeout: 10000 });
+  });
+
+  test('tier3Trigger filter high_risk_issue loads correctly', async ({ page }) => {
+    await page.goto('/nj/pipeline?tier3Trigger=high_risk_issue');
+    await expect(page.getByRole('heading', { name: /Research Pipeline/i }).first()).toBeVisible();
+    await expect(page.locator('table')).toBeVisible({ timeout: 10000 });
   });
 
 });

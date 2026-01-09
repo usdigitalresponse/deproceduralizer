@@ -13,12 +13,15 @@ import { formatNycrrCitation } from '@/lib/formatters/nycrr';
 import { formatNjacCitation } from '@/lib/formatters/njac';
 import { CardWrapper, HierarchyBreadcrumbsInline, CornellLink, RegulationTextViewer, HierarchyTreeView } from './shared';
 import { REVIEW_STATUSES, REVIEW_STATUS_LABELS, REVIEW_STATUS_DESCRIPTIONS, type ReviewStatus } from '@deproceduralizer/database/schema';
-import type { ComplianceIssueWithContext } from '@deproceduralizer/database';
+import type { ComplianceIssueWithAnalysis } from '@deproceduralizer/database';
 import { getStateFromPathname } from '@/hooks/useStateFromPath';
+import { TierProgressIndicator, TierBadge } from '@/components/issues/TierProgressIndicator';
+import { EvidenceDisplay } from '@/components/issues/EvidenceDisplay';
+import { TierClassificationFlow } from '@/components/issues/TierClassificationFlow';
 
 interface ComplianceIssueCardProps {
-  issue: ComplianceIssueWithContext;
-  onUpdated: (updatedIssue: ComplianceIssueWithContext) => void;
+  issue: ComplianceIssueWithAnalysis;
+  onUpdated: (updatedIssue: ComplianceIssueWithAnalysis) => void;
   onViewRegulation: (regulationId: number) => void;
   isFocused?: boolean;
 }
@@ -130,6 +133,14 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
             {issue.severity !== null && (
               <SeverityBadge severity={issue.severity} />
             )}
+            {issue.analysis && (
+              <TierBadge highestTierCompleted={issue.analysis.highestTierCompleted} />
+            )}
+            {issue.analysis?.federalMandateFound && (
+              <Badge variant="danger" className="text-xs">
+                Federal Mandate
+              </Badge>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <Badge
@@ -149,6 +160,19 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
             </Badge>
           </div>
         </div>
+
+        {/* Tier Classification Flow - visible by default when analysis exists */}
+        {issue.analysis && issue.analysis.highestTierCompleted > 0 && (
+          <div className="mb-3 py-2 px-3 bg-[var(--color-neutral-50)] rounded-[var(--radius-sm)] border border-[var(--color-neutral-200)]">
+            <TierClassificationFlow
+              highestTierCompleted={issue.analysis.highestTierCompleted}
+              tier1Classification={issue.analysis.tier1Classification}
+              tier2Classification={issue.analysis.tier2Classification}
+              tier3Classification={issue.analysis.tier3Classification}
+              tier4Classification={issue.analysis.tier4Classification}
+            />
+          </div>
+        )}
 
         {/* Summary context */}
         {(issue.regulation.summary || issue.regulation.sectionType || issue.regulation.hasForm || issue.regulation.hasIbr) && (
@@ -185,7 +209,7 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
         </div>
 
         {/* LLM Analysis - Primary content, always visible */}
-        {(issue.impactAssessment || issue.requirementText) && (
+        {(issue.decisionRationale || (issue.verbatimSupportingText && issue.verbatimSupportingText.length > 0)) && (
           <div className="mb-4 p-4 bg-[var(--color-primary-bg)] rounded-[var(--radius-md)] border border-[var(--color-primary)]/20">
             <div className="flex items-center gap-2 mb-2">
               <span className="text-sm font-semibold text-[var(--color-primary)]">LLM Analysis</span>
@@ -199,22 +223,24 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
               )}
             </div>
 
-            {/* Requirement Text - the key finding */}
-            {issue.requirementText && (
-              <div className="mb-3">
-                <p className="text-sm text-[var(--color-text)] whitespace-pre-wrap leading-relaxed">
-                  {issue.isVerbatim && <span className="text-[var(--color-text-muted)]">"</span>}
-                  {issue.requirementText}
-                  {issue.isVerbatim && <span className="text-[var(--color-text-muted)]">"</span>}
-                </p>
+            {/* Verbatim Supporting Text - the key finding(s) */}
+            {issue.verbatimSupportingText && issue.verbatimSupportingText.length > 0 && (
+              <div className="mb-3 space-y-2">
+                {issue.verbatimSupportingText.map((text, index) => (
+                  <p key={index} className="text-sm text-[var(--color-text)] whitespace-pre-wrap leading-relaxed">
+                    {issue.isVerbatim && <span className="text-[var(--color-text-muted)]">"</span>}
+                    {text}
+                    {issue.isVerbatim && <span className="text-[var(--color-text-muted)]">"</span>}
+                  </p>
+                ))}
               </div>
             )}
 
-            {/* Impact Assessment */}
-            {issue.impactAssessment && (
+            {/* Decision Rationale */}
+            {issue.decisionRationale && (
               <div className="pt-3 border-t border-[var(--color-primary)]/10">
-                <span className="text-xs font-medium text-[var(--color-text-secondary)]">Impact Assessment:</span>
-                <p className="mt-1 text-sm text-[var(--color-text)]">{issue.impactAssessment}</p>
+                <span className="text-xs font-medium text-[var(--color-text-secondary)]">Decision Rationale:</span>
+                <p className="mt-1 text-sm text-[var(--color-text)]">{issue.decisionRationale}</p>
               </div>
             )}
 
@@ -226,6 +252,99 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
               </div>
             )}
           </div>
+        )}
+
+        {/* Evidence from Research Pipeline */}
+        {issue.analysis?.contextUsed && issue.analysis.contextUsed.length > 0 && (
+          <details className="mb-4 p-4 bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] border border-[var(--color-neutral-200)] group">
+            <summary className="flex items-center gap-1.5 text-sm font-medium text-[var(--color-text-secondary)] cursor-pointer hover:text-[var(--color-text)] transition-colors list-none [&::-webkit-details-marker]:hidden">
+              <svg className="w-4 h-4 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+              Research Evidence
+              <span className="text-xs text-[var(--color-text-muted)] bg-[var(--color-neutral-200)] px-1.5 py-0.5 rounded ml-2">
+                {issue.analysis.contextUsed.length} sources
+              </span>
+            </summary>
+            <div className="mt-3">
+              <EvidenceDisplay
+                contextUsed={issue.analysis.contextUsed}
+                verbatimRequirements={issue.analysis.verbatimRequirements}
+              />
+            </div>
+          </details>
+        )}
+
+        {/* Analysis Details - Steelman Arguments */}
+        {issue.analysis && (issue.analysis.argumentForRegulation || issue.analysis.argumentAgainstRegulation) && (
+          <details className="mb-4 p-4 bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] border border-[var(--color-neutral-200)] group">
+            <summary className="flex items-center gap-1.5 text-sm font-medium text-[var(--color-text-secondary)] cursor-pointer hover:text-[var(--color-text)] transition-colors list-none [&::-webkit-details-marker]:hidden">
+              <svg className="w-4 h-4 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+              Analysis Details
+              <TierProgressIndicator
+                highestTierCompleted={issue.analysis.highestTierCompleted}
+                tier1Classification={issue.analysis.tier1Classification}
+                tier2Classification={issue.analysis.tier2Classification}
+                tier3Classification={issue.analysis.tier3Classification}
+                tier4Classification={issue.analysis.tier4Classification}
+                compact
+                className="ml-2"
+              />
+            </summary>
+            <div className="mt-3 space-y-4">
+              {/* Argument For Regulation */}
+              {issue.analysis.argumentForRegulation && (
+                <div className="bg-[var(--color-success-bg)] border border-[var(--color-success)]/20 rounded-[var(--radius-sm)] p-3">
+                  <h5 className="text-xs font-semibold text-[var(--color-success)] mb-2 flex items-center gap-1.5">
+                    <span>Argument For Regulation</span>
+                    <span className="text-[10px] font-normal text-[var(--color-text-muted)]">(steelman)</span>
+                  </h5>
+                  <p className="text-sm text-[var(--color-text-secondary)]">{issue.analysis.argumentForRegulation}</p>
+                </div>
+              )}
+
+              {/* Argument Against Regulation */}
+              {issue.analysis.argumentAgainstRegulation && (
+                <div className="bg-[var(--color-danger-bg)] border border-[var(--color-danger)]/20 rounded-[var(--radius-sm)] p-3">
+                  <h5 className="text-xs font-semibold text-[var(--color-danger)] mb-2 flex items-center gap-1.5">
+                    <span>Argument Against Regulation</span>
+                    <span className="text-[10px] font-normal text-[var(--color-text-muted)]">(steelman)</span>
+                  </h5>
+                  <p className="text-sm text-[var(--color-text-secondary)]">{issue.analysis.argumentAgainstRegulation}</p>
+                </div>
+              )}
+
+              {/* Web Search Summary */}
+              {issue.analysis.webSearchSummary && (
+                <div className="bg-[var(--color-info-bg)] border border-[var(--color-info)]/20 rounded-[var(--radius-sm)] p-3">
+                  <h5 className="text-xs font-semibold text-[var(--color-info)] mb-2">Web Research Summary</h5>
+                  <p className="text-sm text-[var(--color-text-secondary)]">{issue.analysis.webSearchSummary}</p>
+                </div>
+              )}
+
+              {/* Analysis metadata */}
+              <div className="flex flex-wrap gap-2 pt-2 border-t border-[var(--color-neutral-200)]">
+                {issue.analysis.stateHasDiscretion && (
+                  <Badge variant="info" className="text-xs">State Has Discretion</Badge>
+                )}
+                {issue.analysis.isJustified && (
+                  <Badge variant="success" className="text-xs">Marked Justified</Badge>
+                )}
+                {issue.analysis.finalSeverity !== null && (
+                  <span className="text-xs text-[var(--color-text-muted)]">
+                    Pipeline Severity: {issue.analysis.finalSeverity}
+                  </span>
+                )}
+                {issue.analysis.pipelineVersion && (
+                  <span className="text-xs text-[var(--color-text-muted)]">
+                    {issue.analysis.pipelineVersion}
+                  </span>
+                )}
+              </div>
+            </div>
+          </details>
         )}
 
         {/* View Full Regulation Page + Cornell Link */}
@@ -248,8 +367,8 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
             content={issue.regulation.content}
             documentId={issue.regulation.id}
             state={stateCode}
-            scrollToText={issue.requirementText}
-            highlightPattern={issue.matchedPattern}
+            scrollToText={issue.verbatimSupportingText?.[0]}
+            highlightPattern={issue.regexMatchPattern}
             isVerbatim={issue.isVerbatim ?? false}
             label="Show Regulation Text"
           />
@@ -262,7 +381,7 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
         />
 
         {/* Technical Details - collapsible (regex pattern only) */}
-        {issue.matchedPattern && (
+        {issue.regexMatchPattern && (
           <details className="mb-4 p-4 bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] border border-[var(--color-neutral-200)] group">
             <summary className="flex items-center gap-1.5 text-sm font-medium text-[var(--color-text-secondary)] cursor-pointer hover:text-[var(--color-text)] transition-colors list-none [&::-webkit-details-marker]:hidden">
               <svg className="w-4 h-4 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -274,7 +393,7 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
               <span className="text-xs font-medium text-[var(--color-text-secondary)]">Pattern matched:</span>
               <div className="mt-1">
                 <Tag variant="warning" size="sm">
-                  {issue.matchedPattern}
+                  {issue.regexMatchPattern}
                 </Tag>
               </div>
             </div>

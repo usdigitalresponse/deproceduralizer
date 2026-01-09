@@ -141,7 +141,8 @@ CREATE TABLE analyses (
   has_reporting_requirement BOOLEAN DEFAULT FALSE,
   max_severity INTEGER,
   num_flags INTEGER DEFAULT 0,
-  is_current BOOLEAN DEFAULT TRUE
+  is_current BOOLEAN DEFAULT TRUE,
+  run_id VARCHAR(32)                   -- Pipeline run identifier for tracking
 );
 
 -- -----------------------------------------------------------------------------
@@ -280,22 +281,32 @@ CREATE TABLE compliance_issues (
   id BIGSERIAL PRIMARY KEY,
   document_id BIGINT NOT NULL REFERENCES regulatory_documents(id) ON DELETE CASCADE,
 
-  -- Issue identification
+  -- Issue identification (regex scan)
   issue_type VARCHAR(50) NOT NULL,
   occurrence_number INTEGER NOT NULL DEFAULT 1,
-  matched_pattern VARCHAR(255),
-  matched_context TEXT NOT NULL,
+  -- Old columns (backwards compatibility)
+  matched_pattern VARCHAR(255),               -- (Legacy) Regex pattern that triggered scan
+  matched_context TEXT NOT NULL,              -- (Legacy) ~600 char text window around regex match
+  -- New columns (research pipeline)
+  regex_match_pattern VARCHAR(255),           -- Regex pattern that triggered the initial scan
+  regex_match_context TEXT,                   -- Text window around the regex match (~600 chars)
   url TEXT,
 
   -- LLM analysis results
   requirement_found BOOLEAN DEFAULT FALSE,
-  requirement_text TEXT,
-  is_verbatim BOOLEAN,                    -- True if requirement_text is verbatim from regulation
+  -- Old column (backwards compatibility)
+  requirement_text TEXT,                      -- (Legacy) The specific text creating the requirement
+  -- New column (research pipeline)
+  verbatim_supporting_text TEXT[] DEFAULT '{}',  -- Array of exact quotes supporting the decision (empty if no issue)
+  is_verbatim BOOLEAN,                        -- True if verbatim_supporting_text contains exact quotes
   required_by_statute BOOLEAN,
   statute_citation VARCHAR(255),
   severity INTEGER,
-  original_severity INTEGER,              -- LLM's original severity (preserved on first review)
-  impact_assessment TEXT,
+  original_severity INTEGER,                  -- LLM's original severity (preserved on first review)
+  -- Old column (backwards compatibility)
+  impact_assessment TEXT,                     -- (Legacy) LLM explanation of why this is/isn't problematic
+  -- New column (research pipeline)
+  decision_rationale TEXT,                    -- LLM's holistic rationale for the classification decision
 
   -- Review fields
   review_status VARCHAR(50) DEFAULT 'unreviewed',
@@ -317,10 +328,119 @@ CREATE TABLE compliance_issues (
   -- Metadata
   state VARCHAR(2) NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  run_id VARCHAR(32),                   -- Pipeline run identifier for tracking
 
   CONSTRAINT compliance_issues_severity_check CHECK (severity >= 1 AND severity <= 10),
   CONSTRAINT compliance_issues_state_check CHECK (state IN ('NY', 'NJ')),
   CONSTRAINT unique_document_issue_occurrence UNIQUE (document_id, issue_type, occurrence_number)
+);
+
+-- -----------------------------------------------------------------------------
+-- Compliance Issue Analyses: Document-level analysis for research pipeline
+-- -----------------------------------------------------------------------------
+-- One row per (document_id, issue_type) pair. Groups regex matches from
+-- compliance_issues table and runs progressive analysis through tiers.
+-- V4: 4-tier architecture (tier1-tier4 columns)
+-- V5: 3-tier architecture with argument framing and re-runs (Tier 3 = web search)
+-- Use pipeline_version column to distinguish between versions.
+-- -----------------------------------------------------------------------------
+CREATE TABLE compliance_issue_analyses (
+  id BIGSERIAL PRIMARY KEY,
+  document_id BIGINT NOT NULL REFERENCES regulatory_documents(id) ON DELETE CASCADE,
+  issue_type VARCHAR(50) NOT NULL,
+  state VARCHAR(2) NOT NULL,
+  grouped_match_count INTEGER NOT NULL,
+
+  -- Tier 1: Match Filtering
+  tier1_relevant_match_ids INTEGER[],
+  tier1_dismissed_match_ids INTEGER[],
+  tier1_dismissed_reasons JSONB,
+  tier1_classification VARCHAR(30),    -- 'all_false_positives' | 'needs_research'
+  tier1_confidence REAL,
+  tier1_reasoning TEXT,
+  tier1_context_requests JSONB,
+  tier1_batch_id VARCHAR(100),
+  tier1_completed_at TIMESTAMP,
+
+  -- Tier 2: Summary-Based Research
+  tier2_classification VARCHAR(30),    -- 'unrelated' | 'justified' | 'burdensome' | 'needs_full_context'
+  tier2_confidence REAL,
+  tier2_reasoning TEXT,
+  verbatim_requirements TEXT[],
+  severity INTEGER,
+  severity_baseline INTEGER,
+  severity_calculation TEXT,
+  argument_for_regulation TEXT,
+  argument_against_regulation TEXT,
+  context_used JSONB,
+  tier2_full_text_requests JSONB,
+  needs_web_search BOOLEAN DEFAULT FALSE,
+  web_search_topics TEXT[],
+  potentially_controversial BOOLEAN DEFAULT FALSE,
+  federal_mandate_suspected BOOLEAN DEFAULT FALSE,
+  ambiguity_type VARCHAR(20),          -- 'internal' | 'external' | 'both'
+  tier2_batch_id VARCHAR(100),
+  tier2_completed_at TIMESTAMP,
+
+  -- Tier 3: Full Context Deep Dive
+  tier3_classification VARCHAR(30),    -- 'burdensome' | 'justified' | 'unrelated'
+  tier3_confidence REAL,
+  tier3_reasoning TEXT,
+  tier3_severity_adjustment INTEGER,
+  tier3_severity_adjustment_reasoning TEXT,
+  tier3_batch_id VARCHAR(100),
+  tier3_completed_at TIMESTAMP,
+
+  -- Tier 4: Web Search Validation (V4)
+  tier4_classification VARCHAR(30),    -- 'burdensome' | 'justified' | 'unrelated'
+  tier4_severity_adjustment INTEGER,
+  tier4_reasoning TEXT,
+  web_search_summary TEXT,
+  tier4_completed_at TIMESTAMP,
+  federal_mandate_found BOOLEAN DEFAULT FALSE,
+  state_has_discretion BOOLEAN DEFAULT TRUE,
+
+  -- V5 Additions: Tier 1 Argument Framing & Context Requests
+  tier1_argument_framing JSONB,        -- {best_argument_burdensome, best_argument_justified, best_argument_unrelated}
+  tier1_recommendations JSONB,         -- {context_requests: [{context_type, identifier, need_level, reason}, ...]}
+
+  -- V5 Additions: Tier 2 Re-run Tracking
+  tier2_rerun_count INTEGER DEFAULT 0, -- 0-2, number of re-runs with additional context
+  tier2_context_requests_made JSONB,   -- Array of {context_type, identifier, need_level, reason, timestamp}
+  tier2_forced_classification BOOLEAN DEFAULT FALSE,  -- True if forced after max re-runs
+  claims_no_alternative BOOLEAN DEFAULT FALSE,        -- True if claims no electronic/remote alternative
+  cites_federal_statute BOOLEAN DEFAULT FALSE,        -- True if document cites federal statute
+  federal_citation TEXT,               -- The federal citation found (e.g., "42 CFR 483.24")
+
+  -- V5.2 Additions: Web Search Disambiguation (helps Tier 3 avoid irrelevant results)
+  program_context TEXT,                -- Specific program/agency context for web search disambiguation
+  not_to_confuse_with TEXT[] DEFAULT '{}', -- List of similar-sounding programs to ignore in searches
+  search_scope_guidance TEXT,          -- Guidance for Tier 3 on what to focus on vs avoid
+
+  -- V5 Additions: Tier 3 Structured Flags (V5 Tier 3 = web verification)
+  tier3_flags JSONB,                   -- {superseded_by_law, federal_mandate_confirmed, state_discretion_found, modernized_alternative_found}
+  tier3_evidence_gap BOOLEAN DEFAULT FALSE,  -- True if web search found no relevant evidence
+
+  -- Derived Fields
+  requirement_found BOOLEAN,
+  is_justified BOOLEAN DEFAULT FALSE,
+  is_verbatim BOOLEAN,
+  final_severity INTEGER,
+
+  -- Pipeline Tracking
+  pipeline_version VARCHAR(20) DEFAULT 'v4',
+  highest_tier_completed INTEGER DEFAULT 0,
+  classification_tier INTEGER,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+  CONSTRAINT cia_severity_check CHECK (severity >= 1 AND severity <= 10),
+  CONSTRAINT cia_state_check CHECK (state IN ('NY', 'NJ')),
+  CONSTRAINT cia_tier3_adjustment_check CHECK (tier3_severity_adjustment >= -3 AND tier3_severity_adjustment <= 3),
+  CONSTRAINT cia_tier4_adjustment_check CHECK (tier4_severity_adjustment >= -3 AND tier4_severity_adjustment <= 3),
+  CONSTRAINT cia_tier_check CHECK (highest_tier_completed >= 0 AND highest_tier_completed <= 4),
+  CONSTRAINT cia_tier2_rerun_check CHECK (tier2_rerun_count >= 0 AND tier2_rerun_count <= 2),
+  CONSTRAINT unique_cia_document_issue UNIQUE(document_id, issue_type)
 );
 
 -- -----------------------------------------------------------------------------
@@ -533,6 +653,7 @@ CREATE INDEX idx_documents_nycrr_title_part_subpart ON regulatory_documents(nycr
 -- Analyses
 CREATE INDEX idx_analyses_url ON analyses(url);
 CREATE UNIQUE INDEX idx_analyses_one_current_per_document ON analyses(document_id) WHERE is_current = TRUE;
+CREATE INDEX idx_analyses_run_id ON analyses(run_id);
 
 -- Red Flags
 CREATE INDEX idx_red_flags_analysis ON red_flags(analysis_id);
@@ -570,6 +691,30 @@ CREATE INDEX idx_compliance_issues_requirement_found ON compliance_issues(requir
 CREATE INDEX idx_compliance_issues_severity ON compliance_issues(severity) WHERE severity IS NOT NULL;
 CREATE INDEX idx_compliance_issues_developer_status ON compliance_issues(developer_status);
 CREATE INDEX idx_compliance_issues_developer_assigned ON compliance_issues(developer_assigned);
+CREATE INDEX idx_compliance_issues_run_id ON compliance_issues(run_id);
+
+-- Compliance Issue Analyses (4-tier pipeline)
+CREATE INDEX idx_cia_document ON compliance_issue_analyses(document_id);
+CREATE INDEX idx_cia_state_issue ON compliance_issue_analyses(state, issue_type);
+CREATE INDEX idx_cia_pipeline_version ON compliance_issue_analyses(pipeline_version);
+CREATE INDEX idx_cia_tier1_classification ON compliance_issue_analyses(tier1_classification);
+CREATE INDEX idx_cia_tier2_classification ON compliance_issue_analyses(tier2_classification);
+CREATE INDEX idx_cia_tier3_classification ON compliance_issue_analyses(tier3_classification);
+CREATE INDEX idx_cia_tier4_classification ON compliance_issue_analyses(tier4_classification);
+CREATE INDEX idx_cia_context_used ON compliance_issue_analyses USING GIN (context_used);
+CREATE INDEX idx_cia_needs_tier2 ON compliance_issue_analyses(id) WHERE tier1_classification = 'needs_research' AND tier2_classification IS NULL;
+CREATE INDEX idx_cia_needs_tier3 ON compliance_issue_analyses(id) WHERE tier2_classification = 'needs_full_context' AND tier3_classification IS NULL;
+CREATE INDEX idx_cia_needs_tier4 ON compliance_issue_analyses(id) WHERE needs_web_search = true AND tier4_completed_at IS NULL;
+CREATE INDEX idx_cia_justified_controversial ON compliance_issue_analyses(id) WHERE tier2_classification = 'justified' AND potentially_controversial = true AND tier4_completed_at IS NULL;
+CREATE INDEX idx_cia_high_severity ON compliance_issue_analyses(id) WHERE final_severity >= 7;
+CREATE INDEX idx_cia_state_severity ON compliance_issue_analyses(state, final_severity) WHERE final_severity IS NOT NULL;
+CREATE INDEX idx_cia_burdensome ON compliance_issue_analyses(id) WHERE requirement_found = true AND is_justified = false;
+CREATE INDEX idx_cia_justified ON compliance_issue_analyses(id) WHERE is_justified = true;
+
+-- V5 pipeline index
+CREATE INDEX idx_compliance_issue_analyses_v5_tier3_triggers
+ON compliance_issue_analyses (issue_type, cites_federal_statute, claims_no_alternative, severity)
+WHERE pipeline_version = 'v5';
 
 -- Incorporations by Reference
 CREATE INDEX idx_ibr_document ON incorporations_by_reference(document_id);
@@ -605,6 +750,26 @@ CREATE INDEX idx_document_notes_document_id ON document_notes(document_id);
 CREATE INDEX idx_prompt_feedback_prompt_name ON prompt_feedback(prompt_name);
 CREATE INDEX idx_prompt_feedback_created_at ON prompt_feedback(created_at DESC);
 CREATE INDEX idx_prompt_feedback_feedback_type ON prompt_feedback(feedback_type);
+
+-- =============================================================================
+-- HELPER FUNCTIONS
+-- =============================================================================
+
+-- Natural sort: Extract numeric prefix for sorting (e.g., "24A" -> 24)
+CREATE OR REPLACE FUNCTION natural_sort_num(text) RETURNS integer AS $$
+  SELECT COALESCE(
+    (regexp_match($1, '^(\d+)'))[1]::integer,
+    0
+  );
+$$ LANGUAGE SQL IMMUTABLE;
+
+-- Natural sort: Extract alpha suffix for sorting (e.g., "24A" -> "A")
+CREATE OR REPLACE FUNCTION natural_sort_alpha(text) RETURNS text AS $$
+  SELECT COALESCE(
+    (regexp_match($1, '^\d*(.*)$'))[1],
+    ''
+  );
+$$ LANGUAGE SQL IMMUTABLE;
 
 -- =============================================================================
 -- VIEWS

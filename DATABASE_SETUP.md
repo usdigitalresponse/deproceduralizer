@@ -30,7 +30,7 @@ done
 
 Or run a specific migration:
 ```bash
-psql $DATABASE_URL -f frontend/packages/database/migrations/0007_add_display_columns.sql
+psql $DATABASE_URL -f frontend/packages/database/migrations/0007a_add_display_columns.sql
 ```
 
 ## Migrate Data

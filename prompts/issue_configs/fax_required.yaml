@@ -1,0 +1,85 @@
+fax_required:
+  updated_at: '2026-01-03'
+  display_name: Fax Requirements
+  db_issue_type: fax_required
+  category: Communication
+  description: 'Fax transmission is required or is the only alternative to physical mail, despite being
+    obsolete and unreliable. This affects: citizens without fax machine access who must find fax services;
+    businesses maintaining outdated equipment; professionals filing time-sensitive documents with transmission
+    uncertainty; government staff managing fax workflows and confirmations; and vulnerable populations
+    including younger generations unfamiliar with fax technology, elderly struggling with the equipment,
+    and rural residents without nearby fax services.'
+  positive_indicators:
+  - '"shall fax" or "must be faxed" with mandatory language'
+  - Fax is the ONLY alternative to mail (no email, no online portal)
+  - '"required to fax" or "fax is required" explicit requirement'
+  - No modern digital alternatives (email, portal, electronic) mentioned
+  - Emergency or time-sensitive notification requires fax specifically
+  negative_indicators:
+  - '"fax number" appears as contact info collection (not usage requirement)'
+  - Fax paired with "or email", "or electronic", "or other means"
+  - '"when provided" or "if known" makes fax optional'
+  - Device definitions listing fax machines (not usage requirements)
+  - Email or online portal mentioned as alternative
+  - '"or fax" indicates fax is one option, not requirement'
+  severity_baseline: 5
+  severity_modifiers:
+    increases:
+    - '+1: No alternative submission method mentioned'
+    - '+2: Affects vulnerable populations (elderly, low-income)'
+    - '+1: Time-sensitive communications where fax delays are problematic'
+    decreases:
+    - '-1: Fax is one of several options including email'
+    - '-1: B2G (business-to-government) context where fax may be common'
+    - '-1: Statutory requirement mandates fax'
+  patterns:
+  - \bfax\b
+  - facsimile
+  - telefax
+  patterns_to_add:
+  - shall.{0,20}fax
+  - must.{0,15}(be )?fax
+  - required.{0,15}fax
+  - fax.{0,15}(is |shall be )?required
+  exclusion_patterns:
+  - fax number (contact info, not requirement)
+  - or fax (indicates alternative, not requirement)
+  - and/or fax (indicates alternative)
+  - if.{0,10}fax (conditional, not required)
+  - when.{0,10}fax (conditional)
+  - email|electronic within 50 chars (modern alternative exists)
+  statistics:
+    total_matches: 527
+    true_positives: 47
+    true_positive_rate: 8.92
+    sample_date: '2026-01-01'
+  examples:
+    true_positives:
+    - citation: N.J.A.C. 12:121-5.1
+      quote: the written accident notification must also be faxed to the Department at 609-292-3749
+      reasoning: Fax is REQUIRED for crane accident reports with no modern alternative.
+      classification: burdensome
+      severity: 6
+    - citation: N.J.A.C. 10:90-17.2
+      quote: The WFNJ agency shall immediately fax...a copy of the signed WFNJ/EEI-1
+      reasoning: Mandatory fax requirement for TANF referrals with 'shall immediately fax'.
+      classification: burdensome
+      severity: 7
+    - citation: N.J.A.C. 10A:3-2.3
+      quote: Advise by telephone and fax a copy of Form 173-III
+      reasoning: Fax required for inmate transfer notifications.
+      classification: burdensome
+      severity: 4
+    false_positives:
+    - citation: N.J.A.C. 8:43B-2.1
+      quote: address, including the county, telephone and fax number, and email address
+      reasoning: This is just collecting contact information, not requiring fax use.
+      classification: unrelated
+    - citation: 21 NYCRR 176.4
+      quote: email or fax when provided
+      reasoning: Fax is optional ('when provided') and email is equally accepted.
+      classification: unrelated
+    - citation: N.J.A.C. 17:13-3.3
+      quote: fax (or other electronic means)
+      reasoning: Other electronic means explicitly offered as alternative.
+      classification: unrelated

@@ -48,6 +48,19 @@ import {
   TREEMAP_COLOR_METRIC_VALUES,
   // View mode
   VIEW_MODE_VALUES,
+  // Analysis tier filters
+  TIER_FILTER_VALUES,
+  FEDERAL_MANDATE_FILTER_VALUES,
+  HAS_ANALYSIS_FILTER_VALUES,
+  CLASSIFICATION_FILTER_VALUES,
+  ANALYSIS_SORT_BY_VALUES,
+  // V5 Tier 3 filters
+  PIPELINE_SEVERITY_FILTER_VALUES,
+  SEVERITY_CHANGED_FILTER_VALUES,
+  TIER3_FINDING_FILTER_VALUES,
+  TIER3_TRIGGER_FILTER_VALUES,
+  // V5.1 Easy Cleanup filter
+  EASY_CLEANUP_FILTER_VALUES,
 } from '@/lib/constants/values';
 
 // Re-export types for convenience
@@ -85,6 +98,15 @@ export type {
   TreemapSizeMetricValue,
   TreemapColorMetricValue,
   ViewModeValue,
+  TierFilterValue,
+  FederalMandateFilterValue,
+  HasAnalysisFilterValue,
+  ClassificationFilterValue,
+  AnalysisSortByValue,
+  PipelineSeverityFilterValue,
+  SeverityChangedFilterValue,
+  Tier3FindingFilterValue,
+  Tier3TriggerFilterValue,
 } from '@/lib/constants/values';
 
 // Re-export value arrays for backward compatibility
@@ -187,6 +209,61 @@ export const shownIdsParser = parseAsString; // comma-separated IDs
 export const focusTypeParser = parseAsString; // current issue type focus
 export const focusSectionParser = parseAsString; // current section focus (hierarchy_path prefix)
 export const focusPatternParser = parseAsString; // current matched pattern focus
+
+// ============================================
+// Analysis tier filter parsers (Research Pipeline)
+// ============================================
+
+export const tierFilterParser = parseAsStringEnum([...TIER_FILTER_VALUES]).withDefault('all');
+export const federalMandateFilterParser = parseAsStringEnum([...FEDERAL_MANDATE_FILTER_VALUES]).withDefault('all');
+export const hasAnalysisFilterParser = parseAsStringEnum([...HAS_ANALYSIS_FILTER_VALUES]).withDefault('all');
+export const classificationFilterParser = parseAsStringEnum([...CLASSIFICATION_FILTER_VALUES]).withDefault('all');
+export const analysisSortByParser = parseAsStringEnum([...ANALYSIS_SORT_BY_VALUES]).withDefault('createdAt');
+export const pipelineRunParser = parseAsStringEnum([...BOOLEAN_FILTER_VALUES]).withDefault('all');
+export type PipelineRunValue = (typeof BOOLEAN_FILTER_VALUES)[number];
+
+// V5 Tier 3 filter parsers
+export const pipelineSeverityParser = parseAsStringEnum([...PIPELINE_SEVERITY_FILTER_VALUES]).withDefault('all');
+export const severityChangedParser = parseAsStringEnum([...SEVERITY_CHANGED_FILTER_VALUES]).withDefault('all');
+export const tier3FindingParser = parseAsStringEnum([...TIER3_FINDING_FILTER_VALUES]).withDefault('all');
+export const tier3TriggerParser = parseAsStringEnum([...TIER3_TRIGGER_FILTER_VALUES]).withDefault('all');
+
+// V5.1 Easy Cleanup filter parser
+export const easyCleanupParser = parseAsStringEnum([...EASY_CLEANUP_FILTER_VALUES]).withDefault('all');
+
+// ============================================
+// Analysis table parsers
+// ============================================
+
+// Bookmarked only filter parser
+export const bookmarkedOnlyParser = parseAsStringEnum([...BOOLEAN_FILTER_VALUES]).withDefault('all');
+
+/**
+ * Parser configuration for analysis table filters
+ */
+export const analysisTableParsers = {
+  page: pageParser,
+  pageSize: pageSizeParser,
+  tierCompleted: tierFilterParser,
+  classification: classificationFilterParser,
+  federalMandate: federalMandateFilterParser,
+  pipelineRun: pipelineRunParser,
+  issueType: categoryParser,
+  sortBy: analysisSortByParser,
+  sortOrder: sortOrderParser,
+  // V5 Tier 3 filters
+  severity: pipelineSeverityParser,
+  severityChanged: severityChangedParser,
+  federalMandateConfirmed: tier3FindingParser,
+  stateDiscretion: tier3FindingParser,
+  alternativeFound: tier3FindingParser,
+  evidenceGap: tier3FindingParser,
+  tier3Trigger: tier3TriggerParser,
+  // V5.1 Easy Cleanup filter
+  easyCleanup: easyCleanupParser,
+  // Bookmarks filter
+  bookmarkedOnly: bookmarkedOnlyParser,
+};
 
 // ============================================
 // Combined parsers for common use cases
@@ -316,6 +393,9 @@ export const complianceQueueParsers = {
   issueType: categoryParser,
   statuteSource: statuteSourceParser,
   requirementFound: requirementFoundParser,
+  tierCompleted: tierFilterParser,
+  federalMandate: federalMandateFilterParser,
+  hasAnalysis: hasAnalysisFilterParser,
   sortBy: complianceSortByParser,
   sortOrder: sortOrderParser,
 };
@@ -407,6 +487,12 @@ export const analyticsParsers = {
 // ============================================
 
 export const viewModeParser = parseAsStringEnum([...VIEW_MODE_VALUES]).withDefault('table');
+
+// ============================================
+// Print mode parser
+// ============================================
+
+export const printParser = parseAsBoolean.withDefault(false);
 
 // ============================================
 // Faceted filter parsers (for card grid view)

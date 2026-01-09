@@ -29,6 +29,7 @@ import {
   parseSeverityFilter,
   parseBooleanFilter,
   parseRequirementFoundFilter,
+  parseTierFilter,
   getReviewPageConfig,
 } from '@/lib/url/filter-helpers';
 import type { StateCode, RedFlagFilterOptions } from '@deproceduralizer/database';
@@ -59,6 +60,10 @@ interface PageProps {
     page?: string;
     requiredByStatute?: string;
     requirementFound?: string;
+    // Research pipeline filters
+    tierCompleted?: string;
+    federalMandate?: string;
+    hasAnalysis?: string;
     // Suggestion mode params
     queueMode?: string;
     groupingMode?: string;
@@ -427,6 +432,10 @@ async function renderReviewMode(
       severity: parseSeverityFilter(queryParams.severity),
       requiredByStatute: parseBooleanFilter(queryParams.requiredByStatute),
       requirementFound: parseRequirementFoundFilter(queryParams.requirementFound),
+      // Research pipeline filters
+      tierCompleted: parseTierFilter(queryParams.tierCompleted),
+      federalMandate: parseBooleanFilter(queryParams.federalMandate),
+      hasAnalysis: parseBooleanFilter(queryParams.hasAnalysis),
     };
 
     const dataResult = await getComplianceQueueData(stateCode, { page, pageSize, sortBy, sortOrder, filters });

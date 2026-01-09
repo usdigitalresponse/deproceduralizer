@@ -1,0 +1,60 @@
+cash_only:
+  updated_at: '2026-01-03'
+  display_name: Cash Only Payment
+  db_issue_type: cash_only
+  category: Payment
+  description: 'Cash is required or is the only payment option, creating accessibility and security concerns.
+    This particularly affects: citizens who must travel with cash and find exact change; businesses unable
+    to use corporate payment methods or credit lines; and vulnerable populations including the unbanked,
+    low-income individuals without easy cash access, elderly who face safety concerns carrying cash, and
+    rural residents far from ATMs.'
+  positive_indicators:
+  - Cash is explicitly required ("cash only")
+  - Exact change is required with no alternatives
+  - No electronic or check payment options mentioned
+  - '"cash only" explicit restriction'
+  - No other payment methods accepted
+  negative_indicators:
+  - Cash is one accepted method among several
+  - Electronic payment is also available
+  - Reference is incidental rather than requirement
+  - '"cash, check, or credit card" multiple options'
+  - Historical reference
+  severity_baseline: 5
+  severity_modifiers:
+    increases:
+    - '+2: Only payment method'
+    - '+1: Exact change required'
+    - '+1: Large payment amounts'
+    decreases:
+    - '-2: Other methods available'
+    - '-1: Small/incidental fees'
+  patterns:
+  - cash.{0,5}only
+  - exact change
+  statistics:
+    total_matches: 4
+    true_positives: 0
+    true_positive_rate: 0.0
+    sample_date: '2026-01-01'
+  precision_notes: 'Cash_only has 0% TPR because:
+
+    1. Very few regulations actually require cash-only
+
+    2. Most "cash" mentions are just listing payment options
+
+    3. Pattern is rare and usually false positive
+
+    '
+  examples:
+    true_positives: []
+    false_positives:
+    - citation: N.J.A.C. 13:45A-9.1
+      quote: payment by cash, check, or credit card
+      reasoning: Multiple payment options. Cash is just one choice.
+      classification: unrelated
+    - citation: N.J.A.C. 17:1-2.5
+      quote: petty cash disbursements
+      reasoning: Internal cash handling, not payment requirement.
+      classification: unrelated
+    justified: []

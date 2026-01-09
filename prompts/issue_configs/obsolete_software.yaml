@@ -1,0 +1,60 @@
+obsolete_software:
+  updated_at: '2026-01-03'
+  display_name: Obsolete Software/Format
+  db_issue_type: obsolete_software
+  category: Technology
+  description: 'Obsolete software programs or file formats are specifically required (WordPerfect, Lotus
+    1-2-3, DOS, dBASE). This creates barriers for: citizens without access to discontinued software; businesses
+    maintaining legacy systems solely for compliance; professionals who must convert documents; and government
+    staff interpreting or converting outdated formats when modern equivalents exist.'
+  positive_indicators:
+  - Obsolete software is specifically required (WordPerfect, Lotus, etc.)
+  - Discontinued file formats are mandated
+  - Software/format is no longer commonly available
+  - No modern format alternatives offered
+  - Requires purchasing/obtaining discontinued software
+  negative_indicators:
+  - Format is still in common use
+  - Multiple formats are accepted
+  - Modern equivalents explicitly permitted
+  - '"or current equivalent" language'
+  - Reference is historical, not requirement
+  severity_baseline: 5
+  severity_modifiers:
+    increases:
+    - '+2: Specific obsolete software required'
+    - '+1: No modern alternative'
+    - '+1: Software is discontinued'
+    decreases:
+    - '-2: Modern equivalents accepted'
+    - '-1: Multiple formats permitted'
+    - '-1: Historical reference only'
+  patterns:
+  - wordperfect
+  - \blotus\b
+  - \bdos\b
+  - \bdbase\b
+  - ascii.{0,10}format
+  statistics:
+    total_matches: 8
+    true_positives: 4
+    true_positive_rate: 50.0
+    sample_date: '2026-01-01'
+  examples:
+    true_positives:
+    - citation: N.J.A.C. 7:26-8.7
+      quote: data in dBASE III format
+      reasoning: dBASE III is obsolete database format.
+      classification: burdensome
+      severity: 6
+    - citation: N.J.A.C. 14:3-7.6
+      quote: documents in WordPerfect 5.1 format
+      reasoning: WordPerfect 5.1 is decades obsolete.
+      classification: burdensome
+      severity: 6
+    false_positives:
+    - citation: N.J.A.C. 17:12-2.8
+      quote: Word, PDF, or compatible format
+      reasoning: Modern formats accepted.
+      classification: unrelated
+    justified: []

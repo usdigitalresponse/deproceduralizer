@@ -1,0 +1,228 @@
+'use client';
+
+import { useState, useCallback, useEffect, createContext, useContext, type ReactNode } from 'react';
+import { Bookmark as BookmarkIcon, Pencil, X, Check } from 'lucide-react';
+import type { StateCode, Bookmark } from '@deproceduralizer/database';
+import { BookmarkButton } from '@/components/ui';
+import {
+  toggleAnalysisBookmarkByDocIssue,
+  getBookmarkByDocIssue,
+  updateBookmarkNotes,
+} from '@/lib/actions/bookmarks';
+
+// Context for sharing bookmark state
+interface BookmarkContextValue {
+  bookmark: Bookmark | null;
+  isLoading: boolean;
+  isBookmarked: boolean;
+  handleToggle: () => Promise<void>;
+}
+
+const BookmarkContext = createContext<BookmarkContextValue | null>(null);
+
+interface AnalysisBookmarkProviderProps {
+  documentId: number;
+  issueType: string;
+  state: StateCode;
+  children: ReactNode;
+}
+
+/**
+ * Provider that manages bookmark state for an analysis.
+ * Wrap the page content with this to enable BookmarkToggle and BookmarkNotesCard.
+ */
+export function AnalysisBookmarkProvider({
+  documentId,
+  issueType,
+  state,
+  children,
+}: AnalysisBookmarkProviderProps) {
+  const [bookmark, setBookmark] = useState<Bookmark | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const isBookmarked = bookmark !== null;
+
+  // Fetch bookmark
+  useEffect(() => {
+    async function fetchBookmark() {
+      const result = await getBookmarkByDocIssue(documentId, issueType);
+      if (result.success) {
+        setBookmark(result.data);
+      }
+      setIsLoading(false);
+    }
+    fetchBookmark();
+  }, [documentId, issueType]);
+
+  const handleToggle = useCallback(async () => {
+    const wasBookmarked = isBookmarked;
+
+    // Optimistic update
+    if (wasBookmarked) {
+      setBookmark(null);
+    }
+
+    const result = await toggleAnalysisBookmarkByDocIssue(documentId, issueType, state);
+
+    if (!result.success) {
+      // Revert on failure
+      const refetchResult = await getBookmarkByDocIssue(documentId, issueType);
+      if (refetchResult.success) {
+        setBookmark(refetchResult.data);
+      }
+      console.error('Failed to toggle bookmark:', result.error);
+    } else if (result.data) {
+      setBookmark(result.data);
+    }
+  }, [documentId, issueType, state, isBookmarked]);
+
+  // Allow updating bookmark from notes card
+  const updateBookmark = useCallback((updated: Bookmark) => {
+    setBookmark(updated);
+  }, []);
+
+  return (
+    <BookmarkContext.Provider value={{ bookmark, isLoading, isBookmarked, handleToggle }}>
+      <BookmarkUpdateContext.Provider value={updateBookmark}>
+        {children}
+      </BookmarkUpdateContext.Provider>
+    </BookmarkContext.Provider>
+  );
+}
+
+// Separate context for updates to avoid re-renders
+const BookmarkUpdateContext = createContext<((b: Bookmark) => void) | null>(null);
+
+/**
+ * Bookmark toggle button - place in the navigation area.
+ */
+export function BookmarkToggle() {
+  const ctx = useContext(BookmarkContext);
+  if (!ctx) throw new Error('BookmarkToggle must be used within AnalysisBookmarkProvider');
+
+  return (
+    <BookmarkButton
+      isBookmarked={ctx.isBookmarked}
+      onToggle={ctx.handleToggle}
+      isLoading={ctx.isLoading}
+      size="md"
+      showLabel
+    />
+  );
+}
+
+/**
+ * Bookmark notes card - place in the content area.
+ * Only renders when bookmarked.
+ */
+export function BookmarkNotesCard() {
+  const ctx = useContext(BookmarkContext);
+  const updateBookmark = useContext(BookmarkUpdateContext);
+  if (!ctx) throw new Error('BookmarkNotesCard must be used within AnalysisBookmarkProvider');
+
+  const [isEditingNotes, setIsEditingNotes] = useState(false);
+  const [editedNotes, setEditedNotes] = useState('');
+  const [isSavingNotes, setIsSavingNotes] = useState(false);
+
+  const { bookmark, isBookmarked } = ctx;
+
+  // Reset edit state when bookmark changes
+  useEffect(() => {
+    setEditedNotes(bookmark?.notes || '');
+    setIsEditingNotes(false);
+  }, [bookmark?.id, bookmark?.notes]);
+
+  const handleStartEditNotes = useCallback(() => {
+    setEditedNotes(bookmark?.notes || '');
+    setIsEditingNotes(true);
+  }, [bookmark?.notes]);
+
+  const handleCancelEditNotes = useCallback(() => {
+    setEditedNotes(bookmark?.notes || '');
+    setIsEditingNotes(false);
+  }, [bookmark?.notes]);
+
+  const handleSaveNotes = useCallback(async () => {
+    if (!bookmark) return;
+
+    setIsSavingNotes(true);
+    const result = await updateBookmarkNotes(bookmark.id, editedNotes);
+
+    if (result.success) {
+      updateBookmark?.(result.data);
+      setIsEditingNotes(false);
+    } else {
+      console.error('Failed to save notes:', result.error);
+    }
+    setIsSavingNotes(false);
+  }, [bookmark, editedNotes, updateBookmark]);
+
+  if (!isBookmarked) return null;
+
+  return (
+    <div className="bg-amber-50 border border-amber-200 rounded-[var(--radius-md)] p-4 mb-6">
+      <div className="flex items-start gap-3">
+        <BookmarkIcon className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" fill="currentColor" />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <h3 className="text-sm font-semibold text-amber-800">
+              Bookmarked
+            </h3>
+            {!isEditingNotes && (
+              <button
+                onClick={handleStartEditNotes}
+                className="inline-flex items-center gap-1.5 px-2 py-1 text-xs font-medium text-amber-700 hover:text-amber-900 hover:bg-amber-100 rounded transition-colors"
+              >
+                <Pencil className="w-3 h-3" />
+                {bookmark?.notes ? 'Edit notes' : 'Add notes'}
+              </button>
+            )}
+          </div>
+
+          {isEditingNotes ? (
+            <div className="space-y-2">
+              <textarea
+                value={editedNotes}
+                onChange={(e) => setEditedNotes(e.target.value)}
+                placeholder="Add notes about why this is bookmarked..."
+                className="w-full px-3 py-2 text-sm bg-white border border-amber-300 rounded-[var(--radius-sm)] resize-none focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent placeholder:text-amber-400"
+                rows={2}
+                autoFocus
+              />
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={handleCancelEditNotes}
+                  disabled={isSavingNotes}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-amber-700 hover:bg-amber-100 rounded transition-colors disabled:opacity-50"
+                >
+                  <X className="w-3 h-3" />
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveNotes}
+                  disabled={isSavingNotes}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-white bg-amber-600 hover:bg-amber-700 rounded transition-colors disabled:opacity-50"
+                >
+                  <Check className="w-3 h-3" />
+                  Save
+                </button>
+              </div>
+            </div>
+          ) : bookmark?.notes ? (
+            <p className="text-sm text-amber-900">{bookmark.notes}</p>
+          ) : (
+            <p className="text-sm text-amber-600 italic">
+              No notes added yet.
+            </p>
+          )}
+
+          {bookmark?.createdAt && (
+            <p className="mt-2 text-xs text-amber-500">
+              Bookmarked {new Date(bookmark.createdAt).toLocaleDateString()}
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

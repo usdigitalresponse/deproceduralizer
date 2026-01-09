@@ -51,3 +51,6 @@ modelfiles/
 # Export utilities (temporary/one-off scripts)
 codebase_export*.txt
 scripts/export_codebase*.py
+
+# Backup files
+backups/

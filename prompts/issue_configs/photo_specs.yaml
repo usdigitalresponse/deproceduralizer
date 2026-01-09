@@ -1,0 +1,70 @@
+photo_specs:
+  updated_at: '2026-01-03'
+  display_name: Photo Specifications
+  db_issue_type: photo_specs
+  category: Document Format
+  description: 'Specific photo requirements are mandated that may require professional photography or
+    specialized formats. This burdens: citizens needing photos for IDs, permits, or applications for themselves
+    or their children; businesses with employee documentation needs; professionals maintaining credential
+    files; and particularly vulnerable populations including low-income individuals who cannot afford
+    professional photo services, rural residents without nearby photo facilities, and homebound individuals
+    who cannot easily travel to photo locations when smartphone uploads would often suffice.'
+  positive_indicators:
+  - Physical photo attachment is required (no digital upload)
+  - Photo specifications are unusual or arbitrary
+  - Digital photo submission is not mentioned
+  - Requires professional photography
+  - Non-standard dimensions specified
+  negative_indicators:
+  - Digital photo upload is permitted
+  - Specifications are standard (passport, ID card sizes)
+  - Photo requirement serves identity verification purpose
+  - '"or digital photo" alternative'
+  - 2x2 passport standard (common requirement)
+  severity_baseline: 3
+  severity_modifiers:
+    increases:
+    - '+1: No digital upload option'
+    - '+1: Non-standard specifications'
+    - '+1: Professional photography required'
+    decreases:
+    - '-2: Digital upload permitted'
+    - '-1: Standard specifications (2x2)'
+    - '-1: Identity verification purpose'
+  patterns:
+  - passport photo
+  - 2.{0,3}x.{0,3}2
+  - recent photograph
+  - current photograph
+  statistics:
+    total_matches: 24
+    true_positives: 9
+    true_positive_rate: 37.5
+    sample_date: '2026-01-01'
+  examples:
+    true_positives:
+    - citation: N.J.A.C. 13:45A-8.4
+      quote: attach three passport-size photos
+      reasoning: Physical photos required. No digital option.
+      classification: burdensome
+      severity: 4
+    - citation: N.J.A.C. 13:69-1.6
+      quote: photograph 3x5 inches in color on matte paper
+      reasoning: Non-standard specifications. Unusual requirements.
+      classification: burdensome
+      severity: 4
+    false_positives:
+    - citation: N.J.A.C. 13:59-2.3
+      quote: passport photo or upload digital image
+      reasoning: Digital option available.
+      classification: unrelated
+    - citation: N.J.A.C. 13:45A-5.3
+      quote: recent photograph for ID card
+      reasoning: Standard ID purpose. Reasonable requirement.
+      classification: unrelated
+    justified:
+    - citation: N.J.A.C. 13:59-2.4
+      quote: photograph for biometric identity verification
+      reasoning: Security/identity purpose.
+      classification: justified
+      severity: 2

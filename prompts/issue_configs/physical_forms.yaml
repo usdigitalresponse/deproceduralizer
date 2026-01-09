@@ -1,0 +1,65 @@
+physical_forms:
+  updated_at: '2026-01-03'
+  display_name: Physical Form Retrieval
+  db_issue_type: physical_forms
+  category: Physical Presence
+  description: 'Forms must be obtained from a physical location rather than being available online or
+    by mail, requiring travel before the application process can begin. This burdens: citizens who must
+    make a trip just to get started on permits, licenses, or documents for home purchases and childcare;
+    businesses in remote areas; professionals beginning credential processes; and particularly vulnerable
+    populations including elderly with mobility issues, disabled individuals, rural residents far from
+    offices, those without transportation, and workers who cannot take time during business hours.'
+  positive_indicators:
+  - Forms are only available at a physical location
+  - Online availability is not mentioned
+  - Mailing forms to applicants is not offered
+  - '"forms available at" with physical address only'
+  - Must visit office to obtain forms
+  negative_indicators:
+  - Forms are also available online
+  - Forms can be mailed upon request
+  - Physical availability is in addition to electronic
+  - '"available online at" or "download from"'
+  - Forms can be obtained multiple ways
+  severity_baseline: 4
+  severity_modifiers:
+    increases:
+    - '+1: No online or mail option'
+    - '+1: Limited office hours'
+    - '+1: Remote location'
+    decreases:
+    - '-2: Online forms available'
+    - '-1: Forms mailed upon request'
+    - '-1: Multiple distribution channels'
+  patterns:
+  - forms available at
+  - forms.{0,10}available.{0,10}at
+  - obtain forms from
+  - forms may be obtained
+  statistics:
+    total_matches: 50
+    true_positives: 18
+    true_positive_rate: 36.0
+    sample_date: '2026-01-01'
+  examples:
+    true_positives:
+    - citation: N.J.A.C. 13:45A-7.5
+      quote: application forms available at the Division office
+      reasoning: Physical location only. No online mentioned.
+      classification: burdensome
+      severity: 5
+    - citation: N.J.A.C. 8:43-2.4
+      quote: forms may be obtained from the regional office
+      reasoning: Must visit office. No alternative.
+      classification: burdensome
+      severity: 4
+    false_positives:
+    - citation: N.J.A.C. 17:12-2.6
+      quote: forms available at office or online at www...
+      reasoning: Online option available.
+      classification: unrelated
+    - citation: N.J.A.C. 7:1-2.1
+      quote: forms available on website and at regional offices
+      reasoning: Multiple distribution channels.
+      classification: unrelated
+    justified: []

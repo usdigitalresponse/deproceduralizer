@@ -96,8 +96,9 @@ Main table with hierarchy. **74 columns** - use `./scripts/db-query.sh describe 
 | `max_severity` | integer | Highest severity (1-10) |
 | `num_flags` | integer | Number of red flags |
 | `is_current` | boolean | Latest analysis flag |
+| `run_id` | varchar(32) | Pipeline run identifier for tracking |
 
-**Indexes:** `idx_analyses_url`, `idx_analyses_one_current_per_document` (unique partial - ensures one current per doc)
+**Indexes:** `idx_analyses_url`, `idx_analyses_one_current_per_document` (unique partial - ensures one current per doc), `idx_analyses_run_id`
 
 **Always filter by `is_current = true` for latest analysis.**
 
@@ -222,22 +223,35 @@ Many-to-many join table tracking where definition terms actually appear in docum
 
 Tracks compliance issues found in regulations (wet signatures, mail-only submission, etc.).
 
+**Note**: This table has both legacy columns and new research pipeline columns for backwards compatibility. The data was migrated from old columns to new columns, but old columns are preserved.
+
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | bigserial | Primary key |
 | `document_id` | bigint NOT NULL | FK to regulatory_documents |
 | `issue_type` | varchar(50) | `wet_signature`, `mail_only`, `fax`, etc. |
 | `occurrence_number` | integer | 1, 2, 3... for multiple issues of same type per document |
-| `matched_pattern` | varchar(255) | Regex pattern that triggered scan |
-| `matched_context` | text NOT NULL | Text window around the regex match |
+| **Legacy columns (backwards compatibility):** | | |
+| `matched_pattern` | varchar(255) | (Legacy) Regex pattern that triggered scan |
+| `matched_context` | text NOT NULL | (Legacy) ~600 char text window around regex match |
+| **New columns (research pipeline):** | | |
+| `regex_match_pattern` | varchar(255) | Regex pattern that triggered the initial scan |
+| `regex_match_context` | text | Text window around the regex match (~600 chars) |
 | `url` | text | Link to the regulation |
 | `requirement_found` | boolean | Did LLM find an actual requirement? |
-| `requirement_text` | text | The specific text creating the requirement |
-| `is_verbatim` | boolean | True if requirement_text is verbatim from regulation, False if paraphrased, NULL for legacy records |
+| **Legacy column (backwards compatibility):** | | |
+| `requirement_text` | text | (Legacy) The specific text creating the requirement |
+| **New column (research pipeline):** | | |
+| `verbatim_supporting_text` | text[] | Array of exact verbatim quotes from regulation supporting the decision (empty if no issue) |
+| `is_verbatim` | boolean | True if verbatim_supporting_text contains exact quotes from regulation, False if paraphrased, NULL for legacy records |
 | `required_by_statute` | boolean | true = statute mandates, false = agency added, null = unknown |
 | `statute_citation` | varchar(255) | Citation to statute if applicable |
 | `severity` | integer (1-10) | How problematic is this requirement |
-| `impact_assessment` | text | LLM explanation of impact |
+| `original_severity` | integer (1-10) | LLM's original severity (preserved on first review) |
+| **Legacy column (backwards compatibility):** | | |
+| `impact_assessment` | text | (Legacy) LLM explanation of why this is/isn't problematic |
+| **New column (research pipeline):** | | |
+| `decision_rationale` | text | LLM's holistic rationale for the classification decision |
 | `review_status` | varchar(50) | `unreviewed`, `confirmed`, `false_positive`, etc. |
 | `reviewed_by` | varchar(255) | Who reviewed it |
 | `reviewed_at` | timestamp | When reviewed |
@@ -254,18 +268,21 @@ Tracks compliance issues found in regulations (wet signatures, mail-only submiss
 | `developer_checked_at` | timestamp | When developer last checked |
 | `state` | varchar(2) NOT NULL | NY or NJ |
 | `created_at` | timestamp | When record was created |
+| `run_id` | varchar(32) | Pipeline run identifier for tracking |
 
 **Constraints:** `compliance_issues_severity_check`, `compliance_issues_state_check`, `unique_document_issue_occurrence UNIQUE(document_id, issue_type, occurrence_number)`
+
+**Indexes:** `idx_compliance_issues_run_id`
 
 **Issue Types** (41 types defined in `prompts/compliance_issues.yaml`)
 
 ### Compliance Issue Filtering
 
 #### LLM Confirmation Status
-- `requirement_found = true`: LLM confirmed this is a real compliance issue (has `severity` 1-10)
-- `requirement_found = false`: LLM analyzed the regex match but found no actual issue (`severity` is NULL)
+- `requirement_found = true`: LLM confirmed this is a real compliance issue (has `severity` 1-10, `verbatim_supporting_text` populated with quotes)
+- `requirement_found = false`: LLM analyzed the regex match but found no actual issue (`severity` is NULL, `verbatim_supporting_text` is empty array)
 
-The `requirement_found` field indicates whether the LLM found a genuine compliance issue after analyzing the regex-matched context. When `false`, the `requirement_text` field contains an explanation of why no issue was found.
+The `requirement_found` field indicates whether the LLM found a genuine compliance issue after analyzing the regex-matched context. The `verbatim_supporting_text` array contains exact quotes from the regulation that support the classification, and is empty when no issue is found.
 
 #### Where Filtering is Applied
 
@@ -285,6 +302,181 @@ The following columns on `regulatory_documents` store compliance issue counts:
 - `descendant_compliance_issue_count`: Confirmed issues in all descendant documents
 
 These are updated by `refresh_compliance_stats()` in `backend/shared_utils.py` and only count issues where `requirement_found = TRUE`.
+
+## compliance_issue_analyses
+
+Document-level analysis results for the research pipeline. Supports both V4 (4-tier) and V5 (3-tier with proactive context) architectures. One row per (document_id, issue_type) pair. Use `pipeline_version` column to distinguish.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | bigserial | Primary key |
+| `document_id` | bigint NOT NULL | FK to regulatory_documents |
+| `issue_type` | varchar(50) | Issue type being analyzed |
+| `state` | varchar(2) NOT NULL | NY or NJ |
+| `grouped_match_count` | integer NOT NULL | Number of regex matches from compliance_issues analyzed together |
+
+**Tier 1: Match Filtering**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `tier1_relevant_match_ids` | integer[] | IDs from compliance_issues that passed filtering (DEFAULT '{}') |
+| `tier1_dismissed_match_ids` | integer[] | IDs from compliance_issues that were filtered out (DEFAULT '{}') |
+| `tier1_dismissed_reasons` | jsonb | Array of {match_id, text, reason} |
+| `tier1_classification` | varchar(30) | `all_false_positives` or `needs_research` |
+| `tier1_confidence` | real | 0.0-1.0 |
+| `tier1_reasoning` | text | Explanation of filtering decisions |
+| `tier1_context_requests` | jsonb | ContextRequest objects for Tier 2 |
+| `tier1_batch_id` | varchar(100) | Anthropic batch API ID |
+| `tier1_completed_at` | timestamp | When Tier 1 completed |
+
+**Tier 2: Summary-Based Research**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `tier2_classification` | varchar(30) | `unrelated`, `justified`, `burdensome`, or `needs_full_context` |
+| `tier2_confidence` | real | 0.0-1.0 |
+| `tier2_reasoning` | text | Step-by-step analysis |
+| `verbatim_requirements` | text[] | Document-level requirement quotes (DEFAULT '{}') |
+| `severity` | integer (1-10) | Tier 2 severity score |
+| `severity_baseline` | integer | Issue-type baseline |
+| `severity_calculation` | text | Formula breakdown |
+| `argument_for_regulation` | text | Steelman: why burden might be justified |
+| `argument_against_regulation` | text | Steelman: why burden is problematic |
+| `context_used` | jsonb | All context sources used in analysis |
+| `tier2_full_text_requests` | jsonb | ContextRequest objects for Tier 3 |
+| `needs_web_search` | boolean | True if web search needed |
+| `web_search_topics` | text[] | Suggested search topics (DEFAULT '{}') |
+| `potentially_controversial` | boolean | Affects vulnerable populations, civil rights |
+| `federal_mandate_suspected` | boolean | Federal statute cited but state discretion unclear |
+| `ambiguity_type` | varchar(20) | `internal` (Tier 3), `external` (Tier 4), or `both` |
+| `tier2_batch_id` | varchar(100) | Anthropic batch API ID |
+| `tier2_completed_at` | timestamp | When Tier 2 completed |
+
+**Tier 3: Full Context Deep Dive**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `tier3_classification` | varchar(30) | `burdensome`, `justified`, or `unrelated` |
+| `tier3_confidence` | real | 0.0-1.0 |
+| `tier3_reasoning` | text | Explanation with full context |
+| `tier3_severity_adjustment` | integer (-3 to +3) | Delta from Tier 2 severity |
+| `tier3_severity_adjustment_reasoning` | text | Explanation of adjustment |
+| `tier3_batch_id` | varchar(100) | Anthropic batch API ID |
+| `tier3_completed_at` | timestamp | When Tier 3 completed |
+
+**Tier 4: Web Search Validation**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `tier4_classification` | varchar(30) | `burdensome`, `justified`, or `unrelated` |
+| `tier4_severity_adjustment` | integer (-3 to +3) | Adjustment from web findings |
+| `tier4_reasoning` | text | Explanation of web findings |
+| `web_search_summary` | text | Summary of web search results |
+| `federal_mandate_found` | boolean | True if web search confirmed federal mandate |
+| `state_has_discretion` | boolean | True if state has discretion in implementation |
+| `tier4_completed_at` | timestamp | When Tier 4 completed (no batch - real-time) |
+
+**Derived Fields**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `requirement_found` | boolean | True for burdensome/justified |
+| `is_justified` | boolean | True only for justified classification |
+| `is_verbatim` | boolean | All verbatim_requirements found in source doc |
+| `final_severity` | integer | severity + tier3_adjustment + tier4_adjustment |
+
+**Pipeline Tracking**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `pipeline_version` | varchar(20) | Default 'v4' |
+| `highest_tier_completed` | integer (0-4) | Progress indicator |
+| `classification_tier` | integer | Which tier made final classification |
+| `created_at` | timestamp | When record was created |
+| `updated_at` | timestamp | Last update time |
+
+**V5 Additions (migration 0022)**
+
+V5 uses a 3-tier architecture with proactive context, argument framing, and re-runs. Use `pipeline_version = 'v5'` to identify V5 analyses.
+
+*Tier 1: Argument Framing & Context Requests*
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `tier1_argument_framing` | jsonb | Contains `best_argument_burdensome`, `best_argument_justified`, `best_argument_unrelated`. Only populated if `tier1_classification = 'needs_research'`. |
+| `tier1_recommendations` | jsonb | Contains `context_requests` array for Tier 2. Each request: `{context_type, identifier, need_level, reason}`. |
+
+*Tier 2: Re-run Tracking*
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `tier2_rerun_count` | integer (0-2) | Number of times Tier 2 was re-run with additional context. Max 2. |
+| `tier2_context_requests_made` | jsonb | Array of context requests made during re-runs. Each: `{context_type, identifier, need_level, reason, timestamp}`. |
+| `tier2_forced_classification` | boolean | True if classification was forced after exceeding max re-runs. Indicates lower confidence. |
+| `claims_no_alternative` | boolean | True if Tier 2 claims no electronic/remote alternative exists. Triggers Tier 3 if severity >= 7. |
+| `cites_federal_statute` | boolean | True if document cites a federal statute. Triggers Tier 3 for verification. |
+| `federal_citation` | text | The federal citation found (e.g., "42 CFR 483.24"). NULL if `cites_federal_statute` is false. |
+
+*Tier 3: Structured Flags (V5 Tier 3 = Web Verification)*
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `tier3_flags` | jsonb | Structured verification flags with evidence. Contains `superseded_by_law`, `federal_mandate_confirmed`, `state_discretion_found`, `modernized_alternative_found`. Each is an EvidencedFlag with `value`, `scope`, `reason`, and `evidence` array. |
+| `tier3_evidence_gap` | boolean | True if web search found no relevant evidence. |
+| `tier3_trigger_reason` | text | Human-readable reason for Tier 3 escalation (e.g., "High-risk issue (notarization) + justified", "Random sample (10%)", "Low confidence (0.82) + severity 7"). Added in migration 0025. |
+
+**V5.1 Additions (migration 0024): Easy Cleanup Detection**
+
+Identifies "low-hanging fruit" where the regulation text is outdated but practical alternatives already exist.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `easy_cleanup_candidate` | boolean | True if this is a low-hanging fruit cleanup opportunity (DEFAULT false) |
+| `cleanup_type` | varchar(50) | `alternative_in_practice`, `alternative_authorized`, or `peer_state_solution` |
+| `cleanup_evidence` | text | URL or citation proving the alternative exists |
+| `cleanup_recommendation` | text | Specific suggested regulation text change |
+| `cleanup_effort` | varchar(20) | `trivial`, `easy`, or `medium` |
+
+**Cleanup Categories:**
+- `alternative_in_practice` (effort: trivial): Agency already accepts modern alternative not mentioned in regulation (e.g., agency has online payment but reg says "certified check")
+- `alternative_authorized` (effort: easy): State has authorized modern alternative but regulation not updated (e.g., NJ RON since 2021 but reg still requires in-person notary)
+- `peer_state_solution` (effort: medium): Other states have proven modern approaches
+
+**Important:** When easy cleanup is detected, classification remains `burdensome` (the regulation TEXT still creates burden), but severity is lowered 1-2 points and `easy_cleanup_candidate = true` flags it as actionable.
+
+**V5.2 Additions (migration 0028): Web Search Disambiguation**
+
+Helps Tier 3 web search avoid returning results about similar-sounding but different programs.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `program_context` | text | Specific program/agency context for web search disambiguation (e.g., "NJ Division of Gaming Enforcement casino key employee licensing under N.J.A.C. 13:69D") |
+| `not_to_confuse_with` | text[] | List of similar-sounding programs to ignore in searches (DEFAULT '{}') |
+| `search_scope_guidance` | text | Guidance for Tier 3 on what to focus on vs avoid (e.g., "Focus on NJ DGE employee licensing, not federal banking requirements") |
+
+**Example Values:**
+```json
+{
+  "program_context": "NJ Division of Gaming Enforcement casino key employee licensing under N.J.A.C. 13:69D",
+  "not_to_confuse_with": [
+    "Federal TSA PreCheck or REAL ID programs",
+    "Bank Secrecy Act requirements for casino patrons (different from employees)",
+    "General employment background check laws"
+  ],
+  "search_scope_guidance": "Focus on NJ DGE employee licensing procedures and peer state gaming commission alternatives, not federal banking or transportation security"
+}
+```
+
+**Constraints:** `UNIQUE(document_id, issue_type)`
+
+**Indexes:**
+- Classification: `idx_cia_tier1_classification`, `idx_cia_tier2_classification`, `idx_cia_tier3_classification`, `idx_cia_tier4_classification`
+- Pipeline progression: `idx_cia_needs_tier2`, `idx_cia_needs_tier3`, `idx_cia_needs_tier4`, `idx_cia_justified_controversial`
+- Lookups: `idx_cia_state_issue`, `idx_cia_document`, `idx_cia_pipeline_version`
+- JSONB: `idx_cia_context_used` (GIN)
+- Severity: `idx_cia_high_severity`, `idx_cia_state_severity`
+- Results: `idx_cia_burdensome`, `idx_cia_justified`
+- V5: `idx_compliance_issue_analyses_v5_tier3_triggers` (partial index for V5 Tier 3 routing)
 
 ## incorporations_by_reference
 
@@ -452,6 +644,31 @@ User annotations on regulations with optional text anchoring.
 | `state` | varchar(2) NOT NULL | NY or NJ |
 | `created_at` | timestamp | When created |
 | `updated_at` | timestamp | When last updated |
+
+## bookmarks
+
+User bookmarks for pipeline analyses and regulatory documents. Supports bookmarking either a specific analysis (document + issue type) or a document without a specific analysis.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | bigserial | Primary key |
+| `document_id` | bigint NOT NULL | FK to regulatory_documents (ON DELETE CASCADE) |
+| `analysis_id` | bigint | FK to compliance_issue_analyses (ON DELETE CASCADE) - null for document-level bookmarks |
+| `issue_type` | varchar(50) | Denormalized from analysis for filtering (null for document bookmarks) |
+| `state` | varchar(2) NOT NULL | NY or NJ |
+| `notes` | text | Optional user notes explaining why bookmarked |
+| `created_by` | varchar(255) | Who created the bookmark |
+| `created_at` | timestamp | When bookmark was created |
+| `updated_at` | timestamp | When last updated |
+
+**Bookmark Types:**
+- **Analysis bookmark**: `analysis_id` set, `document_id` auto-filled from analysis
+- **Document bookmark**: `document_id` set, `analysis_id` null
+
+**Indexes:**
+- `idx_bookmarks_unique_analysis UNIQUE(analysis_id)` - one bookmark per analysis
+- `idx_bookmarks_unique_document UNIQUE(document_id) WHERE analysis_id IS NULL` - one document bookmark per doc
+- `idx_bookmarks_document`, `idx_bookmarks_analysis`, `idx_bookmarks_state`, `idx_bookmarks_created_at`
 
 ## prompt_feedback
 

@@ -8,6 +8,71 @@ export function escapeRegexChars(str: string): string {
 }
 
 /**
+ * Cleans a regex pattern by stripping /pattern/flags format if present.
+ * Useful for displaying regex patterns that come from backend in JS regex literal format.
+ *
+ * @param pattern - The pattern to clean (e.g., "/foo.*bar/gi" or "foo.*bar")
+ * @returns The cleaned pattern without surrounding slashes and flags
+ *
+ * @example
+ * cleanRegexPattern("/hello.*world/gi") // Returns: "hello.*world"
+ * cleanRegexPattern("hello.*world")      // Returns: "hello.*world"
+ */
+export function cleanRegexPattern(pattern: string): string {
+  if (!pattern.startsWith('/')) return pattern;
+  const lastSlash = pattern.lastIndexOf('/');
+  if (lastSlash <= 0) return pattern;
+  return pattern.slice(1, lastSlash);
+}
+
+/**
+ * Highlights matches of a regex pattern in text.
+ * Unlike highlightTerm, this treats the pattern as an actual regex.
+ * Returns plain text if the regex is invalid or no matches found.
+ *
+ * @param text - The text to search within
+ * @param pattern - The regex pattern (can be in /pattern/flags format)
+ * @param className - Optional custom className for the mark element
+ * @returns ReactNode with highlighted matches, or plain text on error
+ *
+ * @example
+ * highlightRegexPattern("The quick brown fox", "qu.*ck")
+ * // Returns: ["The ", <mark>quick</mark>, " brown fox"]
+ */
+export function highlightRegexPattern(
+  text: string,
+  pattern: string | null | undefined,
+  className = 'bg-yellow-200 px-0.5 rounded font-medium'
+): ReactNode {
+  if (!pattern || !text) return text;
+
+  try {
+    const cleanPattern = cleanRegexPattern(pattern);
+    const regex = new RegExp(`(${cleanPattern})`, 'gi');
+    const parts = text.split(regex);
+
+    if (parts.length === 1) {
+      return text;
+    }
+
+    return parts.map((part, i) => {
+      if (regex.test(part)) {
+        regex.lastIndex = 0; // Reset for next test
+        return (
+          <mark key={i} className={className}>
+            {part}
+          </mark>
+        );
+      }
+      return part;
+    });
+  } catch {
+    // If regex parsing fails, return plain text
+    return text;
+  }
+}
+
+/**
  * Highlights occurrences of a term in text with a styled mark element.
  *
  * @param text - The text to search within

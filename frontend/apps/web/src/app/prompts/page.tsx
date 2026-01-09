@@ -1,17 +1,19 @@
 import { Container } from '@/components/layout/Container';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Alert } from '@/components/ui';
-import { PromptsList, PromptNav } from '@/components/prompts';
+import { PromptsList, PromptNav, V5PipelineComposer } from '@/components/prompts';
 import { getPrompts, getCompliancePrompts } from '@/lib/actions/prompts';
 import { getAllFeedback, getFeedbackCounts } from '@/lib/actions/prompt-feedback';
+import { getIssueTypesList } from '@/lib/actions/research-pipeline';
 
 export default async function PromptsPage() {
   // Fetch prompts and feedback data in parallel
-  const [promptsResult, compliancePromptsResult, feedbackCountsResult, allFeedbackResult] = await Promise.all([
+  const [promptsResult, compliancePromptsResult, feedbackCountsResult, allFeedbackResult, issueTypesResult] = await Promise.all([
     getPrompts(),
     getCompliancePrompts(),
     getFeedbackCounts(),
     getAllFeedback(),
+    getIssueTypesList(),
   ]);
 
   // Handle prompts error
@@ -35,6 +37,7 @@ export default async function PromptsPage() {
   const compliancePrompts = compliancePromptsResult.success ? compliancePromptsResult.data : [];
   const feedbackCounts = feedbackCountsResult.success ? feedbackCountsResult.data : {};
   const allFeedback = allFeedbackResult.success ? allFeedbackResult.data : [];
+  const issueTypes = issueTypesResult.success ? issueTypesResult.data : [];
 
   // Detect orphaned feedback (feedback for prompts that no longer exist)
   const promptNames = new Set(prompts.map((p) => p.name));
@@ -49,7 +52,12 @@ export default async function PromptsPage() {
         description={`View ${totalPrompts} prompts used by the regulatory analysis system (${prompts.length} core, ${compliancePrompts.length} compliance). Submit feedback to help improve prompt quality.`}
       />
 
-      <Container size="2xl" className="py-6">
+      <Container size="2xl" className="py-6 space-y-8">
+        {/* V5 Pipeline Composer - Show if we have issue types */}
+        {issueTypes.length > 0 && (
+          <V5PipelineComposer issueTypes={issueTypes} />
+        )}
+
         <div className="flex gap-6">
           {/* Main content */}
           <div className="flex-1 min-w-0">

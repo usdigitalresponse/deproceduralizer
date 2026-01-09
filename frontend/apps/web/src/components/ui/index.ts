@@ -104,3 +104,6 @@ export type {
 // SegmentedControl
 export { SegmentedControl } from './SegmentedControl';
 export type { SegmentedControlProps, SegmentedControlOption } from './SegmentedControl';
+
+// BookmarkButton
+export { BookmarkButton } from './BookmarkButton';

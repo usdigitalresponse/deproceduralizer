@@ -278,7 +278,7 @@ class BasePatternSearcher(ABC):
         system_prompt, user_prompt = self.create_prompt(match)
 
         try:
-            analysis = await call_llm_parse_async(
+            analysis, _ = await call_llm_parse_async(
                 client=client,
                 prompt=user_prompt,
                 response_format=self.issue_config.response_model,

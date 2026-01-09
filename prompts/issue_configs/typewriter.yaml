@@ -1,0 +1,61 @@
+typewriter:
+  updated_at: '2026-01-03'
+  display_name: Typewriter Required
+  db_issue_type: typewriter
+  category: Technology
+  description: 'A typewriter or typewritten document is specifically required, rather than accepting any
+    typed/printed output. While most "typed" references accept computer-generated documents, explicit
+    typewriter requirements burden: citizens without access to obsolete equipment; businesses and professionals
+    who must locate typewriters; and government staff interpreting whether requirements genuinely mandate
+    typewriter output or simply mean "not handwritten." Clarification that computer-printed documents
+    satisfy these requirements would eliminate confusion.'
+  positive_indicators:
+  - Literal typewriter is required
+  - Computer-generated documents explicitly not accepted
+  - Language clearly refers to typewriter-era technology
+  - '"typewriter" specifically mentioned (not just "typed")'
+  - Form requires typewriter-style input fields
+  negative_indicators:
+  - '"Typed" means "not handwritten" and includes computer-generated'
+  - Electronic document preparation is acceptable
+  - Printed documents are permitted
+  - '"typed or printed" or "typed or word-processed"'
+  - Modern interpretation allows computer output
+  severity_baseline: 5
+  severity_modifiers:
+    increases:
+    - '+2: Literal typewriter explicitly required'
+    - '+1: Computer output rejected'
+    - '+1: No electronic submission'
+    decreases:
+    - '-3: "Typed" interpreted as "not handwritten"'
+    - '-1: Printed documents accepted'
+    - '-1: Electronic submission available'
+  patterns:
+  - \btypewriter\b
+  - typewritten
+  - type.{0,3}written
+  - must be typed
+  - shall be typed
+  statistics:
+    total_matches: 51
+    true_positives: 6
+    true_positive_rate: 11.76
+    sample_date: '2026-01-01'
+  examples:
+    true_positives:
+    - citation: N.J.A.C. 13:69-1.5
+      quote: form must be completed on typewriter
+      reasoning: Explicit typewriter requirement.
+      classification: burdensome
+      severity: 6
+    false_positives:
+    - citation: N.J.A.C. 8:43-3.3
+      quote: entries shall be typed or printed
+      reasoning: Printed/computer output acceptable.
+      classification: unrelated
+    - citation: N.J.A.C. 13:45A-2.4
+      quote: typed, not handwritten
+      reasoning: Means computer-generated acceptable.
+      classification: unrelated
+    justified: []

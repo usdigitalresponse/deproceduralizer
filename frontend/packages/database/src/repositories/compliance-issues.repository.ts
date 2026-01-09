@@ -1,7 +1,18 @@
-import { eq, and, desc, asc, sql, count, or, isNull, ne, gte, lt } from 'drizzle-orm';
+import { eq, and, desc, asc, sql, count, or, isNull, isNotNull, ne, gte, lt } from 'drizzle-orm';
 import { BaseRepository } from './base.repository';
 import { complianceIssues, ComplianceIssue, IssueType } from '../schema/compliance-issues';
 import { regulatoryDocuments } from '../schema/regulatory-documents';
+import {
+  complianceIssueAnalyses,
+  ContextEntry,
+  ContextRequest,
+  DismissedMatch,
+  Tier1ArgumentFraming,
+  Tier1Recommendations,
+  Tier2ContextRequestMade,
+  Tier3Flags,
+} from '../schema/compliance-issue-analyses';
+import { bookmarks } from '../schema/bookmarks';
 import { ReviewStatus, ImpactType, DeveloperStatus, ResolutionType, Developer } from '../schema/red-flags';
 import { StateCode } from '../schema/constants';
 import { DeveloperStatusCounts } from './red-flags.repository';
@@ -51,6 +62,12 @@ export interface ComplianceIssueFilterOptions {
   severity?: 'high' | 'medium' | 'low' | 'all';
   requiredByStatute?: boolean | 'all';
   requirementFound?: boolean | 'all';
+  /** Filter by highest tier completed in research pipeline (0-4, or 'all') */
+  tierCompleted?: '0' | '1' | '2' | '3' | '4' | 'all';
+  /** Filter by federal mandate found in analysis */
+  federalMandate?: boolean | 'all';
+  /** Filter by whether analysis exists */
+  hasAnalysis?: boolean | 'all';
 }
 
 export interface ComplianceIssuePaginationOptions {
@@ -63,7 +80,7 @@ export interface ComplianceIssuePaginationOptions {
 }
 
 export interface PaginatedComplianceIssuesResult {
-  data: ComplianceIssueWithContext[];
+  data: ComplianceIssueWithAnalysis[];
   total: number;
   page: number;
   pageSize: number;
@@ -86,6 +103,161 @@ export interface ComplianceIssueStats {
   unreviewed: number;
 }
 
+/**
+ * Tier analysis data from compliance_issue_analyses table.
+ * Represents the results of the 4-tier research pipeline.
+ */
+export interface TierAnalysis {
+  highestTierCompleted: number;
+  tier1Classification: string | null;
+  tier2Classification: string | null;
+  tier3Classification: string | null;
+  tier4Classification: string | null;
+  finalSeverity: number | null;
+  verbatimRequirements: string[];
+  argumentForRegulation: string | null;
+  argumentAgainstRegulation: string | null;
+  contextUsed: ContextEntry[] | null;
+  webSearchSummary: string | null;
+  federalMandateFound: boolean;
+  stateHasDiscretion: boolean;
+  isJustified: boolean;
+  pipelineVersion: string;
+}
+
+/**
+ * Compliance issue with analysis data from the research pipeline.
+ * Analysis may be null for legacy issues not processed by the pipeline.
+ */
+export interface ComplianceIssueWithAnalysis extends ComplianceIssueWithContext {
+  analysis: TierAnalysis | null;
+}
+
+/**
+ * Tier completion counts for analytics.
+ */
+export interface TierCompletionCounts {
+  tier0: number; // Not analyzed by pipeline
+  tier1: number;
+  tier2: number;
+  tier3: number;
+  tier4: number;
+}
+
+/**
+ * Classification breakdown by tier for analytics.
+ */
+export interface ClassificationBreakdown {
+  tier1: Record<string, number>;
+  tier2: Record<string, number>;
+  tier3: Record<string, number>;
+  tier4: Record<string, number>;
+}
+
+/**
+ * Full analysis record with all tier data for detail page.
+ */
+export interface FullAnalysisRecord {
+  documentId: number;
+  issueType: string;
+  state: string;
+  groupedMatchCount: number;
+
+  // Document info
+  document: {
+    id: number;
+    title: string | null;
+    citation: string | null;
+    content: string | null;
+    url: string | null;
+  };
+
+  // Tier 1 data
+  tier1: {
+    classification: string | null;
+    confidence: number | null;
+    reasoning: string | null;
+    relevantMatchIds: number[] | null;
+    dismissedMatchIds: number[] | null;
+    dismissedReasons: DismissedMatch[] | null;
+    contextRequests: ContextRequest[] | null;
+    completedAt: Date | null;
+    // V5 fields
+    argumentFraming: Tier1ArgumentFraming | null;
+    recommendations: Tier1Recommendations | null;
+  } | null;
+
+  // Tier 2 data
+  tier2: {
+    classification: string | null;
+    confidence: number | null;
+    reasoning: string | null;
+    severity: number | null;
+    severityBaseline: number | null;
+    severityCalculation: string | null;
+    verbatimRequirements: string[];
+    argumentForRegulation: string | null;
+    argumentAgainstRegulation: string | null;
+    contextUsed: ContextEntry[] | null;
+    fullTextRequests: ContextRequest[] | null;
+    needsWebSearch: boolean;
+    webSearchTopics: string[];
+    potentiallyControversial: boolean;
+    federalMandateSuspected: boolean;
+    ambiguityType: string | null;
+    completedAt: Date | null;
+    // V5 fields
+    rerunCount: number;
+    contextRequestsMade: Tier2ContextRequestMade[] | null;
+    forcedClassification: boolean;
+    citesFederalStatute: boolean;
+    federalCitation: string | null;
+    claimsNoAlternative: boolean;
+  } | null;
+
+  // Tier 3 data
+  tier3: {
+    classification: string | null;
+    confidence: number | null;
+    reasoning: string | null;
+    severityAdjustment: number | null;
+    severityAdjustmentReasoning: string | null;
+    completedAt: Date | null;
+    triggerReason: string | null;  // V5.1: Why escalated to Tier 3
+    // V5 fields
+    flags: Tier3Flags | null;
+    evidenceGap: boolean;
+  } | null;
+
+  // Tier 4 data
+  tier4: {
+    classification: string | null;
+    severityAdjustment: number | null;
+    reasoning: string | null;
+    webSearchSummary: string | null;
+    federalMandateFound: boolean;
+    stateHasDiscretion: boolean;
+    completedAt: Date | null;
+  } | null;
+
+  // Final derived fields
+  highestTierCompleted: number;
+  classificationTier: number | null;
+  requirementFound: boolean | null;
+  isJustified: boolean;
+  finalSeverity: number | null;
+  pipelineVersion: string;
+  createdAt: Date | null;
+  updatedAt: Date | null;
+
+  // V5.1: Easy Cleanup Detection
+  easyCleanupCandidate: boolean;
+  cleanupType: string | null;
+  cleanupEvidence: string | null;
+  cleanupRecommendation: string | null;
+  cleanupEffort: string | null;
+}
+
 export class ComplianceIssuesRepository extends BaseRepository {
   async getById(id: number): Promise<ComplianceIssue | undefined> {
     const result = await this.db
@@ -103,6 +275,23 @@ export class ComplianceIssuesRepository extends BaseRepository {
       .from(complianceIssues)
       .where(eq(complianceIssues.documentId, documentId))
       .orderBy(asc(complianceIssues.issueType));
+  }
+
+  /**
+   * Gets all compliance issues (regex matches) for a specific document and issue type.
+   * Used for print mode to show original regex match contexts.
+   */
+  async getByDocumentIdAndIssueType(documentId: number, issueType: string): Promise<ComplianceIssue[]> {
+    return this.db
+      .select()
+      .from(complianceIssues)
+      .where(
+        and(
+          eq(complianceIssues.documentId, documentId),
+          eq(complianceIssues.issueType, issueType)
+        )
+      )
+      .orderBy(asc(complianceIssues.occurrenceNumber));
   }
 
   async updateReview(id: number, data: UpdateComplianceIssueReviewInput): Promise<ComplianceIssue | undefined> {
@@ -258,7 +447,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
   }
 
   /**
-   * Get paginated compliance issues with regulation context for review queue
+   * Get paginated compliance issues with regulation context and pipeline analysis for review queue
    */
   async getAllPaginated(
     options: ComplianceIssuePaginationOptions
@@ -311,15 +500,47 @@ export class ComplianceIssuesRepository extends BaseRepository {
       if (filters.requirementFound !== undefined && filters.requirementFound !== 'all') {
         conditions.push(eq(complianceIssues.requirementFound, filters.requirementFound));
       }
+
+      // Tier completed filter (research pipeline)
+      if (filters.tierCompleted !== undefined && filters.tierCompleted !== 'all') {
+        const tier = parseInt(filters.tierCompleted, 10);
+        if (tier === 0) {
+          // No analysis = null join result
+          conditions.push(isNull(complianceIssueAnalyses.highestTierCompleted));
+        } else {
+          conditions.push(eq(complianceIssueAnalyses.highestTierCompleted, tier));
+        }
+      }
+
+      // Federal mandate filter
+      if (filters.federalMandate !== undefined && filters.federalMandate !== 'all') {
+        conditions.push(eq(complianceIssueAnalyses.federalMandateFound, filters.federalMandate));
+      }
+
+      // Has analysis filter
+      if (filters.hasAnalysis !== undefined && filters.hasAnalysis !== 'all') {
+        if (filters.hasAnalysis === true) {
+          conditions.push(sql`${complianceIssueAnalyses.highestTierCompleted} IS NOT NULL`);
+        } else {
+          conditions.push(isNull(complianceIssueAnalyses.highestTierCompleted));
+        }
+      }
     }
 
     const whereClause = and(...conditions);
 
-    // Get total count
+    // Get total count (includes LEFT JOIN to analyses for tier filter support)
     const [{ count: total }] = await this.db
       .select({ count: count() })
       .from(complianceIssues)
       .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
+      .leftJoin(
+        complianceIssueAnalyses,
+        and(
+          eq(complianceIssues.documentId, complianceIssueAnalyses.documentId),
+          eq(complianceIssues.issueType, complianceIssueAnalyses.issueType)
+        )
+      )
       .where(whereClause);
 
     // Build sort column
@@ -334,24 +555,34 @@ export class ComplianceIssuesRepository extends BaseRepository {
     const primarySort = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
     const secondarySort = asc(complianceIssues.id); // Tiebreaker for consistent ordering
 
-    // Get paginated results with regulation context
+    // Get paginated results with regulation context and analysis data
     const results = await this.db
       .select({
         // Compliance issue fields
         id: complianceIssues.id,
         documentId: complianceIssues.documentId,
         issueType: complianceIssues.issueType,
+        // Old columns (backwards compatibility)
         matchedPattern: complianceIssues.matchedPattern,
         matchedContext: complianceIssues.matchedContext,
+        // New columns (research pipeline)
+        regexMatchPattern: complianceIssues.regexMatchPattern,
+        regexMatchContext: complianceIssues.regexMatchContext,
         url: complianceIssues.url,
         requirementFound: complianceIssues.requirementFound,
+        // Old column (backwards compatibility)
         requirementText: complianceIssues.requirementText,
+        // New column (research pipeline)
+        verbatimSupportingText: complianceIssues.verbatimSupportingText,
         isVerbatim: complianceIssues.isVerbatim,
         requiredByStatute: complianceIssues.requiredByStatute,
         severity: complianceIssues.severity,
         occurrenceNumber: complianceIssues.occurrenceNumber,
         statuteCitation: complianceIssues.statuteCitation,
+        // Old column (backwards compatibility)
         impactAssessment: complianceIssues.impactAssessment,
+        // New column (research pipeline)
+        decisionRationale: complianceIssues.decisionRationale,
         reviewStatus: complianceIssues.reviewStatus,
         reviewedBy: complianceIssues.reviewedBy,
         reviewedAt: complianceIssues.reviewedAt,
@@ -384,30 +615,63 @@ export class ComplianceIssuesRepository extends BaseRepository {
         regulationHasForm: regulatoryDocuments.hasForm,
         regulationHasIbr: regulatoryDocuments.hasIbr,
         regulationContent: regulatoryDocuments.content,
+        // Analysis fields (from research pipeline)
+        analysisHighestTier: complianceIssueAnalyses.highestTierCompleted,
+        analysisTier1: complianceIssueAnalyses.tier1Classification,
+        analysisTier2: complianceIssueAnalyses.tier2Classification,
+        analysisTier3: complianceIssueAnalyses.tier3Classification,
+        analysisTier4: complianceIssueAnalyses.tier4Classification,
+        analysisFinalSeverity: complianceIssueAnalyses.finalSeverity,
+        analysisVerbatimReqs: complianceIssueAnalyses.verbatimRequirements,
+        analysisArgFor: complianceIssueAnalyses.argumentForRegulation,
+        analysisArgAgainst: complianceIssueAnalyses.argumentAgainstRegulation,
+        analysisContextUsed: complianceIssueAnalyses.contextUsed,
+        analysisWebSummary: complianceIssueAnalyses.webSearchSummary,
+        analysisFederalMandate: complianceIssueAnalyses.federalMandateFound,
+        analysisStateDiscretion: complianceIssueAnalyses.stateHasDiscretion,
+        analysisIsJustified: complianceIssueAnalyses.isJustified,
+        analysisPipelineVersion: complianceIssueAnalyses.pipelineVersion,
       })
       .from(complianceIssues)
       .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
+      .leftJoin(
+        complianceIssueAnalyses,
+        and(
+          eq(complianceIssues.documentId, complianceIssueAnalyses.documentId),
+          eq(complianceIssues.issueType, complianceIssueAnalyses.issueType)
+        )
+      )
       .where(whereClause)
       .orderBy(primarySort, secondarySort)
       .limit(pageSize)
       .offset(offset);
 
-    // Transform results to ComplianceIssueWithContext shape
-    const data: ComplianceIssueWithContext[] = results.map(row => ({
+    // Transform results to ComplianceIssueWithAnalysis shape
+    const data: ComplianceIssueWithAnalysis[] = results.map(row => ({
       id: Number(row.id),
       documentId: Number(row.documentId),
       issueType: row.issueType,
+      // Old columns (backwards compatibility)
       matchedPattern: row.matchedPattern,
       matchedContext: row.matchedContext,
+      // New columns (research pipeline)
+      regexMatchPattern: row.regexMatchPattern,
+      regexMatchContext: row.regexMatchContext,
       url: row.url,
       requirementFound: row.requirementFound,
+      // Old column (backwards compatibility)
       requirementText: row.requirementText,
+      // New column (research pipeline)
+      verbatimSupportingText: row.verbatimSupportingText,
       isVerbatim: row.isVerbatim,
       requiredByStatute: row.requiredByStatute,
       severity: row.severity,
       occurrenceNumber: row.occurrenceNumber,
       statuteCitation: row.statuteCitation,
+      // Old column (backwards compatibility)
       impactAssessment: row.impactAssessment,
+      // New column (research pipeline)
+      decisionRationale: row.decisionRationale,
       reviewStatus: row.reviewStatus,
       reviewedBy: row.reviewedBy,
       reviewedAt: row.reviewedAt,
@@ -440,6 +704,24 @@ export class ComplianceIssuesRepository extends BaseRepository {
         hasForm: row.regulationHasForm,
         hasIbr: row.regulationHasIbr,
       },
+      // Build analysis object (null if no analysis exists)
+      analysis: row.analysisHighestTier !== null ? {
+        highestTierCompleted: row.analysisHighestTier,
+        tier1Classification: row.analysisTier1,
+        tier2Classification: row.analysisTier2,
+        tier3Classification: row.analysisTier3,
+        tier4Classification: row.analysisTier4,
+        finalSeverity: row.analysisFinalSeverity,
+        verbatimRequirements: row.analysisVerbatimReqs ?? [],
+        argumentForRegulation: row.analysisArgFor,
+        argumentAgainstRegulation: row.analysisArgAgainst,
+        contextUsed: row.analysisContextUsed as ContextEntry[] | null,
+        webSearchSummary: row.analysisWebSummary,
+        federalMandateFound: row.analysisFederalMandate ?? false,
+        stateHasDiscretion: row.analysisStateDiscretion ?? false,
+        isJustified: row.analysisIsJustified ?? false,
+        pipelineVersion: row.analysisPipelineVersion ?? '',
+      } : null,
     }));
 
     return {
@@ -579,17 +861,27 @@ export class ComplianceIssuesRepository extends BaseRepository {
         id: complianceIssues.id,
         documentId: complianceIssues.documentId,
         issueType: complianceIssues.issueType,
+        // Old columns (backwards compatibility)
         matchedPattern: complianceIssues.matchedPattern,
         matchedContext: complianceIssues.matchedContext,
+        // New columns (research pipeline)
+        regexMatchPattern: complianceIssues.regexMatchPattern,
+        regexMatchContext: complianceIssues.regexMatchContext,
         url: complianceIssues.url,
         requirementFound: complianceIssues.requirementFound,
+        // Old column (backwards compatibility)
         requirementText: complianceIssues.requirementText,
+        // New column (research pipeline)
+        verbatimSupportingText: complianceIssues.verbatimSupportingText,
         isVerbatim: complianceIssues.isVerbatim,
         requiredByStatute: complianceIssues.requiredByStatute,
         severity: complianceIssues.severity,
         occurrenceNumber: complianceIssues.occurrenceNumber,
         statuteCitation: complianceIssues.statuteCitation,
+        // Old column (backwards compatibility)
         impactAssessment: complianceIssues.impactAssessment,
+        // New column (research pipeline)
+        decisionRationale: complianceIssues.decisionRationale,
         reviewStatus: complianceIssues.reviewStatus,
         reviewedBy: complianceIssues.reviewedBy,
         reviewedAt: complianceIssues.reviewedAt,
@@ -630,22 +922,32 @@ export class ComplianceIssuesRepository extends BaseRepository {
       .limit(pageSize)
       .offset(offset);
 
-    // Transform results to ComplianceIssueWithContext shape
-    const data: ComplianceIssueWithContext[] = results.map(row => ({
+    // Transform results to ComplianceIssueWithAnalysis shape (no analysis data in this view)
+    const data: ComplianceIssueWithAnalysis[] = results.map(row => ({
       id: Number(row.id),
       documentId: Number(row.documentId),
       issueType: row.issueType,
+      // Old columns (backwards compatibility)
       matchedPattern: row.matchedPattern,
       matchedContext: row.matchedContext,
+      // New columns (research pipeline)
+      regexMatchPattern: row.regexMatchPattern,
+      regexMatchContext: row.regexMatchContext,
       url: row.url,
       requirementFound: row.requirementFound,
+      // Old column (backwards compatibility)
       requirementText: row.requirementText,
+      // New column (research pipeline)
+      verbatimSupportingText: row.verbatimSupportingText,
       isVerbatim: row.isVerbatim,
       requiredByStatute: row.requiredByStatute,
       severity: row.severity,
       occurrenceNumber: row.occurrenceNumber,
       statuteCitation: row.statuteCitation,
+      // Old column (backwards compatibility)
       impactAssessment: row.impactAssessment,
+      // New column (research pipeline)
+      decisionRationale: row.decisionRationale,
       reviewStatus: row.reviewStatus,
       reviewedBy: row.reviewedBy,
       reviewedAt: row.reviewedAt,
@@ -678,6 +980,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         hasForm: row.regulationHasForm,
         hasIbr: row.regulationHasIbr,
       },
+      analysis: null,
     }));
 
     return {
@@ -725,17 +1028,27 @@ export class ComplianceIssuesRepository extends BaseRepository {
         id: complianceIssues.id,
         documentId: complianceIssues.documentId,
         issueType: complianceIssues.issueType,
+        // Old columns (backwards compatibility)
         matchedPattern: complianceIssues.matchedPattern,
         matchedContext: complianceIssues.matchedContext,
+        // New columns (research pipeline)
+        regexMatchPattern: complianceIssues.regexMatchPattern,
+        regexMatchContext: complianceIssues.regexMatchContext,
         url: complianceIssues.url,
         requirementFound: complianceIssues.requirementFound,
+        // Old column (backwards compatibility)
         requirementText: complianceIssues.requirementText,
+        // New column (research pipeline)
+        verbatimSupportingText: complianceIssues.verbatimSupportingText,
         isVerbatim: complianceIssues.isVerbatim,
         requiredByStatute: complianceIssues.requiredByStatute,
         severity: complianceIssues.severity,
         occurrenceNumber: complianceIssues.occurrenceNumber,
         statuteCitation: complianceIssues.statuteCitation,
+        // Old column (backwards compatibility)
         impactAssessment: complianceIssues.impactAssessment,
+        // New column (research pipeline)
+        decisionRationale: complianceIssues.decisionRationale,
         reviewStatus: complianceIssues.reviewStatus,
         reviewedBy: complianceIssues.reviewedBy,
         reviewedAt: complianceIssues.reviewedAt,
@@ -774,21 +1087,31 @@ export class ComplianceIssuesRepository extends BaseRepository {
       .limit(pageSize)
       .offset(offset);
 
-    const data: ComplianceIssueWithContext[] = results.map(row => ({
+    const data: ComplianceIssueWithAnalysis[] = results.map(row => ({
       id: Number(row.id),
       documentId: Number(row.documentId),
       issueType: row.issueType,
+      // Old columns (backwards compatibility)
       matchedPattern: row.matchedPattern,
       matchedContext: row.matchedContext,
+      // New columns (research pipeline)
+      regexMatchPattern: row.regexMatchPattern,
+      regexMatchContext: row.regexMatchContext,
       url: row.url,
       requirementFound: row.requirementFound,
+      // Old column (backwards compatibility)
       requirementText: row.requirementText,
+      // New column (research pipeline)
+      verbatimSupportingText: row.verbatimSupportingText,
       isVerbatim: row.isVerbatim,
       requiredByStatute: row.requiredByStatute,
       severity: row.severity,
       occurrenceNumber: row.occurrenceNumber,
       statuteCitation: row.statuteCitation,
+      // Old column (backwards compatibility)
       impactAssessment: row.impactAssessment,
+      // New column (research pipeline)
+      decisionRationale: row.decisionRationale,
       reviewStatus: row.reviewStatus,
       reviewedBy: row.reviewedBy,
       reviewedAt: row.reviewedAt,
@@ -821,6 +1144,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         hasForm: row.regulationHasForm,
         hasIbr: row.regulationHasIbr,
       },
+      analysis: null,
     }));
 
     return {
@@ -906,7 +1230,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
     /** Issue types to avoid when selecting a new group (for diversity) */
     recentIssueTypes?: string[];
   }): Promise<{
-    data: ComplianceIssueWithContext[];
+    data: ComplianceIssueWithAnalysis[];
     groupingMode: 'issue_type' | 'section' | 'combined';
     focus: { issueType?: string; section?: string; pattern?: string };
     remainingInFocus: number;
@@ -1171,17 +1495,27 @@ export class ComplianceIssuesRepository extends BaseRepository {
         id: complianceIssues.id,
         documentId: complianceIssues.documentId,
         issueType: complianceIssues.issueType,
+        // Old columns (backwards compatibility)
         matchedPattern: complianceIssues.matchedPattern,
         matchedContext: complianceIssues.matchedContext,
+        // New columns (research pipeline)
+        regexMatchPattern: complianceIssues.regexMatchPattern,
+        regexMatchContext: complianceIssues.regexMatchContext,
         url: complianceIssues.url,
         requirementFound: complianceIssues.requirementFound,
+        // Old column (backwards compatibility)
         requirementText: complianceIssues.requirementText,
+        // New column (research pipeline)
+        verbatimSupportingText: complianceIssues.verbatimSupportingText,
         isVerbatim: complianceIssues.isVerbatim,
         requiredByStatute: complianceIssues.requiredByStatute,
         severity: complianceIssues.severity,
         occurrenceNumber: complianceIssues.occurrenceNumber,
         statuteCitation: complianceIssues.statuteCitation,
+        // Old column (backwards compatibility)
         impactAssessment: complianceIssues.impactAssessment,
+        // New column (research pipeline)
+        decisionRationale: complianceIssues.decisionRationale,
         reviewStatus: complianceIssues.reviewStatus,
         reviewedBy: complianceIssues.reviewedBy,
         reviewedAt: complianceIssues.reviewedAt,
@@ -1220,22 +1554,32 @@ export class ComplianceIssuesRepository extends BaseRepository {
       .orderBy(desc(complianceIssues.severity), sql`RANDOM()`)
       .limit(batchSize);
 
-    // Transform results to ComplianceIssueWithContext shape
-    const data: ComplianceIssueWithContext[] = results.map(row => ({
+    // Transform results to ComplianceIssueWithAnalysis shape (no analysis data in this view)
+    const data: ComplianceIssueWithAnalysis[] = results.map(row => ({
       id: Number(row.id),
       documentId: Number(row.documentId),
       issueType: row.issueType,
+      // Old columns (backwards compatibility)
       matchedPattern: row.matchedPattern,
       matchedContext: row.matchedContext,
+      // New columns (research pipeline)
+      regexMatchPattern: row.regexMatchPattern,
+      regexMatchContext: row.regexMatchContext,
       url: row.url,
       requirementFound: row.requirementFound,
+      // Old column (backwards compatibility)
       requirementText: row.requirementText,
+      // New column (research pipeline)
+      verbatimSupportingText: row.verbatimSupportingText,
       isVerbatim: row.isVerbatim,
       requiredByStatute: row.requiredByStatute,
       severity: row.severity,
       occurrenceNumber: row.occurrenceNumber,
       statuteCitation: row.statuteCitation,
+      // Old column (backwards compatibility)
       impactAssessment: row.impactAssessment,
+      // New column (research pipeline)
+      decisionRationale: row.decisionRationale,
       reviewStatus: row.reviewStatus,
       reviewedBy: row.reviewedBy,
       reviewedAt: row.reviewedAt,
@@ -1268,6 +1612,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         hasForm: row.regulationHasForm,
         hasIbr: row.regulationHasIbr,
       },
+      analysis: null,
     }));
 
     return {
@@ -1279,4 +1624,776 @@ export class ComplianceIssuesRepository extends BaseRepository {
       totalUnreviewed,
     };
   }
+
+  /**
+   * Get tier completion counts for analysis pipeline progress
+   */
+  async getAnalysisTierCounts(state: StateCode): Promise<TierCompletionCounts> {
+    // Count issues by highest tier completed in their analysis
+    const results = await this.db
+      .select({
+        tier: complianceIssueAnalyses.highestTierCompleted,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(complianceIssues)
+      .leftJoin(
+        complianceIssueAnalyses,
+        and(
+          eq(complianceIssues.documentId, complianceIssueAnalyses.documentId),
+          eq(complianceIssues.issueType, complianceIssueAnalyses.issueType)
+        )
+      )
+      .where(eq(complianceIssues.state, state.toUpperCase()))
+      .groupBy(complianceIssueAnalyses.highestTierCompleted);
+
+    // Build the counts object
+    const counts: TierCompletionCounts = {
+      tier0: 0, // Not analyzed (null tier)
+      tier1: 0,
+      tier2: 0,
+      tier3: 0,
+      tier4: 0,
+    };
+
+    for (const row of results) {
+      if (row.tier === null) {
+        counts.tier0 = row.count;
+      } else if (row.tier === 1) {
+        counts.tier1 = row.count;
+      } else if (row.tier === 2) {
+        counts.tier2 = row.count;
+      } else if (row.tier === 3) {
+        counts.tier3 = row.count;
+      } else if (row.tier === 4) {
+        counts.tier4 = row.count;
+      }
+    }
+
+    return counts;
+  }
+
+  /**
+   * Get classification breakdown by tier for analytics charts.
+   * Shows distribution of classifications at each tier level.
+   */
+  async getClassificationBreakdown(state: StateCode): Promise<ClassificationBreakdown> {
+    const breakdown: ClassificationBreakdown = {
+      tier1: {},
+      tier2: {},
+      tier3: {},
+      tier4: {},
+    };
+
+    // Tier 1 classifications
+    const tier1Results = await this.db
+      .select({
+        classification: complianceIssueAnalyses.tier1Classification,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(complianceIssueAnalyses)
+      .where(and(
+        eq(complianceIssueAnalyses.state, state.toUpperCase()),
+        sql`${complianceIssueAnalyses.tier1Classification} IS NOT NULL`
+      ))
+      .groupBy(complianceIssueAnalyses.tier1Classification);
+
+    for (const row of tier1Results) {
+      if (row.classification) {
+        breakdown.tier1[row.classification] = row.count;
+      }
+    }
+
+    // Tier 2 classifications
+    const tier2Results = await this.db
+      .select({
+        classification: complianceIssueAnalyses.tier2Classification,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(complianceIssueAnalyses)
+      .where(and(
+        eq(complianceIssueAnalyses.state, state.toUpperCase()),
+        sql`${complianceIssueAnalyses.tier2Classification} IS NOT NULL`
+      ))
+      .groupBy(complianceIssueAnalyses.tier2Classification);
+
+    for (const row of tier2Results) {
+      if (row.classification) {
+        breakdown.tier2[row.classification] = row.count;
+      }
+    }
+
+    // Tier 3 classifications
+    const tier3Results = await this.db
+      .select({
+        classification: complianceIssueAnalyses.tier3Classification,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(complianceIssueAnalyses)
+      .where(and(
+        eq(complianceIssueAnalyses.state, state.toUpperCase()),
+        sql`${complianceIssueAnalyses.tier3Classification} IS NOT NULL`
+      ))
+      .groupBy(complianceIssueAnalyses.tier3Classification);
+
+    for (const row of tier3Results) {
+      if (row.classification) {
+        breakdown.tier3[row.classification] = row.count;
+      }
+    }
+
+    // Tier 4 classifications
+    const tier4Results = await this.db
+      .select({
+        classification: complianceIssueAnalyses.tier4Classification,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(complianceIssueAnalyses)
+      .where(and(
+        eq(complianceIssueAnalyses.state, state.toUpperCase()),
+        sql`${complianceIssueAnalyses.tier4Classification} IS NOT NULL`
+      ))
+      .groupBy(complianceIssueAnalyses.tier4Classification);
+
+    for (const row of tier4Results) {
+      if (row.classification) {
+        breakdown.tier4[row.classification] = row.count;
+      }
+    }
+
+    return breakdown;
+  }
+
+  /**
+   * Get full analysis record for detail page.
+   * Returns all tier data with document context.
+   */
+  async getFullAnalysis(
+    documentId: number,
+    issueType: string
+  ): Promise<FullAnalysisRecord | null> {
+    const results = await this.db
+      .select({
+        // Analysis fields
+        documentId: complianceIssueAnalyses.documentId,
+        issueType: complianceIssueAnalyses.issueType,
+        state: complianceIssueAnalyses.state,
+        groupedMatchCount: complianceIssueAnalyses.groupedMatchCount,
+
+        // Tier 1
+        tier1Classification: complianceIssueAnalyses.tier1Classification,
+        tier1Confidence: complianceIssueAnalyses.tier1Confidence,
+        tier1Reasoning: complianceIssueAnalyses.tier1Reasoning,
+        tier1RelevantMatchIds: complianceIssueAnalyses.tier1RelevantMatchIds,
+        tier1DismissedMatchIds: complianceIssueAnalyses.tier1DismissedMatchIds,
+        tier1DismissedReasons: complianceIssueAnalyses.tier1DismissedReasons,
+        tier1ContextRequests: complianceIssueAnalyses.tier1ContextRequests,
+        tier1CompletedAt: complianceIssueAnalyses.tier1CompletedAt,
+        // Tier 1 V5 fields
+        tier1ArgumentFraming: complianceIssueAnalyses.tier1ArgumentFraming,
+        tier1Recommendations: complianceIssueAnalyses.tier1Recommendations,
+
+        // Tier 2
+        tier2Classification: complianceIssueAnalyses.tier2Classification,
+        tier2Confidence: complianceIssueAnalyses.tier2Confidence,
+        tier2Reasoning: complianceIssueAnalyses.tier2Reasoning,
+        severity: complianceIssueAnalyses.severity,
+        severityBaseline: complianceIssueAnalyses.severityBaseline,
+        severityCalculation: complianceIssueAnalyses.severityCalculation,
+        verbatimRequirements: complianceIssueAnalyses.verbatimRequirements,
+        argumentForRegulation: complianceIssueAnalyses.argumentForRegulation,
+        argumentAgainstRegulation: complianceIssueAnalyses.argumentAgainstRegulation,
+        contextUsed: complianceIssueAnalyses.contextUsed,
+        tier2FullTextRequests: complianceIssueAnalyses.tier2FullTextRequests,
+        needsWebSearch: complianceIssueAnalyses.needsWebSearch,
+        webSearchTopics: complianceIssueAnalyses.webSearchTopics,
+        potentiallyControversial: complianceIssueAnalyses.potentiallyControversial,
+        federalMandateSuspected: complianceIssueAnalyses.federalMandateSuspected,
+        ambiguityType: complianceIssueAnalyses.ambiguityType,
+        tier2CompletedAt: complianceIssueAnalyses.tier2CompletedAt,
+        // Tier 2 V5 fields
+        tier2RerunCount: complianceIssueAnalyses.tier2RerunCount,
+        tier2ContextRequestsMade: complianceIssueAnalyses.tier2ContextRequestsMade,
+        tier2ForcedClassification: complianceIssueAnalyses.tier2ForcedClassification,
+        citesFederalStatute: complianceIssueAnalyses.citesFederalStatute,
+        federalCitation: complianceIssueAnalyses.federalCitation,
+        claimsNoAlternative: complianceIssueAnalyses.claimsNoAlternative,
+
+        // Tier 3
+        tier3Classification: complianceIssueAnalyses.tier3Classification,
+        tier3Confidence: complianceIssueAnalyses.tier3Confidence,
+        tier3Reasoning: complianceIssueAnalyses.tier3Reasoning,
+        tier3SeverityAdjustment: complianceIssueAnalyses.tier3SeverityAdjustment,
+        tier3SeverityAdjustmentReasoning: complianceIssueAnalyses.tier3SeverityAdjustmentReasoning,
+        tier3CompletedAt: complianceIssueAnalyses.tier3CompletedAt,
+        tier3TriggerReason: complianceIssueAnalyses.tier3TriggerReason,  // V5.1: Why escalated to Tier 3
+        // Tier 3 V5 fields
+        tier3Flags: complianceIssueAnalyses.tier3Flags,
+        tier3EvidenceGap: complianceIssueAnalyses.tier3EvidenceGap,
+
+        // Tier 4
+        tier4Classification: complianceIssueAnalyses.tier4Classification,
+        tier4SeverityAdjustment: complianceIssueAnalyses.tier4SeverityAdjustment,
+        tier4Reasoning: complianceIssueAnalyses.tier4Reasoning,
+        webSearchSummary: complianceIssueAnalyses.webSearchSummary,
+        federalMandateFound: complianceIssueAnalyses.federalMandateFound,
+        stateHasDiscretion: complianceIssueAnalyses.stateHasDiscretion,
+        tier4CompletedAt: complianceIssueAnalyses.tier4CompletedAt,
+
+        // Final derived fields
+        highestTierCompleted: complianceIssueAnalyses.highestTierCompleted,
+        classificationTier: complianceIssueAnalyses.classificationTier,
+        requirementFound: complianceIssueAnalyses.requirementFound,
+        isJustified: complianceIssueAnalyses.isJustified,
+        finalSeverity: complianceIssueAnalyses.finalSeverity,
+        pipelineVersion: complianceIssueAnalyses.pipelineVersion,
+        createdAt: complianceIssueAnalyses.createdAt,
+        updatedAt: complianceIssueAnalyses.updatedAt,
+
+        // V5.1: Easy Cleanup fields
+        easyCleanupCandidate: complianceIssueAnalyses.easyCleanupCandidate,
+        cleanupType: complianceIssueAnalyses.cleanupType,
+        cleanupEvidence: complianceIssueAnalyses.cleanupEvidence,
+        cleanupRecommendation: complianceIssueAnalyses.cleanupRecommendation,
+        cleanupEffort: complianceIssueAnalyses.cleanupEffort,
+
+        // Document fields
+        docId: regulatoryDocuments.id,
+        docTitle: regulatoryDocuments.title,
+        docContent: regulatoryDocuments.content,
+        docUrl: regulatoryDocuments.url,
+        docNjacTitle: regulatoryDocuments.njacTitle,
+        docNjacChapter: regulatoryDocuments.njacChapter,
+        docNjacSubchapter: regulatoryDocuments.njacSubchapter,
+        docNycrrTitle: regulatoryDocuments.nycrrTitle,
+        docNycrrPart: regulatoryDocuments.nycrrPart,
+        docNycrrSection: regulatoryDocuments.nycrrSection,
+      })
+      .from(complianceIssueAnalyses)
+      .innerJoin(
+        regulatoryDocuments,
+        eq(complianceIssueAnalyses.documentId, regulatoryDocuments.id)
+      )
+      .where(and(
+        eq(complianceIssueAnalyses.documentId, documentId),
+        eq(complianceIssueAnalyses.issueType, issueType)
+      ))
+      .limit(1);
+
+    if (results.length === 0) {
+      return null;
+    }
+
+    const row = results[0];
+
+    // Build citation string based on state
+    let citation: string | null = null;
+    if (row.docNjacTitle) {
+      citation = `N.J.A.C. ${row.docNjacTitle}:${row.docNjacChapter || ''}${row.docNjacSubchapter ? `-${row.docNjacSubchapter}` : ''}`;
+    } else if (row.docNycrrTitle) {
+      citation = `${row.docNycrrTitle} NYCRR Part ${row.docNycrrPart || ''}${row.docNycrrSection ? ` § ${row.docNycrrSection}` : ''}`;
+    }
+
+    return {
+      documentId: Number(row.documentId),
+      issueType: row.issueType,
+      state: row.state,
+      groupedMatchCount: row.groupedMatchCount,
+
+      document: {
+        id: row.docId,
+        title: row.docTitle,
+        citation,
+        content: row.docContent,
+        url: row.docUrl,
+      },
+
+      tier1: row.tier1Classification ? {
+        classification: row.tier1Classification,
+        confidence: row.tier1Confidence,
+        reasoning: row.tier1Reasoning,
+        relevantMatchIds: row.tier1RelevantMatchIds,
+        dismissedMatchIds: row.tier1DismissedMatchIds,
+        dismissedReasons: row.tier1DismissedReasons as DismissedMatch[] | null,
+        contextRequests: row.tier1ContextRequests as ContextRequest[] | null,
+        completedAt: row.tier1CompletedAt,
+        // V5 fields
+        argumentFraming: row.tier1ArgumentFraming as Tier1ArgumentFraming | null,
+        recommendations: row.tier1Recommendations as Tier1Recommendations | null,
+      } : null,
+
+      tier2: row.tier2Classification ? {
+        classification: row.tier2Classification,
+        confidence: row.tier2Confidence,
+        reasoning: row.tier2Reasoning,
+        severity: row.severity,
+        severityBaseline: row.severityBaseline,
+        severityCalculation: row.severityCalculation,
+        verbatimRequirements: row.verbatimRequirements ?? [],
+        argumentForRegulation: row.argumentForRegulation,
+        argumentAgainstRegulation: row.argumentAgainstRegulation,
+        contextUsed: row.contextUsed as ContextEntry[] | null,
+        fullTextRequests: row.tier2FullTextRequests as ContextRequest[] | null,
+        needsWebSearch: row.needsWebSearch ?? false,
+        webSearchTopics: row.webSearchTopics ?? [],
+        potentiallyControversial: row.potentiallyControversial ?? false,
+        federalMandateSuspected: row.federalMandateSuspected ?? false,
+        ambiguityType: row.ambiguityType,
+        completedAt: row.tier2CompletedAt,
+        // V5 fields
+        rerunCount: row.tier2RerunCount ?? 0,
+        contextRequestsMade: row.tier2ContextRequestsMade as Tier2ContextRequestMade[] | null,
+        forcedClassification: row.tier2ForcedClassification ?? false,
+        citesFederalStatute: row.citesFederalStatute ?? false,
+        federalCitation: row.federalCitation,
+        claimsNoAlternative: row.claimsNoAlternative ?? false,
+      } : null,
+
+      tier3: row.tier3Classification ? {
+        classification: row.tier3Classification,
+        confidence: row.tier3Confidence,
+        reasoning: row.tier3Reasoning,
+        severityAdjustment: row.tier3SeverityAdjustment,
+        severityAdjustmentReasoning: row.tier3SeverityAdjustmentReasoning,
+        completedAt: row.tier3CompletedAt,
+        triggerReason: row.tier3TriggerReason,  // V5.1: Why escalated to Tier 3
+        // V5 fields
+        flags: row.tier3Flags as Tier3Flags | null,
+        evidenceGap: row.tier3EvidenceGap ?? false,
+      } : null,
+
+      tier4: row.tier4Classification ? {
+        classification: row.tier4Classification,
+        severityAdjustment: row.tier4SeverityAdjustment,
+        reasoning: row.tier4Reasoning,
+        webSearchSummary: row.webSearchSummary,
+        federalMandateFound: row.federalMandateFound ?? false,
+        stateHasDiscretion: row.stateHasDiscretion ?? true,
+        completedAt: row.tier4CompletedAt,
+      } : null,
+
+      highestTierCompleted: row.highestTierCompleted ?? 0,
+      classificationTier: row.classificationTier,
+      requirementFound: row.requirementFound,
+      isJustified: row.isJustified ?? false,
+      finalSeverity: row.finalSeverity,
+      pipelineVersion: row.pipelineVersion ?? 'v4',
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+
+      // V5.1: Easy Cleanup fields
+      easyCleanupCandidate: row.easyCleanupCandidate ?? false,
+      cleanupType: row.cleanupType,
+      cleanupEvidence: row.cleanupEvidence,
+      cleanupRecommendation: row.cleanupRecommendation,
+      cleanupEffort: row.cleanupEffort,
+    };
+  }
+
+  /**
+   * Get paginated analysis list for table view.
+   * Returns simplified analysis records with document info.
+   */
+  async getAnalysisListPaginated(
+    state: StateCode,
+    options: {
+      page: number;
+      pageSize: number;
+      sortBy?: 'issueType' | 'severity' | 'highestTier' | 'createdAt';
+      sortOrder?: 'asc' | 'desc';
+      filters?: {
+        tierCompleted?: number;
+        classification?: string;
+        federalMandate?: boolean;
+        pipelineRun?: boolean;
+        issueType?: string;
+        // V5 Tier 3 filters
+        severity?: 'high' | 'medium' | 'low' | 'none';
+        severityChanged?: 'increased' | 'decreased' | 'unchanged' | 'no_tier3';
+        federalMandateConfirmed?: 'true' | 'false' | 'no_tier3';
+        stateDiscretion?: 'true' | 'false' | 'no_tier3';
+        alternativeFound?: 'true' | 'false' | 'no_tier3';
+        evidenceGap?: 'true' | 'false' | 'no_tier3';
+        tier3Trigger?: string;
+        // V5.1 Easy Cleanup filter
+        easyCleanup?: 'any' | 'trivial' | 'easy' | 'medium';
+        // Bookmarks filter
+        bookmarkedOnly?: boolean;
+      };
+    }
+  ): Promise<{
+    data: AnalysisListItem[];
+    total: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  }> {
+    const { page, pageSize, sortBy = 'createdAt', sortOrder = 'desc', filters } = options;
+    const offset = (page - 1) * pageSize;
+
+    // Build where conditions
+    const conditions: ReturnType<typeof eq>[] = [
+      eq(complianceIssueAnalyses.state, state.toUpperCase()),
+    ];
+
+    if (filters) {
+      if (filters.tierCompleted !== undefined) {
+        conditions.push(eq(complianceIssueAnalyses.highestTierCompleted, filters.tierCompleted));
+      }
+      if (filters.classification) {
+        // Check final classification across tiers
+        conditions.push(
+          or(
+            eq(complianceIssueAnalyses.tier4Classification, filters.classification),
+            and(
+              isNull(complianceIssueAnalyses.tier4Classification),
+              eq(complianceIssueAnalyses.tier3Classification, filters.classification)
+            ),
+            and(
+              isNull(complianceIssueAnalyses.tier4Classification),
+              isNull(complianceIssueAnalyses.tier3Classification),
+              eq(complianceIssueAnalyses.tier2Classification, filters.classification)
+            ),
+            and(
+              isNull(complianceIssueAnalyses.tier4Classification),
+              isNull(complianceIssueAnalyses.tier3Classification),
+              isNull(complianceIssueAnalyses.tier2Classification),
+              eq(complianceIssueAnalyses.tier1Classification, filters.classification)
+            )
+          )!
+        );
+      }
+      if (filters.federalMandate !== undefined) {
+        conditions.push(eq(complianceIssueAnalyses.federalMandateFound, filters.federalMandate));
+      }
+      if (filters.pipelineRun !== undefined) {
+        // pipelineRun = true means tier >= 1 (pipeline has actually run)
+        // pipelineRun = false means tier = 0 (not run yet)
+        if (filters.pipelineRun) {
+          conditions.push(gte(complianceIssueAnalyses.highestTierCompleted, 1));
+        } else {
+          conditions.push(eq(complianceIssueAnalyses.highestTierCompleted, 0));
+        }
+      }
+      if (filters.issueType) {
+        conditions.push(eq(complianceIssueAnalyses.issueType, filters.issueType));
+      }
+
+      // V5 Tier 3 filters
+
+      // Severity filter (high=7-10, medium=4-6, low=1-3, none=null)
+      if (filters.severity) {
+        if (filters.severity === 'high') {
+          conditions.push(gte(complianceIssueAnalyses.finalSeverity, 7));
+        } else if (filters.severity === 'medium') {
+          conditions.push(and(gte(complianceIssueAnalyses.finalSeverity, 4), lt(complianceIssueAnalyses.finalSeverity, 7))!);
+        } else if (filters.severity === 'low') {
+          conditions.push(and(gte(complianceIssueAnalyses.finalSeverity, 1), lt(complianceIssueAnalyses.finalSeverity, 4))!);
+        } else if (filters.severity === 'none') {
+          conditions.push(isNull(complianceIssueAnalyses.finalSeverity));
+        }
+      }
+
+      // Severity changed filter (Tier 3 adjustment)
+      if (filters.severityChanged) {
+        if (filters.severityChanged === 'increased') {
+          conditions.push(sql`${complianceIssueAnalyses.tier3SeverityAdjustment} > 0`);
+        } else if (filters.severityChanged === 'decreased') {
+          conditions.push(sql`${complianceIssueAnalyses.tier3SeverityAdjustment} < 0`);
+        } else if (filters.severityChanged === 'unchanged') {
+          conditions.push(
+            or(
+              eq(complianceIssueAnalyses.tier3SeverityAdjustment, 0),
+              and(
+                sql`${complianceIssueAnalyses.tier3Classification} IS NOT NULL`,
+                isNull(complianceIssueAnalyses.tier3SeverityAdjustment)
+              )
+            )!
+          );
+        } else if (filters.severityChanged === 'no_tier3') {
+          conditions.push(isNull(complianceIssueAnalyses.tier3Classification));
+        }
+      }
+
+      // Federal mandate confirmed filter (Tier 3 flag from JSONB)
+      if (filters.federalMandateConfirmed) {
+        if (filters.federalMandateConfirmed === 'true') {
+          conditions.push(sql`(${complianceIssueAnalyses.tier3Flags}->'federal_mandate_confirmed'->>'value')::boolean = true`);
+        } else if (filters.federalMandateConfirmed === 'false') {
+          // Only include rows that completed Tier 3 but have false/NULL for this flag
+          conditions.push(
+            and(
+              isNotNull(complianceIssueAnalyses.tier3Classification),
+              or(
+                sql`(${complianceIssueAnalyses.tier3Flags}->'federal_mandate_confirmed'->>'value')::boolean = false`,
+                sql`${complianceIssueAnalyses.tier3Flags}->'federal_mandate_confirmed' IS NULL`
+              )!
+            )!
+          );
+        } else if (filters.federalMandateConfirmed === 'no_tier3') {
+          conditions.push(isNull(complianceIssueAnalyses.tier3Classification));
+        }
+      }
+
+      // State discretion filter (Tier 3 flag from JSONB)
+      if (filters.stateDiscretion) {
+        if (filters.stateDiscretion === 'true') {
+          conditions.push(sql`(${complianceIssueAnalyses.tier3Flags}->'state_discretion_found'->>'value')::boolean = true`);
+        } else if (filters.stateDiscretion === 'false') {
+          // Only include rows that completed Tier 3 but have false/NULL for this flag
+          conditions.push(
+            and(
+              isNotNull(complianceIssueAnalyses.tier3Classification),
+              or(
+                sql`(${complianceIssueAnalyses.tier3Flags}->'state_discretion_found'->>'value')::boolean = false`,
+                sql`${complianceIssueAnalyses.tier3Flags}->'state_discretion_found' IS NULL`
+              )!
+            )!
+          );
+        } else if (filters.stateDiscretion === 'no_tier3') {
+          conditions.push(isNull(complianceIssueAnalyses.tier3Classification));
+        }
+      }
+
+      // Alternative found filter (Tier 3 flag from JSONB)
+      if (filters.alternativeFound) {
+        if (filters.alternativeFound === 'true') {
+          conditions.push(sql`(${complianceIssueAnalyses.tier3Flags}->'modernized_alternative_found'->>'value')::boolean = true`);
+        } else if (filters.alternativeFound === 'false') {
+          // Only include rows that completed Tier 3 but have false/NULL for this flag
+          conditions.push(
+            and(
+              isNotNull(complianceIssueAnalyses.tier3Classification),
+              or(
+                sql`(${complianceIssueAnalyses.tier3Flags}->'modernized_alternative_found'->>'value')::boolean = false`,
+                sql`${complianceIssueAnalyses.tier3Flags}->'modernized_alternative_found' IS NULL`
+              )!
+            )!
+          );
+        } else if (filters.alternativeFound === 'no_tier3') {
+          conditions.push(isNull(complianceIssueAnalyses.tier3Classification));
+        }
+      }
+
+      // Evidence gap filter (Tier 3 boolean column)
+      if (filters.evidenceGap) {
+        if (filters.evidenceGap === 'true') {
+          conditions.push(eq(complianceIssueAnalyses.tier3EvidenceGap, true));
+        } else if (filters.evidenceGap === 'false') {
+          conditions.push(
+            or(
+              eq(complianceIssueAnalyses.tier3EvidenceGap, false),
+              and(
+                sql`${complianceIssueAnalyses.tier3Classification} IS NOT NULL`,
+                isNull(complianceIssueAnalyses.tier3EvidenceGap)
+              )
+            )!
+          );
+        } else if (filters.evidenceGap === 'no_tier3') {
+          conditions.push(isNull(complianceIssueAnalyses.tier3Classification));
+        }
+      }
+
+      // Tier 3 trigger filter (derived from existing fields based on routing.py logic)
+      // IMPORTANT: These thresholds must match backend/scripts/research_pipeline/routing.py
+      // Thresholds: HIGH_RISK_SEVERITY >= 6, NO_ALTERNATIVE_SEVERITY >= 7, BURDENSOME_SEVERITY >= 8
+      if (filters.tier3Trigger) {
+        // High-risk issue types that trigger Tier 3 when severity >= 6
+        const HIGH_RISK_ISSUE_TYPES = ['newspaper', 'notarization', 'wet_signature', 'witness', 'mandated_reports'];
+        const IN_PERSON_PREFIX = 'in_person';
+
+        if (filters.tier3Trigger === 'high_risk_issue') {
+          // High-risk issue type + severity >= 6
+          conditions.push(
+            and(
+              or(
+                sql`${complianceIssueAnalyses.issueType} = ANY(ARRAY[${sql.raw(HIGH_RISK_ISSUE_TYPES.map(t => `'${t}'`).join(','))}])`,
+                sql`${complianceIssueAnalyses.issueType} LIKE '${IN_PERSON_PREFIX}%'`
+              )!,
+              gte(complianceIssueAnalyses.severity, 6)
+            )!
+          );
+        } else if (filters.tier3Trigger === 'federal_citation') {
+          conditions.push(eq(complianceIssueAnalyses.citesFederalStatute, true));
+        } else if (filters.tier3Trigger === 'no_alternative') {
+          conditions.push(
+            and(
+              eq(complianceIssueAnalyses.claimsNoAlternative, true),
+              gte(complianceIssueAnalyses.severity, 7)
+            )!
+          );
+        } else if (filters.tier3Trigger === 'high_severity') {
+          conditions.push(
+            and(
+              eq(complianceIssueAnalyses.tier2Classification, 'burdensome'),
+              gte(complianceIssueAnalyses.severity, 8)
+            )!
+          );
+        } else if (filters.tier3Trigger === 'controversial') {
+          conditions.push(
+            and(
+              eq(complianceIssueAnalyses.tier2Classification, 'justified'),
+              eq(complianceIssueAnalyses.potentiallyControversial, true)
+            )!
+          );
+        } else if (filters.tier3Trigger === 'mandate_suspected') {
+          conditions.push(eq(complianceIssueAnalyses.federalMandateSuspected, true));
+        } else if (filters.tier3Trigger === 'not_triggered') {
+          conditions.push(isNull(complianceIssueAnalyses.tier3Classification));
+        }
+      }
+
+      // V5.1: Easy Cleanup filter
+      if (filters.easyCleanup) {
+        if (filters.easyCleanup === 'any') {
+          conditions.push(eq(complianceIssueAnalyses.easyCleanupCandidate, true));
+        } else {
+          // Filter by specific effort level
+          conditions.push(
+            and(
+              eq(complianceIssueAnalyses.easyCleanupCandidate, true),
+              eq(complianceIssueAnalyses.cleanupEffort, filters.easyCleanup)
+            )!
+          );
+        }
+      }
+
+      // Bookmarked only filter - uses EXISTS subquery for efficiency
+      if (filters.bookmarkedOnly) {
+        conditions.push(
+          sql`EXISTS (
+            SELECT 1 FROM ${bookmarks}
+            WHERE ${bookmarks.analysisId} = ${complianceIssueAnalyses.id}
+          )`
+        );
+      }
+    }
+
+    const whereClause = and(...conditions);
+
+    // Get total count
+    const [{ count: total }] = await this.db
+      .select({ count: count() })
+      .from(complianceIssueAnalyses)
+      .innerJoin(regulatoryDocuments, eq(complianceIssueAnalyses.documentId, regulatoryDocuments.id))
+      .where(whereClause);
+
+    // Build sort column
+    const sortColumn = {
+      issueType: complianceIssueAnalyses.issueType,
+      severity: complianceIssueAnalyses.finalSeverity,
+      highestTier: complianceIssueAnalyses.highestTierCompleted,
+      createdAt: complianceIssueAnalyses.createdAt,
+    }[sortBy] ?? complianceIssueAnalyses.createdAt;
+
+    // For severity sorting, put nulls at the end (they represent unanalyzed items)
+    // PostgreSQL defaults nulls to the beginning for DESC, which is unintuitive for severity
+    const primarySort = sortBy === 'severity' && sortOrder === 'desc'
+      ? sql`${sortColumn} DESC NULLS LAST`
+      : sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
+
+    // Get paginated results
+    const results = await this.db
+      .select({
+        documentId: complianceIssueAnalyses.documentId,
+        issueType: complianceIssueAnalyses.issueType,
+        highestTierCompleted: complianceIssueAnalyses.highestTierCompleted,
+        tier1Classification: complianceIssueAnalyses.tier1Classification,
+        tier2Classification: complianceIssueAnalyses.tier2Classification,
+        tier3Classification: complianceIssueAnalyses.tier3Classification,
+        tier4Classification: complianceIssueAnalyses.tier4Classification,
+        tier2RerunCount: complianceIssueAnalyses.tier2RerunCount,  // Track re-runs
+        finalSeverity: complianceIssueAnalyses.finalSeverity,
+        federalMandateFound: complianceIssueAnalyses.federalMandateFound,
+        isJustified: complianceIssueAnalyses.isJustified,
+        createdAt: complianceIssueAnalyses.createdAt,
+        // V5.1: Easy Cleanup fields
+        easyCleanupCandidate: complianceIssueAnalyses.easyCleanupCandidate,
+        cleanupType: complianceIssueAnalyses.cleanupType,
+        cleanupEffort: complianceIssueAnalyses.cleanupEffort,
+        // V5.1: Tier 3 trigger reason
+        tier3TriggerReason: complianceIssueAnalyses.tier3TriggerReason,
+        // Document info
+        docTitle: regulatoryDocuments.title,
+        docNjacTitle: regulatoryDocuments.njacTitle,
+        docNjacChapter: regulatoryDocuments.njacChapter,
+        docNjacSubchapter: regulatoryDocuments.njacSubchapter,
+        docNycrrTitle: regulatoryDocuments.nycrrTitle,
+        docNycrrPart: regulatoryDocuments.nycrrPart,
+        docNycrrSection: regulatoryDocuments.nycrrSection,
+      })
+      .from(complianceIssueAnalyses)
+      .innerJoin(regulatoryDocuments, eq(complianceIssueAnalyses.documentId, regulatoryDocuments.id))
+      .where(whereClause)
+      .orderBy(primarySort)
+      .limit(pageSize)
+      .offset(offset);
+
+    // Transform results
+    const data: AnalysisListItem[] = results.map(row => {
+      // Build citation
+      let citation: string | null = null;
+      if (row.docNjacTitle) {
+        citation = `N.J.A.C. ${row.docNjacTitle}:${row.docNjacChapter || ''}${row.docNjacSubchapter ? `-${row.docNjacSubchapter}` : ''}`;
+      } else if (row.docNycrrTitle) {
+        citation = `${row.docNycrrTitle} NYCRR Part ${row.docNycrrPart || ''}`;
+      }
+
+      return {
+        documentId: Number(row.documentId),
+        issueType: row.issueType,
+        documentTitle: row.docTitle,
+        citation,
+        highestTierCompleted: row.highestTierCompleted ?? 0,
+        tier1Classification: row.tier1Classification,
+        tier2Classification: row.tier2Classification,
+        tier3Classification: row.tier3Classification,
+        tier4Classification: row.tier4Classification,
+        finalSeverity: row.finalSeverity,
+        federalMandateFound: row.federalMandateFound ?? false,
+        isJustified: row.isJustified ?? false,
+        rerunCount: row.tier2RerunCount ?? 0,
+        createdAt: row.createdAt,
+        // V5.1: Easy Cleanup fields
+        easyCleanupCandidate: row.easyCleanupCandidate ?? false,
+        cleanupType: row.cleanupType,
+        cleanupEffort: row.cleanupEffort,
+        // V5.1: Tier 3 trigger reason
+        tier3TriggerReason: row.tier3TriggerReason,
+      };
+    });
+
+    return {
+      data,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
+  }
+}
+
+/**
+ * Simplified analysis record for table view.
+ */
+export interface AnalysisListItem {
+  documentId: number;
+  issueType: string;
+  documentTitle: string | null;
+  citation: string | null;
+  highestTierCompleted: number;
+  tier1Classification: string | null;
+  tier2Classification: string | null;
+  tier3Classification: string | null;
+  tier4Classification: string | null;
+  finalSeverity: number | null;
+  federalMandateFound: boolean;
+  isJustified: boolean;
+  rerunCount: number;  // Tier 2 re-run count (0-2)
+  createdAt: Date | null;
+  // V5.1: Easy Cleanup fields
+  easyCleanupCandidate: boolean;
+  cleanupType: string | null;
+  cleanupEffort: string | null;
+  // V5.1: Tier 3 trigger reason
+  tier3TriggerReason: string | null;
 }

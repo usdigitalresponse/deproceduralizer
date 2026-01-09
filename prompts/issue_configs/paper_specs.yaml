@@ -1,0 +1,74 @@
+paper_specs:
+  updated_at: '2026-01-03'
+  display_name: Paper Specifications
+  db_issue_type: paper_specs
+  category: Document Format
+  description: 'Specific paper characteristics are required for document submission beyond standard specifications.
+    While standard 8.5x11 letter size is reasonable, unusual requirements (specific weight, color, or
+    size) burden: citizens without access to specialty paper; businesses with standard printing setups;
+    professionals submitting routine documents; and create unnecessary barriers when electronic submission
+    would eliminate paper requirements entirely.'
+  positive_indicators:
+  - Specific paper specifications are required
+  - Electronic submission is not available
+  - Specifications appear arbitrary
+  - Non-standard paper size or weight required
+  - Specific paper color or type mandated
+  negative_indicators:
+  - Electronic submission is also available
+  - Paper specs are standard (8.5x11 letter size)
+  - Archival purposes justify the specs
+  - Paper specs for optional paper submissions
+  - Reasonable formatting guidance
+  severity_baseline: 2
+  severity_modifiers:
+    increases:
+    - '+2: Non-standard specifications'
+    - '+1: No electronic alternative'
+    - '+1: Unusual paper type required'
+    decreases:
+    - '-2: Electronic submission available'
+    - '-1: Standard specifications'
+    - '-1: Archival purpose'
+  patterns:
+  - 8\.?5.{0,5}x.{0,5}11
+  - letter size
+  - 8\.?5.{0,5}x.{0,5}14
+  - legal size
+  - bond paper
+  - 20 lb
+  - paper stock
+  - white paper
+  - colored paper
+  statistics:
+    total_matches: 64
+    true_positives: 43
+    true_positive_rate: 67.19
+    sample_date: '2026-01-01'
+  examples:
+    true_positives:
+    - citation: N.J.A.C. 14:3-7.5
+      quote: on 24-pound bond paper, 8.5x14 legal size
+      reasoning: Specific paper weight and legal size required.
+      classification: burdensome
+      severity: 3
+    - citation: N.J.A.C. 7:7A-16.4
+      quote: plans on 20 lb. white paper
+      reasoning: Specific paper requirements. Could be PDF.
+      classification: burdensome
+      severity: 3
+    false_positives:
+    - citation: N.J.A.C. 17:12-2.7
+      quote: submit electronically or on standard letter size
+      reasoning: Electronic option available. Paper is alternative.
+      classification: unrelated
+    - citation: N.J.A.C. 13:45A-2.5
+      quote: 8.5x11 paper preferred
+      reasoning: Standard size. Just preference.
+      classification: unrelated
+    justified:
+    - citation: N.J.A.C. 52:1-3.2
+      quote: archival-quality acid-free paper
+      reasoning: Permanent records. Archival preservation need.
+      classification: justified
+      severity: 2
