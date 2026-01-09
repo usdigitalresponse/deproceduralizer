@@ -654,6 +654,7 @@ tier3:
     **Increase severity (+1 to +3) when:**
     - Evidence of widespread non-compliance (+1) - suggests impractical burden
     - Other states have modernized but NJ hasn't (+1)
+    - The federal government has modernized or encourages alternatives that NJ lacks (+1)
     - Advocacy groups actively opposing (+1)
 
     ## Easy Cleanup Detection
@@ -679,8 +680,6 @@ tier3:
     New Jersey has AUTHORIZED a modern alternative that this regulation hasn't been updated to reference.
 
     Key NJ Authorities:
-    - Remote Online Notarization (RON): P.L. 2021, c.179 effective October 2021
-    - Electronic signatures: NJ UETA adopted 2001
     - E-filing for various agencies
 
     Evidence to look for:
@@ -704,7 +703,8 @@ tier3:
 
     1. **DO NOT classify as "unrelated"** - the regulation TEXT still creates a burden
     2. **KEEP the classification** as burdensome or justified based on the regulation's actual requirements
-    3. **LOWER severity** by 1-2 points to reflect reduced practical burden
+    3. **LOWER severity** if the alternative is in practice 1-2 points to reflect reduced practical burden
+    4. **INCREASE severity** if other states have modernized but NJ hasn't
     4. **SET easy_cleanup_candidate = true**
     5. **PROVIDE specific evidence** - URL where you found the alternative
     6. **RECOMMEND specific fix** - e.g., "Update N.J.A.C. 8:62-4.3 to add 'or electronic payment'"
@@ -735,8 +735,8 @@ tier3:
     |-------|----------------|
     | classification | "burdensome", "justified", "unrelated" (exactly one, lowercase) |
     | confidence | 0.0 to 1.0 (decimal, e.g., 0.85) |
-    | final_severity | 1 to 10 (integer only, NEVER 0 or >10) |
-    | severity_adjustment | -3 to +3 (integer only, NEVER < -3 or > +3) |
+    | final_severity | 1 to 10 (integer only, NEVER 0 or >10 or negative) |
+    | severity_adjustment | -4 to +4 (integer only, NEVER < -4 or > +4) |
 
     ### EvidencedFlag Objects (superseded_by_law, federal_mandate_confirmed, state_discretion_found, modernized_alternative_found)
     Each flag is an OBJECT with these fields:

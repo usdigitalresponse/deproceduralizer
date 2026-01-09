@@ -247,23 +247,23 @@ export class BookmarksRepository extends BaseRepository {
     let condition = eq(bookmarks.state, state.toUpperCase());
 
     if (type === 'analysis') {
-      const results = await this.db
-        .select({ id: bookmarks.id })
+      const result = await this.db
+        .select({ count: sql<number>`count(*)::int` })
         .from(bookmarks)
         .where(and(condition, sql`${bookmarks.analysisId} IS NOT NULL`));
-      return results.length;
+      return result[0]?.count ?? 0;
     } else if (type === 'document') {
-      const results = await this.db
-        .select({ id: bookmarks.id })
+      const result = await this.db
+        .select({ count: sql<number>`count(*)::int` })
         .from(bookmarks)
         .where(and(condition, isNull(bookmarks.analysisId)));
-      return results.length;
+      return result[0]?.count ?? 0;
     }
 
-    const results = await this.db
-      .select({ id: bookmarks.id })
+    const result = await this.db
+      .select({ count: sql<number>`count(*)::int` })
       .from(bookmarks)
       .where(condition);
-    return results.length;
+    return result[0]?.count ?? 0;
   }
 }

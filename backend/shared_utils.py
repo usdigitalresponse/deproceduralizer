@@ -720,8 +720,10 @@ async def call_llm_parse_async(
         ]
 
     for attempt in range(max_retries):
+        start_time = time.time()
         try:
             response = await client.messages.create(**request_kwargs)
+            latency_ms = (time.time() - start_time) * 1000
 
             # Check for truncation due to max_tokens
             if response.stop_reason == "max_tokens":
@@ -749,6 +751,9 @@ async def call_llm_parse_async(
                 print(
                     f"      ⚠️  No tool_use in response (attempt {attempt + 1}/{max_retries})"
                 )
+                # Log failure if trace_context provided
+                if trace_context:
+                    _log_llm_call(trace_context, model, prompt, "", usage, latency_ms, success=False, error_message="No tool_use in response")
                 if attempt < max_retries - 1:
                     await asyncio.sleep(2)
                     continue
@@ -760,9 +765,16 @@ async def call_llm_parse_async(
             parsed = response_format.model_validate(tool_use.input)
             if attempt > 0:
                 print(f"      ✅ Retry succeeded on attempt {attempt + 1}")
+
+            # Log success if trace_context provided
+            if trace_context:
+                output_text = parsed.model_dump_json() if parsed else ""
+                _log_llm_call(trace_context, model, prompt, output_text, usage, latency_ms, success=True)
+
             return parsed, usage
 
         except Exception as e:
+            latency_ms = (time.time() - start_time) * 1000
             print(
                 f"      ⚠️  API error: {type(e).__name__}: {e} "
                 f"(attempt {attempt + 1}/{max_retries})"
@@ -771,6 +783,9 @@ async def call_llm_parse_async(
                 await asyncio.sleep(2)
                 continue
             print(f"      ❌ All {max_retries} attempts failed")
+            # Log failure if trace_context provided
+            if trace_context:
+                _log_llm_call(trace_context, model, prompt, "", {}, latency_ms, success=False, error_message=str(e))
             return None, {"input_tokens": 0, "output_tokens": 0, "cache_read_tokens": 0, "cache_write_tokens": 0}
 
     return None, {"input_tokens": 0, "output_tokens": 0, "cache_read_tokens": 0, "cache_write_tokens": 0}
@@ -1091,7 +1106,12 @@ def populate_parent_ids(state: str, regulations: list = None, reg_dir: Path = No
     roots = sum(1 for v in parent_mappings.values() if v is None)
     print(f"  {len(parent_mappings):,} docs, {with_parents:,} have parents, {roots:,} are roots")
 
-    with get_db_connection() as conn:
+    conn = get_db_connection()
+    if conn is None:
+        print("✗ Failed to connect to database (DATABASE_URL not set?)")
+        return
+
+    with conn:
         with conn.cursor() as cur:
             cur.execute("""
                 SELECT id, source_index FROM regulatory_documents
@@ -1150,7 +1170,12 @@ def cleanup_stale_documents(state: str, valid_source_indices: set = None, reg_di
 
     print(f"  {len(valid_source_indices):,} valid documents")
 
-    with get_db_connection() as conn:
+    conn = get_db_connection()
+    if conn is None:
+        print("✗ Failed to connect to database (DATABASE_URL not set?)")
+        return
+
+    with conn:
         with conn.cursor() as cur:
             cur.execute("""
                 SELECT id, source_index FROM regulatory_documents
