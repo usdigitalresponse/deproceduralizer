@@ -8,7 +8,7 @@ data
 individual_regulations
 logs
 migrations
-pipeline
+/pipeline
 dbtools
 .venv
 .claude
