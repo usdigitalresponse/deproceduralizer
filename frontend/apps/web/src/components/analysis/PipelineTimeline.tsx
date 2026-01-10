@@ -296,6 +296,7 @@ export function PipelineTimeline({ analysis }: PipelineTimelineProps) {
                 tier={2}
                 classification={tier2.classification}
                 severity={tier2.severity}
+                confidence={tier2.confidence}
                 issueType={analysis.issueType}
                 citesFederalStatute={tier2.citesFederalStatute}
                 federalCitation={tier2.federalCitation}

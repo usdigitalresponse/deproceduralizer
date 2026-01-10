@@ -96,7 +96,6 @@ export function AnalysisTableFilters() {
 
   // Count how many advanced filters are active
   const advancedFilterCount = [
-    filters.severity !== 'all',
     filters.severityChanged !== 'all',
     filters.federalMandateConfirmed !== 'all',
     filters.stateDiscretion !== 'all',
@@ -107,6 +106,21 @@ export function AnalysisTableFilters() {
     filters.tier3Trigger !== 'all',
     filters.easyCleanup !== 'all',
   ].filter(Boolean).length;
+
+  const clearTier3Filters = useCallback(() => {
+    setFilters({
+      severityChanged: 'all',
+      federalMandateConfirmed: 'all',
+      stateDiscretion: 'all',
+      alternativeFound: 'all',
+      evidenceGap: 'all',
+      supersededByLaw: 'all',
+      advocacyForChange: 'all',
+      tier3Trigger: 'all',
+      easyCleanup: 'all',
+      page: 1,
+    });
+  }, [setFilters]);
 
   return (
     <div className="space-y-3">
@@ -250,6 +264,18 @@ export function AnalysisTableFilters() {
       {/* Advanced Tier 3 Filters */}
       {showAdvanced && (
         <div className="bg-[var(--color-neutral-50)] border border-[var(--color-neutral-200)] rounded-[var(--radius-sm)] p-3">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-medium text-[var(--color-text-muted)]">Tier 3 Filters</span>
+            {advancedFilterCount > 0 && (
+              <button
+                type="button"
+                onClick={clearTier3Filters}
+                className="text-xs text-[var(--color-danger)] hover:underline"
+              >
+                Clear Tier 3 Filters
+              </button>
+            )}
+          </div>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
             <FilterField label="T3 Trigger">
               <Select

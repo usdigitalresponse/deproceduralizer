@@ -2,13 +2,26 @@
 
 import { useState } from 'react';
 
-// High-risk issue types that trigger T3
-const HIGH_RISK_ISSUE_TYPES = [
-  'wet_signature',
-  'notarization',
-  'in_person_appearance',
-  'original_document',
-];
+// High-risk issue types that trigger T3 (must match backend routing.py)
+const HIGH_RISK_ISSUE_TYPES = new Set([
+  'newspaper',        // Public notice requirements
+  'notarization',     // Notarization requirements
+  'wet_signature',    // Physical signature requirements
+  'witness',          // Witness requirements
+  'mandated_reports', // Mandated reporting requirements
+]);
+
+// Prefixes for high-risk issue types (e.g., in_person_*)
+const HIGH_RISK_ISSUE_PREFIXES = ['in_person'];
+
+/**
+ * Check if an issue type is considered high-risk.
+ * Mirrors backend logic in routing.py
+ */
+function isHighRiskIssueType(issueType: string): boolean {
+  if (HIGH_RISK_ISSUE_TYPES.has(issueType)) return true;
+  return HIGH_RISK_ISSUE_PREFIXES.some(prefix => issueType.startsWith(prefix));
+}
 
 interface RoutingDecisionProps {
   tier: 1 | 2 | 3;
@@ -17,6 +30,7 @@ interface RoutingDecisionProps {
   relevantMatchCount?: number;
   // Tier 2 specific
   severity?: number | null;
+  confidence?: number | null;
   issueType?: string;
   citesFederalStatute?: boolean;
   federalCitation?: string | null;
@@ -44,6 +58,7 @@ export function RoutingDecision({
   classification,
   relevantMatchCount,
   severity,
+  confidence,
   issueType,
   citesFederalStatute,
   federalCitation,
@@ -103,20 +118,28 @@ export function RoutingDecision({
     return { icon: '❓', message: 'Unknown tier' };
   };
 
-  // Get conditions checked for Tier 2 routing
+  // Get conditions checked for Tier 2 routing (mirrors backend routing.py)
   const getTier2Conditions = (): ConditionCheck[] => {
     if (tier !== 2) return [];
 
-    const isHighRisk = issueType && HIGH_RISK_ISSUE_TYPES.includes(issueType);
+    const isHighRisk = issueType ? isHighRiskIssueType(issueType) : false;
+    const isHighRiskJustified = isHighRisk && classification === 'justified';
+    const isHighRiskWithSeverity = isHighRisk && (severity ?? 0) >= 7;
     const hasNoAlternativeWithSeverity = claimsNoAlternative && (severity ?? 0) >= 7;
     const isBurdensomeWithHighSeverity = classification === 'burdensome' && (severity ?? 0) >= 8;
     const isControversialJustified = potentiallyControversial && classification === 'justified';
+    const isLowConfidenceWithSeverity = (confidence ?? 1) < 0.85 && (severity ?? 0) >= 7;
 
     return [
       {
-        label: 'High-risk issue type',
-        matched: !!isHighRisk,
-        detail: isHighRisk ? issueType : undefined,
+        label: 'High-risk issue + justified',
+        matched: isHighRiskJustified,
+        detail: isHighRiskJustified ? issueType : undefined,
+      },
+      {
+        label: 'High-risk issue + severity ≥ 7',
+        matched: isHighRiskWithSeverity && !isHighRiskJustified,
+        detail: isHighRiskWithSeverity && !isHighRiskJustified ? `${issueType}, severity: ${severity}` : undefined,
       },
       {
         label: 'Federal statute cited',
@@ -127,6 +150,11 @@ export function RoutingDecision({
         label: 'Claims no alternative + severity ≥ 7',
         matched: !!hasNoAlternativeWithSeverity,
         detail: hasNoAlternativeWithSeverity ? `severity: ${severity}` : undefined,
+      },
+      {
+        label: 'Low confidence (<0.85) + severity ≥ 7',
+        matched: isLowConfidenceWithSeverity,
+        detail: isLowConfidenceWithSeverity ? `confidence: ${(confidence ?? 1).toFixed(2)}, severity: ${severity}` : undefined,
       },
       {
         label: 'Burdensome + severity ≥ 8',
