@@ -183,7 +183,7 @@ export function PipelineFlowVisualizer() {
   };
 
   const expandAll = () => {
-    setExpandedTiers(new Set([1, 2, 3, 4]));
+    setExpandedTiers(new Set([1, 2, 3]));
   };
 
   const collapseAll = () => {
@@ -200,10 +200,10 @@ export function PipelineFlowVisualizer() {
         <div className="flex items-center gap-2">
           {!showExample && (
             <button
-              onClick={expandedTiers.size === 4 ? collapseAll : expandAll}
+              onClick={expandedTiers.size === 3 ? collapseAll : expandAll}
               className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
             >
-              {expandedTiers.size === 4 ? 'Collapse All' : 'Expand All'}
+              {expandedTiers.size === 3 ? 'Collapse All' : 'Expand All'}
             </button>
           )}
           <button
