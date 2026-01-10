@@ -554,8 +554,8 @@ test.describe('Review Form Submission', () => {
   });
 
   test('@mutation red flag review saves all fields', async ({ page }) => {
-    // Use review mode with low severity filter and explicit reviewStatus to avoid redirect
-    await page.goto('/ny/review?type=flags&reviewStatus=unreviewed&severity=low');
+    // Use review mode with medium severity filter (NY has severity 4-9, no low/1-3)
+    await page.goto('/ny/review?type=flags&reviewStatus=unreviewed&severity=medium');
     await expect(page.getByRole('heading', { name: /Review New York/i })).toBeVisible();
 
     // Wait for cards to load
@@ -564,7 +564,7 @@ test.describe('Review Form Submission', () => {
     const cardCount = await page.getByTestId('red-flag-card').count();
 
     if (cardCount === 0) {
-      console.log('No low severity red flags found, skipping test');
+      console.log('No medium severity red flags found, skipping test');
       return;
     }
 
@@ -731,8 +731,8 @@ test.describe('Review Queue Filter Behavior', () => {
   });
 
   test('@mutation red flag is replaced after review in filter mode', async ({ page }) => {
-    // Navigate to red flag review with unreviewed status and low severity
-    await page.goto('/ny/review?type=flags&reviewStatus=unreviewed&severity=low');
+    // Navigate to red flag review with unreviewed status and medium severity (NY has severity 4-9, no low/1-3)
+    await page.goto('/ny/review?type=flags&reviewStatus=unreviewed&severity=medium');
     await expect(page.getByRole('heading', { name: /Review New York/i })).toBeVisible();
 
     // Wait for cards to load
@@ -742,7 +742,7 @@ test.describe('Review Queue Filter Behavior', () => {
     const initialCount = await initialCards.count();
 
     if (initialCount === 0) {
-      console.log('No low severity unreviewed red flags found, skipping test');
+      console.log('No medium severity unreviewed red flags found, skipping test');
       return;
     }
 
