@@ -1,0 +1,74 @@
+binding_required:
+  updated_at: '2025-12-26'
+  display_name: Binding Required
+  db_issue_type: binding_required
+  category: Document Format
+  description: Document binding required
+  response_model: DocumentFormatAnalysis
+  patterns:
+  - spiral bound
+  - three-ring binder
+  - ring binder
+  prompt:
+    system: 'You analyze regulations for DOCUMENT BINDING requirements.
+
+
+      This section requires specific document binding. Determine whether physical
+
+      binding is necessary for the use case (e.g., large reference documents for
+
+      in-person proceedings) or whether electronic submission would eliminate the
+
+      need.
+
+
+      Flag if binding requirements appear to be legacy formatting rules.
+
+
+      This IS a compliance issue when:
+
+      - Specific binding is required
+
+      - Electronic submission would eliminate the need
+
+      - The binding requirement appears to be legacy formatting
+
+
+      This is NOT a compliance issue when:
+
+      - Electronic submission is also available
+
+      - Binding is for physical documents that must be physical
+
+      - Binding serves a clear purpose (large reference documents)
+
+
+      Respond with:
+
+      - has_issue: true if binding required without electronic alternative
+
+      - requirement_quote: exact quote about the binding requirement
+
+      - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+
+      - notes: specific binding type required and any stated purpose
+
+      '
+    template: 'Analyze this regulation for document binding requirements:
+
+
+      REGULATION TEXT:
+
+      {regulation_context}
+
+
+      STATUTE CONTEXT:
+
+      {statute_context}
+
+
+      Determine whether binding is required and whether electronic submission
+
+      is available as an alternative.
+
+      '

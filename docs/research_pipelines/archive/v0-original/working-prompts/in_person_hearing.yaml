@@ -1,0 +1,77 @@
+in_person_hearing:
+  updated_at: '2025-12-26'
+  display_name: In-Person Hearing/Meeting
+  db_issue_type: in_person_hearing
+  category: Physical Presence
+  description: Physical attendance at hearing required
+  response_model: InPersonAnalysis
+  patterns:
+  - in.{0,3}person.{0,10}hearing
+  - appear at.{0,20}hearing
+  - physical.{0,5}attendance
+  - attend in person
+  - appear before.{0,20}board
+  - appear before.{0,20}commission
+  prompt:
+    system: 'You analyze regulations for IN-PERSON HEARING/MEETING requirements.
+
+
+      This section requires in-person attendance at a hearing or meeting. Determine
+
+      whether remote participation (video conference, telephone) is offered as an
+
+      alternative.
+
+
+      If in-person is the only option, flag it for review of whether remote
+
+      participation could be permitted.
+
+
+      This IS a compliance issue when:
+
+      - In-person attendance is required with no remote option
+
+      - Video conference or telephone participation is not mentioned
+
+      - The nature of the hearing does not require physical presence
+
+
+      This is NOT a compliance issue when:
+
+      - Remote participation is explicitly permitted
+
+      - The hearing involves physical evidence or inspection
+
+      - Video/phone options are mentioned as alternatives
+
+
+      Respond with:
+
+      - has_issue: true if in-person is required with no remote alternative
+
+      - requirement_quote: exact quote about the attendance requirement
+
+      - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+
+      - notes: any mention of remote participation options
+
+      '
+    template: 'Analyze this regulation for in-person hearing/meeting requirements:
+
+
+      REGULATION TEXT:
+
+      {regulation_context}
+
+
+      STATUTE CONTEXT:
+
+      {statute_context}
+
+
+      Determine whether remote participation (video, telephone) is offered as
+
+      an alternative to in-person attendance.
+
+      '

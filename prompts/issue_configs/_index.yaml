@@ -1,0 +1,124 @@
+# Issue Configs Index
+# V4-compatible issue configuration files for research_pipeline.yaml
+#
+# Each file contains:
+#   - description: Maps to {issue_description} in tier prompts
+#   - positive_indicators: Maps to {positive_indicators}
+#   - negative_indicators: Maps to {negative_indicators}
+#   - severity_baseline/modifiers: Maps to {severity_baseline}/{severity_modifiers}
+#   - patterns: Regex patterns for candidate detection
+#   - statistics: Database statistics (TPR, match counts)
+#   - examples: True/false positive examples for few-shot learning
+#
+# Usage:
+#   Load these configs to populate tier prompt template variables.
+#   Each issue_type key matches db_issue_type in compliance_issues table.
+
+# Communication & Submission Methods
+communication:
+  - mail_only
+  - certified_mail
+  - fax
+  - obsolete_comm
+  - landline
+
+# Payment
+payment:
+  - check_payment
+  - cash_only
+  - no_credit_cards
+  - in_person_payment
+
+# Signatures & Authentication
+signatures:
+  - wet_signature
+  - notarization
+  - witness
+  - embossed_seal
+  - original_document
+
+# Physical Presence
+physical_presence:
+  - in_person_submission
+  - in_person_hearing
+  - in_person_pickup
+  - physical_forms
+  - physical_inspection
+  - physical_posting
+  - bulletin_board
+
+# Technology & Media
+technology:
+  - obsolete_media
+  - microfiche
+  - obsolete_software
+  - typewriter
+  - pdf_only
+  - carbon_copy
+  - newspaper
+
+# Document Format
+document_format:
+  - multiple_copies
+  - paper_specs
+  - photo_specs
+  - letterhead
+  - handwriting_specs
+  - binding_required
+
+# Process & Tracking
+process:
+  - physical_log
+  - routing_slip
+  - storage_location
+  - fixed_window
+  - waiting_period
+  - mandated_reports
+
+# Statistics Summary (from 2026-01-01 query)
+# Total: 40 issue types, 11,343 matches
+# High precision (>80% TPR): notarization, multiple_copies, embossed_seal, handwriting_specs, binding_required
+# Low precision (<20% TPR): fax, pdf_only, typewriter, cash_only
+
+# File count: 40 configs
+all_configs:
+  - binding_required
+  - bulletin_board
+  - carbon_copy
+  - cash_only
+  - certified_mail
+  - check_payment
+  - embossed_seal
+  - fax
+  - fixed_window
+  - handwriting_specs
+  - in_person_hearing
+  - in_person_payment
+  - in_person_pickup
+  - in_person_submission
+  - landline
+  - letterhead
+  - mail_only
+  - mandated_reports
+  - microfiche
+  - multiple_copies
+  - newspaper
+  - no_credit_cards
+  - notarization
+  - obsolete_comm
+  - obsolete_media
+  - obsolete_software
+  - original_document
+  - paper_specs
+  - pdf_only
+  - photo_specs
+  - physical_forms
+  - physical_inspection
+  - physical_log
+  - physical_posting
+  - routing_slip
+  - storage_location
+  - typewriter
+  - waiting_period
+  - wet_signature
+  - witness

@@ -1,0 +1,80 @@
+pdf_only:
+  updated_at: '2026-01-03'
+  display_name: PDF Only Format
+  db_issue_type: pdf_only
+  category: Technology
+  description: 'PDF format is required exclusively, creating barriers when accepting multiple formats
+    would improve accessibility. This affects: citizens without PDF creation tools or knowledge; businesses
+    with legacy document systems; and particularly vulnerable populations including elderly unfamiliar
+    with format conversion, disabled individuals using screen readers that work better with other formats,
+    low-income people without Adobe software, and those with limited technical skills. Accepting Word,
+    text, or other formats would be more inclusive.'
+  positive_indicators:
+  - PDF is the ONLY accepted format
+  - Other common formats explicitly rejected
+  - Online form entry is not available
+  - '"must be PDF" or "PDF only" explicit exclusion'
+  - No alternative submission method
+  negative_indicators:
+  - PDF is one of several accepted formats
+  - Online form submission available
+  - Requirement is for final/archival documents where PDF is standard
+  - '"PDF preferred" not required'
+  - Context is output format (agency provides PDF)
+  severity_baseline: 2
+  severity_modifiers:
+    increases:
+    - '+1: Other formats explicitly rejected'
+    - '+1: No online form alternative'
+    - '+1: Accessibility impact'
+    decreases:
+    - '-1: PDF is industry standard for document type'
+    - '-1: Multiple formats accepted'
+    - '-1: Final/archival purpose'
+  patterns:
+  - pdf format
+  - submit as pdf
+  - adobe pdf
+  - \.pdf\b
+  statistics:
+    total_matches: 201
+    true_positives: 3
+    true_positive_rate: 1.49
+    sample_date: '2026-01-01'
+  precision_notes: 'PDF_only has only 1.49% TPR because:
+
+    1. Most ".pdf" mentions are just file references
+
+    2. "PDF format" often describes output, not requirement
+
+    3. PDF is so common it''s rarely an actual burden
+
+    4. Many matches are agency providing PDFs, not requiring them
+
+    '
+  examples:
+    true_positives:
+    - citation: N.J.A.C. 7:26-8.6
+      quote: applications must be submitted in PDF format only
+      reasoning: '''Only'' indicates exclusive requirement. No alternatives.'
+      classification: burdensome
+      severity: 3
+    false_positives:
+    - citation: N.J.A.C. 17:12-2.5
+      quote: forms available for download in PDF format
+      reasoning: Agency provides PDF. Not a submission requirement.
+      classification: unrelated
+    - citation: N.J.A.C. 13:45A-5.2
+      quote: submit via portal or as PDF attachment
+      reasoning: Online portal is alternative.
+      classification: unrelated
+    - citation: N.J.A.C. 8:43-2.3
+      quote: PDF, Word, or plain text format accepted
+      reasoning: Multiple formats accepted.
+      classification: unrelated
+    justified:
+    - citation: N.J.A.C. 14:3-7.4
+      quote: final engineering drawings in PDF/A format
+      reasoning: Archival format for permanent records. Standard practice.
+      classification: justified
+      severity: 1

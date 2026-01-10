@@ -1,0 +1,76 @@
+landline:
+  updated_at: '2026-01-03'
+  display_name: Landline/Telephone Required
+  db_issue_type: landline
+  category: Communication
+  description: 'A telephone/landline call is required for processes that could be handled online or in
+    writing, limiting when interactions can occur and preventing documentation. This affects: citizens
+    who must call during business hours; businesses needing written records of interactions; professionals
+    juggling client schedules with phone requirements; government staff limited to synchronous communication;
+    and vulnerable populations including deaf and hard-of-hearing individuals, those with speech impediments,
+    people with phone anxiety, youth more comfortable with digital communication, and those without reliable
+    phone access.'
+  positive_indicators:
+  - Phone call is REQUIRED (not optional)
+  - Process could reasonably be handled online or in writing
+  - No modern alternatives (web form, email, portal) mentioned
+  - '"by telephone" with mandatory language (shall, must)'
+  - Verbal authorization required instead of written/electronic
+  negative_indicators:
+  - Telephone is one contact option among several
+  - Phone offered as convenience, not requirement
+  - Nature of interaction genuinely requires verbal communication
+  - Emergency notification where speed is critical
+  - '"or" indicates alternatives (phone or email)'
+  - Just listing phone number as contact information
+  severity_baseline: 4
+  severity_modifiers:
+    increases:
+    - '+1: No alternative method mentioned'
+    - '+1: Routine/administrative process'
+    - '+1: Accessibility impact (deaf, hard-of-hearing)'
+    decreases:
+    - '-1: Emergency/safety context'
+    - '-1: One option among several'
+    - '-1: Genuinely requires verbal interaction'
+  patterns:
+  - \blandline\b
+  - touch-tone
+  - by telephone
+  - telephone call
+  - verbal authorization
+  - oral authorization
+  - by phone
+  statistics:
+    total_matches: 637
+    true_positives: 313
+    true_positive_rate: 49.14
+    sample_date: '2026-01-01'
+  examples:
+    true_positives:
+    - citation: N.J.A.C. 8:43G-14.5
+      quote: prior verbal authorization by telephone is required
+      reasoning: Verbal telephone authorization required. Could be email.
+      classification: burdensome
+      severity: 4
+    - citation: N.J.A.C. 10:90-3.2
+      quote: notification shall be made by telephone
+      reasoning: Mandatory telephone notification. No alternative.
+      classification: burdensome
+      severity: 4
+    false_positives:
+    - citation: N.J.A.C. 13:45A-5.1
+      quote: contact by phone, email, or online form
+      reasoning: Multiple contact options. Phone is convenience.
+      classification: unrelated
+    - citation: N.J.A.C. 10:37-6.2
+      quote: emergency telephone notification
+      reasoning: Emergency context requires immediate communication.
+      classification: justified
+      severity: 2
+    justified:
+    - citation: N.J.A.C. 8:43G-10.1
+      quote: verbal orders by telephone for immediate treatment
+      reasoning: Medical emergency requiring verbal physician orders.
+      classification: justified
+      severity: 2

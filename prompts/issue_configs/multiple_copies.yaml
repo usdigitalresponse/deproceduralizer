@@ -1,0 +1,80 @@
+multiple_copies:
+  updated_at: '2026-01-03'
+  display_name: Multiple Copy Submission
+  db_issue_type: multiple_copies
+  category: Document Format
+  description: 'Multiple physical copies of documents must be submitted, creating printing, paper, and
+    mailing costs when electronic submission would allow unlimited copies from one file. This burdens:
+    citizens with printing and postage expenses; businesses with bulk submission overhead; professionals
+    filing applications; government staff managing paper storage and distribution; and low-income individuals
+    who cannot afford multiple printing and mailing costs.'
+  positive_indicators:
+  - '"in duplicate" or "in triplicate" - explicit multiple copy requirement'
+  - '"original and X copies" - requires original plus copies'
+  - Specific number of copies required (3, 4, 5, etc.)
+  - No electronic submission alternative mentioned
+  - Copy requirement appears administrative rather than legal necessity
+  negative_indicators:
+  - Electronic submission is equally available
+  - Single copy submission is accepted
+  - Copies serve clear distribution purpose to multiple parties
+  - '"or submit electronically" alternative offered'
+  - Record retention copies (keeping copies, not submitting)
+  severity_baseline: 4
+  severity_modifiers:
+    increases:
+    - '+1: More than 3 copies required'
+    - '+1: No electronic alternative'
+    - '+1: Large/complex documents'
+    decreases:
+    - '-2: Electronic submission available'
+    - '-1: Copies go to different parties with legal interest'
+  patterns:
+  - \bin duplicate\b
+  - \bin triplicate\b
+  - three copies
+  - four copies
+  - five copies
+  - submit.{0,10}\d+.{0,10}copies
+  - original and.{0,10}\d+.{0,10}cop
+  - multiple copies
+  statistics:
+    total_matches: 232
+    true_positives: 211
+    true_positive_rate: 90.95
+    sample_date: '2026-01-01'
+  precision_notes: 'Multiple copies has 90.95% TPR because:
+
+    1. "in duplicate/triplicate" are unambiguous requirements
+
+    2. Specific copy counts indicate explicit requirements
+
+    3. Few false-positive contexts exist
+
+    '
+  examples:
+    true_positives:
+    - citation: N.J.A.C. 7:7A-16.2
+      quote: submit an original and three copies
+      reasoning: Requires 4 total copies. No electronic option.
+      classification: burdensome
+      severity: 5
+    - citation: N.J.A.C. 13:44F-3.1
+      quote: application in triplicate
+      reasoning: Three copies required. Clear multiple copy requirement.
+      classification: burdensome
+      severity: 4
+    - citation: N.J.A.C. 14:3-7.1
+      quote: submit five copies of the engineering plans
+      reasoning: Five copies of potentially large engineering documents.
+      classification: burdensome
+      severity: 6
+    false_positives:
+    - citation: N.J.A.C. 17:1-1.2
+      quote: submit via the electronic portal or in duplicate
+      reasoning: Electronic alternative offered alongside paper copies.
+      classification: unrelated
+    - citation: N.J.A.C. 8:43G-2.1
+      quote: facility shall retain copies of
+      reasoning: Record retention, not submission requirement.
+      classification: unrelated

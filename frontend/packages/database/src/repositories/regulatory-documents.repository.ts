@@ -1095,15 +1095,14 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
 
     // Text search on title (case-insensitive)
     if (filters.search) {
-      // Escape single quotes to prevent SQL injection
-      const escapedSearch = filters.search.replace(/'/g, "''");
-      conditions.push(sql.raw(`${docAlias}.title ILIKE '%${escapedSearch}%'`));
+      // Use parameterized query to prevent SQL injection
+      conditions.push(sql`${sql.raw(docAlias)}.title ILIKE ${'%' + filters.search + '%'}`);
     }
 
     // AI-generated metadata filters
     if (filters.sectionType && filters.sectionType !== 'all') {
-      const escapedType = filters.sectionType.replace(/'/g, "''");
-      conditions.push(sql.raw(`${docAlias}.section_type = '${escapedType}'`));
+      // Use parameterized query to prevent SQL injection
+      conditions.push(sql`${sql.raw(docAlias)}.section_type = ${filters.sectionType}`);
     }
 
     if (filters.hasForm === true) {
@@ -1120,8 +1119,8 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
 
     if (filters.keyword) {
       // Search within keywords array using PostgreSQL array contains
-      const escapedKeyword = filters.keyword.replace(/'/g, "''");
-      conditions.push(sql.raw(`'${escapedKeyword}' = ANY(${docAlias}.keywords)`));
+      // Use parameterized query to prevent SQL injection
+      conditions.push(sql`${filters.keyword} = ANY(${sql.raw(docAlias)}.keywords)`);
     }
 
     return conditions;

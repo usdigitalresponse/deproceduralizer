@@ -6,6 +6,7 @@ Run LLM tests: cd backend && pytest -m llm (requires API key)
 """
 import pytest
 import os
+import sys
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -126,28 +127,6 @@ class TestRedFlagsPrompt:
         )
         assert "MANDATED_STEPS_NOT_OUTCOMES" in parts['system']
         assert "ADMINISTRATIVE_BURDENS" in parts['system']
-
-
-class TestSignaturePatterns:
-    """Test signature regex patterns."""
-
-    def test_tier1_patterns(self):
-        import re
-        from search_nj_signatures import TIER1_TERMS
-
-        # Should match wet signature language
-        test_text = "must provide an original signature on the form"
-        matched = any(re.search(term, test_text, re.IGNORECASE) for term in TIER1_TERMS)
-        assert matched
-
-    def test_tier4_patterns(self):
-        import re
-        from search_nj_signatures import TIER4_TERMS
-
-        # Should match general signature language
-        test_text = "the application must be signed by the applicant"
-        matched = any(re.search(term, test_text, re.IGNORECASE) for term in TIER4_TERMS)
-        assert matched
 
 
 # =============================================================================
@@ -293,29 +272,32 @@ class TestCLI:
 
     def test_batch_definitions_dryrun(self):
         import subprocess
+        backend_dir = Path(__file__).parent.parent
         result = subprocess.run(
-            ['python', 'scripts/batch_definitions.py', 'submit',
+            [sys.executable, 'scripts/batch_definitions.py', 'submit',
              '--state', 'NJ', '--title', '3A', '--limit', '1', '--dry-run'],
-            capture_output=True, text=True, cwd=str(__file__).replace('/tests/test_backend.py', '')
+            capture_output=True, text=True, cwd=str(backend_dir)
         )
         assert result.returncode == 0
         assert 'DRY RUN' in result.stdout
 
     def test_red_flags_dryrun(self):
         import subprocess
+        backend_dir = Path(__file__).parent.parent
         result = subprocess.run(
-            ['python', 'scripts/red_flags.py',
+            [sys.executable, 'scripts/red_flags.py',
              '--state', 'NJ', '--title', '3A', '--sample-size', '1', '--dry-run'],
-            capture_output=True, text=True, cwd=str(__file__).replace('/tests/test_backend.py', '')
+            capture_output=True, text=True, cwd=str(backend_dir)
         )
         assert result.returncode == 0
         assert 'DRY RUN' in result.stdout
 
     def test_run_pipeline_help(self):
         import subprocess
+        backend_dir = Path(__file__).parent.parent
         result = subprocess.run(
-            ['python', 'run_pipeline.py', '--help'],
-            capture_output=True, text=True, cwd=str(__file__).replace('/tests/test_backend.py', '')
+            [sys.executable, 'run_pipeline.py', '--help'],
+            capture_output=True, text=True, cwd=str(backend_dir)
         )
         assert result.returncode == 0
         assert '--state' in result.stdout

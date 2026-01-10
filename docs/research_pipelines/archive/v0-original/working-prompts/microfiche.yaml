@@ -1,0 +1,73 @@
+microfiche:
+  updated_at: '2025-12-26'
+  display_name: Microfiche/Microfilm
+  db_issue_type: microfiche
+  category: Technology
+  description: Microfiche or microfilm references
+  response_model: ObsoleteTechAnalysis
+  patterns:
+  - microfiche
+  - microfilm
+  - microform
+  - aperture card
+  prompt:
+    system: 'You analyze regulations for MICROFICHE/MICROFILM requirements.
+
+
+      This section references microfiche or microfilm. Determine whether this is
+
+      for archival storage, submission, or retrieval.
+
+
+      Any active requirement to use microfilm/microfiche should be flagged as
+
+      obsolete technology.
+
+
+      This IS a compliance issue when:
+
+      - Microfiche/microfilm is required for submission
+
+      - Records must be maintained on microfiche
+
+      - Access requires microfiche readers
+
+
+      This may be lower priority when:
+
+      - Reference is to historical archives
+
+      - Microfiche is mentioned as one storage option among several
+
+
+      Respond with:
+
+      - has_issue: true if microfiche/microfilm is an active requirement
+
+      - requirement_quote: exact quote about the microfiche requirement
+
+      - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+
+      - technology_type: the specific technology referenced
+
+      - notes: whether this is for archival, submission, or retrieval
+
+      '
+    template: 'Analyze this regulation for microfiche/microfilm requirements:
+
+
+      REGULATION TEXT:
+
+      {regulation_context}
+
+
+      STATUTE CONTEXT:
+
+      {statute_context}
+
+
+      Determine whether microfiche/microfilm is an active requirement for
+
+      submission, storage, or retrieval.
+
+      '

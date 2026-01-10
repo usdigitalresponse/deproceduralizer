@@ -34,7 +34,10 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from observability.types import LLMTraceContext
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 from difflib import SequenceMatcher
@@ -259,7 +262,13 @@ def log_extraction(source_index: int, definitions_found: int):
             conn.close()
 
 
-def extract_with_llm(content: str, title: str, client=None, max_retries: int = 3) -> List[Dict]:
+def extract_with_llm(
+    content: str,
+    title: str,
+    client=None,
+    max_retries: int = 3,
+    trace_context: Optional["LLMTraceContext"] = None,
+) -> List[Dict]:
     """Extract definitions using LLM with Pydantic structured output (sync)."""
     if client is None:
         client = get_openai_client()
@@ -274,7 +283,8 @@ def extract_with_llm(content: str, title: str, client=None, max_retries: int = 3
         prompt=prompt,
         response_format=DefinitionsResponse,
         model=MODEL_VERSION,
-        max_retries=max_retries
+        max_retries=max_retries,
+        trace_context=trace_context,
     )
 
     if parsed is None:
@@ -283,7 +293,13 @@ def extract_with_llm(content: str, title: str, client=None, max_retries: int = 3
     return [d.model_dump() for d in parsed.definitions]
 
 
-async def extract_with_llm_async(content: str, title: str, client=None, max_retries: int = 3) -> List[Dict]:
+async def extract_with_llm_async(
+    content: str,
+    title: str,
+    client=None,
+    max_retries: int = 3,
+    trace_context: Optional["LLMTraceContext"] = None,
+) -> List[Dict]:
     """Extract definitions using LLM with Pydantic structured output (async)."""
     if client is None:
         client = get_async_openai_client()
@@ -293,12 +309,13 @@ async def extract_with_llm_async(content: str, title: str, client=None, max_retr
     # Combine system and user for non-batch calls
     prompt = f"{parts['system']}\n\n{parts['user']}" if parts.get('system') else parts['user']
 
-    parsed = await call_llm_parse_async(
+    parsed, _ = await call_llm_parse_async(
         client=client,
         prompt=prompt,
         response_format=DefinitionsResponse,
         model=MODEL_VERSION,
-        max_retries=max_retries
+        max_retries=max_retries,
+        trace_context=trace_context,
     )
 
     if parsed is None:

@@ -6,6 +6,7 @@ Scrapes regulations from Cornell LII's New Jersey regulations section.
 Adapted from ny_regulations_scraper.py for NJ-specific patterns.
 """
 
+import logging
 import requests
 from bs4 import BeautifulSoup
 import json
@@ -21,6 +22,8 @@ import subprocess
 import signal
 import shutil
 from typing import Optional, Dict, Tuple
+
+logger = logging.getLogger(__name__)
 
 # Add parent directory to path for config import
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -878,11 +881,14 @@ class FullPipeline:
                 self.caffeinate_proc.terminate()
                 self.caffeinate_proc.wait(timeout=5)
                 print("Caffeinate stopped")
-            except:
+            except subprocess.TimeoutExpired as e:
+                logger.warning(f"Process termination timed out, attempting forceful kill: {e}")
                 try:
                     self.caffeinate_proc.kill()
-                except:
-                    pass
+                except (ProcessLookupError, OSError) as kill_err:
+                    logger.warning(f"Failed to kill caffeinate process: {type(kill_err).__name__}: {kill_err}")
+            except (ProcessLookupError, OSError) as e:
+                logger.warning(f"Error stopping caffeinate: {type(e).__name__}: {e}")
 
     def setup_signal_handlers(self):
         def signal_handler(sig, frame):

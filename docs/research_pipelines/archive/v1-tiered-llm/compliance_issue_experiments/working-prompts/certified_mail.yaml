@@ -1,0 +1,84 @@
+certified_mail:
+  updated_at: '2025-12-26'
+  display_name: Certified/Registered Mail
+  db_issue_type: certified_mail
+  category: Communication
+  description: Certified or registered mail required
+  response_model: CertifiedMailAnalysis
+  patterns:
+  - certified mail
+  - registered mail
+  - return receipt
+  - delivery confirmation
+  - postmarked by
+  - proof of mailing
+  - certificate of mailing
+  - by certified
+  - via certified
+  prompt:
+    system: 'You analyze regulations for CERTIFIED/REGISTERED MAIL requirements.
+
+
+      This section references certified or registered mail. Determine whether this
+
+      requirement serves a clear legal purpose (e.g., establishing a legally significant
+
+      deadline, serving legal notice where proof of delivery is required by statute).
+
+
+      If the certified mail requirement appears to be for routine correspondence where
+
+      regular mail or email would suffice, flag it. If there''s a clear legal rationale
+
+      for proof of delivery, this may be a false positive.
+
+
+      This IS a compliance issue when:
+
+      - Certified/registered mail is required for routine correspondence
+
+      - The requirement appears to add unnecessary burden
+
+      - Regular mail or electronic communication would suffice
+
+
+      This may NOT be a compliance issue when there''s clear legal rationale:
+
+      - Establishing a legally significant deadline (e.g., appeal periods)
+
+      - Serving legal notice where proof of delivery is required by statute
+
+      - Formal contract termination or legal process requirements
+
+
+      Respond with:
+
+      - has_issue: true if requirement appears unnecessary, false if clear legal rationale exists
+
+      - requirement_quote: exact quote about the mail requirement
+
+      - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+
+      - legal_rationale: the legal purpose if one is apparent
+
+      - notes: any additional context
+
+      '
+    template: 'Analyze this regulation for certified/registered mail requirements:
+
+
+      REGULATION TEXT:
+
+      {regulation_context}
+
+
+      STATUTE CONTEXT:
+
+      {statute_context}
+
+
+      Determine whether the certified mail requirement serves a clear legal purpose
+
+      or appears to be unnecessary burden for routine correspondence.
+
+      '

@@ -30,7 +30,18 @@ import {
   DEFINITIONS_SORT_BY_VALUES,
   REFERENCE_COMPLETENESS_VALUES,
   REFERENCE_TARGET_VALUES,
+  TIER_FILTER_VALUES,
+  FEDERAL_MANDATE_FILTER_VALUES,
+  HAS_ANALYSIS_FILTER_VALUES,
+  CLASSIFICATION_FILTER_VALUES,
+  ANALYSIS_SORT_BY_VALUES,
+  PIPELINE_SEVERITY_FILTER_VALUES,
+  SEVERITY_CHANGED_FILTER_VALUES,
+  TIER3_FINDING_FILTER_VALUES,
+  TIER3_TRIGGER_FILTER_VALUES,
+  EASY_CLEANUP_FILTER_VALUES,
 } from './values';
+import { ISSUE_TYPE_LABELS } from '@/types/regulation';
 
 // ============================================
 // Helper to create filter options from value arrays
@@ -264,3 +275,192 @@ export const HAS_IBR_FILTER_OPTIONS = [
   { value: 'all', label: 'All' },
   { value: 'true', label: 'Has External Standards (IBR)' },
 ] as const;
+
+// ============================================
+// Analysis Tier Options (Research Pipeline)
+// ============================================
+
+// V5: 3 tiers. '4' kept for legacy V4 data.
+const TIER_FILTER_LABELS: Record<(typeof TIER_FILTER_VALUES)[number], string> = {
+  all: 'All Tiers',
+  '0': 'Not Analyzed',
+  '1': 'Tier 1 (Match Filtering)',
+  '2': 'Tier 2 (Full Classification)',
+  '3': 'Tier 3 (Web Search)',
+  '4': 'Tier 4 (V4 Legacy)',
+};
+
+export const TIER_FILTER_OPTIONS = createFilterOptions(TIER_FILTER_VALUES, TIER_FILTER_LABELS);
+
+const FEDERAL_MANDATE_LABELS: Record<(typeof FEDERAL_MANDATE_FILTER_VALUES)[number], string> = {
+  all: 'All',
+  true: 'Federal Mandate Found',
+  false: 'No Federal Mandate',
+};
+
+export const FEDERAL_MANDATE_FILTER_OPTIONS = createFilterOptions(FEDERAL_MANDATE_FILTER_VALUES, FEDERAL_MANDATE_LABELS);
+
+const HAS_ANALYSIS_LABELS: Record<(typeof HAS_ANALYSIS_FILTER_VALUES)[number], string> = {
+  all: 'All',
+  true: 'Has Analysis',
+  false: 'Not Analyzed',
+};
+
+export const HAS_ANALYSIS_FILTER_OPTIONS = createFilterOptions(HAS_ANALYSIS_FILTER_VALUES, HAS_ANALYSIS_LABELS);
+
+// Classification filter options (alphabetized after 'all')
+const CLASSIFICATION_LABELS: Record<(typeof CLASSIFICATION_FILTER_VALUES)[number], string> = {
+  all: 'All Classifications',
+  all_false_positives: 'False Positives',
+  burdensome: 'Burdensome',
+  justified: 'Justified',
+  needs_full_context: 'Needs Full Context',
+  needs_research: 'Needs Research',
+  unrelated: 'Unrelated',
+};
+
+export const CLASSIFICATION_FILTER_OPTIONS = createFilterOptions(CLASSIFICATION_FILTER_VALUES, CLASSIFICATION_LABELS);
+
+// Sort options for analysis table
+const ANALYSIS_SORT_LABELS: Record<(typeof ANALYSIS_SORT_BY_VALUES)[number], string> = {
+  createdAt: 'Date Created',
+  severity: 'Severity',
+  issueType: 'Issue Type',
+  highestTier: 'Highest Tier',
+};
+
+export const ANALYSIS_SORT_OPTIONS = createFilterOptions(ANALYSIS_SORT_BY_VALUES, ANALYSIS_SORT_LABELS);
+
+// Pipeline run filter (whether the research pipeline has actually processed the item)
+export const PIPELINE_RUN_FILTER_OPTIONS = [
+  { value: 'all', label: 'All' },
+  { value: 'true', label: 'Pipeline Run' },
+  { value: 'false', label: 'Not Run' },
+];
+
+// ============================================
+// Issue Type Options (alphabetized by label)
+// ============================================
+
+// Generate issue type options sorted alphabetically by label
+export const ISSUE_TYPE_FILTER_OPTIONS: FilterOption[] = [
+  { value: 'all', label: 'All Issue Types' },
+  ...Object.entries(ISSUE_TYPE_LABELS)
+    .sort(([, a], [, b]) => a.localeCompare(b))
+    .map(([value, label]) => ({ value, label })),
+];
+
+// ============================================
+// Tier 3 Analysis Filters (V5 Pipeline)
+// ============================================
+
+// Pipeline severity filter (includes 'none' for null values)
+const PIPELINE_SEVERITY_LABELS: Record<(typeof PIPELINE_SEVERITY_FILTER_VALUES)[number], string> = {
+  all: 'All Severities',
+  high: 'High (7-10)',
+  medium: 'Medium (4-6)',
+  low: 'Low (1-3)',
+  none: 'No Severity',
+};
+
+export const PIPELINE_SEVERITY_FILTER_OPTIONS = createFilterOptions(
+  PIPELINE_SEVERITY_FILTER_VALUES,
+  PIPELINE_SEVERITY_LABELS
+);
+
+// Severity changed filter (Tier 3 adjustment)
+const SEVERITY_CHANGED_LABELS: Record<(typeof SEVERITY_CHANGED_FILTER_VALUES)[number], string> = {
+  all: 'All',
+  increased: 'Severity Increased',
+  decreased: 'Severity Decreased',
+  unchanged: 'No Change',
+  no_tier3: 'No Tier 3',
+};
+
+export const SEVERITY_CHANGED_FILTER_OPTIONS = createFilterOptions(
+  SEVERITY_CHANGED_FILTER_VALUES,
+  SEVERITY_CHANGED_LABELS
+);
+
+// Federal mandate confirmed filter (Tier 3 flag)
+const FEDERAL_MANDATE_CONFIRMED_LABELS: Record<(typeof TIER3_FINDING_FILTER_VALUES)[number], string> = {
+  all: 'All',
+  true: 'Mandate Confirmed',
+  false: 'No Mandate',
+  no_tier3: 'No Tier 3',
+};
+
+export const FEDERAL_MANDATE_CONFIRMED_FILTER_OPTIONS = createFilterOptions(
+  TIER3_FINDING_FILTER_VALUES,
+  FEDERAL_MANDATE_CONFIRMED_LABELS
+);
+
+// State discretion filter (Tier 3 flag)
+const STATE_DISCRETION_LABELS: Record<(typeof TIER3_FINDING_FILTER_VALUES)[number], string> = {
+  all: 'All',
+  true: 'Has Discretion',
+  false: 'No Discretion',
+  no_tier3: 'No Tier 3',
+};
+
+export const STATE_DISCRETION_FILTER_OPTIONS = createFilterOptions(
+  TIER3_FINDING_FILTER_VALUES,
+  STATE_DISCRETION_LABELS
+);
+
+// Alternative found filter (Tier 3 flag)
+const ALTERNATIVE_FOUND_LABELS: Record<(typeof TIER3_FINDING_FILTER_VALUES)[number], string> = {
+  all: 'All',
+  true: 'Alternative Found',
+  false: 'No Alternative',
+  no_tier3: 'No Tier 3',
+};
+
+export const ALTERNATIVE_FOUND_FILTER_OPTIONS = createFilterOptions(
+  TIER3_FINDING_FILTER_VALUES,
+  ALTERNATIVE_FOUND_LABELS
+);
+
+// Evidence gap filter (Tier 3 flag)
+const EVIDENCE_GAP_LABELS: Record<(typeof TIER3_FINDING_FILTER_VALUES)[number], string> = {
+  all: 'All',
+  true: 'Evidence Gap',
+  false: 'Evidence Found',
+  no_tier3: 'No Tier 3',
+};
+
+export const EVIDENCE_GAP_FILTER_OPTIONS = createFilterOptions(
+  TIER3_FINDING_FILTER_VALUES,
+  EVIDENCE_GAP_LABELS
+);
+
+// Tier 3 trigger filter (based on routing.py triggers)
+const TIER3_TRIGGER_LABELS: Record<(typeof TIER3_TRIGGER_FILTER_VALUES)[number], string> = {
+  all: 'All',
+  high_risk_issue: 'High-Risk Issue Type',
+  federal_citation: 'Federal Citation',
+  no_alternative: 'No Alternative Claim',
+  high_severity: 'High Severity (≥8)',
+  controversial: 'Controversial Justified',
+  mandate_suspected: 'Mandate Suspected',
+  not_triggered: 'Not Triggered',
+};
+
+export const TIER3_TRIGGER_FILTER_OPTIONS = createFilterOptions(
+  TIER3_TRIGGER_FILTER_VALUES,
+  TIER3_TRIGGER_LABELS
+);
+
+// V5.1: Easy cleanup filter (for quick cleanup opportunities)
+const EASY_CLEANUP_LABELS: Record<(typeof EASY_CLEANUP_FILTER_VALUES)[number], string> = {
+  all: 'All',
+  any: 'Any Easy Fix',
+  trivial: '🎯 Trivial',
+  easy: '✨ Easy',
+  medium: '📋 Medium',
+};
+
+export const EASY_CLEANUP_FILTER_OPTIONS = createFilterOptions(
+  EASY_CLEANUP_FILTER_VALUES,
+  EASY_CLEANUP_LABELS
+);

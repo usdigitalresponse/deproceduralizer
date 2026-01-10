@@ -1,0 +1,79 @@
+newspaper:
+  updated_at: '2025-12-26'
+  display_name: Newspaper Publication
+  db_issue_type: newspaper
+  category: Technology
+  description: Newspaper publication required
+  response_model: BaseComplianceAnalysis
+  patterns:
+  - newspaper of general circulation
+  - publish.{0,20}newspaper
+  - published.{0,20}newspaper
+  - newspaper.{0,10}notice
+  - newspaper.{0,10}publication
+  - legal.{0,5}notice
+  - local newspaper
+  - official newspaper
+  prompt:
+    system: 'You analyze regulations for PRINT NEWSPAPER PUBLICATION requirements.
+
+
+      This section requires publication in a print newspaper. Determine whether
+
+      online publication is accepted as an alternative or supplement.
+
+
+      If print newspaper publication is required without online alternatives, flag it.
+
+      Note that some legal notice requirements may be statutory and require legislative
+
+      change.
+
+
+      This IS a compliance issue when:
+
+      - Print newspaper is the only publication method
+
+      - Online publication is not mentioned as alternative
+
+      - The requirement appears administrative rather than statutory
+
+
+      This is NOT a compliance issue when:
+
+      - Online publication is also accepted
+
+      - Statute specifically requires newspaper publication
+
+      - Both print and online are mentioned
+
+
+      Respond with:
+
+      - has_issue: true if print newspaper is required without online alternative
+
+      - requirement_quote: exact quote about the publication requirement
+
+      - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+
+      - notes: any mention of online publication alternatives
+
+      '
+    template: 'Analyze this regulation for newspaper publication requirements:
+
+
+      REGULATION TEXT:
+
+      {regulation_context}
+
+
+      STATUTE CONTEXT:
+
+      {statute_context}
+
+
+      Determine whether online publication is accepted as an alternative to
+
+      print newspaper.
+
+      '

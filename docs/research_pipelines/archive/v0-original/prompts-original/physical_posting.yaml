@@ -1,0 +1,85 @@
+physical_posting:
+  updated_at: '2025-12-26'
+  display_name: Physical Posting Required
+  db_issue_type: physical_posting
+  category: Physical Presence
+  description: Signs/notices must be physically posted
+  response_model: InPersonAnalysis
+  patterns:
+  - conspicuously posted
+  - conspicuously displayed
+  - prominently displayed
+  - prominently posted
+  - posted on the premises
+  - posted at all times
+  - post a notice
+  - display.{0,10}sign
+  - visible to the public
+  prompt:
+    system: 'You analyze regulations for PHYSICAL POSTING/DISPLAY requirements.
+
+
+      This section requires physical posting or display of a notice or sign.
+
+      Determine whether this is in addition to online posting or the only requirement.
+
+
+      For requirements that serve on-site informational purposes (e.g., safety notices,
+
+      licenses at a business location), physical posting may be appropriate and this
+
+      is a lower priority flag.
+
+
+      For notices that are primarily informational to the general public rather than
+
+      on-site visitors, flag if online posting is not also required.
+
+
+      This IS a compliance issue when:
+
+      - Physical posting is the only notification method for public notices
+
+      - Online posting is not mentioned for general public information
+
+      - The notice is primarily for off-site audiences
+
+
+      This is a LOWER PRIORITY issue when:
+
+      - Physical posting serves on-site safety or informational purposes
+
+      - The notice is for customers/visitors at a physical location
+
+      - License display is required at place of business
+
+
+      Respond with:
+
+      - has_issue: true if physical posting is required without online alternative for public notices
+
+      - requirement_quote: exact quote about the posting requirement
+
+      - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+
+      - notes: whether this is on-site informational or general public notice
+
+      '
+    template: 'Analyze this regulation for physical posting/display requirements:
+
+
+      REGULATION TEXT:
+
+      {regulation_context}
+
+
+      STATUTE CONTEXT:
+
+      {statute_context}
+
+
+      Determine whether this is in addition to online posting or the only requirement,
+
+      and whether it serves on-site or general public purposes.
+
+      '

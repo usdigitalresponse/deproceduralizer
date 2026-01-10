@@ -1,0 +1,65 @@
+letterhead:
+  updated_at: '2026-01-03'
+  display_name: Letterhead Required
+  db_issue_type: letterhead
+  category: Document Format
+  description: 'Documents must be submitted on official letterhead, preventing electronic submission and
+    requiring printed stationery. This burdens: citizens who lack formal letterhead for personal matters;
+    small businesses without printed stationery; solo professionals who must purchase letterhead supplies;
+    and government staff verifying letterhead authenticity when digital signatures or verification would
+    suffice.'
+  positive_indicators:
+  - Letterhead required, preventing electronic submission
+  - Digital signature or verification not accepted as alternative
+  - Requirement appears formality rather than authentication
+  - '"on letterhead" explicit requirement'
+  - No electronic submission option
+  negative_indicators:
+  - Electronic submission with digital signature permitted
+  - Letterhead is optional or "preferred"
+  - Clear identification purpose
+  - '"or electronic submission" alternative'
+  - Letterhead serves legitimate verification need
+  severity_baseline: 4
+  severity_modifiers:
+    increases:
+    - '+1: No electronic alternative'
+    - '+1: Routine correspondence'
+    - '+1: Prevents electronic submission'
+    decreases:
+    - '-2: Electronic submission permitted'
+    - '-1: Clear identification purpose'
+    - '-1: Letterhead is optional'
+  patterns:
+  - on letterhead
+  - official letterhead
+  - company letterhead
+  - agency letterhead
+  statistics:
+    total_matches: 48
+    true_positives: 43
+    true_positive_rate: 89.58
+    sample_date: '2026-01-01'
+  examples:
+    true_positives:
+    - citation: N.J.A.C. 13:45A-7.4
+      quote: letter shall be on company letterhead
+      reasoning: Letterhead requirement prevents email submission.
+      classification: burdensome
+      severity: 4
+    - citation: N.J.A.C. 8:43-2.2
+      quote: request on official letterhead of the facility
+      reasoning: Facility letterhead required. Could use email.
+      classification: burdensome
+      severity: 4
+    false_positives:
+    - citation: N.J.A.C. 17:1-1.1
+      quote: on letterhead or via electronic submission
+      reasoning: Electronic option offered.
+      classification: unrelated
+    justified:
+    - citation: N.J.A.C. 13:69-1.4
+      quote: financial institution letterhead for verification
+      reasoning: Bank verification. Letterhead serves authentication.
+      classification: justified
+      severity: 2

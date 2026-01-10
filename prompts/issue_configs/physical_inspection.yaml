@@ -1,0 +1,73 @@
+physical_inspection:
+  updated_at: '2026-01-03'
+  display_name: Physical Inspection Location
+  db_issue_type: physical_inspection
+  category: Physical Presence
+  description: 'Documents must be available for public inspection at a physical location only, without
+    online access. This limits transparency for: citizens who cannot travel to inspect records; researchers
+    and journalists investigating public matters; businesses monitoring regulatory filings; and particularly
+    excludes rural residents, disabled individuals, elderly with mobility issues, workers who cannot visit
+    during business hours, and anyone outside the geographic area. Online posting would dramatically expand
+    public access.'
+  positive_indicators:
+  - Physical inspection is the only access method
+  - Documents could reasonably be posted online
+  - Online access is not mentioned
+  - '"during business hours" limits accessibility'
+  - Public records without web access
+  negative_indicators:
+  - Online access is also provided
+  - Documents contain security-sensitive information
+  - Physical inspection is in addition to online
+  - '"available on the website" or similar'
+  - Genuinely requires physical inspection (large maps, samples)
+  severity_baseline: 4
+  severity_modifiers:
+    increases:
+    - '+1: No online access mentioned'
+    - '+1: Public interest documents'
+    - '+1: Limited hours for inspection'
+    decreases:
+    - '-2: Online access available'
+    - '-1: Security-sensitive materials'
+    - '-1: Documents too large/complex for online'
+  patterns:
+  - available for public inspection
+  - public inspection
+  - open to inspection
+  - maintain for inspection
+  - available for review at
+  - during business hours
+  statistics:
+    total_matches: 242
+    true_positives: 118
+    true_positive_rate: 48.76
+    sample_date: '2026-01-01'
+  examples:
+    true_positives:
+    - citation: N.J.A.C. 7:7A-12.5
+      quote: available for public inspection at the regional office
+      reasoning: Physical inspection only. Could post online.
+      classification: burdensome
+      severity: 4
+    - citation: N.J.A.C. 5:10-4.3
+      quote: records maintained for inspection during business hours
+      reasoning: Limited hours physical access only.
+      classification: burdensome
+      severity: 4
+    false_positives:
+    - citation: N.J.A.C. 7:1-6.2
+      quote: available for inspection at offices and on website
+      reasoning: Online access equally available.
+      classification: unrelated
+    - citation: N.J.A.C. 13:69-1.7
+      quote: security plans available for inspection by authorized personnel
+      reasoning: Security-sensitive. Cannot be public online.
+      classification: justified
+      severity: 2
+    justified:
+    - citation: N.J.A.C. 7:26-2.3
+      quote: large-format engineering plans available for inspection
+      reasoning: Large physical plans. Online impractical.
+      classification: justified
+      severity: 2

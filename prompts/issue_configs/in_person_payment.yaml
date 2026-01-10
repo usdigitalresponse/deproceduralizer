@@ -1,0 +1,65 @@
+in_person_payment:
+  updated_at: '2026-01-03'
+  display_name: In-Person Payment
+  db_issue_type: in_person_payment
+  category: Payment
+  description: 'Payment must be made in person at a physical location rather than by mail or online, requiring
+    travel and waiting. This affects: citizens paying fees for permits, licenses, or services related
+    to home purchases or childcare; businesses paying regulatory fees; professionals renewing credentials;
+    government staff operating payment windows; and particularly vulnerable populations including elderly
+    with mobility limitations, disabled individuals, rural residents far from offices, those without reliable
+    transportation, and workers who cannot take time during business hours.'
+  positive_indicators:
+  - In-person payment required without clear rationale
+  - Online or mail payment would reasonably work
+  - In-person requirement appears legacy rather than purposeful
+  - '"pay in person" without alternatives'
+  - No mail or electronic payment option
+  negative_indicators:
+  - In-person payment combined with required inspection or ID verification
+  - Stated rationale for physical presence
+  - Online/mail payment is also offered as alternative
+  - '"or online" or "or by mail" alternatives'
+  - Payment at time of in-person service (reasonable)
+  severity_baseline: 4
+  severity_modifiers:
+    increases:
+    - '+1: No alternative payment method'
+    - '+1: Large payment amounts'
+    - '+1: Remote location'
+    decreases:
+    - '-2: Combined with necessary in-person activity'
+    - '-1: Online option available'
+    - '-1: Mail option available'
+  patterns:
+  - pay in person
+  - payment in person
+  - in.{0,3}person.{0,10}payment
+  statistics:
+    total_matches: 0
+    true_positives: 0
+    true_positive_rate: null
+    sample_date: '2026-01-01'
+    note: No matches in current database - patterns may need expansion
+  examples:
+    true_positives:
+    - citation: Example
+      quote: fees must be paid in person at the cashier window
+      reasoning: In-person payment required. Could be online.
+      classification: burdensome
+      severity: 4
+    false_positives:
+    - citation: Example
+      quote: pay in person at time of inspection
+      reasoning: Payment during required inspection. Reasonable.
+      classification: unrelated
+    - citation: Example
+      quote: pay in person, by mail, or online
+      reasoning: Multiple options. In-person is not required.
+      classification: unrelated
+    justified:
+    - citation: Example
+      quote: in-person payment with ID verification for large transactions
+      reasoning: Security for large amounts. Identity verification.
+      classification: justified
+      severity: 2

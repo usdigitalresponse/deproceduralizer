@@ -4,6 +4,7 @@ pydantic>=2.0.0
 python-dotenv>=1.0.0
 pyyaml>=6.0.0
 pytest>=7.0.0
+pytest-cov>=4.0.0
 dspy-ai>=2.5.0
 anthropic>=0.39.0
 fastapi>=0.115.0
@@ -11,3 +12,5 @@ uvicorn>=0.32.0
 # Local summarization dependencies
 aiohttp>=3.9.0
 psycopg[binary]>=3.1.0
+# Observability/cost tracking
+langfuse>=2.0.0

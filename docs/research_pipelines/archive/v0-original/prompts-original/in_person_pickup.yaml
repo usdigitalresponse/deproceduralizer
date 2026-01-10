@@ -1,0 +1,73 @@
+in_person_pickup:
+  updated_at: '2025-12-26'
+  display_name: In-Person Pickup
+  db_issue_type: in_person_pickup
+  category: Physical Presence
+  description: Must pick up in person
+  response_model: InPersonAnalysis
+  patterns:
+  - pick up in person
+  - picked up in person
+  - available for pickup
+  - available.{0,10}pick.{0,3}up
+  prompt:
+    system: 'You analyze regulations for IN-PERSON PICKUP requirements.
+
+
+      This section requires documents or permits to be picked up in person. Determine
+
+      whether there is a rationale for physical pickup (e.g., identity verification,
+
+      physical item like a license plate).
+
+
+      If the item could reasonably be mailed or delivered electronically, flag it.
+
+
+      This IS a compliance issue when:
+
+      - Document/permit could be mailed or emailed
+
+      - No clear rationale for physical pickup
+
+      - Identity verification could be done through other means
+
+
+      This is NOT a compliance issue when:
+
+      - Item is physical and cannot be mailed (e.g., license plates)
+
+      - Identity verification requires in-person photo ID check
+
+      - Mailing is also offered as an alternative
+
+
+      Respond with:
+
+      - has_issue: true if item could reasonably be mailed/delivered electronically
+
+      - requirement_quote: exact quote about the pickup requirement
+
+      - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+
+      - notes: any stated rationale for in-person pickup
+
+      '
+    template: 'Analyze this regulation for in-person pickup requirements:
+
+
+      REGULATION TEXT:
+
+      {regulation_context}
+
+
+      STATUTE CONTEXT:
+
+      {statute_context}
+
+
+      Determine whether there is a rationale for physical pickup or if
+
+      mailing/electronic delivery would work.
+
+      '

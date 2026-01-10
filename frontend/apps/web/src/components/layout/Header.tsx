@@ -13,7 +13,9 @@ import {
   getGlobalNavItems,
   getNavHref,
   isNavActive,
+  NAV_GROUPS,
 } from '@/lib/constants/navigation';
+import { NavDropdown } from './NavDropdown';
 
 interface HeaderProps {
   className?: string;
@@ -28,7 +30,7 @@ export function Header({ className = '' }: HeaderProps) {
 
   return (
     <>
-      <header className={`sticky top-0 z-[var(--z-sticky)] ${className}`}>
+      <header className={`sticky top-0 z-[var(--z-sticky)] ${className}`} data-print-hide>
         {/* Official bar */}
         <div className="bg-[var(--color-primary)] text-white">
           <Container size="2xl">
@@ -72,27 +74,63 @@ export function Header({ className = '' }: HeaderProps) {
 
               {/* Desktop Navigation - hidden on mobile */}
               <nav className="hidden md:flex items-center gap-1">
-                {stateNavItems.map((item) => {
-                  const href = getNavHref(item, currentState);
-                  const isActive = isNavActive(item, pathname, currentState);
+                {/* Explorer Group */}
+                <NavDropdown
+                  label={NAV_GROUPS.explorer.label}
+                  icon={NAV_GROUPS.explorer.icon}
+                  items={stateNavItems
+                    .filter(item => item.groupId === 'explorer')
+                    .map(item => ({
+                      key: item.key,
+                      label: item.label,
+                      href: getNavHref(item, currentState),
+                      isActive: isNavActive(item, pathname, currentState),
+                      icon: item.icon,
+                    }))
+                  }
+                />
 
-                  return (
-                    <Link
-                      key={item.key}
-                      href={href}
-                      className={`
-                        px-3 py-2 text-sm font-medium rounded-[var(--radius-md)]
-                        transition-colors duration-[var(--duration-fast)]
-                        ${isActive
-                          ? 'bg-[var(--color-primary-weaker)] text-[var(--color-primary)]'
-                          : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-[var(--color-neutral-100)]'
-                        }
-                      `}
-                    >
-                      {item.label}
-                    </Link>
-                  );
-                })}
+                {/* Review Mode - Direct Link Since only one item */}
+                {stateNavItems
+                  .filter(item => item.groupId === 'review')
+                  .map((item) => {
+                    const href = getNavHref(item, currentState);
+                    const isActive = isNavActive(item, pathname, currentState);
+
+                    return (
+                      <Link
+                        key={item.key}
+                        href={href}
+                        className={`
+                          px-3 py-2 text-sm font-medium rounded-[var(--radius-md)]
+                          transition-colors duration-[var(--duration-fast)]
+                          ${isActive
+                            ? 'bg-[var(--color-primary-weaker)] text-[var(--color-primary)]'
+                            : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-[var(--color-neutral-100)]'
+                          }
+                        `}
+                      >
+                        {item.label}
+                      </Link>
+                    );
+                  })
+                }
+
+                {/* Metrics Group */}
+                <NavDropdown
+                  label={NAV_GROUPS.metrics.label}
+                  icon={NAV_GROUPS.metrics.icon}
+                  items={stateNavItems
+                    .filter(item => item.groupId === 'metrics')
+                    .map(item => ({
+                      key: item.key,
+                      label: item.label,
+                      href: getNavHref(item, currentState),
+                      isActive: isNavActive(item, pathname, currentState),
+                      icon: item.icon,
+                    }))
+                  }
+                />
 
                 {/* Divider */}
                 {globalNavItems.length > 0 && (

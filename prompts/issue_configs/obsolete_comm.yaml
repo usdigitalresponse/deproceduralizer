@@ -1,0 +1,64 @@
+obsolete_comm:
+  updated_at: '2026-01-03'
+  display_name: Obsolete Communication
+  db_issue_type: obsolete_comm
+  category: Communication
+  description: 'Obsolete communication technology (telegram, telex, pager, beeper) is referenced as a
+    permitted or required method. This creates confusion for: citizens trying to understand compliance
+    requirements; businesses interpreting outdated rules; government staff applying regulations that reference
+    unavailable technology; and anyone uncertain whether modern alternatives are acceptable.'
+  positive_indicators:
+  - Reference is to ACTIVE requirement for current processes
+  - Regulation relies on obsolete technology that should be updated
+  - '"by telegram" or "by telex" submission requirement'
+  - Pager/beeper listed as required contact method
+  - No modern alternative mentioned
+  negative_indicators:
+  - Reference is historical or definitional
+  - Exemption clause ("except for telegrams sent before...")
+  - Part of a list that includes modern alternatives
+  - '"or other electronic means" modern alternative'
+  - Definition section describing technology
+  severity_baseline: 4
+  severity_modifiers:
+    increases:
+    - '+2: Active submission requirement'
+    - '+1: Technology completely unavailable'
+    - '+1: No modern alternative'
+    decreases:
+    - '-3: Historical/definitional reference'
+    - '-1: Modern alternatives listed'
+    - '-1: Exemption clause'
+  patterns:
+  - telegram
+  - telegraph
+  - \btelex\b
+  - \bpager\b
+  - \bbeeper\b
+  statistics:
+    total_matches: 47
+    true_positives: 28
+    true_positive_rate: 59.57
+    sample_date: '2026-01-01'
+  examples:
+    true_positives:
+    - citation: N.J.A.C. 10:90-3.3
+      quote: notification by pager to on-call staff
+      reasoning: Pager required for notification. Obsolete.
+      classification: burdensome
+      severity: 4
+    - citation: N.J.A.C. 8:43G-14.6
+      quote: contact via beeper or telephone
+      reasoning: Beeper listed as option. Should be cell phone.
+      classification: burdensome
+      severity: 3
+    false_positives:
+    - citation: N.J.A.C. 17:12-1.4
+      quote: telegrams received before 1980
+      reasoning: Historical reference. Not active requirement.
+      classification: unrelated
+    - citation: N.J.A.C. 52:1-1.1
+      quote: telegram, as defined in N.J.S.A.
+      reasoning: Definition section. Not requirement.
+      classification: unrelated
+    justified: []

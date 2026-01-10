@@ -1,6 +1,6 @@
 'use client';
 
-import type { ComplianceIssueWithContext, ComplianceIssueStatusCounts } from '@deproceduralizer/database';
+import type { ComplianceIssueWithAnalysis, ComplianceIssueStatusCounts } from '@deproceduralizer/database';
 import type { SuggestionBatchResult } from '@/lib/actions/compliance-issues';
 import type { QueueModeValue, GroupingModeValue, BatchSizeValue } from '@/lib/constants/values';
 import { ReviewProgress } from './ReviewProgress';
@@ -33,7 +33,7 @@ interface BaseProps {
 
 interface FilterModeProps extends BaseProps {
   mode: 'filter';
-  initialIssues: ComplianceIssueWithContext[];
+  initialIssues: ComplianceIssueWithAnalysis[];
   pagination: PaginationInfo;
   initialBatch?: never;
   fetchBatch?: never;
@@ -71,7 +71,7 @@ const EMPTY_BATCH: SuggestionBatchResult = {
 const EMPTY_FETCH = async (): Promise<SuggestionBatchResult> => EMPTY_BATCH;
 
 // Stable empty references for filter mode fallback (prevents infinite re-renders)
-const EMPTY_ITEMS: ComplianceIssueWithContext[] = [];
+const EMPTY_ITEMS: ComplianceIssueWithAnalysis[] = [];
 const EMPTY_PAGINATION: PaginationInfo = { page: 1, pageSize: 10, total: 0, totalPages: 0 };
 
 export function ComplianceReviewQueue(props: ComplianceReviewQueueProps) {
@@ -88,7 +88,7 @@ export function ComplianceReviewQueue(props: ComplianceReviewQueueProps) {
   // =====================
   // Filter Mode Hooks
   // =====================
-  const filterQueue = useQueue<ComplianceIssueWithContext, ComplianceIssueStatusCounts>({
+  const filterQueue = useQueue<ComplianceIssueWithAnalysis, ComplianceIssueStatusCounts>({
     initialItems: filterProps.initialIssues,
     initialCounts: statusCounts,
     getItemId: (i) => i.id,

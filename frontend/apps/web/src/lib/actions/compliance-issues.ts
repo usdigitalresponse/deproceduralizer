@@ -1,7 +1,7 @@
 'use server';
 
 import 'server-only';
-import { unstable_cache } from 'next/cache';
+import { updateTag, unstable_cache } from 'next/cache';
 import {
   db,
   ComplianceIssuesRepository,
@@ -10,8 +10,9 @@ import {
   type ReviewStatus,
   type ImpactType,
   type ComplianceIssue,
-  type ComplianceIssueWithContext,
+  type ComplianceIssueWithAnalysis,
   type PaginatedComplianceIssuesResult,
+  type TierCompletionCounts,
 } from '@deproceduralizer/database';
 import { expandContext } from '@/lib/utils/expandContext';
 import { type ActionResult, success, failure, getErrorMessage } from './types';
@@ -59,9 +60,11 @@ export async function updateComplianceIssueReview(
       return failure(`Compliance issue with id ${input.id} not found`);
     }
 
-    // Don't revalidate - client manages queue state locally via optimistic updates.
-    // Revalidation would cause server to re-fetch with stale URL params,
+    // Revalidate the status counts cache but not the full pages.
+    // Don't use revalidatePath - client manages queue state locally via optimistic updates.
+    // Path revalidation would cause server to re-fetch with stale URL params,
     // breaking suggestion mode batch behavior.
+    updateTag('compliance-issues');
     return success(result);
   } catch (error) {
     console.error('[updateComplianceIssueReview]', error);
@@ -139,6 +142,7 @@ export interface ComplianceIssueStatusCounts {
 
 /**
  * Gets counts of compliance issues grouped by review status for a state.
+ * Cached for 2 minutes to reduce database traffic.
  * @param state - The state code (e.g., 'NY', 'NJ')
  * @returns Object with counts per status and total
  */
@@ -146,7 +150,12 @@ export async function getComplianceIssueStatusCounts(
   state: StateCode
 ): Promise<ActionResult<ComplianceIssueStatusCounts>> {
   try {
-    const result = await complianceIssuesRepo.getCountsByStatus(state);
+    const cachedGetStatusCounts = unstable_cache(
+      () => complianceIssuesRepo.getCountsByStatus(state),
+      [`compliance-issue-status-counts-${state}`],
+      { revalidate: 120, tags: ['compliance-issues'] } // 2 minutes
+    );
+    const result = await cachedGetStatusCounts();
     return success(result);
   } catch (error) {
     console.error('[getComplianceIssueStatusCounts]', error);
@@ -212,6 +221,9 @@ export async function getComplianceIssuesPaginated(
       severity?: 'high' | 'medium' | 'low' | 'all';
       requiredByStatute?: boolean | 'all';
       requirementFound?: boolean | 'all';
+      tierCompleted?: '0' | '1' | '2' | '3' | '4' | 'all';
+      federalMandate?: boolean | 'all';
+      hasAnalysis?: boolean | 'all';
     };
   }
 ): Promise<ActionResult<PaginatedComplianceIssuesResult>> {
@@ -228,6 +240,9 @@ export async function getComplianceIssuesPaginated(
         severity: options.filters.severity,
         requiredByStatute: options.filters.requiredByStatute,
         requirementFound: options.filters.requirementFound,
+        tierCompleted: options.filters.tierCompleted,
+        federalMandate: options.filters.federalMandate,
+        hasAnalysis: options.filters.hasAnalysis,
       } : undefined,
     });
     return success(result);
@@ -273,7 +288,7 @@ export async function getExpandedContext(
  * Result type for suggestion batch queries
  */
 export interface SuggestionBatchResult {
-  data: ComplianceIssueWithContext[];
+  data: ComplianceIssueWithAnalysis[];
   groupingMode: 'issue_type' | 'section' | 'combined';
   focus: { issueType?: string; section?: string; pattern?: string };
   remainingInFocus: number;
@@ -316,6 +331,24 @@ export async function getComplianceSuggestionBatch(
     return success(result);
   } catch (error) {
     console.error('[getComplianceSuggestionBatch]', error);
+    return failure(getErrorMessage(error));
+  }
+}
+
+/**
+ * Gets counts of compliance issues by analysis tier completion.
+ * Useful for showing pipeline progress statistics.
+ * @param state - The state code (e.g., 'NY', 'NJ')
+ * @returns Object with counts per tier level (0 = not analyzed)
+ */
+export async function getAnalysisTierCounts(
+  state: StateCode
+): Promise<ActionResult<TierCompletionCounts>> {
+  try {
+    const result = await complianceIssuesRepo.getAnalysisTierCounts(state);
+    return success(result);
+  } catch (error) {
+    console.error('[getAnalysisTierCounts]', error);
     return failure(getErrorMessage(error));
   }
 }

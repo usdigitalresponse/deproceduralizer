@@ -1,11 +1,13 @@
 'use client';
 
 import * as RadixSelect from '@radix-ui/react-select';
-import { forwardRef } from 'react';
+import { forwardRef, type ReactNode } from 'react';
 
 export interface SelectOption {
   value: string;
   label: string;
+  // Allow extending with additional properties
+  [key: string]: unknown;
 }
 
 interface SelectProps {
@@ -19,6 +21,8 @@ interface SelectProps {
   name?: string;
   'aria-label'?: string;
   'data-testid'?: string;
+  /** Custom renderer for option items. If not provided, uses option.label */
+  renderOption?: (option: SelectOption) => ReactNode;
 }
 
 /**
@@ -40,6 +44,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
     name,
     'aria-label': ariaLabel,
     'data-testid': dataTestId,
+    renderOption,
   }, ref) => {
     return (
       <RadixSelect.Root
@@ -114,7 +119,9 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
                     data-[disabled]:pointer-events-none
                   "
                 >
-                  <RadixSelect.ItemText>{option.label}</RadixSelect.ItemText>
+                  <RadixSelect.ItemText>
+                    {renderOption ? renderOption(option) : option.label}
+                  </RadixSelect.ItemText>
                   <RadixSelect.ItemIndicator className="absolute right-2">
                     <CheckIcon />
                   </RadixSelect.ItemIndicator>

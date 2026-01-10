@@ -1,0 +1,93 @@
+in_person_submission:
+  updated_at: '2026-01-03'
+  display_name: In-Person Submission
+  db_issue_type: in_person_submission
+  category: Physical Presence
+  description: 'Physical presence is required for document submission that could reasonably be handled
+    by mail or electronically. This creates significant burden by requiring travel and waiting for: citizens
+    applying for permits, licenses, benefits, or documents for home purchases and childcare; businesses
+    filing compliance documents; professionals maintaining credentials; government staff managing intake
+    windows; and particularly vulnerable populations including elderly with limited mobility, disabled
+    individuals, rural residents far from offices, youth without transportation, low-income people who
+    cannot take time off work, and caregivers with inflexible schedules.'
+  positive_indicators:
+  - '"in person only" - very high precision indicator of required physical presence'
+  - '"must appear in person" or "shall appear in person" without alternatives'
+  - '"must hand-deliver" or "shall hand-deliver" (no mail/electronic option)'
+  - Document submission that could reasonably be mailed or electronic
+  - No clear rationale stated for requiring physical presence
+  - No mail or electronic alternative mentioned in surrounding context
+  negative_indicators:
+  - '"allowed to appear" or "right to appear" describes rights, not requirements'
+  - '"or" follows the in-person term (indicates alternatives exist)'
+  - '"no personal appearances" is a prohibition, not a requirement'
+  - '"hand deliver OR mail" or "hand deliver OR submit" (alternatives offered)'
+  - Physical presence genuinely necessary (fingerprinting, physical inspection, oath)
+  - In-person is one option among several including mail/electronic
+  - Executive orders or rules ADDING electronic options (reducing burden)
+  severity_baseline: 5
+  severity_modifiers:
+    increases:
+    - '+1: No alternative (mail/electronic) mentioned anywhere'
+    - '+1: Affects vulnerable populations (elderly, disabled, rural)'
+    - '+1: High-volume process where many people must appear'
+    - '+1: Limited office hours or locations'
+    decreases:
+    - '-1: Statutory requirement mandates appearance'
+    - '-2: Physical presence genuinely necessary (fingerprinting, physical sample)'
+    - '-1: Identity verification that cannot be done remotely'
+  patterns:
+  - submit.{0,10}in person
+  - in.{0,3}person.{0,10}submission
+  - personal appearance
+  - in person.{0,10}only
+  - (must|shall|required).{0,15}appear.{0,10}in person
+  - (must|shall).{0,10}hand.{0,3}deliver
+  patterns_to_remove:
+  - appear in person
+  - hand.{0,3}deliver
+  exclusion_patterns:
+  - allowed to appear (granting permission, not requiring)
+  - right to appear (describing rights)
+  - '''or'' within 30 chars (alternatives exist)'
+  - '''no'' or ''not'' precedes match (prohibition)'
+  statistics:
+    total_matches: 126
+    true_positives: 28
+    true_positive_rate: 22.22
+    sample_date: '2026-01-01'
+  examples:
+    true_positives:
+    - citation: 6 NYCRR 63.2
+      quote: Applicants must possess a valid hunting license and may apply in person only
+      reasoning: The phrase 'in person only' explicitly requires physical presence with no alternative.
+      classification: burdensome
+      severity: 6
+    - citation: 9 NYCRR 52.2
+      quote: The applicant must appear in person on the date set forth
+      reasoning: Board hearing requirement mandates physical appearance without remote option.
+      classification: burdensome
+      severity: 5
+    false_positives:
+    - citation: N.J.A.C. 10A:5-2.6
+      quote: the inmate shall be allowed to appear in person
+      reasoning: This ALLOWS appearance, doesn't require it. 'allowed to' grants a right.
+      classification: unrelated
+    - citation: N.J.A.C. 13:46-23.6
+      quote: hand deliver or mail
+      reasoning: Explicitly offers mail as alternative to hand delivery. Not burdensome.
+      classification: unrelated
+    - citation: N.J.A.C. 16:1A-4.2
+      quote: hand-delivered, mailed, or electronically
+      reasoning: Three options offered including electronic. Not in-person required.
+      classification: unrelated
+    - citation: 15 NYCRR 82.15
+      quote: No personal appearances will be allowed
+      reasoning: This is a PROHIBITION on personal appearances, not a requirement.
+      classification: unrelated
+    justified:
+    - citation: N.J.A.C. 13:59-2.1
+      quote: applicant must appear in person for fingerprinting
+      reasoning: Fingerprinting genuinely requires physical presence - cannot be done remotely.
+      classification: justified
+      severity: 3

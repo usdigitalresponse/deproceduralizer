@@ -10,7 +10,10 @@ import time
 import json
 import asyncio
 from pathlib import Path
-from typing import Optional, Type, Any, Dict
+from typing import Optional, Type, Any, Dict, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from observability.types import LLMTraceContext
 import yaml
 import psycopg
 from psycopg import Connection
@@ -373,7 +376,7 @@ def format_time(seconds: float) -> str:
 # ============================================================================
 
 # Default model
-DEFAULT_MODEL = "claude-haiku-4-5-20251001"
+DEFAULT_MODEL = "claude-sonnet-4-5-20250929"
 
 
 def get_openai_client(api_key: Optional[str] = None) -> anthropic.Anthropic:
@@ -448,6 +451,7 @@ def call_llm_parse(
     max_retries: int = 3,
     max_tokens: int = 64000,
     system: Optional[str] = None,
+    trace_context: Optional["LLMTraceContext"] = None,
 ) -> Optional[BaseModel]:
     """
     Call Anthropic API with structured output (Pydantic model via tool_use).
@@ -462,6 +466,7 @@ def call_llm_parse(
         max_retries: Number of retries on failure (default: 3)
         max_tokens: Max output tokens (default: 64000 for Claude 4.5 models)
         system: Optional system prompt (cached across requests)
+        trace_context: Optional LLMTraceContext for observability logging
 
     Returns:
         Parsed Pydantic model instance, or None if all retries fail
@@ -490,8 +495,10 @@ def call_llm_parse(
         ]
 
     for attempt in range(max_retries):
+        start_time = time.time()
         try:
             response = client.messages.create(**request_kwargs)
+            latency_ms = (time.time() - start_time) * 1000
 
             # Check for truncation due to max_tokens
             if response.stop_reason == "max_tokens":
@@ -507,6 +514,14 @@ def call_llm_parse(
                     tool_use = block
                     break
 
+            # Extract usage for logging
+            usage = {
+                "input_tokens": getattr(response.usage, "input_tokens", 0),
+                "output_tokens": getattr(response.usage, "output_tokens", 0),
+                "cache_read_tokens": getattr(response.usage, "cache_read_input_tokens", 0),
+                "cache_write_tokens": getattr(response.usage, "cache_creation_input_tokens", 0),
+            }
+
             if tool_use is None:
                 print(
                     f"      ⚠️  No tool_use in response (attempt {attempt + 1}/{max_retries})"
@@ -516,15 +531,25 @@ def call_llm_parse(
                     continue
                 else:
                     print(f"      ❌ All {max_retries} attempts failed to get tool_use")
+                    # Log failure if trace_context provided
+                    if trace_context:
+                        _log_llm_call(trace_context, model, prompt, "", usage, latency_ms, success=False, error_message="No tool_use in response")
                     return None
 
             # Parse the tool input with Pydantic
             parsed = response_format.model_validate(tool_use.input)
             if attempt > 0:
                 print(f"      ✅ Retry succeeded on attempt {attempt + 1}")
+
+            # Log success if trace_context provided
+            if trace_context:
+                output_text = parsed.model_dump_json() if parsed else ""
+                _log_llm_call(trace_context, model, prompt, output_text, usage, latency_ms, success=True)
+
             return parsed
 
         except Exception as e:
+            latency_ms = (time.time() - start_time) * 1000
             print(
                 f"      ⚠️  API error: {type(e).__name__}: {e} "
                 f"(attempt {attempt + 1}/{max_retries})"
@@ -533,18 +558,56 @@ def call_llm_parse(
                 time.sleep(2)
                 continue
             print(f"      ❌ All {max_retries} attempts failed")
+            # Log failure if trace_context provided
+            if trace_context:
+                _log_llm_call(trace_context, model, prompt, "", {}, latency_ms, success=False, error_message=str(e))
             return None
 
     return None
 
 
+def _log_llm_call(
+    trace_context: "LLMTraceContext",
+    model: str,
+    input_text: str,
+    output_text: str,
+    usage: Dict,
+    latency_ms: float,
+    success: bool = True,
+    error_message: Optional[str] = None,
+) -> None:
+    """Helper to log LLM calls to Langfuse if available."""
+    try:
+        from observability.langfuse_client import log_generation
+        log_generation(
+            context=trace_context,
+            name="call_llm_parse",
+            model=model,
+            input_text=input_text,
+            output_text=output_text,
+            input_tokens=usage.get("input_tokens", 0),
+            output_tokens=usage.get("output_tokens", 0),
+            latency_ms=latency_ms,
+            success=success,
+            error_message=error_message,
+            cache_read_tokens=usage.get("cache_read_tokens", 0),
+            cache_write_tokens=usage.get("cache_write_tokens", 0),
+        )
+    except ImportError:
+        pass  # Observability not available
+    except Exception:
+        pass  # Don't let logging errors break the main flow
+
+
 def format_batch_request(
     custom_id: str,
     prompt: str,
-    response_format: Type[BaseModel],
+    response_format: Type[BaseModel] = None,
     model: str = None,
     system: str = None,
     max_tokens: int = 64000,
+    user_cached_prefix: str = None,
+    tools: list[dict] = None,
 ) -> dict:
     """
     Format a single request for Anthropic Message Batches API submission.
@@ -553,42 +616,71 @@ def format_batch_request(
 
     Args:
         custom_id: Unique identifier for matching results (e.g., "doc_12345")
-        prompt: User prompt/message
-        response_format: Pydantic model for structured output
+        prompt: User prompt/message (document-specific content)
+        response_format: Pydantic model for structured output (mutually exclusive with tools)
         model: Model name (default: DEFAULT_MODEL)
         system: Optional system message (static, cached across requests)
+        user_cached_prefix: Optional prefix for user message that's shared across
+            requests (e.g., issue config, batch context). Gets cache_control applied.
+        tools: Optional list of tool definitions (e.g., web_search). When provided,
+            response_format is ignored and model decides when to use tools.
 
     Returns:
         Dict formatted for client.beta.messages.batches.create()
 
-    Example with caching:
-        parts = load_prompt_parts("definition_extraction", title=title, content=content)
+    Example with structured output (Pydantic model):
         request = format_batch_request(
             custom_id=f"doc_{doc_id}",
             prompt=parts['user'],
             response_format=DefinitionsResponse,
-            system=parts['system'],  # Cached across all requests in batch
+            system=parts['system'],
         )
 
-    Example without system (backwards compatible):
+    Example with server tools (e.g., web search):
         request = format_batch_request(
-            custom_id=f"doc_{doc_id}",
-            prompt=load_prompt("red_flags_analysis", ...),
-            response_format=RegulationAnalysis
+            custom_id=f"tier3_{unit_id}",
+            prompt=tier3_prompt,
+            system=system_prompt,
+            tools=[web_search_tool],  # Model decides when to search
         )
     """
     if model is None:
         model = DEFAULT_MODEL
 
-    tool = _pydantic_to_tool_schema(response_format)
+    # Build user message content
+    if user_cached_prefix:
+        # Use multi-part content with cache_control on the shared prefix
+        user_content = [
+            {
+                "type": "text",
+                "text": user_cached_prefix,
+                "cache_control": {"type": "ephemeral"}
+            },
+            {
+                "type": "text",
+                "text": prompt,
+            }
+        ]
+    else:
+        user_content = prompt
 
     params = {
         "model": model,
         "max_tokens": max_tokens,
-        "messages": [{"role": "user", "content": prompt}],
-        "tools": [tool],
-        "tool_choice": {"type": "tool", "name": tool["name"]},
+        "messages": [{"role": "user", "content": user_content}],
     }
+
+    # Add tools - either server tools (like web_search) or structured output tool
+    if tools:
+        # Server tools (e.g., web_search) - model decides when to use them
+        params["tools"] = tools
+        # Don't set tool_choice - let model decide when to search
+    elif response_format:
+        # Structured output via Pydantic model
+        tool = _pydantic_to_tool_schema(response_format)
+        params["tools"] = [tool]
+        params["tool_choice"] = {"type": "tool", "name": tool["name"]}
+    # If neither tools nor response_format, no tools in request
 
     # Add system message with cache_control for prompt caching
     # See: https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching
@@ -615,7 +707,8 @@ async def call_llm_parse_async(
     max_retries: int = 3,
     system: Optional[str] = None,
     max_tokens: int = 64000,
-) -> Optional[BaseModel]:
+    trace_context: Optional[dict] = None,
+) -> tuple[Optional[BaseModel], dict]:
     """
     Call Anthropic API async with structured output (Pydantic model via tool_use).
 
@@ -628,10 +721,11 @@ async def call_llm_parse_async(
         model: Model name (default: DEFAULT_MODEL)
         max_retries: Number of retries on failure (default: 3)
         system: Optional system prompt (cached across batch requests)
-        max_tokens: Max output tokens (default: 8192)
+        max_tokens: Max output tokens (default: 64000)
+        trace_context: Optional Langfuse trace context for observability
 
     Returns:
-        Parsed Pydantic model instance, or None if all retries fail
+        Tuple of (parsed Pydantic model instance or None, usage dict with token counts)
     """
     if model is None:
         model = DEFAULT_MODEL
@@ -657,8 +751,10 @@ async def call_llm_parse_async(
         ]
 
     for attempt in range(max_retries):
+        start_time = time.time()
         try:
             response = await client.messages.create(**request_kwargs)
+            latency_ms = (time.time() - start_time) * 1000
 
             # Check for truncation due to max_tokens
             if response.stop_reason == "max_tokens":
@@ -674,24 +770,42 @@ async def call_llm_parse_async(
                     tool_use = block
                     break
 
+            # Extract usage from response
+            usage = {
+                "input_tokens": getattr(response.usage, "input_tokens", 0),
+                "output_tokens": getattr(response.usage, "output_tokens", 0),
+                "cache_read_tokens": getattr(response.usage, "cache_read_input_tokens", 0),
+                "cache_write_tokens": getattr(response.usage, "cache_creation_input_tokens", 0),
+            }
+
             if tool_use is None:
                 print(
                     f"      ⚠️  No tool_use in response (attempt {attempt + 1}/{max_retries})"
                 )
+                # Log failure if trace_context provided
+                if trace_context:
+                    _log_llm_call(trace_context, model, prompt, "", usage, latency_ms, success=False, error_message="No tool_use in response")
                 if attempt < max_retries - 1:
                     await asyncio.sleep(2)
                     continue
                 else:
                     print(f"      ❌ All {max_retries} attempts failed to get tool_use")
-                    return None
+                    return None, usage
 
             # Parse the tool input with Pydantic
             parsed = response_format.model_validate(tool_use.input)
             if attempt > 0:
                 print(f"      ✅ Retry succeeded on attempt {attempt + 1}")
-            return parsed
+
+            # Log success if trace_context provided
+            if trace_context:
+                output_text = parsed.model_dump_json() if parsed else ""
+                _log_llm_call(trace_context, model, prompt, output_text, usage, latency_ms, success=True)
+
+            return parsed, usage
 
         except Exception as e:
+            latency_ms = (time.time() - start_time) * 1000
             print(
                 f"      ⚠️  API error: {type(e).__name__}: {e} "
                 f"(attempt {attempt + 1}/{max_retries})"
@@ -700,9 +814,125 @@ async def call_llm_parse_async(
                 await asyncio.sleep(2)
                 continue
             print(f"      ❌ All {max_retries} attempts failed")
-            return None
+            # Log failure if trace_context provided
+            if trace_context:
+                _log_llm_call(trace_context, model, prompt, "", {}, latency_ms, success=False, error_message=str(e))
+            return None, {"input_tokens": 0, "output_tokens": 0, "cache_read_tokens": 0, "cache_write_tokens": 0}
 
-    return None
+    return None, {"input_tokens": 0, "output_tokens": 0, "cache_read_tokens": 0, "cache_write_tokens": 0}
+
+
+async def call_llm_beta_async(
+    client: anthropic.AsyncAnthropic,
+    prompt: str,
+    system: str,
+    tools: list[dict],
+    model: str = None,
+    max_retries: int = 3,
+    max_tokens: int = 64000,
+    betas: list[str] = None,
+    output_format: dict = None,
+    cache_ttl: str = "1h",
+) -> tuple[Any, dict]:
+    """
+    Call Anthropic Beta API async with support for structured outputs and web search.
+
+    This function extends call_llm_parse_async to support beta features like:
+    - Structured outputs (output_format parameter)
+    - Web search tool
+    - Other beta features via betas parameter
+
+    Handles retries with exponential backoff automatically.
+
+    Args:
+        client: AsyncAnthropic client instance
+        prompt: User prompt/message
+        system: System prompt (required, will be cached)
+        tools: List of tool definitions (e.g., web search tool)
+        model: Model name (default: DEFAULT_MODEL)
+        max_retries: Number of retries on failure (default: 3)
+        max_tokens: Max output tokens (default: 64000 for Claude 4.5 models)
+        betas: List of beta features to enable (e.g., ["structured-outputs-2025-11-13"])
+        output_format: Structured output format spec (for beta structured outputs)
+        cache_ttl: Cache TTL for system prompt (default: "1h")
+
+    Returns:
+        Tuple of (API response object, usage dict).
+        Usage dict has: input_tokens, output_tokens, cache_read_tokens, cache_write_tokens.
+        Returns (None, {}) if all retries fail.
+    """
+    if model is None:
+        model = DEFAULT_MODEL
+
+    # Build request kwargs
+    request_kwargs = {
+        "model": model,
+        "max_tokens": max_tokens,
+        "system": [{
+            "type": "text",
+            "text": system,
+            "cache_control": {"type": "ephemeral", "ttl": cache_ttl}
+        }],
+        "messages": [{"role": "user", "content": prompt}],
+        "tools": tools,
+    }
+
+    # Add beta features if specified
+    if betas:
+        request_kwargs["betas"] = betas
+
+    # Add structured output format if specified
+    if output_format:
+        request_kwargs["output_format"] = output_format
+
+    for attempt in range(max_retries):
+        start_time = time.time()
+        try:
+            response = await client.beta.messages.create(**request_kwargs)
+
+            # Check for truncation due to max_tokens
+            if response.stop_reason == "max_tokens":
+                print(
+                    f"      ⚠️  Response truncated (stop_reason=max_tokens). "
+                    f"Output may be incomplete."
+                )
+
+            if attempt > 0:
+                print(f"      ✅ Retry succeeded on attempt {attempt + 1}")
+
+            # Extract token usage from response
+            usage = response.usage
+            input_tokens = usage.input_tokens if usage else 0
+            output_tokens = usage.output_tokens if usage else 0
+            cache_read = getattr(usage, 'cache_read_input_tokens', 0) or 0
+            cache_write = getattr(usage, 'cache_creation_input_tokens', 0) or 0
+
+            # Return response with usage dict for cost tracking
+            usage_dict = {
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "cache_read_tokens": cache_read,
+                "cache_write_tokens": cache_write,
+            }
+            return response, usage_dict
+
+        except Exception as e:
+            wait_time = 2 ** attempt  # Exponential backoff: 1s, 2s, 4s
+
+            print(
+                f"      ⚠️  API error: {type(e).__name__}: {e} "
+                f"(attempt {attempt + 1}/{max_retries})"
+            )
+
+            if attempt < max_retries - 1:
+                print(f"      Retrying in {wait_time}s...")
+                await asyncio.sleep(wait_time)
+                continue
+
+            print(f"      ❌ All {max_retries} attempts failed")
+            return None, {}
+
+    return None, {}
 
 
 # ============================================================================
@@ -849,7 +1079,7 @@ def migrate_regulations_to_db(state: str, regulations: list = None, reg_dir: Pat
                         try:
                             cur.close()
                             conn.close()
-                        except:
+                        except (psycopg.Error, AttributeError):
                             pass
                         conn = get_db_connection()
                         cur = conn.cursor()
@@ -890,7 +1120,8 @@ def populate_parent_ids(state: str, regulations: list = None, reg_dir: Path = No
                 psi = data.get('parent_source_index')
                 if si is not None:
                     parent_mappings[si] = psi
-            except:
+            except (json.JSONDecodeError, OSError, KeyError) as e:
+                print(f"  Warning: Failed to load {filepath.name}: {type(e).__name__}")
                 continue
     elif regulations is not None:
         print(f"Loading {state} parent mappings from {len(regulations)} regulations...")
@@ -907,7 +1138,12 @@ def populate_parent_ids(state: str, regulations: list = None, reg_dir: Path = No
     roots = sum(1 for v in parent_mappings.values() if v is None)
     print(f"  {len(parent_mappings):,} docs, {with_parents:,} have parents, {roots:,} are roots")
 
-    with get_db_connection() as conn:
+    conn = get_db_connection()
+    if conn is None:
+        print("✗ Failed to connect to database (DATABASE_URL not set?)")
+        return
+
+    with conn:
         with conn.cursor() as cur:
             cur.execute("""
                 SELECT id, source_index FROM regulatory_documents
@@ -958,7 +1194,8 @@ def cleanup_stale_documents(state: str, valid_source_indices: set = None, reg_di
                 si = data.get('source_index')
                 if si is not None:
                     valid_source_indices.add(si)
-            except:
+            except (json.JSONDecodeError, OSError, KeyError) as e:
+                print(f"  Warning: Failed to load {filepath.name}: {type(e).__name__}")
                 continue
     elif valid_source_indices is None:
         print("✗ No valid_source_indices or reg_dir provided")
@@ -966,7 +1203,12 @@ def cleanup_stale_documents(state: str, valid_source_indices: set = None, reg_di
 
     print(f"  {len(valid_source_indices):,} valid documents")
 
-    with get_db_connection() as conn:
+    conn = get_db_connection()
+    if conn is None:
+        print("✗ Failed to connect to database (DATABASE_URL not set?)")
+        return
+
+    with conn:
         with conn.cursor() as cur:
             cur.execute("""
                 SELECT id, source_index FROM regulatory_documents
@@ -1320,6 +1562,19 @@ class BatchManager:
             with open(batch_dir / 'batch_info.json', 'w') as f:
                 json.dump(batch_info, f, indent=2)
 
+            # Save requests for later retrieval (for Langfuse logging)
+            requests_file = batch_dir / 'requests.json'
+            with open(requests_file, 'w') as f:
+                json.dump({r['custom_id']: r for r in requests}, f, indent=2)
+
+            # Add batch_id -> directory mapping for fast lookup
+            mapping_file = self.batches_dir / 'batch_mapping.json'
+            mapping = {}
+            if mapping_file.exists():
+                mapping = json.loads(mapping_file.read_text())
+            mapping[batch_id] = str(batch_dir)
+            mapping_file.write_text(json.dumps(mapping, indent=2))
+
         return batch_id
 
     def list_active_batches(self) -> list[dict]:
@@ -1421,6 +1676,52 @@ class BatchManager:
                     return batch_dir
 
         return None
+
+    def load_requests(self, batch_id: str) -> dict:
+        """
+        Load original requests for a batch (for Langfuse logging).
+
+        Uses the batch_mapping.json index for fast lookup, with fallback to
+        directory scanning via find_batch_dir().
+
+        Args:
+            batch_id: Batch API ID (e.g., 'msgbatch_xxx')
+
+        Returns:
+            Dict mapping custom_id -> request dict, or empty dict if not found
+        """
+        if not self.batches_dir:
+            return {}
+
+        # Try fast lookup via mapping file
+        mapping_file = self.batches_dir / 'batch_mapping.json'
+        batch_dir = None
+
+        if mapping_file.exists():
+            try:
+                mapping = json.loads(mapping_file.read_text())
+                batch_dir_str = mapping.get(batch_id)
+                if batch_dir_str:
+                    batch_dir = Path(batch_dir_str)
+            except (json.JSONDecodeError, IOError):
+                pass  # Fall through to find_batch_dir
+
+        # Fallback to directory scanning
+        if batch_dir is None:
+            batch_dir = self.find_batch_dir(batch_id)
+
+        if batch_dir is None:
+            return {}
+
+        # Load requests file
+        requests_file = batch_dir / 'requests.json'
+        if not requests_file.exists():
+            return {}
+
+        try:
+            return json.loads(requests_file.read_text())
+        except (json.JSONDecodeError, IOError):
+            return {}
 
     def log_error(self, batch_dir: Path, custom_id: str, error_type: str, message: str):
         """

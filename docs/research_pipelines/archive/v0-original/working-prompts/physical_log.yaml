@@ -1,0 +1,78 @@
+physical_log:
+  updated_at: '2025-12-26'
+  display_name: Physical Log/Sign-in
+  db_issue_type: physical_log
+  category: Process
+  description: Physical log book or sign-in sheet required
+  response_model: BaseComplianceAnalysis
+  patterns:
+  - sign-in sheet
+  - sign in sheet
+  - log book
+  - \blogbook\b
+  - visitor log
+  - sign the register
+  - entry log
+  - written log
+  - daily log
+  prompt:
+    system: 'You analyze regulations for PHYSICAL LOG/SIGN-IN requirements.
+
+
+      This section requires a physical log or sign-in sheet. Determine whether the
+
+      logging could be accomplished electronically while serving the same purpose.
+
+
+      If physical paper logging is required where electronic logging would suffice,
+
+      flag it.
+
+
+      This IS a compliance issue when:
+
+      - Physical paper log is required
+
+      - Electronic logging would serve the same purpose
+
+      - No electronic alternative is mentioned
+
+
+      This is NOT a compliance issue when:
+
+      - Electronic logging is also permitted
+
+      - Physical log is a backup to electronic system
+
+      - Paper log serves a specific purpose electronic can''t (e.g., signature samples)
+
+
+      Respond with:
+
+      - has_issue: true if physical log required without electronic alternative
+
+      - requirement_quote: exact quote about the log requirement
+
+      - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+
+      - notes: whether electronic alternatives are mentioned
+
+      '
+    template: 'Analyze this regulation for physical logging requirements:
+
+
+      REGULATION TEXT:
+
+      {regulation_context}
+
+
+      STATUTE CONTEXT:
+
+      {statute_context}
+
+
+      Determine whether physical logging is required or if electronic logging
+
+      would suffice.
+
+      '

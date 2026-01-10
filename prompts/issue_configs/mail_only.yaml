@@ -1,0 +1,99 @@
+mail_only:
+  updated_at: '2026-01-03'
+  display_name: Mail-Only Submission
+  db_issue_type: mail_only
+  category: Communication
+  description: 'Mail is required as the ONLY submission method with no electronic alternative, adding
+    delays and costs to the submission process. This affects: citizens facing delays in time-sensitive
+    matters like home purchases, childcare applications, or benefit claims; businesses with compliance
+    deadlines; professionals filing documents; government staff processing paper submissions; and vulnerable
+    populations including rural residents with limited mail service, elderly who struggle with post office
+    trips, disabled individuals, and low-income people who cannot afford postage and printing costs.'
+  positive_indicators:
+  - '"shall submit by mail" or "must be mailed" with no alternatives mentioned'
+  - Only USPS/postal service mentioned for submission (no email, portal, electronic)
+  - '"mail only" or "submit by mail only" explicit restrictions'
+  - Submission address is a physical mailing address without online alternative
+  - Pattern "(applicant|petitioner|person) shall mail" indicates inbound requirement
+  - No mention of email, online portal, or electronic submission options in surrounding context
+  negative_indicators:
+  - Electronic alternative explicitly mentioned ("or electronically", "or via portal", "or email")
+  - '"may submit by mail OR" with alternatives listed'
+  - 'Mail is outbound (agency-to-applicant): "shall be mailed TO" or "mailed by [agency]"'
+  - '"or" appears within 30 characters of mail reference (indicates alternatives)'
+  - Mail is mentioned for contact info or general context, not submission requirement
+  - Reference to electronic filing system, online submission, or digital alternative
+  severity_baseline: 4
+  severity_modifiers:
+    increases:
+    - '+1: No alternative submission method mentioned anywhere in document'
+    - '+1: Time-sensitive deadline where mail delays are problematic'
+    - '+1: Requires certified/registered mail (additional cost burden)'
+    - '+1: Affects vulnerable populations or high-volume processes'
+    decreases:
+    - '-1: Statutory requirement (from_statute=true) mandates mail'
+    - '-1: Physical document authenticity genuinely needed (original signatures, chain of custody)'
+    - '-2: Security or legal constraints legitimately require physical submission'
+  patterns:
+  - must be mailed
+  - shall be mailed
+  - send by mail
+  - submit.{0,20}by mail
+  - mail.{0,10}only
+  - u\.?s\.?\s*mail
+  - \busps\b
+  - first.{0,10}class.{0,10}mail
+  - postal.{0,10}service
+  - postmarked by
+  - (applicant|petitioner|person).{0,20}(must|shall).{0,15}mail
+  - only.{0,10}by mail
+  patterns_to_remove: []
+  patterns_to_add:
+  - (applicant|petitioner|person).{0,20}(must|shall).{0,15}mail
+  - only.{0,10}by mail
+  exclusion_patterns:
+  - '''or'' within 30 chars of ''mail'' (indicates alternatives)'
+  - shall be mailed TO (outbound mail from agency)
+  - mailed by [agency name] (outbound mail)
+  - electronic|email|online|portal within 80 chars (alternative exists)
+  statistics:
+    total_matches: 347
+    true_positives: 124
+    true_positive_rate: 35.73
+    sample_date: '2026-01-01'
+  examples:
+    true_positives:
+    - citation: 9 NYCRR 10000.2
+      quote: must be mailed...via a mail carrier service that provides proof of date of mailing
+      reasoning: Requires mailing with proof of date, no electronic option visible. This is a true mail-only
+        requirement.
+      classification: burdensome
+      severity: 5
+    - citation: N.J.A.C. 13:45A-9.2
+      quote: Applications shall be submitted by mail to the Division office at 123 Main Street.
+      reasoning: Mandatory mail submission with no electronic alternative mentioned. Uses 'shall' indicating
+        requirement.
+      classification: burdensome
+      severity: 5
+    false_positives:
+    - citation: N.J.A.C. 13:45A-26F.12
+      quote: Notice...shall be mailed by OAL to both parties
+      reasoning: This is the government mailing TO parties, not a submission requirement. Outbound mail
+        is not burdensome to the public.
+      classification: unrelated
+    - citation: 20 NYCRR 473.1
+      quote: mailed or delivered/submitted
+      reasoning: Explicitly offers alternatives to mail ('or delivered/submitted'). Mail is optional,
+        not required.
+      classification: unrelated
+    - citation: 13 NYCRR 22.5
+      quote: mailed or submitted
+      reasoning: The word 'or' indicates alternatives exist. Electronic submission is implied.
+      classification: unrelated
+    justified:
+    - citation: N.J.A.C. 13:69D-1.5
+      quote: Original documents must be mailed for authentication as required by N.J.S.A. 52:7-1
+      reasoning: Mail requirement is mandated by state statute for authentication purposes. Physical originals
+        genuinely needed.
+      classification: justified
+      severity: 3

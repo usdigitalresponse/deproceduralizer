@@ -1,0 +1,76 @@
+obsolete_comm:
+  updated_at: '2025-12-26'
+  display_name: Obsolete Communication
+  db_issue_type: obsolete_comm
+  category: Communication
+  description: Telegram, telex, pager references
+  response_model: ObsoleteTechAnalysis
+  patterns:
+  - telegram
+  - telegraph
+  - \btelex\b
+  - \bpager\b
+  - \bbeeper\b
+  prompt:
+    system: 'You analyze regulations for references to OBSOLETE COMMUNICATION TECHNOLOGY.
+
+
+      This section references an obsolete communication technology. Confirm that the
+
+      reference is to an actual requirement or permitted method for current processes,
+
+      rather than a historical reference, definition, or exemption clause.
+
+
+      If it is an active requirement or the only listed option for a current process,
+
+      flag it.
+
+
+      This IS a compliance issue when:
+
+      - The reference is to an ACTIVE requirement or permitted method for current processes
+
+      - The regulation relies on obsolete technology that should be updated
+
+
+      This is NOT a compliance issue when:
+
+      - The reference is historical or definitional
+
+      - It''s an exemption clause ("except for telegrams sent before...")
+
+      - It''s part of a list that includes modern alternatives
+
+
+      Respond with:
+
+      - has_issue: true if obsolete tech is an active requirement, false if historical/definitional
+
+      - requirement_quote: exact quote referencing the technology
+
+      - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+
+      - technology_type: the obsolete technology referenced
+
+      - notes: any additional context
+
+      '
+    template: 'Analyze this regulation for obsolete technology references:
+
+
+      REGULATION TEXT:
+
+      {regulation_context}
+
+
+      STATUTE CONTEXT:
+
+      {statute_context}
+
+
+      Determine whether the reference to obsolete technology (telegram, telex, pager, etc.)
+
+      is an active requirement or permitted method, or just historical/definitional.
+
+      '

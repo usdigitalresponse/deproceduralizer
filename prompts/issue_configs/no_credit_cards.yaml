@@ -1,0 +1,60 @@
+no_credit_cards:
+  updated_at: '2026-01-03'
+  display_name: No Credit Cards
+  db_issue_type: no_credit_cards
+  category: Payment
+  description: 'Credit/debit cards are explicitly prohibited or not accepted, limiting payment options.
+    This burdens: citizens who prefer card convenience and consumer protections; businesses that primarily
+    use corporate cards; and particularly vulnerable populations including those building credit history
+    who need card transactions, unbanked individuals without easy alternatives, elderly unfamiliar with
+    other payment methods, and those who rely on cards for expense tracking or rewards.'
+  positive_indicators:
+  - Credit/debit cards are explicitly prohibited
+  - Electronic payment is explicitly excluded
+  - Only cash or check are listed as accepted methods
+  - '"no credit cards" or "credit cards not accepted"'
+  - Active prohibition in force
+  negative_indicators:
+  - Language is clearly outdated or superseded
+  - Other sections or current practice allow electronic payment
+  - Prohibition is for specific narrow purpose with rationale
+  - Just doesn't mention credit cards (not prohibition)
+  - Credit cards are accepted
+  severity_baseline: 5
+  severity_modifiers:
+    increases:
+    - '+1: Explicit prohibition'
+    - '+1: No electronic payment at all'
+    - '+1: Large payment amounts'
+    decreases:
+    - '-2: Other electronic options available (ACH)'
+    - '-1: Small fees where burden is minimal'
+    - '-1: Outdated language'
+  patterns:
+  - no credit cards?
+  - credit cards? not accepted
+  - cash or check only
+  - no electronic payment
+  statistics:
+    total_matches: 1
+    true_positives: 1
+    true_positive_rate: 100.0
+    sample_date: '2026-01-01'
+  examples:
+    true_positives:
+    - citation: N.J.A.C. 13:45A-9.2
+      quote: credit cards not accepted; cash or check only
+      reasoning: Explicit prohibition on credit cards.
+      classification: burdensome
+      severity: 5
+    false_positives:
+    - citation: N.J.A.C. 17:12-2.9
+      quote: payment by check
+      reasoning: Doesn't prohibit cards, just doesn't mention them.
+      classification: unrelated
+    justified:
+    - citation: N.J.A.C. 3:1-2.5
+      quote: no credit for escrow payments to avoid chargebacks
+      reasoning: Real estate escrow. Chargeback risk justifies.
+      classification: justified
+      severity: 3

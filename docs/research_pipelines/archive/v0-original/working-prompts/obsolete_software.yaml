@@ -1,0 +1,74 @@
+obsolete_software:
+  updated_at: '2025-12-26'
+  display_name: Obsolete Software/Format
+  db_issue_type: obsolete_software
+  category: Technology
+  description: WordPerfect, Lotus, DOS references
+  response_model: ObsoleteTechAnalysis
+  patterns:
+  - wordperfect
+  - \blotus\b
+  - \bdos\b
+  - \bdbase\b
+  - ascii.{0,10}format
+  prompt:
+    system: 'You analyze regulations for OBSOLETE SOFTWARE/FORMAT requirements.
+
+
+      This section references a specific software program or file format. Determine
+
+      whether the referenced software or format is obsolete.
+
+
+      If the regulation mandates a format that is no longer in common use or requires
+
+      proprietary software that is discontinued, flag it.
+
+
+      This IS a compliance issue when:
+
+      - Obsolete software is specifically required (WordPerfect, Lotus, etc.)
+
+      - Discontinued file formats are mandated
+
+      - The software/format is no longer commonly available
+
+
+      This is NOT a compliance issue when:
+
+      - The format is still in common use
+
+      - Multiple formats are accepted
+
+      - Modern equivalents are explicitly permitted
+
+
+      Respond with:
+
+      - has_issue: true if obsolete software/format is required
+
+      - requirement_quote: exact quote about the software/format requirement
+
+      - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+
+      - technology_type: the specific software or format referenced
+
+      - notes: any additional context
+
+      '
+    template: 'Analyze this regulation for obsolete software/format requirements:
+
+
+      REGULATION TEXT:
+
+      {regulation_context}
+
+
+      STATUTE CONTEXT:
+
+      {statute_context}
+
+
+      Determine whether the referenced software or format is obsolete.
+
+      '

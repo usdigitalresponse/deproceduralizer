@@ -47,42 +47,53 @@ test.describe('Data Preconditions', () => {
     await page.goto('/nj/review?type=compliance&queueMode=filter&reviewStatus=unreviewed');
     await expect(page.getByRole('heading', { name: /Review New Jersey/i })).toBeVisible();
 
-    // Wait for cards to load
-    await page.waitForLoadState('networkidle');
-
+    // Wait for compliance cards to load
     const cards = page.getByTestId('compliance-issue-card');
+    await expect(cards.first()).toBeVisible({ timeout: 10000 });
+
     const count = await cards.count();
 
-    expect(count, 'Expected at least 1 unreviewed compliance issue in NJ').toBeGreaterThan(0);
+    expect(
+      count,
+      `PRECONDITION FAILED: No unreviewed compliance issues in NJ.\n` +
+      `This will cause downstream tests to fail.\n` +
+      `Check: SELECT COUNT(*) FROM compliance_issues WHERE state='NJ' AND review_status='unreviewed'`
+    ).toBeGreaterThan(0);
   });
 
   test('NY has unreviewed red flags', async ({ page }) => {
     await page.goto('/ny/review?type=flags&reviewStatus=unreviewed');
     await expect(page.getByRole('heading', { name: /Review New York/i })).toBeVisible();
 
-    // Wait for cards to load
-    await page.waitForLoadState('networkidle');
-
+    // Wait for red flag cards to load
     const cards = page.getByTestId('red-flag-card');
+    await expect(cards.first()).toBeVisible({ timeout: 10000 });
+
     const count = await cards.count();
 
-    expect(count, 'Expected at least 1 unreviewed red flag in NY').toBeGreaterThan(0);
+    expect(
+      count,
+      `PRECONDITION FAILED: No unreviewed red flags in NY.\n` +
+      `This will cause downstream tests to fail.\n` +
+      `Check: SELECT COUNT(*) FROM red_flags WHERE state='NY' AND review_status='unreviewed'`
+    ).toBeGreaterThan(0);
   });
 
   test('NJ has LLM-rejected compliance issues (for section detail test)', async ({ page }) => {
     await page.goto('/nj/review?type=compliance&queueMode=filter&requirementFound=false');
     await expect(page.getByRole('heading', { name: /Review New Jersey/i })).toBeVisible();
 
-    // Wait for cards to load
-    await page.waitForLoadState('networkidle');
-
+    // Wait for cards to load - use a longer timeout for this specific data
     const cards = page.getByTestId('compliance-issue-card');
+    await expect(cards.first()).toBeVisible({ timeout: 15000 });
+
     const count = await cards.count();
 
     expect(
       count,
-      'Expected at least 1 LLM-rejected compliance issue (requirement_found=false) in NJ. ' +
-      'Run: SELECT COUNT(*) FROM compliance_issues WHERE requirement_found = false AND state = \'NJ\''
+      `PRECONDITION FAILED: No LLM-rejected compliance issues in NJ.\n` +
+      `This will cause the 'section detail does not display LLM-rejected issues' test to fail.\n` +
+      `Check: SELECT COUNT(*) FROM compliance_issues WHERE requirement_found = false AND state = 'NJ'`
     ).toBeGreaterThan(0);
   });
 

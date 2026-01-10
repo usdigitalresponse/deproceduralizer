@@ -1,0 +1,82 @@
+certified_mail:
+  updated_at: '2026-01-03'
+  display_name: Certified/Registered Mail
+  db_issue_type: certified_mail
+  category: Communication
+  description: 'Certified or registered mail is required, adding $5-15 per mailing plus post office visits
+    and tracking complexity. This burdens: citizens with time and cost for routine correspondence; businesses
+    with high-volume mailing costs; professionals meeting filing deadlines; government staff processing
+    return receipts; and vulnerable populations including elderly and disabled individuals who struggle
+    with post office access, and rural residents far from postal facilities. Email with read receipts
+    could replace most uses.'
+  positive_indicators:
+  - Certified mail required for routine correspondence
+  - No clear legal rationale for proof of delivery
+  - Regular mail or email would suffice for the purpose
+  - '"shall be sent by certified mail" without clear legal purpose'
+  - Return receipt required for non-legal-process communications
+  negative_indicators:
+  - Establishing legally significant deadline (appeal periods)
+  - Serving legal notice where proof of delivery required by statute
+  - Formal contract termination or legal process
+  - Adverse action requiring documented notice (termination, denial)
+  - '"or electronic delivery" offered as alternative'
+  - Statutory requirement mandates certified mail
+  severity_baseline: 4
+  severity_modifiers:
+    increases:
+    - '+1: No electronic alternative mentioned'
+    - '+1: Routine/administrative communication'
+    - '+1: High-volume process'
+    decreases:
+    - '-2: Clear legal rationale (legal notice, appeal deadline)'
+    - '-1: Statutory requirement'
+    - '-1: Electronic delivery permitted as alternative'
+  patterns:
+  - certified mail
+  - registered mail
+  - return receipt
+  - delivery confirmation
+  - postmarked by
+  - proof of mailing
+  - certificate of mailing
+  - by certified
+  - via certified
+  statistics:
+    total_matches: 902
+    true_positives: 362
+    true_positive_rate: 40.13
+    sample_date: '2026-01-01'
+  examples:
+    true_positives:
+    - citation: N.J.A.C. 10:51-1.7
+      quote: renewal reminder shall be sent by certified mail
+      reasoning: Routine renewal reminder doesn't require certified mail.
+      classification: burdensome
+      severity: 4
+    - citation: N.J.A.C. 8:43A-2.1
+      quote: Annual reports must be submitted by certified mail
+      reasoning: Annual reports could be submitted electronically.
+      classification: burdensome
+      severity: 5
+    false_positives:
+    - citation: N.J.A.C. 1:1-10.3
+      quote: appeal shall be sent by certified mail within 45 days
+      reasoning: Legal appeal deadline requires proof of mailing date. Justified.
+      classification: justified
+      severity: 2
+    - citation: N.J.A.C. 13:69D-1.12
+      quote: notice of license revocation shall be served by certified mail
+      reasoning: License revocation is adverse action requiring documented delivery.
+      classification: justified
+      severity: 2
+    - citation: N.J.A.C. 7:26-2.3
+      quote: notice may be sent by certified mail or electronic delivery
+      reasoning: Electronic alternative explicitly offered.
+      classification: unrelated
+    justified:
+    - citation: N.J.A.C. 1:1-8.5
+      quote: Service of process shall be by certified mail
+      reasoning: Legal process service requires documented delivery.
+      classification: justified
+      severity: 2

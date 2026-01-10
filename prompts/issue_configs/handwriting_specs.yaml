@@ -1,0 +1,68 @@
+handwriting_specs:
+  updated_at: '2026-01-03'
+  display_name: Handwriting Specifications
+  db_issue_type: handwriting_specs
+  category: Document Format
+  description: 'Specific handwriting or ink requirements are mandated (indelible ink, specific writing
+    styles) when electronic forms exist. This creates barriers for: citizens completing applications;
+    businesses with standardization needs; professionals filling compliance forms; government staff deciphering
+    varied handwriting; and vulnerable populations including elderly individuals with hand tremors, those
+    with disabilities affecting fine motor control, and non-native English speakers uncertain about format
+    requirements.'
+  positive_indicators:
+  - Indelible ink or indelible pencil required (outdated technology)
+  - Specific writing instruments mandated (ballpoint pen only)
+  - Block letters or specific handwriting styles required without electronic option
+  - Regulation assumes paper/pen completion with no electronic alternative
+  - '"in ink" with specific color requirements'
+  negative_indicators:
+  - Electronic form submission available as alternative
+  - Requirements just for legibility on optional paper backup forms
+  - Context is for signatures only (not entire form completion)
+  - '"or typed" or "or electronic" alternatives'
+  - Archival requirements for historical documents
+  severity_baseline: 4
+  severity_modifiers:
+    increases:
+    - '+2: Indelible ink/pencil requirement'
+    - '+1: No electronic alternative'
+    - '+1: Specific instrument required'
+    decreases:
+    - '-2: Electronic submission available'
+    - '-1: For signatures only'
+    - '-1: Legibility guidance'
+  patterns:
+  - block letters
+  - print clearly
+  - print in ink
+  - hand-printed
+  - hand printed
+  - indelib
+  statistics:
+    total_matches: 37
+    true_positives: 35
+    true_positive_rate: 94.59
+    sample_date: '2026-01-01'
+  examples:
+    true_positives:
+    - citation: N.J.A.C. 8:43G-14.4
+      quote: entries shall be made in indelible ink
+      reasoning: Indelible ink requirement. Outdated technology.
+      classification: burdensome
+      severity: 5
+    - citation: N.J.A.C. 13:45A-2.3
+      quote: form shall be completed in block letters in ink
+      reasoning: Specific handwriting style required. No electronic option.
+      classification: burdensome
+      severity: 4
+    false_positives:
+    - citation: N.J.A.C. 17:1-2.2
+      quote: print clearly or type
+      reasoning: Typing option offered.
+      classification: unrelated
+    justified:
+    - citation: N.J.A.C. 52:1-3.1
+      quote: archival documents in permanent ink
+      reasoning: Historical preservation. Permanent record need.
+      classification: justified
+      severity: 2

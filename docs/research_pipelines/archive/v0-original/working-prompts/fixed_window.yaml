@@ -1,0 +1,80 @@
+fixed_window:
+  updated_at: '2025-12-26'
+  display_name: Fixed Processing Window
+  db_issue_type: fixed_window
+  category: Process
+  description: Applications only during fixed periods
+  response_model: BaseComplianceAnalysis
+  patterns:
+  - filing period
+  - application window
+  - applications accepted
+  - accepted between
+  - open enrollment
+  - submission period
+  - only during
+  prompt:
+    system: 'You analyze regulations for FIXED PROCESSING WINDOW requirements.
+
+
+      This section indicates a limited time window for applications or submissions.
+
+      Determine whether the fixed window serves a legitimate purpose (e.g.,
+
+      coordinating cohort-based programs, budget cycles) or whether it appears
+
+      arbitrary and could be replaced by rolling acceptance.
+
+
+      Flag if the window appears to create unnecessary barriers without clear
+
+      rationale.
+
+
+      This IS a compliance issue when:
+
+      - Fixed window appears arbitrary
+
+      - Rolling acceptance would be feasible
+
+      - No rationale is provided for the time limit
+
+
+      This is NOT a compliance issue when:
+
+      - Window serves a clear purpose (budget cycle, cohort programs)
+
+      - Program structure requires coordinated timing
+
+      - Rationale for fixed window is stated
+
+
+      Respond with:
+
+      - has_issue: true if fixed window appears arbitrary
+
+      - requirement_quote: exact quote about the filing window
+
+      - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+
+      - notes: any stated rationale for the fixed window
+
+      '
+    template: 'Analyze this regulation for fixed processing window requirements:
+
+
+      REGULATION TEXT:
+
+      {regulation_context}
+
+
+      STATUTE CONTEXT:
+
+      {statute_context}
+
+
+      Determine whether the fixed window serves a legitimate purpose or appears
+
+      arbitrary.
+
+      '

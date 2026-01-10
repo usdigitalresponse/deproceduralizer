@@ -54,7 +54,8 @@ export function StateContextBar({ state }: StateContextBarProps) {
 
   return (
     <div
-      className="border-b"
+      className="border-b print:hidden"
+      data-print-hide
       style={{
         backgroundColor: bgVar,
         borderColor: borderVar,

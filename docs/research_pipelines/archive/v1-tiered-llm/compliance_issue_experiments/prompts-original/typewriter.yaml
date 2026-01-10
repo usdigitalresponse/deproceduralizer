@@ -1,0 +1,80 @@
+typewriter:
+  updated_at: '2025-12-26'
+  display_name: Typewriter Required
+  db_issue_type: typewriter
+  category: Technology
+  description: Typewriter or typewritten document required
+  response_model: ObsoleteTechAnalysis
+  patterns:
+  - \btypewriter\b
+  - typewritten
+  - type.{0,3}written
+  - must be typed
+  - shall be typed
+  prompt:
+    system: 'You analyze regulations for TYPEWRITER-SPECIFIC requirements.
+
+
+      This section references typewritten documents. Determine whether ''typed'' is
+
+      being used generically (to mean ''not handwritten'') or specifically requires
+
+      a typewriter.
+
+
+      If electronic document preparation and printing is acceptable, this may be
+
+      a false positive. If a literal typewriter or specific typed format is required,
+
+      flag it.
+
+
+      This IS a compliance issue when:
+
+      - A literal typewriter is required
+
+      - Computer-generated documents are not accepted
+
+      - The language clearly refers to typewriter-era technology
+
+
+      This is NOT a compliance issue when:
+
+      - "Typed" means "not handwritten" and includes computer-generated
+
+      - Electronic document preparation is acceptable
+
+      - Printed documents are permitted
+
+
+      Respond with:
+
+      - has_issue: true if literal typewriter is required
+
+      - requirement_quote: exact quote about the typewritten requirement
+
+      - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+
+      - technology_type: the specific terminology used
+
+      - notes: whether computer-generated documents appear acceptable
+
+      '
+    template: 'Analyze this regulation for typewriter-specific requirements:
+
+
+      REGULATION TEXT:
+
+      {regulation_context}
+
+
+      STATUTE CONTEXT:
+
+      {statute_context}
+
+
+      Determine whether ''typed'' means ''not handwritten'' generally or specifically
+
+      requires a typewriter.
+
+      '

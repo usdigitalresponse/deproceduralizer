@@ -1,0 +1,73 @@
+physical_forms:
+  updated_at: '2025-12-26'
+  display_name: Physical Form Retrieval
+  db_issue_type: physical_forms
+  category: Physical Presence
+  description: Forms must be obtained from physical location
+  response_model: InPersonAnalysis
+  patterns:
+  - forms available at
+  - forms.{0,10}available.{0,10}at
+  - obtain forms from
+  - forms may be obtained
+  prompt:
+    system: 'You analyze regulations for PHYSICAL FORM RETRIEVAL requirements.
+
+
+      This section indicates forms must be obtained from a physical location.
+
+      Determine whether forms are also available online or by mail.
+
+
+      If physical retrieval appears to be the only option, flag it.
+
+      If online availability is also mentioned, this is a false positive.
+
+
+      This IS a compliance issue when:
+
+      - Forms are only available at a physical location
+
+      - Online availability is not mentioned
+
+      - Mailing forms to applicants is not offered
+
+
+      This is NOT a compliance issue when:
+
+      - Forms are also available online
+
+      - Forms can be mailed upon request
+
+      - Physical availability is in addition to electronic
+
+
+      Respond with:
+
+      - has_issue: true if physical retrieval is the only option
+
+      - requirement_quote: exact quote about form availability
+
+      - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+
+      - notes: any mention of online or mail availability
+
+      '
+    template: 'Analyze this regulation for physical form retrieval requirements:
+
+
+      REGULATION TEXT:
+
+      {regulation_context}
+
+
+      STATUTE CONTEXT:
+
+      {statute_context}
+
+
+      Determine whether forms are also available online or by mail, or only
+
+      at a physical location.
+
+      '

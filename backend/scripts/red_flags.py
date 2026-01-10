@@ -20,6 +20,7 @@ Examples:
 """
 
 import json
+import logging
 import os
 import shutil
 import sys
@@ -35,6 +36,8 @@ import asyncio
 from datetime import datetime
 import psycopg
 from psycopg import Connection
+
+logger = logging.getLogger(__name__)
 
 # Add backend directory to path for config import
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -483,8 +486,8 @@ def save_analysis_to_database(conn: Connection,
     except Exception as e:
         try:
             conn.rollback()
-        except:
-            pass
+        except (psycopg.Error, AttributeError) as rollback_err:
+            logger.warning(f"Failed to rollback transaction for {regulation.source_index}: {type(rollback_err).__name__}: {rollback_err}")
         print(f"❌ Error saving to database for {regulation.source_index}: {type(e).__name__}: {e}")
         return None
 
@@ -497,7 +500,7 @@ async def analyze_regulation(regulation_data: RegulationData, client: AsyncOpenA
         heading=regulation_data.title
     )
 
-    result = await call_llm_parse_async(
+    result, _ = await call_llm_parse_async(
         client=client,
         prompt=prompt,
         response_format=RegulationAnalysis,
@@ -1199,8 +1202,8 @@ async def main():
         if db_conn:
             try:
                 db_conn.close()
-            except:
-                pass
+            except (psycopg.Error, AttributeError) as e:
+                logger.warning(f"Error closing database connection: {type(e).__name__}: {e}")
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -48,6 +48,14 @@ data/*.csv
 backend/scripts/local_summarization/summaries_staging/
 modelfiles/
 
+# Pipeline batch runtime data
+backend/.pipeline_batches/
+backend/scripts/research_pipeline/batches/
+backend/PENDING_BATCHES.md
+
 # Export utilities (temporary/one-off scripts)
 codebase_export*.txt
 scripts/export_codebase*.py
+
+# Backup files
+backups/

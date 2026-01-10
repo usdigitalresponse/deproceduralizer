@@ -9,6 +9,7 @@ import { documentNotes } from './document-notes';
 import { definitions } from './definitions';
 import { definitionDocumentOccurrences } from './definition-document-occurrences';
 import { crossReferences } from './cross-references';
+import { complianceIssueAnalyses } from './compliance-issue-analyses';
 
 export const regulatoryDocumentsRelations = relations(regulatoryDocuments, ({ one, many }) => ({
   parent: one(regulatoryDocuments, {
@@ -120,5 +121,13 @@ export const crossReferencesRelations = relations(crossReferences, ({ one }) => 
     fields: [crossReferences.targetDocumentId],
     references: [regulatoryDocuments.id],
     relationName: 'targetDoc',
+  }),
+}));
+
+// Compliance issue analyses table relations (4-tier research pipeline)
+export const complianceIssueAnalysesRelations = relations(complianceIssueAnalyses, ({ one }) => ({
+  document: one(regulatoryDocuments, {
+    fields: [complianceIssueAnalyses.documentId],
+    references: [regulatoryDocuments.id],
   }),
 }));

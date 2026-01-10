@@ -1,0 +1,88 @@
+pdf_only:
+  updated_at: '2026-01-01'
+  display_name: PDF Only Format
+  db_issue_type: pdf_only
+  category: Technology
+  description: PDF format specifically required
+  response_model: DocumentFormatAnalysis
+  patterns:
+  - pdf format
+  - submit as pdf
+  - adobe pdf
+  # Removed: \.pdf\b - matches URLs (76% false positives)
+  # Added: targeted mandatory patterns
+  - (shall|must).{0,20}(be )?(in |submit.{0,10})?pdf
+  - pdf.{0,10}format.{0,10}(is |shall be )?required
+  - pdf archival.{0,10}format
+  prompt:
+    system: 'You analyze regulations for PDF-ONLY FORMAT requirements.
+
+
+      This section requires documents in PDF format. Determine whether PDF is the
+
+      ONLY accepted format, or whether other formats (Word, plain text, online form
+
+      entry) are also accepted.
+
+
+      If PDF is required to the exclusion of other formats that might be more
+
+      accessible or interoperable, flag it as a potential barrier.
+
+
+      Note: PDF requirements are lower severity than obsolete formats but worth
+
+      reviewing for accessibility.
+
+
+      This IS a compliance issue (lower priority) when:
+
+      - PDF is the ONLY accepted format
+
+      - Other common formats are not accepted
+
+      - Online form entry is not available
+
+
+      This is NOT a compliance issue when:
+
+      - PDF is one of several accepted formats
+
+      - Online form submission is available
+
+      - The requirement is for final/archival documents where PDF is standard
+
+      - PDF is mentioned only as a download location or URL (e.g., "download the form at example.gov/form.pdf")
+
+      - "or other formats", "or Word", "or acceptable formats" appears
+
+
+      Respond with:
+
+      - has_issue: true if PDF is the only accepted format
+
+      - requirement_quote: exact quote about the format requirement
+
+      - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+
+      - notes: any mention of alternative formats
+
+      '
+    template: 'Analyze this regulation for PDF-only format requirements:
+
+
+      REGULATION TEXT:
+
+      {regulation_context}
+
+
+      STATUTE CONTEXT:
+
+      {statute_context}
+
+
+      Determine whether PDF is the ONLY accepted format or if other formats are
+
+      also permitted.
+
+      '

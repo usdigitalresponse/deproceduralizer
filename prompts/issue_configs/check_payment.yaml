@@ -1,0 +1,84 @@
+check_payment:
+  updated_at: '2026-01-03'
+  display_name: Check/Money Order Payment
+  db_issue_type: check_payment
+  category: Payment
+  description: 'Check or money order is required for payment with no electronic option, adding delays
+    and costs. This affects: citizens who must obtain money orders ($1-5 fee) if they lack checkbooks;
+    businesses waiting for check clearance instead of instant payment; professionals paying licensing
+    fees; government staff processing paper payments; and vulnerable populations including unbanked individuals
+    who must purchase money orders, elderly unfamiliar with alternatives, and low-income people facing
+    money order fees.'
+  positive_indicators:
+  - Check or money order is the ONLY payment method mentioned
+  - Electronic payment methods (credit, debit, ACH) not mentioned
+  - '"payable to [agency]" with no online payment option'
+  - Certified or cashier check specifically required
+  - Personal check accepted but no card/electronic options
+  negative_indicators:
+  - Credit card, debit, or electronic payment also mentioned
+  - Online payment portal referenced
+  - Check is one option among several
+  - '"or credit card" or "or electronic payment" alternatives'
+  - Just providing payment address without mandating method
+  severity_baseline: 4
+  severity_modifiers:
+    increases:
+    - '+1: Only payment method mentioned'
+    - '+1: High-fee requirement (certified check, money order)'
+    - '+1: High-volume or routine payments'
+    decreases:
+    - '-1: Electronic payment also available'
+    - '-1: Check is optional alongside electronic'
+    - '-2: Security requirements genuinely require certified funds'
+  patterns:
+  - money order
+  - certified check
+  - cashier.{0,3}s? check
+  - personal check
+  - payable to
+  statistics:
+    total_matches: 744
+    true_positives: 314
+    true_positive_rate: 42.2
+    sample_date: '2026-01-01'
+  examples:
+    true_positives:
+    - citation: N.J.A.C. 7:38-10.1
+      quote: personal check, certified check, attorney check, government purchase order, or money order
+        shall pay all fees
+      reasoning: Only paper-based payment methods listed. No electronic options (credit, debit, ACH, online).
+      classification: burdensome
+      severity: 5
+    - citation: N.J.A.C. 7:25-12.13
+      quote: Weekly surf clam bait harvest reports shall be mailed, together with a check or money order
+      reasoning: Weekly payments combined with mail-only and check-only creates recurring burden.
+      classification: burdensome
+      severity: 6
+    - citation: N.J.A.C. 7:31-1.11A
+      quote: owner or operator shall pay his or her fee by check or money order, payable to 'Treasurer,
+        State of New Jersey'
+      reasoning: Check or money order mandated as only payment method for annual fees.
+      classification: burdensome
+      severity: 5
+    - citation: N.J.A.C. 3:42-7.5
+      quote: bid deposits must be submitted by certified check, cashier check, money order, or travelers
+        check. No exceptions shall be made
+      reasoning: '''No exceptions'' explicitly closes off alternative payment methods.'
+      classification: burdensome
+      severity: 6
+    false_positives:
+    - citation: N.J.A.C. 17:1-5.2
+      quote: payment by check, credit card, or online at...
+      reasoning: Multiple payment options including electronic.
+      classification: unrelated
+    - citation: N.J.A.C. 13:69A-2.1
+      quote: payable to the Division. Electronic payments may also be made
+      reasoning: Electronic alternative explicitly offered.
+      classification: unrelated
+    justified:
+    - citation: N.J.A.C. 3:1-2.4
+      quote: real estate closing funds by certified check
+      reasoning: Real estate transactions require verified funds. Security need.
+      classification: justified
+      severity: 2

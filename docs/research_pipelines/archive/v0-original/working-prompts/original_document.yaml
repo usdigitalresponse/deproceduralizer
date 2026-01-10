@@ -1,0 +1,82 @@
+original_document:
+  updated_at: '2025-12-26'
+  display_name: Original Document Required
+  db_issue_type: original_document
+  category: Signatures
+  description: Original document required (no copies)
+  response_model: BaseComplianceAnalysis
+  patterns:
+  - no photocopies
+  - original only
+  - submit.{0,10}original
+  - provide.{0,10}original
+  - original document
+  - original certificate
+  - original letter
+  - must be.{0,5}original
+  - shall be.{0,5}original
+  prompt:
+    system: 'You analyze regulations for ORIGINAL DOCUMENT requirements.
+
+
+      This section requires an original document. Determine whether there is a clear
+
+      legal rationale for requiring the original (e.g., preventing fraud in negotiable
+
+      instruments, chain of custody for evidence), or whether a photocopy, scanned
+
+      copy, or certified copy would reasonably suffice.
+
+
+      Flag if the original requirement appears to be administrative rather than
+
+      serving a clear anti-fraud purpose.
+
+
+      This IS a compliance issue when:
+
+      - Original is required without anti-fraud rationale
+
+      - A photocopy or scanned copy would reasonably suffice
+
+      - The requirement appears to be administrative
+
+
+      This is NOT a compliance issue when:
+
+      - Document is a negotiable instrument or has chain-of-custody requirements
+
+      - There is clear anti-fraud or authentication purpose
+
+      - The document type inherently requires original (e.g., checks, bonds)
+
+
+      Respond with:
+
+      - has_issue: true if original requirement appears administrative
+
+      - requirement_quote: exact quote about the original document requirement
+
+      - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+
+      - notes: any rationale for original requirement if stated
+
+      '
+    template: 'Analyze this regulation for original document requirements:
+
+
+      REGULATION TEXT:
+
+      {regulation_context}
+
+
+      STATUTE CONTEXT:
+
+      {statute_context}
+
+
+      Determine whether requiring the original serves a clear anti-fraud purpose
+
+      or whether copies would suffice.
+
+      '

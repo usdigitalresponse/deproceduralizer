@@ -1,0 +1,70 @@
+physical_log:
+  updated_at: '2026-01-03'
+  display_name: Physical Log/Sign-in
+  db_issue_type: physical_log
+  category: Process
+  description: 'Physical paper log books or sign-in sheets are required where electronic logging would
+    serve the same purpose. This burdens: businesses maintaining paper records and dealing with legibility
+    issues; government facilities managing visitor logs; professionals tracking client interactions; staff
+    analyzing or reporting on log data; and creates storage, retrieval, and audit difficulties that electronic
+    systems would eliminate.'
+  positive_indicators:
+  - Physical paper log is required
+  - Electronic logging would serve same purpose
+  - No electronic alternative mentioned
+  - '"written log" or "log book" explicit paper requirement'
+  - Daily/routine logging that could be electronic
+  negative_indicators:
+  - Electronic logging is also permitted
+  - Physical log is backup to electronic system
+  - Paper log serves specific purpose electronic cannot (signature samples)
+  - '"or electronic records" alternative'
+  - Chain of custody requiring physical entries
+  severity_baseline: 4
+  severity_modifiers:
+    increases:
+    - '+1: No electronic alternative'
+    - '+1: High-frequency logging (daily, per-event)'
+    - '+1: Long retention requirements'
+    decreases:
+    - '-2: Electronic logging permitted'
+    - '-1: Physical backup to electronic'
+    - '-1: Chain of custody purpose'
+  patterns:
+  - sign-in sheet
+  - sign in sheet
+  - log book
+  - \blogbook\b
+  - visitor log
+  - sign the register
+  - entry log
+  - written log
+  - daily log
+  statistics:
+    total_matches: 138
+    true_positives: 102
+    true_positive_rate: 73.91
+    sample_date: '2026-01-01'
+  examples:
+    true_positives:
+    - citation: N.J.A.C. 8:43G-14.3
+      quote: daily medication log book shall be maintained
+      reasoning: Daily paper log. Electronic would work better.
+      classification: burdensome
+      severity: 5
+    - citation: N.J.A.C. 10A:31-5.2
+      quote: visitor sign-in sheet shall be maintained
+      reasoning: Paper sign-in sheet. Electronic check-in possible.
+      classification: burdensome
+      severity: 4
+    false_positives:
+    - citation: N.J.A.C. 8:43-2.1
+      quote: log book or electronic record system
+      reasoning: Electronic alternative explicitly offered.
+      classification: unrelated
+    justified:
+    - citation: N.J.A.C. 13:69-1.8
+      quote: chain of custody log with original signatures
+      reasoning: Chain of custody requires physical signatures.
+      classification: justified
+      severity: 2

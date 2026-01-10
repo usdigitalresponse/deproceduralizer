@@ -3,6 +3,7 @@
 import { useState, useCallback, ReactNode } from 'react';
 import { getExpandedContext } from '@/lib/actions/compliance-issues';
 import { Button } from '@/components/ui';
+import { highlightTerm as highlightTermInText } from '@/lib/utils/highlight';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
 interface ExpandableRegulationQuoteProps {
@@ -81,24 +82,6 @@ export function ExpandableRegulationQuote({
     }
   }, [isExpanded, expandedText, documentId, text, expandChars]);
 
-  // Highlight a term in text
-  const highlightInText = useCallback((content: string, term: string | null): ReactNode => {
-    if (!term) return content;
-
-    const regex = new RegExp(`(${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-    const parts = content.split(regex);
-
-    return parts.map((part, i) =>
-      regex.test(part) ? (
-        <mark key={i} className="bg-[var(--color-warning-bg)] px-0.5 rounded font-medium">
-          {part}
-        </mark>
-      ) : (
-        part
-      )
-    );
-  }, []);
-
   // Highlight the original context within expanded text
   const renderExpandedWithHighlight = useCallback((expanded: string, original: string, term: string | null): ReactNode => {
     const normalizedOriginal = original.replace(/\s+/g, ' ').trim();
@@ -106,7 +89,7 @@ export function ExpandableRegulationQuote({
     const contextIndex = normalizedExpanded.indexOf(normalizedOriginal);
 
     if (contextIndex === -1) {
-      return highlightInText(expanded, term);
+      return highlightTermInText(expanded, term);
     }
 
     const beforeContext = expanded.slice(0, contextIndex);
@@ -117,17 +100,17 @@ export function ExpandableRegulationQuote({
       <>
         <span className="text-[var(--color-text-muted)]">{beforeContext}</span>
         <span className="bg-[var(--color-primary-weaker)] px-1 py-0.5 rounded border-l-2 border-[var(--color-primary)]">
-          {highlightInText(contextPortion, term)}
+          {highlightTermInText(contextPortion, term)}
         </span>
         <span className="text-[var(--color-text-muted)]">{afterContext}</span>
       </>
     );
-  }, [highlightInText]);
+  }, []);
 
   const termToHighlight = highlightTerm ?? null;
   const renderedContent = isExpanded && expandedText
     ? renderExpandedWithHighlight(expandedText, text, termToHighlight)
-    : highlightInText(text, termToHighlight);
+    : highlightTermInText(text, termToHighlight);
 
   return (
     <div className="mb-4">

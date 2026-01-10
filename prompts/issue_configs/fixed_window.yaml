@@ -1,0 +1,75 @@
+fixed_window:
+  updated_at: '2026-01-03'
+  display_name: Fixed Processing Window
+  db_issue_type: fixed_window
+  category: Process
+  description: 'Applications or submissions are only accepted during fixed time periods rather than on
+    a rolling basis, creating timing barriers. This affects: citizens who may miss windows due to work
+    schedules or life events; businesses with project timelines that don''t align with windows; professionals
+    with credential renewal timing constraints; and particularly vulnerable populations including those
+    with inflexible jobs, caregivers with unpredictable schedules, elderly who may forget window dates,
+    and youth aging into programs who must wait for intake periods.'
+  positive_indicators:
+  - Fixed window appears arbitrary
+  - Rolling acceptance would be feasible
+  - No rationale provided for time limit
+  - '"only during" or "between [dates]" restrictions'
+  - Short window creates artificial scarcity
+  negative_indicators:
+  - Window serves clear purpose (budget cycle, cohort programs)
+  - Program structure requires coordinated timing
+  - Rationale for fixed window is stated
+  - Grant cycles with federal deadlines
+  - Educational cohort programs (start dates)
+  severity_baseline: 4
+  severity_modifiers:
+    increases:
+    - '+1: No stated rationale'
+    - '+1: Short window (< 30 days)'
+    - '+1: Creates significant backlog'
+    decreases:
+    - '-2: Clear program rationale'
+    - '-1: External deadline (federal, grant)'
+    - '-1: Cohort-based program'
+  patterns:
+  - filing period
+  - application window
+  - applications accepted
+  - accepted between
+  - open enrollment
+  - submission period
+  - only during
+  statistics:
+    total_matches: 128
+    true_positives: 56
+    true_positive_rate: 43.75
+    sample_date: '2026-01-01'
+  examples:
+    true_positives:
+    - citation: N.J.A.C. 13:45A-8.2
+      quote: applications accepted only during February
+      reasoning: Single month window. Creates 11-month wait.
+      classification: burdensome
+      severity: 5
+    - citation: N.J.A.C. 7:26-5.4
+      quote: 'filing period: January 1 to January 15'
+      reasoning: 15-day window only. Very restrictive.
+      classification: burdensome
+      severity: 6
+    false_positives:
+    - citation: N.J.A.C. 6A:9-8.1
+      quote: teacher certification applications during fall semester
+      reasoning: Academic calendar cohort. Logical timing.
+      classification: justified
+      severity: 2
+    - citation: N.J.A.C. 17:12-2.1
+      quote: grant applications aligned with federal fiscal year
+      reasoning: Federal deadline alignment. External constraint.
+      classification: justified
+      severity: 2
+    justified:
+    - citation: N.J.A.C. 8:43G-8.1
+      quote: open enrollment period for health plans
+      reasoning: Health insurance requires coordinated enrollment.
+      classification: justified
+      severity: 2

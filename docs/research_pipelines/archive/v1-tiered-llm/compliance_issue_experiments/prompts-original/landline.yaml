@@ -1,0 +1,78 @@
+landline:
+  updated_at: '2025-12-26'
+  display_name: Landline/Telephone Required
+  db_issue_type: landline
+  category: Communication
+  description: Telephone/landline required
+  response_model: BaseComplianceAnalysis
+  patterns:
+  - \blandline\b
+  - touch-tone
+  - by telephone
+  - telephone call
+  - verbal authorization
+  - oral authorization
+  - by phone
+  prompt:
+    system: 'You analyze regulations for LANDLINE/TELEPHONE-SPECIFIC requirements.
+
+
+      This section references telephone communication. Determine whether a phone call
+
+      is REQUIRED for a process that could reasonably be handled online or in writing,
+
+      or whether it is simply offered as one contact option among many.
+
+
+      Flag only if a phone call is mandated for something that could be accomplished
+
+      through a web form or written submission.
+
+
+      This IS a compliance issue when:
+
+      - A phone call is REQUIRED (not optional)
+
+      - The process could reasonably be handled online or in writing
+
+      - No modern alternatives (web form, email, online portal) are mentioned
+
+
+      This is NOT a compliance issue when:
+
+      - Telephone is just one contact option among several
+
+      - Phone is offered as a convenience, not a requirement
+
+      - The nature of the interaction genuinely requires verbal communication
+
+
+      Respond with:
+
+      - has_issue: true if phone call is mandated for something that could be done online/in writing
+
+      - requirement_quote: exact quote establishing the telephone requirement
+
+      - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+
+      - notes: any additional context
+
+      '
+    template: 'Analyze this regulation for landline/telephone requirements:
+
+
+      REGULATION TEXT:
+
+      {regulation_context}
+
+
+      STATUTE CONTEXT:
+
+      {statute_context}
+
+
+      Determine whether a phone call is REQUIRED for a process that could reasonably
+
+      be handled online or in writing.
+
+      '

@@ -1,0 +1,76 @@
+physical_posting:
+  updated_at: '2026-01-03'
+  display_name: Physical Posting Required
+  db_issue_type: physical_posting
+  category: Physical Presence
+  description: 'Physical posting or display of notices/signs is required without online alternatives for
+    general public notices. While on-site safety posting is often appropriate, requiring physical-only
+    posting limits reach and affects: employers maintaining bulletin boards; businesses with posting compliance
+    requirements; government facilities managing physical notices; workers (especially remote employees)
+    who never see posted information; and vulnerable populations including those with mobility limitations,
+    rural residents, and non-English speakers who may not access physical locations.'
+  positive_indicators:
+  - Physical posting is the ONLY notification method for public notices
+  - No online posting requirement for general public information
+  - Notice is primarily for off-site audiences but only posted on-site
+  - Public meeting notices only posted at building (not online)
+  - License/permit posting only physical without registry
+  negative_indicators:
+  - On-site safety/informational posting (appropriate for location)
+  - Notices for customers/visitors at physical location
+  - License display at place of business (standard practice)
+  - Online posting is also required
+  - '"and on the website" indicates dual posting'
+  - Statutory requirement for physical posting
+  severity_baseline: 3
+  severity_modifiers:
+    increases:
+    - '+1: General public notice with no online alternative'
+    - '+1: Public meeting notices only posted physically'
+    - '+1: Important regulatory notices'
+    decreases:
+    - '-1: On-site safety purpose'
+    - '-1: Customer-facing at business location'
+    - '-2: Online posting also required'
+  patterns:
+  - conspicuously posted
+  - conspicuously displayed
+  - prominently displayed
+  - prominently posted
+  - posted on the premises
+  - posted at all times
+  - post a notice
+  - display.{0,10}sign
+  - visible to the public
+  statistics:
+    total_matches: 362
+    true_positives: 243
+    true_positive_rate: 67.13
+    sample_date: '2026-01-01'
+  examples:
+    true_positives:
+    - citation: N.J.A.C. 7:7A-12.4
+      quote: notice shall be prominently posted at the site
+      reasoning: Environmental permit notice only posted on-site, not online.
+      classification: burdensome
+      severity: 4
+    - citation: N.J.A.C. 5:10-4.2
+      quote: Public meeting notice shall be posted on the bulletin board
+      reasoning: Public meeting notice only on physical bulletin board.
+      classification: burdensome
+      severity: 4
+    false_positives:
+    - citation: N.J.A.C. 8:43G-14.2
+      quote: fire evacuation plan shall be prominently displayed
+      reasoning: On-site safety posting. Must be visible to building occupants.
+      classification: unrelated
+    - citation: N.J.A.C. 13:45A-20.3
+      quote: license shall be displayed at place of business
+      reasoning: Standard license display for customer verification.
+      classification: unrelated
+    justified:
+    - citation: N.J.A.C. 12:100-3.1
+      quote: OSHA-required safety notices shall be posted
+      reasoning: Federal safety requirement. Must be on-site.
+      classification: justified
+      severity: 2

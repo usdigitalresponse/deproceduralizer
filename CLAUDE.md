@@ -47,16 +47,19 @@ When working on the Next.js frontend, follow these patterns:
 - **Important:** When modifying any prompt, update its `updated_at` field to today's date (YYYY-MM-DD format)
 
 ### Compliance Issues
-- Issue types, regex patterns, and LLM prompts all defined in `prompts/compliance_issues.yaml`
-- Uses regex-based candidate detection followed by LLM verification
-- TypeScript types auto-generated from YAML - run `python scripts/generate_prompt_types.py`
+- Candidate triage defined in `prompts/compliance_issues.yaml` (regex + LLM triage).
+- **Deep Research Pipeline**: Use `python3 -m scripts.research_pipeline.cli` for 4-tier validation and deep analysis (replaces simple triage for production analysis).
+- **IMPORTANT**: Always ask user permission before running the research pipeline (realtime or batch). These runs make many API calls and cost money.
+- **IMPORTANT**: Always ask user permission before killing a running pipeline. Don't assume the user wants it stopped.
+- TypeScript types auto-generated from YAML - run `python scripts/generate_prompt_types.py`.
 - See `.claude/skills/database/schema.md` for full schema documentation
 - See `.claude/skills/regulatory-analysis/bad-regulation-patterns.md` for taxonomy of problematic regulatory patterns with real-world examples
 
 ### Pipeline Scripts
-- When adding/removing backend scripts, update `docs/OPERATIONS.md` to keep the operational runbook accurate
-- `run_pipeline.py` is the entry point - ensure its help text and argument list match available scripts
-- Scrapers handle migration automatically via `shared_utils.migrate_regulations_to_db()` - no separate migration script
+- `run_pipeline.py` is the entry point for legacy/core analysis.
+- Use `scripts.research_pipeline.cli` for the advanced 4-tier compliance research.
+- When adding/removing backend scripts, update `docs/OPERATIONS.md`.
+- Scrapers handle migration automatically via `shared_utils.migrate_regulations_to_db()`.
 
 ## Documentation Guidelines
 

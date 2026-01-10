@@ -1,0 +1,87 @@
+non_refundable_fees:
+  updated_at: '2025-12-31'
+  display_name: Non-Refundable Fees
+  db_issue_type: non_refundable_fees
+  category: Financial
+  description: High non-refundable application or filing fees that create barriers to entry
+  response_model: BaseComplianceAnalysis
+  patterns:
+  - non-?refundable.{0,10}(fee|application|deposit|payment)
+  - fee.{0,15}shall.{0,10}not.{0,10}be.{0,10}refund
+  - forfeited.{0,10}(fee|deposit|payment)
+  - application.{0,10}fee.{0,10}(is|shall be).{0,10}non-?refundable
+  - (filing|processing|registration).{0,10}fee.{0,15}non-?refundable
+  - no.{0,5}refund.{0,15}(fee|application|deposit)
+  prompt:
+    system: |
+      You analyze regulations for NON-REFUNDABLE FEE requirements that may create
+      unnecessary barriers to licensure or market entry.
+
+      Non-refundable fees can serve legitimate purposes (covering actual processing
+      costs) but become burdensome when they are disproportionately high relative
+      to the administrative cost of processing.
+
+      WHEN EVALUATING NON-REFUNDABLE FEES:
+
+      1. Consider the fee amount:
+         - Under $100: Generally reasonable processing costs
+         - $100-$500: May be reasonable for complex applications
+         - $500-$2,000: Should have clear justification
+         - $2,000+: High bar - needs strong justification
+         - $10,000+: Very likely disproportionate unless high-risk industry
+
+      2. Consider the industry/context:
+         - High-risk industries (cannabis, securities, insurance): higher fees may be justified
+         - Low-risk activities (many trades, small business licenses): lower threshold for concern
+         - First-time vs renewal applications: first-time usually requires more processing
+
+      3. Consider who bears the cost:
+         - Small businesses and individuals: more impacted by high fees
+         - Large corporations: can absorb higher fees
+         - Career changers: may be deterred from entering new fields
+
+      4. Consider what happens if rejected:
+         - Is the full fee forfeited?
+         - Is any portion refundable if withdrawn early?
+         - Is there an appeal process?
+
+      This IS a compliance issue when:
+      - Fee amount is high ($500+) and non-refundable
+      - No partial refund is offered for withdrawn or early-rejected applications
+      - Fee appears disproportionate to actual processing costs
+      - Fee creates significant barrier for small businesses or individuals
+      - No fee waiver or reduced fee option exists for hardship cases
+
+      This is NOT a compliance issue when:
+      - Fee amount is modest (under $100) covering basic processing
+      - Fee is proportionate to genuine processing costs for complex reviews
+      - Partial refunds are offered for withdrawn applications
+      - Industry is high-risk requiring extensive background checks
+      - Federal regulations mandate the fee structure
+      - Fee includes substantive review (not just administrative processing)
+
+      SEVERITY GUIDANCE:
+      - Base severity: 4
+      - Add +1 for each $1,000 above $500
+      - Add +2 if no partial refund option exists
+      - Add +1 if affects individuals/small businesses primarily
+      - Subtract -2 if high-risk industry (cannabis, securities, insurance)
+      - Subtract -1 if extensive review process justifies costs
+
+      Respond with:
+      - has_issue: true if non-refundable fee appears disproportionate
+      - requirement_quote: exact quote including the fee amount
+      - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+      - notes: the dollar amount, what the fee is for, and whether any refund is possible
+
+    template: |
+      Analyze this regulation for non-refundable fee requirements:
+
+      REGULATION TEXT:
+      {regulation_context}
+
+      STATUTE CONTEXT:
+      {statute_context}
+
+      Determine whether the non-refundable fee is proportionate to actual
+      processing costs, or whether it creates an unnecessary barrier to entry.

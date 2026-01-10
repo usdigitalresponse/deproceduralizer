@@ -1,0 +1,71 @@
+bulletin_board:
+  updated_at: '2026-01-03'
+  display_name: Bulletin Board
+  db_issue_type: bulletin_board
+  category: Physical Presence
+  description: 'Physical bulletin board posting is required for public notices, limiting reach to those
+    physically present at the location. This affects: employers who must maintain physical boards and
+    verify posting compliance; government agencies managing multiple posting locations; workers (especially
+    remote employees) who may never see posted notices; and vulnerable populations including those with
+    mobility limitations, rural residents, and non-English speakers who cannot easily access physical
+    locations.'
+  positive_indicators:
+  - Bulletin board is the only method of public notice
+  - Online alternatives are not mentioned
+  - Notice is intended for general public
+  - '"post on bulletin board" with no web option'
+  - Public meeting notices only on physical board
+  negative_indicators:
+  - Online posting is also required
+  - Bulletin board is for internal/workplace notices
+  - Multiple notification methods mentioned
+  - '"and on website" indicates dual posting'
+  - Employee-only notices (appropriate for workplace)
+  severity_baseline: 3
+  severity_modifiers:
+    increases:
+    - '+1: No online alternative'
+    - '+1: General public notices'
+    - '+1: Important regulatory information'
+    decreases:
+    - '-2: Online posting also required'
+    - '-1: Internal/workplace notices'
+    - '-1: Dual notification methods'
+  patterns:
+  - bulletin board
+  - notice board
+  - community board
+  - public board
+  - posted.{0,10}board
+  statistics:
+    total_matches: 70
+    true_positives: 28
+    true_positive_rate: 40.0
+    sample_date: '2026-01-01'
+  examples:
+    true_positives:
+    - citation: N.J.A.C. 5:10-4.4
+      quote: public meeting notice posted on bulletin board
+      reasoning: Public meeting notice only on physical board.
+      classification: burdensome
+      severity: 4
+    - citation: N.J.A.C. 8:43G-2.2
+      quote: regulatory notices on facility bulletin board
+      reasoning: Regulatory notices only physical. No web.
+      classification: burdensome
+      severity: 3
+    false_positives:
+    - citation: N.J.A.C. 12:100-3.2
+      quote: OSHA notices on employee bulletin board
+      reasoning: Workplace safety notices. Appropriate for employees.
+      classification: unrelated
+    - citation: N.J.A.C. 7:1-6.4
+      quote: posted on bulletin board and website
+      reasoning: Web posting also required.
+      classification: unrelated
+    justified:
+    - citation: N.J.A.C. 10A:5-2.7
+      quote: inmate notices on housing unit board
+      reasoning: Inmate population may lack web access.
+      classification: justified
+      severity: 2

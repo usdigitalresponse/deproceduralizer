@@ -110,16 +110,20 @@ export const NeedMoreInfoCard = forwardRef<HTMLDivElement, NeedMoreInfoCardProps
           <div className="text-sm">
             <div className="mb-2">
               <Badge variant="warning" className="mr-2">{ISSUE_TYPE_LABELS[issue.issueType] || formatLabel(issue.issueType)}</Badge>
-              {issue.matchedPattern && <Tag variant="primary" size="sm">{issue.matchedPattern}</Tag>}
+              {issue.regexMatchPattern && <Tag variant="primary" size="sm">{issue.regexMatchPattern}</Tag>}
               {nycrrCitation && (
                 <span className="text-[var(--color-text-muted)] ml-2 font-mono">{nycrrCitation}</span>
               )}
             </div>
-            {/* Regulation Text */}
-            {issue.requirementText && (
+            {/* Verbatim Supporting Text */}
+            {issue.verbatimSupportingText && issue.verbatimSupportingText.length > 0 && (
               <div className="mb-4">
-                <span className="text-xs font-medium text-[var(--color-text-secondary)]">Regulation Text:</span>
-                <p className="mt-1 text-sm text-[var(--color-text)]">{issue.requirementText}</p>
+                <span className="text-xs font-medium text-[var(--color-text-secondary)]">Supporting Text:</span>
+                <div className="mt-1 space-y-1">
+                  {issue.verbatimSupportingText.map((text, index) => (
+                    <p key={index} className="text-sm text-[var(--color-text)]">{text}</p>
+                  ))}
+                </div>
               </div>
             )}
             {/* Full Regulation Text Viewer */}
@@ -128,8 +132,8 @@ export const NeedMoreInfoCard = forwardRef<HTMLDivElement, NeedMoreInfoCardProps
                 content={(issue.regulation as unknown as { content: string }).content}
                 documentId={issue.regulation.id}
                 state={state}
-                scrollToText={issue.requirementText}
-                highlightPattern={issue.matchedPattern}
+                scrollToText={issue.verbatimSupportingText?.[0]}
+                highlightPattern={issue.regexMatchPattern}
                 isVerbatim={issue.isVerbatim ?? false}
                 label="Show Regulation Text"
               />

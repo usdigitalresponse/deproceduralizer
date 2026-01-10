@@ -1,0 +1,76 @@
+waiting_period:
+  updated_at: '2026-01-03'
+  display_name: Mandatory Waiting Period
+  db_issue_type: waiting_period
+  category: Process
+  description: 'A mandatory waiting period is imposed before action can be taken. While some waiting periods
+    serve legitimate purposes (public comment, background checks, cooling-off periods), arbitrary delays
+    burden: citizens in time-sensitive situations such as home purchases, childcare enrollment, or urgent
+    permit needs; businesses with project timelines; professionals awaiting credential approval; and vulnerable
+    populations including those who cannot afford service delays, families with urgent childcare needs,
+    and elderly individuals for whom delays represent significant portions of remaining time.'
+  positive_indicators:
+  - No stated rationale for the waiting period
+  - Waiting period appears arbitrary
+  - Faster processing would be feasible without harm
+  - Wait period for routine administrative action
+  - Extended waiting period (30+ days) without justification
+  negative_indicators:
+  - Clear safety rationale (firearms cooling-off, hazardous materials)
+  - Public comment period required by law
+  - Background check processing time (genuinely needed)
+  - Construction/development review requiring inspections
+  - Appeal period for affected parties
+  - Statutory requirement establishes waiting period
+  severity_baseline: 4
+  severity_modifiers:
+    increases:
+    - '+1: No stated rationale'
+    - '+1: Waiting period exceeds 30 days'
+    - '+1: Routine administrative matter'
+    decreases:
+    - '-2: Clear safety rationale stated'
+    - '-1: Public comment period'
+    - '-1: Statutory requirement'
+  patterns:
+  - waiting period
+  - must wait
+  - cooling off
+  - no sooner than
+  - not sooner than
+  - minimum of.{0,10}days before
+  - at least.{0,10}days before
+  statistics:
+    total_matches: 393
+    true_positives: 285
+    true_positive_rate: 72.52
+    sample_date: '2026-01-01'
+  examples:
+    true_positives:
+    - citation: N.J.A.C. 13:45A-4.2
+      quote: application shall not be processed for 30 days
+      reasoning: 30-day wait with no stated purpose. Appears arbitrary.
+      classification: burdensome
+      severity: 5
+    - citation: N.J.A.C. 7:26-8.3
+      quote: no sooner than 90 days after submission
+      reasoning: 90-day wait for routine permit. Excessive.
+      classification: burdensome
+      severity: 6
+    false_positives:
+    - citation: N.J.A.C. 2C:58-3
+      quote: firearms permit waiting period of 30 days
+      reasoning: Firearms cooling-off period. Clear safety rationale.
+      classification: justified
+      severity: 2
+    - citation: N.J.A.C. 7:7A-14.3
+      quote: 30-day public comment period
+      reasoning: Public comment period required by law.
+      classification: justified
+      severity: 2
+    justified:
+    - citation: N.J.A.C. 13:59-2.2
+      quote: FBI background check processing period
+      reasoning: Background check time genuinely needed.
+      classification: justified
+      severity: 2

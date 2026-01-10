@@ -1,0 +1,64 @@
+binding_required:
+  updated_at: '2026-01-03'
+  display_name: Binding Required
+  db_issue_type: binding_required
+  category: Document Format
+  description: 'Specific document binding is required (spiral, three-ring, etc.) when electronic submission
+    would eliminate the need entirely. This creates extra preparation steps and costs that affect multiple
+    groups: citizens submitting permit applications must find binding services; businesses preparing compliance
+    documents face equipment costs; professionals filing reports need specialized supplies; and government
+    staff must handle and store bulky bound materials instead of digital files.'
+  positive_indicators:
+  - Specific binding is required
+  - Electronic submission would eliminate the need
+  - Binding requirement appears to be legacy formatting
+  - '"spiral bound" or "three-ring binder" explicit requirement'
+  - No electronic alternative
+  negative_indicators:
+  - Electronic submission is also available
+  - Binding is for physical documents that must be physical
+  - Binding serves clear purpose (large reference documents for use)
+  - '"or electronic" alternative'
+  - Presentation to board/commission (practical need)
+  severity_baseline: 4
+  severity_modifiers:
+    increases:
+    - '+1: No electronic alternative'
+    - '+1: Specific binding type required'
+    - '+1: Large/complex documents'
+    decreases:
+    - '-2: Electronic submission available'
+    - '-1: Practical use case (reference during hearing)'
+    - '-1: Binding is optional'
+  patterns:
+  - spiral bound
+  - three-ring binder
+  - ring binder
+  statistics:
+    total_matches: 21
+    true_positives: 20
+    true_positive_rate: 95.24
+    sample_date: '2026-01-01'
+  examples:
+    true_positives:
+    - citation: N.J.A.C. 14:3-7.3
+      quote: engineering plans in three-ring binder
+      reasoning: Specific binding required. Could be PDF.
+      classification: burdensome
+      severity: 5
+    - citation: N.J.A.C. 7:7A-16.3
+      quote: application materials spiral bound
+      reasoning: Spiral binding requirement. Legacy formatting.
+      classification: burdensome
+      severity: 4
+    false_positives:
+    - citation: N.J.A.C. 17:1-2.3
+      quote: submit electronically or in bound format
+      reasoning: Electronic alternative offered.
+      classification: unrelated
+    justified:
+    - citation: N.J.A.C. 1:1-15.2
+      quote: hearing exhibits in binder for reference
+      reasoning: Physical reference during hearing. Practical need.
+      classification: justified
+      severity: 2

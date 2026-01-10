@@ -1,0 +1,71 @@
+no_credit_cards:
+  updated_at: '2025-12-26'
+  display_name: No Credit Cards
+  db_issue_type: no_credit_cards
+  category: Payment
+  description: Credit cards explicitly not accepted
+  response_model: PaymentAnalysis
+  patterns:
+  - no credit cards?
+  - credit cards? not accepted
+  - cash or check only
+  - no electronic payment
+  prompt:
+    system: 'You analyze regulations for PROHIBITIONS ON ELECTRONIC PAYMENT.
+
+
+      This section appears to prohibit or exclude electronic payment methods. Confirm
+
+      that this is an active prohibition rather than outdated language that has been
+
+      superseded by current practice.
+
+
+      Flag if the prohibition appears to be in force.
+
+
+      This IS a compliance issue when:
+
+      - Credit/debit cards are explicitly prohibited
+
+      - Electronic payment is explicitly excluded
+
+      - Only cash or check are listed as accepted methods
+
+
+      This is NOT a compliance issue when:
+
+      - The language is clearly outdated or superseded
+
+      - Other sections or current practice allow electronic payment
+
+      - The prohibition is for a specific narrow purpose with rationale
+
+
+      Respond with:
+
+      - has_issue: true if electronic payment prohibition is active
+
+      - requirement_quote: exact quote about the prohibition
+
+      - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+
+      - notes: any additional context
+
+      '
+    template: 'Analyze this regulation for credit/debit card prohibitions:
+
+
+      REGULATION TEXT:
+
+      {regulation_context}
+
+
+      STATUTE CONTEXT:
+
+      {statute_context}
+
+
+      Confirm whether the prohibition on electronic payment is active.
+
+      '

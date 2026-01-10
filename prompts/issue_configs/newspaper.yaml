@@ -1,0 +1,81 @@
+newspaper:
+  updated_at: '2026-01-03'
+  display_name: Newspaper Publication
+  db_issue_type: newspaper
+  category: Technology
+  description: 'Print newspaper publication is required for public notices, with costs ranging from $500
+    to $5000+ per notice and delays waiting for publication dates. This affects: businesses and government
+    agencies paying publication costs; citizens trying to find notices in declining print media; and particularly
+    vulnerable populations including those without newspaper subscriptions, non-English speakers with
+    limited English-language newspaper access, visually impaired individuals, and younger generations
+    who don''t read print newspapers. Online publication reaches more people faster and cheaper.'
+  positive_indicators:
+  - Print newspaper is the only publication method
+  - No online publication mentioned as alternative
+  - Requirement appears administrative rather than statutory
+  - '"newspaper of general circulation" without web alternative'
+  - Multiple publications required (costly)
+  - Specific newspaper named or required
+  negative_indicators:
+  - Online publication explicitly accepted or required
+  - Statute specifically requires newspaper publication
+  - Both print and online mentioned together
+  - '"or on the department website" alternative'
+  - Government register publication (not newspaper)
+  severity_baseline: 5
+  severity_modifiers:
+    increases:
+    - '+1: Multiple publications required'
+    - '+1: No online alternative mentioned'
+    - '+1: Specific newspaper required (limiting competition)'
+    - '+1: High frequency requirement (weekly, monthly)'
+    decreases:
+    - '-2: Statutory requirement mandates newspaper'
+    - '-1: Online publication equally permitted'
+    - '-1: Government register (official publication)'
+  patterns:
+  - newspaper of general circulation
+  - publish.{0,20}newspaper
+  - published.{0,20}newspaper
+  - newspaper.{0,10}notice
+  - newspaper.{0,10}publication
+  - legal.{0,5}notice
+  - local newspaper
+  - official newspaper
+  statistics:
+    total_matches: 244
+    true_positives: 196
+    true_positive_rate: 80.33
+    sample_date: '2026-01-01'
+  examples:
+    true_positives:
+    - citation: N.J.A.C. 7:7A-12.3
+      quote: shall publish notice in a newspaper of general circulation
+      reasoning: Newspaper publication required with no web alternative.
+      classification: burdensome
+      severity: 5
+    - citation: N.J.A.C. 14:3-8.2
+      quote: notice shall be published in two newspapers of general circulation
+      reasoning: TWO newspapers required, doubling cost. No online option.
+      classification: burdensome
+      severity: 6
+    - citation: N.J.A.C. 19:61-1.5
+      quote: at least once in a newspaper in each county
+      reasoning: Multi-county newspaper requirement. Very costly.
+      classification: burdensome
+      severity: 7
+    false_positives:
+    - citation: N.J.A.C. 7:1-6.3
+      quote: published in a newspaper and on the Department website
+      reasoning: Web publication equally accepted. Dual publication.
+      classification: unrelated
+    - citation: N.J.A.C. 1:30-2.1
+      quote: published in the New Jersey Register
+      reasoning: Official register, not newspaper. Different requirement.
+      classification: unrelated
+    justified:
+    - citation: N.J.A.C. 40:55D-12
+      quote: as required by N.J.S.A. 40:55D-12, notice shall be published
+      reasoning: Statutory requirement for land use notices.
+      classification: justified
+      severity: 3

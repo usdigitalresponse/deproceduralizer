@@ -11,11 +11,14 @@ Usage:
 """
 
 import json
+import logging
 import re
 from pathlib import Path
 from dataclasses import dataclass, field
 from datetime import datetime
 import duckdb
+
+logger = logging.getLogger(__name__)
 
 DATA_DIR = Path(__file__).parent.parent.parent / 'data'
 
@@ -695,8 +698,8 @@ def get_sample(doc: dict, patterns: list[str], state: str) -> dict | None:
                     'match': match.group(),
                     'context': content[start:end].replace('\n', ' ').strip(),
                 }
-        except:
-            pass
+        except (re.error, TypeError) as e:
+            logger.warning(f"Pattern match failed for pattern '{pattern}' in state {state}: {type(e).__name__}: {e}")
     return None
 
 

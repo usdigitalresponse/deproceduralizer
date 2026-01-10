@@ -1,4 +1,4 @@
-import { expect, Page } from '@playwright/test';
+import { expect, Page, Locator } from '@playwright/test';
 
 /**
  * Page readiness helpers for smoke tests.
@@ -64,7 +64,7 @@ export async function waitForSuggestionModeReady(page: Page) {
 export async function waitForFilterModeReady(page: Page) {
   await expect(page.getByRole('heading', { name: /Review/i })).toBeVisible();
   await expect(page.getByText('Status:')).toBeVisible({ timeout: 10000 });
-  await expect(page.getByText('Type:')).toBeVisible();
+  await expect(page.getByText('Type:', { exact: true })).toBeVisible();
 }
 
 /** Wait for prompts page to be fully loaded */
@@ -73,16 +73,26 @@ export async function waitForPromptsReady(page: Page) {
 }
 
 /** Wait for a form save operation to complete */
-export async function waitForSaveComplete(page: Page) {
-  // Wait for any loading indicators to disappear and network to settle
-  // This is more reliable than waitForTimeout
-  await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {
-    // Fallback: just wait a short moment if networkidle times out
-  });
+export async function waitForSaveComplete(page: Page, saveButton?: Locator) {
+  if (saveButton) {
+    // Wait for the save button to be re-enabled (indicates save completed)
+    await expect(saveButton).toBeEnabled({ timeout: 5000 });
+  } else {
+    // Fallback: wait briefly for UI to settle
+    await page.waitForTimeout(500);
+  }
 }
 
 /** Wait for filter to be applied (cards to refresh) */
 export async function waitForFilterApplied(page: Page, cardTestId: string) {
   // Wait for the first card to be visible after filter change
   await expect(page.getByTestId(cardTestId).first()).toBeVisible({ timeout: 10000 });
+}
+
+/** Wait for pipeline/analysis page to be ready */
+export async function waitForPipelineReady(page: Page) {
+  await expect(page.getByRole('heading', { name: /Research Pipeline/i }).first()).toBeVisible();
+  // Wait for table or empty state
+  const table = page.locator('table');
+  await expect(table).toBeVisible({ timeout: 10000 });
 }
