@@ -218,7 +218,7 @@ export const tierFilterParser = parseAsStringEnum([...TIER_FILTER_VALUES]).withD
 export const federalMandateFilterParser = parseAsStringEnum([...FEDERAL_MANDATE_FILTER_VALUES]).withDefault('all');
 export const hasAnalysisFilterParser = parseAsStringEnum([...HAS_ANALYSIS_FILTER_VALUES]).withDefault('all');
 export const classificationFilterParser = parseAsStringEnum([...CLASSIFICATION_FILTER_VALUES]).withDefault('all');
-export const analysisSortByParser = parseAsStringEnum([...ANALYSIS_SORT_BY_VALUES]).withDefault('createdAt');
+export const analysisSortByParser = parseAsStringEnum([...ANALYSIS_SORT_BY_VALUES]).withDefault('severity');
 export const pipelineRunParser = parseAsStringEnum([...BOOLEAN_FILTER_VALUES]).withDefault('all');
 export type PipelineRunValue = (typeof BOOLEAN_FILTER_VALUES)[number];
 
@@ -258,6 +258,8 @@ export const analysisTableParsers = {
   stateDiscretion: tier3FindingParser,
   alternativeFound: tier3FindingParser,
   evidenceGap: tier3FindingParser,
+  supersededByLaw: tier3FindingParser,
+  advocacyForChange: tier3FindingParser,
   tier3Trigger: tier3TriggerParser,
   // V5.1 Easy Cleanup filter
   easyCleanup: easyCleanupParser,

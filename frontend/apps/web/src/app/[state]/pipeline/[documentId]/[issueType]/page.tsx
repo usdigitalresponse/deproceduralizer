@@ -48,10 +48,10 @@ export default async function AnalysisDetailPage({ params, searchParams }: Analy
 
   const stateCode = state.toUpperCase() as StateCode;
 
-  // Fetch full analysis record, and regex matches if in print mode
+  // Fetch full analysis record and regex matches (shown in both views now)
   const [analysisResult, matchesResult] = await Promise.all([
     getFullAnalysisRecord(docId, issueType),
-    isPrintMode ? getRegexMatchesForAnalysis(docId, issueType) : Promise.resolve(null),
+    getRegexMatchesForAnalysis(docId, issueType),
   ]);
 
   if (!analysisResult.success || !analysisResult.data) {
@@ -271,13 +271,14 @@ export default async function AnalysisDetailPage({ params, searchParams }: Analy
           </div>
         )}
 
-        {/* Regex Matches Section - shown before tiers in print mode */}
-        {isPrintMode && matches.length > 0 && (
+        {/* Regex Matches Section - collapsible in standard view, expanded in print mode */}
+        {matches && matches.length > 0 && (
           <div className="mb-6 bg-white border border-[var(--color-neutral-200)] rounded-[var(--radius-md)] p-6">
             <RegexMatchesSection
               matches={matches}
               relevantMatchIds={analysis.tier1?.relevantMatchIds || []}
               dismissedReasons={(analysis.tier1?.dismissedReasons as DismissedMatch[]) || []}
+              collapsible={!isPrintMode}
             />
           </div>
         )}

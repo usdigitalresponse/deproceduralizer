@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "prebuild": "mkdir -p src/data && cp ../../../prompts/core.yaml src/data/core.yaml && cp ../../../prompts/compliance_issues.yaml src/data/compliance_issues.yaml",
+    "prebuild": "mkdir -p src/data && cp ../../../prompts/core.yaml src/data/core.yaml && cp ../../../prompts/compliance_issues.yaml src/data/compliance_issues.yaml && cp ../../../prompts/research_pipeline.yaml src/data/research_pipeline.yaml && cp -r ../../../prompts/issue_configs src/data/issue_configs",
     "build": "pnpm prebuild && next build --webpack",
     "start": "next start",
     "lint": "eslint",

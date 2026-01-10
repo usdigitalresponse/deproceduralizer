@@ -9,13 +9,13 @@ import {
 
 /**
  * Example pipeline walkthrough data
- * Represents a real pipeline journey through all 4 tiers
+ * Represents a real V5 pipeline journey through 3 tiers (T1 → T2 → T3)
  */
 const EXAMPLE_JOURNEY = {
   document: {
     citation: 'N.J.A.C. 7:26-2.8',
     title: 'Submission of Manifests',
-    issueType: 'in_person_requirements',
+    issueType: 'in_person_submission',
     matchPreview: '...generator shall submit the manifest **in person** to the designated facility...',
   },
   steps: [
@@ -26,7 +26,7 @@ const EXAMPLE_JOURNEY = {
       description: 'Regex patterns found potential compliance issue in regulation text.',
       details: [
         'Pattern "in person" matched in document',
-        'Issue type: In-Person Requirements',
+        'Issue type: In-Person Submission',
         'Grouped with 2 other matches in same document',
       ],
       highlight: 'input',
@@ -35,11 +35,12 @@ const EXAMPLE_JOURNEY = {
       id: 1,
       tier: 1,
       title: 'Tier 1: Match Filtering',
-      description: 'AI reviews matches with context catalog to filter false positives.',
+      description: 'AI reviews matches with context catalog to filter false positives and generate argument framing.',
       details: [
         'Context catalog shows document is about waste manifest submissions',
         'Sibling sections discuss delivery procedures',
         '"In person" appears in procedural context, not incidental mention',
+        'Generated argument framing for Tier 2 analysis',
       ],
       classification: 'needs_research',
       output: 'Valid match - proceeding to Tier 2',
@@ -48,24 +49,25 @@ const EXAMPLE_JOURNEY = {
     {
       id: 2,
       tier: 2,
-      title: 'Tier 2: Summary Research',
-      description: 'Deep analysis with document summaries and definitions.',
+      title: 'Tier 2: Full Classification',
+      description: 'Deep analysis with full document text, definitions, and Tier 1 argument framing.',
       details: [
-        'Full document reviewed for requirements scope',
-        'Requested context: parent chapter summary, related definitions',
+        'Full document text analyzed for requirement scope',
+        'Inherited definitions and cross-references consulted',
         'Identified: "Physical submission of hazardous waste manifests required"',
         'Severity assessed: 7/10 (significant operational burden)',
+        'High-risk issue type (in_person_*) triggers Tier 3 escalation',
       ],
       classification: 'burdensome',
       severity: 7,
-      output: 'High severity (≥5) - escalating to Tier 4 for web validation',
+      output: 'High-risk issue + severity ≥ 7 - escalating to Tier 3 for web verification',
       highlight: 'tier2',
     },
     {
       id: 3,
-      tier: 4,
-      title: 'Tier 4: Web Validation',
-      description: 'External search validates findings against federal requirements.',
+      tier: 3,
+      title: 'Tier 3: Web Search Verification',
+      description: 'External web search validates findings against federal requirements.',
       details: [
         'Searched: "EPA hazardous waste manifest submission requirements"',
         'Found: EPA e-Manifest system allows electronic submission',
@@ -77,7 +79,7 @@ const EXAMPLE_JOURNEY = {
       federalMandateFound: false,
       stateDiscretion: 'high',
       output: 'Confirmed burdensome - state exceeds federal requirements',
-      highlight: 'tier4',
+      highlight: 'tier3',
     },
     {
       id: 4,
@@ -183,7 +185,7 @@ export function PipelineExampleWalkthrough({ onClose }: PipelineExampleWalkthrou
         />
       </div>
 
-      {/* Tier Flow Indicator - Shows T1 → T2 → T3 (skip) → T4 */}
+      {/* Tier Flow Indicator - V5: T1 → T2 → T3 */}
       <div className="flex items-center justify-center gap-1 py-3 border-b border-[var(--color-neutral-200)]">
         {/* Start marker */}
         <button
@@ -231,14 +233,7 @@ export function PipelineExampleWalkthrough({ onClose }: PipelineExampleWalkthrou
 
         <span className="text-[var(--color-neutral-300)]">→</span>
 
-        {/* T3 - Skipped */}
-        <div className="flex items-center justify-center w-7 h-7 text-[10px] font-medium rounded-full bg-[var(--color-neutral-50)] text-[var(--color-text-muted)] border border-dashed border-[var(--color-neutral-300)] opacity-60">
-          T3
-        </div>
-
-        <span className="text-[var(--color-neutral-300)]">→</span>
-
-        {/* T4 */}
+        {/* T3 */}
         <button
           onClick={() => setCurrentStep(3)}
           className={`flex items-center justify-center w-7 h-7 text-xs font-medium rounded-full transition-all ${
@@ -249,7 +244,7 @@ export function PipelineExampleWalkthrough({ onClose }: PipelineExampleWalkthrou
                 : 'bg-[var(--color-neutral-100)] text-[var(--color-text-muted)]'
           }`}
         >
-          T4
+          T3
         </button>
 
         <span className="text-[var(--color-neutral-300)]">→</span>
@@ -267,11 +262,11 @@ export function PipelineExampleWalkthrough({ onClose }: PipelineExampleWalkthrou
         </button>
       </div>
 
-      {/* Skip explanation - shows when relevant */}
-      {(currentStep === 2 || currentStep === 3) && (
+      {/* Escalation explanation - shows when moving from T2 to T3 */}
+      {currentStep === 2 && (
         <div className="flex items-center justify-center gap-2 py-2 bg-[var(--color-info-bg)] border-b border-[var(--color-info)]/20">
           <span className="text-xs text-[var(--color-info)]">
-            ℹ️ Tier 3 skipped — high severity (≥5) routes directly to web validation
+            ℹ️ High-risk issue type + severity ≥ 7 triggers Tier 3 web verification
           </span>
         </div>
       )}

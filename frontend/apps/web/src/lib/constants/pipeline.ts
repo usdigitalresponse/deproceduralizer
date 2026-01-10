@@ -144,17 +144,27 @@ export const PIPELINE_TIERS: PipelineTierData[] = [
     },
     routing: [
       {
-        condition: 'burdensome (sev >= 7) OR cites_federal',
+        condition: 'High-risk issue + justified',
         destination: 'T3',
-        description: 'High severity or federal claim needs web verification',
+        description: 'High-risk issues (notarization, wet_signature, witness, etc.) always escalate when justified',
       },
       {
-        condition: 'burdensome (sev < 7)',
-        destination: 'STOP',
-        description: 'Lower severity burden confirmed',
+        condition: 'High-risk issue + severity ≥ 7',
+        destination: 'T3',
+        description: 'High-risk issues with high severity need verification',
       },
       {
-        condition: 'justified / unrelated',
+        condition: 'cites_federal_statute',
+        destination: 'T3',
+        description: 'Federal statute claims need external verification',
+      },
+      {
+        condition: 'Low confidence + severity ≥ 7',
+        destination: 'T3',
+        description: 'Uncertain classifications benefit from web verification',
+      },
+      {
+        condition: 'justified / unrelated / low-sev burdensome',
         destination: 'STOP',
         description: 'Final classification reached',
         percentage: '~60%',

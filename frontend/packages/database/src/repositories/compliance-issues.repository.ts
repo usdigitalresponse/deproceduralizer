@@ -213,6 +213,10 @@ export interface FullAnalysisRecord {
     citesFederalStatute: boolean;
     federalCitation: string | null;
     claimsNoAlternative: boolean;
+    // V5.2: Web search disambiguation
+    programContext: string | null;
+    notToConfuseWith: string[] | null;
+    searchScopeGuidance: string | null;
   } | null;
 
   // Tier 3 data
@@ -1817,6 +1821,10 @@ export class ComplianceIssuesRepository extends BaseRepository {
         citesFederalStatute: complianceIssueAnalyses.citesFederalStatute,
         federalCitation: complianceIssueAnalyses.federalCitation,
         claimsNoAlternative: complianceIssueAnalyses.claimsNoAlternative,
+        // V5.2: Web search disambiguation
+        programContext: complianceIssueAnalyses.programContext,
+        notToConfuseWith: complianceIssueAnalyses.notToConfuseWith,
+        searchScopeGuidance: complianceIssueAnalyses.searchScopeGuidance,
 
         // Tier 3
         tier3Classification: complianceIssueAnalyses.tier3Classification,
@@ -1946,6 +1954,10 @@ export class ComplianceIssuesRepository extends BaseRepository {
         citesFederalStatute: row.citesFederalStatute ?? false,
         federalCitation: row.federalCitation,
         claimsNoAlternative: row.claimsNoAlternative ?? false,
+        // V5.2: Web search disambiguation
+        programContext: row.programContext,
+        notToConfuseWith: row.notToConfuseWith,
+        searchScopeGuidance: row.searchScopeGuidance,
       } : null,
 
       tier3: row.tier3Classification ? {
@@ -2013,6 +2025,8 @@ export class ComplianceIssuesRepository extends BaseRepository {
         stateDiscretion?: 'true' | 'false' | 'no_tier3';
         alternativeFound?: 'true' | 'false' | 'no_tier3';
         evidenceGap?: 'true' | 'false' | 'no_tier3';
+        supersededByLaw?: 'true' | 'false' | 'no_tier3';
+        advocacyForChange?: 'true' | 'false' | 'no_tier3';
         tier3Trigger?: string;
         // V5.1 Easy Cleanup filter
         easyCleanup?: 'any' | 'trivial' | 'easy' | 'medium';
@@ -2081,15 +2095,17 @@ export class ComplianceIssuesRepository extends BaseRepository {
       // V5 Tier 3 filters
 
       // Severity filter (high=7-10, medium=4-6, low=1-3, none=null)
+      // Use COALESCE to fall back to tier2 severity if final_severity is NULL
       if (filters.severity) {
+        const severityExpr = sql`COALESCE(${complianceIssueAnalyses.finalSeverity}, ${complianceIssueAnalyses.severity})`;
         if (filters.severity === 'high') {
-          conditions.push(gte(complianceIssueAnalyses.finalSeverity, 7));
+          conditions.push(sql`${severityExpr} >= 7`);
         } else if (filters.severity === 'medium') {
-          conditions.push(and(gte(complianceIssueAnalyses.finalSeverity, 4), lt(complianceIssueAnalyses.finalSeverity, 7))!);
+          conditions.push(sql`${severityExpr} >= 4 AND ${severityExpr} < 7`);
         } else if (filters.severity === 'low') {
-          conditions.push(and(gte(complianceIssueAnalyses.finalSeverity, 1), lt(complianceIssueAnalyses.finalSeverity, 4))!);
+          conditions.push(sql`${severityExpr} >= 1 AND ${severityExpr} < 4`);
         } else if (filters.severity === 'none') {
-          conditions.push(isNull(complianceIssueAnalyses.finalSeverity));
+          conditions.push(sql`${severityExpr} IS NULL`);
         }
       }
 
@@ -2182,9 +2198,41 @@ export class ComplianceIssuesRepository extends BaseRepository {
         }
       }
 
+      // Superseded by law filter (Tier 3 flag from JSONB)
+      if (filters.supersededByLaw) {
+        if (filters.supersededByLaw === 'true') {
+          conditions.push(sql`(${complianceIssueAnalyses.tier3Flags}->'superseded_by_law'->>'value')::boolean = true`);
+        } else if (filters.supersededByLaw === 'false') {
+          conditions.push(
+            sql`${complianceIssueAnalyses.tier3Classification} IS NOT NULL AND (
+              (${complianceIssueAnalyses.tier3Flags}->'superseded_by_law'->>'value')::boolean = false
+              OR ${complianceIssueAnalyses.tier3Flags}->'superseded_by_law' IS NULL
+            )`
+          );
+        } else if (filters.supersededByLaw === 'no_tier3') {
+          conditions.push(isNull(complianceIssueAnalyses.tier3Classification));
+        }
+      }
+
+      // Advocacy for change filter (Tier 3 flag from JSONB)
+      if (filters.advocacyForChange) {
+        if (filters.advocacyForChange === 'true') {
+          conditions.push(sql`(${complianceIssueAnalyses.tier3Flags}->'advocacy_for_change'->>'value')::boolean = true`);
+        } else if (filters.advocacyForChange === 'false') {
+          conditions.push(
+            sql`${complianceIssueAnalyses.tier3Classification} IS NOT NULL AND (
+              (${complianceIssueAnalyses.tier3Flags}->'advocacy_for_change'->>'value')::boolean = false
+              OR ${complianceIssueAnalyses.tier3Flags}->'advocacy_for_change' IS NULL
+            )`
+          );
+        } else if (filters.advocacyForChange === 'no_tier3') {
+          conditions.push(isNull(complianceIssueAnalyses.tier3Classification));
+        }
+      }
+
       // Tier 3 trigger filter (derived from existing fields based on routing.py logic)
       // IMPORTANT: These thresholds must match backend/scripts/research_pipeline/routing.py
-      // Thresholds: HIGH_RISK_SEVERITY >= 6, NO_ALTERNATIVE_SEVERITY >= 7, BURDENSOME_SEVERITY >= 8
+      // Thresholds: HIGH_RISK_SEVERITY >= 7, NO_ALTERNATIVE_SEVERITY >= 7, BURDENSOME_SEVERITY >= 8
       if (filters.tier3Trigger) {
         // High-risk issue types that trigger Tier 3 when severity >= 6
         const HIGH_RISK_ISSUE_TYPES = ['newspaper', 'notarization', 'wet_signature', 'witness', 'mandated_reports'];
@@ -2267,9 +2315,10 @@ export class ComplianceIssuesRepository extends BaseRepository {
       .where(whereClause);
 
     // Build sort column
+    // Use COALESCE for severity to fall back to tier2 severity if final_severity is NULL
     const sortColumn = {
       issueType: complianceIssueAnalyses.issueType,
-      severity: complianceIssueAnalyses.finalSeverity,
+      severity: sql`COALESCE(${complianceIssueAnalyses.finalSeverity}, ${complianceIssueAnalyses.severity})`,
       highestTier: complianceIssueAnalyses.highestTierCompleted,
       createdAt: complianceIssueAnalyses.createdAt,
     }[sortBy] ?? complianceIssueAnalyses.createdAt;
@@ -2291,7 +2340,8 @@ export class ComplianceIssuesRepository extends BaseRepository {
         tier3Classification: complianceIssueAnalyses.tier3Classification,
         tier4Classification: complianceIssueAnalyses.tier4Classification,
         tier2RerunCount: complianceIssueAnalyses.tier2RerunCount,  // Track re-runs
-        finalSeverity: complianceIssueAnalyses.finalSeverity,
+        // Use COALESCE to fall back to tier2 severity if final_severity is NULL
+        finalSeverity: sql<number | null>`COALESCE(${complianceIssueAnalyses.finalSeverity}, ${complianceIssueAnalyses.severity})`,
         federalMandateFound: complianceIssueAnalyses.federalMandateFound,
         isJustified: complianceIssueAnalyses.isJustified,
         createdAt: complianceIssueAnalyses.createdAt,
