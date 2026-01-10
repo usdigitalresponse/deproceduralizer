@@ -30,6 +30,8 @@ import {
   STATE_DISCRETION_FILTER_OPTIONS,
   ALTERNATIVE_FOUND_FILTER_OPTIONS,
   EVIDENCE_GAP_FILTER_OPTIONS,
+  SUPERSEDED_BY_LAW_FILTER_OPTIONS,
+  ADVOCACY_FOR_CHANGE_FILTER_OPTIONS,
   TIER3_TRIGGER_FILTER_OPTIONS,
   EASY_CLEANUP_FILTER_OPTIONS,
 } from '@/lib/constants/filters';
@@ -61,6 +63,8 @@ export function AnalysisTableFilters() {
       stateDiscretion: 'all',
       alternativeFound: 'all',
       evidenceGap: 'all',
+      supersededByLaw: 'all',
+      advocacyForChange: 'all',
       tier3Trigger: 'all',
       easyCleanup: 'all',
       bookmarkedOnly: 'all',
@@ -83,6 +87,8 @@ export function AnalysisTableFilters() {
     filters.stateDiscretion !== 'all' ||
     filters.alternativeFound !== 'all' ||
     filters.evidenceGap !== 'all' ||
+    filters.supersededByLaw !== 'all' ||
+    filters.advocacyForChange !== 'all' ||
     filters.tier3Trigger !== 'all' ||
     filters.easyCleanup !== 'all' ||
     filters.bookmarkedOnly !== 'all'
@@ -96,6 +102,8 @@ export function AnalysisTableFilters() {
     filters.stateDiscretion !== 'all',
     filters.alternativeFound !== 'all',
     filters.evidenceGap !== 'all',
+    filters.supersededByLaw !== 'all',
+    filters.advocacyForChange !== 'all',
     filters.tier3Trigger !== 'all',
     filters.easyCleanup !== 'all',
   ].filter(Boolean).length;
@@ -242,7 +250,7 @@ export function AnalysisTableFilters() {
       {/* Advanced Tier 3 Filters */}
       {showAdvanced && (
         <div className="bg-[var(--color-neutral-50)] border border-[var(--color-neutral-200)] rounded-[var(--radius-sm)] p-3">
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
             <FilterField label="T3 Trigger">
               <Select
                 value={filters.tier3Trigger}
@@ -294,6 +302,24 @@ export function AnalysisTableFilters() {
                 onValueChange={(value) => setFilters({ evidenceGap: value as Tier3FindingFilterValue, page: 1 })}
                 options={EVIDENCE_GAP_FILTER_OPTIONS}
                 aria-label="Filter by evidence gap"
+              />
+            </FilterField>
+
+            <FilterField label="Superseded">
+              <Select
+                value={filters.supersededByLaw}
+                onValueChange={(value) => setFilters({ supersededByLaw: value as Tier3FindingFilterValue, page: 1 })}
+                options={SUPERSEDED_BY_LAW_FILTER_OPTIONS}
+                aria-label="Filter by superseded by law"
+              />
+            </FilterField>
+
+            <FilterField label="Advocacy">
+              <Select
+                value={filters.advocacyForChange}
+                onValueChange={(value) => setFilters({ advocacyForChange: value as Tier3FindingFilterValue, page: 1 })}
+                options={ADVOCACY_FOR_CHANGE_FILTER_OPTIONS}
+                aria-label="Filter by advocacy for change"
               />
             </FilterField>
 

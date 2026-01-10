@@ -89,6 +89,8 @@ export function AnalysisTable({ state }: AnalysisTableProps) {
           stateDiscretion: filters.stateDiscretion !== 'all' ? filters.stateDiscretion : undefined,
           alternativeFound: filters.alternativeFound !== 'all' ? filters.alternativeFound : undefined,
           evidenceGap: filters.evidenceGap !== 'all' ? filters.evidenceGap : undefined,
+          supersededByLaw: filters.supersededByLaw !== 'all' ? filters.supersededByLaw : undefined,
+          advocacyForChange: filters.advocacyForChange !== 'all' ? filters.advocacyForChange : undefined,
           tier3Trigger: filters.tier3Trigger !== 'all' ? filters.tier3Trigger : undefined,
           // V5.1 Easy Cleanup filter
           easyCleanup: filters.easyCleanup !== 'all' ? filters.easyCleanup : undefined,

@@ -133,6 +133,8 @@ export interface AnalysisListFilters {
   stateDiscretion?: 'true' | 'false' | 'no_tier3';
   alternativeFound?: 'true' | 'false' | 'no_tier3';
   evidenceGap?: 'true' | 'false' | 'no_tier3';
+  supersededByLaw?: 'true' | 'false' | 'no_tier3';       // Has a new law replaced this requirement?
+  advocacyForChange?: 'true' | 'false' | 'no_tier3';     // Is there journalism/advocacy calling for change?
   tier3Trigger?: string;
   // V5.1 Easy Cleanup filter
   easyCleanup?: 'any' | 'trivial' | 'easy' | 'medium';

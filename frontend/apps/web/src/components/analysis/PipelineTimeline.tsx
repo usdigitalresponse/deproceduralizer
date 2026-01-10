@@ -235,6 +235,48 @@ export function PipelineTimeline({ analysis }: PipelineTimelineProps) {
                 </div>
               )}
 
+              {/* V5.2: Web Search Strategy (disambiguation for Tier 3) */}
+              {(tier2.programContext || tier2.notToConfuseWith?.length || tier2.searchScopeGuidance) && (
+                <ExpandableSection label="Web Search Strategy">
+                  <div className="space-y-3">
+                    {tier2.programContext && (
+                      <div>
+                        <span className="text-xs font-medium text-[var(--color-text-muted)]">
+                          Program Context
+                        </span>
+                        <p className="text-sm text-[var(--color-text-secondary)] mt-1">
+                          {tier2.programContext}
+                        </p>
+                      </div>
+                    )}
+                    {tier2.notToConfuseWith && tier2.notToConfuseWith.length > 0 && (
+                      <div>
+                        <span className="text-xs font-medium text-[var(--color-text-muted)]">
+                          Not to Confuse With
+                        </span>
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {tier2.notToConfuseWith.map((item, i) => (
+                            <Badge key={i} variant="warning" className="text-xs">
+                              {item}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {tier2.searchScopeGuidance && (
+                      <div>
+                        <span className="text-xs font-medium text-[var(--color-text-muted)]">
+                          Search Scope Guidance
+                        </span>
+                        <p className="text-sm text-[var(--color-text-secondary)] mt-1">
+                          {tier2.searchScopeGuidance}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </ExpandableSection>
+              )}
+
               {/* V5: Context requests made during re-runs */}
               {tier2.contextRequestsMade && tier2.contextRequestsMade.length > 0 && (
                 <ExpandableSection label="Show context requests">

@@ -464,3 +464,29 @@ export const EASY_CLEANUP_FILTER_OPTIONS = createFilterOptions(
   EASY_CLEANUP_FILTER_VALUES,
   EASY_CLEANUP_LABELS
 );
+
+// Superseded by law filter (Tier 3 flag - new law has replaced this requirement)
+const SUPERSEDED_BY_LAW_LABELS: Record<(typeof TIER3_FINDING_FILTER_VALUES)[number], string> = {
+  all: 'All',
+  true: 'Superseded',
+  false: 'Not Superseded',
+  no_tier3: 'No Tier 3',
+};
+
+export const SUPERSEDED_BY_LAW_FILTER_OPTIONS = createFilterOptions(
+  TIER3_FINDING_FILTER_VALUES,
+  SUPERSEDED_BY_LAW_LABELS
+);
+
+// Advocacy for change filter (Tier 3 flag - journalism/advocacy calling for change)
+const ADVOCACY_FOR_CHANGE_LABELS: Record<(typeof TIER3_FINDING_FILTER_VALUES)[number], string> = {
+  all: 'All',
+  true: 'Advocacy Found',
+  false: 'No Advocacy',
+  no_tier3: 'No Tier 3',
+};
+
+export const ADVOCACY_FOR_CHANGE_FILTER_OPTIONS = createFilterOptions(
+  TIER3_FINDING_FILTER_VALUES,
+  ADVOCACY_FOR_CHANGE_LABELS
+);
