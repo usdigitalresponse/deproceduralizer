@@ -322,7 +322,7 @@ test.describe('Suggestion Mode', () => {
     // Verify filter mode UI is visible
     await expect(page.getByText('Status:')).toBeVisible({ timeout: 10000 });
     await expect(page.getByText('Type:', { exact: true })).toBeVisible();
-    await expect(page.getByText('Severity:')).toBeVisible();
+    await expect(page.getByText('Severity:', { exact: true })).toBeVisible();
 
     // Verify suggestion mode controls are NOT visible
     await expect(page.getByText('Items per batch:')).not.toBeVisible();
