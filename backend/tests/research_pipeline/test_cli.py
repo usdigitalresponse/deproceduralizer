@@ -34,12 +34,12 @@ class TestCLIHelp:
         assert "--state" in cli_help_output
 
     def test_help_shows_issue_type_argument(self, cli_help_output):
-        """--issue-type argument is documented."""
-        assert "--issue-type" in cli_help_output
+        """--issue argument is documented."""
+        assert "--issue" in cli_help_output
 
     def test_help_shows_max_docs_per_issue_argument(self, cli_help_output):
-        """--max-docs-per-issue argument is documented."""
-        assert "--max-docs-per-issue" in cli_help_output
+        """--limit argument is documented."""
+        assert "--limit" in cli_help_output
 
     def test_help_shows_max_tier_argument(self, cli_help_output):
         """--max-tier argument is documented."""
@@ -50,8 +50,8 @@ class TestCLIHelp:
         assert "--dry-run" in cli_help_output or "dry_run" in cli_help_output
 
     def test_help_shows_all_issues_argument(self, cli_help_output):
-        """--all-issues argument is documented."""
-        assert "--all-issues" in cli_help_output or "all_issues" in cli_help_output
+        """--all argument is documented."""
+        assert "--all" in cli_help_output or "all_issues" in cli_help_output
 
 
 class TestCLIDefaults:
@@ -71,7 +71,7 @@ class TestCLIDefaults:
         assert "RUNNING ALL ISSUE TYPES" in result.stdout
 
     def test_defaults_to_all_issues(self):
-        """Without --issue-type, should default to all issues."""
+        """Without --issue, should default to all issues."""
         result = subprocess.run(
             ["python3", "-m", "scripts.research_pipeline.cli", "--state", "nj", "--dry-run"],
             capture_output=True,
@@ -84,10 +84,10 @@ class TestCLIDefaults:
         assert "Issue types found:" in result.stdout
 
     def test_explicit_issue_type_overrides_default(self):
-        """--issue-type should override the default all-issues behavior."""
+        """--issue should override the default all-issues behavior."""
         result = subprocess.run(
             ["python3", "-m", "scripts.research_pipeline.cli",
-             "--state", "nj", "--issue-type", "mail_only", "--dry-run"],
+             "--state", "nj", "--issue", "mail_only", "--dry-run"],
             capture_output=True,
             text=True,
             cwd=BACKEND_DIR,
@@ -110,7 +110,6 @@ class TestCLIDefaults:
         assert result.returncode == 0
         assert "default: 1000" in result.stdout
         assert "default: 2" in result.stdout
-        assert "default: false" in result.stdout.lower()
 
 
 class TestBackfillScript:

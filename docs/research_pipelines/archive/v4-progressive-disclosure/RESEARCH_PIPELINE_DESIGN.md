@@ -545,7 +545,7 @@ prompts/
 
 ```bash
 # Full pipeline
-python -m research_pipeline.cli run --state NJ --issue-type wet_signature
+python -m research_pipeline.cli run --state NJ --issue wet_signature
 
 # Estimate only (no LLM calls)
 python -m research_pipeline.cli estimate --state NJ

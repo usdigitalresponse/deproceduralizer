@@ -13,7 +13,7 @@ Outputs:
 
 Usage:
     python backend/scripts/simulate_pattern_improvements.py
-    python backend/scripts/simulate_pattern_improvements.py --issue-type fax
+    python backend/scripts/simulate_pattern_improvements.py --issue fax
     python backend/scripts/simulate_pattern_improvements.py --show-samples witness_required
 """
 
@@ -306,7 +306,7 @@ def show_samples(conn, patterns: list[str], issue_type: str, n: int = 5, state: 
 
 def main():
     parser = argparse.ArgumentParser(description='Simulate pattern improvement impact')
-    parser.add_argument('--issue-type', '-i', help='Analyze specific issue type only')
+    parser.add_argument('--issue', '-i', dest='issue_type', help='Analyze specific issue type only')
     parser.add_argument('--show-samples', '-s', help='Show sample matches for issue type')
     parser.add_argument('--samples', '-n', type=int, default=5, help='Number of samples to show')
     parser.add_argument('--state', default='NJ', help='State to analyze (default: NJ)')

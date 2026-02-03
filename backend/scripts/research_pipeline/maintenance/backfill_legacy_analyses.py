@@ -13,7 +13,7 @@ Options:
     --dry-run       Show what would be migrated without writing
     --limit N       Process only N groups (for testing)
     --state NJ|NY   Filter by state
-    --issue-type X  Filter by issue type
+    --issue X       Filter by issue type
 """
 
 import argparse
@@ -312,7 +312,8 @@ def main():
         help="Filter by state",
     )
     parser.add_argument(
-        "--issue-type",
+        "--issue",
+        dest="issue_type",
         help="Filter by issue type (e.g., mail_only, wet_signature)",
     )
 

@@ -2,7 +2,7 @@
 
 > **Status: IN PROGRESS**
 > - Phase 0: ✅ Complete (PR #83 awaiting approval)
-> - Phase 1: 🔄 In Progress (PR 1.1 done, 1.2-1.4 remaining)
+> - Phase 1: 🔄 In Progress (PR 1.1 done, PR 1.2 in progress, 1.3-1.4 remaining)
 > - Phase 2-5: 📋 Planned
 
 **Goal**: Reduce research pipeline from ~23,000 lines to ~5,000 lines while preserving functionality.
@@ -21,13 +21,13 @@
 | Phase | Description | Status | PRs |
 |-------|-------------|--------|-----|
 | 0 | Test Infrastructure | ✅ Complete | PR #83 awaiting approval |
-| 1 | Simplify CLI | 🔄 In Progress | 0/4 |
+| 1 | Simplify CLI | 🔄 In Progress | 2/4 (PR 1.2 ready) |
 | 2 | Remove Batch Persistence | 📋 Planned | 0/4 |
 | 3 | Flatten State Machine | 📋 Planned | 0/5 |
 | 4 | Consolidate Files | 📋 Planned | 0/5 |
 | 5 | Final Cleanup | 📋 Planned | 0/2 |
 
-**Total Progress**: 1/21 PRs (Phase 0 complete, awaiting merge)
+**Total Progress**: 2/21 PRs (Phase 0 complete, awaiting merge)
 
 ---
 
@@ -74,19 +74,18 @@ python3 -m scripts.research_pipeline.cli --state nj
 Instead of:
 ```bash
 python3 -m scripts.research_pipeline.cli \
-  --state nj --all-issues \
-  --max-docs-per-issue 50 --global-docs-limit no-limit \
-  --max-tier 2 --enable-web-search false
+  --state nj --all \
+  --limit 50 \
+  --max-tier 2
 ```
 
 **Changes**:
 | Flag | Before | After (Default) |
 |------|--------|-----------------|
-| `--max-docs-per-issue` | Required | `1000` |
-| `--global-docs-limit` | Required | `no-limit` |
+| `--limit` | Required | `1000` |
 | `--max-tier` | Required | `2` |
-| `--enable-web-search` | Required | `false` |
-| `--issue-type` / `--all-issues` | One required | `--all-issues` if neither specified |
+| `--web-search` | Required | `false` |
+| `--issue` / `--all` | One required | `--all` if neither specified |
 
 **Tests to verify**:
 - [x] Contract tests still pass (29/29)
@@ -98,7 +97,7 @@ python3 -m scripts.research_pipeline.cli \
 
 ---
 
-### PR 1.2: Simplify CLI Flag Names ⬜
+### PR 1.2: Simplify CLI Flag Names 🔄 IN PROGRESS
 
 **Branch**: `refactor/cli-flag-names`
 
@@ -112,7 +111,17 @@ python3 -m scripts.research_pipeline.cli \
 | `--issue-type` | `--issue` |
 | `--all-issues` | `--all` |
 
-**Status**: ⬜ Not started
+**Progress**:
+- [x] Updated argument definitions in cli.py (lines 1382-1419)
+- [x] Update argument processing code (lines 1472-1478) - remove `global_docs_limit`, use `args.max_docs`
+- [x] Update function calls to `run_all_issues()` and `run_test()` - remove `global_docs_limit` param
+- [x] Update tests in `test_cli.py` to use new flag names
+- [x] Run tests and verify
+- [ ] Commit and create PR
+
+**Status**: ✅ Ready for PR
+
+**Next**: PR 1.3 (remove `--resume-batch` / `--resume-tier` flags)
 
 ---
 
@@ -371,3 +380,4 @@ Simple sequential flow:
 | 2026-02-03 | PR 0.1 complete | Contract tests + hardcoded path fix ([PR #83](https://github.com/michaeleboyce/deproceduralizer/pull/83)) |
 | 2026-02-03 | PR 0.2 skipped | Already covered by existing tests |
 | 2026-02-03 | PR 1.1 complete | CLI defaults ([PR #84](https://github.com/michaeleboyce/deproceduralizer/pull/84)) |
+| 2026-02-03 | PR 1.2 started | Flag names - arg definitions done, processing code needs update |

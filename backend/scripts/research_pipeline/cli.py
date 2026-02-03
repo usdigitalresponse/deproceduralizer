@@ -9,15 +9,13 @@ Usage:
 
     # Single issue type, 10 docs, Tier 2
     python3 -m scripts.research_pipeline.cli \\
-        --state nj --issue-type mail_only \\
-        --max-docs-per-issue 10 --global-docs-limit no-limit \\
-        --max-tier 2 --enable-web-search false
+        --state nj --issue mail_only \\
+        --limit 10 --max-tier 2
 
-    # All issues with global limit and web search
+    # All issues with web search
     python3 -m scripts.research_pipeline.cli \\
-        --state ny --all-issues \\
-        --max-docs-per-issue 50 --global-docs-limit 500 \\
-        --max-tier 3 --enable-web-search true
+        --state ny --all \\
+        --limit 50 --max-tier 3 --web-search
 """
 
 import argparse
@@ -51,7 +49,7 @@ def state_validator(value: str) -> str:
 
 def positive_int_or_all(value: str) -> Union[int, str]:
     """
-    Validate --max-docs-per-issue flag.
+    Validate --limit flag.
 
     Accepts a positive integer or the string 'all'.
     """
@@ -68,41 +66,6 @@ def positive_int_or_all(value: str) -> Union[int, str]:
         raise argparse.ArgumentTypeError(
             f"Must be a positive integer or 'all', got '{value}'"
         )
-
-
-def positive_int_or_no_limit(value: str) -> Union[int, str]:
-    """
-    Validate --global-docs-limit flag.
-
-    Accepts a positive integer or the string 'no-limit'.
-    """
-    if value.lower() == 'no-limit':
-        return 'no-limit'
-    try:
-        int_val = int(value)
-        if int_val <= 0:
-            raise argparse.ArgumentTypeError(
-                f"Must be a positive integer or 'no-limit', got '{value}'"
-            )
-        return int_val
-    except ValueError:
-        raise argparse.ArgumentTypeError(
-            f"Must be a positive integer or 'no-limit', got '{value}'"
-        )
-
-
-def explicit_bool(value: str) -> bool:
-    """
-    Validate explicit boolean flags like --enable-web-search.
-
-    Must be 'true' or 'false' (case insensitive).
-    """
-    normalized = value.lower()
-    if normalized not in ('true', 'false'):
-        raise argparse.ArgumentTypeError(
-            f"Must be 'true' or 'false', got '{value}'"
-        )
-    return normalized == 'true'
 
 
 # ============================================================================
@@ -1096,10 +1059,10 @@ async def run_batched_issues(
     state: str | None,
     title: str | None,
     max_docs_per_issue: int | None,
-    global_docs_limit: int | None,
     max_tier: int,
     realtime: bool,
     dry_run: bool,
+    global_docs_limit: int | None = None,
     enable_web_search: bool = False,
     force_rerun: bool = False,
 ):
@@ -1199,10 +1162,10 @@ async def run_all_issues(
     state: str | None,
     title: str | None,
     max_docs_per_issue: int | None,
-    global_docs_limit: int | None,
     max_tier: int,
     realtime: bool,
     dry_run: bool,
+    global_docs_limit: int | None = None,
     sequential: bool = False,
     enable_web_search: bool = False,
     force_rerun: bool = False,
@@ -1330,12 +1293,11 @@ REQUIRED FLAG:
   --state                 State code: 'nj', 'ny', or 'dangerously-run-all'
 
 FLAGS WITH DEFAULTS:
-  --issue-type            Single issue type (e.g., 'mail_only'). Default: all issues
-  --all-issues            Run all 43 issue types. This is the default.
-  --max-docs-per-issue    Max docs per issue type (default: 1000)
-  --global-docs-limit     Max total docs (default: no-limit)
+  --issue                 Single issue type (e.g., 'mail_only'). Default: all issues
+  --all                   Run all 43 issue types. This is the default.
+  --limit                 Max docs per issue type (default: 1000)
   --max-tier              1=filtering, 2=classification, 3=web search (default: 2)
-  --enable-web-search     Enable Tier 3 web search (default: false)
+  --web-search            Enable Tier 3 web search
 
 OPTIONAL FLAGS:
   --realtime              Use realtime API (faster but 2x cost)
@@ -1352,10 +1314,10 @@ EXAMPLES:
   python3 -m scripts.research_pipeline.cli --state nj --dry-run
 
   # Single issue type with limit
-  python3 -m scripts.research_pipeline.cli --state nj --issue-type mail_only --max-docs-per-issue 10
+  python3 -m scripts.research_pipeline.cli --state nj --issue mail_only --limit 10
 
   # Full pipeline with Tier 3 web search
-  python3 -m scripts.research_pipeline.cli --state nj --max-tier 3 --enable-web-search true
+  python3 -m scripts.research_pipeline.cli --state nj --max-tier 3 --web-search
 
   # Process specific title
   python3 -m scripts.research_pipeline.cli --state nj --title 7
@@ -1380,32 +1342,27 @@ RESUME BEHAVIOR:
     )
 
     # === FLAGS WITH DEFAULTS ===
-    # Issue type selection - defaults to --all-issues if neither specified
+    # Issue type selection - defaults to --all if neither specified
     issue_group = parser.add_mutually_exclusive_group(required=False)
     issue_group.add_argument(
-        "--issue-type",
-        help="Single issue type to process (e.g., 'mail_only', 'wet_signature', 'notarization')"
+        "--issue",
+        dest="issue_type",
+        help="Single issue type to process (e.g., 'mail_only', 'wet_signature')"
     )
     issue_group.add_argument(
-        "--all-issues",
+        "--all",
+        dest="all_issues",
         action="store_true",
-        help="Run all 43 issue types in scope (batched together per tier). This is the default if --issue-type is not specified."
+        help="Run all issue types. This is the default."
     )
 
     parser.add_argument(
-        "--max-docs-per-issue",
+        "--limit",
+        dest="max_docs",
         type=positive_int_or_all,
         default=1000,
         metavar="N|all",
-        help="Max documents per issue type: positive integer or 'all' for no limit (default: 1000)"
-    )
-
-    parser.add_argument(
-        "--global-docs-limit",
-        type=positive_int_or_no_limit,
-        default="no-limit",
-        metavar="N|no-limit",
-        help="Max total documents across all issue types: positive integer or 'no-limit' (default: no-limit)"
+        help="Max documents to process per issue type (default: 1000)"
     )
 
     parser.add_argument(
@@ -1413,15 +1370,14 @@ RESUME BEHAVIOR:
         type=int,
         choices=[1, 2, 3],
         default=2,
-        help="Maximum tier to run: 1=filtering, 2=classification, 3=web search (default: 2)"
+        help="Maximum tier: 1=filter, 2=classify, 3=web search (default: 2)"
     )
 
     parser.add_argument(
-        "--enable-web-search",
-        type=explicit_bool,
-        default=False,
-        metavar="true|false",
-        help="Enable Tier 3 web search verification: 'true' or 'false' (default: false)"
+        "--web-search",
+        dest="enable_web_search",
+        action="store_true",
+        help="Enable Tier 3 web search verification"
     )
 
     # === OPTIONAL FLAGS ===
@@ -1449,7 +1405,7 @@ RESUME BEHAVIOR:
     parser.add_argument(
         "--sequential",
         action="store_true",
-        help="Process issue types one at a time (for debugging, use with --all-issues)"
+        help="Process issue types one at a time (for debugging, use with --all)"
     )
 
     # === BATCH RECOVERY FLAGS ===
@@ -1475,13 +1431,9 @@ RESUME BEHAVIOR:
     # Otherwise, uppercase for DB compatibility
     state_for_db = None if args.state == 'dangerously-run-all' else args.state.upper()
 
-    # Convert max_docs_per_issue to int or None
+    # Convert max_docs to int or None
     # 'all' means no limit (use a very large number)
-    max_docs = None if args.max_docs_per_issue == 'all' else args.max_docs_per_issue
-
-    # Convert global_docs_limit to int or None
-    # 'no-limit' means no global limit
-    global_limit = None if args.global_docs_limit == 'no-limit' else args.global_docs_limit
+    max_docs = None if args.max_docs == 'all' else args.max_docs
 
     # === BATCH RECOVERY MODE ===
     # If --resume-batch is specified, run batch recovery instead of normal pipeline
@@ -1518,7 +1470,7 @@ RESUME BEHAVIOR:
             sys.exit(1)
 
     # === NORMAL PIPELINE MODE ===
-    # Default to all_issues if neither --issue-type nor --all-issues specified
+    # Default to all_issues if neither --issue nor --all specified
     run_all = args.all_issues or args.issue_type is None
 
     if run_all:
@@ -1526,7 +1478,6 @@ RESUME BEHAVIOR:
             state=state_for_db,
             title=args.title,
             max_docs_per_issue=max_docs,
-            global_docs_limit=global_limit,
             max_tier=args.max_tier,
             realtime=args.realtime,
             dry_run=args.dry_run,
