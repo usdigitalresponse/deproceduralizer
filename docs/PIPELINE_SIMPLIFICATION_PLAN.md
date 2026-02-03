@@ -2,7 +2,7 @@
 
 > **Status: IN PROGRESS**
 > - Phase 0: ✅ Complete (PR #83 awaiting approval)
-> - Phase 1: 🔄 In Progress (PRs 1.1-1.2 ready, 1.3-1.4 remaining)
+> - Phase 1: 🔄 In Progress (PRs 1.1-1.3 ready, 1.4 remaining)
 > - Phase 2: 🔄 In Progress (PR 2.1 ready)
 > - Phase 3-5: 📋 Planned
 
@@ -22,13 +22,13 @@
 | Phase | Description | Status | PRs |
 |-------|-------------|--------|-----|
 | 0 | Test Infrastructure | ✅ Complete | PR #83 awaiting approval |
-| 1 | Simplify CLI | 🔄 In Progress | 2/4 (PRs #84, #85 ready) |
+| 1 | Simplify CLI | 🔄 In Progress | 3/4 (PRs #84, #85, #89 ready) |
 | 2 | Remove Batch Persistence | 🔄 In Progress | 1/4 (PR 2.1 ready) |
 | 3 | Flatten State Machine | 📋 Planned | 0/5 |
 | 4 | Consolidate Files | 📋 Planned | 0/5 |
 | 5 | Final Cleanup | 📋 Planned | 0/2 |
 
-**Total Progress**: 3/21 PRs ready for review
+**Total Progress**: 4/21 PRs ready for review
 
 ---
 
@@ -122,19 +122,24 @@ python3 -m scripts.research_pipeline.cli \
 
 **Status**: ✅ Ready for PR
 
-**Next**: PR 1.3 (remove `--resume-batch` / `--resume-tier` flags)
+**Next**: PR 1.4 (remove `--sequential` flag)
 
 ---
 
-### PR 1.3: Remove Batch Recovery CLI Flags ⬜
+### PR 1.3: Remove Batch Recovery CLI Flags ✅ DONE
 
 **Branch**: `refactor/remove-resume-flags`
+**PR**: https://github.com/michaeleboyce/deproceduralizer/pull/89
 
-**Change**: Remove `--resume-batch` and `--resume-tier` flags.
+**What was done**:
+- Removed `resume_from_batch()` function (~190 lines)
+- Removed `--resume-batch` and `--resume-tier` CLI arguments
+- Removed batch recovery mode handling in main()
+- Updated SKILL.md documentation
 
-**Why**: Batch API keeps results 29 days. If something fails, rerun with existing `--skip-done`.
+**Why**: Batch API keeps results 29 days. If something fails, rerun with same parameters (auto-resumes) or use `--force-rerun`.
 
-**Status**: ⬜ Not started
+**Status**: ✅ Ready for review
 
 ---
 
@@ -393,3 +398,4 @@ Simple sequential flow:
 | 2026-02-03 | PR 1.2 complete | Flag names ([PR #85](https://github.com/michaeleboyce/deproceduralizer/pull/85)) |
 | 2026-02-03 | PR 2.1 complete | Migration test - discovered persistence already optional! |
 | 2026-02-03 | PR 2.2 skipped | Already implemented - persistence defaults to None |
+| 2026-02-03 | PR 1.3 complete | Remove resume flags ([PR #89](https://github.com/michaeleboyce/deproceduralizer/pull/89)) - 269 lines removed |
