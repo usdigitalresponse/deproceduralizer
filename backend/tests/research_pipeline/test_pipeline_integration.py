@@ -11,7 +11,8 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 # Load .env from project root
-PROJECT_ROOT = Path(__file__).parent.parent.parent
+PROJECT_ROOT = Path(__file__).parent.parent.parent.parent  # newyork/
+BACKEND_DIR = Path(__file__).parent.parent.parent  # newyork/backend/
 load_dotenv(PROJECT_ROOT / ".env")
 
 
@@ -4318,7 +4319,7 @@ class TestCLIIntegrationSubprocess:
             ["python3", "-m", "scripts.research_pipeline.cli", "--help"],
             capture_output=True,
             text=True,
-            cwd="~/Documents/Programming/raf/deproceduralizer-research-pipeline/backend",
+            cwd=str(BACKEND_DIR),
             timeout=30,
         )
 
@@ -4338,7 +4339,7 @@ class TestCLIIntegrationSubprocess:
             ["python3", "-m", "scripts.research_pipeline.cli", "--help"],
             capture_output=True,
             text=True,
-            cwd="~/Documents/Programming/raf/deproceduralizer-research-pipeline/backend",
+            cwd=str(BACKEND_DIR),
             timeout=30,
         )
 
@@ -4353,7 +4354,7 @@ class TestCLIIntegrationSubprocess:
             ["python3", "-m", "scripts.research_pipeline.cli", "--help"],
             capture_output=True,
             text=True,
-            cwd="~/Documents/Programming/raf/deproceduralizer-research-pipeline/backend",
+            cwd=str(BACKEND_DIR),
             timeout=30,
         )
 
