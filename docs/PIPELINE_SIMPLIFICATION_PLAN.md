@@ -1,8 +1,9 @@
 # Research Pipeline Simplification Plan
 
 > **Status: IN PROGRESS**
-> - Phase 0: 🔄 In Progress (PR 0.1 ready for review)
-> - Phase 1-5: 📋 Planned
+> - Phase 0: ✅ Complete (PR #83 awaiting approval)
+> - Phase 1: 🔄 In Progress (PR 1.1 done, 1.2-1.4 remaining)
+> - Phase 2-5: 📋 Planned
 
 **Goal**: Reduce research pipeline from ~23,000 lines to ~5,000 lines while preserving functionality.
 
@@ -17,74 +18,83 @@
 
 ## Current Status
 
-| Phase | Description | Status | PRs Merged |
-|-------|-------------|--------|------------|
-| 0 | Test Infrastructure | 🔄 In Progress | 0/2 |
-| 1 | Simplify CLI | 📋 Planned | 0/4 |
+| Phase | Description | Status | PRs |
+|-------|-------------|--------|-----|
+| 0 | Test Infrastructure | ✅ Complete | PR #83 awaiting approval |
+| 1 | Simplify CLI | 🔄 In Progress | 0/4 |
 | 2 | Remove Batch Persistence | 📋 Planned | 0/4 |
 | 3 | Flatten State Machine | 📋 Planned | 0/5 |
 | 4 | Consolidate Files | 📋 Planned | 0/5 |
 | 5 | Final Cleanup | 📋 Planned | 0/2 |
 
-**Total Progress**: 0/22 PRs
+**Total Progress**: 1/21 PRs (Phase 0 complete, awaiting merge)
 
 ---
 
 ## Phase 0: Test Infrastructure (Before Any Refactoring)
 
-### PR 0.1: Add End-to-End Pipeline Contract Test ⬜
+### PR 0.1: Add Pipeline Contract Tests ✅ DONE
 
 **Branch**: `refactor/pipeline-contract-tests`
+**PR**: https://github.com/michaeleboyce/deproceduralizer/pull/83 (awaiting approval)
 
-**Purpose**: Create high-level tests that validate the pipeline's *behavior* independent of internal structure. These tests should pass before AND after all refactoring.
+**What was done**:
+- Added 29 behavioral contract tests in `test_pipeline_contract.py`
+- Fixed hardcoded paths in `test_pipeline_integration.py` (3 tests were failing)
+- Added this refactoring plan document
 
-**New file**: `backend/tests/research_pipeline/test_pipeline_contract.py`
+**Tests added**:
+- [x] Tier 1, 2, 3 behavior contracts
+- [x] Routing logic contracts
+- [x] Database save function contracts
+- [x] CLI importability contracts
+- [x] Data model field contracts
 
-**Tests to add**:
-- [ ] `test_tier1_filters_false_positives` - Tier 1 marks false positives, true matches continue
-- [ ] `test_tier2_classifies_and_scores` - Tier 2 produces classification + severity
-- [ ] `test_tier3_runs_for_high_severity` - High severity docs escalate to Tier 3
-- [ ] `test_results_saved_to_database` - Results persist to `compliance_issue_analyses`
-- [ ] `test_dry_run_makes_no_changes` - `--dry-run` doesn't call APIs or write DB
-- [ ] `test_skip_done_respects_existing` - Already-analyzed docs are skipped
-
-**Status**: ⬜ Not started
+**Status**: ✅ Complete, PR awaiting approval
 
 ---
 
-### PR 0.2: Add CLI Integration Test ⬜
+### PR 0.2: CLI Integration Tests - SKIPPED
 
-**Branch**: `refactor/cli-integration-tests`
-
-**Purpose**: Test CLI argument parsing and dispatch with mocked internals.
-
-**New file**: `backend/tests/research_pipeline/test_cli_integration.py`
-
-**Tests to add**:
-- [ ] `test_minimal_invocation` - `--state` alone works with defaults
-- [ ] `test_dry_run_shows_preview` - `--dry-run` shows what would be processed
-- [ ] `test_invalid_state_rejected` - Invalid `--state` errors clearly
-
-**Status**: ⬜ Not started
+**Reason**: Already covered by existing `TestCLIIntegrationSubprocess` tests (which we fixed in PR 0.1) and contract tests.
 
 ---
 
 ## Phase 1: Simplify the CLI (Lowest Risk)
 
-### PR 1.1: Add Default Values to CLI Arguments ⬜
+### PR 1.1: Add Default Values to CLI Arguments ✅ DONE
 
 **Branch**: `refactor/cli-defaults`
+**PR**: https://github.com/michaeleboyce/deproceduralizer/pull/84
 
-**Change**: Make most arguments optional with sensible defaults.
+**Goal**: Make most arguments optional with sensible defaults so you can run:
+```bash
+python3 -m scripts.research_pipeline.cli --state nj
+```
+Instead of:
+```bash
+python3 -m scripts.research_pipeline.cli \
+  --state nj --all-issues \
+  --max-docs-per-issue 50 --global-docs-limit no-limit \
+  --max-tier 2 --enable-web-search false
+```
 
-| Flag | Default |
-|------|---------|
-| `--limit` | 1000 |
-| `--max-tier` | 2 |
-| `--all-issues` | True (if no `--issue`) |
-| `--web-search` | False |
+**Changes**:
+| Flag | Before | After (Default) |
+|------|--------|-----------------|
+| `--max-docs-per-issue` | Required | `1000` |
+| `--global-docs-limit` | Required | `no-limit` |
+| `--max-tier` | Required | `2` |
+| `--enable-web-search` | Required | `false` |
+| `--issue-type` / `--all-issues` | One required | `--all-issues` if neither specified |
 
-**Status**: ⬜ Not started
+**Tests to verify**:
+- [x] Contract tests still pass (29/29)
+- [x] `--state nj` alone works
+- [x] Explicit flags still override defaults
+- [x] Added 4 new tests in `TestCLIDefaults`
+
+**Status**: ✅ Ready for review
 
 ---
 
@@ -358,3 +368,6 @@ Simple sequential flow:
 | Date | Action | Notes |
 |------|--------|-------|
 | 2026-02-03 | Plan created | Initial plan with 22 PRs across 5 phases |
+| 2026-02-03 | PR 0.1 complete | Contract tests + hardcoded path fix ([PR #83](https://github.com/michaeleboyce/deproceduralizer/pull/83)) |
+| 2026-02-03 | PR 0.2 skipped | Already covered by existing tests |
+| 2026-02-03 | PR 1.1 complete | CLI defaults ([PR #84](https://github.com/michaeleboyce/deproceduralizer/pull/84)) |

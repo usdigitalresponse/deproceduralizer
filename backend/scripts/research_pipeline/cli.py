@@ -1326,76 +1326,48 @@ if __name__ == "__main__":
         description="Run the 3-tier research pipeline for regulatory burden analysis",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-REQUIRED FLAGS:
-  All of the following flags MUST be explicitly provided:
-
+REQUIRED FLAG:
   --state                 State code: 'nj', 'ny', or 'dangerously-run-all'
-  --issue-type OR         Single issue type to analyze (e.g., 'mail_only', 'wet_signature')
-  --all-issues            Process all 43 issue types (mutually exclusive with --issue-type)
-  --max-docs-per-issue    Max documents per issue type: positive integer or 'all'
-  --global-docs-limit     Max total documents across all issues: positive integer or 'no-limit'
-  --max-tier              Maximum tier to run: 1 (filtering), 2 (classification), or 3 (web search)
-  --enable-web-search     Enable Tier 3 web search verification: 'true' or 'false'
+
+FLAGS WITH DEFAULTS:
+  --issue-type            Single issue type (e.g., 'mail_only'). Default: all issues
+  --all-issues            Run all 43 issue types. This is the default.
+  --max-docs-per-issue    Max docs per issue type (default: 1000)
+  --global-docs-limit     Max total docs (default: no-limit)
+  --max-tier              1=filtering, 2=classification, 3=web search (default: 2)
+  --enable-web-search     Enable Tier 3 web search (default: false)
 
 OPTIONAL FLAGS:
-  --realtime              Use realtime API for ALL tiers (faster but 2x cost, no batch discount)
+  --realtime              Use realtime API (faster but 2x cost)
   --title                 Filter by regulatory title (e.g., '7' for Title 7)
-  --dry-run               Show what would be processed without making API calls
-  --force-rerun           Re-analyze documents even if they already have analyses
-  --sequential            Process issue types one at a time (use with --all-issues)
+  --dry-run               Preview without making API calls
+  --force-rerun           Re-analyze documents with existing analyses
+  --sequential            Process issue types one at a time
 
-RESUME BEHAVIOR:
-  The pipeline automatically saves state to backend/.pipeline_batches/.
-  If a run is interrupted, rerunning with the same parameters will resume.
-  Use --force-rerun to ignore previous runs and start fresh.
+EXAMPLES:
+  # Simplest usage - just specify state (uses all defaults)
+  python3 -m scripts.research_pipeline.cli --state nj
+
+  # Preview what would run
+  python3 -m scripts.research_pipeline.cli --state nj --dry-run
+
+  # Single issue type with limit
+  python3 -m scripts.research_pipeline.cli --state nj --issue-type mail_only --max-docs-per-issue 10
+
+  # Full pipeline with Tier 3 web search
+  python3 -m scripts.research_pipeline.cli --state nj --max-tier 3 --enable-web-search true
+
+  # Process specific title
+  python3 -m scripts.research_pipeline.cli --state nj --title 7
 
 BATCH API TIMING:
-  By default, ALL tiers (1-3) use the Batch API for 50% cost savings.
+  By default, ALL tiers use the Batch API for 50% cost savings.
   The Batch API can take up to 24 hours (typical: 10-40 min for <200 requests).
   Use --realtime for immediate processing (2x cost, no wait).
 
-BATCH RECOVERY:
-  If a batch completes but the DB save fails (e.g., connection timeout),
-  you can recover the results using --resume-batch and --resume-tier:
-
-    python3 -m scripts.research_pipeline.cli \\
-      --state nj --all-issues \\
-      --max-docs-per-issue all --global-docs-limit no-limit \\
-      --max-tier 3 --enable-web-search true \\
-      --resume-batch msgbatch_xxx --resume-tier 1
-
-  This will:
-  1. Fetch results from the existing Anthropic batch
-  2. Parse the LLM outputs
-  3. Save to the database
-  4. Exit (does not continue to next tier)
-
-  After recovery, rerun the normal pipeline to continue to the next tier.
-
-EXAMPLES:
-  # Single issue type, 10 docs, Tier 2
-  python3 -m scripts.research_pipeline.cli \\
-    --state nj --issue-type mail_only \\
-    --max-docs-per-issue 10 --global-docs-limit no-limit \\
-    --max-tier 2 --enable-web-search false
-
-  # All issues with global limit and web search
-  python3 -m scripts.research_pipeline.cli \\
-    --state ny --all-issues \\
-    --max-docs-per-issue 50 --global-docs-limit 500 \\
-    --max-tier 3 --enable-web-search true
-
-  # Force re-run existing analyses
-  python3 -m scripts.research_pipeline.cli \\
-    --state nj --issue-type wet_signature \\
-    --max-docs-per-issue all --global-docs-limit no-limit \\
-    --max-tier 2 --enable-web-search false --force-rerun
-
-  # All states (for migration/backfill)
-  python3 -m scripts.research_pipeline.cli \\
-    --state dangerously-run-all --all-issues \\
-    --max-docs-per-issue all --global-docs-limit no-limit \\
-    --max-tier 2 --enable-web-search false
+RESUME BEHAVIOR:
+  The pipeline automatically saves state and resumes interrupted runs.
+  Use --force-rerun to ignore previous runs and start fresh.
 """
     )
 
@@ -1407,7 +1379,9 @@ EXAMPLES:
         help="State code: 'nj', 'ny', or 'dangerously-run-all' (skip state filtering)"
     )
 
-    issue_group = parser.add_mutually_exclusive_group(required=True)
+    # === FLAGS WITH DEFAULTS ===
+    # Issue type selection - defaults to --all-issues if neither specified
+    issue_group = parser.add_mutually_exclusive_group(required=False)
     issue_group.add_argument(
         "--issue-type",
         help="Single issue type to process (e.g., 'mail_only', 'wet_signature', 'notarization')"
@@ -1415,39 +1389,39 @@ EXAMPLES:
     issue_group.add_argument(
         "--all-issues",
         action="store_true",
-        help="Run all 43 issue types in scope (batched together per tier)"
+        help="Run all 43 issue types in scope (batched together per tier). This is the default if --issue-type is not specified."
     )
 
     parser.add_argument(
         "--max-docs-per-issue",
         type=positive_int_or_all,
-        required=True,
+        default=1000,
         metavar="N|all",
-        help="Max documents per issue type: positive integer or 'all' for no limit"
+        help="Max documents per issue type: positive integer or 'all' for no limit (default: 1000)"
     )
 
     parser.add_argument(
         "--global-docs-limit",
         type=positive_int_or_no_limit,
-        required=True,
+        default="no-limit",
         metavar="N|no-limit",
-        help="Max total documents across all issue types: positive integer or 'no-limit'"
+        help="Max total documents across all issue types: positive integer or 'no-limit' (default: no-limit)"
     )
 
     parser.add_argument(
         "--max-tier",
         type=int,
         choices=[1, 2, 3],
-        required=True,
-        help="Maximum tier to run: 1=filtering, 2=classification, 3=web search"
+        default=2,
+        help="Maximum tier to run: 1=filtering, 2=classification, 3=web search (default: 2)"
     )
 
     parser.add_argument(
         "--enable-web-search",
         type=explicit_bool,
-        required=True,
+        default=False,
         metavar="true|false",
-        help="Enable Tier 3 web search verification: 'true' or 'false'"
+        help="Enable Tier 3 web search verification: 'true' or 'false' (default: false)"
     )
 
     # === OPTIONAL FLAGS ===
@@ -1544,7 +1518,10 @@ EXAMPLES:
             sys.exit(1)
 
     # === NORMAL PIPELINE MODE ===
-    if args.all_issues:
+    # Default to all_issues if neither --issue-type nor --all-issues specified
+    run_all = args.all_issues or args.issue_type is None
+
+    if run_all:
         asyncio.run(run_all_issues(
             state=state_for_db,
             title=args.title,

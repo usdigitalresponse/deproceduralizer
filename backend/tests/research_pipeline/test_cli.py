@@ -54,6 +54,65 @@ class TestCLIHelp:
         assert "--all-issues" in cli_help_output or "all_issues" in cli_help_output
 
 
+class TestCLIDefaults:
+    """Test CLI default values work correctly."""
+
+    def test_state_only_runs_with_defaults(self):
+        """--state alone should work, using all defaults."""
+        result = subprocess.run(
+            ["python3", "-m", "scripts.research_pipeline.cli", "--state", "nj", "--dry-run"],
+            capture_output=True,
+            text=True,
+            cwd=BACKEND_DIR,
+            timeout=60,
+        )
+        # Should succeed (exit 0) and show it's running all issues
+        assert result.returncode == 0, f"CLI failed: {result.stderr}"
+        assert "RUNNING ALL ISSUE TYPES" in result.stdout
+
+    def test_defaults_to_all_issues(self):
+        """Without --issue-type, should default to all issues."""
+        result = subprocess.run(
+            ["python3", "-m", "scripts.research_pipeline.cli", "--state", "nj", "--dry-run"],
+            capture_output=True,
+            text=True,
+            cwd=BACKEND_DIR,
+            timeout=60,
+        )
+        assert result.returncode == 0
+        # Should mention multiple issue types
+        assert "Issue types found:" in result.stdout
+
+    def test_explicit_issue_type_overrides_default(self):
+        """--issue-type should override the default all-issues behavior."""
+        result = subprocess.run(
+            ["python3", "-m", "scripts.research_pipeline.cli",
+             "--state", "nj", "--issue-type", "mail_only", "--dry-run"],
+            capture_output=True,
+            text=True,
+            cwd=BACKEND_DIR,
+            timeout=60,
+        )
+        assert result.returncode == 0
+        # Should run single issue test, not all issues
+        assert "RESEARCH PIPELINE" in result.stdout
+        assert "Issue type: mail_only" in result.stdout
+
+    def test_help_shows_defaults(self):
+        """Help text should show default values."""
+        result = subprocess.run(
+            ["python3", "-m", "scripts.research_pipeline.cli", "--help"],
+            capture_output=True,
+            text=True,
+            cwd=BACKEND_DIR,
+            timeout=30,
+        )
+        assert result.returncode == 0
+        assert "default: 1000" in result.stdout
+        assert "default: 2" in result.stdout
+        assert "default: false" in result.stdout.lower()
+
+
 class TestBackfillScript:
     """Test backfill script has required functions."""
 
