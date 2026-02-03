@@ -2,8 +2,9 @@
 
 > **Status: IN PROGRESS**
 > - Phase 0: ✅ Complete (PR #83 awaiting approval)
-> - Phase 1: 🔄 In Progress (PR 1.1 done, PR 1.2 in progress, 1.3-1.4 remaining)
-> - Phase 2-5: 📋 Planned
+> - Phase 1: 🔄 In Progress (PRs 1.1-1.2 ready, 1.3-1.4 remaining)
+> - Phase 2: 🔄 In Progress (PR 2.1 ready)
+> - Phase 3-5: 📋 Planned
 
 **Goal**: Reduce research pipeline from ~23,000 lines to ~5,000 lines while preserving functionality.
 
@@ -21,13 +22,13 @@
 | Phase | Description | Status | PRs |
 |-------|-------------|--------|-----|
 | 0 | Test Infrastructure | ✅ Complete | PR #83 awaiting approval |
-| 1 | Simplify CLI | 🔄 In Progress | 2/4 (PR 1.2 ready) |
-| 2 | Remove Batch Persistence | 📋 Planned | 0/4 |
+| 1 | Simplify CLI | 🔄 In Progress | 2/4 (PRs #84, #85 ready) |
+| 2 | Remove Batch Persistence | 🔄 In Progress | 1/4 (PR 2.1 ready) |
 | 3 | Flatten State Machine | 📋 Planned | 0/5 |
 | 4 | Consolidate Files | 📋 Planned | 0/5 |
 | 5 | Final Cleanup | 📋 Planned | 0/2 |
 
-**Total Progress**: 2/21 PRs (Phase 0 complete, awaiting merge)
+**Total Progress**: 3/21 PRs ready for review
 
 ---
 
@@ -149,29 +150,38 @@ python3 -m scripts.research_pipeline.cli \
 
 ## Phase 2: Remove Batch Persistence Layer
 
-### PR 2.1: Create Migration Test ⬜
+### PR 2.1: Create Migration Test ✅ DONE
 
 **Branch**: `refactor/persistence-optional-test`
 
 **Purpose**: Verify pipeline works without persistence before removing it.
 
-```python
-def test_pipeline_without_persistence():
-    """Pipeline should work with persistence=None."""
-    orchestrator = TierOrchestrator(..., persistence=None, run_dir=None)
-```
+**Discovery**: The code is **already designed for optional persistence**!
+- `TierOrchestrator` already defaults `persistence=None`
+- All 8 persistence usages have guards: `if self.persistence and self.run_dir:`
+- Realtime mode already runs with `persistence=None`
 
-**Status**: ⬜ Not started
+**Tests added** (6 tests in `test_persistence_optional.py`):
+- [x] Orchestrator instantiates with persistence=None
+- [x] Multiple issue types work without persistence
+- [x] Realtime mode pattern verified
+- [x] TrackedUnit processing works without persistence
+- [x] Contract: persistence parameter is optional
+- [x] Contract: run_dir parameter is optional
+
+**Status**: ✅ Ready for PR
 
 ---
 
-### PR 2.2: Make Persistence Optional (Default None) ⬜
+### PR 2.2: Make Persistence Optional (Default None) - SKIP
 
 **Branch**: `refactor/persistence-optional`
 
 **Change**: Change `TierOrchestrator.__init__` to default `persistence=None`.
 
-**Status**: ⬜ Not started
+**Status**: ⏭️ SKIP - Already done! `persistence` already defaults to `None` in the constructor.
+
+**Next step**: Go directly to PR 2.3 (remove persistence usage from CLI)
 
 ---
 
@@ -380,4 +390,6 @@ Simple sequential flow:
 | 2026-02-03 | PR 0.1 complete | Contract tests + hardcoded path fix ([PR #83](https://github.com/michaeleboyce/deproceduralizer/pull/83)) |
 | 2026-02-03 | PR 0.2 skipped | Already covered by existing tests |
 | 2026-02-03 | PR 1.1 complete | CLI defaults ([PR #84](https://github.com/michaeleboyce/deproceduralizer/pull/84)) |
-| 2026-02-03 | PR 1.2 started | Flag names - arg definitions done, processing code needs update |
+| 2026-02-03 | PR 1.2 complete | Flag names ([PR #85](https://github.com/michaeleboyce/deproceduralizer/pull/85)) |
+| 2026-02-03 | PR 2.1 complete | Migration test - discovered persistence already optional! |
+| 2026-02-03 | PR 2.2 skipped | Already implemented - persistence defaults to None |
