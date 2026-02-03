@@ -18,7 +18,6 @@ cd backend && python3 -m scripts.research_pipeline.cli [OPTIONS]
 | Preview what would run | Add `--dry-run` |
 | Test single issue type | `--issue-type mail_only --max-docs-per-issue 10` |
 | Full production run | `--all-issues --max-tier 3 --enable-web-search true` |
-| Debug specific issue | `--all-issues --sequential` |
 | Reprocess after prompt change | Add `--force-rerun` |
 | Filter by regulatory title | `--title 7` |
 | Immediate results (2x cost) | Add `--realtime` |
@@ -44,7 +43,6 @@ All of these must be specified:
 | `--title` | none | Filter by title (e.g., `7` for Title 7) |
 | `--dry-run` | false | Preview without API calls |
 | `--force-rerun` | false | Ignore previous analyses, reprocess all |
-| `--sequential` | false | Process issues one at a time (with `--all-issues`) |
 | `--resume-batch` | none | Resume from a specific batch directory |
 | `--resume-tier` | none | Resume from a specific tier (1, 2, or 3) |
 
@@ -121,14 +119,6 @@ python3 -m scripts.research_pipeline.cli \
   --state nj --issue-type mail_only \
   --max-docs-per-issue 5 --global-docs-limit no-limit \
   --max-tier 2 --enable-web-search false --realtime
-```
-
-### Sequential Debugging
-```bash
-python3 -m scripts.research_pipeline.cli \
-  --state nj --all-issues \
-  --max-docs-per-issue 10 --global-docs-limit no-limit \
-  --max-tier 2 --enable-web-search false --sequential
 ```
 
 ## Cost Estimates

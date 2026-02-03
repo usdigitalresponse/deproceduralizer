@@ -1001,60 +1001,6 @@ async def run_test(
     return results
 
 
-async def run_all_issues_sequential(
-    state: str | None,
-    title: str | None,
-    max_docs_per_issue: int | None,
-    max_tier: int,
-    realtime: bool,
-    dry_run: bool,
-    enable_web_search: bool = False,
-    force_rerun: bool = False,
-):
-    """Run pipeline for all issue types sequentially (one at a time)."""
-    issue_types = get_issue_types_for_scope(state, title)
-
-    print(f"\n{'='*70}")
-    print(f"RUNNING ALL ISSUE TYPES (SEQUENTIAL)")
-    print(f"{'='*70}")
-    print(f"State: {state if state else 'ALL STATES (dangerously-run-all)'}")
-    if title:
-        print(f"Title: {title}")
-    print(f"Issue types found: {len(issue_types)}")
-    print(f"Issue types: {', '.join(issue_types[:10])}{'...' if len(issue_types) > 10 else ''}")
-    print(f"Force rerun: {force_rerun}")
-    print()
-
-    if dry_run:
-        print(f"DRY RUN - showing issue type counts (target tier: {max_tier}):")
-        limit = max_docs_per_issue if max_docs_per_issue else 999999
-        for issue_type in issue_types:
-            units, analyses = fetch_documents_with_continuation(issue_type, max_tier, state, limit, title)
-            new_count = sum(1 for u in units if (u.document_id, issue_type) not in analyses)
-            resume_count = len(units) - new_count
-            print(f"  {issue_type}: {len(units)} docs ({new_count} new, {resume_count} resuming), {sum(len(u.matches) for u in units)} matches")
-        return
-
-    # Run each issue type sequentially
-    for i, issue_type in enumerate(issue_types, 1):
-        print(f"\n[{i}/{len(issue_types)}] Processing {issue_type}...")
-        try:
-            await run_test(
-                issue_type=issue_type,
-                max_docs_per_issue=max_docs_per_issue,
-                max_tier=max_tier,
-                state=state,
-                realtime=realtime,
-                title=title,
-                dry_run=False,
-                enable_web_search=enable_web_search,
-                force_rerun=force_rerun,
-            )
-        except Exception as e:
-            print(f"  ERROR: {e}")
-            continue
-
-
 async def run_batched_issues(
     state: str | None,
     title: str | None,
@@ -1166,14 +1112,12 @@ async def run_all_issues(
     realtime: bool,
     dry_run: bool,
     global_docs_limit: int | None = None,
-    sequential: bool = False,
     enable_web_search: bool = False,
     force_rerun: bool = False,
 ):
     """Run pipeline for all issue types in scope.
 
-    By default, batches all issue types together per tier for faster processing.
-    Use sequential=True to process one issue type at a time (for debugging).
+    Batches all issue types together per tier for efficient processing.
 
     Args:
         state: State code ('NJ', 'NY', or None for all states)
@@ -1183,33 +1127,20 @@ async def run_all_issues(
         max_tier: Maximum tier to run (1-3)
         realtime: Use realtime API instead of batch
         dry_run: Preview without API calls
-        sequential: Process issue types one at a time
         enable_web_search: Enable Tier 3 web search
         force_rerun: Re-analyze documents even if already processed
     """
-    if sequential:
-        await run_all_issues_sequential(
-            state=state,
-            title=title,
-            max_docs_per_issue=max_docs_per_issue,
-            max_tier=max_tier,
-            realtime=realtime,
-            dry_run=dry_run,
-            enable_web_search=enable_web_search,
-            force_rerun=force_rerun,
-        )
-    else:
-        await run_batched_issues(
-            state=state,
-            title=title,
-            max_docs_per_issue=max_docs_per_issue,
-            global_docs_limit=global_docs_limit,
-            max_tier=max_tier,
-            realtime=realtime,
-            dry_run=dry_run,
-            enable_web_search=enable_web_search,
-            force_rerun=force_rerun,
-        )
+    await run_batched_issues(
+        state=state,
+        title=title,
+        max_docs_per_issue=max_docs_per_issue,
+        global_docs_limit=global_docs_limit,
+        max_tier=max_tier,
+        realtime=realtime,
+        dry_run=dry_run,
+        enable_web_search=enable_web_search,
+        force_rerun=force_rerun,
+    )
 
 
 async def run_tier3_pending(
@@ -1402,11 +1333,6 @@ RESUME BEHAVIOR:
         action="store_true",
         help="Re-analyze all matching documents regardless of existing analyses (upserts to DB)"
     )
-    parser.add_argument(
-        "--sequential",
-        action="store_true",
-        help="Process issue types one at a time (for debugging, use with --all)"
-    )
 
     # === BATCH RECOVERY FLAGS ===
     parser.add_argument(
@@ -1481,7 +1407,6 @@ RESUME BEHAVIOR:
             max_tier=args.max_tier,
             realtime=args.realtime,
             dry_run=args.dry_run,
-            sequential=args.sequential,
             enable_web_search=args.enable_web_search,
             force_rerun=args.force_rerun,
         ))
