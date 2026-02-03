@@ -22,7 +22,7 @@
 | Phase | Description | Status | PRs |
 |-------|-------------|--------|-----|
 | 0 | Test Infrastructure | ✅ Complete | PR #83 awaiting approval |
-| 1 | Simplify CLI | ✅ Complete | 4/4 (PRs #84, #85, #89, 1.4 ready) |
+| 1 | Simplify CLI | ✅ Complete | 4/4 (PRs #84, #85, #89, #90) |
 | 2 | Remove Batch Persistence | 🔄 In Progress | 1/4 (PR 2.1 ready) |
 | 3 | Flatten State Machine | 📋 Planned | 0/5 |
 | 4 | Consolidate Files | 📋 Planned | 0/5 |
@@ -146,6 +146,7 @@ python3 -m scripts.research_pipeline.cli \
 ### PR 1.4: Remove `--sequential` Flag ✅ DONE
 
 **Branch**: `refactor/remove-sequential`
+**PR**: https://github.com/michaeleboyce/deproceduralizer/pull/90
 
 **What was done**:
 - Removed `--sequential` CLI argument
@@ -155,7 +156,7 @@ python3 -m scripts.research_pipeline.cli \
 
 **Why**: Batched mode is the default and works well. Sequential mode was only for debugging and added complexity.
 
-**Status**: ✅ Ready for PR
+**Status**: ✅ Ready for review
 
 ---
 
@@ -405,4 +406,4 @@ Simple sequential flow:
 | 2026-02-03 | PR 2.1 complete | Migration test - discovered persistence already optional! |
 | 2026-02-03 | PR 2.2 skipped | Already implemented - persistence defaults to None |
 | 2026-02-03 | PR 1.3 complete | Remove resume flags ([PR #89](https://github.com/michaeleboyce/deproceduralizer/pull/89)) - 269 lines removed |
-| 2026-02-03 | PR 1.4 complete | Remove --sequential flag - 85 lines removed, Phase 1 complete |
+| 2026-02-03 | PR 1.4 complete | Remove --sequential flag ([PR #90](https://github.com/michaeleboyce/deproceduralizer/pull/90)) - 78 lines removed, Phase 1 complete |
