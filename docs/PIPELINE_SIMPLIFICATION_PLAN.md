@@ -1,10 +1,9 @@
 # Research Pipeline Simplification Plan
 
 > **Status: IN PROGRESS**
-> - Phase 0: ✅ Complete (PR #83 awaiting approval)
-> - Phase 1: ✅ Complete (PRs 1.1-1.4 ready)
-> - Phase 2: 🔄 In Progress (PR 2.1 ready)
-> - Phase 3-5: 📋 Planned
+> - Phases 0-1 + 2.1: ✅ Complete — consolidated in [PR #90](https://github.com/michaeleboyce/deproceduralizer/pull/90)
+> - Phase 6 + Phase 7: ✅ Complete — consolidated in [PR #95](https://github.com/michaeleboyce/deproceduralizer/pull/95)
+> - Phases 2.2-5: 📋 Planned (not started)
 
 **Goal**: Reduce research pipeline from ~23,000 lines to ~5,000 lines while preserving functionality.
 
@@ -17,380 +16,142 @@
 
 ---
 
+## PR Consolidation
+
+On 2026-02-04, 9 open PRs were consolidated into 2 independent PRs to simplify review:
+
+| PR | Title | What's Included | Merge Order |
+|----|-------|-----------------|-------------|
+| [#90](https://github.com/michaeleboyce/deproceduralizer/pull/90) | Consolidate CLI simplification (Phases 0-1 + 2.1) | Former PRs #83, #84, #85, #86, #89 | Any |
+| [#95](https://github.com/michaeleboyce/deproceduralizer/pull/95) | Phase 6 + Phase 7: Table refactor + regex-only searcher | Former PR #93 | Any |
+
+**These two PRs touch completely different files and can be merged in any order.**
+
+Also open: [PR #91](https://github.com/michaeleboyce/deproceduralizer/pull/91) (E2E test fixes) — separate feature, may need minor conflict resolution with either PR.
+
+Closed PRs (subsumed): #83, #84, #85, #86, #89, #93
+
+---
+
 ## Current Status
 
-| Phase | Description | Status | PRs |
-|-------|-------------|--------|-----|
-| 0 | Test Infrastructure | ✅ Complete | PR #83 awaiting approval |
-| 1 | Simplify CLI | ✅ Complete | 4/4 (PRs #84, #85, #89, #90) |
-| 2 | Remove Batch Persistence | 🔄 In Progress | 1/4 (PR 2.1 ready) |
-| 3 | Flatten State Machine | 📋 Planned | 0/5 |
-| 4 | Consolidate Files | 📋 Planned | 0/5 |
-| 5 | Final Cleanup | 📋 Planned | 0/2 |
-
-**Total Progress**: 5/21 PRs ready for review
+| Phase | Description | Status | PR |
+|-------|-------------|--------|----|
+| 0 | Test Infrastructure | ✅ Complete | #90 |
+| 1 | Simplify CLI | ✅ Complete | #90 |
+| 2.1 | Persistence Migration Test | ✅ Complete | #90 |
+| 2.2-2.4 | Remove Batch Persistence | 📋 Planned | — |
+| 3 | Flatten State Machine | 📋 Planned | — |
+| 4 | Consolidate Files | 📋 Planned | — |
+| 5 | Final Cleanup | 📋 Planned | — |
+| 6 | Refactor Compliance Issue Tables ([#88](https://github.com/michaeleboyce/deproceduralizer/issues/88)) | ✅ Complete | #95 |
+| 7 | Eliminate Redundant Searcher LLM Call ([#94](https://github.com/michaeleboyce/deproceduralizer/issues/94)) | ✅ Complete | #95 |
 
 ---
 
-## Phase 0: Test Infrastructure (Before Any Refactoring)
+## PR #90: CLI Simplification (Phases 0-1 + 2.1)
 
-### PR 0.1: Add Pipeline Contract Tests ✅ DONE
+### Phase 0: Test Infrastructure
 
-**Branch**: `refactor/pipeline-contract-tests`
-**PR**: https://github.com/michaeleboyce/deproceduralizer/pull/83 (awaiting approval)
-
-**What was done**:
 - Added 29 behavioral contract tests in `test_pipeline_contract.py`
-- Fixed hardcoded paths in `test_pipeline_integration.py` (3 tests were failing)
-- Added this refactoring plan document
+- Fixed hardcoded paths in `test_pipeline_integration.py`
 
-**Tests added**:
-- [x] Tier 1, 2, 3 behavior contracts
-- [x] Routing logic contracts
-- [x] Database save function contracts
-- [x] CLI importability contracts
-- [x] Data model field contracts
+### Phase 1: Simplify CLI
 
-**Status**: ✅ Complete, PR awaiting approval
+| Change | Details |
+|--------|---------|
+| **Simplified flag names** | `--issue`, `--all`, `--limit`, `--web-search` (from verbose versions) |
+| **Cost-safe defaults** | Dry-run by default (`--execute` to opt in), `--global-limit` defaults to 100 |
+| **Issue selection required** | Must pass `--issue` or `--all` (no implicit "run everything") |
+| **Removed `--resume-batch`/`--resume-tier`** | Batch API keeps results 29 days; just rerun with same params |
+| **Removed `--sequential`** | Default batched mode should just work |
+| **Removed `resume_from_batch()`** | ~190 lines of batch recovery code |
 
----
+### Phase 2.1: Persistence Migration Test
 
-### PR 0.2: CLI Integration Tests - SKIPPED
+- Test verifying pipeline works with `persistence=None`
 
-**Reason**: Already covered by existing `TestCLIIntegrationSubprocess` tests (which we fixed in PR 0.1) and contract tests.
+### Tests
 
----
-
-## Phase 1: Simplify the CLI (Lowest Risk)
-
-### PR 1.1: Add Default Values to CLI Arguments ✅ DONE
-
-**Branch**: `refactor/cli-defaults`
-**PR**: https://github.com/michaeleboyce/deproceduralizer/pull/84
-
-**Goal**: Make most arguments optional with sensible defaults so you can run:
-```bash
-python3 -m scripts.research_pipeline.cli --state nj
-```
-Instead of:
-```bash
-python3 -m scripts.research_pipeline.cli \
-  --state nj --all \
-  --limit 50 \
-  --max-tier 2
-```
-
-**Changes**:
-| Flag | Before | After (Default) |
-|------|--------|-----------------|
-| `--limit` | Required | `1000` |
-| `--max-tier` | Required | `2` |
-| `--web-search` | Required | `false` |
-| `--issue` / `--all` | One required | `--all` if neither specified |
-
-**Tests to verify**:
-- [x] Contract tests still pass (29/29)
-- [x] `--state nj` alone works
-- [x] Explicit flags still override defaults
-- [x] Added 4 new tests in `TestCLIDefaults`
-
-**Status**: ✅ Ready for review
+- 14 CLI tests (help output, defaults, cost-safe behavior, removed flags)
+- 29 contract tests (tier behavior, routing, DB saves, data models)
+- 5 persistence-optional tests
 
 ---
 
-### PR 1.2: Simplify CLI Flag Names 🔄 IN PROGRESS
+## PR #95: Table Refactor + Regex-Only Searcher (Phases 6-7)
 
-**Branch**: `refactor/cli-flag-names`
+### Phase 6: Refactor Compliance Issue Tables
 
-**Change**: Rename verbose flags.
+| Step | What | Migrations |
+|------|------|------------|
+| 6.1 | Drop 4 legacy columns from `compliance_issues` | 0031 |
+| 6.2 | Remove 6 duplicate analysis fields, read from analyses | 0032-0033 |
+| 6.3 | Move 15 review/developer columns to analyses | 0034-0036 |
+| 6.5 | Add `analysis_id` FK, replace 16 composite JOINs | 0037 |
 
-| Old | New |
-|-----|-----|
-| `--max-docs-per-issue` | `--limit` |
-| `--global-docs-limit` | (remove) |
-| `--enable-web-search true/false` | `--web-search` (flag) |
-| `--issue-type` | `--issue` |
-| `--all-issues` | `--all` |
+**Result**: `compliance_issues` is a pure regex match store; `compliance_issue_analyses` is single source of truth for analysis + review data.
 
-**Progress**:
-- [x] Updated argument definitions in cli.py (lines 1382-1419)
-- [x] Update argument processing code (lines 1472-1478) - remove `global_docs_limit`, use `args.max_docs`
-- [x] Update function calls to `run_all_issues()` and `run_test()` - remove `global_docs_limit` param
-- [x] Update tests in `test_cli.py` to use new flag names
-- [x] Run tests and verify
-- [ ] Commit and create PR
+### Phase 7: Eliminate Redundant Searcher LLM Call
 
-**Status**: ✅ Ready for PR
-
-**Next**: PR 1.4 (remove `--sequential` flag)
+- Removed ~800 lines of LLM code from `searcher.py`
+- Searcher is now regex-only (no API calls)
+- Pipeline: regex scan → Tier 1 (LLM filter) → Tier 2 (classify) → Tier 3 (verify)
 
 ---
 
-### PR 1.3: Remove Batch Recovery CLI Flags ✅ DONE
-
-**Branch**: `refactor/remove-resume-flags`
-**PR**: https://github.com/michaeleboyce/deproceduralizer/pull/89
-
-**What was done**:
-- Removed `resume_from_batch()` function (~190 lines)
-- Removed `--resume-batch` and `--resume-tier` CLI arguments
-- Removed batch recovery mode handling in main()
-- Updated SKILL.md documentation
-
-**Why**: Batch API keeps results 29 days. If something fails, rerun with same parameters (auto-resumes) or use `--force-rerun`.
-
-**Status**: ✅ Ready for review
-
----
-
-### PR 1.4: Remove `--sequential` Flag ✅ DONE
-
-**Branch**: `refactor/remove-sequential`
-**PR**: https://github.com/michaeleboyce/deproceduralizer/pull/90
-
-**What was done**:
-- Removed `--sequential` CLI argument
-- Removed `run_all_issues_sequential()` function (~53 lines)
-- Simplified `run_all_issues()` to call `run_batched_issues()` directly
-- Updated SKILL.md documentation
-
-**Why**: Batched mode is the default and works well. Sequential mode was only for debugging and added complexity.
-
-**Status**: ✅ Ready for review
-
----
-
-## Phase 2: Remove Batch Persistence Layer
-
-### PR 2.1: Create Migration Test ✅ DONE
-
-**Branch**: `refactor/persistence-optional-test`
-
-**Purpose**: Verify pipeline works without persistence before removing it.
-
-**Discovery**: The code is **already designed for optional persistence**!
-- `TierOrchestrator` already defaults `persistence=None`
-- All 8 persistence usages have guards: `if self.persistence and self.run_dir:`
-- Realtime mode already runs with `persistence=None`
-
-**Tests added** (6 tests in `test_persistence_optional.py`):
-- [x] Orchestrator instantiates with persistence=None
-- [x] Multiple issue types work without persistence
-- [x] Realtime mode pattern verified
-- [x] TrackedUnit processing works without persistence
-- [x] Contract: persistence parameter is optional
-- [x] Contract: run_dir parameter is optional
-
-**Status**: ✅ Ready for PR
-
----
-
-### PR 2.2: Make Persistence Optional (Default None) - SKIP
-
-**Branch**: `refactor/persistence-optional`
-
-**Change**: Change `TierOrchestrator.__init__` to default `persistence=None`.
-
-**Status**: ⏭️ SKIP - Already done! `persistence` already defaults to `None` in the constructor.
-
-**Next step**: Go directly to PR 2.3 (remove persistence usage from CLI)
-
----
-
-### PR 2.3: Remove Persistence Usage from CLI ⬜
-
-**Branch**: `refactor/cli-no-persistence`
-
-**Change**: Stop creating `BatchPersistence` in `cli.py`.
-
-**Status**: ⬜ Not started
-
----
-
-### PR 2.4: Delete Batch Persistence Module ⬜
-
-**Branch**: `refactor/delete-persistence`
-
-**Files to delete**:
-- `backend/scripts/research_pipeline/batch_persistence.py` (454 lines)
-- `backend/tests/research_pipeline/test_batch_persistence.py` (537 lines)
-
-**Status**: ⬜ Not started
-
----
-
-## Phase 3: Flatten the State Machine
-
-### PR 3.1: Add Simple Pipeline Runner Test ⬜
-
-**Branch**: `refactor/simple-runner-test`
-
-**Purpose**: Define what a simplified runner should do.
-
-**Status**: ⬜ Not started
-
----
-
-### PR 3.2: Create Simple Pipeline Runner ⬜
-
-**Branch**: `refactor/simple-runner`
-
-**New file**: `backend/scripts/research_pipeline/runner.py` (~200 lines)
-
-Simple sequential flow:
-1. Submit all docs to Tier 1, collect results
-2. Filter to docs needing Tier 2, submit, collect
-3. If max_tier >= 3, run Tier 3 for qualifying docs
-4. Return all results
-
-**Status**: ⬜ Not started
-
----
-
-### PR 3.3: Migrate CLI to Use Simple Runner ⬜
-
-**Branch**: `refactor/cli-use-runner`
-
-**Change**: Point CLI at new runner instead of orchestrator.
-
-**Status**: ⬜ Not started
-
----
-
-### PR 3.4: Delete State Machine ⬜
-
-**Branch**: `refactor/delete-state-machine`
-
-**Files to delete**:
-- `backend/scripts/research_pipeline/state_machine.py` (236 lines)
-- `backend/tests/research_pipeline/test_state_machine.py` (441 lines)
-
-**Status**: ⬜ Not started
-
----
-
-### PR 3.5: Delete Old Orchestrator ⬜
-
-**Branch**: `refactor/delete-orchestrator`
-
-**Files to delete**:
-- `backend/scripts/research_pipeline/tier_orchestrator.py` (1,383 lines)
-- `backend/tests/research_pipeline/test_tier_orchestrator.py` (443 lines)
-
-**Status**: ⬜ Not started
-
----
-
-## Phase 4: Consolidate Files
-
-### PR 4.1: Merge DB Files ⬜
-
-**Branch**: `refactor/consolidate-db`
-
-**Before**: 4 files in `db/` (2,200 lines)
-**After**: 1 file `db.py` (~600 lines)
-
-**Status**: ⬜ Not started
-
----
-
-### PR 4.2: Merge Model Files ⬜
-
-**Branch**: `refactor/consolidate-models`
-
-**Before**: 4 files in `models/`
-**After**: 1 file `models.py`
-
-**Status**: ⬜ Not started
-
----
-
-### PR 4.3: Merge Tier Runner Files ⬜
-
-**Branch**: `refactor/consolidate-tiers`
-
-**Before**: 4 files in `tiers/`
-**After**: 1 file `tiers.py`
-
-**Status**: ⬜ Not started
-
----
-
-### PR 4.4: Merge Context Files ⬜
-
-**Branch**: `refactor/consolidate-context`
-
-**Before**: 5 files in `context/` (2,000 lines)
-**After**: 1 file `context.py` (~500 lines)
-
-**Status**: ⬜ Not started
-
----
-
-### PR 4.5: Remove Unused Modules ⬜
-
-**Branch**: `refactor/remove-unused`
-
-**Files to delete**:
-- `cost_tracker.py` (367 lines)
-- `ids.py` (inline the one function)
-- `pipeline_logger.py` (use standard logging)
-
-**Status**: ⬜ Not started
-
----
-
-## Phase 5: Final Cleanup
-
-### PR 5.1: Update Documentation ⬜
-
-**Branch**: `refactor/update-docs`
-
-- Update `SKILL.md` with simplified CLI
-- Update `CLAUDE.md` if needed
-- Remove references to deleted modules
-
-**Status**: ⬜ Not started
-
----
-
-### PR 5.2: Clean Up Test Files ⬜
-
-**Branch**: `refactor/cleanup-tests`
-
-- Delete tests for deleted modules
-- Consolidate remaining tests to match new structure
-- Verify all contract tests still pass
-
-**Status**: ⬜ Not started
+## Remaining Work (Phases 2.2-5)
+
+### Phase 2.2-2.4: Remove Batch Persistence
+
+| PR | What | Status |
+|----|------|--------|
+| 2.2 | Make persistence optional (default None) | ⬜ Not started |
+| 2.3 | Remove persistence usage from CLI | ⬜ Not started |
+| 2.4 | Delete `batch_persistence.py` (~990 lines) | ⬜ Not started |
+
+### Phase 3: Flatten the State Machine
+
+| PR | What | Status |
+|----|------|--------|
+| 3.1 | Add simple pipeline runner test | ⬜ Not started |
+| 3.2 | Create simple pipeline runner (~200 lines) | ⬜ Not started |
+| 3.3 | Migrate CLI to use simple runner | ⬜ Not started |
+| 3.4 | Delete state machine (~680 lines) | ⬜ Not started |
+| 3.5 | Delete old orchestrator (~1,800 lines) | ⬜ Not started |
+
+### Phase 4: Consolidate Files
+
+| PR | What | Status |
+|----|------|--------|
+| 4.1 | Merge 4 DB files → 1 `db.py` | ⬜ Not started |
+| 4.2 | Merge 4 model files → 1 `models.py` | ⬜ Not started |
+| 4.3 | Merge 4 tier files → 1 `tiers.py` | ⬜ Not started |
+| 4.4 | Merge 5 context files → 1 `context.py` | ⬜ Not started |
+| 4.5 | Remove unused modules | ⬜ Not started |
+
+### Phase 5: Final Cleanup
+
+| PR | What | Status |
+|----|------|--------|
+| 5.1 | Update documentation | ⬜ Not started |
+| 5.2 | Clean up test files | ⬜ Not started |
 
 ---
 
 ## Summary
 
-| Phase | PRs | Est. Lines Removed | Checkpoint |
-|-------|-----|-------------------|------------|
-| 0 | 2 | 0 (adding tests) | Contract tests pass |
-| 1 | 4 | ~800 | CLI is simple |
-| 2 | 4 | ~1,000 | No persistence |
-| 3 | 5 | ~2,500 | Simple runner |
-| 4 | 5 | ~3,000 | Fewer files |
-| 5 | 2 | ~500 | Docs updated |
+| Phase | Est. Lines Removed | Status |
+|-------|-------------------|--------|
+| 0-1 + 2.1 | ~800 + tests | ✅ PR #90 |
+| 6 | ~300 (columns) + schema cleanup | ✅ PR #95 |
+| 7 | ~800 + LLM cost savings | ✅ PR #95 |
+| 2.2-2.4 | ~1,000 | 📋 Planned |
+| 3 | ~2,500 | 📋 Planned |
+| 4 | ~3,000 | 📋 Planned |
+| 5 | ~500 | 📋 Planned |
 
-**Total**: 22 PRs, ~8,000 lines removed
-
----
-
-## Testing Strategy
-
-| Test Type | Purpose | When to Run |
-|-----------|---------|-------------|
-| **Contract tests** | Verify external behavior | Every PR |
-| **Unit tests** | Verify internal logic | When touching that code |
-| **CLI tests** | Verify argument parsing | Phase 1 PRs |
-| **Integration tests** | Verify components together | Phases 3-4 |
-
-**Key rule**: Delete a module → delete its tests. Consolidate modules → consolidate tests.
+**Total**: ~8,900 lines to remove + schema consolidation + LLM cost reduction
 
 ---
 
@@ -399,11 +160,7 @@ Simple sequential flow:
 | Date | Action | Notes |
 |------|--------|-------|
 | 2026-02-03 | Plan created | Initial plan with 22 PRs across 5 phases |
-| 2026-02-03 | PR 0.1 complete | Contract tests + hardcoded path fix ([PR #83](https://github.com/michaeleboyce/deproceduralizer/pull/83)) |
-| 2026-02-03 | PR 0.2 skipped | Already covered by existing tests |
-| 2026-02-03 | PR 1.1 complete | CLI defaults ([PR #84](https://github.com/michaeleboyce/deproceduralizer/pull/84)) |
-| 2026-02-03 | PR 1.2 complete | Flag names ([PR #85](https://github.com/michaeleboyce/deproceduralizer/pull/85)) |
-| 2026-02-03 | PR 2.1 complete | Migration test - discovered persistence already optional! |
-| 2026-02-03 | PR 2.2 skipped | Already implemented - persistence defaults to None |
-| 2026-02-03 | PR 1.3 complete | Remove resume flags ([PR #89](https://github.com/michaeleboyce/deproceduralizer/pull/89)) - 269 lines removed |
-| 2026-02-03 | PR 1.4 complete | Remove --sequential flag ([PR #90](https://github.com/michaeleboyce/deproceduralizer/pull/90)) - 78 lines removed, Phase 1 complete |
+| 2026-02-03 | Phases 0-1 complete | PRs #83-#86, #89-#90 created |
+| 2026-02-04 | Phase 6 complete | Table refactor, migrations 0031-0037 |
+| 2026-02-04 | Phase 7 complete | Searcher is regex-only, ~800 lines removed |
+| 2026-02-04 | PR consolidation | 9 PRs → 2 independent PRs (#90, #95) for easier review |
