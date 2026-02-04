@@ -221,7 +221,9 @@ Many-to-many join table tracking where definition terms actually appear in docum
 
 ## compliance_issues
 
-Tracks compliance issues found in regulations (wet signatures, mail-only submission, etc.).
+Pure regex match store. Tracks individual regex matches found during compliance scanning.
+
+**Note**: LLM analysis fields moved to `compliance_issue_analyses` in PR 6.2. Review/developer tracking fields moved to `compliance_issue_analyses` in PR 6.3. This table now only stores the regex match data.
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -232,34 +234,19 @@ Tracks compliance issues found in regulations (wet signatures, mail-only submiss
 | `regex_match_pattern` | varchar(255) | Regex pattern that triggered the initial scan |
 | `regex_match_context` | text NOT NULL | Text window around the regex match (~600 chars) |
 | `url` | text | Link to the regulation |
-| `severity` | integer (1-10) | How problematic is this requirement |
-| `original_severity` | integer (1-10) | LLM's original severity (preserved on first review) |
-| `review_status` | varchar(50) | `unreviewed`, `confirmed`, `false_positive`, etc. |
-| `reviewed_by` | varchar(255) | Who reviewed it |
-| `reviewed_at` | timestamp | When reviewed |
-| `justification_notes` | text | Justification for the model |
-| `team_notes` | text | Notes for development team (replaced reviewer_notes) |
-| `impact_type` | varchar(100) | Type of impact |
-| `developer_status` | varchar(50) | `unresolved`, `resolved`, `pending`, `backlogged`, `need_more_info` |
-| `developer_assigned` | varchar(50) | Michael or Abigail |
-| `developer_notes` | text | Notes from developer |
-| `resolution_type` | varchar(50) | `implemented` or `not_implemented` |
-| `resolution_comments` | text | Comments about the resolution |
-| `developer_question` | text | Question for reviewer |
-| `developer_checked_at` | timestamp | When developer last checked |
 | `state` | varchar(2) NOT NULL | NY or NJ |
 | `created_at` | timestamp | When record was created |
 | `run_id` | varchar(32) | Pipeline run identifier for tracking |
 
-**Constraints:** `compliance_issues_severity_check`, `compliance_issues_state_check`, `unique_document_issue_occurrence UNIQUE(document_id, issue_type, occurrence_number)`
+**Constraints:** `compliance_issues_state_check`, `unique_document_issue_occurrence UNIQUE(document_id, issue_type, occurrence_number)`
 
-**Indexes:** `idx_compliance_issues_run_id`
+**Indexes:** `idx_compliance_issues_document`, `idx_compliance_issues_state`, `idx_compliance_issues_issue_type`, `idx_compliance_issues_state_issue`, `idx_compliance_issues_run_id`
 
 **Issue Types** (41 types defined in `prompts/compliance_issues.yaml`)
 
 ### Compliance Issue Filtering
 
-**Note**: LLM analysis fields (`requirement_found`, `is_verbatim`, `required_by_statute`, `statute_citation`, `verbatim_supporting_text`/`verbatim_requirements`, `decision_rationale`/`tier1_reasoning`) now live exclusively in `compliance_issue_analyses`. The repository JOINs to analyses to provide these fields. The `compliance_issues` table is a pure match store (regex hits + review fields + severity).
+**Note**: LLM analysis fields and review/developer fields all live exclusively in `compliance_issue_analyses`. The repository JOINs to analyses to provide these fields. The `compliance_issues` table is a pure regex match store.
 
 #### LLM Confirmation Status (from `compliance_issue_analyses`)
 - `requirement_found = true`: LLM confirmed this is a real compliance issue (has `final_severity` 1-10, `verbatim_requirements` populated with quotes)
@@ -450,6 +437,31 @@ Helps Tier 3 web search avoid returning results about similar-sounding but diffe
 }
 ```
 
+**Human Review (PR 6.3 — moved from compliance_issues)**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `review_status` | varchar(50) | `unreviewed`, `confirmed`, `false_positive`, etc. (DEFAULT 'unreviewed') |
+| `reviewed_by` | varchar(255) | Who reviewed it |
+| `reviewed_at` | timestamp | When reviewed |
+| `justification_notes` | text | Reviewer's justification notes |
+| `team_notes` | text | Notes for the development team |
+| `impact_type` | varchar(100) | Type of impact |
+| `reviewer_severity` | integer (1-10) | Reviewer-assigned severity (aliased as `severity` in repository queries) |
+| `reviewer_original_severity` | integer (1-10) | Original severity before reviewer adjustment (aliased as `originalSeverity`) |
+
+**Developer Tracking (PR 6.3 — moved from compliance_issues)**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `developer_status` | varchar(50) | `unresolved`, `resolved`, `pending`, etc. (DEFAULT 'unresolved') |
+| `developer_assigned` | varchar(50) | Michael or Abigail |
+| `developer_notes` | text | Notes from developer |
+| `resolution_type` | varchar(50) | `implemented` or `not_implemented` |
+| `resolution_comments` | text | Resolution details |
+| `developer_question` | text | Question for reviewer |
+| `developer_checked_at` | timestamp | When developer last checked |
+
 **Constraints:** `UNIQUE(document_id, issue_type)`
 
 **Indexes:**
@@ -459,6 +471,7 @@ Helps Tier 3 web search avoid returning results about similar-sounding but diffe
 - JSONB: `idx_cia_context_used` (GIN)
 - Severity: `idx_cia_high_severity`, `idx_cia_state_severity`
 - Results: `idx_cia_burdensome`, `idx_cia_justified`
+- Review/Developer: `idx_cia_review_status`, `idx_cia_developer_status`, `idx_cia_developer_assigned`
 - V5: `idx_compliance_issue_analyses_v5_tier3_triggers` (partial index for V5 Tier 3 routing)
 - V5.1: `idx_compliance_issue_analyses_tier3_trigger_reason` (partial), `idx_compliance_issue_analyses_easy_cleanup` (partial)
 - Query optimization: `idx_cia_doc_issue`, `idx_cia_state_tier2`, `idx_cia_highest_tier`

@@ -7,7 +7,8 @@
 > - Phase 2-5: 📋 Planned
 > - Phase 6.1: ✅ Complete (PR #93 — drop legacy columns)
 > - Phase 6.2: ✅ Complete (PR #93 — remove duplicate analysis fields, read from analyses)
-> - Phase 6.3-6.5: 📋 Planned (Issue #88 — review fields, frontend cleanup, FK)
+> - Phase 6.3: ✅ Complete — move review/developer tracking to analyses
+> - Phase 6.4-6.5: 📋 Planned (Issue #88 — frontend cleanup, FK)
 
 **Goal**: Reduce research pipeline from ~23,000 lines to ~5,000 lines while preserving functionality.
 
@@ -30,9 +31,9 @@
 | 3 | Flatten State Machine | 📋 Planned | 0/5 |
 | 4 | Consolidate Files | 📋 Planned | 0/5 |
 | 5 | Final Cleanup | 📋 Planned | 0/2 |
-| 6 | Refactor Compliance Issue Tables ([#88](https://github.com/michaeleboyce/deproceduralizer/issues/88)) | 🔄 In Progress | 1/5 (PR #93) |
+| 6 | Refactor Compliance Issue Tables ([#88](https://github.com/michaeleboyce/deproceduralizer/issues/88)) | 🔄 In Progress | 3/5 (PRs 6.1-6.3 complete) |
 
-**Total Progress**: 8/27 PRs open or complete (Phases 0-1 done, Phase 2.1 done, Phase 6.1 done, all awaiting review)
+**Total Progress**: 10/27 PRs open or complete (Phases 0-1 done, Phase 2.1 done, Phases 6.1-6.3 done, all awaiting review)
 
 ---
 
@@ -425,27 +426,33 @@ Make `compliance_issues` a **pure match store** and `compliance_issue_analyses` 
 
 ---
 
-### PR 6.3: Move Review/Developer Tracking to `compliance_issue_analyses` ⬜
+### PR 6.3: Move Review/Developer Tracking to `compliance_issue_analyses` ✅
 
-**Branch**: `refactor/move-review-fields`
+**Branch**: `refactor/ci-remove-legacy-columns` (combined with PRs 6.1-6.2)
 
-**Change**: Move human review fields from the match-level table to the analysis-level table, since reviewers work at the (document, issue_type) level.
+**Change**: Moved 15 review/developer columns from `compliance_issues` to `compliance_issue_analyses`, since reviewers work at the (document, issue_type) level.
 
-| Fields to Move |
+| Fields Moved |
 |----------------|
 | `review_status`, `reviewed_by`, `reviewed_at` |
 | `justification_notes`, `team_notes`, `impact_type` |
+| `severity` → `reviewer_severity`, `original_severity` → `reviewer_original_severity` |
 | `developer_status`, `developer_assigned`, `developer_notes` |
 | `resolution_type`, `resolution_comments` |
 | `developer_question`, `developer_checked_at` |
 
-**Requires**:
-- Migration to add columns to `compliance_issue_analyses` and copy data
-- Migration to drop columns from `compliance_issues`
-- Update all frontend review mutations and queries
-- Update review queue server actions
+**What was done**:
+- Migration 0034: Add 15 columns to `compliance_issue_analyses` (with `reviewer_severity`/`reviewer_original_severity` naming to avoid collision with pipeline `severity`)
+- Migration 0035: Backfill data using "most-reviewed-wins" CTE with ROW_NUMBER
+- Migration 0036: Drop 15 columns and 6 indexes from `compliance_issues`
+- Updated Drizzle schemas for both tables
+- Major repository rewrite: added `findAnalysisForIssue()` helper, rewrote all mutations (`updateReview`, `updateDeveloperStatus`, `clearForReview`) and read queries to use analyses
+- Updated server actions return types (`ComplianceIssueWithAnalysisFields`)
+- Updated Python backend queries (`data_status.py`, `optimize.py`)
+- Updated `schema.sql`, `schema.md`, documentation
+- Count semantics changed: `getCountsByStatus` and `getDeveloperStatusCounts` now count analysis rows (one per document+issue_type) instead of match rows
 
-**Status**: ⬜ Not started
+**Status**: ✅ Complete
 
 ---
 
@@ -542,3 +549,5 @@ PRs should be done in order since each builds on the previous:
 | 2026-02-04 | PR 1.1 updated | Cost-safe defaults per issue #92 (dry-run default, require explicit issue selection, global limit 100) |
 | 2026-02-04 | Phase 6 planned | Investigated issue #88 — `compliance_issues` vs `compliance_issue_analyses` table overlap. Added 5-PR plan to clean separation |
 | 2026-02-04 | PR 6.1 complete | Drop legacy columns from compliance_issues ([PR #93](https://github.com/michaeleboyce/deproceduralizer/pull/93)) — migration 0031, schema/repo/frontend/backend cleanup |
+| 2026-02-04 | PR 6.2 complete | Remove duplicate analysis fields from compliance_issues — migrations 0032-0033, repo/frontend reads from analyses |
+| 2026-02-04 | PR 6.3 complete | Move review/developer tracking to analyses — migrations 0034-0036, major repo rewrite, server action updates, Python backend updates |

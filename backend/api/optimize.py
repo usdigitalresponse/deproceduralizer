@@ -266,8 +266,9 @@ def get_data_readiness(prompt_type: str) -> dict:
     try:
         with conn.cursor() as cur:
             if prompt_type == "wet_signature_detection":
+                # PR 6.3: review_status moved to compliance_issue_analyses
                 cur.execute("""
-                    SELECT COUNT(*) FROM compliance_issues
+                    SELECT COUNT(*) FROM compliance_issue_analyses
                     WHERE review_status IN ('confirmed', 'false_positive')
                     AND issue_type = 'wet_signature'
                 """)
@@ -406,17 +407,19 @@ async def fetch_training_data(prompt_type: str) -> list:
     try:
         with conn.cursor() as cur:
             if prompt_type == "wet_signature_detection":
+                # PR 6.3: review_status moved to compliance_issue_analyses
                 cur.execute("""
                     SELECT
-                        ci.id,
-                        ci.review_status,
-                        ci.section_text,
+                        cia.id,
+                        cia.review_status,
+                        ci.regex_match_context,
                         rd.citation,
-                        rd.heading
-                    FROM compliance_issues ci
-                    JOIN regulatory_documents rd ON ci.document_id = rd.id
-                    WHERE ci.review_status IN ('confirmed', 'false_positive')
-                    AND ci.issue_type = 'wet_signature'
+                        rd.title
+                    FROM compliance_issue_analyses cia
+                    JOIN compliance_issues ci ON ci.document_id = cia.document_id AND ci.issue_type = cia.issue_type
+                    JOIN regulatory_documents rd ON cia.document_id = rd.id
+                    WHERE cia.review_status IN ('confirmed', 'false_positive')
+                    AND cia.issue_type = 'wet_signature'
                 """)
 
                 from scripts.optimize_prompts import WetSignatureExample

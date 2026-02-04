@@ -14,7 +14,7 @@ import {
   DEVELOPERS,
   type StateCode,
   type RedFlag,
-  type ComplianceIssue,
+  type ComplianceIssueWithAnalysisFields,
   type RedFlagWithContext,
   type ComplianceIssueWithContext,
   type IssueType,
@@ -94,7 +94,7 @@ export interface NeedMoreInfoCounts {
  */
 export async function updateDeveloperStatus(
   input: UpdateDeveloperStatusInput
-): Promise<ActionResult<RedFlag | ComplianceIssue>> {
+): Promise<ActionResult<RedFlag | ComplianceIssueWithAnalysisFields>> {
   try {
     // Validate developer status
     if (!DEVELOPER_STATUSES.includes(input.developerStatus as DeveloperStatus)) {
@@ -151,7 +151,7 @@ export interface ClearEntryForReviewInput {
  */
 export async function clearEntryForReview(
   input: ClearEntryForReviewInput
-): Promise<ActionResult<RedFlag | ComplianceIssue>> {
+): Promise<ActionResult<RedFlag | ComplianceIssueWithAnalysisFields>> {
   try {
     let result;
     if (input.type === 'red_flag') {

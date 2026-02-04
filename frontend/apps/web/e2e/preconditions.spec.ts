@@ -57,7 +57,7 @@ test.describe('Data Preconditions', () => {
       count,
       `PRECONDITION FAILED: No unreviewed compliance issues in NJ.\n` +
       `This will cause downstream tests to fail.\n` +
-      `Check: SELECT COUNT(*) FROM compliance_issues WHERE state='NJ' AND review_status='unreviewed'`
+      `Check: SELECT COUNT(*) FROM compliance_issue_analyses WHERE state='NJ' AND review_status='unreviewed'`
     ).toBeGreaterThan(0);
   });
 
@@ -93,7 +93,7 @@ test.describe('Data Preconditions', () => {
       count,
       `PRECONDITION FAILED: No LLM-rejected compliance issues in NJ.\n` +
       `This will cause the 'section detail does not display LLM-rejected issues' test to fail.\n` +
-      `Check: SELECT COUNT(*) FROM compliance_issues WHERE requirement_found = false AND state = 'NJ'`
+      `Check: SELECT COUNT(*) FROM compliance_issue_analyses WHERE requirement_found = false AND state = 'NJ'`
     ).toBeGreaterThan(0);
   });
 

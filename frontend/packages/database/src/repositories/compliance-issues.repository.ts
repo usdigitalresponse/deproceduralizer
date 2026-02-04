@@ -20,6 +20,7 @@ import { DeveloperStatusCounts } from './red-flags.repository';
 /**
  * ComplianceIssue with analysis-sourced fields joined from compliance_issue_analyses.
  * Used by getByDocumentId which needs to return these fields for UI rendering.
+ * PR 6.3: review/developer fields now also come from analyses.
  */
 export interface ComplianceIssueWithAnalysisFields extends ComplianceIssue {
   requirementFound: boolean | null;
@@ -28,6 +29,23 @@ export interface ComplianceIssueWithAnalysisFields extends ComplianceIssue {
   requiredByStatute: boolean | null;
   statuteCitation: string | null;
   decisionRationale: string | null;
+  // Review fields (from analyses, aliased for frontend compat)
+  severity: number | null;
+  originalSeverity: number | null;
+  reviewStatus: string | null;
+  reviewedBy: string | null;
+  reviewedAt: Date | null;
+  justificationNotes: string | null;
+  teamNotes: string | null;
+  impactType: string | null;
+  // Developer fields (from analyses)
+  developerStatus: string | null;
+  developerAssigned: string | null;
+  developerNotes: string | null;
+  resolutionType: string | null;
+  resolutionComments: string | null;
+  developerQuestion: string | null;
+  developerCheckedAt: Date | null;
 }
 
 export interface UpdateComplianceIssueReviewInput {
@@ -56,6 +74,23 @@ export interface ComplianceIssueWithContext extends ComplianceIssue {
   requiredByStatute: boolean | null;
   statuteCitation: string | null;
   decisionRationale: string | null;
+  // Review fields (PR 6.3: moved to analyses, aliased for frontend compat)
+  severity: number | null;
+  originalSeverity: number | null;
+  reviewStatus: string | null;
+  reviewedBy: string | null;
+  reviewedAt: Date | null;
+  justificationNotes: string | null;
+  teamNotes: string | null;
+  impactType: string | null;
+  // Developer fields (PR 6.3: moved to analyses)
+  developerStatus: string | null;
+  developerAssigned: string | null;
+  developerNotes: string | null;
+  resolutionType: string | null;
+  resolutionComments: string | null;
+  developerQuestion: string | null;
+  developerCheckedAt: Date | null;
 
   regulation: {
     id: number;
@@ -294,6 +329,28 @@ export class ComplianceIssuesRepository extends BaseRepository {
     return result[0];
   }
 
+  /**
+   * Find the analysis row corresponding to a compliance issue.
+   * Looks up the issue by id, then finds the analysis by (document_id, issue_type).
+   * PR 6.3: Used by mutations that accept compliance_issues.id but now update analyses.
+   */
+  private async findAnalysisForIssue(issueId: number): Promise<{ analysisId: number; documentId: number; issueType: string } | null> {
+    const issue = await this.getById(issueId);
+    if (!issue) return null;
+
+    const [analysis] = await this.db
+      .select({ id: complianceIssueAnalyses.id })
+      .from(complianceIssueAnalyses)
+      .where(and(
+        eq(complianceIssueAnalyses.documentId, issue.documentId),
+        eq(complianceIssueAnalyses.issueType, issue.issueType)
+      ))
+      .limit(1);
+
+    if (!analysis) return null;
+    return { analysisId: analysis.id, documentId: issue.documentId, issueType: issue.issueType };
+  }
+
   async getByDocumentId(documentId: number): Promise<ComplianceIssueWithAnalysisFields[]> {
     const results = await this.db
       .select({
@@ -304,21 +361,6 @@ export class ComplianceIssuesRepository extends BaseRepository {
         url: complianceIssues.url,
         regexMatchPattern: complianceIssues.regexMatchPattern,
         regexMatchContext: complianceIssues.regexMatchContext,
-        severity: complianceIssues.severity,
-        reviewStatus: complianceIssues.reviewStatus,
-        reviewedBy: complianceIssues.reviewedBy,
-        reviewedAt: complianceIssues.reviewedAt,
-        justificationNotes: complianceIssues.justificationNotes,
-        teamNotes: complianceIssues.teamNotes,
-        originalSeverity: complianceIssues.originalSeverity,
-        impactType: complianceIssues.impactType,
-        developerStatus: complianceIssues.developerStatus,
-        developerAssigned: complianceIssues.developerAssigned,
-        developerNotes: complianceIssues.developerNotes,
-        resolutionType: complianceIssues.resolutionType,
-        resolutionComments: complianceIssues.resolutionComments,
-        developerQuestion: complianceIssues.developerQuestion,
-        developerCheckedAt: complianceIssues.developerCheckedAt,
         state: complianceIssues.state,
         createdAt: complianceIssues.createdAt,
         // Analysis-sourced fields (PR 6.2)
@@ -328,6 +370,22 @@ export class ComplianceIssuesRepository extends BaseRepository {
         requiredByStatute: complianceIssueAnalyses.citesFederalStatute,
         statuteCitation: complianceIssueAnalyses.federalCitation,
         decisionRationale: complianceIssueAnalyses.tier1Reasoning,
+        // Review/developer fields (PR 6.3: from analyses)
+        severity: complianceIssueAnalyses.reviewerSeverity,
+        originalSeverity: complianceIssueAnalyses.reviewerOriginalSeverity,
+        reviewStatus: complianceIssueAnalyses.reviewStatus,
+        reviewedBy: complianceIssueAnalyses.reviewedBy,
+        reviewedAt: complianceIssueAnalyses.reviewedAt,
+        justificationNotes: complianceIssueAnalyses.justificationNotes,
+        teamNotes: complianceIssueAnalyses.teamNotes,
+        impactType: complianceIssueAnalyses.impactType,
+        developerStatus: complianceIssueAnalyses.developerStatus,
+        developerAssigned: complianceIssueAnalyses.developerAssigned,
+        developerNotes: complianceIssueAnalyses.developerNotes,
+        resolutionType: complianceIssueAnalyses.resolutionType,
+        resolutionComments: complianceIssueAnalyses.resolutionComments,
+        developerQuestion: complianceIssueAnalyses.developerQuestion,
+        developerCheckedAt: complianceIssueAnalyses.developerCheckedAt,
       })
       .from(complianceIssues)
       .leftJoin(
@@ -370,13 +428,23 @@ export class ComplianceIssuesRepository extends BaseRepository {
       .orderBy(asc(complianceIssues.occurrenceNumber));
   }
 
-  async updateReview(id: number, data: UpdateComplianceIssueReviewInput): Promise<ComplianceIssue | undefined> {
-    // Get current record to check if we need to preserve original severity
-    const current = await this.getById(id);
-    if (!current) return undefined;
+  async updateReview(id: number, data: UpdateComplianceIssueReviewInput): Promise<ComplianceIssueWithAnalysisFields | undefined> {
+    // PR 6.3: Review fields now live on compliance_issue_analyses
+    const analysisInfo = await this.findAnalysisForIssue(id);
+    if (!analysisInfo) return undefined;
 
-    // Build update data
-    const updateData: Partial<ComplianceIssue> = {
+    // Get current analysis to check if we need to preserve original severity
+    const [currentAnalysis] = await this.db
+      .select({
+        reviewerSeverity: complianceIssueAnalyses.reviewerSeverity,
+        reviewerOriginalSeverity: complianceIssueAnalyses.reviewerOriginalSeverity,
+      })
+      .from(complianceIssueAnalyses)
+      .where(eq(complianceIssueAnalyses.id, analysisInfo.analysisId))
+      .limit(1);
+
+    // Build update data for the analysis row
+    const updateData: Record<string, unknown> = {
       reviewStatus: data.reviewStatus,
       reviewedBy: data.reviewedBy ?? null,
       reviewedAt: new Date(),
@@ -386,22 +454,23 @@ export class ComplianceIssuesRepository extends BaseRepository {
     };
 
     // If reviewer is changing severity and original hasn't been preserved yet, save it
-    if (data.severity !== undefined && current.originalSeverity === null && current.severity !== null) {
-      updateData.originalSeverity = current.severity;
+    if (data.severity !== undefined && currentAnalysis?.reviewerOriginalSeverity === null && currentAnalysis?.reviewerSeverity !== null) {
+      updateData.reviewerOriginalSeverity = currentAnalysis.reviewerSeverity;
     }
 
     // Update severity if provided
     if (data.severity !== undefined) {
-      updateData.severity = data.severity;
+      updateData.reviewerSeverity = data.severity;
     }
 
-    const result = await this.db
-      .update(complianceIssues)
+    await this.db
+      .update(complianceIssueAnalyses)
       .set(updateData)
-      .where(eq(complianceIssues.id, id))
-      .returning();
+      .where(eq(complianceIssueAnalyses.id, analysisInfo.analysisId));
 
-    return result[0];
+    // Return via getByDocumentId to get the full shape with aliased fields
+    const issues = await this.getByDocumentId(analysisInfo.documentId);
+    return issues.find(i => i.id === id);
   }
 
   /**
@@ -418,17 +487,18 @@ export class ComplianceIssuesRepository extends BaseRepository {
   }
 
   /**
-   * Get counts by review status for progress display
+   * Get counts by review status for progress display.
+   * PR 6.3: Counts analysis rows (one per document+issue_type) instead of match rows.
    */
   async getCountsByStatus(state: StateCode): Promise<ComplianceIssueStatusCounts> {
     const result = await this.db
       .select({
-        status: complianceIssues.reviewStatus,
+        status: complianceIssueAnalyses.reviewStatus,
         count: sql<number>`count(*)::int`,
       })
-      .from(complianceIssues)
-      .where(eq(complianceIssues.state, state.toUpperCase()))
-      .groupBy(complianceIssues.reviewStatus);
+      .from(complianceIssueAnalyses)
+      .where(eq(complianceIssueAnalyses.state, state.toUpperCase()))
+      .groupBy(complianceIssueAnalyses.reviewStatus);
 
     // Initialize counts with zeros
     const counts: ComplianceIssueStatusCounts = {
@@ -488,15 +558,18 @@ export class ComplianceIssuesRepository extends BaseRepository {
       .from(complianceIssues)
       .where(conditions.length > 0 ? and(...conditions) : undefined);
 
-    // Get unreviewed count
+    // Get unreviewed count (PR 6.3: review status now on analyses)
+    const unreviewedConditions = state
+      ? [eq(complianceIssueAnalyses.state, state.toUpperCase())]
+      : [];
     const [unreviewedResult] = await this.db
       .select({ count: sql<number>`count(*)::int` })
-      .from(complianceIssues)
+      .from(complianceIssueAnalyses)
       .where(and(
-        ...(conditions.length > 0 ? conditions : []),
+        ...(unreviewedConditions.length > 0 ? unreviewedConditions : []),
         or(
-          eq(complianceIssues.reviewStatus, 'unreviewed'),
-          isNull(complianceIssues.reviewStatus)
+          eq(complianceIssueAnalyses.reviewStatus, 'unreviewed'),
+          isNull(complianceIssueAnalyses.reviewStatus)
         )
       ));
 
@@ -537,17 +610,17 @@ export class ComplianceIssuesRepository extends BaseRepository {
     ];
 
     if (filters) {
-      // Status filter
+      // Status filter — PR 6.3: reads from analyses
       if (filters.status && filters.status !== 'all') {
         if (filters.status === 'unreviewed') {
           conditions.push(
             or(
-              eq(complianceIssues.reviewStatus, 'unreviewed'),
-              isNull(complianceIssues.reviewStatus)
+              eq(complianceIssueAnalyses.reviewStatus, 'unreviewed'),
+              isNull(complianceIssueAnalyses.reviewStatus)
             )!
           );
         } else {
-          conditions.push(eq(complianceIssues.reviewStatus, filters.status));
+          conditions.push(eq(complianceIssueAnalyses.reviewStatus, filters.status));
         }
       }
 
@@ -619,13 +692,13 @@ export class ComplianceIssuesRepository extends BaseRepository {
       )
       .where(whereClause);
 
-    // Build sort column — severity now comes from analyses
+    // Build sort column — severity and review fields now come from analyses
     const sortColumn = {
       issueType: complianceIssues.issueType,
       createdAt: complianceIssues.createdAt,
-      reviewedAt: complianceIssues.reviewedAt,
+      reviewedAt: complianceIssueAnalyses.reviewedAt,
       severity: complianceIssueAnalyses.finalSeverity,
-      developerCheckedAt: complianceIssues.developerCheckedAt,
+      developerCheckedAt: complianceIssueAnalyses.developerCheckedAt,
     }[sortBy] ?? complianceIssues.createdAt;
 
     const primarySort = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
@@ -646,25 +719,26 @@ export class ComplianceIssuesRepository extends BaseRepository {
         verbatimSupportingText: complianceIssueAnalyses.verbatimRequirements,
         isVerbatim: complianceIssueAnalyses.isVerbatim,
         requiredByStatute: complianceIssueAnalyses.citesFederalStatute,
-        severity: complianceIssues.severity,
+        severity: complianceIssueAnalyses.reviewerSeverity,
         occurrenceNumber: complianceIssues.occurrenceNumber,
         statuteCitation: complianceIssueAnalyses.federalCitation,
         decisionRationale: complianceIssueAnalyses.tier1Reasoning,
-        reviewStatus: complianceIssues.reviewStatus,
-        reviewedBy: complianceIssues.reviewedBy,
-        reviewedAt: complianceIssues.reviewedAt,
-        justificationNotes: complianceIssues.justificationNotes,
-        teamNotes: complianceIssues.teamNotes,
-        originalSeverity: complianceIssues.originalSeverity,
-        impactType: complianceIssues.impactType,
-        // Developer fields
-        developerStatus: complianceIssues.developerStatus,
-        developerAssigned: complianceIssues.developerAssigned,
-        developerNotes: complianceIssues.developerNotes,
-        resolutionType: complianceIssues.resolutionType,
-        resolutionComments: complianceIssues.resolutionComments,
-        developerQuestion: complianceIssues.developerQuestion,
-        developerCheckedAt: complianceIssues.developerCheckedAt,
+        // Review fields — PR 6.3: from analyses
+        reviewStatus: complianceIssueAnalyses.reviewStatus,
+        reviewedBy: complianceIssueAnalyses.reviewedBy,
+        reviewedAt: complianceIssueAnalyses.reviewedAt,
+        justificationNotes: complianceIssueAnalyses.justificationNotes,
+        teamNotes: complianceIssueAnalyses.teamNotes,
+        originalSeverity: complianceIssueAnalyses.reviewerOriginalSeverity,
+        impactType: complianceIssueAnalyses.impactType,
+        // Developer fields — PR 6.3: from analyses
+        developerStatus: complianceIssueAnalyses.developerStatus,
+        developerAssigned: complianceIssueAnalyses.developerAssigned,
+        developerNotes: complianceIssueAnalyses.developerNotes,
+        resolutionType: complianceIssueAnalyses.resolutionType,
+        resolutionComments: complianceIssueAnalyses.resolutionComments,
+        developerQuestion: complianceIssueAnalyses.developerQuestion,
+        developerCheckedAt: complianceIssueAnalyses.developerCheckedAt,
         state: complianceIssues.state,
         createdAt: complianceIssues.createdAt,
         // Regulation context
@@ -791,11 +865,15 @@ export class ComplianceIssuesRepository extends BaseRepository {
   }
 
   /**
-   * Update developer tracking fields for a compliance issue
+   * Update developer tracking fields for a compliance issue.
+   * PR 6.3: Developer fields now live on compliance_issue_analyses.
    */
-  async updateDeveloperStatus(id: number, data: UpdateComplianceIssueDeveloperInput): Promise<ComplianceIssue | undefined> {
-    const result = await this.db
-      .update(complianceIssues)
+  async updateDeveloperStatus(id: number, data: UpdateComplianceIssueDeveloperInput): Promise<ComplianceIssueWithAnalysisFields | undefined> {
+    const analysisInfo = await this.findAnalysisForIssue(id);
+    if (!analysisInfo) return undefined;
+
+    await this.db
+      .update(complianceIssueAnalyses)
       .set({
         developerStatus: data.developerStatus,
         developerAssigned: data.developerAssigned,
@@ -805,28 +883,30 @@ export class ComplianceIssuesRepository extends BaseRepository {
         developerQuestion: data.developerQuestion ?? null,
         developerCheckedAt: new Date(),
       })
-      .where(eq(complianceIssues.id, id))
-      .returning();
+      .where(eq(complianceIssueAnalyses.id, analysisInfo.analysisId));
 
-    return result[0];
+    // Return via getByDocumentId to get the full shape with aliased fields
+    const issues = await this.getByDocumentId(analysisInfo.documentId);
+    return issues.find(i => i.id === id);
   }
 
   /**
-   * Get counts by developer status for progress display
+   * Get counts by developer status for progress display.
+   * PR 6.3: Counts analysis rows (one per document+issue_type) instead of match rows.
    */
   async getDeveloperStatusCounts(state: StateCode): Promise<DeveloperStatusCounts> {
     const result = await this.db
       .select({
-        status: complianceIssues.developerStatus,
+        status: complianceIssueAnalyses.developerStatus,
         count: sql<number>`count(*)::int`,
       })
-      .from(complianceIssues)
+      .from(complianceIssueAnalyses)
       .where(and(
-        eq(complianceIssues.state, state.toUpperCase()),
+        eq(complianceIssueAnalyses.state, state.toUpperCase()),
         // Only count reviewed items
-        ne(complianceIssues.reviewStatus, 'unreviewed')
+        ne(complianceIssueAnalyses.reviewStatus, 'unreviewed')
       ))
-      .groupBy(complianceIssues.developerStatus);
+      .groupBy(complianceIssueAnalyses.developerStatus);
 
     // Initialize counts with zeros
     const counts: DeveloperStatusCounts = {
@@ -851,7 +931,8 @@ export class ComplianceIssuesRepository extends BaseRepository {
   }
 
   /**
-   * Get paginated reviewed compliance issues for developer mode
+   * Get paginated reviewed compliance issues for developer mode.
+   * PR 6.3: Review/developer filters and fields now come from analyses.
    */
   async getReviewedPaginated(
     options: ComplianceIssuePaginationOptions & {
@@ -862,26 +943,26 @@ export class ComplianceIssuesRepository extends BaseRepository {
     const { state, page, pageSize, sortBy = 'createdAt', sortOrder = 'desc', filters, developerStatus, developerAssigned } = options;
     const offset = (page - 1) * pageSize;
 
-    // Build where conditions - only reviewed items
+    // Build where conditions - only reviewed items (from analyses)
     const conditions: ReturnType<typeof eq>[] = [
       eq(complianceIssues.state, state.toUpperCase()),
-      ne(complianceIssues.reviewStatus, 'unreviewed'),
+      ne(complianceIssueAnalyses.reviewStatus, 'unreviewed'),
     ];
 
-    // Developer status filter
+    // Developer status filter (from analyses)
     if (developerStatus && developerStatus !== 'all') {
-      conditions.push(eq(complianceIssues.developerStatus, developerStatus));
+      conditions.push(eq(complianceIssueAnalyses.developerStatus, developerStatus));
     }
 
-    // Developer assigned filter
+    // Developer assigned filter (from analyses)
     if (developerAssigned) {
-      conditions.push(eq(complianceIssues.developerAssigned, developerAssigned));
+      conditions.push(eq(complianceIssueAnalyses.developerAssigned, developerAssigned));
     }
 
     if (filters) {
-      // Status filter
+      // Status filter (from analyses)
       if (filters.status && filters.status !== 'all') {
-        conditions.push(eq(complianceIssues.reviewStatus, filters.status));
+        conditions.push(eq(complianceIssueAnalyses.reviewStatus, filters.status));
       }
 
       // Issue type filter
@@ -892,7 +973,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
 
     const whereClause = and(...conditions);
 
-    // Get total count (includes LEFT JOIN to analyses for filter support)
+    // Get total count
     const [{ count: total }] = await this.db
       .select({ count: count() })
       .from(complianceIssues)
@@ -906,13 +987,13 @@ export class ComplianceIssuesRepository extends BaseRepository {
       )
       .where(whereClause);
 
-    // Build sort column — severity now comes from analyses
+    // Build sort column — review/dev fields now come from analyses
     const sortColumn = {
       issueType: complianceIssues.issueType,
       createdAt: complianceIssues.createdAt,
-      reviewedAt: complianceIssues.reviewedAt,
+      reviewedAt: complianceIssueAnalyses.reviewedAt,
       severity: complianceIssueAnalyses.finalSeverity,
-      developerCheckedAt: complianceIssues.developerCheckedAt,
+      developerCheckedAt: complianceIssueAnalyses.developerCheckedAt,
     }[sortBy] ?? complianceIssues.createdAt;
 
     const primarySort = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
@@ -933,25 +1014,26 @@ export class ComplianceIssuesRepository extends BaseRepository {
         verbatimSupportingText: complianceIssueAnalyses.verbatimRequirements,
         isVerbatim: complianceIssueAnalyses.isVerbatim,
         requiredByStatute: complianceIssueAnalyses.citesFederalStatute,
-        severity: complianceIssues.severity,
+        severity: complianceIssueAnalyses.reviewerSeverity,
         occurrenceNumber: complianceIssues.occurrenceNumber,
         statuteCitation: complianceIssueAnalyses.federalCitation,
         decisionRationale: complianceIssueAnalyses.tier1Reasoning,
-        reviewStatus: complianceIssues.reviewStatus,
-        reviewedBy: complianceIssues.reviewedBy,
-        reviewedAt: complianceIssues.reviewedAt,
-        justificationNotes: complianceIssues.justificationNotes,
-        teamNotes: complianceIssues.teamNotes,
-        originalSeverity: complianceIssues.originalSeverity,
-        impactType: complianceIssues.impactType,
-        // Developer fields
-        developerStatus: complianceIssues.developerStatus,
-        developerAssigned: complianceIssues.developerAssigned,
-        developerNotes: complianceIssues.developerNotes,
-        resolutionType: complianceIssues.resolutionType,
-        resolutionComments: complianceIssues.resolutionComments,
-        developerQuestion: complianceIssues.developerQuestion,
-        developerCheckedAt: complianceIssues.developerCheckedAt,
+        // Review fields — PR 6.3: from analyses
+        reviewStatus: complianceIssueAnalyses.reviewStatus,
+        reviewedBy: complianceIssueAnalyses.reviewedBy,
+        reviewedAt: complianceIssueAnalyses.reviewedAt,
+        justificationNotes: complianceIssueAnalyses.justificationNotes,
+        teamNotes: complianceIssueAnalyses.teamNotes,
+        originalSeverity: complianceIssueAnalyses.reviewerOriginalSeverity,
+        impactType: complianceIssueAnalyses.impactType,
+        // Developer fields — PR 6.3: from analyses
+        developerStatus: complianceIssueAnalyses.developerStatus,
+        developerAssigned: complianceIssueAnalyses.developerAssigned,
+        developerNotes: complianceIssueAnalyses.developerNotes,
+        resolutionType: complianceIssueAnalyses.resolutionType,
+        resolutionComments: complianceIssueAnalyses.resolutionComments,
+        developerQuestion: complianceIssueAnalyses.developerQuestion,
+        developerCheckedAt: complianceIssueAnalyses.developerCheckedAt,
         state: complianceIssues.state,
         createdAt: complianceIssues.createdAt,
         // Regulation context
@@ -1045,7 +1127,8 @@ export class ComplianceIssuesRepository extends BaseRepository {
   }
 
   /**
-   * Get compliance issues that need more info
+   * Get compliance issues that need more info.
+   * PR 6.3: Developer status filter now from analyses.
    */
   async getNeedMoreInfoIssues(
     state: StateCode,
@@ -1059,7 +1142,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
 
     const conditions = [
       eq(complianceIssues.state, state.toUpperCase()),
-      eq(complianceIssues.developerStatus, 'need_more_info'),
+      eq(complianceIssueAnalyses.developerStatus, 'need_more_info'),
     ];
 
     const whereClause = and(...conditions);
@@ -1069,10 +1152,17 @@ export class ComplianceIssuesRepository extends BaseRepository {
       .select({ count: count() })
       .from(complianceIssues)
       .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
+      .leftJoin(
+        complianceIssueAnalyses,
+        and(
+          eq(complianceIssues.documentId, complianceIssueAnalyses.documentId),
+          eq(complianceIssues.issueType, complianceIssueAnalyses.issueType)
+        )
+      )
       .where(whereClause);
 
-    // Order by developerCheckedAt desc
-    const orderBy = [desc(complianceIssues.developerCheckedAt)];
+    // Order by developerCheckedAt desc (from analyses)
+    const orderBy = [desc(complianceIssueAnalyses.developerCheckedAt)];
 
     // Get paginated results with analysis fields
     const results = await this.db
@@ -1088,24 +1178,25 @@ export class ComplianceIssuesRepository extends BaseRepository {
         verbatimSupportingText: complianceIssueAnalyses.verbatimRequirements,
         isVerbatim: complianceIssueAnalyses.isVerbatim,
         requiredByStatute: complianceIssueAnalyses.citesFederalStatute,
-        severity: complianceIssues.severity,
+        severity: complianceIssueAnalyses.reviewerSeverity,
         occurrenceNumber: complianceIssues.occurrenceNumber,
         statuteCitation: complianceIssueAnalyses.federalCitation,
         decisionRationale: complianceIssueAnalyses.tier1Reasoning,
-        reviewStatus: complianceIssues.reviewStatus,
-        reviewedBy: complianceIssues.reviewedBy,
-        reviewedAt: complianceIssues.reviewedAt,
-        justificationNotes: complianceIssues.justificationNotes,
-        teamNotes: complianceIssues.teamNotes,
-        originalSeverity: complianceIssues.originalSeverity,
-        impactType: complianceIssues.impactType,
-        developerStatus: complianceIssues.developerStatus,
-        developerAssigned: complianceIssues.developerAssigned,
-        developerNotes: complianceIssues.developerNotes,
-        resolutionType: complianceIssues.resolutionType,
-        resolutionComments: complianceIssues.resolutionComments,
-        developerQuestion: complianceIssues.developerQuestion,
-        developerCheckedAt: complianceIssues.developerCheckedAt,
+        // Review/developer fields — PR 6.3: from analyses
+        reviewStatus: complianceIssueAnalyses.reviewStatus,
+        reviewedBy: complianceIssueAnalyses.reviewedBy,
+        reviewedAt: complianceIssueAnalyses.reviewedAt,
+        justificationNotes: complianceIssueAnalyses.justificationNotes,
+        teamNotes: complianceIssueAnalyses.teamNotes,
+        originalSeverity: complianceIssueAnalyses.reviewerOriginalSeverity,
+        impactType: complianceIssueAnalyses.impactType,
+        developerStatus: complianceIssueAnalyses.developerStatus,
+        developerAssigned: complianceIssueAnalyses.developerAssigned,
+        developerNotes: complianceIssueAnalyses.developerNotes,
+        resolutionType: complianceIssueAnalyses.resolutionType,
+        resolutionComments: complianceIssueAnalyses.resolutionComments,
+        developerQuestion: complianceIssueAnalyses.developerQuestion,
+        developerCheckedAt: complianceIssueAnalyses.developerCheckedAt,
         state: complianceIssues.state,
         createdAt: complianceIssues.createdAt,
         regulationId: regulatoryDocuments.id,
@@ -1197,19 +1288,17 @@ export class ComplianceIssuesRepository extends BaseRepository {
   }
 
   /**
-   * Get count of need_more_info issues
+   * Get count of need_more_info issues.
+   * PR 6.3: Developer status now on analyses.
    */
   async getNeedMoreInfoCount(state: StateCode): Promise<{ total: number }> {
-    const baseConditions = [
-      eq(complianceIssues.state, state.toUpperCase()),
-      eq(complianceIssues.developerStatus, 'need_more_info'),
-    ];
-
-    // Get total count
     const [{ count: total }] = await this.db
       .select({ count: sql<number>`count(*)::int` })
-      .from(complianceIssues)
-      .where(and(...baseConditions));
+      .from(complianceIssueAnalyses)
+      .where(and(
+        eq(complianceIssueAnalyses.state, state.toUpperCase()),
+        eq(complianceIssueAnalyses.developerStatus, 'need_more_info'),
+      ));
 
     return { total };
   }
@@ -1217,17 +1306,27 @@ export class ComplianceIssuesRepository extends BaseRepository {
   /**
    * Clear all review and developer fields, returning item to unreviewed queue.
    * Restores severity to original value if it was changed.
+   * PR 6.3: These fields now live on compliance_issue_analyses.
    */
-  async clearForReview(id: number): Promise<ComplianceIssue | undefined> {
-    // Get current record to check original severity
-    const current = await this.getById(id);
-    if (!current) return undefined;
+  async clearForReview(id: number): Promise<ComplianceIssueWithAnalysisFields | undefined> {
+    const analysisInfo = await this.findAnalysisForIssue(id);
+    if (!analysisInfo) return undefined;
+
+    // Get current analysis to check original severity
+    const [currentAnalysis] = await this.db
+      .select({
+        reviewerSeverity: complianceIssueAnalyses.reviewerSeverity,
+        reviewerOriginalSeverity: complianceIssueAnalyses.reviewerOriginalSeverity,
+      })
+      .from(complianceIssueAnalyses)
+      .where(eq(complianceIssueAnalyses.id, analysisInfo.analysisId))
+      .limit(1);
 
     // Restore severity from originalSeverity if it was changed
-    const restoredSeverity = current.originalSeverity ?? current.severity;
+    const restoredSeverity = currentAnalysis?.reviewerOriginalSeverity ?? currentAnalysis?.reviewerSeverity;
 
-    const result = await this.db
-      .update(complianceIssues)
+    await this.db
+      .update(complianceIssueAnalyses)
       .set({
         // Review fields
         reviewStatus: 'unreviewed',
@@ -1235,8 +1334,8 @@ export class ComplianceIssuesRepository extends BaseRepository {
         reviewedAt: null,
         justificationNotes: null,
         teamNotes: null,
-        severity: restoredSeverity,
-        originalSeverity: null,
+        reviewerSeverity: restoredSeverity ?? null,
+        reviewerOriginalSeverity: null,
         impactType: null,
         // Developer fields
         developerStatus: 'unresolved',
@@ -1247,10 +1346,11 @@ export class ComplianceIssuesRepository extends BaseRepository {
         developerQuestion: null,
         developerCheckedAt: null,
       })
-      .where(eq(complianceIssues.id, id))
-      .returning();
+      .where(eq(complianceIssueAnalyses.id, analysisInfo.analysisId));
 
-    return result[0];
+    // Return via getByDocumentId to get the full shape with aliased fields
+    const issues = await this.getByDocumentId(analysisInfo.documentId);
+    return issues.find(i => i.id === id);
   }
 
   /**
@@ -1284,8 +1384,8 @@ export class ComplianceIssuesRepository extends BaseRepository {
       eq(complianceIssues.state, state.toUpperCase()),
       eq(complianceIssueAnalyses.requirementFound, true),
       or(
-        eq(complianceIssues.reviewStatus, 'unreviewed'),
-        isNull(complianceIssues.reviewStatus)
+        eq(complianceIssueAnalyses.reviewStatus, 'unreviewed'),
+        isNull(complianceIssueAnalyses.reviewStatus)
       )!,
     ];
 
@@ -1592,24 +1692,25 @@ export class ComplianceIssuesRepository extends BaseRepository {
         verbatimSupportingText: complianceIssueAnalyses.verbatimRequirements,
         isVerbatim: complianceIssueAnalyses.isVerbatim,
         requiredByStatute: complianceIssueAnalyses.citesFederalStatute,
-        severity: complianceIssues.severity,
+        severity: complianceIssueAnalyses.reviewerSeverity,
         occurrenceNumber: complianceIssues.occurrenceNumber,
         statuteCitation: complianceIssueAnalyses.federalCitation,
         decisionRationale: complianceIssueAnalyses.tier1Reasoning,
-        reviewStatus: complianceIssues.reviewStatus,
-        reviewedBy: complianceIssues.reviewedBy,
-        reviewedAt: complianceIssues.reviewedAt,
-        justificationNotes: complianceIssues.justificationNotes,
-        teamNotes: complianceIssues.teamNotes,
-        originalSeverity: complianceIssues.originalSeverity,
-        impactType: complianceIssues.impactType,
-        developerStatus: complianceIssues.developerStatus,
-        developerAssigned: complianceIssues.developerAssigned,
-        developerNotes: complianceIssues.developerNotes,
-        resolutionType: complianceIssues.resolutionType,
-        resolutionComments: complianceIssues.resolutionComments,
-        developerQuestion: complianceIssues.developerQuestion,
-        developerCheckedAt: complianceIssues.developerCheckedAt,
+        // Review/developer fields — PR 6.3: from analyses
+        reviewStatus: complianceIssueAnalyses.reviewStatus,
+        reviewedBy: complianceIssueAnalyses.reviewedBy,
+        reviewedAt: complianceIssueAnalyses.reviewedAt,
+        justificationNotes: complianceIssueAnalyses.justificationNotes,
+        teamNotes: complianceIssueAnalyses.teamNotes,
+        originalSeverity: complianceIssueAnalyses.reviewerOriginalSeverity,
+        impactType: complianceIssueAnalyses.impactType,
+        developerStatus: complianceIssueAnalyses.developerStatus,
+        developerAssigned: complianceIssueAnalyses.developerAssigned,
+        developerNotes: complianceIssueAnalyses.developerNotes,
+        resolutionType: complianceIssueAnalyses.resolutionType,
+        resolutionComments: complianceIssueAnalyses.resolutionComments,
+        developerQuestion: complianceIssueAnalyses.developerQuestion,
+        developerCheckedAt: complianceIssueAnalyses.developerCheckedAt,
         state: complianceIssues.state,
         createdAt: complianceIssues.createdAt,
         regulationId: regulatoryDocuments.id,

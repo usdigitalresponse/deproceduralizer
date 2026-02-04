@@ -15,6 +15,8 @@ import {
   type PaginatedComplianceIssuesResult,
   type TierCompletionCounts,
 } from '@deproceduralizer/database';
+
+// PR 6.3: updateReview now returns ComplianceIssueWithAnalysisFields (review fields from analyses)
 import { expandContext } from '@/lib/utils/expandContext';
 import { type ActionResult, success, failure, getErrorMessage } from './types';
 
@@ -45,7 +47,7 @@ export interface UpdateComplianceIssueInput {
  */
 export async function updateComplianceIssueReview(
   input: UpdateComplianceIssueInput
-): Promise<ActionResult<ComplianceIssue>> {
+): Promise<ActionResult<ComplianceIssueWithAnalysisFields>> {
   try {
     // Cast to proper types - forms pass strings, but these must be valid enum values
     const result = await complianceIssuesRepo.updateReview(input.id, {

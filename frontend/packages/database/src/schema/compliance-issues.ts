@@ -21,27 +21,7 @@ export const complianceIssues = pgTable('compliance_issues', {
   regexMatchPattern: varchar('regex_match_pattern', { length: 255 }), // Regex pattern that triggered scan
   regexMatchContext: text('regex_match_context').notNull(), // ~600 char text window around the regex match
 
-  // LLM analysis results — now in compliance_issue_analyses (PR 6.2)
-  // Kept: severity (reviewer-editable, moves to analyses in PR 6.3)
-  severity: integer('severity'), // 1-10 scale of how problematic
-
-  // Human review
-  reviewStatus: varchar('review_status', { length: 50 }).default('unreviewed'), // 'unreviewed', 'confirmed', 'rejected_false_positive'
-  reviewedBy: varchar('reviewed_by', { length: 255 }), // Who reviewed it
-  reviewedAt: timestamp('reviewed_at'), // When it was reviewed
-  justificationNotes: text('justification_notes'), // Justification and analysis for the model
-  teamNotes: text('team_notes'), // Notes for development team (replaces reviewer_notes)
-  originalSeverity: integer('original_severity'), // LLM-assigned severity (preserved on first review)
-  impactType: varchar('impact_type', { length: 100 }), // Type of impact
-
-  // Developer tracking
-  developerStatus: varchar('developer_status', { length: 50 }).default('unresolved'),
-  developerAssigned: varchar('developer_assigned', { length: 50 }),
-  developerNotes: text('developer_notes'),
-  resolutionType: varchar('resolution_type', { length: 50 }),
-  resolutionComments: text('resolution_comments'),
-  developerQuestion: text('developer_question'),
-  developerCheckedAt: timestamp('developer_checked_at'),
+  // Review and developer fields moved to compliance_issue_analyses in PR 6.3
 
   // Metadata
   state: varchar('state', { length: 2 }).notNull(), // 'NY' or 'NJ'

@@ -288,39 +288,14 @@ CREATE TABLE compliance_issues (
   regex_match_context TEXT NOT NULL,          -- Text window around the regex match (~600 chars)
   url TEXT,
 
-  -- LLM analysis results
-  requirement_found BOOLEAN DEFAULT FALSE,
-  verbatim_supporting_text TEXT[] DEFAULT '{}',  -- Array of exact quotes supporting the decision (empty if no issue)
-  is_verbatim BOOLEAN,                        -- True if verbatim_supporting_text contains exact quotes
-  required_by_statute BOOLEAN,
-  statute_citation VARCHAR(255),
-  severity INTEGER,
-  original_severity INTEGER,                  -- LLM's original severity (preserved on first review)
-  decision_rationale TEXT,                    -- LLM's holistic rationale for the classification decision
-
-  -- Review fields
-  review_status VARCHAR(50) DEFAULT 'unreviewed',
-  reviewed_by VARCHAR(255),
-  reviewed_at TIMESTAMP,
-  justification_notes TEXT,
-  team_notes TEXT,
-  impact_type VARCHAR(100),
-
-  -- Developer tracking
-  developer_status VARCHAR(50) DEFAULT 'unresolved',
-  developer_assigned VARCHAR(50),
-  developer_notes TEXT,
-  resolution_type VARCHAR(50),
-  resolution_comments TEXT,
-  developer_question TEXT,
-  developer_checked_at TIMESTAMP,
-
   -- Metadata
   state VARCHAR(2) NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   run_id VARCHAR(32),                   -- Pipeline run identifier for tracking
 
-  CONSTRAINT compliance_issues_severity_check CHECK (severity >= 1 AND severity <= 10),
+  -- NOTE: LLM analysis fields moved to compliance_issue_analyses (PR 6.2)
+  -- NOTE: Review/developer fields moved to compliance_issue_analyses (PR 6.3)
+
   CONSTRAINT compliance_issues_state_check CHECK (state IN ('NY', 'NJ')),
   CONSTRAINT unique_document_issue_occurrence UNIQUE (document_id, issue_type, occurrence_number)
 );
@@ -424,6 +399,25 @@ CREATE TABLE compliance_issue_analyses (
   is_justified BOOLEAN DEFAULT FALSE,
   is_verbatim BOOLEAN,
   final_severity INTEGER,
+
+  -- Human Review (PR 6.3: moved from compliance_issues)
+  review_status VARCHAR(50) DEFAULT 'unreviewed',
+  reviewed_by VARCHAR(255),
+  reviewed_at TIMESTAMP,
+  justification_notes TEXT,
+  team_notes TEXT,
+  impact_type VARCHAR(100),
+  reviewer_severity INTEGER,              -- Reviewer-editable severity (named to avoid collision with pipeline severity)
+  reviewer_original_severity INTEGER,     -- Original severity preserved on first review change
+
+  -- Developer Tracking (PR 6.3: moved from compliance_issues)
+  developer_status VARCHAR(50) DEFAULT 'unresolved',
+  developer_assigned VARCHAR(50),
+  developer_notes TEXT,
+  resolution_type VARCHAR(50),
+  resolution_comments TEXT,
+  developer_question TEXT,
+  developer_checked_at TIMESTAMP,
 
   -- Pipeline Tracking
   pipeline_version VARCHAR(20) DEFAULT 'v4',
@@ -721,16 +715,11 @@ CREATE INDEX idx_definitions_normalized_term_trgm ON definitions USING GIN (norm
 CREATE INDEX idx_def_doc_occurrences_definition ON definition_document_occurrences(definition_id);
 CREATE INDEX idx_def_doc_occurrences_document ON definition_document_occurrences(document_id);
 
--- Compliance Issues (indexes)
+-- Compliance Issues (indexes) — slim table after PR 6.2 + 6.3 migrations
 CREATE INDEX idx_compliance_issues_document ON compliance_issues(document_id);
 CREATE INDEX idx_compliance_issues_state ON compliance_issues(state);
 CREATE INDEX idx_compliance_issues_issue_type ON compliance_issues(issue_type);
-CREATE INDEX idx_compliance_issues_review_status ON compliance_issues(review_status);
 CREATE INDEX idx_compliance_issues_state_issue ON compliance_issues(state, issue_type);
-CREATE INDEX idx_compliance_issues_requirement_found ON compliance_issues(requirement_found);
-CREATE INDEX idx_compliance_issues_severity ON compliance_issues(severity) WHERE severity IS NOT NULL;
-CREATE INDEX idx_compliance_issues_developer_status ON compliance_issues(developer_status);
-CREATE INDEX idx_compliance_issues_developer_assigned ON compliance_issues(developer_assigned);
 CREATE INDEX idx_compliance_issues_run_id ON compliance_issues(run_id);
 
 -- Compliance Issue Analyses (4-tier pipeline)
@@ -750,6 +739,11 @@ CREATE INDEX idx_cia_high_severity ON compliance_issue_analyses(id) WHERE final_
 CREATE INDEX idx_cia_state_severity ON compliance_issue_analyses(state, final_severity) WHERE final_severity IS NOT NULL;
 CREATE INDEX idx_cia_burdensome ON compliance_issue_analyses(id) WHERE requirement_found = true AND is_justified = false;
 CREATE INDEX idx_cia_justified ON compliance_issue_analyses(id) WHERE is_justified = true;
+
+-- PR 6.3: Review/developer indexes on analyses
+CREATE INDEX idx_cia_review_status ON compliance_issue_analyses(review_status);
+CREATE INDEX idx_cia_developer_status ON compliance_issue_analyses(developer_status);
+CREATE INDEX idx_cia_developer_assigned ON compliance_issue_analyses(developer_assigned);
 
 -- V5 pipeline index
 CREATE INDEX idx_compliance_issue_analyses_v5_tier3_triggers
@@ -809,15 +803,12 @@ CREATE INDEX idx_compliance_issue_analyses_tier3_trigger_reason ON compliance_is
 CREATE INDEX idx_compliance_issue_analyses_easy_cleanup ON compliance_issue_analyses(easy_cleanup_candidate) WHERE easy_cleanup_candidate = TRUE;
 
 -- Composite indexes for query optimization (migrations 0029-0030)
-CREATE INDEX idx_ci_state_review_severity ON compliance_issues(state, review_status, severity);
-CREATE INDEX idx_ci_state_issue_severity ON compliance_issues(state, issue_type, severity);
 CREATE INDEX idx_cia_doc_issue ON compliance_issue_analyses(document_id, issue_type);
 CREATE INDEX idx_cia_state_tier2 ON compliance_issue_analyses(state, tier2_classification);
 
 -- Performance indexes (migration 0030)
 CREATE INDEX idx_reg_statute_links_statute_cascade ON regulation_statute_links(statute_id);
 CREATE INDEX idx_cia_highest_tier ON compliance_issue_analyses(highest_tier_completed) WHERE highest_tier_completed IS NOT NULL;
-CREATE INDEX idx_ci_state_req_severity ON compliance_issues(state, requirement_found, severity) WHERE requirement_found = TRUE;
 CREATE INDEX idx_crossrefs_source_resolved ON cross_references(source_document_id, is_resolved);
 
 -- =============================================================================

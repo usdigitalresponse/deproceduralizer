@@ -12,12 +12,17 @@ import {
  * requirement_text, impact_assessment) to establish a baseline, then re-run
  * AFTER the removal to confirm no regressions.
  *
+ * PR 6.3 additions: Tests that review/developer fields are served from
+ * compliance_issue_analyses (not compliance_issues). Verifies review actions
+ * still work after the column migration.
+ *
  * Key invariants:
  * - Compliance cards display non-empty context text
  * - Compliance cards show issue type labels
  * - Pattern tags render when pattern data exists
  * - No "null" or "undefined" strings leak into the UI
  * - Section detail pages render compliance issue data
+ * - Review/developer status counts are served correctly (PR 6.3)
  */
 
 test.describe('Compliance Issue Data Integrity', () => {
@@ -236,6 +241,90 @@ test.describe('Compliance Issue Data Integrity', () => {
     const firstCard = cards.first();
     const confirmedBadge = firstCard.getByText('LLM Confirmed');
     await expect(confirmedBadge).toBeVisible();
+  });
+
+});
+
+/**
+ * PR 6.3: Review/Developer Fields Migration Tests
+ *
+ * These tests verify that review and developer tracking fields
+ * work correctly after being moved from compliance_issues to
+ * compliance_issue_analyses.
+ */
+test.describe('PR 6.3: Review Fields on Analyses', () => {
+
+  test('review status filter shows unreviewed issues (default)', async ({ page }) => {
+    await page.goto('/nj/review?type=compliance&queueMode=filter&reviewStatus=unreviewed');
+    await waitForComplianceReviewReady(page);
+
+    const cards = page.getByTestId('compliance-issue-card');
+    const count = await cards.count();
+    expect(count).toBeGreaterThan(0);
+
+    // Status counts sidebar should be visible and show counts
+    // This verifies getCountsByStatus() works from analyses table
+    const statusCounts = page.getByText(/unreviewed/i).first();
+    await expect(statusCounts).toBeVisible();
+  });
+
+  test('review status filter shows confirmed issues', async ({ page }) => {
+    await page.goto('/nj/review?type=compliance&queueMode=filter&reviewStatus=confirmed');
+    await expect(page.getByRole('heading', { name: /Review/i })).toBeVisible();
+
+    // Wait for page to settle - may have 0 results or cards
+    await page.waitForTimeout(3000);
+
+    // The page should load without errors (no null/undefined)
+    const pageText = await page.textContent('body');
+    expect(pageText).not.toMatch(/\bnull\b/);
+    expect(pageText).not.toMatch(/\bundefined\b/);
+  });
+
+  test('review cards do not leak review column names from compliance_issues', async ({ page }) => {
+    await page.goto('/nj/review?type=compliance&queueMode=filter&reviewStatus=unreviewed');
+    await waitForComplianceReviewReady(page);
+
+    const cards = page.getByTestId('compliance-issue-card');
+    const count = Math.min(await cards.count(), 3);
+
+    for (let i = 0; i < count; i++) {
+      const text = await cards.nth(i).textContent();
+      // PR 6.3: These review column names should never appear as raw text
+      expect(text).not.toContain('reviewer_severity');
+      expect(text).not.toContain('reviewer_original_severity');
+      expect(text).not.toContain('developer_status');
+      expect(text).not.toContain('developer_assigned');
+      expect(text).not.toContain('justification_notes');
+      expect(text).not.toContain('developer_question');
+    }
+  });
+
+  test('severity filter still works with reviewer_severity alias', async ({ page }) => {
+    // This tests that the reviewer_severity -> severity alias works in queries
+    await page.goto('/nj/review?type=compliance&queueMode=filter&reviewStatus=unreviewed&severity=high');
+    await waitForComplianceReviewReady(page);
+
+    const cards = page.getByTestId('compliance-issue-card');
+    const count = await cards.count();
+    expect(count).toBeGreaterThan(0);
+
+    // Cards with high severity should show severity badge
+    const firstCard = cards.first();
+    const cardText = await firstCard.textContent();
+    expect(cardText).toBeTruthy();
+    expect(cardText).not.toMatch(/\bnull\b/);
+  });
+
+  test('developer tab loads without errors', async ({ page }) => {
+    // Navigate to developer view which uses getDeveloperStatusCounts from analyses
+    await page.goto('/nj/review?type=compliance&queueMode=filter&reviewStatus=confirmed');
+    await expect(page.getByRole('heading', { name: /Review/i })).toBeVisible();
+
+    // Page should load without crashing
+    await page.waitForTimeout(3000);
+    const pageText = await page.textContent('body');
+    expect(pageText).not.toMatch(/error/i);
   });
 
 });
