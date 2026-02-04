@@ -1,8 +1,7 @@
 # Research Pipeline Simplification Plan
 
-> **Status: IN PROGRESS**
-> - Phases 0-1, 2.1-2.4, 3, 4, 6, 7: ✅ Complete
-> - Phase 5: 📋 Planned (not started)
+> **Status: COMPLETE**
+> - All phases complete (0-7)
 
 **Goal**: Reduce research pipeline from ~23,000 lines to ~5,000 lines while preserving functionality.
 
@@ -39,8 +38,8 @@ Closed PRs (subsumed): #83, #84, #85, #86, #89, #93
 | 2.1 | Persistence Migration Test | ✅ Complete | #90 |
 | 2.2-2.4 | Remove Batch Persistence | ✅ Complete | #96 |
 | 3 | Flatten State Machine | ✅ Complete | #97 |
-| 4 | Remove Legacy Facades + Unused Modules | ✅ Complete | (branch: refactor/remove-legacy-facades) |
-| 5 | Final Cleanup | 📋 Planned | — |
+| 4 | Remove Legacy Facades + Unused Modules | ✅ Complete | #98 (branch: refactor/remove-legacy-facades) |
+| 5 | Final Cleanup (docs + tests) | ✅ Complete | #98 (same branch) |
 | 6 | Refactor Compliance Issue Tables ([#88](https://github.com/michaeleboyce/deproceduralizer/issues/88)) | ✅ Complete | #95 |
 | 7 | Eliminate Redundant Searcher LLM Call ([#94](https://github.com/michaeleboyce/deproceduralizer/issues/94)) | ✅ Complete | #95 |
 
@@ -130,14 +129,18 @@ Original plan called for flattening subdirectories into single files, but the `d
 
 ---
 
-## Remaining Work (Phase 5)
-
-### Phase 5: Final Cleanup
+## Phase 5: Final Cleanup ✅
 
 | Step | What | Status |
 |------|------|--------|
-| 5.1 | Update documentation | Not started |
-| 5.2 | Clean up test files | Not started |
+| 5.1 | Update documentation | ✅ Complete |
+| 5.2 | Clean up test files | ✅ Complete (no dead tests found — all test classes test current modules) |
+
+Documentation updated:
+- `docs/research_pipelines/IMPLEMENTATION_STATUS.md` — updated file structure, removed stale references to deleted modules
+- `README.md` — updated architecture diagram, project structure, deployment instructions
+- `REFACTOR.md` — added historical status header
+- This file — marked all phases complete
 
 ---
 
@@ -150,8 +153,8 @@ Original plan called for flattening subdirectories into single files, but the `d
 | 6 | ~300 (columns) + schema cleanup | ✅ PR #95 |
 | 7 | ~800 + LLM cost savings | ✅ PR #95 |
 | 3 | ~1,026 | ✅ PR #97 |
-| 4 | ~396 (facades + unused) | ✅ (branch: refactor/remove-legacy-facades) |
-| 5 | ~500 | 📋 Planned |
+| 4 | ~396 (facades + unused) | ✅ #98 |
+| 5 | docs only | ✅ #98 |
 
 **Total**: ~8,900 lines to remove + schema consolidation + LLM cost reduction
 
@@ -170,3 +173,4 @@ Original plan called for flattening subdirectories into single files, but the `d
 | 2026-02-04 | Phase 3 complete | PR #97: flatten state machine, replace TierOrchestrator with pipeline_runner (-1,026 lines). Targets #96 branch. |
 | 2026-02-04 | Merge conflicts resolved | Pre-merged #95 into #97. Rebased #91 onto #97 (cherry-picked 3 commits, fixed stale TierOrchestrator refs). All 5 PRs now merge conflict-free (all fast-forward). |
 | 2026-02-04 | Phase 4 complete (revised) | Removed 3 legacy facades (db_writer.py, tier_runners.py, context_builder.py), unused prompting/ dir, facade test file, dead fixture. -396 net lines. 548 tests pass. |
+| 2026-02-04 | Phase 5 complete | Updated IMPLEMENTATION_STATUS.md (file structure, stale refs), README.md (architecture, project structure, deploy), REFACTOR.md (status header). No dead tests found. All phases complete. |
