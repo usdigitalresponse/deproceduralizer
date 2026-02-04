@@ -9,6 +9,7 @@ import {
   unique
 } from 'drizzle-orm/pg-core';
 import { regulatoryDocuments } from './regulatory-documents';
+import { complianceIssueAnalyses } from './compliance-issue-analyses';
 
 export const complianceIssues = pgTable('compliance_issues', {
   id: bigserial('id', { mode: 'number' }).primaryKey(),
@@ -26,6 +27,9 @@ export const complianceIssues = pgTable('compliance_issues', {
   // Metadata
   state: varchar('state', { length: 2 }).notNull(), // 'NY' or 'NJ'
   createdAt: timestamp('created_at').defaultNow(),
+
+  // FK to document-level analysis (PR 6.5: replaces composite JOIN on document_id+issue_type)
+  analysisId: bigint('analysis_id', { mode: 'number' }).references(() => complianceIssueAnalyses.id, { onDelete: 'set null' }),
 }, (table) => ({
   uniqueDocumentIssueOccurrence: unique().on(table.documentId, table.issueType, table.occurrenceNumber),
 }));

@@ -111,20 +111,14 @@ def save_tier1_results(
 
                 # For false positives, update original compliance_issues rows AND create analysis row
                 if output.classification == "all_false_positives":
-                    # 1. Update original compliance_issues rows
+                    # 1. Collect dismissed match IDs
                     dismissed_match_ids = []
                     for dismissed in output.dismissed_matches:
                         if 0 <= dismissed.match_index < len(unit.unit.matches):
                             match_id = unit.unit.matches[dismissed.match_index].match_id
                             dismissed_match_ids.append(match_id)
-                            cur.execute("""
-                                UPDATE compliance_issues
-                                SET requirement_found = FALSE,
-                                    decision_rationale = %s
-                                WHERE id = %s
-                            """, (dismissed.reason, match_id))
 
-                    # 2. Also create analysis row for tracking
+                    # 2. Create analysis row for tracking
                     # Include match_id in dismissed_reasons for future reference
                     dismissed_reasons = []
                     for d in output.dismissed_matches:
@@ -156,6 +150,7 @@ def save_tier1_results(
                             ),
                             requirement_found = EXCLUDED.requirement_found,
                             updated_at = NOW()
+                        RETURNING id
                     """, (
                         unit.document_id,
                         unit.issue_type,
@@ -172,6 +167,13 @@ def save_tier1_results(
                         False,  # requirement_found = False for false positives
                         PIPELINE_VERSION,
                     ))
+                    # PR 6.5: Link compliance_issues to analysis via FK
+                    analysis_row = cur.fetchone()
+                    if analysis_row:
+                        cur.execute("""
+                            UPDATE compliance_issues SET analysis_id = %s
+                            WHERE document_id = %s AND issue_type = %s AND analysis_id IS NULL
+                        """, (analysis_row[0], unit.document_id, unit.issue_type))
                     saved += 1
 
                     # Commit every 50 rows to prevent Neon idle-in-transaction timeout
@@ -247,6 +249,7 @@ def save_tier1_results(
                         tier1_argument_framing = EXCLUDED.tier1_argument_framing,
                         tier1_recommendations = EXCLUDED.tier1_recommendations,
                         updated_at = NOW()
+                    RETURNING id
                 """, (
                     unit.document_id,
                     unit.issue_type,
@@ -265,6 +268,13 @@ def save_tier1_results(
                     json.dumps(tier1_argument_framing),
                     json.dumps(tier1_recommendations),
                 ))
+                # PR 6.5: Link compliance_issues to analysis via FK
+                analysis_row = cur.fetchone()
+                if analysis_row:
+                    cur.execute("""
+                        UPDATE compliance_issues SET analysis_id = %s
+                        WHERE document_id = %s AND issue_type = %s AND analysis_id IS NULL
+                    """, (analysis_row[0], unit.document_id, unit.issue_type))
                 saved += 1
 
                 # Commit every 50 rows to prevent Neon idle-in-transaction timeout

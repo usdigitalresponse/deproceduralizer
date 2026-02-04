@@ -293,6 +293,9 @@ CREATE TABLE compliance_issues (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   run_id VARCHAR(32),                   -- Pipeline run identifier for tracking
 
+  -- FK to document-level analysis (PR 6.5: replaces composite JOIN on document_id+issue_type)
+  analysis_id BIGINT REFERENCES compliance_issue_analyses(id) ON DELETE SET NULL,
+
   -- NOTE: LLM analysis fields moved to compliance_issue_analyses (PR 6.2)
   -- NOTE: Review/developer fields moved to compliance_issue_analyses (PR 6.3)
 
@@ -721,6 +724,7 @@ CREATE INDEX idx_compliance_issues_state ON compliance_issues(state);
 CREATE INDEX idx_compliance_issues_issue_type ON compliance_issues(issue_type);
 CREATE INDEX idx_compliance_issues_state_issue ON compliance_issues(state, issue_type);
 CREATE INDEX idx_compliance_issues_run_id ON compliance_issues(run_id);
+CREATE INDEX idx_compliance_issues_analysis_id ON compliance_issues(analysis_id);
 
 -- Compliance Issue Analyses (4-tier pipeline)
 CREATE INDEX idx_cia_document ON compliance_issue_analyses(document_id);

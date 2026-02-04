@@ -706,8 +706,8 @@ class ComplianceIssueSearcher:
                             """
                             INSERT INTO compliance_issues
                             (document_id, issue_type, occurrence_number, regex_match_pattern, regex_match_context, url,
-                             severity, state, run_id)
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                             state, run_id)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                             """,
                             (
                                 document_id,
@@ -716,7 +716,6 @@ class ComplianceIssueSearcher:
                                 item.get('term_matched'),  # regex_match_pattern
                                 regex_match_context,  # regex_match_context
                                 item.get('url', ''),
-                                severity,
                                 self.state_config.state_code,
                                 self.run_id,  # Pipeline run identifier
                             )
@@ -726,7 +725,7 @@ class ComplianceIssueSearcher:
                         # Write LLM analysis data to compliance_issue_analyses (PR 6.2)
                         # Only for the first occurrence per (document_id, issue_type)
                         if occurrence_num == 1:
-                            conn.execute(
+                            result = conn.execute(
                                 """
                                 INSERT INTO compliance_issue_analyses
                                 (document_id, issue_type, state, grouped_match_count,
@@ -745,6 +744,7 @@ class ComplianceIssueSearcher:
                                   federal_citation = EXCLUDED.federal_citation,
                                   tier1_reasoning = EXCLUDED.tier1_reasoning,
                                   updated_at = NOW()
+                                RETURNING id
                                 """,
                                 (
                                     document_id,
@@ -762,6 +762,16 @@ class ComplianceIssueSearcher:
                                     'searcher',
                                 )
                             )
+                            # PR 6.5: Link compliance_issues to analysis via FK
+                            analysis_row = result.fetchone()
+                            if analysis_row:
+                                conn.execute(
+                                    """
+                                    UPDATE compliance_issues SET analysis_id = %s
+                                    WHERE document_id = %s AND issue_type = %s AND analysis_id IS NULL
+                                    """,
+                                    (analysis_row[0], document_id, self.issue_config.db_issue_type)
+                                )
 
                 except Exception as e:
                     errors += 1

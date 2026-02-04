@@ -331,13 +331,19 @@ export class ComplianceIssuesRepository extends BaseRepository {
 
   /**
    * Find the analysis row corresponding to a compliance issue.
-   * Looks up the issue by id, then finds the analysis by (document_id, issue_type).
+   * PR 6.5: Reads analysis_id FK directly; falls back to composite lookup for NULL analysis_id.
    * PR 6.3: Used by mutations that accept compliance_issues.id but now update analyses.
    */
   private async findAnalysisForIssue(issueId: number): Promise<{ analysisId: number; documentId: number; issueType: string } | null> {
     const issue = await this.getById(issueId);
     if (!issue) return null;
 
+    // PR 6.5: Direct FK read when analysis_id is populated
+    if (issue.analysisId) {
+      return { analysisId: issue.analysisId, documentId: issue.documentId, issueType: issue.issueType };
+    }
+
+    // Fallback: composite lookup for rows where analysis_id is still NULL
     const [analysis] = await this.db
       .select({ id: complianceIssueAnalyses.id })
       .from(complianceIssueAnalyses)
@@ -363,6 +369,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         regexMatchContext: complianceIssues.regexMatchContext,
         state: complianceIssues.state,
         createdAt: complianceIssues.createdAt,
+        analysisId: complianceIssues.analysisId,
         // Analysis-sourced fields (PR 6.2)
         requirementFound: complianceIssueAnalyses.requirementFound,
         verbatimSupportingText: complianceIssueAnalyses.verbatimRequirements,
@@ -390,10 +397,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       .from(complianceIssues)
       .leftJoin(
         complianceIssueAnalyses,
-        and(
-          eq(complianceIssues.documentId, complianceIssueAnalyses.documentId),
-          eq(complianceIssues.issueType, complianceIssueAnalyses.issueType)
-        )
+        eq(complianceIssues.analysisId, complianceIssueAnalyses.id)
       )
       .where(eq(complianceIssues.documentId, documentId))
       .orderBy(asc(complianceIssues.issueType));
@@ -685,10 +689,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
       .leftJoin(
         complianceIssueAnalyses,
-        and(
-          eq(complianceIssues.documentId, complianceIssueAnalyses.documentId),
-          eq(complianceIssues.issueType, complianceIssueAnalyses.issueType)
-        )
+        eq(complianceIssues.analysisId, complianceIssueAnalyses.id)
       )
       .where(whereClause);
 
@@ -714,6 +715,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         regexMatchPattern: complianceIssues.regexMatchPattern,
         regexMatchContext: complianceIssues.regexMatchContext,
         url: complianceIssues.url,
+        analysisId: complianceIssues.analysisId,
         // Analysis fields — sourced from compliance_issue_analyses (PR 6.2)
         requirementFound: complianceIssueAnalyses.requirementFound,
         verbatimSupportingText: complianceIssueAnalyses.verbatimRequirements,
@@ -777,10 +779,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
       .leftJoin(
         complianceIssueAnalyses,
-        and(
-          eq(complianceIssues.documentId, complianceIssueAnalyses.documentId),
-          eq(complianceIssues.issueType, complianceIssueAnalyses.issueType)
-        )
+        eq(complianceIssues.analysisId, complianceIssueAnalyses.id)
       )
       .where(whereClause)
       .orderBy(primarySort, secondarySort)
@@ -795,6 +794,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       regexMatchPattern: row.regexMatchPattern,
       regexMatchContext: row.regexMatchContext,
       url: row.url,
+      analysisId: row.analysisId ?? null,
       requirementFound: row.requirementFound,
       verbatimSupportingText: row.verbatimSupportingText,
       isVerbatim: row.isVerbatim,
@@ -980,10 +980,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
       .leftJoin(
         complianceIssueAnalyses,
-        and(
-          eq(complianceIssues.documentId, complianceIssueAnalyses.documentId),
-          eq(complianceIssues.issueType, complianceIssueAnalyses.issueType)
-        )
+        eq(complianceIssues.analysisId, complianceIssueAnalyses.id)
       )
       .where(whereClause);
 
@@ -1009,6 +1006,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         regexMatchPattern: complianceIssues.regexMatchPattern,
         regexMatchContext: complianceIssues.regexMatchContext,
         url: complianceIssues.url,
+        analysisId: complianceIssues.analysisId,
         // Analysis fields — sourced from compliance_issue_analyses (PR 6.2)
         requirementFound: complianceIssueAnalyses.requirementFound,
         verbatimSupportingText: complianceIssueAnalyses.verbatimRequirements,
@@ -1056,10 +1054,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
       .leftJoin(
         complianceIssueAnalyses,
-        and(
-          eq(complianceIssues.documentId, complianceIssueAnalyses.documentId),
-          eq(complianceIssues.issueType, complianceIssueAnalyses.issueType)
-        )
+        eq(complianceIssues.analysisId, complianceIssueAnalyses.id)
       )
       .where(whereClause)
       .orderBy(primarySort, secondarySort)
@@ -1074,6 +1069,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       regexMatchPattern: row.regexMatchPattern,
       regexMatchContext: row.regexMatchContext,
       url: row.url,
+      analysisId: row.analysisId ?? null,
       requirementFound: row.requirementFound ?? false,
       verbatimSupportingText: row.verbatimSupportingText ?? [],
       isVerbatim: row.isVerbatim ?? null,
@@ -1154,10 +1150,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
       .leftJoin(
         complianceIssueAnalyses,
-        and(
-          eq(complianceIssues.documentId, complianceIssueAnalyses.documentId),
-          eq(complianceIssues.issueType, complianceIssueAnalyses.issueType)
-        )
+        eq(complianceIssues.analysisId, complianceIssueAnalyses.id)
       )
       .where(whereClause);
 
@@ -1173,6 +1166,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         regexMatchPattern: complianceIssues.regexMatchPattern,
         regexMatchContext: complianceIssues.regexMatchContext,
         url: complianceIssues.url,
+        analysisId: complianceIssues.analysisId,
         // Analysis fields — sourced from compliance_issue_analyses (PR 6.2)
         requirementFound: complianceIssueAnalyses.requirementFound,
         verbatimSupportingText: complianceIssueAnalyses.verbatimRequirements,
@@ -1218,10 +1212,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
       .leftJoin(
         complianceIssueAnalyses,
-        and(
-          eq(complianceIssues.documentId, complianceIssueAnalyses.documentId),
-          eq(complianceIssues.issueType, complianceIssueAnalyses.issueType)
-        )
+        eq(complianceIssues.analysisId, complianceIssueAnalyses.id)
       )
       .where(whereClause)
       .orderBy(...orderBy)
@@ -1235,6 +1226,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       regexMatchPattern: row.regexMatchPattern,
       regexMatchContext: row.regexMatchContext,
       url: row.url,
+      analysisId: row.analysisId ?? null,
       requirementFound: row.requirementFound ?? false,
       verbatimSupportingText: row.verbatimSupportingText ?? [],
       isVerbatim: row.isVerbatim ?? null,
@@ -1402,10 +1394,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       .from(complianceIssues)
       .leftJoin(
         complianceIssueAnalyses,
-        and(
-          eq(complianceIssues.documentId, complianceIssueAnalyses.documentId),
-          eq(complianceIssues.issueType, complianceIssueAnalyses.issueType)
-        )
+        eq(complianceIssues.analysisId, complianceIssueAnalyses.id)
       )
       .where(and(...baseConditions));
     const totalUnreviewed = totalResult?.count ?? 0;
@@ -1453,10 +1442,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
           .from(complianceIssues)
           .leftJoin(
             complianceIssueAnalyses,
-            and(
-              eq(complianceIssues.documentId, complianceIssueAnalyses.documentId),
-              eq(complianceIssues.issueType, complianceIssueAnalyses.issueType)
-            )
+            eq(complianceIssues.analysisId, complianceIssueAnalyses.id)
           )
           .where(and(...groupSelectionConditions))
           .groupBy(complianceIssues.issueType)
@@ -1473,10 +1459,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
             .from(complianceIssues)
             .leftJoin(
               complianceIssueAnalyses,
-              and(
-                eq(complianceIssues.documentId, complianceIssueAnalyses.documentId),
-                eq(complianceIssues.issueType, complianceIssueAnalyses.issueType)
-              )
+              eq(complianceIssues.analysisId, complianceIssueAnalyses.id)
             )
             .where(and(...baseConditions))
             .groupBy(complianceIssues.issueType)
@@ -1521,10 +1504,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
           .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
           .leftJoin(
             complianceIssueAnalyses,
-            and(
-              eq(complianceIssues.documentId, complianceIssueAnalyses.documentId),
-              eq(complianceIssues.issueType, complianceIssueAnalyses.issueType)
-            )
+            eq(complianceIssues.analysisId, complianceIssueAnalyses.id)
           )
           .where(and(...baseConditions))
           .groupBy(sql`COALESCE(${regulatoryDocuments.njacTitle}, ${regulatoryDocuments.nycrrTitle}::text)`)
@@ -1585,10 +1565,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
           .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
           .leftJoin(
             complianceIssueAnalyses,
-            and(
-              eq(complianceIssues.documentId, complianceIssueAnalyses.documentId),
-              eq(complianceIssues.issueType, complianceIssueAnalyses.issueType)
-            )
+            eq(complianceIssues.analysisId, complianceIssueAnalyses.id)
           )
           .where(and(...groupSelectionConditions))
           .groupBy(
@@ -1610,10 +1587,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
             .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
             .leftJoin(
               complianceIssueAnalyses,
-              and(
-                eq(complianceIssues.documentId, complianceIssueAnalyses.documentId),
-                eq(complianceIssues.issueType, complianceIssueAnalyses.issueType)
-              )
+              eq(complianceIssues.analysisId, complianceIssueAnalyses.id)
             )
             .where(and(...baseConditions))
             .groupBy(
@@ -1670,10 +1644,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
       .leftJoin(
         complianceIssueAnalyses,
-        and(
-          eq(complianceIssues.documentId, complianceIssueAnalyses.documentId),
-          eq(complianceIssues.issueType, complianceIssueAnalyses.issueType)
-        )
+        eq(complianceIssues.analysisId, complianceIssueAnalyses.id)
       )
       .where(whereClause);
     const remainingInFocus = focusCountResult?.count ?? 0;
@@ -1687,6 +1658,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         regexMatchPattern: complianceIssues.regexMatchPattern,
         regexMatchContext: complianceIssues.regexMatchContext,
         url: complianceIssues.url,
+        analysisId: complianceIssues.analysisId,
         // Analysis fields — sourced from compliance_issue_analyses (PR 6.2)
         requirementFound: complianceIssueAnalyses.requirementFound,
         verbatimSupportingText: complianceIssueAnalyses.verbatimRequirements,
@@ -1732,10 +1704,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
       .leftJoin(
         complianceIssueAnalyses,
-        and(
-          eq(complianceIssues.documentId, complianceIssueAnalyses.documentId),
-          eq(complianceIssues.issueType, complianceIssueAnalyses.issueType)
-        )
+        eq(complianceIssues.analysisId, complianceIssueAnalyses.id)
       )
       .where(whereClause)
       // Order by severity from analyses (high first) with random tiebreaker
@@ -1750,6 +1719,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       regexMatchPattern: row.regexMatchPattern,
       regexMatchContext: row.regexMatchContext,
       url: row.url,
+      analysisId: row.analysisId ?? null,
       requirementFound: row.requirementFound ?? false,
       verbatimSupportingText: row.verbatimSupportingText ?? [],
       isVerbatim: row.isVerbatim ?? null,
@@ -1816,10 +1786,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       .from(complianceIssues)
       .leftJoin(
         complianceIssueAnalyses,
-        and(
-          eq(complianceIssues.documentId, complianceIssueAnalyses.documentId),
-          eq(complianceIssues.issueType, complianceIssueAnalyses.issueType)
-        )
+        eq(complianceIssues.analysisId, complianceIssueAnalyses.id)
       )
       .where(eq(complianceIssues.state, state.toUpperCase()))
       .groupBy(complianceIssueAnalyses.highestTierCompleted);

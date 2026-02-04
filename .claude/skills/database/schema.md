@@ -237,10 +237,11 @@ Pure regex match store. Tracks individual regex matches found during compliance 
 | `state` | varchar(2) NOT NULL | NY or NJ |
 | `created_at` | timestamp | When record was created |
 | `run_id` | varchar(32) | Pipeline run identifier for tracking |
+| `analysis_id` | bigint | FK to compliance_issue_analyses(id) ON DELETE SET NULL. Many-to-one link (many matches → one analysis). Set by searcher/pipeline after analysis INSERT. |
 
 **Constraints:** `compliance_issues_state_check`, `unique_document_issue_occurrence UNIQUE(document_id, issue_type, occurrence_number)`
 
-**Indexes:** `idx_compliance_issues_document`, `idx_compliance_issues_state`, `idx_compliance_issues_issue_type`, `idx_compliance_issues_state_issue`, `idx_compliance_issues_run_id`
+**Indexes:** `idx_compliance_issues_document`, `idx_compliance_issues_state`, `idx_compliance_issues_issue_type`, `idx_compliance_issues_state_issue`, `idx_compliance_issues_run_id`, `idx_compliance_issues_analysis_id`
 
 **Issue Types** (41 types defined in `prompts/compliance_issues.yaml`)
 

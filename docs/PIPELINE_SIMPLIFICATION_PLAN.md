@@ -8,7 +8,8 @@
 > - Phase 6.1: ✅ Complete (PR #93 — drop legacy columns)
 > - Phase 6.2: ✅ Complete (PR #93 — remove duplicate analysis fields, read from analyses)
 > - Phase 6.3: ✅ Complete — move review/developer tracking to analyses
-> - Phase 6.4-6.5: 📋 Planned (Issue #88 — frontend cleanup, FK)
+> - Phase 6.4: ✅ Complete — frontend cleanup done incrementally in PRs 6.1-6.3
+> - Phase 6.5: ✅ Complete — analysis_id FK on compliance_issues
 
 **Goal**: Reduce research pipeline from ~23,000 lines to ~5,000 lines while preserving functionality.
 
@@ -31,9 +32,9 @@
 | 3 | Flatten State Machine | 📋 Planned | 0/5 |
 | 4 | Consolidate Files | 📋 Planned | 0/5 |
 | 5 | Final Cleanup | 📋 Planned | 0/2 |
-| 6 | Refactor Compliance Issue Tables ([#88](https://github.com/michaeleboyce/deproceduralizer/issues/88)) | 🔄 In Progress | 3/5 (PRs 6.1-6.3 complete) |
+| 6 | Refactor Compliance Issue Tables ([#88](https://github.com/michaeleboyce/deproceduralizer/issues/88)) | ✅ Complete | 5/5 (PRs 6.1-6.5 complete) |
 
-**Total Progress**: 10/27 PRs open or complete (Phases 0-1 done, Phase 2.1 done, Phases 6.1-6.3 done, all awaiting review)
+**Total Progress**: 12/27 PRs open or complete (Phases 0-1 done, Phase 2.1 done, Phase 6 done, all awaiting review)
 
 ---
 
@@ -456,40 +457,99 @@ Make `compliance_issues` a **pure match store** and `compliance_issue_analyses` 
 
 ---
 
-### PR 6.4: Frontend Query Cleanup ⬜
+### PR 6.4: Frontend Query Cleanup ✅ DONE (completed in PRs 6.1-6.3)
 
-**Branch**: `refactor/frontend-ci-queries`
+**Branch**: `refactor/ci-remove-legacy-columns` (combined with PRs 6.1-6.3)
 
-**Change**: Update all frontend queries, types, and components to reflect the new schema.
+**Change**: All frontend cleanup was done incrementally as part of earlier PRs.
 
-- Update `compliance-issues.repository.ts` queries
-- Update TypeScript types / interfaces
-- Update server actions in `compliance-issues.ts` and `analysis.ts`
-- Verify review queue, pipeline dashboard, and print mode all work
+**Verification**:
+- ✅ Drizzle schema is clean (no stale columns in either table)
+- ✅ Repository queries correctly JOIN to `compliance_issue_analyses`
+- ✅ Server actions return correct types (`ComplianceIssueWithAnalysisFields`)
+- ✅ Components use correct aliased fields (severity, reviewStatus, etc.)
+- ✅ All mutations (updateReview, updateDeveloperStatus, clearForReview) update analyses table
+- ✅ Build passes with no type errors
+- ✅ E2E data integrity tests verify old columns don't appear
 
-**Status**: ⬜ Not started
+**Status**: ✅ Complete (no separate PR needed)
 
 ---
 
-### PR 6.5: Add Proper Foreign Key or Formalize Relationship ⬜
+### PR 6.5: Add `analysis_id` FK to `compliance_issues` 🔄 IN PROGRESS
 
-**Branch**: `refactor/ci-cia-relationship`
+**Branch**: `refactor/ci-remove-legacy-columns`
+**Approach**: Option A — nullable `analysis_id` FK column on `compliance_issues` pointing to `compliance_issue_analyses.id`. Arrays (`tier1_relevant_match_ids`, `tier1_dismissed_match_ids`) stay as-is — they're audit snapshots, not structural links.
 
-**Change**: Replace the fragile array-based link with a proper relationship.
+**Why**: Formalizes the many-to-one relationship (many regex matches → one document-level analysis), replaces 16 composite `(document_id, issue_type)` JOINs with a single-column FK JOIN, and simplifies `findAnalysisForIssue()` from a 2-step lookup to a direct read.
 
-**Option A**: Add a `analysis_id` FK column to `compliance_issues`:
+#### Files to modify
+
+| File | Change | Status |
+|------|--------|--------|
+| `backend/migrations/0037_add_analysis_id_fk.sql` | **NEW** — add column, index, backfill | ✅ Done |
+| `schema.sql` | Add `analysis_id` column + index to `compliance_issues` | ✅ Done |
+| `frontend/packages/database/src/schema/compliance-issues.ts` | Add `analysisId` field with FK ref | ✅ Done |
+| `frontend/packages/database/src/repositories/compliance-issues.repository.ts` | Replace 16 composite JOINs with FK JOIN + simplify `findAnalysisForIssue()` | ✅ Done |
+| `backend/scripts/compliance_issues/searcher.py` | Fix stale `severity` column ref + set `analysis_id` after analysis INSERT | ✅ Done |
+| `backend/scripts/research_pipeline/db/analysis_writer.py` | Remove stale column refs + set `analysis_id` after analysis UPSERT in `save_tier1_results()` | ✅ Done |
+| `.claude/skills/database/schema.md` | Document `analysis_id` column | ✅ Done |
+| `docs/PIPELINE_SIMPLIFICATION_PLAN.md` | Mark 6.5 complete | ✅ Done |
+
+#### Implementation Details
+
+**1. Migration (`0037_add_analysis_id_fk.sql`)** ✅
 ```sql
 ALTER TABLE compliance_issues
-ADD COLUMN analysis_id BIGINT REFERENCES compliance_issue_analyses(id);
+ADD COLUMN analysis_id BIGINT REFERENCES compliance_issue_analyses(id) ON DELETE SET NULL;
+CREATE INDEX idx_compliance_issues_analysis_id ON compliance_issues(analysis_id);
+-- Backfill from existing composite key
+UPDATE compliance_issues ci SET analysis_id = cia.id
+FROM compliance_issue_analyses cia
+WHERE ci.document_id = cia.document_id AND ci.issue_type = cia.issue_type AND ci.analysis_id IS NULL;
 ```
 
-**Option B**: Keep array-based link but add a trigger/check to validate IDs exist.
+**2. Drizzle schema** ✅
+Added `analysisId` with `references(() => complianceIssueAnalyses.id, { onDelete: 'set null' })`. Import from `compliance-issue-analyses` (no circular dependency).
 
-**Option C**: Create a junction table `compliance_issue_match_evaluations` linking match IDs to their analysis with a status (relevant/dismissed/not_evaluated).
+**3. Repository JOINs** ✅ (16 sites replaced)
+```typescript
+// Before (composite, 4 lines each):
+.leftJoin(complianceIssueAnalyses, and(
+  eq(complianceIssues.documentId, complianceIssueAnalyses.documentId),
+  eq(complianceIssues.issueType, complianceIssueAnalyses.issueType)
+))
+// After (FK, 1 line each):
+.leftJoin(complianceIssueAnalyses,
+  eq(complianceIssues.analysisId, complianceIssueAnalyses.id)
+)
+```
 
-Decision to be made during implementation based on query patterns.
+**4. `findAnalysisForIssue()` simplified** ✅
+Reads `issue.analysisId` directly when populated. Falls back to composite `(document_id, issue_type)` lookup for NULL `analysisId` (safety net for unbackfilled rows).
 
-**Status**: ⬜ Not started
+**5. `searcher.py` changes** ⬜ TODO
+- **Bug fix**: Remove stale `severity` column from `INSERT INTO compliance_issues` (line ~709). The `severity` column was dropped from `compliance_issues` in PR 6.3. Remove it from the INSERT column list and the parameter tuple.
+- **New**: After the `INSERT INTO compliance_issue_analyses ... ON CONFLICT` block (line ~729-764), add `RETURNING id` and use the returned ID to `UPDATE compliance_issues SET analysis_id = ? WHERE document_id = ? AND issue_type = ?`.
+
+**6. `analysis_writer.py` changes** ⬜ TODO
+- In `save_tier1_results()`, after each `INSERT INTO compliance_issue_analyses ... ON CONFLICT` block (there are 2: one for `all_false_positives` at ~line 136, one for `needs_research` at ~line 223), add:
+  ```sql
+  UPDATE compliance_issues SET analysis_id = <returned_id>
+  WHERE document_id = %s AND issue_type = %s AND analysis_id IS NULL
+  ```
+  Use `RETURNING id` on the INSERT to get the analysis row ID, then update matching `compliance_issues` rows.
+
+#### Verification
+
+After all changes + migration applied:
+1. **Build**: `cd frontend/apps/web && pnpm build` — no type errors
+2. **Smoke tests**: `cd frontend/apps/web && pnpm test:e2e`
+3. **SQL verification** (after backfill):
+   - `SELECT COUNT(*) FROM compliance_issues WHERE analysis_id IS NULL;` → 0
+   - `SELECT ci.id FROM compliance_issues ci JOIN compliance_issue_analyses cia ON cia.id = ci.analysis_id WHERE ci.document_id != cia.document_id OR ci.issue_type != cia.issue_type;` → 0 rows
+
+**Status**: ✅ Complete — migration, schema.sql, Drizzle schema, 16 repository JOINs, `findAnalysisForIssue()`, searcher.py, analysis_writer.py, schema.md all done
 
 ---
 
@@ -551,3 +611,6 @@ PRs should be done in order since each builds on the previous:
 | 2026-02-04 | PR 6.1 complete | Drop legacy columns from compliance_issues ([PR #93](https://github.com/michaeleboyce/deproceduralizer/pull/93)) — migration 0031, schema/repo/frontend/backend cleanup |
 | 2026-02-04 | PR 6.2 complete | Remove duplicate analysis fields from compliance_issues — migrations 0032-0033, repo/frontend reads from analyses |
 | 2026-02-04 | PR 6.3 complete | Move review/developer tracking to analyses — migrations 0034-0036, major repo rewrite, server action updates, Python backend updates |
+| 2026-02-04 | PR 6.4 verified | Frontend cleanup already done in PRs 6.1-6.3 — build passes, schema/types/queries all clean. Marked complete. |
+| 2026-02-04 | PR 6.5 started | Option A chosen: `analysis_id` FK. Migration 0037, schema.sql, Drizzle schema, 16 repository JOINs + `findAnalysisForIssue()` done. Python backend + docs remaining. |
+| 2026-02-04 | PR 6.5 complete | Fixed stale columns in searcher.py (removed `severity` from INSERT) and analysis_writer.py (removed stale `requirement_found`/`decision_rationale` UPDATE). Added `RETURNING id` + `analysis_id` linkage to all 3 INSERT sites. Updated schema.md. Phase 6 complete. |
