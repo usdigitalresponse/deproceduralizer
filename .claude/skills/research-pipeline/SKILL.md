@@ -15,36 +15,37 @@ cd backend && python3 -m scripts.research_pipeline.cli [OPTIONS]
 
 | Goal | Command |
 |------|---------|
-| Preview what would run | Add `--dry-run` |
-| Test single issue type | `--issue-type mail_only --max-docs-per-issue 10` |
-| Full production run | `--all-issues --max-tier 3 --enable-web-search true` |
+| Preview what would run | `--state nj --all` (dry-run is default) |
+| Test single issue type | `--state nj --issue mail_only --execute` |
+| Full production run | `--state nj --all --execute --max-tier 3 --web-search` |
 | Reprocess after prompt change | Add `--force-rerun` |
 | Filter by regulatory title | `--title 7` |
 | Immediate results (2x cost) | Add `--realtime` |
 
 ## Required Flags
 
-All of these must be specified:
-
 | Flag | Values | Description |
 |------|--------|-------------|
 | `--state` | `nj`, `ny`, `dangerously-run-all` | State to process |
-| `--issue-type` OR `--all-issues` | issue name OR flag | Single issue vs all 43 issues |
-| `--max-docs-per-issue` | `N` or `all` | Max docs per issue type |
-| `--global-docs-limit` | `N` or `no-limit` | Max total docs across all issues |
-| `--max-tier` | `1`, `2`, `3` | How far to process |
-| `--enable-web-search` | `true`, `false` | Enable Tier 3 web search |
+| `--issue` OR `--all` | issue name OR flag | Single issue vs all 43 issues (must choose one) |
+
+## Flags With Defaults (Cost-Safe)
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--limit` | `1000` | Max docs per issue type (`N` or `all`) |
+| `--global-limit` | `100` | Max total docs across all issues (`N` or `no-limit`) |
+| `--max-tier` | `2` | How far to process: 1=filter, 2=classify, 3=web search |
+| `--web-search` | off | Enable Tier 3 web search |
 
 ## Optional Flags
 
 | Flag | Default | Description |
 |------|---------|-------------|
+| `--execute` | off (dry-run) | Actually run the pipeline (default previews only) |
 | `--realtime` | batch API | Use realtime API (faster, 2x cost) |
 | `--title` | none | Filter by title (e.g., `7` for Title 7) |
-| `--dry-run` | false | Preview without API calls |
 | `--force-rerun` | false | Ignore previous analyses, reprocess all |
-| `--resume-batch` | none | Resume from a specific batch directory |
-| `--resume-tier` | none | Resume from a specific tier (1, 2, or 3) |
 
 ## Tier Guide
 
@@ -54,7 +55,7 @@ All of these must be specified:
 | 2 | Classification + severity | ~$0.006 | Standard analysis |
 | 3 | Web search validation | ~$0.020 | High-severity, federal citations |
 
-**Tier 3 triggers** (when `--enable-web-search true`):
+**Tier 3 triggers** (when `--web-search` enabled):
 
 | # | Trigger | Condition | Rationale |
 |---|---------|-----------|-----------|
@@ -73,52 +74,48 @@ All of these must be specified:
 
 ## Common Commands
 
-### Dry Run Preview
+### Preview (Default Behavior)
 ```bash
 python3 -m scripts.research_pipeline.cli \
-  --state nj --all-issues \
-  --max-docs-per-issue 50 --global-docs-limit 500 \
-  --max-tier 3 --enable-web-search true --dry-run
+  --state nj --all
 ```
 
-### Single Issue Test (10 docs)
+### Single Issue Test
 ```bash
 python3 -m scripts.research_pipeline.cli \
-  --state nj --issue-type mail_only \
-  --max-docs-per-issue 10 --global-docs-limit no-limit \
-  --max-tier 2 --enable-web-search false
+  --state nj --issue mail_only --execute
 ```
 
-### All Issues Batched (Production)
+### All Issues With Limits
 ```bash
 python3 -m scripts.research_pipeline.cli \
-  --state nj --all-issues \
-  --max-docs-per-issue 50 --global-docs-limit 500 \
-  --max-tier 3 --enable-web-search true
+  --state nj --all --execute --global-limit 500
+```
+
+### Full Pipeline With Web Search
+```bash
+python3 -m scripts.research_pipeline.cli \
+  --state nj --all --execute --max-tier 3 --web-search
 ```
 
 ### Force Re-run (After Prompt Changes)
 ```bash
 python3 -m scripts.research_pipeline.cli \
-  --state nj --issue-type wet_signature \
-  --max-docs-per-issue all --global-docs-limit no-limit \
-  --max-tier 2 --enable-web-search false --force-rerun
+  --state nj --issue wet_signature --execute \
+  --limit all --global-limit no-limit --force-rerun
 ```
 
 ### Title-Specific Processing
 ```bash
 python3 -m scripts.research_pipeline.cli \
-  --state nj --all-issues \
-  --max-docs-per-issue 50 --global-docs-limit 500 \
-  --max-tier 2 --enable-web-search false --title 7
+  --state nj --all --execute --global-limit 500 --title 7
 ```
 
 ### Realtime API (Immediate, Testing)
 ```bash
 python3 -m scripts.research_pipeline.cli \
-  --state nj --issue-type mail_only \
-  --max-docs-per-issue 5 --global-docs-limit no-limit \
-  --max-tier 2 --enable-web-search false --realtime
+  --state nj --issue mail_only --execute \
+  --limit 5 --realtime
 ```
 
 ## Cost Estimates
@@ -133,21 +130,17 @@ python3 -m scripts.research_pipeline.cli \
 **Cost optimization:**
 - Use batch API (50% cheaper than realtime)
 - Start with `--max-tier 1` to filter false positives first
-- Use `--dry-run` to preview scope before committing
-- Cap with `--global-docs-limit` for budget control
+- Default is dry-run — use `--execute` only when ready
+- Cap with `--global-limit` for budget control (default: 100)
 
 ## Resume Behavior
 
-The pipeline automatically saves state and resumes:
+The pipeline automatically resumes interrupted runs:
 
-- **State files**: `backend/.pipeline_batches/`
-- **Auto-resume**: Rerunning same parameters resumes interrupted runs
 - **Skip completed**: Documents already analyzed to target tier are skipped
 - **Resume partial**: Documents with partial progress continue from last tier
 
 **Override resume**: Use `--force-rerun` to reprocess everything
-
-**Manual resume**: Use `--resume-batch <dir>` and `--resume-tier <N>` to recover from specific batch
 
 ## State Machine
 
@@ -249,6 +242,6 @@ Results saved to `compliance_issue_analyses` table:
 ## Important Notes
 
 - **Always ask permission** before running - pipeline makes API calls that cost money
-- **Use `--dry-run` first** for large runs to preview scope
+- **Default is dry-run** — use `--execute` to actually run
 - **Batch API can take 24h** in peak times (typically 10-40 min)
 - **Don't kill running pipelines** without asking - they may have in-flight batches
