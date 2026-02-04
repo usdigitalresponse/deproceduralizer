@@ -38,14 +38,8 @@ interface ComplianceIssueDisplayCardProps {
     requirementFound: boolean | null;
     requiredByStatute: boolean | null;
     reviewStatus: string | null;
-    // Legacy columns (backwards compatibility)
-    matchedPattern?: string | null;
-    matchedContext: string;
-    requirementText?: string | null;
-    impactAssessment?: string | null;
-    // New columns (research pipeline)
     regexMatchPattern: string | null;
-    regexMatchContext: string | null;
+    regexMatchContext: string;
     verbatimSupportingText: string[] | null;
     isVerbatim: boolean | null;
     severity: number | null;
@@ -241,13 +235,13 @@ export function ComplianceIssueDisplayCard({
       {isExpanded && expandedText && (
         <div className="mb-4 p-4 bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] border border-[var(--color-neutral-200)]">
           <p className="text-sm text-[var(--color-text)] whitespace-pre-wrap leading-relaxed">
-            {highlightContext(expandedText, issue.verbatimSupportingText?.[0] || issue.regexMatchContext || issue.matchedContext, issue.regexMatchPattern ?? issue.matchedPattern ?? null)}
+            {highlightContext(expandedText, issue.verbatimSupportingText?.[0] || issue.regexMatchContext, issue.regexMatchPattern)}
           </p>
         </div>
       )}
 
       {/* Technical Details - collapsible (regex pattern only) */}
-      {(issue.regexMatchPattern || issue.matchedPattern) && (
+      {issue.regexMatchPattern && (
         <details className="mb-3">
           <summary className="text-xs font-medium text-[var(--color-text-secondary)] cursor-pointer hover:text-[var(--color-text)] py-1">
             Technical Details
@@ -256,7 +250,7 @@ export function ComplianceIssueDisplayCard({
             <span className="text-xs font-medium text-[var(--color-text-secondary)]">Pattern matched:</span>
             <div className="mt-1">
               <Tag variant="warning" size="sm">
-                {issue.regexMatchPattern ?? issue.matchedPattern}
+                {issue.regexMatchPattern}
               </Tag>
             </div>
           </div>
@@ -265,8 +259,8 @@ export function ComplianceIssueDisplayCard({
 
       {/* Original Match Context (collapsible, only if different from verbatimSupportingText) */}
       {(() => {
-        const matchContext = issue.regexMatchContext ?? issue.matchedContext;
-        const matchPattern = issue.regexMatchPattern ?? issue.matchedPattern ?? null;
+        const matchContext = issue.regexMatchContext;
+        const matchPattern = issue.regexMatchPattern;
         return issue.verbatimSupportingText && issue.verbatimSupportingText.length > 0 && matchContext && issue.verbatimSupportingText[0] !== matchContext && (
           <details className="mb-3">
             <summary className="text-xs font-medium text-[var(--color-text-secondary)] cursor-pointer hover:text-[var(--color-text)] py-1">

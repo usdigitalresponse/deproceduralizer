@@ -59,7 +59,7 @@ export function ComplianceIssuesList({ initialIssues, regulationContent }: Compl
           const isExpanded = expandedIssues.has(issue.id);
 
           // Get expanded context if we have regulation content
-          const matchContext = issue.regexMatchContext ?? issue.matchedContext;
+          const matchContext = issue.regexMatchContext;
           const expanded = regulationContent && isExpanded && matchContext
             ? expandContext(regulationContent, matchContext, 800)
             : null;

@@ -152,11 +152,11 @@ export const complianceIssuesRelations = relations(complianceIssues, ({ one }) =
 ## LOW PRIORITY (Future)
 
 ### Schema Deprecation Timeline
-After 30 days, create migration to DROP old columns:
-- `matched_pattern` (use `regex_match_pattern`)
-- `matched_context` (use `regex_match_context`)
-- `requirement_text` (use `verbatim_supporting_text`)
-- `impact_assessment` (use `decision_rationale`)
+Legacy columns have been dropped (migration 0031):
+- ~~`matched_pattern`~~ → `regex_match_pattern`
+- ~~`matched_context`~~ → `regex_match_context` (now NOT NULL)
+- ~~`requirement_text`~~ → `verbatim_supporting_text`
+- ~~`impact_assessment`~~ → `decision_rationale`
 
 ### Analysis Table Normalization
 Consider creating `compliance_issue_analysis_metadata` table for:

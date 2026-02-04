@@ -155,8 +155,8 @@ function MatchCard({ match, index, isRelevant, dismissedReason }: MatchCardProps
       <div className="px-4 py-3">
         <p className="text-sm text-[var(--color-text-secondary)] whitespace-pre-wrap leading-relaxed">
           {highlightRegexPattern(
-            match.regexMatchContext ?? match.matchedContext ?? '',
-            match.regexMatchPattern ?? match.matchedPattern
+            match.regexMatchContext,
+            match.regexMatchPattern
           )}
         </p>
       </div>

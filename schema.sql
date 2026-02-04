@@ -284,28 +284,18 @@ CREATE TABLE compliance_issues (
   -- Issue identification (regex scan)
   issue_type VARCHAR(50) NOT NULL,
   occurrence_number INTEGER NOT NULL DEFAULT 1,
-  -- Old columns (backwards compatibility)
-  matched_pattern VARCHAR(255),               -- (Legacy) Regex pattern that triggered scan
-  matched_context TEXT NOT NULL,              -- (Legacy) ~600 char text window around regex match
-  -- New columns (research pipeline)
   regex_match_pattern VARCHAR(255),           -- Regex pattern that triggered the initial scan
-  regex_match_context TEXT,                   -- Text window around the regex match (~600 chars)
+  regex_match_context TEXT NOT NULL,          -- Text window around the regex match (~600 chars)
   url TEXT,
 
   -- LLM analysis results
   requirement_found BOOLEAN DEFAULT FALSE,
-  -- Old column (backwards compatibility)
-  requirement_text TEXT,                      -- (Legacy) The specific text creating the requirement
-  -- New column (research pipeline)
   verbatim_supporting_text TEXT[] DEFAULT '{}',  -- Array of exact quotes supporting the decision (empty if no issue)
   is_verbatim BOOLEAN,                        -- True if verbatim_supporting_text contains exact quotes
   required_by_statute BOOLEAN,
   statute_citation VARCHAR(255),
   severity INTEGER,
   original_severity INTEGER,                  -- LLM's original severity (preserved on first review)
-  -- Old column (backwards compatibility)
-  impact_assessment TEXT,                     -- (Legacy) LLM explanation of why this is/isn't problematic
-  -- New column (research pipeline)
   decision_rationale TEXT,                    -- LLM's holistic rationale for the classification decision
 
   -- Review fields

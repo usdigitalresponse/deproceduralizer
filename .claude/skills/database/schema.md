@@ -223,34 +223,22 @@ Many-to-many join table tracking where definition terms actually appear in docum
 
 Tracks compliance issues found in regulations (wet signatures, mail-only submission, etc.).
 
-**Note**: This table has both legacy columns and new research pipeline columns for backwards compatibility. The data was migrated from old columns to new columns, but old columns are preserved.
-
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | bigserial | Primary key |
 | `document_id` | bigint NOT NULL | FK to regulatory_documents |
 | `issue_type` | varchar(50) | `wet_signature`, `mail_only`, `fax`, etc. |
 | `occurrence_number` | integer | 1, 2, 3... for multiple issues of same type per document |
-| **Legacy columns (backwards compatibility):** | | |
-| `matched_pattern` | varchar(255) | (Legacy) Regex pattern that triggered scan |
-| `matched_context` | text NOT NULL | (Legacy) ~600 char text window around regex match |
-| **New columns (research pipeline):** | | |
 | `regex_match_pattern` | varchar(255) | Regex pattern that triggered the initial scan |
-| `regex_match_context` | text | Text window around the regex match (~600 chars) |
+| `regex_match_context` | text NOT NULL | Text window around the regex match (~600 chars) |
 | `url` | text | Link to the regulation |
 | `requirement_found` | boolean | Did LLM find an actual requirement? |
-| **Legacy column (backwards compatibility):** | | |
-| `requirement_text` | text | (Legacy) The specific text creating the requirement |
-| **New column (research pipeline):** | | |
 | `verbatim_supporting_text` | text[] | Array of exact verbatim quotes from regulation supporting the decision (empty if no issue) |
-| `is_verbatim` | boolean | True if verbatim_supporting_text contains exact quotes from regulation, False if paraphrased, NULL for legacy records |
+| `is_verbatim` | boolean | True if verbatim_supporting_text contains exact quotes from regulation, False if paraphrased |
 | `required_by_statute` | boolean | true = statute mandates, false = agency added, null = unknown |
 | `statute_citation` | varchar(255) | Citation to statute if applicable |
 | `severity` | integer (1-10) | How problematic is this requirement |
 | `original_severity` | integer (1-10) | LLM's original severity (preserved on first review) |
-| **Legacy column (backwards compatibility):** | | |
-| `impact_assessment` | text | (Legacy) LLM explanation of why this is/isn't problematic |
-| **New column (research pipeline):** | | |
 | `decision_rationale` | text | LLM's holistic rationale for the classification decision |
 | `review_status` | varchar(50) | `unreviewed`, `confirmed`, `false_positive`, etc. |
 | `reviewed_by` | varchar(255) | Who reviewed it |

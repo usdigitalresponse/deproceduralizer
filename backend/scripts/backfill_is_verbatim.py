@@ -38,13 +38,13 @@ def backfill_is_verbatim(dry_run: bool = False, limit: int = None):
     query = """
         SELECT
             ci.id,
-            ci.requirement_text,
-            ci.matched_context,
+            ci.verbatim_supporting_text[1] AS requirement_text,
+            ci.regex_match_context,
             rd.content
         FROM compliance_issues ci
         JOIN regulatory_documents rd ON ci.document_id = rd.id
         WHERE ci.is_verbatim IS NULL
-          AND ci.requirement_text IS NOT NULL
+          AND ci.verbatim_supporting_text[1] IS NOT NULL
         ORDER BY ci.id
     """
 
@@ -65,12 +65,12 @@ def backfill_is_verbatim(dry_run: bool = False, limit: int = None):
         verbatim_count = 0
         paraphrased_count = 0
 
-        for i, (issue_id, requirement_text, matched_context, content) in enumerate(rows):
+        for i, (issue_id, requirement_text, regex_match_context, content) in enumerate(rows):
             # Compute is_verbatim
             is_verbatim = is_verbatim_match(
                 requirement_text=requirement_text,
                 source_text=content or '',
-                fallback_context=matched_context,
+                fallback_context=regex_match_context,
             )
 
             if is_verbatim:

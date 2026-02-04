@@ -566,26 +566,16 @@ export class ComplianceIssuesRepository extends BaseRepository {
         id: complianceIssues.id,
         documentId: complianceIssues.documentId,
         issueType: complianceIssues.issueType,
-        // Old columns (backwards compatibility)
-        matchedPattern: complianceIssues.matchedPattern,
-        matchedContext: complianceIssues.matchedContext,
-        // New columns (research pipeline)
         regexMatchPattern: complianceIssues.regexMatchPattern,
         regexMatchContext: complianceIssues.regexMatchContext,
         url: complianceIssues.url,
         requirementFound: complianceIssues.requirementFound,
-        // Old column (backwards compatibility)
-        requirementText: complianceIssues.requirementText,
-        // New column (research pipeline)
         verbatimSupportingText: complianceIssues.verbatimSupportingText,
         isVerbatim: complianceIssues.isVerbatim,
         requiredByStatute: complianceIssues.requiredByStatute,
         severity: complianceIssues.severity,
         occurrenceNumber: complianceIssues.occurrenceNumber,
         statuteCitation: complianceIssues.statuteCitation,
-        // Old column (backwards compatibility)
-        impactAssessment: complianceIssues.impactAssessment,
-        // New column (research pipeline)
         decisionRationale: complianceIssues.decisionRationale,
         reviewStatus: complianceIssues.reviewStatus,
         reviewedBy: complianceIssues.reviewedBy,
@@ -655,26 +645,16 @@ export class ComplianceIssuesRepository extends BaseRepository {
       id: Number(row.id),
       documentId: Number(row.documentId),
       issueType: row.issueType,
-      // Old columns (backwards compatibility)
-      matchedPattern: row.matchedPattern,
-      matchedContext: row.matchedContext,
-      // New columns (research pipeline)
       regexMatchPattern: row.regexMatchPattern,
       regexMatchContext: row.regexMatchContext,
       url: row.url,
       requirementFound: row.requirementFound,
-      // Old column (backwards compatibility)
-      requirementText: row.requirementText,
-      // New column (research pipeline)
       verbatimSupportingText: row.verbatimSupportingText,
       isVerbatim: row.isVerbatim,
       requiredByStatute: row.requiredByStatute,
       severity: row.severity,
       occurrenceNumber: row.occurrenceNumber,
       statuteCitation: row.statuteCitation,
-      // Old column (backwards compatibility)
-      impactAssessment: row.impactAssessment,
-      // New column (research pipeline)
       decisionRationale: row.decisionRationale,
       reviewStatus: row.reviewStatus,
       reviewedBy: row.reviewedBy,
@@ -865,26 +845,16 @@ export class ComplianceIssuesRepository extends BaseRepository {
         id: complianceIssues.id,
         documentId: complianceIssues.documentId,
         issueType: complianceIssues.issueType,
-        // Old columns (backwards compatibility)
-        matchedPattern: complianceIssues.matchedPattern,
-        matchedContext: complianceIssues.matchedContext,
-        // New columns (research pipeline)
         regexMatchPattern: complianceIssues.regexMatchPattern,
         regexMatchContext: complianceIssues.regexMatchContext,
         url: complianceIssues.url,
         requirementFound: complianceIssues.requirementFound,
-        // Old column (backwards compatibility)
-        requirementText: complianceIssues.requirementText,
-        // New column (research pipeline)
         verbatimSupportingText: complianceIssues.verbatimSupportingText,
         isVerbatim: complianceIssues.isVerbatim,
         requiredByStatute: complianceIssues.requiredByStatute,
         severity: complianceIssues.severity,
         occurrenceNumber: complianceIssues.occurrenceNumber,
         statuteCitation: complianceIssues.statuteCitation,
-        // Old column (backwards compatibility)
-        impactAssessment: complianceIssues.impactAssessment,
-        // New column (research pipeline)
         decisionRationale: complianceIssues.decisionRationale,
         reviewStatus: complianceIssues.reviewStatus,
         reviewedBy: complianceIssues.reviewedBy,
@@ -931,26 +901,16 @@ export class ComplianceIssuesRepository extends BaseRepository {
       id: Number(row.id),
       documentId: Number(row.documentId),
       issueType: row.issueType,
-      // Old columns (backwards compatibility)
-      matchedPattern: row.matchedPattern,
-      matchedContext: row.matchedContext,
-      // New columns (research pipeline)
       regexMatchPattern: row.regexMatchPattern,
       regexMatchContext: row.regexMatchContext,
       url: row.url,
       requirementFound: row.requirementFound,
-      // Old column (backwards compatibility)
-      requirementText: row.requirementText,
-      // New column (research pipeline)
       verbatimSupportingText: row.verbatimSupportingText,
       isVerbatim: row.isVerbatim,
       requiredByStatute: row.requiredByStatute,
       severity: row.severity,
       occurrenceNumber: row.occurrenceNumber,
       statuteCitation: row.statuteCitation,
-      // Old column (backwards compatibility)
-      impactAssessment: row.impactAssessment,
-      // New column (research pipeline)
       decisionRationale: row.decisionRationale,
       reviewStatus: row.reviewStatus,
       reviewedBy: row.reviewedBy,
@@ -1032,26 +992,16 @@ export class ComplianceIssuesRepository extends BaseRepository {
         id: complianceIssues.id,
         documentId: complianceIssues.documentId,
         issueType: complianceIssues.issueType,
-        // Old columns (backwards compatibility)
-        matchedPattern: complianceIssues.matchedPattern,
-        matchedContext: complianceIssues.matchedContext,
-        // New columns (research pipeline)
         regexMatchPattern: complianceIssues.regexMatchPattern,
         regexMatchContext: complianceIssues.regexMatchContext,
         url: complianceIssues.url,
         requirementFound: complianceIssues.requirementFound,
-        // Old column (backwards compatibility)
-        requirementText: complianceIssues.requirementText,
-        // New column (research pipeline)
         verbatimSupportingText: complianceIssues.verbatimSupportingText,
         isVerbatim: complianceIssues.isVerbatim,
         requiredByStatute: complianceIssues.requiredByStatute,
         severity: complianceIssues.severity,
         occurrenceNumber: complianceIssues.occurrenceNumber,
         statuteCitation: complianceIssues.statuteCitation,
-        // Old column (backwards compatibility)
-        impactAssessment: complianceIssues.impactAssessment,
-        // New column (research pipeline)
         decisionRationale: complianceIssues.decisionRationale,
         reviewStatus: complianceIssues.reviewStatus,
         reviewedBy: complianceIssues.reviewedBy,
@@ -1095,26 +1045,16 @@ export class ComplianceIssuesRepository extends BaseRepository {
       id: Number(row.id),
       documentId: Number(row.documentId),
       issueType: row.issueType,
-      // Old columns (backwards compatibility)
-      matchedPattern: row.matchedPattern,
-      matchedContext: row.matchedContext,
-      // New columns (research pipeline)
       regexMatchPattern: row.regexMatchPattern,
       regexMatchContext: row.regexMatchContext,
       url: row.url,
       requirementFound: row.requirementFound,
-      // Old column (backwards compatibility)
-      requirementText: row.requirementText,
-      // New column (research pipeline)
       verbatimSupportingText: row.verbatimSupportingText,
       isVerbatim: row.isVerbatim,
       requiredByStatute: row.requiredByStatute,
       severity: row.severity,
       occurrenceNumber: row.occurrenceNumber,
       statuteCitation: row.statuteCitation,
-      // Old column (backwards compatibility)
-      impactAssessment: row.impactAssessment,
-      // New column (research pipeline)
       decisionRationale: row.decisionRationale,
       reviewStatus: row.reviewStatus,
       reviewedBy: row.reviewedBy,
@@ -1499,26 +1439,16 @@ export class ComplianceIssuesRepository extends BaseRepository {
         id: complianceIssues.id,
         documentId: complianceIssues.documentId,
         issueType: complianceIssues.issueType,
-        // Old columns (backwards compatibility)
-        matchedPattern: complianceIssues.matchedPattern,
-        matchedContext: complianceIssues.matchedContext,
-        // New columns (research pipeline)
         regexMatchPattern: complianceIssues.regexMatchPattern,
         regexMatchContext: complianceIssues.regexMatchContext,
         url: complianceIssues.url,
         requirementFound: complianceIssues.requirementFound,
-        // Old column (backwards compatibility)
-        requirementText: complianceIssues.requirementText,
-        // New column (research pipeline)
         verbatimSupportingText: complianceIssues.verbatimSupportingText,
         isVerbatim: complianceIssues.isVerbatim,
         requiredByStatute: complianceIssues.requiredByStatute,
         severity: complianceIssues.severity,
         occurrenceNumber: complianceIssues.occurrenceNumber,
         statuteCitation: complianceIssues.statuteCitation,
-        // Old column (backwards compatibility)
-        impactAssessment: complianceIssues.impactAssessment,
-        // New column (research pipeline)
         decisionRationale: complianceIssues.decisionRationale,
         reviewStatus: complianceIssues.reviewStatus,
         reviewedBy: complianceIssues.reviewedBy,
@@ -1563,26 +1493,16 @@ export class ComplianceIssuesRepository extends BaseRepository {
       id: Number(row.id),
       documentId: Number(row.documentId),
       issueType: row.issueType,
-      // Old columns (backwards compatibility)
-      matchedPattern: row.matchedPattern,
-      matchedContext: row.matchedContext,
-      // New columns (research pipeline)
       regexMatchPattern: row.regexMatchPattern,
       regexMatchContext: row.regexMatchContext,
       url: row.url,
       requirementFound: row.requirementFound,
-      // Old column (backwards compatibility)
-      requirementText: row.requirementText,
-      // New column (research pipeline)
       verbatimSupportingText: row.verbatimSupportingText,
       isVerbatim: row.isVerbatim,
       requiredByStatute: row.requiredByStatute,
       severity: row.severity,
       occurrenceNumber: row.occurrenceNumber,
       statuteCitation: row.statuteCitation,
-      // Old column (backwards compatibility)
-      impactAssessment: row.impactAssessment,
-      // New column (research pipeline)
       decisionRationale: row.decisionRationale,
       reviewStatus: row.reviewStatus,
       reviewedBy: row.reviewedBy,
