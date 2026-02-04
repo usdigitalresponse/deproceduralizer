@@ -6,7 +6,8 @@
 > - Phase 2.1: ✅ Complete (PR #86 awaiting approval)
 > - Phase 2-5: 📋 Planned
 > - Phase 6.1: ✅ Complete (PR #93 — drop legacy columns)
-> - Phase 6.2-6.5: 📋 Planned (Issue #88 — table refactoring, after Phases 3-4)
+> - Phase 6.2: ✅ Complete (PR #93 — remove duplicate analysis fields, read from analyses)
+> - Phase 6.3-6.5: 📋 Planned (Issue #88 — review fields, frontend cleanup, FK)
 
 **Goal**: Reduce research pipeline from ~23,000 lines to ~5,000 lines while preserving functionality.
 
@@ -395,37 +396,32 @@ Make `compliance_issues` a **pure match store** and `compliance_issue_analyses` 
 
 ---
 
-### PR 6.2: Remove Duplicate Analysis Fields from `compliance_issues` ⬜
+### PR 6.2: Remove Duplicate Analysis Fields from `compliance_issues` ✅
 
-**Branch**: `refactor/ci-remove-analysis-fields`
+**Branch**: `refactor/ci-remove-legacy-columns` (combined with PR 6.1)
 
-**Change**: Remove fields from `compliance_issues` that are now authoritative in `compliance_issue_analyses`. The searcher should stop doing LLM analysis — just save raw regex matches.
+**Change**: Removed 6 analysis fields from `compliance_issues` that are now read exclusively from `compliance_issue_analyses`. The `compliance_issues` table is now a pure match store. Severity and original_severity remain (deferred to PR 6.3).
 
-| Column to Remove from `compliance_issues` | Authoritative Source |
+| Column Removed from `compliance_issues` | Now Read From |
 |--------------------------------------------|---------------------|
 | `requirement_found` | `compliance_issue_analyses.requirement_found` |
-| `severity` | `compliance_issue_analyses.final_severity` |
-| `original_severity` | `compliance_issue_analyses.severity` (Tier 2 baseline) |
 | `is_verbatim` | `compliance_issue_analyses.is_verbatim` |
 | `required_by_statute` | `compliance_issue_analyses.cites_federal_statute` |
 | `statute_citation` | `compliance_issue_analyses.federal_citation` |
 | `verbatim_supporting_text` | `compliance_issue_analyses.verbatim_requirements` |
-| `decision_rationale` | `compliance_issue_analyses.tier1_reasoning` / `tier2_reasoning` |
+| `decision_rationale` | `compliance_issue_analyses.tier1_reasoning` |
 
-**What `compliance_issues` keeps** (pure match data):
-- `id`, `document_id`, `issue_type`, `occurrence_number`
-- `regex_match_pattern`, `regex_match_context`
-- `url`, `state`, `created_at`, `run_id`
+**Deferred to PR 6.3** (reviewer-editable): `severity`, `original_severity`
 
-**Requires**:
-- Searcher refactored to save raw matches only (no LLM call)
-- Frontend updated to read analysis fields from `compliance_issue_analyses` only
-- Pipeline Tier 1 still reads match data from `compliance_issues` (unchanged)
-- Migration to drop columns
+**What was done**:
+- Repository methods (`getAllPaginated`, `getReviewedPaginated`, `getSuggestionBatch`, etc.) JOIN to analyses
+- Filters (severity, requirementFound, requiredByStatute) read from analyses table
+- Backend searcher writes analysis fields to `compliance_issue_analyses` instead of `compliance_issues`
+- Migration 0032: Backfill 9 orphan issues missing analysis rows
+- Migration 0033: Drop 6 columns
+- 7 new E2E data integrity tests, all 57 tests passing
 
-**Risk**: This is the biggest breaking change. Frontend queries, server actions, and type definitions all need updating.
-
-**Status**: ⬜ Not started
+**Status**: ✅ Complete
 
 ---
 

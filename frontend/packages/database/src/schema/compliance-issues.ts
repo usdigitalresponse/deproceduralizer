@@ -4,12 +4,10 @@ import {
   bigint,
   varchar,
   text,
-  boolean,
   timestamp,
   integer,
   unique
 } from 'drizzle-orm/pg-core';
-import { sql } from 'drizzle-orm';
 import { regulatoryDocuments } from './regulatory-documents';
 
 export const complianceIssues = pgTable('compliance_issues', {
@@ -23,14 +21,9 @@ export const complianceIssues = pgTable('compliance_issues', {
   regexMatchPattern: varchar('regex_match_pattern', { length: 255 }), // Regex pattern that triggered scan
   regexMatchContext: text('regex_match_context').notNull(), // ~600 char text window around the regex match
 
-  // LLM analysis results
-  requirementFound: boolean('requirement_found').default(false), // Did LLM find an actual requirement?
-  isVerbatim: boolean('is_verbatim'), // True if verbatim_supporting_text is verbatim from regulation
-  requiredByStatute: boolean('required_by_statute'), // true=statute mandates, false=agency added
+  // LLM analysis results — now in compliance_issue_analyses (PR 6.2)
+  // Kept: severity (reviewer-editable, moves to analyses in PR 6.3)
   severity: integer('severity'), // 1-10 scale of how problematic
-  statuteCitation: varchar('statute_citation', { length: 255 }), // Citation to statute if applicable
-  verbatimSupportingText: text('verbatim_supporting_text').array().default(sql`'{}'::text[]`), // Array of exact quotes from regulation
-  decisionRationale: text('decision_rationale'), // LLM's holistic rationale for classification
 
   // Human review
   reviewStatus: varchar('review_status', { length: 50 }).default('unreviewed'), // 'unreviewed', 'confirmed', 'rejected_false_positive'

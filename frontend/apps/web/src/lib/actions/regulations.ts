@@ -2,7 +2,7 @@
 
 import 'server-only';
 import { revalidatePath, unstable_cache } from 'next/cache';
-import { db, RegulatoryDocumentsRepository, regulatoryDocuments, eq, and, desc, type RegulationWithAnalysis, type PaginationOptions, type FilterOptions, type StateCode, type PaginatedResult, type ComplianceIssue, type DefinitionWithContext, type DocumentNote } from '@deproceduralizer/database';
+import { db, RegulatoryDocumentsRepository, regulatoryDocuments, eq, and, desc, type RegulationWithAnalysis, type PaginationOptions, type FilterOptions, type StateCode, type PaginatedResult, type ComplianceIssueWithAnalysisFields, type DefinitionWithContext, type DocumentNote } from '@deproceduralizer/database';
 import { type ActionResult, success, failure, getErrorMessage } from './types';
 import { getComplianceIssuesByDocumentId } from './compliance-issues';
 import { getApplicableDefinitionsForDocument } from './definitions';
@@ -154,7 +154,7 @@ export interface BundleOptions {
  */
 export interface BundleResult {
   regulation: RegulationWithAnalysis | null;
-  complianceIssues?: ComplianceIssue[];
+  complianceIssues?: ComplianceIssueWithAnalysisFields[];
   definitions?: DefinitionWithContext[];
   notes?: DocumentNote[];
   /** Section-level errors for optional data that failed to load */
@@ -213,9 +213,9 @@ export async function getRegulationDetailBundle(
   const errors: BundleResult['errors'] = {};
 
   // Process compliance issues result
-  let complianceIssues: ComplianceIssue[] | undefined;
+  let complianceIssues: ComplianceIssueWithAnalysisFields[] | undefined;
   if (complianceResult.status === 'fulfilled') {
-    const result = complianceResult.value as ActionResult<ComplianceIssue[] | undefined>;
+    const result = complianceResult.value as ActionResult<ComplianceIssueWithAnalysisFields[] | undefined>;
     if (result.success && result.data) {
       complianceIssues = result.data;
     } else if (!result.success) {

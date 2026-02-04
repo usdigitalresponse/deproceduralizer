@@ -5,10 +5,10 @@ import { Card } from '@/components/ui';
 import { ComplianceIssueDisplayCard } from './ComplianceIssueDisplayCard';
 import ComplianceIssueReviewForm from './ComplianceIssueReviewForm';
 import { expandContext } from '@/lib/utils/expandContext';
-import type { ComplianceIssue } from '@deproceduralizer/database';
+import type { ComplianceIssueWithAnalysisFields } from '@deproceduralizer/database';
 
 interface ComplianceIssuesListProps {
-  initialIssues: ComplianceIssue[];
+  initialIssues: ComplianceIssueWithAnalysisFields[];
   regulationContent?: string | null;
 }
 

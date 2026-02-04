@@ -706,9 +706,8 @@ class ComplianceIssueSearcher:
                             """
                             INSERT INTO compliance_issues
                             (document_id, issue_type, occurrence_number, regex_match_pattern, regex_match_context, url,
-                             requirement_found, verbatim_supporting_text, required_by_statute,
-                             severity, decision_rationale, state, is_verbatim, run_id)
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                             severity, state, run_id)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                             """,
                             (
                                 document_id,
@@ -717,17 +716,52 @@ class ComplianceIssueSearcher:
                                 item.get('term_matched'),  # regex_match_pattern
                                 regex_match_context,  # regex_match_context
                                 item.get('url', ''),
-                                requirement_found,
-                                verbatim_supporting_text,  # Now an array
-                                issue.get('required_by_statute'),
                                 severity,
-                                issue.get('decision_rationale'),
                                 self.state_config.state_code,
-                                is_verbatim,
                                 self.run_id,  # Pipeline run identifier
                             )
                         )
                         saved += 1
+
+                        # Write LLM analysis data to compliance_issue_analyses (PR 6.2)
+                        # Only for the first occurrence per (document_id, issue_type)
+                        if occurrence_num == 1:
+                            conn.execute(
+                                """
+                                INSERT INTO compliance_issue_analyses
+                                (document_id, issue_type, state, grouped_match_count,
+                                 requirement_found, is_verbatim, final_severity,
+                                 verbatim_requirements,
+                                 cites_federal_statute, federal_citation,
+                                 tier1_reasoning,
+                                 highest_tier_completed, pipeline_version)
+                                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                                ON CONFLICT (document_id, issue_type) DO UPDATE SET
+                                  requirement_found = EXCLUDED.requirement_found,
+                                  is_verbatim = EXCLUDED.is_verbatim,
+                                  final_severity = EXCLUDED.final_severity,
+                                  verbatim_requirements = EXCLUDED.verbatim_requirements,
+                                  cites_federal_statute = EXCLUDED.cites_federal_statute,
+                                  federal_citation = EXCLUDED.federal_citation,
+                                  tier1_reasoning = EXCLUDED.tier1_reasoning,
+                                  updated_at = NOW()
+                                """,
+                                (
+                                    document_id,
+                                    self.issue_config.db_issue_type,
+                                    self.state_config.state_code,
+                                    len(issues),
+                                    requirement_found,
+                                    is_verbatim,
+                                    severity,
+                                    verbatim_supporting_text,
+                                    issue.get('required_by_statute'),
+                                    issue.get('statute_citation'),
+                                    issue.get('decision_rationale'),
+                                    0,  # highest_tier_completed
+                                    'searcher',
+                                )
+                            )
 
                 except Exception as e:
                     errors += 1

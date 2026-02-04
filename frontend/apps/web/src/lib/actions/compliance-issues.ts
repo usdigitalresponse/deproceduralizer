@@ -10,6 +10,7 @@ import {
   type ReviewStatus,
   type ImpactType,
   type ComplianceIssue,
+  type ComplianceIssueWithAnalysisFields,
   type ComplianceIssueWithAnalysis,
   type PaginatedComplianceIssuesResult,
   type TierCompletionCounts,
@@ -96,7 +97,7 @@ export async function getComplianceIssueById(
  */
 export async function getComplianceIssuesByDocumentId(
   documentId: number
-): Promise<ActionResult<ComplianceIssue[]>> {
+): Promise<ActionResult<ComplianceIssueWithAnalysisFields[]>> {
   try {
     const result = await complianceIssuesRepo.getByDocumentId(documentId);
     return success(result);

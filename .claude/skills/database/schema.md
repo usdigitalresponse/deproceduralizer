@@ -232,20 +232,13 @@ Tracks compliance issues found in regulations (wet signatures, mail-only submiss
 | `regex_match_pattern` | varchar(255) | Regex pattern that triggered the initial scan |
 | `regex_match_context` | text NOT NULL | Text window around the regex match (~600 chars) |
 | `url` | text | Link to the regulation |
-| `requirement_found` | boolean | Did LLM find an actual requirement? |
-| `verbatim_supporting_text` | text[] | Array of exact verbatim quotes from regulation supporting the decision (empty if no issue) |
-| `is_verbatim` | boolean | True if verbatim_supporting_text contains exact quotes from regulation, False if paraphrased |
-| `required_by_statute` | boolean | true = statute mandates, false = agency added, null = unknown |
-| `statute_citation` | varchar(255) | Citation to statute if applicable |
 | `severity` | integer (1-10) | How problematic is this requirement |
 | `original_severity` | integer (1-10) | LLM's original severity (preserved on first review) |
-| `decision_rationale` | text | LLM's holistic rationale for the classification decision |
 | `review_status` | varchar(50) | `unreviewed`, `confirmed`, `false_positive`, etc. |
 | `reviewed_by` | varchar(255) | Who reviewed it |
 | `reviewed_at` | timestamp | When reviewed |
 | `justification_notes` | text | Justification for the model |
 | `team_notes` | text | Notes for development team (replaced reviewer_notes) |
-| `original_severity` | integer (1-10) | LLM's original severity (preserved on first review) |
 | `impact_type` | varchar(100) | Type of impact |
 | `developer_status` | varchar(50) | `unresolved`, `resolved`, `pending`, `backlogged`, `need_more_info` |
 | `developer_assigned` | varchar(50) | Michael or Abigail |
@@ -266,18 +259,20 @@ Tracks compliance issues found in regulations (wet signatures, mail-only submiss
 
 ### Compliance Issue Filtering
 
-#### LLM Confirmation Status
-- `requirement_found = true`: LLM confirmed this is a real compliance issue (has `severity` 1-10, `verbatim_supporting_text` populated with quotes)
-- `requirement_found = false`: LLM analyzed the regex match but found no actual issue (`severity` is NULL, `verbatim_supporting_text` is empty array)
+**Note**: LLM analysis fields (`requirement_found`, `is_verbatim`, `required_by_statute`, `statute_citation`, `verbatim_supporting_text`/`verbatim_requirements`, `decision_rationale`/`tier1_reasoning`) now live exclusively in `compliance_issue_analyses`. The repository JOINs to analyses to provide these fields. The `compliance_issues` table is a pure match store (regex hits + review fields + severity).
 
-The `requirement_found` field indicates whether the LLM found a genuine compliance issue after analyzing the regex-matched context. The `verbatim_supporting_text` array contains exact quotes from the regulation that support the classification, and is empty when no issue is found.
+#### LLM Confirmation Status (from `compliance_issue_analyses`)
+- `requirement_found = true`: LLM confirmed this is a real compliance issue (has `final_severity` 1-10, `verbatim_requirements` populated with quotes)
+- `requirement_found = false`: LLM analyzed the regex match but found no actual issue (`final_severity` is NULL, `verbatim_requirements` is empty array)
+
+The `requirement_found` field in `compliance_issue_analyses` indicates whether the LLM found a genuine compliance issue after analyzing the regex-matched context. The `verbatim_requirements` array contains exact quotes from the regulation that support the classification, and is empty when no issue is found.
 
 #### Where Filtering is Applied
 
 | Location | Shows | Filter |
 |----------|-------|--------|
-| Browse tree badges | Confirmed only | `requirement_found = TRUE` |
-| Dashboard stats | Confirmed only | `requirement_found = TRUE` |
+| Browse tree badges | Confirmed only | `cia.requirement_found = TRUE` (via JOIN) |
+| Dashboard stats | Confirmed only | `cia.requirement_found = TRUE` (via JOIN) |
 | Table view counts | Confirmed only | Uses precomputed columns |
 | Review mode | All issues | No filter (for QA review) |
 
@@ -289,7 +284,7 @@ The following columns on `regulatory_documents` store compliance issue counts:
 - `compliance_issue_count`: Direct confirmed issues on this document
 - `descendant_compliance_issue_count`: Confirmed issues in all descendant documents
 
-These are updated by `refresh_compliance_stats()` in `backend/shared_utils.py` and only count issues where `requirement_found = TRUE`.
+These are updated by `refresh_compliance_stats()` in `backend/shared_utils.py` and only count issues where `requirement_found = TRUE` (in `compliance_issue_analyses`).
 
 ## compliance_issue_analyses
 

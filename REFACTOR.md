@@ -158,6 +158,18 @@ Legacy columns have been dropped (migration 0031):
 - ~~`requirement_text`~~ → `verbatim_supporting_text`
 - ~~`impact_assessment`~~ → `decision_rationale`
 
+Duplicate analysis columns moved to `compliance_issue_analyses` and dropped (migrations 0032-0033):
+- ~~`requirement_found`~~ → `compliance_issue_analyses.requirement_found`
+- ~~`is_verbatim`~~ → `compliance_issue_analyses.is_verbatim`
+- ~~`required_by_statute`~~ → `compliance_issue_analyses.cites_federal_statute`
+- ~~`statute_citation`~~ → `compliance_issue_analyses.federal_citation`
+- ~~`verbatim_supporting_text`~~ → `compliance_issue_analyses.verbatim_requirements`
+- ~~`decision_rationale`~~ → `compliance_issue_analyses.tier1_reasoning`
+
+Still on `compliance_issues` (move to analyses in PR 6.3):
+- `severity` → `compliance_issue_analyses.final_severity`
+- `original_severity` → new column on analyses
+
 ### Analysis Table Normalization
 Consider creating `compliance_issue_analysis_metadata` table for:
 - Easy cleanup detection fields
