@@ -103,7 +103,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from shared_utils import get_db_connection
 from scripts.research_pipeline.models.matches import ProcessingUnit
-from scripts.research_pipeline.tier_orchestrator import TierOrchestrator
+from scripts.research_pipeline.pipeline_runner import run_pipeline as run_pipeline_fn, run_tier3_only
 
 # Import from new db module
 from scripts.research_pipeline.db import (
@@ -211,7 +211,7 @@ def _simulate_resume(
     """
     Simulate the resume logic without making API calls.
 
-    Mirrors the logic in TierOrchestrator.run() lines 220-244 to show
+    Mirrors the logic in pipeline_runner.run_pipeline() to show
     what would happen during an actual pipeline run.
 
     Args:
@@ -503,8 +503,7 @@ async def _execute_pipeline(
 
     Common execution logic extracted from run_test and run_batched_issues:
     - Creates batches directory
-    - Instantiates TierOrchestrator
-    - Runs the pipeline
+    - Calls run_pipeline_fn() (flat function, no class)
     - Saves results to database
 
     Args:
@@ -527,28 +526,30 @@ async def _execute_pipeline(
     batches_dir = Path(__file__).parent / "batches"
     batches_dir.mkdir(exist_ok=True)
 
-    # For orchestrator, we need a valid state string
-    # When state is None (dangerously-run-all), default to "NJ" for orchestrator
+    # When state is None (dangerously-run-all), default to "NJ" for pipeline
     # but the actual state filtering was already done in document fetching
-    orchestrator_state = state if state else "NJ"
+    pipeline_state = state if state else "NJ"
 
-    # Create orchestrator
-    orchestrator = TierOrchestrator(
-        state=orchestrator_state,
-        issue_type=issue_type,
-        issue_types=issue_types,
-        batches_dir=batches_dir,
-        poll_interval=30,
-        realtime=realtime,
-        resume=not force_rerun,  # If force_rerun, don't resume/skip existing
-        title_filter=title_filter,
-    )
+    # Normalize issue_type(s) to list
+    if issue_types:
+        all_issue_types = issue_types
+    elif issue_type:
+        all_issue_types = [issue_type]
+    else:
+        raise ValueError("Either issue_type or issue_types must be provided")
 
     # Run the pipeline
-    results = await orchestrator.run(
+    results = await run_pipeline_fn(
         processing_units=processing_units,
+        state=pipeline_state,
+        issue_types=all_issue_types,
+        batches_dir=batches_dir,
         max_tier=max_tier,
         enable_web_search=enable_web_search,
+        poll_interval=30,
+        realtime=realtime,
+        resume=not force_rerun,
+        title_filter=title_filter,
     )
 
     # Save final results to database (tier results already saved incrementally)
@@ -866,21 +867,18 @@ async def run_tier3_pending(
         print("No documents pending Tier 3. Nothing to do.")
         return
 
-    # Set up orchestrator
+    # Set up batches directory
     batches_dir = Path(__file__).parent / "batches"
     batches_dir.mkdir(exist_ok=True)
 
-    orchestrator = TierOrchestrator(
-        state=state,
-        batches_dir=batches_dir,
-        issue_types=[issue_type],
-        realtime=True,  # Tier 3 always uses real-time API
-    )
-
     # Run Tier 3 only
-    results = await orchestrator.run_tier3_only(
+    results = await run_tier3_only(
         processing_units=processing_units,
         tier2_outputs=tier2_outputs,
+        state=state,
+        issue_types=[issue_type],
+        batches_dir=batches_dir,
+        realtime=True,
     )
 
     # Print detailed results
@@ -902,7 +900,7 @@ async def run_tier3_pending(
             if t3.evidence_gap:
                 print(f"    Evidence gap: YES")
         elif unit.error_message:
-            print(f"  ❌ Error: {unit.error_message}")
+            print(f"  \u274c Error: {unit.error_message}")
 
     # Save results
     from .db_writer import save_final_results
