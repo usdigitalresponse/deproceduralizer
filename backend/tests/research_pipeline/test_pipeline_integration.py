@@ -3783,23 +3783,7 @@ class TestDbWriterV5ColumnsPresence:
 
 
 class TestTier2RerunState:
-    """Test TIER2_RERUNNING state and TrackedUnit re-run fields."""
-
-    def test_tier2_rerunning_state_exists(self):
-        """TIER2_RERUNNING state should exist."""
-        from scripts.research_pipeline.state_machine import ProcessingState
-
-        assert hasattr(ProcessingState, "TIER2_RERUNNING")
-
-    def test_tier2_rerunning_maps_to_tier2(self):
-        """TIER2_RERUNNING should map to tier 2."""
-        from scripts.research_pipeline.state_machine import (
-            ProcessingState,
-            state_to_tier,
-        )
-
-        tier = state_to_tier(ProcessingState.TIER2_RERUNNING)
-        assert tier == 2
+    """Test TrackedUnit re-run fields."""
 
     def test_tracked_unit_has_rerun_fields(self):
         """TrackedUnit should have tier2_rerun_count and related fields."""
@@ -3837,7 +3821,7 @@ class TestTier2RerunState:
             content="test",
             matches=[],
         )
-        unit = TrackedUnit(unit=pu, state=ProcessingState.TIER2_RERUNNING)
+        unit = TrackedUnit(unit=pu, state=ProcessingState.TIER2_PENDING)
 
         # Modify fields
         unit.tier2_rerun_count = 2

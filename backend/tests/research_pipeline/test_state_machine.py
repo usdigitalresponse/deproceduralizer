@@ -58,9 +58,8 @@ class TestProcessingStates:
             state_to_tier,
         )
 
-        assert state_to_tier(ProcessingState.TIER1_QUEUED) == 1
         assert state_to_tier(ProcessingState.TIER1_COMPLETE) == 1
-        assert state_to_tier(ProcessingState.TIER2_QUEUED) == 2
+        assert state_to_tier(ProcessingState.TIER2_PENDING) == 2
         assert state_to_tier(ProcessingState.TIER2_COMPLETE) == 2
         assert state_to_tier(ProcessingState.TIER3_PENDING) == 3
         assert state_to_tier(ProcessingState.TIER3_COMPLETE) == 3

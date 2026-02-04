@@ -504,9 +504,8 @@ async def run_tier2_with_reruns(
 
     This replaces batch API execution for Tier 2 when re-runs are enabled.
 
-    STATE MANAGEMENT: This function only sets intermediate states
-    (TIER2_RERUNNING) and populates tier2_output/tier2_completed_at.
-    The orchestrator is responsible for all terminal state transitions
+    STATE MANAGEMENT: This function populates tier2_output/tier2_completed_at.
+    The pipeline runner is responsible for all state transitions
     (TIER2_COMPLETE, DONE, ERROR).
 
     Args:
@@ -563,8 +562,6 @@ async def run_tier2_with_reruns(
     all_fetched_context = {**fetched_summaries, **fetched_full_text}
 
     for unit in units:
-        unit.state = ProcessingState.TIER2_RERUNNING
-
         # Get issue config for this unit
         issue_config = issue_configs.get(unit.issue_type)
         if not issue_config:

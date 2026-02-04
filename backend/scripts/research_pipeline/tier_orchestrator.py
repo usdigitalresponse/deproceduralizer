@@ -431,7 +431,7 @@ class TierOrchestrator:
             process_fn: Function to process results (e.g., process_tier1_results)
             output_class: Pydantic model class (e.g., Tier1Output)
             output_attr: Attribute name on unit (e.g., "tier1_output")
-            submitted_state: State after batch submission (e.g., TIER1_SUBMITTED)
+            submitted_state: State after batch submission (e.g., PENDING)
             complete_state: State after completion (e.g., TIER1_COMPLETE)
             batch_id_attr: Attribute name for batch ID (e.g., "tier1_batch_id")
             completed_at_attr: Attribute name for timestamp (e.g., "tier1_completed_at")
@@ -539,9 +539,9 @@ class TierOrchestrator:
             process_fn=process_tier1_results,
             output_class=Tier1Output,
             output_attr="tier1_output",
-            submitted_state=ProcessingState.TIER1_SUBMITTED,
+            submitted_state=ProcessingState.PENDING,
             complete_state=ProcessingState.TIER1_COMPLETE,
-            batch_id_attr="tier1_batch_id",
+            batch_id_attr="_unused_batch_id",
             completed_at_attr="tier1_completed_at",
         )
 
@@ -567,9 +567,9 @@ class TierOrchestrator:
                 process_fn=process_tier2_results,
                 output_class=Tier2Output,
                 output_attr="tier2_output",
-                submitted_state=ProcessingState.TIER2_SUBMITTED,
+                submitted_state=ProcessingState.TIER2_PENDING,
                 complete_state=ProcessingState.TIER2_COMPLETE,
-                batch_id_attr="tier2_batch_id",
+                batch_id_attr="_unused_batch_id",
                 completed_at_attr="tier2_completed_at",
             )
 
@@ -632,7 +632,7 @@ class TierOrchestrator:
                 # Error: transition to ERROR state
                 unit.state = ProcessingState.ERROR
                 failed.append(unit)
-            # Units still in TIER2_RERUNNING without output or error stay pending
+            # Units without output or error stay pending
 
         # Count re-runs
         reruns = sum(u.tier2_rerun_count for u in succeeded)
@@ -721,7 +721,7 @@ class TierOrchestrator:
                 # Error: transition to ERROR state
                 unit.state = ProcessingState.ERROR
                 failed.append(unit)
-            # Units still in TIER3_PROCESSING without output or error stay pending
+            # Units without output or error stay pending
 
         self._log_tier_complete("Tier 3 (realtime)", len(succeeded), len(failed))
         self._save_tier3_results(succeeded, tier_out)
@@ -752,8 +752,7 @@ class TierOrchestrator:
 
         # Update states and batch IDs
         for unit in pending:
-            unit.tier3_batch_id = batch_id
-            unit.state = ProcessingState.TIER3_SUBMITTED
+            unit.state = ProcessingState.TIER3_PENDING
 
         # Poll until complete
         await self._poll_batch(batch_id)

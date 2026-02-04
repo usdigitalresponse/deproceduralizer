@@ -263,7 +263,7 @@ class TestResultProcessorGracefulDegradation:
             matches=[],
             state="NJ",
         )
-        tracked = TrackedUnit(unit=pu, state=ProcessingState.TIER1_SUBMITTED)
+        tracked = TrackedUnit(unit=pu, state=ProcessingState.PENDING)
         units = {tracked.custom_id: tracked}
 
         # This should NOT raise AttributeError
@@ -333,7 +333,7 @@ class TestResultProcessorGracefulDegradation:
             matches=[],
             state="NJ",
         )
-        tracked = TrackedUnit(unit=pu, state=ProcessingState.TIER1_SUBMITTED)
+        tracked = TrackedUnit(unit=pu, state=ProcessingState.PENDING)
         units = {tracked.custom_id: tracked}
 
         # Create trace context to trigger Langfuse code path
