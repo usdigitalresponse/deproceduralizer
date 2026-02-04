@@ -54,9 +54,8 @@ from .prompt_loader import load_issue_config, IssueConfig
 from .config import TIER3_BATCH_SIZE, MAX_BATCH_POLL_TIME
 from .models.matches import ProcessingUnit
 from .context_builder import group_for_cache_efficiency
-from .batch_persistence import BatchPersistence, BatchInfo, RunStatus
 from .ids import make_custom_id
-from .pipeline_logger import PipelineLogger, DualOutput
+from .pipeline_logger import DualOutput
 
 # Import from shared_utils
 import sys
@@ -117,8 +116,6 @@ class TierOrchestrator:
         model: Optional[str] = None,
         incremental_save: bool = True,
         tier2_reruns: bool = False,  # V5: Enable Tier 2 re-run mechanics
-        persistence: Optional[BatchPersistence] = None,
-        run_dir: Optional[Path] = None,
         title_filter: Optional[str] = None,
     ):
         """
@@ -137,8 +134,6 @@ class TierOrchestrator:
             model: Optional model override (default: DEFAULT_MODEL)
             incremental_save: If True, save results to DB after each tier completes
             tier2_reruns: If True, run Tier 2 with re-run mechanics (real-time API)
-            persistence: Optional BatchPersistence for crash recovery/resume
-            run_dir: Optional run directory path (if resuming from existing run)
             title_filter: Optional title filter (e.g., '3A' for Title 3A)
         """
         self.state = state
@@ -151,16 +146,10 @@ class TierOrchestrator:
         self.model = model or DEFAULT_MODEL  # For Langfuse logging
         self.incremental_save = incremental_save
         self.tier2_reruns = tier2_reruns  # V5: Tier 2 re-run mechanics
-        self.persistence = persistence
-        self.run_dir = run_dir
         self.title_filter = title_filter
 
-        # Initialize per-tier file logging (if run_dir is set)
-        self.logger: Optional[PipelineLogger] = None
-        if run_dir:
-            self.logger = PipelineLogger(run_dir)
-        # DualOutput helper (prints to console AND logs to file)
-        self.out = DualOutput(self.logger, tier=None)
+        # DualOutput helper (prints to console)
+        self.out = DualOutput(logger=None, tier=None)
 
         # Normalize issue_type(s) to list
         if issue_types:
@@ -201,7 +190,7 @@ class TierOrchestrator:
 
     def _tier_out(self, tier: int) -> DualOutput:
         """Get a DualOutput helper for a specific tier."""
-        return DualOutput(self.logger, tier=tier)
+        return DualOutput(logger=None, tier=tier)
 
     async def run(
         self,
@@ -226,13 +215,6 @@ class TierOrchestrator:
         for pu in processing_units:
             tracked = TrackedUnit(unit=pu, state=ProcessingState.PENDING)
             self.units[tracked.custom_id] = tracked
-
-        # Update persistence with total unit count
-        if self.persistence and self.run_dir:
-            self.persistence.update_manifest(
-                self.run_dir,
-                total_units=len(self.units),
-            )
 
         # Resume: check for existing analyses and skip already-processed units
         skipped_count = 0
@@ -305,9 +287,6 @@ class TierOrchestrator:
         self.out.info(f"Max tier: {max_tier}")
         self.out.info(f"Run ID: {self.run_id}")
         self.out.info(f"Mode: {'REALTIME (no batch)' if self.realtime else 'BATCH API'}")
-        if self.run_dir:
-            self.out.info(f"Run directory: {self.run_dir.name}")
-            self.out.info(f"Logs: {self.run_dir.name}/pipeline.log")
         self.out.info("")
 
         # Run each tier (with health check before each)
@@ -338,17 +317,6 @@ class TierOrchestrator:
 
         # Mark complete
         self.cost_tracker.mark_complete()
-
-        # Update persistence with completion status
-        if self.persistence and self.run_dir:
-            error_count = sum(1 for u in self.units.values() if u.state == ProcessingState.ERROR)
-            completed_count = sum(1 for u in self.units.values() if is_terminal_state(u.state))
-            self.persistence.update_manifest(
-                self.run_dir,
-                status=RunStatus.COMPLETED,
-                units_completed=completed_count,
-                units_failed=error_count,
-            )
 
         # Print final summary
         self._print_summary()
@@ -586,10 +554,6 @@ class TierOrchestrator:
                 conn.close()
                 self._tier_out(1).info(f"  Saved {saved} Tier 1 results to database")
 
-        # Save units for resume capability
-        if self.persistence and self.run_dir:
-            self.persistence.save_units(self.run_dir, list(self.units.values()))
-
     async def _run_tier2(self):
         """Run Tier 2: Summary-Based Research."""
         # V5: Check if re-run mechanics are enabled
@@ -617,10 +581,6 @@ class TierOrchestrator:
                 saved = save_tier2_results(tier2_units, conn)
                 conn.close()
                 self._tier_out(2).info(f"  Saved {saved} Tier 2 results to database")
-
-        # Save units for resume capability
-        if self.persistence and self.run_dir:
-            self.persistence.save_units(self.run_dir, list(self.units.values()))
 
     async def _run_tier2_with_reruns(self):
         """
@@ -795,15 +755,6 @@ class TierOrchestrator:
             unit.tier3_batch_id = batch_id
             unit.state = ProcessingState.TIER3_SUBMITTED
 
-        # Save batch info for persistence
-        if self.persistence and self.run_dir:
-            self.persistence.update_manifest(
-                self.run_dir,
-                current_tier=3,
-                tier3_batch_id=batch_id,
-            )
-            self.persistence.save_units(self.run_dir, list(self.units.values()))
-
         # Poll until complete
         await self._poll_batch(batch_id)
 
@@ -824,8 +775,7 @@ class TierOrchestrator:
         self._save_tier3_results(succeeded, tier_out)
 
     def _save_tier3_results(self, succeeded: list[TrackedUnit], tier_out):
-        """Save Tier 3 results to database and persistence."""
-        # Incremental save: persist Tier 3 results to database
+        """Save Tier 3 results to database."""
         if self.incremental_save:
             tier3_units = [u for u in self.units.values() if u.tier3_output]
             if tier3_units:
@@ -833,10 +783,6 @@ class TierOrchestrator:
                 saved = save_tier3_results(tier3_units, conn)
                 conn.close()
                 tier_out.info(f"  Saved {saved} Tier 3 results to database")
-
-        # Save units for resume capability
-        if self.persistence and self.run_dir:
-            self.persistence.save_units(self.run_dir, list(self.units.values()))
 
     def _submit_batch(self, requests: list[dict], tier_name: str) -> str:
         """Submit a batch and return batch ID."""
@@ -859,25 +805,6 @@ class TierOrchestrator:
         tier_out.info(f"  >>> BATCH SUBMITTED: {batch_id}")
         tier_out.info(f"  >>> Requests: {len(requests)}")
 
-        # Save batch info for resume capability
-        if self.persistence and self.run_dir:
-            # Extract tier number from tier_name (e.g., "tier1" -> 1)
-            tier_num = int(tier_name[-1]) if tier_name[-1].isdigit() else 0
-            batch_info = BatchInfo(
-                batch_id=batch_id,
-                tier=tier_num,
-                submitted_at=datetime.now().isoformat(),
-                total_requests=len(requests),
-                status="submitted",
-                unit_custom_ids=[r["custom_id"] for r in requests],
-            )
-            self.persistence.save_batch_info(self.run_dir, batch_info)
-            self.persistence.update_manifest(
-                self.run_dir,
-                current_tier=tier_num,
-                **{f"tier{tier_num}_batch_id": batch_id}
-            )
-
         # Log to Langfuse
         if LANGFUSE_AVAILABLE and self.trace_context:
             self.trace_context.stage = tier_name
@@ -899,7 +826,6 @@ class TierOrchestrator:
         Includes timeout and retry logic for robustness:
         - 48 hour maximum poll time (Anthropic batch API guarantees 24h)
         - Retry with exponential backoff on API errors
-        - Updates persistence status on timeout/failure
         """
         start_time = time.time()
         last_progress = 0
@@ -913,12 +839,6 @@ class TierOrchestrator:
             if elapsed > max_poll_time:
                 error_msg = f"Batch timed out after {format_time(elapsed)}"
                 self.out.error(f"  ❌ {error_msg}")
-                if self.persistence and self.run_dir:
-                    self.persistence.update_manifest(
-                        self.run_dir,
-                        status=RunStatus.FAILED,
-                        error_message=error_msg,
-                    )
                 raise TimeoutError(error_msg)
 
             try:
@@ -928,22 +848,6 @@ class TierOrchestrator:
                 if status["status"] == "ended":
                     self.out.info(f"  Batch complete in {format_time(elapsed)}")
                     self.out.info(f"    Succeeded: {status['succeeded']}, Errored: {status['errored']}")
-
-                    # Update batch info with results
-                    if self.persistence and self.run_dir:
-                        # Extract tier from batch_id (format: msgbatch_xxx)
-                        # We need to find which tier this batch belongs to
-                        for tier in [1, 2]:
-                            batch_info = self.persistence.load_batch_info(self.run_dir, tier)
-                            if batch_info and batch_info.batch_id == batch_id:
-                                self.persistence.update_batch_info(
-                                    self.run_dir, tier,
-                                    status="ended",
-                                    succeeded=status.get("succeeded", 0),
-                                    errored=status.get("errored", 0),
-                                    expired=status.get("expired", 0),
-                                )
-                                break
                     break
 
                 # Progress update with ETA
@@ -963,12 +867,6 @@ class TierOrchestrator:
                 if retry_count > max_retries:
                     error_msg = f"Batch polling failed after {max_retries} retries: {e}"
                     self.out.error(f"  ❌ {error_msg}")
-                    if self.persistence and self.run_dir:
-                        self.persistence.update_manifest(
-                            self.run_dir,
-                            status=RunStatus.FAILED,
-                            error_message=error_msg,
-                        )
                     raise
 
                 # Exponential backoff: 2, 4, 8, 16, 32 seconds
@@ -1155,12 +1053,6 @@ class TierOrchestrator:
 
         # Both checks failed
         self.out.error(f"  ❌ DB health check failed after retry - cannot start {tier_name}")
-        if self.persistence and self.run_dir:
-            self.persistence.update_manifest(
-                self.run_dir,
-                status=RunStatus.FAILED,
-                error_message=f"Database health check failed before {tier_name}",
-            )
         return False
 
     def _hydrate_unit_from_analysis(
