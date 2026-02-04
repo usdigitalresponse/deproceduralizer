@@ -903,7 +903,7 @@ async def run_tier3_pending(
             print(f"  \u274c Error: {unit.error_message}")
 
     # Save results
-    from .db_writer import save_final_results
+    from .db import save_final_results
     conn = get_db_connection()
     saved = save_final_results(results, conn)
     conn.close()
