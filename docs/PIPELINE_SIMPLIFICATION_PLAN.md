@@ -361,9 +361,9 @@ After tracing the full data flow:
 | **Written by** | Searcher + Tier 1 updates | Research pipeline Tiers 1-4 |
 | **Read by** | Pipeline (Tier 1 fetches matches) | Pipeline (each tier reads prior state) |
 | **Frontend use** | Review queue, print mode (individual matches) | Pipeline dashboard, review queue (analysis data) |
-| **Review fields** | `review_status`, `developer_status`, etc. | None (review lives on compliance_issues) |
+| **Review fields** | ~~`review_status`, `developer_status`, etc.~~ (moved to analyses in PR 6.3) | `review_status`, `developer_status`, etc. (PR 6.3) |
 
-**Conclusion**: The tables are NOT fully redundant — they have different cardinality and serve different purposes. But the overlap is confusing, legacy columns add noise, and the relationship is fragile.
+**Conclusion**: The tables are NOT fully redundant — they have different cardinality and serve different purposes. ~~But the overlap is confusing, legacy columns add noise, and the relationship is fragile.~~ **Resolved**: After Phase 6, `compliance_issues` is a pure match store linked to `compliance_issue_analyses` via `analysis_id` FK.
 
 ### Strategy: Clean Separation
 
@@ -476,7 +476,7 @@ Make `compliance_issues` a **pure match store** and `compliance_issue_analyses` 
 
 ---
 
-### PR 6.5: Add `analysis_id` FK to `compliance_issues` 🔄 IN PROGRESS
+### PR 6.5: Add `analysis_id` FK to `compliance_issues` ✅ DONE
 
 **Branch**: `refactor/ci-remove-legacy-columns`
 **Approach**: Option A — nullable `analysis_id` FK column on `compliance_issues` pointing to `compliance_issue_analyses.id`. Arrays (`tier1_relevant_match_ids`, `tier1_dismissed_match_ids`) stay as-is — they're audit snapshots, not structural links.
@@ -528,17 +528,13 @@ Added `analysisId` with `references(() => complianceIssueAnalyses.id, { onDelete
 **4. `findAnalysisForIssue()` simplified** ✅
 Reads `issue.analysisId` directly when populated. Falls back to composite `(document_id, issue_type)` lookup for NULL `analysisId` (safety net for unbackfilled rows).
 
-**5. `searcher.py` changes** ⬜ TODO
-- **Bug fix**: Remove stale `severity` column from `INSERT INTO compliance_issues` (line ~709). The `severity` column was dropped from `compliance_issues` in PR 6.3. Remove it from the INSERT column list and the parameter tuple.
-- **New**: After the `INSERT INTO compliance_issue_analyses ... ON CONFLICT` block (line ~729-764), add `RETURNING id` and use the returned ID to `UPDATE compliance_issues SET analysis_id = ? WHERE document_id = ? AND issue_type = ?`.
+**5. `searcher.py` changes** ✅
+- Removed stale `severity` column from `INSERT INTO compliance_issues`
+- Added `RETURNING id` to analysis INSERT + `UPDATE compliance_issues SET analysis_id` linkage
 
-**6. `analysis_writer.py` changes** ⬜ TODO
-- In `save_tier1_results()`, after each `INSERT INTO compliance_issue_analyses ... ON CONFLICT` block (there are 2: one for `all_false_positives` at ~line 136, one for `needs_research` at ~line 223), add:
-  ```sql
-  UPDATE compliance_issues SET analysis_id = <returned_id>
-  WHERE document_id = %s AND issue_type = %s AND analysis_id IS NULL
-  ```
-  Use `RETURNING id` on the INSERT to get the analysis row ID, then update matching `compliance_issues` rows.
+**6. `analysis_writer.py` changes** ✅
+- Removed stale `requirement_found`/`decision_rationale` UPDATE on `compliance_issues` (columns dropped in PR 6.2)
+- Added `RETURNING id` + `UPDATE compliance_issues SET analysis_id` to both INSERT blocks (all_false_positives and needs_research)
 
 #### Verification
 
@@ -561,7 +557,7 @@ PRs should be done in order since each builds on the previous:
 6.1 (legacy columns) → 6.2 (analysis fields) → 6.3 (review fields) → 6.4 (frontend) → 6.5 (FK)
 ```
 
-**Important**: Phase 6 should begin AFTER Phases 3-4 (pipeline simplification) are complete, since those phases change the pipeline code that writes to these tables. Changing both the pipeline structure AND the schema simultaneously would be too risky.
+**Note**: Phase 6 was completed before Phases 2-5 (pipeline simplification). The pipeline write paths were updated as part of Phase 6 (searcher.py and analysis_writer.py), so Phases 2-5 should be safe to proceed.
 
 ---
 
