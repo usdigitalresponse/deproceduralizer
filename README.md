@@ -58,7 +58,7 @@ deproceduralizer/
 │       ├── batch_definitions.py      # Batch definition extraction
 │       ├── link_definitions.py       # Link definitions to documents
 │       ├── compliance_issues/        # Compliance issue detection
-│       │   └── searcher.py           # Regex + LLM compliance scanner
+│       │   └── searcher.py           # Regex compliance issue scanner
 │       └── ...
 │
 ├── frontend/                         # Next.js monorepo
@@ -128,7 +128,7 @@ python backend/scripts/nj_regulations_scraper.py
 python backend/scripts/batch_definitions.py submit --state NJ
 python backend/scripts/batch_definitions.py process
 python backend/scripts/link_definitions.py --state NJ
-python backend/scripts/compliance_issues/searcher.py --state NJ
+python backend/scripts/scan_compliance_issues.py --state nj
 python backend/scripts/red_flags.py --state NY
 python backend/scripts/detect_regulatory_status.py --state NJ
 ```
@@ -172,7 +172,7 @@ The scrapers handle migration automatically via `shared_utils.migrate_regulation
 | `red_flags.py` | LLM-powered analysis identifying 12 categories of implementation red flags. Uses Claude API with structured output. |
 | `batch_definitions.py` | Batch LLM-powered definition extraction with caching and progress tracking. |
 | `link_definitions.py` | Link extracted definitions to documents where terms appear. |
-| `compliance_issues/searcher.py` | Regex + LLM compliance issue detection (40+ issue types). |
+| `scan_compliance_issues.py` | Regex compliance issue detection (40+ issue types). LLM analysis via research pipeline. |
 | `backfill_definition_scope.py` | Fix incomplete definition scopes. |
 
 ### Red Flag Categories

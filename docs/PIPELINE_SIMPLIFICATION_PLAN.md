@@ -10,6 +10,10 @@
 > - Phase 6.3: ✅ Complete — move review/developer tracking to analyses
 > - Phase 6.4: ✅ Complete — frontend cleanup done incrementally in PRs 6.1-6.3
 > - Phase 6.5: ✅ Complete — analysis_id FK on compliance_issues
+> - Phase 7.1: ✅ Complete — audit confirmed no gaps
+> - Phase 7.2: Skipped — no gaps to fill
+> - Phase 7.3: ✅ Complete — searcher is regex-only, ~800 lines removed
+> - Phase 7.4: ✅ Complete — docs updated, smoke tests pass
 
 **Goal**: Reduce research pipeline from ~23,000 lines to ~5,000 lines while preserving functionality.
 
@@ -33,8 +37,9 @@
 | 4 | Consolidate Files | 📋 Planned | 0/5 |
 | 5 | Final Cleanup | 📋 Planned | 0/2 |
 | 6 | Refactor Compliance Issue Tables ([#88](https://github.com/michaeleboyce/deproceduralizer/issues/88)) | ✅ Complete | 5/5 (PRs 6.1-6.5 complete) |
+| 7 | Eliminate Redundant Searcher LLM Call ([#94](https://github.com/michaeleboyce/deproceduralizer/issues/94)) | ✅ Complete | [PR #95](https://github.com/michaeleboyce/deproceduralizer/pull/95) awaiting review |
 
-**Total Progress**: 12/27 PRs open or complete (Phases 0-1 done, Phase 2.1 done, Phase 6 done, all awaiting review)
+**Total Progress**: 16/31 PRs open or complete (Phases 0-1 done, Phase 2.1 done, Phase 6 done, Phase 7 done)
 
 ---
 
@@ -345,7 +350,7 @@ Simple sequential flow:
 
 Two tables — `compliance_issues` and `compliance_issue_analyses` — have overlapping columns and a confusing relationship:
 
-- **`compliance_issues`**: One row per regex match per document. Written by the searcher with an initial LLM analysis, then partially overwritten by Tier 1.
+- **`compliance_issues`**: One row per regex match per document. Written by the searcher (regex-only, no LLM — Phase 7).
 - **`compliance_issue_analyses`**: One row per (document_id, issue_type) pair. Progressively filled by Tiers 1-4.
 - **Overlap**: `requirement_found`, `severity`, `is_verbatim` exist in both tables with different semantics.
 - **Fragile link**: `tier1_relevant_match_ids` / `tier1_dismissed_match_ids` are integer arrays referencing `compliance_issues.id` with no FK constraint.
@@ -561,6 +566,106 @@ PRs should be done in order since each builds on the previous:
 
 ---
 
+## Phase 7: Eliminate Redundant Searcher LLM Call ([Issue #94](https://github.com/michaeleboyce/deproceduralizer/issues/94), [PR #95](https://github.com/michaeleboyce/deproceduralizer/pull/95))
+
+### Problem
+
+The compliance issue pipeline currently runs content through the LLM up to 4 times:
+
+| Step | Component | LLM Call? | What It Does |
+|------|-----------|-----------|--------------|
+| 0. Regex search | `searcher.py` → `search()` | No | Finds regex matches in regulation text |
+| 1. Searcher triage | `searcher.py` → `analyze_match()` | **Yes** | Each match gets LLM analysis (requirement_found, severity, etc.) |
+| 2. Tier 1 | `tier1_runner.py` | **Yes** | Re-analyzes the *same matches* to filter false positives with richer context |
+| 3. Tier 2 | `tier2_runner.py` | **Yes** | Classifies surviving issues as burdensome/justified/unrelated |
+| 4. Tier 3 | `tier3_runner.py` | **Yes** | Web-search verification for high-risk issues |
+
+Steps 1 and 2 are redundant — the searcher runs each match through the LLM for initial analysis, then Tier 1 re-processes the same matches through the LLM again. We're paying for two LLM calls to answer the same question ("is this regex match a real compliance issue?"), with Tier 1 just having more context.
+
+### Strategy
+
+Make the searcher regex-only. Remove `analyze_match()` / `analyze_async()` LLM calls and let Tier 1 be the sole initial LLM gate. The pipeline becomes:
+
+1. **Regex search** — finds candidate matches (no LLM, cheap)
+2. **Tier 1** — initial LLM filtering with full context (replaces both current steps 1 and 2)
+3. **Tier 2** — classifies
+4. **Tier 3** — verifies (when needed)
+
+This cuts the maximum LLM calls from 4 to 3 and removes the redundant call.
+
+---
+
+### PR 7.1: Audit Searcher Triage vs Tier 1 Coverage ✅ DONE
+
+**Branch**: `refactor/remove-searcher-triage`
+**PR**: https://github.com/michaeleboyce/deproceduralizer/pull/95
+
+**Goal**: Document exactly what the searcher's `analyze_match()` LLM call produces and confirm Tier 1 already covers it (or identify gaps to fill).
+
+**Findings**:
+- Searcher LLM produces `ComplianceIssueInstance`: `requirement_found`, `severity`, `verbatim_supporting_text`, `required_by_statute`, `decision_rationale`
+- Tier 1 covers `requirement_found` → `classification` (all_false_positives/needs_research) and `decision_rationale` → `reasoning`
+- Tier 2 covers `severity`, `verbatim_supporting_text` → `verbatim_requirements`, `required_by_statute` → `cites_federal_statute`
+- **No gaps found** — every searcher field has a pipeline equivalent
+- Pipeline completely ignores searcher LLM output (reads only `regex_match_pattern`/`regex_match_context`)
+- Tier 1 `save_tier1_results()` overwrites the searcher's analysis row via `ON CONFLICT`
+
+**Tests added**: 14 contract tests in `backend/tests/test_searcher_triage_audit.py`
+- `TestSearcherTriageFieldCoverage` (4 tests): field mapping verification
+- `TestPipelineIgnoresSearcherLLMOutput` (2 tests): pipeline reads only regex data
+- `TestSearcherWritesAnalysisThatGetsOverwritten` (3 tests): ON CONFLICT overwrites
+- `TestSearcherLLMMethodsExist` (5 tests): document methods to remove in PR 7.3
+
+**Status**: ✅ Complete — no gaps found, PR 7.2 can be skipped
+
+---
+
+### PR 7.2: Ensure Tier 1 Covers Searcher Triage Outputs — SKIPPED
+
+**Reason**: PR 7.1 audit found no gaps. Every searcher field already has an equivalent in Tier 1 or Tier 2.
+
+---
+
+### PR 7.3: Remove LLM Triage from Searcher ✅ DONE
+
+**Branch**: `refactor/remove-searcher-triage`
+**PR**: https://github.com/michaeleboyce/deproceduralizer/pull/95
+
+**Goal**: Remove all LLM methods from `searcher.py`. The searcher writes regex matches to the DB without LLM analysis. Update the scanner script.
+
+**What was done**:
+- Removed from `searcher.py`: `analyze_match()`, `analyze_async()`, `submit_batch()`, `process_batch_results()`, `create_prompt()`, `LIST_OUTPUT_INSTRUCTIONS`, `print_results()`, `save_results_json()`, `generate_html()`
+- Removed LLM imports: `call_llm_parse_async`, `format_batch_request`, `BatchManager`, `parse_batch_result_tool_use`, `DEFAULT_MODEL`, `LLMTraceContext`, `flush_langfuse`, `BaseComplianceAnalysis`, `are_all_verbatim`
+- Simplified `save_to_database()`: saves one row per regex match to `compliance_issues` only (no `compliance_issue_analyses` write)
+- Added `print_summary()` for basic regex match output
+- Rewrote `scan_compliance_issues.py`: removed `--batch`, `--process-batches`, `--concurrency` flags, simplified to regex scan + save
+- Updated 16 tests: 8 now verify LLM methods are removed, 2 verify searcher is regex-only
+- 569/572 backend tests pass (3 pre-existing failures on different machine)
+
+**Lines removed**: ~700 from `searcher.py`, ~100 from `scan_compliance_issues.py`
+
+**Status**: ✅ Complete
+
+---
+
+### PR 7.4: Update Docs and Tests ✅ DONE
+
+**Branch**: `refactor/remove-searcher-triage`
+**PR**: https://github.com/michaeleboyce/deproceduralizer/pull/95
+
+**Goal**: Update pipeline documentation, remove references to searcher triage, run smoke tests.
+
+**What was done**:
+- Updated `PIPELINE_SIMPLIFICATION_PLAN.md`: Phase 7 status headers, current status table, summary
+- Updated `OPERATIONS.md`: compliance issues section now documents 2-step process (regex scan + research pipeline)
+- Updated `README.md`: tree view, command examples, script table
+- Updated `CLAUDE.md`: compliance issues section with Step 1 / Step 2 instructions
+- Smoke tests: 25/25 pass
+
+**Status**: ✅ Complete
+
+---
+
 ## Summary
 
 | Phase | PRs | Est. Lines Removed | Checkpoint |
@@ -572,8 +677,9 @@ PRs should be done in order since each builds on the previous:
 | 4 | 5 | ~3,000 | Fewer files |
 | 5 | 2 | ~500 | Docs updated |
 | 6 | 5 | ~300 (columns) + schema cleanup | Clean table separation ([#88](https://github.com/michaeleboyce/deproceduralizer/issues/88)) |
+| 7 | 4 | ~300 + LLM cost savings | Searcher is regex-only, 1 fewer LLM call per match ([#94](https://github.com/michaeleboyce/deproceduralizer/issues/94)) |
 
-**Total**: 27 PRs, ~8,000 lines removed + schema consolidation
+**Total**: 31 PRs, ~8,300 lines removed + schema consolidation + LLM cost reduction
 
 ---
 
@@ -610,3 +716,9 @@ PRs should be done in order since each builds on the previous:
 | 2026-02-04 | PR 6.4 verified | Frontend cleanup already done in PRs 6.1-6.3 — build passes, schema/types/queries all clean. Marked complete. |
 | 2026-02-04 | PR 6.5 started | Option A chosen: `analysis_id` FK. Migration 0037, schema.sql, Drizzle schema, 16 repository JOINs + `findAnalysisForIssue()` done. Python backend + docs remaining. |
 | 2026-02-04 | PR 6.5 complete | Fixed stale columns in searcher.py (removed `severity` from INSERT) and analysis_writer.py (removed stale `requirement_found`/`decision_rationale` UPDATE). Added `RETURNING id` + `analysis_id` linkage to all 3 INSERT sites. Updated schema.md. Phase 6 complete. |
+| 2026-02-04 | Phase 7 planned | Issue [#94](https://github.com/michaeleboyce/deproceduralizer/issues/94) — eliminate redundant LLM call in searcher. Searcher triage (`analyze_match()`) and Tier 1 both do LLM filtering on the same matches; plan to make searcher regex-only. |
+| 2026-02-04 | PR 7.1 complete | Audit: every searcher LLM field has a pipeline equivalent. No gaps found. 14 contract tests added. |
+| 2026-02-04 | PR 7.2 skipped | No gaps to fill — Tier 1+2 already cover all searcher triage outputs. |
+| 2026-02-04 | PR 7.3 complete | Removed ~800 lines of LLM code from searcher.py and scan_compliance_issues.py. Searcher is now regex-only. 16 tests pass. |
+| 2026-02-04 | PR 7.4 complete | Updated PIPELINE_SIMPLIFICATION_PLAN.md, OPERATIONS.md, README.md, CLAUDE.md. 25/25 smoke tests pass. Phase 7 complete. |
+| 2026-02-04 | Phase 7 shipped | All Phase 7 work in [PR #95](https://github.com/michaeleboyce/deproceduralizer/pull/95), awaiting review. |
