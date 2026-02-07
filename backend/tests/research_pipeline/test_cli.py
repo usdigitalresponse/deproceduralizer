@@ -34,24 +34,92 @@ class TestCLIHelp:
         assert "--state" in cli_help_output
 
     def test_help_shows_issue_type_argument(self, cli_help_output):
-        """--issue-type argument is documented."""
-        assert "--issue-type" in cli_help_output
+        """--issue argument is documented."""
+        assert "--issue" in cli_help_output
 
-    def test_help_shows_max_docs_per_issue_argument(self, cli_help_output):
-        """--max-docs-per-issue argument is documented."""
-        assert "--max-docs-per-issue" in cli_help_output
+    def test_help_shows_limit_argument(self, cli_help_output):
+        """--limit argument is documented."""
+        assert "--limit" in cli_help_output
 
     def test_help_shows_max_tier_argument(self, cli_help_output):
         """--max-tier argument is documented."""
         assert "--max-tier" in cli_help_output
 
-    def test_help_shows_dry_run_argument(self, cli_help_output):
-        """--dry-run argument is documented."""
-        assert "--dry-run" in cli_help_output or "dry_run" in cli_help_output
+    def test_help_shows_execute_argument(self, cli_help_output):
+        """--execute argument is documented."""
+        assert "--execute" in cli_help_output
 
     def test_help_shows_all_issues_argument(self, cli_help_output):
-        """--all-issues argument is documented."""
-        assert "--all-issues" in cli_help_output or "all_issues" in cli_help_output
+        """--all argument is documented."""
+        assert "--all" in cli_help_output
+
+    def test_help_shows_global_limit_argument(self, cli_help_output):
+        """--global-limit argument is documented."""
+        assert "--global-limit" in cli_help_output
+
+    def test_help_does_not_show_removed_flags(self, cli_help_output):
+        """Removed flags should not appear in help."""
+        assert "--resume-batch" not in cli_help_output
+        assert "--resume-tier" not in cli_help_output
+        assert "--sequential" not in cli_help_output
+        assert "--dry-run" not in cli_help_output
+
+
+class TestCLIDefaults:
+    """Test CLI default values and cost-safe behavior."""
+
+    def test_all_issues_dry_run_by_default(self):
+        """--state nj --all should dry-run by default (no --execute)."""
+        result = subprocess.run(
+            ["python3", "-m", "scripts.research_pipeline.cli", "--state", "nj", "--all"],
+            capture_output=True,
+            text=True,
+            cwd=BACKEND_DIR,
+            timeout=60,
+        )
+        assert result.returncode == 0, f"CLI failed: {result.stderr}"
+        assert "RUNNING ALL ISSUE TYPES" in result.stdout
+
+    def test_issue_selection_required(self):
+        """--state alone should fail — must specify --issue or --all."""
+        result = subprocess.run(
+            ["python3", "-m", "scripts.research_pipeline.cli", "--state", "nj"],
+            capture_output=True,
+            text=True,
+            cwd=BACKEND_DIR,
+            timeout=30,
+        )
+        assert result.returncode != 0
+        assert "required" in result.stderr.lower() or "error" in result.stderr.lower()
+
+    def test_single_issue_dry_run_by_default(self):
+        """--issue mail_only should dry-run by default."""
+        result = subprocess.run(
+            ["python3", "-m", "scripts.research_pipeline.cli",
+             "--state", "nj", "--issue", "mail_only"],
+            capture_output=True,
+            text=True,
+            cwd=BACKEND_DIR,
+            timeout=60,
+        )
+        assert result.returncode == 0
+        assert "RESEARCH PIPELINE" in result.stdout
+        assert "Issue type: mail_only" in result.stdout
+        assert "DRY RUN" in result.stdout
+
+    def test_help_shows_defaults(self):
+        """Help text should show default values."""
+        result = subprocess.run(
+            ["python3", "-m", "scripts.research_pipeline.cli", "--help"],
+            capture_output=True,
+            text=True,
+            cwd=BACKEND_DIR,
+            timeout=30,
+        )
+        assert result.returncode == 0
+        assert "default: 1000" in result.stdout
+        assert "default: 100" in result.stdout
+        assert "default: 2" in result.stdout
 
 
 class TestBackfillScript:

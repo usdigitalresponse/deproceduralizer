@@ -444,7 +444,7 @@ TESTING   │  END-TO-END TESTING & VALIDATION                                  
   - Production-ready CLI
   - `run` command - Full pipeline execution (via tier_orchestrator.py)
   - `--max-tier` flag - Stop at tier N
-  - `--issue-type` flag - Filter by issue type
+  - `--issue` flag - Filter by issue type
   - `--num-docs` flag - Process N items only
   - `--realtime` flag - Use realtime API instead of batch
 
@@ -466,7 +466,7 @@ TESTING   │  END-TO-END TESTING & VALIDATION                                  
   - Group existing compliance_issues by (document_id, issue_type)
   - Create analysis records with pipeline_version='legacy'
   - Copy requirement_found, severity, verbatim_supporting_text
-  - Supports --dry-run, --limit, --state, --issue-type flags
+  - Supports --dry-run, --limit, --state, --issue flags
   - Dry run tested: 8,524 groups ready for migration
 
 - [x] Create `backend/scripts/research_pipeline/orchestrator.py` (M) ✅

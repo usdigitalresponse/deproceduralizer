@@ -11,7 +11,8 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 # Load .env from project root
-PROJECT_ROOT = Path(__file__).parent.parent.parent
+PROJECT_ROOT = Path(__file__).parent.parent.parent.parent  # newyork/
+BACKEND_DIR = Path(__file__).parent.parent.parent  # newyork/backend/
 load_dotenv(PROJECT_ROOT / ".env")
 
 
@@ -1143,16 +1144,16 @@ class TestCLIArgumentParsing:
 
         # Recreate the parser from cli.py
         parser = argparse.ArgumentParser()
-        parser.add_argument("--issue-type", default="mail_only")
-        parser.add_argument("--num-docs", type=int, default=20)
+        parser.add_argument("--issue", default="mail_only")
+        parser.add_argument("--limit", type=int, default=20)
         parser.add_argument("--max-tier", type=int, default=2)
         parser.add_argument("--state", default="NJ")
         parser.add_argument("--realtime", action="store_true")
 
         args = parser.parse_args([])
 
-        assert args.issue_type == "mail_only"
-        assert args.num_docs == 20
+        assert args.issue == "mail_only"
+        assert args.limit == 20
         assert args.max_tier == 2
         assert args.state == "NJ"
         assert args.realtime is False
@@ -1162,22 +1163,22 @@ class TestCLIArgumentParsing:
         import argparse
 
         parser = argparse.ArgumentParser()
-        parser.add_argument("--issue-type", default="mail_only")
-        parser.add_argument("--num-docs", type=int, default=20)
+        parser.add_argument("--issue", default="mail_only")
+        parser.add_argument("--limit", type=int, default=20)
         parser.add_argument("--max-tier", type=int, default=2)
         parser.add_argument("--state", default="NJ")
         parser.add_argument("--realtime", action="store_true")
 
         args = parser.parse_args([
-            "--issue-type", "wet_signature",
-            "--num-docs", "50",
+            "--issue", "wet_signature",
+            "--limit", "50",
             "--max-tier", "3",
             "--state", "NY",
             "--realtime",
         ])
 
-        assert args.issue_type == "wet_signature"
-        assert args.num_docs == 50
+        assert args.issue == "wet_signature"
+        assert args.limit == 50
         assert args.max_tier == 3
         assert args.state == "NY"
         assert args.realtime is True
@@ -1187,16 +1188,16 @@ class TestCLIArgumentParsing:
         import argparse
 
         parser = argparse.ArgumentParser()
-        parser.add_argument("--issue-type", default="mail_only")
-        parser.add_argument("--num-docs", type=int, default=20)
+        parser.add_argument("--issue", default="mail_only")
+        parser.add_argument("--limit", type=int, default=20)
         parser.add_argument("--max-tier", type=int, default=2)
         parser.add_argument("--state", default="NJ")
         parser.add_argument("--realtime", action="store_true")
 
         args = parser.parse_args(["--max-tier", "1", "--realtime"])
 
-        assert args.issue_type == "mail_only"  # default
-        assert args.num_docs == 20  # default
+        assert args.issue == "mail_only"  # default
+        assert args.limit == 20  # default
         assert args.max_tier == 1  # custom
         assert args.state == "NJ"  # default
         assert args.realtime is True  # custom
@@ -1286,7 +1287,7 @@ class TestBackfillScript:
         parser.add_argument("--dry-run", action="store_true")
         parser.add_argument("--limit", type=int)
         parser.add_argument("--state", choices=["NJ", "NY"])
-        parser.add_argument("--issue-type")
+        parser.add_argument("--issue", dest="issue_type")
 
         args = parser.parse_args([])
 
@@ -1303,13 +1304,13 @@ class TestBackfillScript:
         parser.add_argument("--dry-run", action="store_true")
         parser.add_argument("--limit", type=int)
         parser.add_argument("--state", choices=["NJ", "NY"])
-        parser.add_argument("--issue-type")
+        parser.add_argument("--issue", dest="issue_type")
 
         args = parser.parse_args([
             "--dry-run",
             "--limit", "100",
             "--state", "NJ",
-            "--issue-type", "mail_only",
+            "--issue", "mail_only",
         ])
 
         assert args.dry_run is True
@@ -4318,7 +4319,7 @@ class TestCLIIntegrationSubprocess:
             ["python3", "-m", "scripts.research_pipeline.cli", "--help"],
             capture_output=True,
             text=True,
-            cwd="~/Documents/Programming/raf/deproceduralizer-research-pipeline/backend",
+            cwd=str(BACKEND_DIR),
             timeout=30,
         )
 
@@ -4326,8 +4327,8 @@ class TestCLIIntegrationSubprocess:
         assert result.returncode == 0
         # Check for key arguments
         assert "--state" in result.stdout
-        assert "--issue-type" in result.stdout
-        assert "--max-docs-per-issue" in result.stdout  # Changed from --num-docs
+        assert "--issue" in result.stdout
+        assert "--limit" in result.stdout  # Changed from --num-docs
         assert "--max-tier" in result.stdout
 
     def test_cli_dry_run_available(self):
@@ -4338,7 +4339,7 @@ class TestCLIIntegrationSubprocess:
             ["python3", "-m", "scripts.research_pipeline.cli", "--help"],
             capture_output=True,
             text=True,
-            cwd="~/Documents/Programming/raf/deproceduralizer-research-pipeline/backend",
+            cwd=str(BACKEND_DIR),
             timeout=30,
         )
 
@@ -4346,16 +4347,16 @@ class TestCLIIntegrationSubprocess:
         assert "--dry-run" in result.stdout or "dry_run" in result.stdout
 
     def test_cli_all_issues_available(self):
-        """Verify --all-issues argument is available."""
+        """Verify --all argument is available."""
         import subprocess
 
         result = subprocess.run(
             ["python3", "-m", "scripts.research_pipeline.cli", "--help"],
             capture_output=True,
             text=True,
-            cwd="~/Documents/Programming/raf/deproceduralizer-research-pipeline/backend",
+            cwd=str(BACKEND_DIR),
             timeout=30,
         )
 
-        # all-issues should be available
-        assert "--all-issues" in result.stdout or "all_issues" in result.stdout
+        # all should be available
+        assert "--all" in result.stdout or "all_issues" in result.stdout

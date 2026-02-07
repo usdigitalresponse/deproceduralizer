@@ -3,21 +3,22 @@
 CLI for the research pipeline.
 
 Runs documents through the 3-tier research pipeline for regulatory burden analysis.
+Defaults are cost-safe: dry-run mode, explicit issue selection required.
 
 Usage:
     cd backend && python3 -m scripts.research_pipeline.cli --help
 
-    # Single issue type, 10 docs, Tier 2
-    python3 -m scripts.research_pipeline.cli \\
-        --state nj --issue-type mail_only \\
-        --max-docs-per-issue 10 --global-docs-limit no-limit \\
-        --max-tier 2 --enable-web-search false
+    # Preview what would run (default is dry-run)
+    python3 -m scripts.research_pipeline.cli --state nj --all
 
-    # All issues with global limit and web search
+    # Actually run a single issue type
     python3 -m scripts.research_pipeline.cli \\
-        --state ny --all-issues \\
-        --max-docs-per-issue 50 --global-docs-limit 500 \\
-        --max-tier 3 --enable-web-search true
+        --state nj --issue mail_only --execute
+
+    # All issues with explicit limits
+    python3 -m scripts.research_pipeline.cli \\
+        --state ny --all --execute \\
+        --limit 50 --global-limit 500
 """
 
 import argparse
@@ -51,7 +52,7 @@ def state_validator(value: str) -> str:
 
 def positive_int_or_all(value: str) -> Union[int, str]:
     """
-    Validate --max-docs-per-issue flag.
+    Validate --limit flag.
 
     Accepts a positive integer or the string 'all'.
     """
@@ -72,7 +73,7 @@ def positive_int_or_all(value: str) -> Union[int, str]:
 
 def positive_int_or_no_limit(value: str) -> Union[int, str]:
     """
-    Validate --global-docs-limit flag.
+    Validate --global-limit flag.
 
     Accepts a positive integer or the string 'no-limit'.
     """
@@ -89,20 +90,6 @@ def positive_int_or_no_limit(value: str) -> Union[int, str]:
         raise argparse.ArgumentTypeError(
             f"Must be a positive integer or 'no-limit', got '{value}'"
         )
-
-
-def explicit_bool(value: str) -> bool:
-    """
-    Validate explicit boolean flags like --enable-web-search.
-
-    Must be 'true' or 'false' (case insensitive).
-    """
-    normalized = value.lower()
-    if normalized not in ('true', 'false'):
-        raise argparse.ArgumentTypeError(
-            f"Must be 'true' or 'false', got '{value}'"
-        )
-    return normalized == 'true'
 
 
 # ============================================================================
@@ -135,202 +122,6 @@ from scripts.research_pipeline.state_machine import TrackedUnit, ProcessingState
 from scripts.research_pipeline.models.llm_outputs import Tier1Output, Tier2Output, Tier3Output
 from scripts.research_pipeline.db.analysis_writer import save_tier1_results, save_tier2_results
 from scripts.research_pipeline.result_processor import parse_batch_result_tool_use
-
-
-# ============================================================================
-# BATCH RECOVERY
-# ============================================================================
-
-def resume_from_batch(
-    batch_id: str,
-    tier: int,
-    state: str,
-    continue_pipeline: bool = False,
-    max_tier: int = 3,
-    enable_web_search: bool = True,
-) -> dict:
-    """
-    Resume processing from an existing Anthropic batch.
-
-    Use this when a previous run's batch completed successfully but the DB save
-    failed (e.g., due to connection timeout).
-
-    This function reuses existing pipeline components:
-    1. parse_custom_id() to parse batch result IDs
-    2. process_tier_results() to parse and hydrate TrackedUnits
-    3. save_tier1_results() / save_tier2_results() to persist to database
-
-    Args:
-        batch_id: Anthropic batch ID (e.g., 'msgbatch_xxx')
-        tier: Which tier the batch was for (1, 2, or 3)
-        state: State code (e.g., 'nj', 'ny') for the recovered documents
-        continue_pipeline: If True, continue to next tier after saving
-        max_tier: Maximum tier to run (if continuing)
-        enable_web_search: Enable web search in Tier 3 (if continuing)
-
-    Returns:
-        Dict with:
-            - batch_status: Status from API
-            - total_results: Number of results in batch
-            - succeeded: Number of successfully parsed results
-            - failed: Number of failed results
-            - saved: Number of records saved to DB
-
-    Raises:
-        ValueError: If batch not found or not in 'ended' status
-    """
-    from datetime import datetime
-
-    # Import existing pipeline components
-    from scripts.research_pipeline.ids import parse_custom_id
-    from scripts.research_pipeline.state_machine import TrackedUnit, ProcessingState
-    from scripts.research_pipeline.models.matches import ProcessingUnit
-    from scripts.research_pipeline.result_processor import process_tier_results
-    from scripts.research_pipeline.db.analysis_writer import save_tier1_results, save_tier2_results
-
-    print(f"\n{'='*70}")
-    print(f"BATCH RECOVERY: Tier {tier}")
-    print(f"{'='*70}")
-    print(f"Batch ID: {batch_id}")
-
-    # Initialize BatchManager
-    manager = BatchManager()
-
-    # Check batch status
-    print("\nChecking batch status...")
-    status = manager.get_batch_status(batch_id)
-    print(f"  Status: {status['status']}")
-    print(f"  Succeeded: {status['succeeded']}")
-    print(f"  Errored: {status['errored']}")
-
-    if status['status'] != 'ended':
-        raise ValueError(
-            f"Batch is not complete (status: {status['status']}). "
-            f"Cannot recover from in-progress or failed batch."
-        )
-
-    if status['errored'] > 0:
-        print(f"  WARNING: {status['errored']} requests errored in this batch")
-
-    # Step 1: Build units dict from batch results
-    # We iterate results once to build TrackedUnits with the correct custom_id keys
-    print(f"\nBuilding units from batch results...")
-    units: dict[str, TrackedUnit] = {}
-    parse_errors = 0
-
-    for result in manager.get_batch_results(batch_id):
-        custom_id = result.custom_id
-        try:
-            issue_type, doc_id = parse_custom_id(custom_id)
-        except ValueError as e:
-            print(f"  Warning: {e}")
-            parse_errors += 1
-            continue
-
-        # Create minimal ProcessingUnit (required fields only)
-        # citation, title, content are empty - not used in save functions
-        # matches is empty - match_id linkage won't be preserved in recovery
-        pu = ProcessingUnit(
-            document_id=doc_id,
-            issue_type=issue_type,
-            citation="",
-            title="",
-            content="",
-            matches=[],
-            state=state,
-        )
-
-        # Create TrackedUnit in the expected pre-processing state
-        tracked = TrackedUnit(unit=pu)
-        if tier == 1:
-            tracked.state = ProcessingState.TIER1_SUBMITTED
-            tracked.tier1_batch_id = batch_id
-        elif tier == 2:
-            tracked.state = ProcessingState.TIER2_SUBMITTED
-            tracked.tier2_batch_id = batch_id
-        elif tier == 3:
-            tracked.state = ProcessingState.TIER3_PROCESSING
-            # Tier 3 doesn't use batch API normally, but we handle it for completeness
-
-        units[custom_id] = tracked
-
-    print(f"  Built {len(units)} units from batch")
-    if parse_errors:
-        print(f"  Parse errors: {parse_errors}")
-
-    # Step 2: Process results using existing function
-    # This will iterate results again (cached by API) and hydrate units with tier outputs
-    print(f"\nProcessing batch results...")
-    output_model = Tier1Output if tier == 1 else Tier2Output if tier == 2 else Tier3Output
-    succeeded, failed = process_tier_results(
-        batch_id=batch_id,
-        units=units,
-        manager=manager,
-        output_model=output_model,
-        tier=tier,
-        cost_tracker=None,  # Skip cost tracking for recovery
-        trace_context=None,  # Skip Langfuse logging for recovery
-    )
-
-    print(f"  Succeeded: {len(succeeded)}")
-    print(f"  Failed: {len(failed)}")
-
-    if failed:
-        print(f"\n  Failed units:")
-        for unit in failed[:10]:
-            print(f"    - {unit.issue_type}_{unit.document_id}: {unit.error_message}")
-        if len(failed) > 10:
-            print(f"    ... and {len(failed) - 10} more")
-
-    # Step 3: Save using existing functions
-    print(f"\nSaving to database...")
-
-    # Set timestamps that save functions expect
-    now = datetime.now()
-    for unit in succeeded:
-        if tier == 1:
-            unit.tier1_completed_at = now
-        elif tier == 2:
-            unit.tier2_completed_at = now
-        elif tier == 3:
-            unit.tier3_completed_at = now
-
-    conn = get_db_connection()
-    try:
-        if tier == 1:
-            saved = save_tier1_results(succeeded, conn)
-        elif tier == 2:
-            saved = save_tier2_results(succeeded, conn)
-        else:
-            # Tier 3 save would need save_tier3_results - not typically used in recovery
-            print(f"  Warning: Tier 3 recovery not implemented, skipping save")
-            saved = 0
-    finally:
-        conn.close()
-
-    print(f"  Saved {saved} records to database")
-
-    result_summary = {
-        'batch_status': status['status'],
-        'total_results': status['succeeded'] + status['errored'],
-        'succeeded': len(succeeded),
-        'failed': len(failed),
-        'saved': saved,
-    }
-
-    print(f"\n{'='*70}")
-    print(f"RECOVERY COMPLETE")
-    print(f"{'='*70}")
-    print(f"  Total results: {result_summary['total_results']}")
-    print(f"  Successfully parsed: {result_summary['succeeded']}")
-    print(f"  Failed to parse: {result_summary['failed']}")
-    print(f"  Saved to database: {result_summary['saved']}")
-
-    # TODO: If continue_pipeline is True, could continue to next tier
-    # This would require fetching documents from DB and running the next tier
-    # For now, just return the summary
-
-    return result_summary
 
 
 # ============================================================================
@@ -687,93 +478,6 @@ def _print_resume_simulation(simulation: dict, max_tier: int) -> None:
 
 
 # ============================================================================
-# BATCH PERSISTENCE HELPERS
-# ============================================================================
-
-def get_persistence() -> BatchPersistence:
-    """Get the BatchPersistence instance for the pipeline."""
-    batches_dir = Path(__file__).parent.parent.parent / ".pipeline_batches"
-    return BatchPersistence(base_dir=batches_dir)
-
-
-async def check_and_resume(
-    persistence: BatchPersistence,
-    state: str,
-    issue_types: list[str],
-    max_tier: int,
-    batch_manager: BatchManager,
-    title_filter: str | None = None,
-) -> tuple[Path, list[dict]] | None:
-    """
-    Check for existing runs and attempt to resume.
-
-    This function looks for an existing run with the same parameters that is
-    either IN_PROGRESS or FAILED. If found, it polls the Anthropic API for
-    any in-flight batches and returns the run directory and unit data.
-
-    Args:
-        persistence: BatchPersistence instance
-        state: State code ('nj', 'ny', or 'dangerously-run-all')
-        issue_types: List of issue types being processed
-        max_tier: Maximum tier to run (1-3)
-        batch_manager: BatchManager instance for API polling
-        title_filter: Optional title filter (e.g., '3A' for Title 3A)
-
-    Returns:
-        Tuple of (run_dir, unit_data) if resumable run found, None otherwise
-    """
-    run_dir = persistence.find_matching_run(state, issue_types, max_tier, title_filter)
-    if not run_dir:
-        return None
-
-    manifest = persistence.load_manifest(run_dir)
-    if not manifest:
-        return None
-
-    print(f"\n{'='*70}")
-    print("FOUND EXISTING RUN - CHECKING FOR RESUME")
-    print(f"{'='*70}")
-    print(f"Run directory: {run_dir.name}")
-    print(f"Status: {manifest.status.value}")
-    print(f"Current tier: {manifest.current_tier}")
-    print(f"Units: {manifest.units_completed}/{manifest.total_units} completed")
-    print()
-
-    # Check for in-flight batches
-    for tier in [1, 2]:
-        batch_info = persistence.load_batch_info(run_dir, tier)
-        if batch_info and batch_info.status in ("submitted", "in_progress"):
-            print(f"Checking Tier {tier} batch: {batch_info.batch_id}...")
-            try:
-                status = batch_manager.get_batch_status(batch_info.batch_id)
-
-                if status["status"] == "ended":
-                    print(f"  ✓ Batch completed! Ready to process results.")
-                    print(f"    Succeeded: {status.get('succeeded', 0)}, Errored: {status.get('errored', 0)}")
-                    persistence.update_batch_info(
-                        run_dir, tier,
-                        status="ended",
-                        succeeded=status.get("succeeded", 0),
-                        errored=status.get("errored", 0),
-                        expired=status.get("expired", 0),
-                    )
-                elif status["status"] == "in_progress":
-                    processing = status.get("processing", 0)
-                    succeeded = status.get("succeeded", 0)
-                    total = status.get("total", 0)
-                    print(f"  ⏳ Batch still running: {succeeded}/{total} completed ({processing} processing)")
-                    print("    Resume will poll for completion.")
-                else:
-                    print(f"  Status: {status['status']}")
-
-            except Exception as e:
-                print(f"  ⚠️  Could not check batch status: {e}")
-
-    print()
-    return run_dir, persistence.load_units(run_dir)
-
-
-# ============================================================================
 # PIPELINE EXECUTION
 # ============================================================================
 
@@ -1038,68 +742,14 @@ async def run_test(
     return results
 
 
-async def run_all_issues_sequential(
-    state: str | None,
-    title: str | None,
-    max_docs_per_issue: int | None,
-    max_tier: int,
-    realtime: bool,
-    dry_run: bool,
-    enable_web_search: bool = False,
-    force_rerun: bool = False,
-):
-    """Run pipeline for all issue types sequentially (one at a time)."""
-    issue_types = get_issue_types_for_scope(state, title)
-
-    print(f"\n{'='*70}")
-    print(f"RUNNING ALL ISSUE TYPES (SEQUENTIAL)")
-    print(f"{'='*70}")
-    print(f"State: {state if state else 'ALL STATES (dangerously-run-all)'}")
-    if title:
-        print(f"Title: {title}")
-    print(f"Issue types found: {len(issue_types)}")
-    print(f"Issue types: {', '.join(issue_types[:10])}{'...' if len(issue_types) > 10 else ''}")
-    print(f"Force rerun: {force_rerun}")
-    print()
-
-    if dry_run:
-        print(f"DRY RUN - showing issue type counts (target tier: {max_tier}):")
-        limit = max_docs_per_issue if max_docs_per_issue else 999999
-        for issue_type in issue_types:
-            units, analyses = fetch_documents_with_continuation(issue_type, max_tier, state, limit, title)
-            new_count = sum(1 for u in units if (u.document_id, issue_type) not in analyses)
-            resume_count = len(units) - new_count
-            print(f"  {issue_type}: {len(units)} docs ({new_count} new, {resume_count} resuming), {sum(len(u.matches) for u in units)} matches")
-        return
-
-    # Run each issue type sequentially
-    for i, issue_type in enumerate(issue_types, 1):
-        print(f"\n[{i}/{len(issue_types)}] Processing {issue_type}...")
-        try:
-            await run_test(
-                issue_type=issue_type,
-                max_docs_per_issue=max_docs_per_issue,
-                max_tier=max_tier,
-                state=state,
-                realtime=realtime,
-                title=title,
-                dry_run=False,
-                enable_web_search=enable_web_search,
-                force_rerun=force_rerun,
-            )
-        except Exception as e:
-            print(f"  ERROR: {e}")
-            continue
-
-
 async def run_batched_issues(
     state: str | None,
     title: str | None,
     max_docs_per_issue: int | None,
-    global_docs_limit: int | None,
     max_tier: int,
     realtime: bool,
     dry_run: bool,
+    global_docs_limit: int | None = None,
     enable_web_search: bool = False,
     force_rerun: bool = False,
 ):
@@ -1199,18 +849,16 @@ async def run_all_issues(
     state: str | None,
     title: str | None,
     max_docs_per_issue: int | None,
-    global_docs_limit: int | None,
     max_tier: int,
     realtime: bool,
     dry_run: bool,
-    sequential: bool = False,
+    global_docs_limit: int | None = None,
     enable_web_search: bool = False,
     force_rerun: bool = False,
 ):
     """Run pipeline for all issue types in scope.
 
-    By default, batches all issue types together per tier for faster processing.
-    Use sequential=True to process one issue type at a time (for debugging).
+    Batches all issue types together per tier for efficient processing.
 
     Args:
         state: State code ('NJ', 'NY', or None for all states)
@@ -1220,33 +868,20 @@ async def run_all_issues(
         max_tier: Maximum tier to run (1-3)
         realtime: Use realtime API instead of batch
         dry_run: Preview without API calls
-        sequential: Process issue types one at a time
         enable_web_search: Enable Tier 3 web search
         force_rerun: Re-analyze documents even if already processed
     """
-    if sequential:
-        await run_all_issues_sequential(
-            state=state,
-            title=title,
-            max_docs_per_issue=max_docs_per_issue,
-            max_tier=max_tier,
-            realtime=realtime,
-            dry_run=dry_run,
-            enable_web_search=enable_web_search,
-            force_rerun=force_rerun,
-        )
-    else:
-        await run_batched_issues(
-            state=state,
-            title=title,
-            max_docs_per_issue=max_docs_per_issue,
-            global_docs_limit=global_docs_limit,
-            max_tier=max_tier,
-            realtime=realtime,
-            dry_run=dry_run,
-            enable_web_search=enable_web_search,
-            force_rerun=force_rerun,
-        )
+    await run_batched_issues(
+        state=state,
+        title=title,
+        max_docs_per_issue=max_docs_per_issue,
+        global_docs_limit=global_docs_limit,
+        max_tier=max_tier,
+        realtime=realtime,
+        dry_run=dry_run,
+        enable_web_search=enable_web_search,
+        force_rerun=force_rerun,
+    )
 
 
 async def run_tier3_pending(
@@ -1327,75 +962,51 @@ if __name__ == "__main__":
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 REQUIRED FLAGS:
-  All of the following flags MUST be explicitly provided:
-
   --state                 State code: 'nj', 'ny', or 'dangerously-run-all'
-  --issue-type OR         Single issue type to analyze (e.g., 'mail_only', 'wet_signature')
-  --all-issues            Process all 43 issue types (mutually exclusive with --issue-type)
-  --max-docs-per-issue    Max documents per issue type: positive integer or 'all'
-  --global-docs-limit     Max total documents across all issues: positive integer or 'no-limit'
-  --max-tier              Maximum tier to run: 1 (filtering), 2 (classification), or 3 (web search)
-  --enable-web-search     Enable Tier 3 web search verification: 'true' or 'false'
+  --issue OR --all        Single issue type OR all 43 issue types (must choose one)
+
+COST-SAFE DEFAULTS:
+  By default, the pipeline runs in DRY-RUN mode (no API calls, no cost).
+  Use --execute to actually run the pipeline.
+
+  --limit                 Max docs per issue type (default: 1000)
+  --global-limit          Max total docs across all issues (default: 100)
+  --max-tier              1=filtering, 2=classification, 3=web search (default: 2)
+  --web-search            Enable Tier 3 web search (default: off)
 
 OPTIONAL FLAGS:
-  --realtime              Use realtime API for ALL tiers (faster but 2x cost, no batch discount)
+  --execute               Actually run the pipeline (default is dry-run)
+  --realtime              Use realtime API (faster but 2x cost)
   --title                 Filter by regulatory title (e.g., '7' for Title 7)
-  --dry-run               Show what would be processed without making API calls
-  --force-rerun           Re-analyze documents even if they already have analyses
-  --sequential            Process issue types one at a time (use with --all-issues)
+  --force-rerun           Re-analyze documents with existing analyses
 
-RESUME BEHAVIOR:
-  The pipeline automatically saves state to backend/.pipeline_batches/.
-  If a run is interrupted, rerunning with the same parameters will resume.
-  Use --force-rerun to ignore previous runs and start fresh.
+EXAMPLES:
+  # Preview what would run (default behavior)
+  python3 -m scripts.research_pipeline.cli --state nj --all
+
+  # Single issue type preview
+  python3 -m scripts.research_pipeline.cli --state nj --issue mail_only
+
+  # Actually run the pipeline
+  python3 -m scripts.research_pipeline.cli --state nj --issue mail_only --execute
+
+  # Run all issues with explicit limits
+  python3 -m scripts.research_pipeline.cli --state nj --all --execute --global-limit 500
+
+  # Full pipeline with Tier 3 web search
+  python3 -m scripts.research_pipeline.cli --state nj --all --execute --max-tier 3 --web-search
+
+  # Unlimited processing (must be explicit)
+  python3 -m scripts.research_pipeline.cli --state nj --all --execute --global-limit no-limit
 
 BATCH API TIMING:
-  By default, ALL tiers (1-3) use the Batch API for 50% cost savings.
+  By default, ALL tiers use the Batch API for 50% cost savings.
   The Batch API can take up to 24 hours (typical: 10-40 min for <200 requests).
   Use --realtime for immediate processing (2x cost, no wait).
 
-BATCH RECOVERY:
-  If a batch completes but the DB save fails (e.g., connection timeout),
-  you can recover the results using --resume-batch and --resume-tier:
-
-    python3 -m scripts.research_pipeline.cli \\
-      --state nj --all-issues \\
-      --max-docs-per-issue all --global-docs-limit no-limit \\
-      --max-tier 3 --enable-web-search true \\
-      --resume-batch msgbatch_xxx --resume-tier 1
-
-  This will:
-  1. Fetch results from the existing Anthropic batch
-  2. Parse the LLM outputs
-  3. Save to the database
-  4. Exit (does not continue to next tier)
-
-  After recovery, rerun the normal pipeline to continue to the next tier.
-
-EXAMPLES:
-  # Single issue type, 10 docs, Tier 2
-  python3 -m scripts.research_pipeline.cli \\
-    --state nj --issue-type mail_only \\
-    --max-docs-per-issue 10 --global-docs-limit no-limit \\
-    --max-tier 2 --enable-web-search false
-
-  # All issues with global limit and web search
-  python3 -m scripts.research_pipeline.cli \\
-    --state ny --all-issues \\
-    --max-docs-per-issue 50 --global-docs-limit 500 \\
-    --max-tier 3 --enable-web-search true
-
-  # Force re-run existing analyses
-  python3 -m scripts.research_pipeline.cli \\
-    --state nj --issue-type wet_signature \\
-    --max-docs-per-issue all --global-docs-limit no-limit \\
-    --max-tier 2 --enable-web-search false --force-rerun
-
-  # All states (for migration/backfill)
-  python3 -m scripts.research_pipeline.cli \\
-    --state dangerously-run-all --all-issues \\
-    --max-docs-per-issue all --global-docs-limit no-limit \\
-    --max-tier 2 --enable-web-search false
+RESUME BEHAVIOR:
+  The pipeline automatically resumes interrupted runs.
+  Use --force-rerun to ignore previous runs and start fresh.
 """
     )
 
@@ -1407,50 +1018,60 @@ EXAMPLES:
         help="State code: 'nj', 'ny', or 'dangerously-run-all' (skip state filtering)"
     )
 
+    # === ISSUE TYPE SELECTION (required) ===
+    # Must explicitly choose what to process - no implicit "run everything"
     issue_group = parser.add_mutually_exclusive_group(required=True)
     issue_group.add_argument(
-        "--issue-type",
-        help="Single issue type to process (e.g., 'mail_only', 'wet_signature', 'notarization')"
+        "--issue",
+        dest="issue_type",
+        help="Single issue type to process (e.g., 'mail_only', 'wet_signature')"
     )
     issue_group.add_argument(
-        "--all-issues",
+        "--all",
+        dest="all_issues",
         action="store_true",
-        help="Run all 43 issue types in scope (batched together per tier)"
+        help="Run all 43 issue types in scope (batched together per tier). Must be explicit."
     )
 
     parser.add_argument(
-        "--max-docs-per-issue",
+        "--limit",
+        dest="max_docs",
         type=positive_int_or_all,
-        required=True,
+        default=1000,
         metavar="N|all",
-        help="Max documents per issue type: positive integer or 'all' for no limit"
+        help="Max documents per issue type (default: 1000)"
     )
 
     parser.add_argument(
-        "--global-docs-limit",
+        "--global-limit",
+        dest="global_docs_limit",
         type=positive_int_or_no_limit,
-        required=True,
+        default=100,
         metavar="N|no-limit",
-        help="Max total documents across all issue types: positive integer or 'no-limit'"
+        help="Max total documents across all issue types (default: 100)"
     )
 
     parser.add_argument(
         "--max-tier",
         type=int,
         choices=[1, 2, 3],
-        required=True,
-        help="Maximum tier to run: 1=filtering, 2=classification, 3=web search"
+        default=2,
+        help="Maximum tier: 1=filter, 2=classify, 3=web search (default: 2)"
     )
 
     parser.add_argument(
-        "--enable-web-search",
-        type=explicit_bool,
-        required=True,
-        metavar="true|false",
-        help="Enable Tier 3 web search verification: 'true' or 'false'"
+        "--web-search",
+        dest="enable_web_search",
+        action="store_true",
+        help="Enable Tier 3 web search verification"
     )
 
     # === OPTIONAL FLAGS ===
+    parser.add_argument(
+        "--execute",
+        action="store_true",
+        help="Actually run the pipeline (default is dry-run mode which previews without API calls or DB writes)"
+    )
     parser.add_argument(
         "--realtime",
         action="store_true",
@@ -1463,35 +1084,9 @@ EXAMPLES:
              "Useful for processing the corpus incrementally by title."
     )
     parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Show what would be processed without making API calls or DB writes"
-    )
-    parser.add_argument(
         "--force-rerun",
         action="store_true",
         help="Re-analyze all matching documents regardless of existing analyses (upserts to DB)"
-    )
-    parser.add_argument(
-        "--sequential",
-        action="store_true",
-        help="Process issue types one at a time (for debugging, use with --all-issues)"
-    )
-
-    # === BATCH RECOVERY FLAGS ===
-    parser.add_argument(
-        "--resume-batch",
-        metavar="BATCH_ID",
-        help="Resume from an existing Anthropic batch ID (e.g., 'msgbatch_xxx'). "
-             "Use this when a previous run's batch completed but DB save failed. "
-             "Must be used with --resume-tier to specify which tier the batch was for."
-    )
-    parser.add_argument(
-        "--resume-tier",
-        type=int,
-        choices=[1, 2, 3],
-        help="Which tier the --resume-batch was for: 1=filtering, 2=classification, 3=web search. "
-             "Required when using --resume-batch."
     )
 
     args = parser.parse_args()
@@ -1501,49 +1096,18 @@ EXAMPLES:
     # Otherwise, uppercase for DB compatibility
     state_for_db = None if args.state == 'dangerously-run-all' else args.state.upper()
 
-    # Convert max_docs_per_issue to int or None
+    # Convert max_docs to int or None
     # 'all' means no limit (use a very large number)
-    max_docs = None if args.max_docs_per_issue == 'all' else args.max_docs_per_issue
+    max_docs = None if args.max_docs == 'all' else args.max_docs
 
     # Convert global_docs_limit to int or None
     # 'no-limit' means no global limit
     global_limit = None if args.global_docs_limit == 'no-limit' else args.global_docs_limit
 
-    # === BATCH RECOVERY MODE ===
-    # If --resume-batch is specified, run batch recovery instead of normal pipeline
-    if args.resume_batch:
-        # Validate that --resume-tier is also provided
-        if not args.resume_tier:
-            parser.error("--resume-batch requires --resume-tier to specify which tier the batch was for")
-
-        print(f"\n*** BATCH RECOVERY MODE ***")
-        print(f"Resuming from batch: {args.resume_batch}")
-        print(f"Tier: {args.resume_tier}")
-
-        try:
-            result = resume_from_batch(
-                batch_id=args.resume_batch,
-                tier=args.resume_tier,
-                state=args.state.upper(),  # State for DB (uppercase, e.g., 'NJ')
-                continue_pipeline=False,  # Continuation handled by falling through to normal pipeline
-                max_tier=args.max_tier,
-                enable_web_search=args.enable_web_search,
-            )
-
-            # If recovery had failures, exit
-            if result['failed'] > 0:
-                print(f"\nRecovery had {result['failed']} parse failures, not continuing pipeline")
-                sys.exit(1)
-
-            # Success - fall through to normal pipeline execution
-            # The pipeline will pick up Tier 2/3 pending documents from DB
-            print(f"\nBatch recovery successful! Continuing pipeline to max-tier {args.max_tier}...")
-
-        except Exception as e:
-            print(f"\nBatch recovery failed: {e}")
-            sys.exit(1)
-
     # === NORMAL PIPELINE MODE ===
+    # Dry-run by default; --execute opts into real execution
+    dry_run = not args.execute
+
     if args.all_issues:
         asyncio.run(run_all_issues(
             state=state_for_db,
@@ -1552,8 +1116,7 @@ EXAMPLES:
             global_docs_limit=global_limit,
             max_tier=args.max_tier,
             realtime=args.realtime,
-            dry_run=args.dry_run,
-            sequential=args.sequential,
+            dry_run=dry_run,
             enable_web_search=args.enable_web_search,
             force_rerun=args.force_rerun,
         ))
@@ -1565,7 +1128,7 @@ EXAMPLES:
             state=state_for_db,
             realtime=args.realtime,
             title=args.title,
-            dry_run=args.dry_run,
+            dry_run=dry_run,
             enable_web_search=args.enable_web_search,
             force_rerun=args.force_rerun,
         ))
