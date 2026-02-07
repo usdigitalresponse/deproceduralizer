@@ -1467,22 +1467,22 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
     // Get compliance issue counts (only LLM-confirmed issues where requirement_found = TRUE)
     const complianceStats = await this.db.execute(sql`
       SELECT
-        COUNT(*)::int as "total",
-        COUNT(CASE WHEN ci.review_status = 'unreviewed' OR ci.review_status IS NULL THEN 1 END)::int as "unreviewed"
-      FROM compliance_issues ci
-      WHERE ci.requirement_found = TRUE
-      ${state ? sql`AND ci.state = ${state.toUpperCase()}` : sql``}
+        COUNT(DISTINCT cia.id)::int as "total",
+        COUNT(DISTINCT CASE WHEN cia.review_status = 'unreviewed' OR cia.review_status IS NULL THEN cia.id END)::int as "unreviewed"
+      FROM compliance_issue_analyses cia
+      WHERE cia.requirement_found = TRUE
+      ${state ? sql`AND cia.state = ${state.toUpperCase()}` : sql``}
     `);
 
     // Get compliance issues by type (only LLM-confirmed issues)
     const complianceByType = await this.db.execute(sql`
       SELECT
-        ci.issue_type as "issueType",
+        cia.issue_type as "issueType",
         COUNT(*)::int as "count"
-      FROM compliance_issues ci
-      WHERE ci.requirement_found = TRUE
-      ${state ? sql`AND ci.state = ${state.toUpperCase()}` : sql``}
-      GROUP BY ci.issue_type
+      FROM compliance_issue_analyses cia
+      WHERE cia.requirement_found = TRUE
+      ${state ? sql`AND cia.state = ${state.toUpperCase()}` : sql``}
+      GROUP BY cia.issue_type
     `);
 
     const docRow = docStats.rows[0] as {
