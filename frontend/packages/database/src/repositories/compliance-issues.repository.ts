@@ -17,6 +17,37 @@ import { ReviewStatus, ImpactType, DeveloperStatus, ResolutionType, Developer } 
 import { StateCode } from '../schema/constants';
 import { DeveloperStatusCounts } from './red-flags.repository';
 
+/**
+ * ComplianceIssue with analysis-sourced fields joined from compliance_issue_analyses.
+ * Used by getByDocumentId which needs to return these fields for UI rendering.
+ * PR 6.3: review/developer fields now also come from analyses.
+ */
+export interface ComplianceIssueWithAnalysisFields extends ComplianceIssue {
+  requirementFound: boolean | null;
+  verbatimSupportingText: string[] | null;
+  isVerbatim: boolean | null;
+  requiredByStatute: boolean | null;
+  statuteCitation: string | null;
+  decisionRationale: string | null;
+  // Review fields (from analyses, aliased for frontend compat)
+  severity: number | null;
+  originalSeverity: number | null;
+  reviewStatus: string | null;
+  reviewedBy: string | null;
+  reviewedAt: Date | null;
+  justificationNotes: string | null;
+  teamNotes: string | null;
+  impactType: string | null;
+  // Developer fields (from analyses)
+  developerStatus: string | null;
+  developerAssigned: string | null;
+  developerNotes: string | null;
+  resolutionType: string | null;
+  resolutionComments: string | null;
+  developerQuestion: string | null;
+  developerCheckedAt: Date | null;
+}
+
 export interface UpdateComplianceIssueReviewInput {
   reviewStatus: ReviewStatus;
   reviewedBy?: string;
@@ -36,6 +67,31 @@ export interface UpdateComplianceIssueDeveloperInput {
 }
 
 export interface ComplianceIssueWithContext extends ComplianceIssue {
+  // Analysis-sourced fields (PR 6.2: moved from compliance_issues to compliance_issue_analyses)
+  requirementFound: boolean | null;
+  verbatimSupportingText: string[] | null;
+  isVerbatim: boolean | null;
+  requiredByStatute: boolean | null;
+  statuteCitation: string | null;
+  decisionRationale: string | null;
+  // Review fields (PR 6.3: moved to analyses, aliased for frontend compat)
+  severity: number | null;
+  originalSeverity: number | null;
+  reviewStatus: string | null;
+  reviewedBy: string | null;
+  reviewedAt: Date | null;
+  justificationNotes: string | null;
+  teamNotes: string | null;
+  impactType: string | null;
+  // Developer fields (PR 6.3: moved to analyses)
+  developerStatus: string | null;
+  developerAssigned: string | null;
+  developerNotes: string | null;
+  resolutionType: string | null;
+  resolutionComments: string | null;
+  developerQuestion: string | null;
+  developerCheckedAt: Date | null;
+
   regulation: {
     id: number;
     title: string | null;
@@ -273,12 +329,90 @@ export class ComplianceIssuesRepository extends BaseRepository {
     return result[0];
   }
 
-  async getByDocumentId(documentId: number): Promise<ComplianceIssue[]> {
-    return this.db
-      .select()
+  /**
+   * Find the analysis row corresponding to a compliance issue.
+   * PR 6.5: Reads analysis_id FK directly; falls back to composite lookup for NULL analysis_id.
+   * PR 6.3: Used by mutations that accept compliance_issues.id but now update analyses.
+   */
+  private async findAnalysisForIssue(issueId: number): Promise<{ analysisId: number; documentId: number; issueType: string } | null> {
+    const issue = await this.getById(issueId);
+    if (!issue) return null;
+
+    // PR 6.5: Direct FK read when analysis_id is populated
+    if (issue.analysisId) {
+      return { analysisId: issue.analysisId, documentId: issue.documentId, issueType: issue.issueType };
+    }
+
+    // Fallback: composite lookup for rows where analysis_id is still NULL
+    const [analysis] = await this.db
+      .select({ id: complianceIssueAnalyses.id })
+      .from(complianceIssueAnalyses)
+      .where(and(
+        eq(complianceIssueAnalyses.documentId, issue.documentId),
+        eq(complianceIssueAnalyses.issueType, issue.issueType)
+      ))
+      .limit(1);
+
+    if (!analysis) return null;
+    return { analysisId: analysis.id, documentId: issue.documentId, issueType: issue.issueType };
+  }
+
+  async getByDocumentId(documentId: number): Promise<ComplianceIssueWithAnalysisFields[]> {
+    const results = await this.db
+      .select({
+        id: complianceIssues.id,
+        documentId: complianceIssues.documentId,
+        issueType: complianceIssues.issueType,
+        occurrenceNumber: complianceIssues.occurrenceNumber,
+        url: complianceIssues.url,
+        regexMatchPattern: complianceIssues.regexMatchPattern,
+        regexMatchContext: complianceIssues.regexMatchContext,
+        state: complianceIssues.state,
+        createdAt: complianceIssues.createdAt,
+        analysisId: complianceIssues.analysisId,
+        // Analysis-sourced fields (PR 6.2)
+        requirementFound: complianceIssueAnalyses.requirementFound,
+        verbatimSupportingText: complianceIssueAnalyses.verbatimRequirements,
+        isVerbatim: complianceIssueAnalyses.isVerbatim,
+        requiredByStatute: complianceIssueAnalyses.citesFederalStatute,
+        statuteCitation: complianceIssueAnalyses.federalCitation,
+        decisionRationale: complianceIssueAnalyses.tier1Reasoning,
+        // Review/developer fields (PR 6.3: from analyses)
+        severity: complianceIssueAnalyses.reviewerSeverity,
+        originalSeverity: complianceIssueAnalyses.reviewerOriginalSeverity,
+        reviewStatus: complianceIssueAnalyses.reviewStatus,
+        reviewedBy: complianceIssueAnalyses.reviewedBy,
+        reviewedAt: complianceIssueAnalyses.reviewedAt,
+        justificationNotes: complianceIssueAnalyses.justificationNotes,
+        teamNotes: complianceIssueAnalyses.teamNotes,
+        impactType: complianceIssueAnalyses.impactType,
+        developerStatus: complianceIssueAnalyses.developerStatus,
+        developerAssigned: complianceIssueAnalyses.developerAssigned,
+        developerNotes: complianceIssueAnalyses.developerNotes,
+        resolutionType: complianceIssueAnalyses.resolutionType,
+        resolutionComments: complianceIssueAnalyses.resolutionComments,
+        developerQuestion: complianceIssueAnalyses.developerQuestion,
+        developerCheckedAt: complianceIssueAnalyses.developerCheckedAt,
+      })
       .from(complianceIssues)
+      .leftJoin(
+        complianceIssueAnalyses,
+        eq(complianceIssues.analysisId, complianceIssueAnalyses.id)
+      )
       .where(eq(complianceIssues.documentId, documentId))
       .orderBy(asc(complianceIssues.issueType));
+
+    return results.map(row => ({
+      ...row,
+      id: Number(row.id),
+      documentId: Number(row.documentId),
+      requirementFound: row.requirementFound ?? false,
+      verbatimSupportingText: row.verbatimSupportingText ?? [],
+      isVerbatim: row.isVerbatim ?? null,
+      requiredByStatute: row.requiredByStatute ?? false,
+      statuteCitation: row.statuteCitation ?? null,
+      decisionRationale: row.decisionRationale ?? null,
+    }));
   }
 
   /**
@@ -298,13 +432,23 @@ export class ComplianceIssuesRepository extends BaseRepository {
       .orderBy(asc(complianceIssues.occurrenceNumber));
   }
 
-  async updateReview(id: number, data: UpdateComplianceIssueReviewInput): Promise<ComplianceIssue | undefined> {
-    // Get current record to check if we need to preserve original severity
-    const current = await this.getById(id);
-    if (!current) return undefined;
+  async updateReview(id: number, data: UpdateComplianceIssueReviewInput): Promise<ComplianceIssueWithAnalysisFields | undefined> {
+    // PR 6.3: Review fields now live on compliance_issue_analyses
+    const analysisInfo = await this.findAnalysisForIssue(id);
+    if (!analysisInfo) return undefined;
 
-    // Build update data
-    const updateData: Partial<ComplianceIssue> = {
+    // Get current analysis to check if we need to preserve original severity
+    const [currentAnalysis] = await this.db
+      .select({
+        reviewerSeverity: complianceIssueAnalyses.reviewerSeverity,
+        reviewerOriginalSeverity: complianceIssueAnalyses.reviewerOriginalSeverity,
+      })
+      .from(complianceIssueAnalyses)
+      .where(eq(complianceIssueAnalyses.id, analysisInfo.analysisId))
+      .limit(1);
+
+    // Build update data for the analysis row
+    const updateData: Record<string, unknown> = {
       reviewStatus: data.reviewStatus,
       reviewedBy: data.reviewedBy ?? null,
       reviewedAt: new Date(),
@@ -314,22 +458,23 @@ export class ComplianceIssuesRepository extends BaseRepository {
     };
 
     // If reviewer is changing severity and original hasn't been preserved yet, save it
-    if (data.severity !== undefined && current.originalSeverity === null && current.severity !== null) {
-      updateData.originalSeverity = current.severity;
+    if (data.severity !== undefined && currentAnalysis?.reviewerOriginalSeverity === null && currentAnalysis?.reviewerSeverity !== null) {
+      updateData.reviewerOriginalSeverity = currentAnalysis.reviewerSeverity;
     }
 
     // Update severity if provided
     if (data.severity !== undefined) {
-      updateData.severity = data.severity;
+      updateData.reviewerSeverity = data.severity;
     }
 
-    const result = await this.db
-      .update(complianceIssues)
+    await this.db
+      .update(complianceIssueAnalyses)
       .set(updateData)
-      .where(eq(complianceIssues.id, id))
-      .returning();
+      .where(eq(complianceIssueAnalyses.id, analysisInfo.analysisId));
 
-    return result[0];
+    // Return via getByDocumentId to get the full shape with aliased fields
+    const issues = await this.getByDocumentId(analysisInfo.documentId);
+    return issues.find(i => i.id === id);
   }
 
   /**
@@ -346,17 +491,18 @@ export class ComplianceIssuesRepository extends BaseRepository {
   }
 
   /**
-   * Get counts by review status for progress display
+   * Get counts by review status for progress display.
+   * PR 6.3: Counts analysis rows (one per document+issue_type) instead of match rows.
    */
   async getCountsByStatus(state: StateCode): Promise<ComplianceIssueStatusCounts> {
     const result = await this.db
       .select({
-        status: complianceIssues.reviewStatus,
+        status: complianceIssueAnalyses.reviewStatus,
         count: sql<number>`count(*)::int`,
       })
-      .from(complianceIssues)
-      .where(eq(complianceIssues.state, state.toUpperCase()))
-      .groupBy(complianceIssues.reviewStatus);
+      .from(complianceIssueAnalyses)
+      .where(eq(complianceIssueAnalyses.state, state.toUpperCase()))
+      .groupBy(complianceIssueAnalyses.reviewStatus);
 
     // Initialize counts with zeros
     const counts: ComplianceIssueStatusCounts = {
@@ -416,15 +562,18 @@ export class ComplianceIssuesRepository extends BaseRepository {
       .from(complianceIssues)
       .where(conditions.length > 0 ? and(...conditions) : undefined);
 
-    // Get unreviewed count
+    // Get unreviewed count (PR 6.3: review status now on analyses)
+    const unreviewedConditions = state
+      ? [eq(complianceIssueAnalyses.state, state.toUpperCase())]
+      : [];
     const [unreviewedResult] = await this.db
       .select({ count: sql<number>`count(*)::int` })
-      .from(complianceIssues)
+      .from(complianceIssueAnalyses)
       .where(and(
-        ...(conditions.length > 0 ? conditions : []),
+        ...(unreviewedConditions.length > 0 ? unreviewedConditions : []),
         or(
-          eq(complianceIssues.reviewStatus, 'unreviewed'),
-          isNull(complianceIssues.reviewStatus)
+          eq(complianceIssueAnalyses.reviewStatus, 'unreviewed'),
+          isNull(complianceIssueAnalyses.reviewStatus)
         )
       ));
 
@@ -465,17 +614,17 @@ export class ComplianceIssuesRepository extends BaseRepository {
     ];
 
     if (filters) {
-      // Status filter
+      // Status filter — PR 6.3: reads from analyses
       if (filters.status && filters.status !== 'all') {
         if (filters.status === 'unreviewed') {
           conditions.push(
             or(
-              eq(complianceIssues.reviewStatus, 'unreviewed'),
-              isNull(complianceIssues.reviewStatus)
+              eq(complianceIssueAnalyses.reviewStatus, 'unreviewed'),
+              isNull(complianceIssueAnalyses.reviewStatus)
             )!
           );
         } else {
-          conditions.push(eq(complianceIssues.reviewStatus, filters.status));
+          conditions.push(eq(complianceIssueAnalyses.reviewStatus, filters.status));
         }
       }
 
@@ -484,25 +633,25 @@ export class ComplianceIssuesRepository extends BaseRepository {
         conditions.push(eq(complianceIssues.issueType, filters.issueType));
       }
 
-      // Severity filter (high=7-10, medium=4-6, low=1-3)
+      // Severity filter (high=7-10, medium=4-6, low=1-3) — reads from analyses
       if (filters.severity && filters.severity !== 'all') {
         if (filters.severity === 'high') {
-          conditions.push(gte(complianceIssues.severity, 7));
+          conditions.push(gte(complianceIssueAnalyses.finalSeverity, 7));
         } else if (filters.severity === 'medium') {
-          conditions.push(and(gte(complianceIssues.severity, 4), lt(complianceIssues.severity, 7))!);
+          conditions.push(and(gte(complianceIssueAnalyses.finalSeverity, 4), lt(complianceIssueAnalyses.finalSeverity, 7))!);
         } else if (filters.severity === 'low') {
-          conditions.push(lt(complianceIssues.severity, 4));
+          conditions.push(lt(complianceIssueAnalyses.finalSeverity, 4));
         }
       }
 
-      // Required by statute filter
+      // Required by statute filter — reads from analyses
       if (filters.requiredByStatute !== undefined && filters.requiredByStatute !== 'all') {
-        conditions.push(eq(complianceIssues.requiredByStatute, filters.requiredByStatute));
+        conditions.push(eq(complianceIssueAnalyses.citesFederalStatute, filters.requiredByStatute));
       }
 
-      // Requirement found filter (LLM confirmation)
+      // Requirement found filter (LLM confirmation) — reads from analyses
       if (filters.requirementFound !== undefined && filters.requirementFound !== 'all') {
-        conditions.push(eq(complianceIssues.requirementFound, filters.requirementFound));
+        conditions.push(eq(complianceIssueAnalyses.requirementFound, filters.requirementFound));
       }
 
       // Tier completed filter (research pipeline)
@@ -540,20 +689,17 @@ export class ComplianceIssuesRepository extends BaseRepository {
       .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
       .leftJoin(
         complianceIssueAnalyses,
-        and(
-          eq(complianceIssues.documentId, complianceIssueAnalyses.documentId),
-          eq(complianceIssues.issueType, complianceIssueAnalyses.issueType)
-        )
+        eq(complianceIssues.analysisId, complianceIssueAnalyses.id)
       )
       .where(whereClause);
 
-    // Build sort column
+    // Build sort column — severity and review fields now come from analyses
     const sortColumn = {
       issueType: complianceIssues.issueType,
       createdAt: complianceIssues.createdAt,
-      reviewedAt: complianceIssues.reviewedAt,
-      severity: complianceIssues.severity,
-      developerCheckedAt: complianceIssues.developerCheckedAt,
+      reviewedAt: complianceIssueAnalyses.reviewedAt,
+      severity: complianceIssueAnalyses.finalSeverity,
+      developerCheckedAt: complianceIssueAnalyses.developerCheckedAt,
     }[sortBy] ?? complianceIssues.createdAt;
 
     const primarySort = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
@@ -566,42 +712,35 @@ export class ComplianceIssuesRepository extends BaseRepository {
         id: complianceIssues.id,
         documentId: complianceIssues.documentId,
         issueType: complianceIssues.issueType,
-        // Old columns (backwards compatibility)
-        matchedPattern: complianceIssues.matchedPattern,
-        matchedContext: complianceIssues.matchedContext,
-        // New columns (research pipeline)
         regexMatchPattern: complianceIssues.regexMatchPattern,
         regexMatchContext: complianceIssues.regexMatchContext,
         url: complianceIssues.url,
-        requirementFound: complianceIssues.requirementFound,
-        // Old column (backwards compatibility)
-        requirementText: complianceIssues.requirementText,
-        // New column (research pipeline)
-        verbatimSupportingText: complianceIssues.verbatimSupportingText,
-        isVerbatim: complianceIssues.isVerbatim,
-        requiredByStatute: complianceIssues.requiredByStatute,
-        severity: complianceIssues.severity,
+        analysisId: complianceIssues.analysisId,
+        // Analysis fields — sourced from compliance_issue_analyses (PR 6.2)
+        requirementFound: complianceIssueAnalyses.requirementFound,
+        verbatimSupportingText: complianceIssueAnalyses.verbatimRequirements,
+        isVerbatim: complianceIssueAnalyses.isVerbatim,
+        requiredByStatute: complianceIssueAnalyses.citesFederalStatute,
+        severity: complianceIssueAnalyses.reviewerSeverity,
         occurrenceNumber: complianceIssues.occurrenceNumber,
-        statuteCitation: complianceIssues.statuteCitation,
-        // Old column (backwards compatibility)
-        impactAssessment: complianceIssues.impactAssessment,
-        // New column (research pipeline)
-        decisionRationale: complianceIssues.decisionRationale,
-        reviewStatus: complianceIssues.reviewStatus,
-        reviewedBy: complianceIssues.reviewedBy,
-        reviewedAt: complianceIssues.reviewedAt,
-        justificationNotes: complianceIssues.justificationNotes,
-        teamNotes: complianceIssues.teamNotes,
-        originalSeverity: complianceIssues.originalSeverity,
-        impactType: complianceIssues.impactType,
-        // Developer fields
-        developerStatus: complianceIssues.developerStatus,
-        developerAssigned: complianceIssues.developerAssigned,
-        developerNotes: complianceIssues.developerNotes,
-        resolutionType: complianceIssues.resolutionType,
-        resolutionComments: complianceIssues.resolutionComments,
-        developerQuestion: complianceIssues.developerQuestion,
-        developerCheckedAt: complianceIssues.developerCheckedAt,
+        statuteCitation: complianceIssueAnalyses.federalCitation,
+        decisionRationale: complianceIssueAnalyses.tier1Reasoning,
+        // Review fields — PR 6.3: from analyses
+        reviewStatus: complianceIssueAnalyses.reviewStatus,
+        reviewedBy: complianceIssueAnalyses.reviewedBy,
+        reviewedAt: complianceIssueAnalyses.reviewedAt,
+        justificationNotes: complianceIssueAnalyses.justificationNotes,
+        teamNotes: complianceIssueAnalyses.teamNotes,
+        originalSeverity: complianceIssueAnalyses.reviewerOriginalSeverity,
+        impactType: complianceIssueAnalyses.impactType,
+        // Developer fields — PR 6.3: from analyses
+        developerStatus: complianceIssueAnalyses.developerStatus,
+        developerAssigned: complianceIssueAnalyses.developerAssigned,
+        developerNotes: complianceIssueAnalyses.developerNotes,
+        resolutionType: complianceIssueAnalyses.resolutionType,
+        resolutionComments: complianceIssueAnalyses.resolutionComments,
+        developerQuestion: complianceIssueAnalyses.developerQuestion,
+        developerCheckedAt: complianceIssueAnalyses.developerCheckedAt,
         state: complianceIssues.state,
         createdAt: complianceIssues.createdAt,
         // Regulation context
@@ -640,10 +779,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
       .leftJoin(
         complianceIssueAnalyses,
-        and(
-          eq(complianceIssues.documentId, complianceIssueAnalyses.documentId),
-          eq(complianceIssues.issueType, complianceIssueAnalyses.issueType)
-        )
+        eq(complianceIssues.analysisId, complianceIssueAnalyses.id)
       )
       .where(whereClause)
       .orderBy(primarySort, secondarySort)
@@ -655,26 +791,17 @@ export class ComplianceIssuesRepository extends BaseRepository {
       id: Number(row.id),
       documentId: Number(row.documentId),
       issueType: row.issueType,
-      // Old columns (backwards compatibility)
-      matchedPattern: row.matchedPattern,
-      matchedContext: row.matchedContext,
-      // New columns (research pipeline)
       regexMatchPattern: row.regexMatchPattern,
       regexMatchContext: row.regexMatchContext,
       url: row.url,
+      analysisId: row.analysisId ?? null,
       requirementFound: row.requirementFound,
-      // Old column (backwards compatibility)
-      requirementText: row.requirementText,
-      // New column (research pipeline)
       verbatimSupportingText: row.verbatimSupportingText,
       isVerbatim: row.isVerbatim,
       requiredByStatute: row.requiredByStatute,
       severity: row.severity,
       occurrenceNumber: row.occurrenceNumber,
       statuteCitation: row.statuteCitation,
-      // Old column (backwards compatibility)
-      impactAssessment: row.impactAssessment,
-      // New column (research pipeline)
       decisionRationale: row.decisionRationale,
       reviewStatus: row.reviewStatus,
       reviewedBy: row.reviewedBy,
@@ -738,11 +865,15 @@ export class ComplianceIssuesRepository extends BaseRepository {
   }
 
   /**
-   * Update developer tracking fields for a compliance issue
+   * Update developer tracking fields for a compliance issue.
+   * PR 6.3: Developer fields now live on compliance_issue_analyses.
    */
-  async updateDeveloperStatus(id: number, data: UpdateComplianceIssueDeveloperInput): Promise<ComplianceIssue | undefined> {
-    const result = await this.db
-      .update(complianceIssues)
+  async updateDeveloperStatus(id: number, data: UpdateComplianceIssueDeveloperInput): Promise<ComplianceIssueWithAnalysisFields | undefined> {
+    const analysisInfo = await this.findAnalysisForIssue(id);
+    if (!analysisInfo) return undefined;
+
+    await this.db
+      .update(complianceIssueAnalyses)
       .set({
         developerStatus: data.developerStatus,
         developerAssigned: data.developerAssigned,
@@ -752,28 +883,30 @@ export class ComplianceIssuesRepository extends BaseRepository {
         developerQuestion: data.developerQuestion ?? null,
         developerCheckedAt: new Date(),
       })
-      .where(eq(complianceIssues.id, id))
-      .returning();
+      .where(eq(complianceIssueAnalyses.id, analysisInfo.analysisId));
 
-    return result[0];
+    // Return via getByDocumentId to get the full shape with aliased fields
+    const issues = await this.getByDocumentId(analysisInfo.documentId);
+    return issues.find(i => i.id === id);
   }
 
   /**
-   * Get counts by developer status for progress display
+   * Get counts by developer status for progress display.
+   * PR 6.3: Counts analysis rows (one per document+issue_type) instead of match rows.
    */
   async getDeveloperStatusCounts(state: StateCode): Promise<DeveloperStatusCounts> {
     const result = await this.db
       .select({
-        status: complianceIssues.developerStatus,
+        status: complianceIssueAnalyses.developerStatus,
         count: sql<number>`count(*)::int`,
       })
-      .from(complianceIssues)
+      .from(complianceIssueAnalyses)
       .where(and(
-        eq(complianceIssues.state, state.toUpperCase()),
+        eq(complianceIssueAnalyses.state, state.toUpperCase()),
         // Only count reviewed items
-        ne(complianceIssues.reviewStatus, 'unreviewed')
+        ne(complianceIssueAnalyses.reviewStatus, 'unreviewed')
       ))
-      .groupBy(complianceIssues.developerStatus);
+      .groupBy(complianceIssueAnalyses.developerStatus);
 
     // Initialize counts with zeros
     const counts: DeveloperStatusCounts = {
@@ -798,7 +931,8 @@ export class ComplianceIssuesRepository extends BaseRepository {
   }
 
   /**
-   * Get paginated reviewed compliance issues for developer mode
+   * Get paginated reviewed compliance issues for developer mode.
+   * PR 6.3: Review/developer filters and fields now come from analyses.
    */
   async getReviewedPaginated(
     options: ComplianceIssuePaginationOptions & {
@@ -809,26 +943,26 @@ export class ComplianceIssuesRepository extends BaseRepository {
     const { state, page, pageSize, sortBy = 'createdAt', sortOrder = 'desc', filters, developerStatus, developerAssigned } = options;
     const offset = (page - 1) * pageSize;
 
-    // Build where conditions - only reviewed items
+    // Build where conditions - only reviewed items (from analyses)
     const conditions: ReturnType<typeof eq>[] = [
       eq(complianceIssues.state, state.toUpperCase()),
-      ne(complianceIssues.reviewStatus, 'unreviewed'),
+      ne(complianceIssueAnalyses.reviewStatus, 'unreviewed'),
     ];
 
-    // Developer status filter
+    // Developer status filter (from analyses)
     if (developerStatus && developerStatus !== 'all') {
-      conditions.push(eq(complianceIssues.developerStatus, developerStatus));
+      conditions.push(eq(complianceIssueAnalyses.developerStatus, developerStatus));
     }
 
-    // Developer assigned filter
+    // Developer assigned filter (from analyses)
     if (developerAssigned) {
-      conditions.push(eq(complianceIssues.developerAssigned, developerAssigned));
+      conditions.push(eq(complianceIssueAnalyses.developerAssigned, developerAssigned));
     }
 
     if (filters) {
-      // Status filter
+      // Status filter (from analyses)
       if (filters.status && filters.status !== 'all') {
-        conditions.push(eq(complianceIssues.reviewStatus, filters.status));
+        conditions.push(eq(complianceIssueAnalyses.reviewStatus, filters.status));
       }
 
       // Issue type filter
@@ -844,63 +978,60 @@ export class ComplianceIssuesRepository extends BaseRepository {
       .select({ count: count() })
       .from(complianceIssues)
       .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
+      .leftJoin(
+        complianceIssueAnalyses,
+        eq(complianceIssues.analysisId, complianceIssueAnalyses.id)
+      )
       .where(whereClause);
 
-    // Build sort column
+    // Build sort column — review/dev fields now come from analyses
     const sortColumn = {
       issueType: complianceIssues.issueType,
       createdAt: complianceIssues.createdAt,
-      reviewedAt: complianceIssues.reviewedAt,
-      severity: complianceIssues.severity,
-      developerCheckedAt: complianceIssues.developerCheckedAt,
+      reviewedAt: complianceIssueAnalyses.reviewedAt,
+      severity: complianceIssueAnalyses.finalSeverity,
+      developerCheckedAt: complianceIssueAnalyses.developerCheckedAt,
     }[sortBy] ?? complianceIssues.createdAt;
 
     const primarySort = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
     const secondarySort = asc(complianceIssues.id); // Tiebreaker for consistent ordering
 
-    // Get paginated results with regulation context
+    // Get paginated results with regulation context and analysis fields
     const results = await this.db
       .select({
         // Compliance issue fields
         id: complianceIssues.id,
         documentId: complianceIssues.documentId,
         issueType: complianceIssues.issueType,
-        // Old columns (backwards compatibility)
-        matchedPattern: complianceIssues.matchedPattern,
-        matchedContext: complianceIssues.matchedContext,
-        // New columns (research pipeline)
         regexMatchPattern: complianceIssues.regexMatchPattern,
         regexMatchContext: complianceIssues.regexMatchContext,
         url: complianceIssues.url,
-        requirementFound: complianceIssues.requirementFound,
-        // Old column (backwards compatibility)
-        requirementText: complianceIssues.requirementText,
-        // New column (research pipeline)
-        verbatimSupportingText: complianceIssues.verbatimSupportingText,
-        isVerbatim: complianceIssues.isVerbatim,
-        requiredByStatute: complianceIssues.requiredByStatute,
-        severity: complianceIssues.severity,
+        analysisId: complianceIssues.analysisId,
+        // Analysis fields — sourced from compliance_issue_analyses (PR 6.2)
+        requirementFound: complianceIssueAnalyses.requirementFound,
+        verbatimSupportingText: complianceIssueAnalyses.verbatimRequirements,
+        isVerbatim: complianceIssueAnalyses.isVerbatim,
+        requiredByStatute: complianceIssueAnalyses.citesFederalStatute,
+        severity: complianceIssueAnalyses.reviewerSeverity,
         occurrenceNumber: complianceIssues.occurrenceNumber,
-        statuteCitation: complianceIssues.statuteCitation,
-        // Old column (backwards compatibility)
-        impactAssessment: complianceIssues.impactAssessment,
-        // New column (research pipeline)
-        decisionRationale: complianceIssues.decisionRationale,
-        reviewStatus: complianceIssues.reviewStatus,
-        reviewedBy: complianceIssues.reviewedBy,
-        reviewedAt: complianceIssues.reviewedAt,
-        justificationNotes: complianceIssues.justificationNotes,
-        teamNotes: complianceIssues.teamNotes,
-        originalSeverity: complianceIssues.originalSeverity,
-        impactType: complianceIssues.impactType,
-        // Developer fields
-        developerStatus: complianceIssues.developerStatus,
-        developerAssigned: complianceIssues.developerAssigned,
-        developerNotes: complianceIssues.developerNotes,
-        resolutionType: complianceIssues.resolutionType,
-        resolutionComments: complianceIssues.resolutionComments,
-        developerQuestion: complianceIssues.developerQuestion,
-        developerCheckedAt: complianceIssues.developerCheckedAt,
+        statuteCitation: complianceIssueAnalyses.federalCitation,
+        decisionRationale: complianceIssueAnalyses.tier1Reasoning,
+        // Review fields — PR 6.3: from analyses
+        reviewStatus: complianceIssueAnalyses.reviewStatus,
+        reviewedBy: complianceIssueAnalyses.reviewedBy,
+        reviewedAt: complianceIssueAnalyses.reviewedAt,
+        justificationNotes: complianceIssueAnalyses.justificationNotes,
+        teamNotes: complianceIssueAnalyses.teamNotes,
+        originalSeverity: complianceIssueAnalyses.reviewerOriginalSeverity,
+        impactType: complianceIssueAnalyses.impactType,
+        // Developer fields — PR 6.3: from analyses
+        developerStatus: complianceIssueAnalyses.developerStatus,
+        developerAssigned: complianceIssueAnalyses.developerAssigned,
+        developerNotes: complianceIssueAnalyses.developerNotes,
+        resolutionType: complianceIssueAnalyses.resolutionType,
+        resolutionComments: complianceIssueAnalyses.resolutionComments,
+        developerQuestion: complianceIssueAnalyses.developerQuestion,
+        developerCheckedAt: complianceIssueAnalyses.developerCheckedAt,
         state: complianceIssues.state,
         createdAt: complianceIssues.createdAt,
         // Regulation context
@@ -921,37 +1052,32 @@ export class ComplianceIssuesRepository extends BaseRepository {
       })
       .from(complianceIssues)
       .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
+      .leftJoin(
+        complianceIssueAnalyses,
+        eq(complianceIssues.analysisId, complianceIssueAnalyses.id)
+      )
       .where(whereClause)
       .orderBy(primarySort, secondarySort)
       .limit(pageSize)
       .offset(offset);
 
-    // Transform results to ComplianceIssueWithAnalysis shape (no analysis data in this view)
+    // Transform results to ComplianceIssueWithAnalysis shape
     const data: ComplianceIssueWithAnalysis[] = results.map(row => ({
       id: Number(row.id),
       documentId: Number(row.documentId),
       issueType: row.issueType,
-      // Old columns (backwards compatibility)
-      matchedPattern: row.matchedPattern,
-      matchedContext: row.matchedContext,
-      // New columns (research pipeline)
       regexMatchPattern: row.regexMatchPattern,
       regexMatchContext: row.regexMatchContext,
       url: row.url,
-      requirementFound: row.requirementFound,
-      // Old column (backwards compatibility)
-      requirementText: row.requirementText,
-      // New column (research pipeline)
-      verbatimSupportingText: row.verbatimSupportingText,
-      isVerbatim: row.isVerbatim,
-      requiredByStatute: row.requiredByStatute,
+      analysisId: row.analysisId ?? null,
+      requirementFound: row.requirementFound ?? false,
+      verbatimSupportingText: row.verbatimSupportingText ?? [],
+      isVerbatim: row.isVerbatim ?? null,
+      requiredByStatute: row.requiredByStatute ?? false,
       severity: row.severity,
       occurrenceNumber: row.occurrenceNumber,
-      statuteCitation: row.statuteCitation,
-      // Old column (backwards compatibility)
-      impactAssessment: row.impactAssessment,
-      // New column (research pipeline)
-      decisionRationale: row.decisionRationale,
+      statuteCitation: row.statuteCitation ?? null,
+      decisionRationale: row.decisionRationale ?? null,
       reviewStatus: row.reviewStatus,
       reviewedBy: row.reviewedBy,
       reviewedAt: row.reviewedAt,
@@ -997,7 +1123,8 @@ export class ComplianceIssuesRepository extends BaseRepository {
   }
 
   /**
-   * Get compliance issues that need more info
+   * Get compliance issues that need more info.
+   * PR 6.3: Developer status filter now from analyses.
    */
   async getNeedMoreInfoIssues(
     state: StateCode,
@@ -1011,7 +1138,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
 
     const conditions = [
       eq(complianceIssues.state, state.toUpperCase()),
-      eq(complianceIssues.developerStatus, 'need_more_info'),
+      eq(complianceIssueAnalyses.developerStatus, 'need_more_info'),
     ];
 
     const whereClause = and(...conditions);
@@ -1021,52 +1148,49 @@ export class ComplianceIssuesRepository extends BaseRepository {
       .select({ count: count() })
       .from(complianceIssues)
       .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
+      .leftJoin(
+        complianceIssueAnalyses,
+        eq(complianceIssues.analysisId, complianceIssueAnalyses.id)
+      )
       .where(whereClause);
 
-    // Order by developerCheckedAt desc
-    const orderBy = [desc(complianceIssues.developerCheckedAt)];
+    // Order by developerCheckedAt desc (from analyses)
+    const orderBy = [desc(complianceIssueAnalyses.developerCheckedAt)];
 
-    // Get paginated results
+    // Get paginated results with analysis fields
     const results = await this.db
       .select({
         id: complianceIssues.id,
         documentId: complianceIssues.documentId,
         issueType: complianceIssues.issueType,
-        // Old columns (backwards compatibility)
-        matchedPattern: complianceIssues.matchedPattern,
-        matchedContext: complianceIssues.matchedContext,
-        // New columns (research pipeline)
         regexMatchPattern: complianceIssues.regexMatchPattern,
         regexMatchContext: complianceIssues.regexMatchContext,
         url: complianceIssues.url,
-        requirementFound: complianceIssues.requirementFound,
-        // Old column (backwards compatibility)
-        requirementText: complianceIssues.requirementText,
-        // New column (research pipeline)
-        verbatimSupportingText: complianceIssues.verbatimSupportingText,
-        isVerbatim: complianceIssues.isVerbatim,
-        requiredByStatute: complianceIssues.requiredByStatute,
-        severity: complianceIssues.severity,
+        analysisId: complianceIssues.analysisId,
+        // Analysis fields — sourced from compliance_issue_analyses (PR 6.2)
+        requirementFound: complianceIssueAnalyses.requirementFound,
+        verbatimSupportingText: complianceIssueAnalyses.verbatimRequirements,
+        isVerbatim: complianceIssueAnalyses.isVerbatim,
+        requiredByStatute: complianceIssueAnalyses.citesFederalStatute,
+        severity: complianceIssueAnalyses.reviewerSeverity,
         occurrenceNumber: complianceIssues.occurrenceNumber,
-        statuteCitation: complianceIssues.statuteCitation,
-        // Old column (backwards compatibility)
-        impactAssessment: complianceIssues.impactAssessment,
-        // New column (research pipeline)
-        decisionRationale: complianceIssues.decisionRationale,
-        reviewStatus: complianceIssues.reviewStatus,
-        reviewedBy: complianceIssues.reviewedBy,
-        reviewedAt: complianceIssues.reviewedAt,
-        justificationNotes: complianceIssues.justificationNotes,
-        teamNotes: complianceIssues.teamNotes,
-        originalSeverity: complianceIssues.originalSeverity,
-        impactType: complianceIssues.impactType,
-        developerStatus: complianceIssues.developerStatus,
-        developerAssigned: complianceIssues.developerAssigned,
-        developerNotes: complianceIssues.developerNotes,
-        resolutionType: complianceIssues.resolutionType,
-        resolutionComments: complianceIssues.resolutionComments,
-        developerQuestion: complianceIssues.developerQuestion,
-        developerCheckedAt: complianceIssues.developerCheckedAt,
+        statuteCitation: complianceIssueAnalyses.federalCitation,
+        decisionRationale: complianceIssueAnalyses.tier1Reasoning,
+        // Review/developer fields — PR 6.3: from analyses
+        reviewStatus: complianceIssueAnalyses.reviewStatus,
+        reviewedBy: complianceIssueAnalyses.reviewedBy,
+        reviewedAt: complianceIssueAnalyses.reviewedAt,
+        justificationNotes: complianceIssueAnalyses.justificationNotes,
+        teamNotes: complianceIssueAnalyses.teamNotes,
+        originalSeverity: complianceIssueAnalyses.reviewerOriginalSeverity,
+        impactType: complianceIssueAnalyses.impactType,
+        developerStatus: complianceIssueAnalyses.developerStatus,
+        developerAssigned: complianceIssueAnalyses.developerAssigned,
+        developerNotes: complianceIssueAnalyses.developerNotes,
+        resolutionType: complianceIssueAnalyses.resolutionType,
+        resolutionComments: complianceIssueAnalyses.resolutionComments,
+        developerQuestion: complianceIssueAnalyses.developerQuestion,
+        developerCheckedAt: complianceIssueAnalyses.developerCheckedAt,
         state: complianceIssues.state,
         createdAt: complianceIssues.createdAt,
         regulationId: regulatoryDocuments.id,
@@ -1086,6 +1210,10 @@ export class ComplianceIssuesRepository extends BaseRepository {
       })
       .from(complianceIssues)
       .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
+      .leftJoin(
+        complianceIssueAnalyses,
+        eq(complianceIssues.analysisId, complianceIssueAnalyses.id)
+      )
       .where(whereClause)
       .orderBy(...orderBy)
       .limit(pageSize)
@@ -1095,27 +1223,18 @@ export class ComplianceIssuesRepository extends BaseRepository {
       id: Number(row.id),
       documentId: Number(row.documentId),
       issueType: row.issueType,
-      // Old columns (backwards compatibility)
-      matchedPattern: row.matchedPattern,
-      matchedContext: row.matchedContext,
-      // New columns (research pipeline)
       regexMatchPattern: row.regexMatchPattern,
       regexMatchContext: row.regexMatchContext,
       url: row.url,
-      requirementFound: row.requirementFound,
-      // Old column (backwards compatibility)
-      requirementText: row.requirementText,
-      // New column (research pipeline)
-      verbatimSupportingText: row.verbatimSupportingText,
-      isVerbatim: row.isVerbatim,
-      requiredByStatute: row.requiredByStatute,
+      analysisId: row.analysisId ?? null,
+      requirementFound: row.requirementFound ?? false,
+      verbatimSupportingText: row.verbatimSupportingText ?? [],
+      isVerbatim: row.isVerbatim ?? null,
+      requiredByStatute: row.requiredByStatute ?? false,
       severity: row.severity,
       occurrenceNumber: row.occurrenceNumber,
-      statuteCitation: row.statuteCitation,
-      // Old column (backwards compatibility)
-      impactAssessment: row.impactAssessment,
-      // New column (research pipeline)
-      decisionRationale: row.decisionRationale,
+      statuteCitation: row.statuteCitation ?? null,
+      decisionRationale: row.decisionRationale ?? null,
       reviewStatus: row.reviewStatus,
       reviewedBy: row.reviewedBy,
       reviewedAt: row.reviewedAt,
@@ -1161,19 +1280,17 @@ export class ComplianceIssuesRepository extends BaseRepository {
   }
 
   /**
-   * Get count of need_more_info issues
+   * Get count of need_more_info issues.
+   * PR 6.3: Developer status now on analyses.
    */
   async getNeedMoreInfoCount(state: StateCode): Promise<{ total: number }> {
-    const baseConditions = [
-      eq(complianceIssues.state, state.toUpperCase()),
-      eq(complianceIssues.developerStatus, 'need_more_info'),
-    ];
-
-    // Get total count
     const [{ count: total }] = await this.db
       .select({ count: sql<number>`count(*)::int` })
-      .from(complianceIssues)
-      .where(and(...baseConditions));
+      .from(complianceIssueAnalyses)
+      .where(and(
+        eq(complianceIssueAnalyses.state, state.toUpperCase()),
+        eq(complianceIssueAnalyses.developerStatus, 'need_more_info'),
+      ));
 
     return { total };
   }
@@ -1181,17 +1298,27 @@ export class ComplianceIssuesRepository extends BaseRepository {
   /**
    * Clear all review and developer fields, returning item to unreviewed queue.
    * Restores severity to original value if it was changed.
+   * PR 6.3: These fields now live on compliance_issue_analyses.
    */
-  async clearForReview(id: number): Promise<ComplianceIssue | undefined> {
-    // Get current record to check original severity
-    const current = await this.getById(id);
-    if (!current) return undefined;
+  async clearForReview(id: number): Promise<ComplianceIssueWithAnalysisFields | undefined> {
+    const analysisInfo = await this.findAnalysisForIssue(id);
+    if (!analysisInfo) return undefined;
+
+    // Get current analysis to check original severity
+    const [currentAnalysis] = await this.db
+      .select({
+        reviewerSeverity: complianceIssueAnalyses.reviewerSeverity,
+        reviewerOriginalSeverity: complianceIssueAnalyses.reviewerOriginalSeverity,
+      })
+      .from(complianceIssueAnalyses)
+      .where(eq(complianceIssueAnalyses.id, analysisInfo.analysisId))
+      .limit(1);
 
     // Restore severity from originalSeverity if it was changed
-    const restoredSeverity = current.originalSeverity ?? current.severity;
+    const restoredSeverity = currentAnalysis?.reviewerOriginalSeverity ?? currentAnalysis?.reviewerSeverity;
 
-    const result = await this.db
-      .update(complianceIssues)
+    await this.db
+      .update(complianceIssueAnalyses)
       .set({
         // Review fields
         reviewStatus: 'unreviewed',
@@ -1199,8 +1326,8 @@ export class ComplianceIssuesRepository extends BaseRepository {
         reviewedAt: null,
         justificationNotes: null,
         teamNotes: null,
-        severity: restoredSeverity,
-        originalSeverity: null,
+        reviewerSeverity: restoredSeverity ?? null,
+        reviewerOriginalSeverity: null,
         impactType: null,
         // Developer fields
         developerStatus: 'unresolved',
@@ -1211,10 +1338,11 @@ export class ComplianceIssuesRepository extends BaseRepository {
         developerQuestion: null,
         developerCheckedAt: null,
       })
-      .where(eq(complianceIssues.id, id))
-      .returning();
+      .where(eq(complianceIssueAnalyses.id, analysisInfo.analysisId));
 
-    return result[0];
+    // Return via getByDocumentId to get the full shape with aliased fields
+    const issues = await this.getByDocumentId(analysisInfo.documentId);
+    return issues.find(i => i.id === id);
   }
 
   /**
@@ -1243,13 +1371,13 @@ export class ComplianceIssuesRepository extends BaseRepository {
   }> {
     const { state, batchSize, excludeIds, groupingMode, focus, recentIssueTypes } = options;
 
-    // Base conditions: LLM confirmed + unreviewed + exclude shown IDs
+    // Base conditions: LLM confirmed (from analyses) + unreviewed + exclude shown IDs
     const baseConditions = [
       eq(complianceIssues.state, state.toUpperCase()),
-      eq(complianceIssues.requirementFound, true),
+      eq(complianceIssueAnalyses.requirementFound, true),
       or(
-        eq(complianceIssues.reviewStatus, 'unreviewed'),
-        isNull(complianceIssues.reviewStatus)
+        eq(complianceIssueAnalyses.reviewStatus, 'unreviewed'),
+        isNull(complianceIssueAnalyses.reviewStatus)
       )!,
     ];
 
@@ -1260,10 +1388,14 @@ export class ComplianceIssuesRepository extends BaseRepository {
       );
     }
 
-    // Get total unreviewed count (for progress display)
+    // Get total unreviewed count (for progress display) — needs analyses join for requirementFound filter
     const [totalResult] = await this.db
       .select({ count: sql<number>`count(*)::int` })
       .from(complianceIssues)
+      .leftJoin(
+        complianceIssueAnalyses,
+        eq(complianceIssues.analysisId, complianceIssueAnalyses.id)
+      )
       .where(and(...baseConditions));
     const totalUnreviewed = totalResult?.count ?? 0;
 
@@ -1301,13 +1433,17 @@ export class ComplianceIssuesRepository extends BaseRepository {
           );
         }
 
-        // Get top 5 issue types by count for random selection
+        // Get top 5 issue types by count for random selection — needs analyses join
         let typeGroups = await this.db
           .select({
             issueType: complianceIssues.issueType,
             count: sql<number>`count(*)::int`,
           })
           .from(complianceIssues)
+          .leftJoin(
+            complianceIssueAnalyses,
+            eq(complianceIssues.analysisId, complianceIssueAnalyses.id)
+          )
           .where(and(...groupSelectionConditions))
           .groupBy(complianceIssues.issueType)
           .orderBy(desc(sql`count(*)`))
@@ -1321,6 +1457,10 @@ export class ComplianceIssuesRepository extends BaseRepository {
               count: sql<number>`count(*)::int`,
             })
             .from(complianceIssues)
+            .leftJoin(
+              complianceIssueAnalyses,
+              eq(complianceIssues.analysisId, complianceIssueAnalyses.id)
+            )
             .where(and(...baseConditions))
             .groupBy(complianceIssues.issueType)
             .orderBy(desc(sql`count(*)`))
@@ -1354,7 +1494,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       if (focus?.section) {
         selectedFocus.section = focus.section;
       } else {
-        // Get top 5 sections by count for random selection
+        // Get top 5 sections by count for random selection — needs analyses join
         const sectionGroups = await this.db
           .select({
             section: sql<string>`COALESCE(${regulatoryDocuments.njacTitle}, ${regulatoryDocuments.nycrrTitle}::text)`,
@@ -1362,6 +1502,10 @@ export class ComplianceIssuesRepository extends BaseRepository {
           })
           .from(complianceIssues)
           .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
+          .leftJoin(
+            complianceIssueAnalyses,
+            eq(complianceIssues.analysisId, complianceIssueAnalyses.id)
+          )
           .where(and(...baseConditions))
           .groupBy(sql`COALESCE(${regulatoryDocuments.njacTitle}, ${regulatoryDocuments.nycrrTitle}::text)`)
           .orderBy(desc(sql`count(*)`))
@@ -1410,7 +1554,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
           );
         }
 
-        // Get top 5 section + issue_type combos for random selection
+        // Get top 5 section + issue_type combos for random selection — needs analyses join
         let combinedGroups = await this.db
           .select({
             issueType: complianceIssues.issueType,
@@ -1419,6 +1563,10 @@ export class ComplianceIssuesRepository extends BaseRepository {
           })
           .from(complianceIssues)
           .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
+          .leftJoin(
+            complianceIssueAnalyses,
+            eq(complianceIssues.analysisId, complianceIssueAnalyses.id)
+          )
           .where(and(...groupSelectionConditions))
           .groupBy(
             complianceIssues.issueType,
@@ -1437,6 +1585,10 @@ export class ComplianceIssuesRepository extends BaseRepository {
             })
             .from(complianceIssues)
             .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
+            .leftJoin(
+              complianceIssueAnalyses,
+              eq(complianceIssues.analysisId, complianceIssueAnalyses.id)
+            )
             .where(and(...baseConditions))
             .groupBy(
               complianceIssues.issueType,
@@ -1484,56 +1636,53 @@ export class ComplianceIssuesRepository extends BaseRepository {
       }
     }
 
-    // Get count of items matching the focus (for "remaining" display)
+    // Get count of items matching the focus (for "remaining" display) — needs analyses join
     const whereClause = and(...focusConditions);
     const [focusCountResult] = await this.db
       .select({ count: sql<number>`count(*)::int` })
       .from(complianceIssues)
       .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
+      .leftJoin(
+        complianceIssueAnalyses,
+        eq(complianceIssues.analysisId, complianceIssueAnalyses.id)
+      )
       .where(whereClause);
     const remainingInFocus = focusCountResult?.count ?? 0;
 
-    // Get the batch of items
+    // Get the batch of items with analysis fields
     const results = await this.db
       .select({
         id: complianceIssues.id,
         documentId: complianceIssues.documentId,
         issueType: complianceIssues.issueType,
-        // Old columns (backwards compatibility)
-        matchedPattern: complianceIssues.matchedPattern,
-        matchedContext: complianceIssues.matchedContext,
-        // New columns (research pipeline)
         regexMatchPattern: complianceIssues.regexMatchPattern,
         regexMatchContext: complianceIssues.regexMatchContext,
         url: complianceIssues.url,
-        requirementFound: complianceIssues.requirementFound,
-        // Old column (backwards compatibility)
-        requirementText: complianceIssues.requirementText,
-        // New column (research pipeline)
-        verbatimSupportingText: complianceIssues.verbatimSupportingText,
-        isVerbatim: complianceIssues.isVerbatim,
-        requiredByStatute: complianceIssues.requiredByStatute,
-        severity: complianceIssues.severity,
+        analysisId: complianceIssues.analysisId,
+        // Analysis fields — sourced from compliance_issue_analyses (PR 6.2)
+        requirementFound: complianceIssueAnalyses.requirementFound,
+        verbatimSupportingText: complianceIssueAnalyses.verbatimRequirements,
+        isVerbatim: complianceIssueAnalyses.isVerbatim,
+        requiredByStatute: complianceIssueAnalyses.citesFederalStatute,
+        severity: complianceIssueAnalyses.reviewerSeverity,
         occurrenceNumber: complianceIssues.occurrenceNumber,
-        statuteCitation: complianceIssues.statuteCitation,
-        // Old column (backwards compatibility)
-        impactAssessment: complianceIssues.impactAssessment,
-        // New column (research pipeline)
-        decisionRationale: complianceIssues.decisionRationale,
-        reviewStatus: complianceIssues.reviewStatus,
-        reviewedBy: complianceIssues.reviewedBy,
-        reviewedAt: complianceIssues.reviewedAt,
-        justificationNotes: complianceIssues.justificationNotes,
-        teamNotes: complianceIssues.teamNotes,
-        originalSeverity: complianceIssues.originalSeverity,
-        impactType: complianceIssues.impactType,
-        developerStatus: complianceIssues.developerStatus,
-        developerAssigned: complianceIssues.developerAssigned,
-        developerNotes: complianceIssues.developerNotes,
-        resolutionType: complianceIssues.resolutionType,
-        resolutionComments: complianceIssues.resolutionComments,
-        developerQuestion: complianceIssues.developerQuestion,
-        developerCheckedAt: complianceIssues.developerCheckedAt,
+        statuteCitation: complianceIssueAnalyses.federalCitation,
+        decisionRationale: complianceIssueAnalyses.tier1Reasoning,
+        // Review/developer fields — PR 6.3: from analyses
+        reviewStatus: complianceIssueAnalyses.reviewStatus,
+        reviewedBy: complianceIssueAnalyses.reviewedBy,
+        reviewedAt: complianceIssueAnalyses.reviewedAt,
+        justificationNotes: complianceIssueAnalyses.justificationNotes,
+        teamNotes: complianceIssueAnalyses.teamNotes,
+        originalSeverity: complianceIssueAnalyses.reviewerOriginalSeverity,
+        impactType: complianceIssueAnalyses.impactType,
+        developerStatus: complianceIssueAnalyses.developerStatus,
+        developerAssigned: complianceIssueAnalyses.developerAssigned,
+        developerNotes: complianceIssueAnalyses.developerNotes,
+        resolutionType: complianceIssueAnalyses.resolutionType,
+        resolutionComments: complianceIssueAnalyses.resolutionComments,
+        developerQuestion: complianceIssueAnalyses.developerQuestion,
+        developerCheckedAt: complianceIssueAnalyses.developerCheckedAt,
         state: complianceIssues.state,
         createdAt: complianceIssues.createdAt,
         regulationId: regulatoryDocuments.id,
@@ -1553,37 +1702,32 @@ export class ComplianceIssuesRepository extends BaseRepository {
       })
       .from(complianceIssues)
       .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
+      .leftJoin(
+        complianceIssueAnalyses,
+        eq(complianceIssues.analysisId, complianceIssueAnalyses.id)
+      )
       .where(whereClause)
-      // Order by severity (high first) with random tiebreaker for same-severity items
-      .orderBy(desc(complianceIssues.severity), sql`RANDOM()`)
+      // Order by severity from analyses (high first) with random tiebreaker
+      .orderBy(desc(complianceIssueAnalyses.finalSeverity), sql`RANDOM()`)
       .limit(batchSize);
 
-    // Transform results to ComplianceIssueWithAnalysis shape (no analysis data in this view)
+    // Transform results to ComplianceIssueWithAnalysis shape
     const data: ComplianceIssueWithAnalysis[] = results.map(row => ({
       id: Number(row.id),
       documentId: Number(row.documentId),
       issueType: row.issueType,
-      // Old columns (backwards compatibility)
-      matchedPattern: row.matchedPattern,
-      matchedContext: row.matchedContext,
-      // New columns (research pipeline)
       regexMatchPattern: row.regexMatchPattern,
       regexMatchContext: row.regexMatchContext,
       url: row.url,
-      requirementFound: row.requirementFound,
-      // Old column (backwards compatibility)
-      requirementText: row.requirementText,
-      // New column (research pipeline)
-      verbatimSupportingText: row.verbatimSupportingText,
-      isVerbatim: row.isVerbatim,
-      requiredByStatute: row.requiredByStatute,
+      analysisId: row.analysisId ?? null,
+      requirementFound: row.requirementFound ?? false,
+      verbatimSupportingText: row.verbatimSupportingText ?? [],
+      isVerbatim: row.isVerbatim ?? null,
+      requiredByStatute: row.requiredByStatute ?? false,
       severity: row.severity,
       occurrenceNumber: row.occurrenceNumber,
-      statuteCitation: row.statuteCitation,
-      // Old column (backwards compatibility)
-      impactAssessment: row.impactAssessment,
-      // New column (research pipeline)
-      decisionRationale: row.decisionRationale,
+      statuteCitation: row.statuteCitation ?? null,
+      decisionRationale: row.decisionRationale ?? null,
       reviewStatus: row.reviewStatus,
       reviewedBy: row.reviewedBy,
       reviewedAt: row.reviewedAt,
@@ -1642,10 +1786,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       .from(complianceIssues)
       .leftJoin(
         complianceIssueAnalyses,
-        and(
-          eq(complianceIssues.documentId, complianceIssueAnalyses.documentId),
-          eq(complianceIssues.issueType, complianceIssueAnalyses.issueType)
-        )
+        eq(complianceIssues.analysisId, complianceIssueAnalyses.id)
       )
       .where(eq(complianceIssues.state, state.toUpperCase()))
       .groupBy(complianceIssueAnalyses.highestTierCompleted);

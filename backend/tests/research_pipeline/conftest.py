@@ -280,7 +280,7 @@ def sample_tier2_llm_response():
 @pytest.fixture
 def mock_batch_client():
     """Mock anthropic batch API client."""
-    with patch('scripts.research_pipeline.tier_orchestrator.anthropic') as mock:
+    with patch('scripts.research_pipeline.pipeline_runner.anthropic', create=True) as mock:
         mock.batches.create.return_value = Mock(id="batch_123")
         mock.batches.retrieve.return_value = Mock(
             status="completed",

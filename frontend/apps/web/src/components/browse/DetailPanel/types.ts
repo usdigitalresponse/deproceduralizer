@@ -1,4 +1,4 @@
-import type { RegulationWithAnalysis, ComplianceIssue, CrossReferenceWithTarget, CrossReferenceWithSource } from '@deproceduralizer/database';
+import type { RegulationWithAnalysis, ComplianceIssueWithAnalysisFields, CrossReferenceWithTarget, CrossReferenceWithSource } from '@deproceduralizer/database';
 
 export interface DetailPanelProps {
   documentId: number | null;
@@ -31,7 +31,7 @@ export interface RedFlagsSectionProps {
 }
 
 export interface ComplianceIssuesSectionProps {
-  issues: ComplianceIssue[];
+  issues: ComplianceIssueWithAnalysisFields[];
   state: string;
   documentId: number;
   currentUrl: string;
@@ -53,7 +53,7 @@ export interface IncomingReferencesSectionProps {
 
 export interface DetailPanelData {
   document: RegulationWithAnalysis | null;
-  complianceIssues: ComplianceIssue[];
+  complianceIssues: ComplianceIssueWithAnalysisFields[];
   crossRefs: CrossReferenceWithTarget[];
   incomingRefs: CrossReferenceWithSource[];
   isLoading: boolean;

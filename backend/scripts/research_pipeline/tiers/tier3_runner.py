@@ -359,9 +359,8 @@ async def run_tier3_realtime(
     `citations` array of text blocks (as `cited_text`), NOT in the
     encrypted `web_search_tool_result` blocks.
 
-    STATE MANAGEMENT: This function only sets intermediate states
-    (TIER3_PROCESSING) and populates tier3_output/tier3_completed_at.
-    The orchestrator is responsible for all terminal state transitions
+    STATE MANAGEMENT: This function populates tier3_output/tier3_completed_at.
+    The pipeline runner is responsible for all state transitions
     (TIER3_COMPLETE, DONE, ERROR).
 
     Args:
@@ -398,8 +397,6 @@ async def run_tier3_realtime(
     print(f"  Cost tracking: {'ENABLED' if cost_tracker else 'disabled'}")
 
     for i, unit in enumerate(units):
-        unit.state = ProcessingState.TIER3_PROCESSING
-
         # Verbose: Show which document we're processing
         print(f"\n  {'─'*60}")
         print(f"  [{i+1}/{len(units)}] Processing: {unit.unit.citation}")

@@ -1,12 +1,12 @@
 'use client';
 
-import type { ComplianceIssue } from '@deproceduralizer/database';
+import type { ComplianceIssueWithAnalysisFields } from '@deproceduralizer/database';
 import { updateComplianceIssueReview } from '@/lib/actions/compliance-issues';
 import { ReviewForm } from '@/components/review';
 import type { ReviewFormCallbackData } from '@/hooks';
 
 interface ComplianceIssueReviewFormProps {
-  issue: ComplianceIssue;
+  issue: ComplianceIssueWithAnalysisFields;
   onUpdated: (updatedIssue: ReviewFormCallbackData) => void;
 }
 

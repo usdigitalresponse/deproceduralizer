@@ -5,10 +5,10 @@ import { Card } from '@/components/ui';
 import { ComplianceIssueDisplayCard } from './ComplianceIssueDisplayCard';
 import ComplianceIssueReviewForm from './ComplianceIssueReviewForm';
 import { expandContext } from '@/lib/utils/expandContext';
-import type { ComplianceIssue } from '@deproceduralizer/database';
+import type { ComplianceIssueWithAnalysisFields } from '@deproceduralizer/database';
 
 interface ComplianceIssuesListProps {
-  initialIssues: ComplianceIssue[];
+  initialIssues: ComplianceIssueWithAnalysisFields[];
   regulationContent?: string | null;
 }
 
@@ -59,7 +59,7 @@ export function ComplianceIssuesList({ initialIssues, regulationContent }: Compl
           const isExpanded = expandedIssues.has(issue.id);
 
           // Get expanded context if we have regulation content
-          const matchContext = issue.regexMatchContext ?? issue.matchedContext;
+          const matchContext = issue.regexMatchContext;
           const expanded = regulationContent && isExpanded && matchContext
             ? expandContext(regulationContent, matchContext, 800)
             : null;

@@ -709,17 +709,17 @@ class TestResultProcessor:
         assert details[0]["is_verbatim"] is False
 
 
-class TestTierOrchestrator:
-    """Test tier orchestrator class."""
+class TestPipelineRunner:
+    """Test pipeline runner module."""
 
     def test_import(self):
-        from scripts.research_pipeline.tier_orchestrator import (
-            TierOrchestrator,
+        from scripts.research_pipeline.pipeline_runner import (
             run_pipeline,
+            run_tier3_only,
         )
 
-        assert TierOrchestrator is not None
         assert run_pipeline is not None
+        assert run_tier3_only is not None
 
 
 class TestDbWriter:
@@ -853,12 +853,12 @@ class TestCacheEfficiencyOrdering:
     """Regression test: _sort_for_cache_efficiency should use group_for_cache_efficiency."""
 
     def test_sort_for_cache_efficiency_import(self):
-        """Ensure group_for_cache_efficiency is imported in tier_orchestrator."""
-        from scripts.research_pipeline.tier_orchestrator import TierOrchestrator
+        """Ensure group_for_cache_efficiency is imported in pipeline_runner."""
+        from scripts.research_pipeline.pipeline_runner import _sort_for_cache_efficiency
         from scripts.research_pipeline.context_builder import group_for_cache_efficiency
 
         # Both should be importable without errors
-        assert TierOrchestrator is not None
+        assert _sort_for_cache_efficiency is not None
         assert group_for_cache_efficiency is not None
 
 
@@ -1240,39 +1240,21 @@ class TestCostTrackerIntegration:
 
 
 class TestLangfuseIntegration:
-    """Test Langfuse integration in tier_orchestrator."""
+    """Test Langfuse integration in pipeline_runner."""
 
     def test_langfuse_imports(self):
         """Test that Langfuse-related code is properly structured."""
-        from scripts.research_pipeline.tier_orchestrator import (
-            TierOrchestrator,
+        from scripts.research_pipeline.pipeline_runner import (
             LANGFUSE_AVAILABLE,
         )
 
         # LANGFUSE_AVAILABLE should be a boolean
         assert isinstance(LANGFUSE_AVAILABLE, bool)
 
-        # TierOrchestrator should exist
-        assert TierOrchestrator is not None
-
-    def test_orchestrator_has_langfuse_attributes(self):
-        """Test that TierOrchestrator has Langfuse tracking attributes."""
-        from scripts.research_pipeline.tier_orchestrator import TierOrchestrator
-        from pathlib import Path
-        import tempfile
-
-        with tempfile.TemporaryDirectory() as tmp:
-            orchestrator = TierOrchestrator(
-                state="NJ",
-                issue_type="mail_only",
-                batches_dir=Path(tmp),
-            )
-
-            # Check for Langfuse-related attributes
-            assert hasattr(orchestrator, "trace_context")
-            assert hasattr(orchestrator, "batch_trace_ids")
-            assert orchestrator.trace_context is None  # Not initialized until run()
-            assert isinstance(orchestrator.batch_trace_ids, dict)
+    def test_pipeline_runner_is_importable(self):
+        """Test that pipeline_runner module is importable."""
+        from scripts.research_pipeline.pipeline_runner import run_pipeline
+        assert callable(run_pipeline)
 
 
 class TestBackfillScript:
@@ -3783,23 +3765,7 @@ class TestDbWriterV5ColumnsPresence:
 
 
 class TestTier2RerunState:
-    """Test TIER2_RERUNNING state and TrackedUnit re-run fields."""
-
-    def test_tier2_rerunning_state_exists(self):
-        """TIER2_RERUNNING state should exist."""
-        from scripts.research_pipeline.state_machine import ProcessingState
-
-        assert hasattr(ProcessingState, "TIER2_RERUNNING")
-
-    def test_tier2_rerunning_maps_to_tier2(self):
-        """TIER2_RERUNNING should map to tier 2."""
-        from scripts.research_pipeline.state_machine import (
-            ProcessingState,
-            state_to_tier,
-        )
-
-        tier = state_to_tier(ProcessingState.TIER2_RERUNNING)
-        assert tier == 2
+    """Test TrackedUnit re-run fields."""
 
     def test_tracked_unit_has_rerun_fields(self):
         """TrackedUnit should have tier2_rerun_count and related fields."""
@@ -3837,7 +3803,7 @@ class TestTier2RerunState:
             content="test",
             matches=[],
         )
-        unit = TrackedUnit(unit=pu, state=ProcessingState.TIER2_RERUNNING)
+        unit = TrackedUnit(unit=pu, state=ProcessingState.TIER2_PENDING)
 
         # Modify fields
         unit.tier2_rerun_count = 2
@@ -3861,36 +3827,24 @@ class TestTier2RerunMaxConstant:
         assert MAX_TIER2_RERUNS == 2
 
 
-class TestOrchestratorTier2RerunsOption:
-    """Test TierOrchestrator tier2_reruns parameter."""
+class TestPipelineRunnerTier2RerunsOption:
+    """Test run_pipeline tier2_reruns parameter."""
 
-    def test_orchestrator_accepts_tier2_reruns_param(self):
-        """TierOrchestrator should accept tier2_reruns parameter."""
-        from scripts.research_pipeline.tier_orchestrator import TierOrchestrator
-        from pathlib import Path
+    def test_run_pipeline_accepts_tier2_reruns_param(self):
+        """run_pipeline should accept tier2_reruns parameter."""
+        import inspect
+        from scripts.research_pipeline.pipeline_runner import run_pipeline
 
-        # Should not raise - just checking parameter is accepted
-        orchestrator = TierOrchestrator(
-            state="NJ",
-            issue_type="mail_only",
-            batches_dir=Path("/tmp"),
-            tier2_reruns=True,
-        )
+        sig = inspect.signature(run_pipeline)
+        assert "tier2_reruns" in sig.parameters
 
-        assert orchestrator.tier2_reruns == True
-
-    def test_orchestrator_tier2_reruns_default_false(self):
+    def test_tier2_reruns_defaults_false(self):
         """tier2_reruns should default to False."""
-        from scripts.research_pipeline.tier_orchestrator import TierOrchestrator
-        from pathlib import Path
+        import inspect
+        from scripts.research_pipeline.pipeline_runner import run_pipeline
 
-        orchestrator = TierOrchestrator(
-            state="NJ",
-            issue_type="mail_only",
-            batches_dir=Path("/tmp"),
-        )
-
-        assert orchestrator.tier2_reruns == False
+        sig = inspect.signature(run_pipeline)
+        assert sig.parameters["tier2_reruns"].default is False
 
 
 class TestDbWriterRerunColumns:

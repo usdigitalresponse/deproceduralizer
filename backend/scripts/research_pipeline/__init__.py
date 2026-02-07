@@ -7,7 +7,7 @@ A 3-tier LLM pipeline with progressive context disclosure:
 - Tier 3: Web Search Verification (external validation)
 
 Public API:
-- TierOrchestrator, run_pipeline: Main entry points for running the pipeline
+- run_pipeline, run_tier3_only: Main entry points for running the pipeline
 - ProcessingState, TrackedUnit: State machine for tracking document processing
 - IssueConfig, load_issue_config: Issue-specific configuration loading
 - CostTracker: Cost tracking for LLM usage
@@ -26,9 +26,9 @@ Internal modules (import directly if needed):
 # PUBLIC API - Main orchestration
 # =============================================================================
 
-from .tier_orchestrator import (
-    TierOrchestrator,
+from .pipeline_runner import (
     run_pipeline,
+    run_tier3_only,
 )
 
 # =============================================================================
@@ -100,8 +100,8 @@ from .tier_runners import (
 
 __all__ = [
     # Main orchestration
-    "TierOrchestrator",
     "run_pipeline",
+    "run_tier3_only",
     # State machine
     "ProcessingState",
     "TrackedUnit",

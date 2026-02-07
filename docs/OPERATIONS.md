@@ -50,11 +50,15 @@ python backend/scripts/backfill_definition_scope.py --state NJ
 ### 4. Detect Compliance Issues
 
 ```bash
-python backend/scripts/compliance_issues/searcher.py --state NJ
+# Step 1: Regex scan — find matches and save to database
+python backend/scripts/scan_compliance_issues.py --state nj
+
+# Step 2: LLM analysis — research pipeline handles Tier 1-3
+python -m scripts.research_pipeline.cli --state nj --all --execute
 ```
 
-- Regex triage → LLM verification → save results
-- Stores "no issue" rows (`requirement_found=false`) for audit trail
+- Regex scan finds candidate matches in regulations (no LLM, fast)
+- Research pipeline runs LLM analysis (Tier 1-3) on those matches
 - Issue patterns defined in `prompts/compliance_issues.yaml`
 
 ### 5. Scan Incorporations by Reference

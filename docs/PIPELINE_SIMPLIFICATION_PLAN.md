@@ -1,8 +1,8 @@
 # Research Pipeline Simplification Plan
 
 > **Status: IN PROGRESS**
-> - Phases 0-1, 2.1-2.4, 6, 7: ✅ Complete
-> - Phases 3-5: 📋 Planned (not started)
+> - Phases 0-1, 2.1-2.4, 3, 6, 7: ✅ Complete
+> - Phases 4-5: 📋 Planned (not started)
 
 **Goal**: Reduce research pipeline from ~23,000 lines to ~5,000 lines while preserving functionality.
 
@@ -21,8 +21,9 @@
 |----|-------|------|-------------|
 | [#90](https://github.com/michaeleboyce/deproceduralizer/pull/90) | CLI simplification (Phases 0-1 + 2.1) | `main` | 1st |
 | [#96](https://github.com/michaeleboyce/deproceduralizer/pull/96) | Remove batch persistence (Phases 2.2-2.4) | `#90` branch | 2nd (auto-retargets to main after #90 merges) |
-| [#95](https://github.com/michaeleboyce/deproceduralizer/pull/95) | Table refactor + regex-only searcher (Phases 6-7) | `main` | Any order with #90 |
-| [#91](https://github.com/michaeleboyce/deproceduralizer/pull/91) | E2E fixes + filter refactor | rebased onto #90+#95 | **Last** |
+| [#97](https://github.com/michaeleboyce/deproceduralizer/pull/97) | Flatten state machine (Phase 3) | `#96` branch | 3rd (pre-merged #95; auto-retargets after #96 merges) |
+| [#95](https://github.com/michaeleboyce/deproceduralizer/pull/95) | Table refactor + regex-only searcher (Phases 6-7) | `main` | No-op after #97 (already included) |
+| [#91](https://github.com/michaeleboyce/deproceduralizer/pull/91) | E2E fixes + filter refactor | `main` | **Last** (rebased onto #97, all conflicts resolved) |
 
 Closed PRs (subsumed): #83, #84, #85, #86, #89, #93
 
@@ -36,7 +37,7 @@ Closed PRs (subsumed): #83, #84, #85, #86, #89, #93
 | 1 | Simplify CLI | ✅ Complete | #90 |
 | 2.1 | Persistence Migration Test | ✅ Complete | #90 |
 | 2.2-2.4 | Remove Batch Persistence | ✅ Complete | #96 |
-| 3 | Flatten State Machine | 📋 Planned | — |
+| 3 | Flatten State Machine | ✅ Complete | #97 |
 | 4 | Consolidate Files | 📋 Planned | — |
 | 5 | Final Cleanup | 📋 Planned | — |
 | 6 | Refactor Compliance Issue Tables ([#88](https://github.com/michaeleboyce/deproceduralizer/issues/88)) | ✅ Complete | #95 |
@@ -77,6 +78,19 @@ Branched from #90. Combined all three steps into one PR:
 
 **Key insight**: Disk-based persistence was never used for resume — the DB (`get_existing_analyses()`) was always the real source of truth.
 
+### PR #97: Flatten State Machine (Phase 3)
+
+Branched from #96. Replaced `TierOrchestrator` class with flat functions:
+
+| Step | What | Details |
+|------|------|---------|
+| 3.1 | Add `pipeline_runner.py` + 19 tests | Coexistence with old orchestrator |
+| 3.2 | Migrate CLI | `cli.py` imports from `pipeline_runner` instead of `tier_orchestrator` |
+| 3.3 | Simplify state machine | `ProcessingState` 15 → 8 states, removed batch_id fields |
+| 3.4 | Delete old orchestrator | Removed `tier_orchestrator.py` (-1,275 lines) + `test_tier_orchestrator.py` (-444 lines) |
+
+**Result**: `TierOrchestrator` class replaced by flat functions in `pipeline_runner.py`. Net ~1,026 lines removed.
+
 ### PR #95: Table Refactor + Regex-Only Searcher (Phases 6-7)
 
 **Phase 6: Refactor Compliance Issue Tables**
@@ -97,17 +111,7 @@ Branched from #90. Combined all three steps into one PR:
 
 ---
 
-## Remaining Work (Phases 3-5)
-
-### Phase 3: Flatten the State Machine
-
-| Step | What | Status |
-|------|------|--------|
-| 3.1 | Add simple pipeline runner test | Not started |
-| 3.2 | Create simple pipeline runner (~200 lines) | Not started |
-| 3.3 | Migrate CLI to use simple runner | Not started |
-| 3.4 | Delete state machine (~680 lines) | Not started |
-| 3.5 | Delete old orchestrator (~1,800 lines) | Not started |
+## Remaining Work (Phases 4-5)
 
 ### Phase 4: Consolidate Files
 
@@ -136,19 +140,11 @@ Branched from #90. Combined all three steps into one PR:
 | 2.2-2.4 | ~1,200 (code + tests) | ✅ PR #96 |
 | 6 | ~300 (columns) + schema cleanup | ✅ PR #95 |
 | 7 | ~800 + LLM cost savings | ✅ PR #95 |
-| 3 | ~2,500 | 📋 Planned |
+| 3 | ~1,026 | ✅ PR #97 |
 | 4 | ~3,000 | 📋 Planned |
 | 5 | ~500 | 📋 Planned |
 
 **Total**: ~8,900 lines to remove + schema consolidation + LLM cost reduction
-
----
-
-## Branching Strategy for Phase 3+
-
-Phase 3 touches `cli.py` and `tier_orchestrator.py` heavily (same files as #90 and #96).
-**Branch from `refactor/remove-batch-persistence`** (the #96 branch) to avoid conflicts.
-Target the PR at #96's branch. GitHub auto-retargets after #96 merges.
 
 ---
 
@@ -162,3 +158,5 @@ Target the PR at #96's branch. GitHub auto-retargets after #96 merges.
 | 2026-02-04 | Phase 7 complete | Searcher is regex-only, ~800 lines removed |
 | 2026-02-04 | PR consolidation | 9 PRs -> 3 clean PRs (#90, #95, #91). Closed #83, #84, #85, #86, #89, #93. |
 | 2026-02-04 | Phase 2.2-2.4 complete | PR #96: removed batch persistence (-1,358 lines). Targets #90 branch. |
+| 2026-02-04 | Phase 3 complete | PR #97: flatten state machine, replace TierOrchestrator with pipeline_runner (-1,026 lines). Targets #96 branch. |
+| 2026-02-04 | Merge conflicts resolved | Pre-merged #95 into #97. Rebased #91 onto #97 (cherry-picked 3 commits, fixed stale TierOrchestrator refs). All 5 PRs now merge conflict-free (all fast-forward). |

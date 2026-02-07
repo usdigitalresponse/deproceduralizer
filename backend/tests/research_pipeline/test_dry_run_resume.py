@@ -3,7 +3,7 @@ Tests for dry-run resume simulation logic.
 
 These tests ensure the _simulate_resume() function correctly categorizes
 documents into new/skipped/resumed/tier3_pending buckets, mirroring the
-logic in TierOrchestrator.run().
+logic in pipeline_runner.run_pipeline().
 """
 
 import pytest

@@ -144,6 +144,29 @@ export const complianceIssueAnalyses = pgTable('compliance_issue_analyses', {
   highestTierCompleted: integer('highest_tier_completed').default(0),
   classificationTier: integer('classification_tier'),
 
+  // ═══════════════════════════════════════════════════════════════════
+  // Human Review (PR 6.3: moved from compliance_issues)
+  // ═══════════════════════════════════════════════════════════════════
+  reviewStatus: varchar('review_status', { length: 50 }).default('unreviewed'),
+  reviewedBy: varchar('reviewed_by', { length: 255 }),
+  reviewedAt: timestamp('reviewed_at'),
+  justificationNotes: text('justification_notes'),
+  teamNotes: text('team_notes'),
+  impactType: varchar('impact_type', { length: 100 }),
+  reviewerSeverity: integer('reviewer_severity'),
+  reviewerOriginalSeverity: integer('reviewer_original_severity'),
+
+  // ═══════════════════════════════════════════════════════════════════
+  // Developer Tracking (PR 6.3: moved from compliance_issues)
+  // ═══════════════════════════════════════════════════════════════════
+  developerStatus: varchar('developer_status', { length: 50 }).default('unresolved'),
+  developerAssigned: varchar('developer_assigned', { length: 50 }),
+  developerNotes: text('developer_notes'),
+  resolutionType: varchar('resolution_type', { length: 50 }),
+  resolutionComments: text('resolution_comments'),
+  developerQuestion: text('developer_question'),
+  developerCheckedAt: timestamp('developer_checked_at'),
+
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 }, (table) => ({

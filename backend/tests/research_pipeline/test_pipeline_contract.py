@@ -413,19 +413,9 @@ class TestPipelineIntegrationContract:
         This is a behavioral contract test - it verifies the pipeline
         does what it's supposed to do, not how it does it internally.
         """
-        # This test will be filled in when we have a simple runner
-        # For now, verify the orchestrator can be instantiated
-        from scripts.research_pipeline.tier_orchestrator import TierOrchestrator
-        from pathlib import Path
-        import tempfile
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            orchestrator = TierOrchestrator(
-                state="NJ",
-                batches_dir=Path(tmpdir),
-                issue_types=["mail_only"],
-            )
-            assert orchestrator is not None
+        # Verify the pipeline runner function is importable
+        from scripts.research_pipeline.pipeline_runner import run_pipeline
+        assert callable(run_pipeline)
 
     def test_fetch_documents_returns_processing_units(self):
         """Document fetching should return ProcessingUnits."""

@@ -221,9 +221,9 @@ Many-to-many join table tracking where definition terms actually appear in docum
 
 ## compliance_issues
 
-Tracks compliance issues found in regulations (wet signatures, mail-only submission, etc.).
+Pure regex match store. Tracks individual regex matches found during compliance scanning.
 
-**Note**: This table has both legacy columns and new research pipeline columns for backwards compatibility. The data was migrated from old columns to new columns, but old columns are preserved.
+**Note**: LLM analysis fields moved to `compliance_issue_analyses` in PR 6.2. Review/developer tracking fields moved to `compliance_issue_analyses` in PR 6.3. This table now only stores the regex match data.
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -231,65 +231,36 @@ Tracks compliance issues found in regulations (wet signatures, mail-only submiss
 | `document_id` | bigint NOT NULL | FK to regulatory_documents |
 | `issue_type` | varchar(50) | `wet_signature`, `mail_only`, `fax`, etc. |
 | `occurrence_number` | integer | 1, 2, 3... for multiple issues of same type per document |
-| **Legacy columns (backwards compatibility):** | | |
-| `matched_pattern` | varchar(255) | (Legacy) Regex pattern that triggered scan |
-| `matched_context` | text NOT NULL | (Legacy) ~600 char text window around regex match |
-| **New columns (research pipeline):** | | |
 | `regex_match_pattern` | varchar(255) | Regex pattern that triggered the initial scan |
-| `regex_match_context` | text | Text window around the regex match (~600 chars) |
+| `regex_match_context` | text NOT NULL | Text window around the regex match (~600 chars) |
 | `url` | text | Link to the regulation |
-| `requirement_found` | boolean | Did LLM find an actual requirement? |
-| **Legacy column (backwards compatibility):** | | |
-| `requirement_text` | text | (Legacy) The specific text creating the requirement |
-| **New column (research pipeline):** | | |
-| `verbatim_supporting_text` | text[] | Array of exact verbatim quotes from regulation supporting the decision (empty if no issue) |
-| `is_verbatim` | boolean | True if verbatim_supporting_text contains exact quotes from regulation, False if paraphrased, NULL for legacy records |
-| `required_by_statute` | boolean | true = statute mandates, false = agency added, null = unknown |
-| `statute_citation` | varchar(255) | Citation to statute if applicable |
-| `severity` | integer (1-10) | How problematic is this requirement |
-| `original_severity` | integer (1-10) | LLM's original severity (preserved on first review) |
-| **Legacy column (backwards compatibility):** | | |
-| `impact_assessment` | text | (Legacy) LLM explanation of why this is/isn't problematic |
-| **New column (research pipeline):** | | |
-| `decision_rationale` | text | LLM's holistic rationale for the classification decision |
-| `review_status` | varchar(50) | `unreviewed`, `confirmed`, `false_positive`, etc. |
-| `reviewed_by` | varchar(255) | Who reviewed it |
-| `reviewed_at` | timestamp | When reviewed |
-| `justification_notes` | text | Justification for the model |
-| `team_notes` | text | Notes for development team (replaced reviewer_notes) |
-| `original_severity` | integer (1-10) | LLM's original severity (preserved on first review) |
-| `impact_type` | varchar(100) | Type of impact |
-| `developer_status` | varchar(50) | `unresolved`, `resolved`, `pending`, `backlogged`, `need_more_info` |
-| `developer_assigned` | varchar(50) | Michael or Abigail |
-| `developer_notes` | text | Notes from developer |
-| `resolution_type` | varchar(50) | `implemented` or `not_implemented` |
-| `resolution_comments` | text | Comments about the resolution |
-| `developer_question` | text | Question for reviewer |
-| `developer_checked_at` | timestamp | When developer last checked |
 | `state` | varchar(2) NOT NULL | NY or NJ |
 | `created_at` | timestamp | When record was created |
 | `run_id` | varchar(32) | Pipeline run identifier for tracking |
+| `analysis_id` | bigint | FK to compliance_issue_analyses(id) ON DELETE SET NULL. Many-to-one link (many matches → one analysis). Set by searcher/pipeline after analysis INSERT. |
 
-**Constraints:** `compliance_issues_severity_check`, `compliance_issues_state_check`, `unique_document_issue_occurrence UNIQUE(document_id, issue_type, occurrence_number)`
+**Constraints:** `compliance_issues_state_check`, `unique_document_issue_occurrence UNIQUE(document_id, issue_type, occurrence_number)`
 
-**Indexes:** `idx_compliance_issues_run_id`
+**Indexes:** `idx_compliance_issues_document`, `idx_compliance_issues_state`, `idx_compliance_issues_issue_type`, `idx_compliance_issues_state_issue`, `idx_compliance_issues_run_id`, `idx_compliance_issues_analysis_id`
 
 **Issue Types** (41 types defined in `prompts/compliance_issues.yaml`)
 
 ### Compliance Issue Filtering
 
-#### LLM Confirmation Status
-- `requirement_found = true`: LLM confirmed this is a real compliance issue (has `severity` 1-10, `verbatim_supporting_text` populated with quotes)
-- `requirement_found = false`: LLM analyzed the regex match but found no actual issue (`severity` is NULL, `verbatim_supporting_text` is empty array)
+**Note**: LLM analysis fields and review/developer fields all live exclusively in `compliance_issue_analyses`. The repository JOINs to analyses to provide these fields. The `compliance_issues` table is a pure regex match store.
 
-The `requirement_found` field indicates whether the LLM found a genuine compliance issue after analyzing the regex-matched context. The `verbatim_supporting_text` array contains exact quotes from the regulation that support the classification, and is empty when no issue is found.
+#### LLM Confirmation Status (from `compliance_issue_analyses`)
+- `requirement_found = true`: LLM confirmed this is a real compliance issue (has `final_severity` 1-10, `verbatim_requirements` populated with quotes)
+- `requirement_found = false`: LLM analyzed the regex match but found no actual issue (`final_severity` is NULL, `verbatim_requirements` is empty array)
+
+The `requirement_found` field in `compliance_issue_analyses` indicates whether the LLM found a genuine compliance issue after analyzing the regex-matched context. The `verbatim_requirements` array contains exact quotes from the regulation that support the classification, and is empty when no issue is found.
 
 #### Where Filtering is Applied
 
 | Location | Shows | Filter |
 |----------|-------|--------|
-| Browse tree badges | Confirmed only | `requirement_found = TRUE` |
-| Dashboard stats | Confirmed only | `requirement_found = TRUE` |
+| Browse tree badges | Confirmed only | `cia.requirement_found = TRUE` (via JOIN) |
+| Dashboard stats | Confirmed only | `cia.requirement_found = TRUE` (via JOIN) |
 | Table view counts | Confirmed only | Uses precomputed columns |
 | Review mode | All issues | No filter (for QA review) |
 
@@ -301,7 +272,7 @@ The following columns on `regulatory_documents` store compliance issue counts:
 - `compliance_issue_count`: Direct confirmed issues on this document
 - `descendant_compliance_issue_count`: Confirmed issues in all descendant documents
 
-These are updated by `refresh_compliance_stats()` in `backend/shared_utils.py` and only count issues where `requirement_found = TRUE`.
+These are updated by `refresh_compliance_stats()` in `backend/shared_utils.py` and only count issues where `requirement_found = TRUE` (in `compliance_issue_analyses`).
 
 ## compliance_issue_analyses
 
@@ -467,6 +438,31 @@ Helps Tier 3 web search avoid returning results about similar-sounding but diffe
 }
 ```
 
+**Human Review (PR 6.3 — moved from compliance_issues)**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `review_status` | varchar(50) | `unreviewed`, `confirmed`, `false_positive`, etc. (DEFAULT 'unreviewed') |
+| `reviewed_by` | varchar(255) | Who reviewed it |
+| `reviewed_at` | timestamp | When reviewed |
+| `justification_notes` | text | Reviewer's justification notes |
+| `team_notes` | text | Notes for the development team |
+| `impact_type` | varchar(100) | Type of impact |
+| `reviewer_severity` | integer (1-10) | Reviewer-assigned severity (aliased as `severity` in repository queries) |
+| `reviewer_original_severity` | integer (1-10) | Original severity before reviewer adjustment (aliased as `originalSeverity`) |
+
+**Developer Tracking (PR 6.3 — moved from compliance_issues)**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `developer_status` | varchar(50) | `unresolved`, `resolved`, `pending`, etc. (DEFAULT 'unresolved') |
+| `developer_assigned` | varchar(50) | Michael or Abigail |
+| `developer_notes` | text | Notes from developer |
+| `resolution_type` | varchar(50) | `implemented` or `not_implemented` |
+| `resolution_comments` | text | Resolution details |
+| `developer_question` | text | Question for reviewer |
+| `developer_checked_at` | timestamp | When developer last checked |
+
 **Constraints:** `UNIQUE(document_id, issue_type)`
 
 **Indexes:**
@@ -476,6 +472,7 @@ Helps Tier 3 web search avoid returning results about similar-sounding but diffe
 - JSONB: `idx_cia_context_used` (GIN)
 - Severity: `idx_cia_high_severity`, `idx_cia_state_severity`
 - Results: `idx_cia_burdensome`, `idx_cia_justified`
+- Review/Developer: `idx_cia_review_status`, `idx_cia_developer_status`, `idx_cia_developer_assigned`
 - V5: `idx_compliance_issue_analyses_v5_tier3_triggers` (partial index for V5 Tier 3 routing)
 - V5.1: `idx_compliance_issue_analyses_tier3_trigger_reason` (partial), `idx_compliance_issue_analyses_easy_cleanup` (partial)
 - Query optimization: `idx_cia_doc_issue`, `idx_cia_state_tier2`, `idx_cia_highest_tier`

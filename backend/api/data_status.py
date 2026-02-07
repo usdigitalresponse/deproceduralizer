@@ -119,9 +119,10 @@ async def get_database_stats():
             cur.execute("SELECT COUNT(*) FROM compliance_issues")
             stats["compliance_issues_total"] = cur.fetchone()[0]
 
+            # PR 6.3: review_status moved to compliance_issue_analyses
             cur.execute("""
                 SELECT review_status, COUNT(*)
-                FROM compliance_issues
+                FROM compliance_issue_analyses
                 WHERE review_status IS NOT NULL
                 GROUP BY review_status
             """)
@@ -175,8 +176,9 @@ def _get_readiness_for_type(prompt_type: str) -> DataReadiness:
     try:
         with conn.cursor() as cur:
             # Get table and query based on prompt type
+            # PR 6.3: compliance_issues review_status moved to compliance_issue_analyses
             if prompt_type == "wet_signature_detection":
-                table = "compliance_issues"
+                table = "compliance_issue_analyses"
                 extra_where = "AND issue_type = 'wet_signature'"
             elif prompt_type == "red_flags_analysis":
                 table = "red_flags"

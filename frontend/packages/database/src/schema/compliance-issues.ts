@@ -4,63 +4,32 @@ import {
   bigint,
   varchar,
   text,
-  boolean,
   timestamp,
   integer,
   unique
 } from 'drizzle-orm/pg-core';
-import { sql } from 'drizzle-orm';
 import { regulatoryDocuments } from './regulatory-documents';
+import { complianceIssueAnalyses } from './compliance-issue-analyses';
 
 export const complianceIssues = pgTable('compliance_issues', {
   id: bigserial('id', { mode: 'number' }).primaryKey(),
   documentId: bigint('document_id', { mode: 'number' }).notNull().references(() => regulatoryDocuments.id, { onDelete: 'cascade' }),
 
-  // Issue identification (from regex scan) - OLD columns (kept for backwards compatibility)
+  // Issue identification (from regex scan)
   issueType: varchar('issue_type', { length: 50 }).notNull(), // 'wet_signature', 'mail_only', 'fax', etc.
   occurrenceNumber: integer('occurrence_number').notNull().default(1), // 1, 2, 3... for multiple issues of same type per document
-  matchedPattern: varchar('matched_pattern', { length: 255 }), // Regex pattern that triggered scan
-  matchedContext: text('matched_context').notNull(), // ~600 char text window around the regex match
   url: text('url'), // Link to the regulation
+  regexMatchPattern: varchar('regex_match_pattern', { length: 255 }), // Regex pattern that triggered scan
+  regexMatchContext: text('regex_match_context').notNull(), // ~600 char text window around the regex match
 
-  // Issue identification (from regex scan) - NEW columns (research pipeline)
-  regexMatchPattern: varchar('regex_match_pattern', { length: 255 }), // Regex pattern that triggered scan (mirrors matchedPattern)
-  regexMatchContext: text('regex_match_context'), // ~600 char text window around the regex match (mirrors matchedContext)
-
-  // LLM analysis results - OLD columns (kept for backwards compatibility)
-  requirementFound: boolean('requirement_found').default(false), // Did LLM find an actual requirement?
-  requirementText: text('requirement_text'), // The specific text creating the requirement
-  isVerbatim: boolean('is_verbatim'), // True if requirement_text is verbatim from regulation
-  requiredByStatute: boolean('required_by_statute'), // true=statute mandates, false=agency added
-  severity: integer('severity'), // 1-10 scale of how problematic
-  statuteCitation: varchar('statute_citation', { length: 255 }), // Citation to statute if applicable
-  impactAssessment: text('impact_assessment'), // LLM explanation of why this is/isn't problematic
-
-  // LLM analysis results - NEW columns (research pipeline)
-  verbatimSupportingText: text('verbatim_supporting_text').array().default(sql`'{}'::text[]`), // Array of exact quotes from regulation
-  decisionRationale: text('decision_rationale'), // LLM's holistic rationale for classification
-
-  // Human review
-  reviewStatus: varchar('review_status', { length: 50 }).default('unreviewed'), // 'unreviewed', 'confirmed', 'rejected_false_positive'
-  reviewedBy: varchar('reviewed_by', { length: 255 }), // Who reviewed it
-  reviewedAt: timestamp('reviewed_at'), // When it was reviewed
-  justificationNotes: text('justification_notes'), // Justification and analysis for the model
-  teamNotes: text('team_notes'), // Notes for development team (replaces reviewer_notes)
-  originalSeverity: integer('original_severity'), // LLM-assigned severity (preserved on first review)
-  impactType: varchar('impact_type', { length: 100 }), // Type of impact
-
-  // Developer tracking
-  developerStatus: varchar('developer_status', { length: 50 }).default('unresolved'),
-  developerAssigned: varchar('developer_assigned', { length: 50 }),
-  developerNotes: text('developer_notes'),
-  resolutionType: varchar('resolution_type', { length: 50 }),
-  resolutionComments: text('resolution_comments'),
-  developerQuestion: text('developer_question'),
-  developerCheckedAt: timestamp('developer_checked_at'),
+  // Review and developer fields moved to compliance_issue_analyses in PR 6.3
 
   // Metadata
   state: varchar('state', { length: 2 }).notNull(), // 'NY' or 'NJ'
   createdAt: timestamp('created_at').defaultNow(),
+
+  // FK to document-level analysis (PR 6.5: replaces composite JOIN on document_id+issue_type)
+  analysisId: bigint('analysis_id', { mode: 'number' }).references(() => complianceIssueAnalyses.id, { onDelete: 'set null' }),
 }, (table) => ({
   uniqueDocumentIssueOccurrence: unique().on(table.documentId, table.issueType, table.occurrenceNumber),
 }));

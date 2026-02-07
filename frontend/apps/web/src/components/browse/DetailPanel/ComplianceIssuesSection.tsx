@@ -27,12 +27,12 @@ export function ComplianceIssuesSection({ issues, state, documentId, currentUrl 
                 <Badge variant="success" className="text-xs">LLM Confirmed</Badge>
               )}
             </div>
-            {(issue.regexMatchPattern ?? issue.matchedPattern) && (
+            {issue.regexMatchPattern && (
               <div className="mb-1">
-                <Tag variant="warning" size="sm">{issue.regexMatchPattern ?? issue.matchedPattern}</Tag>
+                <Tag variant="warning" size="sm">{issue.regexMatchPattern}</Tag>
               </div>
             )}
-            <p className="text-sm text-[var(--color-text)] line-clamp-2">{issue.regexMatchContext ?? issue.matchedContext}</p>
+            <p className="text-sm text-[var(--color-text)] line-clamp-2">{issue.regexMatchContext}</p>
           </div>
         ))}
         {issues.length > 3 && (

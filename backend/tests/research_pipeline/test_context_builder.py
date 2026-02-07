@@ -335,10 +335,10 @@ class TestCacheEfficiencyOrdering:
 
     def test_group_for_cache_efficiency_import(self):
         """Ensure group_for_cache_efficiency is importable."""
-        from scripts.research_pipeline.tier_orchestrator import TierOrchestrator
+        from scripts.research_pipeline.pipeline_runner import _sort_for_cache_efficiency
         from scripts.research_pipeline.context_builder import group_for_cache_efficiency
 
-        assert TierOrchestrator is not None
+        assert _sort_for_cache_efficiency is not None
         assert group_for_cache_efficiency is not None
 
 

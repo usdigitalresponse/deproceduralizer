@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
-import type { RegulationWithAnalysis, ComplianceIssue, CrossReferenceWithTarget, CrossReferenceWithSource } from '@deproceduralizer/database';
+import type { RegulationWithAnalysis, ComplianceIssueWithAnalysisFields, CrossReferenceWithTarget, CrossReferenceWithSource } from '@deproceduralizer/database';
 import { getDocumentForPanel } from '@/lib/actions/hierarchy';
 import { getComplianceIssuesByDocumentId } from '@/lib/actions/compliance-issues';
 import { getCrossReferencesForDocument, getIncomingReferences } from '@/lib/actions/cross-references';
 
 export function useDetailPanelData(documentId: number | null) {
   const [document, setDocument] = useState<RegulationWithAnalysis | null>(null);
-  const [complianceIssues, setComplianceIssues] = useState<ComplianceIssue[]>([]);
+  const [complianceIssues, setComplianceIssues] = useState<ComplianceIssueWithAnalysisFields[]>([]);
   const [crossRefs, setCrossRefs] = useState<CrossReferenceWithTarget[]>([]);
   const [incomingRefs, setIncomingRefs] = useState<CrossReferenceWithSource[]>([]);
   const [isLoading, setIsLoading] = useState(false);

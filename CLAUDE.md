@@ -47,8 +47,9 @@ When working on the Next.js frontend, follow these patterns:
 - **Important:** When modifying any prompt, update its `updated_at` field to today's date (YYYY-MM-DD format)
 
 ### Compliance Issues
-- Candidate triage defined in `prompts/compliance_issues.yaml` (regex + LLM triage).
-- **Deep Research Pipeline**: Use `python3 -m scripts.research_pipeline.cli` for 4-tier validation and deep analysis (replaces simple triage for production analysis).
+- Issue patterns defined in `prompts/compliance_issues.yaml` (regex patterns + LLM prompts).
+- **Step 1**: `python backend/scripts/scan_compliance_issues.py --state nj` — regex scan, saves matches to DB (no LLM).
+- **Step 2**: `python3 -m scripts.research_pipeline.cli` — 3-tier LLM analysis (Tier 1 filtering, Tier 2 classification, Tier 3 web search verification).
 - **IMPORTANT**: Always ask user permission before running the research pipeline (realtime or batch). These runs make many API calls and cost money.
 - **IMPORTANT**: Always ask user permission before killing a running pipeline. Don't assume the user wants it stopped.
 - TypeScript types auto-generated from YAML - run `python scripts/generate_prompt_types.py`.

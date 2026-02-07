@@ -19,7 +19,7 @@ import type {
   ApplicableDefinition,
   CrossReferenceWithTarget,
   CrossReferenceWithSource,
-  ComplianceIssue,
+  ComplianceIssueWithAnalysisFields,
 } from '@deproceduralizer/database';
 
 interface RegulationDetailSidebarProps {
@@ -29,7 +29,7 @@ interface RegulationDetailSidebarProps {
   state: string;
   backUrl: string;
   /** Compliance issues for this document */
-  complianceIssues: ComplianceIssue[];
+  complianceIssues: ComplianceIssueWithAnalysisFields[];
   /** Outgoing cross-references */
   crossRefs: CrossReferenceWithTarget[];
   /** Incoming cross-references (cited by) */
