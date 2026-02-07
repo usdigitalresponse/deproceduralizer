@@ -555,7 +555,7 @@ backend/scripts/research_pipeline/
     # Supporting modules
     result_processor.py      # Batch result parsing
     cost_tracker.py          # Token/cost tracking
-    batch_persistence.py     # Resume capability
+    # batch_persistence.py removed — resume via DB (get_existing_analyses)
     context_registry.py      # Context audit trail
 
     # Legacy facades (re-export for backward compat)

@@ -4343,8 +4343,8 @@ class TestCLIIntegrationSubprocess:
             timeout=30,
         )
 
-        # dry-run should be available
-        assert "--dry-run" in result.stdout or "dry_run" in result.stdout
+        # dry-run is now the default; --execute opts in
+        assert "--execute" in result.stdout or "DRY-RUN" in result.stdout
 
     def test_cli_all_issues_available(self):
         """Verify --all argument is available."""

@@ -101,10 +101,9 @@ load_dotenv(PROJECT_ROOT / ".env")
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from shared_utils import get_db_connection, BatchManager
+from shared_utils import get_db_connection
 from scripts.research_pipeline.models.matches import ProcessingUnit
 from scripts.research_pipeline.tier_orchestrator import TierOrchestrator
-from scripts.research_pipeline.batch_persistence import BatchPersistence, RunStatus
 
 # Import from new db module
 from scripts.research_pipeline.db import (
@@ -516,8 +515,8 @@ async def _execute_pipeline(
         max_tier: Maximum tier to run (1-3)
         realtime: Use realtime API instead of batch
         force_rerun: If True, re-analyze even if already processed
-        max_docs_per_issue: Max docs per issue (for persistence manifest)
-        global_docs_limit: Global docs limit (for persistence manifest)
+        max_docs_per_issue: Max docs per issue type
+        global_docs_limit: Max total docs across all issue types
         enable_web_search: If True, run Tier 3 web search verification when max_tier >= 3
         title_filter: Optional title filter (e.g., '3A' for Title 3A)
 
@@ -533,46 +532,7 @@ async def _execute_pipeline(
     # but the actual state filtering was already done in document fetching
     orchestrator_state = state if state else "NJ"
 
-    # Normalize issue_types list
-    all_issue_types = issue_types or ([issue_type] if issue_type else [])
-
-    # Determine state for persistence (use original input, not orchestrator_state)
-    persistence_state = state if state else "dangerously-run-all"
-
-    # Set up batch persistence
-    persistence = get_persistence()
-    run_dir: Path | None = None
-
-    # Check for resume (unless force_rerun)
-    if not force_rerun and not realtime:
-        # Create batch manager for API polling
-        batch_manager = BatchManager(batches_dir=batches_dir)
-        resume_result = await check_and_resume(
-            persistence=persistence,
-            state=persistence_state,
-            issue_types=all_issue_types,
-            max_tier=max_tier,
-            batch_manager=batch_manager,
-            title_filter=title_filter,
-        )
-        if resume_result:
-            run_dir, _ = resume_result  # unit_data unused - resume via DB
-            print(f"Resuming from run: {run_dir.name}")
-
-    # Create new run if not resuming
-    if run_dir is None and not realtime:
-        run_dir = persistence.create_run(
-            state=persistence_state,
-            issue_types=all_issue_types,
-            max_tier=max_tier,
-            enable_web_search=enable_web_search,
-            max_docs_per_issue=max_docs_per_issue or "all",
-            global_docs_limit=global_docs_limit or "no-limit",
-            title_filter=title_filter,
-        )
-        print(f"Created new run: {run_dir.name}")
-
-    # Create orchestrator with appropriate issue type(s)
+    # Create orchestrator
     orchestrator = TierOrchestrator(
         state=orchestrator_state,
         issue_type=issue_type,
@@ -581,8 +541,6 @@ async def _execute_pipeline(
         poll_interval=30,
         realtime=realtime,
         resume=not force_rerun,  # If force_rerun, don't resume/skip existing
-        persistence=persistence if not realtime else None,
-        run_dir=run_dir,
         title_filter=title_filter,
     )
 
@@ -1005,8 +963,8 @@ BATCH API TIMING:
   Use --realtime for immediate processing (2x cost, no wait).
 
 RESUME BEHAVIOR:
-  The pipeline automatically resumes interrupted runs.
-  Use --force-rerun to ignore previous runs and start fresh.
+  The pipeline automatically resumes via database state (skips already-analyzed documents).
+  Use --force-rerun to re-analyze documents even if they already have analyses.
 """
     )
 

@@ -424,7 +424,6 @@ class TestPipelineIntegrationContract:
                 state="NJ",
                 batches_dir=Path(tmpdir),
                 issue_types=["mail_only"],
-                persistence=None,  # Contract: should work without persistence
             )
             assert orchestrator is not None
 
