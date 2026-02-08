@@ -25,7 +25,7 @@ from ..formatting import (
     format_fetched_context,
     format_tier1_argument,
 )
-from ..context_builder import (
+from ..context import (
     fetch_summaries_for_requests,
     fetch_full_text_for_requests,
     fetch_document_content_batch,

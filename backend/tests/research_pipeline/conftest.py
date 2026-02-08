@@ -289,14 +289,3 @@ def mock_batch_client():
         yield mock
 
 
-@pytest.fixture
-def mock_db_connection():
-    """Mock database connection for testing persistence."""
-    with patch('scripts.research_pipeline.db_writer.get_connection') as mock:
-        mock_conn = Mock()
-        mock_cursor = Mock()
-        mock_conn.cursor.return_value.__enter__ = Mock(return_value=mock_cursor)
-        mock_conn.cursor.return_value.__exit__ = Mock(return_value=False)
-        mock.return_value.__enter__ = Mock(return_value=mock_conn)
-        mock.return_value.__exit__ = Mock(return_value=False)
-        yield mock_conn

@@ -1,7 +1,7 @@
 """
 Tier runners for the research pipeline.
 
-This module contains the tier-specific runners extracted from tier_runners.py.
+This module contains the tier-specific runners.
 Each tier has its own module with batch preparation and/or realtime execution.
 
 Tiers:

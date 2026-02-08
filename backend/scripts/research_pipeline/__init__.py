@@ -15,9 +15,10 @@ Public API:
 - make_custom_id, parse_custom_id: Shared ID generation utilities
 
 Internal modules (import directly if needed):
-- context_builder: Context fetching and catalog building
+- context/: Context fetching and catalog building
 - context_registry: Deduplication of context items
-- tier_runners: Batch preparation and real-time execution
+- tiers/: Batch preparation and real-time execution
+- db/: Database operations (read/write)
 - result_processor: Response parsing and state transitions
 - prompt_loader: Full prompt loading utilities
 """
@@ -65,7 +66,7 @@ from .cost_tracker import (
 # PUBLIC API - Database persistence
 # =============================================================================
 
-from .db_writer import (
+from .db import (
     save_tier1_results,
     save_tier2_results,
     save_tier3_results,
@@ -86,7 +87,7 @@ from .ids import (
 # PUBLIC API - Web search (for tests and external validation)
 # =============================================================================
 
-from .tier_runners import (
+from .tiers import (
     WEB_SEARCH_TOOL,
     WebSearchResult,
     WebSearchQuery,

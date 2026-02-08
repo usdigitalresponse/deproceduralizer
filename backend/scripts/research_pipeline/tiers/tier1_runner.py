@@ -31,7 +31,7 @@ from ..formatting import (
     format_matches_for_tier1,
     format_immediate_siblings,
 )
-from ..context_builder import (
+from ..context import (
     build_context_catalog,
     get_immediate_siblings_batch,
     # V5 proactive context

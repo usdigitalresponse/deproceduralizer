@@ -25,7 +25,7 @@ Cornell Law Website
         ↓
     PostgreSQL (Neon)
         ↓
-    Analysis Scripts (red_flags.py, batch_definitions.py, compliance_issues/searcher.py)
+    Analysis Scripts (red_flags.py, batch_definitions.py, scan_compliance_issues.py, research_pipeline/)
         ↓
     Next.js Web App (server actions query DB directly via Drizzle)
         ↓
@@ -57,8 +57,14 @@ deproceduralizer/
 │       ├── red_flags.py              # LLM red flag analysis
 │       ├── batch_definitions.py      # Batch definition extraction
 │       ├── link_definitions.py       # Link definitions to documents
-│       ├── compliance_issues/        # Compliance issue detection
-│       │   └── searcher.py           # Regex compliance issue scanner
+│       ├── scan_compliance_issues.py  # Regex compliance issue scanner
+│       ├── research_pipeline/        # 3-tier LLM analysis pipeline
+│       │   ├── cli.py                # CLI entry point
+│       │   ├── pipeline_runner.py    # Core orchestration (flat functions)
+│       │   ├── tiers/                # Tier 1-3 runners
+│       │   ├── db/                   # Database layer
+│       │   ├── context/              # Context gathering
+│       │   └── models/               # Pydantic models
 │       └── ...
 │
 ├── frontend/                         # Next.js monorepo
@@ -172,7 +178,8 @@ The scrapers handle migration automatically via `shared_utils.migrate_regulation
 | `red_flags.py` | LLM-powered analysis identifying 12 categories of implementation red flags. Uses Claude API with structured output. |
 | `batch_definitions.py` | Batch LLM-powered definition extraction with caching and progress tracking. |
 | `link_definitions.py` | Link extracted definitions to documents where terms appear. |
-| `scan_compliance_issues.py` | Regex compliance issue detection (40+ issue types). LLM analysis via research pipeline. |
+| `scan_compliance_issues.py` | Regex compliance issue detection (43 issue types). No LLM — regex only. |
+| `research_pipeline/cli.py` | 3-tier LLM analysis pipeline (Tier 1 filter → Tier 2 classify → Tier 3 web verify). |
 | `backfill_definition_scope.py` | Fix incomplete definition scopes. |
 
 ### Red Flag Categories
@@ -275,8 +282,12 @@ Based on Jennifer Pahlka's framework:
 - Review and developer workflow fields
 
 **compliance_issues**
-- Detected compliance violations (40+ types)
-- Statute attribution (from_statute flag)
+- Regex-matched compliance issue candidates (40+ types)
+- Links to `compliance_issue_analyses` via `analysis_id` FK
+
+**compliance_issue_analyses**
+- Single source of truth for LLM analysis + human review (one per document + issue type)
+- Tier 1-3 analysis results, severity, classification
 - Review workflow with developer tracking
 
 See `.claude/skills/database/schema.md` for complete schema documentation, or `frontend/packages/database/src/schema/` for Drizzle definitions.
@@ -342,12 +353,11 @@ The prebuild script copies `prompts/core.yaml` → `src/data/prompts.yaml`. Comp
    echo 'your-database-url' | vercel env add DATABASE_URL production
    ```
 
-3. Deploy:
+3. Deploy via git push (do NOT run `vercel --prod` directly):
    ```bash
-   vercel --prod
+   git push origin main
    ```
-
-The web app builds from `frontend/apps/web` with the build command configured in `vercel.json`.
+   Vercel auto-deploys from the `main` branch. You can also push a branch and promote it in the Vercel dashboard.
 
 ## Data Coverage
 

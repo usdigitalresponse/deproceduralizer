@@ -1,5 +1,10 @@
 # Post-Merge Refactoring Plan: Deproceduralizer Codebase Cleanup
 
+> **Status: HISTORICAL REFERENCE**
+> All 3 critical issues have been fixed. The pipeline simplification (Feb 2026) addressed
+> many of the high-priority items. See `docs/PIPELINE_SIMPLIFICATION_PLAN.md` for the
+> simplification work. Remaining items below are tracked as future improvements.
+
 ## Executive Summary
 
 After merging the research-pipeline into the main deproceduralizer, a comprehensive analysis identified **3 critical issues** (all now fixed ✅), **15 high-priority improvements**, and numerous code quality enhancements across frontend, backend, and database layers.
