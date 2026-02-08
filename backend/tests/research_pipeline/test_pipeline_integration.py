@@ -270,7 +270,7 @@ class TestContextBuilderImports:
     """Test context_builder imports without database."""
 
     def test_import(self):
-        from scripts.research_pipeline.context_builder import (
+        from scripts.research_pipeline.context import (
             build_context_catalog,
             get_sibling_summaries_batch,
             get_crossrefs_batch,
@@ -286,7 +286,7 @@ class TestContextBuilderImports:
 
     def test_empty_inputs(self):
         """All batch functions should handle empty inputs gracefully."""
-        from scripts.research_pipeline.context_builder import (
+        from scripts.research_pipeline.context import (
             build_context_catalog,
             get_sibling_summaries_batch,
             get_crossrefs_batch,
@@ -372,7 +372,7 @@ class TestContextBuilderDB:
         return ids
 
     def test_get_sibling_summaries_batch(self, sample_doc_ids):
-        from scripts.research_pipeline.context_builder import get_sibling_summaries_batch
+        from scripts.research_pipeline.context import get_sibling_summaries_batch
 
         if not sample_doc_ids:
             pytest.skip("No sample documents found")
@@ -390,7 +390,7 @@ class TestContextBuilderDB:
                 assert hasattr(sibling, "title")
 
     def test_get_crossrefs_batch(self, sample_doc_ids):
-        from scripts.research_pipeline.context_builder import get_crossrefs_batch
+        from scripts.research_pipeline.context import get_crossrefs_batch
 
         if not sample_doc_ids:
             pytest.skip("No sample documents found")
@@ -408,7 +408,7 @@ class TestContextBuilderDB:
                 assert hasattr(xref, "is_definitions_section")
 
     def test_get_definitions_batch(self, sample_doc_ids):
-        from scripts.research_pipeline.context_builder import get_definitions_batch
+        from scripts.research_pipeline.context import get_definitions_batch
 
         if not sample_doc_ids:
             pytest.skip("No sample documents found")
@@ -425,7 +425,7 @@ class TestContextBuilderDB:
                 assert isinstance(term, str)
 
     def test_get_ancestor_entries_batch(self, sample_doc_ids):
-        from scripts.research_pipeline.context_builder import get_ancestor_entries_batch
+        from scripts.research_pipeline.context import get_ancestor_entries_batch
 
         if not sample_doc_ids:
             pytest.skip("No sample documents found")
@@ -443,7 +443,7 @@ class TestContextBuilderDB:
                 assert hasattr(ancestor, "hierarchy_level")
 
     def test_build_context_catalog(self, sample_doc_ids):
-        from scripts.research_pipeline.context_builder import build_context_catalog
+        from scripts.research_pipeline.context import build_context_catalog
 
         if not sample_doc_ids:
             pytest.skip("No sample documents found")
@@ -464,7 +464,7 @@ class TestContextBuilderDB:
         """Test that batch queries complete in reasonable time."""
         import time
         from shared_utils import get_db_connection
-        from scripts.research_pipeline.context_builder import build_context_catalog
+        from scripts.research_pipeline.context import build_context_catalog
 
         # Get 100 documents for performance testing
         conn = get_db_connection()
@@ -637,17 +637,17 @@ class TestTierRunners:
 
     def test_import(self):
         # V5: Tier 3 uses real-time API, not batch, so no prepare_tier3_batch
-        from scripts.research_pipeline.tier_runners import (
+        from scripts.research_pipeline.tiers import (
             prepare_tier1_batch,
             prepare_tier2_batch,
-            format_matches_for_tier1,
         )
+        from scripts.research_pipeline.formatting import format_matches_for_tier1
 
         assert prepare_tier1_batch is not None
         assert prepare_tier2_batch is not None
 
     def test_format_matches_for_tier1(self):
-        from scripts.research_pipeline.tier_runners import format_matches_for_tier1
+        from scripts.research_pipeline.formatting import format_matches_for_tier1
         from scripts.research_pipeline.models.matches import MatchInfo
 
         matches = [
@@ -667,7 +667,7 @@ class TestTierRunners:
         assert "Applications" in formatted
 
     def test_format_matches_empty(self):
-        from scripts.research_pipeline.tier_runners import format_matches_for_tier1
+        from scripts.research_pipeline.formatting import format_matches_for_tier1
 
         formatted = format_matches_for_tier1([])
         assert "(no matches)" in formatted
@@ -726,7 +726,7 @@ class TestDbWriter:
     """Test database writer functions."""
 
     def test_import(self):
-        from scripts.research_pipeline.db_writer import (
+        from scripts.research_pipeline.db import (
             save_tier1_results,
             save_tier2_results,
             save_final_results,
@@ -793,7 +793,7 @@ class TestFormatDefinitionsFields:
 
     def test_format_definitions_uses_rephrased_definition(self):
         """Ensure format_definitions prefers rephrased_definition over verbatim_text."""
-        from scripts.research_pipeline.tier_runners import format_definitions
+        from scripts.research_pipeline.formatting import format_definitions
 
         definitions = [
             {
@@ -810,7 +810,7 @@ class TestFormatDefinitionsFields:
 
     def test_format_definitions_falls_back_to_verbatim(self):
         """Ensure format_definitions falls back to verbatim_text when no rephrased."""
-        from scripts.research_pipeline.tier_runners import format_definitions
+        from scripts.research_pipeline.formatting import format_definitions
 
         definitions = [
             {
@@ -827,7 +827,7 @@ class TestFormatDefinitionsFields:
 
     def test_format_definitions_handles_empty_fields(self):
         """Ensure format_definitions handles None/empty fields gracefully."""
-        from scripts.research_pipeline.tier_runners import format_definitions
+        from scripts.research_pipeline.formatting import format_definitions
 
         definitions = [
             {
@@ -843,7 +843,7 @@ class TestFormatDefinitionsFields:
 
     def test_format_definitions_empty_list(self):
         """Ensure format_definitions handles empty list."""
-        from scripts.research_pipeline.tier_runners import format_definitions
+        from scripts.research_pipeline.formatting import format_definitions
 
         result = format_definitions([])
         assert result == "(no applicable definitions)"
@@ -855,7 +855,7 @@ class TestCacheEfficiencyOrdering:
     def test_sort_for_cache_efficiency_import(self):
         """Ensure group_for_cache_efficiency is imported in pipeline_runner."""
         from scripts.research_pipeline.pipeline_runner import _sort_for_cache_efficiency
-        from scripts.research_pipeline.context_builder import group_for_cache_efficiency
+        from scripts.research_pipeline.context import group_for_cache_efficiency
 
         # Both should be importable without errors
         assert _sort_for_cache_efficiency is not None
@@ -900,7 +900,7 @@ class TestWebSearchToolDefinition:
 
     def test_web_search_tool_definition(self):
         """Verify WEB_SEARCH_TOOL is properly defined."""
-        from scripts.research_pipeline.tier_runners import WEB_SEARCH_TOOL
+        from scripts.research_pipeline.tiers import WEB_SEARCH_TOOL
 
         assert WEB_SEARCH_TOOL["type"] == "web_search_20250305"
         assert WEB_SEARCH_TOOL["name"] == "web_search"
@@ -909,7 +909,7 @@ class TestWebSearchToolDefinition:
 
     def test_web_search_result_dataclass(self):
         """Test WebSearchResult dataclass."""
-        from scripts.research_pipeline.tier_runners import WebSearchResult
+        from scripts.research_pipeline.tiers import WebSearchResult
 
         result = WebSearchResult(
             title="Test Result",
@@ -924,7 +924,7 @@ class TestWebSearchToolDefinition:
 
     def test_web_search_result_optional_page_age(self):
         """Test WebSearchResult with optional page_age."""
-        from scripts.research_pipeline.tier_runners import WebSearchResult
+        from scripts.research_pipeline.tiers import WebSearchResult
 
         result = WebSearchResult(
             title="Test",
@@ -935,7 +935,7 @@ class TestWebSearchToolDefinition:
 
     def test_web_search_query_dataclass(self):
         """Test WebSearchQuery dataclass."""
-        from scripts.research_pipeline.tier_runners import WebSearchQuery, WebSearchResult
+        from scripts.research_pipeline.tiers import WebSearchQuery, WebSearchResult
 
         results = [
             WebSearchResult(title="R1", url="https://a.com", snippet="S1"),
@@ -953,7 +953,7 @@ class TestExtractWebSearchResults:
 
     def test_extract_empty_response(self):
         """Test extraction from response with no web search blocks."""
-        from scripts.research_pipeline.tier_runners import extract_web_search_results
+        from scripts.research_pipeline.tiers import extract_web_search_results
 
         # Mock response with no web search content
         class MockBlock:
@@ -968,7 +968,7 @@ class TestExtractWebSearchResults:
 
     def test_extract_web_search_results_with_mock(self):
         """Test extraction from mock response with web search blocks."""
-        from scripts.research_pipeline.tier_runners import extract_web_search_results
+        from scripts.research_pipeline.tiers import extract_web_search_results
 
         # Mock server_tool_use block
         class MockServerToolUse:
@@ -1008,14 +1008,14 @@ class TestFormatWebResultsForPrompt:
 
     def test_format_empty_results(self):
         """Test formatting with no results."""
-        from scripts.research_pipeline.tier_runners import format_web_results_for_prompt
+        from scripts.research_pipeline.tiers import format_web_results_for_prompt
 
         result = format_web_results_for_prompt([])
         assert result == "(No web search results available)"
 
     def test_format_single_query_results(self):
         """Test formatting results from a single query."""
-        from scripts.research_pipeline.tier_runners import (
+        from scripts.research_pipeline.tiers import (
             format_web_results_for_prompt,
             WebSearchQuery,
             WebSearchResult,
@@ -1044,7 +1044,7 @@ class TestFormatWebResultsForPrompt:
 
     def test_format_multiple_queries(self):
         """Test formatting results from multiple queries."""
-        from scripts.research_pipeline.tier_runners import (
+        from scripts.research_pipeline.tiers import (
             format_web_results_for_prompt,
             WebSearchQuery,
             WebSearchResult,
@@ -1074,7 +1074,7 @@ class TestFormatWebResultsForPrompt:
 
     def test_format_limits_results_per_query(self):
         """Test that formatting limits to top 5 results per query."""
-        from scripts.research_pipeline.tier_runners import (
+        from scripts.research_pipeline.tiers import (
             format_web_results_for_prompt,
             WebSearchQuery,
             WebSearchResult,
@@ -1098,7 +1098,7 @@ class TestFormatWebResultsForPrompt:
 
     def test_format_handles_no_results_for_query(self):
         """Test formatting when a query has no results."""
-        from scripts.research_pipeline.tier_runners import (
+        from scripts.research_pipeline.tiers import (
             format_web_results_for_prompt,
             WebSearchQuery,
         )
@@ -2566,7 +2566,7 @@ class TestV5HelperFunctions:
 
     def test_is_excludable_definitions(self):
         """is_excludable should exclude definition sections."""
-        from scripts.research_pipeline.context_builder import is_excludable
+        from scripts.research_pipeline.context import is_excludable
 
         assert is_excludable("Definitions") is True
         assert is_excludable("Defined Terms") is True
@@ -2574,35 +2574,35 @@ class TestV5HelperFunctions:
 
     def test_is_excludable_toc(self):
         """is_excludable should exclude table of contents."""
-        from scripts.research_pipeline.context_builder import is_excludable
+        from scripts.research_pipeline.context import is_excludable
 
         assert is_excludable("Table of Contents") is True
         assert is_excludable("Contents") is True
 
     def test_is_excludable_reserved(self):
         """is_excludable should exclude reserved/repealed sections."""
-        from scripts.research_pipeline.context_builder import is_excludable
+        from scripts.research_pipeline.context import is_excludable
 
         assert is_excludable("Reserved") is True
         assert is_excludable("Repealed") is True
 
     def test_is_excludable_appendix(self):
         """is_excludable should exclude appendices."""
-        from scripts.research_pipeline.context_builder import is_excludable
+        from scripts.research_pipeline.context import is_excludable
 
         assert is_excludable("Appendix A") is True
         assert is_excludable("Appendices") is True
 
     def test_is_excludable_empty(self):
         """is_excludable should exclude empty/None titles."""
-        from scripts.research_pipeline.context_builder import is_excludable
+        from scripts.research_pipeline.context import is_excludable
 
         assert is_excludable("") is True
         assert is_excludable(None) is True
 
     def test_is_excludable_normal_titles(self):
         """is_excludable should NOT exclude normal section titles."""
-        from scripts.research_pipeline.context_builder import is_excludable
+        from scripts.research_pipeline.context import is_excludable
 
         assert is_excludable("License Requirements") is False
         assert is_excludable("Exemptions") is False
@@ -2611,7 +2611,7 @@ class TestV5HelperFunctions:
 
     def test_get_keyword_category_exemption(self):
         """get_keyword_category should return 'exemption' for exemption keywords."""
-        from scripts.research_pipeline.context_builder import get_keyword_category
+        from scripts.research_pipeline.context import get_keyword_category
 
         assert get_keyword_category("Exemptions") == "exemption"
         assert get_keyword_category("Waiver Provisions") == "exemption"
@@ -2620,7 +2620,7 @@ class TestV5HelperFunctions:
 
     def test_get_keyword_category_alternatives(self):
         """get_keyword_category should return 'alternatives' for alternative keywords."""
-        from scripts.research_pipeline.context_builder import get_keyword_category
+        from scripts.research_pipeline.context import get_keyword_category
 
         assert get_keyword_category("Electronic Submission") == "alternatives"
         assert get_keyword_category("Online Application") == "alternatives"
@@ -2630,7 +2630,7 @@ class TestV5HelperFunctions:
 
     def test_get_keyword_category_scope(self):
         """get_keyword_category should return 'scope' for scope keywords."""
-        from scripts.research_pipeline.context_builder import get_keyword_category
+        from scripts.research_pipeline.context import get_keyword_category
 
         assert get_keyword_category("Applicability") == "scope"
         assert get_keyword_category("Scope of Regulations") == "scope"
@@ -2639,7 +2639,7 @@ class TestV5HelperFunctions:
 
     def test_get_keyword_category_enforcement(self):
         """get_keyword_category should return 'enforcement' for enforcement keywords."""
-        from scripts.research_pipeline.context_builder import get_keyword_category
+        from scripts.research_pipeline.context import get_keyword_category
 
         assert get_keyword_category("Enforcement") == "enforcement"
         assert get_keyword_category("Penalty Provisions") == "enforcement"
@@ -2648,7 +2648,7 @@ class TestV5HelperFunctions:
 
     def test_get_keyword_category_priority(self):
         """get_keyword_category should return highest priority category when multiple match."""
-        from scripts.research_pipeline.context_builder import get_keyword_category
+        from scripts.research_pipeline.context import get_keyword_category
 
         # "Electronic Exemptions" matches both exemption and alternatives
         # exemption has higher priority
@@ -2656,7 +2656,7 @@ class TestV5HelperFunctions:
 
     def test_get_keyword_category_none(self):
         """get_keyword_category should return None for non-matching titles."""
-        from scripts.research_pipeline.context_builder import get_keyword_category
+        from scripts.research_pipeline.context import get_keyword_category
 
         assert get_keyword_category("License Requirements") is None
         # Note: "Application Procedures" now matches "scope" since "application" is a keyword
@@ -2666,7 +2666,7 @@ class TestV5HelperFunctions:
 
     def test_get_summary_or_fallback_with_summary(self):
         """get_summary_or_fallback should use summary when available."""
-        from scripts.research_pipeline.context_builder import get_summary_or_fallback
+        from scripts.research_pipeline.context import get_summary_or_fallback
 
         text, is_fallback = get_summary_or_fallback(
             summary="A proper summary of the section.",
@@ -2679,7 +2679,7 @@ class TestV5HelperFunctions:
 
     def test_get_summary_or_fallback_content_excerpt(self):
         """get_summary_or_fallback should use content excerpt when no summary."""
-        from scripts.research_pipeline.context_builder import get_summary_or_fallback
+        from scripts.research_pipeline.context import get_summary_or_fallback
 
         long_content = "This is a long piece of content. " * 50  # ~1700 chars
 
@@ -2695,7 +2695,7 @@ class TestV5HelperFunctions:
 
     def test_get_summary_or_fallback_title_only(self):
         """get_summary_or_fallback should use title when no summary or content."""
-        from scripts.research_pipeline.context_builder import get_summary_or_fallback
+        from scripts.research_pipeline.context import get_summary_or_fallback
 
         text, is_fallback = get_summary_or_fallback(
             summary=None,
@@ -2708,7 +2708,7 @@ class TestV5HelperFunctions:
 
     def test_get_summary_or_fallback_short_summary_ignored(self):
         """get_summary_or_fallback should ignore very short summaries and use content excerpt."""
-        from scripts.research_pipeline.context_builder import get_summary_or_fallback
+        from scripts.research_pipeline.context import get_summary_or_fallback
 
         # Content must be >50 chars to trigger excerpt fallback
         long_content = "This is the actual content which is substantially longer than the minimum threshold required for excerpt generation."
@@ -2728,7 +2728,7 @@ class TestPrioritizeSummaries:
 
     def test_prioritize_includes_preceding(self):
         """prioritize_summaries should include preceding sibling."""
-        from scripts.research_pipeline.context_builder import prioritize_summaries
+        from scripts.research_pipeline.context import prioritize_summaries
         from scripts.research_pipeline.models.context import SiblingEntry
 
         siblings = [
@@ -2751,7 +2751,7 @@ class TestPrioritizeSummaries:
 
     def test_prioritize_includes_following(self):
         """prioritize_summaries should include following sibling."""
-        from scripts.research_pipeline.context_builder import prioritize_summaries
+        from scripts.research_pipeline.context import prioritize_summaries
         from scripts.research_pipeline.models.context import SiblingEntry
 
         siblings = [
@@ -2774,7 +2774,7 @@ class TestPrioritizeSummaries:
 
     def test_prioritize_skips_excludable(self):
         """prioritize_summaries should skip excludable sections."""
-        from scripts.research_pipeline.context_builder import prioritize_summaries
+        from scripts.research_pipeline.context import prioritize_summaries
         from scripts.research_pipeline.models.context import SiblingEntry
 
         siblings = [
@@ -2797,7 +2797,7 @@ class TestPrioritizeSummaries:
 
     def test_prioritize_includes_keyword_matches(self):
         """prioritize_summaries should include keyword-matched siblings."""
-        from scripts.research_pipeline.context_builder import prioritize_summaries
+        from scripts.research_pipeline.context import prioritize_summaries
         from scripts.research_pipeline.models.context import SiblingEntry
 
         siblings = [
@@ -2820,7 +2820,7 @@ class TestPrioritizeSummaries:
 
     def test_prioritize_keyword_ordering(self):
         """prioritize_summaries should order keywords by priority."""
-        from scripts.research_pipeline.context_builder import prioritize_summaries
+        from scripts.research_pipeline.context import prioritize_summaries
         from scripts.research_pipeline.models.context import SiblingEntry
 
         siblings = [
@@ -2845,7 +2845,7 @@ class TestPrioritizeSummaries:
 
     def test_prioritize_respects_max_limit(self):
         """prioritize_summaries should respect MAX_SUMMARIES limit."""
-        from scripts.research_pipeline.context_builder import (
+        from scripts.research_pipeline.context import (
             prioritize_summaries,
             MAX_SUMMARIES,
         )
@@ -2868,7 +2868,7 @@ class TestPrioritizeSummaries:
 
     def test_prioritize_deduplicates(self):
         """prioritize_summaries should deduplicate by document ID."""
-        from scripts.research_pipeline.context_builder import prioritize_summaries
+        from scripts.research_pipeline.context import prioritize_summaries
         from scripts.research_pipeline.models.context import SiblingEntry, CrossRefEntry
 
         # Preceding sibling is also a keyword match - should only appear once
@@ -3027,7 +3027,7 @@ class TestV5ContextBuilderImports:
 
     def test_import_v5_functions(self):
         """V5 functions should be importable."""
-        from scripts.research_pipeline.context_builder import (
+        from scripts.research_pipeline.context import (
             build_proactive_context,
             prioritize_summaries,
             is_excludable,
@@ -3047,7 +3047,7 @@ class TestV5ContextBuilderImports:
 
     def test_empty_inputs(self):
         """build_proactive_context should handle empty inputs."""
-        from scripts.research_pipeline.context_builder import build_proactive_context
+        from scripts.research_pipeline.context import build_proactive_context
 
         result = build_proactive_context([])
         assert result == {}
@@ -3091,7 +3091,7 @@ class TestV5ProactiveContextDB:
 
     def test_build_proactive_context_returns_context(self, sample_doc_ids):
         """build_proactive_context should return ProactiveTier1Context for each doc."""
-        from scripts.research_pipeline.context_builder import build_proactive_context
+        from scripts.research_pipeline.context import build_proactive_context
         from scripts.research_pipeline.models.context import ProactiveTier1Context
 
         if not sample_doc_ids:
@@ -3109,7 +3109,7 @@ class TestV5ProactiveContextDB:
 
     def test_proactive_context_has_ancestors(self, sample_doc_ids):
         """Proactive context should include ancestor summaries."""
-        from scripts.research_pipeline.context_builder import build_proactive_context
+        from scripts.research_pipeline.context import build_proactive_context
 
         if not sample_doc_ids:
             pytest.skip("No sample documents found")
@@ -3124,7 +3124,7 @@ class TestV5ProactiveContextDB:
 
     def test_proactive_context_summaries_populated(self, sample_doc_ids):
         """Summary fields should always be populated (via fallback if needed)."""
-        from scripts.research_pipeline.context_builder import build_proactive_context
+        from scripts.research_pipeline.context import build_proactive_context
 
         if not sample_doc_ids:
             pytest.skip("No sample documents found")
@@ -3148,7 +3148,7 @@ class TestV5ProactiveContextDB:
         """build_proactive_context should complete in reasonable time for batch."""
         import time
         from shared_utils import get_db_connection
-        from scripts.research_pipeline.context_builder import build_proactive_context
+        from scripts.research_pipeline.context import build_proactive_context
 
         conn = get_db_connection()
         with conn.cursor() as cur:
@@ -3596,23 +3596,23 @@ class TestTier1ArgumentFormatter:
 
     def test_format_tier1_argument_with_value(self):
         """_format_tier1_argument should return the argument text when present."""
-        from scripts.research_pipeline.tier_runners import _format_tier1_argument
+        from scripts.research_pipeline.formatting import format_tier1_argument
 
-        result = _format_tier1_argument("This is the burdensome argument.")
+        result = format_tier1_argument("This is the burdensome argument.")
         assert result == "This is the burdensome argument."
 
     def test_format_tier1_argument_none(self):
         """_format_tier1_argument should return placeholder for None."""
-        from scripts.research_pipeline.tier_runners import _format_tier1_argument
+        from scripts.research_pipeline.formatting import format_tier1_argument
 
-        result = _format_tier1_argument(None)
+        result = format_tier1_argument(None)
         assert result == "(not provided)"
 
     def test_format_tier1_argument_empty_string(self):
         """_format_tier1_argument should return placeholder for empty string."""
-        from scripts.research_pipeline.tier_runners import _format_tier1_argument
+        from scripts.research_pipeline.formatting import format_tier1_argument
 
-        result = _format_tier1_argument("")
+        result = format_tier1_argument("")
         assert result == "(not provided)"
 
 
@@ -3621,7 +3621,7 @@ class TestContextRequestsHelpers:
 
     def test_dedupe_context_requests(self):
         """dedupe_context_requests should merge duplicates, preferring full_text."""
-        from scripts.research_pipeline.tier_runners import dedupe_context_requests
+        from scripts.research_pipeline.tiers import dedupe_context_requests
         from scripts.research_pipeline.models.context import ContextRequest
 
         requests = [
@@ -3637,7 +3637,7 @@ class TestContextRequestsHelpers:
 
     def test_format_fetched_context(self):
         """format_fetched_context should format context for prompt injection."""
-        from scripts.research_pipeline.tier_runners import format_fetched_context
+        from scripts.research_pipeline.formatting import format_fetched_context
         from scripts.research_pipeline.models.context import ContextRequest
 
         context = {
@@ -3660,7 +3660,7 @@ class TestTier2V5HandoffIntegration:
 
     def test_extract_tier1_v5_data(self):
         """Tier 2 should correctly extract V5 data from Tier 1 output."""
-        from scripts.research_pipeline.tier_runners import _format_tier1_argument
+        from scripts.research_pipeline.formatting import format_tier1_argument
         from scripts.research_pipeline.models.llm_outputs import Tier1Output
 
         t1 = Tier1Output(
@@ -3694,9 +3694,9 @@ class TestTier2V5HandoffIntegration:
         )
 
         # Extract as prepare_tier2_batch does
-        tier1_argument_burdensome = _format_tier1_argument(t1.best_argument_burdensome)
-        tier1_argument_justified = _format_tier1_argument(t1.best_argument_justified)
-        tier1_argument_unrelated = _format_tier1_argument(t1.best_argument_unrelated)
+        tier1_argument_burdensome = format_tier1_argument(t1.best_argument_burdensome)
+        tier1_argument_justified = format_tier1_argument(t1.best_argument_justified)
+        tier1_argument_unrelated = format_tier1_argument(t1.best_argument_unrelated)
 
         # Verify argument framing
         assert tier1_argument_burdensome == "The mail-only creates burden."
@@ -3727,7 +3727,7 @@ class TestPipelineVersionV5:
 
     def test_pipeline_version_is_v5(self):
         """PIPELINE_VERSION should start with 'v5'."""
-        from scripts.research_pipeline.db_writer import PIPELINE_VERSION
+        from scripts.research_pipeline.db import PIPELINE_VERSION
 
         assert PIPELINE_VERSION.startswith("v5"), f"Expected v5.x, got {PIPELINE_VERSION}"
 
@@ -3738,10 +3738,10 @@ class TestDbWriterV5ColumnsPresence:
     def test_db_writer_has_tier1_v5_columns(self):
         """DB writer should use tier1 V5 columns."""
         import inspect
-        from scripts.research_pipeline import db_writer
+        from scripts.research_pipeline import db
 
         # Get the source code of the save_tier1_results function
-        source = inspect.getsource(db_writer.save_tier1_results)
+        source = inspect.getsource(db.save_tier1_results)
 
         assert "tier1_argument_framing" in source
         assert "tier1_recommendations" in source
@@ -3749,10 +3749,10 @@ class TestDbWriterV5ColumnsPresence:
     def test_db_writer_has_tier2_v5_columns(self):
         """DB writer should use tier2 V5 columns."""
         import inspect
-        from scripts.research_pipeline import db_writer
+        from scripts.research_pipeline import db
 
         # Get the source code of the save_tier2_results function
-        source = inspect.getsource(db_writer.save_tier2_results)
+        source = inspect.getsource(db.save_tier2_results)
 
         assert "cites_federal_statute" in source
         assert "federal_citation" in source
@@ -3822,7 +3822,7 @@ class TestTier2RerunMaxConstant:
 
     def test_max_tier2_reruns_is_2(self):
         """MAX_TIER2_RERUNS should be 2."""
-        from scripts.research_pipeline.tier_runners import MAX_TIER2_RERUNS
+        from scripts.research_pipeline.tiers import MAX_TIER2_RERUNS
 
         assert MAX_TIER2_RERUNS == 2
 
@@ -3853,9 +3853,9 @@ class TestDbWriterRerunColumns:
     def test_db_writer_has_rerun_columns(self):
         """DB writer should include tier2_rerun_count, tier2_context_requests_made, tier2_forced_classification."""
         import inspect
-        from scripts.research_pipeline import db_writer
+        from scripts.research_pipeline import db
 
-        source = inspect.getsource(db_writer.save_tier2_results)
+        source = inspect.getsource(db.save_tier2_results)
 
         assert "tier2_rerun_count" in source
         assert "tier2_context_requests_made" in source
@@ -3867,14 +3867,14 @@ class TestRunTier2WithRerunsExists:
 
     def test_run_tier2_with_reruns_exists(self):
         """run_tier2_with_reruns should be importable."""
-        from scripts.research_pipeline.tier_runners import run_tier2_with_reruns
+        from scripts.research_pipeline.tiers import run_tier2_with_reruns
 
         assert callable(run_tier2_with_reruns)
 
     def test_run_tier2_with_reruns_is_async(self):
         """run_tier2_with_reruns should be async."""
         import asyncio
-        from scripts.research_pipeline.tier_runners import run_tier2_with_reruns
+        from scripts.research_pipeline.tiers import run_tier2_with_reruns
 
         assert asyncio.iscoroutinefunction(run_tier2_with_reruns)
 
@@ -4021,7 +4021,7 @@ class TestCacheOrderingBehavior:
             ProcessingUnit(document_id=3, issue_type="mail_only", citation="C", title="T3", matches=[match], content="c"),
         ]
 
-        from scripts.research_pipeline.context_builder import group_for_cache_efficiency
+        from scripts.research_pipeline.context import group_for_cache_efficiency
         ordered = group_for_cache_efficiency(units)
 
         # mail_only units should be consecutive
@@ -4031,7 +4031,7 @@ class TestCacheOrderingBehavior:
 
     def test_empty_input_returns_empty(self):
         """Empty input returns empty list."""
-        from scripts.research_pipeline.context_builder import group_for_cache_efficiency
+        from scripts.research_pipeline.context import group_for_cache_efficiency
 
         result = group_for_cache_efficiency([])
         assert result == []
@@ -4046,7 +4046,7 @@ class TestCacheOrderingBehavior:
             for i in range(5)
         ]
 
-        from scripts.research_pipeline.context_builder import group_for_cache_efficiency
+        from scripts.research_pipeline.context import group_for_cache_efficiency
         ordered = group_for_cache_efficiency(units)
 
         assert len(ordered) == 5
@@ -4058,7 +4058,7 @@ class TestCacheEfficiencyMetricsBehavior:
 
     def test_empty_input_returns_zeros(self):
         """Empty input returns zero metrics safely."""
-        from scripts.research_pipeline.context_builder import estimate_cache_efficiency
+        from scripts.research_pipeline.context import estimate_cache_efficiency
 
         result = estimate_cache_efficiency([])
 
@@ -4068,7 +4068,7 @@ class TestCacheEfficiencyMetricsBehavior:
     def test_single_issue_type_high_cache_rate(self):
         """All same issue_type should have high cache hit rate."""
         from scripts.research_pipeline.models.matches import ProcessingUnit, MatchInfo
-        from scripts.research_pipeline.context_builder import estimate_cache_efficiency
+        from scripts.research_pipeline.context import estimate_cache_efficiency
 
         match = MatchInfo(match_id=1, matched_text="test", position_start=0, position_end=4, surrounding_context="test")
         units = [
@@ -4086,7 +4086,7 @@ class TestCacheEfficiencyMetricsBehavior:
     def test_all_different_issue_types_low_cache_rate(self):
         """All different issue_types should have low cache hit rate."""
         from scripts.research_pipeline.models.matches import ProcessingUnit, MatchInfo
-        from scripts.research_pipeline.context_builder import estimate_cache_efficiency
+        from scripts.research_pipeline.context import estimate_cache_efficiency
 
         match = MatchInfo(match_id=1, matched_text="test", position_start=0, position_end=4, surrounding_context="test")
         issue_types = ["mail_only", "wet_signature", "notarization", "in_person_only", "original_document"]

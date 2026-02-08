@@ -32,16 +32,15 @@ from .result_processor import (
 )
 from .result_processor import process_tier3_batch_results
 from .models.llm_outputs import Tier1Output, Tier2Output, Tier3Output
-from .tier_runners import (
+from .tiers import (
     prepare_tier1_batch,
     prepare_tier2_batch,
     prepare_tier3_batch,
     run_tier3_realtime,
     run_tier2_with_reruns,
 )
-from .db_writer import (
+from .db import (
     get_existing_analyses,
-    get_db_connection,
     save_tier1_results,
     save_tier2_results,
     save_tier3_results,
@@ -50,13 +49,13 @@ from .db.connection import check_db_health
 from .prompt_loader import load_issue_config, IssueConfig
 from .config import TIER3_BATCH_SIZE, MAX_BATCH_POLL_TIME
 from .models.matches import ProcessingUnit
-from .context_builder import group_for_cache_efficiency
+from .context import group_for_cache_efficiency
 from .ids import make_custom_id
 from .pipeline_logger import DualOutput
 
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-from shared_utils import BatchManager, DEFAULT_MODEL
+from shared_utils import BatchManager, DEFAULT_MODEL, get_db_connection
 
 # Langfuse observability (graceful degradation if not configured)
 try:

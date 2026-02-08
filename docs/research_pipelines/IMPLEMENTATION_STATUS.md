@@ -1,7 +1,11 @@
 # Research Pipeline V5 Implementation Status
 
 > **Version:** V5 (Proactive Context + Argument Framing)
-> **Last Updated:** 2026-01-04
+> **Last Updated:** 2026-02-04
+>
+> **Note:** The pipeline was significantly simplified in Feb 2026 (see `docs/PIPELINE_SIMPLIFICATION_PLAN.md`).
+> Many V4 files referenced below have been deleted or replaced. The current file structure is in the
+> "File Structure (Current)" section at the bottom.
 
 ## Status Overview
 
@@ -24,31 +28,35 @@
 
 **This is a refactor, not a greenfield implementation.** V4 code exists and works.
 
-### What Exists (V4)
+### What Existed (V4) — Now Simplified
 
-| Component | Location | Status |
-|-----------|----------|--------|
-| Backend pipeline | `backend/scripts/research_pipeline/` | ✅ ~200KB of code |
-| Pydantic models | `backend/scripts/research_pipeline/models/` | ✅ Complete |
-| Context builder | `backend/scripts/research_pipeline/context_builder.py` | ✅ Works |
-| Tier runners | `backend/scripts/research_pipeline/tier_runners.py` | ✅ 4-tier |
-| Orchestrator | `backend/scripts/research_pipeline/tier_orchestrator.py` | ✅ 4-tier flow |
-| DB writer | `backend/scripts/research_pipeline/db_writer.py` | ✅ 4-tier schema |
-| CLI | `backend/scripts/research_pipeline/cli.py` | ✅ Works |
-| Prompts | `prompts/research_pipeline.yaml` | ✅ V4 prompts |
-| Issue configs | `prompts/issue_configs/*.yaml` | ✅ 40+ configs |
-| DB schema | `compliance_issue_analyses` table | ✅ 4-tier columns |
+> These V4 files were refactored/deleted during pipeline simplification (Feb 2026).
+> See `docs/PIPELINE_SIMPLIFICATION_PLAN.md` for the full history.
+
+| Component | V4 Location | Current Location |
+|-----------|-------------|-----------------|
+| Backend pipeline | `backend/scripts/research_pipeline/` | Same (simplified) |
+| Pydantic models | `models/` | `models/` (unchanged) |
+| Context builder | `context_builder.py` (facade) | `context/` subpackage |
+| Tier runners | `tier_runners.py` (facade) | `tiers/` subpackage |
+| Orchestrator | `tier_orchestrator.py` (class) | `pipeline_runner.py` (flat functions) |
+| DB writer | `db_writer.py` (facade) | `db/` subpackage |
+| CLI | `cli.py` | `cli.py` (simplified flags) |
+| Prompts | `prompts/research_pipeline.yaml` | Same |
+| Issue configs | `prompts/compliance_issues.yaml` | Same (43 issue types) |
+| DB schema | `compliance_issue_analyses` table | Same (V5 columns) |
+| Batch persistence | `batch_persistence.py` | **Deleted** — resume via DB |
 
 ### Key V5 Changes
 
-| Area | V4 Approach | V5 Approach | Files to Change |
+| Area | V4 Approach | V5 Approach | Current Location |
 |------|-------------|-------------|-----------------|
-| Context gathering | Reactive (LLM requests) | Proactive (keyword filter) | `context_builder.py` |
-| Argument framing | None | Tier 1 outputs `best_argument_*` | `tier_runners.py`, prompts |
-| Tier structure | 4 tiers | 3 tiers (merge T3+T4) | `tier_orchestrator.py`, `state_machine.py` |
-| Re-runs | Not tracked | `rerun_count`, `forced_classification` | `tier_runners.py`, `db_writer.py` |
-| Summary fallback | None | Truncated content when no summary | `context_builder.py` |
-| Tier 3 triggers | Various thresholds | Canonical: ≥7 claims_no_alt, ≥8 burdensome | `tier_orchestrator.py` |
+| Context gathering | Reactive (LLM requests) | Proactive (keyword filter) | `context/proactive.py` |
+| Argument framing | None | Tier 1 outputs `best_argument_*` | `tiers/tier1_runner.py`, prompts |
+| Tier structure | 4 tiers | 3 tiers (merge T3+T4) | `pipeline_runner.py`, `state_machine.py` |
+| Re-runs | Not tracked | `rerun_count`, `forced_classification` | `tiers/tier2_runner.py`, `db/analysis_writer.py` |
+| Summary fallback | None | Truncated content when no summary | `context/proactive.py` |
+| Tier 3 triggers | Various thresholds | Canonical: ≥7 claims_no_alt, ≥8 burdensome | `routing.py` |
 
 ---
 
@@ -374,9 +382,9 @@ V4 documentation archived to `archive/v4-progressive-disclosure/`.
 | `models/llm_outputs.py` | Merged Tier4Output into Tier3Output, added EvidencedFlag |
 | `models/database.py` | Deleted ComplianceIssueTier4Update |
 | `models/inputs.py` | Deleted Tier4Input |
-| `tier_runners.py` | Renamed run_tier4_realtime → run_tier3_realtime, deleted prepare_tier3_batch |
-| `tier_orchestrator.py` | Removed _run_tier4(), updated _run_tier3() to use real-time API |
-| `db_writer.py` | Deleted save_tier4_results(), added web columns to save_tier3_results() |
+| `tiers/` (was `tier_runners.py`) | Renamed run_tier4_realtime → run_tier3_realtime, deleted prepare_tier3_batch |
+| `pipeline_runner.py` (was `tier_orchestrator.py`) | Removed _run_tier4(), updated _run_tier3() to use real-time API |
+| `db/analysis_writer.py` (was `db_writer.py`) | Deleted save_tier4_results(), added web columns to save_tier3_results() |
 | `result_processor.py` | tier3_output is now final tier |
 | `cost_tracker.py` | Tier 3 uses real-time API (no batch discount) |
 | `prompt_loader.py` | Only loads tiers 1-3 |
@@ -499,9 +507,9 @@ The `encrypted_content` in `web_search_tool_result` blocks is only decrypted for
 
 ---
 
-## File Structure (Post-Refactor)
+## File Structure (Current)
 
-The research pipeline was refactored in January 2026 to improve composability and maintainability.
+Updated February 2026 after pipeline simplification (see `docs/PIPELINE_SIMPLIFICATION_PLAN.md`).
 
 ### Module Layout
 
@@ -509,11 +517,11 @@ The research pipeline was refactored in January 2026 to improve composability an
 backend/scripts/research_pipeline/
     # Entry points
     __init__.py              # Public API exports only
-    cli.py                   # Thin CLI (~300 lines, delegates to modules)
+    cli.py                   # Thin CLI (dry-run by default, --execute to run)
 
     # Core orchestration
-    tier_orchestrator.py     # Orchestrator - coordinates tiers, manages state
-    state_machine.py         # State transitions (ProcessingState, TrackedUnit)
+    pipeline_runner.py       # Flat functions (replaced TierOrchestrator class)
+    state_machine.py         # ProcessingState (8 states), TrackedUnit
 
     # Shared infrastructure
     ids.py                   # make_custom_id(), parse_custom_id()
@@ -526,7 +534,7 @@ backend/scripts/research_pipeline/
         connection.py        # DatabaseManager (context managers)
         document_queries.py  # ProcessingUnitBuilder (unified fetch)
         analysis_writer.py   # save_tier*_results()
-        analysis_reader.py   # get_existing_analyses()
+        analysis_reader.py   # get_existing_analyses() — resume source of truth
 
     # Context layer
     context/
@@ -540,28 +548,20 @@ backend/scripts/research_pipeline/
     tiers/
         __init__.py
         base.py              # TierRunner protocol
-        tier1_runner.py      # Tier 1 batch prep
+        tier1_runner.py      # Tier 1 batch preparation, 4-layer caching
         tier2_runner.py      # Tier 2 + re-run mechanics
-        tier3_runner.py      # Tier 3 web search
+        tier3_runner.py      # Tier 3 web search orchestration
         web_search.py        # Web search tool, extraction
 
     # Prompt handling
-    prompting/
-        __init__.py
-        templates.py         # Tier 3 JSON instruction
     formatting.py            # All prompt formatters
     prompt_loader.py         # YAML config loading
 
     # Supporting modules
     result_processor.py      # Batch result parsing
     cost_tracker.py          # Token/cost tracking
-    # batch_persistence.py removed — resume via DB (get_existing_analyses)
     context_registry.py      # Context audit trail
-
-    # Legacy facades (re-export for backward compat)
-    tier_runners.py          # Re-exports from tiers/
-    context_builder.py       # Re-exports from context/
-    db_writer.py             # Re-exports from db/
+    pipeline_logger.py       # Pipeline logging
 
     # Maintenance scripts
     maintenance/
@@ -577,29 +577,27 @@ backend/scripts/research_pipeline/
 
 prompts/
     research_pipeline.yaml   # V5 tier prompts
-    issue_configs/*.yaml     # 43 issue-specific configs
+    compliance_issues.yaml   # 43 issue-specific configs (patterns + prompts)
 ```
+
+### Deleted in Simplification (Feb 2026)
+
+| File | Reason | PR |
+|------|--------|----|
+| `tier_orchestrator.py` | Replaced by `pipeline_runner.py` (flat functions) | #97 |
+| `batch_persistence.py` | Resume via DB, not disk | #96 |
+| `db_writer.py` | Facade — import from `db/` directly | #98 |
+| `tier_runners.py` | Facade — import from `tiers/` directly | #98 |
+| `context_builder.py` | Facade — import from `context/` directly | #98 |
+| `prompting/` | Unused module | #98 |
 
 ### Architectural Principles
 
-1. **Separation of Concerns**: Domain logic (models, state, routing) separated from infrastructure (DB, LLM, persistence)
+1. **Flat orchestration**: No orchestrator class — `pipeline_runner.py` has flat functions
 2. **Composable Tiers**: Each tier is a component (prepare → run → process) with clear I/O
-3. **Centralized State**: Orchestrator is single source of truth for state transitions
-4. **Centralized Config**: No scattered constants - all in `config.py`
-5. **Proper Package**: No sys.path hacks, explicit imports
-
-### Key Modules
-
-| Module | Purpose | Lines |
-|--------|---------|-------|
-| `tiers/tier1_runner.py` | Tier 1 batch preparation, 4-layer caching | ~250 |
-| `tiers/tier2_runner.py` | Tier 2 + re-run mechanics | ~350 |
-| `tiers/tier3_runner.py` | Web search orchestration | ~300 |
-| `context/proactive.py` | V5 keyword filtering, summary selection | ~500 |
-| `db/document_queries.py` | Unified document fetching | ~300 |
-| `formatting.py` | All prompt formatters | ~400 |
-| `routing.py` | Tier 3 escalation logic | ~100 |
-| `config.py` | Centralized configuration | ~50 |
+3. **DB-based resume**: `get_existing_analyses()` is the source of truth (no disk persistence)
+4. **Centralized Config**: No scattered constants — all in `config.py`
+5. **Direct imports**: No facade re-exports — import from `db/`, `tiers/`, `context/` directly
 
 ---
 

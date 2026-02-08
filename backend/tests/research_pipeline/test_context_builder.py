@@ -147,7 +147,7 @@ class TestContextBuilderImports:
 
     def test_batch_functions_handle_empty_inputs(self):
         """All batch functions should handle empty inputs gracefully."""
-        from scripts.research_pipeline.context_builder import (
+        from scripts.research_pipeline.context import (
             get_sibling_summaries_batch,
             get_crossrefs_batch,
             get_definitions_batch,
@@ -166,7 +166,7 @@ class TestIsExcludable:
 
     def test_excludable_definitions(self):
         """is_excludable should exclude definition sections."""
-        from scripts.research_pipeline.context_builder import is_excludable
+        from scripts.research_pipeline.context import is_excludable
 
         assert is_excludable("Definitions") is True
         assert is_excludable("Defined Terms") is True
@@ -174,35 +174,35 @@ class TestIsExcludable:
 
     def test_excludable_toc(self):
         """is_excludable should exclude table of contents."""
-        from scripts.research_pipeline.context_builder import is_excludable
+        from scripts.research_pipeline.context import is_excludable
 
         assert is_excludable("Table of Contents") is True
         assert is_excludable("Contents") is True
 
     def test_excludable_reserved(self):
         """is_excludable should exclude reserved/repealed sections."""
-        from scripts.research_pipeline.context_builder import is_excludable
+        from scripts.research_pipeline.context import is_excludable
 
         assert is_excludable("Reserved") is True
         assert is_excludable("Repealed") is True
 
     def test_excludable_appendix(self):
         """is_excludable should exclude appendices."""
-        from scripts.research_pipeline.context_builder import is_excludable
+        from scripts.research_pipeline.context import is_excludable
 
         assert is_excludable("Appendix A") is True
         assert is_excludable("Appendices") is True
 
     def test_excludable_empty(self):
         """is_excludable should exclude empty/None titles."""
-        from scripts.research_pipeline.context_builder import is_excludable
+        from scripts.research_pipeline.context import is_excludable
 
         assert is_excludable("") is True
         assert is_excludable(None) is True
 
     def test_excludable_normal_titles(self):
         """is_excludable should NOT exclude normal section titles."""
-        from scripts.research_pipeline.context_builder import is_excludable
+        from scripts.research_pipeline.context import is_excludable
 
         assert is_excludable("License Requirements") is False
         assert is_excludable("Exemptions") is False
@@ -215,7 +215,7 @@ class TestGetKeywordCategory:
 
     def test_exemption_keywords(self):
         """get_keyword_category should return 'exemption' for exemption keywords."""
-        from scripts.research_pipeline.context_builder import get_keyword_category
+        from scripts.research_pipeline.context import get_keyword_category
 
         assert get_keyword_category("Exemptions") == "exemption"
         assert get_keyword_category("Waiver Provisions") == "exemption"
@@ -224,7 +224,7 @@ class TestGetKeywordCategory:
 
     def test_alternatives_keywords(self):
         """get_keyword_category should return 'alternatives' for alternative keywords."""
-        from scripts.research_pipeline.context_builder import get_keyword_category
+        from scripts.research_pipeline.context import get_keyword_category
 
         assert get_keyword_category("Electronic Submission") == "alternatives"
         assert get_keyword_category("Online Application") == "alternatives"
@@ -234,7 +234,7 @@ class TestGetKeywordCategory:
 
     def test_scope_keywords(self):
         """get_keyword_category should return 'scope' for scope keywords."""
-        from scripts.research_pipeline.context_builder import get_keyword_category
+        from scripts.research_pipeline.context import get_keyword_category
 
         assert get_keyword_category("Applicability") == "scope"
         assert get_keyword_category("Scope of Regulations") == "scope"
@@ -243,7 +243,7 @@ class TestGetKeywordCategory:
 
     def test_enforcement_keywords(self):
         """get_keyword_category should return 'enforcement' for enforcement keywords."""
-        from scripts.research_pipeline.context_builder import get_keyword_category
+        from scripts.research_pipeline.context import get_keyword_category
 
         assert get_keyword_category("Enforcement") == "enforcement"
         assert get_keyword_category("Penalty Provisions") == "enforcement"
@@ -252,7 +252,7 @@ class TestGetKeywordCategory:
 
     def test_priority_when_multiple_match(self):
         """get_keyword_category should return highest priority category when multiple match."""
-        from scripts.research_pipeline.context_builder import get_keyword_category
+        from scripts.research_pipeline.context import get_keyword_category
 
         # "Electronic Exemptions" matches both exemption and alternatives
         # exemption has higher priority
@@ -260,7 +260,7 @@ class TestGetKeywordCategory:
 
     def test_none_for_non_matching(self):
         """get_keyword_category should return None for non-matching titles."""
-        from scripts.research_pipeline.context_builder import get_keyword_category
+        from scripts.research_pipeline.context import get_keyword_category
 
         assert get_keyword_category("License Requirements") is None
         assert get_keyword_category("Fee Schedule") is None
@@ -273,7 +273,7 @@ class TestGetSummaryOrFallback:
 
     def test_uses_summary_when_available(self):
         """get_summary_or_fallback should use summary when available."""
-        from scripts.research_pipeline.context_builder import get_summary_or_fallback
+        from scripts.research_pipeline.context import get_summary_or_fallback
 
         text, is_fallback = get_summary_or_fallback(
             summary="A proper summary of the section.",
@@ -286,7 +286,7 @@ class TestGetSummaryOrFallback:
 
     def test_uses_content_excerpt_when_no_summary(self):
         """get_summary_or_fallback should use content excerpt when no summary."""
-        from scripts.research_pipeline.context_builder import get_summary_or_fallback
+        from scripts.research_pipeline.context import get_summary_or_fallback
 
         long_content = "This is a long piece of content. " * 50  # ~1700 chars
 
@@ -302,7 +302,7 @@ class TestGetSummaryOrFallback:
 
     def test_uses_title_when_no_summary_or_content(self):
         """get_summary_or_fallback should use title when no summary or content."""
-        from scripts.research_pipeline.context_builder import get_summary_or_fallback
+        from scripts.research_pipeline.context import get_summary_or_fallback
 
         text, is_fallback = get_summary_or_fallback(
             summary=None,
@@ -315,7 +315,7 @@ class TestGetSummaryOrFallback:
 
     def test_ignores_short_summary(self):
         """get_summary_or_fallback should ignore very short summaries and use content excerpt."""
-        from scripts.research_pipeline.context_builder import get_summary_or_fallback
+        from scripts.research_pipeline.context import get_summary_or_fallback
 
         # Content must be >50 chars to trigger excerpt fallback
         long_content = "This is the actual content which is substantially longer than the minimum threshold required for excerpt generation."
@@ -336,7 +336,7 @@ class TestCacheEfficiencyOrdering:
     def test_group_for_cache_efficiency_import(self):
         """Ensure group_for_cache_efficiency is importable."""
         from scripts.research_pipeline.pipeline_runner import _sort_for_cache_efficiency
-        from scripts.research_pipeline.context_builder import group_for_cache_efficiency
+        from scripts.research_pipeline.context import group_for_cache_efficiency
 
         assert _sort_for_cache_efficiency is not None
         assert group_for_cache_efficiency is not None
@@ -476,7 +476,7 @@ class TestPrioritizeSummaries:
 
     def test_includes_preceding(self):
         """prioritize_summaries should include preceding sibling."""
-        from scripts.research_pipeline.context_builder import prioritize_summaries
+        from scripts.research_pipeline.context import prioritize_summaries
         from scripts.research_pipeline.models.context import SiblingEntry
 
         siblings = [
@@ -499,7 +499,7 @@ class TestPrioritizeSummaries:
 
     def test_includes_following(self):
         """prioritize_summaries should include following sibling."""
-        from scripts.research_pipeline.context_builder import prioritize_summaries
+        from scripts.research_pipeline.context import prioritize_summaries
         from scripts.research_pipeline.models.context import SiblingEntry
 
         siblings = [

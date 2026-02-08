@@ -1,8 +1,7 @@
 # Research Pipeline Simplification Plan
 
-> **Status: IN PROGRESS**
-> - Phases 0-1, 2.1-2.4, 3, 6, 7: ✅ Complete
-> - Phases 4-5: 📋 Planned (not started)
+> **Status: COMPLETE**
+> - All phases complete (0-7)
 
 **Goal**: Reduce research pipeline from ~23,000 lines to ~5,000 lines while preserving functionality.
 
@@ -22,8 +21,9 @@
 | [#90](https://github.com/michaeleboyce/deproceduralizer/pull/90) | CLI simplification (Phases 0-1 + 2.1) | `main` | 1st |
 | [#96](https://github.com/michaeleboyce/deproceduralizer/pull/96) | Remove batch persistence (Phases 2.2-2.4) | `#90` branch | 2nd (auto-retargets to main after #90 merges) |
 | [#97](https://github.com/michaeleboyce/deproceduralizer/pull/97) | Flatten state machine (Phase 3) | `#96` branch | 3rd (pre-merged #95; auto-retargets after #96 merges) |
+| [#98](https://github.com/michaeleboyce/deproceduralizer/pull/98) | Remove legacy facades (Phase 4) | `#97` branch | 4th (auto-retargets after #97 merges) |
 | [#95](https://github.com/michaeleboyce/deproceduralizer/pull/95) | Table refactor + regex-only searcher (Phases 6-7) | `main` | No-op after #97 (already included) |
-| [#91](https://github.com/michaeleboyce/deproceduralizer/pull/91) | E2E fixes + filter refactor | `main` | **Last** (rebased onto #97, all conflicts resolved) |
+| [#91](https://github.com/michaeleboyce/deproceduralizer/pull/91) | E2E fixes + filter refactor | `main` | **Last** (has #98 merged in, import fix committed) |
 
 Closed PRs (subsumed): #83, #84, #85, #86, #89, #93
 
@@ -38,8 +38,8 @@ Closed PRs (subsumed): #83, #84, #85, #86, #89, #93
 | 2.1 | Persistence Migration Test | ✅ Complete | #90 |
 | 2.2-2.4 | Remove Batch Persistence | ✅ Complete | #96 |
 | 3 | Flatten State Machine | ✅ Complete | #97 |
-| 4 | Consolidate Files | 📋 Planned | — |
-| 5 | Final Cleanup | 📋 Planned | — |
+| 4 | Remove Legacy Facades + Unused Modules | ✅ Complete | #98 (branch: refactor/remove-legacy-facades) |
+| 5 | Final Cleanup (docs + tests) | ✅ Complete | #98 (same branch) |
 | 6 | Refactor Compliance Issue Tables ([#88](https://github.com/michaeleboyce/deproceduralizer/issues/88)) | ✅ Complete | #95 |
 | 7 | Eliminate Redundant Searcher LLM Call ([#94](https://github.com/michaeleboyce/deproceduralizer/issues/94)) | ✅ Complete | #95 |
 
@@ -111,24 +111,36 @@ Branched from #96. Replaced `TierOrchestrator` class with flat functions:
 
 ---
 
-## Remaining Work (Phases 4-5)
+## Completed Work (continued)
 
-### Phase 4: Consolidate Files
+### Phase 4: Remove Legacy Facades + Unused Modules (Revised)
+
+Original plan called for flattening subdirectories into single files, but the `db/`, `models/`, `tiers/`, `context/` subdirectories are already well-organized with clean `__init__.py` re-exports. Phase 4 was revised to remove dead code instead.
+
+| Step | What | Details |
+|------|------|---------|
+| 4.1 | Delete 3 legacy facade files | `db_writer.py`, `tier_runners.py`, `context_builder.py` — re-export shims replaced by direct imports |
+| 4.2 | Delete unused `prompting/` directory | `prompting/templates.py` — imported by nothing |
+| 4.3 | Update all imports (production + tests) | 14 files updated to import from `db/`, `tiers/`, `context/`, `formatting` directly |
+| 4.4 | Delete `test_db_writer_exports.py` | Tested the facade itself — no longer needed |
+| 4.5 | Remove unused `mock_db_connection` fixture | Referenced deleted `db_writer`, never used by any test |
+
+**Result**: -396 net lines. All 548 tests pass.
+
+---
+
+## Phase 5: Final Cleanup ✅
 
 | Step | What | Status |
 |------|------|--------|
-| 4.1 | Merge 4 DB files -> 1 `db.py` | Not started |
-| 4.2 | Merge 4 model files -> 1 `models.py` | Not started |
-| 4.3 | Merge 4 tier files -> 1 `tiers.py` | Not started |
-| 4.4 | Merge 5 context files -> 1 `context.py` | Not started |
-| 4.5 | Remove unused modules | Not started |
+| 5.1 | Update documentation | ✅ Complete |
+| 5.2 | Clean up test files | ✅ Complete (no dead tests found — all test classes test current modules) |
 
-### Phase 5: Final Cleanup
-
-| Step | What | Status |
-|------|------|--------|
-| 5.1 | Update documentation | Not started |
-| 5.2 | Clean up test files | Not started |
+Documentation updated:
+- `docs/research_pipelines/IMPLEMENTATION_STATUS.md` — updated file structure, removed stale references to deleted modules
+- `README.md` — updated architecture diagram, project structure, deployment instructions
+- `REFACTOR.md` — added historical status header
+- This file — marked all phases complete
 
 ---
 
@@ -141,8 +153,8 @@ Branched from #96. Replaced `TierOrchestrator` class with flat functions:
 | 6 | ~300 (columns) + schema cleanup | ✅ PR #95 |
 | 7 | ~800 + LLM cost savings | ✅ PR #95 |
 | 3 | ~1,026 | ✅ PR #97 |
-| 4 | ~3,000 | 📋 Planned |
-| 5 | ~500 | 📋 Planned |
+| 4 | ~396 (facades + unused) | ✅ #98 |
+| 5 | docs only | ✅ #98 |
 
 **Total**: ~8,900 lines to remove + schema consolidation + LLM cost reduction
 
@@ -160,3 +172,5 @@ Branched from #96. Replaced `TierOrchestrator` class with flat functions:
 | 2026-02-04 | Phase 2.2-2.4 complete | PR #96: removed batch persistence (-1,358 lines). Targets #90 branch. |
 | 2026-02-04 | Phase 3 complete | PR #97: flatten state machine, replace TierOrchestrator with pipeline_runner (-1,026 lines). Targets #96 branch. |
 | 2026-02-04 | Merge conflicts resolved | Pre-merged #95 into #97. Rebased #91 onto #97 (cherry-picked 3 commits, fixed stale TierOrchestrator refs). All 5 PRs now merge conflict-free (all fast-forward). |
+| 2026-02-04 | Phase 4 complete (revised) | Removed 3 legacy facades (db_writer.py, tier_runners.py, context_builder.py), unused prompting/ dir, facade test file, dead fixture. -396 net lines. 548 tests pass. |
+| 2026-02-04 | Phase 5 complete | Updated IMPLEMENTATION_STATUS.md (file structure, stale refs), README.md (architecture, project structure, deploy), REFACTOR.md (status header). No dead tests found. All phases complete. |
