@@ -1045,6 +1045,22 @@ RESUME BEHAVIOR:
         help="Re-analyze all matching documents regardless of existing analyses (upserts to DB)"
     )
 
+    # === RECOVERY FLAGS ===
+    parser.add_argument(
+        "--retry-failed-tier3",
+        action="store_true",
+        help="Find and retry items that should have gone to Tier 3 but failed. "
+             "Queries for items with tier2_classification but no tier3_classification "
+             "that match Tier 3 escalation triggers, then processes them with realtime API."
+    )
+    parser.add_argument(
+        "--rerun-placeholder-tier2",
+        action="store_true",
+        help="Re-run Tier 2 for items with placeholder text ('Resumed from database') in "
+             "argument fields. Loads Tier 1 results from database and skips Tier 1 execution. "
+             "Use with --max-tier 3 --web-search to run through Tier 3 as well."
+    )
+
     args = parser.parse_args()
 
     # Normalize state for DB queries
@@ -1059,6 +1075,33 @@ RESUME BEHAVIOR:
     # Convert global_docs_limit to int or None
     # 'no-limit' means no global limit
     global_limit = None if args.global_docs_limit == 'no-limit' else args.global_docs_limit
+
+    # === RETRY FAILED TIER 3 MODE ===
+    if args.retry_failed_tier3:
+        from scripts.research_pipeline.maintenance.recovery import retry_failed_tier3
+        print(f"\n*** RETRY FAILED TIER 3 MODE ***")
+        asyncio.run(retry_failed_tier3(
+            state=state_for_db,
+            title=args.title,
+            issue_types=None if args.all_issues else [args.issue_type] if args.issue_type else None,
+            dry_run=not args.execute,
+        ))
+        sys.exit(0)
+
+    # === RERUN PLACEHOLDER TIER 2 MODE ===
+    if args.rerun_placeholder_tier2:
+        from scripts.research_pipeline.maintenance.recovery import rerun_placeholder_tier2
+        print(f"\n*** RERUN PLACEHOLDER TIER 2 MODE ***")
+        asyncio.run(rerun_placeholder_tier2(
+            state=state_for_db,
+            title=args.title,
+            issue_types=None if args.all_issues else [args.issue_type] if args.issue_type else None,
+            dry_run=not args.execute,
+            realtime=args.realtime,
+            max_tier=args.max_tier,
+            enable_web_search=args.enable_web_search,
+        ))
+        sys.exit(0)
 
     # === NORMAL PIPELINE MODE ===
     # Dry-run by default; --execute opts into real execution
