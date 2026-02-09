@@ -168,6 +168,7 @@ export interface TierAnalysis {
   tier1Classification: string | null;
   tier2Classification: string | null;
   tier3Classification: string | null;
+  tier3TriggerReason: string | null;
   finalSeverity: number | null;
   verbatimRequirements: string[];
   argumentForRegulation: string | null;
@@ -178,6 +179,9 @@ export interface TierAnalysis {
   stateHasDiscretion: boolean;
   isJustified: boolean;
   pipelineVersion: string;
+  easyCleanupCandidate: boolean;
+  cleanupType: string | null;
+  cleanupEffort: string | null;
 }
 
 /**
@@ -346,6 +350,25 @@ const issueListSelectColumns = {
   developerCheckedAt: complianceIssueAnalyses.developerCheckedAt,
   state: complianceIssues.state,
   createdAt: complianceIssues.createdAt,
+  // Analysis pipeline fields — for building TierAnalysis in mapRowToIssue
+  analysisHighestTier: complianceIssueAnalyses.highestTierCompleted,
+  analysisTier1: complianceIssueAnalyses.tier1Classification,
+  analysisTier2: complianceIssueAnalyses.tier2Classification,
+  analysisTier3: complianceIssueAnalyses.tier3Classification,
+  analysisTier3TriggerReason: complianceIssueAnalyses.tier3TriggerReason,
+  analysisFinalSeverity: complianceIssueAnalyses.finalSeverity,
+  analysisVerbatimReqs: complianceIssueAnalyses.verbatimRequirements,
+  analysisArgFor: complianceIssueAnalyses.argumentForRegulation,
+  analysisArgAgainst: complianceIssueAnalyses.argumentAgainstRegulation,
+  analysisContextUsed: complianceIssueAnalyses.contextUsed,
+  analysisWebSummary: complianceIssueAnalyses.webSearchSummary,
+  analysisFederalMandate: complianceIssueAnalyses.federalMandateFound,
+  analysisStateDiscretion: complianceIssueAnalyses.stateHasDiscretion,
+  analysisIsJustified: complianceIssueAnalyses.isJustified,
+  analysisPipelineVersion: complianceIssueAnalyses.pipelineVersion,
+  analysisEasyCleanup: complianceIssueAnalyses.easyCleanupCandidate,
+  analysisCleanupType: complianceIssueAnalyses.cleanupType,
+  analysisCleanupEffort: complianceIssueAnalyses.cleanupEffort,
   // Regulation context (no content — too large for list views)
   regulationId: regulatoryDocuments.id,
   regulationTitle: regulatoryDocuments.title,
@@ -362,7 +385,8 @@ const issueListSelectColumns = {
   regulationHasIbr: regulatoryDocuments.hasIbr,
 } as const;
 
-/** Map a DB row from issueListSelectColumns to ComplianceIssueWithAnalysis (analysis defaults to null). */
+/** Map a DB row from issueListSelectColumns to ComplianceIssueWithAnalysis.
+ *  Automatically builds TierAnalysis from the analysis pipeline columns in the row. */
 function mapRowToIssue(
   row: {
     id: number;
@@ -397,6 +421,26 @@ function mapRowToIssue(
     developerCheckedAt: Date | null;
     state: string;
     createdAt: Date | null;
+    // Analysis pipeline fields
+    analysisHighestTier: number | null;
+    analysisTier1: string | null;
+    analysisTier2: string | null;
+    analysisTier3: string | null;
+    analysisTier3TriggerReason: string | null;
+    analysisFinalSeverity: number | null;
+    analysisVerbatimReqs: string[] | null;
+    analysisArgFor: string | null;
+    analysisArgAgainst: string | null;
+    analysisContextUsed: unknown;
+    analysisWebSummary: string | null;
+    analysisFederalMandate: boolean | null;
+    analysisStateDiscretion: boolean | null;
+    analysisIsJustified: boolean | null;
+    analysisPipelineVersion: string | null;
+    analysisEasyCleanup: boolean | null;
+    analysisCleanupType: string | null;
+    analysisCleanupEffort: string | null;
+    // Regulation context
     regulationId: number;
     regulationTitle: string | null;
     regulationNycrrTitle: number | null;
@@ -412,8 +456,28 @@ function mapRowToIssue(
     regulationHasIbr: boolean | null;
     regulationContent?: string | null;
   },
-  analysis: TierAnalysis | null = null,
 ): ComplianceIssueWithAnalysis {
+  const analysis: TierAnalysis | null = row.analysisHighestTier !== null ? {
+    highestTierCompleted: row.analysisHighestTier,
+    tier1Classification: row.analysisTier1,
+    tier2Classification: row.analysisTier2,
+    tier3Classification: row.analysisTier3,
+    tier3TriggerReason: row.analysisTier3TriggerReason,
+    finalSeverity: row.analysisFinalSeverity,
+    verbatimRequirements: row.analysisVerbatimReqs ?? [],
+    argumentForRegulation: row.analysisArgFor,
+    argumentAgainstRegulation: row.analysisArgAgainst,
+    contextUsed: row.analysisContextUsed as ContextEntry[] | null,
+    webSearchSummary: row.analysisWebSummary,
+    federalMandateFound: row.analysisFederalMandate ?? false,
+    stateHasDiscretion: row.analysisStateDiscretion ?? false,
+    isJustified: row.analysisIsJustified ?? false,
+    pipelineVersion: row.analysisPipelineVersion ?? '',
+    easyCleanupCandidate: row.analysisEasyCleanup ?? false,
+    cleanupType: row.analysisCleanupType,
+    cleanupEffort: row.analysisCleanupEffort,
+  } : null;
+
   return {
     id: Number(row.id),
     documentId: Number(row.documentId),
@@ -864,21 +928,6 @@ export class ComplianceIssuesRepository extends BaseRepository {
       .select({
         ...issueListSelectColumns,
         regulationContent: regulatoryDocuments.content,
-        // Analysis pipeline fields (only needed for main queue view)
-        analysisHighestTier: complianceIssueAnalyses.highestTierCompleted,
-        analysisTier1: complianceIssueAnalyses.tier1Classification,
-        analysisTier2: complianceIssueAnalyses.tier2Classification,
-        analysisTier3: complianceIssueAnalyses.tier3Classification,
-        analysisFinalSeverity: complianceIssueAnalyses.finalSeverity,
-        analysisVerbatimReqs: complianceIssueAnalyses.verbatimRequirements,
-        analysisArgFor: complianceIssueAnalyses.argumentForRegulation,
-        analysisArgAgainst: complianceIssueAnalyses.argumentAgainstRegulation,
-        analysisContextUsed: complianceIssueAnalyses.contextUsed,
-        analysisWebSummary: complianceIssueAnalyses.webSearchSummary,
-        analysisFederalMandate: complianceIssueAnalyses.federalMandateFound,
-        analysisStateDiscretion: complianceIssueAnalyses.stateHasDiscretion,
-        analysisIsJustified: complianceIssueAnalyses.isJustified,
-        analysisPipelineVersion: complianceIssueAnalyses.pipelineVersion,
       })
       .from(complianceIssues)
       .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
@@ -891,26 +940,8 @@ export class ComplianceIssuesRepository extends BaseRepository {
       .limit(pageSize)
       .offset(offset);
 
-    // Transform results to ComplianceIssueWithAnalysis shape
-    const data: ComplianceIssueWithAnalysis[] = results.map(row => {
-      const analysis: TierAnalysis | null = row.analysisHighestTier !== null ? {
-        highestTierCompleted: row.analysisHighestTier,
-        tier1Classification: row.analysisTier1,
-        tier2Classification: row.analysisTier2,
-        tier3Classification: row.analysisTier3,
-        finalSeverity: row.analysisFinalSeverity,
-        verbatimRequirements: row.analysisVerbatimReqs ?? [],
-        argumentForRegulation: row.analysisArgFor,
-        argumentAgainstRegulation: row.analysisArgAgainst,
-        contextUsed: row.analysisContextUsed as ContextEntry[] | null,
-        webSearchSummary: row.analysisWebSummary,
-        federalMandateFound: row.analysisFederalMandate ?? false,
-        stateHasDiscretion: row.analysisStateDiscretion ?? false,
-        isJustified: row.analysisIsJustified ?? false,
-        pipelineVersion: row.analysisPipelineVersion ?? '',
-      } : null;
-      return mapRowToIssue(row, analysis);
-    });
+    // Transform results — mapRowToIssue now builds TierAnalysis automatically
+    const data: ComplianceIssueWithAnalysis[] = results.map(row => mapRowToIssue(row));
 
     return {
       data,
