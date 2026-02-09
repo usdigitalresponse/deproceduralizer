@@ -37,9 +37,9 @@ export function parseRequirementFoundFilter(val?: string): boolean | 'all' {
 /**
  * Parse tier filter value for research pipeline analysis.
  */
-export function parseTierFilter(val?: string): '0' | '1' | '2' | '3' | '4' | 'all' {
+export function parseTierFilter(val?: string): '0' | '1' | '2' | '3' | 'all' {
   if (!val || val === 'all') return 'all';
-  if (['0', '1', '2', '3', '4'].includes(val)) return val as '0' | '1' | '2' | '3' | '4';
+  if (['0', '1', '2', '3'].includes(val)) return val as '0' | '1' | '2' | '3';
   return 'all';
 }
 

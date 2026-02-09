@@ -304,7 +304,7 @@ export async function getComplianceQueueData(
       severity?: 'high' | 'medium' | 'low' | 'all';
       requiredByStatute?: boolean | 'all';
       requirementFound?: boolean | 'all';
-      tierCompleted?: '0' | '1' | '2' | '3' | '4' | 'all';
+      tierCompleted?: '0' | '1' | '2' | '3' | 'all';
       federalMandate?: boolean | 'all';
       hasAnalysis?: boolean | 'all';
     };
