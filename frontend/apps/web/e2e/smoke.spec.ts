@@ -109,7 +109,7 @@ test.describe('Smoke Tests', () => {
 
     // Should show all the stat labels in the overview section
     await expect(page.getByText('Total Regulations')).toBeVisible();
-    await expect(page.getByText('Analyzed', { exact: true })).toBeVisible();
+    await expect(page.getByText('Analyzed', { exact: true }).first()).toBeVisible();
     await expect(page.getByText('Compliance Issues')).toBeVisible();
     await expect(page.getByText('Red Flags')).toBeVisible();
 
