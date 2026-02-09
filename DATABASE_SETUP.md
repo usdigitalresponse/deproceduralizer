@@ -55,11 +55,10 @@ The scrapers call `shared_utils.migrate_regulations_to_db()` which:
 | Source | Purpose |
 |--------|---------|
 | `frontend/packages/database/migrations/*.sql` | Incremental migrations (run in order for new DBs) |
-| `schema.sql` | Reference schema with views (`latest_analyses`, `document_hierarchy`) |
 | `frontend/packages/database/src/schema/` | Drizzle type definitions |
 | `.claude/skills/database/schema.md` | Human-readable documentation |
 
-For new databases, run migrations in order. Views are created by migrations.
+For new databases, run migrations in order. Views (`latest_analyses`, `document_hierarchy`) are created by migration 0039.
 
 ## Test Connection
 

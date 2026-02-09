@@ -96,9 +96,10 @@ Main table with hierarchy. **74 columns** - use `./scripts/db-query.sh describe 
 | `max_severity` | integer | Highest severity (1-10) |
 | `num_flags` | integer | Number of red flags |
 | `is_current` | boolean | Latest analysis flag |
-| `run_id` | varchar(32) | Pipeline run identifier for tracking |
 
-**Indexes:** `idx_analyses_url`, `idx_analyses_one_current_per_document` (unique partial - ensures one current per doc), `idx_analyses_run_id`
+**Indexes:** `idx_analyses_url`, `idx_analyses_one_current_per_document` (unique partial - ensures one current per doc)
+
+**Note:** `run_id` column is defined in pending migration 0038 but not yet applied to the live DB.
 
 **Always filter by `is_current = true` for latest analysis.**
 
@@ -236,12 +237,13 @@ Pure regex match store. Tracks individual regex matches found during compliance 
 | `url` | text | Link to the regulation |
 | `state` | varchar(2) NOT NULL | NY or NJ |
 | `created_at` | timestamp | When record was created |
-| `run_id` | varchar(32) | Pipeline run identifier for tracking |
 | `analysis_id` | bigint | FK to compliance_issue_analyses(id) ON DELETE SET NULL. Many-to-one link (many matches → one analysis). Set by searcher/pipeline after analysis INSERT. |
 
 **Constraints:** `compliance_issues_state_check`, `unique_document_issue_occurrence UNIQUE(document_id, issue_type, occurrence_number)`
 
-**Indexes:** `idx_compliance_issues_document`, `idx_compliance_issues_state`, `idx_compliance_issues_issue_type`, `idx_compliance_issues_state_issue`, `idx_compliance_issues_run_id`, `idx_compliance_issues_analysis_id`
+**Indexes:** `idx_compliance_issues_document`, `idx_compliance_issues_state`, `idx_compliance_issues_issue_type`, `idx_compliance_issues_state_issue`, `idx_compliance_issues_analysis_id`
+
+**Note:** `run_id` column and `idx_compliance_issues_run_id` index are defined in pending migration 0038 but not yet applied to the live DB.
 
 **Issue Types** (41 types defined in `prompts/compliance_issues.yaml`)
 

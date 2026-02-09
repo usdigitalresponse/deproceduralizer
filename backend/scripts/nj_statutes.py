@@ -5,7 +5,7 @@ New Jersey Statutes (N.J.S.A.) - Parse, Migrate, and Link
 Pipeline:
 1. Parse bulk statutes file from pub.njleg.gov/statutes/STATUTES-TEXT.zip
 2. Save to JSON files (complete + individual)
-3. Ensure database schema (add parent_id column if missing)
+3. Verify database schema (parent_id column must exist from migration 0010)
 4. Migrate to statutes table in database
 5. Create title and chapter container rows for hierarchy
 6. Populate parent_id relationships (section -> chapter -> title)
@@ -238,9 +238,11 @@ class NJStatutesParser:
 
 def ensure_schema() -> bool:
     """
-    Ensure the statutes table has all required columns.
-    Adds parent_id column if it doesn't exist.
-    Returns True if schema is ready.
+    Verify the statutes table has all required columns.
+    Returns True if schema is ready, False if parent_id column is missing.
+
+    Note: parent_id is created by migration 0010_create_statutes_table.sql.
+    This function only verifies — it does not ALTER TABLE.
     """
     print("Checking database schema...")
     conn = get_db_connection()
@@ -256,26 +258,17 @@ def ensure_schema() -> bool:
         """).fetchone()
 
         if result:
-            print("  parent_id column already exists")
+            print("  parent_id column exists")
+            print("  Schema ready")
+            return True
         else:
-            print("  Adding parent_id column...")
-            conn.execute("""
-                ALTER TABLE statutes
-                ADD COLUMN parent_id BIGINT REFERENCES statutes(id) ON DELETE SET NULL
-            """)
-            conn.commit()
-            print("  Added parent_id column")
-
-        # Create index on parent_id if not exists
-        conn.execute("""
-            CREATE INDEX IF NOT EXISTS idx_statutes_parent_id ON statutes(parent_id)
-        """)
-        conn.commit()
-        print("  Schema ready")
-        return True
+            print("  ERROR: parent_id column missing from statutes table.")
+            print("  Run migration 0010_create_statutes_table.sql first:")
+            print("    psql $DATABASE_URL -f frontend/packages/database/migrations/0010_create_statutes_table.sql")
+            return False
 
     except Exception as e:
-        print(f"ERROR ensuring schema: {e}")
+        print(f"ERROR checking schema: {e}")
         return False
     finally:
         conn.close()
