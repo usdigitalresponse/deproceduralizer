@@ -7,13 +7,9 @@ This module contains all the SQL query functions used to fetch context data
 
 from collections import defaultdict
 from typing import Optional
-import sys
-from pathlib import Path
 
 import psycopg
 
-# Add backend to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from lib.db import get_db_connection, get_ancestors_batch
 
 # Import retry decorator for DB operations

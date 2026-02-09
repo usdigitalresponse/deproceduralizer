@@ -9,11 +9,8 @@ Shows:
 """
 
 import re
-import sys
-from pathlib import Path
 from collections import defaultdict, Counter
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
 from dotenv import load_dotenv
 from config import PROJECT_ROOT
 load_dotenv(PROJECT_ROOT / '.env')

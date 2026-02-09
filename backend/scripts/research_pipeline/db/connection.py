@@ -15,9 +15,6 @@ from typing import Generator
 from psycopg import Connection
 
 # Import from canonical locations in lib
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from lib.db import get_db_connection, retry_db_operation
 
 

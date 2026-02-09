@@ -23,14 +23,11 @@ Usage:
 
 import json
 import re
-import sys
 import time
 import argparse
 from pathlib import Path
 from typing import Optional, Dict, List, Tuple
 
-# Add parent directory to path for config import
-sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import (
     PROJECT_ROOT,
     NJ_STATUTES_INPUT_FILE,

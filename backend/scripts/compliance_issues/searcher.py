@@ -8,11 +8,7 @@ pipeline (Tier 1-3).
 See: https://github.com/michaeleboyce/deproceduralizer/issues/94
 """
 
-from pathlib import Path
 from typing import Optional
-
-import sys
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from lib.db import get_db_connection
 

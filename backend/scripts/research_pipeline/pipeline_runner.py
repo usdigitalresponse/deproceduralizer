@@ -53,8 +53,6 @@ from .context import group_for_cache_efficiency
 from .ids import make_custom_id
 from .pipeline_logger import DualOutput
 
-import sys
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from lib.db import get_db_connection
 from lib.llm import DEFAULT_MODEL
 from lib.batch import BatchManager

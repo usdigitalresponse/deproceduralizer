@@ -22,9 +22,6 @@ from dotenv import load_dotenv
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 load_dotenv(PROJECT_ROOT / '.env')
 
-# Add parent to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
 from lib.db import get_db_connection
 from config import OUTPUTS_DIR
 

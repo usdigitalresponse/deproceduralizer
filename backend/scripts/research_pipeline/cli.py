@@ -98,9 +98,6 @@ def positive_int_or_no_limit(value: str) -> Union[int, str]:
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
 load_dotenv(PROJECT_ROOT / ".env")
 
-# Add backend to path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
 from lib.db import get_db_connection
 from scripts.research_pipeline.models.matches import ProcessingUnit
 from scripts.research_pipeline.pipeline_runner import run_pipeline as run_pipeline_fn, run_tier3_only

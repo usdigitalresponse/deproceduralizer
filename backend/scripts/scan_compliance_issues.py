@@ -32,9 +32,6 @@ from tqdm import tqdm
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 load_dotenv(PROJECT_ROOT / '.env')
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
-sys.path.insert(0, str(Path(__file__).parent))
-
 from compliance_issues.searcher import ComplianceIssueSearcher
 from compliance_issues.config import STATES, ISSUE_TYPES, list_issue_types
 

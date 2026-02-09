@@ -8,10 +8,6 @@ from typing import Any
 
 import aiohttp
 
-# Import shared modules from parent directory
-import sys
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
 from chunking import Chunk, chunk_document
 from models import SummaryMetadata, SummaryResult
 

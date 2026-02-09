@@ -9,11 +9,7 @@ to connection failures during long-running batch processes.
 """
 
 from typing import Optional
-import sys
-from pathlib import Path
 
-# Add backend to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from lib.db import get_db_connection, get_ancestors_batch
 
 # Import Pydantic models

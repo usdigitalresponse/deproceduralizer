@@ -27,7 +27,6 @@ USAGE:
 
 import argparse
 import json
-import sys
 import os
 from datetime import datetime
 from pathlib import Path
@@ -35,9 +34,6 @@ from typing import List, Dict, Any, Optional
 
 import psycopg
 from dotenv import load_dotenv
-
-# Add parent to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from cross_references.extractor import ReferenceExtractor, DocumentExtractionResult
 from cross_references.resolver import ReferenceResolver

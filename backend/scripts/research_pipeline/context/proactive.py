@@ -10,11 +10,6 @@ would need if it asked.
 """
 
 from typing import Optional
-import sys
-from pathlib import Path
-
-# Add backend to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 # Import Pydantic models
 from scripts.research_pipeline.models.context import (

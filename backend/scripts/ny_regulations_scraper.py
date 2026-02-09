@@ -17,8 +17,6 @@ from typing import Optional, Dict, Tuple
 
 logger = logging.getLogger(__name__)
 
-# Add parent directory to path for config import
-sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import (
     SCRAPED_DATA_DIR,
     INDIVIDUAL_REGULATIONS_DIR,

@@ -8,11 +8,7 @@ Uses centralized Anthropic pricing from observability/cost_map.py with batch API
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional
-import sys
-from pathlib import Path
 
-# Add parent directories to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from observability.cost_map import calculate_cost, get_model_pricing
 from lib.stats import format_time
 

@@ -15,9 +15,6 @@ from typing import Optional, Type
 from html import escape
 from pydantic import BaseModel
 
-import sys
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
 from lib.db import get_db_connection
 from lib.llm import get_async_anthropic_client, call_llm_parse_async, DEFAULT_MODEL
 from lib.batch import format_batch_request, BatchManager, parse_batch_result_tool_use

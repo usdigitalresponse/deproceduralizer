@@ -18,9 +18,6 @@ from .models.context import ContextRequest
 from .cost_tracker import CostTracker, DEFAULT_BATCH_MODEL
 
 # Import from lib.batch
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from lib.batch import BatchManager, parse_batch_result_tool_use
 
 if TYPE_CHECKING:

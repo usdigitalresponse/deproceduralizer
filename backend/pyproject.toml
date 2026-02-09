@@ -1,0 +1,15 @@
+[project]
+name = "deproceduralizer-backend"
+version = "0.1.0"
+description = "Backend for the Deproceduralizer regulatory analysis tool"
+requires-python = ">=3.10"
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = ["config"]
+
+[tool.setuptools.packages.find]
+include = ["lib*", "scripts*", "observability*"]
