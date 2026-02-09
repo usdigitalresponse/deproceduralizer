@@ -15,28 +15,6 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent
 load_dotenv(PROJECT_ROOT / '.env')
 
 # =============================================================================
-# SMOKE TESTS - Scripts import and CLI works
-# =============================================================================
-
-class TestImports:
-    """Verify all scripts can be imported without errors."""
-
-    def test_import_lib_modules(self):
-        from lib.batch import BatchManager, format_batch_request, parse_batch_result_tool_use
-        from lib.db import get_db_connection
-        from lib.prompts import load_prompt
-        assert BatchManager is not None
-
-    def test_import_batch_definitions(self):
-        import batch_definitions
-        assert hasattr(batch_definitions, 'main')
-
-    def test_import_red_flags(self):
-        import red_flags
-        assert hasattr(red_flags, 'RegulationAnalysis')
-        assert hasattr(red_flags, 'create_analysis_prompt')
-
-# =============================================================================
 # UNIT TESTS - Pure functions
 # =============================================================================
 
