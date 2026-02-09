@@ -100,8 +100,8 @@ def _make_mock_conn(rows, already_analyzed_ids=None):
 class TestComplianceIssueSearcherSearch:
     """Test the search() method."""
 
-    @patch('scripts.compliance_issues.searcher.create_statute_checker')
-    @patch('scripts.compliance_issues.searcher.get_db_connection')
+    @patch('scripts.shared.base_searcher.create_statute_checker')
+    @patch('scripts.shared.base_searcher.get_db_connection')
     def test_basic_match(self, mock_get_conn, mock_statute, ny_state_config, issue_config):
         """Documents matching the pattern are returned."""
         from scripts.compliance_issues.searcher import ComplianceIssueSearcher
@@ -120,8 +120,8 @@ class TestComplianceIssueSearcherSearch:
         assert matches[0]['document_id'] == 1
         assert 'wet signature' in matches[0]['context'].lower()
 
-    @patch('scripts.compliance_issues.searcher.create_statute_checker')
-    @patch('scripts.compliance_issues.searcher.get_db_connection')
+    @patch('scripts.shared.base_searcher.create_statute_checker')
+    @patch('scripts.shared.base_searcher.get_db_connection')
     def test_no_matches(self, mock_get_conn, mock_statute, ny_state_config, issue_config):
         """Returns empty list when nothing matches."""
         from scripts.compliance_issues.searcher import ComplianceIssueSearcher
@@ -138,8 +138,8 @@ class TestComplianceIssueSearcherSearch:
 
         assert matches == []
 
-    @patch('scripts.compliance_issues.searcher.create_statute_checker')
-    @patch('scripts.compliance_issues.searcher.get_db_connection')
+    @patch('scripts.shared.base_searcher.create_statute_checker')
+    @patch('scripts.shared.base_searcher.get_db_connection')
     def test_already_analyzed_skipped(self, mock_get_conn, mock_statute, ny_state_config, issue_config):
         """Documents already in compliance_issues table are skipped."""
         from scripts.compliance_issues.searcher import ComplianceIssueSearcher
@@ -158,8 +158,8 @@ class TestComplianceIssueSearcherSearch:
         assert len(matches) == 1
         assert matches[0]['document_id'] == 2
 
-    @patch('scripts.compliance_issues.searcher.create_statute_checker')
-    @patch('scripts.compliance_issues.searcher.get_db_connection')
+    @patch('scripts.shared.base_searcher.create_statute_checker')
+    @patch('scripts.shared.base_searcher.get_db_connection')
     def test_limit(self, mock_get_conn, mock_statute, ny_state_config, issue_config):
         """Limit parameter caps the number of results."""
         from scripts.compliance_issues.searcher import ComplianceIssueSearcher
@@ -176,8 +176,8 @@ class TestComplianceIssueSearcherSearch:
 
         assert len(matches) == 3
 
-    @patch('scripts.compliance_issues.searcher.create_statute_checker')
-    @patch('scripts.compliance_issues.searcher.get_db_connection')
+    @patch('scripts.shared.base_searcher.create_statute_checker')
+    @patch('scripts.shared.base_searcher.get_db_connection')
     def test_empty_content_skipped(self, mock_get_conn, mock_statute, ny_state_config, issue_config):
         """Documents with empty/None content are skipped."""
         from scripts.compliance_issues.searcher import ComplianceIssueSearcher
@@ -198,8 +198,8 @@ class TestComplianceIssueSearcherSearch:
         assert len(matches) == 1
         assert matches[0]['document_id'] == 3
 
-    @patch('scripts.compliance_issues.searcher.create_statute_checker')
-    @patch('scripts.compliance_issues.searcher.get_db_connection')
+    @patch('scripts.shared.base_searcher.create_statute_checker')
+    @patch('scripts.shared.base_searcher.get_db_connection')
     def test_no_db_connection(self, mock_get_conn, mock_statute, ny_state_config, issue_config):
         """Returns empty list when DB connection fails."""
         from scripts.compliance_issues.searcher import ComplianceIssueSearcher
@@ -212,8 +212,8 @@ class TestComplianceIssueSearcherSearch:
 
         assert matches == []
 
-    @patch('scripts.compliance_issues.searcher.create_statute_checker')
-    @patch('scripts.compliance_issues.searcher.get_db_connection')
+    @patch('scripts.shared.base_searcher.create_statute_checker')
+    @patch('scripts.shared.base_searcher.get_db_connection')
     def test_match_result_fields(self, mock_get_conn, mock_statute, ny_state_config, issue_config):
         """Verify all expected fields are present in match results."""
         from scripts.compliance_issues.searcher import ComplianceIssueSearcher
@@ -247,8 +247,8 @@ class TestComplianceIssueSearcherSearch:
         assert m['title'] == 'Test Regulation'
         assert m['url'] == 'https://example.com/reg/42'
 
-    @patch('scripts.compliance_issues.searcher.create_statute_checker')
-    @patch('scripts.compliance_issues.searcher.get_db_connection')
+    @patch('scripts.shared.base_searcher.create_statute_checker')
+    @patch('scripts.shared.base_searcher.get_db_connection')
     def test_context_window(self, mock_get_conn, mock_statute, ny_state_config, issue_config):
         """Context is extracted around the match, not the full document."""
         from scripts.compliance_issues.searcher import ComplianceIssueSearcher
