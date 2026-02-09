@@ -83,12 +83,10 @@ SELECT pipeline_version, COUNT(*)
 FROM compliance_issue_analyses
 GROUP BY pipeline_version;
 
--- Tier completion status (handles V4 and V5)
+-- Tier completion status
 SELECT
-  pipeline_version,
   CASE
-    WHEN pipeline_version = 'v5' AND tier3_completed_at IS NOT NULL THEN 'complete'
-    WHEN pipeline_version = 'v4' AND tier4_classification IS NOT NULL THEN 'complete'
+    WHEN tier3_completed_at IS NOT NULL THEN 'complete'
     WHEN tier3_classification IS NOT NULL THEN 'tier3_done'
     WHEN tier2_classification IS NOT NULL THEN 'tier2_done'
     WHEN tier1_classification IS NOT NULL THEN 'tier1_done'
@@ -96,7 +94,7 @@ SELECT
   END as status,
   COUNT(*)
 FROM compliance_issue_analyses
-GROUP BY 1, 2 ORDER BY 1, 2;
+GROUP BY 1 ORDER BY 1;
 
 -- Classification distribution
 SELECT
