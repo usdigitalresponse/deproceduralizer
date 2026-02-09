@@ -4,8 +4,9 @@ import { useCallback } from 'react';
 import { useQueryStates } from 'nuqs';
 import { Select, FilterBar, FilterField } from '@/components/ui';
 import { DEVELOPER_STATUSES, DEVELOPERS, REVIEW_STATUSES } from '@/types/regulation';
-import { redFlagDeveloperQueueParsers } from '@/lib/url/parsers';
-import { SEVERITY_FILTER_OPTIONS } from '@/lib/constants/filters';
+import { redFlagDeveloperQueueParsers, type RedFlagDeveloperSortByValue, type DeveloperStatusValue, type SeverityValue, type ReviewStatusValue } from '@/lib/url/parsers';
+import { typedValue } from '@/lib/url/type-helpers';
+import { SEVERITY_FILTER_OPTIONS, RED_FLAG_DEVELOPER_SORT_OPTIONS } from '@/lib/constants/filters';
 
 interface RedFlagDeveloperFiltersProps {
   categories: string[];
@@ -27,12 +28,6 @@ const REVIEW_STATUS_OPTIONS = [
   ...REVIEW_STATUSES.filter(s => s.value !== 'unreviewed'),
 ];
 
-const SORT_OPTIONS = [
-  { value: 'severity', label: 'Severity' },
-  { value: 'category', label: 'Category' },
-  { value: 'reviewedAt', label: 'Review Date' },
-  { value: 'developerCheckedAt', label: 'Last Updated' },
-];
 
 export function RedFlagDeveloperFilters({
   categories,
@@ -71,8 +66,8 @@ export function RedFlagDeveloperFilters({
       showSortControls
       sortBy={filters.sortBy}
       sortOrder={filters.sortOrder}
-      sortOptions={SORT_OPTIONS}
-      onSortByChange={(value) => setFilters({ sortBy: value as any, page: 1 })}
+      sortOptions={RED_FLAG_DEVELOPER_SORT_OPTIONS}
+      onSortByChange={typedValue<RedFlagDeveloperSortByValue>((value) => setFilters({ sortBy: value, page: 1 }))}
       onSortOrderToggle={() => setFilters({ sortOrder: filters.sortOrder === 'desc' ? 'asc' : 'desc', page: 1 })}
       hasActiveFilters={hasActiveFilters}
       onClearFilters={clearFilters}
@@ -81,7 +76,7 @@ export function RedFlagDeveloperFilters({
       <FilterField label="Dev Status">
         <Select
           value={filters.developerStatus || 'all'}
-          onValueChange={(value) => setFilters({ developerStatus: value as any, page: 1 })}
+          onValueChange={typedValue<DeveloperStatusValue>((value) => setFilters({ developerStatus: value, page: 1 }))}
           options={DEV_STATUS_OPTIONS}
           aria-label="Filter by developer status"
         />
@@ -99,7 +94,7 @@ export function RedFlagDeveloperFilters({
       <FilterField label="Severity">
         <Select
           value={filters.severity || 'all'}
-          onValueChange={(value) => setFilters({ severity: value as any, page: 1 })}
+          onValueChange={typedValue<SeverityValue>((value) => setFilters({ severity: value, page: 1 }))}
           options={SEVERITY_FILTER_OPTIONS}
           aria-label="Filter by severity"
         />
@@ -108,7 +103,7 @@ export function RedFlagDeveloperFilters({
       <FilterField label="Review">
         <Select
           value={filters.reviewStatus || 'all'}
-          onValueChange={(value) => setFilters({ reviewStatus: value as any, page: 1 })}
+          onValueChange={typedValue<ReviewStatusValue>((value) => setFilters({ reviewStatus: value, page: 1 }))}
           options={REVIEW_STATUS_OPTIONS}
           aria-label="Filter by review status"
         />

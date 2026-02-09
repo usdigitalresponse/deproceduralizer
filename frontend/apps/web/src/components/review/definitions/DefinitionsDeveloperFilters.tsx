@@ -5,7 +5,9 @@ import { useQueryStates } from 'nuqs';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 import { DEVELOPER_STATUSES, DEVELOPERS } from '@/types/regulation';
-import { definitionsDeveloperParsers } from '@/lib/url/parsers';
+import { definitionsDeveloperParsers, type DeveloperSortByValue, type DeveloperStatusValue } from '@/lib/url/parsers';
+import { typedValue } from '@/lib/url/type-helpers';
+import { DEVELOPER_SORT_OPTIONS } from '@/lib/constants/filters';
 
 interface DefinitionsDeveloperFiltersProps {
   className?: string;
@@ -34,10 +36,6 @@ const HAS_NOTES_OPTIONS = [
   { value: 'no', label: 'No' },
 ];
 
-const SORT_OPTIONS = [
-  { value: 'reviewedAt', label: 'Review Date' },
-  { value: 'developerCheckedAt', label: 'Dev Check Date' },
-];
 
 export function DefinitionsDeveloperFilters({
   className = '',
@@ -75,7 +73,7 @@ export function DefinitionsDeveloperFilters({
         </label>
         <Select
           value={filters.developerStatus || 'all'}
-          onValueChange={(value) => setFilters({ developerStatus: value as 'all' | 'unresolved' | 'resolved' | 'pending' | 'backlogged' | 'need_more_info', page: 1 })}
+          onValueChange={typedValue<DeveloperStatusValue>((value) => setFilters({ developerStatus: value, page: 1 }))}
           options={DEV_STATUS_OPTIONS}
           aria-label="Filter by developer status"
         />
@@ -147,8 +145,8 @@ export function DefinitionsDeveloperFilters({
         </label>
         <Select
           value={filters.sortBy || 'reviewedAt'}
-          onValueChange={(value) => setFilters({ sortBy: value as 'reviewedAt' | 'developerCheckedAt', page: 1 })}
-          options={SORT_OPTIONS}
+          onValueChange={typedValue<DeveloperSortByValue>((value) => setFilters({ sortBy: value, page: 1 }))}
+          options={DEVELOPER_SORT_OPTIONS}
           aria-label="Sort by"
         />
         <Button

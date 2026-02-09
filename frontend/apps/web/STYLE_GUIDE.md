@@ -1350,6 +1350,23 @@ const qs = createQueryString({ page: 1, status: 'unreviewed', category: null });
 const newQs = mergeQueryParams(searchParams, { status: 'confirmed' });
 ```
 
+### Type-Safe Select → nuqs Bridge
+
+Radix Select's `onValueChange` returns `string`, but nuqs setters expect narrow union types (e.g., `'high' | 'medium' | 'low'`). Use `typedValue` to bridge the gap without `as any`:
+
+```tsx
+import { typedValue } from '@/lib/url/type-helpers';
+import type { SeverityValue } from '@/lib/url/parsers';
+
+// Before (unsafe):
+onValueChange={(value) => setFilters({ severity: value as any, page: 1 })}
+
+// After (type-safe):
+onValueChange={typedValue<SeverityValue>((value) => setFilters({ severity: value, page: 1 }))}
+```
+
+The cast is safe because the Select's `options` prop constrains the possible values at runtime.
+
 ---
 
 ## Resizable Panels
