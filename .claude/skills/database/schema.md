@@ -274,7 +274,7 @@ The following columns on `regulatory_documents` store compliance issue counts:
 - `compliance_issue_count`: Direct confirmed issues on this document
 - `descendant_compliance_issue_count`: Confirmed issues in all descendant documents
 
-These are updated by `refresh_compliance_stats()` in `backend/shared_utils.py` and only count issues where `requirement_found = TRUE` (in `compliance_issue_analyses`).
+These are updated by `refresh_compliance_stats()` in `backend/lib/stats.py` and only count issues where `requirement_found = TRUE` (in `compliance_issue_analyses`).
 
 ## compliance_issue_analyses
 

@@ -59,7 +59,7 @@ When working on the Next.js frontend, follow these patterns:
 ### Pipeline Scripts
 - Use `scripts.research_pipeline.cli` for the 3-tier compliance research.
 - When adding/removing backend scripts, update `docs/OPERATIONS.md`.
-- Scrapers handle migration automatically via `shared_utils.migrate_regulations_to_db()`.
+- Scrapers handle migration automatically via `lib.migration.migrate_regulations_to_db()`.
 
 ## Documentation Guidelines
 

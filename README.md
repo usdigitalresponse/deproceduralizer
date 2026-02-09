@@ -49,7 +49,7 @@ Cornell Law Website
 deproceduralizer/
 ├── backend/                          # Python backend
 │   ├── config.py                     # Path configuration
-│   ├── shared_utils.py               # DB, LLM, parsing utilities
+│   ├── lib/                          # DB, LLM, parsing utilities (split modules)
 │   ├── requirements.txt              # Python dependencies
 │   └── scripts/                      # Executable scripts
 │       ├── ny_regulations_scraper.py # NY scraper (includes DB migration)
@@ -161,7 +161,7 @@ Open http://localhost:3010
 
 ### Data Processing
 
-The scrapers handle migration automatically via `shared_utils.migrate_regulations_to_db()`:
+The scrapers handle migration automatically via `lib.migration.migrate_regulations_to_db()`:
 - Imports scraped JSON into PostgreSQL
 - Creates `regulatory_documents` records with hierarchy
 - Handles re-runs safely with `ON CONFLICT`

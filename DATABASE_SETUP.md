@@ -44,7 +44,7 @@ python backend/scripts/ny_regulations_scraper.py
 python backend/scripts/nj_regulations_scraper.py
 ```
 
-The scrapers call `shared_utils.migrate_regulations_to_db()` which:
+The scrapers call `lib.migration.migrate_regulations_to_db()` which:
 - Creates `regulatory_documents` entries for each regulation
 - Handles hierarchy relationships (parent_id)
 - Uses `ON CONFLICT` for safe re-runs

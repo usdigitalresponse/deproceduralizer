@@ -121,7 +121,7 @@ python backend/scripts/detect_regulatory_status.py --state NJ
 - All scripts in `backend/scripts/`
 - Writes directly to PostgreSQL via `psycopg`
 - No connection to Next.js app
-- Uses `shared_utils.py` for DB, LLM, and parsing utilities
+- Uses `backend/lib/` modules for DB, LLM, and parsing utilities
 
 ### Online UI (Next.js)
 
