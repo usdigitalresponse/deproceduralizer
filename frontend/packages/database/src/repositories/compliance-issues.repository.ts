@@ -707,6 +707,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
   /**
    * Get counts by review status for progress display.
    * PR 6.3: Counts analysis rows (one per document+issue_type) instead of match rows.
+   * Only counts LLM-confirmed issues (requirement_found = TRUE) to exclude regex-only matches.
    */
   async getCountsByStatus(state: StateCode): Promise<ComplianceIssueStatusCounts> {
     const result = await this.db
@@ -715,7 +716,10 @@ export class ComplianceIssuesRepository extends BaseRepository {
         count: sql<number>`count(*)::int`,
       })
       .from(complianceIssueAnalyses)
-      .where(eq(complianceIssueAnalyses.state, state.toUpperCase()))
+      .where(and(
+        eq(complianceIssueAnalyses.state, state.toUpperCase()),
+        eq(complianceIssueAnalyses.requirementFound, true)
+      ))
       .groupBy(complianceIssueAnalyses.reviewStatus);
 
     // Initialize counts with zeros
