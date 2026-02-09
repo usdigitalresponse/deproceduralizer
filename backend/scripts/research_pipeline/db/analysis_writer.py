@@ -23,9 +23,6 @@ from ..result_processor import (
     check_verbatim,
 )
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from lib.db import get_db_connection
 
 # Import centralized configuration

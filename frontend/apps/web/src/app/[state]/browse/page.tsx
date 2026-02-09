@@ -8,7 +8,7 @@ import { HierarchyTreeSkeleton } from '@/components/browse/HierarchyTree';
 import { Card } from '@/components/ui/Card';
 import { Alert } from '@/components/ui';
 import { isValidState, STATE_CONFIG } from '@/types/state';
-import { parseBooleanParam } from '@/lib/url/server-utils';
+import { parseBooleanParam } from '@/lib/url/filter-helpers';
 import { getHierarchyBrowseData } from '@/lib/actions/hierarchy';
 
 export const dynamic = 'force-dynamic';

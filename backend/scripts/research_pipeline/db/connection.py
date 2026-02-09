@@ -3,69 +3,19 @@ Centralized database connection management for the research pipeline.
 
 Provides context managers for safe connection handling with automatic
 cleanup and transaction support. Also provides:
-- retry_db_operation: Decorator for retrying DB operations on connection failures
+- retry_db_operation: Re-exported from lib.db for downstream imports
 - check_db_health: Health check function to ping database
 - FailedUnitTracker: Track and report units that failed due to DB errors
 """
 
-import functools
-import time
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import Generator, Callable, TypeVar, Any
+from typing import Generator
 
-import psycopg
 from psycopg import Connection
 
-# Import existing connection function from lib.db
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
-from lib.db import get_db_connection
-
-
-# Type variable for generic return type
-T = TypeVar('T')
-
-
-def retry_db_operation(max_retries: int = 5, base_delay: float = 1.0) -> Callable:
-    """
-    Decorator that retries DB operations on connection failures.
-
-    Uses exponential backoff: delays of 1s, 2s, 4s, 8s, 16s by default.
-
-    Args:
-        max_retries: Maximum number of retry attempts (default: 5)
-        base_delay: Base delay in seconds, doubles each retry (default: 1.0)
-
-    Returns:
-        Decorated function that retries on psycopg.OperationalError or InterfaceError
-
-    Example:
-        @retry_db_operation(max_retries=3)
-        def fetch_data():
-            conn = get_db_connection()
-            # ... fetch logic
-    """
-    def decorator(func: Callable[..., T]) -> Callable[..., T]:
-        @functools.wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> T:
-            last_error: Exception | None = None
-            for attempt in range(max_retries):
-                try:
-                    return func(*args, **kwargs)
-                except (psycopg.OperationalError, psycopg.InterfaceError) as e:
-                    last_error = e
-                    if attempt < max_retries - 1:
-                        delay = base_delay * (2 ** attempt)  # 1, 2, 4, 8, 16s
-                        print(f"  DB connection error, retrying in {delay}s ({attempt + 1}/{max_retries}): {e}")
-                        time.sleep(delay)
-            # All retries exhausted
-            if last_error is not None:
-                raise last_error
-            raise RuntimeError("retry_db_operation failed without an error")
-        return wrapper
-    return decorator
+# Import from canonical locations in lib
+from lib.db import get_db_connection, retry_db_operation
 
 
 def check_db_health() -> bool:

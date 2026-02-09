@@ -19,10 +19,6 @@ from typing import Optional
 import aiohttp
 from dotenv import load_dotenv
 
-# Import shared modules from parent directory
-import sys
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
 from db_queries import (
     get_documents_by_level,
     get_ancestors,

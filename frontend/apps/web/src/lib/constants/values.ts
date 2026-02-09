@@ -320,3 +320,27 @@ export type EasyCleanupFilterValue = (typeof EASY_CLEANUP_FILTER_VALUES)[number]
 // Sort by options for analysis table
 export const ANALYSIS_SORT_BY_VALUES = ['issueType', 'severity', 'highestTier', 'createdAt'] as const;
 export type AnalysisSortByValue = (typeof ANALYSIS_SORT_BY_VALUES)[number];
+
+// ============================================
+// Section Type (AI-generated metadata)
+// ============================================
+
+export const SECTION_TYPE_VALUES = [
+  'all',
+  'definitions',
+  'requirements',
+  'procedures',
+  'prohibitions',
+  'standards',
+  'eligibility',
+  'penalties',
+  'fees',
+  'forms',
+  'reporting',
+  'purpose',
+  'scope',
+  'exemptions',
+  'reserved',
+  'other',
+] as const;
+export type SectionTypeValue = (typeof SECTION_TYPE_VALUES)[number];

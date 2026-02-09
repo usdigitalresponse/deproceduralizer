@@ -4,7 +4,9 @@ import { useCallback } from 'react';
 import { useQueryStates } from 'nuqs';
 import { Select, FilterBar, FilterField } from '@/components/ui';
 import { DEVELOPER_STATUSES, DEVELOPERS } from '@/types/regulation';
-import { developerQueueParsers } from '@/lib/url/parsers';
+import { developerQueueParsers, type DeveloperSortByValue, type DeveloperStatusValue } from '@/lib/url/parsers';
+import { typedValue } from '@/lib/url/type-helpers';
+import { DEVELOPER_SORT_OPTIONS } from '@/lib/constants/filters';
 
 interface DeveloperFiltersProps {
   className?: string;
@@ -20,10 +22,6 @@ const DEVELOPER_OPTIONS = [
   ...DEVELOPERS,
 ];
 
-const SORT_OPTIONS = [
-  { value: 'reviewedAt', label: 'Review Date' },
-  { value: 'developerCheckedAt', label: 'Last Updated' },
-];
 
 export function DeveloperFilters({
   className = '',
@@ -50,8 +48,8 @@ export function DeveloperFilters({
       showSortControls
       sortBy={filters.sortBy}
       sortOrder={filters.sortOrder}
-      sortOptions={SORT_OPTIONS}
-      onSortByChange={(value) => setFilters({ sortBy: value as any, page: 1 })}
+      sortOptions={DEVELOPER_SORT_OPTIONS}
+      onSortByChange={typedValue<DeveloperSortByValue>((value) => setFilters({ sortBy: value, page: 1 }))}
       onSortOrderToggle={() => setFilters({ sortOrder: filters.sortOrder === 'desc' ? 'asc' : 'desc', page: 1 })}
       hasActiveFilters={hasActiveFilters}
       onClearFilters={clearFilters}
@@ -60,7 +58,7 @@ export function DeveloperFilters({
       <FilterField label="Status">
         <Select
           value={filters.developerStatus || 'all'}
-          onValueChange={(value) => setFilters({ developerStatus: value as any, page: 1 })}
+          onValueChange={typedValue<DeveloperStatusValue>((value) => setFilters({ developerStatus: value, page: 1 }))}
           options={DEV_STATUS_OPTIONS}
           aria-label="Filter by developer status"
         />

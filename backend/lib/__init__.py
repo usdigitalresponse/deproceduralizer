@@ -32,9 +32,7 @@ from lib.stats import (
 from lib.llm import (
     DEFAULT_MODEL,
     get_anthropic_client,
-    get_openai_client,
     get_async_anthropic_client,
-    get_async_openai_client,
     _pydantic_to_tool_schema,
     call_llm_parse,
     call_llm_parse_async,
@@ -77,9 +75,7 @@ __all__ = [
     # llm
     "DEFAULT_MODEL",
     "get_anthropic_client",
-    "get_openai_client",
     "get_async_anthropic_client",
-    "get_async_openai_client",
     "_pydantic_to_tool_schema",
     "call_llm_parse",
     "call_llm_parse_async",

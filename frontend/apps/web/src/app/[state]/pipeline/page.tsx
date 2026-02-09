@@ -1,10 +1,9 @@
 import { notFound } from 'next/navigation';
-import type { StateCode } from '@deproceduralizer/database';
 import { getAnalysisTierStats } from '@/lib/actions/analysis';
 import { AnalysisDashboard } from '@/components/analysis';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Container } from '@/components/layout/Container';
-import { STATE_CONFIG, isValidState } from '@/types/state';
+import { type StateCode, STATE_CONFIG, isValidState } from '@/types/state';
 
 interface AnalysisPageProps {
   params: Promise<{ state: string }>;

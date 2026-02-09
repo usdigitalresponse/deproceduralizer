@@ -4,17 +4,7 @@ import { useCallback } from 'react';
 import { useQueryStates } from 'nuqs';
 import { Button, Select, FilterBar, FilterField } from '@/components/ui';
 import {
-  reviewStatusParser,
-  complianceSortByParser,
-  sortOrderParser,
-  searchParser,
-  pageParser,
-  severityParser,
-  statuteSourceParser,
-  requirementFoundParser,
-  tierFilterParser,
-  federalMandateFilterParser,
-  hasAnalysisFilterParser,
+  complianceQueueParsers,
   type ReviewStatusValue,
   type SeverityValue,
   type StatuteSourceValue,
@@ -22,7 +12,9 @@ import {
   type TierFilterValue,
   type FederalMandateFilterValue,
   type HasAnalysisFilterValue,
+  type ComplianceSortByValue,
 } from '@/lib/url/parsers';
+import { typedValue } from '@/lib/url/type-helpers';
 import {
   SEVERITY_FILTER_OPTIONS,
   STATUTE_SOURCE_FILTER_OPTIONS,
@@ -30,6 +22,7 @@ import {
   TIER_FILTER_OPTIONS,
   FEDERAL_MANDATE_FILTER_OPTIONS,
   HAS_ANALYSIS_FILTER_OPTIONS,
+  COMPLIANCE_SORT_OPTIONS,
 } from '@/lib/constants/filters';
 import { REVIEW_STATUSES, COMPLIANCE_ISSUE_TYPES, formatLabel } from '@/types/regulation';
 
@@ -42,19 +35,7 @@ export function ComplianceFilters({
   issueTypes,
   className = '',
 }: ComplianceFiltersProps) {
-  const [filters, setFilters] = useQueryStates({
-    reviewStatus: reviewStatusParser,
-    issueType: searchParser,
-    severity: severityParser,
-    statuteSource: statuteSourceParser,
-    requirementFound: requirementFoundParser,
-    tierCompleted: tierFilterParser,
-    federalMandate: federalMandateFilterParser,
-    hasAnalysis: hasAnalysisFilterParser,
-    sortBy: complianceSortByParser,
-    sortOrder: sortOrderParser,
-    page: pageParser,
-  }, {
+  const [filters, setFilters] = useQueryStates(complianceQueueParsers, {
     shallow: false,
   });
 
@@ -90,12 +71,6 @@ export function ComplianceFilters({
       const found = COMPLIANCE_ISSUE_TYPES.find(ct => ct.value === t);
       return { value: t, label: found?.label || formatLabel(t) };
     }),
-  ];
-  const sortOptions = [
-    { value: 'severity', label: 'Severity' },
-    { value: 'createdAt', label: 'Date Created' },
-    { value: 'issueType', label: 'Issue Type' },
-    { value: 'reviewedAt', label: 'Last Reviewed' },
   ];
 
   return (
@@ -173,8 +148,8 @@ export function ComplianceFilters({
       <FilterField label="Sort">
         <Select
           value={filters.sortBy}
-          onValueChange={(value) => setFilters({ sortBy: value as any, page: 1 })}
-          options={sortOptions}
+          onValueChange={typedValue<ComplianceSortByValue>((value) => setFilters({ sortBy: value, page: 1 }))}
+          options={COMPLIANCE_SORT_OPTIONS}
         />
       </FilterField>
 

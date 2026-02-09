@@ -10,9 +10,6 @@ from typing import Optional
 from psycopg import Connection
 
 # Import shared utilities and models
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from lib.db import get_db_connection
 
 from ..models.matches import ProcessingUnit, MatchInfo

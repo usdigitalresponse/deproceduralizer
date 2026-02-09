@@ -7,11 +7,6 @@ This module serves as the single source of truth for pipeline configuration,
 making it easier to update settings and ensuring consistency across modules.
 """
 
-import sys
-from pathlib import Path
-
-# Add parent directories to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from lib.llm import DEFAULT_MODEL
 
 # =============================================================================

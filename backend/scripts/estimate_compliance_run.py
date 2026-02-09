@@ -6,15 +6,12 @@ Estimates regex matches, tokens, time, and cost WITHOUT running LLM calls.
 
 import os
 import re
-import sys
 import time
 from pathlib import Path
 from collections import defaultdict
 
 # Setup paths
 PROJECT_ROOT = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(Path(__file__).parent.parent))
-sys.path.insert(0, str(Path(__file__).parent))
 
 from dotenv import load_dotenv
 load_dotenv(PROJECT_ROOT / '.env')

@@ -19,6 +19,7 @@ const stateInfo = {
     accentColor: 'bg-blue-500',
     accentColorLight: 'bg-blue-50',
     borderColor: 'border-blue-200',
+    barColor: 'bg-blue-500',
   },
   nj: {
     name: 'New Jersey',
@@ -27,11 +28,44 @@ const stateInfo = {
     accentColor: 'bg-amber-500',
     accentColorLight: 'bg-amber-50',
     borderColor: 'border-amber-200',
+    barColor: 'bg-amber-500',
   },
 };
 
+interface ProgressBarProps {
+  label: string;
+  current: number;
+  total: number;
+  barColor: string;
+}
+
+function ProgressBar({ label, current, total, barColor }: ProgressBarProps) {
+  const pct = total > 0 ? Math.round((current / total) * 100) : 0;
+
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between text-xs text-[var(--color-text-muted)]">
+        <span>{label}</span>
+        <span>
+          {current.toLocaleString()}/{total.toLocaleString()}
+        </span>
+      </div>
+      <div className="h-1.5 bg-[var(--color-neutral-100)] rounded-full overflow-hidden">
+        <div
+          className={`h-full rounded-full ${barColor} transition-all duration-300`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
 export function StateCard({ state, stats }: StateCardProps) {
   const info = stateInfo[state];
+
+  const issuesTotal = stats.complianceIssues?.total ?? 0;
+  const issuesUnreviewed = stats.complianceIssues?.unreviewed ?? 0;
+  const issuesReviewed = issuesTotal - issuesUnreviewed;
 
   return (
     <Link href={`/${state}`} className="block group">
@@ -71,32 +105,39 @@ export function StateCard({ state, stats }: StateCardProps) {
           <ChevronRight className="w-5 h-5 text-[var(--color-text-muted)] group-hover:text-[var(--color-primary)] transition-colors" />
         </div>
 
-        {/* Stats row */}
-        <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-[var(--color-neutral-200)]">
-          <Badge variant="info">
-            {stats.analyzedDocuments.toLocaleString()} analyzed
-          </Badge>
-          {stats.documentsWithFlags > 0 && (
-            <Badge variant="warning">
-              {stats.documentsWithFlags.toLocaleString()} with flags
-            </Badge>
-          )}
-          {stats.complianceIssues && stats.complianceIssues.total > 0 && (
-            <Badge variant="warning">
-              {stats.complianceIssues.total.toLocaleString()} compliance issues
-            </Badge>
-          )}
-          {stats.unreviewedFlags > 0 && (
-            <Badge variant="danger">
-              {stats.unreviewedFlags.toLocaleString()} unreviewed flags
-            </Badge>
-          )}
-          {stats.complianceIssues && stats.complianceIssues.unreviewed > 0 && (
-            <Badge variant="danger">
-              {stats.complianceIssues.unreviewed.toLocaleString()} unreviewed issues
-            </Badge>
+        {/* Progress bars */}
+        <div className="mt-4 pt-4 border-t border-[var(--color-neutral-200)] space-y-2">
+          <ProgressBar
+            label="Analyzed"
+            current={stats.analyzedDocuments}
+            total={stats.totalDocuments}
+            barColor={info.barColor}
+          />
+          {issuesTotal > 0 && (
+            <ProgressBar
+              label="Reviewed"
+              current={issuesReviewed}
+              total={issuesTotal}
+              barColor={info.barColor}
+            />
           )}
         </div>
+
+        {/* Actionable badges */}
+        {(stats.unreviewedFlags > 0 || issuesUnreviewed > 0) && (
+          <div className="flex flex-wrap gap-2 mt-3">
+            {stats.unreviewedFlags > 0 && (
+              <Badge variant="danger">
+                {stats.unreviewedFlags.toLocaleString()} unreviewed flags
+              </Badge>
+            )}
+            {issuesUnreviewed > 0 && (
+              <Badge variant="danger">
+                {issuesUnreviewed.toLocaleString()} unreviewed issues
+              </Badge>
+            )}
+          </div>
+        )}
       </Card>
     </Link>
   );

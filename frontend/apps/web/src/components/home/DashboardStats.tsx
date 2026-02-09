@@ -1,6 +1,6 @@
 'use client';
 
-import { FileText, Search, AlertTriangle, CheckCircle, ClipboardList, PenTool } from 'lucide-react';
+import { FileText, Search, ClipboardList, AlertTriangle } from 'lucide-react';
 import type { DashboardStats as DashboardStatsType } from '@deproceduralizer/database';
 import { StatCard, StatGrid } from '@/components/ui';
 
@@ -9,60 +9,40 @@ interface DashboardStatsProps {
 }
 
 export function DashboardStats({ stats }: DashboardStatsProps) {
-  return (
-    <div className="space-y-4">
-      {/* Document & Flag Stats */}
-      <StatGrid columns={4}>
-        <StatCard
-          label="Total Regulations"
-          value={stats.totalDocuments}
-          icon={FileText}
-          variant="default"
-        />
-        <StatCard
-          label="Analyzed"
-          value={stats.analyzedDocuments}
-          icon={Search}
-          variant="info"
-        />
-        <StatCard
-          label="With Flags"
-          value={stats.documentsWithFlags}
-          icon={AlertTriangle}
-          variant="warning"
-        />
-        <StatCard
-          label="Unreviewed Flags"
-          value={stats.unreviewedFlags}
-          icon={CheckCircle}
-          variant="danger"
-        />
-      </StatGrid>
+  const analysisPct = stats.totalDocuments > 0
+    ? Math.round((stats.analyzedDocuments / stats.totalDocuments) * 100)
+    : 0;
 
-      {/* Compliance Issues Stats */}
-      {stats.complianceIssues && stats.complianceIssues.total > 0 && (
-        <StatGrid columns={4}>
-          <StatCard
-            label="Compliance Issues"
-            value={stats.complianceIssues.total}
-            icon={ClipboardList}
-            variant="warning"
-          />
-          <StatCard
-            label="Wet Signatures"
-            value={stats.complianceIssues.byType.wet_signature || 0}
-            icon={PenTool}
-            variant="warning"
-          />
-          <StatCard
-            label="Unreviewed Issues"
-            value={stats.complianceIssues.unreviewed}
-            icon={CheckCircle}
-            variant="danger"
-          />
-        </StatGrid>
-      )}
-    </div>
+  return (
+    <StatGrid columns={4}>
+      <StatCard
+        label="Total Regulations"
+        value={stats.totalDocuments}
+        icon={FileText}
+        variant="default"
+      />
+      <StatCard
+        label="Analyzed"
+        value={stats.analyzedDocuments}
+        icon={Search}
+        variant="info"
+        subtitle={`${analysisPct}% coverage`}
+      />
+      <StatCard
+        label="Compliance Issues"
+        value={stats.complianceIssues?.total ?? 0}
+        icon={ClipboardList}
+        variant="warning"
+        subtitle={stats.complianceIssues?.unreviewed ? `${stats.complianceIssues.unreviewed.toLocaleString()} unreviewed` : undefined}
+      />
+      <StatCard
+        label="Red Flags"
+        value={stats.totalFlags}
+        icon={AlertTriangle}
+        variant="danger"
+        subtitle={stats.unreviewedFlags ? `${stats.unreviewedFlags.toLocaleString()} unreviewed` : undefined}
+      />
+    </StatGrid>
   );
 }
 

@@ -143,7 +143,7 @@ python3 import_summaries.py --state NY
 python backend/scripts/scan_compliance_issues.py --state ny
 ```
 
-- Regex-only scan — finds candidate matches for 43 compliance issue types
+- Regex-only scan — finds candidate matches for 41 compliance issue types
 - Patterns defined in `prompts/compliance_issues.yaml`
 - Use `--issue wet_signature` for a single type, `--dry-run` to search without saving
 - Use `--list-issues` to see all available issue types
@@ -317,7 +317,7 @@ python backend/scripts/batch_definitions.py resume --batch-dir data/outputs/batc
 All prompts live in the `/prompts/` directory:
 
 - Core analysis prompts: `prompts/core.yaml` (red_flags, definitions)
-- Compliance issues: `prompts/compliance_issues.yaml` (43 issue types with patterns + prompts)
+- Compliance issues: `prompts/compliance_issues.yaml` (41 issue types with patterns + prompts)
 - Frontend copy: `frontend/apps/web/src/data/prompts.yaml` (copied from `prompts/core.yaml` via prebuild)
 
 TypeScript types are auto-generated from YAML - run `python scripts/generate_prompt_types.py` after modifying `prompts/compliance_issues.yaml`.

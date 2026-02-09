@@ -12,13 +12,9 @@ Usage:
 """
 
 import argparse
-import sys
 import time
-from pathlib import Path
 from dotenv import load_dotenv
 
-# Add backend directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import PROJECT_ROOT
 from lib.db import get_db_connection
 

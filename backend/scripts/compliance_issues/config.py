@@ -6,15 +6,12 @@ Only state configurations are defined here in Python.
 """
 
 import re
-import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, Type, Pattern
 
 import yaml
 
-# Add parent directories to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from config import DATA_DIR
 
 from .models import RESPONSE_MODELS, BaseComplianceAnalysis

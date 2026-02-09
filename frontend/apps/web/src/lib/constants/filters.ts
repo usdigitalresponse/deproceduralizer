@@ -20,6 +20,8 @@ import {
   FLAG_SORT_BY_VALUES,
   COMPLIANCE_SORT_BY_VALUES,
   DEVELOPER_SORT_BY_VALUES,
+  RED_FLAG_DEVELOPER_SORT_BY_VALUES,
+  COMPLIANCE_DEVELOPER_SORT_BY_VALUES,
   DEFINITIONS_REVIEW_STATUS_VALUES,
   DEFINITIONS_REVIEW_SCOPE_LEVEL_VALUES,
   DEFINITION_TYPE_VALUES,
@@ -152,14 +154,28 @@ export const REVIEW_SORT_OPTIONS = createFilterOptions(FLAG_SORT_BY_VALUES, {
 
 export const COMPLIANCE_SORT_OPTIONS = createFilterOptions(COMPLIANCE_SORT_BY_VALUES, {
   severity: 'Severity',
-  createdAt: 'Created',
+  createdAt: 'Date Created',
   issueType: 'Issue Type',
   reviewedAt: 'Last Reviewed',
 });
 
 export const DEVELOPER_SORT_OPTIONS = createFilterOptions(DEVELOPER_SORT_BY_VALUES, {
-  reviewedAt: 'Last Reviewed',
-  developerCheckedAt: 'Developer Checked',
+  reviewedAt: 'Review Date',
+  developerCheckedAt: 'Last Updated',
+});
+
+export const RED_FLAG_DEVELOPER_SORT_OPTIONS = createFilterOptions(RED_FLAG_DEVELOPER_SORT_BY_VALUES, {
+  severity: 'Severity',
+  category: 'Category',
+  reviewedAt: 'Review Date',
+  developerCheckedAt: 'Last Updated',
+});
+
+export const COMPLIANCE_DEVELOPER_SORT_OPTIONS = createFilterOptions(COMPLIANCE_DEVELOPER_SORT_BY_VALUES, {
+  severity: 'Severity',
+  issueType: 'Issue Type',
+  reviewedAt: 'Review Date',
+  developerCheckedAt: 'Last Updated',
 });
 
 // ============================================

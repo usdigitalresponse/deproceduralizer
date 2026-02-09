@@ -86,22 +86,8 @@ def is_high_risk_issue_type(issue_type: str) -> bool:
 def should_escalate_to_tier3(unit: "TrackedUnit") -> bool:
     """Determine if a unit should be escalated to Tier 3.
 
-    A unit escalates to Tier 3 (web search verification) if any of the
-    following canonical triggers are met:
-
-    V5.1 Updated triggers (data-driven from NJ Title 13 analysis):
-
-    1. High-risk issue type:
-       a. All justified items (54-63% valuable regardless of severity)
-       b. Burdensome with severity >= 6 (53% valuable)
-    2. Cites a federal statute that should be verified
-    3. Claims no alternative exists with high severity (>= 7)
-    4. Low confidence (<0.85) with severity >= 6 (44% valuable)
-    5. Controversial justified classification
-    6. Federal mandate is suspected but unverified
-    7. Random 10% sample for quality assurance
-
-    SKIP (low value): Burdensome + high confidence + high severity (only 17% valuable)
+    Wrapper around should_escalate_to_tier3_with_reason() that returns
+    only the boolean decision. See that function for full trigger documentation.
 
     Args:
         unit: TrackedUnit with tier2_output populated
@@ -109,65 +95,8 @@ def should_escalate_to_tier3(unit: "TrackedUnit") -> bool:
     Returns:
         True if the unit should escalate to Tier 3
     """
-    if unit.tier2_output is None:
-        return False
-
-    output = unit.tier2_output
-    classification = output.classification
-    severity = output.severity
-    confidence = getattr(output, 'confidence', 0.85)
-
-    # Unrelated items never escalate
-    if classification == "unrelated":
-        return False
-
-    # SKIP: Low-value combination - burdensome + high confidence + high severity
-    # Data shows only 17% valuable with 0 class flips
-    if classification == "burdensome" and confidence >= LOW_CONFIDENCE_THRESHOLD:
-        if severity is not None and severity >= NO_ALTERNATIVE_SEVERITY_THRESHOLD:
-            # Only proceed if there's a federal statute to verify
-            if not getattr(output, 'cites_federal_statute', False):
-                # Check random sample before skipping entirely
-                if random.random() < RANDOM_SAMPLE_RATE:
-                    return True  # Random sample catches this
-                return False
-
-    # 1. High-risk issue type
-    if is_high_risk_issue_type(unit.issue_type):
-        # 1a. All justified high-risk items (54-63% valuable)
-        if classification == "justified":
-            return True
-        # 1b. Burdensome with severity >= 6 (53% valuable)
-        if severity is not None and severity >= HIGH_RISK_SEVERITY_THRESHOLD:
-            return True
-
-    # 2. Cites federal statute
-    if getattr(output, 'cites_federal_statute', False):
-        return True
-
-    # 3. Claims no alternative with high severity
-    if getattr(output, 'claims_no_alternative', False):
-        if severity is not None and severity >= NO_ALTERNATIVE_SEVERITY_THRESHOLD:
-            return True
-
-    # 4. Low confidence with moderate severity (NEW - 44% valuable)
-    if confidence < LOW_CONFIDENCE_THRESHOLD:
-        if severity is not None and severity >= HIGH_RISK_SEVERITY_THRESHOLD:
-            return True
-
-    # 5. Controversial justified items
-    if classification == "justified" and getattr(output, 'potentially_controversial', False):
-        return True
-
-    # 6. Federal mandate suspected
-    if getattr(output, 'federal_mandate_suspected', False):
-        return True
-
-    # 7. Random 10% sample for quality assurance
-    if random.random() < RANDOM_SAMPLE_RATE:
-        return True
-
-    return False
+    escalate, _ = should_escalate_to_tier3_with_reason(unit)
+    return escalate
 
 
 def should_escalate_to_tier3_with_reason(unit: "TrackedUnit") -> tuple[bool, str]:
@@ -243,70 +172,19 @@ def should_escalate_to_tier3_with_reason(unit: "TrackedUnit") -> tuple[bool, str
 def get_tier3_trigger_reason(unit: "TrackedUnit", is_random_sample: bool = False) -> str:
     """Return the reason for Tier 3 escalation.
 
-    Uses the same logic as should_escalate_to_tier3() but returns a
-    human-readable description of the trigger condition.
-
-    V5.1: Updated to match new data-driven routing logic.
+    Wrapper around should_escalate_to_tier3_with_reason() that returns
+    only the reason string. See that function for full trigger documentation.
 
     Args:
         unit: TrackedUnit with tier2_output populated
-        is_random_sample: True if this was selected via random 10% sampling
+        is_random_sample: Deprecated, kept for backward compatibility
 
     Returns:
         String describing the escalation reason, or "Not escalated" if
         the unit doesn't meet escalation criteria
     """
-    if unit.tier2_output is None:
-        return "Unknown trigger (no Tier 2 output)"
-
-    output = unit.tier2_output
-    classification = output.classification
-    severity = output.severity
-    confidence = getattr(output, 'confidence', 0.85)
-
-    # Unrelated items don't escalate
-    if classification == "unrelated":
-        return "Not escalated (unrelated)"
-
-    # Check triggers in priority order (same as should_escalate_to_tier3)
-
-    # 1. High-risk issue type
-    if is_high_risk_issue_type(unit.issue_type):
-        # 1a. All justified high-risk items
-        if classification == "justified":
-            return f"High-risk issue ({unit.issue_type}) + justified classification"
-        # 1b. Burdensome with severity >= 6
-        if severity is not None and severity >= HIGH_RISK_SEVERITY_THRESHOLD:
-            return f"High-risk issue ({unit.issue_type}) + severity {severity}"
-
-    # 2. Cites federal statute
-    if getattr(output, 'cites_federal_statute', False):
-        citation = getattr(output, 'federal_citation', None) or "unspecified"
-        return f"Federal statute cited: {citation}"
-
-    # 3. Claims no alternative with high severity
-    if getattr(output, 'claims_no_alternative', False):
-        if severity is not None and severity >= NO_ALTERNATIVE_SEVERITY_THRESHOLD:
-            return f"Claims no alternative + severity {severity}"
-
-    # 4. Low confidence with moderate severity
-    if confidence < LOW_CONFIDENCE_THRESHOLD:
-        if severity is not None and severity >= HIGH_RISK_SEVERITY_THRESHOLD:
-            return f"Low confidence ({confidence:.2f}) + severity {severity}"
-
-    # 5. Controversial justified
-    if classification == "justified" and getattr(output, 'potentially_controversial', False):
-        return "Controversial justified item"
-
-    # 6. Federal mandate suspected
-    if getattr(output, 'federal_mandate_suspected', False):
-        return "Federal mandate suspected"
-
-    # 7. Random sample
-    if is_random_sample:
-        return "Random sample (10%)"
-
-    return "Not escalated"
+    _, reason = should_escalate_to_tier3_with_reason(unit)
+    return reason
 
 
 def get_all_trigger_reasons(unit: "TrackedUnit") -> list[str]:

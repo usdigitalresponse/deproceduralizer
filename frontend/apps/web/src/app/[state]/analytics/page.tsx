@@ -1,5 +1,4 @@
 import { notFound } from 'next/navigation';
-import type { StateCode } from '@deproceduralizer/database';
 import { getDashboardStats } from '@/lib/actions/dashboard';
 import { getSectionTypeStats, getMetadataStats, getTopKeywords, getTopAppliesTo } from '@/lib/actions/regulations';
 import { getRedFlagStatusCounts, getRedFlagCategories } from '@/lib/actions/red-flags';
@@ -8,7 +7,7 @@ import { getDefinitionAnalyticsStats } from '@/lib/actions/definitions';
 import { AnalyticsClient } from '@/components/analytics/AnalyticsClient';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Container } from '@/components/layout/Container';
-import { STATE_CONFIG, isValidState } from '@/types/state';
+import { type StateCode, STATE_CONFIG, isValidState } from '@/types/state';
 
 interface AnalyticsPageProps {
   params: Promise<{ state: string }>;

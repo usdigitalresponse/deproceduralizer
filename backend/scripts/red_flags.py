@@ -23,7 +23,6 @@ import json
 import logging
 import os
 import shutil
-import sys
 import random
 import argparse
 from pathlib import Path
@@ -39,8 +38,6 @@ from psycopg import Connection
 
 logger = logging.getLogger(__name__)
 
-# Add backend directory to path for config import
-sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import INDIVIDUAL_REGULATIONS_DIR, WEB_PUBLIC_DIR, PROJECT_ROOT, OUTPUTS_DIR
 from lib.db import get_db_connection, get_filtered_documents, get_already_analyzed_ids
 from lib.llm import get_anthropic_client, get_async_anthropic_client, call_llm_parse_async

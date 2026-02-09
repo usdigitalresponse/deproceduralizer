@@ -9,8 +9,7 @@ import {
   getDefinitionStats,
   getAggregatedTermsPaginated,
 } from '@/lib/actions/definitions';
-import { isValidState, STATE_CONFIG } from '@/types/state';
-import type { StateCode } from '@deproceduralizer/database';
+import { type StateCode, isValidState, STATE_CONFIG } from '@/types/state';
 
 interface PageProps {
   params: Promise<{ state: string }>;

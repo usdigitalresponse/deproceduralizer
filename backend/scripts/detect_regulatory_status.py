@@ -22,13 +22,10 @@ Examples:
 import re
 import sys
 import argparse
-from pathlib import Path
 from typing import Optional, List, Tuple, Dict
 from collections import defaultdict
 from dotenv import load_dotenv
 
-# Add backend directory to path for config import
-sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import PROJECT_ROOT
 from lib.db import get_db_connection
 

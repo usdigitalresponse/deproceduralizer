@@ -3,7 +3,8 @@
 import { useCallback, useMemo } from 'react';
 import { useQueryStates } from 'nuqs';
 import { Select, FilterBar, FilterField } from '@/components/ui';
-import { reviewQueueParsers, type ReviewStatusValue, type SeverityValue } from '@/lib/url/parsers';
+import { reviewQueueParsers, type ReviewStatusValue, type SeverityValue, type FlagSortByValue } from '@/lib/url/parsers';
+import { typedValue } from '@/lib/url/type-helpers';
 import { formatLabel } from '@/types/regulation';
 import {
   REVIEW_STATUS_FILTER_OPTIONS,
@@ -50,7 +51,7 @@ export function ReviewFilters({
       sortBy={filters.sortBy}
       sortOrder={filters.sortOrder}
       sortOptions={REVIEW_SORT_OPTIONS}
-      onSortByChange={(value) => setFilters({ sortBy: value as any, page: 1 })}
+      onSortByChange={typedValue<FlagSortByValue>((value) => setFilters({ sortBy: value, page: 1 }))}
       onSortOrderToggle={() => setFilters({ sortOrder: filters.sortOrder === 'desc' ? 'asc' : 'desc', page: 1 })}
       hasActiveFilters={hasActiveFilters}
       onClearFilters={clearFilters}

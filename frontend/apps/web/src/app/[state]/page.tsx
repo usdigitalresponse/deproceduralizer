@@ -7,7 +7,7 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { Container } from '@/components/layout/Container';
 import { Alert } from '@/components/ui';
 import { STATE_CONFIG, isValidState } from '@/types/state';
-import { parseBooleanParam } from '@/lib/url/server-utils';
+import { parseBooleanParam } from '@/lib/url/filter-helpers';
 
 export const dynamic = 'force-dynamic';
 

@@ -42,8 +42,6 @@ from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 from difflib import SequenceMatcher
 
-# Add backend directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import PROJECT_ROOT, OUTPUTS_DIR
 from lib.db import get_db_connection, normalize_scope_level, get_filtered_documents, get_already_extracted_ids
 from lib.llm import get_anthropic_client, get_async_anthropic_client, call_llm_parse, call_llm_parse_async, DEFAULT_MODEL

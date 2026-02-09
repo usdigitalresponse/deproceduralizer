@@ -3,7 +3,8 @@
 import { useCallback, useTransition } from 'react';
 import { useQueryStates } from 'nuqs';
 import { Button, Select, SearchInput } from '@/components/ui';
-import { browseFiltersParsers } from '@/lib/url/parsers';
+import { browseFiltersParsers, type SeverityValue } from '@/lib/url/parsers';
+import { typedValue } from '@/lib/url/type-helpers';
 import {
   ANALYZED_FILTER_OPTIONS,
   HAS_FLAGS_FILTER_OPTIONS,
@@ -104,7 +105,7 @@ export function BrowseFilters({
         </label>
         <Select
           value={filters.severity || 'all'}
-          onValueChange={(value) => setFilters({ severity: value as any })}
+          onValueChange={typedValue<SeverityValue>((value) => setFilters({ severity: value }))}
           options={SEVERITY_FILTER_OPTIONS}
           aria-label="Filter by severity"
         />

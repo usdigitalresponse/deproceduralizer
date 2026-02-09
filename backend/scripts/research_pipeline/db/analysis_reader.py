@@ -8,9 +8,6 @@ for resume checking and progress tracking.
 from typing import Optional
 from psycopg import Connection
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from lib.db import get_db_connection
 
 from .connection import retry_db_operation

@@ -1,10 +1,9 @@
 import { notFound } from 'next/navigation';
-import type { StateCode } from '@deproceduralizer/database';
 import { getBookmarks, getBookmarkCounts } from '@/lib/actions/bookmarks';
 import { BookmarksContent } from '@/components/bookmarks/BookmarksContent';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Container } from '@/components/layout/Container';
-import { STATE_CONFIG, isValidState } from '@/types/state';
+import { type StateCode, STATE_CONFIG, isValidState } from '@/types/state';
 
 interface BookmarksPageProps {
   params: Promise<{ state: string }>;
