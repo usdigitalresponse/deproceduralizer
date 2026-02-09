@@ -33,10 +33,6 @@ def get_anthropic_client(api_key: Optional[str] = None) -> anthropic.Anthropic:
     return anthropic.Anthropic(api_key=api_key)
 
 
-# Deprecated aliases — use get_anthropic_client / get_async_anthropic_client instead
-get_openai_client = get_anthropic_client
-
-
 def get_async_anthropic_client(api_key: Optional[str] = None) -> anthropic.AsyncAnthropic:
     """
     Create AsyncAnthropic client (async).
@@ -55,10 +51,6 @@ def get_async_anthropic_client(api_key: Optional[str] = None) -> anthropic.Async
         api_key=api_key,
         timeout=600.0,  # 10 minute timeout
     )
-
-
-# Deprecated alias
-get_async_openai_client = get_async_anthropic_client
 
 
 def _pydantic_to_tool_schema(model: Type[BaseModel], with_cache_control: bool = True) -> dict:

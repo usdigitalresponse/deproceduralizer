@@ -14,6 +14,7 @@ from pathlib import Path
 # Add parent directories to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from observability.cost_map import calculate_cost, get_model_pricing
+from lib.stats import format_time
 
 # Import centralized configuration
 from .config import (
@@ -301,18 +302,6 @@ class CostTracker:
             "overall_cache_hit_rate": self.overall_cache_hit_rate,
             "tiers": {k: v.to_dict() for k, v in self.tiers.items()},
         }
-
-
-def format_time(seconds: float) -> str:
-    """Format seconds into human-readable time string."""
-    if seconds < 60:
-        return f"{seconds:.0f}s"
-    elif seconds < 3600:
-        minutes = seconds / 60
-        return f"{minutes:.1f}m"
-    else:
-        hours = seconds / 3600
-        return f"{hours:.1f}h"
 
 
 def estimate_cost(
