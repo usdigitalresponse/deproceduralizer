@@ -14,7 +14,6 @@ interface IssueAnalysis {
   tier1Classification?: string | null;
   tier2Classification?: string | null;
   tier3Classification?: string | null;
-  tier4Classification?: string | null;
   finalSeverity?: number | null;
   verbatimRequirements?: string[];
   argumentForRegulation?: string | null;
@@ -196,7 +195,6 @@ export function ComplianceIssueDisplayCard({
               tier1Classification={issue.analysis.tier1Classification}
               tier2Classification={issue.analysis.tier2Classification}
               tier3Classification={issue.analysis.tier3Classification}
-              tier4Classification={issue.analysis.tier4Classification}
               compact
             />
           </summary>

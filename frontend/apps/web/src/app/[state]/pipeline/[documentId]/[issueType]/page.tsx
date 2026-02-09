@@ -155,7 +155,7 @@ export default async function AnalysisDetailPage({ params, searchParams }: Analy
             {analysis.requirementFound === false && (
               <Badge variant="default">No Requirement</Badge>
             )}
-            {analysis.tier4?.federalMandateFound && (
+            {analysis.tier3?.federalMandateFound && (
               <Badge variant="danger">Federal Mandate</Badge>
             )}
           </div>
@@ -177,7 +177,6 @@ export default async function AnalysisDetailPage({ params, searchParams }: Analy
               tier1Classification={analysis.tier1?.classification || null}
               tier2Classification={analysis.tier2?.classification || null}
               tier3Classification={analysis.tier3?.classification || null}
-              tier4Classification={analysis.tier4?.classification || null}
             />
           </div>
 
@@ -188,7 +187,6 @@ export default async function AnalysisDetailPage({ params, searchParams }: Analy
               <div className="mt-1">
                 <ClassificationBadge
                   classification={
-                    analysis.tier4?.classification ||
                     analysis.tier3?.classification ||
                     analysis.tier2?.classification ||
                     analysis.tier1?.classification

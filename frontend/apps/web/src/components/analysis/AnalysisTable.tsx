@@ -254,8 +254,7 @@ function AnalysisTableRow({ item, state, isBookmarked, onBookmarkToggle }: Analy
         </div>
       </td>
       <td className="px-2 py-3 text-center">
-        {/* Show T3 for V5, or T4 for legacy V4 data */}
-        <ClassificationBadge classification={item.tier3Classification || item.tier4Classification} />
+        <ClassificationBadge classification={item.tier3Classification} />
       </td>
 
       {/* Severity */}

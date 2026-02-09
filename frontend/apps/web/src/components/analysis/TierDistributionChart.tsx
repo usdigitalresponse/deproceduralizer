@@ -8,13 +8,11 @@ interface TierDistributionChartProps {
   total: number;
 }
 
-// V5: 3 tiers. T4 kept for legacy V4 data display.
 const TIER_LABELS = [
   { tier: 0, label: 'Not Analyzed', shortLabel: 'T0', color: 'var(--color-neutral-400)' },
   { tier: 1, label: 'Match Filtering', shortLabel: 'T1', color: 'var(--color-info)' },
   { tier: 2, label: 'Full Classification', shortLabel: 'T2', color: 'var(--color-primary)' },
   { tier: 3, label: 'Web Search', shortLabel: 'T3', color: 'var(--color-success)' },
-  { tier: 4, label: 'V4 Legacy', shortLabel: 'T4', color: 'var(--color-neutral-500)', isLegacy: true },
 ];
 
 const CLASSIFICATION_COLORS: Record<string, string> = {
@@ -43,7 +41,6 @@ export function TierDistributionChart({
     tierCounts.tier1,
     tierCounts.tier2,
     tierCounts.tier3,
-    tierCounts.tier4,
   ];
 
   // Build stacked bar segments for each tier based on classification outcomes
@@ -55,8 +52,7 @@ export function TierDistributionChart({
 
     const breakdown = tier === 1 ? classificationBreakdown.tier1
       : tier === 2 ? classificationBreakdown.tier2
-      : tier === 3 ? classificationBreakdown.tier3
-      : classificationBreakdown.tier4;
+      : classificationBreakdown.tier3;
 
     if (!breakdown) return [];
 
@@ -145,17 +141,15 @@ export function TierDistributionChart({
           Classification Distribution
         </h3>
         <div className="grid grid-cols-2 gap-4">
-          {/* Tier 2+ Final Classifications (V5: T2+T3, V4 legacy: includes T4) */}
+          {/* Tier 2+ Final Classifications */}
           <div className="space-y-2">
             <h4 className="text-xs font-medium text-[var(--color-text-muted)]">
               Final Classifications
             </h4>
             {['burdensome', 'justified', 'unrelated'].map(classification => {
               const t2 = classificationBreakdown.tier2[classification] || 0;
-              // V5: T3 is web search. V4 legacy: T4 was web search.
               const t3 = classificationBreakdown.tier3[classification] || 0;
-              const t4 = classificationBreakdown.tier4[classification] || 0;
-              const total = t2 + t3 + t4;
+              const total = t2 + t3;
               if (total === 0) return null;
 
               return (

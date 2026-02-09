@@ -3,11 +3,10 @@
 import { HTMLAttributes } from 'react';
 
 interface TierProgressIndicatorProps extends HTMLAttributes<HTMLDivElement> {
-  highestTierCompleted: number; // 0-3 for V5, 0-4 for legacy V4
+  highestTierCompleted: number; // 0-3
   tier1Classification?: string | null;
   tier2Classification?: string | null;
   tier3Classification?: string | null;
-  tier4Classification?: string | null; // Legacy V4 - maps to T3 display
   compact?: boolean;
 }
 
@@ -57,20 +56,17 @@ export function TierProgressIndicator({
   tier1Classification,
   tier2Classification,
   tier3Classification,
-  tier4Classification,
   compact = false,
   className = '',
   ...props
 }: TierProgressIndicatorProps) {
-  // V5: 3 tiers. For T3, prefer tier3Classification, fall back to tier4Classification for V4 legacy data
   const tiers: TierInfo[] = [
     { number: 1, ...TIER_NAMES[0], classification: tier1Classification },
     { number: 2, ...TIER_NAMES[1], classification: tier2Classification },
-    { number: 3, ...TIER_NAMES[2], classification: tier3Classification || tier4Classification },
+    { number: 3, ...TIER_NAMES[2], classification: tier3Classification },
   ];
 
-  // Normalize highestTierCompleted: V4's tier4 = V5's tier3
-  const normalizedHighest = highestTierCompleted >= 4 ? 3 : highestTierCompleted;
+  const normalizedHighest = highestTierCompleted;
 
   // No analysis at all
   if (normalizedHighest === 0) {
@@ -189,8 +185,7 @@ interface TierBadgeProps extends HTMLAttributes<HTMLSpanElement> {
 }
 
 export function TierBadge({ highestTierCompleted, className = '', ...props }: TierBadgeProps) {
-  // Normalize: V4's tier4 = V5's tier3
-  const normalizedTier = highestTierCompleted >= 4 ? 3 : highestTierCompleted;
+  const normalizedTier = highestTierCompleted;
 
   let variant: 'success' | 'info' | 'default' = 'default';
   let label = 'Not analyzed';
