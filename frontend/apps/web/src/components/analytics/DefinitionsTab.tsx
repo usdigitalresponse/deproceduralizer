@@ -28,7 +28,7 @@ import {
   type ScopeLevelFlow,
   type DefinitionHierarchyNode,
 } from './definitions-graph';
-import type { StateCode } from '@deproceduralizer/database';
+import type { StateCode } from '@/types/state';
 
 type DefinitionsSubTab = 'overview' | 'network';
 

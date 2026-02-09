@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { searchDocumentsForScope, getAncestorDocumentsForScope, getDocumentForScope } from '@/lib/actions/definitions';
 import { Input } from '@/components/ui';
-import type { StateCode } from '@deproceduralizer/database';
+import type { StateCode } from '@/types/state';
 
 interface ScopeDocument {
   id: number;

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Button } from '@/components/ui/Button';
 import { X } from 'lucide-react';
-import { useDebouncedValue } from '@/lib/hooks/useDebouncedValue';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import type { AlphabeticalIndex } from '@deproceduralizer/database';
 
 interface GlossarySearchProps {

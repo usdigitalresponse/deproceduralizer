@@ -13,7 +13,7 @@ import type {
   GraphLevel,
   ColorMode,
 } from './cross-references';
-import type { StateCode } from '@deproceduralizer/database';
+import type { StateCode } from '@/types/state';
 import {
   getReferenceGraph,
   getTopCitedDocuments,

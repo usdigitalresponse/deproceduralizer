@@ -61,6 +61,8 @@ import {
   TIER3_TRIGGER_FILTER_VALUES,
   // V5.1 Easy Cleanup filter
   EASY_CLEANUP_FILTER_VALUES,
+  // Section Type
+  SECTION_TYPE_VALUES,
 } from '@/lib/constants/values';
 
 // Re-export types for convenience
@@ -346,25 +348,8 @@ export const definitionsReviewParsers = {
 // Section Type (AI-generated metadata) parsers
 // ============================================
 
-export const SECTION_TYPE_VALUES = [
-  'all',
-  'definitions',
-  'requirements',
-  'procedures',
-  'prohibitions',
-  'standards',
-  'eligibility',
-  'penalties',
-  'fees',
-  'forms',
-  'reporting',
-  'purpose',
-  'scope',
-  'exemptions',
-  'reserved',
-  'other',
-] as const;
-export type SectionTypeValue = (typeof SECTION_TYPE_VALUES)[number];
+export type { SectionTypeValue } from '@/lib/constants/values';
+export { SECTION_TYPE_VALUES } from '@/lib/constants/values';
 
 export const sectionTypeParser = parseAsStringEnum([...SECTION_TYPE_VALUES]).withDefault('all');
 export const hasFormParser = parseAsBoolean;

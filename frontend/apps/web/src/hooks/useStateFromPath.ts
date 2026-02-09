@@ -1,8 +1,7 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import type { StateCode } from '@deproceduralizer/database';
-import { DEFAULT_STATE } from '@/types/state';
+import { type StateCode, DEFAULT_STATE } from '@/types/state';
 
 /**
  * Extract state code from the current URL pathname
