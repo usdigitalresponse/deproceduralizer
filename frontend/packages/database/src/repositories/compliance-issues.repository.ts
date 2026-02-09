@@ -308,6 +308,165 @@ export interface FullAnalysisRecord {
   cleanupEffort: string | null;
 }
 
+/** Shared SELECT columns for compliance issue list/queue queries (excludes regulationContent). */
+const issueListSelectColumns = {
+  // Compliance issue fields
+  id: complianceIssues.id,
+  documentId: complianceIssues.documentId,
+  issueType: complianceIssues.issueType,
+  regexMatchPattern: complianceIssues.regexMatchPattern,
+  regexMatchContext: complianceIssues.regexMatchContext,
+  url: complianceIssues.url,
+  analysisId: complianceIssues.analysisId,
+  runId: complianceIssues.runId,
+  // Analysis fields — sourced from compliance_issue_analyses (PR 6.2)
+  requirementFound: complianceIssueAnalyses.requirementFound,
+  verbatimSupportingText: complianceIssueAnalyses.verbatimRequirements,
+  isVerbatim: complianceIssueAnalyses.isVerbatim,
+  requiredByStatute: complianceIssueAnalyses.citesFederalStatute,
+  severity: complianceIssueAnalyses.reviewerSeverity,
+  occurrenceNumber: complianceIssues.occurrenceNumber,
+  statuteCitation: complianceIssueAnalyses.federalCitation,
+  decisionRationale: complianceIssueAnalyses.tier1Reasoning,
+  // Review fields — PR 6.3: from analyses
+  reviewStatus: complianceIssueAnalyses.reviewStatus,
+  reviewedBy: complianceIssueAnalyses.reviewedBy,
+  reviewedAt: complianceIssueAnalyses.reviewedAt,
+  justificationNotes: complianceIssueAnalyses.justificationNotes,
+  teamNotes: complianceIssueAnalyses.teamNotes,
+  originalSeverity: complianceIssueAnalyses.reviewerOriginalSeverity,
+  impactType: complianceIssueAnalyses.impactType,
+  // Developer fields — PR 6.3: from analyses
+  developerStatus: complianceIssueAnalyses.developerStatus,
+  developerAssigned: complianceIssueAnalyses.developerAssigned,
+  developerNotes: complianceIssueAnalyses.developerNotes,
+  resolutionType: complianceIssueAnalyses.resolutionType,
+  resolutionComments: complianceIssueAnalyses.resolutionComments,
+  developerQuestion: complianceIssueAnalyses.developerQuestion,
+  developerCheckedAt: complianceIssueAnalyses.developerCheckedAt,
+  state: complianceIssues.state,
+  createdAt: complianceIssues.createdAt,
+  // Regulation context (no content — too large for list views)
+  regulationId: regulatoryDocuments.id,
+  regulationTitle: regulatoryDocuments.title,
+  regulationNycrrTitle: regulatoryDocuments.nycrrTitle,
+  regulationNycrrPart: regulatoryDocuments.nycrrPart,
+  regulationNycrrSection: regulatoryDocuments.nycrrSection,
+  regulationNjacTitle: regulatoryDocuments.njacTitle,
+  regulationNjacChapter: regulatoryDocuments.njacChapter,
+  regulationNjacSubchapter: regulatoryDocuments.njacSubchapter,
+  regulationUrl: regulatoryDocuments.url,
+  regulationSummary: regulatoryDocuments.summary,
+  regulationSectionType: regulatoryDocuments.sectionType,
+  regulationHasForm: regulatoryDocuments.hasForm,
+  regulationHasIbr: regulatoryDocuments.hasIbr,
+} as const;
+
+/** Map a DB row from issueListSelectColumns to ComplianceIssueWithAnalysis (analysis defaults to null). */
+function mapRowToIssue(
+  row: {
+    id: number;
+    documentId: number;
+    issueType: string;
+    regexMatchPattern: string | null;
+    regexMatchContext: string;
+    url: string | null;
+    analysisId: number | null;
+    runId: string | null;
+    requirementFound: boolean | null;
+    verbatimSupportingText: string[] | null;
+    isVerbatim: boolean | null;
+    requiredByStatute: boolean | null;
+    severity: number | null;
+    occurrenceNumber: number;
+    statuteCitation: string | null;
+    decisionRationale: string | null;
+    reviewStatus: string | null;
+    reviewedBy: string | null;
+    reviewedAt: Date | null;
+    justificationNotes: string | null;
+    teamNotes: string | null;
+    originalSeverity: number | null;
+    impactType: string | null;
+    developerStatus: string | null;
+    developerAssigned: string | null;
+    developerNotes: string | null;
+    resolutionType: string | null;
+    resolutionComments: string | null;
+    developerQuestion: string | null;
+    developerCheckedAt: Date | null;
+    state: string;
+    createdAt: Date | null;
+    regulationId: number;
+    regulationTitle: string | null;
+    regulationNycrrTitle: number | null;
+    regulationNycrrPart: string | null;
+    regulationNycrrSection: string | null;
+    regulationNjacTitle: string | null;
+    regulationNjacChapter: string | null;
+    regulationNjacSubchapter: string | null;
+    regulationUrl: string | null;
+    regulationSummary: string | null;
+    regulationSectionType: string | null;
+    regulationHasForm: boolean | null;
+    regulationHasIbr: boolean | null;
+    regulationContent?: string | null;
+  },
+  analysis: TierAnalysis | null = null,
+): ComplianceIssueWithAnalysis {
+  return {
+    id: Number(row.id),
+    documentId: Number(row.documentId),
+    issueType: row.issueType,
+    regexMatchPattern: row.regexMatchPattern,
+    regexMatchContext: row.regexMatchContext,
+    url: row.url,
+    analysisId: row.analysisId ?? null,
+    runId: row.runId ?? null,
+    requirementFound: row.requirementFound ?? false,
+    verbatimSupportingText: row.verbatimSupportingText ?? [],
+    isVerbatim: row.isVerbatim ?? null,
+    requiredByStatute: row.requiredByStatute ?? false,
+    severity: row.severity,
+    occurrenceNumber: row.occurrenceNumber,
+    statuteCitation: row.statuteCitation ?? null,
+    decisionRationale: row.decisionRationale ?? null,
+    reviewStatus: row.reviewStatus,
+    reviewedBy: row.reviewedBy,
+    reviewedAt: row.reviewedAt,
+    justificationNotes: row.justificationNotes,
+    teamNotes: row.teamNotes,
+    originalSeverity: row.originalSeverity,
+    impactType: row.impactType,
+    developerStatus: row.developerStatus,
+    developerAssigned: row.developerAssigned,
+    developerNotes: row.developerNotes,
+    resolutionType: row.resolutionType,
+    resolutionComments: row.resolutionComments,
+    developerQuestion: row.developerQuestion,
+    developerCheckedAt: row.developerCheckedAt,
+    state: row.state,
+    createdAt: row.createdAt,
+    regulation: {
+      id: row.regulationId,
+      title: row.regulationTitle,
+      content: row.regulationContent ?? null,
+      nycrrTitle: row.regulationNycrrTitle,
+      nycrrPart: row.regulationNycrrPart,
+      nycrrSection: row.regulationNycrrSection,
+      njacTitle: row.regulationNjacTitle,
+      njacChapter: row.regulationNjacChapter,
+      njacSubchapter: row.regulationNjacSubchapter,
+      url: row.regulationUrl,
+      summary: row.regulationSummary,
+      sectionType: row.regulationSectionType,
+      hasForm: row.regulationHasForm,
+      hasIbr: row.regulationHasIbr,
+    },
+    analysis,
+  };
+}
+
 export class ComplianceIssuesRepository extends BaseRepository {
   async getById(id: number): Promise<ComplianceIssue | undefined> {
     const result = await this.db
@@ -703,58 +862,9 @@ export class ComplianceIssuesRepository extends BaseRepository {
     // Get paginated results with regulation context and analysis data
     const results = await this.db
       .select({
-        // Compliance issue fields
-        id: complianceIssues.id,
-        documentId: complianceIssues.documentId,
-        issueType: complianceIssues.issueType,
-        regexMatchPattern: complianceIssues.regexMatchPattern,
-        regexMatchContext: complianceIssues.regexMatchContext,
-        url: complianceIssues.url,
-        analysisId: complianceIssues.analysisId,
-        runId: complianceIssues.runId,
-        // Analysis fields — sourced from compliance_issue_analyses (PR 6.2)
-        requirementFound: complianceIssueAnalyses.requirementFound,
-        verbatimSupportingText: complianceIssueAnalyses.verbatimRequirements,
-        isVerbatim: complianceIssueAnalyses.isVerbatim,
-        requiredByStatute: complianceIssueAnalyses.citesFederalStatute,
-        severity: complianceIssueAnalyses.reviewerSeverity,
-        occurrenceNumber: complianceIssues.occurrenceNumber,
-        statuteCitation: complianceIssueAnalyses.federalCitation,
-        decisionRationale: complianceIssueAnalyses.tier1Reasoning,
-        // Review fields — PR 6.3: from analyses
-        reviewStatus: complianceIssueAnalyses.reviewStatus,
-        reviewedBy: complianceIssueAnalyses.reviewedBy,
-        reviewedAt: complianceIssueAnalyses.reviewedAt,
-        justificationNotes: complianceIssueAnalyses.justificationNotes,
-        teamNotes: complianceIssueAnalyses.teamNotes,
-        originalSeverity: complianceIssueAnalyses.reviewerOriginalSeverity,
-        impactType: complianceIssueAnalyses.impactType,
-        // Developer fields — PR 6.3: from analyses
-        developerStatus: complianceIssueAnalyses.developerStatus,
-        developerAssigned: complianceIssueAnalyses.developerAssigned,
-        developerNotes: complianceIssueAnalyses.developerNotes,
-        resolutionType: complianceIssueAnalyses.resolutionType,
-        resolutionComments: complianceIssueAnalyses.resolutionComments,
-        developerQuestion: complianceIssueAnalyses.developerQuestion,
-        developerCheckedAt: complianceIssueAnalyses.developerCheckedAt,
-        state: complianceIssues.state,
-        createdAt: complianceIssues.createdAt,
-        // Regulation context
-        regulationId: regulatoryDocuments.id,
-        regulationTitle: regulatoryDocuments.title,
-        regulationNycrrTitle: regulatoryDocuments.nycrrTitle,
-        regulationNycrrPart: regulatoryDocuments.nycrrPart,
-        regulationNycrrSection: regulatoryDocuments.nycrrSection,
-        regulationNjacTitle: regulatoryDocuments.njacTitle,
-        regulationNjacChapter: regulatoryDocuments.njacChapter,
-        regulationNjacSubchapter: regulatoryDocuments.njacSubchapter,
-        regulationUrl: regulatoryDocuments.url,
-        regulationSummary: regulatoryDocuments.summary,
-        regulationSectionType: regulatoryDocuments.sectionType,
-        regulationHasForm: regulatoryDocuments.hasForm,
-        regulationHasIbr: regulatoryDocuments.hasIbr,
+        ...issueListSelectColumns,
         regulationContent: regulatoryDocuments.content,
-        // Analysis fields (from research pipeline)
+        // Analysis pipeline fields (only needed for main queue view)
         analysisHighestTier: complianceIssueAnalyses.highestTierCompleted,
         analysisTier1: complianceIssueAnalyses.tier1Classification,
         analysisTier2: complianceIssueAnalyses.tier2Classification,
@@ -782,57 +892,8 @@ export class ComplianceIssuesRepository extends BaseRepository {
       .offset(offset);
 
     // Transform results to ComplianceIssueWithAnalysis shape
-    const data: ComplianceIssueWithAnalysis[] = results.map(row => ({
-      id: Number(row.id),
-      documentId: Number(row.documentId),
-      issueType: row.issueType,
-      regexMatchPattern: row.regexMatchPattern,
-      regexMatchContext: row.regexMatchContext,
-      url: row.url,
-      analysisId: row.analysisId ?? null,
-      runId: row.runId ?? null,
-      requirementFound: row.requirementFound,
-      verbatimSupportingText: row.verbatimSupportingText,
-      isVerbatim: row.isVerbatim,
-      requiredByStatute: row.requiredByStatute,
-      severity: row.severity,
-      occurrenceNumber: row.occurrenceNumber,
-      statuteCitation: row.statuteCitation,
-      decisionRationale: row.decisionRationale,
-      reviewStatus: row.reviewStatus,
-      reviewedBy: row.reviewedBy,
-      reviewedAt: row.reviewedAt,
-      justificationNotes: row.justificationNotes,
-      teamNotes: row.teamNotes,
-      originalSeverity: row.originalSeverity,
-      impactType: row.impactType,
-      developerStatus: row.developerStatus,
-      developerAssigned: row.developerAssigned,
-      developerNotes: row.developerNotes,
-      resolutionType: row.resolutionType,
-      resolutionComments: row.resolutionComments,
-      developerQuestion: row.developerQuestion,
-      developerCheckedAt: row.developerCheckedAt,
-      state: row.state,
-      createdAt: row.createdAt,
-      regulation: {
-        id: row.regulationId,
-        title: row.regulationTitle,
-        content: row.regulationContent,
-        nycrrTitle: row.regulationNycrrTitle,
-        nycrrPart: row.regulationNycrrPart,
-        nycrrSection: row.regulationNycrrSection,
-        njacTitle: row.regulationNjacTitle,
-        njacChapter: row.regulationNjacChapter,
-        njacSubchapter: row.regulationNjacSubchapter,
-        url: row.regulationUrl,
-        summary: row.regulationSummary,
-        sectionType: row.regulationSectionType,
-        hasForm: row.regulationHasForm,
-        hasIbr: row.regulationHasIbr,
-      },
-      // Build analysis object (null if no analysis exists)
-      analysis: row.analysisHighestTier !== null ? {
+    const data: ComplianceIssueWithAnalysis[] = results.map(row => {
+      const analysis: TierAnalysis | null = row.analysisHighestTier !== null ? {
         highestTierCompleted: row.analysisHighestTier,
         tier1Classification: row.analysisTier1,
         tier2Classification: row.analysisTier2,
@@ -847,8 +908,9 @@ export class ComplianceIssuesRepository extends BaseRepository {
         stateHasDiscretion: row.analysisStateDiscretion ?? false,
         isJustified: row.analysisIsJustified ?? false,
         pipelineVersion: row.analysisPipelineVersion ?? '',
-      } : null,
-    }));
+      } : null;
+      return mapRowToIssue(row, analysis);
+    });
 
     return {
       data,
@@ -993,59 +1055,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
 
     // Get paginated results with regulation context and analysis fields
     const results = await this.db
-      .select({
-        // Compliance issue fields
-        id: complianceIssues.id,
-        documentId: complianceIssues.documentId,
-        issueType: complianceIssues.issueType,
-        regexMatchPattern: complianceIssues.regexMatchPattern,
-        regexMatchContext: complianceIssues.regexMatchContext,
-        url: complianceIssues.url,
-        analysisId: complianceIssues.analysisId,
-        runId: complianceIssues.runId,
-        // Analysis fields — sourced from compliance_issue_analyses (PR 6.2)
-        requirementFound: complianceIssueAnalyses.requirementFound,
-        verbatimSupportingText: complianceIssueAnalyses.verbatimRequirements,
-        isVerbatim: complianceIssueAnalyses.isVerbatim,
-        requiredByStatute: complianceIssueAnalyses.citesFederalStatute,
-        severity: complianceIssueAnalyses.reviewerSeverity,
-        occurrenceNumber: complianceIssues.occurrenceNumber,
-        statuteCitation: complianceIssueAnalyses.federalCitation,
-        decisionRationale: complianceIssueAnalyses.tier1Reasoning,
-        // Review fields — PR 6.3: from analyses
-        reviewStatus: complianceIssueAnalyses.reviewStatus,
-        reviewedBy: complianceIssueAnalyses.reviewedBy,
-        reviewedAt: complianceIssueAnalyses.reviewedAt,
-        justificationNotes: complianceIssueAnalyses.justificationNotes,
-        teamNotes: complianceIssueAnalyses.teamNotes,
-        originalSeverity: complianceIssueAnalyses.reviewerOriginalSeverity,
-        impactType: complianceIssueAnalyses.impactType,
-        // Developer fields — PR 6.3: from analyses
-        developerStatus: complianceIssueAnalyses.developerStatus,
-        developerAssigned: complianceIssueAnalyses.developerAssigned,
-        developerNotes: complianceIssueAnalyses.developerNotes,
-        resolutionType: complianceIssueAnalyses.resolutionType,
-        resolutionComments: complianceIssueAnalyses.resolutionComments,
-        developerQuestion: complianceIssueAnalyses.developerQuestion,
-        developerCheckedAt: complianceIssueAnalyses.developerCheckedAt,
-        state: complianceIssues.state,
-        createdAt: complianceIssues.createdAt,
-        // Regulation context
-        regulationId: regulatoryDocuments.id,
-        regulationTitle: regulatoryDocuments.title,
-        regulationNycrrTitle: regulatoryDocuments.nycrrTitle,
-        regulationNycrrPart: regulatoryDocuments.nycrrPart,
-        regulationNycrrSection: regulatoryDocuments.nycrrSection,
-        regulationNjacTitle: regulatoryDocuments.njacTitle,
-        regulationNjacChapter: regulatoryDocuments.njacChapter,
-        regulationNjacSubchapter: regulatoryDocuments.njacSubchapter,
-        regulationUrl: regulatoryDocuments.url,
-        regulationSummary: regulatoryDocuments.summary,
-        regulationSectionType: regulatoryDocuments.sectionType,
-        regulationHasForm: regulatoryDocuments.hasForm,
-        regulationHasIbr: regulatoryDocuments.hasIbr,
-        regulationContent: regulatoryDocuments.content,
-      })
+      .select(issueListSelectColumns)
       .from(complianceIssues)
       .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
       .leftJoin(
@@ -1057,58 +1067,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       .limit(pageSize)
       .offset(offset);
 
-    // Transform results to ComplianceIssueWithAnalysis shape
-    const data: ComplianceIssueWithAnalysis[] = results.map(row => ({
-      id: Number(row.id),
-      documentId: Number(row.documentId),
-      issueType: row.issueType,
-      regexMatchPattern: row.regexMatchPattern,
-      regexMatchContext: row.regexMatchContext,
-      url: row.url,
-      analysisId: row.analysisId ?? null,
-      runId: row.runId ?? null,
-      requirementFound: row.requirementFound ?? false,
-      verbatimSupportingText: row.verbatimSupportingText ?? [],
-      isVerbatim: row.isVerbatim ?? null,
-      requiredByStatute: row.requiredByStatute ?? false,
-      severity: row.severity,
-      occurrenceNumber: row.occurrenceNumber,
-      statuteCitation: row.statuteCitation ?? null,
-      decisionRationale: row.decisionRationale ?? null,
-      reviewStatus: row.reviewStatus,
-      reviewedBy: row.reviewedBy,
-      reviewedAt: row.reviewedAt,
-      justificationNotes: row.justificationNotes,
-      teamNotes: row.teamNotes,
-      originalSeverity: row.originalSeverity,
-      impactType: row.impactType,
-      developerStatus: row.developerStatus,
-      developerAssigned: row.developerAssigned,
-      developerNotes: row.developerNotes,
-      resolutionType: row.resolutionType,
-      resolutionComments: row.resolutionComments,
-      developerQuestion: row.developerQuestion,
-      developerCheckedAt: row.developerCheckedAt,
-      state: row.state,
-      createdAt: row.createdAt,
-      regulation: {
-        id: row.regulationId,
-        title: row.regulationTitle,
-        content: row.regulationContent,
-        nycrrTitle: row.regulationNycrrTitle,
-        nycrrPart: row.regulationNycrrPart,
-        nycrrSection: row.regulationNycrrSection,
-        njacTitle: row.regulationNjacTitle,
-        njacChapter: row.regulationNjacChapter,
-        njacSubchapter: row.regulationNjacSubchapter,
-        url: row.regulationUrl,
-        summary: row.regulationSummary,
-        sectionType: row.regulationSectionType,
-        hasForm: row.regulationHasForm,
-        hasIbr: row.regulationHasIbr,
-      },
-      analysis: null,
-    }));
+    const data: ComplianceIssueWithAnalysis[] = results.map(row => mapRowToIssue(row));
 
     return {
       data,
@@ -1156,56 +1115,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
 
     // Get paginated results with analysis fields
     const results = await this.db
-      .select({
-        id: complianceIssues.id,
-        documentId: complianceIssues.documentId,
-        issueType: complianceIssues.issueType,
-        regexMatchPattern: complianceIssues.regexMatchPattern,
-        regexMatchContext: complianceIssues.regexMatchContext,
-        url: complianceIssues.url,
-        analysisId: complianceIssues.analysisId,
-        runId: complianceIssues.runId,
-        // Analysis fields — sourced from compliance_issue_analyses (PR 6.2)
-        requirementFound: complianceIssueAnalyses.requirementFound,
-        verbatimSupportingText: complianceIssueAnalyses.verbatimRequirements,
-        isVerbatim: complianceIssueAnalyses.isVerbatim,
-        requiredByStatute: complianceIssueAnalyses.citesFederalStatute,
-        severity: complianceIssueAnalyses.reviewerSeverity,
-        occurrenceNumber: complianceIssues.occurrenceNumber,
-        statuteCitation: complianceIssueAnalyses.federalCitation,
-        decisionRationale: complianceIssueAnalyses.tier1Reasoning,
-        // Review/developer fields — PR 6.3: from analyses
-        reviewStatus: complianceIssueAnalyses.reviewStatus,
-        reviewedBy: complianceIssueAnalyses.reviewedBy,
-        reviewedAt: complianceIssueAnalyses.reviewedAt,
-        justificationNotes: complianceIssueAnalyses.justificationNotes,
-        teamNotes: complianceIssueAnalyses.teamNotes,
-        originalSeverity: complianceIssueAnalyses.reviewerOriginalSeverity,
-        impactType: complianceIssueAnalyses.impactType,
-        developerStatus: complianceIssueAnalyses.developerStatus,
-        developerAssigned: complianceIssueAnalyses.developerAssigned,
-        developerNotes: complianceIssueAnalyses.developerNotes,
-        resolutionType: complianceIssueAnalyses.resolutionType,
-        resolutionComments: complianceIssueAnalyses.resolutionComments,
-        developerQuestion: complianceIssueAnalyses.developerQuestion,
-        developerCheckedAt: complianceIssueAnalyses.developerCheckedAt,
-        state: complianceIssues.state,
-        createdAt: complianceIssues.createdAt,
-        regulationId: regulatoryDocuments.id,
-        regulationTitle: regulatoryDocuments.title,
-        regulationNycrrTitle: regulatoryDocuments.nycrrTitle,
-        regulationNycrrPart: regulatoryDocuments.nycrrPart,
-        regulationNycrrSection: regulatoryDocuments.nycrrSection,
-        regulationNjacTitle: regulatoryDocuments.njacTitle,
-        regulationNjacChapter: regulatoryDocuments.njacChapter,
-        regulationNjacSubchapter: regulatoryDocuments.njacSubchapter,
-        regulationUrl: regulatoryDocuments.url,
-        regulationSummary: regulatoryDocuments.summary,
-        regulationSectionType: regulatoryDocuments.sectionType,
-        regulationHasForm: regulatoryDocuments.hasForm,
-        regulationHasIbr: regulatoryDocuments.hasIbr,
-        regulationContent: regulatoryDocuments.content,
-      })
+      .select(issueListSelectColumns)
       .from(complianceIssues)
       .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
       .leftJoin(
@@ -1217,57 +1127,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       .limit(pageSize)
       .offset(offset);
 
-    const data: ComplianceIssueWithAnalysis[] = results.map(row => ({
-      id: Number(row.id),
-      documentId: Number(row.documentId),
-      issueType: row.issueType,
-      regexMatchPattern: row.regexMatchPattern,
-      regexMatchContext: row.regexMatchContext,
-      url: row.url,
-      analysisId: row.analysisId ?? null,
-      runId: row.runId ?? null,
-      requirementFound: row.requirementFound ?? false,
-      verbatimSupportingText: row.verbatimSupportingText ?? [],
-      isVerbatim: row.isVerbatim ?? null,
-      requiredByStatute: row.requiredByStatute ?? false,
-      severity: row.severity,
-      occurrenceNumber: row.occurrenceNumber,
-      statuteCitation: row.statuteCitation ?? null,
-      decisionRationale: row.decisionRationale ?? null,
-      reviewStatus: row.reviewStatus,
-      reviewedBy: row.reviewedBy,
-      reviewedAt: row.reviewedAt,
-      justificationNotes: row.justificationNotes,
-      teamNotes: row.teamNotes,
-      originalSeverity: row.originalSeverity,
-      impactType: row.impactType,
-      developerStatus: row.developerStatus,
-      developerAssigned: row.developerAssigned,
-      developerNotes: row.developerNotes,
-      resolutionType: row.resolutionType,
-      resolutionComments: row.resolutionComments,
-      developerQuestion: row.developerQuestion,
-      developerCheckedAt: row.developerCheckedAt,
-      state: row.state,
-      createdAt: row.createdAt,
-      regulation: {
-        id: row.regulationId,
-        title: row.regulationTitle,
-        content: row.regulationContent,
-        nycrrTitle: row.regulationNycrrTitle,
-        nycrrPart: row.regulationNycrrPart,
-        nycrrSection: row.regulationNycrrSection,
-        njacTitle: row.regulationNjacTitle,
-        njacChapter: row.regulationNjacChapter,
-        njacSubchapter: row.regulationNjacSubchapter,
-        url: row.regulationUrl,
-        summary: row.regulationSummary,
-        sectionType: row.regulationSectionType,
-        hasForm: row.regulationHasForm,
-        hasIbr: row.regulationHasIbr,
-      },
-      analysis: null,
-    }));
+    const data: ComplianceIssueWithAnalysis[] = results.map(row => mapRowToIssue(row));
 
     return {
       data,
@@ -1650,56 +1510,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
 
     // Get the batch of items with analysis fields
     const results = await this.db
-      .select({
-        id: complianceIssues.id,
-        documentId: complianceIssues.documentId,
-        issueType: complianceIssues.issueType,
-        regexMatchPattern: complianceIssues.regexMatchPattern,
-        regexMatchContext: complianceIssues.regexMatchContext,
-        url: complianceIssues.url,
-        analysisId: complianceIssues.analysisId,
-        runId: complianceIssues.runId,
-        // Analysis fields — sourced from compliance_issue_analyses (PR 6.2)
-        requirementFound: complianceIssueAnalyses.requirementFound,
-        verbatimSupportingText: complianceIssueAnalyses.verbatimRequirements,
-        isVerbatim: complianceIssueAnalyses.isVerbatim,
-        requiredByStatute: complianceIssueAnalyses.citesFederalStatute,
-        severity: complianceIssueAnalyses.reviewerSeverity,
-        occurrenceNumber: complianceIssues.occurrenceNumber,
-        statuteCitation: complianceIssueAnalyses.federalCitation,
-        decisionRationale: complianceIssueAnalyses.tier1Reasoning,
-        // Review/developer fields — PR 6.3: from analyses
-        reviewStatus: complianceIssueAnalyses.reviewStatus,
-        reviewedBy: complianceIssueAnalyses.reviewedBy,
-        reviewedAt: complianceIssueAnalyses.reviewedAt,
-        justificationNotes: complianceIssueAnalyses.justificationNotes,
-        teamNotes: complianceIssueAnalyses.teamNotes,
-        originalSeverity: complianceIssueAnalyses.reviewerOriginalSeverity,
-        impactType: complianceIssueAnalyses.impactType,
-        developerStatus: complianceIssueAnalyses.developerStatus,
-        developerAssigned: complianceIssueAnalyses.developerAssigned,
-        developerNotes: complianceIssueAnalyses.developerNotes,
-        resolutionType: complianceIssueAnalyses.resolutionType,
-        resolutionComments: complianceIssueAnalyses.resolutionComments,
-        developerQuestion: complianceIssueAnalyses.developerQuestion,
-        developerCheckedAt: complianceIssueAnalyses.developerCheckedAt,
-        state: complianceIssues.state,
-        createdAt: complianceIssues.createdAt,
-        regulationId: regulatoryDocuments.id,
-        regulationTitle: regulatoryDocuments.title,
-        regulationNycrrTitle: regulatoryDocuments.nycrrTitle,
-        regulationNycrrPart: regulatoryDocuments.nycrrPart,
-        regulationNycrrSection: regulatoryDocuments.nycrrSection,
-        regulationNjacTitle: regulatoryDocuments.njacTitle,
-        regulationNjacChapter: regulatoryDocuments.njacChapter,
-        regulationNjacSubchapter: regulatoryDocuments.njacSubchapter,
-        regulationUrl: regulatoryDocuments.url,
-        regulationSummary: regulatoryDocuments.summary,
-        regulationSectionType: regulatoryDocuments.sectionType,
-        regulationHasForm: regulatoryDocuments.hasForm,
-        regulationHasIbr: regulatoryDocuments.hasIbr,
-        regulationContent: regulatoryDocuments.content,
-      })
+      .select(issueListSelectColumns)
       .from(complianceIssues)
       .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
       .leftJoin(
@@ -1711,58 +1522,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       .orderBy(desc(complianceIssueAnalyses.finalSeverity), sql`RANDOM()`)
       .limit(batchSize);
 
-    // Transform results to ComplianceIssueWithAnalysis shape
-    const data: ComplianceIssueWithAnalysis[] = results.map(row => ({
-      id: Number(row.id),
-      documentId: Number(row.documentId),
-      issueType: row.issueType,
-      regexMatchPattern: row.regexMatchPattern,
-      regexMatchContext: row.regexMatchContext,
-      url: row.url,
-      analysisId: row.analysisId ?? null,
-      runId: row.runId ?? null,
-      requirementFound: row.requirementFound ?? false,
-      verbatimSupportingText: row.verbatimSupportingText ?? [],
-      isVerbatim: row.isVerbatim ?? null,
-      requiredByStatute: row.requiredByStatute ?? false,
-      severity: row.severity,
-      occurrenceNumber: row.occurrenceNumber,
-      statuteCitation: row.statuteCitation ?? null,
-      decisionRationale: row.decisionRationale ?? null,
-      reviewStatus: row.reviewStatus,
-      reviewedBy: row.reviewedBy,
-      reviewedAt: row.reviewedAt,
-      justificationNotes: row.justificationNotes,
-      teamNotes: row.teamNotes,
-      originalSeverity: row.originalSeverity,
-      impactType: row.impactType,
-      developerStatus: row.developerStatus,
-      developerAssigned: row.developerAssigned,
-      developerNotes: row.developerNotes,
-      resolutionType: row.resolutionType,
-      resolutionComments: row.resolutionComments,
-      developerQuestion: row.developerQuestion,
-      developerCheckedAt: row.developerCheckedAt,
-      state: row.state,
-      createdAt: row.createdAt,
-      regulation: {
-        id: row.regulationId,
-        title: row.regulationTitle,
-        content: row.regulationContent,
-        nycrrTitle: row.regulationNycrrTitle,
-        nycrrPart: row.regulationNycrrPart,
-        nycrrSection: row.regulationNycrrSection,
-        njacTitle: row.regulationNjacTitle,
-        njacChapter: row.regulationNjacChapter,
-        njacSubchapter: row.regulationNjacSubchapter,
-        url: row.regulationUrl,
-        summary: row.regulationSummary,
-        sectionType: row.regulationSectionType,
-        hasForm: row.regulationHasForm,
-        hasIbr: row.regulationHasIbr,
-      },
-      analysis: null,
-    }));
+    const data: ComplianceIssueWithAnalysis[] = results.map(row => mapRowToIssue(row));
 
     return {
       data,
