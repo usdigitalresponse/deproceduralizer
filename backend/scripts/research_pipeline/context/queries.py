@@ -535,6 +535,7 @@ def get_ancestor_entries_batch(
 # =============================================================================
 
 
+@retry_db_operation(max_retries=5, base_delay=1.0)
 def get_subchapter_ids_batch(
     document_ids: list[int],
 ) -> dict[int, Optional[int]]:

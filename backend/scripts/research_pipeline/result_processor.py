@@ -5,6 +5,7 @@ Handles parsing batch results into Pydantic models,
 extracting context requests, and computing derived fields.
 """
 
+import asyncio
 import json
 from datetime import datetime
 from typing import Optional, Type, TypeVar, TYPE_CHECKING
@@ -338,6 +339,26 @@ def process_tier3_batch_results(
                 web_response.citations,
                 json_data=web_response.json_data,
             )
+
+            if output is None and web_response.text:
+                # Retry with JSON extraction prompt (same as real-time path)
+                from .tiers.tier3_runner import _retry_json_extraction
+                import anthropic
+                print(f"    Initial JSON parse failed for {custom_id}. Retrying with extraction prompt...")
+                try:
+                    client = anthropic.AsyncAnthropic()
+                    output = asyncio.run(_retry_json_extraction(
+                        client=client,
+                        original_text=web_response.text,
+                        citations=web_response.citations,
+                        cost_tracker=cost_tracker,
+                    ))
+                    if output:
+                        print(f"    Retry successful for {custom_id}!")
+                    else:
+                        print(f"    Retry also failed for {custom_id}.")
+                except Exception as retry_err:
+                    print(f"    Retry error for {custom_id}: {retry_err}")
 
             if output is None:
                 unit.state = ProcessingState.ERROR

@@ -882,13 +882,17 @@ async def _run_realtime(requests, units, output_class, output_attr, tier_name,
 
 def _sort_for_cache_efficiency(units: dict[str, TrackedUnit]) -> dict[str, TrackedUnit]:
     """Sort units for maximum prompt cache hits."""
-    processing_units = [u.unit for u in units.values()]
-    ordered_pus = group_for_cache_efficiency(processing_units)
-    pu_to_tracked = {id(u.unit): u for u in units.values()}
-    return {
-        pu_to_tracked[id(pu)].custom_id: pu_to_tracked[id(pu)]
-        for pu in ordered_pus
-    }
+    try:
+        processing_units = [u.unit for u in units.values()]
+        ordered_pus = group_for_cache_efficiency(processing_units)
+        pu_to_tracked = {id(u.unit): u for u in units.values()}
+        return {
+            pu_to_tracked[id(pu)].custom_id: pu_to_tracked[id(pu)]
+            for pu in ordered_pus
+        }
+    except Exception as e:
+        print(f"  Warning: Cache sort failed ({e}), using original order")
+        return units
 
 
 def _check_db_health(out, tier_name: str) -> bool:

@@ -122,6 +122,83 @@ from scripts.research_pipeline.models.llm_outputs import Tier2Output
 # DRY-RUN RESUME SIMULATION
 # ============================================================================
 
+def _query_tier3_pending_from_db(
+    state: str | None,
+    issue_types: list[str],
+    max_tier: int,
+) -> list[dict]:
+    """
+    Query for documents that are tier3-pending in the database.
+
+    These are documents from previous runs that completed tier 2 but
+    haven't run tier 3 yet. They won't be returned by fetch_unanalyzed_documents
+    because they already have analyses.
+
+    Args:
+        state: State code (NJ, NY, or None for all)
+        issue_types: List of issue types to query
+        max_tier: Maximum tier (only queries if >= 3)
+
+    Returns:
+        List of dicts with document info for tier3-pending documents
+    """
+    if max_tier < 3:
+        return []
+
+    conn = get_db_connection()
+    if conn is None:
+        raise RuntimeError("Failed to establish database connection")
+    try:
+        with conn.cursor() as cur:
+            # Build query for tier3-pending documents
+            state_filter = "AND cia.state = %s" if state else ""
+            params = [issue_types]
+            if state:
+                params.append(state.upper())
+
+            cur.execute(f"""
+                SELECT
+                    cia.document_id,
+                    cia.issue_type,
+                    cia.tier2_classification,
+                    cia.severity,
+                    cia.needs_web_search,
+                    cia.cites_federal_statute,
+                    cia.claims_no_alternative,
+                    cia.federal_mandate_suspected,
+                    rd.citation
+                FROM compliance_issue_analyses cia
+                JOIN regulatory_documents rd ON cia.document_id = rd.id
+                WHERE cia.highest_tier_completed = 2
+                  AND cia.issue_type = ANY(%s)
+                  {state_filter}
+                  AND cia.tier2_classification IN ('burdensome', 'justified')
+                ORDER BY cia.issue_type, cia.document_id
+            """, params)
+
+            results = []
+            for row in cur.fetchall():
+                analysis = {
+                    "document_id": row[0],
+                    "issue_type": row[1],
+                    "tier2_classification": row[2],
+                    "severity": row[3],
+                    "needs_web_search": row[4],
+                    "cites_federal_statute": row[5],
+                    "claims_no_alternative": row[6],
+                    "federal_mandate_suspected": row[7],
+                    "citation": row[8],
+                }
+                # Only include if would escalate to tier 3
+                if _would_escalate_to_tier3(analysis):
+                    results.append(analysis)
+
+            return results
+    finally:
+        conn.close()
+
+
+
 def _simulate_resume(
     processing_units: list[ProcessingUnit],
     issue_types: list[str],
@@ -432,6 +509,8 @@ async def _execute_pipeline(
     # Save final results to database (tier results already saved incrementally)
     print("\nSaving final classifications to database...")
     conn = get_db_connection()
+    if conn is None:
+        raise RuntimeError("Failed to establish database connection for saving results")
     saved_count = save_final_results(results, conn)
     conn.close()
     print(f"Saved {saved_count} final classifications")
@@ -774,6 +853,8 @@ async def run_tier3_pending(
     # Save results
     from .db import save_final_results
     conn = get_db_connection()
+    if conn is None:
+        raise RuntimeError("Failed to establish database connection for saving results")
     saved = save_final_results(results, conn)
     conn.close()
     print(f"\nSaved {saved} results to database")
