@@ -869,7 +869,7 @@ if __name__ == "__main__":
         epilog="""
 REQUIRED FLAGS:
   --state                 State code: 'nj', 'ny', or 'dangerously-run-all'
-  --issue OR --all        Single issue type OR all 43 issue types (must choose one)
+  --issue OR --all        Single issue type OR all 41 issue types (must choose one)
 
 COST-SAFE DEFAULTS:
   By default, the pipeline runs in DRY-RUN mode (no API calls, no cost).
@@ -936,7 +936,7 @@ RESUME BEHAVIOR:
         "--all",
         dest="all_issues",
         action="store_true",
-        help="Run all 43 issue types in scope (batched together per tier). Must be explicit."
+        help="Run all 41 issue types in scope (batched together per tier). Must be explicit."
     )
 
     parser.add_argument(

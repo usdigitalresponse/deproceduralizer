@@ -13,7 +13,7 @@ export default defineConfig({
   timeout: 30_000,
 
   use: {
-    baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL || 'http://localhost:3000',
+    baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL || 'http://localhost:3010',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     // Add bypass header for Vercel protected deployments
@@ -25,8 +25,8 @@ export default defineConfig({
   },
 
   webServer: process.env.PLAYWRIGHT_TEST_BASE_URL ? undefined : {
-    command: 'pnpm prebuild && pnpm dev',
-    url: 'http://localhost:3000',
+    command: 'pnpm prebuild && pnpm dev --port 3010',
+    url: 'http://localhost:3010',
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
   },

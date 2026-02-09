@@ -6,7 +6,25 @@ python_classes = "Test*"
 addopts = "-v --tb=short"
 markers = [
     "llm: tests that make real LLM API calls (cost money, require API key)",
+    "db: tests that require database connection",
 ]
 filterwarnings = [
     "ignore::DeprecationWarning",
 ]
+
+[tool.coverage.run]
+source = ["backend/scripts"]
+omit = [
+    "backend/scripts/test_*.py",
+    "backend/scripts/**/test_*.py",
+    "**/conftest.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+]
+show_missing = true
+precision = 1

@@ -99,8 +99,6 @@ Main table with hierarchy. **74 columns** - use `./scripts/db-query.sh describe 
 
 **Indexes:** `idx_analyses_url`, `idx_analyses_one_current_per_document` (unique partial - ensures one current per doc)
 
-**Note:** `run_id` column is defined in pending migration 0038 but not yet applied to the live DB.
-
 **Always filter by `is_current = true` for latest analysis.**
 
 ## red_flags
@@ -242,8 +240,6 @@ Pure regex match store. Tracks individual regex matches found during compliance 
 **Constraints:** `compliance_issues_state_check`, `unique_document_issue_occurrence UNIQUE(document_id, issue_type, occurrence_number)`
 
 **Indexes:** `idx_compliance_issues_document`, `idx_compliance_issues_state`, `idx_compliance_issues_issue_type`, `idx_compliance_issues_state_issue`, `idx_compliance_issues_analysis_id`
-
-**Note:** `run_id` column and `idx_compliance_issues_run_id` index are defined in pending migration 0038 but not yet applied to the live DB.
 
 **Issue Types** (41 types defined in `prompts/compliance_issues.yaml`)
 

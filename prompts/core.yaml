@@ -7,10 +7,10 @@
 #
 # PROMPT ARCHITECTURE:
 # - prompts/core.yaml (this file) - Core analysis prompts (red_flags, definitions)
-# - prompts/compliance_issues.yaml - 43 compliance issue types with patterns + prompts
+# - prompts/compliance_issues.yaml - 41 compliance issue types with patterns + prompts
 #
 # Usage:
-#   from shared_utils import load_prompt
+#   from lib.prompts import load_prompt
 #   prompt = load_prompt("red_flags_analysis", section_text="...", citation="...", heading="...")
 #
 
