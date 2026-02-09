@@ -105,22 +105,17 @@ from lib.db import get_db_connection
 from scripts.research_pipeline.models.matches import ProcessingUnit
 from scripts.research_pipeline.pipeline_runner import run_pipeline as run_pipeline_fn, run_tier3_only
 
-# Import from new db module
+# Import from db module
 from scripts.research_pipeline.db import (
-    fetch_unanalyzed_documents,
     fetch_documents_with_continuation,
     fetch_tier3_pending_documents,
     fetch_all_issue_documents,
-    fetch_documents_for_rerun,
     get_issue_types_for_scope,
     save_final_results,
 )
-from scripts.research_pipeline.db.analysis_reader import get_existing_analyses
 from scripts.research_pipeline.routing import should_escalate_to_tier3
-from scripts.research_pipeline.state_machine import TrackedUnit, ProcessingState
-from scripts.research_pipeline.models.llm_outputs import Tier1Output, Tier2Output, Tier3Output
-from scripts.research_pipeline.db.analysis_writer import save_tier1_results, save_tier2_results
-from scripts.research_pipeline.result_processor import parse_batch_result_tool_use
+from scripts.research_pipeline.state_machine import TrackedUnit
+from scripts.research_pipeline.models.llm_outputs import Tier2Output
 
 
 # ============================================================================
@@ -203,12 +198,12 @@ def _query_tier3_pending_from_db(
         conn.close()
 
 
+
 def _simulate_resume(
     processing_units: list[ProcessingUnit],
     issue_types: list[str],
     max_tier: int,
-    state: str | None = None,
-    existing_analyses: dict[tuple[int, str], dict] | None = None,
+    existing_analyses: dict[tuple[int, str], dict],
 ) -> dict:
     """
     Simulate the resume logic without making API calls.
@@ -220,8 +215,7 @@ def _simulate_resume(
         processing_units: List of ProcessingUnits fetched for processing
         issue_types: List of issue types being processed
         max_tier: Maximum tier to run (1-3)
-        state: State code for querying tier3-pending from DB (NJ or NY)
-        existing_analyses: Pre-loaded analyses from fetch (avoids extra DB query)
+        existing_analyses: Pre-loaded analyses from fetch
 
     Returns:
         Dict with:
@@ -229,23 +223,11 @@ def _simulate_resume(
         - skipped: list of (ProcessingUnit, highest_tier) tuples
         - resumed: dict[tier] -> list of (ProcessingUnit, analysis) tuples
         - tier3_pending: list of (ProcessingUnit, analysis) tuples that would run web search
-        - tier3_pending_from_db: list of dicts with tier3-pending docs not in fetch (legacy only)
     """
     if not processing_units:
-        # If no processing units and no pre-loaded analyses, query for tier3_pending_from_db
-        # This is legacy behavior - with new fetch, tier3-pending docs are in the main fetch
-        if existing_analyses is None:
-            tier3_pending_from_db = _query_tier3_pending_from_db(state, issue_types, max_tier)
-        else:
-            tier3_pending_from_db = []  # Already included in fetch
-        return {"new": [], "skipped": [], "resumed": {}, "tier3_pending": [], "tier3_pending_from_db": tier3_pending_from_db}
+        return {"new": [], "skipped": [], "resumed": {}, "tier3_pending": []}
 
-    # Use pre-loaded analyses if provided, otherwise query
-    if existing_analyses is not None:
-        existing = existing_analyses
-    else:
-        doc_ids = [pu.document_id for pu in processing_units]
-        existing = get_existing_analyses(doc_ids, issue_types=issue_types)
+    existing = existing_analyses
 
     new_units = []
     skipped_units = []
@@ -291,20 +273,11 @@ def _simulate_resume(
                     if needs_tier3:
                         tier3_pending.append((pu, analysis))
 
-    # Query for tier3-pending documents that weren't in the fetch
-    # Only needed for legacy fetch that doesn't include partial progress
-    # With new fetch_documents_with_continuation, tier3-pending docs are in main fetch
-    if existing_analyses is None:
-        tier3_pending_from_db = _query_tier3_pending_from_db(state, issue_types, max_tier)
-    else:
-        tier3_pending_from_db = []  # Already included in the fetch
-
     return {
         "new": new_units,
         "skipped": skipped_units,
         "resumed": resumed_units,
         "tier3_pending": tier3_pending,
-        "tier3_pending_from_db": tier3_pending_from_db,
     }
 
 
@@ -312,44 +285,54 @@ def _would_escalate_to_tier3(analysis: dict) -> bool:
     """
     Check if an analysis would escalate to Tier 3 based on routing rules.
 
-    Mirrors the logic in routing.should_escalate_to_tier3() but works
-    with analysis dict instead of TrackedUnit.
+    Delegates to routing.should_escalate_to_tier3() by constructing a
+    minimal TrackedUnit from the analysis dict.
 
     Args:
-        analysis: Dict from get_existing_analyses()
+        analysis: Dict from get_existing_analyses() or similar
 
     Returns:
         True if the analysis would trigger Tier 3 escalation
     """
     classification = analysis.get("tier2_classification")
-    severity = analysis.get("severity") or 0
-    needs_web_search = analysis.get("needs_web_search", False)
-    cites_federal = analysis.get("cites_federal_statute", False)
-    claims_no_alt = analysis.get("claims_no_alternative", False)
-    federal_mandate_suspected = analysis.get("federal_mandate_suspected", False)
+    if not classification or classification == "unrelated":
+        return False
 
-    # Tier 3 escalation triggers (from routing.py):
-    # 1. needs_web_search flag is True
-    if needs_web_search:
-        return True
+    # Build a Tier2Output from the analysis dict
+    # Pydantic requires severity for burdensome/justified classifications
+    severity = analysis.get("severity")
+    if severity is None and classification == "burdensome":
+        severity = 5  # Safe default for routing check
+    tier2 = Tier2Output(
+        classification=classification,
+        confidence=analysis.get("tier2_confidence") or 0.85,
+        reasoning=analysis.get("tier2_reasoning") or "",
+        argument_for_regulation=analysis.get("argument_for_regulation") or "",
+        argument_against_regulation=analysis.get("argument_against_regulation") or "",
+        severity=severity,
+        needs_web_search=analysis.get("needs_web_search", False),
+        web_search_topics=analysis.get("web_search_topics") or [],
+        cites_federal_statute=analysis.get("cites_federal_statute", False),
+        federal_citation=analysis.get("federal_citation"),
+        claims_no_alternative=analysis.get("claims_no_alternative", False),
+        potentially_controversial=analysis.get("potentially_controversial", False),
+        federal_mandate_suspected=analysis.get("federal_mandate_suspected", False),
+    )
 
-    # 2. Cites federal statute (unverified)
-    if cites_federal:
-        return True
+    # Build a minimal TrackedUnit with just the fields routing needs
+    dummy_unit = ProcessingUnit(
+        document_id=analysis.get("document_id", 0),
+        issue_type=analysis.get("issue_type", ""),
+        citation="",
+        title="",
+        matches=[],
+        content="",
+        state="",
+    )
+    tracked = TrackedUnit(unit=dummy_unit)
+    tracked.tier2_output = tier2
 
-    # 3. Claims no alternative with severity >= 7
-    if claims_no_alt and severity >= 7:
-        return True
-
-    # 4. Burdensome with severity >= 8
-    if classification == "burdensome" and severity >= 8:
-        return True
-
-    # 5. Federal mandate suspected
-    if federal_mandate_suspected:
-        return True
-
-    return False
+    return should_escalate_to_tier3(tracked)
 
 
 def _print_resume_simulation(simulation: dict, max_tier: int) -> None:
@@ -450,43 +433,12 @@ def _print_resume_simulation(simulation: dict, max_tier: int) -> None:
             if len(tier3_pending) > 10:
                 print(f"  ... and {len(tier3_pending) - 10} more")
 
-        # Tier 3 pending from previous runs (not in current fetch)
-        tier3_from_db = simulation.get("tier3_pending_from_db", [])
-        if tier3_from_db:
-            print(f"\nTier 3 PENDING from previous runs (not fetched above): {len(tier3_from_db)}")
-            for analysis in tier3_from_db[:10]:
-                citation = analysis.get("citation", "?")
-                issue_type = analysis.get("issue_type", "?")
-                classification = analysis.get("tier2_classification", "?")
-                severity = analysis.get("severity", "?")
-                needs_ws = analysis.get("needs_web_search", False)
-                cites_fed = analysis.get("cites_federal_statute", False)
-                reasons = []
-                if needs_ws:
-                    reasons.append("needs_web_search")
-                if cites_fed:
-                    reasons.append("cites_federal")
-                if analysis.get("claims_no_alternative") and (severity or 0) >= 7:
-                    reasons.append("claims_no_alt")
-                if classification == "burdensome" and (severity or 0) >= 8:
-                    reasons.append("high_severity")
-                reason_str = ", ".join(reasons) if reasons else "routing rule"
-                print(f"  - {citation} [{issue_type}]: {classification}, severity {severity} [{reason_str}]")
-            if len(tier3_from_db) > 10:
-                print(f"  ... and {len(tier3_from_db) - 10} more")
-
     print()
 
 
 # ============================================================================
 # PIPELINE EXECUTION
 # ============================================================================
-
-# Note: Helper functions (_build_match_info, _build_processing_unit) and
-# fetch functions (fetch_documents_for_rerun, fetch_tier3_pending_documents,
-# fetch_unanalyzed_documents, fetch_all_issue_documents, get_issue_types_for_scope)
-# have been moved to scripts.research_pipeline.db module.
-
 
 async def _execute_pipeline(
     processing_units: list[ProcessingUnit],
@@ -641,20 +593,16 @@ async def run_test(
             processing_units=processing_units,
             issue_types=[issue_type],
             max_tier=max_tier,
-            state=state,
             existing_analyses=existing_analyses,
         )
         _print_resume_simulation(simulation, max_tier)
 
-        tier3_from_db = simulation.get("tier3_pending_from_db", [])
         print(f"{'='*70}")
         print("DRY RUN COMPLETE")
         print(f"{'='*70}")
         print(f"Documents fetched: {len(processing_units)}")
         print(f"  - Would process: {len(simulation['new']) + sum(len(u) for u in simulation['resumed'].values())}")
         print(f"  - Would skip: {len(simulation['skipped'])}")
-        if tier3_from_db:
-            print(f"  - Tier 3 pending (from DB): {len(tier3_from_db)}")
         print(f"Total matches: {sum(len(pu.matches) for pu in processing_units)}")
         print(f"Max tier: {max_tier}")
         print(f"Estimated API mode: {'realtime' if realtime else 'batch'}")
@@ -771,20 +719,16 @@ async def run_batched_issues(
             processing_units=processing_units,
             issue_types=list(by_issue.keys()),
             max_tier=max_tier,
-            state=state,
             existing_analyses=existing_analyses,
         )
         _print_resume_simulation(simulation, max_tier)
 
-        tier3_from_db = simulation.get("tier3_pending_from_db", [])
         print(f"{'='*70}")
         print("DRY RUN COMPLETE")
         print(f"{'='*70}")
         print(f"Documents fetched: {len(processing_units)}")
         print(f"  - Would process: {len(simulation['new']) + sum(len(u) for u in simulation['resumed'].values())}")
         print(f"  - Would skip: {len(simulation['skipped'])}")
-        if tier3_from_db:
-            print(f"  - Tier 3 pending (from DB): {len(tier3_from_db)}")
         print(f"Total matches: {sum(len(pu.matches) for pu in processing_units)}")
         print(f"Max tier: {max_tier}")
         print(f"Issue types: {len(by_issue)}")

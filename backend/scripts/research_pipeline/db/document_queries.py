@@ -98,13 +98,14 @@ class ProcessingUnitBuilder:
     """
     Unified builder for fetching and constructing ProcessingUnits.
 
-    Replaces three similar fetch functions:
-    - fetch_unanalyzed_documents()
-    - fetch_tier3_pending_documents()
-    - fetch_all_issue_documents()
+    Provides methods for different query patterns:
+    - fetch_unanalyzed() — documents with no analysis yet
+    - fetch_with_tier_continuation() — documents needing processing up to a target tier
+    - fetch_tier3_pending() — documents that completed Tier 2 but not Tier 3
+    - fetch_all_issues() — multi-issue-type batch fetch
+    - fetch_for_rerun() — re-process documents with a specific pipeline version
 
-    This class provides a common interface for building ProcessingUnits
-    from different query sources while sharing the common construction logic.
+    Shares common construction logic for building ProcessingUnits from query results.
     """
 
     def __init__(self, conn: Optional[Connection] = None):
@@ -1131,30 +1132,7 @@ def get_issue_types_for_scope(
             conn.close()
 
 
-# Convenience functions that maintain backward compatibility with cli.py
-# All wrapped with retry_db_operation for resilience to connection failures
-
-@retry_db_operation()
-def fetch_unanalyzed_documents(
-    issue_type: str,
-    limit: int = 20,
-    state: Optional[str] = None,
-    title: Optional[str] = None,
-) -> list[ProcessingUnit]:
-    """
-    Fetch documents from compliance_issues that haven't been analyzed yet.
-
-    Backward-compatible wrapper around ProcessingUnitBuilder.fetch_unanalyzed().
-    Automatically retries on connection failures.
-    """
-    builder = ProcessingUnitBuilder()
-    return builder.fetch_unanalyzed(
-        issue_type=issue_type,
-        limit=limit,
-        state=state,
-        title=title,
-    )
-
+# Module-level API functions with retry for resilience to connection failures
 
 @retry_db_operation()
 def fetch_tier3_pending_documents(
@@ -1165,7 +1143,6 @@ def fetch_tier3_pending_documents(
     """
     Fetch documents that completed Tier 2 but not Tier 3.
 
-    Backward-compatible wrapper around ProcessingUnitBuilder.fetch_tier3_pending().
     Automatically retries on connection failures.
     """
     builder = ProcessingUnitBuilder()
@@ -1193,8 +1170,6 @@ def fetch_all_issue_documents(
     - Documents with highest_tier_completed < max_tier (need continuation)
 
     Also returns existing analyses pre-loaded, avoiding an extra DB query.
-
-    Backward-compatible wrapper around ProcessingUnitBuilder.fetch_all_issues().
     Automatically retries on connection failures.
 
     Args:
@@ -1221,28 +1196,6 @@ def fetch_all_issue_documents(
 
 
 @retry_db_operation()
-def fetch_documents_for_rerun(
-    pipeline_version: str,
-    issue_type: Optional[str] = None,
-    state: str = "NJ",
-    limit: int = 20,
-) -> list[ProcessingUnit]:
-    """
-    Fetch documents from existing analyses for re-processing.
-
-    Backward-compatible wrapper around ProcessingUnitBuilder.fetch_for_rerun().
-    Automatically retries on connection failures.
-    """
-    builder = ProcessingUnitBuilder()
-    return builder.fetch_for_rerun(
-        pipeline_version=pipeline_version,
-        issue_type=issue_type,
-        state=state,
-        limit=limit,
-    )
-
-
-@retry_db_operation()
 def fetch_documents_with_continuation(
     issue_type: str,
     max_tier: int,
@@ -1259,8 +1212,6 @@ def fetch_documents_with_continuation(
     - Documents with highest_tier_completed < max_tier (need continuation)
 
     Also returns existing analyses pre-loaded, avoiding an extra DB query.
-
-    Backward-compatible wrapper around ProcessingUnitBuilder.fetch_with_tier_continuation().
     Automatically retries on connection failures.
 
     Args:

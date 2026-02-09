@@ -124,22 +124,47 @@ See `DATABASE_SETUP.md` for detailed Postgres/Neon setup instructions and how to
 
 ### 4. Run the Pipeline
 
-```bash
-# Scrape regulations (includes DB migration and stats refresh)
-python backend/scripts/ny_regulations_scraper.py
-# or
-python backend/scripts/nj_regulations_scraper.py
+The full analysis pipeline has 10 steps. Here's the quick version:
 
-# Run analysis pipelines (after scraping)
-python backend/scripts/batch_definitions.py submit --state NJ
-python backend/scripts/batch_definitions.py process
-python backend/scripts/link_definitions.py --state NJ
-python backend/scripts/scan_compliance_issues.py --state nj
+```bash
+# 1. Scrape regulations (includes DB migration and stats refresh)
+python backend/scripts/ny_regulations_scraper.py
+
+# 2. Detect regulatory status (repealed/reserved/expired)
+python backend/scripts/detect_regulatory_status.py --state NY
+
+# 3. Extract definitions (Anthropic Batch API)
+python backend/scripts/batch_definitions.py submit --state NY
+python backend/scripts/batch_definitions.py status
+python backend/scripts/batch_definitions.py process --batch-id <id>
+
+# 4. Link definitions to documents
+python backend/scripts/link_definitions.py run --state NY
+python backend/scripts/backfill_definition_scope.py --state NY
+
+# 5. Generate summaries (5 hierarchical phases, see OPERATIONS.md)
+# cd backend/scripts/_legacy/local_summarization
+# python -m local_summarization.batch.cli --state NY --phase sections --all-titles --submit
+# ... (subchapters, chapters, parts, titles) ...
+# python3 import_summaries.py --state NY
+
+# 6. Scan compliance issues (regex, no LLM)
+python backend/scripts/scan_compliance_issues.py --state ny
+
+# 7. Research pipeline (3-tier LLM analysis — costs money, ask first)
+cd backend && python3 -m scripts.research_pipeline.cli --state ny --all --execute
+
+# 8. Scan incorporations by reference
+python backend/scripts/ibr_scanner.py --state ny
+
+# 9. Red flag analysis
 python backend/scripts/red_flags.py --state NY
-python backend/scripts/detect_regulatory_status.py --state NJ
+
+# 10. Refresh hierarchy stats
+python backend/scripts/refresh_hierarchy_stats.py --state NY
 ```
 
-See `docs/OPERATIONS.md` for detailed step-by-step instructions.
+See [`docs/OPERATIONS.md`](docs/OPERATIONS.md) for the complete runbook with all flags, cost estimates, and detailed instructions for each step.
 
 ### 5. Start the Web App
 
