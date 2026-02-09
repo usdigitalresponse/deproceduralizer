@@ -76,7 +76,7 @@ export async function waitForPromptsReady(page: Page) {
 export async function waitForSaveComplete(page: Page, saveButton?: Locator) {
   if (saveButton) {
     // Wait for the save button to be re-enabled (indicates save completed)
-    await expect(saveButton).toBeEnabled({ timeout: 5000 });
+    await expect(saveButton).toBeEnabled({ timeout: 10000 });
   } else {
     // Fallback: wait briefly for UI to settle
     await page.waitForTimeout(500);

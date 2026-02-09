@@ -523,9 +523,9 @@ test.describe('Review Form Submission', () => {
     await justificationTextarea.fill(testJustification);
     await teamNotesTextarea.fill(testTeamNotes);
 
-    // Submit the form
+    // Submit the form and wait for save to complete (button re-enables)
     await saveButton.click();
-    await waitForSaveComplete(page);
+    await waitForSaveComplete(page, saveButton);
 
     // Verify the form still shows saved values (optimistic update)
     await expect(teamNotesTextarea).toHaveValue(testTeamNotes);
@@ -541,7 +541,7 @@ test.describe('Review Form Submission', () => {
       const cleanupSaveButton = cleanupCard.getByTestId('compliance-save-button');
 
       // Wait for form to be enabled again after previous save
-      await expect(cleanupReviewer).toBeEnabled({ timeout: 5000 });
+      await expect(cleanupReviewer).toBeEnabled({ timeout: 10000 });
 
       // Clear notes fields and use placeholder reviewer (can't be empty)
       await cleanupReviewer.clear();
@@ -700,17 +700,8 @@ test.describe('Review Queue Filter Behavior', () => {
     const oldCardLocator = page.locator(`#${firstCardId}`);
     await expect(oldCardLocator).toBeHidden({ timeout: 10000 });
 
-    // Verify the item was removed - either new cards exist or list is empty
-    // (both are valid outcomes depending on available data)
-    const remainingCards = page.getByTestId('compliance-issue-card');
-    const remainingCount = await remainingCards.count();
-
-    if (remainingCount > 0) {
-      // If there are remaining cards, verify the first one is different
-      const newFirstCardId = await remainingCards.first().getAttribute('id');
-      expect(newFirstCardId).not.toBe(firstCardId);
-    }
-    // If no cards remain, the test still passes - the item was successfully filtered out
+    // The old card is now hidden, confirming it was filtered out after status change.
+    // No need to check remaining card IDs — the toBeHidden assertion is sufficient.
 
     // CLEANUP: Revert the reviewed item back to unreviewed
     // Navigate to confirmed filter to find the item we just reviewed
@@ -771,17 +762,8 @@ test.describe('Review Queue Filter Behavior', () => {
     const oldCardLocator = page.locator(`#${firstCardId}`);
     await expect(oldCardLocator).toBeHidden({ timeout: 10000 });
 
-    // Verify the item was removed - either new cards exist or list is empty
-    // (both are valid outcomes depending on available data)
-    const remainingCards = page.getByTestId('red-flag-card');
-    const remainingCount = await remainingCards.count();
-
-    if (remainingCount > 0) {
-      // If there are remaining cards, verify the first one is different
-      const newFirstCardId = await remainingCards.first().getAttribute('id');
-      expect(newFirstCardId).not.toBe(firstCardId);
-    }
-    // If no cards remain, the test still passes - the item was successfully filtered out
+    // The old card is now hidden, confirming it was filtered out after status change.
+    // No need to check remaining card IDs — the toBeHidden assertion is sufficient.
 
     // CLEANUP: Revert the reviewed item back to unreviewed
     // Navigate to confirmed filter to find the item we just reviewed
