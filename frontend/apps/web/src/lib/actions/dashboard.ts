@@ -3,7 +3,7 @@
 import 'server-only';
 import { unstable_cache } from 'next/cache';
 import { db, RegulatoryDocumentsRepository } from '@deproceduralizer/database';
-import type { StateCode, DashboardStats } from '@deproceduralizer/database';
+import type { StateCode, DashboardStats, RecentActivity } from '@deproceduralizer/database';
 import { type ActionResult, success, failure, getErrorMessage } from './types';
 
 const regulationsRepo = new RegulatoryDocumentsRepository(db);
@@ -44,6 +44,27 @@ export async function getAllStateStats(): Promise<ActionResult<Record<StateCode,
     return success(result);
   } catch (error) {
     console.error('[getAllStateStats]', error);
+    return failure(getErrorMessage(error));
+  }
+}
+
+/**
+ * Get recent activity counts (last 7 days).
+ * Cached for 1 minute to reduce database traffic.
+ */
+export async function getRecentActivity(
+  state?: StateCode
+): Promise<ActionResult<RecentActivity>> {
+  try {
+    const cachedGetActivity = unstable_cache(
+      () => regulationsRepo.getRecentActivity(state),
+      [`dashboard-recent-activity-${state ?? 'all'}`],
+      { revalidate: 60, tags: ['dashboard'] }
+    );
+    const result = await cachedGetActivity();
+    return success(result);
+  } catch (error) {
+    console.error('[getRecentActivity]', error);
     return failure(getErrorMessage(error));
   }
 }

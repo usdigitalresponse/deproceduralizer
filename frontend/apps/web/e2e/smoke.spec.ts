@@ -110,7 +110,8 @@ test.describe('Smoke Tests', () => {
     // Should show all the stat labels in the overview section
     await expect(page.getByText('Total Regulations')).toBeVisible();
     await expect(page.getByText('Analyzed', { exact: true })).toBeVisible();
-    await expect(page.getByText('With Flags', { exact: true })).toBeVisible();
+    await expect(page.getByText('Compliance Issues')).toBeVisible();
+    await expect(page.getByText('Red Flags')).toBeVisible();
 
     // Should show state selection with both states
     await expect(page.getByRole('heading', { name: /Select a State/i })).toBeVisible();

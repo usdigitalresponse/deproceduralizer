@@ -1679,6 +1679,8 @@ apps/web/src/
 │   │   └── index.ts
 │   ├── home/               # Home dashboard components
 │   │   ├── DashboardStats.tsx
+│   │   ├── RecentActivityCard.tsx
+│   │   ├── TopIssuesChart.tsx
 │   │   ├── StateCard.tsx
 │   │   ├── QuickLinks.tsx
 │   │   └── index.ts
@@ -1908,26 +1910,43 @@ Common responsive grid patterns:
 
 ### DashboardStats
 
-Grid of stat cards showing aggregate metrics:
+Compact 4-card grid showing aggregate metrics with contextual subtitles:
 
 ```tsx
 import { DashboardStats } from '@/components/home';
 
-<DashboardStats stats={{
-  totalDocuments: 1000,
-  analyzedDocuments: 500,
-  documentsWithFlags: 100,
-  totalFlags: 250,
-  flagsBySeverity: { high: 50, medium: 100, low: 100 },
-  unreviewedFlags: 200,
-}} />
+<DashboardStats stats={aggregateStats} />
 ```
 
-Displays 2 columns on mobile, 4 columns on desktop.
+Cards: Total Regulations, Analyzed (with % coverage), Compliance Issues (with unreviewed count), Red Flags (with unreviewed count). Displays 2 columns on mobile, 4 columns on desktop.
+
+### RecentActivityCard
+
+Shows activity counts from the last 7 days in a 2x2 grid:
+
+```tsx
+import { RecentActivityCard } from '@/components/home';
+
+<RecentActivityCard activity={recentActivity} />
+```
+
+Metrics: Issues discovered, Issues reviewed, Flags reviewed, Documents analyzed. Shows "No recent activity" when all counts are zero. Data comes from `getRecentActivity()` server action.
+
+### TopIssuesChart
+
+Horizontal bar chart showing top 6 compliance issue types by count:
+
+```tsx
+import { TopIssuesChart } from '@/components/home';
+
+<TopIssuesChart byType={aggregateStats.complianceIssues.byType} />
+```
+
+Uses `ChartContainer` + `ClientChart` + `HorizontalBarChart` from the charts system. Labels come from `ISSUE_TYPE_LABELS`. Returns null when no data.
 
 ### StateCard
 
-Clickable card for state selection:
+Clickable card for state selection with progress bars:
 
 ```tsx
 import { StateCard } from '@/components/home';
@@ -1938,24 +1957,21 @@ import { StateCard } from '@/components/home';
 
 Features:
 - State abbreviation badge with accent color
-- Document count and flag stats
+- Two progress bars: "Analyzed X/Y" and "Reviewed X/Y"
+- Danger badges for unreviewed flags/issues (only when > 0)
 - Hover state with shadow elevation
 
 ### QuickLinks
 
-Grid of quick action cards:
+Grid of quick action cards with optional contextual badges:
 
 ```tsx
 import { QuickLinks } from '@/components/home';
 
-<QuickLinks state="ny" />
+<QuickLinks state="ny" stats={aggregateStats} />
 ```
 
-Links to:
-- Browse Hierarchy
-- Review Queue
-- Definitions Glossary
-- Table View
+Pass `stats` prop to show unreviewed count badge on the Review Queue card. Links to Browse Hierarchy, Review Queue, Analytics, Definitions Glossary, Table View.
 
 ---
 

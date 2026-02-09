@@ -2,16 +2,19 @@
 
 import Link from 'next/link';
 import { Card } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
 import { FolderTree, ClipboardCheck, Table, BookOpen, BarChart3, ArrowRight } from 'lucide-react';
+import type { DashboardStats } from '@deproceduralizer/database';
 
 interface QuickLinkProps {
   href: string;
   icon: React.ReactNode;
   title: string;
   description: string;
+  badge?: number;
 }
 
-function QuickLink({ href, icon, title, description }: QuickLinkProps) {
+function QuickLink({ href, icon, title, description, badge }: QuickLinkProps) {
   return (
     <Link href={href} className="block group">
       <Card className="h-full transition-all duration-[var(--duration-normal)] hover:shadow-[var(--shadow-md)] hover:border-[var(--color-primary-weak)]">
@@ -24,6 +27,9 @@ function QuickLink({ href, icon, title, description }: QuickLinkProps) {
               <h3 className="font-semibold text-[var(--color-text)] group-hover:text-[var(--color-primary)] transition-colors">
                 {title}
               </h3>
+              {badge !== undefined && badge > 0 && (
+                <Badge variant="danger">{badge}</Badge>
+              )}
               <ArrowRight className="w-4 h-4 text-[var(--color-text-muted)] opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
             </div>
             <p className="text-sm text-[var(--color-text-muted)] mt-1">
@@ -38,9 +44,14 @@ function QuickLink({ href, icon, title, description }: QuickLinkProps) {
 
 interface QuickLinksProps {
   state: 'ny' | 'nj';
+  stats?: DashboardStats;
 }
 
-export function QuickLinks({ state }: QuickLinksProps) {
+export function QuickLinks({ state, stats }: QuickLinksProps) {
+  const unreviewedCount = stats
+    ? stats.unreviewedFlags + (stats.complianceIssues?.unreviewed ?? 0)
+    : undefined;
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       <QuickLink
@@ -54,6 +65,7 @@ export function QuickLinks({ state }: QuickLinksProps) {
         icon={<ClipboardCheck className="w-6 h-6 text-[var(--color-text-secondary)] group-hover:text-[var(--color-primary)] transition-colors" />}
         title="Review Queue"
         description="Review and triage flagged regulations that need attention"
+        badge={unreviewedCount}
       />
       <QuickLink
         href={`/${state}/analytics`}

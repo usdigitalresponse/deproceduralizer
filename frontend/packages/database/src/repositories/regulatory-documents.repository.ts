@@ -132,6 +132,14 @@ export interface PaginatedResult<T> {
   totalPages: number;
 }
 
+export interface RecentActivity {
+  newIssues: number;
+  issuesReviewed: number;
+  flagsReviewed: number;
+  documentsAnalyzed: number;
+  windowDays: number;
+}
+
 export interface DashboardStats {
   totalDocuments: number;
   analyzedDocuments: number;
@@ -1541,6 +1549,66 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
     return {
       ny: nyStats,
       nj: njStats,
+    };
+  }
+
+  /**
+   * Get recent activity counts for the dashboard.
+   * Counts events within the last `windowDays` days.
+   */
+  async getRecentActivity(state?: StateCode, windowDays = 7): Promise<RecentActivity> {
+    const stateCondition = state
+      ? sql`AND cia.state = ${state.toUpperCase()}`
+      : sql``;
+
+    const flagStateCondition = state
+      ? sql`AND rd.state = ${state.toUpperCase()}`
+      : sql``;
+
+    const docStateCondition = state
+      ? sql`AND rd.state = ${state.toUpperCase()}`
+      : sql``;
+
+    const cutoff = sql`NOW() - ${sql.raw(`INTERVAL '${windowDays} days'`)}`;
+
+    const [issueResult, flagResult, docResult] = await Promise.all([
+      // New issues confirmed + issues reviewed in window
+      this.db.execute(sql`
+        SELECT
+          COUNT(*) FILTER (WHERE cia.created_at >= ${cutoff} AND cia.requirement_found = TRUE)::int AS "newIssues",
+          COUNT(*) FILTER (WHERE cia.reviewed_at >= ${cutoff})::int AS "issuesReviewed"
+        FROM compliance_issue_analyses cia
+        WHERE 1=1 ${stateCondition}
+      `),
+      // Red flags reviewed in window
+      this.db.execute(sql`
+        SELECT
+          COUNT(*)::int AS "flagsReviewed"
+        FROM red_flags rf
+        JOIN analyses a ON a.id = rf.analysis_id AND a.is_current = true
+        JOIN regulatory_documents rd ON rd.id = a.document_id
+        WHERE rf.reviewed_at >= ${cutoff} ${flagStateCondition}
+      `),
+      // Documents analyzed in window
+      this.db.execute(sql`
+        SELECT
+          COUNT(*)::int AS "documentsAnalyzed"
+        FROM analyses a
+        JOIN regulatory_documents rd ON rd.id = a.document_id
+        WHERE a.analyzed_at >= ${cutoff} AND a.is_current = true ${docStateCondition}
+      `),
+    ]);
+
+    const issueRow = issueResult.rows[0] as { newIssues: number; issuesReviewed: number };
+    const flagRow = flagResult.rows[0] as { flagsReviewed: number };
+    const docRow = docResult.rows[0] as { documentsAnalyzed: number };
+
+    return {
+      newIssues: issueRow.newIssues,
+      issuesReviewed: issueRow.issuesReviewed,
+      flagsReviewed: flagRow.flagsReviewed,
+      documentsAnalyzed: docRow.documentsAnalyzed,
+      windowDays,
     };
   }
 
