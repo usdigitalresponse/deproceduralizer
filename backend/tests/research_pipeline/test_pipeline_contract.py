@@ -419,6 +419,6 @@ class TestPipelineIntegrationContract:
 
     def test_fetch_documents_returns_processing_units(self):
         """Document fetching should return ProcessingUnits."""
-        from scripts.research_pipeline.db import fetch_unanalyzed_documents
+        from scripts.research_pipeline.db import fetch_documents_with_continuation
         # Contract: function exists and is callable
-        assert callable(fetch_unanalyzed_documents)
+        assert callable(fetch_documents_with_continuation)

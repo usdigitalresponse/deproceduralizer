@@ -35,6 +35,26 @@ from ..config import PIPELINE_VERSION
 from .connection import retry_db_operation
 
 
+def _link_analysis_to_issues(cur, document_id: int, issue_type: str) -> None:
+    """
+    Link compliance_issues rows to their analysis via the analysis_id FK.
+
+    Reads the RETURNING id from the cursor's last INSERT/UPSERT and updates
+    compliance_issues rows that don't yet have an analysis_id.
+
+    Args:
+        cur: Database cursor positioned after a RETURNING id query
+        document_id: Document ID to match
+        issue_type: Issue type to match
+    """
+    analysis_row = cur.fetchone()
+    if analysis_row:
+        cur.execute("""
+            UPDATE compliance_issues SET analysis_id = %s
+            WHERE document_id = %s AND issue_type = %s AND analysis_id IS NULL
+        """, (analysis_row[0], document_id, issue_type))
+
+
 def _merge_context_used(unit: TrackedUnit, output) -> list[dict]:
     """
     Merge registry context_used with LLM-reported context.
@@ -167,13 +187,7 @@ def save_tier1_results(
                         False,  # requirement_found = False for false positives
                         PIPELINE_VERSION,
                     ))
-                    # PR 6.5: Link compliance_issues to analysis via FK
-                    analysis_row = cur.fetchone()
-                    if analysis_row:
-                        cur.execute("""
-                            UPDATE compliance_issues SET analysis_id = %s
-                            WHERE document_id = %s AND issue_type = %s AND analysis_id IS NULL
-                        """, (analysis_row[0], unit.document_id, unit.issue_type))
+                    _link_analysis_to_issues(cur, unit.document_id, unit.issue_type)
                     saved += 1
 
                     # Commit every 50 rows to prevent Neon idle-in-transaction timeout
@@ -268,13 +282,7 @@ def save_tier1_results(
                     json.dumps(tier1_argument_framing),
                     json.dumps(tier1_recommendations),
                 ))
-                # PR 6.5: Link compliance_issues to analysis via FK
-                analysis_row = cur.fetchone()
-                if analysis_row:
-                    cur.execute("""
-                        UPDATE compliance_issues SET analysis_id = %s
-                        WHERE document_id = %s AND issue_type = %s AND analysis_id IS NULL
-                    """, (analysis_row[0], unit.document_id, unit.issue_type))
+                _link_analysis_to_issues(cur, unit.document_id, unit.issue_type)
                 saved += 1
 
                 # Commit every 50 rows to prevent Neon idle-in-transaction timeout

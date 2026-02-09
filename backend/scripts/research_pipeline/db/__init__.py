@@ -26,12 +26,9 @@ from .connection import DatabaseManager
 from .document_queries import (
     ProcessingUnitBuilder,
     get_issue_types_for_scope,
-    # Backward-compatible convenience functions
-    fetch_unanalyzed_documents,
     fetch_documents_with_continuation,
     fetch_tier3_pending_documents,
     fetch_all_issue_documents,
-    fetch_documents_for_rerun,
 )
 
 # Analysis reading
@@ -58,11 +55,9 @@ __all__ = [
     # Document queries
     "ProcessingUnitBuilder",
     "get_issue_types_for_scope",
-    "fetch_unanalyzed_documents",
     "fetch_documents_with_continuation",
     "fetch_tier3_pending_documents",
     "fetch_all_issue_documents",
-    "fetch_documents_for_rerun",
     # Analysis reading
     "get_existing_analyses",
     "get_analysis_by_document",
