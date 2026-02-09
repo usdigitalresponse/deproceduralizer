@@ -122,30 +122,3 @@ class TestCLIDefaults:
         assert "default: 2" in result.stdout
 
 
-class TestBackfillScript:
-    """Test backfill script has required functions."""
-
-    def test_backfill_functions_exist(self):
-        """Backfill module has required functions."""
-        from scripts.research_pipeline.maintenance.backfill_legacy_analyses import (
-            get_unprocessed_groups,
-            insert_analysis_record,
-            backfill_legacy_analyses,
-        )
-
-        assert callable(get_unprocessed_groups)
-        assert callable(insert_analysis_record)
-        assert callable(backfill_legacy_analyses)
-
-    def test_backfill_help(self):
-        """Backfill script --help works."""
-        result = subprocess.run(
-            ["python3", "-m", "scripts.research_pipeline.maintenance.backfill_legacy_analyses", "--help"],
-            capture_output=True,
-            text=True,
-            cwd=BACKEND_DIR,
-            timeout=30,
-        )
-        assert result.returncode == 0
-        assert "--dry-run" in result.stdout
-        assert "--limit" in result.stdout

@@ -25,7 +25,7 @@ from .queries import (
 )
 
 # Import raw ancestors for optimization
-from scripts.local_summarization.db_queries import get_ancestors_batch
+from shared_utils import get_ancestors_batch
 
 
 # =============================================================================

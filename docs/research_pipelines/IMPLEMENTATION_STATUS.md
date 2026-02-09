@@ -565,7 +565,8 @@ backend/scripts/research_pipeline/
 
     # Maintenance scripts
     maintenance/
-        backfill_legacy_analyses.py
+        recovery.py              # Pipeline recovery/retry utility
+        # backfill_legacy_analyses.py → moved to backend/scripts/_legacy/
 
     # Models
     models/

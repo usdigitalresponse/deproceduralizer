@@ -39,7 +39,7 @@ from .queries import (
 )
 
 # Import raw ancestors function for optimization
-from scripts.local_summarization.db_queries import get_ancestors_batch
+from shared_utils import get_ancestors_batch
 
 # Import fetcher (will be created next)
 # We need to import it dynamically to avoid circular imports
