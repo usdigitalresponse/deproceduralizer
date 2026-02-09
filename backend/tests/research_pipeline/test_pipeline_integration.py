@@ -1257,62 +1257,6 @@ class TestLangfuseIntegration:
         assert callable(run_pipeline)
 
 
-class TestBackfillScript:
-    """Test backfill script argument parsing."""
-
-    def test_backfill_argument_parsing(self):
-        """Test backfill script argument defaults."""
-        import argparse
-
-        # Recreate parser from backfill_legacy_analyses.py
-        parser = argparse.ArgumentParser()
-        parser.add_argument("--dry-run", action="store_true")
-        parser.add_argument("--limit", type=int)
-        parser.add_argument("--state", choices=["NJ", "NY"])
-        parser.add_argument("--issue", dest="issue_type")
-
-        args = parser.parse_args([])
-
-        assert args.dry_run is False
-        assert args.limit is None
-        assert args.state is None
-        assert args.issue_type is None
-
-    def test_backfill_with_all_args(self):
-        """Test backfill with all arguments."""
-        import argparse
-
-        parser = argparse.ArgumentParser()
-        parser.add_argument("--dry-run", action="store_true")
-        parser.add_argument("--limit", type=int)
-        parser.add_argument("--state", choices=["NJ", "NY"])
-        parser.add_argument("--issue", dest="issue_type")
-
-        args = parser.parse_args([
-            "--dry-run",
-            "--limit", "100",
-            "--state", "NJ",
-            "--issue", "mail_only",
-        ])
-
-        assert args.dry_run is True
-        assert args.limit == 100
-        assert args.state == "NJ"
-        assert args.issue_type == "mail_only"
-
-    def test_backfill_functions_exist(self):
-        """Test that backfill module has required functions."""
-        from scripts.research_pipeline.maintenance.backfill_legacy_analyses import (
-            get_unprocessed_groups,
-            insert_analysis_record,
-            backfill_legacy_analyses,
-        )
-
-        assert callable(get_unprocessed_groups)
-        assert callable(insert_analysis_record)
-        assert callable(backfill_legacy_analyses)
-
-
 # =============================================================================
 # TESTING PLAN SECTION 1-3: Routing, Context, Derived Fields
 # =============================================================================

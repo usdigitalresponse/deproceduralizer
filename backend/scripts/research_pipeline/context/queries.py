@@ -20,7 +20,7 @@ from shared_utils import get_db_connection
 from scripts.research_pipeline.db.connection import retry_db_operation
 
 # Import existing batch queries
-from scripts.local_summarization.db_queries import get_ancestors_batch
+from shared_utils import get_ancestors_batch
 
 # Import Pydantic models
 from scripts.research_pipeline.models.context import (
