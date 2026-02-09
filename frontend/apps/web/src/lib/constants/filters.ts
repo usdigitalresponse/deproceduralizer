@@ -280,14 +280,12 @@ export const HAS_IBR_FILTER_OPTIONS = [
 // Analysis Tier Options (Research Pipeline)
 // ============================================
 
-// V5: 3 tiers. '4' kept for legacy V4 data.
 const TIER_FILTER_LABELS: Record<(typeof TIER_FILTER_VALUES)[number], string> = {
   all: 'All Tiers',
   '0': 'Not Analyzed',
   '1': 'Tier 1 (Match Filtering)',
   '2': 'Tier 2 (Full Classification)',
   '3': 'Tier 3 (Web Search)',
-  '4': 'Tier 4 (V4 Legacy)',
 };
 
 export const TIER_FILTER_OPTIONS = createFilterOptions(TIER_FILTER_VALUES, TIER_FILTER_LABELS);

@@ -45,7 +45,7 @@ export async function getAnalysisTierStats(
         ]);
 
         const total = tierCounts.tier0 + tierCounts.tier1 + tierCounts.tier2 +
-                      tierCounts.tier3 + tierCounts.tier4;
+                      tierCounts.tier3;
 
         return { tierCounts, classificationBreakdown, total };
       },
