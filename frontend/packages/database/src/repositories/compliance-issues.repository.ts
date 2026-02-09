@@ -370,6 +370,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         state: complianceIssues.state,
         createdAt: complianceIssues.createdAt,
         analysisId: complianceIssues.analysisId,
+        runId: complianceIssues.runId,
         // Analysis-sourced fields (PR 6.2)
         requirementFound: complianceIssueAnalyses.requirementFound,
         verbatimSupportingText: complianceIssueAnalyses.verbatimRequirements,
@@ -528,17 +529,21 @@ export class ComplianceIssuesRepository extends BaseRepository {
   }
 
   /**
-   * Get counts by issue type
+   * Get counts by issue type.
+   * PR 6.3: Counts confirmed analyses (requirement_found = TRUE) instead of raw regex matches.
    */
   async getCountsByType(state: StateCode): Promise<Record<string, number>> {
     const result = await this.db
       .select({
-        issueType: complianceIssues.issueType,
+        issueType: complianceIssueAnalyses.issueType,
         count: sql<number>`count(*)::int`,
       })
-      .from(complianceIssues)
-      .where(eq(complianceIssues.state, state.toUpperCase()))
-      .groupBy(complianceIssues.issueType);
+      .from(complianceIssueAnalyses)
+      .where(and(
+        eq(complianceIssueAnalyses.state, state.toUpperCase()),
+        eq(complianceIssueAnalyses.requirementFound, true)
+      ))
+      .groupBy(complianceIssueAnalyses.issueType);
 
     const counts: Record<string, number> = {};
     for (const row of result) {
@@ -716,6 +721,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         regexMatchContext: complianceIssues.regexMatchContext,
         url: complianceIssues.url,
         analysisId: complianceIssues.analysisId,
+        runId: complianceIssues.runId,
         // Analysis fields — sourced from compliance_issue_analyses (PR 6.2)
         requirementFound: complianceIssueAnalyses.requirementFound,
         verbatimSupportingText: complianceIssueAnalyses.verbatimRequirements,
@@ -795,6 +801,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       regexMatchContext: row.regexMatchContext,
       url: row.url,
       analysisId: row.analysisId ?? null,
+      runId: row.runId ?? null,
       requirementFound: row.requirementFound,
       verbatimSupportingText: row.verbatimSupportingText,
       isVerbatim: row.isVerbatim,
@@ -1007,6 +1014,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         regexMatchContext: complianceIssues.regexMatchContext,
         url: complianceIssues.url,
         analysisId: complianceIssues.analysisId,
+        runId: complianceIssues.runId,
         // Analysis fields — sourced from compliance_issue_analyses (PR 6.2)
         requirementFound: complianceIssueAnalyses.requirementFound,
         verbatimSupportingText: complianceIssueAnalyses.verbatimRequirements,
@@ -1070,6 +1078,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       regexMatchContext: row.regexMatchContext,
       url: row.url,
       analysisId: row.analysisId ?? null,
+      runId: row.runId ?? null,
       requirementFound: row.requirementFound ?? false,
       verbatimSupportingText: row.verbatimSupportingText ?? [],
       isVerbatim: row.isVerbatim ?? null,
@@ -1167,6 +1176,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         regexMatchContext: complianceIssues.regexMatchContext,
         url: complianceIssues.url,
         analysisId: complianceIssues.analysisId,
+        runId: complianceIssues.runId,
         // Analysis fields — sourced from compliance_issue_analyses (PR 6.2)
         requirementFound: complianceIssueAnalyses.requirementFound,
         verbatimSupportingText: complianceIssueAnalyses.verbatimRequirements,
@@ -1227,6 +1237,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       regexMatchContext: row.regexMatchContext,
       url: row.url,
       analysisId: row.analysisId ?? null,
+      runId: row.runId ?? null,
       requirementFound: row.requirementFound ?? false,
       verbatimSupportingText: row.verbatimSupportingText ?? [],
       isVerbatim: row.isVerbatim ?? null,
@@ -1659,6 +1670,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         regexMatchContext: complianceIssues.regexMatchContext,
         url: complianceIssues.url,
         analysisId: complianceIssues.analysisId,
+        runId: complianceIssues.runId,
         // Analysis fields — sourced from compliance_issue_analyses (PR 6.2)
         requirementFound: complianceIssueAnalyses.requirementFound,
         verbatimSupportingText: complianceIssueAnalyses.verbatimRequirements,
@@ -1720,6 +1732,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       regexMatchContext: row.regexMatchContext,
       url: row.url,
       analysisId: row.analysisId ?? null,
+      runId: row.runId ?? null,
       requirementFound: row.requirementFound ?? false,
       verbatimSupportingText: row.verbatimSupportingText ?? [],
       isVerbatim: row.isVerbatim ?? null,

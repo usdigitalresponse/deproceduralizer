@@ -28,6 +28,8 @@ export const complianceIssues = pgTable('compliance_issues', {
   state: varchar('state', { length: 2 }).notNull(), // 'NY' or 'NJ'
   createdAt: timestamp('created_at').defaultNow(),
 
+  runId: varchar('run_id', { length: 32 }),
+
   // FK to document-level analysis (PR 6.5: replaces composite JOIN on document_id+issue_type)
   analysisId: bigint('analysis_id', { mode: 'number' }).references(() => complianceIssueAnalyses.id, { onDelete: 'set null' }),
 }, (table) => ({

@@ -24,6 +24,7 @@ export const analyses = pgTable('analyses', {
   maxSeverity: integer('max_severity'),
   numFlags: integer('num_flags').default(0),
   isCurrent: boolean('is_current').default(true),
+  runId: varchar('run_id', { length: 32 }),
 });
 
 export type Analysis = typeof analyses.$inferSelect;
