@@ -51,7 +51,7 @@ class TestPromptLoaderUnit:
 
         tiers = load_all_tier_configs()
 
-        # V5 uses 3-tier architecture (tier4 was consolidated into tier3)
+        # 3-tier architecture: tier1 (filtering), tier2 (classification), tier3 (web search)
         assert len(tiers) >= 3
         assert "tier1" in tiers
         assert "tier2" in tiers

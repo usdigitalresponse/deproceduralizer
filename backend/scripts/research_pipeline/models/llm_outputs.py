@@ -10,8 +10,7 @@ V5 Architecture: 3-Tier Pipeline
 - Tier 2: Summary-Based Research (batch/realtime API) - produces classification
 - Tier 3: Web Search Verification (realtime API) - validates via web search
 
-Note: V4 had 4 tiers with "needs_full_context" routing from Tier 2 to Tier 3.
-V5 simplified to 3 tiers where Tier 2 must produce a final classification.
+Tier 2 must produce a final classification; Tier 3 validates via web search.
 """
 
 import json
@@ -316,7 +315,7 @@ class Tier3Output(BaseModel):
 
     This is the final tier. Performs web search to verify findings
     and can adjust classification and severity based on web results.
-    Merges old Tier 3 (full context) and Tier 4 (web search).
+    Validates findings via web search and can adjust classification/severity.
     """
     # Final classification (no "needs_full_context" - Tier 3 must decide)
     classification: Literal["unrelated", "justified", "burdensome"] = Field(
@@ -427,7 +426,7 @@ class Tier3Output(BaseModel):
         description="Effort level: trivial (text change), easy (reference existing auth), medium (new system)"
     )
 
-    # Federal mandate verification (backward compat with old Tier 4)
+    # Federal mandate verification
     federal_mandate_found: bool = Field(
         default=False,
         description="True if web search confirmed federal mandate"
@@ -480,4 +479,3 @@ class Tier3Output(BaseModel):
         return self
 
 
-# V5: Tier4Output is deleted - web search is now in Tier 3
