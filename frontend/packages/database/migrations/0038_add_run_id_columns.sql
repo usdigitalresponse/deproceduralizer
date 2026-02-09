@@ -1,6 +1,3 @@
--- STATUS: PENDING - Not yet applied to live Neon DB.
--- After applying, add run_id to Drizzle schema files (analyses.ts, compliance-issues.ts)
-
 -- Migration: Add run_id columns to analysis tables
 -- Purpose: Enable tracking which pipeline run produced each analysis result
 -- Date: 2025-01-01
