@@ -142,7 +142,8 @@ Beyond the core tables (`regulatory_documents`, `analyses`, `red_flags`, `statut
 | Table | Purpose |
 |-------|---------|
 | `definitions` | Extracted regulatory terms with scope tracking (28k+ records) |
-| `compliance_issues` | Compliance violations by type (wet_signature, mail_only, etc.) |
+| `compliance_issues` | Regex-matched compliance issue candidates (links to `compliance_issue_analyses` for LLM analysis + review) |
+| `compliance_issue_analyses` | LLM analysis results + human review for compliance issues (one per document + issue type) |
 | `definition_document_occurrences` | Many-to-many tracking of where terms appear |
 | `incorporations_by_reference` | External standards (NFPA, ICC, ASTM) referenced in regulations |
 | `cross_references` | Internal citations between regulatory documents (NYCRR, NJAC refs) |
@@ -165,8 +166,10 @@ ORDER BY term;
 
 ### Count compliance issues by type
 ```sql
+-- Note: requirement_found is on compliance_issue_analyses (not compliance_issues)
+-- compliance_issues = regex match store, compliance_issue_analyses = LLM analysis + review
 SELECT issue_type, COUNT(*) as count
-FROM compliance_issues
+FROM compliance_issue_analyses
 WHERE requirement_found = true AND state = 'NJ'
 GROUP BY issue_type
 ORDER BY count DESC;

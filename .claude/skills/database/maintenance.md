@@ -108,7 +108,7 @@ WHERE d.document_id IS NOT NULL
 AND NOT EXISTS (SELECT 1 FROM regulatory_documents rd WHERE rd.id = d.document_id);
 ```
 
-## Known Unused Columns (Dec 2025, verified Dec 26)
+## Known Unused Columns (Dec 2025, verified Dec 26, 2025)
 
 **Completely empty:**
 - `statute_references` - entire table (0 rows)

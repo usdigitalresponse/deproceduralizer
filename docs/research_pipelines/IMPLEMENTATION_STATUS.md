@@ -3,7 +3,7 @@
 > **Version:** V5 (3-Tier Pipeline with Proactive Context + Argument Framing)
 > **Last Updated:** 2026-02-08
 >
-> **Note:** The pipeline was significantly simplified in Feb 2026 (see `docs/PIPELINE_SIMPLIFICATION_PLAN.md`).
+> **Note:** The pipeline was significantly simplified in Feb 2026 (see `docs/archive/PIPELINE_SIMPLIFICATION_PLAN.md`).
 > V4 backward-compatibility code was fully removed in Feb 2026 (tier4 columns dropped, V4 filter options removed).
 > The current file structure is in the "File Structure (Current)" section at the bottom.
 
@@ -481,7 +481,7 @@ The `encrypted_content` in `web_search_tool_result` blocks is only decrypted for
 
 ## File Structure (Current)
 
-Updated February 2026 after pipeline simplification (see `docs/PIPELINE_SIMPLIFICATION_PLAN.md`).
+Updated February 2026 after pipeline simplification (see `docs/archive/PIPELINE_SIMPLIFICATION_PLAN.md`).
 
 ### Module Layout
 
@@ -550,7 +550,7 @@ backend/scripts/research_pipeline/
 
 prompts/
     research_pipeline.yaml   # V5 tier prompts
-    compliance_issues.yaml   # 43 issue-specific configs (patterns + prompts)
+    compliance_issues.yaml   # 41 issue-specific configs (patterns + prompts)
 ```
 
 ### Deleted in Simplification (Feb 2026)
