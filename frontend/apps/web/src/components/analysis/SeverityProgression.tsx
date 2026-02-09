@@ -5,7 +5,6 @@ import { useState } from 'react';
 interface SeverityProgressionProps {
   baseSeverity: number | null;
   tier3Adjustment: number | null;
-  tier4Adjustment: number | null;
   finalSeverity: number | null;
   tier2Calculation?: string | null;
   tier3Reasoning?: string | null;
@@ -14,7 +13,6 @@ interface SeverityProgressionProps {
 export function SeverityProgression({
   baseSeverity,
   tier3Adjustment,
-  tier4Adjustment,
   finalSeverity,
   tier2Calculation,
   tier3Reasoning,
@@ -45,15 +43,6 @@ export function SeverityProgression({
       label: 'Web Search',
       value: actualT3Adjustment > 0 ? `+${actualT3Adjustment}` : String(actualT3Adjustment),
       delta: actualT3Adjustment,
-    });
-  }
-
-  // V4 legacy: if tier4Adjustment provided and different from tier3
-  if (tier4Adjustment !== null && tier4Adjustment !== 0 && tier4Adjustment !== tier3Adjustment) {
-    steps.push({
-      label: 'T4 (Legacy)',
-      value: tier4Adjustment > 0 ? `+${tier4Adjustment}` : String(tier4Adjustment),
-      delta: tier4Adjustment,
     });
   }
 

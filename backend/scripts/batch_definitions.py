@@ -45,21 +45,11 @@ from difflib import SequenceMatcher
 # Add backend directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import PROJECT_ROOT, OUTPUTS_DIR
-from shared_utils import (
-    get_db_connection,
-    get_openai_client,
-    get_async_openai_client,
-    call_llm_parse,
-    call_llm_parse_async,
-    format_batch_request,
-    load_prompt,
-    load_prompt_parts,
-    normalize_scope_level,
-    format_time,
-    get_filtered_documents,
-    get_already_extracted_ids,
-    DEFAULT_MODEL,
-)
+from lib.db import get_db_connection, normalize_scope_level, get_filtered_documents, get_already_extracted_ids
+from lib.llm import get_anthropic_client, get_async_anthropic_client, call_llm_parse, call_llm_parse_async, DEFAULT_MODEL
+from lib.batch import format_batch_request
+from lib.prompts import load_prompt, load_prompt_parts
+from lib.stats import format_time
 
 load_dotenv(PROJECT_ROOT / '.env')
 
@@ -271,7 +261,7 @@ def extract_with_llm(
 ) -> List[Dict]:
     """Extract definitions using LLM with Pydantic structured output (sync)."""
     if client is None:
-        client = get_openai_client()
+        client = get_anthropic_client()
 
     # Use load_prompt_parts to get both system and user prompts, DO NOT TRUNCATE the content
     parts = load_prompt_parts("definition_extraction", title=title, content=content)
@@ -302,7 +292,7 @@ async def extract_with_llm_async(
 ) -> List[Dict]:
     """Extract definitions using LLM with Pydantic structured output (async)."""
     if client is None:
-        client = get_async_openai_client()
+        client = get_async_anthropic_client()
 
     # Use load_prompt_parts to get both system and user prompts, DO NOT TRUNCATE the content
     parts = load_prompt_parts("definition_extraction", title=title, content=content)
@@ -833,7 +823,7 @@ def cmd_submit(args):
     # Submit batch
     print(f"[3/3] Submitting to Anthropic Batch API...")
 
-    client = get_openai_client()
+    client = get_anthropic_client()
     try:
         batch = client.beta.messages.batches.create(requests=requests)
         batch_api_id = batch.id
@@ -885,7 +875,7 @@ def cmd_status(args):
     print("=" * 70)
     print()
 
-    client = get_openai_client()
+    client = get_anthropic_client()
 
     # If specific batch ID provided
     if args.batch_id:
@@ -1022,7 +1012,7 @@ def cmd_process(args):
 
     # Check batch status
     print("[1/4] Checking batch status...")
-    client = get_openai_client()
+    client = get_anthropic_client()
 
     try:
         batch = client.beta.messages.batches.retrieve(batch_id)
@@ -1385,7 +1375,7 @@ def cmd_resume(args):
     # Submit new batch
     print(f"[2/2] Submitting retry batch...")
 
-    client = get_openai_client()
+    client = get_anthropic_client()
     try:
         batch = client.beta.messages.batches.create(requests=requests)
         new_batch_id = batch.id
@@ -1610,7 +1600,7 @@ def cmd_continue(args):
     # Submit batch
     print(f"[3/3] Submitting to Anthropic Batch API...")
 
-    client = get_openai_client()
+    client = get_anthropic_client()
     try:
         batch = client.beta.messages.batches.create(requests=requests)
         batch_api_id = batch.id

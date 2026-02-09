@@ -1,11 +1,11 @@
-# Research Pipeline V5 Implementation Status
+# Research Pipeline Implementation Status
 
-> **Version:** V5 (Proactive Context + Argument Framing)
-> **Last Updated:** 2026-02-04
+> **Version:** V5 (3-Tier Pipeline with Proactive Context + Argument Framing)
+> **Last Updated:** 2026-02-08
 >
-> **Note:** The pipeline was significantly simplified in Feb 2026 (see `docs/PIPELINE_SIMPLIFICATION_PLAN.md`).
-> Many V4 files referenced below have been deleted or replaced. The current file structure is in the
-> "File Structure (Current)" section at the bottom.
+> **Note:** The pipeline was significantly simplified in Feb 2026 (see `docs/archive/PIPELINE_SIMPLIFICATION_PLAN.md`).
+> V4 backward-compatibility code was fully removed in Feb 2026 (tier4 columns dropped, V4 filter options removed).
+> The current file structure is in the "File Structure (Current)" section at the bottom.
 
 ## Status Overview
 
@@ -18,45 +18,24 @@
 | 4 | Context Builder Refactor | ✅ Complete | Proactive filtering, summary fallback |
 | 5 | Tier 1 Refactor | ✅ Complete | Argument framing, recommendations, V5 fields |
 | 6 | Tier 2 Refactor | ✅ Complete | T1→T2 handoff + re-run mechanics |
-| 7 | Tier 3 Refactor | ✅ Complete | Merged Tier 4 into Tier 3 (3-tier pipeline) |
+| 7 | Tier 3 Refactor | ✅ Complete | 3-tier pipeline (web search in Tier 3) |
 | 8 | CLI & Integration | ✅ Complete | 3-tier flow, all 237 tests pass |
 | 9 | Tier 3 Web Search | ✅ Complete | Single-call approach, state localization |
 
 ---
 
-## V4 → V5 Refactor Overview
+## Architecture Overview
 
-**This is a refactor, not a greenfield implementation.** V4 code exists and works.
+### Key Design Decisions
 
-### What Existed (V4) — Now Simplified
-
-> These V4 files were refactored/deleted during pipeline simplification (Feb 2026).
-> See `docs/PIPELINE_SIMPLIFICATION_PLAN.md` for the full history.
-
-| Component | V4 Location | Current Location |
-|-----------|-------------|-----------------|
-| Backend pipeline | `backend/scripts/research_pipeline/` | Same (simplified) |
-| Pydantic models | `models/` | `models/` (unchanged) |
-| Context builder | `context_builder.py` (facade) | `context/` subpackage |
-| Tier runners | `tier_runners.py` (facade) | `tiers/` subpackage |
-| Orchestrator | `tier_orchestrator.py` (class) | `pipeline_runner.py` (flat functions) |
-| DB writer | `db_writer.py` (facade) | `db/` subpackage |
-| CLI | `cli.py` | `cli.py` (simplified flags) |
-| Prompts | `prompts/research_pipeline.yaml` | Same |
-| Issue configs | `prompts/compliance_issues.yaml` | Same (43 issue types) |
-| DB schema | `compliance_issue_analyses` table | Same (V5 columns) |
-| Batch persistence | `batch_persistence.py` | **Deleted** — resume via DB |
-
-### Key V5 Changes
-
-| Area | V4 Approach | V5 Approach | Current Location |
-|------|-------------|-------------|-----------------|
-| Context gathering | Reactive (LLM requests) | Proactive (keyword filter) | `context/proactive.py` |
-| Argument framing | None | Tier 1 outputs `best_argument_*` | `tiers/tier1_runner.py`, prompts |
-| Tier structure | 4 tiers | 3 tiers (merge T3+T4) | `pipeline_runner.py`, `state_machine.py` |
-| Re-runs | Not tracked | `rerun_count`, `forced_classification` | `tiers/tier2_runner.py`, `db/analysis_writer.py` |
-| Summary fallback | None | Truncated content when no summary | `context/proactive.py` |
-| Tier 3 triggers | Various thresholds | Canonical: ≥7 claims_no_alt, ≥8 burdensome | `routing.py` |
+| Area | Approach | Current Location |
+|------|----------|-----------------|
+| Context gathering | Proactive (keyword filter) | `context/proactive.py` |
+| Argument framing | Tier 1 outputs `best_argument_*` | `tiers/tier1_runner.py`, prompts |
+| Tier structure | 3 tiers (filtering → classification → web search) | `pipeline_runner.py`, `state_machine.py` |
+| Re-runs | `rerun_count`, `forced_classification` | `tiers/tier2_runner.py`, `db/analysis_writer.py` |
+| Summary fallback | Truncated content when no summary | `context/proactive.py` |
+| Tier 3 triggers | Canonical: ≥7 claims_no_alt, ≥8 burdensome | `routing.py` |
 
 ---
 
@@ -93,7 +72,7 @@ V5 architecture documentation created:
 | [DATA_MODELS.md](./DATA_MODELS.md) | Pydantic model specifications |
 | [IMPLEMENTATION_STATUS.md](./IMPLEMENTATION_STATUS.md) | This document |
 
-V4 documentation archived to `archive/v4-progressive-disclosure/`.
+V4 documentation was previously archived to `archive/v4-progressive-disclosure/` and has since been deleted.
 
 ---
 
@@ -114,14 +93,11 @@ V4 documentation archived to `archive/v4-progressive-disclosure/`.
 - `tier2_context_requests_made` (JSONB) - what was requested and why
 - `tier2_forced_classification` (BOOLEAN) - true if max re-runs exceeded
 
-**Update tier3/tier4 columns:**
-- V5 Tier 3 = Web verification (was V4 Tier 4)
-- Rename tier4 columns to align with V5 naming
+**Update tier3 columns:**
+- Tier 3 = Web verification
 - Add `tier3_flags` (JSONB) for EvidencedFlags
 
-**Backward compatibility:**
-- Keep `pipeline_version` column to distinguish V4 vs V5 results
-- Don't drop V4 columns immediately (can clean up later)
+**Note:** V4 tier4 columns were dropped in migration 0040. `pipeline_version` column retained to identify migrated data (`'v4-migrated'`).
 
 ### Tasks
 
@@ -378,20 +354,17 @@ V4 documentation archived to `archive/v4-progressive-disclosure/`.
 
 | File | Changes |
 |------|---------|
-| `state_machine.py` | Removed TIER4 states, TIER3_COMPLETE → DONE |
-| `models/llm_outputs.py` | Merged Tier4Output into Tier3Output, added EvidencedFlag |
-| `models/database.py` | Deleted ComplianceIssueTier4Update |
-| `models/inputs.py` | Deleted Tier4Input |
-| `tiers/` (was `tier_runners.py`) | Renamed run_tier4_realtime → run_tier3_realtime, deleted prepare_tier3_batch |
-| `pipeline_runner.py` (was `tier_orchestrator.py`) | Removed _run_tier4(), updated _run_tier3() to use real-time API |
-| `db/analysis_writer.py` (was `db_writer.py`) | Deleted save_tier4_results(), added web columns to save_tier3_results() |
-| `result_processor.py` | tier3_output is now final tier |
+| `state_machine.py` | 3-tier states only, TIER3_COMPLETE → DONE |
+| `models/llm_outputs.py` | Tier3Output with EvidencedFlag |
+| `models/database.py` | ComplianceIssueTier3Update only |
+| `tiers/` | `run_tier3_realtime()` for web search |
+| `pipeline_runner.py` | `_run_tier3()` uses real-time API |
+| `db/analysis_writer.py` | `save_tier3_results()` includes web columns |
+| `result_processor.py` | tier3_output is final tier |
 | `cost_tracker.py` | Tier 3 uses real-time API (no batch discount) |
 | `prompt_loader.py` | Only loads tiers 1-3 |
-| `__init__.py` | Updated exports |
-| `models/__init__.py` | Updated exports |
 
-### V5 Canonical Tier 3 Triggers
+### Canonical Tier 3 Triggers
 
 ```python
 # High-risk issue types (require severity >= 6 to trigger)
@@ -422,8 +395,7 @@ if tier2.federal_mandate_suspected:
 
 ### Tasks
 
-- [x] Merge Tier 4 logic into Tier 3
-- [x] Remove old Tier 3 batch code
+- [x] Consolidate web search into Tier 3
 - [x] Update trigger thresholds
 - [x] Add `mandated_reports` to issue type triggers
 - [x] Update db_writer to use tier3 columns for web results
@@ -509,7 +481,7 @@ The `encrypted_content` in `web_search_tool_result` blocks is only decrypted for
 
 ## File Structure (Current)
 
-Updated February 2026 after pipeline simplification (see `docs/PIPELINE_SIMPLIFICATION_PLAN.md`).
+Updated February 2026 after pipeline simplification (see `docs/archive/PIPELINE_SIMPLIFICATION_PLAN.md`).
 
 ### Module Layout
 
@@ -578,7 +550,7 @@ backend/scripts/research_pipeline/
 
 prompts/
     research_pipeline.yaml   # V5 tier prompts
-    compliance_issues.yaml   # 43 issue-specific configs (patterns + prompts)
+    compliance_issues.yaml   # 41 issue-specific configs (patterns + prompts)
 ```
 
 ### Deleted in Simplification (Feb 2026)

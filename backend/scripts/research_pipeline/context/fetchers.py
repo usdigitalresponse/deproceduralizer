@@ -14,10 +14,7 @@ from pathlib import Path
 
 # Add backend to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
-from shared_utils import get_db_connection
-
-# Import existing batch queries
-from shared_utils import get_ancestors_batch
+from lib.db import get_db_connection, get_ancestors_batch
 
 # Import Pydantic models
 from scripts.research_pipeline.models.context import ContextRequest

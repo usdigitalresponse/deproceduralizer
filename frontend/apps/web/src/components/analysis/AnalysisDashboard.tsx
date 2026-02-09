@@ -59,8 +59,7 @@ export function AnalysisDashboard({
           <div className="text-2xl font-bold text-[var(--color-warning)]">
             {(
               (classificationBreakdown.tier2['burdensome'] || 0) +
-              (classificationBreakdown.tier3['burdensome'] || 0) +
-              (classificationBreakdown.tier4['burdensome'] || 0)
+              (classificationBreakdown.tier3['burdensome'] || 0)
             ).toLocaleString()}
           </div>
         </div>
@@ -70,8 +69,7 @@ export function AnalysisDashboard({
           <div className="text-2xl font-bold text-[var(--color-success)]">
             {(
               (classificationBreakdown.tier2['justified'] || 0) +
-              (classificationBreakdown.tier3['justified'] || 0) +
-              (classificationBreakdown.tier4['justified'] || 0)
+              (classificationBreakdown.tier3['justified'] || 0)
             ).toLocaleString()}
           </div>
         </div>

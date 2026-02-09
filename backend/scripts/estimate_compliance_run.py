@@ -19,7 +19,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from dotenv import load_dotenv
 load_dotenv(PROJECT_ROOT / '.env')
 
-from shared_utils import get_db_connection
+from lib.db import get_db_connection
 from compliance_issues.config import STATES, ISSUE_TYPES
 
 

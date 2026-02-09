@@ -49,7 +49,7 @@ Cornell Law Website
 deproceduralizer/
 ├── backend/                          # Python backend
 │   ├── config.py                     # Path configuration
-│   ├── shared_utils.py               # DB, LLM, parsing utilities
+│   ├── lib/                          # DB, LLM, parsing utilities (split modules)
 │   ├── requirements.txt              # Python dependencies
 │   └── scripts/                      # Executable scripts
 │       ├── ny_regulations_scraper.py # NY scraper (includes DB migration)
@@ -148,7 +148,7 @@ cd frontend/apps/web
 pnpm dev
 ```
 
-Open http://localhost:3000
+Open http://localhost:3010
 
 ## Backend Scripts
 
@@ -161,7 +161,7 @@ Open http://localhost:3000
 
 ### Data Processing
 
-The scrapers handle migration automatically via `shared_utils.migrate_regulations_to_db()`:
+The scrapers handle migration automatically via `lib.migration.migrate_regulations_to_db()`:
 - Imports scraped JSON into PostgreSQL
 - Creates `regulatory_documents` records with hierarchy
 - Handles re-runs safely with `ON CONFLICT`
@@ -178,7 +178,7 @@ The scrapers handle migration automatically via `shared_utils.migrate_regulation
 | `red_flags.py` | LLM-powered analysis identifying 12 categories of implementation red flags. Uses Claude API with structured output. |
 | `batch_definitions.py` | Batch LLM-powered definition extraction with caching and progress tracking. |
 | `link_definitions.py` | Link extracted definitions to documents where terms appear. |
-| `scan_compliance_issues.py` | Regex compliance issue detection (43 issue types). No LLM — regex only. |
+| `scan_compliance_issues.py` | Regex compliance issue detection (41 issue types). No LLM — regex only. |
 | `research_pipeline/cli.py` | 3-tier LLM analysis pipeline (Tier 1 filter → Tier 2 classify → Tier 3 web verify). |
 | `backfill_definition_scope.py` | Fix incomplete definition scopes. |
 
@@ -246,7 +246,7 @@ Based on Jennifer Pahlka's framework:
 - Links to source regulations with citations
 
 **Compliance Issues**
-- 40+ issue types (wet signatures, mail-only, certified mail, fax, obsolete tech, etc.)
+- 41 issue types (wet signatures, mail-only, certified mail, fax, obsolete tech, etc.)
 - Regex-based candidate detection with LLM verification
 - Statute attribution (from_statute flag indicates if requirement is in statute or regulation-added)
 
@@ -282,7 +282,7 @@ Based on Jennifer Pahlka's framework:
 - Review and developer workflow fields
 
 **compliance_issues**
-- Regex-matched compliance issue candidates (40+ types)
+- Regex-matched compliance issue candidates (41 types)
 - Links to `compliance_issue_analyses` via `analysis_id` FK
 
 **compliance_issue_analyses**
@@ -311,7 +311,7 @@ python backend/scripts/red_flags.py --help
 ```bash
 cd frontend/apps/web
 
-pnpm dev      # Start dev server (http://localhost:3000)
+pnpm dev      # Start dev server (http://localhost:3010)
 pnpm build    # Production build
 pnpm lint     # Run ESLint
 

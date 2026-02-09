@@ -59,7 +59,6 @@ interface TierClassificationFlowProps extends HTMLAttributes<HTMLDivElement> {
   tier1Classification?: string | null;
   tier2Classification?: string | null;
   tier3Classification?: string | null;
-  tier4Classification?: string | null;
   /** Compact mode shows abbreviated labels */
   compact?: boolean;
 }
@@ -92,20 +91,17 @@ export function TierClassificationFlow({
   tier1Classification,
   tier2Classification,
   tier3Classification,
-  tier4Classification, // Legacy V4 - maps to T3 display
   compact = false,
   className = '',
   ...props
 }: TierClassificationFlowProps) {
-  // V5: 3 tiers. For T3, prefer tier3Classification, fall back to tier4Classification for V4 legacy data
   const tiers = [
     { number: 1, label: 'T1', classification: tier1Classification },
     { number: 2, label: 'T2', classification: tier2Classification },
-    { number: 3, label: 'T3', classification: tier3Classification || tier4Classification },
+    { number: 3, label: 'T3', classification: tier3Classification },
   ];
 
-  // Normalize highestTierCompleted: V4's tier4 = V5's tier3
-  const normalizedHighest = highestTierCompleted >= 4 ? 3 : highestTierCompleted;
+  const normalizedHighest = highestTierCompleted;
 
   // No analysis at all
   if (normalizedHighest === 0) {

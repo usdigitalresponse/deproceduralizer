@@ -22,7 +22,7 @@ from pydantic import BaseModel
 # Load environment variables
 load_dotenv()
 
-from shared_utils import call_llm_parse, get_openai_client
+from lib.llm import call_llm_parse, get_anthropic_client
 from observability import LLMTraceContext, flush_langfuse
 
 
@@ -58,7 +58,7 @@ def test_observability():
     )
 
     # Create Anthropic client
-    client = get_openai_client()
+    client = get_anthropic_client()
     if not client:
         print("Error: Could not create Anthropic client. Check ANTHROPIC_API_KEY.")
         return False

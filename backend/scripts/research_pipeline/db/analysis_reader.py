@@ -11,7 +11,7 @@ from psycopg import Connection
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
-from shared_utils import get_db_connection
+from lib.db import get_db_connection
 
 from .connection import retry_db_operation
 

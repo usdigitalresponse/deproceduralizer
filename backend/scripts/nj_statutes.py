@@ -38,7 +38,8 @@ from config import (
     NJ_STATUTES_INDIVIDUAL_DIR,
     NJ_STATUTES_COMPLETE_FILE,
 )
-from shared_utils import get_db_connection, format_time
+from lib.db import get_db_connection
+from lib.stats import format_time
 from dotenv import load_dotenv
 
 load_dotenv(PROJECT_ROOT / '.env')

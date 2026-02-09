@@ -22,7 +22,7 @@ class TestBatchManagerLoadRequests:
 
     def test_load_requests_no_batches_dir(self):
         """load_requests returns empty dict when batches_dir is None."""
-        from shared_utils import BatchManager
+        from lib.batch import BatchManager
 
         # Create manager without batches_dir
         manager = BatchManager(batches_dir=None, client=Mock())
@@ -32,7 +32,7 @@ class TestBatchManagerLoadRequests:
 
     def test_load_requests_unknown_batch_id(self, tmp_path):
         """load_requests returns empty dict for unknown batch_id."""
-        from shared_utils import BatchManager
+        from lib.batch import BatchManager
 
         # Create manager with empty batches_dir
         manager = BatchManager(batches_dir=tmp_path, client=Mock())
@@ -42,7 +42,7 @@ class TestBatchManagerLoadRequests:
 
     def test_load_requests_via_mapping_file(self, tmp_path):
         """load_requests uses batch_mapping.json for fast lookup."""
-        from shared_utils import BatchManager
+        from lib.batch import BatchManager
 
         # Create batch directory with requests file
         batch_dir = tmp_path / "test_batch_20260108_123456"
@@ -68,7 +68,7 @@ class TestBatchManagerLoadRequests:
 
     def test_load_requests_fallback_to_find_batch_dir(self, tmp_path):
         """load_requests falls back to find_batch_dir when mapping doesn't exist."""
-        from shared_utils import BatchManager
+        from lib.batch import BatchManager
 
         # Create batch directory with batch_info.json (used by find_batch_dir)
         batch_dir = tmp_path / "test_batch_20260108_123456"
@@ -88,7 +88,7 @@ class TestBatchManagerLoadRequests:
 
     def test_load_requests_handles_missing_requests_file(self, tmp_path):
         """load_requests returns empty dict if requests.json doesn't exist."""
-        from shared_utils import BatchManager
+        from lib.batch import BatchManager
 
         # Create batch directory without requests.json
         batch_dir = tmp_path / "test_batch"
@@ -104,7 +104,7 @@ class TestBatchManagerLoadRequests:
 
     def test_load_requests_handles_corrupt_json(self, tmp_path):
         """load_requests returns empty dict on corrupt JSON files."""
-        from shared_utils import BatchManager
+        from lib.batch import BatchManager
 
         # Create batch directory with corrupt requests.json
         batch_dir = tmp_path / "test_batch"
@@ -130,7 +130,7 @@ class TestBatchManagerSubmitSavesRequests:
 
     def test_submit_batch_creates_requests_file(self, tmp_path):
         """submit_batch creates requests.json with custom_id -> request mapping."""
-        from shared_utils import BatchManager
+        from lib.batch import BatchManager
 
         # Mock the Anthropic client
         mock_client = Mock()
@@ -164,7 +164,7 @@ class TestBatchManagerSubmitSavesRequests:
 
     def test_submit_batch_creates_mapping_file(self, tmp_path):
         """submit_batch creates/updates batch_mapping.json."""
-        from shared_utils import BatchManager
+        from lib.batch import BatchManager
 
         mock_client = Mock()
         mock_batch = Mock()
@@ -185,7 +185,7 @@ class TestBatchManagerSubmitSavesRequests:
 
     def test_submit_then_load_round_trip(self, tmp_path):
         """Verify submitted requests can be loaded back."""
-        from shared_utils import BatchManager
+        from lib.batch import BatchManager
 
         mock_client = Mock()
         mock_batch = Mock()

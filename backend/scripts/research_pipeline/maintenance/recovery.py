@@ -11,7 +11,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Optional
 
-from shared_utils import get_db_connection
+from lib.db import get_db_connection
 from scripts.research_pipeline.ids import make_custom_id
 from scripts.research_pipeline.models.llm_outputs import Tier1Output, Tier2Output
 from scripts.research_pipeline.models.matches import ProcessingUnit, MatchInfo

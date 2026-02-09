@@ -18,7 +18,7 @@ from dotenv import load_dotenv
 from config import PROJECT_ROOT
 load_dotenv(PROJECT_ROOT / '.env')
 
-from shared_utils import get_db_connection
+from lib.db import get_db_connection
 from compliance_issues import STATES, ISSUE_TYPES
 
 

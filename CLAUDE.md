@@ -41,7 +41,7 @@ When working on the Next.js frontend, follow these patterns:
 ### LLM Prompts
 - All prompts are centralized in the `/prompts/` directory:
   - `prompts/core.yaml` - Core analysis prompts (red_flags, definitions)
-  - `prompts/compliance_issues.yaml` - All 43 compliance issue types with patterns and prompts
+  - `prompts/compliance_issues.yaml` - All 41 compliance issue types with patterns and prompts
 - Prompts have `system` (static, cached) and `template` (dynamic) sections
 - When adding/modifying prompts, update the appropriate file in `/prompts/`
 - **Important:** When modifying any prompt, update its `updated_at` field to today's date (YYYY-MM-DD format)
@@ -57,10 +57,9 @@ When working on the Next.js frontend, follow these patterns:
 - See `.claude/skills/regulatory-analysis/bad-regulation-patterns.md` for taxonomy of problematic regulatory patterns with real-world examples
 
 ### Pipeline Scripts
-- `run_pipeline.py` is the entry point for legacy/core analysis.
-- Use `scripts.research_pipeline.cli` for the advanced 4-tier compliance research.
+- Use `scripts.research_pipeline.cli` for the 3-tier compliance research.
 - When adding/removing backend scripts, update `docs/OPERATIONS.md`.
-- Scrapers handle migration automatically via `shared_utils.migrate_regulations_to_db()`.
+- Scrapers handle migration automatically via `lib.migration.migrate_regulations_to_db()`.
 
 ## Documentation Guidelines
 

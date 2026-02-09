@@ -118,8 +118,8 @@ export interface ComplianceIssueFilterOptions {
   severity?: 'high' | 'medium' | 'low' | 'all';
   requiredByStatute?: boolean | 'all';
   requirementFound?: boolean | 'all';
-  /** Filter by highest tier completed in research pipeline (0-4, or 'all') */
-  tierCompleted?: '0' | '1' | '2' | '3' | '4' | 'all';
+  /** Filter by highest tier completed in research pipeline (0-3, or 'all') */
+  tierCompleted?: '0' | '1' | '2' | '3' | 'all';
   /** Filter by federal mandate found in analysis */
   federalMandate?: boolean | 'all';
   /** Filter by whether analysis exists */
@@ -161,14 +161,13 @@ export interface ComplianceIssueStats {
 
 /**
  * Tier analysis data from compliance_issue_analyses table.
- * Represents the results of the 4-tier research pipeline.
+ * Represents the results of the 3-tier research pipeline.
  */
 export interface TierAnalysis {
   highestTierCompleted: number;
   tier1Classification: string | null;
   tier2Classification: string | null;
   tier3Classification: string | null;
-  tier4Classification: string | null;
   finalSeverity: number | null;
   verbatimRequirements: string[];
   argumentForRegulation: string | null;
@@ -197,7 +196,6 @@ export interface TierCompletionCounts {
   tier1: number;
   tier2: number;
   tier3: number;
-  tier4: number;
 }
 
 /**
@@ -207,7 +205,6 @@ export interface ClassificationBreakdown {
   tier1: Record<string, number>;
   tier2: Record<string, number>;
   tier3: Record<string, number>;
-  tier4: Record<string, number>;
 }
 
 /**
@@ -287,17 +284,10 @@ export interface FullAnalysisRecord {
     // V5 fields
     flags: Tier3Flags | null;
     evidenceGap: boolean;
-  } | null;
-
-  // Tier 4 data
-  tier4: {
-    classification: string | null;
-    severityAdjustment: number | null;
-    reasoning: string | null;
+    // Web search results
     webSearchSummary: string | null;
     federalMandateFound: boolean;
     stateHasDiscretion: boolean;
-    completedAt: Date | null;
   } | null;
 
   // Final derived fields
@@ -769,7 +759,6 @@ export class ComplianceIssuesRepository extends BaseRepository {
         analysisTier1: complianceIssueAnalyses.tier1Classification,
         analysisTier2: complianceIssueAnalyses.tier2Classification,
         analysisTier3: complianceIssueAnalyses.tier3Classification,
-        analysisTier4: complianceIssueAnalyses.tier4Classification,
         analysisFinalSeverity: complianceIssueAnalyses.finalSeverity,
         analysisVerbatimReqs: complianceIssueAnalyses.verbatimRequirements,
         analysisArgFor: complianceIssueAnalyses.argumentForRegulation,
@@ -848,7 +837,6 @@ export class ComplianceIssuesRepository extends BaseRepository {
         tier1Classification: row.analysisTier1,
         tier2Classification: row.analysisTier2,
         tier3Classification: row.analysisTier3,
-        tier4Classification: row.analysisTier4,
         finalSeverity: row.analysisFinalSeverity,
         verbatimRequirements: row.analysisVerbatimReqs ?? [],
         argumentForRegulation: row.analysisArgFor,
@@ -1810,7 +1798,6 @@ export class ComplianceIssuesRepository extends BaseRepository {
       tier1: 0,
       tier2: 0,
       tier3: 0,
-      tier4: 0,
     };
 
     for (const row of results) {
@@ -1822,8 +1809,6 @@ export class ComplianceIssuesRepository extends BaseRepository {
         counts.tier2 = row.count;
       } else if (row.tier === 3) {
         counts.tier3 = row.count;
-      } else if (row.tier === 4) {
-        counts.tier4 = row.count;
       }
     }
 
@@ -1839,7 +1824,6 @@ export class ComplianceIssuesRepository extends BaseRepository {
       tier1: {},
       tier2: {},
       tier3: {},
-      tier4: {},
     };
 
     // Tier 1 classifications
@@ -1896,25 +1880,6 @@ export class ComplianceIssuesRepository extends BaseRepository {
     for (const row of tier3Results) {
       if (row.classification) {
         breakdown.tier3[row.classification] = row.count;
-      }
-    }
-
-    // Tier 4 classifications
-    const tier4Results = await this.db
-      .select({
-        classification: complianceIssueAnalyses.tier4Classification,
-        count: sql<number>`count(*)::int`,
-      })
-      .from(complianceIssueAnalyses)
-      .where(and(
-        eq(complianceIssueAnalyses.state, state.toUpperCase()),
-        sql`${complianceIssueAnalyses.tier4Classification} IS NOT NULL`
-      ))
-      .groupBy(complianceIssueAnalyses.tier4Classification);
-
-    for (const row of tier4Results) {
-      if (row.classification) {
-        breakdown.tier4[row.classification] = row.count;
       }
     }
 
@@ -1992,14 +1957,10 @@ export class ComplianceIssuesRepository extends BaseRepository {
         tier3Flags: complianceIssueAnalyses.tier3Flags,
         tier3EvidenceGap: complianceIssueAnalyses.tier3EvidenceGap,
 
-        // Tier 4
-        tier4Classification: complianceIssueAnalyses.tier4Classification,
-        tier4SeverityAdjustment: complianceIssueAnalyses.tier4SeverityAdjustment,
-        tier4Reasoning: complianceIssueAnalyses.tier4Reasoning,
+        // Web search results (Tier 3)
         webSearchSummary: complianceIssueAnalyses.webSearchSummary,
         federalMandateFound: complianceIssueAnalyses.federalMandateFound,
         stateHasDiscretion: complianceIssueAnalyses.stateHasDiscretion,
-        tier4CompletedAt: complianceIssueAnalyses.tier4CompletedAt,
 
         // Final derived fields
         highestTierCompleted: complianceIssueAnalyses.highestTierCompleted,
@@ -2125,16 +2086,10 @@ export class ComplianceIssuesRepository extends BaseRepository {
         // V5 fields
         flags: row.tier3Flags as Tier3Flags | null,
         evidenceGap: row.tier3EvidenceGap ?? false,
-      } : null,
-
-      tier4: row.tier4Classification ? {
-        classification: row.tier4Classification,
-        severityAdjustment: row.tier4SeverityAdjustment,
-        reasoning: row.tier4Reasoning,
+        // Web search results
         webSearchSummary: row.webSearchSummary,
         federalMandateFound: row.federalMandateFound ?? false,
         stateHasDiscretion: row.stateHasDiscretion ?? true,
-        completedAt: row.tier4CompletedAt,
       } : null,
 
       highestTierCompleted: row.highestTierCompleted ?? 0,
@@ -2142,7 +2097,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       requirementFound: row.requirementFound,
       isJustified: row.isJustified ?? false,
       finalSeverity: row.finalSeverity,
-      pipelineVersion: row.pipelineVersion ?? 'v4',
+      pipelineVersion: row.pipelineVersion ?? 'v5',
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
 
@@ -2208,21 +2163,15 @@ export class ComplianceIssuesRepository extends BaseRepository {
         conditions.push(eq(complianceIssueAnalyses.highestTierCompleted, filters.tierCompleted));
       }
       if (filters.classification) {
-        // Check final classification across tiers
+        // Check final classification across tiers (tier3 → tier2 → tier1)
         conditions.push(
           or(
-            eq(complianceIssueAnalyses.tier4Classification, filters.classification),
+            eq(complianceIssueAnalyses.tier3Classification, filters.classification),
             and(
-              isNull(complianceIssueAnalyses.tier4Classification),
-              eq(complianceIssueAnalyses.tier3Classification, filters.classification)
-            ),
-            and(
-              isNull(complianceIssueAnalyses.tier4Classification),
               isNull(complianceIssueAnalyses.tier3Classification),
               eq(complianceIssueAnalyses.tier2Classification, filters.classification)
             ),
             and(
-              isNull(complianceIssueAnalyses.tier4Classification),
               isNull(complianceIssueAnalyses.tier3Classification),
               isNull(complianceIssueAnalyses.tier2Classification),
               eq(complianceIssueAnalyses.tier1Classification, filters.classification)
@@ -2492,7 +2441,6 @@ export class ComplianceIssuesRepository extends BaseRepository {
         tier1Classification: complianceIssueAnalyses.tier1Classification,
         tier2Classification: complianceIssueAnalyses.tier2Classification,
         tier3Classification: complianceIssueAnalyses.tier3Classification,
-        tier4Classification: complianceIssueAnalyses.tier4Classification,
         tier2RerunCount: complianceIssueAnalyses.tier2RerunCount,  // Track re-runs
         // Use COALESCE to fall back to tier2 severity if final_severity is NULL
         finalSeverity: sql<number | null>`COALESCE(${complianceIssueAnalyses.finalSeverity}, ${complianceIssueAnalyses.severity})`,
@@ -2540,7 +2488,6 @@ export class ComplianceIssuesRepository extends BaseRepository {
         tier1Classification: row.tier1Classification,
         tier2Classification: row.tier2Classification,
         tier3Classification: row.tier3Classification,
-        tier4Classification: row.tier4Classification,
         finalSeverity: row.finalSeverity,
         federalMandateFound: row.federalMandateFound ?? false,
         isJustified: row.isJustified ?? false,
@@ -2577,7 +2524,6 @@ export interface AnalysisListItem {
   tier1Classification: string | null;
   tier2Classification: string | null;
   tier3Classification: string | null;
-  tier4Classification: string | null;
   finalSeverity: number | null;
   federalMandateFound: boolean;
   isJustified: boolean;

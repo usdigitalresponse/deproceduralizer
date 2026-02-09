@@ -14,7 +14,8 @@ Usage in scripts:
 
 Example:
     from _imports import *
-    from shared_utils import get_db_connection, call_llm_parse
+    from lib.db import get_db_connection
+    from lib.llm import call_llm_parse
     from config import OUTPUTS_DIR
     from observability import LLMTraceContext
 """

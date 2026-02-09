@@ -37,11 +37,9 @@ from ..context import (
 )
 from ..config import BATCH_MODEL, MAX_TIER2_RERUNS
 
-# Import from shared_utils
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
-from shared_utils import format_batch_request, get_db_connection, DEFAULT_MODEL
+from lib.db import get_db_connection
+from lib.llm import DEFAULT_MODEL
+from lib.batch import format_batch_request
 
 
 # =============================================================================
@@ -519,7 +517,7 @@ async def run_tier2_with_reruns(
         Processed units with tier2_output populated (or error_message set)
     """
     import anthropic
-    from shared_utils import call_llm_parse_async
+    from lib.llm import call_llm_parse_async
 
     if not units:
         return units

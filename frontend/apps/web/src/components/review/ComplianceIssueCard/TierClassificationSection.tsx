@@ -13,7 +13,6 @@ export function TierClassificationSection({ analysis }: TierClassificationSectio
         tier1Classification={analysis.tier1Classification}
         tier2Classification={analysis.tier2Classification}
         tier3Classification={analysis.tier3Classification}
-        tier4Classification={analysis.tier4Classification}
       />
     </div>
   );

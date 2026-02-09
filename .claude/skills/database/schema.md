@@ -274,11 +274,11 @@ The following columns on `regulatory_documents` store compliance issue counts:
 - `compliance_issue_count`: Direct confirmed issues on this document
 - `descendant_compliance_issue_count`: Confirmed issues in all descendant documents
 
-These are updated by `refresh_compliance_stats()` in `backend/shared_utils.py` and only count issues where `requirement_found = TRUE` (in `compliance_issue_analyses`).
+These are updated by `refresh_compliance_stats()` in `backend/lib/stats.py` and only count issues where `requirement_found = TRUE` (in `compliance_issue_analyses`).
 
 ## compliance_issue_analyses
 
-Document-level analysis results for the research pipeline. Supports both V4 (4-tier) and V5 (3-tier with proactive context) architectures. One row per (document_id, issue_type) pair. Use `pipeline_version` column to distinguish.
+Document-level analysis results for the 3-tier research pipeline. One row per (document_id, issue_type) pair.
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -321,7 +321,7 @@ Document-level analysis results for the research pipeline. Supports both V4 (4-t
 | `web_search_topics` | text[] | Suggested search topics (DEFAULT '{}') |
 | `potentially_controversial` | boolean | Affects vulnerable populations, civil rights |
 | `federal_mandate_suspected` | boolean | Federal statute cited but state discretion unclear |
-| `ambiguity_type` | varchar(20) | `internal` (Tier 3), `external` (Tier 4), or `both` |
+| `ambiguity_type` | varchar(20) | `internal`, `external`, or `both` |
 | `tier2_batch_id` | varchar(100) | Anthropic batch API ID |
 | `tier2_completed_at` | timestamp | When Tier 2 completed |
 
@@ -337,17 +337,13 @@ Document-level analysis results for the research pipeline. Supports both V4 (4-t
 | `tier3_batch_id` | varchar(100) | Anthropic batch API ID |
 | `tier3_completed_at` | timestamp | When Tier 3 completed |
 
-**Tier 4: Web Search Validation**
+**Tier 3: Web Search Results**
 
 | Column | Type | Description |
 |--------|------|-------------|
-| `tier4_classification` | varchar(30) | `burdensome`, `justified`, or `unrelated` |
-| `tier4_severity_adjustment` | integer (-3 to +3) | Adjustment from web findings |
-| `tier4_reasoning` | text | Explanation of web findings |
 | `web_search_summary` | text | Summary of web search results |
 | `federal_mandate_found` | boolean | True if web search confirmed federal mandate |
 | `state_has_discretion` | boolean | True if state has discretion in implementation |
-| `tier4_completed_at` | timestamp | When Tier 4 completed (no batch - real-time) |
 
 **Derived Fields**
 
@@ -356,21 +352,21 @@ Document-level analysis results for the research pipeline. Supports both V4 (4-t
 | `requirement_found` | boolean | True for burdensome/justified |
 | `is_justified` | boolean | True only for justified classification |
 | `is_verbatim` | boolean | All verbatim_requirements found in source doc |
-| `final_severity` | integer | severity + tier3_adjustment + tier4_adjustment |
+| `final_severity` | integer | severity + tier3_adjustment |
 
 **Pipeline Tracking**
 
 | Column | Type | Description |
 |--------|------|-------------|
-| `pipeline_version` | varchar(20) | Default 'v4' |
-| `highest_tier_completed` | integer (0-4) | Progress indicator |
+| `pipeline_version` | varchar(20) | Default 'v5' |
+| `highest_tier_completed` | integer (0-3) | Progress indicator |
 | `classification_tier` | integer | Which tier made final classification |
 | `created_at` | timestamp | When record was created |
 | `updated_at` | timestamp | Last update time |
 
 **V5 Additions (migration 0022)**
 
-V5 uses a 3-tier architecture with proactive context, argument framing, and re-runs. Use `pipeline_version = 'v5'` to identify V5 analyses.
+The pipeline uses a 3-tier architecture with proactive context, argument framing, and re-runs. Legacy V4 data has been migrated to this shape (tagged `pipeline_version = 'v4-migrated'`).
 
 *Tier 1: Argument Framing & Context Requests*
 
@@ -468,8 +464,8 @@ Helps Tier 3 web search avoid returning results about similar-sounding but diffe
 **Constraints:** `UNIQUE(document_id, issue_type)`
 
 **Indexes:**
-- Classification: `idx_cia_tier1_classification`, `idx_cia_tier2_classification`, `idx_cia_tier3_classification`, `idx_cia_tier4_classification`
-- Pipeline progression: `idx_cia_needs_tier2`, `idx_cia_needs_tier3`, `idx_cia_needs_tier4`, `idx_cia_justified_controversial`
+- Classification: `idx_cia_tier1_classification`, `idx_cia_tier2_classification`, `idx_cia_tier3_classification`
+- Pipeline progression: `idx_cia_needs_tier2`, `idx_cia_needs_tier3`
 - Lookups: `idx_cia_state_issue`, `idx_cia_document`, `idx_cia_pipeline_version`
 - JSONB: `idx_cia_context_used` (GIN)
 - Severity: `idx_cia_high_severity`, `idx_cia_state_severity`

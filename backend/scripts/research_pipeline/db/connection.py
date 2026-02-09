@@ -17,11 +17,11 @@ from typing import Generator, Callable, TypeVar, Any
 import psycopg
 from psycopg import Connection
 
-# Import existing connection function from shared_utils
+# Import existing connection function from lib.db
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
-from shared_utils import get_db_connection
+from lib.db import get_db_connection
 
 
 # Type variable for generic return type

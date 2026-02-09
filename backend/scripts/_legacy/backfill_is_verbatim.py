@@ -21,7 +21,7 @@ load_dotenv(project_root / '.env')
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from shared_utils import get_db_connection
+from lib.db import get_db_connection
 from compliance_issues.validation import is_verbatim_match
 
 

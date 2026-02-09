@@ -11,11 +11,12 @@ This skill tracks cleanup operations for test data and temporary changes.
 
 ```bash
 # E2E test data cleanup - uses SPECIFIC patterns to avoid deleting legitimate reviews
-./scripts/db-query.sh "UPDATE compliance_issues SET review_status = 'unreviewed', reviewed_by = NULL, reviewed_at = NULL WHERE reviewed_by = 'E2E Test Reviewer' OR reviewed_by LIKE 'E2E Filter Test %' OR reviewed_by LIKE 'E2E All Filter Test %' RETURNING id;"
+# Note: review columns are on compliance_issue_analyses (not compliance_issues) since PR 6.3
+./scripts/db-query.sh "UPDATE compliance_issue_analyses SET review_status = 'unreviewed', reviewed_by = NULL, reviewed_at = NULL WHERE reviewed_by = 'E2E Test Reviewer' OR reviewed_by LIKE 'E2E Filter Test %' OR reviewed_by LIKE 'E2E All Filter Test %' RETURNING id;"
 ./scripts/db-query.sh "UPDATE red_flags SET review_status = 'unreviewed', reviewed_by = NULL, reviewed_at = NULL WHERE reviewed_by = 'E2E Test Reviewer' OR reviewed_by LIKE 'E2E Filter Test %' RETURNING id;"
 
 # Check for test data
-./scripts/db-query.sh "SELECT id, reviewed_by FROM compliance_issues WHERE reviewed_by = 'E2E Test Reviewer' OR reviewed_by LIKE 'E2E Filter Test %' OR reviewed_by LIKE 'E2E All Filter Test %';"
+./scripts/db-query.sh "SELECT id, reviewed_by FROM compliance_issue_analyses WHERE reviewed_by = 'E2E Test Reviewer' OR reviewed_by LIKE 'E2E Filter Test %' OR reviewed_by LIKE 'E2E All Filter Test %';"
 ./scripts/db-query.sh "SELECT id, reviewed_by FROM red_flags WHERE reviewed_by = 'E2E Test Reviewer' OR reviewed_by LIKE 'E2E Filter Test %';"
 ```
 
@@ -53,10 +54,11 @@ When you create operations that modify data temporarily:
 
 ## Cleanup Queries Reference
 
-### Compliance Issues
+### Compliance Issue Analyses
 ```sql
 -- Reset E2E test reviews (SPECIFIC patterns only)
-UPDATE compliance_issues
+-- Note: review columns are on compliance_issue_analyses (not compliance_issues) since PR 6.3
+UPDATE compliance_issue_analyses
 SET review_status = 'unreviewed',
     reviewed_by = NULL,
     reviewed_at = NULL,

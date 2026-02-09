@@ -14,13 +14,10 @@ import psycopg
 
 # Add backend to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
-from shared_utils import get_db_connection
+from lib.db import get_db_connection, get_ancestors_batch
 
 # Import retry decorator for DB operations
 from scripts.research_pipeline.db.connection import retry_db_operation
-
-# Import existing batch queries
-from shared_utils import get_ancestors_batch
 
 # Import Pydantic models
 from scripts.research_pipeline.models.context import (

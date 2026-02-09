@@ -42,24 +42,16 @@ logger = logging.getLogger(__name__)
 # Add backend directory to path for config import
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import INDIVIDUAL_REGULATIONS_DIR, WEB_PUBLIC_DIR, PROJECT_ROOT, OUTPUTS_DIR
-from shared_utils import (
-    get_db_connection,
-    get_openai_client,
-    get_async_openai_client,
-    call_llm_parse_async,
-    load_prompt_parts,
-    format_batch_request,
-    get_filtered_documents,
-    get_already_analyzed_ids,
-    BatchManager,
-    parse_batch_result_tool_use,
-)
+from lib.db import get_db_connection, get_filtered_documents, get_already_analyzed_ids
+from lib.llm import get_anthropic_client, get_async_anthropic_client, call_llm_parse_async
+from lib.prompts import load_prompt_parts
+from lib.batch import format_batch_request, BatchManager, parse_batch_result_tool_use
 
 # Load environment variables from project root
 load_dotenv(PROJECT_ROOT / '.env')
 
-# Model version imported from shared_utils for centralized management
-from shared_utils import DEFAULT_MODEL as MODEL_VERSION
+# Model version imported from lib.llm for centralized management
+from lib.llm import DEFAULT_MODEL as MODEL_VERSION
 
 
 class ComplexityLevel(str, Enum):
@@ -936,7 +928,7 @@ def process_batch_results(batch_id: str, state: str):
 
         # Progress update
         if processed % 50 == 0 or processed == total_expected:
-            from shared_utils import format_time
+            from lib.stats import format_time
             elapsed = time_module.time() - start_time
             pct = (processed / total_expected * 100) if total_expected > 0 else 0
             eta = (elapsed / processed * (total_expected - processed)) if processed > 0 else 0
@@ -963,7 +955,7 @@ def process_batch_results(batch_id: str, state: str):
     try:
         conn = get_db_connection()
         if conn:
-            from shared_utils import refresh_analysis_stats
+            from lib.stats import refresh_analysis_stats
             refresh_analysis_stats(conn, state)
             conn.close()
     except Exception as e:
@@ -998,7 +990,7 @@ async def main():
     random.seed(args.seed)
 
     # Initialize async OpenAI client
-    client = get_async_openai_client()
+    client = get_async_anthropic_client()
 
     # Determine state for DB operations
     state = getattr(args, 'state', None) or 'NY'

@@ -255,7 +255,7 @@ export type ViewModeValue = (typeof VIEW_MODE_VALUES)[number];
 // ============================================
 
 // Filter by highest tier completed in research pipeline
-export const TIER_FILTER_VALUES = ['all', '0', '1', '2', '3', '4'] as const;
+export const TIER_FILTER_VALUES = ['all', '0', '1', '2', '3'] as const;
 export type TierFilterValue = (typeof TIER_FILTER_VALUES)[number];
 
 // Filter for federal mandate found

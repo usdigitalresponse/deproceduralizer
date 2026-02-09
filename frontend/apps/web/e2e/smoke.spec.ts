@@ -976,25 +976,110 @@ test.describe('Pipeline Analysis Page', () => {
     // We can't easily verify the data in e2e, but we verify no crash/error
   });
 
-  test('tier3 filter stateDiscretion=false loads correctly', async ({ page }) => {
+  test('tier3 filter stateDiscretion=false loads with correct structure', async ({ page }) => {
     await page.goto('/nj/pipeline?stateDiscretion=false');
     await expect(page.getByRole('heading', { name: /Research Pipeline/i }).first()).toBeVisible();
-    // Either shows data table or "no records found" message (data-dependent)
-    await expect(page.locator('table').or(page.getByText('No pipeline records found'))).toBeVisible({ timeout: 10000 });
+
+    // Verify filter parameter is reflected in the URL
+    expect(page.url()).toContain('stateDiscretion=false');
+
+    const table = page.locator('table');
+    const noRecords = page.getByText('No pipeline records found');
+    await expect(table.or(noRecords)).toBeVisible({ timeout: 10000 });
+
+    // If table loaded, verify expected column headers and data rows
+    if (await table.isVisible()) {
+      await expect(table.locator('th:has-text("Issue Type")')).toBeVisible();
+      await expect(table.locator('th:has-text("Severity")')).toBeVisible();
+      const rowCount = await table.locator('tbody tr').count();
+      expect(rowCount).toBeGreaterThan(0);
+    }
   });
 
-  test('tier3 filter alternativeFound=false loads correctly', async ({ page }) => {
+  test('tier3 filter alternativeFound=false loads with correct structure', async ({ page }) => {
     await page.goto('/nj/pipeline?alternativeFound=false');
     await expect(page.getByRole('heading', { name: /Research Pipeline/i }).first()).toBeVisible();
-    // Either shows data table or "no records found" message (data-dependent)
-    await expect(page.locator('table').or(page.getByText('No pipeline records found'))).toBeVisible({ timeout: 10000 });
+
+    // Verify filter parameter is reflected in the URL
+    expect(page.url()).toContain('alternativeFound=false');
+
+    const table = page.locator('table');
+    const noRecords = page.getByText('No pipeline records found');
+    await expect(table.or(noRecords)).toBeVisible({ timeout: 10000 });
+
+    // If table loaded, verify expected column headers and data rows
+    if (await table.isVisible()) {
+      await expect(table.locator('th:has-text("Issue Type")')).toBeVisible();
+      await expect(table.locator('th:has-text("Severity")')).toBeVisible();
+      const rowCount = await table.locator('tbody tr').count();
+      expect(rowCount).toBeGreaterThan(0);
+    }
   });
 
-  test('tier3Trigger filter high_risk_issue loads correctly', async ({ page }) => {
+  test('tier3Trigger filter high_risk_issue loads with correct structure', async ({ page }) => {
     await page.goto('/nj/pipeline?tier3Trigger=high_risk_issue');
     await expect(page.getByRole('heading', { name: /Research Pipeline/i }).first()).toBeVisible();
-    // Either shows data table or "no records found" message (data-dependent)
-    await expect(page.locator('table').or(page.getByText('No pipeline records found'))).toBeVisible({ timeout: 10000 });
+
+    // Verify filter parameter is reflected in the URL
+    expect(page.url()).toContain('tier3Trigger=high_risk_issue');
+
+    const table = page.locator('table');
+    const noRecords = page.getByText('No pipeline records found');
+    await expect(table.or(noRecords)).toBeVisible({ timeout: 10000 });
+
+    // If table loaded, verify expected column headers and data rows
+    if (await table.isVisible()) {
+      await expect(table.locator('th:has-text("Issue Type")')).toBeVisible();
+      await expect(table.locator('th:has-text("Severity")')).toBeVisible();
+      const rowCount = await table.locator('tbody tr').count();
+      expect(rowCount).toBeGreaterThan(0);
+    }
+  });
+
+});
+
+test.describe('Data Integrity', () => {
+
+  test('compliance cards do not show stale column names as text', async ({ page }) => {
+    await page.goto('/nj/review?type=compliance&queueMode=filter&reviewStatus=unreviewed');
+    await waitForComplianceReviewReady(page);
+
+    const cards = page.getByTestId('compliance-issue-card');
+    const count = Math.min(await cards.count(), 3);
+
+    for (let i = 0; i < count; i++) {
+      const text = await cards.nth(i).textContent();
+      // These DB column names should never appear as raw text in the UI
+      expect(text).not.toContain('matched_pattern');
+      expect(text).not.toContain('matched_context');
+      expect(text).not.toContain('requirement_text');
+      expect(text).not.toContain('impact_assessment');
+      expect(text).not.toContain('requirement_found');
+      expect(text).not.toContain('is_verbatim');
+      expect(text).not.toContain('required_by_statute');
+      expect(text).not.toContain('statute_citation');
+      expect(text).not.toContain('verbatim_supporting_text');
+      expect(text).not.toContain('decision_rationale');
+    }
+  });
+
+  test('review cards do not leak review column names from compliance_issues', async ({ page }) => {
+    await page.goto('/nj/review?type=compliance&queueMode=filter&reviewStatus=unreviewed');
+    await waitForComplianceReviewReady(page);
+
+    const cards = page.getByTestId('compliance-issue-card');
+    const count = Math.min(await cards.count(), 3);
+
+    for (let i = 0; i < count; i++) {
+      const text = await cards.nth(i).textContent();
+      // Review column names should never appear as raw text
+      expect(text).not.toContain('reviewer_severity');
+      expect(text).not.toContain('reviewer_original_severity');
+      expect(text).not.toContain('developer_status');
+      expect(text).not.toContain('developer_assigned');
+      expect(text).not.toContain('justification_notes');
+      expect(text).not.toContain('developer_question');
+    }
   });
 
 });

@@ -16,11 +16,11 @@ from .models.llm_outputs import Tier1Output, Tier2Output, Tier3Output
 from .models.context import ContextRequest
 from .cost_tracker import CostTracker, DEFAULT_BATCH_MODEL
 
-# Import from shared_utils
+# Import from lib.batch
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-from shared_utils import BatchManager, parse_batch_result_tool_use
+from lib.batch import BatchManager, parse_batch_result_tool_use
 
 if TYPE_CHECKING:
     from observability.types import LLMTraceContext

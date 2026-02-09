@@ -38,7 +38,7 @@ description: Query and manage the Deproceduralizer Neon PostgreSQL database. Use
 | `definitions` | Extracted terms and definitions |
 | `definition_document_occurrences` | Many-to-many: where terms appear in documents |
 | `compliance_issues` | Wet signatures, in-person requirements, etc. |
-| `compliance_issue_analyses` | Document-level analysis for 4-tier research pipeline |
+| `compliance_issue_analyses` | Document-level analysis for 3-tier research pipeline |
 | `incorporations_by_reference` | External standards (NFPA, ICC, ASTM, CFR) |
 | `cross_references` | Internal citations between regulatory documents |
 | `document_notes` | User annotations on regulations |

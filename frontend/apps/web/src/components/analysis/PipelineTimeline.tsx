@@ -17,16 +17,9 @@ interface PipelineTimelineProps {
 }
 
 export function PipelineTimeline({ analysis }: PipelineTimelineProps) {
-  const { tier1, tier2, tier3, tier4, highestTierCompleted } = analysis;
+  const { tier1, tier2, tier3, highestTierCompleted } = analysis;
 
-  // Normalize: V4's tier4 = V5's tier3
-  const normalizedHighest = highestTierCompleted >= 4 ? 3 : highestTierCompleted;
-
-  // Determine if this is V4 legacy data (has tier4 but no tier3)
-  const isLegacyV4 = tier4 && !tier3;
-
-  // Web search data comes from tier3 (V5) or tier4 (V4 legacy)
-  const webSearchTier = tier3 || tier4;
+  const normalizedHighest = highestTierCompleted;
 
   return (
     <div className="space-y-4">
@@ -36,11 +29,6 @@ export function PipelineTimeline({ analysis }: PipelineTimelineProps) {
           Pipeline Journey
         </h3>
         <div className="flex items-center gap-2">
-          {isLegacyV4 && (
-            <Badge variant="default" className="text-xs">
-              V4 Legacy
-            </Badge>
-          )}
           <Badge variant="info">
             Completed through Tier {normalizedHighest}
           </Badge>
@@ -310,19 +298,19 @@ export function PipelineTimeline({ analysis }: PipelineTimelineProps) {
           )}
         </TierSection>
 
-        {/* Tier 3: Web Search Verification (V5 tier3 or V4 legacy tier4) */}
+        {/* Tier 3: Web Search Verification */}
         <TierSection
           tierNumber={3}
-          title={isLegacyV4 ? "Web Validation (V4)" : "Web Search Verification"}
-          classification={webSearchTier?.classification || null}
-          confidence={tier3?.confidence} // V5 has confidence, V4 may not
-          completedAt={webSearchTier?.completedAt || null}
-          isCompleted={!!webSearchTier}
+          title="Web Search Verification"
+          classification={tier3?.classification || null}
+          confidence={tier3?.confidence}
+          completedAt={tier3?.completedAt || null}
+          isCompleted={!!tier3}
         >
-          {webSearchTier && (
+          {tier3 && (
             <div className="space-y-4">
               {/* V5.1: Show why this was escalated to Tier 3 */}
-              {tier3?.triggerReason && (
+              {tier3.triggerReason && (
                 <div className="bg-[var(--color-info-bg)] border border-[var(--color-info)]/20 rounded-[var(--radius-sm)] p-3">
                   <span className="text-xs font-medium text-[var(--color-info)]">
                     Escalation Trigger:
@@ -333,36 +321,35 @@ export function PipelineTimeline({ analysis }: PipelineTimelineProps) {
                 </div>
               )}
 
-              <ReasoningBlock label="Reasoning" text={webSearchTier.reasoning} />
+              <ReasoningBlock label="Reasoning" text={tier3.reasoning} />
 
-              {/* Web search summary (V4 only) */}
-              {'webSearchSummary' in webSearchTier && webSearchTier.webSearchSummary && (
+              {/* Web search summary */}
+              {tier3.webSearchSummary && (
                 <div className="bg-[var(--color-info-bg)] border border-[var(--color-info)]/20 rounded-[var(--radius-sm)] p-3">
                   <h5 className="text-xs font-semibold text-[var(--color-info)] mb-2">
                     Web Search Summary
                   </h5>
                   <p className="text-sm text-[var(--color-text-secondary)]">
-                    {webSearchTier.webSearchSummary}
+                    {tier3.webSearchSummary}
                   </p>
                 </div>
               )}
 
               {/* Federal Mandate / State Discretion flags */}
               <div className="flex flex-wrap gap-2">
-                {'federalMandateFound' in webSearchTier && webSearchTier.federalMandateFound && (
+                {tier3.federalMandateFound && (
                   <Badge variant="danger">Federal Mandate Found</Badge>
                 )}
-                {'stateHasDiscretion' in webSearchTier && webSearchTier.stateHasDiscretion && (
+                {tier3.stateHasDiscretion && (
                   <Badge variant="success">State Has Discretion</Badge>
                 )}
-                {'stateHasDiscretion' in webSearchTier && !webSearchTier.stateHasDiscretion &&
-                 'federalMandateFound' in webSearchTier && webSearchTier.federalMandateFound && (
+                {!tier3.stateHasDiscretion && tier3.federalMandateFound && (
                   <Badge variant="danger">No State Discretion</Badge>
                 )}
               </div>
 
               {/* Severity Adjustment */}
-              {webSearchTier.severityAdjustment !== null && webSearchTier.severityAdjustment !== 0 && (
+              {tier3.severityAdjustment !== null && tier3.severityAdjustment !== 0 && (
                 <div className="bg-[var(--color-neutral-50)] border border-[var(--color-neutral-200)] rounded-[var(--radius-sm)] p-3">
                   <div className="flex items-center gap-3">
                     <span className="text-xs text-[var(--color-text-muted)]">
@@ -370,25 +357,25 @@ export function PipelineTimeline({ analysis }: PipelineTimelineProps) {
                     </span>
                     <span
                       className={`text-lg font-bold ${
-                        webSearchTier.severityAdjustment > 0
+                        tier3.severityAdjustment > 0
                           ? 'text-[var(--color-danger)]'
                           : 'text-[var(--color-success)]'
                       }`}
                     >
-                      {webSearchTier.severityAdjustment > 0 ? '+' : ''}
-                      {webSearchTier.severityAdjustment}
+                      {tier3.severityAdjustment > 0 ? '+' : ''}
+                      {tier3.severityAdjustment}
                     </span>
                   </div>
-                  {'severityAdjustmentReasoning' in webSearchTier && webSearchTier.severityAdjustmentReasoning && (
+                  {tier3.severityAdjustmentReasoning && (
                     <p className="text-xs text-[var(--color-text-secondary)] mt-1">
-                      {webSearchTier.severityAdjustmentReasoning}
+                      {tier3.severityAdjustmentReasoning}
                     </p>
                   )}
                 </div>
               )}
 
-              {/* V5: Structured flags with evidence */}
-              {tier3?.flags && (
+              {/* Structured flags with evidence */}
+              {tier3.flags && (
                 <Tier3FlagsDisplay
                   flags={tier3.flags}
                   evidenceGap={tier3.evidenceGap}
@@ -398,8 +385,8 @@ export function PipelineTimeline({ analysis }: PipelineTimelineProps) {
               {/* Routing Decision (always terminal for Tier 3) */}
               <RoutingDecision
                 tier={3}
-                classification={webSearchTier.classification}
-                evidenceGap={'evidenceGap' in webSearchTier ? webSearchTier.evidenceGap : false}
+                classification={tier3.classification}
+                evidenceGap={tier3.evidenceGap}
                 advancedToNextTier={false}
               />
             </div>
@@ -407,14 +394,13 @@ export function PipelineTimeline({ analysis }: PipelineTimelineProps) {
         </TierSection>
       </div>
 
-      {/* Severity Progression - V5 uses tier3 for web adjustment, V4 legacy uses tier4 */}
+      {/* Severity Progression */}
       <SeverityProgression
         baseSeverity={tier2?.severity || null}
-        tier3Adjustment={webSearchTier?.severityAdjustment || null}
-        tier4Adjustment={null} // No longer used in V5 display
+        tier3Adjustment={tier3?.severityAdjustment || null}
         finalSeverity={analysis.finalSeverity}
         tier2Calculation={tier2?.severityCalculation || null}
-        tier3Reasoning={webSearchTier && 'severityAdjustmentReasoning' in webSearchTier ? webSearchTier.severityAdjustmentReasoning : null}
+        tier3Reasoning={tier3?.severityAdjustmentReasoning || null}
       />
     </div>
   );

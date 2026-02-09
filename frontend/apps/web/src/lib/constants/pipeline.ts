@@ -81,12 +81,11 @@ export interface PipelineTierData {
 }
 
 /**
- * V5 Pipeline tier configurations (3-tier architecture)
+ * Pipeline tier configurations (3-tier architecture)
  *
- * V5 consolidates the old 4-tier V4 pipeline into 3 tiers:
- * - T1: Match Filtering (same as V4)
- * - T2: Full Classification (combines V4's T2 Summary Research + T3 Full Context)
- * - T3: Web Search Verification (was V4's T4 Web Validation)
+ * - T1: Match Filtering
+ * - T2: Full Classification
+ * - T3: Web Search Verification
  */
 export const PIPELINE_TIERS: PipelineTierData[] = [
   {

@@ -17,7 +17,7 @@ import { regulatoryDocuments } from './regulatory-documents';
 /**
  * Compliance Issue Analyses table
  *
- * Document-level analysis results for the 4-tier research pipeline.
+ * Document-level analysis results for the 3-tier research pipeline.
  * One row per (document_id, issue_type) pair.
  */
 export const complianceIssueAnalyses = pgTable('compliance_issue_analyses', {
@@ -109,16 +109,10 @@ export const complianceIssueAnalyses = pgTable('compliance_issue_analyses', {
   tier3Flags: jsonb('tier3_flags'), // {superseded_by_law, federal_mandate_confirmed, state_discretion_found, modernized_alternative_found}
   tier3EvidenceGap: boolean('tier3_evidence_gap').default(false),
 
-  // ═══════════════════════════════════════════════════════════════════
-  // Tier 4: Web Search Validation (V4 legacy - kept for backward compat)
-  // ═══════════════════════════════════════════════════════════════════
-  tier4Classification: varchar('tier4_classification', { length: 30 }),
-  tier4SeverityAdjustment: integer('tier4_severity_adjustment'),
-  tier4Reasoning: text('tier4_reasoning'),
+  // Tier 3: Web Search Results
   webSearchSummary: text('web_search_summary'),
   federalMandateFound: boolean('federal_mandate_found').default(false),
   stateHasDiscretion: boolean('state_has_discretion').default(true),
-  tier4CompletedAt: timestamp('tier4_completed_at'),
 
   // ═══════════════════════════════════════════════════════════════════
   // Final Derived Fields
@@ -140,7 +134,7 @@ export const complianceIssueAnalyses = pgTable('compliance_issue_analyses', {
   // ═══════════════════════════════════════════════════════════════════
   // Pipeline Tracking
   // ═══════════════════════════════════════════════════════════════════
-  pipelineVersion: varchar('pipeline_version', { length: 20 }).default('v4'),
+  pipelineVersion: varchar('pipeline_version', { length: 20 }).default('v5'),
   highestTierCompleted: integer('highest_tier_completed').default(0),
   classificationTier: integer('classification_tier'),
 
@@ -181,7 +175,6 @@ export type NewComplianceIssueAnalysis = typeof complianceIssueAnalyses.$inferIn
 export type Tier1Classification = 'all_false_positives' | 'needs_research';
 export type Tier2Classification = 'unrelated' | 'justified' | 'burdensome' | 'needs_full_context';
 export type Tier3Classification = 'unrelated' | 'justified' | 'burdensome';
-export type Tier4Classification = 'unrelated' | 'justified' | 'burdensome';
 export type AmbiguityType = 'internal' | 'external' | 'both';
 
 // Context entry types for the context_used JSONB field

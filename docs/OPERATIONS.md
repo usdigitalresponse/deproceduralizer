@@ -121,7 +121,7 @@ python backend/scripts/detect_regulatory_status.py --state NJ
 - All scripts in `backend/scripts/`
 - Writes directly to PostgreSQL via `psycopg`
 - No connection to Next.js app
-- Uses `shared_utils.py` for DB, LLM, and parsing utilities
+- Uses `backend/lib/` modules for DB, LLM, and parsing utilities
 
 ### Online UI (Next.js)
 
@@ -164,7 +164,7 @@ python backend/scripts/batch_definitions.py resume --batch-dir data/outputs/batc
 All prompts live in the `/prompts/` directory:
 
 - Core analysis prompts: `prompts/core.yaml` (red_flags, definitions)
-- Compliance issues: `prompts/compliance_issues.yaml` (43 issue types with patterns + prompts)
+- Compliance issues: `prompts/compliance_issues.yaml` (41 issue types with patterns + prompts)
 - Frontend copy: `frontend/apps/web/src/data/prompts.yaml` (copied from `prompts/core.yaml` via prebuild)
 
 TypeScript types are auto-generated from YAML - run `python scripts/generate_prompt_types.py` after modifying `prompts/compliance_issues.yaml`.
