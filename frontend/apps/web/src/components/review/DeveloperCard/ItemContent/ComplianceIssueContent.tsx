@@ -1,7 +1,8 @@
-import { Badge, SeverityBadge, Tag } from '@/components/ui';
+import { Badge, Tag } from '@/components/ui';
 import { ISSUE_TYPE_LABELS, formatLabel } from '@/types/regulation';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
 import { formatNjacCitation } from '@/lib/formatters/njac';
+import { OutcomeBadges } from '@/components/issues/OutcomeBadges';
 import { HierarchyBreadcrumbsInline, RegulationTextViewer } from '../../shared';
 import type { ComplianceIssueContentProps } from '../types';
 
@@ -26,10 +27,18 @@ export function ComplianceIssueContent({ item, state }: ComplianceIssueContentPr
       {/* Header badges */}
       <div className="flex items-center gap-2 mb-2 flex-wrap">
         <Badge variant="warning">{ISSUE_TYPE_LABELS[issue.issueType] || formatLabel(issue.issueType)}</Badge>
-        {issue.requirementFound === true && <Badge variant="success" className="text-xs">LLM Confirmed</Badge>}
-        {issue.requirementFound === false && <Badge variant="danger" className="text-xs">LLM Rejected</Badge>}
-        {issue.requiredByStatute && <Badge variant="info" className="text-xs">From Statute</Badge>}
-        {issue.severity !== null && <SeverityBadge severity={issue.severity} />}
+        <OutcomeBadges
+          analysis={issue.analysis}
+          requirementFound={issue.requirementFound}
+          requiredByStatute={issue.requiredByStatute}
+          severity={issue.severity}
+          originalSeverity={issue.originalSeverity}
+          showTierBadge
+          showFinalClassification
+          showFederalMandate
+          showEasyCleanup={false}
+          showSeverity
+        />
       </div>
 
       {/* Hierarchy breadcrumb */}

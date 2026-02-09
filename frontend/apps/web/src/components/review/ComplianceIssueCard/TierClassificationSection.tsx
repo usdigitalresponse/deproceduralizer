@@ -14,6 +14,13 @@ export function TierClassificationSection({ analysis }: TierClassificationSectio
         tier2Classification={analysis.tier2Classification}
         tier3Classification={analysis.tier3Classification}
       />
+      {analysis.highestTierCompleted >= 3 && analysis.tier3TriggerReason && (
+        <div className="mt-2 pt-2 border-t border-[var(--color-neutral-200)]">
+          <span className="text-xs text-[var(--color-text-muted)]">
+            Escalated to web search: {analysis.tier3TriggerReason}
+          </span>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { ExternalLink } from 'lucide-react';
-import { Badge, SeverityBadge } from '@/components/ui';
-import { TierBadge } from '@/components/issues/TierProgressIndicator';
+import { Badge } from '@/components/ui';
+import { OutcomeBadges } from '@/components/issues/OutcomeBadges';
 import type { HeaderProps } from './types';
 
 export function Header({ issue, issueTypeLabel }: HeaderProps) {
@@ -19,32 +19,18 @@ export function Header({ issue, issueTypeLabel }: HeaderProps) {
           </Badge>
           <ExternalLink className="w-3.5 h-3.5 text-[var(--color-text-muted)] group-hover:text-[var(--color-warning)] transition-colors" />
         </a>
-        {issue.requirementFound === true && (
-          <Badge variant="success" className="text-xs">
-            LLM Confirmed
-          </Badge>
-        )}
-        {issue.requirementFound === false && (
-          <Badge variant="danger" className="text-xs">
-            LLM Rejected
-          </Badge>
-        )}
-        {issue.requiredByStatute && (
-          <Badge variant="info" className="text-xs">
-            From Statute
-          </Badge>
-        )}
-        {issue.severity !== null && (
-          <SeverityBadge severity={issue.severity} />
-        )}
-        {issue.analysis && (
-          <TierBadge highestTierCompleted={issue.analysis.highestTierCompleted} />
-        )}
-        {issue.analysis?.federalMandateFound && (
-          <Badge variant="danger" className="text-xs">
-            Federal Mandate
-          </Badge>
-        )}
+        <OutcomeBadges
+          analysis={issue.analysis}
+          requirementFound={issue.requirementFound}
+          requiredByStatute={issue.requiredByStatute}
+          severity={issue.severity}
+          originalSeverity={issue.originalSeverity}
+          showTierBadge
+          showFinalClassification
+          showFederalMandate
+          showEasyCleanup
+          showSeverity
+        />
       </div>
       <div className="flex items-center gap-2">
         <Badge

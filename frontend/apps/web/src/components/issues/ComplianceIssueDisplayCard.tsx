@@ -1,34 +1,13 @@
 'use client';
 
 import { ReactNode } from 'react';
-import { Badge, ReviewStatusBadge, SeverityBadge, Tag, Button } from '@/components/ui';
+import { Badge, ReviewStatusBadge, Tag, Button } from '@/components/ui';
 import { ISSUE_TYPE_LABELS } from '@/types/regulation';
 import { highlightTerm, highlightContext } from '@/lib/utils/highlight';
-import { TierBadge, TierProgressIndicator } from './TierProgressIndicator';
+import { TierProgressIndicator } from './TierProgressIndicator';
 import { EvidenceDisplay } from './EvidenceDisplay';
-import type { ContextEntry } from '@deproceduralizer/database';
-
-/** Analysis data from the research pipeline */
-interface IssueAnalysis {
-  highestTierCompleted: number;
-  tier1Classification?: string | null;
-  tier2Classification?: string | null;
-  tier3Classification?: string | null;
-  finalSeverity?: number | null;
-  verbatimRequirements?: string[];
-  argumentForRegulation?: string | null;
-  argumentAgainstRegulation?: string | null;
-  contextUsed?: ContextEntry[] | null;
-  webSearchSummary?: string | null;
-  federalMandateFound?: boolean;
-  stateHasDiscretion?: boolean;
-  isJustified?: boolean;
-  pipelineVersion?: string;
-  // V5.1: Easy Cleanup Detection
-  easyCleanupCandidate?: boolean;
-  cleanupType?: string | null;
-  cleanupEffort?: string | null;
-}
+import { OutcomeBadges } from './OutcomeBadges';
+import type { ContextEntry, TierAnalysis } from '@deproceduralizer/database';
 
 interface ComplianceIssueDisplayCardProps {
   /** The compliance issue data to display */
@@ -42,9 +21,10 @@ interface ComplianceIssueDisplayCardProps {
     verbatimSupportingText: string[] | null;
     isVerbatim: boolean | null;
     severity: number | null;
+    originalSeverity?: number | null;
     decisionRationale: string | null;
     statuteCitation: string | null;
-    analysis?: IssueAnalysis | null;
+    analysis?: TierAnalysis | null;
   };
   /** Whether to show the review status badge in the header */
   showReviewStatus?: boolean;
@@ -83,37 +63,18 @@ export function ComplianceIssueDisplayCard({
           <Badge variant="warning" className="font-semibold">
             {issueTypeLabel}
           </Badge>
-          {issue.requirementFound === true && (
-            <Badge variant="success" className="text-xs">
-              LLM Confirmed
-            </Badge>
-          )}
-          {issue.requirementFound === false && (
-            <Badge variant="danger" className="text-xs">
-              LLM Rejected
-            </Badge>
-          )}
-          {issue.requiredByStatute && (
-            <Badge variant="info" className="text-xs">
-              From Statute
-            </Badge>
-          )}
-          {issue.severity !== null && (
-            <SeverityBadge severity={issue.severity} />
-          )}
-          {issue.analysis && (
-            <TierBadge highestTierCompleted={issue.analysis.highestTierCompleted} />
-          )}
-          {issue.analysis?.federalMandateFound && (
-            <Badge variant="danger" className="text-xs">
-              Federal Mandate
-            </Badge>
-          )}
-          {issue.analysis?.easyCleanupCandidate && (
-            <Badge variant="success" className="text-xs">
-              {issue.analysis.cleanupEffort === 'trivial' ? '🎯 Easy Fix' : '✨ Fixable'}
-            </Badge>
-          )}
+          <OutcomeBadges
+            analysis={issue.analysis ?? null}
+            requirementFound={issue.requirementFound}
+            requiredByStatute={issue.requiredByStatute}
+            severity={issue.severity}
+            originalSeverity={issue.originalSeverity ?? null}
+            showTierBadge
+            showFinalClassification
+            showFederalMandate
+            showEasyCleanup
+            showSeverity
+          />
         </div>
         {showReviewStatus && issue.reviewStatus && (
           <ReviewStatusBadge status={issue.reviewStatus} />
