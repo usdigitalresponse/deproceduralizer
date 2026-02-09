@@ -39,14 +39,9 @@ from scripts.scraper_utils import (
     clean_regulation_text,
     convert_tables_to_markdown,
 )
-from shared_utils import (
-    migrate_regulations_to_db,
-    populate_parent_ids,
-    cleanup_stale_documents,
-    refresh_all_stats,
-    get_db_connection,
-    format_time,
-)
+from lib.db import get_db_connection
+from lib.migration import migrate_regulations_to_db, populate_parent_ids, cleanup_stale_documents
+from lib.stats import refresh_all_stats, format_time
 
 
 # =============================================================================

@@ -55,7 +55,9 @@ from .pipeline_logger import DualOutput
 
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-from shared_utils import BatchManager, DEFAULT_MODEL, get_db_connection
+from lib.db import get_db_connection
+from lib.llm import DEFAULT_MODEL
+from lib.batch import BatchManager
 
 # Langfuse observability (graceful degradation if not configured)
 try:
@@ -786,7 +788,7 @@ async def _run_realtime(requests, units, output_class, output_attr, tier_name,
                          out, model, cost_tracker, trace_context):
     """Run requests in realtime mode (no batch API)."""
     import anthropic
-    from shared_utils import call_llm_parse_async
+    from lib.llm import call_llm_parse_async
 
     client = anthropic.AsyncAnthropic()
     id_to_unit = {u.custom_id: u for u in units}

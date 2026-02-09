@@ -44,11 +44,7 @@ from ..context import (
 from ..context_registry import ContextRegistry
 from ..config import BATCH_MODEL
 
-# Import from shared_utils
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
-from shared_utils import format_batch_request
+from lib.batch import format_batch_request
 
 
 def prepare_tier1_batch(

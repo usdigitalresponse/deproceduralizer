@@ -14,7 +14,7 @@ from typing import Optional
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from shared_utils import get_db_connection
+from lib.db import get_db_connection
 
 from .config import StateConfig, IssueTypeConfig
 from .statute_checker import create_statute_checker

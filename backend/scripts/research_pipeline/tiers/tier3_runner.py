@@ -23,10 +23,8 @@ from ..models.llm_outputs import Tier3Output
 from ..config import TIER3_REALTIME_MODEL, TIER3_RATE_LIMIT_DELAY
 from ..routing import get_tier3_trigger_reason
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
-from shared_utils import call_llm_beta_async, format_batch_request, DEFAULT_MODEL
+from lib.llm import call_llm_beta_async, DEFAULT_MODEL
+from lib.batch import format_batch_request
 from ..formatting import format_context_used_summary, format_tier1_argument
 from .web_search import (
     get_web_search_tool,

@@ -21,14 +21,10 @@ load_dotenv(PROJECT_ROOT / '.env')
 class TestImports:
     """Verify all scripts can be imported without errors."""
 
-    def test_import_shared_utils(self):
-        from shared_utils import (
-            BatchManager,
-            format_batch_request,
-            parse_batch_result_tool_use,
-            get_db_connection,
-            load_prompt,
-        )
+    def test_import_lib_modules(self):
+        from lib.batch import BatchManager, format_batch_request, parse_batch_result_tool_use
+        from lib.db import get_db_connection
+        from lib.prompts import load_prompt
         assert BatchManager is not None
 
     def test_import_batch_definitions(self):
@@ -48,7 +44,7 @@ class TestBatchHelpers:
     """Test batch API helper functions."""
 
     def test_format_batch_request(self):
-        from shared_utils import format_batch_request
+        from lib.batch import format_batch_request
         from pydantic import BaseModel
 
         class SimpleResponse(BaseModel):
@@ -66,7 +62,7 @@ class TestBatchHelpers:
         assert len(request['params']['tools']) == 1
 
     def test_load_prompt(self):
-        from shared_utils import load_prompt, load_prompt_parts
+        from lib.prompts import load_prompt, load_prompt_parts
 
         # Test red flags prompt loads (template only - dynamic content)
         prompt = load_prompt(
@@ -90,7 +86,7 @@ class TestBatchHelpers:
         assert "Test content" in parts['user']  # Dynamic in user
 
     def test_load_prompt_definitions(self):
-        from shared_utils import load_prompt
+        from lib.prompts import load_prompt
 
         prompt = load_prompt(
             "definition_extraction",
@@ -106,7 +102,7 @@ class TestRedFlagsPrompt:
 
     def test_create_analysis_prompt(self):
         from red_flags import create_analysis_prompt
-        from shared_utils import load_prompt_parts
+        from lib.prompts import load_prompt_parts
 
         # create_analysis_prompt returns template only (for backwards compat)
         prompt = create_analysis_prompt(
@@ -157,7 +153,7 @@ class TestLLMCalls:
             RegulationData,
             analyze_regulation,
         )
-        from shared_utils import get_async_openai_client
+        from lib.llm import get_async_anthropic_client
 
         # Simple test regulation
         reg = RegulationData(
@@ -168,7 +164,7 @@ class TestLLMCalls:
             source_index=1,
         )
 
-        client = get_async_openai_client()
+        client = get_async_anthropic_client()
         result = asyncio.run(analyze_regulation(reg, client))
 
         # Verify we got a valid response
@@ -178,7 +174,7 @@ class TestLLMCalls:
 
     def test_batch_request_format_valid(self):
         """Test that batch requests are formatted correctly for the API."""
-        from shared_utils import format_batch_request
+        from lib.batch import format_batch_request
         from red_flags import RegulationAnalysis, create_analysis_prompt
 
         prompt = create_analysis_prompt(
@@ -220,7 +216,7 @@ class TestExclusionFilter:
     @pytest.fixture(autouse=True)
     def check_db_connection(self):
         """Skip if no database connection available."""
-        from shared_utils import get_db_connection
+        from lib.db import get_db_connection
         conn = get_db_connection()
         if not conn:
             pytest.skip("Database connection not available")
@@ -228,7 +224,7 @@ class TestExclusionFilter:
 
     def test_exclusion_filter_queries_run_without_error(self):
         """Verify both include_excluded modes run without SQL errors."""
-        from shared_utils import get_filtered_documents
+        from lib.db import get_filtered_documents
 
         # Test default mode (exclude_from_analysis filtered out)
         docs_default = get_filtered_documents(state='NY', limit=5)
@@ -240,7 +236,7 @@ class TestExclusionFilter:
 
     def test_exclusion_filter_difference(self):
         """If any documents are excluded, include_excluded=True should return more or equal."""
-        from shared_utils import get_filtered_documents, get_db_connection
+        from lib.db import get_filtered_documents, get_db_connection
 
         # Check if there are any excluded documents in the database
         conn = get_db_connection()

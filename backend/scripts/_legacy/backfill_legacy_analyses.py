@@ -27,7 +27,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from dotenv import load_dotenv
 load_dotenv(Path(__file__).parent.parent.parent.parent / ".env")
 
-from shared_utils import get_db_connection
+from lib.db import get_db_connection
 
 
 def get_unprocessed_groups(conn, state: str = None, issue_type: str = None, limit: int = None):

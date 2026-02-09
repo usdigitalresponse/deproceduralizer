@@ -18,15 +18,9 @@ from pydantic import BaseModel
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from shared_utils import (
-    get_async_openai_client,
-    get_db_connection,
-    call_llm_parse_async,
-    format_batch_request,
-    BatchManager,
-    parse_batch_result_tool_use,
-    DEFAULT_MODEL,
-)
+from lib.db import get_db_connection
+from lib.llm import get_async_anthropic_client, call_llm_parse_async, DEFAULT_MODEL
+from lib.batch import format_batch_request, BatchManager, parse_batch_result_tool_use
 from config import OUTPUTS_DIR
 
 from scripts.compliance_issues.config import StateConfig, IssueTypeConfig
@@ -298,7 +292,7 @@ class BasePatternSearcher(ABC):
 
     async def analyze_async(self, matches: list[dict], batch_size: int = 10) -> list[dict]:
         """Analyze matches using async LLM calls."""
-        client = get_async_openai_client()
+        client = get_async_anthropic_client()
         results = []
 
         print(f"\nAnalyzing {len(matches)} matches with LLM...")

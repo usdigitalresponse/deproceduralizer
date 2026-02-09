@@ -13,7 +13,7 @@ from psycopg import Connection
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
-from shared_utils import get_db_connection
+from lib.db import get_db_connection
 
 from ..models.matches import ProcessingUnit, MatchInfo
 from ..models.llm_outputs import Tier2Output
@@ -959,7 +959,7 @@ class ProcessingUnitBuilder:
         then fetches associated matches from compliance_issues.
 
         Args:
-            pipeline_version: Pipeline version to re-run (e.g., 'v4', 'legacy')
+            pipeline_version: Pipeline version to re-run (e.g., 'v4-migrated', 'v5')
             issue_type: Optional filter by issue type
             state: State code (NJ or NY)
             limit: Maximum number of documents to fetch

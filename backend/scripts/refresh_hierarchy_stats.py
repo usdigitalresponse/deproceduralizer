@@ -32,13 +32,8 @@ from dotenv import load_dotenv
 
 load_dotenv(PROJECT_ROOT / '.env')
 
-from shared_utils import (
-    get_db_connection,
-    refresh_all_stats,
-    refresh_structure_stats,
-    refresh_analysis_stats,
-    refresh_compliance_stats,
-)
+from lib.db import get_db_connection
+from lib.stats import refresh_all_stats, refresh_structure_stats, refresh_analysis_stats, refresh_compliance_stats
 
 
 def main():

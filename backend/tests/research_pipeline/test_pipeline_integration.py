@@ -201,7 +201,7 @@ class TestPromptLoaderUnit:
 
         tiers = load_all_tier_configs()
 
-        # V5 uses 3-tier architecture (tier4 was consolidated into tier3)
+        # 3-tier architecture: tier1 (filtering), tier2 (classification), tier3 (web search)
         assert len(tiers) >= 3
         assert "tier1" in tiers
         assert "tier2" in tiers
@@ -345,7 +345,7 @@ class TestContextBuilderDB:
     @pytest.fixture(autouse=True)
     def check_db_connection(self):
         """Skip if no database connection available."""
-        from shared_utils import get_db_connection
+        from lib.db import get_db_connection
 
         conn = get_db_connection()
         if not conn:
@@ -355,7 +355,7 @@ class TestContextBuilderDB:
     @pytest.fixture
     def sample_doc_ids(self):
         """Get a sample of NJ section document IDs for testing."""
-        from shared_utils import get_db_connection
+        from lib.db import get_db_connection
 
         conn = get_db_connection()
         with conn.cursor() as cur:
@@ -463,7 +463,7 @@ class TestContextBuilderDB:
     def test_batch_query_performance(self):
         """Test that batch queries complete in reasonable time."""
         import time
-        from shared_utils import get_db_connection
+        from lib.db import get_db_connection
         from scripts.research_pipeline.context import build_context_catalog
 
         # Get 100 documents for performance testing
@@ -3007,7 +3007,7 @@ class TestV5ProactiveContextDB:
     @pytest.fixture(autouse=True)
     def check_db_connection(self):
         """Skip if no database connection available."""
-        from shared_utils import get_db_connection
+        from lib.db import get_db_connection
 
         conn = get_db_connection()
         if not conn:
@@ -3017,7 +3017,7 @@ class TestV5ProactiveContextDB:
     @pytest.fixture
     def sample_doc_ids(self):
         """Get sample NJ section document IDs for testing."""
-        from shared_utils import get_db_connection
+        from lib.db import get_db_connection
 
         conn = get_db_connection()
         with conn.cursor() as cur:
@@ -3091,7 +3091,7 @@ class TestV5ProactiveContextDB:
     def test_proactive_context_batch_performance(self):
         """build_proactive_context should complete in reasonable time for batch."""
         import time
-        from shared_utils import get_db_connection
+        from lib.db import get_db_connection
         from scripts.research_pipeline.context import build_proactive_context
 
         conn = get_db_connection()
@@ -3119,7 +3119,7 @@ class TestV5ProactiveContextDB:
 
 
 # =============================================================================
-# SCHEMA VALIDATION TESTS - Prevent V4/V5 drift
+# SCHEMA VALIDATION TESTS - Prevent schema drift
 # =============================================================================
 
 

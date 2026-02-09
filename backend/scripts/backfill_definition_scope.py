@@ -20,7 +20,7 @@ from dotenv import load_dotenv
 # Add backend directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import PROJECT_ROOT
-from shared_utils import get_db_connection
+from lib.db import get_db_connection
 
 # Load environment
 load_dotenv(PROJECT_ROOT / '.env')

@@ -40,7 +40,8 @@ from dotenv import load_dotenv
 # Add backend directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import PROJECT_ROOT
-from shared_utils import get_db_connection, format_time
+from lib.db import get_db_connection
+from lib.stats import format_time
 
 load_dotenv(PROJECT_ROOT / '.env')
 

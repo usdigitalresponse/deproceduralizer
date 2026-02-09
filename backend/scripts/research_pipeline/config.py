@@ -12,7 +12,7 @@ from pathlib import Path
 
 # Add parent directories to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-from shared_utils import DEFAULT_MODEL
+from lib.llm import DEFAULT_MODEL
 
 # =============================================================================
 # Pipeline Version

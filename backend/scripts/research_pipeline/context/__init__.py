@@ -65,11 +65,8 @@ from .fetchers import (
     fetch_full_text_for_requests,
 )
 
-# Re-export get_ancestors_batch from shared_utils (used by multiple modules)
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
-from shared_utils import get_ancestors_batch
+# Re-export get_ancestors_batch from lib.db (used by multiple modules)
+from lib.db import get_ancestors_batch
 
 __all__ = [
     # Queries
