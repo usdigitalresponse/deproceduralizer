@@ -125,7 +125,10 @@ async def retry_failed_tier3(
         params.extend(issue_types)
 
     if title:
-        query += " AND rd.njac_title = %s"
+        if state and state.upper() == "NY":
+            query += " AND rd.nycrr_title = %s"
+        else:
+            query += " AND rd.njac_title = %s"
         params.append(title)
 
     query += " ORDER BY cia.document_id"
@@ -389,7 +392,10 @@ async def rerun_placeholder_tier2(
         params.extend(issue_types)
 
     if title:
-        query += " AND rd.njac_title = %s"
+        if state and state.upper() == "NY":
+            query += " AND rd.nycrr_title = %s"
+        else:
+            query += " AND rd.njac_title = %s"
         params.append(title)
 
     query += " ORDER BY cia.document_id"
