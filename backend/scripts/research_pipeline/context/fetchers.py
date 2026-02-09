@@ -88,6 +88,8 @@ def fetch_document_content_batch(
         return {}
 
     conn = get_db_connection()
+    if conn is None:
+        raise RuntimeError("Failed to establish database connection")
 
     query = """
         SELECT id, content, citation, title, short_title, summary
@@ -175,6 +177,8 @@ def fetch_summaries_for_requests(
 
     # Group requests by type
     doc_citations: list[str] = []
+    # Map citation -> list of composite keys (same citation may appear under multiple types)
+    citation_to_keys: dict[str, list[str]] = {}
     definition_requests: list[ContextRequest] = []
 
     for req in context_requests:
@@ -182,11 +186,15 @@ def fetch_summaries_for_requests(
             continue  # Only fetch summaries
         if req.context_type in ("sibling", "cross_reference", "hierarchy"):
             doc_citations.append(req.identifier)
+            composite_key = f"{req.context_type}:{req.identifier}"
+            citation_to_keys.setdefault(req.identifier, []).append(composite_key)
         elif req.context_type == "definition":
             definition_requests.append(req)
 
     result: dict[str, str] = {}
     conn = get_db_connection()
+    if conn is None:
+        raise RuntimeError("Failed to establish database connection")
 
     # Fetch document summaries by citation
     if doc_citations:
@@ -199,7 +207,9 @@ def fetch_summaries_for_requests(
             cur.execute(query, [doc_citations])
             for row in cur.fetchall():
                 if row[1]:
-                    result[row[0]] = row[1]
+                    # Store under each composite key that references this citation
+                    for key in citation_to_keys.get(row[0], []):
+                        result[key] = row[1]
 
     # Fetch definitions with scope-aware lookup
     if definition_requests:
@@ -305,6 +315,8 @@ def fetch_full_text_for_requests(
 
     # Group requests by type
     doc_citations: list[str] = []
+    # Map citation -> list of composite keys (same citation may appear under multiple types)
+    citation_to_keys: dict[str, list[str]] = {}
     definition_requests: list[ContextRequest] = []
 
     for req in context_requests:
@@ -312,11 +324,15 @@ def fetch_full_text_for_requests(
             continue
         if req.context_type in ("sibling", "cross_reference", "hierarchy"):
             doc_citations.append(req.identifier)
+            composite_key = f"{req.context_type}:{req.identifier}"
+            citation_to_keys.setdefault(req.identifier, []).append(composite_key)
         elif req.context_type == "definition":
             definition_requests.append(req)
 
     result: dict[str, str] = {}
     conn = get_db_connection()
+    if conn is None:
+        raise RuntimeError("Failed to establish database connection")
 
     # Fetch document content by citation
     # OPTIMIZATION: Cross-references to definitions sections get definitions
@@ -345,9 +361,10 @@ def fetch_full_text_for_requests(
                     if content:
                         regular_docs.append((citation, content))
 
-        # Add regular document content to result
+        # Add regular document content to result with composite keys
         for citation, content in regular_docs:
-            result[citation] = content
+            for key in citation_to_keys.get(citation, []):
+                result[key] = content
 
         # For definitions sections, fetch all definitions scoped to them
         if definitions_doc_ids:
@@ -370,11 +387,12 @@ def fetch_full_text_for_requests(
                         defs_by_doc[scope_id] = []
                     defs_by_doc[scope_id].append(f'"{term}": {verbatim}')
 
-            # Build formatted definitions text for each citation
+            # Build formatted definitions text for each citation with composite keys
             for doc_id, citation in definitions_citations.items():
                 if doc_id in defs_by_doc:
                     defs_text = "\n\n".join(defs_by_doc[doc_id])
-                    result[citation] = f"[Definitions Section]\n\n{defs_text}"
+                    for key in citation_to_keys.get(citation, []):
+                        result[key] = f"[Definitions Section]\n\n{defs_text}"
 
     # Fetch definitions with scope-aware lookup
     if definition_requests:

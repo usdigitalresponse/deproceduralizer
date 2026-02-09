@@ -122,6 +122,8 @@ class ProcessingUnitBuilder:
         """Get connection, creating if needed."""
         if self._conn is None:
             self._conn = get_db_connection()
+            if self._conn is None:
+                raise RuntimeError("Failed to establish database connection")
             self._should_close = True
         return self._conn
 
@@ -848,6 +850,17 @@ class ProcessingUnitBuilder:
                             AND COALESCE(cia.highest_tier_completed, 0) < %s
                         )
                     )
+                    -- Exclude terminal items (all_false_positives or unrelated after tier 2)
+                    AND NOT EXISTS (
+                        SELECT 1 FROM compliance_issue_analyses cia
+                        WHERE cia.document_id = ci.document_id
+                        AND cia.issue_type = ci.issue_type
+                        AND (
+                            cia.tier1_classification = 'all_false_positives'
+                            OR (COALESCE(cia.highest_tier_completed, 0) >= 2
+                                AND cia.tier2_classification = 'unrelated')
+                        )
+                    )
             )
             SELECT
                 match_id,
@@ -1074,6 +1087,8 @@ def get_issue_types_for_scope(
     """
     if conn is None:
         conn = get_db_connection()
+        if conn is None:
+            raise RuntimeError("Failed to establish database connection")
         should_close = True
     else:
         should_close = False

@@ -151,6 +151,8 @@ def _query_tier3_pending_from_db(
         return []
 
     conn = get_db_connection()
+    if conn is None:
+        raise RuntimeError("Failed to establish database connection")
     try:
         with conn.cursor() as cur:
             # Build query for tier3-pending documents
@@ -555,6 +557,8 @@ async def _execute_pipeline(
     # Save final results to database (tier results already saved incrementally)
     print("\nSaving final classifications to database...")
     conn = get_db_connection()
+    if conn is None:
+        raise RuntimeError("Failed to establish database connection for saving results")
     saved_count = save_final_results(results, conn)
     conn.close()
     print(f"Saved {saved_count} final classifications")
@@ -905,6 +909,8 @@ async def run_tier3_pending(
     # Save results
     from .db import save_final_results
     conn = get_db_connection()
+    if conn is None:
+        raise RuntimeError("Failed to establish database connection for saving results")
     saved = save_final_results(results, conn)
     conn.close()
     print(f"\nSaved {saved} results to database")
