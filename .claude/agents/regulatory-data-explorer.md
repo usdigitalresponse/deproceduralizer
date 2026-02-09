@@ -88,7 +88,6 @@ When you detect schema drift (queries failing, columns missing, types mismatched
 
 2. **Compare with documentation** in:
    - `.claude/skills/database/schema.md`
-   - `schema.sql` (if it exists)
    - `DATABASE_SETUP.md`
 
 3. **Update documentation** to reflect reality:
