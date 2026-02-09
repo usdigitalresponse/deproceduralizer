@@ -178,6 +178,44 @@ Button sizes: `sm`, `md`, `lg`
 - Medium (4-6): Warning yellow
 - Low (1-3): Success green
 
+### OutcomeBadges
+
+Canonical component for compliance issue outcome display. Use this instead of inline badge logic in any card showing compliance issue outcomes.
+
+```tsx
+import { OutcomeBadges } from '@/components/issues';
+
+<OutcomeBadges
+  analysis={issue.analysis}
+  requirementFound={issue.requirementFound}
+  requiredByStatute={issue.requiredByStatute}
+  severity={issue.severity}
+  originalSeverity={issue.originalSeverity}
+  showTierBadge
+  showFinalClassification
+  showFederalMandate
+  showEasyCleanup
+  showSeverity
+/>
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `analysis` | `TierAnalysis \| null` | required | Pipeline analysis data |
+| `requirementFound` | `boolean \| null` | required | LLM confirmed/rejected |
+| `requiredByStatute` | `boolean \| null` | required | From statute badge |
+| `severity` | `number \| null` | required | Current severity |
+| `originalSeverity` | `number \| null` | required | Original severity (shows override hint when different) |
+| `showTierBadge` | `boolean` | `true` | Show tier completion badge |
+| `showFinalClassification` | `boolean` | `true` | Show terminal classification (burdensome/justified/etc.) |
+| `showFederalMandate` | `boolean` | `true` | Show federal mandate badge |
+| `showEasyCleanup` | `boolean` | `true` | Show easy cleanup badge |
+| `showSeverity` | `boolean` | `true` | Show severity badge |
+
+**Badge rendering order**: Final Classification, LLM Confirmed/Rejected, From Statute, Severity (with override), Tier Badge, Federal Mandate, Easy Cleanup.
+
+**Used by**: Review Card Header, ComplianceIssueDisplayCard, Developer Card ComplianceIssueContent.
+
 ### Card
 
 - Background: `--color-surface` (white)

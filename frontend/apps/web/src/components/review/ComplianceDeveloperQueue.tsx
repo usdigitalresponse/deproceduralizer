@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import type { ComplianceIssueWithContext } from '@deproceduralizer/database';
+import type { ComplianceIssueWithAnalysis } from '@deproceduralizer/database';
 import type { DeveloperItem, CombinedDeveloperStatusCounts } from '@/lib/actions/developer';
 import { DeveloperProgress } from './DeveloperProgress';
 import { ComplianceDeveloperFilters } from './ComplianceDeveloperFilters';
@@ -18,16 +18,16 @@ import { useQueryState } from 'nuqs';
 import { developerStatusParser } from '@/lib/url/parsers';
 
 interface ComplianceDeveloperQueueProps {
-  initialItems: ComplianceIssueWithContext[];
+  initialItems: ComplianceIssueWithAnalysis[];
   pagination: PaginationInfo;
   statusCounts: CombinedDeveloperStatusCounts;
   issueTypes: string[];
 }
 
 /**
- * Convert ComplianceIssueWithContext to DeveloperItem format for reusing DeveloperCard
+ * Convert ComplianceIssueWithAnalysis to DeveloperItem format for reusing DeveloperCard
  */
-function toDeveloperItem(issue: ComplianceIssueWithContext): DeveloperItem {
+function toDeveloperItem(issue: ComplianceIssueWithAnalysis): DeveloperItem {
   return {
     id: issue.id,
     type: 'compliance_issue' as const,

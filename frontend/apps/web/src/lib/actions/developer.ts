@@ -16,7 +16,7 @@ import {
   type RedFlag,
   type ComplianceIssueWithAnalysisFields,
   type RedFlagWithContext,
-  type ComplianceIssueWithContext,
+  type ComplianceIssueWithAnalysis,
   type IssueType,
 } from '@deproceduralizer/database';
 import { type ActionResult, success, failure, getErrorMessage } from './types';
@@ -62,7 +62,7 @@ export interface DeveloperItem {
   };
   // Type-specific data
   redFlagData?: RedFlagWithContext;
-  complianceIssueData?: ComplianceIssueWithContext;
+  complianceIssueData?: ComplianceIssueWithAnalysis;
 }
 
 export interface PaginatedDeveloperItemsResult {
@@ -558,7 +558,7 @@ export async function getRedFlagDeveloperItems(
 export async function getComplianceIssueDeveloperItems(
   state: StateCode,
   params: ComplianceDeveloperQueueParams
-): Promise<ActionResult<{ data: ComplianceIssueWithContext[]; total: number; page: number; pageSize: number; totalPages: number }>> {
+): Promise<ActionResult<{ data: ComplianceIssueWithAnalysis[]; total: number; page: number; pageSize: number; totalPages: number }>> {
   try {
     const { page, pageSize, developerStatus, developerAssigned, severity, reviewStatus, issueType, sortBy = 'reviewedAt', sortOrder = 'desc' } = params;
 
