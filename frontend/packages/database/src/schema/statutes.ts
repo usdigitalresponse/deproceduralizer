@@ -31,6 +31,14 @@ export const statutes = pgTable('statutes', {
   njsaSection: varchar('njsa_section', { length: 20 }),
   njsaSectionName: text('njsa_section_name'),
 
+  // NY-specific fields (NYCLS - New York Consolidated Laws)
+  nyclsLawId: varchar('nycls_law_id', { length: 10 }),
+  nyclsLawName: text('nycls_law_name'),
+  nyclsArticle: varchar('nycls_article', { length: 20 }),
+  nyclsArticleName: text('nycls_article_name'),
+  nyclsSection: varchar('nycls_section', { length: 20 }),
+  nyclsSectionName: text('nycls_section_name'),
+
   // Hierarchy for tree navigation (Issue #48)
   parentId: bigint('parent_id', { mode: 'number' }),
   hierarchyLevel: varchar('hierarchy_level', { length: 50 }),  // 'title', 'chapter', 'section'

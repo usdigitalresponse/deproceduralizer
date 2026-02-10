@@ -38,9 +38,32 @@ For NJ statutes (separate from NJAC regulations):
 python backend/scripts/nj_statutes.py
 ```
 
+For NY statutes (from OpenLegislation API):
+```bash
+# First: get a free API key at https://legislation.nysenate.gov/
+# Set NY_OPEN_LEG_API_KEY in .env
+
+# Test with child care-relevant laws first:
+python backend/scripts/ny_statutes.py EXC SOS PBH EDN
+
+# All consolidated laws (~95 laws):
+python backend/scripts/ny_statutes.py
+```
+
+Key flags:
+| Flag | Description |
+|------|-------------|
+| `EXC SOS PBH EDN` | Specific law IDs (positional args) |
+| `--fetch-only` | Only cache API data, skip DB |
+| `--skip-fetch` | Use cached JSON, skip API calls |
+| `--skip-db` | Skip database operations |
+| `--hierarchy-only` | Only update parent_id relationships |
+| `--fresh` | Clear all caches and re-fetch |
+| `--delay 0.5` | Custom delay between API calls (default: 0.2s) |
+
 | Cost | Time |
 |------|------|
-| Free | Hours (network-bound) |
+| Free (API key required) | Hours (network-bound) |
 
 ### Step 2: Detect Regulatory Status
 
