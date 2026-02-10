@@ -12,11 +12,12 @@ from typing import Optional
 
 from lib.db import get_db_connection
 
+from scripts.shared.base_searcher import BasePatternSearcher
+
 from .config import StateConfig, IssueTypeConfig
-from .statute_checker import create_statute_checker
 
 
-class ComplianceIssueSearcher:
+class ComplianceIssueSearcher(BasePatternSearcher):
     """
     Search for compliance issues in regulations.
 
@@ -59,36 +60,16 @@ class ComplianceIssueSearcher:
             with_statutes: Whether to enable statute lookup
             run_id: Optional pipeline run identifier for tracking
         """
-        self.state_config = state_config
-        self.issue_config = issue_config
-        self.with_statutes = with_statutes
+        super().__init__(
+            state_config=state_config,
+            issue_config=issue_config,
+            with_statutes=with_statutes,
+            batches_subdir='batches/compliance',
+        )
         self.run_id = run_id
 
-        # Create statute checker
-        self.statute_checker = create_statute_checker(state_config, with_statutes)
-
-    def search(self, limit: Optional[int] = None) -> list[dict]:
-        """
-        Search regulations in database for potential compliance issues.
-
-        Uses regex pattern matching from the issue config.
-
-        Args:
-            limit: Optional limit on number of matches to return
-
-        Returns:
-            List of match dicts with document info, context, etc.
-        """
-        conn = get_db_connection()
-        if not conn:
-            print("ERROR: Could not connect to database")
-            return []
-
-        prefix = self.state_config.citation_prefix
-        state_code = self.state_config.state_code
-        issue_type = self.issue_config.db_issue_type
-
-        # Get already-analyzed document IDs for this specific issue type
+    def get_already_analyzed_ids(self, conn) -> set[int]:
+        """Get document IDs already in compliance_issues for this issue type."""
         already_analyzed = set()
         try:
             result = conn.execute(
@@ -96,100 +77,12 @@ class ComplianceIssueSearcher:
                 SELECT document_id FROM compliance_issues
                 WHERE state = %s AND issue_type = %s
                 """,
-                (state_code, issue_type)
+                (self.state_config.state_code, self.issue_config.db_issue_type)
             ).fetchall()
             already_analyzed = {row[0] for row in result}
-            if already_analyzed:
-                print(f"Skipping {len(already_analyzed)} already-analyzed docs for {issue_type}")
         except Exception as e:
             print(f"Warning: Could not check existing analysis: {e}")
-
-        # Query documents from database
-        print(f"Querying {state_code} regulations from database...")
-
-        try:
-            # Get all documents for this state (excluding documents marked for exclusion)
-            query = f"""
-                SELECT id, title, content, url, hierarchy_level, hierarchy_path,
-                       {prefix}_title, {prefix}_chapter, {prefix}_section, source_index
-                FROM regulatory_documents
-                WHERE state = %s
-                  AND content IS NOT NULL
-                  AND (exclude_from_analysis = FALSE OR exclude_from_analysis IS NULL)
-                ORDER BY id
-            """
-            rows = conn.execute(query, (state_code,)).fetchall()
-            print(f"Found {len(rows)} {state_code} documents to search...")
-
-        except Exception as e:
-            print(f"Database query error: {e}")
-            conn.close()
-            return []
-
-        matches = []
-        compiled_patterns = self.issue_config.compiled_patterns
-
-        for row in rows:
-            doc_id, title, content, url, hierarchy_level, hierarchy_path, \
-                doc_title, doc_chapter, doc_section, source_index = row
-
-            if not content:
-                continue
-
-            # Skip if already analyzed for this issue type
-            if doc_id in already_analyzed:
-                continue
-
-            # Check patterns
-            matched_term = None
-            matched_pattern = None
-
-            for pattern in compiled_patterns:
-                match_obj = pattern.search(content)
-                if match_obj:
-                    matched_term = pattern.pattern
-                    matched_pattern = pattern
-                    break
-
-            if matched_pattern:
-                # Get context around match (larger for LLM)
-                match_obj = matched_pattern.search(content)
-                if match_obj:
-                    start = max(0, match_obj.start() - 300)
-                    end = min(len(content), match_obj.end() + 300)
-                    context = content[start:end].strip()
-                else:
-                    context = content[:600]
-
-                # Extract statute references if checker is available
-                statute_refs = self.statute_checker.extract_references(content)
-
-                result = {
-                    'document_id': doc_id,
-                    'title': title or '',
-                    'url': url or '',
-                    'term_matched': matched_term,
-                    'context': context,
-                    'full_content': content,
-                    f'{prefix}_title': doc_title,
-                    f'{prefix}_chapter': doc_chapter,
-                    f'{prefix}_section': doc_section,
-                    'hierarchy_path': hierarchy_path or '',
-                    'source_index': source_index,
-                    'statute_citations': statute_refs,
-                }
-
-                matches.append(result)
-
-                if limit and len(matches) >= limit:
-                    break
-
-        conn.close()
-
-        # Print summary
-        print(f"Found {len(matches)} potential matches")
-
-        return matches
+        return already_analyzed
 
     def save_to_database(self, matches: list[dict]) -> int:
         """
