@@ -80,6 +80,11 @@ class TrackedUnit:
     tier2_context_requests_made: list = field(default_factory=list)  # All context requests made across re-runs
     tier2_forced_classification: bool = False  # True if classification was forced after max re-runs
 
+    # Batch IDs (set after batch submission)
+    tier1_batch_id: Optional[str] = None
+    tier2_batch_id: Optional[str] = None
+    tier3_batch_id: Optional[str] = None
+
     # V5.1: Tier 3 trigger tracking
     tier3_trigger_reason: Optional[str] = None  # Why this unit was escalated to Tier 3
 

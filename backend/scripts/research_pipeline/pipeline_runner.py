@@ -439,12 +439,13 @@ async def _run_tier1(units, issue_configs, batch_manager, cost_tracker,
         requests.extend(prepare_fn(units_for_issue, config))
     tier_out.info(f"  Prepared {len(requests)} requests across {len(by_issue)} issue types" + " " * 20)
 
+    batch_id = None
     if realtime:
         succeeded, failed = await _run_realtime(
             requests, pending, Tier1Output, "tier1_output", "Tier 1",
             out, model, cost_tracker, trace_context)
     else:
-        succeeded, failed = await _submit_and_poll_batch(
+        succeeded, failed, batch_id = await _submit_and_poll_batch(
             requests, pending, "tier1", process_tier1_results,
             batch_manager, cost_tracker, out, trace_context, batch_trace_ids,
             state, issue_type_single, run_id, poll_interval)
@@ -453,6 +454,8 @@ async def _run_tier1(units, issue_configs, batch_manager, cost_tracker,
     for unit in succeeded:
         unit.state = ProcessingState.TIER1_COMPLETE
         unit.tier1_completed_at = datetime.now()
+        if batch_id:
+            unit.tier1_batch_id = batch_id
         unit.state = get_next_state(unit)
 
     _log_tier_complete(out, cost_tracker, "Tier 1", len(succeeded), len(failed),
@@ -500,12 +503,13 @@ async def _run_tier2(units, issue_configs, batch_manager, cost_tracker,
             requests.extend(prepare_tier2_batch(units_for_issue, config))
         tier_out.info(f"  Prepared {len(requests)} requests across {len(by_issue)} issue types" + " " * 20)
 
+        batch_id = None
         if realtime:
             succeeded, failed = await _run_realtime(
                 requests, pending, Tier2Output, "tier2_output", "Tier 2",
                 out, model, cost_tracker, trace_context)
         else:
-            succeeded, failed = await _submit_and_poll_batch(
+            succeeded, failed, batch_id = await _submit_and_poll_batch(
                 requests, pending, "tier2", process_tier2_results,
                 batch_manager, cost_tracker, out, trace_context, batch_trace_ids,
                 state, issue_type_single, run_id, poll_interval)
@@ -513,6 +517,8 @@ async def _run_tier2(units, issue_configs, batch_manager, cost_tracker,
         for unit in succeeded:
             unit.state = ProcessingState.TIER2_COMPLETE
             unit.tier2_completed_at = datetime.now()
+            if batch_id:
+                unit.tier2_batch_id = batch_id
             unit.state = get_next_state(unit)
 
         _log_tier_complete(out, cost_tracker, "Tier 2", len(succeeded), len(failed),
@@ -672,6 +678,7 @@ async def _run_tier3_batch(pending, units, issue_configs, batch_manager,
     )
 
     for unit in succeeded:
+        unit.tier3_batch_id = batch_id
         unit.state = get_next_state(unit)
 
     _log_tier_complete(out, cost_tracker, "Tier 3 (batch)", len(succeeded), len(failed),
@@ -706,7 +713,7 @@ async def _submit_and_poll_batch(requests, pending, tier_key, process_fn,
         trace_context=trace_context if LANGFUSE_AVAILABLE else None,
     )
 
-    return succeeded, failed
+    return succeeded, failed, batch_id
 
 
 def _submit_batch(requests, tier_key, batch_manager, out,
