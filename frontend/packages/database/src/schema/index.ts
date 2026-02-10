@@ -10,6 +10,7 @@ export * from './document-notes';
 export * from './definitions';
 export * from './definition-document-occurrences';
 export * from './regulation-statute-links';
+export * from './statute-mandate-checks';
 export * from './prompt-feedback';
 export * from './cross-references';
 export * from './relations';

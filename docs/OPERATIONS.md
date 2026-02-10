@@ -202,6 +202,18 @@ Key flags:
 | `--realtime` | off | Use realtime API (2x cost, immediate) |
 | `--title N` | none | Filter by regulatory title |
 | `--force-rerun` | off | Reprocess already-analyzed docs |
+| `--statute-mandate` | off | Run statute mandate checks after pipeline (NY only) |
+| `--run-statute-mandate-only` | off | Run only the statute mandate check step |
+
+**Statute Mandate Checks** (NY only, post-pipeline):
+```bash
+# Preview what would be checked
+cd backend
+python3 -m scripts.research_pipeline.cli --state ny --all --run-statute-mandate-only
+
+# Run checks on first 10 pairs
+python3 -m scripts.research_pipeline.cli --state ny --all --run-statute-mandate-only --execute --limit 10
+```
 
 See `.claude/skills/research-pipeline/SKILL.md` for full documentation including state machine, tier triggers, and cost estimates.
 

@@ -396,16 +396,13 @@ def link_ny_statutes(
             """
 
             batch_size = 1000
-            for j in range(0, len(rows_to_upsert), batch_size):
-                batch = rows_to_upsert[j:j + batch_size]
-                for row in batch:
-                    conn.execute(upsert_sql, row)
-                conn.commit()
-                if (j + batch_size) % 5000 == 0 or j + batch_size >= len(rows_to_upsert):
-                    print(f"    Upserted {min(j + batch_size, len(rows_to_upsert)):,}"
-                          f"/{len(rows_to_upsert):,}...")
-
-            conn.commit()
+            with conn.cursor() as cur:
+                for j in range(0, len(rows_to_upsert), batch_size):
+                    batch = rows_to_upsert[j:j + batch_size]
+                    cur.executemany(upsert_sql, batch)
+                    conn.commit()
+                    done = min(j + batch_size, len(rows_to_upsert))
+                    print(f"    Upserted {done:,}/{len(rows_to_upsert):,}...")
             print("  Done.")
 
         return stats

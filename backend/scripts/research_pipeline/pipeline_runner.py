@@ -90,6 +90,7 @@ async def run_pipeline(
     tier2_reruns: bool = False,
     title_filter: Optional[str] = None,
     model: Optional[str] = None,
+    statute_mandate: bool = False,
 ) -> list[TrackedUnit]:
     """
     Run the full 3-tier research pipeline.
@@ -220,6 +221,16 @@ async def run_pipeline(
             out.info(f"\n  Finalizing {len(tier3_pending)} units (Tier 3 skipped)")
             for unit in tier3_pending:
                 unit.state = ProcessingState.DONE
+
+    # --- Statute Mandate Check (post-pipeline, NY only) ---
+    if statute_mandate and state.upper() == "NY":
+        done_units = [u for u in units.values()
+                      if u.state in (ProcessingState.DONE, ProcessingState.TIER2_COMPLETE,
+                                     ProcessingState.TIER3_COMPLETE)]
+        if done_units:
+            out.info(f"\n[STATUTE MANDATE] Running mandate checks for {state}...")
+            from .tiers.statute_mandate_runner import run_statute_mandate_checks
+            await run_statute_mandate_checks(state=state, dry_run=False, model=model)
 
     # Complete
     cost_tracker.mark_complete()

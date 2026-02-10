@@ -449,6 +449,7 @@ async def _execute_pipeline(
     global_docs_limit: int | str | None = None,
     enable_web_search: bool = False,
     title_filter: str | None = None,
+    statute_mandate: bool = False,
 ) -> list:
     """Execute the pipeline with given processing units.
 
@@ -501,6 +502,7 @@ async def _execute_pipeline(
         realtime=realtime,
         resume=not force_rerun,
         title_filter=title_filter,
+        statute_mandate=statute_mandate,
     )
 
     # Save final results to database (tier results already saved incrementally)
@@ -525,6 +527,7 @@ async def run_test(
     dry_run: bool = False,
     enable_web_search: bool = False,
     force_rerun: bool = False,
+    statute_mandate: bool = False,
 ):
     """
     Run the research pipeline on unanalyzed documents.
@@ -618,6 +621,7 @@ async def run_test(
         global_docs_limit=None,  # Single issue type has no global limit
         enable_web_search=enable_web_search,
         title_filter=title,
+        statute_mandate=statute_mandate,
     )
 
     # Print detailed results
@@ -660,6 +664,7 @@ async def run_batched_issues(
     global_docs_limit: int | None = None,
     enable_web_search: bool = False,
     force_rerun: bool = False,
+    statute_mandate: bool = False,
 ):
     """Run pipeline with all issue types batched together per tier."""
     issue_types = get_issue_types_for_scope(state, title)
@@ -744,6 +749,7 @@ async def run_batched_issues(
         global_docs_limit=global_docs_limit,
         enable_web_search=enable_web_search,
         title_filter=title,
+        statute_mandate=statute_mandate,
     )
 
     return results
@@ -759,6 +765,7 @@ async def run_all_issues(
     global_docs_limit: int | None = None,
     enable_web_search: bool = False,
     force_rerun: bool = False,
+    statute_mandate: bool = False,
 ):
     """Run pipeline for all issue types in scope.
 
@@ -785,6 +792,7 @@ async def run_all_issues(
         dry_run=dry_run,
         enable_web_search=enable_web_search,
         force_rerun=force_rerun,
+        statute_mandate=statute_mandate,
     )
 
 
@@ -899,6 +907,15 @@ EXAMPLES:
   # Full pipeline with Tier 3 web search
   python3 -m scripts.research_pipeline.cli --state nj --all --execute --max-tier 3 --web-search
 
+  # Run statute mandate checks after pipeline (NY only)
+  python3 -m scripts.research_pipeline.cli --state ny --all --execute --statute-mandate
+
+  # Run statute mandate checks standalone (preview)
+  python3 -m scripts.research_pipeline.cli --state ny --all --run-statute-mandate-only
+
+  # Run statute mandate checks standalone (execute, limited)
+  python3 -m scripts.research_pipeline.cli --state ny --all --run-statute-mandate-only --execute --limit 10
+
   # Unlimited processing (must be explicit)
   python3 -m scripts.research_pipeline.cli --state nj --all --execute --global-limit no-limit
 
@@ -992,6 +1009,20 @@ RESUME BEHAVIOR:
         help="Re-analyze all matching documents regardless of existing analyses (upserts to DB)"
     )
 
+    # === STATUTE MANDATE FLAGS ===
+    parser.add_argument(
+        "--statute-mandate",
+        action="store_true",
+        help="Run statute mandate checks after the pipeline (NY only). "
+             "Checks whether cited statutes actually mandate the flagged issues."
+    )
+    parser.add_argument(
+        "--run-statute-mandate-only",
+        action="store_true",
+        help="Run ONLY the statute mandate check step (no pipeline). "
+             "Processes NY analyses that have statute links but no mandate checks yet."
+    )
+
     # === RECOVERY FLAGS ===
     parser.add_argument(
         "--retry-failed-tier3",
@@ -1022,6 +1053,17 @@ RESUME BEHAVIOR:
     # Convert global_docs_limit to int or None
     # 'no-limit' means no global limit
     global_limit = None if args.global_docs_limit == 'no-limit' else args.global_docs_limit
+
+    # === STATUTE MANDATE ONLY MODE ===
+    if args.run_statute_mandate_only:
+        from scripts.research_pipeline.tiers.statute_mandate_runner import run_statute_mandate_checks
+        print(f"\n*** STATUTE MANDATE CHECK ONLY MODE ***")
+        asyncio.run(run_statute_mandate_checks(
+            state=state_for_db or "NY",
+            dry_run=not args.execute,
+            limit=max_docs,
+        ))
+        sys.exit(0)
 
     # === RETRY FAILED TIER 3 MODE ===
     if args.retry_failed_tier3:
@@ -1065,6 +1107,7 @@ RESUME BEHAVIOR:
             dry_run=dry_run,
             enable_web_search=args.enable_web_search,
             force_rerun=args.force_rerun,
+            statute_mandate=args.statute_mandate,
         ))
     else:
         asyncio.run(run_test(
@@ -1077,4 +1120,5 @@ RESUME BEHAVIOR:
             dry_run=dry_run,
             enable_web_search=args.enable_web_search,
             force_rerun=args.force_rerun,
+            statute_mandate=args.statute_mandate,
         ))

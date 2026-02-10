@@ -1,9 +1,9 @@
-> **Status: PARTIALLY IMPLEMENTED**
-> - Phase 1 (Ingest statutes): 🔄 Running (~95 laws, SOS complete, rest in progress)
+> **Status: IMPLEMENTED**
+> - Phase 1 (Ingest statutes): ✅ Complete (41,348 statutes across 94 laws)
 > - Phase 2 (Law name mapping): ✅ Complete
-> - Phase 3 (Regex scan): ✅ Complete (dry-run tested, ready for real run)
+> - Phase 3 (Regex scan): ✅ Complete (6,437 links created, 4,934 matched)
 > - Phase 4 (Link type classification): ✅ Complete (regex-based, no LLM needed)
-> - Phase 5 (LLM statutory mandate check): 📋 Planned (see below)
+> - Phase 5 (LLM statutory mandate check): ✅ Complete (implemented, tested with 3 NJ pairs)
 
 # Plan: Link NY Statutes to NY Regulations
 
@@ -17,11 +17,11 @@ Connect NY regulations (NYCRR) to NY statutes (NYCLS) via the `regulation_statut
 
 | File | Purpose | Status |
 |------|---------|--------|
-| `backend/scripts/ny_statutes.py` | Ingest statutes from OpenLegislation API | ✅ Built, running |
+| `backend/scripts/ny_statutes.py` | Ingest statutes from OpenLegislation API | ✅ Complete (41,348 statutes) |
 | `backend/lib/ny_law_names.py` | Law name → law ID mapping (94 laws + variants) | ✅ Complete |
 | `backend/scripts/link_ny_statutes.py` | Regex citation scan + link creation | ✅ Complete |
 
-### Dry-run results (40,518 NY regulation sections, 4 seconds)
+### Linking results (40,518 NY regulation sections, 4 seconds)
 
 - **6,516 citations found** across 4,431 regulations
 - **98.8% law name resolution** (only 79 unknown out of 6,516)
@@ -30,8 +30,9 @@ Connect NY regulations (NYCRR) to NY statutes (NYCLS) via the `regulation_statut
   - reference: 2,033
   - requirement: 937
   - definition: 818
-- **236 matched** to statutes in DB (only SOS ingested so far)
-- **6,201 unmatched** (will resolve once full ingestion completes)
+- **4,934 matched** to statutes in DB (all 94 laws ingested)
+- **1,503 unmatched** (section not in DB — partial article ingestion)
+- **6,437 links** upserted to `regulation_statute_links`
 
 ### Compliance issue scan results (40 issue types, dry-run)
 
@@ -76,7 +77,7 @@ The link type says "this regulation cites statute X as authority." But for a **f
 
 > **Does the statute actually require the specific problematic thing, or did the agency go beyond what the statute says?**
 
-## Phase 5: LLM Statutory Mandate Check (NOT YET BUILT)
+## Phase 5: LLM Statutory Mandate Check (IMPLEMENTED)
 
 See [issue #124](https://github.com/michaeleboyce/deproceduralizer/issues/124) for full discussion.
 
@@ -84,22 +85,29 @@ See [issue #124](https://github.com/michaeleboyce/deproceduralizer/issues/124) f
 
 After the compliance research pipeline flags NY regulations (Tier 1-3 analysis), this step checks whether flagged issues are statute-mandated. Pipeline order:
 
-1. ✅ Ingest NY statutes → `statutes` table
-2. ✅ Regex-link regulations to statutes → `regulation_statute_links` table
-3. 🔄 Scan NY regulations for compliance issues → `compliance_issues` table
+1. ✅ Ingest NY statutes → `statutes` table (41,348 statutes)
+2. ✅ Regex-link regulations to statutes → `regulation_statute_links` table (6,437 links)
+3. ✅ Scan NY regulations for compliance issues → `compliance_issues` table (9,571 matches)
 4. ⬜ Run research pipeline (Tier 1-3) → `compliance_issue_analyses` table
-5. ⬜ **Statutory mandate check** → for flagged regs with statute links
+5. ✅ **Statutory mandate check** → `statute_mandate_checks` table (tested, ready to run after step 4)
 
-### What it does
+### Implementation
 
-For each flagged regulation that has statute links:
-1. Pull the regulation text, the compliance issue, and the linked statute text
-2. Ask the LLM: "Here's the regulation, here's the flagged issue, here's the statute it cites. Does the statute mandate this specific aspect, or did the agency go beyond the statute?"
-3. Store the result (e.g., `statute_mandated: true/false` + explanation)
+- **DB table**: `statute_mandate_checks` (migration 0042)
+- **Pydantic model**: `StatuteMandateOutput` in `backend/scripts/research_pipeline/models/statute_mandate.py`
+- **Runner**: `run_statute_mandate_checks()` in `backend/scripts/research_pipeline/tiers/statute_mandate_runner.py`
+- **Prompt**: `statute_mandate` section in `prompts/research_pipeline.yaml`
+- **CLI**: `--statute-mandate` (post-pipeline) or `--run-statute-mandate-only` (standalone)
+
+For each flagged regulation (burdensome/justified) that has matched statute links:
+1. Pulls the regulation text, compliance issue info, and linked statute text
+2. Asks the LLM: "Does the statute mandate this specific flagged aspect?"
+3. Stores: `statute_mandated` (bool), `confidence`, `reasoning`, `statute_text_excerpt`
+4. Skips already-checked (analysis_id, statute_id) pairs via UNIQUE constraint
 
 ### Scope
 
-Small number of LLM calls — only flagged regulations with statute links, not all 6,500+ links.
+Small number of LLM calls — only flagged regulations with matched statute links, not all 6,500+ links.
 
 ## Commands
 
@@ -120,13 +128,25 @@ PYTHONPATH=backend python backend/scripts/scan_compliance_issues.py --state ny -
 # Research pipeline (small test batch)
 cd backend && python3 -m scripts.research_pipeline.cli \
   --state ny --all --limit 5 --global-limit 20 --execute
+
+# Statute mandate check (preview)
+cd backend && python3 -m scripts.research_pipeline.cli \
+  --state ny --all --run-statute-mandate-only
+
+# Statute mandate check (run first 10 pairs)
+cd backend && python3 -m scripts.research_pipeline.cli \
+  --state ny --all --run-statute-mandate-only --execute --limit 10
+
+# Statute mandate check after full pipeline
+cd backend && python3 -m scripts.research_pipeline.cli \
+  --state ny --all --execute --statute-mandate
 ```
 
 ## Cost Estimate
 
 | Step | Cost | Time |
 |------|------|------|
-| Ingest all laws | Free (API) | ~4 hours |
+| Ingest all laws | Free (API) | ~2 hours |
 | Regex scan + link type | Free | 4 seconds |
 | Compliance issue regex scan | Free | ~5 minutes |
 | Research pipeline (full NY) | ~$50-100 | Hours (batch) |

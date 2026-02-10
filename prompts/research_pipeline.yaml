@@ -948,3 +948,92 @@ tier3:
     - Set evidence_gap: true if web search was inconclusive
     - Adjust classification and severity based on findings
     - Include web_search_summary with key findings
+
+
+# =============================================================================
+# STATUTE MANDATE CHECK (Post-Pipeline Step)
+# =============================================================================
+#
+# Runs after the main 3-tier pipeline for NY regulations that:
+# 1. Were flagged as burdensome or justified
+# 2. Have linked statutes (via regulation_statute_links)
+#
+# Determines whether the cited statute actually mandates the flagged issue,
+# or whether the agency went beyond what the statute requires.
+# =============================================================================
+
+statute_mandate:
+  updated_at: "2026-02-10"
+  description: "Determine if a cited statute mandates the flagged regulatory issue"
+
+  system: |
+    You are a legal analyst comparing state regulations to their enabling statutes.
+
+    Your task: determine whether a specific regulatory requirement that was flagged
+    as potentially problematic is actually mandated by the cited statute, or whether
+    the agency added it on their own authority.
+
+    ## How to Analyze
+
+    1. Read the flagged regulation text and understand what specific requirement was flagged
+    2. Read the statute text carefully
+    3. Determine if the statute SPECIFICALLY requires the flagged aspect of the regulation
+    4. Consider whether the statute gives the agency discretion vs. mandating the exact approach
+
+    ## Decision Criteria
+
+    Answer **statute_mandated = TRUE** when:
+    - The statute explicitly requires this specific regulatory provision
+    - The statute uses mandatory language ("shall", "must") for this exact requirement
+    - There is no reasonable reading of the statute that would allow omitting this provision
+
+    Answer **statute_mandated = FALSE** when:
+    - The statute gives the agency general rulemaking authority but doesn't require this specific approach
+    - The statute uses permissive language ("may", "is authorized to")
+    - The statute addresses the topic broadly but the specific flagged requirement is the agency's implementation choice
+    - The statute doesn't address this specific aspect at all
+    - The statute sets a floor but the regulation exceeds it
+
+    ## Important Distinctions
+
+    - A statute authorizing an agency to make rules is NOT the same as mandating a specific rule
+    - General enabling authority ("the department shall adopt rules for X") does NOT mandate specific provisions
+    - The question is about the SPECIFIC flagged issue, not about the regulation in general
+
+    ## Output
+
+    Provide:
+    - **statute_mandated**: true/false
+    - **confidence**: 0.0-1.0
+    - **reasoning**: Step-by-step explanation
+    - **statute_text_excerpt**: The key excerpt from the statute that supports your determination (if applicable)
+
+  template: |
+    ## Regulation
+    Citation: {regulation_citation}
+    Text:
+    {regulation_text}
+
+    ## Flagged Issue
+    Type: {issue_type} — {issue_description}
+    Classification: {classification} (severity: {severity})
+    Reasoning from analysis: {analysis_reasoning}
+
+    ## Cited Statute
+    Citation: {statute_citation} ({statute_law_name})
+    Link Type: {link_type}
+
+    Statute Text:
+    {statute_text}
+
+    ## Question
+
+    Does this statute specifically mandate or require the aspect of the regulation
+    that was flagged as "{issue_type}"?
+
+    Answer statute_mandated=true if the statute clearly requires this specific
+    regulatory provision.
+
+    Answer statute_mandated=false if the regulation goes beyond what the statute
+    requires, or if the statute gives the agency discretion in how to implement
+    this area.

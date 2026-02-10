@@ -594,19 +594,16 @@ def populate_ny_parent_ids(records: Optional[List[Dict]] = None) -> int:
         total_updated = 0
 
         if records:
-            # Build citation-to-parent-citation mapping from records
-            # locationId -> citation
-            loc_to_citation = {}
+            # Index records by (law_id, location_id) for O(1) parent lookup
+            rec_index: Dict[tuple, Dict] = {}
             for rec in records:
-                loc_id = rec.get('_location_id', '')
                 law_id = rec.get('_law_id', '')
-                doc_type = rec.get('_doc_type', '')
-                if loc_id and law_id:
-                    citation = build_citation(law_id, loc_id, doc_type)
-                    loc_to_citation[(law_id, loc_id)] = citation
+                loc_id = rec.get('_location_id', '')
+                if law_id and loc_id:
+                    rec_index[(law_id, loc_id)] = rec
 
             # Build parent mapping: child_citation -> parent_citation
-            parent_map = {}
+            parent_map: Dict[str, str] = {}
             for rec in records:
                 law_id = rec.get('_law_id', '')
                 loc_id = rec.get('_location_id', '')
@@ -617,38 +614,54 @@ def populate_ny_parent_ids(records: Optional[List[Dict]] = None) -> int:
 
                 child_citation = build_citation(law_id, loc_id, doc_type)
 
-                # Find the parent's doc_type to build correct citation
-                parent_citation = None
-                for other_rec in records:
-                    if other_rec.get('_law_id') == law_id and other_rec.get('_location_id') == parent_loc:
-                        parent_citation = build_citation(law_id, parent_loc, other_rec.get('_doc_type', ''))
-                        break
-
-                if not parent_citation:
+                # O(1) lookup for parent record
+                parent_rec = rec_index.get((law_id, parent_loc))
+                if parent_rec:
+                    parent_citation = build_citation(law_id, parent_loc, parent_rec.get('_doc_type', ''))
+                else:
                     # Fallback: guess law container
                     parent_citation = f"law:{law_id}" if not parent_loc or parent_loc == law_id else f"{law_id}:{parent_loc}"
 
                 parent_map[child_citation] = parent_citation
 
-            # Batch update parent_id using the mapping
-            print(f"  Updating {len(parent_map):,} parent relationships from tree data...")
-            batch_count = 0
-            for child_cit, parent_cit in parent_map.items():
-                result = conn.execute("""
-                    UPDATE statutes s
-                    SET parent_id = p.id
-                    FROM statutes p
-                    WHERE s.state = 'NY' AND s.citation = %s
-                      AND p.state = 'NY' AND p.citation = %s
-                      AND (s.parent_id IS NULL OR s.parent_id != p.id)
-                """, (child_cit, parent_cit))
-                batch_count += result.rowcount
+            print(f"  Built {len(parent_map):,} parent relationships from tree data")
+            print(f"  Uploading to temp table and batch-updating...")
 
-                if (batch_count % 1000) == 0 and batch_count > 0:
-                    conn.commit()
+            # Use a temp table + single UPDATE for all mappings at once
+            conn.execute("CREATE TEMP TABLE _parent_map (child_citation TEXT, parent_citation TEXT)")
+
+            # Insert in batches of 1000 using executemany
+            items = list(parent_map.items())
+            BATCH = 1000
+            with conn.cursor() as cur:
+                for i in range(0, len(items), BATCH):
+                    batch = items[i:i + BATCH]
+                    cur.executemany(
+                        "INSERT INTO _parent_map (child_citation, parent_citation) VALUES (%s, %s)",
+                        batch,
+                    )
+                    done = min(i + BATCH, len(items))
+                    if done % 5000 == 0 or done == len(items):
+                        print(f"    Uploaded {done:,} / {len(items):,} mappings")
 
             conn.commit()
-            total_updated = batch_count
+
+            # Single UPDATE joining temp table to statutes
+            print(f"  Running batch UPDATE...")
+            result = conn.execute("""
+                UPDATE statutes s
+                SET parent_id = p.id
+                FROM _parent_map m
+                JOIN statutes p ON p.state = 'NY' AND p.citation = m.parent_citation
+                WHERE s.state = 'NY' AND s.citation = m.child_citation
+                  AND (s.parent_id IS NULL OR s.parent_id != p.id)
+            """)
+            total_updated = result.rowcount
+            conn.commit()
+
+            conn.execute("DROP TABLE IF EXISTS _parent_map")
+            conn.commit()
+
             print(f"  Updated {total_updated:,} parent relationships")
 
         else:
