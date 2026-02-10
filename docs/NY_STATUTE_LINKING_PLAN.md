@@ -1,9 +1,9 @@
-> **Status: IMPLEMENTED**
+> **Status: IMPLEMENTED — First NY run complete (Title 18)**
 > - Phase 1 (Ingest statutes): ✅ Complete (41,348 statutes across 94 laws)
 > - Phase 2 (Law name mapping): ✅ Complete
 > - Phase 3 (Regex scan): ✅ Complete (6,437 links created, 4,934 matched)
 > - Phase 4 (Link type classification): ✅ Complete (regex-based, no LLM needed)
-> - Phase 5 (LLM statutory mandate check): ✅ Complete (implemented, tested with 3 NJ pairs)
+> - Phase 5 (LLM statutory mandate check): ✅ Complete (12 NY checks run, all not statute-mandated)
 
 # Plan: Link NY Statutes to NY Regulations
 
@@ -88,8 +88,8 @@ After the compliance research pipeline flags NY regulations (Tier 1-3 analysis),
 1. ✅ Ingest NY statutes → `statutes` table (41,348 statutes)
 2. ✅ Regex-link regulations to statutes → `regulation_statute_links` table (6,437 links)
 3. ✅ Scan NY regulations for compliance issues → `compliance_issues` table (9,571 matches)
-4. ⬜ Run research pipeline (Tier 1-3) → `compliance_issue_analyses` table
-5. ✅ **Statutory mandate check** → `statute_mandate_checks` table (tested, ready to run after step 4)
+4. 🔄 Run research pipeline (Tier 1-3) → `compliance_issue_analyses` table (Title 18 done, rest pending)
+5. ✅ **Statutory mandate check** → `statute_mandate_checks` table (12 NY checks complete)
 
 ### Implementation
 
@@ -108,6 +108,21 @@ For each flagged regulation (burdensome/justified) that has matched statute link
 ### Scope
 
 Small number of LLM calls — only flagged regulations with matched statute links, not all 6,500+ links.
+
+### First run results (Title 18 NYCRR — child care/social services)
+
+Pipeline run ($2.13, 22 min batch):
+- **Tier 1**: 100 requests → 74 false positives filtered, 26 advanced
+- **Tier 2**: 26 requests → 4 burdensome, 15 justified, 7 unrelated
+- **Mandate checks**: 12 (analysis, statute) pairs → **all 12 not statute-mandated**
+
+Burdensome findings (all agency-added, not required by statute):
+| Regulation | Issue | Severity | Statutes checked |
+|-----------|-------|----------|-----------------|
+| `18 NYCRR 359.7` | In-person hearings for public assistance | 7 | — |
+| `18 NYCRR 399.6` | In-person hearings | 7 | — |
+| `18 NYCRR 300.6` | Certified mail between gov entities | 6 | — |
+| `18 NYCRR 449.4` | Check/money order only for $5 fees | 6 | SOS 488, SOS 495, EXC 553 |
 
 ## Commands
 
@@ -144,10 +159,11 @@ cd backend && python3 -m scripts.research_pipeline.cli \
 
 ## Cost Estimate
 
-| Step | Cost | Time |
-|------|------|------|
-| Ingest all laws | Free (API) | ~2 hours |
-| Regex scan + link type | Free | 4 seconds |
-| Compliance issue regex scan | Free | ~5 minutes |
-| Research pipeline (full NY) | ~$50-100 | Hours (batch) |
-| Statutory mandate check | ~$5-10 | Depends on flagged count |
+| Step | Cost | Time | Actual (Title 18) |
+|------|------|------|-------------------|
+| Ingest all laws | Free (API) | ~2 hours | Done |
+| Regex scan + link type | Free | 4 seconds | Done |
+| Compliance issue regex scan | Free | ~5 minutes | Done |
+| Research pipeline (Title 18) | — | — | $2.13, 22 min |
+| Research pipeline (full NY) | ~$50-100 | Hours (batch) | Pending |
+| Statutory mandate check | ~$5-10 | Depends on flagged count | 12 checks done |
