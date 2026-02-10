@@ -234,11 +234,12 @@ def build_citation(law_id: str, location_id: str, doc_type: str) -> str:
     Build a citation string for a node.
 
     Citation formats:
-      - SECTION:  "EXC 296"      (lawId + space + docLevelId-like locationId)
+      - SECTION:  "EXC 296"      (lawId + space + locationId)
       - Non-section containers: "EXC:A15" (lawId + colon + locationId)
-      - Law root: "law:EXC"
+      - Law root (CHAPTER): "law:EXC"
     """
-    if not location_id or location_id == law_id:
+    # Root CHAPTER nodes have locationIds like "-CH55" — treat as law container
+    if not location_id or location_id == law_id or doc_type == 'CHAPTER':
         return f"law:{law_id}"
 
     if doc_type == 'SECTION':
@@ -456,10 +457,12 @@ def save_statutes(records: List[Dict]):
     """Save statute records to JSON files."""
     ensure_data_dirs()
 
-    # Strip internal metadata for saved output
+    # Keep _parent_location_id, _location_id, _doc_type, _law_id for hierarchy resolution
+    # but strip any other internal fields
+    keep_internal = {'_parent_location_id', '_location_id', '_doc_type', '_law_id'}
     clean_records = []
     for rec in records:
-        clean = {k: v for k, v in rec.items() if not k.startswith('_')}
+        clean = {k: v for k, v in rec.items() if not k.startswith('_') or k in keep_internal}
         clean_records.append(clean)
 
     # Save complete file
