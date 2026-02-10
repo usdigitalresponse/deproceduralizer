@@ -18,8 +18,18 @@ Usage:
 """
 
 from .config import StateConfig, IssueTypeConfig, STATES, ISSUE_TYPES
-from .searcher import ComplianceIssueSearcher
-from .statute_checker import StatuteChecker
+
+
+def __getattr__(name):
+    """Lazy imports to avoid circular dependency with scripts.shared.base_searcher."""
+    if name == 'ComplianceIssueSearcher':
+        from .searcher import ComplianceIssueSearcher
+        return ComplianceIssueSearcher
+    if name == 'StatuteChecker':
+        from .statute_checker import StatuteChecker
+        return StatuteChecker
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 __all__ = [
     'StateConfig',
