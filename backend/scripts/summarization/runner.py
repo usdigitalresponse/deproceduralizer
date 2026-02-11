@@ -143,7 +143,7 @@ class SummarizationBatchRunner:
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
         self.manager = BatchManager(batches_dir=self.output_dir)
-        self.summaries_cache: dict[int, dict] = {}  # doc_id -> {summary, model_family}
+        self.summaries_cache: dict[int, dict] = {}  # doc_id -> {summary, model_family, citation}
 
     def _load_summaries_cache(self):
         """Load summaries from previous batch runs for context.
@@ -163,6 +163,7 @@ class SummarizationBatchRunner:
                             self.summaries_cache[r["document_id"]] = {
                                 "summary": r["summary"],
                                 "model_family": model_family,
+                                "citation": r.get("citation"),
                             }
                             loaded_count += 1
                 except Exception as e:
@@ -437,9 +438,8 @@ class SummarizationBatchRunner:
             for cid in child_ids:
                 cached = self.summaries_cache.get(cid)
                 if cached and cached.get("model_family") in VALID_CONTEXT_MODEL_FAMILIES:
-                    # Need to get citation - we don't have it in cache
-                    # For now just use ID
-                    child_sums.append((f"ID:{cid}", cached["summary"]))
+                    citation = cached.get("citation") or f"ID:{cid}"
+                    child_sums.append((citation, cached["summary"]))
 
             intro_text = extract_intro_text(content)
             user_prompt = build_parent_user_prompt(doc, ancestors, child_sums, intro_text)
@@ -706,10 +706,11 @@ class SummarizationBatchRunner:
                     "metadata": metadata_dict,
                 }
 
-                # Cache for parent phases
+                # Cache for parent phases (citation filled in below)
                 self.summaries_cache[doc_id] = {
                     "summary": summary_text,
                     "model_family": "claude",
+                    "citation": None,
                 }
 
                 results.append(result_dict)
@@ -724,6 +725,24 @@ class SummarizationBatchRunner:
             processed += 1
             if processed % 1000 == 0:
                 print(f"  Processed {processed} results...")
+
+        # Backfill citations from DB (batch API responses don't include them)
+        if results:
+            from .db_queries import get_connection
+            result_ids = [r["document_id"] for r in results]
+            with get_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT id, citation FROM regulatory_documents WHERE id = ANY(%s)",
+                        [result_ids],
+                    )
+                    citation_map = {row[0]: row[1] for row in cur.fetchall()}
+            for r in results:
+                doc_id = r["document_id"]
+                citation = citation_map.get(doc_id)
+                r["citation"] = citation
+                if doc_id in self.summaries_cache:
+                    self.summaries_cache[doc_id]["citation"] = citation
 
         # Add skipped docs with standard summaries
         skipped_docs = self._load_skipped_docs(phase)
