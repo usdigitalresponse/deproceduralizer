@@ -32,11 +32,12 @@ from .runner import SummarizationBatchRunner
 # Default output directory (backend/summaries_staging/)
 DEFAULT_OUTPUT_DIR = Path(__file__).parent.parent.parent / "summaries_staging"
 
-# Valid phases in order
-PHASES = ["sections", "subchapters", "chapters", "parts", "titles"]
-
-# Parent-level phases (use submit_parent_phase)
-PARENT_PHASES = {"subchapters", "chapters", "parts", "titles"}
+# All known hierarchy levels (pluralized as phase names)
+# Used for --phase validation; actual ordering is auto-detected at runtime
+PHASES = [
+    "sections", "subparts", "parts", "articles",
+    "subchapters", "chapters", "subtitles", "titles",
+]
 
 
 def main():
@@ -245,8 +246,12 @@ def main():
 
     elif getattr(args, 'run', False):
         if args.dry_run:
-            # Dry-run each phase to show what would be submitted
-            for phase in PHASES:
+            # Auto-detect phase order and dry-run each
+            from .db_queries import get_hierarchy_order
+            parent_levels = get_hierarchy_order(args.state.upper(), args.title)
+            phases = ["sections"] + [f"{level}s" for level in parent_levels]
+            print(f"Detected phase order: {' → '.join(phases)}")
+            for phase in phases:
                 print(f"\n{'='*60}")
                 print(f"DRY RUN: {phase.upper()}")
                 print(f"{'='*60}")

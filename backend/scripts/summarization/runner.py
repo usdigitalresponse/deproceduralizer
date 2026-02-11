@@ -18,6 +18,7 @@ from .db_queries import (
     get_sections_grouped_by_parent,
     get_child_ids,
     get_child_ids_batch,
+    get_hierarchy_order,
 )
 from .parent_context import extract_intro_text
 from .models import SummaryMetadata, SummaryResult
@@ -986,10 +987,13 @@ class SummarizationBatchRunner:
 
     def run_all_phases(self, poll_interval: int = 30) -> dict[str, list[dict]]:
         """
-        Run all 5 phases sequentially: sections → subchapters → chapters → parts → titles.
+        Run all phases sequentially in bottom-up hierarchy order.
 
-        Each phase submits, polls until complete, and processes results before
-        the next phase starts (parent phases need child summaries as context).
+        Auto-detects the hierarchy levels present for this state/title and
+        orders them deepest-first (e.g., sections → subparts → parts →
+        subchapters → chapters → titles). Each phase submits, polls until
+        complete, and processes results before the next phase starts (parent
+        phases need child summaries as context).
 
         Args:
             poll_interval: Seconds between status polls
@@ -997,11 +1001,16 @@ class SummarizationBatchRunner:
         Returns:
             Dict mapping phase name → list of result dicts
         """
-        phases = ["sections", "subchapters", "chapters", "parts", "titles"]
+        # Auto-detect parent levels in bottom-up order
+        parent_levels = get_hierarchy_order(self.state, self.title)
+        # Sections are always first, then parent levels (pluralized for phase names)
+        phases = ["sections"] + [f"{level}s" for level in parent_levels]
+
         all_results = {}
 
         print(f"\n{'='*60}")
         print(f"RUNNING ALL PHASES: {self.state}" + (f" Title {self.title}" if self.title else ""))
+        print(f"Detected phase order: {' → '.join(phases)}")
         print(f"{'='*60}")
 
         for i, phase in enumerate(phases, 1):

@@ -563,3 +563,37 @@ def get_all_titles(state: str) -> list[str]:
             titles = [row[0] for row in cur.fetchall()]
 
     return titles
+
+
+def get_hierarchy_order(
+    state: str,
+    title: Optional[str] = None,
+) -> list[str]:
+    """
+    Get the bottom-up hierarchy level ordering for a state/title.
+
+    Uses the canonical ordering from config.HIERARCHY_ORDER, filtered to
+    only levels that actually exist in the data for this state/title.
+
+    'section' is excluded — it's always the first phase.
+
+    Args:
+        state: State code (e.g., 'NY', 'NJ')
+        title: Optional title filter
+
+    Returns:
+        List of hierarchy level names in bottom-up order, excluding 'section'.
+        E.g., ['subpart', 'part', 'subchapter', 'chapter', 'title']
+    """
+    from config import HIERARCHY_ORDER
+
+    canonical = HIERARCHY_ORDER.get(state.upper())
+    if canonical is None:
+        raise ValueError(
+            f"No hierarchy order configured for state '{state}'. "
+            f"Add it to config.HIERARCHY_ORDER."
+        )
+
+    # Filter to levels that actually exist in this state/title
+    present = set(get_hierarchy_levels(state, title))
+    return [level for level in canonical if level in present]
