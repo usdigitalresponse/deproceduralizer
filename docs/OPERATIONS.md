@@ -182,6 +182,10 @@ python3 -m scripts.summarization.cli --state NY --phase sections --process
 - Each parent phase uses child summaries as input — must run in order
 - Requires `--title <N>` to prevent accidental 50K+ doc submissions
 - Use `--dry-run` to preview what would be submitted
+- Can also be triggered as a post-pipeline step via the research pipeline CLI:
+  ```bash
+  python3 -m scripts.research_pipeline.cli --state ny --all --execute --title 18 --summarize
+  ```
 - Import updates `regulatory_documents` with: `summary`, `section_type`, `keywords`, `applies_to`, `has_form`, `has_ibr`
 
 | Cost | Time |

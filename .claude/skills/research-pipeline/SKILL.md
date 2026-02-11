@@ -188,9 +188,19 @@ python3 -m scripts.research_pipeline.cli \
 - Results in `statute_mandate_checks` table
 - Small number of LLM calls (only flagged + linked pairs)
 
-## Summarization CLI
+## Summarization
 
-Separate CLI for generating hierarchical summaries of regulatory documents.
+Can be run as a post-pipeline step or standalone.
+
+### Via Pipeline CLI (post-pipeline)
+
+```bash
+# Run pipeline then summarize the same title
+python3 -m scripts.research_pipeline.cli \
+  --state ny --all --execute --title 18 --summarize
+```
+
+### Standalone CLI
 
 ```bash
 cd backend
