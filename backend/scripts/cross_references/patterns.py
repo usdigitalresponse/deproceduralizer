@@ -124,11 +124,26 @@ NJAC_PATTERN = re.compile(
      (?:[a-z])?                            # Optional subsection letter suffix
      (?:\([a-z]\))?                        # Optional (a) style subsection
      (?:\(\d+\))?                          # Optional (1) style paragraph
+     (?:\d+)?                             # Optional trailing paragraph number (e.g., 4 in (c)4)
+     (?:[ivx]+)?                          # Optional trailing roman numeral (e.g., vi in (a)1vi)
     )
     (?:\s+et\s+seq\.?)?                    # Optional "et seq." suffix
     ''',
     re.IGNORECASE | re.VERBOSE
 )
+
+
+def _normalize_njac_section(section: str) -> str:
+    """Extract the base section number (digits.digits) from a full section string.
+
+    Examples:
+        '2.2(c)4' -> '2.2'
+        '7.3(a)1vi' -> '7.3'
+        '1.2a' -> '1.2'
+        '6' -> '6'
+    """
+    m = re.match(r'(\d+(?:\.\d+)?)', section)
+    return m.group(1) if m else section
 
 
 def parse_njac_match(match: re.Match) -> Optional[PatternMatch]:
@@ -137,11 +152,7 @@ def parse_njac_match(match: re.Match) -> Optional[PatternMatch]:
     chapter = match.group(2)
     section = match.group(3)
 
-    # Normalize: strip trailing subsection markers for lookup
-    section_base = re.sub(r'[a-z]?(?:\([a-z]\))?(?:\(\d+\))?$', '', section, flags=re.IGNORECASE)
-    if not section_base:
-        section_base = section  # Don't strip everything
-
+    section_base = _normalize_njac_section(section)
     normalized = f"N.J.A.C. {title}:{chapter}-{section_base}"
 
     return PatternMatch(
@@ -189,6 +200,8 @@ NJAC_ABBREVIATED_SECTION = re.compile(
             (?:[a-z])?                     # Optional suffix
             (?:\([a-z]\))?                 # Optional (a)
             (?:\(\d+\))?                   # Optional (1)
+            (?:\d+)?                       # Optional trailing paragraph
+            (?:[ivx]+)?                    # Optional trailing roman numeral
         )
         |
         (?:                                # Option B: Abbreviated section (e.g., "4.1")
@@ -196,8 +209,28 @@ NJAC_ABBREVIATED_SECTION = re.compile(
             (?:[a-z])?                     # Optional letter suffix
             (?:\([a-z]\))?                 # Optional (a) subsection
             (?:\(\d+\))?                   # Optional (1) paragraph
-            (?:[ivx]+)?                    # Optional roman numeral suffix
+            (?:\d+)?                       # Optional trailing paragraph number
+            (?:[ivx]+)?                    # Optional trailing roman numeral
         )
+    )
+    ''',
+    re.IGNORECASE | re.VERBOSE
+)
+
+
+# Pattern for range suffix after an NJAC section (e.g., "through 4.5")
+NJAC_RANGE_SUFFIX = re.compile(
+    r'''
+    ^                                      # Start of remaining text
+    \s+
+    (?:through|to)                         # Range keyword
+    \s+
+    (\d+(?:\.\d+)?                         # (1) End section
+     (?:[a-z])?                            # Optional letter suffix
+     (?:\([a-z]\))?                        # Optional (a)
+     (?:\(\d+\))?                          # Optional (1)
+     (?:\d+)?                             # Optional trailing paragraph
+     (?:[ivx]+)?                          # Optional trailing roman
     )
     ''',
     re.IGNORECASE | re.VERBOSE
@@ -219,6 +252,27 @@ def expand_njac_list(content: str, initial_match: PatternMatch) -> List[PatternM
     For chapter switches like "N.J.A.C. 7:22-3 and 7:22A-6", the second part
     is treated as a new full citation, not abbreviated.
     """
+    # Check for range suffix on the initial match (e.g., "N.J.A.C. 7:26J-4.1 through 4.5")
+    range_remaining = content[initial_match.end:]
+    range_m = NJAC_RANGE_SUFFIX.match(range_remaining)
+    if range_m:
+        range_end_section = range_m.group(1)
+        range_end_base = _normalize_njac_section(range_end_section)
+        # Extend the initial match to cover the range
+        initial_match = PatternMatch(
+            ref_type=initial_match.ref_type,
+            raw_text=content[initial_match.start:initial_match.end + range_m.end()],
+            normalized=initial_match.normalized,
+            start=initial_match.start,
+            end=initial_match.end + range_m.end(),
+            components={
+                **initial_match.components,
+                'is_range': True,
+                'range_end_section': range_end_section,
+                'range_end_base': range_end_base,
+            }
+        )
+
     results = [initial_match]  # Always include the original
 
     # Extract the title:chapter prefix (e.g., "7:1A-")
@@ -247,6 +301,7 @@ def expand_njac_list(content: str, initial_match: PatternMatch) -> List[PatternM
         abs_end = search_start + pos + m.end(1)
 
         # Check if this is a chapter switch (full citation embedded)
+        abbrev_range_m = None
         if is_chapter_switch(section):
             # Parse as full NJAC citation
             # Format: "7:22A-6" -> title=7, chapter=22A, section=6
@@ -258,10 +313,7 @@ def expand_njac_list(content: str, initial_match: PatternMatch) -> List[PatternM
                     new_chapter = chapter_section[0]
                     new_section = chapter_section[1]
 
-                    # Strip subsection markers for normalization
-                    section_base = re.sub(r'[a-z]?(?:\([a-z]\))?(?:\(\d+\))?$', '', new_section, flags=re.IGNORECASE)
-                    if not section_base:
-                        section_base = new_section
+                    section_base = _normalize_njac_section(new_section)
 
                     normalized = f"N.J.A.C. {new_title}:{new_chapter}-{section_base}"
 
@@ -288,31 +340,48 @@ def expand_njac_list(content: str, initial_match: PatternMatch) -> List[PatternM
                     prefix = f"{new_title}:{new_chapter}-"
         else:
             # Abbreviated section - inherit title:chapter from parent
-            section_base = re.sub(r'[a-z]?(?:\([a-z]\))?(?:\(\d+\))?(?:[ivx]+)?$', '', section, flags=re.IGNORECASE)
-            if not section_base:
-                section_base = section
+            section_base = _normalize_njac_section(section)
 
             normalized = f"N.J.A.C. {prefix}{section_base}"
 
+            # Check for range suffix on abbreviated match
+            abbrev_range_remaining = content[abs_end:]
+            abbrev_range_m = NJAC_RANGE_SUFFIX.match(abbrev_range_remaining)
+            components = {
+                'title': title,
+                'chapter': chapter,
+                'section': section,
+                'section_base': section_base,
+                'is_list_item': True,
+                'is_abbreviated': True,
+                'inferred_from': initial_match.normalized,
+                'state': 'NJ'
+            }
+            raw_text = section
+            end_pos = abs_end
+
+            if abbrev_range_m:
+                range_end_section = abbrev_range_m.group(1)
+                components['is_range'] = True
+                components['range_end_section'] = range_end_section
+                components['range_end_base'] = _normalize_njac_section(range_end_section)
+                raw_text = content[abs_start:abs_end + abbrev_range_m.end()]
+                end_pos = abs_end + abbrev_range_m.end()
+
             results.append(PatternMatch(
                 ref_type=RefType.NJAC,
-                raw_text=section,
+                raw_text=raw_text,
                 normalized=normalized,
                 start=abs_start,
-                end=abs_end,
-                components={
-                    'title': title,
-                    'chapter': chapter,
-                    'section': section,
-                    'section_base': section_base,
-                    'is_list_item': True,
-                    'is_abbreviated': True,
-                    'inferred_from': initial_match.normalized,
-                    'state': 'NJ'
-                }
+                end=end_pos,
+                components=components
             ))
 
-        pos += m.end()
+        advance = m.end()
+        # If we consumed a range suffix on the abbreviated match, advance past it
+        if not is_chapter_switch(section) and abbrev_range_m:
+            advance += abbrev_range_m.end()
+        pos += advance
 
     return results
 
@@ -373,6 +442,52 @@ def parse_ny_short_form_match(match: re.Match) -> Optional[PatternMatch]:
             'scope': scope.lower(),  # 'part', 'subpart', or 'title'
             'state': 'NY',
             'requires_context': True
+        }
+    )
+
+
+# =============================================================================
+# SAME-SECTION RANGE PATTERN
+# =============================================================================
+#
+# Matches range references like "(b) through (f) below" or "(a) to (c) herein".
+# Must be registered BEFORE SAME_SECTION_PATTERN so the range is captured as
+# one match rather than only capturing the end of the range.
+#
+# Examples:
+#   "(b) through (f) below"
+#   "(a) to (d) above"
+#   "(c) through (g) herein"
+
+SAME_SECTION_RANGE_PATTERN = re.compile(
+    r'''
+    (\([a-z]\))                            # (1) Range start, e.g. (b)
+    \s+
+    (?:through|to)                         # Range keyword
+    \s+
+    (\([a-z]\))                            # (2) Range end, e.g. (f)
+    (?:\s+(?:above|below|herein))?         # Optional direction
+    ''',
+    re.IGNORECASE | re.VERBOSE
+)
+
+
+def parse_same_section_range_match(match: re.Match) -> Optional[PatternMatch]:
+    """Parse a same-section range match like '(b) through (f) below'."""
+    range_start = match.group(1)
+    range_end = match.group(2)
+
+    return PatternMatch(
+        ref_type=RefType.SAME_SECTION,
+        raw_text=match.group(0),
+        normalized=f"{range_start}-{range_end}",
+        start=match.start(),
+        end=match.end(),
+        components={
+            'range_start': range_start,
+            'range_end': range_end,
+            'is_range': True,
+            'is_relative': True
         }
     )
 
@@ -460,6 +575,7 @@ PATTERNS: List[Tuple[re.Pattern, callable]] = [
     (NYCRR_PATTERN, parse_nycrr_match),
     (NJAC_PATTERN, parse_njac_match),
     (NY_SHORT_FORM_PATTERN, parse_ny_short_form_match),
+    (SAME_SECTION_RANGE_PATTERN, parse_same_section_range_match),
     (SAME_SECTION_PATTERN, parse_same_section_match),
 ]
 

@@ -21,6 +21,12 @@
 - `N.J.A.C. 8:43-1.2`
 - `N.J.A.C. 7:50-6.84(a)`
 - `NJAC 11:15-4.6`
+- `N.J.A.C. 7:26J-2.2(c)4` — deep subsection with trailing paragraph number
+- `N.J.A.C. 7:26J-7.3(a)1vi` — deep subsection with trailing roman numeral
+
+**Deep subsections:** Trailing paragraph numbers (`(c)4`) and roman numerals (`(a)1vi`) after subsection markers are captured. Normalization via `_normalize_njac_section()` extracts the base `digits.digits` form for lookup.
+
+**Range detection:** `N.J.A.C. 7:26J-4.1 through 4.5` is captured as a single range reference with `is_range=True`, `range_end_section`, and `range_end_base` in components.
 
 **Resolution:** Direct lookup using `citation` column
 
@@ -45,6 +51,17 @@
 - `subparagraph (ii) below`
 
 **Resolution:** Not resolved to another document (internal reference).
+
+### Same-section Range
+
+**Pattern:** `(letter) through/to (letter) [above/below/herein]`
+
+**Examples:**
+- `(b) through (f) below`
+- `(a) to (d) above`
+- `(c) through (g) herein`
+
+**Resolution:** Not resolved to another document (internal range reference). Stored with `is_range=True`, `range_start`, `range_end` in components. Registered before `SAME_SECTION_PATTERN` so overlap detection prevents partial match on the end of the range.
 
 ## Regex Patterns
 
