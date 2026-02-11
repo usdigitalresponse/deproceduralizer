@@ -73,6 +73,34 @@ class SummaryResponse(BaseModel):
     )
 
 
+def _parse_tool_use_result(message) -> dict:
+    """Extract structured fields from a tool_use response block.
+
+    Returns dict with summary, section_type, keywords, applies_to, has_form,
+    has_incorporation_by_reference. Returns empty/default values if no tool_use found.
+    """
+    result = {
+        "summary": "",
+        "section_type": "",
+        "keywords": [],
+        "applies_to": [],
+        "has_form": False,
+        "has_incorporation_by_reference": False,
+    }
+    for block in message.content:
+        if block.type == "tool_use":
+            input_data = block.input
+            if isinstance(input_data, dict):
+                result["summary"] = input_data.get("summary", "")
+                result["section_type"] = input_data.get("section_type", "")
+                result["keywords"] = input_data.get("keywords", [])
+                result["applies_to"] = input_data.get("applies_to", [])
+                result["has_form"] = input_data.get("has_form", False)
+                result["has_incorporation_by_reference"] = input_data.get("has_incorporation_by_reference", False)
+            break
+    return result
+
+
 def get_model_family(model_name: str) -> str:
     """Determine model family from model name."""
     if model_name.startswith("claude"):
@@ -600,27 +628,8 @@ class SummarizationBatchRunner:
             doc_id = int(custom_id.replace("doc_", ""))
 
             if result.result.type == "succeeded":
-                # Extract fields from tool_use response
-                message = result.result.message
-                summary_text = ""
-                section_type = ""
-                keywords = []
-                applies_to = []
-                has_form = False
-                has_incorporation_by_reference = False
-
-                for block in message.content:
-                    if block.type == "tool_use":
-                        input_data = block.input
-                        if isinstance(input_data, dict):
-                            summary_text = input_data.get("summary", "")
-                            section_type = input_data.get("section_type", "")
-                            keywords = input_data.get("keywords", [])
-                            applies_to = input_data.get("applies_to", [])
-                            has_form = input_data.get("has_form", False)
-                            has_incorporation_by_reference = input_data.get("has_incorporation_by_reference", False)
-                        break
-
+                parsed = _parse_tool_use_result(result.result.message)
+                summary_text = parsed["summary"]
                 word_count = len(summary_text.split())
 
                 # Create metadata
@@ -638,24 +647,17 @@ class SummarizationBatchRunner:
                     model_name=BATCH_MODEL,
                     phase=phase,
                 )
-                # Build complete metadata dict with extended fields
                 metadata_dict = metadata.to_dict()
                 metadata_dict["model_family"] = "claude"
                 metadata_dict["batch_id"] = batch_id
 
-                # Build result dict with all fields
                 result_dict = {
                     "document_id": doc_id,
                     "title": "",
                     "hierarchy_level": phase.rstrip("s"),
                     "state": self.state,
                     "citation": None,
-                    "summary": summary_text,
-                    "section_type": section_type,
-                    "keywords": keywords,
-                    "applies_to": applies_to,
-                    "has_form": has_form,
-                    "has_incorporation_by_reference": has_incorporation_by_reference,
+                    **parsed,
                     "metadata": metadata_dict,
                 }
 
@@ -749,34 +751,10 @@ class SummarizationBatchRunner:
                     doc_id = int(custom_id.replace("doc_", ""))
 
                     if result.result.type == "succeeded":
-                        message = result.result.message
-                        summary_text = ""
-                        section_type = ""
-                        keywords = []
-                        applies_to = []
-                        has_form = False
-                        has_incorporation_by_reference = False
-
-                        for block in message.content:
-                            if block.type == "tool_use":
-                                input_data = block.input
-                                if isinstance(input_data, dict):
-                                    summary_text = input_data.get("summary", "")
-                                    section_type = input_data.get("section_type", "")
-                                    keywords = input_data.get("keywords", [])
-                                    applies_to = input_data.get("applies_to", [])
-                                    has_form = input_data.get("has_form", False)
-                                    has_incorporation_by_reference = input_data.get("has_incorporation_by_reference", False)
-                                break
-
+                        parsed = _parse_tool_use_result(result.result.message)
                         result_dict = {
                             "document_id": doc_id,
-                            "summary": summary_text,
-                            "section_type": section_type,
-                            "keywords": keywords,
-                            "applies_to": applies_to,
-                            "has_form": has_form,
-                            "has_incorporation_by_reference": has_incorporation_by_reference,
+                            **parsed,
                             "metadata": {
                                 "model_family": "claude",
                                 "batch_id": batch_id,
