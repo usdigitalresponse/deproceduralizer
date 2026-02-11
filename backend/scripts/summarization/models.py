@@ -29,8 +29,8 @@ class SummaryMetadata:
     summary_word_count: int = 0
 
     # Processing info
-    model_name: str = "qwen2.5:7b-instruct-q4_K_M"
-    model_family: str = "ollama"  # 'claude' or 'ollama' - used for context filtering
+    model_name: str = "claude-haiku-4-5-20251001"
+    model_family: str = "claude"  # used for context filtering
     batch_id: Optional[str] = None  # Anthropic batch ID if processed via batch API
     processing_time_ms: int = 0
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())

@@ -264,8 +264,9 @@ def main():
                 # Import summaries into the database
                 from .import_summaries import (
                     find_all_results_files, load_results, extract_summary_data,
-                    batch_update_summaries, get_connection,
+                    batch_update_summaries,
                 )
+                from .db_queries import get_connection
 
                 print(f"\n{'='*60}")
                 print(f"IMPORTING SUMMARIES TO DATABASE")
@@ -280,9 +281,8 @@ def main():
                             all_updates.append(data)
 
                 if all_updates:
-                    conn = get_connection()
-                    updated = batch_update_summaries(conn, all_updates)
-                    conn.close()
+                    with get_connection() as conn:
+                        updated = batch_update_summaries(conn, all_updates)
                     print(f"  Updated {updated} documents in database")
                 else:
                     print("  No summaries to import")

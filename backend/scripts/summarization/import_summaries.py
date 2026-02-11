@@ -11,22 +11,13 @@ Usage:
 
 import argparse
 import json
-import os
 import sys
 import time
 from pathlib import Path
 
 import psycopg
-from dotenv import load_dotenv
 
-# Load .env from project root
-PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
-load_dotenv(PROJECT_ROOT / ".env")
-
-
-def get_connection() -> psycopg.Connection:
-    """Get database connection."""
-    return psycopg.connect(os.getenv("DATABASE_URL"))
+from .db_queries import get_connection
 
 
 def find_all_results_files(state: str, staging_dir: Path) -> list[Path]:
@@ -256,9 +247,6 @@ def main():
         print("\n[DRY RUN] No changes made")
         sys.exit(0)
 
-    # Connect to database
-    conn = get_connection()
-
     # Process in batches
     total_updated = 0
     start_time = time.time()
@@ -266,27 +254,26 @@ def main():
 
     print(f"\nProcessing in {batch_count} batches of {args.batch_size}...")
 
-    for i in range(0, len(all_updates), args.batch_size):
-        batch = all_updates[i:i + args.batch_size]
-        batch_num = i // args.batch_size + 1
+    with get_connection() as conn:
+        for i in range(0, len(all_updates), args.batch_size):
+            batch = all_updates[i:i + args.batch_size]
+            batch_num = i // args.batch_size + 1
 
-        updated = batch_update_summaries(conn, batch)
-        total_updated += updated
+            updated = batch_update_summaries(conn, batch)
+            total_updated += updated
 
-        # Calculate ETA
-        elapsed = time.time() - start_time
-        rate = total_updated / elapsed if elapsed > 0 else 0
-        remaining = len(all_updates) - total_updated
-        eta = remaining / rate if rate > 0 else 0
+            # Calculate ETA
+            elapsed = time.time() - start_time
+            rate = total_updated / elapsed if elapsed > 0 else 0
+            remaining = len(all_updates) - total_updated
+            eta = remaining / rate if rate > 0 else 0
 
-        print(
-            f"  Batch {batch_num}/{batch_count}: "
-            f"{total_updated}/{len(all_updates)} "
-            f"({100 * total_updated / len(all_updates):.1f}%) "
-            f"ETA: {format_eta(eta)}"
-        )
-
-    conn.close()
+            print(
+                f"  Batch {batch_num}/{batch_count}: "
+                f"{total_updated}/{len(all_updates)} "
+                f"({100 * total_updated / len(all_updates):.1f}%) "
+                f"ETA: {format_eta(eta)}"
+            )
 
     elapsed = time.time() - start_time
     print(f"\n=== COMPLETE ===")

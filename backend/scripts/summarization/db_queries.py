@@ -71,8 +71,6 @@ def get_documents_by_level(
     Returns:
         List of document dicts with id, title, content, citation, parent_id, etc.
     """
-    conn = get_connection()
-
     conditions = [
         "content IS NOT NULL",
         "content <> ''",
@@ -103,12 +101,12 @@ def get_documents_by_level(
         ORDER BY citation
     """
 
-    with conn.cursor() as cur:
-        cur.execute(query, params)
-        columns = [desc[0] for desc in cur.description]
-        rows = cur.fetchall()
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(query, params)
+            columns = [desc[0] for desc in cur.description]
+            rows = cur.fetchall()
 
-    conn.close()
     return [dict(zip(columns, row)) for row in rows]
 
 
@@ -122,8 +120,6 @@ def get_children(parent_id: int) -> list[dict]:
     Returns:
         List of child document dicts, ordered by citation
     """
-    conn = get_connection()
-
     query = """
         SELECT
             id,
@@ -139,12 +135,12 @@ def get_children(parent_id: int) -> list[dict]:
         ORDER BY citation
     """
 
-    with conn.cursor() as cur:
-        cur.execute(query, [parent_id])
-        columns = [desc[0] for desc in cur.description]
-        rows = cur.fetchall()
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(query, [parent_id])
+            columns = [desc[0] for desc in cur.description]
+            rows = cur.fetchall()
 
-    conn.close()
     return [dict(zip(columns, row)) for row in rows]
 
 
@@ -158,8 +154,6 @@ def get_parent(child_id: int) -> Optional[dict]:
     Returns:
         Parent document dict, or None if no parent
     """
-    conn = get_connection()
-
     query = """
         SELECT
             p.id,
@@ -175,12 +169,11 @@ def get_parent(child_id: int) -> Optional[dict]:
         WHERE c.id = %s
     """
 
-    with conn.cursor() as cur:
-        cur.execute(query, [child_id])
-        columns = [desc[0] for desc in cur.description]
-        row = cur.fetchone()
-
-    conn.close()
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(query, [child_id])
+            columns = [desc[0] for desc in cur.description]
+            row = cur.fetchone()
 
     if row:
         return dict(zip(columns, row))
@@ -197,8 +190,6 @@ def get_ancestors(doc_id: int) -> list[dict]:
     Returns:
         List of ancestor dicts, ordered from immediate parent to root (title)
     """
-    conn = get_connection()
-
     # Use recursive CTE to get ancestor chain
     query = """
         WITH RECURSIVE ancestor_chain AS (
@@ -234,12 +225,12 @@ def get_ancestors(doc_id: int) -> list[dict]:
         ORDER BY depth ASC
     """
 
-    with conn.cursor() as cur:
-        cur.execute(query, [doc_id])
-        columns = [desc[0] for desc in cur.description]
-        rows = cur.fetchall()
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(query, [doc_id])
+            columns = [desc[0] for desc in cur.description]
+            rows = cur.fetchall()
 
-    conn.close()
     return [dict(zip(columns, row)) for row in rows]
 
 
@@ -256,10 +247,6 @@ def get_ancestors_batch(doc_ids: list[int]) -> dict[int, list[dict]]:
     """
     if not doc_ids:
         return {}
-
-    conn = get_connection()
-    if conn is None:
-        raise psycopg.OperationalError("Failed to establish database connection")
 
     # Use recursive CTE with multiple starting points
     # We track which original doc_id each ancestor chain belongs to
@@ -299,11 +286,10 @@ def get_ancestors_batch(doc_ids: list[int]) -> dict[int, list[dict]]:
         ORDER BY origin_id, depth ASC
     """
 
-    with conn.cursor() as cur:
-        cur.execute(query, [doc_ids])
-        rows = cur.fetchall()
-
-    conn.close()
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(query, [doc_ids])
+            rows = cur.fetchall()
 
     # Group by origin_id
     result: dict[int, list[dict]] = {doc_id: [] for doc_id in doc_ids}
@@ -333,8 +319,6 @@ def get_hierarchy_levels(state: str, title: Optional[str] = None) -> list[str]:
     Returns:
         List of hierarchy level names
     """
-    conn = get_connection()
-
     conditions = [
         "content IS NOT NULL",
         "content <> ''",
@@ -357,11 +341,11 @@ def get_hierarchy_levels(state: str, title: Optional[str] = None) -> list[str]:
         WHERE {where_clause}
     """
 
-    with conn.cursor() as cur:
-        cur.execute(query, params)
-        levels = [row[0] for row in cur.fetchall()]
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(query, params)
+            levels = [row[0] for row in cur.fetchall()]
 
-    conn.close()
     return levels
 
 
@@ -379,8 +363,6 @@ def get_document_counts_by_level(
     Returns:
         Dict mapping hierarchy level to document count
     """
-    conn = get_connection()
-
     conditions = [
         "content IS NOT NULL",
         "content <> ''",
@@ -404,11 +386,11 @@ def get_document_counts_by_level(
         ORDER BY count DESC
     """
 
-    with conn.cursor() as cur:
-        cur.execute(query, params)
-        rows = cur.fetchall()
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(query, params)
+            rows = cur.fetchall()
 
-    conn.close()
     return {row[0]: row[1] for row in rows}
 
 
@@ -454,8 +436,6 @@ def get_documents_without_children(
 
     Useful for finding levels that should be treated as leaf nodes.
     """
-    conn = get_connection()
-
     conditions = [
         "d.content IS NOT NULL",
         "d.content <> ''",
@@ -488,12 +468,12 @@ def get_documents_without_children(
         ORDER BY d.citation
     """
 
-    with conn.cursor() as cur:
-        cur.execute(query, params)
-        columns = [desc[0] for desc in cur.description]
-        rows = cur.fetchall()
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(query, params)
+            columns = [desc[0] for desc in cur.description]
+            rows = cur.fetchall()
 
-    conn.close()
     return [dict(zip(columns, row)) for row in rows]
 
 
@@ -507,8 +487,6 @@ def get_child_ids(parent_id: int) -> list[int]:
     Returns:
         List of child document IDs
     """
-    conn = get_connection()
-
     query = """
         SELECT id
         FROM regulatory_documents
@@ -516,11 +494,11 @@ def get_child_ids(parent_id: int) -> list[int]:
         ORDER BY citation
     """
 
-    with conn.cursor() as cur:
-        cur.execute(query, [parent_id])
-        ids = [row[0] for row in cur.fetchall()]
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(query, [parent_id])
+            ids = [row[0] for row in cur.fetchall()]
 
-    conn.close()
     return ids
 
 
@@ -537,8 +515,6 @@ def get_child_ids_batch(parent_ids: list[int]) -> dict[int, list[int]]:
     if not parent_ids:
         return {}
 
-    conn = get_connection()
-
     query = """
         SELECT parent_id, id
         FROM regulatory_documents
@@ -546,11 +522,10 @@ def get_child_ids_batch(parent_ids: list[int]) -> dict[int, list[int]]:
         ORDER BY parent_id, citation
     """
 
-    with conn.cursor() as cur:
-        cur.execute(query, [parent_ids])
-        rows = cur.fetchall()
-
-    conn.close()
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(query, [parent_ids])
+            rows = cur.fetchall()
 
     # Group by parent_id
     result: dict[int, list[int]] = {pid: [] for pid in parent_ids}
@@ -570,7 +545,6 @@ def get_all_titles(state: str) -> list[str]:
     Returns:
         List of title strings (e.g., ['1', '2', '3', '4', '4A', '5', ...])
     """
-    conn = get_connection()
     title_col = _get_title_column(state)
 
     query = f"""
@@ -583,9 +557,9 @@ def get_all_titles(state: str) -> list[str]:
         ORDER BY {title_col}
     """
 
-    with conn.cursor() as cur:
-        cur.execute(query, [state.upper()])
-        titles = [row[0] for row in cur.fetchall()]
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(query, [state.upper()])
+            titles = [row[0] for row in cur.fetchall()]
 
-    conn.close()
     return titles
