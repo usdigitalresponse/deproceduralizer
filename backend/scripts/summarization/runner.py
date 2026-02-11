@@ -205,6 +205,30 @@ class SummarizationBatchRunner:
                 result.append((citation, cached["summary"]))
         return result[-3:]  # Last 3 siblings max
 
+    def _save_skipped_docs(self, phase: str, skipped_docs: list[dict]) -> None:
+        """Save skipped (reserved/empty) docs so process_results can include them."""
+        skipped_file = self.output_dir / f"{phase}_skipped.json"
+        # Merge with any existing skipped docs (from previous runs)
+        existing = []
+        if skipped_file.exists():
+            with open(skipped_file) as f:
+                existing = json.load(f)
+        existing_ids = {d["document_id"] for d in existing}
+        for doc in skipped_docs:
+            if doc["document_id"] not in existing_ids:
+                existing.append(doc)
+        with open(skipped_file, "w") as f:
+            json.dump(existing, f, indent=2)
+        print(f"  Saved {len(skipped_docs)} skipped docs to {skipped_file.name}")
+
+    def _load_skipped_docs(self, phase: str) -> list[dict]:
+        """Load skipped docs for a phase."""
+        skipped_file = self.output_dir / f"{phase}_skipped.json"
+        if not skipped_file.exists():
+            return []
+        with open(skipped_file) as f:
+            return json.load(f)
+
     def _find_latest_batch_dir(self, phase: str) -> Optional[Path]:
         """Find the most recent batch directory for a phase."""
         dirs = list(self.output_dir.glob(f"{phase}_*"))
@@ -248,7 +272,7 @@ class SummarizationBatchRunner:
 
         # Build requests
         requests = []
-        skipped_reserved = 0
+        skipped_docs: list[dict] = []  # reserved/empty docs to save with standard summaries
         skipped_done = 0
 
         # Batch-fetch all ancestors in ONE query (huge speedup)
@@ -277,12 +301,13 @@ class SummarizationBatchRunner:
                 # Check if should skip
                 content = doc.get("content", "")
                 title = doc.get("title", "")
-                should_skip, reason = should_skip_content(content, title)
+                skip, reason = should_skip_content(content, title)
 
-                if should_skip:
-                    skipped_reserved += 1
-                    # Still save the result with standard summary
-                    # (We'll add these to results during processing)
+                if skip:
+                    skipped_docs.append({
+                        "document_id": doc_id,
+                        "reason": reason,
+                    })
                     continue
 
                 # Build prompt (ancestors already fetched for this parent group)
@@ -298,7 +323,7 @@ class SummarizationBatchRunner:
                 ))
 
         print(f"  Requests to submit: {len(requests)}")
-        print(f"  Skipped (reserved/empty): {skipped_reserved}")
+        print(f"  Skipped (reserved/empty): {len(skipped_docs)}")
         if skipped_done > 0:
             print(f"  Skipped (already done): {skipped_done}")
 
@@ -310,8 +335,16 @@ class SummarizationBatchRunner:
                 print(f"    ... and {len(requests) - 3} more")
             return None
 
-        if not requests:
+        if not requests and not skipped_docs:
             print("  No requests to submit.")
+            return None
+
+        # Save skipped docs so process_results can include them
+        if skipped_docs:
+            self._save_skipped_docs("sections", skipped_docs)
+
+        if not requests:
+            print("  No LLM requests needed (all skipped).")
             return None
 
         # Submit batch
@@ -323,7 +356,7 @@ class SummarizationBatchRunner:
                 "phase": "sections",
                 "title": self.title,
                 "model": BATCH_MODEL,
-                "skipped_reserved": skipped_reserved,
+                "skipped_reserved": len(skipped_docs),
             },
         )
 
@@ -365,7 +398,7 @@ class SummarizationBatchRunner:
 
         # Build requests
         requests = []
-        skipped_reserved = 0
+        skipped_docs: list[dict] = []
         skipped_done = 0
 
         # Batch-fetch all ancestors and child IDs in TWO queries (huge speedup)
@@ -386,10 +419,13 @@ class SummarizationBatchRunner:
             # Check if should skip
             content = doc.get("content", "")
             title = doc.get("title", "")
-            should_skip, reason = should_skip_content(content, title)
+            skip, reason = should_skip_content(content, title)
 
-            if should_skip:
-                skipped_reserved += 1
+            if skip:
+                skipped_docs.append({
+                    "document_id": doc_id,
+                    "reason": reason,
+                })
                 continue
 
             # Build prompt with child summaries (using pre-fetched data)
@@ -417,7 +453,7 @@ class SummarizationBatchRunner:
             ))
 
         print(f"  Requests to submit: {len(requests)}")
-        print(f"  Skipped (reserved/empty): {skipped_reserved}")
+        print(f"  Skipped (reserved/empty): {len(skipped_docs)}")
         if skipped_done > 0:
             print(f"  Skipped (already done): {skipped_done}")
 
@@ -429,8 +465,16 @@ class SummarizationBatchRunner:
                 print(f"    ... and {len(requests) - 3} more")
             return None
 
-        if not requests:
+        if not requests and not skipped_docs:
             print("  No requests to submit.")
+            return None
+
+        # Save skipped docs so process_results can include them
+        if skipped_docs:
+            self._save_skipped_docs(f"{level}s", skipped_docs)
+
+        if not requests:
+            print("  No LLM requests needed (all skipped).")
             return None
 
         # Submit batch
@@ -442,7 +486,7 @@ class SummarizationBatchRunner:
                 "phase": f"{level}s",
                 "title": self.title,
                 "model": BATCH_MODEL,
-                "skipped_reserved": skipped_reserved,
+                "skipped_reserved": len(skipped_docs),
             },
         )
 
@@ -680,6 +724,33 @@ class SummarizationBatchRunner:
             processed += 1
             if processed % 1000 == 0:
                 print(f"  Processed {processed} results...")
+
+        # Add skipped docs with standard summaries
+        skipped_docs = self._load_skipped_docs(phase)
+        for doc in skipped_docs:
+            doc_id = doc["document_id"]
+            reason = doc.get("reason", "empty")
+            summary_text = get_standard_summary(reason)
+            section_type = "reserved" if reason in ("reserved", "repealed") else "other"
+
+            result_dict = {
+                "document_id": doc_id,
+                "title": "",
+                "hierarchy_level": phase.rstrip("s"),
+                "state": self.state,
+                "citation": None,
+                "summary": summary_text,
+                "section_type": section_type,
+                "keywords": [],
+                "applies_to": [],
+                "has_form": False,
+                "has_incorporation_by_reference": False,
+                "metadata": {"skipped_reason": reason},
+            }
+            results.append(result_dict)
+
+        if skipped_docs:
+            print(f"  Added {len(skipped_docs)} skipped docs with standard summaries")
 
         # Save results (results is already a list of dicts)
         results_file = batch_dir / "results.json"
