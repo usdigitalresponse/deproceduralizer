@@ -65,6 +65,52 @@ Key flags:
 |------|------|
 | Free (API key required) | Hours (network-bound) |
 
+For NYC statutes (Charter + Administrative Code, parsed from HTML):
+```bash
+cd backend
+
+# Parse HTML and save to JSON (no DB):
+python3 scripts/nyc_statutes.py --parse-only
+
+# Full pipeline (parse → JSON → DB → hierarchy):
+python3 scripts/nyc_statutes.py
+
+# Use cached JSON (skip re-parsing):
+python3 scripts/nyc_statutes.py --skip-parse
+```
+
+Key flags:
+| Flag | Description |
+|------|-------------|
+| `--parse-only` | Only parse HTML + save JSON, skip DB |
+| `--skip-parse` | Use cached JSON, skip HTML parsing |
+| `--skip-db` | Skip database operations |
+| `--hierarchy-only` | Only update parent_id relationships |
+| `--charter-only` | Only parse Charter sections |
+| `--admin-only` | Only parse Administrative Code sections |
+
+| Cost | Time |
+|------|------|
+| Free (local HTML file) | ~30s parse, ~1min DB ingest |
+
+For linking NY regulations to NYC statutes:
+```bash
+cd backend
+
+# Preview links (dry run):
+python3 scripts/link_nyc_statutes.py --dry-run
+
+# Create links:
+python3 scripts/link_nyc_statutes.py
+
+# Filter by NYCRR title:
+python3 scripts/link_nyc_statutes.py --title 9
+```
+
+| Cost | Time |
+|------|------|
+| Free | ~15s |
+
 ### Step 2: Detect Regulatory Status
 
 ```bash

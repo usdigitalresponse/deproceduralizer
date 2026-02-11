@@ -44,6 +44,11 @@ NY_STATUTES_SECTIONS_DIR = NY_STATUTES_OUTPUT_DIR / 'sections'
 NY_STATUTES_INDIVIDUAL_DIR = NY_STATUTES_OUTPUT_DIR / 'individual'
 NY_STATUTES_COMPLETE_FILE = DATA_DIR / 'ny_statutes_complete.json'
 
+# Common data files - NYC Statutes (Charter + Administrative Code)
+NYC_HTML_FILE = PROJECT_ROOT / 'newyorkcity-ny-1.html'
+NYC_STATUTES_OUTPUT_DIR = DATA_DIR / 'nyc_statutes'
+NYC_STATUTES_COMPLETE_FILE = DATA_DIR / 'nyc_statutes_complete.json'
+
 
 # Hierarchy level ordering per state (bottom-up, excluding 'section').
 # Sections are always summarized first, then these levels in order.
@@ -62,5 +67,6 @@ def ensure_data_dirs():
                      NJ_SCRAPED_DATA_DIR, NJ_INDIVIDUAL_REGULATIONS_DIR,
                      NJ_STATUTES_OUTPUT_DIR, NJ_STATUTES_INDIVIDUAL_DIR,
                      NY_STATUTES_OUTPUT_DIR, NY_STATUTES_TREES_DIR,
-                     NY_STATUTES_SECTIONS_DIR, NY_STATUTES_INDIVIDUAL_DIR]:
+                     NY_STATUTES_SECTIONS_DIR, NY_STATUTES_INDIVIDUAL_DIR,
+                     NYC_STATUTES_OUTPUT_DIR]:
         dir_path.mkdir(parents=True, exist_ok=True)

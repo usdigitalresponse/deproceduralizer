@@ -540,21 +540,26 @@ Tracks external standards incorporated by reference (NFPA codes, ICC codes, ASTM
 
 ## statutes
 
-Stores statute content (N.J.S.A., etc.) - separate from regulatory_documents.
-Hierarchy: Title → Chapter → Section (for NJ statutes).
+Stores statute content (N.J.S.A., NY Consolidated Laws, NYC Charter/Admin Code) - separate from regulatory_documents.
+Hierarchy: Title → Chapter → Section.
 
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | bigserial | Primary key |
-| `citation` | varchar(50) NOT NULL | Full citation (e.g., "52:27D-119") |
-| `state` | varchar(2) NOT NULL | NY, NJ (default 'NJ') |
+| `citation` | varchar(50) NOT NULL | Full citation (e.g., "52:27D-119", "NYC Admin 23-1201", "NYC Charter 8") |
+| `state` | varchar(3) NOT NULL | NY, NJ, NYC (default 'NJ') |
 | `title` | text NOT NULL | Human-readable title/name |
 | `content` | text NOT NULL | Full text content (for sections) |
-| `njsa_title` | varchar(10) | Title number |
-| `njsa_title_name` | text | Title name |
-| `njsa_chapter` | varchar(20) | Chapter number |
-| `njsa_section` | varchar(20) | Section number |
-| `njsa_section_name` | text | Section name |
+| `njsa_title` | varchar(10) | NJ: Title number |
+| `njsa_title_name` | text | NJ: Title name |
+| `njsa_chapter` | varchar(20) | NJ: Chapter number |
+| `njsa_section` | varchar(20) | NJ: Section number |
+| `njsa_section_name` | text | NJ: Section name |
+| `nyc_doc_type` | varchar(20) | NYC: 'charter' or 'admin_code' |
+| `nyc_title` | varchar(10) | NYC: Admin Code title number |
+| `nyc_chapter` | varchar(20) | NYC: Chapter ID |
+| `nyc_section` | varchar(30) | NYC: Section number |
+| `nyc_section_name` | text | NYC: Section title |
 | `parent_id` | bigint | FK to parent statute (self-referencing) |
 | `hierarchy_level` | varchar(50) | title, chapter, section |
 | `hierarchy_path` | text | Full path for display |
