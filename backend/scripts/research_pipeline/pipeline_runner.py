@@ -300,6 +300,10 @@ async def run_tier3_only(
             tracked.state = ProcessingState.TIER3_PENDING
             if trigger_reasons and custom_id in trigger_reasons:
                 tracked.tier3_trigger_reason = trigger_reasons[custom_id]
+            else:
+                # Auto-compute from routing logic when not explicitly provided
+                from .routing import get_tier3_trigger_reason
+                tracked.tier3_trigger_reason = get_tier3_trigger_reason(tracked)
             hydrated += 1
             out.info(f"  \u2713 Hydrated {custom_id}: {tracked.tier2_output.classification}")
         else:

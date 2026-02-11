@@ -626,6 +626,7 @@ class ProcessingUnitBuilder:
                 cia.argument_for_regulation, cia.argument_against_regulation,
                 cia.cites_federal_statute, cia.federal_citation,
                 cia.claims_no_alternative, cia.needs_web_search, cia.web_search_topics,
+                cia.potentially_controversial, cia.federal_mandate_suspected,
                 rd.citation, rd.title, rd.content, rd.state
             FROM compliance_issue_analyses cia
             JOIN regulatory_documents rd ON cia.document_id = rd.id
@@ -679,6 +680,7 @@ class ProcessingUnitBuilder:
                  argument_for, argument_against,
                  cites_federal, federal_citation,
                  claims_no_alt, needs_web_search, web_search_topics,
+                 potentially_controversial, federal_mandate_suspected,
                  citation, title, content, doc_state) = row
 
                 # Validate required Tier 2 fields
@@ -735,6 +737,8 @@ class ProcessingUnitBuilder:
                     claims_no_alternative=claims_no_alt or False,
                     needs_web_search=needs_web_search or False,
                     web_search_topics=web_search_topics or [],
+                    potentially_controversial=potentially_controversial or False,
+                    federal_mandate_suspected=federal_mandate_suspected or False,
                 )
 
                 # Verbose output for each valid document
