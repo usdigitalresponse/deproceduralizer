@@ -23,7 +23,7 @@ from .state_machine import (
     get_next_state,
     is_terminal_state,
 )
-from .cost_tracker import CostTracker, format_time
+from .cost_tracker import CostTracker
 from .result_processor import (
     process_tier1_results,
     process_tier2_results,
@@ -751,53 +751,14 @@ def _submit_batch(requests, tier_key, batch_manager, out,
 
 
 async def _poll_batch(batch_id, batch_manager, out, poll_interval):
-    """Poll batch until complete with progress reporting and timeout."""
-    start_time = time.time()
-    last_progress = 0
-    retry_count = 0
-    max_retries = 5
-
-    while True:
-        elapsed = time.time() - start_time
-        if elapsed > MAX_BATCH_POLL_TIME:
-            error_msg = f"Batch timed out after {format_time(elapsed)}"
-            out.error(f"  \u274c {error_msg}")
-            raise TimeoutError(error_msg)
-
-        try:
-            status = batch_manager.get_batch_status(batch_id)
-            retry_count = 0
-
-            if status["status"] == "ended":
-                out.info(f"  Batch complete in {format_time(elapsed)}")
-                out.info(f"    Succeeded: {status['succeeded']}, Errored: {status['errored']}")
-                break
-
-            completed = status.get("succeeded", 0) + status.get("errored", 0)
-            total = status.get("total", 0)
-
-            if completed > last_progress and total > 0:
-                rate = completed / elapsed if elapsed > 0 else 0
-                remaining = (total - completed) / rate if rate > 0 else 0
-                eta = format_time(remaining)
-                processing = status.get("processing", 0)
-                out.info(f"  Progress: {completed}/{total} ({processing} processing) ETA: {eta}")
-                last_progress = completed
-
-        except Exception as e:
-            retry_count += 1
-            if retry_count > max_retries:
-                error_msg = f"Batch polling failed after {max_retries} retries: {e}"
-                out.error(f"  \u274c {error_msg}")
-                raise
-
-            backoff = min(60, 2 ** retry_count)
-            out.warning(f"  \u26a0\ufe0f  API error (attempt {retry_count}/{max_retries}): {e}")
-            out.warning(f"      Retrying in {backoff}s...")
-            await asyncio.sleep(backoff)
-            continue
-
-        await asyncio.sleep(poll_interval)
+    """Poll batch until complete. Delegates to BatchManager.poll_until_complete."""
+    await asyncio.to_thread(
+        batch_manager.poll_until_complete,
+        batch_id,
+        poll_interval=poll_interval,
+        timeout=MAX_BATCH_POLL_TIME,
+        log=out.info,
+    )
 
 
 async def _run_realtime(requests, units, output_class, output_attr, tier_name,

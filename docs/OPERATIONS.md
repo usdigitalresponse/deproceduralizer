@@ -114,45 +114,27 @@ python backend/scripts/backfill_definition_scope.py --state NY
 
 ### Step 5: Generate Summaries
 
-Runs bottom-up through 5 hierarchy phases. Each phase: submit → watch → process.
+Runs bottom-up through 5 hierarchy phases (sections → subchapters → chapters → parts → titles).
 
 ```bash
-cd backend/scripts/_legacy/local_summarization
+cd backend
 
-# Phase 1: Sections (leaf nodes — summarize raw regulation text)
-python -m local_summarization.batch.cli --state NY --phase sections --all-titles --submit
-python -m local_summarization.batch.cli --state NY --status --watch
-python -m local_summarization.batch.cli --state NY --phase sections --process-all
+# Run all phases for a single title (submit → poll → process → import to DB)
+python3 -m scripts.summarization.cli --state NY --title 18 --run
 
-# Phase 2: Subchapters (aggregate child section summaries)
-python -m local_summarization.batch.cli --state NY --phase subchapters --all-titles --submit
-python -m local_summarization.batch.cli --state NY --status --watch
-python -m local_summarization.batch.cli --state NY --phase subchapters --process-all
+# Dry run (preview what would be submitted)
+python3 -m scripts.summarization.cli --state NY --title 18 --run --dry-run
 
-# Phase 3: Chapters
-python -m local_summarization.batch.cli --state NY --phase chapters --all-titles --submit
-python -m local_summarization.batch.cli --state NY --status --watch
-python -m local_summarization.batch.cli --state NY --phase chapters --process-all
-
-# Phase 4: Parts
-python -m local_summarization.batch.cli --state NY --phase parts --all-titles --submit
-python -m local_summarization.batch.cli --state NY --status --watch
-python -m local_summarization.batch.cli --state NY --phase parts --process-all
-
-# Phase 5: Titles
-python -m local_summarization.batch.cli --state NY --phase titles --all-titles --submit
-python -m local_summarization.batch.cli --state NY --status --watch
-python -m local_summarization.batch.cli --state NY --phase titles --process-all
-
-# Combine all phase results and import into database
-python -m local_summarization.batch.cli --state NY --combine
-python3 import_summaries.py --state NY
+# Manual phase control (if needed)
+python3 -m scripts.summarization.cli --state NY --title 18 --phase sections --submit
+python3 -m scripts.summarization.cli --state NY --status --watch
+python3 -m scripts.summarization.cli --state NY --phase sections --process
 ```
 
 - Uses Anthropic Batch API (Haiku, 50% savings)
+- `--run` handles everything: submit, poll, process, import to DB for each phase
 - Each parent phase uses child summaries as input — must run in order
-- Requires `--all-titles` or `--title <N>` to prevent accidental 50K+ doc submissions
-- Use `--resume` to skip already-processed documents
+- Requires `--title <N>` to prevent accidental 50K+ doc submissions
 - Use `--dry-run` to preview what would be submitted
 - Import updates `regulatory_documents` with: `summary`, `section_type`, `keywords`, `applies_to`, `has_form`, `has_ibr`
 
@@ -284,7 +266,7 @@ These scripts help plan runs without making API calls or writing to the database
 | `data/scraped_data/` | NY scrape cache + progress files |
 | `data/nj_scraped_data/` | NJ scrape cache + progress files |
 | `data/outputs/batches/` | Batch processing results by issue type |
-| `backend/scripts/_legacy/local_summarization/summaries_staging/` | Summarization batch results before DB import |
+| `backend/summaries_staging/` | Summarization batch results before DB import |
 
 ### Progress Files (per scraper)
 
