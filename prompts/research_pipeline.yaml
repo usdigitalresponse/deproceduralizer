@@ -534,19 +534,19 @@ tier2:
 # TIER 3: WEB SEARCH VERIFICATION (V5)
 # =============================================================================
 #
-# IMPLEMENTATION NOTE (2026-01-04):
+# IMPLEMENTATION NOTE (2026-02-11):
 # Tier 3 uses a SINGLE-CALL approach with Claude's web_search tool:
 # 1. Claude performs web searches using the web_search tool
-# 2. Claude analyzes results and outputs structured JSON
-# 3. We parse the JSON response (can't use response_format with tools)
+# 2. Claude submits structured results via the submit_analysis tool call
+# 3. We extract JSON directly from the tool_use block (no text parsing)
 #
 # The user_location parameter localizes searches to the relevant state.
 # Citations are extracted from Claude's text blocks (cited_text field).
 # =============================================================================
 
 tier3:
-  updated_at: "2026-01-08"
-  description: "Web search verification with structured evidence flags (single-call approach)"
+  updated_at: "2026-02-11"
+  description: "Web search verification with structured evidence flags (tool-call approach)"
 
   # ─────────────────────────────────────────────────────────────────────────
   # LAYER 1: Static Core (cached globally - same for ALL issue types)
@@ -788,70 +788,16 @@ tier3:
 
     ## Output Format
 
-    After performing web searches, output your assessment as JSON:
+    After performing web searches, you MUST call the `submit_analysis` tool to submit your structured assessment. Do NOT output JSON as text — use the tool.
 
-    ```json
-    {
-      "classification": "burdensome",
-      "confidence": 0.85,
-      "reasoning": "Web search confirms this is a state-level requirement with full discretion.",
-      "final_severity": 7,
-      "severity_adjustment": 0,
-      "argument_for_regulation": "...",
-      "argument_against_regulation": "...",
-      "web_search_summary": "Summary of what web search revealed...",
-      "verbatim_requirements": ["requirement text from regulation"],
-
-      "superseded_by_law": {
-        "value": false,
-        "scope": "reg-specific",
-        "reason": "No legislative changes found",
-        "evidence": []
-      },
-      "federal_mandate_confirmed": {
-        "value": false,
-        "scope": "issue-type/domain",
-        "reason": "Federal law requires identity verification but not in-person specifically",
-        "evidence": [{"type": "web", "identifier": "https://...", "quote": "...", "relevance": "..."}]
-      },
-      "state_discretion_found": {
-        "value": true,
-        "scope": "issue-type/domain",
-        "reason": "State can choose verification method",
-        "evidence": [{"type": "web", "identifier": "https://...", "quote": "...", "relevance": "..."}]
-      },
-      "modernized_alternative_found": {
-        "value": true,
-        "scope": "issue-type/domain",
-        "reason": "Nevada allows remote identity verification for same licensing program",
-        "evidence": [{"type": "web", "identifier": "https://...", "quote": "...", "relevance": "..."}]
-      },
-      "advocacy_for_change": {
-        "value": true,
-        "scope": "reg-specific",
-        "reason": "Industry trade association published 2024 report calling for electronic alternatives",
-        "evidence": [{"type": "web", "identifier": "https://...", "quote": "...", "relevance": "..."}]
-      },
-
-      "easy_cleanup_candidate": true,
-      "cleanup_type": "alternative_in_practice",
-      "cleanup_evidence": "State licensing portal already offers e-payment option",
-      "cleanup_recommendation": "Update [regulatory citation] to allow electronic payment methods",
-      "cleanup_effort": "trivial",
-
-      "evidence_gap": false,
-      "federal_mandate_found": false,
-      "state_has_discretion": true,
-      "context_used": [
-        {
-          "type": "web",
-          "identifier": "https://example.gov/page",
-          "quote": "Relevant quote from the source",
-          "relevance": "Why this matters for the analysis"
-        }
-      ]
-    }
-    ```
+    The tool requires these fields (see tool schema for details):
+    - classification, confidence, reasoning
+    - final_severity, severity_adjustment, severity_adjustment_reasoning
+    - argument_for_regulation, argument_against_regulation
+    - web_search_summary, verbatim_requirements
+    - Structured flags (as objects with value/scope/reason): superseded_by_law, federal_mandate_confirmed, state_discretion_found, modernized_alternative_found, advocacy_for_change
+    - Simple booleans: evidence_gap, federal_mandate_found, state_has_discretion, easy_cleanup_candidate
+    - If easy_cleanup_candidate is true: cleanup_type, cleanup_evidence, cleanup_recommendation, cleanup_effort
 
   # ─────────────────────────────────────────────────────────────────────────
   # LAYER 2: Issue Block (cached per issue type)
@@ -942,9 +888,9 @@ tier3:
     3. Whether {state} has discretion to change this requirement
     4. Whether there is advocacy (journalism, advocacy groups) calling for this to be changed
 
-    After completing your web searches, output your assessment as JSON with:
+    After completing your web searches, call the `submit_analysis` tool with your assessment including:
     - Structured flags (superseded_by_law, federal_mandate_confirmed, state_discretion_found, modernized_alternative_found, advocacy_for_change)
-    - Each flag with value, scope, reason, and evidence array
+    - Each flag with value, scope, and reason
     - Set evidence_gap: true if web search was inconclusive
     - Adjust classification and severity based on findings
     - Include web_search_summary with key findings

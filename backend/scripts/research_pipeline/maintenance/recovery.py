@@ -315,17 +315,24 @@ async def retry_failed_tier3(
             if len(failed) > 10:
                 print(f"  ... and {len(failed) - 10} more")
 
+        # Get fresh connection for save — the original conn timed out
+        # during the long API processing run
+        conn.close()
+        save_conn = get_db_connection()
         from scripts.research_pipeline.db import save_final_results
-        saved = save_final_results(results, conn)
+        saved = save_final_results(results, save_conn)
         print(f"\nSaved {saved} results to database")
 
-        conn.close()
+        save_conn.close()
 
     except Exception as e:
         print(f"ERROR: {e}")
         import traceback
         traceback.print_exc()
-        conn.close()
+        try:
+            conn.close()
+        except Exception:
+            pass
 
 
 async def rerun_placeholder_tier2(

@@ -406,17 +406,22 @@ async def call_llm_beta_async(
         model = DEFAULT_MODEL
 
     # Build request kwargs
+    system_block = {
+        "type": "text",
+        "text": system,
+    }
+    if cache_ttl:
+        system_block["cache_control"] = {"type": "ephemeral", "ttl": cache_ttl}
+
     request_kwargs = {
         "model": model,
         "max_tokens": max_tokens,
-        "system": [{
-            "type": "text",
-            "text": system,
-            "cache_control": {"type": "ephemeral", "ttl": cache_ttl}
-        }],
+        "system": [system_block],
         "messages": [{"role": "user", "content": prompt}],
-        "tools": tools,
     }
+
+    if tools:
+        request_kwargs["tools"] = tools
 
     # Add beta features if specified
     if betas:
