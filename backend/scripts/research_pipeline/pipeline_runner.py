@@ -250,6 +250,7 @@ async def run_tier3_only(
     batches_dir: Path,
     realtime: bool = True,
     model: Optional[str] = None,
+    trigger_reasons: Optional[dict[str, str]] = None,
 ) -> list[TrackedUnit]:
     """
     Run ONLY Tier 3 on units that already have Tier 2 output.
@@ -264,6 +265,7 @@ async def run_tier3_only(
         batches_dir: Directory for batch metadata
         realtime: API mode (default True for Tier 3)
         model: Optional model override
+        trigger_reasons: Optional dict mapping custom_id to trigger reason string
 
     Returns:
         List of TrackedUnit with tier3_output populated
@@ -296,6 +298,8 @@ async def run_tier3_only(
         if custom_id in tier2_outputs:
             tracked.tier2_output = tier2_outputs[custom_id]
             tracked.state = ProcessingState.TIER3_PENDING
+            if trigger_reasons and custom_id in trigger_reasons:
+                tracked.tier3_trigger_reason = trigger_reasons[custom_id]
             hydrated += 1
             out.info(f"  \u2713 Hydrated {custom_id}: {tracked.tier2_output.classification}")
         else:

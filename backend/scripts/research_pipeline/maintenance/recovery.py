@@ -200,6 +200,11 @@ async def retry_failed_tier3(
                         'verbatim_requirements': verbatim or [],
                         'context_used': [],
                         'full_text_requests': [],
+                        'cites_federal_statute': cites_federal or False,
+                        'federal_citation': federal_citation,
+                        'claims_no_alternative': claims_no_alt or False,
+                        'potentially_controversial': potentially_controversial or False,
+                        'federal_mandate_suspected': federal_mandate_suspected or False,
                     },
                     'citation': citation,
                     'title': title_val,
@@ -241,6 +246,7 @@ async def retry_failed_tier3(
 
         processing_units = []
         tier2_outputs = {}
+        trigger_reasons = {}
         skipped_no_matches = 0
 
         for item in items_to_retry:
@@ -276,7 +282,14 @@ async def retry_failed_tier3(
                 verbatim_requirements=item['tier2_output']['verbatim_requirements'],
                 context_used=[],
                 full_text_requests=[],
+                # Routing flags needed by get_tier3_trigger_reason()
+                cites_federal_statute=item['tier2_output'].get('cites_federal_statute', False),
+                federal_citation=item['tier2_output'].get('federal_citation'),
+                claims_no_alternative=item['tier2_output'].get('claims_no_alternative', False),
+                potentially_controversial=item['tier2_output'].get('potentially_controversial', False),
+                federal_mandate_suspected=item['tier2_output'].get('federal_mandate_suspected', False),
             )
+            trigger_reasons[custom_id] = item['reason']
 
         if skipped_no_matches > 0:
             print(f"  Skipped {skipped_no_matches} items without matches")
@@ -296,6 +309,7 @@ async def retry_failed_tier3(
             issue_types=unique_issues,
             batches_dir=batches_dir,
             realtime=True,
+            trigger_reasons=trigger_reasons,
         )
 
         # Results summary
