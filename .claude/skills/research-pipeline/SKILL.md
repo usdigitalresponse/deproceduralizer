@@ -144,63 +144,73 @@ The pipeline automatically resumes interrupted runs:
 
 ## State Machine
 
-The pipeline uses a 15-state machine to track processing units through tiers.
+The pipeline uses an 8-state machine to track processing units through tiers.
 
 ### Processing States
 
 | State | Description |
 |-------|-------------|
 | `PENDING` | Initial state - not yet processed |
-| `TIER1_QUEUED` | Queued for Tier 1 batch |
-| `TIER1_SUBMITTED` | Tier 1 batch submitted, awaiting results |
 | `TIER1_COMPLETE` | Tier 1 complete, ready for routing |
 | `TIER2_PENDING` | Waiting for context fetch |
-| `TIER2_QUEUED` | Queued for Tier 2 batch |
-| `TIER2_SUBMITTED` | Tier 2 batch submitted, awaiting results |
-| `TIER2_RERUNNING` | Re-running with additional context (real-time API) |
 | `TIER2_COMPLETE` | Tier 2 complete, ready for routing |
 | `TIER3_PENDING` | Waiting for web search |
-| `TIER3_SUBMITTED` | Tier 3 batch submitted (V5.2) |
-| `TIER3_PROCESSING` | Processing with web search (real-time only) |
 | `TIER3_COMPLETE` | Tier 3 complete |
 | `DONE` | Classification complete |
 | `DONE_FALSE_POSITIVE` | All matches were false positives |
 | `ERROR` | Processing failed |
 
-### State Flow
-
-```
-PENDING → TIER1_QUEUED → TIER1_SUBMITTED → TIER1_COMPLETE
-                                              │
-                    ┌─────────────────────────┴─────────────────────────┐
-                    ↓                                                   ↓
-          all_false_positives                                  needs_research
-                    ↓                                                   ↓
-          DONE_FALSE_POSITIVE                         TIER2_PENDING → TIER2_QUEUED
-                                                                        ↓
-                                                      TIER2_SUBMITTED/TIER2_RERUNNING
-                                                                        ↓
-                                                                TIER2_COMPLETE
-                                                                        │
-                    ┌───────────────────────────────────────────────────┼───────────────┐
-                    ↓                                                   ↓               ↓
-               unrelated                                     justified/burdensome   Tier 3
-                    ↓                                        (no trigger)          trigger met
-                  DONE                                              ↓                   ↓
-                                                                  DONE          TIER3_PENDING
-                                                                                       ↓
-                                                               TIER3_SUBMITTED/TIER3_PROCESSING
-                                                                                       ↓
-                                                                               TIER3_COMPLETE
-                                                                                       ↓
-                                                                                     DONE
-```
-
 ### Routing Logic
 
-- **After Tier 1**: `all_false_positives` → DONE_FALSE_POSITIVE, otherwise → TIER2
+- **After Tier 1**: `all_false_positives` → DONE_FALSE_POSITIVE, otherwise → TIER2_PENDING
 - **After Tier 2**: `unrelated` → DONE, check Tier 3 triggers, otherwise → DONE
 - **After Tier 3**: → DONE (final tier)
+
+## Statute Mandate Check (NY only)
+
+Post-pipeline step for NY regulations. Checks whether cited statutes actually mandate flagged issues.
+
+```bash
+# Preview
+python3 -m scripts.research_pipeline.cli \
+  --state ny --all --run-statute-mandate-only
+
+# Run (first 10 pairs)
+python3 -m scripts.research_pipeline.cli \
+  --state ny --all --run-statute-mandate-only --execute --limit 10
+
+# Run after full pipeline
+python3 -m scripts.research_pipeline.cli \
+  --state ny --all --execute --statute-mandate
+```
+
+- Only runs for flagged analyses (burdensome/justified) with matched statute links
+- Results in `statute_mandate_checks` table
+- Small number of LLM calls (only flagged + linked pairs)
+
+## Summarization CLI
+
+Separate CLI for generating hierarchical summaries of regulatory documents.
+
+```bash
+cd backend
+
+# Run all phases for a title (submit → poll → process → import to DB)
+python3 -m scripts.summarization.cli --state NY --title 18 --run
+
+# Dry run (preview what would be submitted)
+python3 -m scripts.summarization.cli --state NY --title 18 --run --dry-run
+
+# Manual phase control
+python3 -m scripts.summarization.cli --state NY --title 18 --phase sections --submit
+python3 -m scripts.summarization.cli --state NY --status --watch
+python3 -m scripts.summarization.cli --state NY --phase sections --process
+```
+
+- 5 phases: sections → subchapters → chapters → parts → titles (must run in order)
+- Uses Anthropic Batch API (Haiku, 50% savings)
+- `--run` handles everything: submit, poll, process, import to DB
+- Updates `regulatory_documents` with: `summary`, `section_type`, `keywords`, `applies_to`, `has_form`, `has_ibr`
 
 ## Tier 3 Modes (V5.2)
 

@@ -37,10 +37,30 @@ NJ_STATUTES_OUTPUT_DIR = DATA_DIR / 'nj_statutes'
 NJ_STATUTES_INDIVIDUAL_DIR = NJ_STATUTES_OUTPUT_DIR / 'individual'
 NJ_STATUTES_COMPLETE_FILE = DATA_DIR / 'nj_statutes_complete.json'
 
+# Common data files - New York Statutes (OpenLegislation API)
+NY_STATUTES_OUTPUT_DIR = DATA_DIR / 'ny_statutes'
+NY_STATUTES_TREES_DIR = NY_STATUTES_OUTPUT_DIR / 'trees'
+NY_STATUTES_SECTIONS_DIR = NY_STATUTES_OUTPUT_DIR / 'sections'
+NY_STATUTES_INDIVIDUAL_DIR = NY_STATUTES_OUTPUT_DIR / 'individual'
+NY_STATUTES_COMPLETE_FILE = DATA_DIR / 'ny_statutes_complete.json'
+
+
+# Hierarchy level ordering per state (bottom-up, excluding 'section').
+# Sections are always summarized first, then these levels in order.
+# Only levels present in the data for a given title are used.
+HIERARCHY_ORDER = {
+    # NYCRR: section → subpart → part → article → subchapter → chapter → title
+    "NY": ["subpart", "part", "article", "subchapter", "chapter", "subtitle", "title"],
+    # NJAC: section → part → subchapter → chapter → title
+    "NJ": ["part", "subchapter", "chapter", "subtitle", "title"],
+}
+
 
 def ensure_data_dirs():
     """Create data directories if they don't exist."""
     for dir_path in [DATA_DIR, INDIVIDUAL_REGULATIONS_DIR, SCRAPED_DATA_DIR, OUTPUTS_DIR,
                      NJ_SCRAPED_DATA_DIR, NJ_INDIVIDUAL_REGULATIONS_DIR,
-                     NJ_STATUTES_OUTPUT_DIR, NJ_STATUTES_INDIVIDUAL_DIR]:
+                     NJ_STATUTES_OUTPUT_DIR, NJ_STATUTES_INDIVIDUAL_DIR,
+                     NY_STATUTES_OUTPUT_DIR, NY_STATUTES_TREES_DIR,
+                     NY_STATUTES_SECTIONS_DIR, NY_STATUTES_INDIVIDUAL_DIR]:
         dir_path.mkdir(parents=True, exist_ok=True)

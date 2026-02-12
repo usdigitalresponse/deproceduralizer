@@ -540,27 +540,34 @@ Tracks external standards incorporated by reference (NFPA codes, ICC codes, ASTM
 
 ## statutes
 
-Stores statute content (N.J.S.A., etc.) - separate from regulatory_documents.
-Hierarchy: Title → Chapter → Section (for NJ statutes).
+Stores statute content (N.J.S.A., NY Consolidated Laws) - separate from regulatory_documents.
+Hierarchy: Title → Chapter → Section (NJ), Law → Article → Section (NY).
 
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | bigserial | Primary key |
-| `citation` | varchar(50) NOT NULL | Full citation (e.g., "52:27D-119") |
+| `citation` | varchar(50) NOT NULL | Full citation (e.g., "52:27D-119", "SOS 488") |
 | `state` | varchar(2) NOT NULL | NY, NJ (default 'NJ') |
 | `title` | text NOT NULL | Human-readable title/name |
 | `content` | text NOT NULL | Full text content (for sections) |
-| `njsa_title` | varchar(10) | Title number |
-| `njsa_title_name` | text | Title name |
-| `njsa_chapter` | varchar(20) | Chapter number |
-| `njsa_section` | varchar(20) | Section number |
-| `njsa_section_name` | text | Section name |
+| `njsa_title` | varchar(10) | NJ: Title number |
+| `njsa_title_name` | text | NJ: Title name |
+| `njsa_chapter` | varchar(20) | NJ: Chapter number |
+| `njsa_section` | varchar(20) | NJ: Section number |
+| `njsa_section_name` | text | NJ: Section name |
+| `nycls_law_id` | varchar(10) | NY: Law ID (e.g., "SOS", "EDN") |
+| `nycls_law_name` | text | NY: Law name (e.g., "Social Services") |
+| `nycls_article` | varchar(20) | NY: Article ID |
+| `nycls_article_name` | text | NY: Article name |
+| `nycls_section` | varchar(20) | NY: Section number |
+| `nycls_section_name` | text | NY: Section name |
 | `parent_id` | bigint | FK to parent statute (self-referencing) |
-| `hierarchy_level` | varchar(50) | title, chapter, section |
+| `hierarchy_level` | varchar(50) | title, chapter, section, law, article |
 | `hierarchy_path` | text | Full path for display |
 | `source_index` | integer | Index from parsing process |
 | `created_at` | timestamp | When created |
 
+**Indexes:** `idx_statutes_nycls_law_id`
 **Constraints:** `chk_statutes_state`, `statutes_state_citation_key UNIQUE(state, citation)`
 
 ## statute_references
@@ -596,6 +603,27 @@ Many-to-many crosswalk between regulations and statutes.
 | `created_at` | timestamp | When created |
 
 **Constraints:** `unique_regulation_statute_link UNIQUE(regulation_id, citation)`
+
+## statute_mandate_checks
+
+LLM analysis of whether cited statutes actually mandate flagged regulatory issues.
+Post-pipeline step for regulations with statute links.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | bigserial | Primary key |
+| `analysis_id` | bigint NOT NULL | FK to compliance_issue_analyses (ON DELETE CASCADE) |
+| `statute_id` | bigint NOT NULL | FK to statutes (ON DELETE CASCADE) |
+| `link_id` | bigint | FK to regulation_statute_links (ON DELETE SET NULL) |
+| `statute_mandated` | boolean NOT NULL | Whether statute mandates the flagged issue |
+| `confidence` | real NOT NULL | LLM confidence score (0.0-1.0) |
+| `reasoning` | text NOT NULL | Step-by-step explanation |
+| `statute_text_excerpt` | text | Key excerpt from statute |
+| `model` | varchar(100) | Model used for analysis |
+| `created_at` | timestamp | When created |
+
+**Indexes:** `idx_statute_mandate_checks_analysis`, `idx_statute_mandate_checks_mandated`
+**Constraints:** `UNIQUE(analysis_id, statute_id)`
 
 ## cross_references
 

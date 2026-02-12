@@ -3,13 +3,15 @@ Batch API management: request formatting, submission, status tracking, and resul
 """
 
 import json
+import time
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Type
+from typing import Callable, Optional, Type
 
 from pydantic import BaseModel
 
 from lib.llm import DEFAULT_MODEL, _pydantic_to_tool_schema, get_anthropic_client
+from lib.stats import format_time
 
 
 def format_batch_request(
@@ -262,6 +264,76 @@ class BatchManager:
             'total': (counts.succeeded + counts.errored + counts.expired +
                      counts.canceled + counts.processing) if counts else 0,
         }
+
+    def poll_until_complete(
+        self,
+        batch_id: str,
+        poll_interval: int = 30,
+        timeout: int = 3600 * 48,
+        log: Callable[[str], None] = print,
+    ) -> dict:
+        """
+        Poll a batch until complete with progress reporting and timeout.
+
+        Args:
+            batch_id: Batch API ID
+            poll_interval: Seconds between polls
+            timeout: Max seconds to wait (default: 48 hours)
+            log: Logging function (default: print)
+
+        Returns:
+            Final status dict from get_batch_status
+
+        Raises:
+            TimeoutError: If batch doesn't complete within timeout
+            Exception: If polling fails after max retries
+        """
+        start_time = time.time()
+        last_progress = 0
+        retry_count = 0
+        max_retries = 5
+
+        while True:
+            elapsed = time.time() - start_time
+            if elapsed > timeout:
+                error_msg = f"Batch timed out after {format_time(elapsed)}"
+                log(f"  {error_msg}")
+                raise TimeoutError(error_msg)
+
+            try:
+                status = self.get_batch_status(batch_id)
+                retry_count = 0
+
+                if status["status"] == "ended":
+                    log(f"  Batch complete in {format_time(elapsed)}")
+                    log(f"    Succeeded: {status['succeeded']}, Errored: {status['errored']}")
+                    return status
+
+                completed = status.get("succeeded", 0) + status.get("errored", 0)
+                total = status.get("total", 0)
+
+                if completed > last_progress and total > 0:
+                    rate = completed / elapsed if elapsed > 0 else 0
+                    remaining = (total - completed) / rate if rate > 0 else 0
+                    eta = format_time(remaining)
+                    processing = status.get("processing", 0)
+                    log(f"  Progress: {completed}/{total} ({processing} processing) ETA: {eta}")
+                    last_progress = completed
+
+            except Exception as e:
+                retry_count += 1
+                if retry_count > max_retries:
+                    error_msg = f"Batch polling failed after {max_retries} retries: {e}"
+                    log(f"  {error_msg}")
+                    raise
+
+                backoff = min(60, 2 ** retry_count)
+                log(f"  API error (attempt {retry_count}/{max_retries}): {e}")
+                log(f"      Retrying in {backoff}s...")
+                time.sleep(backoff)
+                continue
+
+            time.sleep(poll_interval)
 
     def get_batch_results(self, batch_id: str):
         """

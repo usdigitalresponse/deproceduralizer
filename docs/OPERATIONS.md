@@ -38,9 +38,57 @@ For NJ statutes (separate from NJAC regulations):
 python backend/scripts/nj_statutes.py
 ```
 
+For NY statutes (from OpenLegislation API):
+```bash
+# First: get a free API key at https://legislation.nysenate.gov/
+# Set NY_OPEN_LEG_API_KEY in .env
+
+# Test with child care-relevant laws first:
+python backend/scripts/ny_statutes.py EXC SOS PBH EDN
+
+# All consolidated laws (~95 laws):
+python backend/scripts/ny_statutes.py
+```
+
+Key flags:
+| Flag | Description |
+|------|-------------|
+| `EXC SOS PBH EDN` | Specific law IDs (positional args) |
+| `--fetch-only` | Only cache API data, skip DB |
+| `--skip-fetch` | Use cached JSON, skip API calls |
+| `--skip-db` | Skip database operations |
+| `--hierarchy-only` | Only update parent_id relationships |
+| `--fresh` | Clear all caches and re-fetch |
+| `--delay 0.5` | Custom delay between API calls (default: 0.2s) |
+
 | Cost | Time |
 |------|------|
-| Free | Hours (network-bound) |
+| Free (API key required) | Hours (network-bound) |
+
+#### Link NY Statutes to Regulations
+
+After ingesting statutes, scan regulation text for statute citations and link them:
+
+```bash
+# Preview (no DB writes):
+python backend/scripts/link_ny_statutes.py --dry-run
+
+# Full scan:
+python backend/scripts/link_ny_statutes.py
+
+# Filter by law or title:
+python backend/scripts/link_ny_statutes.py --law SOS --title 18
+```
+
+| Flag | Description |
+|------|-------------|
+| `--dry-run` | Preview citations found without writing to DB |
+| `--law SOS` | Only link citations to a specific law |
+| `--title 18` | Only scan regulations from a specific NYCRR title |
+
+| Cost | Time |
+|------|------|
+| Free | Minutes |
 
 ### Step 2: Detect Regulatory Status
 
@@ -91,45 +139,27 @@ python backend/scripts/backfill_definition_scope.py --state NY
 
 ### Step 5: Generate Summaries
 
-Runs bottom-up through 5 hierarchy phases. Each phase: submit → watch → process.
+Runs bottom-up through 5 hierarchy phases (sections → subchapters → chapters → parts → titles).
 
 ```bash
-cd backend/scripts/_legacy/local_summarization
+cd backend
 
-# Phase 1: Sections (leaf nodes — summarize raw regulation text)
-python -m local_summarization.batch.cli --state NY --phase sections --all-titles --submit
-python -m local_summarization.batch.cli --state NY --status --watch
-python -m local_summarization.batch.cli --state NY --phase sections --process-all
+# Run all phases for a single title (submit → poll → process → import to DB)
+python3 -m scripts.summarization.cli --state NY --title 18 --run-all-phases
 
-# Phase 2: Subchapters (aggregate child section summaries)
-python -m local_summarization.batch.cli --state NY --phase subchapters --all-titles --submit
-python -m local_summarization.batch.cli --state NY --status --watch
-python -m local_summarization.batch.cli --state NY --phase subchapters --process-all
+# Dry run (preview what would be submitted)
+python3 -m scripts.summarization.cli --state NY --title 18 --run-all-phases --dry-run
 
-# Phase 3: Chapters
-python -m local_summarization.batch.cli --state NY --phase chapters --all-titles --submit
-python -m local_summarization.batch.cli --state NY --status --watch
-python -m local_summarization.batch.cli --state NY --phase chapters --process-all
-
-# Phase 4: Parts
-python -m local_summarization.batch.cli --state NY --phase parts --all-titles --submit
-python -m local_summarization.batch.cli --state NY --status --watch
-python -m local_summarization.batch.cli --state NY --phase parts --process-all
-
-# Phase 5: Titles
-python -m local_summarization.batch.cli --state NY --phase titles --all-titles --submit
-python -m local_summarization.batch.cli --state NY --status --watch
-python -m local_summarization.batch.cli --state NY --phase titles --process-all
-
-# Combine all phase results and import into database
-python -m local_summarization.batch.cli --state NY --combine
-python3 import_summaries.py --state NY
+# Manual phase control (if needed)
+python3 -m scripts.summarization.cli --state NY --title 18 --phase sections --submit
+python3 -m scripts.summarization.cli --state NY --status --watch
+python3 -m scripts.summarization.cli --state NY --phase sections --process
 ```
 
 - Uses Anthropic Batch API (Haiku, 50% savings)
+- `--run-all-phases` handles everything: submit, poll, process, import to DB for each phase
 - Each parent phase uses child summaries as input — must run in order
-- Requires `--all-titles` or `--title <N>` to prevent accidental 50K+ doc submissions
-- Use `--resume` to skip already-processed documents
+- Requires `--title <N>` to prevent accidental 50K+ doc submissions
 - Use `--dry-run` to preview what would be submitted
 - Import updates `regulatory_documents` with: `summary`, `section_type`, `keywords`, `applies_to`, `has_form`, `has_ibr`
 
@@ -179,6 +209,18 @@ Key flags:
 | `--realtime` | off | Use realtime API (2x cost, immediate) |
 | `--title N` | none | Filter by regulatory title |
 | `--force-rerun` | off | Reprocess already-analyzed docs |
+| `--statute-mandate` | off | Run statute mandate checks after pipeline (NY only) |
+| `--run-statute-mandate-only` | off | Run only the statute mandate check step |
+
+**Statute Mandate Checks** (NY only, post-pipeline):
+```bash
+# Preview what would be checked
+cd backend
+python3 -m scripts.research_pipeline.cli --state ny --all --run-statute-mandate-only
+
+# Run checks on first 10 pairs
+python3 -m scripts.research_pipeline.cli --state ny --all --run-statute-mandate-only --execute --limit 10
+```
 
 See `.claude/skills/research-pipeline/SKILL.md` for full documentation including state machine, tier triggers, and cost estimates.
 
@@ -249,7 +291,7 @@ These scripts help plan runs without making API calls or writing to the database
 | `data/scraped_data/` | NY scrape cache + progress files |
 | `data/nj_scraped_data/` | NJ scrape cache + progress files |
 | `data/outputs/batches/` | Batch processing results by issue type |
-| `backend/scripts/_legacy/local_summarization/summaries_staging/` | Summarization batch results before DB import |
+| `backend/summaries_staging/` | Summarization batch results before DB import |
 
 ### Progress Files (per scraper)
 

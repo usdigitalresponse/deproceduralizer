@@ -28,6 +28,12 @@ Usage:
 
     # Watch status continuously until complete
     python -m local_summarization.batch.cli --state NJ --status --watch --interval 30
+
+    # Run all phases end-to-end for a title (submit → poll → process → import to DB)
+    python -m local_summarization.batch.cli --state NY --title 18 --run
+
+    # Dry run: preview what --run would submit for each phase
+    python -m local_summarization.batch.cli --state NY --title 18 --run --dry-run
 """
 
 import argparse
@@ -99,6 +105,11 @@ def main():
         action="store_true",
         help="Process ALL batches for a phase with deduplication",
     )
+    action_group.add_argument(
+        "--run",
+        action="store_true",
+        help="Run all phases end-to-end: submit → poll → process → import to DB",
+    )
 
     # Options
     parser.add_argument(
@@ -152,8 +163,11 @@ def main():
         if not args.phase:
             parser.error("--phase is required with --submit, --process, --process-all, or --view")
 
-    if args.dry_run and not args.submit:
-        parser.error("--dry-run only makes sense with --submit")
+    if getattr(args, 'run', False) and not args.title and not getattr(args, 'all_titles', False):
+        parser.error("--run requires --title (e.g., --title 18)")
+
+    if args.dry_run and not args.submit and not getattr(args, 'run', False):
+        parser.error("--dry-run only makes sense with --submit or --run")
 
     if args.resume and not args.submit:
         parser.error("--resume only makes sense with --submit")
@@ -168,6 +182,10 @@ def main():
     # Require explicit title selection for submit (prevent accidental 51K batch)
     if args.submit and not args.title and not getattr(args, 'all_titles', False):
         parser.error("--submit requires either --title or --all-titles")
+
+    # --run bypasses --phase requirement since it runs all phases
+    if getattr(args, 'run', False) and args.phase:
+        parser.error("--run runs all phases automatically, don't specify --phase")
 
     # Create runner
     runner = SummarizationBatchRunner(
@@ -237,6 +255,50 @@ def main():
     elif getattr(args, 'process_all', False):
         results = runner.process_all_batches(args.phase)
         print(f"\nTotal unique results: {len(results)}")
+
+    elif getattr(args, 'run', False):
+        if args.dry_run:
+            # Dry-run each phase to show what would be submitted
+            for phase in PHASES:
+                print(f"\n{'='*60}")
+                print(f"DRY RUN: {phase.upper()}")
+                print(f"{'='*60}")
+                if phase == "sections":
+                    runner.submit_sections_phase(resume=True, dry_run=True)
+                else:
+                    level = phase.rstrip("s")
+                    runner.submit_parent_phase(level=level, resume=True, dry_run=True)
+        else:
+            all_results = runner.run_all_phases(
+                poll_interval=args.interval,
+            )
+            total = sum(len(r) for r in all_results.values())
+            if total > 0:
+                # Import summaries into the database
+                from ..import_summaries import (
+                    find_all_results_files, load_results, extract_summary_data,
+                    batch_update_summaries, get_connection,
+                )
+
+                print(f"\n{'='*60}")
+                print(f"IMPORTING SUMMARIES TO DATABASE")
+                print(f"{'='*60}")
+
+                results_files = find_all_results_files(args.state.upper(), args.output_dir)
+                all_updates = []
+                for rf in results_files:
+                    for result in load_results(rf):
+                        data = extract_summary_data(result)
+                        if data and data["summary"]:
+                            all_updates.append(data)
+
+                if all_updates:
+                    conn = get_connection()
+                    updated = batch_update_summaries(conn, all_updates)
+                    conn.close()
+                    print(f"  Updated {updated} documents in database")
+                else:
+                    print("  No summaries to import")
 
     else:
         parser.print_help()

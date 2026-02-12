@@ -151,6 +151,7 @@ Beyond the core tables (`regulatory_documents`, `analyses`, `red_flags`, `statut
 | `prompt_feedback` | Feedback on LLM prompts |
 | `regulation_statute_links` | Regulation-to-statute cross-references |
 | `statutes` | NJ/NY statutes for linking to regulations |
+| `statute_mandate_checks` | LLM analysis of whether cited statutes mandate flagged regulatory issues |
 
 See `.claude/skills/database/schema.md` for complete schema documentation.
 

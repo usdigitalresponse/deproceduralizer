@@ -968,3 +968,72 @@ class SummarizationBatchRunner:
 
         except KeyboardInterrupt:
             print("\n\nStopped watching.")
+
+    def run_phase(self, phase: str, poll_interval: int = 30) -> list[dict]:
+        """
+        Run a single phase end-to-end: submit → poll → process.
+
+        Args:
+            phase: Phase name (e.g., 'sections', 'subchapters')
+            poll_interval: Seconds between status polls
+
+        Returns:
+            List of result dicts from process_results
+        """
+        print(f"\n{'='*60}")
+        print(f"RUNNING PHASE: {phase.upper()}")
+        print(f"{'='*60}")
+
+        # Submit
+        if phase == "sections":
+            batch_id = self.submit_sections_phase(resume=True)
+        else:
+            level = phase.rstrip("s")  # subchapters -> subchapter
+            batch_id = self.submit_parent_phase(level=level, resume=True)
+
+        if not batch_id:
+            print(f"  No requests to submit for {phase} (all already processed)")
+            # Still try to process existing results
+            return self.process_results(phase)
+
+        # Poll until complete
+        print(f"\n  Polling batch {batch_id[:20]}... (every {poll_interval}s)")
+        self.manager.poll_until_complete(
+            batch_id,
+            poll_interval=poll_interval,
+        )
+
+        # Process results
+        return self.process_results(phase)
+
+    def run_all_phases(self, poll_interval: int = 30) -> dict[str, list[dict]]:
+        """
+        Run all 5 phases sequentially: sections → subchapters → chapters → parts → titles.
+
+        Each phase submits, polls until complete, and processes results before
+        the next phase starts (parent phases need child summaries as context).
+
+        Args:
+            poll_interval: Seconds between status polls
+
+        Returns:
+            Dict mapping phase name → list of result dicts
+        """
+        phases = ["sections", "subchapters", "chapters", "parts", "titles"]
+        all_results = {}
+
+        print(f"\n{'='*60}")
+        print(f"RUNNING ALL PHASES: {self.state}" + (f" Title {self.title}" if self.title else ""))
+        print(f"{'='*60}")
+
+        for i, phase in enumerate(phases, 1):
+            print(f"\n[{i}/{len(phases)}] Phase: {phase}")
+            results = self.run_phase(phase, poll_interval=poll_interval)
+            all_results[phase] = results
+            print(f"  {phase}: {len(results)} results")
+
+        total = sum(len(r) for r in all_results.values())
+        print(f"\n{'='*60}")
+        print(f"ALL PHASES COMPLETE: {total} total results")
+        print(f"{'='*60}")
+        return all_results

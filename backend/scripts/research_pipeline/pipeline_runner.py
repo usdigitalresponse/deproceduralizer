@@ -23,7 +23,7 @@ from .state_machine import (
     get_next_state,
     is_terminal_state,
 )
-from .cost_tracker import CostTracker, format_time
+from .cost_tracker import CostTracker
 from .result_processor import (
     process_tier1_results,
     process_tier2_results,
@@ -90,6 +90,7 @@ async def run_pipeline(
     tier2_reruns: bool = False,
     title_filter: Optional[str] = None,
     model: Optional[str] = None,
+    statute_mandate: bool = False,
 ) -> list[TrackedUnit]:
     """
     Run the full 3-tier research pipeline.
@@ -220,6 +221,16 @@ async def run_pipeline(
             out.info(f"\n  Finalizing {len(tier3_pending)} units (Tier 3 skipped)")
             for unit in tier3_pending:
                 unit.state = ProcessingState.DONE
+
+    # --- Statute Mandate Check (post-pipeline, NY only) ---
+    if statute_mandate and state.upper() == "NY":
+        done_units = [u for u in units.values()
+                      if u.state in (ProcessingState.DONE, ProcessingState.TIER2_COMPLETE,
+                                     ProcessingState.TIER3_COMPLETE)]
+        if done_units:
+            out.info(f"\n[STATUTE MANDATE] Running mandate checks for {state}...")
+            from .tiers.statute_mandate_runner import run_statute_mandate_checks
+            await run_statute_mandate_checks(state=state, dry_run=False, model=model)
 
     # Complete
     cost_tracker.mark_complete()
@@ -428,12 +439,13 @@ async def _run_tier1(units, issue_configs, batch_manager, cost_tracker,
         requests.extend(prepare_fn(units_for_issue, config))
     tier_out.info(f"  Prepared {len(requests)} requests across {len(by_issue)} issue types" + " " * 20)
 
+    batch_id = None
     if realtime:
         succeeded, failed = await _run_realtime(
             requests, pending, Tier1Output, "tier1_output", "Tier 1",
             out, model, cost_tracker, trace_context)
     else:
-        succeeded, failed = await _submit_and_poll_batch(
+        succeeded, failed, batch_id = await _submit_and_poll_batch(
             requests, pending, "tier1", process_tier1_results,
             batch_manager, cost_tracker, out, trace_context, batch_trace_ids,
             state, issue_type_single, run_id, poll_interval)
@@ -442,6 +454,8 @@ async def _run_tier1(units, issue_configs, batch_manager, cost_tracker,
     for unit in succeeded:
         unit.state = ProcessingState.TIER1_COMPLETE
         unit.tier1_completed_at = datetime.now()
+        if batch_id:
+            unit.tier1_batch_id = batch_id
         unit.state = get_next_state(unit)
 
     _log_tier_complete(out, cost_tracker, "Tier 1", len(succeeded), len(failed),
@@ -489,12 +503,13 @@ async def _run_tier2(units, issue_configs, batch_manager, cost_tracker,
             requests.extend(prepare_tier2_batch(units_for_issue, config))
         tier_out.info(f"  Prepared {len(requests)} requests across {len(by_issue)} issue types" + " " * 20)
 
+        batch_id = None
         if realtime:
             succeeded, failed = await _run_realtime(
                 requests, pending, Tier2Output, "tier2_output", "Tier 2",
                 out, model, cost_tracker, trace_context)
         else:
-            succeeded, failed = await _submit_and_poll_batch(
+            succeeded, failed, batch_id = await _submit_and_poll_batch(
                 requests, pending, "tier2", process_tier2_results,
                 batch_manager, cost_tracker, out, trace_context, batch_trace_ids,
                 state, issue_type_single, run_id, poll_interval)
@@ -502,6 +517,8 @@ async def _run_tier2(units, issue_configs, batch_manager, cost_tracker,
         for unit in succeeded:
             unit.state = ProcessingState.TIER2_COMPLETE
             unit.tier2_completed_at = datetime.now()
+            if batch_id:
+                unit.tier2_batch_id = batch_id
             unit.state = get_next_state(unit)
 
         _log_tier_complete(out, cost_tracker, "Tier 2", len(succeeded), len(failed),
@@ -661,6 +678,7 @@ async def _run_tier3_batch(pending, units, issue_configs, batch_manager,
     )
 
     for unit in succeeded:
+        unit.tier3_batch_id = batch_id
         unit.state = get_next_state(unit)
 
     _log_tier_complete(out, cost_tracker, "Tier 3 (batch)", len(succeeded), len(failed),
@@ -695,7 +713,7 @@ async def _submit_and_poll_batch(requests, pending, tier_key, process_fn,
         trace_context=trace_context if LANGFUSE_AVAILABLE else None,
     )
 
-    return succeeded, failed
+    return succeeded, failed, batch_id
 
 
 def _submit_batch(requests, tier_key, batch_manager, out,
@@ -733,53 +751,14 @@ def _submit_batch(requests, tier_key, batch_manager, out,
 
 
 async def _poll_batch(batch_id, batch_manager, out, poll_interval):
-    """Poll batch until complete with progress reporting and timeout."""
-    start_time = time.time()
-    last_progress = 0
-    retry_count = 0
-    max_retries = 5
-
-    while True:
-        elapsed = time.time() - start_time
-        if elapsed > MAX_BATCH_POLL_TIME:
-            error_msg = f"Batch timed out after {format_time(elapsed)}"
-            out.error(f"  \u274c {error_msg}")
-            raise TimeoutError(error_msg)
-
-        try:
-            status = batch_manager.get_batch_status(batch_id)
-            retry_count = 0
-
-            if status["status"] == "ended":
-                out.info(f"  Batch complete in {format_time(elapsed)}")
-                out.info(f"    Succeeded: {status['succeeded']}, Errored: {status['errored']}")
-                break
-
-            completed = status.get("succeeded", 0) + status.get("errored", 0)
-            total = status.get("total", 0)
-
-            if completed > last_progress and total > 0:
-                rate = completed / elapsed if elapsed > 0 else 0
-                remaining = (total - completed) / rate if rate > 0 else 0
-                eta = format_time(remaining)
-                processing = status.get("processing", 0)
-                out.info(f"  Progress: {completed}/{total} ({processing} processing) ETA: {eta}")
-                last_progress = completed
-
-        except Exception as e:
-            retry_count += 1
-            if retry_count > max_retries:
-                error_msg = f"Batch polling failed after {max_retries} retries: {e}"
-                out.error(f"  \u274c {error_msg}")
-                raise
-
-            backoff = min(60, 2 ** retry_count)
-            out.warning(f"  \u26a0\ufe0f  API error (attempt {retry_count}/{max_retries}): {e}")
-            out.warning(f"      Retrying in {backoff}s...")
-            await asyncio.sleep(backoff)
-            continue
-
-        await asyncio.sleep(poll_interval)
+    """Poll batch until complete. Delegates to BatchManager.poll_until_complete."""
+    await asyncio.to_thread(
+        batch_manager.poll_until_complete,
+        batch_id,
+        poll_interval=poll_interval,
+        timeout=MAX_BATCH_POLL_TIME,
+        log=out.info,
+    )
 
 
 async def _run_realtime(requests, units, output_class, output_attr, tier_name,
@@ -822,7 +801,8 @@ async def _run_realtime(requests, units, output_class, output_attr, tier_name,
                 prompt=user_prompt,
                 response_format=output_class,
                 system=system,
-                max_tokens=8192,
+                model=model,
+                max_tokens=64000,
                 trace_context=trace_context if LANGFUSE_AVAILABLE else None,
             )
 
