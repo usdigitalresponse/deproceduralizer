@@ -145,10 +145,10 @@ Runs bottom-up through 5 hierarchy phases (sections → subchapters → chapters
 cd backend
 
 # Run all phases for a single title (submit → poll → process → import to DB)
-python3 -m scripts.summarization.cli --state NY --title 18 --run
+python3 -m scripts.summarization.cli --state NY --title 18 --run-all-phases
 
 # Dry run (preview what would be submitted)
-python3 -m scripts.summarization.cli --state NY --title 18 --run --dry-run
+python3 -m scripts.summarization.cli --state NY --title 18 --run-all-phases --dry-run
 
 # Manual phase control (if needed)
 python3 -m scripts.summarization.cli --state NY --title 18 --phase sections --submit
@@ -157,7 +157,7 @@ python3 -m scripts.summarization.cli --state NY --phase sections --process
 ```
 
 - Uses Anthropic Batch API (Haiku, 50% savings)
-- `--run` handles everything: submit, poll, process, import to DB for each phase
+- `--run-all-phases` handles everything: submit, poll, process, import to DB for each phase
 - Each parent phase uses child summaries as input — must run in order
 - Requires `--title <N>` to prevent accidental 50K+ doc submissions
 - Use `--dry-run` to preview what would be submitted

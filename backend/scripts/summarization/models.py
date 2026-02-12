@@ -1,4 +1,4 @@
-"""Data models for local summarization pipeline."""
+"""Data models for batch summarization pipeline."""
 
 from dataclasses import dataclass, field, asdict
 from datetime import datetime
