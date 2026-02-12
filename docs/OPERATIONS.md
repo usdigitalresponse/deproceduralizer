@@ -65,6 +65,31 @@ Key flags:
 |------|------|
 | Free (API key required) | Hours (network-bound) |
 
+#### Link NY Statutes to Regulations
+
+After ingesting statutes, scan regulation text for statute citations and link them:
+
+```bash
+# Preview (no DB writes):
+python backend/scripts/link_ny_statutes.py --dry-run
+
+# Full scan:
+python backend/scripts/link_ny_statutes.py
+
+# Filter by law or title:
+python backend/scripts/link_ny_statutes.py --law SOS --title 18
+```
+
+| Flag | Description |
+|------|-------------|
+| `--dry-run` | Preview citations found without writing to DB |
+| `--law SOS` | Only link citations to a specific law |
+| `--title 18` | Only scan regulations from a specific NYCRR title |
+
+| Cost | Time |
+|------|------|
+| Free | Minutes |
+
 ### Step 2: Detect Regulatory Status
 
 ```bash

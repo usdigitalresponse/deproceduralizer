@@ -68,7 +68,7 @@ PATTERN_LAW_SECTION = re.compile(
 #             "paragraph (2) of subdivision (a) of section 413 of the Social Services Law"
 PATTERN_SUBDIV_SECTION_OF_LAW = re.compile(
     r'(?:subdivision|paragraph|subparagraph)\s+\([a-z0-9]+\)\s+'
-    r'(?:of\s+(?:subdivision|paragraph)\s+\([a-z0-9]+\)\s+)*'
+    r'(?:of\s+(?:subdivision|paragraph)\s+\([a-z0-9]+\)\s+){0,5}'
     r'of\s+(?:section|§)\s*' + _SECTION_NUM + r'\s+of\s+the\s+' + _LAW_NAME + r'\s+Law\b'
 )
 

@@ -107,7 +107,8 @@ class NYOpenLegClient:
                 print(f"    Request error: {e}, retrying in {wait}s (attempt {attempt + 1}/{max_retries})")
                 time.sleep(wait)
 
-        print(f"    Failed after {max_retries} retries: {url}")
+        print(f"    WARNING: Failed after {max_retries} retries: {url}")
+        print(f"    This may indicate a transient API issue — data for this endpoint will be skipped.")
         return None
 
     def get_law_list(self) -> List[Dict]:
@@ -431,6 +432,7 @@ def fetch_all_laws(client: NYOpenLegClient, law_ids: Optional[List[str]] = None)
         print(f"Found {len(all_laws)} total laws, {len(laws)} consolidated")
 
     all_records = []
+    failed_laws = []
     total_start = time.time()
 
     for i, law in enumerate(laws):
@@ -441,10 +443,18 @@ def fetch_all_laws(client: NYOpenLegClient, law_ids: Optional[List[str]] = None)
         print(f"{'='*60}")
 
         records = fetch_law_statutes(client, law_id, law_name)
+        if not records:
+            failed_laws.append(f"{law_id} ({law_name})")
         all_records.extend(records)
 
         elapsed = time.time() - total_start
         print(f"  Running total: {len(all_records)} records ({format_time(elapsed)})")
+
+    if failed_laws:
+        print(f"\nWARNING: {len(failed_laws)} law(s) returned no records (possible API errors):")
+        for law in failed_laws:
+            print(f"  - {law}")
+        print("Re-run with these law IDs to retry.")
 
     return all_records
 
