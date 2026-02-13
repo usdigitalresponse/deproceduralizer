@@ -7,3 +7,4 @@ export * from './definitions.repository';
 export * from './prompt-feedback.repository';
 export * from './cross-references.repository';
 export * from './bookmarks.repository';
+export * from './statutes.repository';

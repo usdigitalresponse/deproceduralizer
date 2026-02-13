@@ -13,6 +13,8 @@ import {
 } from 'nuqs';
 
 import {
+  // Statute link types
+  LINK_TYPE_VALUES,
   // Review/Developer
   REVIEW_STATUS_VALUES,
   DEVELOPER_STATUS_VALUES,
@@ -506,6 +508,25 @@ export const facetedFiltersParsers = {
   fHasForm: facetedHasFormParser,
   fHasIbr: facetedHasIbrParser,
 };
+
+// ============================================
+// Statute browse parsers
+// ============================================
+
+export const statuteLinkTypeParser = parseAsStringEnum([...LINK_TYPE_VALUES]).withDefault('all');
+
+/**
+ * Parser configuration for statute browse page
+ */
+export const statuteBrowseParsers = {
+  search: searchParser,
+  hasLinks: booleanParser,
+  linkType: statuteLinkTypeParser,
+};
+
+// Re-export statute-related types
+export type { LinkTypeValue, MatchStatusValue } from '@/lib/constants/values';
+export { LINK_TYPE_VALUES, MATCH_STATUS_VALUES } from '@/lib/constants/values';
 
 /**
  * Helper to parse comma-separated filter values from URL

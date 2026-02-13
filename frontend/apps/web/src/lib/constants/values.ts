@@ -231,7 +231,7 @@ export type BatchSizeValue = (typeof BATCH_SIZE_VALUES)[number];
 // Analytics Page
 // ============================================
 
-export const ANALYTICS_TAB_VALUES = ['overview', 'crossrefs', 'issues', 'keywords', 'definitions'] as const;
+export const ANALYTICS_TAB_VALUES = ['overview', 'crossrefs', 'issues', 'keywords', 'definitions', 'statutes'] as const;
 export type AnalyticsTabValue = (typeof ANALYTICS_TAB_VALUES)[number];
 
 export const TREEMAP_SIZE_METRIC_VALUES = ['flags', 'documents', 'compliance'] as const;
@@ -344,3 +344,27 @@ export const SECTION_TYPE_VALUES = [
   'other',
 ] as const;
 export type SectionTypeValue = (typeof SECTION_TYPE_VALUES)[number];
+
+// ============================================
+// Statute Link Types
+// ============================================
+
+export const LINK_TYPE_VALUES = ['all', 'enabling_authority', 'requirement', 'definition', 'reference'] as const;
+export type LinkTypeValue = (typeof LINK_TYPE_VALUES)[number];
+
+export const LINK_TYPE_LABELS: Record<string, string> = {
+  enabling_authority: 'Enabling Authority',
+  requirement: 'Requirement',
+  definition: 'Definition',
+  reference: 'Reference',
+};
+
+export const MATCH_STATUS_VALUES = ['all', 'matched', 'corrected', 'unmatched', 'obsolete'] as const;
+export type MatchStatusValue = (typeof MATCH_STATUS_VALUES)[number];
+
+export const MATCH_STATUS_LABELS: Record<string, string> = {
+  matched: 'Matched',
+  corrected: 'Corrected',
+  unmatched: 'Unmatched',
+  obsolete: 'Obsolete',
+};

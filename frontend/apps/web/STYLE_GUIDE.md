@@ -1644,6 +1644,8 @@ apps/web/src/
 │       ├── page.tsx        # State table view
 │       ├── browse/
 │       │   └── page.tsx    # Browse hierarchy page
+│       ├── statutes/
+│       │   └── page.tsx    # Browse statute hierarchy page
 │       └── review/
 │           └── page.tsx    # Review mode page
 ├── hooks/
@@ -1695,6 +1697,15 @@ apps/web/src/
 │   │   ├── DefinitionsList.tsx     # Collapsible list for regulation pages
 │   │   ├── GlossarySearch.tsx      # Search + A-Z filter bar
 │   │   ├── GlossaryClient.tsx      # Main glossary page with view toggle
+│   │   └── index.ts
+│   ├── statutes/           # Statute components (links + browse)
+│   │   ├── EnablingAuthorityCard.tsx    # Info card for enabling authority
+│   │   ├── StatuteLinksList.tsx         # Collapsible grouped statute links
+│   │   ├── StatuteBrowseClient.tsx      # Main browse page container
+│   │   ├── StatuteHierarchyTree.tsx     # Tree rendering component
+│   │   ├── StatuteTreeNode.tsx          # Individual tree node (memo)
+│   │   ├── StatuteDetailPanel.tsx       # Detail panel with linked regs
+│   │   ├── StatuteBrowseFilters.tsx     # Search + filter controls
 │   │   └── index.ts
 │   └── review/             # Review mode components
 │       ├── ReviewQueue.tsx
@@ -1975,6 +1986,66 @@ Pass `stats` prop to show unreviewed count badge on the Review Queue card. Links
 
 ---
 
+## Statute Browse Components
+
+Components for browsing the statute hierarchy tree and viewing statute details.
+
+### StatuteBrowseClient
+
+Main client component for the statute browse page. Manages tree state, search, and layout:
+
+```tsx
+import { StatuteBrowseClient } from '@/components/statutes';
+
+<StatuteBrowseClient
+  state={stateCode}
+  initialRoots={roots}
+/>
+```
+
+Features:
+- Resizable tree + detail panel layout (same pattern as `BrowseClient`)
+- Mobile drawer for detail panel, desktop side panel
+- Lazy-loading children on node expansion
+- URL state sync for selected node and expanded nodes
+- Search with debounced server-side query
+- Panel width persisted to localStorage (`statute-browse-panel-width`)
+
+### StatuteTreeNode
+
+Memo-wrapped tree node for statute hierarchy display:
+
+- Citation in monospace font
+- `hierarchyLevel` badge using `STATUTE_HIERARCHY_LEVEL_LABELS`
+- Linked regulation count badge ("12 regs") in info color when > 0
+- Enabling authority count badge in warning color when > 0
+- Muted opacity for statutes without any linked regulations
+- Folder icon for container levels (title, chapter, article, law, part), FileText for sections
+
+### StatuteHierarchyTree
+
+Renders the tree of `StatuteTreeNode` components with empty state handling.
+
+### StatuteDetailPanel
+
+Detail panel showing statute information when a node is selected:
+
+- Header with citation and title
+- Breadcrumb navigation via `getStatuteAncestorChain`
+- Statute text via `RegulationContent` component
+- Linked regulations grouped by link type (enabling_authority first)
+- Each regulation link navigates to `/{state}/regulations/{regId}`
+
+### StatuteBrowseFilters
+
+Filter bar with URL state via `nuqs`:
+
+- Search input with debounce
+- "Has Links" dropdown (All / With Links / Without Links)
+- Link type dropdown filter (All / Enabling Authority / Requirement / etc.)
+
+---
+
 ## Definitions Components
 
 Components for displaying regulatory definitions extracted from regulations.
@@ -2130,6 +2201,91 @@ This pattern uses a segmented button group with:
 - Active state uses `primary` variant, inactive uses `ghost`
 - View switch resets page to 1
 - Uses `nuqs` for URL state persistence
+
+---
+
+## Statute Components
+
+Components for displaying statute links on regulation detail pages and browse panels.
+
+### EnablingAuthorityCard
+
+Info-blue background card showing enabling authority statutes:
+
+```tsx
+import { EnablingAuthorityCard } from '@/components/statutes';
+
+{enablingAuthority.length > 0 && (
+  <EnablingAuthorityCard links={enablingAuthority} state="ny" />
+)}
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `links` | `RegulationStatuteLinkWithStatute[]` | Enabling authority links |
+| `state` | `string` | State code for constructing links |
+
+Features:
+- Info-blue background (`bg-[var(--color-info-bg)]`) with Scale icon
+- Statute citations as links to `/{state}/statutes/{id}` when matched
+- Plain text citation when unmatched
+- Statute title and context snippet display
+- Only render when links array has items
+
+### StatuteLinksList
+
+Collapsible card showing non-enabling-authority statute links grouped by type:
+
+```tsx
+import { StatuteLinksList } from '@/components/statutes';
+
+{statuteLinks.length > 0 && (
+  <Card className="p-4">
+    <StatuteLinksList links={statuteLinks} state="ny" />
+  </Card>
+)}
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `links` | `RegulationStatuteLinkWithStatute[]` | - | Non-enabling-authority links |
+| `state` | `string` | - | State code for constructing links |
+| `initialCollapsed` | `boolean` | `false` | Whether to start collapsed |
+
+Features:
+- Collapsible with chevron toggle
+- Grouped by link type (requirement, definition, reference)
+- Citation as link (if matched) or plain text (if unmatched)
+- Match status badge using `MATCH_STATUS_LABELS`
+- Context snippet display
+- Follows `CrossReferenceList` pattern
+
+### StatuteLinksSection (DetailPanel)
+
+Compact display of statute links for the browse panel:
+
+```tsx
+import { StatuteLinksSection } from './StatuteLinksSection';
+
+<StatuteLinksSection
+  links={statuteLinks}
+  state={state}
+  documentId={document.id}
+  currentUrl={currentUrl}
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `links` | `RegulationStatuteLinkWithStatute[]` | All statute links |
+| `state` | `string` | State code |
+| `documentId` | `number` | Document ID for "view all" link |
+| `currentUrl` | `string` | Current URL for back navigation |
+
+Features:
+- Shows first 3 links with "View all N statute links..." overflow
+- Link type badge on each item
+- Follows `CrossReferencesSection` pattern
 
 ---
 
@@ -2380,7 +2536,7 @@ URL-based tabs using `nuqs`:
 ```tsx
 import { analyticsTabParser } from '@/lib/url/parsers';
 
-// ?tab=overview | hierarchy | issues | keywords
+// ?tab=overview | crossrefs | issues | keywords | definitions | statutes
 const [{ tab }, setParams] = useQueryStates({
   tab: analyticsTabParser,
 });
@@ -2451,6 +2607,31 @@ import { KeywordsTab } from '@/components/analytics';
   topKeywords={keywordsData}
 />
 ```
+
+### StatutesTab
+
+Statute link analytics with stat cards, link type bar chart, and match quality donut chart:
+
+```tsx
+import { StatutesTab } from '@/components/analytics';
+
+<StatutesTab
+  stats={statuteStats}
+  state={stateCode}
+/>
+```
+
+Props:
+| Prop | Type | Description |
+|------|------|-------------|
+| `stats` | `StatuteLinkStats \| null` | Statute link statistics from `getStatuteStats()` |
+| `state` | `StateCode` | State code (e.g., 'NY', 'NJ') |
+
+Content:
+- **Stat cards** (4): Total Statutes, Linked Statutes (with %), Total Links, Regulations with Links (with %)
+- **Link Type Distribution**: Horizontal bar chart from `byLinkType` using `LINK_TYPE_LABELS`
+- **Match Quality**: Donut chart from `byMatchStatus` using `MATCH_STATUS_LABELS` with color-coded statuses (matched=green, corrected=blue, unmatched=yellow, obsolete=red)
+- **Link Type Details**: Grid of count cards for each link type
 
 ---
 

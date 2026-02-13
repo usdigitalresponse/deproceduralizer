@@ -1,4 +1,4 @@
-import type { RegulationWithAnalysis, ComplianceIssueWithAnalysisFields, CrossReferenceWithTarget, CrossReferenceWithSource } from '@deproceduralizer/database';
+import type { RegulationWithAnalysis, ComplianceIssueWithAnalysisFields, CrossReferenceWithTarget, CrossReferenceWithSource, RegulationStatuteLinkWithStatute } from '@deproceduralizer/database';
 
 export interface DetailPanelProps {
   documentId: number | null;
@@ -56,6 +56,7 @@ export interface DetailPanelData {
   complianceIssues: ComplianceIssueWithAnalysisFields[];
   crossRefs: CrossReferenceWithTarget[];
   incomingRefs: CrossReferenceWithSource[];
+  statuteLinks: RegulationStatuteLinkWithStatute[];
   isLoading: boolean;
   error: string | null;
 }

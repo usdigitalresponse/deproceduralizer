@@ -14,12 +14,14 @@ import {
 } from '@/components/regulations';
 import { HierarchyBreadcrumbsServer } from '@/components/regulations/HierarchyBreadcrumbsServer';
 import { ChildrenListServer } from '@/components/regulations/ChildrenListServer';
+import { EnablingAuthorityCard, StatuteLinksList } from '@/components/statutes';
 import type {
   RegulationWithAnalysis,
   ApplicableDefinition,
   CrossReferenceWithTarget,
   CrossReferenceWithSource,
   ComplianceIssueWithAnalysisFields,
+  RegulationStatuteLinkWithStatute,
 } from '@deproceduralizer/database';
 
 interface RegulationDetailSidebarProps {
@@ -34,6 +36,10 @@ interface RegulationDetailSidebarProps {
   crossRefs: CrossReferenceWithTarget[];
   /** Incoming cross-references (cited by) */
   incomingRefs: CrossReferenceWithSource[];
+  /** Non-enabling-authority statute links */
+  statuteLinks: RegulationStatuteLinkWithStatute[];
+  /** Enabling authority statute links */
+  enablingAuthority: RegulationStatuteLinkWithStatute[];
   /** Definitions used in the document text */
   usedDefinitions: ApplicableDefinition[];
   /** Definitions in scope but not used */
@@ -55,6 +61,8 @@ export async function RegulationDetailSidebar({
   complianceIssues,
   crossRefs,
   incomingRefs,
+  statuteLinks,
+  enablingAuthority,
   usedDefinitions,
   availableButNotUsed,
   definedHereIds,
@@ -89,6 +97,11 @@ export async function RegulationDetailSidebar({
           className="mt-3 pt-3 border-t border-[var(--color-neutral-200)] text-sm"
         />
       </Card>
+
+      {/* Enabling Authority */}
+      {enablingAuthority.length > 0 && (
+        <EnablingAuthorityCard links={enablingAuthority} state={state} />
+      )}
 
       {/* Document Info - Combined Summary and Metadata */}
       <Card className="p-4">
@@ -157,6 +170,13 @@ export async function RegulationDetailSidebar({
             state={state as 'nj' | 'ny'}
             title="Cited By"
           />
+        </Card>
+      )}
+
+      {/* Statute Links */}
+      {statuteLinks.length > 0 && (
+        <Card className="p-4">
+          <StatuteLinksList links={statuteLinks} state={state} />
         </Card>
       )}
 
