@@ -6,6 +6,7 @@ Complete guide for running the Deproceduralizer analysis pipeline on a state's r
 
 ```
 1. Scrape          →  regulatory_documents table
+1b. Exclude        →  marks non-regulatory sections (exec orders, military code, data tables)
 2. Regulatory Status  →  marks repealed/reserved/expired sections
 3. Definitions     →  definitions table
 4. Link Definitions   →  definition_document_occurrences table
@@ -65,7 +66,35 @@ Key flags:
 |------|------|
 | Free (API key required) | Hours (network-bound) |
 
-For NYC statutes (Charter + Administrative Code, parsed from HTML):
+#### Link NY Statutes to Regulations
+
+After ingesting statutes, scan regulation text for statute citations and link them:
+
+```bash
+# Preview (no DB writes):
+python backend/scripts/link_ny_statutes.py --dry-run
+
+# Full scan:
+python backend/scripts/link_ny_statutes.py
+
+# Filter by law or title:
+python backend/scripts/link_ny_statutes.py --law SOS --title 18
+```
+
+| Flag | Description |
+|------|-------------|
+| `--dry-run` | Preview citations found without writing to DB |
+| `--law SOS` | Only link citations to a specific law |
+| `--title 18` | Only scan regulations from a specific NYCRR title |
+
+| Cost | Time |
+|------|------|
+| Free | Minutes |
+
+#### NYC Statutes (Charter + Administrative Code)
+
+Parsed from local HTML files:
+
 ```bash
 cd backend
 
@@ -79,7 +108,6 @@ python3 scripts/nyc_statutes.py
 python3 scripts/nyc_statutes.py --skip-parse
 ```
 
-Key flags:
 | Flag | Description |
 |------|-------------|
 | `--parse-only` | Only parse HTML + save JSON, skip DB |
@@ -93,7 +121,8 @@ Key flags:
 |------|------|
 | Free (local HTML file) | ~30s parse, ~1min DB ingest |
 
-For linking NY regulations to NYC statutes:
+#### Link NYC Statutes to Regulations
+
 ```bash
 cd backend
 
@@ -110,6 +139,26 @@ python3 scripts/link_nyc_statutes.py --title 9
 | Cost | Time |
 |------|------|
 | Free | ~15s |
+
+### Step 1b: Exclude Non-Regulatory Sections
+
+```bash
+# Preview what would be excluded:
+python backend/scripts/batch_exclude_ny_sections.py --dry-run
+
+# Apply exclusions:
+python backend/scripts/batch_exclude_ny_sections.py
+```
+
+- Batch-excludes NY sections that are not administrative regulations
+- Sets `exclude_from_analysis = TRUE` with documented reasons per category
+- Categories: executive orders, military code, chemical/hazmat tables, water classification tables, shellfish/geographic enumerations, fee schedules
+- Idempotent — safe to re-run (skips already-excluded sections)
+- See `.claude/skills/database/schema.md` for full category breakdown
+
+| Cost | Time |
+|------|------|
+| Free | Seconds |
 
 ### Step 2: Detect Regulatory Status
 
@@ -166,10 +215,10 @@ Runs bottom-up through 5 hierarchy phases (sections → subchapters → chapters
 cd backend
 
 # Run all phases for a single title (submit → poll → process → import to DB)
-python3 -m scripts.summarization.cli --state NY --title 18 --run
+python3 -m scripts.summarization.cli --state NY --title 18 --run-all-phases
 
 # Dry run (preview what would be submitted)
-python3 -m scripts.summarization.cli --state NY --title 18 --run --dry-run
+python3 -m scripts.summarization.cli --state NY --title 18 --run-all-phases --dry-run
 
 # Manual phase control (if needed)
 python3 -m scripts.summarization.cli --state NY --title 18 --phase sections --submit
@@ -178,7 +227,7 @@ python3 -m scripts.summarization.cli --state NY --phase sections --process
 ```
 
 - Uses Anthropic Batch API (Haiku, 50% savings)
-- `--run` handles everything: submit, poll, process, import to DB for each phase
+- `--run-all-phases` handles everything: submit, poll, process, import to DB for each phase
 - Each parent phase uses child summaries as input — must run in order
 - Requires `--title <N>` to prevent accidental 50K+ doc submissions
 - Use `--dry-run` to preview what would be submitted

@@ -809,7 +809,8 @@ async def _run_realtime(requests, units, output_class, output_attr, tier_name,
                 prompt=user_prompt,
                 response_format=output_class,
                 system=system,
-                max_tokens=8192,
+                model=model,
+                max_tokens=64000,
                 trace_context=trace_context if LANGFUSE_AVAILABLE else None,
             )
 

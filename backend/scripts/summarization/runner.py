@@ -673,6 +673,15 @@ class SummarizationBatchRunner:
         print(f"  Processing batch: {batch_id}")
         print(f"  Succeeded: {status['succeeded']}, Errored: {status['errored']}")
 
+        if status['succeeded'] == 0 and status.get('total', 0) > 0:
+            print(f"  ERROR: Batch completely failed — all {status.get('total', '?')} requests errored.")
+            print(f"  No results to process. Check batch logs for details.")
+            return []
+
+        if status['errored'] > 0:
+            error_rate = status['errored'] / status.get('total', 1) * 100
+            print(f"  WARNING: {error_rate:.1f}% of requests failed ({status['errored']}/{status.get('total', '?')})")
+
         results = []  # List of dicts with all extracted fields
         processed = 0
 

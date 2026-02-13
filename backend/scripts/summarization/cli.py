@@ -5,10 +5,10 @@ Usage:
     cd backend
 
     # Run all phases end-to-end for a title (submit → poll → process → import to DB)
-    python3 -m scripts.summarization.cli --state NY --title 18 --run
+    python3 -m scripts.summarization.cli --state NY --title 18 --run-all-phases
 
-    # Dry run: preview what --run would submit for each phase
-    python3 -m scripts.summarization.cli --state NY --title 18 --run --dry-run
+    # Dry run: preview what --run-all-phases would submit for each phase
+    python3 -m scripts.summarization.cli --state NY --title 18 --run-all-phases --dry-run
 
     # Submit a single phase
     python3 -m scripts.summarization.cli --state NJ --title 12A --phase sections --submit
@@ -94,7 +94,7 @@ def main():
         help="Process ALL batches for a phase with deduplication",
     )
     action_group.add_argument(
-        "--run",
+        "--run-all-phases",
         action="store_true",
         help="Run all phases end-to-end: submit → poll → process → import to DB",
     )
@@ -151,11 +151,11 @@ def main():
         if not args.phase:
             parser.error("--phase is required with --submit, --process, --process-all, or --view")
 
-    if getattr(args, 'run', False) and not args.title and not getattr(args, 'all_titles', False):
-        parser.error("--run requires --title (e.g., --title 18)")
+    if getattr(args, 'run_all_phases', False) and not args.title and not getattr(args, 'all_titles', False):
+        parser.error("--run-all-phases requires --title (e.g., --title 18)")
 
-    if args.dry_run and not args.submit and not getattr(args, 'run', False):
-        parser.error("--dry-run only makes sense with --submit or --run")
+    if args.dry_run and not args.submit and not getattr(args, 'run_all_phases', False):
+        parser.error("--dry-run only makes sense with --submit or --run-all-phases")
 
     if args.resume and not args.submit:
         parser.error("--resume only makes sense with --submit")
@@ -171,9 +171,9 @@ def main():
     if args.submit and not args.title and not getattr(args, 'all_titles', False):
         parser.error("--submit requires either --title or --all-titles")
 
-    # --run bypasses --phase requirement since it runs all phases
-    if getattr(args, 'run', False) and args.phase:
-        parser.error("--run runs all phases automatically, don't specify --phase")
+    # --run-all-phases bypasses --phase requirement since it runs all phases
+    if getattr(args, 'run_all_phases', False) and args.phase:
+        parser.error("--run-all-phases runs all phases automatically, don't specify --phase")
 
     # Create runner
     runner = SummarizationBatchRunner(
@@ -244,7 +244,7 @@ def main():
         results = runner.process_all_batches(args.phase)
         print(f"\nTotal unique results: {len(results)}")
 
-    elif getattr(args, 'run', False):
+    elif getattr(args, 'run_all_phases', False):
         if args.dry_run:
             # Auto-detect phase order and dry-run each
             from .db_queries import get_hierarchy_order

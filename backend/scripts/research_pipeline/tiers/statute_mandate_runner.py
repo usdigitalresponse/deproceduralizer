@@ -314,7 +314,7 @@ async def run_statute_mandate_checks(
                 response_format=StatuteMandateOutput,
                 system=system_prompt,
                 model=model,
-                max_tokens=4096,
+                max_tokens=64000,
             )
 
             if result:
