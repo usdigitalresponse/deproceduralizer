@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { usePathname, useSearchParams } from 'next/navigation';
 import type { StatuteWithLinks, StatuteAncestor } from '@deproceduralizer/database';
-import { FileText, AlertTriangle, Loader2, ChevronRight, Scale, Link2 } from 'lucide-react';
-import { Card } from '@/components/ui';
+import { FileText, AlertTriangle, Loader2, ChevronRight, Scale, Link2, ExternalLink } from 'lucide-react';
+import { Card, Button } from '@/components/ui';
 import { Badge } from '@/components/ui/Badge';
 import { RegulationContent } from '@/components/regulations';
 import { STATUTE_HIERARCHY_LEVEL_LABELS } from '@/lib/constants/hierarchy';
@@ -30,6 +31,10 @@ export function StatuteDetailPanel({
   const [ancestors, setAncestors] = useState<StatuteAncestor[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const currentUrl = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
 
   const heightClass = fullScreen ? 'h-full' : 'h-[calc(100vh-16rem)]';
 
@@ -128,6 +133,14 @@ export function StatuteDetailPanel({
                 {STATUTE_HIERARCHY_LEVEL_LABELS[statute.hierarchyLevel] || statute.hierarchyLevel}
               </span>
             )}
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Link href={`/${state}/statutes/${statute.id}?from=${encodeURIComponent(currentUrl)}`}>
+              <Button variant="ghost" size="sm">
+                <ExternalLink className="w-4 h-4 mr-1" />
+                Full Page
+              </Button>
+            </Link>
           </div>
         </div>
       </div>

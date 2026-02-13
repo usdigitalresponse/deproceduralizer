@@ -7,6 +7,9 @@ Updates the count columns on regulatory_documents:
 - descendant_flag_count, descendant_analyzed_count (analysis)
 - compliance_issue_count, descendant_compliance_issue_count (compliance)
 
+Updates the count columns on statutes:
+- descendant_linked_regulation_count, descendant_enabling_authority_count (statute links)
+
 Examples:
     # Refresh all stats for NJ
     python refresh_hierarchy_stats.py --state NJ
@@ -16,6 +19,9 @@ Examples:
 
     # Refresh only analysis stats for NY (after processing red flags)
     python refresh_hierarchy_stats.py --state NY --analysis
+
+    # Refresh only statute link stats
+    python refresh_hierarchy_stats.py --all-states --statute-links
 
     # Refresh all states
     python refresh_hierarchy_stats.py --all-states
@@ -30,7 +36,7 @@ from dotenv import load_dotenv
 load_dotenv(PROJECT_ROOT / '.env')
 
 from lib.db import get_db_connection
-from lib.stats import refresh_all_stats, refresh_structure_stats, refresh_analysis_stats, refresh_compliance_stats
+from lib.stats import refresh_all_stats, refresh_structure_stats, refresh_analysis_stats, refresh_compliance_stats, refresh_statute_link_stats
 
 
 def main():
@@ -49,6 +55,8 @@ def main():
                         help='Only refresh analysis stats (flag counts)')
     parser.add_argument('--compliance', action='store_true',
                         help='Only refresh compliance stats (issue counts)')
+    parser.add_argument('--statute-links', action='store_true',
+                        help='Only refresh statute descendant link counts')
 
     args = parser.parse_args()
 
@@ -74,6 +82,8 @@ def main():
                 refresh_analysis_stats(conn, state)
             elif args.compliance:
                 refresh_compliance_stats(conn, state)
+            elif args.statute_links:
+                refresh_statute_link_stats(conn, state)
             else:
                 refresh_all_stats(conn, state)
 

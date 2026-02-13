@@ -37,11 +37,11 @@ export function RegulationContent({
   heading = 'Regulation Text',
   className = '',
 }: RegulationContentProps) {
-  const displayContent = content || 'No content available';
+  const normalizedContent = normalizeLineBreaks(content || 'No content available');
   const isTruncated = truncateAt && content && content.length > truncateAt;
   const finalContent = isTruncated
-    ? displayContent.substring(0, truncateAt) + '...'
-    : displayContent;
+    ? normalizedContent.substring(0, truncateAt) + '...'
+    : normalizedContent;
 
   const heightStyles = maxHeight && maxHeight !== 'none'
     ? { maxHeight, overflowY: 'auto' as const }
@@ -53,13 +53,39 @@ export function RegulationContent({
         <h3 className="font-semibold text-[var(--color-text)] mb-3">{heading}</h3>
       )}
       <div
-        className="bg-[var(--color-neutral-50)] border-l-4 border-[var(--color-neutral-400)] p-4 rounded-[var(--radius-md)] text-sm font-mono whitespace-pre-wrap"
+        className="bg-[var(--color-neutral-50)] border-l-4 border-[var(--color-neutral-400)] p-4 rounded-[var(--radius-md)] text-sm leading-relaxed whitespace-pre-wrap"
         style={heightStyles}
       >
         {finalContent}
       </div>
     </div>
   );
+}
+
+/**
+ * Collapse hard line breaks into spaces while preserving structural breaks.
+ *
+ * Source text from scraped statutes/regulations has fixed-width wrapping
+ * at ~70 chars. Content may contain real newlines OR literal escaped "\n".
+ *
+ * Patterns:
+ * - `\n ` (newline + leading space) = structural sub-section (e.g. " 2.", " (a)")
+ * - `\n` followed by non-space = hard wrap artifact, collapse to space
+ * - `\n\n` = paragraph break, preserve
+ */
+function normalizeLineBreaks(text: string): string {
+  // First, convert literal escaped \n sequences to real newlines
+  const unescaped = text.replace(/\\n/g, '\n');
+
+  return unescaped
+    .split(/\n{2,}/)
+    .map(paragraph =>
+      paragraph
+        .replace(/\n(?! )/g, ' ')
+        .replace(/ {2,}/g, ' ')
+        .trim()
+    )
+    .join('\n\n');
 }
 
 export default RegulationContent;

@@ -44,6 +44,10 @@ export const statutes = pgTable('statutes', {
   hierarchyLevel: varchar('hierarchy_level', { length: 50 }),  // 'title', 'chapter', 'section'
   hierarchyPath: text('hierarchy_path'),
 
+  // Precomputed descendant counts (refreshed via refresh_hierarchy_stats.py --statute-links)
+  descendantLinkedRegulationCount: integer('descendant_linked_regulation_count').default(0),
+  descendantEnablingAuthorityCount: integer('descendant_enabling_authority_count').default(0),
+
   // Metadata
   sourceIndex: integer('source_index'),
   createdAt: timestamp('created_at').defaultNow(),

@@ -237,6 +237,82 @@ def refresh_compliance_stats(conn, state: str) -> int:
     return updated_count
 
 
+def refresh_statute_link_stats(conn, state: str) -> int:
+    """
+    Refresh precomputed descendant regulation link counts on the statutes table.
+
+    Updates: descendant_linked_regulation_count, descendant_enabling_authority_count
+
+    Uses a recursive CTE to walk the statutes.parent_id hierarchy and sum
+    regulation_statute_links counts from all descendants.
+
+    Should be called after statute linking.
+    """
+    print(f"  Computing statute link stats for {state}...")
+    start = time.time()
+
+    with conn.cursor() as cur:
+        cur.execute("""
+            WITH RECURSIVE descendant_links AS (
+                -- Base: each statute's own direct link counts
+                SELECT
+                    s.id as descendant_id,
+                    s.parent_id,
+                    (SELECT COUNT(*)::int FROM regulation_statute_links rsl WHERE rsl.statute_id = s.id) as linked_regulation_count,
+                    (SELECT COUNT(*)::int FROM regulation_statute_links rsl WHERE rsl.statute_id = s.id AND rsl.link_type = 'enabling_authority') as enabling_authority_count
+                FROM statutes s
+                WHERE s.state = %s
+
+                UNION ALL
+
+                -- Recursive: propagate counts up to each parent
+                SELECT
+                    dl.descendant_id,
+                    p.parent_id,
+                    dl.linked_regulation_count,
+                    dl.enabling_authority_count
+                FROM descendant_links dl
+                JOIN statutes p ON p.id = dl.parent_id
+            ),
+            aggregated AS (
+                SELECT
+                    parent_id as id,
+                    COALESCE(SUM(linked_regulation_count), 0)::int as descendant_linked_regulation_count,
+                    COALESCE(SUM(enabling_authority_count), 0)::int as descendant_enabling_authority_count
+                FROM descendant_links
+                WHERE parent_id IS NOT NULL
+                GROUP BY parent_id
+            )
+            UPDATE statutes s
+            SET
+                descendant_linked_regulation_count = a.descendant_linked_regulation_count,
+                descendant_enabling_authority_count = a.descendant_enabling_authority_count
+            FROM aggregated a
+            WHERE s.id = a.id AND s.state = %s
+        """, (state, state))
+
+        updated_count = cur.rowcount
+        conn.commit()
+
+        # Zero out statutes that have no descendants with links
+        cur.execute("""
+            UPDATE statutes
+            SET descendant_linked_regulation_count = 0,
+                descendant_enabling_authority_count = 0
+            WHERE state = %s
+              AND id NOT IN (
+                  SELECT DISTINCT parent_id FROM statutes WHERE parent_id IS NOT NULL AND state = %s
+              )
+              AND (descendant_linked_regulation_count != 0 OR descendant_enabling_authority_count != 0)
+        """, (state, state))
+
+        conn.commit()
+
+    elapsed = time.time() - start
+    print(f"    Updated {updated_count:,} statutes in {elapsed:.1f}s")
+    return updated_count
+
+
 def refresh_all_stats(conn, state: str) -> int:
     """
     Refresh ALL hierarchy stats (structural, analysis, and compliance).
@@ -249,8 +325,9 @@ def refresh_all_stats(conn, state: str) -> int:
     updated1 = refresh_structure_stats(conn, state)
     updated2 = refresh_analysis_stats(conn, state)
     updated3 = refresh_compliance_stats(conn, state)
+    updated4 = refresh_statute_link_stats(conn, state)
 
     elapsed = time.time() - start
-    updated_count = max(updated1, updated2, updated3)
+    updated_count = max(updated1, updated2, updated3, updated4)
     print(f"✓ All stats complete in {elapsed:.1f}s")
     return updated_count
