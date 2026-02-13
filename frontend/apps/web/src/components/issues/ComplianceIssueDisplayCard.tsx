@@ -101,9 +101,9 @@ export function ComplianceIssueDisplayCard({
             <div className="mb-3 space-y-2">
               {issue.verbatimSupportingText.map((text, index) => (
                 <p key={index} className="text-sm text-[var(--color-text)] whitespace-pre-wrap leading-relaxed">
-                  {issue.isVerbatim && <span className="text-[var(--color-text-muted)]">"</span>}
+                  {issue.isVerbatim && <span className="text-[var(--color-text-muted)]">&quot;</span>}
                   {highlightTerm(text, issue.regexMatchPattern)}
-                  {issue.isVerbatim && <span className="text-[var(--color-text-muted)]">"</span>}
+                  {issue.isVerbatim && <span className="text-[var(--color-text-muted)]">&quot;</span>}
                 </p>
               ))}
             </div>

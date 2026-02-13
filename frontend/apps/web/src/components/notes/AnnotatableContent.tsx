@@ -57,7 +57,7 @@ export function AnnotatableContent({
   const termMatches = useTermHighlighting(content, applicableDefinitions);
 
   // Handle term click - show definition popover
-  const handleTermClick = useCallback((e: React.MouseEvent, termMatch: TermMatch) => {
+  const handleTermClick = useCallback((e: React.SyntheticEvent, termMatch: TermMatch) => {
     e.preventDefault();
     e.stopPropagation();
     const target = e.currentTarget as HTMLElement;
@@ -71,7 +71,7 @@ export function AnnotatableContent({
   }, []);
 
   // Handle cross-ref click - show cross-ref popover
-  const handleCrossRefClick = useCallback((e: React.MouseEvent, crossRef: CrossRefMatch) => {
+  const handleCrossRefClick = useCallback((e: React.SyntheticEvent, crossRef: CrossRefMatch) => {
     e.preventDefault();
     e.stopPropagation();
     const target = e.currentTarget as HTMLElement;
@@ -248,7 +248,7 @@ export function AnnotatableContent({
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
-                handleCrossRefClick(e as unknown as React.MouseEvent, crossRef);
+                handleCrossRefClick(e, crossRef);
               }
             }}
             title={`Cross-reference: ${crossRef.rawText}`}
@@ -269,7 +269,7 @@ export function AnnotatableContent({
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
-                handleTermClick(e as unknown as React.MouseEvent, termMatch);
+                handleTermClick(e, termMatch);
               }
             }}
             title={`Defined term: ${termMatch.term}`}

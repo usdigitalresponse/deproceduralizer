@@ -103,9 +103,9 @@ export function ComplianceIssueContent({ item, state }: ComplianceIssueContentPr
       )}
 
       {/* Full Regulation Text Viewer */}
-      {(issue.regulation as unknown as { content?: string }).content && (
+      {issue.regulation.content && (
         <RegulationTextViewer
-          content={(issue.regulation as unknown as { content: string }).content}
+          content={issue.regulation.content}
           documentId={issue.regulation.id}
           state={state}
           scrollToText={issue.verbatimSupportingText?.[0]}

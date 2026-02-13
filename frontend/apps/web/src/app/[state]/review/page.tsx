@@ -6,7 +6,6 @@ import {
   ReviewTypeTabs,
   ComplianceReviewQueue,
   ReviewModeSwitcher,
-  DeveloperQueue,
   NeedMoreInfoQueue,
   DefinitionsReviewQueue,
   DefinitionsDeveloperQueue,
@@ -20,7 +19,6 @@ import {
   getRedFlagsQueueData,
   getComplianceQueueData,
   getNeedsInfoQueueData,
-  getDeveloperQueueData,
   getRedFlagDeveloperQueueData,
   getComplianceDeveloperQueueData,
   getComplianceSuggestionQueueData,
@@ -35,7 +33,7 @@ import {
 import type { StateCode, RedFlagFilterOptions } from '@deproceduralizer/database';
 import { isValidState, STATE_CONFIG } from '@/types/state';
 import type { ReviewType, ReviewMode } from '@/types/regulation';
-import type { QueueModeValue, GroupingModeValue } from '@/lib/constants/values';
+import type { GroupingModeValue } from '@/lib/constants/values';
 import { getComplianceSuggestionBatch } from '@/lib/actions/compliance-issues';
 
 // Helper to parse comma-separated IDs from URL

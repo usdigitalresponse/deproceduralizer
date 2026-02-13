@@ -68,7 +68,6 @@ export function useQueue<TItem, TCounts extends object>({
   getItemId,
   getItemStatus,
   defaultStatus = 'unreviewed',
-  getRegulationId,
   statusFilter,
 }: UseQueueConfig<TItem, TCounts>): UseQueueReturn<TItem, TCounts> {
   const pathname = usePathname();

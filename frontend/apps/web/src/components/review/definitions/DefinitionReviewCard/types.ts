@@ -76,10 +76,3 @@ export interface ActionButtonsProps {
   onSaveCorrections: () => void;
   onMarkFalsePositive: () => void;
 }
-
-// Extended definition type with new fields
-export interface DefinitionWithNewFields {
-  isVerbatimTextComplete?: boolean;
-  referenceCompleteness?: string;
-  referenceTarget?: string;
-}

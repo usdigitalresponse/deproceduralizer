@@ -1,13 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useReviewerName } from '@/hooks/useReviewerName';
 import type { DefinitionWithContext, DefinitionOriginalValues } from '@deproceduralizer/database';
-import type { DefinitionFormData, DefinitionWithNewFields } from '../types';
+import type { DefinitionFormData } from '../types';
 
 export function useDefinitionForm(definition: DefinitionWithContext) {
   const { reviewerName: storedName, saveReviewerName, isLoaded } = useReviewerName();
-
-  // Extended definition with new fields
-  const defWithNewFields = definition as unknown as DefinitionWithNewFields;
 
   // Original values for comparison
   const originalValues: DefinitionOriginalValues = (definition.originalValues as DefinitionOriginalValues) || {};
@@ -15,7 +12,7 @@ export function useDefinitionForm(definition: DefinitionWithContext) {
   // Form state
   const [formData, setFormData] = useState<DefinitionFormData>({
     term: definition.term,
-    isVerbatimTextComplete: defWithNewFields.isVerbatimTextComplete ?? true,
+    isVerbatimTextComplete: definition.isVerbatimTextComplete ?? true,
     verbatimText: definition.verbatimText,
     rephrasedDefinition: definition.rephrasedDefinition || '',
     scope: definition.scope || '',
@@ -23,8 +20,8 @@ export function useDefinitionForm(definition: DefinitionWithContext) {
     scopeDocumentId: definition.scopeDocumentId,
     definitionType: definition.definitionType || 'formal',
     isCrossReference: definition.isCrossReference ?? false,
-    referenceCompleteness: defWithNewFields.referenceCompleteness || 'none',
-    referenceTarget: defWithNewFields.referenceTarget || 'none',
+    referenceCompleteness: definition.referenceCompleteness || 'none',
+    referenceTarget: definition.referenceTarget || 'none',
     reviewerName: '',
     justificationNotes: '',
     teamNotes: '',
@@ -41,7 +38,7 @@ export function useDefinitionForm(definition: DefinitionWithContext) {
   const hasChanges = useCallback(() => {
     return (
       formData.term !== definition.term ||
-      formData.isVerbatimTextComplete !== (defWithNewFields.isVerbatimTextComplete ?? true) ||
+      formData.isVerbatimTextComplete !== (definition.isVerbatimTextComplete ?? true) ||
       formData.verbatimText !== definition.verbatimText ||
       formData.rephrasedDefinition !== (definition.rephrasedDefinition || '') ||
       formData.scope !== (definition.scope || '') ||
@@ -49,18 +46,17 @@ export function useDefinitionForm(definition: DefinitionWithContext) {
       formData.scopeDocumentId !== definition.scopeDocumentId ||
       formData.definitionType !== (definition.definitionType || 'formal') ||
       formData.isCrossReference !== (definition.isCrossReference ?? false) ||
-      formData.referenceCompleteness !== (defWithNewFields.referenceCompleteness || 'none') ||
-      formData.referenceTarget !== (defWithNewFields.referenceTarget || 'none')
+      formData.referenceCompleteness !== (definition.referenceCompleteness || 'none') ||
+      formData.referenceTarget !== (definition.referenceTarget || 'none')
     );
-  }, [formData, definition, defWithNewFields]);
+  }, [formData, definition]);
 
   // Get original value for comparison
   const getOriginalValue = useCallback(<K extends keyof DefinitionOriginalValues>(key: K) => {
     if (originalValues[key] !== undefined) {
       return originalValues[key];
     }
-    const defRecord = definition as unknown as Record<string, unknown>;
-    return defRecord[key];
+    return (definition as unknown as Record<string, unknown>)[key];
   }, [originalValues, definition]);
 
   // Check if a field was changed from original
@@ -75,6 +71,5 @@ export function useDefinitionForm(definition: DefinitionWithContext) {
     getOriginalValue,
     wasChanged,
     saveReviewerName,
-    defWithNewFields,
   };
 }

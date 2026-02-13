@@ -338,7 +338,7 @@ export async function composePromptForTier(
     ].filter(Boolean).join('\n\n');
 
     // Replace placeholders in issue_block
-    let issueBlockContent = tierData.issue_block
+    const issueBlockContent = tierData.issue_block
       .replace(/\{issue_type\}/g, config.db_issue_type)
       .replace(/\{issue_description\}/g, config.description)
       .replace(/\{positive_indicators\}/g, positiveIndicators)

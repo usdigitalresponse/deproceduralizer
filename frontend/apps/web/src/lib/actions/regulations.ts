@@ -305,10 +305,9 @@ export async function getSectionTypeStats(
   state: string
 ): Promise<ActionResult<SectionTypeStats[]>> {
   try {
-    const stateCode = state.toUpperCase() as StateCode;
     const cachedGetStats = unstable_cache(
-      () => regulationsRepo.getSectionTypeStats(stateCode),
-      [`section-type-stats-${stateCode}`],
+      () => regulationsRepo.getSectionTypeStats(state as StateCode),
+      [`section-type-stats-${state}`],
       { revalidate: 60, tags: ['analytics'] }
     );
     const result = await cachedGetStats();
@@ -327,10 +326,9 @@ export async function getMetadataStats(
   state: string
 ): Promise<ActionResult<MetadataStats>> {
   try {
-    const stateCode = state.toUpperCase() as StateCode;
     const cachedGetStats = unstable_cache(
-      () => regulationsRepo.getMetadataStats(stateCode),
-      [`metadata-stats-${stateCode}`],
+      () => regulationsRepo.getMetadataStats(state as StateCode),
+      [`metadata-stats-${state}`],
       { revalidate: 60, tags: ['analytics'] }
     );
     const result = await cachedGetStats();
@@ -350,10 +348,9 @@ export async function getTopKeywords(
   limit: number = 20
 ): Promise<ActionResult<KeywordStats[]>> {
   try {
-    const stateCode = state.toUpperCase() as StateCode;
     const cachedGetStats = unstable_cache(
-      () => regulationsRepo.getTopKeywords(stateCode, limit),
-      [`top-keywords-${stateCode}-${limit}`],
+      () => regulationsRepo.getTopKeywords(state as StateCode, limit),
+      [`top-keywords-${state}-${limit}`],
       { revalidate: 60, tags: ['analytics'] }
     );
     const result = await cachedGetStats();
@@ -373,10 +370,9 @@ export async function getTopAppliesTo(
   limit: number = 20
 ): Promise<ActionResult<AppliesToStats[]>> {
   try {
-    const stateCode = state.toUpperCase() as StateCode;
     const cachedGetStats = unstable_cache(
-      () => regulationsRepo.getTopAppliesTo(stateCode, limit),
-      [`top-applies-to-${stateCode}-${limit}`],
+      () => regulationsRepo.getTopAppliesTo(state as StateCode, limit),
+      [`top-applies-to-${state}-${limit}`],
       { revalidate: 60, tags: ['analytics'] }
     );
     const result = await cachedGetStats();
