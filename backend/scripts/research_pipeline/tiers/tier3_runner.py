@@ -323,8 +323,8 @@ def _parse_tier3_json_response(
     except ValidationError as e:
         print(f"    Warning: Validation error: {e}")
         return None
-    except Exception as e:
-        print(f"    Warning: Parse error: {e}")
+    except (ValueError, TypeError) as e:
+        print(f"    Warning: Normalization error: {e}")
         return None
 
 

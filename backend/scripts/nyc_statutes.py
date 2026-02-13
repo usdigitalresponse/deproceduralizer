@@ -51,6 +51,7 @@ from config import (
     NYC_STATUTES_COMPLETE_FILE,
     ensure_data_dirs,
 )
+import psycopg
 from lib.db import get_db_connection
 from lib.stats import format_time
 from dotenv import load_dotenv
@@ -450,10 +451,12 @@ def save_statutes(records: list[dict]):
     """Save statute records to JSON file."""
     ensure_data_dirs()
 
-    # Strip internal fields for JSON output
+    # Strip internal fields for JSON output, but keep _parent_citation
+    # which is needed later for parent ID population from the JSON fallback path
+    keep_internal = {'_parent_citation'}
     clean_records = []
     for rec in records:
-        clean = {k: v for k, v in rec.items() if not k.startswith('_')}
+        clean = {k: v for k, v in rec.items() if not k.startswith('_') or k in keep_internal}
         clean_records.append(clean)
 
     with open(NYC_STATUTES_COMPLETE_FILE, 'w', encoding='utf-8') as f:
@@ -515,41 +518,62 @@ def migrate_nyc_statutes_to_db(records: Optional[list[dict]] = None) -> int:
     """
 
     total = 0
+    errors = 0
     start_time = time.time()
 
+    # Build all rows up front, skipping records without citations
+    all_rows = []
+    for rec in records:
+        citation = rec.get('citation', '')
+        if not citation:
+            continue
+        all_rows.append((
+            citation,
+            'NYC',
+            rec.get('title', ''),
+            rec.get('content', ''),
+            rec.get('nyc_doc_type'),
+            rec.get('nyc_title'),
+            rec.get('nyc_chapter'),
+            rec.get('nyc_section'),
+            rec.get('nyc_section_name'),
+            rec.get('hierarchy_level', 'section'),
+            rec.get('hierarchy_path', ''),
+            rec.get('source_index'),
+        ))
+
+    BATCH = 1000
     try:
-        for rec in records:
-            citation = rec.get('citation', '')
-            if not citation:
-                continue
+        with conn.cursor() as cur:
+            for i in range(0, len(all_rows), BATCH):
+                batch = all_rows[i:i + BATCH]
+                try:
+                    cur.executemany(insert_sql, batch)
+                    conn.commit()
+                    total += len(batch)
+                except Exception:
+                    conn.rollback()
+                    # Fall back to row-by-row to identify bad rows
+                    for row in batch:
+                        try:
+                            cur.execute(insert_sql, row)
+                            conn.commit()
+                            total += 1
+                        except Exception as row_err:
+                            conn.rollback()
+                            errors += 1
+                            print(f"  ERROR inserting {row[0]}: {row_err}")
 
-            row = [
-                citation,
-                'NYC',
-                rec.get('title', ''),
-                rec.get('content', ''),
-                rec.get('nyc_doc_type'),
-                rec.get('nyc_title'),
-                rec.get('nyc_chapter'),
-                rec.get('nyc_section'),
-                rec.get('nyc_section_name'),
-                rec.get('hierarchy_level', 'section'),
-                rec.get('hierarchy_path', ''),
-                rec.get('source_index'),
-            ]
-
-            conn.execute(insert_sql, row)
-            total += 1
-
-            if total % 1000 == 0:
-                conn.commit()
                 elapsed = time.time() - start_time
-                print(f"  Migrated {total:,} / {len(records):,} ({format_time(elapsed)})")
-
-        conn.commit()
+                done = total + errors
+                if done % 1000 == 0 or done == len(all_rows):
+                    print(f"  Migrated {total:,} / {len(all_rows):,} ({format_time(elapsed)})")
 
     finally:
         conn.close()
+
+    if errors:
+        print(f"WARNING: {errors:,} rows failed to insert")
 
     elapsed = time.time() - start_time
     print(f"Migrated {total:,} statutes in {format_time(elapsed)}")
@@ -625,11 +649,11 @@ def populate_nyc_parent_ids(records: Optional[list[dict]] = None) -> int:
         print(f"  Updated {total_updated:,} parent relationships")
         return total_updated
 
-    except Exception as e:
+    except psycopg.Error as e:
         print(f"ERROR populating parent_ids: {e}")
         import traceback
         traceback.print_exc()
-        return 0
+        return -1
     finally:
         conn.close()
 
