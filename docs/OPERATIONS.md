@@ -448,7 +448,7 @@ Approximate LLM costs per state (as of February 2025):
 |------|-------|-----------|
 | 3. Definitions | Claude Haiku | ~$10-20 |
 | 5. Summaries | Claude Haiku | ~$100 |
-| 7. Research Pipeline (full) | Claude Haiku/Sonnet | ~$50-60 |
+| 7. Research Pipeline (full) | Claude Haiku/Sonnet | ~$50-60 (observed, per title) |
 | 8. IBR Scan | Claude Haiku | ~$5-10 |
 | 9. Red Flags | Claude | ~$50-100 |
 | **Total** | | **~$215-290** |

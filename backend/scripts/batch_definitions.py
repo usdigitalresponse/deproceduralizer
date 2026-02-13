@@ -352,7 +352,10 @@ def store_to_database(regulations: List[Dict], state: str = "NY"):
                     continue
 
                 doc_id = result[0]
-                docs_processed += 1
+
+                # Use savepoint so a failed insert rolls back only this document's
+                # delete+insert, not the entire batch
+                conn.execute("SAVEPOINT doc_defs")
 
                 # Delete previous definitions for this document
                 conn.execute("DELETE FROM definitions WHERE document_id = %s", (doc_id,))
@@ -389,8 +392,12 @@ def store_to_database(regulations: List[Dict], state: str = "NY"):
                     ))
                     total_defs += 1
 
+                conn.execute("RELEASE SAVEPOINT doc_defs")
+                docs_processed += 1
+
             except Exception as doc_err:
-                print(f"    ERROR processing reg {reg.get('title', 'unknown')[:40]}: {doc_err}")
+                conn.execute("ROLLBACK TO SAVEPOINT doc_defs")
+                print(f"    ERROR processing reg {reg.get('title', 'unknown')[:40]} (doc_id={doc_id}), rolled back: {doc_err}")
 
         conn.commit()
 

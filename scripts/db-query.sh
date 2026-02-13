@@ -55,7 +55,6 @@ case "${1:-}" in
             UNION ALL SELECT 'compliance_issues', COUNT(*) FROM compliance_issues
             UNION ALL SELECT 'definitions', COUNT(*) FROM definitions
             UNION ALL SELECT 'statute_references', COUNT(*) FROM statute_references
-            UNION ALL SELECT 'definition_extraction_log', COUNT(*) FROM definition_extraction_log
             ORDER BY rows DESC;
         "
         echo ""
@@ -94,7 +93,6 @@ case "${1:-}" in
             UNION ALL SELECT 'compliance_issues', COUNT(*) FROM compliance_issues
             UNION ALL SELECT 'definitions', COUNT(*) FROM definitions
             UNION ALL SELECT 'statute_references', COUNT(*) FROM statute_references
-            UNION ALL SELECT 'definition_extraction_log', COUNT(*) FROM definition_extraction_log
             ORDER BY rows DESC;
         "
         ;;

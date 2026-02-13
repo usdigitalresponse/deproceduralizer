@@ -112,6 +112,8 @@ Tier 3 (if triggered) outputs:
 | Tier 3 (real-time + web) | ~15% | $12-15 | $450-563 |
 | **Total** | | | **~$850-965** |
 
+> **Note:** This was a pre-launch projection assuming 250K total compliance issue matches per state. Observed costs have been significantly lower (~$50-60 per title) due to aggressive Tier 1 filtering and batch API savings. See `docs/OPERATIONS.md` for observed per-title costs.
+
 **API Strategy:**
 - Tier 1 & Tier 2 initial: Batch API (50% cost savings, 24hr latency OK)
 - Tier 2 re-runs: Real-time API (cannot wait 24hr between context requests)

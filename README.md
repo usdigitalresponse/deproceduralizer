@@ -25,7 +25,7 @@ Cornell Law Website (Regulations + Statutes)
         ↓
     PostgreSQL (Neon)
         ↓
-    Statute Linking (link_statutes.py) + Batch Exclude non-regulatory sections
+    Statute Linking (link_ny_statutes.py, link_nyc_statutes.py) + Batch Exclude non-regulatory sections
         ↓
     Analysis Scripts (definitions, summaries, compliance issues, research pipeline, mandate checks)
         ↓
