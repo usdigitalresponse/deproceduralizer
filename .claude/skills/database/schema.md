@@ -582,6 +582,8 @@ Hierarchy: Title → Chapter → Section (NJ), Law → Article → Section (NY),
 | `parent_id` | bigint | FK to parent statute (self-referencing) |
 | `hierarchy_level` | varchar(50) | title, chapter, section, law, article |
 | `hierarchy_path` | text | Full path for display |
+| `descendant_linked_regulation_count` | integer | Precomputed: total regulation links in subtree |
+| `descendant_enabling_authority_count` | integer | Precomputed: total enabling authority links in subtree |
 | `source_index` | integer | Index from parsing process |
 | `created_at` | timestamp | When created |
 

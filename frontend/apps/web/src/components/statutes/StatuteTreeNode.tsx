@@ -59,8 +59,12 @@ export const StatuteTreeNode = memo(function StatuteTreeNode({
   const levelLabel = STATUTE_HIERARCHY_LEVEL_LABELS[node.hierarchyLevel || ''] || node.hierarchyLevel || 'Document';
   const displayTitle = cleanStatuteTitle(node.title);
 
-  // Dim statutes without any linked regulations
-  const hasAnyLinks = node.linkedRegulationCount > 0 || node.enablingAuthorityCount > 0;
+  // Total counts = direct + descendants for container nodes
+  const totalRegCount = node.linkedRegulationCount + node.descendantLinkedRegulationCount;
+  const totalAuthCount = node.enablingAuthorityCount + node.descendantEnablingAuthorityCount;
+
+  // Dim statutes without any linked regulations (including descendants)
+  const hasAnyLinks = totalRegCount > 0 || totalAuthCount > 0;
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === ' ') {
@@ -139,16 +143,16 @@ export const StatuteTreeNode = memo(function StatuteTreeNode({
           </div>
         </div>
 
-        {/* Metadata badges */}
+        {/* Metadata badges — show total (direct + descendants) */}
         <div className="flex items-center gap-1 flex-wrap shrink">
-          {node.linkedRegulationCount > 0 && (
+          {totalRegCount > 0 && (
             <Badge variant="info" className="text-xs">
-              {node.linkedRegulationCount} reg{node.linkedRegulationCount !== 1 ? 's' : ''}
+              {totalRegCount} reg{totalRegCount !== 1 ? 's' : ''}
             </Badge>
           )}
-          {node.enablingAuthorityCount > 0 && (
+          {totalAuthCount > 0 && (
             <Badge variant="warning" className="text-xs">
-              {node.enablingAuthorityCount} auth
+              {totalAuthCount} auth
             </Badge>
           )}
         </div>

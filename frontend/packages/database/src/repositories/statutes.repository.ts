@@ -17,6 +17,8 @@ export interface StatuteHierarchyNode {
   childCount: number;
   linkedRegulationCount: number;
   enablingAuthorityCount: number;
+  descendantLinkedRegulationCount: number;
+  descendantEnablingAuthorityCount: number;
   hasContent: boolean;
 }
 
@@ -123,6 +125,8 @@ export class StatutesRepository extends BaseRepository {
       child_count: number;
       linked_regulation_count: number;
       enabling_authority_count: number;
+      descendant_linked_regulation_count: number;
+      descendant_enabling_authority_count: number;
       has_content: boolean;
     }>(sql`
       SELECT
@@ -135,6 +139,8 @@ export class StatutesRepository extends BaseRepository {
         (SELECT COUNT(*)::int FROM statutes c WHERE c.parent_id = s.id) as child_count,
         (SELECT COUNT(*)::int FROM regulation_statute_links rsl WHERE rsl.statute_id = s.id) as linked_regulation_count,
         (SELECT COUNT(*)::int FROM regulation_statute_links rsl WHERE rsl.statute_id = s.id AND rsl.link_type = 'enabling_authority') as enabling_authority_count,
+        COALESCE(s.descendant_linked_regulation_count, 0)::int as descendant_linked_regulation_count,
+        COALESCE(s.descendant_enabling_authority_count, 0)::int as descendant_enabling_authority_count,
         (s.content IS NOT NULL AND s.content != '') as has_content
       FROM statutes s
       WHERE s.state = ${stateUpper}
@@ -162,6 +168,8 @@ export class StatutesRepository extends BaseRepository {
       child_count: number;
       linked_regulation_count: number;
       enabling_authority_count: number;
+      descendant_linked_regulation_count: number;
+      descendant_enabling_authority_count: number;
       has_content: boolean;
     }>(sql`
       SELECT
@@ -174,6 +182,8 @@ export class StatutesRepository extends BaseRepository {
         (SELECT COUNT(*)::int FROM statutes c WHERE c.parent_id = s.id) as child_count,
         (SELECT COUNT(*)::int FROM regulation_statute_links rsl WHERE rsl.statute_id = s.id) as linked_regulation_count,
         (SELECT COUNT(*)::int FROM regulation_statute_links rsl WHERE rsl.statute_id = s.id AND rsl.link_type = 'enabling_authority') as enabling_authority_count,
+        COALESCE(s.descendant_linked_regulation_count, 0)::int as descendant_linked_regulation_count,
+        COALESCE(s.descendant_enabling_authority_count, 0)::int as descendant_enabling_authority_count,
         (s.content IS NOT NULL AND s.content != '') as has_content
       FROM statutes s
       WHERE s.parent_id = ${parentId}
@@ -446,6 +456,8 @@ export class StatutesRepository extends BaseRepository {
       child_count: number;
       linked_regulation_count: number;
       enabling_authority_count: number;
+      descendant_linked_regulation_count: number;
+      descendant_enabling_authority_count: number;
       has_content: boolean;
     }>(sql`
       SELECT
@@ -458,6 +470,8 @@ export class StatutesRepository extends BaseRepository {
         (SELECT COUNT(*)::int FROM statutes c WHERE c.parent_id = s.id) as child_count,
         (SELECT COUNT(*)::int FROM regulation_statute_links rsl WHERE rsl.statute_id = s.id) as linked_regulation_count,
         (SELECT COUNT(*)::int FROM regulation_statute_links rsl WHERE rsl.statute_id = s.id AND rsl.link_type = 'enabling_authority') as enabling_authority_count,
+        COALESCE(s.descendant_linked_regulation_count, 0)::int as descendant_linked_regulation_count,
+        COALESCE(s.descendant_enabling_authority_count, 0)::int as descendant_enabling_authority_count,
         (s.content IS NOT NULL AND s.content != '') as has_content
       FROM statutes s
       WHERE s.state = ${stateUpper}
@@ -519,6 +533,8 @@ export class StatutesRepository extends BaseRepository {
     child_count: number;
     linked_regulation_count: number;
     enabling_authority_count: number;
+    descendant_linked_regulation_count: number;
+    descendant_enabling_authority_count: number;
     has_content: boolean;
   }): StatuteHierarchyNode {
     return {
@@ -531,6 +547,8 @@ export class StatutesRepository extends BaseRepository {
       childCount: row.child_count,
       linkedRegulationCount: row.linked_regulation_count,
       enablingAuthorityCount: row.enabling_authority_count,
+      descendantLinkedRegulationCount: row.descendant_linked_regulation_count,
+      descendantEnablingAuthorityCount: row.descendant_enabling_authority_count,
       hasContent: row.has_content,
     };
   }
