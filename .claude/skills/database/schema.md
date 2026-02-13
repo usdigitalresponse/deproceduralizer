@@ -62,6 +62,19 @@ Main table with hierarchy. **74 columns** - use `./scripts/db-query.sh describe 
 | `excluded_by` | varchar(255) | Who excluded it |
 | `excluded_reason` | text | Why it was excluded |
 
+**Batch-excluded NY categories** (1,283 sections total as of Feb 2025, `excluded_by = 'batch-exclude-ny-2025'`):
+
+| Category | Count | Reason |
+|----------|-------|--------|
+| Executive Orders (9 NYCRR Parts 1-9) | ~1,010 | Gubernatorial directives, not administrative regulations |
+| Military Code (9 NYCRR Parts 490-520) | ~157 | Military justice and civil defense code |
+| Chemical/Hazmat Data Tables | 5 | Pure lookup tables (chemical lists, exposure limits, mortality tables) |
+| Water Classification Tables (Title 6) | ~19 | Water body classification lists (Table I/II/etc.) |
+| Shellfish/Geographic Enumerations (Title 6) | 7 | Geographic boundary data listings |
+| Fee Schedules / Rate Tables | 5 | Numeric rate/fee lookup tables |
+
+Script: `backend/scripts/batch_exclude_ny_sections.py` (use `--dry-run` to preview)
+
 **AI-generated summary metadata (from batch summarization pipeline):**
 
 | Column | Type | Description |

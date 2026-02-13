@@ -6,6 +6,7 @@ Complete guide for running the Deproceduralizer analysis pipeline on a state's r
 
 ```
 1. Scrape          →  regulatory_documents table
+1b. Exclude        →  marks non-regulatory sections (exec orders, military code, data tables)
 2. Regulatory Status  →  marks repealed/reserved/expired sections
 3. Definitions     →  definitions table
 4. Link Definitions   →  definition_document_occurrences table
@@ -89,6 +90,26 @@ python backend/scripts/link_ny_statutes.py --law SOS --title 18
 | Cost | Time |
 |------|------|
 | Free | Minutes |
+
+### Step 1b: Exclude Non-Regulatory Sections
+
+```bash
+# Preview what would be excluded:
+python backend/scripts/batch_exclude_ny_sections.py --dry-run
+
+# Apply exclusions:
+python backend/scripts/batch_exclude_ny_sections.py
+```
+
+- Batch-excludes NY sections that are not administrative regulations
+- Sets `exclude_from_analysis = TRUE` with documented reasons per category
+- Categories: executive orders, military code, chemical/hazmat tables, water classification tables, shellfish/geographic enumerations, fee schedules
+- Idempotent — safe to re-run (skips already-excluded sections)
+- See `.claude/skills/database/schema.md` for full category breakdown
+
+| Cost | Time |
+|------|------|
+| Free | Seconds |
 
 ### Step 2: Detect Regulatory Status
 
