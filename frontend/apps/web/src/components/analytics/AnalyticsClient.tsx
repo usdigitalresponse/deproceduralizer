@@ -1,7 +1,7 @@
 'use client';
 
 import { useQueryStates } from 'nuqs';
-import type { DashboardStats, StateCode } from '@deproceduralizer/database';
+import type { DashboardStats, StateCode, StatuteLinkStats } from '@deproceduralizer/database';
 import type { ReviewStatusCounts } from '@/lib/actions/red-flags';
 import type { ComplianceIssueStatusCounts } from '@/lib/actions/compliance-issues';
 import type { SectionTypeStats, MetadataStats, KeywordStats, AppliesToStats } from '@/lib/actions/regulations';
@@ -14,6 +14,7 @@ import { IssuesTab } from './IssuesTab';
 import { KeywordsTab } from './KeywordsTab';
 import { DefinitionsTab } from './DefinitionsTab';
 import { CrossReferencesTab } from './CrossReferencesTab';
+import { StatutesTab } from './StatutesTab';
 
 export interface AnalyticsClientProps {
   state: StateCode;
@@ -27,6 +28,7 @@ export interface AnalyticsClientProps {
   complianceStatus: ComplianceIssueStatusCounts | null;
   complianceTypeCounts: Record<string, number> | null;
   definitionsStats: DefinitionsAnalyticsStats | null;
+  statuteStats: StatuteLinkStats | null;
 }
 
 export function AnalyticsClient({
@@ -39,6 +41,7 @@ export function AnalyticsClient({
   complianceStatus,
   complianceTypeCounts,
   definitionsStats,
+  statuteStats,
 }: AnalyticsClientProps) {
   const [params, setParams] = useQueryStates(analyticsParsers, { shallow: true });
   const currentTab = params.tab;
@@ -86,6 +89,10 @@ export function AnalyticsClient({
 
         {currentTab === 'definitions' && (
           <DefinitionsTab stats={definitionsStats} state={state} />
+        )}
+
+        {currentTab === 'statutes' && (
+          <StatutesTab stats={statuteStats} state={state} />
         )}
       </div>
     </div>

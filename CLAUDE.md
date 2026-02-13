@@ -56,8 +56,22 @@ When working on the Next.js frontend, follow these patterns:
 - See `.claude/skills/database/schema.md` for full schema documentation
 - See `.claude/skills/regulatory-analysis/bad-regulation-patterns.md` for taxonomy of problematic regulatory patterns with real-world examples
 
+### Summarization
+- Hierarchical summarization of regulatory documents: `cd backend && python3 -m scripts.summarization.cli`
+- 5 phases: sections → subchapters → chapters → parts → titles (must run in order)
+- Uses Anthropic Batch API (Haiku, 50% savings)
+- `--run-all-phases` handles full lifecycle: submit → poll → process → import to DB
+- Updates `regulatory_documents` with: `summary`, `section_type`, `keywords`, `applies_to`, `has_form`, `has_ibr`
+
+### Statute Mandate Checks (NY only)
+- Post-pipeline step that checks whether cited statutes actually mandate flagged compliance issues
+- Run via research pipeline CLI: `--run-statute-mandate-only` (standalone) or `--statute-mandate` (after full pipeline)
+- Results stored in `statute_mandate_checks` table
+- Only runs for flagged analyses (burdensome/justified) with matched statute links
+
 ### Pipeline Scripts
 - Use `scripts.research_pipeline.cli` for the 3-tier compliance research.
+- Use `scripts.summarization.cli` for hierarchical document summarization.
 - When adding/removing backend scripts, update `docs/OPERATIONS.md`.
 - Scrapers handle migration automatically via `lib.migration.migrate_regulations_to_db()`.
 

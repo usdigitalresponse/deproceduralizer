@@ -14,6 +14,21 @@ export const HIERARCHY_LEVEL_LABELS: Record<string, string> = {
 };
 
 /**
+ * Statute-specific hierarchy level labels.
+ * Includes levels from both NJ (title > chapter > section) and
+ * NY (law > title > article > part > subpart > section) hierarchies.
+ */
+export const STATUTE_HIERARCHY_LEVEL_LABELS: Record<string, string> = {
+  law: 'Law',
+  title: 'Title',
+  article: 'Article',
+  part: 'Part',
+  subpart: 'Subpart',
+  chapter: 'Chapter',
+  section: 'Section',
+};
+
+/**
  * Get the display label for a hierarchy level.
  * Falls back to the raw level value with capitalization if not found.
  */

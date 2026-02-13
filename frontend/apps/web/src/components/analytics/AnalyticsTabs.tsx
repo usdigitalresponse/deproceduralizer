@@ -1,6 +1,6 @@
 'use client';
 
-import { BarChart3, AlertTriangle, Tag, BookOpen, Link2 } from 'lucide-react';
+import { BarChart3, AlertTriangle, Tag, BookOpen, Link2, Scale } from 'lucide-react';
 import { SegmentedControl, type SegmentedControlOption } from '@/components/ui';
 import type { AnalyticsTabValue } from '@/lib/constants/values';
 
@@ -15,6 +15,7 @@ const TABS: SegmentedControlOption<AnalyticsTabValue>[] = [
   { value: 'issues', label: 'Issues', icon: AlertTriangle },
   { value: 'keywords', label: 'Keywords', icon: Tag },
   { value: 'definitions', label: 'Definitions', icon: BookOpen },
+  { value: 'statutes', label: 'Statutes', icon: Scale },
 ];
 
 export function AnalyticsTabs({ activeTab, onTabChange }: AnalyticsTabsProps) {

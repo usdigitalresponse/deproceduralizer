@@ -14,6 +14,7 @@ import { RedFlagsSection } from './RedFlagsSection';
 import { ComplianceIssuesSection } from './ComplianceIssuesSection';
 import { CrossReferencesSection } from './CrossReferencesSection';
 import { IncomingReferencesSection } from './IncomingReferencesSection';
+import { StatuteLinksSection } from './StatuteLinksSection';
 import type { DetailPanelProps } from './types';
 
 export function DetailPanel({ documentId, onClose, onNavigate, fullScreen = false }: DetailPanelProps) {
@@ -27,7 +28,7 @@ export function DetailPanel({ documentId, onClose, onNavigate, fullScreen = fals
     ? `${pathname}?${searchParams.toString()}`
     : pathname;
 
-  const { document, complianceIssues, crossRefs, incomingRefs, isLoading, error } = useDetailPanelData(documentId);
+  const { document, complianceIssues, crossRefs, incomingRefs, statuteLinks, isLoading, error } = useDetailPanelData(documentId);
 
   // Empty state
   if (!documentId) {
@@ -114,6 +115,13 @@ export function DetailPanel({ documentId, onClose, onNavigate, fullScreen = fals
 
         <IncomingReferencesSection
           refs={incomingRefs}
+          state={state}
+          documentId={document.id}
+          currentUrl={currentUrl}
+        />
+
+        <StatuteLinksSection
+          links={statuteLinks}
           state={state}
           documentId={document.id}
           currentUrl={currentUrl}
