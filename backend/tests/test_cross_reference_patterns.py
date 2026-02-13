@@ -92,6 +92,9 @@ class TestNormalization:
         ('4.2', '4.2'),
         ('8.1(h)6', '8.1'),
         ('9.8(d)3', '9.8'),
+        # Fallback cases: input returned unchanged when no leading digits
+        ('(a)2', '(a)2'),
+        ('', ''),
     ])
     def test_normalize(self, input_section, expected):
         assert _normalize_njac_section(input_section) == expected
@@ -126,14 +129,12 @@ class TestSameSectionRange:
         range_matches = [m for m in matches if m.components.get('is_range')]
         assert len(range_matches) == 1
 
-    def test_through_no_direction(self):
-        """'(a) through (c)' without direction word should match."""
+    def test_through_no_direction_not_matched(self):
+        """'(a) through (c)' without direction word should NOT match as range (ambiguous prose)."""
         text = "Items (a) through (c) are required."
         matches = extract_all_matches(text)
         range_matches = [m for m in matches if m.components.get('is_range')]
-        assert len(range_matches) == 1
-        assert range_matches[0].components['range_start'] == '(a)'
-        assert range_matches[0].components['range_end'] == '(c)'
+        assert len(range_matches) == 0
 
     def test_overlap_prevention(self):
         """Range match should prevent SAME_SECTION_PATTERN from matching (f) below separately."""
@@ -193,3 +194,31 @@ class TestNJACRange:
         assert matches[1].normalized == 'N.J.A.C. 7:26J-4.1'
         assert matches[1].components.get('is_range') is True
         assert matches[1].components['range_end_section'] == '4.5'
+
+    def test_range_followed_by_more_items(self):
+        """Items after a range in an abbreviated list should still be captured."""
+        text = "N.J.A.C. 7:26J-2.1, 4.1 through 4.5, 6.1 and 8.2"
+        matches = extract_all_matches(text)
+        assert len(matches) == 4
+        assert matches[0].normalized == 'N.J.A.C. 7:26J-2.1'
+        assert matches[1].components.get('is_range') is True
+        assert matches[1].normalized == 'N.J.A.C. 7:26J-4.1'
+        assert matches[2].normalized == 'N.J.A.C. 7:26J-6.1'
+        assert matches[3].normalized == 'N.J.A.C. 7:26J-8.2'
+
+    def test_initial_range_followed_by_comma_list(self):
+        """Comma-list items after an initial-match range should still be captured."""
+        text = "N.J.A.C. 7:26J-4.1 through 4.5, 6.1 and 8.2"
+        matches = extract_all_matches(text)
+        assert len(matches) == 3
+        assert matches[0].components.get('is_range') is True
+        assert matches[0].normalized == 'N.J.A.C. 7:26J-4.1'
+        assert matches[1].normalized == 'N.J.A.C. 7:26J-6.1'
+        assert matches[2].normalized == 'N.J.A.C. 7:26J-8.2'
+
+    def test_section_range_raw_text(self):
+        """Range raw_text should contain the full citation including 'through X'."""
+        text = "See N.J.A.C. 7:26J-4.1 through 4.5 for details."
+        matches = extract_all_matches(text)
+        assert len(matches) == 1
+        assert matches[0].raw_text == 'N.J.A.C. 7:26J-4.1 through 4.5'

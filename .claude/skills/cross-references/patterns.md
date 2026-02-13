@@ -54,14 +54,14 @@
 
 ### Same-section Range
 
-**Pattern:** `(letter) through/to (letter) [above/below/herein]`
+**Pattern:** `(letter) through/to (letter) above/below/herein`
 
 **Examples:**
 - `(b) through (f) below`
 - `(a) to (d) above`
 - `(c) through (g) herein`
 
-**Resolution:** Not resolved to another document (internal range reference). Stored with `is_range=True`, `range_start`, `range_end` in components. Registered before `SAME_SECTION_PATTERN` so overlap detection prevents partial match on the end of the range.
+**Resolution:** Not resolved to another document (internal range reference). Stored with `is_range=True`, `range_start`, `range_end` in components. Registered before `SAME_SECTION_PATTERN` so overlap detection prevents partial match on the end of the range. Direction word is required to avoid false positives on prose enumerations like "items (a) through (c)".
 
 ## Regex Patterns
 

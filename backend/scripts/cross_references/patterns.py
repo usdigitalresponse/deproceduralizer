@@ -11,10 +11,13 @@ Phase 2: SHORT-FORM patterns (context-dependent):
 - These require source document context to resolve
 """
 
+import logging
 import re
 from dataclasses import dataclass
 from enum import Enum
 from typing import List, Tuple, Optional
+
+logger = logging.getLogger(__name__)
 
 
 class RefType(Enum):
@@ -143,7 +146,10 @@ def _normalize_njac_section(section: str) -> str:
         '6' -> '6'
     """
     m = re.match(r'(\d+(?:\.\d+)?)', section)
-    return m.group(1) if m else section
+    if m:
+        return m.group(1)
+    logger.warning("_normalize_njac_section: section %r does not start with digits, returning unchanged", section)
+    return section
 
 
 def parse_njac_match(match: re.Match) -> Optional[PatternMatch]:
@@ -306,38 +312,39 @@ def expand_njac_list(content: str, initial_match: PatternMatch) -> List[PatternM
             # Parse as full NJAC citation
             # Format: "7:22A-6" -> title=7, chapter=22A, section=6
             parts = section.split(':')
-            if len(parts) == 2:
+            if len(parts) != 2:
+                logger.warning("Chapter switch section %r has unexpected colon count (%d), skipping", section, len(parts))
+            elif len(parts[1].split('-')) != 2:
+                logger.warning("Chapter switch section %r has unexpected dash count, skipping", section)
+            else:
                 new_title = parts[0]
-                chapter_section = parts[1].split('-')
-                if len(chapter_section) == 2:
-                    new_chapter = chapter_section[0]
-                    new_section = chapter_section[1]
+                new_chapter, new_section = parts[1].split('-')
 
-                    section_base = _normalize_njac_section(new_section)
+                section_base = _normalize_njac_section(new_section)
 
-                    normalized = f"N.J.A.C. {new_title}:{new_chapter}-{section_base}"
+                normalized = f"N.J.A.C. {new_title}:{new_chapter}-{section_base}"
 
-                    results.append(PatternMatch(
-                        ref_type=RefType.NJAC,
-                        raw_text=section,
-                        normalized=normalized,
-                        start=abs_start,
-                        end=abs_end,
-                        components={
-                            'title': new_title,
-                            'chapter': new_chapter,
-                            'section': new_section,
-                            'section_base': section_base,
-                            'is_list_item': True,
-                            'inferred_from': initial_match.normalized,
-                            'state': 'NJ'
-                        }
-                    ))
+                results.append(PatternMatch(
+                    ref_type=RefType.NJAC,
+                    raw_text=section,
+                    normalized=normalized,
+                    start=abs_start,
+                    end=abs_end,
+                    components={
+                        'title': new_title,
+                        'chapter': new_chapter,
+                        'section': new_section,
+                        'section_base': section_base,
+                        'is_list_item': True,
+                        'inferred_from': initial_match.normalized,
+                        'state': 'NJ'
+                    }
+                ))
 
-                    # Update prefix for subsequent items
-                    title = new_title
-                    chapter = new_chapter
-                    prefix = f"{new_title}:{new_chapter}-"
+                # Update prefix for subsequent items
+                title = new_title
+                chapter = new_chapter
+                prefix = f"{new_title}:{new_chapter}-"
         else:
             # Abbreviated section - inherit title:chapter from parent
             section_base = _normalize_njac_section(section)
@@ -466,7 +473,8 @@ SAME_SECTION_RANGE_PATTERN = re.compile(
     (?:through|to)                         # Range keyword
     \s+
     (\([a-z]\))                            # (2) Range end, e.g. (f)
-    (?:\s+(?:above|below|herein))?         # Optional direction
+    \s+
+    (?:above|below|herein)                 # Direction word (required to avoid matching prose enumerations)
     ''',
     re.IGNORECASE | re.VERBOSE
 )
