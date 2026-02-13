@@ -91,6 +91,55 @@ python backend/scripts/link_ny_statutes.py --law SOS --title 18
 |------|------|
 | Free | Minutes |
 
+#### NYC Statutes (Charter + Administrative Code)
+
+Parsed from local HTML files:
+
+```bash
+cd backend
+
+# Parse HTML and save to JSON (no DB):
+python3 scripts/nyc_statutes.py --parse-only
+
+# Full pipeline (parse → JSON → DB → hierarchy):
+python3 scripts/nyc_statutes.py
+
+# Use cached JSON (skip re-parsing):
+python3 scripts/nyc_statutes.py --skip-parse
+```
+
+| Flag | Description |
+|------|-------------|
+| `--parse-only` | Only parse HTML + save JSON, skip DB |
+| `--skip-parse` | Use cached JSON, skip HTML parsing |
+| `--skip-db` | Skip database operations |
+| `--hierarchy-only` | Only update parent_id relationships |
+| `--charter-only` | Only parse Charter sections |
+| `--admin-only` | Only parse Administrative Code sections |
+
+| Cost | Time |
+|------|------|
+| Free (local HTML file) | ~30s parse, ~1min DB ingest |
+
+#### Link NYC Statutes to Regulations
+
+```bash
+cd backend
+
+# Preview links (dry run):
+python3 scripts/link_nyc_statutes.py --dry-run
+
+# Create links:
+python3 scripts/link_nyc_statutes.py
+
+# Filter by NYCRR title:
+python3 scripts/link_nyc_statutes.py --title 9
+```
+
+| Cost | Time |
+|------|------|
+| Free | ~15s |
+
 ### Step 1b: Exclude Non-Regulatory Sections
 
 ```bash
@@ -182,6 +231,10 @@ python3 -m scripts.summarization.cli --state NY --phase sections --process
 - Each parent phase uses child summaries as input — must run in order
 - Requires `--title <N>` to prevent accidental 50K+ doc submissions
 - Use `--dry-run` to preview what would be submitted
+- Can also be triggered as a post-pipeline step via the research pipeline CLI:
+  ```bash
+  python3 -m scripts.research_pipeline.cli --state ny --all --execute --title 18 --summarize
+  ```
 - Import updates `regulatory_documents` with: `summary`, `section_type`, `keywords`, `applies_to`, `has_form`, `has_ibr`
 
 | Cost | Time |

@@ -191,6 +191,13 @@ def extract_web_search_response(response: Any) -> WebSearchResponse:
                 else:
                     text_parts.append(str(block_json))
 
+        # Extract tool_use blocks (e.g., submit_analysis for structured output)
+        elif block_type == 'tool_use':
+            tool_name = getattr(block, 'name', '')
+            tool_input = getattr(block, 'input', None)
+            if tool_name == 'submit_analysis' and isinstance(tool_input, dict):
+                json_data = tool_input
+
     # Extract usage info (gracefully handle missing usage attribute for mocks/tests)
     response_usage = getattr(response, 'usage', None)
     if response_usage:

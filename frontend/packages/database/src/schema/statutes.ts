@@ -20,7 +20,7 @@ import {
 export const statutes = pgTable('statutes', {
   id: bigserial('id', { mode: 'number' }).primaryKey(),
   citation: varchar('citation', { length: 50 }).notNull(),
-  state: varchar('state', { length: 2 }).notNull(),
+  state: varchar('state', { length: 3 }).notNull(),
   title: text('title').notNull(),
   content: text('content').notNull(),
 
@@ -38,6 +38,13 @@ export const statutes = pgTable('statutes', {
   nyclsArticleName: text('nycls_article_name'),
   nyclsSection: varchar('nycls_section', { length: 20 }),
   nyclsSectionName: text('nycls_section_name'),
+
+  // NYC-specific fields (New York City codes)
+  nycDocType: varchar('nyc_doc_type', { length: 20 }),
+  nycTitle: varchar('nyc_title', { length: 10 }),
+  nycChapter: varchar('nyc_chapter', { length: 20 }),
+  nycSection: varchar('nyc_section', { length: 30 }),
+  nycSectionName: text('nyc_section_name'),
 
   // Hierarchy for tree navigation (Issue #48)
   parentId: bigint('parent_id', { mode: 'number' }),

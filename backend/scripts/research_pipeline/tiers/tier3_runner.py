@@ -33,99 +33,160 @@ from .web_search import (
     WebSearchCitation,
 )
 
-# Retry prompt for JSON extraction when initial parsing fails
-RETRY_JSON_PROMPT = """You provided an analysis but it wasn't in valid JSON format. Please convert your analysis to the required JSON structure.
-
-Your previous analysis:
-{original_text}
-
-Output ONLY a valid JSON object with these exact fields (no markdown, no explanation, just JSON starting with {{ and ending with }}):
-
-{{
-    "classification": "burdensome" | "justified" | "unrelated",
-    "confidence": <float 0.0-1.0>,
-    "reasoning": "<your reasoning explaining classification>",
-    "final_severity": <int 1-10 or null>,
-    "severity_adjustment": <int -3 to +3 or null>,
-    "severity_adjustment_reasoning": "<explanation or null>",
-    "argument_for_regulation": "<best case for why burden is justified>",
-    "argument_against_regulation": "<best case for why burden is problematic>",
-    "web_search_summary": "<summary of web search findings>",
-    "verbatim_requirements": ["<exact quote 1>", "<exact quote 2>"],
-    "context_used": [
-        {{"type": "web", "identifier": "<URL>", "quote": "<relevant quote>", "relevance": "<why relevant>"}}
-    ],
-    "federal_mandate_found": <boolean>,
-    "state_has_discretion": <boolean>,
-    "evidence_gap": <boolean>,
-    "easy_cleanup_candidate": <boolean>,
-    "cleanup_type": "alternative_in_practice" | "alternative_authorized" | "peer_state_solution" | null,
-    "cleanup_evidence": "<URL or citation>" | null,
-    "cleanup_recommendation": "<suggested text change>" | null,
-    "cleanup_effort": "trivial" | "easy" | "medium" | null
-}}
-
-CRITICAL: Output ONLY the JSON object. No markdown code blocks. No text before or after. Start with {{ and end with }}."""
-
-
-def _transform_schema_for_anthropic(schema: dict) -> dict:
+def _build_submit_analysis_tool() -> dict:
     """
-    Transform Pydantic-generated schema for Anthropic Structured Outputs.
+    Build the submit_analysis tool definition for Tier 3 structured output.
 
-    Anthropic's structured outputs have specific requirements:
-    - additionalProperties: false on all object types
-    - No numerical constraints (minimum, maximum, multipleOf)
-    - No string constraints (minLength, maxLength)
-    - No array constraints beyond minItems 0/1
-
-    This function recursively transforms the schema to be compatible.
+    Instead of asking the LLM to output JSON in free text (which often fails),
+    we define a tool that the LLM calls to submit its structured analysis.
+    This guarantees valid JSON via the tool_use mechanism.
     """
-    # Keys to remove from the schema
-    unsupported_keys = {
-        "minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "multipleOf",
-        "minLength", "maxLength", "minItems", "maxItems", "uniqueItems",
+    return {
+        "name": "submit_analysis",
+        "description": (
+            "Submit your structured analysis after completing web research. "
+            "You MUST call this tool to submit your findings."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "classification": {
+                    "type": "string",
+                    "enum": ["burdensome", "justified", "unrelated"],
+                    "description": "Final classification after web search verification",
+                },
+                "confidence": {
+                    "type": "number",
+                    "description": "Confidence score 0.0-1.0",
+                },
+                "reasoning": {
+                    "type": "string",
+                    "description": "How web search findings affected classification",
+                },
+                "final_severity": {
+                    "type": "integer",
+                    "description": "Final severity 1-10",
+                },
+                "severity_adjustment": {
+                    "type": "integer",
+                    "description": "Adjustment from Tier 2 severity (-3 to +3)",
+                },
+                "severity_adjustment_reasoning": {
+                    "type": "string",
+                    "description": "Explanation of the adjustment",
+                },
+                "argument_for_regulation": {
+                    "type": "string",
+                    "description": "Best case for why burden is justified",
+                },
+                "argument_against_regulation": {
+                    "type": "string",
+                    "description": "Best case for why burden is problematic",
+                },
+                "web_search_summary": {
+                    "type": "string",
+                    "description": "Summary of web search findings",
+                },
+                "verbatim_requirements": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Verbatim requirement text from regulation",
+                },
+                "federal_mandate_confirmed": {
+                    "type": "object",
+                    "properties": {
+                        "value": {"type": "boolean"},
+                        "scope": {"type": "string", "enum": ["reg-specific", "issue-type/domain"]},
+                        "reason": {"type": "string"},
+                    },
+                    "required": ["value", "scope", "reason"],
+                    "description": "Whether federal mandate was confirmed by web search",
+                },
+                "state_discretion_found": {
+                    "type": "object",
+                    "properties": {
+                        "value": {"type": "boolean"},
+                        "scope": {"type": "string", "enum": ["reg-specific", "issue-type/domain"]},
+                        "reason": {"type": "string"},
+                    },
+                    "required": ["value", "scope", "reason"],
+                    "description": "Whether state has discretion in implementation",
+                },
+                "modernized_alternative_found": {
+                    "type": "object",
+                    "properties": {
+                        "value": {"type": "boolean"},
+                        "scope": {"type": "string", "enum": ["reg-specific", "issue-type/domain"]},
+                        "reason": {"type": "string"},
+                    },
+                    "required": ["value", "scope", "reason"],
+                    "description": "Whether modern alternatives exist",
+                },
+                "superseded_by_law": {
+                    "type": "object",
+                    "properties": {
+                        "value": {"type": "boolean"},
+                        "scope": {"type": "string", "enum": ["reg-specific", "issue-type/domain"]},
+                        "reason": {"type": "string"},
+                    },
+                    "required": ["value", "scope", "reason"],
+                    "description": "Whether requirement has been superseded by law",
+                },
+                "advocacy_for_change": {
+                    "type": "object",
+                    "properties": {
+                        "value": {"type": "boolean"},
+                        "scope": {"type": "string", "enum": ["reg-specific", "issue-type/domain"]},
+                        "reason": {"type": "string"},
+                    },
+                    "required": ["value", "scope", "reason"],
+                    "description": "Whether advocacy groups call for change",
+                },
+                "evidence_gap": {
+                    "type": "boolean",
+                    "description": "True if insufficient evidence found",
+                },
+                "federal_mandate_found": {
+                    "type": "boolean",
+                    "description": "Simple boolean: federal mandate found?",
+                },
+                "state_has_discretion": {
+                    "type": "boolean",
+                    "description": "Simple boolean: state has discretion?",
+                },
+                "easy_cleanup_candidate": {
+                    "type": "boolean",
+                    "description": "True if this is a low-hanging fruit cleanup",
+                },
+                "cleanup_type": {
+                    "type": "string",
+                    "enum": ["alternative_in_practice", "alternative_authorized", "peer_state_solution"],
+                    "description": "Type of easy cleanup (if applicable)",
+                },
+                "cleanup_evidence": {
+                    "type": "string",
+                    "description": "URL or citation proving alternative exists",
+                },
+                "cleanup_recommendation": {
+                    "type": "string",
+                    "description": "Suggested regulation text change",
+                },
+                "cleanup_effort": {
+                    "type": "string",
+                    "enum": ["trivial", "easy", "medium"],
+                    "description": "Effort level for cleanup",
+                },
+            },
+            "required": [
+                "classification", "confidence", "reasoning",
+                "argument_for_regulation", "argument_against_regulation",
+                "web_search_summary",
+                "federal_mandate_confirmed", "state_discretion_found",
+                "federal_mandate_found", "state_has_discretion",
+                "evidence_gap",
+            ],
+        },
     }
-
-    if isinstance(schema, dict):
-        # Remove unsupported constraints
-        for key in list(schema.keys()):
-            if key in unsupported_keys:
-                del schema[key]
-
-        # If this is an object type, add additionalProperties: false
-        if schema.get("type") == "object":
-            schema["additionalProperties"] = False
-
-        # Recursively process all values
-        for key, value in list(schema.items()):
-            if isinstance(value, dict):
-                _transform_schema_for_anthropic(value)
-            elif isinstance(value, list):
-                for item in value:
-                    if isinstance(item, dict):
-                        _transform_schema_for_anthropic(item)
-
-    return schema
-
-
-def _get_tier3_output_schema() -> dict:
-    """
-    Get JSON schema for Tier3Output for use with Anthropic Structured Outputs.
-
-    Anthropic's structured outputs requires a JSON schema that describes the
-    expected output format. We generate this from the Pydantic model but need
-    to extract it properly for the API.
-
-    Returns:
-        JSON schema dict suitable for output_format parameter
-    """
-    # Get the JSON schema from Pydantic model
-    schema = Tier3Output.model_json_schema()
-
-    # Transform for Anthropic compatibility (additionalProperties, remove unsupported constraints)
-    _transform_schema_for_anthropic(schema)
-
-    return schema
 
 
 def _extract_statute_citations(context_used: list) -> list[str]:
@@ -142,11 +203,7 @@ def _extract_statute_citations(context_used: list) -> list[str]:
 
 def _find_json_object(text: str) -> Optional[dict]:
     """
-    Find and parse a valid JSON object from text.
-
-    Uses a robust approach: for each '{' found, try to find a matching '}'
-    that forms valid JSON. This handles cases where the text contains
-    multiple JSON blocks or extra braces.
+    Find and parse a valid JSON object from text (fallback for legacy responses).
 
     Args:
         text: Text that may contain a JSON object
@@ -165,8 +222,6 @@ def _find_json_object(text: str) -> Optional[dict]:
     # Find each { and try to parse from there
     for i, char in enumerate(text):
         if char == '{':
-            # Try progressively shorter substrings from this position
-            # Start with longest possible (to end of text) and work backward
             for j in range(len(text), i, -1):
                 if text[j - 1] == '}':
                     try:
@@ -184,29 +239,29 @@ def _parse_tier3_json_response(
     """
     Parse Tier3Output from Claude's response.
 
-    V5.1: With structured outputs, JSON is returned directly via json_data parameter.
-    Falls back to text parsing for backward compatibility or if structured outputs fails.
+    Prefers json_data from submit_analysis tool call (primary path).
+    Falls back to text parsing for backward compatibility.
 
     Args:
-        text: Claude's text response (may contain JSON for backward compat)
+        text: Claude's text response (fallback for legacy responses)
         citations: Citations extracted from the response's text blocks
-        json_data: V5.1 - Direct JSON from structured outputs (preferred)
+        json_data: Direct JSON from submit_analysis tool call (preferred)
 
     Returns:
         Tier3Output if parsing succeeds, None otherwise
     """
     try:
-        # V5.1: Prefer direct JSON from structured outputs
+        # Primary path: JSON from submit_analysis tool call
         if json_data is not None:
             data = json_data
-            print(f"    Using structured output JSON (direct from API)")
+            print(f"    Using submit_analysis tool call (structured)")
         else:
-            # Fallback: Use robust JSON finder for text-based responses
+            # Fallback: parse JSON from text (legacy)
             data = _find_json_object(text)
             if data is None:
                 print(f"    Warning: No valid JSON found in response")
                 return None
-            print(f"    Parsed JSON from text response (legacy mode)")
+            print(f"    Parsed JSON from text response (fallback)")
 
         # Enrich context_used with actual citations from the response
         if citations:
@@ -224,20 +279,28 @@ def _parse_tier3_json_response(
                     })
                 data['context_used'] = existing_context
 
+        # Normalize string "null" to None for optional fields.
+        # Tool-call schema uses string types, so the LLM sometimes returns
+        # the literal string "null" instead of omitting the field.
+        for key in ('cleanup_type', 'cleanup_effort', 'cleanup_evidence',
+                     'cleanup_recommendation', 'severity_adjustment_reasoning'):
+            if data.get(key) == 'null':
+                data[key] = None
+
         # Normalize/clamp values before validation to handle edge cases
         # where the model returns out-of-range or non-standard values
 
-        # Clamp severity to valid range (1-10)
+        # Coerce to int and clamp severity to valid range (1-10)
         if 'final_severity' in data and data['final_severity'] is not None:
             original_severity = data['final_severity']
-            data['final_severity'] = max(1, min(10, data['final_severity']))
+            data['final_severity'] = max(1, min(10, int(data['final_severity'])))
             if data['final_severity'] != original_severity:
                 print(f"    Clamped final_severity: {original_severity} → {data['final_severity']}")
 
-        # Clamp severity_adjustment to valid range (-3 to +3)
+        # Coerce to int and clamp severity_adjustment to valid range (-3 to +3)
         if 'severity_adjustment' in data and data['severity_adjustment'] is not None:
             original_adj = data['severity_adjustment']
-            data['severity_adjustment'] = max(-3, min(3, data['severity_adjustment']))
+            data['severity_adjustment'] = max(-3, min(3, int(data['severity_adjustment'])))
             if data['severity_adjustment'] != original_adj:
                 print(f"    Clamped severity_adjustment: {original_adj} → {data['severity_adjustment']}")
 
@@ -260,80 +323,8 @@ def _parse_tier3_json_response(
     except ValidationError as e:
         print(f"    Warning: Validation error: {e}")
         return None
-    except Exception as e:
-        print(f"    Warning: Parse error: {e}")
-        return None
-
-
-async def _retry_json_extraction(
-    client,
-    original_text: str,
-    citations: list[WebSearchCitation],
-    cost_tracker=None,
-) -> Optional[Tier3Output]:
-    """
-    Retry JSON extraction when initial parsing fails.
-
-    Uses a focused prompt that just asks Claude to format existing analysis as JSON.
-    No web search tool needed - we already have the analysis content.
-
-    Args:
-        client: Anthropic async client
-        original_text: The original prose response that failed to parse
-        citations: Citations from the original response
-        cost_tracker: Optional cost tracker
-
-    Returns:
-        Tier3Output if retry succeeds, None otherwise
-    """
-    # Truncate if too long to fit in context
-    text_for_retry = original_text[:6000] if len(original_text) > 6000 else original_text
-
-    retry_prompt = RETRY_JSON_PROMPT.format(original_text=text_for_retry)
-
-    try:
-        response, api_usage = await call_llm_beta_async(
-            client=client,
-            prompt=retry_prompt,
-            system="You are a JSON formatting assistant. Output only valid JSON, no markdown or explanation.",
-            tools=None,  # No web search - just formatting
-            model="claude-sonnet-4-5-20250929",
-            max_tokens=8000,
-            betas=None,
-            output_format=None,
-            cache_ttl=None,  # Don't cache retries
-        )
-
-        if response is None:
-            return None
-
-        # Track cost if available
-        if cost_tracker and api_usage:
-            cost_tracker.record_batch_usage(
-                tier=3,
-                input_tokens=api_usage.get("input_tokens", 0),
-                output_tokens=api_usage.get("output_tokens", 0),
-                cache_read_tokens=api_usage.get("cache_read_tokens", 0),
-                cache_write_tokens=api_usage.get("cache_write_tokens", 0),
-                request_count=1,
-                model="claude-sonnet-4-5-20250929",
-            )
-
-        # Extract text from response
-        retry_text = ""
-        if hasattr(response, 'content'):
-            for block in response.content:
-                if hasattr(block, 'text'):
-                    retry_text += block.text
-
-        if not retry_text:
-            return None
-
-        # Parse the retry response
-        return _parse_tier3_json_response(retry_text, citations, json_data=None)
-
-    except Exception as e:
-        print(f"    Retry error: {e}")
+    except (ValueError, TypeError) as e:
+        print(f"    Warning: Normalization error: {e}")
         return None
 
 
@@ -346,16 +337,12 @@ async def run_tier3_realtime(
     state: str = "NJ",
 ) -> list[TrackedUnit]:
     """
-    V5: Run Tier 3 using real-time API with web search.
+    Run Tier 3 using real-time API with web search.
 
     Uses a SINGLE-CALL approach where Claude:
     1. Performs web searches using the web_search tool
-    2. Analyzes results and generates its response with citations
-    3. Outputs structured JSON that we parse from the text response
-
-    The key insight: actual cited text from web sources appears in the
-    `citations` array of text blocks (as `cited_text`), NOT in the
-    encrypted `web_search_tool_result` blocks.
+    2. Submits structured results via the submit_analysis tool call
+    3. We extract JSON directly from the tool_use block (no text parsing)
 
     STATE MANAGEMENT: This function populates tier3_output/tier3_completed_at.
     The pipeline runner is responsible for all state transitions
@@ -502,29 +489,26 @@ async def run_tier3_realtime(
                 **tier3_vars,
             )
 
-            # Claude performs web search and returns JSON in text response
-            # Structured outputs had too many anyOf branches (22 vs limit of 8)
-            # So we use simpler approach: JSON in text with web search tool
             full_prompt = prompt_parts["user"]
+            submit_tool = _build_submit_analysis_tool()
 
-            # SINGLE CALL: Claude performs web search AND outputs JSON in text
-            # Uses call_llm_beta_async for retry logic, max_tokens, and truncation handling
+            # SINGLE CALL: Claude performs web search AND submits structured
+            # results via the submit_analysis tool call. This eliminates
+            # unreliable JSON-from-text parsing.
             response, api_usage = await call_llm_beta_async(
                 client=client,
                 prompt=full_prompt,
                 system=prompt_parts["system"],
-                tools=[web_search_tool],
+                tools=[web_search_tool, submit_tool],
                 model=TIER3_REALTIME_MODEL,
                 max_tokens=64000,
-                betas=None,  # No structured outputs - too complex for schema
-                output_format=None,
                 cache_ttl="1h",
             )
 
             if response is None:
                 raise Exception("API call failed after all retries")
 
-            # Extract the complete response including citations
+            # Extract the complete response including citations and tool_use data
             web_response = extract_web_search_response(response)
 
             # Verbose: Show what we got
@@ -552,26 +536,12 @@ async def run_tier3_realtime(
                     model=TIER3_REALTIME_MODEL,
                 )
 
-            # Parse JSON from response (V5.1: prefer structured output, fall back to text)
+            # Parse from submit_analysis tool call (json_data) or fall back to text
             result = _parse_tier3_json_response(
                 web_response.text,
                 web_response.citations,
-                json_data=web_response.json_data,  # V5.1: Direct JSON from structured outputs
+                json_data=web_response.json_data,
             )
-
-            # If initial parse failed, retry with JSON extraction prompt
-            if result is None and web_response.text:
-                print(f"\n    Initial JSON parse failed. Retrying with JSON extraction prompt...")
-                result = await _retry_json_extraction(
-                    client=client,
-                    original_text=web_response.text,
-                    citations=web_response.citations,
-                    cost_tracker=cost_tracker,
-                )
-                if result:
-                    print(f"    Retry successful!")
-                else:
-                    print(f"    Retry also failed.")
 
             if result:
                 # Verbose: Show result
@@ -602,8 +572,9 @@ async def run_tier3_realtime(
                 unit.tier3_completed_at = datetime.now()
             else:
                 # Set error_message; orchestrator will handle state transition
-                unit.error_message = "Tier 3 returned no parseable result (even after retry)"
-                print(f"    ERROR: Could not parse JSON from response (even after retry)")
+                unit.error_message = "Tier 3: no submit_analysis tool call or unparseable result"
+                print(f"    ERROR: No submit_analysis tool call found in response")
+                print(f"       Stop reason: {response.stop_reason}")
                 print(f"       Response text: {web_response.text[:500]}...")
 
         except Exception as e:
@@ -736,14 +707,15 @@ def prepare_tier3_batch(
             **tier3_vars,
         )
 
-        # Format batch request with web search tool
+        # Format batch request with web search + submit_analysis tools
+        submit_tool = _build_submit_analysis_tool()
         request = format_batch_request(
             custom_id=unit.custom_id,
             prompt=prompt_parts["user"],
             system=prompt_parts["system"],
             model=DEFAULT_MODEL,
             max_tokens=64000,
-            tools=[web_search_tool],  # Web search tool - model decides when to search
+            tools=[web_search_tool, submit_tool],
         )
         requests.append(request)
 

@@ -8,6 +8,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Callable, Optional, Type
 
+import anthropic
 from pydantic import BaseModel
 
 from lib.llm import DEFAULT_MODEL, _pydantic_to_tool_schema, get_anthropic_client
@@ -231,7 +232,9 @@ class BatchManager:
                         'processing': batch.request_counts.processing if batch.request_counts else 0,
                         'succeeded': batch.request_counts.succeeded if batch.request_counts else 0,
                     })
-        except Exception as e:
+        except anthropic.APIStatusError as e:
+            if e.status_code in (401, 403):
+                raise  # Auth errors should not be silently caught
             print(f"Warning: Could not list batches from API: {e}")
         return active
 

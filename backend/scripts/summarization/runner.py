@@ -103,7 +103,13 @@ def _parse_tool_use_result(message) -> dict:
 
 
 def get_model_family(model_name: str) -> str:
-    """Determine model family from model name."""
+    """Determine model family from model name.
+
+    Legacy helper used to map model IDs (e.g., 'claude-haiku-4-5-20251001') to
+    family strings ('claude', 'ollama') for Batch API compatibility.  The family
+    is stored in result metadata so that downstream phases can filter context
+    summaries to only those produced by a specific model family.
+    """
     if model_name.startswith("claude"):
         return "claude"
     elif "qwen" in model_name.lower() or "ollama" in model_name.lower():
@@ -166,7 +172,7 @@ class SummarizationBatchRunner:
                                 "citation": r.get("citation"),
                             }
                             loaded_count += 1
-                except Exception as e:
+                except (json.JSONDecodeError, KeyError) as e:
                     print(f"  Warning: Could not load {results_file}: {e}")
 
         if loaded_count > 0:
@@ -182,7 +188,7 @@ class SummarizationBatchRunner:
                     with open(results_file) as f:
                         data = json.load(f)
                     completed.update(r["document_id"] for r in data)
-                except Exception as e:
+                except (json.JSONDecodeError, KeyError) as e:
                     print(f"  Warning: Could not load {results_file}: {e}")
         return completed
 
@@ -637,7 +643,9 @@ class SummarizationBatchRunner:
             phase: Phase name (e.g., 'sections', 'subchapters')
 
         Returns:
-            List of SummaryResult objects
+            List of result dicts with keys: document_id, title, hierarchy_level,
+            state, citation, summary, section_type, keywords, applies_to,
+            has_form, has_incorporation_by_reference, metadata.
         """
         print(f"\n=== PROCESSING {phase.upper()} RESULTS ===\n")
 
@@ -815,6 +823,8 @@ class SummarizationBatchRunner:
         batch_dirs = sorted(self.output_dir.glob(f"{phase}_*"))
         print(f"  Found {len(batch_dirs)} batch directories for {phase}")
 
+        error_count = 0
+
         # Process any unprocessed batches
         for batch_dir in batch_dirs:
             info_file = batch_dir / "batch_info.json"
@@ -877,6 +887,7 @@ class SummarizationBatchRunner:
                 print(f"    Saved {len(results)} results")
 
             except Exception as e:
+                error_count += 1
                 print(f"  {batch_dir.name}: error - {e}")
 
         # Now combine all results with deduplication
@@ -905,6 +916,9 @@ class SummarizationBatchRunner:
             json.dump(deduped, f, indent=2)
 
         print(f"  Saved to: {combined_file}")
+
+        if error_count > 0:
+            print(f"  WARNING: {error_count} batch(es) encountered errors during processing")
 
         return deduped
 

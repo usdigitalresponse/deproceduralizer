@@ -10,21 +10,24 @@ This is a standalone function, not part of the tier state machine.
 """
 
 import asyncio
+import logging
 import time
-from pathlib import Path
 from typing import Optional
 
 import anthropic
+import psycopg
 import yaml
 
+from config import PROJECT_ROOT
 from lib.db import get_db_connection
 from lib.llm import call_llm_parse_async, DEFAULT_MODEL
 from scripts.research_pipeline.models.statute_mandate import StatuteMandateOutput
 from scripts.research_pipeline.cost_tracker import CostTracker, format_time
 
+logger = logging.getLogger(__name__)
 
 # Load prompt from YAML
-PROMPTS_DIR = Path(__file__).parent.parent.parent.parent.parent / 'prompts'
+PROMPTS_DIR = PROJECT_ROOT / 'prompts'
 RESEARCH_PIPELINE_YAML = PROMPTS_DIR / 'research_pipeline.yaml'
 
 _prompt_cache: Optional[dict] = None
@@ -110,8 +113,13 @@ def _get_issue_description(issue_type: str) -> str:
         from scripts.research_pipeline.prompt_loader import load_issue_config
         config = load_issue_config(issue_type)
         return config.description
-    except Exception:
+    except (KeyError, FileNotFoundError) as e:
+        logger.warning("Could not load issue description for %s: %s", issue_type, e)
         return issue_type.replace('_', ' ')
+
+
+_consecutive_save_failures = 0
+_MAX_CONSECUTIVE_SAVE_FAILURES = 5
 
 
 def _save_mandate_check(
@@ -122,6 +130,8 @@ def _save_mandate_check(
     model: str,
 ) -> bool:
     """Save a single mandate check result to the database."""
+    global _consecutive_save_failures
+
     conn = get_db_connection()
     if conn is None:
         return False
@@ -152,10 +162,17 @@ def _save_mandate_check(
                 model,
             ])
         conn.commit()
+        _consecutive_save_failures = 0
         return True
-    except Exception as e:
+    except psycopg.Error as e:
         conn.rollback()
+        _consecutive_save_failures += 1
         print(f"  Error saving mandate check: {e}")
+        if _consecutive_save_failures >= _MAX_CONSECUTIVE_SAVE_FAILURES:
+            raise RuntimeError(
+                f"Aborting: {_consecutive_save_failures} consecutive DB save failures. "
+                f"Last error: {e}"
+            ) from e
         return False
     finally:
         conn.close()

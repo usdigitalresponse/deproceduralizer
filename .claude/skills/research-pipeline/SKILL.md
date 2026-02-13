@@ -188,9 +188,19 @@ python3 -m scripts.research_pipeline.cli \
 - Results in `statute_mandate_checks` table
 - Small number of LLM calls (only flagged + linked pairs)
 
-## Summarization CLI
+## Summarization
 
-Separate CLI for generating hierarchical summaries of regulatory documents.
+Can be run as a post-pipeline step or standalone.
+
+### Via Pipeline CLI (post-pipeline)
+
+```bash
+# Run pipeline then summarize the same title
+python3 -m scripts.research_pipeline.cli \
+  --state ny --all --execute --title 18 --summarize
+```
+
+### Standalone CLI
 
 ```bash
 cd backend
@@ -212,9 +222,14 @@ python3 -m scripts.summarization.cli --state NY --phase sections --process
 - `--run` handles everything: submit, poll, process, import to DB
 - Updates `regulatory_documents` with: `summary`, `section_type`, `keywords`, `applies_to`, `has_form`, `has_ibr`
 
-## Tier 3 Modes (V5.2)
+## Tier 3 Architecture
 
-Tier 3 supports two execution modes:
+Tier 3 uses a **tool-call approach** for structured output:
+- Claude is given two tools: `web_search` (for research) and `submit_analysis` (for structured results)
+- Claude performs web searches, then calls `submit_analysis` with the Tier3Output JSON
+- Results are extracted directly from the `tool_use` block — no text parsing needed
+
+### Execution Modes
 
 | Mode | Flag | Cost | Speed | Use Case |
 |------|------|------|-------|----------|
@@ -224,14 +239,28 @@ Tier 3 supports two execution modes:
 **Batch mode** (default):
 - Submits all Tier 3 requests as a single batch
 - Polls for completion with progress updates
-- Automatically handles batch result processing
-- Uses structured outputs for reliable JSON parsing
+- Processes in sub-batches of 5 (`TIER3_BATCH_SIZE`)
 
 **Real-time mode** (`--realtime`):
-- Processes Tier 3 requests sequentially
-- Uses rate limiting (5 concurrent requests)
+- Processes Tier 3 requests sequentially with rate limiting
 - Immediate results but 2x cost
 - Better for debugging or small batches
+
+### Retry Failed Tier 3
+
+Re-run Tier 3 on items that completed Tier 2 but never got Tier 3:
+
+```bash
+# Preview what would be retried
+python3 -m scripts.research_pipeline.cli \
+  --state ny --all --retry-failed-tier3
+
+# Execute retries
+python3 -m scripts.research_pipeline.cli \
+  --state ny --all --retry-failed-tier3 --execute
+```
+
+Only items matching Tier 3 escalation triggers are retried. Items that already have `tier3_classification` in the DB are skipped.
 
 ## API Timing
 

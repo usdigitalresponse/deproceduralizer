@@ -450,6 +450,7 @@ async def _execute_pipeline(
     enable_web_search: bool = False,
     title_filter: str | None = None,
     statute_mandate: bool = False,
+    summarize: bool = False,
 ) -> list:
     """Execute the pipeline with given processing units.
 
@@ -470,6 +471,7 @@ async def _execute_pipeline(
         global_docs_limit: Max total docs across all issue types
         enable_web_search: If True, run Tier 3 web search verification when max_tier >= 3
         title_filter: Optional title filter (e.g., '3A' for Title 3A)
+        summarize: If True, run document summarization after pipeline
 
     Returns:
         List of TrackedUnit results
@@ -514,6 +516,52 @@ async def _execute_pipeline(
     conn.close()
     print(f"Saved {saved_count} final classifications")
 
+    # --- Summarization (post-pipeline, optional) ---
+    if summarize and title_filter:
+        pipeline_state = state if state else "NJ"
+        print(f"\n{'='*60}")
+        print(f"POST-PIPELINE SUMMARIZATION: {pipeline_state} Title {title_filter}")
+        print(f"{'='*60}")
+
+        from scripts.summarization.runner import SummarizationBatchRunner
+        from scripts.summarization.import_summaries import (
+            find_all_results_files, load_results, extract_summary_data,
+            batch_update_summaries,
+        )
+
+        output_dir = Path(__file__).parent.parent.parent / "summaries_staging"
+        runner = SummarizationBatchRunner(
+            state=pipeline_state,
+            output_dir=output_dir,
+            title=title_filter,
+        )
+        all_results = runner.run_all_phases(poll_interval=30)
+
+        total = sum(len(r) for r in all_results.values())
+        if total > 0:
+            print(f"\n{'='*60}")
+            print(f"IMPORTING SUMMARIES TO DATABASE")
+            print(f"{'='*60}")
+
+            results_files = find_all_results_files(pipeline_state, output_dir)
+            all_updates = []
+            for rf in results_files:
+                for result in load_results(rf):
+                    data = extract_summary_data(result)
+                    if data and data["summary"]:
+                        all_updates.append(data)
+
+            if all_updates:
+                summary_conn = get_db_connection()
+                if summary_conn:
+                    updated = batch_update_summaries(summary_conn, all_updates)
+                    summary_conn.close()
+                    print(f"  Updated {updated} documents in database")
+            else:
+                print("  No summaries to import")
+    elif summarize and not title_filter:
+        print("\n[SUMMARIZE] Skipping: --summarize requires --title")
+
     return results
 
 
@@ -528,6 +576,7 @@ async def run_test(
     enable_web_search: bool = False,
     force_rerun: bool = False,
     statute_mandate: bool = False,
+    summarize: bool = False,
 ):
     """
     Run the research pipeline on unanalyzed documents.
@@ -622,6 +671,7 @@ async def run_test(
         enable_web_search=enable_web_search,
         title_filter=title,
         statute_mandate=statute_mandate,
+        summarize=summarize,
     )
 
     # Print detailed results
@@ -665,6 +715,7 @@ async def run_batched_issues(
     enable_web_search: bool = False,
     force_rerun: bool = False,
     statute_mandate: bool = False,
+    summarize: bool = False,
 ):
     """Run pipeline with all issue types batched together per tier."""
     issue_types = get_issue_types_for_scope(state, title)
@@ -750,6 +801,7 @@ async def run_batched_issues(
         enable_web_search=enable_web_search,
         title_filter=title,
         statute_mandate=statute_mandate,
+        summarize=summarize,
     )
 
     return results
@@ -766,6 +818,7 @@ async def run_all_issues(
     enable_web_search: bool = False,
     force_rerun: bool = False,
     statute_mandate: bool = False,
+    summarize: bool = False,
 ):
     """Run pipeline for all issue types in scope.
 
@@ -793,6 +846,7 @@ async def run_all_issues(
         enable_web_search=enable_web_search,
         force_rerun=force_rerun,
         statute_mandate=statute_mandate,
+        summarize=summarize,
     )
 
 
@@ -1009,12 +1063,19 @@ RESUME BEHAVIOR:
         help="Re-analyze all matching documents regardless of existing analyses (upserts to DB)"
     )
 
-    # === STATUTE MANDATE FLAGS ===
+    # === POST-PIPELINE FLAGS ===
     parser.add_argument(
         "--statute-mandate",
         action="store_true",
         help="Run statute mandate checks after the pipeline (NY only). "
              "Checks whether cited statutes actually mandate the flagged issues."
+    )
+    parser.add_argument(
+        "--summarize",
+        action="store_true",
+        help="Run document summarization after the pipeline. "
+             "Requires --title. Summarizes all documents in the title "
+             "(bottom-up: sections → parts → chapters → titles) and imports to DB."
     )
     parser.add_argument(
         "--run-statute-mandate-only",
@@ -1040,6 +1101,10 @@ RESUME BEHAVIOR:
     )
 
     args = parser.parse_args()
+
+    # Validate --summarize requires --title
+    if args.summarize and not args.title:
+        parser.error("--summarize requires --title (e.g., --title 18)")
 
     # Normalize state for DB queries
     # 'dangerously-run-all' means no state filter (None)
@@ -1108,6 +1173,7 @@ RESUME BEHAVIOR:
             enable_web_search=args.enable_web_search,
             force_rerun=args.force_rerun,
             statute_mandate=args.statute_mandate,
+            summarize=args.summarize,
         ))
     else:
         asyncio.run(run_test(
@@ -1121,4 +1187,5 @@ RESUME BEHAVIOR:
             enable_web_search=args.enable_web_search,
             force_rerun=args.force_rerun,
             statute_mandate=args.statute_mandate,
+            summarize=args.summarize,
         ))

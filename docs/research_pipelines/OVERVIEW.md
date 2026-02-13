@@ -132,26 +132,29 @@ Tier 3 (external verification) runs when ANY of:
 
 ## Tier 3 Implementation (Single-Call Web Search)
 
-Tier 3 uses a **single-call approach** with Claude's `web_search` tool:
+Tier 3 uses a **tool-call approach** with two tools — `web_search` for research and `submit_analysis` for structured output:
 
-1. **Single API call**: Claude performs web searches AND outputs analysis together
+1. **Single API call**: Claude performs web searches AND submits structured analysis together
 2. **State-specific location**: `user_location` parameter localizes searches (e.g., Trenton, NJ)
 3. **Citation extraction**: Quoted text extracted from Claude's response `citations` array
-4. **JSON parsing**: Since `tools` and `response_format` can't be combined, Claude outputs JSON in its text response
+4. **Structured output via tool call**: Claude calls `submit_analysis` with Tier3Output JSON — no text parsing needed
 
 ```python
-# Example configuration
-web_search_tool = {
-    "type": "web_search_20250305",
-    "name": "web_search",
-    "max_uses": 5,
-    "user_location": {
-        "type": "approximate",
-        "city": "Trenton",
-        "region": "New Jersey",
-        "country": "US"
+# Two tools provided to Claude
+tools = [
+    {   # Web search for research
+        "type": "web_search_20250305",
+        "name": "web_search",
+        "max_uses": 5,
+        "user_location": {...}
+    },
+    {   # Structured output via tool call
+        "name": "submit_analysis",
+        "description": "Submit your final analysis",
+        "input_schema": {... Tier3Output fields ...}
     }
-}
+]
+# Result extracted directly from tool_use block — no JSON parsing
 ```
 
 Evidence is stored in `tier3_flags` column (not merged into `context_used`) to preserve Tier 2's context while adding web sources.

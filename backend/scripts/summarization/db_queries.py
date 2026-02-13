@@ -1,4 +1,11 @@
-"""Database queries for hierarchical document traversal."""
+"""Database query helpers for the summarization pipeline.
+
+Provides functions for traversing the regulatory_documents hierarchy
+(sections, subchapters, chapters, parts, titles) needed to build
+summarization prompts with ancestor/sibling/child context.  Also
+includes utility queries for listing titles, counting documents per
+hierarchy level, and determining the bottom-up phase ordering.
+"""
 
 import functools
 import os
@@ -45,14 +52,19 @@ def get_connection() -> psycopg.Connection:
 
 
 def _get_title_column(state: str) -> str:
-    """Get the appropriate title column for a state."""
+    """Get the appropriate title column for a state.
+
+    Returns the DB column name used to filter regulatory_documents by title
+    number.  Falls back to 'njac_title' for unrecognized states since NJ
+    was the first state onboarded and most query patterns follow its schema.
+    """
     state = state.upper()
     if state == "NJ":
         return "njac_title"
     elif state == "NY":
         return "nycrr_title"
     else:
-        return "njac_title"  # Default
+        return "njac_title"  # Default fallback for unrecognized states
 
 
 def get_documents_by_level(
