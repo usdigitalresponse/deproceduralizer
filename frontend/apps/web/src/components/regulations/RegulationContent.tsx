@@ -38,7 +38,7 @@ export function RegulationContent({
   className = '',
 }: RegulationContentProps) {
   const normalizedContent = normalizeLineBreaks(content || 'No content available');
-  const isTruncated = truncateAt && content && content.length > truncateAt;
+  const isTruncated = truncateAt && normalizedContent.length > truncateAt;
   const finalContent = isTruncated
     ? normalizedContent.substring(0, truncateAt) + '...'
     : normalizedContent;
