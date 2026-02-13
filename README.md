@@ -15,9 +15,9 @@ Deproceduralizer scrapes state regulations from Cornell Law's Legal Information 
 ## Architecture
 
 ```
-Cornell Law Website
+Cornell Law Website (Regulations + Statutes)
         ↓
-    Scraper Scripts (ny/nj_regulations_scraper.py)
+    Scraper Scripts (ny/nj_regulations_scraper.py, ny_statutes_scraper.py)
         ↓
     JSON cache (data/scraped_data/, data/nj_scraped_data/)
         ↓
@@ -25,7 +25,9 @@ Cornell Law Website
         ↓
     PostgreSQL (Neon)
         ↓
-    Analysis Scripts (red_flags.py, batch_definitions.py, scan_compliance_issues.py, research_pipeline/)
+    Statute Linking (link_statutes.py) + Batch Exclude non-regulatory sections
+        ↓
+    Analysis Scripts (definitions, summaries, compliance issues, research pipeline, mandate checks)
         ↓
     Next.js Web App (server actions query DB directly via Drizzle)
         ↓
@@ -124,7 +126,7 @@ See `DATABASE_SETUP.md` for detailed Postgres/Neon setup instructions and how to
 
 ### 4. Run the Pipeline
 
-The full analysis pipeline has 10 steps. Here's the quick version:
+The full analysis pipeline has multiple steps per state. Here's the quick version for NY:
 
 ```bash
 # 1. Scrape regulations (includes DB migration and stats refresh)
@@ -143,10 +145,7 @@ python backend/scripts/link_definitions.py run --state NY
 python backend/scripts/backfill_definition_scope.py --state NY
 
 # 5. Generate summaries (5 hierarchical phases, see OPERATIONS.md)
-# cd backend/scripts/_legacy/local_summarization
-# python -m local_summarization.batch.cli --state NY --phase sections --all-titles --submit
-# ... (subchapters, chapters, parts, titles) ...
-# python3 import_summaries.py --state NY
+cd backend && python3 -m scripts.summarization.cli --state NY --title 18 --run-all-phases
 
 # 6. Scan compliance issues (regex, no LLM)
 python backend/scripts/scan_compliance_issues.py --state ny

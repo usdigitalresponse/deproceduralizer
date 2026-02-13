@@ -196,10 +196,10 @@ Separate CLI for generating hierarchical summaries of regulatory documents.
 cd backend
 
 # Run all phases for a title (submit → poll → process → import to DB)
-python3 -m scripts.summarization.cli --state NY --title 18 --run
+python3 -m scripts.summarization.cli --state NY --title 18 --run-all-phases
 
 # Dry run (preview what would be submitted)
-python3 -m scripts.summarization.cli --state NY --title 18 --run --dry-run
+python3 -m scripts.summarization.cli --state NY --title 18 --run-all-phases --dry-run
 
 # Manual phase control
 python3 -m scripts.summarization.cli --state NY --title 18 --phase sections --submit
@@ -209,7 +209,7 @@ python3 -m scripts.summarization.cli --state NY --phase sections --process
 
 - 5 phases: sections → subchapters → chapters → parts → titles (must run in order)
 - Uses Anthropic Batch API (Haiku, 50% savings)
-- `--run` handles everything: submit, poll, process, import to DB
+- `--run-all-phases` handles everything: submit, poll, process, import to DB
 - Updates `regulatory_documents` with: `summary`, `section_type`, `keywords`, `applies_to`, `has_form`, `has_ibr`
 
 ## Tier 3 Modes (V5.2)
