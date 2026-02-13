@@ -139,7 +139,10 @@ export class StatutesRepository extends BaseRepository {
       FROM statutes s
       WHERE s.state = ${stateUpper}
         AND s.parent_id IS NULL
-      ORDER BY s.source_index ASC NULLS LAST, s.citation ASC
+      ORDER BY
+        natural_sort_num(COALESCE(s.njsa_title, s.nycls_law_id, s.citation)) NULLS LAST,
+        natural_sort_alpha(COALESCE(s.njsa_title, s.nycls_law_id, s.citation)) NULLS LAST,
+        s.title NULLS LAST
     `);
 
     return result.rows.map(this.mapHierarchyNode);
@@ -174,7 +177,10 @@ export class StatutesRepository extends BaseRepository {
         (s.content IS NOT NULL AND s.content != '') as has_content
       FROM statutes s
       WHERE s.parent_id = ${parentId}
-      ORDER BY s.source_index ASC NULLS LAST, s.citation ASC
+      ORDER BY
+        natural_sort_num(COALESCE(s.njsa_section, s.njsa_chapter, s.nycls_section, s.nycls_article, s.citation)) NULLS LAST,
+        natural_sort_alpha(COALESCE(s.njsa_section, s.njsa_chapter, s.nycls_section, s.nycls_article, s.citation)) NULLS LAST,
+        s.title NULLS LAST
     `);
 
     return result.rows.map(this.mapHierarchyNode);
@@ -456,7 +462,11 @@ export class StatutesRepository extends BaseRepository {
       FROM statutes s
       WHERE s.state = ${stateUpper}
         AND (s.citation ILIKE ${searchPattern} OR s.title ILIKE ${searchPattern})
-      ORDER BY s.citation ASC
+      ORDER BY
+        natural_sort_num(COALESCE(s.njsa_title, s.nycls_law_id, s.citation)) NULLS LAST,
+        natural_sort_alpha(COALESCE(s.njsa_title, s.nycls_law_id, s.citation)) NULLS LAST,
+        natural_sort_num(COALESCE(s.njsa_section, s.njsa_chapter, s.nycls_section, s.nycls_article)) NULLS LAST,
+        natural_sort_alpha(COALESCE(s.njsa_section, s.njsa_chapter, s.nycls_section, s.nycls_article)) NULLS LAST
       LIMIT ${limit}
     `);
 

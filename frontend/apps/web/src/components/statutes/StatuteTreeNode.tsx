@@ -25,6 +25,22 @@ interface StatuteTreeNodeProps {
  */
 const containerLevels = new Set(['title', 'chapter', 'article', 'law', 'part', 'subpart']);
 
+/**
+ * Strip redundant state prefixes from statute titles since hierarchy context
+ * already makes the location obvious. Matches how regulation browse works.
+ *
+ * "N.J.S.A. Chapter 1:1" → "Chapter 1:1"
+ * "N.J.S.A. 1:1-1 - General rules of construction" → "1:1-1 - General rules of construction"
+ * "Title 1 - ACTS, LAWS AND STATUTES" → kept as-is (no prefix)
+ */
+function cleanStatuteTitle(title: string): string {
+  return title
+    .replace(/^N\.J\.S\.A\.\s*/i, '')
+    .replace(/^NYCLS\s+\S+\s*/i, '')
+    .replace(/^NY\s+\S+\s*/i, '')
+    .trim() || title;
+}
+
 export const StatuteTreeNode = memo(function StatuteTreeNode({
   node,
   depth,
@@ -41,6 +57,7 @@ export const StatuteTreeNode = memo(function StatuteTreeNode({
   const isContainer = containerLevels.has(node.hierarchyLevel || '');
   const Icon = isContainer ? Folder : FileText;
   const levelLabel = STATUTE_HIERARCHY_LEVEL_LABELS[node.hierarchyLevel || ''] || node.hierarchyLevel || 'Document';
+  const displayTitle = cleanStatuteTitle(node.title);
 
   // Dim statutes without any linked regulations
   const hasAnyLinks = node.linkedRegulationCount > 0 || node.enablingAuthorityCount > 0;
@@ -108,16 +125,12 @@ export const StatuteTreeNode = memo(function StatuteTreeNode({
         {/* Node content */}
         <div className="flex-1 min-w-0 min-w-[120px]">
           <div className="text-sm font-medium truncate" title={node.title}>
-            {highlightTerm(node.title, searchTerm, 'bg-[var(--color-accent-muted)] text-inherit rounded px-0.5')}
+            {highlightTerm(displayTitle, searchTerm, 'bg-[var(--color-accent-muted)] text-inherit rounded px-0.5')}
           </div>
           <div className="text-xs text-[var(--color-text-muted)] flex items-center gap-2">
             {/* Level badge */}
             <span className="px-1.5 py-0.5 bg-[var(--color-neutral-100)] rounded text-[10px] uppercase tracking-wide font-medium">
               {levelLabel}
-            </span>
-            {/* Citation in monospace */}
-            <span className="font-mono text-[var(--color-text-secondary)] text-[10px]">
-              {highlightTerm(node.citation, searchTerm, 'bg-[var(--color-accent-muted)] text-inherit rounded px-0.5')}
             </span>
             {/* Child count */}
             {node.childCount > 0 && (
