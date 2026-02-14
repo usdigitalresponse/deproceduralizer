@@ -94,7 +94,6 @@ function isInteractiveElement(e: KeyboardEvent): boolean {
  */
 export function useQueueNavigation<T>({
   items,
-  getItemId,
   onViewRegulation,
   findNextUnreviewed,
   onCustomKey,

@@ -1,9 +1,7 @@
 import { RegulationTextViewer } from '../../shared';
-import type { DefinitionOriginalValues } from '@deproceduralizer/database';
-import type { OriginalColumnProps, DefinitionWithNewFields } from './types';
+import type { OriginalColumnProps } from './types';
 
 export function OriginalColumn({ definition, state, formData, getOriginalValue }: OriginalColumnProps) {
-  const defWithNewFields = definition as unknown as DefinitionWithNewFields;
 
   return (
     <div className="space-y-4">
@@ -19,7 +17,7 @@ export function OriginalColumn({ definition, state, formData, getOriginalValue }
 
         <div>
           <span className="text-[var(--color-text-secondary)]">Is Complete:</span>
-          <span className="ml-2">{(getOriginalValue('isVerbatimTextComplete') ?? defWithNewFields.isVerbatimTextComplete) ? 'Yes' : 'No'}</span>
+          <span className="ml-2">{(getOriginalValue('isVerbatimTextComplete') ?? definition.isVerbatimTextComplete) ? 'Yes' : 'No'}</span>
         </div>
 
         <div>
@@ -69,11 +67,11 @@ export function OriginalColumn({ definition, state, formData, getOriginalValue }
           <>
             <div>
               <span className="text-[var(--color-text-secondary)]">Ref Completeness:</span>
-              <span className="ml-2">{(getOriginalValue('referenceCompleteness') as string) || defWithNewFields.referenceCompleteness || '(none)'}</span>
+              <span className="ml-2">{(getOriginalValue('referenceCompleteness') as string) || definition.referenceCompleteness || '(none)'}</span>
             </div>
             <div>
               <span className="text-[var(--color-text-secondary)]">Ref Target:</span>
-              <span className="ml-2">{(getOriginalValue('referenceTarget') as string) || defWithNewFields.referenceTarget || '(none)'}</span>
+              <span className="ml-2">{(getOriginalValue('referenceTarget') as string) || definition.referenceTarget || '(none)'}</span>
             </div>
           </>
         )}

@@ -9,7 +9,6 @@ import {
   type ImpactType,
   type StateCode,
   type RedFlag,
-  type RedFlagWithContext,
   type PaginatedRedFlagsResult,
 } from '@deproceduralizer/database';
 import { type ActionResult, success, failure, getErrorMessage } from './types';

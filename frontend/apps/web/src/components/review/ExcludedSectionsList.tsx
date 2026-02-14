@@ -140,7 +140,7 @@ export function ExcludedSectionsList() {
                     </div>
                     {doc.excludedReason && (
                       <div className="text-xs text-[var(--color-text-muted)] mt-1 italic">
-                        "{doc.excludedReason}"
+                        &quot;{doc.excludedReason}&quot;
                       </div>
                     )}
                   </div>

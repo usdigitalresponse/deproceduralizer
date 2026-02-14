@@ -29,7 +29,7 @@ export function DismissedMatchesDisplay({
             </div>
             {match.text && (
               <p className="text-sm text-[var(--color-text-secondary)] mb-1 line-clamp-2">
-                "{match.text}"
+                &quot;{match.text}&quot;
               </p>
             )}
             <p className="text-xs text-[var(--color-danger)]">

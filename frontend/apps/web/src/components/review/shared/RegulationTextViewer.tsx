@@ -111,7 +111,7 @@ export function RegulationTextViewer({
   const crossRefMatches = useCrossRefHighlighting(crossRefs ?? undefined);
 
   // Handle term click - show definition popover
-  const handleTermClick = useCallback((e: React.MouseEvent, termMatch: TermMatch) => {
+  const handleTermClick = useCallback((e: React.SyntheticEvent, termMatch: TermMatch) => {
     e.preventDefault();
     e.stopPropagation();
     const target = e.currentTarget as HTMLElement;
@@ -125,7 +125,7 @@ export function RegulationTextViewer({
   }, []);
 
   // Handle cross-ref click - show cross-ref popover
-  const handleCrossRefClick = useCallback((e: React.MouseEvent, crossRef: CrossRefMatch) => {
+  const handleCrossRefClick = useCallback((e: React.SyntheticEvent, crossRef: CrossRefMatch) => {
     e.preventDefault();
     e.stopPropagation();
     const target = e.currentTarget as HTMLElement;
@@ -346,7 +346,7 @@ export function RegulationTextViewer({
       // Determine styling and handlers based on type
       let className = '';
       let refCallback: ((el: HTMLSpanElement | null) => void) | undefined;
-      let onClick: ((e: React.MouseEvent) => void) | undefined;
+      let onClick: ((e: React.SyntheticEvent) => void) | undefined;
 
       if (region.type === 'search') {
         className = region.isCurrentSearch
@@ -378,7 +378,7 @@ export function RegulationTextViewer({
           onKeyDown={onClick ? (e) => {
             if (e.key === 'Enter' || e.key === ' ') {
               e.preventDefault();
-              onClick?.(e as unknown as React.MouseEvent);
+              onClick?.(e);
             }
           } : undefined}
         >

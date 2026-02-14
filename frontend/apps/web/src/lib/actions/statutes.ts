@@ -9,7 +9,6 @@ import {
   type RegulationStatuteLinkWithStatute,
   type StatuteLinkStats,
   type StatuteAncestor,
-  type StateCode,
 } from '@deproceduralizer/database';
 import { type ActionResult, success, failure, getErrorMessage } from './types';
 

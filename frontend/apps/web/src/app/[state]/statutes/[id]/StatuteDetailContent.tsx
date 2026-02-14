@@ -5,12 +5,10 @@ import { RegulationContent } from '@/components/regulations';
 
 interface StatuteDetailContentProps {
   content: string;
-  citation: string;
 }
 
 export function StatuteDetailContent({
   content,
-  citation,
 }: StatuteDetailContentProps) {
   return (
     <Card className="p-6">

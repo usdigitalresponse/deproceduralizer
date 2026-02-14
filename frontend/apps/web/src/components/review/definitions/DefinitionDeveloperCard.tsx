@@ -145,7 +145,7 @@ export const DefinitionDeveloperCard = forwardRef<HTMLDivElement, DefinitionDeve
 
     // Get the display definition text
     // Use type assertion since the DB column was renamed but type may lag
-    const isComplete = (definition as unknown as { isVerbatimTextComplete?: boolean }).isVerbatimTextComplete ?? true;
+    const isComplete = definition.isVerbatimTextComplete ?? true;
     const displayDefinition = isComplete
       ? definition.verbatimText
       : definition.rephrasedDefinition || definition.verbatimText;
@@ -199,14 +199,14 @@ export const DefinitionDeveloperCard = forwardRef<HTMLDivElement, DefinitionDeve
             {definition.isCrossReference && (
               <Badge variant="warning">Cross-ref</Badge>
             )}
-            {(definition as unknown as { referenceCompleteness?: string }).referenceCompleteness && (
+            {definition.referenceCompleteness && definition.referenceCompleteness in referenceCompletenessLabel && (
               <Badge variant="default">
-                {referenceCompletenessLabel[(definition as unknown as { referenceCompleteness: keyof typeof referenceCompletenessLabel }).referenceCompleteness]}
+                {referenceCompletenessLabel[definition.referenceCompleteness as keyof typeof referenceCompletenessLabel]}
               </Badge>
             )}
-            {(definition as unknown as { referenceTarget?: string }).referenceTarget && (
+            {definition.referenceTarget && definition.referenceTarget in referenceTargetLabel && (
               <Badge variant="info">
-                {referenceTargetLabel[(definition as unknown as { referenceTarget: keyof typeof referenceTargetLabel }).referenceTarget]}
+                {referenceTargetLabel[definition.referenceTarget as keyof typeof referenceTargetLabel]}
               </Badge>
             )}
           </div>

@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, ExternalLink, Printer } from 'lucide-react';
-import type { StateCode, DismissedMatch } from '@deproceduralizer/database';
+import type { DismissedMatch } from '@deproceduralizer/database';
 import { getFullAnalysisRecord, getRegexMatchesForAnalysis } from '@/lib/actions/analysis';
 import {
   PipelineTimeline,
@@ -46,7 +46,7 @@ export default async function AnalysisDetailPage({ params, searchParams }: Analy
   const printParam = resolvedSearchParams.print;
   const isPrintMode = printParam === 'true' || printParam === '1';
 
-  const stateCode = state.toUpperCase() as StateCode;
+  const stateCode = state;
 
   // Fetch full analysis record and regex matches (shown in both views now)
   const [analysisResult, matchesResult] = await Promise.all([

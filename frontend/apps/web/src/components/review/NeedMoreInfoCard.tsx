@@ -82,9 +82,9 @@ export const NeedMoreInfoCard = forwardRef<HTMLDivElement, NeedMoreInfoCardProps
               <p className="mt-1 text-sm text-[var(--color-text)]">{flag.explanation}</p>
             </div>
             {/* Full Regulation Text Viewer */}
-            {(flag.regulation as unknown as { content?: string }).content && (
+            {flag.regulation.content && (
               <RegulationTextViewer
-                content={(flag.regulation as unknown as { content: string }).content}
+                content={flag.regulation.content}
                 documentId={flag.regulation.id}
                 state={state}
                 scrollToText={flag.explanation}
@@ -127,9 +127,9 @@ export const NeedMoreInfoCard = forwardRef<HTMLDivElement, NeedMoreInfoCardProps
               </div>
             )}
             {/* Full Regulation Text Viewer */}
-            {(issue.regulation as unknown as { content?: string }).content && (
+            {issue.regulation.content && (
               <RegulationTextViewer
-                content={(issue.regulation as unknown as { content: string }).content}
+                content={issue.regulation.content}
                 documentId={issue.regulation.id}
                 state={state}
                 scrollToText={issue.verbatimSupportingText?.[0]}

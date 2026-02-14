@@ -8,7 +8,7 @@ import { getStatuteStats } from '@/lib/actions/statutes';
 import { AnalyticsClient } from '@/components/analytics/AnalyticsClient';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Container } from '@/components/layout/Container';
-import { type StateCode, STATE_CONFIG, isValidState } from '@/types/state';
+import { STATE_CONFIG, isValidState } from '@/types/state';
 
 interface AnalyticsPageProps {
   params: Promise<{ state: string }>;
@@ -21,8 +21,8 @@ export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
     notFound();
   }
 
-  const stateCode = state.toUpperCase() as StateCode;
-  const stateConfig = STATE_CONFIG[state as keyof typeof STATE_CONFIG];
+  const stateCode = state;
+  const stateConfig = STATE_CONFIG[state];
 
   // Fetch all analytics data in parallel
   const [

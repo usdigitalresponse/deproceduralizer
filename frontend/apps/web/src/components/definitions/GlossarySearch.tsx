@@ -139,9 +139,9 @@ export function GlossarySearch({
       {hasLocalFilters && (
         <div className="text-sm text-[var(--color-text-muted)]">
           Showing definitions
-          {localSearch && <span className="font-medium"> matching "{localSearch}"</span>}
+          {localSearch && <span className="font-medium"> matching &quot;{localSearch}&quot;</span>}
           {selectedLetter && (
-            <span className="font-medium"> starting with "{selectedLetter}"</span>
+            <span className="font-medium"> starting with &quot;{selectedLetter}&quot;</span>
           )}
         </div>
       )}

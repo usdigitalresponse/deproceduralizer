@@ -64,9 +64,9 @@ export function RedFlagContent({ item, state }: RedFlagContentProps) {
       )}
 
       {/* Full Regulation Text Viewer */}
-      {(flag.regulation as unknown as { content?: string }).content && (
+      {flag.regulation.content && (
         <RegulationTextViewer
-          content={(flag.regulation as unknown as { content: string }).content}
+          content={flag.regulation.content}
           documentId={flag.regulation.id}
           state={state}
           scrollToText={flag.explanation}

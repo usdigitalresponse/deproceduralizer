@@ -7,10 +7,9 @@ import {
   createColumnHelper,
   type VisibilityState,
 } from '@tanstack/react-table';
-import { useRouter } from 'next/navigation';
 import { useCallback, useMemo } from 'react';
 import { useQueryStates } from 'nuqs';
-import type { RegulationWithAnalysis, PaginationOptions, FilterOptions } from '@deproceduralizer/database';
+import type { RegulationWithAnalysis, PaginationOptions } from '@deproceduralizer/database';
 import { RED_FLAG_CATEGORIES } from '@deproceduralizer/database/schema';
 import { Badge, SeverityBadge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';

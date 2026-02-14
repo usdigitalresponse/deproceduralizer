@@ -6,7 +6,7 @@ import { getStatuteWithLinks, getStatuteAncestorChain, getStatuteHierarchyChildr
 import { StatuteDetailSidebar } from './StatuteDetailSidebar';
 import { StatuteDetailContent } from './StatuteDetailContent';
 import { RegulationDetailLayout } from '@/app/[state]/regulations/[id]/RegulationDetailLayout';
-import { isValidState, STATE_CONFIG, type StateCode } from '@/types/state';
+import { isValidState } from '@/types/state';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,7 +28,6 @@ export default async function StatuteDetailPage({ params, searchParams }: PagePr
     notFound();
   }
 
-  const stateConfig = STATE_CONFIG[state as StateCode];
   const backUrl = from ? decodeURIComponent(from) : `/${state}/statutes`;
 
   // Fetch all data in parallel with partial success
@@ -79,13 +78,12 @@ export default async function StatuteDetailPage({ params, searchParams }: PagePr
               state={state}
               backUrl={backUrl}
               ancestors={ancestors}
-              children={children}
+              childStatutes={children}
             />
           }
           content={
             <StatuteDetailContent
               content={statute.content}
-              citation={statute.citation}
             />
           }
         />

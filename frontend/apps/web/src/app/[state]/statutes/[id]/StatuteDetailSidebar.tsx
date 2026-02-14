@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { ChevronRight, Scale, FileText, Folder } from 'lucide-react';
 import { LINK_TYPE_LABELS, MATCH_STATUS_LABELS } from '@/lib/constants/values';
-import { getHierarchyLevelLabel, STATUTE_HIERARCHY_LEVEL_LABELS } from '@/lib/constants/hierarchy';
+import { STATUTE_HIERARCHY_LEVEL_LABELS } from '@/lib/constants/hierarchy';
 import type { StatuteWithLinks, StatuteAncestor, StatuteHierarchyNode } from '@deproceduralizer/database';
 
 interface StatuteDetailSidebarProps {
@@ -12,7 +12,7 @@ interface StatuteDetailSidebarProps {
   state: string;
   backUrl: string;
   ancestors: StatuteAncestor[];
-  children: StatuteHierarchyNode[];
+  childStatutes: StatuteHierarchyNode[];
 }
 
 export function StatuteDetailSidebar({
@@ -20,7 +20,7 @@ export function StatuteDetailSidebar({
   state,
   backUrl,
   ancestors,
-  children,
+  childStatutes,
 }: StatuteDetailSidebarProps) {
   // Group regulation links by type
   const linksByType = statute.regulationLinks.reduce<Record<string, typeof statute.regulationLinks>>((acc, link) => {
@@ -162,13 +162,13 @@ export function StatuteDetailSidebar({
       )}
 
       {/* Children (sub-statutes) */}
-      {children.length > 0 && (
+      {childStatutes.length > 0 && (
         <Card className="p-4">
           <h2 className="font-semibold text-[var(--color-text)] mb-3 text-sm">
-            Child Statutes ({children.length})
+            Child Statutes ({childStatutes.length})
           </h2>
           <div className="space-y-1">
-            {children.map(child => (
+            {childStatutes.map(child => (
               <Link
                 key={child.id}
                 href={`/${state}/statutes/${child.id}`}
