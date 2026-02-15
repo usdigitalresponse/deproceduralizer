@@ -206,8 +206,17 @@ interface AnalysisTableRowProps {
 function AnalysisTableRow({ item, state, isBookmarked, onBookmarkToggle }: AnalysisTableRowProps) {
   const issueTypeLabel = ISSUE_TYPE_LABELS[item.issueType as keyof typeof ISSUE_TYPE_LABELS] || item.issueType;
 
+  // Priority left border: red for critical quick wins, amber for high severity only
+  const isQuickWin = (item.finalSeverity ?? 0) >= 7 && item.easyCleanupCandidate;
+  const isHighSeverity = (item.finalSeverity ?? 0) >= 7;
+  const borderClass = isQuickWin
+    ? 'border-l-4 border-l-[var(--color-danger)]'
+    : isHighSeverity
+      ? 'border-l-4 border-l-[var(--color-warning)]'
+      : '';
+
   return (
-    <tr className="border-b border-[var(--color-neutral-100)] hover:bg-[var(--color-neutral-50)]">
+    <tr className={`border-b border-[var(--color-neutral-100)] hover:bg-[var(--color-neutral-50)] ${borderClass}`}>
       {/* Bookmark */}
       <td className="px-2 py-3 text-center">
         <BookmarkButton

@@ -12,6 +12,8 @@ import {
   RegexMatchesSection,
   PrintButton,
   PrintModeStyles,
+  SeverityProgression,
+  ExecutiveSummary,
 } from '@/components/analysis';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Container } from '@/components/layout/Container';
@@ -218,8 +220,8 @@ export default async function AnalysisDetailPage({ params, searchParams }: Analy
           </div>
         </div>
 
-        {/* Bookmark Notes Card - shown when bookmarked, hidden in print mode */}
-        {!isPrintMode && <BookmarkNotesCard />}
+        {/* Executive Summary Card - key findings at a glance */}
+        <ExecutiveSummary analysis={analysis} />
 
         {/* Easy Cleanup Card - shown when flagged as easy cleanup opportunity */}
         {analysis.easyCleanupCandidate && (
@@ -268,6 +270,20 @@ export default async function AnalysisDetailPage({ params, searchParams }: Analy
             </div>
           </div>
         )}
+
+        {/* Severity Progression - moved up from PipelineTimeline */}
+        <div className="mb-6">
+          <SeverityProgression
+            baseSeverity={analysis.tier2?.severity || null}
+            tier3Adjustment={analysis.tier3?.severityAdjustment || null}
+            finalSeverity={analysis.finalSeverity}
+            tier2Calculation={analysis.tier2?.severityCalculation || null}
+            tier3Reasoning={analysis.tier3?.severityAdjustmentReasoning || null}
+          />
+        </div>
+
+        {/* Bookmark Notes Card - shown when bookmarked, hidden in print mode */}
+        {!isPrintMode && <BookmarkNotesCard />}
 
         {/* Regex Matches Section - collapsible in standard view, expanded in print mode */}
         {matches && matches.length > 0 && (
