@@ -47,7 +47,7 @@ export function SiblingSectionsView({ documentId, state }: SiblingSectionsViewPr
 
   return (
     <details
-      className="mb-4"
+      className="mb-4 p-4 bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] border border-[var(--color-neutral-200)]"
       onToggle={(e) => {
         if ((e.target as HTMLDetailsElement).open) {
           loadSiblings();
