@@ -3959,7 +3959,7 @@ class TestCLIIntegrationSubprocess:
         assert "--execute" in result.stdout or "DRY-RUN" in result.stdout
 
     def test_cli_all_issues_available(self):
-        """Verify --all argument is available."""
+        """Verify --all-issues argument is available."""
         import subprocess
 
         result = subprocess.run(
@@ -3971,4 +3971,4 @@ class TestCLIIntegrationSubprocess:
         )
 
         # all should be available
-        assert "--all" in result.stdout or "all_issues" in result.stdout
+        assert "--all-issues" in result.stdout or "all_issues" in result.stdout

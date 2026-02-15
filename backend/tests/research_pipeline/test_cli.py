@@ -50,8 +50,8 @@ class TestCLIHelp:
         assert "--execute" in cli_help_output
 
     def test_help_shows_all_issues_argument(self, cli_help_output):
-        """--all argument is documented."""
-        assert "--all" in cli_help_output
+        """--all-issues argument is documented."""
+        assert "--all-issues" in cli_help_output
 
     def test_help_shows_global_limit_argument(self, cli_help_output):
         """--global-limit argument is documented."""
@@ -69,9 +69,9 @@ class TestCLIDefaults:
     """Test CLI default values and cost-safe behavior."""
 
     def test_all_issues_dry_run_by_default(self):
-        """--state nj --all should dry-run by default (no --execute)."""
+        """--state nj --all-issues should dry-run by default (no --execute)."""
         result = subprocess.run(
-            ["python3", "-m", "scripts.research_pipeline.cli", "--state", "nj", "--all"],
+            ["python3", "-m", "scripts.research_pipeline.cli", "--state", "nj", "--all-issues"],
             capture_output=True,
             text=True,
             cwd=BACKEND_DIR,
@@ -81,7 +81,7 @@ class TestCLIDefaults:
         assert "RUNNING ALL ISSUE TYPES" in result.stdout
 
     def test_issue_selection_required(self):
-        """--state alone should fail — must specify --issue or --all."""
+        """--state alone should fail — must specify --issue or --all-issues."""
         result = subprocess.run(
             ["python3", "-m", "scripts.research_pipeline.cli", "--state", "nj"],
             capture_output=True,

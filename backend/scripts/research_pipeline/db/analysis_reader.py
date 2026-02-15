@@ -31,7 +31,7 @@ def get_existing_analyses(
     Args:
         document_ids: List of document IDs to query
         issue_type: Single issue type (for backward compatibility)
-        issue_types: List of issue types (for --all mode)
+        issue_types: List of issue types (for --all-issues mode)
         conn: Optional database connection
 
     Returns:
