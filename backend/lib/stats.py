@@ -176,12 +176,13 @@ def refresh_compliance_stats(conn, state: str) -> int:
 
     with conn.cursor() as cur:
         # Direct compliance issue counts (only LLM-confirmed issues)
+        # requirement_found lives on compliance_issue_analyses, not compliance_issues
         cur.execute("""
             WITH direct_issues AS (
-                SELECT document_id, COUNT(*) as issue_count
-                FROM compliance_issues
-                WHERE state = %s AND requirement_found = TRUE
-                GROUP BY document_id
+                SELECT cia.document_id, COUNT(*) as issue_count
+                FROM compliance_issue_analyses cia
+                WHERE cia.state = %s AND cia.requirement_found = TRUE
+                GROUP BY cia.document_id
             )
             UPDATE regulatory_documents rd
             SET compliance_issue_count = COALESCE(di.issue_count, 0)

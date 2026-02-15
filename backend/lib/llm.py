@@ -294,7 +294,9 @@ async def call_llm_parse_async(
     for attempt in range(max_retries):
         start_time = time.time()
         try:
-            response = await client.messages.create(**request_kwargs)
+            # Use streaming to avoid timeout for long-running requests
+            async with client.messages.stream(**request_kwargs) as stream:
+                response = await stream.get_final_message()
             latency_ms = (time.time() - start_time) * 1000
 
             # Check for truncation due to max_tokens
