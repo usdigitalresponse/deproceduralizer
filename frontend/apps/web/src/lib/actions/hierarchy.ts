@@ -177,3 +177,28 @@ export async function getDirectChildren(
     return failure(getErrorMessage(error));
   }
 }
+
+/**
+ * Get sibling documents (other children of the same parent)
+ * Used by SiblingSectionsView to show neighboring sections for reviewer context
+ * Composes getAncestorChain (to find parent) + getDirectChildren (to get siblings)
+ */
+export async function getSiblingDocuments(
+  documentId: number
+): Promise<ActionResult<DirectChild[]>> {
+  try {
+    const ancestors = await repo.getAncestorChain(documentId);
+    if (!ancestors || ancestors.length === 0) {
+      return success([]);
+    }
+
+    const parentId = ancestors[ancestors.length - 1].id;
+    const children = await repo.getDirectChildren(parentId);
+    const siblings = children.filter(child => child.id !== documentId);
+
+    return success(siblings);
+  } catch (error) {
+    console.error('[getSiblingDocuments]', error);
+    return failure(getErrorMessage(error));
+  }
+}
