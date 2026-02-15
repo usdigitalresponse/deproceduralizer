@@ -3,7 +3,6 @@
 import type { FullAnalysisRecord } from '@deproceduralizer/database';
 import { TierSection } from './TierSection';
 import { ReasoningBlock } from './ReasoningBlock';
-import { SeverityProgression } from './SeverityProgression';
 import { DismissedMatchesDisplay } from './DismissedMatchesDisplay';
 import { RoutingDecision } from './RoutingDecision';
 import { ArgumentFramingSummary } from './ArgumentFramingSummary';
@@ -393,15 +392,6 @@ export function PipelineTimeline({ analysis }: PipelineTimelineProps) {
           )}
         </TierSection>
       </div>
-
-      {/* Severity Progression */}
-      <SeverityProgression
-        baseSeverity={tier2?.severity || null}
-        tier3Adjustment={tier3?.severityAdjustment || null}
-        finalSeverity={analysis.finalSeverity}
-        tier2Calculation={tier2?.severityCalculation || null}
-        tier3Reasoning={tier3?.severityAdjustmentReasoning || null}
-      />
     </div>
   );
 }

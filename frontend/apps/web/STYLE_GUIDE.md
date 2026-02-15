@@ -861,11 +861,22 @@ import { ReviewQueue } from '@/components/review';
 
 ### ReviewCard
 
-Individual flag card with embedded review form:
-- Displays flag category, severity badge, complexity badge
-- Shows parent regulation title and NYCRR citation
-- Full explanation text (not truncated)
-- Matched phrases as tags
+Decomposed red flag review card (5 sub-components in `ReviewCard/` directory):
+
+**Sub-components:**
+- `Header` — Category label, severity/complexity/effort badges, review status
+- `LLMAnalysisSection` — Blue box with "Why Flagged" explanation, text examples (quoted), implementation approach, effort estimate
+- `RegulationActions` — View page button, Cornell link, regulation text viewer, hierarchy tree
+- `ReviewForm` — Status, priority, impact, reviewer, justification/team notes, save button
+- `SiblingSectionsView` (shared) — Lazy-loaded collapsible showing sibling sections under same parent
+
+**Features:**
+- Displays flag category, severity badge, complexity badge, effort estimate badge (NEW)
+- Shows parent regulation title and NYCRR citation with hierarchy breadcrumbs
+- LLM Analysis blue box with explanation + text examples (NEW, previously missing) + implementation approach
+- Matched phrases in collapsible "Technical Details" section (decluttered from main view)
+- Regulation actions (view page, Cornell link, text viewer, tree) in dedicated section above form
+- Sibling sections view for regulatory area context (NEW)
 - Always-visible review form (status, priority, impact type, reviewer, notes)
 - Supports keyboard navigation focus state
 
@@ -877,6 +888,7 @@ import { ReviewCard } from '@/components/review';
   onUpdated={handleFlagUpdated}
   onViewRegulation={handleViewRegulation}
   isFocused={index === focusedIndex}
+  state="ny"
 />
 ```
 
@@ -1709,7 +1721,25 @@ apps/web/src/
 │   │   └── index.ts
 │   └── review/             # Review mode components
 │       ├── ReviewQueue.tsx
-│       ├── ReviewCard.tsx
+│       ├── ReviewCard/          # Decomposed review card (5 sub-components)
+│       │   ├── ReviewCard.tsx       # Main orchestrator
+│       │   ├── Header.tsx           # Category + badges
+│       │   ├── LLMAnalysisSection.tsx # Blue box: explanation + evidence + implementation
+│       │   ├── RegulationActions.tsx # View page, Cornell link, text viewer, tree
+│       │   ├── ReviewForm.tsx       # Review form with useReviewForm hook
+│       │   ├── types.ts            # Shared prop types
+│       │   └── index.ts
+│       ├── ComplianceIssueCard/     # Decomposed compliance issue card
+│       │   └── ... (similar pattern)
+│       ├── shared/              # Shared review components
+│       │   ├── CardWrapper.tsx
+│       │   ├── HierarchyBreadcrumbsInline.tsx
+│       │   ├── CornellLink.tsx
+│       │   ├── RegulationTextViewer.tsx
+│       │   ├── HierarchyTreeView.tsx
+│       │   ├── HierarchyTreeNodeCompact.tsx
+│       │   ├── SiblingSectionsView.tsx  # Lazy sibling sections display
+│       │   └── index.ts
 │       ├── ReviewFilters.tsx
 │       ├── ReviewProgress.tsx
 │       ├── ReviewKeyboardNav.tsx
@@ -2799,3 +2829,75 @@ import { FilterCheckboxGroup, FilterRadioGroup } from '@/components/regulations'
   allowDeselect  // Click again to deselect
 />
 ```
+
+---
+
+## Pipeline Page Components
+
+Components for the research pipeline list and detail pages.
+
+### PriorityPicksBanner
+
+Banner showing high-priority items between the summary stats grid and the tier distribution chart. Displays either "quick wins" (high severity + easy cleanup) or fallback to highest-severity burdensome items.
+
+```tsx
+import { PriorityPicksBanner } from '@/components/analysis';
+
+<PriorityPicksBanner
+  state={stateCode}
+  items={priorityItems}
+  totalQuickWins={totalCount}
+  isQuickWinMode={true}
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `state` | `StateCode` | State code for constructing links |
+| `items` | `AnalysisListItem[]` | Priority items to display (max 5) |
+| `totalQuickWins` | `number` | Total matching items for "View all N" link |
+| `isQuickWinMode` | `boolean` | Whether showing quick wins or severity fallback |
+
+Features:
+- Compact clickable cards with severity circle, issue type badge, document title
+- "View all N quick wins" link pre-sets table filters
+- Renders nothing when items array is empty
+
+### ExecutiveSummary
+
+Card showing key findings from the analysis, placed immediately after the header card on pipeline detail pages. Content adapts based on `highestTierCompleted`:
+
+```tsx
+import { ExecutiveSummary } from '@/components/analysis';
+
+<ExecutiveSummary analysis={analysis} />
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `analysis` | `FullAnalysisRecord` | Full analysis record with all tier data |
+
+**Tier 3 complete**: One-line verdict, web search summary, key flags (Federal Mandate, State Discretion, Modernized Alternative, Superseded by Law), severity adjustment note.
+
+**Tier 2 only**: Classification and severity with note about no web verification.
+
+**Tier 1/0**: Status message about matches identified and awaiting classification.
+
+### Visual Priority Indicators (AnalysisTable)
+
+Table rows in the pipeline list have colored left borders based on priority:
+
+- `border-l-4 border-l-[var(--color-danger)]` — high severity (>=7) + easy cleanup candidate (critical quick wins)
+- `border-l-4 border-l-[var(--color-warning)]` — high severity (>=7) only
+- No left border — everything else
+
+### Pipeline Detail Page Section Order
+
+1. Header Card (classification flow, final outcome)
+2. **Executive Summary Card** (key findings at a glance)
+3. Easy Cleanup Card (when flagged)
+4. **Severity Progression** (Base -> Web Search -> Final)
+5. Bookmark Notes Card (when bookmarked)
+6. Regex Matches Section
+7. Pipeline Timeline (tier-by-tier journey)
+8. Metadata Footer

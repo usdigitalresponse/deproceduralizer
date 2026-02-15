@@ -1,17 +1,21 @@
 import { Container, PageHeader } from '@/components/layout';
-import { DashboardStats, StateCard, QuickLinks, RecentActivityCard, TopIssuesChart } from '@/components/home';
+import { DashboardStats, StateCard, QuickLinks, RecentActivityCard, TopIssuesChart, HomePrioritySection } from '@/components/home';
 import { getDashboardStats, getAllStateStats, getRecentActivity } from '@/lib/actions/dashboard';
+import { getPriorityPicks } from '@/lib/actions/analysis';
+import { VALID_STATES } from '@/types/state';
+import type { StateCode } from '@deproceduralizer/database';
 import { Alert } from '@/components/ui';
 
 /**
  * Home page dashboard with aggregate stats, state selector, and quick links.
  */
 export default async function HomePage() {
-  // Fetch stats for all states combined, per-state, and recent activity
-  const [aggregateResult, stateStatsResult, activityResult] = await Promise.all([
+  // Fetch stats for all states combined, per-state, recent activity, and priority picks
+  const [aggregateResult, stateStatsResult, activityResult, ...priorityResults] = await Promise.all([
     getDashboardStats(),
     getAllStateStats(),
     getRecentActivity(),
+    ...VALID_STATES.map((s) => getPriorityPicks(s as StateCode)),
   ]);
 
   // Handle errors - display them obviously
@@ -51,6 +55,16 @@ export default async function HomePage() {
   const stateStats = stateStatsResult.data;
   const recentActivity = activityResult.success ? activityResult.data : null;
 
+  const statePriorities = VALID_STATES.map((s, i) => {
+    const result = priorityResults[i];
+    return {
+      state: s as StateCode,
+      items: result.success ? result.data.items : [],
+      totalQuickWins: result.success ? result.data.totalQuickWins : 0,
+      isQuickWinMode: result.success ? result.data.isQuickWinMode : false,
+    };
+  });
+
   return (
     <>
       <PageHeader
@@ -66,6 +80,16 @@ export default async function HomePage() {
           </h2>
           <DashboardStats stats={aggregateStats} />
         </section>
+
+        {/* Priority Picks */}
+        {statePriorities.some((sp) => sp.items.length > 0) && (
+          <section>
+            <h2 className="text-lg font-semibold text-[var(--color-text)] mb-4">
+              Start Here
+            </h2>
+            <HomePrioritySection statePriorities={statePriorities} />
+          </section>
+        )}
 
         {/* Recent Activity + Top Issues */}
         {(recentActivity || aggregateStats.complianceIssues?.total > 0) && (

@@ -15,6 +15,8 @@ export { AnalysisTable } from './AnalysisTable';
 export { AnalysisTableFilters } from './AnalysisTableFilters';
 export { PipelineFlowVisualizer } from './PipelineFlowVisualizer';
 export { PipelineExampleWalkthrough } from './PipelineExampleWalkthrough';
+export { PriorityPicksBanner } from './PriorityPicksBanner';
+export { ExecutiveSummary } from './ExecutiveSummary';
 // V5 components
 export { ExpandableSection } from './ExpandableSection';
 export { RoutingDecision } from './RoutingDecision';

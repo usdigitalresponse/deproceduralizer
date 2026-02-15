@@ -169,6 +169,69 @@ export async function getAnalysisListPaginated(
 }
 
 /**
+ * Priority items for the pipeline dashboard banner.
+ */
+export interface PriorityPicksResult {
+  items: AnalysisListItem[];
+  totalQuickWins: number;
+  isQuickWinMode: boolean;
+}
+
+/**
+ * Gets priority items for the pipeline dashboard banner.
+ * First tries high-severity + easy cleanup items (quick wins).
+ * Falls back to top 3 highest-severity burdensome items.
+ *
+ * @param state - The state code (e.g., 'NY', 'NJ')
+ * @returns Priority items for the banner
+ */
+export async function getPriorityPicks(
+  state: StateCode
+): Promise<ActionResult<PriorityPicksResult>> {
+  try {
+    // Try quick wins first: high severity + easy cleanup
+    const quickWins = await complianceIssuesRepo.getAnalysisListPaginated(state, {
+      page: 1,
+      pageSize: 5,
+      sortBy: 'severity',
+      sortOrder: 'desc',
+      filters: {
+        severity: 'high',
+        easyCleanup: 'any',
+      },
+    });
+
+    if (quickWins.data.length > 0) {
+      return success({
+        items: quickWins.data,
+        totalQuickWins: quickWins.total,
+        isQuickWinMode: true,
+      });
+    }
+
+    // Fallback: top 3 highest-severity items
+    const highSeverity = await complianceIssuesRepo.getAnalysisListPaginated(state, {
+      page: 1,
+      pageSize: 3,
+      sortBy: 'severity',
+      sortOrder: 'desc',
+      filters: {
+        severity: 'high',
+      },
+    });
+
+    return success({
+      items: highSeverity.data,
+      totalQuickWins: 0,
+      isQuickWinMode: false,
+    });
+  } catch (error) {
+    console.error('[getPriorityPicks]', error);
+    return failure(getErrorMessage(error));
+  }
+}
+
+/**
  * Gets all regex matches (compliance issues) for a specific document and issue type.
  * Used in print mode to display the original regex match contexts.
  *

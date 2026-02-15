@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { getAnalysisTierStats } from '@/lib/actions/analysis';
+import { getAnalysisTierStats, getPriorityPicks } from '@/lib/actions/analysis';
 import { AnalysisDashboard } from '@/components/analysis';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Container } from '@/components/layout/Container';
@@ -19,12 +19,17 @@ export default async function AnalysisPage({ params }: AnalysisPageProps) {
   const stateCode = state;
   const stateConfig = STATE_CONFIG[state];
 
-  // Fetch analysis stats
-  const statsResult = await getAnalysisTierStats(stateCode);
+  // Fetch analysis stats and priority picks in parallel
+  const [statsResult, priorityResult] = await Promise.all([
+    getAnalysisTierStats(stateCode),
+    getPriorityPicks(stateCode),
+  ]);
 
   const tierCounts = statsResult.success ? statsResult.data.tierCounts : null;
   const classificationBreakdown = statsResult.success ? statsResult.data.classificationBreakdown : null;
   const total = statsResult.success ? statsResult.data.total : 0;
+
+  const priorityPicks = priorityResult.success ? priorityResult.data : null;
 
   return (
     <div className="bg-[var(--color-background)] min-h-screen">
@@ -38,6 +43,7 @@ export default async function AnalysisPage({ params }: AnalysisPageProps) {
           tierCounts={tierCounts}
           classificationBreakdown={classificationBreakdown}
           total={total}
+          priorityPicks={priorityPicks}
         />
       </Container>
     </div>

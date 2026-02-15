@@ -2,16 +2,19 @@
 
 import { Suspense } from 'react';
 import type { StateCode, TierCompletionCounts, ClassificationBreakdown } from '@deproceduralizer/database';
+import type { PriorityPicksResult } from '@/lib/actions/analysis';
 import { TierDistributionChart } from './TierDistributionChart';
 import { AnalysisTable } from './AnalysisTable';
 import { AnalysisTableFilters } from './AnalysisTableFilters';
 import { PipelineFlowVisualizer } from './PipelineFlowVisualizer';
+import { PriorityPicksBanner } from './PriorityPicksBanner';
 
 interface AnalysisDashboardProps {
   state: StateCode;
   tierCounts: TierCompletionCounts | null;
   classificationBreakdown: ClassificationBreakdown | null;
   total: number;
+  priorityPicks?: PriorityPicksResult | null;
 }
 
 export function AnalysisDashboard({
@@ -19,6 +22,7 @@ export function AnalysisDashboard({
   tierCounts,
   classificationBreakdown,
   total,
+  priorityPicks,
 }: AnalysisDashboardProps) {
   if (!tierCounts || !classificationBreakdown) {
     return (
@@ -74,6 +78,16 @@ export function AnalysisDashboard({
           </div>
         </div>
       </div>
+
+      {/* Priority Picks Banner */}
+      {priorityPicks && priorityPicks.items.length > 0 && (
+        <PriorityPicksBanner
+          state={state}
+          items={priorityPicks.items}
+          totalQuickWins={priorityPicks.totalQuickWins}
+          isQuickWinMode={priorityPicks.isQuickWinMode}
+        />
+      )}
 
       {/* Distribution Chart */}
       <div className="bg-white border border-[var(--color-neutral-200)] rounded-[var(--radius-md)] p-6">
