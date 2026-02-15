@@ -10,8 +10,11 @@ to connection failures during long-running batch processes.
 """
 
 import json
+import logging
 from typing import Optional
 from psycopg import Connection
+
+logger = logging.getLogger(__name__)
 
 from ..state_machine import TrackedUnit, ProcessingState
 from ..result_processor import (
@@ -418,6 +421,12 @@ def save_tier2_results(
                     unit.document_id,
                     unit.issue_type,
                 ))
+                if cur.rowcount == 0:
+                    logger.warning(
+                        "Tier 2 UPDATE matched 0 rows for document_id=%s, "
+                        "issue_type=%s — result not persisted",
+                        unit.document_id, unit.issue_type,
+                    )
                 saved += 1
 
                 # Commit every 50 rows to prevent Neon idle-in-transaction timeout
@@ -559,6 +568,12 @@ def save_tier3_results(
                     unit.document_id,
                     unit.issue_type,
                 ))
+                if cur.rowcount == 0:
+                    logger.warning(
+                        "Tier 3 UPDATE matched 0 rows for document_id=%s, "
+                        "issue_type=%s — result not persisted",
+                        unit.document_id, unit.issue_type,
+                    )
                 saved += 1
 
                 # Commit every 50 rows to prevent Neon idle-in-transaction timeout

@@ -68,7 +68,7 @@ def scan_and_save(state_code: str, issues: list[str], limit: int | None):
     print("\n" + "=" * 70)
     print(f"TOTAL: {total_saved} regex matches saved")
     print(f"\nNext step: Run the research pipeline for LLM analysis:")
-    print(f"  python -m scripts.research_pipeline.cli --state {state_code} --all --execute")
+    print(f"  python -m scripts.research_pipeline.cli --state {state_code} --all-issues --execute")
 
 
 def dry_run(state_code: str, issues: list[str], limit: int | None):

@@ -25,7 +25,7 @@ Cornell Law Website (Regulations + Statutes)
         ↓
     PostgreSQL (Neon)
         ↓
-    Statute Linking (link_statutes.py) + Batch Exclude non-regulatory sections
+    Statute Linking (link_ny_statutes.py, link_nyc_statutes.py) + Batch Exclude non-regulatory sections
         ↓
     Analysis Scripts (definitions, summaries, compliance issues, research pipeline, mandate checks)
         ↓
@@ -151,7 +151,7 @@ cd backend && python3 -m scripts.summarization.cli --state NY --title 18 --run-a
 python backend/scripts/scan_compliance_issues.py --state ny
 
 # 7. Research pipeline (3-tier LLM analysis — costs money, ask first)
-cd backend && python3 -m scripts.research_pipeline.cli --state ny --all --execute
+cd backend && python3 -m scripts.research_pipeline.cli --state ny --all-issues --execute
 
 # 8. Scan incorporations by reference
 python backend/scripts/ibr_scanner.py --state ny

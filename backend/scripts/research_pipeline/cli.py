@@ -9,7 +9,7 @@ Usage:
     cd backend && python3 -m scripts.research_pipeline.cli --help
 
     # Preview what would run (default is dry-run)
-    python3 -m scripts.research_pipeline.cli --state nj --all
+    python3 -m scripts.research_pipeline.cli --state nj --all-issues
 
     # Actually run a single issue type
     python3 -m scripts.research_pipeline.cli \\
@@ -17,7 +17,7 @@ Usage:
 
     # All issues with explicit limits
     python3 -m scripts.research_pipeline.cli \\
-        --state ny --all --execute \\
+        --state ny --all-issues --execute \\
         --limit 50 --global-limit 500
 """
 
@@ -928,7 +928,7 @@ if __name__ == "__main__":
         epilog="""
 REQUIRED FLAGS:
   --state                 State code: 'nj', 'ny', or 'dangerously-run-all'
-  --issue OR --all        Single issue type OR all 41 issue types (must choose one)
+  --issue OR --all-issues  Single issue type OR all 41 issue types (must choose one)
 
 COST-SAFE DEFAULTS:
   By default, the pipeline runs in DRY-RUN mode (no API calls, no cost).
@@ -947,7 +947,7 @@ OPTIONAL FLAGS:
 
 EXAMPLES:
   # Preview what would run (default behavior)
-  python3 -m scripts.research_pipeline.cli --state nj --all
+  python3 -m scripts.research_pipeline.cli --state nj --all-issues
 
   # Single issue type preview
   python3 -m scripts.research_pipeline.cli --state nj --issue mail_only
@@ -956,22 +956,22 @@ EXAMPLES:
   python3 -m scripts.research_pipeline.cli --state nj --issue mail_only --execute
 
   # Run all issues with explicit limits
-  python3 -m scripts.research_pipeline.cli --state nj --all --execute --global-limit 500
+  python3 -m scripts.research_pipeline.cli --state nj --all-issues --execute --global-limit 500
 
   # Full pipeline with Tier 3 web search
-  python3 -m scripts.research_pipeline.cli --state nj --all --execute --max-tier 3 --web-search
+  python3 -m scripts.research_pipeline.cli --state nj --all-issues --execute --max-tier 3 --web-search
 
   # Run statute mandate checks after pipeline (NY only)
-  python3 -m scripts.research_pipeline.cli --state ny --all --execute --statute-mandate
+  python3 -m scripts.research_pipeline.cli --state ny --all-issues --execute --statute-mandate
 
   # Run statute mandate checks standalone (preview)
-  python3 -m scripts.research_pipeline.cli --state ny --all --run-statute-mandate-only
+  python3 -m scripts.research_pipeline.cli --state ny --all-issues --run-statute-mandate-only
 
   # Run statute mandate checks standalone (execute, limited)
-  python3 -m scripts.research_pipeline.cli --state ny --all --run-statute-mandate-only --execute --limit 10
+  python3 -m scripts.research_pipeline.cli --state ny --all-issues --run-statute-mandate-only --execute --limit 10
 
   # Unlimited processing (must be explicit)
-  python3 -m scripts.research_pipeline.cli --state nj --all --execute --global-limit no-limit
+  python3 -m scripts.research_pipeline.cli --state nj --all-issues --execute --global-limit no-limit
 
 BATCH API TIMING:
   By default, ALL tiers use the Batch API for 50% cost savings.
@@ -1001,7 +1001,7 @@ RESUME BEHAVIOR:
         help="Single issue type to process (e.g., 'mail_only', 'wet_signature')"
     )
     issue_group.add_argument(
-        "--all",
+        "--all-issues",
         dest="all_issues",
         action="store_true",
         help="Run all 41 issue types in scope (batched together per tier). Must be explicit."

@@ -41,7 +41,7 @@ class ComplianceIssueSearcher(BasePatternSearcher):
         saved = searcher.save_to_database(matches)
 
         # LLM analysis is handled by the research pipeline:
-        # python -m scripts.research_pipeline.cli --state nj --all --execute
+        # python -m scripts.research_pipeline.cli --state nj --all-issues --execute
     """
 
     def __init__(

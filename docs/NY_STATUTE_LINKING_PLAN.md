@@ -142,19 +142,19 @@ PYTHONPATH=backend python backend/scripts/scan_compliance_issues.py --state ny -
 
 # Research pipeline (small test batch)
 cd backend && python3 -m scripts.research_pipeline.cli \
-  --state ny --all --limit 5 --global-limit 20 --execute
+  --state ny --all-issues --limit 5 --global-limit 20 --execute
 
 # Statute mandate check (preview)
 cd backend && python3 -m scripts.research_pipeline.cli \
-  --state ny --all --run-statute-mandate-only
+  --state ny --all-issues --run-statute-mandate-only
 
 # Statute mandate check (run first 10 pairs)
 cd backend && python3 -m scripts.research_pipeline.cli \
-  --state ny --all --run-statute-mandate-only --execute --limit 10
+  --state ny --all-issues --run-statute-mandate-only --execute --limit 10
 
 # Statute mandate check after full pipeline
 cd backend && python3 -m scripts.research_pipeline.cli \
-  --state ny --all --execute --statute-mandate
+  --state ny --all-issues --execute --statute-mandate
 ```
 
 ## Cost Estimate

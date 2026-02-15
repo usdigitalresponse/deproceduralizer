@@ -233,7 +233,7 @@ python3 -m scripts.summarization.cli --state NY --phase sections --process
 - Use `--dry-run` to preview what would be submitted
 - Can also be triggered as a post-pipeline step via the research pipeline CLI:
   ```bash
-  python3 -m scripts.research_pipeline.cli --state ny --all --execute --title 18 --summarize
+  python3 -m scripts.research_pipeline.cli --state ny --all-issues --execute --title 18 --summarize
   ```
 - Import updates `regulatory_documents` with: `summary`, `section_type`, `keywords`, `applies_to`, `has_form`, `has_ibr`
 
@@ -260,7 +260,7 @@ python backend/scripts/scan_compliance_issues.py --state ny
 
 ```bash
 cd backend
-python3 -m scripts.research_pipeline.cli --state ny --all --execute
+python3 -m scripts.research_pipeline.cli --state ny --all-issues --execute
 ```
 
 **This is the most expensive step. Always ask before running.**
@@ -290,10 +290,10 @@ Key flags:
 ```bash
 # Preview what would be checked
 cd backend
-python3 -m scripts.research_pipeline.cli --state ny --all --run-statute-mandate-only
+python3 -m scripts.research_pipeline.cli --state ny --all-issues --run-statute-mandate-only
 
 # Run checks on first 10 pairs
-python3 -m scripts.research_pipeline.cli --state ny --all --run-statute-mandate-only --execute --limit 10
+python3 -m scripts.research_pipeline.cli --state ny --all-issues --run-statute-mandate-only --execute --limit 10
 ```
 
 See `.claude/skills/research-pipeline/SKILL.md` for full documentation including state machine, tier triggers, and cost estimates.
@@ -448,7 +448,7 @@ Approximate LLM costs per state (as of February 2025):
 |------|-------|-----------|
 | 3. Definitions | Claude Haiku | ~$10-20 |
 | 5. Summaries | Claude Haiku | ~$100 |
-| 7. Research Pipeline (full) | Claude Haiku/Sonnet | ~$50-60 |
+| 7. Research Pipeline (full) | Claude Haiku/Sonnet | ~$50-60 (observed, per title) |
 | 8. IBR Scan | Claude Haiku | ~$5-10 |
 | 9. Red Flags | Claude | ~$50-100 |
 | **Total** | | **~$215-290** |
