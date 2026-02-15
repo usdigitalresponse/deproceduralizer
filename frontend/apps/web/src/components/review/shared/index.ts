@@ -5,6 +5,7 @@ export { CornellLink } from './CornellLink';
 export { RegulationTextViewer } from './RegulationTextViewer';
 export { HierarchyTreeView } from './HierarchyTreeView';
 export { HierarchyTreeNodeCompact } from './HierarchyTreeNodeCompact';
+export { SiblingSectionsView } from './SiblingSectionsView';
 
 // Queue components
 export { QueuePagination } from './QueuePagination';

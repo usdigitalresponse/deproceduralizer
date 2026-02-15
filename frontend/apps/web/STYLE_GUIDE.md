@@ -871,12 +871,12 @@ Decomposed red flag review card (5 sub-components in `ReviewCard/` directory):
 - `SiblingSectionsView` (shared) — Lazy-loaded collapsible showing sibling sections under same parent
 
 **Features:**
-- Displays flag category, severity badge, complexity badge, effort estimate badge (NEW)
+- Displays flag category, severity badge, complexity badge, effort estimate badge
 - Shows parent regulation title and NYCRR citation with hierarchy breadcrumbs
-- LLM Analysis blue box with explanation + text examples (NEW, previously missing) + implementation approach
-- Matched phrases in collapsible "Technical Details" section (decluttered from main view)
+- LLM Analysis blue box with explanation + text examples + implementation approach
+- Matched phrases in collapsible "Technical Details" section
 - Regulation actions (view page, Cornell link, text viewer, tree) in dedicated section above form
-- Sibling sections view for regulatory area context (NEW)
+- Sibling sections view for regulatory area context
 - Always-visible review form (status, priority, impact type, reviewer, notes)
 - Supports keyboard navigation focus state
 
