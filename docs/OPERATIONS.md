@@ -18,6 +18,13 @@ Complete guide for running the Deproceduralizer analysis pipeline on a state's r
 10. Refresh Stats  →  precomputed counts on regulatory_documents
 ```
 
+**Step dependencies:**
+- Steps 1-4 are sequential prerequisites
+- Steps 5 and 6 can run in parallel (no dependency on each other)
+- **Step 7 depends on Step 5** — the research pipeline uses document summaries as LLM context
+- Steps 8-9 are independent of 7 and can run anytime after Step 1
+- Step 10 should run last (after any step that changes counts)
+
 ## Full State Analysis (e.g., NY)
 
 Replace `NY`/`ny` with `NJ`/`nj` for New Jersey. All commands run from the project root unless noted.
@@ -237,9 +244,16 @@ python3 -m scripts.summarization.cli --state NY --phase sections --process
   ```
 - Import updates `regulatory_documents` with: `summary`, `section_type`, `keywords`, `applies_to`, `has_form`, `has_ibr`
 
+**IMPORTANT: Step 5 must complete before Step 7.** The research pipeline (Step 7) uses summaries as context at multiple stages:
+- **Tier 1** includes each document's summary in the analysis prompt
+- **Tier 2** fetches summaries for related documents (siblings, cross-references) to provide broader context
+- **Proactive context** pre-fetches sibling and cross-reference summaries for richer LLM analysis
+
+Without summaries, the pipeline falls back to truncated content excerpts or titles, which significantly degrades analysis quality. Steps 5 and 6 can run in parallel since the regex scan (Step 6) doesn't use summaries.
+
 | Cost | Time |
 |------|------|
-| ~$100 (Haiku) | Hours per phase (batch queue) |
+| ~$100/state, ~$2-5/title (Haiku) | Hours per phase (batch queue) |
 
 ### Step 6: Scan Compliance Issues (Regex)
 
@@ -346,6 +360,31 @@ python backend/scripts/refresh_hierarchy_stats.py --state NY
 | Cost | Time |
 |------|------|
 | Free | Seconds |
+
+## Running a Single Title End-to-End
+
+To process a single title (e.g., NY Title 18) through the full pipeline:
+
+```bash
+# 1. Summaries (batch API — submit and wait for completion)
+python3 -m scripts.summarization.cli --state NY --title 18 --run-all-phases
+
+# 2. Research pipeline through Tier 3 with web search (after summaries complete)
+python3 -m scripts.research_pipeline.cli --state ny --all --title 18 \
+  --max-tier 3 --web-search --execute \
+  --limit all --global-limit no-limit
+
+# 3. Statute mandate checks (NY only, after research pipeline)
+python3 -m scripts.research_pipeline.cli --state ny --all --title 18 \
+  --run-statute-mandate-only --execute
+
+# 4. Refresh hierarchy stats
+python backend/scripts/refresh_hierarchy_stats.py --state NY
+```
+
+**Order matters:** Summaries must finish before the research pipeline starts (the pipeline uses summaries as LLM context). The statute mandate check runs after the pipeline since it operates on pipeline results. Refresh stats runs last.
+
+**Estimated cost per title:** ~$10-25 (summaries ~$2-5, pipeline ~$5-15, mandate checks ~$1-3)
 
 ## Planning & Estimation Scripts
 
