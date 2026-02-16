@@ -217,6 +217,10 @@ def _parse_document(
                 else:
                     current_title = title_id
 
+                # Reset chapter when entering a new title
+                current_chapter = None
+                current_chapter_name = None
+
                 # Extract title name from text like "Title 1: General Provisions"
                 name_match = re.match(r'Title\s+[\w-]+:\s*(.*)', title_text)
                 current_title_name = name_match.group(1).strip() if name_match else title_text
@@ -275,6 +279,35 @@ def _parse_document(
                 # Non-chapter containers (e.g., "Introductory", "Preamble")
                 current_chapter = ch_text
                 current_chapter_name = ch_text
+
+                # Create a container record for this non-standard chapter
+                if doc_type == 'charter':
+                    ch_citation = f"NYC Charter Chapter:{current_chapter}"
+                    ch_title = f"NYC Charter Chapter {current_chapter}"
+                    ch_path = f"NYC Charter > Chapter {current_chapter}"
+                    ch_parent = doc_citation
+                else:
+                    ch_citation = f"NYC Admin Chapter:{current_title or '?'}-{current_chapter}"
+                    ch_title = f"NYC Admin Code Title {current_title} Chapter {current_chapter}"
+                    ch_path = f"NYC Administrative Code > Title {current_title} > Chapter {current_chapter}"
+                    ch_parent = f"NYC Admin Title:{current_title}" if current_title else doc_citation
+
+                records.append({
+                    'citation': ch_citation,
+                    'state': 'NYC',
+                    'title': ch_title,
+                    'content': '',
+                    'nyc_doc_type': doc_type,
+                    'nyc_title': current_title,
+                    'nyc_chapter': current_chapter,
+                    'nyc_section': None,
+                    'nyc_section_name': None,
+                    'hierarchy_level': 'chapter',
+                    'hierarchy_path': ch_path,
+                    'source_index': source_index,
+                    '_parent_citation': ch_parent,
+                })
+                source_index += 1
 
             current = current.next_sibling
             continue
