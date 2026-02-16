@@ -249,6 +249,18 @@ table {
   background-color: var(--color-success-bg);
 }
 
+/* ========================================
+   SEARCH HIGHLIGHT STYLES
+   For ts_headline full-text search snippets
+   ======================================== */
+
+mark {
+  background-color: var(--color-warning-bg);
+  color: var(--color-text);
+  padding: 0 2px;
+  border-radius: 2px;
+}
+
 /* ===============================================
    Print Styles - For regulatory document printing
    =============================================== */

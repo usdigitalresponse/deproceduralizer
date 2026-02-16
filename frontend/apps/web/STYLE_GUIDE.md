@@ -508,6 +508,68 @@ Features:
 
 ---
 
+## Content Type Visual Language
+
+A consistent visual vocabulary for distinguishing content types across the application — used on search results, review pages, pipeline views, and analytics.
+
+### Primary Result Types
+
+| Type | Icon | Badge Variant | Usage |
+|------|------|--------------|-------|
+| Regulation | `FileText` | `default` (gray) | Search result cards, browse views |
+| Statute | `Scale` | `default` (gray) | Search result cards, statute browse |
+
+### Commentary Hit Types
+
+| Type | Icon | Badge Variant | Usage |
+|------|------|--------------|-------|
+| Analysis | `MessageSquare` | `default` | Commentary sidebar (search) |
+| Definition | `BookOpen` | `default` | Commentary sidebar (search) |
+
+### Classification (Analysis Outcome)
+
+Always rendered as a `Badge`. Used in review pages (`OutcomeBadges`), pipeline views (`TierClassificationFlow`), search results, and analytics charts.
+
+| Classification | Badge Variant | Color | Meaning |
+|----------------|--------------|-------|---------|
+| `burdensome` | `warning` | Orange | Regulation imposes unnecessary burden |
+| `justified` | `success` | Green | Requirement is reasonable/necessary |
+| `unrelated` | `default` | Gray | Not actually a compliance issue |
+
+### Severity Display
+
+Always rendered as a colored dot (8×8px `rounded-full`) + numeric score. Color thresholds from `SEVERITY_THRESHOLDS` in `lib/constants/values.ts`:
+
+| Level | Threshold | Dot Color | CSS Variable |
+|-------|-----------|-----------|-------------|
+| High | `>= 7` | Red | `--color-danger` |
+| Medium | `>= 4` | Orange | `--color-warning` |
+| Low | `>= 1` | Green | `--color-success` |
+
+Same pattern used by `SeverityBadge` on detail pages.
+
+### Special Indicator Badges
+
+Conditional badges shown alongside analysis metadata:
+
+| Indicator | Badge Variant | When Shown |
+|-----------|--------------|------------|
+| Federal Mandate | `info` (blue) | `federal_mandate_found = true` |
+| Easy Cleanup | `success` (green) | `easy_cleanup_category IS NOT NULL` |
+| "X issues" | plain text | `issueCount > 0` on regulation search results |
+| Not Analyzed | *(no badge)* | Regulation with 0 issues — clean card |
+
+### Consistency
+
+These mappings are canonical. Reuse them in any new page that displays classification, severity, or content type information. Existing usage:
+
+- **Review pages**: `OutcomeBadges` renders classification + severity + federal mandate + easy cleanup
+- **Pipeline tab**: `TierClassificationFlow` uses same classification colors
+- **Analytics**: Chart colors match classification badge colors via `lib/constants/pipeline.ts`
+- **Search page**: Result cards + commentary sidebar follow this vocabulary
+
+---
+
 ## Shared Data Display Components
 
 ### StatCard + StatGrid
@@ -770,6 +832,86 @@ interface SegmentedControlOption<T extends string> {
 **Variant Differences**:
 - `filled`: Gray background container, white active segment with shadow (tab-like)
 - `outlined`: Border container, primary blue active segment (toggle-like)
+
+### GlobalSearch
+
+Global search bar component in the header (desktop only, mobile via nav drawer).
+
+**Location:** `components/layout/GlobalSearch.tsx`
+
+**Behavior:**
+- Default state: Pill-shaped button with search icon, "Search {STATE} regulations...", and Cmd+K badge
+- Shows the current state abbreviation (e.g., "NJ") so users know which state they're searching
+- On click or Cmd+K/Ctrl+K: Inline text input with focus
+- On Enter: Navigates to `/${state}/search?q=${query}`
+- On Escape or empty blur: Collapses back to button
+- Styling: `bg-neutral-100`, `border-neutral-200`, subtle hover states
+
+### SearchResultCard
+
+Card component for individual search results on the search results page.
+
+**Location:** `components/search/SearchResultCard.tsx`
+
+**Structure:**
+- Type icon (FileText for regulations, Scale for statutes) + linked title + type badge
+- Hierarchy breadcrumb (truncated)
+- Snippet with `<mark>` highlights (sanitized via `sanitizeSnippet()`)
+- Citation + SectionTypeBadge metadata chips
+- **Analysis metadata row** (regulation results with `issueCount > 0` only):
+  - Severity dot (8px, color per thresholds) + "X issues" count
+  - "Y burdensome" Badge (`variant="warning"`) if burdensomeCount > 0
+  - "Federal Mandate" Badge (`variant="info"`) if true
+  - "Easy Cleanup" Badge (`variant="success"`) if easyCleanupCount > 0
+- No analysis row for statute results or regulations with 0 issues
+
+### CommentarySidebar
+
+Collapsible sidebar showing flat, self-descriptive analysis and definition hit cards.
+
+**Location:** `components/search/CommentarySidebar.tsx`
+
+**Structure:**
+- Toggle button with chevron + hit count
+- Flat list of `CommentaryHitCard` components (not grouped by document)
+- Each card contains:
+  - **Badge row** (analysis only): Classification badge + severity dot/score
+  - **Primary label**: Icon + "Analysis: {issueType} in {documentTitle}" or "Definition: {term}"
+  - **Snippet**: `<mark>`-highlighted text from `ts_headline`
+  - **Footer**: "View regulation" link (analysis) or citation (definition)
+- Analysis cards link to `/{state}/pipeline/{docId}/{issueType}#matches`
+- Definition cards link to `/{state}/regulations/{docId}?highlight={term}`
+- Collapsed state: `w-10`, expanded: `w-80`
+- Hidden on mobile (`hidden lg:block`)
+- Respects active filters (classification, hasAnalysis) — filtered server-side
+
+### SearchFilters
+
+Filter bar for search results with dropdown selects.
+
+**Location:** `components/search/SearchFilters.tsx`
+
+**Filters:** Section type, hierarchy level, document type, analysis status ("Analyzed" / "Not analyzed"), classification ("Burdensome" / "Justified" / "Unrelated") — uses `Select` component. Analysis-related filters auto-exclude statutes from results.
+
+### FullTextSearchLink
+
+Inline link that navigates to the full-text search page, shown in table/browse/glossary views.
+
+**Location:** `components/ui/FullTextSearchLink.tsx`
+
+**Behavior:**
+- Always visible (not conditional on current filter query)
+- Shows "Full-text search" when no query, "Search full text" when query is active
+- Optionally pre-fills the search query from the current filter
+- Uses `Search` icon (w-3 h-3) inline with text
+
+### ScrollToHash
+
+Utility client component that scrolls to the URL hash fragment on mount.
+
+**Location:** `components/ui/ScrollToHash.tsx`
+
+**Usage:** Drop into any page that needs hash-based scroll targeting (e.g., `#matches` on pipeline detail pages). Uses `requestAnimationFrame` with 150ms delay to wait for content render.
 
 ---
 

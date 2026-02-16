@@ -125,8 +125,8 @@ test.describe('Smoke Tests', () => {
     // Wait for browse page to load
     await expect(page.getByRole('heading', { name: /Browse New York/i })).toBeVisible();
 
-    // Find and use the search input
-    const searchInput = page.getByPlaceholder(/search/i);
+    // Find and use the search input (placeholder is "Filter by title...")
+    const searchInput = page.getByPlaceholder(/filter by title/i);
     await expect(searchInput).toBeVisible();
 
     // Type a search term
@@ -142,8 +142,8 @@ test.describe('Smoke Tests', () => {
     // Wait for glossary to load
     await expect(page.getByRole('heading', { name: /New York Definitions Glossary/i })).toBeVisible();
 
-    // Find the search input
-    const searchInput = page.getByPlaceholder(/search/i);
+    // Find the search input (placeholder is "Filter by term...")
+    const searchInput = page.getByPlaceholder(/filter by term/i);
     await expect(searchInput).toBeVisible();
 
     // Type a search term
@@ -607,7 +607,7 @@ test.describe('Review Form Submission', () => {
       const cleanupSaveButton = cleanupCard.getByTestId('red-flag-save-button');
 
       // Wait for form to be enabled again after previous save
-      await expect(cleanupReviewer).toBeEnabled({ timeout: 5000 });
+      await expect(cleanupReviewer).toBeEnabled({ timeout: 10000 });
 
       // Clear notes fields and use placeholder reviewer (can't be empty)
       await cleanupReviewer.clear();

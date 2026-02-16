@@ -1,4 +1,4 @@
-import { Table, FolderTree, ClipboardCheck, BookOpen, Home, Code, BarChart3, FlaskConical, Star, Scale, Library, type LucideIcon } from 'lucide-react';
+import { Table, FolderTree, ClipboardCheck, BookOpen, Home, Code, BarChart3, FlaskConical, Star, Scale, Search, Library, type LucideIcon } from 'lucide-react';
 
 /**
  * Navigation item configuration.
@@ -48,6 +48,14 @@ export const NAV_ITEMS: NavItem[] = [
     isStateSpecific: false,
     href: '/',
     showOnDesktop: false,
+  },
+  {
+    key: 'search',
+    label: 'Search',
+    icon: Search,
+    isStateSpecific: true,
+    pathSuffix: '/search',
+    groupId: 'explorer',
   },
   {
     key: 'table',

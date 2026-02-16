@@ -11,7 +11,9 @@
   "scripts": {
     "generate": "drizzle-kit generate",
     "studio": "drizzle-kit studio",
-    "push": "drizzle-kit push"
+    "push": "drizzle-kit push",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.10.4",
@@ -19,6 +21,7 @@
   },
   "devDependencies": {
     "drizzle-kit": "^0.30.6",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^3.0.0"
   }
 }

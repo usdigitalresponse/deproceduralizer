@@ -2,7 +2,8 @@
 
 import { useCallback, useTransition } from 'react';
 import { useQueryStates } from 'nuqs';
-import { Button, Select, SearchInput } from '@/components/ui';
+import { Button, Select, SearchInput, FullTextSearchLink } from '@/components/ui';
+import { useStateFromPath } from '@/hooks/useStateFromPath';
 import { statuteBrowseParsers } from '@/lib/url/parsers';
 import { LINK_TYPE_LABELS, LINK_TYPE_VALUES } from '@/lib/constants/values';
 import { typedValue } from '@/lib/url/type-helpers';
@@ -35,6 +36,7 @@ export function StatuteBrowseFilters({
   onLinkTypeChange,
   className = '',
 }: StatuteBrowseFiltersProps) {
+  const state = useStateFromPath();
   const [isPending, startTransition] = useTransition();
 
   const [filters, setFilters] = useQueryStates(statuteBrowseParsers, {
@@ -91,11 +93,12 @@ export function StatuteBrowseFilters({
       <SearchInput
         value={filters.search || ''}
         onSearch={handleSearchChange}
-        placeholder="Search statutes..."
+        placeholder="Filter by title..."
         size="sm"
         className="w-56"
         isLoading={isPending}
       />
+      <FullTextSearchLink query={filters.search || ''} state={state} />
 
       {/* Has links filter */}
       <div className="flex items-center gap-2">

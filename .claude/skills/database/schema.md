@@ -90,7 +90,13 @@ Script: `backend/scripts/batch_exclude_ny_sections.py` (use `--dry-run` to previ
 - `chk_rd_state CHECK (state IN ('NY', 'NJ'))`
 - `unique_per_url UNIQUE(url)`
 
-**Indexes:** `idx_documents_state`, `idx_documents_type`, `idx_documents_state_type`, `idx_documents_parent`, `idx_documents_hierarchy_level`, `idx_documents_regulatory_status`, `idx_documents_url`, `idx_documents_short_title`, `idx_documents_exclude_from_analysis` (partial), `idx_rd_keywords` (GIN), `idx_rd_applies_to` (GIN), `idx_rd_section_type` (partial), `idx_rd_has_form` (partial), `idx_rd_has_ibr` (partial)
+**Full-text search (migration 0044):**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `search_vector` | tsvector | Weighted: title(A) + summary(B) + content(C). Maintained by trigger. |
+
+**Indexes:** `idx_documents_state`, `idx_documents_type`, `idx_documents_state_type`, `idx_documents_parent`, `idx_documents_hierarchy_level`, `idx_documents_regulatory_status`, `idx_documents_url`, `idx_documents_short_title`, `idx_documents_exclude_from_analysis` (partial), `idx_rd_keywords` (GIN), `idx_rd_applies_to` (GIN), `idx_rd_section_type` (partial), `idx_rd_has_form` (partial), `idx_rd_has_ibr` (partial), `idx_regulatory_documents_search_vector` (GIN)
 
 ## analyses
 
@@ -484,6 +490,7 @@ Helps Tier 3 web search avoid returning results about similar-sounding but diffe
 - V5: `idx_compliance_issue_analyses_v5_tier3_triggers` (partial index for V5 Tier 3 routing)
 - V5.1: `idx_compliance_issue_analyses_tier3_trigger_reason` (partial), `idx_compliance_issue_analyses_easy_cleanup` (partial)
 - Query optimization: `idx_cia_doc_issue`, `idx_cia_state_tier2`, `idx_cia_highest_tier`
+- Full-text search (migration 0044): `idx_compliance_issue_analyses_search_vector` (GIN) — `search_vector tsvector` column with tier2_reasoning + tier3_reasoning + verbatim_requirements, maintained by trigger
 
 ## compliance_issue_analysis_reviews
 
@@ -588,7 +595,13 @@ Hierarchy: Title → Chapter → Section (NJ), Law → Article → Section (NY),
 | `source_index` | integer | Index from parsing process |
 | `created_at` | timestamp | When created |
 
-**Indexes:** `idx_statutes_nycls_law_id`
+**Full-text search (migration 0044):**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `search_vector` | tsvector | Weighted: title(A) + content(C). Maintained by trigger. |
+
+**Indexes:** `idx_statutes_nycls_law_id`, `idx_statutes_search_vector` (GIN)
 **Constraints:** `chk_statutes_state`, `statutes_state_citation_key UNIQUE(state, citation)`
 
 ## statute_references

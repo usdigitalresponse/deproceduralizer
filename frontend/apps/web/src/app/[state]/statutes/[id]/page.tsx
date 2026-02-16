@@ -12,12 +12,12 @@ export const dynamic = 'force-dynamic';
 
 interface PageProps {
   params: Promise<{ state: string; id: string }>;
-  searchParams: Promise<{ from?: string }>;
+  searchParams: Promise<{ from?: string; highlight?: string }>;
 }
 
 export default async function StatuteDetailPage({ params, searchParams }: PageProps) {
   const { state, id } = await params;
-  const { from } = await searchParams;
+  const { from, highlight } = await searchParams;
 
   if (!isValidState(state)) {
     notFound();
@@ -84,6 +84,7 @@ export default async function StatuteDetailPage({ params, searchParams }: PagePr
           content={
             <StatuteDetailContent
               content={statute.content}
+              initialHighlight={highlight}
             />
           }
         />

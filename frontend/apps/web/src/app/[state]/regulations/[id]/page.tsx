@@ -17,12 +17,12 @@ export const dynamic = 'force-dynamic';
 
 interface PageProps {
   params: Promise<{ state: string; id: string }>;
-  searchParams: Promise<{ from?: string }>;
+  searchParams: Promise<{ from?: string; highlight?: string }>;
 }
 
 export default async function RegulationDetailPage({ params, searchParams }: PageProps) {
   const { state, id } = await params;
-  const { from } = await searchParams;
+  const { from, highlight } = await searchParams;
 
   // Decode the back URL, default to browse page
   const backUrl = from ? decodeURIComponent(from) : `/${state}/browse`;
@@ -176,6 +176,7 @@ export default async function RegulationDetailPage({ params, searchParams }: Pag
               initialNotes={notes}
               applicableDefinitions={usedDefinitions}
               crossRefHighlights={highlightRefs}
+              initialHighlight={highlight}
             />
           }
         />

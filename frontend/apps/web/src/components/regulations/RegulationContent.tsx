@@ -73,7 +73,7 @@ export function RegulationContent({
  * - `\n` followed by non-space = hard wrap artifact, collapse to space
  * - `\n\n` = paragraph break, preserve
  */
-function normalizeLineBreaks(text: string): string {
+export function normalizeLineBreaks(text: string): string {
   // First, convert literal escaped \n sequences to real newlines
   const unescaped = text.replace(/\\n/g, '\n');
 

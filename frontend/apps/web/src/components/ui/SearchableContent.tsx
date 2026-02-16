@@ -16,6 +16,8 @@ interface SearchableContentProps {
   children?: React.ReactNode;
   /** Callback when search query changes */
   onSearchChange?: (query: string) => void;
+  /** Initial search value (e.g., from URL highlight param) — expands search and scrolls to first match */
+  initialValue?: string;
 }
 
 /**
@@ -30,9 +32,10 @@ export function SearchableContent({
   maxHeight = '16rem',
   children,
   onSearchChange,
+  initialValue,
 }: SearchableContentProps) {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isSearchVisible, setIsSearchVisible] = useState(defaultExpanded);
+  const [searchQuery, setSearchQuery] = useState(initialValue ?? '');
+  const [isSearchVisible, setIsSearchVisible] = useState(defaultExpanded || !!initialValue);
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
   // Track if search was opened by user click (vs defaultExpanded) for auto-focus
   const [userToggledSearch, setUserToggledSearch] = useState(false);

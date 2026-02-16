@@ -16,6 +16,7 @@ import {
   NAV_GROUPS,
 } from '@/lib/constants/navigation';
 import { NavDropdown } from './NavDropdown';
+import { GlobalSearch } from './GlobalSearch';
 
 interface HeaderProps {
   className?: string;
@@ -160,6 +161,11 @@ export function Header({ className = '' }: HeaderProps) {
                   );
                 })}
               </nav>
+
+              {/* Global Search - hidden on mobile (available via nav drawer) */}
+              <div className="hidden md:flex items-center">
+                <GlobalSearch />
+              </div>
 
               {/* Mobile Menu Button - visible on mobile only */}
               <Button
