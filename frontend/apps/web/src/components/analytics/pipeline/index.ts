@@ -1,5 +1,10 @@
 export { PipelineFunnel } from './PipelineFunnel';
-export { TierTransitionPanel } from './TierTransitionPanel';
+export { ClassificationHeatmap } from './ClassificationHeatmap';
+export { TriggerReasons } from './TriggerReasons';
+export { ConfidenceDistributions } from './ConfidenceDistributions';
 export { Tier1ContextPanel } from './Tier1ContextPanel';
 export { Tier3EvidencePanel } from './Tier3EvidencePanel';
 export { PipelineFilters } from './PipelineFilters';
+export { ResearchFunnelMini } from './ResearchFunnelMini';
+export { Tier2ContextRequestsPanel } from './Tier2ContextRequestsPanel';
+export { ContextUsedPanel } from './ContextUsedPanel';

@@ -1,28 +1,39 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import { BarChart3, Search, ShieldCheck } from 'lucide-react';
 import { useQueryStates } from 'nuqs';
 import type { StateCode } from '@/types/state';
 import type {
   PipelineAnalyticsData,
+  PipelineContextData,
   PipelineFunnelData,
   Tier1ContextRequestStats,
   TierTransitionData,
+  TransitionReasonData,
   Tier3EvidenceStats,
+  ConfidenceByClassificationData,
 } from '@/lib/actions/pipeline-analytics';
 import {
   getPipelineFunnelStats,
   getTier1ContextRequestStats,
   getTierTransitionStats,
   getTier3EvidenceStats,
+  getConfidenceByClassification,
+  getTransitionReasons,
+  getPipelineContextData,
 } from '@/lib/actions/pipeline-analytics';
 import { analyticsParsers } from '@/lib/url/parsers';
-import { Card } from '@/components/ui';
-import { PipelineFunnel } from './pipeline/PipelineFunnel';
-import { Tier1ContextPanel } from './pipeline/Tier1ContextPanel';
-import { TierTransitionPanel } from './pipeline/TierTransitionPanel';
-import { Tier3EvidencePanel } from './pipeline/Tier3EvidencePanel';
+import type { PipelineSubTabValue } from '@/lib/constants/values';
+import { Card, SegmentedControl, type SegmentedControlOption } from '@/components/ui';
 import { PipelineFilters } from './pipeline/PipelineFilters';
+import { OverviewSubtab, ContextResearchSubtab, VerificationSubtab } from './pipeline/subtabs';
+
+const SUBTAB_OPTIONS: SegmentedControlOption<PipelineSubTabValue>[] = [
+  { value: 'overview', label: 'Overview', icon: BarChart3 },
+  { value: 'context', label: 'Context & Research', icon: Search },
+  { value: 'verification', label: 'Verification', icon: ShieldCheck },
+];
 
 interface PipelineTabProps {
   state: StateCode;
@@ -32,19 +43,26 @@ interface PipelineTabProps {
 export function PipelineTab({ state, data: initialData }: PipelineTabProps) {
   const [params, setParams] = useQueryStates(analyticsParsers, { shallow: true });
   const issueType = params.pIssueType;
+  const subTab = params.pSubTab as PipelineSubTabValue;
 
-  // Filtered data state (null = use initialData)
+  // ── Core data state (overview + verification) ──────────────────
   const [filteredFunnel, setFilteredFunnel] = useState<PipelineFunnelData | null>(null);
   const [filteredTier1, setFilteredTier1] = useState<Tier1ContextRequestStats | null>(null);
   const [filteredTransitions, setFilteredTransitions] = useState<TierTransitionData | null>(null);
   const [filteredEvidence, setFilteredEvidence] = useState<Tier3EvidenceStats | null>(null);
+  const [filteredConfByClass, setFilteredConfByClass] = useState<ConfidenceByClassificationData | null>(null);
+  const [filteredTransitionReasons, setFilteredTransitionReasons] = useState<TransitionReasonData | null>(null);
   const [isFiltering, setIsFiltering] = useState(false);
 
-  // Derive available issue types from funnel data
-  // (We don't have a separate list — issue types come from the overall data)
+  // ── Context subtab data (lazy-loaded) ──────────────────────────
+  const [contextData, setContextData] = useState<PipelineContextData | null>(null);
+  const [filteredContextData, setFilteredContextData] = useState<PipelineContextData | null>(null);
+  const [isLoadingContext, setIsLoadingContext] = useState(false);
+  const contextLoadedRef = useRef<string | null>(null);
+
+  // ── Derive available issue types ───────────────────────────────
   const availableIssueTypes = useMemo(() => {
     if (!initialData) return [];
-    // Get unique issue types from tier1 context data
     const types = new Set<string>();
     for (const entry of initialData.tier1Context.byIssueType) {
       types.add(entry.issueType);
@@ -52,14 +70,15 @@ export function PipelineTab({ state, data: initialData }: PipelineTabProps) {
     return Array.from(types).sort();
   }, [initialData]);
 
-  // Re-fetch when issue type filter changes
+  // ── Re-fetch core data when issue type filter changes ──────────
   useEffect(() => {
     if (!issueType) {
-      // Clear filtered data, use server-side initial data
       setFilteredFunnel(null);
       setFilteredTier1(null);
       setFilteredTransitions(null);
       setFilteredEvidence(null);
+      setFilteredConfByClass(null);
+      setFilteredTransitionReasons(null);
       return;
     }
 
@@ -67,11 +86,13 @@ export function PipelineTab({ state, data: initialData }: PipelineTabProps) {
     setIsFiltering(true);
 
     async function fetchFiltered() {
-      const [funnelResult, tier1Result, transitionsResult, evidenceResult] = await Promise.all([
+      const [funnelResult, tier1Result, transitionsResult, evidenceResult, confByClassResult, transitionReasonsResult] = await Promise.all([
         getPipelineFunnelStats(state, issueType!),
         getTier1ContextRequestStats(state, issueType!),
         getTierTransitionStats(state, issueType!),
         getTier3EvidenceStats(state, issueType!),
+        getConfidenceByClassification(state, issueType!),
+        getTransitionReasons(state, issueType!),
       ]);
 
       if (cancelled) return;
@@ -80,6 +101,8 @@ export function PipelineTab({ state, data: initialData }: PipelineTabProps) {
       setFilteredTier1(tier1Result.success ? tier1Result.data : null);
       setFilteredTransitions(transitionsResult.success ? transitionsResult.data : null);
       setFilteredEvidence(evidenceResult.success ? evidenceResult.data : null);
+      setFilteredConfByClass(confByClassResult.success ? confByClassResult.data : null);
+      setFilteredTransitionReasons(transitionReasonsResult.success ? transitionReasonsResult.data : null);
       setIsFiltering(false);
     }
 
@@ -87,15 +110,64 @@ export function PipelineTab({ state, data: initialData }: PipelineTabProps) {
     return () => { cancelled = true; };
   }, [state, issueType]);
 
-  // Use filtered data when a filter is active, otherwise use initial data
+  // ── Lazy-load context data when subtab is active ───────────────
+  useEffect(() => {
+    if (subTab !== 'context') return;
+
+    const cacheKey = `${state}-${issueType ?? 'all'}`;
+    if (issueType) {
+      // Filtered context: always refetch when issueType changes
+    } else if (contextLoadedRef.current === cacheKey) {
+      return; // Already loaded for this state+issueType
+    }
+
+    let cancelled = false;
+    setIsLoadingContext(true);
+
+    async function fetchContext() {
+      const result = await getPipelineContextData(state, issueType ?? undefined);
+      if (cancelled) return;
+
+      if (result.success) {
+        if (issueType) {
+          setFilteredContextData(result.data);
+        } else {
+          setContextData(result.data);
+          contextLoadedRef.current = cacheKey;
+        }
+      }
+      setIsLoadingContext(false);
+    }
+
+    fetchContext();
+    return () => { cancelled = true; };
+  }, [state, issueType, subTab]);
+
+  // Clear filtered context when issueType is cleared
+  useEffect(() => {
+    if (!issueType) {
+      setFilteredContextData(null);
+    }
+  }, [issueType]);
+
+  // ── Resolved data ──────────────────────────────────────────────
   const funnel = issueType ? filteredFunnel : initialData?.funnel ?? null;
   const tier1Context = issueType ? filteredTier1 : initialData?.tier1Context ?? null;
   const tierTransitions = issueType ? filteredTransitions : initialData?.tierTransitions ?? null;
   const tier3Evidence = issueType ? filteredEvidence : initialData?.tier3Evidence ?? null;
+  const confidenceByClassification = issueType ? filteredConfByClass : initialData?.confidenceByClassification ?? null;
+  const transitionReasons = issueType ? filteredTransitionReasons : initialData?.transitionReasons ?? null;
 
-  const handleIssueTypeChange = (value: string | null) => {
+  const activeContextData = issueType ? filteredContextData : contextData;
+
+  // ── Handlers ───────────────────────────────────────────────────
+  const handleIssueTypeChange = useCallback((value: string | null) => {
     setParams({ pIssueType: value });
-  };
+  }, [setParams]);
+
+  const handleSubTabChange = useCallback((value: PipelineSubTabValue) => {
+    setParams({ pSubTab: value });
+  }, [setParams]);
 
   if (!initialData) {
     return (
@@ -113,20 +185,39 @@ export function PipelineTab({ state, data: initialData }: PipelineTabProps) {
         availableIssueTypes={availableIssueTypes}
       />
 
+      <SegmentedControl
+        options={SUBTAB_OPTIONS}
+        value={subTab}
+        onChange={handleSubTabChange}
+      />
+
       {isFiltering && (
         <div className="text-center text-sm text-[var(--color-text-muted)] py-2 animate-pulse">
           Updating pipeline data...
         </div>
       )}
 
-      <PipelineFunnel data={funnel} />
+      {subTab === 'overview' && (
+        <OverviewSubtab funnel={funnel} tierTransitions={tierTransitions} transitionReasons={transitionReasons} confidenceByClassification={confidenceByClassification} />
+      )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Tier1ContextPanel data={tier1Context} />
-        <TierTransitionPanel data={tierTransitions} />
-      </div>
+      {subTab === 'context' && (
+        <ContextResearchSubtab
+          tier1Context={tier1Context}
+          tier2Requests={activeContextData?.tier2Requests ?? null}
+          contextUsed={activeContextData?.contextUsed ?? null}
+          researchFunnel={activeContextData?.researchFunnel ?? null}
+          isLoading={isLoadingContext}
+          onIssueTypeClick={(issueType) => setParams({ pIssueType: issueType })}
+        />
+      )}
 
-      <Tier3EvidencePanel data={tier3Evidence} />
+      {subTab === 'verification' && (
+        <VerificationSubtab
+          tierTransitions={tierTransitions}
+          tier3Evidence={tier3Evidence}
+        />
+      )}
     </div>
   );
 }

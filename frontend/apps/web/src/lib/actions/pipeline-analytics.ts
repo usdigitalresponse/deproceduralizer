@@ -9,7 +9,12 @@ import {
   type PipelineFunnelData,
   type Tier1ContextRequestStats,
   type TierTransitionData,
+  type TransitionReasonData,
   type Tier3EvidenceStats,
+  type Tier2ContextRequestsStats,
+  type ContextUsedStats,
+  type ResearchFunnelStats,
+  type ConfidenceByClassificationData,
 } from '@deproceduralizer/database';
 import { type ActionResult, success, failure, getErrorMessage } from './types';
 
@@ -24,6 +29,15 @@ export interface PipelineAnalyticsData {
   tier1Context: Tier1ContextRequestStats;
   tierTransitions: TierTransitionData;
   tier3Evidence: Tier3EvidenceStats;
+  confidenceByClassification: ConfidenceByClassificationData | null;
+  transitionReasons: TransitionReasonData | null;
+}
+
+/** Data loaded lazily when the Context & Research subtab is active. */
+export interface PipelineContextData {
+  tier2Requests: Tier2ContextRequestsStats;
+  contextUsed: ContextUsedStats;
+  researchFunnel: ResearchFunnelStats;
 }
 
 // Re-export sub-types for UI component use
@@ -31,7 +45,12 @@ export type {
   PipelineFunnelData,
   Tier1ContextRequestStats,
   TierTransitionData,
+  TransitionReasonData,
   Tier3EvidenceStats,
+  Tier2ContextRequestsStats,
+  ContextUsedStats,
+  ResearchFunnelStats,
+  ConfidenceByClassificationData,
 };
 
 // ═══════════════════════════════════════════════════════════════════
@@ -110,6 +129,127 @@ export async function getTier3EvidenceStats(
   }
 }
 
+export async function getConfidenceByClassification(
+  state: StateCode,
+  issueType?: string
+): Promise<ActionResult<ConfidenceByClassificationData>> {
+  try {
+    const cachedFn = unstable_cache(
+      () => complianceIssuesRepo.getConfidenceByClassification(state, issueType),
+      [`pipeline-confidence-by-class-${state}-${issueType ?? 'all'}`],
+      { revalidate: 3600, tags: ['pipeline-analytics'] }
+    );
+    const data = await cachedFn();
+    return success(data);
+  } catch (error) {
+    console.error('[getConfidenceByClassification]', error);
+    return failure(getErrorMessage(error));
+  }
+}
+
+export async function getTransitionReasons(
+  state: StateCode,
+  issueType?: string
+): Promise<ActionResult<TransitionReasonData>> {
+  try {
+    const cachedFn = unstable_cache(
+      () => complianceIssuesRepo.getTransitionReasons(state, issueType),
+      [`pipeline-transition-reasons-${state}-${issueType ?? 'all'}`],
+      { revalidate: 3600, tags: ['pipeline-analytics'] }
+    );
+    const data = await cachedFn();
+    return success(data);
+  } catch (error) {
+    console.error('[getTransitionReasons]', error);
+    return failure(getErrorMessage(error));
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Context & Research Subtab Actions (lazy-loaded)
+// ═══════════════════════════════════════════════════════════════════
+
+export async function getTier2ContextRequestsStats(
+  state: StateCode,
+  issueType?: string
+): Promise<ActionResult<Tier2ContextRequestsStats>> {
+  try {
+    const cachedFn = unstable_cache(
+      () => complianceIssuesRepo.getTier2ContextRequestsStats(state, issueType),
+      [`pipeline-tier2-requests-${state}-${issueType ?? 'all'}`],
+      { revalidate: 3600, tags: ['pipeline-analytics'] }
+    );
+    const data = await cachedFn();
+    return success(data);
+  } catch (error) {
+    console.error('[getTier2ContextRequestsStats]', error);
+    return failure(getErrorMessage(error));
+  }
+}
+
+export async function getContextUsedStats(
+  state: StateCode,
+  issueType?: string
+): Promise<ActionResult<ContextUsedStats>> {
+  try {
+    const cachedFn = unstable_cache(
+      () => complianceIssuesRepo.getContextUsedStats(state, issueType),
+      [`pipeline-context-used-${state}-${issueType ?? 'all'}`],
+      { revalidate: 3600, tags: ['pipeline-analytics'] }
+    );
+    const data = await cachedFn();
+    return success(data);
+  } catch (error) {
+    console.error('[getContextUsedStats]', error);
+    return failure(getErrorMessage(error));
+  }
+}
+
+export async function getResearchFunnelStats(
+  state: StateCode,
+  issueType?: string
+): Promise<ActionResult<ResearchFunnelStats>> {
+  try {
+    const cachedFn = unstable_cache(
+      () => complianceIssuesRepo.getResearchFunnelStats(state, issueType),
+      [`pipeline-research-funnel-${state}-${issueType ?? 'all'}`],
+      { revalidate: 3600, tags: ['pipeline-analytics'] }
+    );
+    const data = await cachedFn();
+    return success(data);
+  } catch (error) {
+    console.error('[getResearchFunnelStats]', error);
+    return failure(getErrorMessage(error));
+  }
+}
+
+/** Fetch all context/research subtab data in parallel. */
+export async function getPipelineContextData(
+  state: StateCode,
+  issueType?: string
+): Promise<ActionResult<PipelineContextData>> {
+  try {
+    const [tier2Result, contextResult, funnelResult] = await Promise.all([
+      getTier2ContextRequestsStats(state, issueType),
+      getContextUsedStats(state, issueType),
+      getResearchFunnelStats(state, issueType),
+    ]);
+
+    if (!tier2Result.success) return failure(tier2Result.error);
+    if (!contextResult.success) return failure(contextResult.error);
+    if (!funnelResult.success) return failure(funnelResult.error);
+
+    return success({
+      tier2Requests: tier2Result.data,
+      contextUsed: contextResult.data,
+      researchFunnel: funnelResult.data,
+    });
+  } catch (error) {
+    console.error('[getPipelineContextData]', error);
+    return failure(getErrorMessage(error));
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // Composite Action (for server-side page data)
 // ═══════════════════════════════════════════════════════════════════
@@ -118,11 +258,13 @@ export async function getPipelineAnalyticsData(
   state: StateCode
 ): Promise<ActionResult<PipelineAnalyticsData>> {
   try {
-    const [funnelResult, tier1Result, transitionsResult, evidenceResult] = await Promise.all([
+    const [funnelResult, tier1Result, transitionsResult, evidenceResult, confByClassResult, transitionReasonsResult] = await Promise.all([
       getPipelineFunnelStats(state),
       getTier1ContextRequestStats(state),
       getTierTransitionStats(state),
       getTier3EvidenceStats(state),
+      getConfidenceByClassification(state),
+      getTransitionReasons(state),
     ]);
 
     if (!funnelResult.success) return failure(funnelResult.error);
@@ -135,6 +277,8 @@ export async function getPipelineAnalyticsData(
       tier1Context: tier1Result.data,
       tierTransitions: transitionsResult.data,
       tier3Evidence: evidenceResult.data,
+      confidenceByClassification: confByClassResult.success ? confByClassResult.data : null,
+      transitionReasons: transitionReasonsResult.success ? transitionReasonsResult.data : null,
     });
   } catch (error) {
     console.error('[getPipelineAnalyticsData]', error);

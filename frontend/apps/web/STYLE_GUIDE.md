@@ -2689,7 +2689,7 @@ Sub-components (in `components/analytics/pipeline/`):
 - **PipelineFilters** — `FilterBar` with `Select` for issue type using `ISSUE_TYPE_LABELS`
 - **PipelineFunnel** — StatGrid (4 cards: Total Analyses, FP Rate, Escalation Rate, Classification Changes) + custom SVG funnel flow diagram
 - **Tier1ContextPanel** — Context request distribution: StackedBarChart by issue type, HorizontalBarChart by context type, summary stat cards
-- **TierTransitionPanel** — Classification change heatmap (`HeatmapGrid`), trigger reason bar chart, confidence distribution histograms
+- **TierTransitionPanel** — Classification change heatmap (annotated `AnnotatedHeatmapGrid` inside `ClassificationHeatmap`), trigger reason bar chart, confidence distribution histograms. Off-diagonal cells show the top trigger reason as a 9px annotation below the count.
 - **Tier3EvidencePanel** — Evidence flag StackedBarChart, severity adjustment BarChart (color-coded), cleanup PieChart + StatCards
 
 ### HeatmapGrid (Chart)
@@ -2707,6 +2707,8 @@ import { HeatmapGrid } from '@/components/charts';
 ```
 
 Uses `HeatmapData`/`HeatmapCell` types from `lib/charts/types.ts`. Color scale via `useChartColors()` with `scaleSequential` + `interpolateRgbBasis`.
+
+**ClassificationHeatmap** extends the plain heatmap with transition reason annotations. It accepts a `transitionReasons: TransitionReasonData | null` prop and builds a custom SVG (via the internal `AnnotatedHeatmapGrid` component) instead of using the generic `HeatmapGrid`. Off-diagonal cells (where tier2 != tier3 classification) display the top trigger reason in small text (9px, 70% opacity) below the count. Diagonal cells show only the count. The tooltip also shows the trigger reason when available.
 
 ---
 

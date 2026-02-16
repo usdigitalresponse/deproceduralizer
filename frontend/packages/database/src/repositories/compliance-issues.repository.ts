@@ -2560,6 +2560,111 @@ export class ComplianceIssuesRepository extends BaseRepository {
   }
 
   /**
+   * Get trigger reasons for classification transitions (off-diagonal cells).
+   * Groups by tier2→tier3 classification pair and trigger reason.
+   */
+  async getTransitionReasons(state: StateCode, issueType?: string): Promise<TransitionReasonData> {
+    const results = await this.db.execute(sql`
+      SELECT
+        tier2_classification AS tier2_class,
+        tier3_classification AS tier3_class,
+        tier3_trigger_reason AS trigger_reason,
+        count(*)::int AS count
+      FROM compliance_issue_analyses
+      WHERE state = ${state.toUpperCase()}
+        AND tier2_classification IS NOT NULL
+        AND tier3_classification IS NOT NULL
+        AND tier2_classification != tier3_classification
+        AND tier3_trigger_reason IS NOT NULL
+        ${issueType ? sql`AND issue_type = ${issueType}` : sql``}
+      GROUP BY tier2_classification, tier3_classification, tier3_trigger_reason
+      ORDER BY count DESC
+    `);
+
+    const rows = results.rows as Array<{
+      tier2_class: string;
+      tier3_class: string;
+      trigger_reason: string;
+      count: number;
+    }>;
+
+    return {
+      transitions: rows.map(r => ({
+        tier2Classification: r.tier2_class,
+        tier3Classification: r.tier3_class,
+        triggerReason: r.trigger_reason,
+        count: r.count,
+      })),
+    };
+  }
+
+  /**
+   * Get average confidence grouped by classification for each tier.
+   * Used for "Confidence by Classification" grouped bar charts.
+   */
+  async getConfidenceByClassification(state: StateCode, issueType?: string): Promise<ConfidenceByClassificationData> {
+    const results = await this.db.execute(sql`
+      SELECT
+        'tier1' AS tier,
+        tier1_classification AS classification,
+        round(avg(tier1_confidence)::numeric, 3)::float AS avg_confidence,
+        count(*)::int AS count
+      FROM compliance_issue_analyses
+      WHERE state = ${state.toUpperCase()}
+        AND tier1_classification IS NOT NULL
+        AND tier1_confidence IS NOT NULL
+        ${issueType ? sql`AND issue_type = ${issueType}` : sql``}
+      GROUP BY tier1_classification
+      UNION ALL
+      SELECT
+        'tier2' AS tier,
+        tier2_classification AS classification,
+        round(avg(tier2_confidence)::numeric, 3)::float AS avg_confidence,
+        count(*)::int AS count
+      FROM compliance_issue_analyses
+      WHERE state = ${state.toUpperCase()}
+        AND tier2_classification IS NOT NULL
+        AND tier2_confidence IS NOT NULL
+        ${issueType ? sql`AND issue_type = ${issueType}` : sql``}
+      GROUP BY tier2_classification
+      UNION ALL
+      SELECT
+        'tier3' AS tier,
+        tier3_classification AS classification,
+        round(avg(tier3_confidence)::numeric, 3)::float AS avg_confidence,
+        count(*)::int AS count
+      FROM compliance_issue_analyses
+      WHERE state = ${state.toUpperCase()}
+        AND tier3_classification IS NOT NULL
+        AND tier3_confidence IS NOT NULL
+        ${issueType ? sql`AND issue_type = ${issueType}` : sql``}
+      GROUP BY tier3_classification
+      ORDER BY tier, classification
+    `);
+
+    const rows = results.rows as Array<{ tier: string; classification: string; avg_confidence: number; count: number }>;
+
+    const tierMap = new Map<string, Array<{ classification: string; avgConfidence: number; count: number }>>();
+    for (const row of rows) {
+      if (!tierMap.has(row.tier)) {
+        tierMap.set(row.tier, []);
+      }
+      tierMap.get(row.tier)!.push({
+        classification: row.classification,
+        avgConfidence: row.avg_confidence,
+        count: row.count,
+      });
+    }
+
+    const tiers: ConfidenceByClassificationData['tiers'] = (['tier1', 'tier2', 'tier3'] as const).map(tier => ({
+      tier,
+      classifications: tierMap.get(tier) ?? [],
+    }));
+
+    return { tiers };
+  }
+
+  /**
    * Get Tier 3 evidence statistics: flag distributions, severity adjustments, cleanup stats.
    */
   async getTier3EvidenceStats(state: StateCode, issueType?: string): Promise<Tier3EvidenceStats> {
@@ -2642,6 +2747,159 @@ export class ComplianceIssuesRepository extends BaseRepository {
           count: r.count,
         })),
       },
+    };
+  }
+
+  /**
+   * Get Tier 2 context request stats from tier2_context_requests_made JSONB.
+   * These track additional context requests made during Tier 2 re-runs.
+   */
+  async getTier2ContextRequestsStats(state: StateCode, issueType?: string): Promise<Tier2ContextRequestsStats> {
+    const issueTypeClause = issueType ? sql`AND issue_type = ${issueType}` : sql``;
+
+    const byTypeResults = await this.db.execute(sql`
+      SELECT
+        cr->>'context_type' AS context_type,
+        cr->>'need_level' AS need_level,
+        count(*)::int AS count
+      FROM compliance_issue_analyses,
+        jsonb_array_elements(tier2_context_requests_made) AS cr
+      WHERE state = ${state.toUpperCase()}
+        AND tier2_context_requests_made IS NOT NULL
+        AND jsonb_array_length(tier2_context_requests_made) > 0
+        ${issueTypeClause}
+      GROUP BY cr->>'context_type', cr->>'need_level'
+      ORDER BY count DESC
+    `);
+
+    const summaryResult = await this.db.execute(sql`
+      SELECT
+        count(*) FILTER (WHERE tier2_context_requests_made IS NOT NULL AND jsonb_array_length(tier2_context_requests_made) > 0)::int AS analyses_with_requests,
+        COALESCE(sum(jsonb_array_length(tier2_context_requests_made)) FILTER (WHERE tier2_context_requests_made IS NOT NULL AND jsonb_array_length(tier2_context_requests_made) > 0), 0)::int AS total_requests
+      FROM compliance_issue_analyses
+      WHERE state = ${state.toUpperCase()}
+        AND tier1_classification IS NOT NULL
+        ${issueTypeClause}
+    `);
+
+    const rows = byTypeResults.rows as Array<{ context_type: string; need_level: string; count: number }>;
+    const summary = summaryResult.rows[0] as { analyses_with_requests: number; total_requests: number };
+
+    return {
+      byContextType: rows.map(r => ({
+        contextType: r.context_type,
+        needLevel: r.need_level,
+        count: r.count,
+      })),
+      summary: {
+        totalAnalysesWithRequests: summary.analyses_with_requests,
+        totalRequests: summary.total_requests,
+        avgRequestsPerAnalysis: summary.analyses_with_requests > 0
+          ? Number((summary.total_requests / summary.analyses_with_requests).toFixed(2))
+          : 0,
+      },
+    };
+  }
+
+  /**
+   * Get context_used breakdown by source type and web sub-types.
+   */
+  async getContextUsedStats(state: StateCode, issueType?: string): Promise<ContextUsedStats> {
+    const issueTypeClause = issueType ? sql`AND issue_type = ${issueType}` : sql``;
+
+    const bySourceResults = await this.db.execute(sql`
+      SELECT
+        ce->>'type' AS source_type,
+        count(*)::int AS count
+      FROM compliance_issue_analyses,
+        jsonb_array_elements(context_used) AS ce
+      WHERE state = ${state.toUpperCase()}
+        AND context_used IS NOT NULL
+        AND jsonb_array_length(context_used) > 0
+        ${issueTypeClause}
+      GROUP BY ce->>'type'
+      ORDER BY count DESC
+    `);
+
+    const webSubResults = await this.db.execute(sql`
+      SELECT
+        COALESCE(ce->>'sourceType', 'unknown') AS source_type,
+        count(*)::int AS count
+      FROM compliance_issue_analyses,
+        jsonb_array_elements(context_used) AS ce
+      WHERE state = ${state.toUpperCase()}
+        AND context_used IS NOT NULL
+        AND ce->>'type' = 'web'
+        ${issueTypeClause}
+      GROUP BY COALESCE(ce->>'sourceType', 'unknown')
+      ORDER BY count DESC
+    `);
+
+    const summaryResult = await this.db.execute(sql`
+      SELECT
+        count(*) FILTER (WHERE context_used IS NOT NULL AND jsonb_array_length(context_used) > 0)::int AS analyses_with_context,
+        COALESCE(sum(jsonb_array_length(context_used)) FILTER (WHERE context_used IS NOT NULL AND jsonb_array_length(context_used) > 0), 0)::int AS total_entries
+      FROM compliance_issue_analyses
+      WHERE state = ${state.toUpperCase()}
+        AND tier1_classification IS NOT NULL
+        ${issueTypeClause}
+    `);
+
+    const sourceRows = bySourceResults.rows as Array<{ source_type: string; count: number }>;
+    const webRows = webSubResults.rows as Array<{ source_type: string; count: number }>;
+    const summary = summaryResult.rows[0] as { analyses_with_context: number; total_entries: number };
+
+    return {
+      bySourceType: sourceRows.map(r => ({ sourceType: r.source_type, count: r.count })),
+      webBySourceType: webRows.map(r => ({ sourceType: r.source_type, count: r.count })),
+      summary: {
+        totalAnalysesWithContext: summary.analyses_with_context,
+        totalContextEntries: summary.total_entries,
+        avgContextPerAnalysis: summary.analyses_with_context > 0
+          ? Number((summary.total_entries / summary.analyses_with_context).toFixed(2))
+          : 0,
+      },
+    };
+  }
+
+  /**
+   * Get research funnel aggregate stats: Tier 1 requested → Tier 2 additional → context cited.
+   */
+  async getResearchFunnelStats(state: StateCode, issueType?: string): Promise<ResearchFunnelStats> {
+    const issueTypeClause = issueType ? sql`AND issue_type = ${issueType}` : sql``;
+
+    const result = await this.db.execute(sql`
+      SELECT
+        COALESCE(sum(
+          CASE WHEN tier1_recommendations IS NOT NULL
+               AND tier1_recommendations->'context_requests' IS NOT NULL
+          THEN jsonb_array_length(tier1_recommendations->'context_requests')
+          ELSE 0 END
+        ), 0)::int AS tier1_requested,
+        COALESCE(sum(
+          CASE WHEN tier2_context_requests_made IS NOT NULL
+          THEN jsonb_array_length(tier2_context_requests_made)
+          ELSE 0 END
+        ), 0)::int AS tier2_fetched,
+        COALESCE(sum(
+          CASE WHEN context_used IS NOT NULL
+          THEN (
+            SELECT count(*)::int FROM jsonb_array_elements(context_used) ce
+            WHERE ce->>'type' != 'self'
+          )
+          ELSE 0 END
+        ), 0)::int AS context_cited
+      FROM compliance_issue_analyses
+      WHERE state = ${state.toUpperCase()}
+        AND tier1_classification IS NOT NULL
+        ${issueTypeClause}
+    `);
+
+    const row = result.rows[0] as { tier1_requested: number; tier2_fetched: number; context_cited: number };
+    return {
+      tier1Requested: row.tier1_requested,
+      tier2Fetched: row.tier2_fetched,
+      contextCited: row.context_cited,
     };
   }
 }
@@ -2734,6 +2992,26 @@ export interface TierTransitionData {
   }>;
 }
 
+export interface TransitionReasonData {
+  transitions: Array<{
+    tier2Classification: string;
+    tier3Classification: string;
+    triggerReason: string;
+    count: number;
+  }>;
+}
+
+export interface ConfidenceByClassificationData {
+  tiers: Array<{
+    tier: 'tier1' | 'tier2' | 'tier3';
+    classifications: Array<{
+      classification: string;
+      avgConfidence: number;
+      count: number;
+    }>;
+  }>;
+}
+
 export interface Tier3EvidenceStats {
   flags: {
     federalMandateConfirmed: { true: number; false: number };
@@ -2754,4 +3032,21 @@ export interface Tier3EvidenceStats {
       count: number;
     }>;
   };
+}
+
+export interface Tier2ContextRequestsStats {
+  byContextType: Array<{ contextType: string; needLevel: string; count: number }>;
+  summary: { totalAnalysesWithRequests: number; totalRequests: number; avgRequestsPerAnalysis: number };
+}
+
+export interface ContextUsedStats {
+  bySourceType: Array<{ sourceType: string; count: number }>;
+  webBySourceType: Array<{ sourceType: string; count: number }>;
+  summary: { totalAnalysesWithContext: number; totalContextEntries: number; avgContextPerAnalysis: number };
+}
+
+export interface ResearchFunnelStats {
+  tier1Requested: number;
+  tier2Fetched: number;
+  contextCited: number;
 }

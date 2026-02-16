@@ -234,6 +234,9 @@ export type BatchSizeValue = (typeof BATCH_SIZE_VALUES)[number];
 export const ANALYTICS_TAB_VALUES = ['overview', 'crossrefs', 'issues', 'keywords', 'definitions', 'statutes', 'pipeline'] as const;
 export type AnalyticsTabValue = (typeof ANALYTICS_TAB_VALUES)[number];
 
+export const PIPELINE_SUBTAB_VALUES = ['overview', 'context', 'verification'] as const;
+export type PipelineSubTabValue = (typeof PIPELINE_SUBTAB_VALUES)[number];
+
 export const TREEMAP_SIZE_METRIC_VALUES = ['flags', 'documents', 'compliance'] as const;
 export type TreemapSizeMetricValue = (typeof TREEMAP_SIZE_METRIC_VALUES)[number];
 

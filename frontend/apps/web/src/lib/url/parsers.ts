@@ -48,6 +48,7 @@ import {
   ANALYTICS_TAB_VALUES,
   TREEMAP_SIZE_METRIC_VALUES,
   TREEMAP_COLOR_METRIC_VALUES,
+  PIPELINE_SUBTAB_VALUES,
   // View mode
   VIEW_MODE_VALUES,
   // Analysis tier filters
@@ -111,6 +112,7 @@ export type {
   SeverityChangedFilterValue,
   Tier3FindingFilterValue,
   Tier3TriggerFilterValue,
+  PipelineSubTabValue,
 } from '@/lib/constants/values';
 
 // Re-export value arrays for backward compatibility
@@ -457,6 +459,7 @@ export const complianceSuggestionParsers = {
 // ============================================
 
 export const analyticsTabParser = parseAsStringEnum([...ANALYTICS_TAB_VALUES]).withDefault('overview');
+export const pipelineSubTabParser = parseAsStringEnum([...PIPELINE_SUBTAB_VALUES]).withDefault('overview');
 export const treemapSizeMetricParser = parseAsStringEnum([...TREEMAP_SIZE_METRIC_VALUES]).withDefault('flags');
 export const treemapColorMetricParser = parseAsStringEnum([...TREEMAP_COLOR_METRIC_VALUES]).withDefault('severity');
 export const treemapDepthParser = parseAsInteger.withDefault(2);
@@ -470,6 +473,7 @@ export const analyticsParsers = {
   colorMetric: treemapColorMetricParser,
   depth: treemapDepthParser,
   pIssueType: parseAsString,
+  pSubTab: pipelineSubTabParser,
 };
 
 // ============================================
