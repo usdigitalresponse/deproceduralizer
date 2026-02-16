@@ -195,7 +195,9 @@ python backend/scripts/batch_definitions.py process --batch-id <id>
 - Finds sections with "definition", "glossary", "meaning of" in title/content
 - Results cached in `data/outputs/batches/`
 - Use `--skip-done` to avoid reprocessing, `--title 3A` to filter by title
-- Resume failed docs: `python backend/scripts/batch_definitions.py resume --batch-dir data/outputs/batches/<dir>`
+- Subcommands: `submit`, `status`, `process`, `resume` (retry failed requests), `continue` (extract from truncated sections)
+- Resume failed docs: `python backend/scripts/batch_definitions.py resume --batch-id <id>`
+- Continue truncated: `python backend/scripts/batch_definitions.py continue --state NY --dry-run`
 
 | Cost | Time |
 |------|------|
@@ -284,7 +286,7 @@ python backend/scripts/scan_compliance_issues.py --state ny
 - Regex-only scan — finds candidate matches for 41 compliance issue types
 - Patterns defined in `prompts/compliance_issues.yaml`
 - Use `--issue wet_signature` for a single type, `--dry-run` to search without saving
-- Use `--list-issues` to see all available issue types
+- Use `--list-issues` to see all available issue types, `--limit N` to cap matches per issue type
 
 | Cost | Time |
 |------|------|
@@ -360,6 +362,8 @@ python backend/scripts/red_flags.py --state NY
 - One analysis row per document in `analyses` table
 - `is_current = TRUE` marks the latest analysis per document
 - Use `--skip-done` to avoid re-analyzing, `--title 5` to filter, `--sample-size N` to limit
+- Use `--dry-run` to preview, `--chapter II` to filter by chapter
+- Use `--use-batch-api` for 50% cheaper batch processing, `--process-batch <batch_id>` to process a completed batch
 - Old analyses deleted on rerun (red_flags cascade)
 
 | Cost | Time |
@@ -375,7 +379,8 @@ python backend/scripts/refresh_hierarchy_stats.py --state NY
 - Precomputes hierarchy statistics for frontend performance
 - Updates: `child_count`, `descendant_count`, `descendant_flag_count`, `descendant_analyzed_count`, `compliance_issue_count`, `descendant_compliance_issue_count`
 - Run after any step that changes document counts or analysis results
-- Use `--structure`, `--analysis`, or `--compliance` to refresh only specific stat types
+- Use `--structure`, `--analysis`, `--compliance`, or `--statute-links` to refresh only specific stat types
+- Use `--all-states` to refresh all states at once
 
 | Cost | Time |
 |------|------|
@@ -394,12 +399,12 @@ python3 -m scripts.cross_references.run_extraction --state NY --title 18 --outpu
 python3 -m scripts.summarization.cli --state NY --title 18 --run-all-phases
 
 # 3. Research pipeline through Tier 3 with web search (after summaries complete)
-python3 -m scripts.research_pipeline.cli --state ny --all --title 18 \
+python3 -m scripts.research_pipeline.cli --state ny --all-issues --title 18 \
   --max-tier 3 --web-search --execute \
   --limit all --global-limit no-limit
 
 # 4. Statute mandate checks (NY only, after research pipeline)
-python3 -m scripts.research_pipeline.cli --state ny --all --title 18 \
+python3 -m scripts.research_pipeline.cli --state ny --all-issues --title 18 \
   --run-statute-mandate-only --execute
 
 # 5. Refresh hierarchy stats

@@ -77,7 +77,7 @@ cd backend && python3 -m scripts.research_pipeline.cli [OPTIONS]
 ### Preview (Default Behavior)
 ```bash
 python3 -m scripts.research_pipeline.cli \
-  --state nj --all
+  --state nj --all-issues
 ```
 
 ### Single Issue Test
@@ -89,13 +89,13 @@ python3 -m scripts.research_pipeline.cli \
 ### All Issues With Limits
 ```bash
 python3 -m scripts.research_pipeline.cli \
-  --state nj --all-issues--execute --global-limit 500
+  --state nj --all-issues --execute --global-limit 500
 ```
 
 ### Full Pipeline With Web Search
 ```bash
 python3 -m scripts.research_pipeline.cli \
-  --state nj --all-issues--execute --max-tier 3 --web-search
+  --state nj --all-issues --execute --max-tier 3 --web-search
 ```
 
 ### Force Re-run (After Prompt Changes)
@@ -108,7 +108,7 @@ python3 -m scripts.research_pipeline.cli \
 ### Title-Specific Processing
 ```bash
 python3 -m scripts.research_pipeline.cli \
-  --state nj --all-issues--execute --global-limit 500 --title 7
+  --state nj --all-issues --execute --global-limit 500 --title 7
 ```
 
 ### Realtime API (Immediate, Testing)
@@ -173,15 +173,15 @@ Post-pipeline step for NY regulations. Checks whether cited statutes actually ma
 ```bash
 # Preview
 python3 -m scripts.research_pipeline.cli \
-  --state ny --all-issues--run-statute-mandate-only
+  --state ny --all-issues --run-statute-mandate-only
 
 # Run (first 10 pairs)
 python3 -m scripts.research_pipeline.cli \
-  --state ny --all-issues--run-statute-mandate-only --execute --limit 10
+  --state ny --all-issues --run-statute-mandate-only --execute --limit 10
 
 # Run after full pipeline
 python3 -m scripts.research_pipeline.cli \
-  --state ny --all-issues--execute --statute-mandate
+  --state ny --all-issues --execute --statute-mandate
 ```
 
 - Only runs for flagged analyses (burdensome/justified) with matched statute links
@@ -197,7 +197,7 @@ Can be run as a post-pipeline step or standalone.
 ```bash
 # Run pipeline then summarize the same title
 python3 -m scripts.research_pipeline.cli \
-  --state ny --all-issues--execute --title 18 --summarize
+  --state ny --all-issues --execute --title 18 --summarize
 ```
 
 ### Standalone CLI
@@ -253,11 +253,11 @@ Re-run Tier 3 on items that completed Tier 2 but never got Tier 3:
 ```bash
 # Preview what would be retried
 python3 -m scripts.research_pipeline.cli \
-  --state ny --all-issues--retry-failed-tier3
+  --state ny --all-issues --retry-failed-tier3
 
 # Execute retries
 python3 -m scripts.research_pipeline.cli \
-  --state ny --all-issues--retry-failed-tier3 --execute
+  --state ny --all-issues --retry-failed-tier3 --execute
 ```
 
 Only items matching Tier 3 escalation triggers are retried. Items that already have `tier3_classification` in the DB are skipped.

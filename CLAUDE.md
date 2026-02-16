@@ -1,5 +1,5 @@
 - whenever adding new components or frontend features, be sure to look at apps/web/STYLE_GUIDE.md and update the apps/web/STYLE_GUIDE.md as necessary to ensure the new components are consistent with it. Also, try to keep components as atomic as possible, keeping DRY principles as much as possible
-- before pushing, please always update the documentation about the latest state of the project
+- before pushing, verify documentation is current: if changes touched pipeline scripts, check docs/OPERATIONS.md; if they touched schema, check .claude/skills/database/schema.md; if they touched pipeline internals, check the corresponding skill file
 - Before pushing, always run the smoke tests: `cd frontend/apps/web && pnpm test:e2e` unless you've run it recently. When starting a big feature, always add running smoke tests to the todos.
 - when modifying the database schema, add a migration to frontend/packages/database/migrations/ and update .claude/skills/database/schema.md
 - I am using vercel for deployment of the frontend by either pushing a branch and promoting, or pushing from main. Do NOT run `vercel --prod` directly - always deploy via git push
@@ -85,6 +85,22 @@ When working on the Next.js frontend, follow these patterns:
 | `DATABASE_SETUP.md` | DB setup and common queries | Schema changes, new query patterns |
 | `.claude/skills/database/schema.md` | Full schema reference | Any schema/migration changes |
 | `.claude/skills/regulatory-analysis/` | Bad regulation patterns & examples | Adding new anti-pattern categories |
+| `.claude/skills/pipeline/SKILL.md` | Pipeline overview and step routing | Adding/removing pipeline steps |
+| `.claude/skills/research-pipeline/SKILL.md` | Pipeline internals (tiers, state machine, triggers) | Changing tier logic, triggers, state machine, cost model |
+| `.claude/skills/cross-references/` | Extraction patterns and troubleshooting | Changing regex patterns, resolution logic |
+
+### Source of Truth Hierarchy
+- `docs/OPERATIONS.md` — pipeline step ordering, commands, CLI flags, costs, timing
+- `.claude/skills/*/SKILL.md` — detailed workflows, architecture internals, troubleshooting
+- `.claude/skills/database/schema.md` — database table structure, columns, constraints
+- `prompts/*.yaml` — prompt content, issue type definitions, regex patterns
+
+### Keeping Documentation in Sync
+- When modifying pipeline script CLI flags: update `docs/OPERATIONS.md` (required) and the corresponding skill if it documents those flags
+- When adding/removing a pipeline step: update `docs/OPERATIONS.md` and `.claude/skills/pipeline/SKILL.md`
+- When modifying pipeline internals (tier logic, patterns, state machine): update the corresponding skill file
+- When removing a script: remove from OPERATIONS.md, update/delete any skill that references it, grep `.md` files for stale references
+- Skills document "why/how it works internally"; OPERATIONS.md documents "what commands to run"
 
 ### Status Headers for Future Docs
 Documents describing unimplemented or partially implemented features must include a status header:
