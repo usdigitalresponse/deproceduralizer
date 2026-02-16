@@ -249,6 +249,7 @@ Pure regex match store. Tracks individual regex matches found during compliance 
 | `state` | varchar(2) NOT NULL | NY or NJ |
 | `created_at` | timestamp | When record was created |
 | `analysis_id` | bigint | FK to compliance_issue_analyses(id) ON DELETE SET NULL. Many-to-one link (many matches → one analysis). Set by searcher/pipeline after analysis INSERT. |
+| `run_id` | varchar(32) | Batch/run ID for tracking which scan created the record |
 
 **Constraints:** `compliance_issues_state_check`, `unique_document_issue_occurrence UNIQUE(document_id, issue_type, occurrence_number)`
 
