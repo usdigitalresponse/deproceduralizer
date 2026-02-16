@@ -71,6 +71,18 @@ NJSA_CITATION_PATTERN = re.compile(
 # Pattern to strip subsection letter from section number (e.g., "1e" -> "1", "119.1a" -> "119.1")
 SUBSECTION_LETTER_PATTERN = re.compile(r'^(\d+(?:\.\d+)?)[a-z]+$')
 
+# Patterns to skip false positive N.J.S.A. citations
+# Court rules (R. 2:2-3, R. 4:42-11) misidentified as statutes
+COURT_RULE_SKIP = re.compile(
+    r'(?:court rule|rules of court|R\.\s*N\.J\.S\.A\.|R\.N\.J\.S\.A\.)',
+    re.IGNORECASE
+)
+# Recodification editorial notes ("Recodified to N.J.S.A. 10:166-3.21")
+RECODIFICATION_SKIP = re.compile(
+    r'recodified\s+(?:to|from)\s+N\.J\.S\.A\.',
+    re.IGNORECASE
+)
+
 
 # =============================================================================
 # PARSING FUNCTIONS
@@ -478,7 +490,25 @@ def create_regulation_statute_links() -> dict:
         print(f"  Found {len(existing_links):,} existing links ({sum(existing_links.values())} reviewed)")
 
         # Process regulations - collect all rows first, then batch insert
-        stats = {'matched': 0, 'unmatched': 0, 'corrected': 0, 'obsolete': 0, 'skipped_reviewed': 0, 'updated': 0}
+        stats = {'matched': 0, 'unmatched': 0, 'corrected': 0, 'obsolete': 0, 'skipped_reviewed': 0, 'skipped_false_positive': 0, 'updated': 0}
+
+        # Clean up existing false positive links (court rules, recodification notes)
+        cleanup_result = conn.execute("""
+            DELETE FROM regulation_statute_links
+            WHERE id IN (
+                SELECT l.id FROM regulation_statute_links l
+                JOIN regulatory_documents rd ON rd.id = l.regulation_id
+                WHERE rd.state = 'NJ' AND (
+                    l.context ~* '(?:court rule|rules of court|R\\.\\s*N\\.J\\.S\\.A\\.|R\\.N\\.J\\.S\\.A\\.)'
+                    OR l.context ~* 'recodified\\s+(?:to|from)\\s+N\\.J\\.S\\.A\\.'
+                )
+                AND l.reviewed_at IS NULL
+            )
+        """)
+        cleaned = cleanup_result.rowcount
+        if cleaned > 0:
+            conn.commit()
+            print(f"  Cleaned up {cleaned} false positive links (court rules, recodification notes)")
         start_time = time.time()
 
         print("  Scanning regulations for citations...")
@@ -519,6 +549,14 @@ def create_regulation_statute_links() -> dict:
                 start = max(0, match.start() - 150)
                 end = min(len(content), match.end() + 150)
                 context = content[start:end]
+
+                # Skip false positives: court rules and recodification notes
+                if COURT_RULE_SKIP.search(context):
+                    stats['skipped_false_positive'] += 1
+                    continue
+                if RECODIFICATION_SKIP.search(context):
+                    stats['skipped_false_positive'] += 1
+                    continue
 
                 # Classify link type
                 link_type = classify_link_type(context)
@@ -611,6 +649,7 @@ def create_regulation_statute_links() -> dict:
         print(f"    Obsolete (chapter exists, section repealed): {stats['obsolete']:,}")
         print(f"    Unmatched (unknown): {stats['unmatched']:,}")
         print(f"    Skipped (reviewed): {stats['skipped_reviewed']:,}")
+        print(f"    Skipped (false positive): {stats['skipped_false_positive']:,}")
         print(f"    Updated existing: {stats['updated']:,}")
         print(f"    Time: {format_time(elapsed)}")
 
