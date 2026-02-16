@@ -5,25 +5,27 @@ Complete guide for running the Deproceduralizer analysis pipeline on a state's r
 ## Pipeline Overview
 
 ```
-1. Scrape          →  regulatory_documents table
-1b. Exclude        →  marks non-regulatory sections (exec orders, military code, data tables)
+1. Scrape             →  regulatory_documents table
+1b. Exclude           →  marks non-regulatory sections (exec orders, military code, data tables)
 2. Regulatory Status  →  marks repealed/reserved/expired sections
-3. Definitions     →  definitions table
+3. Definitions        →  definitions table
 4. Link Definitions   →  definition_document_occurrences table
-5. Summaries       →  summary, keywords, section_type on regulatory_documents
-6. Compliance Scan →  compliance_issues table (regex matches)
-7. Research Pipeline  →  compliance_issue_analyses table (LLM Tier 1-3)
-8. IBR Scan        →  incorporations_by_reference table
-9. Red Flags       →  analyses table
-10. Refresh Stats  →  precomputed counts on regulatory_documents
+5. Cross-References   →  cross_references table (internal citations between documents)
+6. Summaries          →  summary, keywords, section_type on regulatory_documents
+7. Compliance Scan    →  compliance_issues table (regex matches)
+8. Research Pipeline  →  compliance_issue_analyses table (LLM Tier 1-3)
+9. IBR Scan           →  incorporations_by_reference table
+10. Red Flags         →  analyses table
+11. Refresh Stats     →  precomputed counts on regulatory_documents
 ```
 
 **Step dependencies:**
 - Steps 1-4 are sequential prerequisites
-- Steps 5 and 6 can run in parallel (no dependency on each other)
-- **Step 7 depends on Step 5** — the research pipeline uses document summaries as LLM context
-- Steps 8-9 are independent of 7 and can run anytime after Step 1
-- Step 10 should run last (after any step that changes counts)
+- Step 5 (cross-references) can run anytime after Step 1 (only needs scraped documents)
+- Steps 6 and 7 can run in parallel (no dependency on each other)
+- **Step 8 depends on Steps 5 and 6** — the research pipeline uses document summaries and cross-reference summaries as LLM context
+- Steps 9-10 are independent of 8 and can run anytime after Step 1
+- Step 11 should run last (after any step that changes counts)
 
 ## Full State Analysis (e.g., NY)
 
@@ -193,7 +195,9 @@ python backend/scripts/batch_definitions.py process --batch-id <id>
 - Finds sections with "definition", "glossary", "meaning of" in title/content
 - Results cached in `data/outputs/batches/`
 - Use `--skip-done` to avoid reprocessing, `--title 3A` to filter by title
-- Resume failed docs: `python backend/scripts/batch_definitions.py resume --batch-dir data/outputs/batches/<dir>`
+- Subcommands: `submit`, `status`, `process`, `resume` (retry failed requests), `continue` (extract from truncated sections)
+- Resume failed docs: `python backend/scripts/batch_definitions.py resume --batch-id <id>`
+- Continue truncated: `python backend/scripts/batch_definitions.py continue --state NY --dry-run`
 
 | Cost | Time |
 |------|------|
@@ -214,7 +218,25 @@ python backend/scripts/backfill_definition_scope.py --state NY
 |------|------|
 | Free | Minutes |
 
-### Step 5: Generate Summaries
+### Step 5: Extract Cross-References
+
+```bash
+cd backend
+python3 -m scripts.cross_references.run_extraction --state NY --output db
+```
+
+- Extracts internal citations between regulatory documents (e.g., "18 NYCRR 505.14", "section 624.8 of this Part")
+- Regex-based detection → resolution to target document IDs
+- Reference types: NYCRR, NJAC, NY short-form, same-section
+- Use `--limit 50` to test on a subset, `--dry-run` to preview without writing
+- Use `--output json` to save results to file instead of DB, `--output console` for quick summary
+- Can filter by title: `--title 18`
+
+| Cost | Time |
+|------|------|
+| Free | Minutes |
+
+### Step 6: Generate Summaries
 
 Runs bottom-up through 5 hierarchy phases (sections → subchapters → chapters → parts → titles).
 
@@ -244,18 +266,18 @@ python3 -m scripts.summarization.cli --state NY --phase sections --process
   ```
 - Import updates `regulatory_documents` with: `summary`, `section_type`, `keywords`, `applies_to`, `has_form`, `has_ibr`
 
-**IMPORTANT: Step 5 must complete before Step 7.** The research pipeline (Step 7) uses summaries as context at multiple stages:
+**IMPORTANT: Step 6 must complete before Step 8.** The research pipeline (Step 8) uses summaries as context at multiple stages:
 - **Tier 1** includes each document's summary in the analysis prompt
 - **Tier 2** fetches summaries for related documents (siblings, cross-references) to provide broader context
 - **Proactive context** pre-fetches sibling and cross-reference summaries for richer LLM analysis
 
-Without summaries, the pipeline falls back to truncated content excerpts or titles, which significantly degrades analysis quality. Steps 5 and 6 can run in parallel since the regex scan (Step 6) doesn't use summaries.
+Without summaries, the pipeline falls back to truncated content excerpts or titles, which significantly degrades analysis quality. Steps 6 and 7 can run in parallel since the regex scan (Step 7) doesn't use summaries.
 
 | Cost | Time |
 |------|------|
 | ~$100/state, ~$2-5/title (Haiku) | Hours per phase (batch queue) |
 
-### Step 6: Scan Compliance Issues (Regex)
+### Step 7: Scan Compliance Issues (Regex)
 
 ```bash
 python backend/scripts/scan_compliance_issues.py --state ny
@@ -264,13 +286,13 @@ python backend/scripts/scan_compliance_issues.py --state ny
 - Regex-only scan — finds candidate matches for 41 compliance issue types
 - Patterns defined in `prompts/compliance_issues.yaml`
 - Use `--issue wet_signature` for a single type, `--dry-run` to search without saving
-- Use `--list-issues` to see all available issue types
+- Use `--list-issues` to see all available issue types, `--limit N` to cap matches per issue type
 
 | Cost | Time |
 |------|------|
 | Free | Minutes |
 
-### Step 7: Research Pipeline (LLM Analysis)
+### Step 8: Research Pipeline (LLM Analysis)
 
 ```bash
 cd backend
@@ -279,7 +301,7 @@ python3 -m scripts.research_pipeline.cli --state ny --all-issues --execute
 
 **This is the most expensive step. Always ask before running.**
 
-- 3-tier LLM analysis on regex matches from Step 6:
+- 3-tier LLM analysis on regex matches from Step 7:
   - **Tier 1**: Filter false positives
   - **Tier 2**: Classify burden + assign severity (1-10)
   - **Tier 3**: Web search verification (opt-in with `--web-search`)
@@ -316,7 +338,7 @@ See `.claude/skills/research-pipeline/SKILL.md` for full documentation including
 |------|------|
 | $1-60+ depending on scope | Hours (batch), minutes (realtime) |
 
-### Step 8: Scan Incorporations by Reference
+### Step 9: Scan Incorporations by Reference
 
 ```bash
 python backend/scripts/ibr_scanner.py --state ny
@@ -330,7 +352,7 @@ python backend/scripts/ibr_scanner.py --state ny
 |------|------|
 | ~$ (Haiku) | Minutes to hours |
 
-### Step 9: Red Flag Analysis
+### Step 10: Red Flag Analysis
 
 ```bash
 python backend/scripts/red_flags.py --state NY
@@ -340,13 +362,15 @@ python backend/scripts/red_flags.py --state NY
 - One analysis row per document in `analyses` table
 - `is_current = TRUE` marks the latest analysis per document
 - Use `--skip-done` to avoid re-analyzing, `--title 5` to filter, `--sample-size N` to limit
+- Use `--dry-run` to preview, `--chapter II` to filter by chapter
+- Use `--use-batch-api` for 50% cheaper batch processing, `--process-batch <batch_id>` to process a completed batch
 - Old analyses deleted on rerun (red_flags cascade)
 
 | Cost | Time |
 |------|------|
 | $$ (Claude) | Hours |
 
-### Step 10: Refresh Hierarchy Stats
+### Step 11: Refresh Hierarchy Stats
 
 ```bash
 python backend/scripts/refresh_hierarchy_stats.py --state NY
@@ -355,7 +379,8 @@ python backend/scripts/refresh_hierarchy_stats.py --state NY
 - Precomputes hierarchy statistics for frontend performance
 - Updates: `child_count`, `descendant_count`, `descendant_flag_count`, `descendant_analyzed_count`, `compliance_issue_count`, `descendant_compliance_issue_count`
 - Run after any step that changes document counts or analysis results
-- Use `--structure`, `--analysis`, or `--compliance` to refresh only specific stat types
+- Use `--structure`, `--analysis`, `--compliance`, or `--statute-links` to refresh only specific stat types
+- Use `--all-states` to refresh all states at once
 
 | Cost | Time |
 |------|------|
@@ -366,23 +391,27 @@ python backend/scripts/refresh_hierarchy_stats.py --state NY
 To process a single title (e.g., NY Title 18) through the full pipeline:
 
 ```bash
-# 1. Summaries (batch API — submit and wait for completion)
+# 1. Cross-references (extracts internal citations for pipeline context)
+cd backend
+python3 -m scripts.cross_references.run_extraction --state NY --title 18 --output db
+
+# 2. Summaries (batch API — submit and wait for completion)
 python3 -m scripts.summarization.cli --state NY --title 18 --run-all-phases
 
-# 2. Research pipeline through Tier 3 with web search (after summaries complete)
-python3 -m scripts.research_pipeline.cli --state ny --all --title 18 \
+# 3. Research pipeline through Tier 3 with web search (after summaries complete)
+python3 -m scripts.research_pipeline.cli --state ny --all-issues --title 18 \
   --max-tier 3 --web-search --execute \
   --limit all --global-limit no-limit
 
-# 3. Statute mandate checks (NY only, after research pipeline)
-python3 -m scripts.research_pipeline.cli --state ny --all --title 18 \
+# 4. Statute mandate checks (NY only, after research pipeline)
+python3 -m scripts.research_pipeline.cli --state ny --all-issues --title 18 \
   --run-statute-mandate-only --execute
 
-# 4. Refresh hierarchy stats
+# 5. Refresh hierarchy stats
 python backend/scripts/refresh_hierarchy_stats.py --state NY
 ```
 
-**Order matters:** Summaries must finish before the research pipeline starts (the pipeline uses summaries as LLM context). The statute mandate check runs after the pipeline since it operates on pipeline results. Refresh stats runs last.
+**Order matters:** Cross-references and summaries must finish before the research pipeline starts (the pipeline uses both as LLM context). The statute mandate check runs after the pipeline since it operates on pipeline results. Refresh stats runs last.
 
 **Estimated cost per title:** ~$10-25 (summaries ~$2-5, pipeline ~$5-15, mandate checks ~$1-3)
 
@@ -486,10 +515,10 @@ Approximate LLM costs per state (as of February 2025):
 | Step | Model | Est. Cost |
 |------|-------|-----------|
 | 3. Definitions | Claude Haiku | ~$10-20 |
-| 5. Summaries | Claude Haiku | ~$100 |
-| 7. Research Pipeline (full) | Claude Haiku/Sonnet | ~$50-60 (observed, per title) |
-| 8. IBR Scan | Claude Haiku | ~$5-10 |
-| 9. Red Flags | Claude | ~$50-100 |
+| 6. Summaries | Claude Haiku | ~$100 |
+| 8. Research Pipeline (full) | Claude Haiku/Sonnet | ~$50-60 (observed, per title) |
+| 9. IBR Scan | Claude Haiku | ~$5-10 |
+| 10. Red Flags | Claude | ~$50-100 |
 | **Total** | | **~$215-290** |
 
 Costs depend on document count and average length. NY and NJ each have ~60K regulatory documents.
