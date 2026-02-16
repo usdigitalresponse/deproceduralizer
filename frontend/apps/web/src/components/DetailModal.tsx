@@ -23,6 +23,7 @@ import {
 } from '@/components/regulations';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
 import { useStateFromPath } from '@/hooks';
+import type { StateCode } from '@/types/state';
 
 interface DetailModalProps {
   regulationId: number | null;
@@ -46,7 +47,7 @@ export default function DetailModal({ regulationId, onClose, onFlagUpdated }: De
   const [error, setError] = useState<string | null>(null);
 
   // Use path state, fallback to regulation's state if available
-  const state = pathState || (regulation?.state?.toLowerCase() as 'ny' | 'nj') || 'nj';
+  const state = pathState || (regulation?.state?.toLowerCase() as StateCode) || 'nj';
 
   // Fetch regulation when regulationId changes
   useEffect(() => {

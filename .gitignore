@@ -19,6 +19,12 @@ scrape_summary.json
 STATUTES-TEXT/
 data/ny_statutes/
 
+# ALP exports (large files, download from codelibrary.amlegal.com)
+newyorkcity-ny-1.html
+newyorkcity-ny-1-rules-of.html
+newyorkcity-ny-1-rules.html
+data/rcny_xml/
+
 # OS files
 .DS_Store
 Thumbs.db

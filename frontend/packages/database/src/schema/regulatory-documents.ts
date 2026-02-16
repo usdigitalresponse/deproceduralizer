@@ -14,7 +14,7 @@ export const regulatoryDocuments = pgTable('regulatory_documents', {
   id: bigserial('id', { mode: 'number' }).primaryKey(),
   sourceIndex: integer('source_index'),
   type: varchar('type', { length: 50 }).notNull(),
-  state: varchar('state', { length: 2 }),
+  state: varchar('state', { length: 3 }),
   title: text('title').notNull(),
   url: text('url'),
   urlType: varchar('url_type', { length: 50 }),
@@ -67,6 +67,14 @@ export const regulatoryDocuments = pgTable('regulatory_documents', {
   njsaSection: varchar('njsa_section', { length: 20 }),
   njsaSectionName: text('njsa_section_name'),
   njsaCitation: varchar('njsa_citation', { length: 50 }),
+
+  // RCNY (Rules of the City of New York) columns
+  rcnyTitle: varchar('rcny_title', { length: 20 }),
+  rcnyTitleName: text('rcny_title_name'),
+  rcnyChapter: varchar('rcny_chapter', { length: 20 }),
+  rcnyChapterName: text('rcny_chapter_name'),
+  rcnySection: varchar('rcny_section', { length: 50 }),
+  rcnySectionName: text('rcny_section_name'),
 
   // Display-optimized fields (populated by backend scripts)
   shortTitle: text('short_title'),

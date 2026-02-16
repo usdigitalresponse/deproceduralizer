@@ -130,6 +130,41 @@ python3 scripts/nyc_statutes.py --skip-parse
 |------|------|
 | Free (local HTML file) | ~30s parse, ~1min DB ingest |
 
+#### RCNY (Rules of the City of New York)
+
+Parsed from ALP XML export. Download from American Legal Publishing:
+`codelibrary.amlegal.com` → "New York City" → "Rules of the City of New York" → "Download" → select XML format
+
+Extract `XML.zip` to `data/rcny_xml/` (the XML files should be at `data/rcny_xml/XML/*.xml`).
+
+```bash
+cd backend
+
+# Parse XML and save to JSON (no DB):
+python3 scripts/rcny_parser.py --parse-only
+
+# Full pipeline (parse → JSON → DB → hierarchy):
+python3 scripts/rcny_parser.py
+
+# Use cached JSON (skip re-parsing):
+python3 scripts/rcny_parser.py --skip-parse
+
+# Parse only Title 1 (for testing):
+python3 scripts/rcny_parser.py --title 1
+```
+
+| Flag | Description |
+|------|-------------|
+| `--parse-only` | Only parse XML + save JSON, skip DB |
+| `--skip-parse` | Use cached JSON, skip XML parsing |
+| `--skip-db` | Skip database operations |
+| `--hierarchy-only` | Only update parent_id relationships |
+| `--title N` | Only parse a specific title number |
+
+| Cost | Time |
+|------|------|
+| Free (local XML files) | ~4s parse, ~2min DB ingest |
+
 #### Link NYC Statutes to Regulations
 
 ```bash

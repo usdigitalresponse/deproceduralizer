@@ -35,7 +35,7 @@ export function StateContextBar({ state }: StateContextBarProps) {
 
     // Replace the state prefix in the current path
     // e.g., /ny/browse -> /nj/browse
-    const pathWithoutState = pathname.replace(/^\/(ny|nj)/, '');
+    const pathWithoutState = pathname.replace(/^\/(nyc|ny|nj)/, '');
     const queryString = searchParams.toString();
     const newPath = `/${newState}${pathWithoutState || ''}${queryString ? `?${queryString}` : ''}`;
 

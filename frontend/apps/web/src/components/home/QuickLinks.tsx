@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { FolderTree, ClipboardCheck, Table, BookOpen, BarChart3, ArrowRight } from 'lucide-react';
 import type { DashboardStats } from '@deproceduralizer/database';
+import type { StateCode } from '@/types/state';
 
 interface QuickLinkProps {
   href: string;
@@ -43,7 +44,7 @@ function QuickLink({ href, icon, title, description, badge }: QuickLinkProps) {
 }
 
 interface QuickLinksProps {
-  state: 'ny' | 'nj';
+  state: StateCode;
   stats?: DashboardStats;
 }
 

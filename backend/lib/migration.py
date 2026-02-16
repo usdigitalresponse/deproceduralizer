@@ -42,6 +42,15 @@ def get_state_config(state: str) -> dict:
                 "nycrr_section", "nycrr_section_name",
             ]
         }
+    elif state == "NYC":
+        return {
+            "prefix": "rcny",
+            "fields": [
+                "rcny_title", "rcny_title_name",
+                "rcny_chapter", "rcny_chapter_name",
+                "rcny_section", "rcny_section_name",
+            ]
+        }
     else:
         raise ValueError(f"Unknown state: {state}")
 

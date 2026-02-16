@@ -215,6 +215,13 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         njsaSection: regulatoryDocuments.njsaSection,
         njsaSectionName: regulatoryDocuments.njsaSectionName,
         njsaCitation: regulatoryDocuments.njsaCitation,
+        // RCNY columns
+        rcnyTitle: regulatoryDocuments.rcnyTitle,
+        rcnyTitleName: regulatoryDocuments.rcnyTitleName,
+        rcnyChapter: regulatoryDocuments.rcnyChapter,
+        rcnyChapterName: regulatoryDocuments.rcnyChapterName,
+        rcnySection: regulatoryDocuments.rcnySection,
+        rcnySectionName: regulatoryDocuments.rcnySectionName,
         // Display-optimized fields
         shortTitle: regulatoryDocuments.shortTitle,
         levelIdentifier: regulatoryDocuments.levelIdentifier,
@@ -492,6 +499,13 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         njsaSection: regulatoryDocuments.njsaSection,
         njsaSectionName: regulatoryDocuments.njsaSectionName,
         njsaCitation: regulatoryDocuments.njsaCitation,
+        // RCNY columns
+        rcnyTitle: regulatoryDocuments.rcnyTitle,
+        rcnyTitleName: regulatoryDocuments.rcnyTitleName,
+        rcnyChapter: regulatoryDocuments.rcnyChapter,
+        rcnyChapterName: regulatoryDocuments.rcnyChapterName,
+        rcnySection: regulatoryDocuments.rcnySection,
+        rcnySectionName: regulatoryDocuments.rcnySectionName,
         // Display-optimized fields
         shortTitle: regulatoryDocuments.shortTitle,
         levelIdentifier: regulatoryDocuments.levelIdentifier,
@@ -646,6 +660,13 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         njsaSection: regulatoryDocuments.njsaSection,
         njsaSectionName: regulatoryDocuments.njsaSectionName,
         njsaCitation: regulatoryDocuments.njsaCitation,
+        // RCNY columns
+        rcnyTitle: regulatoryDocuments.rcnyTitle,
+        rcnyTitleName: regulatoryDocuments.rcnyTitleName,
+        rcnyChapter: regulatoryDocuments.rcnyChapter,
+        rcnyChapterName: regulatoryDocuments.rcnyChapterName,
+        rcnySection: regulatoryDocuments.rcnySection,
+        rcnySectionName: regulatoryDocuments.rcnySectionName,
         // Display-optimized fields
         shortTitle: regulatoryDocuments.shortTitle,
         levelIdentifier: regulatoryDocuments.levelIdentifier,
@@ -1541,14 +1562,16 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
    * Get stats for all states at once (for state selector cards)
    */
   async getAllStateStats(): Promise<Record<StateCode, DashboardStats>> {
-    const [nyStats, njStats] = await Promise.all([
+    const [nyStats, njStats, nycStats] = await Promise.all([
       this.getDashboardStats('ny'),
       this.getDashboardStats('nj'),
+      this.getDashboardStats('nyc'),
     ]);
 
     return {
       ny: nyStats,
       nj: njStats,
+      nyc: nycStats,
     };
   }
 

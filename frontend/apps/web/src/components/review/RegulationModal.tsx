@@ -20,6 +20,7 @@ import { RegulationContent } from '@/components/regulations/RegulationContent';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
 import { getComplexityVariant } from '@/types/regulation';
 import { useStateFromPath } from '@/hooks';
+import type { StateCode } from '@/types/state';
 
 interface RegulationModalProps {
   regulationId: number | null;
@@ -33,7 +34,7 @@ export function RegulationModal({ regulationId, onClose }: RegulationModalProps)
   const [error, setError] = useState<string | null>(null);
 
   // Use path state, fallback to regulation's state if available
-  const state = pathState || (regulation?.state?.toLowerCase() as 'ny' | 'nj') || 'nj';
+  const state = pathState || (regulation?.state?.toLowerCase() as StateCode) || 'nj';
 
   useEffect(() => {
     if (regulationId === null) {

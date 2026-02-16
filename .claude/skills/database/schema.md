@@ -11,7 +11,7 @@ Main table with hierarchy. **74 columns** - use `./scripts/db-query.sh describe 
 | `id` | bigserial | Primary key |
 | `source_index` | integer | Index from source data |
 | `type` | varchar(50) | regulation or policy_document |
-| `state` | varchar(2) | NY, NJ (CHECK constraint) |
+| `state` | varchar(3) | NY, NJ, NYC (CHECK constraint) |
 | `title` | text | Document title |
 | `url` | text | Source URL |
 | `url_type` | varchar(50) | regulation (section) or title (container) |
@@ -32,6 +32,7 @@ Main table with hierarchy. **74 columns** - use `./scripts/db-query.sh describe 
 - NYCRR: `nycrr_title`, `nycrr_title_name`, `nycrr_subtitle`, `nycrr_chapter`, `nycrr_subchapter`, `nycrr_article`, `nycrr_part`, `nycrr_subpart`, `nycrr_section`, etc.
 - NJAC: `njac_title`, `njac_chapter`, `njac_subchapter`, `njac_section`, etc.
 - NJSA: `njsa_title`, `njsa_chapter`, `njsa_section`, `njsa_citation`
+- RCNY: `rcny_title`, `rcny_title_name`, `rcny_chapter`, `rcny_chapter_name`, `rcny_section`, `rcny_section_name`
 
 **Precomputed stats (denormalized):**
 
@@ -87,7 +88,7 @@ Script: `backend/scripts/batch_exclude_ny_sections.py` (use `--dry-run` to previ
 | `has_ibr` | boolean | Incorporates external standards by reference - ASTM, NFPA, ISO, etc. (default false) |
 
 **Constraints:**
-- `chk_rd_state CHECK (state IN ('NY', 'NJ'))`
+- `chk_rd_state CHECK (state IN ('NY', 'NJ', 'NYC'))`
 - `unique_per_url UNIQUE(url)`
 
 **Indexes:** `idx_documents_state`, `idx_documents_type`, `idx_documents_state_type`, `idx_documents_parent`, `idx_documents_hierarchy_level`, `idx_documents_regulatory_status`, `idx_documents_url`, `idx_documents_short_title`, `idx_documents_exclude_from_analysis` (partial), `idx_rd_keywords` (GIN), `idx_rd_applies_to` (GIN), `idx_rd_section_type` (partial), `idx_rd_has_form` (partial), `idx_rd_has_ibr` (partial)
@@ -246,7 +247,7 @@ Pure regex match store. Tracks individual regex matches found during compliance 
 | `regex_match_pattern` | varchar(255) | Regex pattern that triggered the initial scan |
 | `regex_match_context` | text NOT NULL | Text window around the regex match (~600 chars) |
 | `url` | text | Link to the regulation |
-| `state` | varchar(2) NOT NULL | NY or NJ |
+| `state` | varchar(3) NOT NULL | NY, NJ, or NYC |
 | `created_at` | timestamp | When record was created |
 | `analysis_id` | bigint | FK to compliance_issue_analyses(id) ON DELETE SET NULL. Many-to-one link (many matches → one analysis). Set by searcher/pipeline after analysis INSERT. |
 | `run_id` | varchar(32) | Batch/run ID for tracking which scan created the record |
@@ -295,7 +296,7 @@ Document-level analysis results for the 3-tier research pipeline. One row per (d
 | `id` | bigserial | Primary key |
 | `document_id` | bigint NOT NULL | FK to regulatory_documents |
 | `issue_type` | varchar(50) | Issue type being analyzed |
-| `state` | varchar(2) NOT NULL | NY or NJ |
+| `state` | varchar(3) NOT NULL | NY, NJ, or NYC |
 | `grouped_match_count` | integer NOT NULL | Number of regex matches from compliance_issues analyzed together |
 
 **Tier 1: Match Filtering**
@@ -533,7 +534,7 @@ Tracks external standards incorporated by reference (NFPA codes, ICC codes, ASTM
 | `term_matched` | varchar(255) | Regex pattern that matched |
 | `context` | text NOT NULL | Context snippet around match |
 | `llm_confirmed` | boolean | Always true for saved records |
-| `state` | varchar(2) NOT NULL | NY or NJ |
+| `state` | varchar(3) NOT NULL | NY, NJ, or NYC |
 | `url` | text NOT NULL | Source URL |
 | `review_status` | varchar(50) | unreviewed, confirmed, false_positive, etc. |
 | `reviewed_by` | varchar(255) | Who reviewed |
@@ -665,7 +666,7 @@ Internal cross-references between regulatory documents (e.g., "18 NYCRR 505.14" 
 | `target_document_id` | bigint | FK to regulatory_documents (ON DELETE SET NULL) |
 | `is_resolved` | boolean | Whether citation was resolved to a target doc |
 | `resolution_notes` | text | Why resolution failed (for unresolved refs) |
-| `state` | varchar(2) NOT NULL | NY or NJ |
+| `state` | varchar(3) NOT NULL | NY, NJ, or NYC |
 | `created_at` | timestamp | When record was created |
 
 **Reference Types:**
@@ -716,7 +717,7 @@ User annotations on regulations with optional text anchoring.
 | `anchor_text` | text | The selected text (for validation) |
 | `content` | text NOT NULL | Note content |
 | `author_name` | varchar(255) | Who wrote it |
-| `state` | varchar(2) NOT NULL | NY or NJ |
+| `state` | varchar(3) NOT NULL | NY, NJ, or NYC |
 | `created_at` | timestamp | When created |
 | `updated_at` | timestamp | When last updated |
 
@@ -730,7 +731,7 @@ User bookmarks for pipeline analyses and regulatory documents. Supports bookmark
 | `document_id` | bigint NOT NULL | FK to regulatory_documents (ON DELETE CASCADE) |
 | `analysis_id` | bigint | FK to compliance_issue_analyses (ON DELETE CASCADE) - null for document-level bookmarks |
 | `issue_type` | varchar(50) | Denormalized from analysis for filtering (null for document bookmarks) |
-| `state` | varchar(2) NOT NULL | NY or NJ |
+| `state` | varchar(3) NOT NULL | NY, NJ, or NYC |
 | `notes` | text | Optional user notes explaining why bookmarked |
 | `created_by` | varchar(255) | Who created the bookmark |
 | `created_at` | timestamp | When bookmark was created |

@@ -30,7 +30,7 @@ export const incorporationsByReference = pgTable('incorporations_by_reference', 
   termMatched: varchar('term_matched', { length: 255 }),      // which pattern matched
   context: text('context').notNull(),                         // full snippet for context
   llmConfirmed: boolean('llm_confirmed').default(false),      // true = confirmed IBR
-  state: varchar('state', { length: 2 }).notNull(),           // 'NY' or 'NJ'
+  state: varchar('state', { length: 3 }).notNull(),           // 'NY', 'NJ', or 'NYC'
   url: text('url').notNull(),                                 // source URL
 
   // Review workflow (matching compliance_issues pattern)
