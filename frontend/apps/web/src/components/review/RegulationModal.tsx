@@ -17,10 +17,10 @@ import {
 } from '@/components/ui';
 import { RegulationSummary } from '@/components/regulations/RegulationSummary';
 import { RegulationContent } from '@/components/regulations/RegulationContent';
-import { formatNycrrCitation } from '@/lib/formatters/nycrr';
+import { formatStateCitation } from '@/lib/formatters/citations';
 import { getComplexityVariant } from '@/types/regulation';
 import { useStateFromPath } from '@/hooks';
-import type { StateCode } from '@/types/state';
+import { isValidState, DEFAULT_STATE } from '@/types/state';
 
 interface RegulationModalProps {
   regulationId: number | null;
@@ -34,7 +34,8 @@ export function RegulationModal({ regulationId, onClose }: RegulationModalProps)
   const [error, setError] = useState<string | null>(null);
 
   // Use path state, fallback to regulation's state if available
-  const state = pathState || (regulation?.state?.toLowerCase() as StateCode) || 'nj';
+  const regState = regulation?.state?.toLowerCase();
+  const state = pathState || (regState && isValidState(regState) ? regState : DEFAULT_STATE);
 
   useEffect(() => {
     if (regulationId === null) {
@@ -61,12 +62,8 @@ export function RegulationModal({ regulationId, onClose }: RegulationModalProps)
       });
   }, [regulationId]);
 
-  const nycrrCitation = regulation
-    ? formatNycrrCitation(
-        regulation.nycrrTitle,
-        regulation.nycrrPart,
-        regulation.nycrrSection
-      )
+  const citation = regulation
+    ? formatStateCitation(state, regulation)
     : null;
 
   return (
@@ -81,8 +78,8 @@ export function RegulationModal({ regulationId, onClose }: RegulationModalProps)
             ) : (
               <>
                 <ModalTitle>{regulation?.title || 'Regulation Details'}</ModalTitle>
-                {nycrrCitation && (
-                  <span className="text-sm text-[var(--color-text-muted)]">{nycrrCitation}</span>
+                {citation && (
+                  <span className="text-sm text-[var(--color-text-muted)]">{citation}</span>
                 )}
               </>
             )}

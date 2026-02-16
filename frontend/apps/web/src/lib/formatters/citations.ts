@@ -1,8 +1,9 @@
 import { formatNycrrCitation } from './nycrr';
 import { formatNjacCitation } from './njac';
+import { formatRcnyCitation } from './rcny';
 
 /**
- * Regulation citation fields common to both states.
+ * Regulation citation fields for all states.
  * Components can pass their regulation object directly.
  */
 export interface CitationFields {
@@ -12,25 +13,22 @@ export interface CitationFields {
   njacTitle?: string | null;
   njacChapter?: string | null;
   njacSubchapter?: string | null;
+  rcnyTitle?: string | null;
+  rcnySection?: string | null;
 }
 
 /**
  * Format a state-specific citation from a regulation object.
  * Automatically selects the appropriate formatter based on state.
  *
- * @param state - State code ('ny' or 'nj', case-insensitive)
+ * @param state - State code ('ny', 'nj', or 'nyc', case-insensitive)
  * @param fields - Object containing citation fields (can be a full regulation object)
  * @returns Formatted citation string or null if insufficient data
  *
  * @example
- * // With a regulation object
- * formatStateCitation('NJ', regulation)
- * // Returns: "N.J.A.C. 7:26-1.4"
- *
- * @example
- * // With a regulation object
- * formatStateCitation('NY', regulation)
- * // Returns: "18 NYCRR 505.14"
+ * formatStateCitation('NJ', regulation) // "N.J.A.C. 7:26-1.4"
+ * formatStateCitation('NY', regulation) // "18 NYCRR 505.14"
+ * formatStateCitation('NYC', regulation) // "RCNY § 3-01"
  */
 export function formatStateCitation(
   state: string | null | undefined,
@@ -43,6 +41,13 @@ export function formatStateCitation(
       fields.njacTitle ?? null,
       fields.njacChapter ?? null,
       fields.njacSubchapter ?? null
+    );
+  }
+
+  if (normalizedState === 'nyc') {
+    return formatRcnyCitation(
+      fields.rcnyTitle ?? null,
+      fields.rcnySection ?? null
     );
   }
 

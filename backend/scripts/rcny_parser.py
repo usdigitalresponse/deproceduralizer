@@ -6,9 +6,10 @@ Parses the American Legal Publishing XML export of the RCNY into structured
 regulation records for the `regulatory_documents` table.
 
 Source: XML.zip from ALP export at codelibrary.amlegal.com
-  - Extract to data/rcny_xml/XML/ (755 XML files, one per chapter)
-  - Each file is a DOCUMENT with nested LEVEL elements:
-    Title > Chapter > Subchapter > Subtitle > Part > Subpart > Section > Normal Level
+  - Extract to data/rcny_xml/XML/ (XML files, split at the chapter level)
+  - Each file is a DOCUMENT with nested LEVEL elements
+  - Hierarchy levels: Title > Chapter > Subchapter > Subtitle > Part > Subpart > Section > Normal Level
+  - Only Title, Chapter, and Section levels are extracted as DB records
   - Files are split at the Chapter level, so most files start with a Chapter
     LEVEL rather than a Title LEVEL. Title info is extracted from DESTINATION
     names (e.g. T01C003 = Title 1, Chapter 3).
@@ -85,10 +86,13 @@ def parse_rcny_xml(
     # Pass 1: Collect title info from Title-level files
     print("  Pass 1: Collecting title info...")
     title_info = {}  # title_num -> title_name
+    pass1_parse_errors = 0
     for xml_file in xml_files:
         try:
             tree = ET.parse(xml_file)
-        except ET.ParseError:
+        except ET.ParseError as e:
+            pass1_parse_errors += 1
+            print(f"  WARNING: Pass 1 failed to parse {xml_file.name}: {e}")
             continue
         root = tree.getroot()
         for level in root.iter('LEVEL'):
@@ -97,7 +101,7 @@ def parse_rcny_xml(
                 if title_num and title_num not in title_info:
                     title_info[title_num] = title_name
 
-    print(f"  Found {len(title_info)} titles")
+    print(f"  Found {len(title_info)} titles" + (f" ({pass1_parse_errors} XML parse errors)" if pass1_parse_errors else ""))
 
     # Pass 2: Process all files
     print("  Pass 2: Extracting records...")
@@ -105,6 +109,8 @@ def parse_rcny_xml(
     source_index = 0
     seen_titles = {}    # title_num -> source_index
     seen_chapters = {}  # (title_num, chapter_num) -> source_index
+    skipped_no_title = 0
+    skipped_sections = 0
 
     for i, xml_file in enumerate(xml_files):
         try:
@@ -118,6 +124,8 @@ def parse_rcny_xml(
         # Determine the title for this file
         file_title_num = _get_file_title_num(root)
         if not file_title_num:
+            skipped_no_title += 1
+            print(f"  WARNING: Could not determine title for {xml_file.name}, skipping")
             continue
 
         # Apply title filter
@@ -195,13 +203,21 @@ def parse_rcny_xml(
                 if sec_record:
                     records.append(sec_record)
                     source_index += 1
+                else:
+                    skipped_sections += 1
 
         if (i + 1) % 100 == 0:
             elapsed = time.time() - start_time
-            print(f"  Processed {i+1:,}/{len(xml_files):,} files, {source_index:,} records ({format_time(elapsed)})")
+            rate = (i + 1) / elapsed if elapsed > 0 else 0
+            remaining = (len(xml_files) - (i + 1)) / rate if rate > 0 else 0
+            print(f"  Processed {i+1:,}/{len(xml_files):,} files, {source_index:,} records ({format_time(elapsed)}, ETA: {format_time(remaining)})")
 
     elapsed = time.time() - start_time
     print(f"  Processed {len(xml_files):,} files in {format_time(elapsed)}")
+    if skipped_no_title:
+        print(f"  WARNING: {skipped_no_title} files skipped (could not determine title)")
+    if skipped_sections:
+        print(f"  WARNING: {skipped_sections} sections skipped (no record/section_id/title)")
 
     return records
 
@@ -210,9 +226,10 @@ def _get_file_title_num(root: ET.Element) -> Optional[str]:
     """
     Determine the RCNY title number for an XML file.
 
-    Strategy:
+    Strategy (tried in order):
     1. If the file contains a Title LEVEL, extract from its heading
-    2. Otherwise, extract from DESTINATION names (e.g. T01C003 -> Title 1)
+    2. Extract from DESTINATION names (e.g. T01C003 -> Title 1)
+    3. Extract from chapter headings like "Title 16-A Chapter 1..."
     """
     # Check for Title LEVEL
     for level in root.iter('LEVEL'):
@@ -301,9 +318,20 @@ def _get_record_id(level: ET.Element) -> Optional[str]:
 
 
 def _extract_text_from_level(level: ET.Element) -> str:
-    """Extract all text content from Normal Level children of a Section."""
+    """Extract all text content from Normal Level children of a Section.
+
+    Uses findall instead of iter to avoid processing nested Normal Level
+    elements multiple times (iter returns descendants recursively).
+    """
     parts = []
-    for child_level in level.iter('LEVEL'):
+    # Get RECORD/PARA from the section itself
+    for rec in level.findall('RECORD'):
+        for para in rec.iter('PARA'):
+            text = _get_para_text(para)
+            if text:
+                parts.append(text)
+    # Get RECORD/PARA from direct Normal Level children only
+    for child_level in level.findall('LEVEL'):
         if child_level.get('style-name') != 'Normal Level':
             continue
         for rec in child_level.iter('RECORD'):
@@ -484,8 +512,12 @@ def save_regulations(records: list[dict]):
     """Save regulation records to JSON file."""
     ensure_data_dirs()
 
-    with open(RCNY_REGULATIONS_COMPLETE_FILE, 'w', encoding='utf-8') as f:
-        json.dump(records, f, indent=2, ensure_ascii=False)
+    try:
+        with open(RCNY_REGULATIONS_COMPLETE_FILE, 'w', encoding='utf-8') as f:
+            json.dump(records, f, indent=2, ensure_ascii=False)
+    except OSError as e:
+        print(f"ERROR: Failed to save regulations to {RCNY_REGULATIONS_COMPLETE_FILE}: {e}")
+        raise
     print(f"\nSaved {len(records):,} records to {RCNY_REGULATIONS_COMPLETE_FILE}")
 
     sections = [r for r in records if r['hierarchy_level'] == 'section']
@@ -508,8 +540,12 @@ def migrate_rcny_to_db(records: Optional[list[dict]] = None) -> int:
             print(f"Error: File not found: {RCNY_REGULATIONS_COMPLETE_FILE}")
             return 0
         print(f"Loading regulations from {RCNY_REGULATIONS_COMPLETE_FILE}...")
-        with open(RCNY_REGULATIONS_COMPLETE_FILE) as f:
-            records = json.load(f)
+        try:
+            with open(RCNY_REGULATIONS_COMPLETE_FILE) as f:
+                records = json.load(f)
+        except (json.JSONDecodeError, OSError) as e:
+            print(f"ERROR: Failed to load {RCNY_REGULATIONS_COMPLETE_FILE}: {e}")
+            return 0
 
     return migrate_regulations_to_db('NYC', regulations=records)
 
@@ -518,8 +554,12 @@ def populate_rcny_parent_ids(records: Optional[list[dict]] = None):
     """Populate parent_id for RCNY regulations."""
     if records is None:
         if RCNY_REGULATIONS_COMPLETE_FILE.exists():
-            with open(RCNY_REGULATIONS_COMPLETE_FILE) as f:
-                records = json.load(f)
+            try:
+                with open(RCNY_REGULATIONS_COMPLETE_FILE) as f:
+                    records = json.load(f)
+            except (json.JSONDecodeError, OSError) as e:
+                print(f"ERROR: Failed to load {RCNY_REGULATIONS_COMPLETE_FILE}: {e}")
+                return
         else:
             print(f"Error: File not found: {RCNY_REGULATIONS_COMPLETE_FILE}")
             return
@@ -633,13 +673,16 @@ def main():
 
     args = parser.parse_args()
 
-    run_pipeline(
+    success = run_pipeline(
         parse_only=args.parse_only,
         skip_parse=args.skip_parse,
         skip_db=args.skip_db,
         hierarchy_only=args.hierarchy_only,
         title_filter=args.title,
     )
+
+    if not success:
+        sys.exit(1)
 
 
 if __name__ == "__main__":

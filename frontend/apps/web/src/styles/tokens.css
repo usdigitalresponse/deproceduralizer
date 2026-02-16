@@ -73,6 +73,10 @@
   --color-state-nj-accent: #b45309;
   --color-state-nj-bg: rgba(180, 83, 9, 0.05);
   --color-state-nj-border: rgba(180, 83, 9, 0.15);
+  /* New York City */
+  --color-state-nyc-accent: #059669;
+  --color-state-nyc-bg: rgba(5, 150, 105, 0.05);
+  --color-state-nyc-border: rgba(5, 150, 105, 0.15);
 
   /* ========================================
      TYPOGRAPHY TOKENS

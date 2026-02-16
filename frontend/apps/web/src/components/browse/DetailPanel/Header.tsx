@@ -2,16 +2,12 @@ import Link from 'next/link';
 import { ExternalLink, X } from 'lucide-react';
 import { Button } from '@/components/ui';
 import { RegulationQuickStats } from '@/components/regulations';
-import { formatNycrrCitation } from '@/lib/formatters/nycrr';
+import { formatStateCitation } from '@/lib/formatters/citations';
 import { formatDisplayTitle } from '@/lib/format';
 import type { HeaderProps } from './types';
 
 export function Header({ document, state, currentUrl, onClose }: HeaderProps) {
-  const nycrrCitation = formatNycrrCitation(
-    document.nycrrTitle,
-    document.nycrrPart,
-    document.nycrrSection
-  );
+  const citation = formatStateCitation(state, document);
 
   return (
     <div className="p-4 border-b border-[var(--color-neutral-200)] shrink-0">
@@ -20,8 +16,8 @@ export function Header({ document, state, currentUrl, onClose }: HeaderProps) {
           <h2 className="text-lg font-semibold text-[var(--color-text)] truncate" title={document.title}>
             {formatDisplayTitle(document)}
           </h2>
-          {nycrrCitation && (
-            <p className="text-sm text-[var(--color-text-muted)] mt-0.5">{nycrrCitation}</p>
+          {citation && (
+            <p className="text-sm text-[var(--color-text-muted)] mt-0.5">{citation}</p>
           )}
         </div>
         <div className="flex items-center gap-2 shrink-0">

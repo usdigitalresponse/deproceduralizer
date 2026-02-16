@@ -62,7 +62,7 @@ def migrate_regulations_to_db(state: str, regulations: list = None, reg_dir: Pat
     This preserves existing IDs by matching on (state, source_index, type).
 
     Args:
-        state: State code ('NY' or 'NJ')
+        state: State code ('NY', 'NJ', or 'NYC')
         regulations: List of regulation dicts (from scraper or JSON files)
         reg_dir: Optional directory to load from JSON files instead
 
@@ -116,6 +116,9 @@ def migrate_regulations_to_db(state: str, regulations: list = None, reg_dir: Pat
 
     try:
         conn = get_db_connection()
+        if conn is None:
+            print("✗ Failed to connect to database (DATABASE_URL not set?)")
+            return 0
         cur = conn.cursor()
 
         for reg in regulations:
@@ -185,7 +188,7 @@ def populate_parent_ids(state: str, regulations: list = None, reg_dir: Path = No
     Populate parent_id for regulations by converting parent_source_index to parent_id.
 
     Args:
-        state: State code ('NY' or 'NJ')
+        state: State code ('NY', 'NJ', or 'NYC')
         regulations: List of regulation dicts with parent_source_index
         reg_dir: Optional directory to load parent mappings from JSON files
     """
@@ -262,7 +265,7 @@ def cleanup_stale_documents(state: str, valid_source_indices: set = None, reg_di
     Remove documents from DB that aren't in current data.
 
     Args:
-        state: State code ('NY' or 'NJ')
+        state: State code ('NY', 'NJ', or 'NYC')
         valid_source_indices: Set of valid source_index values
         reg_dir: Optional directory to load valid indices from JSON files
     """

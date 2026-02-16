@@ -21,9 +21,9 @@ import {
   RegulationSummary,
   RegulationContent,
 } from '@/components/regulations';
-import { formatNycrrCitation } from '@/lib/formatters/nycrr';
+import { formatStateCitation } from '@/lib/formatters/citations';
 import { useStateFromPath } from '@/hooks';
-import type { StateCode } from '@/types/state';
+import { isValidState, DEFAULT_STATE } from '@/types/state';
 
 interface DetailModalProps {
   regulationId: number | null;
@@ -47,7 +47,8 @@ export default function DetailModal({ regulationId, onClose, onFlagUpdated }: De
   const [error, setError] = useState<string | null>(null);
 
   // Use path state, fallback to regulation's state if available
-  const state = pathState || (regulation?.state?.toLowerCase() as StateCode) || 'nj';
+  const regState = regulation?.state?.toLowerCase();
+  const state = pathState || (regState && isValidState(regState) ? regState : DEFAULT_STATE);
 
   // Fetch regulation when regulationId changes
   useEffect(() => {
@@ -107,8 +108,8 @@ export default function DetailModal({ regulationId, onClose, onFlagUpdated }: De
     onFlagUpdated?.(updatedFlag);
   };
 
-  const nycrrCitation = regulation
-    ? formatNycrrCitation(regulation.nycrrTitle, regulation.nycrrPart, regulation.nycrrSection)
+  const citation = regulation
+    ? formatStateCitation(state, regulation)
     : null;
 
   return (
@@ -118,8 +119,8 @@ export default function DetailModal({ regulationId, onClose, onFlagUpdated }: De
         <ModalHeader>
           <div className="flex-1 pr-4">
             <ModalTitle>{regulation?.title || 'Loading...'}</ModalTitle>
-            {nycrrCitation && (
-              <span className="text-sm text-[var(--color-text-muted)]">{nycrrCitation}</span>
+            {citation && (
+              <span className="text-sm text-[var(--color-text-muted)]">{citation}</span>
             )}
           </div>
           <div className="flex items-center gap-2">
