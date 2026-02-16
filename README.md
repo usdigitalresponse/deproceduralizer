@@ -1,23 +1,56 @@
 # Deproceduralizer
 
-A regulatory analysis tool that identifies "red flags" — compliance issues, procedural complexity, and implementation challenges in government regulations. Uses AI-powered analysis to help policy reviewers and government staff understand and manage regulatory complexity.
+An AI-powered tool that helps government staff identify procedural barriers, outdated requirements, and unnecessary complexity buried in state regulations.
 
 Built with support from the **Recoding America Fund**.
 
-## Overview
+`States: NY | NJ` · `Next.js 16` · `Python 3.10+` · `Deployed on Vercel`
 
-Deproceduralizer scrapes state regulations from Cornell Law's Legal Information Institute, analyzes them using LLM-powered detection (based on Jennifer Pahlka's framework), and provides an interactive web interface for human review and triage.
+## What This Project Does
 
-**Currently supported states:**
-- New York (NYCRR)
-- New Jersey (NJAC)
+State administrative codes contain tens of thousands of regulatory sections — many with outdated procedural requirements (fax-only submissions, wet signatures, certified mail mandates) that are invisible at scale. No human team can read 120,000+ sections looking for these problems.
+
+Deproceduralizer applies Jennifer Pahlka's regulatory burden framework through a combination of regex pattern matching and multi-tier LLM verification. It scans regulation text for 41 types of compliance issues across 12 red flag categories, then uses Claude to filter false positives, classify burden severity, and verify findings against source statutes.
+
+The result is an interactive web application where policy reviewers can browse regulations, review AI-identified findings, track triage decisions, and export actionable data — all organized by the regulatory hierarchy they already know.
+
+## Table of Contents
+
+- [Key Capabilities](#key-capabilities)
+- [Architecture](#architecture)
+- [Tech Stack](#tech-stack)
+- [Getting Started](#getting-started)
+- [Web Application](#web-application)
+- [Project Structure](#project-structure)
+- [Analysis Pipeline](#analysis-pipeline)
+- [Database Schema](#database-schema)
+- [Development](#development)
+- [Deployment](#deployment)
+- [Data Coverage](#data-coverage)
+- [Contributing](#contributing)
+- [License](#license)
+
+## Key Capabilities
+
+- **41 compliance issue types** — wet signatures, mail-only processes, fax requirements, obsolete technology mandates, excessive documentation, and more
+- **12 red flag categories** — based on Jennifer Pahlka's framework (complexity/policy debt, options-become-requirements, cascade of rigidity, etc.)
+- **3-tier research pipeline** — regex scan → LLM filtering → LLM classification with optional web search verification
+- **Hierarchical summarization** — bottom-up summaries from sections through subchapters, chapters, parts, and titles using Anthropic Batch API
+- **Multi-state support** — New York (NYCRR) and New Jersey (NJAC) with extensible scraper architecture
+- **Human review workflow** — review queues with keyboard navigation, status tracking, priority assignment, and reviewer notes
+- **Developer mode** — implementation tracking, developer assignment, and resolution status for reviewed findings
+- **IBR detection** — identifies external standards incorporated by reference (NFPA, ICC, ASTM, CFR)
+- **Analytics dashboard** — visualizations of compliance issue distribution, severity trends, and pipeline coverage
+- **Statute mandate checking** — verifies whether cited statutes actually mandate flagged requirements (NY)
+- **Cross-reference extraction** — maps internal citations between regulatory documents for contextual analysis
+- **Bookmarks** — save and organize regulations of interest for later review
 
 ## Architecture
 
 ```
 Cornell Law Website (Regulations + Statutes)
         ↓
-    Scraper Scripts (ny/nj_regulations_scraper.py, ny_statutes_scraper.py)
+    Scraper Scripts (ny/nj_regulations_scraper.py, ny_statutes.py)
         ↓
     JSON cache (data/scraped_data/, data/nj_scraped_data/)
         ↓
@@ -25,16 +58,16 @@ Cornell Law Website (Regulations + Statutes)
         ↓
     PostgreSQL (Neon)
         ↓
-    Statute Linking (link_ny_statutes.py, link_nyc_statutes.py) + Batch Exclude non-regulatory sections
-        ↓
-    Analysis Scripts (definitions, summaries, compliance issues, research pipeline, mandate checks)
+    Analysis Pipeline (11 steps: status detection, definitions, cross-refs,
+                       summaries, compliance scan, research pipeline,
+                       IBR scan, red flags, statute mandates, stats refresh)
         ↓
     Next.js Web App (server actions query DB directly via Drizzle)
         ↓
-    Human Review Queue
+    Human Review + Analytics
 ```
 
-> **Note:** The scrapers handle migration automatically. The UI queries PostgreSQL directly via server actions — it does not call the Python backend.
+The Python backend handles scraping and AI analysis, writing results to PostgreSQL. The Next.js frontend reads from the same database via Drizzle ORM server actions — it never calls the Python backend directly.
 
 ## Tech Stack
 
@@ -43,73 +76,32 @@ Cornell Law Website (Regulations + Statutes)
 | Backend | Python 3.10+, Claude API (Anthropic), psycopg, Pydantic |
 | Database | PostgreSQL via Neon, Drizzle ORM |
 | Frontend | Next.js 16, React 19, TypeScript, Tailwind CSS 4, Radix UI |
+| Visualization | D3, Visx, Nivo |
+| Testing | Playwright (E2E smoke tests) |
+| Package Manager | pnpm 9+ (workspaces monorepo) |
 | Deployment | Vercel |
 
-## Project Structure
-
-```
-deproceduralizer/
-├── backend/                          # Python backend
-│   ├── config.py                     # Path configuration
-│   ├── lib/                          # DB, LLM, parsing utilities (split modules)
-│   ├── requirements.txt              # Python dependencies
-│   └── scripts/                      # Executable scripts
-│       ├── ny_regulations_scraper.py # NY scraper (includes DB migration)
-│       ├── nj_regulations_scraper.py # NJ scraper (includes DB migration)
-│       ├── red_flags.py              # LLM red flag analysis
-│       ├── batch_definitions.py      # Batch definition extraction
-│       ├── link_definitions.py       # Link definitions to documents
-│       ├── scan_compliance_issues.py  # Regex compliance issue scanner
-│       ├── research_pipeline/        # 3-tier LLM analysis pipeline
-│       │   ├── cli.py                # CLI entry point
-│       │   ├── pipeline_runner.py    # Core orchestration (flat functions)
-│       │   ├── tiers/                # Tier 1-3 runners
-│       │   ├── db/                   # Database layer
-│       │   ├── context/              # Context gathering
-│       │   └── models/               # Pydantic models
-│       └── ...
-│
-├── frontend/                         # Next.js monorepo
-│   ├── pnpm-workspace.yaml           # Monorepo config
-│   ├── apps/
-│   │   └── web/                      # Main web application
-│   │       ├── src/
-│   │       │   ├── app/              # Next.js App Router
-│   │       │   ├── components/       # React components
-│   │       │   ├── lib/actions/      # Server actions
-│   │       │   └── ...
-│   │       └── ...
-│   └── packages/
-│       └── database/                 # Shared Drizzle ORM package
-│           ├── src/schema/           # Table definitions
-│           └── src/repositories/     # Data access layer
-│
-├── DATABASE_SETUP.md                 # Database setup guide
-└── .env                              # Environment variables (gitignored)
-```
-
-## Quick Start
+## Getting Started
 
 ### Prerequisites
 
 - Python 3.10+
 - Node.js 18+
-- pnpm (`npm install -g pnpm`)
-- PostgreSQL (or Neon cloud database)
+- pnpm 9+ (`npm install -g pnpm`)
+- PostgreSQL (or [Neon](https://neon.tech) cloud database)
 - Anthropic API key (for Claude LLM analysis)
 
-### 1. Install Dependencies
+### Install
 
 ```bash
-# Python dependencies (use uv for package management per project standards)
+# Python dependencies
 uv pip install -r backend/requirements.txt
-# Or with pip: pip install -r backend/requirements.txt
 
 # Node.js dependencies
 cd frontend && pnpm install
 ```
 
-### 2. Configure Environment
+### Environment
 
 Create a `.env` file in the project root:
 
@@ -118,110 +110,38 @@ DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
 ANTHROPIC_API_KEY=sk-ant-...
 ```
 
-For the web app, also create `frontend/apps/web/.env.local` with the same `DATABASE_URL`.
-
-### 3. Set Up Database
-
-See `DATABASE_SETUP.md` for detailed Postgres/Neon setup instructions and how to run migrations.
-
-### 4. Run the Pipeline
-
-The full analysis pipeline has multiple steps per state. Here's the quick version for NY:
+For the web app, also create `frontend/apps/web/.env.local`:
 
 ```bash
-# 1. Scrape regulations (includes DB migration and stats refresh)
-python backend/scripts/ny_regulations_scraper.py
-
-# 2. Detect regulatory status (repealed/reserved/expired)
-python backend/scripts/detect_regulatory_status.py --state NY
-
-# 3. Extract definitions (Anthropic Batch API)
-python backend/scripts/batch_definitions.py submit --state NY
-python backend/scripts/batch_definitions.py status
-python backend/scripts/batch_definitions.py process --batch-id <id>
-
-# 4. Link definitions to documents
-python backend/scripts/link_definitions.py run --state NY
-python backend/scripts/backfill_definition_scope.py --state NY
-
-# 5. Generate summaries (5 hierarchical phases, see OPERATIONS.md)
-cd backend && python3 -m scripts.summarization.cli --state NY --title 18 --run-all-phases
-
-# 6. Scan compliance issues (regex, no LLM)
-python backend/scripts/scan_compliance_issues.py --state ny
-
-# 7. Research pipeline (3-tier LLM analysis — costs money, ask first)
-cd backend && python3 -m scripts.research_pipeline.cli --state ny --all-issues --execute
-
-# 8. Scan incorporations by reference
-python backend/scripts/ibr_scanner.py --state ny
-
-# 9. Red flag analysis
-python backend/scripts/red_flags.py --state NY
-
-# 10. Refresh hierarchy stats
-python backend/scripts/refresh_hierarchy_stats.py --state NY
+DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
 ```
 
-See [`docs/OPERATIONS.md`](docs/OPERATIONS.md) for the complete runbook with all flags, cost estimates, and detailed instructions for each step.
+### Database
 
-### 5. Start the Web App
+See [`DATABASE_SETUP.md`](DATABASE_SETUP.md) for Postgres/Neon setup and migration instructions.
+
+### Start the Web App
 
 ```bash
 cd frontend/apps/web
-pnpm dev
+pnpm dev --port 3010
 ```
 
-Open http://localhost:3010
+Open http://localhost:3010 to browse the application immediately (assuming the database is populated).
 
-## Backend Scripts
+### Run the Pipeline
 
-### Scrapers
+The full analysis pipeline has 11 steps. For a quick demo on a single title:
 
-| Script | Purpose |
-|--------|---------|
-| `ny_regulations_scraper.py` | Scrape NYCRR from Cornell Law. Outputs JSON files with regulation text, hierarchy, and metadata. |
-| `nj_regulations_scraper.py` | Scrape NJAC from Cornell Law. Similar output format for New Jersey. |
+```bash
+# Scrape NY regulations (includes DB migration)
+python backend/scripts/ny_regulations_scraper.py
 
-### Data Processing
+# Scan compliance issues (regex only, free, fast)
+python backend/scripts/scan_compliance_issues.py --state ny
+```
 
-The scrapers handle migration automatically via `lib.migration.migrate_regulations_to_db()`:
-- Imports scraped JSON into PostgreSQL
-- Creates `regulatory_documents` records with hierarchy
-- Handles re-runs safely with `ON CONFLICT`
-- Refreshes denormalized stats (child counts, descendant flag counts, max severity)
-
-| Script | Purpose |
-|--------|---------|
-| `refresh_hierarchy_stats.py` | Manually refresh denormalized statistics if needed. Use `--structure` for hierarchy stats, `--analysis` for flag stats, `--compliance` for compliance stats. |
-
-### Analysis
-
-| Script | Purpose |
-|--------|---------|
-| `red_flags.py` | LLM-powered analysis identifying 12 categories of implementation red flags. Uses Claude API with structured output. |
-| `batch_definitions.py` | Batch LLM-powered definition extraction with caching and progress tracking. |
-| `link_definitions.py` | Link extracted definitions to documents where terms appear. |
-| `scan_compliance_issues.py` | Regex compliance issue detection (41 issue types). No LLM — regex only. |
-| `research_pipeline/cli.py` | 3-tier LLM analysis pipeline (Tier 1 filter → Tier 2 classify → Tier 3 web verify). |
-| `backfill_definition_scope.py` | Fix incomplete definition scopes. |
-
-### Red Flag Categories
-
-Based on Jennifer Pahlka's framework:
-
-1. `complexity_policy_debt` — Legacy policy constraints
-2. `options_become_requirements` — Optional items treated as mandatory
-3. `policy_implementation_separation` — Gap between policy and implementation
-4. `overwrought_legalese` — Unnecessarily complex language
-5. `cascade_of_rigidity` — Cascading inflexibility
-6. `mandated_steps_not_outcomes` — Process focus vs. results focus
-7. `administrative_burdens` — Unnecessary administrative requirements
-8. `no_feedback_loops` — Lack of evaluation mechanisms
-9. `process_worship_oversight` — Over-focus on process compliance
-10. `zero_risk_language` — Eliminating all flexibility
-11. `frozen_technology` — Locked-in specific technologies
-12. `implementation_opportunity` — Opportunities for improvement
+See [`docs/OPERATIONS.md`](docs/OPERATIONS.md) for the complete runbook with all steps, flags, cost estimates, and timing.
 
 ## Web Application
 
@@ -229,139 +149,205 @@ Based on Jennifer Pahlka's framework:
 
 | Route | Description |
 |-------|-------------|
-| `/[state]` | Main regulations table with search and filters |
-| `/[state]/browse` | Interactive hierarchy tree browser |
-| `/[state]/review` | Review queues (red flags, compliance issues, definitions) |
-| `/[state]/review?mode=developer` | Developer mode for implementation tracking |
-| `/[state]/definitions` | Definitions glossary with A-Z filter |
-| `/[state]/regulations/[id]` | Regulation detail with analysis |
-| `/prompts` | View and provide feedback on LLM prompts |
+| `/` | Dashboard — cross-state overview and summary metrics |
+| `/[state]` | Table View — paginated regulations table with search and filters |
+| `/[state]/browse` | Browse — interactive hierarchy tree browser |
+| `/[state]/definitions` | Glossary — definitions with A-Z filter, list/grouped views |
+| `/[state]/statutes` | Statutes — browse linked state statutes |
+| `/[state]/statutes/[id]` | Statute Detail — individual statute with linked regulations |
+| `/[state]/ibr` | Standards (IBR) — incorporated-by-reference standards browser |
+| `/[state]/review` | Review Mode — queues for red flags, compliance issues, definitions |
+| `/[state]/review?mode=developer` | Developer Mode — implementation tracking and assignment |
+| `/[state]/pipeline` | Pipeline — research pipeline status, funnel visualization, drill-downs |
+| `/[state]/bookmarks` | Bookmarks — saved regulations for later review |
+| `/[state]/analytics` | Analytics — compliance issue distribution and severity visualizations |
+| `/[state]/regulations/[id]` | Regulation Detail — full text with analysis, flags, and cross-references |
+| `/prompts` | Prompts — view and provide feedback on LLM prompts |
 
 ### Features
 
-**Regulations View**
-- Paginated table with search
-- Filter by: severity, complexity, has flags, implementation issues, technical review, reporting requirements
-- Sort by: max severity, flag count, title, complexity
+**Dashboard** — Cross-state summary with key metrics, recent activity, and quick navigation to state-specific views.
 
-**Browse Hierarchy**
-- Interactive tree view of regulation structure
-- Expandable/collapsible nodes
-- Filter by: analyzed, has flags, severity level, has definitions
-- Shows descendant counts and max severity
+**Table View** — Paginated regulation table with search. Filter by severity, complexity, flags, implementation issues, technical review, and reporting requirements. Sort by max severity, flag count, title, or complexity.
 
-**Review Queues**
-- Separate queues for red flags, compliance issues, and definitions
-- Filter by status, severity, category, issue type
-- Keyboard navigation (j/k to navigate, n for next unreviewed, v to view regulation)
-- Update each item with review status, priority, impact type, notes, and reviewer name
-- Progress indicators showing review completion
+**Browse Hierarchy** — Interactive tree view of the regulation structure. Expand/collapse nodes, filter by analyzed status, flags, severity, or definitions. Shows descendant counts and max severity at each level.
 
-**Developer Mode**
-- Track implementation status of reviewed items
-- Developer assignment (Michael/Abigail)
-- Resolution tracking (Implemented/Not Implemented)
-- "Need More Info" queue for back-and-forth discussions
+**Glossary** — Searchable definitions with A-Z letter filter. List (flat) and Grouped (aggregated terms) view modes. Quality indicators based on overlap scoring, with links to source regulations.
 
-**Definitions Glossary**
-- Searchable glossary with A-Z letter filter
-- Two view modes: List (flat) and Grouped (aggregated terms)
-- Quality indicators based on overlap scoring
-- Links to source regulations with citations
+**Statutes** — Browse state statutes linked to regulations. View which regulatory sections cite each statute and how requirements flow from legislation to administrative code.
 
-**Compliance Issues**
-- 41 issue types (wet signatures, mail-only, certified mail, fax, obsolete tech, etc.)
-- Regex-based candidate detection with LLM verification
-- Statute attribution (from_statute flag indicates if requirement is in statute or regulation-added)
+**Standards (IBR)** — Browse external standards incorporated by reference in regulations (NFPA, ICC, ASTM, CFR). Shows which regulations reference each standard.
+
+**Review Mode** — Separate queues for red flags, compliance issues, and definitions. Filter by status, severity, category, or issue type. Keyboard navigation (j/k to navigate, n for next unreviewed, v to view regulation). Update items with review status, priority, impact type, notes, and reviewer name. Progress indicators showing review completion.
+
+**Developer Mode** — Track implementation status of reviewed items. Developer assignment, resolution tracking (Implemented/Not Implemented), and "Need More Info" queue for back-and-forth discussions.
+
+**Pipeline** — Monitor research pipeline execution with subtabs for different views, a research funnel visualization showing how candidates flow through tiers, and drill-down capabilities for investigating specific issues.
+
+**Bookmarks** — Save regulations of interest for focused review sessions. Organize and manage saved items.
+
+**Analytics** — Visualizations of compliance issue distribution across issue types and states, severity breakdowns, and pipeline coverage metrics.
+
+## Project Structure
+
+```
+deproceduralizer/
+├── backend/                              # Python backend
+│   ├── config.py                         # Path configuration
+│   ├── lib/                              # DB, LLM, parsing utilities
+│   ├── requirements.txt                  # Python dependencies
+│   └── scripts/                          # Analysis pipeline scripts
+│       ├── ny_regulations_scraper.py     # NY scraper (includes DB migration)
+│       ├── nj_regulations_scraper.py     # NJ scraper (includes DB migration)
+│       ├── scan_compliance_issues.py     # Regex compliance issue scanner
+│       ├── red_flags.py                  # LLM red flag analysis
+│       ├── batch_definitions.py          # Batch definition extraction
+│       ├── ibr_scanner.py                # Incorporation by reference scanner
+│       ├── research_pipeline/            # 3-tier LLM analysis pipeline
+│       ├── summarization/                # Hierarchical summarization
+│       ├── cross_references/             # Internal citation extraction
+│       └── ...
+│
+├── frontend/                             # Next.js monorepo
+│   ├── pnpm-workspace.yaml              # Monorepo config
+│   ├── apps/
+│   │   └── web/                          # Main web application
+│   │       ├── src/
+│   │       │   ├── app/                  # Next.js App Router (routes)
+│   │       │   ├── components/           # React components
+│   │       │   │   ├── analytics/        # Analytics visualizations
+│   │       │   │   ├── browse/           # Hierarchy tree browser
+│   │       │   │   ├── home/             # Dashboard components
+│   │       │   │   ├── ibr/              # IBR standards browser
+│   │       │   │   ├── issues/           # Compliance issues
+│   │       │   │   ├── review/           # Review queue components
+│   │       │   │   ├── statutes/         # Statute browser
+│   │       │   │   └── ui/              # Shared UI primitives
+│   │       │   └── lib/
+│   │       │       ├── actions/          # Server actions (data access)
+│   │       │       ├── constants/        # Centralized enums, nav config
+│   │       │       └── url/              # nuqs URL state parsers
+│   │       ├── e2e/                      # Playwright smoke tests
+│   │       └── STYLE_GUIDE.md            # Component style guide
+│   └── packages/
+│       └── database/                     # Shared Drizzle ORM package
+│           ├── src/schema/               # Table definitions
+│           ├── src/repositories/         # Data access layer
+│           └── migrations/               # DDL migrations
+│
+├── prompts/                              # LLM prompt definitions (YAML)
+│   ├── core.yaml                         # Red flags, definitions prompts
+│   └── compliance_issues.yaml            # 41 issue types with patterns
+│
+├── docs/
+│   └── OPERATIONS.md                     # Pipeline runbook
+│
+├── .claude/                              # Claude Code configuration
+│   ├── hooks/                            # Workflow automation hooks
+│   └── skills/                           # Domain-specific skill docs
+│
+├── DATABASE_SETUP.md                     # Database setup guide
+└── .env                                  # Environment variables (gitignored)
+```
+
+## Analysis Pipeline
+
+The full pipeline transforms raw regulation text into structured, reviewable findings.
+
+1. **Scrape** — Fetch regulations from Cornell Law into JSON cache, then migrate to PostgreSQL
+2. **Exclude** — Mark non-regulatory sections (executive orders, data tables) to skip in analysis
+3. **Regulatory Status** — Detect repealed, reserved, recodified, or expired sections
+4. **Definitions** — Extract defined terms using Anthropic Batch API (Haiku)
+5. **Link Definitions** — Match definitions to documents where terms appear
+6. **Cross-References** — Extract internal citations between regulatory documents
+7. **Summaries** — Generate hierarchical summaries (sections → subchapters → chapters → parts → titles)
+8. **Compliance Scan** — Regex-only detection of 41 compliance issue types (no LLM, free)
+9. **Research Pipeline** — 3-tier LLM analysis: filter false positives → classify burden/severity → web search verification
+10. **IBR Scan** — Detect external standards incorporated by reference
+11. **Red Flags** — LLM analysis identifying 12 categories of implementation complexity
+12. **Refresh Stats** — Precompute hierarchy statistics for frontend performance
+
+Steps 6-8 can run in parallel. Step 9 depends on steps 6 and 7. Step 12 runs last.
+
+See [`docs/OPERATIONS.md`](docs/OPERATIONS.md) for the complete runbook with commands, flags, cost estimates, and timing for each step.
 
 ## Database Schema
 
 ### Core Tables
 
-**regulatory_documents**
-- Regulation text and metadata
-- Hierarchy information (parent_id, hierarchy_level, hierarchy_path)
-- NYCRR/NJAC citation components
-- Denormalized stats (child counts, descendant flag counts)
+| Table | Purpose |
+|-------|---------|
+| `regulatory_documents` | Regulation text, metadata, hierarchy, denormalized stats |
+| `analyses` | LLM analysis results per document (complexity, summary, severity) |
+| `red_flags` | Individual red flags with category, severity, review status |
+| `definitions` | Extracted defined terms with scope tracking |
+| `compliance_issues` | Regex-matched compliance issue candidates (41 types) |
+| `compliance_issue_analyses` | LLM analysis + human review per document/issue type |
+| `statute_references` | Legal citations extracted from regulations (USC, CFR, state) |
+| `cross_references` | Internal citations between regulatory documents |
+| `incorporations_by_reference` | External standards referenced in regulations |
+| `statute_mandate_checks` | Whether cited statutes actually mandate flagged issues |
+| `definition_document_occurrences` | Links definitions to documents where terms appear |
 
-**analyses**
-- LLM analysis results per document
-- Overall complexity (HIGH/MEDIUM/LOW)
-- Summary, max severity, flag count
-- `is_current` flag for versioning
-
-**red_flags**
-- Individual identified issues
-- Category, explanation, severity (1-10)
-- Implementation approach, effort estimate
-- Review fields (status, priority, impact_type, notes, reviewer)
-
-**statute_references**
-- Legal citations extracted from regulations
-- USC, CFR, public laws, state statutes
-
-**definitions**
-- Extracted defined terms with scope tracking
-- Definition text, scope level, cross-reference detection
-- Review and developer workflow fields
-
-**compliance_issues**
-- Regex-matched compliance issue candidates (41 types)
-- Links to `compliance_issue_analyses` via `analysis_id` FK
-
-**compliance_issue_analyses**
-- Single source of truth for LLM analysis + human review (one per document + issue type)
-- Tier 1-3 analysis results, severity, classification
-- Review workflow with developer tracking
-
-See `.claude/skills/database/schema.md` for complete schema documentation, or `frontend/packages/database/src/schema/` for Drizzle definitions.
+See [`.claude/skills/database/schema.md`](.claude/skills/database/schema.md) for complete schema documentation, or [`frontend/packages/database/src/schema/`](frontend/packages/database/src/schema/) for Drizzle definitions.
 
 ## Development
 
-### Backend Development
-
-```bash
-# Run individual scripts
-python backend/scripts/red_flags.py --help
-
-# Scripts support:
-# - Progress bars (tqdm)
-# - Resume capability (checkpoint files)
-# - Batch processing
-```
-
-### Frontend Development
+### Frontend
 
 ```bash
 cd frontend/apps/web
 
-pnpm dev      # Start dev server (http://localhost:3010)
-pnpm build    # Production build
-pnpm lint     # Run ESLint
-
-# Or from frontend root:
-pnpm --filter web dev
+pnpm dev --port 3010   # Start dev server
+pnpm build             # Production build
+pnpm lint              # Run ESLint
+pnpm test:e2e          # Run Playwright smoke tests
 ```
 
-### Database Package
+### Backend
+
+```bash
+# See available flags for any script
+python backend/scripts/red_flags.py --help
+
+# Run module-based scripts
+cd backend
+python3 -m scripts.research_pipeline.cli --help
+python3 -m scripts.summarization.cli --help
+python3 -m scripts.cross_references.run_extraction --help
+```
+
+### Database
 
 ```bash
 cd frontend/packages/database
-
-pnpm generate  # Drizzle code generation
+pnpm generate          # Drizzle code generation after schema changes
 ```
 
-### Prompts Page
-
-The `/prompts` page displays LLM prompts from `frontend/apps/web/src/data/prompts.yaml`.
-This file is copied from `prompts/core.yaml` during build:
+### Type Checking
 
 ```bash
-# In dev, if /prompts shows "file not found", run:
+# TypeScript
+cd frontend/packages/database && npx tsc --noEmit
+
+# Full build (includes type checking)
+cd frontend && pnpm build
+```
+
+### Prompts
+
+All LLM prompts live in `/prompts/` (YAML). The frontend copies them during build:
+
+```bash
+# If /prompts page shows "file not found" in dev:
 cd frontend/apps/web && pnpm prebuild
 ```
 
-The prebuild script copies `prompts/core.yaml` → `src/data/prompts.yaml`. Compliance issue prompts are in `prompts/compliance_issues.yaml` and used directly by the backend.
+TypeScript types are auto-generated from YAML:
+
+```bash
+python scripts/generate_prompt_types.py
+```
 
 ## Deployment
 
@@ -377,7 +363,7 @@ The prebuild script copies `prompts/core.yaml` → `src/data/prompts.yaml`. Comp
    echo 'your-database-url' | vercel env add DATABASE_URL production
    ```
 
-3. Deploy via git push (do NOT run `vercel --prod` directly):
+3. Deploy via git push (**do NOT run `vercel --prod` directly**):
    ```bash
    git push origin main
    ```
@@ -385,29 +371,28 @@ The prebuild script copies `prompts/core.yaml` → `src/data/prompts.yaml`. Comp
 
 ## Data Coverage
 
-| State | Source | Documents |
-|-------|--------|-----------|
-| New York | NYCRR (23 titles) | ~60,000 sections |
-| New Jersey | NJAC | ~61,000 documents |
-
-## Claude Code Hooks
-
-This project uses Claude Code hooks to automate development workflow reminders:
-
-| Hook | Event | Purpose |
-|------|-------|---------|
-| `check-remote-changes.sh` | SessionStart | Alerts when main branch has new commits not in current branch |
-| `pre-push-reminder.py` | PreToolUse (git push) | Prompts to run smoke tests before pushing |
-| `pre-commit-docs-reminder.py` | PreToolUse (git commit) | Prompts to update documentation before committing |
-| `schema-update-reminder.py` | PostToolUse (schema edit) | Requires schema.md update when schema changes |
-
-Hooks are configured in `.claude/settings.json` and scripts are in `.claude/hooks/`.
+| State | Regulation Source | Documents | Statute Sources |
+|-------|-------------------|-----------|-----------------|
+| New York | NYCRR (23 titles) | ~60,000 sections | NY Consolidated Laws (OpenLegislation API), NYC Charter + Admin Code |
+| New Jersey | NJAC | ~61,000 documents | NJ Statutes |
 
 ## Contributing
 
-1. **Backend**: Add new scrapers or analysis scripts in `backend/scripts/`
-2. **Frontend**: Components in `frontend/apps/web/src/components/`, server actions in `lib/actions/`
-3. **Database**: Schema in `frontend/packages/database/src/schema/`, migrations in `frontend/packages/database/migrations/`
+Key conventions:
+
+- **Monorepo** — pnpm workspaces with shared `@deproceduralizer/database` package
+- **URL state** — use `nuqs` with predefined parsers from `lib/url/parsers.ts` (never raw `useSearchParams`)
+- **Data access** — server actions in `lib/actions/`, always import `server-only` in database-touching modules
+- **Constants** — centralize enums, nav config, and option arrays in `lib/constants/`
+- **Components** — follow [`STYLE_GUIDE.md`](frontend/apps/web/STYLE_GUIDE.md) for patterns and conventions
+- **Testing** — run `pnpm test:e2e` in `frontend/apps/web` before pushing
+
+References:
+- [`frontend/apps/web/STYLE_GUIDE.md`](frontend/apps/web/STYLE_GUIDE.md) — component patterns and design system
+- [`docs/OPERATIONS.md`](docs/OPERATIONS.md) — pipeline runbook with all commands and costs
+- [`CLAUDE.md`](CLAUDE.md) — project conventions for AI-assisted development
+
+This project uses Claude Code hooks (`.claude/hooks/`) for workflow enforcement: pre-push test reminders, pre-commit documentation checks, and schema update validation.
 
 ## License
 
