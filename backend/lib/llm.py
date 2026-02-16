@@ -127,7 +127,7 @@ def call_llm_parse(
             {
                 "type": "text",
                 "text": system,
-                "cache_control": {"type": "ephemeral"}
+                "cache_control": {"type": "ephemeral", "ttl": "1h"}
             }
         ]
 
@@ -287,7 +287,7 @@ async def call_llm_parse_async(
             {
                 "type": "text",
                 "text": system,
-                "cache_control": {"type": "ephemeral"}
+                "cache_control": {"type": "ephemeral", "ttl": "1h"}
             }
         ]
 

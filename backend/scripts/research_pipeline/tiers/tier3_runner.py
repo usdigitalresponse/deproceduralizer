@@ -33,6 +33,22 @@ from .web_search import (
     WebSearchCitation,
 )
 
+_EVIDENCE_ARRAY_SCHEMA = {
+    "type": "array",
+    "items": {
+        "type": "object",
+        "properties": {
+            "type": {"type": "string", "const": "web"},
+            "identifier": {"type": "string", "description": "Full URL of the source"},
+            "quote": {"type": "string", "description": "Relevant verbatim text from the source"},
+            "relevance": {"type": "string", "description": "Why this source matters for this flag"},
+        },
+        "required": ["type", "identifier", "quote", "relevance"],
+    },
+    "description": "Web sources supporting this flag (include URL, quote, and relevance)",
+}
+
+
 def _build_submit_analysis_tool() -> dict:
     """
     Build the submit_analysis tool definition for Tier 3 structured output.
@@ -98,6 +114,7 @@ def _build_submit_analysis_tool() -> dict:
                         "value": {"type": "boolean"},
                         "scope": {"type": "string", "enum": ["reg-specific", "issue-type/domain"]},
                         "reason": {"type": "string"},
+                        "evidence": _EVIDENCE_ARRAY_SCHEMA,
                     },
                     "required": ["value", "scope", "reason"],
                     "description": "Whether federal mandate was confirmed by web search",
@@ -108,6 +125,7 @@ def _build_submit_analysis_tool() -> dict:
                         "value": {"type": "boolean"},
                         "scope": {"type": "string", "enum": ["reg-specific", "issue-type/domain"]},
                         "reason": {"type": "string"},
+                        "evidence": _EVIDENCE_ARRAY_SCHEMA,
                     },
                     "required": ["value", "scope", "reason"],
                     "description": "Whether state has discretion in implementation",
@@ -118,6 +136,7 @@ def _build_submit_analysis_tool() -> dict:
                         "value": {"type": "boolean"},
                         "scope": {"type": "string", "enum": ["reg-specific", "issue-type/domain"]},
                         "reason": {"type": "string"},
+                        "evidence": _EVIDENCE_ARRAY_SCHEMA,
                     },
                     "required": ["value", "scope", "reason"],
                     "description": "Whether modern alternatives exist",
@@ -128,6 +147,7 @@ def _build_submit_analysis_tool() -> dict:
                         "value": {"type": "boolean"},
                         "scope": {"type": "string", "enum": ["reg-specific", "issue-type/domain"]},
                         "reason": {"type": "string"},
+                        "evidence": _EVIDENCE_ARRAY_SCHEMA,
                     },
                     "required": ["value", "scope", "reason"],
                     "description": "Whether requirement has been superseded by law",
@@ -138,6 +158,7 @@ def _build_submit_analysis_tool() -> dict:
                         "value": {"type": "boolean"},
                         "scope": {"type": "string", "enum": ["reg-specific", "issue-type/domain"]},
                         "reason": {"type": "string"},
+                        "evidence": _EVIDENCE_ARRAY_SCHEMA,
                     },
                     "required": ["value", "scope", "reason"],
                     "description": "Whether advocacy groups call for change",
