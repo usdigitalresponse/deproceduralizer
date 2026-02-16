@@ -11,3 +11,4 @@ export { HierarchyTab } from './HierarchyTab';
 export { IssuesTab } from './IssuesTab';
 export { KeywordsTab } from './KeywordsTab';
 export { DefinitionsTab } from './DefinitionsTab';
+export { PipelineTab } from './PipelineTab';

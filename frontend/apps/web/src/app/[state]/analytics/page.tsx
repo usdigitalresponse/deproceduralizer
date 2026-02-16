@@ -5,6 +5,7 @@ import { getRedFlagStatusCounts, getRedFlagCategories } from '@/lib/actions/red-
 import { getComplianceIssueStatusCounts, getComplianceIssueCountsByType } from '@/lib/actions/compliance-issues';
 import { getDefinitionAnalyticsStats } from '@/lib/actions/definitions';
 import { getStatuteStats } from '@/lib/actions/statutes';
+import { getPipelineAnalyticsData } from '@/lib/actions/pipeline-analytics';
 import { AnalyticsClient } from '@/components/analytics/AnalyticsClient';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Container } from '@/components/layout/Container';
@@ -37,6 +38,7 @@ export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
     complianceTypeCountsResult,
     definitionsStatsResult,
     statuteStatsResult,
+    pipelineDataResult,
   ] = await Promise.all([
     getDashboardStats(stateCode),
     getSectionTypeStats(state),
@@ -49,6 +51,7 @@ export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
     getComplianceIssueCountsByType(stateCode),
     getDefinitionAnalyticsStats(stateCode),
     getStatuteStats(state),
+    getPipelineAnalyticsData(stateCode),
   ]);
 
   // Extract data, falling back to null on failure
@@ -63,6 +66,7 @@ export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
   const complianceTypeCounts = complianceTypeCountsResult.success ? complianceTypeCountsResult.data : null;
   const definitionsStats = definitionsStatsResult.success ? definitionsStatsResult.data : null;
   const statuteStats = statuteStatsResult.success ? statuteStatsResult.data : null;
+  const pipelineData = pipelineDataResult.success ? pipelineDataResult.data : null;
 
   return (
     <div className="bg-[var(--color-background)] min-h-screen">
@@ -84,6 +88,7 @@ export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
           complianceTypeCounts={complianceTypeCounts}
           definitionsStats={definitionsStats}
           statuteStats={statuteStats}
+          pipelineData={pipelineData}
         />
       </Container>
     </div>

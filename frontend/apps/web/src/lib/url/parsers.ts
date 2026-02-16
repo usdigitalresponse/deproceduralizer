@@ -469,6 +469,7 @@ export const analyticsParsers = {
   sizeMetric: treemapSizeMetricParser,
   colorMetric: treemapColorMetricParser,
   depth: treemapDepthParser,
+  pIssueType: parseAsString,
 };
 
 // ============================================

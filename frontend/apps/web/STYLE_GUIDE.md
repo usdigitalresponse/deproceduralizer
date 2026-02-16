@@ -2566,7 +2566,7 @@ URL-based tabs using `nuqs`:
 ```tsx
 import { analyticsTabParser } from '@/lib/url/parsers';
 
-// ?tab=overview | crossrefs | issues | keywords | definitions | statutes
+// ?tab=overview | crossrefs | issues | keywords | definitions | statutes | pipeline
 const [{ tab }, setParams] = useQueryStates({
   tab: analyticsTabParser,
 });
@@ -2662,6 +2662,51 @@ Content:
 - **Link Type Distribution**: Horizontal bar chart from `byLinkType` using `LINK_TYPE_LABELS`
 - **Match Quality**: Donut chart from `byMatchStatus` using `MATCH_STATUS_LABELS` with color-coded statuses (matched=green, corrected=blue, unmatched=yellow, obsolete=red)
 - **Link Type Details**: Grid of count cards for each link type
+
+### PipelineTab
+
+Inter-tier data flow visualization for the 3-tier compliance analysis pipeline:
+
+```tsx
+import { PipelineTab } from '@/components/analytics';
+
+<PipelineTab
+  state={stateCode}
+  data={pipelineData}
+/>
+```
+
+Props:
+| Prop | Type | Description |
+|------|------|-------------|
+| `state` | `StateCode` | State code (e.g., 'NJ', 'NY') |
+| `data` | `PipelineAnalyticsData \| null` | Pre-fetched pipeline analytics from `getPipelineAnalyticsData()` |
+
+Client-side re-fetch: Uses `useEffect` to re-fetch when `pIssueType` filter changes (same pattern as `CrossReferencesTab`).
+
+Sub-components (in `components/analytics/pipeline/`):
+
+- **PipelineFilters** — `FilterBar` with `Select` for issue type using `ISSUE_TYPE_LABELS`
+- **PipelineFunnel** — StatGrid (4 cards: Total Analyses, FP Rate, Escalation Rate, Classification Changes) + custom SVG funnel flow diagram
+- **Tier1ContextPanel** — Context request distribution: StackedBarChart by issue type, HorizontalBarChart by context type, summary stat cards
+- **TierTransitionPanel** — Classification change heatmap (`HeatmapGrid`), trigger reason bar chart, confidence distribution histograms
+- **Tier3EvidencePanel** — Evidence flag StackedBarChart, severity adjustment BarChart (color-coded), cleanup PieChart + StatCards
+
+### HeatmapGrid (Chart)
+
+D3-based heatmap for `components/charts/HeatmapGrid.tsx`:
+
+```tsx
+import { HeatmapGrid } from '@/components/charts';
+
+<HeatmapGrid
+  data={{ rows: ['A', 'B'], columns: ['X', 'Y'], cells: [...] }}
+  width={500}
+  height={300}
+/>
+```
+
+Uses `HeatmapData`/`HeatmapCell` types from `lib/charts/types.ts`. Color scale via `useChartColors()` with `scaleSequential` + `interpolateRgbBasis`.
 
 ---
 

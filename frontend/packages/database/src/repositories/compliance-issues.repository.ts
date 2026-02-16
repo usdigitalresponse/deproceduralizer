@@ -2305,6 +2305,345 @@ export class ComplianceIssuesRepository extends BaseRepository {
       totalPages: Math.ceil(total / pageSize),
     };
   }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // Pipeline Analytics Methods
+  // ═══════════════════════════════════════════════════════════════════
+
+  /**
+   * Get funnel statistics across all 3 pipeline tiers.
+   * Counts analyses at each stage with classification breakdowns.
+   */
+  async getPipelineFunnelStats(state: StateCode, issueType?: string): Promise<PipelineFunnelData> {
+    const conditions = [
+      eq(complianceIssueAnalyses.state, state.toUpperCase()),
+      isNotNull(complianceIssueAnalyses.tier1Classification),
+    ];
+    if (issueType) {
+      conditions.push(eq(complianceIssueAnalyses.issueType, issueType));
+    }
+
+    const result = await this.db
+      .select({
+        totalAnalyses: sql<number>`count(*)::int`,
+        tier1FalsePositives: sql<number>`count(*) FILTER (WHERE ${complianceIssueAnalyses.tier1Classification} = 'all_false_positives')::int`,
+        tier1NeedsResearch: sql<number>`count(*) FILTER (WHERE ${complianceIssueAnalyses.tier1Classification} = 'needs_research')::int`,
+        tier2Completed: sql<number>`count(*) FILTER (WHERE ${complianceIssueAnalyses.tier2Classification} IS NOT NULL)::int`,
+        tier2Burdensome: sql<number>`count(*) FILTER (WHERE ${complianceIssueAnalyses.tier2Classification} = 'burdensome')::int`,
+        tier2Justified: sql<number>`count(*) FILTER (WHERE ${complianceIssueAnalyses.tier2Classification} = 'justified')::int`,
+        tier2Unrelated: sql<number>`count(*) FILTER (WHERE ${complianceIssueAnalyses.tier2Classification} = 'unrelated')::int`,
+        tier2NeedsFullContext: sql<number>`count(*) FILTER (WHERE ${complianceIssueAnalyses.tier2Classification} = 'needs_full_context')::int`,
+        tier3Completed: sql<number>`count(*) FILTER (WHERE ${complianceIssueAnalyses.tier3Classification} IS NOT NULL)::int`,
+        tier3Burdensome: sql<number>`count(*) FILTER (WHERE ${complianceIssueAnalyses.tier3Classification} = 'burdensome')::int`,
+        tier3Justified: sql<number>`count(*) FILTER (WHERE ${complianceIssueAnalyses.tier3Classification} = 'justified')::int`,
+        tier3Unrelated: sql<number>`count(*) FILTER (WHERE ${complianceIssueAnalyses.tier3Classification} = 'unrelated')::int`,
+        classificationChangedInTier3: sql<number>`count(*) FILTER (WHERE ${complianceIssueAnalyses.tier3Classification} IS NOT NULL AND ${complianceIssueAnalyses.tier2Classification} != ${complianceIssueAnalyses.tier3Classification})::int`,
+      })
+      .from(complianceIssueAnalyses)
+      .where(and(...conditions));
+
+    const row = result[0];
+    return {
+      totalAnalyses: row.totalAnalyses,
+      tier1: {
+        total: row.totalAnalyses,
+        falsePositives: row.tier1FalsePositives,
+        needsResearch: row.tier1NeedsResearch,
+      },
+      tier2: {
+        total: row.tier2Completed,
+        burdensome: row.tier2Burdensome,
+        justified: row.tier2Justified,
+        unrelated: row.tier2Unrelated,
+        needsFullContext: row.tier2NeedsFullContext,
+      },
+      tier3: {
+        total: row.tier3Completed,
+        burdensome: row.tier3Burdensome,
+        justified: row.tier3Justified,
+        unrelated: row.tier3Unrelated,
+        classificationChangedFromTier2: row.classificationChangedInTier3,
+      },
+    };
+  }
+
+  /**
+   * Get Tier 1 context request distribution from tier1_recommendations JSONB.
+   */
+  async getTier1ContextRequestStats(state: StateCode, issueType?: string): Promise<Tier1ContextRequestStats> {
+    const conditions = [
+      eq(complianceIssueAnalyses.state, state.toUpperCase()),
+      isNotNull(complianceIssueAnalyses.tier1Recommendations),
+    ];
+    if (issueType) {
+      conditions.push(eq(complianceIssueAnalyses.issueType, issueType));
+    }
+
+    // Unpack the JSONB context_requests array
+    const contextTypeResults = await this.db.execute(sql`
+      SELECT
+        cr->>'context_type' AS context_type,
+        cr->>'need_level' AS need_level,
+        count(*)::int AS count
+      FROM compliance_issue_analyses,
+        jsonb_array_elements(tier1_recommendations->'context_requests') AS cr
+      WHERE state = ${state.toUpperCase()}
+        AND tier1_recommendations IS NOT NULL
+        ${issueType ? sql`AND issue_type = ${issueType}` : sql``}
+      GROUP BY cr->>'context_type', cr->>'need_level'
+      ORDER BY count DESC
+    `);
+
+    // Context requests by issue type (top 15)
+    const byIssueTypeResults = await this.db.execute(sql`
+      SELECT
+        a.issue_type,
+        cr->>'context_type' AS context_type,
+        count(*)::int AS count
+      FROM compliance_issue_analyses a,
+        jsonb_array_elements(a.tier1_recommendations->'context_requests') AS cr
+      WHERE a.state = ${state.toUpperCase()}
+        AND a.tier1_recommendations IS NOT NULL
+        ${issueType ? sql`AND a.issue_type = ${issueType}` : sql``}
+      GROUP BY a.issue_type, cr->>'context_type'
+      ORDER BY count DESC
+    `);
+
+    // Total analyses vs those with context requests
+    const summaryResult = await this.db
+      .select({
+        totalWithTier1: sql<number>`count(*) FILTER (WHERE ${complianceIssueAnalyses.tier1Classification} IS NOT NULL)::int`,
+        totalWithRequests: sql<number>`count(*) FILTER (WHERE ${complianceIssueAnalyses.tier1Recommendations} IS NOT NULL AND jsonb_array_length(${complianceIssueAnalyses.tier1Recommendations}->'context_requests') > 0)::int`,
+        totalRequests: sql<number>`COALESCE(sum(jsonb_array_length(${complianceIssueAnalyses.tier1Recommendations}->'context_requests')) FILTER (WHERE ${complianceIssueAnalyses.tier1Recommendations} IS NOT NULL), 0)::int`,
+      })
+      .from(complianceIssueAnalyses)
+      .where(and(...conditions.slice(0, issueType ? 2 : 1), isNotNull(complianceIssueAnalyses.tier1Classification)));
+
+    const rows = contextTypeResults.rows as Array<{ context_type: string; need_level: string; count: number }>;
+    const byIssueRows = byIssueTypeResults.rows as Array<{ issue_type: string; context_type: string; count: number }>;
+    const summary = summaryResult[0];
+
+    return {
+      byContextType: rows.map(r => ({
+        contextType: r.context_type,
+        needLevel: r.need_level,
+        count: r.count,
+      })),
+      byIssueType: byIssueRows.map(r => ({
+        issueType: r.issue_type,
+        contextType: r.context_type,
+        count: r.count,
+      })),
+      summary: {
+        totalAnalyses: summary.totalWithTier1,
+        analysesWithRequests: summary.totalWithRequests,
+        totalRequests: summary.totalRequests,
+        avgRequestsPerAnalysis: summary.totalWithTier1 > 0
+          ? Number((summary.totalRequests / summary.totalWithTier1).toFixed(2))
+          : 0,
+      },
+    };
+  }
+
+  /**
+   * Get tier transition statistics: classification changes between tiers,
+   * confidence distributions, and trigger reasons.
+   */
+  async getTierTransitionStats(state: StateCode, issueType?: string): Promise<TierTransitionData> {
+    const conditions = [
+      eq(complianceIssueAnalyses.state, state.toUpperCase()),
+    ];
+    if (issueType) {
+      conditions.push(eq(complianceIssueAnalyses.issueType, issueType));
+    }
+
+    // Tier 2→3 classification cross-tab
+    const crossTabResults = await this.db.execute(sql`
+      SELECT
+        tier2_classification AS tier2_class,
+        tier3_classification AS tier3_class,
+        count(*)::int AS count
+      FROM compliance_issue_analyses
+      WHERE state = ${state.toUpperCase()}
+        AND tier2_classification IS NOT NULL
+        AND tier3_classification IS NOT NULL
+        ${issueType ? sql`AND issue_type = ${issueType}` : sql``}
+      GROUP BY tier2_classification, tier3_classification
+      ORDER BY count DESC
+    `);
+
+    // Confidence bucket distributions for each tier
+    const confidenceResults = await this.db.execute(sql`
+      SELECT
+        'tier1' AS tier,
+        CASE
+          WHEN tier1_confidence < 0.2 THEN '0-0.2'
+          WHEN tier1_confidence < 0.4 THEN '0.2-0.4'
+          WHEN tier1_confidence < 0.6 THEN '0.4-0.6'
+          WHEN tier1_confidence < 0.8 THEN '0.6-0.8'
+          ELSE '0.8-1.0'
+        END AS bucket,
+        count(*)::int AS count
+      FROM compliance_issue_analyses
+      WHERE state = ${state.toUpperCase()}
+        AND tier1_confidence IS NOT NULL
+        ${issueType ? sql`AND issue_type = ${issueType}` : sql``}
+      GROUP BY bucket
+      UNION ALL
+      SELECT
+        'tier2' AS tier,
+        CASE
+          WHEN tier2_confidence < 0.2 THEN '0-0.2'
+          WHEN tier2_confidence < 0.4 THEN '0.2-0.4'
+          WHEN tier2_confidence < 0.6 THEN '0.4-0.6'
+          WHEN tier2_confidence < 0.8 THEN '0.6-0.8'
+          ELSE '0.8-1.0'
+        END AS bucket,
+        count(*)::int AS count
+      FROM compliance_issue_analyses
+      WHERE state = ${state.toUpperCase()}
+        AND tier2_confidence IS NOT NULL
+        ${issueType ? sql`AND issue_type = ${issueType}` : sql``}
+      GROUP BY bucket
+      UNION ALL
+      SELECT
+        'tier3' AS tier,
+        CASE
+          WHEN tier3_confidence < 0.2 THEN '0-0.2'
+          WHEN tier3_confidence < 0.4 THEN '0.2-0.4'
+          WHEN tier3_confidence < 0.6 THEN '0.4-0.6'
+          WHEN tier3_confidence < 0.8 THEN '0.6-0.8'
+          ELSE '0.8-1.0'
+        END AS bucket,
+        count(*)::int AS count
+      FROM compliance_issue_analyses
+      WHERE state = ${state.toUpperCase()}
+        AND tier3_confidence IS NOT NULL
+        ${issueType ? sql`AND issue_type = ${issueType}` : sql``}
+      GROUP BY bucket
+      ORDER BY tier, bucket
+    `);
+
+    // Tier 3 trigger reason distribution
+    const triggerResults = await this.db
+      .select({
+        triggerReason: complianceIssueAnalyses.tier3TriggerReason,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(complianceIssueAnalyses)
+      .where(and(
+        ...conditions,
+        isNotNull(complianceIssueAnalyses.tier3TriggerReason),
+      ))
+      .groupBy(complianceIssueAnalyses.tier3TriggerReason)
+      .orderBy(desc(sql`count(*)`));
+
+    const crossTabRows = crossTabResults.rows as Array<{ tier2_class: string; tier3_class: string; count: number }>;
+    const confRows = confidenceResults.rows as Array<{ tier: string; bucket: string; count: number }>;
+
+    return {
+      classificationCrossTab: crossTabRows.map(r => ({
+        tier2Classification: r.tier2_class,
+        tier3Classification: r.tier3_class,
+        count: r.count,
+      })),
+      confidenceDistributions: {
+        tier1: confRows.filter(r => r.tier === 'tier1').map(r => ({ bucket: r.bucket, count: r.count })),
+        tier2: confRows.filter(r => r.tier === 'tier2').map(r => ({ bucket: r.bucket, count: r.count })),
+        tier3: confRows.filter(r => r.tier === 'tier3').map(r => ({ bucket: r.bucket, count: r.count })),
+      },
+      triggerReasons: triggerResults.map(r => ({
+        reason: r.triggerReason ?? 'unknown',
+        count: r.count,
+      })),
+    };
+  }
+
+  /**
+   * Get Tier 3 evidence statistics: flag distributions, severity adjustments, cleanup stats.
+   */
+  async getTier3EvidenceStats(state: StateCode, issueType?: string): Promise<Tier3EvidenceStats> {
+    const conditions = [
+      eq(complianceIssueAnalyses.state, state.toUpperCase()),
+      isNotNull(complianceIssueAnalyses.tier3Classification),
+    ];
+    if (issueType) {
+      conditions.push(eq(complianceIssueAnalyses.issueType, issueType));
+    }
+
+    // Flag distribution from tier3_flags JSONB
+    const flagResults = await this.db.execute(sql`
+      SELECT
+        count(*) FILTER (WHERE (tier3_flags->>'federal_mandate_confirmed')::jsonb->>'value' = 'true')::int AS federal_mandate_true,
+        count(*) FILTER (WHERE tier3_flags ? 'federal_mandate_confirmed' AND (tier3_flags->>'federal_mandate_confirmed')::jsonb->>'value' != 'true')::int AS federal_mandate_false,
+        count(*) FILTER (WHERE (tier3_flags->>'state_discretion_found')::jsonb->>'value' = 'true')::int AS state_discretion_true,
+        count(*) FILTER (WHERE tier3_flags ? 'state_discretion_found' AND (tier3_flags->>'state_discretion_found')::jsonb->>'value' != 'true')::int AS state_discretion_false,
+        count(*) FILTER (WHERE (tier3_flags->>'modernized_alternative_found')::jsonb->>'value' = 'true')::int AS alternative_true,
+        count(*) FILTER (WHERE tier3_flags ? 'modernized_alternative_found' AND (tier3_flags->>'modernized_alternative_found')::jsonb->>'value' != 'true')::int AS alternative_false,
+        count(*) FILTER (WHERE (tier3_flags->>'superseded_by_law')::jsonb->>'value' = 'true')::int AS superseded_true,
+        count(*) FILTER (WHERE tier3_flags ? 'superseded_by_law' AND (tier3_flags->>'superseded_by_law')::jsonb->>'value' != 'true')::int AS superseded_false,
+        count(*) FILTER (WHERE (tier3_flags->>'advocacy_for_change')::jsonb->>'value' = 'true')::int AS advocacy_true,
+        count(*) FILTER (WHERE tier3_flags ? 'advocacy_for_change' AND (tier3_flags->>'advocacy_for_change')::jsonb->>'value' != 'true')::int AS advocacy_false,
+        count(*)::int AS total_tier3
+      FROM compliance_issue_analyses
+      WHERE state = ${state.toUpperCase()}
+        AND tier3_classification IS NOT NULL
+        ${issueType ? sql`AND issue_type = ${issueType}` : sql``}
+    `);
+
+    // Severity adjustment distribution
+    const severityResults = await this.db
+      .select({
+        adjustment: complianceIssueAnalyses.tier3SeverityAdjustment,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(complianceIssueAnalyses)
+      .where(and(
+        ...conditions,
+        isNotNull(complianceIssueAnalyses.tier3SeverityAdjustment),
+      ))
+      .groupBy(complianceIssueAnalyses.tier3SeverityAdjustment)
+      .orderBy(asc(complianceIssueAnalyses.tier3SeverityAdjustment));
+
+    // Easy cleanup stats
+    const cleanupResults = await this.db
+      .select({
+        cleanupType: complianceIssueAnalyses.cleanupType,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(complianceIssueAnalyses)
+      .where(and(
+        ...conditions,
+        eq(complianceIssueAnalyses.easyCleanupCandidate, true),
+      ))
+      .groupBy(complianceIssueAnalyses.cleanupType)
+      .orderBy(desc(sql`count(*)`));
+
+    const totalCleanup = cleanupResults.reduce((sum, r) => sum + r.count, 0);
+    const flags = flagResults.rows[0] as Record<string, number>;
+
+    return {
+      flags: {
+        federalMandateConfirmed: { true: flags.federal_mandate_true, false: flags.federal_mandate_false },
+        stateDiscretionFound: { true: flags.state_discretion_true, false: flags.state_discretion_false },
+        modernizedAlternativeFound: { true: flags.alternative_true, false: flags.alternative_false },
+        supersededByLaw: { true: flags.superseded_true, false: flags.superseded_false },
+        advocacyForChange: { true: flags.advocacy_true, false: flags.advocacy_false },
+      },
+      totalTier3: flags.total_tier3,
+      severityAdjustments: severityResults.map(r => ({
+        adjustment: r.adjustment ?? 0,
+        count: r.count,
+      })),
+      cleanup: {
+        totalCandidates: totalCleanup,
+        byType: cleanupResults.map(r => ({
+          cleanupType: r.cleanupType ?? 'unknown',
+          count: r.count,
+        })),
+      },
+    };
+  }
 }
 
 /**
@@ -2330,4 +2669,89 @@ export interface AnalysisListItem {
   cleanupEffort: string | null;
   // V5.1: Tier 3 trigger reason
   tier3TriggerReason: string | null;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Pipeline Analytics Types
+// ═══════════════════════════════════════════════════════════════════
+
+export interface PipelineFunnelData {
+  totalAnalyses: number;
+  tier1: {
+    total: number;
+    falsePositives: number;
+    needsResearch: number;
+  };
+  tier2: {
+    total: number;
+    burdensome: number;
+    justified: number;
+    unrelated: number;
+    needsFullContext: number;
+  };
+  tier3: {
+    total: number;
+    burdensome: number;
+    justified: number;
+    unrelated: number;
+    classificationChangedFromTier2: number;
+  };
+}
+
+export interface Tier1ContextRequestStats {
+  byContextType: Array<{
+    contextType: string;
+    needLevel: string;
+    count: number;
+  }>;
+  byIssueType: Array<{
+    issueType: string;
+    contextType: string;
+    count: number;
+  }>;
+  summary: {
+    totalAnalyses: number;
+    analysesWithRequests: number;
+    totalRequests: number;
+    avgRequestsPerAnalysis: number;
+  };
+}
+
+export interface TierTransitionData {
+  classificationCrossTab: Array<{
+    tier2Classification: string;
+    tier3Classification: string;
+    count: number;
+  }>;
+  confidenceDistributions: {
+    tier1: Array<{ bucket: string; count: number }>;
+    tier2: Array<{ bucket: string; count: number }>;
+    tier3: Array<{ bucket: string; count: number }>;
+  };
+  triggerReasons: Array<{
+    reason: string;
+    count: number;
+  }>;
+}
+
+export interface Tier3EvidenceStats {
+  flags: {
+    federalMandateConfirmed: { true: number; false: number };
+    stateDiscretionFound: { true: number; false: number };
+    modernizedAlternativeFound: { true: number; false: number };
+    supersededByLaw: { true: number; false: number };
+    advocacyForChange: { true: number; false: number };
+  };
+  totalTier3: number;
+  severityAdjustments: Array<{
+    adjustment: number;
+    count: number;
+  }>;
+  cleanup: {
+    totalCandidates: number;
+    byType: Array<{
+      cleanupType: string;
+      count: number;
+    }>;
+  };
 }
