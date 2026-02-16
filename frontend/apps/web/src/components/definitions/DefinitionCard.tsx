@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import type { DefinitionWithContext } from '@deproceduralizer/database';
-import { formatNycrrCitation } from '@/lib/formatters/nycrr';
+import { formatStateCitation } from '@/lib/formatters/citations';
 import { DEFAULT_STATE } from '@/types/state';
 
 interface DefinitionCardProps {
@@ -88,11 +88,7 @@ export function DefinitionCard({
 
   // Format citation
   const citation = definition.regulation
-    ? formatNycrrCitation(
-        definition.regulation.nycrrTitle,
-        definition.regulation.nycrrPart,
-        definition.regulation.nycrrSection
-      )
+    ? formatStateCitation(state, definition.regulation)
     : null;
 
   return (

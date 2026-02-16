@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, forwardRef } from 'react';
-import { formatNycrrCitation } from '@/lib/formatters/nycrr';
-import { formatNjacCitation } from '@/lib/formatters/njac';
+import { formatStateCitation } from '@/lib/formatters/citations';
 import { CardWrapper, HierarchyTreeView } from '../../shared';
 import { useDefinitionForm } from './hooks/useDefinitionForm';
 import { useDefinitionHandlers } from './hooks/useDefinitionHandlers';
@@ -46,17 +45,7 @@ export const DefinitionReviewCard = forwardRef<HTMLDivElement, DefinitionReviewC
 
     // Format citation based on state
     const citation = definition.regulation
-      ? state === 'nj'
-        ? formatNjacCitation(
-            definition.regulation.njacTitle,
-            definition.regulation.njacChapter,
-            definition.regulation.njacSubchapter
-          )
-        : formatNycrrCitation(
-            definition.regulation.nycrrTitle,
-            definition.regulation.nycrrPart,
-            definition.regulation.nycrrSection
-          )
+      ? formatStateCitation(state, definition.regulation) ?? 'Unknown source'
       : 'Unknown source';
 
     return (

@@ -5,7 +5,7 @@ import { updateDefinitionDeveloperStatus } from '@/lib/actions/definitions';
 import { useDeveloperName } from '@/hooks/useDeveloperName';
 import { Button, Textarea, Badge, Select, CopyLinkButton } from '@/components/ui';
 import { DEVELOPER_STATUSES, RESOLUTION_TYPES, DEVELOPERS, DEVELOPER_STATUS_LABELS } from '@/types/regulation';
-import { formatNycrrCitation, formatNjacCitation } from '@/lib/formatters';
+import { formatStateCitation } from '@/lib/formatters';
 import { ExpandableRegulationQuote } from '../ExpandableRegulationQuote';
 import { CardWrapper } from '../shared';
 import { BookOpen } from 'lucide-react';
@@ -121,23 +121,9 @@ export const DefinitionDeveloperCard = forwardRef<HTMLDivElement, DefinitionDeve
     };
 
     // Format citation based on state
-    const getCitation = () => {
-      if (!definition.regulation) return null;
-      if (state === 'ny') {
-        return formatNycrrCitation(
-          definition.regulation.nycrrTitle,
-          definition.regulation.nycrrPart,
-          definition.regulation.nycrrSection
-        );
-      }
-      return formatNjacCitation(
-        definition.regulation.njacTitle,
-        definition.regulation.njacChapter,
-        definition.regulation.njacSubchapter
-      );
-    };
-
-    const citation = getCitation();
+    const citation = definition.regulation
+      ? formatStateCitation(state, definition.regulation)
+      : null;
     const developerOptions = [...DEVELOPERS];
     const statusOptions = [...DEVELOPER_STATUSES];
     const resolutionOptions = [...RESOLUTION_TYPES];

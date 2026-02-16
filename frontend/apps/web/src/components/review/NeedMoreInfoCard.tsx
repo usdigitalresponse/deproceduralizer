@@ -6,7 +6,7 @@ import { updateComplianceIssueReview } from '@/lib/actions/compliance-issues';
 import type { DeveloperItem } from '@/lib/actions/developer';
 import { Button, Textarea, Badge, Tag, CopyLinkButton } from '@/components/ui';
 import { ISSUE_TYPE_LABELS, formatLabel } from '@/types/regulation';
-import { formatNycrrCitation } from '@/lib/formatters/nycrr';
+import { formatStateCitation } from '@/lib/formatters/citations';
 import { CardWrapper, CornellLink, RegulationTextViewer, HierarchyTreeView } from './shared';
 import { Flag, FileWarning, MessageCircleQuestion, ExternalLink } from 'lucide-react';
 
@@ -62,18 +62,14 @@ export const NeedMoreInfoCard = forwardRef<HTMLDivElement, NeedMoreInfoCardProps
     const renderItemSummary = () => {
       if (item.type === 'red_flag' && item.redFlagData) {
         const flag = item.redFlagData;
-        const nycrrCitation = formatNycrrCitation(
-          flag.regulation.nycrrTitle,
-          flag.regulation.nycrrPart,
-          flag.regulation.nycrrSection
-        );
+        const citation = formatStateCitation(state, flag.regulation);
 
         return (
           <div className="text-sm">
             <div className="mb-2">
               <span className="font-semibold">{formatLabel(flag.category)}</span>
-              {nycrrCitation && (
-                <span className="text-[var(--color-text-muted)] ml-2 font-mono">{nycrrCitation}</span>
+              {citation && (
+                <span className="text-[var(--color-text-muted)] ml-2 font-mono">{citation}</span>
               )}
             </div>
             {/* Explanation */}
@@ -98,21 +94,15 @@ export const NeedMoreInfoCard = forwardRef<HTMLDivElement, NeedMoreInfoCardProps
 
       if (item.type === 'compliance_issue' && item.complianceIssueData) {
         const issue = item.complianceIssueData;
-        const nycrrCitation = issue.state === 'NY'
-          ? formatNycrrCitation(
-              issue.regulation.nycrrTitle,
-              issue.regulation.nycrrPart,
-              issue.regulation.nycrrSection
-            )
-          : null;
+        const issueCitation = formatStateCitation(issue.state || state, issue.regulation);
 
         return (
           <div className="text-sm">
             <div className="mb-2">
               <Badge variant="warning" className="mr-2">{ISSUE_TYPE_LABELS[issue.issueType] || formatLabel(issue.issueType)}</Badge>
               {issue.regexMatchPattern && <Tag variant="primary" size="sm">{issue.regexMatchPattern}</Tag>}
-              {nycrrCitation && (
-                <span className="text-[var(--color-text-muted)] ml-2 font-mono">{nycrrCitation}</span>
+              {issueCitation && (
+                <span className="text-[var(--color-text-muted)] ml-2 font-mono">{issueCitation}</span>
               )}
             </div>
             {/* Verbatim Supporting Text */}

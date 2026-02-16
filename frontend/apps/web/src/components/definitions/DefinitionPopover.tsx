@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { X, BookOpen, ExternalLink, ArrowDown } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import type { ApplicableDefinition } from '@deproceduralizer/database';
-import { formatNycrrCitation } from '@/lib/formatters/nycrr';
+import { formatStateCitation } from '@/lib/formatters/citations';
 
 interface DefinitionPopoverProps {
   /** The definition to display */
@@ -117,11 +117,7 @@ export function DefinitionPopover({
 
   // Format citation
   const citation = definition.regulation
-    ? formatNycrrCitation(
-        definition.regulation.nycrrTitle,
-        definition.regulation.nycrrPart,
-        definition.regulation.nycrrSection
-      )
+    ? formatStateCitation(state, definition.regulation)
     : null;
 
   // Render via portal
