@@ -41,5 +41,8 @@ ALTER TABLE regulatory_documents
     ADD COLUMN IF NOT EXISTS rcny_section varchar(50),
     ADD COLUMN IF NOT EXISTS rcny_section_name text;
 
--- Step 4: Add index for NYC regulations
+-- Step 4: Add indexes
 CREATE INDEX IF NOT EXISTS idx_rd_rcny_title ON regulatory_documents(rcny_title) WHERE state = 'NYC';
+
+-- Step 5: Add unique index for upsert support (used by migrate_regulations_to_db)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_rd_state_source_type ON regulatory_documents(state, source_index, type);
