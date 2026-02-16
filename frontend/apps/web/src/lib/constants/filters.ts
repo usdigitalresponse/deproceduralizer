@@ -328,7 +328,6 @@ const CLASSIFICATION_LABELS: Record<(typeof CLASSIFICATION_FILTER_VALUES)[number
   all_false_positives: 'False Positives',
   burdensome: 'Burdensome',
   justified: 'Justified',
-  needs_full_context: 'Needs Full Context',
   needs_research: 'Needs Research',
   unrelated: 'Unrelated',
 };

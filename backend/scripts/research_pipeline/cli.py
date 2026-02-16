@@ -119,81 +119,6 @@ from scripts.research_pipeline.models.llm_outputs import Tier2Output
 # DRY-RUN RESUME SIMULATION
 # ============================================================================
 
-def _query_tier3_pending_from_db(
-    state: str | None,
-    issue_types: list[str],
-    max_tier: int,
-) -> list[dict]:
-    """
-    Query for documents that are tier3-pending in the database.
-
-    These are documents from previous runs that completed tier 2 but
-    haven't run tier 3 yet. They won't be returned by fetch_unanalyzed_documents
-    because they already have analyses.
-
-    Args:
-        state: State code (NJ, NY, or None for all)
-        issue_types: List of issue types to query
-        max_tier: Maximum tier (only queries if >= 3)
-
-    Returns:
-        List of dicts with document info for tier3-pending documents
-    """
-    if max_tier < 3:
-        return []
-
-    conn = get_db_connection()
-    if conn is None:
-        raise RuntimeError("Failed to establish database connection")
-    try:
-        with conn.cursor() as cur:
-            # Build query for tier3-pending documents
-            state_filter = "AND cia.state = %s" if state else ""
-            params = [issue_types]
-            if state:
-                params.append(state.upper())
-
-            cur.execute(f"""
-                SELECT
-                    cia.document_id,
-                    cia.issue_type,
-                    cia.tier2_classification,
-                    cia.severity,
-                    cia.needs_web_search,
-                    cia.cites_federal_statute,
-                    cia.claims_no_alternative,
-                    cia.federal_mandate_suspected,
-                    rd.citation
-                FROM compliance_issue_analyses cia
-                JOIN regulatory_documents rd ON cia.document_id = rd.id
-                WHERE cia.highest_tier_completed = 2
-                  AND cia.issue_type = ANY(%s)
-                  {state_filter}
-                  AND cia.tier2_classification IN ('burdensome', 'justified')
-                ORDER BY cia.issue_type, cia.document_id
-            """, params)
-
-            results = []
-            for row in cur.fetchall():
-                analysis = {
-                    "document_id": row[0],
-                    "issue_type": row[1],
-                    "tier2_classification": row[2],
-                    "severity": row[3],
-                    "needs_web_search": row[4],
-                    "cites_federal_statute": row[5],
-                    "claims_no_alternative": row[6],
-                    "federal_mandate_suspected": row[7],
-                    "citation": row[8],
-                }
-                # Only include if would escalate to tier 3
-                if _would_escalate_to_tier3(analysis):
-                    results.append(analysis)
-
-            return results
-    finally:
-        conn.close()
-
 
 
 def _simulate_resume(
@@ -563,6 +488,38 @@ async def _execute_pipeline(
         print("\n[SUMMARIZE] Skipping: --summarize requires --title")
 
     return results
+
+
+def _check_summarization_completeness(state: str, title: str) -> float | None:
+    """
+    Check what percentage of sections have summaries for a given state/title.
+
+    Returns percentage (0-100) or None if the check fails.
+    """
+    from lib.db import get_db_connection
+
+    conn = get_db_connection()
+    if not conn:
+        return None
+
+    try:
+        with conn.cursor() as cur:
+            col = "nycrr_title" if state.upper() == "NY" else "njac_title"
+            cur.execute(f"""
+                SELECT
+                    COUNT(*) as total,
+                    COUNT(summary) as summarized
+                FROM regulatory_documents
+                WHERE state = %s AND {col} = %s AND hierarchy_level = 'section'
+            """, (state.upper(), title))
+            row = cur.fetchone()
+            if not row or row[0] == 0:
+                return None
+            return row[1] / row[0] * 100
+    except Exception:
+        return None
+    finally:
+        conn.close()
 
 
 async def run_test(
@@ -1062,6 +1019,11 @@ RESUME BEHAVIOR:
         action="store_true",
         help="Re-analyze all matching documents regardless of existing analyses (upserts to DB)"
     )
+    parser.add_argument(
+        "--skip-summary-check",
+        action="store_true",
+        help="Skip the pre-flight summarization completeness check (not recommended)"
+    )
 
     # === POST-PIPELINE FLAGS ===
     parser.add_argument(
@@ -1160,6 +1122,18 @@ RESUME BEHAVIOR:
     # === NORMAL PIPELINE MODE ===
     # Dry-run by default; --execute opts into real execution
     dry_run = not args.execute
+
+    # Pre-flight check: verify summarization is largely complete
+    if not args.skip_summary_check and state_for_db and args.title and not dry_run:
+        summary_pct = _check_summarization_completeness(state_for_db, args.title)
+        if summary_pct is not None and summary_pct < 50.0:
+            print(f"\n⚠️  WARNING: Only {summary_pct:.1f}% of sections in Title {args.title} have summaries.")
+            print(f"   The pipeline uses summaries as LLM context — running with incomplete")
+            print(f"   summaries degrades analysis quality and wastes API costs.")
+            print(f"   Run summarization first:")
+            print(f"     python3 -m scripts.summarization.cli --state {state_for_db} --title {args.title} --run-all-phases")
+            print(f"\n   Pass --skip-summary-check to override this check.\n")
+            sys.exit(1)
 
     if args.all_issues:
         asyncio.run(run_all_issues(

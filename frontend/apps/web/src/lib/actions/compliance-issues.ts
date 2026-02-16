@@ -6,9 +6,12 @@ import {
   db,
   ComplianceIssuesRepository,
   RegulatoryDocumentsRepository,
+  REVIEW_STATUSES,
+  IMPACT_TYPES,
   type StateCode,
   type ReviewStatus,
   type ImpactType,
+  type IssueType,
   type ComplianceIssue,
   type ComplianceIssueWithAnalysisFields,
   type ComplianceIssueWithAnalysis,
@@ -49,7 +52,14 @@ export async function updateComplianceIssueReview(
   input: UpdateComplianceIssueInput
 ): Promise<ActionResult<ComplianceIssueWithAnalysisFields>> {
   try {
-    // Cast to proper types - forms pass strings, but these must be valid enum values
+    // Validate enum values before passing to repository
+    if (!REVIEW_STATUSES.includes(input.reviewStatus as ReviewStatus)) {
+      return failure(`Invalid review status: ${input.reviewStatus}`);
+    }
+    if (input.impactType && !IMPACT_TYPES.includes(input.impactType as ImpactType)) {
+      return failure(`Invalid impact type: ${input.impactType}`);
+    }
+
     const result = await complianceIssuesRepo.updateReview(input.id, {
       reviewStatus: input.reviewStatus as ReviewStatus,
       reviewedBy: input.reviewedBy,
@@ -239,7 +249,7 @@ export async function getComplianceIssuesPaginated(
       sortOrder: options.sortOrder,
       filters: options.filters ? {
         status: options.filters.status as ReviewStatus | 'all' | undefined,
-        issueType: options.filters.issueType as 'wet_signature' | 'in_person' | 'paper_form' | 'notarized' | 'certified' | 'other' | 'all' | undefined,
+        issueType: options.filters.issueType as IssueType | 'all' | undefined,
         severity: options.filters.severity,
         requiredByStatute: options.filters.requiredByStatute,
         requirementFound: options.filters.requirementFound,

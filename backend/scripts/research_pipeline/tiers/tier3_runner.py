@@ -240,15 +240,38 @@ def _find_json_object(text: str) -> Optional[dict]:
         except json.JSONDecodeError:
             pass  # Fall through to raw JSON search
 
-    # Find each { and try to parse from there
-    for i, char in enumerate(text):
-        if char == '{':
-            for j in range(len(text), i, -1):
-                if text[j - 1] == '}':
-                    try:
-                        return json.loads(text[i:j])
-                    except json.JSONDecodeError:
-                        continue
+    # Find JSON objects using bracket-counting (O(n) per candidate)
+    i = 0
+    while i < len(text):
+        if text[i] == '{':
+            depth = 0
+            in_string = False
+            escape_next = False
+            for j in range(i, len(text)):
+                ch = text[j]
+                if escape_next:
+                    escape_next = False
+                    continue
+                if ch == '\\' and in_string:
+                    escape_next = True
+                    continue
+                if ch == '"' and not escape_next:
+                    in_string = not in_string
+                    continue
+                if in_string:
+                    continue
+                if ch == '{':
+                    depth += 1
+                elif ch == '}':
+                    depth -= 1
+                    if depth == 0:
+                        try:
+                            return json.loads(text[i:j + 1])
+                        except json.JSONDecodeError:
+                            break  # This candidate failed, move on
+            i += 1
+        else:
+            i += 1
     return None
 
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { ChevronDown, ChevronUp, MessageSquare, Code, Calendar } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -52,14 +52,7 @@ export function PromptCard({
   const [localFeedbackCount, setLocalFeedbackCount] = useState(feedbackCount);
   const [isLoadingFeedback, setIsLoadingFeedback] = useState(false);
 
-  // Load feedback when list is shown
-  useEffect(() => {
-    if (showFeedbackList && feedback.length === 0) {
-      loadFeedback();
-    }
-  }, [showFeedbackList]);
-
-  const loadFeedback = async () => {
+  const loadFeedback = useCallback(async () => {
     setIsLoadingFeedback(true);
     const result = await getFeedbackByPrompt(prompt.name);
     if (result.success) {
@@ -67,7 +60,14 @@ export function PromptCard({
       setLocalFeedbackCount(result.data.length);
     }
     setIsLoadingFeedback(false);
-  };
+  }, [prompt.name]);
+
+  // Load feedback when list is shown
+  useEffect(() => {
+    if (showFeedbackList && feedback.length === 0) {
+      loadFeedback();
+    }
+  }, [showFeedbackList, feedback.length, loadFeedback]);
 
   const handleFeedbackSuccess = () => {
     loadFeedback();

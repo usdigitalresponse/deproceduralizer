@@ -635,12 +635,27 @@ class SummarizationBatchRunner:
 
         return statuses
 
-    def process_results(self, phase: str) -> list[dict]:
+    def _find_batch_dir_by_id(self, batch_id: str) -> Optional[Path]:
+        """Find batch directory using batch_mapping.json for exact lookup."""
+        mapping_file = self.output_dir / "batch_mapping.json"
+        if mapping_file.exists():
+            mapping = json.loads(mapping_file.read_text())
+            batch_dir_str = mapping.get(batch_id)
+            if batch_dir_str:
+                batch_dir = Path(batch_dir_str)
+                if batch_dir.exists():
+                    return batch_dir
+        return None
+
+    def process_results(self, phase: str, batch_id: str = None) -> list[dict]:
         """
         Process results from a completed batch.
 
         Args:
             phase: Phase name (e.g., 'sections', 'subchapters')
+            batch_id: Specific batch ID to process. When provided, looks up the
+                exact batch directory instead of globbing (avoids collisions
+                when multiple titles run concurrently).
 
         Returns:
             List of result dicts with keys: document_id, title, hierarchy_level,
@@ -649,10 +664,17 @@ class SummarizationBatchRunner:
         """
         print(f"\n=== PROCESSING {phase.upper()} RESULTS ===\n")
 
-        batch_dir = self._find_latest_batch_dir(phase)
-        if not batch_dir:
-            print(f"  No batch directory found for phase: {phase}")
-            return []
+        # Use exact batch_id lookup when available, fall back to glob
+        if batch_id:
+            batch_dir = self._find_batch_dir_by_id(batch_id)
+            if not batch_dir:
+                print(f"  No batch directory found for batch_id: {batch_id}")
+                return []
+        else:
+            batch_dir = self._find_latest_batch_dir(phase)
+            if not batch_dir:
+                print(f"  No batch directory found for phase: {phase}")
+                return []
 
         info_file = batch_dir / "batch_info.json"
         with open(info_file) as f:
@@ -1095,8 +1117,9 @@ class SummarizationBatchRunner:
             poll_interval=poll_interval,
         )
 
-        # Process results
-        return self.process_results(phase)
+        # Process results — pass batch_id for exact directory lookup
+        # (avoids picking up another concurrent title's batch dir)
+        return self.process_results(phase, batch_id=batch_id)
 
     def run_all_phases(self, poll_interval: int = 30) -> dict[str, list[dict]]:
         """

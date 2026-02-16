@@ -273,6 +273,8 @@ python3 -m scripts.summarization.cli --state NY --phase sections --process
 
 Without summaries, the pipeline falls back to truncated content excerpts or titles, which significantly degrades analysis quality. Steps 6 and 7 can run in parallel since the regex scan (Step 7) doesn't use summaries.
 
+Multiple titles can be summarized concurrently — each `run_phase` call passes its `batch_id` to `process_results`, which uses `batch_mapping.json` for exact directory lookup instead of globbing by phase name.
+
 | Cost | Time |
 |------|------|
 | ~$100/state, ~$2-5/title (Haiku) | Hours per phase (batch queue) |

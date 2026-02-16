@@ -1,4 +1,4 @@
-import { eq, and, desc, asc, sql, count, or, isNull, isNotNull, ne, gte, lt } from 'drizzle-orm';
+import { eq, and, desc, asc, sql, count, or, isNull, isNotNull, ne, gte, lt, like, notInArray, inArray } from 'drizzle-orm';
 import { BaseRepository } from './base.repository';
 import { complianceIssues, ComplianceIssue, IssueType } from '../schema/compliance-issues';
 import { regulatoryDocuments } from '../schema/regulatory-documents';
@@ -772,46 +772,48 @@ export class ComplianceIssuesRepository extends BaseRepository {
 
   /**
    * Get aggregate stats for dashboard
+   * PR 6.3: All counts query compliance_issue_analyses with requirementFound = true
+   * to be consistent (analytics should use analyses table per architecture).
    */
   async getStatsByState(state?: StateCode): Promise<ComplianceIssueStats> {
-    const conditions = state
-      ? [eq(complianceIssues.state, state.toUpperCase())]
-      : [];
+    const baseConditions = [
+      eq(complianceIssueAnalyses.requirementFound, true),
+      ...(state ? [eq(complianceIssueAnalyses.state, state.toUpperCase())] : []),
+    ];
 
-    // Get total count
+    // Get total count (from analyses with requirementFound = true)
     const [totalResult] = await this.db
       .select({ count: sql<number>`count(*)::int` })
-      .from(complianceIssues)
-      .where(conditions.length > 0 ? and(...conditions) : undefined);
+      .from(complianceIssueAnalyses)
+      .where(and(...baseConditions));
 
-    // Get unreviewed count (PR 6.3: review status now on analyses)
-    const unreviewedConditions = state
-      ? [eq(complianceIssueAnalyses.state, state.toUpperCase())]
-      : [];
+    // Get unreviewed count (from analyses with requirementFound = true)
     const [unreviewedResult] = await this.db
       .select({ count: sql<number>`count(*)::int` })
       .from(complianceIssueAnalyses)
       .where(and(
-        ...(unreviewedConditions.length > 0 ? unreviewedConditions : []),
+        ...baseConditions,
         or(
           eq(complianceIssueAnalyses.reviewStatus, 'unreviewed'),
           isNull(complianceIssueAnalyses.reviewStatus)
         )
       ));
 
-    // Get counts by type
+    // Get counts by type (from analyses with requirementFound = true)
     const typeResults = await this.db
       .select({
-        issueType: complianceIssues.issueType,
+        issueType: complianceIssueAnalyses.issueType,
         count: sql<number>`count(*)::int`,
       })
-      .from(complianceIssues)
-      .where(conditions.length > 0 ? and(...conditions) : undefined)
-      .groupBy(complianceIssues.issueType);
+      .from(complianceIssueAnalyses)
+      .where(and(...baseConditions))
+      .groupBy(complianceIssueAnalyses.issueType);
 
     const byType: Record<string, number> = {};
     for (const row of typeResults) {
-      byType[row.issueType] = row.count;
+      if (row.issueType) {
+        byType[row.issueType] = row.count;
+      }
     }
 
     return {
@@ -1278,7 +1280,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
     // Exclude already-shown IDs
     if (excludeIds.length > 0) {
       baseConditions.push(
-        sql`${complianceIssues.id} NOT IN (${sql.raw(excludeIds.join(','))})`
+        notInArray(complianceIssues.id, excludeIds)
       );
     }
 
@@ -1323,7 +1325,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         const groupSelectionConditions = [...baseConditions];
         if (recentIssueTypes && recentIssueTypes.length > 0) {
           groupSelectionConditions.push(
-            sql`${complianceIssues.issueType} NOT IN (${sql.raw(recentIssueTypes.map(t => `'${t}'`).join(','))})`
+            notInArray(complianceIssues.issueType, recentIssueTypes)
           );
         }
 
@@ -1444,7 +1446,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         const groupSelectionConditions = [...baseConditions];
         if (recentIssueTypes && recentIssueTypes.length > 0) {
           groupSelectionConditions.push(
-            sql`${complianceIssues.issueType} NOT IN (${sql.raw(recentIssueTypes.map(t => `'${t}'`).join(','))})`
+            notInArray(complianceIssues.issueType, recentIssueTypes)
           );
         }
 
@@ -1553,8 +1555,8 @@ export class ComplianceIssuesRepository extends BaseRepository {
         eq(complianceIssues.analysisId, complianceIssueAnalyses.id)
       )
       .where(whereClause)
-      // Order by severity from analyses (high first) with random tiebreaker
-      .orderBy(desc(complianceIssueAnalyses.finalSeverity), sql`RANDOM()`)
+      // Order by severity from analyses (high first) with deterministic tiebreaker
+      .orderBy(desc(complianceIssueAnalyses.finalSeverity), desc(complianceIssueAnalyses.id))
       .limit(batchSize);
 
     const data: ComplianceIssueWithAnalysis[] = results.map(row => mapRowToIssue(row));
@@ -2132,19 +2134,19 @@ export class ComplianceIssuesRepository extends BaseRepository {
       // IMPORTANT: These thresholds must match backend/scripts/research_pipeline/routing.py
       // Thresholds: HIGH_RISK_SEVERITY >= 7, NO_ALTERNATIVE_SEVERITY >= 7, BURDENSOME_SEVERITY >= 8
       if (filters.tier3Trigger) {
-        // High-risk issue types that trigger Tier 3 when severity >= 6
+        // High-risk issue types that trigger Tier 3 when severity >= 7
         const HIGH_RISK_ISSUE_TYPES = ['newspaper', 'notarization', 'wet_signature', 'witness', 'mandated_reports'];
         const IN_PERSON_PREFIX = 'in_person';
 
         if (filters.tier3Trigger === 'high_risk_issue') {
-          // High-risk issue type + severity >= 6
+          // High-risk issue type + severity >= 7
           conditions.push(
             and(
               or(
-                sql`${complianceIssueAnalyses.issueType} = ANY(ARRAY[${sql.raw(HIGH_RISK_ISSUE_TYPES.map(t => `'${t}'`).join(','))}])`,
-                sql`${complianceIssueAnalyses.issueType} LIKE '${IN_PERSON_PREFIX}%'`
+                inArray(complianceIssueAnalyses.issueType, HIGH_RISK_ISSUE_TYPES),
+                like(complianceIssueAnalyses.issueType, `${IN_PERSON_PREFIX}%`)
               )!,
-              gte(complianceIssueAnalyses.severity, 6)
+              gte(complianceIssueAnalyses.severity, 7)
             )!
           );
         } else if (filters.tier3Trigger === 'federal_citation') {
@@ -2332,7 +2334,6 @@ export class ComplianceIssuesRepository extends BaseRepository {
         tier2Burdensome: sql<number>`count(*) FILTER (WHERE ${complianceIssueAnalyses.tier2Classification} = 'burdensome')::int`,
         tier2Justified: sql<number>`count(*) FILTER (WHERE ${complianceIssueAnalyses.tier2Classification} = 'justified')::int`,
         tier2Unrelated: sql<number>`count(*) FILTER (WHERE ${complianceIssueAnalyses.tier2Classification} = 'unrelated')::int`,
-        tier2NeedsFullContext: sql<number>`count(*) FILTER (WHERE ${complianceIssueAnalyses.tier2Classification} = 'needs_full_context')::int`,
         tier3Completed: sql<number>`count(*) FILTER (WHERE ${complianceIssueAnalyses.tier3Classification} IS NOT NULL)::int`,
         tier3Burdensome: sql<number>`count(*) FILTER (WHERE ${complianceIssueAnalyses.tier3Classification} = 'burdensome')::int`,
         tier3Justified: sql<number>`count(*) FILTER (WHERE ${complianceIssueAnalyses.tier3Classification} = 'justified')::int`,
@@ -2355,7 +2356,6 @@ export class ComplianceIssuesRepository extends BaseRepository {
         burdensome: row.tier2Burdensome,
         justified: row.tier2Justified,
         unrelated: row.tier2Unrelated,
-        needsFullContext: row.tier2NeedsFullContext,
       },
       tier3: {
         total: row.tier3Completed,
@@ -2945,7 +2945,6 @@ export interface PipelineFunnelData {
     burdensome: number;
     justified: number;
     unrelated: number;
-    needsFullContext: number;
   };
   tier3: {
     total: number;

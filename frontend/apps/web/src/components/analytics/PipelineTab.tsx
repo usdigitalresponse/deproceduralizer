@@ -15,12 +15,7 @@ import type {
   ConfidenceByClassificationData,
 } from '@/lib/actions/pipeline-analytics';
 import {
-  getPipelineFunnelStats,
-  getTier1ContextRequestStats,
-  getTierTransitionStats,
-  getTier3EvidenceStats,
-  getConfidenceByClassification,
-  getTransitionReasons,
+  getPipelineAnalyticsBundle,
   getPipelineContextData,
 } from '@/lib/actions/pipeline-analytics';
 import { analyticsParsers } from '@/lib/url/parsers';
@@ -86,23 +81,25 @@ export function PipelineTab({ state, data: initialData }: PipelineTabProps) {
     setIsFiltering(true);
 
     async function fetchFiltered() {
-      const [funnelResult, tier1Result, transitionsResult, evidenceResult, confByClassResult, transitionReasonsResult] = await Promise.all([
-        getPipelineFunnelStats(state, issueType!),
-        getTier1ContextRequestStats(state, issueType!),
-        getTierTransitionStats(state, issueType!),
-        getTier3EvidenceStats(state, issueType!),
-        getConfidenceByClassification(state, issueType!),
-        getTransitionReasons(state, issueType!),
-      ]);
+      const result = await getPipelineAnalyticsBundle(state, issueType!);
 
       if (cancelled) return;
 
-      setFilteredFunnel(funnelResult.success ? funnelResult.data : null);
-      setFilteredTier1(tier1Result.success ? tier1Result.data : null);
-      setFilteredTransitions(transitionsResult.success ? transitionsResult.data : null);
-      setFilteredEvidence(evidenceResult.success ? evidenceResult.data : null);
-      setFilteredConfByClass(confByClassResult.success ? confByClassResult.data : null);
-      setFilteredTransitionReasons(transitionReasonsResult.success ? transitionReasonsResult.data : null);
+      if (result.success) {
+        setFilteredFunnel(result.data.funnel);
+        setFilteredTier1(result.data.tier1Context);
+        setFilteredTransitions(result.data.tierTransitions);
+        setFilteredEvidence(result.data.tier3Evidence);
+        setFilteredConfByClass(result.data.confidenceByClassification);
+        setFilteredTransitionReasons(result.data.transitionReasons);
+      } else {
+        setFilteredFunnel(null);
+        setFilteredTier1(null);
+        setFilteredTransitions(null);
+        setFilteredEvidence(null);
+        setFilteredConfByClass(null);
+        setFilteredTransitionReasons(null);
+      }
       setIsFiltering(false);
     }
 

@@ -125,11 +125,6 @@ function FunnelSVG({ data, width, height, colors }: FunnelSVGProps) {
             value: data.tier2.unrelated,
             color: colors.colors.neutral400,
           },
-          {
-            label: 'Needs Context',
-            value: data.tier2.needsFullContext,
-            color: colors.colors.warning,
-          },
         ],
       },
       {
@@ -185,24 +180,14 @@ function FunnelSVG({ data, width, height, colors }: FunnelSVGProps) {
       t2FlowEnd
     );
 
-    // Flow path 2: Tier 2 (burdensome + justified + needs_full_context) → Tier 3
-    // These are indices 0 (burdensome), 1 (justified), 3 (needs_full_context)
+    // Flow path 2: Tier 2 (burdensome + justified) → Tier 3
+    // These are indices 0 (burdensome), 1 (justified)
     const escalatedFromT2 =
-      data.tier2.burdensome + data.tier2.justified + data.tier2.needsFullContext;
+      data.tier2.burdensome + data.tier2.justified;
     let t2EscStart = barTop;
     let t2EscEnd = barTop;
 
     if (data.tier2.total > 0 && escalatedFromT2 > 0) {
-      // Burdensome starts at the top
-      t2EscStart = t2Bars[0].y;
-      // Justified ends after justified segment
-      const justifiedEnd = t2Bars[1].y + t2Bars[1].height;
-      // Needs context segment
-      const needsContextEnd = t2Bars[3].y + t2Bars[3].height;
-      // The escalated range spans: burdensome top to max(justified end, needsContext end)
-      // Since unrelated is between justified and needsContext, the flow includes
-      // the visual range from burdensome top to needsContext bottom, but we should
-      // show the actual escalated proportion
       t2EscEnd = barTop + (escalatedFromT2 / data.tier2.total) * (t2FlowEnd - t2FlowStart);
       t2EscStart = barTop;
     }

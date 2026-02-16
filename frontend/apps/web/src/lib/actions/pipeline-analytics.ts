@@ -166,6 +166,47 @@ export async function getTransitionReasons(
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// Bundle Action (single cache key for filtered refetch)
+// ═══════════════════════════════════════════════════════════════════
+
+export interface PipelineAnalyticsBundle {
+  funnel: PipelineFunnelData;
+  tier1Context: Tier1ContextRequestStats;
+  tierTransitions: TierTransitionData;
+  tier3Evidence: Tier3EvidenceStats;
+  confidenceByClassification: ConfidenceByClassificationData | null;
+  transitionReasons: TransitionReasonData | null;
+}
+
+export async function getPipelineAnalyticsBundle(
+  state: StateCode,
+  issueType?: string
+): Promise<ActionResult<PipelineAnalyticsBundle>> {
+  try {
+    const cachedFn = unstable_cache(
+      async () => {
+        const [funnel, tier1, transitions, evidence, confByClass, transReasons] = await Promise.all([
+          complianceIssuesRepo.getPipelineFunnelStats(state, issueType),
+          complianceIssuesRepo.getTier1ContextRequestStats(state, issueType),
+          complianceIssuesRepo.getTierTransitionStats(state, issueType),
+          complianceIssuesRepo.getTier3EvidenceStats(state, issueType),
+          complianceIssuesRepo.getConfidenceByClassification(state, issueType).catch(() => null),
+          complianceIssuesRepo.getTransitionReasons(state, issueType).catch(() => null),
+        ]);
+        return { funnel, tier1Context: tier1, tierTransitions: transitions, tier3Evidence: evidence, confidenceByClassification: confByClass, transitionReasons: transReasons };
+      },
+      [`pipeline-bundle-${state}-${issueType ?? 'all'}`],
+      { revalidate: 3600, tags: ['pipeline-analytics'] }
+    );
+    const data = await cachedFn();
+    return success(data);
+  } catch (error) {
+    console.error('[getPipelineAnalyticsBundle]', error);
+    return failure(getErrorMessage(error));
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // Context & Research Subtab Actions (lazy-loaded)
 // ═══════════════════════════════════════════════════════════════════
 

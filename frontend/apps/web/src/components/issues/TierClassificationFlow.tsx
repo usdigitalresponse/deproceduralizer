@@ -23,11 +23,6 @@ const CLASSIFICATION_COLORS: Record<string, { bg: string; text: string; border: 
     text: 'text-[var(--color-info)]',
     border: 'border-[var(--color-info)]/30',
   },
-  needs_full_context: {
-    bg: 'bg-[var(--color-info-bg)]',
-    text: 'text-[var(--color-info)]',
-    border: 'border-[var(--color-info)]/30',
-  },
   // Green - justified (regulation is reasonable)
   justified: {
     bg: 'bg-[var(--color-success-bg)]',
@@ -51,7 +46,6 @@ const CLASSIFICATION_LABELS: Record<string, string> = {
   unrelated: 'unrelated',
   justified: 'justified',
   burdensome: 'burdensome',
-  needs_full_context: 'needs context',
 };
 
 interface TierClassificationFlowProps extends HTMLAttributes<HTMLDivElement> {

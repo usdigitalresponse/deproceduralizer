@@ -228,6 +228,16 @@ export const BATCH_SIZE_VALUES = [2, 3, 4, 5] as const;
 export type BatchSizeValue = (typeof BATCH_SIZE_VALUES)[number];
 
 // ============================================
+// IBR Page
+// ============================================
+
+export const IBR_TAB_VALUES = ['overview', 'browse'] as const;
+export type IbrTabValue = (typeof IBR_TAB_VALUES)[number];
+
+export const IBR_SORT_BY_VALUES = ['sourceOrganization', 'incorporatedDocument', 'createdAt'] as const;
+export type IbrSortByValue = (typeof IBR_SORT_BY_VALUES)[number];
+
+// ============================================
 // Analytics Page
 // ============================================
 
@@ -275,7 +285,6 @@ export const CLASSIFICATION_FILTER_VALUES = [
   'all_false_positives',
   'burdensome',
   'justified',
-  'needs_full_context',
   'needs_research',
   'unrelated',
 ] as const;

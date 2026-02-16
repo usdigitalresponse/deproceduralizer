@@ -44,6 +44,9 @@ import {
   // Suggestion mode
   QUEUE_MODE_VALUES,
   GROUPING_MODE_VALUES,
+  // IBR
+  IBR_TAB_VALUES,
+  IBR_SORT_BY_VALUES,
   // Analytics
   ANALYTICS_TAB_VALUES,
   TREEMAP_SIZE_METRIC_VALUES,
@@ -532,6 +535,30 @@ export const statuteBrowseParsers = {
 // Re-export statute-related types
 export type { LinkTypeValue, MatchStatusValue } from '@/lib/constants/values';
 export { LINK_TYPE_VALUES, MATCH_STATUS_VALUES } from '@/lib/constants/values';
+
+// ============================================
+// IBR page parsers
+// ============================================
+
+export const ibrTabParser = parseAsStringEnum([...IBR_TAB_VALUES]).withDefault('overview');
+export const ibrSortByParser = parseAsStringEnum([...IBR_SORT_BY_VALUES]).withDefault('sourceOrganization');
+export const sourceOrganizationParser = parseAsString;
+
+/**
+ * Parser configuration for IBR page
+ */
+export const ibrParsers = {
+  tab: ibrTabParser,
+  page: pageParser,
+  pageSize: pageSizeParser,
+  sortBy: ibrSortByParser,
+  sortOrder: sortOrderParser,
+  sourceOrganization: sourceOrganizationParser,
+  search: searchParser,
+};
+
+// Re-export IBR types
+export type { IbrTabValue, IbrSortByValue } from '@/lib/constants/values';
 
 /**
  * Helper to parse comma-separated filter values from URL

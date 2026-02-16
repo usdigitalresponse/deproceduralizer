@@ -24,11 +24,6 @@ export const CLASSIFICATION_COLORS: Record<string, { bg: string; text: string; b
     text: 'text-[var(--color-info)]',
     border: 'border-[var(--color-info)]/30',
   },
-  needs_full_context: {
-    bg: 'bg-[var(--color-info-bg)]',
-    text: 'text-[var(--color-info)]',
-    border: 'border-[var(--color-info)]/30',
-  },
   // Green - justified (terminal, positive)
   justified: {
     bg: 'bg-[var(--color-success-bg)]',
@@ -52,7 +47,6 @@ export const CLASSIFICATION_LABELS: Record<string, string> = {
   unrelated: 'Unrelated',
   justified: 'Justified',
   burdensome: 'Burdensome',
-  needs_full_context: 'Needs Context',
 };
 
 export interface PipelineInput {

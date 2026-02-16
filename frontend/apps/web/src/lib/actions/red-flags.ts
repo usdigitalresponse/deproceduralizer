@@ -5,6 +5,8 @@ import { revalidatePath, updateTag, unstable_cache } from 'next/cache';
 import {
   db,
   RedFlagsRepository,
+  REVIEW_STATUSES,
+  IMPACT_TYPES,
   type ReviewStatus,
   type ImpactType,
   type StateCode,
@@ -41,7 +43,14 @@ export async function updateRedFlagReview(
   input: UpdateRedFlagInput
 ): Promise<ActionResult<RedFlag>> {
   try {
-    // Cast to proper types - forms pass strings, but these must be valid enum values
+    // Validate enum values before passing to repository
+    if (!REVIEW_STATUSES.includes(input.reviewStatus as ReviewStatus)) {
+      return failure(`Invalid review status: ${input.reviewStatus}`);
+    }
+    if (input.impactType && !IMPACT_TYPES.includes(input.impactType as ImpactType)) {
+      return failure(`Invalid impact type: ${input.impactType}`);
+    }
+
     const result = await redFlagsRepo.updateReview(input.id, {
       reviewStatus: input.reviewStatus as ReviewStatus,
       reviewedBy: input.reviewedBy,

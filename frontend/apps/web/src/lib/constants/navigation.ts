@@ -1,4 +1,4 @@
-import { Table, FolderTree, ClipboardCheck, BookOpen, Home, Code, BarChart3, FlaskConical, Star, Scale, type LucideIcon } from 'lucide-react';
+import { Table, FolderTree, ClipboardCheck, BookOpen, Home, Code, BarChart3, FlaskConical, Star, Scale, Library, type LucideIcon } from 'lucide-react';
 
 /**
  * Navigation item configuration.
@@ -79,6 +79,14 @@ export const NAV_ITEMS: NavItem[] = [
     icon: Scale,
     isStateSpecific: true,
     pathSuffix: '/statutes',
+    groupId: 'explorer',
+  },
+  {
+    key: 'ibr',
+    label: 'Standards (IBR)',
+    icon: Library,
+    isStateSpecific: true,
+    pathSuffix: '/ibr',
     groupId: 'explorer',
   },
   {

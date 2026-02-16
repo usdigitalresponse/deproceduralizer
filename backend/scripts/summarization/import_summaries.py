@@ -75,7 +75,7 @@ def extract_summary_data(result: dict) -> dict | None:
     return {
         "document_id": doc_id,
         "summary": summary,
-        "section_type": section_type,
+        "section_type": section_type[:50] if section_type else section_type,
         "keywords": keywords,
         "applies_to": applies_to,
         "has_form": bool(has_form),
@@ -118,51 +118,58 @@ def batch_update_summaries(
     if not updates:
         return 0
 
-    # Build values list with placeholders
-    placeholders = []
-    params = []
+    # PostgreSQL has a 65535 parameter limit. With 7 params per row,
+    # we can fit ~9000 rows per batch. Use 5000 for safety.
+    CHUNK_SIZE = 5000
+    total_updated = 0
 
-    for u in updates:
-        placeholders.append("(%s, %s, %s, %s::text[], %s::text[], %s, %s)")
-        params.extend([
-            u["document_id"],
-            u["summary"],
-            u["section_type"],
-            to_pg_array(u["keywords"]),
-            to_pg_array(u["applies_to"]),
-            u["has_form"],
-            u["has_ibr"],
-        ])
+    for i in range(0, len(updates), CHUNK_SIZE):
+        chunk = updates[i:i + CHUNK_SIZE]
 
-    query = f"""
-        UPDATE regulatory_documents AS rd
-        SET
-            summary = v.summary,
-            section_type = v.section_type,
-            keywords = v.keywords,
-            applies_to = v.applies_to,
-            has_form = v.has_form,
-            has_ibr = v.has_ibr
-        FROM (VALUES {", ".join(placeholders)}) AS v(
-            doc_id,
-            summary,
-            section_type,
-            keywords,
-            applies_to,
-            has_form,
-            has_ibr
-        )
-        WHERE rd.id = v.doc_id::bigint
-    """
+        placeholders = []
+        params = []
 
-    with conn.cursor() as cur:
-        cur.execute(query, params)
-        updated = cur.rowcount
+        for u in chunk:
+            placeholders.append("(%s, %s, %s, %s::text[], %s::text[], %s, %s)")
+            params.extend([
+                u["document_id"],
+                u["summary"],
+                u["section_type"],
+                to_pg_array(u["keywords"]),
+                to_pg_array(u["applies_to"]),
+                u["has_form"],
+                u["has_ibr"],
+            ])
 
-    if not dry_run:
-        conn.commit()
+        query = f"""
+            UPDATE regulatory_documents AS rd
+            SET
+                summary = v.summary,
+                section_type = v.section_type,
+                keywords = v.keywords,
+                applies_to = v.applies_to,
+                has_form = v.has_form,
+                has_ibr = v.has_ibr
+            FROM (VALUES {", ".join(placeholders)}) AS v(
+                doc_id,
+                summary,
+                section_type,
+                keywords,
+                applies_to,
+                has_form,
+                has_ibr
+            )
+            WHERE rd.id = v.doc_id::bigint
+        """
 
-    return updated
+        with conn.cursor() as cur:
+            cur.execute(query, params)
+            total_updated += cur.rowcount
+
+        if not dry_run:
+            conn.commit()
+
+    return total_updated
 
 
 def format_eta(seconds: float) -> str:

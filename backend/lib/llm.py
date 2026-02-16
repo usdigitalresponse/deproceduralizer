@@ -74,8 +74,10 @@ def _pydantic_to_tool_schema(model: Type[BaseModel], with_cache_control: bool = 
 
     # Add cache_control for prompt caching
     # See: https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching
+    # TTL must be >= system prompt TTL (1h) because the API requires
+    # non-increasing TTL order across tools → system → messages.
     if with_cache_control:
-        tool["cache_control"] = {"type": "ephemeral"}
+        tool["cache_control"] = {"type": "ephemeral", "ttl": "1h"}
 
     return tool
 

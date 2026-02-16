@@ -18,7 +18,6 @@ const TIER_LABELS = [
 const CLASSIFICATION_COLORS: Record<string, string> = {
   all_false_positives: 'var(--color-neutral-400)',
   needs_research: 'var(--color-info)',
-  needs_full_context: 'var(--color-info)',
   unrelated: 'var(--color-neutral-500)',
   justified: 'var(--color-success)',
   burdensome: 'var(--color-warning)',
@@ -60,7 +59,7 @@ export function TierDistributionChart({
     const segments = [];
 
     // "Proceeds to next tier" classifications
-    const proceeds = (breakdown['needs_research'] || 0) + (breakdown['needs_full_context'] || 0);
+    const proceeds = breakdown['needs_research'] || 0;
     if (proceeds > 0) {
       segments.push({ classification: 'proceeds', count: proceeds, color: 'var(--color-info)' });
     }
@@ -179,7 +178,7 @@ export function TierDistributionChart({
             <h4 className="text-xs font-medium text-[var(--color-text-muted)]">
               Early Exits
             </h4>
-            {['all_false_positives', 'needs_research', 'needs_full_context'].map(classification => {
+            {['all_false_positives', 'needs_research'].map(classification => {
               const t1 = classificationBreakdown.tier1[classification] || 0;
               const t2 = classificationBreakdown.tier2[classification] || 0;
               const total = t1 + t2;

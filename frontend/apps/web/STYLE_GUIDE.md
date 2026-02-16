@@ -2948,3 +2948,60 @@ Table rows in the pipeline list have colored left borders based on priority:
 6. Regex Matches Section
 7. Pipeline Timeline (tier-by-tier journey)
 8. Metadata Footer
+
+---
+
+## IBR (Standards) Page
+
+The IBR page at `/[state]/ibr` displays external standards (NFPA, ASTM, ICC, CFR) incorporated by reference into state regulations. It uses a two-tab layout (Overview, Browse) with `SegmentedControl` for tab switching. This is a read-only exploration page — no review workflow.
+
+### Tab Structure
+
+| Tab | Component | Description |
+|-----|-----------|-------------|
+| Overview | `IbrOverviewTab` | Analytics: stat cards, org chart, top standards |
+| Browse | `IbrBrowseTab` | Filterable/sortable table with detail drawer |
+
+### IbrOverviewTab
+
+Top-level analytics view with four stat cards (Total IBRs, Source Organizations, Regulations Referenced, Extraction Coverage), a horizontal bar chart (`IbrOrgChart`) for source organization distribution, and a top-referenced standards table.
+
+### IbrOrgChart
+
+Horizontal bar chart using CSS-based bars (no chart library). Shows source organization names on the left, count-proportional bars, and count labels. Max 10 organizations displayed.
+
+### IbrBrowseTab
+
+Filter bar with source organization dropdown, sort-by selector, and search input. Uses `IbrTable` for display and `IbrDetailDrawer` for row detail. Pagination at bottom.
+
+### IbrTable
+
+Clickable table rows with columns: Standard, Organization, Version, Source Regulation (clickable link to `/[state]/regulations/[id]`). Selected row highlighted with primary-faint background. Regulation links use `stopPropagation` to avoid triggering row selection.
+
+### IbrDetailDrawer
+
+Right-side `Drawer` (500px) showing full IBR details: requirement quote (`RegulationContent`), context, term matched, source regulation link with prominent "View Regulation" button, and original source link.
+
+### IbrClient
+
+Client component managing tab state via `ibrParsers` (nuqs). Renders `IbrOverviewTab` or `IbrBrowseTab` based on active tab. Uses `SegmentedControl` with Library/List icons.
+
+### Navigation Integration
+
+IBR appears in the Explorer nav group after Statutes:
+```typescript
+{ key: 'ibr', label: 'Standards (IBR)', icon: Library, pathSuffix: '/ibr', groupId: 'explorer' }
+```
+
+### File Structure
+
+```
+components/ibr/
+├── index.ts              # Barrel exports
+├── IbrClient.tsx         # Tab switching client component
+├── IbrOverviewTab.tsx    # Overview analytics
+├── IbrOrgChart.tsx       # Horizontal bar chart
+├── IbrBrowseTab.tsx      # Filter + table + drawer
+├── IbrTable.tsx          # Clickable data table
+└── IbrDetailDrawer.tsx   # Right-side detail drawer
+```

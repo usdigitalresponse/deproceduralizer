@@ -16,9 +16,6 @@ pnpm test:e2e --grep @smoke
 
 # Run only mutation tests (data-modifying)
 pnpm test:e2e --grep @mutation
-
-# Run a specific test file
-pnpm test:e2e preconditions.spec.ts
 ```
 
 ## Test Categories
@@ -38,17 +35,6 @@ Tests that modify data in the database:
 - Queue replacement behavior
 
 These tests include cleanup logic to restore data after running.
-
-### Preconditions (`preconditions.spec.ts`)
-Data validation tests that should run first:
-- Verify NY/NJ have documents
-- Verify unreviewed items exist
-- Verify LLM-rejected issues exist
-
-Run these first if other tests fail unexpectedly:
-```bash
-pnpm test:e2e preconditions.spec.ts
-```
 
 ## Environment Variables
 
@@ -70,18 +56,12 @@ Tests assume the following data exists:
 | NJ | Has unreviewed compliance issues |
 | NJ | Has LLM-rejected compliance issues (`requirement_found=false`) |
 
-If tests fail with "no cards found" or similar, run the preconditions check:
-```bash
-pnpm test:e2e preconditions.spec.ts
-```
-
 ## File Structure
 
 ```
 e2e/
 ├── README.md              # This file
 ├── smoke.spec.ts          # Main smoke test suite
-├── preconditions.spec.ts  # Data validation tests
 └── helpers/
     ├── index.ts           # Barrel export
     └── ready.ts           # Page readiness helpers

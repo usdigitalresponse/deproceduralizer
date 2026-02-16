@@ -79,7 +79,7 @@ class TestRedFlagsPrompt:
     """Test red flags prompt creation."""
 
     def test_create_analysis_prompt(self):
-        from red_flags import create_analysis_prompt
+        from scripts.red_flags import create_analysis_prompt
         from lib.prompts import load_prompt_parts
 
         # create_analysis_prompt returns template only (for backwards compat)
@@ -126,7 +126,7 @@ class TestLLMCalls:
     def test_red_flags_analysis(self):
         """Test red flags LLM analysis produces valid output."""
         import asyncio
-        from red_flags import (
+        from scripts.red_flags import (
             RegulationAnalysis,
             RegulationData,
             analyze_regulation,
@@ -153,7 +153,7 @@ class TestLLMCalls:
     def test_batch_request_format_valid(self):
         """Test that batch requests are formatted correctly for the API."""
         from lib.batch import format_batch_request
-        from red_flags import RegulationAnalysis, create_analysis_prompt
+        from scripts.red_flags import RegulationAnalysis, create_analysis_prompt
 
         prompt = create_analysis_prompt(
             section_text="Test content",
@@ -266,11 +266,11 @@ class TestCLI:
         assert result.returncode == 0
         assert 'DRY RUN' in result.stdout
 
-    def test_run_pipeline_help(self):
+    def test_research_pipeline_help(self):
         import subprocess
         backend_dir = Path(__file__).parent.parent
         result = subprocess.run(
-            [sys.executable, 'run_pipeline.py', '--help'],
+            [sys.executable, '-m', 'scripts.research_pipeline.cli', '--help'],
             capture_output=True, text=True, cwd=str(backend_dir)
         )
         assert result.returncode == 0

@@ -79,6 +79,9 @@ def get_existing_analyses(
                     tier2_classification, tier2_confidence, tier2_reasoning,
                     tier2_context_requests_made, tier2_full_text_requests,
                     severity, verbatim_requirements,
+                    argument_for_regulation, argument_against_regulation,
+                    cites_federal_statute, federal_citation,
+                    claims_no_alternative, needs_web_search, web_search_topics,
                     -- Tier 3 outputs
                     tier3_classification, tier3_confidence, tier3_reasoning,
                     tier3_severity_adjustment, tier3_severity_adjustment_reasoning
@@ -109,12 +112,19 @@ def get_existing_analyses(
                     "tier2_full_text_requests": row[15] or [],
                     "severity": row[16],
                     "verbatim_requirements": row[17] or [],
+                    "argument_for_regulation": row[18],
+                    "argument_against_regulation": row[19],
+                    "cites_federal_statute": row[20],
+                    "federal_citation": row[21],
+                    "claims_no_alternative": row[22],
+                    "needs_web_search": row[23],
+                    "web_search_topics": row[24] or [],
                     # Tier 3 outputs
-                    "tier3_classification": row[18],
-                    "tier3_confidence": row[19],
-                    "tier3_reasoning": row[20],
-                    "tier3_severity_adjustment": row[21],
-                    "tier3_severity_adjustment_reasoning": row[22],
+                    "tier3_classification": row[25],
+                    "tier3_confidence": row[26],
+                    "tier3_reasoning": row[27],
+                    "tier3_severity_adjustment": row[28],
+                    "tier3_severity_adjustment_reasoning": row[29],
                 }
 
             return results

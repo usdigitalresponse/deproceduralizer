@@ -173,7 +173,7 @@ export type NewComplianceIssueAnalysis = typeof complianceIssueAnalyses.$inferIn
 
 // Classification types
 export type Tier1Classification = 'all_false_positives' | 'needs_research';
-export type Tier2Classification = 'unrelated' | 'justified' | 'burdensome' | 'needs_full_context';
+export type Tier2Classification = 'unrelated' | 'justified' | 'burdensome';
 export type Tier3Classification = 'unrelated' | 'justified' | 'burdensome';
 export type AmbiguityType = 'internal' | 'external' | 'both';
 
