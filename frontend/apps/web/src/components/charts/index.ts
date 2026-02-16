@@ -15,6 +15,7 @@ export { ChartLegend, ChartLegendCompact, ChartLegendGradient } from './ChartLeg
 // Chart Components
 export { PieChart, SeverityDonutChart } from './PieChart';
 export { BarChart, HorizontalBarChart, StackedBarChart } from './BarChart';
+export { HeatmapGrid } from './HeatmapGrid';
 
 // Re-export types
 export type {
