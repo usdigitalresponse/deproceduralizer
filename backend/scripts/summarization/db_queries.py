@@ -47,8 +47,8 @@ def retry_db_operation(max_retries: int = 5, base_delay: float = 1.0) -> Callabl
 
 
 def get_connection() -> psycopg.Connection:
-    """Get database connection."""
-    return psycopg.connect(os.getenv("DATABASE_URL"))
+    """Get database connection with timeout to avoid blocking on connection pool exhaustion."""
+    return psycopg.connect(os.getenv("DATABASE_URL"), connect_timeout=10)
 
 
 def _get_title_column(state: str) -> str:
