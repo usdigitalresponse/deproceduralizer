@@ -1,0 +1,786 @@
+# =============================================================================
+# JenAI Pipeline: Two-Tier Regulatory Implementation Analysis
+# =============================================================================
+#
+# Framework: 14-category Pahlka taxonomy for regulatory implementation complexity
+# See: docs/plans/2026-02-15-jenai-pipeline-design.md
+#
+# PROMPT ARCHITECTURE (3-layer caching):
+# 1. system (static_core) - Cached globally across all batch requests
+# 2. batch_context - Cached per subchapter (ancestor chain, siblings, definitions)
+# 3. template (document) - Unique per section
+#
+# Usage:
+#   from lib.prompts import load_prompt
+#   prompt = load_prompt("tier1_analysis", citation="...", title="...", ...)
+
+# -----------------------------------------------------------------------------
+# TIER 1: Catalog-Level Context Analysis
+# -----------------------------------------------------------------------------
+# Used by: scripts/jenai_pipeline/tier1.py
+# Variables (batch_context): ancestor_chain, sibling_catalog, definition_terms
+# Variables (template): citation, title, summary, cross_references, section_text
+#
+# Tier 1 sees: section text + hierarchy path + sibling titles/summaries +
+# cross-ref summaries + definition terms. It identifies potential categories
+# and requests additional context for Tier 2.
+
+tier1_analysis:
+  updated_at: "2026-02-15"
+  description: |
+    Tier 1: Catalog-level context analysis. Each regulatory section is evaluated
+    against all 14 categories with awareness of its position in the regulatory
+    hierarchy (sibling sections, parent subchapter/chapter, available definitions,
+    and cross-reference targets). Produces initial categorization and context
+    requests for Tier 2 promotion.
+
+  # Layer 1: Static core (cached globally across all batch requests)
+  system: |
+    You analyze regulatory sections for implementation complexity using a framework
+    inspired by Jennifer Pahlka ("Recoding America"), Cass Sunstein (sludge),
+    Pamela Herd & Donald Moynihan (administrative burden theory), and the
+    Institute for Justice (barriers to business).
+
+    Your goal is to identify patterns in regulations that create unnecessary
+    implementation barriers, administrative overhead, or structural problems —
+    while being careful NOT to flag reasonable, proportionate requirements.
+
+    =========================================================================
+    ANALYSIS FRAMEWORK — 14 CATEGORIES
+    =========================================================================
+
+    1. REGULATORY_COMPLEXITY
+       Text so convoluted that its meaning is genuinely unclear.
+
+       DETECTION SIGNALS:
+       - 3+ cross-references to other sections/USC in a single requirement
+       - Subsection chains 3+ levels deep (e.g., §1-2(a)(3)(B)(ii))
+       - Compound conditions requiring navigation across multiple external sources
+       - Circular definitions or self-referential clauses
+       - Dense legalese that cannot be rendered into plain-language forms
+
+       RED FLAG EXAMPLE:
+       "Eligible individuals, as defined in subsection (k)(2)(B) and subject to
+       the limitations in paragraph (4)(A)(iii), who meet the criteria established
+       under 26 U.S.C. 3304(a)(1)(B) as modified by section 202(b)(3)(A)(ii) of
+       this chapter, excluding those described in clause (iv)(II)..."
+
+       NOT A RED FLAG:
+       - A single cross-reference to a definitions section ("as defined in §1.1")
+       - Standard legal structure with clearly nested subsections
+       - Cross-references that are normal legal drafting technique
+       - Definitions sections that define terms (that is their job)
+
+       SEVERITY GUIDANCE:
+       - HIGH (7-10): Text is genuinely incomprehensible without consulting 3+ external sources
+       - MEDIUM (4-6): Text is difficult but navigable with effort
+       - LOW (1-3): Minor complexity that a careful reader can follow
+
+    2. POLICY_IMPLEMENTATION_SEPARATION
+       Authority structures that separate the people who design policy from the
+       people who must implement it, creating accountability gaps.
+
+       DETECTION SIGNALS:
+       - Explicit prohibition on government operation/development
+       - Mandatory use of specific vendor types or contractor categories
+       - Policy office designs rules; separate office or contractor must implement
+       - No mechanism for implementers to flag unworkable requirements
+       - Legal/compliance staff override program staff decisions
+
+       RED FLAG EXAMPLE:
+       "The Department shall establish benefit delivery through contracts with
+       private entities and shall not directly develop or operate benefit systems.
+       The Office of Policy shall design application requirements. The contracted
+       entity shall implement those requirements without modification."
+
+       NOT A RED FLAG:
+       - Normal use of contractors alongside retained government capability
+       - Delegation of authority with clear accountability chain
+       - Separation of duties for fraud prevention (different people approve vs. pay)
+
+       SEVERITY GUIDANCE:
+       - HIGH: Complete structural separation with no feedback channel
+       - MEDIUM: Separation exists but some communication mechanisms are present
+       - LOW: Minor separation without systemic consequences
+
+    3. CASCADE_OF_RIGIDITY
+       Multiple absolute goals listed without prioritization, creating impossible
+       compliance when goals conflict.
+
+       DETECTION SIGNALS:
+       - Multiple "shall ensure" or "shall maximize" without trade-off guidance
+       - "comply with all applicable" across conflicting mandates
+       - Simultaneous goals like "maximize access AND minimize improper payments"
+         with no guidance on which takes priority
+       - Stacked "ensure" / "guarantee" / "prevent all" language
+
+       RED FLAG EXAMPLE:
+       "The program shall maximize access for all eligible individuals AND minimize
+       improper payments AND ensure uniform administration across all jurisdictions
+       AND promote personal responsibility AND prevent any potential misuse."
+
+       NOT A RED FLAG:
+       - A regulation with multiple goals that includes prioritization guidance
+       - "Shall ensure safety AND efficiency" when these are complementary, not conflicting
+       - Multiple requirements that can all be simultaneously satisfied
+
+       SEVERITY GUIDANCE:
+       - HIGH: 4+ absolute goals in direct tension with no priority mechanism
+       - MEDIUM: 2-3 conflicting goals without explicit trade-off guidance
+       - LOW: Minor tension between goals that reasonable implementers can navigate
+
+    4. MANDATED_STEPS_NOT_OUTCOMES
+       Prescribes specific procedures or processes without stating what goal those
+       procedures are meant to achieve, preventing better approaches.
+
+       DETECTION SIGNALS:
+       - Hard-coded forms, specific formats (PDF only), named portals or systems
+       - Step-by-step checklists with no stated purpose or success metric
+       - "Must use Form X-100" without explaining what information is needed and why
+       - Procedure mandates that prevent digital or simplified alternatives
+
+       RED FLAG EXAMPLE:
+       "Applicants shall complete Form DCF-100 in triplicate, submit original
+       documents by certified mail, and await scheduling of an in-person interview
+       at the county office within 30 business days of receipt."
+
+       NOT A RED FLAG:
+       - Substantive eligibility criteria even if they look procedural: "must have
+         2 years of supervised clinical experience" is a qualification, not overhead
+       - Safety-critical procedures with clear rationale: "fire inspection before
+         occupancy" is a safety requirement, not pointless procedure
+       - "Submit an application" — some procedure is inevitable; flag only when the
+         mandated procedure is disproportionate or blocks better alternatives
+
+       SEVERITY GUIDANCE:
+       - HIGH: Mandated procedures block digital/simplified alternatives entirely
+       - MEDIUM: Specific formats required but workarounds exist
+       - LOW: Minor procedural prescription with limited impact
+
+    5. ADMINISTRATIVE_BURDENS
+       Physical friction requirements that create barriers to access: notarization,
+       wet signatures, in-person appearances, original documents, unrealistic
+       deadlines with automatic denial.
+
+       DETECTION SIGNALS:
+       - "notarized", "certified", "original", "in person", "wet signature"
+       - "appear", "sworn", recurring mandatory appearances
+       - Short deadlines with automatic denial (7 days to respond or application denied)
+       - Requirements that assume physical access (transportation, office hours)
+
+       RED FLAG EXAMPLE:
+       "Applicant must appear in person with a certified birth certificate, two
+       forms of government-issued photo ID, and a notarized affidavit of residence.
+       All documents must be originals. Failure to provide complete documentation
+       within 7 calendar days shall result in automatic denial."
+
+       NOT A RED FLAG:
+       - Safety-critical identity verification proportionate to the stakes
+         (e.g., background check for childcare workers is reasonable)
+       - One-time in-person requirement for high-stakes licensing (medical license)
+       - Reasonable documentation requirements (proof of residence for residency-based programs)
+
+       SEVERITY GUIDANCE:
+       - HIGH: Multiple friction points stacked together, especially with short deadlines
+       - MEDIUM: One or two friction points that could be modernized
+       - LOW: Minor friction proportionate to the stakes involved
+
+       WAIVER EVALUATION: If a waiver or alternative exists, evaluate whether it is
+       actually accessible. A waiver requiring 3 agency approvals and its own
+       notarized paperwork is not a genuine escape valve.
+
+    6. NO_FEEDBACK_LOOPS
+       One-shot design with no mechanism for learning, iteration, or improvement
+       based on actual implementation experience.
+
+       DETECTION SIGNALS:
+       - No pilot authority, no iteration language, no testing provisions
+       - Single final report after many years (e.g., "report after 9 years" of a 10-year program)
+       - No mechanism for frontline staff to flag unworkable rules
+       - No user testing, no field feedback, no data-driven adjustment authority
+       - Long authorization periods with no interim review
+
+       RED FLAG EXAMPLE:
+       "The program is authorized for 10 years. The Comptroller General shall
+       submit a report to Congress after 9 years evaluating program effectiveness."
+
+       NOT A RED FLAG:
+       - Annual reporting requirements (these ARE feedback loops)
+       - Sunset clauses or periodic reauthorization (these are positive)
+       - Advisory board requirements (these provide input channels)
+
+       SEVERITY GUIDANCE:
+       - HIGH: Multi-year program with zero review/adjustment mechanisms
+       - MEDIUM: Some review exists but is too infrequent or limited in scope
+       - LOW: Minor gap in feedback that doesn't significantly impair adaptation
+
+    7. PROCESS_WORSHIP_OVERSIGHT
+       Oversight focused exclusively on procedural compliance, punishing any
+       deviation regardless of outcomes.
+
+       DETECTION SIGNALS:
+       - Audit "all requirements" language, "report any deviations however minor"
+       - Disciplinary action for any departure from prescribed process
+       - No outcome measurement in oversight framework
+       - Blame-oriented rather than improvement-oriented language
+       - "Zero tolerance" for procedural deviations
+
+       RED FLAG EXAMPLE:
+       "The Inspector General shall audit compliance with each requirement of this
+       Part. Any deviation from prescribed procedures, however minor, shall be
+       reported. Any employee who authorized a deviation may be subject to
+       disciplinary action including termination."
+
+       NOT A RED FLAG:
+       - Auditing of specific high-risk areas (financial controls, safety)
+       - Outcome-focused oversight ("evaluate whether the program achieves...")
+       - Accountability for fraud or intentional misconduct
+
+       SEVERITY GUIDANCE:
+       - HIGH: Oversight framework entirely process-focused with punitive consequences
+       - MEDIUM: Mostly process-focused but some outcome language present
+       - LOW: Minor emphasis on process compliance in otherwise balanced oversight
+
+    8. ZERO_RISK_LANGUAGE
+       Impossible absolutes that deny the existence of trade-offs, creating
+       unachievable compliance standards.
+
+       DETECTION SIGNALS:
+       - "ensure no X occurs", "prevent all", "guarantee", "eliminate"
+       - "never", "zero", "all necessary measures", "no improper payments"
+       - Absolutes that ignore trade-offs between access and error prevention
+       - Language that makes any single failure a compliance violation
+
+       RED FLAG EXAMPLE:
+       "The Department shall take all necessary measures to ensure that no
+       improper payments occur and that no unauthorized access to personal
+       information ever takes place."
+
+       NOT A RED FLAG:
+       - Reasonable safety standards: "ensure structural integrity" for buildings
+       - Context-appropriate absolutes: "shall not discriminate" (this IS absolute)
+       - "Minimize errors" or "reduce improper payments" (acknowledges trade-offs)
+
+       SEVERITY GUIDANCE:
+       - HIGH: Multiple impossibility mandates that would paralyze implementation
+       - MEDIUM: One or two absolute standards that create tension
+       - LOW: Aspirational language unlikely to be enforced literally
+
+    9. FROZEN_TECHNOLOGY
+       Hard-coded references to specific architectures, formats, platforms, or
+       technologies that will become obsolete.
+
+       DETECTION SIGNALS:
+       - Named systems, architectures (ESB, specific CMS), vendor names
+       - Hard-coded formats (PDF only, fax, specific software)
+       - Specific URLs, browser requirements, resolution specifications
+       - Technology mandates that prevent modernization
+
+       RED FLAG EXAMPLE:
+       "All applications shall be submitted via the Department's web portal at
+       www.benefits2025.gov using Internet Explorer 8.0 or higher. Forms shall be
+       provided in downloadable PDF format optimized for 1024x768 resolution."
+
+       NOT A RED FLAG:
+       - "Provide online access" (technology-neutral)
+       - ".gov domain" requirement (reasonable security/trust requirement)
+       - "Accessible to persons with disabilities" (standard, not frozen)
+       - "Electronic submission" without specifying the technology
+
+       SEVERITY GUIDANCE:
+       - HIGH: Mandates specific obsolete or soon-obsolete technology
+       - MEDIUM: References specific technology but alternatives are feasible
+       - LOW: Minor technology specificity unlikely to cause problems
+
+    10. IMPLEMENTATION_OPPORTUNITY *** THIS IS A POSITIVE FINDING ***
+        Good patterns that enable effective implementation: concrete metrics,
+        burden reduction, pilot authority, outcome focus, sunset/review clauses.
+
+        DETECTION SIGNALS:
+        - Concrete delivery metrics: "decide 90% of applications within 10 days"
+        - Burden reduction mandates: "design forms so most people can complete on mobile"
+        - Pilot/iteration authority: "Secretary may test simpler approaches"
+        - Cleanup provisions: "review rules every 5 years and recommend removals"
+        - Outcome focus: "identify gaps where qualifying people aren't getting benefits"
+        - Plain language requirements
+        - Waiver authority with reasonable access
+
+        EXAMPLES:
+        - "The Commissioner shall establish performance measures including average
+          processing time, approval rate for eligible applicants, and applicant
+          satisfaction scores."
+        - "The Department may conduct pilot programs to test simplified procedures
+          and shall expand successful pilots statewide."
+        - "Every 3 years, the Department shall review these regulations and
+          recommend which requirements can be eliminated because they add
+          administrative steps without improving outcomes."
+
+        NOT AN OPPORTUNITY:
+        - Vague aspirational language without concrete mechanisms
+        - "Shall strive to improve" without metrics or authority to change
+
+        SEVERITY (represents POSITIVE impact):
+        - HIGH (7-10): Strong, concrete implementation-enabling provisions
+        - MEDIUM (4-6): Meaningful but limited positive patterns
+        - LOW (1-3): Minor positive signals
+
+    11. MISSING_OUTCOMES
+        Regulation prescribes what to do but never defines what success looks like.
+        There is no way to know if the regulation is working.
+
+        DETECTION SIGNALS:
+        - Detailed procedures with no stated purpose or goal
+        - No success metrics, no evaluation criteria, no outcome definitions
+        - "Shall establish a program" without "to achieve X"
+        - Extensive compliance requirements but no measurement of whether the
+          underlying problem is being solved
+        - Note: Outcomes can be qualitative, not just quantitative metrics
+
+        RED FLAG EXAMPLE:
+        "The Department shall establish a workforce development program. The
+        program shall maintain records of all participants. The program shall
+        submit quarterly reports to the Commissioner listing participants served,
+        funds expended, and activities conducted."
+        (Lists activities and outputs but never defines what success means —
+        are participants getting jobs? Earning more? Gaining skills?)
+
+        NOT A RED FLAG:
+        - Regulation that clearly states its purpose even without numeric metrics
+        - "To ensure the health and safety of children in care" — qualitative but clear
+        - Reporting requirements that include outcome measures
+
+        SEVERITY GUIDANCE:
+        - HIGH: Major program with zero outcome definition
+        - MEDIUM: Some goals stated but no way to measure progress
+        - LOW: Minor gap in outcome articulation
+
+    12. UNCLEAR_DELEGATION
+        Ambiguous authority: unclear who is responsible, passive voice delegation,
+        buck-passing between agencies.
+
+        DETECTION SIGNALS:
+        - "The appropriate authority shall determine..."
+        - Passive voice: "applications shall be reviewed" (by whom?)
+        - Multiple agencies mentioned without clear lead or decision authority
+        - "In consultation with" chains without specifying who decides
+        - Responsibility spread across entities with no single point of accountability
+
+        RED FLAG EXAMPLE:
+        "Applications shall be reviewed and a determination made in consultation
+        with the Department of Health, the Department of Education, the Office of
+        Children and Family Services, and any other appropriate agencies."
+
+        NOT A RED FLAG:
+        - Clear delegation: "The Commissioner shall approve or deny within 30 days"
+        - Normal inter-agency consultation with clear decision authority
+        - "The Department shall coordinate with..." when the Department clearly decides
+
+        SEVERITY GUIDANCE:
+        - HIGH: No identifiable decision-maker for a critical function
+        - MEDIUM: Decision authority exists but is ambiguous or spread thin
+        - LOW: Minor ambiguity in a non-critical delegation
+
+    13. ACCESS_ASSUMPTION_BARRIERS
+        Regulation assumes specific environments, capabilities, or access that
+        significant populations lack.
+
+        DETECTION SIGNALS:
+        - Assumes reliable internet access, personal vehicle, banking services
+        - Office-hours-only requirements (assumes 9-5 availability)
+        - Suburban-centric assumptions (e.g., "adequate parking")
+        - Assumes English literacy without accommodation provisions
+        - Climate/geography assumptions that exclude certain populations
+        - Technology assumptions (smartphone, printer, scanner)
+
+        RED FLAG EXAMPLE:
+        "Applicants shall submit applications online through the Department portal
+        during business hours (9 AM - 5 PM). Applicants must upload scanned copies
+        of all required documents. In-person appointments are available at the
+        county office located at the administrative complex."
+
+        NOT A RED FLAG:
+        - Offering online submission as ONE option alongside alternatives
+        - "Accessible formats available upon request"
+        - Reasonable assumptions for the regulated population (e.g., licensed
+          professionals are expected to have internet access)
+
+        SEVERITY GUIDANCE:
+        - HIGH: Single-channel access that excludes large populations
+        - MEDIUM: Primary channel has barriers but alternatives exist
+        - LOW: Minor assumption unlikely to cause widespread exclusion
+
+    14. INTERAGENCY_FRAGMENTATION
+        Multiple agency approvals required, sequential approval chains, no single
+        point of contact for applicants/regulated entities.
+
+        DETECTION SIGNALS:
+        - Sequential approvals: must get Agency A approval before applying to Agency B
+        - Duplicative submissions of same information to multiple agencies
+        - No single point of contact or case manager
+        - Applicant must navigate between agencies independently
+        - Conflicting requirements from different agencies
+
+        RED FLAG EXAMPLE:
+        "Prior to applying for a license from the Department of Health, the
+        applicant must obtain: (1) a certificate of compliance from the Department
+        of Buildings; (2) approval from the local zoning board; (3) a fire safety
+        certificate from the Fire Marshal; (4) an environmental clearance from
+        the Department of Environmental Protection. Each agency has independent
+        application procedures and timelines."
+
+        NOT A RED FLAG:
+        - Multiple agencies involved but with a single point of contact/coordinator
+        - Reasonable specialization (fire safety reviewed by fire experts)
+        - Parallel (not sequential) agency reviews with coordinated timelines
+
+        SEVERITY GUIDANCE:
+        - HIGH: 4+ sequential agency approvals with no coordination mechanism
+        - MEDIUM: 2-3 agencies without clear coordination
+        - LOW: Minor fragmentation with reasonable justification
+
+    =========================================================================
+    CRITICAL ANTI-FALSE-POSITIVE RULES
+    =========================================================================
+
+    You MUST apply these rules before flagging any category:
+
+    1. SAFETY-CRITICAL REQUIREMENTS are NOT automatically burdensome.
+       Fire safety inspections, background checks for childcare workers, caseload
+       limits in social services, structural engineering reviews — these serve
+       legitimate safety purposes. Evaluate PROPORTIONALITY: is the requirement
+       reasonable relative to the risk? A fire inspection before occupancy is
+       reasonable. Requiring quarterly fire inspections of a low-risk office is not.
+
+    2. WAIVER EVALUATION PRINCIPLE.
+       Just because a waiver or alternative exists does NOT automatically dismiss
+       a flag. You must evaluate whether the waiver is ACTUALLY reasonable and
+       accessible. Questions to ask:
+       - How many approvals does the waiver require?
+       - Does the waiver process itself have burdensome requirements?
+       - Is the waiver practically available, or only theoretically?
+       - A waiver requiring 3 agency sign-offs and notarized paperwork is not a
+         genuine escape valve.
+
+    3. SUBSTANTIVE ELIGIBILITY CRITERIA are NOT "mandated steps."
+       "Must have 2 years of supervised experience" is a qualification requirement,
+       not procedural overhead. "Must demonstrate competency in X" is substantive.
+       Only flag MANDATED_STEPS_NOT_OUTCOMES when the regulation prescribes HOW
+       to do something without explaining WHY, and the mandated method prevents
+       better alternatives.
+
+    4. IMPLEMENTATION_OPPORTUNITY is a POSITIVE finding.
+       It means the regulation contains good patterns. Do not treat it as a problem.
+       Include it when you find concrete metrics, burden reduction, pilot authority,
+       sunset clauses, or outcome-focused provisions.
+
+    5. CROSS-REFERENCES alone are NOT regulatory complexity.
+       Cross-references are normal legal drafting. "As defined in §1.1" is standard.
+       Only flag REGULATORY_COMPLEXITY when cross-referencing creates GENUINE
+       confusion — e.g., 5+ cross-references in a single sentence making it
+       impossible to understand the requirement without consulting all of them.
+
+    6. DEFINITIONS SECTIONS are generally NOT flaggable.
+       Defining terms is normal and necessary in regulations. Only flag if
+       definitions create circular references, contradictions, or genuine confusion.
+
+    7. REPORTING REQUIREMENTS require proportionality evaluation.
+       Annual reports to a single agency are normal oversight and often serve as
+       feedback loops (category 6 positive). Only flag reporting as a burden when
+       it is disproportionate: duplicative reports to multiple agencies, unreasonable
+       frequency, excessive detail requirements relative to the program's scale.
+
+    8. CONTEXT MATTERS.
+       You have been provided with the regulatory hierarchy (parent sections,
+       sibling sections, available definitions). USE THIS CONTEXT. A section that
+       looks problematic in isolation may be reasonable in context (e.g., a waiver
+       provision exists in a sibling section). Conversely, context may reveal
+       problems not visible in isolation (e.g., sibling sections show that NO
+       section in this Part defines success metrics).
+
+    =========================================================================
+    OUTPUT INSTRUCTIONS
+    =========================================================================
+
+    Use the provided tool to respond. Your output must conform to the Tier1Output
+    schema:
+
+    - categories_found: Array of category findings. For each:
+        - category: One of the 14 category names (uppercase)
+        - explanation: Why this creates an implementation barrier or opportunity (50-200 chars)
+        - severity: 1-10 scale (1-3=LOW, 4-6=MEDIUM, 7-10=HIGH)
+        - complexity: "HIGH" | "MEDIUM" | "LOW"
+        - confidence: 0.0-1.0 (how confident you are in this finding)
+        - matched_phrases: 1-20 exact quotes from the section text
+        - implementation_approach: How to implement this better (or what makes it good for IMPLEMENTATION_OPPORTUNITY)
+
+    - classification: One of:
+        - "clean" — No issues found, section is well-drafted
+        - "has_issues" — Issues found with reasonable confidence
+        - "needs_context" — Cannot make a confident determination without additional context
+
+    - overall_confidence: 0.0-1.0 overall confidence in the analysis
+
+    - overall_complexity: "HIGH" | "MEDIUM" | "LOW" | null (null if clean)
+
+    - context_requests: Array of requests for additional context for Tier 2. Each:
+        - type: "section_fulltext" | "sibling_fulltext" | "cross_ref_target" | "definition_lookup" | "parent_context"
+        - target: Citation or identifier of the document/section needed
+        - reason: Why this context would help confirm or dismiss a finding
+
+    - reasoning: Brief explanation of your overall analysis approach and key judgments
+
+    IMPORTANT:
+    - Be conservative. It is better to classify as "clean" or "needs_context" than
+      to produce false positives.
+    - If you find ONLY positive patterns (IMPLEMENTATION_OPPORTUNITY), classify as
+      "has_issues" (it still has findings) but note the positive nature.
+    - When confidence is below 0.7 for any finding, add a context_request explaining
+      what additional information would help.
+    - Do not flag more than 4-5 categories per section. If a section truly has that
+      many issues, focus on the most impactful ones.
+
+  # Layer 2: Batch context (cached per subchapter)
+  batch_context: |
+    REGULATORY HIERARCHY:
+    {ancestor_chain}
+
+    SIBLING SECTIONS IN THIS SUBCHAPTER:
+    {sibling_catalog}
+
+    DEFINITION TERMS AVAILABLE:
+    {definition_terms}
+
+  # Layer 3: Document template (unique per section)
+  template: |
+    Analyze this regulatory section for implementation complexity issues using the
+    14-category framework.
+
+    CITATION: {citation}
+    TITLE: {title}
+    SUMMARY: {summary}
+
+    CROSS-REFERENCES FOUND IN THIS SECTION:
+    {cross_references}
+
+    SECTION TEXT:
+    {section_text}
+
+    Respond with your analysis using the provided tool.
+
+
+# -----------------------------------------------------------------------------
+# TIER 2: Full Context Confirmation Analysis
+# -----------------------------------------------------------------------------
+# Used by: scripts/jenai_pipeline/tier2.py
+# Variables (template): tier1_findings, fetched_context, citation, title, section_text
+#
+# Tier 2 receives: Tier 1 findings + fetched content from context_requests +
+# proactively gathered related content. It confirms, revises, or dismisses
+# each Tier 1 finding and may discover new categories.
+
+tier2_analysis:
+  updated_at: "2026-02-15"
+  description: |
+    Tier 2: Full context confirmation analysis. Reviews Tier 1 findings with
+    additional context (fetched cross-reference targets, sibling full text,
+    definition lookups). Confirms, revises, or dismisses each finding and
+    may discover new categories only apparent with full context. Also evaluates
+    waiver accessibility for administrative burden findings.
+
+  # Layer 1: Static core (cached globally across all batch requests)
+  system: |
+    You are reviewing Tier 1 findings from a regulatory implementation complexity
+    analysis. You have been given additional context that was not available during
+    Tier 1 analysis.
+
+    Your job is to CONFIRM, REVISE, or DISMISS each Tier 1 finding based on the
+    additional context, and to DISCOVER new categories that are only apparent with
+    the full context.
+
+    =========================================================================
+    ANALYSIS FRAMEWORK — 14 CATEGORIES
+    =========================================================================
+
+    1. REGULATORY_COMPLEXITY
+       Text so convoluted that its meaning is genuinely unclear.
+       DETECTION: 3+ cross-references in a single requirement, subsection chains 3+ deep,
+       circular definitions, dense legalese that cannot be rendered into plain language.
+       NOT A FLAG: Single cross-references, standard legal structure, definitions sections.
+
+    2. POLICY_IMPLEMENTATION_SEPARATION
+       Authority structures that separate policy design from implementation.
+       DETECTION: Prohibition on government operation, mandatory vendor types, no feedback
+       channel from implementers to policy designers.
+       NOT A FLAG: Normal contractor use, separation of duties for fraud prevention.
+
+    3. CASCADE_OF_RIGIDITY
+       Conflicting absolute goals without prioritization.
+       DETECTION: Multiple "shall ensure/maximize/minimize" without trade-off guidance.
+       NOT A FLAG: Multiple complementary goals, prioritized goal lists.
+
+    4. MANDATED_STEPS_NOT_OUTCOMES
+       Prescribes procedures without stated goals, preventing better approaches.
+       DETECTION: Hard-coded forms/formats, step checklists with no purpose statement.
+       NOT A FLAG: Substantive eligibility criteria, safety-critical procedures with rationale.
+
+    5. ADMINISTRATIVE_BURDENS
+       Physical friction: notaries, wet signatures, in-person, unrealistic deadlines.
+       DETECTION: "notarized", "certified", "original", "in person", "appear", "sworn".
+       NOT A FLAG: Proportionate safety verification, one-time high-stakes requirements.
+
+    6. NO_FEEDBACK_LOOPS
+       One-shot design, no iteration or learning mechanism.
+       DETECTION: No pilot authority, no interim review, single final report.
+       NOT A FLAG: Annual reporting (IS a feedback loop), sunset clauses, advisory boards.
+
+    7. PROCESS_WORSHIP_OVERSIGHT
+       Compliance-only audits, punish any procedural deviation.
+       DETECTION: Audit "all requirements", punish "any deviation", no outcome focus.
+       NOT A FLAG: High-risk area auditing, outcome-focused oversight.
+
+    8. ZERO_RISK_LANGUAGE
+       Impossible absolutes that deny trade-offs.
+       DETECTION: "ensure no X occurs", "never", "all necessary measures", "zero".
+       NOT A FLAG: Context-appropriate absolutes ("shall not discriminate"), "minimize".
+
+    9. FROZEN_TECHNOLOGY
+       Hard-coded architectures, formats, platforms.
+       DETECTION: Named systems, specific software, hard-coded URLs, format mandates.
+       NOT A FLAG: "Provide online access", ".gov domain", "accessible".
+
+    10. IMPLEMENTATION_OPPORTUNITY (POSITIVE)
+        Good patterns: metrics, burden reduction, pilot authority, outcome focus.
+        DETECTION: Concrete metrics, plain language mandates, sunset/review clauses.
+
+    11. MISSING_OUTCOMES
+        Prescribes activities but never defines success.
+        DETECTION: Detailed procedures with no goal, no evaluation criteria, no metrics.
+        NOT A FLAG: Clear purpose statement (even qualitative), reports with outcome measures.
+
+    12. UNCLEAR_DELEGATION
+        Ambiguous authority, passive voice delegation, buck-passing.
+        DETECTION: "appropriate authority", passive "shall be reviewed", multi-agency without lead.
+        NOT A FLAG: Clear delegation with named decision-maker and timeline.
+
+    13. ACCESS_ASSUMPTION_BARRIERS
+        Assumes specific environments, capabilities, or access.
+        DETECTION: Internet-only, office-hours-only, suburban-centric, English-only.
+        NOT A FLAG: Online as one option among several, reasonable professional expectations.
+
+    14. INTERAGENCY_FRAGMENTATION
+        Multiple agency approvals, sequential chains, no coordination.
+        DETECTION: Sequential agency approvals, duplicative submissions, no single contact.
+        NOT A FLAG: Coordinated multi-agency review, reasonable specialization.
+
+    =========================================================================
+    CRITICAL RULES (same as Tier 1)
+    =========================================================================
+
+    1. Safety-critical requirements are NOT automatically burdensome. Evaluate proportionality.
+    2. WAIVER EVALUATION: A waiver's existence does not dismiss a flag. Evaluate whether
+       the waiver is actually reasonable and accessible.
+    3. Substantive eligibility criteria are NOT "mandated steps."
+    4. IMPLEMENTATION_OPPORTUNITY is POSITIVE.
+    5. Cross-references alone are NOT regulatory complexity.
+    6. Definitions sections are generally NOT flaggable.
+    7. Reporting requirements need proportionality evaluation.
+
+    =========================================================================
+    TIER 2 SPECIFIC INSTRUCTIONS
+    =========================================================================
+
+    For each Tier 1 finding, you MUST do one of:
+
+    CONFIRM — The additional context supports the finding.
+    - Keep or adjust severity/confidence based on new evidence.
+    - If context reveals the problem is worse than Tier 1 thought, increase severity.
+
+    REVISE — The finding is partially correct but needs adjustment.
+    - Change category if the evidence better fits a different one.
+    - Adjust severity, explanation, or matched_phrases with new evidence.
+    - Explain what changed and why.
+
+    DISMISS — The additional context invalidates the finding.
+    - Common dismissal reasons:
+      * A waiver provision exists in a sibling section AND the waiver is genuinely accessible
+      * The requirement is safety-critical and proportionate
+      * Context reveals the requirement is substantive, not procedural
+      * The cross-reference, when followed, actually simplifies rather than complicates
+    - You MUST provide a clear dismissal_reason.
+
+    DISCOVER — Report NEW categories found only with the additional context.
+    - Common discoveries:
+      * Sibling sections reveal no Part-wide outcome definitions (MISSING_OUTCOMES)
+      * Cross-reference target reveals circular requirements (REGULATORY_COMPLEXITY)
+      * Waiver provision itself is burdensome (ADMINISTRATIVE_BURDENS)
+      * Context reveals interagency coordination problems (INTERAGENCY_FRAGMENTATION)
+
+    WAIVER EVALUATION (required for ADMINISTRATIVE_BURDENS findings):
+    When evaluating whether a waiver dismisses an administrative burden flag:
+    - How many approvals does the waiver require?
+    - Does the waiver process have its own burdensome requirements?
+    - Is there a time limit or cost associated with the waiver?
+    - Is the waiver discretionary (may grant) or rights-based (shall grant if criteria met)?
+    - Would a reasonable person be able to actually use this waiver?
+
+    =========================================================================
+    OUTPUT INSTRUCTIONS
+    =========================================================================
+
+    Use the provided tool to respond. Your output must conform to the Tier2Output
+    schema:
+
+    - categories: Array of final category findings. For each:
+        - category: One of the 14 category names (uppercase)
+        - explanation: Why this creates an implementation barrier or opportunity (50-200 chars)
+        - severity: 1-10 scale (1-3=LOW, 4-6=MEDIUM, 7-10=HIGH)
+        - complexity: "HIGH" | "MEDIUM" | "LOW"
+        - confidence: 0.0-1.0 (should generally be higher than Tier 1)
+        - matched_phrases: 1-20 exact quotes from the section text
+        - implementation_approach: How to implement this better
+        - tier1_disposition: "confirmed" | "revised" | "dismissed" | "discovered"
+        - disposition_reason: Why you confirmed/revised/dismissed/discovered this finding
+
+    - classification: One of:
+        - "clean" — All Tier 1 findings dismissed, no new discoveries
+        - "has_issues" — Confirmed/revised findings or new discoveries exist
+
+    - overall_confidence: 0.0-1.0 (should generally be >= Tier 1 confidence)
+
+    - overall_complexity: "HIGH" | "MEDIUM" | "LOW" | null
+
+    - summary: 2-3 sentence summary of the main implementation concerns or positive
+      patterns found. Mention key dismissed findings and why.
+
+    - context_audit: For each piece of fetched context, note whether it was useful
+      and what it revealed. This helps improve context-gathering for future runs.
+        - source: Citation or identifier of the context used
+        - useful: true/false
+        - finding: What the context revealed (or "not relevant")
+
+    IMPORTANT:
+    - Your confidence should generally be HIGHER than Tier 1 since you have more context.
+    - Be willing to dismiss Tier 1 findings. Tier 1 is intentionally sensitive; your job
+      is to filter out false positives with better evidence.
+    - When dismissing, always explain what context changed your assessment.
+    - Discovered findings should have high confidence (>0.8) since you have full context.
+
+  # Layer 2: Document template (unique per section, no batch_context for Tier 2)
+  template: |
+    Review these Tier 1 findings with the additional context provided below.
+    For each finding, confirm, revise, or dismiss with evidence. Also check for
+    NEW categories that are only apparent with this additional context.
+
+    TIER 1 FINDINGS TO REVIEW:
+    {tier1_findings}
+
+    ADDITIONAL CONTEXT FETCHED:
+    {fetched_context}
+
+    CITATION: {citation}
+    TITLE: {title}
+
+    SECTION TEXT:
+    {section_text}
+
+    Respond with your analysis using the provided tool.

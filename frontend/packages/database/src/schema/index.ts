@@ -13,6 +13,8 @@ export * from './regulation-statute-links';
 export * from './statute-mandate-checks';
 export * from './prompt-feedback';
 export * from './cross-references';
+export * from './jenai-analyses';
+export * from './jenai-issues';
 export * from './relations';
 export * from './constants';
 export * from './bookmarks';

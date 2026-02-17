@@ -24,7 +24,8 @@ Use the Read tool to read `docs/OPERATIONS.md` — it contains the complete 11-s
 | 8 | Research pipeline (LLM) | `cd backend && python3 -m scripts.research_pipeline.cli --state ny --all-issues --execute` | ~$50-60/title |
 | 9 | IBR scan | `python backend/scripts/ibr_scanner.py --state ny` | ~$5-10 |
 | 10 | Red flags | `python backend/scripts/red_flags.py --state NY` | ~$50-100 |
-| 11 | Refresh stats | `python backend/scripts/refresh_hierarchy_stats.py --state NY` | Free |
+| 11 | JenAI pipeline (LLM) | `cd backend && python3 -m scripts.jenai_pipeline.cli --state ny --execute` | ~$30-60/title |
+| 12 | Refresh stats | `python backend/scripts/refresh_hierarchy_stats.py --state NY` | Free |
 
 ## Critical Dependencies
 
@@ -33,12 +34,14 @@ Use the Read tool to read `docs/OPERATIONS.md` — it contains the complete 11-s
 - Steps 6 and 7 can run in parallel
 - **Step 8 depends on Steps 5 and 6** — uses summaries and cross-ref summaries as LLM context
 - Steps 9-10 are independent, can run anytime after Step 1
-- Step 11 runs last
+- **Step 11 depends on Steps 5 and 6** — JenAI uses summaries, cross-refs, and definitions as context
+- Step 12 runs last
 
 ## Related Skills
 
 For detailed architecture/internals on specific steps, invoke the relevant skill:
 - **research-pipeline** — Tier logic, state machine, escalation triggers, cost optimization (Step 8)
+- **jenai-pipeline** — Two-tier Pahlka framework analysis, context strategy, category taxonomy (Step 11)
 - **cross-references** — Extraction patterns, resolution logic, troubleshooting (Step 5)
 - **database** — Schema reference, queries, maintenance procedures
 

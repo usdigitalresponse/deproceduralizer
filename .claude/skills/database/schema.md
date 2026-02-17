@@ -165,6 +165,99 @@ Script: `backend/scripts/batch_exclude_ny_sections.py` (use `--dry-run` to previ
 
 **Constraints:** `valid_category`, `red_flags_severity_check`, `chk_rf_resolution_type`
 
+## jenai_analyses
+
+JenAI two-tier pipeline analysis results. One row per document analyzed. Successor to the `analyses` table with richer context-aware analysis.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | bigserial | Primary key |
+| `document_id` | bigint NOT NULL | FK to regulatory_documents (UNIQUE) |
+| `state` | varchar(2) | NY or NJ |
+| `run_id` | varchar(32) | Pipeline run identifier |
+
+**Tier 1: Catalog Context**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `tier1_categories` | jsonb | Array of category findings from Tier 1 |
+| `tier1_has_issues` | boolean | Whether any non-opportunity issues found |
+| `tier1_classification` | varchar(30) | `has_issues`, `clean`, or `needs_context` |
+| `tier1_confidence` | real | 0.0-1.0 |
+| `tier1_context_requests` | jsonb | ContextRequest objects for Tier 2 |
+| `tier1_batch_id` | varchar(100) | Anthropic batch API ID |
+| `tier1_completed_at` | timestamp | When Tier 1 completed |
+
+**Tier 2: Full Context Confirmation**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `tier2_categories` | jsonb | Array of category results from Tier 2 |
+| `tier2_has_issues` | boolean | Whether any non-opportunity issues confirmed |
+| `tier2_classification` | varchar(30) | `confirmed`, `revised`, or `dismissed` |
+| `tier2_confidence` | real | 0.0-1.0 |
+| `tier2_new_discoveries` | jsonb | Categories discovered only in Tier 2 |
+| `tier2_context_used` | jsonb | Context audit trail |
+| `tier2_batch_id` | varchar(100) | Anthropic batch API ID |
+| `tier2_completed_at` | timestamp | When Tier 2 completed |
+
+**Final Derived**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `has_implementation_issues` | boolean | Final determination |
+| `overall_complexity` | varchar(10) | HIGH/MEDIUM/LOW |
+| `summary` | text | Analysis summary |
+| `max_severity` | integer | Highest severity across categories |
+| `num_categories_found` | integer | Count of active (non-dismissed) categories |
+
+**Pipeline Tracking**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `highest_tier_completed` | integer | 0, 1, or 2 |
+| `pipeline_version` | varchar(20) | Default 'v1' |
+| `model_version` | varchar(100) | LLM model used |
+
+**Constraints:** `jenai_analyses_document_unique UNIQUE(document_id)`
+
+**Indexes:** `idx_jenai_analyses_state`, `idx_jenai_analyses_run_id`, `idx_jenai_analyses_tier_completed`
+
+## jenai_issues
+
+One row per category finding per document. Links to `jenai_analyses`.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | bigserial | Primary key |
+| `analysis_id` | bigint NOT NULL | FK to jenai_analyses (ON DELETE CASCADE) |
+| `document_id` | bigint NOT NULL | FK to regulatory_documents (ON DELETE CASCADE) |
+| `category` | varchar(50) | One of 14 categories (CHECK constraint) |
+| `explanation` | text NOT NULL | Detailed explanation of the finding |
+| `severity` | integer (1-10) | Severity score |
+| `complexity` | varchar(20) | HIGH/MEDIUM/LOW |
+| `confidence` | real (0.0-1.0) | Confidence in the finding |
+| `matched_phrases` | text[] | Trigger phrases from the text |
+| `implementation_approach` | text | Suggested implementation approach |
+| `effort_estimate` | varchar(255) | Effort estimate |
+| `text_examples` | text[] | Example text from the regulation |
+| `discovered_in_tier` | integer (1 or 2) | Which tier first found this |
+| `confirmed_in_tier` | integer | Which tier confirmed (NULL if unconfirmed) |
+| `tier2_revised` | boolean | Whether Tier 2 revised Tier 1's assessment |
+
+**Valid Categories (14 — Pahlka framework):**
+- `REGULATORY_COMPLEXITY`, `POLICY_IMPLEMENTATION_SEPARATION`, `CASCADE_OF_RIGIDITY`
+- `MANDATED_STEPS_NOT_OUTCOMES`, `ADMINISTRATIVE_BURDENS`, `NO_FEEDBACK_LOOPS`
+- `PROCESS_WORSHIP_OVERSIGHT`, `ZERO_RISK_LANGUAGE`, `FROZEN_TECHNOLOGY`
+- `IMPLEMENTATION_OPPORTUNITY` (positive finding, not a problem)
+- `MISSING_OUTCOMES`, `UNCLEAR_DELEGATION`, `ACCESS_ASSUMPTION_BARRIERS`, `INTERAGENCY_FRAGMENTATION`
+
+**Review/Developer fields:** Same pattern as `red_flags` — `review_status`, `reviewed_by`, `reviewed_at`, `justification_notes`, `team_notes`, `priority`, `impact_type`, `developer_status`, `developer_assigned`, `developer_notes`, `resolution_type`, `resolution_comments`, `developer_question`, `developer_checked_at`
+
+**Constraints:** `jenai_issues_analysis_category_unique UNIQUE(analysis_id, category)`
+
+**Indexes:** `idx_jenai_issues_document`, `idx_jenai_issues_category`, `idx_jenai_issues_review_status`, `idx_jenai_issues_severity`
+
 ## definitions
 
 **Definition text fields:**

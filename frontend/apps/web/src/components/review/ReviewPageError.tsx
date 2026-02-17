@@ -20,6 +20,7 @@ export interface ReviewPageErrorProps {
       compliance: number;
       definitions: number;
       needs_info: number;
+      jenai: number;
     };
   };
 }

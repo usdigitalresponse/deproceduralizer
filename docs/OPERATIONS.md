@@ -16,7 +16,8 @@ Complete guide for running the Deproceduralizer analysis pipeline on a state's r
 8. Research Pipeline  →  compliance_issue_analyses table (LLM Tier 1-3)
 9. IBR Scan           →  incorporations_by_reference table
 10. Red Flags         →  analyses table
-11. Refresh Stats     →  precomputed counts on regulatory_documents
+11. JenAI Pipeline    →  jenai_analyses + jenai_issues tables (LLM Tier 1-2)
+12. Refresh Stats     →  precomputed counts on regulatory_documents
 ```
 
 **Step dependencies:**
@@ -25,7 +26,8 @@ Complete guide for running the Deproceduralizer analysis pipeline on a state's r
 - Steps 6 and 7 can run in parallel (no dependency on each other)
 - **Step 8 depends on Steps 5 and 6** — the research pipeline uses document summaries and cross-reference summaries as LLM context
 - Steps 9-10 are independent of 8 and can run anytime after Step 1
-- Step 11 should run last (after any step that changes counts)
+- **Step 11 depends on Steps 5 and 6** — JenAI uses summaries, cross-refs, and definitions as LLM context
+- Step 12 should run last (after any step that changes counts)
 
 ## Full State Analysis (e.g., NY)
 
@@ -392,7 +394,60 @@ python backend/scripts/red_flags.py --state NY
 |------|------|
 | $$ (Claude) | Hours |
 
-### Step 11: Refresh Hierarchy Stats
+### Step 11: JenAI Pipeline (Two-Tier Implementation Analysis)
+
+```bash
+# Dry run (default) — shows section count, no execution
+cd backend && python3 -m scripts.jenai_pipeline.cli --state ny --title 18
+
+# Filter by part (e.g., child care Parts 413-419)
+cd backend && python3 -m scripts.jenai_pipeline.cli --state ny --title 18 --part 414
+
+# Execute Tier 1 only (limit 20 sections)
+cd backend && python3 -m scripts.jenai_pipeline.cli --state ny --title 18 --execute --limit 20 --max-tier 1
+
+# Execute full Tier 1 + Tier 2
+cd backend && python3 -m scripts.jenai_pipeline.cli --state ny --title 18 --execute --limit 20
+
+# Run Tier 2 on existing Tier 1 results
+cd backend && python3 -m scripts.jenai_pipeline.cli --state ny --title 18 --execute --tier2-only
+
+# Realtime mode (faster, 2x cost)
+cd backend && python3 -m scripts.jenai_pipeline.cli --state ny --title 18 --part 414 --execute --realtime
+
+# Re-run specific document(s) by ID
+cd backend && python3 -m scripts.jenai_pipeline.cli --state ny --document-id 81899 --execute --realtime
+
+# Multiple document IDs
+cd backend && python3 -m scripts.jenai_pipeline.cli --state ny --document-id 81899 78696 --execute --realtime
+```
+
+- Two-tier LLM pipeline analyzing regulatory sections for implementation complexity
+- Uses 14-category Pahlka framework (refined from the 12-category red flags system)
+- **Tier 1:** Catalog context (hierarchy, sibling titles, definitions, cross-refs) → classify as clean/has_issues/needs_context
+- **Tier 2:** Full context confirmation for promoted items → confirm/revise/dismiss/discover categories
+- Results in `jenai_analyses` (one row per document) + `jenai_issues` (one row per category finding)
+- **Depends on:** Step 5 (cross-references) and Step 6 (summaries) for context
+- Uses Anthropic Batch API (Sonnet 4.5) for cost efficiency
+
+| Cost | Time |
+|------|------|
+| ~$30-60/title | Hours (batch processing) |
+
+**CLI flags:**
+- `--state ny|nj` — State to analyze (required)
+- `--title N` — Filter by title number
+- `--part N` — Filter by part number (e.g., 413 for child care)
+- `--limit N` — Max sections (default: 100)
+- `--execute` — Actually run (default is dry-run)
+- `--max-tier 1|2` — Stop after this tier (default: 2)
+- `--tier2-only` — Run Tier 2 on existing Tier 1 results
+- `--include-all-types` — Include reserved, definitions, scope sections (excluded by default)
+- `--force` — Re-analyze sections that already have JenAI analyses
+- `--realtime` — Use realtime API instead of batch (faster but 2x cost)
+- `--document-id ID [ID ...]` — Target specific document ID(s) (auto-disables exclude_analyzed)
+
+### Step 12: Refresh Hierarchy Stats
 
 ```bash
 python backend/scripts/refresh_hierarchy_stats.py --state NY

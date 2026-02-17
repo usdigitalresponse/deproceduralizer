@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { List, Code, Shield } from 'lucide-react';
+import { List, Code, Shield, Cpu } from 'lucide-react';
 import type { PromptData, CompliancePromptData } from '@/lib/actions/prompts';
 
 interface PromptNavProps {
   prompts: PromptData[];
   compliancePrompts?: CompliancePromptData[];
+  jenaiPrompts?: PromptData[];
   className?: string;
 }
 
@@ -16,6 +17,7 @@ interface PromptNavProps {
 export function PromptNav({
   prompts,
   compliancePrompts = [],
+  jenaiPrompts = [],
   className = '',
 }: PromptNavProps) {
   const [activePrompt, setActivePrompt] = useState<string | null>(null);
@@ -35,8 +37,9 @@ export function PromptNav({
     return [
       ...prompts.map((p) => p.name),
       ...compliancePrompts.map((p) => p.name),
+      ...jenaiPrompts.map((p) => p.name),
     ];
-  }, [prompts, compliancePrompts]);
+  }, [prompts, compliancePrompts, jenaiPrompts]);
 
   useEffect(() => {
     // Set up intersection observer to track which prompt is visible
@@ -73,7 +76,7 @@ export function PromptNav({
     }
   };
 
-  if (prompts.length === 0 && compliancePrompts.length === 0) return null;
+  if (prompts.length === 0 && compliancePrompts.length === 0 && jenaiPrompts.length === 0) return null;
 
   return (
     <nav
@@ -151,6 +154,36 @@ export function PromptNav({
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* JenAI Prompts */}
+        {jenaiPrompts.length > 0 && (
+          <div>
+            <div className="flex items-center gap-1.5 mb-2 text-xs font-medium text-[var(--color-text-secondary)]">
+              <Cpu className="w-3 h-3" />
+              <span>JenAI ({jenaiPrompts.length})</span>
+            </div>
+            <ul className="space-y-1">
+              {jenaiPrompts.map((prompt) => (
+                <li key={prompt.name}>
+                  <button
+                    onClick={() => scrollToPrompt(prompt.name)}
+                    className={`
+                      w-full text-left px-2 py-1 text-xs font-mono rounded transition-colors truncate
+                      ${
+                        activePrompt === prompt.name
+                          ? 'bg-[var(--color-primary-weak)] text-[var(--color-primary)]'
+                          : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-neutral-50)] hover:text-[var(--color-text)]'
+                      }
+                    `}
+                    title={prompt.name}
+                  >
+                    {prompt.name}
+                  </button>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
       </div>

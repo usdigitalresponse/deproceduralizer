@@ -10,6 +10,8 @@ import { definitions } from './definitions';
 import { definitionDocumentOccurrences } from './definition-document-occurrences';
 import { crossReferences } from './cross-references';
 import { complianceIssueAnalyses } from './compliance-issue-analyses';
+import { jenaiAnalyses } from './jenai-analyses';
+import { jenaiIssues } from './jenai-issues';
 
 export const regulatoryDocumentsRelations = relations(regulatoryDocuments, ({ one, many }) => ({
   parent: one(regulatoryDocuments, {
@@ -128,6 +130,26 @@ export const crossReferencesRelations = relations(crossReferences, ({ one }) => 
 export const complianceIssueAnalysesRelations = relations(complianceIssueAnalyses, ({ one }) => ({
   document: one(regulatoryDocuments, {
     fields: [complianceIssueAnalyses.documentId],
+    references: [regulatoryDocuments.id],
+  }),
+}));
+
+// JenAI analyses table relations (2-tier implementation analysis)
+export const jenaiAnalysesRelations = relations(jenaiAnalyses, ({ one, many }) => ({
+  document: one(regulatoryDocuments, {
+    fields: [jenaiAnalyses.documentId],
+    references: [regulatoryDocuments.id],
+  }),
+  issues: many(jenaiIssues),
+}));
+
+export const jenaiIssuesRelations = relations(jenaiIssues, ({ one }) => ({
+  analysis: one(jenaiAnalyses, {
+    fields: [jenaiIssues.analysisId],
+    references: [jenaiAnalyses.id],
+  }),
+  document: one(regulatoryDocuments, {
+    fields: [jenaiIssues.documentId],
     references: [regulatoryDocuments.id],
   }),
 }));

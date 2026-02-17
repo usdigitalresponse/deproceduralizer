@@ -30,6 +30,10 @@ import {
   getDefinitionReviewStats,
   getDefinitionDeveloperStatusCounts,
 } from './definitions';
+import {
+  getJenAIStatusCounts,
+  getJenAIDeveloperStatusCounts,
+} from './jenai';
 import { type ActionResult, success, failure } from './types';
 
 // ============================================
@@ -41,6 +45,7 @@ export interface TabCounts {
   compliance: number;
   definitions: number;
   needs_info: number;
+  jenai: number;
 }
 
 export interface DeveloperModeCountsData {
@@ -75,12 +80,14 @@ export async function getDeveloperModeCountsData(
     complianceDevCountsResult,
     needsInfoCountsResult,
     definitionDevCountsResult,
+    jenaiDevCountsResult,
   ] = await Promise.all([
     getCombinedDeveloperStatusCounts(stateCode),
     getRedFlagDeveloperStatusCounts(stateCode),
     getComplianceIssueDeveloperStatusCounts(stateCode),
     getNeedMoreInfoCounts(stateCode),
     getDefinitionDeveloperStatusCounts(stateCode),
+    getJenAIDeveloperStatusCounts(stateCode),
   ]);
 
   if (!developerStatusCountsResult.success) {
@@ -106,12 +113,16 @@ export async function getDeveloperModeCountsData(
   const definitionDevCounts = definitionDevCountsResult.success
     ? definitionDevCountsResult.data
     : { total: 0 };
+  const jenaiDevCounts = jenaiDevCountsResult.success
+    ? jenaiDevCountsResult.data
+    : { total: 0 };
 
   const tabCounts: TabCounts = {
     flags: redFlagDeveloperStatusCounts.total,
     compliance: complianceDeveloperStatusCounts.total,
     definitions: definitionDevCounts.total,
     needs_info: needsInfoCounts.combined.total,
+    jenai: jenaiDevCounts.total,
   };
 
   return success({
@@ -206,11 +217,13 @@ export async function getReviewModeCountsData(
     complianceStatusCountsResult,
     definitionsStatsResult,
     needsInfoCountsResult,
+    jenaiStatusCountsResult,
   ] = await Promise.all([
     getRedFlagStatusCounts(stateCode),
     getComplianceIssueStatusCounts(stateCode),
     getDefinitionReviewStats(stateCode),
     getNeedMoreInfoCounts(stateCode),
+    getJenAIStatusCounts(stateCode),
   ]);
 
   if (!flagStatusCountsResult.success) {
@@ -233,12 +246,14 @@ export async function getReviewModeCountsData(
   const complianceStatusCounts = complianceStatusCountsResult.data;
   const definitionsStats = definitionsStatsResult.data;
   const needsInfoCounts = needsInfoCountsResult.data;
+  const jenaiStatusCounts = jenaiStatusCountsResult.success ? jenaiStatusCountsResult.data : { total: 0 };
 
   const tabCounts: TabCounts = {
     flags: flagStatusCounts.total,
     compliance: complianceStatusCounts.total,
     definitions: definitionsStats.total,
     needs_info: needsInfoCounts.combined.total,
+    jenai: jenaiStatusCounts.total,
   };
 
   return success({

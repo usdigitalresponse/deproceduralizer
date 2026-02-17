@@ -27,6 +27,11 @@ export { RedFlagDeveloperFilters } from './RedFlagDeveloperFilters';
 export { ComplianceDeveloperQueue } from './ComplianceDeveloperQueue';
 export { ComplianceDeveloperFilters } from './ComplianceDeveloperFilters';
 
+// JenAI components
+export { JenAIQueue } from './JenAIQueue';
+export { JenAICard } from './JenAICard';
+export { JenAIAvatar } from './JenAIAvatar';
+
 // Definition review components
 export {
   DefinitionReviewCard,

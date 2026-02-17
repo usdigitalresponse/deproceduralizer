@@ -129,6 +129,40 @@ export async function getPromptNames(): Promise<ActionResult<string[]>> {
 }
 
 /**
+ * Load and parse JenAI prompts from prompts/jenai.yaml.
+ * The file is copied during build (see prebuild script in package.json).
+ * Same structure as core.yaml: dictionary of prompt names with system/template/description.
+ */
+export async function getJenAIPrompts(): Promise<ActionResult<PromptData[]>> {
+  try {
+    const promptsPath = join(process.cwd(), 'src/data/jenai.yaml');
+    const fileContent = await readFile(promptsPath, 'utf-8');
+    const parsed = yaml.load(fileContent) as Record<string, RawPromptData>;
+
+    const prompts: PromptData[] = Object.entries(parsed).map(
+      ([name, data]) => {
+        const system = data.system?.trim() || null;
+        const template = data.template?.trim() || '';
+        const allVariables = extractVariables((system || '') + template);
+        return {
+          name,
+          description: data.description?.trim() || '',
+          system,
+          template,
+          variables: allVariables,
+          updatedAt: data.updated_at || null,
+        };
+      }
+    );
+
+    return success(prompts);
+  } catch (error) {
+    console.error('[getJenAIPrompts]', error);
+    return failure(getErrorMessage(error));
+  }
+}
+
+/**
  * Load and parse compliance issue prompts from prompts/compliance_issues.yaml.
  * The file is copied during build (see prebuild script in package.json).
  */

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Code, MessageSquare, Search, X, Shield } from 'lucide-react';
+import { Code, MessageSquare, Search, X, Shield, Cpu } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { PromptCard } from './PromptCard';
 import { CompliancePromptCard } from './CompliancePromptCard';
@@ -12,6 +12,7 @@ import type { PromptFeedback } from '@deproceduralizer/database';
 interface PromptsListProps {
   prompts: PromptData[];
   compliancePrompts?: CompliancePromptData[];
+  jenaiPrompts?: PromptData[];
   feedbackCounts: Record<string, number>;
   orphanedFeedback: PromptFeedback[];
   className?: string;
@@ -23,13 +24,14 @@ interface PromptsListProps {
 export function PromptsList({
   prompts,
   compliancePrompts = [],
+  jenaiPrompts = [],
   feedbackCounts,
   orphanedFeedback,
   className = '',
 }: PromptsListProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const totalFeedback = Object.values(feedbackCounts).reduce((a, b) => a + b, 0);
-  const totalPrompts = prompts.length + compliancePrompts.length;
+  const totalPrompts = prompts.length + compliancePrompts.length + jenaiPrompts.length;
 
   // Filter core prompts based on search query
   const filteredPrompts = useMemo(() => {
@@ -55,6 +57,17 @@ export function PromptsList({
     );
   }, [compliancePrompts, searchQuery]);
 
+  // Filter JenAI prompts based on search query
+  const filteredJenaiPrompts = useMemo(() => {
+    if (!searchQuery.trim()) return jenaiPrompts;
+    const query = searchQuery.toLowerCase();
+    return jenaiPrompts.filter(
+      (p) =>
+        p.name.toLowerCase().includes(query) ||
+        p.description.toLowerCase().includes(query)
+    );
+  }, [jenaiPrompts, searchQuery]);
+
   // Group compliance prompts by category
   const complianceByCategory = useMemo(() => {
     const groups: Record<string, CompliancePromptData[]> = {};
@@ -65,7 +78,7 @@ export function PromptsList({
     return groups;
   }, [filteredCompliancePrompts]);
 
-  const totalFiltered = filteredPrompts.length + filteredCompliancePrompts.length;
+  const totalFiltered = filteredPrompts.length + filteredCompliancePrompts.length + filteredJenaiPrompts.length;
 
   return (
     <div className={`space-y-6 ${className}`}>
@@ -99,6 +112,12 @@ export function PromptsList({
               {compliancePrompts.length}
             </div>
             <div className="text-sm text-[var(--color-text-muted)]">Compliance Prompts</div>
+          </div>
+          <div className="bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] p-3">
+            <div className="text-2xl font-bold text-[var(--color-primary)]">
+              {jenaiPrompts.length}
+            </div>
+            <div className="text-sm text-[var(--color-text-muted)]">JenAI Prompts</div>
           </div>
           <div className="bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] p-3">
             <div className="flex items-center gap-1 text-2xl font-bold text-[var(--color-primary)]">
@@ -175,6 +194,26 @@ export function PromptsList({
                 <CompliancePromptCard key={prompt.name} prompt={prompt} />
               ))}
             </div>
+          ))}
+        </div>
+      )}
+
+      {/* JenAI Prompts */}
+      {filteredJenaiPrompts.length > 0 && (
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold text-[var(--color-text)] flex items-center gap-2">
+            <Cpu className="w-5 h-5 text-[var(--color-primary)]" />
+            JenAI Pipeline Prompts
+            <span className="text-sm font-normal text-[var(--color-text-muted)]">
+              ({filteredJenaiPrompts.length})
+            </span>
+          </h2>
+          {filteredJenaiPrompts.map((prompt) => (
+            <PromptCard
+              key={prompt.name}
+              prompt={prompt}
+              feedbackCount={feedbackCounts[prompt.name] || 0}
+            />
           ))}
         </div>
       )}

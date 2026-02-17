@@ -110,7 +110,7 @@ export type ComplianceDeveloperSortByValue = (typeof COMPLIANCE_DEVELOPER_SORT_B
 // Review page navigation
 // ============================================
 
-export const REVIEW_TYPE_VALUES = ['flags', 'compliance', 'definitions', 'needs_info'] as const;
+export const REVIEW_TYPE_VALUES = ['flags', 'compliance', 'definitions', 'needs_info', 'jenai'] as const;
 export type ReviewTypeValue = (typeof REVIEW_TYPE_VALUES)[number];
 
 export const REVIEW_MODE_VALUES = ['review', 'developer'] as const;

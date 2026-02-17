@@ -13,6 +13,7 @@ import {
   RedFlagDeveloperQueue,
   ComplianceDeveloperQueue,
 } from '@/components/review';
+import { JenAIQueue } from '@/components/review/JenAIQueue';
 import {
   getDeveloperModeCountsData,
   getReviewModeCountsData,
@@ -118,13 +119,13 @@ function shouldRedirect(
   queryParams: PageProps['searchParams'] extends Promise<infer T> ? T : never
 ): boolean {
   if (mode === 'developer') {
-    return !queryParams.developerStatus && reviewType !== 'needs_info';
+    return !queryParams.developerStatus && reviewType !== 'needs_info' && reviewType !== 'jenai';
   }
   // Suggestion mode doesn't need reviewStatus - it always shows unreviewed items
   if (reviewType === 'compliance' && queryParams.queueMode === 'suggestion') {
     return false;
   }
-  return !queryParams.reviewStatus && reviewType !== 'needs_info';
+  return !queryParams.reviewStatus && reviewType !== 'needs_info' && reviewType !== 'jenai';
 }
 
 function buildRedirectUrl(
@@ -209,6 +210,15 @@ async function renderDeveloperMode(
           pagination={{ page: items.page, pageSize: items.pageSize, total: items.total, totalPages: items.totalPages }}
           counts={needsInfoCounts}
         />
+      </ReviewPageLayout>
+    );
+  }
+
+  // JenAI tab
+  if (reviewType === 'jenai') {
+    return (
+      <ReviewPageLayout pageConfig={pageConfig} mode="developer" reviewType={reviewType} tabCounts={tabCounts}>
+        <JenAIQueue state={stateCode} mode="developer" />
       </ReviewPageLayout>
     );
   }
@@ -350,6 +360,15 @@ async function renderReviewMode(
           pagination={{ page: items.page, pageSize: items.pageSize, total: items.total, totalPages: items.totalPages }}
           counts={needsInfoCounts}
         />
+      </ReviewPageLayout>
+    );
+  }
+
+  // JenAI tab
+  if (reviewType === 'jenai') {
+    return (
+      <ReviewPageLayout pageConfig={pageConfig} mode="review" reviewType={reviewType} tabCounts={tabCounts}>
+        <JenAIQueue state={stateCode} mode="review" />
       </ReviewPageLayout>
     );
   }
@@ -511,7 +530,7 @@ function ReviewPageLayout({
   pageConfig: { title: string; description: string };
   mode: ReviewMode;
   reviewType: ReviewType;
-  tabCounts: { flags: number; compliance: number; definitions: number; needs_info: number };
+  tabCounts: { flags: number; compliance: number; definitions: number; needs_info: number; jenai: number };
   children: React.ReactNode;
 }) {
   return (

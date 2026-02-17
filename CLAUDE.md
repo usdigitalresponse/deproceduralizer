@@ -69,8 +69,17 @@ When working on the Next.js frontend, follow these patterns:
 - Results stored in `statute_mandate_checks` table
 - Only runs for flagged analyses (burdensome/justified) with matched statute links
 
+### JenAI Pipeline
+- Two-tier LLM pipeline for 14-category Pahlka framework analysis: `cd backend && python3 -m scripts.jenai_pipeline.cli`
+- Tier 1: catalog context → classify sections. Tier 2: full context → confirm/revise/dismiss findings.
+- Results in `jenai_analyses` + `jenai_issues` tables
+- **IMPORTANT**: Always ask user permission before running (costs money)
+- Default is dry-run — must pass `--execute` to actually run
+- Prompts in `prompts/jenai.yaml`
+
 ### Pipeline Scripts
 - Use `scripts.research_pipeline.cli` for the 3-tier compliance research.
+- Use `scripts.jenai_pipeline.cli` for the two-tier JenAI analysis.
 - Use `scripts.summarization.cli` for hierarchical document summarization.
 - When adding/removing backend scripts, update `docs/OPERATIONS.md`.
 - Scrapers handle migration automatically via `lib.migration.migrate_regulations_to_db()`.
@@ -87,6 +96,7 @@ When working on the Next.js frontend, follow these patterns:
 | `.claude/skills/regulatory-analysis/` | Bad regulation patterns & examples | Adding new anti-pattern categories |
 | `.claude/skills/pipeline/SKILL.md` | Pipeline overview and step routing | Adding/removing pipeline steps |
 | `.claude/skills/research-pipeline/SKILL.md` | Pipeline internals (tiers, state machine, triggers) | Changing tier logic, triggers, state machine, cost model |
+| `.claude/skills/jenai-pipeline/SKILL.md` | JenAI pipeline architecture and categories | Changing tier logic, categories, context strategy |
 | `.claude/skills/cross-references/` | Extraction patterns and troubleshooting | Changing regex patterns, resolution logic |
 
 ### Source of Truth Hierarchy

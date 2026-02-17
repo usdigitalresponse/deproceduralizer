@@ -2,15 +2,16 @@ import { Container } from '@/components/layout/Container';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Alert } from '@/components/ui';
 import { PromptsList, PromptNav, V5PipelineComposer } from '@/components/prompts';
-import { getPrompts, getCompliancePrompts } from '@/lib/actions/prompts';
+import { getPrompts, getCompliancePrompts, getJenAIPrompts } from '@/lib/actions/prompts';
 import { getAllFeedback, getFeedbackCounts } from '@/lib/actions/prompt-feedback';
 import { getIssueTypesList } from '@/lib/actions/research-pipeline';
 
 export default async function PromptsPage() {
   // Fetch prompts and feedback data in parallel
-  const [promptsResult, compliancePromptsResult, feedbackCountsResult, allFeedbackResult, issueTypesResult] = await Promise.all([
+  const [promptsResult, compliancePromptsResult, jenaiPromptsResult, feedbackCountsResult, allFeedbackResult, issueTypesResult] = await Promise.all([
     getPrompts(),
     getCompliancePrompts(),
+    getJenAIPrompts(),
     getFeedbackCounts(),
     getAllFeedback(),
     getIssueTypesList(),
@@ -35,6 +36,7 @@ export default async function PromptsPage() {
 
   const prompts = promptsResult.data;
   const compliancePrompts = compliancePromptsResult.success ? compliancePromptsResult.data : [];
+  const jenaiPrompts = jenaiPromptsResult.success ? jenaiPromptsResult.data : [];
   const feedbackCounts = feedbackCountsResult.success ? feedbackCountsResult.data : {};
   const allFeedback = allFeedbackResult.success ? allFeedbackResult.data : [];
   const issueTypes = issueTypesResult.success ? issueTypesResult.data : [];
@@ -43,13 +45,13 @@ export default async function PromptsPage() {
   const promptNames = new Set(prompts.map((p) => p.name));
   const orphanedFeedback = allFeedback.filter((f) => !promptNames.has(f.promptName));
 
-  const totalPrompts = prompts.length + compliancePrompts.length;
+  const totalPrompts = prompts.length + compliancePrompts.length + jenaiPrompts.length;
 
   return (
     <div className="bg-[var(--color-background)]">
       <PageHeader
         title="LLM Prompts"
-        description={`View ${totalPrompts} prompts used by the regulatory analysis system (${prompts.length} core, ${compliancePrompts.length} compliance). Submit feedback to help improve prompt quality.`}
+        description={`View ${totalPrompts} prompts used by the regulatory analysis system (${prompts.length} core, ${compliancePrompts.length} compliance, ${jenaiPrompts.length} JenAI). Submit feedback to help improve prompt quality.`}
       />
 
       <Container size="2xl" className="py-6 space-y-8">
@@ -64,6 +66,7 @@ export default async function PromptsPage() {
             <PromptsList
               prompts={prompts}
               compliancePrompts={compliancePrompts}
+              jenaiPrompts={jenaiPrompts}
               feedbackCounts={feedbackCounts}
               orphanedFeedback={orphanedFeedback}
             />
@@ -71,7 +74,7 @@ export default async function PromptsPage() {
 
           {/* Sidebar navigation - hidden on mobile */}
           <aside className="hidden lg:block w-56 flex-shrink-0">
-            <PromptNav prompts={prompts} compliancePrompts={compliancePrompts} />
+            <PromptNav prompts={prompts} compliancePrompts={compliancePrompts} jenaiPrompts={jenaiPrompts} />
           </aside>
         </div>
       </Container>
