@@ -199,8 +199,8 @@ def get_filtered_documents(
     Query regulatory_documents with hierarchy filters.
 
     Args:
-        state: 'NY' or 'NJ'
-        title: Filter by nycrr_title/njac_title
+        state: 'NY', 'NJ', or 'NYC'
+        title: Filter by nycrr_title/njac_title/rcny_title
         chapter: Filter by nycrr_chapter/njac_chapter
         subchapter: Filter by nycrr_subchapter/njac_subchapter
         part: Filter by nycrr_part/njac_part
@@ -215,7 +215,13 @@ def get_filtered_documents(
     if not conn:
         return []
 
-    prefix = 'njac' if state.upper() == 'NJ' else 'nycrr'
+    state_upper = state.upper()
+    if state_upper == 'NJ':
+        prefix = 'njac'
+    elif state_upper == 'NYC':
+        prefix = 'rcny'
+    else:
+        prefix = 'nycrr'
 
     conditions = ["state = %s"]
     params = [state.upper()]
@@ -232,11 +238,12 @@ def get_filtered_documents(
         conditions.append(f"{prefix}_chapter = %s")
         params.append(chapter)
 
-    if subchapter:
+    # RCNY doesn't have subchapter/part columns
+    if subchapter and prefix != 'rcny':
         conditions.append(f"{prefix}_subchapter = %s")
         params.append(subchapter)
 
-    if part:
+    if part and prefix != 'rcny':
         conditions.append(f"{prefix}_part = %s")
         params.append(part)
 
@@ -244,9 +251,15 @@ def get_filtered_documents(
         conditions.append("hierarchy_level = %s")
         params.append(hierarchy_level)
 
+    # Build SELECT columns based on state (RCNY has fewer hierarchy columns)
+    if prefix == 'rcny':
+        select_cols = f"{prefix}_title, {prefix}_chapter, {prefix}_section"
+    else:
+        select_cols = f"{prefix}_title, {prefix}_chapter, {prefix}_subchapter, {prefix}_part, {prefix}_section"
+
     query = f"""
         SELECT id, title, content, url, hierarchy_level, hierarchy_path,
-               {prefix}_title, {prefix}_chapter, {prefix}_subchapter, {prefix}_part, {prefix}_section
+               {select_cols}
         FROM regulatory_documents
         WHERE {' AND '.join(conditions)}
         ORDER BY id
@@ -262,7 +275,7 @@ def get_filtered_documents(
 
         results = []
         for row in rows:
-            results.append({
+            result = {
                 'id': row[0],
                 'title': row[1],
                 'content': row[2],
@@ -271,10 +284,14 @@ def get_filtered_documents(
                 'hierarchy_path': row[5],
                 f'{prefix}_title': row[6],
                 f'{prefix}_chapter': row[7],
-                f'{prefix}_subchapter': row[8],
-                f'{prefix}_part': row[9],
-                f'{prefix}_section': row[10],
-            })
+            }
+            if prefix == 'rcny':
+                result[f'{prefix}_section'] = row[8]
+            else:
+                result[f'{prefix}_subchapter'] = row[8]
+                result[f'{prefix}_part'] = row[9]
+                result[f'{prefix}_section'] = row[10]
+            results.append(result)
         return results
     except Exception as e:
         print(f"ERROR querying documents: {e}")

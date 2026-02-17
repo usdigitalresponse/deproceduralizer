@@ -1,6 +1,6 @@
 import { SeverityBadge, Tag } from '@/components/ui';
 import { formatLabel } from '@/types/regulation';
-import { formatNycrrCitation } from '@/lib/formatters/nycrr';
+import { formatStateCitation } from '@/lib/formatters/citations';
 import { HierarchyBreadcrumbsInline, RegulationTextViewer } from '../../shared';
 import type { RedFlagContentProps } from '../types';
 
@@ -8,11 +8,7 @@ export function RedFlagContent({ item, state }: RedFlagContentProps) {
   if (!item.redFlagData) return null;
 
   const flag = item.redFlagData;
-  const nycrrCitation = formatNycrrCitation(
-    flag.regulation.nycrrTitle,
-    flag.regulation.nycrrPart,
-    flag.regulation.nycrrSection
-  );
+  const citation = formatStateCitation(state, flag.regulation);
 
   return (
     <>
@@ -30,8 +26,8 @@ export function RedFlagContent({ item, state }: RedFlagContentProps) {
       </div>
 
       <div className="text-sm text-[var(--color-text-muted)] mb-2">
-        {nycrrCitation && <span className="font-mono">{nycrrCitation}</span>}
-        {nycrrCitation && flag.regulation.title && ' - '}
+        {citation && <span className="font-mono">{citation}</span>}
+        {citation && flag.regulation.title && ' - '}
         <span className="text-[var(--color-text-secondary)]">{flag.regulation.title}</span>
       </div>
 

@@ -49,6 +49,11 @@ NYC_HTML_FILE = PROJECT_ROOT / 'newyorkcity-ny-1.html'
 NYC_STATUTES_OUTPUT_DIR = DATA_DIR / 'nyc_statutes'
 NYC_STATUTES_COMPLETE_FILE = DATA_DIR / 'nyc_statutes_complete.json'
 
+# Common data files - RCNY (Rules of the City of New York)
+RCNY_XML_DIR = DATA_DIR / 'rcny_xml' / 'XML'
+RCNY_DATA_DIR = DATA_DIR / 'rcny'
+RCNY_REGULATIONS_COMPLETE_FILE = DATA_DIR / 'rcny_regulations_complete.json'
+
 
 # Hierarchy level ordering per state (bottom-up, excluding 'section').
 # Sections are always summarized first, then these levels in order.
@@ -58,6 +63,8 @@ HIERARCHY_ORDER = {
     "NY": ["subpart", "part", "article", "subchapter", "chapter", "subtitle", "title"],
     # NJAC: section → part → subchapter → chapter → title
     "NJ": ["part", "subchapter", "chapter", "subtitle", "title"],
+    # RCNY: section → chapter → title
+    "NYC": ["chapter", "title"],
 }
 
 
@@ -68,5 +75,5 @@ def ensure_data_dirs():
                      NJ_STATUTES_OUTPUT_DIR, NJ_STATUTES_INDIVIDUAL_DIR,
                      NY_STATUTES_OUTPUT_DIR, NY_STATUTES_TREES_DIR,
                      NY_STATUTES_SECTIONS_DIR, NY_STATUTES_INDIVIDUAL_DIR,
-                     NYC_STATUTES_OUTPUT_DIR]:
+                     NYC_STATUTES_OUTPUT_DIR, RCNY_DATA_DIR]:
         dir_path.mkdir(parents=True, exist_ok=True)

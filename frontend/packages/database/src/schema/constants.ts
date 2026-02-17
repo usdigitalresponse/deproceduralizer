@@ -1,6 +1,6 @@
 // State types
-export type StateCode = 'ny' | 'nj';
-export const VALID_STATES: StateCode[] = ['ny', 'nj'];
+export type StateCode = 'ny' | 'nj' | 'nyc';
+export const VALID_STATES: StateCode[] = ['ny', 'nj', 'nyc'];
 
 // Red flag categories (must match backend/scripts/red_flags.py enum)
 // Based on Jennifer Pahlka's framework - exactly 12 categories

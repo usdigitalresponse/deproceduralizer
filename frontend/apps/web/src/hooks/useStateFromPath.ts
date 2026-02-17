@@ -12,7 +12,7 @@ import { type StateCode, DEFAULT_STATE } from '@/types/state';
  */
 export function useStateFromPath(defaultState: StateCode = DEFAULT_STATE): StateCode {
   const pathname = usePathname();
-  const match = pathname.match(/^\/(ny|nj)/);
+  const match = pathname.match(/^\/(nyc|ny|nj)/);
   return (match?.[1] as StateCode) || defaultState;
 }
 
@@ -21,6 +21,6 @@ export function useStateFromPath(defaultState: StateCode = DEFAULT_STATE): State
  * Useful when you already have the pathname from usePathname()
  */
 export function getStateFromPathname(pathname: string, defaultState: StateCode = DEFAULT_STATE): StateCode {
-  const match = pathname.match(/^\/(ny|nj)/);
+  const match = pathname.match(/^\/(nyc|ny|nj)/);
   return (match?.[1] as StateCode) || defaultState;
 }

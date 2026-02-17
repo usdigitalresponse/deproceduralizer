@@ -5,13 +5,14 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { ChevronRight } from 'lucide-react';
 import type { DashboardStats } from '@deproceduralizer/database';
+import type { StateCode } from '@/types/state';
 
 interface StateCardProps {
-  state: 'ny' | 'nj';
+  state: StateCode;
   stats: DashboardStats;
 }
 
-const stateInfo = {
+const stateInfo: Record<StateCode, { name: string; fullName: string; abbrev: string; accentColor: string; accentColorLight: string; borderColor: string; barColor: string }> = {
   ny: {
     name: 'New York',
     fullName: 'New York State',
@@ -29,6 +30,15 @@ const stateInfo = {
     accentColorLight: 'bg-amber-50',
     borderColor: 'border-amber-200',
     barColor: 'bg-amber-500',
+  },
+  nyc: {
+    name: 'New York City',
+    fullName: 'New York City',
+    abbrev: 'NYC',
+    accentColor: 'bg-emerald-500',
+    accentColorLight: 'bg-emerald-50',
+    borderColor: 'border-emerald-200',
+    barColor: 'bg-emerald-500',
   },
 };
 

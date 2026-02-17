@@ -4,7 +4,7 @@ import { forwardRef } from 'react';
 import { Tag } from '@/components/ui';
 import { SectionTypeBadge } from '@/components/ui/SectionTypeBadge';
 import { MetadataIndicators } from '@/components/ui/MetadataIndicators';
-import { formatNycrrCitation } from '@/lib/formatters/nycrr';
+import { formatStateCitation } from '@/lib/formatters/citations';
 import { CardWrapper, HierarchyBreadcrumbsInline, SiblingSectionsView } from '../shared';
 import { Header } from './Header';
 import { LLMAnalysisSection } from './LLMAnalysisSection';
@@ -14,11 +14,7 @@ import type { ReviewCardProps } from './types';
 
 export const ReviewCard = forwardRef<HTMLDivElement, ReviewCardProps>(
   ({ flag, onUpdated, onViewRegulation, isFocused = false, state = 'ny' }, ref) => {
-    const nycrrCitation = formatNycrrCitation(
-      flag.regulation.nycrrTitle,
-      flag.regulation.nycrrPart,
-      flag.regulation.nycrrSection
-    );
+    const citation = formatStateCitation(state, flag.regulation);
 
     return (
       <CardWrapper
@@ -58,8 +54,8 @@ export const ReviewCard = forwardRef<HTMLDivElement, ReviewCardProps>(
         {/* Regulation context */}
         <div className="mb-4 text-sm">
           <span className="text-[var(--color-text-muted)]">
-            {nycrrCitation && <span className="font-mono">{nycrrCitation}</span>}
-            {nycrrCitation && flag.regulation.title && ' - '}
+            {citation && <span className="font-mono">{citation}</span>}
+            {citation && flag.regulation.title && ' - '}
           </span>
           <span className="text-[var(--color-text-secondary)]">{flag.regulation.title}</span>
         </div>

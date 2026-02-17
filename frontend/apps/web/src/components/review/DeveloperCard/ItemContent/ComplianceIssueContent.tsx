@@ -9,7 +9,7 @@ export function ComplianceIssueContent({ item, state }: ComplianceIssueContentPr
   if (!item.complianceIssueData) return null;
 
   const issue = item.complianceIssueData;
-  const citation = formatStateCitation(issue.state, issue.regulation);
+  const citation = formatStateCitation(issue.state || state, issue.regulation);
 
   return (
     <>

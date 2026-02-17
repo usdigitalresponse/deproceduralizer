@@ -33,6 +33,14 @@ export const STATE_CONFIG: Record<StateCode, StateConfig> = {
     bgTint: 'rgba(180, 83, 9, 0.05)',
     regulationsLabel: 'NJ State Regulations',
   },
+  nyc: {
+    name: 'New York City',
+    abbrev: 'NYC',
+    icon: '🏙️',
+    accentColor: '#059669', // emerald-600
+    bgTint: 'rgba(5, 150, 105, 0.05)',
+    regulationsLabel: 'NYC Regulations (RCNY)',
+  },
 } as const;
 
 /**

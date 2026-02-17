@@ -8,6 +8,7 @@ import { getEntityIcon } from '@/lib/constants/entity-types';
 
 const DefinitionIcon = getEntityIcon('definition');
 import type { DashboardStats } from '@deproceduralizer/database';
+import type { StateCode } from '@/types/state';
 
 interface QuickLinkProps {
   href: string;
@@ -46,7 +47,7 @@ function QuickLink({ href, icon, title, description, badge }: QuickLinkProps) {
 }
 
 interface QuickLinksProps {
-  state: 'ny' | 'nj';
+  state: StateCode;
   stats?: DashboardStats;
 }
 

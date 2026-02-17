@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import type { ApplicableDefinition } from '@deproceduralizer/database';
 import { DEFAULT_STATE } from '@/types/state';
-import { formatNjacCitation, formatNycrrCitation } from '@/lib/formatters';
+import { formatStateCitation } from '@/lib/formatters';
 
 /**
  * Get the display definition text based on verbatim/rephrased logic
@@ -48,20 +48,7 @@ interface DefinitionsListProps {
  */
 function formatCitation(definition: ApplicableDefinition, state: string): string | null {
   if (!definition.regulation) return null;
-
-  if (state === 'ny') {
-    return formatNycrrCitation(
-      definition.regulation.nycrrTitle,
-      definition.regulation.nycrrPart,
-      definition.regulation.nycrrSection
-    );
-  }
-
-  return formatNjacCitation(
-    definition.regulation.njacTitle,
-    definition.regulation.njacChapter,
-    definition.regulation.njacSubchapter
-  );
+  return formatStateCitation(state, definition.regulation);
 }
 
 export function DefinitionsList({

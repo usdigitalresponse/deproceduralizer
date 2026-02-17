@@ -26,7 +26,7 @@ export const complianceIssueAnalyses = pgTable('compliance_issue_analyses', {
     .notNull()
     .references(() => regulatoryDocuments.id, { onDelete: 'cascade' }),
   issueType: varchar('issue_type', { length: 50 }).notNull(),
-  state: varchar('state', { length: 2 }).notNull(),
+  state: varchar('state', { length: 3 }).notNull(),
 
   // ═══════════════════════════════════════════════════════════════════
   // Match Grouping

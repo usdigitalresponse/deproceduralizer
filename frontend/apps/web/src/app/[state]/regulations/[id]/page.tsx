@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Container } from '@/components/layout/Container';
 import { Alert } from '@/components/ui';
-import { formatNycrrCitation } from '@/lib/formatters/nycrr';
+import { formatStateCitation } from '@/lib/formatters/citations';
 import { getRegulationById } from '@/lib/actions/regulations';
 import { getComplianceIssuesByDocumentId } from '@/lib/actions/compliance-issues';
 import { getDefinitionsWithContext } from '@/lib/actions/definitions';
@@ -137,17 +137,13 @@ export default async function RegulationDetailPage({ params, searchParams }: Pag
   // IDs of definitions defined here
   const definedHereIds = new Set(usedInText.definedHere.map(d => d.id));
 
-  const nycrrCitation = formatNycrrCitation(
-    regulation.nycrrTitle,
-    regulation.nycrrPart,
-    regulation.nycrrSection
-  );
+  const citation = formatStateCitation(state, regulation);
 
   return (
     <div className="bg-[var(--color-background)] min-h-screen">
       <PageHeader
         title={regulation.title || 'Untitled Regulation'}
-        description={nycrrCitation || undefined}
+        description={citation || undefined}
       />
 
       <Container size="xl" className="py-6">

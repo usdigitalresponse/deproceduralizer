@@ -15,9 +15,16 @@ nj_regulations_complete.json
 nj_regulations_from_cache.json
 nj_statutes_complete.json
 ny_statutes_complete.json
+rcny_regulations_complete.json
 scrape_summary.json
 STATUTES-TEXT/
 data/ny_statutes/
+
+# ALP exports (large files, download from codelibrary.amlegal.com)
+newyorkcity-ny-1.html
+newyorkcity-ny-1-rules-of.html
+newyorkcity-ny-1-rules.html
+data/rcny_xml/
 
 # OS files
 .DS_Store

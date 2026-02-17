@@ -31,5 +31,5 @@ export default async function StateLayout({ children, params }: StateLayoutProps
  * Generate static params for both states
  */
 export function generateStaticParams() {
-  return [{ state: 'ny' }, { state: 'nj' }];
+  return [{ state: 'ny' }, { state: 'nj' }, { state: 'nyc' }];
 }

@@ -47,7 +47,7 @@ export const crossReferences = pgTable('cross_references', {
   resolutionNotes: text('resolution_notes'),
 
   // Metadata
-  state: varchar('state', { length: 2 }).notNull(),
+  state: varchar('state', { length: 3 }).notNull(),
   createdAt: timestamp('created_at').defaultNow(),
 }, (table) => ({
   uniqueSourceRawText: unique().on(table.sourceDocumentId, table.rawText),

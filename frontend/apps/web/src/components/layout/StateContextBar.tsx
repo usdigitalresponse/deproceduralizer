@@ -35,7 +35,7 @@ export function StateContextBar({ state }: StateContextBarProps) {
 
     // Replace the state prefix in the current path
     // e.g., /ny/browse -> /nj/browse
-    const pathWithoutState = pathname.replace(/^\/(ny|nj)/, '');
+    const pathWithoutState = pathname.replace(/^\/(nyc|ny|nj)/, '');
     const queryString = searchParams.toString();
     const newPath = `/${newState}${pathWithoutState || ''}${queryString ? `?${queryString}` : ''}`;
 
@@ -48,9 +48,9 @@ export function StateContextBar({ state }: StateContextBarProps) {
   };
 
   // Get the CSS variable name for the current state
-  const bgVar = state === 'ny' ? 'var(--color-state-ny-bg)' : 'var(--color-state-nj-bg)';
-  const borderVar = state === 'ny' ? 'var(--color-state-ny-border)' : 'var(--color-state-nj-border)';
-  const accentVar = state === 'ny' ? 'var(--color-state-ny-accent)' : 'var(--color-state-nj-accent)';
+  const bgVar = `var(--color-state-${state}-bg)`;
+  const borderVar = `var(--color-state-${state}-border)`;
+  const accentVar = `var(--color-state-${state}-accent)`;
 
   return (
     <div
