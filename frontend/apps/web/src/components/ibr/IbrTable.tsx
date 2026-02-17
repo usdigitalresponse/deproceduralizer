@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Library } from 'lucide-react';
+import { getEntityIcon } from '@/lib/constants/entity-types';
 import { EmptyState } from '@/components/ui/EmptyState';
 import type { IbrWithContext } from '@/lib/actions/ibr';
 
@@ -15,7 +15,7 @@ export function IbrTable({ data, state, onRowClick }: IbrTableProps) {
   if (data.length === 0) {
     return (
       <EmptyState
-        icon={Library}
+        icon={getEntityIcon('ibr_standard')}
         title="No IBR records found"
         description="Try adjusting your filters"
       />

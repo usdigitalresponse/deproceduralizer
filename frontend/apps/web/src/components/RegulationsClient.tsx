@@ -6,7 +6,7 @@ import { useQueryStates } from 'nuqs';
 import { SlidersHorizontal } from 'lucide-react';
 import DataTable from '@/components/DataTable';
 import DetailModal from '@/components/DetailModal';
-import { Button, SearchInput } from '@/components/ui';
+import { Button, SearchInput, FullTextSearchLink } from '@/components/ui';
 import { RegulationCardGrid, ViewToggle, FacetedFilters } from '@/components/regulations';
 import { useStateFromPath, useResponsive } from '@/hooks';
 import {
@@ -23,7 +23,7 @@ import {
   serializeCommaSeparated,
 } from '@/lib/url/parsers';
 import type { ViewModeValue } from '@/lib/constants/values';
-import type { RegulationWithAnalysis, FilterOptions, PaginationOptions } from '@deproceduralizer/database';
+import type { RegulationWithAnalysis, FilterOptions } from '@deproceduralizer/database';
 
 interface PaginationInfo {
   page: number;
@@ -37,11 +37,9 @@ interface RegulationsClientProps {
   pagination: PaginationInfo;
   search: string;
   filters: FilterOptions;
-  sortBy: PaginationOptions['sortBy'];
-  sortOrder: PaginationOptions['sortOrder'];
 }
 
-export default function RegulationsClient({ initialData, pagination, search, filters, sortBy, sortOrder }: RegulationsClientProps) {
+export default function RegulationsClient({ initialData, pagination, search, filters }: RegulationsClientProps) {
   const router = useRouter();
   const state = useStateFromPath();
   const [isPending, startTransition] = useTransition();
@@ -224,9 +222,10 @@ export default function RegulationsClient({ initialData, pagination, search, fil
         <SearchInput
           value={search}
           onSearch={handleSearch}
-          placeholder="Search regulations..."
+          placeholder="Filter by title..."
           isLoading={isPending}
         />
+        <FullTextSearchLink query={search} state={state} />
         <div className="flex items-center gap-4">
           {/* Mobile filter toggle (only in cards mode) */}
           {viewMode === 'cards' && isMobile && (

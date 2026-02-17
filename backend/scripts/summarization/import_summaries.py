@@ -103,6 +103,7 @@ def batch_update_summaries(
     conn: psycopg.Connection,
     updates: list[dict],
     dry_run: bool = False,
+    max_retries: int = 5,
 ) -> int:
     """
     Batch update regulatory_documents with summary metadata.
@@ -111,6 +112,7 @@ def batch_update_summaries(
         conn: Database connection
         updates: List of dicts with document_id and metadata fields
         dry_run: If True, don't commit changes
+        max_retries: Max retry attempts per chunk on deadlock
 
     Returns:
         Number of rows updated
@@ -162,12 +164,22 @@ def batch_update_summaries(
             WHERE rd.id = v.doc_id::bigint
         """
 
-        with conn.cursor() as cur:
-            cur.execute(query, params)
-            total_updated += cur.rowcount
-
-        if not dry_run:
-            conn.commit()
+        for attempt in range(max_retries):
+            try:
+                conn.rollback()
+                with conn.cursor() as cur:
+                    cur.execute(query, params)
+                    total_updated += cur.rowcount
+                if not dry_run:
+                    conn.commit()
+                break
+            except psycopg.errors.DeadlockDetected:
+                if attempt < max_retries - 1:
+                    wait = 2 ** attempt + time.time() % 1
+                    print(f"  Deadlock on chunk {i // CHUNK_SIZE + 1}, retrying in {wait:.1f}s (attempt {attempt + 2}/{max_retries})")
+                    time.sleep(wait)
+                else:
+                    raise
 
     return total_updated
 

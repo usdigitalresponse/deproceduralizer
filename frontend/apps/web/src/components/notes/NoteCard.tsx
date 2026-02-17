@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { Pencil, Trash2, MessageSquare, Check, X } from 'lucide-react';
+import { Pencil, Trash2, Check, X } from 'lucide-react';
+import { EntityTypeIndicator } from '@/components/ui';
 import { Button, Textarea } from '@/components/ui';
 import { updateNote, deleteNote } from '@/lib/actions/document-notes';
 import type { DocumentNote } from '@deproceduralizer/database';
@@ -85,7 +86,7 @@ export function NoteCard({
       {/* Header */}
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          <MessageSquare className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
+          <EntityTypeIndicator type="note" size="sm" />
           <span className="text-xs text-[var(--color-text-muted)]">Note</span>
         </div>
         {!isEditing && (

@@ -329,8 +329,8 @@ class SummarizationBatchRunner:
                     model=BATCH_MODEL,
                 ))
 
-        print(f"  Requests to submit: {len(requests)}")
-        print(f"  Skipped (reserved/empty): {len(skipped_docs)}")
+        print(f"  Requests to submit: {len(requests)}", flush=True)
+        print(f"  Skipped (reserved/empty): {len(skipped_docs)}", flush=True)
         if skipped_done > 0:
             print(f"  Skipped (already done): {skipped_done}")
 
@@ -458,10 +458,10 @@ class SummarizationBatchRunner:
                 model=BATCH_MODEL,
             ))
 
-        print(f"  Requests to submit: {len(requests)}")
-        print(f"  Skipped (reserved/empty): {len(skipped_docs)}")
+        print(f"  Requests to submit: {len(requests)}", flush=True)
+        print(f"  Skipped (reserved/empty): {len(skipped_docs)}", flush=True)
         if skipped_done > 0:
-            print(f"  Skipped (already done): {skipped_done}")
+            print(f"  Skipped (already done): {skipped_done}", flush=True)
 
         if dry_run:
             print("\n  [DRY RUN] Would submit batch with these requests:")

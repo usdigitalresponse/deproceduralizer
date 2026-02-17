@@ -23,7 +23,6 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
     const pathname = usePathname();
     const stateCode = getStateFromPathname(pathname);
 
-    // Format citation based on state
     const citation = formatStateCitation(issue.state || stateCode, issue.regulation);
 
     const issueTypeLabel = ISSUE_TYPE_LABELS[issue.issueType] || issue.issueType;

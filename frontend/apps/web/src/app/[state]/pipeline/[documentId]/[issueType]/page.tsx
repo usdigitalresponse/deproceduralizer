@@ -17,7 +17,7 @@ import {
 } from '@/components/analysis';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Container } from '@/components/layout/Container';
-import { Badge } from '@/components/ui';
+import { Badge, ScrollToHash } from '@/components/ui';
 import { ClassificationBadge, TierClassificationFlow } from '@/components/issues/TierClassificationFlow';
 import { isValidState } from '@/types/state';
 import { ISSUE_TYPE_LABELS } from '@/types/regulation';
@@ -48,6 +48,11 @@ export default async function AnalysisDetailPage({ params, searchParams }: Analy
   const printParam = resolvedSearchParams.print;
   const isPrintMode = printParam === 'true' || printParam === '1';
 
+  // Support back navigation from search results or other pages
+  const fromParam = typeof resolvedSearchParams.from === 'string' ? resolvedSearchParams.from : null;
+  const backUrl = fromParam ? decodeURIComponent(fromParam) : `/${state}/pipeline`;
+  const backLabel = fromParam ? 'Back to search results' : 'Back to Research Pipeline';
+
   const stateCode = state;
 
   // Fetch full analysis record and regex matches (shown in both views now)
@@ -67,6 +72,7 @@ export default async function AnalysisDetailPage({ params, searchParams }: Analy
   return (
     <PrintModeProvider isPrintMode={isPrintMode}>
     <PrintModeStyles isPrintMode={isPrintMode} />
+    <ScrollToHash />
     <AnalysisBookmarkProvider documentId={docId} issueType={issueType} state={stateCode}>
       <div className="bg-[var(--color-background)] min-h-screen">
         {/* Print Preview Header - only visible in print mode, hidden when actually printing */}
@@ -109,11 +115,11 @@ export default async function AnalysisDetailPage({ params, searchParams }: Analy
             <Container size="2xl">
               <div className="flex items-center justify-between">
                 <Link
-                  href={`/${state}/pipeline`}
+                  href={backUrl}
                   className="inline-flex items-center gap-2 text-sm text-[var(--color-primary)] hover:underline"
                 >
                   <ArrowLeft className="w-4 h-4" />
-                  Back to Research Pipeline
+                  {backLabel}
                 </Link>
 
                 <div className="flex items-center gap-4">
@@ -287,12 +293,13 @@ export default async function AnalysisDetailPage({ params, searchParams }: Analy
 
         {/* Regex Matches Section - collapsible in standard view, expanded in print mode */}
         {matches && matches.length > 0 && (
-          <div className="mb-6 bg-white border border-[var(--color-neutral-200)] rounded-[var(--radius-md)] p-6">
+          <div id="matches" className="mb-6 bg-white border border-[var(--color-neutral-200)] rounded-[var(--radius-md)] p-6">
             <RegexMatchesSection
               matches={matches}
               relevantMatchIds={analysis.tier1?.relevantMatchIds || []}
               dismissedReasons={(analysis.tier1?.dismissedReasons as DismissedMatch[]) || []}
               collapsible={!isPrintMode}
+              defaultExpanded={!!fromParam}
             />
           </div>
         )}

@@ -1,6 +1,6 @@
 import Link from 'next/link';
-import { Scale } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
+import { EntityTypeIndicator } from '@/components/ui';
 import { LINK_TYPE_LABELS, MATCH_STATUS_LABELS } from '@/lib/constants/values';
 import type { RegulationStatuteLinkWithStatute } from '@deproceduralizer/database';
 
@@ -33,7 +33,7 @@ export function StatuteLinksSection({ links, state, documentId, currentUrl }: St
   return (
     <div>
       <h3 className="text-sm font-semibold text-[var(--color-text-secondary)] mb-2 flex items-center gap-2">
-        <Scale className="w-4 h-4 text-[var(--color-primary)]" />
+        <EntityTypeIndicator type="statute" size="sm" />
         Statute Links ({links.length})
       </h3>
       <div className="space-y-2">

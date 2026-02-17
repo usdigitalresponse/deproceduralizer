@@ -17,3 +17,4 @@ export type { TermMatch } from './useTermHighlighting';
 export { useCrossRefHighlighting } from './useCrossRefHighlighting';
 export type { CrossRefMatch } from './useCrossRefHighlighting';
 export { useDebouncedValue } from './useDebouncedValue';
+export { useRegulationById } from './useRegulationById';

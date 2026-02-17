@@ -16,6 +16,8 @@ interface RegulationDetailClientProps {
   applicableDefinitions?: ApplicableDefinition[];
   /** Cross-references for inline highlighting */
   crossRefHighlights?: HighlightRef[];
+  /** Initial search highlight from URL (e.g., from FTS search results) */
+  initialHighlight?: string;
 }
 
 export function RegulationDetailClient({
@@ -25,9 +27,10 @@ export function RegulationDetailClient({
   initialNotes,
   applicableDefinitions,
   crossRefHighlights,
+  initialHighlight,
 }: RegulationDetailClientProps) {
   const [notes, setNotes] = useState<DocumentNote[]>(initialNotes);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(initialHighlight ?? '');
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
   const contentRef = useRef<HTMLDivElement>(null);
 

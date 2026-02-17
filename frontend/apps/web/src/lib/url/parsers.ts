@@ -537,6 +537,24 @@ export type { LinkTypeValue, MatchStatusValue } from '@/lib/constants/values';
 export { LINK_TYPE_VALUES, MATCH_STATUS_VALUES } from '@/lib/constants/values';
 
 // ============================================
+// Full-text search parsers
+// ============================================
+
+/**
+ * Parser configuration for full-text search results page
+ */
+export const searchResultsParsers = {
+  q: parseAsString,
+  page: pageParser,
+  docType: parseAsString,
+  sectionType: parseAsString,
+  hierarchyLevel: parseAsString,
+  parentPath: parseAsString,
+  hasAnalysis: parseAsString,
+  classification: parseAsString,
+};
+
+// ============================================
 // IBR page parsers
 // ============================================
 

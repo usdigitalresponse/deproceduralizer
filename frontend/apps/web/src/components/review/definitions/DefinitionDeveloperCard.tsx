@@ -5,9 +5,10 @@ import { updateDefinitionDeveloperStatus } from '@/lib/actions/definitions';
 import { useDeveloperName } from '@/hooks/useDeveloperName';
 import { Button, Textarea, Badge, Select, CopyLinkButton } from '@/components/ui';
 import { DEVELOPER_STATUSES, RESOLUTION_TYPES, DEVELOPERS, DEVELOPER_STATUS_LABELS } from '@/types/regulation';
-import { formatStateCitation } from '@/lib/formatters';
+import { formatStateCitation } from '@/lib/formatters/citations';
 import { ExpandableRegulationQuote } from '../ExpandableRegulationQuote';
 import { CardWrapper } from '../shared';
+import { getStatusVariant } from '../DeveloperCard/helpers';
 import { BookOpen } from 'lucide-react';
 import type { DefinitionWithContext, StateCode } from '@deproceduralizer/database';
 
@@ -89,24 +90,6 @@ export const DefinitionDeveloperCard = forwardRef<HTMLDivElement, DefinitionDeve
       });
     };
 
-    // Get status color for badge
-    const getStatusVariant = (status: string | null) => {
-      switch (status) {
-        case 'resolved':
-          return 'success';
-        case 'pending':
-          return 'warning';
-        case 'backlogged':
-          return 'default';
-        case 'need_more_info':
-          return 'info';
-        case 'unresolved':
-        default:
-          return 'danger';
-      }
-    };
-
-    // Get review status color
     const getReviewStatusVariant = (status: string | null) => {
       switch (status) {
         case 'confirmed':
@@ -120,7 +103,6 @@ export const DefinitionDeveloperCard = forwardRef<HTMLDivElement, DefinitionDeve
       }
     };
 
-    // Format citation based on state
     const citation = definition.regulation
       ? formatStateCitation(state, definition.regulation)
       : null;

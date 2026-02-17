@@ -1,6 +1,6 @@
 import Link from 'next/link';
-import { Link2 } from 'lucide-react';
 import { CrossReferenceCard } from '@/components/cross-references';
+import { EntityTypeIndicator } from '@/components/ui';
 import type { CrossReferencesSectionProps } from './types';
 
 export function CrossReferencesSection({ refs, state, documentId, currentUrl }: CrossReferencesSectionProps) {
@@ -9,7 +9,7 @@ export function CrossReferencesSection({ refs, state, documentId, currentUrl }: 
   return (
     <div>
       <h3 className="text-sm font-semibold text-[var(--color-text-secondary)] mb-2 flex items-center gap-2">
-        <Link2 className="w-4 h-4 text-[var(--color-primary)]" />
+        <EntityTypeIndicator type="cross_reference" size="sm" />
         Cross-References ({refs.length})
       </h3>
       <div className="space-y-2">

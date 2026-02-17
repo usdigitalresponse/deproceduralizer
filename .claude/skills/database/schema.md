@@ -91,7 +91,13 @@ Script: `backend/scripts/batch_exclude_ny_sections.py` (use `--dry-run` to previ
 - `chk_rd_state CHECK (state IN ('NY', 'NJ', 'NYC'))`
 - `unique_per_url UNIQUE(url)`
 
-**Indexes:** `idx_documents_state`, `idx_documents_type`, `idx_documents_state_type`, `idx_documents_parent`, `idx_documents_hierarchy_level`, `idx_documents_regulatory_status`, `idx_documents_url`, `idx_documents_short_title`, `idx_documents_exclude_from_analysis` (partial), `idx_rd_keywords` (GIN), `idx_rd_applies_to` (GIN), `idx_rd_section_type` (partial), `idx_rd_has_form` (partial), `idx_rd_has_ibr` (partial), `idx_rd_rcny_title` (partial: WHERE state = 'NYC'), `idx_rd_state_source_type` (unique: state, source_index, type - for upsert)
+**Full-text search (migration 0044):**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `search_vector` | tsvector | Weighted: title(A) + summary(B) + content(C). Maintained by trigger. |
+
+**Indexes:** `idx_documents_state`, `idx_documents_type`, `idx_documents_state_type`, `idx_documents_parent`, `idx_documents_hierarchy_level`, `idx_documents_regulatory_status`, `idx_documents_url`, `idx_documents_short_title`, `idx_documents_exclude_from_analysis` (partial), `idx_rd_keywords` (GIN), `idx_rd_applies_to` (GIN), `idx_rd_section_type` (partial), `idx_rd_has_form` (partial), `idx_rd_has_ibr` (partial), `idx_regulatory_documents_search_vector` (GIN), `idx_rd_rcny_title` (partial: WHERE state = 'NYC'), `idx_rd_state_source_type` (unique: state, source_index, type - for upsert)
 
 ## analyses
 
@@ -252,7 +258,7 @@ Pure regex match store. Tracks individual regex matches found during compliance 
 | `analysis_id` | bigint | FK to compliance_issue_analyses(id) ON DELETE SET NULL. Many-to-one link (many matches → one analysis). Set by searcher/pipeline after analysis INSERT. |
 | `run_id` | varchar(32) | Batch/run ID for tracking which scan created the record |
 
-**Constraints:** `compliance_issues_state_check`, `unique_document_issue_occurrence UNIQUE(document_id, issue_type, occurrence_number)`
+**Constraints:** `unique_document_issue_occurrence UNIQUE(document_id, issue_type, occurrence_number)`
 
 **Indexes:** `idx_compliance_issues_document`, `idx_compliance_issues_state`, `idx_compliance_issues_issue_type`, `idx_compliance_issues_state_issue`, `idx_compliance_issues_analysis_id`
 
@@ -485,6 +491,7 @@ Helps Tier 3 web search avoid returning results about similar-sounding but diffe
 - V5: `idx_compliance_issue_analyses_v5_tier3_triggers` (partial index for V5 Tier 3 routing)
 - V5.1: `idx_compliance_issue_analyses_tier3_trigger_reason` (partial), `idx_compliance_issue_analyses_easy_cleanup` (partial)
 - Query optimization: `idx_cia_doc_issue`, `idx_cia_state_tier2`, `idx_cia_highest_tier`
+- Full-text search (migration 0044): `idx_compliance_issue_analyses_search_vector` (GIN) — `search_vector tsvector` column with tier2_reasoning + tier3_reasoning + verbatim_requirements, maintained by trigger
 
 ## compliance_issue_analysis_reviews
 
@@ -589,7 +596,13 @@ Hierarchy: Title → Chapter → Section (NJ), Law → Article → Section (NY),
 | `source_index` | integer | Index from parsing process |
 | `created_at` | timestamp | When created |
 
-**Indexes:** `idx_statutes_nycls_law_id`
+**Full-text search (migration 0044):**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `search_vector` | tsvector | Weighted: title(A) + content(C). Maintained by trigger. |
+
+**Indexes:** `idx_statutes_nycls_law_id`, `idx_statutes_search_vector` (GIN)
 **Constraints:** `chk_statutes_state`, `statutes_state_citation_key UNIQUE(state, citation)`
 
 ## statute_references

@@ -1,6 +1,6 @@
 import Link from 'next/link';
-import { Link2 } from 'lucide-react';
 import { IncomingReferenceCard } from '@/components/cross-references';
+import { EntityTypeIndicator } from '@/components/ui';
 import type { IncomingReferencesSectionProps } from './types';
 
 export function IncomingReferencesSection({ refs, state, documentId, currentUrl }: IncomingReferencesSectionProps) {
@@ -9,7 +9,7 @@ export function IncomingReferencesSection({ refs, state, documentId, currentUrl 
   return (
     <div>
       <h3 className="text-sm font-semibold text-[var(--color-text-secondary)] mb-2 flex items-center gap-2">
-        <Link2 className="w-4 h-4 text-[var(--color-success)]" />
+        <EntityTypeIndicator type="cross_reference" size="sm" />
         Cited By ({refs.length})
       </h3>
       <div className="space-y-2">

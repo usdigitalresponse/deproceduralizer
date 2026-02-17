@@ -1,4 +1,6 @@
-import { Table, FolderTree, ClipboardCheck, BookOpen, Home, Code, BarChart3, FlaskConical, Star, Scale, Library, type LucideIcon } from 'lucide-react';
+import { Table, FolderTree, ClipboardCheck, Home, Code, BarChart3, FlaskConical, Search, type LucideIcon } from 'lucide-react';
+// Entity-type icons sourced from entity-types.ts (canonical visual identity)
+import { getEntityIcon } from './entity-types';
 
 /**
  * Navigation item configuration.
@@ -50,6 +52,14 @@ export const NAV_ITEMS: NavItem[] = [
     showOnDesktop: false,
   },
   {
+    key: 'search',
+    label: 'Search',
+    icon: Search,
+    isStateSpecific: true,
+    pathSuffix: '/search',
+    groupId: 'explorer',
+  },
+  {
     key: 'table',
     label: 'Table View',
     icon: Table,
@@ -68,7 +78,7 @@ export const NAV_ITEMS: NavItem[] = [
   {
     key: 'glossary',
     label: 'Glossary',
-    icon: BookOpen,
+    icon: getEntityIcon('definition'),
     isStateSpecific: true,
     pathSuffix: '/definitions',
     groupId: 'explorer',
@@ -76,7 +86,7 @@ export const NAV_ITEMS: NavItem[] = [
   {
     key: 'statutes',
     label: 'Statutes',
-    icon: Scale,
+    icon: getEntityIcon('statute'),
     isStateSpecific: true,
     pathSuffix: '/statutes',
     groupId: 'explorer',
@@ -84,7 +94,7 @@ export const NAV_ITEMS: NavItem[] = [
   {
     key: 'ibr',
     label: 'Standards (IBR)',
-    icon: Library,
+    icon: getEntityIcon('ibr_standard'),
     isStateSpecific: true,
     pathSuffix: '/ibr',
     groupId: 'explorer',
@@ -110,7 +120,7 @@ export const NAV_ITEMS: NavItem[] = [
   {
     key: 'bookmarks',
     label: 'Bookmarks',
-    icon: Star,
+    icon: getEntityIcon('bookmark'),
     isStateSpecific: true,
     pathSuffix: '/bookmarks',
     groupId: 'metrics',

@@ -2,7 +2,8 @@
 
 import { useCallback, useTransition } from 'react';
 import { useQueryStates } from 'nuqs';
-import { Button, Select, SearchInput } from '@/components/ui';
+import { Button, Select, SearchInput, FullTextSearchLink } from '@/components/ui';
+import { useStateFromPath } from '@/hooks/useStateFromPath';
 import { browseFiltersParsers, type SeverityValue } from '@/lib/url/parsers';
 import { typedValue } from '@/lib/url/type-helpers';
 import {
@@ -28,6 +29,7 @@ export function BrowseFilters({
   stats,
   className = '',
 }: BrowseFiltersProps) {
+  const state = useStateFromPath();
   const [isPending, startTransition] = useTransition();
 
   const [filters, setFilters] = useQueryStates(browseFiltersParsers, {
@@ -66,11 +68,12 @@ export function BrowseFilters({
       <SearchInput
         value={filters.search || ''}
         onSearch={(val) => setFilters({ search: val || null })}
-        placeholder="Search by title..."
+        placeholder="Filter by title..."
         size="sm"
         className="w-48"
         isLoading={isPending}
       />
+      <FullTextSearchLink query={filters.search || ''} state={state} />
 
       {/* Analyzed filter */}
       <div className="flex items-center gap-2">

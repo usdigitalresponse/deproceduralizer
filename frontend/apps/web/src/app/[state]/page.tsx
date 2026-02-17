@@ -178,8 +178,6 @@ export default async function Home({ params, searchParams }: PageProps) {
             }}
             search={search}
             filters={filters}
-            sortBy={sortBy}
-            sortOrder={sortOrder}
           />
         </Suspense>
       </Container>

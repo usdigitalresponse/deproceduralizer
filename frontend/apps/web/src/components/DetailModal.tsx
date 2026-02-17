@@ -1,9 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import type { RegulationWithAnalysis } from '@deproceduralizer/database';
-import { getRegulationById } from '@/lib/actions/regulations';
 import { RedFlagCard, RedFlagReviewForm } from '@/components/flags';
 import {
   Modal,
@@ -22,7 +19,7 @@ import {
   RegulationContent,
 } from '@/components/regulations';
 import { formatStateCitation } from '@/lib/formatters/citations';
-import { useStateFromPath } from '@/hooks';
+import { useStateFromPath, useRegulationById } from '@/hooks';
 import { isValidState, DEFAULT_STATE } from '@/types/state';
 
 interface DetailModalProps {
@@ -42,42 +39,11 @@ interface DetailModalProps {
 
 export default function DetailModal({ regulationId, onClose, onFlagUpdated }: DetailModalProps) {
   const pathState = useStateFromPath();
-  const [regulation, setRegulation] = useState<RegulationWithAnalysis | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { regulation, setRegulation, isLoading, error } = useRegulationById(regulationId);
 
   // Use path state, fallback to regulation's state if available
   const regState = regulation?.state?.toLowerCase();
   const state = pathState || (regState && isValidState(regState) ? regState : DEFAULT_STATE);
-
-  // Fetch regulation when regulationId changes
-  useEffect(() => {
-    if (regulationId === null) {
-      setRegulation(null);
-      setError(null);
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    getRegulationById(regulationId)
-      .then((result) => {
-        if (!result.success) {
-          setError(result.error);
-          setRegulation(null);
-        } else {
-          setRegulation(result.data);
-        }
-      })
-      .catch((err) => {
-        setError(err.message || 'Failed to load regulation');
-        setRegulation(null);
-      })
-      .finally(() => {
-        setIsLoading(false);
-      });
-  }, [regulationId]);
 
   // Handle flag updates - update local state and notify parent
   const handleFlagUpdated = (updatedFlag: {

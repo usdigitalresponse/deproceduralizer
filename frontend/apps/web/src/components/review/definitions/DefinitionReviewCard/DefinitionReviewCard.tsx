@@ -43,7 +43,6 @@ export const DefinitionReviewCard = forwardRef<HTMLDivElement, DefinitionReviewC
       saveReviewerName,
     });
 
-    // Format citation based on state
     const citation = definition.regulation
       ? formatStateCitation(state, definition.regulation) ?? 'Unknown source'
       : 'Unknown source';

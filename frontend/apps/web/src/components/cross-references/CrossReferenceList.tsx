@@ -1,6 +1,6 @@
 'use client';
 
-import { Link2, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
+import { EntityTypeIndicator } from '@/components/ui';
 import { CrossReferenceCard, IncomingReferenceCard } from './CrossReferenceCard';
 import type { CrossReferenceWithTarget, CrossReferenceWithSource } from '@deproceduralizer/database';
 import { DEFAULT_STATE } from '@/types/state';
@@ -42,7 +42,7 @@ export function CrossReferenceList({
   return (
     <div>
       <div className="flex items-center gap-2 mb-4">
-        <ArrowUpRight className="w-4 h-4 text-[var(--color-primary)]" />
+        <EntityTypeIndicator type="cross_reference" size="md" />
         <h3 className="text-sm font-semibold text-[var(--color-text)]">
           {title} ({crossRefs.length})
         </h3>
@@ -105,7 +105,7 @@ export function IncomingReferenceList({
   return (
     <div>
       <div className="flex items-center gap-2 mb-4">
-        <ArrowDownLeft className="w-4 h-4 text-[var(--color-success)]" />
+        <EntityTypeIndicator type="cross_reference" size="md" />
         <h3 className="text-sm font-semibold text-[var(--color-text)]">
           {title} ({crossRefs.length})
         </h3>

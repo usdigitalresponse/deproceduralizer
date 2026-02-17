@@ -1,6 +1,7 @@
 'use client';
 
-import { FileText, Search, ClipboardList, AlertTriangle } from 'lucide-react';
+import { Search } from 'lucide-react';
+import { getEntityIcon } from '@/lib/constants/entity-types';
 import type { DashboardStats as DashboardStatsType } from '@deproceduralizer/database';
 import { StatCard, StatGrid } from '@/components/ui';
 
@@ -18,7 +19,7 @@ export function DashboardStats({ stats }: DashboardStatsProps) {
       <StatCard
         label="Total Regulations"
         value={stats.totalDocuments}
-        icon={FileText}
+        icon={getEntityIcon('regulatory_document')}
         variant="default"
       />
       <StatCard
@@ -31,14 +32,14 @@ export function DashboardStats({ stats }: DashboardStatsProps) {
       <StatCard
         label="Compliance Issues"
         value={stats.complianceIssues?.total ?? 0}
-        icon={ClipboardList}
+        icon={getEntityIcon('compliance_issue')}
         variant="warning"
         subtitle={stats.complianceIssues?.unreviewed ? `${stats.complianceIssues.unreviewed.toLocaleString()} unreviewed` : undefined}
       />
       <StatCard
         label="Red Flags"
         value={stats.totalFlags}
-        icon={AlertTriangle}
+        icon={getEntityIcon('red_flag')}
         variant="danger"
         subtitle={stats.unreviewedFlags ? `${stats.unreviewedFlags.toLocaleString()} unreviewed` : undefined}
       />

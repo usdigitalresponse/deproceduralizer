@@ -96,10 +96,6 @@ export function ReviewForm<T extends ReviewableItem>({
     ? 'border-[var(--color-danger)]/20'
     : 'border-[var(--color-warning)]/20';
 
-  const defaultNotesPlaceholder = itemType === 'red_flag'
-    ? 'Add any notes about this flag...'
-    : 'Add any notes about this issue...';
-
   if (!isEditing) {
     return (
       <div className={`mt-3 pt-3 border-t ${borderColor}`}>

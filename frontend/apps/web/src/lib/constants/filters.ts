@@ -503,3 +503,26 @@ export const ADVOCACY_FOR_CHANGE_FILTER_OPTIONS = createFilterOptions(
   TIER3_FINDING_FILTER_VALUES,
   ADVOCACY_FOR_CHANGE_LABELS
 );
+
+// ============================================
+// Search Page Filter Options
+// ============================================
+
+export const SEARCH_DOC_TYPE_OPTIONS: FilterOption[] = [
+  { value: 'all', label: 'All types' },
+  { value: 'regulation', label: 'Regulations' },
+  { value: 'statute', label: 'Statutes' },
+];
+
+export const SEARCH_ANALYSIS_OPTIONS: FilterOption[] = [
+  { value: 'all', label: 'All' },
+  { value: 'true', label: 'Analyzed' },
+  { value: 'false', label: 'Not Analyzed' },
+];
+
+export const SEARCH_CLASSIFICATION_OPTIONS: FilterOption[] = [
+  { value: 'all', label: 'All' },
+  { value: 'burdensome', label: 'Burdensome' },
+  { value: 'justified', label: 'Justified' },
+  { value: 'unrelated', label: 'Unrelated' },
+];

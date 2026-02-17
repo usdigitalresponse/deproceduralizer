@@ -13,6 +13,8 @@ interface RegexMatchesSectionProps {
   dismissedReasons: DismissedMatch[];
   /** If true, section is collapsible (collapsed by default in standard view, expanded in print mode) */
   collapsible?: boolean;
+  /** Start expanded (e.g., when navigated from search) */
+  defaultExpanded?: boolean;
 }
 
 /**
@@ -32,9 +34,10 @@ export function RegexMatchesSection({
   relevantMatchIds,
   dismissedReasons,
   collapsible = false,
+  defaultExpanded = false,
 }: RegexMatchesSectionProps) {
   const { isPrintMode } = usePrintMode();
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
   if (!matches || matches.length === 0) {
     return null;

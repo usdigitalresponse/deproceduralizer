@@ -53,6 +53,9 @@ export {
 export { SearchInput } from './SearchInput';
 export type { SearchInputProps } from './SearchInput';
 
+// FullTextSearchLink
+export { FullTextSearchLink } from './FullTextSearchLink';
+
 // Alert
 export { Alert } from './Alert';
 export type { AlertProps, AlertVariant } from './Alert';
@@ -107,3 +110,10 @@ export type { SegmentedControlProps, SegmentedControlOption } from './SegmentedC
 
 // BookmarkButton
 export { BookmarkButton } from './BookmarkButton';
+
+// ScrollToHash
+export { ScrollToHash } from './ScrollToHash';
+
+// EntityTypeIndicator
+export { EntityTypeIndicator } from './EntityTypeIndicator';
+export type { EntityTypeIndicatorProps } from './EntityTypeIndicator';
