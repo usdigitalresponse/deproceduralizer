@@ -433,7 +433,7 @@ def get_sections_grouped_by_parent(
 
     # Ensure each group is sorted by citation
     for parent_id in grouped:
-        grouped[parent_id].sort(key=lambda d: d.get("citation", ""))
+        grouped[parent_id].sort(key=lambda d: d.get("citation") or "")
 
     return grouped
 
