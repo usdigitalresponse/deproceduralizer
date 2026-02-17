@@ -275,6 +275,26 @@ Without summaries, the pipeline falls back to truncated content excerpts or titl
 
 Multiple titles can be summarized concurrently — each `run_phase` call passes its `batch_id` to `process_results`, which uses `batch_mapping.json` for exact directory lookup instead of globbing by phase name.
 
+**Recovery:** If `--run-all-phases` stalls or crashes after batches were submitted (e.g., deadlock on DB import, API throttling), use the recovery script to pull completed results directly from the Anthropic API and import them:
+
+```bash
+cd backend
+
+# Recover all missing summaries for a state
+python3 -m scripts.summarization.recover_batches --state NY
+
+# Recover for a specific title
+python3 -m scripts.summarization.recover_batches --state NY --title 16
+
+# Preview without importing
+python3 -m scripts.summarization.recover_batches --state NY --dry-run
+
+# Scan more batches (default: 100, max depends on API history)
+python3 -m scripts.summarization.recover_batches --state NY --limit 500
+```
+
+**Note:** `--run-all-phases` will **resubmit** batches for any phase without local `results.json` files, even if the batch already completed on Anthropic's side. Use the recovery script first to avoid duplicate submissions.
+
 | Cost | Time |
 |------|------|
 | ~$100/state, ~$2-5/title (Haiku) | Hours per phase (batch queue) |

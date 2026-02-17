@@ -4,7 +4,9 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import type { StatuteWithLinks, StatuteAncestor } from '@deproceduralizer/database';
-import { FileText, AlertTriangle, Loader2, ChevronRight, Scale, Link2, ExternalLink } from 'lucide-react';
+import { FileText, AlertTriangle, Loader2, ChevronRight, ExternalLink } from 'lucide-react';
+import { EntityTypeIndicator } from '@/components/ui/EntityTypeIndicator';
+import { getEntityIcon, getEntityConfig } from '@/lib/constants/entity-types';
 import { Card, Button } from '@/components/ui';
 import { Badge } from '@/components/ui/Badge';
 import { RegulationContent } from '@/components/regulations';
@@ -182,7 +184,7 @@ export function StatuteDetailPanel({
         {linksByType.length > 0 && (
           <div>
             <h3 className="text-sm font-semibold text-[var(--color-text-secondary)] mb-3 flex items-center gap-2">
-              <Link2 className="w-4 h-4" />
+              <EntityTypeIndicator type="cross_reference" size="sm" />
               Linked Regulations ({statute.regulationLinks.length})
             </h3>
 
@@ -191,7 +193,7 @@ export function StatuteDetailPanel({
                 <div key={linkType}>
                   <div className="flex items-center gap-2 mb-2">
                     {linkType === 'enabling_authority' && (
-                      <Scale className="w-3.5 h-3.5 text-[var(--color-info)]" />
+                      <EntityTypeIndicator type="statute" size="sm" />
                     )}
                     <h4 className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted)]">
                       {LINK_TYPE_LABELS[linkType] || linkType} ({links.length})
@@ -204,7 +206,7 @@ export function StatuteDetailPanel({
                         key={link.linkId}
                         className="flex items-start gap-2 py-1.5 px-3 rounded bg-[var(--color-neutral-50)] border border-[var(--color-neutral-200)]"
                       >
-                        <FileText className="w-3.5 h-3.5 mt-0.5 shrink-0 text-[var(--color-text-muted)]" />
+                        <EntityTypeIndicator type="regulatory_document" size="sm" className="mt-0.5 shrink-0" />
                         <div className="min-w-0 flex-1">
                           <Link
                             href={`/${state}/regulations/${link.regulationId}`}

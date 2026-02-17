@@ -10,7 +10,10 @@ import { GlossarySearch } from './GlossarySearch';
 import { GlossaryFilters } from './GlossaryFilters';
 import { DefinitionCard } from './DefinitionCard';
 import { AggregatedTermCard } from './AggregatedTermCard';
-import { ChevronLeft, ChevronRight, BookOpen, List, Layers } from 'lucide-react';
+import { ChevronLeft, ChevronRight, List, Layers } from 'lucide-react';
+import { getEntityIcon } from '@/lib/constants/entity-types';
+
+const DefinitionIcon = getEntityIcon('definition');
 import {
   getDefinitionsPaginated,
   getAlphabeticalIndex,
@@ -227,7 +230,7 @@ export function GlossaryClient({ state, initialData }: GlossaryClientProps) {
       {/* Stats header */}
       <Card>
         <div className="flex items-center gap-3 mb-4">
-          <BookOpen className="w-6 h-6 text-[var(--color-info)]" />
+          <DefinitionIcon className="w-6 h-6 text-sky-600" />
           <h2 className="text-lg font-semibold text-[var(--color-text)]">
             Definitions Glossary
           </h2>
@@ -376,7 +379,7 @@ export function GlossaryClient({ state, initialData }: GlossaryClientProps) {
         ) : (
           <Card>
             <EmptyState
-              icon={BookOpen}
+              icon={DefinitionIcon}
               title="No definitions found"
               description={
                 hasActiveFilters

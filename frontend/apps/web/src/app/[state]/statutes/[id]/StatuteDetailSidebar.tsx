@@ -2,7 +2,10 @@ import Link from 'next/link';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { ChevronRight, Scale, FileText, Folder } from 'lucide-react';
+import { ChevronRight, Folder } from 'lucide-react';
+import { getEntityIcon } from '@/lib/constants/entity-types';
+
+const StatuteIcon = getEntityIcon('statute');
 import { LINK_TYPE_LABELS, MATCH_STATUS_LABELS } from '@/lib/constants/values';
 import { STATUTE_HIERARCHY_LEVEL_LABELS } from '@/lib/constants/hierarchy';
 import type { StatuteWithLinks, StatuteAncestor, StatuteHierarchyNode } from '@deproceduralizer/database';
@@ -89,7 +92,7 @@ export function StatuteDetailSidebar({
         <h2 className="font-semibold text-[var(--color-text)] mb-3 text-sm">Statute Info</h2>
         <div className="space-y-2 text-sm">
           <div className="flex items-center gap-2">
-            <Scale className="w-4 h-4 text-[var(--color-text-muted)]" />
+            <StatuteIcon className="w-4 h-4 text-violet-600" />
             <span className="font-mono text-[var(--color-primary)]">{statute.citation}</span>
           </div>
           {statute.hierarchyLevel && (
@@ -177,7 +180,7 @@ export function StatuteDetailSidebar({
                 {child.childCount > 0 ? (
                   <Folder className="w-4 h-4 text-[var(--color-text-muted)] shrink-0" />
                 ) : (
-                  <FileText className="w-4 h-4 text-[var(--color-text-muted)] shrink-0" />
+                  <StatuteIcon className="w-4 h-4 text-violet-600 shrink-0" />
                 )}
                 <span className="text-[var(--color-link)] truncate">{child.citation}</span>
                 {child.linkedRegulationCount > 0 && (

@@ -2252,6 +2252,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         tier3TriggerReason: complianceIssueAnalyses.tier3TriggerReason,
         // Document info
         docTitle: regulatoryDocuments.title,
+        docShortTitle: regulatoryDocuments.shortTitle,
         docNjacTitle: regulatoryDocuments.njacTitle,
         docNjacChapter: regulatoryDocuments.njacChapter,
         docNjacSubchapter: regulatoryDocuments.njacSubchapter,
@@ -2273,13 +2274,13 @@ export class ComplianceIssuesRepository extends BaseRepository {
       if (row.docNjacTitle) {
         citation = `N.J.A.C. ${row.docNjacTitle}:${row.docNjacChapter || ''}${row.docNjacSubchapter ? `-${row.docNjacSubchapter}` : ''}`;
       } else if (row.docNycrrTitle) {
-        citation = `${row.docNycrrTitle} NYCRR Part ${row.docNycrrPart || ''}`;
+        citation = `${row.docNycrrTitle} NYCRR ${row.docNycrrPart || ''}${row.docNycrrSection ? `.${row.docNycrrSection}` : ''}`;
       }
 
       return {
         documentId: Number(row.documentId),
         issueType: row.issueType,
-        documentTitle: row.docTitle,
+        documentTitle: row.docShortTitle || row.docTitle,
         citation,
         highestTierCompleted: row.highestTierCompleted ?? 0,
         tier1Classification: row.tier1Classification,

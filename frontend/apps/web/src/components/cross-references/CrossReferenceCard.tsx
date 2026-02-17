@@ -1,11 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { ExternalLink, Link2 } from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
+import { getEntityIcon } from '@/lib/constants/entity-types';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import type { CrossReferenceWithTarget, CrossReferenceWithSource } from '@deproceduralizer/database';
 import { DEFAULT_STATE } from '@/types/state';
+
+const XrefIcon = getEntityIcon('cross_reference');
 
 // Badge variant mapping for ref types
 const REF_TYPE_LABELS: Record<string, { label: string; variant: 'default' | 'info' | 'warning' | 'success' }> = {
@@ -50,7 +53,7 @@ export function CrossReferenceCard({
   return (
     <Card padding={compact ? 'sm' : 'md'} className="hover:border-[var(--color-primary-weak)] transition-colors">
       <div className="flex items-start gap-3">
-        <Link2 className="w-4 h-4 text-[var(--color-primary)] shrink-0 mt-0.5" />
+        <XrefIcon className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
 
         <div className="flex-1 min-w-0">
           {/* Citation text with context */}
@@ -131,7 +134,7 @@ export function IncomingReferenceCard({
   return (
     <Card padding={compact ? 'sm' : 'md'} className="hover:border-[var(--color-primary-weak)] transition-colors">
       <div className="flex items-start gap-3">
-        <Link2 className="w-4 h-4 text-[var(--color-success)] shrink-0 mt-0.5" />
+        <XrefIcon className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
 
         <div className="flex-1 min-w-0">
           {/* Source document link */}

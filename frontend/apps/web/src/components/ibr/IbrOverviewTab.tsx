@@ -1,6 +1,6 @@
 'use client';
 
-import { Building2, FileText, Search } from 'lucide-react';
+import { Building2, Search } from 'lucide-react';
 import { getEntityIcon } from '@/lib/constants/entity-types';
 import { StatCard, StatGrid } from '@/components/ui/StatCard';
 import { Card, CardHeader, CardTitle } from '@/components/ui/Card';
@@ -35,7 +35,7 @@ export function IbrOverviewTab({ stats, topStandards, flaggedDocCount }: IbrOver
         <StatCard
           label="Regulations Referenced"
           value={stats?.uniqueDocs ?? 0}
-          icon={FileText}
+          icon={getEntityIcon('regulatory_document')}
           variant="warning"
         />
         <StatCard

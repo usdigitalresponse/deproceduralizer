@@ -3,7 +3,10 @@
 import Link from 'next/link';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import { FolderTree, ClipboardCheck, Table, BookOpen, BarChart3, ArrowRight } from 'lucide-react';
+import { FolderTree, ClipboardCheck, Table, BarChart3, ArrowRight } from 'lucide-react';
+import { getEntityIcon } from '@/lib/constants/entity-types';
+
+const DefinitionIcon = getEntityIcon('definition');
 import type { DashboardStats } from '@deproceduralizer/database';
 
 interface QuickLinkProps {
@@ -75,7 +78,7 @@ export function QuickLinks({ state, stats }: QuickLinksProps) {
       />
       <QuickLink
         href={`/${state}/definitions`}
-        icon={<BookOpen className="w-6 h-6 text-[var(--color-text-secondary)] group-hover:text-[var(--color-primary)] transition-colors" />}
+        icon={<DefinitionIcon className="w-6 h-6 text-[var(--color-text-secondary)] group-hover:text-[var(--color-primary)] transition-colors" />}
         title="Definitions Glossary"
         description="Browse and search regulatory definitions extracted from regulations"
       />

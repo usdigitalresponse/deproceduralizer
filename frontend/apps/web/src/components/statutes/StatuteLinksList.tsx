@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Scale, ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
+import { EntityTypeIndicator } from '@/components/ui/EntityTypeIndicator';
 import { Badge } from '@/components/ui/Badge';
 import { LINK_TYPE_LABELS, MATCH_STATUS_LABELS } from '@/lib/constants/values';
 import type { RegulationStatuteLinkWithStatute } from '@deproceduralizer/database';
@@ -79,7 +80,7 @@ export function StatuteLinksList({
         ) : (
           <ChevronDown className="w-4 h-4 text-[var(--color-text-muted)]" />
         )}
-        <Scale className="w-4 h-4 text-[var(--color-primary)]" />
+        <EntityTypeIndicator type="statute" size="sm" />
         <h3 className="text-sm font-semibold text-[var(--color-text)]">
           Statute Links ({links.length})
         </h3>
