@@ -23,7 +23,7 @@ import {
   serializeCommaSeparated,
 } from '@/lib/url/parsers';
 import type { ViewModeValue } from '@/lib/constants/values';
-import type { RegulationWithAnalysis, FilterOptions, PaginationOptions } from '@deproceduralizer/database';
+import type { RegulationWithAnalysis, FilterOptions } from '@deproceduralizer/database';
 
 interface PaginationInfo {
   page: number;
@@ -37,11 +37,9 @@ interface RegulationsClientProps {
   pagination: PaginationInfo;
   search: string;
   filters: FilterOptions;
-  sortBy: PaginationOptions['sortBy'];
-  sortOrder: PaginationOptions['sortOrder'];
 }
 
-export default function RegulationsClient({ initialData, pagination, search, filters, sortBy, sortOrder }: RegulationsClientProps) {
+export default function RegulationsClient({ initialData, pagination, search, filters }: RegulationsClientProps) {
   const router = useRouter();
   const state = useStateFromPath();
   const [isPending, startTransition] = useTransition();

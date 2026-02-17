@@ -94,7 +94,6 @@ export function StatuteBrowseClient({
   const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
   const debouncedSearch = useDebouncedValue(searchTerm, 300);
   const [searchResults, setSearchResults] = useState<StatuteHierarchyNode[] | null>(null);
-  const [isSearching, setIsSearching] = useState(false);
 
   // Track if we've done initial URL sync to avoid loops
   const isInitialMount = useRef(true);
@@ -164,7 +163,6 @@ export function StatuteBrowseClient({
     }
 
     const performSearch = async () => {
-      setIsSearching(true);
       try {
         const result = await searchStatutes(state.toUpperCase(), debouncedSearch, 50);
         if (result.success) {
@@ -176,8 +174,6 @@ export function StatuteBrowseClient({
       } catch (error) {
         console.error('Search error:', error);
         setSearchResults([]);
-      } finally {
-        setIsSearching(false);
       }
     };
 
@@ -287,7 +283,6 @@ export function StatuteBrowseClient({
                 <StatuteDetailPanel
                   statuteId={selectedId}
                   state={state}
-                  onClose={handleCloseDetail}
                   onNavigate={handleSelect}
                   fullScreen
                 />
@@ -299,7 +294,6 @@ export function StatuteBrowseClient({
             <StatuteDetailPanel
               statuteId={selectedId}
               state={state}
-              onClose={handleCloseDetail}
               onNavigate={handleSelect}
             />
           </div>

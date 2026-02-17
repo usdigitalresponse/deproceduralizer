@@ -1,9 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import type { RegulationWithAnalysis } from '@deproceduralizer/database';
-import { getRegulationById } from '@/lib/actions/regulations';
 import { RedFlagCard, RedFlagReviewForm } from '@/components/flags';
 import {
   Modal,
@@ -22,7 +19,7 @@ import {
   RegulationContent,
 } from '@/components/regulations';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
-import { useStateFromPath } from '@/hooks';
+import { useStateFromPath, useRegulationById } from '@/hooks';
 
 interface DetailModalProps {
   regulationId: number | null;
@@ -41,41 +38,10 @@ interface DetailModalProps {
 
 export default function DetailModal({ regulationId, onClose, onFlagUpdated }: DetailModalProps) {
   const pathState = useStateFromPath();
-  const [regulation, setRegulation] = useState<RegulationWithAnalysis | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { regulation, setRegulation, isLoading, error } = useRegulationById(regulationId);
 
   // Use path state, fallback to regulation's state if available
   const state = pathState || (regulation?.state?.toLowerCase() as 'ny' | 'nj') || 'nj';
-
-  // Fetch regulation when regulationId changes
-  useEffect(() => {
-    if (regulationId === null) {
-      setRegulation(null);
-      setError(null);
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    getRegulationById(regulationId)
-      .then((result) => {
-        if (!result.success) {
-          setError(result.error);
-          setRegulation(null);
-        } else {
-          setRegulation(result.data);
-        }
-      })
-      .catch((err) => {
-        setError(err.message || 'Failed to load regulation');
-        setRegulation(null);
-      })
-      .finally(() => {
-        setIsLoading(false);
-      });
-  }, [regulationId]);
 
   // Handle flag updates - update local state and notify parent
   const handleFlagUpdated = (updatedFlag: {

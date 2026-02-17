@@ -4,8 +4,7 @@ import { forwardRef } from 'react';
 import { usePathname } from 'next/navigation';
 import { CopyLinkButton } from '@/components/ui';
 import { ISSUE_TYPE_LABELS } from '@/types/regulation';
-import { formatNycrrCitation } from '@/lib/formatters/nycrr';
-import { formatNjacCitation } from '@/lib/formatters/njac';
+import { formatStateCitation } from '@/lib/formatters/citations';
 import { CardWrapper } from '../shared';
 import { getStateFromPathname } from '@/hooks/useStateFromPath';
 import { Header } from './Header';
@@ -24,18 +23,7 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
     const pathname = usePathname();
     const stateCode = getStateFromPathname(pathname);
 
-    // Format citation based on state
-    const citation = issue.state === 'NJ'
-      ? formatNjacCitation(
-          issue.regulation.njacTitle,
-          issue.regulation.njacChapter,
-          issue.regulation.njacSubchapter
-        )
-      : formatNycrrCitation(
-          issue.regulation.nycrrTitle,
-          issue.regulation.nycrrPart,
-          issue.regulation.nycrrSection
-        );
+    const citation = formatStateCitation(issue.state, issue.regulation);
 
     const issueTypeLabel = ISSUE_TYPE_LABELS[issue.issueType] || issue.issueType;
 

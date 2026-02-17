@@ -1,7 +1,6 @@
 import { Badge, Tag } from '@/components/ui';
 import { ISSUE_TYPE_LABELS, formatLabel } from '@/types/regulation';
-import { formatNycrrCitation } from '@/lib/formatters/nycrr';
-import { formatNjacCitation } from '@/lib/formatters/njac';
+import { formatStateCitation } from '@/lib/formatters/citations';
 import { OutcomeBadges } from '@/components/issues/OutcomeBadges';
 import { HierarchyBreadcrumbsInline, RegulationTextViewer } from '../../shared';
 import type { ComplianceIssueContentProps } from '../types';
@@ -10,17 +9,7 @@ export function ComplianceIssueContent({ item, state }: ComplianceIssueContentPr
   if (!item.complianceIssueData) return null;
 
   const issue = item.complianceIssueData;
-  const citation = issue.state === 'NJ'
-    ? formatNjacCitation(
-        issue.regulation.njacTitle,
-        issue.regulation.njacChapter,
-        issue.regulation.njacSubchapter
-      )
-    : formatNycrrCitation(
-        issue.regulation.nycrrTitle,
-        issue.regulation.nycrrPart,
-        issue.regulation.nycrrSection
-      );
+  const citation = formatStateCitation(issue.state, issue.regulation);
 
   return (
     <>

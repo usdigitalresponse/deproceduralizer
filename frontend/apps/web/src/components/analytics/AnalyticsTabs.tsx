@@ -1,6 +1,7 @@
 'use client';
 
-import { BarChart3, AlertTriangle, Tag, BookOpen, Link2, Scale, GitBranch } from 'lucide-react';
+import { BarChart3, Tag, GitBranch } from 'lucide-react';
+import { getEntityIcon } from '@/lib/constants/entity-types';
 import { SegmentedControl, type SegmentedControlOption } from '@/components/ui';
 import type { AnalyticsTabValue } from '@/lib/constants/values';
 
@@ -11,11 +12,11 @@ interface AnalyticsTabsProps {
 
 const TABS: SegmentedControlOption<AnalyticsTabValue>[] = [
   { value: 'overview', label: 'Overview', icon: BarChart3 },
-  { value: 'crossrefs', label: 'Cross-References', icon: Link2 },
-  { value: 'issues', label: 'Issues', icon: AlertTriangle },
+  { value: 'crossrefs', label: 'Cross-References', icon: getEntityIcon('cross_reference') },
+  { value: 'issues', label: 'Issues', icon: getEntityIcon('compliance_issue') },
   { value: 'keywords', label: 'Keywords', icon: Tag },
-  { value: 'definitions', label: 'Definitions', icon: BookOpen },
-  { value: 'statutes', label: 'Statutes', icon: Scale },
+  { value: 'definitions', label: 'Definitions', icon: getEntityIcon('definition') },
+  { value: 'statutes', label: 'Statutes', icon: getEntityIcon('statute') },
   { value: 'pipeline', label: 'Pipeline', icon: GitBranch },
 ];
 

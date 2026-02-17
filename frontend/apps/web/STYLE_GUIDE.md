@@ -3147,3 +3147,76 @@ components/ibr/
 ├── IbrTable.tsx          # Clickable data table
 └── IbrDetailDrawer.tsx   # Right-side detail drawer
 ```
+
+---
+
+## Entity Type Visual System
+
+The app has 9 core data entity types. Each has a distinct visual identity (icon + color palette) defined once in `src/lib/constants/entity-types.ts` and applied everywhere via the `EntityTypeIndicator` component.
+
+### Design Principle
+
+Entity types communicate **what** something is. Status/severity badges (SeverityBadge, ReviewStatusBadge, SectionTypeBadge) communicate **how** it's doing. These are separate concerns with separate color systems:
+
+- **Entity types**: Tailwind `-50` backgrounds, `-600` icon colors, `-300` borders
+- **SectionTypeBadge**: Tailwind `-100` backgrounds, `-800` text
+- **Semantic status**: CSS custom properties (`--color-danger`, `--color-warning`, etc.)
+
+### Entity Type Mapping
+
+| Entity Type | Icon | Icon Color | Background | Border |
+|---|---|---|---|---|
+| Regulatory Document | `FileText` | `text-slate-600` | `bg-slate-50` | `border-slate-300` |
+| Statute | `Scale` | `text-violet-600` | `bg-violet-50` | `border-violet-300` |
+| Compliance Issue | `ClipboardList` | `text-amber-600` | `bg-amber-50` | `border-amber-300` |
+| Red Flag | `AlertTriangle` | `text-rose-600` | `bg-rose-50` | `border-rose-300` |
+| Definition | `BookOpen` | `text-sky-600` | `bg-sky-50` | `border-sky-300` |
+| Cross-Reference | `Link2` | `text-indigo-600` | `bg-indigo-50` | `border-indigo-300` |
+| IBR/Standard | `Library` | `text-emerald-600` | `bg-emerald-50` | `border-emerald-300` |
+| Note | `MessageSquare` | `text-stone-600` | `bg-stone-50` | `border-stone-300` |
+| Bookmark | `Star` | `text-yellow-600` | `bg-yellow-50` | `border-yellow-300` |
+
+### Canonical Source
+
+```
+src/lib/constants/entity-types.ts    # ENTITY_TYPES record, EntityType union, helpers
+src/components/ui/EntityTypeIndicator.tsx  # Reusable display component
+```
+
+Always import entity icons via `getEntityIcon()` or `getEntityConfig()` from `entity-types.ts` rather than importing Lucide icons directly. This ensures icon changes propagate everywhere.
+
+### EntityTypeIndicator Component
+
+```tsx
+import { EntityTypeIndicator } from '@/components/ui';
+
+// Icon only (default) — section headers
+<EntityTypeIndicator type="red_flag" size="sm" />
+
+// Icon + label — for headers needing text
+<EntityTypeIndicator type="definition" size="md" showLabel />
+
+// Pill with background — for filter chips, tabs
+<EntityTypeIndicator type="compliance_issue" showLabel showBackground />
+
+// With count badge
+<EntityTypeIndicator type="cross_reference" size="sm" count={12} />
+```
+
+**Props:**
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `type` | `EntityType` | required | Which entity type |
+| `size` | `'sm' \| 'md' \| 'lg'` | `'md'` | Icon size (14/16/20px) |
+| `showLabel` | `boolean` | `false` | Show label text |
+| `showBackground` | `boolean` | `false` | Render tinted background pill |
+| `count` | `number` | — | Optional count badge |
+| `className` | `string` | — | Additional CSS classes |
+
+### Usage Guidelines
+
+- **Section headers**: Use `EntityTypeIndicator` with just `type` and `size` props, alongside existing `<h3>` text
+- **Navigation**: Nav items that map to entity types (Statutes, Glossary, IBR, Bookmarks) import icons from `entity-types.ts`; view/action nav items (Browse, Table View, Pipeline) keep their own icons
+- **RedFlagCard left-border**: The `border-l-4 border-[var(--color-danger)]` on red flag cards communicates severity (a status concern), not entity type — keep it separate
+- **Cross-reference direction**: Both outgoing and incoming cross-references use the same `Link2` + indigo. The section title ("Cross-References" vs "Cited By") communicates direction

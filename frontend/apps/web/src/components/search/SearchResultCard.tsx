@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { FileText, Scale } from 'lucide-react';
 import { Badge, SectionTypeBadge } from '@/components/ui';
+import { getEntityIcon } from '@/lib/constants/entity-types';
 import { sanitizeSnippet } from '@/lib/utils/sanitize-snippet';
 import { SEVERITY_THRESHOLDS } from '@/lib/constants/values';
 import type { SearchResultItem } from '@deproceduralizer/database';
@@ -34,7 +34,8 @@ export function SearchResultCard({ result, state, query, searchUrl }: SearchResu
   const queryString = params.toString();
   const href = queryString ? `${basePath}?${queryString}` : basePath;
 
-  const TypeIcon = result.type === 'regulation' ? FileText : Scale;
+  const entityType = result.type === 'regulation' ? 'regulatory_document' as const : 'statute' as const;
+  const TypeIcon = getEntityIcon(entityType);
   const typeLabel = result.type === 'regulation' ? 'Regulation' : 'Statute';
 
   // Snippet is from PostgreSQL ts_headline (trusted DB content), sanitized via sanitizeSnippet()

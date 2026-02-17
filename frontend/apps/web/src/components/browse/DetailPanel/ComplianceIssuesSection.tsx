@@ -1,6 +1,5 @@
 import Link from 'next/link';
-import { ClipboardList } from 'lucide-react';
-import { Badge, Tag } from '@/components/ui';
+import { Badge, Tag, EntityTypeIndicator } from '@/components/ui';
 import { ISSUE_TYPE_LABELS } from '@/types/regulation';
 import type { ComplianceIssuesSectionProps } from './types';
 
@@ -10,7 +9,7 @@ export function ComplianceIssuesSection({ issues, state, documentId, currentUrl 
   return (
     <div>
       <h3 className="text-sm font-semibold text-[var(--color-text-secondary)] mb-2 flex items-center gap-2">
-        <ClipboardList className="w-4 h-4 text-[var(--color-warning)]" />
+        <EntityTypeIndicator type="compliance_issue" size="sm" />
         Compliance Issues ({issues.length})
       </h3>
       <div className="space-y-3">

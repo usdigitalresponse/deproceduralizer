@@ -15,7 +15,6 @@ import { getStatuteWithLinks, getStatuteAncestorChain } from '@/lib/actions/stat
 interface StatuteDetailPanelProps {
   statuteId: number | null;
   state: string;
-  onClose?: () => void;
   onNavigate?: (id: number) => void;
   fullScreen?: boolean;
 }
@@ -23,7 +22,6 @@ interface StatuteDetailPanelProps {
 export function StatuteDetailPanel({
   statuteId,
   state,
-  onClose,
   onNavigate,
   fullScreen = false,
 }: StatuteDetailPanelProps) {

@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ChevronDown, ChevronUp, BookOpen } from 'lucide-react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
+import { EntityTypeIndicator } from '@/components/ui';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -105,7 +106,7 @@ export function DefinitionsList({
         onClick={collapsible ? () => setIsCollapsed(!isCollapsed) : undefined}
       >
         <div className="flex items-center gap-2">
-          <BookOpen className="w-5 h-5 text-[var(--color-info)]" />
+          <EntityTypeIndicator type="definition" size="lg" />
           <div>
             <h2 className="font-semibold text-[var(--color-text)]">
               {title} ({definitions.length})

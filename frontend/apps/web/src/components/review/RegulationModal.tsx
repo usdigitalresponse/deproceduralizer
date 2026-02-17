@@ -1,9 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { getRegulationById } from '@/lib/actions/regulations';
-import type { RegulationWithAnalysis } from '@deproceduralizer/database';
 import {
   Modal,
   ModalContent,
@@ -19,7 +16,7 @@ import { RegulationSummary } from '@/components/regulations/RegulationSummary';
 import { RegulationContent } from '@/components/regulations/RegulationContent';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
 import { getComplexityVariant } from '@/types/regulation';
-import { useStateFromPath } from '@/hooks';
+import { useStateFromPath, useRegulationById } from '@/hooks';
 
 interface RegulationModalProps {
   regulationId: number | null;
@@ -28,37 +25,10 @@ interface RegulationModalProps {
 
 export function RegulationModal({ regulationId, onClose }: RegulationModalProps) {
   const pathState = useStateFromPath();
-  const [regulation, setRegulation] = useState<RegulationWithAnalysis | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { regulation, isLoading, error } = useRegulationById(regulationId);
 
   // Use path state, fallback to regulation's state if available
   const state = pathState || (regulation?.state?.toLowerCase() as 'ny' | 'nj') || 'nj';
-
-  useEffect(() => {
-    if (regulationId === null) {
-      setRegulation(null);
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    getRegulationById(regulationId)
-      .then((result) => {
-        if (!result.success) {
-          setError(result.error);
-          setIsLoading(false);
-          return;
-        }
-        setRegulation(result.data);
-        setIsLoading(false);
-      })
-      .catch((err) => {
-        setError(err instanceof Error ? err.message : 'Failed to load regulation');
-        setIsLoading(false);
-      });
-  }, [regulationId]);
 
   const nycrrCitation = regulation
     ? formatNycrrCitation(

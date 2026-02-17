@@ -1,6 +1,7 @@
 'use client';
 
-import { FileText, ExternalLink } from 'lucide-react';
+import { FileText } from 'lucide-react';
+import { getEntityIcon } from '@/lib/constants/entity-types';
 import { HTMLAttributes } from 'react';
 
 interface MetadataIndicatorsProps extends HTMLAttributes<HTMLDivElement> {
@@ -32,6 +33,7 @@ export function MetadataIndicators({
   if (!hasForm && !hasIbr) return null;
 
   const iconSize = size === 'sm' ? 'w-4 h-4' : 'w-5 h-5';
+  const IbrIcon = getEntityIcon('ibr_standard');
 
   return (
     <div className={`flex items-center gap-1.5 ${className}`} {...props}>
@@ -47,9 +49,9 @@ export function MetadataIndicators({
       {hasIbr && (
         <span
           title="Incorporates external standards (ASTM, NFPA, ISO, etc.)"
-          className="text-green-600 flex items-center"
+          className="text-emerald-600 flex items-center"
         >
-          <ExternalLink className={iconSize} aria-hidden="true" />
+          <IbrIcon className={iconSize} aria-hidden="true" />
           <span className="sr-only">Incorporates external standards</span>
         </span>
       )}

@@ -1,6 +1,7 @@
 'use client';
 
-import { Library, Building2, FileText, Search } from 'lucide-react';
+import { Building2, FileText, Search } from 'lucide-react';
+import { getEntityIcon } from '@/lib/constants/entity-types';
 import { StatCard, StatGrid } from '@/components/ui/StatCard';
 import { Card, CardHeader, CardTitle } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -22,7 +23,7 @@ export function IbrOverviewTab({ stats, topStandards, flaggedDocCount }: IbrOver
         <StatCard
           label="Total IBRs"
           value={stats?.total ?? 0}
-          icon={Library}
+          icon={getEntityIcon('ibr_standard')}
           variant="default"
         />
         <StatCard

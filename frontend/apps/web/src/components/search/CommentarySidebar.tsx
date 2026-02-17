@@ -2,7 +2,8 @@
 
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
-import { ChevronRight, MessageSquare, BookOpen, FileText } from 'lucide-react';
+import { ChevronRight, FileText } from 'lucide-react';
+import { getEntityIcon } from '@/lib/constants/entity-types';
 import { Badge } from '@/components/ui';
 import { sanitizeSnippet } from '@/lib/utils/sanitize-snippet';
 import { SEVERITY_THRESHOLDS } from '@/lib/constants/values';
@@ -85,7 +86,7 @@ function CommentaryHitCard({
   searchUrl?: string;
 }) {
   const isAnalysis = hit.type === 'analysis';
-  const Icon = isAnalysis ? MessageSquare : BookOpen;
+  const Icon = isAnalysis ? getEntityIcon('compliance_issue') : getEntityIcon('definition');
 
   // Build primary href (analysis → pipeline page, definition → regulation with highlight)
   const primaryHref = useMemo(() => {

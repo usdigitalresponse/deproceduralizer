@@ -113,3 +113,7 @@ export { BookmarkButton } from './BookmarkButton';
 
 // ScrollToHash
 export { ScrollToHash } from './ScrollToHash';
+
+// EntityTypeIndicator
+export { EntityTypeIndicator } from './EntityTypeIndicator';
+export type { EntityTypeIndicatorProps } from './EntityTypeIndicator';

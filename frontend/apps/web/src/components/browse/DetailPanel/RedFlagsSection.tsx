@@ -1,6 +1,5 @@
 import Link from 'next/link';
-import { AlertTriangle } from 'lucide-react';
-import { Badge, SeverityBadge } from '@/components/ui';
+import { Badge, SeverityBadge, EntityTypeIndicator } from '@/components/ui';
 import type { RedFlagsSectionProps } from './types';
 
 export function RedFlagsSection({ redFlags, state, documentId, currentUrl }: RedFlagsSectionProps) {
@@ -9,7 +8,7 @@ export function RedFlagsSection({ redFlags, state, documentId, currentUrl }: Red
   return (
     <div>
       <h3 className="text-sm font-semibold text-[var(--color-text-secondary)] mb-2 flex items-center gap-2">
-        <AlertTriangle className="w-4 h-4 text-[var(--color-danger)]" />
+        <EntityTypeIndicator type="red_flag" size="sm" />
         Red Flags ({redFlags.length})
       </h3>
       <div className="space-y-3">
