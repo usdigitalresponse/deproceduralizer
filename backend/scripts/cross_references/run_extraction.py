@@ -58,7 +58,7 @@ def get_documents(
     Fetch documents from database for processing.
 
     Args:
-        state: 'NY' or 'NJ'
+        state: 'NY', 'NJ', or 'NYC'
         title: Optional title number filter
         limit: Optional max documents to fetch
 
@@ -80,6 +80,9 @@ def get_documents(
         if state.upper() == 'NY':
             conditions.append("nycrr_title = %s")
             params.append(int(title))
+        elif state.upper() == 'NYC':
+            conditions.append("rcny_title = %s")
+            params.append(title)
         else:  # NJ
             conditions.append("njac_title = %s")
             params.append(title)
@@ -290,8 +293,8 @@ EXAMPLES:
     parser.add_argument(
         "--state",
         required=True,
-        choices=["NY", "NJ"],
-        help="State to process (NY or NJ)"
+        choices=["NY", "NJ", "NYC"],
+        help="State/jurisdiction to process (NY, NJ, or NYC)"
     )
     parser.add_argument(
         "--title",

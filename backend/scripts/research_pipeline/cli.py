@@ -42,7 +42,7 @@ def state_validator(value: str) -> str:
     'dangerously-run-all' skips state filtering in database queries.
     """
     normalized = value.lower()
-    valid_states = ['nj', 'ny', 'dangerously-run-all']
+    valid_states = ['nj', 'ny', 'nyc', 'dangerously-run-all']
     if normalized not in valid_states:
         raise argparse.ArgumentTypeError(
             f"Invalid state '{value}'. Must be one of: {', '.join(valid_states)}"
@@ -504,7 +504,8 @@ def _check_summarization_completeness(state: str, title: str) -> float | None:
 
     try:
         with conn.cursor() as cur:
-            col = "nycrr_title" if state.upper() == "NY" else "njac_title"
+            state_upper = state.upper()
+            col = "nycrr_title" if state_upper == "NY" else "rcny_title" if state_upper == "NYC" else "njac_title"
             cur.execute(f"""
                 SELECT
                     COUNT(*) as total,
@@ -884,7 +885,7 @@ if __name__ == "__main__":
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 REQUIRED FLAGS:
-  --state                 State code: 'nj', 'ny', or 'dangerously-run-all'
+  --state                 State code: 'nj', 'ny', 'nyc', or 'dangerously-run-all'
   --issue OR --all-issues  Single issue type OR all 41 issue types (must choose one)
 
 COST-SAFE DEFAULTS:
@@ -946,7 +947,7 @@ RESUME BEHAVIOR:
         "--state",
         type=state_validator,
         required=True,
-        help="State code: 'nj', 'ny', or 'dangerously-run-all' (skip state filtering)"
+        help="State code: 'nj', 'ny', 'nyc', or 'dangerously-run-all' (skip state filtering)"
     )
 
     # === ISSUE TYPE SELECTION (required) ===

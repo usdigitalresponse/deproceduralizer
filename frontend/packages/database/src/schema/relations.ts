@@ -12,6 +12,7 @@ import { crossReferences } from './cross-references';
 import { complianceIssueAnalyses } from './compliance-issue-analyses';
 import { jenaiAnalyses } from './jenai-analyses';
 import { jenaiIssues } from './jenai-issues';
+import { documentTags } from './document-tags';
 
 export const regulatoryDocumentsRelations = relations(regulatoryDocuments, ({ one, many }) => ({
   parent: one(regulatoryDocuments, {
@@ -29,6 +30,7 @@ export const regulatoryDocumentsRelations = relations(regulatoryDocuments, ({ on
   crossReferencesFrom: many(crossReferences, { relationName: 'sourceDoc' }),
   // Cross-references: citations TO this document from other documents
   crossReferencesTo: many(crossReferences, { relationName: 'targetDoc' }),
+  tags: many(documentTags),
 }));
 
 export const documentNotesRelations = relations(documentNotes, ({ one }) => ({
@@ -150,6 +152,14 @@ export const jenaiIssuesRelations = relations(jenaiIssues, ({ one }) => ({
   }),
   document: one(regulatoryDocuments, {
     fields: [jenaiIssues.documentId],
+    references: [regulatoryDocuments.id],
+  }),
+}));
+
+// Document tags relations
+export const documentTagsRelations = relations(documentTags, ({ one }) => ({
+  document: one(regulatoryDocuments, {
+    fields: [documentTags.documentId],
     references: [regulatoryDocuments.id],
   }),
 }));

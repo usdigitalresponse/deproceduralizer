@@ -26,7 +26,7 @@ cd backend && python3 -m scripts.research_pipeline.cli [OPTIONS]
 
 | Flag | Values | Description |
 |------|--------|-------------|
-| `--state` | `nj`, `ny`, `dangerously-run-all` | State to process |
+| `--state` | `nj`, `ny`, `nyc`, `dangerously-run-all` | State to process |
 | `--issue` OR `--all-issues` | issue name OR flag | Single issue vs all 41 issues (must choose one) |
 
 ## Flags With Defaults (Cost-Safe)

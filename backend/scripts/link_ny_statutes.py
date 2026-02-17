@@ -1,22 +1,24 @@
 #!/usr/bin/env python3
 """
-Link NY regulations (NYCRR) to NY statutes (NYCLS).
+Link regulations (NYCRR or RCNY) to NY statutes (NYCLS).
 
 Scans regulation text for statute citations using regex patterns,
 matches them to statutes in the DB, classifies link types, and
 inserts into the regulation_statute_links table.
 
-NY regulations cite statutes in natural language:
+Regulations cite NY statutes in natural language:
   - "section 488 of the Social Services Law"
   - "Education Law section 4401"
   - "Public Health Law § 2801"
   - "subdivision (a) of section 413 of the Social Services Law"
 
 Usage:
-    python backend/scripts/link_ny_statutes.py                 # Full scan
-    python backend/scripts/link_ny_statutes.py --dry-run       # Preview without writing
-    python backend/scripts/link_ny_statutes.py --law SOS       # Only links to SOS statutes
-    python backend/scripts/link_ny_statutes.py --title 18      # Only scan NYCRR Title 18
+    cd backend && python scripts/link_ny_statutes.py                        # Scan NYCRR (default)
+    cd backend && python scripts/link_ny_statutes.py --source nyc           # Scan RCNY
+    cd backend && python scripts/link_ny_statutes.py --dry-run              # Preview without writing
+    cd backend && python scripts/link_ny_statutes.py --law SOS              # Only links to SOS statutes
+    cd backend && python scripts/link_ny_statutes.py --title 18             # Only scan NYCRR Title 18
+    cd backend && python scripts/link_ny_statutes.py --source nyc --title 47  # Only RCNY Title 47
 """
 
 import re
@@ -109,6 +111,9 @@ def extract_citations(text: str) -> list[dict]:
             section_num = match.group(section_group).strip()
             law_name = match.group(law_name_group).strip()
 
+            # Normalize section suffix to uppercase (DB stores "114-B" not "114-b")
+            section_num = re.sub(r'-([a-z])', lambda m: '-' + m.group(1).upper(), section_num)
+
             # Resolve law name to ID
             law_id = resolve_law_id(law_name)
 
@@ -153,28 +158,33 @@ def link_ny_statutes(
     dry_run: bool = False,
     filter_law: Optional[str] = None,
     filter_title: Optional[str] = None,
+    source: str = 'ny',
 ) -> dict:
     """
-    Scan NY regulations for statute citations and create links.
+    Scan regulations for NY statute citations and create links.
 
     Args:
         dry_run: If True, only report what would be done without writing to DB
         filter_law: Only create links to this law ID (e.g., "SOS")
-        filter_title: Only scan regulations in this NYCRR title (e.g., "18")
+        filter_title: Only scan regulations in this title (NYCRR or RCNY title number)
+        source: Which regulations to scan: 'ny' (NYCRR) or 'nyc' (RCNY)
 
     Returns:
         Stats dict with counts of matched, unmatched, unknown_law, etc.
     """
+    state_code = 'NY' if source == 'ny' else 'NYC'
+    source_label = 'NYCRR' if source == 'ny' else 'RCNY'
+
     print("\n" + "=" * 60)
     print("NY STATUTE LINKING")
-    print("Scan NYCRR for NYCLS citations -> regulation_statute_links")
+    print(f"Scan {source_label} for NYCLS citations -> regulation_statute_links")
     print("=" * 60)
     if dry_run:
         print("  ** DRY RUN — no database writes **")
     if filter_law:
         print(f"  Filter: only links to law {filter_law}")
     if filter_title:
-        print(f"  Filter: only scanning NYCRR Title {filter_title}")
+        print(f"  Filter: only scanning {source_label} Title {filter_title}")
     print()
 
     conn = get_db_connection()
@@ -183,16 +193,20 @@ def link_ny_statutes(
         return {}
 
     try:
-        # Load NY regulations
-        print("Loading NY regulations...")
+        # Load regulations
+        print(f"Loading {source_label} regulations...")
         reg_query = """
             SELECT id, citation, content FROM regulatory_documents
-            WHERE state = 'NY' AND hierarchy_level = 'section' AND content IS NOT NULL
+            WHERE state = %s AND hierarchy_level = 'section' AND content IS NOT NULL
         """
-        params = []
+        params: list = [state_code]
         if filter_title:
-            reg_query += " AND citation LIKE %s"
-            params.append(f"{filter_title} NYCRR %")
+            if source == 'ny':
+                reg_query += " AND citation LIKE %s"
+                params.append(f"{filter_title} NYCRR %")
+            else:
+                reg_query += " AND rcny_title = %s"
+                params.append(filter_title)
 
         regulations = conn.execute(reg_query, params).fetchall()
         print(f"  Found {len(regulations):,} regulation sections")
@@ -226,9 +240,9 @@ def link_ny_statutes(
             SELECT regulation_id, citation, reviewed_at IS NOT NULL as is_reviewed
             FROM regulation_statute_links
             WHERE regulation_id IN (
-                SELECT id FROM regulatory_documents WHERE state = 'NY'
+                SELECT id FROM regulatory_documents WHERE state = %s
             )
-        """).fetchall()
+        """, (state_code,)).fetchall()
         existing_links = {(row[0], row[1]): row[2] for row in existing}
         print(f"  Found {len(existing_links):,} existing links "
               f"({sum(existing_links.values())} reviewed)")
@@ -379,14 +393,16 @@ def link_ny_statutes(
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Link NY regulations to NY statutes via citation regex scan'
+        description='Link regulations to NY statutes via citation regex scan'
     )
     parser.add_argument('--dry-run', action='store_true',
                         help='Preview without writing to database')
+    parser.add_argument('--source', choices=['ny', 'nyc'], default='ny',
+                        help='Which regulations to scan: ny (NYCRR, default) or nyc (RCNY)')
     parser.add_argument('--law', type=str, default=None,
                         help='Only create links to this law ID (e.g., SOS, EDN)')
     parser.add_argument('--title', type=str, default=None,
-                        help='Only scan regulations in this NYCRR title (e.g., 18)')
+                        help='Only scan regulations in this title (NYCRR or RCNY title number)')
 
     args = parser.parse_args()
 
@@ -394,6 +410,7 @@ def main():
         dry_run=args.dry_run,
         filter_law=args.law,
         filter_title=args.title,
+        source=args.source,
     )
 
 

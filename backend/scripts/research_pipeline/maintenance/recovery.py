@@ -125,8 +125,11 @@ async def retry_failed_tier3(
         params.extend(issue_types)
 
     if title:
-        if state and state.upper() == "NY":
+        state_upper = state.upper() if state else ""
+        if state_upper == "NY":
             query += " AND rd.nycrr_title = %s"
+        elif state_upper == "NYC":
+            query += " AND rd.rcny_title = %s"
         else:
             query += " AND rd.njac_title = %s"
         params.append(title)
@@ -413,8 +416,11 @@ async def rerun_placeholder_tier2(
         params.extend(issue_types)
 
     if title:
-        if state and state.upper() == "NY":
+        state_upper = state.upper() if state else ""
+        if state_upper == "NY":
             query += " AND rd.nycrr_title = %s"
+        elif state_upper == "NYC":
+            query += " AND rd.rcny_title = %s"
         else:
             query += " AND rd.njac_title = %s"
         params.append(title)

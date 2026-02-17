@@ -183,16 +183,25 @@ def parse_breadcrumb(soup: BeautifulSoup) -> Dict:
             last_level = 'section'
             continue
 
-        # Parse "Title X - NAME" (subdivision within part, not NYCRR title)
-        # This comes after checking for N.Y. Comp. Codes pattern
+        # Parse "Title X - NAME"
+        # If nycrr_title is already set (from a prior "N.Y. Comp. Codes" breadcrumb item),
+        # this is a subdivision within a part — store as subpart.
+        # If nycrr_title is NOT set, this IS the top-level NYCRR title (e.g., Title 6, 9, 99
+        # which lack the "N.Y. Comp. Codes" prefix in their breadcrumb).
         title_div_match = re.match(r'^Title\s+([A-Za-z\d]+)\s*(?:-\s*(.+))?$', text)
         if title_div_match:
-            # Store as a special "division" type - these are nested titles within parts
-            # We'll use subpart field for this since it's the closest semantic match
-            result['nycrr_subpart'] = f"Title-{title_div_match.group(1)}"
-            if title_div_match.group(2):
-                result['nycrr_subpart_name'] = title_div_match.group(2).strip()
-            last_level = 'subpart'
+            if result['nycrr_title'] is not None:
+                # Subdivision within part — store as subpart
+                result['nycrr_subpart'] = f"Title-{title_div_match.group(1)}"
+                if title_div_match.group(2):
+                    result['nycrr_subpart_name'] = title_div_match.group(2).strip()
+                last_level = 'subpart'
+            else:
+                # Top-level NYCRR title (no prior "N.Y. Comp. Codes" item)
+                result['nycrr_title'] = int(title_div_match.group(1)) if title_div_match.group(1).isdigit() else title_div_match.group(1)
+                if title_div_match.group(2):
+                    result['nycrr_title_name'] = title_div_match.group(2).strip()
+                last_level = 'title'
             continue
 
     result['hierarchy_level'] = last_level

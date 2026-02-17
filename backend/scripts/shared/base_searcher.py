@@ -93,12 +93,14 @@ class BasePatternSearcher(ABC):
         """
         pass
 
-    def search(self, limit: Optional[int] = None) -> list[dict]:
+    def search(self, limit: Optional[int] = None, tag: Optional[str] = None) -> list[dict]:
         """
         Search regulations for pattern matches.
 
         Args:
             limit: Optional limit on number of matches
+            tag: Optional tag filter — only search documents with this tag
+                 (e.g., 'scan:compliance'). Requires document_tags table.
 
         Returns:
             List of match dicts with document info, context, etc.
@@ -117,19 +119,32 @@ class BasePatternSearcher(ABC):
             print(f"Skipping {len(already_analyzed)} already-analyzed docs")
 
         # Query documents
-        print(f"Querying {state_code} regulations from database...")
+        tag_msg = f" (tag: {tag})" if tag else ""
+        print(f"Querying {state_code} regulations from database{tag_msg}...")
 
         try:
+            tag_join = ""
+            params = [state_code]
+            if tag:
+                tag_join = "JOIN document_tags dt ON dt.document_id = rd.id AND dt.tag = %s"
+                params = [state_code, tag]
+
             query = f"""
-                SELECT id, title, content, url, hierarchy_level, hierarchy_path,
-                       {prefix}_title, {prefix}_chapter, {prefix}_section, source_index
-                FROM regulatory_documents
-                WHERE state = %s
-                  AND content IS NOT NULL
-                  AND (exclude_from_analysis = FALSE OR exclude_from_analysis IS NULL)
-                ORDER BY id
+                SELECT rd.id, rd.title, rd.content, rd.url, rd.hierarchy_level, rd.hierarchy_path,
+                       rd.{prefix}_title, rd.{prefix}_chapter, rd.{prefix}_section, rd.source_index
+                FROM regulatory_documents rd
+                {tag_join}
+                WHERE rd.state = %s
+                  AND rd.content IS NOT NULL
+                  AND (rd.exclude_from_analysis = FALSE OR rd.exclude_from_analysis IS NULL)
+                ORDER BY rd.id
             """
-            rows = conn.execute(query, (state_code,)).fetchall()
+            # params order: tag (if present) must come before state in the JOIN
+            # but state is in WHERE — psycopg2 uses positional %s
+            if tag:
+                rows = conn.execute(query, (tag, state_code)).fetchall()
+            else:
+                rows = conn.execute(query, (state_code,)).fetchall()
             print(f"Found {len(rows)} {state_code} documents to search...")
 
         except Exception as e:

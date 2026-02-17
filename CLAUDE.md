@@ -38,6 +38,12 @@ When working on the Next.js frontend, follow these patterns:
 
 ## Backend Patterns
 
+### Jurisdiction Model
+- The `state` column represents a jurisdiction, not strictly a US state: `NY` (New York State), `NJ` (New Jersey), `NYC` (New York City)
+- NYC is a sub-state jurisdiction — its regulations (RCNY) and statutes (Charter + Admin Code) use `state = 'NYC'`
+- Use `StateCode` type and `VALID_STATES` array — never hardcode jurisdiction lists
+- When adding a new jurisdiction, see the checklist in `.claude/skills/database/schema.md` (Jurisdiction Model section)
+
 ### LLM Prompts
 - All prompts are centralized in the `/prompts/` directory:
   - `prompts/core.yaml` - Core analysis prompts (red_flags, definitions)

@@ -31,7 +31,7 @@ Complete guide for running the Deproceduralizer analysis pipeline on a state's r
 
 ## Full State Analysis (e.g., NY)
 
-Replace `NY`/`ny` with `NJ`/`nj` for New Jersey. All commands run from the project root unless noted.
+Replace `NY`/`ny` with `NJ`/`nj` for New Jersey or `NYC`/`nyc` for New York City. All commands run from the project root unless noted.
 
 ### Step 1: Scrape Regulations
 
@@ -82,21 +82,27 @@ Key flags:
 After ingesting statutes, scan regulation text for statute citations and link them:
 
 ```bash
-# Preview (no DB writes):
-python backend/scripts/link_ny_statutes.py --dry-run
+cd backend
 
-# Full scan:
-python backend/scripts/link_ny_statutes.py
+# Scan NYCRR for NY state law citations (default):
+python3 scripts/link_ny_statutes.py --dry-run
+python3 scripts/link_ny_statutes.py
+
+# Scan RCNY for NY state law citations:
+python3 scripts/link_ny_statutes.py --source nyc --dry-run
+python3 scripts/link_ny_statutes.py --source nyc
 
 # Filter by law or title:
-python backend/scripts/link_ny_statutes.py --law SOS --title 18
+python3 scripts/link_ny_statutes.py --law SOS --title 18
+python3 scripts/link_ny_statutes.py --source nyc --title 47
 ```
 
 | Flag | Description |
 |------|-------------|
 | `--dry-run` | Preview citations found without writing to DB |
+| `--source ny\|nyc` | Which regulations to scan: `ny` (NYCRR, default) or `nyc` (RCNY) |
 | `--law SOS` | Only link citations to a specific law |
-| `--title 18` | Only scan regulations from a specific NYCRR title |
+| `--title 18` | Only scan regulations from a specific title |
 
 | Cost | Time |
 |------|------|
@@ -172,14 +178,17 @@ python3 scripts/rcny_parser.py --title 1
 ```bash
 cd backend
 
-# Preview links (dry run):
+# Scan NYCRR for NYC citations (default):
 python3 scripts/link_nyc_statutes.py --dry-run
-
-# Create links:
 python3 scripts/link_nyc_statutes.py
 
-# Filter by NYCRR title:
+# Scan RCNY for NYC citations:
+python3 scripts/link_nyc_statutes.py --source nyc --dry-run
+python3 scripts/link_nyc_statutes.py --source nyc
+
+# Filter by title:
 python3 scripts/link_nyc_statutes.py --title 9
+python3 scripts/link_nyc_statutes.py --source nyc --title 47
 ```
 
 | Cost | Time |
@@ -223,7 +232,7 @@ python backend/scripts/detect_regulatory_status.py --state NY
 ### Step 3: Extract Definitions
 
 ```bash
-python backend/scripts/batch_definitions.py submit --state NY
+python backend/scripts/batch_definitions.py submit --state NY   # or NJ, NYC
 python backend/scripts/batch_definitions.py status              # poll until "ended"
 python backend/scripts/batch_definitions.py process --batch-id <id>
 ```
@@ -243,7 +252,7 @@ python backend/scripts/batch_definitions.py process --batch-id <id>
 ### Step 4: Link Definitions
 
 ```bash
-python backend/scripts/link_definitions.py run --state NY
+python backend/scripts/link_definitions.py run --state NY       # or NJ, NYC
 python backend/scripts/backfill_definition_scope.py --state NY
 ```
 
@@ -260,14 +269,16 @@ python backend/scripts/backfill_definition_scope.py --state NY
 ```bash
 cd backend
 python3 -m scripts.cross_references.run_extraction --state NY --output db
+python3 -m scripts.cross_references.run_extraction --state NYC --output db   # RCNY → NYCRR links
 ```
 
 - Extracts internal citations between regulatory documents (e.g., "18 NYCRR 505.14", "section 624.8 of this Part")
 - Regex-based detection → resolution to target document IDs
 - Reference types: NYCRR, NJAC, NY short-form, same-section
+- NYC mode: scans RCNY text for NYCRR citations, resolves against NY regulation documents
 - Use `--limit 50` to test on a subset, `--dry-run` to preview without writing
 - Use `--output json` to save results to file instead of DB, `--output console` for quick summary
-- Can filter by title: `--title 18`
+- Can filter by title: `--title 18` (NYCRR title for NY, RCNY title for NYC)
 
 | Cost | Time |
 |------|------|
@@ -346,6 +357,8 @@ python backend/scripts/scan_compliance_issues.py --state ny
 - Patterns defined in `prompts/compliance_issues.yaml`
 - Use `--issue wet_signature` for a single type, `--dry-run` to search without saving
 - Use `--list-issues` to see all available issue types, `--limit N` to cap matches per issue type
+- Use `--tag scan:compliance` to only scan documents with that tag (requires `document_tags` table, see migration 0048)
+- Supports `--state nyc` for NYC/RCNY regulations
 
 | Cost | Time |
 |------|------|
@@ -355,7 +368,7 @@ python backend/scripts/scan_compliance_issues.py --state ny
 
 ```bash
 cd backend
-python3 -m scripts.research_pipeline.cli --state ny --all-issues --execute
+python3 -m scripts.research_pipeline.cli --state ny --all-issues --execute  # or nyc, nj
 ```
 
 **This is the most expensive step. Always ask before running.**

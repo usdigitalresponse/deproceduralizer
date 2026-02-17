@@ -16,6 +16,12 @@ export interface StateConfig {
   regulationsLabel: string;
 }
 
+/**
+ * Per-jurisdiction display configuration. Each entry drives theming (via CSS
+ * variables `--color-state-{code}-*` in tokens.css), navigation labels, and
+ * the state selector UI. When adding a jurisdiction, also add matching CSS
+ * variables and update `formatStateCitation` in `lib/formatters/citations.ts`.
+ */
 export const STATE_CONFIG: Record<StateCode, StateConfig> = {
   ny: {
     name: 'New York',

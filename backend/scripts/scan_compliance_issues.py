@@ -13,6 +13,9 @@ Usage:
     python scan_compliance_issues.py --state nj
     python scan_compliance_issues.py --state nj --issue wet_signature
 
+    # Scan only tagged documents (e.g., NYC childcare titles)
+    python scan_compliance_issues.py --state nyc --tag scan:compliance
+
     # Dry run (search only, no save)
     python scan_compliance_issues.py --state nj --dry-run
 
@@ -36,7 +39,7 @@ from compliance_issues.searcher import ComplianceIssueSearcher
 from compliance_issues.config import STATES, ISSUE_TYPES, list_issue_types
 
 
-def scan_and_save(state_code: str, issues: list[str], limit: int | None):
+def scan_and_save(state_code: str, issues: list[str], limit: int | None, tag: str | None):
     """Scan for regex matches and save to database."""
     state_config = STATES[state_code]
 
@@ -44,6 +47,8 @@ def scan_and_save(state_code: str, issues: list[str], limit: int | None):
     print(f"COMPLIANCE ISSUES SCANNER - {state_code.upper()}")
     print("=" * 70)
     print(f"Issue types: {len(issues)}")
+    if tag:
+        print(f"Tag filter: {tag}")
     print(f"Mode: Regex scan + save (no LLM)")
 
     total_saved = 0
@@ -57,7 +62,7 @@ def scan_and_save(state_code: str, issues: list[str], limit: int | None):
             with_statutes=False,
         )
 
-        matches = searcher.search(limit=limit)
+        matches = searcher.search(limit=limit, tag=tag)
 
         if not matches:
             continue
@@ -71,12 +76,14 @@ def scan_and_save(state_code: str, issues: list[str], limit: int | None):
     print(f"  python -m scripts.research_pipeline.cli --state {state_code} --all-issues --execute")
 
 
-def dry_run(state_code: str, issues: list[str], limit: int | None):
+def dry_run(state_code: str, issues: list[str], limit: int | None, tag: str | None):
     """Search only, no save."""
     state_config = STATES[state_code]
 
     print("\n" + "=" * 70)
     print(f"DRY RUN - {state_code.upper()}")
+    if tag:
+        print(f"Tag filter: {tag}")
     print("=" * 70)
 
     total = 0
@@ -87,7 +94,7 @@ def dry_run(state_code: str, issues: list[str], limit: int | None):
             issue_config=issue_config,
             with_statutes=False,
         )
-        matches = searcher.search(limit=limit)
+        matches = searcher.search(limit=limit, tag=tag)
         total += len(matches)
         if matches:
             print(f"  {issue_type}: {len(matches)} matches")
@@ -101,8 +108,9 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
-    parser.add_argument('--state', '-s', choices=['nj', 'ny'], help='State to scan')
+    parser.add_argument('--state', '-s', choices=['nj', 'ny', 'nyc'], help='State to scan')
     parser.add_argument('--issue', '-i', help='Specific issue type (default: all)')
+    parser.add_argument('--tag', '-t', help='Only scan documents with this tag (e.g., scan:compliance)')
     parser.add_argument('--limit', '-l', type=int, help='Limit matches per issue type')
     parser.add_argument('--dry-run', action='store_true', help='Search only, no save')
     parser.add_argument('--list-issues', action='store_true', help='List issue types')
@@ -125,9 +133,9 @@ def main():
         issues = sorted(ISSUE_TYPES.keys())
 
     if args.dry_run:
-        dry_run(args.state, issues, args.limit)
+        dry_run(args.state, issues, args.limit, args.tag)
     else:
-        scan_and_save(args.state, issues, args.limit)
+        scan_and_save(args.state, issues, args.limit, args.tag)
 
 
 if __name__ == '__main__':

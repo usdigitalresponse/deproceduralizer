@@ -29,8 +29,8 @@ class StateConfig:
     Regulations are queried from the regulatory_documents table in the database.
 
     Attributes:
-        state_code: Two-letter state code ('NJ' or 'NY')
-        citation_prefix: Prefix for database fields ('njac' or 'nycrr')
+        state_code: Jurisdiction code ('NJ', 'NY', or 'NYC')
+        citation_prefix: Prefix for database fields ('njac', 'nycrr', or 'rcny')
         statute_file: Optional path to statute JSON file (local file for now)
         statute_pattern: Optional regex pattern for extracting statute citations
         statute_citation_prefix: Human-readable prefix for statute citations
@@ -63,6 +63,13 @@ STATES: dict[str, StateConfig] = {
         state_code='NY',
         citation_prefix='nycrr',
         # NY statute data can be added later
+        statute_file=None,
+        statute_pattern=None,
+        statute_citation_prefix=None,
+    ),
+    'nyc': StateConfig(
+        state_code='NYC',
+        citation_prefix='rcny',
         statute_file=None,
         statute_pattern=None,
         statute_citation_prefix=None,

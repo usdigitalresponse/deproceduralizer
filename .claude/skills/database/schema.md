@@ -1,5 +1,24 @@
 # Schema Reference
 
+## Jurisdiction Model
+
+The `state` column appears on most tables and represents a **jurisdiction**, not strictly a US state:
+
+| Code | Jurisdiction | Regulations Table | Statutes Table |
+|------|-------------|-------------------|----------------|
+| `NY` | New York State | NYCRR columns (`nycrr_title`, `nycrr_section`, etc.) | NY Consolidated Laws (`nycls_law_id`, `nycls_section`, etc.) |
+| `NJ` | New Jersey | NJAC columns (`njac_title`, `njac_chapter`, etc.) | NJSA columns (`njsa_title`, `njsa_section`, etc.) |
+| `NYC` | New York City | RCNY columns (`rcny_title`, `rcny_chapter`, `rcny_section`) | NYC Charter + Admin Code (`nyc_doc_type`, `nyc_title`, `nyc_section`, etc.) |
+
+NYC is a sub-state jurisdiction. Its regulations (RCNY) live in `regulatory_documents` with `state = 'NYC'`, and its statutes (Charter + Admin Code) live in `statutes` with `state = 'NYC'`.
+
+When adding a new jurisdiction, you must:
+1. Add the code to the `StateCode` type in `constants.ts` and `VALID_STATES`
+2. Add state-specific columns to `regulatory_documents` and/or `statutes`
+3. Update CHECK constraints on all tables with a `state` column (see migrations 0045-0047 for the NYC pattern)
+4. Add CSS variables in `tokens.css` and a `STATE_CONFIG` entry in `types/state.ts`
+5. Update `formatStateCitation` in `lib/formatters/citations.ts`
+
 ## regulatory_documents
 
 Main table with hierarchy. **74 columns** - use `./scripts/db-query.sh describe regulatory_documents` for full list.
@@ -351,7 +370,7 @@ Pure regex match store. Tracks individual regex matches found during compliance 
 | `analysis_id` | bigint | FK to compliance_issue_analyses(id) ON DELETE SET NULL. Many-to-one link (many matches → one analysis). Set by searcher/pipeline after analysis INSERT. |
 | `run_id` | varchar(32) | Batch/run ID for tracking which scan created the record |
 
-**Constraints:** `unique_document_issue_occurrence UNIQUE(document_id, issue_type, occurrence_number)`
+**Constraints:** `unique_document_issue_occurrence UNIQUE(document_id, issue_type, occurrence_number)`, `compliance_issues_state_check CHECK (state IN ('NY', 'NJ', 'NYC'))`
 
 **Indexes:** `idx_compliance_issues_document`, `idx_compliance_issues_state`, `idx_compliance_issues_issue_type`, `idx_compliance_issues_state_issue`, `idx_compliance_issues_analysis_id`
 
@@ -773,6 +792,8 @@ Internal cross-references between regulatory documents (e.g., "18 NYCRR 505.14" 
 | `is_resolved` | boolean | Whether citation was resolved to a target doc |
 | `resolution_notes` | text | Why resolution failed (for unresolved refs) |
 | `state` | varchar(3) NOT NULL | NY, NJ, or NYC |
+| `source_jurisdiction` | varchar(3) NOT NULL | Jurisdiction of the source document (NY, NJ, NYC) |
+| `target_jurisdiction` | varchar(3) | Jurisdiction of the target document (nullable — unresolved refs may lack this) |
 | `created_at` | timestamp | When record was created |
 
 **Reference Types:**
@@ -797,10 +818,12 @@ Internal cross-references between regulatory documents (e.g., "18 NYCRR 505.14" 
 ```
 
 **Constraints:**
-- `cross_references_state_check CHECK (state IN ('NY', 'NJ'))`
+- `cross_references_state_check CHECK (state IN ('NY', 'NJ', 'NYC'))`
+- `chk_crossref_source_jurisdiction CHECK (source_jurisdiction IN ('NY', 'NJ', 'NYC'))`
+- `chk_crossref_target_jurisdiction CHECK (target_jurisdiction IN ('NY', 'NJ', 'NYC'))`
 - `cross_references_source_document_id_raw_text_offset_key UNIQUE(source_document_id, raw_text, start_offset)` - allows same text at different positions
 
-**Indexes:** `idx_crossrefs_source_doc`, `idx_crossrefs_target_doc`, `idx_crossrefs_state`, `idx_crossrefs_ref_type`, `idx_crossrefs_unresolved` (partial: WHERE is_resolved = FALSE), `idx_cross_references_normalized_citation`
+**Indexes:** `idx_crossrefs_source_doc`, `idx_crossrefs_target_doc`, `idx_crossrefs_state`, `idx_crossrefs_ref_type`, `idx_crossrefs_unresolved` (partial: WHERE is_resolved = FALSE), `idx_cross_references_normalized_citation`, `idx_crossrefs_source_jurisdiction`, `idx_crossrefs_cross_jurisdiction` (partial: WHERE source != target)
 
 **Abbreviated References:**
 For comma-separated citation lists like "N.J.A.C. 7:1A-3.1, 4.1, 5.1", each abbreviated section gets its own row:
@@ -851,6 +874,32 @@ User bookmarks for pipeline analyses and regulatory documents. Supports bookmark
 - `idx_bookmarks_unique_analysis UNIQUE(analysis_id)` - one bookmark per analysis
 - `idx_bookmarks_unique_document UNIQUE(document_id) WHERE analysis_id IS NULL` - one document bookmark per doc
 - `idx_bookmarks_document`, `idx_bookmarks_analysis`, `idx_bookmarks_state`, `idx_bookmarks_created_at`
+
+## document_tags
+
+Flexible tagging for scan scoping. Tags use a flat namespace with prefixes.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | bigserial | Primary key |
+| `document_id` | bigint NOT NULL | FK to regulatory_documents (ON DELETE CASCADE) |
+| `tag` | varchar(100) NOT NULL | Tag string (e.g., `scan:compliance`, `topic:childcare`) |
+| `created_at` | timestamptz | When tag was added |
+| `created_by` | varchar(100) | Who/what added the tag |
+
+**Tag conventions:**
+- `scan:compliance` — include in compliance issue scanning
+- `scan:red-flags` — include in red flags analysis
+- `scan:summarize` — include in summarization pipeline
+- `topic:childcare` — relates to childcare regulation
+- `topic:permitting` — relates to permitting/building regulation
+- `priority:high` — high priority for analysis
+
+**Constraints:** `UNIQUE(document_id, tag)`
+
+**Indexes:** `idx_document_tags_tag`, `idx_document_tags_document_id`
+
+**Usage:** `scan_compliance_issues.py --state nyc --tag scan:compliance` filters to only tagged documents.
 
 ## prompt_feedback
 

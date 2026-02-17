@@ -18,6 +18,17 @@ from ..ids import make_custom_id
 from .connection import retry_db_operation
 
 
+def _title_col(state: str) -> str:
+    """Map state code to the regulatory_documents title column name."""
+    if state == "NJ":
+        return "njac_title"
+    elif state == "NYC":
+        return "rcny_title"
+    else:
+        return "nycrr_title"
+
+
+
 def _build_match_info(pattern: str, context: str, content: str, match_id: int) -> MatchInfo:
     """
     Build a MatchInfo object from pattern/context and document content.
@@ -165,13 +176,13 @@ class ProcessingUnitBuilder:
             state_filter = "AND rd.state = %s"
             params.append(state)
             if title:
-                title_filter = "AND rd.njac_title = %s" if state == "NJ" else "AND rd.nycrr_title = %s"
+                title_filter = f"AND rd.{_title_col(state)} = %s"
                 params.append(title)
         else:
             # No state filter (dangerously-run-all)
             if title:
-                title_filter = "AND (rd.njac_title = %s OR rd.nycrr_title = %s)"
-                params.extend([title, title])
+                title_filter = "AND (rd.njac_title = %s OR rd.nycrr_title = %s OR rd.rcny_title = %s)"
+                params.extend([title, title, title])
 
         params.append(limit)
 
@@ -307,12 +318,12 @@ class ProcessingUnitBuilder:
             state_filter = "AND rd.state = %s"
             params.append(state)
             if title:
-                title_filter = "AND rd.njac_title = %s" if state == "NJ" else "AND rd.nycrr_title = %s"
+                title_filter = f"AND rd.{_title_col(state)} = %s"
                 params.append(title)
         else:
             if title:
-                title_filter = "AND (rd.njac_title = %s OR rd.nycrr_title = %s)"
-                params.extend([title, title])
+                title_filter = "AND (rd.njac_title = %s OR rd.nycrr_title = %s OR rd.rcny_title = %s)"
+                params.extend([title, title, title])
 
         # max_tier for the continuation check and limit come after state/title filters
         params.append(max_tier)
@@ -799,13 +810,12 @@ class ProcessingUnitBuilder:
             state_filter = "rd.state = %s AND"
             params.append(state)
             if title:
-                title_col = "njac_title" if state == "NJ" else "nycrr_title"
-                title_filter = f"AND rd.{title_col} = %s"
+                title_filter = f"AND rd.{_title_col(state)} = %s"
                 # Don't append here - will append after issue_types
         else:
             # No state filter (dangerously-run-all)
             if title:
-                title_filter = "AND (rd.njac_title = %s OR rd.nycrr_title = %s)"
+                title_filter = "AND (rd.njac_title = %s OR rd.nycrr_title = %s OR rd.rcny_title = %s)"
                 # Don't append here - will append after issue_types
 
         # Query that fetches up to max_docs_per_issue per issue type using window functions
@@ -885,7 +895,7 @@ class ProcessingUnitBuilder:
             if state:
                 params.append(title_value)
             else:
-                params.extend([title_value, title_value])
+                params.extend([title_value, title_value, title_value])
         # Add max_tier for the continuation check
         params.append(max_tier)
         params.append(max_docs_per_issue)
@@ -1105,15 +1115,14 @@ def get_issue_types_for_scope(
             state_filter = "WHERE rd.state = %s"
             params.append(state)
             if title:
-                title_col = "njac_title" if state == "NJ" else "nycrr_title"
-                title_filter = f"AND rd.{title_col} = %s"
+                title_filter = f"AND rd.{_title_col(state)} = %s"
                 params.append(title)
         else:
             # No state filter (dangerously-run-all)
             # Title filter still works but we pick a default column
             if title:
-                state_filter = "WHERE (rd.njac_title = %s OR rd.nycrr_title = %s)"
-                params.extend([title, title])
+                state_filter = "WHERE (rd.njac_title = %s OR rd.nycrr_title = %s OR rd.rcny_title = %s)"
+                params.extend([title, title, title])
 
         query = f"""
             SELECT DISTINCT ci.issue_type

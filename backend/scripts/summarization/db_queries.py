@@ -63,6 +63,8 @@ def _get_title_column(state: str) -> str:
         return "njac_title"
     elif state == "NY":
         return "nycrr_title"
+    elif state == "NYC":
+        return "rcny_title"
     else:
         return "njac_title"  # Default fallback for unrecognized states
 

@@ -18,3 +18,4 @@ export * from './jenai-issues';
 export * from './relations';
 export * from './constants';
 export * from './bookmarks';
+export * from './document-tags';

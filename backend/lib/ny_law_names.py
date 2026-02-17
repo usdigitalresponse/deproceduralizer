@@ -274,6 +274,38 @@ _VARIANTS = {
     "State Printing and Public Documents": "PPD",
     "Rural Electric Cooperative": "REL",
     "State Technology": "STT",
+    # RCNY-style prefixed forms (found in NYC regulation text)
+    "New York State Criminal Procedure": "CPL",
+    "New York Criminal Procedure": "CPL",
+    "New York General Business": "GBS",
+    "New York State General Business": "GBS",
+    "New York State General Obligations": "GOB",
+    "New York General Obligations": "GOB",
+    "New York Agriculture and Markets": "AGM",
+    "New York State Agriculture and Markets": "AGM",
+    "New York State Multiple Dwelling": "MDW",
+    "New York Multiple Dwelling": "MDW",
+    "New York Civil Rights": "CVR",
+    "New York State Civil Rights": "CVR",
+    "New York State Domestic Relations": "DOM",
+    "New York Domestic Relations": "DOM",
+    "New York State General Municipal": "GMU",
+    "New York General Municipal": "GMU",
+    "New York Public Officers": "PBO",
+    "New York State Public Officers": "PBO",
+    "New York State Alcoholic Beverage Control": "ABC",
+    "New York Alcoholic Beverage Control": "ABC",
+    "New York State Mental Hygiene": "MHY",
+    "New York Mental Hygiene": "MHY",
+    "New York Local Finance": "LFN",
+    "New York State Local Finance": "LFN",
+    "State Tax": "TAX",
+    "State Vehicle and Traffic": "VAT",
+    "State Human Rights": "EXC",  # Article 15 of Executive Law
+    "New York State Human Rights": "EXC",
+    "State Human Rights Law, Executive": "EXC",  # "State Human Rights Law, Executive Law"
+    "New York Military": "MIL",
+    "New York Judiciary": "JUD",
 }
 
 

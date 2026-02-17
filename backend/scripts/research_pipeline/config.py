@@ -94,5 +94,10 @@ STATE_LOCATIONS = {
         "country": "US",
         "timezone": "America/New_York",
     },
-    # Add more states as needed
+    "NYC": {
+        "city": "New York",
+        "region": "New York",
+        "country": "US",
+        "timezone": "America/New_York",
+    },
 }

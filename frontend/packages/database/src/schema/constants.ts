@@ -1,4 +1,12 @@
-// State types
+/**
+ * Jurisdiction code. Represents a regulatory jurisdiction, not strictly a US state.
+ * - 'ny': New York State (NYCRR regulations, NY Consolidated Laws statutes)
+ * - 'nj': New Jersey (NJAC regulations, NJSA statutes)
+ * - 'nyc': New York City (RCNY regulations, NYC Charter + Admin Code statutes)
+ *
+ * When adding a new jurisdiction: update this type, VALID_STATES, CHECK constraints
+ * on all tables with a state column, CSS variables, STATE_CONFIG, and formatStateCitation.
+ */
 export type StateCode = 'ny' | 'nj' | 'nyc';
 export const VALID_STATES: StateCode[] = ['ny', 'nj', 'nyc'];
 

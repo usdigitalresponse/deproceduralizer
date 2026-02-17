@@ -113,10 +113,14 @@ def get_definitions_to_process(
         params.append(definition_ids)
 
     if state:
-        # Filter by state using the document's URL pattern
-        conditions.append("d.url LIKE %s")
-        state_pattern = '%new-york%' if state.upper() == 'NY' else '%new-jersey%'
-        params.append(state_pattern)
+        # Filter by state using the document's state column via its regulatory_document
+        conditions.append("""
+            EXISTS (
+                SELECT 1 FROM regulatory_documents rd
+                WHERE rd.id = d.document_id AND rd.state = %s
+            )
+        """)
+        params.append(state.upper())
 
     if not force:
         # Skip definitions that already have occurrences linked
@@ -257,9 +261,13 @@ def build_scope_to_definitions_map(
     params = []
 
     if state:
-        conditions.append("d.url LIKE %s")
-        state_pattern = '%new-york%' if state.upper() == 'NY' else '%new-jersey%'
-        params.append(state_pattern)
+        conditions.append("""
+            EXISTS (
+                SELECT 1 FROM regulatory_documents rd
+                WHERE rd.id = d.document_id AND rd.state = %s
+            )
+        """)
+        params.append(state.upper())
 
     if not force:
         conditions.append("""
@@ -823,7 +831,7 @@ def main():
 
     # Run command
     run_parser = subparsers.add_parser('run', help='Process definitions and link to documents')
-    run_parser.add_argument('--state', choices=['NY', 'NJ'], help='Filter by state')
+    run_parser.add_argument('--state', choices=['NY', 'NJ', 'NYC'], help='Filter by state')
     run_parser.add_argument('--definition-ids', help='Comma-separated definition IDs to process')
     run_parser.add_argument('--force', action='store_true', help='Reprocess even if already linked')
     run_parser.add_argument('--batch-size', type=int, default=1000, help='Batch size for inserts')
