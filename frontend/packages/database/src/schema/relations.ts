@@ -156,6 +156,7 @@ export const jenaiIssuesRelations = relations(jenaiIssues, ({ one }) => ({
   }),
 }));
 
+
 // Document tags relations
 export const documentTagsRelations = relations(documentTags, ({ one }) => ({
   document: one(regulatoryDocuments, {

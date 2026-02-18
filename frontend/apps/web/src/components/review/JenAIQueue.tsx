@@ -8,9 +8,10 @@ import { ReviewProgress } from './ReviewProgress';
 import { JENAI_CATEGORY_LABELS } from '@/lib/constants/jenai';
 import { formatLabel } from '@/types/regulation';
 import { JenAIAvatar } from './JenAIAvatar';
+import type { StateCode } from '@/types/state';
 
 interface JenAIQueueProps {
-  state: 'ny' | 'nj';
+  state: StateCode;
   mode?: 'review' | 'developer';
 }
 
