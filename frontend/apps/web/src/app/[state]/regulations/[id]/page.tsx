@@ -131,7 +131,7 @@ export default async function RegulationDetailPage({ params, searchParams }: Pag
   const incomingRefs = incomingRefsResult.success ? incomingRefsResult.data : [];
   // Cross-refs for inline highlighting
   const highlightRefs = highlightRefsResult.success ? highlightRefsResult.data : [];
-  // Statute links (non-enabling-authority and enabling authority)
+  // Statute links (excluding enabling authority, which is shown separately)
   const statuteLinks = statuteLinksResult.success ? statuteLinksResult.data : [];
   const enablingAuthority = enablingAuthorityResult.success ? enablingAuthorityResult.data : [];
   // IDs of definitions defined here

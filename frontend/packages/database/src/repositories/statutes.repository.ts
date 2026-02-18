@@ -1,4 +1,4 @@
-import { eq, and, sql, isNull, isNotNull, ilike, or } from 'drizzle-orm';
+import { eq, ne, and, sql, isNull, isNotNull, ilike, or } from 'drizzle-orm';
 import { BaseRepository } from './base.repository';
 import { statutes } from '../schema/statutes';
 import { regulationStatuteLinks } from '../schema/regulation-statute-links';
@@ -290,7 +290,12 @@ export class StatutesRepository extends BaseRepository {
       })
       .from(regulationStatuteLinks)
       .leftJoin(statutes, eq(regulationStatuteLinks.statuteId, statutes.id))
-      .where(eq(regulationStatuteLinks.regulationId, regulationId))
+      .where(
+        and(
+          eq(regulationStatuteLinks.regulationId, regulationId),
+          ne(regulationStatuteLinks.linkType, 'enabling_authority')
+        )
+      )
       .orderBy(regulationStatuteLinks.linkType, regulationStatuteLinks.citation);
 
     return result.map(r => ({
