@@ -89,8 +89,7 @@ apps/web/
 │   │   ├── issues/             # Compliance issue components
 │   │   └── review/             # Review queue and shared components
 │   ├── hooks/                  # Custom React hooks
-│   │   ├── useMediaQuery.ts    # SSR-safe media query
-│   │   └── useResponsive.ts    # Breakpoint detection
+│   │   └── useMediaQuery.ts    # SSR-safe media query
 │   ├── lib/                    # Utilities and server actions
 │   └── styles/
 │       └── tokens.css          # Design token definitions

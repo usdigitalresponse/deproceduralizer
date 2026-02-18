@@ -115,7 +115,7 @@ export const regulatoryDocuments = pgTable('regulatory_documents', {
   hasForm: boolean('has_form').default(false),
   hasIbr: boolean('has_ibr').default(false),
 }, (table) => ({
-  uniquePerUrl: unique().on(table.url),
+  uniqueStateSourceType: unique().on(table.state, table.sourceIndex, table.type),
 }));
 
 export type RegulatoryDocument = typeof regulatoryDocuments.$inferSelect;

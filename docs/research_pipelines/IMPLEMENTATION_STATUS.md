@@ -182,7 +182,7 @@ V4 documentation was previously archived to `archive/v4-progressive-disclosure/`
 | `models/context.py` | Added 4 new V5 models (SiblingSummary, CrossRefSummary, AncestorSummary, ProactiveTier1Context) |
 | `models/__init__.py` | Updated exports for new models |
 | `context_builder.py` | Added constants, helper functions, `build_proactive_context()` |
-| `tier_runners.py` | Added `format_proactive_context()` for prompt injection |
+| `tiers/tier1_runner.py` | Added `format_proactive_context()` for prompt injection |
 | `tests/test_research_pipeline.py` | Added ~750 lines of V5 tests |
 
 ### Implementation Details
@@ -235,7 +235,7 @@ V4 documentation was previously archived to `archive/v4-progressive-disclosure/`
 - [x] Add excludable pattern filtering
 - [x] Add catalog size limits (50 siblings, 100 cross-refs)
 - [x] Add new V5 models (SiblingSummary, CrossRefSummary, AncestorSummary, ProactiveTier1Context)
-- [x] Add format_proactive_context() to tier_runners.py
+- [x] Add format_proactive_context() to tiers/tier1_runner.py
 - [x] Update tests (~750 lines of unit and integration tests)
 
 ---
@@ -244,7 +244,7 @@ V4 documentation was previously archived to `archive/v4-progressive-disclosure/`
 
 **Status:** Complete
 
-### File: `backend/scripts/research_pipeline/tier_runners.py`
+### File: `backend/scripts/research_pipeline/tiers/tier1_runner.py`
 
 ### Changes Needed
 
@@ -284,7 +284,7 @@ V4 documentation was previously archived to `archive/v4-progressive-disclosure/`
 
 **Status:** Complete
 
-### File: `backend/scripts/research_pipeline/tier_runners.py`
+### File: `backend/scripts/research_pipeline/tiers/tier2_runner.py`
 
 ### Changes Needed
 

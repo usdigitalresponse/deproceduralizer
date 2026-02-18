@@ -22,6 +22,12 @@ ANTHROPIC_PRICING: Dict[str, Dict[str, float]] = {
         "cache_read": 0.30,
         "cache_write": 3.75,
     },
+    "claude-sonnet-4-6": {
+        "input": 3.00,
+        "output": 15.00,
+        "cache_read": 0.30,
+        "cache_write": 3.75,
+    },
     "claude-haiku-4-5-20251001": {
         "input": 0.80,
         "output": 4.00,
@@ -66,6 +72,7 @@ ANTHROPIC_PRICING: Dict[str, Dict[str, float]] = {
 MODEL_ALIASES = {
     "claude-haiku-4.5": "claude-haiku-4-5-20251001",
     "claude-sonnet-4.5": "claude-sonnet-4-5-20250929",
+    "claude-sonnet-4.6": "claude-sonnet-4-6",
     "claude-opus-4.5": "claude-opus-4-5-20251101",
 }
 

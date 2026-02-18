@@ -19,7 +19,9 @@ DATABASE_URL=postgresql://user:password@host/dbname
 
 The database schema is defined in `frontend/packages/database/src/schema/`.
 
-For a new database, run all migrations in order:
+Migration `0000_base_tables.sql` bootstraps the 4 core tables (`regulatory_documents`, `analyses`, `red_flags`, `definitions`) for fresh databases. All subsequent migrations build on top of these.
+
+For a new database, run all migrations in lexicographic sort order:
 
 ```bash
 for f in frontend/packages/database/migrations/*.sql; do
@@ -32,6 +34,8 @@ Or run a specific migration:
 ```bash
 psql $DATABASE_URL -f frontend/packages/database/migrations/0007a_add_display_columns.sql
 ```
+
+**Naming convention:** Migrations use 4-digit zero-padded prefixes (e.g., `0000_`, `0001_`). When multiple migrations share the same number, they use `a`/`b`/`c` suffixes (e.g., `0007a_`, `0007b_`, `0043a_`, `0043b_`) to preserve sort order.
 
 ## Migrate Data
 

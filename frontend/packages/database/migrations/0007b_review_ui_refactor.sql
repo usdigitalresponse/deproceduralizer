@@ -23,20 +23,36 @@ UPDATE red_flags SET review_status = 'rejected_clear_fp' WHERE review_status = '
 UPDATE compliance_issues SET review_status = 'rejected_clear_fp' WHERE review_status = 'false_positive';
 
 -- ============================================================================
--- PART 3: Rename columns for consistency
+-- PART 3: Rename columns for consistency (guarded for idempotency)
 -- ============================================================================
 
 -- Red Flags: Rename reviewer_notes -> team_notes
-ALTER TABLE red_flags RENAME COLUMN reviewer_notes TO team_notes;
+DO $$ BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'red_flags' AND column_name = 'reviewer_notes') THEN
+        ALTER TABLE red_flags RENAME COLUMN reviewer_notes TO team_notes;
+    END IF;
+END $$;
 
 -- Compliance Issues: Rename reviewer_notes -> team_notes
-ALTER TABLE compliance_issues RENAME COLUMN reviewer_notes TO team_notes;
+DO $$ BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'compliance_issues' AND column_name = 'reviewer_notes') THEN
+        ALTER TABLE compliance_issues RENAME COLUMN reviewer_notes TO team_notes;
+    END IF;
+END $$;
 
 -- Definitions: Rename correction_reason -> justification_notes
-ALTER TABLE definitions RENAME COLUMN correction_reason TO justification_notes;
+DO $$ BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'definitions' AND column_name = 'correction_reason') THEN
+        ALTER TABLE definitions RENAME COLUMN correction_reason TO justification_notes;
+    END IF;
+END $$;
 
 -- Definitions: Rename model_feedback -> team_notes
-ALTER TABLE definitions RENAME COLUMN model_feedback TO team_notes;
+DO $$ BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'definitions' AND column_name = 'model_feedback') THEN
+        ALTER TABLE definitions RENAME COLUMN model_feedback TO team_notes;
+    END IF;
+END $$;
 
 -- ============================================================================
 -- PART 4: Add developer tracking fields to compliance_issues (if missing)

@@ -1,5 +1,5 @@
 -- Migration: Add document_notes table for annotations feature
--- Run with: psql $DATABASE_URL -f migrations/001_add_document_notes.sql
+-- Run with: psql $DATABASE_URL -f migrations/0001_add_document_notes.sql
 
 -- Create note_type enum if it doesn't exist
 DO $$

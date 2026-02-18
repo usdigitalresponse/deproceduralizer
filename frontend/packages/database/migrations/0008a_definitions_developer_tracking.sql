@@ -2,19 +2,19 @@
 -- Matches the pattern used in red_flags and compliance_issues tables
 
 ALTER TABLE definitions
-ADD COLUMN developer_status VARCHAR(50) DEFAULT 'unresolved',
-ADD COLUMN developer_assigned VARCHAR(50),
-ADD COLUMN developer_notes TEXT,
-ADD COLUMN resolution_type VARCHAR(50),
-ADD COLUMN resolution_comments TEXT,
-ADD COLUMN developer_question TEXT,
-ADD COLUMN developer_checked_at TIMESTAMP;
+ADD COLUMN IF NOT EXISTS developer_status VARCHAR(50) DEFAULT 'unresolved',
+ADD COLUMN IF NOT EXISTS developer_assigned VARCHAR(50),
+ADD COLUMN IF NOT EXISTS developer_notes TEXT,
+ADD COLUMN IF NOT EXISTS resolution_type VARCHAR(50),
+ADD COLUMN IF NOT EXISTS resolution_comments TEXT,
+ADD COLUMN IF NOT EXISTS developer_question TEXT,
+ADD COLUMN IF NOT EXISTS developer_checked_at TIMESTAMP;
 
 -- Index for filtering by developer status (for developer mode queries)
-CREATE INDEX idx_definitions_developer_status ON definitions(developer_status);
+CREATE INDEX IF NOT EXISTS idx_definitions_developer_status ON definitions(developer_status);
 
 -- Composite index for developer filters (status + assigned)
-CREATE INDEX idx_definitions_developer_filters ON definitions(developer_status, developer_assigned);
+CREATE INDEX IF NOT EXISTS idx_definitions_developer_filters ON definitions(developer_status, developer_assigned);
 
 COMMENT ON COLUMN definitions.developer_status IS 'Developer tracking status: unresolved, resolved, pending, backlogged, need_more_info';
 COMMENT ON COLUMN definitions.developer_assigned IS 'Developer assigned to this definition';

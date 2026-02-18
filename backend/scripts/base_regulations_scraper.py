@@ -418,6 +418,7 @@ class BaseFullPipeline(ABC):
 
         regulation_data = []
         processed_count = 0
+        error_count = 0
 
         process_fn = self.process_cached_file_fn()
 
@@ -432,8 +433,13 @@ class BaseFullPipeline(ABC):
                         processed_count += 1
                         if processed_count % 500 == 0:
                             print(f"  Processed {processed_count} files...")
-                except Exception:
-                    pass
+                except Exception as e:
+                    error_count += 1
+                    failed_file = futures[future]
+                    print(f"  ⚠ Failed to process {failed_file.name}: {type(e).__name__}: {e}")
+
+        if error_count > 0:
+            print(f"  ⚠ {error_count} files failed to process out of {len(html_files)}")
 
         if not regulation_data:
             print("No valid regulation data found")

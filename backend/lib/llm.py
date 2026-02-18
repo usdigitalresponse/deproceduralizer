@@ -15,7 +15,7 @@ from pydantic import BaseModel
 
 
 # Default model
-DEFAULT_MODEL = "claude-sonnet-4-5-20250929"
+DEFAULT_MODEL = "claude-sonnet-4-6"
 
 
 def get_anthropic_client(api_key: Optional[str] = None) -> anthropic.Anthropic:
@@ -166,7 +166,7 @@ def call_llm_parse(
                     f"      ⚠️  No tool_use in response (attempt {attempt + 1}/{max_retries})"
                 )
                 if attempt < max_retries - 1:
-                    time.sleep(2)
+                    time.sleep(min(30, 2 ** attempt))
                     continue
                 else:
                     print(f"      ❌ All {max_retries} attempts failed to get tool_use")
@@ -194,7 +194,7 @@ def call_llm_parse(
                 f"(attempt {attempt + 1}/{max_retries})"
             )
             if attempt < max_retries - 1:
-                time.sleep(2)
+                time.sleep(min(30, 2 ** attempt))
                 continue
             print(f"      ❌ All {max_retries} attempts failed")
             # Log failure if trace_context provided
@@ -331,7 +331,7 @@ async def call_llm_parse_async(
                 if trace_context:
                     _log_llm_call(trace_context, model, prompt, "", usage, latency_ms, success=False, error_message="No tool_use in response")
                 if attempt < max_retries - 1:
-                    await asyncio.sleep(2)
+                    await asyncio.sleep(min(30, 2 ** attempt))
                     continue
                 else:
                     print(f"      ❌ All {max_retries} attempts failed to get tool_use")
@@ -356,7 +356,7 @@ async def call_llm_parse_async(
                 f"(attempt {attempt + 1}/{max_retries})"
             )
             if attempt < max_retries - 1:
-                await asyncio.sleep(2)
+                await asyncio.sleep(min(30, 2 ** attempt))
                 continue
             print(f"      ❌ All {max_retries} attempts failed")
             # Log failure if trace_context provided

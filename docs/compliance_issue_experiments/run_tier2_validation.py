@@ -99,7 +99,7 @@ Reasoning: {tier2['reasoning'][:500] if tier2['reasoning'] else 'N/A'}...
 Verify if this Tier 2 classification is correct. Return your assessment as JSON."""
 
     response = await client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model="claude-sonnet-4-6",
         max_tokens=2000,
         system=VERIFICATION_SYSTEM_PROMPT,
         messages=[{"role": "user", "content": user_prompt}],
