@@ -350,6 +350,11 @@ def save_tier2_results(
                     [r.model_dump(by_alias=True) for r in unit.tier2_context_requests_made]
                 ) if unit.tier2_context_requests_made else None
 
+                # Compute requirement_found inline so data is consistent
+                # even if the pipeline crashes before save_final_results
+                requirement_found = output.classification in ('burdensome', 'justified')
+                is_justified = output.classification == 'justified'
+
                 cur.execute("""
                     UPDATE compliance_issue_analyses SET
                         tier2_classification = %s,
@@ -382,6 +387,11 @@ def save_tier2_results(
                         program_context = %s,
                         not_to_confuse_with = %s,
                         search_scope_guidance = %s,
+                        -- Inline so crash between tiers doesn't leave NULLs
+                        requirement_found = %s,
+                        is_justified = %s,
+                        final_severity = %s,
+                        classification_tier = 2,
                         highest_tier_completed = GREATEST(
                             COALESCE(highest_tier_completed, 0), 2
                         ),
@@ -418,6 +428,10 @@ def save_tier2_results(
                     getattr(output, 'program_context', None),
                     getattr(output, 'not_to_confuse_with', None) or [],
                     getattr(output, 'search_scope_guidance', None),
+                    # Inline derived fields
+                    requirement_found,
+                    is_justified,
+                    output.severity,  # final_severity = tier2 severity before tier3
                     unit.document_id,
                     unit.issue_type,
                 ))
@@ -505,6 +519,11 @@ def save_tier3_results(
                     tier3_flags["advocacy_for_change"] = output.advocacy_for_change.model_dump(by_alias=True)
                 tier3_flags["evidence_gap"] = output.evidence_gap
 
+                # Compute requirement_found inline so data is consistent
+                # even if the pipeline crashes before save_final_results
+                requirement_found = output.classification in ('burdensome', 'justified')
+                is_justified = output.classification == 'justified'
+
                 # NOTE: We intentionally do NOT update context_used here.
                 # Tier 2's context_used (definitions, siblings, cross-refs, statutes) is preserved.
                 # Tier 3's web search evidence goes into tier3_flags.*.evidence (V5 structured approach).
@@ -535,6 +554,10 @@ def save_tier3_results(
                         cleanup_effort = %s,
                         tier3_completed_at = %s,
                         tier3_trigger_reason = %s,
+                        -- Inline so crash between tiers doesn't leave NULLs
+                        requirement_found = %s,
+                        is_justified = %s,
+                        classification_tier = 3,
                         highest_tier_completed = GREATEST(
                             COALESCE(highest_tier_completed, 0), 3
                         ),
@@ -565,6 +588,9 @@ def save_tier3_results(
                     output.cleanup_effort,
                     unit.tier3_completed_at,
                     unit.tier3_trigger_reason,  # V5.1: Why this was escalated
+                    # Inline derived fields
+                    requirement_found,
+                    is_justified,
                     unit.document_id,
                     unit.issue_type,
                 ))
