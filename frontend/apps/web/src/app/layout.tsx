@@ -6,6 +6,7 @@ import { Toaster } from "sonner";
 import "./globals.css";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
+import { AuthGuard } from "@/components/auth/AuthGuard";
 
 const inter = localFont({
   variable: "--font-inter",
@@ -64,7 +65,9 @@ export default function RootLayout({
         <NuqsAdapter>
           <Header />
           <main className="flex-1">
-            {children}
+            <AuthGuard>
+              {children}
+            </AuthGuard>
           </main>
           <Footer />
         </NuqsAdapter>

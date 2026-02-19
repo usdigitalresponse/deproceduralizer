@@ -178,6 +178,10 @@ table {
   padding-right: var(--space-4);
 }
 
+/* Hidden scrollbar utility - for horizontal scroll containers */
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
 /* Scrollbar styling (subtle, professional) */
 ::-webkit-scrollbar {
   width: 8px;

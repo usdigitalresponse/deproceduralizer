@@ -943,6 +943,46 @@ Standardized page title area with:
 - Optional description
 - Light background stripe
 
+### Navigation Helpers
+
+Components for navigating long/content-heavy pages and sidebars. Located in `src/components/navigation/`.
+
+#### `SidebarSectionIndex`
+
+Compact pill-based jump nav pinned at the top of a sidebar's scroll container. Used on regulation and statute detail sidebars.
+
+- **Props:** `sections: SectionConfig[]`, `children: ReactNode`
+- **Behavior:** Sticky within sidebar, highlights active section via IntersectionObserver, hidden on mobile (`hidden lg:block`)
+- **Active pill:** `bg-[var(--color-primary-weak)] text-[var(--color-primary)]`
+- **When to use:** Two-column layouts where the sidebar has 3+ sections
+
+#### `StickyPageSectionTabs`
+
+Horizontal tab bar for navigating long single-column pages. Used on the pipeline analysis detail page.
+
+- **Props:** `sections: SectionConfig[]`, `scrollOffset?: number` (default: 120)
+- **Behavior:** Active tab highlighted with solid primary pill, roving tabindex keyboard navigation, horizontally scrollable on mobile
+- **Active tab:** `bg-[var(--color-primary)] text-white`
+- **When to use:** Single-column pages taller than ~3000px with distinct sections
+
+#### `useActiveSection` hook
+
+Shared IntersectionObserver hook used by both navigation components.
+
+- **Signature:** `useActiveSection(sectionIds: string[], options?: { rootMargin?: string; threshold?: number }): string | null`
+- **Returns:** The `id` of the topmost currently-intersecting section
+- **Location:** `src/hooks/useActiveSection.ts`
+
+#### `SectionConfig` type
+
+```typescript
+interface SectionConfig {
+  id: string;      // DOM element id
+  label: string;   // Display label
+  count?: number;  // Optional count badge
+}
+```
+
 ---
 
 ## Table Styling

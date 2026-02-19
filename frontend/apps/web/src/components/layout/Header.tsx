@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu } from 'lucide-react';
+import { Menu, Share2, LogOut } from 'lucide-react';
+import { toast } from 'sonner';
 import { Container } from './Container';
 import { MobileNav } from './MobileNav';
 import { getStateFromPathname } from '@/hooks';
@@ -17,6 +18,8 @@ import {
 } from '@/lib/constants/navigation';
 import { NavDropdown } from './NavDropdown';
 import { GlobalSearch } from './GlobalSearch';
+import { ShareLinkModal } from '@/components/auth/ShareLinkModal';
+import { generateShareToken } from '@/lib/actions/auth';
 
 interface HeaderProps {
   className?: string;
@@ -28,6 +31,43 @@ export function Header({ className = '' }: HeaderProps) {
   const stateNavItems = getStateNavItems();
   const globalNavItems = getGlobalNavItems();
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [shareUrl, setShareUrl] = useState('');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  // Check auth status on mount
+  useEffect(() => {
+    const authStatus = localStorage.getItem('isAuthenticated');
+    setIsAuthenticated(authStatus === 'true');
+  }, []);
+
+  const handleGenerateShareLink = async () => {
+    setIsGenerating(true);
+    try {
+      const result = await generateShareToken();
+
+      if (result.success && result.token) {
+        const url = `${window.location.origin}/auth?token=${result.token}`;
+        setShareUrl(url);
+        setIsShareModalOpen(true);
+        toast.success('Share link generated! Copy and send to grant one-time access.');
+      } else {
+        toast.error(result.error || 'Failed to generate share link');
+      }
+    } catch (error) {
+      console.error('Error generating share link:', error);
+      toast.error('An error occurred while generating the share link');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('isAuthenticated');
+    toast.success('Logged out successfully.');
+    window.location.reload();
+  };
 
   return (
     <>
@@ -117,6 +157,32 @@ export function Header({ className = '' }: HeaderProps) {
                   })
                 }
 
+                {/* Highlighted standalone links (Pipeline) */}
+                {stateNavItems
+                  .filter(item => item.isHighlighted)
+                  .map((item) => {
+                    const href = getNavHref(item, currentState);
+                    const isActive = isNavActive(item, pathname, currentState);
+
+                    return (
+                      <Link
+                        key={item.key}
+                        href={href}
+                        className={`
+                          px-3 py-2 text-sm font-semibold rounded-[var(--radius-md)]
+                          transition-colors duration-[var(--duration-fast)]
+                          ${isActive
+                            ? 'bg-[var(--color-primary-weaker)] text-[var(--color-primary)]'
+                            : 'text-[var(--color-primary)] hover:bg-[var(--color-primary-weaker)]'
+                          }
+                        `}
+                      >
+                        {item.label}
+                      </Link>
+                    );
+                  })
+                }
+
                 {/* Metrics Group */}
                 <NavDropdown
                   label={NAV_GROUPS.metrics.label}
@@ -162,9 +228,39 @@ export function Header({ className = '' }: HeaderProps) {
                 })}
               </nav>
 
-              {/* Global Search - hidden on mobile (available via nav drawer) */}
-              <div className="hidden md:flex items-center">
+              {/* Global Search and Auth Actions - hidden on mobile */}
+              <div className="hidden md:flex items-center gap-2">
                 <GlobalSearch />
+
+                {/* Auth Actions - Only show when authenticated */}
+                {isAuthenticated && (
+                  <>
+                    {/* Share Link Button */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleGenerateShareLink}
+                      disabled={isGenerating}
+                      className="flex items-center gap-2"
+                      title="Generate a shareable link for someone to access the site without needing the password. Each link works only once."
+                    >
+                      <Share2 className="w-4 h-4" />
+                      <span className="hidden lg:inline">Share</span>
+                    </Button>
+
+                    {/* Logout Button */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleLogout}
+                      className="flex items-center gap-2"
+                      title="Log out of the site"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      <span className="hidden lg:inline">Logout</span>
+                    </Button>
+                  </>
+                )}
               </div>
 
               {/* Mobile Menu Button - visible on mobile only */}
@@ -186,6 +282,13 @@ export function Header({ className = '' }: HeaderProps) {
       <MobileNav
         isOpen={isMobileNavOpen}
         onClose={() => setIsMobileNavOpen(false)}
+      />
+
+      {/* Share Link Modal */}
+      <ShareLinkModal
+        open={isShareModalOpen}
+        onOpenChange={setIsShareModalOpen}
+        shareUrl={shareUrl}
       />
     </>
   );

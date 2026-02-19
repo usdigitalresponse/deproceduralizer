@@ -18,3 +18,5 @@ export { useCrossRefHighlighting } from './useCrossRefHighlighting';
 export type { CrossRefMatch } from './useCrossRefHighlighting';
 export { useDebouncedValue } from './useDebouncedValue';
 export { useRegulationById } from './useRegulationById';
+export { useActiveSection } from './useActiveSection';
+export type { SectionConfig } from './useActiveSection';

@@ -102,9 +102,45 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
               );
             })}
 
+            {/* Highlighted Items (Pipeline) */}
+            {NAV_ITEMS.filter(item => item.isHighlighted).length > 0 && (
+              <div className="mb-4">
+                <div className="px-4 py-2 flex items-center gap-2 text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wider">
+                  Featured
+                </div>
+                {NAV_ITEMS.filter(item => item.isHighlighted).map((item) => {
+                  const href = getNavHref(item, currentState);
+                  const isActive = isNavActive(item, pathname, currentState);
+                  const Icon = item.icon;
+
+                  return (
+                    <Link
+                      key={item.key}
+                      href={href}
+                      onClick={onClose}
+                      className={`
+                        flex items-center gap-3
+                        px-6 py-3
+                        min-h-[48px]
+                        text-base font-medium
+                        transition-colors duration-[var(--duration-fast)]
+                        ${isActive
+                          ? 'bg-[var(--color-primary-weaker)] text-[var(--color-primary)] border-l-4 border-[var(--color-primary)]'
+                          : 'text-[var(--color-primary)] hover:bg-[var(--color-primary-weaker)]'
+                        }
+                      `}
+                    >
+                      <Icon className="w-5 h-5 opacity-70" />
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+
             {/* Global Items (Prompts, etc.) */}
             <div className="mt-2 border-t border-[var(--color-neutral-100)] pt-2">
-              {NAV_ITEMS.filter(item => !item.groupId && item.key !== 'home').map((item) => {
+              {NAV_ITEMS.filter(item => !item.groupId && !item.isHighlighted && item.key !== 'home').map((item) => {
                 const href = getNavHref(item, currentState);
                 const isActive = isNavActive(item, pathname, currentState);
                 const Icon = item.icon;

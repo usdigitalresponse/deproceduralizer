@@ -1,5 +1,5 @@
 import { Container, PageHeader } from '@/components/layout';
-import { DashboardStats, StateCard, QuickLinks, RecentActivityCard, TopIssuesChart, HomePrioritySection } from '@/components/home';
+import { DashboardStats, StateCard, QuickLinks, RecentActivityCard, TopIssuesChart, HomePrioritySection, PipelineHeroBanner } from '@/components/home';
 import { getDashboardStats, getAllStateStats, getRecentActivity } from '@/lib/actions/dashboard';
 import { getPriorityPicks } from '@/lib/actions/analysis';
 import { VALID_STATES } from '@/types/state';
@@ -73,6 +73,9 @@ export default async function HomePage() {
       />
 
       <Container size="2xl" className="py-6 space-y-8">
+        {/* Pipeline Hero Banner */}
+        <PipelineHeroBanner state="nj" />
+
         {/* Overview */}
         <section>
           <h2 className="text-lg font-semibold text-[var(--color-text)] mb-4">

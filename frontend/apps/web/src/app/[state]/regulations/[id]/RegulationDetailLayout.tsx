@@ -22,8 +22,8 @@ export function RegulationDetailLayout({
 }: RegulationDetailLayoutProps) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {/* Left sidebar - sticky on desktop */}
-      <aside className="lg:sticky lg:top-6 lg:self-start lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto lg:pr-4">
+      {/* Left sidebar - sticky on desktop, offset accounts for 88px sticky header */}
+      <aside className="lg:sticky lg:top-[96px] lg:self-start lg:max-h-[calc(100vh-108px)] lg:overflow-y-auto lg:pr-4">
         {sidebar}
       </aside>
 

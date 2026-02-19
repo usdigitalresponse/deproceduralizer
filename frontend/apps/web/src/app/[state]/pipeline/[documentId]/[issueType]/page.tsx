@@ -21,6 +21,8 @@ import { Badge, ScrollToHash } from '@/components/ui';
 import { ClassificationBadge, TierClassificationFlow } from '@/components/issues/TierClassificationFlow';
 import { isValidState } from '@/types/state';
 import { ISSUE_TYPE_LABELS } from '@/types/regulation';
+import { PipelineSectionTabs } from './PipelineSectionTabs';
+import type { SectionConfig } from '@/hooks/useActiveSection';
 
 interface AnalysisDetailPageProps {
   params: Promise<{
@@ -69,6 +71,15 @@ export default async function AnalysisDetailPage({ params, searchParams }: Analy
   const matches = matchesResult?.success ? matchesResult.data : [];
   const issueTypeLabel = ISSUE_TYPE_LABELS[issueType as keyof typeof ISSUE_TYPE_LABELS] || issueType;
 
+  const sections: SectionConfig[] = [
+    { id: 'section-overview', label: 'Overview' },
+    { id: 'section-summary', label: 'Key Findings' },
+    ...(analysis.easyCleanupCandidate ? [{ id: 'section-cleanup', label: 'Easy Cleanup' }] : []),
+    { id: 'section-severity', label: 'Severity' },
+    ...(matches && matches.length > 0 ? [{ id: 'matches', label: 'Matches', count: matches.length }] : []),
+    { id: 'section-pipeline', label: 'Pipeline' },
+  ];
+
   return (
     <PrintModeProvider isPrintMode={isPrintMode}>
     <PrintModeStyles isPrintMode={isPrintMode} />
@@ -111,7 +122,7 @@ export default async function AnalysisDetailPage({ params, searchParams }: Analy
 
         {/* Sticky Navigation Bar - hidden in print mode */}
         {!isPrintMode && (
-          <div className="sticky top-0 z-10 bg-[var(--color-background)] border-b border-[var(--color-neutral-200)] -mx-4 px-4 py-3 mb-6 shadow-sm print:hidden">
+          <div className="sticky top-0 z-[calc(var(--z-sticky)+1)] bg-[var(--color-background)] border-b border-[var(--color-neutral-200)] -mx-4 px-4 py-3 mb-6 shadow-sm print:hidden">
             <Container size="2xl">
               <div className="flex items-center justify-between">
                 <Link
@@ -143,13 +154,16 @@ export default async function AnalysisDetailPage({ params, searchParams }: Analy
                 </div>
               </div>
             </Container>
+            <Container size="2xl">
+              <PipelineSectionTabs sections={sections} />
+            </Container>
           </div>
         )}
 
         <Container size="2xl" className="py-6">
 
           {/* Header Card */}
-        <div className="bg-white border border-[var(--color-neutral-200)] rounded-[var(--radius-md)] p-6 mb-6">
+        <div id="section-overview" className="bg-white border border-[var(--color-neutral-200)] rounded-[var(--radius-md)] p-6 mb-6">
           <div className="flex flex-wrap items-start gap-4 mb-4">
             <Badge variant="warning" className="text-base font-semibold">
               {issueTypeLabel}
@@ -227,11 +241,13 @@ export default async function AnalysisDetailPage({ params, searchParams }: Analy
         </div>
 
         {/* Executive Summary Card - key findings at a glance */}
-        <ExecutiveSummary analysis={analysis} />
+        <div id="section-summary">
+          <ExecutiveSummary analysis={analysis} />
+        </div>
 
         {/* Easy Cleanup Card - shown when flagged as easy cleanup opportunity */}
         {analysis.easyCleanupCandidate && (
-          <div className="bg-[var(--color-success-bg)] border border-[var(--color-success)] rounded-[var(--radius-md)] p-6 mb-6">
+          <div id="section-cleanup" className="bg-[var(--color-success-bg)] border border-[var(--color-success)] rounded-[var(--radius-md)] p-6 mb-6">
             <div className="flex items-start gap-4">
               <span className="text-2xl" role="img" aria-label="Easy Fix">🎯</span>
               <div className="flex-1">
@@ -278,7 +294,7 @@ export default async function AnalysisDetailPage({ params, searchParams }: Analy
         )}
 
         {/* Severity Progression - moved up from PipelineTimeline */}
-        <div className="mb-6">
+        <div id="section-severity" className="mb-6">
           <SeverityProgression
             baseSeverity={analysis.tier2?.severity || null}
             tier3Adjustment={analysis.tier3?.severityAdjustment || null}
@@ -305,12 +321,12 @@ export default async function AnalysisDetailPage({ params, searchParams }: Analy
         )}
 
         {/* Pipeline Timeline */}
-        <div className="bg-white border border-[var(--color-neutral-200)] rounded-[var(--radius-md)] p-6">
+        <div id="section-pipeline" className="bg-white border border-[var(--color-neutral-200)] rounded-[var(--radius-md)] p-6">
           <PipelineTimeline analysis={analysis} />
         </div>
 
         {/* Metadata */}
-        <div className="mt-6 text-xs text-[var(--color-text-muted)] flex flex-wrap gap-4">
+        <div id="section-metadata" className="mt-6 text-xs text-[var(--color-text-muted)] flex flex-wrap gap-4">
           <span>Pipeline Version: {analysis.pipelineVersion}</span>
           {analysis.createdAt && (
             <span>Created: {new Date(analysis.createdAt).toLocaleDateString()}</span>

@@ -15,6 +15,8 @@ import {
 import { HierarchyBreadcrumbsServer } from '@/components/regulations/HierarchyBreadcrumbsServer';
 import { ChildrenListServer } from '@/components/regulations/ChildrenListServer';
 import { EnablingAuthorityCard, StatuteLinksList } from '@/components/statutes';
+import { RegulationSidebarWithNav } from './RegulationSidebarWithNav';
+import type { SectionConfig } from '@/hooks/useActiveSection';
 import type {
   RegulationWithAnalysis,
   ApplicableDefinition,
@@ -67,6 +69,33 @@ export async function RegulationDetailSidebar({
   availableButNotUsed,
   definedHereIds,
 }: RegulationDetailSidebarProps) {
+  const sections: SectionConfig[] = [
+    { id: 'sidebar-hierarchy', label: 'Hierarchy' },
+    ...(enablingAuthority.length > 0 ? [{ id: 'sidebar-enabling-authority', label: 'Authority' }] : []),
+    { id: 'sidebar-document-info', label: 'Info' },
+    ...(regulation.redFlags && regulation.redFlags.length > 0
+      ? [{ id: 'sidebar-red-flags', label: 'Red Flags', count: regulation.redFlags.length }]
+      : []),
+    ...(complianceIssues.length > 0
+      ? [{ id: 'sidebar-compliance-issues', label: 'Issues', count: complianceIssues.length }]
+      : []),
+    ...(crossRefs.length > 0
+      ? [{ id: 'sidebar-cross-refs', label: 'Cross-Refs', count: crossRefs.length }]
+      : []),
+    ...(incomingRefs.length > 0
+      ? [{ id: 'sidebar-cited-by', label: 'Cited By', count: incomingRefs.length }]
+      : []),
+    ...(statuteLinks.length > 0
+      ? [{ id: 'sidebar-statute-links', label: 'Statutes', count: statuteLinks.length }]
+      : []),
+    ...(usedDefinitions.length > 0
+      ? [{ id: 'sidebar-definitions-used', label: 'Definitions', count: usedDefinitions.length }]
+      : []),
+    ...(availableButNotUsed.length > 0
+      ? [{ id: 'sidebar-definitions-available', label: 'Other Defs', count: availableButNotUsed.length }]
+      : []),
+  ];
+
   return (
     <div className="space-y-4">
       {/* Back Button */}
@@ -84,126 +113,138 @@ export async function RegulationDetailSidebar({
         </Button>
       </Link>
 
-      {/* Hierarchy Breadcrumbs */}
-      <Card className="p-4">
-        <h2 className="font-semibold text-[var(--color-primary)] mb-3 text-sm">Hierarchy</h2>
-        <HierarchyBreadcrumbsServer
-          documentId={regulationId}
-          currentTitle={formatDisplayTitle(regulation) || 'Untitled'}
-          state={state}
-        />
-        <RegulationHierarchyDetails
-          regulation={regulation}
-          className="mt-3 pt-3 border-t border-[var(--color-neutral-200)] text-sm"
-        />
-      </Card>
-
-      {/* Enabling Authority */}
-      {enablingAuthority.length > 0 && (
-        <EnablingAuthorityCard links={enablingAuthority} state={state} />
-      )}
-
-      {/* Document Info - Combined Summary and Metadata */}
-      <Card className="p-4">
-        <h2 className="font-semibold text-[var(--color-text)] mb-3 text-sm">Document Info</h2>
-
-        {/* Summary section */}
-        <EnhancedRegulationSummary
-          summary={regulation.summary}
-          sectionType={regulation.sectionType}
-          keywords={regulation.keywords}
-          appliesTo={regulation.appliesTo}
-          hasForm={regulation.hasForm}
-          hasIbr={regulation.hasIbr}
-          showHeading={false}
-        />
-
-        {/* Source and Analysis section */}
-        <div className="mt-4 pt-4 border-t border-[var(--color-neutral-200)]">
-          <RegulationMetadata regulation={regulation} layout="grid" />
-        </div>
-      </Card>
-
-      {/* Exclusion Toggle */}
-      <Card className="p-4">
-        <ExclusionToggle
-          documentId={regulationId}
-          isExcluded={regulation.excludeFromAnalysis ?? false}
-          excludedBy={regulation.excludedBy}
-          excludedAt={regulation.excludedAt}
-          excludedReason={regulation.excludedReason}
-        />
-      </Card>
-
-      {/* Children (sub-sections) */}
-      <ChildrenListServer documentId={regulationId} state={state} />
-
-      {/* Red Flags */}
-      {regulation.redFlags && regulation.redFlags.length > 0 && (
-        <RedFlagsList initialFlags={regulation.redFlags} />
-      )}
-
-      {/* Compliance Issues */}
-      {complianceIssues && complianceIssues.length > 0 && (
-        <ComplianceIssuesList
-          initialIssues={complianceIssues}
-          regulationContent={regulation.content}
-        />
-      )}
-
-      {/* Cross-References */}
-      {crossRefs.length > 0 && (
-        <Card className="p-4">
-          <CrossReferenceList
-            crossRefs={crossRefs}
-            state={state as 'nj' | 'ny'}
-            title="Cross-References"
+      <RegulationSidebarWithNav sections={sections}>
+        {/* Hierarchy Breadcrumbs */}
+        <Card id="sidebar-hierarchy" className="p-4">
+          <h2 className="font-semibold text-[var(--color-primary)] mb-3 text-sm">Hierarchy</h2>
+          <HierarchyBreadcrumbsServer
+            documentId={regulationId}
+            currentTitle={formatDisplayTitle(regulation) || 'Untitled'}
+            state={state}
+          />
+          <RegulationHierarchyDetails
+            regulation={regulation}
+            className="mt-3 pt-3 border-t border-[var(--color-neutral-200)] text-sm"
           />
         </Card>
-      )}
 
-      {/* Incoming References */}
-      {incomingRefs.length > 0 && (
+        {/* Enabling Authority */}
+        {enablingAuthority.length > 0 && (
+          <div id="sidebar-enabling-authority">
+            <EnablingAuthorityCard links={enablingAuthority} state={state} />
+          </div>
+        )}
+
+        {/* Document Info - Combined Summary and Metadata */}
+        <Card id="sidebar-document-info" className="p-4">
+          <h2 className="font-semibold text-[var(--color-text)] mb-3 text-sm">Document Info</h2>
+
+          {/* Summary section */}
+          <EnhancedRegulationSummary
+            summary={regulation.summary}
+            sectionType={regulation.sectionType}
+            keywords={regulation.keywords}
+            appliesTo={regulation.appliesTo}
+            hasForm={regulation.hasForm}
+            hasIbr={regulation.hasIbr}
+            showHeading={false}
+          />
+
+          {/* Source and Analysis section */}
+          <div className="mt-4 pt-4 border-t border-[var(--color-neutral-200)]">
+            <RegulationMetadata regulation={regulation} layout="grid" />
+          </div>
+        </Card>
+
+        {/* Exclusion Toggle */}
         <Card className="p-4">
-          <IncomingReferenceList
-            crossRefs={incomingRefs}
-            state={state as 'nj' | 'ny'}
-            title="Cited By"
+          <ExclusionToggle
+            documentId={regulationId}
+            isExcluded={regulation.excludeFromAnalysis ?? false}
+            excludedBy={regulation.excludedBy}
+            excludedAt={regulation.excludedAt}
+            excludedReason={regulation.excludedReason}
           />
         </Card>
-      )}
 
-      {/* Statute Links */}
-      {statuteLinks.length > 0 && (
-        <Card className="p-4">
-          <StatuteLinksList links={statuteLinks} state={state} />
-        </Card>
-      )}
+        {/* Children (sub-sections) */}
+        <ChildrenListServer documentId={regulationId} state={state} />
 
-      {/* Definitions Used */}
-      {usedDefinitions.length > 0 && (
-        <DefinitionsList
-          definitions={usedDefinitions}
-          definedHereIds={definedHereIds}
-          currentDocumentId={regulationId}
-          state={state}
-          title="Definitions Used"
-          description="Terms that appear in this document"
-          collapsible
-          initialCollapsed={false}
-        />
-      )}
+        {/* Red Flags */}
+        {regulation.redFlags && regulation.redFlags.length > 0 && (
+          <div id="sidebar-red-flags">
+            <RedFlagsList initialFlags={regulation.redFlags} />
+          </div>
+        )}
 
-      {/* Available Definitions */}
-      {availableButNotUsed.length > 0 && (
-        <ApplicableDefinitions
-          definitions={availableButNotUsed}
-          state={state}
-          title="Other Available Definitions"
-          description="Terms in scope but not used in this document"
-          collapsed={true}
-        />
-      )}
+        {/* Compliance Issues */}
+        {complianceIssues && complianceIssues.length > 0 && (
+          <div id="sidebar-compliance-issues">
+            <ComplianceIssuesList
+              initialIssues={complianceIssues}
+              regulationContent={regulation.content}
+            />
+          </div>
+        )}
+
+        {/* Cross-References */}
+        {crossRefs.length > 0 && (
+          <Card id="sidebar-cross-refs" className="p-4">
+            <CrossReferenceList
+              crossRefs={crossRefs}
+              state={state as 'nj' | 'ny'}
+              title="Cross-References"
+            />
+          </Card>
+        )}
+
+        {/* Incoming References */}
+        {incomingRefs.length > 0 && (
+          <Card id="sidebar-cited-by" className="p-4">
+            <IncomingReferenceList
+              crossRefs={incomingRefs}
+              state={state as 'nj' | 'ny'}
+              title="Cited By"
+            />
+          </Card>
+        )}
+
+        {/* Statute Links */}
+        {statuteLinks.length > 0 && (
+          <Card id="sidebar-statute-links" className="p-4">
+            <StatuteLinksList links={statuteLinks} state={state} />
+          </Card>
+        )}
+
+        {/* Definitions Used */}
+        {usedDefinitions.length > 0 && (
+          <div id="sidebar-definitions-used">
+            <DefinitionsList
+              definitions={usedDefinitions}
+              definedHereIds={definedHereIds}
+              currentDocumentId={regulationId}
+              state={state}
+              title="Definitions Used"
+              description="Terms that appear in this document"
+              collapsible
+              initialCollapsed={false}
+            />
+          </div>
+        )}
+
+        {/* Available Definitions */}
+        {availableButNotUsed.length > 0 && (
+          <div id="sidebar-definitions-available">
+            <ApplicableDefinitions
+              definitions={availableButNotUsed}
+              state={state}
+              title="Other Available Definitions"
+              description="Terms in scope but not used in this document"
+              collapsed={true}
+            />
+          </div>
+        )}
+      </RegulationSidebarWithNav>
     </div>
   );
 }

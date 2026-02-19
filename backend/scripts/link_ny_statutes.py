@@ -8,9 +8,14 @@ inserts into the regulation_statute_links table.
 
 Regulations cite NY statutes in natural language:
   - "section 488 of the Social Services Law"
+  - "Section 813(18)(a)(1) of the General Municipal Law"
+  - "sections 488 and 489 of the Social Services Law"
   - "Education Law section 4401"
+  - "General Municipal Law, section 813"
   - "Public Health Law § 2801"
+  - "Education Law §§ 4401"
   - "subdivision (a) of section 413 of the Social Services Law"
+  - "Subdivision (a) of Section 413 of the Social Services Law"
 
 Usage:
     cd backend && python scripts/link_ny_statutes.py                        # Scan NYCRR (default)
@@ -55,30 +60,51 @@ _LAW_NAME = r'((?:[A-Z][a-z\']+[\s,&\-]+(?:and\s+|of\s+)?)*[A-Z][a-z\']+)'
 # Examples: "488", "296-a", "2801-a", "119.1", "17-a"
 _SECTION_NUM = r'(\d+(?:-[a-zA-Z](?:\.\d+)?)?(?:\.\d+)?)'
 
+# Consume trailing parenthetical subsections like (18)(a)(1) without capturing.
+# The DB stores base section numbers only (e.g., "813" not "813(18)(a)(1)").
+_PARENS_SUFFIX = r'(?:\([a-zA-Z0-9]+\))*'
+
 # Pattern 1: "section 488 of the Social Services Law"
-#             "section 296-a of the Executive Law"
+#             "Section 813(18)(a)(1) of the General Municipal Law"
+#             "§§ 296-a of the Executive Law"
 PATTERN_SECTION_OF_LAW = re.compile(
-    r'(?:section|§)\s*' + _SECTION_NUM + r'\s+of\s+the\s+' + _LAW_NAME + r'\s+Law\b'
+    r'(?:[Ss]ections?\s+|§§?\s*)' + _SECTION_NUM + _PARENS_SUFFIX +
+    r'\s+of\s+the\s+' + _LAW_NAME + r'\s+Law\b'
 )
 
 # Pattern 2: "Education Law section 4401" / "Education Law § 4401"
-#             "Public Health Law § 2801"
+#             "General Municipal Law, section 813(18)(a)(1)"
+#             "Public Health Law §§ 2801"
 PATTERN_LAW_SECTION = re.compile(
-    _LAW_NAME + r'\s+Law\s+(?:section|§)\s*' + _SECTION_NUM
+    _LAW_NAME + r'\s+Law[,]?\s+(?:[Ss]ections?\s+|§§?\s*)' + _SECTION_NUM + _PARENS_SUFFIX
 )
 
 # Pattern 3: "subdivision (a) of section 413 of the Social Services Law"
-#             "paragraph (2) of subdivision (a) of section 413 of the Social Services Law"
+#             "Paragraph (2) of subdivision (a) of section 413 of the Social Services Law"
+#             "Subdivision (a) of Section 413 of the Social Services Law"
 PATTERN_SUBDIV_SECTION_OF_LAW = re.compile(
-    r'(?:subdivision|paragraph|subparagraph)\s+\([a-z0-9]+\)\s+'
-    r'(?:of\s+(?:subdivision|paragraph)\s+\([a-z0-9]+\)\s+){0,5}'
-    r'of\s+(?:section|§)\s*' + _SECTION_NUM + r'\s+of\s+the\s+' + _LAW_NAME + r'\s+Law\b'
+    r'(?:[Ss]ubdivision|[Pp]aragraph|[Ss]ubparagraph)\s+\([a-z0-9]+\)\s+'
+    r'(?:of\s+(?:[Ss]ubdivision|[Pp]aragraph)\s+\([a-z0-9]+\)\s+){0,5}'
+    r'of\s+(?:[Ss]ections?\s+|§§?\s*)' + _SECTION_NUM + _PARENS_SUFFIX +
+    r'\s+of\s+the\s+' + _LAW_NAME + r'\s+Law\b'
+)
+
+# Pattern 4: "sections 488 and 489 of the Social Services Law"
+#             "§§ 488, 489, and 490 of the Social Services Law"
+# Captures only the first section number; dedup handles the rest.
+PATTERN_PLURAL_SECTIONS_OF_LAW = re.compile(
+    r'(?:[Ss]ections|§§)\s+' + _SECTION_NUM + _PARENS_SUFFIX +
+    r'(?:\s*,\s*\d+(?:-[a-zA-Z](?:\.\d+)?)?(?:\.\d+)?' + _PARENS_SUFFIX + r')*'
+    r'\s*,?\s+and\s+\d+(?:-[a-zA-Z](?:\.\d+)?)?(?:\.\d+)?' + _PARENS_SUFFIX +
+    r'\s+of\s+the\s+' + _LAW_NAME + r'\s+Law\b'
 )
 
 # All patterns with their group extraction order: (section_group, law_name_group)
 CITATION_PATTERNS = [
     # Most specific first (subdivision pattern)
     (PATTERN_SUBDIV_SECTION_OF_LAW, 1, 2),
+    # Plural "sections X and Y of the Z Law" (more specific than singular)
+    (PATTERN_PLURAL_SECTIONS_OF_LAW, 1, 2),
     # "section X of the Y Law"
     (PATTERN_SECTION_OF_LAW, 1, 2),
     # "Y Law section X" (groups are reversed)

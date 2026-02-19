@@ -25,6 +25,8 @@ export interface NavItem {
   showOnDesktop?: boolean;
   /** Group identifier for dropdowns */
   groupId?: 'explorer' | 'review' | 'metrics';
+  /** Whether this link should be visually highlighted in the header */
+  isHighlighted?: boolean;
   /** Whether this appears after the divider on desktop */
   isGlobalSection?: boolean;
 }
@@ -115,7 +117,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: FlaskConical,
     isStateSpecific: true,
     pathSuffix: '/pipeline',
-    groupId: 'metrics',
+    isHighlighted: true,
   },
   {
     key: 'bookmarks',

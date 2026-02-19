@@ -975,3 +975,44 @@ ORDER BY
 ```
 
 This ensures "Chapter 2" sorts before "Chapter 11" and "Section 24A" sorts between "24" and "25".
+
+## share_tokens
+
+One-time shareable authentication tokens for granting temporary site access.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | serial | Primary key |
+| `token` | text | Cryptographically random 64-character hex string (from 32 random bytes) |
+| `used` | boolean | Whether this token has been consumed (default: false) |
+| `created_at` | timestamp | When the token was generated |
+| `used_at` | timestamp | When the token was first used (nullable) |
+
+**Purpose:**
+- Allows authenticated users to generate shareable links for one-time site access
+- Each token can only be used once - after consumption, it's marked as used
+- Tokens never expire based on time, only on usage
+- Used tokens are kept in the database for audit trail
+
+**Workflow:**
+1. Authenticated user clicks "Share" button in header
+2. System generates cryptographically random token via `generateShareToken()` server action
+3. Token stored in database with `used = false`
+4. User shares link: `https://example.com/auth?token={token}`
+5. Recipient visits link → system validates token via `validateShareToken()`
+6. If valid and unused: mark `used = true`, set `used_at = NOW()`, authenticate user
+7. If invalid or already used: show error and password form
+
+**Indexes:**
+- `idx_share_tokens_token` - Fast token lookup
+- `idx_share_tokens_used` - Query used/unused tokens
+
+**Constraints:**
+- `token` is UNIQUE
+- Both columns have NOT NULL constraints
+
+**Security:**
+- Tokens are 64-character hex strings (256 bits of entropy)
+- Generated using Node.js `crypto.randomBytes(32)`
+- Validation happens server-side in auth actions
+- Client-side auth guard is intentionally lightweight (can be bypassed via devtools, but that's acceptable per requirements)
