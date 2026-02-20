@@ -14,7 +14,7 @@ import {
   ChartTooltip,
 } from '@/components/charts';
 import { useChartColors } from '@/hooks/useChartColors';
-import type { LegendItem, BarChartDatum } from '@/lib/charts/types';
+import type { LegendItem } from '@/lib/charts/types';
 
 interface Tier1ContextPanelProps {
   data: Tier1ContextRequestStats | null;
@@ -189,7 +189,7 @@ function HorizontalStackedBarInline({
 }
 
 export function Tier1ContextPanel({ data, onIssueTypeClick }: Tier1ContextPanelProps) {
-  const { categoryScale, colors } = useChartColors();
+  const { categoryScale } = useChartColors();
 
   // ── Stable color map for context types ──────────────────────────
   const contextTypeColors = useMemo(() => {
@@ -253,37 +253,36 @@ export function Tier1ContextPanel({ data, onIssueTypeClick }: Tier1ContextPanelP
     return { stackedData: bars, stackedLegend: legend };
   }, [data, contextTypeColors, categoryScale]);
 
-  // ── Section 3: Horizontal bar chart data (context type distribution) ──
-  const contextTypeBarData: BarChartDatum[] = useMemo(() => {
+  // ── Section 3: Per-context-type breakdown (top issues for each context type) ──
+  const perContextTypeData = useMemo(() => {
     if (!data) return [];
 
-    // Aggregate counts by context type
-    const totals = new Map<string, number>();
-    for (const row of data.byContextType) {
-      totals.set(row.contextType, (totals.get(row.contextType) ?? 0) + row.count);
-    }
-
-    // Check need level for color coding
-    const needLevelByType = new Map<string, string>();
-    for (const row of data.byContextType) {
-      // Use the dominant need level (last one wins, but 'full_text' takes priority)
-      const existing = needLevelByType.get(row.contextType);
-      if (!existing || row.needLevel === 'full_text') {
-        needLevelByType.set(row.contextType, row.needLevel);
+    // Group by context type, then rank issue types within each
+    const byCtx = new Map<string, Map<string, number>>();
+    for (const row of data.byIssueType) {
+      if (!byCtx.has(row.contextType)) {
+        byCtx.set(row.contextType, new Map());
       }
+      const issueMap = byCtx.get(row.contextType)!;
+      issueMap.set(row.issueType, (issueMap.get(row.issueType) ?? 0) + row.count);
     }
 
-    return [...totals.entries()]
-      .map(([contextType, count]) => {
-        const needLevel = needLevelByType.get(contextType) ?? 'summary';
-        return {
-          label: formatIssueType(contextType),
-          value: count,
-          color: needLevel === 'full_text' ? colors.warning : colors.primary,
-        };
+    // Compute total per context type and sort context types by total descending
+    return [...byCtx.entries()]
+      .map(([contextType, issueMap]) => {
+        const items = [...issueMap.entries()]
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 5)
+          .map(([issueType, count]) => ({
+            label: formatIssueType(issueType),
+            value: count,
+            color: contextTypeColors[contextType] ?? categoryScale(contextType),
+          }));
+        const total = [...issueMap.values()].reduce((a, b) => a + b, 0);
+        return { contextType, label: formatIssueType(contextType), total, items };
       })
-      .sort((a, b) => b.value - a.value);
-  }, [data, colors]);
+      .sort((a, b) => b.total - a.total);
+  }, [data, contextTypeColors, categoryScale]);
 
   // ── Null state ──────────────────────────────────────────────────
   if (!data) {
@@ -356,26 +355,35 @@ export function Tier1ContextPanel({ data, onIssueTypeClick }: Tier1ContextPanelP
         </>
       )}
 
-      {/* ── 3. Context Type Distribution (Horizontal Bar) ──────── */}
-      {contextTypeBarData.length > 0 && (
-        <ChartContainer
-          title="Context Type Distribution"
-          description="Aggregate request count per context type (colored by dominant need level)"
-          aspectRatio={2}
-          minHeight={Math.max(200, contextTypeBarData.length * 40)}
-          maxHeight={400}
-        >
-          {({ width, height }) => (
-            <ClientChart minHeight={height}>
-              <HorizontalBarChart
-                data={contextTypeBarData}
-                width={width}
-                height={height}
-                maxBars={10}
-              />
-            </ClientChart>
-          )}
-        </ChartContainer>
+      {/* ── 3. Top Issues by Context Type (Grid of small bar charts) ── */}
+      {perContextTypeData.length > 0 && (
+        <div className="space-y-3">
+          <h4 className="text-sm font-semibold text-[var(--color-text-secondary)]">
+            Top Issues by Context Type
+          </h4>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {perContextTypeData.map(({ contextType, label, total, items }) => (
+              <ChartContainer
+                key={contextType}
+                title={`${label} (${total.toLocaleString()})`}
+                aspectRatio={16 / 7}
+                minHeight={Math.max(140, items.length * 32 + 20)}
+                maxHeight={280}
+              >
+                {({ width, height }) => (
+                  <ClientChart minHeight={height}>
+                    <HorizontalBarChart
+                      data={items}
+                      width={width}
+                      height={height}
+                      maxBars={5}
+                    />
+                  </ClientChart>
+                )}
+              </ChartContainer>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );

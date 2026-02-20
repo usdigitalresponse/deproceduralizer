@@ -17,6 +17,7 @@ import {
   type ComplianceIssueWithAnalysis,
   type PaginatedComplianceIssuesResult,
   type TierCompletionCounts,
+  type SeverityDistribution,
 } from '@deproceduralizer/database';
 
 // PR 6.3: updateReview now returns ComplianceIssueWithAnalysisFields (review fields from analyses)
@@ -362,6 +363,23 @@ export async function getAnalysisTierCounts(
     return success(result);
   } catch (error) {
     console.error('[getAnalysisTierCounts]', error);
+    return failure(getErrorMessage(error));
+  }
+}
+
+export async function getComplianceSeverityDistribution(
+  state: StateCode
+): Promise<ActionResult<SeverityDistribution>> {
+  try {
+    const cachedFn = unstable_cache(
+      () => complianceIssuesRepo.getSeverityDistribution(state),
+      [`compliance-severity-dist-${state}`],
+      { revalidate: 3600, tags: ['compliance-analytics'] }
+    );
+    const data = await cachedFn();
+    return success(data);
+  } catch (error) {
+    console.error('[getComplianceSeverityDistribution]', error);
     return failure(getErrorMessage(error));
   }
 }

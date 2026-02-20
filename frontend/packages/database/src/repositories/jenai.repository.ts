@@ -4,6 +4,7 @@ import { jenaiIssues, type JenAIIssue } from '../schema/jenai-issues';
 import { jenaiAnalyses } from '../schema/jenai-analyses';
 import { regulatoryDocuments } from '../schema/regulatory-documents';
 import { type StateCode, normalizeState } from '../schema/constants';
+import type { SeverityDistribution } from './compliance-issues.repository';
 
 export interface JenAIIssueWithContext extends JenAIIssue {
   regulation: {
@@ -548,5 +549,25 @@ export class JenAIRepository extends BaseRepository {
       pageSize,
       totalPages: Math.ceil(total / pageSize),
     };
+  }
+
+  /**
+   * Get severity distribution (high/medium/low) for JenAI issues.
+   * High >= 7, Medium 4-6, Low 1-3.
+   */
+  async getSeverityDistribution(state: StateCode): Promise<SeverityDistribution> {
+    const result = await this.db.execute(sql`
+      SELECT
+        COUNT(*) FILTER (WHERE ji.severity >= 7)::int AS "high",
+        COUNT(*) FILTER (WHERE ji.severity >= 4 AND ji.severity < 7)::int AS "medium",
+        COUNT(*) FILTER (WHERE ji.severity >= 1 AND ji.severity < 4)::int AS "low",
+        COUNT(*)::int AS "total"
+      FROM jenai_issues ji
+      INNER JOIN regulatory_documents rd ON ji.document_id = rd.id
+      WHERE rd.state = ${normalizeState(state)}
+    `);
+
+    const row = result.rows[0] as { high: number; medium: number; low: number; total: number };
+    return { high: row.high, medium: row.medium, low: row.low, total: row.total };
   }
 }

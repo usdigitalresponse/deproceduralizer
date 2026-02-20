@@ -68,8 +68,40 @@ From `--color-neutral-900` (darkest) to `--color-neutral-50` (lightest), plus `-
 | `--color-text` | `#1b1b1b` | Primary text |
 | `--color-text-secondary` | `#525252` | Secondary text, labels |
 | `--color-text-muted` | `#6b6b6b` | Placeholder, disabled text |
+| `--color-text-inverse` | `#ffffff` | Text on dark backgrounds |
 | `--color-link` | `#004dd1` | Links |
 | `--color-link-hover` | `#003ba1` | Link hover states |
+
+### Surface Colors
+
+| Token | Value | Usage |
+|-------|-------|-------|
+| `--color-surface` | `#ffffff` | Default surface (cards, panels) |
+| `--color-surface-raised` | `#f6f6f6` | Raised surface (hover rows, sidebars) |
+| `--color-background` | `#f7fafd` | Page background |
+
+### Focus Tokens
+
+| Token | Value | Usage |
+|-------|-------|-------|
+| `--color-focus` | `#004dd1` | Focus outline color |
+| `--color-focus-ring` | `rgba(0, 77, 209, 0.4)` | Focus ring glow |
+
+### State-Specific Accent Colors
+
+Each jurisdiction has a unique accent, background, and border color for visual differentiation:
+
+| Token | Value | Usage |
+|-------|-------|-------|
+| `--color-state-ny-accent` | `#1e40af` | New York accent |
+| `--color-state-ny-bg` | `rgba(30, 64, 175, 0.05)` | New York background tint |
+| `--color-state-ny-border` | `rgba(30, 64, 175, 0.15)` | New York border tint |
+| `--color-state-nj-accent` | `#b45309` | New Jersey accent |
+| `--color-state-nj-bg` | `rgba(180, 83, 9, 0.05)` | New Jersey background tint |
+| `--color-state-nj-border` | `rgba(180, 83, 9, 0.15)` | New Jersey border tint |
+| `--color-state-nyc-accent` | `#059669` | New York City accent |
+| `--color-state-nyc-bg` | `rgba(5, 150, 105, 0.05)` | New York City background tint |
+| `--color-state-nyc-border` | `rgba(5, 150, 105, 0.15)` | New York City border tint |
 
 ---
 
@@ -104,21 +136,44 @@ From `--color-neutral-900` (darkest) to `--color-neutral-50` (lightest), plus `-
 | `--font-semibold` | 600 | Headers, buttons |
 | `--font-bold` | 700 | Strong emphasis |
 
+### Line Heights
+
+| Token | Value | Usage |
+|-------|-------|-------|
+| `--leading-none` | 1 | Badges, icons |
+| `--leading-tight` | 1.25 | Headings |
+| `--leading-snug` | 1.375 | Subheadings |
+| `--leading-normal` | 1.5 | Body text (default) |
+| `--leading-relaxed` | 1.625 | Long-form content |
+| `--leading-loose` | 2 | Spacious text blocks |
+
+### Letter Spacing
+
+| Token | Value | Usage |
+|-------|-------|-------|
+| `--tracking-tight` | -0.025em | Headings, large text |
+| `--tracking-normal` | 0 | Body text (default) |
+| `--tracking-wide` | 0.025em | Uppercase labels, small caps |
+
 ---
 
 ## Spacing
 
 | Token | Size | Usage |
 |-------|------|-------|
+| `--space-0` | 0 | No spacing |
 | `--space-1` | 4px | Tight gaps |
 | `--space-2` | 8px | Icon gaps, inline spacing |
 | `--space-3` | 12px | Form field gaps |
 | `--space-4` | 16px | Card padding, section gaps |
+| `--space-5` | 20px | Intermediate spacing |
 | `--space-6` | 24px | Component spacing |
 | `--space-8` | 32px | Section spacing |
 | `--space-10` | 40px | Large gaps |
 | `--space-12` | 48px | Page sections |
 | `--space-16` | 64px | Major sections |
+| `--space-20` | 80px | Large page sections |
+| `--space-24` | 96px | Hero/banner spacing |
 
 ---
 
@@ -126,10 +181,21 @@ From `--color-neutral-900` (darkest) to `--color-neutral-50` (lightest), plus `-
 
 | Token | Size | Usage |
 |-------|------|-------|
+| `--radius-none` | 0 | No rounding |
 | `--radius-sm` | 4px | Badges, small elements |
 | `--radius-md` | 6px | Buttons, inputs |
 | `--radius-lg` | 8px | Cards |
 | `--radius-xl` | 12px | Modals |
+| `--radius-2xl` | 16px | Large containers |
+| `--radius-full` | 9999px | Pills, avatars |
+
+### Border Widths
+
+| Token | Size | Usage |
+|-------|------|-------|
+| `--border-width-1` | 1px | Default borders |
+| `--border-width-2` | 2px | Emphasis borders, focus rings |
+| `--border-width-4` | 4px | Strong emphasis, left accent borders |
 
 ---
 
@@ -140,6 +206,19 @@ From `--color-neutral-900` (darkest) to `--color-neutral-50` (lightest), plus `-
 | `--shadow-sm` | Cards, subtle elevation |
 | `--shadow-md` | Dropdowns, popovers |
 | `--shadow-lg` | Modals |
+| `--shadow-xl` | Elevated overlays, large dropdowns |
+
+### Z-Index Scale
+
+| Token | Value | Usage |
+|-------|-------|-------|
+| `--z-base` | 0 | Default stacking |
+| `--z-dropdown` | 10 | Dropdown menus |
+| `--z-sticky` | 20 | Sticky headers, context bars |
+| `--z-fixed` | 30 | Fixed position elements |
+| `--z-modal-backdrop` | 40 | Modal backdrop overlay |
+| `--z-modal` | 50 | Modal dialogs |
+| `--z-tooltip` | 60 | Tooltips, popovers |
 
 ---
 
@@ -368,7 +447,7 @@ import { SectionTypeBadge } from '@/components/ui/SectionTypeBadge';
 | `type` | `string \| null` | - | Section type category |
 | `compact` | `boolean` | `false` | Show abbreviated label |
 
-Section type categories (13): `definitions`, `requirements`, `procedures`, `prohibitions`, `standards`, `eligibility`, `penalties`, `fees`, `forms`, `reporting`, `scope`, `exemptions`, `reserved`
+Section type categories (15): `definitions`, `requirements`, `procedures`, `prohibitions`, `standards`, `eligibility`, `penalties`, `fees`, `forms`, `reporting`, `purpose`, `scope`, `exemptions`, `reserved`, `other`
 
 Each type has a unique color scheme for quick visual identification.
 
@@ -472,6 +551,61 @@ Features:
 - Ghost-style button with hover states
 - Uses `navigator.clipboard` API
 
+### BookmarkButton
+
+Toggle button for bookmarking/starring items. Uses warning (gold) color when active.
+
+```tsx
+import { BookmarkButton } from '@/components/ui';
+
+<BookmarkButton
+  isBookmarked={isBookmarked}
+  onToggle={handleToggle}
+  size="md"
+  showLabel
+/>
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `isBookmarked` | `boolean` | required | Current bookmark state |
+| `onToggle` | `() => void` | required | Toggle callback |
+| `size` | `'sm' \| 'md'` | `'md'` | Button size (`sm`: 16px icon, `md`: 20px icon) |
+| `showLabel` | `boolean` | `false` | Show "Bookmarked"/"Bookmark" text label |
+| `isLoading` | `boolean` | `false` | Show spinner during toggle |
+
+Uses Star icon from Lucide (filled when bookmarked). Prevents event propagation. Extends standard `ButtonHTMLAttributes`.
+
+### SearchableContent
+
+Content display with inline search highlighting and match navigation.
+
+```tsx
+import { SearchableContent } from '@/components/ui';
+
+<SearchableContent
+  content={document.text}
+  maxHeight="16rem"
+  placeholder="Search in text..."
+/>
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `content` | `string` | required | Text content to display and search |
+| `placeholder` | `string` | `'Search in text...'` | Search input placeholder |
+| `defaultExpanded` | `boolean` | `false` | Start with search bar visible |
+| `maxHeight` | `string` | `'16rem'` | Max height of content area |
+| `initialValue` | `string` | — | Pre-fill search and auto-expand |
+| `onSearchChange` | `(query: string) => void` | — | Callback on search input change |
+| `children` | `ReactNode` | — | Custom content (skips built-in highlighting) |
+
+Features:
+- Real-time search highlighting (current match: warning yellow, other matches: light yellow)
+- Match navigation: previous/next buttons, match counter ("1/5 matches")
+- Keyboard shortcuts: Enter (next), Shift+Enter (previous), Escape (close)
+- Scroll-into-view for current match
+
 ### Term Highlighting
 
 Highlights defined terms in regulation text with clickable popover definitions.
@@ -570,8 +704,9 @@ Conditional badges shown alongside analysis metadata:
 
 | Indicator | Badge Variant | When Shown |
 |-----------|--------------|------------|
-| Federal Mandate | `info` (blue) | `federal_mandate_found = true` |
-| Easy Cleanup | `success` (green) | `easy_cleanup_category IS NOT NULL` |
+| Federal Mandate | `danger` (red) | `federalMandateFound = true` |
+| Easy Fix | `success` (green) | `easyCleanupCandidate = true` AND `cleanupEffort = 'trivial'` |
+| Fixable | `success` (green) | `easyCleanupCandidate = true` AND `cleanupEffort ≠ 'trivial'` |
 | "X issues" | plain text | `issueCount > 0` on regulation search results |
 | Not Analyzed | *(no badge)* | Regulation with 0 issues — clean card |
 
@@ -958,6 +1093,47 @@ Standardized page title area with:
 - Title (text-2xl or text-3xl)
 - Optional description
 - Light background stripe
+
+### StateContextBar
+
+Displays the current jurisdiction with a dropdown to switch between available states. Sits below the main header.
+
+```tsx
+import { StateContextBar } from '@/components/layout/StateContextBar';
+
+<StateContextBar state="NY" />
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `state` | `StateCode` | required | Current jurisdiction (`NY`, `NJ`, `NYC`) |
+
+Uses state-specific accent colors (`--color-state-{code}-accent`, `--color-state-{code}-bg`). Persists selection to localStorage and maintains query parameters when switching.
+
+### NavDropdown
+
+Navigation dropdown for grouping related nav links under a single button.
+
+```tsx
+import { NavDropdown } from '@/components/layout/NavDropdown';
+
+<NavDropdown
+  label="Review"
+  icon={ClipboardCheck}
+  items={[
+    { key: 'red-flags', label: 'Red Flags', href: '/review/red-flags', isActive: true },
+    { key: 'compliance', label: 'Compliance', href: '/review/compliance', isActive: false },
+  ]}
+/>
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `label` | `string` | required | Button label (hidden on small screens) |
+| `icon` | `LucideIcon` | required | Button icon |
+| `items` | `NavDropdownItem[]` | required | Array of `{ key, label, href, isActive, icon? }` |
+
+Highlights button when any child item is active. Closes on outside click. Uses Next.js `Link` for client-side navigation.
 
 ### Navigation Helpers
 
@@ -1390,6 +1566,328 @@ import { NeedMoreInfoCard } from '@/components/review';
 
 ---
 
+## Compliance Issue Review Components
+
+Full decomposition of the compliance issue review workflow — dual-mode queue with smart suggestions and comprehensive analysis cards.
+
+### ComplianceReviewQueue
+
+Master container for compliance issue review. Supports two modes via a union type:
+
+```tsx
+import { ComplianceReviewQueue } from '@/components/review';
+
+// Filter mode (manual browsing with pagination)
+<ComplianceReviewQueue
+  mode="filter"
+  initialIssues={issues}
+  pagination={pagination}
+  statusCounts={statusCounts}
+  issueTypes={issueTypes}
+/>
+
+// Suggestion mode (smart grouping with batch navigation)
+<ComplianceReviewQueue
+  mode="suggestion"
+  initialBatch={batch}
+  fetchBatch={fetchBatch}
+  statusCounts={statusCounts}
+  issueTypes={issueTypes}
+/>
+```
+
+| Prop (shared) | Type | Description |
+|------|------|-------------|
+| `statusCounts` | `ComplianceIssueStatusCounts` | Review status breakdown for progress bar |
+| `issueTypes` | `string[]` | Available issue types for filtering |
+| `compact` | `boolean?` | Compact card rendering |
+
+**Filter mode** adds `initialIssues` and `pagination`. **Suggestion mode** adds `initialBatch` and `fetchBatch` callback.
+
+Features: keyboard navigation (j/k), deep linking, URL state persistence, regulation modal sidebar, dual hook system (`useQueue` + `useSuggestionQueue`).
+
+### ComplianceQueueModeSwitcher
+
+SegmentedControl toggle between "Manual Filters" and "Smart Suggestions" modes.
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `mode` | `QueueModeValue` | Current queue mode |
+
+Clears mode-specific URL parameters when switching.
+
+### ComplianceFilters
+
+FilterBar for filter mode with filters for: Status, Issue Type, Severity, Source (statute), LLM (requirement found), Tier, Federal Mandate, Analysis presence. Includes sort controls. Uses `nuqs` URL state.
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `issueTypes` | `string[]` | Available issue types |
+| `className` | `string?` | Additional CSS classes |
+
+### SuggestionModeControls
+
+Info panel and controls for suggestion mode. Shows current grouping strategy, focus group, remaining items, and batch size controls.
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `groupingMode` | `'issue_type' \| 'section' \| 'combined'` | Current grouping strategy |
+| `focus` | `{ issueType?, section?, pattern? }` | Current focus group |
+| `remainingInFocus` | `number` | Items remaining in current group |
+| `totalUnreviewed` | `number` | Total unreviewed items |
+| `batchSize` | `1 \| 3 \| 5 \| 10` | Items per batch |
+| `onSkipToNextMode` | `() => void` | Skip to next grouping mode |
+| `onClearHistory` | `() => void` | Reset suggestion history |
+| `onBatchSizeChange` | `(size) => void` | Change batch size |
+
+### ComplianceIssueCard
+
+Comprehensive card for a single compliance issue with full analysis details. ForwardRef component.
+
+```tsx
+import { ComplianceIssueCard } from '@/components/review/ComplianceIssueCard';
+
+<ComplianceIssueCard
+  issue={issue}
+  onUpdated={handleUpdated}
+  onViewRegulation={handleViewRegulation}
+  isFocused={isFocused}
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `issue` | `ComplianceIssueWithAnalysis` | Issue with joined analysis data |
+| `onUpdated` | `(updated) => void` | Callback after review update |
+| `onViewRegulation` | `(regulationId: number) => void` | Open regulation modal |
+| `isFocused` | `boolean?` | Keyboard focus highlight |
+
+#### Sub-components (in `ComplianceIssueCard/`)
+
+| Component | Purpose |
+|-----------|---------|
+| `Header` | Issue type badge (links to /prompts), OutcomeBadges, review status |
+| `TierClassificationSection` | 3-tier pipeline progression visualization (Tier 1→2→3) |
+| `SummaryContext` | Regulation summary, section type badge, metadata indicators, hierarchy breadcrumbs |
+| `LLMAnalysisSection` | Decision rationale, verbatim supporting text, cited statute |
+| `EvidenceSection` | Expandable research evidence (web search results, document quotes) |
+| `AnalysisDetailsSection` | Expandable steelman arguments (For/Against), web research summary, analysis metadata |
+| `TechnicalDetailsSection` | Expandable regex match pattern display |
+| `ReviewForm` | Inline review form: status, justification, reviewer, severity override, impact type |
+
+### ComplianceDeveloperQueue
+
+Developer mode queue for reviewed compliance issues. Shows developer assignment, resolution tracking, and developer notes.
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `initialItems` | `ComplianceIssueWithAnalysis[]` | Pre-loaded items |
+| `pagination` | `PaginationInfo` | Page info |
+| `statusCounts` | `CombinedDeveloperStatusCounts` | Developer status breakdown |
+| `issueTypes` | `string[]` | Available issue types |
+
+Uses `DeveloperCard` component and generic queue hook. Includes excluded sections list and progress bar.
+
+### ComplianceDeveloperFilters
+
+FilterBar for compliance developer mode: Dev Status, Developer, Severity, Review Status, Issue Type. Includes sort controls.
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `issueTypes` | `string[]` | Available issue types |
+| `className` | `string?` | Additional CSS classes |
+
+---
+
+## Definitions Review Workflow
+
+Complete workflow for reviewing AI-extracted regulatory definitions. Parallel to the Red Flags review flow.
+
+### DefinitionsReviewQueue
+
+Main review queue container. Manages pagination, filtering, keyboard navigation (j/k, x to select), bulk selection, and progress tracking.
+
+```tsx
+import { DefinitionsReviewQueue } from '@/components/review/definitions';
+
+<DefinitionsReviewQueue state="NY" />
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `state` | `StateCode` | Jurisdiction (`NY`, `NJ`, `NYC`) |
+
+Features: keyboard shortcuts with help modal, bulk actions bar, integration with RegulationModal.
+
+### DefinitionReviewCard
+
+Two-column card for reviewing a single definition. Left: original extracted values (read-only). Right: editable fields for corrections. ForwardRef component.
+
+```tsx
+<DefinitionReviewCard
+  definition={definition}
+  onUpdated={handleUpdated}
+  onViewRegulation={handleViewRegulation}
+  state="NY"
+  isFocused={isFocused}
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `definition` | `DefinitionWithContext` | Definition with regulation context |
+| `onUpdated` | `(updated) => void` | Callback after update |
+| `onReviewComplete` | `(id, status) => void?` | Callback on confirm/reject/false positive |
+| `onViewRegulation` | `(regulationId: number) => void` | Open regulation modal |
+| `state` | `StateCode` | Jurisdiction |
+| `isFocused` | `boolean?` | Keyboard focus highlight |
+| `isSelected` | `boolean?` | Bulk selection checkbox state |
+| `onSelectionChange` | `(id, selected) => void?` | Selection change callback |
+
+#### Sub-components (in `DefinitionReviewCard/`)
+
+| Component | Purpose |
+|-----------|---------|
+| `Header` | Citation, selection checkbox, definition term |
+| `SummaryContext` | Regulation context display |
+| `OriginalColumn` | Read-only extracted values |
+| `EditableColumn` | Correction form (term, definition, scope, type, cross-ref) |
+| `MetadataSection` | Expandable metadata |
+| `ReviewNotesSection` | Reviewer name and notes |
+| `ActionButtons` | Confirm, Save Corrections, Mark False Positive |
+
+### DefinitionsProgress
+
+Progress card showing review completion with status breakdown.
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `counts` | `{ unreviewed, confirmed, corrected, falsePositive, total }` | Status counts |
+| `className` | `string?` | Additional CSS classes |
+
+### BulkActionsBar
+
+Floating bottom bar for batch operations on selected definitions.
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `selectedIds` | `number[]` | Currently selected definition IDs |
+| `totalItems` | `number` | Total items in queue |
+| `onSelectAll` | `() => void` | Select all callback |
+| `onClearSelection` | `() => void` | Clear selection callback |
+| `onBulkComplete` | `() => void` | Refresh after bulk action |
+
+Includes "Confirm Selected" and "Mark as False Positive" buttons with confirmation dialog. Saves reviewer name to localStorage.
+
+### ScopeDocumentTypeahead
+
+Autocomplete input for selecting definition scope documents.
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `state` | `StateCode` | Jurisdiction |
+| `value` | `number \| null` | Selected document ID |
+| `onChange` | `(docId: number \| null) => void` | Selection callback |
+| `sourceDocumentId` | `number \| null` | For loading ancestor suggestions |
+| `placeholder` | `string?` | Input placeholder |
+
+Shows ancestors when empty, search results when typing. Supports manual ID entry. Debounced search.
+
+### DefinitionsDeveloperQueue
+
+Developer mode queue for reviewed definitions. Same pattern as DefinitionsReviewQueue but for post-review developer work.
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `state` | `StateCode` | Jurisdiction |
+
+### DefinitionDeveloperCard
+
+Card for developer assignment with: developer selection, status tracking (unresolved/pending/backlogged/need_more_info/resolved), resolution type and comments, developer notes.
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `definition` | `DefinitionWithContext` | Definition with context |
+| `state` | `StateCode` | Jurisdiction |
+| `onUpdated` | `(updated) => void` | Update callback |
+| `onViewRegulation` | `(regulationId: number) => void` | Open regulation modal |
+| `isFocused` | `boolean?` | Keyboard focus highlight |
+
+---
+
+## JenAI Pipeline Components
+
+Components for viewing JenAI Pahlka framework analysis results — 14-category implementation complexity assessment.
+
+### JenAIQueue
+
+Paginated, filterable queue of JenAI implementation issues.
+
+```tsx
+import { JenAIQueue } from '@/components/review';
+
+<JenAIQueue state="NY" mode="review" />
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `state` | `StateCode` | Jurisdiction |
+| `mode` | `'review' \| 'developer'?` | Queue mode |
+
+Filters: status (unreviewed, confirmed, rejected variants, needs_context, deferred), severity, category. Sort by severity, confidence, category, reviewedAt. Progress bar with status counts.
+
+### JenAICard
+
+Card displaying a single JenAI implementation issue.
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `issue` | `JenAIIssueData` | JenAI issue with analysis |
+| `state` | `string?` | Jurisdiction |
+
+Displays: category badge, severity/complexity indicators, confidence score, regulation summary with metadata (sectionType, hasForm, hasIbr), hierarchy breadcrumbs, explanation, text examples, implementation approach, effort estimate, matched phrases (expandable), and regulation link.
+
+### JenAIAvatar
+
+SVG avatar for "Jen AI" — stylized face with auburn wavy hair, blue glasses, and animated sparkles.
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `size` | `number?` | SVG size in pixels |
+| `className` | `string?` | Additional CSS classes |
+
+Used in empty states and as a visual indicator for JenAI features.
+
+---
+
+## Red Flag Developer Components
+
+Developer mode separation for red flag review items. Follows the same DeveloperCard/DeveloperQueue pattern as compliance.
+
+### RedFlagDeveloperQueue
+
+Developer queue for reviewed red flag issues.
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `initialItems` | `RedFlagWithContext[]` | Pre-loaded items |
+| `pagination` | `PaginationInfo` | Page info |
+| `statusCounts` | `CombinedDeveloperStatusCounts` | Developer status breakdown |
+| `categories` | `string[]` | Available red flag categories |
+
+Uses `DeveloperCard` with `RedFlagContent`. Same structure as `ComplianceDeveloperQueue` but operates on red flag items with category filtering.
+
+### RedFlagDeveloperFilters
+
+FilterBar for red flag developer mode: Dev Status, Developer, Severity, Review Status, Category. Includes sort controls.
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `categories` | `string[]` | Available red flag categories |
+| `className` | `string?` | Additional CSS classes |
+
+---
+
 ## Error Handling Pattern
 
 Server actions use the `ActionResult<T>` type for consistent error handling that is **obvious, not silent**.
@@ -1508,6 +2006,47 @@ import { SeverityBadge } from '@/components/ui';
 | `REVIEW_TYPES` | flags / compliance / needs_info |
 | `COMPLEXITY_LEVELS` | LOW / MEDIUM / MEDIUM-HIGH / HIGH |
 | `SEVERITY_THRESHOLDS` | HIGH: 7, MEDIUM: 4, LOW: 1 |
+
+### Centralized Constants (`lib/constants/`)
+
+Additional constants centralized by domain:
+
+| File | Contents |
+|------|----------|
+| `entity-types.ts` | Entity type definitions and display config |
+| `filters.ts` | Filter option arrays (status, severity, tier, etc.) |
+| `hierarchy.ts` | Hierarchy level labels and ordering |
+| `jenai.ts` | JenAI 14-category definitions and display config |
+| `navigation.ts` | Navigation link configuration |
+| `pipeline.ts` | Pipeline status colors, classification mappings |
+| `values.ts` | Shared value constants (state codes, defaults) |
+
+### Formatters (`lib/formatters/`)
+
+Citation formatting utilities by jurisdiction:
+
+| File | Purpose |
+|------|---------|
+| `nycrr.ts` | NYCRR (NY) citation formatting |
+| `njac.ts` | NJAC (NJ) citation formatting |
+| `rcny.ts` | RCNY (NYC) citation formatting |
+| `citations.ts` | Generic/cross-jurisdiction citation formatting |
+
+### Custom Hooks
+
+Beyond the hooks listed in the file tree, key custom hooks:
+
+| Hook | Purpose |
+|------|---------|
+| `useQueue` | Generic queue navigation with pagination and keyboard shortcuts |
+| `useSuggestionQueue` | Smart suggestion mode queue with batch-based navigation |
+| `useQueueNavigation` | Keyboard shortcuts for queues (j/k navigation, x to select) |
+| `useChartDimensions` | Responsive chart container sizing |
+| `useChartColors` | Chart color palette based on design tokens |
+| `useDeveloperName` | Persist developer name in localStorage |
+| `useActiveSection` | IntersectionObserver-based section tracking for navigation |
+| `useTermHighlighting` | Definition term highlighting in regulation text |
+| `useCrossRefHighlighting` | Cross-reference text highlighting |
 
 ---
 
@@ -1845,126 +2384,373 @@ useEffect(() => {
 ```
 apps/web/src/
 ├── styles/
-│   └── tokens.css          # Design token definitions
+│   └── tokens.css              # Design token definitions
 ├── app/
-│   ├── globals.css         # Base styles, imports tokens
-│   ├── layout.tsx          # Root layout with Header/Footer
-│   ├── page.tsx            # Home dashboard page
+│   ├── globals.css             # Base styles, imports tokens
+│   ├── layout.tsx              # Root layout with Header/Footer
+│   ├── page.tsx                # Home dashboard page
 │   └── [state]/
-│       ├── page.tsx        # State table view
+│       ├── page.tsx            # State table view
 │       ├── browse/
-│       │   └── page.tsx    # Browse hierarchy page
+│       │   └── page.tsx        # Browse hierarchy page
 │       ├── statutes/
-│       │   └── page.tsx    # Browse statute hierarchy page
+│       │   └── page.tsx        # Browse statute hierarchy page
 │       └── review/
-│           └── page.tsx    # Review mode page
+│           └── page.tsx        # Review mode page
 ├── hooks/
-│   ├── useMediaQuery.ts    # SSR-safe media query hook
-│   ├── useResponsive.ts    # Breakpoint detection
-│   ├── useStateFromPath.ts # Extract state (ny/nj) from URL path
-│   ├── useReviewerName.ts  # Persist reviewer name in localStorage
-│   ├── useDeepLink.ts      # Deep link navigation for review items
+│   ├── useActiveSection.ts     # IntersectionObserver for nav highlighting
+│   ├── useChartColors.ts       # Chart color palette hook
+│   ├── useChartDimensions.ts   # Responsive chart sizing
+│   ├── useCrossRefHighlighting.ts # Cross-reference text highlighting
+│   ├── useDebouncedValue.ts    # Debounced value hook
+│   ├── useDeepLink.ts          # Deep link navigation for review items
+│   ├── useDeveloperName.ts     # Persist developer name in localStorage
+│   ├── useLocalStorageName.ts  # Generic localStorage name persistence
+│   ├── useMediaQuery.ts        # SSR-safe media query hook
+│   ├── useQueue.ts             # Generic queue navigation (pagination, keyboard)
+│   ├── useQueueNavigation.ts   # Keyboard shortcuts for queue (j/k, x)
+│   ├── useRegulationById.ts    # Fetch regulation for modal display
+│   ├── useReviewerName.ts      # Persist reviewer name in localStorage
+│   ├── useReviewForm.ts        # Review form state management
+│   ├── useStateFromPath.ts     # Extract state (ny/nj/nyc) from URL path
+│   ├── useSuggestionQueue.ts   # Smart suggestion mode queue hook
+│   ├── useTermHighlighting.ts  # Definition term highlighting
 │   └── index.ts
 ├── components/
-│   ├── ui/                 # Reusable UI primitives
-│   │   ├── Alert.tsx       # Error/warning/success/info messages
+│   ├── ui/                     # Reusable UI primitives
+│   │   ├── Alert.tsx
 │   │   ├── Badge.tsx
+│   │   ├── BookmarkButton.tsx  # Bookmark/star toggle
 │   │   ├── Button.tsx
 │   │   ├── Card.tsx
-│   │   ├── CopyLinkButton.tsx # Copy deep link to clipboard
-│   │   ├── Drawer.tsx      # Mobile-friendly slide-in panel
+│   │   ├── CopyLinkButton.tsx  # Copy deep link to clipboard
+│   │   ├── Drawer.tsx          # Mobile-friendly slide-in panel
+│   │   ├── EmptyState.tsx
+│   │   ├── EntityTypeIndicator.tsx
+│   │   ├── FullTextSearchLink.tsx
 │   │   ├── Input.tsx
-│   │   ├── LevelBadge.tsx  # Hierarchy level badges
-│   │   ├── Modal.tsx       # Radix Dialog wrapper
+│   │   ├── KeywordTags.tsx
+│   │   ├── LevelBadge.tsx      # Hierarchy level badges
+│   │   ├── MarkdownTable.tsx
+│   │   ├── MetadataIndicators.tsx
+│   │   ├── Modal.tsx           # Radix Dialog wrapper
+│   │   ├── Pagination.tsx
+│   │   ├── ProgressCard.tsx
 │   │   ├── ResizableDivider.tsx # Draggable panel divider
-│   │   ├── SearchInput.tsx # Search with debounce, clear, loading
-│   │   ├── Select.tsx      # Radix Select wrapper
-│   │   ├── Tag.tsx         # Labels, keywords, matched phrases
+│   │   ├── ScrollToHash.tsx
+│   │   ├── SearchableContent.tsx # Inline search with match highlighting
+│   │   ├── SearchInput.tsx     # Search with debounce, clear, loading
+│   │   ├── SectionTypeBadge.tsx
+│   │   ├── SegmentedControl.tsx
+│   │   ├── Select.tsx          # Radix Select wrapper
+│   │   ├── StatCard.tsx
+│   │   ├── Tag.tsx             # Labels, keywords, matched phrases
 │   │   ├── Textarea.tsx
+│   │   ├── FilterBar/          # Composable filter system
+│   │   │   ├── FilterBar.tsx
+│   │   │   ├── FilterField.tsx
+│   │   │   ├── SortControls.tsx
+│   │   │   ├── ClearFiltersButton.tsx
+│   │   │   └── index.ts
 │   │   └── index.ts
-│   ├── layout/             # Layout components
-│   │   ├── Header.tsx      # Responsive with mobile menu
+│   ├── layout/                 # Layout components
+│   │   ├── Header.tsx          # Responsive with mobile menu
 │   │   ├── Footer.tsx
 │   │   ├── Container.tsx
+│   │   ├── GlobalSearch.tsx
+│   │   ├── MobileNav.tsx       # Mobile navigation drawer
+│   │   ├── NavDropdown.tsx     # Navigation link dropdown
 │   │   ├── PageHeader.tsx
-│   │   ├── MobileNav.tsx   # Mobile navigation drawer
+│   │   ├── StateContextBar.tsx # Jurisdiction context bar
 │   │   └── index.ts
-│   ├── home/               # Home dashboard components
+│   ├── navigation/             # Page navigation components
+│   │   ├── SidebarSectionIndex.tsx
+│   │   ├── StickyPageSectionTabs.tsx
+│   │   └── index.ts
+│   ├── home/                   # Home dashboard components
 │   │   ├── DashboardStats.tsx
-│   │   ├── RecentActivityCard.tsx
-│   │   ├── TopIssuesChart.tsx
-│   │   ├── StateCard.tsx
+│   │   ├── HomePrioritySection.tsx
+│   │   ├── PipelineHeroBanner.tsx
 │   │   ├── QuickLinks.tsx
+│   │   ├── RecentActivityCard.tsx
+│   │   ├── StateCard.tsx
+│   │   ├── TopIssuesChart.tsx
 │   │   └── index.ts
-│   ├── browse/             # Browse hierarchy components
-│   │   ├── BrowseClient.tsx    # Main responsive container
+│   ├── auth/                   # Authentication components
+│   │   ├── AuthGuard.tsx
+│   │   ├── PasswordForm.tsx
+│   │   └── ShareLinkModal.tsx
+│   ├── bookmarks/              # Bookmark feature
+│   │   ├── BookmarksContent.tsx
+│   │   └── index.ts
+│   ├── browse/                 # Browse hierarchy components
+│   │   ├── BrowseClient.tsx
+│   │   ├── BrowseFilters.tsx
+│   │   ├── HierarchyBreadcrumbs.tsx
 │   │   ├── HierarchyTree.tsx
-│   │   ├── DetailPanel.tsx     # Supports fullScreen mode
+│   │   ├── TreeNode.tsx
+│   │   ├── ReferenceHighlightContext.tsx
+│   │   ├── DetailPanel/        # Multi-section detail panel
+│   │   │   ├── DetailPanel.tsx
+│   │   │   ├── Header.tsx
+│   │   │   ├── SummarySection.tsx
+│   │   │   ├── MetadataSection.tsx
+│   │   │   ├── ComplianceIssuesSection.tsx
+│   │   │   ├── RedFlagsSection.tsx
+│   │   │   ├── CrossReferencesSection.tsx
+│   │   │   ├── IncomingReferencesSection.tsx
+│   │   │   ├── StatuteLinksSection.tsx
+│   │   │   └── index.tsx
 │   │   └── index.ts
-│   ├── definitions/        # Definitions glossary components
-│   │   ├── DefinitionCard.tsx      # Single definition display
-│   │   ├── AggregatedTermCard.tsx  # Grouped term with expandable variants
-│   │   ├── DefinitionsList.tsx     # Collapsible list for regulation pages
-│   │   ├── GlossarySearch.tsx      # Search + A-Z filter bar
-│   │   ├── GlossaryClient.tsx      # Main glossary page with view toggle
+│   ├── definitions/            # Definitions glossary components
+│   │   ├── AggregatedTermCard.tsx
+│   │   ├── ApplicableDefinitions.tsx
+│   │   ├── DefinitionCard.tsx
+│   │   ├── DefinitionPopover.tsx
+│   │   ├── DefinitionsList.tsx
+│   │   ├── GlossaryClient.tsx
+│   │   ├── GlossaryFilters.tsx
+│   │   ├── GlossarySearch.tsx
 │   │   └── index.ts
-│   ├── statutes/           # Statute components (links + browse)
-│   │   ├── EnablingAuthorityCard.tsx    # Info card for enabling authority
-│   │   ├── StatuteLinksList.tsx         # Collapsible grouped statute links
-│   │   ├── StatuteBrowseClient.tsx      # Main browse page container
-│   │   ├── StatuteHierarchyTree.tsx     # Tree rendering component
-│   │   ├── StatuteTreeNode.tsx          # Individual tree node (memo)
-│   │   ├── StatuteDetailPanel.tsx       # Detail panel with linked regs
-│   │   ├── StatuteBrowseFilters.tsx     # Search + filter controls
+│   ├── statutes/               # Statute components
+│   │   ├── EnablingAuthorityCard.tsx
+│   │   ├── StatuteBrowseClient.tsx
+│   │   ├── StatuteBrowseFilters.tsx
+│   │   ├── StatuteDetailPanel.tsx
+│   │   ├── StatuteHierarchyTree.tsx
+│   │   ├── StatuteLinksList.tsx
+│   │   ├── StatuteTreeNode.tsx
 │   │   └── index.ts
-│   └── review/             # Review mode components
-│       ├── ReviewQueue.tsx
-│       ├── ReviewCard/          # Decomposed review card (5 sub-components)
-│       │   ├── ReviewCard.tsx       # Main orchestrator
-│       │   ├── Header.tsx           # Category + badges
-│       │   ├── LLMAnalysisSection.tsx # Blue box: explanation + evidence + implementation
-│       │   ├── RegulationActions.tsx # View page, Cornell link, text viewer, tree
-│       │   ├── ReviewForm.tsx       # Review form with useReviewForm hook
-│       │   ├── types.ts            # Shared prop types
+│   ├── analysis/               # Pipeline analysis detail components
+│   │   ├── AnalysisDashboard.tsx
+│   │   ├── AnalysisTable.tsx
+│   │   ├── AnalysisTableFilters.tsx
+│   │   ├── ExecutiveSummary.tsx
+│   │   ├── PipelineFlowVisualizer.tsx
+│   │   ├── PipelineTimeline.tsx
+│   │   ├── TierSection.tsx
+│   │   ├── TierDistributionChart.tsx
+│   │   └── ... (25 files total)
+│   ├── analytics/              # Analytics dashboard tabs
+│   │   ├── AnalyticsClient.tsx
+│   │   ├── AnalyticsTabs.tsx
+│   │   ├── OverviewTab.tsx
+│   │   ├── IssuesTab.tsx
+│   │   ├── PipelineTab.tsx
+│   │   ├── DefinitionsTab.tsx
+│   │   ├── HierarchyTab.tsx
+│   │   ├── KeywordsTab.tsx
+│   │   ├── StatutesTab.tsx
+│   │   ├── CrossReferencesTab.tsx
+│   │   ├── cross-references/   # Cross-ref analytics sub-components
+│   │   ├── definitions-graph/  # Definitions graph visualizations
+│   │   ├── pipeline/           # Pipeline analytics sub-components
+│   │   └── index.ts
+│   ├── charts/                 # Reusable chart components
+│   │   ├── BarChart.tsx
+│   │   ├── PieChart.tsx
+│   │   ├── HeatmapGrid.tsx
+│   │   ├── ChartContainer.tsx
+│   │   ├── ChartLegend.tsx
+│   │   ├── ChartTooltip.tsx
+│   │   ├── ClientChart.tsx
+│   │   └── index.ts
+│   ├── issues/                 # Compliance issue display components
+│   │   ├── OutcomeBadges.tsx
+│   │   ├── ComplianceIssueDisplayCard.tsx
+│   │   ├── ComplianceIssuesList.tsx
+│   │   ├── TierClassificationFlow.tsx
+│   │   ├── TierProgressIndicator.tsx
+│   │   ├── EvidenceDisplay.tsx
+│   │   ├── WebSourceBadge.tsx
+│   │   └── index.ts
+│   ├── flags/                  # Red flag display components
+│   │   ├── RedFlagCard.tsx
+│   │   ├── RedFlagReviewForm.tsx
+│   │   ├── RedFlagsList.tsx
+│   │   └── index.ts
+│   ├── cross-references/       # Cross-reference components
+│   │   ├── CrossReferenceCard.tsx
+│   │   ├── CrossReferenceList.tsx
+│   │   ├── CrossRefPopover.tsx
+│   │   └── index.ts
+│   ├── ibr/                    # IBR (Standards) page components
+│   │   ├── IbrClient.tsx
+│   │   ├── IbrBrowseTab.tsx
+│   │   ├── IbrOverviewTab.tsx
+│   │   ├── IbrTable.tsx
+│   │   ├── IbrDetailDrawer.tsx
+│   │   └── index.ts
+│   ├── notes/                  # Document annotation components
+│   │   ├── AnnotatableContent.tsx
+│   │   ├── NoteCard.tsx
+│   │   ├── NotesSidePanel.tsx
+│   │   └── index.ts
+│   ├── prompts/                # Prompt management components
+│   │   ├── PromptCard.tsx
+│   │   ├── PromptsList.tsx
+│   │   ├── PromptTemplate.tsx
+│   │   ├── PromptVariables.tsx
+│   │   ├── FeedbackForm.tsx
+│   │   ├── FeedbackList.tsx
+│   │   ├── V5PipelineComposer/ # Pipeline prompt composer
+│   │   └── index.ts
+│   ├── regulations/            # Regulation listing/filtering components
+│   │   ├── RegulationCard.tsx
+│   │   ├── RegulationCardGrid.tsx
+│   │   ├── RegulationContent.tsx
+│   │   ├── FacetedFilters.tsx
+│   │   ├── ActiveFilterChips.tsx
+│   │   ├── ViewToggle.tsx
+│   │   └── ... (17 files total)
+│   ├── search/                 # Search page components
+│   │   ├── SearchResultsClient.tsx
+│   │   ├── SearchResultCard.tsx
+│   │   ├── SearchFilters.tsx
+│   │   ├── CommentarySidebar.tsx
+│   │   └── index.ts
+│   └── review/                 # Review mode components
+│       ├── ReviewCard/              # Red flag review card
+│       │   ├── ReviewCard.tsx
+│       │   ├── Header.tsx
+│       │   ├── LLMAnalysisSection.tsx
+│       │   ├── RegulationActions.tsx
+│       │   ├── ReviewForm.tsx
 │       │   └── index.ts
-│       ├── ComplianceIssueCard/     # Decomposed compliance issue card
-│       │   └── ... (similar pattern)
-│       ├── shared/              # Shared review components
+│       ├── ComplianceIssueCard/     # Compliance review card (8 sub-components)
+│       │   ├── ComplianceIssueCard.tsx
+│       │   ├── Header.tsx
+│       │   ├── TierClassificationSection.tsx
+│       │   ├── SummaryContext.tsx
+│       │   ├── LLMAnalysisSection.tsx
+│       │   ├── EvidenceSection.tsx
+│       │   ├── AnalysisDetailsSection.tsx
+│       │   ├── TechnicalDetailsSection.tsx
+│       │   ├── ReviewForm.tsx
+│       │   └── index.tsx
+│       ├── DeveloperCard/           # Generic developer card
+│       │   ├── DeveloperCard.tsx
+│       │   ├── DeveloperForm.tsx
+│       │   ├── ReviewSummary.tsx
+│       │   ├── ItemContent/
+│       │   │   ├── ComplianceIssueContent.tsx
+│       │   │   └── RedFlagContent.tsx
+│       │   └── index.tsx
+│       ├── definitions/             # Definitions review workflow
+│       │   ├── DefinitionsReviewQueue.tsx
+│       │   ├── DefinitionReviewCard/
+│       │   │   ├── DefinitionReviewCard.tsx
+│       │   │   ├── Header.tsx
+│       │   │   ├── OriginalColumn.tsx
+│       │   │   ├── EditableColumn.tsx
+│       │   │   ├── SummaryContext.tsx
+│       │   │   ├── MetadataSection.tsx
+│       │   │   ├── ReviewNotesSection.tsx
+│       │   │   ├── ActionButtons.tsx
+│       │   │   └── index.tsx
+│       │   ├── DefinitionDeveloperCard.tsx
+│       │   ├── DefinitionsDeveloperQueue.tsx
+│       │   ├── DefinitionsProgress.tsx
+│       │   ├── DefinitionsDeveloperProgress.tsx
+│       │   ├── DefinitionsReviewFilters.tsx
+│       │   ├── DefinitionsDeveloperFilters.tsx
+│       │   ├── BulkActionsBar.tsx
+│       │   ├── ScopeDocumentTypeahead.tsx
+│       │   └── index.ts
+│       ├── shared/                  # Shared review components
 │       │   ├── CardWrapper.tsx
 │       │   ├── HierarchyBreadcrumbsInline.tsx
-│       │   ├── CornellLink.tsx
-│       │   ├── RegulationTextViewer.tsx
 │       │   ├── HierarchyTreeView.tsx
 │       │   ├── HierarchyTreeNodeCompact.tsx
-│       │   ├── SiblingSectionsView.tsx  # Lazy sibling sections display
+│       │   ├── CornellLink.tsx
+│       │   ├── RegulationTextViewer.tsx
+│       │   ├── SiblingSectionsView.tsx
+│       │   ├── KeyboardHelpModal.tsx
+│       │   ├── QueueEmptyState.tsx
+│       │   ├── QueuePagination.tsx
+│       │   ├── QueueResultsInfo.tsx
 │       │   └── index.ts
+│       ├── ComplianceReviewQueue.tsx
+│       ├── ComplianceFilters.tsx
+│       ├── ComplianceQueueModeSwitcher.tsx
+│       ├── SuggestionModeControls.tsx
+│       ├── ComplianceDeveloperQueue.tsx
+│       ├── ComplianceDeveloperFilters.tsx
+│       ├── RedFlagDeveloperQueue.tsx
+│       ├── RedFlagDeveloperFilters.tsx
+│       ├── JenAIQueue.tsx
+│       ├── JenAICard.tsx
+│       ├── JenAIAvatar.tsx
+│       ├── DeveloperQueue.tsx
+│       ├── DeveloperProgress.tsx
+│       ├── DeveloperFilters.tsx
 │       ├── ReviewFilters.tsx
 │       ├── ReviewProgress.tsx
-│       ├── ReviewKeyboardNav.tsx
-│       ├── RegulationModal.tsx
+│       ├── ReviewModeSwitcher.tsx
+│       ├── ReviewTypeTabs.tsx
+│       ├── ReviewForm.tsx
+│       ├── ExcludedSectionsList.tsx
+│       ├── ExpandableRegulationQuote.tsx
+│       ├── NeedMoreInfoCard.tsx
+│       ├── NeedMoreInfoQueue.tsx
+│       ├── QueueReviewFormBase.tsx
+│       ├── ReviewPageError.tsx
 │       └── index.ts
 ├── lib/
 │   ├── actions/
-│   │   ├── types.ts        # ActionResult type and helpers
-│   │   ├── dashboard.ts    # Dashboard stats server actions
-│   │   ├── hierarchy.ts    # Hierarchy navigation
-│   │   ├── regulations.ts
-│   │   ├── red-flags.ts
-│   │   ├── compliance-issues.ts
-│   │   ├── definitions.ts  # Definitions glossary actions
-│   │   ├── developer.ts    # Developer mode actions
-│   │   └── document-notes.ts
+│   │   ├── types.ts             # ActionResult type and helpers
+│   │   ├── analysis.ts          # Pipeline analysis detail actions
+│   │   ├── auth.ts              # Password protection actions
+│   │   ├── bookmarks.ts         # Bookmark toggle actions
+│   │   ├── compliance-issues.ts # Compliance issue CRUD
+│   │   ├── cross-references.ts  # Cross-reference actions
+│   │   ├── dashboard.ts         # Dashboard stats
+│   │   ├── definitions.ts       # Definitions glossary actions
+│   │   ├── developer.ts         # Developer mode actions
+│   │   ├── document-notes.ts    # Document annotation actions
+│   │   ├── hierarchy.ts         # Hierarchy navigation
+│   │   ├── ibr.ts               # IBR page actions
+│   │   ├── jenai.ts             # JenAI pipeline actions
+│   │   ├── pipeline-analytics.ts # Pipeline analytics actions
+│   │   ├── prompt-feedback.ts   # Prompt feedback actions
+│   │   ├── prompts.ts           # Prompt management actions
+│   │   ├── red-flags.ts         # Red flag CRUD
+│   │   ├── regulations.ts       # Regulation listing/detail
+│   │   ├── research-pipeline.ts # Research pipeline actions
+│   │   ├── review-page.ts       # Review page data loading
+│   │   ├── search.ts            # Full-text search actions
+│   │   └── statutes.ts          # Statute actions
 │   ├── url/
-│   │   ├── parsers.ts      # nuqs query param parsers
+│   │   ├── parsers.ts           # nuqs query param parsers
+│   │   ├── filter-helpers.ts    # Filter utility functions
+│   │   ├── type-helpers.ts      # Type narrowing helpers
 │   │   └── index.ts
 │   ├── constants/
-│   │   └── hierarchy.ts    # Hierarchy level labels
-│   ├── format.ts           # Shared formatting utilities
-│   └── formatters/
-│       └── nycrr.ts        # NYCRR citation formatting
+│   │   ├── entity-types.ts      # Entity type definitions
+│   │   ├── filters.ts           # Filter option constants
+│   │   ├── hierarchy.ts         # Hierarchy level labels
+│   │   ├── jenai.ts             # JenAI category constants
+│   │   ├── navigation.ts        # Navigation config
+│   │   ├── pipeline.ts          # Pipeline status/color constants
+│   │   └── values.ts            # Shared value constants
+│   ├── formatters/
+│   │   ├── citations.ts         # Generic citation formatting
+│   │   ├── njac.ts              # NJAC citation formatting
+│   │   ├── nycrr.ts             # NYCRR citation formatting
+│   │   ├── rcny.ts              # RCNY citation formatting
+│   │   └── index.ts
+│   ├── analytics.ts             # Analytics utility functions
+│   ├── format.ts                # Shared formatting utilities
+│   ├── charts/                  # Chart type definitions
+│   │   └── types.ts
+│   └── utils/
+│       ├── expandContext.ts     # Context expansion utility
+│       ├── highlight.tsx        # Text highlighting utility
+│       ├── sanitize-snippet.ts  # HTML snippet sanitization
+│       └── sanitize-snippet.test.ts
 ├── types/
-│   └── regulation.ts       # Constants, helpers, types
-└── tailwind.config.ts      # Extended Tailwind theme
+│   └── regulation.ts            # Constants, helpers, types
+└── tailwind.config.ts           # Extended Tailwind theme
 ```
 
 ---

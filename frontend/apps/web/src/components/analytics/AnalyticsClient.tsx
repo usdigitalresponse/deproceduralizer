@@ -7,6 +7,7 @@ import type { ComplianceIssueStatusCounts } from '@/lib/actions/compliance-issue
 import type { SectionTypeStats, MetadataStats, KeywordStats, AppliesToStats } from '@/lib/actions/regulations';
 import type { DefinitionsAnalyticsStats } from '@/lib/actions/definitions';
 import type { PipelineAnalyticsData } from '@/lib/actions/pipeline-analytics';
+import type { SeverityDistribution, JenAIReviewStatusCounts } from '@deproceduralizer/database';
 import type { AnalyticsTabValue } from '@/lib/constants/values';
 import { analyticsParsers } from '@/lib/url/parsers';
 import { AnalyticsTabs } from './AnalyticsTabs';
@@ -32,6 +33,9 @@ export interface AnalyticsClientProps {
   definitionsStats: DefinitionsAnalyticsStats | null;
   statuteStats: StatuteLinkStats | null;
   pipelineData: PipelineAnalyticsData | null;
+  complianceSeverity: SeverityDistribution | null;
+  jenaiSeverity: SeverityDistribution | null;
+  jenaiStats: JenAIReviewStatusCounts | null;
 }
 
 export function AnalyticsClient({
@@ -46,6 +50,9 @@ export function AnalyticsClient({
   definitionsStats,
   statuteStats,
   pipelineData,
+  complianceSeverity,
+  jenaiSeverity,
+  jenaiStats,
 }: AnalyticsClientProps) {
   const [params, setParams] = useQueryStates(analyticsParsers, { shallow: true });
   const currentTab = params.tab;
@@ -68,6 +75,14 @@ export function AnalyticsClient({
             dashboardStats={dashboardStats}
             redFlagStatus={redFlagStatus}
             complianceStatus={complianceStatus}
+            complianceTypeCounts={complianceTypeCounts}
+            metadataStats={metadataStats}
+            definitionsStats={definitionsStats}
+            statuteStats={statuteStats}
+            pipelineData={pipelineData}
+            complianceSeverity={complianceSeverity}
+            jenaiSeverity={jenaiSeverity}
+            jenaiStats={jenaiStats}
           />
         )}
 

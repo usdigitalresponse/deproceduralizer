@@ -10,6 +10,7 @@ import {
   type PaginatedJenAIResult,
   type JenAIReviewStatusCounts,
   type JenAIDeveloperStatusCounts,
+  type SeverityDistribution,
 } from '@deproceduralizer/database';
 import { type ActionResult, success, failure, getErrorMessage } from './types';
 
@@ -216,6 +217,23 @@ export async function getJenAIDeveloperItems(
     return success(result);
   } catch (error) {
     console.error('[getJenAIDeveloperItems]', error);
+    return failure(getErrorMessage(error));
+  }
+}
+
+export async function getJenAISeverityDistribution(
+  state: StateCode
+): Promise<ActionResult<SeverityDistribution>> {
+  try {
+    const cachedFn = unstable_cache(
+      () => jenaiRepo.getSeverityDistribution(state),
+      [`jenai-severity-dist-${state}`],
+      { revalidate: 3600, tags: ['jenai-analytics'] }
+    );
+    const data = await cachedFn();
+    return success(data);
+  } catch (error) {
+    console.error('[getJenAISeverityDistribution]', error);
     return failure(getErrorMessage(error));
   }
 }

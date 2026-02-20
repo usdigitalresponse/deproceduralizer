@@ -2,7 +2,8 @@ import { notFound } from 'next/navigation';
 import { getDashboardStats } from '@/lib/actions/dashboard';
 import { getSectionTypeStats, getMetadataStats, getTopKeywords, getTopAppliesTo } from '@/lib/actions/regulations';
 import { getRedFlagStatusCounts, getRedFlagCategories } from '@/lib/actions/red-flags';
-import { getComplianceIssueStatusCounts, getComplianceIssueCountsByType } from '@/lib/actions/compliance-issues';
+import { getComplianceIssueStatusCounts, getComplianceIssueCountsByType, getComplianceSeverityDistribution } from '@/lib/actions/compliance-issues';
+import { getJenAISeverityDistribution, getJenAIStatusCounts } from '@/lib/actions/jenai';
 import { getDefinitionAnalyticsStats } from '@/lib/actions/definitions';
 import { getStatuteStats } from '@/lib/actions/statutes';
 import { getPipelineAnalyticsData } from '@/lib/actions/pipeline-analytics';
@@ -39,6 +40,9 @@ export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
     definitionsStatsResult,
     statuteStatsResult,
     pipelineDataResult,
+    complianceSeverityResult,
+    jenaiSeverityResult,
+    jenaiStatsResult,
   ] = await Promise.all([
     getDashboardStats(stateCode),
     getSectionTypeStats(state),
@@ -52,6 +56,9 @@ export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
     getDefinitionAnalyticsStats(stateCode),
     getStatuteStats(state),
     getPipelineAnalyticsData(stateCode),
+    getComplianceSeverityDistribution(stateCode),
+    getJenAISeverityDistribution(stateCode),
+    getJenAIStatusCounts(stateCode),
   ]);
 
   // Extract data, falling back to null on failure
@@ -67,6 +74,9 @@ export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
   const definitionsStats = definitionsStatsResult.success ? definitionsStatsResult.data : null;
   const statuteStats = statuteStatsResult.success ? statuteStatsResult.data : null;
   const pipelineData = pipelineDataResult.success ? pipelineDataResult.data : null;
+  const complianceSeverity = complianceSeverityResult.success ? complianceSeverityResult.data : null;
+  const jenaiSeverity = jenaiSeverityResult.success ? jenaiSeverityResult.data : null;
+  const jenaiStats = jenaiStatsResult.success ? jenaiStatsResult.data : null;
 
   return (
     <div className="bg-[var(--color-background)] min-h-screen">
@@ -89,6 +99,9 @@ export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
           definitionsStats={definitionsStats}
           statuteStats={statuteStats}
           pipelineData={pipelineData}
+          complianceSeverity={complianceSeverity}
+          jenaiSeverity={jenaiSeverity}
+          jenaiStats={jenaiStats}
         />
       </Container>
     </div>

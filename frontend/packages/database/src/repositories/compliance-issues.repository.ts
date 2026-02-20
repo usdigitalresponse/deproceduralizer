@@ -2342,6 +2342,30 @@ export class ComplianceIssuesRepository extends BaseRepository {
   }
 
   // ═══════════════════════════════════════════════════════════════════
+  // Severity Distribution
+  // ═══════════════════════════════════════════════════════════════════
+
+  /**
+   * Get severity distribution (high/medium/low) for compliance issue analyses.
+   * Uses COALESCE(final_severity, severity) to get the best available severity.
+   */
+  async getSeverityDistribution(state: StateCode): Promise<SeverityDistribution> {
+    const result = await this.db.execute(sql`
+      SELECT
+        COUNT(*) FILTER (WHERE COALESCE(final_severity, severity) >= 7)::int AS "high",
+        COUNT(*) FILTER (WHERE COALESCE(final_severity, severity) >= 4 AND COALESCE(final_severity, severity) < 7)::int AS "medium",
+        COUNT(*) FILTER (WHERE COALESCE(final_severity, severity) >= 1 AND COALESCE(final_severity, severity) < 4)::int AS "low",
+        COUNT(*) FILTER (WHERE COALESCE(final_severity, severity) IS NOT NULL)::int AS "total"
+      FROM compliance_issue_analyses
+      WHERE state = ${normalizeState(state)}
+        AND requirement_found = TRUE
+    `);
+
+    const row = result.rows[0] as { high: number; medium: number; low: number; total: number };
+    return { high: row.high, medium: row.medium, low: row.low, total: row.total };
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
   // Pipeline Analytics Methods
   // ═══════════════════════════════════════════════════════════════════
 
@@ -2960,6 +2984,17 @@ export interface AnalysisListItem {
   cleanupEffort: string | null;
   // V5.1: Tier 3 trigger reason
   tier3TriggerReason: string | null;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Severity Distribution Type
+// ═══════════════════════════════════════════════════════════════════
+
+export interface SeverityDistribution {
+  high: number;
+  medium: number;
+  low: number;
+  total: number;
 }
 
 // ═══════════════════════════════════════════════════════════════════
