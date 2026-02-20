@@ -50,7 +50,7 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
         {/* Summary context, breadcrumbs, and citation */}
         <SummaryContext
           regulation={issue.regulation}
-          state={issue.state ?? 'nj'}
+          state={issue.state ?? 'ny'}
           citation={citation ?? ''}
         />
 

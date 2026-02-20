@@ -21,7 +21,7 @@ interface NeedMoreInfoCardProps {
 }
 
 export const NeedMoreInfoCard = forwardRef<HTMLDivElement, NeedMoreInfoCardProps>(
-  ({ item, isOwner, onUpdated, onViewRegulation, isFocused = false, state = 'nj' }, ref) => {
+  ({ item, isOwner, onUpdated, onViewRegulation, isFocused = false, state = 'ny' }, ref) => {
     const [isPending, startTransition] = useTransition();
     const [error, setError] = useState<string | null>(null);
     const [responseNotes, setResponseNotes] = useState(item.teamNotes || '');

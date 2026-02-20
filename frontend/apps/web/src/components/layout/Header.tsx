@@ -164,7 +164,7 @@ export function Header({ className = '' }: HeaderProps) {
                           rounded-full border transition-colors duration-[var(--duration-fast)]
                           ${isActive
                             ? 'bg-[var(--color-primary)] text-white border-[var(--color-primary)]'
-                            : 'bg-[var(--color-primary-weaker)] text-[var(--color-primary)] border-[var(--color-primary-weak)] hover:bg-[var(--color-primary)] hover:text-white hover:border-[var(--color-primary)]'
+                            : 'bg-[var(--color-primary-mid)] text-white border-[var(--color-primary-mid)] hover:bg-[var(--color-primary)] hover:border-[var(--color-primary)]'
                           }
                         `}
                       >

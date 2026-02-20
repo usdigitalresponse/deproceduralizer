@@ -75,10 +75,10 @@ export function BrowseFilters({
       />
       <FullTextSearchLink query={filters.search || ''} state={state} />
 
-      {/* Analyzed filter */}
+      {/* Red Flag Analysis filter */}
       <div className="flex items-center gap-2">
         <label className="text-sm text-[var(--color-text-secondary)]">
-          Analyzed:
+          Red Flags:
         </label>
         <Select
           value={filters.analyzed === true ? 'true' : filters.analyzed === false ? 'false' : 'all'}
@@ -157,7 +157,7 @@ export function BrowseFilters({
       <div className="ml-auto text-xs text-[var(--color-text-muted)]">
         {totalDocs.toLocaleString()} documents
         {totalAnalyzed > 0 && (
-          <span className="ml-2">{totalAnalyzed.toLocaleString()} analyzed</span>
+          <span className="ml-2">{totalAnalyzed.toLocaleString()} red flag analyzed</span>
         )}
         {totalFlagged > 0 && (
           <span className="ml-2">{totalFlagged.toLocaleString()} flagged</span>

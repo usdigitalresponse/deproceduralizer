@@ -116,7 +116,7 @@ function ReviewProgressBar({
   return (
     <div className="space-y-2">
       <div className="flex justify-between text-sm">
-        <span className="font-medium text-[var(--color-text)]">Review Progress</span>
+        <span className="font-medium text-[var(--color-text)]">Human Review Progress</span>
         <span className="text-[var(--color-text-muted)]">
           {(total - counts.unreviewed).toLocaleString()} / {total.toLocaleString()} reviewed
         </span>
@@ -373,7 +373,7 @@ export function DefinitionsTab({ stats, state }: DefinitionsTabProps) {
         />
       </StatGrid>
 
-      {/* Review Progress */}
+      {/* Human Review Progress */}
       <Card padding="md">
         <ReviewProgressBar counts={stats.reviewStatus} />
       </Card>

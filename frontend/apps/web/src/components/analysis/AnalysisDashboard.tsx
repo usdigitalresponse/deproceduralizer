@@ -49,7 +49,7 @@ export function AnalysisDashboard({
         </div>
 
         <div className="bg-white border border-[var(--color-neutral-200)] rounded-[var(--radius-md)] p-4">
-          <div className="text-xs text-[var(--color-text-muted)] mb-1">Analyzed</div>
+          <div className="text-xs text-[var(--color-text-muted)] mb-1">Pipeline-Processed</div>
           <div className="text-2xl font-bold text-[var(--color-primary)]">
             {analyzedCount.toLocaleString()}
           </div>

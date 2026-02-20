@@ -9,7 +9,7 @@ interface TierDistributionChartProps {
 }
 
 const TIER_LABELS = [
-  { tier: 0, label: 'Not Analyzed', shortLabel: 'T0', color: 'var(--color-neutral-400)' },
+  { tier: 0, label: 'Unprocessed', shortLabel: 'T0', color: 'var(--color-neutral-400)' },
   { tier: 1, label: 'Match Filtering', shortLabel: 'T1', color: 'var(--color-info)' },
   { tier: 2, label: 'Full Classification', shortLabel: 'T2', color: 'var(--color-primary)' },
   { tier: 3, label: 'Web Search', shortLabel: 'T3', color: 'var(--color-success)' },

@@ -106,30 +106,30 @@ export function OverviewTab({
       {/* Stats Grid */}
       <StatGrid columns={4}>
         <StatCard
-          label="Total Documents"
+          label="Regulations Scanned"
           value={dashboardStats.totalDocuments}
           icon={FileText}
-          subtitle={`${dashboardStats.analyzedDocuments} analyzed`}
-        />
-        <StatCard
-          label="Red Flags"
-          value={totalFlags}
-          icon={Flag}
-          variant={totalFlags > 0 ? 'danger' : 'default'}
-          subtitle={`${dashboardStats.unreviewedFlags} unreviewed`}
+          subtitle="All scanned for compliance issues"
         />
         <StatCard
           label="Compliance Issues"
           value={dashboardStats.complianceIssues.total}
           icon={AlertTriangle}
           variant={dashboardStats.complianceIssues.total > 0 ? 'warning' : 'default'}
-          subtitle={`${dashboardStats.complianceIssues.unreviewed} unreviewed`}
+          subtitle={`${dashboardStats.complianceIssues.unreviewed} awaiting human review`}
+        />
+        <StatCard
+          label="Red Flags"
+          value={totalFlags}
+          icon={Flag}
+          variant={totalFlags > 0 ? 'danger' : 'default'}
+          subtitle={`${dashboardStats.unreviewedFlags} awaiting human review`}
         />
         <StatCard
           label="Documents with Flags"
           value={dashboardStats.documentsWithFlags}
           icon={CheckCircle}
-          subtitle={`${((dashboardStats.documentsWithFlags / dashboardStats.analyzedDocuments) * 100).toFixed(0)}% of analyzed`}
+          subtitle={`${((dashboardStats.documentsWithFlags / dashboardStats.analyzedDocuments) * 100).toFixed(0)}% of red flag analyzed`}
         />
       </StatGrid>
 
@@ -168,16 +168,8 @@ export function OverviewTab({
 
         {/* Review Progress */}
         <Card padding="lg">
-          <h3 className="text-lg font-semibold text-[var(--color-text)] mb-6">Review Progress</h3>
+          <h3 className="text-lg font-semibold text-[var(--color-text)] mb-6">Human Review Progress</h3>
           <div className="space-y-6">
-            <ReviewProgressBar
-              label="Red Flags"
-              counts={{
-                confirmed: redFlagReviewed,
-                unreviewed: redFlagUnreviewed,
-                total: redFlagTotal,
-              }}
-            />
             <ReviewProgressBar
               label="Compliance Issues"
               counts={{
@@ -186,37 +178,45 @@ export function OverviewTab({
                 total: complianceTotal,
               }}
             />
+            <ReviewProgressBar
+              label="Red Flags"
+              counts={{
+                confirmed: redFlagReviewed,
+                unreviewed: redFlagUnreviewed,
+                total: redFlagTotal,
+              }}
+            />
           </div>
         </Card>
       </div>
 
       {/* Summary Stats */}
       <Card padding="lg">
-        <h3 className="text-lg font-semibold text-[var(--color-text)] mb-4">Analysis Coverage</h3>
+        <h3 className="text-lg font-semibold text-[var(--color-text)] mb-4">Coverage</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="text-center p-4 bg-[var(--color-neutral-50)] rounded-[var(--radius-lg)]">
-            <div className="text-2xl font-bold text-[var(--color-text)]">
-              {((dashboardStats.analyzedDocuments / dashboardStats.totalDocuments) * 100).toFixed(0)}%
-            </div>
-            <div className="text-sm text-[var(--color-text-muted)]">Documents Analyzed</div>
-          </div>
-          <div className="text-center p-4 bg-[var(--color-neutral-50)] rounded-[var(--radius-lg)]">
-            <div className="text-2xl font-bold text-[var(--color-success)]">
-              {redFlagTotal > 0 ? ((redFlagReviewed / redFlagTotal) * 100).toFixed(0) : 0}%
-            </div>
-            <div className="text-sm text-[var(--color-text-muted)]">Flags Reviewed</div>
-          </div>
           <div className="text-center p-4 bg-[var(--color-neutral-50)] rounded-[var(--radius-lg)]">
             <div className="text-2xl font-bold text-[var(--color-success)]">
               {complianceTotal > 0
                 ? ((complianceReviewed / complianceTotal) * 100).toFixed(0)
                 : 0}%
             </div>
-            <div className="text-sm text-[var(--color-text-muted)]">Issues Reviewed</div>
+            <div className="text-sm text-[var(--color-text-muted)]">Compliance Issues Human-Reviewed</div>
+          </div>
+          <div className="text-center p-4 bg-[var(--color-neutral-50)] rounded-[var(--radius-lg)]">
+            <div className="text-2xl font-bold text-[var(--color-success)]">
+              {redFlagTotal > 0 ? ((redFlagReviewed / redFlagTotal) * 100).toFixed(0) : 0}%
+            </div>
+            <div className="text-sm text-[var(--color-text-muted)]">Red Flags Human-Reviewed</div>
+          </div>
+          <div className="text-center p-4 bg-[var(--color-neutral-50)] rounded-[var(--radius-lg)]">
+            <div className="text-2xl font-bold text-[var(--color-text)]">
+              {((dashboardStats.analyzedDocuments / dashboardStats.totalDocuments) * 100).toFixed(0)}%
+            </div>
+            <div className="text-sm text-[var(--color-text-muted)]">Red Flag Analyzed</div>
           </div>
           <div className="text-center p-4 bg-[var(--color-neutral-50)] rounded-[var(--radius-lg)]">
             <div className="text-2xl font-bold text-[var(--color-text)]">{notAnalyzed}</div>
-            <div className="text-sm text-[var(--color-text-muted)]">Awaiting Analysis</div>
+            <div className="text-sm text-[var(--color-text-muted)]">Awaiting Red Flag Analysis</div>
           </div>
         </div>
       </Card>

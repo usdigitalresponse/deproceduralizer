@@ -74,13 +74,13 @@ const SEVERITY_LABELS: Record<(typeof SEVERITY_VALUES)[number], string> = {
 
 export const SEVERITY_FILTER_OPTIONS = createFilterOptions(SEVERITY_VALUES, SEVERITY_LABELS);
 
-// Version for table headers with "Not Analyzed" option
+// Version for table headers with "No Red Flag Rating" option
 export const SEVERITY_TABLE_OPTIONS = [
   { value: '', label: 'All' },
   { value: 'high', label: 'High (7-10)' },
   { value: 'medium', label: 'Medium (4-6)' },
   { value: 'low', label: 'Low (1-3)' },
-  { value: 'null', label: 'Not Analyzed' },
+  { value: 'null', label: 'No Red Flag Rating' },
 ];
 
 // ============================================
@@ -105,8 +105,8 @@ export const REVIEW_STATUS_FILTER_OPTIONS = createFilterOptions(REVIEW_STATUS_VA
 
 export const ANALYZED_FILTER_OPTIONS = createFilterOptions(BOOLEAN_FILTER_VALUES, {
   all: 'All',
-  true: 'Analyzed',
-  false: 'Not Analyzed',
+  true: 'Has Red Flag Analysis',
+  false: 'No Red Flag Analysis',
 });
 
 export const HAS_FLAGS_FILTER_OPTIONS = createFilterOptions(BOOLEAN_FILTER_VALUES, {
@@ -298,7 +298,7 @@ export const HAS_IBR_FILTER_OPTIONS = [
 
 const TIER_FILTER_LABELS: Record<(typeof TIER_FILTER_VALUES)[number], string> = {
   all: 'All Tiers',
-  '0': 'Not Analyzed',
+  '0': 'Unprocessed',
   '1': 'Tier 1 (Match Filtering)',
   '2': 'Tier 2 (Full Classification)',
   '3': 'Tier 3 (Web Search)',
@@ -316,8 +316,8 @@ export const FEDERAL_MANDATE_FILTER_OPTIONS = createFilterOptions(FEDERAL_MANDAT
 
 const HAS_ANALYSIS_LABELS: Record<(typeof HAS_ANALYSIS_FILTER_VALUES)[number], string> = {
   all: 'All',
-  true: 'Has Analysis',
-  false: 'Not Analyzed',
+  true: 'Has Pipeline Analysis',
+  false: 'No Pipeline Analysis',
 };
 
 export const HAS_ANALYSIS_FILTER_OPTIONS = createFilterOptions(HAS_ANALYSIS_FILTER_VALUES, HAS_ANALYSIS_LABELS);
@@ -516,8 +516,8 @@ export const SEARCH_DOC_TYPE_OPTIONS: FilterOption[] = [
 
 export const SEARCH_ANALYSIS_OPTIONS: FilterOption[] = [
   { value: 'all', label: 'All' },
-  { value: 'true', label: 'Analyzed' },
-  { value: 'false', label: 'Not Analyzed' },
+  { value: 'true', label: 'Has Red Flag Analysis' },
+  { value: 'false', label: 'No Red Flag Analysis' },
 ];
 
 export const SEARCH_CLASSIFICATION_OPTIONS: FilterOption[] = [

@@ -59,7 +59,7 @@ export function isValidState(state: string): state is StateCode {
 /**
  * Default state when none is selected
  */
-export const DEFAULT_STATE: StateCode = 'nj';
+export const DEFAULT_STATE: StateCode = 'ny';
 
 /**
  * Get state config with fallback to default state

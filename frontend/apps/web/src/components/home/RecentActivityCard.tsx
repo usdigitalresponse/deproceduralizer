@@ -67,7 +67,7 @@ export function RecentActivityCard({ activity }: RecentActivityCardProps) {
           <MetricItem
             icon={FileText}
             value={activity.documentsAnalyzed}
-            label="Docs analyzed"
+            label="Red flag analyses"
             colorClass="bg-[var(--color-info-bg)] text-[var(--color-info)]"
           />
         </div>

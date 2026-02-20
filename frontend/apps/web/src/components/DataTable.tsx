@@ -86,7 +86,7 @@ const COLUMN_FILTERS: Record<string, ColumnFilterConfig> = {
       { value: '', label: 'All' },
       { value: 'true', label: 'Yes' },
       { value: 'false', label: 'No' },
-      { value: 'null', label: 'Not Analyzed' },
+      { value: 'null', label: 'No Red Flag Rating' },
     ],
   },
   overallComplexity: {
@@ -98,7 +98,7 @@ const COLUMN_FILTERS: Record<string, ColumnFilterConfig> = {
       { value: 'MEDIUM-HIGH', label: 'Medium-High' },
       { value: 'MEDIUM', label: 'Medium' },
       { value: 'LOW', label: 'Low' },
-      { value: 'null', label: 'Not Analyzed' },
+      { value: 'null', label: 'No Red Flag Rating' },
     ],
   },
   maxSeverity: {
@@ -113,7 +113,7 @@ const COLUMN_FILTERS: Record<string, ColumnFilterConfig> = {
       { value: '', label: 'All' },
       { value: 'true', label: 'Yes' },
       { value: 'false', label: 'No' },
-      { value: 'null', label: 'Not Analyzed' },
+      { value: 'null', label: 'No Red Flag Rating' },
     ],
   },
   hasReportingRequirement: {
@@ -123,7 +123,7 @@ const COLUMN_FILTERS: Record<string, ColumnFilterConfig> = {
       { value: '', label: 'All' },
       { value: 'true', label: 'Yes' },
       { value: 'false', label: 'No' },
-      { value: 'null', label: 'Not Analyzed' },
+      { value: 'null', label: 'No Red Flag Rating' },
     ],
   },
   summary: {

@@ -62,7 +62,7 @@ export function RegulationCard({ regulation, onClick }: RegulationCardProps) {
           onClick();
         }
       }}
-      aria-label={`${title}, ${numFlags} flags, severity ${maxSeverity ?? 'not analyzed'}`}
+      aria-label={`${title}, ${numFlags} flags, severity ${maxSeverity ?? 'no red flag rating'}`}
     >
       {/* Header Section */}
       <div className="p-4 pb-3 border-b border-[var(--color-neutral-100)]">

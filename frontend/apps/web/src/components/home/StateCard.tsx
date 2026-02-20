@@ -117,20 +117,20 @@ export function StateCard({ state, stats }: StateCardProps) {
 
         {/* Progress bars */}
         <div className="mt-4 pt-4 border-t border-[var(--color-neutral-200)] space-y-2">
-          <ProgressBar
-            label="Analyzed"
-            current={stats.analyzedDocuments}
-            total={stats.totalDocuments}
-            barColor={info.barColor}
-          />
           {issuesTotal > 0 && (
             <ProgressBar
-              label="Reviewed"
+              label="Compliance Issues Human-Reviewed"
               current={issuesReviewed}
               total={issuesTotal}
               barColor={info.barColor}
             />
           )}
+          <ProgressBar
+            label="Red Flag Analysis"
+            current={stats.analyzedDocuments}
+            total={stats.totalDocuments}
+            barColor={info.barColor}
+          />
         </div>
 
         {/* Actionable badges */}

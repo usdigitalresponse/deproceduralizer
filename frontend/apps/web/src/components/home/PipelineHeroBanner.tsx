@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { FlaskConical, ArrowRight } from 'lucide-react';
 
 interface PipelineHeroBannerProps {
-  /** Default state for the Pipeline link (e.g., 'nj') */
+  /** Default state for the Pipeline link (e.g., 'ny') */
   state: string;
 }
 

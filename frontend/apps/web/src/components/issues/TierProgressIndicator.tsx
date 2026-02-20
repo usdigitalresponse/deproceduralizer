@@ -188,7 +188,7 @@ export function TierBadge({ highestTierCompleted, className = '', ...props }: Ti
   const normalizedTier = highestTierCompleted;
 
   let variant: 'success' | 'info' | 'default' = 'default';
-  let label = 'Not analyzed';
+  let label = 'Unprocessed';
 
   if (normalizedTier >= 3) {
     variant = 'success';

@@ -187,7 +187,7 @@ export function useChartColors() {
         { label: 'High (7-10)', color: RESOLVED_COLORS.danger },
         { label: 'Medium (4-6)', color: RESOLVED_COLORS.warning },
         { label: 'Low (1-3)', color: RESOLVED_COLORS.success },
-        { label: 'Not Analyzed', color: RESOLVED_COLORS.neutral300 },
+        { label: 'No Red Flag Rating', color: RESOLVED_COLORS.neutral300 },
       ],
 
       // Helper: Get pie/donut chart colors for review status

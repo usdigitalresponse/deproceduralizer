@@ -18,7 +18,7 @@ export function DefinitionsProgress({ counts, className = '' }: DefinitionsProgr
 
   return (
     <ProgressCard
-      title="Review Progress"
+      title="Human Review Progress"
       completed={reviewed}
       total={counts.total}
       completedLabel="reviewed"

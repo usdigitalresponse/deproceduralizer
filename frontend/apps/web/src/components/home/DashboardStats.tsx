@@ -10,38 +10,35 @@ interface DashboardStatsProps {
 }
 
 export function DashboardStats({ stats }: DashboardStatsProps) {
-  const analysisPct = stats.totalDocuments > 0
-    ? Math.round((stats.analyzedDocuments / stats.totalDocuments) * 100)
-    : 0;
-
   return (
     <StatGrid columns={4}>
       <StatCard
-        label="Total Regulations"
+        label="Regulations Scanned"
         value={stats.totalDocuments}
         icon={getEntityIcon('regulatory_document')}
         variant="default"
-      />
-      <StatCard
-        label="Analyzed"
-        value={stats.analyzedDocuments}
-        icon={Search}
-        variant="info"
-        subtitle={`${analysisPct}% coverage`}
+        subtitle="All scanned for compliance issues"
       />
       <StatCard
         label="Compliance Issues"
         value={stats.complianceIssues?.total ?? 0}
         icon={getEntityIcon('compliance_issue')}
         variant="warning"
-        subtitle={stats.complianceIssues?.unreviewed ? `${stats.complianceIssues.unreviewed.toLocaleString()} unreviewed` : undefined}
+        subtitle={stats.complianceIssues?.unreviewed ? `${stats.complianceIssues.unreviewed.toLocaleString()} awaiting human review` : undefined}
       />
       <StatCard
         label="Red Flags"
         value={stats.totalFlags}
         icon={getEntityIcon('red_flag')}
         variant="danger"
-        subtitle={stats.unreviewedFlags ? `${stats.unreviewedFlags.toLocaleString()} unreviewed` : undefined}
+        subtitle={stats.unreviewedFlags ? `${stats.unreviewedFlags.toLocaleString()} awaiting human review` : undefined}
+      />
+      <StatCard
+        label="Red Flag Analysis"
+        value={stats.analyzedDocuments}
+        icon={Search}
+        variant="info"
+        subtitle={`${stats.analyzedDocuments.toLocaleString()} of ${stats.totalDocuments.toLocaleString()} regulations`}
       />
     </StatGrid>
   );

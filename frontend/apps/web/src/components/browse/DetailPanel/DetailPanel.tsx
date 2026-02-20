@@ -22,7 +22,7 @@ export function DetailPanel({ documentId, onClose, onNavigate, fullScreen = fals
   const searchParams = useSearchParams();
 
   const heightClass = fullScreen ? 'h-full' : 'h-[calc(100vh-16rem)]';
-  const state = getStateFromPathname(pathname, 'nj');
+  const state = getStateFromPathname(pathname, 'ny');
 
   const currentUrl = searchParams.toString()
     ? `${pathname}?${searchParams.toString()}`

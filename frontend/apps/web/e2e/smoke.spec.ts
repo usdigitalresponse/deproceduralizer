@@ -108,10 +108,10 @@ test.describe('Smoke Tests', () => {
     await expect(page.locator('text=/\\d{1,3}(,\\d{3})+/').first()).toBeVisible();
 
     // Should show all the stat labels in the overview section
-    await expect(page.getByText('Total Regulations')).toBeVisible();
-    await expect(page.getByText('Analyzed', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('Regulations Scanned')).toBeVisible();
     await expect(page.getByText('Compliance Issues', { exact: true })).toBeVisible();
     await expect(page.getByText('Red Flags', { exact: true })).toBeVisible();
+    await expect(page.getByText('Red Flag Analysis').first()).toBeVisible();
 
     // Should show state selection with both states
     await expect(page.getByRole('heading', { name: /Select a State/i })).toBeVisible();
