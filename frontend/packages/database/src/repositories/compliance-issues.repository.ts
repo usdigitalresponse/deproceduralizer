@@ -1,4 +1,4 @@
-import { eq, and, desc, asc, sql, count, or, isNull, isNotNull, ne, gte, lt, like, notInArray, inArray } from 'drizzle-orm';
+import { eq, and, desc, asc, sql, count, or, isNull, isNotNull, ne, gte, lt, like, notInArray, inArray, type SQL } from 'drizzle-orm';
 import { BaseRepository } from './base.repository';
 import { normalizeState } from '../schema/constants';
 import { complianceIssues, ComplianceIssue, IssueType } from '../schema/compliance-issues';
@@ -533,6 +533,363 @@ function mapRowToIssue(
       hasIbr: row.regulationHasIbr,
     },
     analysis,
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Extracted helpers for getAnalysisListPaginated
+// Pure functions that can be tested without class instantiation.
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Filter parameters for getAnalysisListPaginated.
+ * Extracted so the type can be referenced by buildAnalysisListFilters.
+ */
+export interface AnalysisListFilters {
+  tierCompleted?: number;
+  classification?: string;
+  federalMandate?: boolean;
+  pipelineRun?: boolean;
+  issueType?: string;
+  severity?: 'high' | 'medium' | 'low' | 'none';
+  severityChanged?: 'increased' | 'decreased' | 'unchanged' | 'no_tier3';
+  federalMandateConfirmed?: 'true' | 'false' | 'no_tier3';
+  stateDiscretion?: 'true' | 'false' | 'no_tier3';
+  alternativeFound?: 'true' | 'false' | 'no_tier3';
+  evidenceGap?: 'true' | 'false' | 'no_tier3';
+  supersededByLaw?: 'true' | 'false' | 'no_tier3';
+  advocacyForChange?: 'true' | 'false' | 'no_tier3';
+  tier3Trigger?: string;
+  easyCleanup?: 'any' | 'trivial' | 'easy' | 'medium';
+  bookmarkedOnly?: boolean;
+}
+
+/**
+ * Build a single SQL condition for a Tier 3 JSONB flag filter.
+ *
+ * The tier3_flags JSONB column stores structured flags like:
+ *   { "federal_mandate_confirmed": { "value": true, ... }, ... }
+ *
+ * Each flag has 3 possible filter values:
+ * - 'true'    → flag value is true
+ * - 'false'   → completed Tier 3 but flag is false or missing
+ * - 'no_tier3' → hasn't reached Tier 3 yet
+ */
+export function buildTier3FlagFilter(
+  flagName: string,
+  value: 'true' | 'false' | 'no_tier3' | undefined,
+): SQL | undefined {
+  if (value === undefined) return undefined;
+
+  if (value === 'true') {
+    return sql`(${complianceIssueAnalyses.tier3Flags}->${flagName}->>'value')::boolean = true`;
+  }
+  if (value === 'false') {
+    return sql`${complianceIssueAnalyses.tier3Classification} IS NOT NULL AND (
+      (${complianceIssueAnalyses.tier3Flags}->${flagName}->>'value')::boolean = false
+      OR ${complianceIssueAnalyses.tier3Flags}->${flagName} IS NULL
+    )`;
+  }
+  // 'no_tier3'
+  return sql`${complianceIssueAnalyses.tier3Classification} IS NULL`;
+}
+
+/**
+ * Build an array of SQL conditions for the analysis list query.
+ * Always includes the state condition as the first element.
+ */
+export function buildAnalysisListFilters(params: {
+  state: StateCode;
+  filters?: AnalysisListFilters;
+}): SQL[] {
+  const { state, filters } = params;
+
+  const conditions: SQL[] = [
+    eq(complianceIssueAnalyses.state, normalizeState(state)),
+  ];
+
+  if (!filters) return conditions;
+
+  if (filters.tierCompleted !== undefined) {
+    conditions.push(eq(complianceIssueAnalyses.highestTierCompleted, filters.tierCompleted));
+  }
+
+  if (filters.classification) {
+    conditions.push(
+      or(
+        eq(complianceIssueAnalyses.tier3Classification, filters.classification),
+        and(
+          isNull(complianceIssueAnalyses.tier3Classification),
+          eq(complianceIssueAnalyses.tier2Classification, filters.classification)
+        ),
+        and(
+          isNull(complianceIssueAnalyses.tier3Classification),
+          isNull(complianceIssueAnalyses.tier2Classification),
+          eq(complianceIssueAnalyses.tier1Classification, filters.classification)
+        )
+      )!
+    );
+  }
+
+  if (filters.federalMandate !== undefined) {
+    conditions.push(eq(complianceIssueAnalyses.federalMandateFound, filters.federalMandate));
+  }
+
+  if (filters.pipelineRun !== undefined) {
+    if (filters.pipelineRun) {
+      conditions.push(gte(complianceIssueAnalyses.highestTierCompleted, 1));
+    } else {
+      conditions.push(eq(complianceIssueAnalyses.highestTierCompleted, 0));
+    }
+  }
+
+  if (filters.issueType) {
+    conditions.push(eq(complianceIssueAnalyses.issueType, filters.issueType));
+  }
+
+  // Severity filter (high=7-10, medium=4-6, low=1-3, none=null)
+  if (filters.severity) {
+    const severityExpr = sql`COALESCE(${complianceIssueAnalyses.finalSeverity}, ${complianceIssueAnalyses.severity})`;
+    if (filters.severity === 'high') {
+      conditions.push(sql`${severityExpr} >= 7`);
+    } else if (filters.severity === 'medium') {
+      conditions.push(sql`${severityExpr} >= 4 AND ${severityExpr} < 7`);
+    } else if (filters.severity === 'low') {
+      conditions.push(sql`${severityExpr} >= 1 AND ${severityExpr} < 4`);
+    } else if (filters.severity === 'none') {
+      conditions.push(sql`${severityExpr} IS NULL`);
+    }
+  }
+
+  // Severity changed filter
+  if (filters.severityChanged) {
+    if (filters.severityChanged === 'increased') {
+      conditions.push(sql`${complianceIssueAnalyses.tier3SeverityAdjustment} > 0`);
+    } else if (filters.severityChanged === 'decreased') {
+      conditions.push(sql`${complianceIssueAnalyses.tier3SeverityAdjustment} < 0`);
+    } else if (filters.severityChanged === 'unchanged') {
+      conditions.push(
+        or(
+          eq(complianceIssueAnalyses.tier3SeverityAdjustment, 0),
+          and(
+            sql`${complianceIssueAnalyses.tier3Classification} IS NOT NULL`,
+            isNull(complianceIssueAnalyses.tier3SeverityAdjustment)
+          )
+        )!
+      );
+    } else if (filters.severityChanged === 'no_tier3') {
+      conditions.push(isNull(complianceIssueAnalyses.tier3Classification));
+    }
+  }
+
+  // Tier 3 JSONB flag filters
+  const federalMandateFilter = buildTier3FlagFilter('federal_mandate_confirmed', filters.federalMandateConfirmed);
+  if (federalMandateFilter) conditions.push(federalMandateFilter);
+
+  const stateDiscretionFilter = buildTier3FlagFilter('state_discretion_found', filters.stateDiscretion);
+  if (stateDiscretionFilter) conditions.push(stateDiscretionFilter);
+
+  const alternativeFilter = buildTier3FlagFilter('modernized_alternative_found', filters.alternativeFound);
+  if (alternativeFilter) conditions.push(alternativeFilter);
+
+  const supersededFilter = buildTier3FlagFilter('superseded_by_law', filters.supersededByLaw);
+  if (supersededFilter) conditions.push(supersededFilter);
+
+  const advocacyFilter = buildTier3FlagFilter('advocacy_for_change', filters.advocacyForChange);
+  if (advocacyFilter) conditions.push(advocacyFilter);
+
+  // Evidence gap filter (boolean column, not JSONB)
+  if (filters.evidenceGap) {
+    if (filters.evidenceGap === 'true') {
+      conditions.push(eq(complianceIssueAnalyses.tier3EvidenceGap, true));
+    } else if (filters.evidenceGap === 'false') {
+      conditions.push(
+        sql`(${complianceIssueAnalyses.tier3EvidenceGap} = false OR (
+          ${complianceIssueAnalyses.tier3Classification} IS NOT NULL
+          AND ${complianceIssueAnalyses.tier3EvidenceGap} IS NULL
+        ))`
+      );
+    } else if (filters.evidenceGap === 'no_tier3') {
+      conditions.push(isNull(complianceIssueAnalyses.tier3Classification));
+    }
+  }
+
+  // Tier 3 trigger filter
+  if (filters.tier3Trigger) {
+    // IMPORTANT: These thresholds must match backend/scripts/research_pipeline/routing.py
+    const HIGH_RISK_ISSUE_TYPES = ['newspaper', 'notarization', 'wet_signature', 'witness', 'mandated_reports'];
+    const IN_PERSON_PREFIX = 'in_person';
+
+    if (filters.tier3Trigger === 'high_risk_issue') {
+      conditions.push(
+        and(
+          or(
+            inArray(complianceIssueAnalyses.issueType, HIGH_RISK_ISSUE_TYPES),
+            like(complianceIssueAnalyses.issueType, `${IN_PERSON_PREFIX}%`)
+          )!,
+          gte(complianceIssueAnalyses.severity, 7)
+        )!
+      );
+    } else if (filters.tier3Trigger === 'federal_citation') {
+      conditions.push(eq(complianceIssueAnalyses.citesFederalStatute, true));
+    } else if (filters.tier3Trigger === 'no_alternative') {
+      conditions.push(
+        and(
+          eq(complianceIssueAnalyses.claimsNoAlternative, true),
+          gte(complianceIssueAnalyses.severity, 7)
+        )!
+      );
+    } else if (filters.tier3Trigger === 'high_severity') {
+      conditions.push(
+        and(
+          eq(complianceIssueAnalyses.tier2Classification, 'burdensome'),
+          gte(complianceIssueAnalyses.severity, 8)
+        )!
+      );
+    } else if (filters.tier3Trigger === 'controversial') {
+      conditions.push(
+        and(
+          eq(complianceIssueAnalyses.tier2Classification, 'justified'),
+          eq(complianceIssueAnalyses.potentiallyControversial, true)
+        )!
+      );
+    } else if (filters.tier3Trigger === 'mandate_suspected') {
+      conditions.push(eq(complianceIssueAnalyses.federalMandateSuspected, true));
+    } else if (filters.tier3Trigger === 'not_triggered') {
+      conditions.push(isNull(complianceIssueAnalyses.tier3Classification));
+    }
+  }
+
+  // Easy cleanup filter
+  if (filters.easyCleanup) {
+    if (filters.easyCleanup === 'any') {
+      conditions.push(eq(complianceIssueAnalyses.easyCleanupCandidate, true));
+    } else {
+      conditions.push(
+        and(
+          eq(complianceIssueAnalyses.easyCleanupCandidate, true),
+          eq(complianceIssueAnalyses.cleanupEffort, filters.easyCleanup)
+        )!
+      );
+    }
+  }
+
+  // Bookmarked only filter
+  if (filters.bookmarkedOnly) {
+    conditions.push(
+      sql`EXISTS (
+        SELECT 1 FROM ${bookmarks}
+        WHERE ${bookmarks.analysisId} = ${complianceIssueAnalyses.id}
+      )`
+    );
+  }
+
+  return conditions;
+}
+
+/**
+ * Build order-by clauses for the analysis list query.
+ * Returns an array of SQL/drizzle order expressions.
+ *
+ * For severity sorting: NULLS LAST, then easy cleanup candidates first,
+ * then by effort level, then group by issue type, then stable id tiebreaker.
+ *
+ * For other sorts: primary sort + stable id tiebreaker.
+ */
+export function buildAnalysisListSort(
+  sortBy: string,
+  sortDirection: string,
+): SQL[] {
+  const sortColumn = {
+    issueType: complianceIssueAnalyses.issueType,
+    severity: sql`COALESCE(${complianceIssueAnalyses.finalSeverity}, ${complianceIssueAnalyses.severity})`,
+    highestTier: complianceIssueAnalyses.highestTierCompleted,
+    createdAt: complianceIssueAnalyses.createdAt,
+  }[sortBy] ?? complianceIssueAnalyses.createdAt;
+
+  // For severity sorting, put nulls at the end
+  const primarySort = sortBy === 'severity' && sortDirection === 'desc'
+    ? sql`${sortColumn} DESC NULLS LAST`
+    : sortDirection === 'asc' ? asc(sortColumn) : desc(sortColumn);
+
+  // For severity: easy cleanup candidates first, then by effort level,
+  // then group by issue type, then stable id tiebreaker
+  if (sortBy === 'severity') {
+    return [
+      primarySort,
+      sql`${complianceIssueAnalyses.easyCleanupCandidate} DESC NULLS LAST`,
+      sql`CASE ${complianceIssueAnalyses.cleanupEffort}
+        WHEN 'trivial' THEN 1
+        WHEN 'easy' THEN 2
+        WHEN 'medium' THEN 3
+        ELSE 4
+      END ASC`,
+      asc(complianceIssueAnalyses.issueType),
+      asc(complianceIssueAnalyses.id),
+    ];
+  }
+
+  return [primarySort, asc(complianceIssueAnalyses.id)];
+}
+
+/** Raw row shape from the analysis list query (before mapping). */
+export interface AnalysisListRawRow {
+  documentId: number | string;
+  issueType: string;
+  highestTierCompleted: number | null;
+  tier1Classification: string | null;
+  tier2Classification: string | null;
+  tier3Classification: string | null;
+  finalSeverity: number | null;
+  federalMandateFound: boolean | null;
+  isJustified: boolean | null;
+  tier2RerunCount: number | null;
+  createdAt: Date | null;
+  easyCleanupCandidate: boolean | null;
+  cleanupType: string | null;
+  cleanupEffort: string | null;
+  tier3TriggerReason: string | null;
+  docTitle: string | null;
+  docShortTitle: string | null;
+  docNjacTitle: string | null;       // varchar in schema
+  docNjacChapter: string | null;
+  docNjacSubchapter: string | null;
+  docNycrrTitle: number | null;       // integer in schema
+  docNycrrPart: string | null;
+  docNycrrSection: string | null;
+}
+
+/**
+ * Transform a raw analysis list query row into an AnalysisListItem.
+ * Builds citation strings from NJAC/NYCRR fields and applies default values.
+ */
+export function mapAnalysisListRow(row: AnalysisListRawRow): AnalysisListItem {
+  // Build citation
+  let citation: string | null = null;
+  if (row.docNjacTitle) {
+    citation = `N.J.A.C. ${row.docNjacTitle}:${row.docNjacChapter || ''}${row.docNjacSubchapter ? `-${row.docNjacSubchapter}` : ''}`;
+  } else if (row.docNycrrTitle) {
+    citation = `${row.docNycrrTitle} NYCRR ${row.docNycrrPart || ''}${row.docNycrrSection ? `.${row.docNycrrSection}` : ''}`;
+  }
+
+  return {
+    documentId: Number(row.documentId),
+    issueType: row.issueType,
+    documentTitle: row.docShortTitle || row.docTitle,
+    citation,
+    highestTierCompleted: row.highestTierCompleted ?? 0,
+    tier1Classification: row.tier1Classification,
+    tier2Classification: row.tier2Classification,
+    tier3Classification: row.tier3Classification,
+    finalSeverity: row.finalSeverity,
+    federalMandateFound: row.federalMandateFound ?? false,
+    isJustified: row.isJustified ?? false,
+    rerunCount: row.tier2RerunCount ?? 0,
+    createdAt: row.createdAt,
+    easyCleanupCandidate: row.easyCleanupCandidate ?? false,
+    cleanupType: row.cleanupType,
+    cleanupEffort: row.cleanupEffort,
+    tier3TriggerReason: row.tier3TriggerReason,
   };
 }
 
@@ -1924,6 +2281,10 @@ export class ComplianceIssuesRepository extends BaseRepository {
   /**
    * Get paginated analysis list for table view.
    * Returns simplified analysis records with document info.
+   *
+   * Filter building, sort assembly, and row mapping are extracted into
+   * module-level helpers: buildAnalysisListFilters, buildAnalysisListSort,
+   * and mapAnalysisListRow.
    */
   async getAnalysisListPaginated(
     state: StateCode,
@@ -1932,27 +2293,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       pageSize: number;
       sortBy?: 'issueType' | 'severity' | 'highestTier' | 'createdAt';
       sortOrder?: 'asc' | 'desc';
-      filters?: {
-        tierCompleted?: number;
-        classification?: string;
-        federalMandate?: boolean;
-        pipelineRun?: boolean;
-        issueType?: string;
-        // V5 Tier 3 filters
-        severity?: 'high' | 'medium' | 'low' | 'none';
-        severityChanged?: 'increased' | 'decreased' | 'unchanged' | 'no_tier3';
-        federalMandateConfirmed?: 'true' | 'false' | 'no_tier3';
-        stateDiscretion?: 'true' | 'false' | 'no_tier3';
-        alternativeFound?: 'true' | 'false' | 'no_tier3';
-        evidenceGap?: 'true' | 'false' | 'no_tier3';
-        supersededByLaw?: 'true' | 'false' | 'no_tier3';
-        advocacyForChange?: 'true' | 'false' | 'no_tier3';
-        tier3Trigger?: string;
-        // V5.1 Easy Cleanup filter
-        easyCleanup?: 'any' | 'trivial' | 'easy' | 'medium';
-        // Bookmarks filter
-        bookmarkedOnly?: boolean;
-      };
+      filters?: AnalysisListFilters;
     }
   ): Promise<{
     data: AnalysisListItem[];
@@ -1964,262 +2305,9 @@ export class ComplianceIssuesRepository extends BaseRepository {
     const { page, pageSize, sortBy = 'createdAt', sortOrder = 'desc', filters } = options;
     const offset = (page - 1) * pageSize;
 
-    // Build where conditions
-    const conditions: ReturnType<typeof eq>[] = [
-      eq(complianceIssueAnalyses.state, normalizeState(state)),
-    ];
-
-    if (filters) {
-      if (filters.tierCompleted !== undefined) {
-        conditions.push(eq(complianceIssueAnalyses.highestTierCompleted, filters.tierCompleted));
-      }
-      if (filters.classification) {
-        // Check final classification across tiers (tier3 → tier2 → tier1)
-        conditions.push(
-          or(
-            eq(complianceIssueAnalyses.tier3Classification, filters.classification),
-            and(
-              isNull(complianceIssueAnalyses.tier3Classification),
-              eq(complianceIssueAnalyses.tier2Classification, filters.classification)
-            ),
-            and(
-              isNull(complianceIssueAnalyses.tier3Classification),
-              isNull(complianceIssueAnalyses.tier2Classification),
-              eq(complianceIssueAnalyses.tier1Classification, filters.classification)
-            )
-          )!
-        );
-      }
-      if (filters.federalMandate !== undefined) {
-        conditions.push(eq(complianceIssueAnalyses.federalMandateFound, filters.federalMandate));
-      }
-      if (filters.pipelineRun !== undefined) {
-        // pipelineRun = true means tier >= 1 (pipeline has actually run)
-        // pipelineRun = false means tier = 0 (not run yet)
-        if (filters.pipelineRun) {
-          conditions.push(gte(complianceIssueAnalyses.highestTierCompleted, 1));
-        } else {
-          conditions.push(eq(complianceIssueAnalyses.highestTierCompleted, 0));
-        }
-      }
-      if (filters.issueType) {
-        conditions.push(eq(complianceIssueAnalyses.issueType, filters.issueType));
-      }
-
-      // V5 Tier 3 filters
-
-      // Severity filter (high=7-10, medium=4-6, low=1-3, none=null)
-      // Use COALESCE to fall back to tier2 severity if final_severity is NULL
-      if (filters.severity) {
-        const severityExpr = sql`COALESCE(${complianceIssueAnalyses.finalSeverity}, ${complianceIssueAnalyses.severity})`;
-        if (filters.severity === 'high') {
-          conditions.push(sql`${severityExpr} >= 7`);
-        } else if (filters.severity === 'medium') {
-          conditions.push(sql`${severityExpr} >= 4 AND ${severityExpr} < 7`);
-        } else if (filters.severity === 'low') {
-          conditions.push(sql`${severityExpr} >= 1 AND ${severityExpr} < 4`);
-        } else if (filters.severity === 'none') {
-          conditions.push(sql`${severityExpr} IS NULL`);
-        }
-      }
-
-      // Severity changed filter (Tier 3 adjustment)
-      if (filters.severityChanged) {
-        if (filters.severityChanged === 'increased') {
-          conditions.push(sql`${complianceIssueAnalyses.tier3SeverityAdjustment} > 0`);
-        } else if (filters.severityChanged === 'decreased') {
-          conditions.push(sql`${complianceIssueAnalyses.tier3SeverityAdjustment} < 0`);
-        } else if (filters.severityChanged === 'unchanged') {
-          conditions.push(
-            or(
-              eq(complianceIssueAnalyses.tier3SeverityAdjustment, 0),
-              and(
-                sql`${complianceIssueAnalyses.tier3Classification} IS NOT NULL`,
-                isNull(complianceIssueAnalyses.tier3SeverityAdjustment)
-              )
-            )!
-          );
-        } else if (filters.severityChanged === 'no_tier3') {
-          conditions.push(isNull(complianceIssueAnalyses.tier3Classification));
-        }
-      }
-
-      // Federal mandate confirmed filter (Tier 3 flag from JSONB)
-      // Using pure SQL to avoid drizzle type inference issues with mixed and/or/sql
-      if (filters.federalMandateConfirmed) {
-        if (filters.federalMandateConfirmed === 'true') {
-          conditions.push(sql`(${complianceIssueAnalyses.tier3Flags}->'federal_mandate_confirmed'->>'value')::boolean = true`);
-        } else if (filters.federalMandateConfirmed === 'false') {
-          // Only include rows that completed Tier 3 but have false/NULL for this flag
-          conditions.push(
-            sql`${complianceIssueAnalyses.tier3Classification} IS NOT NULL AND (
-              (${complianceIssueAnalyses.tier3Flags}->'federal_mandate_confirmed'->>'value')::boolean = false
-              OR ${complianceIssueAnalyses.tier3Flags}->'federal_mandate_confirmed' IS NULL
-            )`
-          );
-        } else if (filters.federalMandateConfirmed === 'no_tier3') {
-          conditions.push(isNull(complianceIssueAnalyses.tier3Classification));
-        }
-      }
-
-      // State discretion filter (Tier 3 flag from JSONB)
-      if (filters.stateDiscretion) {
-        if (filters.stateDiscretion === 'true') {
-          conditions.push(sql`(${complianceIssueAnalyses.tier3Flags}->'state_discretion_found'->>'value')::boolean = true`);
-        } else if (filters.stateDiscretion === 'false') {
-          // Only include rows that completed Tier 3 but have false/NULL for this flag
-          conditions.push(
-            sql`${complianceIssueAnalyses.tier3Classification} IS NOT NULL AND (
-              (${complianceIssueAnalyses.tier3Flags}->'state_discretion_found'->>'value')::boolean = false
-              OR ${complianceIssueAnalyses.tier3Flags}->'state_discretion_found' IS NULL
-            )`
-          );
-        } else if (filters.stateDiscretion === 'no_tier3') {
-          conditions.push(isNull(complianceIssueAnalyses.tier3Classification));
-        }
-      }
-
-      // Alternative found filter (Tier 3 flag from JSONB)
-      if (filters.alternativeFound) {
-        if (filters.alternativeFound === 'true') {
-          conditions.push(sql`(${complianceIssueAnalyses.tier3Flags}->'modernized_alternative_found'->>'value')::boolean = true`);
-        } else if (filters.alternativeFound === 'false') {
-          // Only include rows that completed Tier 3 but have false/NULL for this flag
-          conditions.push(
-            sql`${complianceIssueAnalyses.tier3Classification} IS NOT NULL AND (
-              (${complianceIssueAnalyses.tier3Flags}->'modernized_alternative_found'->>'value')::boolean = false
-              OR ${complianceIssueAnalyses.tier3Flags}->'modernized_alternative_found' IS NULL
-            )`
-          );
-        } else if (filters.alternativeFound === 'no_tier3') {
-          conditions.push(isNull(complianceIssueAnalyses.tier3Classification));
-        }
-      }
-
-      // Evidence gap filter (Tier 3 boolean column)
-      if (filters.evidenceGap) {
-        if (filters.evidenceGap === 'true') {
-          conditions.push(eq(complianceIssueAnalyses.tier3EvidenceGap, true));
-        } else if (filters.evidenceGap === 'false') {
-          conditions.push(
-            sql`(${complianceIssueAnalyses.tier3EvidenceGap} = false OR (
-              ${complianceIssueAnalyses.tier3Classification} IS NOT NULL
-              AND ${complianceIssueAnalyses.tier3EvidenceGap} IS NULL
-            ))`
-          );
-        } else if (filters.evidenceGap === 'no_tier3') {
-          conditions.push(isNull(complianceIssueAnalyses.tier3Classification));
-        }
-      }
-
-      // Superseded by law filter (Tier 3 flag from JSONB)
-      if (filters.supersededByLaw) {
-        if (filters.supersededByLaw === 'true') {
-          conditions.push(sql`(${complianceIssueAnalyses.tier3Flags}->'superseded_by_law'->>'value')::boolean = true`);
-        } else if (filters.supersededByLaw === 'false') {
-          conditions.push(
-            sql`${complianceIssueAnalyses.tier3Classification} IS NOT NULL AND (
-              (${complianceIssueAnalyses.tier3Flags}->'superseded_by_law'->>'value')::boolean = false
-              OR ${complianceIssueAnalyses.tier3Flags}->'superseded_by_law' IS NULL
-            )`
-          );
-        } else if (filters.supersededByLaw === 'no_tier3') {
-          conditions.push(isNull(complianceIssueAnalyses.tier3Classification));
-        }
-      }
-
-      // Advocacy for change filter (Tier 3 flag from JSONB)
-      if (filters.advocacyForChange) {
-        if (filters.advocacyForChange === 'true') {
-          conditions.push(sql`(${complianceIssueAnalyses.tier3Flags}->'advocacy_for_change'->>'value')::boolean = true`);
-        } else if (filters.advocacyForChange === 'false') {
-          conditions.push(
-            sql`${complianceIssueAnalyses.tier3Classification} IS NOT NULL AND (
-              (${complianceIssueAnalyses.tier3Flags}->'advocacy_for_change'->>'value')::boolean = false
-              OR ${complianceIssueAnalyses.tier3Flags}->'advocacy_for_change' IS NULL
-            )`
-          );
-        } else if (filters.advocacyForChange === 'no_tier3') {
-          conditions.push(isNull(complianceIssueAnalyses.tier3Classification));
-        }
-      }
-
-      // Tier 3 trigger filter (derived from existing fields based on routing.py logic)
-      // IMPORTANT: These thresholds must match backend/scripts/research_pipeline/routing.py
-      // Thresholds: HIGH_RISK_SEVERITY >= 7, NO_ALTERNATIVE_SEVERITY >= 7, BURDENSOME_SEVERITY >= 8
-      if (filters.tier3Trigger) {
-        // High-risk issue types that trigger Tier 3 when severity >= 7
-        const HIGH_RISK_ISSUE_TYPES = ['newspaper', 'notarization', 'wet_signature', 'witness', 'mandated_reports'];
-        const IN_PERSON_PREFIX = 'in_person';
-
-        if (filters.tier3Trigger === 'high_risk_issue') {
-          // High-risk issue type + severity >= 7
-          conditions.push(
-            and(
-              or(
-                inArray(complianceIssueAnalyses.issueType, HIGH_RISK_ISSUE_TYPES),
-                like(complianceIssueAnalyses.issueType, `${IN_PERSON_PREFIX}%`)
-              )!,
-              gte(complianceIssueAnalyses.severity, 7)
-            )!
-          );
-        } else if (filters.tier3Trigger === 'federal_citation') {
-          conditions.push(eq(complianceIssueAnalyses.citesFederalStatute, true));
-        } else if (filters.tier3Trigger === 'no_alternative') {
-          conditions.push(
-            and(
-              eq(complianceIssueAnalyses.claimsNoAlternative, true),
-              gte(complianceIssueAnalyses.severity, 7)
-            )!
-          );
-        } else if (filters.tier3Trigger === 'high_severity') {
-          conditions.push(
-            and(
-              eq(complianceIssueAnalyses.tier2Classification, 'burdensome'),
-              gte(complianceIssueAnalyses.severity, 8)
-            )!
-          );
-        } else if (filters.tier3Trigger === 'controversial') {
-          conditions.push(
-            and(
-              eq(complianceIssueAnalyses.tier2Classification, 'justified'),
-              eq(complianceIssueAnalyses.potentiallyControversial, true)
-            )!
-          );
-        } else if (filters.tier3Trigger === 'mandate_suspected') {
-          conditions.push(eq(complianceIssueAnalyses.federalMandateSuspected, true));
-        } else if (filters.tier3Trigger === 'not_triggered') {
-          conditions.push(isNull(complianceIssueAnalyses.tier3Classification));
-        }
-      }
-
-      // V5.1: Easy Cleanup filter
-      if (filters.easyCleanup) {
-        if (filters.easyCleanup === 'any') {
-          conditions.push(eq(complianceIssueAnalyses.easyCleanupCandidate, true));
-        } else {
-          // Filter by specific effort level
-          conditions.push(
-            and(
-              eq(complianceIssueAnalyses.easyCleanupCandidate, true),
-              eq(complianceIssueAnalyses.cleanupEffort, filters.easyCleanup)
-            )!
-          );
-        }
-      }
-
-      // Bookmarked only filter - uses EXISTS subquery for efficiency
-      if (filters.bookmarkedOnly) {
-        conditions.push(
-          sql`EXISTS (
-            SELECT 1 FROM ${bookmarks}
-            WHERE ${bookmarks.analysisId} = ${complianceIssueAnalyses.id}
-          )`
-        );
-      }
-    }
-
+    const conditions = buildAnalysisListFilters({ state, filters });
     const whereClause = and(...conditions);
+    const orderClauses = buildAnalysisListSort(sortBy, sortOrder);
 
     // Get total count
     const [{ count: total }] = await this.db
@@ -2227,39 +2315,6 @@ export class ComplianceIssuesRepository extends BaseRepository {
       .from(complianceIssueAnalyses)
       .innerJoin(regulatoryDocuments, eq(complianceIssueAnalyses.documentId, regulatoryDocuments.id))
       .where(whereClause);
-
-    // Build sort column
-    // Use COALESCE for severity to fall back to tier2 severity if final_severity is NULL
-    const sortColumn = {
-      issueType: complianceIssueAnalyses.issueType,
-      severity: sql`COALESCE(${complianceIssueAnalyses.finalSeverity}, ${complianceIssueAnalyses.severity})`,
-      highestTier: complianceIssueAnalyses.highestTierCompleted,
-      createdAt: complianceIssueAnalyses.createdAt,
-    }[sortBy] ?? complianceIssueAnalyses.createdAt;
-
-    // For severity sorting, put nulls at the end (they represent unanalyzed items)
-    // PostgreSQL defaults nulls to the beginning for DESC, which is unintuitive for severity
-    const primarySort = sortBy === 'severity' && sortOrder === 'desc'
-      ? sql`${sortColumn} DESC NULLS LAST`
-      : sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
-
-    // Build deterministic sort order with tiebreakers
-    // For severity: easy cleanup candidates first, then by effort level, then group by issue type
-    // For other sorts: just add id as a stable tiebreaker for consistent pagination
-    const orderClauses = sortBy === 'severity'
-      ? [
-          primarySort,
-          sql`${complianceIssueAnalyses.easyCleanupCandidate} DESC NULLS LAST`,
-          sql`CASE ${complianceIssueAnalyses.cleanupEffort}
-            WHEN 'trivial' THEN 1
-            WHEN 'easy' THEN 2
-            WHEN 'medium' THEN 3
-            ELSE 4
-          END ASC`,
-          asc(complianceIssueAnalyses.issueType),
-          asc(complianceIssueAnalyses.id),
-        ]
-      : [primarySort, asc(complianceIssueAnalyses.id)];
 
     // Get paginated results
     const results = await this.db
@@ -2270,19 +2325,15 @@ export class ComplianceIssuesRepository extends BaseRepository {
         tier1Classification: complianceIssueAnalyses.tier1Classification,
         tier2Classification: complianceIssueAnalyses.tier2Classification,
         tier3Classification: complianceIssueAnalyses.tier3Classification,
-        tier2RerunCount: complianceIssueAnalyses.tier2RerunCount,  // Track re-runs
-        // Use COALESCE to fall back to tier2 severity if final_severity is NULL
+        tier2RerunCount: complianceIssueAnalyses.tier2RerunCount,
         finalSeverity: sql<number | null>`COALESCE(${complianceIssueAnalyses.finalSeverity}, ${complianceIssueAnalyses.severity})`,
         federalMandateFound: complianceIssueAnalyses.federalMandateFound,
         isJustified: complianceIssueAnalyses.isJustified,
         createdAt: complianceIssueAnalyses.createdAt,
-        // V5.1: Easy Cleanup fields
         easyCleanupCandidate: complianceIssueAnalyses.easyCleanupCandidate,
         cleanupType: complianceIssueAnalyses.cleanupType,
         cleanupEffort: complianceIssueAnalyses.cleanupEffort,
-        // V5.1: Tier 3 trigger reason
         tier3TriggerReason: complianceIssueAnalyses.tier3TriggerReason,
-        // Document info
         docTitle: regulatoryDocuments.title,
         docShortTitle: regulatoryDocuments.shortTitle,
         docNjacTitle: regulatoryDocuments.njacTitle,
@@ -2299,41 +2350,8 @@ export class ComplianceIssuesRepository extends BaseRepository {
       .limit(pageSize)
       .offset(offset);
 
-    // Transform results
-    const data: AnalysisListItem[] = results.map(row => {
-      // Build citation
-      let citation: string | null = null;
-      if (row.docNjacTitle) {
-        citation = `N.J.A.C. ${row.docNjacTitle}:${row.docNjacChapter || ''}${row.docNjacSubchapter ? `-${row.docNjacSubchapter}` : ''}`;
-      } else if (row.docNycrrTitle) {
-        citation = `${row.docNycrrTitle} NYCRR ${row.docNycrrPart || ''}${row.docNycrrSection ? `.${row.docNycrrSection}` : ''}`;
-      }
-
-      return {
-        documentId: Number(row.documentId),
-        issueType: row.issueType,
-        documentTitle: row.docShortTitle || row.docTitle,
-        citation,
-        highestTierCompleted: row.highestTierCompleted ?? 0,
-        tier1Classification: row.tier1Classification,
-        tier2Classification: row.tier2Classification,
-        tier3Classification: row.tier3Classification,
-        finalSeverity: row.finalSeverity,
-        federalMandateFound: row.federalMandateFound ?? false,
-        isJustified: row.isJustified ?? false,
-        rerunCount: row.tier2RerunCount ?? 0,
-        createdAt: row.createdAt,
-        // V5.1: Easy Cleanup fields
-        easyCleanupCandidate: row.easyCleanupCandidate ?? false,
-        cleanupType: row.cleanupType,
-        cleanupEffort: row.cleanupEffort,
-        // V5.1: Tier 3 trigger reason
-        tier3TriggerReason: row.tier3TriggerReason,
-      };
-    });
-
     return {
-      data,
+      data: results.map(mapAnalysisListRow),
       total,
       page,
       pageSize,

@@ -23,6 +23,9 @@ import {
   getRedFlagDeveloperQueueData,
   getComplianceDeveloperQueueData,
   getComplianceSuggestionQueueData,
+  type DeveloperModeCountsData,
+  type ReviewModeCountsData,
+  type TabCounts,
 } from '@/lib/actions/review-page';
 import {
   parseSeverityFilter,
@@ -37,6 +40,54 @@ import type { ReviewType, ReviewMode } from '@/types/regulation';
 import type { GroupingModeValue } from '@/lib/constants/values';
 import { getComplianceSuggestionBatch } from '@/lib/actions/compliance-issues';
 
+// ============================================
+// Shared Types
+// ============================================
+
+/** Resolved query parameters from the URL search params */
+type ReviewPageQueryParams = {
+  mode?: string;
+  type?: string;
+  reviewStatus?: string;
+  severity?: string;
+  category?: string;
+  issueType?: string;
+  developerStatus?: string;
+  developerAssigned?: string;
+  sortBy?: string;
+  sortOrder?: string;
+  page?: string;
+  requiredByStatute?: string;
+  requirementFound?: string;
+  tierCompleted?: string;
+  federalMandate?: string;
+  hasAnalysis?: string;
+  queueMode?: string;
+  groupingMode?: string;
+  batchSize?: string;
+  shownIds?: string;
+  focusType?: string;
+  focusSection?: string;
+  focusPattern?: string;
+};
+
+/** Common context passed to every tab loader */
+interface TabLoaderContext {
+  stateCode: StateCode;
+  page: number;
+  pageSize: number;
+  sortOrder: 'asc' | 'desc';
+  queryParams: ReviewPageQueryParams;
+  pageConfig: { title: string; description: string };
+}
+
+/** Error controls for tabs that support them */
+interface ErrorControls {
+  mode: ReviewMode;
+  reviewType: ReviewType;
+  tabCounts: TabCounts;
+}
+
 // Helper to parse comma-separated IDs from URL
 function parseCommaSeparatedIds(value: string | undefined): number[] {
   if (!value) return [];
@@ -45,33 +96,7 @@ function parseCommaSeparatedIds(value: string | undefined): number[] {
 
 interface PageProps {
   params: Promise<{ state: string }>;
-  searchParams: Promise<{
-    mode?: string;
-    type?: string;
-    reviewStatus?: string;
-    severity?: string;
-    category?: string;
-    issueType?: string;
-    developerStatus?: string;
-    developerAssigned?: string;
-    sortBy?: string;
-    sortOrder?: string;
-    page?: string;
-    requiredByStatute?: string;
-    requirementFound?: string;
-    // Research pipeline filters
-    tierCompleted?: string;
-    federalMandate?: string;
-    hasAnalysis?: string;
-    // Suggestion mode params
-    queueMode?: string;
-    groupingMode?: string;
-    batchSize?: string;
-    shownIds?: string;
-    focusType?: string;
-    focusSection?: string;
-    focusPattern?: string;
-  }>;
+  searchParams: Promise<ReviewPageQueryParams>;
 }
 
 export default async function ReviewPage({ params, searchParams }: PageProps) {
@@ -99,14 +124,15 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
   const sortOrder = (queryParams.sortOrder || 'desc') as 'asc' | 'desc';
 
   const pageConfig = getReviewPageConfig(stateConfig.name, stateConfig.regulationsLabel, mode, reviewType);
+  const ctx: TabLoaderContext = { stateCode, page, pageSize, sortOrder, queryParams, pageConfig };
 
   // Developer mode
   if (mode === 'developer') {
-    return renderDeveloperMode(stateCode, reviewType, page, pageSize, sortOrder, queryParams, pageConfig);
+    return renderDeveloperMode(ctx, reviewType);
   }
 
   // Review mode
-  return renderReviewMode(stateCode, stateConfig, reviewType, page, pageSize, sortOrder, queryParams, pageConfig);
+  return renderReviewMode(ctx, reviewType);
 }
 
 // ============================================
@@ -116,7 +142,7 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
 function shouldRedirect(
   mode: ReviewMode,
   reviewType: ReviewType,
-  queryParams: PageProps['searchParams'] extends Promise<infer T> ? T : never
+  queryParams: ReviewPageQueryParams
 ): boolean {
   if (mode === 'developer') {
     return !queryParams.developerStatus && reviewType !== 'needs_info' && reviewType !== 'jenai';
@@ -132,7 +158,7 @@ function buildRedirectUrl(
   state: string,
   mode: ReviewMode,
   reviewType: ReviewType,
-  queryParams: PageProps['searchParams'] extends Promise<infer T> ? T : never
+  queryParams: ReviewPageQueryParams
 ): string {
   const params = new URLSearchParams();
   Object.entries(queryParams).forEach(([key, value]) => {
@@ -156,140 +182,171 @@ function buildRedirectUrl(
 // ============================================
 
 async function renderDeveloperMode(
-  stateCode: StateCode,
+  ctx: TabLoaderContext,
   reviewType: ReviewType,
-  page: number,
-  pageSize: number,
-  sortOrder: 'asc' | 'desc',
-  queryParams: PageProps['searchParams'] extends Promise<infer T> ? T : never,
-  pageConfig: { title: string; description: string }
 ) {
-  const countsResult = await getDeveloperModeCountsData(stateCode);
+  const countsResult = await getDeveloperModeCountsData(ctx.stateCode);
 
   if (!countsResult.success) {
     return (
       <ReviewPageError
-        title={pageConfig.title}
-        description={pageConfig.description}
+        title={ctx.pageConfig.title}
+        description={ctx.pageConfig.description}
         error={countsResult.error}
       />
     );
   }
 
-  const { tabCounts, redFlagDeveloperStatusCounts, complianceDeveloperStatusCounts, needsInfoCounts } = countsResult.data;
+  const countsData = countsResult.data;
+  const { tabCounts } = countsData;
 
-  // Definitions tab
-  if (reviewType === 'definitions') {
+  switch (reviewType) {
+    case 'definitions':
+      return loadDeveloperDefinitionsTab(ctx, tabCounts);
+    case 'needs_info':
+      return loadDeveloperNeedsInfoTab(ctx, tabCounts, countsData.needsInfoCounts);
+    case 'jenai':
+      return loadDeveloperJenAITab(ctx, tabCounts);
+    case 'compliance':
+      return loadDeveloperComplianceTab(ctx, tabCounts, countsData.complianceDeveloperStatusCounts);
+    default:
+      return loadDeveloperRedFlagsTab(ctx, tabCounts, countsData.redFlagDeveloperStatusCounts);
+  }
+}
+
+// ============================================
+// Developer Mode Tab Loaders
+// ============================================
+
+async function loadDeveloperDefinitionsTab(
+  ctx: TabLoaderContext,
+  tabCounts: TabCounts,
+) {
+  return (
+    <ReviewPageLayout pageConfig={ctx.pageConfig} mode="developer" reviewType="definitions" tabCounts={tabCounts}>
+      <DefinitionsDeveloperQueue state={ctx.stateCode} />
+    </ReviewPageLayout>
+  );
+}
+
+async function loadDeveloperNeedsInfoTab(
+  ctx: TabLoaderContext,
+  tabCounts: TabCounts,
+  needsInfoCounts: DeveloperModeCountsData['needsInfoCounts'],
+) {
+  const errorControls: ErrorControls = { mode: 'developer', reviewType: 'needs_info', tabCounts };
+  const itemsResult = await getNeedsInfoQueueData(ctx.stateCode, { page: ctx.page, pageSize: ctx.pageSize });
+
+  if (!itemsResult.success) {
     return (
-      <ReviewPageLayout pageConfig={pageConfig} mode="developer" reviewType={reviewType} tabCounts={tabCounts}>
-        <DefinitionsDeveloperQueue state={stateCode} />
-      </ReviewPageLayout>
+      <ReviewPageError
+        title={ctx.pageConfig.title}
+        description={ctx.pageConfig.description}
+        error={itemsResult.error}
+        controls={errorControls}
+      />
     );
   }
 
-  // Needs info tab
-  if (reviewType === 'needs_info') {
-    const itemsResult = await getNeedsInfoQueueData(stateCode, { page, pageSize });
+  const items = itemsResult.data;
+  return (
+    <ReviewPageLayout pageConfig={ctx.pageConfig} mode="developer" reviewType="needs_info" tabCounts={tabCounts}>
+      <NeedMoreInfoQueue
+        initialItems={items.data}
+        pagination={{ page: items.page, pageSize: items.pageSize, total: items.total, totalPages: items.totalPages }}
+        counts={needsInfoCounts}
+      />
+    </ReviewPageLayout>
+  );
+}
 
-    if (!itemsResult.success) {
-      return (
-        <ReviewPageError
-          title={pageConfig.title}
-          description={pageConfig.description}
-          error={itemsResult.error}
-          controls={{ mode: 'developer', reviewType, tabCounts }}
-        />
-      );
-    }
+async function loadDeveloperJenAITab(
+  ctx: TabLoaderContext,
+  tabCounts: TabCounts,
+) {
+  return (
+    <ReviewPageLayout pageConfig={ctx.pageConfig} mode="developer" reviewType="jenai" tabCounts={tabCounts}>
+      <JenAIQueue state={ctx.stateCode} mode="developer" />
+    </ReviewPageLayout>
+  );
+}
 
-    const items = itemsResult.data;
-    return (
-      <ReviewPageLayout pageConfig={pageConfig} mode="developer" reviewType={reviewType} tabCounts={tabCounts}>
-        <NeedMoreInfoQueue
-          initialItems={items.data}
-          pagination={{ page: items.page, pageSize: items.pageSize, total: items.total, totalPages: items.totalPages }}
-          counts={needsInfoCounts}
-        />
-      </ReviewPageLayout>
-    );
-  }
-
-  // JenAI tab
-  if (reviewType === 'jenai') {
-    return (
-      <ReviewPageLayout pageConfig={pageConfig} mode="developer" reviewType={reviewType} tabCounts={tabCounts}>
-        <JenAIQueue state={stateCode} mode="developer" />
-      </ReviewPageLayout>
-    );
-  }
-
-  // Compliance issues tab
-  if (reviewType === 'compliance') {
-    const sortBy = (queryParams.sortBy || 'reviewedAt') as 'severity' | 'issueType' | 'reviewedAt' | 'developerCheckedAt';
-    const dataResult = await getComplianceDeveloperQueueData(stateCode, {
-      page,
-      pageSize,
-      sortBy,
-      sortOrder,
-      developerStatus: queryParams.developerStatus || undefined,
-      developerAssigned: queryParams.developerAssigned || undefined,
-      severity: (queryParams.severity || 'all') as 'high' | 'medium' | 'low' | 'all',
-      reviewStatus: queryParams.reviewStatus || undefined,
-      issueType: queryParams.issueType || undefined,
-    });
-
-    if (!dataResult.success) {
-      return (
-        <ReviewPageError
-          title={pageConfig.title}
-          description={pageConfig.description}
-          error={dataResult.error}
-          controls={{ mode: 'developer', reviewType, tabCounts }}
-        />
-      );
-    }
-
-    const { items, issueTypes } = dataResult.data;
-    return (
-      <ReviewPageLayout pageConfig={pageConfig} mode="developer" reviewType={reviewType} tabCounts={tabCounts}>
-        <ComplianceDeveloperQueue
-          initialItems={items.data}
-          pagination={{ page: items.page, pageSize: items.pageSize, total: items.total, totalPages: items.totalPages }}
-          statusCounts={complianceDeveloperStatusCounts}
-          issueTypes={issueTypes}
-        />
-      </ReviewPageLayout>
-    );
-  }
-
-  // Default: Red Flags tab
-  const sortBy = (queryParams.sortBy || 'reviewedAt') as 'severity' | 'category' | 'reviewedAt' | 'developerCheckedAt';
-  const dataResult = await getRedFlagDeveloperQueueData(stateCode, {
-    page,
-    pageSize,
+async function loadDeveloperComplianceTab(
+  ctx: TabLoaderContext,
+  tabCounts: TabCounts,
+  complianceDeveloperStatusCounts: DeveloperModeCountsData['complianceDeveloperStatusCounts'],
+) {
+  const errorControls: ErrorControls = { mode: 'developer', reviewType: 'compliance', tabCounts };
+  const sortBy = (ctx.queryParams.sortBy || 'reviewedAt') as 'severity' | 'issueType' | 'reviewedAt' | 'developerCheckedAt';
+  const dataResult = await getComplianceDeveloperQueueData(ctx.stateCode, {
+    page: ctx.page,
+    pageSize: ctx.pageSize,
     sortBy,
-    sortOrder,
-    developerStatus: queryParams.developerStatus || undefined,
-    developerAssigned: queryParams.developerAssigned || undefined,
-    severity: (queryParams.severity || 'all') as 'high' | 'medium' | 'low' | 'all',
-    reviewStatus: queryParams.reviewStatus || undefined,
-    category: queryParams.category || undefined,
+    sortOrder: ctx.sortOrder,
+    developerStatus: ctx.queryParams.developerStatus || undefined,
+    developerAssigned: ctx.queryParams.developerAssigned || undefined,
+    severity: (ctx.queryParams.severity || 'all') as 'high' | 'medium' | 'low' | 'all',
+    reviewStatus: ctx.queryParams.reviewStatus || undefined,
+    issueType: ctx.queryParams.issueType || undefined,
   });
 
   if (!dataResult.success) {
     return (
       <ReviewPageError
-        title={pageConfig.title}
-        description={pageConfig.description}
+        title={ctx.pageConfig.title}
+        description={ctx.pageConfig.description}
         error={dataResult.error}
-        controls={{ mode: 'developer', reviewType, tabCounts }}
+        controls={errorControls}
+      />
+    );
+  }
+
+  const { items, issueTypes } = dataResult.data;
+  return (
+    <ReviewPageLayout pageConfig={ctx.pageConfig} mode="developer" reviewType="compliance" tabCounts={tabCounts}>
+      <ComplianceDeveloperQueue
+        initialItems={items.data}
+        pagination={{ page: items.page, pageSize: items.pageSize, total: items.total, totalPages: items.totalPages }}
+        statusCounts={complianceDeveloperStatusCounts}
+        issueTypes={issueTypes}
+      />
+    </ReviewPageLayout>
+  );
+}
+
+async function loadDeveloperRedFlagsTab(
+  ctx: TabLoaderContext,
+  tabCounts: TabCounts,
+  redFlagDeveloperStatusCounts: DeveloperModeCountsData['redFlagDeveloperStatusCounts'],
+) {
+  const errorControls: ErrorControls = { mode: 'developer', reviewType: 'flags', tabCounts };
+  const sortBy = (ctx.queryParams.sortBy || 'reviewedAt') as 'severity' | 'category' | 'reviewedAt' | 'developerCheckedAt';
+  const dataResult = await getRedFlagDeveloperQueueData(ctx.stateCode, {
+    page: ctx.page,
+    pageSize: ctx.pageSize,
+    sortBy,
+    sortOrder: ctx.sortOrder,
+    developerStatus: ctx.queryParams.developerStatus || undefined,
+    developerAssigned: ctx.queryParams.developerAssigned || undefined,
+    severity: (ctx.queryParams.severity || 'all') as 'high' | 'medium' | 'low' | 'all',
+    reviewStatus: ctx.queryParams.reviewStatus || undefined,
+    category: ctx.queryParams.category || undefined,
+  });
+
+  if (!dataResult.success) {
+    return (
+      <ReviewPageError
+        title={ctx.pageConfig.title}
+        description={ctx.pageConfig.description}
+        error={dataResult.error}
+        controls={errorControls}
       />
     );
   }
 
   const { items, categories } = dataResult.data;
   return (
-    <ReviewPageLayout pageConfig={pageConfig} mode="developer" reviewType={reviewType} tabCounts={tabCounts}>
+    <ReviewPageLayout pageConfig={ctx.pageConfig} mode="developer" reviewType="flags" tabCounts={tabCounts}>
       <RedFlagDeveloperQueue
         initialItems={items.data}
         pagination={{ page: items.page, pageSize: items.pageSize, total: items.total, totalPages: items.totalPages }}
@@ -305,207 +362,267 @@ async function renderDeveloperMode(
 // ============================================
 
 async function renderReviewMode(
-  stateCode: StateCode,
-  stateConfig: { name: string; regulationsLabel: string },
+  ctx: TabLoaderContext,
   reviewType: ReviewType,
-  page: number,
-  pageSize: number,
-  sortOrder: 'asc' | 'desc',
-  queryParams: PageProps['searchParams'] extends Promise<infer T> ? T : never,
-  pageConfig: { title: string; description: string }
 ) {
-  const countsResult = await getReviewModeCountsData(stateCode);
+  const countsResult = await getReviewModeCountsData(ctx.stateCode);
 
   if (!countsResult.success) {
     return (
       <ReviewPageError
-        title={pageConfig.title}
-        description={pageConfig.description}
+        title={ctx.pageConfig.title}
+        description={ctx.pageConfig.description}
         error={countsResult.error}
       />
     );
   }
 
-  const { tabCounts, flagStatusCounts, complianceStatusCounts, needsInfoCounts } = countsResult.data;
+  const countsData = countsResult.data;
+  const { tabCounts } = countsData;
 
-  // Definitions tab
-  if (reviewType === 'definitions') {
+  switch (reviewType) {
+    case 'definitions':
+      return loadReviewDefinitionsTab(ctx, tabCounts);
+    case 'needs_info':
+      return loadReviewNeedsInfoTab(ctx, tabCounts, countsData.needsInfoCounts);
+    case 'jenai':
+      return loadReviewJenAITab(ctx, tabCounts);
+    case 'compliance':
+      return loadReviewComplianceTab(ctx, tabCounts, countsData.complianceStatusCounts);
+    default:
+      return loadReviewRedFlagsTab(ctx, tabCounts, countsData.flagStatusCounts);
+  }
+}
+
+// ============================================
+// Review Mode Tab Loaders
+// ============================================
+
+async function loadReviewDefinitionsTab(
+  ctx: TabLoaderContext,
+  tabCounts: TabCounts,
+) {
+  return (
+    <ReviewPageLayout pageConfig={ctx.pageConfig} mode="review" reviewType="definitions" tabCounts={tabCounts}>
+      <DefinitionsReviewQueue state={ctx.stateCode} />
+    </ReviewPageLayout>
+  );
+}
+
+async function loadReviewNeedsInfoTab(
+  ctx: TabLoaderContext,
+  tabCounts: TabCounts,
+  needsInfoCounts: ReviewModeCountsData['needsInfoCounts'],
+) {
+  const errorControls: ErrorControls = { mode: 'review', reviewType: 'needs_info', tabCounts };
+  const itemsResult = await getNeedsInfoQueueData(ctx.stateCode, { page: ctx.page, pageSize: ctx.pageSize });
+
+  if (!itemsResult.success) {
     return (
-      <ReviewPageLayout pageConfig={pageConfig} mode="review" reviewType={reviewType} tabCounts={tabCounts}>
-        <DefinitionsReviewQueue state={stateCode} />
-      </ReviewPageLayout>
+      <ReviewPageError
+        title={ctx.pageConfig.title}
+        description={ctx.pageConfig.description}
+        error={itemsResult.error}
+        controls={errorControls}
+      />
     );
   }
 
-  // Needs info tab
-  if (reviewType === 'needs_info') {
-    const itemsResult = await getNeedsInfoQueueData(stateCode, { page, pageSize });
+  const items = itemsResult.data;
+  return (
+    <ReviewPageLayout pageConfig={ctx.pageConfig} mode="review" reviewType="needs_info" tabCounts={tabCounts}>
+      <NeedMoreInfoQueue
+        initialItems={items.data}
+        pagination={{ page: items.page, pageSize: items.pageSize, total: items.total, totalPages: items.totalPages }}
+        counts={needsInfoCounts}
+      />
+    </ReviewPageLayout>
+  );
+}
 
-    if (!itemsResult.success) {
-      return (
-        <ReviewPageError
-          title={pageConfig.title}
-          description={pageConfig.description}
-          error={itemsResult.error}
-          controls={{ mode: 'review', reviewType, tabCounts }}
-        />
-      );
-    }
+async function loadReviewJenAITab(
+  ctx: TabLoaderContext,
+  tabCounts: TabCounts,
+) {
+  return (
+    <ReviewPageLayout pageConfig={ctx.pageConfig} mode="review" reviewType="jenai" tabCounts={tabCounts}>
+      <JenAIQueue state={ctx.stateCode} mode="review" />
+    </ReviewPageLayout>
+  );
+}
 
-    const items = itemsResult.data;
-    return (
-      <ReviewPageLayout pageConfig={pageConfig} mode="review" reviewType={reviewType} tabCounts={tabCounts}>
-        <NeedMoreInfoQueue
-          initialItems={items.data}
-          pagination={{ page: items.page, pageSize: items.pageSize, total: items.total, totalPages: items.totalPages }}
-          counts={needsInfoCounts}
-        />
-      </ReviewPageLayout>
-    );
+async function loadReviewComplianceTab(
+  ctx: TabLoaderContext,
+  tabCounts: TabCounts,
+  complianceStatusCounts: ReviewModeCountsData['complianceStatusCounts'],
+) {
+  const errorControls: ErrorControls = { mode: 'review', reviewType: 'compliance', tabCounts };
+  // Default to 'suggestion' mode unless explicitly set to 'filter'
+  const queueMode = ctx.queryParams.queueMode === 'filter' ? 'filter' : 'suggestion';
+
+  if (queueMode === 'suggestion') {
+    return loadReviewComplianceSuggestionTab(ctx, tabCounts, complianceStatusCounts, errorControls);
   }
 
-  // JenAI tab
-  if (reviewType === 'jenai') {
-    return (
-      <ReviewPageLayout pageConfig={pageConfig} mode="review" reviewType={reviewType} tabCounts={tabCounts}>
-        <JenAIQueue state={stateCode} mode="review" />
-      </ReviewPageLayout>
-    );
-  }
+  return loadReviewComplianceFilterTab(ctx, tabCounts, complianceStatusCounts, errorControls);
+}
 
-  // Compliance tab
-  if (reviewType === 'compliance') {
-    // Default to 'suggestion' mode unless explicitly set to 'filter'
-    const queueMode = queryParams.queueMode === 'filter' ? 'filter' : 'suggestion';
-
-    // Suggestion mode
-    if (queueMode === 'suggestion') {
-      const batchSize = Math.min(5, Math.max(2, parseInt(queryParams.batchSize || '3', 10)));
-      const groupingMode = (queryParams.groupingMode || 'issue_type') as GroupingModeValue;
-      const shownIds = parseCommaSeparatedIds(queryParams.shownIds);
-      const focus = {
-        issueType: queryParams.focusType || undefined,
-        section: queryParams.focusSection || undefined,
-        pattern: queryParams.focusPattern || undefined,
-      };
-
-      const dataResult = await getComplianceSuggestionQueueData(stateCode, {
-        batchSize,
-        excludeIds: shownIds,
-        groupingMode,
-        focus: Object.values(focus).some(v => v) ? focus : undefined,
-      });
-
-      if (!dataResult.success) {
-        return (
-          <ReviewPageError
-            title={pageConfig.title}
-            description={pageConfig.description}
-            error={dataResult.error}
-            controls={{ mode: 'review', reviewType, tabCounts }}
-          />
-        );
-      }
-
-      const { batch, issueTypes } = dataResult.data;
-
-      // Create a fetch function for the client to call for subsequent batches
-      async function fetchSuggestionBatch(options: {
-        batchSize: number;
-        excludeIds: number[];
-        groupingMode: GroupingModeValue;
-        focus?: { issueType?: string; section?: string; pattern?: string };
-        recentIssueTypes?: string[];
-      }) {
-        'use server';
-        const result = await getComplianceSuggestionBatch(stateCode, {
-          ...options,
-          recentIssueTypes: options.recentIssueTypes,
-        });
-        if (!result.success) {
-          throw new Error(result.error);
-        }
-        return result.data;
-      }
-
-      return (
-        <ReviewPageLayout pageConfig={pageConfig} mode="review" reviewType={reviewType} tabCounts={tabCounts}>
-          <ComplianceReviewQueue
-            mode="suggestion"
-            initialBatch={batch}
-            fetchBatch={fetchSuggestionBatch}
-            statusCounts={complianceStatusCounts}
-            issueTypes={issueTypes}
-          />
-        </ReviewPageLayout>
-      );
-    }
-
-    // Filter mode (default)
-    const sortBy = (queryParams.sortBy || 'severity') as 'issueType' | 'createdAt' | 'reviewedAt' | 'severity';
-    const filters = {
-      status: queryParams.reviewStatus === 'all' ? undefined : queryParams.reviewStatus,
-      issueType: queryParams.issueType || undefined,
-      severity: parseSeverityFilter(queryParams.severity),
-      requiredByStatute: parseBooleanFilter(queryParams.requiredByStatute),
-      requirementFound: parseRequirementFoundFilter(queryParams.requirementFound),
-      // Research pipeline filters
-      tierCompleted: parseTierFilter(queryParams.tierCompleted),
-      federalMandate: parseBooleanFilter(queryParams.federalMandate),
-      hasAnalysis: parseBooleanFilter(queryParams.hasAnalysis),
-    };
-
-    const dataResult = await getComplianceQueueData(stateCode, { page, pageSize, sortBy, sortOrder, filters });
-
-    if (!dataResult.success) {
-      return (
-        <ReviewPageError
-          title={pageConfig.title}
-          description={pageConfig.description}
-          error={dataResult.error}
-          controls={{ mode: 'review', reviewType, tabCounts }}
-        />
-      );
-    }
-
-    const { issues, issueTypes } = dataResult.data;
-    return (
-      <ReviewPageLayout pageConfig={pageConfig} mode="review" reviewType={reviewType} tabCounts={tabCounts}>
-        <ComplianceReviewQueue
-          mode="filter"
-          initialIssues={issues.data}
-          pagination={{ page: issues.page, pageSize: issues.pageSize, total: issues.total, totalPages: issues.totalPages }}
-          statusCounts={complianceStatusCounts}
-          issueTypes={issueTypes}
-        />
-      </ReviewPageLayout>
-    );
-  }
-
-  // Default: Red Flags tab
-  const sortBy = (queryParams.sortBy || 'severity') as 'severity' | 'category' | 'reviewedAt';
-  const filters: Omit<RedFlagFilterOptions, 'state'> = {
-    status: queryParams.reviewStatus === 'all' ? 'all' : (queryParams.reviewStatus as RedFlagFilterOptions['status']),
-    severity: queryParams.severity as 'high' | 'medium' | 'low' | undefined,
-    category: queryParams.category || undefined,
+async function loadReviewComplianceSuggestionTab(
+  ctx: TabLoaderContext,
+  tabCounts: TabCounts,
+  complianceStatusCounts: ReviewModeCountsData['complianceStatusCounts'],
+  errorControls: ErrorControls,
+) {
+  const batchSize = Math.min(5, Math.max(2, parseInt(ctx.queryParams.batchSize || '3', 10)));
+  const groupingMode = (ctx.queryParams.groupingMode || 'issue_type') as GroupingModeValue;
+  const shownIds = parseCommaSeparatedIds(ctx.queryParams.shownIds);
+  const focus = {
+    issueType: ctx.queryParams.focusType || undefined,
+    section: ctx.queryParams.focusSection || undefined,
+    pattern: ctx.queryParams.focusPattern || undefined,
   };
 
-  const dataResult = await getRedFlagsQueueData(stateCode, { page, pageSize, sortBy, sortOrder, filters });
+  const dataResult = await getComplianceSuggestionQueueData(ctx.stateCode, {
+    batchSize,
+    excludeIds: shownIds,
+    groupingMode,
+    focus: Object.values(focus).some(v => v) ? focus : undefined,
+  });
 
   if (!dataResult.success) {
     return (
       <ReviewPageError
-        title={pageConfig.title}
-        description={pageConfig.description}
+        title={ctx.pageConfig.title}
+        description={ctx.pageConfig.description}
         error={dataResult.error}
-        controls={{ mode: 'review', reviewType, tabCounts }}
+        controls={errorControls}
+      />
+    );
+  }
+
+  const { batch, issueTypes } = dataResult.data;
+
+  // Create a fetch function for the client to call for subsequent batches
+  // Note: stateCode is captured from ctx in the closure
+  const stateCode = ctx.stateCode;
+  async function fetchSuggestionBatch(options: {
+    batchSize: number;
+    excludeIds: number[];
+    groupingMode: GroupingModeValue;
+    focus?: { issueType?: string; section?: string; pattern?: string };
+    recentIssueTypes?: string[];
+  }) {
+    'use server';
+    const result = await getComplianceSuggestionBatch(stateCode, {
+      ...options,
+      recentIssueTypes: options.recentIssueTypes,
+    });
+    if (!result.success) {
+      throw new Error(result.error);
+    }
+    return result.data;
+  }
+
+  return (
+    <ReviewPageLayout pageConfig={ctx.pageConfig} mode="review" reviewType="compliance" tabCounts={tabCounts}>
+      <ComplianceReviewQueue
+        mode="suggestion"
+        initialBatch={batch}
+        fetchBatch={fetchSuggestionBatch}
+        statusCounts={complianceStatusCounts}
+        issueTypes={issueTypes}
+      />
+    </ReviewPageLayout>
+  );
+}
+
+async function loadReviewComplianceFilterTab(
+  ctx: TabLoaderContext,
+  tabCounts: TabCounts,
+  complianceStatusCounts: ReviewModeCountsData['complianceStatusCounts'],
+  errorControls: ErrorControls,
+) {
+  const sortBy = (ctx.queryParams.sortBy || 'severity') as 'issueType' | 'createdAt' | 'reviewedAt' | 'severity';
+  const filters = {
+    status: ctx.queryParams.reviewStatus === 'all' ? undefined : ctx.queryParams.reviewStatus,
+    issueType: ctx.queryParams.issueType || undefined,
+    severity: parseSeverityFilter(ctx.queryParams.severity),
+    requiredByStatute: parseBooleanFilter(ctx.queryParams.requiredByStatute),
+    requirementFound: parseRequirementFoundFilter(ctx.queryParams.requirementFound),
+    // Research pipeline filters
+    tierCompleted: parseTierFilter(ctx.queryParams.tierCompleted),
+    federalMandate: parseBooleanFilter(ctx.queryParams.federalMandate),
+    hasAnalysis: parseBooleanFilter(ctx.queryParams.hasAnalysis),
+  };
+
+  const dataResult = await getComplianceQueueData(ctx.stateCode, {
+    page: ctx.page,
+    pageSize: ctx.pageSize,
+    sortBy,
+    sortOrder: ctx.sortOrder,
+    filters,
+  });
+
+  if (!dataResult.success) {
+    return (
+      <ReviewPageError
+        title={ctx.pageConfig.title}
+        description={ctx.pageConfig.description}
+        error={dataResult.error}
+        controls={errorControls}
+      />
+    );
+  }
+
+  const { issues, issueTypes } = dataResult.data;
+  return (
+    <ReviewPageLayout pageConfig={ctx.pageConfig} mode="review" reviewType="compliance" tabCounts={tabCounts}>
+      <ComplianceReviewQueue
+        mode="filter"
+        initialIssues={issues.data}
+        pagination={{ page: issues.page, pageSize: issues.pageSize, total: issues.total, totalPages: issues.totalPages }}
+        statusCounts={complianceStatusCounts}
+        issueTypes={issueTypes}
+      />
+    </ReviewPageLayout>
+  );
+}
+
+async function loadReviewRedFlagsTab(
+  ctx: TabLoaderContext,
+  tabCounts: TabCounts,
+  flagStatusCounts: ReviewModeCountsData['flagStatusCounts'],
+) {
+  const errorControls: ErrorControls = { mode: 'review', reviewType: 'flags', tabCounts };
+  const sortBy = (ctx.queryParams.sortBy || 'severity') as 'severity' | 'category' | 'reviewedAt';
+  const filters: Omit<RedFlagFilterOptions, 'state'> = {
+    status: ctx.queryParams.reviewStatus === 'all' ? 'all' : (ctx.queryParams.reviewStatus as RedFlagFilterOptions['status']),
+    severity: ctx.queryParams.severity as 'high' | 'medium' | 'low' | undefined,
+    category: ctx.queryParams.category || undefined,
+  };
+
+  const dataResult = await getRedFlagsQueueData(ctx.stateCode, {
+    page: ctx.page,
+    pageSize: ctx.pageSize,
+    sortBy,
+    sortOrder: ctx.sortOrder,
+    filters,
+  });
+
+  if (!dataResult.success) {
+    return (
+      <ReviewPageError
+        title={ctx.pageConfig.title}
+        description={ctx.pageConfig.description}
+        error={dataResult.error}
+        controls={errorControls}
       />
     );
   }
 
   const { flags, categories } = dataResult.data;
   return (
-    <ReviewPageLayout pageConfig={pageConfig} mode="review" reviewType={reviewType} tabCounts={tabCounts}>
+    <ReviewPageLayout pageConfig={ctx.pageConfig} mode="review" reviewType="flags" tabCounts={tabCounts}>
       <ReviewQueue
         initialFlags={flags.data}
         pagination={{ page: flags.page, pageSize: flags.pageSize, total: flags.total, totalPages: flags.totalPages }}
