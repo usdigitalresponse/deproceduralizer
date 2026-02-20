@@ -1,7 +1,7 @@
 'use server';
 
 import 'server-only';
-import { revalidatePath, unstable_cache } from 'next/cache';
+import { revalidatePath } from 'next/cache';
 import {
   db,
   JenAIRepository,
@@ -12,7 +12,7 @@ import {
   type JenAIDeveloperStatusCounts,
   type SeverityDistribution,
 } from '@deproceduralizer/database';
-import { type ActionResult, success, failure, getErrorMessage } from './types';
+import { type ActionResult, success, failure, getErrorMessage, runAction, runCachedAction } from './types';
 
 const jenaiRepo = new JenAIRepository(db);
 
@@ -33,8 +33,8 @@ export async function getJenAIIssuesPaginated(
     };
   }
 ): Promise<ActionResult<PaginatedJenAIResult>> {
-  try {
-    const result = await jenaiRepo.getAllPaginated({
+  return runAction('getJenAIIssuesPaginated', () =>
+    jenaiRepo.getAllPaginated({
       state,
       ...options,
       filters: options.filters ? {
@@ -42,12 +42,8 @@ export async function getJenAIIssuesPaginated(
         severity: options.filters.severity,
         category: options.filters.category,
       } : undefined,
-    });
-    return success(result);
-  } catch (error) {
-    console.error('[getJenAIIssuesPaginated]', error);
-    return failure(getErrorMessage(error));
-  }
+    })
+  );
 }
 
 /**
@@ -56,18 +52,12 @@ export async function getJenAIIssuesPaginated(
 export async function getJenAIStatusCounts(
   state: StateCode
 ): Promise<ActionResult<JenAIReviewStatusCounts>> {
-  try {
-    const cachedGetStatusCounts = unstable_cache(
-      () => jenaiRepo.getCountsByStatus(state),
-      [`jenai-status-counts-${state}`],
-      { revalidate: 120, tags: ['jenai'] }
-    );
-    const result = await cachedGetStatusCounts();
-    return success(result);
-  } catch (error) {
-    console.error('[getJenAIStatusCounts]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runCachedAction(
+    'getJenAIStatusCounts',
+    () => jenaiRepo.getCountsByStatus(state),
+    [`jenai-status-counts-${state}`],
+    { revalidate: 120, tags: ['jenai'] }
+  );
 }
 
 /**
@@ -76,18 +66,12 @@ export async function getJenAIStatusCounts(
 export async function getJenAIDeveloperStatusCounts(
   state: StateCode
 ): Promise<ActionResult<JenAIDeveloperStatusCounts>> {
-  try {
-    const cachedGetDevCounts = unstable_cache(
-      () => jenaiRepo.getDeveloperStatusCounts(state),
-      [`jenai-developer-status-counts-${state}`],
-      { revalidate: 120, tags: ['jenai'] }
-    );
-    const result = await cachedGetDevCounts();
-    return success(result);
-  } catch (error) {
-    console.error('[getJenAIDeveloperStatusCounts]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runCachedAction(
+    'getJenAIDeveloperStatusCounts',
+    () => jenaiRepo.getDeveloperStatusCounts(state),
+    [`jenai-developer-status-counts-${state}`],
+    { revalidate: 120, tags: ['jenai'] }
+  );
 }
 
 /**
@@ -96,18 +80,12 @@ export async function getJenAIDeveloperStatusCounts(
 export async function getJenAICategories(
   state: StateCode
 ): Promise<ActionResult<{ category: string; count: number }[]>> {
-  try {
-    const cachedGetCategories = unstable_cache(
-      () => jenaiRepo.getCategories(state),
-      [`jenai-categories-${state}`],
-      { revalidate: 300 }
-    );
-    const result = await cachedGetCategories();
-    return success(result);
-  } catch (error) {
-    console.error('[getJenAICategories]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runCachedAction(
+    'getJenAICategories',
+    () => jenaiRepo.getCategories(state),
+    [`jenai-categories-${state}`],
+    { revalidate: 300 }
+  );
 }
 
 /**
@@ -199,8 +177,8 @@ export async function getJenAIDeveloperItems(
     category?: string;
   }
 ): Promise<ActionResult<PaginatedJenAIResult>> {
-  try {
-    const result = await jenaiRepo.getReviewedPaginated({
+  return runAction('getJenAIDeveloperItems', () =>
+    jenaiRepo.getReviewedPaginated({
       state,
       page: options.page,
       pageSize: options.pageSize,
@@ -213,27 +191,17 @@ export async function getJenAIDeveloperItems(
         severity: options.severity === 'all' ? undefined : options.severity,
         category: options.category,
       },
-    });
-    return success(result);
-  } catch (error) {
-    console.error('[getJenAIDeveloperItems]', error);
-    return failure(getErrorMessage(error));
-  }
+    })
+  );
 }
 
 export async function getJenAISeverityDistribution(
   state: StateCode
 ): Promise<ActionResult<SeverityDistribution>> {
-  try {
-    const cachedFn = unstable_cache(
-      () => jenaiRepo.getSeverityDistribution(state),
-      [`jenai-severity-dist-${state}`],
-      { revalidate: 3600, tags: ['jenai-analytics'] }
-    );
-    const data = await cachedFn();
-    return success(data);
-  } catch (error) {
-    console.error('[getJenAISeverityDistribution]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runCachedAction(
+    'getJenAISeverityDistribution',
+    () => jenaiRepo.getSeverityDistribution(state),
+    [`jenai-severity-dist-${state}`],
+    { revalidate: 3600, tags: ['jenai-analytics'] }
+  );
 }

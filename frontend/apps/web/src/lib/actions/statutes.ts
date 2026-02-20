@@ -10,7 +10,7 @@ import {
   type StatuteLinkStats,
   type StatuteAncestor,
 } from '@deproceduralizer/database';
-import { type ActionResult, success, failure, getErrorMessage } from './types';
+import { type ActionResult, runAction } from './types';
 
 const statutesRepo = new StatutesRepository(db);
 
@@ -20,13 +20,7 @@ const statutesRepo = new StatutesRepository(db);
 export async function getStatuteHierarchyRoots(
   state: string
 ): Promise<ActionResult<StatuteHierarchyNode[]>> {
-  try {
-    const roots = await statutesRepo.getHierarchyRoots(state);
-    return success(roots);
-  } catch (error) {
-    console.error('[getStatuteHierarchyRoots]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getStatuteHierarchyRoots', () => statutesRepo.getHierarchyRoots(state));
 }
 
 /**
@@ -35,13 +29,7 @@ export async function getStatuteHierarchyRoots(
 export async function getStatuteHierarchyChildren(
   parentId: number
 ): Promise<ActionResult<StatuteHierarchyNode[]>> {
-  try {
-    const children = await statutesRepo.getHierarchyChildren(parentId);
-    return success(children);
-  } catch (error) {
-    console.error('[getStatuteHierarchyChildren]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getStatuteHierarchyChildren', () => statutesRepo.getHierarchyChildren(parentId));
 }
 
 /**
@@ -50,13 +38,7 @@ export async function getStatuteHierarchyChildren(
 export async function getStatuteWithLinks(
   id: number
 ): Promise<ActionResult<StatuteWithLinks | null>> {
-  try {
-    const statute = await statutesRepo.getByIdWithLinks(id);
-    return success(statute);
-  } catch (error) {
-    console.error('[getStatuteWithLinks]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getStatuteWithLinks', () => statutesRepo.getByIdWithLinks(id));
 }
 
 /**
@@ -65,13 +47,7 @@ export async function getStatuteWithLinks(
 export async function getStatuteLinksForRegulation(
   regulationId: number
 ): Promise<ActionResult<RegulationStatuteLinkWithStatute[]>> {
-  try {
-    const links = await statutesRepo.getLinksForRegulation(regulationId);
-    return success(links);
-  } catch (error) {
-    console.error('[getStatuteLinksForRegulation]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getStatuteLinksForRegulation', () => statutesRepo.getLinksForRegulation(regulationId));
 }
 
 /**
@@ -80,13 +56,7 @@ export async function getStatuteLinksForRegulation(
 export async function getEnablingAuthorityForRegulation(
   regulationId: number
 ): Promise<ActionResult<RegulationStatuteLinkWithStatute[]>> {
-  try {
-    const links = await statutesRepo.getEnablingAuthority(regulationId);
-    return success(links);
-  } catch (error) {
-    console.error('[getEnablingAuthorityForRegulation]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getEnablingAuthorityForRegulation', () => statutesRepo.getEnablingAuthority(regulationId));
 }
 
 /**
@@ -95,13 +65,7 @@ export async function getEnablingAuthorityForRegulation(
 export async function getStatuteStats(
   state: string
 ): Promise<ActionResult<StatuteLinkStats>> {
-  try {
-    const stats = await statutesRepo.getStatsByState(state);
-    return success(stats);
-  } catch (error) {
-    console.error('[getStatuteStats]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getStatuteStats', () => statutesRepo.getStatsByState(state));
 }
 
 /**
@@ -112,13 +76,7 @@ export async function searchStatutes(
   query: string,
   limit = 50
 ): Promise<ActionResult<StatuteHierarchyNode[]>> {
-  try {
-    const results = await statutesRepo.searchStatutes(state, query, limit);
-    return success(results);
-  } catch (error) {
-    console.error('[searchStatutes]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('searchStatutes', () => statutesRepo.searchStatutes(state, query, limit));
 }
 
 /**
@@ -127,11 +85,5 @@ export async function searchStatutes(
 export async function getStatuteAncestorChain(
   statuteId: number
 ): Promise<ActionResult<StatuteAncestor[]>> {
-  try {
-    const chain = await statutesRepo.getAncestorChain(statuteId);
-    return success(chain);
-  } catch (error) {
-    console.error('[getStatuteAncestorChain]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getStatuteAncestorChain', () => statutesRepo.getAncestorChain(statuteId));
 }

@@ -8,7 +8,7 @@ import {
   type PromptFeedback,
   type FeedbackType,
 } from '@deproceduralizer/database';
-import { type ActionResult, success, failure, getErrorMessage } from './types';
+import { type ActionResult, success, failure, getErrorMessage, runAction } from './types';
 
 const feedbackRepo = new PromptFeedbackRepository(db);
 
@@ -49,26 +49,14 @@ export async function createPromptFeedback(
 export async function getFeedbackByPrompt(
   promptName: string
 ): Promise<ActionResult<PromptFeedback[]>> {
-  try {
-    const feedback = await feedbackRepo.getByPromptName(promptName);
-    return success(feedback);
-  } catch (error) {
-    console.error('[getFeedbackByPrompt]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getFeedbackByPrompt', () => feedbackRepo.getByPromptName(promptName));
 }
 
 /**
  * Get all feedback (for detecting orphaned feedback).
  */
 export async function getAllFeedback(): Promise<ActionResult<PromptFeedback[]>> {
-  try {
-    const feedback = await feedbackRepo.getAll();
-    return success(feedback);
-  } catch (error) {
-    console.error('[getAllFeedback]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getAllFeedback', () => feedbackRepo.getAll());
 }
 
 /**
@@ -77,13 +65,7 @@ export async function getAllFeedback(): Promise<ActionResult<PromptFeedback[]>> 
 export async function getFeedbackCounts(): Promise<
   ActionResult<Record<string, number>>
 > {
-  try {
-    const counts = await feedbackRepo.getCountsByPrompt();
-    return success(counts);
-  } catch (error) {
-    console.error('[getFeedbackCounts]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getFeedbackCounts', () => feedbackRepo.getCountsByPrompt());
 }
 
 /**

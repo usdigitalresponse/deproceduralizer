@@ -9,7 +9,7 @@ import {
   type StateCode,
   type RegulationWithAnalysis,
 } from '@deproceduralizer/database';
-import { type ActionResult, success, failure, getErrorMessage } from './types';
+import { type ActionResult, success, failure, getErrorMessage, runAction } from './types';
 
 const repo = new RegulatoryDocumentsRepository(db);
 
@@ -22,13 +22,7 @@ export async function getHierarchyChildren(
   state: StateCode,
   filters?: Omit<HierarchyFilterOptions, 'state'>
 ): Promise<ActionResult<HierarchyNode[]>> {
-  try {
-    const result = await repo.getHierarchyChildren(parentId, { ...filters, state });
-    return success(result);
-  } catch (error) {
-    console.error('[getHierarchyChildren]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getHierarchyChildren', () => repo.getHierarchyChildren(parentId, { ...filters, state }));
 }
 
 /**
@@ -38,13 +32,7 @@ export async function getHierarchyChildren(
 export async function getDocumentForPanel(
   id: number
 ): Promise<ActionResult<RegulationWithAnalysis | null>> {
-  try {
-    const result = await repo.getByIdWithAnalysis(id);
-    return success(result);
-  } catch (error) {
-    console.error('[getDocumentForPanel]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getDocumentForPanel', () => repo.getByIdWithAnalysis(id));
 }
 
 interface AncestorNode {
@@ -72,13 +60,7 @@ interface AncestorNode {
 export async function getAncestorChain(
   documentId: number
 ): Promise<ActionResult<AncestorNode[]>> {
-  try {
-    const result = await repo.getAncestorChain(documentId);
-    return success(result);
-  } catch (error) {
-    console.error('[getAncestorChain]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getAncestorChain', () => repo.getAncestorChain(documentId));
 }
 
 /**
@@ -89,13 +71,7 @@ export async function getAncestorChain(
 export async function getHierarchyChildrenFast(
   parentId: number
 ): Promise<ActionResult<HierarchyNode[]>> {
-  try {
-    const result = await repo.getHierarchyChildrenFast(parentId);
-    return success(result);
-  } catch (error) {
-    console.error('[getHierarchyChildrenFast]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getHierarchyChildrenFast', () => repo.getHierarchyChildrenFast(parentId));
 }
 
 // ============================================
@@ -122,7 +98,7 @@ export async function getHierarchyBrowseData(
   filters: HierarchyFilterOptions,
   hasActiveFilters: boolean
 ): Promise<ActionResult<HierarchyBrowseData>> {
-  try {
+  return runAction('getHierarchyBrowseData', async () => {
     const [roots, orphans, stats] = await Promise.all([
       hasActiveFilters
         ? repo.getHierarchyRoots(filters)
@@ -131,11 +107,8 @@ export async function getHierarchyBrowseData(
       repo.getHierarchyStats(filters),
     ]);
 
-    return success({ roots, orphans, stats });
-  } catch (error) {
-    console.error('[getHierarchyBrowseData]', error);
-    return failure(getErrorMessage(error));
-  }
+    return { roots, orphans, stats };
+  });
 }
 
 // ============================================
@@ -169,13 +142,7 @@ interface DirectChild {
 export async function getDirectChildren(
   documentId: number
 ): Promise<ActionResult<DirectChild[]>> {
-  try {
-    const result = await repo.getDirectChildren(documentId);
-    return success(result);
-  } catch (error) {
-    console.error('[getDirectChildren]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getDirectChildren', () => repo.getDirectChildren(documentId));
 }
 
 /**
@@ -186,19 +153,14 @@ export async function getDirectChildren(
 export async function getSiblingDocuments(
   documentId: number
 ): Promise<ActionResult<DirectChild[]>> {
-  try {
+  return runAction('getSiblingDocuments', async () => {
     const ancestors = await repo.getAncestorChain(documentId);
     if (!ancestors || ancestors.length === 0) {
-      return success([]);
+      return [];
     }
 
     const parentId = ancestors[ancestors.length - 1].id;
     const children = await repo.getDirectChildren(parentId);
-    const siblings = children.filter(child => child.id !== documentId);
-
-    return success(siblings);
-  } catch (error) {
-    console.error('[getSiblingDocuments]', error);
-    return failure(getErrorMessage(error));
-  }
+    return children.filter(child => child.id !== documentId);
+  });
 }

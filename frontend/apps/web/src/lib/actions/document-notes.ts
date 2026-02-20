@@ -8,7 +8,7 @@ import {
   type NoteType,
   type DocumentNote,
 } from '@deproceduralizer/database';
-import { type ActionResult, success, failure, getErrorMessage } from './types';
+import { type ActionResult, success, failure, getErrorMessage, runAction } from './types';
 
 const notesRepo = new DocumentNotesRepository(db);
 
@@ -113,13 +113,7 @@ export async function deleteNote(id: number): Promise<ActionResult<boolean>> {
 export async function getNotesByDocumentId(
   documentId: number
 ): Promise<ActionResult<DocumentNote[]>> {
-  try {
-    const result = await notesRepo.getByDocumentId(documentId);
-    return success(result);
-  } catch (error) {
-    console.error('[getNotesByDocumentId]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getNotesByDocumentId', () => notesRepo.getByDocumentId(documentId));
 }
 
 /**
@@ -130,11 +124,5 @@ export async function getNotesByDocumentId(
 export async function getNoteById(
   id: number
 ): Promise<ActionResult<DocumentNote | undefined>> {
-  try {
-    const result = await notesRepo.getById(id);
-    return success(result);
-  } catch (error) {
-    console.error('[getNoteById]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getNoteById', () => notesRepo.getById(id));
 }

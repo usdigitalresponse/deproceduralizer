@@ -1,42 +1,17 @@
 """Database queries for hierarchical document traversal."""
 
-import functools
 import os
-import time
 from pathlib import Path
-from typing import Optional, TypeVar, Callable, Any
+from typing import Optional
 
 import psycopg
 from dotenv import load_dotenv
 
+from lib.db import retry_db_operation
+
 # Load .env from project root
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
 load_dotenv(PROJECT_ROOT / ".env")
-
-# Type variable for generic return type
-T = TypeVar('T')
-
-
-def retry_db_operation(max_retries: int = 5, base_delay: float = 1.0) -> Callable:
-    """Retry DB operations on connection failures with exponential backoff."""
-    def decorator(func: Callable[..., T]) -> Callable[..., T]:
-        @functools.wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> T:
-            last_error: Exception | None = None
-            for attempt in range(max_retries):
-                try:
-                    return func(*args, **kwargs)
-                except (psycopg.OperationalError, psycopg.InterfaceError) as e:
-                    last_error = e
-                    if attempt < max_retries - 1:
-                        delay = base_delay * (2 ** attempt)
-                        print(f"  DB connection error, retrying in {delay}s ({attempt + 1}/{max_retries}): {e}")
-                        time.sleep(delay)
-            if last_error is not None:
-                raise last_error
-            raise RuntimeError("retry_db_operation failed without an error")
-        return wrapper
-    return decorator
 
 
 def get_connection() -> psycopg.Connection:

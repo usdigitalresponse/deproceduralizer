@@ -1,7 +1,7 @@
 'use server';
 
 import 'server-only';
-import { revalidatePath, updateTag, unstable_cache } from 'next/cache';
+import { revalidatePath, updateTag } from 'next/cache';
 import {
   db,
   RedFlagsRepository,
@@ -13,7 +13,7 @@ import {
   type RedFlag,
   type PaginatedRedFlagsResult,
 } from '@deproceduralizer/database';
-import { type ActionResult, success, failure, getErrorMessage } from './types';
+import { type ActionResult, success, failure, getErrorMessage, runAction, runCachedAction } from './types';
 
 const redFlagsRepo = new RedFlagsRepository(db);
 
@@ -82,13 +82,10 @@ export async function updateRedFlagReview(
 export async function getRedFlagById(
   id: number
 ): Promise<ActionResult<RedFlag | null>> {
-  try {
+  return runAction('getRedFlagById', async () => {
     const result = await redFlagsRepo.getById(id);
-    return success(result ?? null);
-  } catch (error) {
-    console.error('[getRedFlagById]', error);
-    return failure(getErrorMessage(error));
-  }
+    return result ?? null;
+  });
 }
 
 /**
@@ -100,18 +97,12 @@ export async function getRedFlagById(
 export async function getRedFlagCategories(
   state: StateCode
 ): Promise<ActionResult<string[]>> {
-  try {
-    const cachedGetCategories = unstable_cache(
-      () => redFlagsRepo.getCategories(state),
-      [`red-flag-categories-${state}`],
-      { revalidate: 300 } // 5 minutes
-    );
-    const result = await cachedGetCategories();
-    return success(result);
-  } catch (error) {
-    console.error('[getRedFlagCategories]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runCachedAction(
+    'getRedFlagCategories',
+    () => redFlagsRepo.getCategories(state),
+    [`red-flag-categories-${state}`],
+    { revalidate: 300 }
+  );
 }
 
 // Status counts interface matching repository output
@@ -134,18 +125,12 @@ export interface ReviewStatusCounts {
 export async function getRedFlagStatusCounts(
   state: StateCode
 ): Promise<ActionResult<ReviewStatusCounts>> {
-  try {
-    const cachedGetStatusCounts = unstable_cache(
-      () => redFlagsRepo.getCountsByStatus(state),
-      [`red-flag-status-counts-${state}`],
-      { revalidate: 120, tags: ['red-flags'] } // 2 minutes
-    );
-    const result = await cachedGetStatusCounts();
-    return success(result);
-  } catch (error) {
-    console.error('[getRedFlagStatusCounts]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runCachedAction(
+    'getRedFlagStatusCounts',
+    () => redFlagsRepo.getCountsByStatus(state),
+    [`red-flag-status-counts-${state}`],
+    { revalidate: 120, tags: ['red-flags'] }
+  );
 }
 
 /**
@@ -168,8 +153,8 @@ export async function getRedFlagsPaginated(
     };
   }
 ): Promise<ActionResult<PaginatedRedFlagsResult>> {
-  try {
-    const result = await redFlagsRepo.getAllPaginated({
+  return runAction('getRedFlagsPaginated', () =>
+    redFlagsRepo.getAllPaginated({
       state,
       ...options,
       filters: options.filters ? {
@@ -177,10 +162,6 @@ export async function getRedFlagsPaginated(
         severity: options.filters.severity,
         category: options.filters.category,
       } : undefined,
-    });
-    return success(result);
-  } catch (error) {
-    console.error('[getRedFlagsPaginated]', error);
-    return failure(getErrorMessage(error));
-  }
+    })
+  );
 }

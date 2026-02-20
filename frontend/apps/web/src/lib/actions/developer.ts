@@ -19,7 +19,7 @@ import {
   type ComplianceIssueWithAnalysis,
   type IssueType,
 } from '@deproceduralizer/database';
-import { type ActionResult, success, failure, getErrorMessage } from './types';
+import { type ActionResult, success, failure, getErrorMessage, runAction } from './types';
 
 const redFlagsRepo = new RedFlagsRepository(db);
 const complianceIssuesRepo = new ComplianceIssuesRepository(db);
@@ -179,24 +179,21 @@ export async function clearEntryForReview(
 export async function getCombinedDeveloperStatusCounts(
   state: StateCode
 ): Promise<ActionResult<CombinedDeveloperStatusCounts>> {
-  try {
+  return runAction('getCombinedDeveloperStatusCounts', async () => {
     const [flagCounts, issueCounts] = await Promise.all([
       redFlagsRepo.getDeveloperStatusCounts(state),
       complianceIssuesRepo.getDeveloperStatusCounts(state),
     ]);
 
-    return success({
+    return {
       unresolved: flagCounts.unresolved + issueCounts.unresolved,
       resolved: flagCounts.resolved + issueCounts.resolved,
       pending: flagCounts.pending + issueCounts.pending,
       backlogged: flagCounts.backlogged + issueCounts.backlogged,
       need_more_info: flagCounts.need_more_info + issueCounts.need_more_info,
       total: flagCounts.total + issueCounts.total,
-    });
-  } catch (error) {
-    console.error('[getCombinedDeveloperStatusCounts]', error);
-    return failure(getErrorMessage(error));
-  }
+    };
+  });
 }
 
 /**
@@ -213,7 +210,7 @@ export async function getCombinedReviewedItems(
     sortOrder?: 'asc' | 'desc';
   }
 ): Promise<ActionResult<PaginatedDeveloperItemsResult>> {
-  try {
+  return runAction('getCombinedReviewedItems', async () => {
     const { page, pageSize, developerStatus, developerAssigned, sortBy = 'reviewedAt', sortOrder = 'desc' } = options;
 
     // Fetch from both repositories
@@ -305,17 +302,14 @@ export async function getCombinedReviewedItems(
     const offset = (page - 1) * pageSize;
     const data = combined.slice(offset, offset + pageSize);
 
-    return success({
+    return {
       data,
       total,
       page,
       pageSize,
       totalPages,
-    });
-  } catch (error) {
-    console.error('[getCombinedReviewedItems]', error);
-    return failure(getErrorMessage(error));
-  }
+    };
+  });
 }
 
 /**
@@ -328,7 +322,7 @@ export async function getNeedMoreInfoItems(
     pageSize: number;
   }
 ): Promise<ActionResult<PaginatedDeveloperItemsResult>> {
-  try {
+  return runAction('getNeedMoreInfoItems', async () => {
     const { page, pageSize } = options;
 
     // Fetch from both repositories
@@ -401,17 +395,14 @@ export async function getNeedMoreInfoItems(
     const offset = (page - 1) * pageSize;
     const data = combined.slice(offset, offset + pageSize);
 
-    return success({
+    return {
       data,
       total,
       page,
       pageSize,
       totalPages,
-    });
-  } catch (error) {
-    console.error('[getNeedMoreInfoItems]', error);
-    return failure(getErrorMessage(error));
-  }
+    };
+  });
 }
 
 /**
@@ -420,23 +411,20 @@ export async function getNeedMoreInfoItems(
 export async function getNeedMoreInfoCounts(
   state: StateCode
 ): Promise<ActionResult<NeedMoreInfoCounts>> {
-  try {
+  return runAction('getNeedMoreInfoCounts', async () => {
     const [flagCounts, issueCounts] = await Promise.all([
       redFlagsRepo.getNeedMoreInfoCount(state),
       complianceIssuesRepo.getNeedMoreInfoCount(state),
     ]);
 
-    return success({
+    return {
       flags: { total: flagCounts.total },
       compliance: { total: issueCounts.total },
       combined: {
         total: flagCounts.total + issueCounts.total,
       },
-    });
-  } catch (error) {
-    console.error('[getNeedMoreInfoCounts]', error);
-    return failure(getErrorMessage(error));
-  }
+    };
+  });
 }
 
 interface DeveloperStatusCounts {
@@ -454,13 +442,7 @@ interface DeveloperStatusCounts {
 export async function getRedFlagDeveloperStatusCounts(
   state: StateCode
 ): Promise<ActionResult<DeveloperStatusCounts>> {
-  try {
-    const result = await redFlagsRepo.getDeveloperStatusCounts(state);
-    return success(result);
-  } catch (error) {
-    console.error('[getRedFlagDeveloperStatusCounts]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getRedFlagDeveloperStatusCounts', () => redFlagsRepo.getDeveloperStatusCounts(state));
 }
 
 /**
@@ -469,13 +451,7 @@ export async function getRedFlagDeveloperStatusCounts(
 export async function getComplianceIssueDeveloperStatusCounts(
   state: StateCode
 ): Promise<ActionResult<DeveloperStatusCounts>> {
-  try {
-    const result = await complianceIssuesRepo.getDeveloperStatusCounts(state);
-    return success(result);
-  } catch (error) {
-    console.error('[getComplianceIssueDeveloperStatusCounts]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getComplianceIssueDeveloperStatusCounts', () => complianceIssuesRepo.getDeveloperStatusCounts(state));
 }
 
 // ============================================
@@ -513,7 +489,7 @@ export async function getRedFlagDeveloperItems(
   state: StateCode,
   params: RedFlagDeveloperQueueParams
 ): Promise<ActionResult<{ data: RedFlagWithContext[]; total: number; page: number; pageSize: number; totalPages: number }>> {
-  try {
+  return runAction('getRedFlagDeveloperItems', () => {
     const { page, pageSize, developerStatus, developerAssigned, severity, reviewStatus, category, sortBy = 'reviewedAt', sortOrder = 'desc' } = params;
 
     // Build filters - typed to match repository expectations
@@ -534,7 +510,7 @@ export async function getRedFlagDeveloperItems(
       filters.category = category;
     }
 
-    const result = await redFlagsRepo.getReviewedPaginated({
+    return redFlagsRepo.getReviewedPaginated({
       state,
       page,
       pageSize,
@@ -544,12 +520,7 @@ export async function getRedFlagDeveloperItems(
       sortBy: sortBy as 'severity' | 'category' | 'reviewedAt' | 'developerCheckedAt',
       sortOrder,
     });
-
-    return success(result);
-  } catch (error) {
-    console.error('[getRedFlagDeveloperItems]', error);
-    return failure(getErrorMessage(error));
-  }
+  });
 }
 
 /**
@@ -559,7 +530,7 @@ export async function getComplianceIssueDeveloperItems(
   state: StateCode,
   params: ComplianceDeveloperQueueParams
 ): Promise<ActionResult<{ data: ComplianceIssueWithAnalysis[]; total: number; page: number; pageSize: number; totalPages: number }>> {
-  try {
+  return runAction('getComplianceIssueDeveloperItems', () => {
     const { page, pageSize, developerStatus, developerAssigned, severity, reviewStatus, issueType, sortBy = 'reviewedAt', sortOrder = 'desc' } = params;
 
     // Build filters - typed to match repository expectations
@@ -580,7 +551,7 @@ export async function getComplianceIssueDeveloperItems(
       filters.issueType = issueType as IssueType;
     }
 
-    const result = await complianceIssuesRepo.getReviewedPaginated({
+    return complianceIssuesRepo.getReviewedPaginated({
       state,
       page,
       pageSize,
@@ -590,10 +561,5 @@ export async function getComplianceIssueDeveloperItems(
       sortBy: sortBy as 'severity' | 'issueType' | 'reviewedAt' | 'createdAt' | 'developerCheckedAt',
       sortOrder,
     });
-
-    return success(result);
-  } catch (error) {
-    console.error('[getComplianceIssueDeveloperItems]', error);
-    return failure(getErrorMessage(error));
-  }
+  });
 }

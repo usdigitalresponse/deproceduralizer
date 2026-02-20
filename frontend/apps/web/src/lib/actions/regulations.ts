@@ -1,9 +1,9 @@
 'use server';
 
 import 'server-only';
-import { revalidatePath, unstable_cache } from 'next/cache';
+import { revalidatePath } from 'next/cache';
 import { db, RegulatoryDocumentsRepository, regulatoryDocuments, eq, and, desc, type RegulationWithAnalysis, type PaginationOptions, type FilterOptions, type StateCode, type PaginatedResult, type ComplianceIssueWithAnalysisFields, type DefinitionWithContext, type DocumentNote } from '@deproceduralizer/database';
-import { type ActionResult, success, failure, getErrorMessage } from './types';
+import { type ActionResult, success, failure, getErrorMessage, runAction, runCachedAction } from './types';
 import { getComplianceIssuesByDocumentId } from './compliance-issues';
 import { getApplicableDefinitionsForDocument } from './definitions';
 import { getNotesByDocumentId } from './document-notes';
@@ -18,13 +18,7 @@ const regulationsRepo = new RegulatoryDocumentsRepository(db);
 export async function getRegulationById(
   id: number
 ): Promise<ActionResult<RegulationWithAnalysis | null>> {
-  try {
-    const result = await regulationsRepo.getByIdWithAnalysis(id);
-    return success(result);
-  } catch (error) {
-    console.error('[getRegulationById]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getRegulationById', () => regulationsRepo.getByIdWithAnalysis(id));
 }
 
 /**
@@ -35,13 +29,7 @@ export async function getRegulationById(
 export async function getRegulationsPaginated(
   options: PaginationOptions & { state: StateCode; filters?: FilterOptions }
 ): Promise<ActionResult<PaginatedResult<RegulationWithAnalysis>>> {
-  try {
-    const result = await regulationsRepo.getAllWithAnalysisPaginated(options);
-    return success(result);
-  } catch (error) {
-    console.error('[getRegulationsPaginated]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getRegulationsPaginated', () => regulationsRepo.getAllWithAnalysisPaginated(options));
 }
 
 // ============================================================================
@@ -103,8 +91,8 @@ export async function setDocumentExclusion(
 export async function getExcludedDocuments(
   state: string
 ): Promise<ActionResult<ExcludedDocument[]>> {
-  try {
-    const excluded = await db
+  return runAction('getExcludedDocuments', () =>
+    db
       .select({
         id: regulatoryDocuments.id,
         title: regulatoryDocuments.title,
@@ -121,13 +109,8 @@ export async function getExcludedDocuments(
           eq(regulatoryDocuments.excludeFromAnalysis, true)
         )
       )
-      .orderBy(desc(regulatoryDocuments.excludedAt));
-
-    return success(excluded);
-  } catch (error) {
-    console.error('[getExcludedDocuments]', error);
-    return failure(getErrorMessage(error));
-  }
+      .orderBy(desc(regulatoryDocuments.excludedAt))
+  );
 }
 
 // ============================================================================
@@ -304,18 +287,12 @@ export interface AppliesToStats {
 export async function getSectionTypeStats(
   state: string
 ): Promise<ActionResult<SectionTypeStats[]>> {
-  try {
-    const cachedGetStats = unstable_cache(
-      () => regulationsRepo.getSectionTypeStats(state as StateCode),
-      [`section-type-stats-${state}`],
-      { revalidate: 60, tags: ['analytics'] }
-    );
-    const result = await cachedGetStats();
-    return success(result);
-  } catch (error) {
-    console.error('[getSectionTypeStats]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runCachedAction(
+    'getSectionTypeStats',
+    () => regulationsRepo.getSectionTypeStats(state as StateCode),
+    [`section-type-stats-${state}`],
+    { revalidate: 60, tags: ['analytics'] }
+  );
 }
 
 /**
@@ -325,18 +302,12 @@ export async function getSectionTypeStats(
 export async function getMetadataStats(
   state: string
 ): Promise<ActionResult<MetadataStats>> {
-  try {
-    const cachedGetStats = unstable_cache(
-      () => regulationsRepo.getMetadataStats(state as StateCode),
-      [`metadata-stats-${state}`],
-      { revalidate: 60, tags: ['analytics'] }
-    );
-    const result = await cachedGetStats();
-    return success(result);
-  } catch (error) {
-    console.error('[getMetadataStats]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runCachedAction(
+    'getMetadataStats',
+    () => regulationsRepo.getMetadataStats(state as StateCode),
+    [`metadata-stats-${state}`],
+    { revalidate: 60, tags: ['analytics'] }
+  );
 }
 
 /**
@@ -347,18 +318,12 @@ export async function getTopKeywords(
   state: string,
   limit: number = 20
 ): Promise<ActionResult<KeywordStats[]>> {
-  try {
-    const cachedGetStats = unstable_cache(
-      () => regulationsRepo.getTopKeywords(state as StateCode, limit),
-      [`top-keywords-${state}-${limit}`],
-      { revalidate: 60, tags: ['analytics'] }
-    );
-    const result = await cachedGetStats();
-    return success(result);
-  } catch (error) {
-    console.error('[getTopKeywords]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runCachedAction(
+    'getTopKeywords',
+    () => regulationsRepo.getTopKeywords(state as StateCode, limit),
+    [`top-keywords-${state}-${limit}`],
+    { revalidate: 60, tags: ['analytics'] }
+  );
 }
 
 /**
@@ -369,16 +334,10 @@ export async function getTopAppliesTo(
   state: string,
   limit: number = 20
 ): Promise<ActionResult<AppliesToStats[]>> {
-  try {
-    const cachedGetStats = unstable_cache(
-      () => regulationsRepo.getTopAppliesTo(state as StateCode, limit),
-      [`top-applies-to-${state}-${limit}`],
-      { revalidate: 60, tags: ['analytics'] }
-    );
-    const result = await cachedGetStats();
-    return success(result);
-  } catch (error) {
-    console.error('[getTopAppliesTo]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runCachedAction(
+    'getTopAppliesTo',
+    () => regulationsRepo.getTopAppliesTo(state as StateCode, limit),
+    [`top-applies-to-${state}-${limit}`],
+    { revalidate: 60, tags: ['analytics'] }
+  );
 }

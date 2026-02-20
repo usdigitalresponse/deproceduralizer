@@ -8,15 +8,14 @@
  * - Actionable: Users see what failed
  *
  * @example
- * // In server action:
+ * // Simple action:
  * export async function getData(): Promise<ActionResult<Data[]>> {
- *   try {
- *     const data = await repo.find();
- *     return success(data);
- *   } catch (error) {
- *     console.error('[getData]', error);
- *     return failure('Failed to load data');
- *   }
+ *   return runAction('getData', () => repo.find());
+ * }
+ *
+ * // Cached action:
+ * export async function getCachedData(state: string): Promise<ActionResult<Data[]>> {
+ *   return runCachedAction('getCachedData', () => repo.find(state), [`data-${state}`], { revalidate: 60 });
  * }
  *
  * // In component:
@@ -71,4 +70,42 @@ export function getErrorMessage(error: unknown): string {
     return error;
   }
   return 'An unexpected error occurred';
+}
+
+/**
+ * Run a server action with standardized error handling.
+ * Wraps try/catch + console.error + success/failure.
+ */
+export async function runAction<T>(
+  name: string,
+  fn: () => Promise<T>
+): Promise<ActionResult<T>> {
+  try {
+    const data = await fn();
+    return success(data);
+  } catch (error) {
+    console.error(`[${name}]`, error);
+    return failure(getErrorMessage(error));
+  }
+}
+
+/**
+ * Run a cached server action with standardized error handling.
+ * Wraps unstable_cache + try/catch + console.error + success/failure.
+ */
+export async function runCachedAction<T>(
+  name: string,
+  fn: () => Promise<T>,
+  cacheKey: string[],
+  options?: { revalidate?: number | false; tags?: string[] }
+): Promise<ActionResult<T>> {
+  try {
+    const { unstable_cache } = await import('next/cache');
+    const cachedFn = unstable_cache(fn, cacheKey, options);
+    const data = await cachedFn();
+    return success(data);
+  } catch (error) {
+    console.error(`[${name}]`, error);
+    return failure(getErrorMessage(error));
+  }
 }

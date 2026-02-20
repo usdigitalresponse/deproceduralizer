@@ -4,7 +4,7 @@ import 'server-only';
 import { readFile, readdir } from 'fs/promises';
 import { join } from 'path';
 import yaml from 'js-yaml';
-import { type ActionResult, success, failure, getErrorMessage } from './types';
+import { type ActionResult, success, failure, getErrorMessage, runAction } from './types';
 
 // =============================================================================
 // Types for Research Pipeline
@@ -185,29 +185,24 @@ function parseTierData(raw: RawTierPrompt | undefined, tierName: string): TierPr
  * Load and parse research pipeline prompts from research_pipeline.yaml
  */
 export async function getResearchPipelinePrompts(): Promise<ActionResult<ResearchPipelineData>> {
-  try {
+  return runAction('getResearchPipelinePrompts', async () => {
     const filePath = join(process.cwd(), 'src/data/research_pipeline.yaml');
     const fileContent = await readFile(filePath, 'utf-8');
     const parsed = yaml.load(fileContent) as RawResearchPipeline;
 
-    const data: ResearchPipelineData = {
+    return {
       tier1: parseTierData(parsed.tier1, '1'),
       tier2: parseTierData(parsed.tier2, '2'),
       tier3: parseTierData(parsed.tier3, '3'),
     };
-
-    return success(data);
-  } catch (error) {
-    console.error('[getResearchPipelinePrompts]', error);
-    return failure(getErrorMessage(error));
-  }
+  });
 }
 
 /**
  * Load all issue configs from issue_configs/*.yaml
  */
 export async function getIssueConfigs(): Promise<ActionResult<IssueConfig[]>> {
-  try {
+  return runAction('getIssueConfigs', async () => {
     const issueConfigsDir = join(process.cwd(), 'src/data/issue_configs');
     const files = await readdir(issueConfigsDir);
     const yamlFiles = files.filter((f) => f.endsWith('.yaml') && !f.startsWith('_'));
@@ -262,11 +257,8 @@ export async function getIssueConfigs(): Promise<ActionResult<IssueConfig[]>> {
       return a.display_name.localeCompare(b.display_name);
     });
 
-    return success(configs);
-  } catch (error) {
-    console.error('[getIssueConfigs]', error);
-    return failure(getErrorMessage(error));
-  }
+    return configs;
+  });
 }
 
 /**

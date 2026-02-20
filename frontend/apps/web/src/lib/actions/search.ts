@@ -1,11 +1,10 @@
 'use server';
 
 import 'server-only';
-import { unstable_cache } from 'next/cache';
 import { db, SearchRepository } from '@deproceduralizer/database';
 import type { SearchResults, SearchOptions, SearchFilterOptions } from '@deproceduralizer/database';
 import type { StateCode } from '@deproceduralizer/database';
-import { type ActionResult, success, failure, getErrorMessage } from './types';
+import { type ActionResult, failure, runCachedAction } from './types';
 
 const searchRepo = new SearchRepository(db);
 
@@ -21,18 +20,12 @@ export async function searchRegulations(
     return failure('Search query must be 200 characters or less');
   }
 
-  try {
-    const cachedSearch = unstable_cache(
-      () => searchRepo.search({ ...options, query }),
-      [`search-${options.state}-${query}-${options.page || 1}-${options.docType || ''}-${options.sectionType || ''}-${options.hierarchyLevel || ''}-${options.parentPath || ''}-${options.hasAnalysis || ''}-${options.classification || ''}`],
-      { revalidate: 30 }
-    );
-    const result = await cachedSearch();
-    return success(result);
-  } catch (error) {
-    console.error('[searchRegulations]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runCachedAction(
+    'searchRegulations',
+    () => searchRepo.search({ ...options, query }),
+    [`search-${options.state}-${query}-${options.page || 1}-${options.docType || ''}-${options.sectionType || ''}-${options.hierarchyLevel || ''}-${options.parentPath || ''}-${options.hasAnalysis || ''}-${options.classification || ''}`],
+    { revalidate: 30 }
+  );
 }
 
 /**
@@ -42,16 +35,10 @@ export async function searchRegulations(
 export async function getSearchFilterOptions(
   state: StateCode
 ): Promise<ActionResult<SearchFilterOptions>> {
-  try {
-    const cachedOptions = unstable_cache(
-      () => searchRepo.getFilterOptions(state),
-      [`search-filter-options-${state}`],
-      { revalidate: 3600 }
-    );
-    const result = await cachedOptions();
-    return success(result);
-  } catch (error) {
-    console.error('[getSearchFilterOptions]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runCachedAction(
+    'getSearchFilterOptions',
+    () => searchRepo.getFilterOptions(state),
+    [`search-filter-options-${state}`],
+    { revalidate: 3600 }
+  );
 }

@@ -1,7 +1,6 @@
 'use server';
 
 import 'server-only';
-import { unstable_cache } from 'next/cache';
 import {
   db,
   ComplianceIssuesRepository,
@@ -12,7 +11,7 @@ import {
   type AnalysisListItem,
   type ComplianceIssue,
 } from '@deproceduralizer/database';
-import { type ActionResult, success, failure, getErrorMessage } from './types';
+import { type ActionResult, success, failure, getErrorMessage, runAction, runCachedAction } from './types';
 
 const complianceIssuesRepo = new ComplianceIssuesRepository(db);
 
@@ -36,29 +35,22 @@ export interface AnalysisTierStats {
 export async function getAnalysisTierStats(
   state: StateCode
 ): Promise<ActionResult<AnalysisTierStats>> {
-  try {
-    const cachedGetStats = unstable_cache(
-      async () => {
-        const [tierCounts, classificationBreakdown] = await Promise.all([
-          complianceIssuesRepo.getAnalysisTierCounts(state),
-          complianceIssuesRepo.getClassificationBreakdown(state),
-        ]);
+  return runCachedAction(
+    'getAnalysisTierStats',
+    async () => {
+      const [tierCounts, classificationBreakdown] = await Promise.all([
+        complianceIssuesRepo.getAnalysisTierCounts(state),
+        complianceIssuesRepo.getClassificationBreakdown(state),
+      ]);
 
-        const total = tierCounts.tier0 + tierCounts.tier1 + tierCounts.tier2 +
-                      tierCounts.tier3;
+      const total = tierCounts.tier0 + tierCounts.tier1 + tierCounts.tier2 +
+                    tierCounts.tier3;
 
-        return { tierCounts, classificationBreakdown, total };
-      },
-      [`analysis-tier-stats-${state}`],
-      { revalidate: 120 } // 2 minutes
-    );
-
-    const result = await cachedGetStats();
-    return success(result);
-  } catch (error) {
-    console.error('[getAnalysisTierStats]', error);
-    return failure(getErrorMessage(error));
-  }
+      return { tierCounts, classificationBreakdown, total };
+    },
+    [`analysis-tier-stats-${state}`],
+    { revalidate: 120 }
+  );
 }
 
 /**
@@ -73,13 +65,7 @@ export async function getFullAnalysisRecord(
   documentId: number,
   issueType: string
 ): Promise<ActionResult<FullAnalysisRecord | null>> {
-  try {
-    const result = await complianceIssuesRepo.getFullAnalysis(documentId, issueType);
-    return success(result);
-  } catch (error) {
-    console.error('[getFullAnalysisRecord]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getFullAnalysisRecord', () => complianceIssuesRepo.getFullAnalysis(documentId, issueType));
 }
 
 /**
@@ -91,19 +77,12 @@ export async function getFullAnalysisRecord(
 export async function getClassificationBreakdown(
   state: StateCode
 ): Promise<ActionResult<ClassificationBreakdown>> {
-  try {
-    const cachedGetBreakdown = unstable_cache(
-      () => complianceIssuesRepo.getClassificationBreakdown(state),
-      [`classification-breakdown-${state}`],
-      { revalidate: 120 } // 2 minutes
-    );
-
-    const result = await cachedGetBreakdown();
-    return success(result);
-  } catch (error) {
-    console.error('[getClassificationBreakdown]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runCachedAction(
+    'getClassificationBreakdown',
+    () => complianceIssuesRepo.getClassificationBreakdown(state),
+    [`classification-breakdown-${state}`],
+    { revalidate: 120 }
+  );
 }
 
 /**
@@ -159,13 +138,7 @@ export async function getAnalysisListPaginated(
     filters?: AnalysisListFilters;
   }
 ): Promise<ActionResult<PaginatedAnalysisResult>> {
-  try {
-    const result = await complianceIssuesRepo.getAnalysisListPaginated(state, options);
-    return success(result);
-  } catch (error) {
-    console.error('[getAnalysisListPaginated]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getAnalysisListPaginated', () => complianceIssuesRepo.getAnalysisListPaginated(state, options));
 }
 
 /**
@@ -284,11 +257,5 @@ export async function getRegexMatchesForAnalysis(
   documentId: number,
   issueType: string
 ): Promise<ActionResult<ComplianceIssue[]>> {
-  try {
-    const result = await complianceIssuesRepo.getByDocumentIdAndIssueType(documentId, issueType);
-    return success(result);
-  } catch (error) {
-    console.error('[getRegexMatchesForAnalysis]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getRegexMatchesForAnalysis', () => complianceIssuesRepo.getByDocumentIdAndIssueType(documentId, issueType));
 }

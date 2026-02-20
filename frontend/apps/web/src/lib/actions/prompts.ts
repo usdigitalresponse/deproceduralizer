@@ -4,7 +4,7 @@ import 'server-only';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
 import yaml from 'js-yaml';
-import { type ActionResult, success, failure, getErrorMessage } from './types';
+import { type ActionResult, success, runAction } from './types';
 
 export interface PromptVariable {
   name: string;
@@ -76,16 +76,15 @@ function extractVariables(template: string): PromptVariable[] {
  * The file is copied from prompts/core.yaml during build (see prebuild script in package.json).
  */
 export async function getPrompts(): Promise<ActionResult<PromptData[]>> {
-  try {
+  return runAction('getPrompts', async () => {
     const promptsPath = join(process.cwd(), 'src/data/core.yaml');
     const fileContent = await readFile(promptsPath, 'utf-8');
     const parsed = yaml.load(fileContent) as Record<string, RawPromptData>;
 
-    const prompts: PromptData[] = Object.entries(parsed).map(
+    return Object.entries(parsed).map(
       ([name, data]) => {
         const system = data.system?.trim() || null;
         const template = data.template?.trim() || '';
-        // Extract variables from both system and template
         const allVariables = extractVariables((system || '') + template);
         return {
           name,
@@ -97,12 +96,7 @@ export async function getPrompts(): Promise<ActionResult<PromptData[]>> {
         };
       }
     );
-
-    return success(prompts);
-  } catch (error) {
-    console.error('[getPrompts]', error);
-    return failure(getErrorMessage(error));
-  }
+  });
 }
 
 /**
@@ -134,12 +128,12 @@ export async function getPromptNames(): Promise<ActionResult<string[]>> {
  * Same structure as core.yaml: dictionary of prompt names with system/template/description.
  */
 export async function getJenAIPrompts(): Promise<ActionResult<PromptData[]>> {
-  try {
+  return runAction('getJenAIPrompts', async () => {
     const promptsPath = join(process.cwd(), 'src/data/jenai.yaml');
     const fileContent = await readFile(promptsPath, 'utf-8');
     const parsed = yaml.load(fileContent) as Record<string, RawPromptData>;
 
-    const prompts: PromptData[] = Object.entries(parsed).map(
+    return Object.entries(parsed).map(
       ([name, data]) => {
         const system = data.system?.trim() || null;
         const template = data.template?.trim() || '';
@@ -154,12 +148,7 @@ export async function getJenAIPrompts(): Promise<ActionResult<PromptData[]>> {
         };
       }
     );
-
-    return success(prompts);
-  } catch (error) {
-    console.error('[getJenAIPrompts]', error);
-    return failure(getErrorMessage(error));
-  }
+  });
 }
 
 /**
@@ -167,7 +156,7 @@ export async function getJenAIPrompts(): Promise<ActionResult<PromptData[]>> {
  * The file is copied during build (see prebuild script in package.json).
  */
 export async function getCompliancePrompts(): Promise<ActionResult<CompliancePromptData[]>> {
-  try {
+  return runAction('getCompliancePrompts', async () => {
     const promptsPath = join(process.cwd(), 'src/data/compliance_issues.yaml');
     const fileContent = await readFile(promptsPath, 'utf-8');
     const parsed = yaml.load(fileContent) as Record<string, RawCompliancePromptData>;
@@ -195,9 +184,6 @@ export async function getCompliancePrompts(): Promise<ActionResult<CompliancePro
       return a.displayName.localeCompare(b.displayName);
     });
 
-    return success(prompts);
-  } catch (error) {
-    console.error('[getCompliancePrompts]', error);
-    return failure(getErrorMessage(error));
-  }
+    return prompts;
+  });
 }

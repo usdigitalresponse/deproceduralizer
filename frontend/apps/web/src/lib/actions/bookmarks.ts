@@ -1,7 +1,7 @@
 'use server';
 
 import 'server-only';
-import { revalidatePath, updateTag, unstable_cache } from 'next/cache';
+import { revalidatePath, updateTag } from 'next/cache';
 import {
   db,
   BookmarksRepository,
@@ -12,7 +12,7 @@ import {
   eq,
   and,
 } from '@deproceduralizer/database';
-import { type ActionResult, success, failure, getErrorMessage } from './types';
+import { type ActionResult, success, failure, getErrorMessage, runAction, runCachedAction } from './types';
 
 const bookmarksRepo = new BookmarksRepository(db);
 
@@ -128,13 +128,7 @@ export async function getBookmarks(
   state: string,
   type?: 'analysis' | 'document'
 ): Promise<ActionResult<BookmarkWithDetails[]>> {
-  try {
-    const bookmarks = await bookmarksRepo.getAllWithDetails(state, type);
-    return success(bookmarks);
-  } catch (error) {
-    console.error('[getBookmarks]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getBookmarks', () => bookmarksRepo.getAllWithDetails(state, type));
 }
 
 /**
@@ -186,13 +180,7 @@ export async function removeBookmark(
 export async function isAnalysisBookmarked(
   analysisId: number
 ): Promise<ActionResult<boolean>> {
-  try {
-    const isBookmarked = await bookmarksRepo.isAnalysisBookmarked(analysisId);
-    return success(isBookmarked);
-  } catch (error) {
-    console.error('[isAnalysisBookmarked]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('isAnalysisBookmarked', () => bookmarksRepo.isAnalysisBookmarked(analysisId));
 }
 
 /**
@@ -202,13 +190,7 @@ export async function isAnalysisBookmarked(
 export async function getBookmarkedAnalysisIds(
   state: string
 ): Promise<ActionResult<number[]>> {
-  try {
-    const ids = await bookmarksRepo.getBookmarkedAnalysisIds(state);
-    return success(ids);
-  } catch (error) {
-    console.error('[getBookmarkedAnalysisIds]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getBookmarkedAnalysisIds', () => bookmarksRepo.getBookmarkedAnalysisIds(state));
 }
 
 /**
@@ -218,29 +200,23 @@ export async function getBookmarkedAnalysisIds(
 export async function getBookmarkCounts(
   state: string
 ): Promise<ActionResult<{ analysis: number; document: number; total: number }>> {
-  try {
-    const cachedGetBookmarkCounts = unstable_cache(
-      async () => {
-        // Parallel queries instead of sequential
-        const [analysisCount, documentCount] = await Promise.all([
-          bookmarksRepo.getCount(state, 'analysis'),
-          bookmarksRepo.getCount(state, 'document'),
-        ]);
-        return {
-          analysis: analysisCount,
-          document: documentCount,
-          total: analysisCount + documentCount,
-        };
-      },
-      [`bookmark-counts-${state}`],
-      { revalidate: 120, tags: ['bookmarks'] } // 2 minutes
-    );
-    const result = await cachedGetBookmarkCounts();
-    return success(result);
-  } catch (error) {
-    console.error('[getBookmarkCounts]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runCachedAction(
+    'getBookmarkCounts',
+    async () => {
+      // Parallel queries instead of sequential
+      const [analysisCount, documentCount] = await Promise.all([
+        bookmarksRepo.getCount(state, 'analysis'),
+        bookmarksRepo.getCount(state, 'document'),
+      ]);
+      return {
+        analysis: analysisCount,
+        document: documentCount,
+        total: analysisCount + documentCount,
+      };
+    },
+    [`bookmark-counts-${state}`],
+    { revalidate: 120, tags: ['bookmarks'] }
+  );
 }
 
 /**
@@ -307,7 +283,7 @@ export async function isAnalysisBookmarkedByDocIssue(
   documentId: number,
   issueType: string
 ): Promise<ActionResult<boolean>> {
-  try {
+  return runAction('isAnalysisBookmarkedByDocIssue', async () => {
     // Find the analysis ID
     const [analysis] = await db
       .select({ id: complianceIssueAnalyses.id })
@@ -321,15 +297,11 @@ export async function isAnalysisBookmarkedByDocIssue(
       .limit(1);
 
     if (!analysis) {
-      return success(false);
+      return false;
     }
 
-    const isBookmarked = await bookmarksRepo.isAnalysisBookmarked(analysis.id);
-    return success(isBookmarked);
-  } catch (error) {
-    console.error('[isAnalysisBookmarkedByDocIssue]', error);
-    return failure(getErrorMessage(error));
-  }
+    return bookmarksRepo.isAnalysisBookmarked(analysis.id);
+  });
 }
 
 /**
@@ -339,18 +311,14 @@ export async function isAnalysisBookmarkedByDocIssue(
 export async function getBookmarkedDocIssuePairs(
   state: string
 ): Promise<ActionResult<Set<string>>> {
-  try {
-    const bookmarks = await bookmarksRepo.getAllWithDetails(state, 'analysis');
-    const pairs = new Set(
-      bookmarks
+  return runAction('getBookmarkedDocIssuePairs', async () => {
+    const allBookmarks = await bookmarksRepo.getAllWithDetails(state, 'analysis');
+    return new Set(
+      allBookmarks
         .filter(b => b.analysisId !== null && b.issueType !== null)
         .map(b => `${b.documentId}-${b.issueType}`)
     );
-    return success(pairs);
-  } catch (error) {
-    console.error('[getBookmarkedDocIssuePairs]', error);
-    return failure(getErrorMessage(error));
-  }
+  });
 }
 
 /**
@@ -361,7 +329,7 @@ export async function getBookmarkByDocIssue(
   documentId: number,
   issueType: string
 ): Promise<ActionResult<Bookmark | null>> {
-  try {
+  return runAction('getBookmarkByDocIssue', async () => {
     // Find the analysis ID
     const [analysis] = await db
       .select({ id: complianceIssueAnalyses.id })
@@ -375,13 +343,10 @@ export async function getBookmarkByDocIssue(
       .limit(1);
 
     if (!analysis) {
-      return success(null);
+      return null;
     }
 
     const bookmark = await bookmarksRepo.getByAnalysisId(analysis.id);
-    return success(bookmark ?? null);
-  } catch (error) {
-    console.error('[getBookmarkByDocIssue]', error);
-    return failure(getErrorMessage(error));
-  }
+    return bookmark ?? null;
+  });
 }

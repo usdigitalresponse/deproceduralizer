@@ -1,7 +1,6 @@
 'use server';
 
 import 'server-only';
-import { unstable_cache } from 'next/cache';
 import {
   db,
   IbrRepository,
@@ -11,7 +10,7 @@ import {
   type IbrOverviewStats,
   type IbrTopStandard,
 } from '@deproceduralizer/database';
-import { type ActionResult, success, failure, getErrorMessage } from './types';
+import { type ActionResult, runAction, runCachedAction } from './types';
 
 const ibrRepo = new IbrRepository(db);
 
@@ -21,18 +20,12 @@ export type { IbrWithContext, IbrOverviewStats, IbrTopStandard };
 export async function getIbrOverviewStats(
   state: StateCode
 ): Promise<ActionResult<IbrOverviewStats>> {
-  try {
-    const cachedGetStats = unstable_cache(
-      () => ibrRepo.getOverviewStats(state),
-      [`ibr-overview-stats-${state}`],
-      { revalidate: 120, tags: ['ibr'] }
-    );
-    const result = await cachedGetStats();
-    return success(result);
-  } catch (error) {
-    console.error('[getIbrOverviewStats]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runCachedAction(
+    'getIbrOverviewStats',
+    () => ibrRepo.getOverviewStats(state),
+    [`ibr-overview-stats-${state}`],
+    { revalidate: 120, tags: ['ibr'] }
+  );
 }
 
 export async function getIbrsPaginated(
@@ -48,78 +41,57 @@ export async function getIbrsPaginated(
     };
   }
 ): Promise<ActionResult<PaginatedIbrsResult>> {
-  try {
-    const { page, pageSize, sortBy = 'sourceOrganization', sortOrder = 'desc', filters } = options;
-    const org = filters?.sourceOrganization ?? '';
-    const search = filters?.search ?? '';
-    const cacheKey = `ibr-paginated-${state}-${page}-${pageSize}-${sortBy}-${sortOrder}-${org}-${search}`;
+  const { page, pageSize, sortBy = 'sourceOrganization', sortOrder = 'desc', filters } = options;
+  const org = filters?.sourceOrganization ?? '';
+  const search = filters?.search ?? '';
+  const cacheKey = `ibr-paginated-${state}-${page}-${pageSize}-${sortBy}-${sortOrder}-${org}-${search}`;
 
-    const cachedGet = unstable_cache(
-      () => ibrRepo.getAllPaginated({
-        state,
-        page,
-        pageSize,
-        sortBy,
-        sortOrder,
-        filters: filters ? {
-          sourceOrganization: filters.sourceOrganization,
-          search: filters.search,
-        } : undefined,
-      }),
-      [cacheKey],
-      { revalidate: 120, tags: ['ibr'] }
-    );
-    const result = await cachedGet();
-    return success(result);
-  } catch (error) {
-    console.error('[getIbrsPaginated]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runCachedAction(
+    'getIbrsPaginated',
+    () => ibrRepo.getAllPaginated({
+      state,
+      page,
+      pageSize,
+      sortBy,
+      sortOrder,
+      filters: filters ? {
+        sourceOrganization: filters.sourceOrganization,
+        search: filters.search,
+      } : undefined,
+    }),
+    [cacheKey],
+    { revalidate: 120, tags: ['ibr'] }
+  );
 }
 
 export async function getIbrSourceOrganizations(
   state: StateCode
 ): Promise<ActionResult<string[]>> {
-  try {
-    const cachedGetOrgs = unstable_cache(
-      () => ibrRepo.getSourceOrganizations(state),
-      [`ibr-source-orgs-${state}`],
-      { revalidate: 300, tags: ['ibr'] }
-    );
-    const result = await cachedGetOrgs();
-    return success(result);
-  } catch (error) {
-    console.error('[getIbrSourceOrganizations]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runCachedAction(
+    'getIbrSourceOrganizations',
+    () => ibrRepo.getSourceOrganizations(state),
+    [`ibr-source-orgs-${state}`],
+    { revalidate: 300, tags: ['ibr'] }
+  );
 }
 
 export async function getIbrTopStandards(
   state: StateCode,
   limit: number = 20
 ): Promise<ActionResult<IbrTopStandard[]>> {
-  try {
-    const cachedGetTopStandards = unstable_cache(
-      () => ibrRepo.getTopStandards(state, limit),
-      [`ibr-top-standards-${state}-${limit}`],
-      { revalidate: 120, tags: ['ibr'] }
-    );
-    const result = await cachedGetTopStandards();
-    return success(result);
-  } catch (error) {
-    console.error('[getIbrTopStandards]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runCachedAction(
+    'getIbrTopStandards',
+    () => ibrRepo.getTopStandards(state, limit),
+    [`ibr-top-standards-${state}-${limit}`],
+    { revalidate: 120, tags: ['ibr'] }
+  );
 }
 
 export async function getIbrById(
   id: number
 ): Promise<ActionResult<IbrWithContext | null>> {
-  try {
+  return runAction('getIbrById', async () => {
     const result = await ibrRepo.getById(id);
-    return success(result ?? null);
-  } catch (error) {
-    console.error('[getIbrById]', error);
-    return failure(getErrorMessage(error));
-  }
+    return result ?? null;
+  });
 }

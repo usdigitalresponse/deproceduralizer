@@ -54,6 +54,24 @@ def get_async_anthropic_client(api_key: Optional[str] = None) -> anthropic.Async
     )
 
 
+def _extract_tool_use(response) -> Optional[Any]:
+    """Extract the first tool_use block from an Anthropic API response."""
+    for block in response.content:
+        if block.type == "tool_use":
+            return block
+    return None
+
+
+def _extract_usage_dict(usage) -> dict:
+    """Extract a normalized usage dict from an Anthropic API response usage object."""
+    return {
+        "input_tokens": getattr(usage, "input_tokens", 0),
+        "output_tokens": getattr(usage, "output_tokens", 0),
+        "cache_read_tokens": getattr(usage, "cache_read_input_tokens", 0),
+        "cache_write_tokens": getattr(usage, "cache_creation_input_tokens", 0),
+    }
+
+
 def _pydantic_to_tool_schema(model: Type[BaseModel], with_cache_control: bool = True) -> dict:
     """
     Convert a Pydantic model to Anthropic tool schema.
@@ -147,20 +165,8 @@ def call_llm_parse(
                     f"Output may be incomplete."
                 )
 
-            # Extract tool use from response
-            tool_use = None
-            for block in response.content:
-                if block.type == "tool_use":
-                    tool_use = block
-                    break
-
-            # Extract usage for logging
-            usage = {
-                "input_tokens": getattr(response.usage, "input_tokens", 0),
-                "output_tokens": getattr(response.usage, "output_tokens", 0),
-                "cache_read_tokens": getattr(response.usage, "cache_read_input_tokens", 0),
-                "cache_write_tokens": getattr(response.usage, "cache_creation_input_tokens", 0),
-            }
+            tool_use = _extract_tool_use(response)
+            usage = _extract_usage_dict(response.usage)
 
             if tool_use is None:
                 print(
@@ -171,17 +177,14 @@ def call_llm_parse(
                     continue
                 else:
                     print(f"      ❌ All {max_retries} attempts failed to get tool_use")
-                    # Log failure if trace_context provided
                     if trace_context:
                         _log_llm_call(trace_context, model, prompt, "", usage, latency_ms, success=False, error_message="No tool_use in response")
                     return None
 
-            # Parse the tool input with Pydantic
             parsed = response_format.model_validate(tool_use.input)
             if attempt > 0:
                 print(f"      ✅ Retry succeeded on attempt {attempt + 1}")
 
-            # Log success if trace_context provided
             if trace_context:
                 output_text = parsed.model_dump_json() if parsed else ""
                 _log_llm_call(trace_context, model, prompt, output_text, usage, latency_ms, success=True)
@@ -198,7 +201,6 @@ def call_llm_parse(
                 time.sleep(min(30, 2 ** attempt))
                 continue
             print(f"      ❌ All {max_retries} attempts failed")
-            # Log failure if trace_context provided
             if trace_context:
                 _log_llm_call(trace_context, model, prompt, "", {}, latency_ms, success=False, error_message=str(e))
             return None
@@ -329,20 +331,8 @@ async def call_llm_parse_async(
                     f"Output may be incomplete."
                 )
 
-            # Extract tool use from response
-            tool_use = None
-            for block in response.content:
-                if block.type == "tool_use":
-                    tool_use = block
-                    break
-
-            # Extract usage from response
-            usage = {
-                "input_tokens": getattr(response.usage, "input_tokens", 0),
-                "output_tokens": getattr(response.usage, "output_tokens", 0),
-                "cache_read_tokens": getattr(response.usage, "cache_read_input_tokens", 0),
-                "cache_write_tokens": getattr(response.usage, "cache_creation_input_tokens", 0),
-            }
+            tool_use = _extract_tool_use(response)
+            usage = _extract_usage_dict(response.usage)
 
             if tool_use is None:
                 print(

@@ -26,8 +26,8 @@ import {
   RESOLUTION_TYPES,
   DEVELOPERS,
 } from '@deproceduralizer/database';
-import { revalidatePath, unstable_cache } from 'next/cache';
-import { type ActionResult, success, failure, getErrorMessage } from './types';
+import { revalidatePath } from 'next/cache';
+import { type ActionResult, success, failure, getErrorMessage, runAction, runCachedAction } from './types';
 
 const definitionsRepo = new DefinitionsRepository(db);
 
@@ -38,13 +38,7 @@ const definitionsRepo = new DefinitionsRepository(db);
 export async function getDefinitionsForDocument(
   documentId: number
 ): Promise<ActionResult<DefinitionWithContext[]>> {
-  try {
-    const definitions = await definitionsRepo.getForDocument(documentId);
-    return success(definitions);
-  } catch (error) {
-    console.error('[getDefinitionsForDocument]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getDefinitionsForDocument', () => definitionsRepo.getForDocument(documentId));
 }
 
 /**
@@ -54,13 +48,7 @@ export async function getDefinitionsForDocument(
 export async function getApplicableDefinitionsForDocument(
   documentId: number
 ): Promise<ActionResult<ApplicableDefinition[]>> {
-  try {
-    const definitions = await definitionsRepo.getApplicableDefinitions(documentId);
-    return success(definitions);
-  } catch (error) {
-    console.error('[getApplicableDefinitionsForDocument]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getApplicableDefinitionsForDocument', () => definitionsRepo.getApplicableDefinitions(documentId));
 }
 
 /**
@@ -70,13 +58,7 @@ export async function getApplicableDefinitionsForDocument(
 export async function getApplicableDefinitionsForDocumentSplit(
   documentId: number
 ): Promise<ActionResult<SplitApplicableDefinitions>> {
-  try {
-    const definitions = await definitionsRepo.getApplicableDefinitionsSplit(documentId);
-    return success(definitions);
-  } catch (error) {
-    console.error('[getApplicableDefinitionsForDocumentSplit]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getApplicableDefinitionsForDocumentSplit', () => definitionsRepo.getApplicableDefinitionsSplit(documentId));
 }
 
 /**
@@ -90,13 +72,7 @@ export async function getApplicableDefinitionsForDocumentSplit(
 export async function getDefinitionsWithContext(
   documentId: number
 ): Promise<ActionResult<DefinitionsWithContext>> {
-  try {
-    const data = await definitionsRepo.getDefinitionsWithContext(documentId);
-    return success(data);
-  } catch (error) {
-    console.error('[getDefinitionsWithContext]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getDefinitionsWithContext', () => definitionsRepo.getDefinitionsWithContext(documentId));
 }
 
 /**
@@ -118,16 +94,7 @@ export async function getDefinitionsPaginated(
     quality?: 'high' | 'medium' | 'low';
   }
 ): Promise<ActionResult<PaginatedDefinitionsResult>> {
-  try {
-    const result = await definitionsRepo.getAllPaginated({
-      state,
-      ...options,
-    });
-    return success(result);
-  } catch (error) {
-    console.error('[getDefinitionsPaginated]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getDefinitionsPaginated', () => definitionsRepo.getAllPaginated({ state, ...options }));
 }
 
 /**
@@ -136,13 +103,7 @@ export async function getDefinitionsPaginated(
 export async function getDefinitionStats(
   state: StateCode
 ): Promise<ActionResult<DefinitionStats>> {
-  try {
-    const stats = await definitionsRepo.getStats(state);
-    return success(stats);
-  } catch (error) {
-    console.error('[getDefinitionStats]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getDefinitionStats', () => definitionsRepo.getStats(state));
 }
 
 /**
@@ -152,13 +113,7 @@ export async function searchDefinitions(
   state: StateCode,
   term: string
 ): Promise<ActionResult<DefinitionWithContext[]>> {
-  try {
-    const definitions = await definitionsRepo.searchByTerm(state, term);
-    return success(definitions);
-  } catch (error) {
-    console.error('[searchDefinitions]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('searchDefinitions', () => definitionsRepo.searchByTerm(state, term));
 }
 
 /**
@@ -167,13 +122,7 @@ export async function searchDefinitions(
 export async function getAlphabeticalIndex(
   state: StateCode
 ): Promise<ActionResult<AlphabeticalIndex[]>> {
-  try {
-    const index = await definitionsRepo.getAlphabeticalIndex(state);
-    return success(index);
-  } catch (error) {
-    console.error('[getAlphabeticalIndex]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getAlphabeticalIndex', () => definitionsRepo.getAlphabeticalIndex(state));
 }
 
 /**
@@ -182,13 +131,7 @@ export async function getAlphabeticalIndex(
 export async function getDefinitionScopes(
   state: StateCode
 ): Promise<ActionResult<string[]>> {
-  try {
-    const scopes = await definitionsRepo.getScopes(state);
-    return success(scopes);
-  } catch (error) {
-    console.error('[getDefinitionScopes]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getDefinitionScopes', () => definitionsRepo.getScopes(state));
 }
 
 /**
@@ -197,13 +140,7 @@ export async function getDefinitionScopes(
 export async function getDefinitionById(
   id: number
 ): Promise<ActionResult<Definition | undefined>> {
-  try {
-    const definition = await definitionsRepo.getById(id);
-    return success(definition);
-  } catch (error) {
-    console.error('[getDefinitionById]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getDefinitionById', () => definitionsRepo.getById(id));
 }
 
 /**
@@ -218,13 +155,7 @@ export async function getAggregatedTermsPaginated(
     letter?: string;
   }
 ): Promise<ActionResult<PaginatedAggregatedResult>> {
-  try {
-    const result = await definitionsRepo.getAggregatedTerms({ state, ...options });
-    return success(result);
-  } catch (error) {
-    console.error('[getAggregatedTermsPaginated]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getAggregatedTermsPaginated', () => definitionsRepo.getAggregatedTerms({ state, ...options }));
 }
 
 /**
@@ -234,13 +165,7 @@ export async function getDefinitionsForTermAction(
   normalizedTerm: string,
   state: StateCode
 ): Promise<ActionResult<DefinitionWithContext[]>> {
-  try {
-    const definitions = await definitionsRepo.getDefinitionsForTerm(normalizedTerm, state);
-    return success(definitions);
-  } catch (error) {
-    console.error('[getDefinitionsForTermAction]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getDefinitionsForTermAction', () => definitionsRepo.getDefinitionsForTerm(normalizedTerm, state));
 }
 
 // ============================================================================
@@ -276,16 +201,7 @@ export async function getDefinitionsForReview(
   pageSize: number;
   totalPages: number;
 }>> {
-  try {
-    const result = await definitionsRepo.getDefinitionsForReview({
-      state,
-      ...options,
-    });
-    return success(result);
-  } catch (error) {
-    console.error('[getDefinitionsForReview]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getDefinitionsForReview', () => definitionsRepo.getDefinitionsForReview({ state, ...options }));
 }
 
 /**
@@ -313,13 +229,7 @@ export async function updateDefinitionReview(
     referenceTarget?: string | null;
   }
 ): Promise<ActionResult<Definition | undefined>> {
-  try {
-    const result = await definitionsRepo.updateDefinitionReview(id, update);
-    return success(result);
-  } catch (error) {
-    console.error('[updateDefinitionReview]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('updateDefinitionReview', () => definitionsRepo.updateDefinitionReview(id, update));
 }
 
 /**
@@ -331,18 +241,9 @@ export async function bulkUpdateDefinitionReviewStatus(
   reviewerName: string,
   justificationNotes?: string
 ): Promise<ActionResult<number>> {
-  try {
-    const count = await definitionsRepo.bulkUpdateReviewStatus(
-      ids,
-      reviewStatus,
-      reviewerName,
-      justificationNotes
-    );
-    return success(count);
-  } catch (error) {
-    console.error('[bulkUpdateDefinitionReviewStatus]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('bulkUpdateDefinitionReviewStatus', () =>
+    definitionsRepo.bulkUpdateReviewStatus(ids, reviewStatus, reviewerName, justificationNotes)
+  );
 }
 
 /**
@@ -361,13 +262,7 @@ export async function searchDocumentsForScope(
   njacTitle: string | null;
   njacChapter: string | null;
 }[]>> {
-  try {
-    const results = await definitionsRepo.searchDocumentsForScope(query, state, limit);
-    return success(results);
-  } catch (error) {
-    console.error('[searchDocumentsForScope]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('searchDocumentsForScope', () => definitionsRepo.searchDocumentsForScope(query, state, limit));
 }
 
 /**
@@ -384,13 +279,7 @@ export async function getAncestorDocumentsForScope(
   njacTitle: string | null;
   njacChapter: string | null;
 }[]>> {
-  try {
-    const results = await definitionsRepo.getAncestorDocuments(documentId);
-    return success(results);
-  } catch (error) {
-    console.error('[getAncestorDocumentsForScope]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getAncestorDocumentsForScope', () => definitionsRepo.getAncestorDocuments(documentId));
 }
 
 /**
@@ -405,13 +294,7 @@ export async function getDefinitionReviewStats(
   falsePositive: number;
   total: number;
 }>> {
-  try {
-    const stats = await definitionsRepo.getReviewStats(state);
-    return success(stats);
-  } catch (error) {
-    console.error('[getDefinitionReviewStats]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getDefinitionReviewStats', () => definitionsRepo.getReviewStats(state));
 }
 
 /**
@@ -428,13 +311,7 @@ export async function getCorrectedDefinitions(
   pageSize: number;
   totalPages: number;
 }>> {
-  try {
-    const result = await definitionsRepo.getCorrectedDefinitions(state, page, pageSize);
-    return success(result);
-  } catch (error) {
-    console.error('[getCorrectedDefinitions]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getCorrectedDefinitions', () => definitionsRepo.getCorrectedDefinitions(state, page, pageSize));
 }
 
 /**
@@ -451,13 +328,7 @@ export async function getDocumentForScope(
   njacTitle: string | null;
   njacChapter: string | null;
 } | null>> {
-  try {
-    const result = await definitionsRepo.getDocumentById(documentId);
-    return success(result);
-  } catch (error) {
-    console.error('[getDocumentForScope]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getDocumentForScope', () => definitionsRepo.getDocumentById(documentId));
 }
 
 /**
@@ -466,13 +337,7 @@ export async function getDocumentForScope(
 export async function getUniqueScopeTexts(
   state: StateCode
 ): Promise<ActionResult<string[]>> {
-  try {
-    const result = await definitionsRepo.getUniqueScopeTexts(state);
-    return success(result);
-  } catch (error) {
-    console.error('[getUniqueScopeTexts]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getUniqueScopeTexts', () => definitionsRepo.getUniqueScopeTexts(state));
 }
 
 // ============================================================================
@@ -539,13 +404,7 @@ export async function updateDefinitionDeveloperStatus(
 export async function getDefinitionDeveloperStatusCounts(
   state: StateCode
 ): Promise<ActionResult<DefinitionDeveloperStatusCounts>> {
-  try {
-    const counts = await definitionsRepo.getDeveloperStatusCounts(state);
-    return success(counts);
-  } catch (error) {
-    console.error('[getDefinitionDeveloperStatusCounts]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getDefinitionDeveloperStatusCounts', () => definitionsRepo.getDeveloperStatusCounts(state));
 }
 
 /**
@@ -565,8 +424,8 @@ export async function getReviewedDefinitionsPaginated(
     sortOrder?: 'asc' | 'desc';
   }
 ): Promise<ActionResult<PaginatedDefinitionsResult>> {
-  try {
-    const result = await definitionsRepo.getReviewedDefinitionsPaginated({
+  return runAction('getReviewedDefinitionsPaginated', () =>
+    definitionsRepo.getReviewedDefinitionsPaginated({
       state,
       page: options.page,
       pageSize: options.pageSize,
@@ -577,12 +436,8 @@ export async function getReviewedDefinitionsPaginated(
       hasTeamNotes: options.hasTeamNotes as 'yes' | 'no' | 'all' | undefined,
       sortBy: options.sortBy,
       sortOrder: options.sortOrder,
-    });
-    return success(result);
-  } catch (error) {
-    console.error('[getReviewedDefinitionsPaginated]', error);
-    return failure(getErrorMessage(error));
-  }
+    })
+  );
 }
 
 /**
@@ -596,13 +451,7 @@ export async function getNeedMoreInfoDefinitions(
     reviewerName?: string;
   }
 ): Promise<ActionResult<PaginatedDefinitionsResult>> {
-  try {
-    const result = await definitionsRepo.getNeedMoreInfoDefinitions(state, options);
-    return success(result);
-  } catch (error) {
-    console.error('[getNeedMoreInfoDefinitions]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getNeedMoreInfoDefinitions', () => definitionsRepo.getNeedMoreInfoDefinitions(state, options));
 }
 
 /**
@@ -612,13 +461,7 @@ export async function getDefinitionNeedMoreInfoCount(
   state: StateCode,
   reviewerName?: string
 ): Promise<ActionResult<{ total: number; forReviewer: number }>> {
-  try {
-    const counts = await definitionsRepo.getNeedMoreInfoCount(state, reviewerName);
-    return success(counts);
-  } catch (error) {
-    console.error('[getDefinitionNeedMoreInfoCount]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getDefinitionNeedMoreInfoCount', () => definitionsRepo.getNeedMoreInfoCount(state, reviewerName));
 }
 
 // ============================================
@@ -660,18 +503,12 @@ export interface DefinitionsAnalyticsStats {
 export async function getDefinitionAnalyticsStats(
   state: StateCode
 ): Promise<ActionResult<DefinitionsAnalyticsStats>> {
-  try {
-    const cachedGetStats = unstable_cache(
-      () => definitionsRepo.getAnalyticsStats(state),
-      [`definitions-analytics-${state}`],
-      { revalidate: 60, tags: ['definitions-analytics'] }
-    );
-    const stats = await cachedGetStats();
-    return success(stats);
-  } catch (error) {
-    console.error('[getDefinitionAnalyticsStats]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runCachedAction(
+    'getDefinitionAnalyticsStats',
+    () => definitionsRepo.getAnalyticsStats(state),
+    [`definitions-analytics-${state}`],
+    { revalidate: 60, tags: ['definitions-analytics'] }
+  );
 }
 
 // =============================================================================
@@ -691,18 +528,12 @@ export async function getDefinitionGraph(
   limit: number = 500,
   titleFilter?: string
 ): Promise<ActionResult<DefinitionEdge[]>> {
-  try {
-    const cachedGetGraph = unstable_cache(
-      () => definitionsRepo.getDefinitionGraph(state, limit, titleFilter),
-      [`definition-graph-${state}-${limit}-${titleFilter ?? 'all'}`],
-      { revalidate: 300, tags: ['definitions-analytics'] }
-    );
-    const edges = await cachedGetGraph();
-    return success(edges);
-  } catch (error) {
-    console.error('[getDefinitionGraph]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runCachedAction(
+    'getDefinitionGraph',
+    () => definitionsRepo.getDefinitionGraph(state, limit, titleFilter),
+    [`definition-graph-${state}-${limit}-${titleFilter ?? 'all'}`],
+    { revalidate: 300, tags: ['definitions-analytics'] }
+  );
 }
 
 /**
@@ -717,18 +548,12 @@ export async function getTopDefinitions(
   limit: number = 20,
   titleFilter?: string
 ): Promise<ActionResult<DefinitionHub[]>> {
-  try {
-    const cachedGetHubs = unstable_cache(
-      () => definitionsRepo.getTopDefinitions(state, limit, titleFilter),
-      [`definition-hubs-${state}-${limit}-${titleFilter ?? 'all'}`],
-      { revalidate: 300, tags: ['definitions-analytics'] }
-    );
-    const hubs = await cachedGetHubs();
-    return success(hubs);
-  } catch (error) {
-    console.error('[getTopDefinitions]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runCachedAction(
+    'getTopDefinitions',
+    () => definitionsRepo.getTopDefinitions(state, limit, titleFilter),
+    [`definition-hubs-${state}-${limit}-${titleFilter ?? 'all'}`],
+    { revalidate: 300, tags: ['definitions-analytics'] }
+  );
 }
 
 /**
@@ -740,41 +565,29 @@ export async function getTopDefinitions(
 export async function getScopeLevelFlows(
   state: StateCode
 ): Promise<ActionResult<ScopeLevelFlow[]>> {
-  try {
-    const cachedGetFlows = unstable_cache(
-      () => definitionsRepo.getScopeLevelFlows(state),
-      [`definition-scope-flows-${state}`],
-      { revalidate: 300, tags: ['definitions-analytics'] }
-    );
-    const flows = await cachedGetFlows();
-    return success(flows);
-  } catch (error) {
-    console.error('[getScopeLevelFlows]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runCachedAction(
+    'getScopeLevelFlows',
+    () => definitionsRepo.getScopeLevelFlows(state),
+    [`definition-scope-flows-${state}`],
+    { revalidate: 300, tags: ['definitions-analytics'] }
+  );
 }
 
 /**
  * Get definition hierarchy data for edge bundling visualization.
- * Builds a tree of titles → chapters → parts → sections with definitions at leaves.
+ * Builds a tree of titles -> chapters -> parts -> sections with definitions at leaves.
  * Cached for 5 minutes to reduce database load.
  * @param state - StateCode ('NY' or 'NJ')
  */
 export async function getDefinitionHierarchy(
   state: StateCode
 ): Promise<ActionResult<DefinitionHierarchyNode>> {
-  try {
-    const cachedGetHierarchy = unstable_cache(
-      () => definitionsRepo.getDefinitionHierarchy(state),
-      [`definition-hierarchy-${state}`],
-      { revalidate: 300, tags: ['definitions-analytics'] }
-    );
-    const hierarchy = await cachedGetHierarchy();
-    return success(hierarchy);
-  } catch (error) {
-    console.error('[getDefinitionHierarchy]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runCachedAction(
+    'getDefinitionHierarchy',
+    () => definitionsRepo.getDefinitionHierarchy(state),
+    [`definition-hierarchy-${state}`],
+    { revalidate: 300, tags: ['definitions-analytics'] }
+  );
 }
 
 /**
@@ -786,16 +599,10 @@ export async function getDefinitionHierarchy(
 export async function getAvailableTitles(
   state: StateCode
 ): Promise<ActionResult<string[]>> {
-  try {
-    const cachedGetTitles = unstable_cache(
-      () => definitionsRepo.getAvailableTitles(state),
-      [`definition-available-titles-${state}`],
-      { revalidate: 300, tags: ['definitions-analytics'] }
-    );
-    const titles = await cachedGetTitles();
-    return success(titles);
-  } catch (error) {
-    console.error('[getAvailableTitles]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runCachedAction(
+    'getAvailableTitles',
+    () => definitionsRepo.getAvailableTitles(state),
+    [`definition-available-titles-${state}`],
+    { revalidate: 300, tags: ['definitions-analytics'] }
+  );
 }

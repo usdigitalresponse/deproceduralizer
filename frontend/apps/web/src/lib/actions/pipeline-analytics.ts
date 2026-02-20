@@ -1,7 +1,6 @@
 'use server';
 
 import 'server-only';
-import { unstable_cache } from 'next/cache';
 import {
   db,
   ComplianceIssuesRepository,
@@ -16,7 +15,7 @@ import {
   type ResearchFunnelStats,
   type ConfidenceByClassificationData,
 } from '@deproceduralizer/database';
-import { type ActionResult, success, failure, getErrorMessage } from './types';
+import { type ActionResult, success, failure, getErrorMessage, runCachedAction } from './types';
 
 const complianceIssuesRepo = new ComplianceIssuesRepository(db);
 
@@ -61,108 +60,72 @@ export async function getPipelineFunnelStats(
   state: StateCode,
   issueType?: string
 ): Promise<ActionResult<PipelineFunnelData>> {
-  try {
-    const cachedFn = unstable_cache(
-      () => complianceIssuesRepo.getPipelineFunnelStats(state, issueType),
-      [`pipeline-funnel-${state}-${issueType ?? 'all'}`],
-      { revalidate: 3600, tags: ['pipeline-analytics'] }
-    );
-    const data = await cachedFn();
-    return success(data);
-  } catch (error) {
-    console.error('[getPipelineFunnelStats]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runCachedAction(
+    'getPipelineFunnelStats',
+    () => complianceIssuesRepo.getPipelineFunnelStats(state, issueType),
+    [`pipeline-funnel-${state}-${issueType ?? 'all'}`],
+    { revalidate: 3600, tags: ['pipeline-analytics'] }
+  );
 }
 
 export async function getTier1ContextRequestStats(
   state: StateCode,
   issueType?: string
 ): Promise<ActionResult<Tier1ContextRequestStats>> {
-  try {
-    const cachedFn = unstable_cache(
-      () => complianceIssuesRepo.getTier1ContextRequestStats(state, issueType),
-      [`pipeline-tier1-context-${state}-${issueType ?? 'all'}`],
-      { revalidate: 3600, tags: ['pipeline-analytics'] }
-    );
-    const data = await cachedFn();
-    return success(data);
-  } catch (error) {
-    console.error('[getTier1ContextRequestStats]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runCachedAction(
+    'getTier1ContextRequestStats',
+    () => complianceIssuesRepo.getTier1ContextRequestStats(state, issueType),
+    [`pipeline-tier1-context-${state}-${issueType ?? 'all'}`],
+    { revalidate: 3600, tags: ['pipeline-analytics'] }
+  );
 }
 
 export async function getTierTransitionStats(
   state: StateCode,
   issueType?: string
 ): Promise<ActionResult<TierTransitionData>> {
-  try {
-    const cachedFn = unstable_cache(
-      () => complianceIssuesRepo.getTierTransitionStats(state, issueType),
-      [`pipeline-tier-transitions-${state}-${issueType ?? 'all'}`],
-      { revalidate: 3600, tags: ['pipeline-analytics'] }
-    );
-    const data = await cachedFn();
-    return success(data);
-  } catch (error) {
-    console.error('[getTierTransitionStats]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runCachedAction(
+    'getTierTransitionStats',
+    () => complianceIssuesRepo.getTierTransitionStats(state, issueType),
+    [`pipeline-tier-transitions-${state}-${issueType ?? 'all'}`],
+    { revalidate: 3600, tags: ['pipeline-analytics'] }
+  );
 }
 
 export async function getTier3EvidenceStats(
   state: StateCode,
   issueType?: string
 ): Promise<ActionResult<Tier3EvidenceStats>> {
-  try {
-    const cachedFn = unstable_cache(
-      () => complianceIssuesRepo.getTier3EvidenceStats(state, issueType),
-      [`pipeline-tier3-evidence-${state}-${issueType ?? 'all'}`],
-      { revalidate: 3600, tags: ['pipeline-analytics'] }
-    );
-    const data = await cachedFn();
-    return success(data);
-  } catch (error) {
-    console.error('[getTier3EvidenceStats]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runCachedAction(
+    'getTier3EvidenceStats',
+    () => complianceIssuesRepo.getTier3EvidenceStats(state, issueType),
+    [`pipeline-tier3-evidence-${state}-${issueType ?? 'all'}`],
+    { revalidate: 3600, tags: ['pipeline-analytics'] }
+  );
 }
 
 export async function getConfidenceByClassification(
   state: StateCode,
   issueType?: string
 ): Promise<ActionResult<ConfidenceByClassificationData>> {
-  try {
-    const cachedFn = unstable_cache(
-      () => complianceIssuesRepo.getConfidenceByClassification(state, issueType),
-      [`pipeline-confidence-by-class-${state}-${issueType ?? 'all'}`],
-      { revalidate: 3600, tags: ['pipeline-analytics'] }
-    );
-    const data = await cachedFn();
-    return success(data);
-  } catch (error) {
-    console.error('[getConfidenceByClassification]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runCachedAction(
+    'getConfidenceByClassification',
+    () => complianceIssuesRepo.getConfidenceByClassification(state, issueType),
+    [`pipeline-confidence-by-class-${state}-${issueType ?? 'all'}`],
+    { revalidate: 3600, tags: ['pipeline-analytics'] }
+  );
 }
 
 export async function getTransitionReasons(
   state: StateCode,
   issueType?: string
 ): Promise<ActionResult<TransitionReasonData>> {
-  try {
-    const cachedFn = unstable_cache(
-      () => complianceIssuesRepo.getTransitionReasons(state, issueType),
-      [`pipeline-transition-reasons-${state}-${issueType ?? 'all'}`],
-      { revalidate: 3600, tags: ['pipeline-analytics'] }
-    );
-    const data = await cachedFn();
-    return success(data);
-  } catch (error) {
-    console.error('[getTransitionReasons]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runCachedAction(
+    'getTransitionReasons',
+    () => complianceIssuesRepo.getTransitionReasons(state, issueType),
+    [`pipeline-transition-reasons-${state}-${issueType ?? 'all'}`],
+    { revalidate: 3600, tags: ['pipeline-analytics'] }
+  );
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -182,28 +145,22 @@ export async function getPipelineAnalyticsBundle(
   state: StateCode,
   issueType?: string
 ): Promise<ActionResult<PipelineAnalyticsBundle>> {
-  try {
-    const cachedFn = unstable_cache(
-      async () => {
-        const [funnel, tier1, transitions, evidence, confByClass, transReasons] = await Promise.all([
-          complianceIssuesRepo.getPipelineFunnelStats(state, issueType),
-          complianceIssuesRepo.getTier1ContextRequestStats(state, issueType),
-          complianceIssuesRepo.getTierTransitionStats(state, issueType),
-          complianceIssuesRepo.getTier3EvidenceStats(state, issueType),
-          complianceIssuesRepo.getConfidenceByClassification(state, issueType).catch(() => null),
-          complianceIssuesRepo.getTransitionReasons(state, issueType).catch(() => null),
-        ]);
-        return { funnel, tier1Context: tier1, tierTransitions: transitions, tier3Evidence: evidence, confidenceByClassification: confByClass, transitionReasons: transReasons };
-      },
-      [`pipeline-bundle-${state}-${issueType ?? 'all'}`],
-      { revalidate: 3600, tags: ['pipeline-analytics'] }
-    );
-    const data = await cachedFn();
-    return success(data);
-  } catch (error) {
-    console.error('[getPipelineAnalyticsBundle]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runCachedAction(
+    'getPipelineAnalyticsBundle',
+    async () => {
+      const [funnel, tier1, transitions, evidence, confByClass, transReasons] = await Promise.all([
+        complianceIssuesRepo.getPipelineFunnelStats(state, issueType),
+        complianceIssuesRepo.getTier1ContextRequestStats(state, issueType),
+        complianceIssuesRepo.getTierTransitionStats(state, issueType),
+        complianceIssuesRepo.getTier3EvidenceStats(state, issueType),
+        complianceIssuesRepo.getConfidenceByClassification(state, issueType).catch(() => null),
+        complianceIssuesRepo.getTransitionReasons(state, issueType).catch(() => null),
+      ]);
+      return { funnel, tier1Context: tier1, tierTransitions: transitions, tier3Evidence: evidence, confidenceByClassification: confByClass, transitionReasons: transReasons };
+    },
+    [`pipeline-bundle-${state}-${issueType ?? 'all'}`],
+    { revalidate: 3600, tags: ['pipeline-analytics'] }
+  );
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -214,54 +171,36 @@ export async function getTier2ContextRequestsStats(
   state: StateCode,
   issueType?: string
 ): Promise<ActionResult<Tier2ContextRequestsStats>> {
-  try {
-    const cachedFn = unstable_cache(
-      () => complianceIssuesRepo.getTier2ContextRequestsStats(state, issueType),
-      [`pipeline-tier2-requests-${state}-${issueType ?? 'all'}`],
-      { revalidate: 3600, tags: ['pipeline-analytics'] }
-    );
-    const data = await cachedFn();
-    return success(data);
-  } catch (error) {
-    console.error('[getTier2ContextRequestsStats]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runCachedAction(
+    'getTier2ContextRequestsStats',
+    () => complianceIssuesRepo.getTier2ContextRequestsStats(state, issueType),
+    [`pipeline-tier2-requests-${state}-${issueType ?? 'all'}`],
+    { revalidate: 3600, tags: ['pipeline-analytics'] }
+  );
 }
 
 export async function getContextUsedStats(
   state: StateCode,
   issueType?: string
 ): Promise<ActionResult<ContextUsedStats>> {
-  try {
-    const cachedFn = unstable_cache(
-      () => complianceIssuesRepo.getContextUsedStats(state, issueType),
-      [`pipeline-context-used-${state}-${issueType ?? 'all'}`],
-      { revalidate: 3600, tags: ['pipeline-analytics'] }
-    );
-    const data = await cachedFn();
-    return success(data);
-  } catch (error) {
-    console.error('[getContextUsedStats]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runCachedAction(
+    'getContextUsedStats',
+    () => complianceIssuesRepo.getContextUsedStats(state, issueType),
+    [`pipeline-context-used-${state}-${issueType ?? 'all'}`],
+    { revalidate: 3600, tags: ['pipeline-analytics'] }
+  );
 }
 
 export async function getResearchFunnelStats(
   state: StateCode,
   issueType?: string
 ): Promise<ActionResult<ResearchFunnelStats>> {
-  try {
-    const cachedFn = unstable_cache(
-      () => complianceIssuesRepo.getResearchFunnelStats(state, issueType),
-      [`pipeline-research-funnel-${state}-${issueType ?? 'all'}`],
-      { revalidate: 3600, tags: ['pipeline-analytics'] }
-    );
-    const data = await cachedFn();
-    return success(data);
-  } catch (error) {
-    console.error('[getResearchFunnelStats]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runCachedAction(
+    'getResearchFunnelStats',
+    () => complianceIssuesRepo.getResearchFunnelStats(state, issueType),
+    [`pipeline-research-funnel-${state}-${issueType ?? 'all'}`],
+    { revalidate: 3600, tags: ['pipeline-analytics'] }
+  );
 }
 
 /** Fetch all context/research subtab data in parallel. */

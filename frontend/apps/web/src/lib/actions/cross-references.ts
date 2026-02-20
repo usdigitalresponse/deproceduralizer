@@ -15,7 +15,7 @@ import {
   type DocumentNeighborhood,
   type StateCode,
 } from '@deproceduralizer/database';
-import { type ActionResult, success, failure, getErrorMessage } from './types';
+import { type ActionResult, runAction } from './types';
 
 const crossRefsRepo = new CrossReferencesRepository(db);
 
@@ -26,13 +26,7 @@ const crossRefsRepo = new CrossReferencesRepository(db);
 export async function getCrossReferencesForDocument(
   documentId: number
 ): Promise<ActionResult<CrossReferenceWithTarget[]>> {
-  try {
-    const refs = await crossRefsRepo.getBySourceDocumentId(documentId);
-    return success(refs);
-  } catch (error) {
-    console.error('[getCrossReferencesForDocument]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getCrossReferencesForDocument', () => crossRefsRepo.getBySourceDocumentId(documentId));
 }
 
 /**
@@ -42,13 +36,7 @@ export async function getCrossReferencesForDocument(
 export async function getIncomingReferences(
   documentId: number
 ): Promise<ActionResult<CrossReferenceWithSource[]>> {
-  try {
-    const refs = await crossRefsRepo.getByTargetDocumentId(documentId);
-    return success(refs);
-  } catch (error) {
-    console.error('[getIncomingReferences]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getIncomingReferences', () => crossRefsRepo.getByTargetDocumentId(documentId));
 }
 
 /**
@@ -58,13 +46,7 @@ export async function getIncomingReferences(
 export async function getCrossReferencesForHighlighting(
   documentId: number
 ): Promise<ActionResult<HighlightRef[]>> {
-  try {
-    const refs = await crossRefsRepo.getForHighlighting(documentId);
-    return success(refs);
-  } catch (error) {
-    console.error('[getCrossReferencesForHighlighting]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getCrossReferencesForHighlighting', () => crossRefsRepo.getForHighlighting(documentId));
 }
 
 /**
@@ -73,13 +55,7 @@ export async function getCrossReferencesForHighlighting(
 export async function getCrossReferenceStats(
   state: StateCode
 ): Promise<ActionResult<CrossRefStats>> {
-  try {
-    const stats = await crossRefsRepo.getStatsByState(state);
-    return success(stats);
-  } catch (error) {
-    console.error('[getCrossReferenceStats]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getCrossReferenceStats', () => crossRefsRepo.getStatsByState(state));
 }
 
 /**
@@ -88,13 +64,7 @@ export async function getCrossReferenceStats(
 export async function getCrossReferenceCount(
   documentId: number
 ): Promise<ActionResult<number>> {
-  try {
-    const count = await crossRefsRepo.getCountBySourceDocumentId(documentId);
-    return success(count);
-  } catch (error) {
-    console.error('[getCrossReferenceCount]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getCrossReferenceCount', () => crossRefsRepo.getCountBySourceDocumentId(documentId));
 }
 
 /**
@@ -103,13 +73,7 @@ export async function getCrossReferenceCount(
 export async function getIncomingReferenceCount(
   documentId: number
 ): Promise<ActionResult<number>> {
-  try {
-    const count = await crossRefsRepo.getCountByTargetDocumentId(documentId);
-    return success(count);
-  } catch (error) {
-    console.error('[getIncomingReferenceCount]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getIncomingReferenceCount', () => crossRefsRepo.getCountByTargetDocumentId(documentId));
 }
 
 // =============================================================================
@@ -125,13 +89,7 @@ export async function getReferenceGraph(
   state: StateCode,
   level: GraphLevel = 'title'
 ): Promise<ActionResult<ReferenceEdge[]>> {
-  try {
-    const edges = await crossRefsRepo.getReferenceGraph(state, level);
-    return success(edges);
-  } catch (error) {
-    console.error('[getReferenceGraph]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getReferenceGraph', () => crossRefsRepo.getReferenceGraph(state, level));
 }
 
 /**
@@ -152,13 +110,7 @@ export async function getTopCitedDocuments(
   limit: number = 20,
   sortBy: 'in' | 'out' | 'total' = 'total'
 ): Promise<ActionResult<DocumentHub[]>> {
-  try {
-    const hubs = await crossRefsRepo.getTopHubs(state, limit, sortBy);
-    return success(hubs);
-  } catch (error) {
-    console.error('[getTopCitedDocuments]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getTopCitedDocuments', () => crossRefsRepo.getTopHubs(state, limit, sortBy));
 }
 
 /**
@@ -169,13 +121,7 @@ export async function getCircularReferences(
   state: StateCode,
   maxDepth: number = 4
 ): Promise<ActionResult<CircularReference[]>> {
-  try {
-    const cycles = await crossRefsRepo.detectCircularReferences(state, maxDepth);
-    return success(cycles);
-  } catch (error) {
-    console.error('[getCircularReferences]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getCircularReferences', () => crossRefsRepo.detectCircularReferences(state, maxDepth));
 }
 
 /**
@@ -185,11 +131,5 @@ export async function getCircularReferences(
 export async function getDocumentReferenceContext(
   documentId: number
 ): Promise<ActionResult<DocumentNeighborhood>> {
-  try {
-    const neighborhood = await crossRefsRepo.getDocumentNeighborhood(documentId);
-    return success(neighborhood);
-  } catch (error) {
-    console.error('[getDocumentReferenceContext]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getDocumentReferenceContext', () => crossRefsRepo.getDocumentNeighborhood(documentId));
 }

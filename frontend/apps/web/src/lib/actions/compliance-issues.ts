@@ -1,7 +1,7 @@
 'use server';
 
 import 'server-only';
-import { updateTag, unstable_cache } from 'next/cache';
+import { updateTag } from 'next/cache';
 import {
   db,
   ComplianceIssuesRepository,
@@ -22,7 +22,7 @@ import {
 
 // PR 6.3: updateReview now returns ComplianceIssueWithAnalysisFields (review fields from analyses)
 import { expandContext } from '@/lib/utils/expandContext';
-import { type ActionResult, success, failure, getErrorMessage } from './types';
+import { type ActionResult, success, failure, getErrorMessage, runAction, runCachedAction } from './types';
 
 const complianceIssuesRepo = new ComplianceIssuesRepository(db);
 const regulatoryDocumentsRepo = new RegulatoryDocumentsRepository(db);
@@ -94,13 +94,10 @@ export async function updateComplianceIssueReview(
 export async function getComplianceIssueById(
   id: number
 ): Promise<ActionResult<ComplianceIssue | null>> {
-  try {
+  return runAction('getComplianceIssueById', async () => {
     const result = await complianceIssuesRepo.getById(id);
-    return success(result ?? null);
-  } catch (error) {
-    console.error('[getComplianceIssueById]', error);
-    return failure(getErrorMessage(error));
-  }
+    return result ?? null;
+  });
 }
 
 /**
@@ -111,13 +108,7 @@ export async function getComplianceIssueById(
 export async function getComplianceIssuesByDocumentId(
   documentId: number
 ): Promise<ActionResult<ComplianceIssueWithAnalysisFields[]>> {
-  try {
-    const result = await complianceIssuesRepo.getByDocumentId(documentId);
-    return success(result);
-  } catch (error) {
-    console.error('[getComplianceIssuesByDocumentId]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getComplianceIssuesByDocumentId', () => complianceIssuesRepo.getByDocumentId(documentId));
 }
 
 /**
@@ -129,18 +120,12 @@ export async function getComplianceIssuesByDocumentId(
 export async function getComplianceIssueTypes(
   state: StateCode
 ): Promise<ActionResult<string[]>> {
-  try {
-    const cachedGetIssueTypes = unstable_cache(
-      () => complianceIssuesRepo.getIssueTypes(state),
-      [`compliance-issue-types-${state}`],
-      { revalidate: 300 } // 5 minutes
-    );
-    const result = await cachedGetIssueTypes();
-    return success(result);
-  } catch (error) {
-    console.error('[getComplianceIssueTypes]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runCachedAction(
+    'getComplianceIssueTypes',
+    () => complianceIssuesRepo.getIssueTypes(state),
+    [`compliance-issue-types-${state}`],
+    { revalidate: 300 }
+  );
 }
 
 // Status counts interface matching repository output
@@ -163,18 +148,12 @@ export interface ComplianceIssueStatusCounts {
 export async function getComplianceIssueStatusCounts(
   state: StateCode
 ): Promise<ActionResult<ComplianceIssueStatusCounts>> {
-  try {
-    const cachedGetStatusCounts = unstable_cache(
-      () => complianceIssuesRepo.getCountsByStatus(state),
-      [`compliance-issue-status-counts-${state}`],
-      { revalidate: 120, tags: ['compliance-issues'] } // 2 minutes
-    );
-    const result = await cachedGetStatusCounts();
-    return success(result);
-  } catch (error) {
-    console.error('[getComplianceIssueStatusCounts]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runCachedAction(
+    'getComplianceIssueStatusCounts',
+    () => complianceIssuesRepo.getCountsByStatus(state),
+    [`compliance-issue-status-counts-${state}`],
+    { revalidate: 120, tags: ['compliance-issues'] }
+  );
 }
 
 /**
@@ -185,13 +164,7 @@ export async function getComplianceIssueStatusCounts(
 export async function getComplianceIssueCountsByType(
   state: StateCode
 ): Promise<ActionResult<Record<string, number>>> {
-  try {
-    const result = await complianceIssuesRepo.getCountsByType(state);
-    return success(result);
-  } catch (error) {
-    console.error('[getComplianceIssueCountsByType]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getComplianceIssueCountsByType', () => complianceIssuesRepo.getCountsByType(state));
 }
 
 export interface ComplianceIssueStats {
@@ -207,13 +180,7 @@ export interface ComplianceIssueStats {
 export async function getComplianceIssueStats(
   state?: StateCode
 ): Promise<ActionResult<ComplianceIssueStats>> {
-  try {
-    const result = await complianceIssuesRepo.getStatsByState(state);
-    return success(result);
-  } catch (error) {
-    console.error('[getComplianceIssueStats]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getComplianceIssueStats', () => complianceIssuesRepo.getStatsByState(state));
 }
 
 /**
@@ -241,8 +208,8 @@ export async function getComplianceIssuesPaginated(
     };
   }
 ): Promise<ActionResult<PaginatedComplianceIssuesResult>> {
-  try {
-    const result = await complianceIssuesRepo.getAllPaginated({
+  return runAction('getComplianceIssuesPaginated', () =>
+    complianceIssuesRepo.getAllPaginated({
       state,
       page: options.page,
       pageSize: options.pageSize,
@@ -258,12 +225,8 @@ export async function getComplianceIssuesPaginated(
         federalMandate: options.filters.federalMandate,
         hasAnalysis: options.filters.hasAnalysis,
       } : undefined,
-    });
-    return success(result);
-  } catch (error) {
-    console.error('[getComplianceIssuesPaginated]', error);
-    return failure(getErrorMessage(error));
-  }
+    })
+  );
 }
 
 interface ExpandedContextResult {
@@ -280,22 +243,19 @@ export async function getExpandedContext(
   context: string,
   charsBeforeAfter: number = 800
 ): Promise<ActionResult<ExpandedContextResult>> {
-  try {
+  return runAction('getExpandedContext', async () => {
     const doc = await regulatoryDocumentsRepo.getById(documentId);
 
     if (!doc?.content) {
-      return success({ expandedText: context, couldExpand: false });
+      return { expandedText: context, couldExpand: false };
     }
 
     const result = expandContext(doc.content, context, charsBeforeAfter);
-    return success({
+    return {
       expandedText: result.expandedText,
       couldExpand: result.couldExpand,
-    });
-  } catch (error) {
-    console.error('[getExpandedContext]', error);
-    return failure(getErrorMessage(error));
-  }
+    };
+  });
 }
 
 /**
@@ -333,20 +293,16 @@ export async function getComplianceSuggestionBatch(
     recentIssueTypes?: string[];
   }
 ): Promise<ActionResult<SuggestionBatchResult>> {
-  try {
-    const result = await complianceIssuesRepo.getSuggestionBatch({
+  return runAction('getComplianceSuggestionBatch', () =>
+    complianceIssuesRepo.getSuggestionBatch({
       state,
       batchSize: options.batchSize,
       excludeIds: options.excludeIds,
       groupingMode: options.groupingMode,
       focus: options.focus,
       recentIssueTypes: options.recentIssueTypes,
-    });
-    return success(result);
-  } catch (error) {
-    console.error('[getComplianceSuggestionBatch]', error);
-    return failure(getErrorMessage(error));
-  }
+    })
+  );
 }
 
 /**
@@ -358,28 +314,16 @@ export async function getComplianceSuggestionBatch(
 export async function getAnalysisTierCounts(
   state: StateCode
 ): Promise<ActionResult<TierCompletionCounts>> {
-  try {
-    const result = await complianceIssuesRepo.getAnalysisTierCounts(state);
-    return success(result);
-  } catch (error) {
-    console.error('[getAnalysisTierCounts]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runAction('getAnalysisTierCounts', () => complianceIssuesRepo.getAnalysisTierCounts(state));
 }
 
 export async function getComplianceSeverityDistribution(
   state: StateCode
 ): Promise<ActionResult<SeverityDistribution>> {
-  try {
-    const cachedFn = unstable_cache(
-      () => complianceIssuesRepo.getSeverityDistribution(state),
-      [`compliance-severity-dist-${state}`],
-      { revalidate: 3600, tags: ['compliance-analytics'] }
-    );
-    const data = await cachedFn();
-    return success(data);
-  } catch (error) {
-    console.error('[getComplianceSeverityDistribution]', error);
-    return failure(getErrorMessage(error));
-  }
+  return runCachedAction(
+    'getComplianceSeverityDistribution',
+    () => complianceIssuesRepo.getSeverityDistribution(state),
+    [`compliance-severity-dist-${state}`],
+    { revalidate: 3600, tags: ['compliance-analytics'] }
+  );
 }
