@@ -293,6 +293,8 @@ async def extract_with_llm_async(
     client=None,
     max_retries: int = 3,
     trace_context: Optional["LLMTraceContext"] = None,
+    cache=None,
+    document_id=None,
 ) -> List[Dict]:
     """Extract definitions using LLM with Pydantic structured output (async)."""
     if client is None:
@@ -310,6 +312,8 @@ async def extract_with_llm_async(
         model=MODEL_VERSION,
         max_retries=max_retries,
         trace_context=trace_context,
+        cache=cache,
+        cache_metadata={"pipeline": "definitions", "tier": None, "document_id": document_id},
     )
 
     if parsed is None:
@@ -483,6 +487,7 @@ def infer_scope_level_from_phrase(conn=None, state: str = None, dry_run: bool = 
         (re_module.compile(r'in this regulation$', re_module.IGNORECASE), 'section', True),
         (re_module.compile(r'in this (?:Executive )?Order', re_module.IGNORECASE), 'section', True),
         (re_module.compile(r'as used herein', re_module.IGNORECASE), 'section', True),
+        (re_module.compile(r'in this Article', re_module.IGNORECASE), 'article', False),
         (re_module.compile(r'in this Subpart', re_module.IGNORECASE), 'subpart', False),
         (re_module.compile(r'in this Part', re_module.IGNORECASE), 'part', False),
         (re_module.compile(r'in this Subchapter', re_module.IGNORECASE), 'subchapter', False),
@@ -667,6 +672,123 @@ def infer_scope_from_parent_section(doc_ids: List[int] = None, dry_run: bool = F
     return updated
 
 
+def infer_scope_from_any_section(state: str = None, dry_run: bool = False) -> int:
+    """
+    For definitions with null scope_level AND null scope in ANY section
+    (not just definition-titled ones), infer scope by walking up the
+    document hierarchy to the first ancestor with a DIFFERENT hierarchy_level.
+
+    This is a broader version of infer_scope_from_parent_section() that
+    covers inline definitions extracted from "shall mean" patterns in
+    substantive regulation sections. Lower confidence than definition-section
+    inference, but covers ~4,700 otherwise-unlinked definitions.
+
+    Args:
+        state: Optional state filter (e.g., 'NY', 'NJ', 'NYC')
+        dry_run: If True, show what would be updated without making changes
+
+    Returns:
+        Number of definitions updated
+    """
+    conn = get_db_connection()
+    if not conn:
+        print("ERROR: Could not connect to database")
+        return 0
+
+    state_filter = ""
+    params = []
+    if state:
+        state_filter = "AND section.state = %s"
+        params.append(state.upper())
+
+    base_cte = f"""
+        WITH RECURSIVE ancestors AS (
+            SELECT
+                d.id as def_id,
+                section.id as start_doc_id,
+                section.hierarchy_level as start_level,
+                section.parent_id as current_parent_id,
+                1 as depth
+            FROM definitions d
+            JOIN regulatory_documents section ON d.document_id = section.id
+            WHERE (d.scope_level IS NULL OR d.scope_level = '' OR d.scope_level = 'null')
+              AND (d.scope IS NULL OR d.scope = '')
+              AND d.scope_document_id IS NULL
+              AND section.parent_id IS NOT NULL
+              {state_filter}
+
+            UNION ALL
+
+            SELECT
+                a.def_id,
+                a.start_doc_id,
+                a.start_level,
+                parent.parent_id as current_parent_id,
+                a.depth + 1
+            FROM ancestors a
+            JOIN regulatory_documents parent ON a.current_parent_id = parent.id
+            WHERE parent.hierarchy_level = a.start_level
+              AND parent.parent_id IS NOT NULL
+              AND a.depth < 10
+        ),
+        first_different_ancestor AS (
+            SELECT DISTINCT ON (a.def_id)
+                a.def_id,
+                ancestor.id as scope_doc_id,
+                ancestor.hierarchy_level as scope_level
+            FROM ancestors a
+            JOIN regulatory_documents ancestor ON a.current_parent_id = ancestor.id
+            WHERE ancestor.hierarchy_level != a.start_level
+            ORDER BY a.def_id, a.depth
+        )
+    """
+
+    count_query = base_cte + "SELECT COUNT(*) FROM first_different_ancestor"
+    total = conn.execute(count_query, params).fetchone()[0]
+
+    state_label = f" ({state.upper()})" if state else ""
+    print(f"  Found {total} definitions in any section needing parent-based scope{state_label}")
+
+    if total == 0:
+        conn.close()
+        return 0
+
+    if dry_run:
+        # Show a sample
+        sample_query = base_cte + """
+            SELECT fda.def_id, fda.scope_level,
+                   d.term, section.title as doc_title
+            FROM first_different_ancestor fda
+            JOIN definitions d ON d.id = fda.def_id
+            JOIN regulatory_documents section ON d.document_id = section.id
+            ORDER BY fda.def_id
+            LIMIT 5
+        """
+        samples = conn.execute(sample_query, params).fetchall()
+        for def_id, scope_level, term, doc_title in samples:
+            print(f"    [{def_id}] \"{term[:30]}\" in {doc_title[:50]} → scope: {scope_level}")
+        if total > 5:
+            print(f"    ... and {total - 5} more")
+        conn.close()
+        return 0
+
+    update_query = base_cte + """
+        UPDATE definitions d
+        SET
+            scope_level = fda.scope_level,
+            scope_document_id = fda.scope_doc_id
+        FROM first_different_ancestor fda
+        WHERE d.id = fda.def_id
+    """
+
+    result = conn.execute(update_query, params)
+    updated = result.rowcount
+    conn.commit()
+    conn.close()
+
+    return updated
+
+
 def populate_scope_document_ids(dry_run: bool = False):
     """
     For each definition with scope_level set, walk up the hierarchy
@@ -708,6 +830,7 @@ def populate_scope_document_ids(dry_run: bool = False):
     # Fallback chain: try progressively broader scope levels
     FALLBACK_CHAIN = {
         'section': ['subpart', 'part', 'subchapter', 'chapter', 'title'],
+        'article': ['part', 'subchapter', 'chapter', 'title'],
         'subpart': ['part', 'subchapter', 'chapter', 'title'],
         'part': ['subchapter', 'chapter', 'title'],
         'subchapter': ['chapter', 'title'],
@@ -1162,7 +1285,7 @@ def cmd_process(args):
     print()
 
     # Check batch status
-    print("[1/7] Checking batch status...")
+    print("[1/8] Checking batch status...")
     client = get_anthropic_client()
 
     try:
@@ -1191,7 +1314,7 @@ def cmd_process(args):
     print()
 
     # Retrieve results (streaming)
-    print("[2/7] Retrieving and processing results...")
+    print("[2/8] Retrieving and processing results...")
     print(f"      Streaming {batch_info.get('total_requests', 0)} results...")
     sys.stdout.flush()
 
@@ -1202,7 +1325,7 @@ def cmd_process(args):
         return
 
     # Process results and store definitions
-    print("[3/7] Processing results and storing definitions...")
+    print("[3/8] Processing results and storing definitions...")
     sys.stdout.flush()
 
     conn = get_db_connection()
@@ -1374,8 +1497,22 @@ def cmd_process(args):
     with open(info_file, 'w') as f:
         json.dump(batch_info, f, indent=2)
 
+    # Clean up literal 'null' scope_level values from LLM extraction
+    try:
+        conn_cleanup = get_db_connection()
+        if conn_cleanup:
+            fixed = conn_cleanup.execute(
+                "UPDATE definitions SET scope_level = NULL WHERE scope_level = 'null'"
+            ).rowcount
+            if fixed > 0:
+                conn_cleanup.commit()
+                print(f"      Fixed {fixed} definitions with literal 'null' scope_level")
+            conn_cleanup.close()
+    except Exception as e:
+        print(f"      Could not clean up null scope_levels: {e}")
+
     # Infer scope_level from scope phrase text
-    print("[4/7] Inferring scope_level from scope phrases...")
+    print("[4/8] Inferring scope_level from scope phrases...")
 
     try:
         phrase_inferred = infer_scope_level_from_phrase(state=batch_info.get('state'), dry_run=False)
@@ -1386,20 +1523,32 @@ def cmd_process(args):
     except Exception as e:
         print(f"      Could not run phrase scope inference: {e}")
 
-    # Infer scope from parent hierarchy for remaining definitions
-    print("[5/7] Inferring scope from parent hierarchy...")
+    # Infer scope from parent hierarchy for definition-titled sections
+    print("[5/8] Inferring scope from parent hierarchy (definition sections)...")
 
     try:
         inferred = infer_scope_from_parent_section(doc_ids=doc_ids, dry_run=False)
         if inferred > 0:
-            print(f"      Inferred scope for {inferred} definitions from parent hierarchy")
+            print(f"      Inferred scope for {inferred} definitions from parent hierarchy (def sections)")
         else:
             print(f"      (no definitions needed parent-based scope inference)")
     except Exception as e:
         print(f"      Could not run parent scope inference: {e}")
 
+    # Infer scope from parent hierarchy for ALL sections (inline definitions)
+    print("[6/8] Inferring scope from parent hierarchy (all sections)...")
+
+    try:
+        any_inferred = infer_scope_from_any_section(state=batch_info.get('state'), dry_run=False)
+        if any_inferred > 0:
+            print(f"      Inferred scope for {any_inferred} definitions from parent hierarchy (all sections)")
+        else:
+            print(f"      (no definitions needed broad parent-based scope inference)")
+    except Exception as e:
+        print(f"      Could not run broad parent scope inference: {e}")
+
     # Run scope document linking for definitions with explicit scope_level
-    print("[6/7] Linking scope documents...")
+    print("[7/8] Linking scope documents...")
 
     try:
         populate_scope_document_ids(dry_run=False)
@@ -1407,7 +1556,7 @@ def cmd_process(args):
         print(f"      Could not run scope linking: {e}")
 
     # Link definitions to documents where terms appear
-    print("[7/7] Linking definitions to documents where terms appear...")
+    print("[8/8] Linking definitions to documents where terms appear...")
 
     try:
         from link_definitions import link_new_definitions

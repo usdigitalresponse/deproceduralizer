@@ -491,6 +491,7 @@ async def run_tier2_with_reruns(
     client=None,
     cost_tracker=None,
     trace_context=None,
+    cache=None,
 ) -> list[TrackedUnit]:
     """
     Run Tier 2 using real-time API with re-run support.
@@ -678,6 +679,8 @@ async def run_tier2_with_reruns(
                     system=prompt_parts["system"],
                     model=DEFAULT_MODEL,
                     trace_context=trace_context,
+                    cache=cache,
+                    cache_metadata={"pipeline": "research", "tier": 2, "document_id": doc_id},
                 )
 
                 # Record costs using actual usage from API response

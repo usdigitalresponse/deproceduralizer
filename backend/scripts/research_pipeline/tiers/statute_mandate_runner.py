@@ -183,6 +183,7 @@ async def run_statute_mandate_checks(
     dry_run: bool = True,
     limit: Optional[int] = None,
     model: Optional[str] = None,
+    cache=None,
 ) -> dict:
     """
     Run statute mandate checks for flagged analyses with statute links.
@@ -315,6 +316,8 @@ async def run_statute_mandate_checks(
                 system=system_prompt,
                 model=model,
                 max_tokens=64000,
+                cache=cache,
+                cache_metadata={"pipeline": "research", "tier": None, "document_id": candidate.get("document_id")},
             )
 
             if result:

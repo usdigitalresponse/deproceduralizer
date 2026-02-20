@@ -10,7 +10,9 @@ The `state` column appears on most tables and represents a **jurisdiction**, not
 | `NJ` | New Jersey | NJAC columns (`njac_title`, `njac_chapter`, etc.) | NJSA columns (`njsa_title`, `njsa_section`, etc.) |
 | `NYC` | New York City | RCNY columns (`rcny_title`, `rcny_chapter`, `rcny_section`) | NYC Charter + Admin Code (`nyc_doc_type`, `nyc_title`, `nyc_section`, etc.) |
 
-NYC is a sub-state jurisdiction. Its regulations (RCNY) live in `regulatory_documents` with `state = 'NYC'`, and its statutes (Charter + Admin Code) live in `statutes` with `state = 'NYC'`.
+NYC is a sub-state jurisdiction. Its regulations (RCNY + Health Code) live in `regulatory_documents` with `state = 'NYC'`, and its statutes (Charter + Admin Code) live in `statutes` with `state = 'NYC'`.
+
+**NYC Health Code** records also use the `rcny_*` columns but with different citation format (`NYC Health Code § X.YY` vs `RCNY § X-YY`). Health Code `source_index` values start at 100,000 to avoid collision with RCNY records (which max around ~7,777). Both share `state='NYC', type='regulation'`.
 
 When adding a new jurisdiction, you must:
 1. Add the code to the `StateCode` type in `constants.ts` and `VALID_STATES`
@@ -187,41 +189,27 @@ Script: `backend/scripts/batch_exclude_ny_sections.py` (use `--dry-run` to previ
 
 ## jenai_analyses
 
-JenAI two-tier pipeline analysis results. One row per document analyzed. Successor to the `analyses` table with richer context-aware analysis.
+JenAI single-pass pipeline analysis results. One row per document analyzed.
 
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | bigserial | Primary key |
 | `document_id` | bigint NOT NULL | FK to regulatory_documents (UNIQUE) |
-| `state` | varchar(2) | NY or NJ |
+| `state` | varchar(3) | NY, NJ, or NYC |
 | `run_id` | varchar(32) | Pipeline run identifier |
 
-**Tier 1: Catalog Context**
+**Analysis Results**
 
 | Column | Type | Description |
 |--------|------|-------------|
-| `tier1_categories` | jsonb | Array of category findings from Tier 1 |
-| `tier1_has_issues` | boolean | Whether any non-opportunity issues found |
-| `tier1_classification` | varchar(30) | `has_issues`, `clean`, or `needs_context` |
-| `tier1_confidence` | real | 0.0-1.0 |
-| `tier1_context_requests` | jsonb | ContextRequest objects for Tier 2 |
-| `tier1_batch_id` | varchar(100) | Anthropic batch API ID |
-| `tier1_completed_at` | timestamp | When Tier 1 completed |
+| `batch_id` | varchar(100) | Anthropic batch API ID |
+| `completed_at` | timestamp | When analysis completed |
+| `classification` | varchar(30) | `has_issues` or `clean` |
+| `confidence` | real | 0.0-1.0 |
+| `categories` | jsonb | Array of all category findings |
+| `worst_thing` | text | WORST_THING explanation text |
 
-**Tier 2: Full Context Confirmation**
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `tier2_categories` | jsonb | Array of category results from Tier 2 |
-| `tier2_has_issues` | boolean | Whether any non-opportunity issues confirmed |
-| `tier2_classification` | varchar(30) | `confirmed`, `revised`, or `dismissed` |
-| `tier2_confidence` | real | 0.0-1.0 |
-| `tier2_new_discoveries` | jsonb | Categories discovered only in Tier 2 |
-| `tier2_context_used` | jsonb | Context audit trail |
-| `tier2_batch_id` | varchar(100) | Anthropic batch API ID |
-| `tier2_completed_at` | timestamp | When Tier 2 completed |
-
-**Final Derived**
+**Derived**
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -229,19 +217,18 @@ JenAI two-tier pipeline analysis results. One row per document analyzed. Success
 | `overall_complexity` | varchar(10) | HIGH/MEDIUM/LOW |
 | `summary` | text | Analysis summary |
 | `max_severity` | integer | Highest severity across categories |
-| `num_categories_found` | integer | Count of active (non-dismissed) categories |
+| `num_categories_found` | integer | Count of categories found |
 
 **Pipeline Tracking**
 
 | Column | Type | Description |
 |--------|------|-------------|
-| `highest_tier_completed` | integer | 0, 1, or 2 |
-| `pipeline_version` | varchar(20) | Default 'v1' |
+| `pipeline_version` | varchar(20) | Default 'v2' |
 | `model_version` | varchar(100) | LLM model used |
 
 **Constraints:** `jenai_analyses_document_unique UNIQUE(document_id)`
 
-**Indexes:** `idx_jenai_analyses_state`, `idx_jenai_analyses_run_id`, `idx_jenai_analyses_tier_completed`
+**Indexes:** `idx_jenai_analyses_state`, `idx_jenai_analyses_run_id`
 
 ## jenai_issues
 
@@ -261,15 +248,12 @@ One row per category finding per document. Links to `jenai_analyses`.
 | `implementation_approach` | text | Suggested implementation approach |
 | `effort_estimate` | varchar(255) | Effort estimate |
 | `text_examples` | text[] | Example text from the regulation |
-| `discovered_in_tier` | integer (1 or 2) | Which tier first found this |
-| `confirmed_in_tier` | integer | Which tier confirmed (NULL if unconfirmed) |
-| `tier2_revised` | boolean | Whether Tier 2 revised Tier 1's assessment |
 
-**Valid Categories (14 — Pahlka framework):**
+**Valid Categories (14 — 13 Pahlka + WORST_THING):**
 - `REGULATORY_COMPLEXITY`, `POLICY_IMPLEMENTATION_SEPARATION`, `CASCADE_OF_RIGIDITY`
 - `MANDATED_STEPS_NOT_OUTCOMES`, `ADMINISTRATIVE_BURDENS`, `NO_FEEDBACK_LOOPS`
 - `PROCESS_WORSHIP_OVERSIGHT`, `ZERO_RISK_LANGUAGE`, `FROZEN_TECHNOLOGY`
-- `IMPLEMENTATION_OPPORTUNITY` (positive finding, not a problem)
+- `WORST_THING` (adversarial — always required, can duplicate another category)
 - `MISSING_OUTCOMES`, `UNCLEAR_DELEGATION`, `ACCESS_ASSUMPTION_BARRIERS`, `INTERAGENCY_FRAGMENTATION`
 
 **Review/Developer fields:** Same pattern as `red_flags` — `review_status`, `reviewed_by`, `reviewed_at`, `justification_notes`, `team_notes`, `priority`, `impact_type`, `developer_status`, `developer_assigned`, `developer_notes`, `resolution_type`, `resolution_comments`, `developer_question`, `developer_checked_at`
@@ -915,6 +899,32 @@ Stores user feedback on LLM prompts defined in `prompts/core.yaml`.
 | `author_name` | varchar(255) | Who submitted |
 | `created_at` | timestamp | When submitted |
 | `updated_at` | timestamp | Last updated |
+
+## llm_api_cache
+
+Caches LLM API responses to avoid redundant calls across pipeline runs. Used by research pipeline, JenAI pipeline, and summarization.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | uuid | Primary key (gen_random_uuid()) |
+| `request_hash` | text NOT NULL UNIQUE | SHA-256 of canonical request params (model, system, messages, tools, tool_choice, max_tokens) |
+| `pipeline` | text | `research`, `jenai`, `summarization`, etc. |
+| `tier` | integer | 1, 2, 3, or NULL |
+| `document_id` | bigint | FK to regulatory_documents (nullable) |
+| `model` | text NOT NULL | LLM model used |
+| `request_body` | jsonb NOT NULL | Full request payload |
+| `response_body` | jsonb NOT NULL | Full response payload |
+| `input_tokens` | integer | Input token count |
+| `output_tokens` | integer | Output token count |
+| `cache_read_tokens` | integer | Anthropic prompt cache read tokens |
+| `cache_write_tokens` | integer | Anthropic prompt cache write tokens |
+| `stale_after` | timestamptz | NULL = never stale |
+| `created_at` | timestamptz | When cached |
+| `prompt_hash` | text | Hash of just the prompt template |
+
+**Implementation:** `backend/lib/cache.py` (CacheManager class). Integrated into `run_batch_tier()` and `run_realtime_tier()` in `lib/batch.py`. Enabled by default; disable with `--no-cache` CLI flag.
+
+**Indexes:** `llm_api_cache_request_hash_key` (unique on `request_hash`), `idx_cache_semantic` (`pipeline`, `tier`), `idx_cache_document` (`document_id`), `idx_cache_stale` (partial on `stale_after` WHERE NOT NULL)
 
 ## Enum Types
 

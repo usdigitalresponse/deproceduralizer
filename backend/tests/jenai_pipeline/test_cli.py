@@ -86,26 +86,16 @@ class TestExecutionFlags:
         assert args.include_all_types is True
 
 
-class TestTierFlags:
-    def test_max_tier_default_2(self, parser):
-        args = parser.parse_args(['--state', 'ny'])
-        assert args.max_tier == 2
+class TestRemovedTierFlags:
+    """Verify that old tier flags are no longer accepted."""
 
-    def test_max_tier_1(self, parser):
-        args = parser.parse_args(['--state', 'ny', '--max-tier', '1'])
-        assert args.max_tier == 1
-
-    def test_max_tier_invalid(self, parser):
+    def test_max_tier_rejected(self, parser):
         with pytest.raises(SystemExit):
-            parser.parse_args(['--state', 'ny', '--max-tier', '3'])
+            parser.parse_args(['--state', 'ny', '--max-tier', '1'])
 
-    def test_tier2_only_default_false(self, parser):
-        args = parser.parse_args(['--state', 'ny'])
-        assert args.tier2_only is False
-
-    def test_tier2_only_flag(self, parser):
-        args = parser.parse_args(['--state', 'ny', '--tier2-only'])
-        assert args.tier2_only is True
+    def test_tier2_only_rejected(self, parser):
+        with pytest.raises(SystemExit):
+            parser.parse_args(['--state', 'ny', '--tier2-only'])
 
 
 class TestDocumentIdFlag:

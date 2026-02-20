@@ -117,3 +117,6 @@ export { ScrollToHash } from './ScrollToHash';
 // EntityTypeIndicator
 export { EntityTypeIndicator } from './EntityTypeIndicator';
 export type { EntityTypeIndicatorProps } from './EntityTypeIndicator';
+
+// MarkdownTable
+export { MarkdownTable } from './MarkdownTable';

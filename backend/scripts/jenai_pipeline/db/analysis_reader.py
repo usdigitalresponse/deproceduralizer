@@ -7,14 +7,14 @@ def get_existing_analyses(
 ) -> dict[int, dict]:
     """Fetch existing JenAI analyses for given document IDs.
 
-    Used for resume/tier2-only mode to check what has already been analyzed.
+    Used for resume: check what has already been analyzed.
 
     Args:
         document_ids: List of regulatory_documents IDs
 
     Returns:
         Dict mapping document_id -> analysis info dict with keys:
-            analysis_id, highest_tier_completed, tier1_classification
+            analysis_id, classification
     """
     if not document_ids:
         return {}
@@ -29,8 +29,7 @@ def get_existing_analyses(
                 SELECT
                     document_id,
                     id AS analysis_id,
-                    highest_tier_completed,
-                    tier1_classification
+                    classification
                 FROM jenai_analyses
                 WHERE document_id = ANY(%s)
             """, (document_ids,))
@@ -39,8 +38,7 @@ def get_existing_analyses(
             for row in cur.fetchall():
                 result[row[0]] = {
                     'analysis_id': row[1],
-                    'highest_tier_completed': row[2],
-                    'tier1_classification': row[3],
+                    'classification': row[2],
                 }
         conn.close()
         return result

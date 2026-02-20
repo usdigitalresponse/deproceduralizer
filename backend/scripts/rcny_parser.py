@@ -47,6 +47,7 @@ from config import (
     RCNY_REGULATIONS_COMPLETE_FILE,
     ensure_data_dirs,
 )
+from lib.db import get_db_connection
 from lib.migration import migrate_regulations_to_db, populate_parent_ids
 from lib.stats import format_time
 from dotenv import load_dotenv
@@ -551,7 +552,14 @@ def migrate_rcny_to_db(records: Optional[list[dict]] = None) -> int:
 
 
 def populate_rcny_parent_ids(records: Optional[list[dict]] = None):
-    """Populate parent_id for RCNY regulations."""
+    """Populate parent_id for RCNY regulations.
+
+    Uses two strategies:
+    1. Source-index based (from parsed records) — standard approach
+    2. SQL-based matching on rcny_title/rcny_chapter/rcny_section columns —
+       catches any RCNY docs that lost parent_ids (e.g., after Health Code
+       parser clears NYC parents)
+    """
     if records is None:
         if RCNY_REGULATIONS_COMPLETE_FILE.exists():
             try:
@@ -564,6 +572,70 @@ def populate_rcny_parent_ids(records: Optional[list[dict]] = None):
             print(f"Error: File not found: {RCNY_REGULATIONS_COMPLETE_FILE}")
             return
     populate_parent_ids('NYC', regulations=records)
+
+    # SQL-based fallback: fix any RCNY orphans using rcny_* column matching
+    _fix_rcny_orphan_parents()
+
+
+def _fix_rcny_orphan_parents():
+    """Fix RCNY docs with no parent_id using rcny_title/chapter/section matching.
+
+    This catches cases where parent_ids were cleared (e.g., by another NYC parser)
+    or where source_index-based linking missed some records.
+    """
+    conn = get_db_connection()
+    if not conn:
+        return
+
+    # Link RCNY chapters to their RCNY titles
+    result = conn.execute("""
+        UPDATE regulatory_documents c
+        SET parent_id = t.id
+        FROM regulatory_documents t
+        WHERE c.state = 'NYC' AND c.hierarchy_level = 'chapter'
+          AND c.parent_id IS NULL
+          AND c.title LIKE 'RCNY%'
+          AND t.state = 'NYC' AND t.hierarchy_level = 'title'
+          AND t.rcny_title = c.rcny_title
+          AND t.title LIKE 'RCNY%'
+    """)
+    ch_count = result.rowcount
+
+    # Link RCNY sections to their RCNY chapters
+    result = conn.execute("""
+        UPDATE regulatory_documents s
+        SET parent_id = c.id
+        FROM regulatory_documents c
+        WHERE s.state = 'NYC' AND s.hierarchy_level = 'section'
+          AND s.parent_id IS NULL
+          AND s.title LIKE 'RCNY%'
+          AND c.state = 'NYC' AND c.hierarchy_level = 'chapter'
+          AND c.rcny_title = s.rcny_title
+          AND s.rcny_section LIKE c.rcny_chapter || '-%'
+          AND c.title LIKE 'RCNY%'
+    """)
+    sec_ch_count = result.rowcount
+
+    # Link remaining RCNY sections directly to titles (no matching chapter)
+    result = conn.execute("""
+        UPDATE regulatory_documents s
+        SET parent_id = t.id
+        FROM regulatory_documents t
+        WHERE s.state = 'NYC' AND s.hierarchy_level = 'section'
+          AND s.parent_id IS NULL
+          AND s.title LIKE 'RCNY%'
+          AND t.state = 'NYC' AND t.hierarchy_level = 'title'
+          AND t.rcny_title = s.rcny_title
+          AND t.title LIKE 'RCNY%'
+    """)
+    sec_t_count = result.rowcount
+
+    conn.commit()
+    conn.close()
+
+    total = ch_count + sec_ch_count + sec_t_count
+    if total > 0:
+        print(f"  Fixed {total:,} RCNY orphan parent_ids ({ch_count} chapters, {sec_ch_count} sections→chapters, {sec_t_count} sections→titles)")
 
 
 # =============================================================================

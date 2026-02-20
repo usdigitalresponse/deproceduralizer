@@ -19,9 +19,6 @@ interface JenAIIssueData {
   implementationApproach: string | null;
   effortEstimate: string | null;
   textExamples: string[] | null;
-  discoveredInTier: number;
-  confirmedInTier: number | null;
-  tier2Revised: boolean | null;
   reviewStatus: string | null;
   regulation: {
     id: number;
@@ -54,7 +51,7 @@ export function JenAICard({ issue, state = 'ny' }: JenAICardProps) {
 
   return (
     <CardWrapper id={`jenai-${issue.id}`} data-testid="jenai-card">
-      {/* Header: category, severity, confidence, tier info, review status */}
+      {/* Header: category, severity, confidence, review status */}
       <div className="flex flex-wrap items-center gap-2 mb-3">
         <Badge variant="info" className="text-xs font-medium">
           {categoryLabel}
@@ -68,16 +65,6 @@ export function JenAICard({ issue, state = 'ny' }: JenAICardProps) {
         <Badge variant="default" className="text-xs">
           {Math.round(issue.confidence * 100)}% confidence
         </Badge>
-        {/* Tier info */}
-        <Badge variant="default" className="text-xs">
-          T{issue.discoveredInTier}
-          {issue.confirmedInTier != null && issue.confirmedInTier !== issue.discoveredInTier && (
-            <span className="ml-0.5">→ T{issue.confirmedInTier}</span>
-          )}
-        </Badge>
-        {issue.tier2Revised && (
-          <Badge variant="warning" className="text-xs">Revised</Badge>
-        )}
         {/* Review status */}
         {issue.reviewStatus && issue.reviewStatus !== 'unreviewed' && (
           <Badge

@@ -48,9 +48,11 @@ export const crossReferences = pgTable('cross_references', {
 
   // Metadata
   state: varchar('state', { length: 3 }).notNull(),
+  sourceJurisdiction: varchar('source_jurisdiction', { length: 3 }).notNull(),
+  targetJurisdiction: varchar('target_jurisdiction', { length: 3 }),
   createdAt: timestamp('created_at').defaultNow(),
 }, (table) => ({
-  uniqueSourceRawText: unique().on(table.sourceDocumentId, table.rawText),
+  uniqueSourceRawTextOffset: unique().on(table.sourceDocumentId, table.rawText, table.startOffset),
 }));
 
 export type CrossReference = typeof crossReferences.$inferSelect;

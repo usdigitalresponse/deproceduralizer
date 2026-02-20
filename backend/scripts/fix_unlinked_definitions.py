@@ -30,6 +30,7 @@ from lib.db import get_db_connection
 from scripts.batch_definitions import (
     infer_scope_level_from_phrase,
     infer_scope_from_parent_section,
+    infer_scope_from_any_section,
     populate_scope_document_ids,
 )
 
@@ -178,18 +179,47 @@ def main():
         print(f"  Inferred scope_level for {phrase_count} definitions from scope phrases")
     print()
 
-    # Step 3: Infer scope from parent hierarchy (definition-titled sections only)
+    # Step 3: Fix literal 'null' scope_level values (LLM extraction bug)
     print("=" * 60)
-    print("  Step 3: Infer scope from parent hierarchy (def-titled sections)")
+    print("  Step 3: Fix literal 'null' scope_level values")
+    print("=" * 60)
+    null_count = conn.execute("""
+        SELECT COUNT(*) FROM definitions WHERE scope_level = 'null'
+    """).fetchone()[0]
+    if null_count > 0:
+        if dry_run:
+            print(f"  Would fix {null_count} definitions with literal 'null' scope_level")
+        else:
+            conn.execute("""
+                UPDATE definitions SET scope_level = NULL WHERE scope_level = 'null'
+            """)
+            conn.commit()
+            print(f"  Fixed {null_count} definitions with literal 'null' scope_level")
+    else:
+        print("  No literal 'null' scope_level values found")
+    print()
+
+    # Step 4: Infer scope from parent hierarchy (definition-titled sections only)
+    print("=" * 60)
+    print("  Step 4: Infer scope from parent hierarchy (def-titled sections)")
     print("=" * 60)
     parent_count = infer_scope_from_parent_section(dry_run=dry_run)
     if not dry_run and parent_count > 0:
         print(f"  Inferred scope for {parent_count} definitions from parent hierarchy")
     print()
 
-    # Step 4: Populate scope_document_ids with fallback
+    # Step 5: Infer scope from parent hierarchy (ALL sections)
     print("=" * 60)
-    print("  Step 4: Populate scope_document_ids (with fallback)")
+    print("  Step 5: Infer scope from parent hierarchy (all sections)")
+    print("=" * 60)
+    any_count = infer_scope_from_any_section(state=args.state, dry_run=dry_run)
+    if not dry_run and any_count > 0:
+        print(f"  Inferred scope for {any_count} definitions from parent hierarchy (all sections)")
+    print()
+
+    # Step 6: Populate scope_document_ids with fallback
+    print("=" * 60)
+    print("  Step 6: Populate scope_document_ids (with fallback)")
     print("=" * 60)
     populate_scope_document_ids(dry_run=dry_run)
     print()

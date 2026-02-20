@@ -545,7 +545,7 @@ tier2:
 # =============================================================================
 
 tier3:
-  updated_at: "2026-02-11"
+  updated_at: "2026-02-18"
   description: "Web search verification with structured evidence flags (tool-call approach)"
 
   # ─────────────────────────────────────────────────────────────────────────
@@ -586,8 +586,8 @@ tier3:
     3. Provide STRUCTURED FLAGS with evidence for each finding:
        - superseded_by_law: Has a new law replaced/modernized this requirement?
        - federal_mandate_confirmed: Is this actually federally mandated?
-       - state_discretion_found: Can the state modify/eliminate this?
-       - modernized_alternative_found: Are other states or the federal government implementing the same program with modern alternatives?
+       - state_discretion_found: Can this jurisdiction modify/eliminate this?
+       - modernized_alternative_found: Are peer jurisdictions or the federal government implementing the same program with modern alternatives?
        - advocacy_for_change: Is there meaningful advocacy (journalism, advocacy groups, publications) calling for this regulation to be changed?
 
     ## Structured Flag Format (EvidencedFlag)
@@ -650,14 +650,14 @@ tier3:
     ## Severity Adjustment Guidelines
 
     **Decrease severity (-1 to -3) when:**
-    - Federal mandate confirmed (state has no choice) (-1 to -2)
-    - Modernization efforts underway in {state} (-1)
+    - Federal mandate confirmed (jurisdiction has no choice) (-1 to -2)
+    - Modernization efforts underway in this jurisdiction (-1)
     - Law has superseded the requirement (set to baseline 4)
 
     **Increase severity (+1 to +3) when:**
     - Evidence of widespread non-compliance (+1) - suggests impractical burden
-    - Other states have modernized but {state} hasn't (+1)
-    - The federal government has modernized or encourages alternatives that {state} lacks (+1)
+    - Peer jurisdictions have modernized but this one hasn't (+1)
+    - The federal government has modernized or encourages alternatives that this jurisdiction lacks (+1)
     - `advocacy_for_change.value = true` with credible sources (+1)
 
     ## Advocacy for Change Flag Guidance
@@ -697,16 +697,16 @@ tier3:
     - Forms that include email/online options
 
     ### 2. ALTERNATIVE_AUTHORIZED (effort: easy)
-    {state} has AUTHORIZED a modern alternative that this regulation hasn't been updated to reference.
+    This jurisdiction has AUTHORIZED a modern alternative that this regulation hasn't been updated to reference.
 
     Evidence to look for:
-    - {state} laws authorizing electronic alternatives (e-signatures, e-filing, RON)
-    - State executive orders modernizing administrative processes
+    - Jurisdiction laws authorizing electronic alternatives (e-signatures, e-filing, RON)
+    - Executive orders modernizing administrative processes
     - Agency e-filing systems that could apply to this requirement
     - Remote Online Notarization (RON) availability for notarization requirements
 
     ### 3. PEER_STATE_SOLUTION (effort: medium)
-    Other states have successfully modernized this exact type of requirement.
+    Peer jurisdictions have successfully modernized this exact type of requirement.
 
     Evidence to look for:
     - Other states' regulations allowing electronic alternatives
@@ -722,7 +722,7 @@ tier3:
     1. **DO NOT classify as "unrelated"** - the regulation TEXT still creates a burden
     2. **KEEP the classification** as burdensome or justified based on the regulation's actual requirements
     3. **LOWER severity** if the alternative is in practice 1-2 points to reflect reduced practical burden
-    4. **INCREASE severity** if other states have modernized but {state} hasn't
+    4. **INCREASE severity** if peer jurisdictions have modernized but this one hasn't
     4. **SET easy_cleanup_candidate = true**
     5. **PROVIDE specific evidence** - URL where you found the alternative
     6. **RECOMMEND specific fix** - e.g., "Update [regulatory citation] to add 'or electronic payment'"
@@ -823,6 +823,12 @@ tier3:
   # ─────────────────────────────────────────────────────────────────────────
   document_template: |
     ---
+    ## Jurisdiction Context
+    Jurisdiction: {jurisdiction_name} ({jurisdiction_type}-level)
+    When searching, "peer jurisdictions" means: {peer_label}
+    Relevant laws: {laws_label}
+    Executive authority: {executive_orders_label}
+
     ## Document Under Analysis
     Citation: {citation}
     Title: {title}
@@ -885,7 +891,7 @@ tier3:
     Focus on:
     1. Whether this requirement is federally mandated
     2. Whether other states have modernized alternatives for the same program
-    3. Whether {state} has discretion to change this requirement
+    3. Whether this jurisdiction has discretion to change this requirement
     4. Whether there is advocacy (journalism, advocacy groups) calling for this to be changed
 
     After completing your web searches, call the `submit_analysis` tool with your assessment including:

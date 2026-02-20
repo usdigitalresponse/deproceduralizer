@@ -2,7 +2,7 @@
 """
 CLI for the JenAI pipeline.
 
-Runs regulatory sections through the two-tier implementation analysis pipeline.
+Runs regulatory sections through the single-pass enriched analysis pipeline.
 Defaults are cost-safe: dry-run mode by default.
 
 Usage:
@@ -17,11 +17,8 @@ Usage:
     # Filter by title, limit sections
     python3 -m scripts.jenai_pipeline --state nj --title 3 --limit 50 --execute
 
-    # Stop after Tier 1
-    python3 -m scripts.jenai_pipeline --state nj --max-tier 1 --execute
-
-    # Run only Tier 2 for sections with existing Tier 1 results
-    python3 -m scripts.jenai_pipeline --state nj --tier2-only --execute
+    # Realtime mode (faster but 2x cost)
+    python3 -m scripts.jenai_pipeline --state ny --document-id 81899 --execute --realtime
 """
 
 import argparse
@@ -33,22 +30,22 @@ from dotenv import load_dotenv
 def state_validator(value: str) -> str:
     """Validate --state flag."""
     normalized = value.lower()
-    if normalized not in ('nj', 'ny'):
+    if normalized not in ('nj', 'ny', 'nyc'):
         raise argparse.ArgumentTypeError(
-            f"Invalid state '{value}'. Must be 'nj' or 'ny'."
+            f"Invalid state '{value}'. Must be 'nj', 'ny', or 'nyc'."
         )
     return normalized
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="JenAI two-tier regulatory implementation analysis pipeline",
+        description="JenAI single-pass regulatory implementation analysis pipeline",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
     parser.add_argument(
         '--state', type=state_validator, required=True,
-        help="State to analyze: 'nj' or 'ny'",
+        help="State to analyze: 'nj', 'ny', or 'nyc'",
     )
     parser.add_argument(
         '--title', type=int, default=None,
@@ -61,14 +58,6 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         '--limit', type=int, default=None,
         help="Max sections to analyze (default: 100)",
-    )
-    parser.add_argument(
-        '--max-tier', type=int, default=2, choices=[1, 2],
-        help="Stop after this tier (default: 2)",
-    )
-    parser.add_argument(
-        '--tier2-only', action='store_true',
-        help="Only run Tier 2 for sections with existing Tier 1 results",
     )
     parser.add_argument(
         '--execute', action='store_true',
@@ -89,6 +78,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         '--realtime', action='store_true',
         help="Use realtime API instead of batch (faster but 2x cost, no batch discount)",
+    )
+    parser.add_argument(
+        '--no-cache', action='store_true',
+        help="Disable LLM API response cache (forces fresh API calls)",
     )
 
     return parser
@@ -122,13 +115,12 @@ def main():
         title=args.title,
         part=args.part,
         limit=args.limit,
-        max_tier=args.max_tier,
-        tier2_only=args.tier2_only,
         dry_run=dry_run,
         include_all_types=args.include_all_types,
         force=args.force,
         realtime=args.realtime,
         document_ids=args.document_id,
+        no_cache=args.no_cache,
     )
 
     print(f"\n{'=' * 40}")

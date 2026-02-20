@@ -224,6 +224,22 @@ import { OutcomeBadges } from '@/components/issues';
 - Shadow: `--shadow-sm`
 - Padding options: `none`, `sm`, `md` (default), `lg`
 
+### MarkdownTable
+
+Renders a markdown pipe-delimited table string as a styled HTML `<table>`. Used by `AnnotatableContent` to display tables embedded in regulation text.
+
+```tsx
+import { MarkdownTable } from '@/components/ui/MarkdownTable';
+
+<MarkdownTable markdown={`| Header 1 | Header 2 |\n| --- | --- |\n| Cell 1 | Cell 2 |`} />
+```
+
+- Header row: `bg-[--color-neutral-100]`, `font-semibold`
+- Borders: `1px solid --color-neutral-200`
+- Alternating row stripes: white / `--color-neutral-50`
+- Font size: `text-xs` (matches regulation text mono style)
+- Horizontal scroll on overflow (`overflow-x-auto`)
+
 ### Modal
 
 - Overlay: `rgba(8, 27, 43, 0.6)` (dark navy)

@@ -17,6 +17,9 @@ from functools import partial
 from pathlib import Path
 from typing import Optional
 
+import anthropic
+import psycopg
+
 from .state_machine import (
     ProcessingState,
     TrackedUnit,
@@ -56,6 +59,7 @@ from .pipeline_logger import DualOutput
 from lib.db import get_db_connection
 from lib.llm import DEFAULT_MODEL
 from lib.batch import BatchManager
+from lib.cache import CacheManager
 
 # Langfuse observability (graceful degradation if not configured)
 try:
@@ -91,6 +95,7 @@ async def run_pipeline(
     title_filter: Optional[str] = None,
     model: Optional[str] = None,
     statute_mandate: bool = False,
+    no_cache: bool = False,
 ) -> list[TrackedUnit]:
     """
     Run the full 3-tier research pipeline.
@@ -122,9 +127,10 @@ async def run_pipeline(
         itype: load_issue_config(itype) for itype in issue_types
     }
 
-    # Batch manager + cost tracker
+    # Batch manager + cost tracker + cache
     batch_manager = BatchManager(batches_dir=batches_dir)
     cost_tracker = CostTracker(run_id=run_id)
+    cache = CacheManager(enabled=not no_cache)
 
     # Subchapter context cache (reuse across issue types)
     subchapter_context_cache: dict[int, dict[str, str]] = {}
@@ -196,7 +202,7 @@ async def run_pipeline(
     await _run_tier1(units, issue_configs, batch_manager, cost_tracker,
                      subchapter_context_cache, realtime, model,
                      incremental_save, out, trace_context, batch_trace_ids,
-                     state, issue_type_single, run_id, poll_interval)
+                     state, issue_type_single, run_id, poll_interval, cache)
 
     # --- Tier 2 ---
     if max_tier >= 2:
@@ -205,7 +211,7 @@ async def run_pipeline(
         await _run_tier2(units, issue_configs, batch_manager, cost_tracker,
                          realtime, model, incremental_save, tier2_reruns,
                          out, trace_context, batch_trace_ids,
-                         state, issue_type_single, run_id, poll_interval)
+                         state, issue_type_single, run_id, poll_interval, cache)
 
     # --- Tier 3 ---
     if max_tier >= 3 and enable_web_search:
@@ -214,7 +220,7 @@ async def run_pipeline(
         await _run_tier3(units, issue_configs, batch_manager, cost_tracker,
                          realtime, model, incremental_save,
                          out, trace_context, batch_trace_ids,
-                         state, issue_type_single, run_id, poll_interval)
+                         state, issue_type_single, run_id, poll_interval, cache)
     elif not enable_web_search:
         tier3_pending = [u for u in units.values() if u.state == ProcessingState.TIER3_PENDING]
         if tier3_pending:
@@ -230,10 +236,13 @@ async def run_pipeline(
         if done_units:
             out.info(f"\n[STATUTE MANDATE] Running mandate checks for {state}...")
             from .tiers.statute_mandate_runner import run_statute_mandate_checks
-            await run_statute_mandate_checks(state=state, dry_run=False, model=model)
+            await run_statute_mandate_checks(state=state, dry_run=False, model=model, cache=cache)
 
     # Complete
     cost_tracker.mark_complete()
+    if cache.enabled:
+        out.info(f"\n{cache.summary()}")
+    cache.close()
     _print_summary(out, units, cost_tracker)
 
     if LANGFUSE_AVAILABLE:
@@ -421,7 +430,8 @@ def hydrate_unit_from_analysis(
 async def _run_tier1(units, issue_configs, batch_manager, cost_tracker,
                      subchapter_context_cache, realtime, model,
                      incremental_save, out, trace_context, batch_trace_ids,
-                     state, issue_type_single, run_id, poll_interval):
+                     state, issue_type_single, run_id, poll_interval,
+                     cache=None):
     """Run Tier 1: Match Filtering."""
     tier_out = DualOutput(logger=None, tier=1)
 
@@ -451,12 +461,14 @@ async def _run_tier1(units, issue_configs, batch_manager, cost_tracker,
     if realtime:
         succeeded, failed = await _run_realtime(
             requests, pending, Tier1Output, "tier1_output", "Tier 1",
-            out, model, cost_tracker, trace_context)
+            out, model, cost_tracker, trace_context, cache=cache,
+            cache_pipeline="research", cache_tier=1)
     else:
         succeeded, failed, batch_id = await _submit_and_poll_batch(
             requests, pending, "tier1", process_tier1_results,
             batch_manager, cost_tracker, out, trace_context, batch_trace_ids,
-            state, issue_type_single, run_id, poll_interval)
+            state, issue_type_single, run_id, poll_interval,
+            cache=cache, cache_pipeline="research", cache_tier=1)
 
     # State transitions
     for unit in succeeded:
@@ -482,13 +494,14 @@ async def _run_tier1(units, issue_configs, batch_manager, cost_tracker,
 async def _run_tier2(units, issue_configs, batch_manager, cost_tracker,
                      realtime, model, incremental_save, tier2_reruns,
                      out, trace_context, batch_trace_ids,
-                     state, issue_type_single, run_id, poll_interval):
+                     state, issue_type_single, run_id, poll_interval,
+                     cache=None):
     """Run Tier 2: Summary-Based Research."""
     tier_out = DualOutput(logger=None, tier=2)
 
     if tier2_reruns:
         await _run_tier2_with_reruns(units, issue_configs, cost_tracker,
-                                     trace_context, out)
+                                     trace_context, out, cache=cache)
     else:
         pending = [u for u in units.values() if u.state == ProcessingState.TIER2_PENDING]
         if not pending:
@@ -515,12 +528,14 @@ async def _run_tier2(units, issue_configs, batch_manager, cost_tracker,
         if realtime:
             succeeded, failed = await _run_realtime(
                 requests, pending, Tier2Output, "tier2_output", "Tier 2",
-                out, model, cost_tracker, trace_context)
+                out, model, cost_tracker, trace_context, cache=cache,
+                cache_pipeline="research", cache_tier=2)
         else:
             succeeded, failed, batch_id = await _submit_and_poll_batch(
                 requests, pending, "tier2", process_tier2_results,
                 batch_manager, cost_tracker, out, trace_context, batch_trace_ids,
-                state, issue_type_single, run_id, poll_interval)
+                state, issue_type_single, run_id, poll_interval,
+                cache=cache, cache_pipeline="research", cache_tier=2)
 
         for unit in succeeded:
             unit.state = ProcessingState.TIER2_COMPLETE
@@ -536,7 +551,7 @@ async def _run_tier2(units, issue_configs, batch_manager, cost_tracker,
 
 
 async def _run_tier2_with_reruns(units, issue_configs, cost_tracker,
-                                  trace_context, out):
+                                  trace_context, out, cache=None):
     """Run Tier 2 with real-time API re-run support."""
     tier_out = DualOutput(logger=None, tier=2)
     pending = [u for u in units.values() if u.state == ProcessingState.TIER2_PENDING]
@@ -554,6 +569,7 @@ async def _run_tier2_with_reruns(units, issue_configs, cost_tracker,
         issue_configs=issue_configs,
         cost_tracker=cost_tracker,
         trace_context=trace_context,
+        cache=cache,
     )
 
     succeeded = []
@@ -598,7 +614,8 @@ def _save_tier2(units, incremental_save, tier_out):
 async def _run_tier3(units, issue_configs, batch_manager, cost_tracker,
                      realtime, model, incremental_save,
                      out, trace_context, batch_trace_ids,
-                     state, issue_type_single, run_id, poll_interval):
+                     state, issue_type_single, run_id, poll_interval,
+                     cache=None):
     """Run Tier 3: Web Search Verification."""
     tier_out = DualOutput(logger=None, tier=3)
 
@@ -612,7 +629,7 @@ async def _run_tier3(units, issue_configs, batch_manager, cost_tracker,
 
     if realtime:
         await _run_tier3_realtime(pending, issue_configs, cost_tracker,
-                                   trace_context, state, out)
+                                   trace_context, state, out, cache=cache)
     else:
         await _run_tier3_batch(pending, units, issue_configs, batch_manager,
                                 cost_tracker, out, trace_context, batch_trace_ids,
@@ -629,7 +646,7 @@ async def _run_tier3(units, issue_configs, batch_manager, cost_tracker,
 
 
 async def _run_tier3_realtime(pending, issue_configs, cost_tracker,
-                               trace_context, state, out):
+                               trace_context, state, out, cache=None):
     """Run Tier 3 using real-time API with rate limiting."""
     tier_out = DualOutput(logger=None, tier=3)
     tier_out.info("  (Using REAL-TIME API with web search)")
@@ -642,6 +659,7 @@ async def _run_tier3_realtime(pending, issue_configs, cost_tracker,
             cost_tracker=cost_tracker,
             trace_context=trace_context,
             state=state,
+            cache=cache,
         )
         completed = min(i + TIER3_BATCH_SIZE, len(pending))
         tier_out.info(f"  Progress: {completed}/{len(pending)}")
@@ -701,13 +719,64 @@ async def _run_tier3_batch(pending, units, issue_configs, batch_manager,
 async def _submit_and_poll_batch(requests, pending, tier_key, process_fn,
                                   batch_manager, cost_tracker, out,
                                   trace_context, batch_trace_ids,
-                                  state, issue_type_single, run_id, poll_interval):
-    """Submit batch, poll for completion, process results."""
+                                  state, issue_type_single, run_id, poll_interval,
+                                  cache=None, cache_pipeline=None, cache_tier=None):
+    """Submit batch, poll for completion, process results.
+
+    When cache is provided, filters out cached requests before submitting.
+    Cached results are processed by parsing tool_use output directly into units.
+    """
+    # --- Cache: filter out cached requests ---
+    uncached_requests = requests
+    cache_hit_count = 0
+
+    if cache and cache.enabled:
+        from lib.batch import _parse_cached_response
+        request_hashes = {}
+        for req in requests:
+            request_hashes[req["custom_id"]] = cache.compute_hash(req["params"])
+
+        hash_to_response = cache.lookup_batch(list(request_hashes.values()))
+
+        # Map hashes back to custom_ids
+        hash_to_cids = {}
+        for cid, h in request_hashes.items():
+            hash_to_cids.setdefault(h, []).append(cid)
+
+        cached_cids = set()
+        unit_map = {u.custom_id: u for u in pending}
+
+        # Determine output class from tier_key
+        tier_output_classes = {"tier1": Tier1Output, "tier2": Tier2Output}
+        output_class = tier_output_classes.get(tier_key)
+        tier_output_attrs = {"tier1": "tier1_output", "tier2": "tier2_output"}
+        output_attr = tier_output_attrs.get(tier_key)
+
+        if output_class and output_attr:
+            for h, resp in hash_to_response.items():
+                for cid in hash_to_cids.get(h, []):
+                    parsed = _parse_cached_response(resp, output_class)
+                    if parsed and cid in unit_map:
+                        setattr(unit_map[cid], output_attr, parsed)
+                        cached_cids.add(cid)
+                        cache_hit_count += 1
+
+        uncached_requests = [r for r in requests if r["custom_id"] not in cached_cids]
+
+        if cache_hit_count > 0:
+            out.info(f"  Cache: {cache_hit_count} hits, {len(uncached_requests)} to submit")
+
+    # If all requests were cached, return early
+    if not uncached_requests:
+        out.info(f"  All {len(requests)} requests served from cache")
+        cached_units = [u for u in pending if getattr(u, output_attr, None) is not None] if cache_hit_count > 0 else []
+        return cached_units, [], "cache"
+
     out.info("")
     out.info(f"  >>> SUBMITTING BATCH TO API...")
     out.info(f"  >>> (Batch API can take up to 24 hours - typically 10-40 min for <200 requests)")
 
-    batch_id = _submit_batch(requests, tier_key, batch_manager, out,
+    batch_id = _submit_batch(uncached_requests, tier_key, batch_manager, out,
                               trace_context, batch_trace_ids,
                               state, issue_type_single, run_id)
 
@@ -721,7 +790,58 @@ async def _submit_and_poll_batch(requests, pending, tier_key, process_fn,
         trace_context=trace_context if LANGFUSE_AVAILABLE else None,
     )
 
+    # Store fresh results in cache
+    if cache and cache.enabled and succeeded:
+        _store_batch_results_in_cache(
+            cache, batch_id, uncached_requests, request_hashes,
+            batch_manager, cache_pipeline, cache_tier,
+        )
+
+    # Include cache-hit units in succeeded list
+    if cache_hit_count > 0:
+        cached_units = [u for u in pending if u not in succeeded and u not in failed
+                        and getattr(u, output_attr, None) is not None]
+        succeeded = cached_units + succeeded
+
     return succeeded, failed, batch_id
+
+
+def _store_batch_results_in_cache(cache, batch_id, requests, request_hashes,
+                                   batch_manager, cache_pipeline, cache_tier):
+    """Store batch API results in cache for future reuse."""
+    from lib.batch import _message_to_dict
+    try:
+        cid_to_req = {r["custom_id"]: r for r in requests}
+        entries = []
+        for result in batch_manager.get_batch_results(batch_id):
+            if result.result.type != "succeeded":
+                continue
+            cid = result.custom_id
+            h = request_hashes.get(cid)
+            req = cid_to_req.get(cid)
+            if not h or not req:
+                continue
+            msg = result.result.message
+            usage = {
+                "input_tokens": getattr(msg.usage, "input_tokens", 0) if msg.usage else 0,
+                "output_tokens": getattr(msg.usage, "output_tokens", 0) if msg.usage else 0,
+                "cache_read_tokens": getattr(msg.usage, "cache_read_input_tokens", 0) if msg.usage else 0,
+                "cache_write_tokens": getattr(msg.usage, "cache_creation_input_tokens", 0) if msg.usage else 0,
+            }
+            entries.append({
+                "request_hash": h,
+                "model": req["params"].get("model", ""),
+                "request_body": req["params"],
+                "response_body": _message_to_dict(msg),
+                "usage": usage,
+                "pipeline": cache_pipeline,
+                "tier": cache_tier,
+            })
+        if entries:
+            cache.store_batch(entries)
+            print(f"  Cache: stored {len(entries)} new responses")
+    except (psycopg.Error, anthropic.APIError) as e:
+        print(f"  Cache store warning: {e}")
 
 
 def _submit_batch(requests, tier_key, batch_manager, out,
@@ -770,9 +890,9 @@ async def _poll_batch(batch_id, batch_manager, out, poll_interval):
 
 
 async def _run_realtime(requests, units, output_class, output_attr, tier_name,
-                         out, model, cost_tracker, trace_context):
+                         out, model, cost_tracker, trace_context,
+                         cache=None, cache_pipeline=None, cache_tier=None):
     """Run requests in realtime mode (no batch API)."""
-    import anthropic
     from lib.llm import call_llm_parse_async
 
     client = anthropic.AsyncAnthropic()
@@ -780,6 +900,7 @@ async def _run_realtime(requests, units, output_class, output_attr, tier_name,
     succeeded = []
     failed = []
     total = len(requests)
+    cache_hit_count = 0
 
     out.info(f"  Running {total} requests in realtime mode...")
 
@@ -788,6 +909,23 @@ async def _run_realtime(requests, units, output_class, output_attr, tier_name,
         unit = id_to_unit.get(custom_id)
         if not unit:
             continue
+
+        out.progress(f"  [{i+1}/{total}] Processing {unit.unit.citation}...", end="")
+
+        # --- Cache check ---
+        request_hash = None
+        if cache and cache.enabled:
+            from lib.batch import _parse_cached_response
+            request_hash = cache.compute_hash(request["params"])
+            cached = cache.lookup(request_hash)
+            if cached:
+                parsed = _parse_cached_response(cached, output_class)
+                if parsed:
+                    setattr(unit, output_attr, parsed)
+                    succeeded.append(unit)
+                    cache_hit_count += 1
+                    print(" CACHE HIT", flush=True)
+                    continue
 
         params = request.get("params", request.get("body", {}))
         messages = params.get("messages", [])
@@ -798,8 +936,6 @@ async def _run_realtime(requests, units, output_class, output_attr, tier_name,
             system = system_raw[0].get("text", "") if system_raw else ""
         else:
             system = system_raw
-
-        out.progress(f"  [{i+1}/{total}] Processing {unit.unit.citation}...", end="")
 
         start_time = time.time()
 
@@ -829,6 +965,19 @@ async def _run_realtime(requests, units, output_class, output_attr, tier_name,
                     request_count=1,
                     model=model,
                 )
+
+                # Store in cache
+                if cache and cache.enabled and request_hash:
+                    response_body = {"tool_use_input": result.model_dump()}
+                    cache.store(
+                        request_hash=request_hash,
+                        request_body=request["params"],
+                        response_body=response_body,
+                        model=model,
+                        usage=usage,
+                        pipeline=cache_pipeline,
+                        tier=cache_tier,
+                    )
             else:
                 unit.state = ProcessingState.ERROR
                 unit.error_message = f"{tier_name} returned no result"
@@ -857,6 +1006,9 @@ async def _run_realtime(requests, units, output_class, output_attr, tier_name,
                 )
 
         await asyncio.sleep(0.2)
+
+    if cache_hit_count > 0:
+        out.info(f"  Cache: {cache_hit_count}/{total} served from cache")
 
     return succeeded, failed
 

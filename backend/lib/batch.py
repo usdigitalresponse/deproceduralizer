@@ -2,6 +2,7 @@
 Batch API management: request formatting, submission, status tracking, and result parsing.
 """
 
+import asyncio
 import json
 import time
 from datetime import datetime
@@ -11,8 +12,13 @@ from typing import Callable, Optional, Type
 import anthropic
 from pydantic import BaseModel
 
-from lib.llm import DEFAULT_MODEL, _pydantic_to_tool_schema, get_anthropic_client
+from lib.llm import DEFAULT_MODEL, _pydantic_to_tool_schema, call_llm_parse_async, get_anthropic_client
 from lib.stats import format_time
+
+# TYPE_CHECKING avoids circular import; CacheManager is only needed for type hints
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from lib.cache import CacheManager
 
 
 def format_batch_request(
@@ -480,3 +486,304 @@ def parse_batch_result_tool_use(result, response_format: Type[BaseModel]) -> Opt
         input_data = json.loads(input_data)
 
     return response_format.model_validate(input_data)
+
+
+def _parse_cached_response(response_body: dict, output_class: Type[BaseModel]) -> Optional[BaseModel]:
+    """Parse a cached response body into a Pydantic model.
+
+    Handles two cache formats:
+    - {"tool_use_input": {...}} — stored from realtime responses
+    - {"content": [...]} — stored from batch message dicts
+    """
+    from pydantic import ValidationError
+
+    try:
+        # Format 1: direct tool_use input (from realtime cache)
+        if "tool_use_input" in response_body:
+            return output_class.model_validate(response_body["tool_use_input"])
+
+        # Format 2: full message dict (from batch cache)
+        content = response_body.get("content", [])
+        for block in content:
+            if isinstance(block, dict) and block.get("type") == "tool_use":
+                return output_class.model_validate(block.get("input", {}))
+
+        return None
+    except (ValidationError, json.JSONDecodeError) as e:
+        print(f"  Cache parse error: {e}")
+        return None
+
+
+def _message_to_dict(message) -> dict:
+    """Convert an Anthropic message object to a JSON-serializable dict for caching."""
+    content = []
+    for block in message.content:
+        if block.type == "tool_use":
+            content.append({
+                "type": "tool_use",
+                "id": block.id,
+                "name": block.name,
+                "input": block.input,
+            })
+        elif block.type == "text":
+            content.append({
+                "type": "text",
+                "text": block.text,
+            })
+    return {
+        "content": content,
+        "model": message.model,
+        "stop_reason": message.stop_reason,
+        "role": message.role,
+    }
+
+
+def extract_request_params(request: dict) -> tuple[str, str]:
+    """Extract (user_prompt, system) from a batch-formatted request dict."""
+    params = request.get("params", request.get("body", {}))
+    messages = params.get("messages", [])
+    user_prompt = messages[0]["content"] if messages else ""
+
+    system_raw = params.get("system", "")
+    if isinstance(system_raw, list) and system_raw:
+        system = system_raw[0].get("text", "")
+    else:
+        system = system_raw
+
+    return user_prompt, system
+
+
+def run_batch_tier(
+    batch_requests: list[dict],
+    id_map: dict[str, int],
+    units: list,
+    output_class: Type[BaseModel],
+    output_attr: str,
+    batch_id_attr: str,
+    success_state,
+    batch_name: str,
+    get_unit_id: Callable = None,
+    manager: BatchManager | None = None,
+    cache: "CacheManager | None" = None,
+    cache_pipeline: str | None = None,
+    cache_tier: int | None = None,
+) -> str:
+    """Submit batch, poll, parse results into units. Returns batch_id.
+
+    When cache is provided:
+    - Hash each request and check cache in bulk
+    - Submit only uncached requests to Anthropic
+    - Store new responses in cache after results
+    - Merge cached + fresh results
+    """
+    if get_unit_id is None:
+        get_unit_id = lambda u: u.document_id
+
+    if manager is None:
+        manager = BatchManager()
+
+    # --- Cache: split into cached and uncached ---
+    cached_results: dict[str, dict] = {}  # custom_id -> response_body
+    uncached_requests = batch_requests
+    request_hashes: dict[str, str] = {}  # custom_id -> hash
+
+    if cache and cache.enabled:
+        # Compute hashes for all requests
+        for req in batch_requests:
+            h = cache.compute_hash(req["params"])
+            request_hashes[req["custom_id"]] = h
+
+        # Bulk lookup
+        all_hashes = list(request_hashes.values())
+        hash_to_response = cache.lookup_batch(all_hashes)
+
+        # Split
+        hash_to_custom_ids = {}
+        for cid, h in request_hashes.items():
+            hash_to_custom_ids.setdefault(h, []).append(cid)
+
+        cached_custom_ids = set()
+        for h, resp in hash_to_response.items():
+            for cid in hash_to_custom_ids.get(h, []):
+                cached_results[cid] = resp
+                cached_custom_ids.add(cid)
+
+        uncached_requests = [r for r in batch_requests if r["custom_id"] not in cached_custom_ids]
+
+        if cached_results:
+            print(f"  Cache: {len(cached_results)} hits, {len(uncached_requests)} to submit")
+
+    # --- Process cached results ---
+    unit_by_id = {get_unit_id(u): u for u in units}
+    for custom_id, response_body in cached_results.items():
+        parsed = _parse_cached_response(response_body, output_class)
+        if parsed:
+            doc_id = id_map.get(custom_id)
+            if doc_id and doc_id in unit_by_id:
+                unit = unit_by_id[doc_id]
+                setattr(unit, output_attr, parsed)
+                setattr(unit, batch_id_attr, "cache")
+                unit.state = success_state
+
+    # --- Submit uncached requests ---
+    if not uncached_requests:
+        print(f"  All {len(batch_requests)} requests served from cache")
+        return "cache"
+
+    batch_id = manager.submit_batch(uncached_requests, batch_name=batch_name)
+    manager.poll_until_complete(batch_id)
+
+    # --- Process fresh results and store in cache ---
+    cache_entries = []
+    for result in manager.get_batch_results(batch_id):
+        parsed = parse_batch_result_tool_use(result, output_class)
+        if parsed:
+            doc_id = id_map.get(result.custom_id)
+            if doc_id and doc_id in unit_by_id:
+                unit = unit_by_id[doc_id]
+                setattr(unit, output_attr, parsed)
+                setattr(unit, batch_id_attr, batch_id)
+                unit.state = success_state
+
+            # Store in cache
+            if cache and cache.enabled and result.result.type == "succeeded":
+                custom_id = result.custom_id
+                h = request_hashes.get(custom_id)
+                if h:
+                    # Find original request for this custom_id
+                    orig_req = next((r for r in uncached_requests if r["custom_id"] == custom_id), None)
+                    if orig_req:
+                        msg = result.result.message
+                        usage = {
+                            "input_tokens": getattr(msg.usage, "input_tokens", 0) if msg.usage else 0,
+                            "output_tokens": getattr(msg.usage, "output_tokens", 0) if msg.usage else 0,
+                            "cache_read_tokens": getattr(msg.usage, "cache_read_input_tokens", 0) if msg.usage else 0,
+                            "cache_write_tokens": getattr(msg.usage, "cache_creation_input_tokens", 0) if msg.usage else 0,
+                        }
+                        response_body = _message_to_dict(msg)
+                        cache_entries.append({
+                            "request_hash": h,
+                            "model": orig_req["params"].get("model", DEFAULT_MODEL),
+                            "request_body": orig_req["params"],
+                            "response_body": response_body,
+                            "usage": usage,
+                            "pipeline": cache_pipeline,
+                            "tier": cache_tier,
+                            "document_id": doc_id,
+                        })
+
+    if cache_entries:
+        cache.store_batch(cache_entries)
+        print(f"  Cache: stored {len(cache_entries)} new responses")
+
+    return batch_id
+
+
+def run_realtime_tier(
+    batch_requests: list[dict],
+    id_map: dict[str, int],
+    units: list,
+    output_class: Type[BaseModel],
+    output_attr: str,
+    batch_id_attr: str,
+    success_state,
+    error_state,
+    tier_name: str,
+    model: str,
+    get_unit_id: Callable = None,
+    get_unit_label: Callable = None,
+    cache: "CacheManager | None" = None,
+    cache_pipeline: str | None = None,
+    cache_tier: int | None = None,
+) -> None:
+    """Run batch-formatted requests one-by-one via the realtime API.
+
+    When cache is provided, checks cache before each API call and stores after.
+    """
+    if get_unit_id is None:
+        get_unit_id = lambda u: u.document_id
+
+    if get_unit_label is None:
+        get_unit_label = lambda u: str(get_unit_id(u))
+
+    async def _run():
+        client = anthropic.AsyncAnthropic()
+        unit_by_id = {get_unit_id(u): u for u in units}
+        total = len(batch_requests)
+        cache_hit_count = 0
+
+        for i, request in enumerate(batch_requests):
+            custom_id = request["custom_id"]
+            doc_id = id_map.get(custom_id)
+            if not doc_id or doc_id not in unit_by_id:
+                continue
+
+            unit = unit_by_id[doc_id]
+            label = get_unit_label(unit)
+
+            print(f"  [{i+1}/{total}] {label}...", end="", flush=True)
+
+            # --- Cache check ---
+            if cache and cache.enabled:
+                request_hash = cache.compute_hash(request["params"])
+                cached = cache.lookup(request_hash)
+                if cached:
+                    parsed = _parse_cached_response(cached, output_class)
+                    if parsed:
+                        setattr(unit, output_attr, parsed)
+                        setattr(unit, batch_id_attr, "cache")
+                        unit.state = success_state
+                        cache_hit_count += 1
+                        print(f" CACHE HIT")
+                        continue
+
+            user_prompt, system = extract_request_params(request)
+            start = time.time()
+
+            try:
+                result, usage = await call_llm_parse_async(
+                    client=client,
+                    prompt=user_prompt,
+                    response_format=output_class,
+                    system=system,
+                    model=model,
+                    max_tokens=64000,
+                )
+
+                elapsed = time.time() - start
+
+                if result:
+                    setattr(unit, output_attr, result)
+                    setattr(unit, batch_id_attr, "realtime")
+                    unit.state = success_state
+                    tokens = usage.get("input_tokens", 0) + usage.get("output_tokens", 0)
+                    print(f" OK ({elapsed:.1f}s, {tokens} tokens)")
+
+                    # Store in cache
+                    if cache and cache.enabled:
+                        response_body = {"tool_use_input": result.model_dump()}
+                        cache.store(
+                            request_hash=request_hash,
+                            request_body=request["params"],
+                            response_body=response_body,
+                            model=model,
+                            usage=usage,
+                            pipeline=cache_pipeline,
+                            tier=cache_tier,
+                            document_id=doc_id,
+                        )
+                else:
+                    unit.state = error_state
+                    unit.error = f"{tier_name} returned None"
+                    print(f" FAILED (no result, {elapsed:.1f}s)")
+
+            except Exception as e:
+                elapsed = time.time() - start
+                unit.state = error_state
+                unit.error = str(e)[:200]
+                print(f" ERROR ({elapsed:.1f}s): {str(e)[:80]}")
+
+        if cache_hit_count > 0:
+            print(f"  Cache: {cache_hit_count}/{total} served from cache")
+
+    asyncio.run(_run())

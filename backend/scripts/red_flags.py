@@ -391,39 +391,65 @@ def create_analysis_prompt(section_text: str = "", citation: str = "", heading: 
 def save_analysis_to_database(conn: Connection,
                              regulation: RegulationData,
                              analysis: RegulationAnalysis,
-                             state: str = "NY") -> Optional[int]:
+                             state: str = "NY",
+                             existing_doc_id: Optional[int] = None) -> Optional[int]:
     """Save regulation analysis to database
 
     Args:
         conn: Database connection
         regulation: Regulation data
         analysis: Analysis results
-        state: State code (NY or NJ)
+        state: State code (NY, NJ, or NYC)
+        existing_doc_id: If provided, skip doc insert and use this document ID directly.
+            Use this when the document already exists in the DB (e.g., DB mode with --state).
 
     Returns:
         analysis_id if successful, None otherwise
     """
     try:
         with conn.cursor() as cur:
-            # 1. Insert/Update regulatory_documents
-            cur.execute("""
-                INSERT INTO regulatory_documents
-                (source_index, type, state, title, url, url_type, content,
-                 hierarchy_level, hierarchy_path, nycrr_title, nycrr_part, nycrr_subpart, nycrr_section)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT (state, source_index, type) DO UPDATE SET
-                    title = EXCLUDED.title,
-                    url = EXCLUDED.url,
-                    content = EXCLUDED.content
-                RETURNING id
-            """, (
-                regulation.source_index, "regulation", state.upper(),
-                regulation.title, regulation.url, regulation.url_type,
-                regulation.content, regulation.hierarchy_level,
-                regulation.hierarchy_path, regulation.nycrr_title,
-                regulation.nycrr_part, regulation.nycrr_subpart, regulation.nycrr_section
-            ))
-            doc_id = cur.fetchone()[0]
+            if existing_doc_id is not None:
+                # Document already exists in DB — use its ID directly
+                doc_id = existing_doc_id
+            else:
+                # Legacy/JSON mode: insert/upsert the document
+                # Use jurisdiction-appropriate hierarchy columns
+                state_upper = state.upper()
+                if state_upper == 'NJ':
+                    hierarchy_cols = ['njac_title', 'njac_part', 'njac_subpart', 'njac_section']
+                elif state_upper == 'NYC':
+                    hierarchy_cols = ['rcny_title', 'rcny_chapter', 'rcny_section']
+                else:
+                    hierarchy_cols = ['nycrr_title', 'nycrr_part', 'nycrr_subpart', 'nycrr_section']
+
+                # Map RegulationData generic fields to jurisdiction columns
+                # For NYC: nycrr_title->rcny_title, nycrr_part->rcny_chapter, nycrr_section->rcny_section
+                if state_upper == 'NYC':
+                    hierarchy_vals = [regulation.nycrr_title, regulation.nycrr_part, regulation.nycrr_section]
+                else:
+                    hierarchy_vals = [regulation.nycrr_title, regulation.nycrr_part,
+                                      regulation.nycrr_subpart, regulation.nycrr_section]
+
+                base_cols = 'source_index, type, state, title, url, url_type, content, hierarchy_level, hierarchy_path'
+                all_cols = f"{base_cols}, {', '.join(hierarchy_cols)}"
+                placeholders = ', '.join(['%s'] * (9 + len(hierarchy_cols)))
+
+                cur.execute(f"""
+                    INSERT INTO regulatory_documents
+                    ({all_cols})
+                    VALUES ({placeholders})
+                    ON CONFLICT (state, source_index, type) DO UPDATE SET
+                        title = EXCLUDED.title,
+                        url = EXCLUDED.url,
+                        content = EXCLUDED.content
+                    RETURNING id
+                """, (
+                    regulation.source_index, "regulation", state_upper,
+                    regulation.title, regulation.url, regulation.url_type,
+                    regulation.content, regulation.hierarchy_level,
+                    regulation.hierarchy_path, *hierarchy_vals
+                ))
+                doc_id = cur.fetchone()[0]
 
             # 2. Delete previous analyses (cascades to red_flags)
             cur.execute("""
@@ -434,13 +460,14 @@ def save_analysis_to_database(conn: Connection,
             # 3. Insert new analysis
             cur.execute("""
                 INSERT INTO analyses
-                (document_id, model_version, has_implementation_issues,
+                (document_id, url, model_version, has_implementation_issues,
                  overall_complexity, summary, requires_technical_review,
                  has_reporting_requirement, max_severity, num_flags)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
             """, (
-                doc_id, MODEL_VERSION,
+                doc_id, regulation.url,
+                MODEL_VERSION,
                 analysis.has_implementation_issues,
                 analysis.overall_complexity, analysis.summary,
                 analysis.requires_technical_review,
@@ -480,7 +507,7 @@ def save_analysis_to_database(conn: Connection,
         print(f"❌ Error saving to database for {regulation.source_index}: {type(e).__name__}: {e}")
         return None
 
-async def analyze_regulation(regulation_data: RegulationData, client: AsyncOpenAI) -> RegulationAnalysis:
+async def analyze_regulation(regulation_data: RegulationData, client: AsyncOpenAI, cache=None) -> RegulationAnalysis:
     """Analyze a single regulation for red flags using GPT-5 nano with structured output"""
 
     prompt = create_analysis_prompt(
@@ -494,6 +521,8 @@ async def analyze_regulation(regulation_data: RegulationData, client: AsyncOpenA
         prompt=prompt,
         response_format=RegulationAnalysis,
         model=MODEL_VERSION,
+        cache=cache,
+        cache_metadata={"pipeline": "red_flags", "tier": None, "document_id": regulation_data.source_index},
     )
 
     if result is None:
@@ -513,7 +542,9 @@ async def analyze_regulations_batch(regulations: List[RegulationData],
                                    client: AsyncOpenAI,
                                    output_file: str,
                                    batch_size: int = 10,
-                                   db_conn: Optional[Connection] = None) -> List[Dict]:
+                                   db_conn: Optional[Connection] = None,
+                                   from_db: bool = False,
+                                   cache=None) -> List[Dict]:
     """Analyze a batch of regulations in parallel, saving every 5 completed calls
 
     Args:
@@ -522,6 +553,8 @@ async def analyze_regulations_batch(regulations: List[RegulationData],
         output_file: Path to output JSON file
         batch_size: Batch size for parallel processing
         db_conn: Optional database connection for writing results
+        from_db: If True, documents already exist in DB and source_index is the DB id.
+            Skips doc insert and uses source_index as existing_doc_id.
     """
 
     results = []
@@ -536,7 +569,7 @@ async def analyze_regulations_batch(regulations: List[RegulationData],
         print(f"Processing batch {batch_start // batch_size + 1} ({len(batch)} regulations)...")
 
         # Create tasks for parallel execution
-        tasks = [analyze_regulation(reg, client) for reg in batch]
+        tasks = [analyze_regulation(reg, client, cache=cache) for reg in batch]
         analyses = await asyncio.gather(*tasks)
 
         # Process results from this batch
@@ -590,7 +623,9 @@ async def analyze_regulations_batch(regulations: List[RegulationData],
 
             # Save to database if connection available
             if db_conn:
-                analysis_id = save_analysis_to_database(db_conn, regulation, analysis)
+                existing_id = regulation.source_index if from_db else None
+                analysis_id = save_analysis_to_database(db_conn, regulation, analysis,
+                                                        existing_doc_id=existing_id)
                 if analysis_id is not None:
                     db_write_success += 1
                 else:
@@ -647,7 +682,7 @@ def parse_arguments():
     parser.add_argument(
         '--state',
         type=str,
-        choices=['NY', 'NJ'],
+        choices=['NY', 'NJ', 'NYC'],
         help='State to analyze (uses database)'
     )
 
@@ -736,6 +771,12 @@ def parse_arguments():
         type=str,
         metavar='BATCH_ID',
         help='Process a completed batch (e.g., msgbatch_xxx)'
+    )
+
+    parser.add_argument(
+        '--no-cache',
+        action='store_true',
+        help='Disable LLM response cache (force fresh API calls)'
     )
 
     return parser.parse_args()
@@ -907,7 +948,8 @@ def process_batch_results(batch_id: str, state: str):
                     source_index=doc_id,
                 )
 
-                analysis_id = save_analysis_to_database(conn, reg_data, analysis, state)
+                analysis_id = save_analysis_to_database(conn, reg_data, analysis, state,
+                                                        existing_doc_id=doc_id)
                 if analysis_id:
                     total_analyses += 1
                     succeeded += 1
@@ -1045,9 +1087,25 @@ async def main():
             return
 
         # Convert to RegulationData
-        prefix = 'njac' if args.state == 'NJ' else 'nycrr'
+        state_upper = args.state.upper()
+        if state_upper == 'NJ':
+            prefix = 'njac'
+        elif state_upper == 'NYC':
+            prefix = 'rcny'
+        else:
+            prefix = 'nycrr'
         regulations = []
         for doc in docs:
+            # RCNY has title/chapter/section (no part/subpart)
+            # Map to RegulationData generic fields: nycrr_title, nycrr_part, nycrr_subpart, nycrr_section
+            reg_title = doc.get(f'{prefix}_title')
+            reg_section = doc.get(f'{prefix}_section')
+            if prefix == 'rcny':
+                reg_part = doc.get('rcny_chapter')  # chapter maps to part slot
+                reg_subpart = None
+            else:
+                reg_part = doc.get(f'{prefix}_part')
+                reg_subpart = doc.get(f'{prefix}_subpart')
             regulations.append(RegulationData(
                 url=doc.get('url', ''),
                 title=doc.get('title', ''),
@@ -1056,10 +1114,10 @@ async def main():
                 source_index=doc.get('id', 0),  # Use DB id as source_index
                 hierarchy_level=doc.get('hierarchy_level'),
                 hierarchy_path=doc.get('hierarchy_path'),
-                nycrr_title=doc.get(f'{prefix}_title'),
-                nycrr_part=doc.get(f'{prefix}_part'),
-                nycrr_subpart=doc.get(f'{prefix}_subpart'),
-                nycrr_section=doc.get(f'{prefix}_section'),
+                nycrr_title=reg_title,
+                nycrr_part=reg_part,
+                nycrr_subpart=reg_subpart,
+                nycrr_section=reg_section,
             ))
     else:
         # Legacy JSON file mode
@@ -1127,6 +1185,10 @@ async def main():
     if not args.no_database:
         db_conn = get_db_connection()
 
+    # Set up cache
+    from lib.cache import CacheManager
+    cache = CacheManager(enabled=not getattr(args, 'no_cache', False))
+
     try:
         # Analyze regulations (batch_size controls parallelism)
         print(f"\nStarting red flag analysis (batch_size={args.batch_size})...")
@@ -1135,7 +1197,9 @@ async def main():
             client,
             output_file,
             batch_size=args.batch_size,
-            db_conn=db_conn
+            db_conn=db_conn,
+            from_db=bool(args.state),
+            cache=cache,
         )
 
         # Final save
@@ -1187,7 +1251,11 @@ async def main():
                 print(f"⚠️ Failed to refresh analysis stats: {e}")
                 print(f"  Run manually: python scripts/refresh_hierarchy_stats.py --state {args.state.upper()} --analysis")
 
+        if cache.enabled:
+            print(f"\n{cache.summary()}")
+
     finally:
+        cache.close()
         if db_conn:
             try:
                 db_conn.close()

@@ -45,6 +45,10 @@ For detailed architecture/internals on specific steps, invoke the relevant skill
 - **cross-references** — Extraction patterns, resolution logic, troubleshooting (Step 5)
 - **database** — Schema reference, queries, maintenance procedures
 
+## LLM API Response Cache
+
+All LLM pipeline steps (research, JenAI, summarization) use a shared response cache (`backend/lib/cache.py`) backed by the `llm_api_cache` table. Requests are keyed by SHA-256 hash of canonical params (model, system, messages, tools, tool_choice, max_tokens). Cache is enabled by default and reports hit/miss stats in pipeline output. Disable with `--no-cache` on the research pipeline or JenAI CLI.
+
 ## Important Reminders
 
 - **Always ask user permission** before running LLM-based steps (3, 6, 8, 9, 10) — they cost money

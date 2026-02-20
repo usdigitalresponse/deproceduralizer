@@ -1,11 +1,11 @@
 ---
 name: jenai-pipeline
-description: Run the JenAI two-tier regulatory implementation analysis pipeline. Use when analyzing regulatory sections for implementation complexity using the 14-category Pahlka framework.
+description: Run the JenAI single-pass regulatory implementation analysis pipeline. Use when analyzing regulatory sections for implementation complexity using the 14-category Pahlka framework.
 ---
 
 # JenAI Pipeline
 
-Two-tier LLM pipeline analyzing regulatory sections for implementation complexity using a 14-category Pahlka framework.
+Single-pass enriched LLM pipeline analyzing regulatory sections for implementation complexity using a 14-category framework (13 Pahlka problem categories + adversarial WORST_THING).
 
 ## Architecture
 
@@ -16,20 +16,11 @@ Regulatory Sections (hierarchy_level='section')
 [Cache Efficiency Sort] -- group by subchapter for shared context
     |
     v
-=== TIER 1: Catalog Context (Batch API) ===
-  Section text + hierarchy path + sibling titles/summaries +
-  cross-ref summaries + definition terms
-  -> LLM identifies potential categories + context_requests
-  -> "clean" sections -> DONE_CLEAN
-  -> sections with findings -> promote to Tier 2
-    |
-    v
-=== TIER 2: Full Context Confirmation (Batch API) ===
-  Tier 1 findings + fetched summaries from context_requests +
-  proactively fetched related content
-  -> Confirms/revises/dismisses Tier 1 findings
-  -> Discovers NEW categories only apparent with full context
-  -> Final results -> jenai_issues table
+=== SINGLE PASS: Rich Context Analysis (Batch API) ===
+  Section text + ancestor summaries + sibling summaries +
+  cross-ref summaries + full definition text
+  -> LLM identifies categories + WORST_THING
+  -> Results -> jenai_analyses + jenai_issues tables
 ```
 
 ## 14-Category Taxonomy
@@ -45,7 +36,7 @@ Regulatory Sections (hierarchy_level='section')
 | 7 | PROCESS_WORSHIP_OVERSIGHT | Problem | Compliance-only audits, punish any deviation |
 | 8 | ZERO_RISK_LANGUAGE | Problem | Impossible absolutes |
 | 9 | FROZEN_TECHNOLOGY | Problem | Hard-coded architectures, formats, platforms |
-| 10 | IMPLEMENTATION_OPPORTUNITY | **Positive** | Good patterns: metrics, burden reduction, pilot authority |
+| 10 | WORST_THING | **Adversarial** | Single worst aspect of the section — always required |
 | 11 | MISSING_OUTCOMES | Problem | Prescribes what to do but never defines success |
 | 12 | UNCLEAR_DELEGATION | Problem | Ambiguous authority, passive voice delegation |
 | 13 | ACCESS_ASSUMPTION_BARRIERS | Problem | Assumes specific environments, capabilities, or access |
@@ -62,14 +53,8 @@ cd backend && python3 -m scripts.jenai_pipeline.cli --state ny --title 18
 # Filter by part (e.g., child care Parts 413-419)
 cd backend && python3 -m scripts.jenai_pipeline.cli --state ny --title 18 --part 414
 
-# Execute Tier 1 only
-cd backend && python3 -m scripts.jenai_pipeline.cli --state ny --title 18 --execute --max-tier 1
-
-# Execute full pipeline
+# Execute pipeline
 cd backend && python3 -m scripts.jenai_pipeline.cli --state ny --title 18 --execute
-
-# Tier 2 on existing results
-cd backend && python3 -m scripts.jenai_pipeline.cli --state ny --title 18 --execute --tier2-only
 
 # Limit sections
 cd backend && python3 -m scripts.jenai_pipeline.cli --state ny --execute --limit 20
@@ -94,31 +79,27 @@ By default, the pipeline excludes low-value section types to save cost:
 
 Use `--include-all-types` to override and include all section types. Use `--force` to re-analyze sections with existing JenAI analyses.
 
-## Promotion Logic (Tier 1 -> Tier 2)
-
-- `classification == "clean"` -> DONE_CLEAN (skip Tier 2)
-- `classification == "needs_context"` -> always promote
-- `classification == "has_issues"` -> promote if any context_requests OR any category confidence < 0.9
-
 ## 3-Layer Prompt Caching
 
 | Layer | Scope | Content |
 |-------|-------|---------|
 | 1. system | Global (all requests) | 14-category framework, detection rules, anti-false-positive instructions |
-| 2. user_cached_prefix | Per subchapter | Ancestor chain, sibling catalog, definition terms |
+| 2. user_cached_prefix | Per subchapter | Ancestor chain + sibling summaries + full definitions + cross-ref summaries |
 | 3. prompt | Per section (unique) | Citation, title, summary, cross-refs, section text |
 
 ## Context Strategy
 
-| Tier | Context Source | Function |
-|------|---------------|----------|
-| Tier 1 | Catalog metadata | `build_context_catalog(doc_ids)` |
-| Tier 2 | Explicit requests | `fetch_summaries_for_requests(context_requests)` |
-| Tier 2 | Proactive context | `build_proactive_context(doc_ids)` |
+All context is gathered upfront in a single batch:
+
+| Context Source | Function | What it provides |
+|---------------|----------|-----------------|
+| Catalog metadata | `build_context_catalog(doc_ids)` | Sibling/cross-ref/ancestor metadata |
+| Proactive context | `build_proactive_context(doc_ids)` | Ancestor summaries, keyword-matched sibling/cross-ref summaries |
+| Full definitions | `get_definitions_with_text_batch(doc_ids)` | Full definition text with scope-aware lookup |
 
 ## Database Tables
 
-- **`jenai_analyses`** — One row per document. Stores Tier 1/2 results, derived fields.
+- **`jenai_analyses`** — One row per document. Stores classification, confidence, categories JSONB, worst_thing text.
 - **`jenai_issues`** — One row per category finding. Links to analysis + document.
 
 See `.claude/skills/database/schema.md` for full column details.
@@ -129,26 +110,25 @@ See `.claude/skills/database/schema.md` for full column details.
 backend/scripts/jenai_pipeline/
     cli.py              — CLI entry point
     config.py           — Constants, categories enum
-    pipeline_runner.py  — Two-tier orchestrator
-    state_machine.py    — ProcessingState, TrackedUnit, promotion logic
+    pipeline_runner.py  — Single-pass orchestrator
+    state_machine.py    — ProcessingState (PENDING/DONE/ERROR), TrackedUnit
     prompt_loader.py    — YAML loader for prompts/jenai.yaml
-    formatting.py       — Context catalog formatters
+    formatting.py       — Context catalog + rich context formatters
     models/
         processing.py   — JenAIUnit dataclass
-        llm_outputs.py  — Tier1Output, Tier2Output Pydantic models
+        llm_outputs.py  — IssueFinding, AnalysisOutput Pydantic models
     tiers/
-        tier1_runner.py — Tier 1 batch preparation
-        tier2_runner.py — Tier 2 batch preparation
+        prepare_batch.py — Single-pass batch preparation with rich context
     db/
         document_queries.py — Fetch sections for analysis
         analysis_writer.py  — Save results to DB
         analysis_reader.py  — Read existing analyses (resume)
-prompts/jenai.yaml          — Tier 1 + Tier 2 prompt templates
+prompts/jenai.yaml          — Single-pass prompt template
 ```
 
 ## Cost Estimate
 
-Uses Anthropic Batch API with Sonnet 4.5. ~$30-60 per title depending on section count and Tier 2 promotion rate.
+Uses Anthropic Batch API with Sonnet 4.5. Single pass (no Tier 2 follow-up), so cost is lower than the previous 2-tier architecture. ~$15-40 per title depending on section count.
 
 ## Dependencies
 
@@ -158,4 +138,4 @@ Requires Steps 5 (cross-references) and 6 (summaries) to have been run for the t
 
 - **Always ask user permission** before executing (costs money)
 - Default is dry-run — must pass `--execute` to actually run
-- IMPLEMENTATION_OPPORTUNITY is a positive finding, not a problem
+- WORST_THING is always required — even "clean" sections get a WORST_THING finding (may be low severity)

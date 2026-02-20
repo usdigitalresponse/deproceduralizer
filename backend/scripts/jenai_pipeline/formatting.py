@@ -41,8 +41,67 @@ def format_crossrefs(catalog: ContextCatalog) -> str:
     return "\n".join(lines)
 
 
-def format_tier1_context(catalog: ContextCatalog, section_text: str, **kwargs) -> dict[str, str]:
-    """Build the full context dict for Tier 1 prompt formatting."""
+def format_definitions_with_text(definitions: list[dict]) -> str:
+    """Format definitions with their full text."""
+    if not definitions:
+        return "No definitions available."
+    lines = []
+    for defn in definitions:
+        term = defn.get('term', 'Unknown')
+        text = defn.get('definition_text', defn.get('content', ''))
+        if text:
+            lines.append(f"  - {term}: {text[:500]}")
+        else:
+            lines.append(f"  - {term}")
+    return "\n".join(lines)
+
+
+def format_proactive_context_block(proactive_ctx) -> str:
+    """Format proactive context (ancestor/sibling/cross-ref summaries) into a text block."""
+    if not proactive_ctx:
+        return ""
+    parts = []
+
+    if proactive_ctx.ancestor_summaries:
+        parts.append("ANCESTOR CONTEXT:")
+        for anc in proactive_ctx.ancestor_summaries:
+            parts.append(f"  - {anc.citation} ({anc.hierarchy_level}): {anc.summary}")
+
+    if proactive_ctx.sibling_summaries:
+        parts.append("SIBLING SUMMARIES:")
+        for sib in proactive_ctx.sibling_summaries:
+            parts.append(f"  - {sib.citation}: {sib.summary}")
+
+    if proactive_ctx.cross_ref_summaries:
+        parts.append("CROSS-REFERENCE SUMMARIES:")
+        for xref in proactive_ctx.cross_ref_summaries:
+            parts.append(f"  - {xref.citation}: {xref.summary}")
+
+    return "\n".join(parts) if parts else "No additional context available."
+
+
+def format_rich_context_cached(catalog: ContextCatalog, proactive_ctx, definitions: list[dict]) -> str:
+    """Combine all context layers into the cached batch_context block (Layer 2)."""
+    sections = []
+
+    sections.append("REGULATORY HIERARCHY:")
+    sections.append(format_ancestor_chain(catalog))
+
+    sections.append("\nSIBLING SECTIONS IN THIS SUBCHAPTER:")
+    sections.append(format_sibling_catalog(catalog))
+
+    sections.append("\nDEFINITIONS (WITH FULL TEXT):")
+    sections.append(format_definitions_with_text(definitions))
+
+    proactive_block = format_proactive_context_block(proactive_ctx)
+    if proactive_block and proactive_block != "No additional context available.":
+        sections.append(f"\nRICH CONTEXT (summaries, cross-references):\n{proactive_block}")
+
+    return "\n".join(sections)
+
+
+def format_analysis_context(catalog: ContextCatalog, section_text: str, **kwargs) -> dict[str, str]:
+    """Build the full context dict for prompt formatting."""
     return {
         'section_text': section_text,
         'citation': kwargs.get('citation', ''),

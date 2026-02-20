@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from observability.types import LLMTraceContext
 
 import anthropic
+import pydantic
 from pydantic import BaseModel
 
 
@@ -251,6 +252,8 @@ async def call_llm_parse_async(
     system: Optional[str] = None,
     max_tokens: int = 64000,
     trace_context: Optional[dict] = None,
+    cache: Optional[Any] = None,
+    cache_metadata: Optional[Dict] = None,
 ) -> tuple[Optional[BaseModel], dict]:
     """
     Call Anthropic API async with structured output (Pydantic model via tool_use).
@@ -266,6 +269,8 @@ async def call_llm_parse_async(
         system: Optional system prompt (cached across batch requests)
         max_tokens: Max output tokens (default: 64000)
         trace_context: Optional Langfuse trace context for observability
+        cache: Optional CacheManager for LLM response caching
+        cache_metadata: Optional dict with pipeline, tier, document_id for cache storage
 
     Returns:
         Tuple of (parsed Pydantic model instance or None, usage dict with token counts)
@@ -292,6 +297,22 @@ async def call_llm_parse_async(
                 "cache_control": {"type": "ephemeral", "ttl": "1h"}
             }
         ]
+
+    # --- Cache check ---
+    request_hash = None
+    if cache and cache.enabled:
+        request_hash = cache.compute_hash(request_kwargs)
+        cached = cache.lookup(request_hash)
+        if cached:
+            # Parse cached response
+            tool_input = cached.get("tool_use_input")
+            if tool_input:
+                try:
+                    parsed = response_format.model_validate(tool_input)
+                    return parsed, {"input_tokens": 0, "output_tokens": 0, "cache_read_tokens": 0, "cache_write_tokens": 0}
+                except pydantic.ValidationError as e:
+                    print(f"  Cache parse warning: {e}")
+                    # Fall through to API call
 
     for attempt in range(max_retries):
         start_time = time.time()
@@ -347,6 +368,21 @@ async def call_llm_parse_async(
                 output_text = parsed.model_dump_json() if parsed else ""
                 _log_llm_call(trace_context, model, prompt, output_text, usage, latency_ms, success=True)
 
+            # --- Cache store ---
+            if cache and cache.enabled and request_hash and parsed:
+                meta = cache_metadata or {}
+                cache.store(
+                    request_hash=request_hash,
+                    request_body=request_kwargs,
+                    response_body={"tool_use_input": parsed.model_dump()},
+                    model=model,
+                    usage=usage,
+                    pipeline=meta.get("pipeline"),
+                    tier=meta.get("tier"),
+                    document_id=meta.get("document_id"),
+                    stale_after=meta.get("stale_after"),
+                )
+
             return parsed, usage
 
         except Exception as e:
@@ -378,6 +414,8 @@ async def call_llm_beta_async(
     betas: list[str] = None,
     output_format: dict = None,
     cache_ttl: str = "1h",
+    cache: Optional[Any] = None,
+    cache_metadata: Optional[Dict] = None,
 ) -> tuple[Any, dict]:
     """
     Call Anthropic Beta API async with support for structured outputs and web search.
@@ -400,6 +438,8 @@ async def call_llm_beta_async(
         betas: List of beta features to enable (e.g., ["structured-outputs-2025-11-13"])
         output_format: Structured output format spec (for beta structured outputs)
         cache_ttl: Cache TTL for system prompt (default: "1h")
+        cache: Optional CacheManager for LLM response caching
+        cache_metadata: Optional dict with pipeline, tier, document_id, stale_after
 
     Returns:
         Tuple of (API response object, usage dict).
@@ -435,6 +475,17 @@ async def call_llm_beta_async(
     if output_format:
         request_kwargs["output_format"] = output_format
 
+    # --- Cache check ---
+    # Note: For web search responses, callers should set stale_after in cache_metadata
+    request_hash = None
+    if cache and cache.enabled:
+        request_hash = cache.compute_hash(request_kwargs)
+        cached = cache.lookup(request_hash)
+        if cached:
+            # Return a lightweight wrapper that has the cached content
+            cached_response = _CachedBetaResponse(cached)
+            return cached_response, {"input_tokens": 0, "output_tokens": 0, "cache_read_tokens": 0, "cache_write_tokens": 0}
+
     for attempt in range(max_retries):
         start_time = time.time()
         try:
@@ -464,6 +515,23 @@ async def call_llm_beta_async(
                 "cache_read_tokens": cache_read,
                 "cache_write_tokens": cache_write,
             }
+
+            # --- Cache store ---
+            if cache and cache.enabled and request_hash and response:
+                meta = cache_metadata or {}
+                response_body = _beta_response_to_dict(response)
+                cache.store(
+                    request_hash=request_hash,
+                    request_body=request_kwargs,
+                    response_body=response_body,
+                    model=model,
+                    usage=usage_dict,
+                    pipeline=meta.get("pipeline"),
+                    tier=meta.get("tier"),
+                    document_id=meta.get("document_id"),
+                    stale_after=meta.get("stale_after"),
+                )
+
             return response, usage_dict
 
         except Exception as e:
@@ -483,3 +551,70 @@ async def call_llm_beta_async(
             return None, {}
 
     return None, {}
+
+
+class _CachedBetaResponse:
+    """Lightweight wrapper around cached beta response data.
+
+    Mimics the Anthropic beta response interface enough for callers
+    that access .content, .stop_reason, .model, .role, and .usage.
+    """
+
+    def __init__(self, data: dict):
+        self._data = data
+        self.stop_reason = data.get("stop_reason", "end_turn")
+        self.model = data.get("model", "")
+        self.role = data.get("role", "assistant")
+        self.usage = None
+        self.content = []
+        for block in data.get("content", []):
+            self.content.append(_CachedContentBlock(block))
+
+
+class _CachedContentBlock:
+    """Mimics an Anthropic content block from cached data."""
+
+    def __init__(self, data: dict):
+        self.type = data.get("type", "text")
+        self.text = data.get("text", "")
+        self.id = data.get("id", "")
+        self.name = data.get("name", "")
+        self.input = data.get("input", {})
+
+
+def _beta_response_to_dict(response) -> dict:
+    """Convert a beta API response to a JSON-serializable dict for caching."""
+    content = []
+    for block in response.content:
+        block_dict = {"type": block.type}
+        if block.type == "text":
+            block_dict["text"] = block.text
+        elif block.type == "tool_use":
+            block_dict["id"] = block.id
+            block_dict["name"] = block.name
+            block_dict["input"] = block.input
+        elif block.type == "server_tool_use":
+            block_dict["id"] = getattr(block, "id", "")
+            block_dict["name"] = getattr(block, "name", "")
+            block_dict["input"] = getattr(block, "input", {})
+        elif block.type == "web_search_tool_result":
+            block_dict["tool_use_id"] = getattr(block, "tool_use_id", "")
+            block_dict["content"] = getattr(block, "content", [])
+            # Content may contain search result objects — serialize them
+            if hasattr(block, "content") and block.content:
+                serialized = []
+                for item in block.content:
+                    if hasattr(item, "model_dump"):
+                        serialized.append(item.model_dump())
+                    elif hasattr(item, "__dict__"):
+                        serialized.append(item.__dict__)
+                    else:
+                        serialized.append(item)
+                block_dict["content"] = serialized
+        content.append(block_dict)
+    return {
+        "content": content,
+        "model": response.model,
+        "stop_reason": response.stop_reason,
+        "role": response.role,
+    }

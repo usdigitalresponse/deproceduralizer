@@ -101,3 +101,37 @@ STATE_LOCATIONS = {
         "timezone": "America/New_York",
     },
 }
+
+
+# =============================================================================
+# Jurisdiction Metadata for Prompt Contextualization
+# =============================================================================
+
+# Maps state codes to jurisdiction-specific language for Tier 3 prompts.
+# NYC is a city-level jurisdiction; NY and NJ are state-level.
+JURISDICTION_METADATA = {
+    "NJ": {
+        "jurisdiction_name": "New Jersey",
+        "jurisdiction_type": "state",
+        "jurisdiction_label": "state",
+        "peer_label": "other states",
+        "executive_orders_label": "State executive orders",
+        "laws_label": "NJ laws",
+    },
+    "NY": {
+        "jurisdiction_name": "New York",
+        "jurisdiction_type": "state",
+        "jurisdiction_label": "state",
+        "peer_label": "other states",
+        "executive_orders_label": "State executive orders",
+        "laws_label": "NY laws",
+    },
+    "NYC": {
+        "jurisdiction_name": "New York City",
+        "jurisdiction_type": "city",
+        "jurisdiction_label": "city",
+        "peer_label": "other major US cities (Chicago, Los Angeles, Philadelphia, etc.)",
+        "executive_orders_label": "Mayoral executive orders",
+        "laws_label": "NYC laws (Charter, Administrative Code)",
+    },
+}

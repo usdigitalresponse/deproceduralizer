@@ -376,6 +376,7 @@ async def _execute_pipeline(
     title_filter: str | None = None,
     statute_mandate: bool = False,
     summarize: bool = False,
+    no_cache: bool = False,
 ) -> list:
     """Execute the pipeline with given processing units.
 
@@ -430,6 +431,7 @@ async def _execute_pipeline(
         resume=not force_rerun,
         title_filter=title_filter,
         statute_mandate=statute_mandate,
+        no_cache=no_cache,
     )
 
     # Save final results to database (tier results already saved incrementally)
@@ -535,6 +537,7 @@ async def run_test(
     force_rerun: bool = False,
     statute_mandate: bool = False,
     summarize: bool = False,
+    no_cache: bool = False,
 ):
     """
     Run the research pipeline on unanalyzed documents.
@@ -630,6 +633,7 @@ async def run_test(
         title_filter=title,
         statute_mandate=statute_mandate,
         summarize=summarize,
+        no_cache=no_cache,
     )
 
     # Print detailed results
@@ -674,6 +678,7 @@ async def run_batched_issues(
     force_rerun: bool = False,
     statute_mandate: bool = False,
     summarize: bool = False,
+    no_cache: bool = False,
 ):
     """Run pipeline with all issue types batched together per tier."""
     issue_types = get_issue_types_for_scope(state, title)
@@ -760,6 +765,7 @@ async def run_batched_issues(
         title_filter=title,
         statute_mandate=statute_mandate,
         summarize=summarize,
+        no_cache=no_cache,
     )
 
     return results
@@ -777,6 +783,7 @@ async def run_all_issues(
     force_rerun: bool = False,
     statute_mandate: bool = False,
     summarize: bool = False,
+    no_cache: bool = False,
 ):
     """Run pipeline for all issue types in scope.
 
@@ -805,6 +812,7 @@ async def run_all_issues(
         force_rerun=force_rerun,
         statute_mandate=statute_mandate,
         summarize=summarize,
+        no_cache=no_cache,
     )
 
 
@@ -1047,6 +1055,12 @@ RESUME BEHAVIOR:
              "Processes NY analyses that have statute links but no mandate checks yet."
     )
 
+    parser.add_argument(
+        "--no-cache",
+        action="store_true",
+        help="Disable LLM API response cache (forces fresh API calls for all tiers)",
+    )
+
     # === RECOVERY FLAGS ===
     parser.add_argument(
         "--retry-failed-tier3",
@@ -1149,6 +1163,7 @@ RESUME BEHAVIOR:
             force_rerun=args.force_rerun,
             statute_mandate=args.statute_mandate,
             summarize=args.summarize,
+            no_cache=args.no_cache,
         ))
     else:
         asyncio.run(run_test(
@@ -1163,4 +1178,5 @@ RESUME BEHAVIOR:
             force_rerun=args.force_rerun,
             statute_mandate=args.statute_mandate,
             summarize=args.summarize,
+            no_cache=args.no_cache,
         ))

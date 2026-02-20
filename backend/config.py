@@ -54,6 +54,10 @@ RCNY_XML_DIR = DATA_DIR / 'rcny_xml' / 'XML'
 RCNY_DATA_DIR = DATA_DIR / 'rcny'
 RCNY_REGULATIONS_COMPLETE_FILE = DATA_DIR / 'rcny_regulations_complete.json'
 
+# Common data files - NYC Health Code
+NYC_HEALTH_CODE_HTML_FILE = PROJECT_ROOT / 'newyorkcity-ny-1_health.html'
+NYC_HEALTH_CODE_COMPLETE_FILE = DATA_DIR / 'nyc_health_code_complete.json'
+
 
 # Hierarchy level ordering per state (bottom-up, excluding 'section').
 # Sections are always summarized first, then these levels in order.

@@ -37,7 +37,10 @@ def get_web_search_tool(state: str = "NJ", max_uses: Optional[int] = None) -> di
         max_uses = MAX_WEB_SEARCHES_PER_REQUEST
 
     # Use centralized STATE_LOCATIONS from config
-    location = STATE_LOCATIONS.get(state.upper(), STATE_LOCATIONS["NJ"])
+    location = STATE_LOCATIONS.get(state.upper())
+    if location is None:
+        print(f"  Warning: Unknown state '{state}' for web search, defaulting to NJ")
+        location = STATE_LOCATIONS["NJ"]
 
     return {
         "type": "web_search_20250305",

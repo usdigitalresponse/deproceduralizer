@@ -16,9 +16,75 @@ from bs4 import BeautifulSoup, NavigableString, Tag
 # TABLE TO MARKDOWN CONVERSION
 # =============================================================================
 
+def _flatten_nested_tables(cell: Tag) -> str:
+    """Extract text from a cell, flattening any nested tables to plain text."""
+    # If cell contains nested tables, extract their text first
+    nested_tables = cell.find_all('table')
+    for nt in nested_tables:
+        nt.replace_with(NavigableString(nt.get_text(separator=' ', strip=True)))
+    text = cell.get_text(separator=' ', strip=True)
+    text = re.sub(r'\s+', ' ', text)
+    text = text.replace('|', '\\|')
+    return text
+
+
+def _build_grid(all_rows: list) -> list[list[str]]:
+    """
+    Build a 2D grid from HTML table rows, expanding colspan/rowspan.
+
+    Each cell in the grid is a string. Cells spanned by colspan/rowspan
+    are filled with the parent cell's text.
+    """
+    if not all_rows:
+        return []
+
+    # First pass: determine grid dimensions
+    # We need to track occupied cells for rowspan
+    grid = []
+    occupied = {}  # (row, col) -> True for cells occupied by rowspan
+
+    for row_idx, row in enumerate(all_rows):
+        cells = row.find_all(['th', 'td'])
+        if not cells:
+            grid.append([])
+            continue
+
+        grid_row = []
+        col_idx = 0
+
+        for cell in cells:
+            # Skip past columns occupied by rowspan from previous rows
+            while occupied.get((row_idx, col_idx)):
+                grid_row.append(occupied[(row_idx, col_idx)])
+                col_idx += 1
+
+            text = _flatten_nested_tables(cell)
+            colspan = int(cell.get('colspan', 1) or 1)
+            rowspan = int(cell.get('rowspan', 1) or 1)
+
+            # Fill colspan cells in current row
+            for c in range(colspan):
+                grid_row.append(text if c == 0 else '')
+                # Mark future rows as occupied for rowspan
+                for r in range(1, rowspan):
+                    occupied[(row_idx + r, col_idx)] = text if c == 0 else ''
+                col_idx += 1
+
+        # Fill any remaining occupied cells at the end of the row
+        while occupied.get((row_idx, col_idx)):
+            grid_row.append(occupied[(row_idx, col_idx)])
+            col_idx += 1
+
+        grid.append(grid_row)
+
+    return grid
+
+
 def table_to_markdown(table: Tag) -> str:
     """
     Convert an HTML table to markdown format.
+
+    Handles colspan, rowspan, multi-row headers, and nested tables.
 
     Args:
         table: BeautifulSoup Tag element representing a <table>
@@ -29,57 +95,89 @@ def table_to_markdown(table: Tag) -> str:
     if table is None or table.name != 'table':
         return ""
 
-    rows = []
-    header_row = None
+    # Flatten nested tables to text before processing
+    for nested in table.find_all('table'):
+        nested.replace_with(NavigableString(nested.get_text(separator=' ', strip=True)))
 
-    # Find all rows (including those in thead, tbody, tfoot)
-    all_rows = table.find_all('tr')
+    # Only find <tr> elements that belong to this table (not nested tables)
+    all_rows = table.find_all('tr', recursive=True)
+    if not all_rows:
+        return ""
 
-    for row_idx, row in enumerate(all_rows):
-        cells = row.find_all(['th', 'td'])
-        if not cells:
-            continue
+    grid = _build_grid(all_rows)
+    if not grid:
+        return ""
 
-        # Extract cell text, cleaning whitespace
-        cell_texts = []
-        for cell in cells:
-            # Get text and normalize whitespace
-            text = cell.get_text(separator=' ', strip=True)
-            text = re.sub(r'\s+', ' ', text)
-            # Escape pipe characters in content
-            text = text.replace('|', '\\|')
-            cell_texts.append(text)
+    # Determine column count from widest row
+    num_cols = max(len(r) for r in grid) if grid else 0
+    if num_cols == 0:
+        return ""
 
-        # If this row has <th> elements, treat as header
-        if row.find('th') and header_row is None:
-            header_row = cell_texts
-        else:
-            rows.append(cell_texts)
+    # Pad all rows to num_cols
+    for row in grid:
+        while len(row) < num_cols:
+            row.append('')
 
-    # If no explicit header, use first row as header
-    if header_row is None and rows:
-        header_row = rows.pop(0)
+    # Identify header rows: rows in <thead>, or leading rows with all <th> cells
+    thead = table.find('thead')
+    header_row_indices = set()
 
-    if not header_row:
+    if thead:
+        thead_rows = thead.find_all('tr')
+        for i, row in enumerate(all_rows):
+            if row in thead_rows:
+                header_row_indices.add(i)
+    else:
+        # Use leading rows that are all <th>
+        for i, row in enumerate(all_rows):
+            cells = row.find_all(['th', 'td'])
+            if cells and all(c.name == 'th' for c in cells):
+                header_row_indices.add(i)
+            else:
+                break  # Stop at first non-header row
+
+    # Heuristic for multi-row headers when no <thead>/<th>:
+    # If the first grid row has empty cells (from colspan) and later rows
+    # fill those columns, treat the leading rows up to and including the
+    # first fully-filled row as header rows.
+    if not header_row_indices and len(grid) >= 2:
+        first_row_has_empties = any(c == '' for c in grid[0])
+        if first_row_has_empties:
+            for i in range(len(grid)):
+                header_row_indices.add(i)
+                # Stop once we find a row with all columns filled
+                if all(c != '' for c in grid[i]):
+                    break
+            else:
+                # Never found a fully-filled row — don't treat as multi-row header
+                header_row_indices.clear()
+
+    # Build header: merge multi-row headers with " / "
+    if header_row_indices:
+        merged_header = [[] for _ in range(num_cols)]
+        for i in sorted(header_row_indices):
+            if i < len(grid):
+                for col_idx in range(num_cols):
+                    val = grid[i][col_idx] if col_idx < len(grid[i]) else ''
+                    if val and val not in merged_header[col_idx]:
+                        merged_header[col_idx].append(val)
+        header = [' / '.join(parts) if parts else '' for parts in merged_header]
+        data_rows = [grid[i] for i in range(len(grid)) if i not in header_row_indices]
+    else:
+        # No explicit header — use first row
+        header = grid[0]
+        data_rows = grid[1:]
+
+    if not header or all(h == '' for h in header):
         return ""
 
     # Build markdown table
     lines = []
+    lines.append('| ' + ' | '.join(header) + ' |')
+    lines.append('| ' + ' | '.join(['---'] * num_cols) + ' |')
 
-    # Header row
-    lines.append('| ' + ' | '.join(header_row) + ' |')
-
-    # Separator row
-    lines.append('| ' + ' | '.join(['---'] * len(header_row)) + ' |')
-
-    # Data rows
-    for row in rows:
-        # Pad row if needed to match header length
-        while len(row) < len(header_row):
-            row.append('')
-        # Truncate if row is longer than header
-        row = row[:len(header_row)]
-        lines.append('| ' + ' | '.join(row) + ' |')
+    for row in data_rows:
+        lines.append('| ' + ' | '.join(row[:num_cols]) + ' |')
 
     return '\n'.join(lines)
 
@@ -284,6 +382,11 @@ def fix_extraneous_newlines(text: str) -> str:
     # Pattern 9: Possessive/article + double newline + word (clear mid-phrase breaks)
     # "Department's\n\nOperations" -> "Department's Operations"
     text = re.sub(r"(['\"]s|')\s*\n\n+\s*([A-Z][a-z]+)", r'\1 \2', text)
+
+    # Pattern 10: Blank lines between indented list items
+    # "item text;\n\n\t\t(ii) next item" -> "item text;\n\t\t(ii) next item"
+    # Collapses double+ newlines before tab-indented lines to single newline
+    text = re.sub(r'\n\n+(\t)', r'\n\1', text)
 
     return text
 

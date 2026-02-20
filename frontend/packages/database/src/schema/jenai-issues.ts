@@ -1,6 +1,6 @@
 import {
   pgTable, bigserial, bigint, varchar, text,
-  integer, real, boolean, timestamp, unique,
+  integer, real, timestamp, unique,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { jenaiAnalyses } from './jenai-analyses';
@@ -16,7 +16,7 @@ export const JENAI_CATEGORIES = [
   'PROCESS_WORSHIP_OVERSIGHT',
   'ZERO_RISK_LANGUAGE',
   'FROZEN_TECHNOLOGY',
-  'IMPLEMENTATION_OPPORTUNITY',
+  'WORST_THING',
   'MISSING_OUTCOMES',
   'UNCLEAR_DELEGATION',
   'ACCESS_ASSUMPTION_BARRIERS',
@@ -34,7 +34,7 @@ export const JENAI_CATEGORY_LABELS: Record<JenAICategory, string> = {
   PROCESS_WORSHIP_OVERSIGHT: 'Process Worship Oversight',
   ZERO_RISK_LANGUAGE: 'Zero-Risk Language',
   FROZEN_TECHNOLOGY: 'Frozen Technology',
-  IMPLEMENTATION_OPPORTUNITY: 'Implementation Opportunity',
+  WORST_THING: 'Worst Thing',
   MISSING_OUTCOMES: 'Missing Outcomes',
   UNCLEAR_DELEGATION: 'Unclear Delegation',
   ACCESS_ASSUMPTION_BARRIERS: 'Access/Assumption Barriers',
@@ -58,13 +58,8 @@ export const jenaiIssues = pgTable('jenai_issues', {
   confidence: real('confidence').notNull(),
   matchedPhrases: text('matched_phrases').array().default(sql`'{}'`),
   implementationApproach: text('implementation_approach'),
-  effortEstimate: varchar('effort_estimate', { length: 255 }),
+  effortEstimate: text('effort_estimate'),
   textExamples: text('text_examples').array().default(sql`'{}'`),
-
-  // Tier Tracking
-  discoveredInTier: integer('discovered_in_tier').notNull(),
-  confirmedInTier: integer('confirmed_in_tier'),
-  tier2Revised: boolean('tier2_revised').default(false),
 
   // Review fields (same as red_flags)
   reviewStatus: varchar('review_status', { length: 50 }).default('unreviewed'),

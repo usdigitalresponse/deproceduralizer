@@ -379,6 +379,7 @@ async def run_tier3_realtime(
     cost_tracker=None,
     trace_context=None,
     state: str = "NJ",
+    cache=None,
 ) -> list[TrackedUnit]:
     """
     Run Tier 3 using real-time API with web search.
@@ -494,6 +495,10 @@ async def run_tier3_realtime(
             else:
                 not_to_confuse_formatted = "(none specified)"
 
+            # Jurisdiction metadata for prompt contextualization
+            from ..config import JURISDICTION_METADATA
+            jurisdiction = JURISDICTION_METADATA.get(state.upper(), JURISDICTION_METADATA["NJ"])
+
             tier3_vars = {
                 # Tier 1 argument framing (initial perspectives)
                 "tier1_argument_burdensome": tier1_argument_burdensome,
@@ -522,6 +527,14 @@ async def run_tier3_realtime(
                 "search_scope_guidance": search_scope_guidance,
                 # Web search results will be populated by Claude during the call
                 "web_search_results": "(Claude will perform searches and analyze results)",
+                # Jurisdiction metadata for prompt contextualization
+                "state": state.upper(),
+                "jurisdiction_name": jurisdiction["jurisdiction_name"],
+                "jurisdiction_type": jurisdiction["jurisdiction_type"],
+                "jurisdiction_label": jurisdiction["jurisdiction_label"],
+                "peer_label": jurisdiction["peer_label"],
+                "executive_orders_label": jurisdiction["executive_orders_label"],
+                "laws_label": jurisdiction["laws_label"],
             }
 
             prompt_parts = format_tier_prompt(
@@ -539,6 +552,9 @@ async def run_tier3_realtime(
             # SINGLE CALL: Claude performs web search AND submits structured
             # results via the submit_analysis tool call. This eliminates
             # unreliable JSON-from-text parsing.
+            # Cache with 90-day stale_after since web search results change over time
+            from datetime import timedelta
+            stale_after = datetime.now() + timedelta(days=90) if cache else None
             response, api_usage = await call_llm_beta_async(
                 client=client,
                 prompt=full_prompt,
@@ -547,6 +563,12 @@ async def run_tier3_realtime(
                 model=TIER3_REALTIME_MODEL,
                 max_tokens=64000,
                 cache_ttl="1h",
+                cache=cache,
+                cache_metadata={
+                    "pipeline": "research", "tier": 3,
+                    "document_id": unit.document_id,
+                    "stale_after": stale_after,
+                },
             )
 
             if response is None:
@@ -712,6 +734,9 @@ def prepare_tier3_batch(
 
         # Build tier3 variables (same as real-time)
         from ..routing import get_tier3_trigger_reason
+        from ..config import JURISDICTION_METADATA
+        jurisdiction = JURISDICTION_METADATA.get(state.upper(), JURISDICTION_METADATA["NJ"])
+
         tier3_vars = {
             # Tier 1 argument framing (initial perspectives)
             "tier1_argument_burdensome": tier1_argument_burdensome,
@@ -740,6 +765,14 @@ def prepare_tier3_batch(
             "search_scope_guidance": search_scope_guidance,
             # Web search results will be populated by Claude during the call
             "web_search_results": "(Claude will perform searches and analyze results)",
+            # Jurisdiction metadata for prompt contextualization
+            "state": state.upper(),
+            "jurisdiction_name": jurisdiction["jurisdiction_name"],
+            "jurisdiction_type": jurisdiction["jurisdiction_type"],
+            "jurisdiction_label": jurisdiction["jurisdiction_label"],
+            "peer_label": jurisdiction["peer_label"],
+            "executive_orders_label": jurisdiction["executive_orders_label"],
+            "laws_label": jurisdiction["laws_label"],
         }
 
         prompt_parts = format_tier_prompt(

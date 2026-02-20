@@ -47,6 +47,7 @@ class BasePatternSearcher(ABC):
         issue_config: IssueTypeConfig,
         with_statutes: bool = True,
         batches_subdir: str = 'batches',
+        cache=None,
     ):
         """
         Initialize searcher.
@@ -56,10 +57,12 @@ class BasePatternSearcher(ABC):
             issue_config: Issue type configuration with patterns and prompts
             with_statutes: Whether to enable statute lookup
             batches_subdir: Subdirectory for batch files
+            cache: Optional CacheManager for LLM response caching
         """
         self.state_config = state_config
         self.issue_config = issue_config
         self.with_statutes = with_statutes
+        self.cache = cache
 
         # Create statute checker
         self.statute_checker = create_statute_checker(state_config, with_statutes)
@@ -290,6 +293,8 @@ class BasePatternSearcher(ABC):
                 response_format=self.issue_config.response_model,
                 model=DEFAULT_MODEL,
                 system=system_prompt,
+                cache=self.cache,
+                cache_metadata={"pipeline": "compliance_scan", "tier": None, "document_id": match.get("document_id")},
             )
 
             if analysis is None:
