@@ -23,14 +23,13 @@ const PREFERRED_PORTS = [3010, 3001, 3000];
 
 function isOurAppResponding(port: number): boolean {
   try {
-    // Check /ny/browse — a route unique to our app — to avoid reusing an
-    // unrelated dev server (e.g. another Next.js project on the same port).
-    // curl -sf fails on non-2xx, so a 404 from the wrong app won't match.
-    execSync(
-      `curl -sf -o /dev/null --max-time 2 http://localhost:${port}/ny/browse`,
-      { stdio: 'pipe' },
-    );
-    return true;
+    // Fast check: see if a node process is listening on this port.
+    // A full HTTP check (curl) is unreliable under load from parallel workers.
+    const pids = execSync(`lsof -i :${port} -t`, { stdio: 'pipe' }).toString().trim();
+    if (!pids) return false;
+    const firstPid = pids.split('\n')[0];
+    const comm = execSync(`ps -p ${firstPid} -o comm=`, { stdio: 'pipe' }).toString().trim();
+    return comm.includes('node') || comm.includes('next');
   } catch {
     return false;
   }
@@ -127,6 +126,24 @@ export default defineConfig({
     : undefined,
 
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    // Auth setup: sets localStorage isAuthenticated before all tests
+    { name: 'setup', testMatch: /auth\.setup\.ts/ },
+    // Auth tests: run WITHOUT stored auth state to test the auth flow itself
+    {
+      name: 'auth',
+      testMatch: /auth\.spec\.ts/,
+      use: { ...devices['Desktop Chrome'] },
+      dependencies: ['setup'],
+    },
+    // Main tests: run WITH stored auth state (already authenticated)
+    {
+      name: 'chromium',
+      testIgnore: /auth\.(setup|spec)\.ts/,
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: './e2e/../.auth/user.json',
+      },
+      dependencies: ['setup'],
+    },
   ],
 });

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu, Share2, LogOut } from 'lucide-react';
+import { Menu, Share2, LogOut, FlaskConical } from 'lucide-react';
 import { toast } from 'sonner';
 import { Container } from './Container';
 import { MobileNav } from './MobileNav';
@@ -131,7 +131,51 @@ export function Header({ className = '' }: HeaderProps) {
                   }
                 />
 
-                {/* Review Mode - Direct Link Since only one item */}
+                {/* Metrics Group */}
+                <NavDropdown
+                  label={NAV_GROUPS.metrics.label}
+                  icon={NAV_GROUPS.metrics.icon}
+                  items={stateNavItems
+                    .filter(item => item.groupId === 'metrics')
+                    .map(item => ({
+                      key: item.key,
+                      label: item.label,
+                      href: getNavHref(item, currentState),
+                      isActive: isNavActive(item, pathname, currentState),
+                      icon: item.icon,
+                    }))
+                  }
+                />
+
+                {/* Highlighted standalone links (Pipeline) */}
+                {stateNavItems
+                  .filter(item => item.isHighlighted)
+                  .map((item) => {
+                    const href = getNavHref(item, currentState);
+                    const isActive = isNavActive(item, pathname, currentState);
+                    const Icon = item.icon;
+
+                    return (
+                      <Link
+                        key={item.key}
+                        href={href}
+                        className={`
+                          flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold
+                          rounded-full border transition-colors duration-[var(--duration-fast)]
+                          ${isActive
+                            ? 'bg-[var(--color-primary)] text-white border-[var(--color-primary)]'
+                            : 'bg-[var(--color-primary-weaker)] text-[var(--color-primary)] border-[var(--color-primary-weak)] hover:bg-[var(--color-primary)] hover:text-white hover:border-[var(--color-primary)]'
+                          }
+                        `}
+                      >
+                        <Icon className="w-3.5 h-3.5" />
+                        {item.label}
+                      </Link>
+                    );
+                  })
+                }
+
+                {/* Review Mode - Direct Link */}
                 {stateNavItems
                   .filter(item => item.groupId === 'review')
                   .map((item) => {
@@ -156,48 +200,6 @@ export function Header({ className = '' }: HeaderProps) {
                     );
                   })
                 }
-
-                {/* Highlighted standalone links (Pipeline) */}
-                {stateNavItems
-                  .filter(item => item.isHighlighted)
-                  .map((item) => {
-                    const href = getNavHref(item, currentState);
-                    const isActive = isNavActive(item, pathname, currentState);
-
-                    return (
-                      <Link
-                        key={item.key}
-                        href={href}
-                        className={`
-                          px-3 py-2 text-sm font-semibold rounded-[var(--radius-md)]
-                          transition-colors duration-[var(--duration-fast)]
-                          ${isActive
-                            ? 'bg-[var(--color-primary-weaker)] text-[var(--color-primary)]'
-                            : 'text-[var(--color-primary)] hover:bg-[var(--color-primary-weaker)]'
-                          }
-                        `}
-                      >
-                        {item.label}
-                      </Link>
-                    );
-                  })
-                }
-
-                {/* Metrics Group */}
-                <NavDropdown
-                  label={NAV_GROUPS.metrics.label}
-                  icon={NAV_GROUPS.metrics.icon}
-                  items={stateNavItems
-                    .filter(item => item.groupId === 'metrics')
-                    .map(item => ({
-                      key: item.key,
-                      label: item.label,
-                      href: getNavHref(item, currentState),
-                      isActive: isNavActive(item, pathname, currentState),
-                      icon: item.icon,
-                    }))
-                  }
-                />
 
                 {/* Divider */}
                 {globalNavItems.length > 0 && (

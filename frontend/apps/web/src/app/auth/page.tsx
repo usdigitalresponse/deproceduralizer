@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { validateShareToken } from '@/lib/actions/auth';
 import { PasswordForm } from '@/components/auth/PasswordForm';
 import { toast } from 'sonner';
@@ -15,7 +15,6 @@ import { toast } from 'sonner';
  */
 export default function AuthPage() {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const [isValidating, setIsValidating] = useState(true);
   const [validationFailed, setValidationFailed] = useState(false);
 
@@ -54,10 +53,8 @@ export default function AuthPage() {
             }
           );
 
-          // Small delay to allow toast to show before redirect
-          setTimeout(() => {
-            router.push('/');
-          }, 500);
+          // Full page navigation so AuthGuard re-checks localStorage
+          window.location.href = '/';
         } else {
           // Token validation failed
           setIsValidating(false);
@@ -73,7 +70,7 @@ export default function AuthPage() {
     };
 
     validateToken();
-  }, [searchParams, router]);
+  }, [searchParams]);
 
   // Show loading state while validating
   if (isValidating) {

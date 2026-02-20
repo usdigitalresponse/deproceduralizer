@@ -531,9 +531,10 @@ test.describe('Review Form Submission', () => {
     // Verify the form still shows saved values (optimistic update)
     await expect(teamNotesTextarea).toHaveValue(testTeamNotes);
 
-    // SELF-CLEANING: Clear the test data
-    // The card is still visible since we didn't change status (stays 'unreviewed')
-    // We clear the notes but must leave reviewer name (required for save button to work)
+    // SELF-CLEANING: Reload page to get a fresh form (avoids flaky disabled-state wait)
+    await page.reload();
+    await waitForComplianceReviewReady(page);
+
     const cleanupCard = page.locator(`#${cardId}`);
     if (await cleanupCard.count() > 0) {
       const cleanupReviewer = cleanupCard.getByTestId('compliance-reviewer-input');
@@ -541,12 +542,10 @@ test.describe('Review Form Submission', () => {
       const cleanupTeamNotes = cleanupCard.getByTestId('compliance-team-notes-textarea');
       const cleanupSaveButton = cleanupCard.getByTestId('compliance-save-button');
 
-      // Wait for form to be enabled again after previous save
       await expect(cleanupReviewer).toBeEnabled({ timeout: 10000 });
 
-      // Clear notes fields and use placeholder reviewer (can't be empty)
       await cleanupReviewer.clear();
-      await cleanupReviewer.fill('_');  // Minimal placeholder to enable save
+      await cleanupReviewer.fill('_');
       await cleanupJustification.clear();
       await cleanupTeamNotes.clear();
       await cleanupSaveButton.click();
@@ -596,9 +595,10 @@ test.describe('Review Form Submission', () => {
     // Verify the form shows saved values
     await expect(teamNotesTextarea).toHaveValue(testTeamNotes);
 
-    // SELF-CLEANING: Clear the test data
-    // The card is still visible since we didn't change status (stays 'unreviewed')
-    // We clear the notes but must leave reviewer name (required for save button to work)
+    // SELF-CLEANING: Reload page to get a fresh form (avoids flaky disabled-state wait)
+    await page.reload();
+    await waitForRedFlagReviewReady(page);
+
     const cleanupCard = page.locator(`#${cardId}`);
     if (await cleanupCard.count() > 0) {
       const cleanupReviewer = cleanupCard.getByTestId('red-flag-reviewer-input');
@@ -606,12 +606,10 @@ test.describe('Review Form Submission', () => {
       const cleanupTeamNotes = cleanupCard.getByTestId('red-flag-team-notes-textarea');
       const cleanupSaveButton = cleanupCard.getByTestId('red-flag-save-button');
 
-      // Wait for form to be enabled again after previous save
       await expect(cleanupReviewer).toBeEnabled({ timeout: 10000 });
 
-      // Clear notes fields and use placeholder reviewer (can't be empty)
       await cleanupReviewer.clear();
-      await cleanupReviewer.fill('_');  // Minimal placeholder to enable save
+      await cleanupReviewer.fill('_');
       await cleanupJustification.clear();
       await cleanupTeamNotes.clear();
       await cleanupSaveButton.click();
