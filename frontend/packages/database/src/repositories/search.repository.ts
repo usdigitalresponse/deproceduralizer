@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm';
 import { BaseRepository } from './base.repository';
-import { StateCode } from '../schema/constants';
+import { StateCode, normalizeState } from '../schema/constants';
 import { shouldExcludeStatutes, shouldExcludeRegulations, shouldSkipAnalyses } from './search-filters';
 
 // ============================================
@@ -155,7 +155,7 @@ export class SearchRepository extends BaseRepository {
           WHERE cia.document_id = rd.id
             AND cia.requirement_found = true
         ) astats ON true
-        WHERE rd.state = ${state.toUpperCase()}
+        WHERE rd.state = ${normalizeState(state)}
           AND rd.search_vector @@ sq.q
           ${excludeRegulations ? sql`AND false` : sql``}
           ${regSectionTypeFilter}
@@ -184,7 +184,7 @@ export class SearchRepository extends BaseRepository {
           false AS "hasFederalMandate",
           0 AS "easyCleanupCount"
         FROM statutes s, search_query sq
-        WHERE s.state = ${state.toUpperCase()}
+        WHERE s.state = ${normalizeState(state)}
           AND s.search_vector @@ sq.q
           ${excludeStatutes ? sql`AND false` : sql``}
       ) combined
@@ -201,7 +201,7 @@ export class SearchRepository extends BaseRepository {
       SELECT
         (
           SELECT count(*)::int FROM regulatory_documents rd, search_query sq
-          WHERE rd.state = ${state.toUpperCase()}
+          WHERE rd.state = ${normalizeState(state)}
             AND rd.search_vector @@ sq.q
             ${excludeRegulations ? sql`AND false` : sql``}
             ${regSectionTypeFilter}
@@ -211,7 +211,7 @@ export class SearchRepository extends BaseRepository {
             ${regClassificationFilter}
         ) + (
           SELECT count(*)::int FROM statutes s, search_query sq
-          WHERE s.state = ${state.toUpperCase()}
+          WHERE s.state = ${normalizeState(state)}
             AND s.search_vector @@ sq.q
             ${excludeStatutes ? sql`AND false` : sql``}
         ) AS total
@@ -276,7 +276,7 @@ export class SearchRepository extends BaseRepository {
           WHERE ci.analysis_id = cia.id
           LIMIT 1
         ) match_ctx ON true
-        WHERE rd.state = ${state.toUpperCase()}
+        WHERE rd.state = ${normalizeState(state)}
           AND cia.search_vector @@ sq.q
           ${classificationFilter}
           ${skipAnalyses ? sql`AND false` : sql``}
@@ -299,7 +299,7 @@ export class SearchRepository extends BaseRepository {
           d.term AS "highlightText"
         FROM definitions d
         JOIN regulatory_documents rd ON rd.id = d.document_id
-        WHERE rd.state = ${state.toUpperCase()}
+        WHERE rd.state = ${normalizeState(state)}
           AND d.verbatim_text ILIKE ${'%' + query + '%'}
         LIMIT 20
       )
@@ -318,7 +318,7 @@ export class SearchRepository extends BaseRepository {
       this.db.execute(sql`
         SELECT hierarchy_level AS value, count(*)::int AS cnt
         FROM regulatory_documents
-        WHERE state = ${state.toUpperCase()}
+        WHERE state = ${normalizeState(state)}
           AND hierarchy_level IS NOT NULL
           AND hierarchy_level != ''
         GROUP BY hierarchy_level
@@ -327,7 +327,7 @@ export class SearchRepository extends BaseRepository {
       this.db.execute(sql`
         SELECT section_type AS value, count(*)::int AS cnt
         FROM regulatory_documents
-        WHERE state = ${state.toUpperCase()}
+        WHERE state = ${normalizeState(state)}
           AND section_type IS NOT NULL
           AND section_type != ''
         GROUP BY section_type

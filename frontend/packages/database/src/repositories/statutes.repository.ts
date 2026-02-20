@@ -3,6 +3,7 @@ import { BaseRepository } from './base.repository';
 import { statutes } from '../schema/statutes';
 import { regulationStatuteLinks } from '../schema/regulation-statute-links';
 import { regulatoryDocuments } from '../schema/regulatory-documents';
+import { normalizeState } from '../schema/constants';
 
 /**
  * Statute node for hierarchy tree display
@@ -113,7 +114,7 @@ export class StatutesRepository extends BaseRepository {
    * Get root-level statutes (parentId IS NULL) for a state, with aggregated counts
    */
   async getHierarchyRoots(state: string): Promise<StatuteHierarchyNode[]> {
-    const stateUpper = state.toUpperCase();
+    const stateUpper = normalizeState(state);
 
     const result = await this.db.execute<{
       id: number;
@@ -366,7 +367,7 @@ export class StatutesRepository extends BaseRepository {
    * Get aggregate stats for a state (for analytics)
    */
   async getStatsByState(state: string): Promise<StatuteLinkStats> {
-    const stateUpper = state.toUpperCase();
+    const stateUpper = normalizeState(state);
 
     // Total statutes
     const totalResult = await this.db
@@ -448,7 +449,7 @@ export class StatutesRepository extends BaseRepository {
    * Search statutes by citation or title
    */
   async searchStatutes(state: string, query: string, limit = 50): Promise<StatuteHierarchyNode[]> {
-    const stateUpper = state.toUpperCase();
+    const stateUpper = normalizeState(state);
     const searchPattern = `%${query}%`;
 
     const result = await this.db.execute<{

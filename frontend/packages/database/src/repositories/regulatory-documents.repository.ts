@@ -4,7 +4,7 @@ import { regulatoryDocuments, RegulatoryDocument } from '../schema/regulatory-do
 import { analyses } from '../schema/analyses';
 import { redFlags } from '../schema/red-flags';
 import { complianceIssues } from '../schema/compliance-issues';
-import { StateCode } from '../schema/constants';
+import { StateCode, normalizeState } from '../schema/constants';
 
 // content is omitted from list queries for performance, only fetched in getByIdWithAnalysis
 export interface RegulationWithAnalysis extends Omit<RegulatoryDocument, 'content'> {
@@ -315,7 +315,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
     const conditions: ReturnType<typeof eq>[] = [];
 
     // Always filter by state
-    conditions.push(eq(regulatoryDocuments.state, state.toUpperCase()));
+    conditions.push(eq(regulatoryDocuments.state, normalizeState(state)));
 
     // Add search condition if provided
     if (search) {
@@ -769,7 +769,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
    */
   async getHierarchyRoots(filters: HierarchyFilterOptions): Promise<HierarchyNode[]> {
     const { state } = filters;
-    const stateUpper = state.toUpperCase();
+    const stateUpper = normalizeState(state);
 
     // Build filter conditions for descendants
     const filterConditions = this.buildHierarchyFilterConditions(filters);
@@ -971,7 +971,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
    */
   async getOrphanDocuments(filters: HierarchyFilterOptions): Promise<HierarchyNode[]> {
     const { state } = filters;
-    const stateUpper = state.toUpperCase();
+    const stateUpper = normalizeState(state);
 
     const filterConditions = this.buildHierarchyFilterConditions(filters);
     const filterClause = filterConditions.length > 0
@@ -1045,7 +1045,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
     flaggedCount: number;
   }[]> {
     const { state } = filters;
-    const stateUpper = state.toUpperCase();
+    const stateUpper = normalizeState(state);
 
     const filterConditions = this.buildHierarchyFilterConditions(filters);
     const additionalFilters = filterConditions.length > 0
@@ -1165,7 +1165,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
    * Uses precomputed descendant stats for instant load
    */
   async getHierarchyRootsFast(state: StateCode): Promise<HierarchyNode[]> {
-    const stateUpper = state.toUpperCase();
+    const stateUpper = normalizeState(state);
 
     const results = await this.db.execute(sql`
       SELECT
@@ -1461,11 +1461,11 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
    */
   async getDashboardStats(state?: StateCode): Promise<DashboardStats> {
     const stateCondition = state
-      ? sql`WHERE rd.state = ${state.toUpperCase()}`
+      ? sql`WHERE rd.state = ${normalizeState(state)}`
       : sql``;
 
     const stateConditionWithAnd = state
-      ? sql`AND rd.state = ${state.toUpperCase()}`
+      ? sql`AND rd.state = ${normalizeState(state)}`
       : sql``;
 
     // Get document counts
@@ -1500,7 +1500,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         COUNT(DISTINCT CASE WHEN cia.review_status = 'unreviewed' OR cia.review_status IS NULL THEN cia.id END)::int as "unreviewed"
       FROM compliance_issue_analyses cia
       WHERE cia.requirement_found = TRUE
-      ${state ? sql`AND cia.state = ${state.toUpperCase()}` : sql``}
+      ${state ? sql`AND cia.state = ${normalizeState(state)}` : sql``}
     `);
 
     // Get compliance issues by type (only LLM-confirmed issues)
@@ -1510,7 +1510,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         COUNT(*)::int as "count"
       FROM compliance_issue_analyses cia
       WHERE cia.requirement_found = TRUE
-      ${state ? sql`AND cia.state = ${state.toUpperCase()}` : sql``}
+      ${state ? sql`AND cia.state = ${normalizeState(state)}` : sql``}
       GROUP BY cia.issue_type
     `);
 
@@ -1581,15 +1581,15 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
    */
   async getRecentActivity(state?: StateCode, windowDays = 7): Promise<RecentActivity> {
     const stateCondition = state
-      ? sql`AND cia.state = ${state.toUpperCase()}`
+      ? sql`AND cia.state = ${normalizeState(state)}`
       : sql``;
 
     const flagStateCondition = state
-      ? sql`AND rd.state = ${state.toUpperCase()}`
+      ? sql`AND rd.state = ${normalizeState(state)}`
       : sql``;
 
     const docStateCondition = state
-      ? sql`AND rd.state = ${state.toUpperCase()}`
+      ? sql`AND rd.state = ${normalizeState(state)}`
       : sql``;
 
     const cutoff = sql`NOW() - ${sql.raw(`INTERVAL '${windowDays} days'`)}`;
@@ -1644,7 +1644,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
    * Normalizes section types by lowercasing and trimming whitespace.
    */
   async getSectionTypeStats(state: StateCode): Promise<{ sectionType: string; count: number }[]> {
-    const stateUpper = state.toUpperCase();
+    const stateUpper = normalizeState(state);
 
     const results = await this.db.execute(sql`
       SELECT
@@ -1671,7 +1671,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
     total: number;
     bySectionType: Record<string, number>;
   }> {
-    const stateUpper = state.toUpperCase();
+    const stateUpper = normalizeState(state);
 
     // Get aggregate counts
     const statsResult = await this.db.execute(sql`
@@ -1717,7 +1717,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
    * Normalizes keywords by: lowercasing, trimming whitespace, removing trailing 's' for plurals.
    */
   async getTopKeywords(state: StateCode, limit: number = 20): Promise<{ keyword: string; count: number }[]> {
-    const stateUpper = state.toUpperCase();
+    const stateUpper = normalizeState(state);
 
     const results = await this.db.execute(sql`
       SELECT
@@ -1742,7 +1742,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
    * Get most common applies_to values across all documents in a state
    */
   async getTopAppliesTo(state: StateCode, limit: number = 20): Promise<{ entity: string; count: number }[]> {
-    const stateUpper = state.toUpperCase();
+    const stateUpper = normalizeState(state);
 
     const results = await this.db.execute(sql`
       SELECT

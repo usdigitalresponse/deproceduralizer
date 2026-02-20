@@ -4,7 +4,7 @@ import { BaseRepository } from './base.repository';
 import { definitions, Definition, DeveloperStatus, ResolutionType, Developer } from '../schema/definitions';
 import { definitionDocumentOccurrences } from '../schema/definition-document-occurrences';
 import { regulatoryDocuments } from '../schema/regulatory-documents';
-import { StateCode } from '../schema/constants';
+import { StateCode, normalizeState } from '../schema/constants';
 
 export interface DefinitionWithContext extends Definition {
   regulation?: {
@@ -1740,7 +1740,7 @@ export class DefinitionsRepository extends BaseRepository {
     njacTitle: string | null;
     njacChapter: string | null;
   }[]> {
-    const stateCondition = eq(regulatoryDocuments.state, state.toUpperCase());
+    const stateCondition = eq(regulatoryDocuments.state, normalizeState(state));
 
     const results = await this.db
       .select({
@@ -3011,7 +3011,7 @@ export class DefinitionsRepository extends BaseRepository {
     // Build hierarchy tree
     const root: DefinitionHierarchyNode = {
       id: 'root',
-      name: state.toUpperCase(),
+      name: normalizeState(state),
       level: 'root',
       children: [],
     };

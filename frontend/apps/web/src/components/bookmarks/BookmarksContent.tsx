@@ -2,11 +2,12 @@
 
 import { useState, useCallback } from 'react';
 import Link from 'next/link';
-import { Trash2, ExternalLink, Edit2, Check, X, FileText, ListChecks, Sparkles, AlertTriangle, Zap } from 'lucide-react';
+import { Trash2, ExternalLink, FileText, ListChecks, Sparkles, AlertTriangle, Zap } from 'lucide-react';
 import type { BookmarkWithDetails, StateCode } from '@deproceduralizer/database';
 import { Badge } from '@/components/ui';
 import { removeBookmark, updateBookmarkNotes } from '@/lib/actions/bookmarks';
 import { ISSUE_TYPE_LABELS } from '@/types/regulation';
+import { BookmarkNotesEditor } from './BookmarkNotesEditor';
 
 interface BookmarksContentProps {
   bookmarks: BookmarkWithDetails[];
@@ -19,8 +20,6 @@ type BookmarkTab = 'analysis' | 'document';
 export function BookmarksContent({ bookmarks, counts, state }: BookmarksContentProps) {
   const [activeTab, setActiveTab] = useState<BookmarkTab>('analysis');
   const [localBookmarks, setLocalBookmarks] = useState(bookmarks);
-  const [editingNotes, setEditingNotes] = useState<number | null>(null);
-  const [editingText, setEditingText] = useState('');
 
   const filteredBookmarks = localBookmarks.filter(b =>
     activeTab === 'analysis' ? b.analysisId !== null : b.analysisId === null
@@ -39,25 +38,13 @@ export function BookmarksContent({ bookmarks, counts, state }: BookmarksContentP
     }
   }, [bookmarks]);
 
-  const handleEditNotes = useCallback((bookmark: BookmarkWithDetails) => {
-    setEditingNotes(bookmark.id);
-    setEditingText(bookmark.notes || '');
-  }, []);
-
-  const handleSaveNotes = useCallback(async (bookmarkId: number) => {
-    const result = await updateBookmarkNotes(bookmarkId, editingText);
+  const handleSaveNotes = useCallback(async (bookmarkId: number, notes: string) => {
+    const result = await updateBookmarkNotes(bookmarkId, notes);
     if (result.success) {
       setLocalBookmarks(prev =>
-        prev.map(b => b.id === bookmarkId ? { ...b, notes: editingText } : b)
+        prev.map(b => b.id === bookmarkId ? { ...b, notes } : b)
       );
     }
-    setEditingNotes(null);
-    setEditingText('');
-  }, [editingText]);
-
-  const handleCancelEdit = useCallback(() => {
-    setEditingNotes(null);
-    setEditingText('');
   }, []);
 
   return (
@@ -136,12 +123,7 @@ export function BookmarksContent({ bookmarks, counts, state }: BookmarksContentP
               key={bookmark.id}
               bookmark={bookmark}
               state={state}
-              isEditingNotes={editingNotes === bookmark.id}
-              editingText={editingText}
-              onEditNotes={() => handleEditNotes(bookmark)}
-              onSaveNotes={() => handleSaveNotes(bookmark.id)}
-              onCancelEdit={handleCancelEdit}
-              onEditingTextChange={setEditingText}
+              onSaveNotes={(notes) => handleSaveNotes(bookmark.id, notes)}
               onRemove={() => handleRemove(bookmark.id)}
             />
           ))}
@@ -164,12 +146,7 @@ export function BookmarksContent({ bookmarks, counts, state }: BookmarksContentP
                   key={bookmark.id}
                   bookmark={bookmark}
                   state={state}
-                  isEditingNotes={editingNotes === bookmark.id}
-                  editingText={editingText}
-                  onEditNotes={() => handleEditNotes(bookmark)}
-                  onSaveNotes={() => handleSaveNotes(bookmark.id)}
-                  onCancelEdit={handleCancelEdit}
-                  onEditingTextChange={setEditingText}
+                  onSaveNotes={(notes) => handleSaveNotes(bookmark.id, notes)}
                   onRemove={() => handleRemove(bookmark.id)}
                 />
               ))}
@@ -185,24 +162,14 @@ export function BookmarksContent({ bookmarks, counts, state }: BookmarksContentP
 interface AnalysisBookmarkCardProps {
   bookmark: BookmarkWithDetails;
   state: StateCode;
-  isEditingNotes: boolean;
-  editingText: string;
-  onEditNotes: () => void;
-  onSaveNotes: () => void;
-  onCancelEdit: () => void;
-  onEditingTextChange: (text: string) => void;
+  onSaveNotes: (notes: string) => Promise<void>;
   onRemove: () => void;
 }
 
 function AnalysisBookmarkCard({
   bookmark,
   state,
-  isEditingNotes,
-  editingText,
-  onEditNotes,
   onSaveNotes,
-  onCancelEdit,
-  onEditingTextChange,
   onRemove,
 }: AnalysisBookmarkCardProps) {
   const issueTypeLabel = bookmark.issueType
@@ -361,54 +328,14 @@ function AnalysisBookmarkCard({
 
         {/* Notes */}
         <div className="pt-3 border-t border-[var(--color-neutral-100)]">
-          {isEditingNotes ? (
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                value={editingText}
-                onChange={(e) => onEditingTextChange(e.target.value)}
-                className="flex-1 px-3 py-2 text-sm border border-[var(--color-neutral-300)] rounded-[var(--radius-sm)]"
-                placeholder="Add notes about this bookmark..."
-                autoFocus
-              />
-              <button
-                onClick={onSaveNotes}
-                className="p-2 text-[var(--color-success)] hover:bg-[var(--color-success-bg)] rounded"
-                aria-label="Save notes"
-              >
-                <Check className="w-4 h-4" />
-              </button>
-              <button
-                onClick={onCancelEdit}
-                className="p-2 text-[var(--color-text-muted)] hover:bg-[var(--color-neutral-100)] rounded"
-                aria-label="Cancel edit"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          ) : (
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2 text-sm text-[var(--color-text-muted)]">
-                {bookmark.notes ? (
-                  <span>{bookmark.notes}</span>
-                ) : (
-                  <span className="italic">No notes</span>
-                )}
-                <button
-                  onClick={onEditNotes}
-                  className="p-1 text-[var(--color-text-muted)] hover:text-[var(--color-primary)] hover:bg-[var(--color-neutral-100)] rounded"
-                  aria-label="Edit notes"
-                >
-                  <Edit2 className="w-3 h-3" />
-                </button>
-              </div>
-              <span className="text-xs text-[var(--color-text-muted)] shrink-0">
-                {bookmark.createdAt
-                  ? new Date(bookmark.createdAt).toLocaleDateString()
-                  : ''}
-              </span>
-            </div>
-          )}
+          <div className="flex items-center justify-between gap-2">
+            <BookmarkNotesEditor notes={bookmark.notes} onSave={onSaveNotes} />
+            <span className="text-xs text-[var(--color-text-muted)] shrink-0">
+              {bookmark.createdAt
+                ? new Date(bookmark.createdAt).toLocaleDateString()
+                : ''}
+            </span>
+          </div>
         </div>
       </div>
     </div>
@@ -419,24 +346,14 @@ function AnalysisBookmarkCard({
 interface DocumentBookmarkRowProps {
   bookmark: BookmarkWithDetails;
   state: StateCode;
-  isEditingNotes: boolean;
-  editingText: string;
-  onEditNotes: () => void;
-  onSaveNotes: () => void;
-  onCancelEdit: () => void;
-  onEditingTextChange: (text: string) => void;
+  onSaveNotes: (notes: string) => Promise<void>;
   onRemove: () => void;
 }
 
 function DocumentBookmarkRow({
   bookmark,
   state,
-  isEditingNotes,
-  editingText,
-  onEditNotes,
   onSaveNotes,
-  onCancelEdit,
-  onEditingTextChange,
   onRemove,
 }: DocumentBookmarkRowProps) {
   const viewUrl = `/${state.toLowerCase()}/regulations/${bookmark.documentId}`;
@@ -457,45 +374,7 @@ function DocumentBookmarkRow({
 
       {/* Notes */}
       <td className="px-4 py-3">
-        {isEditingNotes ? (
-          <div className="flex items-center gap-2">
-            <input
-              type="text"
-              value={editingText}
-              onChange={(e) => onEditingTextChange(e.target.value)}
-              className="flex-1 px-2 py-1 text-sm border border-[var(--color-neutral-300)] rounded"
-              placeholder="Add notes..."
-              autoFocus
-            />
-            <button
-              onClick={onSaveNotes}
-              className="p-1 text-[var(--color-success)] hover:bg-[var(--color-success-bg)] rounded"
-              aria-label="Save notes"
-            >
-              <Check className="w-4 h-4" />
-            </button>
-            <button
-              onClick={onCancelEdit}
-              className="p-1 text-[var(--color-text-muted)] hover:bg-[var(--color-neutral-100)] rounded"
-              aria-label="Cancel edit"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        ) : (
-          <div className="flex items-center gap-2 group">
-            <span className="text-[var(--color-text-muted)] text-sm truncate max-w-[200px]">
-              {bookmark.notes || '-'}
-            </span>
-            <button
-              onClick={onEditNotes}
-              className="p-1 text-[var(--color-text-muted)] hover:text-[var(--color-primary)] hover:bg-[var(--color-neutral-100)] rounded opacity-0 group-hover:opacity-100 transition-opacity"
-              aria-label="Edit notes"
-            >
-              <Edit2 className="w-3 h-3" />
-            </button>
-          </div>
-        )}
+        <BookmarkNotesEditor notes={bookmark.notes} onSave={onSaveNotes} compact />
       </td>
 
       {/* Date */}

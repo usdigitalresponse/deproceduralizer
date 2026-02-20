@@ -17,6 +17,19 @@ import { type ActionResult, success, failure, getErrorMessage } from './types';
 const bookmarksRepo = new BookmarksRepository(db);
 
 /**
+ * Invalidate bookmark-related caches after mutations.
+ * Always invalidates the bookmarks tag and bookmarks page;
+ * pass additional page paths to revalidate (e.g. pipeline, regulations).
+ */
+function refreshBookmarkCache(...additionalPages: string[]) {
+  updateTag('bookmarks');
+  revalidatePath('/[state]/bookmarks', 'page');
+  for (const page of additionalPages) {
+    revalidatePath(page, 'page');
+  }
+}
+
+/**
  * Toggle bookmark for an analysis.
  * If bookmarked, removes it. If not, creates one.
  * @returns The created bookmark, or null if removed
@@ -33,9 +46,7 @@ export async function toggleAnalysisBookmark(
     if (existing) {
       // Remove bookmark
       await bookmarksRepo.delete(existing.id);
-      updateTag('bookmarks');
-      revalidatePath('/[state]/pipeline', 'page');
-      revalidatePath('/[state]/bookmarks', 'page');
+      refreshBookmarkCache('/[state]/pipeline');
       return success(null);
     }
 
@@ -64,9 +75,7 @@ export async function toggleAnalysisBookmark(
       createdBy,
     });
 
-    updateTag('bookmarks');
-    revalidatePath('/[state]/pipeline', 'page');
-    revalidatePath('/[state]/bookmarks', 'page');
+    refreshBookmarkCache('/[state]/pipeline');
     return success(bookmark);
   } catch (error) {
     console.error('[toggleAnalysisBookmark]', error);
@@ -92,9 +101,7 @@ export async function toggleDocumentBookmark(
     if (existing) {
       // Remove bookmark
       await bookmarksRepo.delete(existing.id);
-      updateTag('bookmarks');
-      revalidatePath('/[state]/regulations', 'page');
-      revalidatePath('/[state]/bookmarks', 'page');
+      refreshBookmarkCache('/[state]/regulations');
       return success(null);
     }
 
@@ -106,9 +113,7 @@ export async function toggleDocumentBookmark(
       createdBy,
     });
 
-    updateTag('bookmarks');
-    revalidatePath('/[state]/regulations', 'page');
-    revalidatePath('/[state]/bookmarks', 'page');
+    refreshBookmarkCache('/[state]/regulations');
     return success(bookmark);
   } catch (error) {
     console.error('[toggleDocumentBookmark]', error);
@@ -167,10 +172,7 @@ export async function removeBookmark(
       return failure(`Bookmark with id ${bookmarkId} not found`);
     }
 
-    updateTag('bookmarks');
-    revalidatePath('/[state]/pipeline', 'page');
-    revalidatePath('/[state]/regulations', 'page');
-    revalidatePath('/[state]/bookmarks', 'page');
+    refreshBookmarkCache('/[state]/pipeline', '/[state]/regulations');
     return success(true);
   } catch (error) {
     console.error('[removeBookmark]', error);
@@ -277,9 +279,7 @@ export async function toggleAnalysisBookmarkByDocIssue(
     if (result.bookmarkId) {
       // Bookmark exists - remove it
       await bookmarksRepo.delete(result.bookmarkId);
-      updateTag('bookmarks');
-      revalidatePath('/[state]/pipeline', 'page');
-      revalidatePath('/[state]/bookmarks', 'page');
+      refreshBookmarkCache('/[state]/pipeline');
       return success(null);
     }
 
@@ -292,9 +292,7 @@ export async function toggleAnalysisBookmarkByDocIssue(
       createdBy,
     });
 
-    updateTag('bookmarks');
-    revalidatePath('/[state]/pipeline', 'page');
-    revalidatePath('/[state]/bookmarks', 'page');
+    refreshBookmarkCache('/[state]/pipeline');
     return success(bookmark);
   } catch (error) {
     console.error('[toggleAnalysisBookmarkByDocIssue]', error);

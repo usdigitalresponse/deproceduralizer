@@ -2,7 +2,7 @@ import { eq, and, desc, asc, sql, count, ilike, or } from 'drizzle-orm';
 import { BaseRepository } from './base.repository';
 import { incorporationsByReference, IncorporationByReference } from '../schema/incorporations-by-reference';
 import { regulatoryDocuments } from '../schema/regulatory-documents';
-import { StateCode } from '../schema/constants';
+import { StateCode, normalizeState } from '../schema/constants';
 
 export interface IbrWithContext extends IncorporationByReference {
   regulation: {
@@ -98,7 +98,7 @@ export class IbrRepository extends BaseRepository {
     const offset = (page - 1) * pageSize;
 
     const conditions: ReturnType<typeof eq>[] = [
-      eq(incorporationsByReference.state, state.toUpperCase()),
+      eq(incorporationsByReference.state, normalizeState(state)),
     ];
 
     if (filters) {
@@ -188,7 +188,7 @@ export class IbrRepository extends BaseRepository {
   }
 
   async getOverviewStats(state: StateCode): Promise<IbrOverviewStats> {
-    const stateUpper = state.toUpperCase();
+    const stateUpper = normalizeState(state);
     const baseCondition = eq(incorporationsByReference.state, stateUpper);
 
     // Get total, unique orgs, unique docs in one query
@@ -227,7 +227,7 @@ export class IbrRepository extends BaseRepository {
     const result = await this.db
       .selectDistinct({ organization: incorporationsByReference.sourceOrganization })
       .from(incorporationsByReference)
-      .where(eq(incorporationsByReference.state, state.toUpperCase()))
+      .where(eq(incorporationsByReference.state, normalizeState(state)))
       .orderBy(asc(incorporationsByReference.sourceOrganization));
 
     return result
@@ -244,7 +244,7 @@ export class IbrRepository extends BaseRepository {
         count: sql<number>`count(*)::int`,
       })
       .from(incorporationsByReference)
-      .where(eq(incorporationsByReference.state, state.toUpperCase()))
+      .where(eq(incorporationsByReference.state, normalizeState(state)))
       .groupBy(
         incorporationsByReference.incorporatedDocument,
         incorporationsByReference.sourceOrganization,

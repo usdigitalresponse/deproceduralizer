@@ -10,6 +10,15 @@
 export type StateCode = 'ny' | 'nj' | 'nyc';
 export const VALID_STATES: StateCode[] = ['ny', 'nj', 'nyc'];
 
+/**
+ * Normalize a state/jurisdiction string for DB queries.
+ * The DB stores state codes as uppercase ('NY', 'NJ', 'NYC'),
+ * while the app layer uses lowercase StateCode ('ny', 'nj', 'nyc').
+ */
+export function normalizeState(state: string): string {
+  return state.toUpperCase();
+}
+
 // Red flag categories (must match backend/scripts/red_flags.py enum)
 // Based on Jennifer Pahlka's framework - exactly 12 categories
 export const RED_FLAG_CATEGORIES = [

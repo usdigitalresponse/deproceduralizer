@@ -3,7 +3,7 @@ import { BaseRepository } from './base.repository';
 import { redFlags, RedFlag, ReviewStatus, ImpactType, DeveloperStatus, ResolutionType, Developer, REVIEW_STATUSES, DEVELOPER_STATUSES } from '../schema/red-flags';
 import { analyses } from '../schema/analyses';
 import { regulatoryDocuments } from '../schema/regulatory-documents';
-import { StateCode } from '../schema/constants';
+import { StateCode, normalizeState } from '../schema/constants';
 
 export interface UpdateRedFlagReviewInput {
   reviewStatus: ReviewStatus;
@@ -145,7 +145,7 @@ export class RedFlagsRepository extends BaseRepository {
       .innerJoin(regulatoryDocuments, eq(analyses.documentId, regulatoryDocuments.id))
       .where(and(
         eq(analyses.isCurrent, true),
-        eq(regulatoryDocuments.state, state.toUpperCase())
+        eq(regulatoryDocuments.state, normalizeState(state))
       ))
       .orderBy(asc(redFlags.category));
 
@@ -166,7 +166,7 @@ export class RedFlagsRepository extends BaseRepository {
       .innerJoin(regulatoryDocuments, eq(analyses.documentId, regulatoryDocuments.id))
       .where(and(
         eq(analyses.isCurrent, true),
-        eq(regulatoryDocuments.state, state.toUpperCase())
+        eq(regulatoryDocuments.state, normalizeState(state))
       ))
       .groupBy(redFlags.reviewStatus);
 
@@ -205,7 +205,7 @@ export class RedFlagsRepository extends BaseRepository {
     // Build where conditions - always filter by state and current analysis
     const conditions: ReturnType<typeof eq>[] = [
       eq(analyses.isCurrent, true),
-      eq(regulatoryDocuments.state, state.toUpperCase()),
+      eq(regulatoryDocuments.state, normalizeState(state)),
     ];
 
     if (filters) {
@@ -395,7 +395,7 @@ export class RedFlagsRepository extends BaseRepository {
       .innerJoin(regulatoryDocuments, eq(analyses.documentId, regulatoryDocuments.id))
       .where(and(
         eq(analyses.isCurrent, true),
-        eq(regulatoryDocuments.state, state.toUpperCase()),
+        eq(regulatoryDocuments.state, normalizeState(state)),
         // Only count reviewed items
         ne(redFlags.reviewStatus, 'unreviewed')
       ))
@@ -438,7 +438,7 @@ export class RedFlagsRepository extends BaseRepository {
     // Build where conditions - only reviewed items
     const conditions: ReturnType<typeof eq>[] = [
       eq(analyses.isCurrent, true),
-      eq(regulatoryDocuments.state, state.toUpperCase()),
+      eq(regulatoryDocuments.state, normalizeState(state)),
       ne(redFlags.reviewStatus, 'unreviewed'),
     ];
 
@@ -610,7 +610,7 @@ export class RedFlagsRepository extends BaseRepository {
 
     const conditions = [
       eq(analyses.isCurrent, true),
-      eq(regulatoryDocuments.state, state.toUpperCase()),
+      eq(regulatoryDocuments.state, normalizeState(state)),
       eq(redFlags.developerStatus, 'need_more_info'),
     ];
 
@@ -734,7 +734,7 @@ export class RedFlagsRepository extends BaseRepository {
   async getNeedMoreInfoCount(state: StateCode, reviewerName?: string): Promise<{ total: number; forReviewer: number }> {
     const baseConditions = [
       eq(analyses.isCurrent, true),
-      eq(regulatoryDocuments.state, state.toUpperCase()),
+      eq(regulatoryDocuments.state, normalizeState(state)),
       eq(redFlags.developerStatus, 'need_more_info'),
     ];
 

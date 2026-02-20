@@ -1,5 +1,6 @@
 import { eq, and, desc, asc, sql, count, or, isNull, isNotNull, ne, gte, lt, like, notInArray, inArray } from 'drizzle-orm';
 import { BaseRepository } from './base.repository';
+import { normalizeState } from '../schema/constants';
 import { complianceIssues, ComplianceIssue, IssueType } from '../schema/compliance-issues';
 import { regulatoryDocuments } from '../schema/regulatory-documents';
 import {
@@ -702,7 +703,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
     const result = await this.db
       .selectDistinct({ issueType: complianceIssues.issueType })
       .from(complianceIssues)
-      .where(eq(complianceIssues.state, state.toUpperCase()))
+      .where(eq(complianceIssues.state, normalizeState(state)))
       .orderBy(asc(complianceIssues.issueType));
 
     return result.map(r => r.issueType);
@@ -721,7 +722,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       })
       .from(complianceIssueAnalyses)
       .where(and(
-        eq(complianceIssueAnalyses.state, state.toUpperCase()),
+        eq(complianceIssueAnalyses.state, normalizeState(state)),
         eq(complianceIssueAnalyses.requirementFound, true)
       ))
       .groupBy(complianceIssueAnalyses.reviewStatus);
@@ -761,7 +762,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       })
       .from(complianceIssueAnalyses)
       .where(and(
-        eq(complianceIssueAnalyses.state, state.toUpperCase()),
+        eq(complianceIssueAnalyses.state, normalizeState(state)),
         eq(complianceIssueAnalyses.requirementFound, true)
       ))
       .groupBy(complianceIssueAnalyses.issueType);
@@ -782,7 +783,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
   async getStatsByState(state?: StateCode): Promise<ComplianceIssueStats> {
     const baseConditions = [
       eq(complianceIssueAnalyses.requirementFound, true),
-      ...(state ? [eq(complianceIssueAnalyses.state, state.toUpperCase())] : []),
+      ...(state ? [eq(complianceIssueAnalyses.state, normalizeState(state))] : []),
     ];
 
     // Get total count (from analyses with requirementFound = true)
@@ -838,7 +839,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
 
     // Build where conditions
     const conditions: ReturnType<typeof eq>[] = [
-      eq(complianceIssues.state, state.toUpperCase()),
+      eq(complianceIssues.state, normalizeState(state)),
     ];
 
     if (filters) {
@@ -1000,7 +1001,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       })
       .from(complianceIssueAnalyses)
       .where(and(
-        eq(complianceIssueAnalyses.state, state.toUpperCase()),
+        eq(complianceIssueAnalyses.state, normalizeState(state)),
         // Only count reviewed items
         ne(complianceIssueAnalyses.reviewStatus, 'unreviewed')
       ))
@@ -1043,7 +1044,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
 
     // Build where conditions - only reviewed items (from analyses)
     const conditions: ReturnType<typeof eq>[] = [
-      eq(complianceIssues.state, state.toUpperCase()),
+      eq(complianceIssues.state, normalizeState(state)),
       ne(complianceIssueAnalyses.reviewStatus, 'unreviewed'),
     ];
 
@@ -1134,7 +1135,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
     const offset = (page - 1) * pageSize;
 
     const conditions = [
-      eq(complianceIssues.state, state.toUpperCase()),
+      eq(complianceIssues.state, normalizeState(state)),
       eq(complianceIssueAnalyses.developerStatus, 'need_more_info'),
     ];
 
@@ -1188,7 +1189,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       .select({ count: sql<number>`count(*)::int` })
       .from(complianceIssueAnalyses)
       .where(and(
-        eq(complianceIssueAnalyses.state, state.toUpperCase()),
+        eq(complianceIssueAnalyses.state, normalizeState(state)),
         eq(complianceIssueAnalyses.developerStatus, 'need_more_info'),
       ));
 
@@ -1273,7 +1274,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
 
     // Base conditions: LLM confirmed (from analyses) + unreviewed + exclude shown IDs
     const baseConditions = [
-      eq(complianceIssues.state, state.toUpperCase()),
+      eq(complianceIssues.state, normalizeState(state)),
       eq(complianceIssueAnalyses.requirementFound, true),
       or(
         eq(complianceIssueAnalyses.reviewStatus, 'unreviewed'),
@@ -1590,7 +1591,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         complianceIssueAnalyses,
         eq(complianceIssues.analysisId, complianceIssueAnalyses.id)
       )
-      .where(eq(complianceIssues.state, state.toUpperCase()))
+      .where(eq(complianceIssues.state, normalizeState(state)))
       .groupBy(complianceIssueAnalyses.highestTierCompleted);
 
     // Build the counts object
@@ -1635,7 +1636,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       })
       .from(complianceIssueAnalyses)
       .where(and(
-        eq(complianceIssueAnalyses.state, state.toUpperCase()),
+        eq(complianceIssueAnalyses.state, normalizeState(state)),
         sql`${complianceIssueAnalyses.tier1Classification} IS NOT NULL`
       ))
       .groupBy(complianceIssueAnalyses.tier1Classification);
@@ -1654,7 +1655,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       })
       .from(complianceIssueAnalyses)
       .where(and(
-        eq(complianceIssueAnalyses.state, state.toUpperCase()),
+        eq(complianceIssueAnalyses.state, normalizeState(state)),
         sql`${complianceIssueAnalyses.tier2Classification} IS NOT NULL`
       ))
       .groupBy(complianceIssueAnalyses.tier2Classification);
@@ -1673,7 +1674,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       })
       .from(complianceIssueAnalyses)
       .where(and(
-        eq(complianceIssueAnalyses.state, state.toUpperCase()),
+        eq(complianceIssueAnalyses.state, normalizeState(state)),
         sql`${complianceIssueAnalyses.tier3Classification} IS NOT NULL`
       ))
       .groupBy(complianceIssueAnalyses.tier3Classification);
@@ -1965,7 +1966,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
 
     // Build where conditions
     const conditions: ReturnType<typeof eq>[] = [
-      eq(complianceIssueAnalyses.state, state.toUpperCase()),
+      eq(complianceIssueAnalyses.state, normalizeState(state)),
     ];
 
     if (filters) {
@@ -2242,6 +2243,24 @@ export class ComplianceIssuesRepository extends BaseRepository {
       ? sql`${sortColumn} DESC NULLS LAST`
       : sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
 
+    // Build deterministic sort order with tiebreakers
+    // For severity: easy cleanup candidates first, then by effort level, then group by issue type
+    // For other sorts: just add id as a stable tiebreaker for consistent pagination
+    const orderClauses = sortBy === 'severity'
+      ? [
+          primarySort,
+          sql`${complianceIssueAnalyses.easyCleanupCandidate} DESC NULLS LAST`,
+          sql`CASE ${complianceIssueAnalyses.cleanupEffort}
+            WHEN 'trivial' THEN 1
+            WHEN 'easy' THEN 2
+            WHEN 'medium' THEN 3
+            ELSE 4
+          END ASC`,
+          asc(complianceIssueAnalyses.issueType),
+          asc(complianceIssueAnalyses.id),
+        ]
+      : [primarySort, asc(complianceIssueAnalyses.id)];
+
     // Get paginated results
     const results = await this.db
       .select({
@@ -2276,7 +2295,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       .from(complianceIssueAnalyses)
       .innerJoin(regulatoryDocuments, eq(complianceIssueAnalyses.documentId, regulatoryDocuments.id))
       .where(whereClause)
-      .orderBy(primarySort)
+      .orderBy(...orderClauses)
       .limit(pageSize)
       .offset(offset);
 
@@ -2332,7 +2351,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
    */
   async getPipelineFunnelStats(state: StateCode, issueType?: string): Promise<PipelineFunnelData> {
     const conditions = [
-      eq(complianceIssueAnalyses.state, state.toUpperCase()),
+      eq(complianceIssueAnalyses.state, normalizeState(state)),
       isNotNull(complianceIssueAnalyses.tier1Classification),
     ];
     if (issueType) {
@@ -2386,7 +2405,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
    */
   async getTier1ContextRequestStats(state: StateCode, issueType?: string): Promise<Tier1ContextRequestStats> {
     const conditions = [
-      eq(complianceIssueAnalyses.state, state.toUpperCase()),
+      eq(complianceIssueAnalyses.state, normalizeState(state)),
       isNotNull(complianceIssueAnalyses.tier1Recommendations),
     ];
     if (issueType) {
@@ -2401,7 +2420,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         count(*)::int AS count
       FROM compliance_issue_analyses,
         jsonb_array_elements(tier1_recommendations->'context_requests') AS cr
-      WHERE state = ${state.toUpperCase()}
+      WHERE state = ${normalizeState(state)}
         AND tier1_recommendations IS NOT NULL
         ${issueType ? sql`AND issue_type = ${issueType}` : sql``}
       GROUP BY cr->>'context_type', cr->>'need_level'
@@ -2416,7 +2435,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         count(*)::int AS count
       FROM compliance_issue_analyses a,
         jsonb_array_elements(a.tier1_recommendations->'context_requests') AS cr
-      WHERE a.state = ${state.toUpperCase()}
+      WHERE a.state = ${normalizeState(state)}
         AND a.tier1_recommendations IS NOT NULL
         ${issueType ? sql`AND a.issue_type = ${issueType}` : sql``}
       GROUP BY a.issue_type, cr->>'context_type'
@@ -2465,7 +2484,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
    */
   async getTierTransitionStats(state: StateCode, issueType?: string): Promise<TierTransitionData> {
     const conditions = [
-      eq(complianceIssueAnalyses.state, state.toUpperCase()),
+      eq(complianceIssueAnalyses.state, normalizeState(state)),
     ];
     if (issueType) {
       conditions.push(eq(complianceIssueAnalyses.issueType, issueType));
@@ -2478,7 +2497,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         tier3_classification AS tier3_class,
         count(*)::int AS count
       FROM compliance_issue_analyses
-      WHERE state = ${state.toUpperCase()}
+      WHERE state = ${normalizeState(state)}
         AND tier2_classification IS NOT NULL
         AND tier3_classification IS NOT NULL
         ${issueType ? sql`AND issue_type = ${issueType}` : sql``}
@@ -2499,7 +2518,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         END AS bucket,
         count(*)::int AS count
       FROM compliance_issue_analyses
-      WHERE state = ${state.toUpperCase()}
+      WHERE state = ${normalizeState(state)}
         AND tier1_confidence IS NOT NULL
         ${issueType ? sql`AND issue_type = ${issueType}` : sql``}
       GROUP BY bucket
@@ -2515,7 +2534,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         END AS bucket,
         count(*)::int AS count
       FROM compliance_issue_analyses
-      WHERE state = ${state.toUpperCase()}
+      WHERE state = ${normalizeState(state)}
         AND tier2_confidence IS NOT NULL
         ${issueType ? sql`AND issue_type = ${issueType}` : sql``}
       GROUP BY bucket
@@ -2531,7 +2550,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         END AS bucket,
         count(*)::int AS count
       FROM compliance_issue_analyses
-      WHERE state = ${state.toUpperCase()}
+      WHERE state = ${normalizeState(state)}
         AND tier3_confidence IS NOT NULL
         ${issueType ? sql`AND issue_type = ${issueType}` : sql``}
       GROUP BY bucket
@@ -2585,7 +2604,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         tier3_trigger_reason AS trigger_reason,
         count(*)::int AS count
       FROM compliance_issue_analyses
-      WHERE state = ${state.toUpperCase()}
+      WHERE state = ${normalizeState(state)}
         AND tier2_classification IS NOT NULL
         AND tier3_classification IS NOT NULL
         AND tier2_classification != tier3_classification
@@ -2624,7 +2643,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         round(avg(tier1_confidence)::numeric, 3)::float AS avg_confidence,
         count(*)::int AS count
       FROM compliance_issue_analyses
-      WHERE state = ${state.toUpperCase()}
+      WHERE state = ${normalizeState(state)}
         AND tier1_classification IS NOT NULL
         AND tier1_confidence IS NOT NULL
         ${issueType ? sql`AND issue_type = ${issueType}` : sql``}
@@ -2636,7 +2655,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         round(avg(tier2_confidence)::numeric, 3)::float AS avg_confidence,
         count(*)::int AS count
       FROM compliance_issue_analyses
-      WHERE state = ${state.toUpperCase()}
+      WHERE state = ${normalizeState(state)}
         AND tier2_classification IS NOT NULL
         AND tier2_confidence IS NOT NULL
         ${issueType ? sql`AND issue_type = ${issueType}` : sql``}
@@ -2648,7 +2667,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         round(avg(tier3_confidence)::numeric, 3)::float AS avg_confidence,
         count(*)::int AS count
       FROM compliance_issue_analyses
-      WHERE state = ${state.toUpperCase()}
+      WHERE state = ${normalizeState(state)}
         AND tier3_classification IS NOT NULL
         AND tier3_confidence IS NOT NULL
         ${issueType ? sql`AND issue_type = ${issueType}` : sql``}
@@ -2683,7 +2702,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
    */
   async getTier3EvidenceStats(state: StateCode, issueType?: string): Promise<Tier3EvidenceStats> {
     const conditions = [
-      eq(complianceIssueAnalyses.state, state.toUpperCase()),
+      eq(complianceIssueAnalyses.state, normalizeState(state)),
       isNotNull(complianceIssueAnalyses.tier3Classification),
     ];
     if (issueType) {
@@ -2705,7 +2724,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         count(*) FILTER (WHERE tier3_flags ? 'advocacy_for_change' AND (tier3_flags->>'advocacy_for_change')::jsonb->>'value' != 'true')::int AS advocacy_false,
         count(*)::int AS total_tier3
       FROM compliance_issue_analyses
-      WHERE state = ${state.toUpperCase()}
+      WHERE state = ${normalizeState(state)}
         AND tier3_classification IS NOT NULL
         ${issueType ? sql`AND issue_type = ${issueType}` : sql``}
     `);
@@ -2778,7 +2797,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         count(*)::int AS count
       FROM compliance_issue_analyses,
         jsonb_array_elements(tier2_context_requests_made) AS cr
-      WHERE state = ${state.toUpperCase()}
+      WHERE state = ${normalizeState(state)}
         AND tier2_context_requests_made IS NOT NULL
         AND jsonb_array_length(tier2_context_requests_made) > 0
         ${issueTypeClause}
@@ -2791,7 +2810,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         count(*) FILTER (WHERE tier2_context_requests_made IS NOT NULL AND jsonb_array_length(tier2_context_requests_made) > 0)::int AS analyses_with_requests,
         COALESCE(sum(jsonb_array_length(tier2_context_requests_made)) FILTER (WHERE tier2_context_requests_made IS NOT NULL AND jsonb_array_length(tier2_context_requests_made) > 0), 0)::int AS total_requests
       FROM compliance_issue_analyses
-      WHERE state = ${state.toUpperCase()}
+      WHERE state = ${normalizeState(state)}
         AND tier1_classification IS NOT NULL
         ${issueTypeClause}
     `);
@@ -2827,7 +2846,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         count(*)::int AS count
       FROM compliance_issue_analyses,
         jsonb_array_elements(context_used) AS ce
-      WHERE state = ${state.toUpperCase()}
+      WHERE state = ${normalizeState(state)}
         AND context_used IS NOT NULL
         AND jsonb_array_length(context_used) > 0
         ${issueTypeClause}
@@ -2841,7 +2860,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         count(*)::int AS count
       FROM compliance_issue_analyses,
         jsonb_array_elements(context_used) AS ce
-      WHERE state = ${state.toUpperCase()}
+      WHERE state = ${normalizeState(state)}
         AND context_used IS NOT NULL
         AND ce->>'type' = 'web'
         ${issueTypeClause}
@@ -2854,7 +2873,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         count(*) FILTER (WHERE context_used IS NOT NULL AND jsonb_array_length(context_used) > 0)::int AS analyses_with_context,
         COALESCE(sum(jsonb_array_length(context_used)) FILTER (WHERE context_used IS NOT NULL AND jsonb_array_length(context_used) > 0), 0)::int AS total_entries
       FROM compliance_issue_analyses
-      WHERE state = ${state.toUpperCase()}
+      WHERE state = ${normalizeState(state)}
         AND tier1_classification IS NOT NULL
         ${issueTypeClause}
     `);
@@ -2904,7 +2923,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
           ELSE 0 END
         ), 0)::int AS context_cited
       FROM compliance_issue_analyses
-      WHERE state = ${state.toUpperCase()}
+      WHERE state = ${normalizeState(state)}
         AND tier1_classification IS NOT NULL
         ${issueTypeClause}
     `);

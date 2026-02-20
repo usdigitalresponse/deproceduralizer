@@ -3,7 +3,7 @@ import { BaseRepository } from './base.repository';
 import { jenaiIssues, type JenAIIssue } from '../schema/jenai-issues';
 import { jenaiAnalyses } from '../schema/jenai-analyses';
 import { regulatoryDocuments } from '../schema/regulatory-documents';
-import type { StateCode } from '../schema/constants';
+import { type StateCode, normalizeState } from '../schema/constants';
 
 export interface JenAIIssueWithContext extends JenAIIssue {
   regulation: {
@@ -104,7 +104,7 @@ export class JenAIRepository extends BaseRepository {
       })
       .from(jenaiIssues)
       .innerJoin(regulatoryDocuments, eq(jenaiIssues.documentId, regulatoryDocuments.id))
-      .where(eq(regulatoryDocuments.state, state.toUpperCase()))
+      .where(eq(regulatoryDocuments.state, normalizeState(state)))
       .groupBy(jenaiIssues.category)
       .orderBy(asc(jenaiIssues.category));
 
@@ -122,7 +122,7 @@ export class JenAIRepository extends BaseRepository {
       })
       .from(jenaiIssues)
       .innerJoin(regulatoryDocuments, eq(jenaiIssues.documentId, regulatoryDocuments.id))
-      .where(eq(regulatoryDocuments.state, state.toUpperCase()))
+      .where(eq(regulatoryDocuments.state, normalizeState(state)))
       .groupBy(jenaiIssues.reviewStatus);
 
     const counts: JenAIReviewStatusCounts = {
@@ -158,7 +158,7 @@ export class JenAIRepository extends BaseRepository {
       .from(jenaiIssues)
       .innerJoin(regulatoryDocuments, eq(jenaiIssues.documentId, regulatoryDocuments.id))
       .where(and(
-        eq(regulatoryDocuments.state, state.toUpperCase()),
+        eq(regulatoryDocuments.state, normalizeState(state)),
         ne(jenaiIssues.reviewStatus, 'unreviewed')
       ))
       .groupBy(jenaiIssues.developerStatus);
@@ -193,7 +193,7 @@ export class JenAIRepository extends BaseRepository {
     const offset = (page - 1) * pageSize;
 
     const conditions: ReturnType<typeof eq>[] = [
-      eq(regulatoryDocuments.state, state.toUpperCase()),
+      eq(regulatoryDocuments.state, normalizeState(state)),
     ];
 
     if (filters) {
@@ -399,7 +399,7 @@ export class JenAIRepository extends BaseRepository {
     const offset = (page - 1) * pageSize;
 
     const conditions: ReturnType<typeof eq>[] = [
-      eq(regulatoryDocuments.state, state.toUpperCase()),
+      eq(regulatoryDocuments.state, normalizeState(state)),
       ne(jenaiIssues.reviewStatus, 'unreviewed'),
     ];
 

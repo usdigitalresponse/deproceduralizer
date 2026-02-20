@@ -2,7 +2,7 @@ import { eq, and, desc, asc, sql, count } from 'drizzle-orm';
 import { BaseRepository } from './base.repository';
 import { crossReferences, CrossReference, RefType } from '../schema/cross-references';
 import { regulatoryDocuments } from '../schema/regulatory-documents';
-import { StateCode } from '../schema/constants';
+import { StateCode, normalizeState } from '../schema/constants';
 
 /**
  * Cross-reference with target document info (for outgoing refs display)
@@ -261,7 +261,7 @@ export class CrossReferencesRepository extends BaseRepository {
         count: sql<number>`count(*)::int`,
       })
       .from(crossReferences)
-      .where(eq(crossReferences.state, state.toUpperCase()))
+      .where(eq(crossReferences.state, normalizeState(state)))
       .groupBy(crossReferences.isResolved);
 
     // Get counts by ref type
@@ -271,7 +271,7 @@ export class CrossReferencesRepository extends BaseRepository {
         count: sql<number>`count(*)::int`,
       })
       .from(crossReferences)
-      .where(eq(crossReferences.state, state.toUpperCase()))
+      .where(eq(crossReferences.state, normalizeState(state)))
       .groupBy(crossReferences.refType);
 
     const stats: CrossRefStats = {
@@ -308,7 +308,7 @@ export class CrossReferencesRepository extends BaseRepository {
 
     // Build where condition
     const whereCondition = and(
-      eq(crossReferences.state, state.toUpperCase()),
+      eq(crossReferences.state, normalizeState(state)),
       eq(crossReferences.isResolved, isResolved)
     );
 
@@ -392,7 +392,7 @@ export class CrossReferencesRepository extends BaseRepository {
    * @param level - 'title' (~50 nodes), 'chapter' (~200), 'part' (~500)
    */
   async getReferenceGraph(state: StateCode, level: GraphLevel = 'title'): Promise<ReferenceEdge[]> {
-    const stateUpper = state.toUpperCase();
+    const stateUpper = normalizeState(state);
 
     // Build level-specific column expressions
     // NJ uses njac_*, NY uses nycrr_*
@@ -496,7 +496,7 @@ export class CrossReferencesRepository extends BaseRepository {
     limit: number = 20,
     sortBy: 'in' | 'out' | 'total' = 'total'
   ): Promise<DocumentHub[]> {
-    const stateUpper = state.toUpperCase();
+    const stateUpper = normalizeState(state);
 
     const orderColumn = sortBy === 'in' ? 'in_degree' : sortBy === 'out' ? 'out_degree' : 'total_degree';
 
@@ -557,7 +557,7 @@ export class CrossReferencesRepository extends BaseRepository {
    * Returns cycles found within maxDepth hops
    */
   async detectCircularReferences(state: StateCode, maxDepth: number = 4): Promise<CircularReference[]> {
-    const stateUpper = state.toUpperCase();
+    const stateUpper = normalizeState(state);
 
     // Use a recursive CTE to find cycles
     // This is more efficient than doing it in application code

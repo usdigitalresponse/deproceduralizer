@@ -3,6 +3,7 @@ import { BaseRepository } from './base.repository';
 import { bookmarks, Bookmark, NewBookmark } from '../schema/bookmarks';
 import { regulatoryDocuments } from '../schema/regulatory-documents';
 import { complianceIssueAnalyses } from '../schema/compliance-issue-analyses';
+import { normalizeState } from '../schema/constants';
 
 export interface CreateBookmarkInput {
   documentId: number;
@@ -45,7 +46,7 @@ export class BookmarksRepository extends BaseRepository {
         documentId: input.documentId,
         analysisId: input.analysisId ?? null,
         issueType: input.issueType ?? null,
-        state: input.state.toUpperCase(),
+        state: normalizeState(input.state),
         notes: input.notes ?? null,
         createdBy: input.createdBy ?? null,
       })
@@ -123,7 +124,7 @@ export class BookmarksRepository extends BaseRepository {
       .from(bookmarks)
       .where(
         and(
-          eq(bookmarks.state, state.toUpperCase()),
+          eq(bookmarks.state, normalizeState(state)),
           sql`${bookmarks.analysisId} IS NOT NULL`
         )
       );
@@ -169,7 +170,7 @@ export class BookmarksRepository extends BaseRepository {
       .from(bookmarks)
       .leftJoin(regulatoryDocuments, eq(bookmarks.documentId, regulatoryDocuments.id))
       .leftJoin(complianceIssueAnalyses, eq(bookmarks.analysisId, complianceIssueAnalyses.id))
-      .where(eq(bookmarks.state, state.toUpperCase()))
+      .where(eq(bookmarks.state, normalizeState(state)))
       .orderBy(desc(bookmarks.createdAt))
       .$dynamic();
 
@@ -244,7 +245,7 @@ export class BookmarksRepository extends BaseRepository {
    * Get bookmark count for a state
    */
   async getCount(state: string, type?: 'analysis' | 'document'): Promise<number> {
-    let condition = eq(bookmarks.state, state.toUpperCase());
+    let condition = eq(bookmarks.state, normalizeState(state));
 
     if (type === 'analysis') {
       const result = await this.db
