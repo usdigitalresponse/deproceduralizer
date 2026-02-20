@@ -52,6 +52,9 @@ node_modules
 # Local test artifacts
 .playwright-mcp/
 
+# Git worktrees
+.claude/worktrees/
+
 # Data files
 data/raw/
 data/*.csv

@@ -926,6 +926,20 @@ Caches LLM API responses to avoid redundant calls across pipeline runs. Used by 
 
 **Indexes:** `llm_api_cache_request_hash_key` (unique on `request_hash`), `idx_cache_semantic` (`pipeline`, `tier`), `idx_cache_document` (`document_id`), `idx_cache_stale` (partial on `stale_after` WHERE NOT NULL)
 
+## Tables Without Drizzle Definitions
+
+The following tables exist in the database (created by migrations) but are intentionally **not** defined in the Drizzle schema. Do not add them to Drizzle — they are accessed via raw SQL only.
+
+| Table / Column | Migration | Why No Drizzle Definition | Used By |
+|----------------|-----------|---------------------------|---------|
+| `llm_api_cache` | 0052 | Python-only table, accessed via raw SQL | `backend/lib/cache.py` (CacheManager class) |
+| `compliance_issue_analysis_reviews` | 0026 | Created but **currently unused** — no code reads or writes to this table | Nothing (dead table) |
+| `search_vector` on `regulatory_documents` | 0044 | Trigger-maintained tsvector column, queried via raw SQL full-text search | SQL triggers + raw queries |
+| `search_vector` on `statutes` | 0044 | Trigger-maintained tsvector column | SQL triggers + raw queries |
+| `search_vector` on `compliance_issue_analyses` | 0044 | Trigger-maintained tsvector column | SQL triggers + raw queries |
+
+**Note:** `compliance_issue_analysis_reviews` was designed for per-tier review tracking but was superseded by the `review_status`/`reviewed_by` fields added directly to `compliance_issue_analyses` in PR 6.3. It remains in the database as a dead table.
+
 ## Enum Types
 
 ```sql

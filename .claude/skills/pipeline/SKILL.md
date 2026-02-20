@@ -18,7 +18,7 @@ Use the Read tool to read `docs/OPERATIONS.md` — it contains the complete 11-s
 | 2 | Detect regulatory status | `python backend/scripts/detect_regulatory_status.py --state NY` | Free |
 | 3 | Extract definitions | `python backend/scripts/batch_definitions.py submit --state NY` | ~$10-20 |
 | 4 | Link definitions | `python backend/scripts/link_definitions.py run --state NY` | Free |
-| 5 | Cross-references | `cd backend && python3 -m scripts.cross_references.run_extraction --state NY --output db` | Free |
+| 5 | Cross-references | `cd backend/scripts && python3 -m cross_references.run_extraction --state NY --output db` | Free |
 | 6 | Summarize | `cd backend && python3 -m scripts.summarization.cli --state NY --title 18 --run-all-phases` | ~$2-5/title |
 | 7 | Compliance scan (regex) | `python backend/scripts/scan_compliance_issues.py --state ny` | Free |
 | 8 | Research pipeline (LLM) | `cd backend && python3 -m scripts.research_pipeline.cli --state ny --all-issues --execute` | ~$50-60/title |

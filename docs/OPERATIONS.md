@@ -309,9 +309,9 @@ python backend/scripts/backfill_definition_scope.py --state NY
 ### Step 5: Extract Cross-References
 
 ```bash
-cd backend
-python3 -m scripts.cross_references.run_extraction --state NY --output db
-python3 -m scripts.cross_references.run_extraction --state NYC --output db   # RCNY → NYCRR links
+cd backend/scripts
+python3 -m cross_references.run_extraction --state NY --output db
+python3 -m cross_references.run_extraction --state NYC --output db   # RCNY → NYCRR links
 ```
 
 - Extracts internal citations between regulatory documents (e.g., "18 NYCRR 505.14", "section 624.8 of this Part")
@@ -555,8 +555,8 @@ To process a single title (e.g., NY Title 18) through the full pipeline:
 
 ```bash
 # 1. Cross-references (extracts internal citations for pipeline context)
-cd backend
-python3 -m scripts.cross_references.run_extraction --state NY --title 18 --output db
+cd backend/scripts && python3 -m cross_references.run_extraction --state NY --title 18 --output db
+cd ..
 
 # 2. Summaries (batch API — submit and wait for completion)
 python3 -m scripts.summarization.cli --state NY --title 18 --run-all-phases
@@ -591,7 +591,7 @@ NYC pipeline is the same as NY, but note:
 cd backend
 
 # 1. Cross-references
-python3 -m scripts.cross_references.run_extraction --state NYC --output db
+(cd scripts && python3 -m cross_references.run_extraction --state NYC --output db)
 
 # 2. Summaries (sections phase only for flat hierarchy)
 python3 -m scripts.summarization.cli --state NYC --title 3 --run-all-phases

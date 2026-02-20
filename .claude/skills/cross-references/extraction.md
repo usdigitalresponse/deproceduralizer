@@ -4,7 +4,7 @@
 
 1. Working directory:
    ```bash
-   cd ~/Documents/Programming/raf/deproceduralizer/backend
+   cd ~/Documents/Programming/raf/deproceduralizer/backend/scripts
    ```
 
 2. Environment variables set (DATABASE_URL in .env)
@@ -20,15 +20,15 @@
 
 ```bash
 # Extract and write directly to database
-python3 -m scripts.cross_references.run_extraction --state NJ --output db
-python3 -m scripts.cross_references.run_extraction --state NY --output db
+python3 -m cross_references.run_extraction --state NJ --output db
+python3 -m cross_references.run_extraction --state NY --output db
 ```
 
 ### Test Run (JSON Output)
 
 ```bash
 # Extract sample to JSON for review
-python3 -m scripts.cross_references.run_extraction --state NJ --limit 100 --output json
+python3 -m cross_references.run_extraction --state NJ --limit 100 --output json
 ```
 
 ### Options

@@ -314,7 +314,7 @@ python backend/scripts/red_flags.py --help
 cd backend
 python3 -m scripts.research_pipeline.cli --help
 python3 -m scripts.summarization.cli --help
-python3 -m scripts.cross_references.run_extraction --help
+cd scripts && python3 -m cross_references.run_extraction --help && cd ..
 ```
 
 ### Database
