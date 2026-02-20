@@ -570,7 +570,7 @@ import { BookmarkButton } from '@/components/ui';
 |------|------|---------|-------------|
 | `isBookmarked` | `boolean` | required | Current bookmark state |
 | `onToggle` | `() => void` | required | Toggle callback |
-| `size` | `'sm' \| 'md'` | `'md'` | Button size (`sm`: 16px icon, `md`: 20px icon) |
+| `size` | `'sm' \| 'md'` | `'sm'` | Button size (`sm`: 16px icon, `md`: 20px icon) |
 | `showLabel` | `boolean` | `false` | Show "Bookmarked"/"Bookmark" text label |
 | `isLoading` | `boolean` | `false` | Show spinner during toggle |
 

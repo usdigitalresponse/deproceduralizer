@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Menu, Share2, LogOut, FlaskConical } from 'lucide-react';
@@ -287,10 +287,12 @@ export function Header({ className = '' }: HeaderProps) {
       </header>
 
       {/* Mobile Navigation Drawer */}
-      <MobileNav
-        isOpen={isMobileNavOpen}
-        onClose={() => setIsMobileNavOpen(false)}
-      />
+      <Suspense>
+        <MobileNav
+          isOpen={isMobileNavOpen}
+          onClose={() => setIsMobileNavOpen(false)}
+        />
+      </Suspense>
 
       {/* Share Link Modal */}
       <ShareLinkModal

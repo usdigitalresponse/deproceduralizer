@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   Drawer,
   DrawerContent,
@@ -12,6 +12,7 @@ import {
 } from '@/components/ui';
 import { getStateFromPathname } from '@/hooks';
 import { NAV_ITEMS, getNavHref, isNavActive, NAV_GROUPS } from '@/lib/constants/navigation';
+import { VALID_STATES, STATE_CONFIG } from '@/types/state';
 
 interface MobileNavProps {
   isOpen: boolean;
@@ -24,7 +25,17 @@ interface MobileNavProps {
  */
 export function MobileNav({ isOpen, onClose }: MobileNavProps) {
   const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const currentState = getStateFromPathname(pathname);
+
+  const handleStateChange = (newState: string) => {
+    const pathWithoutState = pathname.replace(/^\/(nyc|ny|nj)/, '');
+    const queryString = searchParams.toString();
+    const newPath = `/${newState}${pathWithoutState || ''}${queryString ? `?${queryString}` : ''}`;
+    router.push(newPath);
+    onClose();
+  };
 
   return (
     <Drawer open={isOpen} onOpenChange={onClose}>
@@ -41,18 +52,14 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
               Select State
             </p>
             <div className="flex gap-2">
-              <StateButton
-                state="ny"
-                label="New York"
-                isActive={currentState === 'ny'}
-                onClick={onClose}
-              />
-              <StateButton
-                state="nj"
-                label="New Jersey"
-                isActive={currentState === 'nj'}
-                onClick={onClose}
-              />
+              {VALID_STATES.map((s) => (
+                <StateButton
+                  key={s}
+                  label={STATE_CONFIG[s].name}
+                  isActive={currentState === s}
+                  onClick={() => handleStateChange(s)}
+                />
+              ))}
             </div>
           </div>
 
@@ -183,16 +190,14 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
 }
 
 interface StateButtonProps {
-  state: string;
   label: string;
   isActive: boolean;
   onClick: () => void;
 }
 
-function StateButton({ state, label, isActive, onClick }: StateButtonProps) {
+function StateButton({ label, isActive, onClick }: StateButtonProps) {
   return (
-    <Link
-      href={`/${state}`}
+    <button
       onClick={onClick}
       aria-label={`Switch to ${label}`}
       aria-current={isActive ? 'page' : undefined}
@@ -209,7 +214,7 @@ function StateButton({ state, label, isActive, onClick }: StateButtonProps) {
       `}
     >
       {label}
-    </Link>
+    </button>
   );
 }
 
