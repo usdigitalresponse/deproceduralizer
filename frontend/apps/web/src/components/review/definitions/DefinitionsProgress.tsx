@@ -21,7 +21,7 @@ export function DefinitionsProgress({ counts, className = '' }: DefinitionsProgr
       title="Human Review Progress"
       completed={reviewed}
       total={counts.total}
-      completedLabel="reviewed"
+      completedLabel="human-reviewed"
       barColor="primary"
       statuses={[
         { label: 'Unreviewed', count: counts.unreviewed, variant: 'neutral' },

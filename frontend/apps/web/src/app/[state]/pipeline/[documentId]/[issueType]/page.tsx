@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { ArrowLeft, ExternalLink, Printer } from 'lucide-react';
 import type { DismissedMatch } from '@deproceduralizer/database';
 import { getFullAnalysisRecord, getRegexMatchesForAnalysis } from '@/lib/actions/analysis';
+import { getAncestorChain } from '@/lib/actions/hierarchy';
 import {
   PipelineTimeline,
   AnalysisBookmarkProvider,
@@ -14,6 +15,7 @@ import {
   PrintModeStyles,
   SeverityProgression,
   ExecutiveSummary,
+  RegulatoryContext,
 } from '@/components/analysis';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Container } from '@/components/layout/Container';
@@ -57,10 +59,11 @@ export default async function AnalysisDetailPage({ params, searchParams }: Analy
 
   const stateCode = state;
 
-  // Fetch full analysis record and regex matches (shown in both views now)
-  const [analysisResult, matchesResult] = await Promise.all([
+  // Fetch full analysis record, regex matches, and ancestor chain in parallel
+  const [analysisResult, matchesResult, ancestorResult] = await Promise.all([
     getFullAnalysisRecord(docId, issueType),
     getRegexMatchesForAnalysis(docId, issueType),
+    getAncestorChain(docId),
   ]);
 
   if (!analysisResult.success || !analysisResult.data) {
@@ -69,6 +72,7 @@ export default async function AnalysisDetailPage({ params, searchParams }: Analy
 
   const analysis = analysisResult.data;
   const matches = matchesResult?.success ? matchesResult.data : [];
+  const ancestors = ancestorResult?.success ? ancestorResult.data : [];
   const issueTypeLabel = ISSUE_TYPE_LABELS[issueType as keyof typeof ISSUE_TYPE_LABELS] || issueType;
 
   const sections: SectionConfig[] = [
@@ -130,10 +134,10 @@ export default async function AnalysisDetailPage({ params, searchParams }: Analy
                   className="inline-flex items-center gap-2 text-sm text-[var(--color-primary)] hover:underline"
                 >
                   <ArrowLeft className="w-4 h-4" />
-                  {backLabel}
+                  <span className="hidden sm:inline">{backLabel}</span>
                 </Link>
 
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 sm:gap-4">
                   <BookmarkToggle />
                   <Link
                     href={`?print=true`}
@@ -141,14 +145,14 @@ export default async function AnalysisDetailPage({ params, searchParams }: Analy
                     className="inline-flex items-center gap-2 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
                   >
                     <Printer className="w-4 h-4" />
-                    Print View
+                    <span className="hidden sm:inline">Print View</span>
                   </Link>
                   <Link
                     href={`/${state}/regulations/${docId}`}
                     target="_blank"
                     className="inline-flex items-center gap-2 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
                   >
-                    View Regulation
+                    <span className="hidden sm:inline">View Regulation</span>
                     <ExternalLink className="w-4 h-4" />
                   </Link>
                 </div>
@@ -191,6 +195,13 @@ export default async function AnalysisDetailPage({ params, searchParams }: Analy
               {analysis.document.citation}
             </p>
           )}
+
+          {/* Regulatory Context - hierarchy breadcrumb, summary, tags */}
+          <RegulatoryContext
+            ancestors={ancestors}
+            document={analysis.document}
+            state={stateCode}
+          />
 
           {/* Tier Classification Flow */}
           <div className="mt-4 pt-4 border-t border-[var(--color-neutral-200)]">

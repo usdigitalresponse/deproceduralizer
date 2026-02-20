@@ -88,7 +88,7 @@ export default async function HomePage() {
         {statePriorities.some((sp) => sp.items.length > 0) && (
           <section>
             <h2 className="text-lg font-semibold text-[var(--color-text)] mb-4">
-              Start Here
+              Featured Issues
             </h2>
             <HomePrioritySection statePriorities={statePriorities} />
           </section>

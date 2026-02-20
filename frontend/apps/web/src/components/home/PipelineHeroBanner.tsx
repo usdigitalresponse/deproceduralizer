@@ -15,8 +15,8 @@ export function PipelineHeroBanner({ state }: PipelineHeroBannerProps) {
             <FlaskConical className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-white">Research Pipeline</h2>
-            <p className="text-sm text-white/80">
+            <h2 className="text-xl font-extrabold !text-white">Research Pipeline</h2>
+            <p className="text-sm font-medium !text-white">
               3-tier AI analysis of compliance issues — review findings, severity scores, and recommendations
             </p>
           </div>

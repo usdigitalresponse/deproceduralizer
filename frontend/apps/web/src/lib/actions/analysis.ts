@@ -179,8 +179,9 @@ export interface PriorityPicksResult {
 
 /**
  * Gets priority items for the pipeline dashboard banner.
- * First tries high-severity + easy cleanup items (quick wins).
- * Falls back to top 3 highest-severity burdensome items.
+ * Prioritizes bookmarked issues at matching severity, then fills remaining
+ * slots with non-bookmarked items. First tries high-severity + easy cleanup
+ * (quick wins), falls back to top highest-severity burdensome items.
  *
  * @param state - The state code (e.g., 'NY', 'NJ')
  * @returns Priority items for the banner
@@ -189,39 +190,57 @@ export async function getPriorityPicks(
   state: StateCode
 ): Promise<ActionResult<PriorityPicksResult>> {
   try {
-    // Try quick wins first: high severity + easy cleanup
-    const quickWins = await complianceIssuesRepo.getAnalysisListPaginated(state, {
-      page: 1,
-      pageSize: 5,
-      sortBy: 'severity',
-      sortOrder: 'desc',
-      filters: {
-        severity: 'high',
-        easyCleanup: 'any',
-      },
-    });
+    const PAGE_SIZE = 5;
 
-    if (quickWins.data.length > 0) {
+    // Try quick wins first: high severity + easy cleanup
+    const [bookmarkedQuickWins, allQuickWins] = await Promise.all([
+      complianceIssuesRepo.getAnalysisListPaginated(state, {
+        page: 1,
+        pageSize: PAGE_SIZE,
+        sortBy: 'severity',
+        sortOrder: 'desc',
+        filters: { severity: 'high', easyCleanup: 'any', bookmarkedOnly: true },
+      }),
+      complianceIssuesRepo.getAnalysisListPaginated(state, {
+        page: 1,
+        pageSize: PAGE_SIZE,
+        sortBy: 'severity',
+        sortOrder: 'desc',
+        filters: { severity: 'high', easyCleanup: 'any' },
+      }),
+    ]);
+
+    if (allQuickWins.data.length > 0) {
+      const items = mergeBookmarkedFirst(bookmarkedQuickWins.data, allQuickWins.data, PAGE_SIZE);
       return success({
-        items: quickWins.data,
-        totalQuickWins: quickWins.total,
+        items,
+        totalQuickWins: allQuickWins.total,
         isQuickWinMode: true,
       });
     }
 
-    // Fallback: top 3 highest-severity items
-    const highSeverity = await complianceIssuesRepo.getAnalysisListPaginated(state, {
-      page: 1,
-      pageSize: 3,
-      sortBy: 'severity',
-      sortOrder: 'desc',
-      filters: {
-        severity: 'high',
-      },
-    });
+    // Fallback: top highest-severity items, bookmarked first
+    const FALLBACK_SIZE = 3;
+    const [bookmarkedHigh, allHigh] = await Promise.all([
+      complianceIssuesRepo.getAnalysisListPaginated(state, {
+        page: 1,
+        pageSize: FALLBACK_SIZE,
+        sortBy: 'severity',
+        sortOrder: 'desc',
+        filters: { severity: 'high', bookmarkedOnly: true },
+      }),
+      complianceIssuesRepo.getAnalysisListPaginated(state, {
+        page: 1,
+        pageSize: FALLBACK_SIZE,
+        sortBy: 'severity',
+        sortOrder: 'desc',
+        filters: { severity: 'high' },
+      }),
+    ]);
 
+    const items = mergeBookmarkedFirst(bookmarkedHigh.data, allHigh.data, FALLBACK_SIZE);
     return success({
-      items: highSeverity.data,
+      items,
       totalQuickWins: 0,
       isQuickWinMode: false,
     });
@@ -229,6 +248,28 @@ export async function getPriorityPicks(
     console.error('[getPriorityPicks]', error);
     return failure(getErrorMessage(error));
   }
+}
+
+/**
+ * Merge bookmarked items first, then fill remaining slots with non-duplicates
+ * from the full list, up to `limit`.
+ */
+function mergeBookmarkedFirst(
+  bookmarked: AnalysisListItem[],
+  all: AnalysisListItem[],
+  limit: number
+): AnalysisListItem[] {
+  const result = [...bookmarked];
+  const seen = new Set(bookmarked.map(i => `${i.documentId}:${i.issueType}`));
+  for (const item of all) {
+    if (result.length >= limit) break;
+    const key = `${item.documentId}:${item.issueType}`;
+    if (!seen.has(key)) {
+      result.push(item);
+      seen.add(key);
+    }
+  }
+  return result;
 }
 
 /**

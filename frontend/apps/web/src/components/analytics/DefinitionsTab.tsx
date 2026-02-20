@@ -118,7 +118,7 @@ function ReviewProgressBar({
       <div className="flex justify-between text-sm">
         <span className="font-medium text-[var(--color-text)]">Human Review Progress</span>
         <span className="text-[var(--color-text-muted)]">
-          {(total - counts.unreviewed).toLocaleString()} / {total.toLocaleString()} reviewed
+          {(total - counts.unreviewed).toLocaleString()} / {total.toLocaleString()} human-reviewed
         </span>
       </div>
       <div className="h-3 bg-[var(--color-neutral-100)] rounded-full overflow-hidden flex">

@@ -114,7 +114,7 @@ export function Header({ className = '' }: HeaderProps) {
               </Link>
 
               {/* Desktop Navigation - hidden on mobile */}
-              <nav className="hidden md:flex items-center gap-1">
+              <nav className="hidden md:flex items-center gap-0.5">
                 {/* Explorer Group */}
                 <NavDropdown
                   label={NAV_GROUPS.explorer.label}
@@ -163,8 +163,8 @@ export function Header({ className = '' }: HeaderProps) {
                           flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold
                           rounded-full border transition-colors duration-[var(--duration-fast)]
                           ${isActive
-                            ? 'bg-[var(--color-primary)] text-white border-[var(--color-primary)]'
-                            : 'bg-[var(--color-primary-mid)] text-white border-[var(--color-primary-mid)] hover:bg-[var(--color-primary)] hover:border-[var(--color-primary)]'
+                            ? 'bg-[var(--color-primary)] !text-white border-[var(--color-primary)]'
+                            : 'bg-[var(--color-primary-mid)] !text-white border-[var(--color-primary-mid)] hover:bg-[var(--color-primary)] hover:border-[var(--color-primary)]'
                           }
                         `}
                       >
@@ -175,19 +175,21 @@ export function Header({ className = '' }: HeaderProps) {
                   })
                 }
 
-                {/* Review Mode - Direct Link */}
+                {/* Review Mode - Direct Link (icon-only below xl) */}
                 {stateNavItems
                   .filter(item => item.groupId === 'review')
                   .map((item) => {
                     const href = getNavHref(item, currentState);
                     const isActive = isNavActive(item, pathname, currentState);
+                    const ItemIcon = item.icon;
 
                     return (
                       <Link
                         key={item.key}
                         href={href}
+                        title={item.label}
                         className={`
-                          px-3 py-2 text-sm font-medium rounded-[var(--radius-md)]
+                          flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-[var(--radius-md)]
                           transition-colors duration-[var(--duration-fast)]
                           ${isActive
                             ? 'bg-[var(--color-primary-weaker)] text-[var(--color-primary)]'
@@ -195,7 +197,8 @@ export function Header({ className = '' }: HeaderProps) {
                           }
                         `}
                       >
-                        {item.label}
+                        <ItemIcon className="w-4 h-4" />
+                        <span className="hidden xl:inline">{item.label}</span>
                       </Link>
                     );
                   })
@@ -206,17 +209,19 @@ export function Header({ className = '' }: HeaderProps) {
                   <div className="w-px h-5 bg-[var(--color-neutral-200)] mx-1" />
                 )}
 
-                {/* Global nav items (Prompts, etc.) */}
+                {/* Global nav items (Prompts, etc.) - icon-only below xl */}
                 {globalNavItems.map((item) => {
                   const href = getNavHref(item, currentState);
                   const isActive = isNavActive(item, pathname, currentState);
+                  const ItemIcon = item.icon;
 
                   return (
                     <Link
                       key={item.key}
                       href={href}
+                      title={item.label}
                       className={`
-                        px-3 py-2 text-sm font-medium rounded-[var(--radius-md)]
+                        flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-[var(--radius-md)]
                         transition-colors duration-[var(--duration-fast)]
                         ${isActive
                           ? 'bg-[var(--color-primary-weaker)] text-[var(--color-primary)]'
@@ -224,14 +229,15 @@ export function Header({ className = '' }: HeaderProps) {
                         }
                       `}
                     >
-                      {item.label}
+                      <ItemIcon className="w-4 h-4" />
+                      <span className="hidden xl:inline">{item.label}</span>
                     </Link>
                   );
                 })}
               </nav>
 
               {/* Global Search and Auth Actions - hidden on mobile */}
-              <div className="hidden md:flex items-center gap-2">
+              <div className="hidden md:flex items-center gap-1.5">
                 <GlobalSearch />
 
                 {/* Auth Actions - Only show when authenticated */}
@@ -247,7 +253,7 @@ export function Header({ className = '' }: HeaderProps) {
                       title="Generate a shareable link for someone to access the site without needing the password. Each link works only once."
                     >
                       <Share2 className="w-4 h-4" />
-                      <span className="hidden lg:inline">Share</span>
+                      <span className="hidden xl:inline">Share</span>
                     </Button>
 
                     {/* Logout Button */}
@@ -259,13 +265,13 @@ export function Header({ className = '' }: HeaderProps) {
                       title="Log out of the site"
                     >
                       <LogOut className="w-4 h-4" />
-                      <span className="hidden lg:inline">Logout</span>
+                      <span className="hidden xl:inline">Logout</span>
                     </Button>
                   </>
                 )}
               </div>
 
-              {/* Mobile Menu Button - visible on mobile only */}
+              {/* Mobile Menu Button - visible on mobile */}
               <Button
                 variant="ghost"
                 size="sm"

@@ -21,16 +21,16 @@ export default function BrowseLoading() {
           </div>
 
           {/* Main content skeleton */}
-          <div className="flex gap-6">
-            <div className="w-[400px] shrink-0">
-              <Card padding="none" className="h-[calc(100vh-16rem)]">
+          <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
+            <div className="w-full lg:w-[400px] lg:shrink-0">
+              <Card padding="none" className="h-[40vh] lg:h-[calc(100vh-16rem)]">
                 <div className="p-2">
                   <TreeNodeSkeleton depth={0} count={8} />
                 </div>
               </Card>
             </div>
-            <div className="flex-1">
-              <Card className="h-[calc(100vh-16rem)] flex items-center justify-center">
+            <div className="hidden lg:flex flex-1">
+              <Card className="h-[calc(100vh-16rem)] flex items-center justify-center w-full">
                 <div className="text-center text-[var(--color-text-muted)]">
                   <div className="w-12 h-12 bg-[var(--color-neutral-200)] rounded mx-auto mb-3 animate-pulse" />
                   <div className="h-4 w-32 bg-[var(--color-neutral-200)] rounded mx-auto animate-pulse" />

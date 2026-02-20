@@ -27,3 +27,4 @@ export { PrintModeProvider, usePrintMode } from './PrintModeContext';
 export { RegexMatchesSection } from './RegexMatchesSection';
 export { PrintButton } from './PrintButton';
 export { PrintModeStyles } from './PrintModeStyles';
+export { RegulatoryContext } from './RegulatoryContext';

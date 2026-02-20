@@ -2,8 +2,10 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import { useQueryStates } from 'nuqs';
-import { ArrowUp, ArrowDown } from 'lucide-react';
+import { ArrowUp, ArrowDown, SlidersHorizontal } from 'lucide-react';
 import { Select, Button, SearchInput } from '@/components/ui';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerBody, DrawerClose } from '@/components/ui/Drawer';
+import { useResponsive } from '@/hooks';
 import {
   definitionsReviewParsers,
   type DefinitionsReviewStatusValue,
@@ -44,6 +46,9 @@ export function DefinitionsReviewFilters({ counts, scopeTexts = [] }: Definition
     shallow: false,
   });
 
+  const { isMobile } = useResponsive();
+  const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
+
   // Local state for ID input (to avoid updating URL on every keystroke)
   const [idInputValue, setIdInputValue] = useState(filters.definitionId?.toString() || '');
 
@@ -80,6 +85,18 @@ export function DefinitionsReviewFilters({ counts, scopeTexts = [] }: Definition
     filters.definitionId
   );
 
+  // Count active dropdown filters for badge
+  const activeFilterCount = [
+    filters.reviewStatus && filters.reviewStatus !== 'all',
+    filters.scopeLevel && filters.scopeLevel !== 'all',
+    filters.definitionType && filters.definitionType !== 'all',
+    filters.isCrossReference && filters.isCrossReference !== 'all',
+    filters.inDefinitionsSection && filters.inDefinitionsSection !== 'all',
+    filters.scopeRelation && filters.scopeRelation !== 'all',
+    filters.scopeMismatch && filters.scopeMismatch !== 'all',
+    filters.scopeText,
+  ].filter(Boolean).length;
+
   // Build scope text options from provided unique values
   const scopeTextOptions = useMemo(() => {
     const options = [{ value: 'all', label: 'All Scope Texts' }];
@@ -111,6 +128,77 @@ export function DefinitionsReviewFilters({ counts, scopeTexts = [] }: Definition
   const toggleSortOrder = useCallback(() => {
     setFilters({ sortOrder: filters.sortOrder === 'asc' ? 'desc' : 'asc', page: 1 });
   }, [filters.sortOrder, setFilters]);
+
+  const filterSelects = (
+    <>
+      <div>
+        <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1 md:hidden">Review Status</label>
+        <Select
+          value={filters.reviewStatus || 'all'}
+          onValueChange={(value) => setFilters({ reviewStatus: value as DefinitionsReviewStatusValue, page: 1 })}
+          options={DEFINITIONS_REVIEW_STATUS_OPTIONS}
+        />
+      </div>
+      <div>
+        <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1 md:hidden">Scope Level</label>
+        <Select
+          value={filters.scopeLevel || 'all'}
+          onValueChange={(value) => setFilters({ scopeLevel: value as DefinitionsReviewScopeLevelValue, page: 1 })}
+          options={DEFINITIONS_SCOPE_LEVEL_OPTIONS}
+        />
+      </div>
+      <div>
+        <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1 md:hidden">Definition Type</label>
+        <Select
+          value={filters.definitionType || 'all'}
+          onValueChange={(value) => setFilters({ definitionType: value as DefinitionTypeValue, page: 1 })}
+          options={DEFINITIONS_TYPE_OPTIONS}
+        />
+      </div>
+      <div>
+        <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1 md:hidden">Cross Reference</label>
+        <Select
+          value={filters.isCrossReference || 'all'}
+          onValueChange={(value) => setFilters({ isCrossReference: value as DefinitionsCrossRefValue, page: 1 })}
+          options={DEFINITIONS_CROSS_REFERENCE_OPTIONS}
+        />
+      </div>
+      <div>
+        <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1 md:hidden">In Definitions Section</label>
+        <Select
+          value={filters.inDefinitionsSection || 'all'}
+          onValueChange={(value) => setFilters({ inDefinitionsSection: value as DefinitionsInDefSectionValue, page: 1 })}
+          options={DEFINITIONS_IN_DEF_SECTION_OPTIONS}
+        />
+      </div>
+      <div>
+        <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1 md:hidden">Scope Relation</label>
+        <Select
+          value={filters.scopeRelation || 'all'}
+          onValueChange={(value) => setFilters({ scopeRelation: value as DefinitionsScopeRelationValue, page: 1 })}
+          options={DEFINITIONS_SCOPE_RELATION_OPTIONS}
+        />
+      </div>
+      <div>
+        <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1 md:hidden">Scope Mismatch</label>
+        <Select
+          value={filters.scopeMismatch || 'all'}
+          onValueChange={(value) => setFilters({ scopeMismatch: value as DefinitionsScopeMismatchValue, page: 1 })}
+          options={DEFINITIONS_SCOPE_MISMATCH_OPTIONS}
+        />
+      </div>
+      {scopeTextOptions.length > 1 && (
+        <div>
+          <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1 md:hidden">Scope Text</label>
+          <Select
+            value={filters.scopeText || 'all'}
+            onValueChange={(value) => setFilters({ scopeText: value === 'all' ? null : value, page: 1 })}
+            options={scopeTextOptions}
+          />
+        </div>
+      )}
+    </>
+  );
 
   return (
     <div className="bg-white rounded-lg border border-[var(--color-neutral-200)] p-4 mb-4">
@@ -159,113 +247,203 @@ export function DefinitionsReviewFilters({ counts, scopeTexts = [] }: Definition
         </span>
       </div>
 
-      {/* Filters Row 1 */}
-      <div className="flex flex-wrap items-center gap-3 mb-3">
-        <div className="flex-1 min-w-[140px] max-w-[170px]">
-          <Select
-            value={filters.reviewStatus || 'all'}
-            onValueChange={(value) => setFilters({ reviewStatus: value as DefinitionsReviewStatusValue, page: 1 })}
-            options={DEFINITIONS_REVIEW_STATUS_OPTIONS}
-          />
-        </div>
-
-        <div className="flex-1 min-w-[140px] max-w-[170px]">
-          <Select
-            value={filters.scopeLevel || 'all'}
-            onValueChange={(value) => setFilters({ scopeLevel: value as DefinitionsReviewScopeLevelValue, page: 1 })}
-            options={DEFINITIONS_SCOPE_LEVEL_OPTIONS}
-          />
-        </div>
-
-        <div className="flex-1 min-w-[140px] max-w-[170px]">
-          <Select
-            value={filters.definitionType || 'all'}
-            onValueChange={(value) => setFilters({ definitionType: value as DefinitionTypeValue, page: 1 })}
-            options={DEFINITIONS_TYPE_OPTIONS}
-          />
-        </div>
-
-        <div className="flex-1 min-w-[140px] max-w-[170px]">
-          <Select
-            value={filters.isCrossReference || 'all'}
-            onValueChange={(value) => setFilters({ isCrossReference: value as DefinitionsCrossRefValue, page: 1 })}
-            options={DEFINITIONS_CROSS_REFERENCE_OPTIONS}
-          />
-        </div>
-
-        <div className="flex-1 min-w-[140px] max-w-[200px]">
-          <Select
-            value={filters.inDefinitionsSection || 'all'}
-            onValueChange={(value) => setFilters({ inDefinitionsSection: value as DefinitionsInDefSectionValue, page: 1 })}
-            options={DEFINITIONS_IN_DEF_SECTION_OPTIONS}
-          />
-        </div>
-      </div>
-
-      {/* Filters Row 2 */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex-1 min-w-[140px] max-w-[170px]">
-          <Select
-            value={filters.scopeRelation || 'all'}
-            onValueChange={(value) => setFilters({ scopeRelation: value as DefinitionsScopeRelationValue, page: 1 })}
-            options={DEFINITIONS_SCOPE_RELATION_OPTIONS}
-          />
-        </div>
-
-        <div className="flex-1 min-w-[140px] max-w-[170px]">
-          <Select
-            value={filters.scopeMismatch || 'all'}
-            onValueChange={(value) => setFilters({ scopeMismatch: value as DefinitionsScopeMismatchValue, page: 1 })}
-            options={DEFINITIONS_SCOPE_MISMATCH_OPTIONS}
-          />
-        </div>
-
-        {scopeTextOptions.length > 1 && (
-          <div className="flex-1 min-w-[180px] max-w-[250px]">
-            <Select
-              value={filters.scopeText || 'all'}
-              onValueChange={(value) => setFilters({ scopeText: value === 'all' ? null : value, page: 1 })}
-              options={scopeTextOptions}
-            />
-          </div>
-        )}
-
-        {/* Spacer to push sort controls to the right */}
-        <div className="flex-1" />
-
-        {/* Sort controls */}
-        <div className="flex items-center gap-1">
-          <div className="min-w-[140px]">
-            <Select
-              value={filters.sortBy || 'document'}
-              onValueChange={(value) => setFilters({ sortBy: value as DefinitionsSortByValue, page: 1 })}
-              options={DEFINITIONS_SORT_OPTIONS}
-            />
-          </div>
-          <button
-            type="button"
-            onClick={toggleSortOrder}
-            aria-label={filters.sortOrder === 'asc' ? 'Sort ascending' : 'Sort descending'}
-            className="p-2 text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-[var(--color-neutral-100)] rounded-[var(--radius-md)] transition-colors"
-          >
-            {filters.sortOrder === 'asc' ? (
-              <ArrowUp className="h-4 w-4" />
-            ) : (
-              <ArrowDown className="h-4 w-4" />
-            )}
-          </button>
-        </div>
-
-        {hasActiveFilters && (
+      {/* Mobile: Filters button + Sort controls */}
+      {isMobile && (
+        <div className="flex items-center gap-3">
           <Button
             variant="secondary"
             size="sm"
-            onClick={clearFilters}
+            onClick={() => setIsFilterDrawerOpen(true)}
           >
-            Clear
+            <SlidersHorizontal className="w-4 h-4 mr-1.5" />
+            Filters
+            {activeFilterCount > 0 && (
+              <span className="ml-1.5 inline-flex items-center justify-center w-5 h-5 text-xs font-medium bg-[var(--color-primary)] text-white rounded-full">
+                {activeFilterCount}
+              </span>
+            )}
           </Button>
-        )}
-      </div>
+
+          {hasActiveFilters && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={clearFilters}
+            >
+              Clear
+            </Button>
+          )}
+
+          <div className="flex-1" />
+
+          <div className="flex items-center gap-1">
+            <div className="min-w-[120px]">
+              <Select
+                value={filters.sortBy || 'document'}
+                onValueChange={(value) => setFilters({ sortBy: value as DefinitionsSortByValue, page: 1 })}
+                options={DEFINITIONS_SORT_OPTIONS}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={toggleSortOrder}
+              aria-label={filters.sortOrder === 'asc' ? 'Sort ascending' : 'Sort descending'}
+              className="p-2 text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-[var(--color-neutral-100)] rounded-[var(--radius-md)] transition-colors"
+            >
+              {filters.sortOrder === 'asc' ? (
+                <ArrowUp className="h-4 w-4" />
+              ) : (
+                <ArrowDown className="h-4 w-4" />
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile Filter Drawer */}
+      {isMobile && (
+        <Drawer open={isFilterDrawerOpen} onOpenChange={setIsFilterDrawerOpen}>
+          <DrawerContent side="right">
+            <DrawerHeader>
+              <DrawerTitle>Filters</DrawerTitle>
+              <DrawerClose />
+            </DrawerHeader>
+            <DrawerBody>
+              <div className="space-y-4">
+                {filterSelects}
+              </div>
+              {hasActiveFilters && (
+                <div className="mt-6">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      clearFilters();
+                      setIsFilterDrawerOpen(false);
+                    }}
+                    className="w-full"
+                  >
+                    Clear All Filters
+                  </Button>
+                </div>
+              )}
+            </DrawerBody>
+          </DrawerContent>
+        </Drawer>
+      )}
+
+      {/* Desktop: Inline filter dropdowns */}
+      {!isMobile && (
+        <>
+          {/* Filters Row 1 */}
+          <div className="flex flex-wrap items-center gap-3 mb-3">
+            <div className="flex-1 min-w-[140px] max-w-[170px]">
+              <Select
+                value={filters.reviewStatus || 'all'}
+                onValueChange={(value) => setFilters({ reviewStatus: value as DefinitionsReviewStatusValue, page: 1 })}
+                options={DEFINITIONS_REVIEW_STATUS_OPTIONS}
+              />
+            </div>
+
+            <div className="flex-1 min-w-[140px] max-w-[170px]">
+              <Select
+                value={filters.scopeLevel || 'all'}
+                onValueChange={(value) => setFilters({ scopeLevel: value as DefinitionsReviewScopeLevelValue, page: 1 })}
+                options={DEFINITIONS_SCOPE_LEVEL_OPTIONS}
+              />
+            </div>
+
+            <div className="flex-1 min-w-[140px] max-w-[170px]">
+              <Select
+                value={filters.definitionType || 'all'}
+                onValueChange={(value) => setFilters({ definitionType: value as DefinitionTypeValue, page: 1 })}
+                options={DEFINITIONS_TYPE_OPTIONS}
+              />
+            </div>
+
+            <div className="flex-1 min-w-[140px] max-w-[170px]">
+              <Select
+                value={filters.isCrossReference || 'all'}
+                onValueChange={(value) => setFilters({ isCrossReference: value as DefinitionsCrossRefValue, page: 1 })}
+                options={DEFINITIONS_CROSS_REFERENCE_OPTIONS}
+              />
+            </div>
+
+            <div className="flex-1 min-w-[140px] max-w-[200px]">
+              <Select
+                value={filters.inDefinitionsSection || 'all'}
+                onValueChange={(value) => setFilters({ inDefinitionsSection: value as DefinitionsInDefSectionValue, page: 1 })}
+                options={DEFINITIONS_IN_DEF_SECTION_OPTIONS}
+              />
+            </div>
+          </div>
+
+          {/* Filters Row 2 */}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex-1 min-w-[140px] max-w-[170px]">
+              <Select
+                value={filters.scopeRelation || 'all'}
+                onValueChange={(value) => setFilters({ scopeRelation: value as DefinitionsScopeRelationValue, page: 1 })}
+                options={DEFINITIONS_SCOPE_RELATION_OPTIONS}
+              />
+            </div>
+
+            <div className="flex-1 min-w-[140px] max-w-[170px]">
+              <Select
+                value={filters.scopeMismatch || 'all'}
+                onValueChange={(value) => setFilters({ scopeMismatch: value as DefinitionsScopeMismatchValue, page: 1 })}
+                options={DEFINITIONS_SCOPE_MISMATCH_OPTIONS}
+              />
+            </div>
+
+            {scopeTextOptions.length > 1 && (
+              <div className="flex-1 min-w-[180px] max-w-[250px]">
+                <Select
+                  value={filters.scopeText || 'all'}
+                  onValueChange={(value) => setFilters({ scopeText: value === 'all' ? null : value, page: 1 })}
+                  options={scopeTextOptions}
+                />
+              </div>
+            )}
+
+            {/* Spacer to push sort controls to the right */}
+            <div className="flex-1" />
+
+            {/* Sort controls */}
+            <div className="flex items-center gap-1">
+              <div className="min-w-[140px]">
+                <Select
+                  value={filters.sortBy || 'document'}
+                  onValueChange={(value) => setFilters({ sortBy: value as DefinitionsSortByValue, page: 1 })}
+                  options={DEFINITIONS_SORT_OPTIONS}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={toggleSortOrder}
+                aria-label={filters.sortOrder === 'asc' ? 'Sort ascending' : 'Sort descending'}
+                className="p-2 text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-[var(--color-neutral-100)] rounded-[var(--radius-md)] transition-colors"
+              >
+                {filters.sortOrder === 'asc' ? (
+                  <ArrowUp className="h-4 w-4" />
+                ) : (
+                  <ArrowDown className="h-4 w-4" />
+                )}
+              </button>
+            </div>
+
+            {hasActiveFilters && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={clearFilters}
+              >
+                Clear
+              </Button>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }

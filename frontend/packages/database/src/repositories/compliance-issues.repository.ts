@@ -227,6 +227,10 @@ export interface FullAnalysisRecord {
     citation: string | null;
     content: string | null;
     url: string | null;
+    summary: string | null;
+    keywords: string[] | null;
+    appliesTo: string[] | null;
+    hierarchyLevel: string | null;
   };
 
   // Tier 1 data
@@ -1787,6 +1791,11 @@ export class ComplianceIssuesRepository extends BaseRepository {
         docNycrrTitle: regulatoryDocuments.nycrrTitle,
         docNycrrPart: regulatoryDocuments.nycrrPart,
         docNycrrSection: regulatoryDocuments.nycrrSection,
+        docSummary: regulatoryDocuments.summary,
+        docKeywords: regulatoryDocuments.keywords,
+        docAppliesTo: regulatoryDocuments.appliesTo,
+        docHierarchyLevel: regulatoryDocuments.hierarchyLevel,
+        docCitation: regulatoryDocuments.citation,
       })
       .from(complianceIssueAnalyses)
       .innerJoin(
@@ -1822,9 +1831,13 @@ export class ComplianceIssuesRepository extends BaseRepository {
       document: {
         id: row.docId,
         title: row.docTitle,
-        citation,
+        citation: row.docCitation || citation,
         content: row.docContent,
         url: row.docUrl,
+        summary: row.docSummary,
+        keywords: row.docKeywords,
+        appliesTo: row.docAppliesTo,
+        hierarchyLevel: row.docHierarchyLevel,
       },
 
       tier1: row.tier1Classification ? {

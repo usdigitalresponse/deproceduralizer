@@ -30,7 +30,7 @@ function ReviewProgressBar({
       <div className="flex justify-between text-sm">
         <span className="font-medium text-[var(--color-text)]">{label}</span>
         <span className="text-[var(--color-text-muted)]">
-          {counts.confirmed.toLocaleString()} / {counts.total.toLocaleString()} reviewed
+          {counts.confirmed.toLocaleString()} / {counts.total.toLocaleString()} human-reviewed
         </span>
       </div>
       <div className="h-3 bg-[var(--color-neutral-100)] rounded-full overflow-hidden flex">
@@ -55,7 +55,7 @@ function ReviewProgressBar({
             className="w-2 h-2 rounded-full"
             style={{ backgroundColor: colors.colors.success }}
           />
-          Reviewed ({reviewedPercent.toFixed(0)}%)
+          Human-reviewed ({reviewedPercent.toFixed(0)}%)
         </span>
         <span className="flex items-center gap-1">
           <span

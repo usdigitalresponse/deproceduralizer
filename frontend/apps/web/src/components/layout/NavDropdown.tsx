@@ -36,6 +36,7 @@ export function NavDropdown({ label, icon: Icon, items }: NavDropdownProps) {
     <div className="relative" ref={containerRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
+        title={label}
         className={`
           flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-[var(--radius-md)]
           transition-colors duration-[var(--duration-fast)]
@@ -47,7 +48,7 @@ export function NavDropdown({ label, icon: Icon, items }: NavDropdownProps) {
         aria-expanded={isOpen}
       >
         <Icon className="w-4 h-4" />
-        {label}
+        <span className="hidden lg:inline">{label}</span>
         <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 

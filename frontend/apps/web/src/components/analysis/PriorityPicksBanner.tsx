@@ -30,7 +30,7 @@ export function PriorityPicksBanner({
     return null;
   }
 
-  const heading = isQuickWinMode ? 'Start Here' : 'Highest Priority Issues';
+  const heading = isQuickWinMode ? 'Featured Issues' : 'Highest Priority Issues';
   const subtext = isQuickWinMode
     ? 'These high-severity issues have known easy fixes'
     : 'Top burdensome issues by severity';
