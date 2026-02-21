@@ -6,6 +6,7 @@ import type { PriorityPicksResult } from '@/lib/actions/analysis';
 import { TierDistributionChart } from './TierDistributionChart';
 import { AnalysisTable } from './AnalysisTable';
 import { AnalysisTableFilters } from './AnalysisTableFilters';
+import { ExportCsvButton } from './ExportCsvButton';
 import { PipelineFlowVisualizer } from './PipelineFlowVisualizer';
 import { PriorityPicksBanner } from './PriorityPicksBanner';
 
@@ -100,9 +101,12 @@ export function AnalysisDashboard({
 
       {/* Analysis Table Section */}
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-[var(--color-text)]">
-          Pipeline Records
-        </h3>
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-[var(--color-text)]">
+            Pipeline Records
+          </h3>
+          <ExportCsvButton state={state} />
+        </div>
 
         <Suspense fallback={<div className="animate-pulse bg-[var(--color-neutral-100)] h-12 rounded-[var(--radius-md)]" />}>
           <AnalysisTableFilters />

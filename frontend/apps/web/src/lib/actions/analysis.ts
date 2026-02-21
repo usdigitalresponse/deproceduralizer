@@ -10,8 +10,12 @@ import {
   type FullAnalysisRecord,
   type AnalysisListItem,
   type ComplianceIssue,
+  type AnalysisExportRow,
 } from '@deproceduralizer/database';
 import { type ActionResult, success, failure, getErrorMessage, runAction, runCachedAction } from './types';
+import { generateCsv } from '@/lib/utils/csv';
+import { getDepartmentName } from '@/lib/constants/departments';
+import { ISSUE_TYPE_LABELS } from '@/types/regulation';
 
 const complianceIssuesRepo = new ComplianceIssuesRepository(db);
 
@@ -258,4 +262,76 @@ export async function getRegexMatchesForAnalysis(
   issueType: string
 ): Promise<ActionResult<ComplianceIssue[]>> {
   return runAction('getRegexMatchesForAnalysis', () => complianceIssuesRepo.getByDocumentIdAndIssueType(documentId, issueType));
+}
+
+/**
+ * Exports filtered analysis data as a CSV string.
+ * Uses the same filter infrastructure as the pipeline table but selects
+ * export-specific columns. Capped at 5000 rows.
+ */
+export async function exportAnalysisCsv(
+  state: StateCode,
+  filters: AnalysisListFilters,
+  sortBy?: string,
+  sortOrder?: string,
+): Promise<ActionResult<string>> {
+  return runAction('exportAnalysisCsv', async () => {
+    const repoFilters = mapFiltersToRepo(filters);
+    const rows = await complianceIssuesRepo.getAnalysisExportData(state, {
+      sortBy,
+      sortOrder,
+      filters: repoFilters,
+    });
+
+    const headers = [
+      'Title',
+      'Reg Citation',
+      'Issue Type',
+      'Department',
+      "What's Burdensome",
+      'Bad Regulation Text',
+      'Severity',
+      'Easy Fix Type',
+      'Effort',
+    ];
+
+    const csvRows = rows.map((row: AnalysisExportRow) => [
+      row.documentTitle ?? '',
+      row.citation ?? '',
+      ISSUE_TYPE_LABELS[row.issueType] ?? row.issueType,
+      getDepartmentName(row.nycrrTitle, row.njacTitle),
+      row.argumentAgainstRegulation ?? '',
+      (row.verbatimRequirements ?? []).join('; '),
+      row.finalSeverity?.toString() ?? '',
+      row.cleanupType ?? '',
+      row.cleanupEffort ?? '',
+    ]);
+
+    return generateCsv(headers, csvRows);
+  });
+}
+
+/**
+ * Maps URL-state filter values to repository filter format.
+ * Converts 'all' values to undefined (no filter).
+ */
+function mapFiltersToRepo(filters: AnalysisListFilters): AnalysisListFilters {
+  return {
+    tierCompleted: filters.tierCompleted,
+    classification: filters.classification,
+    federalMandate: filters.federalMandate,
+    pipelineRun: filters.pipelineRun,
+    issueType: filters.issueType,
+    severity: filters.severity,
+    severityChanged: filters.severityChanged,
+    federalMandateConfirmed: filters.federalMandateConfirmed,
+    stateDiscretion: filters.stateDiscretion,
+    alternativeFound: filters.alternativeFound,
+    evidenceGap: filters.evidenceGap,
+    supersededByLaw: filters.supersededByLaw,
+    advocacyForChange: filters.advocacyForChange,
+    tier3Trigger: filters.tier3Trigger,
+    easyCleanup: filters.easyCleanup,
+    bookmarkedOnly: filters.bookmarkedOnly,
+  };
 }

@@ -2359,6 +2359,75 @@ export class ComplianceIssuesRepository extends BaseRepository {
     };
   }
 
+  /**
+   * Get analysis data for CSV export.
+   * Same filters as getAnalysisListPaginated but with export-specific columns
+   * and no pagination. Capped at 5000 rows as a safety valve.
+   */
+  async getAnalysisExportData(
+    state: StateCode,
+    options: {
+      sortBy?: string;
+      sortOrder?: string;
+      filters?: AnalysisListFilters;
+    } = {}
+  ): Promise<AnalysisExportRow[]> {
+    const { sortBy = 'severity', sortOrder = 'desc', filters } = options;
+
+    const conditions = buildAnalysisListFilters({ state, filters });
+    const whereClause = and(...conditions);
+    const orderClauses = buildAnalysisListSort(sortBy, sortOrder);
+
+    const results = await this.db
+      .select({
+        docShortTitle: regulatoryDocuments.shortTitle,
+        docTitle: regulatoryDocuments.title,
+        docCitation: regulatoryDocuments.citation,
+        docNycrrTitle: regulatoryDocuments.nycrrTitle,
+        docNjacTitle: regulatoryDocuments.njacTitle,
+        docNjacChapter: regulatoryDocuments.njacChapter,
+        docNjacSubchapter: regulatoryDocuments.njacSubchapter,
+        docNycrrPart: regulatoryDocuments.nycrrPart,
+        docNycrrSection: regulatoryDocuments.nycrrSection,
+        issueType: complianceIssueAnalyses.issueType,
+        argumentAgainstRegulation: complianceIssueAnalyses.argumentAgainstRegulation,
+        verbatimRequirements: complianceIssueAnalyses.verbatimRequirements,
+        finalSeverity: sql<number | null>`COALESCE(${complianceIssueAnalyses.finalSeverity}, ${complianceIssueAnalyses.severity})`,
+        cleanupType: complianceIssueAnalyses.cleanupType,
+        cleanupEffort: complianceIssueAnalyses.cleanupEffort,
+      })
+      .from(complianceIssueAnalyses)
+      .innerJoin(regulatoryDocuments, eq(complianceIssueAnalyses.documentId, regulatoryDocuments.id))
+      .where(whereClause)
+      .orderBy(...orderClauses)
+      .limit(5000);
+
+    return results.map((row) => {
+      // Build citation from structured fields (same logic as mapAnalysisListRow)
+      let citation: string | null = row.docCitation ?? null;
+      if (!citation) {
+        if (row.docNjacTitle) {
+          citation = `N.J.A.C. ${row.docNjacTitle}:${row.docNjacChapter || ''}${row.docNjacSubchapter ? `-${row.docNjacSubchapter}` : ''}`;
+        } else if (row.docNycrrTitle) {
+          citation = `${row.docNycrrTitle} NYCRR ${row.docNycrrPart || ''}${row.docNycrrSection ? `.${row.docNycrrSection}` : ''}`;
+        }
+      }
+
+      return {
+        documentTitle: row.docShortTitle || row.docTitle,
+        citation,
+        issueType: row.issueType,
+        nycrrTitle: row.docNycrrTitle,
+        njacTitle: row.docNjacTitle,
+        argumentAgainstRegulation: row.argumentAgainstRegulation,
+        verbatimRequirements: row.verbatimRequirements,
+        finalSeverity: row.finalSeverity,
+        cleanupType: row.cleanupType,
+        cleanupEffort: row.cleanupEffort,
+      };
+    });
+  }
+
   // ═══════════════════════════════════════════════════════════════════
   // Severity Distribution
   // ═══════════════════════════════════════════════════════════════════
@@ -3002,6 +3071,19 @@ export interface AnalysisListItem {
   cleanupEffort: string | null;
   // V5.1: Tier 3 trigger reason
   tier3TriggerReason: string | null;
+}
+
+export interface AnalysisExportRow {
+  documentTitle: string | null;
+  citation: string | null;
+  issueType: string;
+  nycrrTitle: number | null;
+  njacTitle: string | null;
+  argumentAgainstRegulation: string | null;
+  verbatimRequirements: string[] | null;
+  finalSeverity: number | null;
+  cleanupType: string | null;
+  cleanupEffort: string | null;
 }
 
 // ═══════════════════════════════════════════════════════════════════
