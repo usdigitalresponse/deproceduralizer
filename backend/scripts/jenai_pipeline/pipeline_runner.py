@@ -22,7 +22,7 @@ def _get_unit_label(tracked: TrackedUnit) -> str:
 
 
 def run_pipeline(
-    state: str,
+    jurisdiction: str,
     title: int | None = None,
     part: str | None = None,
     limit: int | None = DEFAULT_MAX_SECTIONS,
@@ -36,7 +36,7 @@ def run_pipeline(
     """Run the JenAI single-pass enriched pipeline.
 
     Args:
-        state: State code ('nj', 'ny', or 'nyc')
+        jurisdiction: Jurisdiction code ('nj', 'ny', or 'nyc')
         title: Optional title number to filter by
         part: Optional part number to filter by
         limit: Max sections to analyze
@@ -54,7 +54,7 @@ def run_pipeline(
 
     # Fetch sections
     sections = get_sections_for_analysis(
-        state=state,
+        jurisdiction=jurisdiction,
         title=title,
         part=part,
         limit=limit,
@@ -86,7 +86,7 @@ def run_pipeline(
             citation=s['citation'] or '',
             title=s['title'] or '',
             content=s['content'],
-            state=s['state'],
+            jurisdiction=s['state'],
             summary=s.get('summary'),
             url=s.get('url'),
             hierarchy_level=s.get('hierarchy_level'),

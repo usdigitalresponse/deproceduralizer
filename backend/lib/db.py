@@ -186,7 +186,7 @@ def normalize_scope_level(scope_level: str) -> str:
 
 
 def get_filtered_documents(
-    state: str,
+    jurisdiction: str,
     title: str = None,
     chapter: str = None,
     subchapter: str = None,
@@ -199,7 +199,7 @@ def get_filtered_documents(
     Query regulatory_documents with hierarchy filters.
 
     Args:
-        state: 'NY', 'NJ', or 'NYC'
+        jurisdiction: 'NY', 'NJ', or 'NYC'
         title: Filter by nycrr_title/njac_title/rcny_title
         chapter: Filter by nycrr_chapter/njac_chapter
         subchapter: Filter by nycrr_subchapter/njac_subchapter
@@ -215,16 +215,16 @@ def get_filtered_documents(
     if not conn:
         return []
 
-    state_upper = state.upper()
-    if state_upper == 'NJ':
+    jurisdiction_upper = jurisdiction.upper()
+    if jurisdiction_upper == 'NJ':
         prefix = 'njac'
-    elif state_upper == 'NYC':
+    elif jurisdiction_upper == 'NYC':
         prefix = 'rcny'
     else:
         prefix = 'nycrr'
 
     conditions = ["state = %s"]
-    params = [state.upper()]
+    params = [jurisdiction.upper()]
 
     # By default, exclude documents marked for exclusion from analysis
     if not include_excluded:
@@ -300,7 +300,7 @@ def get_filtered_documents(
         return []
 
 
-def get_already_analyzed_ids(state: str) -> set:
+def get_already_analyzed_ids(jurisdiction: str) -> set:
     """Get document IDs that already have red flag analyses."""
     conn = get_db_connection()
     if not conn:
@@ -314,7 +314,7 @@ def get_already_analyzed_ids(state: str) -> set:
               AND document_id IN (
                   SELECT id FROM regulatory_documents WHERE state = %s
               )
-        """, (state.upper(),))
+        """, (jurisdiction.upper(),))
         ids = {row[0] for row in result.fetchall()}
         conn.close()
         return ids
@@ -325,7 +325,7 @@ def get_already_analyzed_ids(state: str) -> set:
         return set()
 
 
-def get_already_extracted_ids(state: str) -> set:
+def get_already_extracted_ids(jurisdiction: str) -> set:
     """Get document IDs that already have definitions extracted."""
     conn = get_db_connection()
     if not conn:
@@ -338,7 +338,7 @@ def get_already_extracted_ids(state: str) -> set:
             WHERE document_id IN (
                 SELECT id FROM regulatory_documents WHERE state = %s
             )
-        """, (state.upper(),))
+        """, (jurisdiction.upper(),))
         ids = {row[0] for row in result.fetchall()}
         conn.close()
         return ids

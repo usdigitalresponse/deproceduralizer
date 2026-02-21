@@ -47,7 +47,7 @@ def _load_statute_mandate_prompt() -> dict:
 
 
 def _fetch_mandate_check_candidates(
-    state: str,
+    jurisdiction: str,
     limit: Optional[int] = None,
 ) -> list[dict]:
     """
@@ -55,7 +55,7 @@ def _fetch_mandate_check_candidates(
 
     Joins compliance_issue_analyses + regulation_statute_links + statutes + regulatory_documents
     where:
-    - state matches
+    - jurisdiction matches
     - classification is burdensome or justified
     - link match_status is 'matched'
     - no existing row in statute_mandate_checks for this (analysis_id, statute_id) pair
@@ -99,7 +99,7 @@ def _fetch_mandate_check_candidates(
                   AND smc.id IS NULL
                 ORDER BY cia.id, s.id
                 {limit_clause}
-            """, [state.upper()])
+            """, [jurisdiction.upper()])
 
             columns = [desc[0] for desc in cur.description]
             return [dict(zip(columns, row)) for row in cur.fetchall()]
@@ -179,7 +179,7 @@ def _save_mandate_check(
 
 
 async def run_statute_mandate_checks(
-    state: str = "NY",
+    jurisdiction: str = "NY",
     dry_run: bool = True,
     limit: Optional[int] = None,
     model: Optional[str] = None,
@@ -194,7 +194,7 @@ async def run_statute_mandate_checks(
     3. Stores results in statute_mandate_checks table
 
     Args:
-        state: State code (default: NY)
+        jurisdiction: Jurisdiction code (default: NY)
         dry_run: If True, preview without making LLM calls
         limit: Max pairs to process (None = all)
         model: LLM model override
@@ -210,7 +210,7 @@ async def run_statute_mandate_checks(
     print(f"\n{'='*70}")
     print(f"STATUTE MANDATE CHECK {'(DRY RUN)' if dry_run else ''}")
     print(f"{'='*70}")
-    print(f"State: {state}")
+    print(f"Jurisdiction: {jurisdiction}")
     print(f"Model: {model}")
     if limit:
         print(f"Limit: {limit}")
@@ -218,7 +218,7 @@ async def run_statute_mandate_checks(
 
     # Fetch candidates
     print("Fetching analysis-statute pairs needing mandate checks...")
-    candidates = _fetch_mandate_check_candidates(state, limit)
+    candidates = _fetch_mandate_check_candidates(jurisdiction, limit)
 
     if not candidates:
         print("No pairs need mandate checks.")

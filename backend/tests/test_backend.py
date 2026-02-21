@@ -205,11 +205,11 @@ class TestExclusionFilter:
         from lib.db import get_filtered_documents
 
         # Test default mode (exclude_from_analysis filtered out)
-        docs_default = get_filtered_documents(state='NY', limit=5)
+        docs_default = get_filtered_documents(jurisdiction='NY', limit=5)
         assert isinstance(docs_default, list)
 
         # Test with include_excluded=True (no filtering)
-        docs_with_excluded = get_filtered_documents(state='NY', limit=5, include_excluded=True)
+        docs_with_excluded = get_filtered_documents(jurisdiction='NY', limit=5, include_excluded=True)
         assert isinstance(docs_with_excluded, list)
 
     def test_exclusion_filter_difference(self):
@@ -228,8 +228,8 @@ class TestExclusionFilter:
         conn.close()
 
         # Get counts with both modes
-        docs_filtered = get_filtered_documents(state='NY', limit=10000)
-        docs_all = get_filtered_documents(state='NY', limit=10000, include_excluded=True)
+        docs_filtered = get_filtered_documents(jurisdiction='NY', limit=10000)
+        docs_all = get_filtered_documents(jurisdiction='NY', limit=10000, include_excluded=True)
 
         # include_excluded=True should return >= filtered results
         assert len(docs_all) >= len(docs_filtered), \

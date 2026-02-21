@@ -160,7 +160,7 @@ def get_analysis_by_document(
 
 @retry_db_operation()
 def get_tier_completion_counts(
-    state: str,
+    jurisdiction: str,
     issue_type: Optional[str] = None,
     conn: Optional[Connection] = None,
 ) -> dict[int, int]:
@@ -170,7 +170,7 @@ def get_tier_completion_counts(
     Useful for progress tracking and reporting.
 
     Args:
-        state: State code (NJ or NY)
+        jurisdiction: Jurisdiction code (NJ, NY, or NYC)
         issue_type: Optional filter by issue type
         conn: Optional database connection
 
@@ -186,7 +186,7 @@ def get_tier_completion_counts(
 
     try:
         issue_filter = ""
-        params = [state]
+        params = [jurisdiction]
         if issue_type:
             issue_filter = "AND issue_type = %s"
             params.append(issue_type)
@@ -208,7 +208,7 @@ def get_tier_completion_counts(
 
 @retry_db_operation()
 def get_classification_counts(
-    state: str,
+    jurisdiction: str,
     issue_type: Optional[str] = None,
     tier: int = 2,
     conn: Optional[Connection] = None,
@@ -217,7 +217,7 @@ def get_classification_counts(
     Get count of documents by classification at a given tier.
 
     Args:
-        state: State code (NJ or NY)
+        jurisdiction: Jurisdiction code (NJ, NY, or NYC)
         issue_type: Optional filter by issue type
         tier: Tier to check classification for (1, 2, or 3)
         conn: Optional database connection
@@ -234,7 +234,7 @@ def get_classification_counts(
 
     try:
         issue_filter = ""
-        params = [state]
+        params = [jurisdiction]
         if issue_type:
             issue_filter = "AND issue_type = %s"
             params.append(issue_type)

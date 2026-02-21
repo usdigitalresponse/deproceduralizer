@@ -20,7 +20,7 @@ class TestIssueFinding:
         assert finding.severity == 7
 
     def test_all_categories_valid(self):
-        """All 14 categories are accepted."""
+        """All 19 categories are accepted."""
         for cat in JenAICategory:
             finding = IssueFinding(
                 category=cat,

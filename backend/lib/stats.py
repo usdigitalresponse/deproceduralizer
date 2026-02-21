@@ -27,7 +27,7 @@ def format_time(seconds: float) -> str:
         return f"{hours}h {mins}m"
 
 
-def refresh_structure_stats(conn, state: str) -> int:
+def refresh_structure_stats(conn, jurisdiction: str) -> int:
     """
     Refresh structural hierarchy stats (children counts) for all documents.
 
@@ -35,7 +35,7 @@ def refresh_structure_stats(conn, state: str) -> int:
 
     Should be called after data import.
     """
-    print(f"  Computing structure stats for {state}...")
+    print(f"  Computing structure stats for {jurisdiction}...")
     start = time.time()
 
     with conn.cursor() as cur:
@@ -59,7 +59,7 @@ def refresh_structure_stats(conn, state: str) -> int:
             SET direct_child_count = ss.direct_child_count
             FROM structure_stats ss
             WHERE rd.id = ss.id
-        """, (state, state))
+        """, (jurisdiction, jurisdiction))
 
         conn.commit()
 
@@ -87,7 +87,7 @@ def refresh_structure_stats(conn, state: str) -> int:
             SET descendant_count = COALESCE(dc.descendant_count, 0)
             FROM descendant_counts dc
             WHERE rd.id = dc.parent_id
-        """, (state,))
+        """, (jurisdiction,))
 
         updated_count = cur.rowcount
         conn.commit()
@@ -97,7 +97,7 @@ def refresh_structure_stats(conn, state: str) -> int:
     return updated_count
 
 
-def refresh_analysis_stats(conn, state: str) -> int:
+def refresh_analysis_stats(conn, jurisdiction: str) -> int:
     """
     Refresh analysis-related hierarchy stats.
 
@@ -105,7 +105,7 @@ def refresh_analysis_stats(conn, state: str) -> int:
 
     Should be called after red flag analysis.
     """
-    print(f"  Computing analysis stats for {state}...")
+    print(f"  Computing analysis stats for {jurisdiction}...")
     start = time.time()
 
     with conn.cursor() as cur:
@@ -149,7 +149,7 @@ def refresh_analysis_stats(conn, state: str) -> int:
                 has_descendant_analysis = COALESCE(ast.has_descendant_analysis, false)
             FROM analysis_stats ast
             WHERE rd.id = ast.id AND rd.state = %s
-        """, (state, state))
+        """, (jurisdiction, jurisdiction))
 
         updated_count = cur.rowcount
         conn.commit()
@@ -159,7 +159,7 @@ def refresh_analysis_stats(conn, state: str) -> int:
     return updated_count
 
 
-def refresh_compliance_stats(conn, state: str) -> int:
+def refresh_compliance_stats(conn, jurisdiction: str) -> int:
     """
     Refresh compliance issue stats.
 
@@ -171,7 +171,7 @@ def refresh_compliance_stats(conn, state: str) -> int:
 
     Should be called after compliance issue detection.
     """
-    print(f"  Computing compliance stats for {state}...")
+    print(f"  Computing compliance stats for {jurisdiction}...")
     start = time.time()
 
     with conn.cursor() as cur:
@@ -193,7 +193,7 @@ def refresh_compliance_stats(conn, state: str) -> int:
                 WHERE rd2.state = %s
             ) di
             WHERE rd.id = di.id
-        """, (state, state))
+        """, (jurisdiction, jurisdiction))
 
         conn.commit()
 
@@ -228,7 +228,7 @@ def refresh_compliance_stats(conn, state: str) -> int:
             SET descendant_compliance_issue_count = dc.descendant_compliance_issue_count
             FROM descendant_counts dc
             WHERE rd.id = dc.id AND rd.state = %s
-        """, (state, state))
+        """, (jurisdiction, jurisdiction))
 
         updated_count = cur.rowcount
         conn.commit()
@@ -238,7 +238,7 @@ def refresh_compliance_stats(conn, state: str) -> int:
     return updated_count
 
 
-def refresh_statute_link_stats(conn, state: str) -> int:
+def refresh_statute_link_stats(conn, jurisdiction: str) -> int:
     """
     Refresh precomputed descendant regulation link counts on the statutes table.
 
@@ -249,7 +249,7 @@ def refresh_statute_link_stats(conn, state: str) -> int:
 
     Should be called after statute linking.
     """
-    print(f"  Computing statute link stats for {state}...")
+    print(f"  Computing statute link stats for {jurisdiction}...")
     start = time.time()
 
     with conn.cursor() as cur:
@@ -290,7 +290,7 @@ def refresh_statute_link_stats(conn, state: str) -> int:
                 descendant_enabling_authority_count = a.descendant_enabling_authority_count
             FROM aggregated a
             WHERE s.id = a.id AND s.state = %s
-        """, (state, state))
+        """, (jurisdiction, jurisdiction))
 
         updated_count = cur.rowcount
         conn.commit()
@@ -305,7 +305,7 @@ def refresh_statute_link_stats(conn, state: str) -> int:
                   SELECT DISTINCT parent_id FROM statutes WHERE parent_id IS NOT NULL AND state = %s
               )
               AND (descendant_linked_regulation_count != 0 OR descendant_enabling_authority_count != 0)
-        """, (state, state))
+        """, (jurisdiction, jurisdiction))
 
         conn.commit()
 
@@ -314,19 +314,19 @@ def refresh_statute_link_stats(conn, state: str) -> int:
     return updated_count
 
 
-def refresh_all_stats(conn, state: str) -> int:
+def refresh_all_stats(conn, jurisdiction: str) -> int:
     """
     Refresh ALL hierarchy stats (structural, analysis, and compliance).
 
     Returns the number of documents updated.
     """
-    print(f"Refreshing all hierarchy stats for {state}...")
+    print(f"Refreshing all hierarchy stats for {jurisdiction}...")
     start = time.time()
 
-    updated1 = refresh_structure_stats(conn, state)
-    updated2 = refresh_analysis_stats(conn, state)
-    updated3 = refresh_compliance_stats(conn, state)
-    updated4 = refresh_statute_link_stats(conn, state)
+    updated1 = refresh_structure_stats(conn, jurisdiction)
+    updated2 = refresh_analysis_stats(conn, jurisdiction)
+    updated3 = refresh_compliance_stats(conn, jurisdiction)
+    updated4 = refresh_statute_link_stats(conn, jurisdiction)
 
     elapsed = time.time() - start
     updated_count = max(updated1, updated2, updated3, updated4)

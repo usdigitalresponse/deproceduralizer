@@ -27,7 +27,7 @@ import sys
 from dotenv import load_dotenv
 
 
-def state_validator(value: str) -> str:
+def jurisdiction_validator(value: str) -> str:
     """Validate --state flag."""
     normalized = value.lower()
     if normalized not in ('nj', 'ny', 'nyc'):
@@ -44,7 +44,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
-        '--state', type=state_validator, required=True,
+        '--state', type=jurisdiction_validator, required=True,
         help="State to analyze: 'nj', 'ny', or 'nyc'",
     )
     parser.add_argument(
@@ -111,7 +111,7 @@ def main():
         print("=" * 60)
 
     summary = run_pipeline(
-        state=args.state,
+        jurisdiction=args.state,
         title=args.title,
         part=args.part,
         limit=args.limit,

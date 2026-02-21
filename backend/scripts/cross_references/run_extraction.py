@@ -50,7 +50,7 @@ if not os.getenv("DATABASE_URL"):
 # =============================================================================
 
 def get_documents(
-    state: str,
+    jurisdiction: str,
     title: Optional[str] = None,
     limit: Optional[int] = None,
 ) -> List[Dict[str, Any]]:
@@ -58,7 +58,7 @@ def get_documents(
     Fetch documents from database for processing.
 
     Args:
-        state: 'NY', 'NJ', or 'NYC'
+        jurisdiction: 'NY', 'NJ', or 'NYC'
         title: Optional title number filter
         limit: Optional max documents to fetch
 
@@ -73,14 +73,14 @@ def get_documents(
         "content != ''",
         "LENGTH(content) > 100",  # Skip very short docs
     ]
-    params = [state.upper()]
+    params = [jurisdiction.upper()]
 
     # Title filter
     if title:
-        if state.upper() == 'NY':
+        if jurisdiction.upper() == 'NY':
             conditions.append("nycrr_title = %s")
             params.append(int(title))
-        elif state.upper() == 'NYC':
+        elif jurisdiction.upper() == 'NYC':
             conditions.append("rcny_title = %s")
             params.append(title)
         else:  # NJ
@@ -135,7 +135,7 @@ def get_documents(
 def output_json(
     results: List[DocumentExtractionResult],
     output_dir: Path,
-    state: str
+    jurisdiction: str
 ) -> Path:
     """
     Save results to JSON file for review.
@@ -145,7 +145,7 @@ def output_json(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"crossrefs_{state}_{timestamp}.json"
+    filename = f"crossrefs_{jurisdiction}_{timestamp}.json"
     output_path = output_dir / filename
 
     # Compute aggregate stats
@@ -156,7 +156,7 @@ def output_json(
     # Convert to serializable format
     data = {
         'metadata': {
-            'state': state,
+            'state': jurisdiction,
             'extracted_at': datetime.now().isoformat(),
             'document_count': len(results),
             'total_references': total_refs,
@@ -340,7 +340,7 @@ EXAMPLES:
     print(f"\n[1/3] Fetching documents from database...")
 
     documents = get_documents(
-        state=args.state,
+        jurisdiction=args.state,
         title=args.title,
         limit=args.limit,
     )
@@ -373,11 +373,11 @@ EXAMPLES:
     # Output
     if args.output == "db":
         # Write directly to database
-        db_stats = write_to_database(results, args.state, dry_run=args.dry_run)
+        db_stats = write_to_database(results, jurisdiction=args.state, dry_run=args.dry_run)
         output_console(results)  # Also show console summary
     else:
         if args.output in ("json", "both"):
-            output_path = output_json(results, args.output_dir, args.state)
+            output_path = output_json(results, args.output_dir, jurisdiction=args.state)
             print(f"\n✓ JSON saved to: {output_path}")
 
         if args.output in ("console", "both"):

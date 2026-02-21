@@ -1,5 +1,5 @@
 """
-Database migration utilities: state config, regulation upsert, parent ID population, stale doc cleanup.
+Database migration utilities: jurisdiction config, regulation upsert, parent ID population, stale doc cleanup.
 """
 
 import json
@@ -12,9 +12,9 @@ import psycopg
 from lib.db import get_db_connection
 
 
-def get_state_config(state: str) -> dict:
-    """Get configuration for a state's regulation fields."""
-    if state == "NJ":
+def get_jurisdiction_config(jurisdiction: str) -> dict:
+    """Get configuration for a jurisdiction's regulation fields."""
+    if jurisdiction == "NJ":
         return {
             "prefix": "njac",
             "fields": [
@@ -28,7 +28,7 @@ def get_state_config(state: str) -> dict:
                 "njac_section", "njac_section_name",
             ]
         }
-    elif state == "NY":
+    elif jurisdiction == "NY":
         return {
             "prefix": "nycrr",
             "fields": [
@@ -42,7 +42,7 @@ def get_state_config(state: str) -> dict:
                 "nycrr_section", "nycrr_section_name",
             ]
         }
-    elif state == "NYC":
+    elif jurisdiction == "NYC":
         return {
             "prefix": "rcny",
             "fields": [
@@ -52,24 +52,28 @@ def get_state_config(state: str) -> dict:
             ]
         }
     else:
-        raise ValueError(f"Unknown state: {state}")
+        raise ValueError(f"Unknown jurisdiction: {jurisdiction}")
 
 
-def migrate_regulations_to_db(state: str, regulations: list = None, reg_dir: Path = None) -> int:
+# Deprecated alias
+get_state_config = get_jurisdiction_config
+
+
+def migrate_regulations_to_db(jurisdiction: str, regulations: list = None, reg_dir: Path = None) -> int:
     """
     Migrate regulations to database using upsert (ON CONFLICT).
 
     This preserves existing IDs by matching on (state, source_index, type).
 
     Args:
-        state: State code ('NY', 'NJ', or 'NYC')
+        jurisdiction: Jurisdiction code ('NY', 'NJ', or 'NYC')
         regulations: List of regulation dicts (from scraper or JSON files)
         reg_dir: Optional directory to load from JSON files instead
 
     Returns:
         Number of regulations migrated
     """
-    config = get_state_config(state)
+    config = get_jurisdiction_config(jurisdiction)
     fields = config["fields"]
 
     # If reg_dir provided, load from JSON files
@@ -87,7 +91,7 @@ def migrate_regulations_to_db(state: str, regulations: list = None, reg_dir: Pat
         print(f"✗ No regulations to migrate")
         return 0
 
-    print(f"Migrating {len(regulations):,} {state} regulations to database...")
+    print(f"Migrating {len(regulations):,} {jurisdiction} regulations to database...")
 
     # Build SQL dynamically based on state fields
     field_names = ", ".join(fields)
@@ -129,7 +133,7 @@ def migrate_regulations_to_db(state: str, regulations: list = None, reg_dir: Pat
                     row = [
                         reg.get("source_index"),
                         "regulation",
-                        state,
+                        jurisdiction,
                         reg.get("title", ""),
                         reg.get("url", ""),
                         reg.get("url_type", "regulation"),
@@ -179,16 +183,16 @@ def migrate_regulations_to_db(state: str, regulations: list = None, reg_dir: Pat
         if conn:
             conn.close()
 
-    print(f"✓ Migrated {total:,} {state} regulations")
+    print(f"✓ Migrated {total:,} {jurisdiction} regulations")
     return total
 
 
-def populate_parent_ids(state: str, regulations: list = None, reg_dir: Path = None):
+def populate_parent_ids(jurisdiction: str, regulations: list = None, reg_dir: Path = None):
     """
     Populate parent_id for regulations by converting parent_source_index to parent_id.
 
     Args:
-        state: State code ('NY', 'NJ', or 'NYC')
+        jurisdiction: Jurisdiction code ('NY', 'NJ', or 'NYC')
         regulations: List of regulation dicts with parent_source_index
         reg_dir: Optional directory to load parent mappings from JSON files
     """
@@ -196,7 +200,7 @@ def populate_parent_ids(state: str, regulations: list = None, reg_dir: Path = No
     parent_mappings = {}
 
     if reg_dir is not None:
-        print(f"Loading {state} parent mappings from {reg_dir}...")
+        print(f"Loading {jurisdiction} parent mappings from {reg_dir}...")
         for filepath in Path(reg_dir).glob("*.json"):
             try:
                 with open(filepath) as f:
@@ -209,7 +213,7 @@ def populate_parent_ids(state: str, regulations: list = None, reg_dir: Path = No
                 print(f"  Warning: Failed to load {filepath.name}: {type(e).__name__}")
                 continue
     elif regulations is not None:
-        print(f"Loading {state} parent mappings from {len(regulations)} regulations...")
+        print(f"Loading {jurisdiction} parent mappings from {len(regulations)} regulations...")
         for reg in regulations:
             si = reg.get('source_index')
             psi = reg.get('parent_source_index')
@@ -233,7 +237,7 @@ def populate_parent_ids(state: str, regulations: list = None, reg_dir: Path = No
             cur.execute("""
                 SELECT id, source_index FROM regulatory_documents
                 WHERE state = %s AND type = 'regulation'
-            """, (state,))
+            """, (jurisdiction,))
             source_to_id = {r[1]: r[0] for r in cur.fetchall() if r[1] is not None}
 
             # First, clear ALL parent_ids for this state (to remove stale data)
@@ -241,7 +245,7 @@ def populate_parent_ids(state: str, regulations: list = None, reg_dir: Path = No
             cur.execute("""
                 UPDATE regulatory_documents SET parent_id = NULL
                 WHERE state = %s AND type = 'regulation'
-            """, (state,))
+            """, (jurisdiction,))
 
             # Now set parent_ids for docs that have parents
             updates = []
@@ -257,20 +261,20 @@ def populate_parent_ids(state: str, regulations: list = None, reg_dir: Path = No
             cur.executemany("UPDATE regulatory_documents SET parent_id = %s WHERE id = %s", updates)
             conn.commit()
 
-    print(f"✓ Updated {len(updates):,} {state} parent relationships ({roots:,} roots with no parent)")
+    print(f"✓ Updated {len(updates):,} {jurisdiction} parent relationships ({roots:,} roots with no parent)")
 
 
-def cleanup_stale_documents(state: str, valid_source_indices: set = None, reg_dir: Path = None):
+def cleanup_stale_documents(jurisdiction: str, valid_source_indices: set = None, reg_dir: Path = None):
     """
     Remove documents from DB that aren't in current data.
 
     Args:
-        state: State code ('NY', 'NJ', or 'NYC')
+        jurisdiction: Jurisdiction code ('NY', 'NJ', or 'NYC')
         valid_source_indices: Set of valid source_index values
         reg_dir: Optional directory to load valid indices from JSON files
     """
     if valid_source_indices is None and reg_dir is not None:
-        print(f"Loading valid {state} source_indices from {reg_dir}...")
+        print(f"Loading valid {jurisdiction} source_indices from {reg_dir}...")
         valid_source_indices = set()
         for filepath in Path(reg_dir).glob("*.json"):
             try:
@@ -298,7 +302,7 @@ def cleanup_stale_documents(state: str, valid_source_indices: set = None, reg_di
             cur.execute("""
                 SELECT id, source_index FROM regulatory_documents
                 WHERE state = %s AND type = 'regulation'
-            """, (state,))
+            """, (jurisdiction,))
             db_docs = cur.fetchall()
 
             stale_ids = [doc_id for doc_id, si in db_docs if si not in valid_source_indices]
@@ -320,4 +324,4 @@ def cleanup_stale_documents(state: str, valid_source_indices: set = None, reg_di
 
             conn.commit()
 
-    print(f"✓ Removed {len(stale_ids):,} stale {state} documents")
+    print(f"✓ Removed {len(stale_ids):,} stale {jurisdiction} documents")

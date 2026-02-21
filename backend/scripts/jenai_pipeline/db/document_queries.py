@@ -6,7 +6,7 @@ from lib.db import get_db_connection
 EXCLUDED_SECTION_TYPES = ('reserved', 'definitions', 'scope')
 
 def get_sections_for_analysis(
-    state: str,
+    jurisdiction: str,
     title: int | None = None,
     part: str | None = None,
     limit: int | None = None,
@@ -17,7 +17,7 @@ def get_sections_for_analysis(
     """Fetch regulatory sections eligible for JenAI analysis.
 
     Args:
-        state: State code ('nj' or 'ny')
+        jurisdiction: Jurisdiction code ('nj', 'ny', or 'nyc')
         title: Optional title number to filter by
         part: Optional part number to filter by (e.g. '413' for child care)
         limit: Max sections to return
@@ -32,7 +32,7 @@ def get_sections_for_analysis(
     if not conn:
         return []
 
-    prefix = 'njac' if state.lower() == 'nj' else 'nycrr'
+    prefix = 'njac' if jurisdiction.lower() == 'nj' else 'nycrr'
 
     conditions = [
         "rd.state = %s",
@@ -41,7 +41,7 @@ def get_sections_for_analysis(
         "rd.content IS NOT NULL",
         "LENGTH(rd.content) > 50",
     ]
-    params: list = [state.upper()]
+    params: list = [jurisdiction.upper()]
 
     if not include_all_types:
         placeholders = ', '.join(['%s'] * len(EXCLUDED_SECTION_TYPES))

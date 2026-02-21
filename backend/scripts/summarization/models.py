@@ -12,7 +12,7 @@ class SummaryMetadata:
     # Document info
     document_id: int
     hierarchy_level: str
-    state: str
+    jurisdiction: str
 
     # Content metrics
     original_char_count: int
@@ -67,7 +67,7 @@ class SummaryResult:
     document_id: int
     title: str
     hierarchy_level: str
-    state: str
+    jurisdiction: str
     citation: Optional[str]
 
     # The actual summary

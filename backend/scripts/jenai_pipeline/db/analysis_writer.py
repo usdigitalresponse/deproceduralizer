@@ -91,7 +91,7 @@ def save_analysis_results(
                         num_categories_found = EXCLUDED.num_categories_found,
                         updated_at = EXCLUDED.updated_at
                 """, (
-                    tracked.unit.document_id, tracked.unit.state.upper(), run_id,
+                    tracked.unit.document_id, tracked.unit.jurisdiction.upper(), run_id,
                     batch_id, now,
                     output.classification, output.overall_confidence, categories_json,
                     worst_thing_text,

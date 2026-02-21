@@ -31,7 +31,7 @@ if not os.getenv("DATABASE_URL"):
 
 def write_to_database(
     results: List[Any],  # List[DocumentExtractionResult]
-    state: str,
+    jurisdiction: str,
     dry_run: bool = False
 ) -> Dict[str, int]:
     """
@@ -44,7 +44,7 @@ def write_to_database(
 
     Args:
         results: List of DocumentExtractionResult objects from extraction
-        state: State code ('NY' or 'NJ')
+        jurisdiction: Jurisdiction code ('NY', 'NJ', or 'NYC')
         dry_run: If True, don't actually write to database (just report stats)
 
     Returns:
@@ -109,7 +109,7 @@ def write_to_database(
                     ref.target_document_id,
                     ref.is_resolved,
                     _get_resolution_notes(ref) if not ref.is_resolved else None,
-                    state.upper(),
+                    jurisdiction.upper(),
                 ))
 
         # Use executemany for batch insert (psycopg 3 handles this efficiently)
@@ -188,20 +188,20 @@ def _get_resolution_notes(ref: Any) -> str:
     return "Unknown reference type or resolution failure"
 
 
-def get_cross_reference_stats(state: str = None) -> Dict[str, Any]:
+def get_cross_reference_stats(jurisdiction: str = None) -> Dict[str, Any]:
     """
     Get statistics about cross-references in the database.
 
     Args:
-        state: Optional state filter ('NY' or 'NJ')
+        jurisdiction: Optional jurisdiction filter ('NY', 'NJ', or 'NYC')
 
     Returns:
         Dict with stats: total, resolved, unresolved, by_type
     """
     conn = psycopg.connect(os.getenv("DATABASE_URL"))
 
-    state_filter = "WHERE state = %s" if state else ""
-    params = (state.upper(),) if state else ()
+    state_filter = "WHERE state = %s" if jurisdiction else ""
+    params = (jurisdiction.upper(),) if jurisdiction else ()
 
     # Total counts
     total = conn.execute(
@@ -211,7 +211,7 @@ def get_cross_reference_stats(state: str = None) -> Dict[str, Any]:
 
     resolved = conn.execute(
         f"SELECT COUNT(*) FROM cross_references {state_filter} "
-        f"{'AND' if state else 'WHERE'} is_resolved = TRUE",
+        f"{'AND' if jurisdiction else 'WHERE'} is_resolved = TRUE",
         params
     ).fetchone()[0]
 

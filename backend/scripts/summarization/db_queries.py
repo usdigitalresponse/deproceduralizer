@@ -26,26 +26,26 @@ def get_connection() -> psycopg.Connection:
     return psycopg.connect(os.getenv("DATABASE_URL"), connect_timeout=10)
 
 
-def _get_title_column(state: str) -> str:
-    """Get the appropriate title column for a state.
+def _get_title_column(jurisdiction: str) -> str:
+    """Get the appropriate title column for a jurisdiction.
 
     Returns the DB column name used to filter regulatory_documents by title
-    number.  Falls back to 'njac_title' for unrecognized states since NJ
-    was the first state onboarded and most query patterns follow its schema.
+    number.  Falls back to 'njac_title' for unrecognized jurisdictions since NJ
+    was the first jurisdiction onboarded and most query patterns follow its schema.
     """
-    state = state.upper()
-    if state == "NJ":
+    jurisdiction = jurisdiction.upper()
+    if jurisdiction == "NJ":
         return "njac_title"
-    elif state == "NY":
+    elif jurisdiction == "NY":
         return "nycrr_title"
-    elif state == "NYC":
+    elif jurisdiction == "NYC":
         return "rcny_title"
     else:
-        return "njac_title"  # Default fallback for unrecognized states
+        return "njac_title"  # Default fallback for unrecognized jurisdictions
 
 
 def get_documents_by_level(
-    state: str,
+    jurisdiction: str,
     level: str,
     title: Optional[str] = None,
 ) -> list[dict]:
@@ -53,7 +53,7 @@ def get_documents_by_level(
     Get all documents at a hierarchy level, optionally filtered by title.
 
     Args:
-        state: State code (e.g., 'NJ', 'NY')
+        jurisdiction: Jurisdiction code (e.g., 'NJ', 'NY', or 'NYC')
         level: Hierarchy level (e.g., 'section', 'chapter', 'part')
         title: Optional title number to filter by
 
@@ -66,10 +66,10 @@ def get_documents_by_level(
         "state = %s",
         "hierarchy_level = %s",
     ]
-    params: list = [state.upper(), level]
+    params: list = [jurisdiction.upper(), level]
 
     if title is not None:
-        title_col = _get_title_column(state)
+        title_col = _get_title_column(jurisdiction)
         conditions.append(f"{title_col} = %s")
         params.append(str(title))
 
@@ -297,12 +297,12 @@ def get_ancestors_batch(doc_ids: list[int]) -> dict[int, list[dict]]:
     return result
 
 
-def get_hierarchy_levels(state: str, title: Optional[str] = None) -> list[str]:
+def get_hierarchy_levels(jurisdiction: str, title: Optional[str] = None) -> list[str]:
     """
     Get distinct hierarchy levels present in the data.
 
     Args:
-        state: State code
+        jurisdiction: Jurisdiction code
         title: Optional title number filter
 
     Returns:
@@ -315,10 +315,10 @@ def get_hierarchy_levels(state: str, title: Optional[str] = None) -> list[str]:
         "hierarchy_level IS NOT NULL",
         "hierarchy_level <> ''",
     ]
-    params: list = [state.upper()]
+    params: list = [jurisdiction.upper()]
 
     if title is not None:
-        title_col = _get_title_column(state)
+        title_col = _get_title_column(jurisdiction)
         conditions.append(f"{title_col} = %s")
         params.append(str(title))
 
@@ -339,14 +339,14 @@ def get_hierarchy_levels(state: str, title: Optional[str] = None) -> list[str]:
 
 
 def get_document_counts_by_level(
-    state: str,
+    jurisdiction: str,
     title: Optional[str] = None,
 ) -> dict[str, int]:
     """
     Get count of documents per hierarchy level.
 
     Args:
-        state: State code
+        jurisdiction: Jurisdiction code
         title: Optional title number filter
 
     Returns:
@@ -358,10 +358,10 @@ def get_document_counts_by_level(
         "state = %s",
         "hierarchy_level IS NOT NULL",
     ]
-    params: list = [state.upper()]
+    params: list = [jurisdiction.upper()]
 
     if title is not None:
-        title_col = _get_title_column(state)
+        title_col = _get_title_column(jurisdiction)
         conditions.append(f"{title_col} = %s")
         params.append(str(title))
 
@@ -384,20 +384,20 @@ def get_document_counts_by_level(
 
 
 def get_sections_grouped_by_parent(
-    state: str,
+    jurisdiction: str,
     title: Optional[str] = None,
 ) -> dict[int, list[dict]]:
     """
     Get all sections grouped by their parent_id, ordered by citation.
 
     Args:
-        state: State code
+        jurisdiction: Jurisdiction code
         title: Optional title number filter
 
     Returns:
         Dict mapping parent_id to list of section documents
     """
-    sections = get_documents_by_level(state, "section", title)
+    sections = get_documents_by_level(jurisdiction, "section", title)
 
     # Group by parent_id
     grouped: dict[int, list[dict]] = {}
@@ -416,7 +416,7 @@ def get_sections_grouped_by_parent(
 
 
 def get_documents_without_children(
-    state: str,
+    jurisdiction: str,
     level: str,
     title: Optional[str] = None,
 ) -> list[dict]:
@@ -431,10 +431,10 @@ def get_documents_without_children(
         "d.state = %s",
         "d.hierarchy_level = %s",
     ]
-    params: list = [state.upper(), level]
+    params: list = [jurisdiction.upper(), level]
 
     if title is not None:
-        title_col = _get_title_column(state)
+        title_col = _get_title_column(jurisdiction)
         conditions.append(f"d.{title_col} = %s")
         params.append(str(title))
 
@@ -524,17 +524,17 @@ def get_child_ids_batch(parent_ids: list[int]) -> dict[int, list[int]]:
     return result
 
 
-def get_all_titles(state: str) -> list[str]:
+def get_all_titles(jurisdiction: str) -> list[str]:
     """
-    Get all distinct title values for a state, sorted naturally.
+    Get all distinct title values for a jurisdiction, sorted naturally.
 
     Args:
-        state: State code (e.g., 'NJ', 'NY')
+        jurisdiction: Jurisdiction code (e.g., 'NJ', 'NY', or 'NYC')
 
     Returns:
         List of title strings (e.g., ['1', '2', '3', '4', '4A', '5', ...])
     """
-    title_col = _get_title_column(state)
+    title_col = _get_title_column(jurisdiction)
 
     query = f"""
         SELECT DISTINCT {title_col}
@@ -548,26 +548,26 @@ def get_all_titles(state: str) -> list[str]:
 
     with get_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute(query, [state.upper()])
+            cur.execute(query, [jurisdiction.upper()])
             titles = [row[0] for row in cur.fetchall()]
 
     return titles
 
 
 def get_hierarchy_order(
-    state: str,
+    jurisdiction: str,
     title: Optional[str] = None,
 ) -> list[str]:
     """
-    Get the bottom-up hierarchy level ordering for a state/title.
+    Get the bottom-up hierarchy level ordering for a jurisdiction/title.
 
     Uses the canonical ordering from config.HIERARCHY_ORDER, filtered to
-    only levels that actually exist in the data for this state/title.
+    only levels that actually exist in the data for this jurisdiction/title.
 
     'section' is excluded — it's always the first phase.
 
     Args:
-        state: State code (e.g., 'NY', 'NJ')
+        jurisdiction: Jurisdiction code (e.g., 'NJ', 'NY', or 'NYC')
         title: Optional title filter
 
     Returns:
@@ -576,13 +576,13 @@ def get_hierarchy_order(
     """
     from config import HIERARCHY_ORDER
 
-    canonical = HIERARCHY_ORDER.get(state.upper())
+    canonical = HIERARCHY_ORDER.get(jurisdiction.upper())
     if canonical is None:
         raise ValueError(
-            f"No hierarchy order configured for state '{state}'. "
+            f"No hierarchy order configured for jurisdiction '{jurisdiction}'. "
             f"Add it to config.HIERARCHY_ORDER."
         )
 
-    # Filter to levels that actually exist in this state/title
-    present = set(get_hierarchy_levels(state, title))
+    # Filter to levels that actually exist in this jurisdiction/title
+    present = set(get_hierarchy_levels(jurisdiction, title))
     return [level for level in canonical if level in present]

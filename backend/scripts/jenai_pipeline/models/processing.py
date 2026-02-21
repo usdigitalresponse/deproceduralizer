@@ -12,7 +12,7 @@ class JenAIUnit:
     citation: str
     title: str
     content: str
-    state: str
+    jurisdiction: str
     summary: Optional[str] = None
     url: Optional[str] = None
     hierarchy_level: Optional[str] = None

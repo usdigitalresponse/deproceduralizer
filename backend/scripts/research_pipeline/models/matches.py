@@ -86,7 +86,7 @@ class ProcessingUnit(BaseModel):
         description="Available context catalog for LLM to request from"
     )
     # Additional metadata
-    state: str = Field(
+    jurisdiction: str = Field(
         default="",
-        description="State code (NJ or NY)"
+        description="Jurisdiction code (NJ, NY, or NYC)"
     )

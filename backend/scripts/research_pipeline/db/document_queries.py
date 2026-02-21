@@ -18,11 +18,11 @@ from ..ids import make_custom_id
 from .connection import retry_db_operation
 
 
-def _title_col(state: str) -> str:
-    """Map state code to the regulatory_documents title column name."""
-    if state == "NJ":
+def _title_col(jurisdiction: str) -> str:
+    """Map jurisdiction code to the regulatory_documents title column name."""
+    if jurisdiction == "NJ":
         return "njac_title"
-    elif state == "NYC":
+    elif jurisdiction == "NYC":
         return "rcny_title"
     else:
         return "nycrr_title"
@@ -98,7 +98,7 @@ def _build_processing_unit(
         title=meta["title"],
         matches=match_infos,
         content=content,
-        state=meta["state"],
+        jurisdiction=meta["state"],
     )
 
 
@@ -147,7 +147,7 @@ class ProcessingUnitBuilder:
         self,
         issue_type: str,
         limit: int = 20,
-        state: Optional[str] = None,
+        jurisdiction: Optional[str] = None,
         title: Optional[str] = None,
     ) -> list[ProcessingUnit]:
         """
@@ -159,7 +159,7 @@ class ProcessingUnitBuilder:
         Args:
             issue_type: The compliance issue type to filter by
             limit: Maximum number of documents to fetch
-            state: State code ('NJ', 'NY', or None for all states)
+            jurisdiction: Jurisdiction code ('NJ', 'NY', 'NYC', or None for all jurisdictions)
             title: Optional NJAC/NYCRR title to filter by (e.g., '7' for Title 7)
 
         Returns:
@@ -172,11 +172,11 @@ class ProcessingUnitBuilder:
         title_filter = ""
         params = [issue_type]
 
-        if state:
+        if jurisdiction:
             state_filter = "AND rd.state = %s"
-            params.append(state)
+            params.append(jurisdiction)
             if title:
-                title_filter = f"AND rd.{_title_col(state)} = %s"
+                title_filter = f"AND rd.{_title_col(jurisdiction)} = %s"
                 params.append(title)
         else:
             # No state filter (dangerously-run-all)
@@ -236,7 +236,7 @@ class ProcessingUnitBuilder:
                 rows = cur.fetchall()
 
             if not rows:
-                print(f"No documents found for issue_type={issue_type}, state={state}")
+                print(f"No documents found for issue_type={issue_type}, jurisdiction={jurisdiction}")
                 return []
 
             # Group by document_id
@@ -281,7 +281,7 @@ class ProcessingUnitBuilder:
         self,
         issue_type: str,
         max_tier: int,
-        state: Optional[str] = None,
+        jurisdiction: Optional[str] = None,
         limit: int = 20,
         title: Optional[str] = None,
     ) -> tuple[list[ProcessingUnit], dict[tuple[int, str], dict]]:
@@ -298,7 +298,7 @@ class ProcessingUnitBuilder:
         Args:
             issue_type: The compliance issue type to filter by
             max_tier: Target tier (1, 2, or 3) - fetches docs that haven't reached it
-            state: State code ('NJ', 'NY', or None for all states)
+            jurisdiction: Jurisdiction code ('NJ', 'NY', 'NYC', or None for all jurisdictions)
             limit: Maximum number of documents to fetch
             title: Optional NJAC/NYCRR title to filter by
 
@@ -314,11 +314,11 @@ class ProcessingUnitBuilder:
         title_filter = ""
         params: list = [issue_type]  # First WHERE clause
 
-        if state:
+        if jurisdiction:
             state_filter = "AND rd.state = %s"
-            params.append(state)
+            params.append(jurisdiction)
             if title:
-                title_filter = f"AND rd.{_title_col(state)} = %s"
+                title_filter = f"AND rd.{_title_col(jurisdiction)} = %s"
                 params.append(title)
         else:
             if title:
@@ -389,7 +389,7 @@ class ProcessingUnitBuilder:
                 rows = cur.fetchall()
 
             if not rows:
-                print(f"No documents found for issue_type={issue_type}, state={state}, max_tier={max_tier}")
+                print(f"No documents found for issue_type={issue_type}, jurisdiction={jurisdiction}, max_tier={max_tier}")
                 return [], {}
 
             # Group by document_id
@@ -599,7 +599,7 @@ class ProcessingUnitBuilder:
     def fetch_tier3_pending(
         self,
         issue_type: str,
-        state: str = "NJ",
+        jurisdiction: str = "NJ",
         limit: int = 20,
     ) -> tuple[list[ProcessingUnit], dict[str, Tier2Output]]:
         """
@@ -610,7 +610,7 @@ class ProcessingUnitBuilder:
 
         Args:
             issue_type: The compliance issue type to filter by
-            state: State code (NJ or NY)
+            jurisdiction: Jurisdiction code (NJ, NY, or NYC)
             limit: Maximum number of documents to fetch
 
         Returns:
@@ -623,7 +623,7 @@ class ProcessingUnitBuilder:
         print("FETCHING TIER 3 PENDING DOCUMENTS")
         print(f"{'='*70}")
         print(f"Issue type: {issue_type}")
-        print(f"State: {state}")
+        print(f"Jurisdiction: {jurisdiction}")
         print(f"Limit: {limit}")
         print()
 
@@ -651,7 +651,7 @@ class ProcessingUnitBuilder:
 
         try:
             with conn.cursor() as cur:
-                cur.execute(query, (state, issue_type, limit))
+                cur.execute(query, (jurisdiction, issue_type, limit))
                 analyses = cur.fetchall()
 
             print(f"Found {len(analyses)} analyses with highest_tier_completed=2")
@@ -727,7 +727,7 @@ class ProcessingUnitBuilder:
                     title=title or "",
                     matches=match_infos,
                     content=content or "",
-                    state=doc_state or state,
+                    jurisdiction=doc_state or jurisdiction,
                 )
                 processing_units.append(pu)
 
@@ -767,7 +767,7 @@ class ProcessingUnitBuilder:
     def fetch_all_issues(
         self,
         issue_types: list[str],
-        state: Optional[str],
+        jurisdiction: Optional[str],
         max_tier: int,
         max_docs_per_issue: int = 20,
         global_docs_limit: Optional[int] = None,
@@ -784,7 +784,7 @@ class ProcessingUnitBuilder:
 
         Args:
             issue_types: List of issue types to fetch
-            state: State code ('NJ', 'NY', or None for all states)
+            jurisdiction: Jurisdiction code ('NJ', 'NY', 'NYC', or None for all jurisdictions)
             max_tier: Target tier (1, 2, or 3) - only fetches docs that haven't reached it
             max_docs_per_issue: Maximum documents per issue type
             global_docs_limit: Maximum total documents across all issue types
@@ -806,11 +806,11 @@ class ProcessingUnitBuilder:
         title_value = title
         title_col = None
 
-        if state:
+        if jurisdiction:
             state_filter = "rd.state = %s AND"
-            params.append(state)
+            params.append(jurisdiction)
             if title:
-                title_filter = f"AND rd.{_title_col(state)} = %s"
+                title_filter = f"AND rd.{_title_col(jurisdiction)} = %s"
                 # Don't append here - will append after issue_types
         else:
             # No state filter (dangerously-run-all)
@@ -892,7 +892,7 @@ class ProcessingUnitBuilder:
         params.append(issue_types)
         # Add title params after issue_types (to match query order)
         if title_value:
-            if state:
+            if jurisdiction:
                 params.append(title_value)
             else:
                 params.extend([title_value, title_value, title_value])
@@ -906,7 +906,7 @@ class ProcessingUnitBuilder:
                 rows = cur.fetchall()
 
             if not rows:
-                print(f"No documents found for issue_types={issue_types}, state={state}, max_tier={max_tier}")
+                print(f"No documents found for issue_types={issue_types}, jurisdiction={jurisdiction}, max_tier={max_tier}")
                 return [], {}
 
             # Group by (document_id, issue_type)
@@ -974,7 +974,7 @@ class ProcessingUnitBuilder:
         self,
         pipeline_version: str,
         issue_type: Optional[str] = None,
-        state: str = "NJ",
+        jurisdiction: str = "NJ",
         limit: int = 20,
     ) -> list[ProcessingUnit]:
         """
@@ -986,7 +986,7 @@ class ProcessingUnitBuilder:
         Args:
             pipeline_version: Pipeline version to re-run (e.g., 'v4-migrated', 'v5')
             issue_type: Optional filter by issue type
-            state: State code (NJ or NY)
+            jurisdiction: Jurisdiction code (NJ, NY, or NYC)
             limit: Maximum number of documents to fetch
 
         Returns:
@@ -995,7 +995,7 @@ class ProcessingUnitBuilder:
         conn = self._get_conn()
 
         # Query existing analyses with the specified pipeline version
-        params = [pipeline_version, state]
+        params = [pipeline_version, jurisdiction]
         issue_filter = ""
         if issue_type:
             issue_filter = "AND cia.issue_type = %s"
@@ -1019,7 +1019,7 @@ class ProcessingUnitBuilder:
                 analyses = cur.fetchall()
 
             if not analyses:
-                print(f"No analyses found with pipeline_version={pipeline_version}, state={state}")
+                print(f"No analyses found with pipeline_version={pipeline_version}, jurisdiction={jurisdiction}")
                 return []
 
             print(f"Found {len(analyses)} analyses to re-run")
@@ -1073,7 +1073,7 @@ class ProcessingUnitBuilder:
                     title=title or "",
                     matches=match_infos,
                     content=content or "",
-                    state=doc_state or state,
+                    jurisdiction=doc_state or jurisdiction,
                 ))
 
             return processing_units
@@ -1082,7 +1082,7 @@ class ProcessingUnitBuilder:
 
 
 def get_issue_types_for_scope(
-    state: Optional[str],
+    jurisdiction: Optional[str],
     title: Optional[str] = None,
     conn: Optional[Connection] = None,
 ) -> list[str]:
@@ -1090,7 +1090,7 @@ def get_issue_types_for_scope(
     Get all issue types that have compliance issues in the given scope.
 
     Args:
-        state: State code ('NJ', 'NY', or None for all states)
+        jurisdiction: Jurisdiction code ('NJ', 'NY', 'NYC', or None for all jurisdictions)
         title: Optional filter by regulatory title
         conn: Optional database connection
 
@@ -1111,11 +1111,11 @@ def get_issue_types_for_scope(
         title_filter = ""
         params = []
 
-        if state:
+        if jurisdiction:
             state_filter = "WHERE rd.state = %s"
-            params.append(state)
+            params.append(jurisdiction)
             if title:
-                title_filter = f"AND rd.{_title_col(state)} = %s"
+                title_filter = f"AND rd.{_title_col(jurisdiction)} = %s"
                 params.append(title)
         else:
             # No state filter (dangerously-run-all)
@@ -1147,7 +1147,7 @@ def get_issue_types_for_scope(
 @retry_db_operation()
 def fetch_tier3_pending_documents(
     issue_type: str,
-    state: str = "NJ",
+    jurisdiction: str = "NJ",
     limit: int = 20,
 ) -> tuple[list[ProcessingUnit], dict[str, Tier2Output]]:
     """
@@ -1158,7 +1158,7 @@ def fetch_tier3_pending_documents(
     builder = ProcessingUnitBuilder()
     return builder.fetch_tier3_pending(
         issue_type=issue_type,
-        state=state,
+        jurisdiction=jurisdiction,
         limit=limit,
     )
 
@@ -1166,7 +1166,7 @@ def fetch_tier3_pending_documents(
 @retry_db_operation()
 def fetch_all_issue_documents(
     issue_types: list[str],
-    state: Optional[str],
+    jurisdiction: Optional[str],
     max_tier: int,
     max_docs_per_issue: int = 20,
     global_docs_limit: Optional[int] = None,
@@ -1184,7 +1184,7 @@ def fetch_all_issue_documents(
 
     Args:
         issue_types: List of issue types to fetch
-        state: State code ('NJ', 'NY', or None for all states)
+        jurisdiction: Jurisdiction code ('NJ', 'NY', 'NYC', or None for all jurisdictions)
         max_tier: Target tier (1, 2, or 3) - only fetches docs that haven't reached it
         max_docs_per_issue: Maximum documents per issue type
         global_docs_limit: Maximum total documents across all issue types
@@ -1197,7 +1197,7 @@ def fetch_all_issue_documents(
     builder = ProcessingUnitBuilder()
     return builder.fetch_all_issues(
         issue_types=issue_types,
-        state=state,
+        jurisdiction=jurisdiction,
         max_tier=max_tier,
         max_docs_per_issue=max_docs_per_issue,
         global_docs_limit=global_docs_limit,
@@ -1209,7 +1209,7 @@ def fetch_all_issue_documents(
 def fetch_documents_with_continuation(
     issue_type: str,
     max_tier: int,
-    state: Optional[str] = None,
+    jurisdiction: Optional[str] = None,
     limit: int = 20,
     title: Optional[str] = None,
 ) -> tuple[list[ProcessingUnit], dict[tuple[int, str], dict]]:
@@ -1227,7 +1227,7 @@ def fetch_documents_with_continuation(
     Args:
         issue_type: The compliance issue type to filter by
         max_tier: Target tier (1, 2, or 3) - fetches docs that haven't reached it
-        state: State code ('NJ', 'NY', or None for all states)
+        jurisdiction: Jurisdiction code ('NJ', 'NY', 'NYC', or None for all jurisdictions)
         limit: Maximum number of documents to fetch
         title: Optional NJAC/NYCRR title to filter by
 
@@ -1239,7 +1239,7 @@ def fetch_documents_with_continuation(
     return builder.fetch_with_tier_continuation(
         issue_type=issue_type,
         max_tier=max_tier,
-        state=state,
+        jurisdiction=jurisdiction,
         limit=limit,
         title=title,
     )

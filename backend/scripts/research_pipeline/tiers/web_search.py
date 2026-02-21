@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from typing import Optional, Any
 
 from ..models.context import ContextEntryLLM
-from ..config import STATE_LOCATIONS, MAX_WEB_SEARCHES_PER_REQUEST
+from ..config import JURISDICTION_LOCATIONS, MAX_WEB_SEARCHES_PER_REQUEST
 
 
 # =============================================================================
@@ -17,15 +17,15 @@ from ..config import STATE_LOCATIONS, MAX_WEB_SEARCHES_PER_REQUEST
 # =============================================================================
 
 
-def get_web_search_tool(state: str = "NJ", max_uses: Optional[int] = None) -> dict:
+def get_web_search_tool(jurisdiction: str = "NJ", max_uses: Optional[int] = None) -> dict:
     """
-    Get web search tool configuration with state-specific location.
+    Get web search tool configuration with jurisdiction-specific location.
 
-    The user_location parameter localizes search results to the relevant state,
-    improving relevance for state-specific regulatory research.
+    The user_location parameter localizes search results to the relevant jurisdiction,
+    improving relevance for jurisdiction-specific regulatory research.
 
     Args:
-        state: Two-letter state code (default "NJ" for New Jersey)
+        jurisdiction: Jurisdiction code (e.g. "NJ", "NY", "NYC"; default "NJ")
         max_uses: Maximum number of searches per request (cost control).
                   Defaults to MAX_WEB_SEARCHES_PER_REQUEST from config.
 
@@ -36,11 +36,11 @@ def get_web_search_tool(state: str = "NJ", max_uses: Optional[int] = None) -> di
     if max_uses is None:
         max_uses = MAX_WEB_SEARCHES_PER_REQUEST
 
-    # Use centralized STATE_LOCATIONS from config
-    location = STATE_LOCATIONS.get(state.upper())
+    # Use centralized JURISDICTION_LOCATIONS from config
+    location = JURISDICTION_LOCATIONS.get(jurisdiction.upper())
     if location is None:
-        print(f"  Warning: Unknown state '{state}' for web search, defaulting to NJ")
-        location = STATE_LOCATIONS["NJ"]
+        print(f"  Warning: Unknown jurisdiction '{jurisdiction}' for web search, defaulting to NJ")
+        location = JURISDICTION_LOCATIONS["NJ"]
 
     return {
         "type": "web_search_20250305",

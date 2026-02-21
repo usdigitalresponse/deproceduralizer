@@ -391,7 +391,7 @@ def create_analysis_prompt(section_text: str = "", citation: str = "", heading: 
 def save_analysis_to_database(conn: Connection,
                              regulation: RegulationData,
                              analysis: RegulationAnalysis,
-                             state: str = "NY",
+                             jurisdiction: str = "NY",
                              existing_doc_id: Optional[int] = None) -> Optional[int]:
     """Save regulation analysis to database
 
@@ -399,7 +399,7 @@ def save_analysis_to_database(conn: Connection,
         conn: Database connection
         regulation: Regulation data
         analysis: Analysis results
-        state: State code (NY, NJ, or NYC)
+        jurisdiction: Jurisdiction code (NY, NJ, or NYC)
         existing_doc_id: If provided, skip doc insert and use this document ID directly.
             Use this when the document already exists in the DB (e.g., DB mode with --state).
 
@@ -414,17 +414,17 @@ def save_analysis_to_database(conn: Connection,
             else:
                 # Legacy/JSON mode: insert/upsert the document
                 # Use jurisdiction-appropriate hierarchy columns
-                state_upper = state.upper()
-                if state_upper == 'NJ':
+                jurisdiction_upper = jurisdiction.upper()
+                if jurisdiction_upper == 'NJ':
                     hierarchy_cols = ['njac_title', 'njac_part', 'njac_subpart', 'njac_section']
-                elif state_upper == 'NYC':
+                elif jurisdiction_upper == 'NYC':
                     hierarchy_cols = ['rcny_title', 'rcny_chapter', 'rcny_section']
                 else:
                     hierarchy_cols = ['nycrr_title', 'nycrr_part', 'nycrr_subpart', 'nycrr_section']
 
                 # Map RegulationData generic fields to jurisdiction columns
                 # For NYC: nycrr_title->rcny_title, nycrr_part->rcny_chapter, nycrr_section->rcny_section
-                if state_upper == 'NYC':
+                if jurisdiction_upper == 'NYC':
                     hierarchy_vals = [regulation.nycrr_title, regulation.nycrr_part, regulation.nycrr_section]
                 else:
                     hierarchy_vals = [regulation.nycrr_title, regulation.nycrr_part,
@@ -444,7 +444,7 @@ def save_analysis_to_database(conn: Connection,
                         content = EXCLUDED.content
                     RETURNING id
                 """, (
-                    regulation.source_index, "regulation", state_upper,
+                    regulation.source_index, "regulation", jurisdiction_upper,
                     regulation.title, regulation.url, regulation.url_type,
                     regulation.content, regulation.hierarchy_level,
                     regulation.hierarchy_path, *hierarchy_vals
@@ -786,13 +786,13 @@ def parse_arguments():
 BATCHES_DIR = OUTPUTS_DIR / 'batches' / 'red_flags'
 
 
-def submit_batch_api(regulations: List[RegulationData], state: str, title: str = None) -> str:
+def submit_batch_api(regulations: List[RegulationData], jurisdiction: str, title: str = None) -> str:
     """
     Submit regulations for batch API processing (50% cheaper).
 
     Args:
         regulations: List of regulations to analyze
-        state: State code
+        jurisdiction: Jurisdiction code
         title: Optional title filter (for batch naming)
 
     Returns:
@@ -830,7 +830,7 @@ def submit_batch_api(regulations: List[RegulationData], state: str, title: str =
     # Submit batch
     print(f"\n[2/2] Submitting to Anthropic Batch API...")
 
-    batch_name = f"red_flags_{state}"
+    batch_name = f"red_flags_{jurisdiction}"
     if title:
         batch_name += f"_{title}"
 
@@ -839,7 +839,7 @@ def submit_batch_api(regulations: List[RegulationData], state: str, title: str =
         requests=requests,
         batch_name=batch_name,
         metadata={
-            'state': state,
+            'state': jurisdiction,
             'title': title,
             'document_ids': doc_ids,
         }
@@ -849,13 +849,13 @@ def submit_batch_api(regulations: List[RegulationData], state: str, title: str =
     return batch_id
 
 
-def process_batch_results(batch_id: str, state: str):
+def process_batch_results(batch_id: str, jurisdiction: str):
     """
     Process results from a completed batch and save to database.
 
     Args:
         batch_id: Batch API ID to process
-        state: State code for database operations
+        jurisdiction: Jurisdiction code for database operations
     """
     import time as time_module
 
@@ -948,7 +948,7 @@ def process_batch_results(batch_id: str, state: str):
                     source_index=doc_id,
                 )
 
-                analysis_id = save_analysis_to_database(conn, reg_data, analysis, state,
+                analysis_id = save_analysis_to_database(conn, reg_data, analysis, jurisdiction,
                                                         existing_doc_id=doc_id)
                 if analysis_id:
                     total_analyses += 1
@@ -995,7 +995,7 @@ def process_batch_results(batch_id: str, state: str):
         conn = get_db_connection()
         if conn:
             from lib.stats import refresh_analysis_stats
-            refresh_analysis_stats(conn, state)
+            refresh_analysis_stats(conn, jurisdiction)
             conn.close()
     except Exception as e:
         print(f"      ⚠️  Could not refresh stats: {e}")
@@ -1048,7 +1048,7 @@ async def main():
             print(f"  Part: {args.part}")
 
         docs = get_filtered_documents(
-            state=args.state,
+            jurisdiction=args.state,
             title=args.title,
             chapter=args.chapter,
             subchapter=getattr(args, 'subchapter', None),
@@ -1158,7 +1158,7 @@ async def main():
 
         batch_id = submit_batch_api(
             regulations,
-            state=state,
+            jurisdiction=state,
             title=args.title if hasattr(args, 'title') else None
         )
 

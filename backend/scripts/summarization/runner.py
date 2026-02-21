@@ -131,7 +131,7 @@ class SummarizationBatchRunner:
 
     def __init__(
         self,
-        state: str,
+        jurisdiction: str,
         output_dir: Path,
         title: Optional[str] = None,
     ):
@@ -139,13 +139,13 @@ class SummarizationBatchRunner:
         Initialize batch runner.
 
         Args:
-            state: State code (e.g., 'NJ', 'NY')
-            output_dir: Base output directory (will create state/batch/ subdirectory)
+            jurisdiction: Jurisdiction code (e.g., 'NJ', 'NY', or 'NYC')
+            output_dir: Base output directory (will create jurisdiction/batch/ subdirectory)
             title: Optional title filter (e.g., '8', '12A')
         """
-        self.state = state.upper()
+        self.jurisdiction = jurisdiction.upper()
         self.title = title
-        self.output_dir = output_dir / self.state / "batch"
+        self.output_dir = output_dir / self.jurisdiction / "batch"
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
         self.manager = BatchManager(batches_dir=self.output_dir)
@@ -258,13 +258,13 @@ class SummarizationBatchRunner:
         Returns:
             Batch ID if submitted, None if dry run
         """
-        print(f"\n=== SECTIONS PHASE: {self.state}" + (f" Title {self.title}" if self.title else "") + " ===")
+        print(f"\n=== SECTIONS PHASE: {self.jurisdiction}" + (f" Title {self.title}" if self.title else "") + " ===")
 
         # Load existing summaries for sibling context
         self._load_summaries_cache()
 
         # Get sections grouped by parent
-        sections_by_parent = get_sections_grouped_by_parent(self.state, self.title)
+        sections_by_parent = get_sections_grouped_by_parent(self.jurisdiction, self.title)
 
         # Flatten for counting
         all_sections = [s for siblings in sections_by_parent.values() for s in siblings]
@@ -357,9 +357,9 @@ class SummarizationBatchRunner:
         # Submit batch
         batch_id = self.manager.submit_batch(
             requests=requests,
-            batch_name=f"sections_{self.state}",
+            batch_name=f"sections_{self.jurisdiction}",
             metadata={
-                "state": self.state,
+                "state": self.jurisdiction,
                 "phase": "sections",
                 "title": self.title,
                 "model": BATCH_MODEL,
@@ -387,13 +387,13 @@ class SummarizationBatchRunner:
         Returns:
             Batch ID if submitted, None if dry run
         """
-        print(f"\n=== {level.upper()}S PHASE: {self.state}" + (f" Title {self.title}" if self.title else "") + " ===")
+        print(f"\n=== {level.upper()}S PHASE: {self.jurisdiction}" + (f" Title {self.title}" if self.title else "") + " ===")
 
         # Load child summaries from previous phases
         self._load_summaries_cache()
 
         # Get documents at this level
-        docs = get_documents_by_level(self.state, level, self.title)
+        docs = get_documents_by_level(self.jurisdiction, level, self.title)
         print(f"  Total {level}s: {len(docs)}")
 
         # Filter if resuming
@@ -486,9 +486,9 @@ class SummarizationBatchRunner:
         # Submit batch
         batch_id = self.manager.submit_batch(
             requests=requests,
-            batch_name=f"{level}s_{self.state}",
+            batch_name=f"{level}s_{self.jurisdiction}",
             metadata={
-                "state": self.state,
+                "state": self.jurisdiction,
                 "phase": f"{level}s",
                 "title": self.title,
                 "model": BATCH_MODEL,
@@ -518,7 +518,7 @@ class SummarizationBatchRunner:
         """
         from .db_queries import get_all_titles
 
-        titles = get_all_titles(self.state)
+        titles = get_all_titles(self.jurisdiction)
         print(f"\n{'=' * 60}", flush=True)
         print(f"SUBMITTING {phase.upper()} FOR ALL TITLES ({len(titles)} titles)", flush=True)
         print(f"{'=' * 60}\n", flush=True)
@@ -530,9 +530,9 @@ class SummarizationBatchRunner:
 
             # Create runner for this title
             # output_dir is summaries_staging/NJ/batch/, need to go up 2 levels
-            # to summaries_staging/ so __init__ can add state/batch/ correctly
+            # to summaries_staging/ so __init__ can add jurisdiction/batch/ correctly
             title_runner = SummarizationBatchRunner(
-                state=self.state,
+                jurisdiction=self.jurisdiction,
                 output_dir=self.output_dir.parent.parent,  # summaries_staging/
                 title=title,
             )
@@ -572,7 +572,7 @@ class SummarizationBatchRunner:
         Returns:
             List of batch status dicts
         """
-        print(f"\n=== BATCH STATUS: {self.state} ===\n")
+        print(f"\n=== BATCH STATUS: {self.jurisdiction} ===\n")
 
         statuses = []
         by_title: dict[str, list[dict]] = {}  # title -> list of statuses
@@ -720,7 +720,7 @@ class SummarizationBatchRunner:
                 metadata = SummaryMetadata(
                     document_id=doc_id,
                     hierarchy_level=phase.rstrip("s"),  # sections -> section
-                    state=self.state,
+                    jurisdiction=self.jurisdiction,
                     original_char_count=0,  # Not tracked in batch
                     original_word_count=0,
                     input_char_count=0,
@@ -739,7 +739,7 @@ class SummarizationBatchRunner:
                     "document_id": doc_id,
                     "title": "",
                     "hierarchy_level": phase.rstrip("s"),
-                    "state": self.state,
+                    "state": self.jurisdiction,
                     "citation": None,
                     **parsed,
                     "metadata": metadata_dict,
@@ -795,7 +795,7 @@ class SummarizationBatchRunner:
                 "document_id": doc_id,
                 "title": "",
                 "hierarchy_level": phase.rstrip("s"),
-                "state": self.state,
+                "state": self.jurisdiction,
                 "citation": None,
                 "summary": summary_text,
                 "section_type": section_type,
@@ -1138,14 +1138,14 @@ class SummarizationBatchRunner:
             Dict mapping phase name → list of result dicts
         """
         # Auto-detect parent levels in bottom-up order
-        parent_levels = get_hierarchy_order(self.state, self.title)
+        parent_levels = get_hierarchy_order(self.jurisdiction, self.title)
         # Sections are always first, then parent levels (pluralized for phase names)
         phases = ["sections"] + [f"{level}s" for level in parent_levels]
 
         all_results = {}
 
         print(f"\n{'='*60}")
-        print(f"RUNNING ALL PHASES: {self.state}" + (f" Title {self.title}" if self.title else ""))
+        print(f"RUNNING ALL PHASES: {self.jurisdiction}" + (f" Title {self.title}" if self.title else ""))
         print(f"Detected phase order: {' → '.join(phases)}")
         print(f"{'='*60}")
 

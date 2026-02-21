@@ -68,7 +68,7 @@ def _fetch_matches_for_pairs(conn, doc_issue_pairs: list[tuple[int, str]]) -> di
 
 
 async def retry_failed_tier3(
-    state: Optional[str] = None,
+    jurisdiction: Optional[str] = None,
     title: Optional[str] = None,
     issue_types: Optional[list[str]] = None,
     dry_run: bool = False,
@@ -82,7 +82,7 @@ async def retry_failed_tier3(
     - Match Tier 3 escalation triggers based on routing logic
 
     Args:
-        state: State code ('NJ', 'NY', or None for all)
+        jurisdiction: Jurisdiction code ('NJ', 'NY', 'NYC', or None for all)
         title: Optional title filter
         issue_types: Optional list of issue types to filter
         dry_run: If True, just show what would be retried
@@ -92,7 +92,7 @@ async def retry_failed_tier3(
         print("ERROR: Could not connect to database")
         return
 
-    print(f"State: {state or 'ALL'}")
+    print(f"Jurisdiction: {jurisdiction or 'ALL'}")
     print(f"Title: {title or 'ALL'}")
     print(f"Issue types: {', '.join(issue_types) if issue_types else 'ALL'}")
     print()
@@ -115,9 +115,9 @@ async def retry_failed_tier3(
     """
 
     params = []
-    if state:
+    if jurisdiction:
         query += " AND cia.state = %s"
-        params.append(state)
+        params.append(jurisdiction)
 
     if issue_types:
         placeholders = ', '.join(['%s'] * len(issue_types))
@@ -125,7 +125,7 @@ async def retry_failed_tier3(
         params.extend(issue_types)
 
     if title:
-        state_upper = state.upper() if state else ""
+        state_upper = jurisdiction.upper() if jurisdiction else ""
         if state_upper == "NY":
             query += " AND rd.nycrr_title = %s"
         elif state_upper == "NYC":
@@ -308,7 +308,7 @@ async def retry_failed_tier3(
         results = await run_tier3_only(
             processing_units=processing_units,
             tier2_outputs=tier2_outputs,
-            state=state or "NJ",
+            jurisdiction=jurisdiction or "NJ",
             issue_types=unique_issues,
             batches_dir=batches_dir,
             realtime=True,
@@ -353,7 +353,7 @@ async def retry_failed_tier3(
 
 
 async def rerun_placeholder_tier2(
-    state: Optional[str] = None,
+    jurisdiction: Optional[str] = None,
     title: Optional[str] = None,
     issue_types: Optional[list[str]] = None,
     dry_run: bool = False,
@@ -369,7 +369,7 @@ async def rerun_placeholder_tier2(
     Tier 2 to generate proper arguments.
 
     Args:
-        state: State code ('NJ', 'NY', or None for all)
+        jurisdiction: Jurisdiction code ('NJ', 'NY', 'NYC', or None for all)
         title: Optional title filter
         issue_types: Optional list of issue types to filter
         dry_run: If True, just show what would be rerun
@@ -382,7 +382,7 @@ async def rerun_placeholder_tier2(
         print("ERROR: Could not connect to database")
         return
 
-    print(f"State: {state or 'ALL'}")
+    print(f"Jurisdiction: {jurisdiction or 'ALL'}")
     print(f"Title: {title or 'ALL'}")
     print(f"Issue types: {', '.join(issue_types) if issue_types else 'ALL'}")
     print(f"Max tier: {max_tier}")
@@ -406,9 +406,9 @@ async def rerun_placeholder_tier2(
     """
 
     params = []
-    if state:
+    if jurisdiction:
         query += " AND cia.state = %s"
-        params.append(state)
+        params.append(jurisdiction)
 
     if issue_types:
         placeholders = ', '.join(['%s'] * len(issue_types))
@@ -416,7 +416,7 @@ async def rerun_placeholder_tier2(
         params.extend(issue_types)
 
     if title:
-        state_upper = state.upper() if state else ""
+        state_upper = jurisdiction.upper() if jurisdiction else ""
         if state_upper == "NY":
             query += " AND rd.nycrr_title = %s"
         elif state_upper == "NYC":
@@ -528,7 +528,7 @@ async def rerun_placeholder_tier2(
 
         results = await run_pipeline_fn(
             processing_units=processing_units,
-            state=state or "NJ",
+            jurisdiction=jurisdiction or "NJ",
             issue_types=unique_issues,
             batches_dir=batches_dir,
             realtime=realtime,

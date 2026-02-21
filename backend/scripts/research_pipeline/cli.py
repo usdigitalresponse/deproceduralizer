@@ -34,18 +34,18 @@ from dotenv import load_dotenv
 # CLI ARGUMENT VALIDATORS
 # ============================================================================
 
-def state_validator(value: str) -> str:
+def jurisdiction_validator(value: str) -> str:
     """
     Validate --state flag.
 
-    Accepts 'nj', 'ny', or 'dangerously-run-all' (case insensitive).
-    'dangerously-run-all' skips state filtering in database queries.
+    Accepts 'nj', 'ny', 'nyc', or 'dangerously-run-all' (case insensitive).
+    'dangerously-run-all' skips jurisdiction filtering in database queries.
     """
     normalized = value.lower()
-    valid_states = ['nj', 'ny', 'nyc', 'dangerously-run-all']
-    if normalized not in valid_states:
+    valid_jurisdictions = ['nj', 'ny', 'nyc', 'dangerously-run-all']
+    if normalized not in valid_jurisdictions:
         raise argparse.ArgumentTypeError(
-            f"Invalid state '{value}'. Must be one of: {', '.join(valid_states)}"
+            f"Invalid jurisdiction '{value}'. Must be one of: {', '.join(valid_jurisdictions)}"
         )
     return normalized
 
@@ -249,7 +249,7 @@ def _would_escalate_to_tier3(analysis: dict) -> bool:
         title="",
         matches=[],
         content="",
-        state="",
+        jurisdiction="",
     )
     tracked = TrackedUnit(unit=dummy_unit)
     tracked.tier2_output = tier2
@@ -364,7 +364,7 @@ def _print_resume_simulation(simulation: dict, max_tier: int) -> None:
 
 async def _execute_pipeline(
     processing_units: list[ProcessingUnit],
-    state: str | None,
+    jurisdiction: str | None,
     issue_type: str | None = None,
     issue_types: list[str] | None = None,
     max_tier: int = 2,
@@ -387,7 +387,7 @@ async def _execute_pipeline(
 
     Args:
         processing_units: Documents to process
-        state: State code ('NJ', 'NY', or None for all states)
+        jurisdiction: Jurisdiction code ('NJ', 'NY', 'NYC', or None for all)
         issue_type: Single issue type (use this OR issue_types)
         issue_types: List of issue types (use this OR issue_type)
         max_tier: Maximum tier to run (1-3)
@@ -406,9 +406,9 @@ async def _execute_pipeline(
     batches_dir = Path(__file__).parent / "batches"
     batches_dir.mkdir(exist_ok=True)
 
-    # When state is None (dangerously-run-all), default to "NJ" for pipeline
-    # but the actual state filtering was already done in document fetching
-    pipeline_state = state if state else "NJ"
+    # When jurisdiction is None (dangerously-run-all), default to "NJ" for pipeline
+    # but the actual jurisdiction filtering was already done in document fetching
+    pipeline_jurisdiction = jurisdiction if jurisdiction else "NJ"
 
     # Normalize issue_type(s) to list
     if issue_types:
@@ -421,7 +421,7 @@ async def _execute_pipeline(
     # Run the pipeline
     results = await run_pipeline_fn(
         processing_units=processing_units,
-        state=pipeline_state,
+        jurisdiction=pipeline_jurisdiction,
         issue_types=all_issue_types,
         batches_dir=batches_dir,
         max_tier=max_tier,
@@ -445,9 +445,9 @@ async def _execute_pipeline(
 
     # --- Summarization (post-pipeline, optional) ---
     if summarize and title_filter:
-        pipeline_state = state if state else "NJ"
+        pipeline_jurisdiction = jurisdiction if jurisdiction else "NJ"
         print(f"\n{'='*60}")
-        print(f"POST-PIPELINE SUMMARIZATION: {pipeline_state} Title {title_filter}")
+        print(f"POST-PIPELINE SUMMARIZATION: {pipeline_jurisdiction} Title {title_filter}")
         print(f"{'='*60}")
 
         from scripts.summarization.runner import SummarizationBatchRunner
@@ -458,7 +458,7 @@ async def _execute_pipeline(
 
         output_dir = Path(__file__).parent.parent.parent / "summaries_staging"
         runner = SummarizationBatchRunner(
-            state=pipeline_state,
+            jurisdiction=pipeline_jurisdiction,
             output_dir=output_dir,
             title=title_filter,
         )
@@ -470,7 +470,7 @@ async def _execute_pipeline(
             print(f"IMPORTING SUMMARIES TO DATABASE")
             print(f"{'='*60}")
 
-            results_files = find_all_results_files(pipeline_state, output_dir)
+            results_files = find_all_results_files(pipeline_jurisdiction, output_dir)
             all_updates = []
             for rf in results_files:
                 for result in load_results(rf):
@@ -492,9 +492,9 @@ async def _execute_pipeline(
     return results
 
 
-def _check_summarization_completeness(state: str, title: str) -> float | None:
+def _check_summarization_completeness(jurisdiction: str, title: str) -> float | None:
     """
-    Check what percentage of sections have summaries for a given state/title.
+    Check what percentage of sections have summaries for a given jurisdiction/title.
 
     Returns percentage (0-100) or None if the check fails.
     """
@@ -506,15 +506,15 @@ def _check_summarization_completeness(state: str, title: str) -> float | None:
 
     try:
         with conn.cursor() as cur:
-            state_upper = state.upper()
-            col = "nycrr_title" if state_upper == "NY" else "rcny_title" if state_upper == "NYC" else "njac_title"
+            jurisdiction_upper = jurisdiction.upper()
+            col = "nycrr_title" if jurisdiction_upper == "NY" else "rcny_title" if jurisdiction_upper == "NYC" else "njac_title"
             cur.execute(f"""
                 SELECT
                     COUNT(*) as total,
                     COUNT(summary) as summarized
                 FROM regulatory_documents
                 WHERE state = %s AND {col} = %s AND hierarchy_level = 'section'
-            """, (state.upper(), title))
+            """, (jurisdiction.upper(), title))
             row = cur.fetchone()
             if not row or row[0] == 0:
                 return None
@@ -529,7 +529,7 @@ async def run_test(
     issue_type: str,
     max_docs_per_issue: int | None = None,
     max_tier: int = 2,
-    state: str | None = None,
+    jurisdiction: str | None = None,
     realtime: bool = False,
     title: str | None = None,
     dry_run: bool = False,
@@ -546,7 +546,7 @@ async def run_test(
         issue_type: The compliance issue type to process
         max_docs_per_issue: Max documents to process (None = no limit)
         max_tier: Maximum tier to run (1-3)
-        state: State code ('NJ', 'NY', or None for all states)
+        jurisdiction: Jurisdiction code ('NJ', 'NY', 'NYC', or None for all)
         realtime: Use realtime API instead of batch
         title: Optional filter by regulatory title
         dry_run: Preview without API calls
@@ -561,7 +561,7 @@ async def run_test(
     print(f"RESEARCH PIPELINE {'DRY RUN' if dry_run else 'TEST RUN'}")
     print(f"{'='*70}")
     print(f"Issue type: {issue_type}")
-    print(f"State: {state if state else 'ALL STATES (dangerously-run-all)'}")
+    print(f"Jurisdiction: {jurisdiction if jurisdiction else 'ALL (dangerously-run-all)'}")
     if title:
         print(f"Title filter: {title}")
     print(f"Target docs: {max_docs_per_issue if max_docs_per_issue else 'all'}")
@@ -576,7 +576,7 @@ async def run_test(
     processing_units, existing_analyses = fetch_documents_with_continuation(
         issue_type=issue_type,
         max_tier=max_tier,
-        state=state,
+        jurisdiction=jurisdiction,
         limit=limit,
         title=title,
     )
@@ -622,7 +622,7 @@ async def run_test(
     print()
     results = await _execute_pipeline(
         processing_units=processing_units,
-        state=state,
+        jurisdiction=jurisdiction,
         issue_type=issue_type,
         max_tier=max_tier,
         realtime=realtime,
@@ -667,7 +667,7 @@ async def run_test(
 
 
 async def run_batched_issues(
-    state: str | None,
+    jurisdiction: str | None,
     title: str | None,
     max_docs_per_issue: int | None,
     max_tier: int,
@@ -681,7 +681,7 @@ async def run_batched_issues(
     no_cache: bool = False,
 ):
     """Run pipeline with all issue types batched together per tier."""
-    issue_types = get_issue_types_for_scope(state, title)
+    issue_types = get_issue_types_for_scope(jurisdiction, title)
 
     # Default limits if not specified
     docs_per_issue = max_docs_per_issue if max_docs_per_issue is not None else 999999
@@ -689,7 +689,7 @@ async def run_batched_issues(
     print(f"\n{'='*70}")
     print(f"RUNNING ALL ISSUE TYPES (BATCHED)")
     print(f"{'='*70}")
-    print(f"State: {state if state else 'ALL STATES (dangerously-run-all)'}")
+    print(f"Jurisdiction: {jurisdiction if jurisdiction else 'ALL (dangerously-run-all)'}")
     if title:
         print(f"Title: {title}")
     print(f"Issue types found: {len(issue_types)}")
@@ -704,7 +704,7 @@ async def run_batched_issues(
     print(f"Fetching documents requiring analysis (new or incomplete, target tier {max_tier})...")
     processing_units, existing_analyses = fetch_all_issue_documents(
         issue_types=issue_types,
-        state=state,
+        jurisdiction=jurisdiction,
         max_tier=max_tier,
         max_docs_per_issue=docs_per_issue,
         global_docs_limit=global_docs_limit,
@@ -754,7 +754,7 @@ async def run_batched_issues(
     # Execute pipeline with all issue types
     results = await _execute_pipeline(
         processing_units=processing_units,
-        state=state,
+        jurisdiction=jurisdiction,
         issue_types=list(by_issue.keys()),
         max_tier=max_tier,
         realtime=realtime,
@@ -772,7 +772,7 @@ async def run_batched_issues(
 
 
 async def run_all_issues(
-    state: str | None,
+    jurisdiction: str | None,
     title: str | None,
     max_docs_per_issue: int | None,
     max_tier: int,
@@ -790,7 +790,7 @@ async def run_all_issues(
     Batches all issue types together per tier for efficient processing.
 
     Args:
-        state: State code ('NJ', 'NY', or None for all states)
+        jurisdiction: Jurisdiction code ('NJ', 'NY', 'NYC', or None for all)
         title: Optional filter by regulatory title
         max_docs_per_issue: Max documents per issue type (None = no limit)
         global_docs_limit: Max total documents (None = no limit)
@@ -801,7 +801,7 @@ async def run_all_issues(
         force_rerun: Re-analyze documents even if already processed
     """
     await run_batched_issues(
-        state=state,
+        jurisdiction=jurisdiction,
         title=title,
         max_docs_per_issue=max_docs_per_issue,
         global_docs_limit=global_docs_limit,
@@ -818,7 +818,7 @@ async def run_all_issues(
 
 async def run_tier3_pending(
     issue_type: str,
-    state: str = "NJ",
+    jurisdiction: str = "NJ",
     num_docs: int = 20,
 ):
     """
@@ -832,7 +832,7 @@ async def run_tier3_pending(
     # Fetch documents pending Tier 3
     processing_units, tier2_outputs = fetch_tier3_pending_documents(
         issue_type=issue_type,
-        state=state,
+        jurisdiction=jurisdiction,
         limit=num_docs,
     )
 
@@ -848,7 +848,7 @@ async def run_tier3_pending(
     results = await run_tier3_only(
         processing_units=processing_units,
         tier2_outputs=tier2_outputs,
-        state=state,
+        jurisdiction=jurisdiction,
         issue_types=[issue_type],
         batches_dir=batches_dir,
         realtime=True,
@@ -953,7 +953,7 @@ RESUME BEHAVIOR:
     # === REQUIRED FLAGS ===
     parser.add_argument(
         "--state",
-        type=state_validator,
+        type=jurisdiction_validator,
         required=True,
         help="State code: 'nj', 'ny', 'nyc', or 'dangerously-run-all' (skip state filtering)"
     )
@@ -1083,10 +1083,10 @@ RESUME BEHAVIOR:
     if args.summarize and not args.title:
         parser.error("--summarize requires --title (e.g., --title 18)")
 
-    # Normalize state for DB queries
-    # 'dangerously-run-all' means no state filter (None)
+    # Normalize jurisdiction for DB queries
+    # 'dangerously-run-all' means no jurisdiction filter (None)
     # Otherwise, uppercase for DB compatibility
-    state_for_db = None if args.state == 'dangerously-run-all' else args.state.upper()
+    jurisdiction_for_db = None if args.state == 'dangerously-run-all' else args.state.upper()
 
     # Convert max_docs to int or None
     # 'all' means no limit (use a very large number)
@@ -1101,7 +1101,7 @@ RESUME BEHAVIOR:
         from scripts.research_pipeline.tiers.statute_mandate_runner import run_statute_mandate_checks
         print(f"\n*** STATUTE MANDATE CHECK ONLY MODE ***")
         asyncio.run(run_statute_mandate_checks(
-            state=state_for_db or "NY",
+            jurisdiction=jurisdiction_for_db or "NY",
             dry_run=not args.execute,
             limit=max_docs,
         ))
@@ -1112,7 +1112,7 @@ RESUME BEHAVIOR:
         from scripts.research_pipeline.maintenance.recovery import retry_failed_tier3
         print(f"\n*** RETRY FAILED TIER 3 MODE ***")
         asyncio.run(retry_failed_tier3(
-            state=state_for_db,
+            jurisdiction=jurisdiction_for_db,
             title=args.title,
             issue_types=None if args.all_issues else [args.issue_type] if args.issue_type else None,
             dry_run=not args.execute,
@@ -1124,7 +1124,7 @@ RESUME BEHAVIOR:
         from scripts.research_pipeline.maintenance.recovery import rerun_placeholder_tier2
         print(f"\n*** RERUN PLACEHOLDER TIER 2 MODE ***")
         asyncio.run(rerun_placeholder_tier2(
-            state=state_for_db,
+            jurisdiction=jurisdiction_for_db,
             title=args.title,
             issue_types=None if args.all_issues else [args.issue_type] if args.issue_type else None,
             dry_run=not args.execute,
@@ -1139,20 +1139,20 @@ RESUME BEHAVIOR:
     dry_run = not args.execute
 
     # Pre-flight check: verify summarization is largely complete
-    if not args.skip_summary_check and state_for_db and args.title and not dry_run:
-        summary_pct = _check_summarization_completeness(state_for_db, args.title)
+    if not args.skip_summary_check and jurisdiction_for_db and args.title and not dry_run:
+        summary_pct = _check_summarization_completeness(jurisdiction_for_db, args.title)
         if summary_pct is not None and summary_pct < 50.0:
             print(f"\n⚠️  WARNING: Only {summary_pct:.1f}% of sections in Title {args.title} have summaries.")
             print(f"   The pipeline uses summaries as LLM context — running with incomplete")
             print(f"   summaries degrades analysis quality and wastes API costs.")
             print(f"   Run summarization first:")
-            print(f"     python3 -m scripts.summarization.cli --state {state_for_db} --title {args.title} --run-all-phases")
+            print(f"     python3 -m scripts.summarization.cli --state {jurisdiction_for_db} --title {args.title} --run-all-phases")
             print(f"\n   Pass --skip-summary-check to override this check.\n")
             sys.exit(1)
 
     if args.all_issues:
         asyncio.run(run_all_issues(
-            state=state_for_db,
+            jurisdiction=jurisdiction_for_db,
             title=args.title,
             max_docs_per_issue=max_docs,
             global_docs_limit=global_limit,
@@ -1170,7 +1170,7 @@ RESUME BEHAVIOR:
             issue_type=args.issue_type,
             max_docs_per_issue=max_docs,
             max_tier=args.max_tier,
-            state=state_for_db,
+            jurisdiction=jurisdiction_for_db,
             realtime=args.realtime,
             title=args.title,
             dry_run=dry_run,

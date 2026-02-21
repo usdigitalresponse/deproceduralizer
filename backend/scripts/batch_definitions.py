@@ -118,7 +118,7 @@ def chunk_content(content: str, chunk_size: int = MAX_CHARS_PER_REQUEST, overlap
 
 
 def get_sections_from_db(
-    state: str,
+    jurisdiction: str,
     title: Optional[str] = None,
     chapter: Optional[str] = None,
     limit: Optional[int] = None,
@@ -132,10 +132,10 @@ def get_sections_from_db(
         print("ERROR: Could not connect to database")
         return []
 
-    state_upper = state.upper()
-    if state_upper == 'NJ':
+    jurisdiction_upper = jurisdiction.upper()
+    if jurisdiction_upper == 'NJ':
         prefix = 'njac'
-    elif state_upper == 'NYC':
+    elif jurisdiction_upper == 'NYC':
         prefix = 'rcny'
     else:
         prefix = 'nycrr'
@@ -162,7 +162,7 @@ def get_sections_from_db(
             OR content ~* 'referred to as'
         )"""
     ]
-    params = [state.upper()]
+    params = [jurisdiction.upper()]
 
     if title:
         conditions.append(f"{prefix}_title = %s")
@@ -322,7 +322,7 @@ async def extract_with_llm_async(
     return [d.model_dump() for d in parsed.definitions]
 
 
-def store_to_database(regulations: List[Dict], state: str = "NY"):
+def store_to_database(regulations: List[Dict], jurisdiction: str = "NY"):
     """Store definitions in database from file-based regulations."""
     print(f"Storing results in database...")
     print(f"  Input: {len(regulations)} regulations")
@@ -355,7 +355,7 @@ def store_to_database(regulations: List[Dict], state: str = "NY"):
                     SELECT id FROM regulatory_documents
                     WHERE source_index = %s AND state = %s
                     LIMIT 1
-                """, (source_idx, state.upper())).fetchone()
+                """, (source_idx, jurisdiction.upper())).fetchone()
 
                 if not result:
                     print(f"    Warning: No document found for source_index {source_idx}")
@@ -454,7 +454,7 @@ def find_ancestor_at_level(conn, start_doc_id: int, target_level: str) -> Option
     return result[0] if result else None
 
 
-def infer_scope_level_from_phrase(conn=None, state: str = None, dry_run: bool = False) -> int:
+def infer_scope_level_from_phrase(conn=None, jurisdiction: str = None, dry_run: bool = False) -> int:
     """
     For definitions that have a scope phrase but no scope_level, infer scope_level
     from the phrase text using pattern matching.
@@ -464,7 +464,7 @@ def infer_scope_level_from_phrase(conn=None, state: str = None, dry_run: bool = 
 
     Args:
         conn: Optional database connection (will create one if not provided)
-        state: Optional state filter (e.g., 'NY', 'NJ', 'NYC')
+        jurisdiction: Optional jurisdiction filter (e.g., 'NY', 'NJ', 'NYC')
         dry_run: If True, show what would be updated without making changes
 
     Returns:
@@ -499,13 +499,13 @@ def infer_scope_level_from_phrase(conn=None, state: str = None, dry_run: bool = 
     # Query definitions with scope phrase but no scope_level and no scope_document_id
     state_filter = ""
     params = []
-    if state:
+    if jurisdiction:
         state_filter = """
             AND d.document_id IN (
                 SELECT id FROM regulatory_documents WHERE state = %s
             )
         """
-        params.append(state.upper())
+        params.append(jurisdiction.upper())
 
     definitions = conn.execute(f"""
         SELECT d.id, d.scope, d.document_id
@@ -672,7 +672,7 @@ def infer_scope_from_parent_section(doc_ids: List[int] = None, dry_run: bool = F
     return updated
 
 
-def infer_scope_from_any_section(state: str = None, dry_run: bool = False) -> int:
+def infer_scope_from_any_section(jurisdiction: str = None, dry_run: bool = False) -> int:
     """
     For definitions with null scope_level AND null scope in ANY section
     (not just definition-titled ones), infer scope by walking up the
@@ -684,7 +684,7 @@ def infer_scope_from_any_section(state: str = None, dry_run: bool = False) -> in
     inference, but covers ~4,700 otherwise-unlinked definitions.
 
     Args:
-        state: Optional state filter (e.g., 'NY', 'NJ', 'NYC')
+        jurisdiction: Optional jurisdiction filter (e.g., 'NY', 'NJ', 'NYC')
         dry_run: If True, show what would be updated without making changes
 
     Returns:
@@ -697,9 +697,9 @@ def infer_scope_from_any_section(state: str = None, dry_run: bool = False) -> in
 
     state_filter = ""
     params = []
-    if state:
+    if jurisdiction:
         state_filter = "AND section.state = %s"
-        params.append(state.upper())
+        params.append(jurisdiction.upper())
 
     base_cte = f"""
         WITH RECURSIVE ancestors AS (
@@ -746,7 +746,7 @@ def infer_scope_from_any_section(state: str = None, dry_run: bool = False) -> in
     count_query = base_cte + "SELECT COUNT(*) FROM first_different_ancestor"
     total = conn.execute(count_query, params).fetchone()[0]
 
-    state_label = f" ({state.upper()})" if state else ""
+    state_label = f" ({jurisdiction.upper()})" if jurisdiction else ""
     print(f"  Found {total} definitions in any section needing parent-based scope{state_label}")
 
     if total == 0:
@@ -1006,7 +1006,7 @@ def cmd_submit(args):
         print(f"      Limit: {args.limit}")
 
     sections = get_sections_from_db(
-        state=args.state,
+        jurisdiction=args.state,
         title=args.title,
         chapter=args.chapter,
         limit=args.limit,
@@ -1515,7 +1515,7 @@ def cmd_process(args):
     print("[4/8] Inferring scope_level from scope phrases...")
 
     try:
-        phrase_inferred = infer_scope_level_from_phrase(state=batch_info.get('state'), dry_run=False)
+        phrase_inferred = infer_scope_level_from_phrase(jurisdiction=batch_info.get('state'), dry_run=False)
         if phrase_inferred > 0:
             print(f"      Inferred scope_level for {phrase_inferred} definitions from scope phrase")
         else:
@@ -1539,7 +1539,7 @@ def cmd_process(args):
     print("[6/8] Inferring scope from parent hierarchy (all sections)...")
 
     try:
-        any_inferred = infer_scope_from_any_section(state=batch_info.get('state'), dry_run=False)
+        any_inferred = infer_scope_from_any_section(jurisdiction=batch_info.get('state'), dry_run=False)
         if any_inferred > 0:
             print(f"      Inferred scope for {any_inferred} definitions from parent hierarchy (all sections)")
         else:
@@ -1560,7 +1560,7 @@ def cmd_process(args):
 
     try:
         from link_definitions import link_new_definitions
-        link_count = link_new_definitions(state=batch_info.get('state'))
+        link_count = link_new_definitions(jurisdiction=batch_info.get('state'))
         print(f"      ✓ Created {link_count} term-document links")
     except Exception as e:
         print(f"      ⚠️  Could not run definition linking: {e}")
@@ -1736,7 +1736,7 @@ def cmd_resume(args):
 # Continue Command - Extract from remainder of truncated sections
 # ============================================================================
 
-def get_truncated_sections(state: str) -> List[Dict]:
+def get_truncated_sections(jurisdiction: str) -> List[Dict]:
     """Get sections with existing definitions that were truncated at 3000 chars.
 
     Returns sections where:
@@ -1761,7 +1761,7 @@ def get_truncated_sections(state: str) -> List[Dict]:
             WHERE rd.state = %s
               AND LENGTH(rd.content) > 3000
             ORDER BY LENGTH(rd.content) DESC
-        """, (state.upper(),))
+        """, (jurisdiction.upper(),))
 
         sections = []
         for row in cursor.fetchall():

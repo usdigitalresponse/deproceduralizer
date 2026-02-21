@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from scripts.compliance_issues.config import StateConfig, IssueTypeConfig
+from scripts.compliance_issues.config import JurisdictionConfig, IssueTypeConfig
 from scripts.compliance_issues.statute_checker import NoOpStatuteChecker
 
 
@@ -20,8 +20,8 @@ from scripts.compliance_issues.statute_checker import NoOpStatuteChecker
 @pytest.fixture
 def ny_state_config():
     """Minimal NY state config (no statute data)."""
-    return StateConfig(
-        state_code='NY',
+    return JurisdictionConfig(
+        jurisdiction_code='NY',
         citation_prefix='nycrr',
         statute_file=None,
         statute_pattern=None,

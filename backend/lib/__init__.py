@@ -46,7 +46,8 @@ from lib.batch import (
 )
 
 from lib.migration import (
-    get_state_config,
+    get_jurisdiction_config,
+    get_state_config,  # deprecated alias
     migrate_regulations_to_db,
     populate_parent_ids,
     cleanup_stale_documents,
@@ -85,7 +86,8 @@ __all__ = [
     "BatchManager",
     "parse_batch_result_tool_use",
     # migration
-    "get_state_config",
+    "get_jurisdiction_config",
+    "get_state_config",  # deprecated alias
     "migrate_regulations_to_db",
     "populate_parent_ids",
     "cleanup_stale_documents",

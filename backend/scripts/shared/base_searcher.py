@@ -20,7 +20,7 @@ from lib.llm import get_async_anthropic_client, call_llm_parse_async, DEFAULT_MO
 from lib.batch import format_batch_request, BatchManager, parse_batch_result_tool_use
 from config import OUTPUTS_DIR
 
-from scripts.compliance_issues.config import StateConfig, IssueTypeConfig
+from scripts.compliance_issues.config import JurisdictionConfig, IssueTypeConfig
 from scripts.compliance_issues.statute_checker import create_statute_checker
 
 
@@ -43,7 +43,7 @@ class BasePatternSearcher(ABC):
 
     def __init__(
         self,
-        state_config: StateConfig,
+        state_config: JurisdictionConfig,
         issue_config: IssueTypeConfig,
         with_statutes: bool = True,
         batches_subdir: str = 'batches',
@@ -53,7 +53,7 @@ class BasePatternSearcher(ABC):
         Initialize searcher.
 
         Args:
-            state_config: State configuration (NJ, NY, etc.)
+            state_config: Jurisdiction configuration (NJ, NY, etc.)
             issue_config: Issue type configuration with patterns and prompts
             with_statutes: Whether to enable statute lookup
             batches_subdir: Subdirectory for batch files

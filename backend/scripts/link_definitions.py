@@ -89,7 +89,7 @@ def term_appears_in_content(term: str, content: str, pattern_cache: Dict[str, re
 
 def get_definitions_to_process(
     conn,
-    state: Optional[str] = None,
+    jurisdiction: Optional[str] = None,
     definition_ids: Optional[List[int]] = None,
     force: bool = False,
 ) -> List[Dict]:
@@ -98,7 +98,7 @@ def get_definitions_to_process(
 
     Args:
         conn: Database connection
-        state: Filter by state (NY or NJ)
+        jurisdiction: Filter by jurisdiction (NJ, NY, or NYC)
         definition_ids: Specific definition IDs to process
         force: If True, reprocess even if already linked
 
@@ -112,7 +112,7 @@ def get_definitions_to_process(
         conditions.append("d.id = ANY(%s)")
         params.append(definition_ids)
 
-    if state:
+    if jurisdiction:
         # Filter by state using the document's state column via its regulatory_document
         conditions.append("""
             EXISTS (
@@ -120,7 +120,7 @@ def get_definitions_to_process(
                 WHERE rd.id = d.document_id AND rd.state = %s
             )
         """)
-        params.append(state.upper())
+        params.append(jurisdiction.upper())
 
     if not force:
         # Skip definitions that already have occurrences linked
@@ -161,7 +161,7 @@ def get_definitions_to_process(
     ]
 
 
-def get_all_definition_ids_for_term(conn, normalized_term: str, state: Optional[str] = None) -> List[int]:
+def get_all_definition_ids_for_term(conn, normalized_term: str, jurisdiction: Optional[str] = None) -> List[int]:
     """
     Get all definition IDs that share the same normalized term.
 
@@ -171,16 +171,16 @@ def get_all_definition_ids_for_term(conn, normalized_term: str, state: Optional[
     Args:
         conn: Database connection
         normalized_term: The normalized (lowercased, trimmed) term
-        state: Optional state filter (NY or NJ) - only return definitions from this state
+        jurisdiction: Optional jurisdiction filter (NJ, NY, or NYC) - only return definitions from this jurisdiction
     """
-    if state:
+    if jurisdiction:
         # Filter by state via the document's state
         query = """
             SELECT d.id FROM definitions d
             JOIN regulatory_documents r ON d.document_id = r.id
             WHERE d.normalized_term = %s AND r.state = %s
         """
-        params = (normalized_term, state.upper())
+        params = (normalized_term, jurisdiction.upper())
     else:
         query = "SELECT id FROM definitions WHERE normalized_term = %s"
         params = (normalized_term,)
@@ -190,7 +190,7 @@ def get_all_definition_ids_for_term(conn, normalized_term: str, state: Optional[
         return [row[0] for row in cur.fetchall()]
 
 
-def build_document_ancestry_map(conn, state: Optional[str] = None) -> Dict[int, Set[int]]:
+def build_document_ancestry_map(conn, jurisdiction: Optional[str] = None) -> Dict[int, Set[int]]:
     """
     Build a map of document_id -> set of ancestor document IDs (including self).
 
@@ -199,7 +199,7 @@ def build_document_ancestry_map(conn, state: Optional[str] = None) -> Dict[int, 
 
     Args:
         conn: Database connection
-        state: Filter by state (NY or NJ)
+        jurisdiction: Filter by jurisdiction (NJ, NY, or NYC)
 
     Returns:
         Dict mapping each document ID to its set of ancestor IDs (including self)
@@ -207,9 +207,9 @@ def build_document_ancestry_map(conn, state: Optional[str] = None) -> Dict[int, 
     conditions = ["hierarchy_level = 'section'"]
     params = []
 
-    if state:
+    if jurisdiction:
         conditions.append("state = %s")
-        params.append(state.upper())
+        params.append(jurisdiction.upper())
 
     where_clause = "WHERE " + " AND ".join(conditions)
 
@@ -243,7 +243,7 @@ def build_document_ancestry_map(conn, state: Optional[str] = None) -> Dict[int, 
 
 def build_scope_to_definitions_map(
     conn,
-    state: Optional[str] = None,
+    jurisdiction: Optional[str] = None,
     force: bool = False,
 ) -> Dict[Optional[int], List[Dict]]:
     """
@@ -251,7 +251,7 @@ def build_scope_to_definitions_map(
 
     Args:
         conn: Database connection
-        state: Filter by state (NY or NJ)
+        jurisdiction: Filter by jurisdiction (NJ, NY, or NYC)
         force: If True, include definitions that already have occurrences
 
     Returns:
@@ -260,14 +260,14 @@ def build_scope_to_definitions_map(
     conditions = []
     params = []
 
-    if state:
+    if jurisdiction:
         conditions.append("""
             EXISTS (
                 SELECT 1 FROM regulatory_documents rd
                 WHERE rd.id = d.document_id AND rd.state = %s
             )
         """)
-        params.append(state.upper())
+        params.append(jurisdiction.upper())
 
     if not force:
         conditions.append("""
@@ -350,7 +350,7 @@ def get_applicable_definitions(
 
 def get_document_ids_to_scan(
     conn,
-    state: Optional[str] = None,
+    jurisdiction: Optional[str] = None,
     document_ids: Optional[List[int]] = None,
 ) -> List[int]:
     """
@@ -361,7 +361,7 @@ def get_document_ids_to_scan(
 
     Args:
         conn: Database connection
-        state: Filter by state (NY or NJ)
+        jurisdiction: Filter by jurisdiction (NJ, NY, or NYC)
         document_ids: Specific document IDs to scan
 
     Returns:
@@ -374,9 +374,9 @@ def get_document_ids_to_scan(
         conditions.append("id = ANY(%s)")
         params.append(document_ids)
 
-    if state:
+    if jurisdiction:
         conditions.append("state = %s")
-        params.append(state.upper())
+        params.append(jurisdiction.upper())
 
     where_clause = "WHERE " + " AND ".join(conditions)
 
@@ -418,7 +418,7 @@ def get_document_batch(conn, doc_ids: List[int]) -> List[Dict]:
     return [{'id': row[0], 'content': row[1]} for row in rows]
 
 
-def get_processed_document_ids(conn, state: Optional[str] = None) -> Set[int]:
+def get_processed_document_ids(conn, jurisdiction: Optional[str] = None) -> Set[int]:
     """
     Get document IDs that already have definition occurrences linked.
 
@@ -426,7 +426,7 @@ def get_processed_document_ids(conn, state: Optional[str] = None) -> Set[int]:
 
     Args:
         conn: Database connection
-        state: Filter by state (optional)
+        jurisdiction: Filter by jurisdiction (optional)
 
     Returns:
         Set of document IDs that have been processed
@@ -436,14 +436,14 @@ def get_processed_document_ids(conn, state: Optional[str] = None) -> Set[int]:
         FROM definition_document_occurrences ddo
     """
 
-    if state:
+    if jurisdiction:
         query += """
             JOIN regulatory_documents rd ON ddo.document_id = rd.id
             WHERE rd.state = %s
         """
 
     with conn.cursor() as cur:
-        cur.execute(query, (state.upper(),) if state else None)
+        cur.execute(query, (jurisdiction.upper(),) if jurisdiction else None)
         return {row[0] for row in cur.fetchall()}
 
 
@@ -507,7 +507,7 @@ def clear_occurrences_for_definitions(conn, definition_ids: List[int]) -> int:
 # ============================================================================
 
 def link_definitions_to_documents(
-    state: Optional[str] = None,
+    jurisdiction: Optional[str] = None,
     definition_ids: Optional[List[int]] = None,
     force: bool = False,
     batch_size: int = 1000,
@@ -524,7 +524,7 @@ def link_definitions_to_documents(
     connection timeouts during long-running operations.
 
     Args:
-        state: Filter by state (NY or NJ)
+        jurisdiction: Filter by jurisdiction (NY, NJ, or NYC)
         definition_ids: Specific definition IDs to process
         force: If True, reprocess even if already linked
         batch_size: Number of occurrences to insert at a time
@@ -541,12 +541,12 @@ def link_definitions_to_documents(
     try:
         # Step 1: Build document ancestry map
         print("Building document ancestry map...")
-        doc_ancestry = build_document_ancestry_map(conn, state)
+        doc_ancestry = build_document_ancestry_map(conn, jurisdiction)
         print(f"  Built ancestry for {len(doc_ancestry)} documents")
 
         # Step 2: Build scope -> definitions map
         print("Building scope-to-definitions map...")
-        scope_to_defs = build_scope_to_definitions_map(conn, state, force)
+        scope_to_defs = build_scope_to_definitions_map(conn, jurisdiction, force)
         total_defs = sum(len(defs) for defs in scope_to_defs.values())
         print(f"  Found {total_defs} definitions across {len(scope_to_defs)} scopes")
 
@@ -556,7 +556,7 @@ def link_definitions_to_documents(
 
         # Step 3: Get document IDs to scan
         print("Fetching document IDs to scan...")
-        all_doc_ids = get_document_ids_to_scan(conn, state)
+        all_doc_ids = get_document_ids_to_scan(conn, jurisdiction)
         print(f"Found {len(all_doc_ids)} documents to scan")
 
         if not all_doc_ids:
@@ -566,7 +566,7 @@ def link_definitions_to_documents(
         # Step 3b: Skip already-processed documents (incremental mode)
         if not force:
             print("Checking for already-processed documents...")
-            processed_ids = get_processed_document_ids(conn, state)
+            processed_ids = get_processed_document_ids(conn, jurisdiction)
             if processed_ids:
                 original_count = len(all_doc_ids)
                 all_doc_ids = [d for d in all_doc_ids if d not in processed_ids]
@@ -596,8 +596,8 @@ def link_definitions_to_documents(
             for defn in defs:
                 normalized = defn['normalized_term']
                 if normalized not in term_to_def_ids:
-                    # Pass state to avoid cross-state linking
-                    term_to_def_ids[normalized] = get_all_definition_ids_for_term(conn, normalized, state)
+                    # Pass jurisdiction to avoid cross-jurisdiction linking
+                    term_to_def_ids[normalized] = get_all_definition_ids_for_term(conn, normalized, jurisdiction)
         print(f"  Mapped {len(term_to_def_ids)} unique terms")
 
     finally:
@@ -797,7 +797,7 @@ def clean_stale_links():
 
 def link_new_definitions(
     doc_ids: Optional[List[int]] = None,
-    state: Optional[str] = None,
+    jurisdiction: Optional[str] = None,
 ) -> int:
     """
     Link newly extracted definitions to documents.
@@ -806,14 +806,14 @@ def link_new_definitions(
 
     Args:
         doc_ids: Document IDs that were just processed (to scope the linking)
-        state: State filter (NY or NJ)
+        jurisdiction: Jurisdiction filter (NY, NJ, or NYC)
 
     Returns:
         Number of links created
     """
-    # For now, just run the full linking for the state
+    # For now, just run the full linking for the jurisdiction
     # Future optimization: only process definitions from the given doc_ids
-    return link_definitions_to_documents(state=state, force=False)
+    return link_definitions_to_documents(jurisdiction=jurisdiction, force=False)
 
 
 # ============================================================================
@@ -852,7 +852,7 @@ def main():
             definition_ids = [int(x.strip()) for x in args.definition_ids.split(',')]
 
         link_definitions_to_documents(
-            state=args.state,
+            jurisdiction=args.state,
             definition_ids=definition_ids,
             force=args.force,
             batch_size=args.batch_size,

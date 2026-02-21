@@ -40,19 +40,19 @@ def _make_analysis_output(classification: str = 'clean') -> AnalysisOutput:
 class TestDryRun:
     def test_dry_run_returns_section_count(self, mock_query):
         mock_query.return_value = _make_sections(5)
-        result = run_pipeline(state='ny', dry_run=True)
+        result = run_pipeline(jurisdiction='ny', dry_run=True)
         assert result['sections'] == 5
         assert result['dry_run'] is True
 
     def test_dry_run_does_not_call_batch(self, mock_query):
         mock_query.return_value = _make_sections(3)
         with patch('scripts.jenai_pipeline.pipeline_runner.run_batch_tier') as mock_bt:
-            run_pipeline(state='ny', dry_run=True)
+            run_pipeline(jurisdiction='ny', dry_run=True)
             mock_bt.assert_not_called()
 
     def test_no_sections_found(self, mock_query):
         mock_query.return_value = []
-        result = run_pipeline(state='ny', dry_run=True)
+        result = run_pipeline(jurisdiction='ny', dry_run=True)
         assert result['sections'] == 0
 
 
@@ -60,14 +60,14 @@ class TestDryRun:
 class TestPartPassthrough:
     def test_part_passed_to_query(self, mock_query):
         mock_query.return_value = []
-        run_pipeline(state='ny', title=18, part='414', dry_run=True)
+        run_pipeline(jurisdiction='ny', title=18, part='414', dry_run=True)
         call_kwargs = mock_query.call_args[1]
         assert call_kwargs['part'] == '414'
         assert call_kwargs['title'] == 18
 
     def test_no_part_by_default(self, mock_query):
         mock_query.return_value = []
-        run_pipeline(state='ny', dry_run=True)
+        run_pipeline(jurisdiction='ny', dry_run=True)
         call_kwargs = mock_query.call_args[1]
         assert call_kwargs['part'] is None
 
@@ -76,13 +76,13 @@ class TestPartPassthrough:
 class TestForcePassthrough:
     def test_force_disables_exclude_analyzed(self, mock_query):
         mock_query.return_value = []
-        run_pipeline(state='ny', force=True, dry_run=True)
+        run_pipeline(jurisdiction='ny', force=True, dry_run=True)
         call_kwargs = mock_query.call_args[1]
         assert call_kwargs['exclude_analyzed'] is False
 
     def test_default_excludes_analyzed(self, mock_query):
         mock_query.return_value = []
-        run_pipeline(state='ny', dry_run=True)
+        run_pipeline(jurisdiction='ny', dry_run=True)
         call_kwargs = mock_query.call_args[1]
         assert call_kwargs['exclude_analyzed'] is True
 
@@ -91,19 +91,19 @@ class TestForcePassthrough:
 class TestDocumentIdPassthrough:
     def test_document_ids_passed_to_query(self, mock_query):
         mock_query.return_value = []
-        run_pipeline(state='ny', document_ids=[81899], dry_run=True)
+        run_pipeline(jurisdiction='ny', document_ids=[81899], dry_run=True)
         call_kwargs = mock_query.call_args[1]
         assert call_kwargs['document_ids'] == [81899]
 
     def test_document_ids_disables_exclude_analyzed(self, mock_query):
         mock_query.return_value = []
-        run_pipeline(state='ny', document_ids=[81899], dry_run=True)
+        run_pipeline(jurisdiction='ny', document_ids=[81899], dry_run=True)
         call_kwargs = mock_query.call_args[1]
         assert call_kwargs['exclude_analyzed'] is False
 
     def test_no_document_ids_by_default(self, mock_query):
         mock_query.return_value = []
-        run_pipeline(state='ny', dry_run=True)
+        run_pipeline(jurisdiction='ny', dry_run=True)
         call_kwargs = mock_query.call_args[1]
         assert call_kwargs['document_ids'] is None
 
@@ -124,7 +124,7 @@ class TestRealtimeMode:
 
         with patch('scripts.jenai_pipeline.pipeline_runner.run_batch_tier') as mock_bt, \
              patch('scripts.jenai_pipeline.pipeline_runner.run_realtime_tier') as mock_rt:
-            run_pipeline(state='ny', dry_run=False, realtime=True)
+            run_pipeline(jurisdiction='ny', dry_run=False, realtime=True)
             mock_bt.assert_not_called()
             mock_rt.assert_called_once()
 
@@ -139,6 +139,6 @@ class TestRealtimeMode:
         with patch('scripts.jenai_pipeline.pipeline_runner.run_batch_tier') as mock_bt, \
              patch('scripts.jenai_pipeline.pipeline_runner.run_realtime_tier') as mock_rt:
             mock_bt.return_value = 'batch_123'
-            run_pipeline(state='ny', dry_run=False, realtime=False)
+            run_pipeline(jurisdiction='ny', dry_run=False, realtime=False)
             mock_bt.assert_called_once()
             mock_rt.assert_not_called()

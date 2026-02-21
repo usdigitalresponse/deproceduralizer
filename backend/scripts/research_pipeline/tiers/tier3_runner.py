@@ -378,7 +378,7 @@ async def run_tier3_realtime(
     client=None,
     cost_tracker=None,
     trace_context=None,
-    state: str = "NJ",
+    jurisdiction: str = "NJ",
     cache=None,
 ) -> list[TrackedUnit]:
     """
@@ -399,7 +399,7 @@ async def run_tier3_realtime(
         client: Optional Anthropic client (creates new if not provided)
         cost_tracker: Optional CostTracker for recording token usage
         trace_context: Optional Langfuse trace context for observability
-        state: Two-letter state code for localizing searches (default "NJ")
+        jurisdiction: Jurisdiction code for localizing searches (default "NJ")
 
     Returns:
         Processed units with tier3_output populated (or error_message set)
@@ -417,12 +417,12 @@ async def run_tier3_realtime(
         # See: https://github.com/anthropics/anthropic-sdk-python#long-requests
         client = anthropic.AsyncAnthropic(timeout=600.0)
 
-    # Get state-specific web search tool
-    web_search_tool = get_web_search_tool(state=state, max_uses=5)
+    # Get jurisdiction-specific web search tool
+    web_search_tool = get_web_search_tool(jurisdiction=jurisdiction, max_uses=5)
 
     # Verbose: Show configuration
     print(f"  Model: {TIER3_REALTIME_MODEL}")
-    print(f"  State location: {state} ({web_search_tool['user_location']['city']}, {web_search_tool['user_location']['region']})")
+    print(f"  State location: {jurisdiction} ({web_search_tool['user_location']['city']}, {web_search_tool['user_location']['region']})")
     print(f"  Langfuse tracing: {'ENABLED' if trace_context else 'disabled'}")
     print(f"  Cost tracking: {'ENABLED' if cost_tracker else 'disabled'}")
 
@@ -497,7 +497,7 @@ async def run_tier3_realtime(
 
             # Jurisdiction metadata for prompt contextualization
             from ..config import JURISDICTION_METADATA
-            jurisdiction = JURISDICTION_METADATA.get(state.upper(), JURISDICTION_METADATA["NJ"])
+            jurisdiction_meta = JURISDICTION_METADATA.get(jurisdiction.upper(), JURISDICTION_METADATA["NJ"])
 
             tier3_vars = {
                 # Tier 1 argument framing (initial perspectives)
@@ -528,13 +528,13 @@ async def run_tier3_realtime(
                 # Web search results will be populated by Claude during the call
                 "web_search_results": "(Claude will perform searches and analyze results)",
                 # Jurisdiction metadata for prompt contextualization
-                "state": state.upper(),
-                "jurisdiction_name": jurisdiction["jurisdiction_name"],
-                "jurisdiction_type": jurisdiction["jurisdiction_type"],
-                "jurisdiction_label": jurisdiction["jurisdiction_label"],
-                "peer_label": jurisdiction["peer_label"],
-                "executive_orders_label": jurisdiction["executive_orders_label"],
-                "laws_label": jurisdiction["laws_label"],
+                "state": jurisdiction.upper(),
+                "jurisdiction_name": jurisdiction_meta["jurisdiction_name"],
+                "jurisdiction_type": jurisdiction_meta["jurisdiction_type"],
+                "jurisdiction_label": jurisdiction_meta["jurisdiction_label"],
+                "peer_label": jurisdiction_meta["peer_label"],
+                "executive_orders_label": jurisdiction_meta["executive_orders_label"],
+                "laws_label": jurisdiction_meta["laws_label"],
             }
 
             prompt_parts = format_tier_prompt(
@@ -660,7 +660,7 @@ async def run_tier3_realtime(
 def prepare_tier3_batch(
     units: list[TrackedUnit],
     issue_configs: dict[str, IssueConfig],
-    state: str = "NJ",
+    jurisdiction: str = "NJ",
 ) -> list[dict]:
     """
     V5.2: Prepare batch requests for Tier 3 Web Search verification.
@@ -672,7 +672,7 @@ def prepare_tier3_batch(
     Args:
         units: Units requiring Tier 3 processing
         issue_configs: Dict mapping issue_type to IssueConfig
-        state: Two-letter state code for localizing searches (default "NJ")
+        jurisdiction: Jurisdiction code for localizing searches (default "NJ")
 
     Returns:
         List of batch request dicts formatted for BatchManager.submit_batch()
@@ -683,11 +683,11 @@ def prepare_tier3_batch(
     tier_configs = load_tier_configs()
     tier3_config = tier_configs['tier3']
 
-    # Get state-specific web search tool (same as real-time)
-    web_search_tool = get_web_search_tool(state=state, max_uses=5)
+    # Get jurisdiction-specific web search tool (same as real-time)
+    web_search_tool = get_web_search_tool(jurisdiction=jurisdiction, max_uses=5)
 
     print(f"  Preparing Tier 3 batch requests...")
-    print(f"  State location: {state} ({web_search_tool['user_location']['city']}, {web_search_tool['user_location']['region']})")
+    print(f"  State location: {jurisdiction} ({web_search_tool['user_location']['city']}, {web_search_tool['user_location']['region']})")
 
     requests = []
     skipped = 0
@@ -735,7 +735,7 @@ def prepare_tier3_batch(
         # Build tier3 variables (same as real-time)
         from ..routing import get_tier3_trigger_reason
         from ..config import JURISDICTION_METADATA
-        jurisdiction = JURISDICTION_METADATA.get(state.upper(), JURISDICTION_METADATA["NJ"])
+        jurisdiction_meta = JURISDICTION_METADATA.get(jurisdiction.upper(), JURISDICTION_METADATA["NJ"])
 
         tier3_vars = {
             # Tier 1 argument framing (initial perspectives)
@@ -766,13 +766,13 @@ def prepare_tier3_batch(
             # Web search results will be populated by Claude during the call
             "web_search_results": "(Claude will perform searches and analyze results)",
             # Jurisdiction metadata for prompt contextualization
-            "state": state.upper(),
-            "jurisdiction_name": jurisdiction["jurisdiction_name"],
-            "jurisdiction_type": jurisdiction["jurisdiction_type"],
-            "jurisdiction_label": jurisdiction["jurisdiction_label"],
-            "peer_label": jurisdiction["peer_label"],
-            "executive_orders_label": jurisdiction["executive_orders_label"],
-            "laws_label": jurisdiction["laws_label"],
+            "state": jurisdiction.upper(),
+            "jurisdiction_name": jurisdiction_meta["jurisdiction_name"],
+            "jurisdiction_type": jurisdiction_meta["jurisdiction_type"],
+            "jurisdiction_label": jurisdiction_meta["jurisdiction_label"],
+            "peer_label": jurisdiction_meta["peer_label"],
+            "executive_orders_label": jurisdiction_meta["executive_orders_label"],
+            "laws_label": jurisdiction_meta["laws_label"],
         }
 
         prompt_parts = format_tier_prompt(

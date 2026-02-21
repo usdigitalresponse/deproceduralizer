@@ -177,7 +177,7 @@ def main():
 
     # Create runner
     runner = SummarizationBatchRunner(
-        state=args.state,
+        jurisdiction=args.state,
         output_dir=args.output_dir,
         title=args.title,
     )

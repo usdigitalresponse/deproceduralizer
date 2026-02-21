@@ -79,9 +79,9 @@ BATCH_DISCOUNT = 0.5
 # State Locations for Web Search
 # =============================================================================
 
-# State location mapping - capitals for regulatory searches
+# Jurisdiction location mapping - capitals for regulatory searches
 # Used to localize web search results
-STATE_LOCATIONS = {
+JURISDICTION_LOCATIONS = {
     "NJ": {
         "city": "Trenton",
         "region": "New Jersey",
@@ -101,6 +101,9 @@ STATE_LOCATIONS = {
         "timezone": "America/New_York",
     },
 }
+
+# Backward-compatible alias
+STATE_LOCATIONS = JURISDICTION_LOCATIONS
 
 
 # =============================================================================

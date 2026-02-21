@@ -2,7 +2,7 @@
 Configuration for compliance issue detection.
 
 Loads issue type definitions from prompts/compliance_issues.yaml (single source of truth).
-Only state configurations are defined here in Python.
+Only jurisdiction configurations are defined here in Python.
 """
 
 import re
@@ -18,39 +18,48 @@ from .models import RESPONSE_MODELS, BaseComplianceAnalysis
 
 
 # =============================================================================
-# STATE CONFIGURATION
+# JURISDICTION CONFIGURATION
 # =============================================================================
 
 @dataclass
-class StateConfig:
+class JurisdictionConfig:
     """
-    Configuration for a state's regulations and optional statute data.
+    Configuration for a jurisdiction's regulations and optional statute data.
 
     Regulations are queried from the regulatory_documents table in the database.
 
     Attributes:
-        state_code: Jurisdiction code ('NJ', 'NY', or 'NYC')
+        jurisdiction_code: Jurisdiction code ('NJ', 'NY', or 'NYC')
         citation_prefix: Prefix for database fields ('njac', 'nycrr', or 'rcny')
         statute_file: Optional path to statute JSON file (local file for now)
         statute_pattern: Optional regex pattern for extracting statute citations
         statute_citation_prefix: Human-readable prefix for statute citations
     """
-    state_code: str
+    jurisdiction_code: str
     citation_prefix: str
-    # Statute configuration (optional - decoupled from state)
+    # Statute configuration (optional - decoupled from jurisdiction)
     statute_file: Optional[Path] = None
     statute_pattern: Optional[Pattern] = None
     statute_citation_prefix: Optional[str] = None
 
     def has_statute_data(self) -> bool:
-        """Check if statute data is available for this state."""
+        """Check if statute data is available for this jurisdiction."""
         return self.statute_file is not None and self.statute_file.exists()
 
+    # Backward-compat property
+    @property
+    def state_code(self) -> str:
+        return self.jurisdiction_code
 
-# State configurations
-STATES: dict[str, StateConfig] = {
-    'nj': StateConfig(
-        state_code='NJ',
+
+# Deprecated alias
+StateConfig = JurisdictionConfig
+
+
+# Jurisdiction configurations
+JURISDICTIONS: dict[str, JurisdictionConfig] = {
+    'nj': JurisdictionConfig(
+        jurisdiction_code='NJ',
         citation_prefix='njac',
         statute_file=DATA_DIR / 'nj_statutes_complete.json',
         statute_pattern=re.compile(
@@ -59,22 +68,25 @@ STATES: dict[str, StateConfig] = {
         ),
         statute_citation_prefix='N.J.S.A.',
     ),
-    'ny': StateConfig(
-        state_code='NY',
+    'ny': JurisdictionConfig(
+        jurisdiction_code='NY',
         citation_prefix='nycrr',
         # NY statute data can be added later
         statute_file=None,
         statute_pattern=None,
         statute_citation_prefix=None,
     ),
-    'nyc': StateConfig(
-        state_code='NYC',
+    'nyc': JurisdictionConfig(
+        jurisdiction_code='NYC',
         citation_prefix='rcny',
         statute_file=None,
         statute_pattern=None,
         statute_citation_prefix=None,
     ),
 }
+
+# Deprecated alias
+STATES = JURISDICTIONS
 
 
 # =============================================================================

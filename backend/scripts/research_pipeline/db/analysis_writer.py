@@ -174,7 +174,7 @@ def save_tier1_results(
                     """, (
                         unit.document_id,
                         unit.issue_type,
-                        unit.unit.state,
+                        unit.unit.jurisdiction,
                         len(unit.unit.matches),
                         dismissed_match_ids,
                         json.dumps(dismissed_reasons),
@@ -267,7 +267,7 @@ def save_tier1_results(
                 """, (
                     unit.document_id,
                     unit.issue_type,
-                    unit.unit.state,
+                    unit.unit.jurisdiction,
                     len(unit.unit.matches),
                     relevant_match_ids,
                     dismissed_match_ids,
