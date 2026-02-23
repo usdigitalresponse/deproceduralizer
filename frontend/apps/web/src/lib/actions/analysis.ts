@@ -271,6 +271,7 @@ export async function getRegexMatchesForAnalysis(
  */
 export async function exportAnalysisCsv(
   state: StateCode,
+  baseUrl: string,
   filters: AnalysisListFilters,
   sortBy?: string,
   sortOrder?: string,
@@ -293,6 +294,7 @@ export async function exportAnalysisCsv(
       'Severity',
       'Easy Fix Type',
       'Effort',
+      'Link',
     ];
 
     const csvRows = rows.map((row: AnalysisExportRow) => [
@@ -305,6 +307,7 @@ export async function exportAnalysisCsv(
       row.finalSeverity?.toString() ?? '',
       row.cleanupType ?? '',
       row.cleanupEffort ?? '',
+      `${baseUrl}/${state.toLowerCase()}/pipeline/${row.documentId}/${row.issueType}`,
     ]);
 
     return generateCsv(headers, csvRows);

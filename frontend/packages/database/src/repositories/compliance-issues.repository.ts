@@ -2395,6 +2395,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         finalSeverity: sql<number | null>`COALESCE(${complianceIssueAnalyses.finalSeverity}, ${complianceIssueAnalyses.severity})`,
         cleanupType: complianceIssueAnalyses.cleanupType,
         cleanupEffort: complianceIssueAnalyses.cleanupEffort,
+        documentId: complianceIssueAnalyses.documentId,
       })
       .from(complianceIssueAnalyses)
       .innerJoin(regulatoryDocuments, eq(complianceIssueAnalyses.documentId, regulatoryDocuments.id))
@@ -2424,6 +2425,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         finalSeverity: row.finalSeverity,
         cleanupType: row.cleanupType,
         cleanupEffort: row.cleanupEffort,
+        documentId: row.documentId,
       };
     });
   }
@@ -3084,6 +3086,7 @@ export interface AnalysisExportRow {
   finalSeverity: number | null;
   cleanupType: string | null;
   cleanupEffort: string | null;
+  documentId: number;
 }
 
 // ═══════════════════════════════════════════════════════════════════

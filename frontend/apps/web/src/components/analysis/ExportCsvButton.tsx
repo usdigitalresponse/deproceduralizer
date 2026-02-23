@@ -20,6 +20,7 @@ export function ExportCsvButton({ state }: ExportCsvButtonProps) {
     try {
       const result = await exportAnalysisCsv(
         state,
+        window.location.origin,
         {
           tierCompleted: filters.tierCompleted !== 'all' ? parseInt(filters.tierCompleted) : undefined,
           classification: filters.classification !== 'all' ? filters.classification : undefined,
