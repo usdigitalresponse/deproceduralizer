@@ -7,6 +7,7 @@ import { highlightTerm, highlightContext } from '@/lib/utils/highlight';
 import { TierProgressIndicator } from './TierProgressIndicator';
 import { EvidenceDisplay } from './EvidenceDisplay';
 import { OutcomeBadges } from './OutcomeBadges';
+import { DecisionRationale } from './DecisionRationale';
 import type { ContextEntry, TierAnalysis } from '@deproceduralizer/database';
 
 interface ComplianceIssueDisplayCardProps {
@@ -22,7 +23,9 @@ interface ComplianceIssueDisplayCardProps {
     isVerbatim: boolean | null;
     severity: number | null;
     originalSeverity?: number | null;
-    decisionRationale: string | null;
+    tier1Reasoning: string | null;
+    tier2Reasoning: string | null;
+    tier3Reasoning: string | null;
     statuteCitation: string | null;
     analysis?: TierAnalysis | null;
   };
@@ -82,7 +85,7 @@ export function ComplianceIssueDisplayCard({
       </div>
 
       {/* LLM Analysis - Primary content, always visible (matching review queue style) */}
-      {((issue.verbatimSupportingText && issue.verbatimSupportingText.length > 0) || issue.decisionRationale) && (
+      {((issue.verbatimSupportingText && issue.verbatimSupportingText.length > 0) || issue.tier1Reasoning || issue.tier2Reasoning || issue.tier3Reasoning) && (
         <div className="mb-4 p-4 bg-[var(--color-primary-bg)] rounded-[var(--radius-md)] border border-[var(--color-primary)]/20">
           <div className="flex items-center gap-2 mb-2">
             <span className="text-sm font-semibold text-[var(--color-primary)]">LLM Analysis</span>
@@ -109,13 +112,11 @@ export function ComplianceIssueDisplayCard({
             </div>
           )}
 
-          {/* Decision Rationale */}
-          {issue.decisionRationale && (
-            <div className="pt-3 border-t border-[var(--color-primary)]/10">
-              <span className="text-xs font-medium text-[var(--color-text-secondary)]">Decision Rationale:</span>
-              <p className="mt-1 text-sm text-[var(--color-text)]">{issue.decisionRationale}</p>
-            </div>
-          )}
+          <DecisionRationale
+            tier1Reasoning={issue.tier1Reasoning}
+            tier2Reasoning={issue.tier2Reasoning}
+            tier3Reasoning={issue.tier3Reasoning}
+          />
 
           {/* Statute Citation */}
           {issue.statuteCitation && (

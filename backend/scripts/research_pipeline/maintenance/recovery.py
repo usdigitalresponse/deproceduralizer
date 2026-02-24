@@ -107,7 +107,7 @@ async def retry_failed_tier3(
             cia.cites_federal_statute, cia.federal_citation,
             cia.claims_no_alternative, cia.potentially_controversial,
             cia.federal_mandate_suspected,
-            rd.citation, rd.title, rd.content, rd.state
+            rd.citation, rd.title, rd.content, rd.jurisdiction
         FROM compliance_issue_analyses cia
         JOIN regulatory_documents rd ON cia.document_id = rd.id
         WHERE cia.tier2_classification IN ('burdensome', 'justified')
@@ -116,7 +116,7 @@ async def retry_failed_tier3(
 
     params = []
     if jurisdiction:
-        query += " AND cia.state = %s"
+        query += " AND cia.jurisdiction = %s"
         params.append(jurisdiction)
 
     if issue_types:
@@ -396,7 +396,7 @@ async def rerun_placeholder_tier2(
             cia.tier1_classification, cia.tier1_confidence, cia.tier1_reasoning,
             cia.tier1_relevant_match_ids, cia.tier1_dismissed_match_ids,
             cia.tier1_argument_framing, cia.tier1_recommendations,
-            rd.citation, rd.title, rd.content, rd.state
+            rd.citation, rd.title, rd.content, rd.jurisdiction
         FROM compliance_issue_analyses cia
         JOIN regulatory_documents rd ON cia.document_id = rd.id
         WHERE cia.highest_tier_completed >= 2
@@ -407,7 +407,7 @@ async def rerun_placeholder_tier2(
 
     params = []
     if jurisdiction:
-        query += " AND cia.state = %s"
+        query += " AND cia.jurisdiction = %s"
         params.append(jurisdiction)
 
     if issue_types:

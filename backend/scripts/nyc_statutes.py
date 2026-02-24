@@ -669,8 +669,8 @@ def populate_nyc_parent_ids(records: Optional[list[dict]] = None) -> int:
             UPDATE statutes s
             SET parent_id = p.id
             FROM _parent_map m
-            JOIN statutes p ON p.state = 'NYC' AND p.citation = m.parent_citation
-            WHERE s.state = 'NYC' AND s.citation = m.child_citation
+            JOIN statutes p ON p.jurisdiction = 'NYC' AND p.citation = m.parent_citation
+            WHERE s.jurisdiction = 'NYC' AND s.citation = m.child_citation
               AND (s.parent_id IS NULL OR s.parent_id != p.id)
         """)
         total_updated = result.rowcount

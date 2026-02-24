@@ -56,7 +56,9 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
 
         {/* LLM Analysis */}
         <LLMAnalysisSection
-          decisionRationale={issue.decisionRationale}
+          tier1Reasoning={issue.tier1Reasoning}
+          tier2Reasoning={issue.tier2Reasoning}
+          tier3Reasoning={issue.tier3Reasoning}
           verbatimSupportingText={issue.verbatimSupportingText}
           isVerbatim={issue.isVerbatim}
           statuteCitation={issue.statuteCitation}

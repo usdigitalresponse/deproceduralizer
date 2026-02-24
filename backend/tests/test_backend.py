@@ -221,7 +221,7 @@ class TestExclusionFilter:
         cur = conn.cursor()
         cur.execute("""
             SELECT COUNT(*) FROM regulatory_documents
-            WHERE state = 'NY' AND exclude_from_analysis = TRUE
+            WHERE jurisdiction = 'NY' AND exclude_from_analysis = TRUE
         """)
         excluded_count = cur.fetchone()[0]
         cur.close()

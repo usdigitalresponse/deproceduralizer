@@ -76,7 +76,7 @@ class TestContextBuilderDB:
             cur.execute(
                 """
                 SELECT id FROM regulatory_documents
-                WHERE state = %s AND hierarchy_level = %s
+                WHERE jurisdiction = %s AND hierarchy_level = %s
                 LIMIT 10
                 """,
                 ["NJ", "section"],
@@ -186,7 +186,7 @@ class TestContextBuilderDB:
             cur.execute(
                 """
                 SELECT id FROM regulatory_documents
-                WHERE state = %s AND hierarchy_level = %s
+                WHERE jurisdiction = %s AND hierarchy_level = %s
                 LIMIT 100
                 """,
                 ["NJ", "section"],
@@ -2738,7 +2738,7 @@ class TestV5ProactiveContextDB:
             cur.execute(
                 """
                 SELECT id FROM regulatory_documents
-                WHERE state = %s AND hierarchy_level = %s
+                WHERE jurisdiction = %s AND hierarchy_level = %s
                 LIMIT 5
                 """,
                 ["NJ", "section"],
@@ -2813,7 +2813,7 @@ class TestV5ProactiveContextDB:
             cur.execute(
                 """
                 SELECT id FROM regulatory_documents
-                WHERE state = %s AND hierarchy_level = %s
+                WHERE jurisdiction = %s AND hierarchy_level = %s
                 LIMIT 50
                 """,
                 ["NJ", "section"],

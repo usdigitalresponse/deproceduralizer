@@ -117,7 +117,7 @@ def get_definitions_to_process(
         conditions.append("""
             EXISTS (
                 SELECT 1 FROM regulatory_documents rd
-                WHERE rd.id = d.document_id AND rd.state = %s
+                WHERE rd.id = d.document_id AND rd.jurisdiction = %s
             )
         """)
         params.append(jurisdiction.upper())
@@ -178,7 +178,7 @@ def get_all_definition_ids_for_term(conn, normalized_term: str, jurisdiction: Op
         query = """
             SELECT d.id FROM definitions d
             JOIN regulatory_documents r ON d.document_id = r.id
-            WHERE d.normalized_term = %s AND r.state = %s
+            WHERE d.normalized_term = %s AND r.jurisdiction = %s
         """
         params = (normalized_term, jurisdiction.upper())
     else:
@@ -264,7 +264,7 @@ def build_scope_to_definitions_map(
         conditions.append("""
             EXISTS (
                 SELECT 1 FROM regulatory_documents rd
-                WHERE rd.id = d.document_id AND rd.state = %s
+                WHERE rd.id = d.document_id AND rd.jurisdiction = %s
             )
         """)
         params.append(jurisdiction.upper())
@@ -439,7 +439,7 @@ def get_processed_document_ids(conn, jurisdiction: Optional[str] = None) -> Set[
     if jurisdiction:
         query += """
             JOIN regulatory_documents rd ON ddo.document_id = rd.id
-            WHERE rd.state = %s
+            WHERE rd.jurisdiction = %s
         """
 
     with conn.cursor() as cur:

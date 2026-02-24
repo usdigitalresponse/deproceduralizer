@@ -23,7 +23,9 @@ export interface SummaryContextProps {
 }
 
 export interface LLMAnalysisSectionProps {
-  decisionRationale: string | null;
+  tier1Reasoning: string | null;
+  tier2Reasoning: string | null;
+  tier3Reasoning: string | null;
   verbatimSupportingText: string[] | null;
   isVerbatim: boolean | null;
   statuteCitation: string | null;

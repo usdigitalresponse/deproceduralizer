@@ -35,7 +35,7 @@ def get_sections_for_analysis(
     prefix = 'njac' if jurisdiction.lower() == 'nj' else 'nycrr'
 
     conditions = [
-        "rd.state = %s",
+        "rd.jurisdiction = %s",
         "rd.hierarchy_level = 'section'",
         "(rd.exclude_from_analysis = FALSE OR rd.exclude_from_analysis IS NULL)",
         "rd.content IS NOT NULL",
@@ -74,7 +74,7 @@ def get_sections_for_analysis(
             rd.citation,
             rd.title,
             rd.content,
-            rd.state,
+            rd.jurisdiction,
             rd.summary,
             rd.url,
             rd.hierarchy_level,

@@ -1,13 +1,17 @@
 import { Badge } from '@/components/ui';
+import { DecisionRationale } from '@/components/issues/DecisionRationale';
 import type { LLMAnalysisSectionProps } from './types';
 
 export function LLMAnalysisSection({
-  decisionRationale,
+  tier1Reasoning,
+  tier2Reasoning,
+  tier3Reasoning,
   verbatimSupportingText,
   isVerbatim,
   statuteCitation,
 }: LLMAnalysisSectionProps) {
-  const hasContent = decisionRationale || (verbatimSupportingText && verbatimSupportingText.length > 0);
+  const hasRationale = tier1Reasoning || tier2Reasoning || tier3Reasoning;
+  const hasContent = hasRationale || (verbatimSupportingText && verbatimSupportingText.length > 0);
 
   if (!hasContent) {
     return null;
@@ -40,13 +44,11 @@ export function LLMAnalysisSection({
         </div>
       )}
 
-      {/* Decision Rationale */}
-      {decisionRationale && (
-        <div className="pt-3 border-t border-[var(--color-primary)]/10">
-          <span className="text-xs font-medium text-[var(--color-text-secondary)]">Decision Rationale:</span>
-          <p className="mt-1 text-sm text-[var(--color-text)]">{decisionRationale}</p>
-        </div>
-      )}
+      <DecisionRationale
+        tier1Reasoning={tier1Reasoning}
+        tier2Reasoning={tier2Reasoning}
+        tier3Reasoning={tier3Reasoning}
+      />
 
       {/* Statute Citation */}
       {statuteCitation && (

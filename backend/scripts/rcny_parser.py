@@ -592,10 +592,10 @@ def _fix_rcny_orphan_parents():
         UPDATE regulatory_documents c
         SET parent_id = t.id
         FROM regulatory_documents t
-        WHERE c.state = 'NYC' AND c.hierarchy_level = 'chapter'
+        WHERE c.jurisdiction = 'NYC' AND c.hierarchy_level = 'chapter'
           AND c.parent_id IS NULL
           AND c.title LIKE 'RCNY%'
-          AND t.state = 'NYC' AND t.hierarchy_level = 'title'
+          AND t.jurisdiction = 'NYC' AND t.hierarchy_level = 'title'
           AND t.rcny_title = c.rcny_title
           AND t.title LIKE 'RCNY%'
     """)
@@ -606,10 +606,10 @@ def _fix_rcny_orphan_parents():
         UPDATE regulatory_documents s
         SET parent_id = c.id
         FROM regulatory_documents c
-        WHERE s.state = 'NYC' AND s.hierarchy_level = 'section'
+        WHERE s.jurisdiction = 'NYC' AND s.hierarchy_level = 'section'
           AND s.parent_id IS NULL
           AND s.title LIKE 'RCNY%'
-          AND c.state = 'NYC' AND c.hierarchy_level = 'chapter'
+          AND c.jurisdiction = 'NYC' AND c.hierarchy_level = 'chapter'
           AND c.rcny_title = s.rcny_title
           AND s.rcny_section LIKE c.rcny_chapter || '-%'
           AND c.title LIKE 'RCNY%'
@@ -621,10 +621,10 @@ def _fix_rcny_orphan_parents():
         UPDATE regulatory_documents s
         SET parent_id = t.id
         FROM regulatory_documents t
-        WHERE s.state = 'NYC' AND s.hierarchy_level = 'section'
+        WHERE s.jurisdiction = 'NYC' AND s.hierarchy_level = 'section'
           AND s.parent_id IS NULL
           AND s.title LIKE 'RCNY%'
-          AND t.state = 'NYC' AND t.hierarchy_level = 'title'
+          AND t.jurisdiction = 'NYC' AND t.hierarchy_level = 'title'
           AND t.rcny_title = s.rcny_title
           AND t.title LIKE 'RCNY%'
     """)

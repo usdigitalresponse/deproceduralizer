@@ -92,7 +92,7 @@ def _fetch_mandate_check_candidates(
                 JOIN statutes s ON rsl.statute_id = s.id
                 LEFT JOIN statute_mandate_checks smc
                     ON smc.analysis_id = cia.id AND smc.statute_id = s.id
-                WHERE cia.state = %s
+                WHERE cia.jurisdiction = %s
                   AND COALESCE(cia.tier3_classification, cia.tier2_classification)
                       IN ('burdensome', 'justified')
                   AND rsl.match_status = 'matched'

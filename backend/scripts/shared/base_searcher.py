@@ -137,7 +137,7 @@ class BasePatternSearcher(ABC):
                        rd.{prefix}_title, rd.{prefix}_chapter, rd.{prefix}_section, rd.source_index
                 FROM regulatory_documents rd
                 {tag_join}
-                WHERE rd.state = %s
+                WHERE rd.jurisdiction = %s
                   AND rd.content IS NOT NULL
                   AND (rd.exclude_from_analysis = FALSE OR rd.exclude_from_analysis IS NULL)
                 ORDER BY rd.id

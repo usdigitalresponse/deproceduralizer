@@ -498,7 +498,7 @@ def create_regulation_statute_links() -> dict:
             WHERE id IN (
                 SELECT l.id FROM regulation_statute_links l
                 JOIN regulatory_documents rd ON rd.id = l.regulation_id
-                WHERE rd.state = 'NJ' AND (
+                WHERE rd.jurisdiction = 'NJ' AND (
                     l.context ~* '(?:court rule|rules of court|R\\.\\s*N\\.J\\.S\\.A\\.|R\\.N\\.J\\.S\\.A\\.)'
                     OR l.context ~* 'recodified\\s+(?:to|from)\\s+N\\.J\\.S\\.A\\.'
                 )
@@ -936,9 +936,9 @@ def populate_parent_ids() -> int:
             UPDATE statutes s
             SET parent_id = c.id
             FROM statutes c
-            WHERE s.state = 'NJ'
+            WHERE s.jurisdiction = 'NJ'
               AND s.hierarchy_level = 'section'
-              AND c.state = 'NJ'
+              AND c.jurisdiction = 'NJ'
               AND c.hierarchy_level = 'chapter'
               AND c.citation = CONCAT(s.njsa_title, ':', s.njsa_chapter)
               AND (s.parent_id IS NULL OR s.parent_id != c.id)
@@ -954,9 +954,9 @@ def populate_parent_ids() -> int:
             UPDATE statutes s
             SET parent_id = t.id
             FROM statutes t
-            WHERE s.state = 'NJ'
+            WHERE s.jurisdiction = 'NJ'
               AND s.hierarchy_level = 'chapter'
-              AND t.state = 'NJ'
+              AND t.jurisdiction = 'NJ'
               AND t.hierarchy_level = 'title'
               AND t.citation = CONCAT('title:', s.njsa_title)
               AND (s.parent_id IS NULL OR s.parent_id != t.id)

@@ -29,7 +29,9 @@ export interface ComplianceIssueWithAnalysisFields extends ComplianceIssue {
   isVerbatim: boolean | null;
   requiredByStatute: boolean | null;
   statuteCitation: string | null;
-  decisionRationale: string | null;
+  tier1Reasoning: string | null;
+  tier2Reasoning: string | null;
+  tier3Reasoning: string | null;
   // Review fields (from analyses, aliased for frontend compat)
   severity: number | null;
   originalSeverity: number | null;
@@ -74,7 +76,9 @@ export interface ComplianceIssueWithContext extends ComplianceIssue {
   isVerbatim: boolean | null;
   requiredByStatute: boolean | null;
   statuteCitation: string | null;
-  decisionRationale: string | null;
+  tier1Reasoning: string | null;
+  tier2Reasoning: string | null;
+  tier3Reasoning: string | null;
   // Review fields (PR 6.3: moved to analyses, aliased for frontend compat)
   severity: number | null;
   originalSeverity: number | null;
@@ -336,7 +340,9 @@ const issueListSelectColumns = {
   severity: complianceIssueAnalyses.reviewerSeverity,
   occurrenceNumber: complianceIssues.occurrenceNumber,
   statuteCitation: complianceIssueAnalyses.federalCitation,
-  decisionRationale: complianceIssueAnalyses.tier1Reasoning,
+  tier1Reasoning: complianceIssueAnalyses.tier1Reasoning,
+  tier2Reasoning: complianceIssueAnalyses.tier2Reasoning,
+  tier3Reasoning: complianceIssueAnalyses.tier3Reasoning,
   // Review fields — PR 6.3: from analyses
   reviewStatus: complianceIssueAnalyses.reviewStatus,
   reviewedBy: complianceIssueAnalyses.reviewedBy,
@@ -409,7 +415,9 @@ function mapRowToIssue(
     severity: number | null;
     occurrenceNumber: number;
     statuteCitation: string | null;
-    decisionRationale: string | null;
+    tier1Reasoning: string | null;
+    tier2Reasoning: string | null;
+    tier3Reasoning: string | null;
     reviewStatus: string | null;
     reviewedBy: string | null;
     reviewedAt: Date | null;
@@ -499,7 +507,9 @@ function mapRowToIssue(
     severity: row.severity,
     occurrenceNumber: row.occurrenceNumber,
     statuteCitation: row.statuteCitation ?? null,
-    decisionRationale: row.decisionRationale ?? null,
+    tier1Reasoning: row.tier1Reasoning ?? null,
+    tier2Reasoning: row.tier2Reasoning ?? null,
+    tier3Reasoning: row.tier3Reasoning ?? null,
     reviewStatus: row.reviewStatus,
     reviewedBy: row.reviewedBy,
     reviewedAt: row.reviewedAt,
@@ -952,7 +962,9 @@ export class ComplianceIssuesRepository extends BaseRepository {
         isVerbatim: complianceIssueAnalyses.isVerbatim,
         requiredByStatute: complianceIssueAnalyses.citesFederalStatute,
         statuteCitation: complianceIssueAnalyses.federalCitation,
-        decisionRationale: complianceIssueAnalyses.tier1Reasoning,
+        tier1Reasoning: complianceIssueAnalyses.tier1Reasoning,
+        tier2Reasoning: complianceIssueAnalyses.tier2Reasoning,
+        tier3Reasoning: complianceIssueAnalyses.tier3Reasoning,
         // Review/developer fields (PR 6.3: from analyses)
         severity: complianceIssueAnalyses.reviewerSeverity,
         originalSeverity: complianceIssueAnalyses.reviewerOriginalSeverity,
@@ -987,7 +999,9 @@ export class ComplianceIssuesRepository extends BaseRepository {
       isVerbatim: row.isVerbatim ?? null,
       requiredByStatute: row.requiredByStatute ?? false,
       statuteCitation: row.statuteCitation ?? null,
-      decisionRationale: row.decisionRationale ?? null,
+      tier1Reasoning: row.tier1Reasoning ?? null,
+      tier2Reasoning: row.tier2Reasoning ?? null,
+      tier3Reasoning: row.tier3Reasoning ?? null,
     }));
   }
 

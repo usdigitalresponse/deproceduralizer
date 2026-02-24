@@ -684,8 +684,8 @@ def populate_ny_parent_ids(records: Optional[List[Dict]] = None) -> int:
                 UPDATE statutes s
                 SET parent_id = p.id
                 FROM _parent_map m
-                JOIN statutes p ON p.state = 'NY' AND p.citation = m.parent_citation
-                WHERE s.state = 'NY' AND s.citation = m.child_citation
+                JOIN statutes p ON p.jurisdiction = 'NY' AND p.citation = m.parent_citation
+                WHERE s.jurisdiction = 'NY' AND s.citation = m.child_citation
                   AND (s.parent_id IS NULL OR s.parent_id != p.id)
             """)
             total_updated = result.rowcount
@@ -705,9 +705,9 @@ def populate_ny_parent_ids(records: Optional[List[Dict]] = None) -> int:
                 UPDATE statutes s
                 SET parent_id = p.id
                 FROM statutes p
-                WHERE s.state = 'NY'
+                WHERE s.jurisdiction = 'NY'
                   AND s.hierarchy_level = 'section'
-                  AND p.state = 'NY'
+                  AND p.jurisdiction = 'NY'
                   AND p.hierarchy_level = 'law'
                   AND p.citation = CONCAT('law:', s.nycls_law_id)
                   AND (s.parent_id IS NULL OR s.parent_id != p.id)

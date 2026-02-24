@@ -2,6 +2,7 @@ import { Badge, Tag } from '@/components/ui';
 import { ISSUE_TYPE_LABELS, formatLabel } from '@/types/regulation';
 import { formatStateCitation } from '@/lib/formatters/citations';
 import { OutcomeBadges } from '@/components/issues/OutcomeBadges';
+import { DecisionRationale } from '@/components/issues/DecisionRationale';
 import { HierarchyBreadcrumbsInline, RegulationTextViewer } from '../../shared';
 import type { ComplianceIssueContentProps } from '../types';
 
@@ -46,7 +47,7 @@ export function ComplianceIssueContent({ item, state }: ComplianceIssueContentPr
       </div>
 
       {/* LLM Analysis box */}
-      {(issue.decisionRationale || (issue.verbatimSupportingText && issue.verbatimSupportingText.length > 0)) && (
+      {(issue.tier1Reasoning || issue.tier2Reasoning || issue.tier3Reasoning || (issue.verbatimSupportingText && issue.verbatimSupportingText.length > 0)) && (
         <div className="mb-4 p-4 bg-[var(--color-primary-bg)] rounded-[var(--radius-md)] border border-[var(--color-primary)]/20">
           <div className="flex items-center gap-2 mb-2">
             <span className="text-sm font-semibold text-[var(--color-primary)]">LLM Analysis</span>
@@ -73,13 +74,11 @@ export function ComplianceIssueContent({ item, state }: ComplianceIssueContentPr
             </div>
           )}
 
-          {/* Decision Rationale */}
-          {issue.decisionRationale && (
-            <div className="pt-3 border-t border-[var(--color-primary)]/10">
-              <span className="text-xs font-medium text-[var(--color-text-secondary)]">Decision Rationale:</span>
-              <p className="mt-1 text-sm text-[var(--color-text)]">{issue.decisionRationale}</p>
-            </div>
-          )}
+          <DecisionRationale
+            tier1Reasoning={issue.tier1Reasoning}
+            tier2Reasoning={issue.tier2Reasoning}
+            tier3Reasoning={issue.tier3Reasoning}
+          />
 
           {/* Statute Citation */}
           {issue.statuteCitation && (

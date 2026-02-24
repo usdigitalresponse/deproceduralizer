@@ -49,7 +49,7 @@ def infer_scope_from_parent(dry_run: bool = False, state: str = None, limit: int
     state_filter = ""
     params = []
     if state:
-        state_filter = "AND section.state = %s"
+        state_filter = "AND section.jurisdiction = %s"
         params.append(state.upper())
         print(f"State filter: {state.upper()}")
         print()
