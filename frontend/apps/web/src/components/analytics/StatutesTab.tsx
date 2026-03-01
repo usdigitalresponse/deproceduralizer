@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import { Scale, Link2, FileText, Building2 } from 'lucide-react';
 import type { StatuteLinkStats } from '@deproceduralizer/database';
-import type { StateCode } from '@/types/state';
+import type { JurisdictionCode } from '@/types/state';
 import { StatCard, StatGrid } from '@/components/ui';
 import { ClientChart, ChartContainer, HorizontalBarChart, PieChart, ChartLegend } from '@/components/charts';
 import { useChartColors } from '@/hooks/useChartColors';
@@ -12,7 +12,7 @@ import type { BarChartDatum, PieChartDatum } from '@/lib/charts/types';
 
 interface StatutesTabProps {
   stats: StatuteLinkStats | null;
-  state: StateCode;
+  jurisdiction: JurisdictionCode;
 }
 
 /** Color mapping for match statuses */
@@ -31,7 +31,7 @@ function formatMatchStatus(status: string): string {
   return MATCH_STATUS_LABELS[status] || status.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
 }
 
-export function StatutesTab({ stats, state }: StatutesTabProps) {
+export function StatutesTab({ stats, jurisdiction }: StatutesTabProps) {
   const colors = useChartColors();
 
   // Convert link type data to bar chart format
@@ -82,7 +82,7 @@ export function StatutesTab({ stats, state }: StatutesTabProps) {
           label="Total Statutes"
           value={stats.totalStatutes.toLocaleString()}
           icon={Scale}
-          subtitle={`${state.toUpperCase()} statute corpus`}
+          subtitle={`${jurisdiction.toUpperCase()} statute corpus`}
         />
         <StatCard
           label="Linked Statutes"

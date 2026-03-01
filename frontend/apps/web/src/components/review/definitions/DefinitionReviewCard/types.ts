@@ -1,11 +1,11 @@
-import type { DefinitionWithContext, DefinitionOriginalValues, StateCode } from '@deproceduralizer/database';
+import type { DefinitionWithContext, DefinitionOriginalValues, JurisdictionCode } from '@deproceduralizer/database';
 
 export interface DefinitionReviewCardProps {
   definition: DefinitionWithContext;
   onUpdated: (updatedDefinition: DefinitionWithContext) => void;
   onReviewComplete?: (definitionId: number, status: 'confirmed' | 'corrected' | 'false_positive') => void;
   onViewRegulation: (regulationId: number) => void;
-  state: StateCode;
+  jurisdiction: JurisdictionCode;
   isFocused?: boolean;
   isSelected?: boolean;
   onSelectionChange?: (id: number, selected: boolean) => void;
@@ -32,7 +32,7 @@ export interface DefinitionFormData {
 export interface HeaderProps {
   definition: DefinitionWithContext;
   citation: string;
-  state: StateCode;
+  jurisdiction: JurisdictionCode;
   isSelected: boolean;
   onSelectionChange?: (id: number, selected: boolean) => void;
 }
@@ -43,14 +43,14 @@ export interface SummaryContextProps {
 
 export interface OriginalColumnProps {
   definition: DefinitionWithContext;
-  state: StateCode;
+  jurisdiction: JurisdictionCode;
   formData: Pick<DefinitionFormData, 'isVerbatimTextComplete'>;
   getOriginalValue: <K extends keyof DefinitionOriginalValues>(key: K) => unknown;
 }
 
 export interface EditableColumnProps {
   definition: DefinitionWithContext;
-  state: StateCode;
+  jurisdiction: JurisdictionCode;
   formData: DefinitionFormData;
   setFormData: React.Dispatch<React.SetStateAction<DefinitionFormData>>;
   wasChanged: (key: keyof DefinitionOriginalValues) => boolean;

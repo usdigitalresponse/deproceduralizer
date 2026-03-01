@@ -8,7 +8,7 @@ import DataTable from '@/components/DataTable';
 import DetailModal from '@/components/DetailModal';
 import { Button, SearchInput, FullTextSearchLink } from '@/components/ui';
 import { RegulationCardGrid, ViewToggle, FacetedFilters } from '@/components/regulations';
-import { useStateFromPath, useResponsive } from '@/hooks';
+import { useJurisdictionFromPath, useResponsive } from '@/hooks';
 import {
   searchParser,
   pageParser,
@@ -41,7 +41,7 @@ interface RegulationsClientProps {
 
 export default function RegulationsClient({ initialData, pagination, search, filters }: RegulationsClientProps) {
   const router = useRouter();
-  const state = useStateFromPath();
+  const jurisdiction = useJurisdictionFromPath();
   const [isPending, startTransition] = useTransition();
   const [selectedRegulationId, setSelectedRegulationId] = useState<number | null>(null);
 
@@ -123,8 +123,8 @@ export default function RegulationsClient({ initialData, pagination, search, fil
 
   // Clear all filters - navigate to state's root table view
   const clearFilters = useCallback(() => {
-    router.push(`/${state}`);
-  }, [router, state]);
+    router.push(`/${jurisdiction}`);
+  }, [router, jurisdiction]);
 
   // Faceted filter handlers
   const handleSeverityChange = useCallback((values: string[]) => {
@@ -225,7 +225,7 @@ export default function RegulationsClient({ initialData, pagination, search, fil
           placeholder="Filter by title..."
           isLoading={isPending}
         />
-        <FullTextSearchLink query={search} state={state} />
+        <FullTextSearchLink query={search} state={jurisdiction} />
         <div className="flex items-center gap-4">
           {/* Mobile filter toggle (only in cards mode) */}
           {viewMode === 'cards' && isMobile && (

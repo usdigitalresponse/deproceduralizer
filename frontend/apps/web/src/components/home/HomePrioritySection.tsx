@@ -1,22 +1,22 @@
 'use client';
 
-import type { StateCode, AnalysisListItem } from '@deproceduralizer/database';
+import type { JurisdictionCode, AnalysisListItem } from '@deproceduralizer/database';
 import { PriorityPicksBanner } from '@/components/analysis/PriorityPicksBanner';
-import { STATE_CONFIG } from '@/types/state';
+import { JURISDICTION_CONFIG } from '@/types/state';
 
-interface StatePriorityData {
-  state: StateCode;
+interface JurisdictionPriorityData {
+  jurisdiction: JurisdictionCode;
   items: AnalysisListItem[];
   totalQuickWins: number;
   isQuickWinMode: boolean;
 }
 
 interface HomePrioritySectionProps {
-  statePriorities: StatePriorityData[];
+  jurisdictionPriorities: JurisdictionPriorityData[];
 }
 
-export function HomePrioritySection({ statePriorities }: HomePrioritySectionProps) {
-  const nonEmpty = statePriorities.filter((sp) => sp.items.length > 0);
+export function HomePrioritySection({ jurisdictionPriorities }: HomePrioritySectionProps) {
+  const nonEmpty = jurisdictionPriorities.filter((sp) => sp.items.length > 0);
 
   if (nonEmpty.length === 0) {
     return null;
@@ -25,18 +25,18 @@ export function HomePrioritySection({ statePriorities }: HomePrioritySectionProp
   return (
     <div className="space-y-4">
       {nonEmpty.map((sp) => (
-        <div key={sp.state}>
+        <div key={sp.jurisdiction}>
           {nonEmpty.length > 1 && (
             <h3 className="text-sm font-medium text-[var(--color-text-muted)] mb-2">
-              {STATE_CONFIG[sp.state].name}
+              {JURISDICTION_CONFIG[sp.jurisdiction].name}
             </h3>
           )}
           <PriorityPicksBanner
-            state={sp.state}
+            jurisdiction={sp.jurisdiction}
             items={sp.items}
             totalQuickWins={sp.totalQuickWins}
             isQuickWinMode={sp.isQuickWinMode}
-            viewAllHref={`/${sp.state}/pipeline?severity=high&easyCleanup=any&page=1`}
+            viewAllHref={`/${sp.jurisdiction}/pipeline?severity=high&easyCleanup=any&page=1`}
           />
         </div>
       ))}

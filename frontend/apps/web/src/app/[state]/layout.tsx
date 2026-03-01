@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { isValidState, type StateCode } from '@/types/state';
+import { isValidJurisdiction, type JurisdictionCode } from '@/types/state';
 import { StateContextBar } from '@/components/layout/StateContextBar';
 
 interface StateLayoutProps {
@@ -15,13 +15,13 @@ export default async function StateLayout({ children, params }: StateLayoutProps
   const { state } = await params;
 
   // Validate state parameter
-  if (!isValidState(state)) {
+  if (!isValidJurisdiction(state)) {
     notFound();
   }
 
   return (
     <>
-      <StateContextBar state={state as StateCode} />
+      <StateContextBar jurisdiction={state as JurisdictionCode} />
       {children}
     </>
   );

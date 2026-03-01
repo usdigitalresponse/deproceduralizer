@@ -3,7 +3,7 @@ import { getBookmarks, getBookmarkCounts } from '@/lib/actions/bookmarks';
 import { BookmarksContent } from '@/components/bookmarks/BookmarksContent';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Container } from '@/components/layout/Container';
-import { STATE_CONFIG, isValidState } from '@/types/state';
+import { JURISDICTION_CONFIG, isValidJurisdiction } from '@/types/state';
 
 interface BookmarksPageProps {
   params: Promise<{ state: string }>;
@@ -12,12 +12,12 @@ interface BookmarksPageProps {
 export default async function BookmarksPage({ params }: BookmarksPageProps) {
   const { state } = await params;
 
-  if (!isValidState(state)) {
+  if (!isValidJurisdiction(state)) {
     notFound();
   }
 
   const stateCode = state;
-  const stateConfig = STATE_CONFIG[state];
+  const stateConfig = JURISDICTION_CONFIG[state];
 
   // Fetch bookmarks and counts
   const [bookmarksResult, countsResult] = await Promise.all([
@@ -38,7 +38,7 @@ export default async function BookmarksPage({ params }: BookmarksPageProps) {
         <BookmarksContent
           bookmarks={bookmarks}
           counts={counts}
-          state={stateCode}
+          jurisdiction={stateCode}
         />
       </Container>
     </div>

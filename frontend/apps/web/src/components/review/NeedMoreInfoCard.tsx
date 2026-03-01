@@ -94,7 +94,7 @@ export const NeedMoreInfoCard = forwardRef<HTMLDivElement, NeedMoreInfoCardProps
 
       if (item.type === 'compliance_issue' && item.complianceIssueData) {
         const issue = item.complianceIssueData;
-        const issueCitation = formatStateCitation(issue.state || state, issue.regulation);
+        const issueCitation = formatStateCitation(issue.jurisdiction || state, issue.regulation);
 
         return (
           <div className="text-sm">

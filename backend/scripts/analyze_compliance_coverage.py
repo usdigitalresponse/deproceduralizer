@@ -43,7 +43,7 @@ def analyze_state(state_key: str):
         return None
 
     rows = conn.execute(
-        "SELECT id, content FROM regulatory_documents WHERE state = %s AND content IS NOT NULL",
+        "SELECT id, content FROM regulatory_documents WHERE jurisdiction = %s AND content IS NOT NULL",
         (state_config.state_code,)
     ).fetchall()
     conn.close()

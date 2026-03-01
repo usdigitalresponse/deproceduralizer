@@ -12,7 +12,7 @@ import {
   DEVELOPER_STATUSES,
   RESOLUTION_TYPES,
   DEVELOPERS,
-  type StateCode,
+  type JurisdictionCode,
   type RedFlag,
   type ComplianceIssueWithAnalysisFields,
   type RedFlagWithContext,
@@ -177,7 +177,7 @@ export async function clearEntryForReview(
  * Get combined developer status counts from both tables
  */
 export async function getCombinedDeveloperStatusCounts(
-  state: StateCode
+  state: JurisdictionCode
 ): Promise<ActionResult<CombinedDeveloperStatusCounts>> {
   return runAction('getCombinedDeveloperStatusCounts', async () => {
     const [flagCounts, issueCounts] = await Promise.all([
@@ -200,7 +200,7 @@ export async function getCombinedDeveloperStatusCounts(
  * Get combined reviewed items from both tables for developer mode
  */
 export async function getCombinedReviewedItems(
-  state: StateCode,
+  state: JurisdictionCode,
   options: {
     page: number;
     pageSize: number;
@@ -216,7 +216,7 @@ export async function getCombinedReviewedItems(
     // Fetch from both repositories
     const [flagsResult, issuesResult] = await Promise.all([
       redFlagsRepo.getReviewedPaginated({
-        state,
+        jurisdiction: state,
         page: 1,
         pageSize: 1000, // Get all for merging
         developerStatus: developerStatus as DeveloperStatus | 'all' | undefined,
@@ -225,7 +225,7 @@ export async function getCombinedReviewedItems(
         sortOrder,
       }),
       complianceIssuesRepo.getReviewedPaginated({
-        state,
+        jurisdiction: state,
         page: 1,
         pageSize: 1000, // Get all for merging
         developerStatus: developerStatus as DeveloperStatus | 'all' | undefined,
@@ -316,7 +316,7 @@ export async function getCombinedReviewedItems(
  * Get items needing more info from both tables
  */
 export async function getNeedMoreInfoItems(
-  state: StateCode,
+  state: JurisdictionCode,
   options: {
     page: number;
     pageSize: number;
@@ -409,7 +409,7 @@ export async function getNeedMoreInfoItems(
  * Get counts of items needing more info
  */
 export async function getNeedMoreInfoCounts(
-  state: StateCode
+  state: JurisdictionCode
 ): Promise<ActionResult<NeedMoreInfoCounts>> {
   return runAction('getNeedMoreInfoCounts', async () => {
     const [flagCounts, issueCounts] = await Promise.all([
@@ -440,7 +440,7 @@ interface DeveloperStatusCounts {
  * Get separate developer status counts for red flags
  */
 export async function getRedFlagDeveloperStatusCounts(
-  state: StateCode
+  state: JurisdictionCode
 ): Promise<ActionResult<DeveloperStatusCounts>> {
   return runAction('getRedFlagDeveloperStatusCounts', () => redFlagsRepo.getDeveloperStatusCounts(state));
 }
@@ -449,7 +449,7 @@ export async function getRedFlagDeveloperStatusCounts(
  * Get separate developer status counts for compliance issues
  */
 export async function getComplianceIssueDeveloperStatusCounts(
-  state: StateCode
+  state: JurisdictionCode
 ): Promise<ActionResult<DeveloperStatusCounts>> {
   return runAction('getComplianceIssueDeveloperStatusCounts', () => complianceIssuesRepo.getDeveloperStatusCounts(state));
 }
@@ -486,7 +486,7 @@ export interface ComplianceDeveloperQueueParams {
  * Get paginated red flags for developer mode with full filtering support
  */
 export async function getRedFlagDeveloperItems(
-  state: StateCode,
+  state: JurisdictionCode,
   params: RedFlagDeveloperQueueParams
 ): Promise<ActionResult<{ data: RedFlagWithContext[]; total: number; page: number; pageSize: number; totalPages: number }>> {
   return runAction('getRedFlagDeveloperItems', () => {
@@ -511,7 +511,7 @@ export async function getRedFlagDeveloperItems(
     }
 
     return redFlagsRepo.getReviewedPaginated({
-      state,
+      jurisdiction: state,
       page,
       pageSize,
       developerStatus: developerStatus as DeveloperStatus | 'all' | undefined,
@@ -527,7 +527,7 @@ export async function getRedFlagDeveloperItems(
  * Get paginated compliance issues for developer mode with full filtering support
  */
 export async function getComplianceIssueDeveloperItems(
-  state: StateCode,
+  state: JurisdictionCode,
   params: ComplianceDeveloperQueueParams
 ): Promise<ActionResult<{ data: ComplianceIssueWithAnalysis[]; total: number; page: number; pageSize: number; totalPages: number }>> {
   return runAction('getComplianceIssueDeveloperItems', () => {
@@ -552,7 +552,7 @@ export async function getComplianceIssueDeveloperItems(
     }
 
     return complianceIssuesRepo.getReviewedPaginated({
-      state,
+      jurisdiction: state,
       page,
       pageSize,
       developerStatus: developerStatus as DeveloperStatus | 'all' | undefined,

@@ -34,8 +34,8 @@ import {
   parseTierFilter,
   getReviewPageConfig,
 } from '@/lib/url/filter-helpers';
-import type { StateCode, RedFlagFilterOptions } from '@deproceduralizer/database';
-import { isValidState, STATE_CONFIG } from '@/types/state';
+import type { JurisdictionCode, RedFlagFilterOptions } from '@deproceduralizer/database';
+import { isValidJurisdiction, JURISDICTION_CONFIG } from '@/types/state';
 import type { ReviewType, ReviewMode } from '@/types/regulation';
 import type { GroupingModeValue } from '@/lib/constants/values';
 import { getComplianceSuggestionBatch } from '@/lib/actions/compliance-issues';
@@ -73,7 +73,7 @@ type ReviewPageQueryParams = {
 
 /** Common context passed to every tab loader */
 interface TabLoaderContext {
-  stateCode: StateCode;
+  stateCode: JurisdictionCode;
   page: number;
   pageSize: number;
   sortOrder: 'asc' | 'desc';
@@ -103,12 +103,12 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
   const { state } = await params;
   const queryParams = await searchParams;
 
-  if (!isValidState(state)) {
+  if (!isValidJurisdiction(state)) {
     notFound();
   }
 
-  const stateCode = state as StateCode;
-  const stateConfig = STATE_CONFIG[stateCode];
+  const stateCode = state as JurisdictionCode;
+  const stateConfig = JURISDICTION_CONFIG[stateCode];
   const mode = (queryParams.mode || 'review') as ReviewMode;
   const reviewType = (queryParams.type || 'flags') as ReviewType;
 
@@ -224,7 +224,7 @@ async function loadDeveloperDefinitionsTab(
 ) {
   return (
     <ReviewPageLayout pageConfig={ctx.pageConfig} mode="developer" reviewType="definitions" tabCounts={tabCounts}>
-      <DefinitionsDeveloperQueue state={ctx.stateCode} />
+      <DefinitionsDeveloperQueue jurisdiction={ctx.stateCode} />
     </ReviewPageLayout>
   );
 }
@@ -266,7 +266,7 @@ async function loadDeveloperJenAITab(
 ) {
   return (
     <ReviewPageLayout pageConfig={ctx.pageConfig} mode="developer" reviewType="jenai" tabCounts={tabCounts}>
-      <JenAIQueue state={ctx.stateCode} mode="developer" />
+      <JenAIQueue jurisdiction={ctx.stateCode} mode="developer" />
     </ReviewPageLayout>
   );
 }
@@ -404,7 +404,7 @@ async function loadReviewDefinitionsTab(
 ) {
   return (
     <ReviewPageLayout pageConfig={ctx.pageConfig} mode="review" reviewType="definitions" tabCounts={tabCounts}>
-      <DefinitionsReviewQueue state={ctx.stateCode} />
+      <DefinitionsReviewQueue jurisdiction={ctx.stateCode} />
     </ReviewPageLayout>
   );
 }
@@ -446,7 +446,7 @@ async function loadReviewJenAITab(
 ) {
   return (
     <ReviewPageLayout pageConfig={ctx.pageConfig} mode="review" reviewType="jenai" tabCounts={tabCounts}>
-      <JenAIQueue state={ctx.stateCode} mode="review" />
+      <JenAIQueue jurisdiction={ctx.stateCode} mode="review" />
     </ReviewPageLayout>
   );
 }
@@ -595,7 +595,7 @@ async function loadReviewRedFlagsTab(
 ) {
   const errorControls: ErrorControls = { mode: 'review', reviewType: 'flags', tabCounts };
   const sortBy = (ctx.queryParams.sortBy || 'severity') as 'severity' | 'category' | 'reviewedAt';
-  const filters: Omit<RedFlagFilterOptions, 'state'> = {
+  const filters: Omit<RedFlagFilterOptions, 'jurisdiction'> = {
     status: ctx.queryParams.reviewStatus === 'all' ? 'all' : (ctx.queryParams.reviewStatus as RedFlagFilterOptions['status']),
     severity: ctx.queryParams.severity as 'high' | 'medium' | 'low' | undefined,
     category: ctx.queryParams.category || undefined,

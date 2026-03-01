@@ -72,7 +72,7 @@ export function ComplianceDeveloperQueue({
     items,
     counts,
     selectedRegulationId,
-    state,
+    jurisdiction: state,
     setSelectedRegulationId,
     handleViewRegulation,
     handleItemUpdated,

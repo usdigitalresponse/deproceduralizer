@@ -18,7 +18,7 @@ interface AncestorNode {
   njacTitle: string | null;
   njacChapter: string | null;
   njacSubchapter: string | null;
-  state: string | null;
+  jurisdiction: string | null;
 }
 
 interface DocumentContext {

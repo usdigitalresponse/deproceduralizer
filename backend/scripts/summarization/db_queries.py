@@ -63,7 +63,7 @@ def get_documents_by_level(
     conditions = [
         "content IS NOT NULL",
         "content <> ''",
-        "state = %s",
+        "jurisdiction = %s",
         "hierarchy_level = %s",
     ]
     params: list = [jurisdiction.upper(), level]
@@ -81,7 +81,7 @@ def get_documents_by_level(
             title,
             content,
             hierarchy_level,
-            state,
+            jurisdiction,
             citation,
             short_title,
             parent_id
@@ -115,7 +115,7 @@ def get_children(parent_id: int) -> list[dict]:
             title,
             content,
             hierarchy_level,
-            state,
+            jurisdiction,
             citation,
             short_title,
             parent_id
@@ -149,7 +149,7 @@ def get_parent(child_id: int) -> Optional[dict]:
             p.title,
             p.content,
             p.hierarchy_level,
-            p.state,
+            p.jurisdiction,
             p.citation,
             p.short_title,
             p.parent_id
@@ -311,7 +311,7 @@ def get_hierarchy_levels(jurisdiction: str, title: Optional[str] = None) -> list
     conditions = [
         "content IS NOT NULL",
         "content <> ''",
-        "state = %s",
+        "jurisdiction = %s",
         "hierarchy_level IS NOT NULL",
         "hierarchy_level <> ''",
     ]
@@ -355,7 +355,7 @@ def get_document_counts_by_level(
     conditions = [
         "content IS NOT NULL",
         "content <> ''",
-        "state = %s",
+        "jurisdiction = %s",
         "hierarchy_level IS NOT NULL",
     ]
     params: list = [jurisdiction.upper()]
@@ -428,7 +428,7 @@ def get_documents_without_children(
     conditions = [
         "d.content IS NOT NULL",
         "d.content <> ''",
-        "d.state = %s",
+        "d.jurisdiction = %s",
         "d.hierarchy_level = %s",
     ]
     params: list = [jurisdiction.upper(), level]
@@ -446,7 +446,7 @@ def get_documents_without_children(
             d.title,
             d.content,
             d.hierarchy_level,
-            d.state,
+            d.jurisdiction,
             d.citation,
             d.short_title,
             d.parent_id
@@ -539,7 +539,7 @@ def get_all_titles(jurisdiction: str) -> list[str]:
     query = f"""
         SELECT DISTINCT {title_col}
         FROM regulatory_documents
-        WHERE state = %s
+        WHERE jurisdiction = %s
           AND {title_col} IS NOT NULL
           AND content IS NOT NULL
           AND content <> ''

@@ -1,26 +1,26 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import { type StateCode, DEFAULT_STATE } from '@/types/state';
+import { type JurisdictionCode, DEFAULT_JURISDICTION } from '@/types/state';
 
 /**
- * Extract state code from the current URL pathname
+ * Extract jurisdiction code from the current URL pathname
  * e.g., /ny/browse -> 'ny', /nj/review -> 'nj'
  *
- * @param defaultState - Fallback state if none found in path (default: DEFAULT_STATE)
- * @returns The state code from the URL path
+ * @param defaultJurisdiction - Fallback jurisdiction if none found in path (default: DEFAULT_JURISDICTION)
+ * @returns The jurisdiction code from the URL path
  */
-export function useStateFromPath(defaultState: StateCode = DEFAULT_STATE): StateCode {
+export function useJurisdictionFromPath(defaultJurisdiction: JurisdictionCode = DEFAULT_JURISDICTION): JurisdictionCode {
   const pathname = usePathname();
   const match = pathname.match(/^\/(nyc|ny|nj)/);
-  return (match?.[1] as StateCode) || defaultState;
+  return (match?.[1] as JurisdictionCode) || defaultJurisdiction;
 }
 
 /**
  * Pure function version for non-hook contexts
  * Useful when you already have the pathname from usePathname()
  */
-export function getStateFromPathname(pathname: string, defaultState: StateCode = DEFAULT_STATE): StateCode {
+export function getJurisdictionFromPathname(pathname: string, defaultJurisdiction: JurisdictionCode = DEFAULT_JURISDICTION): JurisdictionCode {
   const match = pathname.match(/^\/(nyc|ny|nj)/);
-  return (match?.[1] as StateCode) || defaultState;
+  return (match?.[1] as JurisdictionCode) || defaultJurisdiction;
 }

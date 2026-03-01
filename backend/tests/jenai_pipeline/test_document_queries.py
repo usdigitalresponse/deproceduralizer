@@ -16,7 +16,7 @@ def mock_db():
     mock_conn.cursor.return_value.__enter__ = MagicMock(return_value=mock_cursor)
     mock_conn.cursor.return_value.__exit__ = MagicMock(return_value=False)
     mock_cursor.description = [
-        ('id',), ('citation',), ('title',), ('content',), ('state',),
+        ('id',), ('citation',), ('title',), ('content',), ('jurisdiction',),
         ('summary',), ('url',), ('hierarchy_level',), ('parent_id',),
     ]
     mock_cursor.fetchall.return_value = []

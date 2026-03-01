@@ -17,7 +17,7 @@ export interface CreateNoteInput {
   noteType: NoteType;
   content: string;
   authorName?: string;
-  state: string;
+  jurisdiction: string;
   anchorStartOffset?: number;
   anchorEndOffset?: number;
   anchorText?: string;
@@ -37,14 +37,14 @@ export async function createNote(
       noteType: input.noteType,
       content: input.content,
       authorName: input.authorName,
-      state: input.state,
+      jurisdiction: input.jurisdiction,
       anchorStartOffset: input.anchorStartOffset,
       anchorEndOffset: input.anchorEndOffset,
       anchorText: input.anchorText,
     });
 
     // Targeted invalidation: only regulation detail pages need updating after note changes
-    revalidatePath(`/${input.state}/regulations`, 'page');
+    revalidatePath(`/${input.jurisdiction}/regulations`, 'page');
     return success(note);
   } catch (error) {
     console.error('[createNote]', error);

@@ -1,25 +1,25 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeState } from '@deproceduralizer/database/schema';
+import { normalizeJurisdiction } from '@deproceduralizer/database/schema';
 
-describe('normalizeState', () => {
-  it('converts lowercase state codes to uppercase', () => {
-    expect(normalizeState('ny')).toBe('NY');
-    expect(normalizeState('nj')).toBe('NJ');
-    expect(normalizeState('nyc')).toBe('NYC');
+describe('normalizeJurisdiction', () => {
+  it('converts lowercase jurisdiction codes to uppercase', () => {
+    expect(normalizeJurisdiction('ny')).toBe('NY');
+    expect(normalizeJurisdiction('nj')).toBe('NJ');
+    expect(normalizeJurisdiction('nyc')).toBe('NYC');
   });
 
-  it('preserves already-uppercase state codes', () => {
-    expect(normalizeState('NY')).toBe('NY');
-    expect(normalizeState('NJ')).toBe('NJ');
-    expect(normalizeState('NYC')).toBe('NYC');
+  it('preserves already-uppercase jurisdiction codes', () => {
+    expect(normalizeJurisdiction('NY')).toBe('NY');
+    expect(normalizeJurisdiction('NJ')).toBe('NJ');
+    expect(normalizeJurisdiction('NYC')).toBe('NYC');
   });
 
   it('handles mixed-case input', () => {
-    expect(normalizeState('Ny')).toBe('NY');
-    expect(normalizeState('nYc')).toBe('NYC');
+    expect(normalizeJurisdiction('Ny')).toBe('NY');
+    expect(normalizeJurisdiction('nYc')).toBe('NYC');
   });
 
   it('handles empty string', () => {
-    expect(normalizeState('')).toBe('');
+    expect(normalizeJurisdiction('')).toBe('');
   });
 });

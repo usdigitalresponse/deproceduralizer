@@ -513,7 +513,7 @@ def _check_summarization_completeness(jurisdiction: str, title: str) -> float | 
                     COUNT(*) as total,
                     COUNT(summary) as summarized
                 FROM regulatory_documents
-                WHERE state = %s AND {col} = %s AND hierarchy_level = 'section'
+                WHERE jurisdiction = %s AND {col} = %s AND hierarchy_level = 'section'
             """, (jurisdiction.upper(), title))
             row = cur.fetchone()
             if not row or row[0] == 0:

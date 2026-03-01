@@ -29,7 +29,7 @@ export function DeveloperQueue({
     items,
     counts,
     selectedRegulationId,
-    state,
+    jurisdiction: state,
     setSelectedRegulationId,
     handleViewRegulation,
     handleItemUpdated,

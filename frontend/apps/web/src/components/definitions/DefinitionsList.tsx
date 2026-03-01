@@ -8,7 +8,7 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import type { ApplicableDefinition } from '@deproceduralizer/database';
-import { DEFAULT_STATE } from '@/types/state';
+import { DEFAULT_JURISDICTION } from '@/types/state';
 import { formatStateCitation } from '@/lib/formatters';
 
 /**
@@ -55,7 +55,7 @@ export function DefinitionsList({
   definitions,
   definedHereIds,
   currentDocumentId,
-  state = DEFAULT_STATE,
+  state = DEFAULT_JURISDICTION,
   collapsible = true,
   initialCollapsed = false,
   title = 'Definitions',

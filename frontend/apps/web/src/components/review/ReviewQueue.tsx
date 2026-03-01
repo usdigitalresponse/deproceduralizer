@@ -39,7 +39,7 @@ export function ReviewQueue({
     items: flags,
     counts,
     selectedRegulationId,
-    state,
+    jurisdiction: state,
     setSelectedRegulationId,
     handleViewRegulation,
     handleItemUpdated: handleFlagUpdated,

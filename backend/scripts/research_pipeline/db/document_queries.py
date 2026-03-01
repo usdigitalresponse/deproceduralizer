@@ -98,7 +98,7 @@ def _build_processing_unit(
         title=meta["title"],
         matches=match_infos,
         content=content,
-        jurisdiction=meta["state"],
+        jurisdiction=meta["jurisdiction"],
     )
 
 
@@ -173,7 +173,7 @@ class ProcessingUnitBuilder:
         params = [issue_type]
 
         if jurisdiction:
-            state_filter = "AND rd.state = %s"
+            state_filter = "AND rd.jurisdiction = %s"
             params.append(jurisdiction)
             if title:
                 title_filter = f"AND rd.{_title_col(jurisdiction)} = %s"
@@ -195,7 +195,7 @@ class ProcessingUnitBuilder:
                     rd.citation,
                     rd.title,
                     rd.content,
-                    rd.state
+                    rd.jurisdiction
                 FROM compliance_issues ci
                 JOIN regulatory_documents rd ON ci.document_id = rd.id
                 WHERE ci.issue_type = %s
@@ -218,7 +218,7 @@ class ProcessingUnitBuilder:
                 rd.citation,
                 rd.title,
                 rd.content,
-                rd.state,
+                rd.jurisdiction,
                 ci.regex_match_pattern,
                 ci.regex_match_context
             FROM compliance_issues ci
@@ -255,7 +255,7 @@ class ProcessingUnitBuilder:
                         "citation": row[2] or "",
                         "title": row[3] or "",
                         "content": row[4] or "",
-                        "state": row[5] or "",
+                        "jurisdiction": row[5] or "",
                     }
 
             # Build ProcessingUnits using shared helper
@@ -315,7 +315,7 @@ class ProcessingUnitBuilder:
         params: list = [issue_type]  # First WHERE clause
 
         if jurisdiction:
-            state_filter = "AND rd.state = %s"
+            state_filter = "AND rd.jurisdiction = %s"
             params.append(jurisdiction)
             if title:
                 title_filter = f"AND rd.{_title_col(jurisdiction)} = %s"
@@ -339,7 +339,7 @@ class ProcessingUnitBuilder:
                     rd.citation,
                     rd.title,
                     rd.content,
-                    rd.state
+                    rd.jurisdiction
                 FROM compliance_issues ci
                 JOIN regulatory_documents rd ON ci.document_id = rd.id
                 WHERE ci.issue_type = %s
@@ -371,7 +371,7 @@ class ProcessingUnitBuilder:
                 rd.citation,
                 rd.title,
                 rd.content,
-                rd.state,
+                rd.jurisdiction,
                 ci.regex_match_pattern,
                 ci.regex_match_context
             FROM compliance_issues ci
@@ -408,7 +408,7 @@ class ProcessingUnitBuilder:
                         "citation": row[2] or "",
                         "title": row[3] or "",
                         "content": row[4] or "",
-                        "state": row[5] or "",
+                        "jurisdiction": row[5] or "",
                     }
 
             # Build ProcessingUnits
@@ -638,11 +638,11 @@ class ProcessingUnitBuilder:
                 cia.cites_federal_statute, cia.federal_citation,
                 cia.claims_no_alternative, cia.needs_web_search, cia.web_search_topics,
                 cia.potentially_controversial, cia.federal_mandate_suspected,
-                rd.citation, rd.title, rd.content, rd.state
+                rd.citation, rd.title, rd.content, rd.jurisdiction
             FROM compliance_issue_analyses cia
             JOIN regulatory_documents rd ON cia.document_id = rd.id
             WHERE cia.highest_tier_completed = 2
-              AND cia.state = %s
+              AND cia.jurisdiction = %s
               AND cia.issue_type = %s
               AND cia.tier2_classification IN ('burdensome', 'justified')
             ORDER BY cia.document_id
@@ -807,7 +807,7 @@ class ProcessingUnitBuilder:
         title_col = None
 
         if jurisdiction:
-            state_filter = "rd.state = %s AND"
+            state_filter = "rd.jurisdiction = %s AND"
             params.append(jurisdiction)
             if title:
                 title_filter = f"AND rd.{_title_col(jurisdiction)} = %s"
@@ -830,7 +830,7 @@ class ProcessingUnitBuilder:
                     rd.citation,
                     rd.title,
                     rd.content,
-                    rd.state,
+                    rd.jurisdiction,
                     ci.regex_match_pattern,
                     ci.regex_match_context,
                     ROW_NUMBER() OVER (
@@ -881,7 +881,7 @@ class ProcessingUnitBuilder:
                 citation,
                 title,
                 content,
-                state,
+                jurisdiction,
                 regex_match_pattern,
                 regex_match_context
             FROM issue_docs
@@ -929,7 +929,7 @@ class ProcessingUnitBuilder:
                         "citation": row[3] or "",
                         "title": row[4] or "",
                         "content": row[5] or "",
-                        "state": row[6] or "",
+                        "jurisdiction": row[6] or "",
                     }
 
             # Build ProcessingUnits using shared helper
@@ -1003,11 +1003,11 @@ class ProcessingUnitBuilder:
         params.append(limit)
 
         query = f"""
-            SELECT cia.document_id, cia.issue_type, rd.citation, rd.title, rd.content, rd.state
+            SELECT cia.document_id, cia.issue_type, rd.citation, rd.title, rd.content, rd.jurisdiction
             FROM compliance_issue_analyses cia
             JOIN regulatory_documents rd ON cia.document_id = rd.id
             WHERE cia.pipeline_version = %s
-              AND cia.state = %s
+              AND cia.jurisdiction = %s
               {issue_filter}
             ORDER BY cia.document_id
             LIMIT %s
@@ -1112,7 +1112,7 @@ def get_issue_types_for_scope(
         params = []
 
         if jurisdiction:
-            state_filter = "WHERE rd.state = %s"
+            state_filter = "WHERE rd.jurisdiction = %s"
             params.append(jurisdiction)
             if title:
                 title_filter = f"AND rd.{_title_col(jurisdiction)} = %s"

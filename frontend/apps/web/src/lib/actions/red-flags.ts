@@ -9,7 +9,7 @@ import {
   IMPACT_TYPES,
   type ReviewStatus,
   type ImpactType,
-  type StateCode,
+  type JurisdictionCode,
   type RedFlag,
   type PaginatedRedFlagsResult,
 } from '@deproceduralizer/database';
@@ -95,7 +95,7 @@ export async function getRedFlagById(
  * @returns Array of unique category names
  */
 export async function getRedFlagCategories(
-  state: StateCode
+  state: JurisdictionCode
 ): Promise<ActionResult<string[]>> {
   return runCachedAction(
     'getRedFlagCategories',
@@ -123,7 +123,7 @@ export interface ReviewStatusCounts {
  * @returns Object with counts per status and total
  */
 export async function getRedFlagStatusCounts(
-  state: StateCode
+  state: JurisdictionCode
 ): Promise<ActionResult<ReviewStatusCounts>> {
   return runCachedAction(
     'getRedFlagStatusCounts',
@@ -140,7 +140,7 @@ export async function getRedFlagStatusCounts(
  * @returns Paginated result with red flags and metadata
  */
 export async function getRedFlagsPaginated(
-  state: StateCode,
+  state: JurisdictionCode,
   options: {
     page: number;
     pageSize: number;
@@ -155,7 +155,7 @@ export async function getRedFlagsPaginated(
 ): Promise<ActionResult<PaginatedRedFlagsResult>> {
   return runAction('getRedFlagsPaginated', () =>
     redFlagsRepo.getAllPaginated({
-      state,
+      jurisdiction: state,
       ...options,
       filters: options.filters ? {
         status: options.filters.status as ReviewStatus | 'all' | undefined,

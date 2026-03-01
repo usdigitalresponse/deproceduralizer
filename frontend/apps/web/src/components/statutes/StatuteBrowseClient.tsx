@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import type { StatuteHierarchyNode, StateCode } from '@deproceduralizer/database';
+import type { StatuteHierarchyNode, JurisdictionCode } from '@deproceduralizer/database';
 import { getStatuteHierarchyChildren, searchStatutes } from '@/lib/actions/statutes';
 import { Card } from '@/components/ui/Card';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerBody, DrawerClose } from '@/components/ui';
@@ -25,12 +25,12 @@ function parseExpandedIds(param: string | null): Set<number> {
 }
 
 interface StatuteBrowseClientProps {
-  state: StateCode;
+  jurisdiction: JurisdictionCode;
   initialRoots: StatuteHierarchyNode[];
 }
 
 export function StatuteBrowseClient({
-  state,
+  jurisdiction,
   initialRoots,
 }: StatuteBrowseClientProps) {
   // Responsive state
@@ -164,7 +164,7 @@ export function StatuteBrowseClient({
 
     const performSearch = async () => {
       try {
-        const result = await searchStatutes(state.toUpperCase(), debouncedSearch, 50);
+        const result = await searchStatutes(jurisdiction.toUpperCase(), debouncedSearch, 50);
         if (result.success) {
           setSearchResults(result.data);
         } else {
@@ -178,7 +178,7 @@ export function StatuteBrowseClient({
     };
 
     performSearch();
-  }, [debouncedSearch, state]);
+  }, [debouncedSearch, jurisdiction]);
 
   // Handle node expansion
   const handleToggleExpand = useCallback(async (id: number) => {
@@ -282,7 +282,7 @@ export function StatuteBrowseClient({
               <DrawerBody className="flex-1 p-0">
                 <StatuteDetailPanel
                   statuteId={selectedId}
-                  state={state}
+                  state={jurisdiction}
                   onNavigate={handleSelect}
                   fullScreen
                 />
@@ -293,7 +293,7 @@ export function StatuteBrowseClient({
           <div className="flex-1 min-w-0">
             <StatuteDetailPanel
               statuteId={selectedId}
-              state={state}
+              state={jurisdiction}
               onNavigate={handleSelect}
             />
           </div>

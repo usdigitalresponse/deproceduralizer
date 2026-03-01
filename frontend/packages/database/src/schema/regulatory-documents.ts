@@ -14,7 +14,7 @@ export const regulatoryDocuments = pgTable('regulatory_documents', {
   id: bigserial('id', { mode: 'number' }).primaryKey(),
   sourceIndex: integer('source_index'),
   type: varchar('type', { length: 50 }).notNull(),
-  state: varchar('state', { length: 3 }),
+  jurisdiction: varchar('jurisdiction', { length: 3 }),
   title: text('title').notNull(),
   url: text('url'),
   urlType: varchar('url_type', { length: 50 }),
@@ -115,7 +115,7 @@ export const regulatoryDocuments = pgTable('regulatory_documents', {
   hasForm: boolean('has_form').default(false),
   hasIbr: boolean('has_ibr').default(false),
 }, (table) => ({
-  uniqueStateSourceType: unique().on(table.state, table.sourceIndex, table.type),
+  uniqueJurisdictionSourceType: unique().on(table.jurisdiction, table.sourceIndex, table.type),
 }));
 
 export type RegulatoryDocument = typeof regulatoryDocuments.$inferSelect;

@@ -15,7 +15,7 @@ def _make_sections(n: int) -> list[dict]:
             'citation': f'18 NYCRR 414.{i}',
             'title': f'Test Section {i}',
             'content': 'x' * 300,
-            'state': 'NY',
+            'jurisdiction': 'NY',
             'summary': f'Summary {i}',
             'url': f'http://example.com/{i}',
             'hierarchy_level': 'section',

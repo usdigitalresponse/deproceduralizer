@@ -15,7 +15,7 @@ import { ActionButtons } from './ActionButtons';
 import type { DefinitionReviewCardProps } from './types';
 
 export const DefinitionReviewCard = forwardRef<HTMLDivElement, DefinitionReviewCardProps>(
-  ({ definition, onUpdated, onReviewComplete, onViewRegulation, state, isFocused = false, isSelected = false, onSelectionChange, isExiting = false }, ref) => {
+  ({ definition, onUpdated, onReviewComplete, onViewRegulation, jurisdiction, isFocused = false, isSelected = false, onSelectionChange, isExiting = false }, ref) => {
     const [isMetadataExpanded, setIsMetadataExpanded] = useState(false);
 
     // Form state and helpers
@@ -44,7 +44,7 @@ export const DefinitionReviewCard = forwardRef<HTMLDivElement, DefinitionReviewC
     });
 
     const citation = definition.regulation
-      ? formatStateCitation(state, definition.regulation) ?? 'Unknown source'
+      ? formatStateCitation(jurisdiction, definition.regulation) ?? 'Unknown source'
       : 'Unknown source';
 
     return (
@@ -52,7 +52,7 @@ export const DefinitionReviewCard = forwardRef<HTMLDivElement, DefinitionReviewC
         <Header
           definition={definition}
           citation={citation ?? 'Unknown source'}
-          state={state}
+          jurisdiction={jurisdiction}
           isSelected={isSelected}
           onSelectionChange={onSelectionChange}
         />
@@ -63,14 +63,14 @@ export const DefinitionReviewCard = forwardRef<HTMLDivElement, DefinitionReviewC
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           <OriginalColumn
             definition={definition}
-            state={state}
+            jurisdiction={jurisdiction}
             formData={formData}
             getOriginalValue={getOriginalValue}
           />
 
           <EditableColumn
             definition={definition}
-            state={state}
+            jurisdiction={jurisdiction}
             formData={formData}
             setFormData={setFormData}
             wasChanged={wasChanged}
@@ -81,7 +81,7 @@ export const DefinitionReviewCard = forwardRef<HTMLDivElement, DefinitionReviewC
         {definition.regulation && (
           <HierarchyTreeView
             documentId={definition.regulation.id}
-            state={state}
+            state={jurisdiction}
           />
         )}
 

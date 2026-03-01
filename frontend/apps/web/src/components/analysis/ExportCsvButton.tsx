@@ -3,15 +3,15 @@
 import { useState } from 'react';
 import { useQueryStates } from 'nuqs';
 import { Download } from 'lucide-react';
-import type { StateCode } from '@deproceduralizer/database';
+import type { JurisdictionCode } from '@deproceduralizer/database';
 import { analysisTableParsers } from '@/lib/url/parsers';
 import { exportAnalysisCsv } from '@/lib/actions/analysis';
 
 interface ExportCsvButtonProps {
-  state: StateCode;
+  jurisdiction: JurisdictionCode;
 }
 
-export function ExportCsvButton({ state }: ExportCsvButtonProps) {
+export function ExportCsvButton({ jurisdiction }: ExportCsvButtonProps) {
   const [filters] = useQueryStates(analysisTableParsers, { shallow: false });
   const [isExporting, setIsExporting] = useState(false);
 
@@ -19,7 +19,7 @@ export function ExportCsvButton({ state }: ExportCsvButtonProps) {
     setIsExporting(true);
     try {
       const result = await exportAnalysisCsv(
-        state,
+        jurisdiction,
         window.location.origin,
         {
           tierCompleted: filters.tierCompleted !== 'all' ? parseInt(filters.tierCompleted) : undefined,
@@ -52,7 +52,7 @@ export function ExportCsvButton({ state }: ExportCsvButtonProps) {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${state.toLowerCase()}-pipeline-export.csv`;
+      link.download = `${jurisdiction.toLowerCase()}-pipeline-export.csv`;
       link.click();
       URL.revokeObjectURL(url);
     } finally {

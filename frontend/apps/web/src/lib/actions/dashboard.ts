@@ -2,7 +2,7 @@
 
 import 'server-only';
 import { db, RegulatoryDocumentsRepository } from '@deproceduralizer/database';
-import type { StateCode, DashboardStats, RecentActivity } from '@deproceduralizer/database';
+import type { JurisdictionCode, DashboardStats, RecentActivity } from '@deproceduralizer/database';
 import { type ActionResult, runCachedAction } from './types';
 
 const regulationsRepo = new RegulatoryDocumentsRepository(db);
@@ -12,7 +12,7 @@ const regulationsRepo = new RegulatoryDocumentsRepository(db);
  * Cached for 1 minute to reduce database traffic.
  */
 export async function getDashboardStats(
-  state?: StateCode
+  state?: JurisdictionCode
 ): Promise<ActionResult<DashboardStats>> {
   return runCachedAction(
     'getDashboardStats',
@@ -26,10 +26,10 @@ export async function getDashboardStats(
  * Get dashboard statistics for each state separately.
  * Cached for 1 minute to reduce database traffic.
  */
-export async function getAllStateStats(): Promise<ActionResult<Record<StateCode, DashboardStats>>> {
+export async function getAllStateStats(): Promise<ActionResult<Record<JurisdictionCode, DashboardStats>>> {
   return runCachedAction(
     'getAllStateStats',
-    () => regulationsRepo.getAllStateStats(),
+    () => regulationsRepo.getAllJurisdictionStats(),
     ['dashboard-all-state-stats'],
     { revalidate: 60, tags: ['dashboard'] }
   );
@@ -40,7 +40,7 @@ export async function getAllStateStats(): Promise<ActionResult<Record<StateCode,
  * Cached for 1 minute to reduce database traffic.
  */
 export async function getRecentActivity(
-  state?: StateCode
+  state?: JurisdictionCode
 ): Promise<ActionResult<RecentActivity>> {
   return runCachedAction(
     'getRecentActivity',

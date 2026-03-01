@@ -27,8 +27,8 @@ When working on the Next.js frontend, follow these patterns:
 - Add new parsers to `parsers.ts` rather than defining inline parsers in components
 
 ### State & Constants
-- Use `DEFAULT_STATE` from `types/state.ts` - never hardcode state values ('nj', 'ny')
-- Use `VALID_STATES` when iterating over states
+- Use `DEFAULT_JURISDICTION` from `types/state.ts` - never hardcode state values ('nj', 'ny')
+- Use `VALID_JURISDICTIONS` when iterating over jurisdictions
 - Centralize enums and option arrays in `lib/constants/`
 
 ### Code Hygiene
@@ -41,7 +41,7 @@ When working on the Next.js frontend, follow these patterns:
 ### Jurisdiction Model
 - The `state` column represents a jurisdiction, not strictly a US state: `NY` (New York State), `NJ` (New Jersey), `NYC` (New York City)
 - NYC is a sub-state jurisdiction — its regulations (RCNY) and statutes (Charter + Admin Code) use `state = 'NYC'`
-- Use `StateCode` type and `VALID_STATES` array — never hardcode jurisdiction lists
+- Use `JurisdictionCode` type and `VALID_JURISDICTIONS` array — never hardcode jurisdiction lists
 - When adding a new jurisdiction, see the checklist in `.claude/skills/database/schema.md` (Jurisdiction Model section)
 
 ### LLM Prompts

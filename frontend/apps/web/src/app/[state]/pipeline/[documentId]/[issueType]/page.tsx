@@ -21,7 +21,7 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { Container } from '@/components/layout/Container';
 import { Badge, ScrollToHash } from '@/components/ui';
 import { ClassificationBadge, TierClassificationFlow } from '@/components/issues/TierClassificationFlow';
-import { isValidState } from '@/types/state';
+import { isValidJurisdiction } from '@/types/state';
 import { ISSUE_TYPE_LABELS } from '@/types/regulation';
 import { PipelineSectionTabs } from './PipelineSectionTabs';
 import type { SectionConfig } from '@/hooks/useActiveSection';
@@ -39,7 +39,7 @@ export default async function AnalysisDetailPage({ params, searchParams }: Analy
   const { state, documentId, issueType } = await params;
   const resolvedSearchParams = await searchParams;
 
-  if (!isValidState(state)) {
+  if (!isValidJurisdiction(state)) {
     notFound();
   }
 
@@ -88,7 +88,7 @@ export default async function AnalysisDetailPage({ params, searchParams }: Analy
     <PrintModeProvider isPrintMode={isPrintMode}>
     <PrintModeStyles isPrintMode={isPrintMode} />
     <ScrollToHash />
-    <AnalysisBookmarkProvider documentId={docId} issueType={issueType} state={stateCode}>
+    <AnalysisBookmarkProvider documentId={docId} issueType={issueType} jurisdiction={stateCode}>
       <div className="bg-[var(--color-background)] min-h-screen">
         {/* Print Preview Header - only visible in print mode, hidden when actually printing */}
         {isPrintMode && (

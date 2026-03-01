@@ -10,7 +10,7 @@ export function ComplianceIssueContent({ item, state }: ComplianceIssueContentPr
   if (!item.complianceIssueData) return null;
 
   const issue = item.complianceIssueData;
-  const citation = formatStateCitation(issue.state || state, issue.regulation);
+  const citation = formatStateCitation(issue.jurisdiction || state, issue.regulation);
 
   return (
     <>
@@ -35,7 +35,7 @@ export function ComplianceIssueContent({ item, state }: ComplianceIssueContentPr
       <div className="mb-1">
         <HierarchyBreadcrumbsInline
           documentId={issue.regulation.id}
-          state={issue.state || state}
+          state={issue.jurisdiction || state}
         />
       </div>
 

@@ -16,8 +16,8 @@ import { RegulationSummary } from '@/components/regulations/RegulationSummary';
 import { RegulationContent } from '@/components/regulations/RegulationContent';
 import { formatStateCitation } from '@/lib/formatters/citations';
 import { getComplexityVariant } from '@/types/regulation';
-import { useStateFromPath, useRegulationById } from '@/hooks';
-import { isValidState, DEFAULT_STATE } from '@/types/state';
+import { useJurisdictionFromPath, useRegulationById } from '@/hooks';
+import { isValidJurisdiction, DEFAULT_JURISDICTION } from '@/types/state';
 
 interface RegulationModalProps {
   regulationId: number | null;
@@ -25,15 +25,15 @@ interface RegulationModalProps {
 }
 
 export function RegulationModal({ regulationId, onClose }: RegulationModalProps) {
-  const pathState = useStateFromPath();
+  const pathJurisdiction = useJurisdictionFromPath();
   const { regulation, isLoading, error } = useRegulationById(regulationId);
 
-  // Use path state, fallback to regulation's state if available
-  const regState = regulation?.state?.toLowerCase();
-  const state = pathState || (regState && isValidState(regState) ? regState : DEFAULT_STATE);
+  // Use path jurisdiction, fallback to regulation's jurisdiction if available
+  const regJurisdiction = regulation?.jurisdiction?.toLowerCase();
+  const jurisdiction = pathJurisdiction || (regJurisdiction && isValidJurisdiction(regJurisdiction) ? regJurisdiction : DEFAULT_JURISDICTION);
 
   const citation = regulation
-    ? formatStateCitation(state, regulation)
+    ? formatStateCitation(jurisdiction, regulation)
     : null;
 
   return (
@@ -56,7 +56,7 @@ export function RegulationModal({ regulationId, onClose }: RegulationModalProps)
           </div>
           <div className="flex items-center gap-2">
             {regulation && (
-              <Link href={`/${state}/regulations/${regulation.id}`}>
+              <Link href={`/${jurisdiction}/regulations/${regulation.id}`}>
                 <Button variant="ghost" size="sm">
                   <svg
                     className="w-4 h-4 mr-1"

@@ -513,7 +513,7 @@ def migrate_nyc_statutes_to_db(records: Optional[list[dict]] = None) -> int:
     """
     Migrate NYC statutes from records (or JSON file) to statutes table.
 
-    Uses upsert (ON CONFLICT state+citation) to allow re-runs.
+    Uses upsert (ON CONFLICT jurisdiction+citation) to allow re-runs.
     """
     if records is None:
         if not NYC_STATUTES_COMPLETE_FILE.exists():
@@ -533,11 +533,11 @@ def migrate_nyc_statutes_to_db(records: Optional[list[dict]] = None) -> int:
 
     insert_sql = """
         INSERT INTO statutes
-        (citation, state, title, content,
+        (citation, jurisdiction, title, content,
          nyc_doc_type, nyc_title, nyc_chapter, nyc_section, nyc_section_name,
          hierarchy_level, hierarchy_path, source_index)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        ON CONFLICT (state, citation) DO UPDATE SET
+        ON CONFLICT (jurisdiction, citation) DO UPDATE SET
             title = EXCLUDED.title,
             content = EXCLUDED.content,
             nyc_doc_type = EXCLUDED.nyc_doc_type,

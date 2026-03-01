@@ -4,7 +4,7 @@ import { BaseRepository } from './base.repository';
 import { definitions, Definition, DeveloperStatus, ResolutionType, Developer } from '../schema/definitions';
 import { definitionDocumentOccurrences } from '../schema/definition-document-occurrences';
 import { regulatoryDocuments } from '../schema/regulatory-documents';
-import { StateCode, normalizeState } from '../schema/constants';
+import { JurisdictionCode, normalizeJurisdiction } from '../schema/constants';
 
 export interface DefinitionWithContext extends Definition {
   regulation?: {
@@ -17,7 +17,7 @@ export interface DefinitionWithContext extends Definition {
     njacTitle: string | null;
     njacChapter: string | null;
     njacSubchapter: string | null;
-    state: string | null;
+    jurisdiction: string | null;
     content?: string | null;
     parentId?: number | null;
     parentTitle?: string | null;
@@ -79,7 +79,7 @@ export interface DefinitionsWithContext {
 }
 
 export interface DefinitionPaginationOptions {
-  state: StateCode;
+  jurisdiction: JurisdictionCode;
   page: number;
   pageSize: number;
   search?: string;
@@ -351,7 +351,7 @@ export class DefinitionsRepository extends BaseRepository {
         rd.njac_title as "njacTitle",
         rd.njac_chapter as "njacChapter",
         rd.njac_subchapter as "njacSubchapter",
-        rd.state as "regState",
+        rd.jurisdiction as "regJurisdiction",
         -- Scope document for display
         scope_doc.title as "scopeDocTitle",
         scope_doc.hierarchy_level as "scopeDocLevel"
@@ -421,7 +421,7 @@ export class DefinitionsRepository extends BaseRepository {
         njacTitle: row.njacTitle,
         njacChapter: row.njacChapter,
         njacSubchapter: row.njacSubchapter,
-        state: row.regState,
+        jurisdiction: row.regJurisdiction,
       } : undefined,
       // Scope document info for display
       scopeDocTitle: row.scopeDocTitle,
@@ -496,12 +496,12 @@ export class DefinitionsRepository extends BaseRepository {
   async getAllPaginated(
     options: DefinitionPaginationOptions
   ): Promise<PaginatedDefinitionsResult> {
-    const { state, page, pageSize, search, letter, scope, sortBy = 'term', sortOrder = 'asc', scopeLevel, definitionType, quality } = options;
+    const { jurisdiction, page, pageSize, search, letter, scope, sortBy = 'term', sortOrder = 'asc', scopeLevel, definitionType, quality } = options;
     const offset = (page - 1) * pageSize;
 
     // Build base conditions - join via URL to get state
     // Since document_id is NULL, we need to join on URL
-    const statePattern = state.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
+    const jurisdictionPattern = jurisdiction.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
 
     const conditions: ReturnType<typeof eq>[] = [];
 
@@ -545,7 +545,7 @@ export class DefinitionsRepository extends BaseRepository {
     }
 
     // State filter via URL pattern
-    conditions.push(like(definitions.url, statePattern));
+    conditions.push(like(definitions.url, jurisdictionPattern));
 
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
@@ -615,7 +615,7 @@ export class DefinitionsRepository extends BaseRepository {
         regulationNjacTitle: regulatoryDocuments.njacTitle,
         regulationNjacChapter: regulatoryDocuments.njacChapter,
         regulationNjacSubchapter: regulatoryDocuments.njacSubchapter,
-        regulationState: regulatoryDocuments.state,
+        regulationJurisdiction: regulatoryDocuments.jurisdiction,
       })
       .from(definitions)
       .leftJoin(regulatoryDocuments, eq(definitions.url, regulatoryDocuments.url))
@@ -672,7 +672,7 @@ export class DefinitionsRepository extends BaseRepository {
         njacTitle: row.regulationNjacTitle,
         njacChapter: row.regulationNjacChapter,
         njacSubchapter: row.regulationNjacSubchapter,
-        state: row.regulationState,
+        jurisdiction: row.regulationJurisdiction,
       } : undefined,
     }));
 
@@ -688,21 +688,21 @@ export class DefinitionsRepository extends BaseRepository {
   /**
    * Get stats for the glossary header
    */
-  async getStats(state: StateCode): Promise<DefinitionStats> {
-    const statePattern = state.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
-    const stateCondition = like(definitions.url, statePattern);
+  async getStats(jurisdiction: JurisdictionCode): Promise<DefinitionStats> {
+    const jurisdictionPattern = jurisdiction.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
+    const jurisdictionCondition = like(definitions.url, jurisdictionPattern);
 
     // Get total count
     const [{ count: total }] = await this.db
       .select({ count: count() })
       .from(definitions)
-      .where(stateCondition);
+      .where(jurisdictionCondition);
 
     // Get unique terms count
     const [{ count: uniqueTerms }] = await this.db
       .select({ count: sql<number>`count(distinct ${definitions.term})` })
       .from(definitions)
-      .where(stateCondition);
+      .where(jurisdictionCondition);
 
     // Get counts by scope
     const scopeResults = await this.db
@@ -711,7 +711,7 @@ export class DefinitionsRepository extends BaseRepository {
         count: sql<number>`count(*)::int`,
       })
       .from(definitions)
-      .where(stateCondition)
+      .where(jurisdictionCondition)
       .groupBy(definitions.scope);
 
     const byScope: Record<string, number> = {};
@@ -723,7 +723,7 @@ export class DefinitionsRepository extends BaseRepository {
     const [{ avg }] = await this.db
       .select({ avg: sql<number>`avg(${definitions.definitionOverlap})` })
       .from(definitions)
-      .where(stateCondition);
+      .where(jurisdictionCondition);
 
     return {
       total,
@@ -736,8 +736,8 @@ export class DefinitionsRepository extends BaseRepository {
   /**
    * Search definitions by term
    */
-  async searchByTerm(state: StateCode, term: string): Promise<DefinitionWithContext[]> {
-    const statePattern = state.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
+  async searchByTerm(jurisdiction: JurisdictionCode, term: string): Promise<DefinitionWithContext[]> {
+    const jurisdictionPattern = jurisdiction.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
 
     const results = await this.db
       .select({
@@ -786,12 +786,12 @@ export class DefinitionsRepository extends BaseRepository {
         regulationNjacTitle: regulatoryDocuments.njacTitle,
         regulationNjacChapter: regulatoryDocuments.njacChapter,
         regulationNjacSubchapter: regulatoryDocuments.njacSubchapter,
-        regulationState: regulatoryDocuments.state,
+        regulationJurisdiction: regulatoryDocuments.jurisdiction,
       })
       .from(definitions)
       .leftJoin(regulatoryDocuments, eq(definitions.url, regulatoryDocuments.url))
       .where(and(
-        like(definitions.url, statePattern),
+        like(definitions.url, jurisdictionPattern),
         ilike(definitions.term, `%${term}%`)
       ))
       .orderBy(asc(definitions.term))
@@ -844,7 +844,7 @@ export class DefinitionsRepository extends BaseRepository {
         njacTitle: row.regulationNjacTitle,
         njacChapter: row.regulationNjacChapter,
         njacSubchapter: row.regulationNjacSubchapter,
-        state: row.regulationState,
+        jurisdiction: row.regulationJurisdiction,
       } : undefined,
     }));
   }
@@ -852,8 +852,8 @@ export class DefinitionsRepository extends BaseRepository {
   /**
    * Get alphabetical index with counts for A-Z navigation
    */
-  async getAlphabeticalIndex(state: StateCode): Promise<AlphabeticalIndex[]> {
-    const statePattern = state.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
+  async getAlphabeticalIndex(jurisdiction: JurisdictionCode): Promise<AlphabeticalIndex[]> {
+    const jurisdictionPattern = jurisdiction.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
 
     const results = await this.db
       .select({
@@ -861,7 +861,7 @@ export class DefinitionsRepository extends BaseRepository {
         count: sql<number>`count(*)::int`,
       })
       .from(definitions)
-      .where(like(definitions.url, statePattern))
+      .where(like(definitions.url, jurisdictionPattern))
       .groupBy(sql`upper(left(${definitions.term}, 1))`)
       .orderBy(sql`upper(left(${definitions.term}, 1))`);
 
@@ -874,14 +874,14 @@ export class DefinitionsRepository extends BaseRepository {
   /**
    * Get all unique scopes for filter dropdown
    */
-  async getScopes(state: StateCode): Promise<string[]> {
-    const statePattern = state.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
+  async getScopes(jurisdiction: JurisdictionCode): Promise<string[]> {
+    const jurisdictionPattern = jurisdiction.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
 
     const results = await this.db
       .selectDistinct({ scope: definitions.scope })
       .from(definitions)
       .where(and(
-        like(definitions.url, statePattern),
+        like(definitions.url, jurisdictionPattern),
         sql`${definitions.scope} is not null`
       ))
       .orderBy(asc(definitions.scope));
@@ -893,17 +893,17 @@ export class DefinitionsRepository extends BaseRepository {
    * Get aggregated terms for glossary (grouped by normalized_term)
    */
   async getAggregatedTerms(options: {
-    state: StateCode;
+    jurisdiction: JurisdictionCode;
     search?: string;
     letter?: string;
     page?: number;
     pageSize?: number;
   }): Promise<PaginatedAggregatedResult> {
-    const { state, search, letter, page = 1, pageSize = 20 } = options;
+    const { jurisdiction, search, letter, page = 1, pageSize = 20 } = options;
     const offset = (page - 1) * pageSize;
-    const statePattern = state.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
+    const jurisdictionPattern = jurisdiction.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
 
-    const conditions: ReturnType<typeof eq>[] = [like(definitions.url, statePattern)];
+    const conditions: ReturnType<typeof eq>[] = [like(definitions.url, jurisdictionPattern)];
 
     if (search) {
       conditions.push(ilike(definitions.normalizedTerm, `%${search.toLowerCase()}%`));
@@ -1002,9 +1002,9 @@ export class DefinitionsRepository extends BaseRepository {
    */
   async getDefinitionsForTerm(
     normalizedTerm: string,
-    state: StateCode
+    jurisdiction: JurisdictionCode
   ): Promise<DefinitionWithContext[]> {
-    const statePattern = state.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
+    const jurisdictionPattern = jurisdiction.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
 
     const results = await this.db
       .select({
@@ -1052,12 +1052,12 @@ export class DefinitionsRepository extends BaseRepository {
         regulationNjacTitle: regulatoryDocuments.njacTitle,
         regulationNjacChapter: regulatoryDocuments.njacChapter,
         regulationNjacSubchapter: regulatoryDocuments.njacSubchapter,
-        regulationState: regulatoryDocuments.state,
+        regulationJurisdiction: regulatoryDocuments.jurisdiction,
       })
       .from(definitions)
       .leftJoin(regulatoryDocuments, eq(definitions.url, regulatoryDocuments.url))
       .where(and(
-        like(definitions.url, statePattern),
+        like(definitions.url, jurisdictionPattern),
         eq(definitions.normalizedTerm, normalizedTerm)
       ))
       .orderBy(desc(definitions.definitionOverlap), asc(definitions.term));
@@ -1108,7 +1108,7 @@ export class DefinitionsRepository extends BaseRepository {
         njacTitle: row.regulationNjacTitle,
         njacChapter: row.regulationNjacChapter,
         njacSubchapter: row.regulationNjacSubchapter,
-        state: row.regulationState,
+        jurisdiction: row.regulationJurisdiction,
       } : undefined,
     }));
   }
@@ -1128,7 +1128,7 @@ export class DefinitionsRepository extends BaseRepository {
     id: number;
     title: string | null;
     hierarchyLevel: string | null;
-    state: string | null;
+    jurisdiction: string | null;
     nycrrTitle: number | null;
     nycrrPart: string | null;
     nycrrSection: string | null;
@@ -1141,7 +1141,7 @@ export class DefinitionsRepository extends BaseRepository {
         id: regulatoryDocuments.id,
         title: regulatoryDocuments.title,
         hierarchyLevel: regulatoryDocuments.hierarchyLevel,
-        state: regulatoryDocuments.state,
+        jurisdiction: regulatoryDocuments.jurisdiction,
         nycrrTitle: regulatoryDocuments.nycrrTitle,
         nycrrPart: regulatoryDocuments.nycrrPart,
         nycrrSection: regulatoryDocuments.nycrrSection,
@@ -1227,7 +1227,7 @@ export class DefinitionsRepository extends BaseRepository {
         regId: sourceDoc.id,
         regTitle: sourceDoc.title,
         regUrl: sourceDoc.url,
-        regState: sourceDoc.state,
+        regJurisdiction: sourceDoc.jurisdiction,
         njacTitle: sourceDoc.njacTitle,
         njacChapter: sourceDoc.njacChapter,
         njacSubchapter: sourceDoc.njacSubchapter,
@@ -1252,7 +1252,7 @@ export class DefinitionsRepository extends BaseRepository {
         id: row.regId,
         title: row.regTitle,
         url: row.regUrl,
-        state: row.regState,
+        jurisdiction: row.regJurisdiction,
         njacTitle: row.njacTitle,
         njacChapter: row.njacChapter,
         njacSubchapter: row.njacSubchapter,
@@ -1266,33 +1266,33 @@ export class DefinitionsRepository extends BaseRepository {
   /**
    * Get occurrence statistics for a state.
    */
-  async getOccurrenceStats(state: StateCode): Promise<{
+  async getOccurrenceStats(jurisdiction: JurisdictionCode): Promise<{
     totalLinks: number;
     definitionsWithOccurrences: number;
     documentsWithOccurrences: number;
   }> {
-    const statePattern = state.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
+    const jurisdictionPattern = jurisdiction.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
 
     // Total links for this state
     const [linksResult] = await this.db
       .select({ count: count() })
       .from(definitionDocumentOccurrences)
       .innerJoin(definitions, eq(definitionDocumentOccurrences.definitionId, definitions.id))
-      .where(like(definitions.url, statePattern));
+      .where(like(definitions.url, jurisdictionPattern));
 
     // Definitions with occurrences
     const [defsResult] = await this.db
       .select({ count: sql<number>`count(distinct ${definitionDocumentOccurrences.definitionId})` })
       .from(definitionDocumentOccurrences)
       .innerJoin(definitions, eq(definitionDocumentOccurrences.definitionId, definitions.id))
-      .where(like(definitions.url, statePattern));
+      .where(like(definitions.url, jurisdictionPattern));
 
     // Documents with occurrences
     const [docsResult] = await this.db
       .select({ count: sql<number>`count(distinct ${definitionDocumentOccurrences.documentId})` })
       .from(definitionDocumentOccurrences)
       .innerJoin(definitions, eq(definitionDocumentOccurrences.definitionId, definitions.id))
-      .where(like(definitions.url, statePattern));
+      .where(like(definitions.url, jurisdictionPattern));
 
     return {
       totalLinks: linksResult?.count ?? 0,
@@ -1309,7 +1309,7 @@ export class DefinitionsRepository extends BaseRepository {
    * Get definitions for review with pagination and filters
    */
   async getDefinitionsForReview(options: {
-    state: StateCode;
+    jurisdiction: JurisdictionCode;
     page: number;
     pageSize: number;
     reviewStatus?: 'unreviewed' | 'confirmed' | 'corrected' | 'false_positive';
@@ -1332,11 +1332,11 @@ export class DefinitionsRepository extends BaseRepository {
     pageSize: number;
     totalPages: number;
   }> {
-    const { state, page, pageSize, reviewStatus, scopeLevel, definitionType, documentId, sortBy = 'document', sortOrder = 'asc', isCrossReference, inDefinitionsSection, scopeText, scopeRelation, scopeMismatch, termSearch, definitionId } = options;
+    const { jurisdiction, page, pageSize, reviewStatus, scopeLevel, definitionType, documentId, sortBy = 'document', sortOrder = 'asc', isCrossReference, inDefinitionsSection, scopeText, scopeRelation, scopeMismatch, termSearch, definitionId } = options;
     const offset = (page - 1) * pageSize;
-    const statePattern = state.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
+    const jurisdictionPattern = jurisdiction.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
 
-    const conditions: ReturnType<typeof eq>[] = [like(definitions.url, statePattern)];
+    const conditions: ReturnType<typeof eq>[] = [like(definitions.url, jurisdictionPattern)];
 
     if (reviewStatus) {
       conditions.push(eq(definitions.reviewStatus, reviewStatus));
@@ -1472,7 +1472,7 @@ export class DefinitionsRepository extends BaseRepository {
         regulationNjacTitle: regulatoryDocuments.njacTitle,
         regulationNjacChapter: regulatoryDocuments.njacChapter,
         regulationNjacSubchapter: regulatoryDocuments.njacSubchapter,
-        regulationState: regulatoryDocuments.state,
+        regulationJurisdiction: regulatoryDocuments.jurisdiction,
         regulationContent: regulatoryDocuments.content,
         regulationParentId: regulatoryDocuments.parentId,
         parentTitle: parentDoc.title,
@@ -1544,7 +1544,7 @@ export class DefinitionsRepository extends BaseRepository {
           njacTitle: row.regulationNjacTitle,
           njacChapter: row.regulationNjacChapter,
           njacSubchapter: row.regulationNjacSubchapter,
-          state: row.regulationState,
+          jurisdiction: row.regulationJurisdiction,
           content: row.regulationContent,
           parentId: row.regulationParentId,
           parentTitle: row.parentTitle,
@@ -1567,14 +1567,14 @@ export class DefinitionsRepository extends BaseRepository {
   /**
    * Get unique scope text values for filter dropdown
    */
-  async getUniqueScopeTexts(state: StateCode): Promise<string[]> {
-    const statePattern = state.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
+  async getUniqueScopeTexts(jurisdiction: JurisdictionCode): Promise<string[]> {
+    const jurisdictionPattern = jurisdiction.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
 
     const results = await this.db
       .selectDistinct({ scope: definitions.scope })
       .from(definitions)
       .where(and(
-        like(definitions.url, statePattern),
+        like(definitions.url, jurisdictionPattern),
         sql`${definitions.scope} IS NOT NULL AND ${definitions.scope} != ''`
       ))
       .orderBy(asc(definitions.scope))
@@ -1729,7 +1729,7 @@ export class DefinitionsRepository extends BaseRepository {
    */
   async searchDocumentsForScope(
     query: string,
-    state: StateCode,
+    jurisdiction: JurisdictionCode,
     limit: number = 10
   ): Promise<{
     id: number;
@@ -1740,7 +1740,7 @@ export class DefinitionsRepository extends BaseRepository {
     njacTitle: string | null;
     njacChapter: string | null;
   }[]> {
-    const stateCondition = eq(regulatoryDocuments.state, normalizeState(state));
+    const jurisdictionCondition = eq(regulatoryDocuments.jurisdiction, normalizeJurisdiction(jurisdiction));
 
     const results = await this.db
       .select({
@@ -1754,7 +1754,7 @@ export class DefinitionsRepository extends BaseRepository {
       })
       .from(regulatoryDocuments)
       .where(and(
-        stateCondition,
+        jurisdictionCondition,
         ilike(regulatoryDocuments.title, `%${query}%`)
       ))
       .orderBy(asc(regulatoryDocuments.title))
@@ -1841,14 +1841,14 @@ export class DefinitionsRepository extends BaseRepository {
   /**
    * Get review statistics for definitions dashboard
    */
-  async getReviewStats(state: StateCode): Promise<{
+  async getReviewStats(jurisdiction: JurisdictionCode): Promise<{
     unreviewed: number;
     confirmed: number;
     corrected: number;
     falsePositive: number;
     total: number;
   }> {
-    const statePattern = state.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
+    const jurisdictionPattern = jurisdiction.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
 
     const results = await this.db
       .select({
@@ -1856,7 +1856,7 @@ export class DefinitionsRepository extends BaseRepository {
         count: sql<number>`count(*)::int`,
       })
       .from(definitions)
-      .where(like(definitions.url, statePattern))
+      .where(like(definitions.url, jurisdictionPattern))
       .groupBy(definitions.reviewStatus);
 
     const stats: Record<string, number> = {};
@@ -1880,7 +1880,7 @@ export class DefinitionsRepository extends BaseRepository {
    * Shows definitions that have been corrected with their original values.
    */
   async getCorrectedDefinitions(
-    state: StateCode,
+    jurisdiction: JurisdictionCode,
     page: number = 1,
     pageSize: number = 20
   ): Promise<{
@@ -1890,11 +1890,11 @@ export class DefinitionsRepository extends BaseRepository {
     pageSize: number;
     totalPages: number;
   }> {
-    const statePattern = state.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
+    const jurisdictionPattern = jurisdiction.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
     const offset = (page - 1) * pageSize;
 
     const whereClause = and(
-      like(definitions.url, statePattern),
+      like(definitions.url, jurisdictionPattern),
       eq(definitions.reviewStatus, 'corrected')
     );
 
@@ -1948,7 +1948,7 @@ export class DefinitionsRepository extends BaseRepository {
         regulationNjacTitle: regulatoryDocuments.njacTitle,
         regulationNjacChapter: regulatoryDocuments.njacChapter,
         regulationNjacSubchapter: regulatoryDocuments.njacSubchapter,
-        regulationState: regulatoryDocuments.state,
+        regulationJurisdiction: regulatoryDocuments.jurisdiction,
       })
       .from(definitions)
       .leftJoin(regulatoryDocuments, eq(definitions.documentId, regulatoryDocuments.id))
@@ -2003,7 +2003,7 @@ export class DefinitionsRepository extends BaseRepository {
           njacTitle: row.regulationNjacTitle,
           njacChapter: row.regulationNjacChapter,
           njacSubchapter: row.regulationNjacSubchapter,
-          state: row.regulationState,
+          jurisdiction: row.regulationJurisdiction,
         } : undefined,
       })),
       total,
@@ -2045,12 +2045,12 @@ export class DefinitionsRepository extends BaseRepository {
    * Get developer status counts for definitions in a state.
    * Only counts definitions that have been reviewed (not 'unreviewed').
    */
-  async getDeveloperStatusCounts(state: StateCode): Promise<DefinitionDeveloperStatusCounts> {
-    const statePattern = state.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
+  async getDeveloperStatusCounts(jurisdiction: JurisdictionCode): Promise<DefinitionDeveloperStatusCounts> {
+    const jurisdictionPattern = jurisdiction.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
 
     // Base condition: reviewed definitions only
     const reviewedCondition = and(
-      like(definitions.url, statePattern),
+      like(definitions.url, jurisdictionPattern),
       ne(definitions.reviewStatus, 'unreviewed')
     );
 
@@ -2089,7 +2089,7 @@ export class DefinitionsRepository extends BaseRepository {
    * Get reviewed definitions for developer mode with pagination and filters.
    */
   async getReviewedDefinitionsPaginated(options: {
-    state: StateCode;
+    jurisdiction: JurisdictionCode;
     page: number;
     pageSize: number;
     developerStatus?: DeveloperStatus | 'all';
@@ -2101,7 +2101,7 @@ export class DefinitionsRepository extends BaseRepository {
     sortOrder?: 'asc' | 'desc';
   }): Promise<PaginatedDefinitionsResult> {
     const {
-      state,
+      jurisdiction,
       page,
       pageSize,
       developerStatus,
@@ -2113,12 +2113,12 @@ export class DefinitionsRepository extends BaseRepository {
       sortOrder = 'desc',
     } = options;
 
-    const statePattern = state.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
+    const jurisdictionPattern = jurisdiction.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
     const offset = (page - 1) * pageSize;
 
     // Build conditions: reviewed definitions only
     const conditions = [
-      like(definitions.url, statePattern),
+      like(definitions.url, jurisdictionPattern),
       ne(definitions.reviewStatus, 'unreviewed'),
     ];
 
@@ -2219,7 +2219,7 @@ export class DefinitionsRepository extends BaseRepository {
         regulationNjacTitle: regulatoryDocuments.njacTitle,
         regulationNjacChapter: regulatoryDocuments.njacChapter,
         regulationNjacSubchapter: regulatoryDocuments.njacSubchapter,
-        regulationState: regulatoryDocuments.state,
+        regulationJurisdiction: regulatoryDocuments.jurisdiction,
       })
       .from(definitions)
       .leftJoin(regulatoryDocuments, eq(definitions.documentId, regulatoryDocuments.id))
@@ -2272,7 +2272,7 @@ export class DefinitionsRepository extends BaseRepository {
           njacTitle: row.regulationNjacTitle,
           njacChapter: row.regulationNjacChapter,
           njacSubchapter: row.regulationNjacSubchapter,
-          state: row.regulationState,
+          jurisdiction: row.regulationJurisdiction,
           url: row.regulationUrl,
         } : undefined,
       })),
@@ -2287,7 +2287,7 @@ export class DefinitionsRepository extends BaseRepository {
    * Get definitions that need more info from developers (for NeedMoreInfo queue).
    */
   async getNeedMoreInfoDefinitions(
-    state: StateCode,
+    jurisdiction: JurisdictionCode,
     options: {
       page: number;
       pageSize: number;
@@ -2295,11 +2295,11 @@ export class DefinitionsRepository extends BaseRepository {
     }
   ): Promise<PaginatedDefinitionsResult> {
     const { page, pageSize, reviewerName } = options;
-    const statePattern = state.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
+    const jurisdictionPattern = jurisdiction.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
     const offset = (page - 1) * pageSize;
 
     const conditions = [
-      like(definitions.url, statePattern),
+      like(definitions.url, jurisdictionPattern),
       eq(definitions.developerStatus, 'need_more_info'),
     ];
 
@@ -2355,7 +2355,7 @@ export class DefinitionsRepository extends BaseRepository {
         regulationNjacTitle: regulatoryDocuments.njacTitle,
         regulationNjacChapter: regulatoryDocuments.njacChapter,
         regulationNjacSubchapter: regulatoryDocuments.njacSubchapter,
-        regulationState: regulatoryDocuments.state,
+        regulationJurisdiction: regulatoryDocuments.jurisdiction,
       })
       .from(definitions)
       .leftJoin(regulatoryDocuments, eq(definitions.documentId, regulatoryDocuments.id))
@@ -2417,7 +2417,7 @@ export class DefinitionsRepository extends BaseRepository {
           njacTitle: row.regulationNjacTitle,
           njacChapter: row.regulationNjacChapter,
           njacSubchapter: row.regulationNjacSubchapter,
-          state: row.regulationState,
+          jurisdiction: row.regulationJurisdiction,
           url: row.regulationUrl,
         } : undefined,
       })),
@@ -2432,13 +2432,13 @@ export class DefinitionsRepository extends BaseRepository {
    * Get counts for need_more_info definitions.
    */
   async getNeedMoreInfoCount(
-    state: StateCode,
+    jurisdiction: JurisdictionCode,
     reviewerName?: string
   ): Promise<{ total: number; forReviewer: number }> {
-    const statePattern = state.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
+    const jurisdictionPattern = jurisdiction.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
 
     const baseCondition = and(
-      like(definitions.url, statePattern),
+      like(definitions.url, jurisdictionPattern),
       eq(definitions.developerStatus, 'need_more_info')
     );
 
@@ -2463,7 +2463,7 @@ export class DefinitionsRepository extends BaseRepository {
    * Get comprehensive analytics stats for the Definitions tab on the analytics page.
    * Aggregates data about scope levels, types, cross-references, quality, and review progress.
    */
-  async getAnalyticsStats(state: StateCode): Promise<{
+  async getAnalyticsStats(jurisdiction: JurisdictionCode): Promise<{
     total: number;
     uniqueTerms: number;
     averageOverlap: number;
@@ -2486,27 +2486,27 @@ export class DefinitionsRepository extends BaseRepository {
       falsePositive: number;
     };
   }> {
-    const statePattern = state.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
-    const stateCondition = like(definitions.url, statePattern);
+    const jurisdictionPattern = jurisdiction.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
+    const jurisdictionCondition = like(definitions.url, jurisdictionPattern);
 
     // Get total and unique terms
     const [totalResult] = await this.db
       .select({ count: count() })
       .from(definitions)
-      .where(stateCondition);
+      .where(jurisdictionCondition);
     const total = totalResult.count;
 
     const [uniqueResult] = await this.db
       .select({ count: sql<number>`count(distinct ${definitions.term})` })
       .from(definitions)
-      .where(stateCondition);
+      .where(jurisdictionCondition);
     const uniqueTerms = uniqueResult.count;
 
     // Get average overlap
     const [avgResult] = await this.db
       .select({ avg: sql<number>`avg(${definitions.definitionOverlap})` })
       .from(definitions)
-      .where(stateCondition);
+      .where(jurisdictionCondition);
     const averageOverlap = avgResult.avg ?? 0;
 
     // Get counts by scope level
@@ -2516,7 +2516,7 @@ export class DefinitionsRepository extends BaseRepository {
         count: sql<number>`count(*)::int`,
       })
       .from(definitions)
-      .where(stateCondition)
+      .where(jurisdictionCondition)
       .groupBy(definitions.scopeLevel)
       .orderBy(sql`count(*) desc`);
 
@@ -2532,7 +2532,7 @@ export class DefinitionsRepository extends BaseRepository {
         count: sql<number>`count(*)::int`,
       })
       .from(definitions)
-      .where(stateCondition)
+      .where(jurisdictionCondition)
       .groupBy(definitions.definitionType)
       .orderBy(sql`count(*) desc`);
 
@@ -2545,7 +2545,7 @@ export class DefinitionsRepository extends BaseRepository {
     const [crossRefTotal] = await this.db
       .select({ count: count() })
       .from(definitions)
-      .where(and(stateCondition, eq(definitions.isCrossReference, true)));
+      .where(and(jurisdictionCondition, eq(definitions.isCrossReference, true)));
 
     const completenessResults = await this.db
       .select({
@@ -2553,7 +2553,7 @@ export class DefinitionsRepository extends BaseRepository {
         count: sql<number>`count(*)::int`,
       })
       .from(definitions)
-      .where(and(stateCondition, eq(definitions.isCrossReference, true)))
+      .where(and(jurisdictionCondition, eq(definitions.isCrossReference, true)))
       .groupBy(definitions.referenceCompleteness);
 
     const targetResults = await this.db
@@ -2562,7 +2562,7 @@ export class DefinitionsRepository extends BaseRepository {
         count: sql<number>`count(*)::int`,
       })
       .from(definitions)
-      .where(and(stateCondition, eq(definitions.isCrossReference, true)))
+      .where(and(jurisdictionCondition, eq(definitions.isCrossReference, true)))
       .groupBy(definitions.referenceTarget)
       .orderBy(sql`count(*) desc`);
 
@@ -2583,13 +2583,13 @@ export class DefinitionsRepository extends BaseRepository {
     const [highQuality] = await this.db
       .select({ count: count() })
       .from(definitions)
-      .where(and(stateCondition, sql`${definitions.definitionOverlap} >= 1.0`));
+      .where(and(jurisdictionCondition, sql`${definitions.definitionOverlap} >= 1.0`));
 
     const [mediumQuality] = await this.db
       .select({ count: count() })
       .from(definitions)
       .where(and(
-        stateCondition,
+        jurisdictionCondition,
         sql`${definitions.definitionOverlap} >= 0.3`,
         sql`${definitions.definitionOverlap} < 1.0`
       ));
@@ -2597,7 +2597,7 @@ export class DefinitionsRepository extends BaseRepository {
     const [lowQuality] = await this.db
       .select({ count: count() })
       .from(definitions)
-      .where(and(stateCondition, sql`${definitions.definitionOverlap} < 0.3`));
+      .where(and(jurisdictionCondition, sql`${definitions.definitionOverlap} < 0.3`));
 
     const qualityDistribution = {
       high: highQuality.count,
@@ -2612,7 +2612,7 @@ export class DefinitionsRepository extends BaseRepository {
         count: sql<number>`count(*)::int`,
       })
       .from(definitions)
-      .where(stateCondition)
+      .where(jurisdictionCondition)
       .groupBy(definitions.reviewStatus);
 
     const reviewStats: Record<string, number> = {};
@@ -2651,16 +2651,16 @@ export class DefinitionsRepository extends BaseRepository {
    * 3. Appear in the same documents via occurrences (shared_occurrence)
    *
    * Returns edges with weight based on connection strength.
-   * @param state - StateCode ('NY' or 'NJ')
+   * @param jurisdiction - JurisdictionCode ('NY' or 'NJ')
    * @param limit - Max edges to return (default 500)
    */
   async getDefinitionGraph(
-    state: StateCode,
+    jurisdiction: JurisdictionCode,
     limit: number = 500,
     titleFilter?: string
   ): Promise<DefinitionEdge[]> {
-    const statePattern = state.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
-    const isNY = state.toLowerCase() === 'ny';
+    const jurisdictionPattern = jurisdiction.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
+    const isNY = jurisdiction.toLowerCase() === 'ny';
 
     // Create aliases for self-join
     const d1 = alias(definitions, 'd1');
@@ -2670,8 +2670,8 @@ export class DefinitionsRepository extends BaseRepository {
 
     // Build base conditions for Query 1
     const query1Conditions = [
-      like(d1.url, statePattern),
-      like(d2.url, statePattern),
+      like(d1.url, jurisdictionPattern),
+      like(d2.url, jurisdictionPattern),
       isNotNull(d1.documentId),
       isNotNull(d2.documentId),
       ne(d1.documentId, d2.documentId), // Different source documents
@@ -2711,7 +2711,7 @@ export class DefinitionsRepository extends BaseRepository {
 
     // Build base conditions for Query 2
     const query2Conditions = [
-      like(d1.url, statePattern),
+      like(d1.url, jurisdictionPattern),
       isNotNull(d1.scopeDocumentId),
       isNotNull(d1.documentId),
       isNotNull(d2.documentId),
@@ -2752,7 +2752,7 @@ export class DefinitionsRepository extends BaseRepository {
 
     // Build base conditions for Query 3
     const query3Conditions = [
-      like(d1.url, statePattern),
+      like(d1.url, jurisdictionPattern),
       isNotNull(d1.documentId),
       isNotNull(d2.documentId),
     ];
@@ -2848,21 +2848,21 @@ export class DefinitionsRepository extends BaseRepository {
   /**
    * Get top definitions by occurrence count (hub definitions).
    * These are the most connected/referenced definitions in the corpus.
-   * @param state - StateCode ('NY' or 'NJ')
+   * @param jurisdiction - JurisdictionCode ('NY' or 'NJ')
    * @param limit - Max definitions to return (default 20)
    * @param titleFilter - Optional title number to filter by (e.g., "11" for NY, "8" for NJ)
    */
   async getTopDefinitions(
-    state: StateCode,
+    jurisdiction: JurisdictionCode,
     limit: number = 20,
     titleFilter?: string
   ): Promise<DefinitionHub[]> {
-    const statePattern = state.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
-    const isNY = state.toLowerCase() === 'ny';
+    const jurisdictionPattern = jurisdiction.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
+    const isNY = jurisdiction.toLowerCase() === 'ny';
 
     // Build conditions
     const conditions = [
-      like(definitions.url, statePattern),
+      like(definitions.url, jurisdictionPattern),
       isNotNull(definitions.documentId),
     ];
 
@@ -2940,10 +2940,10 @@ export class DefinitionsRepository extends BaseRepository {
   /**
    * Get scope level flow matrix for chord diagram.
    * Shows how definitions flow from source scope levels to target scope levels.
-   * @param state - StateCode ('NY' or 'NJ')
+   * @param jurisdiction - JurisdictionCode ('NY' or 'NJ')
    */
-  async getScopeLevelFlows(state: StateCode): Promise<ScopeLevelFlow[]> {
-    const statePattern = state.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
+  async getScopeLevelFlows(jurisdiction: JurisdictionCode): Promise<ScopeLevelFlow[]> {
+    const jurisdictionPattern = jurisdiction.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
 
     // For each definition, get its source scope level and compare with occurrence doc levels
     // This shows how definitions at one level are used in documents at another level
@@ -2959,7 +2959,7 @@ export class DefinitionsRepository extends BaseRepository {
       .innerJoin(definitionDocumentOccurrences, eq(definitions.id, definitionDocumentOccurrences.definitionId))
       .innerJoin(scopeDoc, eq(definitionDocumentOccurrences.documentId, scopeDoc.id))
       .where(and(
-        like(definitions.url, statePattern),
+        like(definitions.url, jurisdictionPattern),
         isNotNull(definitions.scopeLevel),
         isNotNull(scopeDoc.hierarchyLevel)
       ))
@@ -2976,12 +2976,12 @@ export class DefinitionsRepository extends BaseRepository {
   /**
    * Get definition hierarchy data for edge bundling visualization.
    * Builds a tree of titles → chapters → parts → sections with definitions at leaves.
-   * @param state - StateCode ('NY' or 'NJ')
+   * @param jurisdiction - JurisdictionCode ('NY' or 'NJ')
    * @param limit - Max definitions per section (default 10)
    */
-  async getDefinitionHierarchy(state: StateCode, limit: number = 10): Promise<DefinitionHierarchyNode> {
-    const statePattern = state.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
-    const isNY = state.toLowerCase() === 'ny';
+  async getDefinitionHierarchy(jurisdiction: JurisdictionCode, limit: number = 10): Promise<DefinitionHierarchyNode> {
+    const jurisdictionPattern = jurisdiction.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
+    const isNY = jurisdiction.toLowerCase() === 'ny';
 
     // Get definitions with their document hierarchy info
     const results = await this.db
@@ -2998,7 +2998,7 @@ export class DefinitionsRepository extends BaseRepository {
       .from(definitions)
       .innerJoin(regulatoryDocuments, eq(definitions.documentId, regulatoryDocuments.id))
       .where(and(
-        like(definitions.url, statePattern),
+        like(definitions.url, jurisdictionPattern),
         isNotNull(definitions.documentId)
       ))
       .orderBy(
@@ -3011,7 +3011,7 @@ export class DefinitionsRepository extends BaseRepository {
     // Build hierarchy tree
     const root: DefinitionHierarchyNode = {
       id: 'root',
-      name: normalizeState(state),
+      name: normalizeJurisdiction(jurisdiction),
       level: 'root',
       children: [],
     };
@@ -3078,11 +3078,11 @@ export class DefinitionsRepository extends BaseRepository {
   /**
    * Get available title numbers for definition filtering.
    * Efficient query that only fetches distinct titles.
-   * @param state - StateCode ('NY' or 'NJ')
+   * @param jurisdiction - JurisdictionCode ('NY' or 'NJ')
    */
-  async getAvailableTitles(state: StateCode): Promise<string[]> {
-    const statePattern = state.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
-    const isNY = state.toLowerCase() === 'ny';
+  async getAvailableTitles(jurisdiction: JurisdictionCode): Promise<string[]> {
+    const jurisdictionPattern = jurisdiction.toLowerCase() === 'ny' ? '%new-york%' : '%new-jersey%';
+    const isNY = jurisdiction.toLowerCase() === 'ny';
 
     const titleColumn = isNY ? regulatoryDocuments.nycrrTitle : regulatoryDocuments.njacTitle;
 
@@ -3093,7 +3093,7 @@ export class DefinitionsRepository extends BaseRepository {
       .from(definitions)
       .innerJoin(regulatoryDocuments, eq(definitions.documentId, regulatoryDocuments.id))
       .where(and(
-        like(definitions.url, statePattern),
+        like(definitions.url, jurisdictionPattern),
         isNotNull(definitions.documentId),
         isNotNull(titleColumn)
       ))

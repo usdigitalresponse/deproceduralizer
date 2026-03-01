@@ -141,7 +141,7 @@ def get_sections_from_db(
         prefix = 'nycrr'
 
     conditions = [
-        "state = %s",
+        "jurisdiction = %s",
         "hierarchy_level = 'section'",
         "(exclude_from_analysis = FALSE OR exclude_from_analysis IS NULL)",
         """(
@@ -353,7 +353,7 @@ def store_to_database(regulations: List[Dict], jurisdiction: str = "NY"):
                 # Get document_id from source_index (don't create new docs)
                 result = conn.execute("""
                     SELECT id FROM regulatory_documents
-                    WHERE source_index = %s AND state = %s
+                    WHERE source_index = %s AND jurisdiction = %s
                     LIMIT 1
                 """, (source_idx, jurisdiction.upper())).fetchone()
 
@@ -502,7 +502,7 @@ def infer_scope_level_from_phrase(conn=None, jurisdiction: str = None, dry_run: 
     if jurisdiction:
         state_filter = """
             AND d.document_id IN (
-                SELECT id FROM regulatory_documents WHERE state = %s
+                SELECT id FROM regulatory_documents WHERE jurisdiction = %s
             )
         """
         params.append(jurisdiction.upper())
@@ -698,7 +698,7 @@ def infer_scope_from_any_section(jurisdiction: str = None, dry_run: bool = False
     state_filter = ""
     params = []
     if jurisdiction:
-        state_filter = "AND section.state = %s"
+        state_filter = "AND section.jurisdiction = %s"
         params.append(jurisdiction.upper())
 
     base_cte = f"""
@@ -1758,7 +1758,7 @@ def get_truncated_sections(jurisdiction: str) -> List[Dict]:
                 LENGTH(rd.content) as content_length
             FROM regulatory_documents rd
             JOIN definitions d ON d.document_id = rd.id
-            WHERE rd.state = %s
+            WHERE rd.jurisdiction = %s
               AND LENGTH(rd.content) > 3000
             ORDER BY LENGTH(rd.content) DESC
         """, (jurisdiction.upper(),))

@@ -4,7 +4,7 @@ import 'server-only';
 import {
   db,
   ComplianceIssuesRepository,
-  type StateCode,
+  type JurisdictionCode,
   type PipelineFunnelData,
   type Tier1ContextRequestStats,
   type TierTransitionData,
@@ -57,7 +57,7 @@ export type {
 // ═══════════════════════════════════════════════════════════════════
 
 export async function getPipelineFunnelStats(
-  state: StateCode,
+  state: JurisdictionCode,
   issueType?: string
 ): Promise<ActionResult<PipelineFunnelData>> {
   return runCachedAction(
@@ -69,7 +69,7 @@ export async function getPipelineFunnelStats(
 }
 
 export async function getTier1ContextRequestStats(
-  state: StateCode,
+  state: JurisdictionCode,
   issueType?: string
 ): Promise<ActionResult<Tier1ContextRequestStats>> {
   return runCachedAction(
@@ -81,7 +81,7 @@ export async function getTier1ContextRequestStats(
 }
 
 export async function getTierTransitionStats(
-  state: StateCode,
+  state: JurisdictionCode,
   issueType?: string
 ): Promise<ActionResult<TierTransitionData>> {
   return runCachedAction(
@@ -93,7 +93,7 @@ export async function getTierTransitionStats(
 }
 
 export async function getTier3EvidenceStats(
-  state: StateCode,
+  state: JurisdictionCode,
   issueType?: string
 ): Promise<ActionResult<Tier3EvidenceStats>> {
   return runCachedAction(
@@ -105,7 +105,7 @@ export async function getTier3EvidenceStats(
 }
 
 export async function getConfidenceByClassification(
-  state: StateCode,
+  state: JurisdictionCode,
   issueType?: string
 ): Promise<ActionResult<ConfidenceByClassificationData>> {
   return runCachedAction(
@@ -117,7 +117,7 @@ export async function getConfidenceByClassification(
 }
 
 export async function getTransitionReasons(
-  state: StateCode,
+  state: JurisdictionCode,
   issueType?: string
 ): Promise<ActionResult<TransitionReasonData>> {
   return runCachedAction(
@@ -142,7 +142,7 @@ export interface PipelineAnalyticsBundle {
 }
 
 export async function getPipelineAnalyticsBundle(
-  state: StateCode,
+  state: JurisdictionCode,
   issueType?: string
 ): Promise<ActionResult<PipelineAnalyticsBundle>> {
   return runCachedAction(
@@ -168,7 +168,7 @@ export async function getPipelineAnalyticsBundle(
 // ═══════════════════════════════════════════════════════════════════
 
 export async function getTier2ContextRequestsStats(
-  state: StateCode,
+  state: JurisdictionCode,
   issueType?: string
 ): Promise<ActionResult<Tier2ContextRequestsStats>> {
   return runCachedAction(
@@ -180,7 +180,7 @@ export async function getTier2ContextRequestsStats(
 }
 
 export async function getContextUsedStats(
-  state: StateCode,
+  state: JurisdictionCode,
   issueType?: string
 ): Promise<ActionResult<ContextUsedStats>> {
   return runCachedAction(
@@ -192,7 +192,7 @@ export async function getContextUsedStats(
 }
 
 export async function getResearchFunnelStats(
-  state: StateCode,
+  state: JurisdictionCode,
   issueType?: string
 ): Promise<ActionResult<ResearchFunnelStats>> {
   return runCachedAction(
@@ -205,7 +205,7 @@ export async function getResearchFunnelStats(
 
 /** Fetch all context/research subtab data in parallel. */
 export async function getPipelineContextData(
-  state: StateCode,
+  state: JurisdictionCode,
   issueType?: string
 ): Promise<ActionResult<PipelineContextData>> {
   try {
@@ -235,7 +235,7 @@ export async function getPipelineContextData(
 // ═══════════════════════════════════════════════════════════════════
 
 export async function getPipelineAnalyticsData(
-  state: StateCode
+  state: JurisdictionCode
 ): Promise<ActionResult<PipelineAnalyticsData>> {
   try {
     const [funnelResult, tier1Result, transitionsResult, evidenceResult, confByClassResult, transitionReasonsResult] = await Promise.all([

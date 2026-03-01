@@ -3,7 +3,7 @@
 import { EntityTypeIndicator } from '@/components/ui';
 import { CrossReferenceCard, IncomingReferenceCard } from './CrossReferenceCard';
 import type { CrossReferenceWithTarget, CrossReferenceWithSource } from '@deproceduralizer/database';
-import { DEFAULT_STATE } from '@/types/state';
+import { DEFAULT_JURISDICTION } from '@/types/state';
 
 interface CrossReferenceListProps {
   /** Outgoing cross-references from this document */
@@ -23,7 +23,7 @@ interface CrossReferenceListProps {
  */
 export function CrossReferenceList({
   crossRefs,
-  state = DEFAULT_STATE,
+  state = DEFAULT_JURISDICTION,
   compact = false,
   limit = 0,
   title = 'Cross-References',
@@ -86,7 +86,7 @@ interface IncomingReferenceListProps {
  */
 export function IncomingReferenceList({
   crossRefs,
-  state = DEFAULT_STATE,
+  state = DEFAULT_JURISDICTION,
   compact = false,
   limit = 0,
   title = 'Cited By',

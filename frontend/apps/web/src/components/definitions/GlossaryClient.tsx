@@ -36,11 +36,11 @@ import type {
   DefinitionStats,
   AlphabeticalIndex,
   AggregatedTerm,
-  StateCode,
+  JurisdictionCode,
 } from '@deproceduralizer/database';
 
 interface GlossaryClientProps {
-  state: StateCode;
+  jurisdiction: JurisdictionCode;
   initialData: {
     definitions: DefinitionWithContext[];
     aggregatedTerms: AggregatedTerm[];
@@ -57,7 +57,7 @@ const PAGE_SIZE = 20;
  * Client component for the glossary page with search, filtering, and pagination.
  * Owns all URL state and passes controlled props to child components.
  */
-export function GlossaryClient({ state, initialData }: GlossaryClientProps) {
+export function GlossaryClient({ jurisdiction, initialData }: GlossaryClientProps) {
   const [isLoading, setIsLoading] = useState(false);
 
   // Single source of truth for all URL state (shallow: true for client-side fetching)
@@ -165,7 +165,7 @@ export function GlossaryClient({ state, initialData }: GlossaryClientProps) {
 
     const fetchData = async () => {
       if (params.view === 'aggregated') {
-        const result = await getAggregatedTermsPaginated(state, {
+        const result = await getAggregatedTermsPaginated(jurisdiction, {
           page: params.page,
           pageSize: PAGE_SIZE,
           search: params.search || undefined,
@@ -181,7 +181,7 @@ export function GlossaryClient({ state, initialData }: GlossaryClientProps) {
           setError(result.error);
         }
       } else {
-        const result = await getDefinitionsPaginated(state, {
+        const result = await getDefinitionsPaginated(jurisdiction, {
           page: params.page,
           pageSize: PAGE_SIZE,
           search: params.search || undefined,
@@ -206,18 +206,18 @@ export function GlossaryClient({ state, initialData }: GlossaryClientProps) {
 
     setIsLoading(true);
     fetchData().finally(() => setIsLoading(false));
-  }, [state, params.search, params.letter, params.page, params.view, params.scopeLevel, params.definitionType, params.quality]);
+  }, [jurisdiction, params.search, params.letter, params.page, params.view, params.scopeLevel, params.definitionType, params.quality]);
 
   // Refresh alphabetical index when state changes
   useEffect(() => {
     const refreshIndex = async () => {
-      const result = await getAlphabeticalIndex(state);
+      const result = await getAlphabeticalIndex(jurisdiction);
       if (result.success) {
         setAlphabeticalIndex(result.data);
       }
     };
     refreshIndex();
-  }, [state]);
+  }, [jurisdiction]);
 
   const stats = initialData.stats;
 
@@ -346,7 +346,7 @@ export function GlossaryClient({ state, initialData }: GlossaryClientProps) {
               <AggregatedTermCard
                 key={term.normalizedTerm}
                 term={term}
-                state={state}
+                jurisdiction={jurisdiction}
               />
             ))}
           </div>
@@ -371,7 +371,7 @@ export function GlossaryClient({ state, initialData }: GlossaryClientProps) {
               <DefinitionCard
                 key={definition.id}
                 definition={definition}
-                state={state}
+                state={jurisdiction}
                 showSource={true}
               />
             ))}

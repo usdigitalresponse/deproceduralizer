@@ -4,7 +4,7 @@ import { regulatoryDocuments, RegulatoryDocument } from '../schema/regulatory-do
 import { analyses } from '../schema/analyses';
 import { redFlags } from '../schema/red-flags';
 import { complianceIssues } from '../schema/compliance-issues';
-import { StateCode, normalizeState } from '../schema/constants';
+import { JurisdictionCode, normalizeJurisdiction } from '../schema/constants';
 
 // content is omitted from list queries for performance, only fetched in getByIdWithAnalysis
 export interface RegulationWithAnalysis extends Omit<RegulatoryDocument, 'content'> {
@@ -76,7 +76,7 @@ export interface HierarchyNode {
   njacChapter: string | null;
   njacSubchapter: string | null;
   njacSection: string | null;
-  state: string | null;
+  jurisdiction: string | null;
   // Aggregated data
   hasAnalysis: boolean;
   totalFlags: number;
@@ -100,7 +100,7 @@ export interface HierarchyNode {
 }
 
 export interface HierarchyFilterOptions {
-  state: StateCode; // Required - filter by state
+  jurisdiction: JurisdictionCode; // Required - filter by jurisdiction
   hasAnalysis?: boolean;
   hasFlags?: boolean;
   severity?: 'high' | 'medium' | 'low';
@@ -115,7 +115,7 @@ export interface HierarchyFilterOptions {
 }
 
 export interface PaginationOptions {
-  state: StateCode; // Required - filter by state
+  jurisdiction: JurisdictionCode; // Required - filter by jurisdiction
   page: number;
   pageSize: number;
   search?: string;
@@ -165,7 +165,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         id: regulatoryDocuments.id,
         sourceIndex: regulatoryDocuments.sourceIndex,
         type: regulatoryDocuments.type,
-        state: regulatoryDocuments.state,
+        jurisdiction: regulatoryDocuments.jurisdiction,
         title: regulatoryDocuments.title,
         url: regulatoryDocuments.url,
         urlType: regulatoryDocuments.urlType,
@@ -308,14 +308,14 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
   async getAllWithAnalysisPaginated(
     options: PaginationOptions
   ): Promise<PaginatedResult<RegulationWithAnalysis>> {
-    const { state, page, pageSize, search, sortBy = 'maxSeverity', sortOrder = 'desc', filters } = options;
+    const { jurisdiction, page, pageSize, search, sortBy = 'maxSeverity', sortOrder = 'desc', filters } = options;
     const offset = (page - 1) * pageSize;
 
     // Build conditions array
     const conditions: ReturnType<typeof eq>[] = [];
 
-    // Always filter by state
-    conditions.push(eq(regulatoryDocuments.state, normalizeState(state)));
+    // Always filter by jurisdiction
+    conditions.push(eq(regulatoryDocuments.jurisdiction, normalizeJurisdiction(jurisdiction)));
 
     // Add search condition if provided
     if (search) {
@@ -449,7 +449,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         id: regulatoryDocuments.id,
         sourceIndex: regulatoryDocuments.sourceIndex,
         type: regulatoryDocuments.type,
-        state: regulatoryDocuments.state,
+        jurisdiction: regulatoryDocuments.jurisdiction,
         title: regulatoryDocuments.title,
         url: regulatoryDocuments.url,
         urlType: regulatoryDocuments.urlType,
@@ -610,7 +610,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         id: regulatoryDocuments.id,
         sourceIndex: regulatoryDocuments.sourceIndex,
         type: regulatoryDocuments.type,
-        state: regulatoryDocuments.state,
+        jurisdiction: regulatoryDocuments.jurisdiction,
         title: regulatoryDocuments.title,
         url: regulatoryDocuments.url,
         urlType: regulatoryDocuments.urlType,
@@ -768,8 +768,8 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
    * When filters are applied, only returns titles that have matching descendants
    */
   async getHierarchyRoots(filters: HierarchyFilterOptions): Promise<HierarchyNode[]> {
-    const { state } = filters;
-    const stateUpper = normalizeState(state);
+    const { jurisdiction } = filters;
+    const jurisdictionUpper = normalizeJurisdiction(jurisdiction);
 
     // Build filter conditions for descendants
     const filterConditions = this.buildHierarchyFilterConditions(filters);
@@ -777,7 +777,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
       ? sql`AND ${sql.join(filterConditions, sql` AND `)}`
       : sql``;
 
-    // When filters are active (beyond just state), only show titles with matching descendants
+    // When filters are active (beyond just jurisdiction), only show titles with matching descendants
     const hasContentFilters = filterConditions.length > 0;
 
     const results = await this.db.execute(sql`
@@ -785,9 +785,9 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         rd.id,
         -- Format root titles as "TITLE [number] - [name]"
         CASE
-          WHEN rd.state = 'NY' AND rd.nycrr_title IS NOT NULL AND rd.nycrr_title_name IS NOT NULL THEN
+          WHEN rd.jurisdiction = 'NY' AND rd.nycrr_title IS NOT NULL AND rd.nycrr_title_name IS NOT NULL THEN
             'TITLE ' || rd.nycrr_title || ' - ' || rd.nycrr_title_name
-          WHEN rd.state = 'NJ' AND rd.njac_title IS NOT NULL AND rd.njac_title_name IS NOT NULL THEN
+          WHEN rd.jurisdiction = 'NJ' AND rd.njac_title IS NOT NULL AND rd.njac_title_name IS NOT NULL THEN
             'TITLE ' || rd.njac_title || ' - ' || rd.njac_title_name
           ELSE rd.title
         END as title,
@@ -805,7 +805,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         rd.njac_chapter as "njacChapter",
         rd.njac_subchapter as "njacSubchapter",
         rd.njac_section as "njacSection",
-        rd.state,
+        rd.jurisdiction,
         COALESCE(child_stats.has_analysis, false) as "hasAnalysis",
         COALESCE(child_stats.total_flags, 0)::int as "totalFlags",
         child_stats.max_severity as "maxSeverity",
@@ -849,7 +849,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         ${filterClause}
       ) descendant_stats ON true
       WHERE rd.hierarchy_level = 'title'
-        AND rd.state = ${stateUpper}
+        AND rd.jurisdiction = ${jurisdictionUpper}
         ${hasContentFilters ? sql`AND (child_stats.matching_child_count > 0 OR descendant_stats.matching_descendant_count > 0)` : sql``}
       ORDER BY
         -- Sort by numeric title, handling alphanumeric NJ titles like "10A"
@@ -904,7 +904,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         rd.njac_chapter as "njacChapter",
         rd.njac_subchapter as "njacSubchapter",
         rd.njac_section as "njacSection",
-        rd.state,
+        rd.jurisdiction,
         rd.summary,
         rd.section_type as "sectionType",
         rd.keywords,
@@ -970,8 +970,8 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
    * Get orphan documents (no parent, but not a title; or null hierarchy_level)
    */
   async getOrphanDocuments(filters: HierarchyFilterOptions): Promise<HierarchyNode[]> {
-    const { state } = filters;
-    const stateUpper = normalizeState(state);
+    const { jurisdiction } = filters;
+    const jurisdictionUpper = normalizeJurisdiction(jurisdiction);
 
     const filterConditions = this.buildHierarchyFilterConditions(filters);
     const filterClause = filterConditions.length > 0
@@ -996,7 +996,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         rd.njac_chapter as "njacChapter",
         rd.njac_subchapter as "njacSubchapter",
         rd.njac_section as "njacSection",
-        rd.state,
+        rd.jurisdiction,
         rd.summary,
         rd.section_type as "sectionType",
         rd.keywords,
@@ -1016,7 +1016,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         0 as "matchingDescendantCount"
       FROM regulatory_documents rd
       LEFT JOIN analyses a ON a.document_id = rd.id AND a.is_current = true
-      WHERE rd.state = ${stateUpper}
+      WHERE rd.jurisdiction = ${jurisdictionUpper}
         AND (
           (rd.parent_id IS NULL AND rd.hierarchy_level IS DISTINCT FROM 'title')
           OR rd.hierarchy_level IS NULL
@@ -1044,8 +1044,8 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
     analyzedCount: number;
     flaggedCount: number;
   }[]> {
-    const { state } = filters;
-    const stateUpper = normalizeState(state);
+    const { jurisdiction } = filters;
+    const jurisdictionUpper = normalizeJurisdiction(jurisdiction);
 
     const filterConditions = this.buildHierarchyFilterConditions(filters);
     const additionalFilters = filterConditions.length > 0
@@ -1060,7 +1060,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         COUNT(CASE WHEN a.num_flags > 0 THEN 1 END)::int as "flaggedCount"
       FROM regulatory_documents rd
       LEFT JOIN analyses a ON a.document_id = rd.id AND a.is_current = true
-      WHERE rd.state = ${stateUpper}
+      WHERE rd.jurisdiction = ${jurisdictionUpper}
       ${additionalFilters}
       GROUP BY rd.hierarchy_level
       ORDER BY count DESC
@@ -1164,17 +1164,17 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
    * Only returns true root titles (parent_id IS NULL)
    * Uses precomputed descendant stats for instant load
    */
-  async getHierarchyRootsFast(state: StateCode): Promise<HierarchyNode[]> {
-    const stateUpper = normalizeState(state);
+  async getHierarchyRootsFast(jurisdiction: JurisdictionCode): Promise<HierarchyNode[]> {
+    const jurisdictionUpper = normalizeJurisdiction(jurisdiction);
 
     const results = await this.db.execute(sql`
       SELECT
         rd.id,
         -- Format root titles as "TITLE [number] - [name]"
         CASE
-          WHEN rd.state = 'NY' AND rd.nycrr_title IS NOT NULL AND rd.nycrr_title_name IS NOT NULL THEN
+          WHEN rd.jurisdiction = 'NY' AND rd.nycrr_title IS NOT NULL AND rd.nycrr_title_name IS NOT NULL THEN
             'TITLE ' || rd.nycrr_title || ' - ' || rd.nycrr_title_name
-          WHEN rd.state = 'NJ' AND rd.njac_title IS NOT NULL AND rd.njac_title_name IS NOT NULL THEN
+          WHEN rd.jurisdiction = 'NJ' AND rd.njac_title IS NOT NULL AND rd.njac_title_name IS NOT NULL THEN
             'TITLE ' || rd.njac_title || ' - ' || rd.njac_title_name
           ELSE rd.title
         END as title,
@@ -1192,7 +1192,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         rd.njac_chapter as "njacChapter",
         rd.njac_subchapter as "njacSubchapter",
         rd.njac_section as "njacSection",
-        rd.state,
+        rd.jurisdiction,
         rd.summary,
         rd.section_type as "sectionType",
         rd.keywords,
@@ -1214,7 +1214,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
       FROM regulatory_documents rd
       LEFT JOIN analyses a ON a.document_id = rd.id AND a.is_current = true
       WHERE rd.hierarchy_level = 'title'
-        AND rd.state = ${stateUpper}
+        AND rd.jurisdiction = ${jurisdictionUpper}
         AND rd.parent_id IS NULL
       ORDER BY
         -- Sort by numeric title, handling alphanumeric NJ titles like "10A"
@@ -1250,7 +1250,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         rd.njac_chapter as "njacChapter",
         rd.njac_subchapter as "njacSubchapter",
         rd.njac_section as "njacSection",
-        rd.state,
+        rd.jurisdiction,
         rd.summary,
         rd.section_type as "sectionType",
         rd.keywords,
@@ -1302,7 +1302,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
     njacTitle: string | null;
     njacChapter: string | null;
     njacSubchapter: string | null;
-    state: string | null;
+    jurisdiction: string | null;
     hasAnalysis: boolean;
     maxSeverity: number | null;
     numFlags: number;
@@ -1322,7 +1322,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         rd.njac_title as "njacTitle",
         rd.njac_chapter as "njacChapter",
         rd.njac_subchapter as "njacSubchapter",
-        rd.state,
+        rd.jurisdiction,
         COALESCE(a.id IS NOT NULL, false) as "hasAnalysis",
         a.max_severity as "maxSeverity",
         COALESCE(a.num_flags, 0)::int as "numFlags"
@@ -1352,7 +1352,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
       njacTitle: string | null;
       njacChapter: string | null;
       njacSubchapter: string | null;
-      state: string | null;
+      jurisdiction: string | null;
       hasAnalysis: boolean;
       maxSeverity: number | null;
       numFlags: number;
@@ -1377,7 +1377,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
     njacTitle: string | null;
     njacChapter: string | null;
     njacSubchapter: string | null;
-    state: string | null;
+    jurisdiction: string | null;
   }[]> {
     // Use a recursive CTE to walk up the parent chain
     const results = await this.db.execute(sql`
@@ -1397,7 +1397,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
           rd.njac_title as "njacTitle",
           rd.njac_chapter as "njacChapter",
           rd.njac_subchapter as "njacSubchapter",
-          rd.state,
+          rd.jurisdiction,
           rd.parent_id as "parentId",
           1 as depth
         FROM regulatory_documents rd
@@ -1420,7 +1420,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
           rd.njac_title as "njacTitle",
           rd.njac_chapter as "njacChapter",
           rd.njac_subchapter as "njacSubchapter",
-          rd.state,
+          rd.jurisdiction,
           rd.parent_id as "parentId",
           a.depth + 1
         FROM regulatory_documents rd
@@ -1428,7 +1428,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         WHERE a.depth < 20  -- Safety limit to prevent infinite loops
       )
       SELECT id, title, "hierarchyLevel", "shortTitle", summary, "levelIdentifier", "citation",
-             "nycrrTitle", "nycrrPart", "nycrrChapter", "njacTitle", "njacChapter", "njacSubchapter", state
+             "nycrrTitle", "nycrrPart", "nycrrChapter", "njacTitle", "njacChapter", "njacSubchapter", jurisdiction
       FROM ancestors
       ORDER BY depth DESC  -- Root first
     `);
@@ -1447,7 +1447,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
       njacTitle: string | null;
       njacChapter: string | null;
       njacSubchapter: string | null;
-      state: string | null;
+      jurisdiction: string | null;
     }[];
   }
 
@@ -1457,15 +1457,15 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
 
   /**
    * Get aggregate statistics for the dashboard
-   * @param state - Optional state filter. If not provided, returns stats for all states.
+   * @param jurisdiction - Optional jurisdiction filter. If not provided, returns stats for all jurisdictions.
    */
-  async getDashboardStats(state?: StateCode): Promise<DashboardStats> {
-    const stateCondition = state
-      ? sql`WHERE rd.state = ${normalizeState(state)}`
+  async getDashboardStats(jurisdiction?: JurisdictionCode): Promise<DashboardStats> {
+    const jurisdictionCondition = jurisdiction
+      ? sql`WHERE rd.jurisdiction = ${normalizeJurisdiction(jurisdiction)}`
       : sql``;
 
-    const stateConditionWithAnd = state
-      ? sql`AND rd.state = ${normalizeState(state)}`
+    const jurisdictionConditionWithAnd = jurisdiction
+      ? sql`AND rd.jurisdiction = ${normalizeJurisdiction(jurisdiction)}`
       : sql``;
 
     // Get document counts
@@ -1476,7 +1476,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         COUNT(CASE WHEN a.num_flags > 0 THEN 1 END)::int as "documentsWithFlags"
       FROM regulatory_documents rd
       LEFT JOIN analyses a ON a.document_id = rd.id AND a.is_current = true
-      ${stateCondition}
+      ${jurisdictionCondition}
     `);
 
     // Get flag counts by severity
@@ -1490,7 +1490,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
       FROM red_flags rf
       JOIN analyses a ON a.id = rf.analysis_id AND a.is_current = true
       JOIN regulatory_documents rd ON rd.id = a.document_id
-      ${stateCondition}
+      ${jurisdictionCondition}
     `);
 
     // Get compliance issue counts (only LLM-confirmed issues where requirement_found = TRUE)
@@ -1500,7 +1500,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         COUNT(DISTINCT CASE WHEN cia.review_status = 'unreviewed' OR cia.review_status IS NULL THEN cia.id END)::int as "unreviewed"
       FROM compliance_issue_analyses cia
       WHERE cia.requirement_found = TRUE
-      ${state ? sql`AND cia.state = ${normalizeState(state)}` : sql``}
+      ${jurisdiction ? sql`AND cia.jurisdiction = ${normalizeJurisdiction(jurisdiction)}` : sql``}
     `);
 
     // Get compliance issues by type (only LLM-confirmed issues)
@@ -1510,7 +1510,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         COUNT(*)::int as "count"
       FROM compliance_issue_analyses cia
       WHERE cia.requirement_found = TRUE
-      ${state ? sql`AND cia.state = ${normalizeState(state)}` : sql``}
+      ${jurisdiction ? sql`AND cia.jurisdiction = ${normalizeJurisdiction(jurisdiction)}` : sql``}
       GROUP BY cia.issue_type
     `);
 
@@ -1561,7 +1561,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
   /**
    * Get stats for all states at once (for state selector cards)
    */
-  async getAllStateStats(): Promise<Record<StateCode, DashboardStats>> {
+  async getAllJurisdictionStats(): Promise<Record<JurisdictionCode, DashboardStats>> {
     const [nyStats, njStats, nycStats] = await Promise.all([
       this.getDashboardStats('ny'),
       this.getDashboardStats('nj'),
@@ -1579,17 +1579,17 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
    * Get recent activity counts for the dashboard.
    * Counts events within the last `windowDays` days.
    */
-  async getRecentActivity(state?: StateCode, windowDays = 7): Promise<RecentActivity> {
-    const stateCondition = state
-      ? sql`AND cia.state = ${normalizeState(state)}`
+  async getRecentActivity(jurisdiction?: JurisdictionCode, windowDays = 7): Promise<RecentActivity> {
+    const jurisdictionCondition = jurisdiction
+      ? sql`AND cia.jurisdiction = ${normalizeJurisdiction(jurisdiction)}`
       : sql``;
 
-    const flagStateCondition = state
-      ? sql`AND rd.state = ${normalizeState(state)}`
+    const flagJurisdictionCondition = jurisdiction
+      ? sql`AND rd.jurisdiction = ${normalizeJurisdiction(jurisdiction)}`
       : sql``;
 
-    const docStateCondition = state
-      ? sql`AND rd.state = ${normalizeState(state)}`
+    const docJurisdictionCondition = jurisdiction
+      ? sql`AND rd.jurisdiction = ${normalizeJurisdiction(jurisdiction)}`
       : sql``;
 
     const cutoff = sql`NOW() - ${sql.raw(`INTERVAL '${windowDays} days'`)}`;
@@ -1601,7 +1601,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
           COUNT(*) FILTER (WHERE cia.created_at >= ${cutoff} AND cia.requirement_found = TRUE)::int AS "newIssues",
           COUNT(*) FILTER (WHERE cia.reviewed_at >= ${cutoff})::int AS "issuesReviewed"
         FROM compliance_issue_analyses cia
-        WHERE 1=1 ${stateCondition}
+        WHERE 1=1 ${jurisdictionCondition}
       `),
       // Red flags reviewed in window
       this.db.execute(sql`
@@ -1610,7 +1610,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         FROM red_flags rf
         JOIN analyses a ON a.id = rf.analysis_id AND a.is_current = true
         JOIN regulatory_documents rd ON rd.id = a.document_id
-        WHERE rf.reviewed_at >= ${cutoff} ${flagStateCondition}
+        WHERE rf.reviewed_at >= ${cutoff} ${flagJurisdictionCondition}
       `),
       // Documents analyzed in window
       this.db.execute(sql`
@@ -1618,7 +1618,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
           COUNT(*)::int AS "documentsAnalyzed"
         FROM analyses a
         JOIN regulatory_documents rd ON rd.id = a.document_id
-        WHERE a.analyzed_at >= ${cutoff} AND a.is_current = true ${docStateCondition}
+        WHERE a.analyzed_at >= ${cutoff} AND a.is_current = true ${docJurisdictionCondition}
       `),
     ]);
 
@@ -1643,15 +1643,15 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
    * Get document counts grouped by section_type.
    * Normalizes section types by lowercasing and trimming whitespace.
    */
-  async getSectionTypeStats(state: StateCode): Promise<{ sectionType: string; count: number }[]> {
-    const stateUpper = normalizeState(state);
+  async getSectionTypeStats(jurisdiction: JurisdictionCode): Promise<{ sectionType: string; count: number }[]> {
+    const jurisdictionUpper = normalizeJurisdiction(jurisdiction);
 
     const results = await this.db.execute(sql`
       SELECT
         LOWER(TRIM(section_type)) as "sectionType",
         COUNT(*)::int as count
       FROM regulatory_documents
-      WHERE state = ${stateUpper}
+      WHERE jurisdiction = ${jurisdictionUpper}
         AND section_type IS NOT NULL
         AND TRIM(section_type) != ''
       GROUP BY LOWER(TRIM(section_type))
@@ -1664,14 +1664,14 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
   /**
    * Get aggregate metadata statistics for a state
    */
-  async getMetadataStats(state: StateCode): Promise<{
+  async getMetadataStats(jurisdiction: JurisdictionCode): Promise<{
     withSummary: number;
     withForm: number;
     withIbr: number;
     total: number;
     bySectionType: Record<string, number>;
   }> {
-    const stateUpper = normalizeState(state);
+    const jurisdictionUpper = normalizeJurisdiction(jurisdiction);
 
     // Get aggregate counts
     const statsResult = await this.db.execute(sql`
@@ -1681,7 +1681,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         COUNT(*) FILTER (WHERE has_ibr = true)::int as "withIbr",
         COUNT(*)::int as total
       FROM regulatory_documents
-      WHERE state = ${stateUpper}
+      WHERE jurisdiction = ${jurisdictionUpper}
     `);
 
     // Get counts by section type
@@ -1690,7 +1690,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         COALESCE(section_type, 'unknown') as "sectionType",
         COUNT(*)::int as count
       FROM regulatory_documents
-      WHERE state = ${stateUpper}
+      WHERE jurisdiction = ${jurisdictionUpper}
       GROUP BY section_type
     `);
 
@@ -1716,8 +1716,8 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
    * Get most common keywords across all documents in a state.
    * Normalizes keywords by: lowercasing, trimming whitespace, removing trailing 's' for plurals.
    */
-  async getTopKeywords(state: StateCode, limit: number = 20): Promise<{ keyword: string; count: number }[]> {
-    const stateUpper = normalizeState(state);
+  async getTopKeywords(jurisdiction: JurisdictionCode, limit: number = 20): Promise<{ keyword: string; count: number }[]> {
+    const jurisdictionUpper = normalizeJurisdiction(jurisdiction);
 
     const results = await this.db.execute(sql`
       SELECT
@@ -1725,7 +1725,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         COUNT(*)::int as count
       FROM regulatory_documents,
            UNNEST(keywords) as keyword
-      WHERE state = ${stateUpper}
+      WHERE jurisdiction = ${jurisdictionUpper}
         AND keywords IS NOT NULL
         AND array_length(keywords, 1) > 0
         AND TRIM(keyword) != ''
@@ -1741,8 +1741,8 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
   /**
    * Get most common applies_to values across all documents in a state
    */
-  async getTopAppliesTo(state: StateCode, limit: number = 20): Promise<{ entity: string; count: number }[]> {
-    const stateUpper = normalizeState(state);
+  async getTopAppliesTo(jurisdiction: JurisdictionCode, limit: number = 20): Promise<{ entity: string; count: number }[]> {
+    const jurisdictionUpper = normalizeJurisdiction(jurisdiction);
 
     const results = await this.db.execute(sql`
       SELECT
@@ -1750,7 +1750,7 @@ export class RegulatoryDocumentsRepository extends BaseRepository {
         COUNT(*)::int as count
       FROM regulatory_documents,
            UNNEST(applies_to) as entity
-      WHERE state = ${stateUpper}
+      WHERE jurisdiction = ${jurisdictionUpper}
         AND applies_to IS NOT NULL
         AND array_length(applies_to, 1) > 0
       GROUP BY entity

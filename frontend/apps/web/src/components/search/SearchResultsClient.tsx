@@ -10,17 +10,17 @@ import { CommentarySidebar } from './CommentarySidebar';
 import { SearchFilters } from './SearchFilters';
 import { searchResultsParsers } from '@/lib/url/parsers';
 import type { SearchResults, SearchFilterOptions } from '@deproceduralizer/database';
-import type { StateCode } from '@deproceduralizer/database';
+import type { JurisdictionCode } from '@deproceduralizer/database';
 
 interface SearchResultsClientProps {
-  state: StateCode;
+  jurisdiction: JurisdictionCode;
   initialResults: SearchResults | null;
   initialQuery: string;
   filterOptions?: SearchFilterOptions;
 }
 
 export function SearchResultsClient({
-  state,
+  jurisdiction,
   initialResults,
   initialQuery,
   filterOptions,
@@ -45,9 +45,9 @@ export function SearchResultsClient({
     const trimmed = value.trim();
     if (trimmed.length < 2) return;
     startTransition(() => {
-      router.push(`/${state}/search?q=${encodeURIComponent(trimmed)}`);
+      router.push(`/${jurisdiction}/search?q=${encodeURIComponent(trimmed)}`);
     });
-  }, [state, router]);
+  }, [jurisdiction, router]);
 
   const handlePageChange = useCallback((page: number) => {
     startTransition(() => {
@@ -107,7 +107,7 @@ export function SearchResultsClient({
                   <SearchResultCard
                     key={`${item.type}-${item.id}`}
                     result={item}
-                    state={state}
+                    state={jurisdiction}
                     query={currentQuery}
                     searchUrl={searchUrl}
                   />
@@ -129,7 +129,7 @@ export function SearchResultsClient({
               <div className="hidden lg:block">
                 <CommentarySidebar
                   hits={initialResults.commentary}
-                  state={state}
+                  state={jurisdiction}
                   query={currentQuery}
                   searchUrl={searchUrl}
                 />

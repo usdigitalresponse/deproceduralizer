@@ -4,7 +4,7 @@ import 'server-only';
 import {
   db,
   ComplianceIssuesRepository,
-  type StateCode,
+  type JurisdictionCode,
   type TierCompletionCounts,
   type ClassificationBreakdown,
   type FullAnalysisRecord,
@@ -37,7 +37,7 @@ export interface AnalysisTierStats {
  * @returns Tier counts and classification breakdown
  */
 export async function getAnalysisTierStats(
-  state: StateCode
+  state: JurisdictionCode
 ): Promise<ActionResult<AnalysisTierStats>> {
   return runCachedAction(
     'getAnalysisTierStats',
@@ -79,7 +79,7 @@ export async function getFullAnalysisRecord(
  * @returns Classification counts per tier
  */
 export async function getClassificationBreakdown(
-  state: StateCode
+  state: JurisdictionCode
 ): Promise<ActionResult<ClassificationBreakdown>> {
   return runCachedAction(
     'getClassificationBreakdown',
@@ -133,7 +133,7 @@ export interface AnalysisListFilters {
  * @returns Paginated analysis list
  */
 export async function getAnalysisListPaginated(
-  state: StateCode,
+  state: JurisdictionCode,
   options: {
     page: number;
     pageSize: number;
@@ -164,7 +164,7 @@ export interface PriorityPicksResult {
  * @returns Priority items for the banner
  */
 export async function getPriorityPicks(
-  state: StateCode
+  state: JurisdictionCode
 ): Promise<ActionResult<PriorityPicksResult>> {
   try {
     const PAGE_SIZE = 5;
@@ -270,7 +270,7 @@ export async function getRegexMatchesForAnalysis(
  * export-specific columns. Capped at 5000 rows.
  */
 export async function exportAnalysisCsv(
-  state: StateCode,
+  state: JurisdictionCode,
   baseUrl: string,
   filters: AnalysisListFilters,
   sortBy?: string,

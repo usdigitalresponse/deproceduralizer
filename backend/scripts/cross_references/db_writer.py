@@ -120,7 +120,7 @@ def write_to_database(
                 INSERT INTO cross_references
                 (source_document_id, ref_type, raw_text, normalized_citation,
                  start_offset, end_offset, context_before, context_after,
-                 components, target_document_id, is_resolved, resolution_notes, state)
+                 components, target_document_id, is_resolved, resolution_notes, jurisdiction)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """,
                 all_refs
@@ -200,7 +200,7 @@ def get_cross_reference_stats(jurisdiction: str = None) -> Dict[str, Any]:
     """
     conn = psycopg.connect(os.getenv("DATABASE_URL"))
 
-    state_filter = "WHERE state = %s" if jurisdiction else ""
+    state_filter = "WHERE jurisdiction = %s" if jurisdiction else ""
     params = (jurisdiction.upper(),) if jurisdiction else ()
 
     # Total counts

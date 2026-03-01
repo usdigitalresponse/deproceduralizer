@@ -5,7 +5,7 @@ import { BarChart3, List } from 'lucide-react';
 import { SegmentedControl, type SegmentedControlOption } from '@/components/ui/SegmentedControl';
 import { ibrParsers } from '@/lib/url/parsers';
 import type { IbrTabValue } from '@/lib/constants/values';
-import type { StateCode } from '@deproceduralizer/database';
+import type { JurisdictionCode } from '@deproceduralizer/database';
 import type { IbrOverviewStats, IbrTopStandard } from '@/lib/actions/ibr';
 import { IbrOverviewTab } from './IbrOverviewTab';
 import { IbrBrowseTab } from './IbrBrowseTab';
@@ -16,7 +16,7 @@ const TAB_OPTIONS: SegmentedControlOption<IbrTabValue>[] = [
 ];
 
 export interface IbrClientProps {
-  state: StateCode;
+  jurisdiction: JurisdictionCode;
   stats: IbrOverviewStats | null;
   organizations: string[];
   topStandards: IbrTopStandard[] | null;
@@ -24,7 +24,7 @@ export interface IbrClientProps {
 }
 
 export function IbrClient({
-  state,
+  jurisdiction,
   stats,
   organizations,
   topStandards,
@@ -56,7 +56,7 @@ export function IbrClient({
 
         {currentTab === 'browse' && (
           <IbrBrowseTab
-            state={state}
+            jurisdiction={jurisdiction}
             organizations={organizations}
           />
         )}

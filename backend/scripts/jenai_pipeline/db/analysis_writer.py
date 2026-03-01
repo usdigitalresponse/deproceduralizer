@@ -52,7 +52,7 @@ def save_analysis_results(
                 # Upsert analysis row
                 cur.execute("""
                     INSERT INTO jenai_analyses (
-                        document_id, state, run_id,
+                        document_id, jurisdiction, run_id,
                         batch_id, completed_at,
                         classification, confidence, categories,
                         worst_thing,

@@ -1,12 +1,12 @@
 import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
-import type { StateCode } from '@deproceduralizer/database';
+import type { JurisdictionCode } from '@deproceduralizer/database';
 import { StatuteBrowseClient } from '@/components/statutes/StatuteBrowseClient';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Container } from '@/components/layout/Container';
 import { Card } from '@/components/ui/Card';
 import { Alert } from '@/components/ui';
-import { isValidState, STATE_CONFIG } from '@/types/state';
+import { isValidJurisdiction, JURISDICTION_CONFIG } from '@/types/state';
 import { getStatuteHierarchyRoots } from '@/lib/actions/statutes';
 
 export const dynamic = 'force-dynamic';
@@ -19,12 +19,12 @@ export default async function StatuteBrowsePage({ params }: PageProps) {
   const { state } = await params;
 
   // Validate state parameter
-  if (!isValidState(state)) {
+  if (!isValidJurisdiction(state)) {
     notFound();
   }
 
-  const stateCode = state as StateCode;
-  const stateConfig = STATE_CONFIG[stateCode];
+  const stateCode = state as JurisdictionCode;
+  const stateConfig = JURISDICTION_CONFIG[stateCode];
 
   // Fetch root-level statutes
   const result = await getStatuteHierarchyRoots(stateCode.toUpperCase());
@@ -53,7 +53,7 @@ export default async function StatuteBrowsePage({ params }: PageProps) {
       <Container size="2xl" className="py-6">
         <Suspense fallback={<StatuteBrowsePageSkeleton />}>
           <StatuteBrowseClient
-            state={stateCode}
+            jurisdiction={stateCode}
             initialRoots={result.data}
           />
         </Suspense>

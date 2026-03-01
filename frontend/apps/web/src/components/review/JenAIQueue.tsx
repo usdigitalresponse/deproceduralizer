@@ -8,14 +8,14 @@ import { ReviewProgress } from './ReviewProgress';
 import { JENAI_CATEGORY_LABELS } from '@/lib/constants/jenai';
 import { formatLabel } from '@/types/regulation';
 import { JenAIAvatar } from './JenAIAvatar';
-import type { StateCode } from '@/types/state';
+import type { JurisdictionCode } from '@/types/state';
 
 interface JenAIQueueProps {
-  state: StateCode;
+  jurisdiction: JurisdictionCode;
   mode?: 'review' | 'developer';
 }
 
-export function JenAIQueue({ state, mode = 'review' }: JenAIQueueProps) {
+export function JenAIQueue({ jurisdiction, mode = 'review' }: JenAIQueueProps) {
   const [issues, setIssues] = useState<Array<Record<string, unknown>>>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -39,7 +39,7 @@ export function JenAIQueue({ state, mode = 'review' }: JenAIQueueProps) {
   useEffect(() => {
     startTransition(async () => {
       const [issuesResult, categoriesResult, countsResult] = await Promise.all([
-        getJenAIIssuesPaginated(state, {
+        getJenAIIssuesPaginated(jurisdiction, {
           page,
           pageSize,
           sortBy,
@@ -50,8 +50,8 @@ export function JenAIQueue({ state, mode = 'review' }: JenAIQueueProps) {
             category: categoryFilter || undefined,
           },
         }),
-        getJenAICategories(state),
-        getJenAIStatusCounts(state),
+        getJenAICategories(jurisdiction),
+        getJenAIStatusCounts(jurisdiction),
       ]);
 
       if (issuesResult.success) {
@@ -75,7 +75,7 @@ export function JenAIQueue({ state, mode = 'review' }: JenAIQueueProps) {
         setStatusCounts(counts);
       }
     });
-  }, [state, page, statusFilter, severityFilter, categoryFilter, sortBy, sortOrder]);
+  }, [jurisdiction, page, statusFilter, severityFilter, categoryFilter, sortBy, sortOrder]);
 
   const goToPage = (newPage: number) => {
     setPage(newPage);
@@ -191,7 +191,7 @@ export function JenAIQueue({ state, mode = 'review' }: JenAIQueueProps) {
       {!isPending && issues.length > 0 && (
         <div className="space-y-4">
           {issues.map((issue) => (
-            <JenAICard key={issue.id as number} issue={issue as never} state={state} />
+            <JenAICard key={issue.id as number} issue={issue as never} state={jurisdiction} />
           ))}
         </div>
       )}

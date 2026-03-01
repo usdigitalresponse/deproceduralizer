@@ -1,7 +1,7 @@
 'use client';
 
 import { Suspense } from 'react';
-import type { StateCode, TierCompletionCounts, ClassificationBreakdown } from '@deproceduralizer/database';
+import type { JurisdictionCode, TierCompletionCounts, ClassificationBreakdown } from '@deproceduralizer/database';
 import type { PriorityPicksResult } from '@/lib/actions/analysis';
 import { TierDistributionChart } from './TierDistributionChart';
 import { AnalysisTable } from './AnalysisTable';
@@ -11,7 +11,7 @@ import { PipelineFlowVisualizer } from './PipelineFlowVisualizer';
 import { PriorityPicksBanner } from './PriorityPicksBanner';
 
 interface AnalysisDashboardProps {
-  state: StateCode;
+  jurisdiction: JurisdictionCode;
   tierCounts: TierCompletionCounts | null;
   classificationBreakdown: ClassificationBreakdown | null;
   total: number;
@@ -19,7 +19,7 @@ interface AnalysisDashboardProps {
 }
 
 export function AnalysisDashboard({
-  state,
+  jurisdiction,
   tierCounts,
   classificationBreakdown,
   total,
@@ -83,7 +83,7 @@ export function AnalysisDashboard({
       {/* Priority Picks Banner */}
       {priorityPicks && priorityPicks.items.length > 0 && (
         <PriorityPicksBanner
-          state={state}
+          jurisdiction={jurisdiction}
           items={priorityPicks.items}
           totalQuickWins={priorityPicks.totalQuickWins}
           isQuickWinMode={priorityPicks.isQuickWinMode}
@@ -105,7 +105,7 @@ export function AnalysisDashboard({
           <h3 className="text-lg font-semibold text-[var(--color-text)]">
             Pipeline Records
           </h3>
-          <ExportCsvButton state={state} />
+          <ExportCsvButton jurisdiction={jurisdiction} />
         </div>
 
         <Suspense fallback={<div className="animate-pulse bg-[var(--color-neutral-100)] h-12 rounded-[var(--radius-md)]" />}>
@@ -113,7 +113,7 @@ export function AnalysisDashboard({
         </Suspense>
 
         <Suspense fallback={<div className="animate-pulse bg-[var(--color-neutral-100)] h-64 rounded-[var(--radius-md)]" />}>
-          <AnalysisTable state={state} />
+          <AnalysisTable jurisdiction={jurisdiction} />
         </Suspense>
       </div>
     </div>

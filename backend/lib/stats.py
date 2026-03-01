@@ -44,7 +44,7 @@ def refresh_structure_stats(conn, jurisdiction: str) -> int:
             WITH direct_children AS (
                 SELECT parent_id, COUNT(*) as direct_child_count
                 FROM regulatory_documents
-                WHERE state = %s AND parent_id IS NOT NULL
+                WHERE jurisdiction = %s AND parent_id IS NOT NULL
                 GROUP BY parent_id
             ),
             structure_stats AS (
@@ -53,7 +53,7 @@ def refresh_structure_stats(conn, jurisdiction: str) -> int:
                     COALESCE(dc.direct_child_count, 0) as direct_child_count
                 FROM regulatory_documents rd
                 LEFT JOIN direct_children dc ON rd.id = dc.parent_id
-                WHERE rd.state = %s
+                WHERE rd.jurisdiction = %s
             )
             UPDATE regulatory_documents rd
             SET direct_child_count = ss.direct_child_count
@@ -68,7 +68,7 @@ def refresh_structure_stats(conn, jurisdiction: str) -> int:
             WITH RECURSIVE all_descendants AS (
                 SELECT id, parent_id, 1 as depth
                 FROM regulatory_documents
-                WHERE state = %s
+                WHERE jurisdiction = %s
 
                 UNION ALL
 
@@ -119,7 +119,7 @@ def refresh_analysis_stats(conn, jurisdiction: str) -> int:
                     a.id IS NOT NULL as has_analysis
                 FROM regulatory_documents rd
                 LEFT JOIN analyses a ON a.document_id = rd.id AND a.is_current = true
-                WHERE rd.state = %s
+                WHERE rd.jurisdiction = %s
 
                 UNION ALL
 
@@ -148,7 +148,7 @@ def refresh_analysis_stats(conn, jurisdiction: str) -> int:
                 descendant_max_severity = ast.descendant_max_severity,
                 has_descendant_analysis = COALESCE(ast.has_descendant_analysis, false)
             FROM analysis_stats ast
-            WHERE rd.id = ast.id AND rd.state = %s
+            WHERE rd.id = ast.id AND rd.jurisdiction = %s
         """, (jurisdiction, jurisdiction))
 
         updated_count = cur.rowcount
@@ -181,7 +181,7 @@ def refresh_compliance_stats(conn, jurisdiction: str) -> int:
             WITH direct_issues AS (
                 SELECT cia.document_id, COUNT(*) as issue_count
                 FROM compliance_issue_analyses cia
-                WHERE cia.state = %s AND cia.requirement_found = TRUE
+                WHERE cia.jurisdiction = %s AND cia.requirement_found = TRUE
                 GROUP BY cia.document_id
             )
             UPDATE regulatory_documents rd
@@ -190,7 +190,7 @@ def refresh_compliance_stats(conn, jurisdiction: str) -> int:
                 SELECT rd2.id, COALESCE(di.issue_count, 0) as issue_count
                 FROM regulatory_documents rd2
                 LEFT JOIN direct_issues di ON rd2.id = di.document_id
-                WHERE rd2.state = %s
+                WHERE rd2.jurisdiction = %s
             ) di
             WHERE rd.id = di.id
         """, (jurisdiction, jurisdiction))
@@ -205,7 +205,7 @@ def refresh_compliance_stats(conn, jurisdiction: str) -> int:
                     rd.parent_id,
                     COALESCE(rd.compliance_issue_count, 0) as issue_count
                 FROM regulatory_documents rd
-                WHERE rd.state = %s
+                WHERE rd.jurisdiction = %s
 
                 UNION ALL
 
@@ -227,7 +227,7 @@ def refresh_compliance_stats(conn, jurisdiction: str) -> int:
             UPDATE regulatory_documents rd
             SET descendant_compliance_issue_count = dc.descendant_compliance_issue_count
             FROM descendant_counts dc
-            WHERE rd.id = dc.id AND rd.state = %s
+            WHERE rd.id = dc.id AND rd.jurisdiction = %s
         """, (jurisdiction, jurisdiction))
 
         updated_count = cur.rowcount
@@ -262,7 +262,7 @@ def refresh_statute_link_stats(conn, jurisdiction: str) -> int:
                     (SELECT COUNT(*)::int FROM regulation_statute_links rsl WHERE rsl.statute_id = s.id) as linked_regulation_count,
                     (SELECT COUNT(*)::int FROM regulation_statute_links rsl WHERE rsl.statute_id = s.id AND rsl.link_type = 'enabling_authority') as enabling_authority_count
                 FROM statutes s
-                WHERE s.state = %s
+                WHERE s.jurisdiction = %s
 
                 UNION ALL
 
@@ -289,7 +289,7 @@ def refresh_statute_link_stats(conn, jurisdiction: str) -> int:
                 descendant_linked_regulation_count = a.descendant_linked_regulation_count,
                 descendant_enabling_authority_count = a.descendant_enabling_authority_count
             FROM aggregated a
-            WHERE s.id = a.id AND s.state = %s
+            WHERE s.id = a.id AND s.jurisdiction = %s
         """, (jurisdiction, jurisdiction))
 
         updated_count = cur.rowcount
@@ -300,9 +300,9 @@ def refresh_statute_link_stats(conn, jurisdiction: str) -> int:
             UPDATE statutes
             SET descendant_linked_regulation_count = 0,
                 descendant_enabling_authority_count = 0
-            WHERE state = %s
+            WHERE jurisdiction = %s
               AND id NOT IN (
-                  SELECT DISTINCT parent_id FROM statutes WHERE parent_id IS NOT NULL AND state = %s
+                  SELECT DISTINCT parent_id FROM statutes WHERE parent_id IS NOT NULL AND jurisdiction = %s
               )
               AND (descendant_linked_regulation_count != 0 OR descendant_enabling_authority_count != 0)
         """, (jurisdiction, jurisdiction))

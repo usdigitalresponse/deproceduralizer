@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache';
 import {
   db,
   JenAIRepository,
-  type StateCode,
+  type JurisdictionCode,
   type JenAIIssue,
   type PaginatedJenAIResult,
   type JenAIReviewStatusCounts,
@@ -20,7 +20,7 @@ const jenaiRepo = new JenAIRepository(db);
  * Gets paginated JenAI issues with filtering and sorting options.
  */
 export async function getJenAIIssuesPaginated(
-  state: StateCode,
+  state: JurisdictionCode,
   options: {
     page: number;
     pageSize: number;
@@ -35,7 +35,7 @@ export async function getJenAIIssuesPaginated(
 ): Promise<ActionResult<PaginatedJenAIResult>> {
   return runAction('getJenAIIssuesPaginated', () =>
     jenaiRepo.getAllPaginated({
-      state,
+      jurisdiction: state,
       ...options,
       filters: options.filters ? {
         status: options.filters.status,
@@ -50,7 +50,7 @@ export async function getJenAIIssuesPaginated(
  * Gets counts of JenAI issues grouped by review status.
  */
 export async function getJenAIStatusCounts(
-  state: StateCode
+  state: JurisdictionCode
 ): Promise<ActionResult<JenAIReviewStatusCounts>> {
   return runCachedAction(
     'getJenAIStatusCounts',
@@ -64,7 +64,7 @@ export async function getJenAIStatusCounts(
  * Gets counts of JenAI issues grouped by developer status.
  */
 export async function getJenAIDeveloperStatusCounts(
-  state: StateCode
+  state: JurisdictionCode
 ): Promise<ActionResult<JenAIDeveloperStatusCounts>> {
   return runCachedAction(
     'getJenAIDeveloperStatusCounts',
@@ -78,7 +78,7 @@ export async function getJenAIDeveloperStatusCounts(
  * Gets unique categories with counts for a given state.
  */
 export async function getJenAICategories(
-  state: StateCode
+  state: JurisdictionCode
 ): Promise<ActionResult<{ category: string; count: number }[]>> {
   return runCachedAction(
     'getJenAICategories',
@@ -164,7 +164,7 @@ export async function updateJenAIDeveloper(
  * Gets paginated reviewed JenAI issues for developer mode.
  */
 export async function getJenAIDeveloperItems(
-  state: StateCode,
+  state: JurisdictionCode,
   options: {
     page: number;
     pageSize: number;
@@ -179,7 +179,7 @@ export async function getJenAIDeveloperItems(
 ): Promise<ActionResult<PaginatedJenAIResult>> {
   return runAction('getJenAIDeveloperItems', () =>
     jenaiRepo.getReviewedPaginated({
-      state,
+      jurisdiction: state,
       page: options.page,
       pageSize: options.pageSize,
       sortBy: options.sortBy,
@@ -196,7 +196,7 @@ export async function getJenAIDeveloperItems(
 }
 
 export async function getJenAISeverityDistribution(
-  state: StateCode
+  state: JurisdictionCode
 ): Promise<ActionResult<SeverityDistribution>> {
   return runCachedAction(
     'getJenAISeverityDistribution',

@@ -4,7 +4,7 @@ import 'server-only';
 import {
   db,
   IbrRepository,
-  type StateCode,
+  type JurisdictionCode,
   type IbrWithContext,
   type PaginatedIbrsResult,
   type IbrOverviewStats,
@@ -18,7 +18,7 @@ const ibrRepo = new IbrRepository(db);
 export type { IbrWithContext, IbrOverviewStats, IbrTopStandard };
 
 export async function getIbrOverviewStats(
-  state: StateCode
+  state: JurisdictionCode
 ): Promise<ActionResult<IbrOverviewStats>> {
   return runCachedAction(
     'getIbrOverviewStats',
@@ -29,7 +29,7 @@ export async function getIbrOverviewStats(
 }
 
 export async function getIbrsPaginated(
-  state: StateCode,
+  state: JurisdictionCode,
   options: {
     page: number;
     pageSize: number;
@@ -49,7 +49,7 @@ export async function getIbrsPaginated(
   return runCachedAction(
     'getIbrsPaginated',
     () => ibrRepo.getAllPaginated({
-      state,
+      jurisdiction: state,
       page,
       pageSize,
       sortBy,
@@ -65,7 +65,7 @@ export async function getIbrsPaginated(
 }
 
 export async function getIbrSourceOrganizations(
-  state: StateCode
+  state: JurisdictionCode
 ): Promise<ActionResult<string[]>> {
   return runCachedAction(
     'getIbrSourceOrganizations',
@@ -76,7 +76,7 @@ export async function getIbrSourceOrganizations(
 }
 
 export async function getIbrTopStandards(
-  state: StateCode,
+  state: JurisdictionCode,
   limit: number = 20
 ): Promise<ActionResult<IbrTopStandard[]>> {
   return runCachedAction(

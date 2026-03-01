@@ -307,11 +307,11 @@ def migrate_statutes_to_db() -> int:
 
     insert_sql = """
         INSERT INTO statutes
-        (citation, state, title, content,
+        (citation, jurisdiction, title, content,
          njsa_title, njsa_title_name, njsa_chapter, njsa_section, njsa_section_name,
          hierarchy_level, hierarchy_path, source_index)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        ON CONFLICT (state, citation) DO UPDATE SET
+        ON CONFLICT (jurisdiction, citation) DO UPDATE SET
             title = EXCLUDED.title,
             content = EXCLUDED.content,
             njsa_title = EXCLUDED.njsa_title,
@@ -457,7 +457,7 @@ def create_regulation_statute_links() -> dict:
         print("  Loading NJ regulations...")
         regulations = conn.execute("""
             SELECT id, content FROM regulatory_documents
-            WHERE state = 'NJ' AND hierarchy_level = 'section' AND content IS NOT NULL
+            WHERE jurisdiction = 'NJ' AND hierarchy_level = 'section' AND content IS NOT NULL
         """).fetchall()
         print(f"  Found {len(regulations):,} regulations")
 
@@ -465,7 +465,7 @@ def create_regulation_statute_links() -> dict:
         print("  Loading NJ statutes...")
         statute_rows = conn.execute("""
             SELECT id, citation FROM statutes
-            WHERE state = 'NJ'
+            WHERE jurisdiction = 'NJ'
         """).fetchall()
         statute_lookup = {row[1]: row[0] for row in statute_rows}
         print(f"  Found {len(statute_lookup):,} statutes")
@@ -475,7 +475,7 @@ def create_regulation_statute_links() -> dict:
         chapter_rows = conn.execute("""
             SELECT DISTINCT njsa_title || ':' || njsa_chapter as chapter_citation
             FROM statutes
-            WHERE state = 'NJ' AND njsa_chapter IS NOT NULL
+            WHERE jurisdiction = 'NJ' AND njsa_chapter IS NOT NULL
         """).fetchall()
         existing_chapters = {row[0] for row in chapter_rows}
         print(f"  Found {len(existing_chapters):,} chapters (for obsolete detection)")
@@ -805,7 +805,7 @@ def create_hierarchy_containers() -> Tuple[int, int]:
         sections = conn.execute("""
             SELECT DISTINCT njsa_title, njsa_title_name, njsa_chapter
             FROM statutes
-            WHERE state = 'NJ' AND hierarchy_level = 'section'
+            WHERE jurisdiction = 'NJ' AND hierarchy_level = 'section'
             ORDER BY njsa_title, njsa_chapter
         """).fetchall()
 
@@ -826,7 +826,7 @@ def create_hierarchy_containers() -> Tuple[int, int]:
         existing_titles = set()
         result = conn.execute("""
             SELECT citation FROM statutes
-            WHERE state = 'NJ' AND hierarchy_level = 'title'
+            WHERE jurisdiction = 'NJ' AND hierarchy_level = 'title'
         """).fetchall()
         existing_titles = {row[0] for row in result}
 
@@ -834,7 +834,7 @@ def create_hierarchy_containers() -> Tuple[int, int]:
         existing_chapters = set()
         result = conn.execute("""
             SELECT citation FROM statutes
-            WHERE state = 'NJ' AND hierarchy_level = 'chapter'
+            WHERE jurisdiction = 'NJ' AND hierarchy_level = 'chapter'
         """).fetchall()
         existing_chapters = {row[0] for row in result}
 
@@ -852,10 +852,10 @@ def create_hierarchy_containers() -> Tuple[int, int]:
                 display_title += f" - {title_name}"
 
             conn.execute("""
-                INSERT INTO statutes (citation, state, title, content, njsa_title, njsa_title_name,
+                INSERT INTO statutes (citation, jurisdiction, title, content, njsa_title, njsa_title_name,
                                       hierarchy_level, hierarchy_path)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT (state, citation) DO NOTHING
+                ON CONFLICT (jurisdiction, citation) DO NOTHING
             """, (
                 citation,
                 'NJ',
@@ -879,10 +879,10 @@ def create_hierarchy_containers() -> Tuple[int, int]:
             display_title = f"N.J.S.A. Chapter {title_num}:{chapter_num}"
 
             conn.execute("""
-                INSERT INTO statutes (citation, state, title, content, njsa_title, njsa_title_name,
+                INSERT INTO statutes (citation, jurisdiction, title, content, njsa_title, njsa_title_name,
                                       njsa_chapter, hierarchy_level, hierarchy_path)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT (state, citation) DO NOTHING
+                ON CONFLICT (jurisdiction, citation) DO NOTHING
             """, (
                 citation,
                 'NJ',

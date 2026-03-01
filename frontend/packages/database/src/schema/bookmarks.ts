@@ -29,7 +29,7 @@ export const bookmarks = pgTable('bookmarks', {
 
   // Denormalized for easier querying/filtering
   issueType: varchar('issue_type', { length: 50 }),
-  state: varchar('state', { length: 3 }).notNull(),
+  jurisdiction: varchar('jurisdiction', { length: 3 }).notNull(),
 
   // Metadata
   notes: text('notes'),

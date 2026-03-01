@@ -9,7 +9,7 @@ import {
   getDefinitionStats,
   getAggregatedTermsPaginated,
 } from '@/lib/actions/definitions';
-import { type StateCode, isValidState, STATE_CONFIG } from '@/types/state';
+import { type JurisdictionCode, isValidJurisdiction, JURISDICTION_CONFIG } from '@/types/state';
 
 interface PageProps {
   params: Promise<{ state: string }>;
@@ -28,12 +28,12 @@ export default async function DefinitionsPage({ params, searchParams }: PageProp
   const queryParams = await searchParams;
 
   // Validate state parameter
-  if (!isValidState(state)) {
+  if (!isValidJurisdiction(state)) {
     notFound();
   }
 
-  const stateCode = state as StateCode;
-  const stateConfig = STATE_CONFIG[stateCode];
+  const stateCode = state as JurisdictionCode;
+  const stateConfig = JURISDICTION_CONFIG[stateCode];
 
   // Parse query params
   const search = queryParams.search || '';
@@ -123,7 +123,7 @@ export default async function DefinitionsPage({ params, searchParams }: PageProp
 
       <Container size="2xl" className="py-6">
         <GlossaryClient
-          state={stateCode}
+          jurisdiction={stateCode}
           initialData={{
             definitions,
             aggregatedTerms,

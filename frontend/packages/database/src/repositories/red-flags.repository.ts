@@ -3,7 +3,7 @@ import { BaseRepository } from './base.repository';
 import { redFlags, RedFlag, ReviewStatus, ImpactType, DeveloperStatus, ResolutionType, Developer, REVIEW_STATUSES, DEVELOPER_STATUSES } from '../schema/red-flags';
 import { analyses } from '../schema/analyses';
 import { regulatoryDocuments } from '../schema/regulatory-documents';
-import { StateCode, normalizeState } from '../schema/constants';
+import { JurisdictionCode, normalizeJurisdiction } from '../schema/constants';
 
 export interface UpdateRedFlagReviewInput {
   reviewStatus: ReviewStatus;
@@ -42,19 +42,19 @@ export interface RedFlagWithContext extends RedFlag {
 }
 
 export interface RedFlagFilterOptions {
-  state: StateCode;
+  jurisdiction: JurisdictionCode;
   status?: ReviewStatus | 'all';
   severity?: 'high' | 'medium' | 'low';
   category?: string;
 }
 
 export interface RedFlagPaginationOptions {
-  state: StateCode;
+  jurisdiction: JurisdictionCode;
   page: number;
   pageSize: number;
   sortBy?: 'severity' | 'category' | 'reviewedAt' | 'developerCheckedAt';
   sortOrder?: 'asc' | 'desc';
-  filters?: Omit<RedFlagFilterOptions, 'state'>;
+  filters?: Omit<RedFlagFilterOptions, 'jurisdiction'>;
 }
 
 export interface PaginatedRedFlagsResult {
@@ -137,7 +137,7 @@ export class RedFlagsRepository extends BaseRepository {
   /**
    * Get all unique categories for filter dropdown
    */
-  async getCategories(state: StateCode): Promise<string[]> {
+  async getCategories(jurisdiction: JurisdictionCode): Promise<string[]> {
     const result = await this.db
       .selectDistinct({ category: redFlags.category })
       .from(redFlags)
@@ -145,7 +145,7 @@ export class RedFlagsRepository extends BaseRepository {
       .innerJoin(regulatoryDocuments, eq(analyses.documentId, regulatoryDocuments.id))
       .where(and(
         eq(analyses.isCurrent, true),
-        eq(regulatoryDocuments.state, normalizeState(state))
+        eq(regulatoryDocuments.jurisdiction, normalizeJurisdiction(jurisdiction))
       ))
       .orderBy(asc(redFlags.category));
 
@@ -155,7 +155,7 @@ export class RedFlagsRepository extends BaseRepository {
   /**
    * Get counts by review status for progress display
    */
-  async getCountsByStatus(state: StateCode): Promise<ReviewStatusCounts> {
+  async getCountsByStatus(jurisdiction: JurisdictionCode): Promise<ReviewStatusCounts> {
     const result = await this.db
       .select({
         status: redFlags.reviewStatus,
@@ -166,7 +166,7 @@ export class RedFlagsRepository extends BaseRepository {
       .innerJoin(regulatoryDocuments, eq(analyses.documentId, regulatoryDocuments.id))
       .where(and(
         eq(analyses.isCurrent, true),
-        eq(regulatoryDocuments.state, normalizeState(state))
+        eq(regulatoryDocuments.jurisdiction, normalizeJurisdiction(jurisdiction))
       ))
       .groupBy(redFlags.reviewStatus);
 
@@ -199,13 +199,13 @@ export class RedFlagsRepository extends BaseRepository {
   async getAllPaginated(
     options: RedFlagPaginationOptions
   ): Promise<PaginatedRedFlagsResult> {
-    const { state, page, pageSize, sortBy = 'severity', sortOrder = 'desc', filters } = options;
+    const { jurisdiction, page, pageSize, sortBy = 'severity', sortOrder = 'desc', filters } = options;
     const offset = (page - 1) * pageSize;
 
-    // Build where conditions - always filter by state and current analysis
+    // Build where conditions - always filter by jurisdiction and current analysis
     const conditions: ReturnType<typeof eq>[] = [
       eq(analyses.isCurrent, true),
-      eq(regulatoryDocuments.state, normalizeState(state)),
+      eq(regulatoryDocuments.jurisdiction, normalizeJurisdiction(jurisdiction)),
     ];
 
     if (filters) {
@@ -384,7 +384,7 @@ export class RedFlagsRepository extends BaseRepository {
   /**
    * Get counts by developer status for progress display
    */
-  async getDeveloperStatusCounts(state: StateCode): Promise<DeveloperStatusCounts> {
+  async getDeveloperStatusCounts(jurisdiction: JurisdictionCode): Promise<DeveloperStatusCounts> {
     const result = await this.db
       .select({
         status: redFlags.developerStatus,
@@ -395,7 +395,7 @@ export class RedFlagsRepository extends BaseRepository {
       .innerJoin(regulatoryDocuments, eq(analyses.documentId, regulatoryDocuments.id))
       .where(and(
         eq(analyses.isCurrent, true),
-        eq(regulatoryDocuments.state, normalizeState(state)),
+        eq(regulatoryDocuments.jurisdiction, normalizeJurisdiction(jurisdiction)),
         // Only count reviewed items
         ne(redFlags.reviewStatus, 'unreviewed')
       ))
@@ -432,13 +432,13 @@ export class RedFlagsRepository extends BaseRepository {
       developerAssigned?: Developer;
     }
   ): Promise<PaginatedRedFlagsResult> {
-    const { state, page, pageSize, sortBy = 'reviewedAt', sortOrder = 'desc', filters, developerStatus, developerAssigned } = options;
+    const { jurisdiction, page, pageSize, sortBy = 'reviewedAt', sortOrder = 'desc', filters, developerStatus, developerAssigned } = options;
     const offset = (page - 1) * pageSize;
 
     // Build where conditions - only reviewed items
     const conditions: ReturnType<typeof eq>[] = [
       eq(analyses.isCurrent, true),
-      eq(regulatoryDocuments.state, normalizeState(state)),
+      eq(regulatoryDocuments.jurisdiction, normalizeJurisdiction(jurisdiction)),
       ne(redFlags.reviewStatus, 'unreviewed'),
     ];
 
@@ -598,7 +598,7 @@ export class RedFlagsRepository extends BaseRepository {
    * Get red flags that need more info, with reviewer's items first
    */
   async getNeedMoreInfoFlags(
-    state: StateCode,
+    jurisdiction: JurisdictionCode,
     options: {
       page: number;
       pageSize: number;
@@ -610,7 +610,7 @@ export class RedFlagsRepository extends BaseRepository {
 
     const conditions = [
       eq(analyses.isCurrent, true),
-      eq(regulatoryDocuments.state, normalizeState(state)),
+      eq(regulatoryDocuments.jurisdiction, normalizeJurisdiction(jurisdiction)),
       eq(redFlags.developerStatus, 'need_more_info'),
     ];
 
@@ -731,10 +731,10 @@ export class RedFlagsRepository extends BaseRepository {
   /**
    * Get count of need_more_info flags, optionally filtered by reviewer
    */
-  async getNeedMoreInfoCount(state: StateCode, reviewerName?: string): Promise<{ total: number; forReviewer: number }> {
+  async getNeedMoreInfoCount(jurisdiction: JurisdictionCode, reviewerName?: string): Promise<{ total: number; forReviewer: number }> {
     const baseConditions = [
       eq(analyses.isCurrent, true),
-      eq(regulatoryDocuments.state, normalizeState(state)),
+      eq(regulatoryDocuments.jurisdiction, normalizeJurisdiction(jurisdiction)),
       eq(redFlags.developerStatus, 'need_more_info'),
     ];
 

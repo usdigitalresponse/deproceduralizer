@@ -38,19 +38,19 @@ REQUEST_DELAY = 1.0  # seconds between fetches to be polite
 def find_docs_with_tables(conn, state: str = None, doc_id: int = None) -> list:
     """Find section-level docs whose content contains markdown tables."""
     query = """
-        SELECT id, url, state, title
+        SELECT id, url, jurisdiction, title
         FROM regulatory_documents
         WHERE content LIKE '%%| --- |%%'
           AND url_type = 'regulation'
     """
     params = []
     if state:
-        query += " AND state = %s"
+        query += " AND jurisdiction = %s"
         params.append(state)
     if doc_id:
         query += " AND id = %s"
         params.append(doc_id)
-    query += " ORDER BY state, id"
+    query += " ORDER BY jurisdiction, id"
 
     with conn.cursor() as cur:
         cur.execute(query, params)
@@ -60,9 +60,9 @@ def find_docs_with_tables(conn, state: str = None, doc_id: int = None) -> list:
 def find_nyc_docs_with_tables(conn) -> list:
     """Find NYC docs that may have tables (no markdown conversion was done)."""
     query = """
-        SELECT id, url, state, title
+        SELECT id, url, jurisdiction, title
         FROM regulatory_documents
-        WHERE state = 'NYC'
+        WHERE jurisdiction = 'NYC'
           AND url_type = 'regulation'
           AND content IS NOT NULL
           AND content != ''

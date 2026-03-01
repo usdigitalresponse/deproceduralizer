@@ -1,13 +1,13 @@
 /**
- * State type definitions for multi-state regulatory document support
+ * Jurisdiction type definitions for multi-jurisdiction regulatory document support
  */
-import type { StateCode } from '@deproceduralizer/database/schema';
-import { VALID_STATES } from '@deproceduralizer/database/schema';
+import type { JurisdictionCode } from '@deproceduralizer/database/schema';
+import { VALID_JURISDICTIONS } from '@deproceduralizer/database/schema';
 
-export type { StateCode };
-export { VALID_STATES };
+export type { JurisdictionCode };
+export { VALID_JURISDICTIONS };
 
-export interface StateConfig {
+export interface JurisdictionConfig {
   name: string;
   abbrev: string;
   icon: string;
@@ -22,7 +22,7 @@ export interface StateConfig {
  * the state selector UI. When adding a jurisdiction, also add matching CSS
  * variables and update `formatStateCitation` in `lib/formatters/citations.ts`.
  */
-export const STATE_CONFIG: Record<StateCode, StateConfig> = {
+export const JURISDICTION_CONFIG: Record<JurisdictionCode, JurisdictionConfig> = {
   ny: {
     name: 'New York',
     abbrev: 'NY',
@@ -50,28 +50,28 @@ export const STATE_CONFIG: Record<StateCode, StateConfig> = {
 } as const;
 
 /**
- * Type guard to check if a string is a valid state code
+ * Type guard to check if a string is a valid jurisdiction code
  */
-export function isValidState(state: string): state is StateCode {
-  return VALID_STATES.includes(state as StateCode);
+export function isValidJurisdiction(jurisdiction: string): jurisdiction is JurisdictionCode {
+  return VALID_JURISDICTIONS.includes(jurisdiction as JurisdictionCode);
 }
 
 /**
- * Default state when none is selected
+ * Default jurisdiction when none is selected
  */
-export const DEFAULT_STATE: StateCode = 'ny';
+export const DEFAULT_JURISDICTION: JurisdictionCode = 'ny';
 
 /**
- * Get state config with fallback to default state
+ * Get jurisdiction config with fallback to default jurisdiction
  */
-export function getStateConfig(state: string): StateConfig {
-  if (isValidState(state)) {
-    return STATE_CONFIG[state];
+export function getJurisdictionConfig(jurisdiction: string): JurisdictionConfig {
+  if (isValidJurisdiction(jurisdiction)) {
+    return JURISDICTION_CONFIG[jurisdiction];
   }
-  return STATE_CONFIG[DEFAULT_STATE];
+  return JURISDICTION_CONFIG[DEFAULT_JURISDICTION];
 }
 
 /**
- * localStorage key for persisting selected state
+ * localStorage key for persisting selected jurisdiction
  */
-export const STATE_STORAGE_KEY = 'selectedState';
+export const JURISDICTION_STORAGE_KEY = 'selectedState';

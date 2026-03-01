@@ -3,14 +3,14 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Search } from 'lucide-react';
-import { getStateFromPathname } from '@/hooks';
-import { getStateConfig } from '@/types/state';
+import { getJurisdictionFromPathname } from '@/hooks';
+import { getJurisdictionConfig } from '@/types/state';
 
 export function GlobalSearch() {
   const router = useRouter();
   const pathname = usePathname();
-  const currentState = getStateFromPathname(pathname);
-  const stateAbbrev = getStateConfig(currentState).abbrev;
+  const currentJurisdiction = getJurisdictionFromPathname(pathname);
+  const jurisdictionAbbrev = getJurisdictionConfig(currentJurisdiction).abbrev;
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -18,10 +18,10 @@ export function GlobalSearch() {
   const handleSubmit = useCallback(() => {
     const trimmed = query.trim();
     if (trimmed.length < 2) return;
-    router.push(`/${currentState}/search?q=${encodeURIComponent(trimmed)}`);
+    router.push(`/${currentJurisdiction}/search?q=${encodeURIComponent(trimmed)}`);
     setIsOpen(false);
     setQuery('');
-  }, [query, currentState, router]);
+  }, [query, currentJurisdiction, router]);
 
   // Cmd+K / Ctrl+K keyboard shortcut
   useEffect(() => {
@@ -63,10 +63,10 @@ export function GlobalSearch() {
           hover:text-[var(--color-text-secondary)]
           ${isOpen ? 'xl:hidden border-[var(--color-neutral-300)] text-[var(--color-text-secondary)]' : ''}
         `}
-        aria-label={`Search ${stateAbbrev} regulations (Cmd+K)`}
+        aria-label={`Search ${jurisdictionAbbrev} regulations (Cmd+K)`}
       >
         <Search className="w-4 h-4" aria-hidden="true" />
-        <span className="hidden xl:inline">Search {stateAbbrev} regulations...</span>
+        <span className="hidden xl:inline">Search {jurisdictionAbbrev} regulations...</span>
         <kbd className="hidden xl:inline-flex items-center gap-0.5 ml-2 px-1.5 py-0.5 text-xs font-medium text-[var(--color-text-muted)] bg-[var(--color-surface)] border border-[var(--color-neutral-200)] rounded">
           <span className="text-xs">&#8984;</span>K
         </kbd>
@@ -100,8 +100,8 @@ export function GlobalSearch() {
                 setIsOpen(false);
               }
             }}
-            placeholder={`Search ${stateAbbrev} regulations...`}
-            aria-label={`Search ${stateAbbrev} regulations`}
+            placeholder={`Search ${jurisdictionAbbrev} regulations...`}
+            aria-label={`Search ${jurisdictionAbbrev} regulations`}
             className="
               w-64 py-1.5 px-2
               text-sm text-[var(--color-text)]

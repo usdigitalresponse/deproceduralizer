@@ -42,7 +42,7 @@ def count_regex_matches_fast(conn, state_code: str, patterns: list[str]) -> tupl
     query = """
         SELECT id, title, content, LENGTH(content) as text_len
         FROM regulatory_documents
-        WHERE state = %s
+        WHERE jurisdiction = %s
         AND content ~* %s
     """
 

@@ -1,10 +1,10 @@
 import { notFound } from 'next/navigation';
-import type { StateCode } from '@deproceduralizer/database';
+import type { JurisdictionCode } from '@deproceduralizer/database';
 import { SearchResultsClient } from '@/components/search';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Container } from '@/components/layout/Container';
 import { Alert } from '@/components/ui';
-import { isValidState, STATE_CONFIG } from '@/types/state';
+import { isValidJurisdiction, JURISDICTION_CONFIG } from '@/types/state';
 import { searchRegulations, getSearchFilterOptions } from '@/lib/actions/search';
 
 export const dynamic = 'force-dynamic';
@@ -27,12 +27,12 @@ export default async function SearchPage({ params, searchParams }: PageProps) {
   const { state } = await params;
   const queryParams = await searchParams;
 
-  if (!isValidState(state)) {
+  if (!isValidJurisdiction(state)) {
     notFound();
   }
 
-  const stateCode = state as StateCode;
-  const stateConfig = STATE_CONFIG[stateCode];
+  const stateCode = state as JurisdictionCode;
+  const stateConfig = JURISDICTION_CONFIG[stateCode];
   const query = queryParams.q?.trim() || '';
   const page = queryParams.page ? parseInt(queryParams.page, 10) : 1;
 
@@ -49,14 +49,14 @@ export default async function SearchPage({ params, searchParams }: PageProps) {
           description="Full-text search across regulations, statutes, and analysis"
         />
         <Container size="2xl" className="py-6">
-          <SearchResultsClient state={stateCode} initialResults={null} initialQuery="" filterOptions={filterOptions} />
+          <SearchResultsClient jurisdiction={stateCode} initialResults={null} initialQuery="" filterOptions={filterOptions} />
         </Container>
       </div>
     );
   }
 
   const result = await searchRegulations({
-    state: stateCode,
+    jurisdiction: stateCode,
     query,
     page,
     docType: queryParams.docType || null,
@@ -89,7 +89,7 @@ export default async function SearchPage({ params, searchParams }: PageProps) {
       />
       <Container size="2xl" className="py-6">
         <SearchResultsClient
-          state={stateCode}
+          jurisdiction={stateCode}
           initialResults={result.data}
           initialQuery={query}
           filterOptions={filterOptions}

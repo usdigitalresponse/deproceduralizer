@@ -29,7 +29,7 @@ EXCLUSION_CATEGORIES = [
         "name": "Executive Orders",
         "reason": "Executive orders (gubernatorial directives) - not administrative regulations",
         "where": """
-            state = 'NY'
+            jurisdiction = 'NY'
             AND (exclude_from_analysis = FALSE OR exclude_from_analysis IS NULL)
             AND hierarchy_path LIKE '%%Governor''s Office%%'
             AND hierarchy_path LIKE '%%Title 9%%'
@@ -39,7 +39,7 @@ EXCLUSION_CATEGORIES = [
         "name": "Military Code (Parts 490-520)",
         "reason": "Military justice and civil defense code - not administrative regulations",
         "where": """
-            state = 'NY'
+            jurisdiction = 'NY'
             AND (exclude_from_analysis = FALSE OR exclude_from_analysis IS NULL)
             AND hierarchy_path LIKE '%%Division of Military and Naval Affairs%%'
         """
@@ -56,7 +56,7 @@ EXCLUSION_CATEGORIES = [
         "name": "Water Classification Tables (Title 6)",
         "reason": "Water body classification table - geographic data, not regulatory prose",
         "where": """
-            state = 'NY'
+            jurisdiction = 'NY'
             AND (exclude_from_analysis = FALSE OR exclude_from_analysis IS NULL)
             AND hierarchy_path LIKE '%%Title 6%%'
             AND LOWER(title) SIMILAR TO '%%(table i|table 1|table ii|table iii|table iv|table v|table vi)%%'
@@ -98,12 +98,12 @@ def main():
             # Show current state
             cur.execute("""
                 SELECT COUNT(*) FROM regulatory_documents
-                WHERE state = 'NY' AND (exclude_from_analysis = FALSE OR exclude_from_analysis IS NULL)
+                WHERE jurisdiction = 'NY' AND (exclude_from_analysis = FALSE OR exclude_from_analysis IS NULL)
             """)
             active_before = cur.fetchone()[0]
             cur.execute("""
                 SELECT COUNT(*) FROM regulatory_documents
-                WHERE state = 'NY' AND exclude_from_analysis = TRUE
+                WHERE jurisdiction = 'NY' AND exclude_from_analysis = TRUE
             """)
             excluded_before = cur.fetchone()[0]
             print(f"NY sections before: {active_before:,} active, {excluded_before:,} excluded\n")
@@ -136,12 +136,12 @@ def main():
                 # Show final state
                 cur.execute("""
                     SELECT COUNT(*) FROM regulatory_documents
-                    WHERE state = 'NY' AND (exclude_from_analysis = FALSE OR exclude_from_analysis IS NULL)
+                    WHERE jurisdiction = 'NY' AND (exclude_from_analysis = FALSE OR exclude_from_analysis IS NULL)
                 """)
                 active_after = cur.fetchone()[0]
                 cur.execute("""
                     SELECT COUNT(*) FROM regulatory_documents
-                    WHERE state = 'NY' AND exclude_from_analysis = TRUE
+                    WHERE jurisdiction = 'NY' AND exclude_from_analysis = TRUE
                 """)
                 excluded_after = cur.fetchone()[0]
 

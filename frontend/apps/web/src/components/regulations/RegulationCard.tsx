@@ -6,7 +6,7 @@ import { KeywordTags } from '@/components/ui/KeywordTags';
 import { MetadataIndicators } from '@/components/ui/MetadataIndicators';
 import { getComplexityVariant } from '@/types/regulation';
 import type { RegulationWithAnalysis } from '@deproceduralizer/database';
-import { useStateFromPath } from '@/hooks';
+import { useJurisdictionFromPath } from '@/hooks';
 
 interface RegulationCardProps {
   regulation: RegulationWithAnalysis;
@@ -18,7 +18,7 @@ interface RegulationCardProps {
  * Shows key metrics prominently with secondary details below.
  */
 export function RegulationCard({ regulation, onClick }: RegulationCardProps) {
-  const state = useStateFromPath();
+  const jurisdiction = useJurisdictionFromPath();
 
   const {
     id,
@@ -133,7 +133,7 @@ export function RegulationCard({ regulation, onClick }: RegulationCardProps) {
       {/* Footer */}
       <div className="px-4 py-2 border-t border-[var(--color-neutral-100)] bg-[var(--color-neutral-50)]">
         <a
-          href={`/${state}/regulations/${id}`}
+          href={`/${jurisdiction}/regulations/${id}`}
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-1 text-xs text-[var(--color-link)] hover:text-[var(--color-link-hover)] hover:underline"

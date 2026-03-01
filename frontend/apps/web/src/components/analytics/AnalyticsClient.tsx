@@ -1,7 +1,7 @@
 'use client';
 
 import { useQueryStates } from 'nuqs';
-import type { DashboardStats, StateCode, StatuteLinkStats } from '@deproceduralizer/database';
+import type { DashboardStats, JurisdictionCode, StatuteLinkStats } from '@deproceduralizer/database';
 import type { ReviewStatusCounts } from '@/lib/actions/red-flags';
 import type { ComplianceIssueStatusCounts } from '@/lib/actions/compliance-issues';
 import type { SectionTypeStats, MetadataStats, KeywordStats, AppliesToStats } from '@/lib/actions/regulations';
@@ -20,7 +20,7 @@ import { StatutesTab } from './StatutesTab';
 import { PipelineTab } from './PipelineTab';
 
 export interface AnalyticsClientProps {
-  state: StateCode;
+  jurisdiction: JurisdictionCode;
   dashboardStats: DashboardStats | null;
   sectionTypeStats: SectionTypeStats[] | null;
   metadataStats: MetadataStats | null;
@@ -39,7 +39,7 @@ export interface AnalyticsClientProps {
 }
 
 export function AnalyticsClient({
-  state,
+  jurisdiction,
   dashboardStats,
   sectionTypeStats,
   metadataStats,
@@ -103,19 +103,19 @@ export function AnalyticsClient({
         )}
 
         {currentTab === 'crossrefs' && (
-          <CrossReferencesTab state={state} />
+          <CrossReferencesTab jurisdiction={jurisdiction} />
         )}
 
         {currentTab === 'definitions' && (
-          <DefinitionsTab stats={definitionsStats} state={state} />
+          <DefinitionsTab stats={definitionsStats} jurisdiction={jurisdiction} />
         )}
 
         {currentTab === 'statutes' && (
-          <StatutesTab stats={statuteStats} state={state} />
+          <StatutesTab stats={statuteStats} jurisdiction={jurisdiction} />
         )}
 
         {currentTab === 'pipeline' && (
-          <PipelineTab state={state} data={pipelineData} />
+          <PipelineTab jurisdiction={jurisdiction} data={pipelineData} />
         )}
       </div>
     </div>

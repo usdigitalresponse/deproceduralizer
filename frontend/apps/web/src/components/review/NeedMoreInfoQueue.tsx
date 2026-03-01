@@ -12,7 +12,7 @@ import {
   QueuePagination
 } from './shared';
 import { useDeepLink, useQueueNavigation, useQueue, type PaginationInfo } from '@/hooks';
-import { getStateFromPathname } from '@/hooks/useStateFromPath';
+import { getJurisdictionFromPathname } from '@/hooks/useStateFromPath';
 import { MessageCircleQuestion, User } from 'lucide-react';
 
 interface NeedMoreInfoQueueProps {
@@ -29,7 +29,7 @@ export function NeedMoreInfoQueue({
   reviewerName,
 }: NeedMoreInfoQueueProps) {
   const pathname = usePathname();
-  const stateCode = getStateFromPathname(pathname);
+  const jurisdictionCode = getJurisdictionFromPathname(pathname);
   // Use generic queue hook for state management (no status tracking for this queue)
   const {
     items,
@@ -150,7 +150,7 @@ export function NeedMoreInfoQueue({
                   onUpdated={handleItemUpdated}
                   onViewRegulation={handleViewRegulation}
                   isFocused={index === focusedIndex}
-                  state={stateCode}
+                  state={jurisdictionCode}
                 />
               ))}
             </div>
@@ -175,7 +175,7 @@ export function NeedMoreInfoQueue({
                     onUpdated={handleItemUpdated}
                     onViewRegulation={handleViewRegulation}
                     isFocused={actualIndex === focusedIndex}
-                    state={stateCode}
+                    state={jurisdictionCode}
                   />
                 );
               })}

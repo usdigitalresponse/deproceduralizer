@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { FullTextSearchLink } from '@/components/ui/FullTextSearchLink';
 import { Button } from '@/components/ui/Button';
-import { useStateFromPath } from '@/hooks/useStateFromPath';
+import { useJurisdictionFromPath } from '@/hooks/useStateFromPath';
 import { X } from 'lucide-react';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import type { AlphabeticalIndex } from '@deproceduralizer/database';
@@ -48,7 +48,7 @@ export function GlossarySearch({
   isLoading = false,
   hasActiveFilters,
 }: GlossarySearchProps) {
-  const state = useStateFromPath();
+  const jurisdiction = useJurisdictionFromPath();
   // Local state for immediate UI feedback during typing
   const [localSearch, setLocalSearch] = useState(search);
   const debouncedSearch = useDebouncedValue(localSearch, SEARCH_DEBOUNCE_MS);
@@ -84,7 +84,7 @@ export function GlossarySearch({
           isLoading={isLoading}
           className="flex-1"
         />
-        <FullTextSearchLink query={localSearch} state={state} />
+        <FullTextSearchLink query={localSearch} state={jurisdiction} />
         {hasActiveFilters && (
           <Button
             type="button"

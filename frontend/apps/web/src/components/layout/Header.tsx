@@ -7,7 +7,7 @@ import { Menu, Share2, LogOut, FlaskConical } from 'lucide-react';
 import { toast } from 'sonner';
 import { Container } from './Container';
 import { MobileNav } from './MobileNav';
-import { getStateFromPathname } from '@/hooks';
+import { getJurisdictionFromPathname } from '@/hooks';
 import { Button } from '@/components/ui';
 import {
   getStateNavItems,
@@ -27,7 +27,7 @@ interface HeaderProps {
 
 export function Header({ className = '' }: HeaderProps) {
   const pathname = usePathname();
-  const currentState = getStateFromPathname(pathname);
+  const currentJurisdiction = getJurisdictionFromPathname(pathname);
   const stateNavItems = getStateNavItems();
   const globalNavItems = getGlobalNavItems();
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
@@ -124,8 +124,8 @@ export function Header({ className = '' }: HeaderProps) {
                     .map(item => ({
                       key: item.key,
                       label: item.label,
-                      href: getNavHref(item, currentState),
-                      isActive: isNavActive(item, pathname, currentState),
+                      href: getNavHref(item, currentJurisdiction),
+                      isActive: isNavActive(item, pathname, currentJurisdiction),
                       icon: item.icon,
                     }))
                   }
@@ -140,8 +140,8 @@ export function Header({ className = '' }: HeaderProps) {
                     .map(item => ({
                       key: item.key,
                       label: item.label,
-                      href: getNavHref(item, currentState),
-                      isActive: isNavActive(item, pathname, currentState),
+                      href: getNavHref(item, currentJurisdiction),
+                      isActive: isNavActive(item, pathname, currentJurisdiction),
                       icon: item.icon,
                     }))
                   }
@@ -151,8 +151,8 @@ export function Header({ className = '' }: HeaderProps) {
                 {stateNavItems
                   .filter(item => item.isHighlighted)
                   .map((item) => {
-                    const href = getNavHref(item, currentState);
-                    const isActive = isNavActive(item, pathname, currentState);
+                    const href = getNavHref(item, currentJurisdiction);
+                    const isActive = isNavActive(item, pathname, currentJurisdiction);
                     const Icon = item.icon;
 
                     return (
@@ -179,8 +179,8 @@ export function Header({ className = '' }: HeaderProps) {
                 {stateNavItems
                   .filter(item => item.groupId === 'review')
                   .map((item) => {
-                    const href = getNavHref(item, currentState);
-                    const isActive = isNavActive(item, pathname, currentState);
+                    const href = getNavHref(item, currentJurisdiction);
+                    const isActive = isNavActive(item, pathname, currentJurisdiction);
                     const ItemIcon = item.icon;
 
                     return (
@@ -211,8 +211,8 @@ export function Header({ className = '' }: HeaderProps) {
 
                 {/* Global nav items (Prompts, etc.) - icon-only below xl */}
                 {globalNavItems.map((item) => {
-                  const href = getNavHref(item, currentState);
-                  const isActive = isNavActive(item, pathname, currentState);
+                  const href = getNavHref(item, currentJurisdiction);
+                  const isActive = isNavActive(item, pathname, currentJurisdiction);
                   const ItemIcon = item.icon;
 
                   return (

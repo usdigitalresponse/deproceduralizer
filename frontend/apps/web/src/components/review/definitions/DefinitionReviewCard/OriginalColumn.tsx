@@ -1,7 +1,7 @@
 import { RegulationTextViewer } from '../../shared';
 import type { OriginalColumnProps } from './types';
 
-export function OriginalColumn({ definition, state, formData, getOriginalValue }: OriginalColumnProps) {
+export function OriginalColumn({ definition, jurisdiction, formData, getOriginalValue }: OriginalColumnProps) {
 
   return (
     <div className="space-y-4">
@@ -83,7 +83,7 @@ export function OriginalColumn({ definition, state, formData, getOriginalValue }
           <RegulationTextViewer
             content={definition.regulation.content}
             documentId={definition.regulation.id}
-            state={state}
+            state={jurisdiction}
             scrollToText={definition.verbatimText}
             highlightPattern={definition.term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}
             isVerbatim={formData.isVerbatimTextComplete}

@@ -2,8 +2,8 @@ import { Container, PageHeader } from '@/components/layout';
 import { DashboardStats, StateCard, QuickLinks, RecentActivityCard, TopIssuesChart, HomePrioritySection, PipelineHeroBanner } from '@/components/home';
 import { getDashboardStats, getAllStateStats, getRecentActivity } from '@/lib/actions/dashboard';
 import { getPriorityPicks } from '@/lib/actions/analysis';
-import { DEFAULT_STATE, VALID_STATES } from '@/types/state';
-import type { StateCode } from '@deproceduralizer/database';
+import { DEFAULT_JURISDICTION, VALID_JURISDICTIONS } from '@/types/state';
+import type { JurisdictionCode } from '@deproceduralizer/database';
 import { Alert } from '@/components/ui';
 
 /**
@@ -15,7 +15,7 @@ export default async function HomePage() {
     getDashboardStats(),
     getAllStateStats(),
     getRecentActivity(),
-    ...VALID_STATES.map((s) => getPriorityPicks(s as StateCode)),
+    ...VALID_JURISDICTIONS.map((s) => getPriorityPicks(s as JurisdictionCode)),
   ]);
 
   // Handle errors - display them obviously
@@ -55,10 +55,10 @@ export default async function HomePage() {
   const stateStats = stateStatsResult.data;
   const recentActivity = activityResult.success ? activityResult.data : null;
 
-  const statePriorities = VALID_STATES.map((s, i) => {
+  const statePriorities = VALID_JURISDICTIONS.map((s, i) => {
     const result = priorityResults[i];
     return {
-      state: s as StateCode,
+      jurisdiction: s as JurisdictionCode,
       items: result.success ? result.data.items : [],
       totalQuickWins: result.success ? result.data.totalQuickWins : 0,
       isQuickWinMode: result.success ? result.data.isQuickWinMode : false,
@@ -74,7 +74,7 @@ export default async function HomePage() {
 
       <Container size="2xl" className="py-6 space-y-8">
         {/* Pipeline Hero Banner */}
-        <PipelineHeroBanner state={DEFAULT_STATE} />
+        <PipelineHeroBanner state={DEFAULT_JURISDICTION} />
 
         {/* Overview */}
         <section>
@@ -90,7 +90,7 @@ export default async function HomePage() {
             <h2 className="text-lg font-semibold text-[var(--color-text)] mb-4">
               Featured Issues
             </h2>
-            <HomePrioritySection statePriorities={statePriorities} />
+            <HomePrioritySection jurisdictionPriorities={statePriorities} />
           </section>
         )}
 
@@ -117,8 +117,8 @@ export default async function HomePage() {
             Select a State
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <StateCard state="ny" stats={stateStats.ny} />
-            <StateCard state="nj" stats={stateStats.nj} />
+            <StateCard jurisdiction="ny" stats={stateStats.ny} />
+            <StateCard jurisdiction="nj" stats={stateStats.nj} />
           </div>
         </section>
 
@@ -127,7 +127,7 @@ export default async function HomePage() {
           <h2 className="text-lg font-semibold text-[var(--color-text)] mb-4">
             Quick Actions
           </h2>
-          <QuickLinks state={DEFAULT_STATE} stats={aggregateStats} />
+          <QuickLinks jurisdiction={DEFAULT_JURISDICTION} stats={aggregateStats} />
         </section>
       </Container>
     </>

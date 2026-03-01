@@ -2,7 +2,7 @@
 
 ## Jurisdiction Model
 
-The `state` column appears on most tables and represents a **jurisdiction**, not strictly a US state:
+The `jurisdiction` column appears on most tables and represents a **jurisdiction**, not strictly a US state:
 
 | Code | Jurisdiction | Regulations Table | Statutes Table |
 |------|-------------|-------------------|----------------|
@@ -10,14 +10,14 @@ The `state` column appears on most tables and represents a **jurisdiction**, not
 | `NJ` | New Jersey | NJAC columns (`njac_title`, `njac_chapter`, etc.) | NJSA columns (`njsa_title`, `njsa_section`, etc.) |
 | `NYC` | New York City | RCNY columns (`rcny_title`, `rcny_chapter`, `rcny_section`) | NYC Charter + Admin Code (`nyc_doc_type`, `nyc_title`, `nyc_section`, etc.) |
 
-NYC is a sub-state jurisdiction. Its regulations (RCNY + Health Code) live in `regulatory_documents` with `state = 'NYC'`, and its statutes (Charter + Admin Code) live in `statutes` with `state = 'NYC'`.
+NYC is a sub-state jurisdiction. Its regulations (RCNY + Health Code) live in `regulatory_documents` with `jurisdiction = 'NYC'`, and its statutes (Charter + Admin Code) live in `statutes` with `jurisdiction = 'NYC'`.
 
-**NYC Health Code** records also use the `rcny_*` columns but with different citation format (`NYC Health Code § X.YY` vs `RCNY § X-YY`). Health Code `source_index` values start at 100,000 to avoid collision with RCNY records (which max around ~7,777). Both share `state='NYC', type='regulation'`.
+**NYC Health Code** records also use the `rcny_*` columns but with different citation format (`NYC Health Code § X.YY` vs `RCNY § X-YY`). Health Code `source_index` values start at 100,000 to avoid collision with RCNY records (which max around ~7,777). Both share `jurisdiction='NYC', type='regulation'`.
 
 When adding a new jurisdiction, you must:
-1. Add the code to the `StateCode` type in `constants.ts` and `VALID_STATES`
+1. Add the code to the `JurisdictionCode` type in `constants.ts` and `VALID_JURISDICTIONS`
 2. Add state-specific columns to `regulatory_documents` and/or `statutes`
-3. Update CHECK constraints on all tables with a `state` column (see migrations 0045-0047 for the NYC pattern)
+3. Update CHECK constraints on all tables with a `jurisdiction` column (see migrations 0045-0047 for the NYC pattern)
 4. Add CSS variables in `tokens.css` and a `STATE_CONFIG` entry in `types/state.ts`
 5. Update `formatStateCitation` in `lib/formatters/citations.ts`
 
@@ -32,7 +32,7 @@ Main table with hierarchy. **74 columns** - use `./scripts/db-query.sh describe 
 | `id` | bigserial | Primary key |
 | `source_index` | integer | Index from source data |
 | `type` | varchar(50) | regulation or policy_document |
-| `state` | varchar(3) | NY, NJ, NYC (CHECK constraint) |
+| `jurisdiction` | varchar(3) | NY, NJ, NYC (CHECK constraint) |
 | `title` | text | Document title |
 | `url` | text | Source URL |
 | `url_type` | varchar(50) | regulation (section) or title (container) |
@@ -109,7 +109,7 @@ Script: `backend/scripts/batch_exclude_ny_sections.py` (use `--dry-run` to previ
 | `has_ibr` | boolean | Incorporates external standards by reference - ASTM, NFPA, ISO, etc. (default false) |
 
 **Constraints:**
-- `chk_rd_state CHECK (state IN ('NY', 'NJ', 'NYC'))`
+- `chk_rd_jurisdiction CHECK (jurisdiction IN ('NY', 'NJ', 'NYC'))`
 - `unique_per_url UNIQUE(url)`
 
 **Full-text search (migration 0044):**
@@ -118,7 +118,7 @@ Script: `backend/scripts/batch_exclude_ny_sections.py` (use `--dry-run` to previ
 |--------|------|-------------|
 | `search_vector` | tsvector | Weighted: title(A) + summary(B) + content(C). Maintained by trigger. |
 
-**Indexes:** `idx_documents_state`, `idx_documents_type`, `idx_documents_state_type`, `idx_documents_parent`, `idx_documents_hierarchy_level`, `idx_documents_regulatory_status`, `idx_documents_url`, `idx_documents_short_title`, `idx_documents_exclude_from_analysis` (partial), `idx_rd_keywords` (GIN), `idx_rd_applies_to` (GIN), `idx_rd_section_type` (partial), `idx_rd_has_form` (partial), `idx_rd_has_ibr` (partial), `idx_regulatory_documents_search_vector` (GIN), `idx_rd_rcny_title` (partial: WHERE state = 'NYC'), `idx_rd_state_source_type` (unique: state, source_index, type - for upsert)
+**Indexes:** `idx_documents_state`, `idx_documents_type`, `idx_documents_state_type`, `idx_documents_parent`, `idx_documents_hierarchy_level`, `idx_documents_regulatory_status`, `idx_documents_url`, `idx_documents_short_title`, `idx_documents_exclude_from_analysis` (partial), `idx_rd_keywords` (GIN), `idx_rd_applies_to` (GIN), `idx_rd_section_type` (partial), `idx_rd_has_form` (partial), `idx_rd_has_ibr` (partial), `idx_regulatory_documents_search_vector` (GIN), `idx_rd_rcny_title` (partial: WHERE jurisdiction = 'NYC'), `idx_rd_jurisdiction_source_type` (unique: jurisdiction, source_index, type - for upsert)
 
 ## analyses
 
@@ -195,7 +195,7 @@ JenAI single-pass pipeline analysis results. One row per document analyzed.
 |--------|------|-------------|
 | `id` | bigserial | Primary key |
 | `document_id` | bigint NOT NULL | FK to regulatory_documents (UNIQUE) |
-| `state` | varchar(3) | NY, NJ, or NYC |
+| `jurisdiction` | varchar(3) | NY, NJ, or NYC (CHECK constraint) |
 | `run_id` | varchar(32) | Pipeline run identifier |
 
 **Analysis Results**
@@ -226,7 +226,7 @@ JenAI single-pass pipeline analysis results. One row per document analyzed.
 | `pipeline_version` | varchar(20) | Default 'v2' |
 | `model_version` | varchar(100) | LLM model used |
 
-**Constraints:** `jenai_analyses_document_unique UNIQUE(document_id)`
+**Constraints:** `jenai_analyses_document_unique UNIQUE(document_id)`, `chk_jenai_jurisdiction CHECK (jurisdiction IN ('NY', 'NJ', 'NYC'))`
 
 **Indexes:** `idx_jenai_analyses_state`, `idx_jenai_analyses_run_id`
 
@@ -349,12 +349,12 @@ Pure regex match store. Tracks individual regex matches found during compliance 
 | `regex_match_pattern` | varchar(255) | Regex pattern that triggered the initial scan |
 | `regex_match_context` | text NOT NULL | Text window around the regex match (~600 chars) |
 | `url` | text | Link to the regulation |
-| `state` | varchar(3) NOT NULL | NY, NJ, or NYC |
+| `jurisdiction` | varchar(3) NOT NULL | NY, NJ, or NYC |
 | `created_at` | timestamp | When record was created |
 | `analysis_id` | bigint | FK to compliance_issue_analyses(id) ON DELETE SET NULL. Many-to-one link (many matches → one analysis). Set by searcher/pipeline after analysis INSERT. |
 | `run_id` | varchar(32) | Batch/run ID for tracking which scan created the record |
 
-**Constraints:** `unique_document_issue_occurrence UNIQUE(document_id, issue_type, occurrence_number)`, `compliance_issues_state_check CHECK (state IN ('NY', 'NJ', 'NYC'))`
+**Constraints:** `unique_document_issue_occurrence UNIQUE(document_id, issue_type, occurrence_number)`, `chk_ci_jurisdiction CHECK (jurisdiction IN ('NY', 'NJ', 'NYC'))`
 
 **Indexes:** `idx_compliance_issues_document`, `idx_compliance_issues_state`, `idx_compliance_issues_issue_type`, `idx_compliance_issues_state_issue`, `idx_compliance_issues_analysis_id`
 
@@ -398,7 +398,7 @@ Document-level analysis results for the 3-tier research pipeline. One row per (d
 | `id` | bigserial | Primary key |
 | `document_id` | bigint NOT NULL | FK to regulatory_documents |
 | `issue_type` | varchar(50) | Issue type being analyzed |
-| `state` | varchar(3) NOT NULL | NY, NJ, or NYC |
+| `jurisdiction` | varchar(3) NOT NULL | NY, NJ, or NYC |
 | `grouped_match_count` | integer NOT NULL | Number of regex matches from compliance_issues analyzed together |
 
 **Tier 1: Match Filtering**
@@ -637,7 +637,7 @@ Tracks external standards incorporated by reference (NFPA codes, ICC codes, ASTM
 | `term_matched` | varchar(255) | Regex pattern that matched |
 | `context` | text NOT NULL | Context snippet around match |
 | `llm_confirmed` | boolean | Always true for saved records |
-| `state` | varchar(3) NOT NULL | NY, NJ, or NYC |
+| `jurisdiction` | varchar(3) NOT NULL | NY, NJ, or NYC |
 | `url` | text NOT NULL | Source URL |
 | `review_status` | varchar(50) | unreviewed, confirmed, false_positive, etc. |
 | `reviewed_by` | varchar(255) | Who reviewed |
@@ -654,7 +654,7 @@ Tracks external standards incorporated by reference (NFPA codes, ICC codes, ASTM
 | `developer_checked_at` | timestamp | When developer checked |
 | `created_at` | timestamp | When record was created |
 
-**Constraints:** `chk_ibr_state`, `chk_ibr_resolution_type`
+**Constraints:** `chk_ibr_jurisdiction`, `chk_ibr_resolution_type`
 
 ## statutes
 
@@ -665,7 +665,7 @@ Hierarchy: Title → Chapter → Section (NJ), Law → Article → Section (NY),
 |--------|------|-------------|
 | `id` | bigserial | Primary key |
 | `citation` | varchar(50) NOT NULL | Full citation (e.g., "52:27D-119", "SOS 488", "NYC Admin 23-1201", "NYC Charter 8") |
-| `state` | varchar(3) NOT NULL | NJ, NY, NYC (default 'NJ') |
+| `jurisdiction` | varchar(3) NOT NULL | NJ, NY, NYC (default 'NJ') |
 | `title` | text NOT NULL | Human-readable title/name |
 | `content` | text NOT NULL | Full text content (for sections) |
 | `njsa_title` | varchar(10) | NJ: Title number |
@@ -699,7 +699,7 @@ Hierarchy: Title → Chapter → Section (NJ), Law → Article → Section (NY),
 | `search_vector` | tsvector | Weighted: title(A) + content(C). Maintained by trigger. |
 
 **Indexes:** `idx_statutes_nycls_law_id`, `idx_statutes_search_vector` (GIN)
-**Constraints:** `chk_statutes_state`, `statutes_state_citation_key UNIQUE(state, citation)`
+**Constraints:** `chk_statutes_jurisdiction`, `unique_jurisdiction_citation UNIQUE(jurisdiction, citation)`
 
 ## statute_references
 
@@ -775,7 +775,7 @@ Internal cross-references between regulatory documents (e.g., "18 NYCRR 505.14" 
 | `target_document_id` | bigint | FK to regulatory_documents (ON DELETE SET NULL) |
 | `is_resolved` | boolean | Whether citation was resolved to a target doc |
 | `resolution_notes` | text | Why resolution failed (for unresolved refs) |
-| `state` | varchar(3) NOT NULL | NY, NJ, or NYC |
+| `jurisdiction` | varchar(3) NOT NULL | NY, NJ, or NYC |
 | `source_jurisdiction` | varchar(3) NOT NULL | Jurisdiction of the source document (NY, NJ, NYC) |
 | `target_jurisdiction` | varchar(3) | Jurisdiction of the target document (nullable — unresolved refs may lack this) |
 | `created_at` | timestamp | When record was created |
@@ -802,7 +802,7 @@ Internal cross-references between regulatory documents (e.g., "18 NYCRR 505.14" 
 ```
 
 **Constraints:**
-- `cross_references_state_check CHECK (state IN ('NY', 'NJ', 'NYC'))`
+- `chk_cr_jurisdiction CHECK (jurisdiction IN ('NY', 'NJ', 'NYC'))`
 - `chk_crossref_source_jurisdiction CHECK (source_jurisdiction IN ('NY', 'NJ', 'NYC'))`
 - `chk_crossref_target_jurisdiction CHECK (target_jurisdiction IN ('NY', 'NJ', 'NYC'))`
 - `cross_references_source_document_id_raw_text_offset_key UNIQUE(source_document_id, raw_text, start_offset)` - allows same text at different positions
@@ -830,9 +830,11 @@ User annotations on regulations with optional text anchoring.
 | `anchor_text` | text | The selected text (for validation) |
 | `content` | text NOT NULL | Note content |
 | `author_name` | varchar(255) | Who wrote it |
-| `state` | varchar(3) NOT NULL | NY, NJ, or NYC |
+| `jurisdiction` | varchar(3) NOT NULL | NY, NJ, or NYC (CHECK constraint) |
 | `created_at` | timestamp | When created |
 | `updated_at` | timestamp | When last updated |
+
+**Constraints:** `chk_document_notes_jurisdiction CHECK (jurisdiction IN ('NY', 'NJ', 'NYC'))`
 
 ## bookmarks
 
@@ -844,7 +846,7 @@ User bookmarks for pipeline analyses and regulatory documents. Supports bookmark
 | `document_id` | bigint NOT NULL | FK to regulatory_documents (ON DELETE CASCADE) |
 | `analysis_id` | bigint | FK to compliance_issue_analyses (ON DELETE CASCADE) - null for document-level bookmarks |
 | `issue_type` | varchar(50) | Denormalized from analysis for filtering (null for document bookmarks) |
-| `state` | varchar(3) NOT NULL | NY, NJ, or NYC |
+| `jurisdiction` | varchar(3) NOT NULL | NY, NJ, or NYC (CHECK constraint) |
 | `notes` | text | Optional user notes explaining why bookmarked |
 | `created_by` | varchar(255) | Who created the bookmark |
 | `created_at` | timestamp | When bookmark was created |
@@ -853,6 +855,8 @@ User bookmarks for pipeline analyses and regulatory documents. Supports bookmark
 **Bookmark Types:**
 - **Analysis bookmark**: `analysis_id` set, `document_id` auto-filled from analysis
 - **Document bookmark**: `document_id` set, `analysis_id` null
+
+**Constraints:** `chk_bookmarks_jurisdiction CHECK (jurisdiction IN ('NY', 'NJ', 'NYC'))`
 
 **Indexes:**
 - `idx_bookmarks_unique_analysis UNIQUE(analysis_id)` - one bookmark per analysis

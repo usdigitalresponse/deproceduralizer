@@ -3,7 +3,7 @@ import { getIbrOverviewStats, getIbrSourceOrganizations, getIbrTopStandards } fr
 import { IbrClient } from '@/components/ibr/IbrClient';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Container } from '@/components/layout/Container';
-import { STATE_CONFIG, isValidState } from '@/types/state';
+import { JURISDICTION_CONFIG, isValidJurisdiction } from '@/types/state';
 
 interface IbrPageProps {
   params: Promise<{ state: string }>;
@@ -12,12 +12,12 @@ interface IbrPageProps {
 export default async function IbrPage({ params }: IbrPageProps) {
   const { state } = await params;
 
-  if (!isValidState(state)) {
+  if (!isValidJurisdiction(state)) {
     notFound();
   }
 
   const stateCode = state;
-  const stateConfig = STATE_CONFIG[state];
+  const stateConfig = JURISDICTION_CONFIG[state];
 
   // Fetch all data in parallel
   const [
@@ -42,7 +42,7 @@ export default async function IbrPage({ params }: IbrPageProps) {
       />
       <Container size="2xl" className="py-6">
         <IbrClient
-          state={stateCode}
+          jurisdiction={stateCode}
           stats={stats}
           organizations={organizations}
           topStandards={topStandards}

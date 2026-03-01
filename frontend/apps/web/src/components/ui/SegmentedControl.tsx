@@ -107,7 +107,7 @@ export function SegmentedControl<T extends string>({
 
   return (
     <div
-      className={`flex items-center ${sizeStyle.container} ${variantStyle.container} w-fit ${className}`}
+      className={`flex items-center overflow-x-auto ${sizeStyle.container} ${variantStyle.container} w-fit max-w-full ${className}`}
       role={role}
     >
       {options.map((option) => {
@@ -120,7 +120,7 @@ export function SegmentedControl<T extends string>({
             type="button"
             onClick={() => onChange(option.value)}
             className={`
-              flex items-center gap-2
+              flex items-center gap-2 shrink-0 whitespace-nowrap
               ${sizeStyle.button}
               font-medium
               transition-all duration-[var(--duration-fast)]

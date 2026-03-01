@@ -13,7 +13,7 @@ import type {
   GraphLevel,
   ColorMode,
 } from './cross-references';
-import type { StateCode } from '@/types/state';
+import type { JurisdictionCode } from '@/types/state';
 import {
   getReferenceGraph,
   getTopCitedDocuments,
@@ -21,7 +21,7 @@ import {
 } from '@/lib/actions/cross-references';
 
 interface CrossReferencesTabProps {
-  state: StateCode;
+  jurisdiction: JurisdictionCode;
 }
 
 const LEVEL_OPTIONS = [
@@ -53,7 +53,7 @@ const TYPE_COLORS: Record<string, { color: string; label: string }> = {
   enforcement: { color: '#f43f5e', label: 'Enforcement' },
 };
 
-export function CrossReferencesTab({ state }: CrossReferencesTabProps) {
+export function CrossReferencesTab({ jurisdiction }: CrossReferencesTabProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 800, height: 500 });
 
@@ -90,8 +90,8 @@ export function CrossReferencesTab({ state }: CrossReferencesTabProps) {
 
       try {
         const [graphResult, hubsResult] = await Promise.all([
-          getReferenceGraph(state, level),
-          getTopCitedDocuments(state, 20, hubSortBy),
+          getReferenceGraph(jurisdiction, level),
+          getTopCitedDocuments(jurisdiction, 20, hubSortBy),
         ]);
 
         if (graphResult.success) {
@@ -111,13 +111,13 @@ export function CrossReferencesTab({ state }: CrossReferencesTabProps) {
     }
 
     loadData();
-  }, [state, level, hubSortBy]);
+  }, [jurisdiction, level, hubSortBy]);
 
   // Load circular refs on demand (expensive query)
   const loadCircularRefs = useCallback(async () => {
     setIsCyclesLoading(true);
     try {
-      const result = await getCircularReferences(state, 3); // Use depth 3 to be faster
+      const result = await getCircularReferences(jurisdiction, 3); // Use depth 3 to be faster
       if (result.success) {
         setCycles(result.data);
         setCyclesLoaded(true);
@@ -127,7 +127,7 @@ export function CrossReferencesTab({ state }: CrossReferencesTabProps) {
     } finally {
       setIsCyclesLoading(false);
     }
-  }, [state]);
+  }, [jurisdiction]);
 
   // Handle container resize
   useEffect(() => {
@@ -291,7 +291,7 @@ export function CrossReferencesTab({ state }: CrossReferencesTabProps) {
                   data={graphData}
                   width={dimensions.width}
                   height={dimensions.height}
-                  state={state}
+                  state={jurisdiction}
                   level={level}
                   selectedNode={selectedNode}
                   circularRefNodes={circularRefNodes}
@@ -307,7 +307,7 @@ export function CrossReferencesTab({ state }: CrossReferencesTabProps) {
         <div className="space-y-6">
           <HubsPanel
             hubs={hubs}
-            state={state}
+            state={jurisdiction}
             sortBy={hubSortBy}
             onSortChange={setHubSortBy}
           />

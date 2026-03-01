@@ -3,7 +3,7 @@ import { BaseRepository } from './base.repository';
 import { statutes } from '../schema/statutes';
 import { regulationStatuteLinks } from '../schema/regulation-statute-links';
 import { regulatoryDocuments } from '../schema/regulatory-documents';
-import { normalizeState } from '../schema/constants';
+import { normalizeJurisdiction } from '../schema/constants';
 
 /**
  * Statute node for hierarchy tree display
@@ -12,7 +12,7 @@ export interface StatuteHierarchyNode {
   id: number;
   citation: string;
   title: string;
-  state: string;
+  jurisdiction: string;
   hierarchyLevel: string | null;
   parentId: number | null;
   childCount: number;
@@ -29,7 +29,7 @@ export interface StatuteHierarchyNode {
 export interface StatuteWithLinks {
   id: number;
   citation: string;
-  state: string;
+  jurisdiction: string;
   title: string;
   content: string;
   hierarchyLevel: string | null;
@@ -113,14 +113,14 @@ export class StatutesRepository extends BaseRepository {
   /**
    * Get root-level statutes (parentId IS NULL) for a state, with aggregated counts
    */
-  async getHierarchyRoots(state: string): Promise<StatuteHierarchyNode[]> {
-    const stateUpper = normalizeState(state);
+  async getHierarchyRoots(jurisdiction: string): Promise<StatuteHierarchyNode[]> {
+    const stateUpper = normalizeJurisdiction(jurisdiction);
 
     const result = await this.db.execute<{
       id: number;
       citation: string;
       title: string;
-      state: string;
+      jurisdiction: string;
       hierarchy_level: string | null;
       parent_id: number | null;
       child_count: number;
@@ -134,7 +134,7 @@ export class StatutesRepository extends BaseRepository {
         s.id,
         s.citation,
         s.title,
-        s.state,
+        s.jurisdiction,
         s.hierarchy_level,
         s.parent_id,
         (SELECT COUNT(*)::int FROM statutes c WHERE c.parent_id = s.id) as child_count,
@@ -144,7 +144,7 @@ export class StatutesRepository extends BaseRepository {
         COALESCE(s.descendant_enabling_authority_count, 0)::int as descendant_enabling_authority_count,
         (s.content IS NOT NULL AND s.content != '') as has_content
       FROM statutes s
-      WHERE s.state = ${stateUpper}
+      WHERE s.jurisdiction = ${stateUpper}
         AND s.parent_id IS NULL
       ORDER BY
         natural_sort_num(COALESCE(s.njsa_title, s.nycls_law_id, s.citation)) NULLS LAST,
@@ -163,7 +163,7 @@ export class StatutesRepository extends BaseRepository {
       id: number;
       citation: string;
       title: string;
-      state: string;
+      jurisdiction: string;
       hierarchy_level: string | null;
       parent_id: number | null;
       child_count: number;
@@ -177,7 +177,7 @@ export class StatutesRepository extends BaseRepository {
         s.id,
         s.citation,
         s.title,
-        s.state,
+        s.jurisdiction,
         s.hierarchy_level,
         s.parent_id,
         (SELECT COUNT(*)::int FROM statutes c WHERE c.parent_id = s.id) as child_count,
@@ -240,7 +240,7 @@ export class StatutesRepository extends BaseRepository {
     return {
       id: statute.id,
       citation: statute.citation,
-      state: statute.state,
+      jurisdiction: statute.jurisdiction,
       title: statute.title,
       content: statute.content,
       hierarchyLevel: statute.hierarchyLevel,
@@ -366,21 +366,21 @@ export class StatutesRepository extends BaseRepository {
   /**
    * Get aggregate stats for a state (for analytics)
    */
-  async getStatsByState(state: string): Promise<StatuteLinkStats> {
-    const stateUpper = normalizeState(state);
+  async getStatsByState(jurisdiction: string): Promise<StatuteLinkStats> {
+    const stateUpper = normalizeJurisdiction(jurisdiction);
 
     // Total statutes
     const totalResult = await this.db
       .select({ count: sql<number>`count(*)::int` })
       .from(statutes)
-      .where(eq(statutes.state, stateUpper));
+      .where(eq(statutes.jurisdiction, stateUpper));
 
     // Statutes with at least one link
     const linkedResult = await this.db.execute<{ count: number }>(sql`
       SELECT COUNT(DISTINCT rsl.statute_id)::int as count
       FROM regulation_statute_links rsl
       JOIN statutes s ON rsl.statute_id = s.id
-      WHERE s.state = ${stateUpper}
+      WHERE s.jurisdiction =${stateUpper}
         AND rsl.statute_id IS NOT NULL
     `);
 
@@ -389,7 +389,7 @@ export class StatutesRepository extends BaseRepository {
       SELECT COUNT(*)::int as count
       FROM regulation_statute_links rsl
       JOIN regulatory_documents rd ON rsl.regulation_id = rd.id
-      WHERE rd.state = ${stateUpper}
+      WHERE rd.jurisdiction =${stateUpper}
     `);
 
     // By link type
@@ -397,7 +397,7 @@ export class StatutesRepository extends BaseRepository {
       SELECT rsl.link_type, COUNT(*)::int as count
       FROM regulation_statute_links rsl
       JOIN regulatory_documents rd ON rsl.regulation_id = rd.id
-      WHERE rd.state = ${stateUpper}
+      WHERE rd.jurisdiction =${stateUpper}
       GROUP BY rsl.link_type
     `);
 
@@ -406,7 +406,7 @@ export class StatutesRepository extends BaseRepository {
       SELECT rsl.match_status, COUNT(*)::int as count
       FROM regulation_statute_links rsl
       JOIN regulatory_documents rd ON rsl.regulation_id = rd.id
-      WHERE rd.state = ${stateUpper}
+      WHERE rd.jurisdiction =${stateUpper}
       GROUP BY rsl.match_status
     `);
 
@@ -415,14 +415,14 @@ export class StatutesRepository extends BaseRepository {
       SELECT COUNT(DISTINCT rsl.regulation_id)::int as count
       FROM regulation_statute_links rsl
       JOIN regulatory_documents rd ON rsl.regulation_id = rd.id
-      WHERE rd.state = ${stateUpper}
+      WHERE rd.jurisdiction =${stateUpper}
     `);
 
     // Total regulations
     const totalRegsResult = await this.db
       .select({ count: sql<number>`count(*)::int` })
       .from(regulatoryDocuments)
-      .where(eq(regulatoryDocuments.state, stateUpper));
+      .where(eq(regulatoryDocuments.jurisdiction, stateUpper));
 
     const byLinkType: Record<string, number> = {};
     for (const row of byTypeResult.rows) {
@@ -448,15 +448,15 @@ export class StatutesRepository extends BaseRepository {
   /**
    * Search statutes by citation or title
    */
-  async searchStatutes(state: string, query: string, limit = 50): Promise<StatuteHierarchyNode[]> {
-    const stateUpper = normalizeState(state);
+  async searchStatutes(jurisdiction: string, query: string, limit = 50): Promise<StatuteHierarchyNode[]> {
+    const stateUpper = normalizeJurisdiction(jurisdiction);
     const searchPattern = `%${query}%`;
 
     const result = await this.db.execute<{
       id: number;
       citation: string;
       title: string;
-      state: string;
+      jurisdiction: string;
       hierarchy_level: string | null;
       parent_id: number | null;
       child_count: number;
@@ -470,7 +470,7 @@ export class StatutesRepository extends BaseRepository {
         s.id,
         s.citation,
         s.title,
-        s.state,
+        s.jurisdiction,
         s.hierarchy_level,
         s.parent_id,
         (SELECT COUNT(*)::int FROM statutes c WHERE c.parent_id = s.id) as child_count,
@@ -480,7 +480,7 @@ export class StatutesRepository extends BaseRepository {
         COALESCE(s.descendant_enabling_authority_count, 0)::int as descendant_enabling_authority_count,
         (s.content IS NOT NULL AND s.content != '') as has_content
       FROM statutes s
-      WHERE s.state = ${stateUpper}
+      WHERE s.jurisdiction = ${stateUpper}
         AND (s.citation ILIKE ${searchPattern} OR s.title ILIKE ${searchPattern})
       ORDER BY
         natural_sort_num(COALESCE(s.njsa_title, s.nycls_law_id, s.citation)) NULLS LAST,
@@ -533,7 +533,7 @@ export class StatutesRepository extends BaseRepository {
     id: number;
     citation: string;
     title: string;
-    state: string;
+    jurisdiction: string;
     hierarchy_level: string | null;
     parent_id: number | null;
     child_count: number;
@@ -547,7 +547,7 @@ export class StatutesRepository extends BaseRepository {
       id: row.id,
       citation: row.citation,
       title: row.title,
-      state: row.state,
+      jurisdiction: row.jurisdiction,
       hierarchyLevel: row.hierarchy_level,
       parentId: row.parent_id,
       childCount: row.child_count,

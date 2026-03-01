@@ -2,7 +2,7 @@ import { eq, and, desc, asc, sql, count } from 'drizzle-orm';
 import { BaseRepository } from './base.repository';
 import { crossReferences, CrossReference, RefType } from '../schema/cross-references';
 import { regulatoryDocuments } from '../schema/regulatory-documents';
-import { StateCode, normalizeState } from '../schema/constants';
+import { JurisdictionCode, normalizeJurisdiction } from '../schema/constants';
 
 /**
  * Cross-reference with target document info (for outgoing refs display)
@@ -112,7 +112,7 @@ export interface DocumentNeighborhood {
 }
 
 export interface CrossRefPaginationOptions {
-  state: StateCode;
+  jurisdiction: JurisdictionCode;
   page: number;
   pageSize: number;
   isResolved?: boolean;
@@ -163,7 +163,7 @@ export class CrossReferencesRepository extends BaseRepository {
         targetDocumentId: crossReferences.targetDocumentId,
         isResolved: crossReferences.isResolved,
         resolutionNotes: crossReferences.resolutionNotes,
-        state: crossReferences.state,
+        jurisdiction: crossReferences.jurisdiction,
         createdAt: crossReferences.createdAt,
         // Target document fields
         targetDocument: {
@@ -205,7 +205,7 @@ export class CrossReferencesRepository extends BaseRepository {
         targetDocumentId: crossReferences.targetDocumentId,
         isResolved: crossReferences.isResolved,
         resolutionNotes: crossReferences.resolutionNotes,
-        state: crossReferences.state,
+        jurisdiction: crossReferences.jurisdiction,
         createdAt: crossReferences.createdAt,
         // Source document fields
         sourceDocument: {
@@ -253,7 +253,7 @@ export class CrossReferencesRepository extends BaseRepository {
   /**
    * Get stats for dashboard display
    */
-  async getStatsByState(state: StateCode): Promise<CrossRefStats> {
+  async getStatsByState(jurisdiction: JurisdictionCode): Promise<CrossRefStats> {
     // Get total and resolution stats
     const totals = await this.db
       .select({
@@ -261,7 +261,7 @@ export class CrossReferencesRepository extends BaseRepository {
         count: sql<number>`count(*)::int`,
       })
       .from(crossReferences)
-      .where(eq(crossReferences.state, normalizeState(state)))
+      .where(eq(crossReferences.jurisdiction, normalizeJurisdiction(jurisdiction)))
       .groupBy(crossReferences.isResolved);
 
     // Get counts by ref type
@@ -271,7 +271,7 @@ export class CrossReferencesRepository extends BaseRepository {
         count: sql<number>`count(*)::int`,
       })
       .from(crossReferences)
-      .where(eq(crossReferences.state, normalizeState(state)))
+      .where(eq(crossReferences.jurisdiction, normalizeJurisdiction(jurisdiction)))
       .groupBy(crossReferences.refType);
 
     const stats: CrossRefStats = {
@@ -301,14 +301,14 @@ export class CrossReferencesRepository extends BaseRepository {
    * Get unresolved cross-references for review queue (paginated)
    */
   async getUnresolvedByState(options: CrossRefPaginationOptions): Promise<PaginatedCrossRefsResult> {
-    const { state, page, pageSize, isResolved = false } = options;
+    const { jurisdiction, page, pageSize, isResolved = false } = options;
     const offset = (page - 1) * pageSize;
 
     const sourceDoc = regulatoryDocuments;
 
     // Build where condition
     const whereCondition = and(
-      eq(crossReferences.state, normalizeState(state)),
+      eq(crossReferences.jurisdiction, normalizeJurisdiction(jurisdiction)),
       eq(crossReferences.isResolved, isResolved)
     );
 
@@ -336,7 +336,7 @@ export class CrossReferencesRepository extends BaseRepository {
         targetDocumentId: crossReferences.targetDocumentId,
         isResolved: crossReferences.isResolved,
         resolutionNotes: crossReferences.resolutionNotes,
-        state: crossReferences.state,
+        jurisdiction: crossReferences.jurisdiction,
         createdAt: crossReferences.createdAt,
         sourceDocument: {
           id: sourceDoc.id,
@@ -391,8 +391,8 @@ export class CrossReferencesRepository extends BaseRepository {
    * Aggregates references by hierarchy level (title, chapter, or part)
    * @param level - 'title' (~50 nodes), 'chapter' (~200), 'part' (~500)
    */
-  async getReferenceGraph(state: StateCode, level: GraphLevel = 'title'): Promise<ReferenceEdge[]> {
-    const stateUpper = normalizeState(state);
+  async getReferenceGraph(jurisdiction: JurisdictionCode, level: GraphLevel = 'title'): Promise<ReferenceEdge[]> {
+    const stateUpper = normalizeJurisdiction(jurisdiction);
 
     // Build level-specific column expressions
     // NJ uses njac_*, NY uses nycrr_*
@@ -461,7 +461,7 @@ export class CrossReferencesRepository extends BaseRepository {
       FROM cross_references cr
       JOIN regulatory_documents src ON cr.source_document_id = src.id
       JOIN regulatory_documents tgt ON cr.target_document_id = tgt.id
-      WHERE cr.state = '${stateUpper}'
+      WHERE cr.jurisdiction = '${stateUpper}'
         AND cr.is_resolved = true
         AND ${cols.filter}
       GROUP BY 1, 2, 3, 4 ${typeGroup}
@@ -484,19 +484,19 @@ export class CrossReferencesRepository extends BaseRepository {
   /**
    * @deprecated Use getReferenceGraph instead
    */
-  async getTitleLevelReferenceGraph(state: StateCode): Promise<ReferenceEdge[]> {
-    return this.getReferenceGraph(state, 'title');
+  async getTitleLevelReferenceGraph(jurisdiction: JurisdictionCode): Promise<ReferenceEdge[]> {
+    return this.getReferenceGraph(jurisdiction, 'title');
   }
 
   /**
    * Get top hub documents by reference degree
    */
   async getTopHubs(
-    state: StateCode,
+    jurisdiction: JurisdictionCode,
     limit: number = 20,
     sortBy: 'in' | 'out' | 'total' = 'total'
   ): Promise<DocumentHub[]> {
-    const stateUpper = normalizeState(state);
+    const stateUpper = normalizeJurisdiction(jurisdiction);
 
     const orderColumn = sortBy === 'in' ? 'in_degree' : sortBy === 'out' ? 'out_degree' : 'total_degree';
 
@@ -513,13 +513,13 @@ export class CrossReferencesRepository extends BaseRepository {
       WITH in_degrees AS (
         SELECT target_document_id as doc_id, COUNT(*)::int as in_count
         FROM cross_references
-        WHERE state = ${stateUpper} AND is_resolved = true
+        WHERE jurisdiction = ${stateUpper} AND is_resolved = true
         GROUP BY target_document_id
       ),
       out_degrees AS (
         SELECT source_document_id as doc_id, COUNT(*)::int as out_count
         FROM cross_references
-        WHERE state = ${stateUpper}
+        WHERE jurisdiction = ${stateUpper}
         GROUP BY source_document_id
       )
       SELECT
@@ -534,7 +534,7 @@ export class CrossReferencesRepository extends BaseRepository {
       FROM regulatory_documents rd
       LEFT JOIN in_degrees i ON rd.id = i.doc_id
       LEFT JOIN out_degrees o ON rd.id = o.doc_id
-      WHERE rd.state = ${stateUpper}
+      WHERE rd.jurisdiction = ${stateUpper}
         AND (i.in_count > 0 OR o.out_count > 0)
       ORDER BY ${sql.raw(orderColumn)} DESC
       LIMIT ${limit}
@@ -556,8 +556,8 @@ export class CrossReferencesRepository extends BaseRepository {
    * Detect circular references using recursive CTE
    * Returns cycles found within maxDepth hops
    */
-  async detectCircularReferences(state: StateCode, maxDepth: number = 4): Promise<CircularReference[]> {
-    const stateUpper = normalizeState(state);
+  async detectCircularReferences(jurisdiction: JurisdictionCode, maxDepth: number = 4): Promise<CircularReference[]> {
+    const stateUpper = normalizeJurisdiction(jurisdiction);
 
     // Use a recursive CTE to find cycles
     // This is more efficient than doing it in application code
@@ -572,7 +572,7 @@ export class CrossReferencesRepository extends BaseRepository {
           ARRAY[source_document_id, target_document_id] as path,
           1 as depth
         FROM cross_references
-        WHERE state = ${stateUpper} AND is_resolved = true
+        WHERE jurisdiction = ${stateUpper} AND is_resolved = true
 
         UNION ALL
 
@@ -584,7 +584,7 @@ export class CrossReferencesRepository extends BaseRepository {
           rc.depth + 1
         FROM ref_chain rc
         JOIN cross_references cr ON rc.current_id = cr.source_document_id
-        WHERE cr.state = ${stateUpper}
+        WHERE cr.jurisdiction = ${stateUpper}
           AND cr.is_resolved = true
           AND rc.depth < ${maxDepth}
           AND NOT cr.target_document_id = ANY(rc.path[2:])

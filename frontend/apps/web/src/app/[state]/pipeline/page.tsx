@@ -3,7 +3,7 @@ import { getAnalysisTierStats, getPriorityPicks } from '@/lib/actions/analysis';
 import { AnalysisDashboard } from '@/components/analysis';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Container } from '@/components/layout/Container';
-import { STATE_CONFIG, isValidState } from '@/types/state';
+import { JURISDICTION_CONFIG, isValidJurisdiction } from '@/types/state';
 
 interface AnalysisPageProps {
   params: Promise<{ state: string }>;
@@ -12,12 +12,12 @@ interface AnalysisPageProps {
 export default async function AnalysisPage({ params }: AnalysisPageProps) {
   const { state } = await params;
 
-  if (!isValidState(state)) {
+  if (!isValidJurisdiction(state)) {
     notFound();
   }
 
   const stateCode = state;
-  const stateConfig = STATE_CONFIG[state];
+  const stateConfig = JURISDICTION_CONFIG[state];
 
   // Fetch analysis stats and priority picks in parallel
   const [statsResult, priorityResult] = await Promise.all([
@@ -39,7 +39,7 @@ export default async function AnalysisPage({ params }: AnalysisPageProps) {
       />
       <Container size="2xl" className="py-6">
         <AnalysisDashboard
-          state={stateCode}
+          jurisdiction={stateCode}
           tierCounts={tierCounts}
           classificationBreakdown={classificationBreakdown}
           total={total}

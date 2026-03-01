@@ -9,7 +9,7 @@ export const jenaiAnalyses = pgTable('jenai_analyses', {
   documentId: bigint('document_id', { mode: 'number' })
     .notNull()
     .references(() => regulatoryDocuments.id, { onDelete: 'cascade' }),
-  state: varchar('state', { length: 3 }).notNull(),
+  jurisdiction: varchar('jurisdiction', { length: 3 }).notNull(),
   runId: varchar('run_id', { length: 32 }),
 
   // Single-pass analysis

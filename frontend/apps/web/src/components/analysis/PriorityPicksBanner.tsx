@@ -3,13 +3,13 @@
 import Link from 'next/link';
 import { useQueryStates } from 'nuqs';
 import { Zap, ArrowRight } from 'lucide-react';
-import type { AnalysisListItem, StateCode } from '@deproceduralizer/database';
+import type { AnalysisListItem, JurisdictionCode } from '@deproceduralizer/database';
 import { Badge } from '@/components/ui';
 import { ISSUE_TYPE_LABELS } from '@/types/regulation';
 import { analysisTableParsers } from '@/lib/url/parsers';
 
 interface PriorityPicksBannerProps {
-  state: StateCode;
+  jurisdiction: JurisdictionCode;
   items: AnalysisListItem[];
   totalQuickWins: number;
   isQuickWinMode: boolean;
@@ -18,7 +18,7 @@ interface PriorityPicksBannerProps {
 }
 
 export function PriorityPicksBanner({
-  state,
+  jurisdiction,
   items,
   totalQuickWins,
   isQuickWinMode,
@@ -51,7 +51,7 @@ export function PriorityPicksBanner({
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
         {items.map((item) => (
-          <PriorityCard key={`${item.documentId}-${item.issueType}`} item={item} state={state} />
+          <PriorityCard key={`${item.documentId}-${item.issueType}`} item={item} jurisdiction={jurisdiction} />
         ))}
       </div>
 
@@ -82,15 +82,15 @@ export function PriorityPicksBanner({
 
 interface PriorityCardProps {
   item: AnalysisListItem;
-  state: StateCode;
+  jurisdiction: JurisdictionCode;
 }
 
-function PriorityCard({ item, state }: PriorityCardProps) {
+function PriorityCard({ item, jurisdiction }: PriorityCardProps) {
   const issueTypeLabel = ISSUE_TYPE_LABELS[item.issueType as keyof typeof ISSUE_TYPE_LABELS] || item.issueType;
 
   return (
     <Link
-      href={`/${state.toLowerCase()}/pipeline/${item.documentId}/${item.issueType}`}
+      href={`/${jurisdiction.toLowerCase()}/pipeline/${item.documentId}/${item.issueType}`}
       target="_blank"
       rel="noopener noreferrer"
       className="block p-3 rounded-[var(--radius-sm)] border border-[var(--color-neutral-200)] hover:border-[var(--color-primary-weak)] hover:bg-[var(--color-primary-faint)] transition-colors"

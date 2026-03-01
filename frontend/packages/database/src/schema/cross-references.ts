@@ -47,7 +47,7 @@ export const crossReferences = pgTable('cross_references', {
   resolutionNotes: text('resolution_notes'),
 
   // Metadata
-  state: varchar('state', { length: 3 }).notNull(),
+  jurisdiction: varchar('jurisdiction', { length: 3 }).notNull(),
   sourceJurisdiction: varchar('source_jurisdiction', { length: 3 }).notNull(),
   targetJurisdiction: varchar('target_jurisdiction', { length: 3 }),
   createdAt: timestamp('created_at').defaultNow(),

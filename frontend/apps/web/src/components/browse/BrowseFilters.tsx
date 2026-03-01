@@ -3,7 +3,7 @@
 import { useCallback, useTransition } from 'react';
 import { useQueryStates } from 'nuqs';
 import { Button, Select, SearchInput, FullTextSearchLink } from '@/components/ui';
-import { useStateFromPath } from '@/hooks/useStateFromPath';
+import { useJurisdictionFromPath } from '@/hooks/useStateFromPath';
 import { browseFiltersParsers, type SeverityValue } from '@/lib/url/parsers';
 import { typedValue } from '@/lib/url/type-helpers';
 import {
@@ -29,7 +29,7 @@ export function BrowseFilters({
   stats,
   className = '',
 }: BrowseFiltersProps) {
-  const state = useStateFromPath();
+  const jurisdiction = useJurisdictionFromPath();
   const [isPending, startTransition] = useTransition();
 
   const [filters, setFilters] = useQueryStates(browseFiltersParsers, {
@@ -73,7 +73,7 @@ export function BrowseFilters({
         className="w-48"
         isLoading={isPending}
       />
-      <FullTextSearchLink query={filters.search || ''} state={state} />
+      <FullTextSearchLink query={filters.search || ''} state={jurisdiction} />
 
       {/* Red Flag Analysis filter */}
       <div className="flex items-center gap-2">

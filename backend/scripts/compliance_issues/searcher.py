@@ -75,7 +75,7 @@ class ComplianceIssueSearcher(BasePatternSearcher):
             result = conn.execute(
                 """
                 SELECT document_id FROM compliance_issues
-                WHERE state = %s AND issue_type = %s
+                WHERE jurisdiction = %s AND issue_type = %s
                 """,
                 (self.state_config.state_code, self.issue_config.db_issue_type)
             ).fetchall()
@@ -127,7 +127,7 @@ class ComplianceIssueSearcher(BasePatternSearcher):
                         INSERT INTO compliance_issues
                         (document_id, issue_type, occurrence_number,
                          regex_match_pattern, regex_match_context, url,
-                         state, run_id)
+                         jurisdiction, run_id)
                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                         """,
                         (

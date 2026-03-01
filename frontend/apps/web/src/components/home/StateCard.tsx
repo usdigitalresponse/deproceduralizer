@@ -5,14 +5,14 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { ChevronRight } from 'lucide-react';
 import type { DashboardStats } from '@deproceduralizer/database';
-import type { StateCode } from '@/types/state';
+import type { JurisdictionCode } from '@/types/state';
 
 interface StateCardProps {
-  state: StateCode;
+  jurisdiction: JurisdictionCode;
   stats: DashboardStats;
 }
 
-const stateInfo: Record<StateCode, { name: string; fullName: string; abbrev: string; accentColor: string; accentColorLight: string; borderColor: string; barColor: string }> = {
+const jurisdictionInfo: Record<JurisdictionCode, { name: string; fullName: string; abbrev: string; accentColor: string; accentColorLight: string; borderColor: string; barColor: string }> = {
   ny: {
     name: 'New York',
     fullName: 'New York State',
@@ -70,15 +70,15 @@ function ProgressBar({ label, current, total, barColor }: ProgressBarProps) {
   );
 }
 
-export function StateCard({ state, stats }: StateCardProps) {
-  const info = stateInfo[state];
+export function StateCard({ jurisdiction, stats }: StateCardProps) {
+  const info = jurisdictionInfo[jurisdiction];
 
   const issuesTotal = stats.complianceIssues?.total ?? 0;
   const issuesUnreviewed = stats.complianceIssues?.unreviewed ?? 0;
   const issuesReviewed = issuesTotal - issuesUnreviewed;
 
   return (
-    <Link href={`/${state}`} className="block group">
+    <Link href={`/${jurisdiction}`} className="block group">
       <Card
         className={`
           relative overflow-hidden transition-all duration-[var(--duration-normal)]

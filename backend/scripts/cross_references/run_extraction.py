@@ -68,7 +68,7 @@ def get_documents(
     conn = psycopg.connect(os.getenv("DATABASE_URL"))
 
     conditions = [
-        "state = %s",
+        "jurisdiction = %s",
         "content IS NOT NULL",
         "content != ''",
         "LENGTH(content) > 100",  # Skip very short docs
@@ -95,7 +95,7 @@ def get_documents(
             id,
             title,
             content,
-            state,
+            jurisdiction,
             citation,
             nycrr_title,
             nycrr_part,

@@ -51,26 +51,26 @@ describe('buildTier3FlagFilter', () => {
 // ═══════════════════════════════════════════════════════════════════
 
 describe('buildAnalysisListFilters', () => {
-  it('always includes the state condition', () => {
-    const conditions = buildAnalysisListFilters({ state: 'nj' });
+  it('always includes the jurisdiction condition', () => {
+    const conditions = buildAnalysisListFilters({ jurisdiction: 'nj' });
     expect(conditions.length).toBeGreaterThanOrEqual(1);
   });
 
-  it('returns only state condition when no filters provided', () => {
-    const conditions = buildAnalysisListFilters({ state: 'nj' });
-    // Just the state condition
+  it('returns only jurisdiction condition when no filters provided', () => {
+    const conditions = buildAnalysisListFilters({ jurisdiction: 'nj' });
+    // Just the jurisdiction condition
     expect(conditions.length).toBe(1);
   });
 
-  it('returns only state condition when filters is empty object', () => {
-    const conditions = buildAnalysisListFilters({ state: 'nj', filters: {} });
+  it('returns only jurisdiction condition when filters is empty object', () => {
+    const conditions = buildAnalysisListFilters({ jurisdiction: 'nj', filters: {} });
     expect(conditions.length).toBe(1);
   });
 
   // --- Tier completed filter ---
   it('adds tier completed condition', () => {
     const conditions = buildAnalysisListFilters({
-      state: 'nj',
+      jurisdiction: 'nj',
       filters: { tierCompleted: 2 },
     });
     expect(conditions.length).toBe(2);
@@ -79,7 +79,7 @@ describe('buildAnalysisListFilters', () => {
   // --- Classification filter ---
   it('adds classification condition (cascading tier3 -> tier2 -> tier1)', () => {
     const conditions = buildAnalysisListFilters({
-      state: 'nj',
+      jurisdiction: 'nj',
       filters: { classification: 'burdensome' },
     });
     expect(conditions.length).toBe(2);
@@ -88,7 +88,7 @@ describe('buildAnalysisListFilters', () => {
   // --- Federal mandate filter ---
   it('adds federal mandate condition', () => {
     const conditions = buildAnalysisListFilters({
-      state: 'nj',
+      jurisdiction: 'nj',
       filters: { federalMandate: true },
     });
     expect(conditions.length).toBe(2);
@@ -97,7 +97,7 @@ describe('buildAnalysisListFilters', () => {
   // --- Pipeline run filter ---
   it('adds pipeline run=true condition (tier >= 1)', () => {
     const conditions = buildAnalysisListFilters({
-      state: 'nj',
+      jurisdiction: 'nj',
       filters: { pipelineRun: true },
     });
     expect(conditions.length).toBe(2);
@@ -105,7 +105,7 @@ describe('buildAnalysisListFilters', () => {
 
   it('adds pipeline run=false condition (tier = 0)', () => {
     const conditions = buildAnalysisListFilters({
-      state: 'nj',
+      jurisdiction: 'nj',
       filters: { pipelineRun: false },
     });
     expect(conditions.length).toBe(2);
@@ -114,7 +114,7 @@ describe('buildAnalysisListFilters', () => {
   // --- Issue type filter ---
   it('adds issue type condition', () => {
     const conditions = buildAnalysisListFilters({
-      state: 'nj',
+      jurisdiction: 'nj',
       filters: { issueType: 'newspaper' },
     });
     expect(conditions.length).toBe(2);
@@ -123,7 +123,7 @@ describe('buildAnalysisListFilters', () => {
   // --- Severity range filter ---
   it('adds severity=high condition (>= 7)', () => {
     const conditions = buildAnalysisListFilters({
-      state: 'nj',
+      jurisdiction: 'nj',
       filters: { severity: 'high' },
     });
     expect(conditions.length).toBe(2);
@@ -131,7 +131,7 @@ describe('buildAnalysisListFilters', () => {
 
   it('adds severity=medium condition (4-6)', () => {
     const conditions = buildAnalysisListFilters({
-      state: 'nj',
+      jurisdiction: 'nj',
       filters: { severity: 'medium' },
     });
     expect(conditions.length).toBe(2);
@@ -139,7 +139,7 @@ describe('buildAnalysisListFilters', () => {
 
   it('adds severity=low condition (1-3)', () => {
     const conditions = buildAnalysisListFilters({
-      state: 'nj',
+      jurisdiction: 'nj',
       filters: { severity: 'low' },
     });
     expect(conditions.length).toBe(2);
@@ -147,7 +147,7 @@ describe('buildAnalysisListFilters', () => {
 
   it('adds severity=none condition (IS NULL)', () => {
     const conditions = buildAnalysisListFilters({
-      state: 'nj',
+      jurisdiction: 'nj',
       filters: { severity: 'none' },
     });
     expect(conditions.length).toBe(2);
@@ -156,7 +156,7 @@ describe('buildAnalysisListFilters', () => {
   // --- Severity changed filter ---
   it('adds severityChanged=increased condition', () => {
     const conditions = buildAnalysisListFilters({
-      state: 'nj',
+      jurisdiction: 'nj',
       filters: { severityChanged: 'increased' },
     });
     expect(conditions.length).toBe(2);
@@ -164,7 +164,7 @@ describe('buildAnalysisListFilters', () => {
 
   it('adds severityChanged=decreased condition', () => {
     const conditions = buildAnalysisListFilters({
-      state: 'nj',
+      jurisdiction: 'nj',
       filters: { severityChanged: 'decreased' },
     });
     expect(conditions.length).toBe(2);
@@ -172,7 +172,7 @@ describe('buildAnalysisListFilters', () => {
 
   it('adds severityChanged=unchanged condition', () => {
     const conditions = buildAnalysisListFilters({
-      state: 'nj',
+      jurisdiction: 'nj',
       filters: { severityChanged: 'unchanged' },
     });
     expect(conditions.length).toBe(2);
@@ -180,7 +180,7 @@ describe('buildAnalysisListFilters', () => {
 
   it('adds severityChanged=no_tier3 condition', () => {
     const conditions = buildAnalysisListFilters({
-      state: 'nj',
+      jurisdiction: 'nj',
       filters: { severityChanged: 'no_tier3' },
     });
     expect(conditions.length).toBe(2);
@@ -189,7 +189,7 @@ describe('buildAnalysisListFilters', () => {
   // --- Tier 3 flag filters (JSONB) ---
   it('adds federalMandateConfirmed=true condition', () => {
     const conditions = buildAnalysisListFilters({
-      state: 'nj',
+      jurisdiction: 'nj',
       filters: { federalMandateConfirmed: 'true' },
     });
     expect(conditions.length).toBe(2);
@@ -197,7 +197,7 @@ describe('buildAnalysisListFilters', () => {
 
   it('adds federalMandateConfirmed=false condition', () => {
     const conditions = buildAnalysisListFilters({
-      state: 'nj',
+      jurisdiction: 'nj',
       filters: { federalMandateConfirmed: 'false' },
     });
     expect(conditions.length).toBe(2);
@@ -205,7 +205,7 @@ describe('buildAnalysisListFilters', () => {
 
   it('adds stateDiscretion filter', () => {
     const conditions = buildAnalysisListFilters({
-      state: 'nj',
+      jurisdiction: 'nj',
       filters: { stateDiscretion: 'true' },
     });
     expect(conditions.length).toBe(2);
@@ -213,7 +213,7 @@ describe('buildAnalysisListFilters', () => {
 
   it('adds alternativeFound filter', () => {
     const conditions = buildAnalysisListFilters({
-      state: 'nj',
+      jurisdiction: 'nj',
       filters: { alternativeFound: 'true' },
     });
     expect(conditions.length).toBe(2);
@@ -221,7 +221,7 @@ describe('buildAnalysisListFilters', () => {
 
   it('adds supersededByLaw filter', () => {
     const conditions = buildAnalysisListFilters({
-      state: 'nj',
+      jurisdiction: 'nj',
       filters: { supersededByLaw: 'false' },
     });
     expect(conditions.length).toBe(2);
@@ -229,7 +229,7 @@ describe('buildAnalysisListFilters', () => {
 
   it('adds advocacyForChange filter', () => {
     const conditions = buildAnalysisListFilters({
-      state: 'nj',
+      jurisdiction: 'nj',
       filters: { advocacyForChange: 'no_tier3' },
     });
     expect(conditions.length).toBe(2);
@@ -238,7 +238,7 @@ describe('buildAnalysisListFilters', () => {
   // --- Evidence gap filter (boolean column, not JSONB) ---
   it('adds evidenceGap=true condition', () => {
     const conditions = buildAnalysisListFilters({
-      state: 'nj',
+      jurisdiction: 'nj',
       filters: { evidenceGap: 'true' },
     });
     expect(conditions.length).toBe(2);
@@ -246,7 +246,7 @@ describe('buildAnalysisListFilters', () => {
 
   it('adds evidenceGap=false condition', () => {
     const conditions = buildAnalysisListFilters({
-      state: 'nj',
+      jurisdiction: 'nj',
       filters: { evidenceGap: 'false' },
     });
     expect(conditions.length).toBe(2);
@@ -254,7 +254,7 @@ describe('buildAnalysisListFilters', () => {
 
   it('adds evidenceGap=no_tier3 condition', () => {
     const conditions = buildAnalysisListFilters({
-      state: 'nj',
+      jurisdiction: 'nj',
       filters: { evidenceGap: 'no_tier3' },
     });
     expect(conditions.length).toBe(2);
@@ -263,7 +263,7 @@ describe('buildAnalysisListFilters', () => {
   // --- Tier 3 trigger filter ---
   it('adds tier3Trigger=high_risk_issue condition', () => {
     const conditions = buildAnalysisListFilters({
-      state: 'nj',
+      jurisdiction: 'nj',
       filters: { tier3Trigger: 'high_risk_issue' },
     });
     expect(conditions.length).toBe(2);
@@ -271,7 +271,7 @@ describe('buildAnalysisListFilters', () => {
 
   it('adds tier3Trigger=federal_citation condition', () => {
     const conditions = buildAnalysisListFilters({
-      state: 'nj',
+      jurisdiction: 'nj',
       filters: { tier3Trigger: 'federal_citation' },
     });
     expect(conditions.length).toBe(2);
@@ -279,7 +279,7 @@ describe('buildAnalysisListFilters', () => {
 
   it('adds tier3Trigger=no_alternative condition', () => {
     const conditions = buildAnalysisListFilters({
-      state: 'nj',
+      jurisdiction: 'nj',
       filters: { tier3Trigger: 'no_alternative' },
     });
     expect(conditions.length).toBe(2);
@@ -287,7 +287,7 @@ describe('buildAnalysisListFilters', () => {
 
   it('adds tier3Trigger=high_severity condition', () => {
     const conditions = buildAnalysisListFilters({
-      state: 'nj',
+      jurisdiction: 'nj',
       filters: { tier3Trigger: 'high_severity' },
     });
     expect(conditions.length).toBe(2);
@@ -295,7 +295,7 @@ describe('buildAnalysisListFilters', () => {
 
   it('adds tier3Trigger=controversial condition', () => {
     const conditions = buildAnalysisListFilters({
-      state: 'nj',
+      jurisdiction: 'nj',
       filters: { tier3Trigger: 'controversial' },
     });
     expect(conditions.length).toBe(2);
@@ -303,7 +303,7 @@ describe('buildAnalysisListFilters', () => {
 
   it('adds tier3Trigger=mandate_suspected condition', () => {
     const conditions = buildAnalysisListFilters({
-      state: 'nj',
+      jurisdiction: 'nj',
       filters: { tier3Trigger: 'mandate_suspected' },
     });
     expect(conditions.length).toBe(2);
@@ -311,7 +311,7 @@ describe('buildAnalysisListFilters', () => {
 
   it('adds tier3Trigger=not_triggered condition', () => {
     const conditions = buildAnalysisListFilters({
-      state: 'nj',
+      jurisdiction: 'nj',
       filters: { tier3Trigger: 'not_triggered' },
     });
     expect(conditions.length).toBe(2);
@@ -320,7 +320,7 @@ describe('buildAnalysisListFilters', () => {
   // --- Easy cleanup filter ---
   it('adds easyCleanup=any condition', () => {
     const conditions = buildAnalysisListFilters({
-      state: 'nj',
+      jurisdiction: 'nj',
       filters: { easyCleanup: 'any' },
     });
     expect(conditions.length).toBe(2);
@@ -328,7 +328,7 @@ describe('buildAnalysisListFilters', () => {
 
   it('adds easyCleanup=trivial condition (specific effort level)', () => {
     const conditions = buildAnalysisListFilters({
-      state: 'nj',
+      jurisdiction: 'nj',
       filters: { easyCleanup: 'trivial' },
     });
     expect(conditions.length).toBe(2);
@@ -336,7 +336,7 @@ describe('buildAnalysisListFilters', () => {
 
   it('adds easyCleanup=easy condition', () => {
     const conditions = buildAnalysisListFilters({
-      state: 'nj',
+      jurisdiction: 'nj',
       filters: { easyCleanup: 'easy' },
     });
     expect(conditions.length).toBe(2);
@@ -344,7 +344,7 @@ describe('buildAnalysisListFilters', () => {
 
   it('adds easyCleanup=medium condition', () => {
     const conditions = buildAnalysisListFilters({
-      state: 'nj',
+      jurisdiction: 'nj',
       filters: { easyCleanup: 'medium' },
     });
     expect(conditions.length).toBe(2);
@@ -353,7 +353,7 @@ describe('buildAnalysisListFilters', () => {
   // --- Bookmarked only filter ---
   it('adds bookmarkedOnly=true condition', () => {
     const conditions = buildAnalysisListFilters({
-      state: 'nj',
+      jurisdiction: 'nj',
       filters: { bookmarkedOnly: true },
     });
     expect(conditions.length).toBe(2);
@@ -361,7 +361,7 @@ describe('buildAnalysisListFilters', () => {
 
   it('does not add condition when bookmarkedOnly=false', () => {
     const conditions = buildAnalysisListFilters({
-      state: 'nj',
+      jurisdiction: 'nj',
       filters: { bookmarkedOnly: false },
     });
     expect(conditions.length).toBe(1);
@@ -370,7 +370,7 @@ describe('buildAnalysisListFilters', () => {
   // --- Combined filters ---
   it('adds multiple conditions for combined filters', () => {
     const conditions = buildAnalysisListFilters({
-      state: 'nj',
+      jurisdiction: 'nj',
       filters: {
         tierCompleted: 3,
         classification: 'burdensome',
@@ -379,17 +379,17 @@ describe('buildAnalysisListFilters', () => {
         bookmarkedOnly: true,
       },
     });
-    // state + tierCompleted + classification + severity + federalMandateConfirmed + bookmarkedOnly
+    // jurisdiction + tierCompleted + classification + severity + federalMandateConfirmed + bookmarkedOnly
     expect(conditions.length).toBe(6);
   });
 
-  it('handles NYC state code', () => {
-    const conditions = buildAnalysisListFilters({ state: 'nyc' });
+  it('handles NYC jurisdiction code', () => {
+    const conditions = buildAnalysisListFilters({ jurisdiction: 'nyc' });
     expect(conditions.length).toBe(1);
   });
 
-  it('handles NY state code', () => {
-    const conditions = buildAnalysisListFilters({ state: 'ny' });
+  it('handles NY jurisdiction code', () => {
+    const conditions = buildAnalysisListFilters({ jurisdiction: 'ny' });
     expect(conditions.length).toBe(1);
   });
 });

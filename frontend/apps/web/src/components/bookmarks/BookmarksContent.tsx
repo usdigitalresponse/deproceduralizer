@@ -3,7 +3,7 @@
 import { useState, useCallback } from 'react';
 import Link from 'next/link';
 import { Trash2, ExternalLink, FileText, ListChecks, Sparkles, AlertTriangle, Zap } from 'lucide-react';
-import type { BookmarkWithDetails, StateCode } from '@deproceduralizer/database';
+import type { BookmarkWithDetails, JurisdictionCode } from '@deproceduralizer/database';
 import { Badge } from '@/components/ui';
 import { removeBookmark, updateBookmarkNotes } from '@/lib/actions/bookmarks';
 import { ISSUE_TYPE_LABELS } from '@/types/regulation';
@@ -12,12 +12,12 @@ import { BookmarkNotesEditor } from './BookmarkNotesEditor';
 interface BookmarksContentProps {
   bookmarks: BookmarkWithDetails[];
   counts: { analysis: number; document: number; total: number };
-  state: StateCode;
+  jurisdiction: JurisdictionCode;
 }
 
 type BookmarkTab = 'analysis' | 'document';
 
-export function BookmarksContent({ bookmarks, counts, state }: BookmarksContentProps) {
+export function BookmarksContent({ bookmarks, counts, jurisdiction }: BookmarksContentProps) {
   const [activeTab, setActiveTab] = useState<BookmarkTab>('analysis');
   const [localBookmarks, setLocalBookmarks] = useState(bookmarks);
 
@@ -122,7 +122,7 @@ export function BookmarksContent({ bookmarks, counts, state }: BookmarksContentP
             <AnalysisBookmarkCard
               key={bookmark.id}
               bookmark={bookmark}
-              state={state}
+              jurisdiction={jurisdiction}
               onSaveNotes={(notes) => handleSaveNotes(bookmark.id, notes)}
               onRemove={() => handleRemove(bookmark.id)}
             />
@@ -145,7 +145,7 @@ export function BookmarksContent({ bookmarks, counts, state }: BookmarksContentP
                 <DocumentBookmarkRow
                   key={bookmark.id}
                   bookmark={bookmark}
-                  state={state}
+                  jurisdiction={jurisdiction}
                   onSaveNotes={(notes) => handleSaveNotes(bookmark.id, notes)}
                   onRemove={() => handleRemove(bookmark.id)}
                 />
@@ -161,14 +161,14 @@ export function BookmarksContent({ bookmarks, counts, state }: BookmarksContentP
 // Analysis bookmark card - shows all the detailed info
 interface AnalysisBookmarkCardProps {
   bookmark: BookmarkWithDetails;
-  state: StateCode;
+  jurisdiction: JurisdictionCode;
   onSaveNotes: (notes: string) => Promise<void>;
   onRemove: () => void;
 }
 
 function AnalysisBookmarkCard({
   bookmark,
-  state,
+  jurisdiction,
   onSaveNotes,
   onRemove,
 }: AnalysisBookmarkCardProps) {
@@ -176,7 +176,7 @@ function AnalysisBookmarkCard({
     ? ISSUE_TYPE_LABELS[bookmark.issueType as keyof typeof ISSUE_TYPE_LABELS] || bookmark.issueType
     : null;
 
-  const viewUrl = `/${state.toLowerCase()}/pipeline/${bookmark.documentId}/${bookmark.issueType}`;
+  const viewUrl = `/${jurisdiction.toLowerCase()}/pipeline/${bookmark.documentId}/${bookmark.issueType}`;
 
   // Use final severity if available, fallback to base severity
   const severity = bookmark.analysisFinalSeverity ?? bookmark.analysisSeverity;
@@ -345,18 +345,18 @@ function AnalysisBookmarkCard({
 // Simple document bookmark row
 interface DocumentBookmarkRowProps {
   bookmark: BookmarkWithDetails;
-  state: StateCode;
+  jurisdiction: JurisdictionCode;
   onSaveNotes: (notes: string) => Promise<void>;
   onRemove: () => void;
 }
 
 function DocumentBookmarkRow({
   bookmark,
-  state,
+  jurisdiction,
   onSaveNotes,
   onRemove,
 }: DocumentBookmarkRowProps) {
-  const viewUrl = `/${state.toLowerCase()}/regulations/${bookmark.documentId}`;
+  const viewUrl = `/${jurisdiction.toLowerCase()}/regulations/${bookmark.documentId}`;
 
   return (
     <tr className="border-b border-[var(--color-neutral-100)] hover:bg-[var(--color-neutral-50)]">

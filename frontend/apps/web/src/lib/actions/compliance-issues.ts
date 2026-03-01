@@ -8,7 +8,7 @@ import {
   RegulatoryDocumentsRepository,
   REVIEW_STATUSES,
   IMPACT_TYPES,
-  type StateCode,
+  type JurisdictionCode,
   type ReviewStatus,
   type ImpactType,
   type IssueType,
@@ -118,7 +118,7 @@ export async function getComplianceIssuesByDocumentId(
  * @returns Array of unique issue type names (e.g., 'wet_signature', 'in_person')
  */
 export async function getComplianceIssueTypes(
-  state: StateCode
+  state: JurisdictionCode
 ): Promise<ActionResult<string[]>> {
   return runCachedAction(
     'getComplianceIssueTypes',
@@ -146,7 +146,7 @@ export interface ComplianceIssueStatusCounts {
  * @returns Object with counts per status and total
  */
 export async function getComplianceIssueStatusCounts(
-  state: StateCode
+  state: JurisdictionCode
 ): Promise<ActionResult<ComplianceIssueStatusCounts>> {
   return runCachedAction(
     'getComplianceIssueStatusCounts',
@@ -162,7 +162,7 @@ export async function getComplianceIssueStatusCounts(
  * @returns Object mapping issue type to count
  */
 export async function getComplianceIssueCountsByType(
-  state: StateCode
+  state: JurisdictionCode
 ): Promise<ActionResult<Record<string, number>>> {
   return runAction('getComplianceIssueCountsByType', () => complianceIssuesRepo.getCountsByType(state));
 }
@@ -178,9 +178,9 @@ export interface ComplianceIssueStats {
  * @returns Total count and counts by issue type
  */
 export async function getComplianceIssueStats(
-  state?: StateCode
+  state?: JurisdictionCode
 ): Promise<ActionResult<ComplianceIssueStats>> {
-  return runAction('getComplianceIssueStats', () => complianceIssuesRepo.getStatsByState(state));
+  return runAction('getComplianceIssueStats', () => complianceIssuesRepo.getStatsByJurisdiction(state));
 }
 
 /**
@@ -190,7 +190,7 @@ export async function getComplianceIssueStats(
  * @returns Paginated result with compliance issues and metadata
  */
 export async function getComplianceIssuesPaginated(
-  state: StateCode,
+  state: JurisdictionCode,
   options: {
     page: number;
     pageSize: number;
@@ -210,7 +210,7 @@ export async function getComplianceIssuesPaginated(
 ): Promise<ActionResult<PaginatedComplianceIssuesResult>> {
   return runAction('getComplianceIssuesPaginated', () =>
     complianceIssuesRepo.getAllPaginated({
-      state,
+      jurisdiction: state,
       page: options.page,
       pageSize: options.pageSize,
       sortBy: options.sortBy,
@@ -279,7 +279,7 @@ export interface SuggestionBatchResult {
  * @returns Batch of compliance issues with grouping metadata
  */
 export async function getComplianceSuggestionBatch(
-  state: StateCode,
+  state: JurisdictionCode,
   options: {
     batchSize: number;
     excludeIds: number[];
@@ -295,7 +295,7 @@ export async function getComplianceSuggestionBatch(
 ): Promise<ActionResult<SuggestionBatchResult>> {
   return runAction('getComplianceSuggestionBatch', () =>
     complianceIssuesRepo.getSuggestionBatch({
-      state,
+      jurisdiction: state,
       batchSize: options.batchSize,
       excludeIds: options.excludeIds,
       groupingMode: options.groupingMode,
@@ -312,13 +312,13 @@ export async function getComplianceSuggestionBatch(
  * @returns Object with counts per tier level (0 = not analyzed)
  */
 export async function getAnalysisTierCounts(
-  state: StateCode
+  state: JurisdictionCode
 ): Promise<ActionResult<TierCompletionCounts>> {
   return runAction('getAnalysisTierCounts', () => complianceIssuesRepo.getAnalysisTierCounts(state));
 }
 
 export async function getComplianceSeverityDistribution(
-  state: StateCode
+  state: JurisdictionCode
 ): Promise<ActionResult<SeverityDistribution>> {
   return runCachedAction(
     'getComplianceSeverityDistribution',

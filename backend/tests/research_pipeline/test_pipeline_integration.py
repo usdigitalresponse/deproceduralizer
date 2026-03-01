@@ -3433,7 +3433,7 @@ class TestTier2RerunState:
         pu = ProcessingUnit(
             document_id=1,
             issue_type="test",
-            state="NJ",
+            jurisdiction="NJ",
             citation="Test",
             title="Test",
             content="test",
@@ -3455,7 +3455,7 @@ class TestTier2RerunState:
         pu = ProcessingUnit(
             document_id=1,
             issue_type="test",
-            state="NJ",
+            jurisdiction="NJ",
             citation="Test",
             title="Test",
             content="test",

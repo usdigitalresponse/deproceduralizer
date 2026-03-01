@@ -8,7 +8,7 @@ import { getEntityIcon } from '@/lib/constants/entity-types';
 
 const DefinitionIcon = getEntityIcon('definition');
 import type { DashboardStats } from '@deproceduralizer/database';
-import type { StateCode } from '@/types/state';
+import type { JurisdictionCode } from '@/types/state';
 
 interface QuickLinkProps {
   href: string;
@@ -47,11 +47,11 @@ function QuickLink({ href, icon, title, description, badge }: QuickLinkProps) {
 }
 
 interface QuickLinksProps {
-  state: StateCode;
+  jurisdiction: JurisdictionCode;
   stats?: DashboardStats;
 }
 
-export function QuickLinks({ state, stats }: QuickLinksProps) {
+export function QuickLinks({ jurisdiction, stats }: QuickLinksProps) {
   const unreviewedCount = stats
     ? stats.unreviewedFlags + (stats.complianceIssues?.unreviewed ?? 0)
     : undefined;
@@ -59,32 +59,32 @@ export function QuickLinks({ state, stats }: QuickLinksProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       <QuickLink
-        href={`/${state}/browse`}
+        href={`/${jurisdiction}/browse`}
         icon={<FolderTree className="w-6 h-6 text-[var(--color-text-secondary)] group-hover:text-[var(--color-primary)] transition-colors" />}
         title="Browse Hierarchy"
         description="Explore regulations in a tree view organized by titles, parts, and sections"
       />
       <QuickLink
-        href={`/${state}/review?reviewStatus=unreviewed`}
+        href={`/${jurisdiction}/review?reviewStatus=unreviewed`}
         icon={<ClipboardCheck className="w-6 h-6 text-[var(--color-text-secondary)] group-hover:text-[var(--color-primary)] transition-colors" />}
         title="Review Queue"
         description="Review and triage flagged regulations that need attention"
         badge={unreviewedCount}
       />
       <QuickLink
-        href={`/${state}/analytics`}
+        href={`/${jurisdiction}/analytics`}
         icon={<BarChart3 className="w-6 h-6 text-[var(--color-text-secondary)] group-hover:text-[var(--color-primary)] transition-colors" />}
         title="Analytics"
         description="View charts, patterns, and insights across all regulatory data"
       />
       <QuickLink
-        href={`/${state}/definitions`}
+        href={`/${jurisdiction}/definitions`}
         icon={<DefinitionIcon className="w-6 h-6 text-[var(--color-text-secondary)] group-hover:text-[var(--color-primary)] transition-colors" />}
         title="Definitions Glossary"
         description="Browse and search regulatory definitions extracted from regulations"
       />
       <QuickLink
-        href={`/${state}`}
+        href={`/${jurisdiction}`}
         icon={<Table className="w-6 h-6 text-[var(--color-text-secondary)] group-hover:text-[var(--color-primary)] transition-colors" />}
         title="Table View"
         description="View all regulations in a sortable, filterable data table"

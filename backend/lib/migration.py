@@ -63,7 +63,7 @@ def migrate_regulations_to_db(jurisdiction: str, regulations: list = None, reg_d
     """
     Migrate regulations to database using upsert (ON CONFLICT).
 
-    This preserves existing IDs by matching on (state, source_index, type).
+    This preserves existing IDs by matching on (jurisdiction, source_index, type).
 
     Args:
         jurisdiction: Jurisdiction code ('NY', 'NJ', or 'NYC')
@@ -93,17 +93,17 @@ def migrate_regulations_to_db(jurisdiction: str, regulations: list = None, reg_d
 
     print(f"Migrating {len(regulations):,} {jurisdiction} regulations to database...")
 
-    # Build SQL dynamically based on state fields
+    # Build SQL dynamically based on jurisdiction-specific fields
     field_names = ", ".join(fields)
     field_placeholders = ", ".join(["%s"] * len(fields))
     field_updates = ", ".join([f"{f} = EXCLUDED.{f}" for f in fields])
 
     insert_sql = f"""
         INSERT INTO regulatory_documents
-        (source_index, type, state, title, url, url_type, content,
+        (source_index, type, jurisdiction, title, url, url_type, content,
          hierarchy_level, hierarchy_path, {field_names}, scraped_from_url)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, {field_placeholders}, %s)
-        ON CONFLICT (state, source_index, type) DO UPDATE SET
+        ON CONFLICT (jurisdiction, source_index, type) DO UPDATE SET
             title = EXCLUDED.title,
             url = EXCLUDED.url,
             content = EXCLUDED.content,
@@ -236,15 +236,15 @@ def populate_parent_ids(jurisdiction: str, regulations: list = None, reg_dir: Pa
         with conn.cursor() as cur:
             cur.execute("""
                 SELECT id, source_index FROM regulatory_documents
-                WHERE state = %s AND type = 'regulation'
+                WHERE jurisdiction = %s AND type = 'regulation'
             """, (jurisdiction,))
             source_to_id = {r[1]: r[0] for r in cur.fetchall() if r[1] is not None}
 
-            # First, clear ALL parent_ids for this state (to remove stale data)
+            # First, clear ALL parent_ids for this jurisdiction (to remove stale data)
             print(f"  Clearing existing parent_ids...")
             cur.execute("""
                 UPDATE regulatory_documents SET parent_id = NULL
-                WHERE state = %s AND type = 'regulation'
+                WHERE jurisdiction = %s AND type = 'regulation'
             """, (jurisdiction,))
 
             # Now set parent_ids for docs that have parents
@@ -301,7 +301,7 @@ def cleanup_stale_documents(jurisdiction: str, valid_source_indices: set = None,
         with conn.cursor() as cur:
             cur.execute("""
                 SELECT id, source_index FROM regulatory_documents
-                WHERE state = %s AND type = 'regulation'
+                WHERE jurisdiction = %s AND type = 'regulation'
             """, (jurisdiction,))
             db_docs = cur.fetchall()
 

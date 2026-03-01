@@ -3,7 +3,7 @@ import { ScopeDocumentTypeahead } from '../ScopeDocumentTypeahead';
 import { SCOPE_LEVELS, DEFINITION_TYPES, REFERENCE_COMPLETENESS_OPTIONS, REFERENCE_TARGET_OPTIONS } from './constants';
 import type { EditableColumnProps } from './types';
 
-export function EditableColumn({ definition, state, formData, setFormData, wasChanged }: EditableColumnProps) {
+export function EditableColumn({ definition, jurisdiction, formData, setFormData, wasChanged }: EditableColumnProps) {
   return (
     <div className="space-y-4">
       <h4 className="text-sm font-semibold text-[var(--color-text-secondary)] uppercase tracking-wide">
@@ -90,7 +90,7 @@ export function EditableColumn({ definition, state, formData, setFormData, wasCh
         <div>
           <label className="text-sm text-[var(--color-text-secondary)] mb-1 block">Scope Document</label>
           <ScopeDocumentTypeahead
-            state={state}
+            jurisdiction={jurisdiction}
             value={formData.scopeDocumentId}
             onChange={(docId) => setFormData(prev => ({ ...prev, scopeDocumentId: docId }))}
             sourceDocumentId={definition.documentId}

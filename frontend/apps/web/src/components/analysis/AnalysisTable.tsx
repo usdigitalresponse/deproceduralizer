@@ -4,7 +4,7 @@ import { useEffect, useState, useTransition, useCallback } from 'react';
 import Link from 'next/link';
 import { useQueryStates } from 'nuqs';
 import { ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
-import type { StateCode, AnalysisListItem } from '@deproceduralizer/database';
+import type { JurisdictionCode, AnalysisListItem } from '@deproceduralizer/database';
 import { analysisTableParsers } from '@/lib/url/parsers';
 import { getAnalysisListPaginated, type PaginatedAnalysisResult } from '@/lib/actions/analysis';
 import { getBookmarkedDocIssuePairs, toggleAnalysisBookmarkByDocIssue } from '@/lib/actions/bookmarks';
@@ -13,10 +13,10 @@ import { Badge, BookmarkButton } from '@/components/ui';
 import { ISSUE_TYPE_LABELS } from '@/types/regulation';
 
 interface AnalysisTableProps {
-  state: StateCode;
+  jurisdiction: JurisdictionCode;
 }
 
-export function AnalysisTable({ state }: AnalysisTableProps) {
+export function AnalysisTable({ jurisdiction }: AnalysisTableProps) {
   const [filters] = useQueryStates(analysisTableParsers);
   const [isPending, startTransition] = useTransition();
   const [data, setData] = useState<PaginatedAnalysisResult | null>(null);
@@ -26,13 +26,13 @@ export function AnalysisTable({ state }: AnalysisTableProps) {
   // Fetch bookmarked items
   useEffect(() => {
     async function fetchBookmarks() {
-      const result = await getBookmarkedDocIssuePairs(state);
+      const result = await getBookmarkedDocIssuePairs(jurisdiction);
       if (result.success) {
         setBookmarkedPairs(result.data);
       }
     }
     fetchBookmarks();
-  }, [state]);
+  }, [jurisdiction]);
 
   // Handle bookmark toggle with optimistic update
   const handleBookmarkToggle = useCallback(async (documentId: number, issueType: string) => {
@@ -51,7 +51,7 @@ export function AnalysisTable({ state }: AnalysisTableProps) {
     });
 
     // Server update
-    const result = await toggleAnalysisBookmarkByDocIssue(documentId, issueType, state);
+    const result = await toggleAnalysisBookmarkByDocIssue(documentId, issueType, jurisdiction);
 
     // Revert if failed
     if (!result.success) {
@@ -66,12 +66,12 @@ export function AnalysisTable({ state }: AnalysisTableProps) {
       });
       console.error('Failed to toggle bookmark:', result.error);
     }
-  }, [state, bookmarkedPairs]);
+  }, [jurisdiction, bookmarkedPairs]);
 
   // Fetch data when filters change
   useEffect(() => {
     startTransition(async () => {
-      const result = await getAnalysisListPaginated(state, {
+      const result = await getAnalysisListPaginated(jurisdiction, {
         page: filters.page,
         pageSize: filters.pageSize,
         sortBy: filters.sortBy as 'issueType' | 'severity' | 'highestTier' | 'createdAt',
@@ -102,7 +102,7 @@ export function AnalysisTable({ state }: AnalysisTableProps) {
         setData(result.data);
       }
     });
-  }, [state, filters]);
+  }, [jurisdiction, filters]);
 
   const handlePageChange = (newPage: number) => {
     setFilters({ page: newPage });
@@ -148,7 +148,7 @@ export function AnalysisTable({ state }: AnalysisTableProps) {
               <AnalysisTableRow
                 key={`${item.documentId}-${item.issueType}`}
                 item={item}
-                state={state}
+                jurisdiction={jurisdiction}
                 isBookmarked={bookmarkedPairs.has(`${item.documentId}-${item.issueType}`)}
                 onBookmarkToggle={() => handleBookmarkToggle(item.documentId, item.issueType)}
               />
@@ -198,12 +198,12 @@ export function AnalysisTable({ state }: AnalysisTableProps) {
 
 interface AnalysisTableRowProps {
   item: AnalysisListItem;
-  state: StateCode;
+  jurisdiction: JurisdictionCode;
   isBookmarked: boolean;
   onBookmarkToggle: () => void;
 }
 
-function AnalysisTableRow({ item, state, isBookmarked, onBookmarkToggle }: AnalysisTableRowProps) {
+function AnalysisTableRow({ item, jurisdiction, isBookmarked, onBookmarkToggle }: AnalysisTableRowProps) {
   const issueTypeLabel = ISSUE_TYPE_LABELS[item.issueType as keyof typeof ISSUE_TYPE_LABELS] || item.issueType;
 
   // Priority left border: red for critical quick wins, amber for high severity only
@@ -318,7 +318,7 @@ function AnalysisTableRow({ item, state, isBookmarked, onBookmarkToggle }: Analy
       {/* Actions */}
       <td className="px-3 py-3 text-center">
         <Link
-          href={`/${state.toLowerCase()}/pipeline/${item.documentId}/${item.issueType}`}
+          href={`/${jurisdiction.toLowerCase()}/pipeline/${item.documentId}/${item.issueType}`}
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1 text-xs text-[var(--color-primary)] hover:underline"

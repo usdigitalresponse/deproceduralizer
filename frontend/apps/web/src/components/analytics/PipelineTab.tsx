@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { BarChart3, Search, ShieldCheck } from 'lucide-react';
 import { useQueryStates } from 'nuqs';
-import type { StateCode } from '@/types/state';
+import type { JurisdictionCode } from '@/types/state';
 import type {
   PipelineAnalyticsData,
   PipelineContextData,
@@ -31,11 +31,11 @@ const SUBTAB_OPTIONS: SegmentedControlOption<PipelineSubTabValue>[] = [
 ];
 
 interface PipelineTabProps {
-  state: StateCode;
+  jurisdiction: JurisdictionCode;
   data: PipelineAnalyticsData | null;
 }
 
-export function PipelineTab({ state, data: initialData }: PipelineTabProps) {
+export function PipelineTab({ jurisdiction, data: initialData }: PipelineTabProps) {
   const [params, setParams] = useQueryStates(analyticsParsers, { shallow: true });
   const issueType = params.pIssueType;
   const subTab = params.pSubTab as PipelineSubTabValue;
@@ -81,7 +81,7 @@ export function PipelineTab({ state, data: initialData }: PipelineTabProps) {
     setIsFiltering(true);
 
     async function fetchFiltered() {
-      const result = await getPipelineAnalyticsBundle(state, issueType!);
+      const result = await getPipelineAnalyticsBundle(jurisdiction, issueType!);
 
       if (cancelled) return;
 
@@ -105,13 +105,13 @@ export function PipelineTab({ state, data: initialData }: PipelineTabProps) {
 
     fetchFiltered();
     return () => { cancelled = true; };
-  }, [state, issueType]);
+  }, [jurisdiction, issueType]);
 
   // ── Lazy-load context data when subtab is active ───────────────
   useEffect(() => {
     if (subTab !== 'context') return;
 
-    const cacheKey = `${state}-${issueType ?? 'all'}`;
+    const cacheKey = `${jurisdiction}-${issueType ?? 'all'}`;
     if (issueType) {
       // Filtered context: always refetch when issueType changes
     } else if (contextLoadedRef.current === cacheKey) {
@@ -122,7 +122,7 @@ export function PipelineTab({ state, data: initialData }: PipelineTabProps) {
     setIsLoadingContext(true);
 
     async function fetchContext() {
-      const result = await getPipelineContextData(state, issueType ?? undefined);
+      const result = await getPipelineContextData(jurisdiction, issueType ?? undefined);
       if (cancelled) return;
 
       if (result.success) {
@@ -138,7 +138,7 @@ export function PipelineTab({ state, data: initialData }: PipelineTabProps) {
 
     fetchContext();
     return () => { cancelled = true; };
-  }, [state, issueType, subTab]);
+  }, [jurisdiction, issueType, subTab]);
 
   // Clear filtered context when issueType is cleared
   useEffect(() => {

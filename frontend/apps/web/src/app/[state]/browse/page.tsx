@@ -1,13 +1,13 @@
 import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
-import type { HierarchyFilterOptions, StateCode } from '@deproceduralizer/database';
+import type { HierarchyFilterOptions, JurisdictionCode } from '@deproceduralizer/database';
 import { BrowseClient } from '@/components/browse';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Container } from '@/components/layout/Container';
 import { HierarchyTreeSkeleton } from '@/components/browse/HierarchyTree';
 import { Card } from '@/components/ui/Card';
 import { Alert } from '@/components/ui';
-import { isValidState, STATE_CONFIG } from '@/types/state';
+import { isValidJurisdiction, JURISDICTION_CONFIG } from '@/types/state';
 import { parseBooleanParam } from '@/lib/url/filter-helpers';
 import { getHierarchyBrowseData } from '@/lib/actions/hierarchy';
 
@@ -31,15 +31,15 @@ export default async function BrowsePage({ params, searchParams }: PageProps) {
   const queryParams = await searchParams;
 
   // Validate state parameter
-  if (!isValidState(state)) {
+  if (!isValidJurisdiction(state)) {
     notFound();
   }
 
-  const stateCode = state as StateCode;
-  const stateConfig = STATE_CONFIG[stateCode];
+  const stateCode = state as JurisdictionCode;
+  const stateConfig = JURISDICTION_CONFIG[stateCode];
 
   // Parse filters from URL params - state is always required
-  const filters: HierarchyFilterOptions = { state: stateCode };
+  const filters: HierarchyFilterOptions = { jurisdiction: stateCode };
 
   const hasAnalysis = parseBooleanParam(queryParams.analyzed);
   if (hasAnalysis !== undefined) filters.hasAnalysis = hasAnalysis;
@@ -102,7 +102,7 @@ export default async function BrowsePage({ params, searchParams }: PageProps) {
       <Container size="2xl" className="py-6">
         <Suspense fallback={<BrowsePageSkeleton />}>
           <BrowseClient
-            state={stateCode}
+            jurisdiction={stateCode}
             initialRoots={roots}
             initialOrphans={orphans}
             stats={stats}

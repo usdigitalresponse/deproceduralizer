@@ -25,7 +25,7 @@ export const complianceIssues = pgTable('compliance_issues', {
   // Review and developer fields moved to compliance_issue_analyses in PR 6.3
 
   // Metadata
-  state: varchar('state', { length: 3 }).notNull(), // 'NY', 'NJ', or 'NYC'
+  jurisdiction: varchar('jurisdiction', { length: 3 }).notNull(), // 'NY', 'NJ', or 'NYC'
   createdAt: timestamp('created_at').defaultNow(),
 
   runId: varchar('run_id', { length: 32 }),

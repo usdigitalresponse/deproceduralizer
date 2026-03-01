@@ -6,7 +6,7 @@ import {
   RegulatoryDocumentsRepository,
   type HierarchyNode,
   type HierarchyFilterOptions,
-  type StateCode,
+  type JurisdictionCode,
   type RegulationWithAnalysis,
 } from '@deproceduralizer/database';
 import { type ActionResult, success, failure, getErrorMessage, runAction } from './types';
@@ -19,10 +19,10 @@ const repo = new RegulatoryDocumentsRepository(db);
  */
 export async function getHierarchyChildren(
   parentId: number,
-  state: StateCode,
-  filters?: Omit<HierarchyFilterOptions, 'state'>
+  state: JurisdictionCode,
+  filters?: Omit<HierarchyFilterOptions, 'jurisdiction'>
 ): Promise<ActionResult<HierarchyNode[]>> {
-  return runAction('getHierarchyChildren', () => repo.getHierarchyChildren(parentId, { ...filters, state }));
+  return runAction('getHierarchyChildren', () => repo.getHierarchyChildren(parentId, { ...filters, jurisdiction: state }));
 }
 
 /**
@@ -49,7 +49,7 @@ interface AncestorNode {
   njacTitle: string | null;
   njacChapter: string | null;
   njacSubchapter: string | null;
-  state: string | null;
+  jurisdiction: string | null;
 }
 
 /**
@@ -94,7 +94,7 @@ export interface HierarchyBrowseData {
  * Uses fast queries when no filters are active
  */
 export async function getHierarchyBrowseData(
-  stateCode: StateCode,
+  stateCode: JurisdictionCode,
   filters: HierarchyFilterOptions,
   hasActiveFilters: boolean
 ): Promise<ActionResult<HierarchyBrowseData>> {
@@ -129,7 +129,7 @@ interface DirectChild {
   njacTitle: string | null;
   njacChapter: string | null;
   njacSubchapter: string | null;
-  state: string | null;
+  jurisdiction: string | null;
   hasAnalysis: boolean;
   maxSeverity: number | null;
   numFlags: number;

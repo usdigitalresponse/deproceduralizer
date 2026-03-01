@@ -37,7 +37,7 @@ def get_unsummarized_doc_ids(state: str, title: int | None = None) -> set[int]:
     """Get IDs of documents missing summaries."""
     query = """
         SELECT id FROM regulatory_documents
-        WHERE state = %s AND exclude_from_analysis = false AND summary IS NULL
+        WHERE jurisdiction = %s AND exclude_from_analysis = false AND summary IS NULL
     """
     params = [state]
     if title:

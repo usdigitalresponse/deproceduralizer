@@ -430,7 +430,7 @@ def save_analysis_to_database(conn: Connection,
                     hierarchy_vals = [regulation.nycrr_title, regulation.nycrr_part,
                                       regulation.nycrr_subpart, regulation.nycrr_section]
 
-                base_cols = 'source_index, type, state, title, url, url_type, content, hierarchy_level, hierarchy_path'
+                base_cols = 'source_index, type, jurisdiction, title, url, url_type, content, hierarchy_level, hierarchy_path'
                 all_cols = f"{base_cols}, {', '.join(hierarchy_cols)}"
                 placeholders = ', '.join(['%s'] * (9 + len(hierarchy_cols)))
 
@@ -438,7 +438,7 @@ def save_analysis_to_database(conn: Connection,
                     INSERT INTO regulatory_documents
                     ({all_cols})
                     VALUES ({placeholders})
-                    ON CONFLICT (state, source_index, type) DO UPDATE SET
+                    ON CONFLICT (jurisdiction, source_index, type) DO UPDATE SET
                         title = EXCLUDED.title,
                         url = EXCLUDED.url,
                         content = EXCLUDED.content

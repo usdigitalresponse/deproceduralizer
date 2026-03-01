@@ -195,7 +195,7 @@ def get_tier_completion_counts(
             cur.execute(f"""
                 SELECT COALESCE(highest_tier_completed, 0) as tier, COUNT(*)
                 FROM compliance_issue_analyses
-                WHERE state = %s {issue_filter}
+                WHERE jurisdiction = %s {issue_filter}
                 GROUP BY highest_tier_completed
                 ORDER BY tier
             """, params)
@@ -245,7 +245,7 @@ def get_classification_counts(
             cur.execute(f"""
                 SELECT {tier_col}, COUNT(*)
                 FROM compliance_issue_analyses
-                WHERE state = %s
+                WHERE jurisdiction = %s
                   AND {tier_col} IS NOT NULL
                   {issue_filter}
                 GROUP BY {tier_col}

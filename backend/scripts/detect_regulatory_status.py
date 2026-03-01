@@ -136,7 +136,7 @@ def main():
                 print("Resetting all documents to 'active' status...")
                 if args.state:
                     cur.execute(
-                        "UPDATE regulatory_documents SET regulatory_status = 'active', recodified_to = NULL WHERE state = %s",
+                        "UPDATE regulatory_documents SET regulatory_status = 'active', recodified_to = NULL WHERE jurisdiction = %s",
                         (args.state,)
                     )
                 else:
@@ -147,18 +147,18 @@ def main():
                 print(f"Reset {cur.rowcount} documents\n")
 
             # Build query
-            query = "SELECT id, title, content, state FROM regulatory_documents"
+            query = "SELECT id, title, content, jurisdiction FROM regulatory_documents"
             params: List = []
             conditions = []
 
             if args.state:
-                conditions.append("state = %s")
+                conditions.append("jurisdiction = %s")
                 params.append(args.state)
 
             if conditions:
                 query += " WHERE " + " AND ".join(conditions)
 
-            query += " ORDER BY state, source_index"
+            query += " ORDER BY jurisdiction, source_index"
 
             if args.limit:
                 query += f" LIMIT {args.limit}"

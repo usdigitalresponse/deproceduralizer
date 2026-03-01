@@ -4,19 +4,19 @@
  * - 'nj': New Jersey (NJAC regulations, NJSA statutes)
  * - 'nyc': New York City (RCNY regulations, NYC Charter + Admin Code statutes)
  *
- * When adding a new jurisdiction: update this type, VALID_STATES, CHECK constraints
- * on all tables with a state column, CSS variables, STATE_CONFIG, and formatStateCitation.
+ * When adding a new jurisdiction: update this type, VALID_JURISDICTIONS, CHECK constraints
+ * on all tables with a jurisdiction column, CSS variables, JURISDICTION_CONFIG, and formatStateCitation.
  */
-export type StateCode = 'ny' | 'nj' | 'nyc';
-export const VALID_STATES: StateCode[] = ['ny', 'nj', 'nyc'];
+export type JurisdictionCode = 'ny' | 'nj' | 'nyc';
+export const VALID_JURISDICTIONS: JurisdictionCode[] = ['ny', 'nj', 'nyc'];
 
 /**
- * Normalize a state/jurisdiction string for DB queries.
- * The DB stores state codes as uppercase ('NY', 'NJ', 'NYC'),
- * while the app layer uses lowercase StateCode ('ny', 'nj', 'nyc').
+ * Normalize a jurisdiction string for DB queries.
+ * The DB stores jurisdiction codes as uppercase ('NY', 'NJ', 'NYC'),
+ * while the app layer uses lowercase JurisdictionCode ('ny', 'nj', 'nyc').
  */
-export function normalizeState(state: string): string {
-  return state.toUpperCase();
+export function normalizeJurisdiction(jurisdiction: string): string {
+  return jurisdiction.toUpperCase();
 }
 
 // Red flag categories (must match backend/scripts/red_flags.py enum)

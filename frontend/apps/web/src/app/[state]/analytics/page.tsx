@@ -10,7 +10,7 @@ import { getPipelineAnalyticsData } from '@/lib/actions/pipeline-analytics';
 import { AnalyticsClient } from '@/components/analytics/AnalyticsClient';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Container } from '@/components/layout/Container';
-import { STATE_CONFIG, isValidState } from '@/types/state';
+import { JURISDICTION_CONFIG, isValidJurisdiction } from '@/types/state';
 
 interface AnalyticsPageProps {
   params: Promise<{ state: string }>;
@@ -19,12 +19,12 @@ interface AnalyticsPageProps {
 export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
   const { state } = await params;
 
-  if (!isValidState(state)) {
+  if (!isValidJurisdiction(state)) {
     notFound();
   }
 
   const stateCode = state;
-  const stateConfig = STATE_CONFIG[state];
+  const stateConfig = JURISDICTION_CONFIG[state];
 
   // Fetch all analytics data in parallel
   const [
@@ -86,7 +86,7 @@ export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
       />
       <Container size="2xl" className="py-6">
         <AnalyticsClient
-          state={stateCode}
+          jurisdiction={stateCode}
           dashboardStats={dashboardStats}
           sectionTypeStats={sectionTypeStats}
           metadataStats={metadataStats}

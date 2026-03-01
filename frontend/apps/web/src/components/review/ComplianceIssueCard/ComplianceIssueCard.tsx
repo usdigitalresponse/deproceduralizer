@@ -6,7 +6,7 @@ import { CopyLinkButton } from '@/components/ui';
 import { ISSUE_TYPE_LABELS } from '@/types/regulation';
 import { formatStateCitation } from '@/lib/formatters/citations';
 import { CardWrapper } from '../shared';
-import { getStateFromPathname } from '@/hooks/useStateFromPath';
+import { getJurisdictionFromPathname } from '@/hooks/useStateFromPath';
 import { Header } from './Header';
 import { TierClassificationSection } from './TierClassificationSection';
 import { SummaryContext } from './SummaryContext';
@@ -21,9 +21,9 @@ import type { ComplianceIssueCardProps } from './types';
 export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCardProps>(
   ({ issue, onUpdated, onViewRegulation, isFocused = false }, ref) => {
     const pathname = usePathname();
-    const stateCode = getStateFromPathname(pathname);
+    const jurisdictionCode = getJurisdictionFromPathname(pathname);
 
-    const citation = formatStateCitation(issue.state || stateCode, issue.regulation);
+    const citation = formatStateCitation(issue.jurisdiction || jurisdictionCode, issue.regulation);
 
     const issueTypeLabel = ISSUE_TYPE_LABELS[issue.issueType] || issue.issueType;
 
@@ -50,7 +50,7 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
         {/* Summary context, breadcrumbs, and citation */}
         <SummaryContext
           regulation={issue.regulation}
-          state={issue.state ?? 'ny'}
+          state={issue.jurisdiction ?? 'ny'}
           citation={citation ?? ''}
         />
 
@@ -80,7 +80,7 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
         {/* Regulation Actions */}
         <RegulationActions
           regulation={issue.regulation}
-          stateCode={stateCode}
+          stateCode={jurisdictionCode}
           verbatimSupportingText={issue.verbatimSupportingText}
           regexMatchPattern={issue.regexMatchPattern}
           isVerbatim={issue.isVerbatim}

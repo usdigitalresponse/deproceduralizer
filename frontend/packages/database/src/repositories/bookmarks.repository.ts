@@ -3,13 +3,13 @@ import { BaseRepository } from './base.repository';
 import { bookmarks, Bookmark, NewBookmark } from '../schema/bookmarks';
 import { regulatoryDocuments } from '../schema/regulatory-documents';
 import { complianceIssueAnalyses } from '../schema/compliance-issue-analyses';
-import { normalizeState } from '../schema/constants';
+import { normalizeJurisdiction } from '../schema/constants';
 
 export interface CreateBookmarkInput {
   documentId: number;
   analysisId?: number;
   issueType?: string;
-  state: string;
+  jurisdiction: string;
   notes?: string;
   createdBy?: string;
 }
@@ -46,7 +46,7 @@ export class BookmarksRepository extends BaseRepository {
         documentId: input.documentId,
         analysisId: input.analysisId ?? null,
         issueType: input.issueType ?? null,
-        state: normalizeState(input.state),
+        jurisdiction: normalizeJurisdiction(input.jurisdiction),
         notes: input.notes ?? null,
         createdBy: input.createdBy ?? null,
       })
@@ -118,13 +118,13 @@ export class BookmarksRepository extends BaseRepository {
   /**
    * Get all bookmarked analysis IDs for a state
    */
-  async getBookmarkedAnalysisIds(state: string): Promise<number[]> {
+  async getBookmarkedAnalysisIds(jurisdiction: string): Promise<number[]> {
     const results = await this.db
       .select({ analysisId: bookmarks.analysisId })
       .from(bookmarks)
       .where(
         and(
-          eq(bookmarks.state, normalizeState(state)),
+          eq(bookmarks.jurisdiction, normalizeJurisdiction(jurisdiction)),
           sql`${bookmarks.analysisId} IS NOT NULL`
         )
       );
@@ -138,7 +138,7 @@ export class BookmarksRepository extends BaseRepository {
    * Get all bookmarks with details for a state
    */
   async getAllWithDetails(
-    state: string,
+    jurisdiction: string,
     type?: 'analysis' | 'document'
   ): Promise<BookmarkWithDetails[]> {
     let query = this.db
@@ -147,7 +147,7 @@ export class BookmarksRepository extends BaseRepository {
         documentId: bookmarks.documentId,
         analysisId: bookmarks.analysisId,
         issueType: bookmarks.issueType,
-        state: bookmarks.state,
+        jurisdiction: bookmarks.jurisdiction,
         notes: bookmarks.notes,
         createdBy: bookmarks.createdBy,
         createdAt: bookmarks.createdAt,
@@ -170,7 +170,7 @@ export class BookmarksRepository extends BaseRepository {
       .from(bookmarks)
       .leftJoin(regulatoryDocuments, eq(bookmarks.documentId, regulatoryDocuments.id))
       .leftJoin(complianceIssueAnalyses, eq(bookmarks.analysisId, complianceIssueAnalyses.id))
-      .where(eq(bookmarks.state, normalizeState(state)))
+      .where(eq(bookmarks.jurisdiction, normalizeJurisdiction(jurisdiction)))
       .orderBy(desc(bookmarks.createdAt))
       .$dynamic();
 
@@ -244,8 +244,8 @@ export class BookmarksRepository extends BaseRepository {
   /**
    * Get bookmark count for a state
    */
-  async getCount(state: string, type?: 'analysis' | 'document'): Promise<number> {
-    let condition = eq(bookmarks.state, normalizeState(state));
+  async getCount(jurisdiction: string, type?: 'analysis' | 'document'): Promise<number> {
+    let condition = eq(bookmarks.jurisdiction, normalizeJurisdiction(jurisdiction));
 
     if (type === 'analysis') {
       const result = await this.db

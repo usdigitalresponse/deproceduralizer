@@ -55,7 +55,7 @@ export async function toggleAnalysisBookmark(
       .select({
         documentId: complianceIssueAnalyses.documentId,
         issueType: complianceIssueAnalyses.issueType,
-        state: complianceIssueAnalyses.state,
+        jurisdiction: complianceIssueAnalyses.jurisdiction,
       })
       .from(complianceIssueAnalyses)
       .where(eq(complianceIssueAnalyses.id, analysisId))
@@ -70,7 +70,7 @@ export async function toggleAnalysisBookmark(
       documentId: analysis.documentId,
       analysisId,
       issueType: analysis.issueType,
-      state: analysis.state,
+      jurisdiction: analysis.jurisdiction,
       notes,
       createdBy,
     });
@@ -90,7 +90,7 @@ export async function toggleAnalysisBookmark(
  */
 export async function toggleDocumentBookmark(
   documentId: number,
-  state: string,
+  jurisdiction: string,
   notes?: string,
   createdBy?: string
 ): Promise<ActionResult<Bookmark | null>> {
@@ -108,7 +108,7 @@ export async function toggleDocumentBookmark(
     // Create bookmark
     const bookmark = await bookmarksRepo.create({
       documentId,
-      state,
+      jurisdiction,
       notes,
       createdBy,
     });
@@ -125,10 +125,10 @@ export async function toggleDocumentBookmark(
  * Get all bookmarks for a state with document/analysis details.
  */
 export async function getBookmarks(
-  state: string,
+  jurisdiction: string,
   type?: 'analysis' | 'document'
 ): Promise<ActionResult<BookmarkWithDetails[]>> {
-  return runAction('getBookmarks', () => bookmarksRepo.getAllWithDetails(state, type));
+  return runAction('getBookmarks', () => bookmarksRepo.getAllWithDetails(jurisdiction, type));
 }
 
 /**
@@ -188,9 +188,9 @@ export async function isAnalysisBookmarked(
  * Used for efficient batch checking in tables.
  */
 export async function getBookmarkedAnalysisIds(
-  state: string
+  jurisdiction: string
 ): Promise<ActionResult<number[]>> {
-  return runAction('getBookmarkedAnalysisIds', () => bookmarksRepo.getBookmarkedAnalysisIds(state));
+  return runAction('getBookmarkedAnalysisIds', () => bookmarksRepo.getBookmarkedAnalysisIds(jurisdiction));
 }
 
 /**
@@ -198,15 +198,15 @@ export async function getBookmarkedAnalysisIds(
  * Cached for 2 minutes with parallel queries for performance.
  */
 export async function getBookmarkCounts(
-  state: string
+  jurisdiction: string
 ): Promise<ActionResult<{ analysis: number; document: number; total: number }>> {
   return runCachedAction(
     'getBookmarkCounts',
     async () => {
       // Parallel queries instead of sequential
       const [analysisCount, documentCount] = await Promise.all([
-        bookmarksRepo.getCount(state, 'analysis'),
-        bookmarksRepo.getCount(state, 'document'),
+        bookmarksRepo.getCount(jurisdiction, 'analysis'),
+        bookmarksRepo.getCount(jurisdiction, 'document'),
       ]);
       return {
         analysis: analysisCount,
@@ -214,7 +214,7 @@ export async function getBookmarkCounts(
         total: analysisCount + documentCount,
       };
     },
-    [`bookmark-counts-${state}`],
+    [`bookmark-counts-${jurisdiction}`],
     { revalidate: 120, tags: ['bookmarks'] }
   );
 }
@@ -227,7 +227,7 @@ export async function getBookmarkCounts(
 export async function toggleAnalysisBookmarkByDocIssue(
   documentId: number,
   issueType: string,
-  state: string,
+  jurisdiction: string,
   createdBy?: string
 ): Promise<ActionResult<Bookmark | null>> {
   try {
@@ -235,7 +235,7 @@ export async function toggleAnalysisBookmarkByDocIssue(
     const [result] = await db
       .select({
         analysisId: complianceIssueAnalyses.id,
-        analysisState: complianceIssueAnalyses.state,
+        analysisJurisdiction: complianceIssueAnalyses.jurisdiction,
         bookmarkId: bookmarks.id,
       })
       .from(complianceIssueAnalyses)
@@ -264,7 +264,7 @@ export async function toggleAnalysisBookmarkByDocIssue(
       documentId,
       analysisId: result.analysisId,
       issueType,
-      state: result.analysisState,
+      jurisdiction: result.analysisJurisdiction,
       createdBy,
     });
 
@@ -309,10 +309,10 @@ export async function isAnalysisBookmarkedByDocIssue(
  * Returns a Set of "documentId-issueType" keys for efficient lookup.
  */
 export async function getBookmarkedDocIssuePairs(
-  state: string
+  jurisdiction: string
 ): Promise<ActionResult<Set<string>>> {
   return runAction('getBookmarkedDocIssuePairs', async () => {
-    const allBookmarks = await bookmarksRepo.getAllWithDetails(state, 'analysis');
+    const allBookmarks = await bookmarksRepo.getAllWithDetails(jurisdiction, 'analysis');
     return new Set(
       allBookmarks
         .filter(b => b.analysisId !== null && b.issueType !== null)

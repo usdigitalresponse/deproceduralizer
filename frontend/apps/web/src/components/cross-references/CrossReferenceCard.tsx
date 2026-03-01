@@ -6,7 +6,7 @@ import { getEntityIcon } from '@/lib/constants/entity-types';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import type { CrossReferenceWithTarget, CrossReferenceWithSource } from '@deproceduralizer/database';
-import { DEFAULT_STATE } from '@/types/state';
+import { DEFAULT_JURISDICTION } from '@/types/state';
 
 const XrefIcon = getEntityIcon('cross_reference');
 
@@ -32,7 +32,7 @@ interface CrossReferenceCardProps {
  */
 export function CrossReferenceCard({
   crossRef,
-  state = DEFAULT_STATE,
+  state = DEFAULT_JURISDICTION,
   compact = false,
 }: CrossReferenceCardProps) {
   const refTypeInfo = REF_TYPE_LABELS[crossRef.refType] || { label: crossRef.refType, variant: 'default' as const };
@@ -123,7 +123,7 @@ interface IncomingReferenceCardProps {
  */
 export function IncomingReferenceCard({
   crossRef,
-  state = DEFAULT_STATE,
+  state = DEFAULT_JURISDICTION,
   compact = false,
 }: IncomingReferenceCardProps) {
   const refTypeInfo = REF_TYPE_LABELS[crossRef.refType] || { label: crossRef.refType, variant: 'default' as const };

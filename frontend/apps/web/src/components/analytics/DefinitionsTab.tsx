@@ -28,7 +28,7 @@ import {
   type ScopeLevelFlow,
   type DefinitionHierarchyNode,
 } from './definitions-graph';
-import type { StateCode } from '@/types/state';
+import type { JurisdictionCode } from '@/types/state';
 
 type DefinitionsSubTab = 'overview' | 'network';
 
@@ -39,7 +39,7 @@ const SUB_TAB_OPTIONS: SegmentedControlOption<DefinitionsSubTab>[] = [
 
 interface DefinitionsTabProps {
   stats: DefinitionsAnalyticsStats | null;
-  state: StateCode;
+  jurisdiction: JurisdictionCode;
 }
 
 // Human-readable labels for scope levels
@@ -165,7 +165,7 @@ function ReviewProgressBar({
   );
 }
 
-export function DefinitionsTab({ stats, state }: DefinitionsTabProps) {
+export function DefinitionsTab({ stats, jurisdiction }: DefinitionsTabProps) {
   const colors = useChartColors();
   const [subTab, setSubTab] = useState<DefinitionsSubTab>('overview');
 
@@ -195,9 +195,9 @@ export function DefinitionsTab({ stats, state }: DefinitionsTabProps) {
 
       try {
         const [flowsResult, hierarchyResult, titlesResult] = await Promise.all([
-          getScopeLevelFlows(state),
-          getDefinitionHierarchy(state),
-          getAvailableTitles(state), // Efficient distinct query for filter dropdown
+          getScopeLevelFlows(jurisdiction),
+          getDefinitionHierarchy(jurisdiction),
+          getAvailableTitles(jurisdiction), // Efficient distinct query for filter dropdown
         ]);
 
         if (flowsResult.success) setFlows(flowsResult.data);
@@ -219,7 +219,7 @@ export function DefinitionsTab({ stats, state }: DefinitionsTabProps) {
     }
 
     loadStaticData();
-  }, [subTab, state, staticDataLoaded]);
+  }, [subTab, jurisdiction, staticDataLoaded]);
 
   // Load edges - reloads when title filter changes
   useEffect(() => {
@@ -228,7 +228,7 @@ export function DefinitionsTab({ stats, state }: DefinitionsTabProps) {
     async function loadEdges() {
       setIsEdgesLoading(true);
       try {
-        const edgesResult = await getDefinitionGraph(state, 500, hubsTitleFilter);
+        const edgesResult = await getDefinitionGraph(jurisdiction, 500, hubsTitleFilter);
         if (edgesResult.success) {
           setEdges(edgesResult.data);
         } else {
@@ -242,7 +242,7 @@ export function DefinitionsTab({ stats, state }: DefinitionsTabProps) {
     }
 
     loadEdges();
-  }, [subTab, state, hubsTitleFilter]);
+  }, [subTab, jurisdiction, hubsTitleFilter]);
 
   // Load hubs separately - reloads when filters change
   useEffect(() => {
@@ -251,7 +251,7 @@ export function DefinitionsTab({ stats, state }: DefinitionsTabProps) {
     async function loadHubs() {
       setIsHubsLoading(true);
       try {
-        const hubsResult = await getTopDefinitions(state, hubsLimit, hubsTitleFilter);
+        const hubsResult = await getTopDefinitions(jurisdiction, hubsLimit, hubsTitleFilter);
         if (hubsResult.success) {
           setHubs(hubsResult.data);
         } else {
@@ -265,7 +265,7 @@ export function DefinitionsTab({ stats, state }: DefinitionsTabProps) {
     }
 
     loadHubs();
-  }, [subTab, state, hubsLimit, hubsTitleFilter]);
+  }, [subTab, jurisdiction, hubsLimit, hubsTitleFilter]);
 
   // Simple handlers that just update state - useEffect will handle the fetch
   const handleLimitChange = useCallback((limit: number) => {
@@ -568,10 +568,10 @@ export function DefinitionsTab({ stats, state }: DefinitionsTabProps) {
               </Card>
             ) : (
               <DefinitionGraphContainer
-                state={state}
+                state={jurisdiction}
                 edges={edges}
                 flows={flows}
-                hierarchy={hierarchy ?? { id: 'root', name: state, level: 'root', children: [] }}
+                hierarchy={hierarchy ?? { id: 'root', name: jurisdiction, level: 'root', children: [] }}
                 isLoading={isGraphLoading || isEdgesLoading}
               />
             )}
@@ -579,7 +579,7 @@ export function DefinitionsTab({ stats, state }: DefinitionsTabProps) {
 
           <DefinitionHubsPanel
             hubs={hubs}
-            state={state}
+            state={jurisdiction}
             isLoading={isGraphLoading || isHubsLoading}
             limit={hubsLimit}
             onLimitChange={handleLimitChange}

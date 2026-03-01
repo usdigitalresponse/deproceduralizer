@@ -54,7 +54,7 @@ export function NotesSidePanel({
         noteType: 'document',
         content: newNoteContent.trim(),
         authorName: authorName.trim() || undefined,
-        state,
+        jurisdiction: state,
       });
 
       if (!result.success) {

@@ -5,7 +5,7 @@ import { FileText, AlertTriangle, Loader2, ExternalLink } from 'lucide-react';
 import { Card } from '@/components/ui';
 import { RegulationContent } from '@/components/regulations';
 import { HierarchyBreadcrumbs } from '../HierarchyBreadcrumbs';
-import { getStateFromPathname } from '@/hooks';
+import { getJurisdictionFromPathname } from '@/hooks';
 import { useDetailPanelData } from './hooks/useDetailPanelData';
 import { Header } from './Header';
 import { SummarySection } from './SummarySection';
@@ -22,7 +22,7 @@ export function DetailPanel({ documentId, onClose, onNavigate, fullScreen = fals
   const searchParams = useSearchParams();
 
   const heightClass = fullScreen ? 'h-full' : 'h-[calc(100vh-16rem)]';
-  const state = getStateFromPathname(pathname, 'ny');
+  const jurisdiction = getJurisdictionFromPathname(pathname, 'ny');
 
   const currentUrl = searchParams.toString()
     ? `${pathname}?${searchParams.toString()}`
@@ -71,7 +71,7 @@ export function DetailPanel({ documentId, onClose, onNavigate, fullScreen = fals
     <Card padding="none" className={`${heightClass} flex flex-col overflow-hidden`}>
       <Header
         document={document}
-        state={state}
+        state={jurisdiction}
         currentUrl={currentUrl}
         onClose={onClose}
       />
@@ -94,35 +94,35 @@ export function DetailPanel({ documentId, onClose, onNavigate, fullScreen = fals
 
         <RedFlagsSection
           redFlags={document.redFlags || []}
-          state={state}
+          state={jurisdiction}
           documentId={document.id}
           currentUrl={currentUrl}
         />
 
         <ComplianceIssuesSection
           issues={complianceIssues}
-          state={state}
+          state={jurisdiction}
           documentId={document.id}
           currentUrl={currentUrl}
         />
 
         <CrossReferencesSection
           refs={crossRefs}
-          state={state}
+          state={jurisdiction}
           documentId={document.id}
           currentUrl={currentUrl}
         />
 
         <IncomingReferencesSection
           refs={incomingRefs}
-          state={state}
+          state={jurisdiction}
           documentId={document.id}
           currentUrl={currentUrl}
         />
 
         <StatuteLinksSection
           links={statuteLinks}
-          state={state}
+          state={jurisdiction}
           documentId={document.id}
           currentUrl={currentUrl}
         />

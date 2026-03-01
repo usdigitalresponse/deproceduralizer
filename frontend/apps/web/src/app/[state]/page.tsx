@@ -1,12 +1,12 @@
 import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
-import type { PaginationOptions, FilterOptions, StateCode } from '@deproceduralizer/database';
+import type { PaginationOptions, FilterOptions, JurisdictionCode } from '@deproceduralizer/database';
 import { getRegulationsPaginated } from '@/lib/actions/regulations';
 import RegulationsClient from '@/components/RegulationsClient';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Container } from '@/components/layout/Container';
 import { Alert } from '@/components/ui';
-import { STATE_CONFIG, isValidState } from '@/types/state';
+import { JURISDICTION_CONFIG, isValidJurisdiction } from '@/types/state';
 import { parseBooleanParam } from '@/lib/url/filter-helpers';
 
 export const dynamic = 'force-dynamic';
@@ -35,12 +35,12 @@ export default async function Home({ params, searchParams }: PageProps) {
   const queryParams = await searchParams;
 
   // Validate state parameter
-  if (!isValidState(state)) {
+  if (!isValidJurisdiction(state)) {
     notFound();
   }
 
-  const stateCode = state as StateCode;
-  const stateConfig = STATE_CONFIG[stateCode];
+  const stateCode = state as JurisdictionCode;
+  const stateConfig = JURISDICTION_CONFIG[stateCode];
 
   const page = Math.max(1, parseInt(queryParams.page || '1', 10));
   const search = queryParams.search || '';
@@ -105,7 +105,7 @@ export default async function Home({ params, searchParams }: PageProps) {
   }
 
   const result = await getRegulationsPaginated({
-    state: stateCode,
+    jurisdiction: stateCode,
     page,
     pageSize: 25,
     search: search || undefined,

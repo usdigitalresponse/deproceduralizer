@@ -2,7 +2,7 @@
 
 import 'server-only';
 import { revalidatePath } from 'next/cache';
-import { db, RegulatoryDocumentsRepository, regulatoryDocuments, eq, and, desc, type RegulationWithAnalysis, type PaginationOptions, type FilterOptions, type StateCode, type PaginatedResult, type ComplianceIssueWithAnalysisFields, type DefinitionWithContext, type DocumentNote } from '@deproceduralizer/database';
+import { db, RegulatoryDocumentsRepository, regulatoryDocuments, eq, and, desc, type RegulationWithAnalysis, type PaginationOptions, type FilterOptions, type JurisdictionCode, type PaginatedResult, type ComplianceIssueWithAnalysisFields, type DefinitionWithContext, type DocumentNote } from '@deproceduralizer/database';
 import { type ActionResult, success, failure, getErrorMessage, runAction, runCachedAction } from './types';
 import { getComplianceIssuesByDocumentId } from './compliance-issues';
 import { getApplicableDefinitionsForDocument } from './definitions';
@@ -27,7 +27,7 @@ export async function getRegulationById(
  * @returns Paginated result with regulations
  */
 export async function getRegulationsPaginated(
-  options: PaginationOptions & { state: StateCode; filters?: FilterOptions }
+  options: PaginationOptions & { filters?: FilterOptions }
 ): Promise<ActionResult<PaginatedResult<RegulationWithAnalysis>>> {
   return runAction('getRegulationsPaginated', () => regulationsRepo.getAllWithAnalysisPaginated(options));
 }
@@ -50,7 +50,7 @@ export interface ExcludedDocument {
   excludedAt: Date | null;
   excludedBy: string | null;
   excludedReason: string | null;
-  state: string | null;
+  jurisdiction: string | null;
 }
 
 /**
@@ -100,12 +100,12 @@ export async function getExcludedDocuments(
         excludedAt: regulatoryDocuments.excludedAt,
         excludedBy: regulatoryDocuments.excludedBy,
         excludedReason: regulatoryDocuments.excludedReason,
-        state: regulatoryDocuments.state,
+        jurisdiction: regulatoryDocuments.jurisdiction,
       })
       .from(regulatoryDocuments)
       .where(
         and(
-          eq(regulatoryDocuments.state, state.toUpperCase()),
+          eq(regulatoryDocuments.jurisdiction, state.toUpperCase()),
           eq(regulatoryDocuments.excludeFromAnalysis, true)
         )
       )
@@ -289,7 +289,7 @@ export async function getSectionTypeStats(
 ): Promise<ActionResult<SectionTypeStats[]>> {
   return runCachedAction(
     'getSectionTypeStats',
-    () => regulationsRepo.getSectionTypeStats(state as StateCode),
+    () => regulationsRepo.getSectionTypeStats(state as JurisdictionCode),
     [`section-type-stats-${state}`],
     { revalidate: 60, tags: ['analytics'] }
   );
@@ -304,7 +304,7 @@ export async function getMetadataStats(
 ): Promise<ActionResult<MetadataStats>> {
   return runCachedAction(
     'getMetadataStats',
-    () => regulationsRepo.getMetadataStats(state as StateCode),
+    () => regulationsRepo.getMetadataStats(state as JurisdictionCode),
     [`metadata-stats-${state}`],
     { revalidate: 60, tags: ['analytics'] }
   );
@@ -320,7 +320,7 @@ export async function getTopKeywords(
 ): Promise<ActionResult<KeywordStats[]>> {
   return runCachedAction(
     'getTopKeywords',
-    () => regulationsRepo.getTopKeywords(state as StateCode, limit),
+    () => regulationsRepo.getTopKeywords(state as JurisdictionCode, limit),
     [`top-keywords-${state}-${limit}`],
     { revalidate: 60, tags: ['analytics'] }
   );
@@ -336,7 +336,7 @@ export async function getTopAppliesTo(
 ): Promise<ActionResult<AppliesToStats[]>> {
   return runCachedAction(
     'getTopAppliesTo',
-    () => regulationsRepo.getTopAppliesTo(state as StateCode, limit),
+    () => regulationsRepo.getTopAppliesTo(state as JurisdictionCode, limit),
     [`top-applies-to-${state}-${limit}`],
     { revalidate: 60, tags: ['analytics'] }
   );

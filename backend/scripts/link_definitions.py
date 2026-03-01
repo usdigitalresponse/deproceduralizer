@@ -113,7 +113,7 @@ def get_definitions_to_process(
         params.append(definition_ids)
 
     if jurisdiction:
-        # Filter by state using the document's state column via its regulatory_document
+        # Filter by jurisdiction
         conditions.append("""
             EXISTS (
                 SELECT 1 FROM regulatory_documents rd
@@ -174,7 +174,7 @@ def get_all_definition_ids_for_term(conn, normalized_term: str, jurisdiction: Op
         jurisdiction: Optional jurisdiction filter (NJ, NY, or NYC) - only return definitions from this jurisdiction
     """
     if jurisdiction:
-        # Filter by state via the document's state
+        # Filter by jurisdiction
         query = """
             SELECT d.id FROM definitions d
             JOIN regulatory_documents r ON d.document_id = r.id
@@ -208,7 +208,7 @@ def build_document_ancestry_map(conn, jurisdiction: Optional[str] = None) -> Dic
     params = []
 
     if jurisdiction:
-        conditions.append("state = %s")
+        conditions.append("jurisdiction = %s")
         params.append(jurisdiction.upper())
 
     where_clause = "WHERE " + " AND ".join(conditions)
@@ -375,7 +375,7 @@ def get_document_ids_to_scan(
         params.append(document_ids)
 
     if jurisdiction:
-        conditions.append("state = %s")
+        conditions.append("jurisdiction = %s")
         params.append(jurisdiction.upper())
 
     where_clause = "WHERE " + " AND ".join(conditions)

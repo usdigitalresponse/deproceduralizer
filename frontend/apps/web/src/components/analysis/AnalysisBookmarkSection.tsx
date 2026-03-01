@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, createContext, useContext, type ReactNode } from 'react';
 import { Bookmark as BookmarkIcon, Pencil, X, Check } from 'lucide-react';
-import type { StateCode, Bookmark } from '@deproceduralizer/database';
+import type { JurisdictionCode, Bookmark } from '@deproceduralizer/database';
 import { BookmarkButton } from '@/components/ui';
 import {
   toggleAnalysisBookmarkByDocIssue,
@@ -23,7 +23,7 @@ const BookmarkContext = createContext<BookmarkContextValue | null>(null);
 interface AnalysisBookmarkProviderProps {
   documentId: number;
   issueType: string;
-  state: StateCode;
+  jurisdiction: JurisdictionCode;
   children: ReactNode;
 }
 
@@ -34,7 +34,7 @@ interface AnalysisBookmarkProviderProps {
 export function AnalysisBookmarkProvider({
   documentId,
   issueType,
-  state,
+  jurisdiction,
   children,
 }: AnalysisBookmarkProviderProps) {
   const [bookmark, setBookmark] = useState<Bookmark | null>(null);
@@ -62,7 +62,7 @@ export function AnalysisBookmarkProvider({
       setBookmark(null);
     }
 
-    const result = await toggleAnalysisBookmarkByDocIssue(documentId, issueType, state);
+    const result = await toggleAnalysisBookmarkByDocIssue(documentId, issueType, jurisdiction);
 
     if (!result.success) {
       // Revert on failure
@@ -74,7 +74,7 @@ export function AnalysisBookmarkProvider({
     } else if (result.data) {
       setBookmark(result.data);
     }
-  }, [documentId, issueType, state, isBookmarked]);
+  }, [documentId, issueType, jurisdiction, isBookmarked]);
 
   // Allow updating bookmark from notes card
   const updateBookmark = useCallback((updated: Bookmark) => {

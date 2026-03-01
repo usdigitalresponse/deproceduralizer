@@ -27,7 +27,7 @@ export const documentNotes = pgTable('document_notes', {
 
   content: text('content').notNull(),
   authorName: varchar('author_name', { length: 255 }),
-  state: varchar('state', { length: 3 }).notNull(),
+  jurisdiction: varchar('jurisdiction', { length: 3 }).notNull(),
 
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),

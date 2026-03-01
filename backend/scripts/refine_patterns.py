@@ -640,6 +640,8 @@ class VariantResult:
 def load_data() -> tuple[duckdb.DuckDBPyConnection, dict, dict]:
     """Load regulation data into DuckDB."""
     conn = duckdb.connect(':memory:')
+    # NOTE: Local DuckDB analysis table intentionally uses 'state' column —
+    # this is isolated from the production DB schema (which uses 'jurisdiction').
     conn.execute("""
         CREATE TABLE docs (
             state VARCHAR, idx INTEGER, title TEXT, citation TEXT, content TEXT

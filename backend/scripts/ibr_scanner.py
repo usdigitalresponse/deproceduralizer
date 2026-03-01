@@ -52,7 +52,7 @@ class IBRSearcher(BasePatternSearcher):
             result = conn.execute(
                 """
                 SELECT document_id FROM incorporations_by_reference
-                WHERE state = %s
+                WHERE jurisdiction = %s
                 """,
                 (self.state_config.state_code,)
             ).fetchall()
@@ -114,7 +114,7 @@ class IBRSearcher(BasePatternSearcher):
                         """
                         INSERT INTO incorporations_by_reference
                         (document_id, incorporated_document, source_organization, version,
-                         requirement_quote, term_matched, context, llm_confirmed, state, url)
+                         requirement_quote, term_matched, context, llm_confirmed, jurisdiction, url)
                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                         ON CONFLICT DO NOTHING
                         """,

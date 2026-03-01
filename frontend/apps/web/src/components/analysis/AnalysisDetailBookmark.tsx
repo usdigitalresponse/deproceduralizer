@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import type { StateCode, Bookmark } from '@deproceduralizer/database';
+import type { JurisdictionCode, Bookmark } from '@deproceduralizer/database';
 import { BookmarkButton } from '@/components/ui';
 import {
   toggleAnalysisBookmarkByDocIssue,
@@ -11,7 +11,7 @@ import {
 interface AnalysisDetailBookmarkProps {
   documentId: number;
   issueType: string;
-  state: StateCode;
+  jurisdiction: JurisdictionCode;
   onBookmarkChange?: (bookmark: Bookmark | null) => void;
 }
 
@@ -22,7 +22,7 @@ interface AnalysisDetailBookmarkProps {
 export function AnalysisDetailBookmark({
   documentId,
   issueType,
-  state,
+  jurisdiction,
   onBookmarkChange,
 }: AnalysisDetailBookmarkProps) {
   const [bookmark, setBookmark] = useState<Bookmark | null>(null);
@@ -52,7 +52,7 @@ export function AnalysisDetailBookmark({
       onBookmarkChange?.(null);
     }
 
-    const result = await toggleAnalysisBookmarkByDocIssue(documentId, issueType, state);
+    const result = await toggleAnalysisBookmarkByDocIssue(documentId, issueType, jurisdiction);
 
     if (!result.success) {
       // Revert on failure - refetch to get current state
@@ -67,7 +67,7 @@ export function AnalysisDetailBookmark({
       setBookmark(result.data);
       onBookmarkChange?.(result.data);
     }
-  }, [documentId, issueType, state, isBookmarked, onBookmarkChange]);
+  }, [documentId, issueType, jurisdiction, isBookmarked, onBookmarkChange]);
 
   return (
     <BookmarkButton

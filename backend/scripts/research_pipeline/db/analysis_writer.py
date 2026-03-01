@@ -149,7 +149,7 @@ def save_tier1_results(
 
                     cur.execute("""
                         INSERT INTO compliance_issue_analyses (
-                            document_id, issue_type, state, grouped_match_count,
+                            document_id, issue_type, jurisdiction, grouped_match_count,
                             tier1_dismissed_match_ids, tier1_dismissed_reasons,
                             tier1_classification, tier1_confidence, tier1_reasoning,
                             tier1_batch_id, tier1_completed_at, highest_tier_completed,
@@ -238,7 +238,7 @@ def save_tier1_results(
 
                 cur.execute("""
                     INSERT INTO compliance_issue_analyses (
-                        document_id, issue_type, state, grouped_match_count,
+                        document_id, issue_type, jurisdiction, grouped_match_count,
                         tier1_relevant_match_ids, tier1_dismissed_match_ids,
                         tier1_dismissed_reasons, tier1_classification, tier1_confidence,
                         tier1_reasoning, tier1_batch_id,

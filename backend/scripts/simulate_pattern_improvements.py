@@ -208,7 +208,7 @@ def count_matches(conn, patterns: list[str], state: str = 'NJ') -> int:
     query = f"""
         SELECT COUNT(DISTINCT id)
         FROM regulatory_documents
-        WHERE state = %s
+        WHERE jurisdiction = %s
           AND hierarchy_level = 'section'
           AND content IS NOT NULL
           AND (exclude_from_analysis = FALSE OR exclude_from_analysis IS NULL)
@@ -237,7 +237,7 @@ def count_all_unique_sections(conn, all_patterns: dict, state: str = 'NJ') -> in
     query = f"""
         SELECT COUNT(DISTINCT id)
         FROM regulatory_documents
-        WHERE state = %s
+        WHERE jurisdiction = %s
           AND hierarchy_level = 'section'
           AND content IS NOT NULL
           AND (exclude_from_analysis = FALSE OR exclude_from_analysis IS NULL)
@@ -254,7 +254,7 @@ def get_total_sections(conn, state: str = 'NJ') -> int:
     query = """
         SELECT COUNT(*)
         FROM regulatory_documents
-        WHERE state = %s
+        WHERE jurisdiction = %s
           AND hierarchy_level = 'section'
           AND content IS NOT NULL
           AND (exclude_from_analysis = FALSE OR exclude_from_analysis IS NULL)
@@ -280,7 +280,7 @@ def show_samples(conn, patterns: list[str], issue_type: str, n: int = 5, state: 
     query = f"""
         SELECT id, citation, substring(content, 1, 500) as preview
         FROM regulatory_documents
-        WHERE state = %s
+        WHERE jurisdiction = %s
           AND hierarchy_level = 'section'
           AND content IS NOT NULL
           AND (exclude_from_analysis = FALSE OR exclude_from_analysis IS NULL)

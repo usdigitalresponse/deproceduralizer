@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { searchDocumentsForScope, getAncestorDocumentsForScope, getDocumentForScope } from '@/lib/actions/definitions';
 import { Input } from '@/components/ui';
-import type { StateCode } from '@/types/state';
+import type { JurisdictionCode } from '@/types/state';
 
 interface ScopeDocument {
   id: number;
@@ -16,7 +16,7 @@ interface ScopeDocument {
 }
 
 interface ScopeDocumentTypeaheadProps {
-  state: StateCode;
+  jurisdiction: JurisdictionCode;
   value: number | null | undefined;
   onChange: (docId: number | null) => void;
   sourceDocumentId: number | null | undefined;
@@ -24,7 +24,7 @@ interface ScopeDocumentTypeaheadProps {
 }
 
 export function ScopeDocumentTypeahead({
-  state,
+  jurisdiction,
   value,
   onChange,
   sourceDocumentId,
@@ -90,7 +90,7 @@ export function ScopeDocumentTypeahead({
     const debounce = setTimeout(async () => {
       setIsLoading(true);
       try {
-        const result = await searchDocumentsForScope(searchQuery, state, 10);
+        const result = await searchDocumentsForScope(searchQuery, jurisdiction, 10);
         if (result.success) {
           setSuggestions(result.data);
         }
@@ -100,7 +100,7 @@ export function ScopeDocumentTypeahead({
     }, 300);
 
     return () => clearTimeout(debounce);
-  }, [searchQuery, state]);
+  }, [searchQuery, jurisdiction]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -134,7 +134,7 @@ export function ScopeDocumentTypeahead({
 
   const formatDocumentDisplay = (doc: ScopeDocument) => {
     const level = doc.hierarchyLevel ? `[${doc.hierarchyLevel}]` : '';
-    const citation = state === 'ny'
+    const citation = jurisdiction === 'ny'
       ? [doc.nycrrTitle && `Title ${doc.nycrrTitle}`, doc.nycrrPart && `Part ${doc.nycrrPart}`].filter(Boolean).join(' ')
       : [doc.njacTitle && `${doc.njacTitle}`, doc.njacChapter && `:${doc.njacChapter}`].filter(Boolean).join('');
 

@@ -10,18 +10,18 @@ import { ExpandableRegulationQuote } from '../ExpandableRegulationQuote';
 import { CardWrapper } from '../shared';
 import { getStatusVariant } from '../DeveloperCard/helpers';
 import { BookOpen } from 'lucide-react';
-import type { DefinitionWithContext, StateCode } from '@deproceduralizer/database';
+import type { DefinitionWithContext, JurisdictionCode } from '@deproceduralizer/database';
 
 interface DefinitionDeveloperCardProps {
   definition: DefinitionWithContext;
-  state: StateCode;
+  jurisdiction: JurisdictionCode;
   onUpdated: (updated: DefinitionWithContext) => void;
   onViewRegulation: (regulationId: number) => void;
   isFocused?: boolean;
 }
 
 export const DefinitionDeveloperCard = forwardRef<HTMLDivElement, DefinitionDeveloperCardProps>(
-  ({ definition, state, onUpdated, onViewRegulation, isFocused = false }, ref) => {
+  ({ definition, jurisdiction, onUpdated, onViewRegulation, isFocused = false }, ref) => {
     const [isPending, startTransition] = useTransition();
     const [error, setError] = useState<string | null>(null);
     const { developerName: storedName, saveDeveloperName, isLoaded } = useDeveloperName();
@@ -104,7 +104,7 @@ export const DefinitionDeveloperCard = forwardRef<HTMLDivElement, DefinitionDeve
     };
 
     const citation = definition.regulation
-      ? formatStateCitation(state, definition.regulation)
+      ? formatStateCitation(jurisdiction, definition.regulation)
       : null;
     const developerOptions = [...DEVELOPERS];
     const statusOptions = [...DEVELOPER_STATUSES];

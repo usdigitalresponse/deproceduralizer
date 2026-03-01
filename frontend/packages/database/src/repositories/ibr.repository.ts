@@ -2,7 +2,7 @@ import { eq, and, desc, asc, sql, count, ilike, or } from 'drizzle-orm';
 import { BaseRepository } from './base.repository';
 import { incorporationsByReference, IncorporationByReference } from '../schema/incorporations-by-reference';
 import { regulatoryDocuments } from '../schema/regulatory-documents';
-import { StateCode, normalizeState } from '../schema/constants';
+import { JurisdictionCode, normalizeJurisdiction } from '../schema/constants';
 
 export interface IbrWithContext extends IncorporationByReference {
   regulation: {
@@ -14,18 +14,18 @@ export interface IbrWithContext extends IncorporationByReference {
 }
 
 export interface IbrFilterOptions {
-  state: StateCode;
+  jurisdiction: JurisdictionCode;
   sourceOrganization?: string;
   search?: string;
 }
 
 export interface IbrPaginationOptions {
-  state: StateCode;
+  jurisdiction: JurisdictionCode;
   page: number;
   pageSize: number;
   sortBy?: 'sourceOrganization' | 'incorporatedDocument' | 'createdAt';
   sortOrder?: 'asc' | 'desc';
-  filters?: Omit<IbrFilterOptions, 'state'>;
+  filters?: Omit<IbrFilterOptions, 'jurisdiction'>;
 }
 
 export interface PaginatedIbrsResult {
@@ -63,7 +63,7 @@ export class IbrRepository extends BaseRepository {
         termMatched: incorporationsByReference.termMatched,
         context: incorporationsByReference.context,
         llmConfirmed: incorporationsByReference.llmConfirmed,
-        state: incorporationsByReference.state,
+        jurisdiction: incorporationsByReference.jurisdiction,
         url: incorporationsByReference.url,
         reviewStatus: incorporationsByReference.reviewStatus,
         reviewedBy: incorporationsByReference.reviewedBy,
@@ -94,11 +94,11 @@ export class IbrRepository extends BaseRepository {
   }
 
   async getAllPaginated(options: IbrPaginationOptions): Promise<PaginatedIbrsResult> {
-    const { state, page, pageSize, sortBy = 'sourceOrganization', sortOrder = 'desc', filters } = options;
+    const { jurisdiction, page, pageSize, sortBy = 'sourceOrganization', sortOrder = 'desc', filters } = options;
     const offset = (page - 1) * pageSize;
 
     const conditions: ReturnType<typeof eq>[] = [
-      eq(incorporationsByReference.state, normalizeState(state)),
+      eq(incorporationsByReference.jurisdiction, normalizeJurisdiction(jurisdiction)),
     ];
 
     if (filters) {
@@ -148,7 +148,7 @@ export class IbrRepository extends BaseRepository {
         termMatched: incorporationsByReference.termMatched,
         context: incorporationsByReference.context,
         llmConfirmed: incorporationsByReference.llmConfirmed,
-        state: incorporationsByReference.state,
+        jurisdiction: incorporationsByReference.jurisdiction,
         url: incorporationsByReference.url,
         reviewStatus: incorporationsByReference.reviewStatus,
         reviewedBy: incorporationsByReference.reviewedBy,
@@ -187,9 +187,9 @@ export class IbrRepository extends BaseRepository {
     };
   }
 
-  async getOverviewStats(state: StateCode): Promise<IbrOverviewStats> {
-    const stateUpper = normalizeState(state);
-    const baseCondition = eq(incorporationsByReference.state, stateUpper);
+  async getOverviewStats(jurisdiction: JurisdictionCode): Promise<IbrOverviewStats> {
+    const stateUpper = normalizeJurisdiction(jurisdiction);
+    const baseCondition = eq(incorporationsByReference.jurisdiction, stateUpper);
 
     // Get total, unique orgs, unique docs in one query
     const [stats] = await this.db
@@ -223,11 +223,11 @@ export class IbrRepository extends BaseRepository {
     };
   }
 
-  async getSourceOrganizations(state: StateCode): Promise<string[]> {
+  async getSourceOrganizations(jurisdiction: JurisdictionCode): Promise<string[]> {
     const result = await this.db
       .selectDistinct({ organization: incorporationsByReference.sourceOrganization })
       .from(incorporationsByReference)
-      .where(eq(incorporationsByReference.state, normalizeState(state)))
+      .where(eq(incorporationsByReference.jurisdiction, normalizeJurisdiction(jurisdiction)))
       .orderBy(asc(incorporationsByReference.sourceOrganization));
 
     return result
@@ -235,7 +235,7 @@ export class IbrRepository extends BaseRepository {
       .filter((org): org is string => org !== null);
   }
 
-  async getTopStandards(state: StateCode, limit: number = 20): Promise<IbrTopStandard[]> {
+  async getTopStandards(jurisdiction: JurisdictionCode, limit: number = 20): Promise<IbrTopStandard[]> {
     const result = await this.db
       .select({
         incorporatedDocument: incorporationsByReference.incorporatedDocument,
@@ -244,7 +244,7 @@ export class IbrRepository extends BaseRepository {
         count: sql<number>`count(*)::int`,
       })
       .from(incorporationsByReference)
-      .where(eq(incorporationsByReference.state, normalizeState(state)))
+      .where(eq(incorporationsByReference.jurisdiction, normalizeJurisdiction(jurisdiction)))
       .groupBy(
         incorporationsByReference.incorporatedDocument,
         incorporationsByReference.sourceOrganization,
@@ -266,7 +266,7 @@ export class IbrRepository extends BaseRepository {
     termMatched: string | null;
     context: string;
     llmConfirmed: boolean | null;
-    state: string;
+    jurisdiction: string;
     url: string;
     reviewStatus: string | null;
     reviewedBy: string | null;
@@ -297,7 +297,7 @@ export class IbrRepository extends BaseRepository {
       termMatched: row.termMatched,
       context: row.context,
       llmConfirmed: row.llmConfirmed,
-      state: row.state,
+      jurisdiction: row.jurisdiction,
       url: row.url,
       reviewStatus: row.reviewStatus,
       reviewedBy: row.reviewedBy,

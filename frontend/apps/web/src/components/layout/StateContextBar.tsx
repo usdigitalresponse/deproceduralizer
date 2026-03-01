@@ -2,55 +2,55 @@
 
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { Container } from './Container';
-import { STATE_CONFIG, VALID_STATES, STATE_STORAGE_KEY, type StateCode } from '@/types/state';
+import { JURISDICTION_CONFIG, VALID_JURISDICTIONS, JURISDICTION_STORAGE_KEY, type JurisdictionCode } from '@/types/state';
 import { useEffect, useState } from 'react';
 
 interface StateContextBarProps {
-  state: StateCode;
+  jurisdiction: JurisdictionCode;
 }
 
 /**
  * Context bar showing the current state with option to switch.
  * Displays below the main header to provide clear state context.
  */
-export function StateContextBar({ state }: StateContextBarProps) {
+export function StateContextBar({ jurisdiction }: StateContextBarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const config = STATE_CONFIG[state];
+  const config = JURISDICTION_CONFIG[jurisdiction];
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
-  // Save state preference to localStorage when state changes
+  // Save jurisdiction preference to localStorage when jurisdiction changes
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      localStorage.setItem(STATE_STORAGE_KEY, state);
+      localStorage.setItem(JURISDICTION_STORAGE_KEY, jurisdiction);
     }
-  }, [state]);
+  }, [jurisdiction]);
 
-  const handleStateChange = (newState: StateCode) => {
-    if (newState === state) {
+  const handleJurisdictionChange = (newJurisdiction: JurisdictionCode) => {
+    if (newJurisdiction === jurisdiction) {
       setIsDropdownOpen(false);
       return;
     }
 
-    // Replace the state prefix in the current path
+    // Replace the jurisdiction prefix in the current path
     // e.g., /ny/browse -> /nj/browse
-    const pathWithoutState = pathname.replace(/^\/(nyc|ny|nj)/, '');
+    const pathWithoutJurisdiction = pathname.replace(/^\/(nyc|ny|nj)/, '');
     const queryString = searchParams.toString();
-    const newPath = `/${newState}${pathWithoutState || ''}${queryString ? `?${queryString}` : ''}`;
+    const newPath = `/${newJurisdiction}${pathWithoutJurisdiction || ''}${queryString ? `?${queryString}` : ''}`;
 
     // Save to localStorage
-    localStorage.setItem(STATE_STORAGE_KEY, newState);
+    localStorage.setItem(JURISDICTION_STORAGE_KEY, newJurisdiction);
 
-    // Navigate to new state
+    // Navigate to new jurisdiction
     router.push(newPath);
     setIsDropdownOpen(false);
   };
 
-  // Get the CSS variable name for the current state
-  const bgVar = `var(--color-state-${state}-bg)`;
-  const borderVar = `var(--color-state-${state}-border)`;
-  const accentVar = `var(--color-state-${state}-accent)`;
+  // Get the CSS variable name for the current jurisdiction
+  const bgVar = `var(--color-state-${jurisdiction}-bg)`;
+  const borderVar = `var(--color-state-${jurisdiction}-border)`;
+  const accentVar = `var(--color-state-${jurisdiction}-accent)`;
 
   return (
     <div
@@ -137,14 +137,14 @@ export function StateContextBar({ state }: StateContextBarProps) {
                   role="listbox"
                   aria-label="Select state"
                 >
-                  {VALID_STATES.map((stateOption) => {
-                    const optionConfig = STATE_CONFIG[stateOption];
-                    const isSelected = stateOption === state;
+                  {VALID_JURISDICTIONS.map((jurisdictionOption) => {
+                    const optionConfig = JURISDICTION_CONFIG[jurisdictionOption];
+                    const isSelected = jurisdictionOption === jurisdiction;
 
                     return (
                       <button
-                        key={stateOption}
-                        onClick={() => handleStateChange(stateOption)}
+                        key={jurisdictionOption}
+                        onClick={() => handleJurisdictionChange(jurisdictionOption)}
                         className={`
                           w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm
                           transition-colors duration-[var(--duration-fast)]

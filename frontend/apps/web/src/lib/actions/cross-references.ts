@@ -13,7 +13,7 @@ import {
   type DocumentHub,
   type CircularReference,
   type DocumentNeighborhood,
-  type StateCode,
+  type JurisdictionCode,
 } from '@deproceduralizer/database';
 import { type ActionResult, runAction } from './types';
 
@@ -53,7 +53,7 @@ export async function getCrossReferencesForHighlighting(
  * Get cross-reference stats for dashboard display.
  */
 export async function getCrossReferenceStats(
-  state: StateCode
+  state: JurisdictionCode
 ): Promise<ActionResult<CrossRefStats>> {
   return runAction('getCrossReferenceStats', () => crossRefsRepo.getStatsByState(state));
 }
@@ -86,7 +86,7 @@ export async function getIncomingReferenceCount(
  * @param level - 'title' (~50 nodes), 'chapter' (~200), 'part' (~500)
  */
 export async function getReferenceGraph(
-  state: StateCode,
+  state: JurisdictionCode,
   level: GraphLevel = 'title'
 ): Promise<ActionResult<ReferenceEdge[]>> {
   return runAction('getReferenceGraph', () => crossRefsRepo.getReferenceGraph(state, level));
@@ -96,7 +96,7 @@ export async function getReferenceGraph(
  * @deprecated Use getReferenceGraph instead
  */
 export async function getTitleLevelReferenceGraph(
-  state: StateCode
+  state: JurisdictionCode
 ): Promise<ActionResult<ReferenceEdge[]>> {
   return getReferenceGraph(state, 'title');
 }
@@ -106,7 +106,7 @@ export async function getTitleLevelReferenceGraph(
  * Returns documents with highest in-degree, out-degree, or total degree.
  */
 export async function getTopCitedDocuments(
-  state: StateCode,
+  state: JurisdictionCode,
   limit: number = 20,
   sortBy: 'in' | 'out' | 'total' = 'total'
 ): Promise<ActionResult<DocumentHub[]>> {
@@ -118,7 +118,7 @@ export async function getTopCitedDocuments(
  * Returns cycles found within maxDepth hops.
  */
 export async function getCircularReferences(
-  state: StateCode,
+  state: JurisdictionCode,
   maxDepth: number = 4
 ): Promise<ActionResult<CircularReference[]>> {
   return runAction('getCircularReferences', () => crossRefsRepo.detectCircularReferences(state, maxDepth));

@@ -4,7 +4,7 @@ import { CopyLinkButton } from '@/components/ui/CopyLinkButton';
 import { CornellLink } from '../../shared';
 import type { HeaderProps } from './types';
 
-export function Header({ definition, citation, state, isSelected, onSelectionChange }: HeaderProps) {
+export function Header({ definition, citation, jurisdiction, isSelected, onSelectionChange }: HeaderProps) {
   return (
     <div className="flex items-start justify-between gap-4 mb-4">
       <div className="flex items-center gap-3">
@@ -25,7 +25,7 @@ export function Header({ definition, citation, state, isSelected, onSelectionCha
             {definition.regulation ? (
               <>
                 <Link
-                  href={`/${state.toLowerCase()}/regulations/${definition.regulation.id}`}
+                  href={`/${jurisdiction.toLowerCase()}/regulations/${definition.regulation.id}`}
                   className="text-[var(--color-link)] hover:text-[var(--color-link-hover)] hover:underline"
                   target="_blank"
                 >
@@ -41,7 +41,7 @@ export function Header({ definition, citation, state, isSelected, onSelectionCha
               <>
                 <span className="text-[var(--color-text-secondary)] ml-2">Scope:</span>
                 <Link
-                  href={`/${state.toLowerCase()}/regulations/${definition.scopeDocumentId}`}
+                  href={`/${jurisdiction.toLowerCase()}/regulations/${definition.scopeDocumentId}`}
                   className="text-[var(--color-link)] hover:text-[var(--color-link-hover)] hover:underline"
                   target="_blank"
                 >

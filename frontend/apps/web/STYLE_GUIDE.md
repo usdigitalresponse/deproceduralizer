@@ -1106,7 +1106,7 @@ import { StateContextBar } from '@/components/layout/StateContextBar';
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `state` | `StateCode` | required | Current jurisdiction (`NY`, `NJ`, `NYC`) |
+| `jurisdiction` | `JurisdictionCode` | required | Current jurisdiction (`NY`, `NJ`, `NYC`) |
 
 Uses state-specific accent colors (`--color-state-{code}-accent`, `--color-state-{code}-bg`). Persists selection to localStorage and maintains query parameters when switching.
 
@@ -1715,7 +1715,7 @@ import { DefinitionsReviewQueue } from '@/components/review/definitions';
 
 | Prop | Type | Description |
 |------|------|-------------|
-| `state` | `StateCode` | Jurisdiction (`NY`, `NJ`, `NYC`) |
+| `jurisdiction` | `JurisdictionCode` | Jurisdiction (`NY`, `NJ`, `NYC`) |
 
 Features: keyboard shortcuts with help modal, bulk actions bar, integration with RegulationModal.
 
@@ -1739,7 +1739,7 @@ Two-column card for reviewing a single definition. Left: original extracted valu
 | `onUpdated` | `(updated) => void` | Callback after update |
 | `onReviewComplete` | `(id, status) => void?` | Callback on confirm/reject/false positive |
 | `onViewRegulation` | `(regulationId: number) => void` | Open regulation modal |
-| `state` | `StateCode` | Jurisdiction |
+| `jurisdiction` | `JurisdictionCode` | Jurisdiction |
 | `isFocused` | `boolean?` | Keyboard focus highlight |
 | `isSelected` | `boolean?` | Bulk selection checkbox state |
 | `onSelectionChange` | `(id, selected) => void?` | Selection change callback |
@@ -1785,7 +1785,7 @@ Autocomplete input for selecting definition scope documents.
 
 | Prop | Type | Description |
 |------|------|-------------|
-| `state` | `StateCode` | Jurisdiction |
+| `jurisdiction` | `JurisdictionCode` | Jurisdiction |
 | `value` | `number \| null` | Selected document ID |
 | `onChange` | `(docId: number \| null) => void` | Selection callback |
 | `sourceDocumentId` | `number \| null` | For loading ancestor suggestions |
@@ -1799,7 +1799,7 @@ Developer mode queue for reviewed definitions. Same pattern as DefinitionsReview
 
 | Prop | Type | Description |
 |------|------|-------------|
-| `state` | `StateCode` | Jurisdiction |
+| `jurisdiction` | `JurisdictionCode` | Jurisdiction |
 
 ### DefinitionDeveloperCard
 
@@ -1808,7 +1808,7 @@ Card for developer assignment with: developer selection, status tracking (unreso
 | Prop | Type | Description |
 |------|------|-------------|
 | `definition` | `DefinitionWithContext` | Definition with context |
-| `state` | `StateCode` | Jurisdiction |
+| `jurisdiction` | `JurisdictionCode` | Jurisdiction |
 | `onUpdated` | `(updated) => void` | Update callback |
 | `onViewRegulation` | `(regulationId: number) => void` | Open regulation modal |
 | `isFocused` | `boolean?` | Keyboard focus highlight |
@@ -1831,7 +1831,7 @@ import { JenAIQueue } from '@/components/review';
 
 | Prop | Type | Description |
 |------|------|-------------|
-| `state` | `StateCode` | Jurisdiction |
+| `jurisdiction` | `JurisdictionCode` | Jurisdiction |
 | `mode` | `'review' \| 'developer'?` | Queue mode |
 
 Filters: status (unreviewed, confirmed, rejected variants, needs_context, deferred), severity, category. Sort by severity, confidence, category, reviewedAt. Progress bar with status counts.
@@ -3110,7 +3110,7 @@ Props:
 | Prop | Type | Description |
 |------|------|-------------|
 | `term` | `AggregatedTerm` | Aggregated term with normalizedTerm, displayTerm, variantCount, previewDefinition, scopeLevels |
-| `state` | `StateCode` | State code ('ny' or 'nj') for fetching definitions |
+| `jurisdiction` | `JurisdictionCode` | Jurisdiction code ('ny' or 'nj') for fetching definitions |
 
 ### DefinitionsList
 
@@ -3639,7 +3639,7 @@ Props:
 | Prop | Type | Description |
 |------|------|-------------|
 | `stats` | `StatuteLinkStats \| null` | Statute link statistics from `getStatuteStats()` |
-| `state` | `StateCode` | State code (e.g., 'NY', 'NJ') |
+| `jurisdiction` | `JurisdictionCode` | Jurisdiction code (e.g., 'NY', 'NJ') |
 
 Content:
 - **Stat cards** (4): Total Statutes, Linked Statutes (with %), Total Links, Regulations with Links (with %)
@@ -3663,7 +3663,7 @@ import { PipelineTab } from '@/components/analytics';
 Props:
 | Prop | Type | Description |
 |------|------|-------------|
-| `state` | `StateCode` | State code (e.g., 'NJ', 'NY') |
+| `jurisdiction` | `JurisdictionCode` | Jurisdiction code (e.g., 'NJ', 'NY') |
 | `data` | `PipelineAnalyticsData \| null` | Pre-fetched pipeline analytics from `getPipelineAnalyticsData()` |
 
 Client-side re-fetch: Uses `useEffect` to re-fetch when `pIssueType` filter changes (same pattern as `CrossReferencesTab`).
@@ -3884,7 +3884,7 @@ import { PriorityPicksBanner } from '@/components/analysis';
 
 | Prop | Type | Description |
 |------|------|-------------|
-| `state` | `StateCode` | State code for constructing links |
+| `jurisdiction` | `JurisdictionCode` | Jurisdiction code for constructing links |
 | `items` | `AnalysisListItem[]` | Priority items to display (max 5) |
 | `totalQuickWins` | `number` | Total matching items for "View all N" link |
 | `isQuickWinMode` | `boolean` | Whether showing quick wins or severity fallback |

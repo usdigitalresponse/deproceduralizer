@@ -13,7 +13,7 @@ import {
   type PaginatedAggregatedResult,
   type DefinitionStats,
   type AlphabeticalIndex,
-  type StateCode,
+  type JurisdictionCode,
   type DefinitionDeveloperStatusCounts,
   type DeveloperStatus,
   type Developer,
@@ -79,7 +79,7 @@ export async function getDefinitionsWithContext(
  * Get paginated definitions for the glossary page
  */
 export async function getDefinitionsPaginated(
-  state: StateCode,
+  state: JurisdictionCode,
   options: {
     page: number;
     pageSize: number;
@@ -94,14 +94,14 @@ export async function getDefinitionsPaginated(
     quality?: 'high' | 'medium' | 'low';
   }
 ): Promise<ActionResult<PaginatedDefinitionsResult>> {
-  return runAction('getDefinitionsPaginated', () => definitionsRepo.getAllPaginated({ state, ...options }));
+  return runAction('getDefinitionsPaginated', () => definitionsRepo.getAllPaginated({ jurisdiction: state, ...options }));
 }
 
 /**
  * Get stats for the glossary header
  */
 export async function getDefinitionStats(
-  state: StateCode
+  state: JurisdictionCode
 ): Promise<ActionResult<DefinitionStats>> {
   return runAction('getDefinitionStats', () => definitionsRepo.getStats(state));
 }
@@ -110,7 +110,7 @@ export async function getDefinitionStats(
  * Search definitions by term
  */
 export async function searchDefinitions(
-  state: StateCode,
+  state: JurisdictionCode,
   term: string
 ): Promise<ActionResult<DefinitionWithContext[]>> {
   return runAction('searchDefinitions', () => definitionsRepo.searchByTerm(state, term));
@@ -120,7 +120,7 @@ export async function searchDefinitions(
  * Get alphabetical index for A-Z navigation
  */
 export async function getAlphabeticalIndex(
-  state: StateCode
+  state: JurisdictionCode
 ): Promise<ActionResult<AlphabeticalIndex[]>> {
   return runAction('getAlphabeticalIndex', () => definitionsRepo.getAlphabeticalIndex(state));
 }
@@ -129,7 +129,7 @@ export async function getAlphabeticalIndex(
  * Get all unique scopes for filter dropdown
  */
 export async function getDefinitionScopes(
-  state: StateCode
+  state: JurisdictionCode
 ): Promise<ActionResult<string[]>> {
   return runAction('getDefinitionScopes', () => definitionsRepo.getScopes(state));
 }
@@ -147,7 +147,7 @@ export async function getDefinitionById(
  * Get aggregated terms for glossary (grouped by normalized_term)
  */
 export async function getAggregatedTermsPaginated(
-  state: StateCode,
+  state: JurisdictionCode,
   options: {
     page: number;
     pageSize: number;
@@ -155,7 +155,7 @@ export async function getAggregatedTermsPaginated(
     letter?: string;
   }
 ): Promise<ActionResult<PaginatedAggregatedResult>> {
-  return runAction('getAggregatedTermsPaginated', () => definitionsRepo.getAggregatedTerms({ state, ...options }));
+  return runAction('getAggregatedTermsPaginated', () => definitionsRepo.getAggregatedTerms({ jurisdiction: state, ...options }));
 }
 
 /**
@@ -163,7 +163,7 @@ export async function getAggregatedTermsPaginated(
  */
 export async function getDefinitionsForTermAction(
   normalizedTerm: string,
-  state: StateCode
+  state: JurisdictionCode
 ): Promise<ActionResult<DefinitionWithContext[]>> {
   return runAction('getDefinitionsForTermAction', () => definitionsRepo.getDefinitionsForTerm(normalizedTerm, state));
 }
@@ -176,7 +176,7 @@ export async function getDefinitionsForTermAction(
  * Get definitions for the review queue with pagination and filters
  */
 export async function getDefinitionsForReview(
-  state: StateCode,
+  state: JurisdictionCode,
   options: {
     page: number;
     pageSize: number;
@@ -201,7 +201,7 @@ export async function getDefinitionsForReview(
   pageSize: number;
   totalPages: number;
 }>> {
-  return runAction('getDefinitionsForReview', () => definitionsRepo.getDefinitionsForReview({ state, ...options }));
+  return runAction('getDefinitionsForReview', () => definitionsRepo.getDefinitionsForReview({ jurisdiction: state, ...options }));
 }
 
 /**
@@ -251,7 +251,7 @@ export async function bulkUpdateDefinitionReviewStatus(
  */
 export async function searchDocumentsForScope(
   query: string,
-  state: StateCode,
+  state: JurisdictionCode,
   limit: number = 10
 ): Promise<ActionResult<{
   id: number;
@@ -286,7 +286,7 @@ export async function getAncestorDocumentsForScope(
  * Get review statistics for the definitions review dashboard
  */
 export async function getDefinitionReviewStats(
-  state: StateCode
+  state: JurisdictionCode
 ): Promise<ActionResult<{
   unreviewed: number;
   confirmed: number;
@@ -301,7 +301,7 @@ export async function getDefinitionReviewStats(
  * Get corrected definitions for developer review queue
  */
 export async function getCorrectedDefinitions(
-  state: StateCode,
+  state: JurisdictionCode,
   page: number = 1,
   pageSize: number = 20
 ): Promise<ActionResult<{
@@ -335,7 +335,7 @@ export async function getDocumentForScope(
  * Get unique scope text values for filter dropdown
  */
 export async function getUniqueScopeTexts(
-  state: StateCode
+  state: JurisdictionCode
 ): Promise<ActionResult<string[]>> {
   return runAction('getUniqueScopeTexts', () => definitionsRepo.getUniqueScopeTexts(state));
 }
@@ -402,7 +402,7 @@ export async function updateDefinitionDeveloperStatus(
  * Get developer status counts for definitions
  */
 export async function getDefinitionDeveloperStatusCounts(
-  state: StateCode
+  state: JurisdictionCode
 ): Promise<ActionResult<DefinitionDeveloperStatusCounts>> {
   return runAction('getDefinitionDeveloperStatusCounts', () => definitionsRepo.getDeveloperStatusCounts(state));
 }
@@ -411,7 +411,7 @@ export async function getDefinitionDeveloperStatusCounts(
  * Get reviewed definitions for developer mode with pagination and filters
  */
 export async function getReviewedDefinitionsPaginated(
-  state: StateCode,
+  state: JurisdictionCode,
   options: {
     page: number;
     pageSize: number;
@@ -426,7 +426,7 @@ export async function getReviewedDefinitionsPaginated(
 ): Promise<ActionResult<PaginatedDefinitionsResult>> {
   return runAction('getReviewedDefinitionsPaginated', () =>
     definitionsRepo.getReviewedDefinitionsPaginated({
-      state,
+      jurisdiction: state,
       page: options.page,
       pageSize: options.pageSize,
       developerStatus: options.developerStatus as DeveloperStatus | 'all' | undefined,
@@ -444,7 +444,7 @@ export async function getReviewedDefinitionsPaginated(
  * Get definitions that need more info from developers
  */
 export async function getNeedMoreInfoDefinitions(
-  state: StateCode,
+  state: JurisdictionCode,
   options: {
     page: number;
     pageSize: number;
@@ -458,7 +458,7 @@ export async function getNeedMoreInfoDefinitions(
  * Get counts of definitions that need more info
  */
 export async function getDefinitionNeedMoreInfoCount(
-  state: StateCode,
+  state: JurisdictionCode,
   reviewerName?: string
 ): Promise<ActionResult<{ total: number; forReviewer: number }>> {
   return runAction('getDefinitionNeedMoreInfoCount', () => definitionsRepo.getNeedMoreInfoCount(state, reviewerName));
@@ -501,7 +501,7 @@ export interface DefinitionsAnalyticsStats {
  * Cached for 60 seconds to reduce database load.
  */
 export async function getDefinitionAnalyticsStats(
-  state: StateCode
+  state: JurisdictionCode
 ): Promise<ActionResult<DefinitionsAnalyticsStats>> {
   return runCachedAction(
     'getDefinitionAnalyticsStats',
@@ -519,12 +519,12 @@ export async function getDefinitionAnalyticsStats(
  * Get definition network graph edges.
  * Shows relationships between definitions based on shared term, scope, or co-occurrence.
  * Cached for 5 minutes to reduce database load.
- * @param state - StateCode ('NY' or 'NJ')
+ * @param state - JurisdictionCode ('NY' or 'NJ')
  * @param limit - Max edges to return (default 500)
  * @param titleFilter - Optional title number to filter by
  */
 export async function getDefinitionGraph(
-  state: StateCode,
+  state: JurisdictionCode,
   limit: number = 500,
   titleFilter?: string
 ): Promise<ActionResult<DefinitionEdge[]>> {
@@ -539,12 +539,12 @@ export async function getDefinitionGraph(
 /**
  * Get top definitions by occurrence count (hub definitions).
  * Cached for 5 minutes to reduce database load.
- * @param state - StateCode ('NY' or 'NJ')
+ * @param state - JurisdictionCode ('NY' or 'NJ')
  * @param limit - Max definitions to return (default 20)
  * @param titleFilter - Optional title number to filter by
  */
 export async function getTopDefinitions(
-  state: StateCode,
+  state: JurisdictionCode,
   limit: number = 20,
   titleFilter?: string
 ): Promise<ActionResult<DefinitionHub[]>> {
@@ -560,10 +560,10 @@ export async function getTopDefinitions(
  * Get scope level flow matrix for chord diagram visualization.
  * Shows how definitions flow between scope levels.
  * Cached for 5 minutes to reduce database load.
- * @param state - StateCode ('NY' or 'NJ')
+ * @param state - JurisdictionCode ('NY' or 'NJ')
  */
 export async function getScopeLevelFlows(
-  state: StateCode
+  state: JurisdictionCode
 ): Promise<ActionResult<ScopeLevelFlow[]>> {
   return runCachedAction(
     'getScopeLevelFlows',
@@ -577,10 +577,10 @@ export async function getScopeLevelFlows(
  * Get definition hierarchy data for edge bundling visualization.
  * Builds a tree of titles -> chapters -> parts -> sections with definitions at leaves.
  * Cached for 5 minutes to reduce database load.
- * @param state - StateCode ('NY' or 'NJ')
+ * @param state - JurisdictionCode ('NY' or 'NJ')
  */
 export async function getDefinitionHierarchy(
-  state: StateCode
+  state: JurisdictionCode
 ): Promise<ActionResult<DefinitionHierarchyNode>> {
   return runCachedAction(
     'getDefinitionHierarchy',
@@ -594,10 +594,10 @@ export async function getDefinitionHierarchy(
  * Get available title numbers for definition filtering dropdown.
  * Efficient query that only fetches distinct titles.
  * Cached for 5 minutes to reduce database load.
- * @param state - StateCode ('NY' or 'NJ')
+ * @param state - JurisdictionCode ('NY' or 'NJ')
  */
 export async function getAvailableTitles(
-  state: StateCode
+  state: JurisdictionCode
 ): Promise<ActionResult<string[]>> {
   return runCachedAction(
     'getAvailableTitles',

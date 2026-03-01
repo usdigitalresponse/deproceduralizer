@@ -11,11 +11,11 @@ import { IbrTable } from './IbrTable';
 import { IbrDetailDrawer } from './IbrDetailDrawer';
 import { getIbrsPaginated } from '@/lib/actions/ibr';
 import { ibrParsers } from '@/lib/url/parsers';
-import type { StateCode } from '@deproceduralizer/database';
+import type { JurisdictionCode } from '@deproceduralizer/database';
 import type { IbrWithContext } from '@/lib/actions/ibr';
 
 interface IbrBrowseTabProps {
-  state: StateCode;
+  jurisdiction: JurisdictionCode;
   organizations: string[];
 }
 
@@ -25,7 +25,7 @@ const sortOptions = [
   { value: 'createdAt', label: 'Date Added' },
 ];
 
-export function IbrBrowseTab({ state, organizations }: IbrBrowseTabProps) {
+export function IbrBrowseTab({ jurisdiction, organizations }: IbrBrowseTabProps) {
   const [params, setParams] = useQueryStates(ibrParsers, { shallow: true });
   const [data, setData] = useState<IbrWithContext[]>([]);
   const [total, setTotal] = useState(0);
@@ -55,7 +55,7 @@ export function IbrBrowseTab({ state, organizations }: IbrBrowseTabProps) {
       const sourceOrg = resolve('sourceOrganization', params.sourceOrganization) as string | null;
       const search = resolve('search', params.search) as string | null;
 
-      const result = await getIbrsPaginated(state, {
+      const result = await getIbrsPaginated(jurisdiction, {
         page,
         pageSize: params.pageSize,
         sortBy: resolve('sortBy', params.sortBy) as 'sourceOrganization' | 'incorporatedDocument' | 'createdAt',
@@ -73,7 +73,7 @@ export function IbrBrowseTab({ state, organizations }: IbrBrowseTabProps) {
     } finally {
       setIsLoading(false);
     }
-  }, [state, params]);
+  }, [jurisdiction, params]);
 
   const handleFilterChange = useCallback((key: string, value: string | null) => {
     const newParams = { [key]: value, page: 1 };
@@ -144,7 +144,7 @@ export function IbrBrowseTab({ state, organizations }: IbrBrowseTabProps) {
             </span>
           </div>
           <div className="p-4">
-            <IbrTable data={data} state={state} onRowClick={handleRowClick} />
+            <IbrTable data={data} state={jurisdiction} onRowClick={handleRowClick} />
           </div>
           {totalPages > 1 && (
             <div className="px-4 py-3 border-t border-[var(--color-neutral-200)]">
@@ -166,7 +166,7 @@ export function IbrBrowseTab({ state, organizations }: IbrBrowseTabProps) {
         ibr={selectedIbr}
         open={drawerOpen}
         onOpenChange={setDrawerOpen}
-        state={state}
+        state={jurisdiction}
       />
     </div>
   );

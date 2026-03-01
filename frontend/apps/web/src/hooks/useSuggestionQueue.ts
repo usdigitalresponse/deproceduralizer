@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useTransition } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useQueryStates } from 'nuqs';
-import { getStateFromPathname } from './useStateFromPath';
+import { getJurisdictionFromPathname } from './useStateFromPath';
 import type { ComplianceIssueWithAnalysis } from '@deproceduralizer/database';
 import type { SuggestionBatchResult } from '@/lib/actions/compliance-issues';
 import type { GroupingModeValue, BatchSizeValue } from '@/lib/constants/values';
@@ -68,8 +68,8 @@ interface UseSuggestionQueueReturn {
   shownIds: number[];
   /** Current batch size */
   batchSize: BatchSizeValue;
-  /** State code extracted from pathname */
-  state: string;
+  /** Jurisdiction code extracted from pathname */
+  jurisdiction: string;
   /** Currently selected regulation ID for modal */
   selectedRegulationId: number | null;
   /** Set selected regulation ID */
@@ -96,8 +96,8 @@ export function useSuggestionQueue({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
-  // Extract state from pathname
-  const state = getStateFromPathname(pathname);
+  // Extract jurisdiction from pathname
+  const jurisdiction = getJurisdictionFromPathname(pathname);
 
   // URL state - use shallow: true since we manage data client-side
   // This prevents double-fetching (client fetch + server re-render)
@@ -315,7 +315,7 @@ export function useSuggestionQueue({
     totalUnreviewed: batchMetadata.totalUnreviewed,
     shownIds: sessionShownIds,
     batchSize,
-    state,
+    jurisdiction,
     selectedRegulationId,
     setSelectedRegulationId,
     handleViewRegulation,

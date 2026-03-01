@@ -212,7 +212,7 @@ async def retry_failed_tier3(
                     'citation': citation,
                     'title': title_val,
                     'content': content,
-                    'state': doc_state,
+                    'jurisdiction': doc_state,
                 })
             else:
                 skipped_no_trigger += 1
@@ -483,7 +483,7 @@ async def rerun_placeholder_tier2(
                 'citation': citation,
                 'title': title_val,
                 'content': content,
-                'state': doc_state,
+                'jurisdiction': doc_state,
             })
 
         # Batch fetch matches

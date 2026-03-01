@@ -86,7 +86,7 @@ def run_pipeline(
             citation=s['citation'] or '',
             title=s['title'] or '',
             content=s['content'],
-            jurisdiction=s['state'],
+            jurisdiction=s['jurisdiction'],
             summary=s.get('summary'),
             url=s.get('url'),
             hierarchy_level=s.get('hierarchy_level'),

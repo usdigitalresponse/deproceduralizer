@@ -16,13 +16,13 @@ import {
 import { RegulationModal } from '../RegulationModal';
 import { useQueueNavigation } from '@/hooks';
 import { definitionsReviewParsers } from '@/lib/url/parsers';
-import type { DefinitionWithContext, StateCode } from '@deproceduralizer/database';
+import type { DefinitionWithContext, JurisdictionCode } from '@deproceduralizer/database';
 
 interface DefinitionsReviewQueueProps {
-  state: StateCode;
+  jurisdiction: JurisdictionCode;
 }
 
-export function DefinitionsReviewQueue({ state }: DefinitionsReviewQueueProps) {
+export function DefinitionsReviewQueue({ jurisdiction }: DefinitionsReviewQueueProps) {
   // Use nuqs for URL state (consistent with filters)
   const [filters, setFilters] = useQueryStates(definitionsReviewParsers, { shallow: false });
 
@@ -90,21 +90,21 @@ export function DefinitionsReviewQueue({ state }: DefinitionsReviewQueueProps) {
 
   // Fetch scope texts for filter dropdown (only once per state)
   useEffect(() => {
-    getUniqueScopeTexts(state).then((result) => {
+    getUniqueScopeTexts(jurisdiction).then((result) => {
       if (result.success) {
         setScopeTexts(result.data);
       }
     });
-  }, [state]);
+  }, [jurisdiction]);
 
   // Fetch stats once on mount and when state changes (not on every filter/page change)
   useEffect(() => {
-    getDefinitionReviewStats(state).then((result) => {
+    getDefinitionReviewStats(jurisdiction).then((result) => {
       if (result.success) {
         setStats(result.data);
       }
     });
-  }, [state]);
+  }, [jurisdiction]);
 
   // Fetch definitions
   const fetchDefinitions = useCallback(async () => {
@@ -124,7 +124,7 @@ export function DefinitionsReviewQueue({ state }: DefinitionsReviewQueueProps) {
       const termSearch = filters.termSearch || undefined;
       const definitionId = filters.definitionId || undefined;
 
-      const defsResult = await getDefinitionsForReview(state, {
+      const defsResult = await getDefinitionsForReview(jurisdiction, {
         page,
         pageSize,
         reviewStatus,
@@ -149,7 +149,7 @@ export function DefinitionsReviewQueue({ state }: DefinitionsReviewQueueProps) {
     } finally {
       setIsLoading(false);
     }
-  }, [state, page, pageSize, filters]);
+  }, [jurisdiction, page, pageSize, filters]);
 
   useEffect(() => {
     fetchDefinitions();
@@ -162,12 +162,12 @@ export function DefinitionsReviewQueue({ state }: DefinitionsReviewQueueProps) {
     // Remove from selection if updated
     setSelectedIds((prev) => prev.filter((id) => id !== updated.id));
     // Refresh stats
-    getDefinitionReviewStats(state).then((result) => {
+    getDefinitionReviewStats(jurisdiction).then((result) => {
       if (result.success) {
         setStats(result.data);
       }
     });
-  }, [state]);
+  }, [jurisdiction]);
 
   // Handle review completion: animate out and advance to next
   const handleReviewComplete = useCallback((definitionId: number, _status: 'confirmed' | 'corrected' | 'false_positive') => {
@@ -271,7 +271,7 @@ export function DefinitionsReviewQueue({ state }: DefinitionsReviewQueueProps) {
                 onUpdated={handleDefinitionUpdated}
                 onReviewComplete={handleReviewComplete}
                 onViewRegulation={handleViewRegulation}
-                state={state}
+                jurisdiction={jurisdiction}
                 isFocused={index === focusedIndex}
                 isSelected={selectedIds.includes(definition.id)}
                 isExiting={exitingIds.has(definition.id)}

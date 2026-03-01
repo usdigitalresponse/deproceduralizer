@@ -142,7 +142,7 @@ class BasePatternSearcher(ABC):
                   AND (rd.exclude_from_analysis = FALSE OR rd.exclude_from_analysis IS NULL)
                 ORDER BY rd.id
             """
-            # params order: tag (if present) must come before state in the JOIN
+            # params order: tag (if present) must come before jurisdiction in the WHERE
             # but state is in WHERE — psycopg2 uses positional %s
             if tag:
                 rows = conn.execute(query, (tag, state_code)).fetchall()

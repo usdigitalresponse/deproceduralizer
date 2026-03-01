@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm';
 import { BaseRepository } from './base.repository';
-import { StateCode, normalizeState } from '../schema/constants';
+import { JurisdictionCode, normalizeJurisdiction } from '../schema/constants';
 import { shouldExcludeStatutes, shouldExcludeRegulations, shouldSkipAnalyses } from './search-filters';
 
 // ============================================
@@ -56,7 +56,7 @@ export interface SearchFilterOptions {
 }
 
 export interface SearchOptions {
-  state: StateCode;
+  jurisdiction: JurisdictionCode;
   query: string;
   page?: number;
   pageSize?: number;
@@ -75,7 +75,7 @@ export interface SearchOptions {
 export class SearchRepository extends BaseRepository {
   async search(options: SearchOptions): Promise<SearchResults> {
     const {
-      state,
+      jurisdiction,
       query,
       page = 1,
       pageSize = 20,
@@ -155,7 +155,7 @@ export class SearchRepository extends BaseRepository {
           WHERE cia.document_id = rd.id
             AND cia.requirement_found = true
         ) astats ON true
-        WHERE rd.state = ${normalizeState(state)}
+        WHERE rd.jurisdiction =${normalizeJurisdiction(jurisdiction)}
           AND rd.search_vector @@ sq.q
           ${excludeRegulations ? sql`AND false` : sql``}
           ${regSectionTypeFilter}
@@ -184,7 +184,7 @@ export class SearchRepository extends BaseRepository {
           false AS "hasFederalMandate",
           0 AS "easyCleanupCount"
         FROM statutes s, search_query sq
-        WHERE s.state = ${normalizeState(state)}
+        WHERE s.jurisdiction =${normalizeJurisdiction(jurisdiction)}
           AND s.search_vector @@ sq.q
           ${excludeStatutes ? sql`AND false` : sql``}
       ) combined
@@ -201,7 +201,7 @@ export class SearchRepository extends BaseRepository {
       SELECT
         (
           SELECT count(*)::int FROM regulatory_documents rd, search_query sq
-          WHERE rd.state = ${normalizeState(state)}
+          WHERE rd.jurisdiction =${normalizeJurisdiction(jurisdiction)}
             AND rd.search_vector @@ sq.q
             ${excludeRegulations ? sql`AND false` : sql``}
             ${regSectionTypeFilter}
@@ -211,7 +211,7 @@ export class SearchRepository extends BaseRepository {
             ${regClassificationFilter}
         ) + (
           SELECT count(*)::int FROM statutes s, search_query sq
-          WHERE s.state = ${normalizeState(state)}
+          WHERE s.jurisdiction =${normalizeJurisdiction(jurisdiction)}
             AND s.search_vector @@ sq.q
             ${excludeStatutes ? sql`AND false` : sql``}
         ) AS total
@@ -221,7 +221,7 @@ export class SearchRepository extends BaseRepository {
     const items = results.rows as unknown as SearchResultItem[];
 
     // Commentary sidebar query (analysis + definition hits, filtered to match active filters)
-    const commentary = await this.searchCommentary(state, query, { classification, hasAnalysis });
+    const commentary = await this.searchCommentary(jurisdiction, query, { classification, hasAnalysis });
 
     return {
       items,
@@ -234,7 +234,7 @@ export class SearchRepository extends BaseRepository {
   }
 
   private async searchCommentary(
-    state: StateCode,
+    jurisdiction: JurisdictionCode,
     query: string,
     filters?: { classification?: string | null; hasAnalysis?: string | null },
   ): Promise<CommentaryHit[]> {
@@ -276,7 +276,7 @@ export class SearchRepository extends BaseRepository {
           WHERE ci.analysis_id = cia.id
           LIMIT 1
         ) match_ctx ON true
-        WHERE rd.state = ${normalizeState(state)}
+        WHERE rd.jurisdiction =${normalizeJurisdiction(jurisdiction)}
           AND cia.search_vector @@ sq.q
           ${classificationFilter}
           ${skipAnalyses ? sql`AND false` : sql``}
@@ -299,7 +299,7 @@ export class SearchRepository extends BaseRepository {
           d.term AS "highlightText"
         FROM definitions d
         JOIN regulatory_documents rd ON rd.id = d.document_id
-        WHERE rd.state = ${normalizeState(state)}
+        WHERE rd.jurisdiction =${normalizeJurisdiction(jurisdiction)}
           AND d.verbatim_text ILIKE ${'%' + query + '%'}
         LIMIT 20
       )
@@ -313,12 +313,12 @@ export class SearchRepository extends BaseRepository {
    * ordered by frequency (most common first). Used to populate filter dropdowns
    * with only the options that exist in the current state's corpus.
    */
-  async getFilterOptions(state: StateCode): Promise<SearchFilterOptions> {
+  async getFilterOptions(jurisdiction: JurisdictionCode): Promise<SearchFilterOptions> {
     const [levelResult, sectionResult] = await Promise.all([
       this.db.execute(sql`
         SELECT hierarchy_level AS value, count(*)::int AS cnt
         FROM regulatory_documents
-        WHERE state = ${normalizeState(state)}
+        WHERE jurisdiction =${normalizeJurisdiction(jurisdiction)}
           AND hierarchy_level IS NOT NULL
           AND hierarchy_level != ''
         GROUP BY hierarchy_level
@@ -327,7 +327,7 @@ export class SearchRepository extends BaseRepository {
       this.db.execute(sql`
         SELECT section_type AS value, count(*)::int AS cnt
         FROM regulatory_documents
-        WHERE state = ${normalizeState(state)}
+        WHERE jurisdiction =${normalizeJurisdiction(jurisdiction)}
           AND section_type IS NOT NULL
           AND section_type != ''
         GROUP BY section_type

@@ -43,14 +43,14 @@ def report_unlinked_counts(conn, label: str = "Current"):
 
     # By state
     rows = conn.execute("""
-        SELECT rd.state,
+        SELECT rd.jurisdiction,
                COUNT(*) as total,
                COUNT(*) - COUNT(d.scope_document_id) as unlinked,
                COUNT(d.scope_document_id) as linked
         FROM definitions d
         JOIN regulatory_documents rd ON d.document_id = rd.id
-        GROUP BY rd.state
-        ORDER BY rd.state
+        GROUP BY rd.jurisdiction
+        ORDER BY rd.jurisdiction
     """).fetchall()
 
     print(f"\n  {'State':<8} {'Total':>8} {'Linked':>8} {'Unlinked':>8} {'% Linked':>10}")
@@ -61,14 +61,14 @@ def report_unlinked_counts(conn, label: str = "Current"):
 
     # Unlinked breakdown by scope_level
     rows = conn.execute("""
-        SELECT rd.state,
+        SELECT rd.jurisdiction,
                COALESCE(d.scope_level, '(null)') as scope_level,
                COUNT(*) as unlinked
         FROM definitions d
         JOIN regulatory_documents rd ON d.document_id = rd.id
         WHERE d.scope_document_id IS NULL
-        GROUP BY rd.state, d.scope_level
-        ORDER BY rd.state, unlinked DESC
+        GROUP BY rd.jurisdiction, d.scope_level
+        ORDER BY rd.jurisdiction, unlinked DESC
     """).fetchall()
 
     if rows:
@@ -95,7 +95,7 @@ def fix_mislabeled_hierarchy_levels(conn, dry_run: bool = True) -> int:
     rows = conn.execute("""
         SELECT id, title, nycrr_title, nycrr_subpart, hierarchy_level
         FROM regulatory_documents
-        WHERE state = 'NY'
+        WHERE jurisdiction = 'NY'
           AND hierarchy_level = 'subpart'
           AND nycrr_subpart ~ '^Title-[0-9]+$'
           AND parent_id IS NULL

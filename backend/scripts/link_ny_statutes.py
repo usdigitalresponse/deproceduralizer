@@ -223,7 +223,7 @@ def link_ny_statutes(
         print(f"Loading {source_label} regulations...")
         reg_query = """
             SELECT id, citation, content FROM regulatory_documents
-            WHERE state = %s AND hierarchy_level = 'section' AND content IS NOT NULL
+            WHERE jurisdiction = %s AND hierarchy_level = 'section' AND content IS NOT NULL
         """
         params: list = [state_code]
         if filter_title:
@@ -239,7 +239,7 @@ def link_ny_statutes(
 
         # Load NY statutes for matching
         print("Loading NY statutes...")
-        statute_query = "SELECT id, citation FROM statutes WHERE state = 'NY'"
+        statute_query = "SELECT id, citation FROM statutes WHERE jurisdiction = 'NY'"
         statute_params = []
         if filter_law:
             statute_query += " AND nycls_law_id = %s"
@@ -266,7 +266,7 @@ def link_ny_statutes(
             SELECT regulation_id, citation, reviewed_at IS NOT NULL as is_reviewed
             FROM regulation_statute_links
             WHERE regulation_id IN (
-                SELECT id FROM regulatory_documents WHERE state = %s
+                SELECT id FROM regulatory_documents WHERE jurisdiction = %s
             )
         """, (state_code,)).fetchall()
         existing_links = {(row[0], row[1]): row[2] for row in existing}

@@ -1,7 +1,7 @@
 'use server';
 
 import 'server-only';
-import type { StateCode, RedFlagFilterOptions } from '@deproceduralizer/database';
+import type { JurisdictionCode, RedFlagFilterOptions } from '@deproceduralizer/database';
 import {
   getRedFlagsPaginated,
   getRedFlagStatusCounts,
@@ -72,7 +72,7 @@ export interface ReviewModeCountsData {
  * Fetch all counts needed for developer mode tabs
  */
 export async function getDeveloperModeCountsData(
-  stateCode: StateCode
+  stateCode: JurisdictionCode
 ): Promise<ActionResult<DeveloperModeCountsData>> {
   const [
     developerStatusCountsResult,
@@ -138,7 +138,7 @@ export async function getDeveloperModeCountsData(
  * Fetch developer queue items (combined red flags + compliance issues)
  */
 export async function getDeveloperQueueData(
-  stateCode: StateCode,
+  stateCode: JurisdictionCode,
   options: {
     page: number;
     pageSize: number;
@@ -154,7 +154,7 @@ export async function getDeveloperQueueData(
  * Fetch red flag developer queue data with filters
  */
 export async function getRedFlagDeveloperQueueData(
-  stateCode: StateCode,
+  stateCode: JurisdictionCode,
   params: RedFlagDeveloperQueueParams
 ) {
   const [itemsResult, categoriesResult] = await Promise.all([
@@ -180,7 +180,7 @@ export async function getRedFlagDeveloperQueueData(
  * Fetch compliance issue developer queue data with filters
  */
 export async function getComplianceDeveloperQueueData(
-  stateCode: StateCode,
+  stateCode: JurisdictionCode,
   params: ComplianceDeveloperQueueParams
 ) {
   const [itemsResult, issueTypesResult] = await Promise.all([
@@ -210,7 +210,7 @@ export async function getComplianceDeveloperQueueData(
  * Fetch all counts needed for review mode tabs
  */
 export async function getReviewModeCountsData(
-  stateCode: StateCode
+  stateCode: JurisdictionCode
 ): Promise<ActionResult<ReviewModeCountsData>> {
   const [
     flagStatusCountsResult,
@@ -269,13 +269,13 @@ export async function getReviewModeCountsData(
  * Fetch red flags queue data
  */
 export async function getRedFlagsQueueData(
-  stateCode: StateCode,
+  stateCode: JurisdictionCode,
   options: {
     page: number;
     pageSize: number;
     sortBy: 'severity' | 'category' | 'reviewedAt';
     sortOrder: 'asc' | 'desc';
-    filters: Omit<RedFlagFilterOptions, 'state'>;
+    filters: Omit<RedFlagFilterOptions, 'jurisdiction'>;
   }
 ) {
   const [flagsResult, categoriesResult] = await Promise.all([
@@ -307,7 +307,7 @@ export async function getRedFlagsQueueData(
  * Fetch compliance issues queue data
  */
 export async function getComplianceQueueData(
-  stateCode: StateCode,
+  stateCode: JurisdictionCode,
   options: {
     page: number;
     pageSize: number;
@@ -354,7 +354,7 @@ export async function getComplianceQueueData(
  * Fetch needs more info items
  */
 export async function getNeedsInfoQueueData(
-  stateCode: StateCode,
+  stateCode: JurisdictionCode,
   options: {
     page: number;
     pageSize: number;
@@ -383,7 +383,7 @@ export interface SuggestionQueueParams {
  * Also fetches issue types for display purposes.
  */
 export async function getComplianceSuggestionQueueData(
-  stateCode: StateCode,
+  stateCode: JurisdictionCode,
   params: SuggestionQueueParams
 ): Promise<ActionResult<{
   batch: SuggestionBatchResult;

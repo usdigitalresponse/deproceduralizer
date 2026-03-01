@@ -45,7 +45,7 @@ def infer_scope_from_parent(dry_run: bool = False, state: str = None, limit: int
     print("=" * 70)
     print()
 
-    # Build query with optional state filter
+    # Build query with optional jurisdiction filter
     state_filter = ""
     params = []
     if state:

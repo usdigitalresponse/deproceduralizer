@@ -6,7 +6,7 @@ import { getStatuteWithLinks, getStatuteAncestorChain, getStatuteHierarchyChildr
 import { StatuteDetailSidebar } from './StatuteDetailSidebar';
 import { StatuteDetailContent } from './StatuteDetailContent';
 import { RegulationDetailLayout } from '@/app/[state]/regulations/[id]/RegulationDetailLayout';
-import { isValidState } from '@/types/state';
+import { isValidJurisdiction } from '@/types/state';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,7 +19,7 @@ export default async function StatuteDetailPage({ params, searchParams }: PagePr
   const { state, id } = await params;
   const { from, highlight } = await searchParams;
 
-  if (!isValidState(state)) {
+  if (!isValidJurisdiction(state)) {
     notFound();
   }
 

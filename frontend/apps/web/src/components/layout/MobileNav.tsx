@@ -10,9 +10,9 @@ import {
   DrawerBody,
   DrawerClose,
 } from '@/components/ui';
-import { getStateFromPathname } from '@/hooks';
+import { getJurisdictionFromPathname } from '@/hooks';
 import { NAV_ITEMS, getNavHref, isNavActive, NAV_GROUPS } from '@/lib/constants/navigation';
-import { VALID_STATES, STATE_CONFIG } from '@/types/state';
+import { VALID_JURISDICTIONS, JURISDICTION_CONFIG } from '@/types/state';
 
 interface MobileNavProps {
   isOpen: boolean;
@@ -27,7 +27,7 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const currentState = getStateFromPathname(pathname);
+  const currentJurisdiction = getJurisdictionFromPathname(pathname);
 
   const handleStateChange = (newState: string) => {
     const pathWithoutState = pathname.replace(/^\/(nyc|ny|nj)/, '');
@@ -52,11 +52,11 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
               Select State
             </p>
             <div className="flex gap-2">
-              {VALID_STATES.map((s) => (
+              {VALID_JURISDICTIONS.map((s) => (
                 <StateButton
                   key={s}
-                  label={STATE_CONFIG[s].name}
-                  isActive={currentState === s}
+                  label={JURISDICTION_CONFIG[s].name}
+                  isActive={currentJurisdiction === s}
                   onClick={() => handleStateChange(s)}
                 />
               ))}
@@ -79,8 +79,8 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
                     {group.label}
                   </div>
                   {groupItems.map((item) => {
-                    const href = getNavHref(item, currentState);
-                    const isActive = isNavActive(item, pathname, currentState);
+                    const href = getNavHref(item, currentJurisdiction);
+                    const isActive = isNavActive(item, pathname, currentJurisdiction);
                     const Icon = item.icon;
 
                     return (
@@ -116,8 +116,8 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
                   Featured
                 </div>
                 {NAV_ITEMS.filter(item => item.isHighlighted).map((item) => {
-                  const href = getNavHref(item, currentState);
-                  const isActive = isNavActive(item, pathname, currentState);
+                  const href = getNavHref(item, currentJurisdiction);
+                  const isActive = isNavActive(item, pathname, currentJurisdiction);
                   const Icon = item.icon;
 
                   return (
@@ -148,8 +148,8 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
             {/* Global Items (Prompts, etc.) */}
             <div className="mt-2 border-t border-[var(--color-neutral-100)] pt-2">
               {NAV_ITEMS.filter(item => !item.groupId && !item.isHighlighted && item.key !== 'home').map((item) => {
-                const href = getNavHref(item, currentState);
-                const isActive = isNavActive(item, pathname, currentState);
+                const href = getNavHref(item, currentJurisdiction);
+                const isActive = isNavActive(item, pathname, currentJurisdiction);
                 const Icon = item.icon;
 
                 return (

@@ -18,13 +18,13 @@ import {
 import { RegulationModal } from '../RegulationModal';
 import { useQueueNavigation } from '@/hooks';
 import { definitionsDeveloperParsers } from '@/lib/url/parsers';
-import type { DefinitionWithContext, StateCode, DefinitionDeveloperStatusCounts } from '@deproceduralizer/database';
+import type { DefinitionWithContext, JurisdictionCode, DefinitionDeveloperStatusCounts } from '@deproceduralizer/database';
 
 interface DefinitionsDeveloperQueueProps {
-  state: StateCode;
+  jurisdiction: JurisdictionCode;
 }
 
-export function DefinitionsDeveloperQueue({ state }: DefinitionsDeveloperQueueProps) {
+export function DefinitionsDeveloperQueue({ jurisdiction }: DefinitionsDeveloperQueueProps) {
   // Use nuqs for URL state
   const [filters, setFilters] = useQueryStates(definitionsDeveloperParsers, { shallow: false });
 
@@ -71,12 +71,12 @@ export function DefinitionsDeveloperQueue({ state }: DefinitionsDeveloperQueuePr
 
   // Fetch counts once on mount and when state changes (not on every filter/page change)
   useEffect(() => {
-    getDefinitionDeveloperStatusCounts(state).then((result) => {
+    getDefinitionDeveloperStatusCounts(jurisdiction).then((result) => {
       if (result.success) {
         setCounts(result.data);
       }
     });
-  }, [state]);
+  }, [jurisdiction]);
 
   // Fetch definitions (counts are fetched separately to avoid redundant calls)
   const fetchDefinitions = useCallback(async () => {
@@ -88,7 +88,7 @@ export function DefinitionsDeveloperQueue({ state }: DefinitionsDeveloperQueuePr
       const hasJustification = filters.hasJustification === 'all' ? undefined : filters.hasJustification;
       const hasTeamNotes = filters.hasTeamNotes === 'all' ? undefined : filters.hasTeamNotes;
 
-      const defsResult = await getReviewedDefinitionsPaginated(state, {
+      const defsResult = await getReviewedDefinitionsPaginated(jurisdiction, {
         page,
         pageSize,
         developerStatus,
@@ -108,7 +108,7 @@ export function DefinitionsDeveloperQueue({ state }: DefinitionsDeveloperQueuePr
     } finally {
       setIsLoading(false);
     }
-  }, [state, page, pageSize, filters.developerStatus, filters.developerAssigned, filters.reviewStatus, filters.hasJustification, filters.hasTeamNotes, filters.sortBy, filters.sortOrder]);
+  }, [jurisdiction, page, pageSize, filters.developerStatus, filters.developerAssigned, filters.reviewStatus, filters.hasJustification, filters.hasTeamNotes, filters.sortBy, filters.sortOrder]);
 
   useEffect(() => {
     fetchDefinitions();
@@ -119,12 +119,12 @@ export function DefinitionsDeveloperQueue({ state }: DefinitionsDeveloperQueuePr
       prev.map((d) => (d.id === updated.id ? updated : d))
     );
     // Refresh counts
-    getDefinitionDeveloperStatusCounts(state).then((result) => {
+    getDefinitionDeveloperStatusCounts(jurisdiction).then((result) => {
       if (result.success) {
         setCounts(result.data);
       }
     });
-  }, [state]);
+  }, [jurisdiction]);
 
   const handleViewRegulation = useCallback((regulationId: number) => {
     setModalRegulationId(regulationId);
@@ -178,7 +178,7 @@ export function DefinitionsDeveloperQueue({ state }: DefinitionsDeveloperQueuePr
                 key={definition.id}
                 ref={(el) => setCardRef(index, el)}
                 definition={definition}
-                state={state}
+                jurisdiction={jurisdiction}
                 onUpdated={handleDefinitionUpdated}
                 onViewRegulation={handleViewRegulation}
                 isFocused={index === focusedIndex}

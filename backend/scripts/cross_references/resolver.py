@@ -81,7 +81,7 @@ class ReferenceResolver:
                 nycrr_section,
                 nycrr_part
             FROM regulatory_documents
-            WHERE state = 'NY'
+            WHERE jurisdiction = 'NY'
               AND nycrr_title IS NOT NULL
               AND (nycrr_section IS NOT NULL OR nycrr_part IS NOT NULL)
         """)
@@ -122,7 +122,7 @@ class ReferenceResolver:
                 njac_subchapter,
                 njac_section
             FROM regulatory_documents
-            WHERE state = 'NJ'
+            WHERE jurisdiction = 'NJ'
               AND njac_title IS NOT NULL
               AND njac_chapter IS NOT NULL
         """)

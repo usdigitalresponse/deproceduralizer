@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import type { DefinitionWithContext } from '@deproceduralizer/database';
 import { formatStateCitation } from '@/lib/formatters/citations';
-import { DEFAULT_STATE } from '@/types/state';
+import { DEFAULT_JURISDICTION } from '@/types/state';
 
 interface DefinitionCardProps {
   definition: DefinitionWithContext;
@@ -47,7 +47,7 @@ function getDisplayDefinitionText(definition: DefinitionWithContext): string {
 export function DefinitionCard({
   definition,
   showSource = true,
-  state = DEFAULT_STATE,
+  state = DEFAULT_JURISDICTION,
   compact = false,
 }: DefinitionCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);

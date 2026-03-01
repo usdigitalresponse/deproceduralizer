@@ -43,7 +43,7 @@ export interface DisplayTitleDocument {
   njacSubchapter?: string | null;
   // Fallback
   title?: string;
-  state?: string | null;
+  jurisdiction?: string | null;
 }
 
 /**
@@ -76,9 +76,9 @@ function toTitleCase(str: string): string {
  */
 function getContainerNumber(doc: DisplayTitleDocument): string | null {
   const level = doc.hierarchyLevel?.toLowerCase();
-  const state = doc.state?.toUpperCase();
+  const jurisdiction = doc.jurisdiction?.toUpperCase();
 
-  if (state === 'NY') {
+  if (jurisdiction === 'NY') {
     switch (level) {
       case 'title':
         return doc.nycrrTitle?.toString() ?? null;
@@ -91,7 +91,7 @@ function getContainerNumber(doc: DisplayTitleDocument): string | null {
       default:
         return null;
     }
-  } else if (state === 'NJ') {
+  } else if (jurisdiction === 'NJ') {
     switch (level) {
       case 'title':
         return doc.njacTitle ?? null;

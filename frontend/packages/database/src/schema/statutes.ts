@@ -20,7 +20,7 @@ import {
 export const statutes = pgTable('statutes', {
   id: bigserial('id', { mode: 'number' }).primaryKey(),
   citation: varchar('citation', { length: 50 }).notNull(),
-  state: varchar('state', { length: 3 }).notNull(),
+  jurisdiction: varchar('jurisdiction', { length: 3 }).notNull(),
   title: text('title').notNull(),
   content: text('content').notNull(),
 
@@ -60,7 +60,7 @@ export const statutes = pgTable('statutes', {
   createdAt: timestamp('created_at').defaultNow(),
 }, (table) => ({
   // Unique constraint on state + citation
-  uniqueStateCitation: unique().on(table.state, table.citation),
+  uniqueJurisdictionCitation: unique().on(table.jurisdiction, table.citation),
 }));
 
 export type Statute = typeof statutes.$inferSelect;

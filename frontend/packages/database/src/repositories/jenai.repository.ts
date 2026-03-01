@@ -3,7 +3,7 @@ import { BaseRepository } from './base.repository';
 import { jenaiIssues, type JenAIIssue } from '../schema/jenai-issues';
 import { jenaiAnalyses } from '../schema/jenai-analyses';
 import { regulatoryDocuments } from '../schema/regulatory-documents';
-import { type StateCode, normalizeState } from '../schema/constants';
+import { type JurisdictionCode, normalizeJurisdiction } from '../schema/constants';
 import type { SeverityDistribution } from './compliance-issues.repository';
 
 export interface JenAIIssueWithContext extends JenAIIssue {
@@ -23,19 +23,19 @@ export interface JenAIIssueWithContext extends JenAIIssue {
 }
 
 export interface JenAIFilterOptions {
-  state: StateCode;
+  jurisdiction: JurisdictionCode;
   status?: string;
   severity?: 'high' | 'medium' | 'low';
   category?: string;
 }
 
 export interface JenAIPaginationOptions {
-  state: StateCode;
+  jurisdiction: JurisdictionCode;
   page: number;
   pageSize: number;
   sortBy?: 'severity' | 'category' | 'reviewedAt' | 'developerCheckedAt' | 'confidence';
   sortOrder?: 'asc' | 'desc';
-  filters?: Omit<JenAIFilterOptions, 'state'>;
+  filters?: Omit<JenAIFilterOptions, 'jurisdiction'>;
 }
 
 export interface PaginatedJenAIResult {
@@ -97,7 +97,7 @@ export class JenAIRepository extends BaseRepository {
   /**
    * Get all unique categories with counts for a given state
    */
-  async getCategories(state: StateCode): Promise<{ category: string; count: number }[]> {
+  async getCategories(jurisdiction: JurisdictionCode): Promise<{ category: string; count: number }[]> {
     const result = await this.db
       .select({
         category: jenaiIssues.category,
@@ -105,7 +105,7 @@ export class JenAIRepository extends BaseRepository {
       })
       .from(jenaiIssues)
       .innerJoin(regulatoryDocuments, eq(jenaiIssues.documentId, regulatoryDocuments.id))
-      .where(eq(regulatoryDocuments.state, normalizeState(state)))
+      .where(eq(regulatoryDocuments.jurisdiction, normalizeJurisdiction(jurisdiction)))
       .groupBy(jenaiIssues.category)
       .orderBy(asc(jenaiIssues.category));
 
@@ -115,7 +115,7 @@ export class JenAIRepository extends BaseRepository {
   /**
    * Get counts by review status for progress display
    */
-  async getCountsByStatus(state: StateCode): Promise<JenAIReviewStatusCounts> {
+  async getCountsByStatus(jurisdiction: JurisdictionCode): Promise<JenAIReviewStatusCounts> {
     const result = await this.db
       .select({
         status: jenaiIssues.reviewStatus,
@@ -123,7 +123,7 @@ export class JenAIRepository extends BaseRepository {
       })
       .from(jenaiIssues)
       .innerJoin(regulatoryDocuments, eq(jenaiIssues.documentId, regulatoryDocuments.id))
-      .where(eq(regulatoryDocuments.state, normalizeState(state)))
+      .where(eq(regulatoryDocuments.jurisdiction, normalizeJurisdiction(jurisdiction)))
       .groupBy(jenaiIssues.reviewStatus);
 
     const counts: JenAIReviewStatusCounts = {
@@ -150,7 +150,7 @@ export class JenAIRepository extends BaseRepository {
   /**
    * Get counts by developer status for progress display
    */
-  async getDeveloperStatusCounts(state: StateCode): Promise<JenAIDeveloperStatusCounts> {
+  async getDeveloperStatusCounts(jurisdiction: JurisdictionCode): Promise<JenAIDeveloperStatusCounts> {
     const result = await this.db
       .select({
         status: jenaiIssues.developerStatus,
@@ -159,7 +159,7 @@ export class JenAIRepository extends BaseRepository {
       .from(jenaiIssues)
       .innerJoin(regulatoryDocuments, eq(jenaiIssues.documentId, regulatoryDocuments.id))
       .where(and(
-        eq(regulatoryDocuments.state, normalizeState(state)),
+        eq(regulatoryDocuments.jurisdiction, normalizeJurisdiction(jurisdiction)),
         ne(jenaiIssues.reviewStatus, 'unreviewed')
       ))
       .groupBy(jenaiIssues.developerStatus);
@@ -190,11 +190,11 @@ export class JenAIRepository extends BaseRepository {
   async getAllPaginated(
     options: JenAIPaginationOptions
   ): Promise<PaginatedJenAIResult> {
-    const { state, page, pageSize, sortBy = 'severity', sortOrder = 'desc', filters } = options;
+    const { jurisdiction, page, pageSize, sortBy = 'severity', sortOrder = 'desc', filters } = options;
     const offset = (page - 1) * pageSize;
 
     const conditions: ReturnType<typeof eq>[] = [
-      eq(regulatoryDocuments.state, normalizeState(state)),
+      eq(regulatoryDocuments.jurisdiction, normalizeJurisdiction(jurisdiction)),
     ];
 
     if (filters) {
@@ -396,11 +396,11 @@ export class JenAIRepository extends BaseRepository {
       developerAssigned?: string;
     }
   ): Promise<PaginatedJenAIResult> {
-    const { state, page, pageSize, sortBy = 'reviewedAt', sortOrder = 'desc', filters, developerStatus, developerAssigned } = options;
+    const { jurisdiction, page, pageSize, sortBy = 'reviewedAt', sortOrder = 'desc', filters, developerStatus, developerAssigned } = options;
     const offset = (page - 1) * pageSize;
 
     const conditions: ReturnType<typeof eq>[] = [
-      eq(regulatoryDocuments.state, normalizeState(state)),
+      eq(regulatoryDocuments.jurisdiction, normalizeJurisdiction(jurisdiction)),
       ne(jenaiIssues.reviewStatus, 'unreviewed'),
     ];
 
@@ -555,7 +555,7 @@ export class JenAIRepository extends BaseRepository {
    * Get severity distribution (high/medium/low) for JenAI issues.
    * High >= 7, Medium 4-6, Low 1-3.
    */
-  async getSeverityDistribution(state: StateCode): Promise<SeverityDistribution> {
+  async getSeverityDistribution(jurisdiction: JurisdictionCode): Promise<SeverityDistribution> {
     const result = await this.db.execute(sql`
       SELECT
         COUNT(*) FILTER (WHERE ji.severity >= 7)::int AS "high",
@@ -564,7 +564,7 @@ export class JenAIRepository extends BaseRepository {
         COUNT(*)::int AS "total"
       FROM jenai_issues ji
       INNER JOIN regulatory_documents rd ON ji.document_id = rd.id
-      WHERE rd.state = ${normalizeState(state)}
+      WHERE rd.jurisdiction = ${normalizeJurisdiction(jurisdiction)}
     `);
 
     const row = result.rows[0] as { high: number; medium: number; low: number; total: number };

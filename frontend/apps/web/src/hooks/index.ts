@@ -2,7 +2,7 @@ export { useMediaQuery, useResponsive, useBreakpoint } from './useMediaQuery';
 export { useLocalStorageName } from './useLocalStorageName';
 export { useReviewerName } from './useReviewerName';
 export { useDeveloperName } from './useDeveloperName';
-export { useStateFromPath, getStateFromPathname } from './useStateFromPath';
+export { useJurisdictionFromPath, getJurisdictionFromPathname } from './useStateFromPath';
 export { useDeepLink, parseDeepLinkHash } from './useDeepLink';
 export type { DeepLinkTarget } from './useDeepLink';
 export { useReviewForm } from './useReviewForm';

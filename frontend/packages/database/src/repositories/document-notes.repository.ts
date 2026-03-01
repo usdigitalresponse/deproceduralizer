@@ -1,14 +1,14 @@
 import { eq, asc } from 'drizzle-orm';
 import { BaseRepository } from './base.repository';
 import { documentNotes, DocumentNote, NewDocumentNote, NoteType } from '../schema/document-notes';
-import { normalizeState } from '../schema/constants';
+import { normalizeJurisdiction } from '../schema/constants';
 
 export interface CreateDocumentNoteInput {
   documentId: number;
   noteType: NoteType;
   content: string;
   authorName?: string;
-  state: string;
+  jurisdiction: string;
   anchorStartOffset?: number;
   anchorEndOffset?: number;
   anchorText?: string;
@@ -28,7 +28,7 @@ export class DocumentNotesRepository extends BaseRepository {
         noteType: input.noteType,
         content: input.content,
         authorName: input.authorName ?? null,
-        state: normalizeState(input.state),
+        jurisdiction: normalizeJurisdiction(input.jurisdiction),
         anchorStartOffset: input.anchorStartOffset ?? null,
         anchorEndOffset: input.anchorEndOffset ?? null,
         anchorText: input.anchorText ?? null,

@@ -223,7 +223,7 @@ def get_filtered_documents(
     else:
         prefix = 'nycrr'
 
-    conditions = ["state = %s"]
+    conditions = ["jurisdiction = %s"]
     params = [jurisdiction.upper()]
 
     # By default, exclude documents marked for exclusion from analysis
@@ -312,7 +312,7 @@ def get_already_analyzed_ids(jurisdiction: str) -> set:
             FROM analyses
             WHERE is_current = TRUE
               AND document_id IN (
-                  SELECT id FROM regulatory_documents WHERE state = %s
+                  SELECT id FROM regulatory_documents WHERE jurisdiction = %s
               )
         """, (jurisdiction.upper(),))
         ids = {row[0] for row in result.fetchall()}
@@ -336,7 +336,7 @@ def get_already_extracted_ids(jurisdiction: str) -> set:
             SELECT DISTINCT document_id
             FROM definitions
             WHERE document_id IN (
-                SELECT id FROM regulatory_documents WHERE state = %s
+                SELECT id FROM regulatory_documents WHERE jurisdiction = %s
             )
         """, (jurisdiction.upper(),))
         ids = {row[0] for row in result.fetchall()}

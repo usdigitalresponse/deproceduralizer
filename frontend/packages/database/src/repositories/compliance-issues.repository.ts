@@ -1,6 +1,6 @@
 import { eq, and, desc, asc, sql, count, or, isNull, isNotNull, ne, gte, lt, like, notInArray, inArray, type SQL } from 'drizzle-orm';
 import { BaseRepository } from './base.repository';
-import { normalizeState } from '../schema/constants';
+import { normalizeJurisdiction } from '../schema/constants';
 import { complianceIssues, ComplianceIssue, IssueType } from '../schema/compliance-issues';
 import { regulatoryDocuments } from '../schema/regulatory-documents';
 import {
@@ -15,7 +15,7 @@ import {
 } from '../schema/compliance-issue-analyses';
 import { bookmarks } from '../schema/bookmarks';
 import { ReviewStatus, ImpactType, DeveloperStatus, ResolutionType, Developer } from '../schema/red-flags';
-import { StateCode } from '../schema/constants';
+import { JurisdictionCode } from '../schema/constants';
 import { DeveloperStatusCounts } from './red-flags.repository';
 
 /**
@@ -117,7 +117,7 @@ export interface ComplianceIssueWithContext extends ComplianceIssue {
 }
 
 export interface ComplianceIssueFilterOptions {
-  state: StateCode;
+  jurisdiction: JurisdictionCode;
   status?: ReviewStatus | 'all';
   issueType?: IssueType | 'all';
   severity?: 'high' | 'medium' | 'low' | 'all';
@@ -132,12 +132,12 @@ export interface ComplianceIssueFilterOptions {
 }
 
 export interface ComplianceIssuePaginationOptions {
-  state: StateCode;
+  jurisdiction: JurisdictionCode;
   page: number;
   pageSize: number;
   sortBy?: 'issueType' | 'createdAt' | 'reviewedAt' | 'severity' | 'developerCheckedAt';
   sortOrder?: 'asc' | 'desc';
-  filters?: Omit<ComplianceIssueFilterOptions, 'state'>;
+  filters?: Omit<ComplianceIssueFilterOptions, 'jurisdiction'>;
 }
 
 export interface PaginatedComplianceIssuesResult {
@@ -222,7 +222,7 @@ export interface ClassificationBreakdown {
 export interface FullAnalysisRecord {
   documentId: number;
   issueType: string;
-  state: string;
+  jurisdiction: string;
   groupedMatchCount: number;
 
   // Document info
@@ -359,7 +359,7 @@ const issueListSelectColumns = {
   resolutionComments: complianceIssueAnalyses.resolutionComments,
   developerQuestion: complianceIssueAnalyses.developerQuestion,
   developerCheckedAt: complianceIssueAnalyses.developerCheckedAt,
-  state: complianceIssues.state,
+  jurisdiction: complianceIssues.jurisdiction,
   createdAt: complianceIssues.createdAt,
   // Analysis pipeline fields — for building TierAnalysis in mapRowToIssue
   analysisHighestTier: complianceIssueAnalyses.highestTierCompleted,
@@ -432,7 +432,7 @@ function mapRowToIssue(
     resolutionComments: string | null;
     developerQuestion: string | null;
     developerCheckedAt: Date | null;
-    state: string;
+    jurisdiction: string;
     createdAt: Date | null;
     // Analysis pipeline fields
     analysisHighestTier: number | null;
@@ -524,7 +524,7 @@ function mapRowToIssue(
     resolutionComments: row.resolutionComments,
     developerQuestion: row.developerQuestion,
     developerCheckedAt: row.developerCheckedAt,
-    state: row.state,
+    jurisdiction: row.jurisdiction,
     createdAt: row.createdAt,
     regulation: {
       id: row.regulationId,
@@ -606,16 +606,16 @@ export function buildTier3FlagFilter(
 
 /**
  * Build an array of SQL conditions for the analysis list query.
- * Always includes the state condition as the first element.
+ * Always includes the jurisdiction condition as the first element.
  */
 export function buildAnalysisListFilters(params: {
-  state: StateCode;
+  jurisdiction: JurisdictionCode;
   filters?: AnalysisListFilters;
 }): SQL[] {
-  const { state, filters } = params;
+  const { jurisdiction, filters } = params;
 
   const conditions: SQL[] = [
-    eq(complianceIssueAnalyses.state, normalizeState(state)),
+    eq(complianceIssueAnalyses.jurisdiction, normalizeJurisdiction(jurisdiction)),
   ];
 
   if (!filters) return conditions;
@@ -952,7 +952,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         url: complianceIssues.url,
         regexMatchPattern: complianceIssues.regexMatchPattern,
         regexMatchContext: complianceIssues.regexMatchContext,
-        state: complianceIssues.state,
+        jurisdiction: complianceIssues.jurisdiction,
         createdAt: complianceIssues.createdAt,
         analysisId: complianceIssues.analysisId,
         runId: complianceIssues.runId,
@@ -1070,11 +1070,11 @@ export class ComplianceIssuesRepository extends BaseRepository {
   /**
    * Get all unique issue types for filter dropdown
    */
-  async getIssueTypes(state: StateCode): Promise<string[]> {
+  async getIssueTypes(jurisdiction: JurisdictionCode): Promise<string[]> {
     const result = await this.db
       .selectDistinct({ issueType: complianceIssues.issueType })
       .from(complianceIssues)
-      .where(eq(complianceIssues.state, normalizeState(state)))
+      .where(eq(complianceIssues.jurisdiction, normalizeJurisdiction(jurisdiction)))
       .orderBy(asc(complianceIssues.issueType));
 
     return result.map(r => r.issueType);
@@ -1085,7 +1085,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
    * PR 6.3: Counts analysis rows (one per document+issue_type) instead of match rows.
    * Only counts LLM-confirmed issues (requirement_found = TRUE) to exclude regex-only matches.
    */
-  async getCountsByStatus(state: StateCode): Promise<ComplianceIssueStatusCounts> {
+  async getCountsByStatus(jurisdiction: JurisdictionCode): Promise<ComplianceIssueStatusCounts> {
     const result = await this.db
       .select({
         status: complianceIssueAnalyses.reviewStatus,
@@ -1093,7 +1093,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       })
       .from(complianceIssueAnalyses)
       .where(and(
-        eq(complianceIssueAnalyses.state, normalizeState(state)),
+        eq(complianceIssueAnalyses.jurisdiction, normalizeJurisdiction(jurisdiction)),
         eq(complianceIssueAnalyses.requirementFound, true)
       ))
       .groupBy(complianceIssueAnalyses.reviewStatus);
@@ -1125,7 +1125,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
    * Get counts by issue type.
    * PR 6.3: Counts confirmed analyses (requirement_found = TRUE) instead of raw regex matches.
    */
-  async getCountsByType(state: StateCode): Promise<Record<string, number>> {
+  async getCountsByType(jurisdiction: JurisdictionCode): Promise<Record<string, number>> {
     const result = await this.db
       .select({
         issueType: complianceIssueAnalyses.issueType,
@@ -1133,7 +1133,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       })
       .from(complianceIssueAnalyses)
       .where(and(
-        eq(complianceIssueAnalyses.state, normalizeState(state)),
+        eq(complianceIssueAnalyses.jurisdiction, normalizeJurisdiction(jurisdiction)),
         eq(complianceIssueAnalyses.requirementFound, true)
       ))
       .groupBy(complianceIssueAnalyses.issueType);
@@ -1151,10 +1151,10 @@ export class ComplianceIssuesRepository extends BaseRepository {
    * PR 6.3: All counts query compliance_issue_analyses with requirementFound = true
    * to be consistent (analytics should use analyses table per architecture).
    */
-  async getStatsByState(state?: StateCode): Promise<ComplianceIssueStats> {
+  async getStatsByJurisdiction(jurisdiction?: JurisdictionCode): Promise<ComplianceIssueStats> {
     const baseConditions = [
       eq(complianceIssueAnalyses.requirementFound, true),
-      ...(state ? [eq(complianceIssueAnalyses.state, normalizeState(state))] : []),
+      ...(jurisdiction ? [eq(complianceIssueAnalyses.jurisdiction, normalizeJurisdiction(jurisdiction))] : []),
     ];
 
     // Get total count (from analyses with requirementFound = true)
@@ -1205,12 +1205,12 @@ export class ComplianceIssuesRepository extends BaseRepository {
   async getAllPaginated(
     options: ComplianceIssuePaginationOptions
   ): Promise<PaginatedComplianceIssuesResult> {
-    const { state, page, pageSize, sortBy = 'createdAt', sortOrder = 'desc', filters } = options;
+    const { jurisdiction, page, pageSize, sortBy = 'createdAt', sortOrder = 'desc', filters } = options;
     const offset = (page - 1) * pageSize;
 
     // Build where conditions
     const conditions: ReturnType<typeof eq>[] = [
-      eq(complianceIssues.state, normalizeState(state)),
+      eq(complianceIssues.jurisdiction, normalizeJurisdiction(jurisdiction)),
     ];
 
     if (filters) {
@@ -1364,7 +1364,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
    * Get counts by developer status for progress display.
    * PR 6.3: Counts analysis rows (one per document+issue_type) instead of match rows.
    */
-  async getDeveloperStatusCounts(state: StateCode): Promise<DeveloperStatusCounts> {
+  async getDeveloperStatusCounts(jurisdiction: JurisdictionCode): Promise<DeveloperStatusCounts> {
     const result = await this.db
       .select({
         status: complianceIssueAnalyses.developerStatus,
@@ -1372,7 +1372,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       })
       .from(complianceIssueAnalyses)
       .where(and(
-        eq(complianceIssueAnalyses.state, normalizeState(state)),
+        eq(complianceIssueAnalyses.jurisdiction, normalizeJurisdiction(jurisdiction)),
         // Only count reviewed items
         ne(complianceIssueAnalyses.reviewStatus, 'unreviewed')
       ))
@@ -1410,12 +1410,12 @@ export class ComplianceIssuesRepository extends BaseRepository {
       developerAssigned?: Developer;
     }
   ): Promise<PaginatedComplianceIssuesResult> {
-    const { state, page, pageSize, sortBy = 'createdAt', sortOrder = 'desc', filters, developerStatus, developerAssigned } = options;
+    const { jurisdiction, page, pageSize, sortBy = 'createdAt', sortOrder = 'desc', filters, developerStatus, developerAssigned } = options;
     const offset = (page - 1) * pageSize;
 
     // Build where conditions - only reviewed items (from analyses)
     const conditions: ReturnType<typeof eq>[] = [
-      eq(complianceIssues.state, normalizeState(state)),
+      eq(complianceIssues.jurisdiction, normalizeJurisdiction(jurisdiction)),
       ne(complianceIssueAnalyses.reviewStatus, 'unreviewed'),
     ];
 
@@ -1496,7 +1496,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
    * PR 6.3: Developer status filter now from analyses.
    */
   async getNeedMoreInfoIssues(
-    state: StateCode,
+    jurisdiction: JurisdictionCode,
     options: {
       page: number;
       pageSize: number;
@@ -1506,7 +1506,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
     const offset = (page - 1) * pageSize;
 
     const conditions = [
-      eq(complianceIssues.state, normalizeState(state)),
+      eq(complianceIssues.jurisdiction, normalizeJurisdiction(jurisdiction)),
       eq(complianceIssueAnalyses.developerStatus, 'need_more_info'),
     ];
 
@@ -1555,12 +1555,12 @@ export class ComplianceIssuesRepository extends BaseRepository {
    * Get count of need_more_info issues.
    * PR 6.3: Developer status now on analyses.
    */
-  async getNeedMoreInfoCount(state: StateCode): Promise<{ total: number }> {
+  async getNeedMoreInfoCount(jurisdiction: JurisdictionCode): Promise<{ total: number }> {
     const [{ count: total }] = await this.db
       .select({ count: sql<number>`count(*)::int` })
       .from(complianceIssueAnalyses)
       .where(and(
-        eq(complianceIssueAnalyses.state, normalizeState(state)),
+        eq(complianceIssueAnalyses.jurisdiction, normalizeJurisdiction(jurisdiction)),
         eq(complianceIssueAnalyses.developerStatus, 'need_more_info'),
       ));
 
@@ -1622,7 +1622,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
    * Groups items by the specified grouping mode and returns a batch with metadata.
    */
   async getSuggestionBatch(options: {
-    state: StateCode;
+    jurisdiction: JurisdictionCode;
     batchSize: number;
     excludeIds: number[];
     groupingMode: 'issue_type' | 'section' | 'combined';
@@ -1641,11 +1641,11 @@ export class ComplianceIssuesRepository extends BaseRepository {
     nextGroupingMode: 'issue_type' | 'section' | 'combined';
     totalUnreviewed: number;
   }> {
-    const { state, batchSize, excludeIds, groupingMode, focus, recentIssueTypes } = options;
+    const { jurisdiction, batchSize, excludeIds, groupingMode, focus, recentIssueTypes } = options;
 
     // Base conditions: LLM confirmed (from analyses) + unreviewed + exclude shown IDs
     const baseConditions = [
-      eq(complianceIssues.state, normalizeState(state)),
+      eq(complianceIssues.jurisdiction, normalizeJurisdiction(jurisdiction)),
       eq(complianceIssueAnalyses.requirementFound, true),
       or(
         eq(complianceIssueAnalyses.reviewStatus, 'unreviewed'),
@@ -1950,7 +1950,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
   /**
    * Get tier completion counts for analysis pipeline progress
    */
-  async getAnalysisTierCounts(state: StateCode): Promise<TierCompletionCounts> {
+  async getAnalysisTierCounts(jurisdiction: JurisdictionCode): Promise<TierCompletionCounts> {
     // Count issues by highest tier completed in their analysis
     const results = await this.db
       .select({
@@ -1962,7 +1962,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         complianceIssueAnalyses,
         eq(complianceIssues.analysisId, complianceIssueAnalyses.id)
       )
-      .where(eq(complianceIssues.state, normalizeState(state)))
+      .where(eq(complianceIssues.jurisdiction, normalizeJurisdiction(jurisdiction)))
       .groupBy(complianceIssueAnalyses.highestTierCompleted);
 
     // Build the counts object
@@ -1992,7 +1992,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
    * Get classification breakdown by tier for analytics charts.
    * Shows distribution of classifications at each tier level.
    */
-  async getClassificationBreakdown(state: StateCode): Promise<ClassificationBreakdown> {
+  async getClassificationBreakdown(jurisdiction: JurisdictionCode): Promise<ClassificationBreakdown> {
     const breakdown: ClassificationBreakdown = {
       tier1: {},
       tier2: {},
@@ -2007,7 +2007,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       })
       .from(complianceIssueAnalyses)
       .where(and(
-        eq(complianceIssueAnalyses.state, normalizeState(state)),
+        eq(complianceIssueAnalyses.jurisdiction, normalizeJurisdiction(jurisdiction)),
         sql`${complianceIssueAnalyses.tier1Classification} IS NOT NULL`
       ))
       .groupBy(complianceIssueAnalyses.tier1Classification);
@@ -2026,7 +2026,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       })
       .from(complianceIssueAnalyses)
       .where(and(
-        eq(complianceIssueAnalyses.state, normalizeState(state)),
+        eq(complianceIssueAnalyses.jurisdiction, normalizeJurisdiction(jurisdiction)),
         sql`${complianceIssueAnalyses.tier2Classification} IS NOT NULL`
       ))
       .groupBy(complianceIssueAnalyses.tier2Classification);
@@ -2045,7 +2045,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       })
       .from(complianceIssueAnalyses)
       .where(and(
-        eq(complianceIssueAnalyses.state, normalizeState(state)),
+        eq(complianceIssueAnalyses.jurisdiction, normalizeJurisdiction(jurisdiction)),
         sql`${complianceIssueAnalyses.tier3Classification} IS NOT NULL`
       ))
       .groupBy(complianceIssueAnalyses.tier3Classification);
@@ -2072,7 +2072,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         // Analysis fields
         documentId: complianceIssueAnalyses.documentId,
         issueType: complianceIssueAnalyses.issueType,
-        state: complianceIssueAnalyses.state,
+        jurisdiction: complianceIssueAnalyses.jurisdiction,
         groupedMatchCount: complianceIssueAnalyses.groupedMatchCount,
 
         // Tier 1
@@ -2186,7 +2186,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
 
     const row = results[0];
 
-    // Build citation string based on state
+    // Build citation string based on jurisdiction
     let citation: string | null = null;
     if (row.docNjacTitle) {
       citation = `N.J.A.C. ${row.docNjacTitle}:${row.docNjacChapter || ''}${row.docNjacSubchapter ? `-${row.docNjacSubchapter}` : ''}`;
@@ -2197,7 +2197,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
     return {
       documentId: Number(row.documentId),
       issueType: row.issueType,
-      state: row.state,
+      jurisdiction: row.jurisdiction,
       groupedMatchCount: row.groupedMatchCount,
 
       document: {
@@ -2301,7 +2301,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
    * and mapAnalysisListRow.
    */
   async getAnalysisListPaginated(
-    state: StateCode,
+    jurisdiction: JurisdictionCode,
     options: {
       page: number;
       pageSize: number;
@@ -2319,7 +2319,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
     const { page, pageSize, sortBy = 'createdAt', sortOrder = 'desc', filters } = options;
     const offset = (page - 1) * pageSize;
 
-    const conditions = buildAnalysisListFilters({ state, filters });
+    const conditions = buildAnalysisListFilters({ jurisdiction, filters });
     const whereClause = and(...conditions);
     const orderClauses = buildAnalysisListSort(sortBy, sortOrder);
 
@@ -2379,7 +2379,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
    * and no pagination. Capped at 5000 rows as a safety valve.
    */
   async getAnalysisExportData(
-    state: StateCode,
+    jurisdiction: JurisdictionCode,
     options: {
       sortBy?: string;
       sortOrder?: string;
@@ -2388,7 +2388,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
   ): Promise<AnalysisExportRow[]> {
     const { sortBy = 'severity', sortOrder = 'desc', filters } = options;
 
-    const conditions = buildAnalysisListFilters({ state, filters });
+    const conditions = buildAnalysisListFilters({ jurisdiction, filters });
     const whereClause = and(...conditions);
     const orderClauses = buildAnalysisListSort(sortBy, sortOrder);
 
@@ -2452,7 +2452,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
    * Get severity distribution (high/medium/low) for compliance issue analyses.
    * Uses COALESCE(final_severity, severity) to get the best available severity.
    */
-  async getSeverityDistribution(state: StateCode): Promise<SeverityDistribution> {
+  async getSeverityDistribution(jurisdiction: JurisdictionCode): Promise<SeverityDistribution> {
     const result = await this.db.execute(sql`
       SELECT
         COUNT(*) FILTER (WHERE COALESCE(final_severity, severity) >= 7)::int AS "high",
@@ -2460,7 +2460,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         COUNT(*) FILTER (WHERE COALESCE(final_severity, severity) >= 1 AND COALESCE(final_severity, severity) < 4)::int AS "low",
         COUNT(*) FILTER (WHERE COALESCE(final_severity, severity) IS NOT NULL)::int AS "total"
       FROM compliance_issue_analyses
-      WHERE state = ${normalizeState(state)}
+      WHERE jurisdiction = ${normalizeJurisdiction(jurisdiction)}
         AND requirement_found = TRUE
     `);
 
@@ -2476,9 +2476,9 @@ export class ComplianceIssuesRepository extends BaseRepository {
    * Get funnel statistics across all 3 pipeline tiers.
    * Counts analyses at each stage with classification breakdowns.
    */
-  async getPipelineFunnelStats(state: StateCode, issueType?: string): Promise<PipelineFunnelData> {
+  async getPipelineFunnelStats(jurisdiction: JurisdictionCode, issueType?: string): Promise<PipelineFunnelData> {
     const conditions = [
-      eq(complianceIssueAnalyses.state, normalizeState(state)),
+      eq(complianceIssueAnalyses.jurisdiction, normalizeJurisdiction(jurisdiction)),
       isNotNull(complianceIssueAnalyses.tier1Classification),
     ];
     if (issueType) {
@@ -2530,9 +2530,9 @@ export class ComplianceIssuesRepository extends BaseRepository {
   /**
    * Get Tier 1 context request distribution from tier1_recommendations JSONB.
    */
-  async getTier1ContextRequestStats(state: StateCode, issueType?: string): Promise<Tier1ContextRequestStats> {
+  async getTier1ContextRequestStats(jurisdiction: JurisdictionCode, issueType?: string): Promise<Tier1ContextRequestStats> {
     const conditions = [
-      eq(complianceIssueAnalyses.state, normalizeState(state)),
+      eq(complianceIssueAnalyses.jurisdiction, normalizeJurisdiction(jurisdiction)),
       isNotNull(complianceIssueAnalyses.tier1Recommendations),
     ];
     if (issueType) {
@@ -2547,7 +2547,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         count(*)::int AS count
       FROM compliance_issue_analyses,
         jsonb_array_elements(tier1_recommendations->'context_requests') AS cr
-      WHERE state = ${normalizeState(state)}
+      WHERE jurisdiction = ${normalizeJurisdiction(jurisdiction)}
         AND tier1_recommendations IS NOT NULL
         ${issueType ? sql`AND issue_type = ${issueType}` : sql``}
       GROUP BY cr->>'context_type', cr->>'need_level'
@@ -2562,7 +2562,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         count(*)::int AS count
       FROM compliance_issue_analyses a,
         jsonb_array_elements(a.tier1_recommendations->'context_requests') AS cr
-      WHERE a.state = ${normalizeState(state)}
+      WHERE a.jurisdiction = ${normalizeJurisdiction(jurisdiction)}
         AND a.tier1_recommendations IS NOT NULL
         ${issueType ? sql`AND a.issue_type = ${issueType}` : sql``}
       GROUP BY a.issue_type, cr->>'context_type'
@@ -2609,9 +2609,9 @@ export class ComplianceIssuesRepository extends BaseRepository {
    * Get tier transition statistics: classification changes between tiers,
    * confidence distributions, and trigger reasons.
    */
-  async getTierTransitionStats(state: StateCode, issueType?: string): Promise<TierTransitionData> {
+  async getTierTransitionStats(jurisdiction: JurisdictionCode, issueType?: string): Promise<TierTransitionData> {
     const conditions = [
-      eq(complianceIssueAnalyses.state, normalizeState(state)),
+      eq(complianceIssueAnalyses.jurisdiction, normalizeJurisdiction(jurisdiction)),
     ];
     if (issueType) {
       conditions.push(eq(complianceIssueAnalyses.issueType, issueType));
@@ -2624,7 +2624,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         tier3_classification AS tier3_class,
         count(*)::int AS count
       FROM compliance_issue_analyses
-      WHERE state = ${normalizeState(state)}
+      WHERE jurisdiction = ${normalizeJurisdiction(jurisdiction)}
         AND tier2_classification IS NOT NULL
         AND tier3_classification IS NOT NULL
         ${issueType ? sql`AND issue_type = ${issueType}` : sql``}
@@ -2645,7 +2645,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         END AS bucket,
         count(*)::int AS count
       FROM compliance_issue_analyses
-      WHERE state = ${normalizeState(state)}
+      WHERE jurisdiction = ${normalizeJurisdiction(jurisdiction)}
         AND tier1_confidence IS NOT NULL
         ${issueType ? sql`AND issue_type = ${issueType}` : sql``}
       GROUP BY bucket
@@ -2661,7 +2661,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         END AS bucket,
         count(*)::int AS count
       FROM compliance_issue_analyses
-      WHERE state = ${normalizeState(state)}
+      WHERE jurisdiction = ${normalizeJurisdiction(jurisdiction)}
         AND tier2_confidence IS NOT NULL
         ${issueType ? sql`AND issue_type = ${issueType}` : sql``}
       GROUP BY bucket
@@ -2677,7 +2677,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         END AS bucket,
         count(*)::int AS count
       FROM compliance_issue_analyses
-      WHERE state = ${normalizeState(state)}
+      WHERE jurisdiction = ${normalizeJurisdiction(jurisdiction)}
         AND tier3_confidence IS NOT NULL
         ${issueType ? sql`AND issue_type = ${issueType}` : sql``}
       GROUP BY bucket
@@ -2723,7 +2723,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
    * Get trigger reasons for classification transitions (off-diagonal cells).
    * Groups by tier2→tier3 classification pair and trigger reason.
    */
-  async getTransitionReasons(state: StateCode, issueType?: string): Promise<TransitionReasonData> {
+  async getTransitionReasons(jurisdiction: JurisdictionCode, issueType?: string): Promise<TransitionReasonData> {
     const results = await this.db.execute(sql`
       SELECT
         tier2_classification AS tier2_class,
@@ -2731,7 +2731,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         tier3_trigger_reason AS trigger_reason,
         count(*)::int AS count
       FROM compliance_issue_analyses
-      WHERE state = ${normalizeState(state)}
+      WHERE jurisdiction = ${normalizeJurisdiction(jurisdiction)}
         AND tier2_classification IS NOT NULL
         AND tier3_classification IS NOT NULL
         AND tier2_classification != tier3_classification
@@ -2762,7 +2762,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
    * Get average confidence grouped by classification for each tier.
    * Used for "Confidence by Classification" grouped bar charts.
    */
-  async getConfidenceByClassification(state: StateCode, issueType?: string): Promise<ConfidenceByClassificationData> {
+  async getConfidenceByClassification(jurisdiction: JurisdictionCode, issueType?: string): Promise<ConfidenceByClassificationData> {
     const results = await this.db.execute(sql`
       SELECT
         'tier1' AS tier,
@@ -2770,7 +2770,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         round(avg(tier1_confidence)::numeric, 3)::float AS avg_confidence,
         count(*)::int AS count
       FROM compliance_issue_analyses
-      WHERE state = ${normalizeState(state)}
+      WHERE jurisdiction = ${normalizeJurisdiction(jurisdiction)}
         AND tier1_classification IS NOT NULL
         AND tier1_confidence IS NOT NULL
         ${issueType ? sql`AND issue_type = ${issueType}` : sql``}
@@ -2782,7 +2782,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         round(avg(tier2_confidence)::numeric, 3)::float AS avg_confidence,
         count(*)::int AS count
       FROM compliance_issue_analyses
-      WHERE state = ${normalizeState(state)}
+      WHERE jurisdiction = ${normalizeJurisdiction(jurisdiction)}
         AND tier2_classification IS NOT NULL
         AND tier2_confidence IS NOT NULL
         ${issueType ? sql`AND issue_type = ${issueType}` : sql``}
@@ -2794,7 +2794,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         round(avg(tier3_confidence)::numeric, 3)::float AS avg_confidence,
         count(*)::int AS count
       FROM compliance_issue_analyses
-      WHERE state = ${normalizeState(state)}
+      WHERE jurisdiction = ${normalizeJurisdiction(jurisdiction)}
         AND tier3_classification IS NOT NULL
         AND tier3_confidence IS NOT NULL
         ${issueType ? sql`AND issue_type = ${issueType}` : sql``}
@@ -2827,9 +2827,9 @@ export class ComplianceIssuesRepository extends BaseRepository {
   /**
    * Get Tier 3 evidence statistics: flag distributions, severity adjustments, cleanup stats.
    */
-  async getTier3EvidenceStats(state: StateCode, issueType?: string): Promise<Tier3EvidenceStats> {
+  async getTier3EvidenceStats(jurisdiction: JurisdictionCode, issueType?: string): Promise<Tier3EvidenceStats> {
     const conditions = [
-      eq(complianceIssueAnalyses.state, normalizeState(state)),
+      eq(complianceIssueAnalyses.jurisdiction, normalizeJurisdiction(jurisdiction)),
       isNotNull(complianceIssueAnalyses.tier3Classification),
     ];
     if (issueType) {
@@ -2851,7 +2851,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         count(*) FILTER (WHERE tier3_flags ? 'advocacy_for_change' AND (tier3_flags->>'advocacy_for_change')::jsonb->>'value' != 'true')::int AS advocacy_false,
         count(*)::int AS total_tier3
       FROM compliance_issue_analyses
-      WHERE state = ${normalizeState(state)}
+      WHERE jurisdiction = ${normalizeJurisdiction(jurisdiction)}
         AND tier3_classification IS NOT NULL
         ${issueType ? sql`AND issue_type = ${issueType}` : sql``}
     `);
@@ -2914,7 +2914,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
    * Get Tier 2 context request stats from tier2_context_requests_made JSONB.
    * These track additional context requests made during Tier 2 re-runs.
    */
-  async getTier2ContextRequestsStats(state: StateCode, issueType?: string): Promise<Tier2ContextRequestsStats> {
+  async getTier2ContextRequestsStats(jurisdiction: JurisdictionCode, issueType?: string): Promise<Tier2ContextRequestsStats> {
     const issueTypeClause = issueType ? sql`AND issue_type = ${issueType}` : sql``;
 
     const byTypeResults = await this.db.execute(sql`
@@ -2924,7 +2924,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         count(*)::int AS count
       FROM compliance_issue_analyses,
         jsonb_array_elements(tier2_context_requests_made) AS cr
-      WHERE state = ${normalizeState(state)}
+      WHERE jurisdiction = ${normalizeJurisdiction(jurisdiction)}
         AND tier2_context_requests_made IS NOT NULL
         AND jsonb_array_length(tier2_context_requests_made) > 0
         ${issueTypeClause}
@@ -2937,7 +2937,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         count(*) FILTER (WHERE tier2_context_requests_made IS NOT NULL AND jsonb_array_length(tier2_context_requests_made) > 0)::int AS analyses_with_requests,
         COALESCE(sum(jsonb_array_length(tier2_context_requests_made)) FILTER (WHERE tier2_context_requests_made IS NOT NULL AND jsonb_array_length(tier2_context_requests_made) > 0), 0)::int AS total_requests
       FROM compliance_issue_analyses
-      WHERE state = ${normalizeState(state)}
+      WHERE jurisdiction = ${normalizeJurisdiction(jurisdiction)}
         AND tier1_classification IS NOT NULL
         ${issueTypeClause}
     `);
@@ -2964,7 +2964,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
   /**
    * Get context_used breakdown by source type and web sub-types.
    */
-  async getContextUsedStats(state: StateCode, issueType?: string): Promise<ContextUsedStats> {
+  async getContextUsedStats(jurisdiction: JurisdictionCode, issueType?: string): Promise<ContextUsedStats> {
     const issueTypeClause = issueType ? sql`AND issue_type = ${issueType}` : sql``;
 
     const bySourceResults = await this.db.execute(sql`
@@ -2973,7 +2973,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         count(*)::int AS count
       FROM compliance_issue_analyses,
         jsonb_array_elements(context_used) AS ce
-      WHERE state = ${normalizeState(state)}
+      WHERE jurisdiction = ${normalizeJurisdiction(jurisdiction)}
         AND context_used IS NOT NULL
         AND jsonb_array_length(context_used) > 0
         ${issueTypeClause}
@@ -2987,7 +2987,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         count(*)::int AS count
       FROM compliance_issue_analyses,
         jsonb_array_elements(context_used) AS ce
-      WHERE state = ${normalizeState(state)}
+      WHERE jurisdiction = ${normalizeJurisdiction(jurisdiction)}
         AND context_used IS NOT NULL
         AND ce->>'type' = 'web'
         ${issueTypeClause}
@@ -3000,7 +3000,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         count(*) FILTER (WHERE context_used IS NOT NULL AND jsonb_array_length(context_used) > 0)::int AS analyses_with_context,
         COALESCE(sum(jsonb_array_length(context_used)) FILTER (WHERE context_used IS NOT NULL AND jsonb_array_length(context_used) > 0), 0)::int AS total_entries
       FROM compliance_issue_analyses
-      WHERE state = ${normalizeState(state)}
+      WHERE jurisdiction = ${normalizeJurisdiction(jurisdiction)}
         AND tier1_classification IS NOT NULL
         ${issueTypeClause}
     `);
@@ -3025,7 +3025,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
   /**
    * Get research funnel aggregate stats: Tier 1 requested → Tier 2 additional → context cited.
    */
-  async getResearchFunnelStats(state: StateCode, issueType?: string): Promise<ResearchFunnelStats> {
+  async getResearchFunnelStats(jurisdiction: JurisdictionCode, issueType?: string): Promise<ResearchFunnelStats> {
     const issueTypeClause = issueType ? sql`AND issue_type = ${issueType}` : sql``;
 
     const result = await this.db.execute(sql`
@@ -3050,7 +3050,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
           ELSE 0 END
         ), 0)::int AS context_cited
       FROM compliance_issue_analyses
-      WHERE state = ${normalizeState(state)}
+      WHERE jurisdiction = ${normalizeJurisdiction(jurisdiction)}
         AND tier1_classification IS NOT NULL
         ${issueTypeClause}
     `);

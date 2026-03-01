@@ -8,18 +8,18 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { DefinitionCard } from './DefinitionCard';
 import { getDefinitionsForTermAction } from '@/lib/actions/definitions';
-import type { AggregatedTerm, DefinitionWithContext, StateCode } from '@deproceduralizer/database';
+import type { AggregatedTerm, DefinitionWithContext, JurisdictionCode } from '@deproceduralizer/database';
 
 interface AggregatedTermCardProps {
   term: AggregatedTerm;
-  state: StateCode;
+  jurisdiction: JurisdictionCode;
 }
 
 /**
  * Card component that displays an aggregated term with its variant count.
  * Expands to show all definitions for that term when clicked.
  */
-export function AggregatedTermCard({ term, state }: AggregatedTermCardProps) {
+export function AggregatedTermCard({ term, jurisdiction }: AggregatedTermCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [definitions, setDefinitions] = useState<DefinitionWithContext[] | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -28,7 +28,7 @@ export function AggregatedTermCard({ term, state }: AggregatedTermCardProps) {
     if (!isExpanded && !definitions) {
       // Fetch definitions on first expand
       startTransition(async () => {
-        const result = await getDefinitionsForTermAction(term.normalizedTerm, state);
+        const result = await getDefinitionsForTermAction(term.normalizedTerm, jurisdiction);
         if (result.success) {
           setDefinitions(result.data);
         }
@@ -90,7 +90,7 @@ export function AggregatedTermCard({ term, state }: AggregatedTermCardProps) {
                 {term.previewCitation}
               </span>
               <Link
-                href={`/${state}/regulations/${term.previewDocumentId}`}
+                href={`/${jurisdiction}/regulations/${term.previewDocumentId}`}
                 className="text-xs text-[var(--color-link)] hover:text-[var(--color-link-hover)] hover:underline inline-flex items-center gap-1"
               >
                 View section
@@ -134,7 +134,7 @@ export function AggregatedTermCard({ term, state }: AggregatedTermCardProps) {
             <DefinitionCard
               key={def.id}
               definition={def}
-              state={state}
+              state={jurisdiction}
               compact={true}
             />
           ))}

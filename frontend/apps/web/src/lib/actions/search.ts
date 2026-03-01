@@ -3,7 +3,7 @@
 import 'server-only';
 import { db, SearchRepository } from '@deproceduralizer/database';
 import type { SearchResults, SearchOptions, SearchFilterOptions } from '@deproceduralizer/database';
-import type { StateCode } from '@deproceduralizer/database';
+import type { JurisdictionCode } from '@deproceduralizer/database';
 import { type ActionResult, failure, runCachedAction } from './types';
 
 const searchRepo = new SearchRepository(db);
@@ -23,7 +23,7 @@ export async function searchRegulations(
   return runCachedAction(
     'searchRegulations',
     () => searchRepo.search({ ...options, query }),
-    [`search-${options.state}-${query}-${options.page || 1}-${options.docType || ''}-${options.sectionType || ''}-${options.hierarchyLevel || ''}-${options.parentPath || ''}-${options.hasAnalysis || ''}-${options.classification || ''}`],
+    [`search-${options.jurisdiction}-${query}-${options.page || 1}-${options.docType || ''}-${options.sectionType || ''}-${options.hierarchyLevel || ''}-${options.parentPath || ''}-${options.hasAnalysis || ''}-${options.classification || ''}`],
     { revalidate: 30 }
   );
 }
@@ -33,7 +33,7 @@ export async function searchRegulations(
  * for populating dynamic search filter dropdowns.
  */
 export async function getSearchFilterOptions(
-  state: StateCode
+  state: JurisdictionCode
 ): Promise<ActionResult<SearchFilterOptions>> {
   return runCachedAction(
     'getSearchFilterOptions',

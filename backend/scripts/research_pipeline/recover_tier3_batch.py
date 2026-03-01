@@ -34,7 +34,7 @@ def get_existing_tier3(state: str) -> set[tuple[int, str]]:
         with conn.cursor() as cur:
             cur.execute(
                 """SELECT document_id, issue_type FROM compliance_issue_analyses
-                   WHERE state = %s AND tier3_completed_at IS NOT NULL""",
+                   WHERE jurisdiction = %s AND tier3_completed_at IS NOT NULL""",
                 [state],
             )
             return {(row[0], row[1]) for row in cur.fetchall()}

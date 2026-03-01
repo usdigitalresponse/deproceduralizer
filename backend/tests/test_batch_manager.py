@@ -261,7 +261,7 @@ class TestResultProcessorGracefulDegradation:
             title="Test",
             content="Test content",
             matches=[],
-            state="NJ",
+            jurisdiction="NJ",
         )
         tracked = TrackedUnit(unit=pu, state=ProcessingState.PENDING)
         units = {tracked.custom_id: tracked}
@@ -331,7 +331,7 @@ class TestResultProcessorGracefulDegradation:
             title="Test",
             content="Test content",
             matches=[],
-            state="NJ",
+            jurisdiction="NJ",
         )
         tracked = TrackedUnit(unit=pu, state=ProcessingState.PENDING)
         units = {tracked.custom_id: tracked}

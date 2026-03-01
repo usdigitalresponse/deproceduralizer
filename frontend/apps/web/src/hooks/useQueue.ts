@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { useQueryState } from 'nuqs';
-import { getStateFromPathname } from './useStateFromPath';
+import { getJurisdictionFromPathname } from './useStateFromPath';
 import { pageParser } from '@/lib/url/parsers';
 
 /**
@@ -46,8 +46,8 @@ interface UseQueueReturn<TItem, TCounts> {
   counts: TCounts;
   /** Currently selected regulation ID for modal */
   selectedRegulationId: number | null;
-  /** State code extracted from pathname */
-  state: string;
+  /** Jurisdiction code extracted from pathname */
+  jurisdiction: string;
   /** Set selected regulation ID */
   setSelectedRegulationId: (id: number | null) => void;
   /** Handle viewing a regulation (opens modal) */
@@ -74,8 +74,8 @@ export function useQueue<TItem, TCounts extends object>({
   // Use shallow: false to trigger full navigation and server re-fetch
   const [, setPage] = useQueryState('page', pageParser.withOptions({ shallow: false }));
 
-  // Extract state from pathname
-  const state = getStateFromPathname(pathname);
+  // Extract jurisdiction from pathname
+  const jurisdiction = getJurisdictionFromPathname(pathname);
 
   // Local state for optimistic updates
   const [items, setItems] = useState<TItem[]>(initialItems);
@@ -156,7 +156,7 @@ export function useQueue<TItem, TCounts extends object>({
     items,
     counts,
     selectedRegulationId,
-    state,
+    jurisdiction,
     setSelectedRegulationId,
     handleViewRegulation,
     handleItemUpdated,

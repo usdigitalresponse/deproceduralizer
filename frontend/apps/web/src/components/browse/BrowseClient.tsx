@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import type { HierarchyNode, HierarchyFilterOptions, StateCode } from '@deproceduralizer/database';
+import type { HierarchyNode, HierarchyFilterOptions, JurisdictionCode } from '@deproceduralizer/database';
 import { getHierarchyChildren, getHierarchyChildrenFast } from '@/lib/actions/hierarchy';
 import { getDocumentReferenceContext } from '@/lib/actions/cross-references';
 import { Card } from '@/components/ui/Card';
@@ -27,7 +27,7 @@ function parseExpandedIds(param: string | null): Set<number> {
 }
 
 interface BrowseClientProps {
-  state: StateCode;
+  jurisdiction: JurisdictionCode;
   initialRoots: HierarchyNode[];
   initialOrphans: HierarchyNode[];
   stats: {
@@ -41,7 +41,7 @@ interface BrowseClientProps {
 }
 
 export function BrowseClient({
-  state,
+  jurisdiction,
   initialRoots,
   initialOrphans,
   stats,
@@ -174,7 +174,7 @@ export function BrowseClient({
         if (!loadedChildren.has(id)) {
           try {
             const result = hasActiveFilters
-              ? await getHierarchyChildren(id, state, filters)
+              ? await getHierarchyChildren(id, jurisdiction, filters)
               : await getHierarchyChildrenFast(id);
             if (result.success) {
               setLoadedChildren(prev => new Map(prev).set(id, result.data));
@@ -212,7 +212,7 @@ export function BrowseClient({
         setLoadingIds(prev => new Set(prev).add(id));
         try {
           const result = hasActiveFilters
-            ? await getHierarchyChildren(id, state, filters)
+            ? await getHierarchyChildren(id, jurisdiction, filters)
             : await getHierarchyChildrenFast(id);
           if (result.success) {
             setLoadedChildren(prev => new Map(prev).set(id, result.data));
@@ -230,7 +230,7 @@ export function BrowseClient({
         }
       }
     }
-  }, [expandedIds, loadedChildren, filters, state, hasActiveFilters]);
+  }, [expandedIds, loadedChildren, filters, jurisdiction, hasActiveFilters]);
 
   // Handle node selection
   const handleSelect = useCallback((id: number) => {
