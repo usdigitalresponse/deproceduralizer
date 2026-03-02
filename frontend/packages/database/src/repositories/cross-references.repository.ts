@@ -694,7 +694,7 @@ export class CrossReferencesRepository extends BaseRepository {
         policyCategory: guidanceDocuments.policyCategory,
         canonicalRef: guidanceDocuments.canonicalRef,
         status: guidanceDocuments.status,
-        citationText: crossReferences.rawText,
+        citationText: sql<string>`min(${crossReferences.rawText})`,
       })
       .from(crossReferences)
       .innerJoin(guidanceDocuments, eq(crossReferences.sourceGuidanceId, guidanceDocuments.id))
@@ -704,6 +704,8 @@ export class CrossReferencesRepository extends BaseRepository {
           sql`${crossReferences.sourceGuidanceId} IS NOT NULL`
         )
       )
+      .groupBy(guidanceDocuments.id, guidanceDocuments.title, guidanceDocuments.agency,
+        guidanceDocuments.policyCategory, guidanceDocuments.canonicalRef, guidanceDocuments.status)
       .orderBy(asc(guidanceDocuments.agency), asc(guidanceDocuments.title))
       .limit(100);
 
