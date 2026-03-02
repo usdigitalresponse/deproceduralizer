@@ -17,6 +17,7 @@ from dotenv import load_dotenv
 
 from config import PROJECT_ROOT
 from lib.db import get_db_connection
+from lib.jurisdictions import VALID_JURISDICTIONS
 
 # Load environment
 load_dotenv(PROJECT_ROOT / '.env')
@@ -210,7 +211,7 @@ Examples:
 
     parser.add_argument('--dry-run', action='store_true',
                         help='Preview changes without applying them')
-    parser.add_argument('--state', type=str, choices=['NY', 'NJ'],
+    parser.add_argument('--state', type=str, choices=VALID_JURISDICTIONS,
                         help='Only process definitions from this state')
     parser.add_argument('--limit', type=int,
                         help='Limit number of definitions to update')

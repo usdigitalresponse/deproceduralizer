@@ -38,6 +38,7 @@ from dotenv import load_dotenv
 from cross_references.extractor import ReferenceExtractor, DocumentExtractionResult
 from cross_references.resolver import ReferenceResolver
 from cross_references.db_writer import write_to_database
+from lib.jurisdictions import VALID_JURISDICTIONS
 
 # Load environment from main project if not in worktree
 load_dotenv()
@@ -293,7 +294,7 @@ EXAMPLES:
     parser.add_argument(
         "--state",
         required=True,
-        choices=["NY", "NJ", "NYC"],
+        choices=VALID_JURISDICTIONS,
         help="State/jurisdiction to process (NY, NJ, or NYC)"
     )
     parser.add_argument(

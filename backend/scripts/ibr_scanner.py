@@ -23,6 +23,7 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent
 load_dotenv(PROJECT_ROOT / '.env')
 
 from lib.db import get_db_connection
+from lib.jurisdictions import VALID_JURISDICTIONS_LOWER
 from config import OUTPUTS_DIR
 
 from scripts.shared.base_searcher import BasePatternSearcher
@@ -155,7 +156,7 @@ class IBRSearcher(BasePatternSearcher):
 
 def main():
     parser = argparse.ArgumentParser(description='Scan regulations for incorporation by reference')
-    parser.add_argument('--state', required=True, choices=['nj', 'ny'], help='State to scan')
+    parser.add_argument('--state', required=True, choices=VALID_JURISDICTIONS_LOWER, help='State to scan')
     parser.add_argument('--limit', type=int, help='Limit number of matches to process')
     parser.add_argument('--batch', action='store_true', help='Use batch API instead of async')
     parser.add_argument('--process-batch', type=str, help='Process a completed batch by ID')

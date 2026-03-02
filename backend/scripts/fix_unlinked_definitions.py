@@ -27,6 +27,7 @@ import time
 sys.path.insert(0, str(__import__('pathlib').Path(__file__).parent.parent))
 
 from lib.db import get_db_connection
+from lib.jurisdictions import VALID_JURISDICTIONS
 from scripts.batch_definitions import (
     infer_scope_level_from_phrase,
     infer_scope_from_parent_section,
@@ -139,7 +140,7 @@ def main():
                         help='Apply fixes (default is dry-run)')
     parser.add_argument('--dry-run', action='store_true',
                         help='Show what would be fixed without applying (default)')
-    parser.add_argument('--state', choices=['NY', 'NJ', 'NYC'],
+    parser.add_argument('--state', choices=VALID_JURISDICTIONS,
                         help='Only fix definitions for a specific state')
 
     args = parser.parse_args()

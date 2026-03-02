@@ -28,6 +28,7 @@ from dotenv import load_dotenv
 
 from config import PROJECT_ROOT
 from lib.db import get_db_connection
+from lib.jurisdictions import VALID_JURISDICTIONS
 
 # Load environment variables from project root
 load_dotenv(PROJECT_ROOT / '.env')
@@ -104,7 +105,7 @@ def main():
     )
     parser.add_argument(
         '--state',
-        choices=['NY', 'NJ'],
+        choices=VALID_JURISDICTIONS,
         help='Only process documents from this state'
     )
     parser.add_argument(

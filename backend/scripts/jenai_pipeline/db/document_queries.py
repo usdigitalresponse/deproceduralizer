@@ -1,5 +1,6 @@
 """Database queries for fetching regulatory sections for JenAI analysis."""
 from lib.db import get_db_connection
+from lib.jurisdictions import jurisdiction_prefix
 
 
 """Section types excluded by default (low analytical value)."""
@@ -32,7 +33,7 @@ def get_sections_for_analysis(
     if not conn:
         return []
 
-    prefix = 'njac' if jurisdiction.lower() == 'nj' else 'nycrr'
+    prefix = jurisdiction_prefix(jurisdiction)
 
     conditions = [
         "rd.jurisdiction = %s",

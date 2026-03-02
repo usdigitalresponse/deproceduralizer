@@ -37,6 +37,7 @@ load_dotenv(PROJECT_ROOT / '.env')
 
 from compliance_issues.searcher import ComplianceIssueSearcher
 from compliance_issues.config import STATES, ISSUE_TYPES, list_issue_types
+from lib.jurisdictions import VALID_JURISDICTIONS_LOWER
 
 
 def scan_and_save(state_code: str, issues: list[str], limit: int | None, tag: str | None):
@@ -108,7 +109,7 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
-    parser.add_argument('--state', '-s', choices=['nj', 'ny', 'nyc'], help='State to scan')
+    parser.add_argument('--state', '-s', choices=VALID_JURISDICTIONS_LOWER, help='State to scan')
     parser.add_argument('--issue', '-i', help='Specific issue type (default: all)')
     parser.add_argument('--tag', '-t', help='Only scan documents with this tag (e.g., scan:compliance)')
     parser.add_argument('--limit', '-l', type=int, help='Limit matches per issue type')

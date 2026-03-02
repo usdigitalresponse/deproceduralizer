@@ -847,7 +847,8 @@ def test_pattern(state: str, pattern_str: str):
 
 def main():
     parser = argparse.ArgumentParser(description='Analyze regex patterns against regulation data')
-    parser.add_argument('--state', '-s', default='nj', choices=['nj', 'ny'], help='State for sampling')
+    from lib.jurisdictions import VALID_JURISDICTIONS_LOWER
+    parser.add_argument('--state', '-s', default='nj', choices=VALID_JURISDICTIONS_LOWER, help='State for sampling')
     parser.add_argument('--sample', nargs=2, metavar=('ISSUE', 'N'), help='Show N samples for ISSUE type')
     parser.add_argument('--pattern', '-p', help='Test a custom regex pattern')
     parser.add_argument('--list', '-l', action='store_true', help='List all issue types')

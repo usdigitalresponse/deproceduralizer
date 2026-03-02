@@ -340,9 +340,9 @@ class TestCLIContract:
 
     def test_cli_has_main_function(self):
         """CLI should have entry point."""
-        from scripts.research_pipeline.cli import run_test, run_all_issues
+        from scripts.research_pipeline.cli import run_test, run_batched_issues
         assert callable(run_test)
-        assert callable(run_all_issues)
+        assert callable(run_batched_issues)
 
     def test_dry_run_simulation_exists(self):
         """Dry run simulation function should exist."""

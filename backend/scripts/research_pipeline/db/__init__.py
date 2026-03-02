@@ -25,6 +25,7 @@ from .connection import DatabaseManager
 # Document queries
 from .document_queries import (
     ProcessingUnitBuilder,
+    build_match_info,
     get_issue_types_for_scope,
     fetch_documents_with_continuation,
     fetch_tier3_pending_documents,
@@ -54,6 +55,7 @@ __all__ = [
     "DatabaseManager",
     # Document queries
     "ProcessingUnitBuilder",
+    "build_match_info",
     "get_issue_types_for_scope",
     "fetch_documents_with_continuation",
     "fetch_tier3_pending_documents",

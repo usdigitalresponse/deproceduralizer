@@ -11,6 +11,7 @@ from psycopg import Connection
 
 # Import shared utilities and models
 from lib.db import get_db_connection
+from lib.jurisdictions import title_column_for_jurisdiction
 
 from ..models.matches import ProcessingUnit, MatchInfo
 from ..models.llm_outputs import Tier2Output
@@ -20,16 +21,11 @@ from .connection import retry_db_operation
 
 def _title_col(jurisdiction: str) -> str:
     """Map jurisdiction code to the regulatory_documents title column name."""
-    if jurisdiction == "NJ":
-        return "njac_title"
-    elif jurisdiction == "NYC":
-        return "rcny_title"
-    else:
-        return "nycrr_title"
+    return title_column_for_jurisdiction(jurisdiction)
 
 
 
-def _build_match_info(pattern: str, context: str, content: str, match_id: int) -> MatchInfo:
+def build_match_info(pattern: str, context: str, content: str, match_id: int) -> MatchInfo:
     """
     Build a MatchInfo object from pattern/context and document content.
 
@@ -82,7 +78,7 @@ def _build_processing_unit(
 
     # Build MatchInfo list
     match_infos = [
-        _build_match_info(
+        build_match_info(
             pattern=m["pattern"],
             context=m["context"],
             content=content,
@@ -440,6 +436,58 @@ class ProcessingUnitBuilder:
         finally:
             self._close_if_needed()
 
+    @staticmethod
+    def _row_to_analysis_dict(row: tuple) -> dict:
+        """
+        Convert a SQL row from compliance_issue_analyses into a dict.
+
+        Expects 26 columns in order: document_id, issue_type, highest_tier_completed,
+        tier1_classification, tier1_relevant_match_ids, tier1_dismissed_match_ids,
+        tier1_confidence, tier1_reasoning, tier1_context_requests,
+        tier2_classification, tier2_confidence, tier2_reasoning,
+        severity, verbatim_requirements,
+        argument_for_regulation, argument_against_regulation,
+        cites_federal_statute, federal_citation,
+        claims_no_alternative, needs_web_search, web_search_topics,
+        tier3_classification, tier3_confidence, tier3_reasoning,
+        tier3_severity_adjustment, tier3_severity_adjustment_reasoning.
+
+        Args:
+            row: A database row tuple with 26 columns (indices 0-25).
+
+        Returns:
+            Dict with named keys for all tier outputs (excludes document_id and issue_type).
+        """
+        return {
+            "highest_tier_completed": row[2] or 0,
+            # Tier 1
+            "tier1_classification": row[3],
+            "tier1_relevant_match_ids": row[4] or [],
+            "tier1_dismissed_match_ids": row[5] or [],
+            "tier1_confidence": row[6],
+            "tier1_reasoning": row[7],
+            "tier1_context_requests": row[8] or [],
+            # Tier 2
+            "tier2_classification": row[9],
+            "tier2_confidence": row[10],
+            "tier2_reasoning": row[11],
+            "severity": row[12],
+            "verbatim_requirements": row[13] or [],
+            "argument_for_regulation": row[14],
+            "argument_against_regulation": row[15],
+            "cites_federal_statute": row[16],
+            "federal_citation": row[17],
+            "claims_no_alternative": row[18],
+            "needs_web_search": row[19],
+            "web_search_topics": row[20] or [],
+            # Tier 3
+            "tier3_classification": row[21],
+            "tier3_confidence": row[22],
+            "tier3_reasoning": row[23],
+            "tier3_severity_adjustment": row[24],
+            "tier3_severity_adjustment_reasoning": row[25],
+        }
+
     def _fetch_existing_analyses(
         self,
         doc_ids: list[int],
@@ -483,35 +531,7 @@ class ProcessingUnitBuilder:
             results = {}
             for row in cur.fetchall():
                 key = (row[0], row[1])  # (document_id, issue_type)
-                results[key] = {
-                    "highest_tier_completed": row[2] or 0,
-                    # Tier 1
-                    "tier1_classification": row[3],
-                    "tier1_relevant_match_ids": row[4] or [],
-                    "tier1_dismissed_match_ids": row[5] or [],
-                    "tier1_confidence": row[6],
-                    "tier1_reasoning": row[7],
-                    "tier1_context_requests": row[8] or [],
-                    # Tier 2
-                    "tier2_classification": row[9],
-                    "tier2_confidence": row[10],
-                    "tier2_reasoning": row[11],
-                    "severity": row[12],
-                    "verbatim_requirements": row[13] or [],
-                    "argument_for_regulation": row[14],
-                    "argument_against_regulation": row[15],
-                    "cites_federal_statute": row[16],
-                    "federal_citation": row[17],
-                    "claims_no_alternative": row[18],
-                    "needs_web_search": row[19],
-                    "web_search_topics": row[20] or [],
-                    # Tier 3
-                    "tier3_classification": row[21],
-                    "tier3_confidence": row[22],
-                    "tier3_reasoning": row[23],
-                    "tier3_severity_adjustment": row[24],
-                    "tier3_severity_adjustment_reasoning": row[25],
-                }
+                results[key] = self._row_to_analysis_dict(row)
 
             return results
 
@@ -566,35 +586,7 @@ class ProcessingUnitBuilder:
             results = {}
             for row in cur.fetchall():
                 key = (row[0], row[1])  # (document_id, issue_type)
-                results[key] = {
-                    "highest_tier_completed": row[2] or 0,
-                    # Tier 1
-                    "tier1_classification": row[3],
-                    "tier1_relevant_match_ids": row[4] or [],
-                    "tier1_dismissed_match_ids": row[5] or [],
-                    "tier1_confidence": row[6],
-                    "tier1_reasoning": row[7],
-                    "tier1_context_requests": row[8] or [],
-                    # Tier 2
-                    "tier2_classification": row[9],
-                    "tier2_confidence": row[10],
-                    "tier2_reasoning": row[11],
-                    "severity": row[12],
-                    "verbatim_requirements": row[13] or [],
-                    "argument_for_regulation": row[14],
-                    "argument_against_regulation": row[15],
-                    "cites_federal_statute": row[16],
-                    "federal_citation": row[17],
-                    "claims_no_alternative": row[18],
-                    "needs_web_search": row[19],
-                    "web_search_topics": row[20] or [],
-                    # Tier 3
-                    "tier3_classification": row[21],
-                    "tier3_confidence": row[22],
-                    "tier3_reasoning": row[23],
-                    "tier3_severity_adjustment": row[24],
-                    "tier3_severity_adjustment_reasoning": row[25],
-                }
+                results[key] = self._row_to_analysis_dict(row)
 
             return results
 
@@ -675,7 +667,6 @@ class ProcessingUnitBuilder:
                 all_matches = cur.fetchall()
 
             # Group matches by (doc_id, issue_type)
-            from collections import defaultdict
             matches_by_doc: dict[tuple[int, str], list] = defaultdict(list)
             for match_row in all_matches:
                 key = (match_row[0], match_row[1])  # (doc_id, issue_type)
@@ -712,7 +703,7 @@ class ProcessingUnitBuilder:
 
                 # Build MatchInfo objects
                 match_infos = [
-                    _build_match_info(
+                    build_match_info(
                         pattern=m[1] or "",
                         context=m[2] or "",
                         content=content or "",
@@ -1040,7 +1031,6 @@ class ProcessingUnitBuilder:
                 all_matches = cur.fetchall()
 
             # Group matches by (doc_id, issue_type)
-            from collections import defaultdict
             matches_by_doc: dict[tuple[int, str], list] = defaultdict(list)
             for match_row in all_matches:
                 key = (match_row[0], match_row[1])  # (doc_id, issue_type)
@@ -1060,7 +1050,7 @@ class ProcessingUnitBuilder:
 
                 # Build MatchInfo objects
                 match_infos = [
-                    _build_match_info(
+                    build_match_info(
                         pattern=m[1] or "",
                         context=m[2] or "",
                         content=content or "",

@@ -38,6 +38,7 @@ from dotenv import load_dotenv
 
 from config import PROJECT_ROOT
 from lib.db import get_db_connection
+from lib.jurisdictions import VALID_JURISDICTIONS
 from lib.stats import format_time
 
 load_dotenv(PROJECT_ROOT / '.env')
@@ -831,7 +832,7 @@ def main():
 
     # Run command
     run_parser = subparsers.add_parser('run', help='Process definitions and link to documents')
-    run_parser.add_argument('--state', choices=['NY', 'NJ', 'NYC'], help='Filter by state')
+    run_parser.add_argument('--state', choices=VALID_JURISDICTIONS, help='Filter by state')
     run_parser.add_argument('--definition-ids', help='Comma-separated definition IDs to process')
     run_parser.add_argument('--force', action='store_true', help='Reprocess even if already linked')
     run_parser.add_argument('--batch-size', type=int, default=1000, help='Batch size for inserts')

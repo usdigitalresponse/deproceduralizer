@@ -14,7 +14,6 @@ from typing import Optional
 import psycopg
 from dotenv import load_dotenv
 
-from lib.db import retry_db_operation
 
 # Load .env from project root
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
@@ -27,21 +26,9 @@ def get_connection() -> psycopg.Connection:
 
 
 def _get_title_column(jurisdiction: str) -> str:
-    """Get the appropriate title column for a jurisdiction.
-
-    Returns the DB column name used to filter regulatory_documents by title
-    number.  Falls back to 'njac_title' for unrecognized jurisdictions since NJ
-    was the first jurisdiction onboarded and most query patterns follow its schema.
-    """
-    jurisdiction = jurisdiction.upper()
-    if jurisdiction == "NJ":
-        return "njac_title"
-    elif jurisdiction == "NY":
-        return "nycrr_title"
-    elif jurisdiction == "NYC":
-        return "rcny_title"
-    else:
-        return "njac_title"  # Default fallback for unrecognized jurisdictions
+    """Get the appropriate title column for a jurisdiction."""
+    from lib.jurisdictions import title_column_for_jurisdiction
+    return title_column_for_jurisdiction(jurisdiction)
 
 
 def get_documents_by_level(
@@ -171,131 +158,22 @@ def get_parent(child_id: int) -> Optional[dict]:
 
 
 def get_ancestors(doc_id: int) -> list[dict]:
+    """Get all ancestors from immediate parent up to title.
+
+    Delegates to the shared lib/db implementation.
     """
-    Get all ancestors from immediate parent up to title, with their titles.
-
-    Args:
-        doc_id: The document's ID
-
-    Returns:
-        List of ancestor dicts, ordered from immediate parent to root (title)
-    """
-    # Use recursive CTE to get ancestor chain
-    query = """
-        WITH RECURSIVE ancestor_chain AS (
-            -- Base case: get the document's parent
-            SELECT
-                p.id,
-                p.title,
-                p.hierarchy_level,
-                p.citation,
-                p.short_title,
-                p.parent_id,
-                1 as depth
-            FROM regulatory_documents c
-            JOIN regulatory_documents p ON c.parent_id = p.id
-            WHERE c.id = %s
-
-            UNION ALL
-
-            -- Recursive case: get each ancestor's parent
-            SELECT
-                p.id,
-                p.title,
-                p.hierarchy_level,
-                p.citation,
-                p.short_title,
-                p.parent_id,
-                ac.depth + 1
-            FROM ancestor_chain ac
-            JOIN regulatory_documents p ON ac.parent_id = p.id
-        )
-        SELECT id, title, hierarchy_level, citation, short_title, parent_id
-        FROM ancestor_chain
-        ORDER BY depth ASC
-    """
-
-    with get_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(query, [doc_id])
-            columns = [desc[0] for desc in cur.description]
-            rows = cur.fetchall()
-
-    return [dict(zip(columns, row)) for row in rows]
+    from lib.db import get_ancestors_batch as _lib_get_ancestors_batch
+    result = _lib_get_ancestors_batch([doc_id])
+    return result.get(doc_id, [])
 
 
-@retry_db_operation(max_retries=5, base_delay=1.0)
 def get_ancestors_batch(doc_ids: list[int]) -> dict[int, list[dict]]:
+    """Get ancestors for multiple documents in a single query.
+
+    Delegates to the shared lib/db implementation (includes retry logic).
     """
-    Get ancestors for multiple documents in a single query.
-
-    Args:
-        doc_ids: List of document IDs
-
-    Returns:
-        Dict mapping doc_id -> list of ancestor dicts (ordered parent to root)
-    """
-    if not doc_ids:
-        return {}
-
-    # Use recursive CTE with multiple starting points
-    # We track which original doc_id each ancestor chain belongs to
-    query = """
-        WITH RECURSIVE ancestor_chain AS (
-            -- Base case: get each document's parent
-            SELECT
-                c.id as origin_id,
-                p.id,
-                p.title,
-                p.hierarchy_level,
-                p.citation,
-                p.short_title,
-                p.parent_id,
-                1 as depth
-            FROM regulatory_documents c
-            JOIN regulatory_documents p ON c.parent_id = p.id
-            WHERE c.id = ANY(%s)
-
-            UNION ALL
-
-            -- Recursive case: get each ancestor's parent
-            SELECT
-                ac.origin_id,
-                p.id,
-                p.title,
-                p.hierarchy_level,
-                p.citation,
-                p.short_title,
-                p.parent_id,
-                ac.depth + 1
-            FROM ancestor_chain ac
-            JOIN regulatory_documents p ON ac.parent_id = p.id
-        )
-        SELECT origin_id, id, title, hierarchy_level, citation, short_title, parent_id, depth
-        FROM ancestor_chain
-        ORDER BY origin_id, depth ASC
-    """
-
-    with get_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(query, [doc_ids])
-            rows = cur.fetchall()
-
-    # Group by origin_id
-    result: dict[int, list[dict]] = {doc_id: [] for doc_id in doc_ids}
-    for row in rows:
-        origin_id = row[0]
-        ancestor = {
-            "id": row[1],
-            "title": row[2],
-            "hierarchy_level": row[3],
-            "citation": row[4],
-            "short_title": row[5],
-            "parent_id": row[6],
-        }
-        result[origin_id].append(ancestor)
-
-    return result
+    from lib.db import get_ancestors_batch as _lib_get_ancestors_batch
+    return _lib_get_ancestors_batch(doc_ids)
 
 
 def get_hierarchy_levels(jurisdiction: str, title: Optional[str] = None) -> list[str]:

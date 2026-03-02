@@ -27,14 +27,7 @@ import sys
 from dotenv import load_dotenv
 
 
-def jurisdiction_validator(value: str) -> str:
-    """Validate --state flag."""
-    normalized = value.lower()
-    if normalized not in ('nj', 'ny', 'nyc'):
-        raise argparse.ArgumentTypeError(
-            f"Invalid state '{value}'. Must be 'nj', 'ny', or 'nyc'."
-        )
-    return normalized
+from lib.jurisdictions import jurisdiction_validator
 
 
 def build_parser() -> argparse.ArgumentParser:

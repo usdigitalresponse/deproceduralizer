@@ -40,6 +40,7 @@ logger = logging.getLogger(__name__)
 
 from config import INDIVIDUAL_REGULATIONS_DIR, WEB_PUBLIC_DIR, PROJECT_ROOT, OUTPUTS_DIR
 from lib.db import get_db_connection, get_filtered_documents, get_already_analyzed_ids
+from lib.jurisdictions import jurisdiction_prefix, VALID_JURISDICTIONS
 from lib.llm import get_anthropic_client, get_async_anthropic_client, call_llm_parse_async
 from lib.prompts import load_prompt_parts
 from lib.batch import format_batch_request, BatchManager, parse_batch_result_tool_use
@@ -682,7 +683,7 @@ def parse_arguments():
     parser.add_argument(
         '--state',
         type=str,
-        choices=['NY', 'NJ', 'NYC'],
+        choices=VALID_JURISDICTIONS,
         help='State to analyze (uses database)'
     )
 
@@ -1087,13 +1088,7 @@ async def main():
             return
 
         # Convert to RegulationData
-        state_upper = args.state.upper()
-        if state_upper == 'NJ':
-            prefix = 'njac'
-        elif state_upper == 'NYC':
-            prefix = 'rcny'
-        else:
-            prefix = 'nycrr'
+        prefix = jurisdiction_prefix(args.state)
         regulations = []
         for doc in docs:
             # RCNY has title/chapter/section (no part/subpart)

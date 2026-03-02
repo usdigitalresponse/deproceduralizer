@@ -39,9 +39,12 @@ When working on the Next.js frontend, follow these patterns:
 ## Backend Patterns
 
 ### Jurisdiction Model
-- The `state` column represents a jurisdiction, not strictly a US state: `NY` (New York State), `NJ` (New Jersey), `NYC` (New York City)
-- NYC is a sub-state jurisdiction — its regulations (RCNY) and statutes (Charter + Admin Code) use `state = 'NYC'`
-- Use `JurisdictionCode` type and `VALID_JURISDICTIONS` array — never hardcode jurisdiction lists
+- The `jurisdiction` column stores jurisdiction codes: `NY` (New York State), `NJ` (New Jersey), `NYC` (New York City)
+- NYC is a sub-state jurisdiction — its regulations (RCNY) and statutes (Charter + Admin Code) use `jurisdiction = 'NYC'`
+- **Backend**: Import from `lib.jurisdictions` — `JurisdictionCode`, `VALID_JURISDICTIONS`, `VALID_JURISDICTIONS_LOWER`, `jurisdiction_prefix()`, `title_column_for_jurisdiction()`, `jurisdiction_validator()`
+- **Frontend**: Use `DEFAULT_JURISDICTION` from `types/state.ts` and `VALID_JURISDICTIONS` from constants
+- Never hardcode jurisdiction lists (`choices=['NJ','NY']`) or prefix mappings (`'njac' if state == 'nj' else 'nycrr'`) — use the shared helpers
+- For argparse `choices`, use `VALID_JURISDICTIONS` or `VALID_JURISDICTIONS_LOWER`; for custom validation (e.g., `--state dangerously-run-all`), use `jurisdiction_validator(allow_run_all=True)`
 - When adding a new jurisdiction, see the checklist in `.claude/skills/database/schema.md` (Jurisdiction Model section)
 
 ### LLM Prompts

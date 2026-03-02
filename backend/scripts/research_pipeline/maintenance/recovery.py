@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Optional
 
 from lib.db import get_db_connection
+from scripts.research_pipeline.db.document_queries import build_match_info
 from scripts.research_pipeline.ids import make_custom_id
 from scripts.research_pipeline.models.llm_outputs import Tier1Output, Tier2Output
 from scripts.research_pipeline.models.matches import ProcessingUnit, MatchInfo
@@ -21,22 +22,15 @@ from scripts.research_pipeline.routing import is_high_risk_issue_type, LOW_CONFI
 
 def _build_match_infos(matches: list, content: str) -> list[MatchInfo]:
     """Build MatchInfo objects from raw DB match rows (id, pattern, context)."""
-    match_infos = []
-    for m in matches:
-        match_id, pattern, context = m[0], m[1] or '', m[2] or ''
-        pos = content.lower().find(pattern.lower()) if pattern else -1
-        if pos == -1:
-            pos = content.lower().find(context[:50].lower()) if context else 0
-            pos = max(0, pos)
-
-        match_infos.append(MatchInfo(
-            match_id=match_id,
-            matched_text=pattern,
-            position_start=pos,
-            position_end=pos + len(pattern) if pattern else pos,
-            surrounding_context=context,
-        ))
-    return match_infos
+    return [
+        build_match_info(
+            pattern=m[1] or '',
+            context=m[2] or '',
+            content=content,
+            match_id=m[0],
+        )
+        for m in matches
+    ]
 
 
 def _fetch_matches_for_pairs(conn, doc_issue_pairs: list[tuple[int, str]]) -> dict[tuple[int, str], list]:

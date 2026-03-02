@@ -248,7 +248,8 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Cross-reference database utilities")
     parser.add_argument("--stats", action="store_true", help="Show database stats")
-    parser.add_argument("--state", choices=["NY", "NJ"], help="Filter by state")
+    from lib.jurisdictions import VALID_JURISDICTIONS
+    parser.add_argument("--state", choices=VALID_JURISDICTIONS, help="Filter by state")
 
     args = parser.parse_args()
 

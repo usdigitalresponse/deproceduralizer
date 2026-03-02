@@ -5,10 +5,19 @@ Database connection, retry logic, ancestor queries, filtering, and scope normali
 import functools
 import os
 import time
+from pathlib import Path
 from typing import Optional, Any, Callable, TypeVar
 
 import psycopg
+from dotenv import load_dotenv
 from psycopg import Connection
+
+from lib.jurisdictions import jurisdiction_prefix
+
+# Load .env from project root on first import (override=False so it won't
+# clobber env vars that are already set, e.g. in production).
+_PROJECT_ROOT = Path(__file__).parent.parent
+load_dotenv(_PROJECT_ROOT / ".env", override=False)
 
 
 # Type variable for generic return type
@@ -215,13 +224,7 @@ def get_filtered_documents(
     if not conn:
         return []
 
-    jurisdiction_upper = jurisdiction.upper()
-    if jurisdiction_upper == 'NJ':
-        prefix = 'njac'
-    elif jurisdiction_upper == 'NYC':
-        prefix = 'rcny'
-    else:
-        prefix = 'nycrr'
+    prefix = jurisdiction_prefix(jurisdiction)
 
     conditions = ["jurisdiction = %s", "type = 'regulation'"]
     params = [jurisdiction.upper()]

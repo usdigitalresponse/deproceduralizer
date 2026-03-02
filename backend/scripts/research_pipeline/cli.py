@@ -34,20 +34,12 @@ from dotenv import load_dotenv
 # CLI ARGUMENT VALIDATORS
 # ============================================================================
 
-def jurisdiction_validator(value: str) -> str:
-    """
-    Validate --state flag.
+from lib.jurisdictions import jurisdiction_validator as _base_jurisdiction_validator
 
-    Accepts 'nj', 'ny', 'nyc', or 'dangerously-run-all' (case insensitive).
-    'dangerously-run-all' skips jurisdiction filtering in database queries.
-    """
-    normalized = value.lower()
-    valid_jurisdictions = ['nj', 'ny', 'nyc', 'dangerously-run-all']
-    if normalized not in valid_jurisdictions:
-        raise argparse.ArgumentTypeError(
-            f"Invalid jurisdiction '{value}'. Must be one of: {', '.join(valid_jurisdictions)}"
-        )
-    return normalized
+
+def jurisdiction_validator(value: str) -> str:
+    """Validate --state flag, including 'dangerously-run-all'."""
+    return _base_jurisdiction_validator(value, allow_run_all=True)
 
 
 def positive_int_or_all(value: str) -> Union[int, str]:
@@ -771,51 +763,6 @@ async def run_batched_issues(
     return results
 
 
-async def run_all_issues(
-    jurisdiction: str | None,
-    title: str | None,
-    max_docs_per_issue: int | None,
-    max_tier: int,
-    realtime: bool,
-    dry_run: bool,
-    global_docs_limit: int | None = None,
-    enable_web_search: bool = False,
-    force_rerun: bool = False,
-    statute_mandate: bool = False,
-    summarize: bool = False,
-    no_cache: bool = False,
-):
-    """Run pipeline for all issue types in scope.
-
-    Batches all issue types together per tier for efficient processing.
-
-    Args:
-        jurisdiction: Jurisdiction code ('NJ', 'NY', 'NYC', or None for all)
-        title: Optional filter by regulatory title
-        max_docs_per_issue: Max documents per issue type (None = no limit)
-        global_docs_limit: Max total documents (None = no limit)
-        max_tier: Maximum tier to run (1-3)
-        realtime: Use realtime API instead of batch
-        dry_run: Preview without API calls
-        enable_web_search: Enable Tier 3 web search
-        force_rerun: Re-analyze documents even if already processed
-    """
-    await run_batched_issues(
-        jurisdiction=jurisdiction,
-        title=title,
-        max_docs_per_issue=max_docs_per_issue,
-        global_docs_limit=global_docs_limit,
-        max_tier=max_tier,
-        realtime=realtime,
-        dry_run=dry_run,
-        enable_web_search=enable_web_search,
-        force_rerun=force_rerun,
-        statute_mandate=statute_mandate,
-        summarize=summarize,
-        no_cache=no_cache,
-    )
-
-
 async def run_tier3_pending(
     issue_type: str,
     jurisdiction: str = "NJ",
@@ -1151,7 +1098,7 @@ RESUME BEHAVIOR:
             sys.exit(1)
 
     if args.all_issues:
-        asyncio.run(run_all_issues(
+        asyncio.run(run_batched_issues(
             jurisdiction=jurisdiction_for_db,
             title=args.title,
             max_docs_per_issue=max_docs,

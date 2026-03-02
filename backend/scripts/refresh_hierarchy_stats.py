@@ -36,6 +36,7 @@ from dotenv import load_dotenv
 load_dotenv(PROJECT_ROOT / '.env')
 
 from lib.db import get_db_connection
+from lib.jurisdictions import VALID_JURISDICTIONS_LOWER
 from lib.stats import refresh_all_stats, refresh_structure_stats, refresh_analysis_stats, refresh_compliance_stats, refresh_statute_link_stats
 
 
@@ -45,7 +46,7 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
-    parser.add_argument('--state', '-s', choices=['nj', 'ny', 'NJ', 'NY'],
+    parser.add_argument('--state', '-s', choices=VALID_JURISDICTIONS_LOWER,
                         help='State to refresh (required unless --all-states)')
     parser.add_argument('--all-states', action='store_true',
                         help='Refresh all states')
