@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ScrollText, Link2, Building2, FileText } from 'lucide-react';
 import type { GuidanceOverviewStats, GuidanceCitationStats } from '@/lib/actions/guidance-documents';
 import type { JurisdictionCode } from '@/types/state';
+import { formatLabel } from '@/types/regulation';
 import { StatCard, StatGrid } from '@/components/ui';
 import { ClientChart, ChartContainer, HorizontalBarChart, PieChart, ChartLegend } from '@/components/charts';
 import { useChartColors } from '@/hooks/useChartColors';
@@ -27,12 +28,6 @@ const CATEGORY_COLORS: Record<string, string> = {
   data_dump: '#78716c',
   unclassified: '#d4d4d4',
 };
-
-function formatCategory(category: string): string {
-  return category
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, (l) => l.toUpperCase());
-}
 
 export function GuidanceAnalyticsTab({ overviewStats, citationStats, jurisdiction }: GuidanceAnalyticsTabProps) {
   const colors = useChartColors();
@@ -67,7 +62,7 @@ export function GuidanceAnalyticsTab({ overviewStats, citationStats, jurisdictio
     if (!overviewStats) return [];
     return overviewStats.byPolicyCategory
       .map((row) => ({
-        label: formatCategory(row.category),
+        label: formatLabel(row.category),
         value: row.count,
         color: CATEGORY_COLORS[row.category.toLowerCase()] || colors.categoryScale(row.category),
       }))

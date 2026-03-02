@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { Card, SegmentedControl, Button } from '@/components/ui';
 import { NetworkGraph, HubsPanel, CircularRefsPanel, transformToGraphData, mergeGuidanceEdges } from './cross-references';

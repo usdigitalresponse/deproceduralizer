@@ -704,7 +704,8 @@ export class CrossReferencesRepository extends BaseRepository {
           sql`${crossReferences.sourceGuidanceId} IS NOT NULL`
         )
       )
-      .orderBy(asc(guidanceDocuments.agency), asc(guidanceDocuments.title));
+      .orderBy(asc(guidanceDocuments.agency), asc(guidanceDocuments.title))
+      .limit(100);
 
     return result;
   }
