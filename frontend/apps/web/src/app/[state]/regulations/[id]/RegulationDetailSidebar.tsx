@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/Button';
 import { RedFlagsList } from '@/components/flags';
 import { ComplianceIssuesList } from '@/components/issues';
 import { DefinitionsList, ApplicableDefinitions } from '@/components/definitions';
-import { CrossReferenceList, IncomingReferenceList } from '@/components/cross-references';
+import { CrossReferenceList, IncomingReferenceList, GuidanceReferenceList } from '@/components/cross-references';
 import { formatDisplayTitle } from '@/lib/format';
 import {
   RegulationHierarchyDetails,
@@ -25,6 +25,7 @@ import type {
   ComplianceIssueWithAnalysisFields,
   RegulationStatuteLinkWithStatute,
 } from '@deproceduralizer/database';
+import type { GuidanceReferenceItem } from '@/lib/actions/cross-references';
 
 interface RegulationDetailSidebarProps {
   /** The regulation document */
@@ -42,6 +43,8 @@ interface RegulationDetailSidebarProps {
   statuteLinks: RegulationStatuteLinkWithStatute[];
   /** Enabling authority statute links */
   enablingAuthority: RegulationStatuteLinkWithStatute[];
+  /** Guidance documents that reference this regulation */
+  guidanceRefs: GuidanceReferenceItem[];
   /** Definitions used in the document text */
   usedDefinitions: ApplicableDefinition[];
   /** Definitions in scope but not used */
@@ -65,6 +68,7 @@ export async function RegulationDetailSidebar({
   incomingRefs,
   statuteLinks,
   enablingAuthority,
+  guidanceRefs,
   usedDefinitions,
   availableButNotUsed,
   definedHereIds,
@@ -84,6 +88,9 @@ export async function RegulationDetailSidebar({
       : []),
     ...(incomingRefs.length > 0
       ? [{ id: 'sidebar-cited-by', label: 'Cited By', count: incomingRefs.length }]
+      : []),
+    ...(guidanceRefs.length > 0
+      ? [{ id: 'sidebar-guidance-refs', label: 'Guidance', count: guidanceRefs.length }]
       : []),
     ...(statuteLinks.length > 0
       ? [{ id: 'sidebar-statute-links', label: 'Statutes', count: statuteLinks.length }]
@@ -205,6 +212,16 @@ export async function RegulationDetailSidebar({
               crossRefs={incomingRefs}
               state={state as 'nj' | 'ny'}
               title="Cited By"
+            />
+          </Card>
+        )}
+
+        {/* Guidance References */}
+        {guidanceRefs.length > 0 && (
+          <Card id="sidebar-guidance-refs" className="p-4">
+            <GuidanceReferenceList
+              items={guidanceRefs}
+              state={state}
             />
           </Card>
         )}

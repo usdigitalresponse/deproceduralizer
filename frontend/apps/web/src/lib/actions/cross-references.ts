@@ -14,6 +14,8 @@ import {
   type CircularReference,
   type DocumentNeighborhood,
   type JurisdictionCode,
+  type GuidanceReferenceItem,
+  type GuidanceReferenceEdge,
 } from '@deproceduralizer/database';
 import { type ActionResult, runAction } from './types';
 
@@ -133,3 +135,28 @@ export async function getDocumentReferenceContext(
 ): Promise<ActionResult<DocumentNeighborhood>> {
   return runAction('getDocumentReferenceContext', () => crossRefsRepo.getDocumentNeighborhood(documentId));
 }
+
+// =============================================================================
+// Guidance ↔ Regulation Cross-References
+// =============================================================================
+
+/**
+ * Get guidance documents that reference a given regulation document.
+ */
+export async function getGuidanceReferencingDocument(
+  documentId: number
+): Promise<ActionResult<GuidanceReferenceItem[]>> {
+  return runAction('getGuidanceReferencingDocument', () => crossRefsRepo.getGuidanceReferencingDocument(documentId));
+}
+
+/**
+ * Get guidance→regulation reference edges for network graph overlay.
+ */
+export async function getGuidanceReferenceGraph(
+  state: JurisdictionCode
+): Promise<ActionResult<GuidanceReferenceEdge[]>> {
+  return runAction('getGuidanceReferenceGraph', () => crossRefsRepo.getGuidanceReferenceGraph(state));
+}
+
+// Re-export types for components
+export type { GuidanceReferenceItem, GuidanceReferenceEdge };

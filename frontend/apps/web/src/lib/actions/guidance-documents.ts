@@ -10,6 +10,8 @@ import {
   type GuidanceOverviewStats,
   type PaginatedGuidanceResult,
   type SupersedureLink,
+  type GuidanceCitationStats,
+  type ResolvedRegulationCitation,
 } from '@deproceduralizer/database';
 import { type ActionResult, runAction, runCachedAction } from './types';
 
@@ -22,6 +24,8 @@ export type {
   GuidanceOverviewStats,
   PaginatedGuidanceResult,
   SupersedureLink,
+  GuidanceCitationStats,
+  ResolvedRegulationCitation,
 };
 
 export async function getGuidanceOverviewStats(
@@ -114,5 +118,24 @@ export async function getGuidanceSupersedureChain(
 ): Promise<ActionResult<SupersedureLink[]>> {
   return runAction('getGuidanceSupersedureChain', () =>
     guidanceRepo.getSupersedureChain(docId)
+  );
+}
+
+export async function getGuidanceCitationStats(
+  state: JurisdictionCode
+): Promise<ActionResult<GuidanceCitationStats>> {
+  return runCachedAction(
+    'getGuidanceCitationStats',
+    () => guidanceRepo.getCitationCoverageStats(state),
+    [`guidance-citation-stats-${state}`],
+    { revalidate: 120, tags: ['guidance'] }
+  );
+}
+
+export async function getGuidanceResolvedCitations(
+  guidanceDocId: number
+): Promise<ActionResult<ResolvedRegulationCitation[]>> {
+  return runAction('getGuidanceResolvedCitations', () =>
+    guidanceRepo.getResolvedCitedRegulations(guidanceDocId)
   );
 }

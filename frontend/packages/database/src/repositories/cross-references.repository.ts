@@ -2,6 +2,7 @@ import { eq, and, desc, asc, sql, count } from 'drizzle-orm';
 import { BaseRepository } from './base.repository';
 import { crossReferences, CrossReference, RefType } from '../schema/cross-references';
 import { regulatoryDocuments } from '../schema/regulatory-documents';
+import { guidanceDocuments } from '../schema/guidance-documents';
 import { JurisdictionCode, normalizeJurisdiction } from '../schema/constants';
 
 /**
@@ -109,6 +110,32 @@ export interface DocumentNeighborhood {
     sourceTitle: string | null;
     sourceCitation: string | null;
   }>;
+}
+
+/**
+ * Guidance document that references a regulation via cross_references
+ */
+export interface GuidanceReferenceItem {
+  id: number;
+  title: string;
+  agency: string;
+  policyCategory: string | null;
+  canonicalRef: string | null;
+  status: string | null;
+  citationText: string;
+}
+
+/**
+ * Edge for guidance→regulation graph overlay
+ */
+export interface GuidanceReferenceEdge {
+  sourceId: string;
+  sourceName: string;
+  sourceEntityType: 'guidance' | 'regulation';
+  targetId: string;
+  targetName: string;
+  targetEntityType: 'guidance' | 'regulation';
+  refCount: number;
 }
 
 export interface CrossRefPaginationOptions {
@@ -652,5 +679,79 @@ export class CrossReferencesRepository extends BaseRepository {
         sourceCitation: r.sourceCitation,
       })),
     };
+  }
+
+  /**
+   * Get guidance documents that reference a given regulation document.
+   * Uses cross_references where source_guidance_id IS NOT NULL and target_document_id matches.
+   */
+  async getGuidanceReferencingDocument(documentId: number): Promise<GuidanceReferenceItem[]> {
+    const result = await this.db
+      .select({
+        id: guidanceDocuments.id,
+        title: guidanceDocuments.title,
+        agency: guidanceDocuments.agency,
+        policyCategory: guidanceDocuments.policyCategory,
+        canonicalRef: guidanceDocuments.canonicalRef,
+        status: guidanceDocuments.status,
+        citationText: crossReferences.rawText,
+      })
+      .from(crossReferences)
+      .innerJoin(guidanceDocuments, eq(crossReferences.sourceGuidanceId, guidanceDocuments.id))
+      .where(
+        and(
+          eq(crossReferences.targetDocumentId, documentId),
+          sql`${crossReferences.sourceGuidanceId} IS NOT NULL`
+        )
+      )
+      .orderBy(asc(guidanceDocuments.agency), asc(guidanceDocuments.title));
+
+    return result;
+  }
+
+  /**
+   * Get guidance→regulation reference edges for network graph overlay.
+   * Aggregates by guidance agency (source) and regulation title (target).
+   */
+  async getGuidanceReferenceGraph(jurisdiction: JurisdictionCode): Promise<GuidanceReferenceEdge[]> {
+    const stateUpper = normalizeJurisdiction(jurisdiction);
+
+    const result = await this.db.execute<{
+      source_id: string;
+      source_name: string;
+      target_id: string;
+      target_name: string;
+      ref_count: number;
+    }>(sql`
+      SELECT
+        'g-agency:' || gd.agency as source_id,
+        gd.agency as source_name,
+        COALESCE(tgt.nycrr_title::text, tgt.njac_title) as target_id,
+        COALESCE(tgt.nycrr_title_name, tgt.njac_title_name, 'Title ' || COALESCE(tgt.nycrr_title::text, tgt.njac_title)) as target_name,
+        COUNT(*)::int as ref_count
+      FROM cross_references cr
+      JOIN guidance_documents gd ON cr.source_guidance_id = gd.id
+      JOIN regulatory_documents tgt ON cr.target_document_id = tgt.id
+      WHERE cr.jurisdiction = ${stateUpper}
+        AND cr.source_guidance_id IS NOT NULL
+        AND cr.target_document_id IS NOT NULL
+        AND cr.is_resolved = true
+        AND (tgt.nycrr_title IS NOT NULL OR tgt.njac_title IS NOT NULL)
+      GROUP BY gd.agency, COALESCE(tgt.nycrr_title::text, tgt.njac_title),
+        COALESCE(tgt.nycrr_title_name, tgt.njac_title_name, 'Title ' || COALESCE(tgt.nycrr_title::text, tgt.njac_title))
+      HAVING COUNT(*) >= 1
+      ORDER BY ref_count DESC
+      LIMIT 500
+    `);
+
+    return result.rows.map(row => ({
+      sourceId: row.source_id,
+      sourceName: row.source_name,
+      sourceEntityType: 'guidance' as const,
+      targetId: row.target_id,
+      targetName: row.target_name,
+      targetEntityType: 'regulation' as const,
+      refCount: row.ref_count,
+    }));
   }
 }

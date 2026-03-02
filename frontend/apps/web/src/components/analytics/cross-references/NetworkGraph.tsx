@@ -26,7 +26,8 @@ interface NodePopupProps {
 
 function NodePopup({ node, position, state, level, onClose }: NodePopupProps) {
   // Only show link at section level where nodeId is a document ID
-  const canLink = level === 'section' && !isNaN(Number(node.nodeId));
+  const canLink = level === 'section' && !isNaN(Number(node.nodeId)) && node.entityType !== 'guidance';
+  const isGuidance = node.entityType === 'guidance';
 
   return (
     <div
@@ -45,11 +46,18 @@ function NodePopup({ node, position, state, level, onClose }: NodePopupProps) {
 
       <div className="pr-6">
         <h4 className="font-medium text-sm truncate">{node.label}</h4>
-        <p className="text-xs text-[var(--color-text-muted)] mt-0.5">{node.nodeId}</p>
+        <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+          {isGuidance ? 'Guidance Agency' : node.nodeId}
+        </p>
 
-        {node.sectionType && (
+        {node.sectionType && !isGuidance && (
           <span className="inline-block mt-1 text-xs bg-[var(--color-neutral-100)] px-1.5 py-0.5 rounded">
             {node.sectionType}
+          </span>
+        )}
+        {isGuidance && (
+          <span className="inline-block mt-1 text-xs bg-teal-50 text-teal-700 px-1.5 py-0.5 rounded">
+            Guidance
           </span>
         )}
 
@@ -125,8 +133,8 @@ export function NetworkGraph({
 
   // Node size based on total degree (scaled)
   const getNodeSize = useCallback((node: GraphNode) => {
-    const baseSize = 4;
-    const scale = Math.sqrt(node.totalDegree) * 0.5;
+    const baseSize = node.entityType === 'guidance' ? 5 : 4;
+    const scale = Math.sqrt(node.totalDegree) * (node.entityType === 'guidance' ? 0.6 : 0.5);
     return baseSize + Math.min(scale, 20);
   }, []);
 
@@ -186,6 +194,11 @@ export function NetworkGraph({
       // Hovered node
       if (node.id === hoveredNode) {
         return 'var(--color-info)';
+      }
+
+      // Guidance nodes always teal
+      if (node.entityType === 'guidance') {
+        return '#0d9488';
       }
 
       // Apply color mode

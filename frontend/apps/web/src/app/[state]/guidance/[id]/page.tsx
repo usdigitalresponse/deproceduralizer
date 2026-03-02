@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
-import { getGuidanceById, getGuidanceSupersedureChain } from '@/lib/actions/guidance-documents';
+import { getGuidanceById, getGuidanceSupersedureChain, getGuidanceResolvedCitations } from '@/lib/actions/guidance-documents';
 import { GuidanceDetailSidebar } from '@/components/guidance/GuidanceDetailSidebar';
 import { GuidanceDetailContent } from '@/components/guidance/GuidanceDetailContent';
 import { SupersedureChain } from '@/components/guidance/SupersedureChain';
@@ -26,9 +26,10 @@ export default async function GuidanceDetailPage({ params }: GuidanceDetailPageP
     notFound();
   }
 
-  const [result, supersedureResult] = await Promise.all([
+  const [result, supersedureResult, resolvedCitationsResult] = await Promise.all([
     getGuidanceById(docId),
     getGuidanceSupersedureChain(docId),
+    getGuidanceResolvedCitations(docId),
   ]);
 
   if (!result.success || !result.data) {
@@ -37,6 +38,7 @@ export default async function GuidanceDetailPage({ params }: GuidanceDetailPageP
 
   const doc = result.data;
   const supersedureLinks = supersedureResult.success ? supersedureResult.data : [];
+  const resolvedCitations = resolvedCitationsResult.success ? resolvedCitationsResult.data : [];
 
   return (
     <div className="bg-[var(--color-background)] min-h-screen">
@@ -65,7 +67,7 @@ export default async function GuidanceDetailPage({ params }: GuidanceDetailPageP
 
           {/* Sidebar */}
           <div className="space-y-4">
-            <GuidanceDetailSidebar doc={doc} />
+            <GuidanceDetailSidebar doc={doc} state={state} resolvedCitations={resolvedCitations} />
             {supersedureLinks.length > 0 && (
               <SupersedureChain
                 links={supersedureLinks}

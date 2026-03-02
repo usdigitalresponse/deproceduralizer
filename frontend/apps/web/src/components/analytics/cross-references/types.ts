@@ -1,4 +1,4 @@
-import type { ReferenceEdge, DocumentHub, CircularReference, GraphLevel } from '@deproceduralizer/database';
+import type { ReferenceEdge, DocumentHub, CircularReference, GraphLevel, GuidanceReferenceEdge } from '@deproceduralizer/database';
 
 /**
  * Color mode for network graph nodes
@@ -13,6 +13,7 @@ export interface GraphNode {
   label: string;
   nodeId: string;
   sectionType?: string | null; // Only populated at section level
+  entityType?: 'regulation' | 'guidance'; // For guidance overlay
   inDegree: number;
   outDegree: number;
   totalDegree: number;
@@ -94,5 +95,70 @@ export function transformToGraphData(edges: ReferenceEdge[]): GraphData {
   };
 }
 
+/**
+ * Merge guidance reference edges into existing graph data.
+ * Adds guidance agency nodes (entityType: 'guidance') and their edges.
+ * Reuses existing regulation nodes when target IDs match.
+ */
+export function mergeGuidanceEdges(existing: GraphData, guidanceEdges: GuidanceReferenceEdge[]): GraphData {
+  const nodeMap = new Map<string, GraphNode>();
+  const links = [...existing.links];
+
+  // Index existing nodes
+  for (const node of existing.nodes) {
+    nodeMap.set(node.id, { ...node, entityType: node.entityType ?? 'regulation' });
+  }
+
+  for (const edge of guidanceEdges) {
+    // Ensure guidance agency node
+    if (!nodeMap.has(edge.sourceId)) {
+      nodeMap.set(edge.sourceId, {
+        id: edge.sourceId,
+        label: edge.sourceName,
+        nodeId: edge.sourceId,
+        entityType: 'guidance',
+        inDegree: 0,
+        outDegree: 0,
+        totalDegree: 0,
+      });
+    }
+
+    // Ensure regulation target node (may already exist from regulation graph)
+    if (!nodeMap.has(edge.targetId)) {
+      nodeMap.set(edge.targetId, {
+        id: edge.targetId,
+        label: edge.targetName,
+        nodeId: edge.targetId,
+        entityType: 'regulation',
+        inDegree: 0,
+        outDegree: 0,
+        totalDegree: 0,
+      });
+    }
+
+    // Update degrees
+    const sourceNode = nodeMap.get(edge.sourceId)!;
+    const targetNode = nodeMap.get(edge.targetId)!;
+    sourceNode.outDegree += edge.refCount;
+    sourceNode.totalDegree += edge.refCount;
+    targetNode.inDegree += edge.refCount;
+    targetNode.totalDegree += edge.refCount;
+
+    // Add edge
+    if (edge.sourceId !== edge.targetId) {
+      links.push({
+        source: edge.sourceId,
+        target: edge.targetId,
+        weight: edge.refCount,
+      });
+    }
+  }
+
+  return {
+    nodes: Array.from(nodeMap.values()),
+    links,
+  };
+}
+
 // Re-export types from database for convenience
-export type { ReferenceEdge, DocumentHub, CircularReference, GraphLevel };
+export type { ReferenceEdge, DocumentHub, CircularReference, GraphLevel, GuidanceReferenceEdge };

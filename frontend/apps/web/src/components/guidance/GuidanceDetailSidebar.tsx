@@ -4,10 +4,13 @@ import { Card, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { GuidanceStatusBadge } from './GuidanceStatusBadge';
 import { PolicyCategoryBadge } from './PolicyCategoryBadge';
-import type { GuidanceDocumentDetail } from '@/lib/actions/guidance-documents';
+import { LinkedCitationList } from './LinkedCitationList';
+import type { GuidanceDocumentDetail, ResolvedRegulationCitation } from '@/lib/actions/guidance-documents';
 
 interface GuidanceDetailSidebarProps {
   doc: GuidanceDocumentDetail;
+  state?: string;
+  resolvedCitations?: ResolvedRegulationCitation[];
 }
 
 function MetadataRow({ label, children }: { label: string; children: React.ReactNode }) {
@@ -33,7 +36,7 @@ function ListSection({ label, items }: { label: string; items: string[] | null }
   );
 }
 
-export function GuidanceDetailSidebar({ doc }: GuidanceDetailSidebarProps) {
+export function GuidanceDetailSidebar({ doc, state, resolvedCitations }: GuidanceDetailSidebarProps) {
   return (
     <Card padding="lg">
       <CardHeader>
@@ -82,7 +85,11 @@ export function GuidanceDetailSidebar({ doc }: GuidanceDetailSidebarProps) {
         <ListSection label="Programs" items={doc.programs} />
 
         {/* Citations */}
-        <ListSection label="Cited Regulations" items={doc.citesRegulations} />
+        {resolvedCitations && resolvedCitations.length > 0 && state ? (
+          <LinkedCitationList citations={resolvedCitations} state={state} />
+        ) : (
+          <ListSection label="Cited Regulations" items={doc.citesRegulations} />
+        )}
         <ListSection label="Cited Federal Statutes" items={doc.citesFederal} />
         <ListSection label="Cited Documents" items={doc.citesDocuments} />
 

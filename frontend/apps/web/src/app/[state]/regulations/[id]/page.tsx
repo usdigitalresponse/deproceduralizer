@@ -7,7 +7,7 @@ import { getRegulationById } from '@/lib/actions/regulations';
 import { getComplianceIssuesByDocumentId } from '@/lib/actions/compliance-issues';
 import { getDefinitionsWithContext } from '@/lib/actions/definitions';
 import { getNotesByDocumentId } from '@/lib/actions/document-notes';
-import { getCrossReferencesForDocument, getIncomingReferences, getCrossReferencesForHighlighting } from '@/lib/actions/cross-references';
+import { getCrossReferencesForDocument, getIncomingReferences, getCrossReferencesForHighlighting, getGuidanceReferencingDocument } from '@/lib/actions/cross-references';
 import { getStatuteLinksForRegulation, getEnablingAuthorityForRegulation } from '@/lib/actions/statutes';
 import { RegulationDetailClient } from './RegulationDetailClient';
 import { RegulationDetailLayout } from './RegulationDetailLayout';
@@ -32,7 +32,7 @@ export default async function RegulationDetailPage({ params, searchParams }: Pag
     notFound();
   }
 
-  const [regulationResult, complianceIssuesResult, definitionsResult, notesResult, crossRefsResult, incomingRefsResult, highlightRefsResult, statuteLinksResult, enablingAuthorityResult] = await Promise.all([
+  const [regulationResult, complianceIssuesResult, definitionsResult, notesResult, crossRefsResult, incomingRefsResult, highlightRefsResult, statuteLinksResult, enablingAuthorityResult, guidanceRefsResult] = await Promise.all([
     getRegulationById(regulationId),
     getComplianceIssuesByDocumentId(regulationId),
     getDefinitionsWithContext(regulationId),
@@ -42,6 +42,7 @@ export default async function RegulationDetailPage({ params, searchParams }: Pag
     getCrossReferencesForHighlighting(regulationId),
     getStatuteLinksForRegulation(regulationId),
     getEnablingAuthorityForRegulation(regulationId),
+    getGuidanceReferencingDocument(regulationId),
   ]);
 
   // Handle errors - display them obviously
@@ -134,6 +135,8 @@ export default async function RegulationDetailPage({ params, searchParams }: Pag
   // Statute links (excluding enabling authority, which is shown separately)
   const statuteLinks = statuteLinksResult.success ? statuteLinksResult.data : [];
   const enablingAuthority = enablingAuthorityResult.success ? enablingAuthorityResult.data : [];
+  // Guidance references
+  const guidanceRefs = guidanceRefsResult.success ? guidanceRefsResult.data : [];
   // IDs of definitions defined here
   const definedHereIds = new Set(usedInText.definedHere.map(d => d.id));
 
@@ -159,6 +162,7 @@ export default async function RegulationDetailPage({ params, searchParams }: Pag
               incomingRefs={incomingRefs}
               statuteLinks={statuteLinks}
               enablingAuthority={enablingAuthority}
+              guidanceRefs={guidanceRefs}
               usedDefinitions={usedDefinitions}
               availableButNotUsed={availableButNotUsed}
               definedHereIds={definedHereIds}

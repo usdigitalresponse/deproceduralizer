@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { Card, SegmentedControl, Button } from '@/components/ui';
-import { NetworkGraph, HubsPanel, CircularRefsPanel, transformToGraphData } from './cross-references';
+import { NetworkGraph, HubsPanel, CircularRefsPanel, transformToGraphData, mergeGuidanceEdges } from './cross-references';
 import type {
   GraphData,
   GraphNode,
@@ -12,12 +12,14 @@ import type {
   CircularReference,
   GraphLevel,
   ColorMode,
+  GuidanceReferenceEdge,
 } from './cross-references';
 import type { JurisdictionCode } from '@/types/state';
 import {
   getReferenceGraph,
   getTopCitedDocuments,
   getCircularReferences,
+  getGuidanceReferenceGraph,
 } from '@/lib/actions/cross-references';
 
 interface CrossReferencesTabProps {
@@ -69,6 +71,11 @@ export function CrossReferencesTab({ jurisdiction }: CrossReferencesTabProps) {
   const [isCyclesLoading, setIsCyclesLoading] = useState(false);
   const [cyclesLoaded, setCyclesLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Guidance overlay states
+  const [showGuidance, setShowGuidance] = useState(false);
+  const [guidanceEdges, setGuidanceEdges] = useState<GuidanceReferenceEdge[] | null>(null);
+  const [isGuidanceLoading, setIsGuidanceLoading] = useState(false);
 
   // UI states
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
@@ -128,6 +135,34 @@ export function CrossReferencesTab({ jurisdiction }: CrossReferencesTabProps) {
       setIsCyclesLoading(false);
     }
   }, [jurisdiction]);
+
+  // Load guidance overlay on toggle
+  const handleGuidanceToggle = useCallback(async () => {
+    const next = !showGuidance;
+    setShowGuidance(next);
+    if (next && guidanceEdges === null) {
+      setIsGuidanceLoading(true);
+      try {
+        const result = await getGuidanceReferenceGraph(jurisdiction);
+        if (result.success) {
+          setGuidanceEdges(result.data);
+        }
+      } catch (err) {
+        console.error('Failed to load guidance references:', err);
+      } finally {
+        setIsGuidanceLoading(false);
+      }
+    }
+  }, [showGuidance, guidanceEdges, jurisdiction]);
+
+  // Compute merged graph data (with guidance overlay when toggled)
+  const displayGraphData = useMemo(() => {
+    if (!graphData) return null;
+    if (showGuidance && guidanceEdges && guidanceEdges.length > 0) {
+      return mergeGuidanceEdges(graphData, guidanceEdges);
+    }
+    return graphData;
+  }, [graphData, showGuidance, guidanceEdges]);
 
   // Handle container resize
   useEffect(() => {
@@ -207,13 +242,35 @@ export function CrossReferencesTab({ jurisdiction }: CrossReferencesTabProps) {
             size="sm"
           />
         </div>
+        <label className="flex items-center gap-1.5 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={showGuidance}
+            onChange={handleGuidanceToggle}
+            disabled={isGuidanceLoading}
+            className="rounded border-[var(--color-neutral-300)] text-teal-600 focus:ring-teal-500"
+          />
+          <span className="text-sm text-[var(--color-text-muted)]">
+            {isGuidanceLoading ? 'Loading...' : 'Show Guidance'}
+          </span>
+        </label>
         <div className="flex-1" />
         <div className="text-sm text-[var(--color-text-muted)]">
-          {graphData?.nodes.length ?? 0} nodes, {graphData?.links.length ?? 0} edges
+          {displayGraphData?.nodes.length ?? 0} nodes, {displayGraphData?.links.length ?? 0} edges
         </div>
       </div>
 
       {/* Color legend */}
+      {(colorMode !== 'default' || showGuidance) && (
+        <div className="flex flex-wrap items-center gap-4 text-xs">
+          {showGuidance && (
+            <span className="flex items-center gap-1">
+              <span className="w-3 h-3 rounded-full bg-[#0d9488]" />
+              Guidance (by agency)
+            </span>
+          )}
+        </div>
+      )}
       {colorMode !== 'default' && (
         <div className="flex flex-wrap items-center gap-4 text-xs">
           {colorMode === 'direction' && (
@@ -286,9 +343,9 @@ export function CrossReferencesTab({ jurisdiction }: CrossReferencesTabProps) {
               </p>
             </div>
             <div ref={containerRef} className="min-h-[500px]">
-              {graphData && (
+              {displayGraphData && (
                 <NetworkGraph
-                  data={graphData}
+                  data={displayGraphData}
                   width={dimensions.width}
                   height={dimensions.height}
                   state={jurisdiction}

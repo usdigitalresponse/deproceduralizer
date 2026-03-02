@@ -2,6 +2,8 @@ import { eq, and, desc, asc, sql, count, ilike, or, gte, lte, inArray } from 'dr
 import { BaseRepository } from './base.repository';
 import { guidanceDocuments } from '../schema/guidance-documents';
 import { complianceIssues } from '../schema/compliance-issues';
+import { crossReferences } from '../schema/cross-references';
+import { regulatoryDocuments } from '../schema/regulatory-documents';
 import { JurisdictionCode, normalizeJurisdiction } from '../schema/constants';
 
 export interface GuidanceDocumentListItem {
@@ -92,6 +94,29 @@ export interface SupersedureLink {
   title: string | null;
   status: string | null;
   relationship: 'supersedes' | 'superseded_by' | 'revision_of';
+}
+
+export interface GuidanceCitationStats {
+  docsWithCitations: number;
+  totalDocs: number;
+  topCitedRegulations: Array<{
+    regulationId: number;
+    citation: string | null;
+    title: string | null;
+    guidanceCount: number;
+  }>;
+  citationsByAgency: Array<{
+    agency: string;
+    totalCitations: number;
+    docsWithCitations: number;
+    totalDocs: number;
+  }>;
+}
+
+export interface ResolvedRegulationCitation {
+  citationText: string;
+  regulationId: number | null;
+  regulationTitle: string | null;
 }
 
 export class GuidanceDocumentsRepository extends BaseRepository {
@@ -407,5 +432,153 @@ export class GuidanceDocumentsRepository extends BaseRepository {
     }
 
     return links;
+  }
+
+  async getCitationCoverageStats(jurisdiction: JurisdictionCode): Promise<GuidanceCitationStats> {
+    const stateUpper = normalizeJurisdiction(jurisdiction);
+    const baseCondition = eq(guidanceDocuments.jurisdiction, stateUpper);
+
+    const [totalResult, withCitationsResult, topCitedResult, byAgencyResult] = await Promise.all([
+      // Total docs
+      this.db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(guidanceDocuments)
+        .where(baseCondition),
+
+      // Docs with citations (cites_regulations is non-empty)
+      this.db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(guidanceDocuments)
+        .where(and(
+          baseCondition,
+          sql`${guidanceDocuments.citesRegulations} IS NOT NULL AND array_length(${guidanceDocuments.citesRegulations}, 1) > 0`
+        )),
+
+      // Top cited regulations (via cross_references)
+      this.db.execute<{
+        regulation_id: number;
+        citation: string | null;
+        title: string | null;
+        guidance_count: number;
+      }>(sql`
+        SELECT
+          rd.id as regulation_id,
+          rd.citation,
+          COALESCE(rd.short_title, rd.title) as title,
+          COUNT(DISTINCT cr.source_guidance_id)::int as guidance_count
+        FROM cross_references cr
+        JOIN regulatory_documents rd ON cr.target_document_id = rd.id
+        WHERE cr.jurisdiction = ${stateUpper}
+          AND cr.source_guidance_id IS NOT NULL
+          AND cr.target_document_id IS NOT NULL
+          AND cr.is_resolved = true
+        GROUP BY rd.id, rd.citation, rd.short_title, rd.title
+        ORDER BY guidance_count DESC
+        LIMIT 20
+      `),
+
+      // Citations by agency
+      this.db.execute<{
+        agency: string;
+        total_citations: number;
+        docs_with_citations: number;
+        total_docs: number;
+      }>(sql`
+        SELECT
+          gd.agency,
+          COALESCE(SUM(array_length(gd.cites_regulations, 1)), 0)::int as total_citations,
+          COUNT(*) FILTER (WHERE gd.cites_regulations IS NOT NULL AND array_length(gd.cites_regulations, 1) > 0)::int as docs_with_citations,
+          COUNT(*)::int as total_docs
+        FROM guidance_documents gd
+        WHERE gd.jurisdiction = ${stateUpper}
+        GROUP BY gd.agency
+        ORDER BY total_citations DESC
+      `),
+    ]);
+
+    return {
+      totalDocs: totalResult[0].count,
+      docsWithCitations: withCitationsResult[0].count,
+      topCitedRegulations: topCitedResult.rows.map(row => ({
+        regulationId: row.regulation_id,
+        citation: row.citation,
+        title: row.title,
+        guidanceCount: row.guidance_count,
+      })),
+      citationsByAgency: byAgencyResult.rows.map(row => ({
+        agency: row.agency,
+        totalCitations: row.total_citations,
+        docsWithCitations: row.docs_with_citations,
+        totalDocs: row.total_docs,
+      })),
+    };
+  }
+
+  async getResolvedCitedRegulations(guidanceDocId: number): Promise<ResolvedRegulationCitation[]> {
+    // Get the guidance document's cites_regulations array
+    const [doc] = await this.db
+      .select({ citesRegulations: guidanceDocuments.citesRegulations })
+      .from(guidanceDocuments)
+      .where(eq(guidanceDocuments.id, guidanceDocId))
+      .limit(1);
+
+    if (!doc?.citesRegulations || doc.citesRegulations.length === 0) return [];
+
+    // Get all resolved cross-references from this guidance doc to regulations
+    const resolvedRefs = await this.db
+      .select({
+        rawText: crossReferences.rawText,
+        targetDocumentId: crossReferences.targetDocumentId,
+        targetTitle: regulatoryDocuments.title,
+      })
+      .from(crossReferences)
+      .leftJoin(regulatoryDocuments, eq(crossReferences.targetDocumentId, regulatoryDocuments.id))
+      .where(
+        and(
+          eq(crossReferences.sourceGuidanceId, guidanceDocId),
+          sql`${crossReferences.targetDocumentId} IS NOT NULL`
+        )
+      );
+
+    // Build a map from raw_text → resolved regulation
+    const refMap = new Map<string, { regulationId: number; title: string | null }>();
+    for (const ref of resolvedRefs) {
+      if (ref.targetDocumentId !== null) {
+        refMap.set(ref.rawText, {
+          regulationId: ref.targetDocumentId,
+          title: ref.targetTitle,
+        });
+      }
+    }
+
+    // Match each citation text against the resolved refs
+    return doc.citesRegulations.map(citationText => {
+      // Try exact match first
+      const match = refMap.get(citationText);
+      if (match) {
+        return {
+          citationText,
+          regulationId: match.regulationId,
+          regulationTitle: match.title,
+        };
+      }
+
+      // Try partial match (citation text contained in raw_text or vice versa)
+      for (const [rawText, resolved] of refMap) {
+        if (rawText.includes(citationText) || citationText.includes(rawText)) {
+          return {
+            citationText,
+            regulationId: resolved.regulationId,
+            regulationTitle: resolved.title,
+          };
+        }
+      }
+
+      return {
+        citationText,
+        regulationId: null,
+        regulationTitle: null,
+      };
+    });
   }
 }
