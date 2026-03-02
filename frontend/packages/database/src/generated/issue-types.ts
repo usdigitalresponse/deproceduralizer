@@ -48,6 +48,7 @@ export const ISSUE_TYPES = [
   "fixed_window",
   "waiting_period",
   "mandated_reports",
+  "reporting_frequency",
   "incorporation_by_reference"
 ] as const;
 
@@ -351,6 +352,13 @@ export const ISSUE_TYPE_META: Record<IssueType, IssueTypeMeta> = {
     description: "Mandated reporting requirements",
     dbIssueType: "mandated_reports",
     updatedAt: "2025-12-26",
+  },
+  reporting_frequency: {
+    displayName: "Excessive Reporting Frequency",
+    category: "Reporting",
+    description: "Reporting frequency disproportionate to risk or purpose",
+    dbIssueType: "reporting_frequency",
+    updatedAt: "2026-02-20",
   },
   incorporation_by_reference: {
     displayName: "Incorporation by Reference",

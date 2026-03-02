@@ -83,6 +83,7 @@ ObsoleteTechAnalysis = BaseComplianceAnalysis
 InPersonAnalysis = BaseComplianceAnalysis
 PaymentAnalysis = BaseComplianceAnalysis
 DocumentFormatAnalysis = BaseComplianceAnalysis
+ReportingFrequencyAnalysis = BaseComplianceAnalysis
 
 
 # =============================================================================
@@ -128,5 +129,6 @@ RESPONSE_MODELS = {
     "InPersonAnalysis": InPersonAnalysis,
     "PaymentAnalysis": PaymentAnalysis,
     "DocumentFormatAnalysis": DocumentFormatAnalysis,
+    "ReportingFrequencyAnalysis": ReportingFrequencyAnalysis,
     "IncorporationByReferenceAnalysis": IncorporationByReferenceAnalysis,
 }

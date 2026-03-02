@@ -74,13 +74,14 @@ process:
   - fixed_window
   - waiting_period
   - mandated_reports
+  - reporting_frequency
 
 # Statistics Summary (from 2026-01-01 query)
-# Total: 40 issue types, 11,343 matches
+# Total: 41 issue types, 11,343 matches
 # High precision (>80% TPR): notarization, multiple_copies, embossed_seal, handwriting_specs, binding_required
 # Low precision (<20% TPR): fax, pdf_only, typewriter, cash_only
 
-# File count: 40 configs
+# File count: 41 configs
 all_configs:
   - binding_required
   - bulletin_board
@@ -122,3 +123,4 @@ all_configs:
   - waiting_period
   - wet_signature
   - witness
+  - reporting_frequency

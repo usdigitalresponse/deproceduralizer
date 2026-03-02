@@ -1,0 +1,70 @@
+reporting_frequency:
+  updated_at: '2026-02-20'
+  display_name: Excessive Reporting Frequency
+  db_issue_type: reporting_frequency
+  category: Reporting
+  description: 'Regulated parties or government entities must submit reports at a frequency
+    that is disproportionate to the risk or oversight purpose. This differs from mandated_reports
+    (which evaluates whether reports are useful at all) — this type focuses specifically on
+    whether the FREQUENCY is excessive. Monthly or more frequent reporting on routine matters
+    diverts staff time from core operations, while quarterly or annual reporting on the same
+    topics would provide adequate oversight. Affects: regulated businesses bearing compliance
+    costs; government staff processing high-frequency submissions; and ultimately the public
+    when resources are diverted from service delivery to paperwork.'
+  positive_indicators:
+  - Monthly or more frequent reporting on routine/low-risk matters
+  - Reporting frequency creates significant staff burden relative to oversight value
+  - Same information available through other channels (dashboards, audits, other reports)
+  - Less frequent reporting would provide adequate oversight
+  - Multiple overlapping reporting frequencies (monthly AND quarterly AND annual)
+  - High-effort report format at high frequency
+  negative_indicators:
+  - Frequency proportionate to risk (e.g., monthly financials for fiduciaries)
+  - Active safety monitoring requiring frequent updates
+  - Statute specifically mandates the frequency
+  - Event-triggered reporting (not periodic)
+  - Quarterly or less for matters requiring genuine ongoing oversight
+  severity_baseline: 5
+  severity_modifiers:
+    increases:
+    - '+3: Monthly or more frequent on routine matters'
+    - '+2: Multiple overlapping frequencies (monthly + quarterly + annual)'
+    - '+1: Complex report format at high frequency'
+    decreases:
+    - '-2: Clear statutory mandate for the specific frequency'
+    - '-2: Active safety monitoring purpose'
+    - '-1: Quarterly frequency with clear oversight need'
+  patterns:
+  - "shall.{0,40}(report|submit|file|furnish).{0,40}(daily|weekly|biweekly|monthly|quarterly|semi-annual(?:ly)?|biennial|annually)"
+  - "must.{0,40}(report|submit|file|furnish).{0,40}(daily|weekly|biweekly|monthly|quarterly|semi-annual(?:ly)?|biennial|annually)"
+  - "required to.{0,40}(report|submit|file|furnish).{0,40}(daily|weekly|biweekly|monthly|quarterly|semi-annual(?:ly)?|biennial|annually)"
+  - "(daily|weekly|biweekly|monthly|quarterly|semi-annual(?:ly)?|biennial).{0,40}(report|submission|filing|statement|return|survey|census)"
+  - "report.{0,20}(daily|weekly|biweekly|monthly|quarterly|semi-annual(?:ly)?|biennial)"
+  statistics:
+    total_matches: 484
+    true_positives: null
+    true_positive_rate: null
+    sample_date: '2026-02-20'
+  examples:
+    true_positives:
+    - citation: Example
+      quote: Each employer shall file a quarterly report of wages paid to the department
+        on forms prescribed by the commissioner, due within 30 days of the end of each quarter
+      reasoning: Quarterly wage reporting is standard but high-volume. The 30-day turnaround
+        creates ongoing compliance burden for all employers.
+      classification: burdensome
+      severity: 5
+    false_positives:
+    - citation: Example
+      quote: The facility shall submit monthly reports of patient safety incidents
+        to the department
+      reasoning: Monthly patient safety reporting serves active safety monitoring.
+        Frequency is proportionate to the risk of harm.
+      classification: unrelated
+    justified:
+    - citation: Example
+      quote: Each bank shall file quarterly call reports with the superintendent
+      reasoning: Quarterly financial reporting for banks is standard regulatory practice
+        with clear oversight purpose for financial stability.
+      classification: justified
+      severity: 3

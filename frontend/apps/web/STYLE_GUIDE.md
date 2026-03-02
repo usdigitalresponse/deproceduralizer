@@ -1817,7 +1817,7 @@ Card for developer assignment with: developer selection, status tracking (unreso
 
 ## JenAI Pipeline Components
 
-Components for viewing JenAI Pahlka framework analysis results — 14-category implementation complexity assessment.
+Components for viewing JenAI Pahlka framework analysis results — 19-category implementation complexity assessment.
 
 ### JenAIQueue
 
@@ -2016,7 +2016,7 @@ Additional constants centralized by domain:
 | `entity-types.ts` | Entity type definitions and display config |
 | `filters.ts` | Filter option arrays (status, severity, tier, etc.) |
 | `hierarchy.ts` | Hierarchy level labels and ordering |
-| `jenai.ts` | JenAI 14-category definitions and display config |
+| `jenai.ts` | JenAI 19-category definitions and display config |
 | `navigation.ts` | Navigation link configuration |
 | `pipeline.ts` | Pipeline status colors, classification mappings |
 | `values.ts` | Shared value constants (state codes, defaults) |

@@ -2225,6 +2225,61 @@ mandated_reports:
       Note the report's stated purpose, frequency, and recipient.
 
 
+reporting_frequency:
+  updated_at: "2026-02-20"
+  display_name: "Excessive Reporting Frequency"
+  db_issue_type: "reporting_frequency"
+  category: "Reporting"
+  description: "Reporting frequency disproportionate to risk or purpose"
+  response_model: "BaseComplianceAnalysis"
+  patterns:
+    - "shall.{0,40}(report|submit|file|furnish).{0,40}(daily|weekly|biweekly|monthly|quarterly|semi-annual(?:ly)?|biennial|annually)"
+    - "must.{0,40}(report|submit|file|furnish).{0,40}(daily|weekly|biweekly|monthly|quarterly|semi-annual(?:ly)?|biennial|annually)"
+    - "required to.{0,40}(report|submit|file|furnish).{0,40}(daily|weekly|biweekly|monthly|quarterly|semi-annual(?:ly)?|biennial|annually)"
+    - "(daily|weekly|biweekly|monthly|quarterly|semi-annual(?:ly)?|biennial).{0,40}(report|submission|filing|statement|return|survey|census)"
+    - "report.{0,20}(daily|weekly|biweekly|monthly|quarterly|semi-annual(?:ly)?|biennial)"
+  prompt:
+    system: |
+      You analyze regulations for EXCESSIVE REPORTING FREQUENCY requirements.
+
+      This section contains a reporting requirement with a specified frequency. Evaluate
+      whether the reporting frequency is proportionate to the regulatory risk or purpose
+      being served.
+
+      Note: The related "mandated_reports" issue type evaluates whether reports are useful.
+      THIS issue type focuses specifically on whether the FREQUENCY is disproportionate —
+      i.e., whether the same oversight goal could be achieved with less frequent reporting.
+
+      This IS a compliance issue when:
+      - Monthly or more frequent reporting is required for routine, low-risk matters
+      - The reporting frequency creates significant staff burden relative to the oversight value
+      - Less frequent reporting (e.g., quarterly instead of monthly) would provide adequate oversight
+      - The same information is available through other channels (dashboards, audits)
+
+      This is NOT a compliance issue when:
+      - The frequency is proportionate to the risk (e.g., monthly financial reports for fiduciaries)
+      - The reporting serves active safety monitoring that requires frequent updates
+      - The frequency is quarterly or less for matters requiring ongoing oversight
+      - Statute specifically mandates the frequency
+
+      SEVERITY GUIDANCE:
+      - 7-10: Monthly+ reports on routine/low-risk matters with high staff burden
+      - 4-6: Quarterly reports that could reasonably be semi-annual or annual
+      - 1-3: Reporting frequency is arguably appropriate but worth flagging for review
+
+    template: |
+      Analyze this regulation for excessive reporting frequency:
+
+      REGULATION TEXT:
+      {regulation_context}
+
+      STATUTE CONTEXT:
+      {statute_context}
+
+      Evaluate whether the reporting frequency is proportionate to the risk or purpose.
+      Consider the staff burden imposed relative to the oversight value gained.
+
+
 # =============================================================================
 # INCORPORATION BY REFERENCE
 # =============================================================================

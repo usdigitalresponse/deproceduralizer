@@ -47,7 +47,7 @@ When working on the Next.js frontend, follow these patterns:
 ### LLM Prompts
 - All prompts are centralized in the `/prompts/` directory:
   - `prompts/core.yaml` - Core analysis prompts (red_flags, definitions)
-  - `prompts/compliance_issues.yaml` - All 41 compliance issue types with patterns and prompts
+  - `prompts/compliance_issues.yaml` - All 42 compliance issue types with patterns and prompts
 - Prompts have `system` (static, cached) and `template` (dynamic) sections
 - When adding/modifying prompts, update the appropriate file in `/prompts/`
 - **Important:** When modifying any prompt, update its `updated_at` field to today's date (YYYY-MM-DD format)
@@ -76,8 +76,8 @@ When working on the Next.js frontend, follow these patterns:
 - Only runs for flagged analyses (burdensome/justified) with matched statute links
 
 ### JenAI Pipeline
-- Two-tier LLM pipeline for 14-category Pahlka framework analysis: `cd backend && python3 -m scripts.jenai_pipeline.cli`
-- Tier 1: catalog context → classify sections. Tier 2: full context → confirm/revise/dismiss findings.
+- Single-pass LLM pipeline for 19-category Pahlka framework analysis: `cd backend && python3 -m scripts.jenai_pipeline.cli`
+- Single enriched pass with full context upfront: ancestor summaries, sibling summaries, cross-ref summaries, definitions.
 - Results in `jenai_analyses` + `jenai_issues` tables
 - **IMPORTANT**: Always ask user permission before running (costs money)
 - Default is dry-run — must pass `--execute` to actually run
@@ -85,7 +85,7 @@ When working on the Next.js frontend, follow these patterns:
 
 ### Pipeline Scripts
 - Use `scripts.research_pipeline.cli` for the 3-tier compliance research.
-- Use `scripts.jenai_pipeline.cli` for the two-tier JenAI analysis.
+- Use `scripts.jenai_pipeline.cli` for the single-pass JenAI analysis.
 - Use `scripts.summarization.cli` for hierarchical document summarization.
 - When adding/removing backend scripts, update `docs/OPERATIONS.md`.
 - Scrapers handle migration automatically via `lib.migration.migrate_regulations_to_db()`.

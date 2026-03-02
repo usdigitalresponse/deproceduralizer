@@ -2,7 +2,7 @@
 # JenAI Pipeline: Single-Pass Enriched Regulatory Implementation Analysis
 # =============================================================================
 #
-# Framework: 14-category taxonomy (13 Pahlka problem categories + WORST_THING)
+# Framework: 19-category taxonomy (18 Pahlka problem categories + WORST_THING)
 # Architecture: Single enriched pass with full context upfront
 #
 # PROMPT ARCHITECTURE (3-layer caching):
@@ -21,12 +21,12 @@
 # Variables (template): citation, title, summary, cross_references, section_text
 
 analysis:
-  updated_at: "2026-02-19"
+  updated_at: "2026-02-20"
   description: |
     Single-pass enriched analysis. Each regulatory section is evaluated against
-    all 14 categories with full context upfront: ancestor summaries, sibling
+    all 19 categories with full context upfront: ancestor summaries, sibling
     summaries, cross-reference summaries, and full definition text. Includes
-    an adversarial WORST_THING category to catch issues that the 13 Pahlka
+    an adversarial WORST_THING category to catch issues that the 18 Pahlka
     categories might miss.
 
   # Layer 1: Static core (cached globally across all batch requests)
@@ -45,7 +45,7 @@ analysis:
     aggressively to make well-informed judgments.
 
     =========================================================================
-    ANALYSIS FRAMEWORK — 14 CATEGORIES
+    ANALYSIS FRAMEWORK — 19 CATEGORIES
     =========================================================================
 
     1. REGULATORY_COMPLEXITY
@@ -295,17 +295,17 @@ analysis:
         What is the single WORST thing about this regulatory section from an
         implementation perspective?
 
-        This category is your SAFETY NET for catching problems the 13 Pahlka
+        This category is your SAFETY NET for catching problems the 18 Pahlka
         categories above would miss. Its primary purpose is to surface NOVEL
-        issues — things that don't fit neatly into any of the 13 categories.
+        issues — things that don't fit neatly into any of the 18 categories.
 
-        YOUR TASK: Forget the 13 categories above. Step back and ask yourself —
+        YOUR TASK: Forget the 18 categories above. Step back and ask yourself —
         if you were a caseworker, applicant, or program administrator who had to
         live under this regulation every day, what would drive you crazy? What
         would make you lose sleep? What would cause real harm to real people?
 
         STRONGLY PREFER NOVEL FINDINGS over duplicating another category. The
-        13 Pahlka categories already cover common regulatory problems. WORST_THING
+        18 Pahlka categories already cover common regulatory problems. WORST_THING
         should find what they MISS. Look for:
         - Catch-22s: requirements that contradict each other or create impossible
           situations (e.g., "can't operate without approval, can't get approval
@@ -455,6 +455,167 @@ analysis:
         - MEDIUM: 2-3 agencies without clear coordination
         - LOW: Minor fragmentation with reasonable justification
 
+    15. FEE_COST_BURDENS
+        Excessive fees, outdated fee schedules, or disproportionate costs that
+        create financial barriers to compliance or participation.
+
+        DETECTION SIGNALS:
+        - Dollar amounts, fee schedules, surcharges, application fees
+        - Disproportionate costs for small entities or individuals
+        - No fee adjustment, waiver, or sliding-scale mechanism
+        - Fees not updated for inflation (amounts frozen for decades)
+        - Multiple fees stacked across different requirements
+        - Deposit or bond requirements that tie up capital
+
+        RED FLAG EXAMPLE:
+        "$500 application fee for a home-based business license with no waiver
+        for low-income applicants. An additional $200 inspection fee and $150
+        annual renewal fee apply regardless of business revenue."
+
+        NOT A RED FLAG:
+        - Reasonable cost-recovery fees proportionate to regulatory oversight cost
+        - Fee schedules with sliding scales based on ability to pay or entity size
+        - Fees that have been recently updated and reflect actual administrative costs
+        - Nominal fees ($10-25) for administrative processing
+
+        SEVERITY GUIDANCE:
+        - HIGH (7-10): Fees that effectively bar entry or create significant financial hardship
+        - MEDIUM (4-6): Fees that are disproportionate but not prohibitive
+        - LOW (1-3): Fees that are merely outdated or slightly above cost-recovery
+
+    16. STATE_EXCEEDS_FEDERAL
+        New York requirements that are stricter than federal equivalents without
+        clear justification for the additional burden.
+
+        DETECTION SIGNALS:
+        - Explicit "in addition to federal requirements" language
+        - References to federal equivalents (CFR, USC) with additional state layers
+        - State-specific reporting, documentation, or inspection requirements
+          beyond what federal rules require
+        - Shorter deadlines than federal equivalents
+        - More frequent reporting than federal mandates
+
+        RED FLAG EXAMPLE:
+        "In addition to the federal OSHA requirements under 29 CFR 1910, employers
+        must also submit quarterly state safety reports to the Department using
+        Form SS-100, maintain a separate state-specific injury log, and provide
+        annual state training certifications not required by federal law."
+
+        NOT A RED FLAG:
+        - State requirements addressing genuinely local conditions not covered by federal rules
+        - State requirements implementing federal mandates with reasonable specificity
+        - Areas where states traditionally set higher standards (environmental, consumer protection)
+          with clear policy rationale
+        - Federal floors that states are expected to exceed (e.g., minimum wage)
+
+        SEVERITY GUIDANCE:
+        - HIGH (7-10): State requirements that double federal burden without justification
+        - MEDIUM (4-6): Additional state requirements with weak justification
+        - LOW (1-3): Minor additions with clear local rationale
+
+        NOTE: This is the hardest category to detect without a federal corpus. Flag
+        cases where the regulation EXPLICITLY references federal equivalents and adds
+        state-specific requirements on top.
+
+    17. DEAD_SUPERSEDED_REFERENCES
+        References to repealed statutes, dissolved agencies, defunct programs,
+        or obsolete standards that indicate the regulation has not been updated.
+
+        DETECTION SIGNALS:
+        - References to agencies known to have been dissolved or reorganized
+        - Citations to statutes that have been repealed or significantly amended
+        - References to defunct programs, expired federal funding streams
+        - Obsolete technology standards with specific version numbers or years
+        - Named systems, portals, or forms that no longer exist
+        - Regulations unchanged for 15+ years with technology-specific content
+
+        RED FLAG EXAMPLE:
+        "As required by the Office of Welfare Inspector General" (dissolved in 2006)
+        "In compliance with the Federal Personal Responsibility and Work Opportunity
+        Reconciliation Act of 1996, Section 403(b)" (significantly amended multiple times)
+
+        NOT A RED FLAG:
+        - References to current, active statutes, agencies, or standards
+        - Historical context sections that note the origin of a regulation
+        - References to long-standing agencies that still exist (even if reorganized)
+        - General citations to acts that are still in force
+
+        SEVERITY GUIDANCE:
+        - HIGH (7-10): Entire section depends on defunct authority or obsolete standards
+        - MEDIUM (4-6): Key requirements reference outdated entities but section is
+          otherwise functional
+        - LOW (1-3): Passing reference to renamed entity or minor outdated citation
+
+        USE CONTEXT: If sibling sections or ancestor summaries mention the same entity
+        or standard, check whether it appears to still be active in the broader regulatory
+        context.
+
+    18. DUPLICATIVE_REQUIREMENTS
+        Overlapping or identical requirements across regulations, requiring the
+        same information to be submitted to multiple agencies or through parallel
+        processes.
+
+        DETECTION SIGNALS:
+        - "In addition to the requirements of [other Part/Section]" language
+        - Same information submitted to multiple agencies on separate forms
+        - Parallel approval processes for the same activity
+        - Sibling sections with overlapping scope (USE SIBLING CONTEXT)
+        - Multiple agencies requiring the same inspections or certifications
+        - Reporting requirements that duplicate information already provided elsewhere
+
+        RED FLAG EXAMPLE:
+        "Facilities must report the same incident to DOH within 24 hours, OMH
+        within 48 hours, and OASAS within 72 hours, each on separate forms with
+        overlapping but slightly different data requirements."
+
+        NOT A RED FLAG:
+        - Complementary requirements from different agencies with distinct purposes
+        - Requirements that REFERENCE other sections without duplicating them
+        - Reasonable specialization (fire safety reviewed by fire experts)
+        - Consolidated reporting that satisfies multiple agency requirements
+
+        SEVERITY GUIDANCE:
+        - HIGH (7-10): Identical submissions to 3+ agencies or parallel approval chains
+        - MEDIUM (4-6): Duplicative reporting to 2 agencies or significant overlap
+        - LOW (1-3): Minor overlap with justifiable specialization
+
+        USE CONTEXT: Rich context (sibling summaries, ancestor summaries) is crucial
+        here. Flag when you see overlap with sibling or parent sections. Cross-reference
+        summaries may reveal that the same requirement exists elsewhere.
+
+    19. MISSING_DIGITAL_AUTHORIZATION
+        Regulations that describe submission, filing, or application processes
+        without explicitly authorizing electronic or digital alternatives.
+
+        DETECTION SIGNALS:
+        - Submission/filing/application processes with no mention of electronic option
+        - Implicit paper-only workflows: "submit to the Department", "file with the office"
+        - Requirements for physical forms, mail, or in-person delivery without
+          explicit prohibition but no digital authorization either
+        - High-volume processes where digital submission would be obviously beneficial
+        - "Shall be submitted in writing" without clarifying that electronic counts
+
+        RED FLAG EXAMPLE:
+        "Applications shall be submitted to the Department in triplicate" with no
+        mention of online portal, email, or electronic submission anywhere in the
+        section or its siblings.
+
+        NOT A RED FLAG:
+        - Processes that explicitly authorize electronic submission
+        - Contexts where digital submission genuinely doesn't apply (physical inspections,
+          facility walkthroughs, in-person assessments)
+        - Regulations that use technology-neutral language ("submit" without specifying method)
+          where electronic submission is clearly available in practice
+        - Sections where sibling context shows digital options exist elsewhere in the Part
+
+        SEVERITY GUIDANCE:
+        - HIGH (7-10): High-volume process with no digital option and many affected parties
+        - MEDIUM (4-6): Moderate-volume process or unclear whether digital is available
+        - LOW (1-3): Niche process where paper submission is reasonable
+
+        USE CONTEXT: Check sibling sections — if a sibling section authorizes electronic
+        submission for the same Part, this section may not need its own authorization.
+
     =========================================================================
     CRITICAL ANTI-FALSE-POSITIVE RULES
     =========================================================================
@@ -517,7 +678,7 @@ analysis:
     schema:
 
     - categories: Array of category findings. For each:
-        - category: One of the 14 category names (uppercase)
+        - category: One of the 19 category names (uppercase)
         - explanation: Why this creates an implementation barrier (50-200 chars)
         - severity: 1-10 scale (1-3=LOW, 4-6=MEDIUM, 7-10=HIGH)
         - complexity: "HIGH" | "MEDIUM" | "LOW"
@@ -543,7 +704,7 @@ analysis:
     - You MUST ALWAYS include a WORST_THING finding. Every section has one.
     - A section can be "clean" (no Pahlka issues) while still having a WORST_THING
       finding with severity 1-3.
-    - Do not flag more than 5 Pahlka categories per section. Focus on the most
+    - Do not flag more than 7 Pahlka categories per section. Focus on the most
       impactful ones. WORST_THING does not count against this limit.
     - Use the rich context provided. If sibling sections resolve an apparent issue,
       do not flag it. If context reveals a hidden problem, flag it.
@@ -555,7 +716,7 @@ analysis:
   # Layer 3: Document template (unique per section)
   template: |
     Analyze this regulatory section for implementation complexity issues using the
-    14-category framework. Remember: you MUST include a WORST_THING finding.
+    19-category framework. Remember: you MUST include a WORST_THING finding.
 
     CITATION: {citation}
     TITLE: {title}

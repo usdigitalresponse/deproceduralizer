@@ -1,11 +1,11 @@
 ---
 name: jenai-pipeline
-description: Run the JenAI single-pass regulatory implementation analysis pipeline. Use when analyzing regulatory sections for implementation complexity using the 14-category Pahlka framework.
+description: Run the JenAI single-pass regulatory implementation analysis pipeline. Use when analyzing regulatory sections for implementation complexity using the 19-category Pahlka framework.
 ---
 
 # JenAI Pipeline
 
-Single-pass enriched LLM pipeline analyzing regulatory sections for implementation complexity using a 14-category framework (13 Pahlka problem categories + adversarial WORST_THING).
+Single-pass enriched LLM pipeline analyzing regulatory sections for implementation complexity using a 19-category framework (18 Pahlka problem categories + adversarial WORST_THING).
 
 ## Architecture
 
@@ -23,7 +23,7 @@ Regulatory Sections (hierarchy_level='section')
   -> Results -> jenai_analyses + jenai_issues tables
 ```
 
-## 14-Category Taxonomy
+## 19-Category Taxonomy
 
 | # | Category | Type | Description |
 |---|----------|------|-------------|
@@ -41,6 +41,11 @@ Regulatory Sections (hierarchy_level='section')
 | 12 | UNCLEAR_DELEGATION | Problem | Ambiguous authority, passive voice delegation |
 | 13 | ACCESS_ASSUMPTION_BARRIERS | Problem | Assumes specific environments, capabilities, or access |
 | 14 | INTERAGENCY_FRAGMENTATION | Problem | Multiple agency approvals, sequential chains |
+| 15 | FEE_COST_BURDENS | Problem | Excessive fees, outdated fee schedules, disproportionate costs |
+| 16 | STATE_EXCEEDS_FEDERAL | Problem | NY requirements stricter than federal without justification |
+| 17 | DEAD_SUPERSEDED_REFERENCES | Problem | References to repealed statutes, dissolved agencies |
+| 18 | DUPLICATIVE_REQUIREMENTS | Problem | Overlapping or identical requirements across regulations |
+| 19 | MISSING_DIGITAL_AUTHORIZATION | Problem | No explicit digital/electronic submission authorization |
 
 ## CLI Commands
 
@@ -83,7 +88,7 @@ Use `--include-all-types` to override and include all section types. Use `--forc
 
 | Layer | Scope | Content |
 |-------|-------|---------|
-| 1. system | Global (all requests) | 14-category framework, detection rules, anti-false-positive instructions |
+| 1. system | Global (all requests) | 19-category framework, detection rules, anti-false-positive instructions |
 | 2. user_cached_prefix | Per subchapter | Ancestor chain + sibling summaries + full definitions + cross-ref summaries |
 | 3. prompt | Per section (unique) | Citation, title, summary, cross-refs, section text |
 

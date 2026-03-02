@@ -239,7 +239,7 @@ One row per category finding per document. Links to `jenai_analyses`.
 | `id` | bigserial | Primary key |
 | `analysis_id` | bigint NOT NULL | FK to jenai_analyses (ON DELETE CASCADE) |
 | `document_id` | bigint NOT NULL | FK to regulatory_documents (ON DELETE CASCADE) |
-| `category` | varchar(50) | One of 14 categories (CHECK constraint) |
+| `category` | varchar(50) | One of 19 categories (CHECK constraint) |
 | `explanation` | text NOT NULL | Detailed explanation of the finding |
 | `severity` | integer (1-10) | Severity score |
 | `complexity` | varchar(20) | HIGH/MEDIUM/LOW |
@@ -249,12 +249,14 @@ One row per category finding per document. Links to `jenai_analyses`.
 | `effort_estimate` | varchar(255) | Effort estimate |
 | `text_examples` | text[] | Example text from the regulation |
 
-**Valid Categories (14 — 13 Pahlka + WORST_THING):**
+**Valid Categories (19 — 18 Pahlka + WORST_THING):**
 - `REGULATORY_COMPLEXITY`, `POLICY_IMPLEMENTATION_SEPARATION`, `CASCADE_OF_RIGIDITY`
 - `MANDATED_STEPS_NOT_OUTCOMES`, `ADMINISTRATIVE_BURDENS`, `NO_FEEDBACK_LOOPS`
 - `PROCESS_WORSHIP_OVERSIGHT`, `ZERO_RISK_LANGUAGE`, `FROZEN_TECHNOLOGY`
 - `WORST_THING` (adversarial — always required, can duplicate another category)
 - `MISSING_OUTCOMES`, `UNCLEAR_DELEGATION`, `ACCESS_ASSUMPTION_BARRIERS`, `INTERAGENCY_FRAGMENTATION`
+- `FEE_COST_BURDENS`, `STATE_EXCEEDS_FEDERAL`, `DEAD_SUPERSEDED_REFERENCES`
+- `DUPLICATIVE_REQUIREMENTS`, `MISSING_DIGITAL_AUTHORIZATION`
 
 **Review/Developer fields:** Same pattern as `red_flags` — `review_status`, `reviewed_by`, `reviewed_at`, `justification_notes`, `team_notes`, `priority`, `impact_type`, `developer_status`, `developer_assigned`, `developer_notes`, `resolution_type`, `resolution_comments`, `developer_question`, `developer_checked_at`
 

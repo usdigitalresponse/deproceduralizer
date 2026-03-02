@@ -514,7 +514,7 @@ cd backend && python3 -m scripts.jenai_pipeline.cli --state ny --document-id 818
 ```
 
 - Single-pass enriched LLM pipeline analyzing regulatory sections for implementation complexity
-- Uses 14-category framework: 13 Pahlka problem categories + adversarial WORST_THING
+- Uses 19-category framework: 18 Pahlka problem categories + adversarial WORST_THING
 - Full rich context upfront: ancestor summaries, sibling summaries, cross-ref summaries, full definition text
 - Results in `jenai_analyses` (one row per document) + `jenai_issues` (one row per category finding)
 - **Depends on:** Step 5 (cross-references) and Step 6 (summaries) for context
