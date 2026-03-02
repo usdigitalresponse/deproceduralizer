@@ -6,6 +6,7 @@ type FilterOptions = Pick<SearchOptions,
 
 export function shouldExcludeStatutes(opts: FilterOptions): boolean {
   return opts.docType === 'regulation'
+    || opts.docType === 'guidance'
     || !!opts.sectionType
     || !!opts.hierarchyLevel
     || opts.hasAnalysis === 'true'
@@ -13,7 +14,16 @@ export function shouldExcludeStatutes(opts: FilterOptions): boolean {
 }
 
 export function shouldExcludeRegulations(opts: Pick<SearchOptions, 'docType'>): boolean {
-  return opts.docType === 'statute';
+  return opts.docType === 'statute'
+    || opts.docType === 'guidance';
+}
+
+export function shouldExcludeGuidance(opts: FilterOptions): boolean {
+  return opts.docType === 'regulation'
+    || opts.docType === 'statute'
+    || !!opts.hierarchyLevel
+    || opts.hasAnalysis === 'true'
+    || !!opts.classification;
 }
 
 export function shouldSkipAnalyses(hasAnalysis?: string | null): boolean {

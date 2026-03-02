@@ -26,7 +26,9 @@ function getSeverityColor(severity: number | null): string {
 export function SearchResultCard({ result, state, query, searchUrl }: SearchResultCardProps) {
   const basePath = result.type === 'regulation'
     ? `/${state}/regulations/${result.id}`
-    : `/${state}/statutes/${result.id}`;
+    : result.type === 'guidance'
+      ? `/${state}/guidance/${result.id}`
+      : `/${state}/statutes/${result.id}`;
 
   const params = new URLSearchParams();
   if (query) params.set('highlight', query);
@@ -34,9 +36,13 @@ export function SearchResultCard({ result, state, query, searchUrl }: SearchResu
   const queryString = params.toString();
   const href = queryString ? `${basePath}?${queryString}` : basePath;
 
-  const entityType = result.type === 'regulation' ? 'regulatory_document' as const : 'statute' as const;
+  const entityType = result.type === 'regulation'
+    ? 'regulatory_document' as const
+    : result.type === 'guidance'
+      ? 'guidance_document' as const
+      : 'statute' as const;
   const TypeIcon = getEntityIcon(entityType);
-  const typeLabel = result.type === 'regulation' ? 'Regulation' : 'Statute';
+  const typeLabel = result.type === 'regulation' ? 'Regulation' : result.type === 'guidance' ? 'Guidance' : 'Statute';
 
   // Snippet is from PostgreSQL ts_headline (trusted DB content), sanitized via sanitizeSnippet()
   // which strips all HTML except <mark> tags — safe against XSS

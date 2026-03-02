@@ -11,6 +11,7 @@ import {
   unique
 } from 'drizzle-orm/pg-core';
 import { regulatoryDocuments } from './regulatory-documents';
+import { guidanceDocuments } from './guidance-documents';
 
 /**
  * Cross-references table for internal regulation citations.
@@ -50,6 +51,9 @@ export const crossReferences = pgTable('cross_references', {
   jurisdiction: varchar('jurisdiction', { length: 3 }).notNull(),
   sourceJurisdiction: varchar('source_jurisdiction', { length: 3 }).notNull(),
   targetJurisdiction: varchar('target_jurisdiction', { length: 3 }),
+  sourceGuidanceId: bigint('source_guidance_id', { mode: 'number' }).references(() => guidanceDocuments.id, { onDelete: 'cascade' }),
+  targetGuidanceId: bigint('target_guidance_id', { mode: 'number' }).references(() => guidanceDocuments.id, { onDelete: 'set null' }),
+
   createdAt: timestamp('created_at').defaultNow(),
 }, (table) => ({
   uniqueSourceRawTextOffset: unique().on(table.sourceDocumentId, table.rawText, table.startOffset),

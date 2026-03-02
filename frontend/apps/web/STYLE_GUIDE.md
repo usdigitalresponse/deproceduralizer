@@ -3992,6 +3992,78 @@ components/ibr/
 
 ---
 
+## Guidance Documents Page
+
+The Guidance page at `/[state]/guidance` displays sub-regulatory policy directives (ADMs, LCMs, INFs, GIS, TSBs) from state agencies. It uses the same two-tab layout as IBR (Overview, Browse) with `SegmentedControl` for tab switching.
+
+### Tab Structure
+
+| Tab | Component | Description |
+|-----|-----------|-------------|
+| Overview | `GuidanceOverviewTab` | Analytics: stat cards, breakdowns by agency/type/category/status |
+| Browse | `GuidanceBrowseTab` | Filterable/sortable table with pagination |
+
+### GuidanceOverviewTab
+
+Four stat cards (Total Documents, Active, Agencies, Policy Categories) plus four `HorizontalBarChart` breakdowns: by agency, document type, policy category, and status/year.
+
+### GuidanceBrowseTab
+
+Inline filter bar with dropdowns for agency, doc type, policy category, status, plus search input. Uses `GuidanceTable` for display. Pagination at bottom. All filter/sort state managed via `useQueryStates(guidanceParsers)`.
+
+### GuidanceTable
+
+Clickable table rows linking to detail page. Columns: Ref (canonical reference), Title, Agency, Type, Category (`PolicyCategoryBadge`), Status (`GuidanceStatusBadge`), Year.
+
+### GuidanceStatusBadge
+
+Status badge mapping: `active` → success, `superseded` → warning, `canceled` → danger, `expired` → default.
+
+### PolicyCategoryBadge
+
+Badge for policy category values (eligibility, compliance, fiscal, etc.) with distinct color variants per category.
+
+### GuidanceDetailSidebar
+
+Metadata card on the detail page showing agency, division, doc type, policy category, dates, programs, sender info, distribution, and cited regulations/documents.
+
+### GuidanceDetailContent
+
+Document text content with "View Original" external link when a URL is available.
+
+### SupersedureChain
+
+Document lineage card showing supersedes/superseded_by/revision_of relationships as navigable links.
+
+### GuidanceClient
+
+Client component managing tab state via `guidanceParsers` (nuqs). Renders `GuidanceOverviewTab` or `GuidanceBrowseTab` based on active tab. Uses `SegmentedControl` with BarChart3/List icons.
+
+### Navigation Integration
+
+Guidance appears in the Explorer nav group after Standards (IBR):
+```typescript
+{ key: 'guidance', label: 'Guidance', icon: ScrollText, pathSuffix: '/guidance', groupId: 'explorer' }
+```
+
+### File Structure
+
+```
+components/guidance/
+├── index.ts                  # Barrel exports
+├── GuidanceClient.tsx        # Tab switching client component
+├── GuidanceOverviewTab.tsx   # Overview analytics
+├── GuidanceBrowseTab.tsx     # Filter + table + pagination
+├── GuidanceTable.tsx         # Clickable data table
+├── GuidanceStatusBadge.tsx   # Status badge
+├── PolicyCategoryBadge.tsx   # Policy category badge
+├── GuidanceDetailSidebar.tsx # Detail page metadata sidebar
+├── GuidanceDetailContent.tsx # Detail page content display
+└── SupersedureChain.tsx      # Document lineage chain
+```
+
+---
+
 ## Entity Type Visual System
 
 The app has 9 core data entity types. Each has a distinct visual identity (icon + color palette) defined once in `src/lib/constants/entity-types.ts` and applied everywhere via the `EntityTypeIndicator` component.
@@ -4015,6 +4087,7 @@ Entity types communicate **what** something is. Status/severity badges (Severity
 | Definition | `BookOpen` | `text-sky-600` | `bg-sky-50` | `border-sky-300` |
 | Cross-Reference | `Link2` | `text-indigo-600` | `bg-indigo-50` | `border-indigo-300` |
 | IBR/Standard | `Library` | `text-emerald-600` | `bg-emerald-50` | `border-emerald-300` |
+| Guidance Document | `ScrollText` | `text-teal-600` | `bg-teal-50` | `border-teal-300` |
 | Note | `MessageSquare` | `text-stone-600` | `bg-stone-50` | `border-stone-300` |
 | Bookmark | `Star` | `text-yellow-600` | `bg-yellow-50` | `border-yellow-300` |
 

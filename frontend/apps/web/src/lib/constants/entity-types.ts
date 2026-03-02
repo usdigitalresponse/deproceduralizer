@@ -8,11 +8,12 @@ import {
   Library,
   MessageSquare,
   Star,
+  ScrollText,
   type LucideIcon,
 } from 'lucide-react';
 
 /**
- * The 9 core data entity types in the application.
+ * The 10 core data entity types in the application.
  * Each type has a distinct visual identity (icon + color palette).
  */
 export type EntityType =
@@ -23,6 +24,7 @@ export type EntityType =
   | 'definition'
   | 'cross_reference'
   | 'ibr_standard'
+  | 'guidance_document'
   | 'note'
   | 'bookmark';
 
@@ -107,6 +109,15 @@ export const ENTITY_TYPES: Record<EntityType, EntityTypeConfig> = {
     bgColor: 'bg-emerald-50',
     borderColor: 'border-emerald-300',
     textColor: 'text-emerald-700',
+  },
+  guidance_document: {
+    icon: ScrollText,
+    label: 'Guidance Document',
+    shortLabel: 'Guidance',
+    iconColor: 'text-teal-600',
+    bgColor: 'bg-teal-50',
+    borderColor: 'border-teal-300',
+    textColor: 'text-teal-700',
   },
   note: {
     icon: MessageSquare,

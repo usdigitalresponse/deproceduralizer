@@ -1,7 +1,7 @@
 import { sql } from 'drizzle-orm';
 import { BaseRepository } from './base.repository';
 import { JurisdictionCode, normalizeJurisdiction } from '../schema/constants';
-import { shouldExcludeStatutes, shouldExcludeRegulations, shouldSkipAnalyses } from './search-filters';
+import { shouldExcludeStatutes, shouldExcludeRegulations, shouldExcludeGuidance, shouldSkipAnalyses } from './search-filters';
 
 // ============================================
 // Types
@@ -9,7 +9,7 @@ import { shouldExcludeStatutes, shouldExcludeRegulations, shouldSkipAnalyses } f
 
 export interface SearchResultItem {
   id: number;
-  type: 'regulation' | 'statute';
+  type: 'regulation' | 'statute' | 'guidance';
   title: string;
   citation: string | null;
   hierarchyPath: string | null;
@@ -117,6 +117,7 @@ export class SearchRepository extends BaseRepository {
     // (statutes have no section_type, hierarchy_level, or analyses).
     const excludeRegulations = shouldExcludeRegulations({ docType });
     const excludeStatutes = shouldExcludeStatutes({ docType, sectionType, hierarchyLevel, hasAnalysis, classification });
+    const excludeGuidance = shouldExcludeGuidance({ docType, sectionType, hierarchyLevel, hasAnalysis, classification });
 
     // Primary search: regulations + statutes via UNION ALL
     const results = await this.db.execute(sql`
@@ -187,6 +188,31 @@ export class SearchRepository extends BaseRepository {
         WHERE s.jurisdiction =${normalizeJurisdiction(jurisdiction)}
           AND s.search_vector @@ sq.q
           ${excludeStatutes ? sql`AND false` : sql``}
+
+        UNION ALL
+
+        SELECT
+          gd.id,
+          'guidance' AS type,
+          gd.title,
+          gd.canonical_ref AS "citation",
+          NULL AS "hierarchyPath",
+          ts_headline('english', coalesce(gd.content, gd.title, ''), sq.q,
+            'MaxFragments=2, MaxWords=50, MinWords=20, StartSel=<mark>, StopSel=</mark>'
+          ) AS snippet,
+          ts_rank(gd.search_vector, sq.q, 32) AS rank,
+          gd.policy_category AS "sectionType",
+          0 AS "issueCount",
+          0 AS "burdensomeCount",
+          0 AS "justifiedCount",
+          NULL AS "maxSeverity",
+          false AS "hasFederalMandate",
+          0 AS "easyCleanupCount"
+        FROM guidance_documents gd
+        CROSS JOIN search_query sq
+        WHERE gd.jurisdiction = ${normalizeJurisdiction(jurisdiction)}
+          AND gd.search_vector @@ sq.q
+          ${excludeGuidance ? sql`AND false` : sql``}
       ) combined
       ORDER BY rank DESC
       LIMIT ${pageSize}
@@ -214,6 +240,11 @@ export class SearchRepository extends BaseRepository {
           WHERE s.jurisdiction =${normalizeJurisdiction(jurisdiction)}
             AND s.search_vector @@ sq.q
             ${excludeStatutes ? sql`AND false` : sql``}
+        ) + (
+          SELECT count(*)::int FROM guidance_documents gd, search_query sq
+          WHERE gd.jurisdiction = ${normalizeJurisdiction(jurisdiction)}
+            AND gd.search_vector @@ sq.q
+            ${excludeGuidance ? sql`AND false` : sql``}
         ) AS total
     `);
 

@@ -512,6 +512,7 @@ export const SEARCH_DOC_TYPE_OPTIONS: FilterOption[] = [
   { value: 'all', label: 'All types' },
   { value: 'regulation', label: 'Regulations' },
   { value: 'statute', label: 'Statutes' },
+  { value: 'guidance', label: 'Guidance' },
 ];
 
 export const SEARCH_ANALYSIS_OPTIONS: FilterOption[] = [

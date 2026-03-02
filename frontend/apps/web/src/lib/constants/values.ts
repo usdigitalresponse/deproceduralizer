@@ -380,3 +380,22 @@ export const MATCH_STATUS_LABELS: Record<string, string> = {
   unmatched: 'Unmatched',
   obsolete: 'Obsolete',
 };
+
+// ============================================
+// Guidance Documents Page
+// ============================================
+
+export const GUIDANCE_TAB_VALUES = ['overview', 'browse'] as const;
+export type GuidanceTabValue = (typeof GUIDANCE_TAB_VALUES)[number];
+
+export const GUIDANCE_SORT_BY_VALUES = ['title', 'agency', 'year', 'status', 'createdAt'] as const;
+export type GuidanceSortByValue = (typeof GUIDANCE_SORT_BY_VALUES)[number];
+
+export const GUIDANCE_STATUS_VALUES = ['all', 'active', 'superseded', 'canceled', 'expired'] as const;
+export type GuidanceStatusValue = (typeof GUIDANCE_STATUS_VALUES)[number];
+
+export const GUIDANCE_POLICY_CATEGORY_VALUES = [
+  'all', 'policy_directive', 'legal_interpretation', 'tax_guidance',
+  'informational', 'reference_material', 'non_policy', 'data_dump', 'unclassified'
+] as const;
+export type GuidancePolicyCategoryValue = (typeof GUIDANCE_POLICY_CATEGORY_VALUES)[number];

@@ -9,11 +9,13 @@ import {
   unique
 } from 'drizzle-orm/pg-core';
 import { regulatoryDocuments } from './regulatory-documents';
+import { guidanceDocuments } from './guidance-documents';
 import { complianceIssueAnalyses } from './compliance-issue-analyses';
 
 export const complianceIssues = pgTable('compliance_issues', {
   id: bigserial('id', { mode: 'number' }).primaryKey(),
-  documentId: bigint('document_id', { mode: 'number' }).notNull().references(() => regulatoryDocuments.id, { onDelete: 'cascade' }),
+  documentId: bigint('document_id', { mode: 'number' }).references(() => regulatoryDocuments.id, { onDelete: 'cascade' }),
+  guidanceDocumentId: bigint('guidance_document_id', { mode: 'number' }).references(() => guidanceDocuments.id, { onDelete: 'cascade' }),
 
   // Issue identification (from regex scan)
   issueType: varchar('issue_type', { length: 50 }).notNull(), // 'wet_signature', 'mail_only', 'fax', etc.

@@ -220,7 +220,7 @@ export interface ClassificationBreakdown {
  * Full analysis record with all tier data for detail page.
  */
 export interface FullAnalysisRecord {
-  documentId: number;
+  documentId: number | null;
   issueType: string;
   jurisdiction: string;
   groupedMatchCount: number;
@@ -401,7 +401,7 @@ const issueListSelectColumns = {
 function mapRowToIssue(
   row: {
     id: number;
-    documentId: number;
+    documentId: number | null;
     issueType: string;
     regexMatchPattern: string | null;
     regexMatchContext: string;
@@ -493,7 +493,8 @@ function mapRowToIssue(
 
   return {
     id: Number(row.id),
-    documentId: Number(row.documentId),
+    documentId: row.documentId != null ? Number(row.documentId) : null,
+    guidanceDocumentId: null,
     issueType: row.issueType,
     regexMatchPattern: row.regexMatchPattern,
     regexMatchContext: row.regexMatchContext,
@@ -919,7 +920,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
    * PR 6.5: Reads analysis_id FK directly; falls back to composite lookup for NULL analysis_id.
    * PR 6.3: Used by mutations that accept compliance_issues.id but now update analyses.
    */
-  private async findAnalysisForIssue(issueId: number): Promise<{ analysisId: number; documentId: number; issueType: string } | null> {
+  private async findAnalysisForIssue(issueId: number): Promise<{ analysisId: number; documentId: number | null; issueType: string } | null> {
     const issue = await this.getById(issueId);
     if (!issue) return null;
 
@@ -929,6 +930,9 @@ export class ComplianceIssuesRepository extends BaseRepository {
     }
 
     // Fallback: composite lookup for rows where analysis_id is still NULL
+    // Only works for regulatory document issues (documentId is not null)
+    if (issue.documentId == null) return null;
+
     const [analysis] = await this.db
       .select({ id: complianceIssueAnalyses.id })
       .from(complianceIssueAnalyses)
@@ -947,6 +951,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       .select({
         id: complianceIssues.id,
         documentId: complianceIssues.documentId,
+        guidanceDocumentId: complianceIssues.guidanceDocumentId,
         issueType: complianceIssues.issueType,
         occurrenceNumber: complianceIssues.occurrenceNumber,
         url: complianceIssues.url,
@@ -993,7 +998,8 @@ export class ComplianceIssuesRepository extends BaseRepository {
     return results.map(row => ({
       ...row,
       id: Number(row.id),
-      documentId: Number(row.documentId),
+      documentId: row.documentId != null ? Number(row.documentId) : null,
+      guidanceDocumentId: row.guidanceDocumentId ?? null,
       requirementFound: row.requirementFound ?? false,
       verbatimSupportingText: row.verbatimSupportingText ?? [],
       isVerbatim: row.isVerbatim ?? null,
@@ -1063,6 +1069,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       .where(eq(complianceIssueAnalyses.id, analysisInfo.analysisId));
 
     // Return via getByDocumentId to get the full shape with aliased fields
+    if (analysisInfo.documentId == null) return undefined;
     const issues = await this.getByDocumentId(analysisInfo.documentId);
     return issues.find(i => i.id === id);
   }
@@ -1356,6 +1363,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       .where(eq(complianceIssueAnalyses.id, analysisInfo.analysisId));
 
     // Return via getByDocumentId to get the full shape with aliased fields
+    if (analysisInfo.documentId == null) return undefined;
     const issues = await this.getByDocumentId(analysisInfo.documentId);
     return issues.find(i => i.id === id);
   }
@@ -1613,6 +1621,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       .where(eq(complianceIssueAnalyses.id, analysisInfo.analysisId));
 
     // Return via getByDocumentId to get the full shape with aliased fields
+    if (analysisInfo.documentId == null) return undefined;
     const issues = await this.getByDocumentId(analysisInfo.documentId);
     return issues.find(i => i.id === id);
   }

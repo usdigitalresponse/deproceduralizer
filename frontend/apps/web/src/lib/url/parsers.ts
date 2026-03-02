@@ -69,6 +69,11 @@ import {
   EASY_CLEANUP_FILTER_VALUES,
   // Section Type
   SECTION_TYPE_VALUES,
+  // Guidance
+  GUIDANCE_TAB_VALUES,
+  GUIDANCE_SORT_BY_VALUES,
+  GUIDANCE_STATUS_VALUES,
+  GUIDANCE_POLICY_CATEGORY_VALUES,
 } from '@/lib/constants/values';
 
 // Re-export types for convenience
@@ -116,6 +121,10 @@ export type {
   Tier3FindingFilterValue,
   Tier3TriggerFilterValue,
   PipelineSubTabValue,
+  GuidanceTabValue,
+  GuidanceSortByValue,
+  GuidanceStatusValue,
+  GuidancePolicyCategoryValue,
 } from '@/lib/constants/values';
 
 // Re-export value arrays for backward compatibility
@@ -577,6 +586,37 @@ export const ibrParsers = {
 
 // Re-export IBR types
 export type { IbrTabValue, IbrSortByValue } from '@/lib/constants/values';
+
+// ============================================
+// Guidance page parsers
+// ============================================
+
+export const guidanceTabParser = parseAsStringEnum([...GUIDANCE_TAB_VALUES]).withDefault('overview');
+export const guidanceSortByParser = parseAsStringEnum([...GUIDANCE_SORT_BY_VALUES]).withDefault('year');
+export const guidanceStatusParser = parseAsStringEnum([...GUIDANCE_STATUS_VALUES]).withDefault('all');
+export const guidancePolicyCategoryParser = parseAsStringEnum([...GUIDANCE_POLICY_CATEGORY_VALUES]).withDefault('all');
+export const guidanceAgencyParser = parseAsString;
+export const guidanceDocTypeParser = parseAsString;
+export const guidanceYearFromParser = parseAsInteger;
+export const guidanceYearToParser = parseAsInteger;
+
+/**
+ * Parser configuration for Guidance page
+ */
+export const guidanceParsers = {
+  tab: guidanceTabParser,
+  page: pageParser,
+  pageSize: pageSizeParser,
+  sortBy: guidanceSortByParser,
+  sortOrder: sortOrderParser,
+  agency: guidanceAgencyParser,
+  docType: guidanceDocTypeParser,
+  policyCategory: guidancePolicyCategoryParser,
+  status: guidanceStatusParser,
+  yearFrom: guidanceYearFromParser,
+  yearTo: guidanceYearToParser,
+  search: searchParser,
+};
 
 /**
  * Helper to parse comma-separated filter values from URL

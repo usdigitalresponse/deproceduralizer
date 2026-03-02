@@ -102,6 +102,14 @@ export const NAV_ITEMS: NavItem[] = [
     groupId: 'explorer',
   },
   {
+    key: 'guidance',
+    label: 'Guidance',
+    icon: getEntityIcon('guidance_document'),
+    isStateSpecific: true,
+    pathSuffix: '/guidance',
+    groupId: 'explorer',
+  },
+  {
     key: 'review',
     label: 'Review Mode',
     icon: ClipboardCheck,
