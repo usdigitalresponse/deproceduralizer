@@ -9,6 +9,12 @@ import { HorizontalBarChart } from '@/components/charts/BarChart';
 import { formatLabel } from '@/types/regulation';
 import type { GuidanceOverviewStats } from '@/lib/actions/guidance-documents';
 
+function formatLabel(raw: string): string {
+  return raw
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, c => c.toUpperCase());
+}
+
 interface GuidanceOverviewTabProps {
   stats: GuidanceOverviewStats | null;
 }
