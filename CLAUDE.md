@@ -104,6 +104,7 @@ When working on the Next.js frontend, follow these patterns:
 | `.claude/skills/research-pipeline/SKILL.md` | Pipeline internals (tiers, state machine, triggers) | Changing tier logic, triggers, state machine, cost model |
 | `.claude/skills/jenai-pipeline/SKILL.md` | JenAI pipeline architecture and categories | Changing tier logic, categories, context strategy |
 | `.claude/skills/cross-references/` | Extraction patterns and troubleshooting | Changing regex patterns, resolution logic |
+| `.claude/skills/web-scraping/SKILL.md` | nys-documents scraping pipeline and downloaders | Adding scrapers, changing download logic, download failures |
 
 ### Source of Truth Hierarchy
 - `docs/OPERATIONS.md` — pipeline step ordering, commands, CLI flags, costs, timing

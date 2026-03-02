@@ -64,6 +64,7 @@ def get_documents_by_level(
         "content IS NOT NULL",
         "content <> ''",
         "jurisdiction = %s",
+        "type = 'regulation'",
         "hierarchy_level = %s",
     ]
     params: list = [jurisdiction.upper(), level]
@@ -312,6 +313,7 @@ def get_hierarchy_levels(jurisdiction: str, title: Optional[str] = None) -> list
         "content IS NOT NULL",
         "content <> ''",
         "jurisdiction = %s",
+        "type = 'regulation'",
         "hierarchy_level IS NOT NULL",
         "hierarchy_level <> ''",
     ]
@@ -356,6 +358,7 @@ def get_document_counts_by_level(
         "content IS NOT NULL",
         "content <> ''",
         "jurisdiction = %s",
+        "type = 'regulation'",
         "hierarchy_level IS NOT NULL",
     ]
     params: list = [jurisdiction.upper()]
@@ -429,6 +432,7 @@ def get_documents_without_children(
         "d.content IS NOT NULL",
         "d.content <> ''",
         "d.jurisdiction = %s",
+        "d.type = 'regulation'",
         "d.hierarchy_level = %s",
     ]
     params: list = [jurisdiction.upper(), level]
@@ -540,6 +544,7 @@ def get_all_titles(jurisdiction: str) -> list[str]:
         SELECT DISTINCT {title_col}
         FROM regulatory_documents
         WHERE jurisdiction = %s
+          AND type = 'regulation'
           AND {title_col} IS NOT NULL
           AND content IS NOT NULL
           AND content <> ''

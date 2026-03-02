@@ -343,20 +343,21 @@ Pure regex match store. Tracks individual regex matches found during compliance 
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | bigserial | Primary key |
-| `document_id` | bigint NOT NULL | FK to regulatory_documents |
+| `document_id` | bigint | FK to regulatory_documents (nullable — see CHECK constraint) |
+| `guidance_document_id` | bigint | FK to guidance_documents (nullable — see CHECK constraint). **Migration 0057.** |
 | `issue_type` | varchar(50) | `wet_signature`, `mail_only`, `fax`, etc. |
 | `occurrence_number` | integer | 1, 2, 3... for multiple issues of same type per document |
 | `regex_match_pattern` | varchar(255) | Regex pattern that triggered the initial scan |
 | `regex_match_context` | text NOT NULL | Text window around the regex match (~600 chars) |
-| `url` | text | Link to the regulation |
+| `url` | text | Link to the regulation or guidance doc |
 | `jurisdiction` | varchar(3) NOT NULL | NY, NJ, or NYC |
 | `created_at` | timestamp | When record was created |
 | `analysis_id` | bigint | FK to compliance_issue_analyses(id) ON DELETE SET NULL. Many-to-one link (many matches → one analysis). Set by searcher/pipeline after analysis INSERT. |
 | `run_id` | varchar(32) | Batch/run ID for tracking which scan created the record |
 
-**Constraints:** `unique_document_issue_occurrence UNIQUE(document_id, issue_type, occurrence_number)`, `chk_ci_jurisdiction CHECK (jurisdiction IN ('NY', 'NJ', 'NYC'))`
+**Constraints:** `compliance_issues_one_source CHECK ((document_id IS NOT NULL)::int + (guidance_document_id IS NOT NULL)::int = 1)`, `chk_ci_jurisdiction CHECK (jurisdiction IN ('NY', 'NJ', 'NYC'))`, partial unique indexes on `(document_id, issue_type, occurrence_number)` and `(guidance_document_id, issue_type, occurrence_number)`
 
-**Indexes:** `idx_compliance_issues_document`, `idx_compliance_issues_state`, `idx_compliance_issues_issue_type`, `idx_compliance_issues_state_issue`, `idx_compliance_issues_analysis_id`
+**Indexes:** `idx_compliance_issues_document`, `idx_ci_guidance_document` (migration 0057b, CONCURRENTLY), `idx_compliance_issues_state`, `idx_compliance_issues_issue_type`, `idx_compliance_issues_state_issue`, `idx_compliance_issues_analysis_id`, `idx_ci_unique_reg` (partial unique, migration 0057b), `idx_ci_unique_guidance` (partial unique, migration 0057b)
 
 **Issue Types** (41 types defined in `prompts/compliance_issues.yaml`)
 
@@ -756,14 +757,69 @@ Post-pipeline step for regulations with statute links.
 **Indexes:** `idx_statute_mandate_checks_analysis`, `idx_statute_mandate_checks_mandated`
 **Constraints:** `UNIQUE(analysis_id, statute_id)`
 
-## cross_references
+## guidance_documents
 
-Internal cross-references between regulatory documents (e.g., "18 NYCRR 505.14" or "section 624.8 of this Part").
+Sub-regulatory guidance documents (ADMs, LCMs, INFs, GIS, TSBs, etc.) from NY state agencies. Imported from the nys-documents catalog. **Migration 0054.**
 
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | bigserial | Primary key |
-| `source_document_id` | bigint NOT NULL | FK to regulatory_documents (ON DELETE CASCADE) |
+| `catalog_id` | text | ID from nys-documents enriched_catalog.json (e.g. "00370") |
+| `canonical_ref` | text | Standard doc reference (e.g. "23-OCFS-ADM-15-R1") |
+| `title` | text NOT NULL | Document title |
+| `agency` | text NOT NULL | OCFS, OTDA, DOH, etc. |
+| `agency_division` | text | E.g. "Division of Child Welfare" |
+| `doc_type` | text | ADM, LCM, INF, GIS, TSB-M, letter, advisory, etc. |
+| `domain` | text | childcare, social_services, tax, etc. |
+| `date_published` | date | Publication date |
+| `date_effective` | date | Effective date |
+| `date_revised` | date | Last revision date |
+| `date_expires` | date | Expiration date |
+| `year` | integer | Year of publication |
+| `content` | text | Full document text |
+| `url` | text | Source URL |
+| `file_format` | text | pdf, docx, html, etc. |
+| `status` | text | active, superseded, canceled, expired (default: active) |
+| `supersedes` | text[] | canonical_refs this doc replaces |
+| `superseded_by` | text | canonical_ref that replaced this doc |
+| `revision_of` | text | canonical_ref of original (for R1, R2, etc.) |
+| `sender_name` | text | Name of sender from enrichment |
+| `sender_title` | text | Title of sender |
+| `distribution_to` | text[] | Distribution list |
+| `programs` | text[] | Referenced NY programs |
+| `cites_regulations` | text[] | NYCRR citations (e.g. "18 NYCRR 428.6") |
+| `cites_federal` | text[] | Federal statute citations |
+| `cites_documents` | text[] | Other guidance doc refs |
+| `source_project` | text | childcare, guidance, statewide_expansion |
+| `text_path` | text | Path in nys-documents repo |
+| `created_at` | timestamptz | Row creation time |
+| `updated_at` | timestamptz | Last update time (auto-updated by trigger on any column change — migration 0058) |
+| `search_vector` | tsvector | Full-text search (auto-populated by trigger; recomputed only when title/content change — migration 0058) |
+| `is_attachment` | boolean | True if title matches attachment/enclosure/appendix patterns (default false) |
+| `policy_category` | text | Rule-based category: `policy_directive`, `legal_interpretation`, `tax_guidance`, `informational`, `reference_material`, `non_policy`, `data_dump`, `unclassified` |
+
+**Indexes:** `idx_gd_catalog_id` (unique, partial), `idx_gd_agency`, `idx_gd_doc_type`, `idx_gd_canonical_ref` (partial), `idx_gd_status`, `idx_gd_search` (GIN), `idx_gd_year`, `idx_gd_policy_category` (partial)
+
+**Classification pipeline** (`--classify --execute`, 5 passes):
+1. **Attachments**: title regex for attachment/appendix/enclosure → `is_attachment = true`
+2. **Doc type mapping**: `doc_type` → `policy_category` (e.g. ADM → policy_directive, INF → informational)
+3. **Title overrides**: reclassify docs with non-policy titles regardless of doc_type (EIS, master plans, clinical reports, reference guides, trail plans → `reference_material`)
+4. **Title fallbacks**: classify remaining `unclassified` (doc_type='other') by title patterns (license lists → data_dump, forms → non_policy, etc.)
+5. **Raw PDF detection**: docs whose content starts with `%PDF-` (never text-extracted) → `data_dump`
+
+**Regex scan** (`--regex-scan`): scans eligible docs (policy_directive + informational, non-attachment, with text content) against 41 compliance issue regex patterns from `prompts/compliance_issues.yaml`. Dry-run by default (output only). Use `--regex-scan --execute` to save matches to `compliance_issues` table via `guidance_document_id` FK (migration 0057).
+
+**Pipeline:** `cd backend && python3 -m scripts.guidance_pipeline`
+
+## cross_references
+
+Internal cross-references between regulatory documents and guidance documents (e.g., "18 NYCRR 505.14" or "section 624.8 of this Part").
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | bigserial | Primary key |
+| `source_document_id` | bigint | FK to regulatory_documents (ON DELETE CASCADE) — nullable, see CHECK constraint |
+| `source_guidance_id` | bigint | FK to guidance_documents (ON DELETE CASCADE) — nullable, see CHECK constraint |
 | `ref_type` | varchar(50) NOT NULL | `nycrr`, `njac`, `ny_short_form`, `same_section` |
 | `raw_text` | text NOT NULL | Exact matched text from regulation |
 | `normalized_citation` | text NOT NULL | Cleaned citation for lookup |
@@ -773,6 +829,7 @@ Internal cross-references between regulatory documents (e.g., "18 NYCRR 505.14" 
 | `context_after` | text | ~50 chars after match for display |
 | `components` | jsonb | Parsed components (title, section, scope, etc.) |
 | `target_document_id` | bigint | FK to regulatory_documents (ON DELETE SET NULL) |
+| `target_guidance_id` | bigint | FK to guidance_documents (ON DELETE SET NULL) |
 | `is_resolved` | boolean | Whether citation was resolved to a target doc |
 | `resolution_notes` | text | Why resolution failed (for unresolved refs) |
 | `jurisdiction` | varchar(3) NOT NULL | NY, NJ, or NYC |
@@ -802,6 +859,8 @@ Internal cross-references between regulatory documents (e.g., "18 NYCRR 505.14" 
 ```
 
 **Constraints:**
+- `chk_crossref_source CHECK ((source_document_id IS NOT NULL)::int + (source_guidance_id IS NOT NULL)::int = 1)` — exactly one source must be set
+- `chk_crossref_target CHECK ((target_document_id IS NOT NULL)::int + (target_guidance_id IS NOT NULL)::int <= 1)` — at most one target
 - `chk_cr_jurisdiction CHECK (jurisdiction IN ('NY', 'NJ', 'NYC'))`
 - `chk_crossref_source_jurisdiction CHECK (source_jurisdiction IN ('NY', 'NJ', 'NYC'))`
 - `chk_crossref_target_jurisdiction CHECK (target_jurisdiction IN ('NY', 'NJ', 'NYC'))`
@@ -941,6 +1000,8 @@ The following tables exist in the database (created by migrations) but are inten
 | `search_vector` on `regulatory_documents` | 0044 | Trigger-maintained tsvector column, queried via raw SQL full-text search | SQL triggers + raw queries |
 | `search_vector` on `statutes` | 0044 | Trigger-maintained tsvector column | SQL triggers + raw queries |
 | `search_vector` on `compliance_issue_analyses` | 0044 | Trigger-maintained tsvector column | SQL triggers + raw queries |
+| `search_vector` on `guidance_documents` | 0054, 0058 | Trigger-maintained tsvector column; 0058 fixes trigger to fire on all column updates (not just title/content) while conditionally recomputing search_vector | SQL triggers + raw queries |
+| Guidance-related indexes on `compliance_issues` | 0057b | `idx_ci_guidance_document`, `idx_ci_unique_reg`, `idx_ci_unique_guidance` — created CONCURRENTLY to avoid write locks | Raw SQL (partial unique indexes) |
 
 **Note:** `compliance_issue_analysis_reviews` was designed for per-tier review tracking but was superseded by the `review_status`/`reviewed_by` fields added directly to `compliance_issue_analyses` in PR 6.3. It remains in the database as a dead table.
 

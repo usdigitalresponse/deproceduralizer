@@ -138,6 +138,7 @@ class BasePatternSearcher(ABC):
                 FROM regulatory_documents rd
                 {tag_join}
                 WHERE rd.jurisdiction = %s
+                  AND rd.type = 'regulation'
                   AND rd.content IS NOT NULL
                   AND (rd.exclude_from_analysis = FALSE OR rd.exclude_from_analysis IS NULL)
                 ORDER BY rd.id

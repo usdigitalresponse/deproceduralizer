@@ -18,6 +18,9 @@ Complete guide for running the Deproceduralizer analysis pipeline on a state's r
 10. Red Flags         →  analyses table
 11. JenAI Pipeline    →  jenai_analyses + jenai_issues tables (LLM single-pass)
 12. Refresh Stats     →  precomputed counts on regulatory_documents
+
+Separate pipeline:
+13. Guidance Import   →  guidance_documents table (from nys-documents repo)
 ```
 
 **Step dependencies:**
@@ -548,6 +551,153 @@ python backend/scripts/refresh_hierarchy_stats.py --state NY   # or NJ, NYC
 | Cost | Time |
 |------|------|
 | Free | Seconds |
+
+## Guidance Document Pipeline
+
+Separate from the regulation pipeline. Imports sub-regulatory guidance documents (ADMs, LCMs, INFs, GIS, TSBs, etc.) from the `nys-documents` repo into the `guidance_documents` table.
+
+**Prerequisite:** Clone the `nys-documents` repo as a sibling directory (i.e., `../nys-documents` relative to this project root).
+
+```bash
+cd backend
+
+# Preview what would be imported
+python3 -m scripts.guidance_pipeline --dry-run
+
+# Import all guidance documents
+python3 -m scripts.guidance_pipeline --execute
+
+# Import + resolve NYCRR citations to cross_references
+python3 -m scripts.guidance_pipeline --execute --resolve-citations
+
+# Import only a specific agency
+python3 -m scripts.guidance_pipeline --execute --agency OCFS
+
+# Gap analysis: identify missing docs by agency/year
+python3 -m scripts.guidance_pipeline --gap-analysis
+python3 -m scripts.guidance_pipeline --gap-analysis --gap-format json
+```
+
+| Option | Description |
+|--------|-------------|
+| `--dry-run` | Preview without inserting |
+| `--execute` | Run the import (or execute clean-refs/detect-supersedure) |
+| `--gap-analysis` | Run gap analysis on imported data |
+| `--resolve-citations` | Resolve NYCRR citations to cross_references after import |
+| `--clean-refs` | Clean junk canonical_ref values (dry-run by default, add `--execute` to apply) |
+| `--detect-supersedure` | Detect supersedure relationships (dry-run by default, add `--execute` to apply) |
+| `--supersedure-report` | Print summary of all supersedure relationships in the DB |
+| `--agency OCFS` | Filter by agency |
+| `--source-project childcare` | Filter by source project |
+| `--limit 100` | Limit number of docs |
+| `--source-dir PATH` | Path to nys-documents repo (default: `../nys-documents`) |
+| `--classify` | Rule-based classification of guidance docs (dry-run by default, add `--execute` to apply) |
+| `--regex-scan` | Scan guidance docs for compliance issue regex patterns |
+| `--doc-type TYPE` | Filter regex scan to a specific doc_type |
+
+#### Classification & Feasibility Analysis
+
+Classify guidance documents by policy category and scan for compliance patterns:
+
+```bash
+cd backend
+
+# Preview classification distribution
+python3 -m scripts.guidance_pipeline --classify
+
+# Apply classification to DB
+python3 -m scripts.guidance_pipeline --classify --execute
+
+# Scan classified docs for compliance issue patterns (preview only, no DB writes)
+python3 -m scripts.guidance_pipeline --regex-scan
+
+# Scan and save matches to compliance_issues table
+python3 -m scripts.guidance_pipeline --regex-scan --execute
+
+# Filter scan by agency or doc_type
+python3 -m scripts.guidance_pipeline --regex-scan --agency OCFS
+python3 -m scripts.guidance_pipeline --regex-scan --execute --doc-type ADM
+```
+
+#### Supersedure Detection
+
+After importing guidance documents, detect which docs supersede/replace others:
+
+```bash
+cd backend
+
+# Step 1: Clean junk canonical_ref values (preview first)
+python3 -m scripts.guidance_pipeline --clean-refs
+python3 -m scripts.guidance_pipeline --clean-refs --execute
+
+# Step 2: Detect supersedure relationships (preview first)
+python3 -m scripts.guidance_pipeline --detect-supersedure
+python3 -m scripts.guidance_pipeline --detect-supersedure --execute
+
+# Step 3: View report
+python3 -m scripts.guidance_pipeline --supersedure-report
+```
+
+Detection uses three strategies (in order):
+1. **Revision chains**: Docs with `-R1`/`-R2` suffix linked to base ref
+2. **Content regex**: Scans first 3000 chars for "Cancelled", "replaces", "supersedes", "revision of" patterns
+3. **Title keywords**: Titles containing "revised", "amended", "cancels" etc.
+
+Sets `supersedes`, `superseded_by`, `revision_of` columns and `status='superseded'` on replaced docs.
+
+| Cost | Time |
+|------|------|
+| Free (no LLM calls) | ~2-5 minutes for full import |
+
+#### Curated Manifest (Client-Requested Docs)
+
+For specific client-requested documents at known URLs, a manifest-based workflow is used:
+
+**Step 1: Scrape (in nys-documents repo)**
+```bash
+cd ../nys-documents
+npm run scrape -- --scraper=curated-manifest   # reads data/raw/curated-manifest.json
+npm run merge                                   # adds to master_catalog.csv
+npm run download                                # fetches files (Playwright for sites that need a browser)
+npm run extract                                 # extracts text
+```
+
+**Step 2: Import (in this repo)**
+```bash
+cd backend
+python3 -m scripts.guidance_pipeline --execute  # imports from enriched_catalog.json
+```
+
+**Step 3: Check coverage**
+```bash
+cd backend
+python3 -m scripts.guidance_pipeline --import-manifest data/client_requested_docs.json
+python3 -m scripts.guidance_pipeline --import-manifest data/client_requested_docs.json --group H
+```
+
+| Option | Description |
+|--------|-------------|
+| `--import-manifest PATH` | Check DB coverage against a manifest JSON file |
+| `--group X` | Filter to a specific group within the manifest (A-H) |
+
+Manifests live in two places:
+- `nys-documents/data/raw/curated-manifest.json` — source of truth for scraping (used by `curated-manifest.ts` scraper)
+- `backend/data/client_requested_docs.json` — tracking copy for coverage checks
+
+| Group | Agency | Count | Notes |
+|-------|--------|-------|-------|
+| A | OCFS Policy Statements | 11 PDFs | Needs Playwright |
+| B | OCFS CCDBG pages | 5 HTML | Needs Playwright |
+| C | OCFS Inspection Tools | 4 PDF/DOCX | Needs Playwright |
+| D | OCFS ADMs/INFs | 2 PDF | Needs Playwright |
+| E | Justice Center | 2 HTML | New agency |
+| F | DOS | 2 HTML | Already in DB |
+| G | NYSED | 4 mixed | Partially in DB |
+| H | NYC DOHMH | 9 mixed | New agency (NYC jurisdiction) |
+
+| Cost | Time |
+|------|------|
+| Free (no LLM calls) | ~5-15 minutes for download + extract |
 
 ## Running a Single Title End-to-End
 

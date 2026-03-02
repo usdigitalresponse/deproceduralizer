@@ -1,0 +1,489 @@
+[
+  {
+    "_comment": "=== Group A: OCFS Policy Statements (PDFs from ocfs.ny.gov) ===",
+    "_group": "A"
+  },
+  {
+    "url": "https://ocfs.ny.gov/programs/childcare/policies/Childcare-Policy-17-07.pdf",
+    "title": "Coaching as an OCFS-Approved Method of Training (Policy 17-07)",
+    "agency": "OCFS",
+    "agency_division": "Division of Child Care Services",
+    "doc_type": "policy",
+    "domain": "childcare",
+    "file_type": "pdf",
+    "group": "A",
+    "notes": "May need Playwright"
+  },
+  {
+    "url": "https://ocfs.ny.gov/programs/childcare/policies/Childcare-Policy-17-6-Early-Childhood-Certificate-Program.pdf",
+    "title": "Early Childhood Certificate Program — OCFS-Recognized Credential (Policy 17-06)",
+    "agency": "OCFS",
+    "agency_division": "Division of Child Care Services",
+    "doc_type": "policy",
+    "domain": "childcare",
+    "file_type": "pdf",
+    "group": "A"
+  },
+  {
+    "url": "https://ocfs.ny.gov/programs/childcare/policies/Childcare-Policy-17-5-Evaluating-Qualifications-for-Day-Care-Center-Directors.pdf",
+    "title": "Evaluating Qualifications for DCC Directors, SACC Directors, and Home-Based Providers (Policy 17-05)",
+    "agency": "OCFS",
+    "agency_division": "Division of Child Care Services",
+    "doc_type": "policy",
+    "domain": "childcare",
+    "file_type": "pdf",
+    "group": "A"
+  },
+  {
+    "url": "https://ocfs.ny.gov/programs/childcare/policies/Childcare-Policy-17-03.pdf",
+    "title": "Inactive Status for Licensed and Registered Child Day Care Programs (Policy 17-03)",
+    "agency": "OCFS",
+    "agency_division": "Division of Child Care Services",
+    "doc_type": "policy",
+    "domain": "childcare",
+    "file_type": "pdf",
+    "group": "A"
+  },
+  {
+    "url": "https://ocfs.ny.gov/main/childcare/policies/default.asp",
+    "title": "Approving Basements as Primary Child Care Space (Policy 17-02)",
+    "agency": "OCFS",
+    "agency_division": "Division of Child Care Services",
+    "doc_type": "policy",
+    "domain": "childcare",
+    "file_type": "html",
+    "group": "A",
+    "notes": "Policy 17-02 — linked from OCFS policies index page; exact PDF URL unknown"
+  },
+  {
+    "url": "https://ocfs.ny.gov/main/childcare/policies/default.asp",
+    "title": "What Constitutes a School-Age Child Care (SACC) Program (Policy 16-01)",
+    "agency": "OCFS",
+    "agency_division": "Division of Child Care Services",
+    "doc_type": "policy",
+    "domain": "childcare",
+    "file_type": "html",
+    "group": "A",
+    "notes": "Policy 16-01 — linked from OCFS policies index page; exact PDF URL unknown"
+  },
+  {
+    "url": "https://ocfs.ny.gov/main/childcare/policies/default.asp",
+    "title": "Clarification Concerning the Term 'Business Interest' in Home-Based Regs (Policy 15-06)",
+    "agency": "OCFS",
+    "agency_division": "Division of Child Care Services",
+    "doc_type": "policy",
+    "domain": "childcare",
+    "file_type": "html",
+    "group": "A",
+    "notes": "Policy 15-06 — linked from OCFS policies index page; exact PDF URL unknown"
+  },
+  {
+    "url": "https://ocfs.ny.gov/programs/childcare/policies/Childcare-Policy-07-1-Egress-Issues-Family-and-Group-Family-Programs.pdf",
+    "title": "Egress Issues in Family and Group Family Day Care Programs (Policy 07-01)",
+    "agency": "OCFS",
+    "agency_division": "Division of Child Care Services",
+    "doc_type": "policy",
+    "domain": "childcare",
+    "file_type": "pdf",
+    "group": "A"
+  },
+  {
+    "url": "https://ocfs.ny.gov/main/childcare/policies/default.asp",
+    "title": "Compliance Issues as They Relate to the Americans with Disabilities Act (Policy 06-03)",
+    "agency": "OCFS",
+    "agency_division": "Division of Child Care Services",
+    "doc_type": "policy",
+    "domain": "childcare",
+    "file_type": "html",
+    "group": "A",
+    "notes": "Policy 06-03 — linked from OCFS policies index page; exact PDF URL unknown"
+  },
+  {
+    "url": "https://ocfs.ny.gov/main/childcare/policies/default.asp",
+    "title": "Serious Incident, Serious Injury, Serious Condition, Communicable Disease and Emergency Medical Care Guidance (Policy 18-01)",
+    "agency": "OCFS",
+    "agency_division": "Division of Child Care Services",
+    "doc_type": "policy",
+    "domain": "childcare",
+    "file_type": "html",
+    "group": "A",
+    "notes": "Policy 18-01 — linked from OCFS policies index page; exact PDF URL unknown"
+  },
+  {
+    "url": "https://ocfs.ny.gov/main/childcare/policies/default.asp",
+    "title": "Multiple Family and Group Family Day Care Programs in a Single Residence (under 18 NYCRR 416.15(a))",
+    "agency": "OCFS",
+    "agency_division": "Division of Child Care Services",
+    "doc_type": "policy",
+    "domain": "childcare",
+    "file_type": "html",
+    "group": "A",
+    "notes": "Linked from OCFS policies index page; exact PDF URL unknown"
+  },
+
+  {
+    "_comment": "=== Group B: OCFS CCDBG / Background Check Pages (HTML) ===",
+    "_group": "B"
+  },
+  {
+    "url": "https://ocfs.ny.gov/programs/childcare/ccdbg",
+    "title": "CCDBG Background Checks Main Page",
+    "agency": "OCFS",
+    "agency_division": "Division of Child Care Services",
+    "doc_type": "guidance",
+    "domain": "childcare",
+    "file_type": "html",
+    "group": "B",
+    "notes": "Includes FAMS instructions, provisional approval guidance, waiver processes"
+  },
+  {
+    "url": "https://ocfs.ny.gov/programs/childcare/ccdbg/requirements.php",
+    "title": "CBC Requirements",
+    "agency": "OCFS",
+    "agency_division": "Division of Child Care Services",
+    "doc_type": "guidance",
+    "domain": "childcare",
+    "file_type": "html",
+    "group": "B"
+  },
+  {
+    "url": "https://ocfs.ny.gov/programs/childcare/ccdbg/renewals.php",
+    "title": "CBC Renewals Guidance",
+    "agency": "OCFS",
+    "agency_division": "Division of Child Care Services",
+    "doc_type": "guidance",
+    "domain": "childcare",
+    "file_type": "html",
+    "group": "B"
+  },
+  {
+    "url": "https://ocfs.ny.gov/programs/childcare/ccdbg/oos.php",
+    "title": "Out-of-State Background Check Guidance",
+    "agency": "OCFS",
+    "agency_division": "Division of Child Care Services",
+    "doc_type": "guidance",
+    "domain": "childcare",
+    "file_type": "html",
+    "group": "B"
+  },
+  {
+    "url": "https://ocfs.ny.gov/programs/childcare/background-checks-providers.php",
+    "title": "Provider Background Checks Overview",
+    "agency": "OCFS",
+    "agency_division": "Division of Child Care Services",
+    "doc_type": "guidance",
+    "domain": "childcare",
+    "file_type": "html",
+    "group": "B"
+  },
+
+  {
+    "_comment": "=== Group C: OCFS Inspection Tools and Forms (PDFs/DOCX) ===",
+    "_group": "C"
+  },
+  {
+    "url": "https://ocfs.ny.gov/programs/childcare/assets/docs/CCFS-Inspection-Checklist-DCC.pdf",
+    "title": "DCC Inspection Checklist (CCFS)",
+    "agency": "OCFS",
+    "agency_division": "Division of Child Care Services",
+    "doc_type": "form",
+    "domain": "childcare",
+    "file_type": "pdf",
+    "group": "C",
+    "notes": "Used by OCFS inspectors"
+  },
+  {
+    "url": "https://ocfs.ny.gov/programs/childcare/regulations/390-SSL-Child-Day-Care.pdf",
+    "title": "SSL Section 390 Full Text — Child Day Care (OCFS-hosted)",
+    "agency": "OCFS",
+    "agency_division": "Division of Child Care Services",
+    "doc_type": "regulation_text",
+    "domain": "childcare",
+    "file_type": "pdf",
+    "group": "C"
+  },
+  {
+    "url": "https://ocfs.ny.gov/programs/childcare/regulations/418-1-DCC.pdf",
+    "title": "18 NYCRR Part 418-1 Full Text — Day Care Centers (OCFS-hosted)",
+    "agency": "OCFS",
+    "agency_division": "Division of Child Care Services",
+    "doc_type": "regulation_text",
+    "domain": "childcare",
+    "file_type": "pdf",
+    "group": "C"
+  },
+  {
+    "url": "https://ocfs.ny.gov/programs/childcare/regulations/418-1-DCC.docx",
+    "title": "18 NYCRR Part 418-1 Full Text — Day Care Centers (Word version)",
+    "agency": "OCFS",
+    "agency_division": "Division of Child Care Services",
+    "doc_type": "regulation_text",
+    "domain": "childcare",
+    "file_type": "docx",
+    "group": "C",
+    "notes": "Word/editable version of same regulation text"
+  },
+
+  {
+    "_comment": "=== Group D: OCFS ADMs/INFs — handled by existing scraper, listed here for tracking ===",
+    "_group": "D"
+  },
+  {
+    "url": "https://ocfs.ny.gov/main/policies/external/ocfs_2020",
+    "title": "20-OCFS-INF-06: Major Regulatory Revisions as of February 7, 2020",
+    "agency": "OCFS",
+    "doc_type": "INF",
+    "domain": "childcare",
+    "file_type": "pdf",
+    "group": "D",
+    "canonical_ref": "20-OCFS-INF-06",
+    "notes": "Index page for 2020 directives — actual PDF linked from page. Prefer existing scraper."
+  },
+  {
+    "url": "https://ocfs.ny.gov/main/policies/external/OCFS_2015",
+    "title": "15-OCFS-ADM-10: Sharing of Investigation Information by CPS and OCFS DCCS",
+    "agency": "OCFS",
+    "doc_type": "ADM",
+    "domain": "childcare",
+    "file_type": "pdf",
+    "group": "D",
+    "canonical_ref": "15-OCFS-ADM-10",
+    "notes": "Index page for 2015 directives — actual PDF linked from page. Prefer existing scraper."
+  },
+
+  {
+    "_comment": "=== Group E: Justice Center (NEW AGENCY — 2 HTML pages) ===",
+    "_group": "E"
+  },
+  {
+    "url": "https://justicecenter.ny.gov/criminal-background-check-guidance-ocfs",
+    "title": "Criminal Background Check Guidance for OCFS Providers",
+    "agency": "JUSTICE_CENTER",
+    "doc_type": "guidance",
+    "domain": "childcare",
+    "file_type": "html",
+    "group": "E",
+    "notes": "Fingerprint registration process, fee info, rejected fingerprint guidance"
+  },
+  {
+    "url": "https://justicecenter.ny.gov/criminal-background-check-cbc",
+    "title": "Criminal Background Check (CBC) Overview",
+    "agency": "JUSTICE_CENTER",
+    "doc_type": "guidance",
+    "domain": "childcare",
+    "file_type": "html",
+    "group": "E",
+    "notes": "General CBC process, Staff Exclusion List check requirements"
+  },
+
+  {
+    "_comment": "=== Group F: NYS Dept of State (DOS — 2 HTML pages) ===",
+    "_group": "F"
+  },
+  {
+    "url": "https://dos.ny.gov/legal-memorandum-lu16-regulation-day-care-facilities",
+    "title": "Legal Memorandum LU16: The Regulation of Day Care Facilities",
+    "agency": "DOS",
+    "doc_type": "legal_memo",
+    "domain": "childcare",
+    "file_type": "html",
+    "group": "F",
+    "notes": "Zoning preemption analysis — People v. Clarkstown and related case law"
+  },
+  {
+    "url": "https://dos.ny.gov/building-standards-and-codes",
+    "title": "Building Standards and Codes Overview (19 NYCRR, Uniform Fire Prevention and Building Code)",
+    "agency": "DOS",
+    "doc_type": "guidance",
+    "domain": "building_codes",
+    "file_type": "html",
+    "group": "F"
+  },
+
+  {
+    "_comment": "=== Group G: NYSED (3-4 pages/PDFs) ===",
+    "_group": "G"
+  },
+  {
+    "url": "https://nysed.gov/facilities-planning/certificate-occupancy",
+    "title": "Certificate of Occupancy Guidance (School Buildings)",
+    "agency": "NYSED",
+    "doc_type": "guidance",
+    "domain": "childcare",
+    "file_type": "html",
+    "group": "G",
+    "notes": "Relevant when DCC is co-located in or leased from a school"
+  },
+  {
+    "url": "https://p12.nysed.gov/facplan/Newsletter/Newsletter_22.html",
+    "title": "Office of Facilities Planning Newsletter #22",
+    "agency": "NYSED",
+    "agency_division": "Office of Facilities Planning",
+    "doc_type": "newsletter",
+    "domain": "childcare",
+    "file_type": "html",
+    "group": "G",
+    "notes": "Includes guidance on OCFS licensing vs. SED jurisdiction for Pre-K in leased space"
+  },
+  {
+    "url": "https://nysed.gov/early-learning/laws-and-regulations",
+    "title": "Laws and Regulations for Office of Early Learning (UPK Regulatory Framework)",
+    "agency": "NYSED",
+    "agency_division": "Office of Early Learning",
+    "doc_type": "guidance",
+    "domain": "childcare",
+    "file_type": "html",
+    "group": "G"
+  },
+  {
+    "url": "https://p12.nysed.gov/facplan/documents/PUBLICFireSafetyManual.pdf",
+    "title": "Public School Fire Safety Inspection Manual",
+    "agency": "NYSED",
+    "agency_division": "Office of Facilities Planning",
+    "doc_type": "manual",
+    "domain": "fire_safety",
+    "file_type": "pdf",
+    "group": "G"
+  },
+
+  {
+    "_comment": "=== Group H: NYC DOHMH (NEW AGENCY — ~14 docs, NYC jurisdiction) ===",
+    "_group": "H"
+  },
+  {
+    "url": "https://www.nyc.gov/assets/doh/downloads/pdf/dc/group-child-care-center-compliance-guide.pdf",
+    "title": "Group Child Care Center Compliance Guide (Article 47)",
+    "agency": "NYC_DOHMH",
+    "doc_type": "compliance_guide",
+    "domain": "childcare",
+    "file_type": "pdf",
+    "group": "H",
+    "notes": "Primary 'how to comply with Article 47' guidance document"
+  },
+  {
+    "url": "https://www.nyc.gov/assets/doh/downloads/pdf/dc/article-47-revisions.pdf",
+    "title": "Article 47 Revisions: What Group Child Care Programs Need to Know",
+    "agency": "NYC_DOHMH",
+    "doc_type": "guidance",
+    "domain": "childcare",
+    "file_type": "pdf",
+    "group": "H"
+  },
+  {
+    "url": "https://www.nyc.gov/site/doh/business/permits-and-licenses/child-care-center-based.page",
+    "title": "Article 47 Revisions to Lead-Based Paint Requirements",
+    "agency": "NYC_DOHMH",
+    "doc_type": "guidance",
+    "domain": "childcare",
+    "file_type": "html",
+    "group": "H",
+    "notes": "Lead-based paint requirements page — content on child-care-center-based.page"
+  },
+  {
+    "url": "https://www.nyc.gov/site/doh/business/permits-and-licenses/child-care-center-based.page",
+    "title": "Daily Self-Inspection Checklist for Group Child Care Programs",
+    "agency": "NYC_DOHMH",
+    "doc_type": "form",
+    "domain": "childcare",
+    "file_type": "html",
+    "group": "H",
+    "notes": "Linked from DOHMH child care center-based page"
+  },
+  {
+    "url": "https://www.nyc.gov/site/doh/business/permits-and-licenses/child-care-center-based.page",
+    "title": "Annual Survey of Paint Condition Form",
+    "agency": "NYC_DOHMH",
+    "doc_type": "form",
+    "domain": "childcare",
+    "file_type": "html",
+    "group": "H",
+    "notes": "Linked from DOHMH child care center-based page"
+  },
+  {
+    "url": "https://nyc-business.nyc.gov/nycbusiness/description/group-child-care-center-permit",
+    "title": "Resources for Group Child Care Center Permit Applicants and Operators",
+    "agency": "NYC_DOHMH",
+    "doc_type": "guidance",
+    "domain": "childcare",
+    "file_type": "html",
+    "group": "H",
+    "notes": "PDF resource list with contacts, certifications, approvals"
+  },
+  {
+    "url": "https://www.nyc.gov/site/doh/business/permits-and-licenses/child-care-center-based.page",
+    "title": "Bureau of Child Care Borough Office Contact Information",
+    "agency": "NYC_DOHMH",
+    "doc_type": "reference",
+    "domain": "childcare",
+    "file_type": "html",
+    "group": "H",
+    "notes": "Contact info PDF linked from DOHMH permit pages"
+  },
+  {
+    "url": "https://www.nyc.gov/site/doh/business/permits-and-licenses/cbc-group-child-care.page",
+    "title": "CBC Request Forms for Group Child Care",
+    "agency": "NYC_DOHMH",
+    "doc_type": "form",
+    "domain": "childcare",
+    "file_type": "html",
+    "group": "H",
+    "notes": "Replaces former A-Series and B-Series forms"
+  },
+  {
+    "url": "https://www.nyc.gov/site/doh/business/permits-and-licenses/cbc-school-based-child-care.page",
+    "title": "CBC Request Forms for School-Based Child Care",
+    "agency": "NYC_DOHMH",
+    "doc_type": "form",
+    "domain": "childcare",
+    "file_type": "html",
+    "group": "H"
+  },
+  {
+    "url": "https://www.nyc.gov/assets/doh/downloads/pdf/dc/background-check-request-form-child-care.pdf",
+    "title": "Background Check Request Form (Child Care)",
+    "agency": "NYC_DOHMH",
+    "doc_type": "form",
+    "domain": "childcare",
+    "file_type": "pdf",
+    "group": "H",
+    "notes": "Includes LDSS-3370 DCCS version, Authorization & Affirmation form"
+  },
+  {
+    "url": "https://nyc-business.nyc.gov/nycbusiness/resources-by-industry/daycare",
+    "title": "FDNY Fire Safety in Child Care Centers Guidance",
+    "agency": "NYC_DOHMH",
+    "doc_type": "guidance",
+    "domain": "fire_safety",
+    "file_type": "html",
+    "group": "H",
+    "notes": "Referenced on NYC Business daycare industry page"
+  },
+  {
+    "url": "https://www.nyc.gov/site/doh/business/permits-and-licenses/child-care-center-based.page",
+    "title": "Healthy and Safe Diaper Changing for Child Care Providers",
+    "agency": "NYC_DOHMH",
+    "doc_type": "guidance",
+    "domain": "childcare",
+    "file_type": "html",
+    "group": "H",
+    "notes": "PDF, multi-language — linked from DOHMH child care center-based page"
+  },
+  {
+    "url": "https://nyc-business.nyc.gov/nycbusiness/resources-by-industry/daycare",
+    "title": "NYC Business: Day Care Industry Guide (Cross-Agency Checklist)",
+    "agency": "NYC_DOHMH",
+    "doc_type": "guidance",
+    "domain": "childcare",
+    "file_type": "html",
+    "group": "H"
+  },
+  {
+    "url": "https://www.nyc.gov/assets/doh/downloads/pdf/notice/2025/noa-art-47-childcare-programs-8-13-25.pdf",
+    "title": "2025 Proposed Article 47 Amendments (Notice of Adoption)",
+    "agency": "NYC_DOHMH",
+    "doc_type": "notice",
+    "domain": "childcare",
+    "file_type": "pdf",
+    "group": "H"
+  }
+]

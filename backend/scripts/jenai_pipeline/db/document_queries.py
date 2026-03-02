@@ -36,6 +36,7 @@ def get_sections_for_analysis(
 
     conditions = [
         "rd.jurisdiction = %s",
+        "rd.type = 'regulation'",
         "rd.hierarchy_level = 'section'",
         "(rd.exclude_from_analysis = FALSE OR rd.exclude_from_analysis IS NULL)",
         "rd.content IS NOT NULL",

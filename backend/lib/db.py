@@ -223,7 +223,7 @@ def get_filtered_documents(
     else:
         prefix = 'nycrr'
 
-    conditions = ["jurisdiction = %s"]
+    conditions = ["jurisdiction = %s", "type = 'regulation'"]
     params = [jurisdiction.upper()]
 
     # By default, exclude documents marked for exclusion from analysis

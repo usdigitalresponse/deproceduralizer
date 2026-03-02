@@ -201,6 +201,7 @@ class ProcessingUnitBuilder:
                 WHERE ci.issue_type = %s
                     {state_filter}
                     {title_filter}
+                    AND rd.type = 'regulation'
                     AND rd.content IS NOT NULL
                     AND LENGTH(rd.content) > 100
                     -- Exclude documents already analyzed
@@ -345,6 +346,7 @@ class ProcessingUnitBuilder:
                 WHERE ci.issue_type = %s
                     {state_filter}
                     {title_filter}
+                    AND rd.type = 'regulation'
                     AND rd.content IS NOT NULL
                     AND LENGTH(rd.content) > 100
                     AND (
@@ -846,6 +848,7 @@ class ProcessingUnitBuilder:
                 WHERE {state_filter}
                     ci.issue_type = ANY(%s)
                     {title_filter}
+                    AND rd.type = 'regulation'
                     AND rd.content IS NOT NULL
                     AND LENGTH(rd.content) > 100
                     -- Only fetch docs that need processing
