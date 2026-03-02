@@ -809,7 +809,7 @@ Sub-regulatory guidance documents (ADMs, LCMs, INFs, GIS, TSBs, etc.) from NY st
 4. **Title fallbacks**: classify remaining `unclassified` (doc_type='other') by title patterns (license lists → data_dump, forms → non_policy, etc.)
 5. **Raw PDF detection**: docs whose content starts with `%PDF-` (never text-extracted) → `data_dump`
 
-**Regex scan** (`--regex-scan`): scans eligible docs (policy_directive + informational, non-attachment, with text content) against 41 compliance issue regex patterns from `prompts/compliance_issues.yaml`. Dry-run by default (output only). Use `--regex-scan --execute` to save matches to `compliance_issues` table via `guidance_document_id` FK (migration 0057).
+**Regex scan** (`--regex-scan`): scans eligible docs (policy_directive + informational, non-attachment, with text content) against 42 compliance issue regex patterns from `prompts/compliance_issues.yaml`. Dry-run by default (output only). Use `--regex-scan --execute` to save matches to `compliance_issues` table via `guidance_document_id` FK (migration 0057).
 
 **Pipeline:** `cd backend && python3 -m scripts.guidance_pipeline`
 

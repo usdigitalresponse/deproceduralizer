@@ -61,10 +61,10 @@ Progress: 1000/5000 docs (3456 refs, ETA: 120s)
 
 ```bash
 # Check total counts
-./scripts/db-query.sh "SELECT state, count(*) FROM cross_references GROUP BY state"
+./scripts/db-query.sh "SELECT jurisdiction, count(*) FROM cross_references GROUP BY jurisdiction"
 
 # Check resolution rate
-./scripts/db-query.sh "SELECT state, count(*) as total, sum(case when is_resolved then 1 else 0 end) as resolved FROM cross_references GROUP BY state"
+./scripts/db-query.sh "SELECT jurisdiction, count(*) as total, sum(case when is_resolved then 1 else 0 end) as resolved FROM cross_references GROUP BY jurisdiction"
 
 # Sample unresolved
 ./scripts/db-query.sh "SELECT raw_text, normalized_citation, resolution_notes FROM cross_references WHERE is_resolved = false LIMIT 20"

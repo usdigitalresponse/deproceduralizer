@@ -7,7 +7,7 @@ description: Run the regulatory analysis pipeline (scraping, definitions, summar
 
 **Before running any pipeline step, read the full operational runbook:**
 
-Use the Read tool to read `docs/OPERATIONS.md` — it contains the complete 11-step pipeline with all commands, flags, costs, timing, and dependencies.
+Use the Read tool to read `docs/OPERATIONS.md` — it contains the complete 12-step pipeline with all commands, flags, costs, timing, and dependencies.
 
 ## Pipeline Steps (Quick Reference)
 
@@ -41,7 +41,7 @@ Use the Read tool to read `docs/OPERATIONS.md` — it contains the complete 11-s
 
 For detailed architecture/internals on specific steps, invoke the relevant skill:
 - **research-pipeline** — Tier logic, state machine, escalation triggers, cost optimization (Step 8)
-- **jenai-pipeline** — Two-tier Pahlka framework analysis, context strategy, category taxonomy (Step 11)
+- **jenai-pipeline** — Single-pass 19-category Pahlka framework analysis, context strategy, category taxonomy (Step 11)
 - **cross-references** — Extraction patterns, resolution logic, troubleshooting (Step 5)
 - **database** — Schema reference, queries, maintenance procedures
 

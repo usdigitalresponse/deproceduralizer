@@ -550,7 +550,7 @@ backend/scripts/research_pipeline/
 
 prompts/
     research_pipeline.yaml   # V5 tier prompts
-    compliance_issues.yaml   # 41 issue-specific configs (patterns + prompts)
+    compliance_issues.yaml   # 42 issue-specific configs (patterns + prompts)
 ```
 
 ### Deleted in Simplification (Feb 2026)

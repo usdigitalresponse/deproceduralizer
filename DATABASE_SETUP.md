@@ -90,7 +90,7 @@ EOF
 ### See all NY regulations with issues
 ```sql
 SELECT * FROM latest_analyses
-WHERE state = 'NY' AND type = 'regulation'
+WHERE jurisdiction = 'NY' AND type = 'regulation'
 AND has_implementation_issues = TRUE
 ORDER BY analyzed_at DESC;
 ```
@@ -105,7 +105,7 @@ SELECT
 FROM red_flags rf
 JOIN analyses a ON rf.analysis_id = a.id
 JOIN regulatory_documents d ON a.document_id = d.id
-WHERE rf.severity >= 8 AND d.state = 'NY'
+WHERE rf.severity >= 8 AND d.jurisdiction = 'NY'
 ORDER BY rf.severity DESC;
 ```
 
@@ -113,7 +113,7 @@ ORDER BY rf.severity DESC;
 ```sql
 SELECT type, COUNT(*), AVG(max_severity) as avg_severity
 FROM latest_analyses
-WHERE state = 'NY'
+WHERE jurisdiction = 'NY'
 GROUP BY type;
 ```
 
@@ -126,7 +126,7 @@ SELECT
 FROM red_flags rf
 JOIN analyses a ON rf.analysis_id = a.id
 JOIN regulatory_documents d ON a.document_id = d.id
-WHERE d.state = 'NY' AND a.is_current = TRUE
+WHERE d.jurisdiction = 'NY' AND a.is_current = TRUE
 GROUP BY rf.category
 ORDER BY count DESC;
 ```
@@ -175,7 +175,7 @@ ORDER BY term;
 -- compliance_issues = regex match store, compliance_issue_analyses = LLM analysis + review
 SELECT issue_type, COUNT(*) as count
 FROM compliance_issue_analyses
-WHERE requirement_found = true AND state = 'NJ'
+WHERE requirement_found = true AND jurisdiction = 'NJ'
 GROUP BY issue_type
 ORDER BY count DESC;
 ```

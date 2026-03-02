@@ -3,8 +3,8 @@
 ## Document Statistics
 
 ```sql
--- Count by state
-SELECT state, COUNT(*) FROM regulatory_documents GROUP BY state;
+-- Count by jurisdiction
+SELECT jurisdiction, COUNT(*) FROM regulatory_documents GROUP BY jurisdiction;
 
 -- Count by hierarchy level
 SELECT hierarchy_level, COUNT(*) FROM regulatory_documents GROUP BY hierarchy_level;
@@ -60,7 +60,7 @@ SELECT review_status, COUNT(*) FROM red_flags GROUP BY review_status;
 
 ```sql
 -- Root documents (titles)
-SELECT * FROM regulatory_documents WHERE parent_id IS NULL AND state = 'NY';
+SELECT * FROM regulatory_documents WHERE parent_id IS NULL AND jurisdiction = 'NY';
 
 -- Children of a document
 SELECT * FROM regulatory_documents WHERE parent_id = 123;

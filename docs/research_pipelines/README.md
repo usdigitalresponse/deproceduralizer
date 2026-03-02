@@ -60,7 +60,7 @@ When conflicts exist, `prompts/research_pipeline.yaml` is canonical.
 
 ## Issue Configs
 
-The `prompts/compliance_issues.yaml` file contains configurations for all 41 compliance issue types. Each config provides:
+The `prompts/compliance_issues.yaml` file contains configurations for all 42 compliance issue types. Each config provides:
 
 - `{issue_description}` - What this issue type means
 - `{positive_indicators}` - Signals this IS a compliance issue

@@ -9,14 +9,14 @@ The precomputed stats in `regulatory_documents` must be refreshed after:
 
 **Check for mismatches:**
 ```sql
-SELECT state, COUNT(*) as mismatches
+SELECT jurisdiction, COUNT(*) as mismatches
 FROM (
-  SELECT rd.id, rd.state, rd.direct_child_count,
+  SELECT rd.id, rd.jurisdiction, rd.direct_child_count,
     (SELECT COUNT(*) FROM regulatory_documents c WHERE c.parent_id = rd.id) as actual
   FROM regulatory_documents rd
 ) rd
 WHERE rd.direct_child_count != rd.actual
-GROUP BY state;
+GROUP BY jurisdiction;
 ```
 
 **Recompute all stats (run in order):**

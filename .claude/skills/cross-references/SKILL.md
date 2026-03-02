@@ -15,19 +15,20 @@ cd ~/Documents/Programming/raf/deproceduralizer/backend/scripts
 python3 -m cross_references.run_extraction --state NJ --output db
 
 # Check stats
-./scripts/db-query.sh "SELECT state, count(*), sum(case when is_resolved then 1 else 0 end) as resolved FROM cross_references GROUP BY state"
+./scripts/db-query.sh "SELECT jurisdiction, count(*), sum(case when is_resolved then 1 else 0 end) as resolved FROM cross_references GROUP BY jurisdiction"
 
 # Sample cross-references
 ./scripts/db-query.sh "SELECT raw_text, normalized_citation, is_resolved FROM cross_references LIMIT 10"
 ```
 
-## Current Stats (Dec 2024)
+## Current Stats (Mar 2026)
 
-| State | Total Refs | Documents | Resolution Rate |
-|-------|------------|-----------|-----------------|
-| NY    | 31,024     | 12,826    | 99.6%           |
-| NJ    | 75,680     | 23,425    | 99.9%           |
-| **Total** | **106,704** | - | **99.8%** |
+| Jurisdiction | Total Refs | Documents | Resolution Rate |
+|--------------|------------|-----------|-----------------|
+| NY           | 46,105     | 12,803    | 99.3%           |
+| NJ           | 83,853     | 23,399    | 99.9%           |
+| NYC          | 3,953      | 1,210     | 99.8%           |
+| **Total**    | **133,911**| -         | **99.6%**       |
 
 ## When to Re-run Extraction
 

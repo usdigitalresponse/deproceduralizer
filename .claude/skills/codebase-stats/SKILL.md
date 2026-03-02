@@ -84,13 +84,14 @@ deproceduralizer/
 │   ├── scripts/               # Scrapers, scanners, pipeline steps
 │   │   ├── compliance_issues/ # Regex scanner + config
 │   │   ├── research_pipeline/ # 3-tier LLM analysis (CLI entry point)
+│   │   ├── jenai_pipeline/    # Single-pass 19-category Pahlka analysis
 │   │   └── summarization/     # Hierarchical doc summarization
 │   └── lib/                   # Shared Python utilities
 ├── prompts/                   # LLM prompt definitions (YAML)
 │   ├── core.yaml              # Red flags, definitions prompts
-│   └── compliance_issues.yaml # 41 issue types with regex + prompts
+│   └── compliance_issues.yaml # 42 issue types with regex + prompts
 ├── docs/                      # Documentation
-│   ├── OPERATIONS.md          # Pipeline runbook (11 steps)
+│   ├── OPERATIONS.md          # Pipeline runbook (12 steps)
 │   └── plans/                 # Design documents
 ├── scripts/                   # Top-level utility scripts
 └── .claude/                   # Claude Code configuration
@@ -102,13 +103,15 @@ deproceduralizer/
 | Skill | Purpose |
 |-------|---------|
 | `database` | Query Neon PostgreSQL, run `db-query.sh`, schema reference |
-| `pipeline` | 11-step analysis pipeline operations and commands |
+| `pipeline` | 12-step analysis pipeline operations and commands |
 | `research-pipeline` | 3-tier LLM compliance analysis (tiers, triggers, costs) |
 | `cross-references` | Internal citation extraction between regulatory docs |
 | `regulatory-analysis` | Bad regulation pattern taxonomy with examples |
 | `prompt-writing` | LLM prompt authoring best practices and caching |
 | `cleanup` | Track and revert test data / temporary operations |
 | `troubleshooting` | Common issues (Next.js cache, etc.) |
+| `jenai-pipeline` | Single-pass 19-category Pahlka framework analysis |
+| `web-scraping` | NY state agency document scraping and downloads |
 | `codebase-stats` | This skill — LOC counts and project overview |
 
 ## Key Documentation Files
@@ -119,13 +122,13 @@ deproceduralizer/
 | `docs/OPERATIONS.md` | Pipeline commands, flags, costs, timing |
 | `.claude/skills/database/schema.md` | Full database schema reference |
 | `frontend/apps/web/STYLE_GUIDE.md` | Frontend component conventions |
-| `prompts/compliance_issues.yaml` | All 41 compliance issue definitions |
+| `prompts/compliance_issues.yaml` | All 42 compliance issue definitions |
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | Next.js 15 (App Router), React, TypeScript, Tailwind CSS |
+| Frontend | Next.js 16 (App Router), React, TypeScript, Tailwind CSS |
 | Database | Neon PostgreSQL, Drizzle ORM |
 | Backend pipeline | Python 3, Anthropic API (Claude), regex scanning |
 | Deployment | Vercel (frontend), Neon (database) |
