@@ -6,7 +6,7 @@ import { SegmentedControl, type SegmentedControlOption } from '@/components/ui/S
 import { guidanceTabParser } from '@/lib/url/parsers';
 import type { GuidanceTabValue } from '@/lib/constants/values';
 import type { JurisdictionCode } from '@deproceduralizer/database';
-import type { GuidanceOverviewStats } from '@/lib/actions/guidance-documents';
+import type { GuidanceOverviewStats, LineageStats } from '@/lib/actions/guidance-documents';
 import { GuidanceOverviewTab } from './GuidanceOverviewTab';
 import { GuidanceBrowseTab } from './GuidanceBrowseTab';
 
@@ -18,6 +18,7 @@ const TAB_OPTIONS: SegmentedControlOption<GuidanceTabValue>[] = [
 export interface GuidanceClientProps {
   jurisdiction: JurisdictionCode;
   stats: GuidanceOverviewStats | null;
+  lineageStats: LineageStats | null;
   agencies: string[];
   docTypes: string[];
 }
@@ -25,6 +26,7 @@ export interface GuidanceClientProps {
 export function GuidanceClient({
   jurisdiction,
   stats,
+  lineageStats,
   agencies,
   docTypes,
 }: GuidanceClientProps) {
@@ -47,7 +49,7 @@ export function GuidanceClient({
 
       <div className="mt-6">
         {currentTab === 'overview' && (
-          <GuidanceOverviewTab stats={stats} />
+          <GuidanceOverviewTab stats={stats} lineageStats={lineageStats} jurisdiction={jurisdiction} />
         )}
 
         {currentTab === 'browse' && (

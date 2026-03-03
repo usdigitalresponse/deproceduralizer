@@ -88,6 +88,34 @@ export interface PaginatedGuidanceResult {
   totalPages: number;
 }
 
+export interface LineageNode {
+  id: number;
+  canonicalRef: string;
+  title: string;
+  status: string | null;
+  agency: string;
+  year: number | null;
+  isCurrent: boolean;
+}
+
+export interface DocumentLineage {
+  chain: LineageNode[];     // ordered oldest → newest
+  currentIndex: number;     // position of viewed doc in chain
+}
+
+interface LineageDoc {
+  id: number;
+  canonicalRef: string | null;
+  title: string;
+  agency: string;
+  status: string | null;
+  year: number | null;
+  supersedes: string[] | null;
+  supersededBy: string | null;
+  revisionOf: string | null;
+  datePublished: string | null;
+}
+
 export interface SupersedureLink {
   canonicalRef: string;
   id: number | null;
@@ -117,6 +145,29 @@ export interface ResolvedRegulationCitation {
   citationText: string;
   regulationId: number | null;
   regulationTitle: string | null;
+}
+
+export interface LineageFamilyMember {
+  id: number;
+  canonicalRef: string;
+  title: string;
+  status: string | null;
+  year: number | null;
+}
+
+export interface DocumentFamily {
+  familyId: string;               // canonicalRef of oldest member
+  members: LineageFamilyMember[];  // ordered oldest → newest
+  chainLength: number;
+  currentActiveId: number | null;  // id of the active member (if any)
+  agency: string;
+}
+
+export interface LineageStats {
+  docsWithLineage: number;        // has supersedes/supersededBy/revisionOf
+  supersededCount: number;        // status = 'superseded'
+  orphanedReferences: number;     // refs pointing to non-existent docs
+  families: DocumentFamily[];     // grouped revision chains
 }
 
 export class GuidanceDocumentsRepository extends BaseRepository {
@@ -514,6 +565,261 @@ export class GuidanceDocumentsRepository extends BaseRepository {
     };
   }
 
+  async getFullLineage(docId: number): Promise<DocumentLineage> {
+    const startDoc = await this.getLineageFields(docId);
+    if (!startDoc || !startDoc.canonicalRef) {
+      return { chain: [], currentIndex: -1 };
+    }
+
+    // Collect all lineage docs by walking both directions
+    const visited = new Map<string, LineageDoc>(); // canonicalRef → doc
+    visited.set(startDoc.canonicalRef, startDoc);
+
+    let frontier = new Set<string>([startDoc.canonicalRef]);
+    const MAX_HOPS = 10;
+
+    for (let hop = 0; hop < MAX_HOPS && frontier.size > 0; hop++) {
+      const nextFrontier = new Set<string>();
+
+      // Gather all refs pointed to by frontier docs (forward refs)
+      const forwardRefs: string[] = [];
+      for (const ref of frontier) {
+        const doc = visited.get(ref);
+        if (!doc) continue;
+        if (doc.supersedes) {
+          for (const s of doc.supersedes) {
+            if (!visited.has(s)) forwardRefs.push(s);
+          }
+        }
+        if (doc.revisionOf && !visited.has(doc.revisionOf)) {
+          forwardRefs.push(doc.revisionOf);
+        }
+        if (doc.supersededBy && !visited.has(doc.supersededBy)) {
+          forwardRefs.push(doc.supersededBy);
+        }
+      }
+
+      // Resolve forward refs
+      if (forwardRefs.length > 0) {
+        const uniqueForwardRefs = [...new Set(forwardRefs)];
+        const resolved = await this.resolveCanonicalRefs(uniqueForwardRefs);
+        for (const doc of resolved) {
+          if (doc.canonicalRef && !visited.has(doc.canonicalRef)) {
+            visited.set(doc.canonicalRef, doc);
+            nextFrontier.add(doc.canonicalRef);
+          }
+        }
+      }
+
+      // Reverse lookup: find docs that reference any frontier doc
+      const frontierRefs = [...frontier];
+      const reverseResults = await this.findReferencingDocs(frontierRefs);
+      for (const doc of reverseResults) {
+        if (doc.canonicalRef && !visited.has(doc.canonicalRef)) {
+          visited.set(doc.canonicalRef, doc);
+          nextFrontier.add(doc.canonicalRef);
+        }
+      }
+
+      frontier = nextFrontier;
+    }
+
+    // If only the starting doc was found, return single-element chain
+    if (visited.size <= 1) {
+      return {
+        chain: [{
+          id: startDoc.id,
+          canonicalRef: startDoc.canonicalRef,
+          title: startDoc.title,
+          status: startDoc.status,
+          agency: startDoc.agency,
+          year: startDoc.year,
+          isCurrent: true,
+        }],
+        currentIndex: 0,
+      };
+    }
+
+    const chain = this.sortLineageChain(visited, startDoc.canonicalRef);
+    const currentIndex = chain.findIndex(n => n.canonicalRef === startDoc.canonicalRef);
+
+    return { chain, currentIndex };
+  }
+
+  private async getLineageFields(docId: number): Promise<LineageDoc | undefined> {
+    const results = await this.db
+      .select({
+        id: guidanceDocuments.id,
+        canonicalRef: guidanceDocuments.canonicalRef,
+        title: guidanceDocuments.title,
+        agency: guidanceDocuments.agency,
+        status: guidanceDocuments.status,
+        year: guidanceDocuments.year,
+        supersedes: guidanceDocuments.supersedes,
+        supersededBy: guidanceDocuments.supersededBy,
+        revisionOf: guidanceDocuments.revisionOf,
+        datePublished: guidanceDocuments.datePublished,
+      })
+      .from(guidanceDocuments)
+      .where(eq(guidanceDocuments.id, docId))
+      .limit(1);
+
+    return results[0];
+  }
+
+  private async resolveCanonicalRefs(refs: string[]): Promise<LineageDoc[]> {
+    if (refs.length === 0) return [];
+    return this.db
+      .select({
+        id: guidanceDocuments.id,
+        canonicalRef: guidanceDocuments.canonicalRef,
+        title: guidanceDocuments.title,
+        agency: guidanceDocuments.agency,
+        status: guidanceDocuments.status,
+        year: guidanceDocuments.year,
+        supersedes: guidanceDocuments.supersedes,
+        supersededBy: guidanceDocuments.supersededBy,
+        revisionOf: guidanceDocuments.revisionOf,
+        datePublished: guidanceDocuments.datePublished,
+      })
+      .from(guidanceDocuments)
+      .where(inArray(guidanceDocuments.canonicalRef, refs));
+  }
+
+  private async findReferencingDocs(refs: string[]): Promise<LineageDoc[]> {
+    if (refs.length === 0) return [];
+
+    const result = await this.db.execute<{
+      id: number;
+      canonical_ref: string | null;
+      title: string;
+      agency: string;
+      status: string | null;
+      year: number | null;
+      supersedes: string[] | null;
+      superseded_by: string | null;
+      revision_of: string | null;
+      date_published: string | null;
+    }>(sql`
+      SELECT id, canonical_ref, title, agency, status, year,
+             supersedes, superseded_by, revision_of, date_published
+      FROM guidance_documents
+      WHERE supersedes && ${refs}::text[]
+         OR superseded_by = ANY(${refs}::text[])
+         OR revision_of = ANY(${refs}::text[])
+    `);
+
+    return result.rows.map(row => ({
+      id: row.id,
+      canonicalRef: row.canonical_ref,
+      title: row.title,
+      agency: row.agency,
+      status: row.status,
+      year: row.year,
+      supersedes: row.supersedes,
+      supersededBy: row.superseded_by,
+      revisionOf: row.revision_of,
+      datePublished: row.date_published,
+    }));
+  }
+
+  private sortLineageChain(nodes: Map<string, LineageDoc>, startRef: string): LineageNode[] {
+    // Build a directed graph: edges go from predecessor → successor
+    const adjacency = new Map<string, Set<string>>(); // ref → set of successor refs
+    const inDegree = new Map<string, number>();
+
+    for (const ref of nodes.keys()) {
+      adjacency.set(ref, new Set());
+      inDegree.set(ref, 0);
+    }
+
+    for (const [ref, doc] of nodes) {
+      // supersedes means this doc replaced those docs, so predecessors → this doc
+      if (doc.supersedes) {
+        for (const predRef of doc.supersedes) {
+          if (nodes.has(predRef)) {
+            adjacency.get(predRef)!.add(ref);
+            inDegree.set(ref, (inDegree.get(ref) ?? 0) + 1);
+          }
+        }
+      }
+      // revisionOf means this doc is a revision of predRef, so predRef → this doc
+      if (doc.revisionOf && nodes.has(doc.revisionOf)) {
+        adjacency.get(doc.revisionOf)!.add(ref);
+        inDegree.set(ref, (inDegree.get(ref) ?? 0) + 1);
+      }
+      // supersededBy means this doc was superseded by successorRef, so this doc → successorRef
+      if (doc.supersededBy && nodes.has(doc.supersededBy)) {
+        adjacency.get(ref)!.add(doc.supersededBy);
+        inDegree.set(doc.supersededBy, (inDegree.get(doc.supersededBy) ?? 0) + 1);
+      }
+    }
+
+    // Topological sort (Kahn's algorithm) with date tiebreakers
+    const queue: string[] = [];
+    for (const [ref, degree] of inDegree) {
+      if (degree === 0) queue.push(ref);
+    }
+
+    // Sort initial queue by year, then datePublished (oldest first)
+    queue.sort((a, b) => this.compareByDate(nodes.get(a)!, nodes.get(b)!));
+
+    const sorted: string[] = [];
+    while (queue.length > 0) {
+      const ref = queue.shift()!;
+      sorted.push(ref);
+
+      const successors = adjacency.get(ref);
+      if (successors) {
+        for (const succ of successors) {
+          const newDegree = (inDegree.get(succ) ?? 1) - 1;
+          inDegree.set(succ, newDegree);
+          if (newDegree === 0) {
+            queue.push(succ);
+            // Re-sort to maintain date ordering among available nodes
+            queue.sort((a, b) => this.compareByDate(nodes.get(a)!, nodes.get(b)!));
+          }
+        }
+      }
+    }
+
+    // If there were cycles, add any remaining nodes sorted by date
+    if (sorted.length < nodes.size) {
+      const remaining = [...nodes.keys()].filter(ref => !sorted.includes(ref));
+      remaining.sort((a, b) => this.compareByDate(nodes.get(a)!, nodes.get(b)!));
+      sorted.push(...remaining);
+    }
+
+    return sorted.map(ref => {
+      const doc = nodes.get(ref)!;
+      return {
+        id: doc.id,
+        canonicalRef: ref,
+        title: doc.title,
+        status: doc.status,
+        agency: doc.agency,
+        year: doc.year,
+        isCurrent: ref === startRef,
+      };
+    });
+  }
+
+  private compareByDate(a: LineageDoc, b: LineageDoc): number {
+    // Compare by year first (nulls last)
+    if (a.year !== b.year) {
+      if (a.year === null) return 1;
+      if (b.year === null) return -1;
+      return a.year - b.year;
+    }
+    // Then by datePublished
+    if (a.datePublished !== b.datePublished) {
+      if (a.datePublished === null) return 1;
+      if (b.datePublished === null) return -1;
+      return a.datePublished.localeCompare(b.datePublished);
+    }
+    return 0;
+  }
+
   async getResolvedCitedRegulations(guidanceDocId: number): Promise<ResolvedRegulationCitation[]> {
     // Get the guidance document's cites_regulations array
     const [doc] = await this.db
@@ -580,5 +886,223 @@ export class GuidanceDocumentsRepository extends BaseRepository {
         regulationTitle: null,
       };
     });
+  }
+
+  async getLineageStats(jurisdiction: JurisdictionCode): Promise<LineageStats> {
+    const stateUpper = normalizeJurisdiction(jurisdiction);
+
+    // 1. Count docs with lineage + count superseded in parallel
+    const [withLineageResult, supersededResult, lineageDocsResult] = await Promise.all([
+      this.db.execute<{ count: number }>(sql`
+        SELECT count(*)::int as count
+        FROM guidance_documents
+        WHERE jurisdiction = ${stateUpper}
+          AND (supersedes IS NOT NULL
+            OR superseded_by IS NOT NULL
+            OR revision_of IS NOT NULL)
+      `),
+      this.db.execute<{ count: number }>(sql`
+        SELECT count(*)::int as count
+        FROM guidance_documents
+        WHERE jurisdiction = ${stateUpper}
+          AND status = 'superseded'
+      `),
+      // 3. Fetch all docs with lineage fields for building families
+      this.db.execute<{
+        id: number;
+        canonical_ref: string | null;
+        title: string;
+        status: string | null;
+        year: number | null;
+        agency: string;
+        supersedes: string[] | null;
+        superseded_by: string | null;
+        revision_of: string | null;
+      }>(sql`
+        SELECT id, canonical_ref, title, status, year, agency,
+               supersedes, superseded_by, revision_of
+        FROM guidance_documents
+        WHERE jurisdiction = ${stateUpper}
+          AND (supersedes IS NOT NULL
+            OR superseded_by IS NOT NULL
+            OR revision_of IS NOT NULL)
+      `),
+    ]);
+
+    const docsWithLineage = withLineageResult.rows[0].count;
+    const supersededCount = supersededResult.rows[0].count;
+    const lineageDocs = lineageDocsResult.rows;
+
+    // Build a map of canonicalRef → doc for quick lookup
+    const docsByRef = new Map<string, typeof lineageDocs[number]>();
+    for (const doc of lineageDocs) {
+      if (doc.canonical_ref) {
+        docsByRef.set(doc.canonical_ref, doc);
+      }
+    }
+
+    // Collect all referenced canonical refs (for orphan detection and reverse lookup)
+    const allReferencedRefs = new Set<string>();
+    for (const doc of lineageDocs) {
+      if (doc.supersedes) {
+        for (const ref of doc.supersedes) {
+          allReferencedRefs.add(ref);
+        }
+      }
+      if (doc.superseded_by) allReferencedRefs.add(doc.superseded_by);
+      if (doc.revision_of) allReferencedRefs.add(doc.revision_of);
+    }
+
+    // Also fetch docs that are referenced but don't have lineage fields themselves
+    const missingRefs = [...allReferencedRefs].filter(ref => !docsByRef.has(ref));
+    if (missingRefs.length > 0) {
+      const additionalDocs = await this.db.execute<{
+        id: number;
+        canonical_ref: string | null;
+        title: string;
+        status: string | null;
+        year: number | null;
+        agency: string;
+        supersedes: string[] | null;
+        superseded_by: string | null;
+        revision_of: string | null;
+      }>(sql`
+        SELECT id, canonical_ref, title, status, year, agency,
+               supersedes, superseded_by, revision_of
+        FROM guidance_documents
+        WHERE jurisdiction = ${stateUpper}
+          AND canonical_ref = ANY(${missingRefs}::text[])
+      `);
+      for (const doc of additionalDocs.rows) {
+        if (doc.canonical_ref && !docsByRef.has(doc.canonical_ref)) {
+          docsByRef.set(doc.canonical_ref, doc);
+        }
+      }
+    }
+
+    // 4. Count orphaned references: refs that don't match any canonical_ref in the DB
+    let orphanedReferences = 0;
+    if (allReferencedRefs.size > 0) {
+      const allRefsArray = [...allReferencedRefs];
+      const orphanResult = await this.db.execute<{ count: number }>(sql`
+        SELECT count(*)::int as count
+        FROM unnest(${allRefsArray}::text[]) AS ref
+        WHERE NOT EXISTS (
+          SELECT 1 FROM guidance_documents
+          WHERE canonical_ref = ref
+        )
+      `);
+      orphanedReferences = orphanResult.rows[0].count;
+    }
+
+    // 5. Build connected components (union-find)
+    const parent = new Map<string, string>();
+
+    function find(x: string): string {
+      let root = x;
+      while (parent.get(root) !== root) {
+        root = parent.get(root) ?? root;
+      }
+      // Path compression
+      let current = x;
+      while (current !== root) {
+        const next = parent.get(current) ?? current;
+        parent.set(current, root);
+        current = next;
+      }
+      return root;
+    }
+
+    function union(a: string, b: string) {
+      const rootA = find(a);
+      const rootB = find(b);
+      if (rootA !== rootB) {
+        parent.set(rootA, rootB);
+      }
+    }
+
+    // Initialize all known refs
+    for (const ref of docsByRef.keys()) {
+      parent.set(ref, ref);
+    }
+
+    // Connect docs via lineage relationships
+    for (const doc of docsByRef.values()) {
+      if (!doc.canonical_ref) continue;
+      if (doc.supersedes) {
+        for (const ref of doc.supersedes) {
+          if (docsByRef.has(ref)) {
+            union(doc.canonical_ref, ref);
+          }
+        }
+      }
+      if (doc.superseded_by && docsByRef.has(doc.superseded_by)) {
+        union(doc.canonical_ref, doc.superseded_by);
+      }
+      if (doc.revision_of && docsByRef.has(doc.revision_of)) {
+        union(doc.canonical_ref, doc.revision_of);
+      }
+    }
+
+    // Group docs into components
+    const components = new Map<string, string[]>();
+    for (const ref of docsByRef.keys()) {
+      const root = find(ref);
+      const group = components.get(root);
+      if (group) {
+        group.push(ref);
+      } else {
+        components.set(root, [ref]);
+      }
+    }
+
+    // 6. Build DocumentFamily for each component with >1 member
+    const families: DocumentFamily[] = [];
+    for (const memberRefs of components.values()) {
+      if (memberRefs.length < 2) continue;
+
+      const members: LineageFamilyMember[] = memberRefs
+        .map(ref => {
+          const doc = docsByRef.get(ref)!;
+          return {
+            id: doc.id,
+            canonicalRef: ref,
+            title: doc.title,
+            status: doc.status,
+            year: doc.year,
+          };
+        })
+        .sort((a, b) => {
+          // Sort oldest → newest by year (nulls last), then by id
+          if (a.year !== b.year) {
+            if (a.year === null) return 1;
+            if (b.year === null) return -1;
+            return a.year - b.year;
+          }
+          return a.id - b.id;
+        });
+
+      const activeDoc = members.find(m => m.status !== 'superseded' && m.status !== 'expired');
+      const oldestMember = members[0];
+      const agency = docsByRef.get(oldestMember.canonicalRef)?.agency ?? '';
+
+      families.push({
+        familyId: oldestMember.canonicalRef,
+        members,
+        chainLength: members.length,
+        currentActiveId: activeDoc?.id ?? null,
+        agency,
+      });
+    }
+
+    // Sort families by chain length descending
+    families.sort((a, b) => b.chainLength - a.chainLength);
+
+    return {
+      docsWithLineage,
+      supersededCount,
+      orphanedReferences,
+      families,
+    };
   }
 }

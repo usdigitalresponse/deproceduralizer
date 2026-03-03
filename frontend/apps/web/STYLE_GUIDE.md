@@ -4031,9 +4031,9 @@ Metadata card on the detail page showing agency, division, doc type, policy cate
 
 Document text content with "View Original" external link when a URL is available.
 
-### SupersedureChain
+### DocumentLineageViewer
 
-Document lineage card showing supersedes/superseded_by/revision_of relationships as navigable links.
+Full transitive document lineage viewer using a CSS vertical timeline. Shows the complete revision/supersedure chain from oldest to newest, with the current document highlighted. Each node displays canonicalRef, title, agency, year, and status badge. Non-current nodes are clickable links to navigate the chain. Returns null when a document has no lineage (chain length ≤ 1). Replaces the former single-level `SupersedureChain` component.
 
 ### GuidanceClient
 
@@ -4059,7 +4059,8 @@ components/guidance/
 ├── PolicyCategoryBadge.tsx   # Policy category badge
 ├── GuidanceDetailSidebar.tsx # Detail page metadata sidebar
 ├── GuidanceDetailContent.tsx # Detail page content display
-└── SupersedureChain.tsx      # Document lineage chain
+├── DocumentLineageViewer.tsx # Full transitive document lineage timeline
+└── LinkedCitationList.tsx   # Linked citation list
 ```
 
 ---

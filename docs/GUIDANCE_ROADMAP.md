@@ -77,17 +77,18 @@ Run the 3-tier LLM research pipeline on guidance-sourced compliance issues. Curr
 
 ---
 
-## 6. Document Lineage Viewer
+## 6. Document Lineage Viewer ✅
 
 A visual timeline/graph showing the full revision history and supersedure chain for a document family (e.g., all versions of "OCFS-ADM-15" from 2018 to 2024).
 
-**Requirements:**
-- Query to resolve full document family from any member (follow supersedes/superseded_by/revision_of chains)
-- Timeline or directed graph visualization component
-- Highlight current document in the chain
-- Show key metadata changes between versions
+**Status: Complete** — Implemented in `feat/guidance-frontend` branch.
 
-**Complexity:** High — recursive chain resolution + graph/timeline UI.
+**What was built:**
+- `getFullLineage()` repository method: iterative bi-directional chain resolution (forward refs + reverse lookup) with 10-hop bound and topological sort
+- `DocumentLineageViewer` component: CSS vertical timeline replacing the old 1-level `SupersedureChain`
+- `getLineageStats()` corpus-level analytics: connected-component family detection, orphaned reference counting
+- Lineage health stat cards + browsable document families table in Guidance Overview tab
+- `getDocumentLineage` and `getGuidanceLineageStats` server actions
 
 ---
 

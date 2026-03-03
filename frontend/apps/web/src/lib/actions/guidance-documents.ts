@@ -12,6 +12,11 @@ import {
   type SupersedureLink,
   type GuidanceCitationStats,
   type ResolvedRegulationCitation,
+  type DocumentLineage,
+  type LineageNode,
+  type LineageStats,
+  type DocumentFamily,
+  type LineageFamilyMember,
 } from '@deproceduralizer/database';
 import { type ActionResult, runAction, runCachedAction } from './types';
 
@@ -26,6 +31,11 @@ export type {
   SupersedureLink,
   GuidanceCitationStats,
   ResolvedRegulationCitation,
+  DocumentLineage,
+  LineageNode,
+  LineageStats,
+  DocumentFamily,
+  LineageFamilyMember,
 };
 
 export async function getGuidanceOverviewStats(
@@ -113,6 +123,7 @@ export async function getGuidanceDocTypes(
   );
 }
 
+/** @deprecated Use getDocumentLineage instead — provides full transitive chain resolution */
 export async function getGuidanceSupersedureChain(
   docId: number
 ): Promise<ActionResult<SupersedureLink[]>> {
@@ -137,5 +148,22 @@ export async function getGuidanceResolvedCitations(
 ): Promise<ActionResult<ResolvedRegulationCitation[]>> {
   return runAction('getGuidanceResolvedCitations', () =>
     guidanceRepo.getResolvedCitedRegulations(guidanceDocId)
+  );
+}
+
+export async function getDocumentLineage(
+  docId: number
+): Promise<ActionResult<DocumentLineage>> {
+  return runAction('getDocumentLineage', () => guidanceRepo.getFullLineage(docId));
+}
+
+export async function getGuidanceLineageStats(
+  state: JurisdictionCode
+): Promise<ActionResult<LineageStats>> {
+  return runCachedAction(
+    'getGuidanceLineageStats',
+    () => guidanceRepo.getLineageStats(state),
+    [`guidance-lineage-stats-${state}`],
+    { revalidate: 120, tags: ['guidance'] }
   );
 }
