@@ -8,3 +8,4 @@ export { FeedbackForm } from './FeedbackForm';
 export { FeedbackList } from './FeedbackList';
 export { ArchivedFeedback } from './ArchivedFeedback';
 export { V5PipelineComposer } from './V5PipelineComposer';
+export { JenAIPipelineComposer } from './JenAIPipelineComposer';

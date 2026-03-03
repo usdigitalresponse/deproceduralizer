@@ -5,6 +5,7 @@ import { readFile, readdir } from 'fs/promises';
 import { join } from 'path';
 import yaml from 'js-yaml';
 import { type ActionResult, success, failure, getErrorMessage, runAction } from './types';
+import { estimateTokens, extractPlaceholders } from '@/lib/utils/prompt-helpers';
 
 // =============================================================================
 // Types for Research Pipeline
@@ -142,26 +143,6 @@ type RawIssueConfig = Record<string, RawIssueConfigEntry>;
 // =============================================================================
 // Helper Functions
 // =============================================================================
-
-/**
- * Rough token estimation (~4 chars per token for English)
- */
-function estimateTokens(text: string): number {
-  return Math.ceil(text.length / 4);
-}
-
-/**
- * Extract placeholder variables from template
- */
-function extractPlaceholders(text: string): string[] {
-  const pattern = /\{(\w+)\}/g;
-  const matches = new Set<string>();
-  let match;
-  while ((match = pattern.exec(text)) !== null) {
-    matches.add(match[1]);
-  }
-  return Array.from(matches);
-}
 
 /**
  * Parse tier data from raw YAML

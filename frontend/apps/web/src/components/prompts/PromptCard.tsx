@@ -171,6 +171,30 @@ export function PromptCard({
             </div>
           )}
 
+          {/* Batch Context (if present — JenAI 3-layer prompts) */}
+          {prompt.batchContext && (
+            <div>
+              <h4 className="text-sm font-medium text-[var(--color-text)] mb-2">
+                Batch Context{' '}
+                <span className="text-[var(--color-text-muted)] font-normal">
+                  (cached per subchapter)
+                </span>
+              </h4>
+              <div className="mb-2 px-3 py-2 bg-[var(--color-neutral-50)] border border-[var(--color-neutral-200)] rounded-[var(--radius-md)] text-xs text-[var(--color-text-secondary)]">
+                <p className="font-medium text-[var(--color-text)] mb-1">
+                  How <code className="text-[var(--color-info)]">{'{rich_context_block}'}</code> is assembled:
+                </p>
+                <ol className="list-decimal list-inside space-y-0.5">
+                  <li>Regulatory hierarchy — ancestor chain from section up to title</li>
+                  <li>Sibling catalog — other sections in the same subchapter with summaries</li>
+                  <li>Definitions — applicable terms with full verbatim text</li>
+                  <li>Rich context — ancestor summaries + sibling summaries</li>
+                </ol>
+              </div>
+              <PromptTemplate template={prompt.batchContext} />
+            </div>
+          )}
+
           {/* User Template */}
           <div>
             <h4 className="text-sm font-medium text-[var(--color-text)] mb-2">

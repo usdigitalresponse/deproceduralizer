@@ -157,6 +157,19 @@ export function PromptNav({
           </div>
         )}
 
+        {/* JenAI Composer Link */}
+        <div>
+          <button
+            onClick={() => {
+              const el = document.getElementById('jenai-composer');
+              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }}
+            className="w-full text-left px-2 py-1.5 text-xs font-medium rounded transition-colors text-[var(--color-text-secondary)] hover:bg-[var(--color-neutral-50)] hover:text-[var(--color-text)]"
+          >
+            JenAI Prompt Composer
+          </button>
+        </div>
+
         {/* JenAI Prompts */}
         {jenaiPrompts.length > 0 && (
           <div>

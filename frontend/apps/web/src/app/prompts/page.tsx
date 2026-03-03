@@ -1,7 +1,7 @@
 import { Container } from '@/components/layout/Container';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Alert } from '@/components/ui';
-import { PromptsList, PromptNav, V5PipelineComposer } from '@/components/prompts';
+import { PromptsList, PromptNav, V5PipelineComposer, JenAIPipelineComposer } from '@/components/prompts';
 import { getPrompts, getCompliancePrompts, getJenAIPrompts } from '@/lib/actions/prompts';
 import { getAllFeedback, getFeedbackCounts } from '@/lib/actions/prompt-feedback';
 import { getIssueTypesList } from '@/lib/actions/research-pipeline';
@@ -59,6 +59,9 @@ export default async function PromptsPage() {
         {issueTypes.length > 0 && (
           <V5PipelineComposer issueTypes={issueTypes} />
         )}
+
+        {/* JenAI Pipeline Composer */}
+        <JenAIPipelineComposer />
 
         <div className="flex gap-6">
           {/* Main content */}
