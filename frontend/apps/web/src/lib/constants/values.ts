@@ -241,7 +241,7 @@ export type IbrSortByValue = (typeof IBR_SORT_BY_VALUES)[number];
 // Analytics Page
 // ============================================
 
-export const ANALYTICS_TAB_VALUES = ['overview', 'crossrefs', 'issues', 'keywords', 'definitions', 'statutes', 'pipeline'] as const;
+export const ANALYTICS_TAB_VALUES = ['overview', 'crossrefs', 'issues', 'keywords', 'definitions', 'statutes', 'guidance', 'pipeline'] as const;
 export type AnalyticsTabValue = (typeof ANALYTICS_TAB_VALUES)[number];
 
 export const PIPELINE_SUBTAB_VALUES = ['overview', 'context', 'verification'] as const;

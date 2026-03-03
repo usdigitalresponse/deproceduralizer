@@ -8,6 +8,7 @@ import type { SectionTypeStats, MetadataStats, KeywordStats, AppliesToStats } fr
 import type { DefinitionsAnalyticsStats } from '@/lib/actions/definitions';
 import type { PipelineAnalyticsData } from '@/lib/actions/pipeline-analytics';
 import type { SeverityDistribution, JenAIReviewStatusCounts } from '@deproceduralizer/database';
+import type { GuidanceOverviewStats, GuidanceCitationStats } from '@/lib/actions/guidance-documents';
 import type { AnalyticsTabValue } from '@/lib/constants/values';
 import { analyticsParsers } from '@/lib/url/parsers';
 import { AnalyticsTabs } from './AnalyticsTabs';
@@ -17,6 +18,7 @@ import { KeywordsTab } from './KeywordsTab';
 import { DefinitionsTab } from './DefinitionsTab';
 import { CrossReferencesTab } from './CrossReferencesTab';
 import { StatutesTab } from './StatutesTab';
+import { GuidanceAnalyticsTab } from './GuidanceAnalyticsTab';
 import { PipelineTab } from './PipelineTab';
 
 export interface AnalyticsClientProps {
@@ -36,6 +38,8 @@ export interface AnalyticsClientProps {
   complianceSeverity: SeverityDistribution | null;
   jenaiSeverity: SeverityDistribution | null;
   jenaiStats: JenAIReviewStatusCounts | null;
+  guidanceOverviewStats?: GuidanceOverviewStats | null;
+  guidanceCitationStats?: GuidanceCitationStats | null;
 }
 
 export function AnalyticsClient({
@@ -53,6 +57,8 @@ export function AnalyticsClient({
   complianceSeverity,
   jenaiSeverity,
   jenaiStats,
+  guidanceOverviewStats,
+  guidanceCitationStats,
 }: AnalyticsClientProps) {
   const [params, setParams] = useQueryStates(analyticsParsers, { shallow: true });
   const currentTab = params.tab;
@@ -112,6 +118,14 @@ export function AnalyticsClient({
 
         {currentTab === 'statutes' && (
           <StatutesTab stats={statuteStats} jurisdiction={jurisdiction} />
+        )}
+
+        {currentTab === 'guidance' && (
+          <GuidanceAnalyticsTab
+            overviewStats={guidanceOverviewStats ?? null}
+            citationStats={guidanceCitationStats ?? null}
+            jurisdiction={jurisdiction}
+          />
         )}
 
         {currentTab === 'pipeline' && (
