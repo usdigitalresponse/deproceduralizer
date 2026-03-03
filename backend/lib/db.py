@@ -2,6 +2,7 @@
 Database connection, retry logic, ancestor queries, filtering, and scope normalization.
 """
 
+import atexit
 import functools
 import os
 import time
@@ -23,21 +24,70 @@ load_dotenv(_PROJECT_ROOT / ".env", override=False)
 # Type variable for generic return type
 T = TypeVar('T')
 
+# ---------------------------------------------------------------------------
+# Connection Pool (lazy singleton)
+# ---------------------------------------------------------------------------
+_pool = None
+
+
+def _configure_conn(conn: Connection) -> None:
+    """Configure each new connection created by the pool."""
+    with conn.cursor() as cur:
+        cur.execute("SET statement_timeout = '300000ms'")  # 5 minute timeout
+    conn.commit()  # Must commit to leave connection in IDLE state for the pool
+
+
+def _get_pool():
+    """Return the shared ConnectionPool, creating it on first call."""
+    global _pool
+    if _pool is not None:
+        return _pool
+
+    database_url = os.getenv("DATABASE_URL")
+    if not database_url:
+        return None
+
+    try:
+        from psycopg_pool import ConnectionPool
+        _pool = ConnectionPool(
+            conninfo=database_url,
+            min_size=2,
+            max_size=10,
+            max_idle=300,
+            configure=_configure_conn,
+            kwargs={"connect_timeout": 30},
+            # Without this, conn.close() destroys connections instead of
+            # returning them to the pool (psycopg_pool ≥ 3.2 default is False)
+            close_returns=True,
+        )
+        atexit.register(_pool.close)
+        return _pool
+    except Exception as e:
+        print(f"Warning: Connection pool creation failed: {e}")
+        return None
+
 
 def get_db_connection(timeout: int = 30) -> Optional[Connection]:
     """
-    Create connection to Neon PostgreSQL database.
+    Get a connection from the pool (or create a standalone one as fallback).
 
-    Consolidates duplicate implementation from multiple scripts.
-    Used by: migrate_regulations, populate_parent_ids, analyze_definition_usage,
-             analyze_red_flags, run_pipeline, extract_definitions
+    Callers use conn.close() as before — with pooling, close() returns the
+    connection to the pool instead of destroying it.
 
     Args:
-        timeout: Connection timeout in seconds
+        timeout: Connection timeout in seconds (used for fallback only)
 
     Returns:
         Connection object, or None if connection fails or DATABASE_URL not set
     """
+    pool = _get_pool()
+    if pool is not None:
+        try:
+            return pool.getconn()
+        except Exception as e:
+            print(f"Warning: Pool getconn failed, falling back to direct connect: {e}")
+
+    # Fallback: direct connection (e.g., psycopg_pool not installed)
     try:
         database_url = os.getenv("DATABASE_URL")
         if not database_url:
@@ -45,11 +95,7 @@ def get_db_connection(timeout: int = 30) -> Optional[Connection]:
             return None
 
         conn = psycopg.connect(database_url, connect_timeout=timeout)
-
-        # Set statement timeout (Neon pooler compatibility)
-        with conn.cursor() as cur:
-            cur.execute("SET statement_timeout = '300000ms'")  # 5 minute timeout
-
+        _configure_conn(conn)
         return conn
     except Exception as e:
         print(f"Warning: Database connection failed: {e}")

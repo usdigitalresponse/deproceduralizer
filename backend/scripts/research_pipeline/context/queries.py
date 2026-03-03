@@ -23,6 +23,25 @@ from scripts.research_pipeline.models.context import (
 )
 
 
+def _build_sibling_entry(
+    document_id: int,
+    citation: str,
+    title: str,
+    section_type: str,
+    summary: Optional[str] = None,
+) -> SiblingEntry:
+    """Build a SiblingEntry with waiver/exemption detection from section_type and title."""
+    title_lower = title.lower()
+    return SiblingEntry(
+        document_id=document_id,
+        citation=citation,
+        title=title,
+        summary=summary,
+        is_waiver_section=section_type == "exemptions" or "waiver" in title_lower,
+        is_exemption_section=section_type == "exemptions" or "exempt" in title_lower,
+    )
+
+
 # =============================================================================
 # Sibling Queries
 # =============================================================================
@@ -83,20 +102,11 @@ def get_sibling_summaries_batch(
     result: dict[int, list[SiblingEntry]] = {doc_id: [] for doc_id in document_ids}
     for row in rows:
         origin_id = row[0]
-        section_type = row[6] or ""
-
-        # Detect special section types from section_type column or title
-        title_lower = (row[3] or "").lower()
-        is_waiver = section_type == "exemptions" or "waiver" in title_lower
-        is_exemption = section_type == "exemptions" or "exempt" in title_lower
-
-        entry = SiblingEntry(
-            document_id=row[1],  # sibling_id
+        entry = _build_sibling_entry(
+            document_id=row[1],
             citation=row[2] or "",
-            title=row[3] or row[4] or "",  # Fall back to short_title
-            has_compliance_issue=False,  # Will be populated by caller if needed
-            is_waiver_section=is_waiver,
-            is_exemption_section=is_exemption,
+            title=row[3] or row[4] or "",
+            section_type=row[6] or "",
         )
         result[origin_id].append(entry)
 
@@ -207,25 +217,21 @@ def get_immediate_siblings_batch(
     for origin_id, (prev_id, next_id) in origin_to_prev_next.items():
         if prev_id and prev_id in sibling_details:
             d = sibling_details[prev_id]
-            title_lower = d["title"].lower()
-            result[origin_id]["prev"] = SiblingEntry(
+            result[origin_id]["prev"] = _build_sibling_entry(
                 document_id=prev_id,
                 citation=d["citation"],
                 title=d["title"],
+                section_type=d["section_type"],
                 summary=d["summary"],
-                is_waiver_section=d["section_type"] == "exemptions" or "waiver" in title_lower,
-                is_exemption_section=d["section_type"] == "exemptions" or "exempt" in title_lower,
             )
         if next_id and next_id in sibling_details:
             d = sibling_details[next_id]
-            title_lower = d["title"].lower()
-            result[origin_id]["next"] = SiblingEntry(
+            result[origin_id]["next"] = _build_sibling_entry(
                 document_id=next_id,
                 citation=d["citation"],
                 title=d["title"],
+                section_type=d["section_type"],
                 summary=d["summary"],
-                is_waiver_section=d["section_type"] == "exemptions" or "waiver" in title_lower,
-                is_exemption_section=d["section_type"] == "exemptions" or "exempt" in title_lower,
             )
 
     return result
@@ -635,18 +641,164 @@ def get_children_of_parent(parent_id: int) -> list[SiblingEntry]:
 
     result: list[SiblingEntry] = []
     for row in rows:
-        section_type = row[5] or ""
-        title = row[2] or row[3] or ""
-        title_lower = title.lower()
-
-        result.append(SiblingEntry(
+        result.append(_build_sibling_entry(
             document_id=row[0],
             citation=row[1] or "",
-            title=title,
+            title=row[2] or row[3] or "",
+            section_type=row[5] or "",
             summary=row[4],
-            is_waiver_section=section_type == "exemptions" or "waiver" in title_lower,
-            is_exemption_section=section_type == "exemptions" or "exempt" in title_lower,
         ))
+
+    return result
+
+
+@retry_db_operation(max_retries=5, base_delay=1.0)
+def get_subchapter_info_batch(subchapter_ids: list[int]) -> dict[int, dict]:
+    """
+    Get basic info for multiple subchapter documents in a single query.
+
+    Args:
+        subchapter_ids: List of subchapter document IDs
+
+    Returns:
+        Dict mapping subchapter_id -> info dict
+    """
+    if not subchapter_ids:
+        return {}
+
+    conn = get_db_connection()
+    if conn is None:
+        raise psycopg.OperationalError("Failed to establish database connection")
+
+    query = """
+        SELECT id, citation, title, short_title, summary
+        FROM regulatory_documents
+        WHERE id = ANY(%s)
+    """
+    with conn.cursor() as cur:
+        cur.execute(query, [subchapter_ids])
+        rows = cur.fetchall()
+    conn.close()
+
+    result: dict[int, dict] = {}
+    for row in rows:
+        result[row[0]] = {
+            "id": row[0],
+            "citation": row[1] or "",
+            "title": row[2] or row[3] or "",
+            "summary": row[4] or "",
+        }
+
+    # Fill in missing IDs with defaults
+    for sid in subchapter_ids:
+        if sid not in result:
+            result[sid] = {"id": sid, "citation": "", "title": ""}
+
+    return result
+
+
+@retry_db_operation(max_retries=5, base_delay=1.0)
+def get_children_of_parents_batch(parent_ids: list[int]) -> dict[int, list[SiblingEntry]]:
+    """
+    Get all children (siblings) for multiple parent documents in a single query.
+
+    Args:
+        parent_ids: List of parent document IDs
+
+    Returns:
+        Dict mapping parent_id -> list of SiblingEntry objects
+    """
+    if not parent_ids:
+        return {}
+
+    conn = get_db_connection()
+    if conn is None:
+        raise psycopg.OperationalError("Failed to establish database connection")
+
+    query = """
+        SELECT
+            parent_id, id, citation, title, short_title, summary, section_type
+        FROM regulatory_documents
+        WHERE parent_id = ANY(%s)
+        ORDER BY parent_id, citation
+    """
+    with conn.cursor() as cur:
+        cur.execute(query, [parent_ids])
+        rows = cur.fetchall()
+    conn.close()
+
+    result: dict[int, list[SiblingEntry]] = {pid: [] for pid in parent_ids}
+    for row in rows:
+        parent_id = row[0]
+        result[parent_id].append(_build_sibling_entry(
+            document_id=row[1],
+            citation=row[2] or "",
+            title=row[3] or row[4] or "",
+            section_type=row[6] or "",
+            summary=row[5],
+        ))
+
+    return result
+
+
+@retry_db_operation(max_retries=5, base_delay=1.0)
+def get_definitions_for_scopes_batch(scope_ids: list[int]) -> dict[int, list[str]]:
+    """
+    Get definition terms scoped to multiple documents in a single batch.
+
+    For each scope_id, includes definitions inherited from ancestors.
+
+    Args:
+        scope_ids: List of scope document IDs (typically subchapter or chapter)
+
+    Returns:
+        Dict mapping scope_id -> list of term strings
+    """
+    if not scope_ids:
+        return {}
+
+    conn = get_db_connection()
+    if conn is None:
+        raise psycopg.OperationalError("Failed to establish database connection")
+
+    # Get ancestors for all scope docs in one batch
+    ancestors_map = get_ancestors_batch(scope_ids)
+
+    # Build per-scope ancestor ID lists
+    scope_to_ancestor_ids: dict[int, list[int]] = {}
+    all_ancestor_ids: set[int] = set(scope_ids)
+    for scope_id in scope_ids:
+        ancestor_ids = [scope_id]
+        for ancestor in ancestors_map.get(scope_id, []):
+            ancestor_ids.append(ancestor["id"])
+            all_ancestor_ids.add(ancestor["id"])
+        scope_to_ancestor_ids[scope_id] = ancestor_ids
+
+    # Single query for all definitions
+    query = """
+        SELECT scope_document_id, term
+        FROM definitions
+        WHERE scope_document_id = ANY(%s)
+        ORDER BY term
+    """
+    with conn.cursor() as cur:
+        cur.execute(query, [list(all_ancestor_ids)])
+        rows = cur.fetchall()
+    conn.close()
+
+    # Map scope_document_id -> terms
+    scope_to_terms: dict[int, set[str]] = defaultdict(set)
+    for row in rows:
+        if row[1]:
+            scope_to_terms[row[0]].add(row[1])
+
+    # Build result: each scope gets its own terms + inherited from ancestors
+    result: dict[int, list[str]] = {}
+    for scope_id in scope_ids:
+        terms: set[str] = set()
+        for ancestor_id in scope_to_ancestor_ids[scope_id]:
+            terms.update(scope_to_terms.get(ancestor_id, set()))
+        result[scope_id] = sorted(terms)
 
     return result
 

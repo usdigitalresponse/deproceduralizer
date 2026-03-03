@@ -40,6 +40,13 @@ from ..context import (
     # V5 4-layer caching
     get_subchapter_ids_batch,
     build_batch_context_for_subchapter,
+    build_batch_context_for_subchapters,
+    # Guidance context
+    fetch_cited_regulation_summaries,
+    build_guidance_batch_context,
+    fetch_guidance_content_batch,
+    format_guidance_preamble,
+    GUIDANCE_BATCH_CONTEXT_VARS,
 )
 from ..context_registry import ContextRegistry
 from ..config import BATCH_MODEL
@@ -64,6 +71,7 @@ def prepare_tier1_batch(
                                    immediate siblings, cross-refs
 
     Units are grouped by subchapter to maximize cache hits for Layer 3.
+    Guidance units are routed to a separate preparation path (no hierarchy).
 
     Args:
         units: List of TrackedUnits to process
@@ -72,6 +80,33 @@ def prepare_tier1_batch(
                        If provided, will check cache before building new context.
                        Mutated in-place to add new contexts.
     """
+    # Split regulation vs guidance units
+    regulation_units = [u for u in units if u.unit.source_type == "regulation"]
+    guidance_units = [u for u in units if u.unit.source_type == "guidance"]
+
+    requests = []
+
+    # Process regulation units through existing path
+    if regulation_units:
+        requests.extend(_prepare_tier1_regulation_batch(
+            regulation_units, issue_config, context_cache,
+        ))
+
+    # Process guidance units through guidance-specific path
+    if guidance_units:
+        requests.extend(_prepare_tier1_guidance_batch(
+            guidance_units, issue_config,
+        ))
+
+    return requests
+
+
+def _prepare_tier1_regulation_batch(
+    units: list[TrackedUnit],
+    issue_config: IssueConfig,
+    context_cache: dict[int, dict[str, str]] | None = None,
+) -> list[dict]:
+    """Prepare Tier 1 batch requests for regulation units (existing logic)."""
     # Use provided cache or create a local one
     subchapter_cache = context_cache if context_cache is not None else {}
     tier_configs = load_tier_configs()
@@ -121,33 +156,22 @@ def prepare_tier1_batch(
         else:
             uncached_subchapters.append(subchapter_id)
 
-    # Build uncached contexts in parallel (each context build has multiple DB queries)
+    # Build uncached contexts using batch queries (single set of DB queries for all)
     if uncached_subchapters:
-        from concurrent.futures import ThreadPoolExecutor, as_completed
-
-        def build_one(subchapter_id: int) -> tuple[int, dict[str, str]]:
-            """Build context for one subchapter (runs in thread pool)."""
-            return subchapter_id, build_batch_context_for_subchapter(
-                subchapter_id=subchapter_id,
-                issue_type=issue_config.name,
-            )
-
-        # Use 4 threads - balances parallelism with DB connection limits
-        with ThreadPoolExecutor(max_workers=4) as executor:
-            futures = {executor.submit(build_one, sid): sid for sid in uncached_subchapters}
-            completed = 0
-            for future in as_completed(futures):
-                completed += 1
-                print(f"    Building subchapter context ({completed}/{len(uncached_subchapters)})...", end="\r", flush=True)
-                subchapter_id, context = future.result()
-                batch_contexts[subchapter_id] = context
-                subchapter_cache[subchapter_id] = context  # Add to shared cache
+        new_contexts = build_batch_context_for_subchapters(
+            subchapter_ids=uncached_subchapters,
+            issue_type=issue_config.name,
+        )
+        batch_contexts.update(new_contexts)
+        # Add to shared cache
+        for sid, ctx in new_contexts.items():
+            subchapter_cache[sid] = ctx
 
     if subchapter_list:
         if cache_hits > 0:
-            print(f"    Subchapter context: {cache_hits} cached, {len(uncached_subchapters)} built (parallel)" + " " * 20)
+            print(f"    Subchapter context: {cache_hits} cached, {len(uncached_subchapters)} built (batch)" + " " * 20)
         elif uncached_subchapters:
-            print(f"    Built context for {len(uncached_subchapters)} subchapters (parallel)" + " " * 20)
+            print(f"    Built context for {len(uncached_subchapters)} subchapters (batch)" + " " * 20)
 
     requests = []
 
@@ -209,6 +233,99 @@ def prepare_tier1_batch(
             immediate_siblings=immediate_siblings,
             catalogs=catalogs,
         )
+        requests.append(request)
+
+    return requests
+
+
+def _prepare_tier1_guidance_batch(
+    units: list[TrackedUnit],
+    issue_config: IssueConfig,
+) -> list[dict]:
+    """
+    Prepare Tier 1 batch requests for guidance units.
+
+    Guidance documents have no hierarchy (no subchapters, siblings, ancestors).
+    Context comes from cited regulation summaries instead.
+    """
+    tier_configs = load_tier_configs()
+    tier1_config = tier_configs['tier1']
+
+    doc_ids = [u.document_id for u in units]
+
+    # Fetch guidance-specific context
+    cited_summaries = fetch_cited_regulation_summaries(doc_ids)
+    guidance_content = fetch_guidance_content_batch(doc_ids)
+
+    requests = []
+    for unit in units:
+        doc_id = unit.document_id
+        metadata = guidance_content.get(doc_id, {})
+        unit_cited = cited_summaries.get(doc_id, [])
+
+        # Build batch_context_vars using cited regulation summaries
+        cited_context = build_guidance_batch_context(doc_id, unit_cited, metadata)
+        batch_context_vars = {**GUIDANCE_BATCH_CONTEXT_VARS, "definition_terms": "(none)"}
+
+        # Build guidance preamble
+        preamble = format_guidance_preamble(metadata)
+
+        # Initialize context registry
+        registry = ContextRegistry()
+
+        # Add cited regulations to registry
+        for reg in unit_cited:
+            registry.add_context(
+                context_type="cross_reference",
+                identifier=reg.get("citation", ""),
+                document_id=reg.get("document_id"),
+                content_level="summary",
+            )
+
+        # Add self to registry
+        registry.add_context(
+            context_type="self",
+            identifier=metadata.get("citation", unit.unit.citation),
+            document_id=unit.document_id,
+            content=metadata.get("content", unit.unit.content),
+            content_level="full_text",
+        )
+
+        unit.context_registry = registry
+
+        # Format prompt — use same tier prompt structure
+        prompt_parts = format_tier_prompt(
+            tier=tier1_config,
+            issue=issue_config,
+            batch_context_vars=batch_context_vars,
+            citation=metadata.get("citation", unit.unit.citation),
+            title=metadata.get("title", unit.unit.title or ""),
+            document_summary="(guidance document)",
+            match_count=str(len(unit.unit.matches)),
+            match_list=format_matches_for_tier1(unit.unit.matches),
+            immediate_siblings="(not applicable for guidance documents)",
+            keyword_crossref_summaries=cited_context,
+            crossref_count=str(len(unit_cited)),
+            crossref_catalog="(see cited regulations above)",
+            crossref_catalog_truncated="",
+            sibling_titles="(not applicable)",
+            crossref_citations=", ".join(r.get("citation", "") for r in unit_cited[:10]),
+            ancestor_chain="(not applicable)",
+        )
+
+        # Prepend guidance preamble to the issue_block
+        issue_block_with_preamble = preamble + "\n\n" + prompt_parts["issue_block"]
+        user_cached_prefix = issue_block_with_preamble + prompt_parts["batch_context"]
+
+        request = format_batch_request(
+            custom_id=unit.custom_id,
+            prompt=prompt_parts["document_template"],
+            response_format=Tier1Output,
+            model=BATCH_MODEL,
+            system=prompt_parts["system"],
+            user_cached_prefix=user_cached_prefix if user_cached_prefix.strip() else None,
+        )
+
         requests.append(request)
 
     return requests

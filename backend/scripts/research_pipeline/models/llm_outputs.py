@@ -149,10 +149,10 @@ class Tier2Output(BaseModel):
         description="Sources consulted during analysis"
     )
 
-    # Full text requests for Tier 3 (if classification is "needs_full_context")
+    # Full text requests for Tier 2 re-runs (iterative context refinement)
     full_text_requests: list[ContextRequest] = Field(
         default_factory=list,
-        description="Context items needing full text for Tier 3"
+        description="Context items needing full text for Tier 2 re-runs"
     )
 
     # Web search trigger

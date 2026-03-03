@@ -1,8 +1,8 @@
 """
 Document query functions for the research pipeline.
 
-Fetches documents from compliance_issues and builds ProcessingUnits
-for pipeline processing.
+Fetches regulatory documents and guidance documents from compliance_issues
+and builds ProcessingUnits for pipeline processing.
 """
 
 from collections import defaultdict
@@ -17,12 +17,6 @@ from ..models.matches import ProcessingUnit, MatchInfo
 from ..models.llm_outputs import Tier2Output
 from ..ids import make_custom_id
 from .connection import retry_db_operation
-
-
-def _title_col(jurisdiction: str) -> str:
-    """Map jurisdiction code to the regulatory_documents title column name."""
-    return title_column_for_jurisdiction(jurisdiction)
-
 
 
 def build_match_info(pattern: str, context: str, content: str, match_id: int) -> MatchInfo:
@@ -172,7 +166,7 @@ class ProcessingUnitBuilder:
             state_filter = "AND rd.jurisdiction = %s"
             params.append(jurisdiction)
             if title:
-                title_filter = f"AND rd.{_title_col(jurisdiction)} = %s"
+                title_filter = f"AND rd.{title_column_for_jurisdiction(jurisdiction)} = %s"
                 params.append(title)
         else:
             # No state filter (dangerously-run-all)
@@ -315,7 +309,7 @@ class ProcessingUnitBuilder:
             state_filter = "AND rd.jurisdiction = %s"
             params.append(jurisdiction)
             if title:
-                title_filter = f"AND rd.{_title_col(jurisdiction)} = %s"
+                title_filter = f"AND rd.{title_column_for_jurisdiction(jurisdiction)} = %s"
                 params.append(title)
         else:
             if title:
@@ -803,7 +797,7 @@ class ProcessingUnitBuilder:
             state_filter = "rd.jurisdiction = %s AND"
             params.append(jurisdiction)
             if title:
-                title_filter = f"AND rd.{_title_col(jurisdiction)} = %s"
+                title_filter = f"AND rd.{title_column_for_jurisdiction(jurisdiction)} = %s"
                 # Don't append here - will append after issue_types
         else:
             # No state filter (dangerously-run-all)
@@ -1108,7 +1102,7 @@ def get_issue_types_for_scope(
             state_filter = "WHERE rd.jurisdiction = %s"
             params.append(jurisdiction)
             if title:
-                title_filter = f"AND rd.{_title_col(jurisdiction)} = %s"
+                title_filter = f"AND rd.{title_column_for_jurisdiction(jurisdiction)} = %s"
                 params.append(title)
         else:
             # No state filter (dangerously-run-all)
@@ -1236,3 +1230,338 @@ def fetch_documents_with_continuation(
         limit=limit,
         title=title,
     )
+
+
+@retry_db_operation()
+def fetch_guidance_unanalyzed(
+    issue_types: list[str],
+    max_tier: int = 2,
+    jurisdiction: Optional[str] = None,
+    agency: Optional[str] = None,
+    doc_type: Optional[str] = None,
+    max_docs_per_issue: int = 100,
+    global_docs_limit: Optional[int] = None,
+) -> tuple[list[ProcessingUnit], dict[tuple[int, str], dict]]:
+    """
+    Fetch guidance documents with compliance_issues matches that need analysis.
+
+    Queries compliance_issues JOIN guidance_documents on guidance_document_id.
+    Excludes already-analyzed via compliance_issue_analyses.guidance_document_id.
+
+    Args:
+        issue_types: List of issue types to fetch
+        max_tier: Target tier - fetches docs that haven't reached it
+        jurisdiction: Optional jurisdiction filter (e.g., 'NY')
+        agency: Optional filter by guidance agency (e.g., 'OCFS', 'NYSDOH')
+        doc_type: Optional filter by guidance doc_type (e.g., 'ADM', 'INF')
+        max_docs_per_issue: Maximum documents per issue type
+        global_docs_limit: Maximum total documents
+
+    Returns:
+        Tuple of (processing_units, existing_analyses)
+    """
+    conn = get_db_connection()
+    if conn is None:
+        raise RuntimeError("Failed to establish database connection")
+
+    # Build filter clauses
+    jurisdiction_filter = ""
+    agency_filter = ""
+    doc_type_filter = ""
+    params: list = []
+
+    if jurisdiction:
+        jurisdiction_filter = "gd.jurisdiction = %s AND"
+        params.append(jurisdiction)
+    if agency:
+        agency_filter = "gd.agency = %s AND"
+        params.append(agency)
+    if doc_type:
+        doc_type_filter = "gd.doc_type = %s AND"
+        params.append(doc_type)
+
+    params.append(issue_types)  # ANY(%s)
+    params.append(max_tier)     # continuation check
+    params.append(max_docs_per_issue)  # doc_rank limit
+
+    query = f"""
+        WITH issue_docs AS (
+            SELECT
+                ci.id as match_id,
+                ci.guidance_document_id,
+                ci.issue_type,
+                gd.canonical_ref,
+                gd.title,
+                gd.content,
+                gd.agency,
+                gd.doc_type,
+                gd.date_published,
+                gd.status,
+                gd.jurisdiction,
+                ci.regex_match_pattern,
+                ci.regex_match_context,
+                ROW_NUMBER() OVER (
+                    PARTITION BY ci.issue_type, ci.guidance_document_id
+                    ORDER BY ci.id
+                ) as match_rank,
+                DENSE_RANK() OVER (
+                    PARTITION BY ci.issue_type
+                    ORDER BY ci.guidance_document_id
+                ) as doc_rank
+            FROM compliance_issues ci
+            JOIN guidance_documents gd ON ci.guidance_document_id = gd.id
+            WHERE {jurisdiction_filter}
+                {agency_filter}
+                {doc_type_filter}
+                ci.issue_type = ANY(%s)
+                AND gd.content IS NOT NULL
+                AND LENGTH(gd.content) > 100
+                -- Only fetch docs that need processing
+                AND (
+                    NOT EXISTS (
+                        SELECT 1 FROM compliance_issue_analyses cia
+                        WHERE cia.guidance_document_id = ci.guidance_document_id
+                        AND cia.issue_type = ci.issue_type
+                    )
+                    OR EXISTS (
+                        SELECT 1 FROM compliance_issue_analyses cia
+                        WHERE cia.guidance_document_id = ci.guidance_document_id
+                        AND cia.issue_type = ci.issue_type
+                        AND COALESCE(cia.highest_tier_completed, 0) < %s
+                    )
+                )
+                -- Exclude terminal items
+                AND NOT EXISTS (
+                    SELECT 1 FROM compliance_issue_analyses cia
+                    WHERE cia.guidance_document_id = ci.guidance_document_id
+                    AND cia.issue_type = ci.issue_type
+                    AND (
+                        cia.tier1_classification = 'all_false_positives'
+                        OR (COALESCE(cia.highest_tier_completed, 0) >= 2
+                            AND cia.tier2_classification = 'unrelated')
+                    )
+                )
+        )
+        SELECT
+            match_id,
+            guidance_document_id,
+            issue_type,
+            canonical_ref,
+            title,
+            content,
+            agency,
+            doc_type,
+            date_published,
+            status,
+            regex_match_pattern,
+            regex_match_context,
+            jurisdiction
+        FROM issue_docs
+        WHERE doc_rank <= %s
+        ORDER BY issue_type, guidance_document_id, match_id
+    """
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute(query, params)
+            rows = cur.fetchall()
+
+        if not rows:
+            print(f"No guidance documents found for issue_types={issue_types}, agency={agency}, doc_type={doc_type}")
+            return [], {}
+
+        # Group by (guidance_document_id, issue_type)
+        doc_issue_matches: dict[tuple[int, str], list[dict]] = defaultdict(list)
+        doc_issue_meta: dict[tuple[int, str], dict] = {}
+
+        for row in rows:
+            guid_id = row[1]
+            issue_type = row[2]
+            key = (guid_id, issue_type)
+
+            doc_issue_matches[key].append({
+                "match_id": row[0],
+                "pattern": row[10] or "",
+                "context": row[11] or "",
+            })
+
+            if key not in doc_issue_meta:
+                doc_issue_meta[key] = {
+                    "canonical_ref": row[3] or "",
+                    "title": row[4] or "",
+                    "content": row[5] or "",
+                    "agency": row[6] or "",
+                    "doc_type": row[7] or "",
+                    "date_published": row[8],
+                    "status": row[9] or "",
+                    "jurisdiction": row[12] or "NY",
+                }
+
+        # Build ProcessingUnits
+        processing_units = []
+        for (guid_id, issue_type), matches in doc_issue_matches.items():
+            meta = doc_issue_meta[(guid_id, issue_type)]
+            content = meta["content"]
+
+            match_infos = [
+                build_match_info(
+                    pattern=m["pattern"],
+                    context=m["context"],
+                    content=content,
+                    match_id=m["match_id"],
+                )
+                for m in matches
+            ]
+
+            processing_units.append(ProcessingUnit(
+                document_id=guid_id,
+                issue_type=issue_type,
+                citation=meta["canonical_ref"] or meta["title"],
+                title=meta["title"],
+                matches=match_infos,
+                content=content,
+                jurisdiction=meta["jurisdiction"],
+                source_type="guidance",
+            ))
+
+        # Apply global limit
+        if global_docs_limit and len(processing_units) > global_docs_limit:
+            print(f"  Global limit hit: {len(processing_units)} documents -> capped to {global_docs_limit}")
+            processing_units = processing_units[:global_docs_limit]
+
+        # Fetch existing analyses for guidance documents
+        existing_analyses = _fetch_existing_guidance_analyses(
+            [(pu.document_id, pu.issue_type) for pu in processing_units],
+            conn=conn,
+        )
+
+        new_count = len([pu for pu in processing_units if (pu.document_id, pu.issue_type) not in existing_analyses])
+        resume_count = len(processing_units) - new_count
+        print(f"Found {len(processing_units)} guidance documents: {new_count} new, {resume_count} resuming")
+
+        return processing_units, existing_analyses
+    finally:
+        conn.close()
+
+
+def _fetch_existing_guidance_analyses(
+    doc_issue_pairs: list[tuple[int, str]],
+    conn: Optional[Connection] = None,
+) -> dict[tuple[int, str], dict]:
+    """
+    Fetch existing analyses for guidance documents.
+
+    Same structure as get_existing_analyses but queries on guidance_document_id.
+    """
+    if not doc_issue_pairs:
+        return {}
+
+    should_close = False
+    if conn is None:
+        conn = get_db_connection()
+        should_close = True
+
+    guidance_ids = list({pair[0] for pair in doc_issue_pairs})
+    issue_types = list({pair[1] for pair in doc_issue_pairs})
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT
+                    guidance_document_id, issue_type, highest_tier_completed,
+                    requirement_found, final_severity,
+                    tier1_classification, tier1_relevant_match_ids, tier1_dismissed_match_ids,
+                    tier1_confidence, tier1_reasoning, tier1_context_requests,
+                    tier2_classification, tier2_confidence, tier2_reasoning,
+                    tier2_context_requests_made, tier2_full_text_requests,
+                    severity, verbatim_requirements,
+                    argument_for_regulation, argument_against_regulation,
+                    cites_federal_statute, federal_citation,
+                    claims_no_alternative, needs_web_search, web_search_topics,
+                    tier3_classification, tier3_confidence, tier3_reasoning,
+                    tier3_severity_adjustment, tier3_severity_adjustment_reasoning
+                FROM compliance_issue_analyses
+                WHERE guidance_document_id = ANY(%s) AND issue_type = ANY(%s)
+            """, (guidance_ids, issue_types))
+
+            results = {}
+            for row in cur.fetchall():
+                key = (row[0], row[1])
+                results[key] = {
+                    "highest_tier_completed": row[2],
+                    "requirement_found": row[3],
+                    "final_severity": row[4],
+                    "tier1_classification": row[5],
+                    "tier1_relevant_match_ids": row[6] or [],
+                    "tier1_dismissed_match_ids": row[7] or [],
+                    "tier1_confidence": row[8],
+                    "tier1_reasoning": row[9],
+                    "tier1_context_requests": row[10] or [],
+                    "tier2_classification": row[11],
+                    "tier2_confidence": row[12],
+                    "tier2_reasoning": row[13],
+                    "tier2_context_requests_made": row[14] or [],
+                    "tier2_full_text_requests": row[15] or [],
+                    "severity": row[16],
+                    "verbatim_requirements": row[17] or [],
+                    "argument_for_regulation": row[18],
+                    "argument_against_regulation": row[19],
+                    "cites_federal_statute": row[20],
+                    "federal_citation": row[21],
+                    "claims_no_alternative": row[22],
+                    "needs_web_search": row[23],
+                    "web_search_topics": row[24] or [],
+                    "tier3_classification": row[25],
+                    "tier3_confidence": row[26],
+                    "tier3_reasoning": row[27],
+                    "tier3_severity_adjustment": row[28],
+                    "tier3_severity_adjustment_reasoning": row[29],
+                }
+            return results
+    finally:
+        if should_close:
+            conn.close()
+
+
+def get_guidance_issue_types(
+    agency: Optional[str] = None,
+    doc_type: Optional[str] = None,
+) -> list[str]:
+    """
+    Get all issue types that have compliance_issues matches for guidance documents.
+
+    Args:
+        agency: Optional filter by guidance agency
+        doc_type: Optional filter by guidance doc_type
+
+    Returns:
+        List of issue type strings
+    """
+    conn = get_db_connection()
+    if conn is None:
+        raise RuntimeError("Failed to establish database connection")
+
+    agency_filter = ""
+    doc_type_filter = ""
+    params = []
+    if agency:
+        agency_filter = "AND gd.agency = %s"
+        params.append(agency)
+    if doc_type:
+        doc_type_filter = "AND gd.doc_type = %s"
+        params.append(doc_type)
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute(f"""
+                SELECT DISTINCT ci.issue_type
+                FROM compliance_issues ci
+                JOIN guidance_documents gd ON ci.guidance_document_id = gd.id
+                WHERE ci.guidance_document_id IS NOT NULL
+                    {agency_filter}
+                    {doc_type_filter}
+                ORDER BY ci.issue_type
+            """, params)
+            return [row[0] for row in cur.fetchall()]
+    finally:
+        conn.close()

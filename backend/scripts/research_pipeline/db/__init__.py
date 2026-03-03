@@ -30,6 +30,8 @@ from .document_queries import (
     fetch_documents_with_continuation,
     fetch_tier3_pending_documents,
     fetch_all_issue_documents,
+    fetch_guidance_unanalyzed,
+    get_guidance_issue_types,
 )
 
 # Analysis reading
@@ -60,6 +62,8 @@ __all__ = [
     "fetch_documents_with_continuation",
     "fetch_tier3_pending_documents",
     "fetch_all_issue_documents",
+    "fetch_guidance_unanalyzed",
+    "get_guidance_issue_types",
     # Analysis reading
     "get_existing_analyses",
     "get_analysis_by_document",

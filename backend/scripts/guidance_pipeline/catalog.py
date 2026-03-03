@@ -147,11 +147,21 @@ def merge_catalog_and_text_dirs(
     return all_docs
 
 
+_ATTACHMENT_SUFFIX = re.compile(
+    r"\s+(?:Att(?:achment)?|App(?:endix)?|Enclosure|Enc)[\s\d]",
+    re.IGNORECASE,
+)
+
+
 def extract_canonical_ref(doc: dict) -> str | None:
     """Extract canonical reference from doc title or metadata.
 
     Handles patterns like '22-OCFS-ADM-05', '24-OCFS-ADM-01-R1',
     'TSB-M-06(7)I', 'GIS 23 TA/DC033', etc.
+
+    Returns None for attachment documents (title contains 'Att A', 'App B', etc.
+    after the base ref) since they share the parent doc's ref and would cause
+    ambiguous canonical_ref lookups.
     """
     # Try enrichment field first, but validate it
     if doc.get("canonical_ref"):
@@ -168,6 +178,10 @@ def extract_canonical_ref(doc: dict) -> str | None:
         re.IGNORECASE,
     )
     if m:
+        # Check if the rest of the title indicates this is an attachment
+        remainder = title[m.end():]
+        if remainder and _ATTACHMENT_SUFFIX.match(remainder):
+            return None
         return re.sub(r"\s+", "-", m.group(1).strip()).upper()
 
     return None

@@ -80,7 +80,7 @@ def main():
     for result in bm.client.beta.messages.batches.results(args.batch_id):
         custom_id = result.custom_id
         try:
-            issue_type, document_id = parse_custom_id(custom_id)
+            issue_type, document_id, _source_type = parse_custom_id(custom_id)
         except ValueError:
             failed += 1
             continue

@@ -29,8 +29,11 @@ from .queries import (
     get_ancestor_entries_batch,
     get_definitions_batch,
     get_subchapter_info,
+    get_subchapter_info_batch,
     get_children_of_parent,
+    get_children_of_parents_batch,
     get_definitions_for_scope,
+    get_definitions_for_scopes_batch,
 )
 
 # Import raw ancestors function for optimization
@@ -290,6 +293,7 @@ def prioritize_summaries(
 
 def build_proactive_context(
     document_ids: list[int],
+    pre_fetched=None,
 ) -> dict[int, ProactiveTier1Context]:
     """
     Build V5 proactive context for Tier 1.
@@ -316,6 +320,7 @@ def build_proactive_context(
 
     Args:
         document_ids: List of document IDs to build context for
+        pre_fetched: Optional PreFetchedContextData to avoid redundant queries
 
     Returns:
         Dict mapping doc_id -> ProactiveTier1Context
@@ -326,18 +331,20 @@ def build_proactive_context(
     # Get the fetcher function (deferred import to avoid circular dependency)
     fetch_document_content_batch = _get_fetch_document_content_batch()
 
+    pf = pre_fetched
+
     # =========================================================================
     # PHASE 1: METADATA COLLECTION
     # =========================================================================
     # Batch fetch all metadata types in parallel-ish (sequential SQL but batched)
-    siblings_map = get_sibling_summaries_batch(document_ids)
+    siblings_map = pf.siblings if pf and pf.siblings else get_sibling_summaries_batch(document_ids)
     immediate_map = get_immediate_siblings_batch(document_ids)
-    crossrefs_map = get_crossrefs_batch(document_ids)
+    crossrefs_map = pf.crossrefs if pf and pf.crossrefs else get_crossrefs_batch(document_ids)
 
     # OPTIMIZATION: Fetch raw ancestors once, reuse for ancestor entries AND definitions
-    raw_ancestors = get_ancestors_batch(document_ids)
-    ancestors_map = get_ancestor_entries_batch(document_ids, raw_ancestors_map=raw_ancestors)
-    definitions_map = get_definitions_batch(document_ids, ancestors_map=raw_ancestors)
+    raw_ancestors = pf.raw_ancestors if pf and pf.raw_ancestors else get_ancestors_batch(document_ids)
+    ancestors_map = pf.ancestor_entries if pf and pf.ancestor_entries else get_ancestor_entries_batch(document_ids, raw_ancestors_map=raw_ancestors)
+    definitions_map = pf.definitions if pf and pf.definitions else get_definitions_batch(document_ids, ancestors_map=raw_ancestors)
 
     # =========================================================================
     # PHASE 2: PRIORITY SELECTION
@@ -455,47 +462,33 @@ def build_proactive_context(
 # =============================================================================
 
 
-def build_batch_context_for_subchapter(
+def _format_subchapter_context(
     subchapter_id: int,
-    issue_type: Optional[str] = None,
+    subchapter_info: dict,
+    ancestors: list,
+    siblings: list[SiblingEntry],
+    definition_terms_list: list[str],
+    content_map: dict,
 ) -> dict[str, str]:
     """
-    Build the batch context variables shared by all documents in a subchapter.
+    Format the batch context variables for a single subchapter.
 
-    This is used for 4-layer prompt caching. All documents in the same subchapter
-    share the same:
-    - Ancestor summaries (title -> chapter -> subchapter)
-    - Sibling catalog (all sections in the subchapter)
-    - Keyword-matched sibling summaries
-    - Definition terms
-
-    The returned dict has keys matching batch_context template placeholders:
-    - subchapter_citation
-    - ancestor_summaries
-    - sibling_catalog, sibling_count, sibling_catalog_truncated
-    - keyword_sibling_summaries
-    - definition_terms
+    Shared helper used by both build_batch_context_for_subchapter (single)
+    and build_batch_context_for_subchapters (batch).
 
     Args:
-        subchapter_id: The subchapter (or chapter) document ID
-        issue_type: Optional issue type for keyword filtering
+        subchapter_id: The subchapter document ID
+        subchapter_info: Info dict for the subchapter
+        ancestors: AncestorEntry list for the subchapter
+        siblings: SiblingEntry list (children of the subchapter)
+        definition_terms_list: List of definition term strings
+        content_map: Pre-fetched content/summary data for ancestor + keyword docs
 
     Returns:
         Dict with formatted string values for batch_context placeholders
     """
-    # Get the fetcher function (deferred import to avoid circular dependency)
-    fetch_document_content_batch = _get_fetch_document_content_batch()
-
-    # Get subchapter info
-    subchapter_info = get_subchapter_info(subchapter_id)
-
-    # Get ancestors
-    ancestors_map = get_ancestor_entries_batch([subchapter_id])
-    ancestors = ancestors_map.get(subchapter_id, [])
-
     # Format ancestor summaries
     if ancestors:
-        content_map = fetch_document_content_batch([a.document_id for a in ancestors])
         ancestor_lines: list[str] = []
         for ancestor in ancestors:
             data = content_map.get(ancestor.document_id, {})
@@ -513,9 +506,6 @@ def build_batch_context_for_subchapter(
     else:
         ancestor_summaries = "(No ancestors)"
 
-    # Get all siblings (children of subchapter)
-    siblings = get_children_of_parent(subchapter_id)
-
     # Format sibling catalog
     sibling_count = len(siblings)
     truncated = sibling_count > MAX_SIBLING_CATALOG
@@ -531,7 +521,6 @@ def build_batch_context_for_subchapter(
         sibling_catalog = "(No siblings)"
 
     # Get keyword-matched sibling summaries
-    # Build list with (sibling, category, priority_index)
     keyword_siblings: list[tuple[SiblingEntry, str, int]] = []
     for sib in siblings:
         if is_excludable(sib.title):
@@ -541,15 +530,10 @@ def build_batch_context_for_subchapter(
             priority_idx = KEYWORD_PRIORITY.index(category)
             keyword_siblings.append((sib, category, priority_idx))
 
-    # Sort by priority and limit
     keyword_siblings.sort(key=lambda x: x[2])
     keyword_siblings = keyword_siblings[:MAX_SUMMARIES]
 
-    # Fetch summaries for keyword-matched siblings
     if keyword_siblings:
-        keyword_ids = [s[0].document_id for s in keyword_siblings]
-        content_map = fetch_document_content_batch(keyword_ids)
-
         keyword_lines: list[str] = []
         for sib, category, _ in keyword_siblings:
             data = content_map.get(sib.document_id, {})
@@ -568,8 +552,7 @@ def build_batch_context_for_subchapter(
     else:
         keyword_sibling_summaries = "(No keyword matches)"
 
-    # Get definition terms
-    definition_terms_list = get_definitions_for_scope(subchapter_id)
+    # Format definition terms
     if definition_terms_list:
         definition_terms = ", ".join(definition_terms_list)
     else:
@@ -584,3 +567,99 @@ def build_batch_context_for_subchapter(
         "keyword_sibling_summaries": keyword_sibling_summaries,
         "definition_terms": definition_terms,
     }
+
+
+def build_batch_context_for_subchapter(
+    subchapter_id: int,
+    issue_type: Optional[str] = None,
+) -> dict[str, str]:
+    """
+    Build the batch context variables shared by all documents in a subchapter.
+
+    This is used for 4-layer prompt caching. All documents in the same subchapter
+    share the same:
+    - Ancestor summaries (title -> chapter -> subchapter)
+    - Sibling catalog (all sections in the subchapter)
+    - Keyword-matched sibling summaries
+    - Definition terms
+
+    Args:
+        subchapter_id: The subchapter (or chapter) document ID
+        issue_type: Optional issue type for keyword filtering
+
+    Returns:
+        Dict with formatted string values for batch_context placeholders
+    """
+    fetch_document_content_batch = _get_fetch_document_content_batch()
+
+    subchapter_info = get_subchapter_info(subchapter_id)
+    ancestors_map = get_ancestor_entries_batch([subchapter_id])
+    ancestors = ancestors_map.get(subchapter_id, [])
+    siblings = get_children_of_parent(subchapter_id)
+    definition_terms_list = get_definitions_for_scope(subchapter_id)
+
+    # Collect all doc IDs needing content (ancestors + keyword-matched siblings)
+    content_ids: list[int] = [a.document_id for a in ancestors]
+    for sib in siblings:
+        if not is_excludable(sib.title) and get_keyword_category(sib.title):
+            content_ids.append(sib.document_id)
+    content_map = fetch_document_content_batch(content_ids) if content_ids else {}
+
+    return _format_subchapter_context(
+        subchapter_id, subchapter_info, ancestors, siblings,
+        definition_terms_list, content_map,
+    )
+
+
+def build_batch_context_for_subchapters(
+    subchapter_ids: list[int],
+    issue_type: Optional[str] = None,
+) -> dict[int, dict[str, str]]:
+    """
+    Build batch context for multiple subchapters using batch DB queries.
+
+    Replaces N calls to build_batch_context_for_subchapter() with a single
+    set of batch queries, eliminating N+1 query patterns.
+
+    Args:
+        subchapter_ids: List of subchapter document IDs
+        issue_type: Optional issue type for keyword filtering
+
+    Returns:
+        Dict mapping subchapter_id -> formatted context vars
+    """
+    if not subchapter_ids:
+        return {}
+
+    fetch_document_content_batch = _get_fetch_document_content_batch()
+
+    # Batch fetch all data types
+    infos = get_subchapter_info_batch(subchapter_ids)
+    ancestors_map = get_ancestor_entries_batch(subchapter_ids)
+    siblings_map = get_children_of_parents_batch(subchapter_ids)
+    definitions_map = get_definitions_for_scopes_batch(subchapter_ids)
+
+    # Collect all doc IDs needing content fetches (ancestors + keyword siblings)
+    all_content_ids: set[int] = set()
+    for sid in subchapter_ids:
+        for a in ancestors_map.get(sid, []):
+            all_content_ids.add(a.document_id)
+        for sib in siblings_map.get(sid, []):
+            if not is_excludable(sib.title) and get_keyword_category(sib.title):
+                all_content_ids.add(sib.document_id)
+
+    content_map = fetch_document_content_batch(list(all_content_ids)) if all_content_ids else {}
+
+    # Format each subchapter
+    result: dict[int, dict[str, str]] = {}
+    for sid in subchapter_ids:
+        result[sid] = _format_subchapter_context(
+            subchapter_id=sid,
+            subchapter_info=infos.get(sid, {"id": sid, "citation": "", "title": ""}),
+            ancestors=ancestors_map.get(sid, []),
+            siblings=siblings_map.get(sid, []),
+            definition_terms_list=definitions_map.get(sid, []),
+            content_map=content_map,
+        )
+
+    return result

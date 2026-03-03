@@ -7,7 +7,7 @@ These models represent:
 3. Processing units (grouped matches for a document/issue pair)
 """
 
-from typing import Optional
+from typing import Literal, Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 from .context import ContextCatalog, to_camel
@@ -65,6 +65,10 @@ class ProcessingUnit(BaseModel):
     Groups all matches for a (document_id, issue_type) pair.
 
     One ProcessingUnit = one row in compliance_issue_analyses table.
+
+    For regulation sources, document_id is the regulatory_documents ID.
+    For guidance sources, document_id is the guidance_documents ID.
+    The source_type field distinguishes which table the ID refers to.
     """
     document_id: int
     issue_type: str
@@ -89,4 +93,8 @@ class ProcessingUnit(BaseModel):
     jurisdiction: str = Field(
         default="",
         description="Jurisdiction code (NJ, NY, or NYC)"
+    )
+    source_type: Literal["regulation", "guidance"] = Field(
+        default="regulation",
+        description="Whether this unit comes from regulatory_documents or guidance_documents"
     )

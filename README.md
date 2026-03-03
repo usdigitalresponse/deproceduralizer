@@ -10,6 +10,7 @@ Built with support from the **Recoding America Fund**.
 
 State administrative codes contain tens of thousands of regulatory sections — many with outdated procedural requirements (fax-only submissions, wet signatures, certified mail mandates) that are invisible at scale. No human team can read 120,000+ sections looking for these problems.
 
+<!-- metric: ISSUE_TYPE_COUNT=42, RED_FLAG_CATEGORIES=12 -->
 Deproceduralizer applies Jennifer Pahlka's regulatory burden framework through a combination of regex pattern matching and multi-tier LLM verification. It scans regulation text for 42 types of compliance issues across 12 red flag categories, then uses Claude to filter false positives, classify burden severity, and verify findings against source statutes.
 
 The result is an interactive web application where policy reviewers can browse regulations, review AI-identified findings, track triage decisions, and export actionable data — all organized by the regulatory hierarchy they already know.
@@ -32,6 +33,7 @@ The result is an interactive web application where policy reviewers can browse r
 
 ## Key Capabilities
 
+<!-- metric: ISSUE_TYPE_COUNT=42, RED_FLAG_CATEGORIES=12 -->
 - **42 compliance issue types** — wet signatures, mail-only processes, fax requirements, obsolete technology mandates, excessive documentation, and more
 - **12 red flag categories** — based on Jennifer Pahlka's framework (complexity/policy debt, options-become-requirements, cascade of rigidity, etc.)
 - **3-tier research pipeline** — regex scan → LLM filtering → LLM classification with optional web search verification
@@ -131,6 +133,7 @@ Open http://localhost:3010 to browse the application immediately (assuming the d
 
 ### Run the Pipeline
 
+<!-- metric: PIPELINE_STEPS=12 -->
 The full analysis pipeline has 12 steps. For a quick demo on a single title:
 
 ```bash
@@ -261,10 +264,10 @@ The full pipeline transforms raw regulation text into structured, reviewable fin
 5. **Link Definitions** — Match definitions to documents where terms appear
 6. **Cross-References** — Extract internal citations between regulatory documents
 7. **Summaries** — Generate hierarchical summaries (sections → subchapters → chapters → parts → titles)
-8. **Compliance Scan** — Regex-only detection of 42 compliance issue types (no LLM, free)
+8. **Compliance Scan** — Regex-only detection of 42 compliance issue types (no LLM, free) <!-- metric: ISSUE_TYPE_COUNT=42 -->
 9. **Research Pipeline** — 3-tier LLM analysis: filter false positives → classify burden/severity → web search verification
 10. **IBR Scan** — Detect external standards incorporated by reference
-11. **Red Flags** — LLM analysis identifying 12 categories of implementation complexity
+11. **Red Flags** — LLM analysis identifying 12 categories of implementation complexity <!-- metric: RED_FLAG_CATEGORIES=12 -->
 12. **Refresh Stats** — Precompute hierarchy statistics for frontend performance
 
 Steps 6-8 can run in parallel. Step 9 depends on steps 6 and 7. Step 12 runs last.
@@ -281,7 +284,7 @@ See [`docs/OPERATIONS.md`](docs/OPERATIONS.md) for the complete runbook with com
 | `analyses` | LLM analysis results per document (complexity, summary, severity) |
 | `red_flags` | Individual red flags with category, severity, review status |
 | `definitions` | Extracted defined terms with scope tracking |
-| `compliance_issues` | Regex-matched compliance issue candidates (42 types) |
+| `compliance_issues` | Regex-matched compliance issue candidates (42 types) | <!-- metric: ISSUE_TYPE_COUNT=42 -->
 | `compliance_issue_analyses` | LLM analysis + human review per document/issue type |
 | `statute_references` | Legal citations extracted from regulations (USC, CFR, state) |
 | `cross_references` | Internal citations between regulatory documents |

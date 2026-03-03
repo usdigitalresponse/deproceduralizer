@@ -12,6 +12,17 @@
 - before committing, check `git worktree list` - do not commit changes that belong to other worktrees/feature branches
 - when starting local dev servers, use port 3010 instead of the default 3000 (e.g., `pnpm dev --port 3010`) to avoid conflicts with commonly used ports. Always check what's already running with `lsof -i :3000,3010` before starting a server, especially before running smoke tests. Multiple Claude agents may be running in the same folder simultaneously.
 
+## Project Metrics
+
+Canonical counts for use across all documentation. When adding/removing issue types, pipeline steps, or categories, update this table first, then `grep -rn` docs for the old count.
+
+| Metric | Value | Source of Truth |
+|--------|-------|-----------------|
+| Compliance issue types | 42 | `prompts/compliance_issues.yaml` |
+| Pipeline steps | 12 | `docs/OPERATIONS.md` step table |
+| JenAI/Pahlka categories | 19 | `prompts/jenai.yaml` |
+| Red flag categories | 12 | `prompts/core.yaml` |
+
 ## Frontend Architecture Guidelines (frontend/apps/web)
 
 When working on the Next.js frontend, follow these patterns:

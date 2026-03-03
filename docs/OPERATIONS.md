@@ -401,6 +401,7 @@ python3 -m scripts.summarization.recover_batches --state NY --limit 500
 python backend/scripts/scan_compliance_issues.py --state ny
 ```
 
+<!-- metric: ISSUE_TYPE_COUNT=42 -->
 - Regex-only scan — finds candidate matches for 42 compliance issue types
 - Patterns defined in `prompts/compliance_issues.yaml`
 - Use `--issue wet_signature` for a single type, `--dry-run` to search without saving
@@ -440,8 +441,18 @@ Key flags:
 | `--no-cache` | off | Disable LLM API response cache |
 | `--title N` | none | Filter by regulatory title |
 | `--force-rerun` | off | Reprocess already-analyzed docs |
+| `--source` | `regulation` | `regulation` or `guidance` — analyze sub-regulatory guidance docs |
+| `--agency` | none | Filter guidance by agency (e.g., `OCFS`, `NYSDOH`) |
+| `--doc-type` | none | Filter guidance by doc type (e.g., `ADM`, `DAL`) |
 | `--statute-mandate` | off | Run statute mandate checks after pipeline (NY only) |
 | `--run-statute-mandate-only` | off | Run only the statute mandate check step |
+
+**Guidance Documents** (requires migration 0058):
+```bash
+cd backend
+# OCFS childcare guidance
+python3 -m scripts.research_pipeline.cli --state ny --all-issues --source guidance --agency OCFS --execute --limit 10
+```
 
 **Statute Mandate Checks** (NY only, post-pipeline):
 ```bash
@@ -514,6 +525,7 @@ cd backend && python3 -m scripts.jenai_pipeline.cli --state ny --document-id 818
 ```
 
 - Single-pass enriched LLM pipeline analyzing regulatory sections for implementation complexity
+<!-- metric: JENAI_CATEGORIES=19 -->
 - Uses 19-category framework: 18 Pahlka problem categories + adversarial WORST_THING
 - Full rich context upfront: ancestor summaries, sibling summaries, cross-ref summaries, full definition text
 - Results in `jenai_analyses` (one row per document) + `jenai_issues` (one row per category finding)
@@ -870,7 +882,7 @@ matches the source faithfully. See issue #16 for details.
 All prompts live in the `/prompts/` directory:
 
 - Core analysis prompts: `prompts/core.yaml` (red_flags, definitions)
-- Compliance issues: `prompts/compliance_issues.yaml` (42 issue types with patterns + prompts)
+- Compliance issues: `prompts/compliance_issues.yaml` (42 issue types with patterns + prompts) <!-- metric: ISSUE_TYPE_COUNT=42 -->
 - Frontend copy: `frontend/apps/web/src/data/prompts.yaml` (copied from `prompts/core.yaml` via prebuild)
 
 TypeScript types are auto-generated from YAML - run `python scripts/generate_prompt_types.py` after modifying `prompts/compliance_issues.yaml`.

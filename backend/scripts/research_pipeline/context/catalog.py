@@ -5,6 +5,7 @@ This module contains functions for building and organizing context catalogs,
 including cache efficiency optimization.
 """
 
+from dataclasses import dataclass, field
 from typing import Optional
 
 # Import Pydantic models
@@ -24,12 +25,33 @@ from lib.db import get_ancestors_batch
 
 
 # =============================================================================
+# Pre-Fetched Context Data (for eliminating redundant fetches)
+# =============================================================================
+
+
+@dataclass
+class PreFetchedContextData:
+    """Holds pre-fetched context data to avoid redundant DB queries.
+
+    When both build_context_catalog() and build_proactive_context() are called
+    for the same document set (e.g., in JenAI's prepare_analysis_batch), the
+    caller can fetch shared data once and pass it via this dataclass.
+    """
+    raw_ancestors: dict[int, list[dict]] = field(default_factory=dict)
+    siblings: dict = field(default_factory=dict)
+    crossrefs: dict = field(default_factory=dict)
+    definitions: dict = field(default_factory=dict)
+    ancestor_entries: dict = field(default_factory=dict)
+
+
+# =============================================================================
 # Context Catalog Builder
 # =============================================================================
 
 
 def build_context_catalog(
     document_ids: list[int],
+    pre_fetched: Optional[PreFetchedContextData] = None,
 ) -> dict[int, ContextCatalog]:
     """
     Build complete context catalogs for multiple documents in batch.
@@ -40,6 +62,7 @@ def build_context_catalog(
 
     Args:
         document_ids: List of document IDs to build catalogs for
+        pre_fetched: Optional pre-fetched data to avoid redundant queries
 
     Returns:
         Dict mapping doc_id -> ContextCatalog
@@ -47,14 +70,16 @@ def build_context_catalog(
     if not document_ids:
         return {}
 
+    pf = pre_fetched
+
     # Fetch all context types in parallel-ish (still sequential SQL but batched)
-    siblings = get_sibling_summaries_batch(document_ids)
-    crossrefs = get_crossrefs_batch(document_ids)
+    siblings = pf.siblings if pf and pf.siblings else get_sibling_summaries_batch(document_ids)
+    crossrefs = pf.crossrefs if pf and pf.crossrefs else get_crossrefs_batch(document_ids)
 
     # OPTIMIZATION: Fetch raw ancestors once, reuse for definitions AND ancestor entries
-    raw_ancestors = get_ancestors_batch(document_ids)
-    definitions = get_definitions_batch(document_ids, ancestors_map=raw_ancestors)
-    ancestors = get_ancestor_entries_batch(document_ids, raw_ancestors_map=raw_ancestors)
+    raw_ancestors = pf.raw_ancestors if pf and pf.raw_ancestors else get_ancestors_batch(document_ids)
+    definitions = pf.definitions if pf and pf.definitions else get_definitions_batch(document_ids, ancestors_map=raw_ancestors)
+    ancestors = pf.ancestor_entries if pf and pf.ancestor_entries else get_ancestor_entries_batch(document_ids, raw_ancestors_map=raw_ancestors)
 
     # Assemble catalogs
     result: dict[int, ContextCatalog] = {}

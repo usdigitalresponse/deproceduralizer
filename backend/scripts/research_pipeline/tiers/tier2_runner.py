@@ -34,12 +34,59 @@ from ..context import (
     # V5 4-layer caching
     get_subchapter_ids_batch,
     build_batch_context_for_subchapter,
+    build_batch_context_for_subchapters,
+    # Guidance context
+    fetch_cited_regulation_summaries,
+    build_guidance_batch_context,
+    fetch_guidance_content_batch,
+    format_guidance_preamble,
+    GUIDANCE_BATCH_CONTEXT_VARS,
 )
 from ..config import BATCH_MODEL, MAX_TIER2_RERUNS
 
 from lib.db import get_db_connection
 from lib.llm import DEFAULT_MODEL
 from lib.batch import format_batch_request
+
+
+# =============================================================================
+# TIER 1 OUTPUT HELPERS
+# =============================================================================
+
+
+def _extract_tier1_arguments(t1) -> tuple[str, str, str]:
+    """Extract Tier 1 argument framing strings from a Tier1Output.
+
+    Returns (burdensome, justified, unrelated) formatted strings,
+    or fallback placeholders if t1 is None.
+    """
+    if t1:
+        return (
+            format_tier1_argument(t1.best_argument_burdensome),
+            format_tier1_argument(t1.best_argument_justified),
+            format_tier1_argument(t1.best_argument_unrelated),
+        )
+    return (
+        "(Tier 1 not available)",
+        "(Tier 1 not available)",
+        "(Tier 1 not available)",
+    )
+
+
+def _filter_relevant_matches(unit: TrackedUnit) -> tuple[list, int]:
+    """Filter matches by Tier 1 output.
+
+    Returns (relevant_matches, dismissed_count).
+    """
+    relevant_matches = []
+    dismissed_count = 0
+    t1 = unit.tier1_output
+    if t1:
+        for i in t1.relevant_match_indices:
+            if i < len(unit.unit.matches):
+                relevant_matches.append(unit.unit.matches[i])
+        dismissed_count = len(t1.dismissed_matches)
+    return relevant_matches, dismissed_count
 
 
 # =============================================================================
@@ -253,19 +300,35 @@ def prepare_tier2_batch(
     """
     Prepare batch requests for Tier 2.
 
+    Splits regulation vs guidance units and routes to appropriate paths.
+    """
+    # Split regulation vs guidance units
+    regulation_units = [u for u in units if u.unit.source_type == "regulation"]
+    guidance_units = [u for u in units if u.unit.source_type == "guidance"]
+
+    requests = []
+
+    if regulation_units:
+        requests.extend(_prepare_tier2_regulation_batch(regulation_units, issue_config))
+
+    if guidance_units:
+        requests.extend(_prepare_tier2_guidance_batch(guidance_units, issue_config))
+
+    return requests
+
+
+def _prepare_tier2_regulation_batch(
+    units: list[TrackedUnit],
+    issue_config: IssueConfig,
+) -> list[dict]:
+    """
+    Prepare Tier 2 batch requests for regulation units (existing logic).
+
     V5 4-layer caching approach:
     - Layer 1 (static_core): Global cache for all requests
     - Layer 2 (issue_block): Per issue type cache
-    - Layer 3 (batch_context): Per subchapter cache - ancestors, sibling catalog,
-                               keyword-matched sibling summaries, definitions
-    - Layer 4 (document_template): Per document - citation, content, matches, etc.
-
-    Tier 2 gets:
-    - Full document content
-    - Applicable definitions with text
-    - Context items requested by Tier 1 (summaries or full text)
-    - Relevant matches (filtered by Tier 1)
-    - Subchapter-level context (ancestors, siblings) for 4-layer caching
+    - Layer 3 (batch_context): Per subchapter cache
+    - Layer 4 (document_template): Per document
     """
     tier_configs = load_tier_configs()
     tier2_config = tier_configs['tier2']
@@ -291,17 +354,14 @@ def prepare_tier2_batch(
         else:
             no_subchapter_units.append(unit)
 
-    # Build batch context once per subchapter
-    batch_contexts: dict[int, dict[str, str]] = {}
+    # Build batch context for all subchapters at once
     subchapter_list = list(subchapter_groups.keys())
-    for i, subchapter_id in enumerate(subchapter_list):
-        print(f"    Building subchapter context ({i+1}/{len(subchapter_list)})...", end="\r", flush=True)
-        batch_contexts[subchapter_id] = build_batch_context_for_subchapter(
-            subchapter_id=subchapter_id,
-            issue_type=issue_config.name,
-        )
+    batch_contexts = build_batch_context_for_subchapters(
+        subchapter_ids=subchapter_list,
+        issue_type=issue_config.name,
+    ) if subchapter_list else {}
     if subchapter_list:
-        print(f"    Built context for {len(subchapter_list)} subchapters" + " " * 20)
+        print(f"    Built context for {len(subchapter_list)} subchapters (batch)" + " " * 20)
 
     # Collect context requests from all Tier 1 outputs
     all_context_requests = collect_context_requests(
@@ -403,25 +463,9 @@ def _prepare_tier2_request(
     doc = documents.get(doc_id, {})
     defs = definitions.get(doc_id, [])
 
-    # Filter matches by Tier 1 output
-    relevant_matches = []
-    dismissed_count = 0
+    relevant_matches, dismissed_count = _filter_relevant_matches(unit)
     t1 = unit.tier1_output
-    if t1:
-        for i in t1.relevant_match_indices:
-            if i < len(unit.unit.matches):
-                relevant_matches.append(unit.unit.matches[i])
-        dismissed_count = len(t1.dismissed_matches)
-
-    # Extract Tier 1 argument framing
-    if t1:
-        tier1_argument_burdensome = format_tier1_argument(t1.best_argument_burdensome)
-        tier1_argument_justified = format_tier1_argument(t1.best_argument_justified)
-        tier1_argument_unrelated = format_tier1_argument(t1.best_argument_unrelated)
-    else:
-        tier1_argument_burdensome = "(Tier 1 not available)"
-        tier1_argument_justified = "(Tier 1 not available)"
-        tier1_argument_unrelated = "(Tier 1 not available)"
+    tier1_argument_burdensome, tier1_argument_justified, tier1_argument_unrelated = _extract_tier1_arguments(t1)
 
     # Map fetched context to this unit's requests
     unit_context = map_fetched_to_unit(
@@ -480,6 +524,109 @@ def _prepare_tier2_request(
     return request
 
 
+def _prepare_tier2_guidance_batch(
+    units: list[TrackedUnit],
+    issue_config: IssueConfig,
+) -> list[dict]:
+    """
+    Prepare Tier 2 batch requests for guidance units.
+
+    Guidance documents have no hierarchy. Context comes from cited regulation
+    summaries and the guidance document's own content.
+    """
+    tier_configs = load_tier_configs()
+    tier2_config = tier_configs['tier2']
+
+    doc_ids = [u.document_id for u in units]
+
+    # Fetch guidance content and cited regulation summaries
+    guidance_content = fetch_guidance_content_batch(doc_ids)
+    cited_summaries = fetch_cited_regulation_summaries(doc_ids)
+
+    # Collect and fetch context requests from Tier 1 outputs
+    all_context_requests = collect_context_requests(
+        units=units,
+        source_attr='tier1_output',
+        request_attr='context_requests',
+    )
+    deduped_requests = dedupe_context_requests(all_context_requests)
+    summary_requests = [r for r in deduped_requests if r.need_level == "summary"]
+    full_text_requests = [r for r in deduped_requests if r.need_level == "full_text"]
+    fetched_summaries = fetch_summaries_for_requests(summary_requests) if summary_requests else {}
+    fetched_full_text = fetch_full_text_for_requests(full_text_requests) if full_text_requests else {}
+    all_fetched_context = {**fetched_summaries, **fetched_full_text}
+
+    requests = []
+    for unit in units:
+        doc_id = unit.document_id
+        metadata = guidance_content.get(doc_id, {})
+        unit_cited = cited_summaries.get(doc_id, [])
+
+        # Build batch_context_vars (no hierarchy for guidance)
+        cited_context = build_guidance_batch_context(doc_id, unit_cited, metadata)
+        batch_context_vars = GUIDANCE_BATCH_CONTEXT_VARS
+
+        # Build guidance preamble
+        preamble = format_guidance_preamble(metadata)
+
+        relevant_matches, dismissed_count = _filter_relevant_matches(unit)
+        t1 = unit.tier1_output
+        tier1_argument_burdensome, tier1_argument_justified, tier1_argument_unrelated = _extract_tier1_arguments(t1)
+
+        # Map fetched context to this unit's requests
+        unit_context = map_fetched_to_unit(
+            unit=unit,
+            source_attr='tier1_output',
+            request_attr='context_requests',
+            fetched=all_fetched_context,
+            content_level='summary',
+            include_summary=True,
+        )
+
+        # Format fetched context
+        unit_requests = t1.context_requests if t1 else []
+        tier1_fetched_context = format_fetched_context(unit_context, unit_requests)
+
+        # Add cited regulation context to tier1_fetched_context
+        if cited_context and cited_context != "(no cited regulations resolved)":
+            tier1_fetched_context += "\n\n=== CITED REGULATIONS ===\n" + cited_context
+
+        # Format prompt
+        prompt_parts = format_tier_prompt(
+            tier=tier2_config,
+            issue=issue_config,
+            batch_context_vars=batch_context_vars,
+            citation=metadata.get("citation", unit.unit.citation),
+            title=metadata.get("title", unit.unit.title or ""),
+            content=metadata.get("content", unit.unit.content),
+            definition_scope="(guidance documents — definitions not scoped)",
+            definitions="(not applicable for guidance documents)",
+            relevant_matches=format_matches_for_tier2(relevant_matches),
+            tier1_dismissed_count=str(dismissed_count),
+            tier1_argument_burdensome=tier1_argument_burdensome,
+            tier1_argument_justified=tier1_argument_justified,
+            tier1_argument_unrelated=tier1_argument_unrelated,
+            tier1_fetched_context=tier1_fetched_context,
+        )
+
+        # Prepend guidance preamble to issue_block
+        issue_block_with_preamble = preamble + "\n\n" + prompt_parts["issue_block"]
+        user_cached_prefix = issue_block_with_preamble + prompt_parts["batch_context"]
+
+        request = format_batch_request(
+            custom_id=unit.custom_id,
+            prompt=prompt_parts["document_template"],
+            response_format=Tier2Output,
+            model=BATCH_MODEL,
+            system=prompt_parts["system"],
+            user_cached_prefix=user_cached_prefix if user_cached_prefix.strip() else None,
+        )
+
+        requests.append(request)
+
+    return requests
+
+
 # =============================================================================
 # TIER 2 WITH RE-RUNS (REAL-TIME API)
 # =============================================================================
@@ -501,7 +648,7 @@ async def run_tier2_with_reruns(
     - Re-run with accumulated context (max MAX_TIER2_RERUNS re-runs)
     - On final attempt, add note that no further context can be requested
 
-    This replaces batch API execution for Tier 2 when re-runs are enabled.
+    Runs Tier 2 via real-time API with iterative context refinement.
 
     STATE MANAGEMENT: This function populates tier2_output/tier2_completed_at.
     The pipeline runner is responsible for all state transitions
@@ -529,14 +676,23 @@ async def run_tier2_with_reruns(
     if client is None:
         client = anthropic.AsyncAnthropic()
 
-    # Pre-fetch all common data in batches
-    doc_ids = [u.document_id for u in units]
-    documents = fetch_document_content_batch(doc_ids)
-    definitions = get_definitions_with_text_batch(doc_ids)
-    definition_scopes = get_definition_scopes_batch(doc_ids)
+    # Split regulation vs guidance for pre-fetching
+    regulation_units = [u for u in units if u.unit.source_type == "regulation"]
+    guidance_units_list = [u for u in units if u.unit.source_type == "guidance"]
 
-    # V5 4-layer caching: Get subchapter IDs for batch context
-    subchapter_ids = get_subchapter_ids_batch(doc_ids)
+    # Pre-fetch regulation data
+    reg_doc_ids = [u.document_id for u in regulation_units]
+    documents = fetch_document_content_batch(reg_doc_ids) if reg_doc_ids else {}
+    definitions = get_definitions_with_text_batch(reg_doc_ids) if reg_doc_ids else {}
+    definition_scopes = get_definition_scopes_batch(reg_doc_ids) if reg_doc_ids else {}
+
+    # Pre-fetch guidance data
+    guidance_doc_ids = [u.document_id for u in guidance_units_list]
+    guidance_content = fetch_guidance_content_batch(guidance_doc_ids) if guidance_doc_ids else {}
+    cited_summaries = fetch_cited_regulation_summaries(guidance_doc_ids) if guidance_doc_ids else {}
+
+    # V5 4-layer caching: Get subchapter IDs for batch context (regulation only)
+    subchapter_ids = get_subchapter_ids_batch(reg_doc_ids) if reg_doc_ids else {}
     batch_contexts: dict[int, dict[str, str]] = {}
 
     # Collect context requests from all Tier 1 outputs
@@ -569,28 +725,19 @@ async def run_tier2_with_reruns(
             continue
 
         doc_id = unit.document_id
-        doc = documents.get(doc_id, {})
-        defs = definitions.get(doc_id, [])
+        is_guidance = unit.unit.source_type == "guidance"
 
-        # Filter matches by Tier 1 output
-        relevant_matches = []
-        dismissed_count = 0
-        t1 = unit.tier1_output
-        if t1:
-            for i in t1.relevant_match_indices:
-                if i < len(unit.unit.matches):
-                    relevant_matches.append(unit.unit.matches[i])
-            dismissed_count = len(t1.dismissed_matches)
-
-        # Extract Tier 1 argument framing
-        if t1:
-            tier1_argument_burdensome = format_tier1_argument(t1.best_argument_burdensome)
-            tier1_argument_justified = format_tier1_argument(t1.best_argument_justified)
-            tier1_argument_unrelated = format_tier1_argument(t1.best_argument_unrelated)
+        if is_guidance:
+            metadata = guidance_content.get(doc_id, {})
+            doc = {"content": metadata.get("content", unit.unit.content)}
+            defs = []
         else:
-            tier1_argument_burdensome = "(Tier 1 not available)"
-            tier1_argument_justified = "(Tier 1 not available)"
-            tier1_argument_unrelated = "(Tier 1 not available)"
+            doc = documents.get(doc_id, {})
+            defs = definitions.get(doc_id, [])
+
+        relevant_matches, dismissed_count = _filter_relevant_matches(unit)
+        t1 = unit.tier1_output
+        tier1_argument_burdensome, tier1_argument_justified, tier1_argument_unrelated = _extract_tier1_arguments(t1)
 
         # Map fetched context to this unit's requests
         unit_context = map_fetched_to_unit(
@@ -608,24 +755,33 @@ async def run_tier2_with_reruns(
         # Format fetched context for prompt injection
         tier1_fetched_context = format_fetched_context(unit_context, unit_requests)
 
-        # V5 4-layer caching: Build or retrieve batch context for this unit's subchapter
-        subchapter_id = subchapter_ids.get(doc_id)
-        if subchapter_id:
-            if subchapter_id not in batch_contexts:
-                batch_contexts[subchapter_id] = build_batch_context_for_subchapter(
-                    subchapter_id=subchapter_id,
-                    issue_type=issue_config.name,
-                )
-            batch_context_vars = batch_contexts[subchapter_id]
+        # Build batch_context_vars based on source type
+        if is_guidance:
+            unit_cited = cited_summaries.get(doc_id, [])
+            metadata = guidance_content.get(doc_id, {})
+            cited_context = build_guidance_batch_context(doc_id, unit_cited, metadata)
+            if cited_context and cited_context != "(no cited regulations resolved)":
+                tier1_fetched_context += "\n\n=== CITED REGULATIONS ===\n" + cited_context
+            batch_context_vars = GUIDANCE_BATCH_CONTEXT_VARS
         else:
-            batch_context_vars = {
-                "subchapter_citation": "(no subchapter)",
-                "ancestor_summaries": "(no ancestors available)",
-                "sibling_catalog": "(no siblings available)",
-                "sibling_count": "0",
-                "sibling_catalog_truncated": "",
-                "keyword_sibling_summaries": "(none available)",
-            }
+            # V5 4-layer caching: Build or retrieve batch context for this unit's subchapter
+            subchapter_id = subchapter_ids.get(doc_id)
+            if subchapter_id:
+                if subchapter_id not in batch_contexts:
+                    batch_contexts[subchapter_id] = build_batch_context_for_subchapter(
+                        subchapter_id=subchapter_id,
+                        issue_type=issue_config.name,
+                    )
+                batch_context_vars = batch_contexts[subchapter_id]
+            else:
+                batch_context_vars = {
+                    "subchapter_citation": "(no subchapter)",
+                    "ancestor_summaries": "(no ancestors available)",
+                    "sibling_catalog": "(no siblings available)",
+                    "sibling_count": "0",
+                    "sibling_catalog_truncated": "",
+                    "keyword_sibling_summaries": "(none available)",
+                }
 
         # Re-run loop: accumulate context and retry if LLM requests more
         rerun_count = 0
@@ -651,30 +807,46 @@ async def run_tier2_with_reruns(
             if final_attempt_note:
                 tier1_fetched_context += final_attempt_note
 
+            # Build citation and definition vars based on source type
+            if is_guidance:
+                prompt_citation = metadata.get("citation", unit.unit.citation)
+                prompt_title = metadata.get("title", unit.unit.title or "")
+                prompt_def_scope = "(guidance documents — definitions not scoped)"
+                prompt_defs = "(not applicable for guidance documents)"
+            else:
+                prompt_citation = unit.unit.citation
+                prompt_title = unit.unit.title or ""
+                prompt_def_scope = definition_scopes.get(doc_id, "(no definitions in scope)")
+                prompt_defs = format_definitions(defs)
+
             prompt_parts = format_tier_prompt(
                 tier=tier2_config,
                 issue=issue_config,
                 batch_context_vars=batch_context_vars,
-                # Document-specific variables (Layer 4)
-                citation=unit.unit.citation,
-                title=unit.unit.title or "",
+                citation=prompt_citation,
+                title=prompt_title,
                 content=doc.get("content", unit.unit.content),
-                definition_scope=definition_scopes.get(doc_id, "(no definitions in scope)"),
-                definitions=format_definitions(defs),
+                definition_scope=prompt_def_scope,
+                definitions=prompt_defs,
                 relevant_matches=format_matches_for_tier2(relevant_matches),
                 tier1_dismissed_count=str(dismissed_count),
-                # Tier 1 handoff - argument framing
                 tier1_argument_burdensome=tier1_argument_burdensome,
                 tier1_argument_justified=tier1_argument_justified,
                 tier1_argument_unrelated=tier1_argument_unrelated,
-                # Tier 1 fetched context (includes accumulated from re-runs)
                 tier1_fetched_context=tier1_fetched_context,
             )
+
+            # Prepend guidance preamble for guidance units
+            if is_guidance:
+                preamble = format_guidance_preamble(metadata)
+                user_prompt = preamble + "\n\n" + prompt_parts["user"]
+            else:
+                user_prompt = prompt_parts["user"]
 
             try:
                 result, usage = await call_llm_parse_async(
                     client=client,
-                    prompt=prompt_parts["user"],
+                    prompt=user_prompt,
                     response_format=Tier2Output,
                     system=prompt_parts["system"],
                     model=DEFAULT_MODEL,

@@ -18,6 +18,7 @@ def get_existing_analyses(
     document_ids: list[int],
     issue_type: Optional[str] = None,
     issue_types: Optional[list[str]] = None,
+    source_type: str = "regulation",
     conn: Optional[Connection] = None,
 ) -> dict[tuple[int, str], dict]:
     """
@@ -32,22 +33,11 @@ def get_existing_analyses(
         document_ids: List of document IDs to query
         issue_type: Single issue type (for backward compatibility)
         issue_types: List of issue types (for --all-issues mode)
+        source_type: "regulation" or "guidance" — determines which FK column to query
         conn: Optional database connection
 
     Returns:
         Dict mapping (document_id, issue_type) tuples to analysis data.
-        Each value is a dict with:
-        - highest_tier_completed: int
-        - requirement_found: bool
-        - final_severity: int
-        - Tier 1 outputs: tier1_classification, tier1_relevant_match_ids,
-          tier1_dismissed_match_ids, tier1_confidence, tier1_reasoning,
-          tier1_context_requests
-        - Tier 2 outputs: tier2_classification, tier2_confidence, tier2_reasoning,
-          tier2_context_requests_made, tier2_full_text_requests, severity,
-          verbatim_requirements
-        - Tier 3 outputs: tier3_classification, tier3_confidence, tier3_reasoning,
-          tier3_severity_adjustment, tier3_severity_adjustment_reasoning
     """
     if not document_ids:
         return {}
@@ -66,11 +56,14 @@ def get_existing_analyses(
     else:
         should_close = False
 
+    # Use appropriate FK column based on source_type
+    id_col = "guidance_document_id" if source_type == "guidance" else "document_id"
+
     try:
         with conn.cursor() as cur:
-            cur.execute("""
+            cur.execute(f"""
                 SELECT
-                    document_id, issue_type, highest_tier_completed,
+                    {id_col}, issue_type, highest_tier_completed,
                     requirement_found, final_severity,
                     -- Tier 1 outputs
                     tier1_classification, tier1_relevant_match_ids, tier1_dismissed_match_ids,
@@ -86,7 +79,7 @@ def get_existing_analyses(
                     tier3_classification, tier3_confidence, tier3_reasoning,
                     tier3_severity_adjustment, tier3_severity_adjustment_reasoning
                 FROM compliance_issue_analyses
-                WHERE document_id = ANY(%s) AND issue_type = ANY(%s)
+                WHERE {id_col} = ANY(%s) AND issue_type = ANY(%s)
             """, (document_ids, type_list))
 
             results = {}

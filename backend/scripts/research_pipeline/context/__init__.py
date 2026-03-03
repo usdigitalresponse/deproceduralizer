@@ -9,7 +9,7 @@ Submodules:
 - catalog: Context catalog assembly functions
 - proactive: V5 proactive context building functions
 - fetchers: Content fetching for summaries and full text
-- requests: Shared context request helpers
+- guidance_context: Guidance document context (cited regulation summaries)
 
 The main entry points are:
 - build_context_catalog(): Build context catalogs for multiple documents
@@ -28,11 +28,15 @@ from .queries import (
     get_ancestor_entries_batch,
     get_subchapter_ids_batch,
     get_subchapter_info,
+    get_subchapter_info_batch,
     get_children_of_parent,
+    get_children_of_parents_batch,
     get_definitions_for_scope,
+    get_definitions_for_scopes_batch,
 )
 
 from .catalog import (
+    PreFetchedContextData,
     build_context_catalog,
     group_for_cache_efficiency,
     estimate_cache_efficiency,
@@ -56,6 +60,7 @@ from .proactive import (
     # V5 Entry points
     build_proactive_context,
     build_batch_context_for_subchapter,
+    build_batch_context_for_subchapters,
 )
 
 from .fetchers import (
@@ -63,6 +68,14 @@ from .fetchers import (
     fetch_document_summaries_batch,
     fetch_summaries_for_requests,
     fetch_full_text_for_requests,
+)
+
+from .guidance_context import (
+    fetch_cited_regulation_summaries,
+    build_guidance_batch_context,
+    fetch_guidance_content_batch,
+    format_guidance_preamble,
+    GUIDANCE_BATCH_CONTEXT_VARS,
 )
 
 # Re-export get_ancestors_batch from lib.db (used by multiple modules)
@@ -78,10 +91,14 @@ __all__ = [
     "get_ancestor_entries_batch",
     "get_subchapter_ids_batch",
     "get_subchapter_info",
+    "get_subchapter_info_batch",
     "get_children_of_parent",
+    "get_children_of_parents_batch",
     "get_definitions_for_scope",
+    "get_definitions_for_scopes_batch",
     "get_ancestors_batch",
     # Catalog
+    "PreFetchedContextData",
     "build_context_catalog",
     "group_for_cache_efficiency",
     "estimate_cache_efficiency",
@@ -100,9 +117,16 @@ __all__ = [
     "prioritize_summaries",
     "build_proactive_context",
     "build_batch_context_for_subchapter",
+    "build_batch_context_for_subchapters",
     # Fetchers
     "fetch_document_content_batch",
     "fetch_document_summaries_batch",
     "fetch_summaries_for_requests",
     "fetch_full_text_for_requests",
+    # Guidance context
+    "fetch_cited_regulation_summaries",
+    "build_guidance_batch_context",
+    "fetch_guidance_content_batch",
+    "format_guidance_preamble",
+    "GUIDANCE_BATCH_CONTEXT_VARS",
 ]

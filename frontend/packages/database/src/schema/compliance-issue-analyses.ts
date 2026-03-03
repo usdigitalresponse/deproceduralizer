@@ -9,7 +9,6 @@ import {
   integer,
   real,
   jsonb,
-  unique,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { regulatoryDocuments } from './regulatory-documents';
@@ -18,13 +17,14 @@ import { regulatoryDocuments } from './regulatory-documents';
  * Compliance Issue Analyses table
  *
  * Document-level analysis results for the 3-tier research pipeline.
- * One row per (document_id, issue_type) pair.
+ * One row per (document_id, issue_type) or (guidance_document_id, issue_type) pair.
  */
 export const complianceIssueAnalyses = pgTable('compliance_issue_analyses', {
   id: bigserial('id', { mode: 'number' }).primaryKey(),
   documentId: bigint('document_id', { mode: 'number' })
-    .notNull()
     .references(() => regulatoryDocuments.id, { onDelete: 'cascade' }),
+  // FK to guidance_documents — exactly one of documentId/guidanceDocumentId is set (CHECK constraint cia_one_source)
+  guidanceDocumentId: bigint('guidance_document_id', { mode: 'number' }),
   issueType: varchar('issue_type', { length: 50 }).notNull(),
   jurisdiction: varchar('jurisdiction', { length: 3 }).notNull(),
 
@@ -163,9 +163,10 @@ export const complianceIssueAnalyses = pgTable('compliance_issue_analyses', {
 
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
-}, (table) => ({
-  uniqueDocumentIssue: unique().on(table.documentId, table.issueType),
-}));
+});
+// Note: uniqueness is enforced by partial unique indexes in migration 0058:
+//   - cia_unique_reg: UNIQUE(document_id, issue_type) WHERE document_id IS NOT NULL
+//   - cia_unique_guidance: UNIQUE(guidance_document_id, issue_type) WHERE guidance_document_id IS NOT NULL
 
 // Type exports
 export type ComplianceIssueAnalysis = typeof complianceIssueAnalyses.$inferSelect;
