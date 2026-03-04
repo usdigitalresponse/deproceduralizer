@@ -114,6 +114,7 @@ interface LineageDoc {
   supersededBy: string | null;
   revisionOf: string | null;
   datePublished: string | null;
+  jurisdiction: string | null;
 }
 
 export interface SupersedureLink {
@@ -167,7 +168,8 @@ export interface LineageStats {
   docsWithLineage: number;        // has supersedes/supersededBy/revisionOf
   supersededCount: number;        // status = 'superseded'
   orphanedReferences: number;     // refs pointing to non-existent docs
-  families: DocumentFamily[];     // grouped revision chains
+  totalFamilies: number;          // total count before truncation
+  families: DocumentFamily[];     // grouped revision chains (top 50 by chain length)
 }
 
 export class GuidanceDocumentsRepository extends BaseRepository {
@@ -599,21 +601,22 @@ export class GuidanceDocumentsRepository extends BaseRepository {
         }
       }
 
-      // Resolve forward refs
-      if (forwardRefs.length > 0) {
-        const uniqueForwardRefs = [...new Set(forwardRefs)];
-        const resolved = await this.resolveCanonicalRefs(uniqueForwardRefs);
-        for (const doc of resolved) {
-          if (doc.canonicalRef && !visited.has(doc.canonicalRef)) {
-            visited.set(doc.canonicalRef, doc);
-            nextFrontier.add(doc.canonicalRef);
-          }
+      // Resolve forward refs and reverse lookup in parallel
+      const uniqueForwardRefs = forwardRefs.length > 0 ? [...new Set(forwardRefs)] : [];
+      const frontierRefs = [...frontier];
+      const jurisdiction = startDoc.jurisdiction ?? undefined;
+
+      const [resolved, reverseResults] = await Promise.all([
+        uniqueForwardRefs.length > 0 ? this.resolveCanonicalRefs(uniqueForwardRefs, jurisdiction) : [],
+        this.findReferencingDocs(frontierRefs, jurisdiction),
+      ]);
+
+      for (const doc of resolved) {
+        if (doc.canonicalRef && !visited.has(doc.canonicalRef)) {
+          visited.set(doc.canonicalRef, doc);
+          nextFrontier.add(doc.canonicalRef);
         }
       }
-
-      // Reverse lookup: find docs that reference any frontier doc
-      const frontierRefs = [...frontier];
-      const reverseResults = await this.findReferencingDocs(frontierRefs);
       for (const doc of reverseResults) {
         if (doc.canonicalRef && !visited.has(doc.canonicalRef)) {
           visited.set(doc.canonicalRef, doc);
@@ -659,6 +662,7 @@ export class GuidanceDocumentsRepository extends BaseRepository {
         supersededBy: guidanceDocuments.supersededBy,
         revisionOf: guidanceDocuments.revisionOf,
         datePublished: guidanceDocuments.datePublished,
+        jurisdiction: guidanceDocuments.jurisdiction,
       })
       .from(guidanceDocuments)
       .where(eq(guidanceDocuments.id, docId))
@@ -667,8 +671,11 @@ export class GuidanceDocumentsRepository extends BaseRepository {
     return results[0];
   }
 
-  private async resolveCanonicalRefs(refs: string[]): Promise<LineageDoc[]> {
+  private async resolveCanonicalRefs(refs: string[], jurisdiction?: string): Promise<LineageDoc[]> {
     if (refs.length === 0) return [];
+    const conditions = jurisdiction
+      ? and(inArray(guidanceDocuments.canonicalRef, refs), eq(guidanceDocuments.jurisdiction, jurisdiction))
+      : inArray(guidanceDocuments.canonicalRef, refs);
     return this.db
       .select({
         id: guidanceDocuments.id,
@@ -681,13 +688,18 @@ export class GuidanceDocumentsRepository extends BaseRepository {
         supersededBy: guidanceDocuments.supersededBy,
         revisionOf: guidanceDocuments.revisionOf,
         datePublished: guidanceDocuments.datePublished,
+        jurisdiction: guidanceDocuments.jurisdiction,
       })
       .from(guidanceDocuments)
-      .where(inArray(guidanceDocuments.canonicalRef, refs));
+      .where(conditions);
   }
 
-  private async findReferencingDocs(refs: string[]): Promise<LineageDoc[]> {
+  private async findReferencingDocs(refs: string[], jurisdiction?: string): Promise<LineageDoc[]> {
     if (refs.length === 0) return [];
+
+    const jurisdictionClause = jurisdiction
+      ? sql`AND jurisdiction = ${jurisdiction}`
+      : sql``;
 
     const result = await this.db.execute<{
       id: number;
@@ -700,13 +712,15 @@ export class GuidanceDocumentsRepository extends BaseRepository {
       superseded_by: string | null;
       revision_of: string | null;
       date_published: string | null;
+      jurisdiction: string | null;
     }>(sql`
       SELECT id, canonical_ref, title, agency, status, year,
-             supersedes, superseded_by, revision_of, date_published
+             supersedes, superseded_by, revision_of, date_published, jurisdiction
       FROM guidance_documents
-      WHERE supersedes && ${refs}::text[]
+      WHERE (supersedes && ${refs}::text[]
          OR superseded_by = ANY(${refs}::text[])
-         OR revision_of = ANY(${refs}::text[])
+         OR revision_of = ANY(${refs}::text[]))
+        ${jurisdictionClause}
     `);
 
     return result.rows.map(row => ({
@@ -720,6 +734,7 @@ export class GuidanceDocumentsRepository extends BaseRepository {
       supersededBy: row.superseded_by,
       revisionOf: row.revision_of,
       datePublished: row.date_published,
+      jurisdiction: row.jurisdiction,
     }));
   }
 
@@ -785,7 +800,8 @@ export class GuidanceDocumentsRepository extends BaseRepository {
 
     // If there were cycles, add any remaining nodes sorted by date
     if (sorted.length < nodes.size) {
-      const remaining = [...nodes.keys()].filter(ref => !sorted.includes(ref));
+      const sortedSet = new Set(sorted);
+      const remaining = [...nodes.keys()].filter(ref => !sortedSet.has(ref));
       remaining.sort((a, b) => this.compareByDate(nodes.get(a)!, nodes.get(b)!));
       sorted.push(...remaining);
     }
@@ -891,23 +907,14 @@ export class GuidanceDocumentsRepository extends BaseRepository {
   async getLineageStats(jurisdiction: JurisdictionCode): Promise<LineageStats> {
     const stateUpper = normalizeJurisdiction(jurisdiction);
 
-    // 1. Count docs with lineage + count superseded in parallel
-    const [withLineageResult, supersededResult, lineageDocsResult] = await Promise.all([
-      this.db.execute<{ count: number }>(sql`
-        SELECT count(*)::int as count
-        FROM guidance_documents
-        WHERE jurisdiction = ${stateUpper}
-          AND (supersedes IS NOT NULL
-            OR superseded_by IS NOT NULL
-            OR revision_of IS NOT NULL)
-      `),
+    // 1. Count superseded + fetch all docs with lineage fields in parallel
+    const [supersededResult, lineageDocsResult] = await Promise.all([
       this.db.execute<{ count: number }>(sql`
         SELECT count(*)::int as count
         FROM guidance_documents
         WHERE jurisdiction = ${stateUpper}
           AND status = 'superseded'
       `),
-      // 3. Fetch all docs with lineage fields for building families
       this.db.execute<{
         id: number;
         canonical_ref: string | null;
@@ -929,9 +936,9 @@ export class GuidanceDocumentsRepository extends BaseRepository {
       `),
     ]);
 
-    const docsWithLineage = withLineageResult.rows[0].count;
     const supersededCount = supersededResult.rows[0].count;
     const lineageDocs = lineageDocsResult.rows;
+    const docsWithLineage = lineageDocs.length;
 
     // Build a map of canonicalRef → doc for quick lookup
     const docsByRef = new Map<string, typeof lineageDocs[number]>();
@@ -980,20 +987,8 @@ export class GuidanceDocumentsRepository extends BaseRepository {
       }
     }
 
-    // 4. Count orphaned references: refs that don't match any canonical_ref in the DB
-    let orphanedReferences = 0;
-    if (allReferencedRefs.size > 0) {
-      const allRefsArray = [...allReferencedRefs];
-      const orphanResult = await this.db.execute<{ count: number }>(sql`
-        SELECT count(*)::int as count
-        FROM unnest(${allRefsArray}::text[]) AS ref
-        WHERE NOT EXISTS (
-          SELECT 1 FROM guidance_documents
-          WHERE canonical_ref = ref
-        )
-      `);
-      orphanedReferences = orphanResult.rows[0].count;
-    }
+    // 4. Count orphaned references: refs not in docsByRef after fetching missing refs
+    const orphanedReferences = [...allReferencedRefs].filter(ref => !docsByRef.has(ref)).length;
 
     // 5. Build connected components (union-find)
     const parent = new Map<string, string>();
@@ -1095,14 +1090,15 @@ export class GuidanceDocumentsRepository extends BaseRepository {
       });
     }
 
-    // Sort families by chain length descending
+    // Sort families by chain length descending, return top 50
     families.sort((a, b) => b.chainLength - a.chainLength);
 
     return {
       docsWithLineage,
       supersededCount,
       orphanedReferences,
-      families,
+      totalFamilies: families.length,
+      families: families.slice(0, 50),
     };
   }
 }

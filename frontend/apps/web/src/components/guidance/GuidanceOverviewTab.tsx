@@ -164,7 +164,7 @@ function LineageSection({
         />
         <StatCard
           label="Document Families"
-          value={lineageStats.families.length}
+          value={lineageStats.totalFamilies}
           icon={FolderTree}
           variant="default"
           subtitle="Revision chains"
@@ -179,14 +179,13 @@ function LineageSection({
       </StatGrid>
 
       {lineageStats.families.length > 0 && (
-        <DocumentFamiliesTable families={lineageStats.families} jurisdiction={jurisdiction} />
+        <DocumentFamiliesTable families={lineageStats.families} totalFamilies={lineageStats.totalFamilies} jurisdiction={jurisdiction} />
       )}
     </div>
   );
 }
 
-function DocumentFamiliesTable({ families, jurisdiction }: { families: DocumentFamily[]; jurisdiction: string }) {
-  const displayFamilies = families.slice(0, 50);
+function DocumentFamiliesTable({ families, totalFamilies, jurisdiction }: { families: DocumentFamily[]; totalFamilies: number; jurisdiction: string }) {
   const [expandedFamily, setExpandedFamily] = useState<string | null>(null);
 
   return (
@@ -194,8 +193,8 @@ function DocumentFamiliesTable({ families, jurisdiction }: { families: DocumentF
       <CardHeader className="p-6 pb-0">
         <CardTitle>Document Families</CardTitle>
         <CardDescription>
-          {families.length} revision chain{families.length !== 1 ? 's' : ''}
-          {families.length > 50 ? ' (showing top 50 by chain length)' : ''}
+          {totalFamilies} revision chain{totalFamilies !== 1 ? 's' : ''}
+          {totalFamilies > families.length ? ` (showing top ${families.length} by chain length)` : ''}
         </CardDescription>
       </CardHeader>
       <div className="mt-4">
@@ -209,7 +208,7 @@ function DocumentFamiliesTable({ families, jurisdiction }: { families: DocumentF
             </tr>
           </thead>
           <tbody>
-            {displayFamilies.map(family => (
+            {families.map(family => (
               <FamilyRow
                 key={family.familyId}
                 family={family}

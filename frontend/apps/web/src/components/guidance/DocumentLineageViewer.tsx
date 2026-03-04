@@ -3,16 +3,12 @@
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card';
 import { GuidanceStatusBadge } from './GuidanceStatusBadge';
+import { truncateTitle } from '@/lib/format';
 import type { DocumentLineage, LineageNode } from '@deproceduralizer/database';
 
 interface DocumentLineageViewerProps {
   lineage: DocumentLineage;
   state: string;
-}
-
-function truncateTitle(title: string, maxLength = 60): string {
-  if (title.length <= maxLength) return title;
-  return title.slice(0, maxLength).trimEnd() + '\u2026';
 }
 
 function TimelineNode({
@@ -41,7 +37,7 @@ function TimelineNode({
         )}
       </div>
       <span className="text-sm text-[var(--color-text-secondary)]">
-        {truncateTitle(node.title)}
+        {truncateTitle(node.title, 60)}
       </span>
       <div className="flex items-center justify-between gap-2">
         <span className="text-xs text-[var(--color-text-muted)]">
