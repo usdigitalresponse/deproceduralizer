@@ -93,7 +93,7 @@ export function JenAITokenBreakdown({ composedPrompt }: JenAITokenBreakdownProps
       {/* Cache savings note */}
       <div className="mt-3 p-3 bg-[var(--color-success-bg)] rounded-[var(--radius-md)]">
         <p className="text-sm text-[var(--color-success)]">
-          <strong>~{cacheSavingsPercent.toFixed(0)}% cache hit rate</strong> - System prompt cached globally,
+          <strong>~{cacheSavingsPercent.toFixed(0)}% cache hit rate (estimated)</strong> - System prompt cached globally,
           Batch Context cached per subchapter. Only the per-section template is unique.
         </p>
       </div>

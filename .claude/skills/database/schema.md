@@ -478,6 +478,9 @@ Document-level analysis results for the 3-tier research pipeline. One row per (d
 | `pipeline_version` | varchar(20) | Default 'v5' |
 | `highest_tier_completed` | integer (0-3) | Progress indicator |
 | `classification_tier` | integer | Which tier made final classification |
+| `tier1_prompt_id` | bigint | FK to prompt_templates(id) — prompt used for Tier 1 |
+| `tier2_prompt_id` | bigint | FK to prompt_templates(id) — prompt used for Tier 2 |
+| `tier3_prompt_id` | bigint | FK to prompt_templates(id) — prompt used for Tier 3 |
 | `created_at` | timestamp | When record was created |
 | `updated_at` | timestamp | Last update time |
 
@@ -596,6 +599,28 @@ Helps Tier 3 web search avoid returning results about similar-sounding but diffe
 - V5.1: `idx_compliance_issue_analyses_tier3_trigger_reason` (partial), `idx_compliance_issue_analyses_easy_cleanup` (partial)
 - Query optimization: `idx_cia_doc_issue`, `idx_cia_state_tier2`, `idx_cia_highest_tier`
 - Full-text search (migration 0044): `idx_compliance_issue_analyses_search_vector` (GIN) — `search_vector tsvector` column with tier2_reasoning + tier3_reasoning + verbatim_requirements, maintained by trigger
+
+## prompt_templates
+
+Deduplicated prompt templates for observability. Each unique canonical request (model + system + messages + tools + tool_choice + max_tokens) gets one row, identified by SHA-256 content hash. Linked from `compliance_issue_analyses` via `tier1_prompt_id`, `tier2_prompt_id`, `tier3_prompt_id` FKs. Added in migration 0060.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | bigserial | Primary key |
+| `content_hash` | text NOT NULL UNIQUE | SHA-256 of canonical request params |
+| `pipeline` | text NOT NULL | `research`, `jenai`, `summarization` |
+| `tier` | integer | 1, 2, 3 (NULL for single-pass pipelines) |
+| `model` | text NOT NULL | Model name (e.g., `claude-sonnet-4-5-20250929`) |
+| `system_prompt` | text | Extracted system prompt text |
+| `user_message` | text | Extracted user message text (all parts concatenated) |
+| `tools_schema` | jsonb | Tool definitions |
+| `full_request` | jsonb | Complete request params for exact reproduction |
+| `created_at` | timestamptz | DEFAULT NOW() |
+
+**Indexes:**
+- `idx_prompt_templates_pipeline_tier` on `(pipeline, tier)`
+
+**Backfill:** Run `cd backend && python3 -m scripts.backfill_prompt_templates` to populate from historical batch `requests.json`/`.jsonl` files.
 
 ## compliance_issue_analysis_reviews
 

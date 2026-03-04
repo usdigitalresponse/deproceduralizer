@@ -10,6 +10,7 @@ All context is passed as function args — no class, no self.* state.
 """
 
 import asyncio
+import logging
 import time
 from collections import defaultdict
 from datetime import datetime
@@ -60,6 +61,9 @@ from lib.db import get_db_connection
 from lib.llm import DEFAULT_MODEL
 from lib.batch import BatchManager
 from lib.cache import CacheManager
+from lib.prompt_store import store_prompt_batch
+
+logger = logging.getLogger(__name__)
 
 # Langfuse observability (graceful degradation if not configured)
 try:
@@ -71,7 +75,8 @@ try:
     )
     from observability.types import LLMTraceContext
     LANGFUSE_AVAILABLE = True
-except ImportError:
+except ImportError as e:
+    logger.info("Langfuse observability not available: %s", e)
     LANGFUSE_AVAILABLE = False
 
 
@@ -464,6 +469,9 @@ async def _run_tier1(units, issue_configs, batch_manager, cost_tracker,
         requests.extend(prepare_fn(units_for_issue, config))
     tier_out.info(f"  Prepared {len(requests)} requests across {len(by_issue)} issue types" + " " * 20)
 
+    # Store prompt templates and assign IDs to units
+    _store_and_assign_prompts(requests, pending, "research", 1, "tier1_prompt_id", tier_out)
+
     batch_id = None
     if realtime:
         succeeded, failed = await _run_realtime(
@@ -530,6 +538,9 @@ async def _run_tier2(units, issue_configs, batch_manager, cost_tracker,
             config = issue_configs[issue_type]
             requests.extend(prepare_tier2_batch(units_for_issue, config))
         tier_out.info(f"  Prepared {len(requests)} requests across {len(by_issue)} issue types" + " " * 20)
+
+        # Store prompt templates and assign IDs to units
+        _store_and_assign_prompts(requests, pending, "research", 2, "tier2_prompt_id", tier_out)
 
         batch_id = None
         if realtime:
@@ -699,6 +710,9 @@ async def _run_tier3_batch(pending, units, issue_configs, batch_manager,
         tier_out.info("  No valid requests to submit")
         return
 
+    # Store prompt templates and assign IDs to units
+    _store_and_assign_prompts(requests, pending, "research", 3, "tier3_prompt_id", tier_out)
+
     batch_id = _submit_batch(requests, "tier3", batch_manager, out,
                               trace_context, batch_trace_ids,
                               jurisdiction, issue_type_single, run_id)
@@ -716,6 +730,40 @@ async def _run_tier3_batch(pending, units, issue_configs, batch_manager,
 
     _log_tier_complete(out, cost_tracker, "Tier 3 (batch)", len(succeeded), len(failed),
                        trace_context, batch_trace_ids)
+
+
+# ---------------------------------------------------------------------------
+# Internal: Prompt observability
+# ---------------------------------------------------------------------------
+
+
+def _store_and_assign_prompts(
+    requests: list[dict],
+    units: list[TrackedUnit],
+    pipeline: str,
+    tier: int,
+    prompt_id_attr: str,
+    out,
+) -> None:
+    """Store prompt templates in DB and assign IDs to TrackedUnits.
+
+    Matches requests to units via custom_id. DB/network failures are
+    logged but don't block the pipeline. Other errors propagate.
+    """
+    if not requests:
+        return
+    try:
+        prompt_ids = store_prompt_batch(requests, pipeline=pipeline, tier=tier)
+        unit_by_cid = {u.custom_id: u for u in units}
+        assigned = 0
+        for cid, pid in prompt_ids.items():
+            if cid in unit_by_cid:
+                setattr(unit_by_cid[cid], prompt_id_attr, pid)
+                assigned += 1
+        out.info(f"  Stored {len(set(prompt_ids.values()))} unique prompt templates, assigned to {assigned} units")
+    except (psycopg.Error, OSError) as e:
+        logger.warning("Prompt template storage failed (non-fatal): %s", e, exc_info=True)
+        out.info(f"  Warning: prompt template storage failed (non-fatal): {e}")
 
 
 # ---------------------------------------------------------------------------

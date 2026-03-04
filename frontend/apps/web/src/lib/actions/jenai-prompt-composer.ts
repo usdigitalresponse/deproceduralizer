@@ -182,7 +182,7 @@ export async function searchSectionsForComposer(
       id: row.id,
       title: row.title,
       citation: row.citation,
-      hierarchyLevel: row.hierarchyPath,
+      hierarchyPath: row.hierarchyPath,
       jurisdiction,
     }));
   });

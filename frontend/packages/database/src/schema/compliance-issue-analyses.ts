@@ -12,6 +12,8 @@ import {
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { regulatoryDocuments } from './regulatory-documents';
+import { guidanceDocuments } from './guidance-documents';
+import { promptTemplates } from './prompt-templates';
 
 /**
  * Compliance Issue Analyses table
@@ -24,7 +26,8 @@ export const complianceIssueAnalyses = pgTable('compliance_issue_analyses', {
   documentId: bigint('document_id', { mode: 'number' })
     .references(() => regulatoryDocuments.id, { onDelete: 'cascade' }),
   // FK to guidance_documents — exactly one of documentId/guidanceDocumentId is set (CHECK constraint cia_one_source)
-  guidanceDocumentId: bigint('guidance_document_id', { mode: 'number' }),
+  guidanceDocumentId: bigint('guidance_document_id', { mode: 'number' })
+    .references(() => guidanceDocuments.id, { onDelete: 'cascade' }),
   issueType: varchar('issue_type', { length: 50 }).notNull(),
   jurisdiction: varchar('jurisdiction', { length: 3 }).notNull(),
 
@@ -141,9 +144,12 @@ export const complianceIssueAnalyses = pgTable('compliance_issue_analyses', {
   // ═══════════════════════════════════════════════════════════════════
   // Prompt Observability (FK to prompt_templates)
   // ═══════════════════════════════════════════════════════════════════
-  tier1PromptId: bigint('tier1_prompt_id', { mode: 'number' }),
-  tier2PromptId: bigint('tier2_prompt_id', { mode: 'number' }),
-  tier3PromptId: bigint('tier3_prompt_id', { mode: 'number' }),
+  tier1PromptId: bigint('tier1_prompt_id', { mode: 'number' })
+    .references(() => promptTemplates.id),
+  tier2PromptId: bigint('tier2_prompt_id', { mode: 'number' })
+    .references(() => promptTemplates.id),
+  tier3PromptId: bigint('tier3_prompt_id', { mode: 'number' })
+    .references(() => promptTemplates.id),
 
   // ═══════════════════════════════════════════════════════════════════
   // Human Review (PR 6.3: moved from compliance_issues)
