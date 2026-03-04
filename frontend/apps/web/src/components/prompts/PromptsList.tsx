@@ -5,16 +5,13 @@ import { Code, Search, X, Shield, Cpu } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { PromptCard } from './PromptCard';
 import { CompliancePromptCard } from './CompliancePromptCard';
-import { ArchivedFeedback } from './ArchivedFeedback';
 import type { PromptData, CompliancePromptData } from '@/lib/actions/prompts';
-import type { PromptFeedback } from '@deproceduralizer/database';
 
 interface PromptsListProps {
   prompts: PromptData[];
   compliancePrompts?: CompliancePromptData[];
   jenaiPrompts?: PromptData[];
   feedbackCounts: Record<string, number>;
-  orphanedFeedback: PromptFeedback[];
   className?: string;
 }
 
@@ -26,7 +23,6 @@ export function PromptsList({
   compliancePrompts = [],
   jenaiPrompts = [],
   feedbackCounts,
-  orphanedFeedback,
   className = '',
 }: PromptsListProps) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -193,12 +189,6 @@ export function PromptsList({
         </Card>
       )}
 
-      {/* Archived/orphaned feedback */}
-      {orphanedFeedback.length > 0 && (
-        <ArchivedFeedback feedback={orphanedFeedback} />
-      )}
     </div>
   );
 }
-
-export default PromptsList;

@@ -34,7 +34,7 @@ from dotenv import load_dotenv
 # CLI ARGUMENT VALIDATORS
 # ============================================================================
 
-from lib.jurisdictions import jurisdiction_validator as _base_jurisdiction_validator
+from lib.jurisdictions import jurisdiction_validator as _base_jurisdiction_validator, title_column_for_jurisdiction
 
 
 def jurisdiction_validator(value: str) -> str:
@@ -499,7 +499,7 @@ def _check_summarization_completeness(jurisdiction: str, title: str) -> float | 
     try:
         with conn.cursor() as cur:
             jurisdiction_upper = jurisdiction.upper()
-            col = "nycrr_title" if jurisdiction_upper == "NY" else "rcny_title" if jurisdiction_upper == "NYC" else "njac_title"
+            col = title_column_for_jurisdiction(jurisdiction_upper)
             cur.execute(f"""
                 SELECT
                     COUNT(*) as total,
@@ -530,6 +530,9 @@ async def run_test(
     statute_mandate: bool = False,
     summarize: bool = False,
     no_cache: bool = False,
+    source_type: str = "regulation",
+    agency: str | None = None,
+    doc_type: str | None = None,
 ):
     """
     Run the research pipeline on unanalyzed documents.
@@ -544,6 +547,9 @@ async def run_test(
         dry_run: Preview without API calls
         enable_web_search: Enable Tier 3 web search
         force_rerun: Re-analyze documents even if already processed
+        source_type: "regulation" or "guidance"
+        agency: Filter guidance by agency (e.g., "OCFS")
+        doc_type: Filter guidance by doc_type (e.g., "ADM")
     """
 
     # Default limit if not specified
@@ -552,10 +558,15 @@ async def run_test(
     print(f"\n{'='*70}")
     print(f"RESEARCH PIPELINE {'DRY RUN' if dry_run else 'TEST RUN'}")
     print(f"{'='*70}")
+    print(f"Source: {source_type}")
     print(f"Issue type: {issue_type}")
     print(f"Jurisdiction: {jurisdiction if jurisdiction else 'ALL (dangerously-run-all)'}")
     if title:
         print(f"Title filter: {title}")
+    if agency:
+        print(f"Agency filter: {agency}")
+    if doc_type:
+        print(f"Doc type filter: {doc_type}")
     print(f"Target docs: {max_docs_per_issue if max_docs_per_issue else 'all'}")
     print(f"Max tier: {max_tier}")
     print(f"Force rerun: {force_rerun}")
@@ -563,15 +574,26 @@ async def run_test(
         print("Mode: DRY RUN (no LLM calls, no DB writes)")
     print()
 
-    # Fetch documents (includes both new and needing continuation)
+    # Fetch documents based on source type
     print("Fetching documents requiring analysis (new or incomplete)...")
-    processing_units, existing_analyses = fetch_documents_with_continuation(
-        issue_type=issue_type,
-        max_tier=max_tier,
-        jurisdiction=jurisdiction,
-        limit=limit,
-        title=title,
-    )
+    if source_type == "guidance":
+        from scripts.research_pipeline.db import fetch_guidance_unanalyzed
+        processing_units, existing_analyses = fetch_guidance_unanalyzed(
+            issue_types=[issue_type],
+            max_tier=max_tier,
+            jurisdiction=jurisdiction,
+            max_docs_per_issue=limit,
+            agency=agency,
+            doc_type=doc_type,
+        )
+    else:
+        processing_units, existing_analyses = fetch_documents_with_continuation(
+            issue_type=issue_type,
+            max_tier=max_tier,
+            jurisdiction=jurisdiction,
+            limit=limit,
+            title=title,
+        )
 
     if not processing_units:
         print("No documents to process!")
@@ -671,9 +693,16 @@ async def run_batched_issues(
     statute_mandate: bool = False,
     summarize: bool = False,
     no_cache: bool = False,
+    source_type: str = "regulation",
+    agency: str | None = None,
+    doc_type: str | None = None,
 ):
     """Run pipeline with all issue types batched together per tier."""
-    issue_types = get_issue_types_for_scope(jurisdiction, title)
+    if source_type == "guidance":
+        from scripts.research_pipeline.db import get_guidance_issue_types
+        issue_types = get_guidance_issue_types(agency=agency, doc_type=doc_type)
+    else:
+        issue_types = get_issue_types_for_scope(jurisdiction, title)
 
     # Default limits if not specified
     docs_per_issue = max_docs_per_issue if max_docs_per_issue is not None else 999999
@@ -681,9 +710,14 @@ async def run_batched_issues(
     print(f"\n{'='*70}")
     print(f"RUNNING ALL ISSUE TYPES (BATCHED)")
     print(f"{'='*70}")
+    print(f"Source: {source_type}")
     print(f"Jurisdiction: {jurisdiction if jurisdiction else 'ALL (dangerously-run-all)'}")
     if title:
         print(f"Title: {title}")
+    if agency:
+        print(f"Agency: {agency}")
+    if doc_type:
+        print(f"Doc type: {doc_type}")
     print(f"Issue types found: {len(issue_types)}")
     print(f"Issue types: {', '.join(issue_types[:10])}{'...' if len(issue_types) > 10 else ''}")
     print(f"Docs per issue type: {max_docs_per_issue if max_docs_per_issue else 'all'}")
@@ -694,14 +728,26 @@ async def run_batched_issues(
 
     # Fetch all documents across all issue types (includes new and partial progress)
     print(f"Fetching documents requiring analysis (new or incomplete, target tier {max_tier})...")
-    processing_units, existing_analyses = fetch_all_issue_documents(
-        issue_types=issue_types,
-        jurisdiction=jurisdiction,
-        max_tier=max_tier,
-        max_docs_per_issue=docs_per_issue,
-        global_docs_limit=global_docs_limit,
-        title=title,
-    )
+    if source_type == "guidance":
+        from scripts.research_pipeline.db import fetch_guidance_unanalyzed
+        processing_units, existing_analyses = fetch_guidance_unanalyzed(
+            issue_types=issue_types,
+            max_tier=max_tier,
+            jurisdiction=jurisdiction,
+            max_docs_per_issue=docs_per_issue,
+            global_docs_limit=global_docs_limit,
+            agency=agency,
+            doc_type=doc_type,
+        )
+    else:
+        processing_units, existing_analyses = fetch_all_issue_documents(
+            issue_types=issue_types,
+            jurisdiction=jurisdiction,
+            max_tier=max_tier,
+            max_docs_per_issue=docs_per_issue,
+            global_docs_limit=global_docs_limit,
+            title=title,
+        )
 
     if not processing_units:
         print("No documents to process!")
@@ -904,6 +950,21 @@ RESUME BEHAVIOR:
         required=True,
         help="State code: 'nj', 'ny', 'nyc', or 'dangerously-run-all' (skip state filtering)"
     )
+    parser.add_argument(
+        "--source",
+        choices=["regulation", "guidance"],
+        default="regulation",
+        help="Document source: 'regulation' (default) or 'guidance' (guidance documents)"
+    )
+    parser.add_argument(
+        "--agency",
+        help="Filter guidance docs by agency (e.g., 'OCFS', 'OMH'). Only used with --source guidance."
+    )
+    parser.add_argument(
+        "--doc-type",
+        dest="doc_type",
+        help="Filter guidance docs by doc_type (e.g., 'ADM', 'LCM'). Only used with --source guidance."
+    )
 
     # === ISSUE TYPE SELECTION (required) ===
     # Must explicitly choose what to process - no implicit "run everything"
@@ -1097,6 +1158,12 @@ RESUME BEHAVIOR:
             print(f"\n   Pass --skip-summary-check to override this check.\n")
             sys.exit(1)
 
+    # Validate guidance-specific flags
+    if args.agency and args.source != "guidance":
+        parser.error("--agency requires --source guidance")
+    if args.doc_type and args.source != "guidance":
+        parser.error("--doc-type requires --source guidance")
+
     if args.all_issues:
         asyncio.run(run_batched_issues(
             jurisdiction=jurisdiction_for_db,
@@ -1111,6 +1178,9 @@ RESUME BEHAVIOR:
             statute_mandate=args.statute_mandate,
             summarize=args.summarize,
             no_cache=args.no_cache,
+            source_type=args.source,
+            agency=args.agency,
+            doc_type=args.doc_type,
         ))
     else:
         asyncio.run(run_test(
@@ -1126,4 +1196,7 @@ RESUME BEHAVIOR:
             statute_mandate=args.statute_mandate,
             summarize=args.summarize,
             no_cache=args.no_cache,
+            source_type=args.source,
+            agency=args.agency,
+            doc_type=args.doc_type,
         ))

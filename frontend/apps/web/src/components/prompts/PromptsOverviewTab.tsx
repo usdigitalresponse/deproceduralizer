@@ -1,71 +1,39 @@
 'use client';
 
 import { Code, Shield, Cpu, MessageSquare, Layers, BookOpen } from 'lucide-react';
+import { StatCard } from '@/components/ui/StatCard';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { ArchivedFeedback } from './ArchivedFeedback';
-import type { PromptData, CompliancePromptData } from '@/lib/actions/prompts';
-import type { PromptFeedback } from '@deproceduralizer/database';
 import type { PromptsTabValue } from '@/lib/constants/values';
 
 interface PromptsOverviewTabProps {
-  prompts: PromptData[];
-  compliancePrompts: CompliancePromptData[];
-  jenaiPrompts: PromptData[];
-  feedbackCounts: Record<string, number>;
-  orphanedFeedback: PromptFeedback[];
+  coreCount: number;
+  complianceCount: number;
+  jenaiCount: number;
+  totalFeedback: number;
   hasIssueTypes: boolean;
   onNavigateTab: (tab: PromptsTabValue) => void;
 }
 
 export function PromptsOverviewTab({
-  prompts,
-  compliancePrompts,
-  jenaiPrompts,
-  feedbackCounts,
-  orphanedFeedback,
+  coreCount,
+  complianceCount,
+  jenaiCount,
+  totalFeedback,
   hasIssueTypes,
   onNavigateTab,
 }: PromptsOverviewTabProps) {
-  const totalPrompts = prompts.length + compliancePrompts.length + jenaiPrompts.length;
-  const totalFeedback = Object.values(feedbackCounts).reduce((a, b) => a + b, 0);
+  const totalPrompts = coreCount + complianceCount + jenaiCount;
 
   return (
     <div className="space-y-6">
       {/* Stat cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <div className="bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] p-4">
-          <div className="text-2xl font-bold text-[var(--color-primary)]">{totalPrompts}</div>
-          <div className="text-sm text-[var(--color-text-muted)]">Total Prompts</div>
-        </div>
-        <div className="bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] p-4">
-          <div className="flex items-center gap-1.5">
-            <Code className="w-4 h-4 text-[var(--color-primary)]" />
-            <span className="text-2xl font-bold text-[var(--color-primary)]">{prompts.length}</span>
-          </div>
-          <div className="text-sm text-[var(--color-text-muted)]">Core</div>
-        </div>
-        <div className="bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] p-4">
-          <div className="flex items-center gap-1.5">
-            <Shield className="w-4 h-4 text-[var(--color-primary)]" />
-            <span className="text-2xl font-bold text-[var(--color-primary)]">{compliancePrompts.length}</span>
-          </div>
-          <div className="text-sm text-[var(--color-text-muted)]">Compliance</div>
-        </div>
-        <div className="bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] p-4">
-          <div className="flex items-center gap-1.5">
-            <Cpu className="w-4 h-4 text-[var(--color-primary)]" />
-            <span className="text-2xl font-bold text-[var(--color-primary)]">{jenaiPrompts.length}</span>
-          </div>
-          <div className="text-sm text-[var(--color-text-muted)]">JenAI</div>
-        </div>
-        <div className="bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] p-4">
-          <div className="flex items-center gap-1.5">
-            <MessageSquare className="w-4 h-4 text-[var(--color-primary)]" />
-            <span className="text-2xl font-bold text-[var(--color-primary)]">{totalFeedback}</span>
-          </div>
-          <div className="text-sm text-[var(--color-text-muted)]">Feedback Items</div>
-        </div>
+        <StatCard label="Total Prompts" value={totalPrompts} icon={Code} />
+        <StatCard label="Core" value={coreCount} icon={Code} />
+        <StatCard label="Compliance" value={complianceCount} icon={Shield} />
+        <StatCard label="JenAI" value={jenaiCount} icon={Cpu} />
+        <StatCard label="Feedback Items" value={totalFeedback} icon={MessageSquare} />
       </div>
 
       {/* Pipeline composer cards */}
@@ -111,11 +79,6 @@ export function PromptsOverviewTab({
           Browse All Prompts
         </Button>
       </Card>
-
-      {/* Archived feedback */}
-      {orphanedFeedback.length > 0 && (
-        <ArchivedFeedback feedback={orphanedFeedback} />
-      )}
     </div>
   );
 }

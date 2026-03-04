@@ -3,6 +3,7 @@
 import { useQueryStates } from 'nuqs';
 import { BarChart3, Layers, Cpu, Code } from 'lucide-react';
 import { SegmentedControl, type SegmentedControlOption } from '@/components/ui/SegmentedControl';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { promptsParsers } from '@/lib/url/parsers';
 import type { PromptsTabValue } from '@/lib/constants/values';
 import type { PromptData, CompliancePromptData } from '@/lib/actions/prompts';
@@ -10,6 +11,7 @@ import type { PromptFeedback } from '@deproceduralizer/database';
 import type { IssueTypeOption } from './V5PipelineComposer/types';
 import { PromptsOverviewTab } from './PromptsOverviewTab';
 import { PromptCatalogTab } from './PromptCatalogTab';
+import { ArchivedFeedback } from './ArchivedFeedback';
 import { V5PipelineComposer } from './V5PipelineComposer';
 
 const TAB_OPTIONS: SegmentedControlOption<PromptsTabValue>[] = [
@@ -37,11 +39,13 @@ export function PromptsClient({
   issueTypes,
 }: PromptsClientProps) {
   const [params, setParams] = useQueryStates(promptsParsers, { shallow: true });
-  const currentTab = params.tab as PromptsTabValue;
+  const currentTab = params.tab;
 
   const handleTabChange = (tab: PromptsTabValue) => {
     setParams({ tab });
   };
+
+  const totalFeedback = Object.values(feedbackCounts).reduce((a, b) => a + b, 0);
 
   return (
     <div className="space-y-6">
@@ -54,11 +58,10 @@ export function PromptsClient({
       <div className="mt-6">
         {currentTab === 'overview' && (
           <PromptsOverviewTab
-            prompts={prompts}
-            compliancePrompts={compliancePrompts}
-            jenaiPrompts={jenaiPrompts}
-            feedbackCounts={feedbackCounts}
-            orphanedFeedback={orphanedFeedback}
+            coreCount={prompts.length}
+            complianceCount={compliancePrompts.length}
+            jenaiCount={jenaiPrompts.length}
+            totalFeedback={totalFeedback}
             hasIssueTypes={issueTypes.length > 0}
             onNavigateTab={handleTabChange}
           />
@@ -69,11 +72,7 @@ export function PromptsClient({
         )}
 
         {currentTab === 'jenai' && (
-          <div className="text-center py-12 text-[var(--color-text-muted)]">
-            <Cpu className="w-12 h-12 mx-auto mb-3 opacity-50" />
-            <p className="text-lg font-medium mb-1">JenAI Pipeline Composer</p>
-            <p className="text-sm">Coming soon</p>
-          </div>
+          <EmptyState icon={Cpu} title="JenAI Pipeline Composer" description="Coming soon" />
         )}
 
         {currentTab === 'catalog' && (
@@ -82,10 +81,13 @@ export function PromptsClient({
             compliancePrompts={compliancePrompts}
             jenaiPrompts={jenaiPrompts}
             feedbackCounts={feedbackCounts}
-            orphanedFeedback={orphanedFeedback}
           />
         )}
       </div>
+
+      {orphanedFeedback.length > 0 && (
+        <ArchivedFeedback feedback={orphanedFeedback} />
+      )}
     </div>
   );
 }

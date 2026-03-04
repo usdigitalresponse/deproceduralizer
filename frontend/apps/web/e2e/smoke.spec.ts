@@ -402,7 +402,7 @@ test.describe('Prompts Alignment', () => {
   const EXPECTED_CORE_PROMPTS = ['red_flags_analysis', 'definition_extraction'];
 
   test('prompts page displays all core prompts from YAML', async ({ page }) => {
-    await page.goto('/prompts');
+    await page.goto('/prompts?tab=catalog');
 
     // Wait for prompts to load
     await expect(page.locator('h1').filter({ hasText: /Prompts/i }).first()).toBeVisible();
@@ -415,7 +415,7 @@ test.describe('Prompts Alignment', () => {
   });
 
   test('prompt details include system and template sections', async ({ page }) => {
-    await page.goto('/prompts');
+    await page.goto('/prompts?tab=catalog');
 
     // Wait for prompts to load
     await expect(page.locator('h1').filter({ hasText: /Prompts/i }).first()).toBeVisible();
@@ -473,7 +473,7 @@ test.describe('Prompts Alignment', () => {
   });
 
   test('prompt updated_at dates are displayed', async ({ page }) => {
-    await page.goto('/prompts');
+    await page.goto('/prompts?tab=catalog');
 
     // Wait for prompts to load
     await expect(page.locator('h1').filter({ hasText: /Prompts/i }).first()).toBeVisible();
@@ -481,6 +481,27 @@ test.describe('Prompts Alignment', () => {
     // Look for "Last updated" or date format (YYYY-MM-DD)
     const datePattern = page.getByText(/Last updated:|Updated:|\d{4}-\d{2}-\d{2}/i);
     await expect(datePattern.first()).toBeVisible();
+  });
+
+  test('prompts page defaults to overview tab', async ({ page }) => {
+    await page.goto('/prompts');
+    await expect(page.locator('h1').filter({ hasText: /Prompts/i }).first()).toBeVisible();
+
+    // Verify overview content is visible (stat cards and composer links)
+    await expect(page.getByText(/Total Prompts/i)).toBeVisible();
+    await expect(page.getByText(/Open Composer/i).first()).toBeVisible();
+  });
+
+  test('tab navigation switches content', async ({ page }) => {
+    await page.goto('/prompts');
+    await expect(page.locator('h1').filter({ hasText: /Prompts/i }).first()).toBeVisible();
+
+    // Click Catalog tab
+    await page.getByRole('tab', { name: /Catalog/i }).click();
+    await page.waitForURL(/tab=catalog/);
+
+    // Verify catalog content visible
+    await expect(page.getByPlaceholder(/Search prompts/i)).toBeVisible();
   });
 
 });
