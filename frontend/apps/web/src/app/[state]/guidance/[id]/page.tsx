@@ -1,10 +1,10 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
-import { getGuidanceById, getGuidanceSupersedureChain, getGuidanceResolvedCitations } from '@/lib/actions/guidance-documents';
+import { getGuidanceById, getDocumentLineage, getGuidanceResolvedCitations } from '@/lib/actions/guidance-documents';
 import { GuidanceDetailSidebar } from '@/components/guidance/GuidanceDetailSidebar';
 import { GuidanceDetailContent } from '@/components/guidance/GuidanceDetailContent';
-import { SupersedureChain } from '@/components/guidance/SupersedureChain';
+import { DocumentLineageViewer } from '@/components/guidance/DocumentLineageViewer';
 import { GuidanceStatusBadge } from '@/components/guidance/GuidanceStatusBadge';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Container } from '@/components/layout/Container';
@@ -26,9 +26,9 @@ export default async function GuidanceDetailPage({ params }: GuidanceDetailPageP
     notFound();
   }
 
-  const [result, supersedureResult, resolvedCitationsResult] = await Promise.all([
+  const [result, lineageResult, resolvedCitationsResult] = await Promise.all([
     getGuidanceById(docId),
-    getGuidanceSupersedureChain(docId),
+    getDocumentLineage(docId),
     getGuidanceResolvedCitations(docId),
   ]);
 
@@ -37,7 +37,7 @@ export default async function GuidanceDetailPage({ params }: GuidanceDetailPageP
   }
 
   const doc = result.data;
-  const supersedureLinks = supersedureResult.success ? supersedureResult.data : [];
+  const lineage = lineageResult.success ? lineageResult.data : null;
   const resolvedCitations = resolvedCitationsResult.success ? resolvedCitationsResult.data : [];
 
   return (
@@ -68,9 +68,9 @@ export default async function GuidanceDetailPage({ params }: GuidanceDetailPageP
           {/* Sidebar */}
           <div className="space-y-4">
             <GuidanceDetailSidebar doc={doc} state={state} resolvedCitations={resolvedCitations} />
-            {supersedureLinks.length > 0 && (
-              <SupersedureChain
-                links={supersedureLinks}
+            {lineage && lineage.chain.length > 1 && (
+              <DocumentLineageViewer
+                lineage={lineage}
                 state={state}
               />
             )}

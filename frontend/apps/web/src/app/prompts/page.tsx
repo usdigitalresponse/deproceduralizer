@@ -1,7 +1,7 @@
 import { Container } from '@/components/layout/Container';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Alert } from '@/components/ui';
-import { PromptsList, PromptNav, V5PipelineComposer, JenAIPipelineComposer } from '@/components/prompts';
+import { PromptsClient } from '@/components/prompts';
 import { getPrompts, getCompliancePrompts, getJenAIPrompts } from '@/lib/actions/prompts';
 import { getAllFeedback, getFeedbackCounts } from '@/lib/actions/prompt-feedback';
 import { getIssueTypesList } from '@/lib/actions/research-pipeline';
@@ -54,32 +54,15 @@ export default async function PromptsPage() {
         description={`View ${totalPrompts} prompts used by the regulatory analysis system (${prompts.length} core, ${compliancePrompts.length} compliance, ${jenaiPrompts.length} JenAI). Submit feedback to help improve prompt quality.`}
       />
 
-      <Container size="2xl" className="py-6 space-y-8">
-        {/* V5 Pipeline Composer - Show if we have issue types */}
-        {issueTypes.length > 0 && (
-          <V5PipelineComposer issueTypes={issueTypes} />
-        )}
-
-        {/* JenAI Pipeline Composer */}
-        <JenAIPipelineComposer />
-
-        <div className="flex gap-6">
-          {/* Main content */}
-          <div className="flex-1 min-w-0">
-            <PromptsList
-              prompts={prompts}
-              compliancePrompts={compliancePrompts}
-              jenaiPrompts={jenaiPrompts}
-              feedbackCounts={feedbackCounts}
-              orphanedFeedback={orphanedFeedback}
-            />
-          </div>
-
-          {/* Sidebar navigation - hidden on mobile */}
-          <aside className="hidden lg:block w-56 flex-shrink-0">
-            <PromptNav prompts={prompts} compliancePrompts={compliancePrompts} jenaiPrompts={jenaiPrompts} />
-          </aside>
-        </div>
+      <Container size="2xl" className="py-6">
+        <PromptsClient
+          prompts={prompts}
+          compliancePrompts={compliancePrompts}
+          jenaiPrompts={jenaiPrompts}
+          feedbackCounts={feedbackCounts}
+          orphanedFeedback={orphanedFeedback}
+          issueTypes={issueTypes}
+        />
       </Container>
     </div>
   );

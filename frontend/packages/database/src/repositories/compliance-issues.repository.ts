@@ -337,7 +337,7 @@ const issueListSelectColumns = {
   verbatimSupportingText: complianceIssueAnalyses.verbatimRequirements,
   isVerbatim: complianceIssueAnalyses.isVerbatim,
   requiredByStatute: complianceIssueAnalyses.citesFederalStatute,
-  severity: complianceIssueAnalyses.reviewerSeverity,
+  severity: sql<number | null>`COALESCE(${complianceIssueAnalyses.reviewerSeverity}, ${complianceIssueAnalyses.finalSeverity}, ${complianceIssueAnalyses.severity})`,
   occurrenceNumber: complianceIssues.occurrenceNumber,
   statuteCitation: complianceIssueAnalyses.federalCitation,
   tier1Reasoning: complianceIssueAnalyses.tier1Reasoning,
@@ -971,7 +971,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         tier2Reasoning: complianceIssueAnalyses.tier2Reasoning,
         tier3Reasoning: complianceIssueAnalyses.tier3Reasoning,
         // Review/developer fields (PR 6.3: from analyses)
-        severity: complianceIssueAnalyses.reviewerSeverity,
+        severity: sql<number | null>`COALESCE(${complianceIssueAnalyses.reviewerSeverity}, ${complianceIssueAnalyses.finalSeverity}, ${complianceIssueAnalyses.severity})`,
         originalSeverity: complianceIssueAnalyses.reviewerOriginalSeverity,
         reviewStatus: complianceIssueAnalyses.reviewStatus,
         reviewedBy: complianceIssueAnalyses.reviewedBy,

@@ -1,20 +1,17 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Code, MessageSquare, Search, X, Shield, Cpu } from 'lucide-react';
+import { Code, Search, X, Shield, Cpu } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { PromptCard } from './PromptCard';
 import { CompliancePromptCard } from './CompliancePromptCard';
-import { ArchivedFeedback } from './ArchivedFeedback';
 import type { PromptData, CompliancePromptData } from '@/lib/actions/prompts';
-import type { PromptFeedback } from '@deproceduralizer/database';
 
 interface PromptsListProps {
   prompts: PromptData[];
   compliancePrompts?: CompliancePromptData[];
   jenaiPrompts?: PromptData[];
   feedbackCounts: Record<string, number>;
-  orphanedFeedback: PromptFeedback[];
   className?: string;
 }
 
@@ -26,11 +23,9 @@ export function PromptsList({
   compliancePrompts = [],
   jenaiPrompts = [],
   feedbackCounts,
-  orphanedFeedback,
   className = '',
 }: PromptsListProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const totalFeedback = Object.values(feedbackCounts).reduce((a, b) => a + b, 0);
   const totalPrompts = prompts.length + compliancePrompts.length + jenaiPrompts.length;
 
   // Filter core prompts based on search query
@@ -82,78 +77,31 @@ export function PromptsList({
 
   return (
     <div className={`space-y-6 ${className}`}>
-      {/* Stats header */}
-      <Card>
-        <div className="flex items-center gap-3 mb-4">
-          <Code className="w-6 h-6 text-[var(--color-primary)]" />
-          <h2 className="text-lg font-semibold text-[var(--color-text)]">
-            LLM Prompts
-          </h2>
-        </div>
-        <p className="text-sm text-[var(--color-text-secondary)] mb-4">
-          These prompts are used by the backend analysis scripts to analyze regulations.
-          You can view each prompt&apos;s structure and provide feedback for improvements.
-        </p>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-          <div className="bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] p-3">
-            <div className="text-2xl font-bold text-[var(--color-primary)]">
-              {totalPrompts}
-            </div>
-            <div className="text-sm text-[var(--color-text-muted)]">Total Prompts</div>
-          </div>
-          <div className="bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] p-3">
-            <div className="text-2xl font-bold text-[var(--color-primary)]">
-              {prompts.length}
-            </div>
-            <div className="text-sm text-[var(--color-text-muted)]">Core Prompts</div>
-          </div>
-          <div className="bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] p-3">
-            <div className="text-2xl font-bold text-[var(--color-primary)]">
-              {compliancePrompts.length}
-            </div>
-            <div className="text-sm text-[var(--color-text-muted)]">Compliance Prompts</div>
-          </div>
-          <div className="bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] p-3">
-            <div className="text-2xl font-bold text-[var(--color-primary)]">
-              {jenaiPrompts.length}
-            </div>
-            <div className="text-sm text-[var(--color-text-muted)]">JenAI Prompts</div>
-          </div>
-          <div className="bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] p-3">
-            <div className="flex items-center gap-1 text-2xl font-bold text-[var(--color-primary)]">
-              <MessageSquare className="w-5 h-5" />
-              {totalFeedback}
-            </div>
-            <div className="text-sm text-[var(--color-text-muted)]">Feedback Items</div>
-          </div>
-        </div>
-
-        {/* Search input */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-muted)]" />
-          <input
-            type="text"
-            placeholder="Search prompts by name or description..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-10 py-2 rounded-[var(--radius-md)] border border-[var(--color-neutral-200)] bg-[var(--color-background)] text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
-              aria-label="Clear search"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          )}
-        </div>
+      {/* Search input */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-muted)]" />
+        <input
+          type="text"
+          placeholder="Search prompts by name or description..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full pl-10 pr-10 py-2 rounded-[var(--radius-md)] border border-[var(--color-neutral-200)] bg-[var(--color-background)] text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
+        />
         {searchQuery && (
-          <p className="mt-2 text-sm text-[var(--color-text-muted)]">
-            Showing {totalFiltered} of {totalPrompts} prompts
-          </p>
+          <button
+            onClick={() => setSearchQuery('')}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+            aria-label="Clear search"
+          >
+            <X className="w-4 h-4" />
+          </button>
         )}
-      </Card>
+      </div>
+      {searchQuery && (
+        <p className="text-sm text-[var(--color-text-muted)]">
+          Showing {totalFiltered} of {totalPrompts} prompts
+        </p>
+      )}
 
       {/* Core Analysis Prompts */}
       {filteredPrompts.length > 0 && (
@@ -241,12 +189,6 @@ export function PromptsList({
         </Card>
       )}
 
-      {/* Archived/orphaned feedback */}
-      {orphanedFeedback.length > 0 && (
-        <ArchivedFeedback feedback={orphanedFeedback} />
-      )}
     </div>
   );
 }
-
-export default PromptsList;

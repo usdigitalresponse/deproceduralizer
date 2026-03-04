@@ -139,6 +139,13 @@ export const complianceIssueAnalyses = pgTable('compliance_issue_analyses', {
   classificationTier: integer('classification_tier'),
 
   // ═══════════════════════════════════════════════════════════════════
+  // Prompt Observability (FK to prompt_templates)
+  // ═══════════════════════════════════════════════════════════════════
+  tier1PromptId: bigint('tier1_prompt_id', { mode: 'number' }),
+  tier2PromptId: bigint('tier2_prompt_id', { mode: 'number' }),
+  tier3PromptId: bigint('tier3_prompt_id', { mode: 'number' }),
+
+  // ═══════════════════════════════════════════════════════════════════
   // Human Review (PR 6.3: moved from compliance_issues)
   // ═══════════════════════════════════════════════════════════════════
   reviewStatus: varchar('review_status', { length: 50 }).default('unreviewed'),

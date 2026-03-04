@@ -6,5 +6,6 @@ export { GuidanceDetailSidebar } from './GuidanceDetailSidebar';
 export { GuidanceDetailContent } from './GuidanceDetailContent';
 export { GuidanceStatusBadge } from './GuidanceStatusBadge';
 export { PolicyCategoryBadge } from './PolicyCategoryBadge';
+export { DocumentLineageViewer } from './DocumentLineageViewer';
 export { SupersedureChain } from './SupersedureChain';
 export { LinkedCitationList } from './LinkedCitationList';

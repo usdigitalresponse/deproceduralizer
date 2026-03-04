@@ -69,6 +69,8 @@ import {
   EASY_CLEANUP_FILTER_VALUES,
   // Section Type
   SECTION_TYPE_VALUES,
+  // Prompts
+  PROMPTS_TAB_VALUES,
   // Guidance
   GUIDANCE_TAB_VALUES,
   GUIDANCE_SORT_BY_VALUES,
@@ -121,6 +123,7 @@ export type {
   Tier3FindingFilterValue,
   Tier3TriggerFilterValue,
   PipelineSubTabValue,
+  PromptsTabValue,
   GuidanceTabValue,
   GuidanceSortByValue,
   GuidanceStatusValue,
@@ -586,6 +589,19 @@ export const ibrParsers = {
 
 // Re-export IBR types
 export type { IbrTabValue, IbrSortByValue } from '@/lib/constants/values';
+
+// ============================================
+// Prompts page parsers
+// ============================================
+
+export const promptsTabParser = parseAsStringEnum([...PROMPTS_TAB_VALUES]).withDefault('overview');
+
+/**
+ * Parser configuration for Prompts page
+ */
+export const promptsParsers = {
+  tab: promptsTabParser,
+};
 
 // ============================================
 // Guidance page parsers

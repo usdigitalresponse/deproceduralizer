@@ -61,8 +61,12 @@ export async function toggleAnalysisBookmark(
       .where(eq(complianceIssueAnalyses.id, analysisId))
       .limit(1);
 
-    if (!analysis || !analysis.documentId) {
+    if (!analysis) {
       return failure(`Analysis with id ${analysisId} not found`);
+    }
+
+    if (analysis.documentId === null) {
+      return failure(`Analysis ${analysisId} has no associated document`);
     }
 
     // Create bookmark
