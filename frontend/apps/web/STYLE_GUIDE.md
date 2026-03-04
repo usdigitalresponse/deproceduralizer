@@ -3935,6 +3935,57 @@ Table rows in the pipeline list have colored left borders based on priority:
 
 ---
 
+## Prompts Page
+
+The Prompts page at `/prompts` displays all LLM prompts used by the regulatory analysis system. It uses a four-tab layout with `SegmentedControl` for tab switching, following the same pattern as IBR and Guidance pages.
+
+### Tab Structure
+
+| Tab | URL param | Component | Description |
+|-----|-----------|-----------|-------------|
+| Overview | `?tab=overview` (default) | `PromptsOverviewTab` | Stats dashboard, composer quick links, catalog summary |
+| Research | `?tab=research` | `V5PipelineComposer` | 3-tier research pipeline prompt composer (full width) |
+| JenAI | `?tab=jenai` | Placeholder (coming soon) | JenAI pipeline prompt composer |
+| Catalog | `?tab=catalog` | `PromptCatalogTab` | Search + prompt cards + sidebar nav |
+
+### PromptsClient
+
+Client component managing tab state via `promptsParsers` (nuqs). Renders tab content based on active tab. Uses `SegmentedControl` with BarChart3/Layers/Cpu/Code icons. Passes `onNavigateTab` callback to `PromptsOverviewTab` for composer quick links.
+
+### PromptsOverviewTab
+
+Dashboard with five stat cards (Total, Core, Compliance, JenAI, Feedback), two pipeline composer cards with "Open Composer" buttons, a prompt catalog summary card, and optional archived feedback section.
+
+### PromptCatalogTab
+
+Thin wrapper composing `PromptsList` + `PromptNav` in the existing flex layout. `PromptNav` sidebar hidden below `lg` breakpoint.
+
+### PromptsList
+
+Search input + three prompt sections (Core, Compliance by category, JenAI). Stats have been moved to `PromptsOverviewTab` to avoid duplication. Includes empty state and archived feedback rendering.
+
+### File Structure
+
+```
+components/prompts/
+├── index.ts                # Barrel exports
+├── PromptsClient.tsx       # Tab switching client component
+├── PromptsOverviewTab.tsx  # Overview dashboard
+├── PromptCatalogTab.tsx    # Catalog wrapper (PromptsList + PromptNav)
+├── PromptsList.tsx         # Search + prompt sections
+├── PromptNav.tsx           # Sidebar navigation
+├── PromptCard.tsx          # Core prompt card
+├── CompliancePromptCard.tsx # Compliance prompt card
+├── ArchivedFeedback.tsx    # Orphaned feedback display
+├── FeedbackForm.tsx        # Feedback submission form
+├── FeedbackList.tsx        # Feedback display list
+├── PromptTemplate.tsx      # Prompt template viewer
+├── PromptVariables.tsx     # Prompt variables display
+└── V5PipelineComposer/     # Research pipeline composer
+```
+
+---
+
 ## IBR (Standards) Page
 
 The IBR page at `/[state]/ibr` displays external standards (NFPA, ASTM, ICC, CFR) incorporated by reference into state regulations. It uses a two-tab layout (Overview, Browse) with `SegmentedControl` for tab switching. This is a read-only exploration page — no review workflow.
