@@ -15,6 +15,7 @@ export interface PromptData {
   name: string;
   description: string;
   system: string | null;
+  batchContext: string | null;
   template: string;
   variables: PromptVariable[];
   updatedAt: string | null;
@@ -23,6 +24,7 @@ export interface PromptData {
 interface RawPromptData {
   description?: string;
   system?: string;
+  batch_context?: string;
   template?: string;
   updated_at?: string;
 }
@@ -84,12 +86,14 @@ export async function getPrompts(): Promise<ActionResult<PromptData[]>> {
     return Object.entries(parsed).map(
       ([name, data]) => {
         const system = data.system?.trim() || null;
+        const batchContext = data.batch_context?.trim() || null;
         const template = data.template?.trim() || '';
-        const allVariables = extractVariables((system || '') + template);
+        const allVariables = extractVariables((system || '') + (batchContext || '') + template);
         return {
           name,
           description: data.description?.trim() || '',
           system,
+          batchContext,
           template,
           variables: allVariables,
           updatedAt: data.updated_at || null,
@@ -136,12 +140,14 @@ export async function getJenAIPrompts(): Promise<ActionResult<PromptData[]>> {
     return Object.entries(parsed).map(
       ([name, data]) => {
         const system = data.system?.trim() || null;
+        const batchContext = data.batch_context?.trim() || null;
         const template = data.template?.trim() || '';
-        const allVariables = extractVariables((system || '') + template);
+        const allVariables = extractVariables((system || '') + (batchContext || '') + template);
         return {
           name,
           description: data.description?.trim() || '',
           system,
+          batchContext,
           template,
           variables: allVariables,
           updatedAt: data.updated_at || null,

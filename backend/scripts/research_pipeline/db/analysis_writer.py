@@ -35,7 +35,33 @@ from ..config import PIPELINE_VERSION
 from .connection import retry_db_operation
 
 
-def _link_analysis_to_issues(cur, document_id: int, issue_type: str) -> None:
+def _doc_id_col(source_type: str) -> str:
+    """Return the FK column name for the given source type."""
+    return "guidance_document_id" if source_type == "guidance" else "document_id"
+
+
+def _where_clause(source_type: str) -> str:
+    """Return the WHERE clause matching the right FK column."""
+    col = _doc_id_col(source_type)
+    return f"WHERE {col} = %s AND issue_type = %s"
+
+
+def _on_conflict_clause(source_type: str) -> str:
+    """Return the ON CONFLICT clause for the right partial unique index.
+
+    After migration 0058, compliance_issue_analyses uses partial unique indexes
+    (one per FK column) instead of a single unique constraint. Partial indexes
+    require the WHERE predicate in ON CONFLICT for PostgreSQL to infer them.
+
+    IMPORTANT: Migration 0058 must be applied before deploying code that uses
+    this helper, otherwise the regulation path will also fail (the old
+    non-partial constraint won't match a WHERE-bearing ON CONFLICT).
+    """
+    col = _doc_id_col(source_type)
+    return f"ON CONFLICT ({col}, issue_type) WHERE {col} IS NOT NULL"
+
+
+def _link_analysis_to_issues(cur, document_id: int, issue_type: str, source_type: str = "regulation") -> None:
     """
     Link compliance_issues rows to their analysis via the analysis_id FK.
 
@@ -46,13 +72,20 @@ def _link_analysis_to_issues(cur, document_id: int, issue_type: str) -> None:
         cur: Database cursor positioned after a RETURNING id query
         document_id: Document ID to match
         issue_type: Issue type to match
+        source_type: "regulation" or "guidance" — determines which FK column to match
     """
     analysis_row = cur.fetchone()
     if analysis_row:
-        cur.execute("""
-            UPDATE compliance_issues SET analysis_id = %s
-            WHERE document_id = %s AND issue_type = %s AND analysis_id IS NULL
-        """, (analysis_row[0], document_id, issue_type))
+        if source_type == "guidance":
+            cur.execute("""
+                UPDATE compliance_issues SET analysis_id = %s
+                WHERE guidance_document_id = %s AND issue_type = %s AND analysis_id IS NULL
+            """, (analysis_row[0], document_id, issue_type))
+        else:
+            cur.execute("""
+                UPDATE compliance_issues SET analysis_id = %s
+                WHERE document_id = %s AND issue_type = %s AND analysis_id IS NULL
+            """, (analysis_row[0], document_id, issue_type))
 
 
 def _merge_context_used(unit: TrackedUnit, output) -> list[dict]:
@@ -128,6 +161,8 @@ def save_tier1_results(
                     continue
 
                 output = unit.tier1_output
+                source_type = unit.unit.source_type
+                id_col = _doc_id_col(source_type)
 
                 # For false positives, update original compliance_issues rows AND create analysis row
                 if output.classification == "all_false_positives":
@@ -147,9 +182,10 @@ def save_tier1_results(
                             reason_dict['matchId'] = unit.unit.matches[d.match_index].match_id
                         dismissed_reasons.append(reason_dict)
 
-                    cur.execute("""
+                    on_conflict = _on_conflict_clause(source_type)
+                    cur.execute(f"""
                         INSERT INTO compliance_issue_analyses (
-                            document_id, issue_type, jurisdiction, grouped_match_count,
+                            {id_col}, issue_type, jurisdiction, grouped_match_count,
                             tier1_dismissed_match_ids, tier1_dismissed_reasons,
                             tier1_classification, tier1_confidence, tier1_reasoning,
                             tier1_batch_id, tier1_completed_at, highest_tier_completed,
@@ -157,7 +193,7 @@ def save_tier1_results(
                         ) VALUES (
                             %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW()
                         )
-                        ON CONFLICT (document_id, issue_type) DO UPDATE SET
+                        {on_conflict} DO UPDATE SET
                             tier1_dismissed_match_ids = EXCLUDED.tier1_dismissed_match_ids,
                             tier1_dismissed_reasons = EXCLUDED.tier1_dismissed_reasons,
                             tier1_classification = EXCLUDED.tier1_classification,
@@ -187,7 +223,7 @@ def save_tier1_results(
                         False,  # requirement_found = False for false positives
                         PIPELINE_VERSION,
                     ))
-                    _link_analysis_to_issues(cur, unit.document_id, unit.issue_type)
+                    _link_analysis_to_issues(cur, unit.document_id, unit.issue_type, source_type)
                     saved += 1
 
                     # Commit every 50 rows to prevent Neon idle-in-transaction timeout
@@ -236,9 +272,10 @@ def save_tier1_results(
                     ]
                 }
 
-                cur.execute("""
+                on_conflict = _on_conflict_clause(source_type)
+                cur.execute(f"""
                     INSERT INTO compliance_issue_analyses (
-                        document_id, issue_type, jurisdiction, grouped_match_count,
+                        {id_col}, issue_type, jurisdiction, grouped_match_count,
                         tier1_relevant_match_ids, tier1_dismissed_match_ids,
                         tier1_dismissed_reasons, tier1_classification, tier1_confidence,
                         tier1_reasoning, tier1_batch_id,
@@ -248,7 +285,7 @@ def save_tier1_results(
                     ) VALUES (
                         %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW()
                     )
-                    ON CONFLICT (document_id, issue_type) DO UPDATE SET
+                    {on_conflict} DO UPDATE SET
                         tier1_relevant_match_ids = EXCLUDED.tier1_relevant_match_ids,
                         tier1_dismissed_match_ids = EXCLUDED.tier1_dismissed_match_ids,
                         tier1_dismissed_reasons = EXCLUDED.tier1_dismissed_reasons,
@@ -282,7 +319,7 @@ def save_tier1_results(
                     json.dumps(tier1_argument_framing),
                     json.dumps(tier1_recommendations),
                 ))
-                _link_analysis_to_issues(cur, unit.document_id, unit.issue_type)
+                _link_analysis_to_issues(cur, unit.document_id, unit.issue_type, source_type)
                 saved += 1
 
                 # Commit every 50 rows to prevent Neon idle-in-transaction timeout
@@ -332,6 +369,8 @@ def save_tier2_results(
                     continue
 
                 output = unit.tier2_output
+                source_type = unit.unit.source_type
+                id_col = _doc_id_col(source_type)
 
                 # Check if verbatim quotes are actually verbatim
                 is_verbatim = True
@@ -355,7 +394,7 @@ def save_tier2_results(
                 requirement_found = output.classification in ('burdensome', 'justified')
                 is_justified = output.classification == 'justified'
 
-                cur.execute("""
+                cur.execute(f"""
                     UPDATE compliance_issue_analyses SET
                         tier2_classification = %s,
                         tier2_confidence = %s,
@@ -396,7 +435,7 @@ def save_tier2_results(
                             COALESCE(highest_tier_completed, 0), 2
                         ),
                         updated_at = NOW()
-                    WHERE document_id = %s AND issue_type = %s
+                    {_where_clause(source_type)}
                 """, (
                     output.classification,
                     output.confidence,
@@ -493,6 +532,8 @@ def save_tier3_results(
                     continue
 
                 output = unit.tier3_output
+                source_type = unit.unit.source_type
+                id_col = _doc_id_col(source_type)
 
                 # NOTE: We no longer merge context_used for Tier 3.
                 # Tier 2's context_used is preserved; web evidence goes in tier3_flags.
@@ -527,7 +568,7 @@ def save_tier3_results(
                 # NOTE: We intentionally do NOT update context_used here.
                 # Tier 2's context_used (definitions, siblings, cross-refs, statutes) is preserved.
                 # Tier 3's web search evidence goes into tier3_flags.*.evidence (V5 structured approach).
-                cur.execute("""
+                cur.execute(f"""
                     UPDATE compliance_issue_analyses SET
                         tier3_classification = %s,
                         tier3_confidence = %s,
@@ -562,7 +603,7 @@ def save_tier3_results(
                             COALESCE(highest_tier_completed, 0), 3
                         ),
                         updated_at = NOW()
-                    WHERE document_id = %s AND issue_type = %s
+                    {_where_clause(source_type)}
                 """, (
                     output.classification,
                     output.confidence,
@@ -659,15 +700,16 @@ def save_final_results(
                 requirement_found = compute_requirement_found(unit)
                 is_justified = compute_is_justified(unit)
                 classification_tier = get_classification_tier(unit)
+                source_type = unit.unit.source_type
 
-                cur.execute("""
+                cur.execute(f"""
                     UPDATE compliance_issue_analyses SET
                         requirement_found = %s,
                         is_justified = %s,
                         final_severity = %s,
                         classification_tier = %s,
                         updated_at = NOW()
-                    WHERE document_id = %s AND issue_type = %s
+                    {_where_clause(source_type)}
                 """, (
                     requirement_found,
                     is_justified,

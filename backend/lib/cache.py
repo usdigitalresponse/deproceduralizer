@@ -168,7 +168,12 @@ class CacheManager:
 
             result = {}
             for row in rows:
-                body = row[1] if isinstance(row[1], dict) else json.loads(row[1])
+                try:
+                    body = row[1] if isinstance(row[1], dict) else json.loads(row[1])
+                except (json.JSONDecodeError, TypeError) as e:
+                    print(f"  Cache batch parse error for {row[0][:12]}…: {e}")
+                    self._parse_failures += 1
+                    continue
                 result[row[0]] = body
 
             self._hits += len(result)
@@ -189,40 +194,43 @@ class CacheManager:
             return
 
         try:
+            params_seq = []
+            for entry in entries:
+                usage = entry.get("usage", {})
+                params_seq.append((
+                    entry["request_hash"],
+                    entry["model"],
+                    json.dumps(entry["request_body"]),
+                    json.dumps(entry["response_body"]),
+                    usage.get("input_tokens"),
+                    usage.get("output_tokens"),
+                    usage.get("cache_read_tokens"),
+                    usage.get("cache_write_tokens"),
+                    entry.get("pipeline"),
+                    entry.get("tier"),
+                    entry.get("document_id"),
+                    entry.get("stale_after"),
+                    entry.get("prompt_hash"),
+                ))
+
             with conn.cursor() as cur:
-                for entry in entries:
-                    usage = entry.get("usage", {})
-                    cur.execute(
-                        """
-                        INSERT INTO llm_api_cache
-                            (request_hash, model, request_body, response_body,
-                             input_tokens, output_tokens, cache_read_tokens, cache_write_tokens,
-                             pipeline, tier, document_id, stale_after, prompt_hash)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                        ON CONFLICT (request_hash) DO UPDATE SET
-                            response_body = EXCLUDED.response_body,
-                            input_tokens = EXCLUDED.input_tokens,
-                            output_tokens = EXCLUDED.output_tokens,
-                            cache_read_tokens = EXCLUDED.cache_read_tokens,
-                            cache_write_tokens = EXCLUDED.cache_write_tokens,
-                            created_at = NOW()
-                        """,
-                        (
-                            entry["request_hash"],
-                            entry["model"],
-                            json.dumps(entry["request_body"]),
-                            json.dumps(entry["response_body"]),
-                            usage.get("input_tokens"),
-                            usage.get("output_tokens"),
-                            usage.get("cache_read_tokens"),
-                            usage.get("cache_write_tokens"),
-                            entry.get("pipeline"),
-                            entry.get("tier"),
-                            entry.get("document_id"),
-                            entry.get("stale_after"),
-                            entry.get("prompt_hash"),
-                        ),
-                    )
+                cur.executemany(
+                    """
+                    INSERT INTO llm_api_cache
+                        (request_hash, model, request_body, response_body,
+                         input_tokens, output_tokens, cache_read_tokens, cache_write_tokens,
+                         pipeline, tier, document_id, stale_after, prompt_hash)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (request_hash) DO UPDATE SET
+                        response_body = EXCLUDED.response_body,
+                        input_tokens = EXCLUDED.input_tokens,
+                        output_tokens = EXCLUDED.output_tokens,
+                        cache_read_tokens = EXCLUDED.cache_read_tokens,
+                        cache_write_tokens = EXCLUDED.cache_write_tokens,
+                        created_at = NOW()
+                    """,
+                    params_seq,
+                )
             conn.commit()
         except psycopg.Error as e:
             print(f"  Cache batch store error: {e}")

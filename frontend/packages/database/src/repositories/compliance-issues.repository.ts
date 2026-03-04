@@ -845,7 +845,7 @@ export function buildAnalysisListSort(
 
 /** Raw row shape from the analysis list query (before mapping). */
 export interface AnalysisListRawRow {
-  documentId: number | string;
+  documentId: number | string | null;
   issueType: string;
   highestTierCompleted: number | null;
   tier1Classification: string | null;
@@ -3109,7 +3109,7 @@ export interface AnalysisExportRow {
   finalSeverity: number | null;
   cleanupType: string | null;
   cleanupEffort: string | null;
-  documentId: number;
+  documentId: number | null;
 }
 
 // ═══════════════════════════════════════════════════════════════════

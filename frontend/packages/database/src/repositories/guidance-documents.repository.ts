@@ -172,6 +172,7 @@ export interface LineageStats {
   families: DocumentFamily[];     // grouped revision chains (top 50 by chain length)
 }
 
+
 export class GuidanceDocumentsRepository extends BaseRepository {
   async getAllPaginated(options: GuidancePaginationOptions): Promise<PaginatedGuidanceResult> {
     const { jurisdiction, page, pageSize, sortBy = 'title', sortOrder = 'asc', filters } = options;

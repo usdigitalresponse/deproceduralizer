@@ -12,6 +12,9 @@ AGENCY_REF_PATTERN = re.compile(
     r"(?:ADM|LCM|INF|GIS|IB|RG|TA|IMM|IMP)-\d{1,3}(?:-R\d)?)\b",
     re.IGNORECASE,
 )
+NYSDOH_GIS_PATTERN = re.compile(
+    r"\b(GIS\s+\d{2}\s+\w+/\w{1,5})\b"
+)
 LEGACY_REF_PATTERN = re.compile(
     r"\b(\d{2}\s+(?:ADM|LCM|INF|GIS|IB)-\d{1,3})\b"
 )
@@ -33,6 +36,7 @@ TRANSMITTAL_PATTERN = re.compile(
 
 ALL_PATTERNS = [
     AGENCY_REF_PATTERN,
+    NYSDOH_GIS_PATTERN,
     LEGACY_REF_PATTERN,
     TSB_M_PATTERN,
     DAL_PATTERN,

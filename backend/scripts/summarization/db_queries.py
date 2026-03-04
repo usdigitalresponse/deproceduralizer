@@ -7,22 +7,19 @@ includes utility queries for listing titles, counting documents per
 hierarchy level, and determining the bottom-up phase ordering.
 """
 
-import os
-from pathlib import Path
 from typing import Optional
 
 import psycopg
-from dotenv import load_dotenv
 
-
-# Load .env from project root
-PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
-load_dotenv(PROJECT_ROOT / ".env")
+from lib.db import get_db_connection
 
 
 def get_connection() -> psycopg.Connection:
-    """Get database connection with timeout to avoid blocking on connection pool exhaustion."""
-    return psycopg.connect(os.getenv("DATABASE_URL"), connect_timeout=10)
+    """Get database connection via shared pool (includes statement timeout)."""
+    conn = get_db_connection()
+    if conn is None:
+        raise psycopg.OperationalError("Failed to establish database connection")
+    return conn
 
 
 def _get_title_column(jurisdiction: str) -> str:

@@ -361,7 +361,7 @@ Pure regex match store. Tracks individual regex matches found during compliance 
 
 **Indexes:** `idx_compliance_issues_document`, `idx_ci_guidance_document` (migration 0057b, CONCURRENTLY), `idx_compliance_issues_state`, `idx_compliance_issues_issue_type`, `idx_compliance_issues_state_issue`, `idx_compliance_issues_analysis_id`, `idx_ci_unique_reg` (partial unique, migration 0057b), `idx_ci_unique_guidance` (partial unique, migration 0057b)
 
-**Issue Types** (41 types defined in `prompts/compliance_issues.yaml`)
+**Issue Types** (42 types defined in `prompts/compliance_issues.yaml`)
 
 ### Compliance Issue Filtering
 
@@ -399,7 +399,8 @@ Document-level analysis results for the 3-tier research pipeline. One row per (d
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | bigserial | Primary key |
-| `document_id` | bigint NOT NULL | FK to regulatory_documents |
+| `document_id` | bigint | FK to regulatory_documents (nullable after migration 0058) |
+| `guidance_document_id` | bigint | FK to guidance_documents (migration 0058) |
 | `issue_type` | varchar(50) | Issue type being analyzed |
 | `jurisdiction` | varchar(3) NOT NULL | NY, NJ, or NYC |
 | `grouped_match_count` | integer NOT NULL | Number of regex matches from compliance_issues analyzed together |
@@ -577,9 +578,13 @@ Helps Tier 3 web search avoid returning results about similar-sounding but diffe
 | `developer_question` | text | Question for reviewer |
 | `developer_checked_at` | timestamp | When developer last checked |
 
-**Constraints:** `UNIQUE(document_id, issue_type)`
+**Constraints:**
+- `cia_one_source` CHECK: exactly one of `document_id` / `guidance_document_id` is set (migration 0058)
+- `idx_cia_unique_reg` UNIQUE on `(document_id, issue_type) WHERE document_id IS NOT NULL`
+- `idx_cia_unique_guidance` UNIQUE on `(guidance_document_id, issue_type) WHERE guidance_document_id IS NOT NULL`
 
 **Indexes:**
+- Guidance: `idx_cia_guidance_document` (partial, WHERE guidance_document_id IS NOT NULL)
 - Classification: `idx_cia_tier1_classification`, `idx_cia_tier2_classification`, `idx_cia_tier3_classification`
 - Pipeline progression: `idx_cia_needs_tier2`, `idx_cia_needs_tier3`
 - Lookups: `idx_cia_state_issue`, `idx_cia_document`, `idx_cia_pipeline_version`
@@ -800,7 +805,7 @@ Sub-regulatory guidance documents (ADMs, LCMs, INFs, GIS, TSBs, etc.) from NY st
 | `is_attachment` | boolean | True if title matches attachment/enclosure/appendix patterns (default false) |
 | `policy_category` | text | Rule-based category: `policy_directive`, `legal_interpretation`, `tax_guidance`, `informational`, `reference_material`, `non_policy`, `data_dump`, `unclassified` |
 
-**Indexes:** `idx_gd_catalog_id` (unique, partial), `idx_gd_agency`, `idx_gd_doc_type`, `idx_gd_canonical_ref` (partial), `idx_gd_status`, `idx_gd_search` (GIN), `idx_gd_year`, `idx_gd_policy_category` (partial)
+**Indexes:** `idx_gd_catalog_id` (unique, partial), `idx_gd_text_path` (unique, partial — migration 0059), `idx_gd_agency`, `idx_gd_doc_type`, `idx_gd_canonical_ref` (partial), `idx_gd_status`, `idx_gd_search` (GIN), `idx_gd_year`, `idx_gd_policy_category` (partial)
 
 **Classification pipeline** (`--classify --execute`, 5 passes):
 1. **Attachments**: title regex for attachment/appendix/enclosure → `is_attachment = true`

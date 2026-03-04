@@ -5,10 +5,16 @@ from ..prompt_loader import load_jenai_prompts
 from ..formatting import format_rich_context_cached, format_analysis_context
 from ..config import BATCH_MODEL
 from scripts.research_pipeline.context import (
+    PreFetchedContextData,
     build_context_catalog,
     build_proactive_context,
     get_definitions_with_text_batch,
+    get_sibling_summaries_batch,
+    get_crossrefs_batch,
+    get_definitions_batch,
+    get_ancestor_entries_batch,
 )
+from lib.db import get_ancestors_batch
 from lib.batch import format_batch_request
 
 
@@ -29,11 +35,27 @@ def prepare_analysis_batch(
     prompts = load_jenai_prompts()
     analysis_config = prompts['analysis']
 
-    # Build all context data in batch
+    # Build all context data in batch — fetch shared data once
     doc_ids = [u.unit.document_id for u in units]
-    catalogs = build_context_catalog(doc_ids)
-    proactive_map = build_proactive_context(doc_ids)
-    definitions_map = get_definitions_with_text_batch(doc_ids)
+
+    # Fetch each data type once, then pass to both catalog + proactive builders
+    raw_ancestors = get_ancestors_batch(doc_ids)
+    siblings = get_sibling_summaries_batch(doc_ids)
+    crossrefs = get_crossrefs_batch(doc_ids)
+    definitions = get_definitions_batch(doc_ids, ancestors_map=raw_ancestors)
+    ancestor_entries = get_ancestor_entries_batch(doc_ids, raw_ancestors_map=raw_ancestors)
+
+    pre_fetched = PreFetchedContextData(
+        raw_ancestors=raw_ancestors,
+        siblings=siblings,
+        crossrefs=crossrefs,
+        definitions=definitions,
+        ancestor_entries=ancestor_entries,
+    )
+
+    catalogs = build_context_catalog(doc_ids, pre_fetched=pre_fetched)
+    proactive_map = build_proactive_context(doc_ids, pre_fetched=pre_fetched)
+    definitions_map = get_definitions_with_text_batch(doc_ids, ancestors_map=raw_ancestors)
 
     batch_requests = []
     custom_id_map = {}

@@ -101,7 +101,7 @@ class TrackedUnit:
     @property
     def custom_id(self) -> str:
         """Unique ID for batch API requests."""
-        return make_custom_id(self.document_id, self.issue_type)
+        return make_custom_id(self.document_id, self.issue_type, self.unit.source_type)
 
     @property
     def highest_tier_completed(self) -> int:

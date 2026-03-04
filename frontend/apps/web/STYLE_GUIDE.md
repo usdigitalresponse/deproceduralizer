@@ -1815,6 +1815,42 @@ Card for developer assignment with: developer selection, status tracking (unreso
 
 ---
 
+## JenAI Pipeline Composer
+
+Interactive prompt viewer for the JenAI pipeline. Located on `/prompts` page. User searches for a regulatory section and sees the fully assembled 3-layer prompt with real DB context.
+
+### JenAIPipelineComposer
+
+Parent orchestrator — header card with `DocumentSearchSelector`, 2-column layout (viewer + context panel), and token breakdown.
+
+```tsx
+import { JenAIPipelineComposer } from '@/components/prompts';
+
+<JenAIPipelineComposer />
+```
+
+### DocumentSearchSelector
+
+Debounced search typeahead for regulatory sections. Includes jurisdiction toggle (NY/NJ/NYC) and displays selected document.
+
+### JenAIComposedPromptViewer
+
+3-layer prompt viewer using shared `LayerSection` component. Layers: System (cached globally), Batch Context (cached per subchapter), Template (unique per section). Color-coded with legend.
+
+### DocumentContextPanel
+
+Metadata sidebar showing ancestor chain (indented tree), sibling count, definition count, and cross-reference count.
+
+### JenAITokenBreakdown
+
+3-segment stacked bar with cache savings estimate. Similar to V5 `TokenBreakdown` but with 3 segments instead of 4.
+
+### Shared: LayerSection
+
+Extracted to `components/prompts/shared/LayerSection.tsx`. Collapsible section with copy button, placeholder highlighting, token/line counts. Used by both V5 `ComposedPromptViewer` and `JenAIComposedPromptViewer`.
+
+---
+
 ## JenAI Pipeline Components
 
 Components for viewing JenAI Pahlka framework analysis results — 19-category implementation complexity assessment.
@@ -2593,7 +2629,9 @@ apps/web/src/
 │   │   ├── PromptVariables.tsx
 │   │   ├── FeedbackForm.tsx
 │   │   ├── FeedbackList.tsx
-│   │   ├── V5PipelineComposer/ # Pipeline prompt composer
+│   │   ├── V5PipelineComposer/ # Research pipeline prompt composer
+│   │   ├── JenAIPipelineComposer/ # JenAI pipeline prompt composer
+│   │   ├── shared/            # Shared prompt components (LayerSection)
 │   │   └── index.ts
 │   ├── regulations/            # Regulation listing/filtering components
 │   │   ├── RegulationCard.tsx

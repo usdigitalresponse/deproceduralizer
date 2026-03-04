@@ -24,6 +24,8 @@ Examples:
   python3 -m scripts.guidance_pipeline --gap-analysis
   python3 -m scripts.guidance_pipeline --clean-refs
   python3 -m scripts.guidance_pipeline --clean-refs --execute
+  python3 -m scripts.guidance_pipeline --fix-refs
+  python3 -m scripts.guidance_pipeline --fix-refs --execute
   python3 -m scripts.guidance_pipeline --detect-supersedure
   python3 -m scripts.guidance_pipeline --detect-supersedure --execute
   python3 -m scripts.guidance_pipeline --supersedure-report
@@ -48,6 +50,7 @@ Examples:
     # Standalone modes
     parser.add_argument("--gap-analysis", action="store_true", help="Run gap analysis on imported data")
     parser.add_argument("--clean-refs", action="store_true", help="Clean junk canonical_ref values (dry-run by default)")
+    parser.add_argument("--fix-refs", action="store_true", help="Fix canonical_refs using title + agency metadata (dry-run by default)")
     parser.add_argument("--detect-supersedure", action="store_true", help="Detect supersedure relationships (dry-run by default)")
     parser.add_argument("--supersedure-report", action="store_true", help="Print supersedure relationship report")
     parser.add_argument("--re-resolve", action="store_true", help="Re-resolve all guidance→regulation citations from DB (dry-run by default)")
@@ -100,6 +103,12 @@ Examples:
         clean_canonical_refs(dry_run=dry_run)
         return
 
+    if args.fix_refs:
+        from scripts.guidance_pipeline.fix_canonical_refs import fix_canonical_refs
+        dry_run = not args.execute
+        fix_canonical_refs(dry_run=dry_run)
+        return
+
     if args.detect_supersedure:
         from scripts.guidance_pipeline.supersedure_detector import detect_supersedure
         dry_run = not args.execute
@@ -142,7 +151,7 @@ Examples:
 
     # --- Import mode ---
     if not args.dry_run and not args.execute:
-        parser.error("One of --dry-run, --execute, --gap-analysis, --clean-refs, --detect-supersedure, --supersedure-report, --classify, or --regex-scan is required")
+        parser.error("One of --dry-run, --execute, --gap-analysis, --clean-refs, --fix-refs, --detect-supersedure, --supersedure-report, --classify, or --regex-scan is required")
 
     source_dir = os.path.abspath(args.source_dir)
     print(f"Source directory: {source_dir}")

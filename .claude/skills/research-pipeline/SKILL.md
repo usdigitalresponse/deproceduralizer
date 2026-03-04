@@ -21,6 +21,7 @@ cd backend && python3 -m scripts.research_pipeline.cli [OPTIONS]
 | Reprocess after prompt change | Add `--force-rerun` |
 | Filter by regulatory title | `--title 7` |
 | Immediate results (2x cost) | Add `--realtime` |
+| Run on guidance docs | `--state ny --source guidance --agency OCFS --all-issues` |
 
 ## Required Flags
 
@@ -37,6 +38,14 @@ cd backend && python3 -m scripts.research_pipeline.cli [OPTIONS]
 | `--global-limit` | `100` | Max total docs across all issues (`N` or `no-limit`) |
 | `--max-tier` | `2` | How far to process: 1=filter, 2=classify, 3=web search |
 | `--web-search` | off | Enable Tier 3 web search |
+
+## Guidance Document Flags
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--source` | `regulation` | `regulation` or `guidance` |
+| `--agency` | none | Filter guidance by agency (e.g., `OCFS`, `NYSDOH`, `OTDA`) |
+| `--doc-type` | none | Filter guidance by doc type (e.g., `ADM`, `LCM`, `DAL`) |
 
 ## Optional Flags
 
@@ -117,6 +126,29 @@ python3 -m scripts.research_pipeline.cli \
   --state nj --issue mail_only --execute \
   --limit 5 --realtime
 ```
+
+### Guidance Documents
+```bash
+# OCFS childcare guidance, single issue (dry-run)
+python3 -m scripts.research_pipeline.cli \
+  --state ny --issue notarization \
+  --source guidance --agency OCFS
+
+# All issues, NYSDOH DALs
+python3 -m scripts.research_pipeline.cli \
+  --state ny --all-issues --execute \
+  --source guidance --agency NYSDOH --doc-type DAL \
+  --limit 10 --global-limit 50
+
+# All guidance across all agencies
+python3 -m scripts.research_pipeline.cli \
+  --state ny --all-issues --execute \
+  --source guidance --global-limit 100
+```
+
+Guidance documents use cited regulation summaries (via cross-references) instead of
+regulatory hierarchy context. A preamble tells the LLM: "This is a guidance document,
+NOT a regulation." Requires migration 0058.
 
 ## Cost Estimates
 

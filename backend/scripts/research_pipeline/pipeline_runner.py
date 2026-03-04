@@ -135,6 +135,11 @@ async def run_pipeline(
     # Subchapter context cache (reuse across issue types)
     subchapter_context_cache: dict[int, dict[str, str]] = {}
 
+    # Determine source_type from processing units (all units share the same source)
+    source_type = "regulation"
+    if processing_units and processing_units[0].source_type == "guidance":
+        source_type = "guidance"
+
     # Initialize tracked units
     units: dict[str, TrackedUnit] = {}
     for pu in processing_units:
@@ -148,7 +153,9 @@ async def run_pipeline(
     hydrated_by_tier: dict[int, int] = {}
     if resume:
         doc_ids = [pu.document_id for pu in processing_units]
-        existing = get_existing_analyses(doc_ids, issue_types=issue_types)
+        existing = get_existing_analyses(
+            doc_ids, issue_types=issue_types, source_type=source_type,
+        )
 
         units_to_remove = []
         for custom_id, unit in units.items():
