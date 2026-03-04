@@ -702,6 +702,10 @@ export class GuidanceDocumentsRepository extends BaseRepository {
       ? sql`AND jurisdiction = ${jurisdiction}`
       : sql``;
 
+    // Build a proper SQL array literal — Drizzle binds JS arrays as scalars,
+    // which causes "malformed array literal" when cast with ::text[]
+    const refsArray = sql`ARRAY[${sql.join(refs.map(r => sql`${r}`), sql`, `)}]::text[]`;
+
     const result = await this.db.execute<{
       id: number;
       canonical_ref: string | null;
@@ -718,9 +722,9 @@ export class GuidanceDocumentsRepository extends BaseRepository {
       SELECT id, canonical_ref, title, agency, status, year,
              supersedes, superseded_by, revision_of, date_published, jurisdiction
       FROM guidance_documents
-      WHERE (supersedes && ${refs}::text[]
-         OR superseded_by = ANY(${refs}::text[])
-         OR revision_of = ANY(${refs}::text[]))
+      WHERE (supersedes && ${refsArray}
+         OR superseded_by = ANY(${refsArray})
+         OR revision_of = ANY(${refsArray}))
         ${jurisdictionClause}
     `);
 
@@ -979,7 +983,7 @@ export class GuidanceDocumentsRepository extends BaseRepository {
                supersedes, superseded_by, revision_of
         FROM guidance_documents
         WHERE jurisdiction = ${stateUpper}
-          AND canonical_ref = ANY(${missingRefs}::text[])
+          AND canonical_ref = ANY(ARRAY[${sql.join(missingRefs.map(r => sql`${r}`), sql`, `)}]::text[])
       `);
       for (const doc of additionalDocs.rows) {
         if (doc.canonical_ref && !docsByRef.has(doc.canonical_ref)) {
