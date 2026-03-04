@@ -3,7 +3,6 @@
 import { useQueryStates } from 'nuqs';
 import { BarChart3, Layers, Cpu, Code } from 'lucide-react';
 import { SegmentedControl, type SegmentedControlOption } from '@/components/ui/SegmentedControl';
-import { EmptyState } from '@/components/ui/EmptyState';
 import { promptsParsers } from '@/lib/url/parsers';
 import type { PromptsTabValue } from '@/lib/constants/values';
 import type { PromptData, CompliancePromptData } from '@/lib/actions/prompts';
@@ -13,6 +12,7 @@ import { PromptsOverviewTab } from './PromptsOverviewTab';
 import { PromptCatalogTab } from './PromptCatalogTab';
 import { ArchivedFeedback } from './ArchivedFeedback';
 import { V5PipelineComposer } from './V5PipelineComposer';
+import { JenAIPipelineComposer } from './JenAIPipelineComposer';
 
 const TAB_OPTIONS: SegmentedControlOption<PromptsTabValue>[] = [
   { value: 'overview', label: 'Overview', icon: BarChart3 },
@@ -72,7 +72,7 @@ export function PromptsClient({
         )}
 
         {currentTab === 'jenai' && (
-          <EmptyState icon={Cpu} title="JenAI Pipeline Composer" description="Coming soon" />
+          <JenAIPipelineComposer />
         )}
 
         {currentTab === 'catalog' && (
