@@ -31,6 +31,6 @@ export interface SectionSearchResult {
   id: number;
   title: string;
   citation: string | null;
-  hierarchyLevel: string | null;
+  hierarchyPath: string | null;
   jurisdiction: string | null;
 }

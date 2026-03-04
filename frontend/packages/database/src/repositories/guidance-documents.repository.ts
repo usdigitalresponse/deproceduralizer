@@ -5,6 +5,8 @@ import { complianceIssues } from '../schema/compliance-issues';
 import { crossReferences } from '../schema/cross-references';
 import { regulatoryDocuments } from '../schema/regulatory-documents';
 import { JurisdictionCode, normalizeJurisdiction } from '../schema/constants';
+// Note: policyCategory values are from POLICY_CATEGORIES, status from GUIDANCE_STATUSES
+// in ../schema/guidance-documents.ts. Drizzle infers text() as string, not the union type.
 
 export interface GuidanceDocumentListItem {
   id: number;

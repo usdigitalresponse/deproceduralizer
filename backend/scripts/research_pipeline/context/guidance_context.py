@@ -43,6 +43,9 @@ def fetch_cited_regulation_summaries(
         conn = get_db_connection()
         should_close = True
 
+    if conn is None:
+        raise RuntimeError("Failed to establish database connection for guidance context")
+
     try:
         with conn.cursor() as cur:
             cur.execute("""
@@ -141,6 +144,9 @@ def fetch_guidance_content_batch(
     if conn is None:
         conn = get_db_connection()
         should_close = True
+
+    if conn is None:
+        raise RuntimeError("Failed to establish database connection for guidance content")
 
     try:
         with conn.cursor() as cur:

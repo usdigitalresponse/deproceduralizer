@@ -189,9 +189,10 @@ def save_tier1_results(
                             tier1_dismissed_match_ids, tier1_dismissed_reasons,
                             tier1_classification, tier1_confidence, tier1_reasoning,
                             tier1_batch_id, tier1_completed_at, highest_tier_completed,
-                            requirement_found, pipeline_version, created_at, updated_at
+                            requirement_found, pipeline_version, tier1_prompt_id,
+                            created_at, updated_at
                         ) VALUES (
-                            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW()
+                            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW()
                         )
                         {on_conflict} DO UPDATE SET
                             tier1_dismissed_match_ids = EXCLUDED.tier1_dismissed_match_ids,
@@ -205,6 +206,7 @@ def save_tier1_results(
                                 COALESCE(compliance_issue_analyses.highest_tier_completed, 0), 1
                             ),
                             requirement_found = EXCLUDED.requirement_found,
+                            tier1_prompt_id = EXCLUDED.tier1_prompt_id,
                             updated_at = NOW()
                         RETURNING id
                     """, (
@@ -222,6 +224,7 @@ def save_tier1_results(
                         1,  # highest_tier_completed
                         False,  # requirement_found = False for false positives
                         PIPELINE_VERSION,
+                        unit.tier1_prompt_id,
                     ))
                     _link_analysis_to_issues(cur, unit.document_id, unit.issue_type, source_type)
                     saved += 1
@@ -280,10 +283,10 @@ def save_tier1_results(
                         tier1_dismissed_reasons, tier1_classification, tier1_confidence,
                         tier1_reasoning, tier1_batch_id,
                         tier1_completed_at, highest_tier_completed, pipeline_version,
-                        tier1_argument_framing, tier1_recommendations,
+                        tier1_argument_framing, tier1_recommendations, tier1_prompt_id,
                         created_at, updated_at
                     ) VALUES (
-                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW()
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW()
                     )
                     {on_conflict} DO UPDATE SET
                         tier1_relevant_match_ids = EXCLUDED.tier1_relevant_match_ids,
@@ -299,6 +302,7 @@ def save_tier1_results(
                         ),
                         tier1_argument_framing = EXCLUDED.tier1_argument_framing,
                         tier1_recommendations = EXCLUDED.tier1_recommendations,
+                        tier1_prompt_id = EXCLUDED.tier1_prompt_id,
                         updated_at = NOW()
                     RETURNING id
                 """, (
@@ -318,6 +322,7 @@ def save_tier1_results(
                     PIPELINE_VERSION,
                     json.dumps(tier1_argument_framing),
                     json.dumps(tier1_recommendations),
+                    unit.tier1_prompt_id,
                 ))
                 _link_analysis_to_issues(cur, unit.document_id, unit.issue_type, source_type)
                 saved += 1
@@ -430,6 +435,8 @@ def save_tier2_results(
                         requirement_found = %s,
                         is_justified = %s,
                         final_severity = %s,
+                        -- Prompt observability
+                        tier2_prompt_id = %s,
                         classification_tier = 2,
                         highest_tier_completed = GREATEST(
                             COALESCE(highest_tier_completed, 0), 2
@@ -471,6 +478,8 @@ def save_tier2_results(
                     requirement_found,
                     is_justified,
                     output.severity,  # final_severity = tier2 severity before tier3
+                    # Prompt observability
+                    unit.tier2_prompt_id,
                     unit.document_id,
                     unit.issue_type,
                 ))
@@ -480,7 +489,8 @@ def save_tier2_results(
                         "issue_type=%s — result not persisted",
                         unit.document_id, unit.issue_type,
                     )
-                saved += 1
+                else:
+                    saved += 1
 
                 # Commit every 50 rows to prevent Neon idle-in-transaction timeout
                 if saved % 50 == 0:
@@ -595,6 +605,8 @@ def save_tier3_results(
                         cleanup_effort = %s,
                         tier3_completed_at = %s,
                         tier3_trigger_reason = %s,
+                        -- Prompt observability
+                        tier3_prompt_id = %s,
                         -- Inline so crash between tiers doesn't leave NULLs
                         requirement_found = %s,
                         is_justified = %s,
@@ -629,6 +641,8 @@ def save_tier3_results(
                     output.cleanup_effort,
                     unit.tier3_completed_at,
                     unit.tier3_trigger_reason,  # V5.1: Why this was escalated
+                    # Prompt observability
+                    unit.tier3_prompt_id,
                     # Inline derived fields
                     requirement_found,
                     is_justified,
@@ -641,7 +655,8 @@ def save_tier3_results(
                         "issue_type=%s — result not persisted",
                         unit.document_id, unit.issue_type,
                     )
-                saved += 1
+                else:
+                    saved += 1
 
                 # Commit every 50 rows to prevent Neon idle-in-transaction timeout
                 if saved % 50 == 0:

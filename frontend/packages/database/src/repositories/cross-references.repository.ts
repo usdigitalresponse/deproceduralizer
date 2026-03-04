@@ -421,6 +421,11 @@ export class CrossReferencesRepository extends BaseRepository {
   async getReferenceGraph(jurisdiction: JurisdictionCode, level: GraphLevel = 'title'): Promise<ReferenceEdge[]> {
     const stateUpper = normalizeJurisdiction(jurisdiction);
 
+    const VALID_JURISDICTIONS_UPPER = ['NY', 'NJ', 'NYC'] as const;
+    if (!VALID_JURISDICTIONS_UPPER.includes(stateUpper as any)) {
+      throw new Error(`Invalid jurisdiction: ${stateUpper}`);
+    }
+
     // Build level-specific column expressions
     // NJ uses njac_*, NY uses nycrr_*
     const levelColumns = {

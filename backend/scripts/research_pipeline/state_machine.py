@@ -85,6 +85,11 @@ class TrackedUnit:
     tier2_batch_id: Optional[str] = None
     tier3_batch_id: Optional[str] = None
 
+    # Prompt template IDs (set after store_prompt_batch)
+    tier1_prompt_id: Optional[int] = None
+    tier2_prompt_id: Optional[int] = None
+    tier3_prompt_id: Optional[int] = None
+
     # V5.1: Tier 3 trigger tracking
     tier3_trigger_reason: Optional[str] = None  # Why this unit was escalated to Tier 3
 

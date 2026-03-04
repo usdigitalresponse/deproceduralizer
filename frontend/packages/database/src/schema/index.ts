@@ -21,3 +21,4 @@ export * from './bookmarks';
 export * from './document-tags';
 export * from './share-tokens';
 export * from './guidance-documents';
+export * from './prompt-templates';

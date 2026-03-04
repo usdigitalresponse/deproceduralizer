@@ -127,7 +127,7 @@ export function GuidanceAnalyticsTab({ overviewStats, citationStats, jurisdictio
           subtitle="Issuing agencies"
         />
         <StatCard
-          label="Cited Regulations"
+          label="Top Cited Regulations"
           value={distinctCitedRegs.toLocaleString()}
           icon={FileText}
           subtitle="Distinct regulations cited"
