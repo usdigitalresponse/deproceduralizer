@@ -210,8 +210,10 @@ function AnalysisBookmarkCard({
     ? ISSUE_TYPE_LABELS[bookmark.issueType as keyof typeof ISSUE_TYPE_LABELS] || bookmark.issueType
     : null;
 
-  if (!bookmark.documentId) return null;
-  const viewUrl = `/${jurisdiction.toLowerCase()}/pipeline/${bookmark.documentId}/${bookmark.issueType}`;
+  const isGuidanceAnalysis = bookmark.guidanceDocumentId !== null && bookmark.documentId === null;
+  const viewUrl = isGuidanceAnalysis
+    ? `/${jurisdiction.toLowerCase()}/pipeline/guidance/${bookmark.guidanceDocumentId}/${bookmark.issueType}`
+    : `/${jurisdiction.toLowerCase()}/pipeline/${bookmark.documentId}/${bookmark.issueType}`;
 
   // Use final severity if available, fallback to base severity
   const severity = bookmark.analysisFinalSeverity ?? bookmark.analysisSeverity;
@@ -341,13 +343,31 @@ function AnalysisBookmarkCard({
 
         {/* Document Title and Citation */}
         <div className="mb-3">
-          <h3 className="font-medium text-[var(--color-text)]" title={bookmark.documentTitle || ''}>
-            {bookmark.documentTitle || 'Untitled Document'}
-          </h3>
-          {bookmark.documentCitation && (
-            <p className="text-xs font-mono text-[var(--color-text-muted)] mt-0.5">
-              {bookmark.documentCitation}
-            </p>
+          {isGuidanceAnalysis ? (
+            <>
+              {bookmark.guidanceAgency && (
+                <p className="text-xs text-[var(--color-text-muted)] font-medium">{bookmark.guidanceAgency}</p>
+              )}
+              <h3 className="font-medium text-[var(--color-text)]" title={bookmark.guidanceTitle || ''}>
+                {bookmark.guidanceTitle || 'Untitled Document'}
+              </h3>
+              {bookmark.guidanceCanonicalRef && (
+                <p className="text-xs font-mono text-[var(--color-text-muted)] mt-0.5">
+                  {bookmark.guidanceCanonicalRef}
+                </p>
+              )}
+            </>
+          ) : (
+            <>
+              <h3 className="font-medium text-[var(--color-text)]" title={bookmark.documentTitle || ''}>
+                {bookmark.documentTitle || 'Untitled Document'}
+              </h3>
+              {bookmark.documentCitation && (
+                <p className="text-xs font-mono text-[var(--color-text-muted)] mt-0.5">
+                  {bookmark.documentCitation}
+                </p>
+              )}
+            </>
           )}
         </div>
 

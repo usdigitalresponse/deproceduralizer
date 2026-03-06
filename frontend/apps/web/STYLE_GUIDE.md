@@ -4226,3 +4226,77 @@ import { EntityTypeIndicator } from '@/components/ui';
 - **Navigation**: Nav items that map to entity types (Statutes, Glossary, IBR, Bookmarks) import icons from `entity-types.ts`; view/action nav items (Browse, Table View, Pipeline) keep their own icons
 - **RedFlagCard left-border**: The `border-l-4 border-[var(--color-danger)]` on red flag cards communicates severity (a status concern), not entity type — keep it separate
 - **Cross-reference direction**: Both outgoing and incoming cross-references use the same `Link2` + indigo. The section title ("Cross-References" vs "Cited By") communicates direction
+
+---
+
+## Pipeline Source Tab Pattern
+
+The Pipeline page uses a `SegmentedControl` to switch between regulation-sourced and guidance-sourced compliance issues. Both tabs share the same table columns, badges, sort/filter controls, and review flow -- only the underlying document context differs.
+
+### Source Tabs
+
+| Source | Description | URL Param |
+|--------|-------------|-----------|
+| Regulations | Compliance issues found in regulatory documents (NYCRR, NJAC, RCNY) | `?source=regulations` (default) |
+| Guidance | Compliance issues found in guidance documents (letters, directives, memos) | `?source=guidance` |
+
+### Analysis Table Consistency
+
+Both regulation and guidance analysis tables render identical columns:
+- Bookmark toggle (star icon — bookmarking supported for both sources)
+- Issue Type (with `ISSUE_TYPE_LABELS` for human-readable names)
+- Document (regulation section number or guidance document title)
+- T1, T2, T3 (tier classification badges)
+- Severity (numeric severity score)
+- Federal (federal mandate indicator)
+- Easy Fix (easy fix indicator)
+- Actions (review actions)
+
+The Document column links to the appropriate pipeline detail page (`/[state]/pipeline/[docId]/[issueType]` for regulations, `/[state]/pipeline/guidance/[guidanceDocumentId]/[issueType]` for guidance).
+
+### Guidance Context Pattern vs Regulatory Context
+
+| Aspect | Regulatory Context | Guidance Context |
+|--------|-------------------|------------------|
+| Document reference | Section number (e.g., "18 NYCRR 415.2") | Document title + canonical ref |
+| Detail link | `/[state]/pipeline/[docId]/[issueType]` | `/[state]/pipeline/guidance/[guidanceDocumentId]/[issueType]` |
+| Hierarchy | Title > Part > Subpart > Section | Agency > Doc Type > Document |
+| Compliance summary | Per-section analysis | `GuidanceComplianceCard` on detail page |
+
+### GuidanceComplianceCard
+
+Displayed on guidance document detail pages when compliance issues exist. Shows:
+- Regex match count vs analyzed count
+- Burdensome/justified breakdown with color-coded icons
+- Top 5 issue types with counts
+- Link to pipeline (`/{state}/pipeline?source=guidance`)
+
+Uses `Card` + `CardHeader`/`CardTitle` layout. Stats use a 4-column grid with icon+label+value pattern matching `StatCard` visual weight.
+
+```tsx
+import { GuidanceComplianceCard } from '@/components/guidance/GuidanceComplianceCard';
+
+<GuidanceComplianceCard summary={complianceSummary} state={state} />
+```
+
+## Review Tab Consistency
+
+The Review page supports 6 tab types defined in `REVIEW_TYPE_VALUES`:
+- **Red Flags**: Red flag findings from regulation analysis
+- **Compliance Issues**: Compliance issues from regulation analysis
+- **Definitions**: Definition review/editing
+- **Needs More Info**: Items requiring additional context
+- **JenAI**: JenAI framework analysis results
+- **Guidance**: Compliance issues from guidance documents (links to Pipeline)
+
+Each tab shows a count badge in the tab button. The `ReviewTypeTabs` component handles both review mode and developer mode layouts. The Guidance tab currently renders a `GuidanceReviewPlaceholder` that links to the Pipeline page with `?source=guidance`, since guidance compliance issues share the pipeline review workflow.
+
+### Adding a New Review Tab
+
+1. Add the value to `REVIEW_TYPE_VALUES` in `lib/constants/values.ts`
+2. Add the label mapping in `REVIEW_TYPES` in `types/regulation.ts`
+3. Add `guidance: number` to `TabCounts` in `lib/actions/review-page.ts`
+4. Add the count to both `getDeveloperModeCountsData` and `getReviewModeCountsData`
+5. Add `counts.guidance` to `ReviewTypeTabsProps` and render the tab button
+6. Add `case 'guidance'` to both `renderDeveloperMode` and `renderReviewMode` switches
+7. Skip redirect logic for tabs that don't use `reviewStatus`/`developerStatus` filters

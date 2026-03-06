@@ -17,6 +17,7 @@ export { ExportCsvButton } from './ExportCsvButton';
 export { PipelineFlowVisualizer } from './PipelineFlowVisualizer';
 export { PipelineExampleWalkthrough } from './PipelineExampleWalkthrough';
 export { PriorityPicksBanner } from './PriorityPicksBanner';
+export { PipelineSourceTabs } from './PipelineSourceTabs';
 export { ExecutiveSummary } from './ExecutiveSummary';
 // V5 components
 export { ExpandableSection } from './ExpandableSection';
@@ -29,3 +30,4 @@ export { RegexMatchesSection } from './RegexMatchesSection';
 export { PrintButton } from './PrintButton';
 export { PrintModeStyles } from './PrintModeStyles';
 export { RegulatoryContext } from './RegulatoryContext';
+export { GuidanceContext } from './GuidanceContext';

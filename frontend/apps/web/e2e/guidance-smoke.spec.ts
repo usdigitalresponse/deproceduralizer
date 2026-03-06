@@ -10,10 +10,10 @@ test.describe('Guidance Documents', () => {
     ).toBeVisible();
 
     // Check Overview tab is active by default (should show stats)
-    // Look for stat-like content in a stats card or summary section
+    // StatCard renders label in a <p> — look for "Total Guidance Docs" text
     await expect(
-      page.locator('[data-testid="overview-stats"], .stats, [class*="stat"]').first()
-    ).toContainText('Total');
+      page.getByText('Total Guidance Docs')
+    ).toBeVisible();
 
     // Screenshot
     await page.screenshot({ path: '/tmp/guidance-overview.png', fullPage: true });

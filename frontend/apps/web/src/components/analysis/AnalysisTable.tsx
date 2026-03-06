@@ -4,39 +4,93 @@ import { useEffect, useState, useTransition, useCallback } from 'react';
 import Link from 'next/link';
 import { useQueryStates } from 'nuqs';
 import { ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
-import type { JurisdictionCode, AnalysisListItem } from '@deproceduralizer/database';
+import type { JurisdictionCode, AnalysisListItem, GuidanceAnalysisListItem } from '@deproceduralizer/database';
+import type { PipelineSourceValue } from '@/lib/constants/values';
 import { analysisTableParsers } from '@/lib/url/parsers';
-import { getAnalysisListPaginated, type PaginatedAnalysisResult } from '@/lib/actions/analysis';
-import { getBookmarkedDocIssuePairs, toggleAnalysisBookmarkByDocIssue } from '@/lib/actions/bookmarks';
+import {
+  getAnalysisListPaginated,
+  getGuidanceAnalysisListPaginated,
+  type PaginatedAnalysisResult,
+  type PaginatedGuidanceAnalysisResult,
+} from '@/lib/actions/analysis';
+import {
+  getBookmarkedDocIssuePairs,
+  getBookmarkedGuidanceDocIssuePairs,
+  toggleAnalysisBookmarkByDocIssue,
+  toggleGuidanceAnalysisBookmarkByDocIssue,
+} from '@/lib/actions/bookmarks';
 import { ClassificationBadge } from '@/components/issues/TierClassificationFlow';
 import { Badge, BookmarkButton } from '@/components/ui';
 import { ISSUE_TYPE_LABELS } from '@/types/regulation';
 
-interface AnalysisTableProps {
-  jurisdiction: JurisdictionCode;
+/** Unified row type used by the table for both regulation and guidance items */
+type UnifiedAnalysisRow = {
+  issueType: string;
+  documentTitle: string | null;
+  highestTierCompleted: number;
+  tier1Classification: string | null;
+  tier2Classification: string | null;
+  tier3Classification: string | null;
+  finalSeverity: number | null;
+  federalMandateFound: boolean;
+  isJustified: boolean;
+  rerunCount: number;
+  createdAt: Date | null;
+  easyCleanupCandidate: boolean;
+  cleanupType: string | null;
+  cleanupEffort: string | null;
+  tier3TriggerReason: string | null;
+} & (
+  | { kind: 'regulation'; documentId: number; citation: string | null }
+  | { kind: 'guidance'; guidanceDocumentId: number; agency: string | null; docType: string | null; canonicalRef: string | null }
+);
+
+function toUnifiedRows(source: PipelineSourceValue | undefined, data: PaginatedAnalysisResult | PaginatedGuidanceAnalysisResult): UnifiedAnalysisRow[] {
+  if (source === 'guidance') {
+    return (data as PaginatedGuidanceAnalysisResult).data.map((item) => ({
+      ...item,
+      kind: 'guidance' as const,
+    }));
+  }
+  return (data as PaginatedAnalysisResult).data.map((item) => ({
+    ...item,
+    kind: 'regulation' as const,
+  }));
 }
 
-export function AnalysisTable({ jurisdiction }: AnalysisTableProps) {
+interface AnalysisTableProps {
+  jurisdiction: JurisdictionCode;
+  source?: PipelineSourceValue;
+}
+
+export function AnalysisTable({ jurisdiction, source }: AnalysisTableProps) {
+  const isGuidance = source === 'guidance';
   const [filters] = useQueryStates(analysisTableParsers);
   const [isPending, startTransition] = useTransition();
-  const [data, setData] = useState<PaginatedAnalysisResult | null>(null);
+  const [rows, setRows] = useState<UnifiedAnalysisRow[]>([]);
+  const [pagination, setPagination] = useState<{ total: number; page: number; pageSize: number; totalPages: number } | null>(null);
   const [, setFilters] = useQueryStates(analysisTableParsers);
   const [bookmarkedPairs, setBookmarkedPairs] = useState<Set<string>>(new Set());
+  const [error, setError] = useState<string | null>(null);
 
-  // Fetch bookmarked items
+  // Fetch bookmarked items for the active source
   useEffect(() => {
+    let cancelled = false;
     async function fetchBookmarks() {
-      const result = await getBookmarkedDocIssuePairs(jurisdiction);
-      if (result.success) {
+      const result = isGuidance
+        ? await getBookmarkedGuidanceDocIssuePairs(jurisdiction)
+        : await getBookmarkedDocIssuePairs(jurisdiction);
+      if (!cancelled && result.success) {
         setBookmarkedPairs(result.data);
       }
     }
     fetchBookmarks();
-  }, [jurisdiction]);
+    return () => { cancelled = true; };
+  }, [jurisdiction, isGuidance]);
 
   // Handle bookmark toggle with optimistic update
-  const handleBookmarkToggle = useCallback(async (documentId: number, issueType: string) => {
-    const key = `${documentId}-${issueType}`;
+  const handleBookmarkToggle = useCallback(async (docId: number, issueType: string) => {
+    const key = `${docId}-${issueType}`;
     const wasBookmarked = bookmarkedPairs.has(key);
 
     // Optimistic update
@@ -50,8 +104,10 @@ export function AnalysisTable({ jurisdiction }: AnalysisTableProps) {
       return next;
     });
 
-    // Server update
-    const result = await toggleAnalysisBookmarkByDocIssue(documentId, issueType, jurisdiction);
+    // Server update — use the right action based on source
+    const result = isGuidance
+      ? await toggleGuidanceAnalysisBookmarkByDocIssue(docId, issueType, jurisdiction)
+      : await toggleAnalysisBookmarkByDocIssue(docId, issueType, jurisdiction);
 
     // Revert if failed
     if (!result.success) {
@@ -66,49 +122,77 @@ export function AnalysisTable({ jurisdiction }: AnalysisTableProps) {
       });
       console.error('Failed to toggle bookmark:', result.error);
     }
-  }, [jurisdiction, bookmarkedPairs]);
+  }, [jurisdiction, bookmarkedPairs, isGuidance]);
 
-  // Fetch data when filters change
+  // Build shared filter object from URL state
+  const buildFilters = useCallback(() => ({
+    tierCompleted: filters.tierCompleted !== 'all' ? parseInt(filters.tierCompleted) : undefined,
+    classification: filters.classification !== 'all' ? filters.classification : undefined,
+    federalMandate: filters.federalMandate !== 'all' ? filters.federalMandate === 'true' : undefined,
+    pipelineRun: filters.pipelineRun !== 'all' ? filters.pipelineRun === 'true' : undefined,
+    issueType: filters.issueType && filters.issueType !== 'all' ? filters.issueType : undefined,
+    severity: filters.severity !== 'all' ? filters.severity : undefined,
+    severityChanged: filters.severityChanged !== 'all' ? filters.severityChanged : undefined,
+    federalMandateConfirmed: filters.federalMandateConfirmed !== 'all' ? filters.federalMandateConfirmed : undefined,
+    stateDiscretion: filters.stateDiscretion !== 'all' ? filters.stateDiscretion : undefined,
+    alternativeFound: filters.alternativeFound !== 'all' ? filters.alternativeFound : undefined,
+    evidenceGap: filters.evidenceGap !== 'all' ? filters.evidenceGap : undefined,
+    supersededByLaw: filters.supersededByLaw !== 'all' ? filters.supersededByLaw : undefined,
+    advocacyForChange: filters.advocacyForChange !== 'all' ? filters.advocacyForChange : undefined,
+    tier3Trigger: filters.tier3Trigger !== 'all' ? filters.tier3Trigger : undefined,
+    easyCleanup: filters.easyCleanup !== 'all' ? filters.easyCleanup : undefined,
+    bookmarkedOnly: filters.bookmarkedOnly === 'true' ? true : undefined,
+  }), [filters]);
+
+  // Fetch data when filters or source change
   useEffect(() => {
     startTransition(async () => {
-      const result = await getAnalysisListPaginated(jurisdiction, {
+      const options = {
         page: filters.page,
         pageSize: filters.pageSize,
         sortBy: filters.sortBy as 'issueType' | 'severity' | 'highestTier' | 'createdAt',
         sortOrder: filters.sortOrder as 'asc' | 'desc',
-        filters: {
-          tierCompleted: filters.tierCompleted !== 'all' ? parseInt(filters.tierCompleted) : undefined,
-          classification: filters.classification !== 'all' ? filters.classification : undefined,
-          federalMandate: filters.federalMandate !== 'all' ? filters.federalMandate === 'true' : undefined,
-          pipelineRun: filters.pipelineRun !== 'all' ? filters.pipelineRun === 'true' : undefined,
-          issueType: filters.issueType && filters.issueType !== 'all' ? filters.issueType : undefined,
-          // V5 Tier 3 filters
-          severity: filters.severity !== 'all' ? filters.severity : undefined,
-          severityChanged: filters.severityChanged !== 'all' ? filters.severityChanged : undefined,
-          federalMandateConfirmed: filters.federalMandateConfirmed !== 'all' ? filters.federalMandateConfirmed : undefined,
-          stateDiscretion: filters.stateDiscretion !== 'all' ? filters.stateDiscretion : undefined,
-          alternativeFound: filters.alternativeFound !== 'all' ? filters.alternativeFound : undefined,
-          evidenceGap: filters.evidenceGap !== 'all' ? filters.evidenceGap : undefined,
-          supersededByLaw: filters.supersededByLaw !== 'all' ? filters.supersededByLaw : undefined,
-          advocacyForChange: filters.advocacyForChange !== 'all' ? filters.advocacyForChange : undefined,
-          tier3Trigger: filters.tier3Trigger !== 'all' ? filters.tier3Trigger : undefined,
-          // V5.1 Easy Cleanup filter
-          easyCleanup: filters.easyCleanup !== 'all' ? filters.easyCleanup : undefined,
-          bookmarkedOnly: filters.bookmarkedOnly === 'true' ? true : undefined,
-        },
-      });
+        filters: buildFilters(),
+      };
 
-      if (result.success) {
-        setData(result.data);
+      if (isGuidance) {
+        const result = await getGuidanceAnalysisListPaginated(jurisdiction, options);
+        if (result.success) {
+          setError(null);
+          setRows(toUnifiedRows(source, result.data));
+          setPagination({ total: result.data.total, page: result.data.page, pageSize: result.data.pageSize, totalPages: result.data.totalPages });
+        } else {
+          console.error('[AnalysisTable] Failed to fetch data:', result.error);
+          setError(result.error);
+        }
+      } else {
+        const result = await getAnalysisListPaginated(jurisdiction, options);
+        if (result.success) {
+          setError(null);
+          setRows(toUnifiedRows(source, result.data));
+          setPagination({ total: result.data.total, page: result.data.page, pageSize: result.data.pageSize, totalPages: result.data.totalPages });
+        } else {
+          console.error('[AnalysisTable] Failed to fetch data:', result.error);
+          setError(result.error);
+        }
       }
     });
-  }, [jurisdiction, filters]);
+  }, [jurisdiction, filters, isGuidance, source, buildFilters]);
 
   const handlePageChange = (newPage: number) => {
     setFilters({ page: newPage });
   };
 
-  if (!data && isPending) {
+  if (error) {
+    return (
+      <div className="rounded-[var(--radius-md)] border border-[var(--color-danger)] bg-[var(--color-background)] p-8 text-center">
+        <p className="text-[var(--color-danger)] font-medium">Failed to load pipeline data</p>
+        <p className="text-sm text-[var(--color-text-muted)] mt-2">{error}</p>
+      </div>
+    );
+  }
+
+  if (!pagination && isPending) {
     return (
       <div className="bg-white border border-[var(--color-neutral-200)] rounded-[var(--radius-md)] p-8 text-center">
         <div className="animate-pulse text-[var(--color-text-muted)]">Loading pipeline data...</div>
@@ -116,7 +200,7 @@ export function AnalysisTable({ jurisdiction }: AnalysisTableProps) {
     );
   }
 
-  if (!data || data.data.length === 0) {
+  if (!pagination || rows.length === 0) {
     return (
       <div className="bg-white border border-[var(--color-neutral-200)] rounded-[var(--radius-md)] p-8 text-center">
         <p className="text-[var(--color-text-muted)]">No pipeline records found matching your filters.</p>
@@ -144,15 +228,22 @@ export function AnalysisTable({ jurisdiction }: AnalysisTableProps) {
             </tr>
           </thead>
           <tbody>
-            {data.data.map((item) => (
-              <AnalysisTableRow
-                key={`${item.documentId}-${item.issueType}`}
-                item={item}
-                jurisdiction={jurisdiction}
-                isBookmarked={bookmarkedPairs.has(`${item.documentId}-${item.issueType}`)}
-                onBookmarkToggle={() => handleBookmarkToggle(item.documentId, item.issueType)}
-              />
-            ))}
+            {rows.map((item) => {
+              const rowKey = item.kind === 'guidance'
+                ? `g-${item.guidanceDocumentId}-${item.issueType}`
+                : `r-${item.documentId}-${item.issueType}`;
+              const docId = item.kind === 'guidance' ? item.guidanceDocumentId : item.documentId;
+              return (
+                <AnalysisTableRow
+                  key={rowKey}
+                  item={item}
+                  jurisdiction={jurisdiction}
+                  isBookmarked={bookmarkedPairs.has(`${docId}-${item.issueType}`)}
+                  onBookmarkToggle={() => handleBookmarkToggle(docId, item.issueType)}
+                  isGuidance={isGuidance}
+                />
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -160,25 +251,25 @@ export function AnalysisTable({ jurisdiction }: AnalysisTableProps) {
       {/* Pagination */}
       <div className="flex items-center justify-between px-4 py-3 border-t border-[var(--color-neutral-200)] bg-[var(--color-neutral-50)]">
         <div className="text-xs text-[var(--color-text-muted)]">
-          Showing {(data.page - 1) * data.pageSize + 1} - {Math.min(data.page * data.pageSize, data.total)} of {data.total.toLocaleString()}
+          Showing {(pagination.page - 1) * pagination.pageSize + 1} - {Math.min(pagination.page * pagination.pageSize, pagination.total)} of {pagination.total.toLocaleString()}
         </div>
 
         <div className="flex items-center gap-2">
           <button
-            onClick={() => handlePageChange(data.page - 1)}
-            disabled={data.page <= 1 || isPending}
+            onClick={() => handlePageChange(pagination.page - 1)}
+            disabled={pagination.page <= 1 || isPending}
             className="p-1.5 rounded border border-[var(--color-neutral-300)] hover:bg-[var(--color-neutral-100)] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
 
           <span className="text-sm text-[var(--color-text-muted)]">
-            Page {data.page} of {data.totalPages}
+            Page {pagination.page} of {pagination.totalPages}
           </span>
 
           <button
-            onClick={() => handlePageChange(data.page + 1)}
-            disabled={data.page >= data.totalPages || isPending}
+            onClick={() => handlePageChange(pagination.page + 1)}
+            disabled={pagination.page >= pagination.totalPages || isPending}
             className="p-1.5 rounded border border-[var(--color-neutral-300)] hover:bg-[var(--color-neutral-100)] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <ChevronRight className="w-4 h-4" />
@@ -197,13 +288,14 @@ export function AnalysisTable({ jurisdiction }: AnalysisTableProps) {
 }
 
 interface AnalysisTableRowProps {
-  item: AnalysisListItem;
+  item: UnifiedAnalysisRow;
   jurisdiction: JurisdictionCode;
   isBookmarked: boolean;
   onBookmarkToggle: () => void;
+  isGuidance: boolean;
 }
 
-function AnalysisTableRow({ item, jurisdiction, isBookmarked, onBookmarkToggle }: AnalysisTableRowProps) {
+function AnalysisTableRow({ item, jurisdiction, isBookmarked, onBookmarkToggle, isGuidance }: AnalysisTableRowProps) {
   const issueTypeLabel = ISSUE_TYPE_LABELS[item.issueType as keyof typeof ISSUE_TYPE_LABELS] || item.issueType;
 
   // Priority left border: red for critical quick wins, amber for high severity only
@@ -214,6 +306,11 @@ function AnalysisTableRow({ item, jurisdiction, isBookmarked, onBookmarkToggle }
     : isHighSeverity
       ? 'border-l-4 border-l-[var(--color-warning)]'
       : '';
+
+  // Build the detail link based on source type
+  const detailHref = item.kind === 'guidance'
+    ? `/${jurisdiction.toLowerCase()}/pipeline/guidance/${item.guidanceDocumentId}/${item.issueType}`
+    : `/${jurisdiction.toLowerCase()}/pipeline/${item.documentId}/${item.issueType}`;
 
   return (
     <tr className={`border-b border-[var(--color-neutral-100)] hover:bg-[var(--color-neutral-50)] ${borderClass}`}>
@@ -235,13 +332,28 @@ function AnalysisTableRow({ item, jurisdiction, isBookmarked, onBookmarkToggle }
 
       {/* Document */}
       <td className="px-4 py-3 max-w-xs">
-        <div className="truncate text-[var(--color-text)]" title={item.documentTitle || ''}>
-          {item.documentTitle || 'Untitled'}
-        </div>
-        {item.citation && (
-          <div className="truncate text-xs text-[var(--color-text-muted)] font-mono" title={item.citation}>
-            {item.citation}
-          </div>
+        {item.kind === 'guidance' ? (
+          <>
+            {item.agency && (
+              <div className="truncate text-xs text-[var(--color-text-muted)] font-medium" title={item.agency}>
+                {item.agency}
+              </div>
+            )}
+            <div className="truncate text-[var(--color-text)]" title={item.documentTitle || ''}>
+              {item.documentTitle || 'Untitled'}
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="truncate text-[var(--color-text)]" title={item.documentTitle || ''}>
+              {item.documentTitle || 'Untitled'}
+            </div>
+            {item.citation && (
+              <div className="truncate text-xs text-[var(--color-text-muted)] font-mono" title={item.citation}>
+                {item.citation}
+              </div>
+            )}
+          </>
         )}
       </td>
 
@@ -281,7 +393,7 @@ function AnalysisTableRow({ item, jurisdiction, isBookmarked, onBookmarkToggle }
             {item.finalSeverity}
           </span>
         ) : (
-          <span className="text-[var(--color-text-muted)]">—</span>
+          <span className="text-[var(--color-text-muted)]">{'\u2014'}</span>
         )}
       </td>
 
@@ -290,7 +402,7 @@ function AnalysisTableRow({ item, jurisdiction, isBookmarked, onBookmarkToggle }
         {item.federalMandateFound ? (
           <Badge variant="danger" className="text-xs">Yes</Badge>
         ) : (
-          <span className="text-[var(--color-text-muted)]">—</span>
+          <span className="text-[var(--color-text-muted)]">{'\u2014'}</span>
         )}
       </td>
 
@@ -306,19 +418,19 @@ function AnalysisTableRow({ item, jurisdiction, isBookmarked, onBookmarkToggle }
                 ? 'State has authorized alternative'
                 : 'Peer state has solution'}
           >
-            {item.cleanupEffort === 'trivial' ? '🎯 Trivial' :
-             item.cleanupEffort === 'easy' ? '✨ Easy' :
-             '📋 Medium'}
+            {item.cleanupEffort === 'trivial' ? '\uD83C\uDFAF Trivial' :
+             item.cleanupEffort === 'easy' ? '\u2728 Easy' :
+             '\uD83D\uDCCB Medium'}
           </Badge>
         ) : (
-          <span className="text-[var(--color-text-muted)]">—</span>
+          <span className="text-[var(--color-text-muted)]">{'\u2014'}</span>
         )}
       </td>
 
       {/* Actions */}
       <td className="px-3 py-3 text-center">
         <Link
-          href={`/${jurisdiction.toLowerCase()}/pipeline/${item.documentId}/${item.issueType}`}
+          href={detailHref}
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1 text-xs text-[var(--color-primary)] hover:underline"

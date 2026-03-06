@@ -11,6 +11,7 @@ import {
   type BookmarkWithDetails,
   eq,
   and,
+  sql,
 } from '@deproceduralizer/database';
 import { type ActionResult, success, failure, getErrorMessage, runAction, runCachedAction } from './types';
 
@@ -397,5 +398,115 @@ export async function getBookmarkByDocIssue(
 
     const bookmark = await bookmarksRepo.getByAnalysisId(analysis.id);
     return bookmark ?? null;
+  });
+}
+
+/**
+ * Toggle bookmark for a guidance analysis by guidance document ID and issue type.
+ */
+export async function toggleGuidanceAnalysisBookmarkByDocIssue(
+  guidanceDocumentId: number,
+  issueType: string,
+  jurisdiction: string,
+  createdBy?: string
+): Promise<ActionResult<Bookmark | null>> {
+  try {
+    const [result] = await db
+      .select({
+        analysisId: complianceIssueAnalyses.id,
+        analysisJurisdiction: complianceIssueAnalyses.jurisdiction,
+        bookmarkId: bookmarks.id,
+      })
+      .from(complianceIssueAnalyses)
+      .leftJoin(bookmarks, eq(bookmarks.analysisId, complianceIssueAnalyses.id))
+      .where(
+        and(
+          eq(complianceIssueAnalyses.guidanceDocumentId, guidanceDocumentId),
+          eq(complianceIssueAnalyses.issueType, issueType)
+        )
+      )
+      .limit(1);
+
+    if (!result) {
+      return failure(`Analysis for guidance document ${guidanceDocumentId} issue ${issueType} not found`);
+    }
+
+    if (result.bookmarkId) {
+      await bookmarksRepo.delete(result.bookmarkId);
+      refreshBookmarkCache('/[state]/pipeline');
+      return success(null);
+    }
+
+    const bookmark = await bookmarksRepo.create({
+      guidanceDocumentId,
+      analysisId: result.analysisId,
+      issueType,
+      jurisdiction: result.analysisJurisdiction,
+      createdBy,
+    });
+
+    refreshBookmarkCache('/[state]/pipeline');
+    return success(bookmark);
+  } catch (error) {
+    console.error('[toggleGuidanceAnalysisBookmarkByDocIssue]', error);
+    return failure(getErrorMessage(error));
+  }
+}
+
+/**
+ * Get bookmark by guidance document ID and issue type.
+ */
+export async function getBookmarkByGuidanceDocIssue(
+  guidanceDocumentId: number,
+  issueType: string
+): Promise<ActionResult<Bookmark | null>> {
+  return runAction('getBookmarkByGuidanceDocIssue', async () => {
+    const [analysis] = await db
+      .select({ id: complianceIssueAnalyses.id })
+      .from(complianceIssueAnalyses)
+      .where(
+        and(
+          eq(complianceIssueAnalyses.guidanceDocumentId, guidanceDocumentId),
+          eq(complianceIssueAnalyses.issueType, issueType)
+        )
+      )
+      .limit(1);
+
+    if (!analysis) {
+      return null;
+    }
+
+    const bookmark = await bookmarksRepo.getByAnalysisId(analysis.id);
+    return bookmark ?? null;
+  });
+}
+
+/**
+ * Get bookmarked guidance document-issue pairs for a state.
+ * Returns a Set of "guidanceDocumentId-issueType" keys for efficient lookup.
+ */
+export async function getBookmarkedGuidanceDocIssuePairs(
+  jurisdiction: string
+): Promise<ActionResult<Set<string>>> {
+  return runAction('getBookmarkedGuidanceDocIssuePairs', async () => {
+    const results = await db
+      .select({
+        guidanceDocumentId: complianceIssueAnalyses.guidanceDocumentId,
+        issueType: bookmarks.issueType,
+      })
+      .from(bookmarks)
+      .innerJoin(complianceIssueAnalyses, eq(bookmarks.analysisId, complianceIssueAnalyses.id))
+      .where(
+        and(
+          eq(bookmarks.jurisdiction, jurisdiction.toUpperCase()),
+          sql`${complianceIssueAnalyses.guidanceDocumentId} IS NOT NULL`
+        )
+      );
+
+    return new Set(
+      results
+        .filter(r => r.guidanceDocumentId !== null && r.issueType !== null)
+        .map(r => `${r.guidanceDocumentId}-${r.issueType}`)
+    );
   });
 }

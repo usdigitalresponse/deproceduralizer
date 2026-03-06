@@ -327,3 +327,14 @@ export async function getComplianceSeverityDistribution(
     { revalidate: 3600, tags: ['compliance-analytics'] }
   );
 }
+
+export async function getGuidanceComplianceIssueStatusCounts(
+  state: JurisdictionCode
+): Promise<ActionResult<{ total: number; unreviewed: number; reviewed: number; dismissed: number }>> {
+  return runCachedAction(
+    'getGuidanceComplianceIssueStatusCounts',
+    () => complianceIssuesRepo.getGuidanceComplianceIssueStatusCounts(state),
+    [`guidance-compliance-status-counts-${state}`],
+    { revalidate: 120, tags: ['compliance-issues'] }
+  );
+}

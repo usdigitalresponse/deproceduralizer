@@ -6,7 +6,9 @@ import type { JurisdictionCode, Bookmark } from '@deproceduralizer/database';
 import { BookmarkButton } from '@/components/ui';
 import {
   toggleAnalysisBookmarkByDocIssue,
+  toggleGuidanceAnalysisBookmarkByDocIssue,
   getBookmarkByDocIssue,
+  getBookmarkByGuidanceDocIssue,
   updateBookmarkNotes,
 } from '@/lib/actions/bookmarks';
 
@@ -20,19 +22,23 @@ interface BookmarkContextValue {
 
 const BookmarkContext = createContext<BookmarkContextValue | null>(null);
 
-interface AnalysisBookmarkProviderProps {
-  documentId: number;
+type AnalysisBookmarkProviderProps = {
   issueType: string;
   jurisdiction: JurisdictionCode;
   children: ReactNode;
-}
+} & (
+  | { documentId: number; guidanceDocumentId?: never }
+  | { documentId?: never; guidanceDocumentId: number }
+);
 
 /**
  * Provider that manages bookmark state for an analysis.
  * Wrap the page content with this to enable BookmarkToggle and BookmarkNotesCard.
+ * Accepts either documentId (regulations) or guidanceDocumentId (guidance).
  */
 export function AnalysisBookmarkProvider({
   documentId,
+  guidanceDocumentId,
   issueType,
   jurisdiction,
   children,
@@ -41,18 +47,21 @@ export function AnalysisBookmarkProvider({
   const [isLoading, setIsLoading] = useState(true);
 
   const isBookmarked = bookmark !== null;
+  const isGuidance = guidanceDocumentId !== undefined;
 
   // Fetch bookmark
   useEffect(() => {
     async function fetchBookmark() {
-      const result = await getBookmarkByDocIssue(documentId, issueType);
+      const result = isGuidance
+        ? await getBookmarkByGuidanceDocIssue(guidanceDocumentId, issueType)
+        : await getBookmarkByDocIssue(documentId!, issueType);
       if (result.success) {
         setBookmark(result.data);
       }
       setIsLoading(false);
     }
     fetchBookmark();
-  }, [documentId, issueType]);
+  }, [documentId, guidanceDocumentId, issueType, isGuidance]);
 
   const handleToggle = useCallback(async () => {
     const wasBookmarked = isBookmarked;
@@ -62,11 +71,15 @@ export function AnalysisBookmarkProvider({
       setBookmark(null);
     }
 
-    const result = await toggleAnalysisBookmarkByDocIssue(documentId, issueType, jurisdiction);
+    const result = isGuidance
+      ? await toggleGuidanceAnalysisBookmarkByDocIssue(guidanceDocumentId, issueType, jurisdiction)
+      : await toggleAnalysisBookmarkByDocIssue(documentId!, issueType, jurisdiction);
 
     if (!result.success) {
       // Revert on failure
-      const refetchResult = await getBookmarkByDocIssue(documentId, issueType);
+      const refetchResult = isGuidance
+        ? await getBookmarkByGuidanceDocIssue(guidanceDocumentId, issueType)
+        : await getBookmarkByDocIssue(documentId!, issueType);
       if (refetchResult.success) {
         setBookmark(refetchResult.data);
       }
@@ -74,7 +87,7 @@ export function AnalysisBookmarkProvider({
     } else if (result.data) {
       setBookmark(result.data);
     }
-  }, [documentId, issueType, jurisdiction, isBookmarked]);
+  }, [documentId, guidanceDocumentId, issueType, jurisdiction, isBookmarked, isGuidance]);
 
   // Allow updating bookmark from notes card
   const updateBookmark = useCallback((updated: Bookmark) => {

@@ -3,6 +3,7 @@
 import { Suspense } from 'react';
 import type { JurisdictionCode, TierCompletionCounts, ClassificationBreakdown } from '@deproceduralizer/database';
 import type { PriorityPicksResult } from '@/lib/actions/analysis';
+import type { PipelineSourceValue } from '@/lib/constants/values';
 import { TierDistributionChart } from './TierDistributionChart';
 import { AnalysisTable } from './AnalysisTable';
 import { AnalysisTableFilters } from './AnalysisTableFilters';
@@ -16,6 +17,7 @@ interface AnalysisDashboardProps {
   classificationBreakdown: ClassificationBreakdown | null;
   total: number;
   priorityPicks?: PriorityPicksResult | null;
+  source?: PipelineSourceValue;
 }
 
 export function AnalysisDashboard({
@@ -24,6 +26,7 @@ export function AnalysisDashboard({
   classificationBreakdown,
   total,
   priorityPicks,
+  source,
 }: AnalysisDashboardProps) {
   if (!tierCounts || !classificationBreakdown) {
     return (
@@ -113,7 +116,7 @@ export function AnalysisDashboard({
         </Suspense>
 
         <Suspense fallback={<div className="animate-pulse bg-[var(--color-neutral-100)] h-64 rounded-[var(--radius-md)]" />}>
-          <AnalysisTable jurisdiction={jurisdiction} />
+          <AnalysisTable jurisdiction={jurisdiction} source={source} />
         </Suspense>
       </div>
     </div>

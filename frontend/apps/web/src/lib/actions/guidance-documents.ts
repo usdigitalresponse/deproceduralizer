@@ -4,6 +4,7 @@ import 'server-only';
 import {
   db,
   GuidanceDocumentsRepository,
+  ComplianceIssuesRepository,
   type JurisdictionCode,
   type GuidanceDocumentListItem,
   type GuidanceDocumentDetail,
@@ -21,6 +22,7 @@ import {
 import { type ActionResult, runAction, runCachedAction } from './types';
 
 const guidanceRepo = new GuidanceDocumentsRepository(db);
+const complianceIssuesRepo = new ComplianceIssuesRepository(db);
 
 // Re-export types for components
 export type {
@@ -166,5 +168,21 @@ export async function getGuidanceLineageStats(
     () => guidanceRepo.getLineageStats(state),
     [`guidance-lineage-stats-${state}`],
     { revalidate: 120, tags: ['guidance'] }
+  );
+}
+
+export interface GuidanceComplianceAnalysisSummary {
+  totalIssues: number;
+  analyzedCount: number;
+  burdensomeCount: number;
+  justifiedCount: number;
+  topIssueTypes: Array<{ issueType: string; count: number }>;
+}
+
+export async function getGuidanceComplianceAnalysisSummary(
+  guidanceDocumentId: number
+): Promise<ActionResult<GuidanceComplianceAnalysisSummary>> {
+  return runAction('getGuidanceComplianceAnalysisSummary', () =>
+    complianceIssuesRepo.getGuidanceComplianceAnalysisSummary(guidanceDocumentId)
   );
 }

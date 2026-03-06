@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { Card, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { GuidanceStatusBadge } from './GuidanceStatusBadge';
@@ -28,8 +29,8 @@ function ListSection({ label, items }: { label: string; items: string[] | null }
     <div className="py-2 border-b border-[var(--color-neutral-100)] last:border-b-0">
       <span className="text-xs font-medium text-[var(--color-text-muted)] block mb-1">{label}</span>
       <ul className="space-y-0.5">
-        {items.map((item, i) => (
-          <li key={item} className="text-xs text-[var(--color-text)]">{item}</li>
+        {items.map((item, idx) => (
+          <li key={idx} className="text-xs text-[var(--color-text)]">{item}</li>
         ))}
       </ul>
     </div>
@@ -94,9 +95,14 @@ export function GuidanceDetailSidebar({ doc, state, resolvedCitations }: Guidanc
         <ListSection label="Cited Documents" items={doc.citesDocuments} />
 
         {/* Compliance issues */}
-        {doc.complianceIssueCount > 0 && (
+        {doc.complianceIssueCount > 0 && state && (
           <MetadataRow label="Compliance Issues">
-            <Badge variant="warning">{doc.complianceIssueCount}</Badge>
+            <Link
+              href={`/${state}/pipeline?source=guidance`}
+              className="inline-flex items-center gap-1 hover:underline"
+            >
+              <Badge variant="warning">{doc.complianceIssueCount}</Badge>
+            </Link>
           </MetadataRow>
         )}
       </div>

@@ -20,6 +20,7 @@ interface ReviewTypeTabsProps {
     definitions: number;
     needs_info: number;
     jenai: number;
+    guidance: number;
   };
   mode?: ReviewMode;
 }
@@ -61,6 +62,8 @@ export function ReviewTypeTabs({ activeType, counts, mode = 'review' }: ReviewTy
         return counts.needs_info;
       case 'jenai':
         return counts.jenai;
+      case 'guidance':
+        return counts.guidance;
       default:
         return 0;
     }
@@ -73,6 +76,7 @@ export function ReviewTypeTabs({ activeType, counts, mode = 'review' }: ReviewTy
     const isDefinitionsActive = activeType === 'definitions';
     const isNeedsInfoActive = activeType === 'needs_info';
     const isJenaiActive = activeType === 'jenai';
+    const isGuidanceActive = activeType === 'guidance';
 
     return (
       <div className="flex gap-1 p-1 bg-[var(--color-neutral-100)] rounded-[var(--radius-lg)] mb-4">
@@ -184,6 +188,28 @@ export function ReviewTypeTabs({ activeType, counts, mode = 'review' }: ReviewTy
               className="text-xs"
             >
               {counts.jenai}
+            </Badge>
+          )}
+        </button>
+        <button
+          onClick={() => handleTabChange('guidance')}
+          className={`
+            flex items-center gap-2 px-4 py-2 rounded-[var(--radius-md)] text-sm font-medium
+            transition-all duration-[var(--duration-fast)]
+            ${
+              isGuidanceActive
+                ? 'bg-white text-[var(--color-text)] shadow-sm'
+                : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-white/50'
+            }
+          `}
+        >
+          Guidance
+          {counts.guidance > 0 && (
+            <Badge
+              variant={isGuidanceActive ? 'info' : 'default'}
+              className="text-xs"
+            >
+              {counts.guidance}
             </Badge>
           )}
         </button>

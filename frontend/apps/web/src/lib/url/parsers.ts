@@ -76,6 +76,8 @@ import {
   GUIDANCE_SORT_BY_VALUES,
   GUIDANCE_STATUS_VALUES,
   GUIDANCE_POLICY_CATEGORY_VALUES,
+  // Pipeline source
+  PIPELINE_SOURCE_VALUES,
 } from '@/lib/constants/values';
 
 // Re-export types for convenience
@@ -176,6 +178,9 @@ export const statuteSourceParser = parseAsStringEnum([...BOOLEAN_FILTER_VALUES])
 export const requirementFoundParser = parseAsStringEnum([...BOOLEAN_FILTER_VALUES]).withDefault('true');
 export const reviewTypeParser = parseAsStringEnum([...REVIEW_TYPE_VALUES]).withDefault('flags');
 export const reviewModeParser = parseAsStringEnum([...REVIEW_MODE_VALUES]).withDefault('review');
+
+// Pipeline source parser (regulations vs guidance)
+export const pipelineSourceParser = parseAsStringEnum([...PIPELINE_SOURCE_VALUES]).withDefault('regulations');
 export const glossaryViewParser = parseAsStringEnum([...GLOSSARY_VIEW_VALUES]).withDefault('flat');
 
 // Boolean filter parsers

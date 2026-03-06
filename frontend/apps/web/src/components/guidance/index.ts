@@ -4,6 +4,7 @@ export { GuidanceBrowseTab } from './GuidanceBrowseTab';
 export { GuidanceTable } from './GuidanceTable';
 export { GuidanceDetailSidebar } from './GuidanceDetailSidebar';
 export { GuidanceDetailContent } from './GuidanceDetailContent';
+export { GuidanceComplianceCard } from './GuidanceComplianceCard';
 export { GuidanceStatusBadge } from './GuidanceStatusBadge';
 export { PolicyCategoryBadge } from './PolicyCategoryBadge';
 export { DocumentLineageViewer } from './DocumentLineageViewer';

@@ -110,8 +110,12 @@ export type ComplianceDeveloperSortByValue = (typeof COMPLIANCE_DEVELOPER_SORT_B
 // Review page navigation
 // ============================================
 
-export const REVIEW_TYPE_VALUES = ['flags', 'compliance', 'definitions', 'needs_info', 'jenai'] as const;
+export const REVIEW_TYPE_VALUES = ['flags', 'compliance', 'definitions', 'needs_info', 'jenai', 'guidance'] as const;
 export type ReviewTypeValue = (typeof REVIEW_TYPE_VALUES)[number];
+
+// Pipeline source tabs (regulations vs guidance)
+export const PIPELINE_SOURCE_VALUES = ['regulations', 'guidance'] as const;
+export type PipelineSourceValue = (typeof PIPELINE_SOURCE_VALUES)[number];
 
 export const REVIEW_MODE_VALUES = ['review', 'developer'] as const;
 export type ReviewModeValue = (typeof REVIEW_MODE_VALUES)[number];

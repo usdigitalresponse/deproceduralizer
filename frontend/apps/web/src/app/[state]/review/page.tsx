@@ -14,6 +14,7 @@ import {
   ComplianceDeveloperQueue,
 } from '@/components/review';
 import { JenAIQueue } from '@/components/review/JenAIQueue';
+import { GuidanceReviewPlaceholder } from '@/components/review/GuidanceReviewPlaceholder';
 import {
   getDeveloperModeCountsData,
   getReviewModeCountsData,
@@ -145,13 +146,13 @@ function shouldRedirect(
   queryParams: ReviewPageQueryParams
 ): boolean {
   if (mode === 'developer') {
-    return !queryParams.developerStatus && reviewType !== 'needs_info' && reviewType !== 'jenai';
+    return !queryParams.developerStatus && reviewType !== 'needs_info' && reviewType !== 'jenai' && reviewType !== 'guidance';
   }
   // Suggestion mode doesn't need reviewStatus - it always shows unreviewed items
   if (reviewType === 'compliance' && queryParams.queueMode === 'suggestion') {
     return false;
   }
-  return !queryParams.reviewStatus && reviewType !== 'needs_info' && reviewType !== 'jenai';
+  return !queryParams.reviewStatus && reviewType !== 'needs_info' && reviewType !== 'jenai' && reviewType !== 'guidance';
 }
 
 function buildRedirectUrl(
@@ -209,6 +210,8 @@ async function renderDeveloperMode(
       return loadDeveloperJenAITab(ctx, tabCounts);
     case 'compliance':
       return loadDeveloperComplianceTab(ctx, tabCounts, countsData.complianceDeveloperStatusCounts);
+    case 'guidance':
+      return loadGuidanceTab(ctx, tabCounts, 'developer');
     default:
       return loadDeveloperRedFlagsTab(ctx, tabCounts, countsData.redFlagDeveloperStatusCounts);
   }
@@ -389,6 +392,8 @@ async function renderReviewMode(
       return loadReviewJenAITab(ctx, tabCounts);
     case 'compliance':
       return loadReviewComplianceTab(ctx, tabCounts, countsData.complianceStatusCounts);
+    case 'guidance':
+      return loadGuidanceTab(ctx, tabCounts, 'review');
     default:
       return loadReviewRedFlagsTab(ctx, tabCounts, countsData.flagStatusCounts);
   }
@@ -634,6 +639,26 @@ async function loadReviewRedFlagsTab(
 }
 
 // ============================================
+// Guidance Tab (shared between review and developer mode)
+// ============================================
+
+async function loadGuidanceTab(
+  ctx: TabLoaderContext,
+  tabCounts: TabCounts,
+  mode: ReviewMode,
+) {
+  return (
+    <ReviewPageLayout pageConfig={ctx.pageConfig} mode={mode} reviewType="guidance" tabCounts={tabCounts}>
+      <GuidanceReviewPlaceholder
+        jurisdiction={ctx.stateCode.toLowerCase()}
+        count={tabCounts.guidance}
+        mode={mode}
+      />
+    </ReviewPageLayout>
+  );
+}
+
+// ============================================
 // Shared Layout Component
 // ============================================
 
@@ -647,7 +672,7 @@ function ReviewPageLayout({
   pageConfig: { title: string; description: string };
   mode: ReviewMode;
   reviewType: ReviewType;
-  tabCounts: { flags: number; compliance: number; definitions: number; needs_info: number; jenai: number };
+  tabCounts: { flags: number; compliance: number; definitions: number; needs_info: number; jenai: number; guidance: number };
   children: React.ReactNode;
 }) {
   return (

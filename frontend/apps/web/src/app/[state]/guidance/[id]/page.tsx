@@ -1,9 +1,10 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
-import { getGuidanceById, getDocumentLineage, getGuidanceResolvedCitations } from '@/lib/actions/guidance-documents';
+import { getGuidanceById, getDocumentLineage, getGuidanceResolvedCitations, getGuidanceComplianceAnalysisSummary } from '@/lib/actions/guidance-documents';
 import { GuidanceDetailSidebar } from '@/components/guidance/GuidanceDetailSidebar';
 import { GuidanceDetailContent } from '@/components/guidance/GuidanceDetailContent';
+import { GuidanceComplianceCard } from '@/components/guidance/GuidanceComplianceCard';
 import { DocumentLineageViewer } from '@/components/guidance/DocumentLineageViewer';
 import { GuidanceStatusBadge } from '@/components/guidance/GuidanceStatusBadge';
 import { GuidanceBookmarkButton } from '@/components/guidance/GuidanceBookmarkButton';
@@ -27,10 +28,11 @@ export default async function GuidanceDetailPage({ params }: GuidanceDetailPageP
     notFound();
   }
 
-  const [result, lineageResult, resolvedCitationsResult] = await Promise.all([
+  const [result, lineageResult, resolvedCitationsResult, complianceSummaryResult] = await Promise.all([
     getGuidanceById(docId),
     getDocumentLineage(docId),
     getGuidanceResolvedCitations(docId),
+    getGuidanceComplianceAnalysisSummary(docId),
   ]);
 
   if (!result.success || !result.data) {
@@ -40,6 +42,7 @@ export default async function GuidanceDetailPage({ params }: GuidanceDetailPageP
   const doc = result.data;
   const lineage = lineageResult.success ? lineageResult.data : null;
   const resolvedCitations = resolvedCitationsResult.success ? resolvedCitationsResult.data : [];
+  const complianceSummary = complianceSummaryResult.success ? complianceSummaryResult.data : null;
 
   return (
     <div className="bg-[var(--color-background)] min-h-screen">
@@ -68,6 +71,9 @@ export default async function GuidanceDetailPage({ params }: GuidanceDetailPageP
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
             <GuidanceDetailContent doc={doc} />
+            {complianceSummary && complianceSummary.totalIssues > 0 && (
+              <GuidanceComplianceCard summary={complianceSummary} state={state} />
+            )}
           </div>
 
           {/* Sidebar */}

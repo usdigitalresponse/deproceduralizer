@@ -3,6 +3,7 @@ import { BaseRepository } from './base.repository';
 import { normalizeJurisdiction } from '../schema/constants';
 import { complianceIssues, ComplianceIssue, IssueType } from '../schema/compliance-issues';
 import { regulatoryDocuments } from '../schema/regulatory-documents';
+import { guidanceDocuments } from '../schema/guidance-documents';
 import {
   complianceIssueAnalyses,
   ContextEntry,
@@ -575,6 +576,9 @@ export interface AnalysisListFilters {
   bookmarkedOnly?: boolean;
 }
 
+/** Analysis source: regulations (default) or guidance documents. */
+export type AnalysisSource = 'regulation' | 'guidance';
+
 /**
  * Build a single SQL condition for a Tier 3 JSONB flag filter.
  *
@@ -612,12 +616,21 @@ export function buildTier3FlagFilter(
 export function buildAnalysisListFilters(params: {
   jurisdiction: JurisdictionCode;
   filters?: AnalysisListFilters;
+  source?: AnalysisSource;
 }): SQL[] {
-  const { jurisdiction, filters } = params;
+  const { jurisdiction, filters, source } = params;
 
   const conditions: SQL[] = [
     eq(complianceIssueAnalyses.jurisdiction, normalizeJurisdiction(jurisdiction)),
   ];
+
+  // Source filter: guidance requires guidanceDocumentId, regulation requires documentId
+  if (source === 'guidance') {
+    conditions.push(isNotNull(complianceIssueAnalyses.guidanceDocumentId));
+  } else {
+    // Default to regulation — excludes guidance rows for backward compatibility
+    conditions.push(isNotNull(complianceIssueAnalyses.documentId));
+  }
 
   if (!filters) return conditions;
 
@@ -3071,6 +3084,581 @@ export class ComplianceIssuesRepository extends BaseRepository {
       contextCited: row.context_cited,
     };
   }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // Guidance Document Analysis Methods
+  // ═══════════════════════════════════════════════════════════════════
+
+  async getGuidanceAnalysisTierCounts(jurisdiction: JurisdictionCode): Promise<TierCompletionCounts> {
+    const results = await this.db
+      .select({
+        tier: complianceIssueAnalyses.highestTierCompleted,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(complianceIssueAnalyses)
+      .where(and(
+        eq(complianceIssueAnalyses.jurisdiction, normalizeJurisdiction(jurisdiction)),
+        isNotNull(complianceIssueAnalyses.guidanceDocumentId)
+      ))
+      .groupBy(complianceIssueAnalyses.highestTierCompleted);
+
+    const counts: TierCompletionCounts = { tier0: 0, tier1: 0, tier2: 0, tier3: 0 };
+    for (const row of results) {
+      if (row.tier === null) counts.tier0 = row.count;
+      else if (row.tier === 1) counts.tier1 = row.count;
+      else if (row.tier === 2) counts.tier2 = row.count;
+      else if (row.tier === 3) counts.tier3 = row.count;
+    }
+    return counts;
+  }
+
+  async getGuidanceClassificationBreakdown(jurisdiction: JurisdictionCode): Promise<ClassificationBreakdown> {
+    const breakdown: ClassificationBreakdown = { tier1: {}, tier2: {}, tier3: {} };
+    const baseConditions = and(
+      eq(complianceIssueAnalyses.jurisdiction, normalizeJurisdiction(jurisdiction)),
+      isNotNull(complianceIssueAnalyses.guidanceDocumentId)
+    );
+
+    const [tier1Results, tier2Results, tier3Results] = await Promise.all([
+      this.db.select({
+        classification: complianceIssueAnalyses.tier1Classification,
+        count: sql<number>`count(*)::int`,
+      }).from(complianceIssueAnalyses)
+        .where(and(baseConditions, sql`${complianceIssueAnalyses.tier1Classification} IS NOT NULL`))
+        .groupBy(complianceIssueAnalyses.tier1Classification),
+      this.db.select({
+        classification: complianceIssueAnalyses.tier2Classification,
+        count: sql<number>`count(*)::int`,
+      }).from(complianceIssueAnalyses)
+        .where(and(baseConditions, sql`${complianceIssueAnalyses.tier2Classification} IS NOT NULL`))
+        .groupBy(complianceIssueAnalyses.tier2Classification),
+      this.db.select({
+        classification: complianceIssueAnalyses.tier3Classification,
+        count: sql<number>`count(*)::int`,
+      }).from(complianceIssueAnalyses)
+        .where(and(baseConditions, sql`${complianceIssueAnalyses.tier3Classification} IS NOT NULL`))
+        .groupBy(complianceIssueAnalyses.tier3Classification),
+    ]);
+
+    for (const row of tier1Results) { if (row.classification) breakdown.tier1[row.classification] = row.count; }
+    for (const row of tier2Results) { if (row.classification) breakdown.tier2[row.classification] = row.count; }
+    for (const row of tier3Results) { if (row.classification) breakdown.tier3[row.classification] = row.count; }
+    return breakdown;
+  }
+
+  async getGuidanceAnalysisListPaginated(
+    jurisdiction: JurisdictionCode,
+    options: {
+      page: number;
+      pageSize: number;
+      sortBy?: 'issueType' | 'severity' | 'highestTier' | 'createdAt';
+      sortOrder?: 'asc' | 'desc';
+      filters?: AnalysisListFilters;
+    }
+  ): Promise<{
+    data: GuidanceAnalysisListItem[];
+    total: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  }> {
+    const { page, pageSize, sortBy = 'createdAt', sortOrder = 'desc', filters } = options;
+    const offset = (page - 1) * pageSize;
+
+    const conditions = buildAnalysisListFilters({ jurisdiction, filters, source: 'guidance' });
+    const whereClause = and(...conditions);
+    const orderClauses = buildAnalysisListSort(sortBy, sortOrder);
+
+    const [{ count: total }] = await this.db
+      .select({ count: count() })
+      .from(complianceIssueAnalyses)
+      .innerJoin(guidanceDocuments, eq(complianceIssueAnalyses.guidanceDocumentId, guidanceDocuments.id))
+      .where(whereClause);
+
+    const results = await this.db
+      .select({
+        guidanceDocumentId: complianceIssueAnalyses.guidanceDocumentId,
+        issueType: complianceIssueAnalyses.issueType,
+        highestTierCompleted: complianceIssueAnalyses.highestTierCompleted,
+        tier1Classification: complianceIssueAnalyses.tier1Classification,
+        tier2Classification: complianceIssueAnalyses.tier2Classification,
+        tier3Classification: complianceIssueAnalyses.tier3Classification,
+        tier2RerunCount: complianceIssueAnalyses.tier2RerunCount,
+        finalSeverity: sql<number | null>`COALESCE(${complianceIssueAnalyses.finalSeverity}, ${complianceIssueAnalyses.severity})`,
+        federalMandateFound: complianceIssueAnalyses.federalMandateFound,
+        isJustified: complianceIssueAnalyses.isJustified,
+        createdAt: complianceIssueAnalyses.createdAt,
+        easyCleanupCandidate: complianceIssueAnalyses.easyCleanupCandidate,
+        cleanupType: complianceIssueAnalyses.cleanupType,
+        cleanupEffort: complianceIssueAnalyses.cleanupEffort,
+        tier3TriggerReason: complianceIssueAnalyses.tier3TriggerReason,
+        docTitle: guidanceDocuments.title,
+        docAgency: guidanceDocuments.agency,
+        docType: guidanceDocuments.docType,
+        docCanonicalRef: guidanceDocuments.canonicalRef,
+      })
+      .from(complianceIssueAnalyses)
+      .innerJoin(guidanceDocuments, eq(complianceIssueAnalyses.guidanceDocumentId, guidanceDocuments.id))
+      .where(whereClause)
+      .orderBy(...orderClauses)
+      .limit(pageSize)
+      .offset(offset);
+
+    return {
+      data: results.map(row => ({
+        guidanceDocumentId: Number(row.guidanceDocumentId),
+        issueType: row.issueType,
+        documentTitle: row.docTitle,
+        agency: row.docAgency,
+        docType: row.docType,
+        canonicalRef: row.docCanonicalRef,
+        highestTierCompleted: row.highestTierCompleted ?? 0,
+        tier1Classification: row.tier1Classification,
+        tier2Classification: row.tier2Classification,
+        tier3Classification: row.tier3Classification,
+        finalSeverity: row.finalSeverity,
+        federalMandateFound: row.federalMandateFound ?? false,
+        isJustified: row.isJustified ?? false,
+        rerunCount: row.tier2RerunCount ?? 0,
+        createdAt: row.createdAt,
+        easyCleanupCandidate: row.easyCleanupCandidate ?? false,
+        cleanupType: row.cleanupType,
+        cleanupEffort: row.cleanupEffort,
+        tier3TriggerReason: row.tier3TriggerReason,
+      })),
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
+  }
+
+  async getFullGuidanceAnalysis(
+    guidanceDocumentId: number,
+    issueType: string
+  ): Promise<FullGuidanceAnalysisRecord | null> {
+    const results = await this.db
+      .select({
+        // Analysis fields
+        guidanceDocumentId: complianceIssueAnalyses.guidanceDocumentId,
+        issueType: complianceIssueAnalyses.issueType,
+        jurisdiction: complianceIssueAnalyses.jurisdiction,
+        groupedMatchCount: complianceIssueAnalyses.groupedMatchCount,
+
+        // Tier 1
+        tier1Classification: complianceIssueAnalyses.tier1Classification,
+        tier1Confidence: complianceIssueAnalyses.tier1Confidence,
+        tier1Reasoning: complianceIssueAnalyses.tier1Reasoning,
+        tier1RelevantMatchIds: complianceIssueAnalyses.tier1RelevantMatchIds,
+        tier1DismissedMatchIds: complianceIssueAnalyses.tier1DismissedMatchIds,
+        tier1DismissedReasons: complianceIssueAnalyses.tier1DismissedReasons,
+        tier1ContextRequests: complianceIssueAnalyses.tier1ContextRequests,
+        tier1CompletedAt: complianceIssueAnalyses.tier1CompletedAt,
+        tier1ArgumentFraming: complianceIssueAnalyses.tier1ArgumentFraming,
+        tier1Recommendations: complianceIssueAnalyses.tier1Recommendations,
+
+        // Tier 2
+        tier2Classification: complianceIssueAnalyses.tier2Classification,
+        tier2Confidence: complianceIssueAnalyses.tier2Confidence,
+        tier2Reasoning: complianceIssueAnalyses.tier2Reasoning,
+        severity: complianceIssueAnalyses.severity,
+        severityBaseline: complianceIssueAnalyses.severityBaseline,
+        severityCalculation: complianceIssueAnalyses.severityCalculation,
+        verbatimRequirements: complianceIssueAnalyses.verbatimRequirements,
+        argumentForRegulation: complianceIssueAnalyses.argumentForRegulation,
+        argumentAgainstRegulation: complianceIssueAnalyses.argumentAgainstRegulation,
+        contextUsed: complianceIssueAnalyses.contextUsed,
+        tier2FullTextRequests: complianceIssueAnalyses.tier2FullTextRequests,
+        needsWebSearch: complianceIssueAnalyses.needsWebSearch,
+        webSearchTopics: complianceIssueAnalyses.webSearchTopics,
+        potentiallyControversial: complianceIssueAnalyses.potentiallyControversial,
+        federalMandateSuspected: complianceIssueAnalyses.federalMandateSuspected,
+        ambiguityType: complianceIssueAnalyses.ambiguityType,
+        tier2CompletedAt: complianceIssueAnalyses.tier2CompletedAt,
+        tier2RerunCount: complianceIssueAnalyses.tier2RerunCount,
+        tier2ContextRequestsMade: complianceIssueAnalyses.tier2ContextRequestsMade,
+        tier2ForcedClassification: complianceIssueAnalyses.tier2ForcedClassification,
+        citesFederalStatute: complianceIssueAnalyses.citesFederalStatute,
+        federalCitation: complianceIssueAnalyses.federalCitation,
+        claimsNoAlternative: complianceIssueAnalyses.claimsNoAlternative,
+        programContext: complianceIssueAnalyses.programContext,
+        notToConfuseWith: complianceIssueAnalyses.notToConfuseWith,
+        searchScopeGuidance: complianceIssueAnalyses.searchScopeGuidance,
+
+        // Tier 3
+        tier3Classification: complianceIssueAnalyses.tier3Classification,
+        tier3Confidence: complianceIssueAnalyses.tier3Confidence,
+        tier3Reasoning: complianceIssueAnalyses.tier3Reasoning,
+        tier3SeverityAdjustment: complianceIssueAnalyses.tier3SeverityAdjustment,
+        tier3SeverityAdjustmentReasoning: complianceIssueAnalyses.tier3SeverityAdjustmentReasoning,
+        tier3CompletedAt: complianceIssueAnalyses.tier3CompletedAt,
+        tier3TriggerReason: complianceIssueAnalyses.tier3TriggerReason,
+        tier3Flags: complianceIssueAnalyses.tier3Flags,
+        tier3EvidenceGap: complianceIssueAnalyses.tier3EvidenceGap,
+
+        // Web search results
+        webSearchSummary: complianceIssueAnalyses.webSearchSummary,
+        federalMandateFound: complianceIssueAnalyses.federalMandateFound,
+        stateHasDiscretion: complianceIssueAnalyses.stateHasDiscretion,
+
+        // Final derived fields
+        highestTierCompleted: complianceIssueAnalyses.highestTierCompleted,
+        classificationTier: complianceIssueAnalyses.classificationTier,
+        requirementFound: complianceIssueAnalyses.requirementFound,
+        isJustified: complianceIssueAnalyses.isJustified,
+        finalSeverity: complianceIssueAnalyses.finalSeverity,
+        pipelineVersion: complianceIssueAnalyses.pipelineVersion,
+        createdAt: complianceIssueAnalyses.createdAt,
+        updatedAt: complianceIssueAnalyses.updatedAt,
+
+        // Easy Cleanup
+        easyCleanupCandidate: complianceIssueAnalyses.easyCleanupCandidate,
+        cleanupType: complianceIssueAnalyses.cleanupType,
+        cleanupEvidence: complianceIssueAnalyses.cleanupEvidence,
+        cleanupRecommendation: complianceIssueAnalyses.cleanupRecommendation,
+        cleanupEffort: complianceIssueAnalyses.cleanupEffort,
+
+        // Guidance document fields
+        gdId: guidanceDocuments.id,
+        gdTitle: guidanceDocuments.title,
+        gdAgency: guidanceDocuments.agency,
+        gdAgencyDivision: guidanceDocuments.agencyDivision,
+        gdDocType: guidanceDocuments.docType,
+        gdCanonicalRef: guidanceDocuments.canonicalRef,
+        gdUrl: guidanceDocuments.url,
+        gdPrograms: guidanceDocuments.programs,
+        gdPolicyCategory: guidanceDocuments.policyCategory,
+      })
+      .from(complianceIssueAnalyses)
+      .innerJoin(guidanceDocuments, eq(complianceIssueAnalyses.guidanceDocumentId, guidanceDocuments.id))
+      .where(and(
+        eq(complianceIssueAnalyses.guidanceDocumentId, guidanceDocumentId),
+        eq(complianceIssueAnalyses.issueType, issueType)
+      ))
+      .limit(1);
+
+    if (results.length === 0) return null;
+
+    const row = results[0];
+    return {
+      guidanceDocumentId: Number(row.guidanceDocumentId),
+      issueType: row.issueType,
+      jurisdiction: row.jurisdiction,
+      groupedMatchCount: row.groupedMatchCount,
+
+      guidanceDocument: {
+        id: row.gdId,
+        title: row.gdTitle,
+        agency: row.gdAgency,
+        agencyDivision: row.gdAgencyDivision,
+        docType: row.gdDocType,
+        canonicalRef: row.gdCanonicalRef,
+        url: row.gdUrl,
+        programs: row.gdPrograms,
+        policyCategory: row.gdPolicyCategory,
+      },
+
+      tier1: row.tier1Classification ? {
+        classification: row.tier1Classification,
+        confidence: row.tier1Confidence,
+        reasoning: row.tier1Reasoning,
+        relevantMatchIds: row.tier1RelevantMatchIds,
+        dismissedMatchIds: row.tier1DismissedMatchIds,
+        dismissedReasons: row.tier1DismissedReasons as DismissedMatch[] | null,
+        contextRequests: row.tier1ContextRequests as ContextRequest[] | null,
+        completedAt: row.tier1CompletedAt,
+        argumentFraming: row.tier1ArgumentFraming as Tier1ArgumentFraming | null,
+        recommendations: row.tier1Recommendations as Tier1Recommendations | null,
+      } : null,
+
+      tier2: row.tier2Classification ? {
+        classification: row.tier2Classification,
+        confidence: row.tier2Confidence,
+        reasoning: row.tier2Reasoning,
+        severity: row.severity,
+        severityBaseline: row.severityBaseline,
+        severityCalculation: row.severityCalculation,
+        verbatimRequirements: row.verbatimRequirements ?? [],
+        argumentForRegulation: row.argumentForRegulation,
+        argumentAgainstRegulation: row.argumentAgainstRegulation,
+        contextUsed: row.contextUsed as ContextEntry[] | null,
+        fullTextRequests: row.tier2FullTextRequests as ContextRequest[] | null,
+        needsWebSearch: row.needsWebSearch ?? false,
+        webSearchTopics: row.webSearchTopics ?? [],
+        potentiallyControversial: row.potentiallyControversial ?? false,
+        federalMandateSuspected: row.federalMandateSuspected ?? false,
+        ambiguityType: row.ambiguityType,
+        completedAt: row.tier2CompletedAt,
+        rerunCount: row.tier2RerunCount ?? 0,
+        contextRequestsMade: row.tier2ContextRequestsMade as Tier2ContextRequestMade[] | null,
+        forcedClassification: row.tier2ForcedClassification ?? false,
+        citesFederalStatute: row.citesFederalStatute ?? false,
+        federalCitation: row.federalCitation,
+        claimsNoAlternative: row.claimsNoAlternative ?? false,
+        programContext: row.programContext,
+        notToConfuseWith: row.notToConfuseWith,
+        searchScopeGuidance: row.searchScopeGuidance,
+      } : null,
+
+      tier3: row.tier3Classification ? {
+        classification: row.tier3Classification,
+        confidence: row.tier3Confidence,
+        reasoning: row.tier3Reasoning,
+        severityAdjustment: row.tier3SeverityAdjustment,
+        severityAdjustmentReasoning: row.tier3SeverityAdjustmentReasoning,
+        completedAt: row.tier3CompletedAt,
+        triggerReason: row.tier3TriggerReason,
+        flags: row.tier3Flags as Tier3Flags | null,
+        evidenceGap: row.tier3EvidenceGap ?? false,
+        webSearchSummary: row.webSearchSummary,
+        federalMandateFound: row.federalMandateFound ?? false,
+        stateHasDiscretion: row.stateHasDiscretion ?? true,
+      } : null,
+
+      highestTierCompleted: row.highestTierCompleted ?? 0,
+      classificationTier: row.classificationTier,
+      requirementFound: row.requirementFound,
+      isJustified: row.isJustified ?? false,
+      finalSeverity: row.finalSeverity,
+      pipelineVersion: row.pipelineVersion ?? 'v5',
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+      easyCleanupCandidate: row.easyCleanupCandidate ?? false,
+      cleanupType: row.cleanupType,
+      cleanupEvidence: row.cleanupEvidence,
+      cleanupRecommendation: row.cleanupRecommendation,
+      cleanupEffort: row.cleanupEffort,
+    };
+  }
+
+  async getGuidanceRegexMatches(guidanceDocumentId: number, issueType: string): Promise<ComplianceIssue[]> {
+    return this.db
+      .select()
+      .from(complianceIssues)
+      .where(and(
+        eq(complianceIssues.guidanceDocumentId, guidanceDocumentId),
+        eq(complianceIssues.issueType, issueType)
+      ))
+      .orderBy(asc(complianceIssues.occurrenceNumber));
+  }
+
+  async getGuidanceComplianceIssueStatusCounts(
+    jurisdiction: JurisdictionCode
+  ): Promise<{ total: number; unreviewed: number; reviewed: number; dismissed: number }> {
+    const results = await this.db
+      .select({
+        status: complianceIssueAnalyses.reviewStatus,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(complianceIssueAnalyses)
+      .where(and(
+        eq(complianceIssueAnalyses.jurisdiction, normalizeJurisdiction(jurisdiction)),
+        isNotNull(complianceIssueAnalyses.guidanceDocumentId),
+        eq(complianceIssueAnalyses.requirementFound, true),
+      ))
+      .groupBy(complianceIssueAnalyses.reviewStatus);
+
+    let total = 0, unreviewed = 0, reviewed = 0, dismissed = 0;
+    for (const row of results) {
+      total += row.count;
+      if (row.status === null || row.status === 'unreviewed') unreviewed += row.count;
+      else if (row.status === 'dismissed') dismissed += row.count;
+      else reviewed += row.count;
+    }
+    return { total, unreviewed, reviewed, dismissed };
+  }
+
+  async getGuidanceComplianceIssuesPaginated(
+    jurisdiction: JurisdictionCode,
+    options: ComplianceIssuePaginationOptions
+  ): Promise<PaginatedComplianceIssuesResult> {
+    const { page, pageSize, sortBy = 'severity', sortOrder = 'desc', filters } = options;
+    const offset = (page - 1) * pageSize;
+
+    const conditions: SQL[] = [
+      eq(complianceIssueAnalyses.jurisdiction, normalizeJurisdiction(jurisdiction)),
+      isNotNull(complianceIssueAnalyses.guidanceDocumentId),
+      eq(complianceIssueAnalyses.requirementFound, true),
+    ];
+
+    if (filters?.status && filters.status !== 'all') {
+      if (filters.status === 'unreviewed') {
+        conditions.push(or(isNull(complianceIssueAnalyses.reviewStatus), eq(complianceIssueAnalyses.reviewStatus, 'unreviewed'))!);
+      } else {
+        conditions.push(eq(complianceIssueAnalyses.reviewStatus, filters.status));
+      }
+    }
+    if (filters?.issueType && filters.issueType !== 'all') {
+      conditions.push(eq(complianceIssueAnalyses.issueType, filters.issueType));
+    }
+
+    const whereClause = and(...conditions);
+
+    const severityExpr = sql`COALESCE(${complianceIssueAnalyses.reviewerSeverity}, ${complianceIssueAnalyses.finalSeverity}, ${complianceIssueAnalyses.severity})`;
+    const sortColumn = {
+      issueType: complianceIssueAnalyses.issueType,
+      severity: severityExpr,
+      createdAt: complianceIssueAnalyses.createdAt,
+      reviewedAt: complianceIssueAnalyses.reviewedAt,
+      developerCheckedAt: complianceIssueAnalyses.developerCheckedAt,
+    }[sortBy] ?? complianceIssueAnalyses.createdAt;
+
+    const primarySort = sortBy === 'severity' && sortOrder === 'desc'
+      ? sql`${sortColumn} DESC NULLS LAST`
+      : sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
+
+    // Get count and data
+    const [[{ count: total }], rows] = await Promise.all([
+      this.db.select({ count: count() }).from(complianceIssueAnalyses).where(whereClause),
+      this.db.select({
+        // Analysis fields (id is analysis row id, not compliance_issues match id)
+        id: complianceIssueAnalyses.id,
+        issueType: complianceIssueAnalyses.issueType,
+        guidanceDocumentId: complianceIssueAnalyses.guidanceDocumentId,
+        // Analysis fields
+        requirementFound: complianceIssueAnalyses.requirementFound,
+        severity: severityExpr,
+        originalSeverity: sql<number | null>`COALESCE(${complianceIssueAnalyses.finalSeverity}, ${complianceIssueAnalyses.severity})`,
+        reviewStatus: complianceIssueAnalyses.reviewStatus,
+        reviewedBy: complianceIssueAnalyses.reviewedBy,
+        reviewedAt: complianceIssueAnalyses.reviewedAt,
+        justificationNotes: complianceIssueAnalyses.justificationNotes,
+        teamNotes: complianceIssueAnalyses.teamNotes,
+        impactType: complianceIssueAnalyses.impactType,
+        tier1Reasoning: complianceIssueAnalyses.tier1Reasoning,
+        tier2Reasoning: complianceIssueAnalyses.tier2Reasoning,
+        tier3Reasoning: complianceIssueAnalyses.tier3Reasoning,
+        // Guidance document context
+        gdTitle: guidanceDocuments.title,
+        gdAgency: guidanceDocuments.agency,
+        gdUrl: guidanceDocuments.url,
+      })
+      .from(complianceIssueAnalyses)
+      .innerJoin(guidanceDocuments, eq(complianceIssueAnalyses.guidanceDocumentId, guidanceDocuments.id))
+      .where(whereClause)
+      .orderBy(primarySort, asc(complianceIssueAnalyses.id))
+      .limit(pageSize)
+      .offset(offset),
+    ]);
+
+    // Map to ComplianceIssueWithAnalysis shape expected by review queue
+    const data: ComplianceIssueWithAnalysis[] = rows.map(row => ({
+      // Minimal compliance issue fields
+      id: row.id,
+      documentId: null,
+      guidanceDocumentId: Number(row.guidanceDocumentId),
+      issueType: row.issueType,
+      occurrenceNumber: 0,
+      regexMatchPattern: '',
+      regexMatchContext: '',
+      url: row.gdUrl,
+      jurisdiction: normalizeJurisdiction(jurisdiction),
+      createdAt: null,
+      analysisId: null,
+      runId: null,
+      // Analysis fields
+      requirementFound: row.requirementFound,
+      verbatimSupportingText: null,
+      isVerbatim: null,
+      requiredByStatute: null,
+      statuteCitation: null,
+      tier1Reasoning: row.tier1Reasoning,
+      tier2Reasoning: row.tier2Reasoning,
+      tier3Reasoning: row.tier3Reasoning,
+      severity: row.severity as number | null,
+      originalSeverity: row.originalSeverity as number | null,
+      reviewStatus: row.reviewStatus,
+      reviewedBy: row.reviewedBy,
+      reviewedAt: row.reviewedAt,
+      justificationNotes: row.justificationNotes,
+      teamNotes: row.teamNotes,
+      impactType: row.impactType,
+      developerStatus: null,
+      developerAssigned: null,
+      developerNotes: null,
+      resolutionType: null,
+      resolutionComments: null,
+      developerQuestion: null,
+      developerCheckedAt: null,
+      // Document context -- adapts guidance doc info into regulation shape for component compatibility
+      regulation: {
+        id: Number(row.guidanceDocumentId),
+        title: row.gdTitle,
+        content: null,
+        nycrrTitle: null,
+        nycrrPart: null,
+        nycrrSection: null,
+        njacTitle: null,
+        njacChapter: null,
+        njacSubchapter: null,
+        url: row.gdUrl,
+        summary: null,
+        sectionType: null,
+        hasForm: null,
+        hasIbr: null,
+      },
+      analysis: null,
+    }));
+
+    return {
+      data,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
+  }
+
+  async getGuidanceComplianceAnalysisSummary(
+    guidanceDocumentId: number
+  ): Promise<{
+    totalIssues: number;
+    analyzedCount: number;
+    burdensomeCount: number;
+    justifiedCount: number;
+    topIssueTypes: Array<{ issueType: string; count: number }>;
+  }> {
+    const baseCondition = eq(complianceIssueAnalyses.guidanceDocumentId, guidanceDocumentId);
+
+    const [totalResult, analyzedResult, classResults, topIssueTypes] = await Promise.all([
+      this.db.select({ count: sql<number>`count(*)::int` })
+        .from(complianceIssues)
+        .where(eq(complianceIssues.guidanceDocumentId, guidanceDocumentId)),
+      this.db.select({ count: sql<number>`count(*)::int` })
+        .from(complianceIssueAnalyses)
+        .where(baseCondition),
+      this.db.select({
+        classification: sql<string>`COALESCE(${complianceIssueAnalyses.tier3Classification}, ${complianceIssueAnalyses.tier2Classification}, ${complianceIssueAnalyses.tier1Classification})`,
+        count: sql<number>`count(*)::int`,
+      })
+        .from(complianceIssueAnalyses)
+        .where(baseCondition)
+        .groupBy(sql`COALESCE(${complianceIssueAnalyses.tier3Classification}, ${complianceIssueAnalyses.tier2Classification}, ${complianceIssueAnalyses.tier1Classification})`),
+      this.db.select({
+        issueType: complianceIssueAnalyses.issueType,
+        count: sql<number>`count(*)::int`,
+      })
+        .from(complianceIssueAnalyses)
+        .where(baseCondition)
+        .groupBy(complianceIssueAnalyses.issueType)
+        .orderBy(desc(sql`count(*)`))
+        .limit(5),
+    ]);
+
+    let burdensomeCount = 0, justifiedCount = 0;
+    for (const row of classResults) {
+      if (row.classification === 'burdensome') burdensomeCount = row.count;
+      else if (row.classification === 'justified') justifiedCount = row.count;
+    }
+
+    return {
+      totalIssues: totalResult[0].count,
+      analyzedCount: analyzedResult[0].count,
+      burdensomeCount,
+      justifiedCount,
+      topIssueTypes,
+    };
+  }
 }
 
 /**
@@ -3096,6 +3684,48 @@ export interface AnalysisListItem {
   cleanupEffort: string | null;
   // V5.1: Tier 3 trigger reason
   tier3TriggerReason: string | null;
+}
+
+/** Analysis list item for guidance documents. Uses agency/docType instead of regulation citation. */
+export interface GuidanceAnalysisListItem {
+  guidanceDocumentId: number;
+  issueType: string;
+  documentTitle: string | null;
+  agency: string | null;
+  docType: string | null;
+  canonicalRef: string | null;
+  highestTierCompleted: number;
+  tier1Classification: string | null;
+  tier2Classification: string | null;
+  tier3Classification: string | null;
+  finalSeverity: number | null;
+  federalMandateFound: boolean;
+  isJustified: boolean;
+  rerunCount: number;
+  createdAt: Date | null;
+  easyCleanupCandidate: boolean;
+  cleanupType: string | null;
+  cleanupEffort: string | null;
+  tier3TriggerReason: string | null;
+}
+
+/**
+ * Full analysis record for guidance document detail page.
+ * Replaces regulatory document context with guidance document metadata.
+ */
+export interface FullGuidanceAnalysisRecord extends Omit<FullAnalysisRecord, 'documentId' | 'document'> {
+  guidanceDocumentId: number | null;
+  guidanceDocument: {
+    id: number;
+    title: string;
+    agency: string;
+    agencyDivision: string | null;
+    docType: string | null;
+    canonicalRef: string | null;
+    url: string | null;
+    programs: string[] | null;
+    policyCategory: string | null;
+  };
 }
 
 export interface AnalysisExportRow {

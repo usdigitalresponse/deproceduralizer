@@ -1,16 +1,20 @@
+import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
-import { getAnalysisTierStats, getPriorityPicks } from '@/lib/actions/analysis';
-import { AnalysisDashboard } from '@/components/analysis';
+import { getAnalysisTierStats, getGuidanceAnalysisTierStats, getPriorityPicks } from '@/lib/actions/analysis';
+import { AnalysisDashboard, PipelineSourceTabs } from '@/components/analysis';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Container } from '@/components/layout/Container';
 import { JURISDICTION_CONFIG, isValidJurisdiction } from '@/types/state';
+import type { PipelineSourceValue } from '@/lib/constants/values';
 
 interface AnalysisPageProps {
   params: Promise<{ state: string }>;
+  searchParams: Promise<{ source?: string }>;
 }
 
-export default async function AnalysisPage({ params }: AnalysisPageProps) {
+export default async function AnalysisPage({ params, searchParams }: AnalysisPageProps) {
   const { state } = await params;
+  const queryParams = await searchParams;
 
   if (!isValidJurisdiction(state)) {
     notFound();
@@ -18,18 +22,21 @@ export default async function AnalysisPage({ params }: AnalysisPageProps) {
 
   const stateCode = state;
   const stateConfig = JURISDICTION_CONFIG[state];
+  const source: PipelineSourceValue = queryParams.source === 'guidance' ? 'guidance' : 'regulations';
+  const isGuidance = source === 'guidance';
 
-  // Fetch analysis stats and priority picks in parallel
-  const [statsResult, priorityResult] = await Promise.all([
-    getAnalysisTierStats(stateCode),
-    getPriorityPicks(stateCode),
-  ]);
+  // Fetch stats based on source, and priority picks (regulations only)
+  const statsResult = isGuidance
+    ? await getGuidanceAnalysisTierStats(stateCode)
+    : await getAnalysisTierStats(stateCode);
+
+  const priorityResult = isGuidance ? null : await getPriorityPicks(stateCode);
 
   const tierCounts = statsResult.success ? statsResult.data.tierCounts : null;
   const classificationBreakdown = statsResult.success ? statsResult.data.classificationBreakdown : null;
   const total = statsResult.success ? statsResult.data.total : 0;
 
-  const priorityPicks = priorityResult.success ? priorityResult.data : null;
+  const priorityPicks = priorityResult?.success ? priorityResult.data : null;
 
   return (
     <div className="bg-[var(--color-background)] min-h-screen">
@@ -38,13 +45,20 @@ export default async function AnalysisPage({ params }: AnalysisPageProps) {
         description="View research pipeline progression, tier distributions, and classification outcomes"
       />
       <Container size="2xl" className="py-6">
-        <AnalysisDashboard
-          jurisdiction={stateCode}
-          tierCounts={tierCounts}
-          classificationBreakdown={classificationBreakdown}
-          total={total}
-          priorityPicks={priorityPicks}
-        />
+        <Suspense fallback={null}>
+          <PipelineSourceTabs />
+        </Suspense>
+
+        <div className="mt-4">
+          <AnalysisDashboard
+            jurisdiction={stateCode}
+            tierCounts={tierCounts}
+            classificationBreakdown={classificationBreakdown}
+            total={total}
+            priorityPicks={priorityPicks}
+            source={source}
+          />
+        </div>
       </Container>
     </div>
   );

@@ -8,9 +8,12 @@ import {
   type TierCompletionCounts,
   type ClassificationBreakdown,
   type FullAnalysisRecord,
+  type FullGuidanceAnalysisRecord,
   type AnalysisListItem,
+  type GuidanceAnalysisListItem,
   type ComplianceIssue,
   type AnalysisExportRow,
+  type AnalysisListFilters,
 } from '@deproceduralizer/database';
 import { type ActionResult, success, failure, getErrorMessage, runAction, runCachedAction } from './types';
 import { generateCsv } from '@/lib/utils/csv';
@@ -98,31 +101,6 @@ export interface PaginatedAnalysisResult {
   page: number;
   pageSize: number;
   totalPages: number;
-}
-
-/**
- * Filter options for analysis list.
- */
-export interface AnalysisListFilters {
-  tierCompleted?: number;
-  classification?: string;
-  federalMandate?: boolean;
-  pipelineRun?: boolean;
-  issueType?: string;
-  // V5 Tier 3 filters
-  severity?: 'high' | 'medium' | 'low' | 'none';
-  severityChanged?: 'increased' | 'decreased' | 'unchanged' | 'no_tier3';
-  federalMandateConfirmed?: 'true' | 'false' | 'no_tier3';
-  stateDiscretion?: 'true' | 'false' | 'no_tier3';
-  alternativeFound?: 'true' | 'false' | 'no_tier3';
-  evidenceGap?: 'true' | 'false' | 'no_tier3';
-  supersededByLaw?: 'true' | 'false' | 'no_tier3';       // Has a new law replaced this requirement?
-  advocacyForChange?: 'true' | 'false' | 'no_tier3';     // Is there journalism/advocacy calling for change?
-  tier3Trigger?: string;
-  // V5.1 Easy Cleanup filter
-  easyCleanup?: 'any' | 'trivial' | 'easy' | 'medium';
-  // Bookmarks filter
-  bookmarkedOnly?: boolean;
 }
 
 /**
@@ -277,11 +255,10 @@ export async function exportAnalysisCsv(
   sortOrder?: string,
 ): Promise<ActionResult<string>> {
   return runAction('exportAnalysisCsv', async () => {
-    const repoFilters = mapFiltersToRepo(filters);
     const rows = await complianceIssuesRepo.getAnalysisExportData(state, {
       sortBy,
       sortOrder,
-      filters: repoFilters,
+      filters,
     });
 
     const headers = [
@@ -314,27 +291,66 @@ export async function exportAnalysisCsv(
   });
 }
 
-/**
- * Maps URL-state filter values to repository filter format.
- * Converts 'all' values to undefined (no filter).
- */
-function mapFiltersToRepo(filters: AnalysisListFilters): AnalysisListFilters {
-  return {
-    tierCompleted: filters.tierCompleted,
-    classification: filters.classification,
-    federalMandate: filters.federalMandate,
-    pipelineRun: filters.pipelineRun,
-    issueType: filters.issueType,
-    severity: filters.severity,
-    severityChanged: filters.severityChanged,
-    federalMandateConfirmed: filters.federalMandateConfirmed,
-    stateDiscretion: filters.stateDiscretion,
-    alternativeFound: filters.alternativeFound,
-    evidenceGap: filters.evidenceGap,
-    supersededByLaw: filters.supersededByLaw,
-    advocacyForChange: filters.advocacyForChange,
-    tier3Trigger: filters.tier3Trigger,
-    easyCleanup: filters.easyCleanup,
-    bookmarkedOnly: filters.bookmarkedOnly,
-  };
+// ============================================
+// Guidance Analysis Actions
+// ============================================
+
+export async function getGuidanceAnalysisTierStats(
+  state: JurisdictionCode
+): Promise<ActionResult<AnalysisTierStats>> {
+  return runCachedAction(
+    'getGuidanceAnalysisTierStats',
+    async () => {
+      const [tierCounts, classificationBreakdown] = await Promise.all([
+        complianceIssuesRepo.getGuidanceAnalysisTierCounts(state),
+        complianceIssuesRepo.getGuidanceClassificationBreakdown(state),
+      ]);
+      const total = tierCounts.tier0 + tierCounts.tier1 + tierCounts.tier2 + tierCounts.tier3;
+      return { tierCounts, classificationBreakdown, total };
+    },
+    [`guidance-analysis-tier-stats-${state}`],
+    { revalidate: 120 }
+  );
 }
+
+export interface PaginatedGuidanceAnalysisResult {
+  data: GuidanceAnalysisListItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export async function getGuidanceAnalysisListPaginated(
+  state: JurisdictionCode,
+  options: {
+    page: number;
+    pageSize: number;
+    sortBy?: 'issueType' | 'severity' | 'highestTier' | 'createdAt';
+    sortOrder?: 'asc' | 'desc';
+    filters?: AnalysisListFilters;
+  }
+): Promise<ActionResult<PaginatedGuidanceAnalysisResult>> {
+  return runAction('getGuidanceAnalysisListPaginated', () =>
+    complianceIssuesRepo.getGuidanceAnalysisListPaginated(state, options)
+  );
+}
+
+export async function getFullGuidanceAnalysisRecord(
+  guidanceDocumentId: number,
+  issueType: string
+): Promise<ActionResult<FullGuidanceAnalysisRecord | null>> {
+  return runAction('getFullGuidanceAnalysisRecord', () =>
+    complianceIssuesRepo.getFullGuidanceAnalysis(guidanceDocumentId, issueType)
+  );
+}
+
+export async function getGuidanceRegexMatchesForAnalysis(
+  guidanceDocumentId: number,
+  issueType: string
+): Promise<ActionResult<ComplianceIssue[]>> {
+  return runAction('getGuidanceRegexMatchesForAnalysis', () =>
+    complianceIssuesRepo.getGuidanceRegexMatches(guidanceDocumentId, issueType)
+  );
+}
+
