@@ -49,7 +49,11 @@ export const ISSUE_TYPES = [
   "waiting_period",
   "mandated_reports",
   "reporting_frequency",
-  "incorporation_by_reference"
+  "incorporation_by_reference",
+  "fines_fees_penalties",
+  "good_moral_character",
+  "fee_no_waiver",
+  "criminal_history_barrier"
 ] as const;
 
 /**
@@ -78,7 +82,7 @@ export const ISSUE_TYPE_META: Record<IssueType, IssueTypeMeta> = {
     category: "Communication",
     description: "Mail required with no electronic alternative",
     dbIssueType: "mail_only",
-    updatedAt: "2025-12-26",
+    updatedAt: "2026-03-05",
   },
   certified_mail: {
     displayName: "Certified/Registered Mail",
@@ -92,7 +96,7 @@ export const ISSUE_TYPE_META: Record<IssueType, IssueTypeMeta> = {
     category: "Communication",
     description: "Fax required or only alternative to mail",
     dbIssueType: "fax_required",
-    updatedAt: "2025-12-26",
+    updatedAt: "2026-03-05",
   },
   obsolete_comm: {
     displayName: "Obsolete Communication",
@@ -106,7 +110,7 @@ export const ISSUE_TYPE_META: Record<IssueType, IssueTypeMeta> = {
     category: "Communication",
     description: "Telephone/landline required",
     dbIssueType: "landline",
-    updatedAt: "2025-12-26",
+    updatedAt: "2026-03-05",
   },
   check_payment: {
     displayName: "Check/Money Order Payment",
@@ -148,7 +152,7 @@ export const ISSUE_TYPE_META: Record<IssueType, IssueTypeMeta> = {
     category: "Signatures",
     description: "Notarization required",
     dbIssueType: "notarization",
-    updatedAt: "2025-12-26",
+    updatedAt: "2026-03-05",
   },
   witness: {
     displayName: "Witness Required",
@@ -204,7 +208,7 @@ export const ISSUE_TYPE_META: Record<IssueType, IssueTypeMeta> = {
     category: "Physical Presence",
     description: "Documents available for inspection at location",
     dbIssueType: "physical_inspection",
-    updatedAt: "2025-12-26",
+    updatedAt: "2026-03-05",
   },
   physical_posting: {
     displayName: "Physical Posting Required",
@@ -330,7 +334,7 @@ export const ISSUE_TYPE_META: Record<IssueType, IssueTypeMeta> = {
     category: "Process",
     description: "Records must be kept at specific location",
     dbIssueType: "storage_location",
-    updatedAt: "2025-12-26",
+    updatedAt: "2026-03-05",
   },
   fixed_window: {
     displayName: "Fixed Processing Window",
@@ -366,6 +370,34 @@ export const ISSUE_TYPE_META: Record<IssueType, IssueTypeMeta> = {
     description: "External standards, codes, or documents incorporated by reference",
     dbIssueType: "incorporation_by_reference",
     updatedAt: "2025-12-26",
+  },
+  fines_fees_penalties: {
+    displayName: "Fines, Fees & Penalties",
+    category: "Enforcement",
+    description: "Monetary charges including fines, fees, penalties, surcharges, and forfeitures",
+    dbIssueType: "fines_fees_penalties",
+    updatedAt: "2026-03-05",
+  },
+  good_moral_character: {
+    displayName: "Good Moral Character Requirement",
+    category: "Equity & Access",
+    description: "Vague moral character standard without required balancing test",
+    dbIssueType: "good_moral_character",
+    updatedAt: "2026-03-05",
+  },
+  fee_no_waiver: {
+    displayName: "Non-Refundable Fee Without Waiver",
+    category: "Equity & Access",
+    description: "Non-refundable fee with no hardship waiver provision",
+    dbIssueType: "fee_no_waiver",
+    updatedAt: "2026-03-05",
+  },
+  criminal_history_barrier: {
+    displayName: "Criminal History Barrier",
+    category: "Equity & Access",
+    description: "Criminal history barrier without required balancing test",
+    dbIssueType: "criminal_history_barrier",
+    updatedAt: "2026-03-05",
   }
 };
 

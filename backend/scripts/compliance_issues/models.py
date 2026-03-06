@@ -5,7 +5,7 @@ Field names match database columns exactly for clarity.
 """
 
 import json
-from typing import Optional
+from typing import Literal, Optional
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 
@@ -118,6 +118,82 @@ class IncorporationByReferenceAnalysis(BaseModel):
     )
 
 
+# =============================================================================
+# Fines, Fees & Penalties - uses separate table with different columns
+# =============================================================================
+
+class FineFeePenaltyItem(BaseModel):
+    """A single fine, fee, or penalty extracted from a document."""
+    llm_confirmed: bool = Field(
+        description="True if this is a confirmed fine, fee, or penalty"
+    )
+    penalty_type: Literal['fine', 'fee', 'penalty', 'surcharge', 'forfeiture', 'other'] = Field(
+        description="Type: 'fine', 'fee', 'penalty', 'surcharge', 'forfeiture', or 'other'"
+    )
+    amount: Optional[str] = Field(
+        default=None,
+        description="Dollar amount as stated (e.g., '$500', 'up to $10,000', '$100-$500')"
+    )
+    amount_min: Optional[float] = Field(
+        default=None,
+        description="Minimum numeric amount if parseable"
+    )
+    amount_max: Optional[float] = Field(
+        default=None,
+        description="Maximum numeric amount if parseable"
+    )
+    per_unit: Optional[str] = Field(
+        default=None,
+        description="What the amount is per (e.g., 'per violation', 'per day')"
+    )
+    who_pays: Optional[str] = Field(
+        default=None,
+        description="Who is subject to this charge (e.g., 'licensee', 'applicant')"
+    )
+    responsible_agency: Optional[str] = Field(
+        default=None,
+        description="Agency that administers or collects this charge"
+    )
+    violation_description: Optional[str] = Field(
+        default=None,
+        description="What triggers this fine/fee"
+    )
+    requirement_quote: Optional[str] = Field(
+        default=None,
+        description="Exact quote from text establishing this charge"
+    )
+
+    @model_validator(mode='after')
+    def validate_amount_range(self) -> 'FineFeePenaltyItem':
+        """Swap amount_min and amount_max if inverted."""
+        if self.amount_min is not None and self.amount_max is not None:
+            if self.amount_min > self.amount_max:
+                self.amount_min, self.amount_max = self.amount_max, self.amount_min
+        return self
+
+
+class FinesFeePenaltyAnalysis(BaseModel):
+    """
+    LLM analysis for fines, fees, and penalties.
+
+    Returns a list of items — one document may contain multiple distinct charges.
+    Field names match fines_fees_penalties table columns.
+    Note: This uses a DIFFERENT table than compliance_issues.
+    """
+    items: list[FineFeePenaltyItem] = Field(
+        default_factory=list,
+        description="List of fines, fees, and penalties found in the document"
+    )
+
+    @field_validator('items', mode='before')
+    @classmethod
+    def parse_stringified_json(cls, v):
+        """Handle LLM sometimes returning items as a JSON string."""
+        if isinstance(v, str):
+            return json.loads(v)
+        return v
+
+
 # Map model names (from YAML) to actual classes
 RESPONSE_MODELS = {
     "BaseComplianceAnalysis": BaseComplianceAnalysis,
@@ -131,4 +207,5 @@ RESPONSE_MODELS = {
     "DocumentFormatAnalysis": DocumentFormatAnalysis,
     "ReportingFrequencyAnalysis": ReportingFrequencyAnalysis,
     "IncorporationByReferenceAnalysis": IncorporationByReferenceAnalysis,
+    "FinesFeePenaltyAnalysis": FinesFeePenaltyAnalysis,
 }

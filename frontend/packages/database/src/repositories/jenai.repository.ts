@@ -3,14 +3,17 @@ import { BaseRepository } from './base.repository';
 import { jenaiIssues, type JenAIIssue } from '../schema/jenai-issues';
 import { jenaiAnalyses } from '../schema/jenai-analyses';
 import { regulatoryDocuments } from '../schema/regulatory-documents';
+import { guidanceDocuments } from '../schema/guidance-documents';
 import { type JurisdictionCode, normalizeJurisdiction } from '../schema/constants';
 import type { SeverityDistribution } from './compliance-issues.repository';
+
+const SEVERITY_HIGH_MIN = 7;
+const SEVERITY_MEDIUM_MIN = 4;
 
 export interface JenAIIssueWithContext extends JenAIIssue {
   regulation: {
     id: number;
     title: string | null;
-    content: string | null;
     nycrrTitle: number | null;
     nycrrPart: string | null;
     nycrrSection: string | null;
@@ -19,7 +22,15 @@ export interface JenAIIssueWithContext extends JenAIIssue {
     sectionType: string | null;
     hasForm: boolean | null;
     hasIbr: boolean | null;
-  };
+  } | null;
+  guidance: {
+    id: number;
+    title: string | null;
+    agency: string | null;
+    docType: string | null;
+    url: string | null;
+  } | null;
+  sourceType: 'regulation' | 'guidance';
 }
 
 export interface JenAIFilterOptions {
@@ -104,8 +115,8 @@ export class JenAIRepository extends BaseRepository {
         count: sql<number>`count(*)::int`,
       })
       .from(jenaiIssues)
-      .innerJoin(regulatoryDocuments, eq(jenaiIssues.documentId, regulatoryDocuments.id))
-      .where(eq(regulatoryDocuments.jurisdiction, normalizeJurisdiction(jurisdiction)))
+      .innerJoin(jenaiAnalyses, eq(jenaiIssues.analysisId, jenaiAnalyses.id))
+      .where(eq(jenaiAnalyses.jurisdiction, normalizeJurisdiction(jurisdiction)))
       .groupBy(jenaiIssues.category)
       .orderBy(asc(jenaiIssues.category));
 
@@ -122,8 +133,8 @@ export class JenAIRepository extends BaseRepository {
         count: sql<number>`count(*)::int`,
       })
       .from(jenaiIssues)
-      .innerJoin(regulatoryDocuments, eq(jenaiIssues.documentId, regulatoryDocuments.id))
-      .where(eq(regulatoryDocuments.jurisdiction, normalizeJurisdiction(jurisdiction)))
+      .innerJoin(jenaiAnalyses, eq(jenaiIssues.analysisId, jenaiAnalyses.id))
+      .where(eq(jenaiAnalyses.jurisdiction, normalizeJurisdiction(jurisdiction)))
       .groupBy(jenaiIssues.reviewStatus);
 
     const counts: JenAIReviewStatusCounts = {
@@ -157,9 +168,9 @@ export class JenAIRepository extends BaseRepository {
         count: sql<number>`count(*)::int`,
       })
       .from(jenaiIssues)
-      .innerJoin(regulatoryDocuments, eq(jenaiIssues.documentId, regulatoryDocuments.id))
+      .innerJoin(jenaiAnalyses, eq(jenaiIssues.analysisId, jenaiAnalyses.id))
       .where(and(
-        eq(regulatoryDocuments.jurisdiction, normalizeJurisdiction(jurisdiction)),
+        eq(jenaiAnalyses.jurisdiction, normalizeJurisdiction(jurisdiction)),
         ne(jenaiIssues.reviewStatus, 'unreviewed')
       ))
       .groupBy(jenaiIssues.developerStatus);
@@ -191,10 +202,9 @@ export class JenAIRepository extends BaseRepository {
     options: JenAIPaginationOptions
   ): Promise<PaginatedJenAIResult> {
     const { jurisdiction, page, pageSize, sortBy = 'severity', sortOrder = 'desc', filters } = options;
-    const offset = (page - 1) * pageSize;
 
     const conditions: ReturnType<typeof eq>[] = [
-      eq(regulatoryDocuments.jurisdiction, normalizeJurisdiction(jurisdiction)),
+      eq(jenaiAnalyses.jurisdiction, normalizeJurisdiction(jurisdiction)),
     ];
 
     if (filters) {
@@ -211,12 +221,8 @@ export class JenAIRepository extends BaseRepository {
         }
       }
 
-      if (filters.severity === 'high') {
-        conditions.push(gte(jenaiIssues.severity, 7));
-      } else if (filters.severity === 'medium') {
-        conditions.push(and(gte(jenaiIssues.severity, 4), lt(jenaiIssues.severity, 7))!);
-      } else if (filters.severity === 'low') {
-        conditions.push(lt(jenaiIssues.severity, 4));
+      if (filters.severity) {
+        conditions.push(this.buildSeverityCondition(filters.severity));
       }
 
       if (filters.category) {
@@ -224,125 +230,7 @@ export class JenAIRepository extends BaseRepository {
       }
     }
 
-    const whereClause = and(...conditions);
-
-    const [{ count: total }] = await this.db
-      .select({ count: count() })
-      .from(jenaiIssues)
-      .innerJoin(regulatoryDocuments, eq(jenaiIssues.documentId, regulatoryDocuments.id))
-      .where(whereClause);
-
-    const sortColumn = {
-      severity: jenaiIssues.severity,
-      category: jenaiIssues.category,
-      reviewedAt: jenaiIssues.reviewedAt,
-      developerCheckedAt: jenaiIssues.developerCheckedAt,
-      confidence: jenaiIssues.confidence,
-    }[sortBy];
-
-    const primarySort = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
-    const secondarySort = asc(jenaiIssues.id);
-
-    const results = await this.db
-      .select({
-        id: jenaiIssues.id,
-        analysisId: jenaiIssues.analysisId,
-        documentId: jenaiIssues.documentId,
-        category: jenaiIssues.category,
-        explanation: jenaiIssues.explanation,
-        severity: jenaiIssues.severity,
-        complexity: jenaiIssues.complexity,
-        confidence: jenaiIssues.confidence,
-        matchedPhrases: jenaiIssues.matchedPhrases,
-        implementationApproach: jenaiIssues.implementationApproach,
-        effortEstimate: jenaiIssues.effortEstimate,
-        textExamples: jenaiIssues.textExamples,
-        reviewStatus: jenaiIssues.reviewStatus,
-        reviewedBy: jenaiIssues.reviewedBy,
-        reviewedAt: jenaiIssues.reviewedAt,
-        justificationNotes: jenaiIssues.justificationNotes,
-        teamNotes: jenaiIssues.teamNotes,
-        priority: jenaiIssues.priority,
-        impactType: jenaiIssues.impactType,
-        developerStatus: jenaiIssues.developerStatus,
-        developerAssigned: jenaiIssues.developerAssigned,
-        developerNotes: jenaiIssues.developerNotes,
-        resolutionType: jenaiIssues.resolutionType,
-        resolutionComments: jenaiIssues.resolutionComments,
-        developerQuestion: jenaiIssues.developerQuestion,
-        developerCheckedAt: jenaiIssues.developerCheckedAt,
-        createdAt: jenaiIssues.createdAt,
-        updatedAt: jenaiIssues.updatedAt,
-        regulationId: regulatoryDocuments.id,
-        regulationTitle: regulatoryDocuments.title,
-        regulationNycrrTitle: regulatoryDocuments.nycrrTitle,
-        regulationNycrrPart: regulatoryDocuments.nycrrPart,
-        regulationNycrrSection: regulatoryDocuments.nycrrSection,
-        regulationUrl: regulatoryDocuments.url,
-        regulationSummary: regulatoryDocuments.summary,
-        regulationSectionType: regulatoryDocuments.sectionType,
-        regulationHasForm: regulatoryDocuments.hasForm,
-        regulationHasIbr: regulatoryDocuments.hasIbr,
-        regulationContent: regulatoryDocuments.content,
-      })
-      .from(jenaiIssues)
-      .innerJoin(regulatoryDocuments, eq(jenaiIssues.documentId, regulatoryDocuments.id))
-      .where(whereClause)
-      .orderBy(primarySort, secondarySort)
-      .limit(pageSize)
-      .offset(offset);
-
-    const data: JenAIIssueWithContext[] = results.map(row => ({
-      id: Number(row.id),
-      analysisId: Number(row.analysisId),
-      documentId: Number(row.documentId),
-      category: row.category,
-      explanation: row.explanation,
-      severity: row.severity,
-      complexity: row.complexity,
-      confidence: row.confidence,
-      matchedPhrases: row.matchedPhrases,
-      implementationApproach: row.implementationApproach,
-      effortEstimate: row.effortEstimate,
-      textExamples: row.textExamples,
-      reviewStatus: row.reviewStatus,
-      reviewedBy: row.reviewedBy,
-      reviewedAt: row.reviewedAt,
-      justificationNotes: row.justificationNotes,
-      teamNotes: row.teamNotes,
-      priority: row.priority,
-      impactType: row.impactType,
-      developerStatus: row.developerStatus,
-      developerAssigned: row.developerAssigned,
-      developerNotes: row.developerNotes,
-      resolutionType: row.resolutionType,
-      resolutionComments: row.resolutionComments,
-      developerQuestion: row.developerQuestion,
-      developerCheckedAt: row.developerCheckedAt,
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
-      regulation: {
-        id: row.regulationId,
-        title: row.regulationTitle,
-        content: row.regulationContent,
-        nycrrTitle: row.regulationNycrrTitle,
-        nycrrPart: row.regulationNycrrPart,
-        nycrrSection: row.regulationNycrrSection,
-        url: row.regulationUrl,
-        summary: row.regulationSummary,
-        sectionType: row.regulationSectionType,
-        hasForm: row.regulationHasForm,
-        hasIbr: row.regulationHasIbr,
-      },
-    }));
-
-    return {
-      data,
-      total,
-      page,
-      pageSize,
-      totalPages: Math.ceil(total / pageSize),
-    };
+    return this.queryPaginated({ conditions, sortBy, sortOrder, page, pageSize });
   }
 
   /**
@@ -397,10 +285,9 @@ export class JenAIRepository extends BaseRepository {
     }
   ): Promise<PaginatedJenAIResult> {
     const { jurisdiction, page, pageSize, sortBy = 'reviewedAt', sortOrder = 'desc', filters, developerStatus, developerAssigned } = options;
-    const offset = (page - 1) * pageSize;
 
     const conditions: ReturnType<typeof eq>[] = [
-      eq(regulatoryDocuments.jurisdiction, normalizeJurisdiction(jurisdiction)),
+      eq(jenaiAnalyses.jurisdiction, normalizeJurisdiction(jurisdiction)),
       ne(jenaiIssues.reviewStatus, 'unreviewed'),
     ];
 
@@ -417,12 +304,8 @@ export class JenAIRepository extends BaseRepository {
         conditions.push(eq(jenaiIssues.reviewStatus, filters.status));
       }
 
-      if (filters.severity === 'high') {
-        conditions.push(gte(jenaiIssues.severity, 7));
-      } else if (filters.severity === 'medium') {
-        conditions.push(and(gte(jenaiIssues.severity, 4), lt(jenaiIssues.severity, 7))!);
-      } else if (filters.severity === 'low') {
-        conditions.push(lt(jenaiIssues.severity, 4));
+      if (filters.severity) {
+        conditions.push(this.buildSeverityCondition(filters.severity));
       }
 
       if (filters.category) {
@@ -430,12 +313,110 @@ export class JenAIRepository extends BaseRepository {
       }
     }
 
+    return this.queryPaginated({
+      conditions, sortBy, sortOrder, page, pageSize,
+      defaultSortFallback: jenaiIssues.reviewedAt,
+    });
+  }
+
+  /**
+   * Get severity distribution (high/medium/low) for JenAI issues.
+   */
+  async getSeverityDistribution(jurisdiction: JurisdictionCode): Promise<SeverityDistribution> {
+    const result = await this.db.execute(sql`
+      SELECT
+        COUNT(*) FILTER (WHERE ji.severity >= ${SEVERITY_HIGH_MIN})::int AS "high",
+        COUNT(*) FILTER (WHERE ji.severity >= ${SEVERITY_MEDIUM_MIN} AND ji.severity < ${SEVERITY_HIGH_MIN})::int AS "medium",
+        COUNT(*) FILTER (WHERE ji.severity >= 1 AND ji.severity < ${SEVERITY_MEDIUM_MIN})::int AS "low",
+        COUNT(*)::int AS "total"
+      FROM jenai_issues ji
+      INNER JOIN jenai_analyses ja ON ji.analysis_id = ja.id
+      WHERE ja.jurisdiction = ${normalizeJurisdiction(jurisdiction)}
+    `);
+
+    const row = result.rows[0] as { high: number; medium: number; low: number; total: number };
+    return { high: row.high, medium: row.medium, low: row.low, total: row.total };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Private helpers
+  // ---------------------------------------------------------------------------
+
+  private buildSeverityCondition(severity: 'high' | 'medium' | 'low') {
+    if (severity === 'high') return gte(jenaiIssues.severity, SEVERITY_HIGH_MIN);
+    if (severity === 'medium') return and(gte(jenaiIssues.severity, SEVERITY_MEDIUM_MIN), lt(jenaiIssues.severity, SEVERITY_HIGH_MIN))!;
+    return lt(jenaiIssues.severity, SEVERITY_MEDIUM_MIN);
+  }
+
+  private issueSelectFields() {
+    return {
+      id: jenaiIssues.id,
+      analysisId: jenaiIssues.analysisId,
+      documentId: jenaiIssues.documentId,
+      category: jenaiIssues.category,
+      explanation: jenaiIssues.explanation,
+      severity: jenaiIssues.severity,
+      complexity: jenaiIssues.complexity,
+      confidence: jenaiIssues.confidence,
+      matchedPhrases: jenaiIssues.matchedPhrases,
+      implementationApproach: jenaiIssues.implementationApproach,
+      effortEstimate: jenaiIssues.effortEstimate,
+      textExamples: jenaiIssues.textExamples,
+      reviewStatus: jenaiIssues.reviewStatus,
+      reviewedBy: jenaiIssues.reviewedBy,
+      reviewedAt: jenaiIssues.reviewedAt,
+      justificationNotes: jenaiIssues.justificationNotes,
+      teamNotes: jenaiIssues.teamNotes,
+      priority: jenaiIssues.priority,
+      impactType: jenaiIssues.impactType,
+      developerStatus: jenaiIssues.developerStatus,
+      developerAssigned: jenaiIssues.developerAssigned,
+      developerNotes: jenaiIssues.developerNotes,
+      resolutionType: jenaiIssues.resolutionType,
+      resolutionComments: jenaiIssues.resolutionComments,
+      developerQuestion: jenaiIssues.developerQuestion,
+      developerCheckedAt: jenaiIssues.developerCheckedAt,
+      guidanceDocumentId: jenaiIssues.guidanceDocumentId,
+      tags: jenaiIssues.tags,
+      isVerbatim: jenaiIssues.isVerbatim,
+      createdAt: jenaiIssues.createdAt,
+      updatedAt: jenaiIssues.updatedAt,
+      // Regulation fields (LEFT JOIN — null for guidance-backed rows)
+      regulationId: regulatoryDocuments.id,
+      regulationTitle: regulatoryDocuments.title,
+      regulationNycrrTitle: regulatoryDocuments.nycrrTitle,
+      regulationNycrrPart: regulatoryDocuments.nycrrPart,
+      regulationNycrrSection: regulatoryDocuments.nycrrSection,
+      regulationUrl: regulatoryDocuments.url,
+      regulationSummary: regulatoryDocuments.summary,
+      regulationSectionType: regulatoryDocuments.sectionType,
+      regulationHasForm: regulatoryDocuments.hasForm,
+      regulationHasIbr: regulatoryDocuments.hasIbr,
+      // Guidance fields (LEFT JOIN — null for regulation-backed rows)
+      guidanceId: guidanceDocuments.id,
+      guidanceTitle: guidanceDocuments.title,
+      guidanceAgency: guidanceDocuments.agency,
+      guidanceDocType: guidanceDocuments.docType,
+      guidanceUrl: guidanceDocuments.url,
+    };
+  }
+
+  private async queryPaginated(options: {
+    conditions: ReturnType<typeof eq>[];
+    sortBy: string;
+    sortOrder: 'asc' | 'desc';
+    page: number;
+    pageSize: number;
+    defaultSortFallback?: typeof jenaiIssues.reviewedAt;
+  }): Promise<PaginatedJenAIResult> {
+    const { conditions, sortBy, sortOrder, page, pageSize, defaultSortFallback } = options;
+    const offset = (page - 1) * pageSize;
     const whereClause = and(...conditions);
 
     const [{ count: total }] = await this.db
       .select({ count: count() })
       .from(jenaiIssues)
-      .innerJoin(regulatoryDocuments, eq(jenaiIssues.documentId, regulatoryDocuments.id))
+      .innerJoin(jenaiAnalyses, eq(jenaiIssues.analysisId, jenaiAnalyses.id))
       .where(whereClause);
 
     const sortColumn = {
@@ -444,64 +425,84 @@ export class JenAIRepository extends BaseRepository {
       reviewedAt: jenaiIssues.reviewedAt,
       developerCheckedAt: jenaiIssues.developerCheckedAt,
       confidence: jenaiIssues.confidence,
-    }[sortBy] ?? jenaiIssues.reviewedAt;
+    }[sortBy] ?? defaultSortFallback ?? jenaiIssues.severity;
 
     const primarySort = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
-    const secondarySort = asc(jenaiIssues.id);
 
     const results = await this.db
-      .select({
-        id: jenaiIssues.id,
-        analysisId: jenaiIssues.analysisId,
-        documentId: jenaiIssues.documentId,
-        category: jenaiIssues.category,
-        explanation: jenaiIssues.explanation,
-        severity: jenaiIssues.severity,
-        complexity: jenaiIssues.complexity,
-        confidence: jenaiIssues.confidence,
-        matchedPhrases: jenaiIssues.matchedPhrases,
-        implementationApproach: jenaiIssues.implementationApproach,
-        effortEstimate: jenaiIssues.effortEstimate,
-        textExamples: jenaiIssues.textExamples,
-        reviewStatus: jenaiIssues.reviewStatus,
-        reviewedBy: jenaiIssues.reviewedBy,
-        reviewedAt: jenaiIssues.reviewedAt,
-        justificationNotes: jenaiIssues.justificationNotes,
-        teamNotes: jenaiIssues.teamNotes,
-        priority: jenaiIssues.priority,
-        impactType: jenaiIssues.impactType,
-        developerStatus: jenaiIssues.developerStatus,
-        developerAssigned: jenaiIssues.developerAssigned,
-        developerNotes: jenaiIssues.developerNotes,
-        resolutionType: jenaiIssues.resolutionType,
-        resolutionComments: jenaiIssues.resolutionComments,
-        developerQuestion: jenaiIssues.developerQuestion,
-        developerCheckedAt: jenaiIssues.developerCheckedAt,
-        createdAt: jenaiIssues.createdAt,
-        updatedAt: jenaiIssues.updatedAt,
-        regulationId: regulatoryDocuments.id,
-        regulationTitle: regulatoryDocuments.title,
-        regulationNycrrTitle: regulatoryDocuments.nycrrTitle,
-        regulationNycrrPart: regulatoryDocuments.nycrrPart,
-        regulationNycrrSection: regulatoryDocuments.nycrrSection,
-        regulationUrl: regulatoryDocuments.url,
-        regulationSummary: regulatoryDocuments.summary,
-        regulationSectionType: regulatoryDocuments.sectionType,
-        regulationHasForm: regulatoryDocuments.hasForm,
-        regulationHasIbr: regulatoryDocuments.hasIbr,
-        regulationContent: regulatoryDocuments.content,
-      })
+      .select(this.issueSelectFields())
       .from(jenaiIssues)
-      .innerJoin(regulatoryDocuments, eq(jenaiIssues.documentId, regulatoryDocuments.id))
+      .innerJoin(jenaiAnalyses, eq(jenaiIssues.analysisId, jenaiAnalyses.id))
+      .leftJoin(regulatoryDocuments, eq(jenaiIssues.documentId, regulatoryDocuments.id))
+      .leftJoin(guidanceDocuments, eq(jenaiIssues.guidanceDocumentId, guidanceDocuments.id))
       .where(whereClause)
-      .orderBy(primarySort, secondarySort)
+      .orderBy(primarySort, asc(jenaiIssues.id))
       .limit(pageSize)
       .offset(offset);
 
-    const data: JenAIIssueWithContext[] = results.map(row => ({
+    return {
+      data: results.map(row => this.mapToIssueWithContext(row)),
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
+  }
+
+  private mapToIssueWithContext(row: {
+    id: number;
+    analysisId: number;
+    documentId: number | null;
+    category: string;
+    explanation: string;
+    severity: number;
+    complexity: string;
+    confidence: number;
+    matchedPhrases: string[] | null;
+    implementationApproach: string | null;
+    effortEstimate: string | null;
+    textExamples: string[] | null;
+    reviewStatus: string | null;
+    reviewedBy: string | null;
+    reviewedAt: Date | null;
+    justificationNotes: string | null;
+    teamNotes: string | null;
+    priority: number | null;
+    impactType: string | null;
+    developerStatus: string | null;
+    developerAssigned: string | null;
+    developerNotes: string | null;
+    resolutionType: string | null;
+    resolutionComments: string | null;
+    developerQuestion: string | null;
+    developerCheckedAt: Date | null;
+    guidanceDocumentId: number | null;
+    tags: string[] | null;
+    isVerbatim: boolean | null;
+    createdAt: Date | null;
+    updatedAt: Date | null;
+    regulationId: number | null;
+    regulationTitle: string | null;
+    regulationNycrrTitle: number | null;
+    regulationNycrrPart: string | null;
+    regulationNycrrSection: string | null;
+    regulationUrl: string | null;
+    regulationSummary: string | null;
+    regulationSectionType: string | null;
+    regulationHasForm: boolean | null;
+    regulationHasIbr: boolean | null;
+    guidanceId: number | null;
+    guidanceTitle: string | null;
+    guidanceAgency: string | null;
+    guidanceDocType: string | null;
+    guidanceUrl: string | null;
+  }): JenAIIssueWithContext {
+    const isGuidance = row.guidanceDocumentId !== null;
+
+    return {
       id: Number(row.id),
       analysisId: Number(row.analysisId),
-      documentId: Number(row.documentId),
+      documentId: row.documentId ? Number(row.documentId) : null,
       category: row.category,
       explanation: row.explanation,
       severity: row.severity,
@@ -525,49 +526,35 @@ export class JenAIRepository extends BaseRepository {
       resolutionComments: row.resolutionComments,
       developerQuestion: row.developerQuestion,
       developerCheckedAt: row.developerCheckedAt,
+      guidanceDocumentId: row.guidanceDocumentId ?? null,
+      tags: row.tags ?? [],
+      isVerbatim: row.isVerbatim ?? null,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
-      regulation: {
-        id: row.regulationId,
-        title: row.regulationTitle,
-        content: row.regulationContent,
-        nycrrTitle: row.regulationNycrrTitle,
-        nycrrPart: row.regulationNycrrPart,
-        nycrrSection: row.regulationNycrrSection,
-        url: row.regulationUrl,
-        summary: row.regulationSummary,
-        sectionType: row.regulationSectionType,
-        hasForm: row.regulationHasForm,
-        hasIbr: row.regulationHasIbr,
-      },
-    }));
-
-    return {
-      data,
-      total,
-      page,
-      pageSize,
-      totalPages: Math.ceil(total / pageSize),
+      regulation: row.regulationId !== null
+        ? {
+            id: row.regulationId,
+            title: row.regulationTitle,
+            nycrrTitle: row.regulationNycrrTitle,
+            nycrrPart: row.regulationNycrrPart,
+            nycrrSection: row.regulationNycrrSection,
+            url: row.regulationUrl,
+            summary: row.regulationSummary,
+            sectionType: row.regulationSectionType,
+            hasForm: row.regulationHasForm,
+            hasIbr: row.regulationHasIbr,
+          }
+        : null,
+      guidance: isGuidance && row.guidanceId !== null
+        ? {
+            id: row.guidanceId,
+            title: row.guidanceTitle,
+            agency: row.guidanceAgency,
+            docType: row.guidanceDocType,
+            url: row.guidanceUrl,
+          }
+        : null,
+      sourceType: isGuidance ? 'guidance' : 'regulation',
     };
-  }
-
-  /**
-   * Get severity distribution (high/medium/low) for JenAI issues.
-   * High >= 7, Medium 4-6, Low 1-3.
-   */
-  async getSeverityDistribution(jurisdiction: JurisdictionCode): Promise<SeverityDistribution> {
-    const result = await this.db.execute(sql`
-      SELECT
-        COUNT(*) FILTER (WHERE ji.severity >= 7)::int AS "high",
-        COUNT(*) FILTER (WHERE ji.severity >= 4 AND ji.severity < 7)::int AS "medium",
-        COUNT(*) FILTER (WHERE ji.severity >= 1 AND ji.severity < 4)::int AS "low",
-        COUNT(*)::int AS "total"
-      FROM jenai_issues ji
-      INNER JOIN regulatory_documents rd ON ji.document_id = rd.id
-      WHERE rd.jurisdiction = ${normalizeJurisdiction(jurisdiction)}
-    `);
-
-    const row = result.rows[0] as { high: number; medium: number; low: number; total: number };
-    return { high: row.high, medium: row.medium, low: row.low, total: row.total };
   }
 }

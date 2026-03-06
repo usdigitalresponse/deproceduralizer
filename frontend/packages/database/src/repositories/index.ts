@@ -13,3 +13,4 @@ export * from './search-filters';
 export * from './ibr.repository';
 export * from './jenai.repository';
 export * from './guidance-documents.repository';
+export * from './fines.repository';

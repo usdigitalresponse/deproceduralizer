@@ -1,0 +1,64 @@
+good_moral_character:
+  updated_at: '2026-03-05'
+  display_name: Good Moral Character Requirement
+  db_issue_type: good_moral_character
+  category: Equity & Access
+  description: 'Vague "good moral character" standard without legally required Article 23-A
+    balancing test. Approximately 96% of NY regulations using this language omit the required
+    multi-factor evaluation, creating unchecked discretion that disproportionately affects
+    people with criminal histories, immigrants, and other marginalized communities.'
+  positive_indicators:
+  - '"good moral character" required without defined criteria'
+  - No reference to Article 23-A balancing factors
+  - Broad discretion given to licensing authority
+  - '"satisfactory character" without objective standard'
+  - Character evaluation with no appeal or review process
+  negative_indicators:
+  - Article 23-A balancing factors explicitly referenced
+  - Concrete evaluation criteria provided (specific offenses listed, timeframes defined)
+  - Character is one factor among clearly listed objective criteria
+  - Bar admission or similar context with published evaluation standards
+  - Text merely quotes statute language that itself includes balancing requirements
+  severity_baseline: 6
+  severity_modifiers:
+    increases:
+    - '+1: No evaluation criteria or standards defined'
+    - '+1: Affects individual professional licenses (not business licenses)'
+    - '+1: No appeal process for character determination'
+    decreases:
+    - '-2: Article 23-A balancing test referenced'
+    - '-1: Some objective criteria provided'
+    - '-1: Appeal or review process available'
+  patterns:
+  - good moral character
+  - moral character and (suitability|fitness)
+  - character and fitness
+  - satisfactory.{0,20}character
+  statistics:
+    total_matches: null
+    true_positives: null
+    true_positive_rate: null
+    sample_date: '2026-03-05'
+  examples:
+    true_positives:
+    - citation: 19 NYCRR 400.4
+      quote: applicant must be of good moral character
+      reasoning: Vague character standard with no defined criteria or Article 23-A reference.
+        Gives licensing authority unchecked discretion.
+      classification: burdensome
+      severity: 6
+    - citation: 9 NYCRR 5900.2
+      quote: shall be of good moral character and suitability
+      reasoning: Character and suitability required without balancing test. No objective
+        evaluation criteria.
+      classification: burdensome
+      severity: 7
+    false_positives:
+    - citation: 22 NYCRR 602.1
+      quote: character and fitness evaluation pursuant to the factors set forth in Correction Law
+      reasoning: Explicitly references Article 23-A balancing factors. Proper legal framework.
+      classification: unrelated
+    - citation: 9 NYCRR 168.3
+      quote: character shall be one factor considered along with education, experience, and examination results
+      reasoning: Character is one factor among multiple objective criteria. Not sole determinant.
+      classification: unrelated

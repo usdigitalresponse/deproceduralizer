@@ -19,6 +19,7 @@ interface JenAIIssueData {
   implementationApproach: string | null;
   effortEstimate: string | null;
   textExamples: string[] | null;
+  tags: string[] | null;
   reviewStatus: string | null;
   regulation: {
     id: number;
@@ -56,6 +57,11 @@ export function JenAICard({ issue, state = 'ny' }: JenAICardProps) {
         <Badge variant="info" className="text-xs font-medium">
           {categoryLabel}
         </Badge>
+        {issue.tags && issue.tags.length > 0 && issue.tags.map((tag, i) => (
+          <Badge key={i} variant="default" className="text-xs font-normal">
+            {tag}
+          </Badge>
+        ))}
         <SeverityBadge severity={issue.severity} />
         {issue.complexity && (
           <Badge variant={getComplexityVariant(issue.complexity)} className="text-xs">

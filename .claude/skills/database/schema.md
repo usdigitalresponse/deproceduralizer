@@ -194,7 +194,8 @@ JenAI single-pass pipeline analysis results. One row per document analyzed.
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | bigserial | Primary key |
-| `document_id` | bigint NOT NULL | FK to regulatory_documents (UNIQUE) |
+| `document_id` | bigint | FK to regulatory_documents (nullable, partial unique index) |
+| `guidance_document_id` | bigint | FK to guidance_documents (nullable, partial unique index) |
 | `jurisdiction` | varchar(3) | NY, NJ, or NYC (CHECK constraint) |
 | `run_id` | varchar(32) | Pipeline run identifier |
 
@@ -207,7 +208,6 @@ JenAI single-pass pipeline analysis results. One row per document analyzed.
 | `classification` | varchar(30) | `has_issues` or `clean` |
 | `confidence` | real | 0.0-1.0 |
 | `categories` | jsonb | Array of all category findings |
-| `worst_thing` | text | WORST_THING explanation text |
 
 **Derived**
 
@@ -225,10 +225,11 @@ JenAI single-pass pipeline analysis results. One row per document analyzed.
 |--------|------|-------------|
 | `pipeline_version` | varchar(20) | Default 'v2' |
 | `model_version` | varchar(100) | LLM model used |
+| `responsible_agency` | text | Administering agency (from NYCRR title mapping or guidance doc agency) |
 
-**Constraints:** `jenai_analyses_document_unique UNIQUE(document_id)`, `chk_jenai_jurisdiction CHECK (jurisdiction IN ('NY', 'NJ', 'NYC'))`
+**Constraints:** `jenai_analyses_one_source_check CHECK (exactly one of document_id or guidance_document_id is set)`, `chk_jenai_jurisdiction CHECK (jurisdiction IN ('NY', 'NJ', 'NYC'))`
 
-**Indexes:** `idx_jenai_analyses_state`, `idx_jenai_analyses_run_id`
+**Indexes:** `jenai_analyses_document_id_unique` (partial, WHERE document_id IS NOT NULL), `jenai_analyses_guidance_document_id_unique` (partial, WHERE guidance_document_id IS NOT NULL), `idx_jenai_analyses_state`, `idx_jenai_analyses_run_id`
 
 ## jenai_issues
 
@@ -238,8 +239,9 @@ One row per category finding per document. Links to `jenai_analyses`.
 |--------|------|-------------|
 | `id` | bigserial | Primary key |
 | `analysis_id` | bigint NOT NULL | FK to jenai_analyses (ON DELETE CASCADE) |
-| `document_id` | bigint NOT NULL | FK to regulatory_documents (ON DELETE CASCADE) |
-| `category` | varchar(50) | One of 19 categories (CHECK constraint) |
+| `document_id` | bigint | FK to regulatory_documents (ON DELETE CASCADE, nullable) |
+| `guidance_document_id` | bigint | FK to guidance_documents (ON DELETE CASCADE, nullable) |
+| `category` | varchar(50) | One of 18 categories (CHECK constraint) |
 | `explanation` | text NOT NULL | Detailed explanation of the finding |
 | `severity` | integer (1-10) | Severity score |
 | `complexity` | varchar(20) | HIGH/MEDIUM/LOW |
@@ -248,19 +250,21 @@ One row per category finding per document. Links to `jenai_analyses`.
 | `implementation_approach` | text | Suggested implementation approach |
 | `effort_estimate` | varchar(255) | Effort estimate |
 | `text_examples` | text[] | Example text from the regulation |
+| `tags` | text[] | 2-3 kebab-case labels per finding |
+| `is_verbatim` | boolean | Whether matched_phrases are verbatim from source text |
 
-**Valid Categories (19 — 18 Pahlka + WORST_THING):**
+**Valid Categories (18 — 15 Pahlka + 2 structural + OTHER catch-all):**
 - `REGULATORY_COMPLEXITY`, `POLICY_IMPLEMENTATION_SEPARATION`, `CASCADE_OF_RIGIDITY`
 - `MANDATED_STEPS_NOT_OUTCOMES`, `ADMINISTRATIVE_BURDENS`, `NO_FEEDBACK_LOOPS`
 - `PROCESS_WORSHIP_OVERSIGHT`, `ZERO_RISK_LANGUAGE`, `FROZEN_TECHNOLOGY`
-- `WORST_THING` (adversarial — always required, can duplicate another category)
-- `MISSING_OUTCOMES`, `UNCLEAR_DELEGATION`, `ACCESS_ASSUMPTION_BARRIERS`, `INTERAGENCY_FRAGMENTATION`
-- `FEE_COST_BURDENS`, `STATE_EXCEEDS_FEDERAL`, `DEAD_SUPERSEDED_REFERENCES`
-- `DUPLICATIVE_REQUIREMENTS`, `MISSING_DIGITAL_AUTHORIZATION`
+- `OTHER` (catch-all for issues not fitting named categories)
+- `MISSING_OUTCOMES`, `UNCLEAR_DELEGATION`, `ACCESS_ASSUMPTION_BARRIERS`
+- `FEE_COST_BURDENS`, `DEAD_SUPERSEDED_REFERENCES`, `MISSING_DIGITAL_AUTHORIZATION`
+- `ONE_SIZE_FITS_ALL`, `UNFUNDED_MANDATE`
 
 **Review/Developer fields:** Same pattern as `red_flags` — `review_status`, `reviewed_by`, `reviewed_at`, `justification_notes`, `team_notes`, `priority`, `impact_type`, `developer_status`, `developer_assigned`, `developer_notes`, `resolution_type`, `resolution_comments`, `developer_question`, `developer_checked_at`
 
-**Constraints:** `jenai_issues_analysis_category_unique UNIQUE(analysis_id, category)`
+**Constraints:** `jenai_issues_analysis_category_unique UNIQUE(analysis_id, category)`, `jenai_issues_one_source_check CHECK (exactly one of document_id or guidance_document_id is set)`
 
 **Indexes:** `idx_jenai_issues_document`, `idx_jenai_issues_category`, `idx_jenai_issues_review_status`, `idx_jenai_issues_severity`
 
@@ -478,6 +482,7 @@ Document-level analysis results for the 3-tier research pipeline. One row per (d
 | `pipeline_version` | varchar(20) | Default 'v5' |
 | `highest_tier_completed` | integer (0-3) | Progress indicator |
 | `classification_tier` | integer | Which tier made final classification |
+| `responsible_agency` | text | Administering agency (from NYCRR title mapping or guidance doc agency) |
 | `tier1_prompt_id` | bigint | FK to prompt_templates(id) — prompt used for Tier 1 |
 | `tier2_prompt_id` | bigint | FK to prompt_templates(id) — prompt used for Tier 2 |
 | `tier3_prompt_id` | bigint | FK to prompt_templates(id) — prompt used for Tier 3 |
@@ -688,6 +693,49 @@ Tracks external standards incorporated by reference (NFPA codes, ICC codes, ASTM
 | `created_at` | timestamp | When record was created |
 
 **Constraints:** `chk_ibr_jurisdiction`, `chk_ibr_resolution_type`
+
+## fines_fees_penalties
+
+Structured extraction of monetary charges (fines, fees, penalties, surcharges, forfeitures) from regulations and guidance documents. Follows the IBR pattern with a dedicated table.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | bigserial | Primary key |
+| `document_id` | bigint | FK to regulatory_documents (nullable) |
+| `guidance_document_id` | bigint | FK to guidance_documents (nullable) |
+| `penalty_type` | varchar(50) NOT NULL | fine, fee, penalty, surcharge, forfeiture, other |
+| `amount` | text | Display string ("$500", "up to $10,000") |
+| `amount_min` | numeric(12,2) | Parsed minimum amount |
+| `amount_max` | numeric(12,2) | Parsed maximum amount |
+| `per_unit` | text | "per violation", "per day", etc. |
+| `who_pays` | text | Subject of the charge |
+| `responsible_agency` | text | Administering agency |
+| `violation_description` | text | What triggers the charge |
+| `requirement_quote` | text | Exact quote from source |
+| `context` | text NOT NULL | Context snippet |
+| `term_matched` | text | Regex pattern that matched |
+| `llm_confirmed` | boolean | LLM verified as real charge |
+| `jurisdiction` | varchar(3) NOT NULL | NY, NJ, or NYC |
+| `url` | text | Source URL |
+| `review_status` | varchar(50) | Review workflow status |
+| `reviewed_by` | varchar(255) | Reviewer |
+| `reviewed_at` | timestamp | Review timestamp |
+| `team_notes` | text | Team notes |
+| `priority` | integer | Priority level |
+| `developer_status` | varchar(50) | Developer workflow status |
+| `developer_assigned` | varchar(50) | Assigned developer |
+| `developer_notes` | text | Developer notes |
+| `resolution_type` | varchar(50) | Resolution type |
+| `resolution_comments` | text | Resolution comments |
+| `developer_question` | text | Question for reviewer |
+| `developer_checked_at` | timestamp | Developer check timestamp |
+| `created_at` | timestamp | Creation timestamp |
+
+**Constraints:** `fines_one_source_check` (exactly one of document_id or guidance_document_id must be set), `chk_fines_jurisdiction`
+
+**Indexes:** `idx_fines_jurisdiction`, `idx_fines_document_id`, `idx_fines_guidance_document_id`, `idx_fines_penalty_type`, `idx_fines_responsible_agency`, `idx_fines_llm_confirmed`
+
+**Migrations:** `0062_fines_fees_penalties.sql`, `0063_widen_fines_columns.sql`
 
 ## statutes
 

@@ -1,5 +1,5 @@
 notarization:
-  updated_at: '2026-01-03'
+  updated_at: '2026-03-05'
   display_name: Notarization Required
   db_issue_type: notarization
   category: Signatures
@@ -18,11 +18,12 @@ notarization:
   - No mention of remote online notarization as alternative
   - Notarization appears administrative rather than legally mandated by statute
   negative_indicators:
-  - Remote online notarization explicitly permitted as alternative
+  - Remote online notarization (RON) explicitly permitted as alternative
   - Statute specifically requires notarization for this document type
   - Clear anti-fraud or identity verification purpose stated
   - Notarization requirement is for negotiable instruments or wills (legally necessary)
   - Reference is to notary as option, not requirement
+  - Regulation references Executive Law §135-c or remote online notarization
   severity_baseline: 5
   severity_modifiers:
     increases:
@@ -32,7 +33,7 @@ notarization:
     decreases:
     - '-2: Statutory requirement mandates notarization'
     - '-1: Clear anti-fraud purpose (real estate, legal documents)'
-    - '-1: Remote online notarization explicitly permitted'
+    - '-2: Remote online notarization (RON) explicitly permitted'
   patterns:
   - must be notarized
   - shall be notarized

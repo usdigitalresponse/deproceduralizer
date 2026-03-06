@@ -137,6 +137,7 @@ export const complianceIssueAnalyses = pgTable('compliance_issue_analyses', {
   // ═══════════════════════════════════════════════════════════════════
   // Pipeline Tracking
   // ═══════════════════════════════════════════════════════════════════
+  responsibleAgency: text('responsible_agency'),
   pipelineVersion: varchar('pipeline_version', { length: 20 }).default('v5'),
   highestTierCompleted: integer('highest_tier_completed').default(0),
   classificationTier: integer('classification_tier'),

@@ -63,6 +63,7 @@ class BasePatternSearcher(ABC):
         self.issue_config = issue_config
         self.with_statutes = with_statutes
         self.cache = cache
+        self.model = DEFAULT_MODEL
 
         # Create statute checker
         self.statute_checker = create_statute_checker(state_config, with_statutes)
@@ -153,6 +154,7 @@ class BasePatternSearcher(ABC):
 
         except Exception as e:
             print(f"Database query error: {e}")
+            conn.rollback()
             conn.close()
             return []
 
@@ -213,6 +215,7 @@ class BasePatternSearcher(ABC):
                 if limit and len(matches) >= limit:
                     break
 
+        conn.commit()
         conn.close()
         print(f"Found {len(matches)} potential matches")
         return matches
@@ -292,7 +295,7 @@ class BasePatternSearcher(ABC):
                 client=client,
                 prompt=user_prompt,
                 response_format=self.issue_config.response_model,
-                model=DEFAULT_MODEL,
+                model=self.model,
                 system=system_prompt,
                 cache=self.cache,
                 cache_metadata={"pipeline": "compliance_scan", "tier": None, "document_id": match.get("document_id")},
@@ -342,6 +345,7 @@ class BasePatternSearcher(ABC):
                 custom_id=f"doc_{match['document_id']}",
                 prompt=user_prompt,
                 response_format=self.issue_config.response_model,
+                model=self.model,
                 system=system_prompt,
             )
             requests.append(request)

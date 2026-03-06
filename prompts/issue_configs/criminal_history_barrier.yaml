@@ -1,0 +1,75 @@
+criminal_history_barrier:
+  updated_at: '2026-03-05'
+  display_name: Criminal History Barrier
+  db_issue_type: criminal_history_barrier
+  category: Equity & Access
+  description: 'Criminal history used as automatic disqualifier without the legally required
+    Article 23-A balancing test. Approximately 88% of NY regulations mentioning felony
+    convictions lack the required multi-factor individualized assessment, creating blanket
+    barriers to employment and licensing that violate state policy.'
+  positive_indicators:
+  - Felony or misdemeanor conviction as automatic disqualifier
+  - No reference to Article 23-A balancing factors
+  - '"shall not be licensed if convicted" without exceptions'
+  - Blanket prohibition without individualized assessment
+  - Background check required with no guidance on how results are evaluated
+  negative_indicators:
+  - Article 23-A balancing test explicitly referenced
+  - Individualized assessment or multi-factor evaluation described
+  - Background check used as one input in broader evaluation
+  - Restriction narrowly tailored to directly related offenses with clear nexus
+  - Federal law mandates the specific disqualification (e.g., certain childcare positions)
+  - Text discusses criminal history in context of defining offenses, not licensing
+  severity_baseline: 6
+  severity_modifiers:
+    increases:
+    - '+1: Automatic disqualification with no exceptions'
+    - '+1: Broad category of offenses (any felony vs. specific offenses)'
+    - '+1: Affects individual professional licenses'
+    decreases:
+    - '-2: Article 23-A balancing test referenced'
+    - '-1: Narrowly tailored to directly related offenses'
+    - '-1: Individualized assessment process described'
+  patterns:
+  - convicted of.{0,20}(felony|misdemeanor)
+  - (shall not|denied|disqualif|ineligible|prohibit).{0,30}criminal (record|history|conviction)
+  - felony.{0,20}conviction
+  - (shall|must|required).{0,20}background check
+  statistics:
+    total_matches: null
+    true_positives: null
+    true_positive_rate: null
+    sample_date: '2026-03-05'
+  examples:
+    true_positives:
+    - citation: 9 NYCRR 5100.3
+      quote: no person convicted of a felony shall be eligible for licensure
+      reasoning: Blanket felony disqualification with no individualized assessment or
+        Article 23-A reference. Automatic barrier.
+      classification: burdensome
+      severity: 7
+    - citation: 19 NYCRR 400.4
+      quote: applicant shall not have been convicted of a crime
+      reasoning: Any criminal conviction is disqualifying. No balancing test, no consideration
+        of rehabilitation or offense relevance.
+      classification: burdensome
+      severity: 7
+    false_positives:
+    - citation: 18 NYCRR 413.3
+      quote: criminal history background check shall be conducted and evaluated in accordance
+        with Correction Law Article 23-A
+      reasoning: Explicitly references Article 23-A. Proper individualized assessment framework.
+      classification: unrelated
+    - citation: 14 NYCRR 633.7
+      quote: background check required for direct care staff in accordance with federal and state law
+      reasoning: Federal law mandates specific background checks for certain care positions.
+        Not a state-imposed barrier.
+      classification: justified
+      severity: 3
+    justified:
+    - citation: 3 NYCRR 2.14
+      quote: person convicted of financial fraud shall not serve as bank officer
+      reasoning: Narrowly tailored restriction with clear nexus between offense type
+        and licensed activity.
+      classification: justified
+      severity: 3

@@ -185,6 +185,7 @@ def get_ancestors_batch(doc_ids: list[int]) -> dict[int, list[dict]]:
         cur.execute(query, [doc_ids])
         rows = cur.fetchall()
 
+    conn.commit()
     conn.close()
 
     # Group by origin_id
@@ -320,6 +321,7 @@ def get_filtered_documents(
 
     try:
         rows = conn.execute(query, params).fetchall()
+        conn.commit()
         conn.close()
 
         results = []
@@ -365,11 +367,13 @@ def get_already_analyzed_ids(jurisdiction: str) -> set:
               )
         """, (jurisdiction.upper(),))
         ids = {row[0] for row in result.fetchall()}
+        conn.commit()
         conn.close()
         return ids
     except Exception as e:
         print(f"Warning: Could not fetch analyzed IDs: {e}")
         if conn:
+            conn.rollback()
             conn.close()
         return set()
 
@@ -389,10 +393,12 @@ def get_already_extracted_ids(jurisdiction: str) -> set:
             )
         """, (jurisdiction.upper(),))
         ids = {row[0] for row in result.fetchall()}
+        conn.commit()
         conn.close()
         return ids
     except Exception as e:
         print(f"Warning: Could not fetch extracted IDs: {e}")
         if conn:
+            conn.rollback()
             conn.close()
         return set()

@@ -1,0 +1,63 @@
+fee_no_waiver:
+  updated_at: '2026-03-05'
+  display_name: Non-Refundable Fee Without Waiver
+  db_issue_type: fee_no_waiver
+  category: Equity & Access
+  description: 'Non-refundable fees without hardship waiver provisions create regressive barriers
+    that disproportionately affect low-income individuals. These fees can prevent people from
+    obtaining licenses, permits, or services they need, effectively creating a wealth-based
+    gatekeeping mechanism.'
+  positive_indicators:
+  - Fee explicitly stated as non-refundable
+  - No hardship waiver or fee reduction mentioned
+  - Fee required for individual license, permit, or application
+  - '"shall not be returned" or "shall not be refunded" language'
+  - Fee amount may be burdensome for low-income individuals
+  negative_indicators:
+  - Hardship waiver or fee reduction provision exists
+  - Fee is refundable under certain conditions
+  - Fee applies only to businesses or commercial entities
+  - Processing cost justification with waiver available
+  - Fee amount is nominal ($10 or less)
+  severity_baseline: 5
+  severity_modifiers:
+    increases:
+    - '+1: Fee exceeds $100'
+    - '+1: Affects individual professional licenses'
+    - '+1: No waiver, reduction, or installment option'
+    decreases:
+    - '-2: Hardship waiver provision exists'
+    - '-1: Fee is nominal ($25 or less)'
+    - '-1: Applies only to business entities'
+  patterns:
+  - non-?refundable.{0,30}fee
+  - fee.{0,30}non-?refundable
+  - fee.{0,20}shall not be (returned|refunded)
+  statistics:
+    total_matches: null
+    true_positives: null
+    true_positive_rate: null
+    sample_date: '2026-03-05'
+  examples:
+    true_positives:
+    - citation: 10 NYCRR 405.3
+      quote: a non-refundable application fee of $250 shall accompany each application
+      reasoning: Non-refundable $250 fee with no hardship waiver. Significant barrier
+        for low-income applicants.
+      classification: burdensome
+      severity: 6
+    - citation: 19 NYCRR 502.7
+      quote: the fee shall not be refunded regardless of the outcome
+      reasoning: Fee non-refundable even if application denied. No waiver provision.
+      classification: burdensome
+      severity: 5
+    false_positives:
+    - citation: 18 NYCRR 415.4
+      quote: non-refundable fee of $50, except that the fee may be waived for applicants demonstrating financial hardship
+      reasoning: Hardship waiver exists. Fee burden is mitigated.
+      classification: unrelated
+    - citation: 6 NYCRR 621.7
+      quote: non-refundable permit fee for commercial operations
+      reasoning: Applies to commercial/business entities, not individuals. Business cost
+        of doing business.
+      classification: unrelated

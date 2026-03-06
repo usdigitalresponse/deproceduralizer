@@ -9,11 +9,15 @@ from datetime import datetime
 from pathlib import Path
 from typing import Callable, Optional, Type
 
+import logging
+
 import anthropic
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from lib.llm import DEFAULT_MODEL, _pydantic_to_tool_schema, call_llm_parse_async, get_anthropic_client
 from lib.stats import format_time
+
+logger = logging.getLogger(__name__)
 
 # TYPE_CHECKING avoids circular import; CacheManager is only needed for type hints
 from typing import TYPE_CHECKING
@@ -485,6 +489,16 @@ def parse_batch_result_tool_use(result, response_format: Type[BaseModel]) -> Opt
     if isinstance(input_data, str):
         input_data = json.loads(input_data)
 
+    # Pre-parse any stringified JSON values (batch API sometimes returns
+    # nested structures like arrays/objects as JSON strings)
+    if isinstance(input_data, dict):
+        for key, val in input_data.items():
+            if isinstance(val, str) and val.strip().startswith(('[', '{')):
+                try:
+                    input_data[key] = json.loads(val)
+                except json.JSONDecodeError:
+                    logger.debug("Pre-parse: key '%s' starts with [/{ but is not valid JSON: %.100s", key, val)
+
     return response_format.model_validate(input_data)
 
 
@@ -567,6 +581,7 @@ def run_batch_tier(
     cache: "CacheManager | None" = None,
     cache_pipeline: str | None = None,
     cache_tier: int | None = None,
+    error_state=None,
 ) -> str:
     """Submit batch, poll, parse results into units. Returns batch_id.
 
@@ -575,6 +590,10 @@ def run_batch_tier(
     - Submit only uncached requests to Anthropic
     - Store new responses in cache after results
     - Merge cached + fresh results
+
+    Args:
+        error_state: Optional state to assign to units whose results fail to parse.
+                     If None, parse failures are silently skipped.
     """
     if get_unit_id is None:
         get_unit_id = lambda u: u.document_id
@@ -635,8 +654,14 @@ def run_batch_tier(
 
     # --- Process fresh results and store in cache ---
     cache_entries = []
+    parse_errors = 0
     for result in manager.get_batch_results(batch_id):
-        parsed = parse_batch_result_tool_use(result, output_class)
+        try:
+            parsed = parse_batch_result_tool_use(result, output_class)
+        except Exception as e:
+            parse_errors += 1
+            logger.warning("Failed to parse result for %s: %s", result.custom_id, e)
+            parsed = None
         if parsed:
             doc_id = id_map.get(result.custom_id)
             if doc_id and doc_id in unit_by_id:
@@ -671,10 +696,19 @@ def run_batch_tier(
                             "tier": cache_tier,
                             "document_id": doc_id,
                         })
+        elif error_state is not None:
+            # Mark units with unparseable results as errors
+            doc_id = id_map.get(result.custom_id)
+            if doc_id and doc_id in unit_by_id:
+                unit = unit_by_id[doc_id]
+                unit.state = error_state
 
     if cache_entries:
         cache.store_batch(cache_entries)
         print(f"  Cache: stored {len(cache_entries)} new responses")
+
+    if parse_errors:
+        print(f"  WARNING: {parse_errors} result(s) failed to parse and were skipped")
 
     return batch_id
 

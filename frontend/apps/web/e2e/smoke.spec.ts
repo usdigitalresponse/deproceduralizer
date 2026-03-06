@@ -1040,6 +1040,31 @@ test.describe('Pipeline Analysis Page', () => {
 
 });
 
+test.describe('Fines & Fees Page', () => {
+
+  test('fines page loads without error', async ({ page }) => {
+    await page.goto('/ny/fines');
+
+    // Page should render with header
+    await expect(page.getByRole('heading', { name: /Fines & Fees/i })).toBeVisible();
+
+    // Should show the overview/browse tabs
+    await expect(page.getByText('Overview')).toBeVisible();
+    await expect(page.getByText('Browse')).toBeVisible();
+  });
+
+  test('fines browse tab loads table', async ({ page }) => {
+    await page.goto('/ny/fines?tab=browse');
+
+    await expect(page.getByRole('heading', { name: /Fines & Fees/i })).toBeVisible();
+
+    // Should show results count or empty state
+    const resultsOrEmpty = page.getByText(/\d+ results?/).or(page.getByText(/No fines or fees found/i));
+    await expect(resultsOrEmpty.first()).toBeVisible({ timeout: 10000 });
+  });
+
+});
+
 test.describe('Data Integrity', () => {
 
   test('compliance cards do not show stale column names as text', async ({ page }) => {

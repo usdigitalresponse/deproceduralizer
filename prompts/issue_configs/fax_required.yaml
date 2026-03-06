@@ -1,5 +1,5 @@
 fax_required:
-  updated_at: '2026-01-03'
+  updated_at: '2026-03-05'
   display_name: Fax Requirements
   db_issue_type: fax_required
   category: Communication
@@ -33,14 +33,10 @@ fax_required:
     - '-1: B2G (business-to-government) context where fax may be common'
     - '-1: Statutory requirement mandates fax'
   patterns:
-  - \bfax\b
   - facsimile
   - telefax
-  patterns_to_add:
-  - shall.{0,20}fax
-  - must.{0,15}(be )?fax
-  - required.{0,15}fax
-  - fax.{0,15}(is |shall be )?required
+  - submit.{0,20}(by|via) fax
+  - (shall|must|required).{0,20}fax
   exclusion_patterns:
   - fax number (contact info, not requirement)
   - or fax (indicates alternative, not requirement)

@@ -1,5 +1,5 @@
 storage_location:
-  updated_at: '2026-01-03'
+  updated_at: '2026-03-05'
   display_name: Specific Storage Location
   db_issue_type: storage_location
   category: Process
@@ -35,12 +35,11 @@ storage_location:
     - '-2: Electronic storage permitted'
     - '-1: Security rationale stated'
   patterns:
-  - stored at
-  - maintained at
   - kept at the premises
   - kept on.{0,10}premises
   - on.{0,3}site.{0,10}storage
-  - at the facility
+  - records.{0,20}(stored|maintained) at
+  - files.{0,20}(stored|maintained) at
   - records.{0,10}kept
   statistics:
     total_matches: 1043

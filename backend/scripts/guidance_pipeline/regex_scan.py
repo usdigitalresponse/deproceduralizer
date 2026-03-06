@@ -138,7 +138,7 @@ def regex_scan(
                                 INSERT INTO compliance_issues
                                 (guidance_document_id, issue_type, occurrence_number,
                                  regex_match_pattern, regex_match_context, url,
-                                 state, run_id)
+                                 jurisdiction, run_id)
                                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                                 ON CONFLICT DO NOTHING
                                 """,

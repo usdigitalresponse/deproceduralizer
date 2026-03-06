@@ -76,12 +76,18 @@ process:
   - mandated_reports
   - reporting_frequency
 
-# Statistics Summary (from 2026-01-01 query)
-# Total: 41 issue types, 11,343 matches
+# Equity & Access
+equity_access:
+  - good_moral_character
+  - fee_no_waiver
+  - criminal_history_barrier
+
+# Statistics Summary (from 2026-01-01 query, updated 2026-03-05)
+# Total: 44 config files (of 46 total issue types; IBR and fines have dedicated tables)
 # High precision (>80% TPR): notarization, multiple_copies, embossed_seal, handwriting_specs, binding_required
 # Low precision (<20% TPR): fax, pdf_only, typewriter, cash_only
 
-# File count: 41 configs
+# File count: 44 configs (2 dedicated-table types not included)
 all_configs:
   - binding_required
   - bulletin_board
@@ -124,3 +130,6 @@ all_configs:
   - wet_signature
   - witness
   - reporting_frequency
+  - good_moral_character
+  - fee_no_waiver
+  - criminal_history_barrier

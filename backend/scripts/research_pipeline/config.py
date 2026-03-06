@@ -22,7 +22,7 @@ PIPELINE_VERSION = "v5.2"
 # =============================================================================
 
 # All tiers use batch API by default for cost efficiency
-BATCH_MODEL = DEFAULT_MODEL  # Currently claude-sonnet-4-5-20250929
+BATCH_MODEL = DEFAULT_MODEL  # Currently claude-sonnet-4-6
 
 # Tier 3 model (used for both batch and realtime modes)
 TIER3_REALTIME_MODEL = DEFAULT_MODEL

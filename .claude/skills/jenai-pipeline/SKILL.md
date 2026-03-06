@@ -5,47 +5,49 @@ description: Run the JenAI single-pass regulatory implementation analysis pipeli
 
 # JenAI Pipeline
 
-Single-pass enriched LLM pipeline analyzing regulatory sections for implementation complexity using a 19-category framework (18 Pahlka problem categories + adversarial WORST_THING).
+Single-pass enriched LLM pipeline analyzing regulatory sections for implementation complexity using an 18-category framework (15 Pahlka + 2 structural + OTHER catch-all).
 
 ## Architecture
 
 ```
-Regulatory Sections (hierarchy_level='section')
-    |
-    v
-[Cache Efficiency Sort] -- group by subchapter for shared context
-    |
-    v
+Regulatory Sections (hierarchy_level='section')     Guidance Documents (guidance_documents table)
+    |                                                   |
+    v                                                   v
+[Cache Efficiency Sort]                        [Flat — no hierarchy]
+    |                                                   |
+    v                                                   v
 === SINGLE PASS: Rich Context Analysis (Batch API) ===
-  Section text + ancestor summaries + sibling summaries +
-  cross-ref summaries + full definition text
-  -> LLM identifies categories + WORST_THING
+  Regulations: section text + ancestor summaries + sibling summaries +
+               cross-ref summaries + full definition text
+  Guidance: document content + cited regulation summaries + metadata preamble
+  -> LLM identifies categories + OTHER
   -> Results -> jenai_analyses + jenai_issues tables
 ```
 
-## 19-Category Taxonomy
+## 18-Category Taxonomy
 
 | # | Category | Type | Description |
 |---|----------|------|-------------|
-| 1 | REGULATORY_COMPLEXITY | Problem | Text so convoluted meaning is genuinely unclear |
-| 2 | POLICY_IMPLEMENTATION_SEPARATION | Problem | Authority structures separating policy from implementation |
-| 3 | CASCADE_OF_RIGIDITY | Problem | Conflicting absolute goals without prioritization |
-| 4 | MANDATED_STEPS_NOT_OUTCOMES | Problem | Prescribes procedures without stated goals |
-| 5 | ADMINISTRATIVE_BURDENS | Problem | Physical friction: notaries, wet signatures, in-person |
-| 6 | NO_FEEDBACK_LOOPS | Problem | One-shot design, no iteration authority |
-| 7 | PROCESS_WORSHIP_OVERSIGHT | Problem | Compliance-only audits, punish any deviation |
-| 8 | ZERO_RISK_LANGUAGE | Problem | Impossible absolutes |
-| 9 | FROZEN_TECHNOLOGY | Problem | Hard-coded architectures, formats, platforms |
-| 10 | WORST_THING | **Adversarial** | Single worst aspect of the section — always required |
-| 11 | MISSING_OUTCOMES | Problem | Prescribes what to do but never defines success |
-| 12 | UNCLEAR_DELEGATION | Problem | Ambiguous authority, passive voice delegation |
-| 13 | ACCESS_ASSUMPTION_BARRIERS | Problem | Assumes specific environments, capabilities, or access |
-| 14 | INTERAGENCY_FRAGMENTATION | Problem | Multiple agency approvals, sequential chains |
-| 15 | FEE_COST_BURDENS | Problem | Excessive fees, outdated fee schedules, disproportionate costs |
-| 16 | STATE_EXCEEDS_FEDERAL | Problem | NY requirements stricter than federal without justification |
-| 17 | DEAD_SUPERSEDED_REFERENCES | Problem | References to repealed statutes, dissolved agencies |
-| 18 | DUPLICATIVE_REQUIREMENTS | Problem | Overlapping or identical requirements across regulations |
-| 19 | MISSING_DIGITAL_AUTHORIZATION | Problem | No explicit digital/electronic submission authorization |
+| 1 | REGULATORY_COMPLEXITY | Pahlka | Text so convoluted meaning is genuinely unclear |
+| 2 | POLICY_IMPLEMENTATION_SEPARATION | Pahlka | Authority structures separating policy from implementation |
+| 3 | CASCADE_OF_RIGIDITY | Pahlka | Conflicting absolute goals without prioritization |
+| 4 | MANDATED_STEPS_NOT_OUTCOMES | Pahlka | Prescribes procedures without stated goals |
+| 5 | ADMINISTRATIVE_BURDENS | Pahlka | Physical friction: notaries, wet signatures, in-person |
+| 6 | NO_FEEDBACK_LOOPS | Pahlka | One-shot design, no iteration authority |
+| 7 | PROCESS_WORSHIP_OVERSIGHT | Pahlka | Compliance-only audits, punish any deviation |
+| 8 | ZERO_RISK_LANGUAGE | Pahlka | Impossible absolutes |
+| 9 | FROZEN_TECHNOLOGY | Pahlka | Hard-coded architectures, formats, platforms |
+| 10 | OTHER | **Catch-all** | Issues not fitting named categories; also use alongside named categories for severe novel issues |
+| 11 | MISSING_OUTCOMES | Pahlka | Prescribes what to do but never defines success |
+| 12 | UNCLEAR_DELEGATION | Pahlka | Ambiguous authority, passive voice delegation |
+| 13 | ACCESS_ASSUMPTION_BARRIERS | Pahlka | Assumes specific environments, capabilities, or access |
+| 14 | FEE_COST_BURDENS | Pahlka | Excessive fees, outdated fee schedules, disproportionate costs |
+| 15 | DEAD_SUPERSEDED_REFERENCES | Pahlka | References to repealed statutes, dissolved agencies |
+| 16 | MISSING_DIGITAL_AUTHORIZATION | Pahlka | No explicit digital/electronic submission authorization |
+| 17 | ONE_SIZE_FITS_ALL | Structural | Uniform standards ignoring program diversity |
+| 18 | UNFUNDED_MANDATE | Structural | Requirements imposed without funding mechanism |
+
+**Removed (multi-document, can't work per-section):** STATE_EXCEEDS_FEDERAL, DUPLICATIVE_REQUIREMENTS, INTERAGENCY_FRAGMENTATION — these require cross-document context to detect properly.
 
 ## CLI Commands
 
@@ -75,6 +77,17 @@ cd backend && python3 -m scripts.jenai_pipeline.cli --state ny --title 18 --part
 
 # Re-run specific document(s) by ID (auto-disables exclude_analyzed)
 cd backend && python3 -m scripts.jenai_pipeline.cli --state ny --document-id 81899 --execute --realtime
+
+# === Guidance Documents ===
+
+# Dry run guidance docs
+cd backend && python3 -m scripts.jenai_pipeline.cli --state ny --source guidance --agency OCFS --limit 5
+
+# Execute guidance analysis
+cd backend && python3 -m scripts.jenai_pipeline.cli --state ny --source guidance --agency OCFS --doc-type ADM --execute
+
+# Guidance with realtime mode
+cd backend && python3 -m scripts.jenai_pipeline.cli --state ny --source guidance --agency OCFS --limit 3 --execute --realtime
 ```
 
 ## Default Section Filtering
@@ -104,8 +117,8 @@ All context is gathered upfront in a single batch:
 
 ## Database Tables
 
-- **`jenai_analyses`** — One row per document. Stores classification, confidence, categories JSONB, worst_thing text.
-- **`jenai_issues`** — One row per category finding. Links to analysis + document.
+- **`jenai_analyses`** — One row per document. Has `document_id` (regulations) or `guidance_document_id` (guidance) — exactly one set. Stores classification, confidence, categories JSONB.
+- **`jenai_issues`** — One row per category finding. Links to analysis + document (or guidance document).
 
 See `.claude/skills/database/schema.md` for full column details.
 
@@ -143,4 +156,5 @@ Requires Steps 5 (cross-references) and 6 (summaries) to have been run for the t
 
 - **Always ask user permission** before executing (costs money)
 - Default is dry-run — must pass `--execute` to actually run
-- WORST_THING is always required — even "clean" sections get a WORST_THING finding (may be low severity)
+- At least one finding is always required. Use OTHER for issues that don't fit named categories — including alongside named category findings when something severe falls outside them
+- `jenai_issues` includes `tags` (2-3 kebab-case labels per finding) and `is_verbatim` (whether matched_phrases are verbatim from source text)

@@ -6,9 +6,9 @@ from scripts.jenai_pipeline.config import JenAICategory
 
 
 class TestIssueFinding:
-    def test_worst_thing_category_accepted(self):
+    def test_other_category_accepted(self):
         finding = IssueFinding(
-            category=JenAICategory.WORST_THING,
+            category=JenAICategory.OTHER,
             confidence=0.85,
             severity=7,
             complexity="HIGH",
@@ -16,11 +16,11 @@ class TestIssueFinding:
             matched_phrases=["within 7 calendar days"],
             text_examples=["Failure to comply within 7 calendar days shall result in denial"],
         )
-        assert finding.category == JenAICategory.WORST_THING
+        assert finding.category == JenAICategory.OTHER
         assert finding.severity == 7
 
     def test_all_categories_valid(self):
-        """All 19 categories are accepted."""
+        """All 18 categories are accepted."""
         for cat in JenAICategory:
             finding = IssueFinding(
                 category=cat,
@@ -42,6 +42,64 @@ class TestIssueFinding:
                 explanation="Test",
             )
 
+    def test_worst_thing_removed(self):
+        """WORST_THING is no longer a valid category (renamed to OTHER)."""
+        with pytest.raises(ValueError):
+            IssueFinding(
+                category="WORST_THING",
+                confidence=0.5,
+                severity=5,
+                complexity="MEDIUM",
+                explanation="Test",
+            )
+
+    def test_removed_multi_document_categories(self):
+        """Multi-document categories were removed (can't work per-section)."""
+        for cat_name in ["STATE_EXCEEDS_FEDERAL", "DUPLICATIVE_REQUIREMENTS", "INTERAGENCY_FRAGMENTATION"]:
+            with pytest.raises(ValueError):
+                IssueFinding(
+                    category=cat_name,
+                    confidence=0.5,
+                    severity=5,
+                    complexity="MEDIUM",
+                    explanation="Test",
+                )
+
+    def test_new_categories_accepted(self):
+        """ONE_SIZE_FITS_ALL and UNFUNDED_MANDATE are valid."""
+        for cat in [JenAICategory.ONE_SIZE_FITS_ALL, JenAICategory.UNFUNDED_MANDATE]:
+            finding = IssueFinding(
+                category=cat,
+                confidence=0.7,
+                severity=6,
+                complexity="MEDIUM",
+                explanation="Test finding",
+            )
+            assert finding.category == cat
+
+    def test_tags_field(self):
+        """Tags field accepts kebab-case labels."""
+        finding = IssueFinding(
+            category=JenAICategory.ADMINISTRATIVE_BURDENS,
+            confidence=0.9,
+            severity=8,
+            complexity="HIGH",
+            explanation="Multiple friction points",
+            matched_phrases=["notarized"],
+            tags=["notarization-required", "in-person-only", "short-deadline"],
+        )
+        assert finding.tags == ["notarization-required", "in-person-only", "short-deadline"]
+
+    def test_tags_default_empty(self):
+        finding = IssueFinding(
+            category=JenAICategory.OTHER,
+            confidence=0.5,
+            severity=3,
+            complexity="LOW",
+            explanation="Minor issue",
+        )
+        assert finding.tags == []
+
 
 class TestAnalysisOutput:
     def test_clean_classification(self):
@@ -55,7 +113,7 @@ class TestAnalysisOutput:
         )
         assert output.classification == "clean"
 
-    def test_has_issues_with_worst_thing(self):
+    def test_has_issues_with_other(self):
         output = AnalysisOutput(
             categories=[
                 IssueFinding(
@@ -67,12 +125,13 @@ class TestAnalysisOutput:
                     matched_phrases=["notarized", "in person"],
                 ),
                 IssueFinding(
-                    category=JenAICategory.WORST_THING,
+                    category=JenAICategory.OTHER,
                     confidence=0.95,
                     severity=8,
                     complexity="HIGH",
                     explanation="Unrealistic compliance timeline combined with administrative burdens",
                     matched_phrases=["within 7 calendar days"],
+                    tags=["unrealistic-deadline", "automatic-denial"],
                 ),
             ],
             classification="has_issues",
@@ -83,8 +142,9 @@ class TestAnalysisOutput:
         )
         assert output.classification == "has_issues"
         assert len(output.categories) == 2
-        worst = [c for c in output.categories if c.category == JenAICategory.WORST_THING]
-        assert len(worst) == 1
+        other = [c for c in output.categories if c.category == JenAICategory.OTHER]
+        assert len(other) == 1
+        assert other[0].tags == ["unrealistic-deadline", "automatic-denial"]
 
     def test_needs_context_classification_rejected(self):
         """'needs_context' is no longer valid — only 'clean' or 'has_issues'."""

@@ -146,8 +146,12 @@ def store_prompt(
             row = cur.fetchone()
             conn.commit()
             return row[0]
+    except Exception:
+        if should_close and conn:
+            conn.rollback()
+        raise
     finally:
-        if should_close:
+        if should_close and conn:
             conn.close()
 
 
@@ -252,6 +256,10 @@ def store_prompt_batch(
 
         return result
 
+    except Exception:
+        if should_close and conn:
+            conn.rollback()
+        raise
     finally:
-        if should_close:
+        if should_close and conn:
             conn.close()

@@ -106,3 +106,83 @@ def prepare_analysis_batch(
         batch_requests.append(request)
 
     return batch_requests, custom_id_map
+
+
+def prepare_guidance_batch(
+    units: list[TrackedUnit],
+) -> tuple[list[dict], dict[str, int]]:
+    """Prepare batch requests for guidance document analysis.
+
+    Guidance docs are flat (no hierarchy), so context comes from:
+    - Cited regulation summaries (via cross_references)
+    - Guidance document metadata preamble
+
+    Returns:
+        (batch_requests, custom_id_map) where custom_id_map maps
+        custom_id -> guidance_document_id for result correlation.
+    """
+    from scripts.research_pipeline.context import (
+        fetch_cited_regulation_summaries,
+        build_guidance_batch_context,
+        format_guidance_preamble,
+    )
+
+    prompts = load_jenai_prompts()
+    analysis_config = prompts['analysis']
+
+    doc_ids = [u.unit.document_id for u in units]
+
+    # Fetch cited regulation summaries in batch
+    cited_summaries = fetch_cited_regulation_summaries(doc_ids)
+
+    batch_requests = []
+    custom_id_map = {}
+
+    for tracked in units:
+        doc_id = tracked.unit.document_id
+        unit = tracked.unit
+
+        # Build guidance-specific context
+        summaries = cited_summaries.get(doc_id, [])
+        cited_context = build_guidance_batch_context(doc_id, summaries)
+        preamble = format_guidance_preamble({
+            "agency": unit.agency or '',
+            "doc_type": unit.doc_type or '',
+            "date_published": unit.date_published or '',
+            "status": unit.status or '',
+            "cites_regulations": unit.cites_regulations,
+        })
+
+        # Build context vars — guidance docs use flat structure
+        context_vars = {
+            'section_text': unit.content,
+            'citation': unit.citation,
+            'title': unit.title,
+            'summary': unit.summary or '',
+            'sibling_catalog': '(guidance document — no regulatory siblings)',
+            'ancestor_chain': '(guidance document — no regulatory hierarchy)',
+            'definition_terms': '(not available for guidance documents)',
+            'cross_references': cited_context,
+            'rich_context_block': f"{preamble}\n\nCITED REGULATION SUMMARIES:\n{cited_context}",
+        }
+
+        # Build batch context (Layer 2)
+        batch_context = analysis_config.get('batch_context', '').format(**context_vars)
+
+        # Build user message (Layer 3)
+        user_message = analysis_config['template'].format(**context_vars)
+
+        custom_id = f"jenai-g-{doc_id}"
+        custom_id_map[custom_id] = doc_id
+
+        request = format_batch_request(
+            custom_id=custom_id,
+            prompt=user_message,
+            response_format=AnalysisOutput,
+            model=BATCH_MODEL,
+            system=analysis_config['system'],
+            user_cached_prefix=batch_context,
+        )
+        batch_requests.append(request)
+
+    return batch_requests, custom_id_map

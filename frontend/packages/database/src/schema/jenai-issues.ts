@@ -1,10 +1,11 @@
 import {
-  pgTable, bigserial, bigint, varchar, text,
+  pgTable, bigserial, bigint, varchar, text, boolean,
   integer, real, timestamp, unique,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { jenaiAnalyses } from './jenai-analyses';
 import { regulatoryDocuments } from './regulatory-documents';
+import { guidanceDocuments } from './guidance-documents';
 
 export const JENAI_CATEGORIES = [
   'REGULATORY_COMPLEXITY',
@@ -16,16 +17,15 @@ export const JENAI_CATEGORIES = [
   'PROCESS_WORSHIP_OVERSIGHT',
   'ZERO_RISK_LANGUAGE',
   'FROZEN_TECHNOLOGY',
-  'WORST_THING',
+  'OTHER',
   'MISSING_OUTCOMES',
   'UNCLEAR_DELEGATION',
   'ACCESS_ASSUMPTION_BARRIERS',
-  'INTERAGENCY_FRAGMENTATION',
   'FEE_COST_BURDENS',
-  'STATE_EXCEEDS_FEDERAL',
   'DEAD_SUPERSEDED_REFERENCES',
-  'DUPLICATIVE_REQUIREMENTS',
   'MISSING_DIGITAL_AUTHORIZATION',
+  'ONE_SIZE_FITS_ALL',
+  'UNFUNDED_MANDATE',
 ] as const;
 export type JenAICategory = typeof JENAI_CATEGORIES[number];
 
@@ -39,16 +39,15 @@ export const JENAI_CATEGORY_LABELS: Record<JenAICategory, string> = {
   PROCESS_WORSHIP_OVERSIGHT: 'Process Worship Oversight',
   ZERO_RISK_LANGUAGE: 'Zero-Risk Language',
   FROZEN_TECHNOLOGY: 'Frozen Technology',
-  WORST_THING: 'Worst Thing',
+  OTHER: 'Other',
   MISSING_OUTCOMES: 'Missing Outcomes',
   UNCLEAR_DELEGATION: 'Unclear Delegation',
   ACCESS_ASSUMPTION_BARRIERS: 'Access/Assumption Barriers',
-  INTERAGENCY_FRAGMENTATION: 'Interagency Fragmentation',
   FEE_COST_BURDENS: 'Fee/Cost Burdens',
-  STATE_EXCEEDS_FEDERAL: 'State Exceeds Federal',
   DEAD_SUPERSEDED_REFERENCES: 'Dead/Superseded References',
-  DUPLICATIVE_REQUIREMENTS: 'Duplicative Requirements',
   MISSING_DIGITAL_AUTHORIZATION: 'Missing Digital Authorization',
+  ONE_SIZE_FITS_ALL: 'One Size Fits All',
+  UNFUNDED_MANDATE: 'Unfunded Mandate',
 };
 
 export const jenaiIssues = pgTable('jenai_issues', {
@@ -57,8 +56,9 @@ export const jenaiIssues = pgTable('jenai_issues', {
     .notNull()
     .references(() => jenaiAnalyses.id, { onDelete: 'cascade' }),
   documentId: bigint('document_id', { mode: 'number' })
-    .notNull()
     .references(() => regulatoryDocuments.id, { onDelete: 'cascade' }),
+  guidanceDocumentId: bigint('guidance_document_id', { mode: 'number' })
+    .references(() => guidanceDocuments.id, { onDelete: 'cascade' }),
   category: varchar('category', { length: 50 }).notNull(),
 
   // Analysis
@@ -70,6 +70,8 @@ export const jenaiIssues = pgTable('jenai_issues', {
   implementationApproach: text('implementation_approach'),
   effortEstimate: text('effort_estimate'),
   textExamples: text('text_examples').array().default(sql`'{}'`),
+  tags: text('tags').array().default(sql`'{}'`),
+  isVerbatim: boolean('is_verbatim'),
 
   // Review fields (same as red_flags)
   reviewStatus: varchar('review_status', { length: 50 }).default('unreviewed'),

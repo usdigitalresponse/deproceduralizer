@@ -4227,6 +4227,87 @@ import { EntityTypeIndicator } from '@/components/ui';
 - **RedFlagCard left-border**: The `border-l-4 border-[var(--color-danger)]` on red flag cards communicates severity (a status concern), not entity type — keep it separate
 - **Cross-reference direction**: Both outgoing and incoming cross-references use the same `Link2` + indigo. The section title ("Cross-References" vs "Cited By") communicates direction
 
+## Fines, Fees & Penalties Components
+
+Components for browsing, filtering, and viewing extracted fines/fees/penalties from regulations and guidance documents.
+
+### Centralized Constants (`lib/constants/fines.ts`)
+
+All penalty type display values are centralized in a single constants file to avoid duplication across components:
+
+- **`PENALTY_TYPE_LABELS`** -- Singular labels (`Fine`, `Fee`, `Penalty`, etc.) for table cells and detail views
+- **`PENALTY_TYPE_LABELS_PLURAL`** -- Plural labels (`Fines`, `Fees`, `Penalties`, etc.) for charts and overview summaries
+- **`PENALTY_TYPE_COLORS`** -- Badge color classes using semantic CSS variable tokens
+
+**Color mapping rationale:**
+
+| Type | Semantic Token | Rationale |
+|------|---------------|-----------|
+| `fine` | `danger` (red) | Direct monetary penalty |
+| `penalty` | `warning` (amber) | Punitive but broader |
+| `fee` | `info` (blue) | Administrative cost |
+| `surcharge` | `warning` (amber) | Additional charge |
+| `forfeiture` | `danger` (red) | Loss of asset/right |
+| `other` | `neutral` (gray) | Uncategorized |
+
+Badge classes use CSS variable tokens (e.g., `bg-[var(--color-danger-bg)] text-[var(--color-danger)]`) instead of raw Tailwind colors to stay consistent with the design system.
+
+### FinesTable
+
+Data table displaying paginated fines with penalty type badge, amount, agency, description, and source link.
+
+- Standard table styling: `border-[var(--color-neutral-200)]` borders, `hover:bg-[var(--color-neutral-50)]` row hover
+- Penalty type column renders a badge using `PENALTY_TYPE_COLORS` and `PENALTY_TYPE_LABELS` from constants
+- Clickable rows open `FinesDetailDrawer`
+- Falls back to `EmptyState` when no data
+
+### FinesDetailDrawer
+
+Right-side drawer showing full detail for a selected fine/fee/penalty.
+
+- Uses the shared `Drawer` component (`side="right"`, `size="lg"`)
+- Sections: Violation/Trigger, Who Pays, Amount Details, Requirement Quote, Context, Pattern Matched, Source Document
+- Section headers use `text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider`
+- Requirement quote uses `border-l-2 border-[var(--color-primary)]` blockquote style
+
+### FinesBrowseTab
+
+Browse view with filter bar, paginated results, CSV export, and per-agency ZIP export.
+
+- 7 filters via `FilterBar` + `nuqs` URL state (`finesParsers`):
+  - **Penalty Type** -- dropdown (All / Fine / Fee / Penalty / Surcharge / Forfeiture / Other)
+  - **Source Type** -- dropdown (All Sources / Regulations / Guidance Documents), uses `SOURCE_TYPE_LABELS`
+  - **Agency** -- dropdown, dynamic values from `getFinesAgencies()`
+  - **Who Pays** -- dropdown, dynamic values from `getFinesWhoPays()`
+  - **Per Unit** -- dropdown, dynamic values from `getFinesPerUnits()`
+  - **Amount Range** -- two compact `<input type="number">` (Min $ / Max $), styled inline with filter bar
+  - **Search** -- free-text search via `SearchInput`
+- Error state displayed as a danger banner above results card
+- Two export buttons in results header:
+  - **Export CSV** -- single CSV with all filtered results
+  - **Export by Agency (ZIP)** -- generates a ZIP file (via `jszip`) with one CSV per agency
+
+### FinesOverviewTab
+
+Summary statistics and charts for fines data.
+
+- Three `StatCard`s: total count, unique agencies, source documents
+- Two `HorizontalBarChart`s: by penalty type (using `PENALTY_TYPE_LABELS_PLURAL`) and by agency
+
+### File Structure
+
+```
+src/components/fines/
+  FinesBrowseTab.tsx    -- Browse with 7 filters, pagination, CSV + ZIP export
+  FinesClient.tsx       -- Tab container (Overview / Browse), passes server data to tabs
+  FinesDetailDrawer.tsx -- Right-side detail drawer
+  FinesOverviewTab.tsx  -- Stats + charts overview
+  FinesTable.tsx        -- Data table with penalty type badges
+src/lib/constants/
+  fines.ts              -- PENALTY_TYPE_LABELS, PENALTY_TYPE_LABELS_PLURAL, PENALTY_TYPE_COLORS, SOURCE_TYPE_LABELS
+src/lib/url/parsers.ts  -- finesParsers (tab, page, pageSize, sortBy, sortOrder, penaltyType, agency, search, sourceType, amountMin, amountMax, whoPays, perUnit)
+```
+
 ---
 
 ## Pipeline Source Tab Pattern
@@ -4243,7 +4324,7 @@ The Pipeline page uses a `SegmentedControl` to switch between regulation-sourced
 ### Analysis Table Consistency
 
 Both regulation and guidance analysis tables render identical columns:
-- Bookmark toggle (star icon — bookmarking supported for both sources)
+- Bookmark toggle (star icon -- bookmarking supported for both sources)
 - Issue Type (with `ISSUE_TYPE_LABELS` for human-readable names)
 - Document (regulation section number or guidance document title)
 - T1, T2, T3 (tier classification badges)

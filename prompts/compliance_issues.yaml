@@ -23,7 +23,7 @@
 # =============================================================================
 
 mail_only:
-  updated_at: "2025-12-26"
+  updated_at: "2026-03-05"
   display_name: "Mail-Only Submission"
   db_issue_type: "mail_only"
   category: "Communication"
@@ -35,11 +35,10 @@ mail_only:
     - "send by mail"
     - "submit.{0,20}by mail"
     - "mail.{0,10}only"
-    - "u\\.?s\\.?\\s*mail"
-    - "\\busps\\b"
     - "first.{0,10}class.{0,10}mail"
-    - "postal.{0,10}service"
     - "postmarked by"
+    - "(applicant|petitioner|person).{0,20}(must|shall).{0,15}mail"
+    - "only.{0,10}by mail"
   prompt:
     system: |
       You analyze regulations for MAIL-ONLY SUBMISSION requirements.
@@ -141,16 +140,17 @@ certified_mail:
 
 
 fax:
-  updated_at: "2025-12-26"
+  updated_at: "2026-03-05"
   display_name: "Fax Requirements"
   db_issue_type: "fax_required"
   category: "Communication"
   description: "Fax required or only alternative to mail"
   response_model: "FaxAnalysis"
   patterns:
-    - "\\bfax\\b"
     - "facsimile"
     - "telefax"
+    - "submit.{0,20}(by|via) fax"
+    - "(shall|must|required).{0,20}fax"
   prompt:
     system: |
       You analyze regulations for FAX submission requirements.
@@ -247,7 +247,7 @@ obsolete_comm:
 
 
 landline:
-  updated_at: "2025-12-26"
+  updated_at: "2026-03-05"
   display_name: "Landline/Telephone Required"
   db_issue_type: "landline"
   category: "Communication"
@@ -256,11 +256,11 @@ landline:
   patterns:
     - "\\blandline\\b"
     - "touch-tone"
-    - "by telephone"
+    - "(shall|must|required).{0,20}by telephone"
     - "telephone call"
     - "verbal authorization"
     - "oral authorization"
-    - "by phone"
+    - "(shall|must|required).{0,20}by phone"
   prompt:
     system: |
       You analyze regulations for LANDLINE/TELEPHONE-SPECIFIC requirements.
@@ -575,7 +575,7 @@ wet_signature:
 
 
 notarization:
-  updated_at: "2025-12-26"
+  updated_at: "2026-03-05"
   display_name: "Notarization Required"
   db_issue_type: "notarization"
   category: "Signatures"
@@ -598,6 +598,13 @@ notarization:
       (1) the notarization serves a clear legal purpose required by statute for this type of document,
       (2) remote online notarization is permitted as an alternative, or
       (3) the requirement appears to be administrative rather than legally mandated.
+
+      IMPORTANT NY CONTEXT: New York authorized Remote Online Notarization (RON) effective
+      January 31, 2023 under Executive Law §135-c. RON allows notarization via audio-video
+      technology without physical presence. If a NY regulation requires notarization but does
+      not mention RON as an alternative, this is a modernization gap — the regulation should
+      be updated to reference RON availability. However, if the regulation explicitly permits
+      RON or "remote notarization", the burden is significantly reduced.
 
       Flag if notarization appears to be an administrative addition rather than a
       statutory requirement, or if remote notarization is not mentioned as an option
@@ -1014,7 +1021,7 @@ physical_forms:
 
 
 physical_inspection:
-  updated_at: "2025-12-26"
+  updated_at: "2026-03-05"
   display_name: "Physical Inspection Location"
   db_issue_type: "physical_inspection"
   category: "Physical Presence"
@@ -1048,6 +1055,13 @@ physical_inspection:
       - Online access is also provided
       - Documents contain security-sensitive information
       - Physical inspection is in addition to online access
+      - **FOIL/records-access boilerplate**: The text describes a Freedom of Information
+        Law (FOIL) process — e.g., "records access officer", "freedom of information",
+        "requests for public access to records", "FOIL request", or "records available
+        for public inspection pursuant to the Freedom of Information Law". FOIL provisions
+        are statutory requirements for government transparency, not burdensome physical-only
+        access rules. They typically ensure records ARE available, not that they can ONLY
+        be accessed in person. Mark these as has_issue: false.
 
       Respond with:
       - has_issue: true if physical inspection is the only option
@@ -2006,19 +2020,18 @@ routing_slip:
 
 
 storage_location:
-  updated_at: "2025-12-26"
+  updated_at: "2026-03-05"
   display_name: "Specific Storage Location"
   db_issue_type: "storage_location"
   category: "Process"
   description: "Records must be kept at specific location"
   response_model: "BaseComplianceAnalysis"
   patterns:
-    - "stored at"
-    - "maintained at"
     - "kept at the premises"
     - "kept on.{0,10}premises"
     - "on.{0,3}site.{0,10}storage"
-    - "at the facility"
+    - "records.{0,20}(stored|maintained) at"
+    - "files.{0,20}(stored|maintained) at"
     - "records.{0,10}kept"
   prompt:
     system: |
@@ -2361,3 +2374,291 @@ incorporation_by_reference:
 
       Identify any external standards, codes, or documents that are incorporated by reference,
       and extract the document name, publishing organization, and version if available.
+
+
+# =============================================================================
+# ENFORCEMENT
+# =============================================================================
+
+fines_fees_penalties:
+  updated_at: "2026-03-05"
+  # NOTE: This issue type uses a DEDICATED TABLE (fines_fees_penalties)
+  # instead of compliance_issues table. See backend/scripts/fines_scanner.py
+  # Config is kept here for pattern/prompt reuse. Similar to IBR (issue #49).
+  display_name: "Fines, Fees & Penalties"
+  db_issue_type: "fines_fees_penalties"
+  category: "Enforcement"
+  description: "Monetary charges including fines, fees, penalties, surcharges, and forfeitures"
+  response_model: "FinesFeePenaltyAnalysis"
+  patterns:
+    # --- High-precision: fine/penalty language (these rarely false-positive) ---
+    - "\\bcivil penalty\\b"
+    - "\\bcivil penalt(y|ies)\\b"
+    - "\\bpenalty\\b"
+    - "\\bpenalties\\b"
+    - "\\bfine\\b"
+    - "\\bfines\\b"
+    - "\\bsurcharge\\b"
+    - "\\bforfeiture\\b"
+    - "per violation"
+    - "per occurrence"
+    - "monetary penalty"
+    - "monetary fine"
+    - "subject to a fine"
+    - "shall be fined"
+    - "shall pay a penalty"
+    # --- Named fee types (high precision) ---
+    - "fee schedule"
+    - "\\bfiling fee\\b"
+    - "\\blicense fee\\b"
+    - "\\bapplication fee\\b"
+    - "\\bregistration fee\\b"
+    - "\\binspection fee\\b"
+    - "\\bpermit fee\\b"
+    - "\\brenewal fee\\b"
+    - "\\blate fee\\b"
+    - "\\bprocessing fee\\b"
+    - "\\bassessment fee\\b"
+    - "\\buser fee\\b"
+    - "\\bservice fee\\b"
+    # --- Compound patterns: dollar amount + penalty context (avoids bare $ matches) ---
+    - "\\$\\s*[\\d,]+.{0,40}(?:fine|penalty|fee|surcharge|forfeiture|per violation|per occurrence|per day)"
+    - "(?:fine|penalty|fee|surcharge|forfeiture).{0,40}\\$\\s*[\\d,]+"
+    - "not to exceed\\s*\\$"
+    - "not less than\\s*\\$"
+    - "not more than\\s*\\$"
+    - "\\$\\s*[\\d,]+\\s*per\\s*day"
+  prompt:
+    system: |
+      You analyze regulations and guidance documents for FINES, FEES, AND PENALTIES
+      that are IMPOSED, AUTHORIZED, OR REQUIRED BY the regulation itself.
+
+      CRITICAL DISTINCTION: Only extract charges that the regulation CREATES, AUTHORIZES, or REQUIRES.
+      Do NOT extract charges that are merely mentioned in passing, used as examples, or listed as
+      categories in an accounting/budgeting context.
+
+      For each regulatory charge found, extract:
+      - penalty_type: One of "fine", "fee", "penalty", "surcharge", "forfeiture", "other"
+      - amount: The dollar amount as stated (e.g., "$500", "up to $10,000", "$100-$500"). Non-monetary penalties (e.g., "6-month disqualification") go here too.
+      - amount_min: The minimum numeric dollar amount if parseable (null if not monetary or not parseable)
+      - amount_max: The maximum numeric dollar amount if parseable (null if not monetary or not parseable)
+      - per_unit: What the amount is per (e.g., "per violation", "per day", "per occurrence", null if flat)
+      - who_pays: Who is subject to this charge (e.g., "licensee", "applicant", "employer")
+      - responsible_agency: The FULL OFFICIAL NAME of the government agency that administers or collects this charge.
+        Use the agency name from the DOCUMENT METADATA section below if available.
+        NEVER return generic terms like "Department", "Commission", "Commissioner", "Office", "Board", or "Agency" alone.
+        Always include the full name (e.g., "Department of Environmental Conservation", not just "Department").
+        If the specific agency cannot be determined from the text, use the agency from the document metadata.
+      - violation_description: What triggers this fine/fee (brief description)
+      - requirement_quote: Exact quote from the text establishing this charge
+
+      Classification guidance:
+      - "fee" = regulatory fee required for a license, permit, application, inspection, or government service
+      - "fine" = punitive monetary charge for a violation
+      - "penalty" = broader punitive charge (monetary or non-monetary like disqualification/suspension)
+      - "surcharge" = additional charge on top of another fee/fine
+      - "forfeiture" = loss of bond, deposit, or property as a regulatory consequence
+      - "other" = doesn't fit neatly into above categories
+
+      INCLUDE (set llm_confirmed=true):
+      - Fines/penalties the regulation imposes for violations (e.g., "shall be subject to a civil penalty of $500 per violation")
+      - Fees the regulation requires for permits, licenses, applications, inspections, filings
+      - Fee schedules established by the regulation
+      - Non-monetary penalties imposed by the regulation (disqualification, suspension, revocation)
+      - Surcharges or forfeitures the regulation authorizes
+
+      EXCLUDE (set llm_confirmed=false):
+      - Fees merely mentioned as an accounting category (e.g., "conference fees" or "accreditation fees" in a budget list)
+      - Dollar amounts that are budget thresholds, grant amounts, or spending limits (not charges)
+      - Third-party charges not imposed by the regulation (e.g., "collection agency fees")
+      - Passing references to fines/penalties without the regulation actually imposing them
+      - Capital expenditure thresholds or revenue classifications
+
+    template: |
+      Analyze this regulatory text for fines, fees, and penalties that the REGULATION ITSELF
+      imposes, authorizes, or requires. Do not extract fees that are merely mentioned in passing
+      or listed as accounting categories.
+
+      DOCUMENT METADATA:
+      {document_metadata}
+
+      TEXT:
+      {regulation_context}
+
+      STATUTE CONTEXT:
+      {statute_context}
+
+      For each charge that the regulation creates or authorizes, extract structured data.
+      Set llm_confirmed=false for items that are merely mentioned but not imposed by the regulation.
+
+
+# =============================================================================
+# EQUITY & ACCESS
+# =============================================================================
+
+good_moral_character:
+  updated_at: "2026-03-05"
+  display_name: "Good Moral Character Requirement"
+  db_issue_type: "good_moral_character"
+  category: "Equity & Access"
+  description: "Vague moral character standard without required balancing test"
+  response_model: "BaseComplianceAnalysis"
+  patterns:
+    - "good moral character"
+    - "moral character and (suitability|fitness)"
+    - "character and fitness"
+    - "satisfactory.{0,20}character"
+  prompt:
+    system: |
+      You analyze regulations for GOOD MORAL CHARACTER requirements.
+
+      New York's Article 23-A (Correction Law §§750-755) requires agencies to apply a
+      multi-factor balancing test before denying a license or benefit based on criminal
+      history or moral character. The factors include: the specific offense, time elapsed,
+      age at offense, seriousness, rehabilitation evidence, and the relationship between
+      the offense and the license/benefit sought.
+
+      Most regulations that require "good moral character" fail to reference this legally
+      required balancing test, creating a vague and potentially discriminatory standard
+      that gives decision-makers unchecked discretion.
+
+      This IS a compliance issue when:
+      - "Good moral character" is required without defining evaluation criteria
+      - No reference to Article 23-A balancing factors
+      - The standard gives broad discretion without objective criteria
+      - Could disproportionately affect people with criminal histories
+
+      This is NOT a compliance issue when:
+      - The regulation specifies concrete evaluation criteria or references Article 23-A
+      - The requirement applies to a context where moral character is clearly defined (e.g., bar admission with published standards)
+      - The text merely references character as one factor among clearly listed criteria
+
+      Respond with:
+      - has_issue: true if vague character standard without balancing test
+      - requirement_quote: exact quote about the character requirement
+      - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+      - notes: whether Article 23-A balancing factors are referenced
+
+    template: |
+      Analyze this regulation for good moral character requirements:
+
+      REGULATION TEXT:
+      {regulation_context}
+
+      STATUTE CONTEXT:
+      {statute_context}
+
+      Determine whether this imposes a vague "good moral character" standard without
+      the Article 23-A balancing test or other objective criteria.
+
+
+fee_no_waiver:
+  updated_at: "2026-03-05"
+  display_name: "Non-Refundable Fee Without Waiver"
+  db_issue_type: "fee_no_waiver"
+  category: "Equity & Access"
+  description: "Non-refundable fee with no hardship waiver provision"
+  response_model: "BaseComplianceAnalysis"
+  patterns:
+    - "non-?refundable.{0,30}fee"
+    - "fee.{0,30}non-?refundable"
+    - "fee.{0,20}shall not be (returned|refunded)"
+  prompt:
+    system: |
+      You analyze regulations for NON-REFUNDABLE FEES WITHOUT HARDSHIP WAIVERS.
+
+      Non-refundable fees without hardship waiver provisions create regressive barriers
+      that disproportionately affect low-income individuals. A fee that cannot be waived
+      or reduced based on financial hardship may prevent people from obtaining licenses,
+      permits, or services they need.
+
+      This IS a compliance issue when:
+      - A fee is explicitly non-refundable
+      - No hardship waiver, fee reduction, or indigency provision is mentioned
+      - The fee is for a license, permit, application, or government service
+      - The fee amount could be a barrier for low-income individuals
+
+      This is NOT a compliance issue when:
+      - A hardship waiver or fee reduction provision exists
+      - The fee is refundable under certain conditions
+      - The non-refundable nature serves a clear purpose (e.g., covers actual processing costs)
+        AND a waiver exists for those who cannot afford it
+      - The fee applies only to businesses or commercial entities, not individuals
+
+      Respond with:
+      - has_issue: true if non-refundable fee without hardship waiver
+      - requirement_quote: exact quote about the fee
+      - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+      - notes: fee amount if stated, whether waiver exists
+
+    template: |
+      Analyze this regulation for non-refundable fees without hardship waivers:
+
+      REGULATION TEXT:
+      {regulation_context}
+
+      STATUTE CONTEXT:
+      {statute_context}
+
+      Determine whether this imposes a non-refundable fee without any hardship
+      waiver or fee reduction provision.
+
+
+criminal_history_barrier:
+  updated_at: "2026-03-05"
+  display_name: "Criminal History Barrier"
+  db_issue_type: "criminal_history_barrier"
+  category: "Equity & Access"
+  description: "Criminal history barrier without required balancing test"
+  response_model: "BaseComplianceAnalysis"
+  patterns:
+    - "convicted of.{0,20}(felony|misdemeanor)"
+    - "(shall not|denied|disqualif|ineligible|prohibit).{0,30}criminal (record|history|conviction)"
+    - "felony.{0,20}conviction"
+    - "(shall|must|required).{0,20}background check"
+  prompt:
+    system: |
+      You analyze regulations for CRIMINAL HISTORY BARRIERS.
+
+      New York's Article 23-A (Correction Law §§750-755) prohibits blanket disqualification
+      based on criminal history and requires a multi-factor balancing test. The factors include:
+      (1) the public policy of encouraging employment of persons with criminal records,
+      (2) the specific duties of the license/position, (3) bearing of the offense on fitness,
+      (4) time elapsed since the offense, (5) age at time of offense, (6) seriousness of offense,
+      (7) rehabilitation information, and (8) the employer/agency's legitimate interest.
+
+      Regulations that impose automatic disqualification or fail to reference the Article 23-A
+      balancing test create illegal barriers to employment and licensing for people with
+      criminal histories.
+
+      This IS a compliance issue when:
+      - Criminal conviction is an automatic disqualifier for a license or benefit
+      - No reference to Article 23-A balancing factors
+      - Blanket prohibition without individualized assessment
+      - "Shall not be licensed if convicted of a felony" without exceptions
+
+      This is NOT a compliance issue when:
+      - The regulation references Article 23-A or requires individualized assessment
+      - Background checks are used as one factor in a multi-factor evaluation
+      - The restriction is narrowly tailored to directly related offenses (e.g., financial
+        crimes for banking licenses) with clear nexus stated
+      - The requirement is for a position with specific statutory disqualification
+        (e.g., law enforcement, certain childcare positions per federal law)
+
+      Respond with:
+      - has_issue: true if criminal history barrier without balancing test
+      - requirement_quote: exact quote about the criminal history requirement
+      - from_statute: true if requirement is in statute, false if regulation adds it, null if no statute
+      - notes: whether Article 23-A is referenced, nature of the restriction
+
+    template: |
+      Analyze this regulation for criminal history barriers:
+
+      REGULATION TEXT:
+      {regulation_context}
+
+      STATUTE CONTEXT:
+      {statute_context}
+
+      Determine whether this creates a criminal history barrier without the
+      Article 23-A balancing test or individualized assessment.

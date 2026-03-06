@@ -55,6 +55,9 @@ def load_requests_from_dir(batch_dir: Path) -> list[dict]:
         if isinstance(data, dict):
             for cid, req in data.items():
                 if isinstance(req, dict) and "params" in req:
+                    # Ensure custom_id is preserved in the request dict
+                    if "custom_id" not in req:
+                        req["custom_id"] = cid
                     requests.append(req)
         elif isinstance(data, list):
             requests = data

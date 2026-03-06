@@ -57,6 +57,7 @@ Examples:
     parser.add_argument("--classify", action="store_true", help="Run rule-based classification (dry-run by default)")
     parser.add_argument("--regex-scan", action="store_true", help="Scan guidance docs for compliance issue regex patterns")
     parser.add_argument("--doc-type", help="Filter regex scan to a specific doc_type")
+    parser.add_argument("--resolve-guidance-refs", action="store_true", help="Resolve cites_documents to guidance_documents (dry-run by default)")
 
     parser.add_argument(
         "--import-manifest",
@@ -135,6 +136,12 @@ Examples:
     if args.regex_scan:
         from scripts.guidance_pipeline.regex_scan import regex_scan
         regex_scan(agency=args.agency, doc_type=args.doc_type, execute=args.execute)
+        return
+
+    if args.resolve_guidance_refs:
+        from scripts.guidance_pipeline.guidance_ref_resolver import resolve_guidance_refs
+        dry_run = not args.execute
+        resolve_guidance_refs(dry_run=dry_run)
         return
 
     # --- Manifest coverage check ---

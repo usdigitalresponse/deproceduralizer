@@ -18,9 +18,9 @@ Canonical counts for use across all documentation. When adding/removing issue ty
 
 | Metric | Value | Source of Truth |
 |--------|-------|-----------------|
-| Compliance issue types | 42 | `prompts/compliance_issues.yaml` |
-| Pipeline steps | 12 | `docs/OPERATIONS.md` step table |
-| JenAI/Pahlka categories | 19 | `prompts/jenai.yaml` |
+| Compliance issue types | 46 | `prompts/compliance_issues.yaml` |
+| Pipeline steps | 13 | `docs/OPERATIONS.md` step table |
+| JenAI/Pahlka categories | 18 | `prompts/jenai.yaml` |
 | Red flag categories | 12 | `prompts/core.yaml` |
 
 ## Frontend Architecture Guidelines (frontend/apps/web)
@@ -61,7 +61,7 @@ When working on the Next.js frontend, follow these patterns:
 ### LLM Prompts
 - All prompts are centralized in the `/prompts/` directory:
   - `prompts/core.yaml` - Core analysis prompts (red_flags, definitions)
-  - `prompts/compliance_issues.yaml` - All 42 compliance issue types with patterns and prompts
+  - `prompts/compliance_issues.yaml` - All 46 compliance issue types with patterns and prompts
 - Prompts have `system` (static, cached) and `template` (dynamic) sections
 - When adding/modifying prompts, update the appropriate file in `/prompts/`
 - **Important:** When modifying any prompt, update its `updated_at` field to today's date (YYYY-MM-DD format)
@@ -90,7 +90,7 @@ When working on the Next.js frontend, follow these patterns:
 - Only runs for flagged analyses (burdensome/justified) with matched statute links
 
 ### JenAI Pipeline
-- Single-pass LLM pipeline for 19-category Pahlka framework analysis: `cd backend && python3 -m scripts.jenai_pipeline.cli`
+- Single-pass LLM pipeline for 18-category framework analysis: `cd backend && python3 -m scripts.jenai_pipeline.cli`
 - Single enriched pass with full context upfront: ancestor summaries, sibling summaries, cross-ref summaries, definitions.
 - Results in `jenai_analyses` + `jenai_issues` tables
 - **IMPORTANT**: Always ask user permission before running (costs money)

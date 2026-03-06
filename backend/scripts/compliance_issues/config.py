@@ -120,7 +120,7 @@ class IssueTypeConfig:
 
 # Issue types that use dedicated tables (not compliance_issues table)
 # These are excluded from ISSUE_TYPES but can be loaded separately via _load_issue_config()
-DEDICATED_TABLE_ISSUE_TYPES = {'incorporation_by_reference'}
+DEDICATED_TABLE_ISSUE_TYPES = {'incorporation_by_reference', 'fines_fees_penalties'}
 
 
 def _load_issue_types(include_dedicated: bool = False) -> dict[str, IssueTypeConfig]:

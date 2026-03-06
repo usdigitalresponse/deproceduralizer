@@ -2,7 +2,7 @@
 # JenAI Pipeline: Single-Pass Enriched Regulatory Implementation Analysis
 # =============================================================================
 #
-# Framework: 19-category taxonomy (18 Pahlka problem categories + WORST_THING)
+# Framework: 18-category taxonomy (15 Pahlka + 2 structural + OTHER catch-all)
 # Architecture: Single enriched pass with full context upfront
 #
 # PROMPT ARCHITECTURE (3-layer caching):
@@ -21,13 +21,13 @@
 # Variables (template): citation, title, summary, cross_references, section_text
 
 analysis:
-  updated_at: "2026-02-20"
+  updated_at: "2026-03-04"
   description: |
     Single-pass enriched analysis. Each regulatory section is evaluated against
-    all 19 categories with full context upfront: ancestor summaries, sibling
+    all 18 categories with full context upfront: ancestor summaries, sibling
     summaries, cross-reference summaries, and full definition text. Includes
-    an adversarial WORST_THING category to catch issues that the 18 Pahlka
-    categories might miss.
+    an OTHER catch-all category for issues that don't fit the named
+    categories.
 
   # Layer 1: Static core (cached globally across all batch requests)
   system: |
@@ -45,7 +45,7 @@ analysis:
     aggressively to make well-informed judgments.
 
     =========================================================================
-    ANALYSIS FRAMEWORK — 19 CATEGORIES
+    ANALYSIS FRAMEWORK — 18 CATEGORIES
     =========================================================================
 
     1. REGULATORY_COMPLEXITY
@@ -291,22 +291,14 @@ analysis:
        - MEDIUM: References specific technology but alternatives are feasible
        - LOW: Minor technology specificity unlikely to cause problems
 
-    10. WORST_THING *** ADVERSARIAL ANALYSIS ***
-        What is the single WORST thing about this regulatory section from an
-        implementation perspective?
+    10. OTHER
+        Catch-all for implementation issues that do not fit neatly into the
+        17 named categories above.
 
-        This category is your SAFETY NET for catching problems the 18 Pahlka
-        categories above would miss. Its primary purpose is to surface NOVEL
-        issues — things that don't fit neatly into any of the 18 categories.
+        This category surfaces NOVEL problems the structured categories miss.
+        Use it when a real implementation barrier exists but none of categories
+        1-9 or 11-18 capture it well. Examples of issues that belong here:
 
-        YOUR TASK: Forget the 18 categories above. Step back and ask yourself —
-        if you were a caseworker, applicant, or program administrator who had to
-        live under this regulation every day, what would drive you crazy? What
-        would make you lose sleep? What would cause real harm to real people?
-
-        STRONGLY PREFER NOVEL FINDINGS over duplicating another category. The
-        18 Pahlka categories already cover common regulatory problems. WORST_THING
-        should find what they MISS. Look for:
         - Catch-22s: requirements that contradict each other or create impossible
           situations (e.g., "can't operate without approval, can't get approval
           without operating")
@@ -324,22 +316,16 @@ analysis:
         - Missing escape valves: no waiver, exception, or appeal process for
           edge cases the drafters didn't anticipate
 
-        Only duplicate a Pahlka category finding as WORST_THING if there is
-        genuinely nothing novel to report and a Pahlka issue truly is the worst
-        aspect of the section. This should be rare.
-
         REQUIREMENTS:
-        - You MUST always include a WORST_THING finding, even for "clean" sections
+        - If no Pahlka category applies but there IS an implementation issue,
+          you MUST include an OTHER finding
+        - At least one finding is always required — if no Pahlka category
+          applies, use OTHER (severity 1-3 is fine for well-drafted sections)
         - Include at least one direct quote from the regulatory text
-        - Your explanation should tell a CONCRETE STORY: describe a specific
-          realistic scenario where this problem causes harm to a real person
-        - Severity 1-3 is acceptable if the section is genuinely well-drafted
-          (the "worst thing" might be minor)
-        - Severity 7-10 for sections with serious implementation problems
-
-        If the section is truly well-written with no issues, your WORST_THING
-        finding can acknowledge that while still identifying the single weakest
-        aspect (every regulation has one).
+        - Your explanation should describe a specific realistic scenario where
+          this problem causes harm
+        - Do NOT duplicate a Pahlka category finding as OTHER unless the issue
+          genuinely does not fit any Pahlka category
 
     11. MISSING_OUTCOMES
         Regulation prescribes what to do but never defines what success looks like.
@@ -426,36 +412,7 @@ analysis:
         - MEDIUM: Primary channel has barriers but alternatives exist
         - LOW: Minor assumption unlikely to cause widespread exclusion
 
-    14. INTERAGENCY_FRAGMENTATION
-        Multiple agency approvals required, sequential approval chains, no single
-        point of contact for applicants/regulated entities.
-
-        DETECTION SIGNALS:
-        - Sequential approvals: must get Agency A approval before applying to Agency B
-        - Duplicative submissions of same information to multiple agencies
-        - No single point of contact or case manager
-        - Applicant must navigate between agencies independently
-        - Conflicting requirements from different agencies
-
-        RED FLAG EXAMPLE:
-        "Prior to applying for a license from the Department of Health, the
-        applicant must obtain: (1) a certificate of compliance from the Department
-        of Buildings; (2) approval from the local zoning board; (3) a fire safety
-        certificate from the Fire Marshal; (4) an environmental clearance from
-        the Department of Environmental Protection. Each agency has independent
-        application procedures and timelines."
-
-        NOT A RED FLAG:
-        - Multiple agencies involved but with a single point of contact/coordinator
-        - Reasonable specialization (fire safety reviewed by fire experts)
-        - Parallel (not sequential) agency reviews with coordinated timelines
-
-        SEVERITY GUIDANCE:
-        - HIGH: 4+ sequential agency approvals with no coordination mechanism
-        - MEDIUM: 2-3 agencies without clear coordination
-        - LOW: Minor fragmentation with reasonable justification
-
-    15. FEE_COST_BURDENS
+    14. FEE_COST_BURDENS
         Excessive fees, outdated fee schedules, or disproportionate costs that
         create financial barriers to compliance or participation.
 
@@ -483,41 +440,7 @@ analysis:
         - MEDIUM (4-6): Fees that are disproportionate but not prohibitive
         - LOW (1-3): Fees that are merely outdated or slightly above cost-recovery
 
-    16. STATE_EXCEEDS_FEDERAL
-        New York requirements that are stricter than federal equivalents without
-        clear justification for the additional burden.
-
-        DETECTION SIGNALS:
-        - Explicit "in addition to federal requirements" language
-        - References to federal equivalents (CFR, USC) with additional state layers
-        - State-specific reporting, documentation, or inspection requirements
-          beyond what federal rules require
-        - Shorter deadlines than federal equivalents
-        - More frequent reporting than federal mandates
-
-        RED FLAG EXAMPLE:
-        "In addition to the federal OSHA requirements under 29 CFR 1910, employers
-        must also submit quarterly state safety reports to the Department using
-        Form SS-100, maintain a separate state-specific injury log, and provide
-        annual state training certifications not required by federal law."
-
-        NOT A RED FLAG:
-        - State requirements addressing genuinely local conditions not covered by federal rules
-        - State requirements implementing federal mandates with reasonable specificity
-        - Areas where states traditionally set higher standards (environmental, consumer protection)
-          with clear policy rationale
-        - Federal floors that states are expected to exceed (e.g., minimum wage)
-
-        SEVERITY GUIDANCE:
-        - HIGH (7-10): State requirements that double federal burden without justification
-        - MEDIUM (4-6): Additional state requirements with weak justification
-        - LOW (1-3): Minor additions with clear local rationale
-
-        NOTE: This is the hardest category to detect without a federal corpus. Flag
-        cases where the regulation EXPLICITLY references federal equivalents and adds
-        state-specific requirements on top.
-
-    17. DEAD_SUPERSEDED_REFERENCES
+    15. DEAD_SUPERSEDED_REFERENCES
         References to repealed statutes, dissolved agencies, defunct programs,
         or obsolete standards that indicate the regulation has not been updated.
 
@@ -550,40 +473,7 @@ analysis:
         or standard, check whether it appears to still be active in the broader regulatory
         context.
 
-    18. DUPLICATIVE_REQUIREMENTS
-        Overlapping or identical requirements across regulations, requiring the
-        same information to be submitted to multiple agencies or through parallel
-        processes.
-
-        DETECTION SIGNALS:
-        - "In addition to the requirements of [other Part/Section]" language
-        - Same information submitted to multiple agencies on separate forms
-        - Parallel approval processes for the same activity
-        - Sibling sections with overlapping scope (USE SIBLING CONTEXT)
-        - Multiple agencies requiring the same inspections or certifications
-        - Reporting requirements that duplicate information already provided elsewhere
-
-        RED FLAG EXAMPLE:
-        "Facilities must report the same incident to DOH within 24 hours, OMH
-        within 48 hours, and OASAS within 72 hours, each on separate forms with
-        overlapping but slightly different data requirements."
-
-        NOT A RED FLAG:
-        - Complementary requirements from different agencies with distinct purposes
-        - Requirements that REFERENCE other sections without duplicating them
-        - Reasonable specialization (fire safety reviewed by fire experts)
-        - Consolidated reporting that satisfies multiple agency requirements
-
-        SEVERITY GUIDANCE:
-        - HIGH (7-10): Identical submissions to 3+ agencies or parallel approval chains
-        - MEDIUM (4-6): Duplicative reporting to 2 agencies or significant overlap
-        - LOW (1-3): Minor overlap with justifiable specialization
-
-        USE CONTEXT: Rich context (sibling summaries, ancestor summaries) is crucial
-        here. Flag when you see overlap with sibling or parent sections. Cross-reference
-        summaries may reveal that the same requirement exists elsewhere.
-
-    19. MISSING_DIGITAL_AUTHORIZATION
+    16. MISSING_DIGITAL_AUTHORIZATION
         Regulations that describe submission, filing, or application processes
         without explicitly authorizing electronic or digital alternatives.
 
@@ -615,6 +505,72 @@ analysis:
 
         USE CONTEXT: Check sibling sections — if a sibling section authorizes electronic
         submission for the same Part, this section may not need its own authorization.
+
+    17. ONE_SIZE_FITS_ALL
+        Uniform standards that ignore program diversity — imposing identical
+        requirements regardless of size, context, population served, or risk level.
+
+        DETECTION SIGNALS:
+        - Same requirements for large institutions and solo practitioners
+        - No tiered standards based on size, volume, or risk
+        - "All providers shall" without distinguishing program types
+        - Requirements designed for large organizations applied to home-based operations
+        - No proportionality between the requirement and the entity's capacity
+
+        RED FLAG EXAMPLE:
+        "All child care programs shall maintain a full-time health care consultant,
+        conduct monthly fire drills with documentation, and submit quarterly
+        financial audits" — applied identically to a 200-child center and a
+        home-based provider caring for 4 children.
+
+        NOT A RED FLAG:
+        - Universal safety standards where the risk is the same regardless of size
+          (e.g., safe sleep practices apply equally to all infant care)
+        - Requirements that scale naturally with size (e.g., "maintain records
+          for each child" — more children = more records, but the per-child burden
+          is the same)
+        - Tiered requirements that already account for program diversity
+
+        SEVERITY GUIDANCE:
+        - HIGH (7-10): Requirements clearly designed for large institutions applied
+          without modification to small/home-based operations, creating impossible
+          compliance burdens
+        - MEDIUM (4-6): Uniform requirements that are disproportionate for some
+          program types but not impossible
+        - LOW (1-3): Minor uniformity that most programs can accommodate
+
+    18. UNFUNDED_MANDATE
+        Requirements imposed without appropriation, funding mechanism, or
+        reimbursement — creating obligations that regulated entities must fund
+        entirely from their own resources.
+
+        DETECTION SIGNALS:
+        - "Shall" obligations with no mention of funding, grants, or reimbursement
+        - New compliance requirements without corresponding budget allocation
+        - Training mandates without funded training programs
+        - Infrastructure requirements (systems, facilities) without capital support
+        - Staffing ratio mandates without wage/benefit funding
+
+        RED FLAG EXAMPLE:
+        "All programs shall implement a comprehensive electronic health records
+        system compatible with the Department's reporting portal, train all staff
+        on the new system within 90 days, and maintain dedicated IT support for
+        system operations." No funding, grants, or reimbursement mentioned.
+
+        NOT A RED FLAG:
+        - Requirements with explicit funding mechanisms ("funded through the
+          annual block grant allocation")
+        - Cost-recovery structures (fees collected fund the compliance activity)
+        - Requirements that are part of normal business operations (e.g., "maintain
+          clean facilities" — this is a basic operational cost, not an unfunded mandate)
+        - Requirements where the regulated entity charges fees to cover costs
+
+        SEVERITY GUIDANCE:
+        - HIGH (7-10): Major infrastructure or staffing mandates with no funding
+          mechanism, especially for small or resource-constrained entities
+        - MEDIUM (4-6): Moderate compliance costs without funding, but entity
+          could absorb them
+        - LOW (1-3): Minor administrative costs that are reasonable to self-fund
 
     =========================================================================
     CRITICAL ANTI-FALSE-POSITIVE RULES
@@ -678,18 +634,22 @@ analysis:
     schema:
 
     - categories: Array of category findings. For each:
-        - category: One of the 19 category names (uppercase)
+        - category: One of the 18 category names (uppercase)
         - explanation: Why this creates an implementation barrier (50-200 chars)
         - severity: 1-10 scale (1-3=LOW, 4-6=MEDIUM, 7-10=HIGH)
         - complexity: "HIGH" | "MEDIUM" | "LOW"
         - confidence: 0.0-1.0 (how confident you are in this finding)
-        - matched_phrases: 1-20 exact quotes from the section text
+        - matched_phrases: 1-20 exact quotes from the section text.
+          IMPORTANT: matched_phrases MUST be copied VERBATIM from the section
+          text — do not paraphrase, summarize, or alter wording.
+        - tags: 2-3 short kebab-case labels that describe this finding
+          (e.g., ["unrealistic-deadline", "automatic-denial", "no-appeal"])
         - implementation_approach: How to implement this better (optional)
         - effort_estimate: Rough effort to fix (optional)
         - text_examples: Additional text excerpts illustrating the issue
 
     - classification: One of:
-        - "clean" — No Pahlka category issues found (WORST_THING may still be present)
+        - "clean" — No Pahlka category issues found (OTHER may still be present)
         - "has_issues" — One or more Pahlka category issues found
 
     - overall_confidence: 0.0-1.0 overall confidence in the analysis
@@ -701,13 +661,16 @@ analysis:
     - reasoning: Brief explanation of your overall analysis approach and key judgments
 
     IMPORTANT:
-    - You MUST ALWAYS include a WORST_THING finding. Every section has one.
-    - A section can be "clean" (no Pahlka issues) while still having a WORST_THING
+    - At least one finding is always required. If no Pahlka category applies,
+      include an OTHER finding (severity 1-3 for well-drafted sections).
+    - A section can be "clean" (no Pahlka issues) while still having an OTHER
       finding with severity 1-3.
     - Do not flag more than 7 Pahlka categories per section. Focus on the most
-      impactful ones. WORST_THING does not count against this limit.
+      impactful ones. OTHER does not count against this limit.
     - Use the rich context provided. If sibling sections resolve an apparent issue,
       do not flag it. If context reveals a hidden problem, flag it.
+    - matched_phrases MUST be verbatim from the section text — no paraphrasing.
+    - For every finding, include 2-3 kebab-case tags in the tags field.
 
   # Layer 2: Batch context (cached per subchapter)
   batch_context: |
@@ -716,7 +679,8 @@ analysis:
   # Layer 3: Document template (unique per section)
   template: |
     Analyze this regulatory section for implementation complexity issues using the
-    19-category framework. Remember: you MUST include a WORST_THING finding.
+    18-category framework. At least one finding is required — use OTHER if no
+    Pahlka category applies. matched_phrases must be verbatim from the text.
 
     CITATION: {citation}
     TITLE: {title}

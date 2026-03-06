@@ -639,7 +639,7 @@ async def run_tier2_with_reruns(
     cost_tracker=None,
     trace_context=None,
     cache=None,
-) -> list[TrackedUnit]:
+) -> tuple[list[TrackedUnit], list[dict]]:
     """
     Run Tier 2 using real-time API with re-run support.
 
@@ -662,13 +662,13 @@ async def run_tier2_with_reruns(
         trace_context: Optional Langfuse trace context for observability
 
     Returns:
-        Processed units with tier2_output populated (or error_message set)
+        Tuple of (processed units with tier2_output populated, list of batch-formatted request dicts for prompt observability)
     """
     import anthropic
     from lib.llm import call_llm_parse_async
 
     if not units:
-        return units
+        return units, []
 
     tier_configs = load_tier_configs()
     tier2_config = tier_configs['tier2']
@@ -715,6 +715,9 @@ async def run_tier2_with_reruns(
 
     # Merge fetched content
     all_fetched_context = {**fetched_summaries, **fetched_full_text}
+
+    # Collect batch-formatted requests for prompt observability
+    all_prompt_requests: list[dict] = []
 
     for unit in units:
         # Get issue config for this unit
@@ -843,6 +846,16 @@ async def run_tier2_with_reruns(
             else:
                 user_prompt = prompt_parts["user"]
 
+            # Capture the initial request in batch format for prompt observability
+            if rerun_count == 0:
+                all_prompt_requests.append(format_batch_request(
+                    custom_id=unit.custom_id,
+                    prompt=user_prompt,
+                    response_format=Tier2Output,
+                    model=DEFAULT_MODEL,
+                    system=prompt_parts["system"],
+                ))
+
             try:
                 result, usage = await call_llm_parse_async(
                     client=client,
@@ -936,4 +949,4 @@ async def run_tier2_with_reruns(
         # Rate limiting between units
         await asyncio.sleep(0.2)
 
-    return units
+    return units, all_prompt_requests

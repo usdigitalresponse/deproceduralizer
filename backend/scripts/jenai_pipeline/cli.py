@@ -2,8 +2,8 @@
 """
 CLI for the JenAI pipeline.
 
-Runs regulatory sections through the single-pass enriched analysis pipeline.
-Defaults are cost-safe: dry-run mode by default.
+Runs regulatory sections or guidance documents through the single-pass
+enriched analysis pipeline. Defaults are cost-safe: dry-run mode by default.
 
 Usage:
     cd backend && python3 -m scripts.jenai_pipeline --help
@@ -19,6 +19,10 @@ Usage:
 
     # Realtime mode (faster but 2x cost)
     python3 -m scripts.jenai_pipeline --state ny --document-id 81899 --execute --realtime
+
+    # Guidance documents
+    python3 -m scripts.jenai_pipeline --state ny --source guidance --agency OCFS --limit 5
+    python3 -m scripts.jenai_pipeline --state ny --source guidance --agency OCFS --doc-type ADM --execute
 """
 
 import argparse
@@ -77,6 +81,20 @@ def build_parser() -> argparse.ArgumentParser:
         help="Disable LLM API response cache (forces fresh API calls)",
     )
 
+    # Guidance document support
+    parser.add_argument(
+        '--source', choices=['regulation', 'guidance'], default='regulation',
+        help="Source type: 'regulation' (default) or 'guidance'",
+    )
+    parser.add_argument(
+        '--agency', type=str, default=None,
+        help="Agency filter for guidance docs (e.g., 'OCFS')",
+    )
+    parser.add_argument(
+        '--doc-type', type=str, default=None,
+        help="Document type filter for guidance docs (e.g., 'ADM')",
+    )
+
     return parser
 
 
@@ -92,12 +110,23 @@ def main():
 
     from .pipeline_runner import run_pipeline
 
+    # Validate guidance-only args
+    if args.source == 'guidance':
+        if args.title is not None or args.part is not None:
+            parser.error("--title and --part are only valid for --source regulation")
+        if args.include_all_types:
+            parser.error("--include-all-types is only valid for --source regulation")
+    else:
+        if args.agency is not None or args.doc_type is not None:
+            parser.error("--agency and --doc-type are only valid for --source guidance")
+
     dry_run = not args.execute
 
     if not dry_run:
         mode = "REALTIME" if args.realtime else "BATCH"
+        source_label = f", Source: {args.source}" if args.source != "regulation" else ""
         print("=" * 60)
-        print(f"  JenAI Pipeline - LIVE EXECUTION ({mode})")
+        print(f"  JenAI Pipeline - LIVE EXECUTION ({mode}{source_label})")
         print("  This will make API calls and write to the database.")
         if args.realtime:
             print("  Realtime mode: 2x cost, no batch discount.")
@@ -114,6 +143,9 @@ def main():
         realtime=args.realtime,
         document_ids=args.document_id,
         no_cache=args.no_cache,
+        source_type=args.source,
+        agency=args.agency,
+        doc_type=args.doc_type,
     )
 
     print(f"\n{'=' * 40}")

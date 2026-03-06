@@ -1,5 +1,5 @@
 landline:
-  updated_at: '2026-01-03'
+  updated_at: '2026-03-05'
   display_name: Landline/Telephone Required
   db_issue_type: landline
   category: Communication
@@ -36,11 +36,11 @@ landline:
   patterns:
   - \blandline\b
   - touch-tone
-  - by telephone
+  - (shall|must|required).{0,20}by telephone
   - telephone call
   - verbal authorization
   - oral authorization
-  - by phone
+  - (shall|must|required).{0,20}by phone
   statistics:
     total_matches: 637
     true_positives: 313

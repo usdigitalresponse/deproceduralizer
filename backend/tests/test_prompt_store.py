@@ -34,7 +34,7 @@ class TestCanonicalParams:
 
     def test_includes_only_canonical_keys(self):
         params = {
-            "model": "claude-sonnet-4-5-20250929",
+            "model": "claude-sonnet-4-6",
             "system": "You are helpful",
             "messages": [{"role": "user", "content": "hello"}],
             "tools": [{"name": "search"}],
@@ -52,7 +52,7 @@ class TestCanonicalParams:
 
     def test_excludes_cache_control_metadata(self):
         params = {
-            "model": "claude-sonnet-4-5-20250929",
+            "model": "claude-sonnet-4-6",
             "system": [{"type": "text", "text": "sys", "cache_control": {"type": "ephemeral"}}],
             "messages": [{"role": "user", "content": [
                 {"type": "text", "text": "hello", "cache_control": {"type": "ephemeral"}}
@@ -79,7 +79,7 @@ class TestComputeHash:
     """Tests for _compute_hash."""
 
     def test_deterministic_for_same_input(self):
-        params = {"model": "claude-sonnet-4-5-20250929", "system": "test"}
+        params = {"model": "claude-sonnet-4-6", "system": "test"}
         h1 = _compute_hash(params)
         h2 = _compute_hash(params)
         assert h1 == h2
@@ -156,7 +156,7 @@ class TestValidatePipeline:
 class TestStorePromptBatch:
     """Tests for store_prompt_batch with mocked DB."""
 
-    def _make_request(self, custom_id="test_123", model="claude-sonnet-4-5-20250929"):
+    def _make_request(self, custom_id="test_123", model="claude-sonnet-4-6"):
         return {
             "custom_id": custom_id,
             "params": {

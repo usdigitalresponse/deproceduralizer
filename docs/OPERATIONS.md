@@ -15,6 +15,7 @@ Complete guide for running the Deproceduralizer analysis pipeline on a state's r
 7. Compliance Scan    →  compliance_issues table (regex matches)
 8. Research Pipeline  →  compliance_issue_analyses table (LLM Tier 1-3)
 9. IBR Scan           →  incorporations_by_reference table
+9b. Fines Scan        →  fines_fees_penalties table (LLM structured extraction)
 10. Red Flags         →  analyses table
 11. JenAI Pipeline    →  jenai_analyses + jenai_issues tables (LLM single-pass)
 12. Refresh Stats     →  precomputed counts on regulatory_documents
@@ -401,8 +402,8 @@ python3 -m scripts.summarization.recover_batches --state NY --limit 500
 python backend/scripts/scan_compliance_issues.py --state ny
 ```
 
-<!-- metric: ISSUE_TYPE_COUNT=42 -->
-- Regex-only scan — finds candidate matches for 42 compliance issue types
+<!-- metric: ISSUE_TYPE_COUNT=46 -->
+- Regex-only scan — finds candidate matches for 46 compliance issue types
 - Patterns defined in `prompts/compliance_issues.yaml`
 - Use `--issue wet_signature` for a single type, `--dry-run` to search without saving
 - Use `--list-issues` to see all available issue types, `--limit N` to cap matches per issue type
@@ -484,6 +485,54 @@ python backend/scripts/ibr_scanner.py --state ny   # or nj, nyc
 |------|------|
 | ~$ (Haiku) | Minutes to hours |
 
+### Step 9b: Scan Fines, Fees & Penalties
+
+```bash
+# Basic scan (regulations only, async)
+python backend/scripts/fines_scanner.py --state ny
+
+# Include guidance documents
+python backend/scripts/fines_scanner.py --state ny --include-guidance
+
+# Batch API (recommended for full scans)
+python backend/scripts/fines_scanner.py --state ny --include-guidance --batch
+
+# Poll a batch until complete, then auto-process results
+python backend/scripts/fines_scanner.py --state ny --include-guidance --poll <batch_id>
+
+# Process a completed batch manually
+python backend/scripts/fines_scanner.py --state ny --include-guidance --process-batch <batch_id>
+
+# Filter to specific title/part (useful for targeted scans)
+python backend/scripts/fines_scanner.py --state ny --title 18 --part 413
+
+# Dry run (regex only, no LLM)
+python backend/scripts/fines_scanner.py --state ny --include-guidance --dry-run
+```
+
+- Detects monetary charges (fines, fees, penalties, surcharges, forfeitures)
+- Regex search → LLM structured extraction → saves to `fines_fees_penalties` table
+- Extracts: amount, type, who pays, responsible agency, violation trigger
+- Injects document metadata (NYCRR title agency, guidance doc agency) into LLM prompt for better agency attribution
+- Uses Haiku model for cost efficiency
+- Resume-safe: skips documents already in the database
+
+| Flag | Description |
+|------|-------------|
+| `--state` | Jurisdiction (ny, nj, nyc) — required |
+| `--include-guidance` | Also scan guidance_documents table |
+| `--batch` | Submit to Anthropic Batch API (50% cheaper) |
+| `--poll <id>` | Poll batch until complete, then process + save |
+| `--process-batch <id>` | Process a completed batch |
+| `--title N` | Filter to NYCRR title number |
+| `--part N` | Filter to NYCRR part number |
+| `--limit N` | Cap number of matches to process |
+| `--dry-run` | Regex search only, no LLM calls |
+
+| Cost | Time |
+|------|------|
+| ~$1-3 (Haiku batch) | ~6 min for 5,500 docs |
+
 ### Step 10: Red Flag Analysis
 
 ```bash
@@ -525,12 +574,12 @@ cd backend && python3 -m scripts.jenai_pipeline.cli --state ny --document-id 818
 ```
 
 - Single-pass enriched LLM pipeline analyzing regulatory sections for implementation complexity
-<!-- metric: JENAI_CATEGORIES=19 -->
-- Uses 19-category framework: 18 Pahlka problem categories + adversarial WORST_THING
+<!-- metric: JENAI_CATEGORIES=18 -->
+- Uses 18-category framework: 15 Pahlka problem categories + 2 structural + OTHER catch-all
 - Full rich context upfront: ancestor summaries, sibling summaries, cross-ref summaries, full definition text
 - Results in `jenai_analyses` (one row per document) + `jenai_issues` (one row per category finding)
 - **Depends on:** Step 5 (cross-references) and Step 6 (summaries) for context
-- Uses Anthropic Batch API (Sonnet 4.5) for cost efficiency
+- Uses Anthropic Batch API (Sonnet 4.6) for cost efficiency
 
 | Cost | Time |
 |------|------|
@@ -882,7 +931,7 @@ matches the source faithfully. See issue #16 for details.
 All prompts live in the `/prompts/` directory:
 
 - Core analysis prompts: `prompts/core.yaml` (red_flags, definitions)
-- Compliance issues: `prompts/compliance_issues.yaml` (42 issue types with patterns + prompts) <!-- metric: ISSUE_TYPE_COUNT=42 -->
+- Compliance issues: `prompts/compliance_issues.yaml` (46 issue types with patterns + prompts) <!-- metric: ISSUE_TYPE_COUNT=46 -->
 - Frontend copy: `frontend/apps/web/src/data/prompts.yaml` (copied from `prompts/core.yaml` via prebuild)
 
 TypeScript types are auto-generated from YAML - run `python scripts/generate_prompt_types.py` after modifying `prompts/compliance_issues.yaml`.
@@ -899,8 +948,9 @@ Approximate LLM costs per state (as of February 2025):
 | 6. Summaries | Claude Haiku | ~$100 |
 | 8. Research Pipeline (full) | Claude Haiku/Sonnet | ~$50-60 (observed, per title) |
 | 9. IBR Scan | Claude Haiku | ~$5-10 |
+| 9b. Fines Scan | Claude Haiku | ~$1-3 |
 | 10. Red Flags | Claude | ~$50-100 |
-| **Total** | | **~$215-290** |
+| **Total** | | **~$216-293** |
 
 Costs depend on document count and average length. NY and NJ each have ~60K regulatory documents.
 

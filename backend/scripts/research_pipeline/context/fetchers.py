@@ -97,6 +97,7 @@ def fetch_document_content_batch(
         cur.execute(query, [document_ids])
         rows = cur.fetchall()
 
+    conn.commit()
     conn.close()
 
     return {
@@ -286,6 +287,7 @@ def fetch_summaries_for_requests(
                         if term_key and term_key not in result:
                             result[term_key] = row[1]
 
+    conn.commit()
     conn.close()
     return result
 
@@ -459,5 +461,6 @@ def fetch_full_text_for_requests(
                         if term_key and term_key not in result:
                             result[term_key] = row[1]
 
+    conn.commit()
     conn.close()
     return result

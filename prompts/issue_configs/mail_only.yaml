@@ -1,5 +1,5 @@
 mail_only:
-  updated_at: '2026-01-03'
+  updated_at: '2026-03-05'
   display_name: Mail-Only Submission
   db_issue_type: mail_only
   category: Communication
@@ -40,15 +40,8 @@ mail_only:
   - send by mail
   - submit.{0,20}by mail
   - mail.{0,10}only
-  - u\.?s\.?\s*mail
-  - \busps\b
   - first.{0,10}class.{0,10}mail
-  - postal.{0,10}service
   - postmarked by
-  - (applicant|petitioner|person).{0,20}(must|shall).{0,15}mail
-  - only.{0,10}by mail
-  patterns_to_remove: []
-  patterns_to_add:
   - (applicant|petitioner|person).{0,20}(must|shall).{0,15}mail
   - only.{0,10}by mail
   exclusion_patterns:

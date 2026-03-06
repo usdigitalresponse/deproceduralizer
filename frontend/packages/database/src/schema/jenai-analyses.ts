@@ -1,14 +1,16 @@
 import {
   pgTable, bigserial, bigint, varchar, text, boolean,
-  timestamp, integer, real, jsonb, unique,
+  timestamp, integer, real, jsonb,
 } from 'drizzle-orm/pg-core';
 import { regulatoryDocuments } from './regulatory-documents';
+import { guidanceDocuments } from './guidance-documents';
 
 export const jenaiAnalyses = pgTable('jenai_analyses', {
   id: bigserial('id', { mode: 'number' }).primaryKey(),
   documentId: bigint('document_id', { mode: 'number' })
-    .notNull()
     .references(() => regulatoryDocuments.id, { onDelete: 'cascade' }),
+  guidanceDocumentId: bigint('guidance_document_id', { mode: 'number' })
+    .references(() => guidanceDocuments.id, { onDelete: 'cascade' }),
   jurisdiction: varchar('jurisdiction', { length: 3 }).notNull(),
   runId: varchar('run_id', { length: 32 }),
 
@@ -18,7 +20,6 @@ export const jenaiAnalyses = pgTable('jenai_analyses', {
   classification: varchar('classification', { length: 30 }),
   confidence: real('confidence'),
   categories: jsonb('categories'),
-  worstThing: text('worst_thing'),
 
   // Derived
   hasImplementationIssues: boolean('has_implementation_issues'),
@@ -30,12 +31,11 @@ export const jenaiAnalyses = pgTable('jenai_analyses', {
   // Pipeline Tracking
   pipelineVersion: varchar('pipeline_version', { length: 20 }),
   modelVersion: varchar('model_version', { length: 100 }),
+  responsibleAgency: text('responsible_agency'),
 
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
-}, (table) => ({
-  uniqueDocument: unique().on(table.documentId),
-}));
+});
 
 export type JenAIAnalysis = typeof jenaiAnalyses.$inferSelect;
 export type NewJenAIAnalysis = typeof jenaiAnalyses.$inferInsert;

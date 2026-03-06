@@ -88,6 +88,14 @@ def load_text_dir_docs(source_dir: str, catalog_text_paths: set[str]) -> list[di
     return docs
 
 
+_BLOCKED_DOC_TYPES = {"regulation", "regulation_text"}
+
+_NYCRR_TITLE_PATTERN = re.compile(
+    r"\bTit(?:le)?\.?\s+\d+\s*[-–—]\s*.*NYCRR\b|\bNYCRR\b.*\bTit(?:le)?\.?\s+\d+",
+    re.IGNORECASE,
+)
+
+
 def filter_docs(
     docs: list[dict],
     source_project: str | None = None,
@@ -104,6 +112,12 @@ def filter_docs(
         if source_project and d.get("source_project") != source_project:
             continue
         if agency and d.get("agency", "").upper() != agency.upper():
+            continue
+        # Block regulatory documents that don't belong in guidance table
+        doc_type = (d.get("doc_type") or "").lower()
+        if doc_type in _BLOCKED_DOC_TYPES:
+            continue
+        if _NYCRR_TITLE_PATTERN.search(d.get("title", "")):
             continue
         eligible.append(d)
 

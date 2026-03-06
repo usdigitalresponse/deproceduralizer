@@ -1,5 +1,5 @@
 physical_inspection:
-  updated_at: '2026-01-03'
+  updated_at: '2026-03-05'
   display_name: Physical Inspection Location
   db_issue_type: physical_inspection
   category: Physical Presence
@@ -21,6 +21,10 @@ physical_inspection:
   - Physical inspection is in addition to online
   - '"available on the website" or similar'
   - Genuinely requires physical inspection (large maps, samples)
+  - FOIL boilerplate — "records access officer", "freedom of information", "FOIL request"
+  - "requests for public access to records" or "pursuant to the Freedom of Information Law"
+  - Text describes government transparency obligation, not physical-only access restriction
+  - Agency FOIL officer designation or FOIL compliance procedures
   severity_baseline: 4
   severity_modifiers:
     increases:
@@ -65,6 +69,16 @@ physical_inspection:
       reasoning: Security-sensitive. Cannot be public online.
       classification: justified
       severity: 2
+    - citation: 21 NYCRR 1401.4
+      quote: records access officer shall make records available for public inspection
+      reasoning: FOIL boilerplate — describes agency's transparency obligation under
+        Freedom of Information Law, not a physical-only access restriction.
+      classification: unrelated
+    - citation: 9 NYCRR 6601.3
+      quote: requests for public access to records pursuant to the Freedom of Information Law
+      reasoning: FOIL compliance procedure — statutory requirement for government
+        transparency, not a burdensome inspection-only rule.
+      classification: unrelated
     justified:
     - citation: N.J.A.C. 7:26-2.3
       quote: large-format engineering plans available for inspection

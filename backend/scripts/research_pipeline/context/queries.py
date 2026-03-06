@@ -96,6 +96,7 @@ def get_sibling_summaries_batch(
         cur.execute(query, [document_ids])
         rows = cur.fetchall()
 
+    conn.commit()
     conn.close()
 
     # Group by origin_id and convert to SiblingEntry
@@ -207,6 +208,7 @@ def get_immediate_siblings_batch(
                     "section_type": row[5] or "",
                 }
 
+    conn.commit()
     conn.close()
 
     # Build result
@@ -284,6 +286,7 @@ def get_crossrefs_batch(
         cur.execute(query, [document_ids])
         rows = cur.fetchall()
 
+    conn.commit()
     conn.close()
 
     # Group by source_document_id
@@ -364,6 +367,7 @@ def get_definitions_batch(
         cur.execute(query, [list(all_scope_ids)])
         rows = cur.fetchall()
 
+    conn.commit()
     conn.close()
 
     # Map scope_document_id -> terms
@@ -445,6 +449,7 @@ def get_definitions_with_text_batch(
         cur.execute(query, [list(all_scope_ids)])
         rows = cur.fetchall()
 
+    conn.commit()
     conn.close()
 
     # Map scope_document_id -> definitions
@@ -600,6 +605,7 @@ def get_subchapter_info(subchapter_id: int) -> dict:
     with conn.cursor() as cur:
         cur.execute(query, [subchapter_id])
         row = cur.fetchone()
+    conn.commit()
     conn.close()
 
     if not row:
@@ -637,6 +643,7 @@ def get_children_of_parent(parent_id: int) -> list[SiblingEntry]:
     with conn.cursor() as cur:
         cur.execute(query, [parent_id])
         rows = cur.fetchall()
+    conn.commit()
     conn.close()
 
     result: list[SiblingEntry] = []
@@ -678,6 +685,7 @@ def get_subchapter_info_batch(subchapter_ids: list[int]) -> dict[int, dict]:
     with conn.cursor() as cur:
         cur.execute(query, [subchapter_ids])
         rows = cur.fetchall()
+    conn.commit()
     conn.close()
 
     result: dict[int, dict] = {}
@@ -725,6 +733,7 @@ def get_children_of_parents_batch(parent_ids: list[int]) -> dict[int, list[Sibli
     with conn.cursor() as cur:
         cur.execute(query, [parent_ids])
         rows = cur.fetchall()
+    conn.commit()
     conn.close()
 
     result: dict[int, list[SiblingEntry]] = {pid: [] for pid in parent_ids}
@@ -784,6 +793,7 @@ def get_definitions_for_scopes_batch(scope_ids: list[int]) -> dict[int, list[str
     with conn.cursor() as cur:
         cur.execute(query, [list(all_ancestor_ids)])
         rows = cur.fetchall()
+    conn.commit()
     conn.close()
 
     # Map scope_document_id -> terms
@@ -833,6 +843,7 @@ def get_definitions_for_scope(scope_id: int) -> list[str]:
     with conn.cursor() as cur:
         cur.execute(query, [ancestor_ids])
         rows = cur.fetchall()
+    conn.commit()
     conn.close()
 
     return [row[0] for row in rows if row[0]]

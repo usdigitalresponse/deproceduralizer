@@ -31,7 +31,7 @@ class TierCost:
     cache_write_tokens: int = 0
     requests: int = 0
     is_batch: bool = True  # V5: Tiers 1-2 use batch, Tier 3 uses real-time
-    model: str = DEFAULT_BATCH_MODEL  # Full model name (e.g., "claude-sonnet-4-5-20250929")
+    model: str = DEFAULT_BATCH_MODEL  # Full model name (e.g., "claude-sonnet-4-6")
 
     @property
     def total_cost(self) -> float:

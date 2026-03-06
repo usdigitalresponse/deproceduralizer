@@ -40,10 +40,12 @@ def get_existing_analyses(
                     'analysis_id': row[1],
                     'classification': row[2],
                 }
+        conn.commit()
         conn.close()
         return result
     except Exception as e:
         print(f"ERROR fetching existing analyses: {e}")
         if conn:
+            conn.rollback()
             conn.close()
         return {}

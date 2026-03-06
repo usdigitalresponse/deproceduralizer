@@ -27,12 +27,47 @@ from ..result_processor import (
 )
 
 from lib.db import get_db_connection
+from lib.jurisdictions import get_title_agency_map, agency_for_document, jurisdiction_prefix
 
 # Import centralized configuration
 from ..config import PIPELINE_VERSION
 
 # Import retry decorator for connection resilience
 from .connection import retry_db_operation
+
+
+def _resolve_agency(cur, unit: 'TrackedUnit', title_agency_maps: dict) -> str | None:
+    """Resolve responsible agency for a tracked unit.
+
+    For regulations: look up title number from regulatory_documents, then map to agency.
+    For guidance: look up agency directly from guidance_documents.
+    """
+    source_type = unit.unit.source_type
+    jurisdiction = unit.unit.jurisdiction.upper()
+
+    if source_type == "guidance":
+        cur.execute(
+            "SELECT agency FROM guidance_documents WHERE id = %s",
+            (unit.document_id,)
+        )
+        row = cur.fetchone()
+        return row[0] if row else None
+
+    # Regulation: look up title number
+    prefix = jurisdiction_prefix(jurisdiction)
+    cur.execute(
+        f"SELECT {prefix}_title FROM regulatory_documents WHERE id = %s",
+        (unit.document_id,)
+    )
+    row = cur.fetchone()
+    if not row or not row[0]:
+        return None
+
+    tam = title_agency_maps.get(jurisdiction)
+    if tam is None:
+        tam = get_title_agency_map(jurisdiction)
+        title_agency_maps[jurisdiction] = tam
+    return agency_for_document(jurisdiction, row[0], tam)
 
 
 def _doc_id_col(source_type: str) -> str:
@@ -151,6 +186,7 @@ def save_tier1_results(
 
     saved = 0
     total = len(units)
+    title_agency_maps: dict[str, dict[str, str]] = {}
 
     try:
         with conn.cursor() as cur:
@@ -163,6 +199,7 @@ def save_tier1_results(
                 output = unit.tier1_output
                 source_type = unit.unit.source_type
                 id_col = _doc_id_col(source_type)
+                responsible_agency = _resolve_agency(cur, unit, title_agency_maps)
 
                 # For false positives, update original compliance_issues rows AND create analysis row
                 if output.classification == "all_false_positives":
@@ -189,10 +226,10 @@ def save_tier1_results(
                             tier1_dismissed_match_ids, tier1_dismissed_reasons,
                             tier1_classification, tier1_confidence, tier1_reasoning,
                             tier1_batch_id, tier1_completed_at, highest_tier_completed,
-                            requirement_found, pipeline_version, tier1_prompt_id,
+                            requirement_found, responsible_agency, pipeline_version, tier1_prompt_id,
                             created_at, updated_at
                         ) VALUES (
-                            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW()
+                            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW()
                         )
                         {on_conflict} DO UPDATE SET
                             tier1_dismissed_match_ids = EXCLUDED.tier1_dismissed_match_ids,
@@ -206,6 +243,7 @@ def save_tier1_results(
                                 COALESCE(compliance_issue_analyses.highest_tier_completed, 0), 1
                             ),
                             requirement_found = EXCLUDED.requirement_found,
+                            responsible_agency = EXCLUDED.responsible_agency,
                             tier1_prompt_id = EXCLUDED.tier1_prompt_id,
                             updated_at = NOW()
                         RETURNING id
@@ -223,6 +261,7 @@ def save_tier1_results(
                         unit.tier1_completed_at,
                         1,  # highest_tier_completed
                         False,  # requirement_found = False for false positives
+                        responsible_agency,
                         PIPELINE_VERSION,
                         unit.tier1_prompt_id,
                     ))
@@ -282,11 +321,12 @@ def save_tier1_results(
                         tier1_relevant_match_ids, tier1_dismissed_match_ids,
                         tier1_dismissed_reasons, tier1_classification, tier1_confidence,
                         tier1_reasoning, tier1_batch_id,
-                        tier1_completed_at, highest_tier_completed, pipeline_version,
+                        tier1_completed_at, highest_tier_completed, responsible_agency,
+                        pipeline_version,
                         tier1_argument_framing, tier1_recommendations, tier1_prompt_id,
                         created_at, updated_at
                     ) VALUES (
-                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW()
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW()
                     )
                     {on_conflict} DO UPDATE SET
                         tier1_relevant_match_ids = EXCLUDED.tier1_relevant_match_ids,
@@ -300,6 +340,7 @@ def save_tier1_results(
                         highest_tier_completed = GREATEST(
                             COALESCE(compliance_issue_analyses.highest_tier_completed, 0), 1
                         ),
+                        responsible_agency = EXCLUDED.responsible_agency,
                         tier1_argument_framing = EXCLUDED.tier1_argument_framing,
                         tier1_recommendations = EXCLUDED.tier1_recommendations,
                         tier1_prompt_id = EXCLUDED.tier1_prompt_id,
@@ -319,6 +360,7 @@ def save_tier1_results(
                     unit.tier1_batch_id,
                     unit.tier1_completed_at,
                     1,
+                    responsible_agency,
                     PIPELINE_VERSION,
                     json.dumps(tier1_argument_framing),
                     json.dumps(tier1_recommendations),

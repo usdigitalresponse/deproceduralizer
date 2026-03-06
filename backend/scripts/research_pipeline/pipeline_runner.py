@@ -582,13 +582,16 @@ async def _run_tier2_with_reruns(units, issue_configs, cost_tracker,
     tier_out.info("-" * 50)
     tier_out.info("  (Using real-time API with re-run support)")
 
-    await run_tier2_with_reruns(
+    _, rerun_requests = await run_tier2_with_reruns(
         units=pending,
         issue_configs=issue_configs,
         cost_tracker=cost_tracker,
         trace_context=trace_context,
         cache=cache,
     )
+
+    # Store prompt templates for observability (mirrors batch path)
+    _store_and_assign_prompts(rerun_requests, pending, "research", 2, "tier2_prompt_id", tier_out)
 
     succeeded = []
     failed = []

@@ -77,6 +77,7 @@ def fetch_cited_regulation_summaries(
             return dict(results)
     finally:
         if should_close:
+            conn.commit()
             conn.close()
 
 
@@ -174,6 +175,7 @@ def fetch_guidance_content_batch(
             return results
     finally:
         if should_close:
+            conn.commit()
             conn.close()
 
 
