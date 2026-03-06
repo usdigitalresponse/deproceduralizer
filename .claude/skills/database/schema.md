@@ -929,14 +929,18 @@ User annotations on regulations with optional text anchoring.
 
 ## bookmarks
 
-User bookmarks for pipeline analyses and regulatory documents. Supports bookmarking either a specific analysis (document + issue type) or a document without a specific analysis.
+User bookmarks for pipeline analyses, regulatory documents, and guidance documents. Supports bookmarking:
+- A specific analysis (document + issue type)
+- A regulatory document without a specific analysis
+- A guidance document
 
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | bigserial | Primary key |
-| `document_id` | bigint NOT NULL | FK to regulatory_documents (ON DELETE CASCADE) |
-| `analysis_id` | bigint | FK to compliance_issue_analyses (ON DELETE CASCADE) - null for document-level bookmarks |
-| `issue_type` | varchar(50) | Denormalized from analysis for filtering (null for document bookmarks) |
+| `document_id` | bigint | FK to regulatory_documents (ON DELETE CASCADE) - nullable (exactly one of document_id or guidance_document_id must be set) |
+| `analysis_id` | bigint | FK to compliance_issue_analyses (ON DELETE CASCADE) - null for document/guidance-level bookmarks |
+| `guidance_document_id` | bigint | FK to guidance_documents (ON DELETE CASCADE) - null for regulatory doc bookmarks |
+| `issue_type` | varchar(50) | Denormalized from analysis for filtering (null for document/guidance bookmarks) |
 | `jurisdiction` | varchar(3) NOT NULL | NY, NJ, or NYC (CHECK constraint) |
 | `notes` | text | Optional user notes explaining why bookmarked |
 | `created_by` | varchar(255) | Who created the bookmark |
@@ -945,14 +949,18 @@ User bookmarks for pipeline analyses and regulatory documents. Supports bookmark
 
 **Bookmark Types:**
 - **Analysis bookmark**: `analysis_id` set, `document_id` auto-filled from analysis
-- **Document bookmark**: `document_id` set, `analysis_id` null
+- **Document bookmark**: `document_id` set, `analysis_id` null, `guidance_document_id` null
+- **Guidance bookmark**: `guidance_document_id` set, `document_id` null, `analysis_id` null
 
-**Constraints:** `chk_bookmarks_jurisdiction CHECK (jurisdiction IN ('NY', 'NJ', 'NYC'))`
+**Constraints:**
+- `chk_bookmarks_jurisdiction CHECK (jurisdiction IN ('NY', 'NJ', 'NYC'))`
+- `chk_bookmarks_one_document_source CHECK ((document_id IS NOT NULL)::int + (guidance_document_id IS NOT NULL)::int = 1)`
 
 **Indexes:**
 - `idx_bookmarks_unique_analysis UNIQUE(analysis_id)` - one bookmark per analysis
 - `idx_bookmarks_unique_document UNIQUE(document_id) WHERE analysis_id IS NULL` - one document bookmark per doc
-- `idx_bookmarks_document`, `idx_bookmarks_analysis`, `idx_bookmarks_state`, `idx_bookmarks_created_at`
+- `idx_bookmarks_unique_guidance_document UNIQUE(guidance_document_id) WHERE guidance_document_id IS NOT NULL AND analysis_id IS NULL` - one guidance bookmark per doc
+- `idx_bookmarks_document`, `idx_bookmarks_analysis`, `idx_bookmarks_guidance_document`, `idx_bookmarks_state`, `idx_bookmarks_created_at`
 
 ## document_tags
 

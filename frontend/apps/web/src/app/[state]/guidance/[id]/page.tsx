@@ -6,6 +6,7 @@ import { GuidanceDetailSidebar } from '@/components/guidance/GuidanceDetailSideb
 import { GuidanceDetailContent } from '@/components/guidance/GuidanceDetailContent';
 import { DocumentLineageViewer } from '@/components/guidance/DocumentLineageViewer';
 import { GuidanceStatusBadge } from '@/components/guidance/GuidanceStatusBadge';
+import { GuidanceBookmarkButton } from '@/components/guidance/GuidanceBookmarkButton';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Container } from '@/components/layout/Container';
 import { isValidJurisdiction } from '@/types/state';
@@ -55,6 +56,10 @@ export default async function GuidanceDetailPage({ params }: GuidanceDetailPageP
               Back to Guidance
             </Link>
             <GuidanceStatusBadge status={doc.status} />
+            <GuidanceBookmarkButton
+              guidanceDocumentId={docId}
+              jurisdiction={state}
+            />
           </div>
         }
       />

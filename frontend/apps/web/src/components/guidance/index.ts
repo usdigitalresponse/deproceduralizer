@@ -9,3 +9,4 @@ export { PolicyCategoryBadge } from './PolicyCategoryBadge';
 export { DocumentLineageViewer } from './DocumentLineageViewer';
 export { SupersedureChain } from './SupersedureChain';
 export { LinkedCitationList } from './LinkedCitationList';
+export { GuidanceBookmarkButton } from './GuidanceBookmarkButton';

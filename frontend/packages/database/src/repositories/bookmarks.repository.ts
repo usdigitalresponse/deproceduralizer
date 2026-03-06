@@ -1,13 +1,15 @@
-import { eq, and, isNull, desc, sql } from 'drizzle-orm';
+import { eq, and, isNull, isNotNull, desc, sql } from 'drizzle-orm';
 import { BaseRepository } from './base.repository';
 import { bookmarks, Bookmark, NewBookmark } from '../schema/bookmarks';
 import { regulatoryDocuments } from '../schema/regulatory-documents';
 import { complianceIssueAnalyses } from '../schema/compliance-issue-analyses';
+import { guidanceDocuments } from '../schema/guidance-documents';
 import { normalizeJurisdiction } from '../schema/constants';
 
 export interface CreateBookmarkInput {
-  documentId: number;
+  documentId?: number;
   analysisId?: number;
+  guidanceDocumentId?: number;
   issueType?: string;
   jurisdiction: string;
   notes?: string;
@@ -33,6 +35,10 @@ export interface BookmarkWithDetails extends Bookmark {
   cleanupType: string | null;
   cleanupEffort: string | null;
   tier3TriggerReason: string | null;
+  // Guidance fields (null for non-guidance bookmarks)
+  guidanceTitle: string | null;
+  guidanceCanonicalRef: string | null;
+  guidanceAgency: string | null;
 }
 
 export class BookmarksRepository extends BaseRepository {
@@ -43,8 +49,9 @@ export class BookmarksRepository extends BaseRepository {
     const [bookmark] = await this.db
       .insert(bookmarks)
       .values({
-        documentId: input.documentId,
+        documentId: input.documentId ?? null,
         analysisId: input.analysisId ?? null,
+        guidanceDocumentId: input.guidanceDocumentId ?? null,
         issueType: input.issueType ?? null,
         jurisdiction: normalizeJurisdiction(input.jurisdiction),
         notes: input.notes ?? null,
@@ -116,6 +123,49 @@ export class BookmarksRepository extends BaseRepository {
   }
 
   /**
+   * Get bookmark by guidance document ID (guidance-level bookmark only)
+   */
+  async getGuidanceDocumentBookmark(guidanceDocId: number): Promise<Bookmark | undefined> {
+    const [bookmark] = await this.db
+      .select()
+      .from(bookmarks)
+      .where(
+        and(
+          eq(bookmarks.guidanceDocumentId, guidanceDocId),
+          isNull(bookmarks.analysisId)
+        )
+      )
+      .limit(1);
+
+    return bookmark;
+  }
+
+  /**
+   * Check if a guidance document is bookmarked
+   */
+  async isGuidanceDocumentBookmarked(guidanceDocId: number): Promise<boolean> {
+    const bookmark = await this.getGuidanceDocumentBookmark(guidanceDocId);
+    return !!bookmark;
+  }
+
+  /**
+   * Delete guidance document bookmark
+   */
+  async deleteGuidanceDocumentBookmark(guidanceDocId: number): Promise<boolean> {
+    const result = await this.db
+      .delete(bookmarks)
+      .where(
+        and(
+          eq(bookmarks.guidanceDocumentId, guidanceDocId),
+          isNull(bookmarks.analysisId)
+        )
+      )
+      .returning({ id: bookmarks.id });
+
+    return result.length > 0;
+  }
+
+  /**
    * Get all bookmarked analysis IDs for a state
    */
   async getBookmarkedAnalysisIds(jurisdiction: string): Promise<number[]> {
@@ -139,13 +189,14 @@ export class BookmarksRepository extends BaseRepository {
    */
   async getAllWithDetails(
     jurisdiction: string,
-    type?: 'analysis' | 'document'
+    type?: 'analysis' | 'document' | 'guidance'
   ): Promise<BookmarkWithDetails[]> {
     let query = this.db
       .select({
         id: bookmarks.id,
         documentId: bookmarks.documentId,
         analysisId: bookmarks.analysisId,
+        guidanceDocumentId: bookmarks.guidanceDocumentId,
         issueType: bookmarks.issueType,
         jurisdiction: bookmarks.jurisdiction,
         notes: bookmarks.notes,
@@ -166,19 +217,26 @@ export class BookmarksRepository extends BaseRepository {
         cleanupType: complianceIssueAnalyses.cleanupType,
         cleanupEffort: complianceIssueAnalyses.cleanupEffort,
         tier3TriggerReason: complianceIssueAnalyses.tier3TriggerReason,
+        // Guidance fields
+        guidanceTitle: guidanceDocuments.title,
+        guidanceCanonicalRef: guidanceDocuments.canonicalRef,
+        guidanceAgency: guidanceDocuments.agency,
       })
       .from(bookmarks)
       .leftJoin(regulatoryDocuments, eq(bookmarks.documentId, regulatoryDocuments.id))
       .leftJoin(complianceIssueAnalyses, eq(bookmarks.analysisId, complianceIssueAnalyses.id))
+      .leftJoin(guidanceDocuments, eq(bookmarks.guidanceDocumentId, guidanceDocuments.id))
       .where(eq(bookmarks.jurisdiction, normalizeJurisdiction(jurisdiction)))
       .orderBy(desc(bookmarks.createdAt))
       .$dynamic();
 
     // Add type filter
     if (type === 'analysis') {
-      query = query.where(sql`${bookmarks.analysisId} IS NOT NULL`);
+      query = query.where(isNotNull(bookmarks.analysisId));
     } else if (type === 'document') {
-      query = query.where(isNull(bookmarks.analysisId));
+      query = query.where(and(isNull(bookmarks.analysisId), isNull(bookmarks.guidanceDocumentId)));
+    } else if (type === 'guidance') {
+      query = query.where(and(isNotNull(bookmarks.guidanceDocumentId), isNull(bookmarks.analysisId)));
     }
 
     return query;
@@ -244,27 +302,20 @@ export class BookmarksRepository extends BaseRepository {
   /**
    * Get bookmark count for a state
    */
-  async getCount(jurisdiction: string, type?: 'analysis' | 'document'): Promise<number> {
-    let condition = eq(bookmarks.jurisdiction, normalizeJurisdiction(jurisdiction));
+  async getCount(jurisdiction: string, type?: 'analysis' | 'document' | 'guidance'): Promise<number> {
+    const base = eq(bookmarks.jurisdiction, normalizeJurisdiction(jurisdiction));
 
-    if (type === 'analysis') {
-      const result = await this.db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(bookmarks)
-        .where(and(condition, sql`${bookmarks.analysisId} IS NOT NULL`));
-      return result[0]?.count ?? 0;
-    } else if (type === 'document') {
-      const result = await this.db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(bookmarks)
-        .where(and(condition, isNull(bookmarks.analysisId)));
-      return result[0]?.count ?? 0;
-    }
+    const typeConditions = {
+      analysis: and(base, isNotNull(bookmarks.analysisId)),
+      document: and(base, isNull(bookmarks.analysisId), isNull(bookmarks.guidanceDocumentId)),
+      guidance: and(base, isNotNull(bookmarks.guidanceDocumentId), isNull(bookmarks.analysisId)),
+    };
 
-    const result = await this.db
+    const [result] = await this.db
       .select({ count: sql<number>`count(*)::int` })
       .from(bookmarks)
-      .where(condition);
-    return result[0]?.count ?? 0;
+      .where(type ? typeConditions[type] : base);
+
+    return result?.count ?? 0;
   }
 }

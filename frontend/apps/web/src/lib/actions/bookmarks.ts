@@ -126,11 +126,55 @@ export async function toggleDocumentBookmark(
 }
 
 /**
+ * Toggle bookmark for a guidance document.
+ * If bookmarked, removes it. If not, creates one.
+ * @returns The created bookmark, or null if removed
+ */
+export async function toggleGuidanceBookmark(
+  guidanceDocId: number,
+  jurisdiction: string,
+  notes?: string,
+  createdBy?: string
+): Promise<ActionResult<Bookmark | null>> {
+  try {
+    const existing = await bookmarksRepo.getGuidanceDocumentBookmark(guidanceDocId);
+
+    if (existing) {
+      await bookmarksRepo.delete(existing.id);
+      refreshBookmarkCache('/[state]/guidance');
+      return success(null);
+    }
+
+    const bookmark = await bookmarksRepo.create({
+      guidanceDocumentId: guidanceDocId,
+      jurisdiction,
+      notes,
+      createdBy,
+    });
+
+    refreshBookmarkCache('/[state]/guidance');
+    return success(bookmark);
+  } catch (error) {
+    console.error('[toggleGuidanceBookmark]', error);
+    return failure(getErrorMessage(error));
+  }
+}
+
+/**
+ * Check if a guidance document is bookmarked.
+ */
+export async function isGuidanceBookmarked(
+  guidanceDocId: number
+): Promise<ActionResult<boolean>> {
+  return runAction('isGuidanceBookmarked', () => bookmarksRepo.isGuidanceDocumentBookmarked(guidanceDocId));
+}
+
+/**
  * Get all bookmarks for a state with document/analysis details.
  */
 export async function getBookmarks(
   jurisdiction: string,
-  type?: 'analysis' | 'document'
+  type?: 'analysis' | 'document' | 'guidance'
 ): Promise<ActionResult<BookmarkWithDetails[]>> {
   return runAction('getBookmarks', () => bookmarksRepo.getAllWithDetails(jurisdiction, type));
 }
@@ -203,19 +247,20 @@ export async function getBookmarkedAnalysisIds(
  */
 export async function getBookmarkCounts(
   jurisdiction: string
-): Promise<ActionResult<{ analysis: number; document: number; total: number }>> {
+): Promise<ActionResult<{ analysis: number; document: number; guidance: number; total: number }>> {
   return runCachedAction(
     'getBookmarkCounts',
     async () => {
-      // Parallel queries instead of sequential
-      const [analysisCount, documentCount] = await Promise.all([
+      const [analysisCount, documentCount, guidanceCount] = await Promise.all([
         bookmarksRepo.getCount(jurisdiction, 'analysis'),
         bookmarksRepo.getCount(jurisdiction, 'document'),
+        bookmarksRepo.getCount(jurisdiction, 'guidance'),
       ]);
       return {
         analysis: analysisCount,
         document: documentCount,
-        total: analysisCount + documentCount,
+        guidance: guidanceCount,
+        total: analysisCount + documentCount + guidanceCount,
       };
     },
     [`bookmark-counts-${jurisdiction}`],

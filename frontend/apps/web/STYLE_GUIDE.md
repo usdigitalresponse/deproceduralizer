@@ -4148,8 +4148,9 @@ components/guidance/
 ├── PolicyCategoryBadge.tsx   # Policy category badge
 ├── GuidanceDetailSidebar.tsx # Detail page metadata sidebar
 ├── GuidanceDetailContent.tsx # Detail page content display
-├── DocumentLineageViewer.tsx # Full transitive document lineage timeline
-└── LinkedCitationList.tsx   # Linked citation list
+├── DocumentLineageViewer.tsx    # Full transitive document lineage timeline
+├── LinkedCitationList.tsx       # Linked citation list
+└── GuidanceBookmarkButton.tsx   # Bookmark toggle for guidance detail page
 ```
 
 ---
