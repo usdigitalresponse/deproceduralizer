@@ -43,11 +43,15 @@ def get_sections_for_analysis(
     conditions = [
         "rd.jurisdiction = %s",
         "rd.type = 'regulation'",
-        "rd.hierarchy_level = 'section'",
+        "rd.hierarchy_level IN ('section', 'subpart')",
         "(rd.exclude_from_analysis = FALSE OR rd.exclude_from_analysis IS NULL)",
         "rd.content IS NOT NULL",
         "LENGTH(rd.content) > 50",
     ]
+    # Only enforce leaf-only when not targeting specific documents —
+    # explicit --document-id should not be silently filtered out
+    if not document_ids:
+        conditions.append("rd.direct_child_count = 0")
     params: list = [jurisdiction.upper()]
 
     if not include_all_types:

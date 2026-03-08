@@ -129,6 +129,7 @@ When working on the Next.js frontend, follow these patterns:
 | `.claude/skills/jenai-pipeline/SKILL.md` | JenAI pipeline architecture and categories | Changing tier logic, categories, context strategy |
 | `.claude/skills/fines-pipeline/SKILL.md` | Fines extraction architecture and prompt structure | Adding scrapers, changing fines extraction logic |
 | `.claude/skills/cross-references/` | Extraction patterns and troubleshooting | Changing regex patterns, resolution logic |
+| `.claude/skills/pipeline-caching/SKILL.md` | 3-layer prompt caching architecture | Editing context formatting, sibling/cross-ref queries, batch preparation |
 | `.claude/skills/web-scraping/SKILL.md` | nys-documents scraping pipeline and downloaders | Adding scrapers, changing download logic, download failures |
 
 ### Source of Truth Hierarchy
@@ -141,6 +142,7 @@ When working on the Next.js frontend, follow these patterns:
 - When modifying pipeline script CLI flags: update `docs/OPERATIONS.md` (required) and the corresponding skill if it documents those flags
 - When adding/removing a pipeline step: update `docs/OPERATIONS.md` and `.claude/skills/pipeline/SKILL.md`
 - When modifying pipeline internals (tier logic, patterns, state machine): update the corresponding skill file
+- When modifying pipeline context formatting or sibling/cross-ref queries: check `.claude/skills/pipeline-caching/SKILL.md` for caching rules (Layer 2 must be identical per subchapter)
 - When removing a script: remove from OPERATIONS.md, update/delete any skill that references it, grep `.md` files for stale references
 - Skills document "why/how it works internally"; OPERATIONS.md documents "what commands to run"
 

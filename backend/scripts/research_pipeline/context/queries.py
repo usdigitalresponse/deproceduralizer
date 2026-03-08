@@ -70,8 +70,12 @@ def get_sibling_summaries_batch(
     if conn is None:
         raise psycopg.OperationalError("Failed to establish database connection")
 
-    # Get siblings by finding documents with the same parent
-    # Exclude the original document itself
+    # Get siblings by finding documents with the same parent.
+    # Self-inclusion is intentional — it ensures all sections in a subchapter
+    # produce identical sibling lists, which is required for Layer 2 prompt
+    # caching in both JenAI and research pipelines. The only cosmetic side
+    # effect is that the context registry counts self as "sibling" before "self".
+    # See .claude/skills/pipeline-caching/SKILL.md for caching rules.
     query = """
         WITH doc_parents AS (
             SELECT id, parent_id
@@ -88,7 +92,6 @@ def get_sibling_summaries_batch(
             rd.section_type
         FROM regulatory_documents rd
         JOIN doc_parents dp ON rd.parent_id = dp.parent_id
-        WHERE rd.id != dp.id
         ORDER BY dp.id, rd.citation
     """
 
@@ -107,6 +110,7 @@ def get_sibling_summaries_batch(
             document_id=row[1],
             citation=row[2] or "",
             title=row[3] or row[4] or "",
+            summary=row[5],
             section_type=row[6] or "",
         )
         result[origin_id].append(entry)
@@ -298,7 +302,7 @@ def get_crossrefs_batch(
         entry = CrossRefEntry(
             target_id=row[1],  # target_document_id
             citation=row[2] or "",
-            target_title=row[3] or row[4],  # Fall back to short_title
+            target_title=row[4] or row[3],  # Prefer short_title, fall back to full title
             is_definitions_section=section_type == "definitions",
         )
         result[source_id].append(entry)

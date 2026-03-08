@@ -6,7 +6,7 @@ import { join } from 'path';
 import yaml from 'js-yaml';
 import { type ActionResult, runAction } from './types';
 import { getRegulationById } from './regulations';
-import { getAncestorChain, getSiblingDocuments } from './hierarchy';
+import { getAncestorChain, getSiblingDocumentsForPrompt } from './hierarchy';
 import { getApplicableDefinitionsForDocumentSplit } from './definitions';
 import { getCrossReferencesForDocument } from './cross-references';
 import { db, sql } from '@deproceduralizer/database';
@@ -58,6 +58,8 @@ interface CrossRefEntry {
   targetDocument: {
     citation: string | null;
     title: string | null;
+    shortTitle: string | null;
+    summary: string | null;
   } | null;
 }
 
@@ -96,36 +98,14 @@ function formatCrossRefs(crossRefs: CrossRefEntry[]): string {
   return crossRefs
     .map((x) => {
       if (!x.targetDocument) return '  - (unresolved reference)';
-      const titlePart = x.targetDocument.title ? `: ${x.targetDocument.title}` : '';
-      return `  - ${x.targetDocument.citation || '(no citation)'}${titlePart}`;
+      const displayTitle = x.targetDocument.shortTitle || x.targetDocument.title;
+      const titlePart = displayTitle ? `: ${displayTitle}` : '';
+      const summaryPart = x.targetDocument.summary ? ` — ${x.targetDocument.summary}` : '';
+      return `  - ${x.targetDocument.citation || '(no citation)'}${titlePart}${summaryPart}`;
     })
     .join('\n');
 }
 
-function formatProactiveContextBlock(
-  ancestors: AncestorNode[],
-  siblings: SiblingNode[],
-): string {
-  const parts: string[] = [];
-
-  const ancestorsWithSummaries = ancestors.filter((a) => a.summary);
-  if (ancestorsWithSummaries.length) {
-    parts.push('ANCESTOR CONTEXT:');
-    for (const anc of ancestorsWithSummaries) {
-      parts.push(`  - ${anc.citation || ''} (${anc.hierarchyLevel || 'unknown'}): ${anc.summary}`);
-    }
-  }
-
-  const siblingsWithSummaries = siblings.filter((s) => s.summary);
-  if (siblingsWithSummaries.length) {
-    parts.push('SIBLING SUMMARIES:');
-    for (const sib of siblingsWithSummaries) {
-      parts.push(`  - ${sib.citation || '(no citation)'}: ${sib.summary}`);
-    }
-  }
-
-  return parts.length ? parts.join('\n') : 'No additional context available.';
-}
 
 function formatRichContextBlock(
   ancestors: AncestorNode[],
@@ -137,15 +117,24 @@ function formatRichContextBlock(
   sections.push('REGULATORY HIERARCHY:');
   sections.push(formatAncestorChain(ancestors));
 
+  // Single merged sibling section (no duplicate sibling summaries below)
   sections.push('\nSIBLING SECTIONS IN THIS SUBCHAPTER:');
   sections.push(formatSiblingCatalog(siblings));
 
   sections.push('\nDEFINITIONS (WITH FULL TEXT):');
   sections.push(formatDefinitionsWithText(definitions));
 
-  const proactiveBlock = formatProactiveContextBlock(ancestors, siblings);
-  if (proactiveBlock && proactiveBlock !== 'No additional context available.') {
-    sections.push(`\nRICH CONTEXT (summaries, cross-references):\n${proactiveBlock}`);
+  // Ancestor summaries only (siblings merged above, cross-refs are in Layer 3)
+  const proactiveParts: string[] = [];
+  const ancestorsWithSummaries = ancestors.filter((a) => a.summary);
+  if (ancestorsWithSummaries.length) {
+    proactiveParts.push('ANCESTOR CONTEXT:');
+    for (const anc of ancestorsWithSummaries) {
+      proactiveParts.push(`  - ${anc.citation || ''} (${anc.hierarchyLevel || 'unknown'}): ${anc.summary}`);
+    }
+  }
+  if (proactiveParts.length) {
+    sections.push(`\nRICH CONTEXT:\n${proactiveParts.join('\n')}`);
   }
 
   return sections.join('\n');
@@ -172,7 +161,8 @@ export async function searchSectionsForComposer(
       SELECT id, title, citation, hierarchy_path AS "hierarchyPath"
       FROM regulatory_documents
       WHERE jurisdiction = ${jurisdiction.toUpperCase()}
-        AND hierarchy_level = 'section'
+        AND hierarchy_level IN ('section', 'subpart')
+        AND direct_child_count = 0
         AND search_vector @@ websearch_to_tsquery('english', ${trimmed})
       ORDER BY ts_rank(search_vector, websearch_to_tsquery('english', ${trimmed}), 32) DESC
       LIMIT 10
@@ -215,7 +205,7 @@ export async function composeJenAIPrompt(
     const [docResult, ancestorResult, siblingResult, defsResult, crossRefResult] = await Promise.all([
       getRegulationById(documentId),
       getAncestorChain(documentId),
-      getSiblingDocuments(documentId),
+      getSiblingDocumentsForPrompt(documentId),
       getApplicableDefinitionsForDocumentSplit(documentId),
       getCrossReferencesForDocument(documentId),
     ]);
@@ -256,7 +246,7 @@ export async function composeJenAIPrompt(
 
     const crossRefEntries: CrossRefEntry[] = crossRefs.map((x) => ({
       targetDocument: x.targetDocument
-        ? { citation: x.targetDocument.citation, title: x.targetDocument.title }
+        ? { citation: x.targetDocument.citation, title: x.targetDocument.title, shortTitle: x.targetDocument.shortTitle, summary: x.targetDocument.summary }
         : null,
     }));
 

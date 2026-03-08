@@ -1,6 +1,6 @@
 ---
 name: jenai-pipeline
-description: Run the JenAI single-pass regulatory implementation analysis pipeline. Use when analyzing regulatory sections for implementation complexity using the 19-category Pahlka framework.
+description: Run the JenAI single-pass regulatory implementation analysis pipeline. Use when analyzing regulatory sections for implementation complexity using the 18-category Pahlka framework.
 ---
 
 # JenAI Pipeline
@@ -101,9 +101,11 @@ Use `--include-all-types` to override and include all section types. Use `--forc
 
 | Layer | Scope | Content |
 |-------|-------|---------|
-| 1. system | Global (all requests) | 19-category framework, detection rules, anti-false-positive instructions |
-| 2. user_cached_prefix | Per subchapter | Ancestor chain + sibling summaries + full definitions + cross-ref summaries |
-| 3. prompt | Per section (unique) | Citation, title, summary, cross-refs, section text |
+| 1. system | Global (all requests) | 18-category framework, detection rules, anti-false-positive instructions |
+| 2. user_cached_prefix | Per subchapter | Ancestor chain + sibling summaries (incl. self) + full definitions + ancestor summaries |
+| 3. prompt | Per section (unique) | Citation, title, summary, cross-refs with summaries, section text |
+
+For detailed caching rules, see `.claude/skills/pipeline-caching/SKILL.md`.
 
 ## Context Strategy
 

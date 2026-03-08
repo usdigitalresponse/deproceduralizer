@@ -15,6 +15,7 @@ export interface CrossReferenceWithTarget extends CrossReference {
     shortTitle: string | null;
     citation: string | null;
     hierarchyLevel: string | null;
+    summary: string | null;
   } | null;
 }
 
@@ -199,6 +200,7 @@ export class CrossReferencesRepository extends BaseRepository {
           shortTitle: targetDoc.shortTitle,
           citation: targetDoc.citation,
           hierarchyLevel: targetDoc.hierarchyLevel,
+          summary: targetDoc.summary,
         },
       })
       .from(crossReferences)

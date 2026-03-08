@@ -164,3 +164,22 @@ export async function getSiblingDocuments(
     return children.filter(child => child.id !== documentId);
   });
 }
+
+/**
+ * Get sibling documents INCLUDING self (all children of the same parent).
+ * Used by prompt composers to produce identical sibling lists for all sections
+ * in a subchapter, which enables Layer 2 prompt caching.
+ */
+export async function getSiblingDocumentsForPrompt(
+  documentId: number
+): Promise<ActionResult<DirectChild[]>> {
+  return runAction('getSiblingDocumentsForPrompt', async () => {
+    const ancestors = await repo.getAncestorChain(documentId);
+    if (!ancestors || ancestors.length === 0) {
+      return [];
+    }
+
+    const parentId = ancestors[ancestors.length - 1].id;
+    return repo.getDirectChildren(parentId);
+  });
+}

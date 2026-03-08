@@ -76,6 +76,7 @@ def prepare_analysis_batch(
         context_vars = format_analysis_context(
             catalog,
             tracked.unit.content,
+            proactive_ctx=proactive_ctx,
             citation=tracked.unit.citation,
             title=tracked.unit.title,
             summary=tracked.unit.summary or '',
