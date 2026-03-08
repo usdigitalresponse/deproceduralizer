@@ -970,6 +970,26 @@ export class ComplianceIssuesRepository extends BaseRepository {
   }
 
   /**
+   * Fetch a single compliance issue by ID with full context including regulation content.
+   * Uses the same issueListSelectColumns + mapRowToIssue as list queries, but also
+   * selects regulatoryDocuments.content (suitable for detail pages, not lists).
+   * Uses leftJoin for regulatoryDocuments since guidance-sourced issues may have documentId = null.
+   */
+  async getByIdWithFullContext(id: number): Promise<ComplianceIssueWithAnalysis | null> {
+    const results = await this.db
+      .select({ ...issueListSelectColumns, regulationContent: regulatoryDocuments.content })
+      .from(complianceIssues)
+      .leftJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
+      .leftJoin(complianceIssueAnalyses, eq(complianceIssues.analysisId, complianceIssueAnalyses.id))
+      .leftJoin(guidanceDocuments, eq(complianceIssues.guidanceDocumentId, guidanceDocuments.id))
+      .where(eq(complianceIssues.id, id))
+      .limit(1);
+
+    if (results.length === 0) return null;
+    return mapRowToIssue(results[0]);
+  }
+
+  /**
    * Find the analysis row corresponding to a compliance issue.
    * PR 6.5: Reads analysis_id FK directly; falls back to composite lookup for NULL analysis_id.
    * PR 6.3: Used by mutations that accept compliance_issues.id but now update analyses.

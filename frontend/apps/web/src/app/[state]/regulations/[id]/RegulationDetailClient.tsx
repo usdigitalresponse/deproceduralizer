@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/Input';
 import { AnnotatableContent, NotesSidePanel } from '@/components/notes';
 import { useCrossRefHighlighting } from '@/hooks';
 import type { DocumentNote, ApplicableDefinition, HighlightRef } from '@deproceduralizer/database';
+import type { ComplianceHighlightMatch } from '@/lib/utils/complianceHighlights';
 
 interface RegulationDetailClientProps {
   content: string;
@@ -18,6 +19,8 @@ interface RegulationDetailClientProps {
   crossRefHighlights?: HighlightRef[];
   /** Initial search highlight from URL (e.g., from FTS search results) */
   initialHighlight?: string;
+  /** Compliance issue highlights for inline marking */
+  complianceHighlights?: ComplianceHighlightMatch[];
 }
 
 export function RegulationDetailClient({
@@ -28,6 +31,7 @@ export function RegulationDetailClient({
   applicableDefinitions,
   crossRefHighlights,
   initialHighlight,
+  complianceHighlights,
 }: RegulationDetailClientProps) {
   const [notes, setNotes] = useState<DocumentNote[]>(initialNotes);
   const [searchQuery, setSearchQuery] = useState(initialHighlight ?? '');
@@ -39,6 +43,19 @@ export function RegulationDetailClient({
 
   // Process cross-reference data for highlighting
   const crossRefMatches = useCrossRefHighlighting(crossRefHighlights);
+
+  // Handle compliance highlight click: scroll sidebar to the matching issue card
+  const handleComplianceHighlightClick = useCallback((issueId: number) => {
+    const card = document.getElementById(`compliance-issue-${issueId}`);
+    if (card) {
+      card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      // Briefly highlight the card with a CSS-defined focus ring
+      card.classList.add('compliance-card-focused');
+      setTimeout(() => {
+        card.classList.remove('compliance-card-focused');
+      }, 2000);
+    }
+  }, []);
 
   // Cache lowercase content (only recalculates when content changes, not on every query change)
   const lowerContent = useMemo(() => content?.toLowerCase() ?? '', [content]);
@@ -203,6 +220,8 @@ export function RegulationDetailClient({
               state={state}
               applicableDefinitions={applicableDefinitions}
               crossRefHighlights={crossRefMatches}
+              complianceHighlights={complianceHighlights}
+              onComplianceHighlightClick={handleComplianceHighlightClick}
               searchQuery={searchQuery}
               currentMatchIndex={currentMatchIndex}
             />

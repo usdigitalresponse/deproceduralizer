@@ -12,7 +12,6 @@ import {
   type ReviewStatus,
   type ImpactType,
   type IssueType,
-  type ComplianceIssue,
   type ComplianceIssueWithAnalysisFields,
   type ComplianceIssueWithAnalysis,
   type PaginatedComplianceIssuesResult,
@@ -93,9 +92,9 @@ export async function updateComplianceIssueReview(
  */
 export async function getComplianceIssueById(
   id: number
-): Promise<ActionResult<ComplianceIssue | null>> {
+): Promise<ActionResult<ComplianceIssueWithAnalysis | null>> {
   return runAction('getComplianceIssueById', async () => {
-    const result = await complianceIssuesRepo.getById(id);
+    const result = await complianceIssuesRepo.getByIdWithFullContext(id);
     return result ?? null;
   });
 }

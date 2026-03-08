@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, ExternalLink, Printer } from 'lucide-react';
+import { ArrowLeft, ClipboardCheck, ExternalLink, Printer } from 'lucide-react';
 import type { DismissedMatch, FullAnalysisRecord } from '@deproceduralizer/database';
 import { getFullGuidanceAnalysisRecord, getGuidanceRegexMatchesForAnalysis } from '@/lib/actions/analysis';
 import {
@@ -179,6 +179,23 @@ export default async function GuidanceAnalysisDetailPage({ params, searchParams 
                     <span className="hidden sm:inline">View Document</span>
                     <ExternalLink className="w-4 h-4" />
                   </Link>
+                  {matches.length === 1 ? (
+                    <Link
+                      href={`/${state}/review/compliance/${matches[0].id}`}
+                      className="inline-flex items-center gap-2 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+                    >
+                      <ClipboardCheck className="w-4 h-4" />
+                      <span className="hidden sm:inline">Review Issue</span>
+                    </Link>
+                  ) : matches.length > 1 ? (
+                    <a
+                      href="#matches"
+                      className="inline-flex items-center gap-2 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+                    >
+                      <ClipboardCheck className="w-4 h-4" />
+                      <span className="hidden sm:inline">Review Issues ({matches.length})</span>
+                    </a>
+                  ) : null}
                 </div>
               </div>
             </Container>
@@ -349,6 +366,7 @@ export default async function GuidanceAnalysisDetailPage({ params, searchParams 
               dismissedReasons={(analysis.tier1?.dismissedReasons as DismissedMatch[]) || []}
               collapsible={!isPrintMode}
               defaultExpanded={!!fromParam}
+              state={stateCode}
             />
           </div>
         )}

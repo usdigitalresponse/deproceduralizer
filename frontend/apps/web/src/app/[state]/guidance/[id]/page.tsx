@@ -75,7 +75,7 @@ export default async function GuidanceDetailPage({ params }: GuidanceDetailPageP
           <div className="lg:col-span-2 space-y-6">
             <GuidanceDetailContent doc={doc} state={state} crossRefHighlights={crossRefHighlights} />
             {complianceSummary && complianceSummary.totalIssues > 0 && (
-              <GuidanceComplianceCard summary={complianceSummary} state={state} />
+              <GuidanceComplianceCard summary={complianceSummary} state={state} guidanceDocumentId={docId} />
             )}
           </div>
 

@@ -2,10 +2,11 @@
 
 import { useState } from 'react';
 import type { ComplianceIssue, DismissedMatch } from '@deproceduralizer/database';
+import Link from 'next/link';
 import { Badge } from '@/components/ui';
 import { highlightRegexPattern } from '@/lib/utils/highlight';
 import { usePrintMode } from './PrintModeContext';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, ExternalLink } from 'lucide-react';
 
 interface RegexMatchesSectionProps {
   matches: ComplianceIssue[];
@@ -15,6 +16,8 @@ interface RegexMatchesSectionProps {
   collapsible?: boolean;
   /** Start expanded (e.g., when navigated from search) */
   defaultExpanded?: boolean;
+  /** State code for linking to review pages */
+  state?: string;
 }
 
 /**
@@ -35,6 +38,7 @@ export function RegexMatchesSection({
   dismissedReasons,
   collapsible = false,
   defaultExpanded = false,
+  state,
 }: RegexMatchesSectionProps) {
   const { isPrintMode } = usePrintMode();
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
@@ -94,6 +98,7 @@ export function RegexMatchesSection({
                 index={index}
                 isRelevant={isRelevant}
                 dismissedReason={dismissedInfo?.reason}
+                state={state}
               />
             );
           })}
@@ -108,9 +113,10 @@ interface MatchCardProps {
   index: number;
   isRelevant: boolean;
   dismissedReason?: string;
+  state?: string;
 }
 
-function MatchCard({ match, index, isRelevant, dismissedReason }: MatchCardProps) {
+function MatchCard({ match, index, isRelevant, dismissedReason, state }: MatchCardProps) {
   return (
     <div
       className={`
@@ -137,11 +143,23 @@ function MatchCard({ match, index, isRelevant, dismissedReason }: MatchCardProps
             </Badge>
           )}
         </div>
-        {match.regexMatchPattern && (
-          <code className="text-xs bg-[var(--color-neutral-100)] px-2 py-1 rounded font-mono text-[var(--color-text-secondary)]">
-            {match.regexMatchPattern}
-          </code>
-        )}
+        <div className="flex items-center gap-2">
+          {match.regexMatchPattern && (
+            <code className="text-xs bg-[var(--color-neutral-100)] px-2 py-1 rounded font-mono text-[var(--color-text-secondary)]">
+              {match.regexMatchPattern}
+            </code>
+          )}
+          {state && (
+            <Link
+              href={`/${state}/review/compliance/${match.id}`}
+              className="inline-flex items-center gap-1 text-xs text-[var(--color-link)] hover:text-[var(--color-link-hover)] hover:underline"
+              title="Review this match"
+            >
+              Review
+              <ExternalLink className="w-3 h-3" />
+            </Link>
+          )}
+        </div>
       </div>
 
       {/* Dismissed reason */}

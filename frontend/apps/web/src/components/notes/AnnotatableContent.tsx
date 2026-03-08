@@ -4,8 +4,10 @@ import { useRef, useState, useCallback, useMemo } from 'react';
 import { useTermHighlighting, type TermMatch, type CrossRefMatch } from '@/hooks';
 import { DefinitionPopover } from '@/components/definitions';
 import { CrossRefPopover } from '@/components/cross-references';
+import { ComplianceIssuePopover } from '@/components/issues/ComplianceIssuePopover';
 import { MarkdownTable } from '@/components/ui/MarkdownTable';
 import type { ApplicableDefinition } from '@deproceduralizer/database';
+import type { ComplianceHighlightMatch } from '@/lib/utils/complianceHighlights';
 
 interface AnnotatableContentProps {
   content: string;
@@ -15,6 +17,10 @@ interface AnnotatableContentProps {
   applicableDefinitions?: ApplicableDefinition[];
   /** Cross-reference matches for inline highlighting */
   crossRefHighlights?: CrossRefMatch[];
+  /** Compliance issue highlights for inline marking */
+  complianceHighlights?: ComplianceHighlightMatch[];
+  /** Callback when a compliance highlight is clicked (for sidebar coordination) */
+  onComplianceHighlightClick?: (issueId: number) => void;
   /** Search query for highlighting */
   searchQuery?: string;
   /** Current match index for navigation */
@@ -23,10 +29,10 @@ interface AnnotatableContentProps {
 
 /** Represents a highlighted region in the content */
 interface HighlightRegion {
-  type: 'crossref' | 'term' | 'search';
+  type: 'crossref' | 'term' | 'search' | 'compliance';
   startOffset: number;
   endOffset: number;
-  data: CrossRefMatch | TermMatch | { matchIndex: number };
+  data: CrossRefMatch | TermMatch | { matchIndex: number } | ComplianceHighlightMatch;
 }
 
 /** State for the selected term popover */
@@ -41,18 +47,27 @@ interface SelectedCrossRefState {
   rect: DOMRect;
 }
 
+/** State for the selected compliance issue popover */
+interface SelectedComplianceState {
+  highlight: ComplianceHighlightMatch;
+  rect: DOMRect;
+}
+
 export function AnnotatableContent({
   content,
   documentId,
   state,
   applicableDefinitions,
   crossRefHighlights,
+  complianceHighlights,
+  onComplianceHighlightClick,
   searchQuery = '',
   currentMatchIndex = 0,
 }: AnnotatableContentProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [selectedTerm, setSelectedTerm] = useState<SelectedTermState | null>(null);
   const [selectedCrossRef, setSelectedCrossRef] = useState<SelectedCrossRefState | null>(null);
+  const [selectedComplianceIssue, setSelectedComplianceIssue] = useState<SelectedComplianceState | null>(null);
 
   // Split content into table and non-table segments (line-based for robustness)
   const contentSegments = useMemo(() => {
@@ -138,6 +153,20 @@ export function AnnotatableContent({
     setSelectedCrossRef(null);
   }, []);
 
+  // Handle compliance issue click - show compliance popover
+  const handleComplianceClick = useCallback((e: React.SyntheticEvent, highlight: ComplianceHighlightMatch) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const target = e.currentTarget as HTMLElement;
+    const rect = target.getBoundingClientRect();
+    setSelectedComplianceIssue({ highlight, rect });
+  }, []);
+
+  // Close compliance popover
+  const handleCloseCompliancePopover = useCallback(() => {
+    setSelectedComplianceIssue(null);
+  }, []);
+
   // Find search matches in content
   const searchMatches = useCallback((): { start: number; end: number }[] => {
     if (!searchQuery.trim()) return [];
@@ -157,8 +186,8 @@ export function AnnotatableContent({
     return matches;
   }, [content, searchQuery]);
 
-  // Merge cross-ref regions, term regions, and search matches
-  // Priority: cross-refs > terms
+  // Merge cross-ref regions, compliance regions, term regions, and search matches
+  // Priority: cross-refs > compliance > terms
   const mergeHighlightRegions = useCallback((): HighlightRegion[] => {
     const regions: HighlightRegion[] = [];
 
@@ -174,16 +203,37 @@ export function AnnotatableContent({
       }
     }
 
-    // Add term regions (filter out those overlapping with cross-refs)
+    // Add compliance regions (between crossref and term priority)
+    if (complianceHighlights) {
+      for (const highlight of complianceHighlights) {
+        const overlapsCrossRef = regions.some(
+          (r) =>
+            r.type === 'crossref' &&
+            highlight.startOffset < r.endOffset &&
+            highlight.endOffset > r.startOffset
+        );
+
+        if (!overlapsCrossRef) {
+          regions.push({
+            type: 'compliance',
+            startOffset: highlight.startOffset,
+            endOffset: highlight.endOffset,
+            data: highlight,
+          });
+        }
+      }
+    }
+
+    // Add term regions (filter out those overlapping with cross-refs or compliance)
     for (const match of termMatches) {
-      const overlapsCrossRef = regions.some(
+      const overlapsHigherPriority = regions.some(
         (r) =>
-          r.type === 'crossref' &&
+          (r.type === 'crossref' || r.type === 'compliance') &&
           match.startOffset < r.endOffset &&
           match.endOffset > r.startOffset
       );
 
-      if (!overlapsCrossRef) {
+      if (!overlapsHigherPriority) {
         regions.push({
           type: 'term',
           startOffset: match.startOffset,
@@ -206,7 +256,7 @@ export function AnnotatableContent({
 
     // Sort by start offset
     return regions.sort((a, b) => a.startOffset - b.startOffset);
-  }, [crossRefHighlights, termMatches, searchMatches]);
+  }, [crossRefHighlights, complianceHighlights, termMatches, searchMatches]);
 
   // Render a text segment with term, cross-ref, and search highlights
   const renderTextWithHighlights = (text: string, segmentOffset: number, segmentKey: string) => {
@@ -305,6 +355,26 @@ export function AnnotatableContent({
             {wrapWithSearchHighlight(regionText, region.startOffset, `crossref-${crossRef.id}`)}
           </span>
         );
+      } else if (region.type === 'compliance') {
+        const complianceMatch = region.data as ComplianceHighlightMatch;
+        parts.push(
+          <span
+            key={`compliance-${complianceMatch.issueId}`}
+            className="compliance-highlight"
+            onClick={(e) => handleComplianceClick(e, complianceMatch)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleComplianceClick(e, complianceMatch);
+              }
+            }}
+            title={`Compliance issue: ${complianceMatch.issueType}`}
+          >
+            {wrapWithSearchHighlight(regionText, region.startOffset, `compliance-${complianceMatch.issueId}`)}
+          </span>
+        );
       } else if (region.type === 'term') {
         const termMatch = region.data as TermMatch;
         parts.push(
@@ -387,6 +457,18 @@ export function AnnotatableContent({
           anchorRect={selectedCrossRef.rect}
           onClose={handleCloseCrossRefPopover}
           state={state}
+        />
+      )}
+
+      {/* Compliance issue popover */}
+      {selectedComplianceIssue && (
+        <ComplianceIssuePopover
+          highlight={selectedComplianceIssue.highlight}
+          verbatimText={selectedComplianceIssue.highlight.verbatimText}
+          anchorRect={selectedComplianceIssue.rect}
+          onClose={handleCloseCompliancePopover}
+          state={state}
+          onShowInSidebar={onComplianceHighlightClick}
         />
       )}
     </>

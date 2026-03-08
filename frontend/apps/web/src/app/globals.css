@@ -254,6 +254,37 @@ table {
 }
 
 /* ========================================
+   COMPLIANCE ISSUE HIGHLIGHTING
+   For highlighting compliance issue matches in regulation text
+   Using !important to override Tailwind's preflight reset
+   ======================================== */
+
+.compliance-highlight {
+  background-color: var(--color-warning-bg) !important;
+  border-bottom: 2px solid var(--color-warning) !important;
+  cursor: pointer !important;
+  transition: all var(--transition-fast);
+}
+
+.compliance-highlight:hover {
+  background-color: var(--color-danger-bg) !important;
+  border-bottom-color: var(--color-danger) !important;
+}
+
+.compliance-highlight:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 1px;
+  background-color: var(--color-danger-bg) !important;
+}
+
+/* Transient focus ring for sidebar scroll-to-card coordination */
+.compliance-card-focused {
+  box-shadow: 0 0 0 2px var(--color-warning);
+  border-color: var(--color-warning) !important;
+  transition: box-shadow 0.3s ease, border-color 0.3s ease;
+}
+
+/* ========================================
    SEARCH HIGHLIGHT STYLES
    For ts_headline full-text search snippets
    ======================================== */

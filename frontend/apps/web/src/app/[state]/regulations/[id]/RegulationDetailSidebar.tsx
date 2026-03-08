@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { ComplianceIssuesList } from '@/components/issues';
+import { ComplianceIssuesSummaryList } from '@/components/issues';
 import { DefinitionsList, ApplicableDefinitions } from '@/components/definitions';
 import { CrossReferenceList, IncomingReferenceList, GuidanceReferenceList } from '@/components/cross-references';
 import { formatDisplayTitle } from '@/lib/format';
@@ -176,9 +176,9 @@ export async function RegulationDetailSidebar({
         {/* Compliance Issues */}
         {complianceIssues && complianceIssues.length > 0 && (
           <div id="sidebar-compliance-issues">
-            <ComplianceIssuesList
-              initialIssues={complianceIssues}
-              regulationContent={regulation.content}
+            <ComplianceIssuesSummaryList
+              issues={complianceIssues}
+              state={state}
             />
           </div>
         )}

@@ -6,3 +6,6 @@ export { TierClassificationFlow, ClassificationBadge } from './TierClassificatio
 export { EvidenceDisplay } from './EvidenceDisplay';
 export { OutcomeBadges } from './OutcomeBadges';
 export { WebSourceBadge, WebSourceIcon, type WebSourceType } from './WebSourceBadge';
+export { ComplianceIssueSummaryCard } from './ComplianceIssueSummaryCard';
+export { ComplianceIssuesSummaryList } from './ComplianceIssuesSummaryList';
+export { ComplianceIssuePopover } from './ComplianceIssuePopover';

@@ -9,6 +9,7 @@ import { getDefinitionsWithContext } from '@/lib/actions/definitions';
 import { getNotesByDocumentId } from '@/lib/actions/document-notes';
 import { getCrossReferencesForDocument, getIncomingReferences, getCrossReferencesForHighlighting, getGuidanceReferencingDocument } from '@/lib/actions/cross-references';
 import { getStatuteLinksForRegulation, getEnablingAuthorityForRegulation } from '@/lib/actions/statutes';
+import { computeComplianceHighlights } from '@/lib/utils/complianceHighlights';
 import { RegulationDetailClient } from './RegulationDetailClient';
 import { RegulationDetailLayout } from './RegulationDetailLayout';
 import { RegulationDetailSidebar } from './RegulationDetailSidebar';
@@ -120,6 +121,12 @@ export default async function RegulationDetailPage({ params, searchParams }: Pag
   const complianceIssues = complianceIssuesResult.data.filter(
     issue => issue.requirementFound !== false
   );
+
+  // Compute inline highlights for compliance issues in the regulation text
+  const complianceHighlights = regulation.content
+    ? computeComplianceHighlights(regulation.content, complianceIssues)
+    : [];
+
   // Safely destructure definitions data with fallbacks
   const definitionsData = definitionsResult.data ?? { usedInText: { definedHere: [], inherited: [] }, availableButNotUsed: [] };
   const usedInText = definitionsData.usedInText ?? { definedHere: [], inherited: [] };
@@ -177,6 +184,7 @@ export default async function RegulationDetailPage({ params, searchParams }: Pag
               applicableDefinitions={usedDefinitions}
               crossRefHighlights={highlightRefs}
               initialHighlight={highlight}
+              complianceHighlights={complianceHighlights}
             />
           }
         />

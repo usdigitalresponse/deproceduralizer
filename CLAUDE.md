@@ -9,6 +9,7 @@
 - avoid typecasts (`as Type`) and casting to `unknown` unless truly necessary - prefer proper type guards, generics, or fixing the underlying type issue
 - when setting max_tokens for LLM API calls, look up the model's maximum output token limit and use that value (e.g., Claude 4.5 models support 64000 output tokens, Claude 3.5 Sonnet supports 8192)
 - when creating database-touching modules (actions, query layers), add `import 'server-only'` at the top to prevent accidental client bundling. Page files should not import the database directly; use server actions instead.
+- when creating PR test plans, always include live example URLs (query the database to find real records) so each manual test item has a clickable link to verify
 - before committing, check `git worktree list` - do not commit changes that belong to other worktrees/feature branches
 - before starting a local dev server or running smoke tests, check what's already running with `lsof -i :3000,3010,3011,3012`. If a port is in use, pick the next available one. Also check for Next.js `.next` lock files — if another process holds the lock, use a git worktree to avoid conflicts. Multiple Claude agents may be running in the same folder simultaneously.
 

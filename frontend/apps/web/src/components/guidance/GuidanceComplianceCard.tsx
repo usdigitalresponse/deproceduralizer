@@ -8,9 +8,10 @@ import type { GuidanceComplianceAnalysisSummary } from '@/lib/actions/guidance-d
 interface GuidanceComplianceCardProps {
   summary: GuidanceComplianceAnalysisSummary;
   state: string;
+  guidanceDocumentId: number;
 }
 
-export function GuidanceComplianceCard({ summary, state }: GuidanceComplianceCardProps) {
+export function GuidanceComplianceCard({ summary, state, guidanceDocumentId }: GuidanceComplianceCardProps) {
   const { totalIssues, analyzedCount, burdensomeCount, justifiedCount, topIssueTypes } = summary;
 
   return (
@@ -59,36 +60,27 @@ export function GuidanceComplianceCard({ summary, state }: GuidanceComplianceCar
           </div>
         </div>
 
-        {/* Top issue types */}
+        {/* Top issue types — each links to the pipeline analysis */}
         {topIssueTypes.length > 0 && (
           <div>
-            <p className="text-xs font-medium text-[var(--color-text-muted)] mb-2">Top Issue Types</p>
+            <p className="text-xs font-medium text-[var(--color-text-muted)] mb-2">Pipeline Analysis by Issue Type</p>
             <div className="space-y-1.5">
               {topIssueTypes.slice(0, 5).map(({ issueType, count }) => (
-                <div
+                <Link
                   key={issueType}
-                  className="flex items-center justify-between py-1.5 px-2 rounded-[var(--radius-sm)] bg-[var(--color-neutral-50)]"
+                  href={`/${state}/pipeline/guidance/${guidanceDocumentId}/${issueType}`}
+                  className="flex items-center justify-between py-1.5 px-2 rounded-[var(--radius-sm)] bg-[var(--color-neutral-50)] hover:bg-[var(--color-neutral-100)] transition-colors group"
                 >
-                  <span className="text-sm text-[var(--color-text)]">
+                  <span className="text-sm text-[var(--color-link)] group-hover:underline flex items-center gap-1.5">
                     {ISSUE_TYPE_LABELS[issueType] ?? issueType}
+                    <ArrowRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                   </span>
-                  <Badge variant="default">{count}</Badge>
-                </div>
+                  <Badge variant="default">{count} matches</Badge>
+                </Link>
               ))}
             </div>
           </div>
         )}
-
-        {/* Link to pipeline */}
-        <div className="pt-2 border-t border-[var(--color-neutral-100)]">
-          <Link
-            href={`/${state}/pipeline?source=guidance`}
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-[var(--color-primary)] hover:text-[var(--color-primary-strong)] hover:underline"
-          >
-            View in Pipeline
-            <ArrowRight className="w-4 h-4" />
-          </Link>
-        </div>
       </div>
     </Card>
   );
