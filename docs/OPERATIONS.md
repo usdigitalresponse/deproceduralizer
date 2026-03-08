@@ -609,9 +609,6 @@ python3 -m scripts.guidance_pipeline --dry-run
 # Import all guidance documents
 python3 -m scripts.guidance_pipeline --execute
 
-# Import + resolve NYCRR citations to cross_references
-python3 -m scripts.guidance_pipeline --execute --resolve-citations
-
 # Import only a specific agency
 python3 -m scripts.guidance_pipeline --execute --agency OCFS
 
@@ -625,7 +622,6 @@ python3 -m scripts.guidance_pipeline --gap-analysis --gap-format json
 | `--dry-run` | Preview without inserting |
 | `--execute` | Run the import (or execute clean-refs/detect-supersedure) |
 | `--gap-analysis` | Run gap analysis on imported data |
-| `--resolve-citations` | Resolve NYCRR citations to cross_references after import |
 | `--clean-refs` | Clean junk canonical_ref values (dry-run by default, add `--execute` to apply) |
 | `--detect-supersedure` | Detect supersedure relationships (dry-run by default, add `--execute` to apply) |
 | `--supersedure-report` | Print summary of all supersedure relationships in the DB |
@@ -635,7 +631,25 @@ python3 -m scripts.guidance_pipeline --gap-analysis --gap-format json
 | `--source-dir PATH` | Path to nys-documents repo (default: `../nys-documents`) |
 | `--classify` | Rule-based classification of guidance docs (dry-run by default, add `--execute` to apply) |
 | `--regex-scan` | Scan guidance docs for compliance issue regex patterns |
+| `--extract-content-refs` | Extract NYCRR + guidance cross-references from document content |
 | `--doc-type TYPE` | Filter regex scan to a specific doc_type |
+
+#### Content Cross-Reference Extraction
+
+Extract NYCRR and guidance-to-guidance cross-references from guidance document content:
+
+```bash
+cd backend
+
+# Preview what would be extracted
+python3 -m scripts.guidance_pipeline --extract-content-refs
+
+# Extract cross-references from guidance document content
+python3 -m scripts.guidance_pipeline --execute --extract-content-refs
+
+# Filter by agency
+python3 -m scripts.guidance_pipeline --execute --extract-content-refs --agency OCFS
+```
 
 #### Classification & Feasibility Analysis
 

@@ -2,8 +2,9 @@
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { RefreshCw } from 'lucide-react';
+import { useQueryStates } from 'nuqs';
 import { Card, SegmentedControl, Button } from '@/components/ui';
-import { NetworkGraph, HubsPanel, CircularRefsPanel, transformToGraphData, mergeGuidanceEdges } from './cross-references';
+import { NetworkGraph, HubsPanel, CircularRefsPanel, CrossReferencesTableView, transformToGraphData, mergeGuidanceEdges } from './cross-references';
 import type {
   GraphData,
   GraphNode,
@@ -15,6 +16,7 @@ import type {
   GuidanceReferenceEdge,
 } from './cross-references';
 import type { JurisdictionCode } from '@/types/state';
+import { crossRefTableParsers } from '@/lib/url/parsers';
 import {
   getReferenceGraph,
   getTopCitedDocuments,
@@ -25,6 +27,11 @@ import {
 interface CrossReferencesTabProps {
   jurisdiction: JurisdictionCode;
 }
+
+const VIEW_OPTIONS = [
+  { value: 'graph' as const, label: 'Graph' },
+  { value: 'table' as const, label: 'Table' },
+];
 
 const LEVEL_OPTIONS = [
   { value: 'title' as const, label: 'Title' },
@@ -56,6 +63,9 @@ const TYPE_COLORS: Record<string, { color: string; label: string }> = {
 };
 
 export function CrossReferencesTab({ jurisdiction }: CrossReferencesTabProps) {
+  const [params, setParams] = useQueryStates(crossRefTableParsers);
+  const isTableView = params.crView === 'table';
+
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 800, height: 500 });
 
@@ -91,6 +101,9 @@ export function CrossReferencesTab({ jurisdiction }: CrossReferencesTabProps) {
 
   // Load graph and hubs on mount or level change
   useEffect(() => {
+    // Don't fetch graph data when in table mode
+    if (isTableView) return;
+
     async function loadData() {
       setIsLoading(true);
       setError(null);
@@ -118,7 +131,7 @@ export function CrossReferencesTab({ jurisdiction }: CrossReferencesTabProps) {
     }
 
     loadData();
-  }, [jurisdiction, level, hubSortBy]);
+  }, [jurisdiction, level, hubSortBy, isTableView]);
 
   // Load circular refs on demand (expensive query)
   const loadCircularRefs = useCallback(async () => {
@@ -195,9 +208,36 @@ export function CrossReferencesTab({ jurisdiction }: CrossReferencesTabProps) {
     );
   }, []);
 
+  // Table view — render independently of graph loading state
+  if (isTableView) {
+    return (
+      <div className="space-y-6">
+        {/* Top-level view toggle */}
+        <div className="flex items-center gap-4">
+          <SegmentedControl
+            options={VIEW_OPTIONS}
+            value={params.crView}
+            onChange={(v) => setParams({ crView: v })}
+            size="sm"
+          />
+        </div>
+        <CrossReferencesTableView jurisdiction={jurisdiction} />
+      </div>
+    );
+  }
+
+  // Graph view loading/error states
   if (isLoading) {
     return (
       <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <SegmentedControl
+            options={VIEW_OPTIONS}
+            value={params.crView}
+            onChange={(v) => setParams({ crView: v })}
+            size="sm"
+          />
+        </div>
         <Card padding="lg" className="min-h-[500px] flex items-center justify-center">
           <div className="text-center text-[var(--color-text-muted)]">
             <div className="animate-pulse">Loading cross-reference graph...</div>
@@ -210,6 +250,14 @@ export function CrossReferencesTab({ jurisdiction }: CrossReferencesTabProps) {
   if (error) {
     return (
       <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <SegmentedControl
+            options={VIEW_OPTIONS}
+            value={params.crView}
+            onChange={(v) => setParams({ crView: v })}
+            size="sm"
+          />
+        </div>
         <Card padding="lg" className="min-h-[200px] flex items-center justify-center">
           <div className="text-center text-[var(--color-danger)]">
             <p className="font-medium">Error loading data</p>
@@ -224,6 +272,12 @@ export function CrossReferencesTab({ jurisdiction }: CrossReferencesTabProps) {
     <div className="space-y-6">
       {/* Controls row */}
       <div className="flex flex-wrap items-center gap-4">
+        <SegmentedControl
+          options={VIEW_OPTIONS}
+          value={params.crView}
+          onChange={(v) => setParams({ crView: v })}
+          size="sm"
+        />
         <div className="flex items-center gap-2">
           <span className="text-sm text-[var(--color-text-muted)]">Level:</span>
           <SegmentedControl

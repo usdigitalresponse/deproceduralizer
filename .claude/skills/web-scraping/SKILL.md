@@ -153,7 +153,7 @@ cd backend
 python3 -m scripts.guidance_pipeline --execute
 ```
 
-Add `--resolve-citations` to also resolve cross-references, `--gap-analysis` for coverage gaps.
+Add `--extract-content-refs --execute` to extract cross-references from document content, `--gap-analysis` for coverage gaps.
 
 ## Lessons Learned
 

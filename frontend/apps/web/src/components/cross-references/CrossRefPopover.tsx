@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { X, ExternalLink, Link2, AlertCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import type { CrossRefMatch } from '@/hooks/useCrossRefHighlighting';
+import { getCrossRefTargetUrl, getCrossRefLinkText } from '@/lib/cross-ref-url';
 
 interface CrossRefPopoverProps {
   /** The cross-reference match to display */
@@ -107,7 +108,7 @@ export function CrossRefPopover({
       </div>
 
       {/* Target document info */}
-      {crossRef.isResolved && crossRef.targetDocumentId ? (
+      {crossRef.isResolved && (crossRef.targetDocumentId || crossRef.targetGuidanceId) ? (
         <div className="space-y-2">
           {/* Target title */}
           <div className="flex items-start gap-2">
@@ -127,13 +128,13 @@ export function CrossRefPopover({
           {/* Link to target document - opens in new tab */}
           <div className="pt-2 border-t border-[var(--color-neutral-100)]">
             <Link
-              href={`/${state}/regulations/${crossRef.targetDocumentId}`}
+              href={getCrossRefTargetUrl(state, crossRef)!}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 text-sm text-[var(--color-link)] hover:text-[var(--color-link-hover)] hover:underline"
               onClick={onClose}
             >
-              View referenced document
+              {getCrossRefLinkText(crossRef)}
               <ExternalLink className="w-3.5 h-3.5" />
             </Link>
           </div>

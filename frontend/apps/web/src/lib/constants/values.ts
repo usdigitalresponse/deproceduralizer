@@ -268,6 +268,39 @@ export const SOURCE_TYPE_FILTER_VALUES = ['regulation', 'guidance'] as const;
 export type SourceTypeFilterValue = (typeof SOURCE_TYPE_FILTER_VALUES)[number];
 
 // ============================================
+// Cross-References Table View
+// ============================================
+
+export const CROSSREF_VIEW_MODE_VALUES = ['graph', 'table'] as const;
+export type CrossRefViewModeValue = (typeof CROSSREF_VIEW_MODE_VALUES)[number];
+
+export const CROSSREF_TABLE_MODE_VALUES = ['flat', 'grouped'] as const;
+export type CrossRefTableModeValue = (typeof CROSSREF_TABLE_MODE_VALUES)[number];
+
+export const CROSSREF_RESOLVED_VALUES = ['all', 'resolved', 'unresolved'] as const;
+export type CrossRefResolvedValue = (typeof CROSSREF_RESOLVED_VALUES)[number];
+
+export const CROSSREF_REF_TYPE_VALUES = ['all', 'njac', 'nycrr', 'ny_short_form', 'same_section', 'guidance'] as const;
+export type CrossRefRefTypeValue = (typeof CROSSREF_REF_TYPE_VALUES)[number];
+
+export const CROSSREF_REF_TYPE_LABELS: Record<string, string> = {
+  nycrr: 'NYCRR',
+  njac: 'NJAC',
+  ny_short_form: 'Short Form',
+  same_section: 'Same Section',
+  guidance: 'Guidance',
+};
+
+export const CROSSREF_SOURCE_TYPE_VALUES = ['all', 'regulation', 'guidance'] as const;
+export type CrossRefSourceTypeValue = (typeof CROSSREF_SOURCE_TYPE_VALUES)[number];
+
+export const CROSSREF_SORT_BY_VALUES = ['sourceDocument', 'refType', 'normalizedCitation', 'isResolved'] as const;
+export type CrossRefSortByValue = (typeof CROSSREF_SORT_BY_VALUES)[number];
+
+export const CROSSREF_GROUP_SORT_BY_VALUES = ['documentName', 'totalRefs', 'unresolvedCount'] as const;
+export type CrossRefGroupSortByValue = (typeof CROSSREF_GROUP_SORT_BY_VALUES)[number];
+
+// ============================================
 // Analytics Page
 // ============================================
 

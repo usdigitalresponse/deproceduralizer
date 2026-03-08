@@ -107,6 +107,7 @@ class DocumentExtractionResult:
     njac_count: int = 0
     ny_short_form_count: int = 0
     same_section_count: int = 0
+    guidance_count: int = 0
 
     # After resolution
     resolved_count: int = 0
@@ -119,6 +120,7 @@ class DocumentExtractionResult:
         self.njac_count = sum(1 for r in self.references if r.ref_type == RefType.NJAC)
         self.ny_short_form_count = sum(1 for r in self.references if r.ref_type == RefType.NY_SHORT_FORM)
         self.same_section_count = sum(1 for r in self.references if r.ref_type == RefType.SAME_SECTION)
+        self.guidance_count = sum(1 for r in self.references if r.ref_type == RefType.GUIDANCE)
         self.resolved_count = sum(1 for r in self.references if r.is_resolved)
         self.unresolved_count = self.total_count - self.resolved_count
 
@@ -135,6 +137,7 @@ class DocumentExtractionResult:
             'njac_count': self.njac_count,
             'ny_short_form_count': self.ny_short_form_count,
             'same_section_count': self.same_section_count,
+            'guidance_count': self.guidance_count,
             'resolved_count': self.resolved_count,
             'unresolved_count': self.unresolved_count,
             'references': [r.to_dict() for r in self.references],

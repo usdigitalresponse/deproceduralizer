@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { getGuidanceById, getDocumentLineage, getGuidanceResolvedCitations, getGuidanceComplianceAnalysisSummary } from '@/lib/actions/guidance-documents';
+import { getGuidanceCrossRefsForHighlighting } from '@/lib/actions/cross-references';
 import { GuidanceDetailSidebar } from '@/components/guidance/GuidanceDetailSidebar';
 import { GuidanceDetailContent } from '@/components/guidance/GuidanceDetailContent';
 import { GuidanceComplianceCard } from '@/components/guidance/GuidanceComplianceCard';
@@ -28,11 +29,12 @@ export default async function GuidanceDetailPage({ params }: GuidanceDetailPageP
     notFound();
   }
 
-  const [result, lineageResult, resolvedCitationsResult, complianceSummaryResult] = await Promise.all([
+  const [result, lineageResult, resolvedCitationsResult, complianceSummaryResult, crossRefResult] = await Promise.all([
     getGuidanceById(docId),
     getDocumentLineage(docId),
     getGuidanceResolvedCitations(docId),
     getGuidanceComplianceAnalysisSummary(docId),
+    getGuidanceCrossRefsForHighlighting(docId),
   ]);
 
   if (!result.success || !result.data) {
@@ -43,6 +45,7 @@ export default async function GuidanceDetailPage({ params }: GuidanceDetailPageP
   const lineage = lineageResult.success ? lineageResult.data : null;
   const resolvedCitations = resolvedCitationsResult.success ? resolvedCitationsResult.data : [];
   const complianceSummary = complianceSummaryResult.success ? complianceSummaryResult.data : null;
+  const crossRefHighlights = crossRefResult.success ? crossRefResult.data : [];
 
   return (
     <div className="bg-[var(--color-background)] min-h-screen">
@@ -70,7 +73,7 @@ export default async function GuidanceDetailPage({ params }: GuidanceDetailPageP
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
-            <GuidanceDetailContent doc={doc} />
+            <GuidanceDetailContent doc={doc} state={state} crossRefHighlights={crossRefHighlights} />
             {complianceSummary && complianceSummary.totalIssues > 0 && (
               <GuidanceComplianceCard summary={complianceSummary} state={state} />
             )}

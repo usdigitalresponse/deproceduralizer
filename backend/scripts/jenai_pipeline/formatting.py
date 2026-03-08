@@ -5,17 +5,6 @@ from scripts.research_pipeline.models.context import ContextCatalog, ProactiveTi
 logger = logging.getLogger(__name__)
 
 
-def format_sibling_catalog(catalog: ContextCatalog) -> str:
-    """Format sibling entries for the prompt."""
-    if not catalog.sibling_sections:
-        return "No sibling sections available."
-    lines = []
-    for sib in catalog.sibling_sections:
-        summary_part = f" — {sib.summary}" if sib.summary else ""
-        lines.append(f"  - {sib.citation}: {sib.title}{summary_part}")
-    return "\n".join(lines)
-
-
 def format_ancestor_chain(catalog: ContextCatalog) -> str:
     """Format the hierarchy path."""
     if not catalog.ancestor_chain:
@@ -24,13 +13,6 @@ def format_ancestor_chain(catalog: ContextCatalog) -> str:
     for anc in catalog.ancestor_chain:
         lines.append(f"  {anc.hierarchy_level}: {anc.citation} {anc.title}")
     return "\n".join(lines)
-
-
-def format_definitions(catalog: ContextCatalog) -> str:
-    """Format available definition terms."""
-    if not catalog.definition_terms:
-        return "No definitions available."
-    return ", ".join(catalog.definition_terms)
 
 
 def format_crossrefs(catalog: ContextCatalog, proactive_ctx: ProactiveTier1Context | None = None) -> str:
@@ -83,7 +65,6 @@ def format_definitions_with_text(definitions: list[dict]) -> str:
     return "\n".join(lines)
 
 
-
 def _format_merged_siblings(catalog: ContextCatalog, proactive_ctx: ProactiveTier1Context | None) -> str:
     """Format siblings once, merging catalog entries with proactive summaries."""
     if not catalog.sibling_sections:
@@ -118,8 +99,8 @@ def format_rich_context_cached(catalog: ContextCatalog, proactive_ctx: Proactive
     sections.append("\nDEFINITIONS (WITH FULL TEXT):")
     sections.append(format_definitions_with_text(definitions))
 
-    # Include ancestor summaries from proactive context (but NOT sibling or
-    # cross-ref summaries — siblings are merged above, cross-refs are in Layer 3)
+    # Sibling summaries are merged into the sibling catalog above;
+    # cross-ref summaries go in Layer 3 (per-section)
     if proactive_ctx and proactive_ctx.ancestor_summaries:
         ancestor_parts = ["ANCESTOR CONTEXT:"]
         for anc in proactive_ctx.ancestor_summaries:
@@ -136,8 +117,5 @@ def format_analysis_context(catalog: ContextCatalog, section_text: str, proactiv
         'citation': kwargs.get('citation', ''),
         'title': kwargs.get('title', ''),
         'summary': kwargs.get('summary', ''),
-        'sibling_catalog': format_sibling_catalog(catalog),
-        'ancestor_chain': format_ancestor_chain(catalog),
-        'definition_terms': format_definitions(catalog),
         'cross_references': format_crossrefs(catalog, proactive_ctx),
     }

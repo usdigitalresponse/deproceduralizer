@@ -10,6 +10,8 @@ from dotenv import load_dotenv
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 load_dotenv(PROJECT_ROOT / ".env")
 
+from lib.jurisdictions import VALID_JURISDICTIONS_LOWER
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -19,7 +21,6 @@ def main():
 Examples:
   python3 -m scripts.guidance_pipeline --dry-run
   python3 -m scripts.guidance_pipeline --execute
-  python3 -m scripts.guidance_pipeline --execute --resolve-citations
   python3 -m scripts.guidance_pipeline --execute --agency OCFS --limit 100
   python3 -m scripts.guidance_pipeline --gap-analysis
   python3 -m scripts.guidance_pipeline --clean-refs
@@ -35,6 +36,9 @@ Examples:
   python3 -m scripts.guidance_pipeline --classify --execute
   python3 -m scripts.guidance_pipeline --regex-scan
   python3 -m scripts.guidance_pipeline --regex-scan --agency OCFS
+  python3 -m scripts.guidance_pipeline --extract-content-refs
+  python3 -m scripts.guidance_pipeline --extract-content-refs --execute
+  python3 -m scripts.guidance_pipeline --extract-content-refs --execute --agency OCFS
         """,
     )
     parser.add_argument(
@@ -53,11 +57,11 @@ Examples:
     parser.add_argument("--fix-refs", action="store_true", help="Fix canonical_refs using title + agency metadata (dry-run by default)")
     parser.add_argument("--detect-supersedure", action="store_true", help="Detect supersedure relationships (dry-run by default)")
     parser.add_argument("--supersedure-report", action="store_true", help="Print supersedure relationship report")
-    parser.add_argument("--re-resolve", action="store_true", help="Re-resolve all guidance→regulation citations from DB (dry-run by default)")
     parser.add_argument("--classify", action="store_true", help="Run rule-based classification (dry-run by default)")
     parser.add_argument("--regex-scan", action="store_true", help="Scan guidance docs for compliance issue regex patterns")
     parser.add_argument("--doc-type", help="Filter regex scan to a specific doc_type")
     parser.add_argument("--resolve-guidance-refs", action="store_true", help="Resolve cites_documents to guidance_documents (dry-run by default)")
+    parser.add_argument("--extract-content-refs", action="store_true", help="Extract NYCRR + guidance refs from document content (dry-run by default)")
 
     parser.add_argument(
         "--import-manifest",
@@ -78,9 +82,10 @@ Examples:
     )
     parser.add_argument("--agency", help="Filter by agency (e.g. OCFS, OTDA)")
     parser.add_argument(
-        "--resolve-citations",
-        action="store_true",
-        help="Resolve NYCRR citations to cross_references after import",
+        "--state",
+        choices=VALID_JURISDICTIONS_LOWER,
+        default="ny",
+        help="Jurisdiction code (default: ny)",
     )
     parser.add_argument(
         "--gap-format",
@@ -121,12 +126,6 @@ Examples:
         supersedure_report()
         return
 
-    if args.re_resolve:
-        from scripts.guidance_pipeline.citation_resolver import re_resolve_all
-        dry_run = not args.execute
-        re_resolve_all(dry_run=dry_run)
-        return
-
     if args.classify:
         from scripts.guidance_pipeline.classifier import classify
         dry_run = not args.execute
@@ -144,6 +143,12 @@ Examples:
         resolve_guidance_refs(dry_run=dry_run)
         return
 
+    if args.extract_content_refs:
+        from scripts.guidance_pipeline.content_cross_refs import extract_content_cross_refs
+        dry_run = not args.execute
+        extract_content_cross_refs(dry_run=dry_run, limit=args.limit, agency=args.agency, state=args.state.upper())
+        return
+
     # --- Manifest coverage check ---
     if args.import_manifest:
         manifest_path = os.path.abspath(args.import_manifest)
@@ -158,7 +163,7 @@ Examples:
 
     # --- Import mode ---
     if not args.dry_run and not args.execute:
-        parser.error("One of --dry-run, --execute, --gap-analysis, --clean-refs, --fix-refs, --detect-supersedure, --supersedure-report, --classify, or --regex-scan is required")
+        parser.error("One of --dry-run, --execute, --gap-analysis, --clean-refs, --fix-refs, --detect-supersedure, --supersedure-report, --classify, --regex-scan, --extract-content-refs, or --resolve-guidance-refs is required")
 
     source_dir = os.path.abspath(args.source_dir)
     print(f"Source directory: {source_dir}")
@@ -183,18 +188,10 @@ Examples:
 
     if args.dry_run:
         preview_import(all_docs)
-
-        if args.resolve_citations:
-            from scripts.guidance_pipeline.citation_resolver import resolve_citations
-            resolve_citations(all_docs, dry_run=True)
         return
 
     # Execute import
     id_map = import_documents(source_dir, all_docs)
-
-    if args.resolve_citations:
-        from scripts.guidance_pipeline.citation_resolver import resolve_citations
-        resolve_citations(all_docs, dry_run=False)
 
     print(f"\nDone. Imported {len(id_map)} documents into guidance_documents.")
 

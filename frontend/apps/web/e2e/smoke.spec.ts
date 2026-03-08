@@ -10,6 +10,7 @@ import {
   waitForSaveComplete,
   waitForReviewReady,
   waitForPipelineReady,
+  waitForCrossRefTableReady,
 } from './helpers';
 
 test.describe('Smoke Tests', () => {
@@ -880,6 +881,77 @@ test.describe('Fines & Fees Page', () => {
     // Should show results count or empty state
     const resultsOrEmpty = page.getByText(/\d+ results?/).or(page.getByText(/No fines or fees found/i));
     await expect(resultsOrEmpty.first()).toBeVisible({ timeout: 10000 });
+  });
+
+});
+
+test.describe('Cross-References Table View', () => {
+
+  test('cross-refs table view loads with stats and data', async ({ page }) => {
+    await page.goto('/ny/analytics?tab=crossrefs&crView=table');
+
+    // Stats cards should show
+    await waitForCrossRefTableReady(page);
+
+    // Should show formatted numbers in stat cards
+    await expect(page.locator('text=/\\d{1,3}(,\\d{3})+/').first()).toBeVisible();
+
+    // Table should have rows
+    const tableRows = page.locator('table tbody tr');
+    const rowCount = await tableRows.count();
+    expect(rowCount).toBeGreaterThan(0);
+  });
+
+  test('cross-refs flat table has sortable columns', async ({ page }) => {
+    await page.goto('/ny/analytics?tab=crossrefs&crView=table&crMode=flat&crResolved=unresolved');
+    await waitForCrossRefTableReady(page);
+
+    // Should show sortable column headers
+    await expect(page.getByRole('button', { name: /Source/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Type/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Citation/i })).toBeVisible();
+
+    // Should show pagination
+    await expect(page.getByText(/Page \d+ of \d+/i)).toBeVisible();
+  });
+
+  test('cross-refs grouped view loads document groups', async ({ page }) => {
+    await page.goto('/ny/analytics?tab=crossrefs&crView=table&crMode=grouped');
+    await waitForCrossRefTableReady(page);
+
+    // Should show grouped table headers
+    await expect(page.getByRole('button', { name: /Document/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Total Refs/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Unresolved/i })).toBeVisible();
+
+    // Should show pagination
+    await expect(page.getByText(/Page \d+ of \d+/i)).toBeVisible();
+  });
+
+  test('cross-refs filter by resolved status works', async ({ page }) => {
+    await page.goto('/ny/analytics?tab=crossrefs&crView=table&crMode=flat&crResolved=all');
+    await waitForCrossRefTableReady(page);
+
+    // Table should have rows with 'all' filter
+    const rowCount = await page.locator('table tbody tr').count();
+    expect(rowCount).toBeGreaterThan(0);
+  });
+
+  test('cross-refs graph/table toggle preserves tab', async ({ page }) => {
+    // Start on graph view
+    await page.goto('/ny/analytics?tab=crossrefs');
+
+    // Should show graph view controls (Level, Color)
+    await expect(page.getByText('Level:')).toBeVisible({ timeout: 15000 });
+
+    // Switch to table view (SegmentedControl uses role="tab")
+    await page.getByRole('tab', { name: 'Table' }).click();
+
+    // Should now show table view with stats
+    await waitForCrossRefTableReady(page);
+
+    // URL should reflect the change
+    expect(page.url()).toContain('crView=table');
   });
 
 });

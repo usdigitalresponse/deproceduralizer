@@ -56,6 +56,14 @@ import {
   TREEMAP_SIZE_METRIC_VALUES,
   TREEMAP_COLOR_METRIC_VALUES,
   PIPELINE_SUBTAB_VALUES,
+  // Cross-references table
+  CROSSREF_VIEW_MODE_VALUES,
+  CROSSREF_TABLE_MODE_VALUES,
+  CROSSREF_RESOLVED_VALUES,
+  CROSSREF_REF_TYPE_VALUES,
+  CROSSREF_SOURCE_TYPE_VALUES,
+  CROSSREF_SORT_BY_VALUES,
+  CROSSREF_GROUP_SORT_BY_VALUES,
   // View mode
   VIEW_MODE_VALUES,
   // Analysis tier filters
@@ -142,6 +150,13 @@ export type {
   JenAISourceValue,
   JenAIReviewSortByValue,
   JenAIDeveloperSortByValue,
+  CrossRefViewModeValue,
+  CrossRefTableModeValue,
+  CrossRefResolvedValue,
+  CrossRefRefTypeValue,
+  CrossRefSourceTypeValue,
+  CrossRefSortByValue,
+  CrossRefGroupSortByValue,
 } from '@/lib/constants/values';
 
 // Re-export value arrays for backward compatibility
@@ -679,6 +694,35 @@ export const guidanceParsers = {
   yearFrom: guidanceYearFromParser,
   yearTo: guidanceYearToParser,
   search: searchParser,
+};
+
+// ============================================
+// Cross-references table parsers
+// ============================================
+
+export const crossRefViewModeParser = parseAsStringEnum([...CROSSREF_VIEW_MODE_VALUES]).withDefault('graph');
+export const crossRefTableModeParser = parseAsStringEnum([...CROSSREF_TABLE_MODE_VALUES]).withDefault('flat');
+export const crossRefResolvedParser = parseAsStringEnum([...CROSSREF_RESOLVED_VALUES]).withDefault('unresolved');
+export const crossRefRefTypeParser = parseAsStringEnum([...CROSSREF_REF_TYPE_VALUES]).withDefault('all');
+export const crossRefSourceTypeParser = parseAsStringEnum([...CROSSREF_SOURCE_TYPE_VALUES]).withDefault('all');
+export const crossRefSortByParser = parseAsStringEnum([...CROSSREF_SORT_BY_VALUES]).withDefault('sourceDocument');
+export const crossRefGroupSortByParser = parseAsStringEnum([...CROSSREF_GROUP_SORT_BY_VALUES]).withDefault('unresolvedCount');
+
+/**
+ * Parser configuration for cross-references table view.
+ * Uses 'cr'-prefixed params to avoid collisions with other tab parsers.
+ */
+export const crossRefTableParsers = {
+  crView: crossRefViewModeParser,
+  crMode: crossRefTableModeParser,
+  crPage: pageParser,
+  crPageSize: pageSizeParser,
+  crResolved: crossRefResolvedParser,
+  crRefType: crossRefRefTypeParser,
+  crSourceType: crossRefSourceTypeParser,
+  crSortBy: crossRefSortByParser,
+  crGroupSortBy: crossRefGroupSortByParser,
+  crSortOrder: sortOrderParser,
 };
 
 /**

@@ -16,6 +16,13 @@ import {
   type JurisdictionCode,
   type GuidanceReferenceItem,
   type GuidanceReferenceEdge,
+  type CrossRefActiveFilters,
+  type CrossRefTableOptions,
+  type PaginatedCrossRefTableResult,
+  type CrossRefGroupOptions,
+  type PaginatedCrossRefGroupResult,
+  type CrossRefTableRow,
+  type CrossRefDocumentGroup,
 } from '@deproceduralizer/database';
 import { type ActionResult, runAction } from './types';
 
@@ -150,6 +157,18 @@ export async function getGuidanceReferencingDocument(
 }
 
 /**
+ * Get minimal cross-reference data for inline highlighting in guidance documents.
+ * Handles both regulation and guidance targets.
+ */
+export async function getGuidanceCrossRefsForHighlighting(
+  guidanceId: number
+): Promise<ActionResult<HighlightRef[]>> {
+  return runAction('getGuidanceCrossRefsForHighlighting', () =>
+    crossRefsRepo.getForGuidanceHighlighting(guidanceId)
+  );
+}
+
+/**
  * Get guidance→regulation reference edges for network graph overlay.
  */
 export async function getGuidanceReferenceGraph(
@@ -158,5 +177,52 @@ export async function getGuidanceReferenceGraph(
   return runAction('getGuidanceReferenceGraph', () => crossRefsRepo.getGuidanceReferenceGraph(state));
 }
 
+// =============================================================================
+// Table View Data
+// =============================================================================
+
+/**
+ * Get paginated cross-references for flat table view.
+ */
+export async function getCrossRefTablePaginated(
+  options: CrossRefTableOptions
+): Promise<ActionResult<PaginatedCrossRefTableResult>> {
+  return runAction('getCrossRefTablePaginated', () => crossRefsRepo.getPaginated(options));
+}
+
+/**
+ * Get cross-references grouped by source document for accordion view.
+ */
+export async function getCrossRefGroupedByDocument(
+  options: CrossRefGroupOptions
+): Promise<ActionResult<PaginatedCrossRefGroupResult>> {
+  return runAction('getCrossRefGroupedByDocument', () => crossRefsRepo.getGroupedByDocument(options));
+}
+
+/**
+ * Get cross-references for a specific source document (accordion expansion).
+ */
+export async function getCrossRefsBySource(
+  sourceDocumentId: number | null,
+  sourceGuidanceId: number | null,
+  jurisdiction: JurisdictionCode,
+  filters?: CrossRefActiveFilters
+): Promise<ActionResult<CrossRefTableRow[]>> {
+  return runAction('getCrossRefsBySource', () =>
+    crossRefsRepo.getRefsForSource(sourceDocumentId, sourceGuidanceId, jurisdiction, filters)
+  );
+}
+
 // Re-export types for components
-export type { GuidanceReferenceItem, GuidanceReferenceEdge };
+export type {
+  GuidanceReferenceItem,
+  GuidanceReferenceEdge,
+  CrossRefTableOptions,
+  PaginatedCrossRefTableResult,
+  CrossRefGroupOptions,
+  PaginatedCrossRefGroupResult,
+  CrossRefTableRow,
+  CrossRefDocumentGroup,
+  CrossRefActiveFilters,
+};
+

@@ -12,6 +12,7 @@ import pytest
 from scripts.cross_references.patterns import (
     NJAC_PATTERN,
     SAME_SECTION_RANGE_PATTERN,
+    GUIDANCE_REF_PATTERN,
     _normalize_njac_section,
     extract_all_matches,
     RefType,
@@ -222,3 +223,266 @@ class TestNJACRange:
         matches = extract_all_matches(text)
         assert len(matches) == 1
         assert matches[0].raw_text == 'N.J.A.C. 7:26J-4.1 through 4.5'
+
+
+class TestNYCRRPatternImprovements:
+    """Test Tier 2 NYCRR pattern improvements for guidance doc OCR content."""
+
+    def test_comma_after_nycrr(self):
+        """'18 NYCRR, Part 360-8.1' should match."""
+        matches = extract_all_matches("18 NYCRR, Part 360-8.1")
+        assert len(matches) == 1
+        assert matches[0].ref_type == RefType.NYCRR
+        assert matches[0].normalized == "18 NYCRR 360-8.1"
+
+    def test_comma_section(self):
+        """'18 NYCRR, Section 487.2(c)' should match."""
+        matches = extract_all_matches("18 NYCRR, Section 487.2(c)")
+        assert len(matches) == 1
+        assert matches[0].normalized == "18 NYCRR 487.2"
+
+    def test_double_section_sign(self):
+        """'18 NYCRR §§487.10(e)' should match."""
+        matches = extract_all_matches("18 NYCRR §§487.10(e)")
+        assert len(matches) == 1
+        assert matches[0].normalized == "18 NYCRR 487.10"
+
+    def test_double_section_with_list(self):
+        """'18 NYCRR §§487.10(e), 488.10(e) and 490.10(e)' should expand."""
+        matches = extract_all_matches("18 NYCRR §§487.10(e), 488.10(e) and 490.10(e)")
+        assert len(matches) == 3
+        norms = [m.normalized for m in matches]
+        assert "18 NYCRR 487.10" in norms
+        assert "18 NYCRR 488.10" in norms
+        assert "18 NYCRR 490.10" in norms
+
+    def test_parts_plural(self):
+        """'10 NYCRR Parts 717, 793 and 794' should expand."""
+        matches = extract_all_matches("10 NYCRR Parts 717, 793 and 794")
+        assert len(matches) == 3
+        norms = [m.normalized for m in matches]
+        assert "10 NYCRR 717" in norms
+        assert "10 NYCRR 793" in norms
+        assert "10 NYCRR 794" in norms
+
+    def test_no_space_ocr(self):
+        """'18NYCRR 431.7' should match (OCR artifact)."""
+        matches = extract_all_matches("18NYCRR 431.7")
+        assert len(matches) == 1
+        assert matches[0].normalized == "18 NYCRR 431.7"
+
+    def test_semicolon_list(self):
+        """'18 NYCRR 430.12; 431.8' should expand."""
+        matches = extract_all_matches("18 NYCRR 430.12; 431.8")
+        assert len(matches) == 2
+        norms = [m.normalized for m in matches]
+        assert "18 NYCRR 430.12" in norms
+        assert "18 NYCRR 431.8" in norms
+
+    def test_nycrr_list_does_not_eat_guidance_ref(self):
+        """NYCRR list expansion should stop before guidance refs."""
+        matches = extract_all_matches("18 NYCRR 505.14 and 23-OCFS-ADM-15 for details.")
+        types = [m.ref_type for m in matches]
+        assert RefType.NYCRR in types
+        assert RefType.GUIDANCE in types
+        nycrr = [m for m in matches if m.ref_type == RefType.NYCRR]
+        assert len(nycrr) == 1
+        assert nycrr[0].normalized == "18 NYCRR 505.14"
+
+
+class TestGuidanceRefPatterns:
+    """Test guidance-to-guidance reference patterns."""
+
+    def test_agency_prefixed(self):
+        """'23-OCFS-ADM-15' should match."""
+        matches = extract_all_matches("23-OCFS-ADM-15")
+        assert len(matches) == 1
+        assert matches[0].ref_type == RefType.GUIDANCE
+        assert matches[0].normalized == "23-OCFS-ADM-15"
+
+    def test_agency_prefixed_lcm(self):
+        """'07-OCFS-LCM-12' should match."""
+        matches = extract_all_matches("07-OCFS-LCM-12")
+        assert len(matches) == 1
+        assert matches[0].components['agency'] == 'OCFS'
+        assert matches[0].components['doc_type'] == 'LCM'
+
+    def test_agency_prefixed_with_revision(self):
+        """'19-OCFS-ADM-21-R1' should match."""
+        matches = extract_all_matches("19-OCFS-ADM-21-R1")
+        assert len(matches) == 1
+        assert matches[0].normalized == "19-OCFS-ADM-21-R1"
+
+    def test_short_format(self):
+        """'90 ADM-31' should match."""
+        matches = extract_all_matches("90 ADM-31")
+        assert len(matches) == 1
+        assert matches[0].ref_type == RefType.GUIDANCE
+        assert matches[0].components['format'] == 'short'
+
+    def test_gis_format(self):
+        """'GIS-20-MA/10' should match."""
+        matches = extract_all_matches("GIS-20-MA/10")
+        assert len(matches) == 1
+        assert matches[0].ref_type == RefType.GUIDANCE
+
+    def test_mixed_nycrr_and_guidance(self):
+        """Both NYCRR and guidance refs should be found in mixed content."""
+        text = "See 18 NYCRR 430.12 and 16-OCFS-ADM-09 for details."
+        matches = extract_all_matches(text)
+        nycrr = [m for m in matches if m.ref_type == RefType.NYCRR]
+        guidance = [m for m in matches if m.ref_type == RefType.GUIDANCE]
+        assert len(nycrr) == 1
+        assert len(guidance) == 1
+
+
+class TestGuidancePatternEdgeCases:
+    """Test guidance reference pattern edge cases in realistic regulatory text."""
+
+    def test_multiple_guidance_refs_in_paragraph(self):
+        """Multiple guidance refs embedded in regulatory prose should all be found."""
+        text = (
+            "As outlined in 23-OCFS-ADM-15, providers must comply with the "
+            "requirements established in 07-OCFS-LCM-12 and further clarified "
+            "by 19-OCFS-INF-06. See also GIS-20-MA/10 for implementation details."
+        )
+        matches = extract_all_matches(text)
+        guidance = [m for m in matches if m.ref_type == RefType.GUIDANCE]
+        assert len(guidance) == 4
+        norms = [m.normalized for m in guidance]
+        assert "23-OCFS-ADM-15" in norms
+        assert "07-OCFS-LCM-12" in norms
+        assert "19-OCFS-INF-06" in norms
+        assert "GIS-20-MA/10" in norms
+
+    def test_guidance_ref_with_revision_suffix(self):
+        """Guidance ref with revision marker '-R1' should be captured fully."""
+        text = "Refer to 19-OCFS-ADM-21-R1 for updated procedures."
+        matches = extract_all_matches(text)
+        guidance = [m for m in matches if m.ref_type == RefType.GUIDANCE]
+        assert len(guidance) == 1
+        assert guidance[0].normalized == "19-OCFS-ADM-21-R1"
+
+    def test_lowercase_agency_does_not_match(self):
+        """Lowercase agency names should not match (pattern is case-sensitive)."""
+        text = "See 23-ocfs-adm-15 for details."
+        matches = extract_all_matches(text)
+        guidance = [m for m in matches if m.ref_type == RefType.GUIDANCE]
+        assert len(guidance) == 0
+
+    def test_partial_ref_missing_number_does_not_match(self):
+        """A truncated reference missing its number should not produce a guidance match."""
+        text = "The directive 23-OCFS-ADM- was never finalized."
+        matches = extract_all_matches(text)
+        guidance = [m for m in matches if m.ref_type == RefType.GUIDANCE]
+        # Should not match the incomplete ref (no number after final dash)
+        assert len(guidance) == 0
+
+    def test_year_like_number_in_prose_not_matched(self):
+        """Bare numbers that look like years should not be matched as guidance refs."""
+        text = "In 2023, the agency issued 15 new directives."
+        matches = extract_all_matches(text)
+        guidance = [m for m in matches if m.ref_type == RefType.GUIDANCE]
+        assert len(guidance) == 0
+
+    def test_guidance_and_nycrr_adjacent(self):
+        """Guidance ref immediately after NYCRR citation should both be captured."""
+        text = "18 NYCRR 505.14 and 23-OCFS-ADM-15 apply."
+        matches = extract_all_matches(text)
+        nycrr = [m for m in matches if m.ref_type == RefType.NYCRR]
+        guidance = [m for m in matches if m.ref_type == RefType.GUIDANCE]
+        assert len(nycrr) == 1
+        assert len(guidance) == 1
+        assert nycrr[0].normalized == "18 NYCRR 505.14"
+        assert guidance[0].normalized == "23-OCFS-ADM-15"
+
+    def test_short_format_in_regulatory_text(self):
+        """Short-format guidance refs should match in regulatory prose."""
+        text = "Consistent with 90 ADM-31 and 04 INF-22 requirements."
+        matches = extract_all_matches(text)
+        guidance = [m for m in matches if m.ref_type == RefType.GUIDANCE]
+        assert len(guidance) == 2
+        formats = [m.components.get("format") for m in guidance]
+        assert all(f == "short" for f in formats)
+
+
+class TestTSBMGuidancePatterns:
+    """Test TSB-M (Tax Service Bureau Memoranda) guidance reference patterns."""
+
+    def test_compact_format(self):
+        """Compact TSB-M format: TSB-M-08(3)S"""
+        text = "See TSB-M-08(3)S for details."
+        matches = extract_all_matches(text)
+        guidance = [m for m in matches if m.ref_type == RefType.GUIDANCE]
+        assert len(guidance) == 1
+        assert guidance[0].normalized == "TSB-M-08(3)S"
+        assert guidance[0].components['format'] == 'tsb_m'
+        assert guidance[0].components['year'] == '08'
+        assert guidance[0].components['number'] == '3'
+        assert guidance[0].components['tax_type'] == 'S'
+
+    def test_spaced_format_with_hyphen(self):
+        """Spaced TSB-M format: TSB-M-83 (12)-I"""
+        text = "Referenced in TSB-M-83 (12)-I above."
+        matches = extract_all_matches(text)
+        guidance = [m for m in matches if m.ref_type == RefType.GUIDANCE]
+        assert len(guidance) == 1
+        assert guidance[0].normalized == "TSB-M-83(12)I"
+
+    def test_wide_spaced_format(self):
+        """Wide-spaced TSB-M format: TSB-M-90 (10) S"""
+        text = "TSB-M-90 (10) S Sales Tax October 10, 1990"
+        matches = extract_all_matches(text)
+        guidance = [m for m in matches if m.ref_type == RefType.GUIDANCE]
+        assert len(guidance) == 1
+        assert guidance[0].normalized == "TSB-M-90(10)S"
+
+    def test_decimal_number(self):
+        """TSB-M with decimal sub-number: TSB-M-05(2.1)C"""
+        text = "As described in TSB-M-05(2.1)C and TSB-M-05(2.2)C."
+        matches = extract_all_matches(text)
+        guidance = [m for m in matches if m.ref_type == RefType.GUIDANCE]
+        assert len(guidance) == 2
+        assert guidance[0].normalized == "TSB-M-05(2.1)C"
+        assert guidance[1].normalized == "TSB-M-05(2.2)C"
+
+    def test_all_suffix_types(self):
+        """All common tax type suffixes should be recognized."""
+        for suffix, label in [('C', 'Corporation'), ('S', 'Sales'), ('I', 'Income'), ('M', 'Misc'), ('R', 'Real estate')]:
+            text = f"TSB-M-09(5){suffix} {label} Tax"
+            matches = extract_all_matches(text)
+            guidance = [m for m in matches if m.ref_type == RefType.GUIDANCE]
+            assert len(guidance) == 1, f"Failed for suffix {suffix}"
+            assert guidance[0].normalized == f"TSB-M-09(5){suffix}"
+
+    def test_lowercase_suffix_normalized_to_upper(self):
+        """Lowercase suffix should be normalized to uppercase."""
+        text = "TSB-M-91(5)c Corporation Tax"
+        matches = extract_all_matches(text)
+        guidance = [m for m in matches if m.ref_type == RefType.GUIDANCE]
+        assert len(guidance) == 1
+        assert guidance[0].normalized == "TSB-M-91(5)C"
+
+    def test_no_false_positive_bare_tsb_m(self):
+        """Bare 'TSB-M' without full citation should not match."""
+        text = "This TSB-M is obsolete and cannot be relied upon."
+        matches = extract_all_matches(text)
+        guidance = [m for m in matches if m.ref_type == RefType.GUIDANCE]
+        assert len(guidance) == 0
+
+    def test_no_false_positive_truncated(self):
+        """TSB-M- without number should not match."""
+        text = "The TSB-M- series covers various tax topics."
+        matches = extract_all_matches(text)
+        guidance = [m for m in matches if m.ref_type == RefType.GUIDANCE]
+        assert len(guidance) == 0
+
+    def test_mixed_with_nycrr(self):
+        """TSB-M and NYCRR refs in same text should both be captured."""
+        text = "Per 20 NYCRR 526.7 and TSB-M-14(5)C, the exemption applies."
+        matches = extract_all_matches(text)
+        nycrr = [m for m in matches if m.ref_type == RefType.NYCRR]
+        guidance = [m for m in matches if m.ref_type == RefType.GUIDANCE]
+        assert len(nycrr) == 1
+        assert len(guidance) == 1
+        assert guidance[0].normalized == "TSB-M-14(5)C"

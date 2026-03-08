@@ -58,15 +58,18 @@ def write_to_database(
         'duration_seconds': 0,
     }
 
-    # Filter to only documents with references
+    # Collect ALL source IDs for cleanup (idempotent re-run)
+    all_source_ids = [r.source_document_id for r in results]
+
+    # Filter to docs with refs for INSERT
     docs_with_refs = [r for r in results if r.total_count > 0]
 
-    if not docs_with_refs:
-        print("  No documents with references to save.")
+    if not all_source_ids:
+        print("  No documents to process.")
         return stats
 
     total_refs = sum(r.total_count for r in docs_with_refs)
-    print(f"\n[DB] Writing {len(docs_with_refs)} documents to database...")
+    print(f"\n[DB] Processing {len(all_source_ids)} documents ({len(docs_with_refs)} with refs)...")
     print(f"     Total references: {total_refs}")
 
     if dry_run:
@@ -81,12 +84,11 @@ def write_to_database(
         conn = psycopg.connect(os.getenv("DATABASE_URL"))
         cur = conn.cursor()
 
-        # STEP 1: Batch DELETE - collect all source document IDs
-        source_doc_ids = [r.source_document_id for r in docs_with_refs]
-        print(f"     Step 1/3: Deleting existing refs for {len(source_doc_ids)} documents...")
+        # STEP 1: Batch DELETE — clean ALL processed documents
+        print(f"     Step 1/3: Deleting existing refs for {len(all_source_ids)} documents...")
         cur.execute(
             "DELETE FROM cross_references WHERE source_document_id = ANY(%s)",
-            (source_doc_ids,)
+            (all_source_ids,)
         )
         deleted_count = cur.rowcount
         print(f"              Deleted {deleted_count} existing references")

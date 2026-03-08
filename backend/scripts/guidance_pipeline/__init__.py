@@ -6,7 +6,6 @@ nys-documents repo into the guidance_documents table.
 Usage:
     cd backend && python3 -m scripts.guidance_pipeline --dry-run
     cd backend && python3 -m scripts.guidance_pipeline --execute
-    cd backend && python3 -m scripts.guidance_pipeline --execute --resolve-citations
     cd backend && python3 -m scripts.guidance_pipeline --gap-analysis
     cd backend && python3 -m scripts.guidance_pipeline --clean-refs
     cd backend && python3 -m scripts.guidance_pipeline --clean-refs --execute

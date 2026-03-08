@@ -10,6 +10,13 @@
 - `18 NYCRR 505.14`
 - `10 NYCRR 405.3(a)(1)`
 - `14 N.Y.C.R.R. 624.6`
+- `18 NYCRR, Part 430` — comma after NYCRR (OCR artifact)
+- `18 NYCRR Parts 452 and 453` — plural `Parts`
+- `18 NYCRR §§487.10(e), 488.10(e)` — double section sign with list
+
+**Extended syntax:** Handles OCR artifacts (commas after NYCRR), plural `Parts`, double section signs `§§`, and `Sections` keyword.
+
+**List expansion:** `expand_nycrr_list()` detects comma/semicolon/and-separated sections after an initial NYCRR citation (e.g., `18 NYCRR 430.12; 431.8` → two refs). Uses `NYCRR_ABBREVIATED_SECTION` regex with negative lookaheads to avoid consuming guidance references.
 
 **Resolution:** Direct lookup using `nycrr_title` + `nycrr_section`
 
@@ -63,17 +70,62 @@
 
 **Resolution:** Not resolved to another document (internal range reference). Stored with `is_range=True`, `range_start`, `range_end` in components. Registered before `SAME_SECTION_PATTERN` so overlap detection prevents partial match on the end of the range. Direction word is required to avoid false positives on prose enumerations like "items (a) through (c)".
 
+### Guidance References
+
+**Pattern:** `GUIDANCE_REF_PATTERN` (case-sensitive — guidance refs are always uppercase)
+
+Three formats:
+- **Format 1 (agency-prefixed):** `{YY}-{AGENCY}-{TYPE}-{NUM}` — e.g., `23-OCFS-ADM-15`, `07-OCFS-LCM-12-R1`
+- **Format 2 (short):** `{YY} {TYPE}-{NUM}` — e.g., `90 ADM-31`, `04 INF-22`
+- **Format 3 (GIS):** `GIS-{YY}-{STATE}/{NUM}` — e.g., `GIS-20-MA/10`
+
+**Parsing:** `parse_guidance_ref_match()` routes to the correct format based on regex group numbers.
+
+**Resolution (in `content_cross_refs.py`):**
+- Direct lookup on normalized reference
+- Short-format: tries agency-prefixed variants using `DOC_TYPE_AGENCIES` (OTDA, OCFS)
+- Zero-padding: strips leading zeros for variant matching (e.g., `07` → `7`)
+
 ## Regex Patterns
 
 ### NYCRR Pattern
 ```python
 NYCRR_PATTERN = re.compile(
     r'''
-    (\d{1,2})\s*                           # Title number
-    (?:NYCRR|N\.Y\.C\.R\.R\.)\s*            # NYCRR prefix
-    ([\d.]+(?:\([a-z]\)(?:\(\d+\))?)?)      # Section with optional subsection
+    (\d{1,2})[,\s]*                        # Title number (comma for OCR artifacts)
+    (?:NYCRR|N\.Y\.C\.R\.R\.)[,\s]*         # NYCRR prefix
+    (?:(?:Parts?|Sections?|§§?)\s*)?        # Optional Parts/Sections/§§ prefix
+    ([\d.]+(?:-\d+)?(?:\([a-z]\)(?:\(\d+\))?)?)  # Section with optional subsection
     ''',
     re.IGNORECASE | re.VERBOSE
+)
+```
+
+### NYCRR Abbreviated Section (List Expansion)
+```python
+NYCRR_ABBREVIATED_SECTION = re.compile(
+    r'''
+    ^                                      # Start of remaining text
+    (?:[,;]\s*|,?\s+and\s+|,?\s+or\s+)    # Separator
+    (?!\d{1,2}\s*(?:NYCRR|N\.Y\.C\.R\.R))  # NOT new NYCRR prefix
+    (?!\d{2}-[A-Z]+-(?:ADM|LCM|INF|GIS))  # NOT agency-prefixed guidance ref
+    (?!\d{2}\s+(?:ADM|LCM|INF|GIS))       # NOT short-format guidance ref
+    (\d+(?:-\d+)?(?:\.\d+)?...)            # Section number
+    ''',
+    re.IGNORECASE | re.VERBOSE
+)
+```
+
+### Guidance Reference Pattern
+```python
+GUIDANCE_REF_PATTERN = re.compile(
+    r'''
+    (?:(\d{2})-([A-Z]+)-(ADM|LCM|INF|GIS)-(\d+(?:-R\d+)?))  # Format 1
+    | (?:(\d{2})\s+(ADM|LCM|INF)-(\d+))                       # Format 2
+    | (?:(GIS-\d{2}-[A-Z]{2}/\d+))                             # Format 3
+    ''',
+    # Case-sensitive: guidance refs are always uppercase in source documents
+    re.VERBOSE
 )
 ```
 

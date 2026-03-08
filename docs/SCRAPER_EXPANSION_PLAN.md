@@ -135,7 +135,7 @@ NYSDOH sites (health.ny.gov) return 403 to automated requests. Playwright scrapi
 7. **Import into deproceduralizer**:
    ```bash
    cd ../deproceduralizer/backend
-   python3 -m scripts.guidance_pipeline --execute --resolve-citations
+   python3 -m scripts.guidance_pipeline --execute
    ```
 
 ## After Scraping: Processing Pipeline

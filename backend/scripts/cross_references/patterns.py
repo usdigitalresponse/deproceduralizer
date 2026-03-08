@@ -26,6 +26,7 @@ class RefType(Enum):
     NJAC = "njac"                     # New Jersey Administrative Code (full-form)
     NY_SHORT_FORM = "ny_short_form"   # NY short-form like "section 505.14 of this Part"
     SAME_SECTION = "same_section"     # Relative refs like "(a)(1) of this section"
+    GUIDANCE = "guidance"             # Guidance-to-guidance refs like "23-OCFS-ADM-15"
     # Note: SAME_SECTION captured for validation but filtered from final output
 
 
@@ -58,8 +59,8 @@ NYCRR_PATTERN = re.compile(
     (\d{1,2})                              # (1) Title number (1-2 digits)
     \s*
     (?:NYCRR|N\.Y\.C\.R\.R\.)              # NYCRR identifier (various forms)
-    \s*
-    (?:(?:Part|§|section|Sec\.)\s*)?       # Optional prefix (Part, §, section)
+    [,\s]*                                 # Optional comma and/or whitespace (e.g., "18 NYCRR, Part")
+    (?:(?:Parts?\s+|§§?\s*:?\s*|sections?\s+|Sec\.\s*))?  # Optional prefix (Part/Parts, §/§§, section)
     (\d+                                   # (2) Part/section number
      (?:-\d+)?                             # Optional hyphenated subpart (e.g., 505-1)
      (?:\.\d+)?                            # Optional decimal section (e.g., 505.14)
@@ -576,12 +577,219 @@ def parse_same_section_match(match: re.Match) -> Optional[PatternMatch]:
 
 
 # =============================================================================
+# NYCRR LIST EXPANSION
+# =============================================================================
+#
+# Handles comma/semicolon/and-separated sections after a full NYCRR citation.
+# Example: "18 NYCRR 430.12; 431.8" -> two refs: 430.12, 431.8
+# Example: "18 NYCRR Parts 452 and 453" -> two refs: Part 452, Part 453
+# Example: "18 NYCRR §§487.10(e), 488.10(e) and 490.10(e)" -> three refs
+
+NYCRR_ABBREVIATED_SECTION = re.compile(
+    r'''
+    ^                                      # Start of remaining text
+    (?:[,;]\s*|,?\s+and\s+|,?\s+or\s+)    # Separator: comma, semicolon, "and", "or"
+    (?!\d{1,2}\s*(?:NYCRR|N\.Y\.C\.R\.R))  # NOT followed by new NYCRR prefix
+    (?!\d{2}-[A-Z]+-(?:ADM|LCM|INF|GIS))  # NOT followed by guidance ref pattern
+    (?!\d{2}\s+(?:ADM|LCM|INF|GIS))       # NOT followed by short-format guidance ref (e.g., "90 ADM-31")
+    (
+        \d+                                # Part/section number
+        (?:-\d+)?                          # Optional hyphenated subpart
+        (?:\.\d+)?                         # Optional decimal section
+        (?:\([a-z]\))?                     # Optional (a)
+        (?:\(\d+\))?                       # Optional (1)
+        (?:\([ivx]+\))?                    # Optional (i)
+    )
+    ''',
+    re.IGNORECASE | re.VERBOSE
+)
+
+
+def expand_nycrr_list(content: str, initial_match: PatternMatch) -> List[PatternMatch]:
+    """
+    Given an initial NYCRR match, look for comma/semicolon/and-separated sections.
+
+    Example: "18 NYCRR 430.12; 431.8" returns matches for both 430.12 and 431.8.
+    Example: "18 NYCRR §§487.10(e), 488.10(e)" returns matches for both.
+    """
+    results = [initial_match]
+    title = initial_match.components.get('title', '')
+
+    search_start = initial_match.end
+    remaining = content[search_start:]
+    pos = 0
+    max_lookahead = 200
+
+    while pos < len(remaining) and pos < max_lookahead:
+        m = NYCRR_ABBREVIATED_SECTION.match(remaining[pos:])
+        if not m:
+            break
+
+        section = m.group(1)
+        separator_len = m.start(1)
+        abs_start = search_start + pos + separator_len
+        abs_end = search_start + pos + m.end(1)
+
+        section_base = re.sub(r'\([a-z]\)(?:\(\d+\))?(?:\([ivx]+\))?$', '', section, flags=re.IGNORECASE)
+        normalized = f"{title} NYCRR {section_base}"
+
+        results.append(PatternMatch(
+            ref_type=RefType.NYCRR,
+            raw_text=section,
+            normalized=normalized,
+            start=abs_start,
+            end=abs_end,
+            components={
+                'title': title,
+                'section': section,
+                'section_base': section_base,
+                'is_list_item': True,
+                'is_abbreviated': True,
+                'inferred_from': initial_match.normalized,
+                'state': 'NY'
+            }
+        ))
+
+        pos += m.end()
+
+    return results
+
+
+# =============================================================================
+# GUIDANCE REFERENCE PATTERNS
+# =============================================================================
+#
+# Matches guidance-to-guidance references in document content.
+# These are agency document references like:
+#   "23-OCFS-ADM-15", "07-OCFS-LCM-12", "19-OCFS-INF-06"
+#   "90 ADM-31", "04 INF-22" (short format)
+#   "GIS-20-MA/10"
+#
+# Used when scanning guidance document content for cross-references.
+
+GUIDANCE_REF_PATTERN = re.compile(
+    r'''
+    (?:
+        # Format 1: Agency-prefixed: "23-OCFS-ADM-15", "07-OCFS-LCM-12-R1"
+        (?<!\d)(\d{2})-([A-Z]+)-(ADM|LCM|INF|GIS)-(\d+(?:-R\d+)?)
+    )
+    |
+    (?:
+        # Format 2: Short format: "90 ADM-31", "04 INF-22"
+        (?<!\d)(\d{2})\s+(ADM|LCM|INF)-(\d+)
+    )
+    |
+    (?:
+        # Format 3: GIS format: "GIS-20-MA/10"
+        (GIS-\d{2}-[A-Z]{2}/\d+)
+    )
+    |
+    (?:
+        # Format 4: TSB-M format: "TSB-M-08(3)S", "TSB-M-83 (12)-I", "TSB-M-05(2.1)C"
+        TSB-M-(\d{2})\s*\((\d+(?:\.\d+)?)\)\s*-?\s*([CSIMRcsimrx])
+    )
+    ''',
+    # Case-sensitive for most patterns; TSB-M suffix allows lowercase
+    re.VERBOSE
+)
+
+
+def parse_guidance_ref_match(match: re.Match) -> Optional[PatternMatch]:
+    """Parse a guidance reference match into structured data."""
+    raw_text = match.group(0)
+
+    # Format 1: Agency-prefixed
+    if match.group(1):
+        year = match.group(1)
+        agency = match.group(2)
+        doc_type = match.group(3)
+        number = match.group(4)
+        normalized = f"{year}-{agency}-{doc_type}-{number}"
+        return PatternMatch(
+            ref_type=RefType.GUIDANCE,
+            raw_text=raw_text,
+            normalized=normalized,
+            start=match.start(),
+            end=match.end(),
+            components={
+                'year': year,
+                'agency': agency,
+                'doc_type': doc_type,
+                'number': number,
+                'format': 'agency_prefixed',
+            }
+        )
+
+    # Format 2: Short format
+    if match.group(5):
+        year = match.group(5)
+        doc_type = match.group(6)
+        number = match.group(7)
+        normalized = f"{year} {doc_type}-{number}"
+        return PatternMatch(
+            ref_type=RefType.GUIDANCE,
+            raw_text=raw_text,
+            normalized=normalized,
+            start=match.start(),
+            end=match.end(),
+            components={
+                'year': year,
+                'doc_type': doc_type,
+                'number': number,
+                'format': 'short',
+            }
+        )
+
+    # Format 3: GIS format
+    if match.group(8):
+        normalized = match.group(8)
+        return PatternMatch(
+            ref_type=RefType.GUIDANCE,
+            raw_text=raw_text,
+            normalized=normalized,
+            start=match.start(),
+            end=match.end(),
+            components={
+                'format': 'gis',
+            }
+        )
+
+    # Format 4: TSB-M format
+    if match.group(9):
+        year = match.group(9)
+        number = match.group(10)
+        tax_type = match.group(11).upper()
+        normalized = f"TSB-M-{year}({number}){tax_type}"
+        return PatternMatch(
+            ref_type=RefType.GUIDANCE,
+            raw_text=raw_text,
+            normalized=normalized,
+            start=match.start(),
+            end=match.end(),
+            components={
+                'year': year,
+                'number': number,
+                'tax_type': tax_type,
+                'format': 'tsb_m',
+            }
+        )
+
+    logger.warning(
+        "parse_guidance_ref_match: matched text %r but no group matched. "
+        "This likely indicates a regex/parser group mismatch.",
+        raw_text,
+    )
+    return None
+
+
+# =============================================================================
 # PATTERN REGISTRY
 # =============================================================================
 
 PATTERNS: List[Tuple[re.Pattern, callable]] = [
     (NYCRR_PATTERN, parse_nycrr_match),
     (NJAC_PATTERN, parse_njac_match),
+    (GUIDANCE_REF_PATTERN, parse_guidance_ref_match),
     (NY_SHORT_FORM_PATTERN, parse_ny_short_form_match),
     (SAME_SECTION_RANGE_PATTERN, parse_same_section_range_match),
     (SAME_SECTION_PATTERN, parse_same_section_match),
@@ -593,7 +801,7 @@ def extract_all_matches(content: str) -> List[PatternMatch]:
     Extract all internal references from content.
 
     Returns matches in order of appearance, avoiding overlaps.
-    For NJAC matches, also expands comma/and-separated lists.
+    For NJAC and NYCRR matches, also expands comma/and-separated lists.
     """
     all_matches: List[PatternMatch] = []
     matched_spans: List[Tuple[int, int]] = []
@@ -617,7 +825,17 @@ def extract_all_matches(content: str) -> List[PatternMatch]:
                 if parsed.ref_type == RefType.NJAC:
                     expanded = expand_njac_list(content, parsed)
                     for exp_match in expanded:
-                        # Check each expanded match for overlaps
+                        exp_overlaps = any(
+                            not (exp_match.end <= existing_start or exp_match.start >= existing_end)
+                            for existing_start, existing_end in matched_spans
+                        )
+                        if not exp_overlaps:
+                            all_matches.append(exp_match)
+                            matched_spans.append((exp_match.start, exp_match.end))
+                # For NYCRR matches, expand semicolon/comma-separated lists
+                elif parsed.ref_type == RefType.NYCRR:
+                    expanded = expand_nycrr_list(content, parsed)
+                    for exp_match in expanded:
                         exp_overlaps = any(
                             not (exp_match.end <= existing_start or exp_match.start >= existing_end)
                             for existing_start, existing_end in matched_spans

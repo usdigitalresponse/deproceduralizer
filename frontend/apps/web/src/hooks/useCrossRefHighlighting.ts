@@ -18,12 +18,42 @@ export interface CrossRefMatch {
   endOffset: number;
   /** ID of the target document (null if unresolved) */
   targetDocumentId: number | null;
+  /** ID of the target guidance document (null if target is a regulation) */
+  targetGuidanceId: number | null;
+  /** Reference type (e.g., 'nycrr', 'guidance') */
+  refType: string;
   /** Title of the target document */
   targetTitle: string | null;
   /** Citation of the target document */
   targetCitation: string | null;
   /** Whether the reference was successfully resolved */
   isResolved: boolean;
+}
+
+/**
+ * Pure transformation function for converting HighlightRef[] to CrossRefMatch[].
+ * Exported for unit testing without React dependencies.
+ */
+export function transformHighlightRefs(crossRefs: HighlightRef[] | undefined): CrossRefMatch[] {
+  if (!crossRefs?.length) return [];
+
+  return crossRefs
+    .filter((ref): ref is HighlightRef & { startOffset: number; endOffset: number } =>
+      ref.startOffset != null && ref.endOffset != null
+    )
+    .map((ref) => ({
+      id: ref.id,
+      rawText: ref.rawText,
+      startOffset: ref.startOffset,
+      endOffset: ref.endOffset,
+      targetDocumentId: ref.targetDocumentId,
+      targetGuidanceId: ref.targetGuidanceId ?? null,
+      refType: ref.refType ?? 'nycrr',
+      targetTitle: ref.targetTitle,
+      targetCitation: ref.targetCitation,
+      isResolved: ref.isResolved ?? false,
+    }))
+    .sort((a, b) => a.startOffset - b.startOffset);
 }
 
 /**
@@ -44,24 +74,5 @@ export interface CrossRefMatch {
 export function useCrossRefHighlighting(
   crossRefs: HighlightRef[] | undefined
 ): CrossRefMatch[] {
-  return useMemo(() => {
-    if (!crossRefs?.length) return [];
-
-    // Filter to only refs with valid offsets, map to match format, sort by position
-    return crossRefs
-      .filter((ref): ref is HighlightRef & { startOffset: number; endOffset: number } =>
-        ref.startOffset != null && ref.endOffset != null
-      )
-      .map((ref) => ({
-        id: ref.id,
-        rawText: ref.rawText,
-        startOffset: ref.startOffset,
-        endOffset: ref.endOffset,
-        targetDocumentId: ref.targetDocumentId,
-        targetTitle: ref.targetTitle,
-        targetCitation: ref.targetCitation,
-        isResolved: ref.isResolved ?? false,
-      }))
-      .sort((a, b) => a.startOffset - b.startOffset);
-  }, [crossRefs]);
+  return useMemo(() => transformHighlightRefs(crossRefs), [crossRefs]);
 }

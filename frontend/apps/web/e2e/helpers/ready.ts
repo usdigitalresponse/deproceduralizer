@@ -83,6 +83,14 @@ export async function waitForFilterApplied(page: Page, cardTestId: string) {
   await expect(page.getByTestId(cardTestId).first()).toBeVisible({ timeout: 10000 });
 }
 
+/** Wait for analytics cross-references table view to be ready */
+export async function waitForCrossRefTableReady(page: Page) {
+  // Wait for stat cards to load
+  await expect(page.getByText('Total Cross-References')).toBeVisible({ timeout: 15000 });
+  // Wait for table to render
+  await expect(page.locator('table tbody tr').first()).toBeVisible({ timeout: 10000 });
+}
+
 /** Wait for pipeline/analysis page to be ready */
 export async function waitForPipelineReady(page: Page) {
   await expect(page.getByRole('heading', { name: /Research Pipeline/i }).first()).toBeVisible();

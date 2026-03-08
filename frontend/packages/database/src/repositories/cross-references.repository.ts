@@ -1,4 +1,4 @@
-import { eq, and, desc, asc, sql, count } from 'drizzle-orm';
+import { eq, and, desc, asc, sql, count, type SQL } from 'drizzle-orm';
 import { BaseRepository } from './base.repository';
 import { crossReferences, CrossReference, RefType } from '../schema/cross-references';
 import { regulatoryDocuments } from '../schema/regulatory-documents';
@@ -41,6 +41,8 @@ export interface HighlightRef {
   startOffset: number | null;
   endOffset: number | null;
   targetDocumentId: number | null;
+  targetGuidanceId: number | null;
+  refType: string;
   targetTitle: string | null;
   targetCitation: string | null;
   isResolved: boolean | null;
@@ -153,6 +155,85 @@ export interface PaginatedCrossRefsResult {
   pageSize: number;
   totalPages: number;
 }
+
+/**
+ * Row shape for the cross-references table view
+ */
+export interface CrossRefTableRow {
+  id: number;
+  refType: string;
+  rawText: string;
+  normalizedCitation: string;
+  isResolved: boolean | null;
+  sourceJurisdiction: string;
+  sourceDocumentId: number | null;
+  sourceDocumentTitle: string | null;
+  sourceDocumentCitation: string | null;
+  sourceGuidanceId: number | null;
+  sourceGuidanceRef: string | null;
+  targetDocumentId: number | null;
+  targetDocumentTitle: string | null;
+  targetDocumentCitation: string | null;
+  targetGuidanceId: number | null;
+  targetGuidanceRef: string | null;
+}
+
+export interface CrossRefTableOptions {
+  jurisdiction: JurisdictionCode;
+  page: number;
+  pageSize: number;
+  isResolved?: boolean | 'all';
+  refType?: string;
+  sourceType?: 'regulation' | 'guidance' | 'all';
+  sortBy?: 'sourceDocument' | 'refType' | 'normalizedCitation' | 'isResolved';
+  sortOrder?: 'asc' | 'desc';
+}
+
+export interface PaginatedCrossRefTableResult {
+  data: CrossRefTableRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export interface CrossRefDocumentGroup {
+  sourceDocumentId: number | null;
+  sourceGuidanceId: number | null;
+  documentTitle: string | null;
+  citation: string | null;
+  sourceType: 'regulation' | 'guidance';
+  totalRefs: number;
+  unresolvedCount: number;
+}
+
+export interface CrossRefGroupOptions {
+  jurisdiction: JurisdictionCode;
+  page: number;
+  pageSize: number;
+  isResolved?: boolean | 'all';
+  refType?: string;
+  sourceType?: 'regulation' | 'guidance' | 'all';
+  sortBy?: 'documentName' | 'totalRefs' | 'unresolvedCount';
+  sortOrder?: 'asc' | 'desc';
+}
+
+export interface PaginatedCrossRefGroupResult {
+  data: CrossRefDocumentGroup[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+/** Filter options for accordion expansion and other filtered queries */
+export interface CrossRefActiveFilters {
+  isResolved?: boolean | 'all';
+  refType?: string;
+}
+
+/** Allowlist of valid ref_type values for server-side validation */
+const VALID_REF_TYPES = new Set(['nycrr', 'njac', 'ny_short_form', 'same_section', 'guidance']);
 
 export class CrossReferencesRepository extends BaseRepository {
   /**
@@ -267,6 +348,8 @@ export class CrossReferencesRepository extends BaseRepository {
         startOffset: crossReferences.startOffset,
         endOffset: crossReferences.endOffset,
         targetDocumentId: crossReferences.targetDocumentId,
+        targetGuidanceId: crossReferences.targetGuidanceId,
+        refType: crossReferences.refType,
         targetTitle: targetDoc.shortTitle,
         targetCitation: targetDoc.citation,
         isResolved: crossReferences.isResolved,
@@ -274,6 +357,36 @@ export class CrossReferencesRepository extends BaseRepository {
       .from(crossReferences)
       .leftJoin(targetDoc, eq(crossReferences.targetDocumentId, targetDoc.id))
       .where(eq(crossReferences.sourceDocumentId, documentId))
+      .orderBy(asc(crossReferences.startOffset));
+
+    return result;
+  }
+
+  /**
+   * Get minimal cross-reference data for inline highlighting in guidance documents.
+   * Handles both regulation targets (via targetDocumentId) and guidance targets (via targetGuidanceId).
+   */
+  async getForGuidanceHighlighting(guidanceId: number): Promise<HighlightRef[]> {
+    const targetReg = regulatoryDocuments;
+    const targetGuidance = guidanceDocuments;
+
+    const result = await this.db
+      .select({
+        id: crossReferences.id,
+        rawText: crossReferences.rawText,
+        startOffset: crossReferences.startOffset,
+        endOffset: crossReferences.endOffset,
+        targetDocumentId: crossReferences.targetDocumentId,
+        targetGuidanceId: crossReferences.targetGuidanceId,
+        refType: crossReferences.refType,
+        targetTitle: sql<string | null>`COALESCE(${targetReg.shortTitle}, ${targetGuidance.title})`,
+        targetCitation: sql<string | null>`COALESCE(${targetReg.citation}, ${targetGuidance.canonicalRef})`,
+        isResolved: crossReferences.isResolved,
+      })
+      .from(crossReferences)
+      .leftJoin(targetReg, eq(crossReferences.targetDocumentId, targetReg.id))
+      .leftJoin(targetGuidance, eq(crossReferences.targetGuidanceId, targetGuidance.id))
+      .where(eq(crossReferences.sourceGuidanceId, guidanceId))
       .orderBy(asc(crossReferences.startOffset));
 
     return result;
@@ -762,6 +875,339 @@ export class CrossReferencesRepository extends BaseRepository {
       targetName: row.target_name,
       targetEntityType: 'regulation' as const,
       refCount: row.ref_count,
+    }));
+  }
+
+  /**
+   * Get paginated cross-references for table view (flat rows).
+   * Supports filtering by resolved status, ref type, and source type.
+   */
+  async getPaginated(options: CrossRefTableOptions): Promise<PaginatedCrossRefTableResult> {
+    const {
+      jurisdiction,
+      page,
+      pageSize,
+      isResolved = false,
+      refType,
+      sourceType = 'all',
+      sortBy = 'sourceDocument',
+      sortOrder = 'asc',
+    } = options;
+    const stateUpper = normalizeJurisdiction(jurisdiction);
+    const offset = (page - 1) * pageSize;
+
+    // Build parameterized WHERE conditions
+    const conditions: SQL[] = [sql`cr.source_jurisdiction = ${stateUpper}`];
+
+    if (isResolved !== 'all') {
+      conditions.push(sql`cr.is_resolved = ${isResolved}`);
+    }
+    if (refType && refType !== 'all' && VALID_REF_TYPES.has(refType)) {
+      conditions.push(sql`cr.ref_type = ${refType}`);
+    }
+    if (sourceType === 'regulation') {
+      conditions.push(sql`cr.source_guidance_id IS NULL`);
+    } else if (sourceType === 'guidance') {
+      conditions.push(sql`cr.source_guidance_id IS NOT NULL`);
+    }
+
+    const whereClause = sql.join(conditions, sql` AND `);
+
+    // Sort column allowlist (column names cannot be parameterized)
+    const SORT_COLS: Record<string, SQL> = {
+      sourceDocument: sql`COALESCE(src_doc.citation, src_guide.title)`,
+      refType: sql`cr.ref_type`,
+      normalizedCitation: sql`cr.normalized_citation`,
+      isResolved: sql`cr.is_resolved`,
+    };
+    const orderCol = SORT_COLS[sortBy] ?? SORT_COLS.sourceDocument;
+    const orderDir = sortOrder === 'desc' ? sql`DESC` : sql`ASC`;
+
+    // Count query
+    const countResult = await this.db.execute<{ count: number }>(sql`
+      SELECT COUNT(*)::int as count
+      FROM cross_references cr
+      WHERE ${whereClause}
+    `);
+    const total = countResult.rows[0]?.count ?? 0;
+
+    // Data query
+    const dataResult = await this.db.execute<{
+      id: number;
+      ref_type: string;
+      raw_text: string;
+      normalized_citation: string;
+      is_resolved: boolean | null;
+      source_jurisdiction: string;
+      source_document_id: number | null;
+      source_document_title: string | null;
+      source_document_citation: string | null;
+      source_guidance_id: number | null;
+      source_guidance_ref: string | null;
+      target_document_id: number | null;
+      target_document_title: string | null;
+      target_document_citation: string | null;
+      target_guidance_id: number | null;
+      target_guidance_ref: string | null;
+    }>(sql`
+      SELECT
+        cr.id,
+        cr.ref_type,
+        cr.raw_text,
+        cr.normalized_citation,
+        cr.is_resolved,
+        cr.source_jurisdiction,
+        cr.source_document_id,
+        src_doc.short_title as source_document_title,
+        src_doc.citation as source_document_citation,
+        cr.source_guidance_id,
+        src_guide.title as source_guidance_ref,
+        cr.target_document_id,
+        tgt_doc.short_title as target_document_title,
+        tgt_doc.citation as target_document_citation,
+        cr.target_guidance_id,
+        tgt_guide.title as target_guidance_ref
+      FROM cross_references cr
+      LEFT JOIN regulatory_documents src_doc ON cr.source_document_id = src_doc.id
+      LEFT JOIN guidance_documents src_guide ON cr.source_guidance_id = src_guide.id
+      LEFT JOIN regulatory_documents tgt_doc ON cr.target_document_id = tgt_doc.id
+      LEFT JOIN guidance_documents tgt_guide ON cr.target_guidance_id = tgt_guide.id
+      WHERE ${whereClause}
+      ORDER BY ${orderCol} ${orderDir} NULLS LAST
+      LIMIT ${pageSize}
+      OFFSET ${offset}
+    `);
+
+    return {
+      data: dataResult.rows.map(row => ({
+        id: row.id,
+        refType: row.ref_type,
+        rawText: row.raw_text,
+        normalizedCitation: row.normalized_citation,
+        isResolved: row.is_resolved,
+        sourceJurisdiction: row.source_jurisdiction,
+        sourceDocumentId: row.source_document_id,
+        sourceDocumentTitle: row.source_document_title,
+        sourceDocumentCitation: row.source_document_citation,
+        sourceGuidanceId: row.source_guidance_id,
+        sourceGuidanceRef: row.source_guidance_ref,
+        targetDocumentId: row.target_document_id,
+        targetDocumentTitle: row.target_document_title,
+        targetDocumentCitation: row.target_document_citation,
+        targetGuidanceId: row.target_guidance_id,
+        targetGuidanceRef: row.target_guidance_ref,
+      })),
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
+  }
+
+  /**
+   * Get cross-references grouped by source document for accordion view.
+   * Returns document groups with total and unresolved counts.
+   */
+  async getGroupedByDocument(options: CrossRefGroupOptions): Promise<PaginatedCrossRefGroupResult> {
+    const {
+      jurisdiction,
+      page,
+      pageSize,
+      isResolved = 'all',
+      refType,
+      sourceType = 'all',
+      sortBy = 'unresolvedCount',
+      sortOrder = 'desc',
+    } = options;
+    const stateUpper = normalizeJurisdiction(jurisdiction);
+    const offset = (page - 1) * pageSize;
+
+    // Build parameterized WHERE conditions
+    const conditions: SQL[] = [sql`cr.source_jurisdiction = ${stateUpper}`];
+
+    if (isResolved !== 'all') {
+      conditions.push(sql`cr.is_resolved = ${isResolved}`);
+    }
+    if (refType && refType !== 'all' && VALID_REF_TYPES.has(refType)) {
+      conditions.push(sql`cr.ref_type = ${refType}`);
+    }
+    if (sourceType === 'regulation') {
+      conditions.push(sql`cr.source_guidance_id IS NULL`);
+    } else if (sourceType === 'guidance') {
+      conditions.push(sql`cr.source_guidance_id IS NOT NULL`);
+    }
+
+    const whereClause = sql.join(conditions, sql` AND `);
+
+    // Sort column allowlist (column names cannot be parameterized)
+    const SORT_COLS: Record<string, SQL> = {
+      documentName: sql`document_title`,
+      totalRefs: sql`total_refs`,
+      unresolvedCount: sql`unresolved_count`,
+    };
+    const orderCol = SORT_COLS[sortBy] ?? SORT_COLS.unresolvedCount;
+    const orderDir = sortOrder === 'desc' ? sql`DESC` : sql`ASC`;
+
+    // Count distinct groups
+    const countResult = await this.db.execute<{ count: number }>(sql`
+      SELECT COUNT(*)::int as count FROM (
+        SELECT
+          CASE WHEN cr.source_guidance_id IS NOT NULL
+            THEN NULL ELSE cr.source_document_id END as doc_id,
+          CASE WHEN cr.source_guidance_id IS NOT NULL
+            THEN cr.source_guidance_id ELSE NULL END as guide_id
+        FROM cross_references cr
+        WHERE ${whereClause}
+        GROUP BY doc_id, guide_id
+      ) sub
+    `);
+    const total = countResult.rows[0]?.count ?? 0;
+
+    // Data query with grouping
+    const dataResult = await this.db.execute<{
+      source_document_id: number | null;
+      source_guidance_id: number | null;
+      document_title: string | null;
+      citation: string | null;
+      source_type: 'regulation' | 'guidance';
+      total_refs: number;
+      unresolved_count: number;
+    }>(sql`
+      SELECT
+        CASE WHEN cr.source_guidance_id IS NOT NULL
+          THEN NULL ELSE cr.source_document_id END as source_document_id,
+        CASE WHEN cr.source_guidance_id IS NOT NULL
+          THEN cr.source_guidance_id ELSE NULL END as source_guidance_id,
+        CASE WHEN cr.source_guidance_id IS NOT NULL
+          THEN gd.title ELSE COALESCE(rd.short_title, rd.citation) END as document_title,
+        CASE WHEN cr.source_guidance_id IS NOT NULL
+          THEN NULL ELSE rd.citation END as citation,
+        CASE WHEN cr.source_guidance_id IS NOT NULL
+          THEN 'guidance' ELSE 'regulation' END as source_type,
+        COUNT(*)::int as total_refs,
+        COUNT(*) FILTER (WHERE cr.is_resolved = false OR cr.is_resolved IS NULL)::int as unresolved_count
+      FROM cross_references cr
+      LEFT JOIN regulatory_documents rd ON cr.source_document_id = rd.id AND cr.source_guidance_id IS NULL
+      LEFT JOIN guidance_documents gd ON cr.source_guidance_id = gd.id
+      WHERE ${whereClause}
+      GROUP BY
+        CASE WHEN cr.source_guidance_id IS NOT NULL THEN NULL ELSE cr.source_document_id END,
+        CASE WHEN cr.source_guidance_id IS NOT NULL THEN cr.source_guidance_id ELSE NULL END,
+        CASE WHEN cr.source_guidance_id IS NOT NULL THEN gd.title ELSE COALESCE(rd.short_title, rd.citation) END,
+        CASE WHEN cr.source_guidance_id IS NOT NULL THEN NULL ELSE rd.citation END,
+        CASE WHEN cr.source_guidance_id IS NOT NULL THEN 'guidance' ELSE 'regulation' END
+      ORDER BY ${orderCol} ${orderDir} NULLS LAST
+      LIMIT ${pageSize}
+      OFFSET ${offset}
+    `);
+
+    return {
+      data: dataResult.rows.map(row => ({
+        sourceDocumentId: row.source_document_id,
+        sourceGuidanceId: row.source_guidance_id,
+        documentTitle: row.document_title,
+        citation: row.citation,
+        sourceType: row.source_type,
+        totalRefs: row.total_refs,
+        unresolvedCount: row.unresolved_count,
+      })),
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
+  }
+
+  /**
+   * Get cross-references for a specific source document (for accordion expansion).
+   * Returns flat rows filtered to a single source document or guidance doc.
+   */
+  async getRefsForSource(
+    sourceDocumentId: number | null,
+    sourceGuidanceId: number | null,
+    jurisdiction: JurisdictionCode,
+    filters?: CrossRefActiveFilters
+  ): Promise<CrossRefTableRow[]> {
+    const stateUpper = normalizeJurisdiction(jurisdiction);
+
+    const sourceFilter = sourceGuidanceId
+      ? sql`cr.source_guidance_id = ${sourceGuidanceId}`
+      : sql`cr.source_document_id = ${sourceDocumentId} AND cr.source_guidance_id IS NULL`;
+
+    const conditions: SQL[] = [
+      sql`cr.source_jurisdiction = ${stateUpper}`,
+      sourceFilter,
+    ];
+    if (filters?.isResolved !== undefined && filters.isResolved !== 'all') {
+      conditions.push(sql`cr.is_resolved = ${filters.isResolved}`);
+    }
+    if (filters?.refType && filters.refType !== 'all' && VALID_REF_TYPES.has(filters.refType)) {
+      conditions.push(sql`cr.ref_type = ${filters.refType}`);
+    }
+    const whereClause = sql.join(conditions, sql` AND `);
+
+    const result = await this.db.execute<{
+      id: number;
+      ref_type: string;
+      raw_text: string;
+      normalized_citation: string;
+      is_resolved: boolean | null;
+      source_jurisdiction: string;
+      source_document_id: number | null;
+      source_document_title: string | null;
+      source_document_citation: string | null;
+      source_guidance_id: number | null;
+      source_guidance_ref: string | null;
+      target_document_id: number | null;
+      target_document_title: string | null;
+      target_document_citation: string | null;
+      target_guidance_id: number | null;
+      target_guidance_ref: string | null;
+    }>(sql`
+      SELECT
+        cr.id,
+        cr.ref_type,
+        cr.raw_text,
+        cr.normalized_citation,
+        cr.is_resolved,
+        cr.source_jurisdiction,
+        cr.source_document_id,
+        src_doc.short_title as source_document_title,
+        src_doc.citation as source_document_citation,
+        cr.source_guidance_id,
+        src_guide.title as source_guidance_ref,
+        cr.target_document_id,
+        tgt_doc.short_title as target_document_title,
+        tgt_doc.citation as target_document_citation,
+        cr.target_guidance_id,
+        tgt_guide.title as target_guidance_ref
+      FROM cross_references cr
+      LEFT JOIN regulatory_documents src_doc ON cr.source_document_id = src_doc.id
+      LEFT JOIN guidance_documents src_guide ON cr.source_guidance_id = src_guide.id
+      LEFT JOIN regulatory_documents tgt_doc ON cr.target_document_id = tgt_doc.id
+      LEFT JOIN guidance_documents tgt_guide ON cr.target_guidance_id = tgt_guide.id
+      WHERE ${whereClause}
+      ORDER BY cr.normalized_citation ASC
+      LIMIT 500
+    `);
+
+    return result.rows.map(row => ({
+      id: row.id,
+      refType: row.ref_type,
+      rawText: row.raw_text,
+      normalizedCitation: row.normalized_citation,
+      isResolved: row.is_resolved,
+      sourceJurisdiction: row.source_jurisdiction,
+      sourceDocumentId: row.source_document_id,
+      sourceDocumentTitle: row.source_document_title,
+      sourceDocumentCitation: row.source_document_citation,
+      sourceGuidanceId: row.source_guidance_id,
+      sourceGuidanceRef: row.source_guidance_ref,
+      targetDocumentId: row.target_document_id,
+      targetDocumentTitle: row.target_document_title,
+      targetDocumentCitation: row.target_document_citation,
+      targetGuidanceId: row.target_guidance_id,
+      targetGuidanceRef: row.target_guidance_ref,
     }));
   }
 }
