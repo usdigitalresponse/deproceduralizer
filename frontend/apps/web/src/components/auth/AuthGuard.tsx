@@ -12,6 +12,22 @@ interface AuthGuardProps {
 const PUBLIC_ROUTES = ['/auth'];
 
 /**
+ * Auth is automatically bypassed in development and Vercel preview environments.
+ * These values are compile-time constants inlined by Next.js — cannot be manipulated at runtime.
+ *
+ * Set window.__TEST_AUTH_FLOW__ = true (via Playwright addInitScript) to disable
+ * the bypass and test the actual login flow.
+ */
+function isAuthBypassed(): boolean {
+  if (typeof window !== 'undefined' && (window as any).__TEST_AUTH_FLOW__) {
+    return false;
+  }
+  if (process.env.NODE_ENV === 'development') return true;
+  if (process.env.NEXT_PUBLIC_VERCEL_ENV === 'preview') return true;
+  return false;
+}
+
+/**
  * Client-side authentication guard.
  *
  * Checks localStorage for authentication state. If authenticated,
@@ -35,6 +51,11 @@ export function AuthGuard({ children }: AuthGuardProps) {
 
   // Always render public routes (share-token validation needs to run)
   if (PUBLIC_ROUTES.some(route => pathname.startsWith(route))) {
+    return <>{children}</>;
+  }
+
+  // Skip auth in dev/preview environments (unless testing auth flow)
+  if (isAuthBypassed()) {
     return <>{children}</>;
   }
 

@@ -43,6 +43,24 @@ These tests include cleanup logic to restore data after running.
 | `PLAYWRIGHT_TEST_BASE_URL` | No | Base URL for tests (default: `http://localhost:3000`) |
 | `VERCEL_AUTOMATION_BYPASS_SECRET` | For Vercel | Bypass Vercel deployment protection |
 
+## Auth Bypass in Dev/Preview
+
+Auth is automatically bypassed in development and Vercel preview environments — no password form appears. This is controlled by compile-time constants in `AuthGuard.tsx` (`NODE_ENV` and `NEXT_PUBLIC_VERCEL_ENV`).
+
+**For auth tests**: The `auth.spec.ts` test suite uses `addInitScript` to set `window.__TEST_AUTH_FLOW__ = true`, which re-enables the password form so the auth flow can be tested.
+
+**When writing new auth-related tests**, include this in your `beforeEach`:
+
+```typescript
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).__TEST_AUTH_FLOW__ = true;
+  });
+});
+```
+
+Non-auth tests (smoke tests, mutation tests) are unaffected — they benefit from the bypass since they don't need to authenticate.
+
 ## Data Invariants
 
 Tests assume the following data exists:

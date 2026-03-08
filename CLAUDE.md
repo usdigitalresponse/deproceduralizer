@@ -26,6 +26,12 @@ Canonical counts for use across all documentation. When adding/removing issue ty
 
 When working on the Next.js frontend, follow these patterns:
 
+### Authentication
+- Auth is automatically bypassed in development (`NODE_ENV === 'development'`) and Vercel preview (`NEXT_PUBLIC_VERCEL_ENV === 'preview'`) — no password form appears
+- Production always requires the `SITE_PASSWORD` — bypass conditions are compile-time constants that cannot trigger in production builds
+- To test the auth flow in Playwright, use `addInitScript(() => { window.__TEST_AUTH_FLOW__ = true })` to re-enable the password form
+- The auth system is intentionally client-side (localStorage) — see `AuthGuard.tsx`
+
 ### Avoid Duplication Patterns
 - Before creating a new component, check if similar components exist (queues, cards, filters, modals)
 - If 3+ components share >50% logic, extract a shared hook or wrapper component

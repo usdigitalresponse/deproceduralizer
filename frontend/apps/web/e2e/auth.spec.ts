@@ -1,6 +1,12 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Authentication', () => {
+  // Re-enable the password form for auth tests (bypassed in dev/preview by default)
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      (window as any).__TEST_AUTH_FLOW__ = true;
+    });
+  });
 
   test('unauthenticated user sees password form', async ({ page }) => {
     await page.goto('/');
