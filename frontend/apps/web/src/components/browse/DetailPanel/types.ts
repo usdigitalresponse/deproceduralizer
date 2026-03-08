@@ -23,13 +23,6 @@ export interface MetadataSectionProps {
   document: RegulationWithAnalysis;
 }
 
-export interface RedFlagsSectionProps {
-  redFlags: NonNullable<RegulationWithAnalysis['redFlags']>;
-  state: string;
-  documentId: number;
-  currentUrl: string;
-}
-
 export interface ComplianceIssuesSectionProps {
   issues: ComplianceIssueWithAnalysisFields[];
   state: string;

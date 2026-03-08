@@ -16,7 +16,6 @@ import {
 interface ReviewTypeTabsProps {
   activeType: ReviewType;
   counts: {
-    flags: number;
     compliance: number;
     definitions: number;
     needs_info: number;
@@ -52,8 +51,6 @@ export function ReviewTypeTabs({ activeType, counts, mode = 'review' }: ReviewTy
 
   const getCount = (type: ReviewType): number => {
     switch (type) {
-      case 'flags':
-        return counts.flags;
       case 'compliance':
         return counts.compliance;
       case 'definitions':
@@ -67,9 +64,8 @@ export function ReviewTypeTabs({ activeType, counts, mode = 'review' }: ReviewTy
     }
   };
 
-  // Developer mode: show separate tabs for Red Flags, Compliance Issues, Definitions, and Needs Info
+  // Developer mode: show separate tabs for Compliance Issues, Definitions, and Needs Info
   if (mode === 'developer') {
-    const isFlagsActive = activeType === 'flags';
     const isComplianceActive = activeType === 'compliance';
     const isDefinitionsActive = activeType === 'definitions';
     const isNeedsInfoActive = activeType === 'needs_info';
@@ -120,28 +116,6 @@ export function ReviewTypeTabs({ activeType, counts, mode = 'review' }: ReviewTy
               className="text-xs"
             >
               {counts.jenai}
-            </Badge>
-          )}
-        </button>
-        <button
-          onClick={() => handleTabChange('flags')}
-          className={`
-            flex items-center gap-2 px-4 py-2 rounded-[var(--radius-md)] text-sm font-medium
-            transition-all duration-[var(--duration-fast)]
-            ${
-              isFlagsActive
-                ? 'bg-white text-[var(--color-text)] shadow-sm'
-                : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-white/50'
-            }
-          `}
-        >
-          Red Flags
-          {counts.flags > 0 && (
-            <Badge
-              variant={isFlagsActive ? 'danger' : 'default'}
-              className="text-xs"
-            >
-              {counts.flags}
             </Badge>
           )}
         </button>

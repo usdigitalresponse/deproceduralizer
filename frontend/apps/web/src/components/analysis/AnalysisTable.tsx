@@ -142,8 +142,6 @@ export function AnalysisTable({ jurisdiction, source }: AnalysisTableProps) {
     tier3Trigger: filters.tier3Trigger !== 'all' ? filters.tier3Trigger : undefined,
     easyCleanup: filters.easyCleanup !== 'all' ? filters.easyCleanup : undefined,
     bookmarkedOnly: filters.bookmarkedOnly === 'true' ? true : undefined,
-    agency: filters.agency || undefined,
-    docType: filters.docType || undefined,
   }), [filters]);
 
   // Fetch data when filters or source change

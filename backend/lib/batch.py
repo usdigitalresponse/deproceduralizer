@@ -141,7 +141,7 @@ class BatchManager:
         # Submit a batch
         batch_id = manager.submit_batch(
             requests=formatted_requests,
-            batch_name="red_flags_NJ_3A",
+            batch_name="compliance_NJ_3A",
             metadata={"state": "NJ", "title": "3A"}
         )
 

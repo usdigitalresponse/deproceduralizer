@@ -1,7 +1,6 @@
 import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 import { getAnalysisTierStats, getGuidanceAnalysisTierStats, getPriorityPicks } from '@/lib/actions/analysis';
-import { getGuidanceAgencies, getGuidanceDocTypes } from '@/lib/actions/guidance-documents';
 import { AnalysisDashboard, PipelineSourceTabs } from '@/components/analysis';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Container } from '@/components/layout/Container';
@@ -26,20 +25,18 @@ export default async function AnalysisPage({ params, searchParams }: AnalysisPag
   const source: PipelineSourceValue = queryParams.source === 'guidance' ? 'guidance' : 'regulations';
   const isGuidance = source === 'guidance';
 
-  // Fetch all data in parallel based on source mode
-  const [statsResult, priorityResult, agenciesResult, docTypesResult] = await Promise.all([
-    isGuidance ? getGuidanceAnalysisTierStats(stateCode) : getAnalysisTierStats(stateCode),
-    isGuidance ? null : getPriorityPicks(stateCode),
-    isGuidance ? getGuidanceAgencies(stateCode) : null,
-    isGuidance ? getGuidanceDocTypes(stateCode) : null,
-  ]);
+  // Fetch stats based on source, and priority picks (regulations only)
+  const statsResult = isGuidance
+    ? await getGuidanceAnalysisTierStats(stateCode)
+    : await getAnalysisTierStats(stateCode);
+
+  const priorityResult = isGuidance ? null : await getPriorityPicks(stateCode);
 
   const tierCounts = statsResult.success ? statsResult.data.tierCounts : null;
   const classificationBreakdown = statsResult.success ? statsResult.data.classificationBreakdown : null;
   const total = statsResult.success ? statsResult.data.total : 0;
+
   const priorityPicks = priorityResult?.success ? priorityResult.data : null;
-  const guidanceAgencies = agenciesResult?.success ? agenciesResult.data : [];
-  const guidanceDocTypes = docTypesResult?.success ? docTypesResult.data : [];
 
   return (
     <div className="bg-[var(--color-background)] min-h-screen">
@@ -60,8 +57,6 @@ export default async function AnalysisPage({ params, searchParams }: AnalysisPag
             total={total}
             priorityPicks={priorityPicks}
             source={source}
-            guidanceAgencies={guidanceAgencies}
-            guidanceDocTypes={guidanceDocTypes}
           />
         </div>
       </Container>

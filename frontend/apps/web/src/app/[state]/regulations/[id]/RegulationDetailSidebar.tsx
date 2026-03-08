@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { RedFlagsList } from '@/components/flags';
 import { ComplianceIssuesList } from '@/components/issues';
 import { DefinitionsList, ApplicableDefinitions } from '@/components/definitions';
 import { CrossReferenceList, IncomingReferenceList, GuidanceReferenceList } from '@/components/cross-references';
@@ -77,9 +76,6 @@ export async function RegulationDetailSidebar({
     { id: 'sidebar-hierarchy', label: 'Hierarchy' },
     ...(enablingAuthority.length > 0 ? [{ id: 'sidebar-enabling-authority', label: 'Authority' }] : []),
     { id: 'sidebar-document-info', label: 'Info' },
-    ...(regulation.redFlags && regulation.redFlags.length > 0
-      ? [{ id: 'sidebar-red-flags', label: 'Red Flags', count: regulation.redFlags.length }]
-      : []),
     ...(complianceIssues.length > 0
       ? [{ id: 'sidebar-compliance-issues', label: 'Issues', count: complianceIssues.length }]
       : []),
@@ -176,13 +172,6 @@ export async function RegulationDetailSidebar({
 
         {/* Children (sub-sections) */}
         <ChildrenListServer documentId={regulationId} state={state} />
-
-        {/* Red Flags */}
-        {regulation.redFlags && regulation.redFlags.length > 0 && (
-          <div id="sidebar-red-flags">
-            <RedFlagsList initialFlags={regulation.redFlags} />
-          </div>
-        )}
 
         {/* Compliance Issues */}
         {complianceIssues && complianceIssues.length > 0 && (

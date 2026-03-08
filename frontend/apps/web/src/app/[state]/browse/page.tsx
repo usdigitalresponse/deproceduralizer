@@ -41,16 +41,6 @@ export default async function BrowsePage({ params, searchParams }: PageProps) {
   // Parse filters from URL params - state is always required
   const filters: HierarchyFilterOptions = { jurisdiction: stateCode };
 
-  const hasAnalysis = parseBooleanParam(queryParams.analyzed);
-  if (hasAnalysis !== undefined) filters.hasAnalysis = hasAnalysis;
-
-  const hasFlags = parseBooleanParam(queryParams.hasFlags);
-  if (hasFlags !== undefined) filters.hasFlags = hasFlags;
-
-  if (queryParams.severity && ['high', 'medium', 'low'].includes(queryParams.severity)) {
-    filters.severity = queryParams.severity as HierarchyFilterOptions['severity'];
-  }
-
   const hasDefinitions = parseBooleanParam(queryParams.hasDefs);
   if (hasDefinitions !== undefined) filters.hasDefinitions = hasDefinitions;
 
@@ -66,9 +56,6 @@ export default async function BrowsePage({ params, searchParams }: PageProps) {
   // Check if any filters are active (beyond just state)
   const hasActiveFilters = Boolean(
     search ||
-    filters.hasAnalysis !== undefined ||
-    filters.hasFlags !== undefined ||
-    filters.severity !== undefined ||
     filters.hasDefinitions !== undefined ||
     filters.hasComplianceIssues !== undefined
   );

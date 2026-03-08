@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
-import { Badge, SeverityBadge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { formatDisplayTitle, truncateTitle } from '@/lib/format';
 import { getDirectChildren } from '@/lib/actions/hierarchy';
@@ -53,21 +52,6 @@ export async function ChildrenListServer({
               >
                 {truncateTitle(formatDisplayTitle(child), 60)}
               </span>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              {child.numFlags > 0 && (
-                <Badge variant="danger" className="text-xs">
-                  {child.numFlags} {child.numFlags === 1 ? 'flag' : 'flags'}
-                </Badge>
-              )}
-              {child.maxSeverity !== null && (
-                <SeverityBadge severity={child.maxSeverity} className="text-xs" />
-              )}
-              {!child.hasAnalysis && (
-                <Badge variant="default" className="text-xs">
-                  Not analyzed
-                </Badge>
-              )}
             </div>
           </Link>
         ))}

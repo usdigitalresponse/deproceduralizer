@@ -1,13 +1,13 @@
 ---
 name: pipeline
-description: Run the regulatory analysis pipeline (scraping, definitions, summarization, compliance scanning, research pipeline, IBR, red flags). Use when processing a new state, running any pipeline step, or checking what to run next.
+description: Run the regulatory analysis pipeline (scraping, definitions, summarization, compliance scanning, research pipeline, IBR). Use when processing a new state, running any pipeline step, or checking what to run next.
 ---
 
 # Pipeline Operations
 
 **Before running any pipeline step, read the full operational runbook:**
 
-Use the Read tool to read `docs/OPERATIONS.md` — it contains the complete 12-step pipeline with all commands, flags, costs, timing, and dependencies.
+Use the Read tool to read `docs/OPERATIONS.md` — it contains the complete pipeline with all commands, flags, costs, timing, and dependencies.
 
 ## Pipeline Steps (Quick Reference)
 
@@ -24,9 +24,8 @@ Use the Read tool to read `docs/OPERATIONS.md` — it contains the complete 12-s
 | 8 | Research pipeline (LLM) | `cd backend && python3 -m scripts.research_pipeline.cli --state ny --all-issues --execute` | ~$50-60/title |
 | 9 | IBR scan | `python backend/scripts/ibr_scanner.py --state ny` | ~$5-10 |
 | 9b | Fines scan | `python backend/scripts/fines_scanner.py --state ny --include-guidance --batch` | ~$1-3 |
-| 10 | Red flags | `python backend/scripts/red_flags.py --state NY` | ~$50-100 |
-| 11 | JenAI pipeline (LLM) | `cd backend && python3 -m scripts.jenai_pipeline.cli --state ny --execute` | ~$30-60/title |
-| 12 | Refresh stats | `python backend/scripts/refresh_hierarchy_stats.py --state NY` | Free |
+| 10 | JenAI pipeline (LLM) | `cd backend && python3 -m scripts.jenai_pipeline.cli --state ny --execute` | ~$30-60/title |
+| 11 | Refresh stats | `python backend/scripts/refresh_hierarchy_stats.py --state NY` | Free |
 
 ## Critical Dependencies
 
@@ -34,16 +33,16 @@ Use the Read tool to read `docs/OPERATIONS.md` — it contains the complete 12-s
 - Step 5 (cross-references) can run anytime after Step 1
 - Steps 6 and 7 can run in parallel
 - **Step 8 depends on Steps 5 and 6** — uses summaries and cross-ref summaries as LLM context
-- Steps 9-10 are independent, can run anytime after Step 1
+- Step 9 (IBR) is independent, can run anytime after Step 1
 - Step 9b (fines) is independent, can run anytime after Step 1
-- **Step 11 depends on Steps 5 and 6** — JenAI uses summaries, cross-refs, and definitions as context
-- Step 12 runs last
+- **Step 10 depends on Steps 5 and 6** — JenAI uses summaries, cross-refs, and definitions as context
+- Step 11 runs last
 
 ## Related Skills
 
 For detailed architecture/internals on specific steps, invoke the relevant skill:
 - **research-pipeline** — Tier logic, state machine, escalation triggers, cost optimization (Step 8)
-- **jenai-pipeline** — Single-pass 19-category Pahlka framework analysis, context strategy, category taxonomy (Step 11)
+- **jenai-pipeline** — Single-pass 19-category Pahlka framework analysis, context strategy, category taxonomy (Step 10)
 - **cross-references** — Extraction patterns, resolution logic, troubleshooting (Step 5)
 - **fines-pipeline** — Fines extraction, prompt structure, agency attribution (Step 9b)
 - **database** — Schema reference, queries, maintenance procedures
@@ -54,7 +53,7 @@ All LLM pipeline steps (research, JenAI, summarization) use a shared response ca
 
 ## Important Reminders
 
-- **Always ask user permission** before running LLM-based steps (3, 6, 8, 9, 9b, 10) — they cost money
+- **Always ask user permission** before running LLM-based steps (3, 6, 8, 9, 9b) — they cost money
 - **Always ask user permission** before killing a running pipeline
 - Default is dry-run for research pipeline — must pass `--execute` to actually run
 - Use `--dry-run` on any step that supports it before committing to a full run

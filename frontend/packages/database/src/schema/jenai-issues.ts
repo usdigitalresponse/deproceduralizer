@@ -73,7 +73,7 @@ export const jenaiIssues = pgTable('jenai_issues', {
   tags: text('tags').array().default(sql`'{}'`),
   isVerbatim: boolean('is_verbatim'),
 
-  // Review fields (same as red_flags)
+  // Review fields
   reviewStatus: varchar('review_status', { length: 50 }).default('unreviewed'),
   reviewedBy: varchar('reviewed_by', { length: 255 }),
   reviewedAt: timestamp('reviewed_at'),
@@ -82,7 +82,7 @@ export const jenaiIssues = pgTable('jenai_issues', {
   priority: integer('priority'),
   impactType: varchar('impact_type', { length: 100 }),
 
-  // Developer fields (same as red_flags)
+  // Developer fields
   developerStatus: varchar('developer_status', { length: 50 }).default('unresolved'),
   developerAssigned: varchar('developer_assigned', { length: 50 }),
   developerNotes: text('developer_notes'),

@@ -13,11 +13,9 @@ This skill tracks cleanup operations for test data and temporary changes.
 # E2E test data cleanup - uses SPECIFIC patterns to avoid deleting legitimate reviews
 # Note: review columns are on compliance_issue_analyses (not compliance_issues) since PR 6.3
 ./scripts/db-query.sh "UPDATE compliance_issue_analyses SET review_status = 'unreviewed', reviewed_by = NULL, reviewed_at = NULL WHERE reviewed_by = 'E2E Test Reviewer' OR reviewed_by LIKE 'E2E Filter Test %' OR reviewed_by LIKE 'E2E All Filter Test %' RETURNING id;"
-./scripts/db-query.sh "UPDATE red_flags SET review_status = 'unreviewed', reviewed_by = NULL, reviewed_at = NULL WHERE reviewed_by = 'E2E Test Reviewer' OR reviewed_by LIKE 'E2E Filter Test %' RETURNING id;"
 
 # Check for test data
 ./scripts/db-query.sh "SELECT id, reviewed_by FROM compliance_issue_analyses WHERE reviewed_by = 'E2E Test Reviewer' OR reviewed_by LIKE 'E2E Filter Test %' OR reviewed_by LIKE 'E2E All Filter Test %';"
-./scripts/db-query.sh "SELECT id, reviewed_by FROM red_flags WHERE reviewed_by = 'E2E Test Reviewer' OR reviewed_by LIKE 'E2E Filter Test %';"
 ```
 
 ## E2E Test Data Patterns
@@ -67,20 +65,6 @@ SET review_status = 'unreviewed',
 WHERE reviewed_by = 'E2E Test Reviewer'
    OR reviewed_by LIKE 'E2E Filter Test %'
    OR reviewed_by LIKE 'E2E All Filter Test %'
-RETURNING id, reviewed_by;
-```
-
-### Red Flags
-```sql
--- Reset E2E test reviews (SPECIFIC patterns only)
-UPDATE red_flags
-SET review_status = 'unreviewed',
-    reviewed_by = NULL,
-    reviewed_at = NULL,
-    team_notes = NULL,
-    justification_notes = NULL
-WHERE reviewed_by = 'E2E Test Reviewer'
-   OR reviewed_by LIKE 'E2E Filter Test %'
 RETURNING id, reviewed_by;
 ```
 

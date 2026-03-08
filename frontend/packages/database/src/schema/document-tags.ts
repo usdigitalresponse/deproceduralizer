@@ -13,7 +13,6 @@ import { regulatoryDocuments } from './regulatory-documents';
  *
  * Tags use a flat namespace with prefixes:
  * - `scan:compliance` — include in compliance issue scanning
- * - `scan:red-flags` — include in red flags analysis
  * - `scan:summarize` — include in summarization pipeline
  * - `topic:childcare` — relates to childcare regulation
  * - `topic:permitting` — relates to permitting/building regulation

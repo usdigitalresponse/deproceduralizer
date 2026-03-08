@@ -7,9 +7,7 @@ import { FilterSection } from './FilterSection';
 import { FilterCheckboxGroup, FilterRadioGroup } from './FilterCheckboxGroup';
 import { ActiveFilterChips } from './ActiveFilterChips';
 import {
-  SEVERITY_TABLE_OPTIONS,
   SECTION_TYPE_OPTIONS,
-  HAS_FLAGS_FILTER_OPTIONS,
   HAS_FORM_FILTER_OPTIONS,
   HAS_IBR_FILTER_OPTIONS,
 } from '@/lib/constants/filters';
@@ -17,25 +15,20 @@ import { COMPLEXITY_LEVELS } from '@/lib/constants/values';
 
 interface FacetedFiltersProps {
   // Current filter values
-  severity: string[];
   sectionTypes: string[];
   complexity: string[];
-  hasFlags: string | null;
   hasForm: string | null;
   hasIbr: string | null;
 
   // Callbacks
-  onSeverityChange: (values: string[]) => void;
   onSectionTypesChange: (values: string[]) => void;
   onComplexityChange: (values: string[]) => void;
-  onHasFlagsChange: (value: string | null) => void;
   onHasFormChange: (value: string | null) => void;
   onHasIbrChange: (value: string | null) => void;
   onClearAll: () => void;
 
   // Optional: counts for each filter value
   counts?: {
-    severity?: Record<string, number>;
     sectionTypes?: Record<string, number>;
     complexity?: Record<string, number>;
   };
@@ -50,16 +43,12 @@ interface FacetedFiltersProps {
  * Provides multi-select filters for severity, section type, complexity, and metadata.
  */
 export function FacetedFilters({
-  severity,
   sectionTypes,
   complexity,
-  hasFlags,
   hasForm,
   hasIbr,
-  onSeverityChange,
   onSectionTypesChange,
   onComplexityChange,
-  onHasFlagsChange,
   onHasFormChange,
   onHasIbrChange,
   onClearAll,
@@ -67,17 +56,6 @@ export function FacetedFilters({
   isOpen,
   onClose,
 }: FacetedFiltersProps) {
-  // Convert filter options to include counts
-  const severityOptions = useMemo(() => {
-    return SEVERITY_TABLE_OPTIONS
-      .filter((opt) => opt.value !== '') // Exclude "All" option
-      .map((opt) => ({
-        value: opt.value,
-        label: opt.label,
-        count: counts?.severity?.[opt.value],
-      }));
-  }, [counts]);
-
   const sectionTypeOptions = useMemo(() => {
     return SECTION_TYPE_OPTIONS
       .filter((opt) => opt.value !== 'all')
@@ -96,23 +74,9 @@ export function FacetedFilters({
     }));
   }, [counts]);
 
-  const flagsOptions = useMemo(() => {
-    return HAS_FLAGS_FILTER_OPTIONS
-      .filter((opt) => opt.value !== 'all')
-      .map((opt) => ({
-        value: opt.value,
-        label: opt.label,
-      }));
-  }, []);
-
   // Build active filters array for chips display
   const activeFilters = useMemo(() => {
     const filters: { key: string; label: string; value: string }[] = [];
-
-    severity.forEach((s) => {
-      const opt = severityOptions.find((o) => o.value === s);
-      if (opt) filters.push({ key: 'severity', label: 'Severity', value: opt.label });
-    });
 
     sectionTypes.forEach((t) => {
       const opt = sectionTypeOptions.find((o) => o.value === t);
@@ -123,12 +87,6 @@ export function FacetedFilters({
       filters.push({ key: 'complexity', label: 'Complexity', value: c });
     });
 
-    if (hasFlags === 'true') {
-      filters.push({ key: 'hasFlags', label: 'Flags', value: 'Has Flags' });
-    } else if (hasFlags === 'false') {
-      filters.push({ key: 'hasFlags', label: 'Flags', value: 'No Flags' });
-    }
-
     if (hasForm === 'true') {
       filters.push({ key: 'hasForm', label: 'Form', value: 'Has Form' });
     }
@@ -138,16 +96,11 @@ export function FacetedFilters({
     }
 
     return filters;
-  }, [severity, sectionTypes, complexity, hasFlags, hasForm, hasIbr, severityOptions, sectionTypeOptions]);
+  }, [sectionTypes, complexity, hasForm, hasIbr, sectionTypeOptions]);
 
   // Handle removing individual filter
   const handleRemoveFilter = useCallback((key: string, value: string) => {
     switch (key) {
-      case 'severity': {
-        const opt = severityOptions.find((o) => o.label === value);
-        if (opt) onSeverityChange(severity.filter((s) => s !== opt.value));
-        break;
-      }
       case 'sectionType': {
         const opt = sectionTypeOptions.find((o) => o.label === value);
         if (opt) onSectionTypesChange(sectionTypes.filter((t) => t !== opt.value));
@@ -155,9 +108,6 @@ export function FacetedFilters({
       }
       case 'complexity':
         onComplexityChange(complexity.filter((c) => c !== value));
-        break;
-      case 'hasFlags':
-        onHasFlagsChange(null);
         break;
       case 'hasForm':
         onHasFormChange(null);
@@ -167,10 +117,10 @@ export function FacetedFilters({
         break;
     }
   }, [
-    severity, sectionTypes, complexity,
-    severityOptions, sectionTypeOptions,
-    onSeverityChange, onSectionTypesChange, onComplexityChange,
-    onHasFlagsChange, onHasFormChange, onHasIbrChange,
+    sectionTypes, complexity,
+    sectionTypeOptions,
+    onSectionTypesChange, onComplexityChange,
+    onHasFormChange, onHasIbrChange,
   ]);
 
   const activeCount = activeFilters.length;
@@ -213,23 +163,6 @@ export function FacetedFilters({
 
       {/* Filter Sections */}
       <div className="flex-1 overflow-y-auto p-4">
-        <FilterSection title="Severity" count={severity.length}>
-          <FilterCheckboxGroup
-            options={severityOptions}
-            selected={severity}
-            onChange={onSeverityChange}
-          />
-        </FilterSection>
-
-        <FilterSection title="Flags" count={hasFlags ? 1 : 0}>
-          <FilterRadioGroup
-            options={flagsOptions}
-            selected={hasFlags}
-            onChange={onHasFlagsChange}
-            allowDeselect
-          />
-        </FilterSection>
-
         <FilterSection title="Section Type" count={sectionTypes.length} defaultExpanded={false}>
           <FilterCheckboxGroup
             options={sectionTypeOptions}

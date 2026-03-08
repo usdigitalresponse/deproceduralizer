@@ -32,7 +32,7 @@ export const metadata: Metadata = {
     template: "%s | Deproceduralizer",
   },
   description: "Regulatory analysis tool for identifying compliance issues, procedural complexity, and technical review requirements in government regulations.",
-  keywords: ["regulatory analysis", "compliance", "government regulations", "red flags", "procedural complexity"],
+  keywords: ["regulatory analysis", "compliance", "government regulations", "procedural complexity"],
   authors: [{ name: "Recoding America Fund" }],
   openGraph: {
     title: "Deproceduralizer",

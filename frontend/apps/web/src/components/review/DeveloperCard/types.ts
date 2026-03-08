@@ -4,7 +4,7 @@ export interface DeveloperCardProps {
   item: DeveloperItem;
   onUpdated: (updatedItem: DeveloperItem) => void;
   /** Called after item is cleared and should be removed from the list */
-  onCleared?: (itemId: number, itemType: 'red_flag' | 'compliance_issue') => void;
+  onCleared?: (itemId: number, itemType: 'compliance_issue') => void;
   onViewRegulation?: (regulationId: number) => void;
   isFocused?: boolean;
   /** State code for hierarchy links */
@@ -22,11 +22,6 @@ export interface DeveloperFormData {
 
 export interface ReviewSummaryProps {
   item: DeveloperItem;
-}
-
-export interface RedFlagContentProps {
-  item: DeveloperItem;
-  state: string;
 }
 
 export interface ComplianceIssueContentProps {

@@ -17,14 +17,12 @@ from lib.db import (
     get_ancestors_batch,
     normalize_scope_level,
     get_filtered_documents,
-    get_already_analyzed_ids,
     get_already_extracted_ids,
 )
 
 from lib.stats import (
     format_time,
     refresh_structure_stats,
-    refresh_analysis_stats,
     refresh_compliance_stats,
     refresh_all_stats,
 )
@@ -65,12 +63,10 @@ __all__ = [
     "get_ancestors_batch",
     "normalize_scope_level",
     "get_filtered_documents",
-    "get_already_analyzed_ids",
     "get_already_extracted_ids",
     # stats
     "format_time",
     "refresh_structure_stats",
-    "refresh_analysis_stats",
     "refresh_compliance_stats",
     "refresh_all_stats",
     # llm

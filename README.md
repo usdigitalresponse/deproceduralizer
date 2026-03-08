@@ -10,8 +10,8 @@ Built with support from the **Recoding America Fund**.
 
 State administrative codes contain tens of thousands of regulatory sections — many with outdated procedural requirements (fax-only submissions, wet signatures, certified mail mandates) that are invisible at scale. No human team can read 120,000+ sections looking for these problems.
 
-<!-- metric: ISSUE_TYPE_COUNT=42, RED_FLAG_CATEGORIES=12 -->
-Deproceduralizer applies Jennifer Pahlka's regulatory burden framework through a combination of regex pattern matching and multi-tier LLM verification. It scans regulation text for 42 types of compliance issues across 12 red flag categories, then uses Claude to filter false positives, classify burden severity, and verify findings against source statutes.
+<!-- metric: ISSUE_TYPE_COUNT=42 -->
+Deproceduralizer applies Jennifer Pahlka's regulatory burden framework through a combination of regex pattern matching and multi-tier LLM verification. It scans regulation text for 42 types of compliance issues, then uses Claude to filter false positives, classify burden severity, and verify findings against source statutes.
 
 The result is an interactive web application where policy reviewers can browse regulations, review AI-identified findings, track triage decisions, and export actionable data — all organized by the regulatory hierarchy they already know.
 
@@ -33,9 +33,8 @@ The result is an interactive web application where policy reviewers can browse r
 
 ## Key Capabilities
 
-<!-- metric: ISSUE_TYPE_COUNT=42, RED_FLAG_CATEGORIES=12 -->
+<!-- metric: ISSUE_TYPE_COUNT=42 -->
 - **42 compliance issue types** — wet signatures, mail-only processes, fax requirements, obsolete technology mandates, excessive documentation, and more
-- **12 red flag categories** — based on Jennifer Pahlka's framework (complexity/policy debt, options-become-requirements, cascade of rigidity, etc.)
 - **3-tier research pipeline** — regex scan → LLM filtering → LLM classification with optional web search verification
 - **Hierarchical summarization** — bottom-up summaries from sections through subchapters, chapters, parts, and titles using Anthropic Batch API
 - **Multi-state support** — New York (NYCRR) and New Jersey (NJAC) with extensible scraper architecture
@@ -60,9 +59,9 @@ Cornell Law Website (Regulations + Statutes)
         ↓
     PostgreSQL (Neon)
         ↓
-    Analysis Pipeline (12 steps: status detection, definitions, cross-refs,
+    Analysis Pipeline (11 steps: status detection, definitions, cross-refs,
                        summaries, compliance scan, research pipeline,
-                       IBR scan, red flags, JenAI analysis, stats refresh)
+                       IBR scan, JenAI analysis, stats refresh)
         ↓
     Next.js Web App (server actions query DB directly via Drizzle)
         ↓
@@ -133,8 +132,8 @@ Open http://localhost:3010 to browse the application immediately (assuming the d
 
 ### Run the Pipeline
 
-<!-- metric: PIPELINE_STEPS=12 -->
-The full analysis pipeline has 12 steps. For a quick demo on a single title:
+<!-- metric: PIPELINE_STEPS=11 -->
+The full analysis pipeline has 11 steps. For a quick demo on a single title:
 
 ```bash
 # Scrape NY regulations (includes DB migration)
@@ -159,7 +158,7 @@ See [`docs/OPERATIONS.md`](docs/OPERATIONS.md) for the complete runbook with all
 | `/[state]/statutes` | Statutes — browse linked state statutes |
 | `/[state]/statutes/[id]` | Statute Detail — individual statute with linked regulations |
 | `/[state]/ibr` | Standards (IBR) — incorporated-by-reference standards browser |
-| `/[state]/review` | Review Mode — queues for red flags, compliance issues, definitions |
+| `/[state]/review` | Review Mode — queues for compliance issues, definitions |
 | `/[state]/review?mode=developer` | Developer Mode — implementation tracking and assignment |
 | `/[state]/pipeline` | Pipeline — research pipeline status, funnel visualization, drill-downs |
 | `/[state]/bookmarks` | Bookmarks — saved regulations for later review |
@@ -181,7 +180,7 @@ See [`docs/OPERATIONS.md`](docs/OPERATIONS.md) for the complete runbook with all
 
 **Standards (IBR)** — Browse external standards incorporated by reference in regulations (NFPA, ICC, ASTM, CFR). Shows which regulations reference each standard.
 
-**Review Mode** — Separate queues for red flags, compliance issues, and definitions. Filter by status, severity, category, or issue type. Keyboard navigation (j/k to navigate, n for next unreviewed, v to view regulation). Update items with review status, priority, impact type, notes, and reviewer name. Progress indicators showing review completion.
+**Review Mode** — Separate queues for compliance issues and definitions. Filter by status, severity, category, or issue type. Keyboard navigation (j/k to navigate, n for next unreviewed, v to view regulation). Update items with review status, priority, impact type, notes, and reviewer name. Progress indicators showing review completion.
 
 **Developer Mode** — Track implementation status of reviewed items. Developer assignment, resolution tracking (Implemented/Not Implemented), and "Need More Info" queue for back-and-forth discussions.
 
@@ -203,7 +202,6 @@ deproceduralizer/
 │       ├── ny_regulations_scraper.py     # NY scraper (includes DB migration)
 │       ├── nj_regulations_scraper.py     # NJ scraper (includes DB migration)
 │       ├── scan_compliance_issues.py     # Regex compliance issue scanner
-│       ├── red_flags.py                  # LLM red flag analysis
 │       ├── batch_definitions.py          # Batch definition extraction
 │       ├── ibr_scanner.py                # Incorporation by reference scanner
 │       ├── research_pipeline/            # 3-tier LLM analysis pipeline
@@ -239,7 +237,7 @@ deproceduralizer/
 │           └── migrations/               # DDL migrations
 │
 ├── prompts/                              # LLM prompt definitions (YAML)
-│   ├── core.yaml                         # Red flags, definitions prompts
+│   ├── core.yaml                         # Definitions prompts
 │   └── compliance_issues.yaml            # 42 issue types with patterns
 │
 ├── docs/
@@ -267,10 +265,9 @@ The full pipeline transforms raw regulation text into structured, reviewable fin
 8. **Compliance Scan** — Regex-only detection of 42 compliance issue types (no LLM, free) <!-- metric: ISSUE_TYPE_COUNT=42 -->
 9. **Research Pipeline** — 3-tier LLM analysis: filter false positives → classify burden/severity → web search verification
 10. **IBR Scan** — Detect external standards incorporated by reference
-11. **Red Flags** — LLM analysis identifying 12 categories of implementation complexity <!-- metric: RED_FLAG_CATEGORIES=12 -->
-12. **Refresh Stats** — Precompute hierarchy statistics for frontend performance
+11. **Refresh Stats** — Precompute hierarchy statistics for frontend performance
 
-Steps 6-8 can run in parallel. Step 9 depends on steps 6 and 7. Step 12 runs last.
+Steps 6-8 can run in parallel. Step 9 depends on steps 6 and 7. Step 11 runs last.
 
 See [`docs/OPERATIONS.md`](docs/OPERATIONS.md) for the complete runbook with commands, flags, cost estimates, and timing for each step.
 
@@ -281,8 +278,6 @@ See [`docs/OPERATIONS.md`](docs/OPERATIONS.md) for the complete runbook with com
 | Table | Purpose |
 |-------|---------|
 | `regulatory_documents` | Regulation text, metadata, hierarchy, denormalized stats |
-| `analyses` | LLM analysis results per document (complexity, summary, severity) |
-| `red_flags` | Individual red flags with category, severity, review status |
 | `definitions` | Extracted defined terms with scope tracking |
 | `compliance_issues` | Regex-matched compliance issue candidates (42 types) | <!-- metric: ISSUE_TYPE_COUNT=42 -->
 | `compliance_issue_analyses` | LLM analysis + human review per document/issue type |
@@ -310,9 +305,6 @@ pnpm test:e2e          # Run Playwright smoke tests
 ### Backend
 
 ```bash
-# See available flags for any script
-python backend/scripts/red_flags.py --help
-
 # Run module-based scripts
 cd backend
 python3 -m scripts.research_pipeline.cli --help

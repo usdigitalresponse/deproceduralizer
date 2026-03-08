@@ -40,7 +40,7 @@ Every prompt MUST have:
 ## Integration with prompts/
 
 All prompts in this project go in the `/prompts/` directory:
-- `prompts/core.yaml` - Core analysis prompts (red_flags, definitions)
+- `prompts/core.yaml` - Core analysis prompts (definitions)
 - `prompts/compliance_issues.yaml` - Compliance issue prompts with patterns
 
 Each prompt has:

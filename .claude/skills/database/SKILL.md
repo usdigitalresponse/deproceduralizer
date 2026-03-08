@@ -1,6 +1,6 @@
 ---
 name: database-access
-description: Query and manage the Deproceduralizer Neon PostgreSQL database. Use when working with regulatory documents, analyses, red flags, definitions, or running database queries.
+description: Query and manage the Deproceduralizer Neon PostgreSQL database. Use when working with regulatory documents, definitions, or running database queries.
 ---
 
 # Database Access
@@ -33,8 +33,6 @@ description: Query and manage the Deproceduralizer Neon PostgreSQL database. Use
 |-------|---------|
 | `regulatory_documents` | Main table - regulatory docs with hierarchy (74 cols) |
 | `statutes` | NJ statutes with hierarchy (title→chapter→section) |
-| `analyses` | Analysis results per document |
-| `red_flags` | Individual red flags (12 categories) |
 | `definitions` | Extracted terms and definitions |
 | `definition_document_occurrences` | Many-to-many: where terms appear in documents |
 | `compliance_issues` | Wet signatures, in-person requirements, etc. |
@@ -46,7 +44,7 @@ description: Query and manage the Deproceduralizer Neon PostgreSQL database. Use
 | `statute_references` | Statute citations in documents |
 | `regulation_statute_links` | Regulation-to-statute links with link_type classification |
 
-**Views**: `latest_analyses`, `document_hierarchy`
+**Views**: `document_hierarchy`
 
 ## Reference Files
 
@@ -60,7 +58,7 @@ description: Query and manage the Deproceduralizer Neon PostgreSQL database. Use
 ## ORM Access
 
 ```typescript
-import { db, RegulatoryDocumentsRepository, RedFlagsRepository } from '@deproceduralizer/database';
+import { db, RegulatoryDocumentsRepository } from '@deproceduralizer/database';
 
 const docsRepo = new RegulatoryDocumentsRepository(db);
 const doc = await docsRepo.getByIdWithAnalysis(123);

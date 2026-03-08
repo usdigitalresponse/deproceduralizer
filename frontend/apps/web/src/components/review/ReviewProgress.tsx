@@ -1,10 +1,10 @@
 'use client';
 
 import { ProgressCard } from '@/components/ui';
-import type { ReviewStatusCounts } from '@deproceduralizer/database';
+import type { ComplianceIssueStatusCounts } from '@deproceduralizer/database';
 
 interface ReviewProgressProps {
-  counts: ReviewStatusCounts;
+  counts: ComplianceIssueStatusCounts;
   className?: string;
 }
 

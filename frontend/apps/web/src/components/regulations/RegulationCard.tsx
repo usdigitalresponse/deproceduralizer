@@ -1,10 +1,9 @@
 'use client';
 
-import { Flag, FileText, ExternalLink } from 'lucide-react';
-import { Card, Badge, SeverityBadge, SectionTypeBadge } from '@/components/ui';
+import { ExternalLink } from 'lucide-react';
+import { Card, Badge, SectionTypeBadge } from '@/components/ui';
 import { KeywordTags } from '@/components/ui/KeywordTags';
 import { MetadataIndicators } from '@/components/ui/MetadataIndicators';
-import { getComplexityVariant } from '@/types/regulation';
 import type { RegulationWithAnalysis } from '@deproceduralizer/database';
 import { useJurisdictionFromPath } from '@/hooks';
 
@@ -25,20 +24,12 @@ export function RegulationCard({ regulation, onClick }: RegulationCardProps) {
     title,
     hierarchyLevel,
     excludeFromAnalysis,
-    redFlags,
-    maxSeverity,
-    overallComplexity,
     sectionType,
     keywords,
     hasForm,
     hasIbr,
     summary,
   } = regulation;
-
-  const numFlags = redFlags?.length ?? 0;
-  const complexity = overallComplexity ?? null;
-  const categories = redFlags?.map((f) => f.category) ?? [];
-  const uniqueCategories = [...new Set(categories)];
 
   return (
     <Card
@@ -62,7 +53,7 @@ export function RegulationCard({ regulation, onClick }: RegulationCardProps) {
           onClick();
         }
       }}
-      aria-label={`${title}, ${numFlags} flags, severity ${maxSeverity ?? 'no red flag rating'}`}
+      aria-label={`${title}`}
     >
       {/* Header Section */}
       <div className="p-4 pb-3 border-b border-[var(--color-neutral-100)]">
@@ -79,7 +70,6 @@ export function RegulationCard({ regulation, onClick }: RegulationCardProps) {
               </span>
             )}
           </div>
-          {maxSeverity !== null && <SeverityBadge severity={maxSeverity} />}
         </div>
 
         <h3 className="text-sm font-semibold text-[var(--color-text)] line-clamp-2 mb-2">
@@ -89,36 +79,12 @@ export function RegulationCard({ regulation, onClick }: RegulationCardProps) {
         {/* Badge Row */}
         <div className="flex items-center gap-2 flex-wrap">
           {sectionType && <SectionTypeBadge type={sectionType} />}
-          {complexity && (
-            <Badge variant={getComplexityVariant(complexity)} className="text-xs">
-              {complexity}
-            </Badge>
-          )}
           <MetadataIndicators hasForm={hasForm} hasIbr={hasIbr} />
         </div>
       </div>
 
       {/* Content Section */}
       <div className="p-4 pt-3 flex-1 flex flex-col gap-3">
-        {/* Flags Summary */}
-        <div className="flex items-center gap-2">
-          <div
-            className={`
-              flex items-center gap-1.5 px-2 py-1 rounded-[var(--radius-md)]
-              ${numFlags > 0 ? 'bg-[var(--color-danger-bg)] text-[var(--color-danger)]' : 'bg-[var(--color-neutral-50)] text-[var(--color-text-muted)]'}
-            `}
-          >
-            <Flag className="w-3.5 h-3.5" />
-            <span className="text-xs font-semibold">{numFlags}</span>
-          </div>
-          {uniqueCategories.length > 0 && (
-            <span className="text-xs text-[var(--color-text-muted)] line-clamp-1">
-              {uniqueCategories.slice(0, 2).join(', ')}
-              {uniqueCategories.length > 2 && ` +${uniqueCategories.length - 2}`}
-            </span>
-          )}
-        </div>
-
         {/* Summary */}
         {summary && (
           <p className="text-xs text-[var(--color-text-secondary)] line-clamp-2">{summary}</p>

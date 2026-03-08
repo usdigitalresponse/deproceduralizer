@@ -2,7 +2,6 @@ import { test, expect } from '@playwright/test';
 import {
   waitForBrowseReady,
   waitForComplianceReviewReady,
-  waitForRedFlagReviewReady,
   waitForDefinitionsReady,
   waitForDashboardReady,
   waitForSuggestionModeReady,
@@ -42,17 +41,6 @@ test.describe('Smoke Tests', () => {
     // Should show nested items after expansion
     // Wait for at least one child to appear (the row we clicked plus children)
     await expect(page.getByRole('treeitem').nth(1)).toBeVisible();
-  });
-
-  test('review mode shows red flags', async ({ page }) => {
-    // Include reviewStatus to avoid redirect delay
-    await page.goto('/ny/review?reviewStatus=unreviewed');
-
-    // Wait for red flags tab to be visible and show count
-    await expect(page.getByText(/Red Flags/i).first()).toBeVisible();
-
-    // Should show flag cards with severity
-    await expect(page.getByText(/Severity:/i).first()).toBeVisible();
   });
 
   test('state switching works', async ({ page }) => {
@@ -110,8 +98,6 @@ test.describe('Smoke Tests', () => {
     // Should show all the stat labels in the overview section
     await expect(page.getByText('Regulations Scanned')).toBeVisible();
     await expect(page.getByText('Compliance Issues', { exact: true })).toBeVisible();
-    await expect(page.getByText('Red Flags', { exact: true })).toBeVisible();
-    await expect(page.getByText('Red Flag Analysis').first()).toBeVisible();
 
     // Should show state selection with both states
     await expect(page.getByRole('heading', { name: /Select a State/i })).toBeVisible();
@@ -399,7 +385,7 @@ test.describe('Suggestion Mode', () => {
 test.describe('Prompts Alignment', () => {
 
   // Expected core prompts from prompts/core.yaml
-  const EXPECTED_CORE_PROMPTS = ['red_flags_analysis', 'definition_extraction'];
+  const EXPECTED_CORE_PROMPTS = ['definition_extraction'];
 
   test('prompts page displays all core prompts from YAML', async ({ page }) => {
     await page.goto('/prompts?tab=catalog');
@@ -412,24 +398,6 @@ test.describe('Prompts Alignment', () => {
       // Prompt names are displayed, check they exist (use first() due to nav sidebar)
       await expect(page.getByText(promptName, { exact: false }).first()).toBeVisible();
     }
-  });
-
-  test('prompt details include system and template sections', async ({ page }) => {
-    await page.goto('/prompts?tab=catalog');
-
-    // Wait for prompts to load
-    await expect(page.locator('h1').filter({ hasText: /Prompts/i }).first()).toBeVisible();
-
-    // Find red_flags_analysis prompt card and click to expand
-    const promptCard = page.locator('#prompt-red_flags_analysis');
-    await expect(promptCard).toBeVisible();
-    await promptCard.click();
-
-    // Wait for expanded content - system prompt section should appear
-    await expect(page.getByText(/System Prompt/i).first()).toBeVisible({ timeout: 5000 });
-
-    // Should show content from red_flags_analysis (Jennifer Pahlka reference)
-    await expect(page.getByText(/Jennifer Pahlka/i).first()).toBeVisible();
   });
 
   test('compliance issue types in filters match expected types from YAML', async ({ page }) => {
@@ -531,6 +499,7 @@ test.describe('Review Form Submission', () => {
 
     // Store form elements
     const reviewerInput = card.getByTestId('compliance-reviewer-input');
+    const statusSelect = card.getByTestId('compliance-status-select');
     const justificationTextarea = card.getByTestId('compliance-justification-textarea');
     const teamNotesTextarea = card.getByTestId('compliance-team-notes-textarea');
     const saveButton = card.getByTestId('compliance-save-button');
@@ -540,99 +509,36 @@ test.describe('Review Form Submission', () => {
     const testTeamNotes = `E2E Test Notes ${timestamp}`;
     const testJustification = `E2E Test Justification ${timestamp}`;
 
-    // Fill form fields
+    // Fill form fields - must change status from 'unreviewed' to enable save button
     await reviewerInput.fill('E2E Test Reviewer');
+    await statusSelect.click();
+    await page.getByRole('option', { name: 'Confirmed' }).click();
     await justificationTextarea.fill(testJustification);
     await teamNotesTextarea.fill(testTeamNotes);
 
-    // Submit the form and wait for save to complete (button re-enables)
+    // Submit the form — card will disappear from unreviewed filter after save
     await saveButton.click();
-    await waitForSaveComplete(page, saveButton);
 
-    // Verify the form still shows saved values (optimistic update)
-    await expect(teamNotesTextarea).toHaveValue(testTeamNotes);
+    // Wait for the card to be removed from the unreviewed filter (confirms save completed)
+    const oldCardLocator = page.locator(`#${cardId}`);
+    await expect(oldCardLocator).toBeHidden({ timeout: 15000 });
 
-    // SELF-CLEANING: Reload page to get a fresh form (avoids flaky disabled-state wait)
-    await page.reload();
+    // CLEANUP: Navigate to confirmed filter to find the card we just changed
+    await page.goto('/nj/review?type=compliance&queueMode=filter&reviewStatus=confirmed&severity=low');
     await waitForComplianceReviewReady(page);
 
     const cleanupCard = page.locator(`#${cardId}`);
     if (await cleanupCard.count() > 0) {
-      const cleanupReviewer = cleanupCard.getByTestId('compliance-reviewer-input');
-      const cleanupJustification = cleanupCard.getByTestId('compliance-justification-textarea');
-      const cleanupTeamNotes = cleanupCard.getByTestId('compliance-team-notes-textarea');
+      // Verify saved values persisted after page navigation
+      const savedTeamNotes = cleanupCard.getByTestId('compliance-team-notes-textarea');
+      await expect(savedTeamNotes).toHaveValue(testTeamNotes);
+
+      // CLEANUP: Revert status back to unreviewed
+      const cleanupStatusSelect = cleanupCard.getByTestId('compliance-status-select');
       const cleanupSaveButton = cleanupCard.getByTestId('compliance-save-button');
 
-      await expect(cleanupReviewer).toBeEnabled({ timeout: 10000 });
-
-      await cleanupReviewer.clear();
-      await cleanupReviewer.fill('_');
-      await cleanupJustification.clear();
-      await cleanupTeamNotes.clear();
-      await cleanupSaveButton.click();
-      await waitForSaveComplete(page);
-    }
-  });
-
-  test('@mutation red flag review saves all fields', async ({ page }) => {
-    // Use review mode with medium severity filter (NY has severity 4-9, no low/1-3)
-    await page.goto('/ny/review?type=flags&reviewStatus=unreviewed&severity=medium');
-    await expect(page.getByRole('heading', { name: /Review New York/i })).toBeVisible();
-
-    // Wait for cards to load
-    await waitForRedFlagReviewReady(page);
-
-    const cardCount = await page.getByTestId('red-flag-card').count();
-
-    if (cardCount === 0) {
-      console.log('No medium severity red flags found, skipping test');
-      return;
-    }
-
-    const card = page.getByTestId('red-flag-card').first();
-    await expect(card).toBeVisible();
-
-    // Store card ID for cleanup
-    const cardId = await card.getAttribute('id');
-
-    // Store form elements
-    const reviewerInput = card.getByTestId('red-flag-reviewer-input');
-    const justificationTextarea = card.getByTestId('red-flag-justification-textarea');
-    const teamNotesTextarea = card.getByTestId('red-flag-team-notes-textarea');
-    const saveButton = card.getByTestId('red-flag-save-button');
-
-    const timestamp = Date.now();
-    const testTeamNotes = `E2E Red Flag Notes ${timestamp}`;
-
-    // Fill form fields
-    await reviewerInput.fill('E2E Test Reviewer');
-    await justificationTextarea.fill(`E2E Red Flag Justification ${timestamp}`);
-    await teamNotesTextarea.fill(testTeamNotes);
-
-    // Submit the form
-    await saveButton.click();
-    await waitForSaveComplete(page);
-
-    // Verify the form shows saved values
-    await expect(teamNotesTextarea).toHaveValue(testTeamNotes);
-
-    // SELF-CLEANING: Reload page to get a fresh form (avoids flaky disabled-state wait)
-    await page.reload();
-    await waitForRedFlagReviewReady(page);
-
-    const cleanupCard = page.locator(`#${cardId}`);
-    if (await cleanupCard.count() > 0) {
-      const cleanupReviewer = cleanupCard.getByTestId('red-flag-reviewer-input');
-      const cleanupJustification = cleanupCard.getByTestId('red-flag-justification-textarea');
-      const cleanupTeamNotes = cleanupCard.getByTestId('red-flag-team-notes-textarea');
-      const cleanupSaveButton = cleanupCard.getByTestId('red-flag-save-button');
-
-      await expect(cleanupReviewer).toBeEnabled({ timeout: 10000 });
-
-      await cleanupReviewer.clear();
-      await cleanupReviewer.fill('_');
-      await cleanupJustification.clear();
-      await cleanupTeamNotes.clear();
+      await cleanupStatusSelect.click();
+      await page.getByRole('option', { name: 'Unreviewed' }).click();
       await cleanupSaveButton.click();
       await waitForSaveComplete(page);
     }
@@ -741,68 +647,6 @@ test.describe('Review Queue Filter Behavior', () => {
     }
   });
 
-  test('@mutation red flag is replaced after review in filter mode', async ({ page }) => {
-    // Navigate to red flag review with unreviewed status and medium severity (NY has severity 4-9, no low/1-3)
-    await page.goto('/ny/review?type=flags&reviewStatus=unreviewed&severity=medium');
-    await expect(page.getByRole('heading', { name: /Review New York/i })).toBeVisible();
-
-    // Wait for cards to load
-    await waitForRedFlagReviewReady(page);
-
-    const initialCards = page.getByTestId('red-flag-card');
-    const initialCount = await initialCards.count();
-
-    if (initialCount === 0) {
-      console.log('No medium severity unreviewed red flags found, skipping test');
-      return;
-    }
-
-    // Get the first card and capture its ID to verify it's replaced
-    const firstCard = initialCards.first();
-    await expect(firstCard).toBeVisible();
-    const firstCardId = await firstCard.getAttribute('id');
-
-    // Fill the form with a unique reviewer name and change status
-    const reviewerInput = firstCard.getByTestId('red-flag-reviewer-input');
-    const statusSelect = firstCard.getByTestId('red-flag-status-select');
-    const saveButton = firstCard.getByTestId('red-flag-save-button');
-
-    const timestamp = Date.now();
-    await reviewerInput.fill(`E2E Filter Test ${timestamp}`);
-
-    // Change status from unreviewed to confirmed (Radix UI combobox)
-    await statusSelect.click();
-    await page.getByRole('option', { name: 'Confirmed' }).click();
-
-    // Submit the form
-    await saveButton.click();
-
-    // Wait for the OLD card to disappear (it no longer matches "unreviewed" filter)
-    // This confirms the save completed and refetch happened
-    const oldCardLocator = page.locator(`#${firstCardId}`);
-    await expect(oldCardLocator).toBeHidden({ timeout: 10000 });
-
-    // The old card is now hidden, confirming it was filtered out after status change.
-    // No need to check remaining card IDs — the toBeHidden assertion is sufficient.
-
-    // CLEANUP: Revert the reviewed item back to unreviewed
-    // Navigate to confirmed filter to find the item we just reviewed
-    await page.goto('/ny/review?type=flags&reviewStatus=confirmed&severity=low');
-    await waitForRedFlagReviewReady(page);
-
-    // Find the card we reviewed (by ID)
-    const reviewedCard = page.locator(`#${firstCardId}`);
-    if (await reviewedCard.count() > 0) {
-      const revertStatusSelect = reviewedCard.getByTestId('red-flag-status-select');
-      const revertSaveButton = reviewedCard.getByTestId('red-flag-save-button');
-
-      await revertStatusSelect.click();
-      await page.getByRole('option', { name: 'Unreviewed' }).click();
-      await revertSaveButton.click();
-      await waitForSaveComplete(page);
-    }
-  });
-
   test('@mutation compliance issue stays visible when filter is all', async ({ page }) => {
     // Navigate to filter mode with "all" status filter and low severity
     await page.goto('/nj/review?type=compliance&queueMode=filter&reviewStatus=all&severity=low');
@@ -903,31 +747,6 @@ test.describe('Sorting Consistency', () => {
     const newFirstCardId = await page.getByTestId('compliance-issue-card').first().getAttribute('id');
 
     // Same item should still be first
-    expect(newFirstCardId).toBe(firstCardId);
-  });
-
-  test('red flags sorted by severity are consistent across page loads', async ({ page }) => {
-    // Navigate to red flags sorted by severity
-    await page.goto('/nj/review?type=flags&reviewStatus=all&sortBy=severity&sortOrder=desc');
-    await expect(page.getByRole('heading', { name: /Review New Jersey/i })).toBeVisible();
-    await waitForRedFlagReviewReady(page);
-
-    const cards = page.getByTestId('red-flag-card');
-    const initialCount = await cards.count();
-
-    if (initialCount < 2) {
-      console.log('Not enough red flags to test sorting consistency, skipping');
-      return;
-    }
-
-    // Get the first card's ID
-    const firstCardId = await cards.first().getAttribute('id');
-
-    // Reload and verify consistency
-    await page.reload();
-    await waitForRedFlagReviewReady(page);
-
-    const newFirstCardId = await page.getByTestId('red-flag-card').first().getAttribute('id');
     expect(newFirstCardId).toBe(firstCardId);
   });
 

@@ -1,6 +1,5 @@
 'use client';
 
-import { Search } from 'lucide-react';
 import { getEntityIcon } from '@/lib/constants/entity-types';
 import type { DashboardStats as DashboardStatsType } from '@deproceduralizer/database';
 import { StatCard, StatGrid } from '@/components/ui';
@@ -11,7 +10,7 @@ interface DashboardStatsProps {
 
 export function DashboardStats({ stats }: DashboardStatsProps) {
   return (
-    <StatGrid columns={4}>
+    <StatGrid columns={2}>
       <StatCard
         label="Regulations Scanned"
         value={stats.totalDocuments}
@@ -25,20 +24,6 @@ export function DashboardStats({ stats }: DashboardStatsProps) {
         icon={getEntityIcon('compliance_issue')}
         variant="warning"
         subtitle={stats.complianceIssues?.unreviewed ? `${stats.complianceIssues.unreviewed.toLocaleString()} awaiting human review` : undefined}
-      />
-      <StatCard
-        label="Red Flags"
-        value={stats.totalFlags}
-        icon={getEntityIcon('red_flag')}
-        variant="danger"
-        subtitle={stats.unreviewedFlags ? `${stats.unreviewedFlags.toLocaleString()} awaiting human review` : undefined}
-      />
-      <StatCard
-        label="Red Flag Analysis"
-        value={stats.analyzedDocuments}
-        icon={Search}
-        variant="info"
-        subtitle={`${stats.analyzedDocuments.toLocaleString()} of ${stats.totalDocuments.toLocaleString()} regulations`}
       />
     </StatGrid>
   );

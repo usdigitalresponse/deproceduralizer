@@ -7,7 +7,6 @@ import { Select, FilterBar, FilterField } from '@/components/ui';
 import { searchResultsParsers } from '@/lib/url/parsers';
 import {
   SEARCH_DOC_TYPE_OPTIONS,
-  SEARCH_ANALYSIS_OPTIONS,
   SEARCH_CLASSIFICATION_OPTIONS,
 } from '@/lib/constants/filters';
 import type { SearchFilterOptions } from '@deproceduralizer/database';
@@ -32,7 +31,6 @@ export function SearchFilters({ className = '', filterOptions }: SearchFiltersPr
     filters.docType ||
     filters.sectionType ||
     filters.hierarchyLevel ||
-    filters.hasAnalysis ||
     filters.classification
   );
 
@@ -41,7 +39,6 @@ export function SearchFilters({ className = '', filterOptions }: SearchFiltersPr
       docType: null,
       sectionType: null,
       hierarchyLevel: null,
-      hasAnalysis: null,
       classification: null,
       page: 1,
     });
@@ -104,15 +101,6 @@ export function SearchFilters({ className = '', filterOptions }: SearchFiltersPr
           onValueChange={(v) => updateFilter({ hierarchyLevel: v === 'all' ? null : v })}
           options={hierarchyLevelOptions}
           aria-label="Filter by hierarchy level"
-        />
-      </FilterField>
-
-      <FilterField label="Analysis">
-        <Select
-          value={filters.hasAnalysis || 'all'}
-          onValueChange={(v) => updateFilter({ hasAnalysis: v === 'all' ? null : v })}
-          options={SEARCH_ANALYSIS_OPTIONS}
-          aria-label="Filter by analysis status"
         />
       </FilterField>
 

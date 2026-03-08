@@ -2,7 +2,7 @@
 
 import { memo } from 'react';
 import { type HierarchyNode } from '@deproceduralizer/database';
-import { Badge, SeverityBadge } from '@/components/ui/Badge';
+import { Badge } from '@/components/ui/Badge';
 import { SectionTypeBadge } from '@/components/ui/SectionTypeBadge';
 import { MetadataIndicators } from '@/components/ui/MetadataIndicators';
 import { ChevronRight, ChevronDown, FileText, BookOpen, Folder, Link2, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
@@ -207,11 +207,6 @@ export const TreeNode = memo(function TreeNode({
               {node.crossReferenceCount}
             </Badge>
           )}
-          {node.totalFlags > 0 && (
-            <Badge variant="danger" className="text-xs">
-              {node.totalFlags} flags
-            </Badge>
-          )}
           {node.totalComplianceIssues > 0 && (
             <Badge
               variant="warning"
@@ -220,9 +215,6 @@ export const TreeNode = memo(function TreeNode({
             >
               {node.totalComplianceIssues} compliance
             </Badge>
-          )}
-          {node.maxSeverity !== null && (
-            <SeverityBadge severity={node.maxSeverity} className="text-xs" />
           )}
         </div>
       </div>

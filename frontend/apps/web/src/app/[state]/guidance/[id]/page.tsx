@@ -72,15 +72,13 @@ export default async function GuidanceDetailPage({ params }: GuidanceDetailPageP
           <div className="lg:col-span-2 space-y-6">
             <GuidanceDetailContent doc={doc} />
             {complianceSummary && complianceSummary.totalIssues > 0 && (
-              <div id="compliance-analysis">
-                <GuidanceComplianceCard summary={complianceSummary} state={state} />
-              </div>
+              <GuidanceComplianceCard summary={complianceSummary} state={state} />
             )}
           </div>
 
           {/* Sidebar */}
           <div className="space-y-4">
-            <GuidanceDetailSidebar doc={doc} state={state} resolvedCitations={resolvedCitations} hasComplianceCard={!!(complianceSummary && complianceSummary.totalIssues > 0)} />
+            <GuidanceDetailSidebar doc={doc} state={state} resolvedCitations={resolvedCitations} />
             {lineage && lineage.chain.length > 1 && (
               <DocumentLineageViewer
                 lineage={lineage}

@@ -61,9 +61,6 @@ Main table with hierarchy. **74 columns** - use `./scripts/db-query.sh describe 
 |--------|------|-------------|
 | `direct_child_count` | integer | Direct children count |
 | `descendant_count` | integer | All descendants count |
-| `descendant_flag_count` | integer | Sum of red flags in subtree |
-| `descendant_max_severity` | integer | Max severity in subtree |
-| `has_descendant_analysis` | boolean | Any descendant has analysis |
 | `compliance_issue_count` | integer | Compliance issues in this doc |
 | `descendant_compliance_issue_count` | integer | Compliance issues in subtree |
 | `cross_reference_count` | integer | Count of internal cross-references from this doc |
@@ -119,73 +116,6 @@ Script: `backend/scripts/batch_exclude_ny_sections.py` (use `--dry-run` to previ
 | `search_vector` | tsvector | Weighted: title(A) + summary(B) + content(C). Maintained by trigger. |
 
 **Indexes:** `idx_documents_state`, `idx_documents_type`, `idx_documents_state_type`, `idx_documents_parent`, `idx_documents_hierarchy_level`, `idx_documents_regulatory_status`, `idx_documents_url`, `idx_documents_short_title`, `idx_documents_exclude_from_analysis` (partial), `idx_rd_keywords` (GIN), `idx_rd_applies_to` (GIN), `idx_rd_section_type` (partial), `idx_rd_has_form` (partial), `idx_rd_has_ibr` (partial), `idx_regulatory_documents_search_vector` (GIN), `idx_rd_rcny_title` (partial: WHERE jurisdiction = 'NYC'), `idx_rd_jurisdiction_source_type` (unique: jurisdiction, source_index, type - for upsert)
-
-## analyses
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `id` | bigserial | Primary key |
-| `document_id` | bigint | FK to regulatory_documents (nullable) |
-| `url` | text NOT NULL | Source URL (for legacy linking) |
-| `analyzed_at` | timestamp | When analyzed |
-| `model_version` | varchar(100) | LLM model used |
-| `has_implementation_issues` | boolean | Has issues |
-| `overall_complexity` | varchar(10) | LOW, MEDIUM, MEDIUM-HIGH, HIGH |
-| `summary` | text | Analysis summary |
-| `requires_technical_review` | boolean | Needs tech review |
-| `has_reporting_requirement` | boolean | Has reporting |
-| `max_severity` | integer | Highest severity (1-10) |
-| `num_flags` | integer | Number of red flags |
-| `is_current` | boolean | Latest analysis flag |
-
-**Indexes:** `idx_analyses_url`, `idx_analyses_one_current_per_document` (unique partial - ensures one current per doc)
-
-**Always filter by `is_current = true` for latest analysis.**
-
-## red_flags
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `id` | bigserial | Primary key |
-| `analysis_id` | bigint | FK to analyses |
-| `category` | varchar(100) | Constrained to 12 values (see below) |
-| `explanation` | text | Detailed explanation |
-| `severity` | integer | 1-10 |
-| `complexity` | varchar(20) | HIGH/MEDIUM/LOW/MEDIUM-HIGH |
-| `matched_phrases` | text[] | Trigger phrases |
-| `implementation_approach` | text | Suggested approach |
-| `effort_estimate` | varchar(255) | Effort estimate |
-| `text_examples` | text[] | Example text from regulation |
-| `review_status` | varchar(50) | unreviewed, confirmed, etc. |
-| `reviewed_by` | varchar(255) | Who reviewed |
-| `reviewed_at` | timestamp | When reviewed |
-| `justification_notes` | text | Justification for the model |
-| `team_notes` | text | Notes for development team |
-| `priority` | integer | Priority ranking |
-| `impact_type` | varchar(100) | Type of impact |
-| `developer_status` | varchar(50) | unresolved, resolved, pending, backlogged, need_more_info |
-| `developer_assigned` | varchar(50) | Michael or Abigail |
-| `developer_notes` | text | Notes from developer |
-| `resolution_type` | varchar(50) | implemented or not_implemented |
-| `resolution_comments` | text | Resolution details |
-| `developer_question` | text | Question for reviewer |
-| `developer_checked_at` | timestamp | When developer last checked |
-
-**Valid Categories (12 - Jennifer Pahlka framework):**
-- `administrative_burdens`
-- `cascade_of_rigidity`
-- `complexity_policy_debt`
-- `frozen_technology`
-- `implementation_opportunity`
-- `mandated_steps_not_outcomes`
-- `no_feedback_loops`
-- `options_become_requirements`
-- `overwrought_legalese`
-- `policy_implementation_separation`
-- `process_worship_oversight`
-- `zero_risk_language`
-
-**Constraints:** `valid_category`, `red_flags_severity_check`, `chk_rf_resolution_type`
 
 ## jenai_analyses
 
@@ -262,7 +192,7 @@ One row per category finding per document. Links to `jenai_analyses`.
 - `FEE_COST_BURDENS`, `DEAD_SUPERSEDED_REFERENCES`, `MISSING_DIGITAL_AUTHORIZATION`
 - `ONE_SIZE_FITS_ALL`, `UNFUNDED_MANDATE`
 
-**Review/Developer fields:** Same pattern as `red_flags` — `review_status`, `reviewed_by`, `reviewed_at`, `justification_notes`, `team_notes`, `priority`, `impact_type`, `developer_status`, `developer_assigned`, `developer_notes`, `resolution_type`, `resolution_comments`, `developer_question`, `developer_checked_at`
+**Review/Developer fields:** `review_status`, `reviewed_by`, `reviewed_at`, `justification_notes`, `team_notes`, `priority`, `impact_type`, `developer_status`, `developer_assigned`, `developer_notes`, `resolution_type`, `resolution_comments`, `developer_question`, `developer_checked_at`
 
 **Constraints:** `jenai_issues_analysis_category_unique UNIQUE(analysis_id, category)`, `jenai_issues_one_source_check CHECK (exactly one of document_id or guidance_document_id is set)`
 
@@ -1024,7 +954,6 @@ Flexible tagging for scan scoping. Tags use a flat namespace with prefixes.
 
 **Tag conventions:**
 - `scan:compliance` — include in compliance issue scanning
-- `scan:red-flags` — include in red flags analysis
 - `scan:summarize` — include in summarization pipeline
 - `topic:childcare` — relates to childcare regulation
 - `topic:permitting` — relates to permitting/building regulation
@@ -1101,17 +1030,6 @@ CREATE TYPE feedback_type AS ENUM ('suggestion', 'bug', 'question', 'other');
 ```
 
 ## Views
-
-### latest_analyses
-
-Documents with current analysis:
-```sql
-SELECT d.*, a.id as analysis_id, a.analyzed_at, a.has_implementation_issues,
-       a.overall_complexity, a.requires_technical_review, a.has_reporting_requirement,
-       a.num_flags, a.max_severity, a.summary
-FROM regulatory_documents d
-LEFT JOIN analyses a ON d.id = a.document_id AND a.is_current = TRUE;
-```
 
 ### document_hierarchy
 

@@ -84,8 +84,6 @@ export interface HierarchyBrowseData {
   stats: {
     level: string;
     count: number;
-    analyzedCount: number;
-    flaggedCount: number;
   }[];
 }
 
@@ -130,9 +128,6 @@ interface DirectChild {
   njacChapter: string | null;
   njacSubchapter: string | null;
   jurisdiction: string | null;
-  hasAnalysis: boolean;
-  maxSeverity: number | null;
-  numFlags: number;
 }
 
 /**

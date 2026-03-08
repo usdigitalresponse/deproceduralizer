@@ -1,12 +1,7 @@
 'use server';
 
 import 'server-only';
-import type { JurisdictionCode, RedFlagFilterOptions } from '@deproceduralizer/database';
-import {
-  getRedFlagsPaginated,
-  getRedFlagStatusCounts,
-  getRedFlagCategories,
-} from './red-flags';
+import type { JurisdictionCode } from '@deproceduralizer/database';
 import {
   getComplianceIssuesPaginated,
   getComplianceIssueStatusCounts,
@@ -19,11 +14,8 @@ import {
   getCombinedReviewedItems,
   getNeedMoreInfoItems,
   getNeedMoreInfoCounts,
-  getRedFlagDeveloperStatusCounts,
   getComplianceIssueDeveloperStatusCounts,
-  getRedFlagDeveloperItems,
   getComplianceIssueDeveloperItems,
-  type RedFlagDeveloperQueueParams,
   type ComplianceDeveloperQueueParams,
 } from './developer';
 import {
@@ -41,7 +33,6 @@ import { type ActionResult, success, failure } from './types';
 // ============================================
 
 export interface TabCounts {
-  flags: number;
   compliance: number;
   definitions: number;
   needs_info: number;
@@ -51,14 +42,12 @@ export interface TabCounts {
 export interface DeveloperModeCountsData {
   tabCounts: TabCounts;
   developerStatusCounts: Awaited<ReturnType<typeof getCombinedDeveloperStatusCounts>> extends ActionResult<infer T> ? T : never;
-  redFlagDeveloperStatusCounts: Awaited<ReturnType<typeof getRedFlagDeveloperStatusCounts>> extends ActionResult<infer T> ? T : never;
   complianceDeveloperStatusCounts: Awaited<ReturnType<typeof getComplianceIssueDeveloperStatusCounts>> extends ActionResult<infer T> ? T : never;
   needsInfoCounts: Awaited<ReturnType<typeof getNeedMoreInfoCounts>> extends ActionResult<infer T> ? T : never;
 }
 
 export interface ReviewModeCountsData {
   tabCounts: TabCounts;
-  flagStatusCounts: Awaited<ReturnType<typeof getRedFlagStatusCounts>> extends ActionResult<infer T> ? T : never;
   complianceStatusCounts: Awaited<ReturnType<typeof getComplianceIssueStatusCounts>> extends ActionResult<infer T> ? T : never;
   definitionsStats: Awaited<ReturnType<typeof getDefinitionReviewStats>> extends ActionResult<infer T> ? T : never;
   needsInfoCounts: Awaited<ReturnType<typeof getNeedMoreInfoCounts>> extends ActionResult<infer T> ? T : never;
@@ -76,14 +65,12 @@ export async function getDeveloperModeCountsData(
 ): Promise<ActionResult<DeveloperModeCountsData>> {
   const [
     developerStatusCountsResult,
-    redFlagDevCountsResult,
     complianceDevCountsResult,
     needsInfoCountsResult,
     definitionDevCountsResult,
     jenaiDevCountsResult,
   ] = await Promise.all([
     getCombinedDeveloperStatusCounts(stateCode),
-    getRedFlagDeveloperStatusCounts(stateCode),
     getComplianceIssueDeveloperStatusCounts(stateCode),
     getNeedMoreInfoCounts(stateCode),
     getDefinitionDeveloperStatusCounts(stateCode),
@@ -92,10 +79,6 @@ export async function getDeveloperModeCountsData(
 
   if (!developerStatusCountsResult.success) {
     return failure(`Failed to load developer status counts: ${developerStatusCountsResult.error}`);
-  }
-
-  if (!redFlagDevCountsResult.success) {
-    return failure(`Failed to load red flag developer status counts: ${redFlagDevCountsResult.error}`);
   }
 
   if (!complianceDevCountsResult.success) {
@@ -107,7 +90,6 @@ export async function getDeveloperModeCountsData(
   }
 
   const developerStatusCounts = developerStatusCountsResult.data;
-  const redFlagDeveloperStatusCounts = redFlagDevCountsResult.data;
   const complianceDeveloperStatusCounts = complianceDevCountsResult.data;
   const needsInfoCounts = needsInfoCountsResult.data;
   const definitionDevCounts = definitionDevCountsResult.success
@@ -118,7 +100,6 @@ export async function getDeveloperModeCountsData(
     : { total: 0 };
 
   const tabCounts: TabCounts = {
-    flags: redFlagDeveloperStatusCounts.total,
     compliance: complianceDeveloperStatusCounts.total,
     definitions: definitionDevCounts.total,
     needs_info: needsInfoCounts.combined.total,
@@ -128,14 +109,13 @@ export async function getDeveloperModeCountsData(
   return success({
     tabCounts,
     developerStatusCounts,
-    redFlagDeveloperStatusCounts,
     complianceDeveloperStatusCounts,
     needsInfoCounts,
   });
 }
 
 /**
- * Fetch developer queue items (combined red flags + compliance issues)
+ * Fetch developer queue items (compliance issues)
  */
 export async function getDeveloperQueueData(
   stateCode: JurisdictionCode,
@@ -148,32 +128,6 @@ export async function getDeveloperQueueData(
   }
 ) {
   return getCombinedReviewedItems(stateCode, options);
-}
-
-/**
- * Fetch red flag developer queue data with filters
- */
-export async function getRedFlagDeveloperQueueData(
-  stateCode: JurisdictionCode,
-  params: RedFlagDeveloperQueueParams
-) {
-  const [itemsResult, categoriesResult] = await Promise.all([
-    getRedFlagDeveloperItems(stateCode, params),
-    getRedFlagCategories(stateCode),
-  ]);
-
-  if (!itemsResult.success) {
-    return failure(`Failed to load red flag developer items: ${itemsResult.error}`);
-  }
-
-  if (!categoriesResult.success) {
-    return failure(`Failed to load categories: ${categoriesResult.error}`);
-  }
-
-  return success({
-    items: itemsResult.data,
-    categories: categoriesResult.data,
-  });
 }
 
 /**
@@ -214,22 +168,16 @@ export async function getReviewModeCountsData(
   options?: { source?: 'regulation' | 'guidance' | 'all' }
 ): Promise<ActionResult<ReviewModeCountsData>> {
   const [
-    flagStatusCountsResult,
     complianceStatusCountsResult,
     definitionsStatsResult,
     needsInfoCountsResult,
     jenaiStatusCountsResult,
   ] = await Promise.all([
-    getRedFlagStatusCounts(stateCode),
     getComplianceIssueStatusCounts(stateCode, { source: options?.source }),
     getDefinitionReviewStats(stateCode),
     getNeedMoreInfoCounts(stateCode),
     getJenAIStatusCounts(stateCode),
   ]);
-
-  if (!flagStatusCountsResult.success) {
-    return failure(`Failed to load red flag status counts: ${flagStatusCountsResult.error}`);
-  }
 
   if (!complianceStatusCountsResult.success) {
     return failure(`Failed to load compliance issue status counts: ${complianceStatusCountsResult.error}`);
@@ -243,14 +191,12 @@ export async function getReviewModeCountsData(
     return failure(`Failed to load needs info counts: ${needsInfoCountsResult.error}`);
   }
 
-  const flagStatusCounts = flagStatusCountsResult.data;
   const complianceStatusCounts = complianceStatusCountsResult.data;
   const definitionsStats = definitionsStatsResult.data;
   const needsInfoCounts = needsInfoCountsResult.data;
   const jenaiStatusCounts = jenaiStatusCountsResult.success ? jenaiStatusCountsResult.data : { total: 0 };
 
   const tabCounts: TabCounts = {
-    flags: flagStatusCounts.total,
     compliance: complianceStatusCounts.total,
     definitions: definitionsStats.total,
     needs_info: needsInfoCounts.combined.total,
@@ -259,48 +205,9 @@ export async function getReviewModeCountsData(
 
   return success({
     tabCounts,
-    flagStatusCounts,
     complianceStatusCounts,
     definitionsStats,
     needsInfoCounts,
-  });
-}
-
-/**
- * Fetch red flags queue data
- */
-export async function getRedFlagsQueueData(
-  stateCode: JurisdictionCode,
-  options: {
-    page: number;
-    pageSize: number;
-    sortBy: 'severity' | 'category' | 'reviewedAt';
-    sortOrder: 'asc' | 'desc';
-    filters: Omit<RedFlagFilterOptions, 'jurisdiction'>;
-  }
-) {
-  const [flagsResult, categoriesResult] = await Promise.all([
-    getRedFlagsPaginated(stateCode, {
-      page: options.page,
-      pageSize: options.pageSize,
-      sortBy: options.sortBy,
-      sortOrder: options.sortOrder,
-      filters: options.filters,
-    }),
-    getRedFlagCategories(stateCode),
-  ]);
-
-  if (!flagsResult.success) {
-    return failure(`Failed to load red flags: ${flagsResult.error}`);
-  }
-
-  if (!categoriesResult.success) {
-    return failure(`Failed to load categories: ${categoriesResult.error}`);
-  }
-
-  return success({
-    flags: flagsResult.data,
-    categories: categoriesResult.data,
   });
 }
 

@@ -97,68 +97,6 @@ def refresh_structure_stats(conn, jurisdiction: str) -> int:
     return updated_count
 
 
-def refresh_analysis_stats(conn, jurisdiction: str) -> int:
-    """
-    Refresh analysis-related hierarchy stats.
-
-    Updates: descendant_flag_count, descendant_max_severity, has_descendant_analysis
-
-    Should be called after red flag analysis.
-    """
-    print(f"  Computing analysis stats for {jurisdiction}...")
-    start = time.time()
-
-    with conn.cursor() as cur:
-        cur.execute("""
-            WITH RECURSIVE descendant_analysis AS (
-                SELECT
-                    rd.id as descendant_id,
-                    rd.parent_id,
-                    COALESCE(a.num_flags, 0) as num_flags,
-                    a.max_severity,
-                    a.id IS NOT NULL as has_analysis
-                FROM regulatory_documents rd
-                LEFT JOIN analyses a ON a.document_id = rd.id AND a.is_current = true
-                WHERE rd.jurisdiction = %s
-
-                UNION ALL
-
-                SELECT
-                    da.descendant_id,
-                    p.parent_id,
-                    da.num_flags,
-                    da.max_severity,
-                    da.has_analysis
-                FROM descendant_analysis da
-                JOIN regulatory_documents p ON p.id = da.parent_id
-            ),
-            analysis_stats AS (
-                SELECT
-                    parent_id as id,
-                    COALESCE(SUM(num_flags), 0)::int as descendant_flag_count,
-                    MAX(max_severity) as descendant_max_severity,
-                    BOOL_OR(has_analysis) as has_descendant_analysis
-                FROM descendant_analysis
-                WHERE parent_id IS NOT NULL
-                GROUP BY parent_id
-            )
-            UPDATE regulatory_documents rd
-            SET
-                descendant_flag_count = ast.descendant_flag_count,
-                descendant_max_severity = ast.descendant_max_severity,
-                has_descendant_analysis = COALESCE(ast.has_descendant_analysis, false)
-            FROM analysis_stats ast
-            WHERE rd.id = ast.id AND rd.jurisdiction = %s
-        """, (jurisdiction, jurisdiction))
-
-        updated_count = cur.rowcount
-        conn.commit()
-
-    elapsed = time.time() - start
-    print(f"    Updated {updated_count:,} documents in {elapsed:.1f}s")
-    return updated_count
-
-
 def refresh_compliance_stats(conn, jurisdiction: str) -> int:
     """
     Refresh compliance issue stats.
@@ -316,7 +254,7 @@ def refresh_statute_link_stats(conn, jurisdiction: str) -> int:
 
 def refresh_all_stats(conn, jurisdiction: str) -> int:
     """
-    Refresh ALL hierarchy stats (structural, analysis, and compliance).
+    Refresh ALL hierarchy stats (structural and compliance).
 
     Returns the number of documents updated.
     """
@@ -324,11 +262,10 @@ def refresh_all_stats(conn, jurisdiction: str) -> int:
     start = time.time()
 
     updated1 = refresh_structure_stats(conn, jurisdiction)
-    updated2 = refresh_analysis_stats(conn, jurisdiction)
-    updated3 = refresh_compliance_stats(conn, jurisdiction)
-    updated4 = refresh_statute_link_stats(conn, jurisdiction)
+    updated2 = refresh_compliance_stats(conn, jurisdiction)
+    updated3 = refresh_statute_link_stats(conn, jurisdiction)
 
     elapsed = time.time() - start
-    updated_count = max(updated1, updated2, updated3, updated4)
+    updated_count = max(updated1, updated2, updated3)
     print(f"✓ All stats complete in {elapsed:.1f}s")
     return updated_count

@@ -2,7 +2,6 @@ import { redirect, notFound } from 'next/navigation';
 import { Container } from '@/components/layout/Container';
 import { PageHeader } from '@/components/layout/PageHeader';
 import {
-  ReviewQueue,
   ReviewTypeTabs,
   ComplianceReviewQueue,
   ReviewModeSwitcher,
@@ -10,17 +9,14 @@ import {
   DefinitionsReviewQueue,
   DefinitionsDeveloperQueue,
   ReviewPageError,
-  RedFlagDeveloperQueue,
   ComplianceDeveloperQueue,
 } from '@/components/review';
 import { JenAIQueue } from '@/components/review/JenAIQueue';
 import {
   getDeveloperModeCountsData,
   getReviewModeCountsData,
-  getRedFlagsQueueData,
   getComplianceQueueData,
   getNeedsInfoQueueData,
-  getRedFlagDeveloperQueueData,
   getComplianceDeveloperQueueData,
   getComplianceSuggestionQueueData,
   type DeveloperModeCountsData,
@@ -34,7 +30,7 @@ import {
   parseTierFilter,
   getReviewPageConfig,
 } from '@/lib/url/filter-helpers';
-import type { JurisdictionCode, RedFlagFilterOptions } from '@deproceduralizer/database';
+import type { JurisdictionCode } from '@deproceduralizer/database';
 import { isValidJurisdiction, JURISDICTION_CONFIG } from '@/types/state';
 import type { ReviewType, ReviewMode } from '@/types/regulation';
 import type { GroupingModeValue } from '@/lib/constants/values';
@@ -50,7 +46,6 @@ type ReviewPageQueryParams = {
   type?: string;
   reviewStatus?: string;
   severity?: string;
-  category?: string;
   issueType?: string;
   developerStatus?: string;
   developerAssigned?: string;
@@ -111,7 +106,9 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
   const stateCode = state as JurisdictionCode;
   const stateConfig = JURISDICTION_CONFIG[stateCode];
   const mode = (queryParams.mode || 'review') as ReviewMode;
-  const reviewType = (queryParams.type || 'compliance') as ReviewType;
+  const rawType = queryParams.type || 'compliance';
+  // Normalize legacy 'flags' type to 'compliance'
+  const reviewType = (rawType === 'flags' ? 'compliance' : rawType) as ReviewType;
 
   // Handle default redirects
   if (shouldRedirect(mode, reviewType, queryParams)) {
@@ -209,9 +206,8 @@ async function renderDeveloperMode(
     case 'jenai':
       return loadDeveloperJenAITab(ctx, tabCounts);
     case 'compliance':
-      return loadDeveloperComplianceTab(ctx, tabCounts, countsData.complianceDeveloperStatusCounts);
     default:
-      return loadDeveloperRedFlagsTab(ctx, tabCounts, countsData.redFlagDeveloperStatusCounts);
+      return loadDeveloperComplianceTab(ctx, tabCounts, countsData.complianceDeveloperStatusCounts);
   }
 }
 
@@ -315,49 +311,6 @@ async function loadDeveloperComplianceTab(
   );
 }
 
-async function loadDeveloperRedFlagsTab(
-  ctx: TabLoaderContext,
-  tabCounts: TabCounts,
-  redFlagDeveloperStatusCounts: DeveloperModeCountsData['redFlagDeveloperStatusCounts'],
-) {
-  const errorControls: ErrorControls = { mode: 'developer', reviewType: 'flags', tabCounts };
-  const sortBy = (ctx.queryParams.sortBy || 'reviewedAt') as 'severity' | 'category' | 'reviewedAt' | 'developerCheckedAt';
-  const dataResult = await getRedFlagDeveloperQueueData(ctx.stateCode, {
-    page: ctx.page,
-    pageSize: ctx.pageSize,
-    sortBy,
-    sortOrder: ctx.sortOrder,
-    developerStatus: ctx.queryParams.developerStatus || undefined,
-    developerAssigned: ctx.queryParams.developerAssigned || undefined,
-    severity: (ctx.queryParams.severity || 'all') as 'high' | 'medium' | 'low' | 'all',
-    reviewStatus: ctx.queryParams.reviewStatus || undefined,
-    category: ctx.queryParams.category || undefined,
-  });
-
-  if (!dataResult.success) {
-    return (
-      <ReviewPageError
-        title={ctx.pageConfig.title}
-        description={ctx.pageConfig.description}
-        error={dataResult.error}
-        controls={errorControls}
-      />
-    );
-  }
-
-  const { items, categories } = dataResult.data;
-  return (
-    <ReviewPageLayout pageConfig={ctx.pageConfig} mode="developer" reviewType="flags" tabCounts={tabCounts}>
-      <RedFlagDeveloperQueue
-        initialItems={items.data}
-        pagination={{ page: items.page, pageSize: items.pageSize, total: items.total, totalPages: items.totalPages }}
-        statusCounts={redFlagDeveloperStatusCounts}
-        categories={categories}
-      />
-    </ReviewPageLayout>
-  );
-}
-
 // ============================================
 // Review Mode Rendering
 // ============================================
@@ -390,9 +343,8 @@ async function renderReviewMode(
     case 'jenai':
       return loadReviewJenAITab(ctx, tabCounts);
     case 'compliance':
-      return loadReviewComplianceTab(ctx, tabCounts, countsData.complianceStatusCounts);
     default:
-      return loadReviewRedFlagsTab(ctx, tabCounts, countsData.flagStatusCounts);
+      return loadReviewComplianceTab(ctx, tabCounts, countsData.complianceStatusCounts);
   }
 }
 
@@ -592,51 +544,6 @@ async function loadReviewComplianceFilterTab(
   );
 }
 
-async function loadReviewRedFlagsTab(
-  ctx: TabLoaderContext,
-  tabCounts: TabCounts,
-  flagStatusCounts: ReviewModeCountsData['flagStatusCounts'],
-) {
-  const errorControls: ErrorControls = { mode: 'review', reviewType: 'flags', tabCounts };
-  const sortBy = (ctx.queryParams.sortBy || 'severity') as 'severity' | 'category' | 'reviewedAt';
-  const filters: Omit<RedFlagFilterOptions, 'jurisdiction'> = {
-    status: ctx.queryParams.reviewStatus === 'all' ? 'all' : (ctx.queryParams.reviewStatus as RedFlagFilterOptions['status']),
-    severity: ctx.queryParams.severity as 'high' | 'medium' | 'low' | undefined,
-    category: ctx.queryParams.category || undefined,
-  };
-
-  const dataResult = await getRedFlagsQueueData(ctx.stateCode, {
-    page: ctx.page,
-    pageSize: ctx.pageSize,
-    sortBy,
-    sortOrder: ctx.sortOrder,
-    filters,
-  });
-
-  if (!dataResult.success) {
-    return (
-      <ReviewPageError
-        title={ctx.pageConfig.title}
-        description={ctx.pageConfig.description}
-        error={dataResult.error}
-        controls={errorControls}
-      />
-    );
-  }
-
-  const { flags, categories } = dataResult.data;
-  return (
-    <ReviewPageLayout pageConfig={ctx.pageConfig} mode="review" reviewType="flags" tabCounts={tabCounts}>
-      <ReviewQueue
-        initialFlags={flags.data}
-        pagination={{ page: flags.page, pageSize: flags.pageSize, total: flags.total, totalPages: flags.totalPages }}
-        statusCounts={flagStatusCounts}
-        categories={categories}
-      />
-    </ReviewPageLayout>
-  );
-}
-
 // ============================================
 // Shared Layout Component
 // ============================================
@@ -651,7 +558,7 @@ function ReviewPageLayout({
   pageConfig: { title: string; description: string };
   mode: ReviewMode;
   reviewType: ReviewType;
-  tabCounts: { flags: number; compliance: number; definitions: number; needs_info: number; jenai: number };
+  tabCounts: { compliance: number; definitions: number; needs_info: number; jenai: number };
   children: React.ReactNode;
 }) {
   return (

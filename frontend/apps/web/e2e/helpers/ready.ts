@@ -15,7 +15,7 @@ export async function waitForBrowseReady(page: Page) {
 /** Wait for review page to be fully loaded with cards */
 export async function waitForReviewReady(page: Page) {
   await expect(page.getByRole('heading', { name: /Review/i })).toBeVisible();
-  // Wait for either compliance cards, red flag cards, or definition cards
+  // Wait for either compliance cards or definition cards
   const cardLocator = page.locator('[data-testid$="-card"]').first();
   await expect(cardLocator).toBeVisible({ timeout: 10000 });
 }
@@ -24,12 +24,6 @@ export async function waitForReviewReady(page: Page) {
 export async function waitForComplianceReviewReady(page: Page) {
   await expect(page.getByRole('heading', { name: /Review/i })).toBeVisible();
   await expect(page.getByTestId('compliance-issue-card').first()).toBeVisible({ timeout: 10000 });
-}
-
-/** Wait for review page with red flags specifically */
-export async function waitForRedFlagReviewReady(page: Page) {
-  await expect(page.getByRole('heading', { name: /Review/i })).toBeVisible();
-  await expect(page.getByTestId('red-flag-card').first()).toBeVisible({ timeout: 10000 });
 }
 
 /** Wait for definitions glossary page to be fully loaded */

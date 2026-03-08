@@ -86,10 +86,6 @@ export const regulatoryDocuments = pgTable('regulatory_documents', {
   // Precomputed hierarchy stats (for fast browse queries)
   directChildCount: integer('direct_child_count').default(0),
   descendantCount: integer('descendant_count').default(0),
-  descendantFlagCount: integer('descendant_flag_count').default(0),
-  descendantMaxSeverity: integer('descendant_max_severity'),
-  hasDescendantAnalysis: boolean('has_descendant_analysis').default(false),
-
   // Precomputed compliance issue stats
   complianceIssueCount: integer('compliance_issue_count').default(0),
   descendantComplianceIssueCount: integer('descendant_compliance_issue_count').default(0),

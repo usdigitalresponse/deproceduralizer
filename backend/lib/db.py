@@ -351,33 +351,6 @@ def get_filtered_documents(
         return []
 
 
-def get_already_analyzed_ids(jurisdiction: str) -> set:
-    """Get document IDs that already have red flag analyses."""
-    conn = get_db_connection()
-    if not conn:
-        return set()
-
-    try:
-        result = conn.execute("""
-            SELECT DISTINCT document_id
-            FROM analyses
-            WHERE is_current = TRUE
-              AND document_id IN (
-                  SELECT id FROM regulatory_documents WHERE jurisdiction = %s
-              )
-        """, (jurisdiction.upper(),))
-        ids = {row[0] for row in result.fetchall()}
-        conn.commit()
-        conn.close()
-        return ids
-    except Exception as e:
-        print(f"Warning: Could not fetch analyzed IDs: {e}")
-        if conn:
-            conn.rollback()
-            conn.close()
-        return set()
-
-
 def get_already_extracted_ids(jurisdiction: str) -> set:
     """Get document IDs that already have definitions extracted."""
     conn = get_db_connection()

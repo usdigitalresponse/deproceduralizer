@@ -3,26 +3,19 @@
 import { memo, useState } from 'react';
 import { AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { formatLabel } from '@/types/regulation';
-import { getPriorityLabel, getImpactLabel } from './helpers';
+import { getImpactLabel } from './helpers';
 import type { ReviewSummaryProps } from './types';
 
 export const ReviewSummary = memo(function ReviewSummary({ item }: ReviewSummaryProps) {
   const [showDetails, setShowDetails] = useState(false);
 
   // Get type-specific fields
-  const redFlag = item.redFlagData;
   const compliance = item.complianceIssueData;
 
   // Determine missing critical fields
   const missingCritical: string[] = [];
   if (!item.reviewedBy) missingCritical.push('Reviewer');
   if (!item.justificationNotes) missingCritical.push('Justification');
-
-  // Type-specific missing fields
-  if (item.type === 'red_flag' && redFlag) {
-    if (!redFlag.priority) missingCritical.push('Priority');
-    if (!redFlag.impactType) missingCritical.push('Impact Type');
-  }
 
   // Check for severity changes (compliance only)
   const severityChanged = compliance && compliance.originalSeverity !== null &&
@@ -64,25 +57,8 @@ export const ReviewSummary = memo(function ReviewSummary({ item }: ReviewSummary
         )}
       </div>
 
-      {/* Type-specific fields */}
-      {item.type === 'red_flag' && redFlag && (
-        <div className="flex items-center gap-4 text-sm flex-wrap mt-2">
-          <div>
-            <span className="text-[var(--color-text-muted)]">Priority: </span>
-            <span className={redFlag.priority ? 'text-[var(--color-text)]' : 'text-[var(--color-text-muted)] italic'}>
-              {getPriorityLabel(redFlag.priority) || 'Not set'}
-            </span>
-          </div>
-          <div>
-            <span className="text-[var(--color-text-muted)]">Impact: </span>
-            <span className={redFlag.impactType ? 'text-[var(--color-text)]' : 'text-[var(--color-text-muted)] italic'}>
-              {getImpactLabel(redFlag.impactType) || 'Not set'}
-            </span>
-          </div>
-        </div>
-      )}
-
-      {item.type === 'compliance_issue' && compliance && (
+      {/* Compliance-specific fields */}
+      {compliance && (
         <div className="flex items-center gap-4 text-sm flex-wrap mt-2">
           <div>
             <span className="text-[var(--color-text-muted)]">Severity: </span>

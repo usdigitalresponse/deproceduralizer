@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition, forwardRef } from 'react';
-import { Flag, FileWarning } from 'lucide-react';
+import { FileWarning } from 'lucide-react';
 import { updateDeveloperStatus, clearEntryForReview } from '@/lib/actions/developer';
 import { Badge, CopyLinkButton } from '@/components/ui';
 import { DEVELOPER_STATUS_LABELS } from '@/types/regulation';
@@ -9,7 +9,7 @@ import { CardWrapper, HierarchyTreeView } from '../shared';
 import { useDeveloperCardForm } from './hooks/useDeveloperCardForm';
 import { getStatusVariant } from './helpers';
 import { ReviewSummary } from './ReviewSummary';
-import { RedFlagContent, ComplianceIssueContent } from './ItemContent';
+import { ComplianceIssueContent } from './ItemContent';
 import { DeveloperForm } from './DeveloperForm';
 import { ClearConfirmDialog } from './ClearConfirmDialog';
 import type { DeveloperCardProps } from './types';
@@ -92,7 +92,7 @@ export const DeveloperCard = forwardRef<HTMLDivElement, DeveloperCardProps>(
       });
     };
 
-    const anchor = item.type === 'red_flag' ? `flag-${item.id}` : `compliance-${item.id}`;
+    const anchor = `compliance-${item.id}`;
 
     return (
       <CardWrapper
@@ -104,17 +104,10 @@ export const DeveloperCard = forwardRef<HTMLDivElement, DeveloperCardProps>(
         <div className="flex items-start justify-between gap-4 mb-4">
           <div className="flex items-center gap-2">
             <CopyLinkButton anchor={anchor} />
-            {item.type === 'red_flag' ? (
-              <Badge variant="danger" className="flex items-center gap-1">
-                <Flag className="w-3 h-3" />
-                Red Flag
-              </Badge>
-            ) : (
-              <Badge variant="warning" className="flex items-center gap-1">
-                <FileWarning className="w-3 h-3" />
-                Compliance Issue
-              </Badge>
-            )}
+            <Badge variant="warning" className="flex items-center gap-1">
+              <FileWarning className="w-3 h-3" />
+              Compliance Issue
+            </Badge>
             <Badge variant={getStatusVariant(item.developerStatus)}>
               {DEVELOPER_STATUS_LABELS[item.developerStatus || 'unresolved']}
             </Badge>
@@ -128,11 +121,7 @@ export const DeveloperCard = forwardRef<HTMLDivElement, DeveloperCardProps>(
 
         {/* Item content */}
         <div className="mb-4">
-          {item.type === 'red_flag' ? (
-            <RedFlagContent item={item} state={state} />
-          ) : (
-            <ComplianceIssueContent item={item} state={state} />
-          )}
+          <ComplianceIssueContent item={item} state={state} />
         </div>
 
         {/* Review info (read-only summary) */}

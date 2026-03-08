@@ -68,8 +68,8 @@ import { ISSUE_TYPES as ISSUE_TYPES_FROM_YAML } from '../generated/issue-types';
 export const ISSUE_TYPES = [...ISSUE_TYPES_FROM_YAML, ...LEGACY_ISSUE_TYPES] as const;
 export type IssueType = typeof ISSUE_TYPES[number];
 
-// Shared types and constants from red-flags
-export type { ReviewStatus, DeveloperStatus, ResolutionType, Developer } from './red-flags';
+// Shared types and constants from review-constants
+export type { ReviewStatus, DeveloperStatus, ResolutionType, Developer } from './review-constants';
 export {
   REVIEW_STATUSES,
   REVIEW_STATUS_LABELS,
@@ -77,4 +77,4 @@ export {
   DEVELOPER_STATUSES,
   RESOLUTION_TYPES,
   DEVELOPERS
-} from './red-flags';
+} from './review-constants';

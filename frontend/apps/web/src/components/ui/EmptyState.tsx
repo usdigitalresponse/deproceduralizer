@@ -30,7 +30,7 @@ export interface EmptyStateProps {
  * // With description and action
  * <EmptyState
  *   icon={Search}
- *   title="No red flags found"
+ *   title="No results found"
  *   description="Try adjusting your filters or search terms"
  *   action={{ label: "Clear filters", onClick: handleClear }}
  * />

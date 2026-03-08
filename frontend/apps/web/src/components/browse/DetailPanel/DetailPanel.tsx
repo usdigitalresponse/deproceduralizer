@@ -10,7 +10,6 @@ import { useDetailPanelData } from './hooks/useDetailPanelData';
 import { Header } from './Header';
 import { SummarySection } from './SummarySection';
 import { MetadataSection } from './MetadataSection';
-import { RedFlagsSection } from './RedFlagsSection';
 import { ComplianceIssuesSection } from './ComplianceIssuesSection';
 import { CrossReferencesSection } from './CrossReferencesSection';
 import { IncomingReferencesSection } from './IncomingReferencesSection';
@@ -91,13 +90,6 @@ export function DetailPanel({ documentId, onClose, onNavigate, fullScreen = fals
         <SummarySection summary={document.summary} />
 
         <MetadataSection document={document} />
-
-        <RedFlagsSection
-          redFlags={document.redFlags || []}
-          state={jurisdiction}
-          documentId={document.id}
-          currentUrl={currentUrl}
-        />
 
         <ComplianceIssuesSection
           issues={complianceIssues}

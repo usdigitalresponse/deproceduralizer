@@ -9,7 +9,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 const isDev = process.env.NODE_ENV === 'development';
 
 // Filter params that can be cleared (preserves tree state: expanded, selected)
-const FILTER_PARAMS = ['analyzed', 'hasFlags', 'severity', 'hasDefs', 'hasCompliance', 'search'];
+const FILTER_PARAMS = ['hasDefs', 'hasCompliance', 'search'];
 
 export default function BrowseError({
   error,

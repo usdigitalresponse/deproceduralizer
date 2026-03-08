@@ -72,7 +72,7 @@ export function getReviewPageConfig(
   stateName: string,
   regulationsLabel: string,
   mode: 'review' | 'developer',
-  reviewType: 'flags' | 'compliance' | 'definitions' | 'needs_info' | 'jenai'
+  reviewType: 'compliance' | 'definitions' | 'needs_info' | 'jenai'
 ): PageConfig {
   if (mode === 'developer') {
     if (reviewType === 'definitions') {
@@ -118,7 +118,7 @@ export function getReviewPageConfig(
     default:
       return {
         title: `Review ${stateName} Regulations`,
-        description: `Efficiently triage red flags identified in ${regulationsLabel}`,
+        description: `Efficiently triage issues identified in ${regulationsLabel}`,
       };
   }
 }

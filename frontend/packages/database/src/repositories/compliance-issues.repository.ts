@@ -15,9 +15,17 @@ import {
   Tier3Flags,
 } from '../schema/compliance-issue-analyses';
 import { bookmarks } from '../schema/bookmarks';
-import { ReviewStatus, ImpactType, DeveloperStatus, ResolutionType, Developer } from '../schema/red-flags';
+import { ReviewStatus, ImpactType, DeveloperStatus, ResolutionType, Developer } from '../schema/review-constants';
 import { JurisdictionCode } from '../schema/constants';
-import { DeveloperStatusCounts } from './red-flags.repository';
+
+export interface DeveloperStatusCounts {
+  unresolved: number;
+  resolved: number;
+  pending: number;
+  backlogged: number;
+  need_more_info: number;
+  total: number;
+}
 
 /**
  * ComplianceIssue with analysis-sourced fields joined from compliance_issue_analyses.
@@ -607,9 +615,6 @@ export interface AnalysisListFilters {
   tier3Trigger?: string;
   easyCleanup?: 'any' | 'trivial' | 'easy' | 'medium';
   bookmarkedOnly?: boolean;
-  // Guidance-specific filters
-  agency?: string;
-  docType?: string;
 }
 
 /** Analysis source: regulations (default) or guidance documents. */
@@ -842,14 +847,6 @@ export function buildAnalysisListFilters(params: {
         WHERE ${bookmarks.analysisId} = ${complianceIssueAnalyses.id}
       )`
     );
-  }
-
-  // Guidance-specific filters (agency/docType on joined guidance_documents table)
-  if (filters.agency) {
-    conditions.push(eq(guidanceDocuments.agency, filters.agency));
-  }
-  if (filters.docType) {
-    conditions.push(eq(guidanceDocuments.docType, filters.docType));
   }
 
   return conditions;

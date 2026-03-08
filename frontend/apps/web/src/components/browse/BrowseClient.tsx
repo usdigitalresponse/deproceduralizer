@@ -33,8 +33,6 @@ interface BrowseClientProps {
   stats: {
     level: string;
     count: number;
-    analyzedCount: number;
-    flaggedCount: number;
   }[];
   filters: HierarchyFilterOptions;
   search?: string;
@@ -116,9 +114,6 @@ export function BrowseClient({
   // Check if any filters are active (need this before handleToggleExpand)
   const hasActiveFilters = Boolean(
     search ||
-    filters.hasAnalysis !== undefined ||
-    filters.hasFlags !== undefined ||
-    filters.severity !== undefined ||
     filters.hasDefinitions !== undefined ||
     filters.hasComplianceIssues !== undefined
   );
@@ -137,15 +132,6 @@ export function BrowseClient({
     // Preserve filter params from props (already parsed by server)
     if (search) {
       params.set('search', search);
-    }
-    if (filters.hasAnalysis !== undefined) {
-      params.set('analyzed', String(filters.hasAnalysis));
-    }
-    if (filters.hasFlags !== undefined) {
-      params.set('hasFlags', String(filters.hasFlags));
-    }
-    if (filters.severity) {
-      params.set('severity', filters.severity);
     }
     if (filters.hasDefinitions !== undefined) {
       params.set('hasDefs', String(filters.hasDefinitions));

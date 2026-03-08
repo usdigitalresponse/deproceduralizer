@@ -34,17 +34,16 @@ def load_prompt(prompt_name: str, **kwargs) -> str:
     Load a prompt template and fill in variables.
 
     Args:
-        prompt_name: Name of the prompt in prompts.yaml (e.g., "red_flags_analysis")
-        **kwargs: Variables to substitute in the template (e.g., section_text="...", citation="...")
+        prompt_name: Name of the prompt in prompts.yaml (e.g., "definition_extraction")
+        **kwargs: Variables to substitute in the template (e.g., title="...", content="...")
 
     Returns:
         Formatted prompt string with variables filled in
 
     Example:
-        prompt = load_prompt("red_flags_analysis",
-                            section_text="The regulation text...",
-                            citation="N.J.A.C. 1:1-1.1",
-                            heading="General Provisions")
+        prompt = load_prompt("definition_extraction",
+                            title="Test Title",
+                            content="The regulation text...")
     """
     prompts = _load_prompts()
 

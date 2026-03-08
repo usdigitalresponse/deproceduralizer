@@ -353,30 +353,3 @@ export async function getGuidanceRegexMatchesForAnalysis(
     complianceIssuesRepo.getGuidanceRegexMatches(guidanceDocumentId, issueType)
   );
 }
-
-/**
- * Maps URL-state filter values to repository filter format.
- * Converts 'all' values to undefined (no filter).
- */
-function mapFiltersToRepo(filters: AnalysisListFilters): AnalysisListFilters {
-  return {
-    tierCompleted: filters.tierCompleted,
-    classification: filters.classification,
-    federalMandate: filters.federalMandate,
-    pipelineRun: filters.pipelineRun,
-    issueType: filters.issueType,
-    severity: filters.severity,
-    severityChanged: filters.severityChanged,
-    federalMandateConfirmed: filters.federalMandateConfirmed,
-    stateDiscretion: filters.stateDiscretion,
-    alternativeFound: filters.alternativeFound,
-    evidenceGap: filters.evidenceGap,
-    supersededByLaw: filters.supersededByLaw,
-    advocacyForChange: filters.advocacyForChange,
-    tier3Trigger: filters.tier3Trigger,
-    easyCleanup: filters.easyCleanup,
-    bookmarkedOnly: filters.bookmarkedOnly,
-    agency: filters.agency,
-    docType: filters.docType,
-  };
-}

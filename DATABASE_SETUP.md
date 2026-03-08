@@ -19,7 +19,7 @@ DATABASE_URL=postgresql://user:password@host/dbname
 
 The database schema is defined in `frontend/packages/database/src/schema/`.
 
-Migration `0000_base_tables.sql` bootstraps the 4 core tables (`regulatory_documents`, `analyses`, `red_flags`, `definitions`) for fresh databases. All subsequent migrations build on top of these.
+Migration `0000_base_tables.sql` bootstraps the core tables (`regulatory_documents`, `definitions`) for fresh databases. All subsequent migrations build on top of these.
 
 For a new database, run all migrations in lexicographic sort order:
 
@@ -95,42 +95,6 @@ AND has_implementation_issues = TRUE
 ORDER BY analyzed_at DESC;
 ```
 
-### Find high-severity flags
-```sql
-SELECT
-  d.title,
-  rf.category,
-  rf.severity,
-  rf.explanation
-FROM red_flags rf
-JOIN analyses a ON rf.analysis_id = a.id
-JOIN regulatory_documents d ON a.document_id = d.id
-WHERE rf.severity >= 8 AND d.jurisdiction = 'NY'
-ORDER BY rf.severity DESC;
-```
-
-### Compare regulations vs policy documents
-```sql
-SELECT type, COUNT(*), AVG(max_severity) as avg_severity
-FROM latest_analyses
-WHERE jurisdiction = 'NY'
-GROUP BY type;
-```
-
-### Count flags by category
-```sql
-SELECT
-  rf.category,
-  COUNT(*) as count,
-  AVG(rf.severity) as avg_severity
-FROM red_flags rf
-JOIN analyses a ON rf.analysis_id = a.id
-JOIN regulatory_documents d ON a.document_id = d.id
-WHERE d.jurisdiction = 'NY' AND a.is_current = TRUE
-GROUP BY rf.category
-ORDER BY count DESC;
-```
-
 ## Dependencies
 
 Install required Python packages:
@@ -141,7 +105,7 @@ pip install psycopg pandas python-dotenv
 
 ## Additional Tables
 
-Beyond the core tables (`regulatory_documents`, `analyses`, `red_flags`, `statute_references`), the database includes:
+Beyond the core tables (`regulatory_documents`, `definitions`, `statute_references`), the database includes:
 
 | Table | Purpose |
 |-------|---------|
@@ -198,7 +162,7 @@ Use the helper script to quickly check table counts:
 ./scripts/db-query.sh "SELECT 'regulatory_documents' as tbl, COUNT(*) FROM regulatory_documents
 UNION ALL SELECT 'definitions', COUNT(*) FROM definitions
 UNION ALL SELECT 'compliance_issues', COUNT(*) FROM compliance_issues
-UNION ALL SELECT 'red_flags', COUNT(*) FROM red_flags"
+UNION ALL SELECT 'compliance_issue_analyses', COUNT(*) FROM compliance_issue_analyses"
 ```
 
 Or describe a table's schema:

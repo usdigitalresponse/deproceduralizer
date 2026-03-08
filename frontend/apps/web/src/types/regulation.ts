@@ -62,7 +62,7 @@ export function formatLabel(value: string): string {
 
 /**
  * Maps complexity level to Badge variant
- * Used consistently across DataTable, ReviewCard, RedFlagsList, DetailModal
+ * Used consistently across DataTable and DetailModal
  */
 export function getComplexityVariant(complexity: string | null | undefined): 'danger' | 'warning' | 'success' {
   if (complexity === 'HIGH') return 'danger';
@@ -99,16 +99,6 @@ export const UPDATED_SEVERITY_OPTIONS = [
   { value: '10', label: '10 - Critical' },
 ] as const;
 
-// Priority options for red flags (1-5 scale)
-// Values are strings for Radix Select compatibility - parse with parseInt() when saving
-export const PRIORITY_OPTIONS = [
-  { value: '1', label: '1 - Highest' },
-  { value: '2', label: '2 - High' },
-  { value: '3', label: '3 - Medium' },
-  { value: '4', label: '4 - Low' },
-  { value: '5', label: '5 - Lowest' },
-] as const;
-
 // Compliance issue types - requirements that add burden
 export const COMPLIANCE_ISSUE_TYPES = DB_ISSUE_TYPE_VALUES.map(value => ({
   value,
@@ -123,7 +113,6 @@ export const ISSUE_TYPE_LABELS: Record<string, string> = {
 // Review type for the review page tabs
 export const REVIEW_TYPES = REVIEW_TYPE_VALUES.map(value => {
   const labels: Record<(typeof REVIEW_TYPE_VALUES)[number], string> = {
-    flags: 'Red Flags',
     compliance: 'Compliance Issues',
     definitions: 'Definitions',
     needs_info: 'Needs More Info',

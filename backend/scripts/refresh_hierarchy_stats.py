@@ -4,7 +4,6 @@ Refresh precomputed hierarchy statistics.
 
 Updates the count columns on regulatory_documents:
 - child_count, descendant_count (structure)
-- descendant_flag_count, descendant_analyzed_count (analysis)
 - compliance_issue_count, descendant_compliance_issue_count (compliance)
 
 Updates the count columns on statutes:
@@ -16,9 +15,6 @@ Examples:
 
     # Refresh only compliance stats for NJ (after processing compliance issues)
     python refresh_hierarchy_stats.py --state NJ --compliance
-
-    # Refresh only analysis stats for NY (after processing red flags)
-    python refresh_hierarchy_stats.py --state NY --analysis
 
     # Refresh only statute link stats
     python refresh_hierarchy_stats.py --all-states --statute-links
@@ -37,7 +33,7 @@ load_dotenv(PROJECT_ROOT / '.env')
 
 from lib.db import get_db_connection
 from lib.jurisdictions import VALID_JURISDICTIONS_LOWER
-from lib.stats import refresh_all_stats, refresh_structure_stats, refresh_analysis_stats, refresh_compliance_stats, refresh_statute_link_stats
+from lib.stats import refresh_all_stats, refresh_structure_stats, refresh_compliance_stats, refresh_statute_link_stats
 
 
 def main():
@@ -52,8 +48,6 @@ def main():
                         help='Refresh all states')
     parser.add_argument('--structure', action='store_true',
                         help='Only refresh structure stats (child_count, descendant_count)')
-    parser.add_argument('--analysis', action='store_true',
-                        help='Only refresh analysis stats (flag counts)')
     parser.add_argument('--compliance', action='store_true',
                         help='Only refresh compliance stats (issue counts)')
     parser.add_argument('--statute-links', action='store_true',
@@ -79,8 +73,6 @@ def main():
 
             if args.structure:
                 refresh_structure_stats(conn, state)
-            elif args.analysis:
-                refresh_analysis_stats(conn, state)
             elif args.compliance:
                 refresh_compliance_stats(conn, state)
             elif args.statute_links:

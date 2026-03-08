@@ -56,8 +56,8 @@ export const incorporationsByReference = pgTable('incorporations_by_reference', 
 export type IncorporationByReference = typeof incorporationsByReference.$inferSelect;
 export type NewIncorporationByReference = typeof incorporationsByReference.$inferInsert;
 
-// Shared types and constants from red-flags (for review workflow)
-export type { ReviewStatus, DeveloperStatus, ResolutionType, Developer } from './red-flags';
+// Shared types and constants for review workflow
+export type { ReviewStatus, DeveloperStatus, ResolutionType, Developer } from './review-constants';
 export {
   REVIEW_STATUSES,
   REVIEW_STATUS_LABELS,
@@ -65,4 +65,4 @@ export {
   DEVELOPER_STATUSES,
   RESOLUTION_TYPES,
   DEVELOPERS
-} from './red-flags';
+} from './review-constants';

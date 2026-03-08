@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { RedFlagCard, RedFlagReviewForm } from '@/components/flags';
 import {
   Modal,
   ModalContent,
@@ -25,54 +24,15 @@ import { isValidJurisdiction, DEFAULT_JURISDICTION } from '@/types/state';
 interface DetailModalProps {
   regulationId: number | null;
   onClose: () => void;
-  onFlagUpdated?: (updatedFlag: {
-    id: number;
-    reviewStatus?: string;
-    reviewedBy?: string;
-    reviewedAt?: string;
-    justificationNotes?: string;
-    teamNotes?: string;
-    priority?: number;
-    impactType?: string;
-  }) => void;
 }
 
-export default function DetailModal({ regulationId, onClose, onFlagUpdated }: DetailModalProps) {
+export default function DetailModal({ regulationId, onClose }: DetailModalProps) {
   const pathJurisdiction = useJurisdictionFromPath();
   const { regulation, setRegulation, isLoading, error } = useRegulationById(regulationId);
 
   // Use path jurisdiction, fallback to regulation's jurisdiction if available
   const regJurisdiction = regulation?.jurisdiction?.toLowerCase();
   const jurisdiction = pathJurisdiction || (regJurisdiction && isValidJurisdiction(regJurisdiction) ? regJurisdiction : DEFAULT_JURISDICTION);
-
-  // Handle flag updates - update local state and notify parent
-  const handleFlagUpdated = (updatedFlag: {
-    id: number;
-    reviewStatus?: string;
-    reviewedBy?: string;
-    reviewedAt?: string;
-    justificationNotes?: string;
-    teamNotes?: string;
-    priority?: number;
-    impactType?: string;
-  }) => {
-    // Update local regulation state
-    if (regulation) {
-      const flagUpdate = {
-        ...updatedFlag,
-        reviewedAt: updatedFlag.reviewedAt ? new Date(updatedFlag.reviewedAt) : null,
-      };
-      setRegulation({
-        ...regulation,
-        redFlags: regulation.redFlags.map((flag) =>
-          flag.id === updatedFlag.id ? { ...flag, ...flagUpdate } : flag
-        ),
-      });
-    }
-
-    // Notify parent to update table data
-    onFlagUpdated?.(updatedFlag);
-  };
 
   const citation = regulation
     ? formatStateCitation(jurisdiction, regulation)
@@ -165,22 +125,6 @@ export default function DetailModal({ regulationId, onClose, onFlagUpdated }: De
 
               {/* Metadata Grid */}
               <RegulationMetadata regulation={regulation} layout="compact" className="mb-6" />
-
-              {/* Red Flags Details */}
-              {regulation.redFlags && regulation.redFlags.length > 0 && (
-                <div className="mb-6">
-                  <h3 className="font-semibold text-[var(--color-text)] mb-3">Red Flags Details</h3>
-                  <div className="space-y-3">
-                    {regulation.redFlags.map((flag, idx) => (
-                      <RedFlagCard key={idx} flag={flag} showReviewStatus={false}>
-                        {flag.id && onFlagUpdated && (
-                          <RedFlagReviewForm flag={flag} onUpdated={handleFlagUpdated} />
-                        )}
-                      </RedFlagCard>
-                    ))}
-                  </div>
-                </div>
-              )}
 
               {/* Summary */}
               <RegulationSummary summary={regulation.summary} className="mb-6" />

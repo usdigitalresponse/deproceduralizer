@@ -7,7 +7,7 @@ export default function ReviewLoading() {
     <div className="bg-[var(--color-background)]">
       <PageHeader
         title="Review Mode"
-        description="Efficiently triage red flags identified by analysis"
+        description="Efficiently triage compliance issues identified by analysis"
       />
 
       <Container size="2xl" className="py-6">

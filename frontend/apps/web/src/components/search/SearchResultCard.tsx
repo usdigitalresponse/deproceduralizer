@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { Badge, SectionTypeBadge } from '@/components/ui';
 import { getEntityIcon } from '@/lib/constants/entity-types';
 import { sanitizeSnippet } from '@/lib/utils/sanitize-snippet';
-import { SEVERITY_THRESHOLDS } from '@/lib/constants/values';
 import type { SearchResultItem } from '@deproceduralizer/database';
 
 interface SearchResultCardProps {
@@ -14,13 +13,6 @@ interface SearchResultCardProps {
   query?: string;
   /** Current search page URL — passed as from param for back navigation */
   searchUrl?: string;
-}
-
-function getSeverityColor(severity: number | null): string {
-  if (severity == null) return 'bg-[var(--color-neutral-400)]';
-  if (severity >= SEVERITY_THRESHOLDS.HIGH) return 'bg-[var(--color-danger)]';
-  if (severity >= SEVERITY_THRESHOLDS.MEDIUM) return 'bg-[var(--color-warning)]';
-  return 'bg-[var(--color-success)]';
 }
 
 export function SearchResultCard({ result, state, query, searchUrl }: SearchResultCardProps) {
@@ -114,10 +106,6 @@ export function SearchResultCard({ result, state, query, searchUrl }: SearchResu
           href={href}
           className="flex items-center gap-2 mt-2 ml-7 group"
         >
-          <span
-            className={`w-2 h-2 rounded-full shrink-0 ${getSeverityColor(result.maxSeverity)}`}
-            aria-hidden="true"
-          />
           <span className="text-xs text-[var(--color-text-secondary)] group-hover:text-[var(--color-text)]">
             {result.issueCount} {result.issueCount === 1 ? 'issue' : 'issues'}
           </span>

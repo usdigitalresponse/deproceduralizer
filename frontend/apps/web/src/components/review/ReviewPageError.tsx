@@ -16,7 +16,6 @@ export interface ReviewPageErrorProps {
     mode: ReviewMode;
     reviewType: ReviewType;
     tabCounts: {
-      flags: number;
       compliance: number;
       definitions: number;
       needs_info: number;

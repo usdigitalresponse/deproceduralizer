@@ -90,9 +90,6 @@ export type RequirementFoundValue = BooleanFilterValue;
 export const SORT_ORDER_VALUES = ['asc', 'desc'] as const;
 export type SortOrderValue = (typeof SORT_ORDER_VALUES)[number];
 
-export const FLAG_SORT_BY_VALUES = ['severity', 'category', 'reviewedAt'] as const;
-export type FlagSortByValue = (typeof FLAG_SORT_BY_VALUES)[number];
-
 export const COMPLIANCE_SORT_BY_VALUES = ['severity', 'createdAt', 'issueType', 'reviewedAt'] as const;
 export type ComplianceSortByValue = (typeof COMPLIANCE_SORT_BY_VALUES)[number];
 
@@ -100,9 +97,6 @@ export const DEVELOPER_SORT_BY_VALUES = ['reviewedAt', 'developerCheckedAt'] as 
 export type DeveloperSortByValue = (typeof DEVELOPER_SORT_BY_VALUES)[number];
 
 // Extended sort options for developer mode with type-specific options
-export const RED_FLAG_DEVELOPER_SORT_BY_VALUES = ['severity', 'category', 'reviewedAt', 'developerCheckedAt'] as const;
-export type RedFlagDeveloperSortByValue = (typeof RED_FLAG_DEVELOPER_SORT_BY_VALUES)[number];
-
 export const COMPLIANCE_DEVELOPER_SORT_BY_VALUES = ['severity', 'issueType', 'reviewedAt', 'developerCheckedAt'] as const;
 export type ComplianceDeveloperSortByValue = (typeof COMPLIANCE_DEVELOPER_SORT_BY_VALUES)[number];
 
@@ -126,7 +120,7 @@ export type JenAIDeveloperSortByValue = (typeof JENAI_DEVELOPER_SORT_BY_VALUES)[
 // Review page navigation
 // ============================================
 
-export const REVIEW_TYPE_VALUES = ['compliance', 'jenai', 'flags', 'definitions', 'needs_info'] as const;
+export const REVIEW_TYPE_VALUES = ['compliance', 'jenai', 'definitions', 'needs_info'] as const;
 export type ReviewTypeValue = (typeof REVIEW_TYPE_VALUES)[number];
 
 // Pipeline source tabs (regulations vs guidance)

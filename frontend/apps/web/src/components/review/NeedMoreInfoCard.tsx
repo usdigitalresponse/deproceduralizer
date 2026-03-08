@@ -1,14 +1,13 @@
 'use client';
 
 import { useState, useTransition, forwardRef } from 'react';
-import { updateRedFlagReview } from '@/lib/actions/red-flags';
 import { updateComplianceIssueReview } from '@/lib/actions/compliance-issues';
 import type { DeveloperItem } from '@/lib/actions/developer';
 import { Button, Textarea, Badge, Tag, CopyLinkButton } from '@/components/ui';
 import { ISSUE_TYPE_LABELS, formatLabel } from '@/types/regulation';
 import { formatStateCitation } from '@/lib/formatters/citations';
 import { CardWrapper, CornellLink, RegulationTextViewer, HierarchyTreeView } from './shared';
-import { Flag, FileWarning, MessageCircleQuestion, ExternalLink } from 'lucide-react';
+import { FileWarning, MessageCircleQuestion, ExternalLink } from 'lucide-react';
 
 interface NeedMoreInfoCardProps {
   item: DeveloperItem;
@@ -32,21 +31,12 @@ export const NeedMoreInfoCard = forwardRef<HTMLDivElement, NeedMoreInfoCardProps
 
       startTransition(async () => {
         try {
-          if (item.type === 'red_flag') {
-            await updateRedFlagReview({
-              id: item.id,
-              reviewStatus: item.reviewStatus || 'unreviewed',
-              reviewedBy: item.reviewedBy || '',
-              teamNotes: responseNotes,
-            });
-          } else {
-            await updateComplianceIssueReview({
-              id: item.id,
-              reviewStatus: item.reviewStatus || 'unreviewed',
-              reviewedBy: item.reviewedBy || '',
-              teamNotes: responseNotes,
-            });
-          }
+          await updateComplianceIssueReview({
+            id: item.id,
+            reviewStatus: item.reviewStatus || 'unreviewed',
+            reviewedBy: item.reviewedBy || '',
+            teamNotes: responseNotes,
+          });
 
           onUpdated({
             ...item,
@@ -60,38 +50,6 @@ export const NeedMoreInfoCard = forwardRef<HTMLDivElement, NeedMoreInfoCardProps
 
     // Render type-specific summary
     const renderItemSummary = () => {
-      if (item.type === 'red_flag' && item.redFlagData) {
-        const flag = item.redFlagData;
-        const citation = formatStateCitation(state, flag.regulation);
-
-        return (
-          <div className="text-sm">
-            <div className="mb-2">
-              <span className="font-semibold">{formatLabel(flag.category)}</span>
-              {citation && (
-                <span className="text-[var(--color-text-muted)] ml-2 font-mono">{citation}</span>
-              )}
-            </div>
-            {/* Explanation */}
-            <div className="mb-4">
-              <span className="text-xs font-medium text-[var(--color-text-secondary)]">Why Flagged:</span>
-              <p className="mt-1 text-sm text-[var(--color-text)]">{flag.explanation}</p>
-            </div>
-            {/* Full Regulation Text Viewer */}
-            {flag.regulation.content && (
-              <RegulationTextViewer
-                content={flag.regulation.content}
-                documentId={flag.regulation.id}
-                state={state}
-                scrollToText={flag.explanation}
-                highlightPattern={flag.matchedPhrases?.length ? flag.matchedPhrases.map(p => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') : undefined}
-                label="Show Regulation Text"
-              />
-            )}
-          </div>
-        );
-      }
-
       if (item.type === 'compliance_issue' && item.complianceIssueData) {
         const issue = item.complianceIssueData;
         const issueCitation = formatStateCitation(issue.jurisdiction || state, issue.regulation);
@@ -135,7 +93,7 @@ export const NeedMoreInfoCard = forwardRef<HTMLDivElement, NeedMoreInfoCardProps
       return null;
     };
 
-    const anchor = item.type === 'red_flag' ? `flag-${item.id}` : `compliance-${item.id}`;
+    const anchor = `compliance-${item.id}`;
 
     return (
       <CardWrapper
@@ -148,17 +106,10 @@ export const NeedMoreInfoCard = forwardRef<HTMLDivElement, NeedMoreInfoCardProps
         <div className="flex items-start justify-between gap-4 mb-4">
           <div className="flex items-center gap-2">
             <CopyLinkButton anchor={anchor} />
-            {item.type === 'red_flag' ? (
-              <Badge variant="danger" className="flex items-center gap-1">
-                <Flag className="w-3 h-3" />
-                Red Flag
-              </Badge>
-            ) : (
-              <Badge variant="warning" className="flex items-center gap-1">
-                <FileWarning className="w-3 h-3" />
-                Compliance Issue
-              </Badge>
-            )}
+            <Badge variant="warning" className="flex items-center gap-1">
+              <FileWarning className="w-3 h-3" />
+              Compliance Issue
+            </Badge>
             {isOwner && (
               <Badge variant="info">Your Review</Badge>
             )}

@@ -2,7 +2,6 @@
 
 import { useQueryStates } from 'nuqs';
 import type { DashboardStats, JurisdictionCode, StatuteLinkStats } from '@deproceduralizer/database';
-import type { ReviewStatusCounts } from '@/lib/actions/red-flags';
 import type { ComplianceIssueStatusCounts } from '@/lib/actions/compliance-issues';
 import type { SectionTypeStats, MetadataStats, KeywordStats, AppliesToStats } from '@/lib/actions/regulations';
 import type { DefinitionsAnalyticsStats } from '@/lib/actions/definitions';
@@ -28,8 +27,6 @@ export interface AnalyticsClientProps {
   metadataStats: MetadataStats | null;
   topKeywords: KeywordStats[] | null;
   topAppliesTo: AppliesToStats[] | null;
-  redFlagStatus: ReviewStatusCounts | null;
-  redFlagCategories: string[] | null;
   complianceStatus: ComplianceIssueStatusCounts | null;
   complianceTypeCounts: Record<string, number> | null;
   definitionsStats: DefinitionsAnalyticsStats | null;
@@ -48,7 +45,6 @@ export function AnalyticsClient({
   sectionTypeStats,
   metadataStats,
   topKeywords,
-  redFlagStatus,
   complianceStatus,
   complianceTypeCounts,
   definitionsStats,
@@ -79,7 +75,6 @@ export function AnalyticsClient({
         {currentTab === 'overview' && (
           <OverviewTab
             dashboardStats={dashboardStats}
-            redFlagStatus={redFlagStatus}
             complianceStatus={complianceStatus}
             complianceTypeCounts={complianceTypeCounts}
             metadataStats={metadataStats}
@@ -95,7 +90,6 @@ export function AnalyticsClient({
         {currentTab === 'issues' && (
           <IssuesTab
             complianceByType={complianceTypeCounts ?? {}}
-            redFlagStatus={redFlagStatus}
             complianceStatus={complianceStatus}
           />
         )}

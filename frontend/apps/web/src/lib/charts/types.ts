@@ -39,8 +39,6 @@ export interface HierarchyDatum {
   children?: HierarchyDatum[];
   // Regulatory-specific fields
   hierarchyLevel?: string;
-  maxSeverity?: number;
-  flagCount?: number;
   complianceIssueCount?: number;
   citation?: string;
   path?: string;

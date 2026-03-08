@@ -22,9 +22,7 @@ import {
   SEVERITY_VALUES,
   BOOLEAN_FILTER_VALUES,
   SORT_ORDER_VALUES,
-  FLAG_SORT_BY_VALUES,
   DEVELOPER_SORT_BY_VALUES,
-  RED_FLAG_DEVELOPER_SORT_BY_VALUES,
   COMPLIANCE_DEVELOPER_SORT_BY_VALUES,
   REVIEW_TYPE_VALUES,
   REVIEW_MODE_VALUES,
@@ -101,9 +99,7 @@ export type {
   StatuteSourceValue,
   RequirementFoundValue,
   SortOrderValue,
-  FlagSortByValue,
   DeveloperSortByValue,
-  RedFlagDeveloperSortByValue,
   ComplianceDeveloperSortByValue,
   ReviewTypeValue,
   ReviewModeValue,
@@ -192,7 +188,7 @@ export const developerStatusParser = parseAsStringEnum([...DEVELOPER_STATUS_VALU
 export const severityParser = parseAsStringEnum([...SEVERITY_VALUES]).withDefault('all');
 export const statuteSourceParser = parseAsStringEnum([...BOOLEAN_FILTER_VALUES]).withDefault('all');
 export const requirementFoundParser = parseAsStringEnum([...BOOLEAN_FILTER_VALUES]).withDefault('true');
-export const reviewTypeParser = parseAsStringEnum([...REVIEW_TYPE_VALUES]).withDefault('flags');
+export const reviewTypeParser = parseAsStringEnum([...REVIEW_TYPE_VALUES]).withDefault('compliance');
 export const reviewModeParser = parseAsStringEnum([...REVIEW_MODE_VALUES]).withDefault('review');
 
 // Pipeline source parser (regulations vs guidance)
@@ -218,12 +214,9 @@ export const definitionTypeParser = parseAsStringEnum([...DEFINITION_TYPE_VALUES
 export const definitionQualityParser = parseAsStringEnum([...DEFINITION_QUALITY_VALUES]).withDefault('all');
 
 // Sort by parsers for different contexts
-export const flagSortByParser = parseAsStringEnum([...FLAG_SORT_BY_VALUES]).withDefault('severity');
-
 export const complianceSortByParser = parseAsStringEnum([...COMPLIANCE_SORT_BY_VALUES]).withDefault('severity');
 
 export const developerSortByParser = parseAsStringEnum([...DEVELOPER_SORT_BY_VALUES]).withDefault('reviewedAt');
-export const redFlagDeveloperSortByParser = parseAsStringEnum([...RED_FLAG_DEVELOPER_SORT_BY_VALUES]).withDefault('reviewedAt');
 export const complianceDeveloperSortByParser = parseAsStringEnum([...COMPLIANCE_DEVELOPER_SORT_BY_VALUES]).withDefault('reviewedAt');
 
 // Compliance source parser (regulation vs guidance vs all)
@@ -325,18 +318,6 @@ export const analysisTableParsers = {
 // ============================================
 
 /**
- * Parser configuration for the review queue filters
- */
-export const reviewQueueParsers = {
-  page: pageParser,
-  reviewStatus: reviewStatusParser,
-  severity: severityParser,
-  category: categoryParser,
-  sortBy: flagSortByParser,
-  sortOrder: sortOrderParser,
-};
-
-/**
  * Parser configuration for the developer queue filters
  */
 export const developerQueueParsers = {
@@ -351,9 +332,6 @@ export const developerQueueParsers = {
  * Parser configuration for the browse hierarchy filters
  */
 export const browseFiltersParsers = {
-  analyzed: booleanParser,
-  hasFlags: booleanParser,
-  severity: severityParser,
   hasDefs: booleanParser,
   hasCompliance: booleanParser,
   search: searchParser,
@@ -441,36 +419,13 @@ export const complianceQueueParsers = {
 
 /**
  * Parser configuration for DataTable filters.
- * Note: Uses parseAsString for tri-state fields (hasImplIssues, complexity, techReview, reporting)
- * to support 'true' | 'false' | 'null' values where 'null' means "show items with null value".
  */
 export const dataTableFiltersParsers = {
   page: pageParser,
-  hasFlags: booleanParser,
   category: parseAsString,
   explanationSearch: parseAsString,
-  hasImplIssues: parseAsString, // Tri-state: 'true'|'false'|'null'
-  complexity: parseAsString,    // Tri-state: 'true'|'false'|'null'
-  severity: parseAsString,
-  techReview: parseAsString,    // Tri-state: 'true'|'false'|'null'
-  reporting: parseAsString,     // Tri-state: 'true'|'false'|'null'
-  summarySearch: parseAsString,
   sectionType: parseAsString,   // AI-generated section type filter
-  sortBy: parseAsString.withDefault('maxSeverity'),
-  sortOrder: sortOrderParser,
-};
-
-/**
- * Parser configuration for red flag developer queue filters
- */
-export const redFlagDeveloperQueueParsers = {
-  page: pageParser,
-  developerStatus: developerStatusParser,
-  developerAssigned: developerAssignedParser,
-  severity: severityParser,
-  reviewStatus: reviewStatusParser,
-  category: categoryParser,
-  sortBy: redFlagDeveloperSortByParser,
+  sortBy: parseAsString.withDefault('complianceIssueCount'),
   sortOrder: sortOrderParser,
 };
 
@@ -569,10 +524,8 @@ export const printParser = parseAsBoolean.withDefault(false);
 
 // Multi-value parsers store comma-separated values in URL
 // e.g., ?severity=high,medium or ?sectionTypes=definitions,requirements
-export const facetedSeverityParser = parseAsString; // comma-separated: "high,medium"
 export const facetedSectionTypesParser = parseAsString; // comma-separated: "definitions,requirements"
 export const facetedComplexityParser = parseAsString; // comma-separated: "LOW,MEDIUM"
-export const facetedHasFlagsParser = parseAsString; // 'true' | 'false' | null
 export const facetedHasFormParser = parseAsString; // 'true' | null
 export const facetedHasIbrParser = parseAsString; // 'true' | null
 
@@ -581,10 +534,8 @@ export const facetedHasIbrParser = parseAsString; // 'true' | null
  */
 export const facetedFiltersParsers = {
   viewMode: viewModeParser,
-  fSeverity: facetedSeverityParser,
   fSectionTypes: facetedSectionTypesParser,
   fComplexity: facetedComplexityParser,
-  fHasFlags: facetedHasFlagsParser,
   fHasForm: facetedHasFormParser,
   fHasIbr: facetedHasIbrParser,
 };

@@ -8,8 +8,8 @@ export interface ReviewFormData {
   reviewedBy: string;
   justificationNotes: string | undefined;
   teamNotes: string | undefined;
-  priority: number | undefined; // Used by red flags
-  severity: number | undefined; // Used by compliance issues
+  priority: number | undefined;
+  severity: number | undefined;
   impactType: string | undefined;
 }
 
@@ -20,8 +20,8 @@ export interface ReviewFormCallbackData {
   reviewedAt?: string;
   justificationNotes?: string;
   teamNotes?: string;
-  priority?: number; // Used by red flags
-  severity?: number; // Used by compliance issues
+  priority?: number;
+  severity?: number;
   impactType?: string;
 }
 
@@ -32,8 +32,8 @@ interface UseReviewFormOptions {
     reviewedBy?: string | null;
     justificationNotes?: string | null;
     teamNotes?: string | null;
-    priority?: number | null; // Used by red flags
-    severity?: number | null; // Used by compliance issues
+    priority?: number | null;
+    severity?: number | null;
     originalSeverity?: number | null; // LLM's original severity (for display)
     impactType?: string | null;
   };
@@ -55,7 +55,7 @@ interface UseReviewFormOptions {
 
 /**
  * Shared hook for review form state and submission logic.
- * Used by RedFlagReviewForm and ComplianceIssueReviewForm.
+ * Used by ComplianceIssueReviewForm.
  *
  * @example
  * const {
@@ -63,7 +63,7 @@ interface UseReviewFormOptions {
  *   isPending, error, handleSubmit
  * } = useReviewForm({
  *   initialData: flag,
- *   onSubmit: (data) => updateRedFlagReview(data),
+ *   onSubmit: (data) => updateComplianceIssueReview(data),
  *   onUpdated,
  * });
  */

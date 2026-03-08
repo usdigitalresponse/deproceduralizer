@@ -4,34 +4,34 @@ import { useEffect, useCallback, useRef } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 
 export interface DeepLinkTarget {
-  type: 'flag' | 'compliance';
+  type: 'compliance';
   id: number;
 }
 
 /**
- * Parses a hash like "#flag-123" or "#compliance-456" into a DeepLinkTarget
+ * Parses a hash like "#compliance-456" into a DeepLinkTarget
  */
 export function parseDeepLinkHash(hash: string): DeepLinkTarget | null {
   if (!hash || !hash.startsWith('#')) return null;
 
-  const match = hash.match(/^#(flag|compliance)-(\d+)$/);
+  const match = hash.match(/^#(compliance)-(\d+)$/);
   if (!match) return null;
 
   return {
-    type: match[1] as 'flag' | 'compliance',
+    type: match[1] as 'compliance',
     id: parseInt(match[2], 10),
   };
 }
 
 interface UseDeepLinkOptions {
   /** Array of items currently on the page */
-  items: Array<{ id: number; type?: 'red_flag' | 'compliance_issue' }>;
+  items: Array<{ id: number; type?: 'compliance_issue' }>;
   /** Refs to card elements for scrolling */
   cardRefs: React.MutableRefObject<(HTMLDivElement | null)[]>;
   /** Setter for focused index */
   setFocusedIndex: (index: number) => void;
   /** The type of items if not specified in item.type (for single-type queues) */
-  itemType?: 'flag' | 'compliance';
+  itemType?: 'compliance';
 }
 
 /**
@@ -57,8 +57,7 @@ export function useDeepLink({
   // Find item index in current items
   const findItemIndex = useCallback((target: DeepLinkTarget): number => {
     return items.findIndex((item) => {
-      const currentType = item.type === 'red_flag' ? 'flag' :
-                          item.type === 'compliance_issue' ? 'compliance' :
+      const currentType = item.type === 'compliance_issue' ? 'compliance' :
                           itemType;
       return currentType === target.type && item.id === target.id;
     });

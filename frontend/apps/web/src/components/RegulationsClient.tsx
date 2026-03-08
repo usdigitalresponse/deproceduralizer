@@ -13,10 +13,8 @@ import {
   searchParser,
   pageParser,
   viewModeParser,
-  facetedSeverityParser,
   facetedSectionTypesParser,
   facetedComplexityParser,
-  facetedHasFlagsParser,
   facetedHasFormParser,
   facetedHasIbrParser,
   parseCommaSeparated,
@@ -51,10 +49,8 @@ export default function RegulationsClient({ initialData, pagination, search, fil
       page: pageParser,
       viewMode: viewModeParser,
       // Faceted filter params
-      fSeverity: facetedSeverityParser,
       fSectionTypes: facetedSectionTypesParser,
       fComplexity: facetedComplexityParser,
-      fHasFlags: facetedHasFlagsParser,
       fHasForm: facetedHasFormParser,
       fHasIbr: facetedHasIbrParser,
     },
@@ -64,35 +60,12 @@ export default function RegulationsClient({ initialData, pagination, search, fil
   const viewMode = params.viewMode as ViewModeValue;
 
   // Parse faceted filter values from URL
-  const severity = useMemo(() => parseCommaSeparated(params.fSeverity), [params.fSeverity]);
   const sectionTypes = useMemo(() => parseCommaSeparated(params.fSectionTypes), [params.fSectionTypes]);
   const complexity = useMemo(() => parseCommaSeparated(params.fComplexity), [params.fComplexity]);
 
   // Mobile filter drawer state
   const { isMobile } = useResponsive();
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
-
-  // Store local flag patches (optimistic updates) instead of copying all initialData
-  const [flagPatches, setFlagPatches] = useState<Map<number, {
-    reviewStatus?: string;
-    reviewedBy?: string;
-    reviewedAt?: Date | null;
-    justificationNotes?: string;
-    teamNotes?: string;
-    priority?: number;
-    impactType?: string;
-  }>>(new Map());
-
-  // Derive data by applying patches to initialData
-  const data = useMemo(() => {
-    return initialData.map(reg => ({
-      ...reg,
-      redFlags: reg.redFlags.map(flag => {
-        const patch = flagPatches.get(flag.id);
-        return patch ? { ...flag, ...patch } : flag;
-      })
-    }));
-  }, [initialData, flagPatches]);
 
   // Check if any filters are active
   const hasActiveFilters = Object.keys(filters).length > 0;
@@ -127,12 +100,6 @@ export default function RegulationsClient({ initialData, pagination, search, fil
   }, [router, jurisdiction]);
 
   // Faceted filter handlers
-  const handleSeverityChange = useCallback((values: string[]) => {
-    startTransition(() => {
-      setParams({ fSeverity: serializeCommaSeparated(values), page: 1 });
-    });
-  }, [setParams]);
-
   const handleSectionTypesChange = useCallback((values: string[]) => {
     startTransition(() => {
       setParams({ fSectionTypes: serializeCommaSeparated(values), page: 1 });
@@ -142,12 +109,6 @@ export default function RegulationsClient({ initialData, pagination, search, fil
   const handleComplexityChange = useCallback((values: string[]) => {
     startTransition(() => {
       setParams({ fComplexity: serializeCommaSeparated(values), page: 1 });
-    });
-  }, [setParams]);
-
-  const handleHasFlagsChange = useCallback((value: string | null) => {
-    startTransition(() => {
-      setParams({ fHasFlags: value, page: 1 });
     });
   }, [setParams]);
 
@@ -166,10 +127,8 @@ export default function RegulationsClient({ initialData, pagination, search, fil
   const handleClearFacetedFilters = useCallback(() => {
     startTransition(() => {
       setParams({
-        fSeverity: null,
         fSectionTypes: null,
         fComplexity: null,
-        fHasFlags: null,
         fHasForm: null,
         fHasIbr: null,
         page: 1,
@@ -178,37 +137,11 @@ export default function RegulationsClient({ initialData, pagination, search, fil
   }, [setParams]);
 
   // Check if any faceted filters are active
-  const hasFacetedFilters = severity.length > 0 ||
+  const hasFacetedFilters =
     sectionTypes.length > 0 ||
     complexity.length > 0 ||
-    params.fHasFlags !== null ||
     params.fHasForm !== null ||
     params.fHasIbr !== null;
-
-  // Update flag patches when a flag is updated (optimistic update)
-  const handleFlagUpdated = useCallback((updatedFlag: {
-    id: number;
-    reviewStatus?: string;
-    reviewedBy?: string;
-    reviewedAt?: string;
-    justificationNotes?: string;
-    teamNotes?: string;
-    priority?: number;
-    impactType?: string;
-  }) => {
-    // Convert reviewedAt string back to Date for type compatibility
-    const flagUpdate = {
-      ...updatedFlag,
-      reviewedAt: updatedFlag.reviewedAt ? new Date(updatedFlag.reviewedAt) : null,
-    };
-
-    // Store the patch - will be merged with initialData via useMemo
-    setFlagPatches(prev => {
-      const next = new Map(prev);
-      next.set(updatedFlag.id, flagUpdate);
-      return next;
-    });
-  }, []);
 
   // Memoized to prevent unnecessary re-renders of DetailModal
   const handleClose = useCallback(() => {
@@ -238,8 +171,8 @@ export default function RegulationsClient({ initialData, pagination, search, fil
               Filters
               {hasFacetedFilters && (
                 <span className="ml-1.5 px-1.5 py-0.5 text-xs bg-[var(--color-primary)] text-white rounded-full">
-                  {severity.length + sectionTypes.length + complexity.length +
-                    (params.fHasFlags ? 1 : 0) + (params.fHasForm ? 1 : 0) + (params.fHasIbr ? 1 : 0)}
+                  {sectionTypes.length + complexity.length +
+                    (params.fHasForm ? 1 : 0) + (params.fHasIbr ? 1 : 0)}
                 </span>
               )}
             </Button>
@@ -265,14 +198,14 @@ export default function RegulationsClient({ initialData, pagination, search, fil
         className="sr-only"
       >
         {search
-          ? `Showing ${data.length} results for "${search}"`
+          ? `Showing ${initialData.length} results for "${search}"`
           : `Showing ${pagination.total} regulations`}
       </div>
 
       {/* Data View - Table or Card Grid with Filters */}
       {viewMode === 'table' ? (
         <DataTable
-          data={data}
+          data={initialData}
           onRowClick={(reg) => setSelectedRegulationId(reg.id)}
           pagination={pagination}
           search={search}
@@ -282,16 +215,12 @@ export default function RegulationsClient({ initialData, pagination, search, fil
           {/* Faceted Filters Sidebar (desktop) */}
           {!isMobile && (
             <FacetedFilters
-              severity={severity}
               sectionTypes={sectionTypes}
               complexity={complexity}
-              hasFlags={params.fHasFlags}
               hasForm={params.fHasForm}
               hasIbr={params.fHasIbr}
-              onSeverityChange={handleSeverityChange}
               onSectionTypesChange={handleSectionTypesChange}
               onComplexityChange={handleComplexityChange}
-              onHasFlagsChange={handleHasFlagsChange}
               onHasFormChange={handleHasFormChange}
               onHasIbrChange={handleHasIbrChange}
               onClearAll={handleClearFacetedFilters}
@@ -301,16 +230,12 @@ export default function RegulationsClient({ initialData, pagination, search, fil
           {/* Mobile Filter Drawer */}
           {isMobile && (
             <FacetedFilters
-              severity={severity}
               sectionTypes={sectionTypes}
               complexity={complexity}
-              hasFlags={params.fHasFlags}
               hasForm={params.fHasForm}
               hasIbr={params.fHasIbr}
-              onSeverityChange={handleSeverityChange}
               onSectionTypesChange={handleSectionTypesChange}
               onComplexityChange={handleComplexityChange}
-              onHasFlagsChange={handleHasFlagsChange}
               onHasFormChange={handleHasFormChange}
               onHasIbrChange={handleHasIbrChange}
               onClearAll={handleClearFacetedFilters}
@@ -322,7 +247,7 @@ export default function RegulationsClient({ initialData, pagination, search, fil
           {/* Card Grid */}
           <div className="flex-1 min-w-0">
             <RegulationCardGrid
-              data={data}
+              data={initialData}
               pagination={pagination}
               onCardClick={(reg) => setSelectedRegulationId(reg.id)}
               onPageChange={handlePageChange}
@@ -335,7 +260,6 @@ export default function RegulationsClient({ initialData, pagination, search, fil
       <DetailModal
         regulationId={selectedRegulationId}
         onClose={handleClose}
-        onFlagUpdated={handleFlagUpdated}
       />
     </div>
   );

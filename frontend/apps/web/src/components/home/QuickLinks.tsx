@@ -53,7 +53,7 @@ interface QuickLinksProps {
 
 export function QuickLinks({ jurisdiction, stats }: QuickLinksProps) {
   const unreviewedCount = stats
-    ? stats.unreviewedFlags + (stats.complianceIssues?.unreviewed ?? 0)
+    ? (stats.complianceIssues?.unreviewed ?? 0)
     : undefined;
 
   return (

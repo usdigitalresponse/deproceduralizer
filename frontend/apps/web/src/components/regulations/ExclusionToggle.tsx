@@ -85,7 +85,7 @@ export function ExclusionToggle({
             Exclude from Analysis
           </h3>
           <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-            Excludes this document from red flag, definition, and compliance issue analysis runs
+            Excludes this document from definition and compliance issue analysis runs
           </p>
         </div>
 

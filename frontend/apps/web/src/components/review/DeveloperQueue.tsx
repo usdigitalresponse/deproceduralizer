@@ -45,7 +45,7 @@ export function DeveloperQueue({
     getRegulationId: (i) => i.regulation?.id ?? 0,
   });
 
-  const handleItemCleared = useCallback((itemId: number, itemType: 'red_flag' | 'compliance_issue') => {
+  const handleItemCleared = useCallback((itemId: number, itemType: 'compliance_issue') => {
     handleItemRemoved(`${itemType}-${itemId}`);
   }, [handleItemRemoved]);
 

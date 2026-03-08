@@ -10,17 +10,14 @@ import {
 import { useCallback, useMemo } from 'react';
 import { useQueryStates } from 'nuqs';
 import type { RegulationWithAnalysis, PaginationOptions } from '@deproceduralizer/database';
-import { RED_FLAG_CATEGORIES } from '@deproceduralizer/database/schema';
-import { Badge, SeverityBadge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { SectionTypeBadge } from '@/components/ui/SectionTypeBadge';
 import { KeywordTags } from '@/components/ui/KeywordTags';
 import { MetadataIndicators } from '@/components/ui/MetadataIndicators';
-import { getComplexityVariant, formatLabel } from '@/types/regulation';
 import { useResponsive } from '@/hooks';
 import { formatDisplayTitle } from '@/lib/format';
-import { SEVERITY_TABLE_OPTIONS, SECTION_TYPE_OPTIONS } from '@/lib/constants/filters';
+import { SECTION_TYPE_OPTIONS } from '@/lib/constants/filters';
 import { dataTableFiltersParsers } from '@/lib/url/parsers';
 
 interface PaginationInfo {
@@ -33,23 +30,8 @@ interface PaginationInfo {
 // Map column IDs to server sort keys
 const SORTABLE_COLUMNS: Record<string, PaginationOptions['sortBy']> = {
   title: 'title',
-  numFlags: 'numFlags',
-  maxSeverity: 'maxSeverity',
-  overallComplexity: 'overallComplexity',
-  hasImplementationIssues: 'hasImplementationIssues',
-  requiresTechnicalReview: 'requiresTechnicalReview',
-  hasReportingRequirement: 'hasReportingRequirement',
   summary: 'summary',
 };
-
-// Available red flag categories for filter dropdown
-const CATEGORY_OPTIONS = [
-  { value: '', label: 'All' },
-  ...RED_FLAG_CATEGORIES.map(cat => ({
-    value: cat,
-    label: formatLabel(cat)
-  }))
-];
 
 // Filter configuration for each column
 interface ColumnFilterConfig {
@@ -60,77 +42,6 @@ interface ColumnFilterConfig {
 }
 
 const COLUMN_FILTERS: Record<string, ColumnFilterConfig> = {
-  numFlags: {
-    urlParam: 'hasFlags',
-    type: 'select',
-    options: [
-      { value: '', label: 'All' },
-      { value: 'true', label: 'With Flags' },
-      { value: 'false', label: 'No Flags' },
-    ],
-  },
-  categories: {
-    urlParam: 'category',
-    type: 'select',
-    options: CATEGORY_OPTIONS,
-  },
-  explanations: {
-    urlParam: 'explanationSearch',
-    type: 'text',
-    placeholder: 'Search...',
-  },
-  hasImplementationIssues: {
-    urlParam: 'hasImplIssues',
-    type: 'select',
-    options: [
-      { value: '', label: 'All' },
-      { value: 'true', label: 'Yes' },
-      { value: 'false', label: 'No' },
-      { value: 'null', label: 'No Red Flag Rating' },
-    ],
-  },
-  overallComplexity: {
-    urlParam: 'complexity',
-    type: 'select',
-    options: [
-      { value: '', label: 'All' },
-      { value: 'HIGH', label: 'High' },
-      { value: 'MEDIUM-HIGH', label: 'Medium-High' },
-      { value: 'MEDIUM', label: 'Medium' },
-      { value: 'LOW', label: 'Low' },
-      { value: 'null', label: 'No Red Flag Rating' },
-    ],
-  },
-  maxSeverity: {
-    urlParam: 'severity',
-    type: 'select',
-    options: [...SEVERITY_TABLE_OPTIONS],
-  },
-  requiresTechnicalReview: {
-    urlParam: 'techReview',
-    type: 'select',
-    options: [
-      { value: '', label: 'All' },
-      { value: 'true', label: 'Yes' },
-      { value: 'false', label: 'No' },
-      { value: 'null', label: 'No Red Flag Rating' },
-    ],
-  },
-  hasReportingRequirement: {
-    urlParam: 'reporting',
-    type: 'select',
-    options: [
-      { value: '', label: 'All' },
-      { value: 'true', label: 'Yes' },
-      { value: 'false', label: 'No' },
-      { value: 'null', label: 'No Red Flag Rating' },
-    ],
-  },
-  summary: {
-    urlParam: 'summarySearch',
-    type: 'text',
-    placeholder: 'Search...',
-  },
   sectionType: {
     urlParam: 'sectionType',
     type: 'select',
@@ -156,98 +67,6 @@ const columns = [
         )}
         {formatDisplayTitle(info.row.original)}
       </div>
-    ),
-  }),
-  columnHelper.accessor('numFlags', {
-    header: '# Flags',
-    size: 80,
-    cell: (info) => {
-      const count = info.getValue() || 0;
-      return (
-        <Badge variant={count > 0 ? 'danger' : 'default'}>
-          {count}
-        </Badge>
-      );
-    },
-  }),
-  columnHelper.accessor('categories', {
-    header: 'Categories',
-    size: 180,
-    cell: (info) => (
-      <div className="text-xs text-[var(--color-text-secondary)] line-clamp-2">
-        {info.getValue() || '–'}
-      </div>
-    ),
-  }),
-  columnHelper.accessor('explanations', {
-    header: 'Explanations',
-    size: 300,
-    cell: (info) => {
-      const text = info.getValue() || '';
-      return (
-        <div className="text-xs text-[var(--color-text-secondary)] line-clamp-3">
-          {text || '–'}
-        </div>
-      );
-    },
-  }),
-  columnHelper.accessor('hasImplementationIssues', {
-    header: 'Impl Issues',
-    size: 90,
-    cell: (info) => (
-      <span className="text-[var(--color-text)]">
-        {info.getValue() ? (
-          <span className="text-[var(--color-danger)]">●</span>
-        ) : (
-          <span className="text-[var(--color-text-muted)]">–</span>
-        )}
-      </span>
-    ),
-  }),
-  columnHelper.accessor('overallComplexity', {
-    header: 'Complexity',
-    size: 100,
-    cell: (info) => {
-      const complexity = info.getValue();
-      if (!complexity) return <span className="text-[var(--color-text-muted)]">–</span>;
-
-      const variant = getComplexityVariant(complexity);
-      return <Badge variant={variant}>{complexity}</Badge>;
-    },
-  }),
-  columnHelper.accessor('maxSeverity', {
-    header: 'Severity',
-    size: 90,
-    cell: (info) => {
-      const severity = info.getValue();
-      if (!severity) return <span className="text-[var(--color-text-muted)]">–</span>;
-      return <SeverityBadge severity={severity} />;
-    },
-  }),
-  columnHelper.accessor('requiresTechnicalReview', {
-    header: 'Tech Review',
-    size: 95,
-    cell: (info) => (
-      <span>
-        {info.getValue() ? (
-          <span className="text-[var(--color-info)]">●</span>
-        ) : (
-          <span className="text-[var(--color-text-muted)]">–</span>
-        )}
-      </span>
-    ),
-  }),
-  columnHelper.accessor('hasReportingRequirement', {
-    header: 'Reporting',
-    size: 85,
-    cell: (info) => (
-      <span>
-        {info.getValue() ? (
-          <span className="text-[var(--color-warning)]">●</span>
-        ) : (
-          <span className="text-[var(--color-text-muted)]">–</span>
-        )}
-      </span>
     ),
   }),
   columnHelper.accessor('summary', {
@@ -292,14 +111,8 @@ interface DataTableProps {
   search: string;
 }
 
-// Columns to hide on mobile (keep: title, numFlags, maxSeverity)
+// Columns to hide on mobile (keep: title)
 const MOBILE_HIDDEN_COLUMNS = [
-  'categories',
-  'explanations',
-  'hasImplementationIssues',
-  'overallComplexity',
-  'requiresTechnicalReview',
-  'hasReportingRequirement',
   'summary',
   'sectionType',
   'keywords',
@@ -355,27 +168,12 @@ export default function DataTable({ data, onRowClick, pagination, search }: Data
 
   // Handle filter change
   const handleFilter = useCallback((urlParam: keyof typeof dataTableFiltersParsers, value: string) => {
-    // Special handling for boolean
-    if (urlParam === 'hasFlags') {
-      const boolValue = value === 'true' ? true : value === 'false' ? false : null;
-      setQueryParams({ [urlParam]: boolValue, page: 1 });
-    } else {
-      setQueryParams({ [urlParam]: value || null, page: 1 });
-    }
+    setQueryParams({ [urlParam]: value || null, page: 1 });
   }, [setQueryParams]);
 
   // Clear all filters
   const clearAllFilters = useCallback(() => {
     setQueryParams({
-      hasFlags: null,
-      hasImplIssues: null,
-      complexity: null,
-      severity: null,
-      techReview: null,
-      reporting: null,
-      category: null,
-      summarySearch: null,
-      explanationSearch: null,
       sectionType: null,
       page: 1,
     });
@@ -383,18 +181,7 @@ export default function DataTable({ data, onRowClick, pagination, search }: Data
 
   // Check if any filter is active
   const hasActiveFilters = useMemo(() => {
-    return (
-      queryParams.hasFlags !== null ||
-      queryParams.hasImplIssues !== null ||
-      queryParams.complexity !== null ||
-      queryParams.severity !== null ||
-      queryParams.techReview !== null ||
-      queryParams.reporting !== null ||
-      queryParams.category !== null ||
-      queryParams.summarySearch !== null ||
-      queryParams.explanationSearch !== null ||
-      queryParams.sectionType !== null
-    );
+    return queryParams.sectionType !== null;
   }, [queryParams]);
 
   const table = useReactTable({
@@ -573,7 +360,7 @@ export default function DataTable({ data, onRowClick, pagination, search }: Data
                   }}
                   tabIndex={0}
                   role="row"
-                  aria-label={`${row.original.title || 'Untitled'}, ${row.original.numFlags || 0} flags`}
+                  aria-label={`${row.original.title || 'Untitled'}`}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <td

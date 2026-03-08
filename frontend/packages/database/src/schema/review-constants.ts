@@ -1,47 +1,5 @@
-import {
-  pgTable,
-  bigserial,
-  bigint,
-  varchar,
-  text,
-  integer,
-  timestamp
-} from 'drizzle-orm/pg-core';
-import { sql } from 'drizzle-orm';
-import { analyses } from './analyses';
-
-export const redFlags = pgTable('red_flags', {
-  id: bigserial('id', { mode: 'number' }).primaryKey(),
-  analysisId: bigint('analysis_id', { mode: 'number' }).notNull().references(() => analyses.id, { onDelete: 'cascade' }),
-  category: varchar('category', { length: 100 }).notNull(),
-  explanation: text('explanation').notNull(),
-  severity: integer('severity').notNull(),
-  complexity: varchar('complexity', { length: 20 }).notNull(),
-  matchedPhrases: text('matched_phrases').array().default(sql`'{}'`),
-  implementationApproach: text('implementation_approach').notNull(),
-  effortEstimate: varchar('effort_estimate', { length: 255 }),
-  textExamples: text('text_examples').array().default(sql`'{}'`),
-  // Reviewer fields
-  reviewStatus: varchar('review_status', { length: 50 }).default('unreviewed'),
-  reviewedBy: varchar('reviewed_by', { length: 255 }),
-  reviewedAt: timestamp('reviewed_at'),
-  justificationNotes: text('justification_notes'),
-  teamNotes: text('team_notes'),
-  priority: integer('priority'),
-  impactType: varchar('impact_type', { length: 100 }),
-
-  // Developer tracking fields
-  developerStatus: varchar('developer_status', { length: 50 }).default('unresolved'),
-  developerAssigned: varchar('developer_assigned', { length: 50 }),
-  developerNotes: text('developer_notes'),
-  resolutionType: varchar('resolution_type', { length: 50 }),
-  resolutionComments: text('resolution_comments'),
-  developerQuestion: text('developer_question'),
-  developerCheckedAt: timestamp('developer_checked_at'),
-});
-
-export type RedFlag = typeof redFlags.$inferSelect;
-export type NewRedFlag = typeof redFlags.$inferInsert;
+// Shared review workflow constants used across compliance-issues,
+// definitions, incorporations-by-reference, and fines-fees-penalties
 
 // Review status constants
 export const REVIEW_STATUSES = [

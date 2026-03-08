@@ -106,10 +106,6 @@ export function NeedMoreInfoQueue({
         {/* Breakdown */}
         <div className="flex gap-6 mt-4 pt-4 border-t border-[var(--color-neutral-200)] text-sm">
           <div className="flex items-center gap-2">
-            <span className="text-[var(--color-text-muted)]">Red Flags:</span>
-            <span className="font-medium">{counts.flags.total}</span>
-          </div>
-          <div className="flex items-center gap-2">
             <span className="text-[var(--color-text-muted)]">Compliance Issues:</span>
             <span className="font-medium">{counts.compliance.total}</span>
           </div>

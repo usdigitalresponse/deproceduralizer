@@ -88,7 +88,7 @@ deproceduralizer/
 │   │   └── summarization/     # Hierarchical doc summarization
 │   └── lib/                   # Shared Python utilities
 ├── prompts/                   # LLM prompt definitions (YAML)
-│   ├── core.yaml              # Red flags, definitions prompts
+│   ├── core.yaml              # Definitions prompts
 │   └── compliance_issues.yaml # 42 issue types with regex + prompts
 ├── docs/                      # Documentation
 │   ├── OPERATIONS.md          # Pipeline runbook (12 steps)
@@ -103,7 +103,7 @@ deproceduralizer/
 | Skill | Purpose |
 |-------|---------|
 | `database` | Query Neon PostgreSQL, run `db-query.sh`, schema reference |
-| `pipeline` | 12-step analysis pipeline operations and commands |
+| `pipeline` | 11-step analysis pipeline operations and commands |
 | `research-pipeline` | 3-tier LLM compliance analysis (tiers, triggers, costs) |
 | `cross-references` | Internal citation extraction between regulatory docs |
 | `regulatory-analysis` | Bad regulation pattern taxonomy with examples |

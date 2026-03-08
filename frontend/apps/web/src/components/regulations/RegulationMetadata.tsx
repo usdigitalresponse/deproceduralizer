@@ -1,8 +1,6 @@
 'use client';
 
 import type { RegulationWithAnalysis } from '@deproceduralizer/database';
-import { Badge, SeverityBadge } from '@/components/ui';
-import { getComplexityVariant } from '@/types/regulation';
 
 interface RegulationMetadataProps {
   regulation: Pick<
@@ -10,12 +8,6 @@ interface RegulationMetadataProps {
     | 'url'
     | 'urlType'
     | 'sourceIndex'
-    | 'numFlags'
-    | 'maxSeverity'
-    | 'overallComplexity'
-    | 'hasImplementationIssues'
-    | 'requiresTechnicalReview'
-    | 'hasReportingRequirement'
   >;
   /** Layout style: 'grid' for full page, 'compact' for modals */
   layout?: 'grid' | 'compact';
@@ -23,7 +15,7 @@ interface RegulationMetadataProps {
 }
 
 /**
- * Displays metadata for a regulation including source, flags, severity, complexity, etc.
+ * Displays metadata for a regulation including source info.
  * Used in DetailModal, DetailPanel, and regulation detail page.
  *
  * @example
@@ -43,17 +35,7 @@ export function RegulationMetadata({
     url,
     urlType,
     sourceIndex,
-    numFlags,
-    maxSeverity,
-    overallComplexity,
-    hasImplementationIssues,
-    requiresTechnicalReview,
-    hasReportingRequirement,
   } = regulation;
-
-  // Determine if analysis exists - show analysis section only when we have analysis data
-  // We check overallComplexity since it's a required output from the analysis pipeline
-  const hasAnalysis = overallComplexity != null;
 
   if (layout === 'compact') {
     return (
@@ -74,36 +56,6 @@ export function RegulationMetadata({
         <MetadataItem label="Source Index">
           <span className="text-sm font-mono">{sourceIndex || '–'}</span>
         </MetadataItem>
-        <MetadataItem label="Red Flags">
-          <Badge variant={(numFlags ?? 0) > 0 ? 'danger' : 'default'} className="ml-0">
-            {numFlags || 0} flags
-          </Badge>
-        </MetadataItem>
-        <MetadataItem label="Severity">
-          {maxSeverity ? (
-            <SeverityBadge severity={maxSeverity} className="ml-0" />
-          ) : (
-            <span className="text-[var(--color-text-muted)]">–</span>
-          )}
-        </MetadataItem>
-        <MetadataItem label="Complexity">
-          {overallComplexity ? (
-            <Badge variant={getComplexityVariant(overallComplexity)} className="ml-0">
-              {overallComplexity}
-            </Badge>
-          ) : (
-            <span className="text-[var(--color-text-muted)]">–</span>
-          )}
-        </MetadataItem>
-        <MetadataItem label="Impl Issues">
-          <BooleanIndicator value={hasImplementationIssues} color="danger" />
-        </MetadataItem>
-        <MetadataItem label="Tech Review">
-          <BooleanIndicator value={requiresTechnicalReview} color="info" />
-        </MetadataItem>
-        <MetadataItem label="Reporting Req" className="col-span-2">
-          <BooleanIndicator value={hasReportingRequirement} color="warning" />
-        </MetadataItem>
       </div>
     );
   }
@@ -123,73 +75,6 @@ export function RegulationMetadata({
           View Original
         </a>
       </div>
-
-      {/* Analysis Results section - only shown when analysis exists */}
-      {hasAnalysis && (
-        <>
-          <div className="mt-4 pt-4 border-t border-[var(--color-neutral-200)]">
-            <h3 className="font-semibold text-[var(--color-text-secondary)] text-sm mb-3">
-              Analysis Results
-            </h3>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div>
-              <span className="font-semibold text-[var(--color-text-secondary)] text-sm block">Red Flags</span>
-              <Badge variant={(numFlags ?? 0) > 0 ? 'danger' : 'default'}>
-                {numFlags || 0} flags
-              </Badge>
-            </div>
-            <div>
-              <span className="font-semibold text-[var(--color-text-secondary)] text-sm block">Severity</span>
-              {maxSeverity ? (
-                <SeverityBadge severity={maxSeverity} />
-              ) : (
-                <span className="text-[var(--color-text-muted)]">–</span>
-              )}
-            </div>
-            <div>
-              <span className="font-semibold text-[var(--color-text-secondary)] text-sm block">Complexity</span>
-              {overallComplexity ? (
-                <Badge variant={getComplexityVariant(overallComplexity)}>
-                  {overallComplexity}
-                </Badge>
-              ) : (
-                <span className="text-[var(--color-text-muted)]">–</span>
-              )}
-            </div>
-            <div>
-              <span className="font-semibold text-[var(--color-text-secondary)] text-sm block">Impl Issues</span>
-              <span className="text-sm">
-                {hasImplementationIssues ? (
-                  <span className="text-[var(--color-danger)]">Yes</span>
-                ) : (
-                  <span className="text-[var(--color-text-muted)]">No</span>
-                )}
-              </span>
-            </div>
-            <div>
-              <span className="font-semibold text-[var(--color-text-secondary)] text-sm block">Tech Review</span>
-              <span className="text-sm">
-                {requiresTechnicalReview ? (
-                  <span className="text-[var(--color-info)]">Yes</span>
-                ) : (
-                  <span className="text-[var(--color-text-muted)]">No</span>
-                )}
-              </span>
-            </div>
-            <div>
-              <span className="font-semibold text-[var(--color-text-secondary)] text-sm block">Reporting</span>
-              <span className="text-sm">
-                {hasReportingRequirement ? (
-                  <span className="text-[var(--color-warning)]">Yes</span>
-                ) : (
-                  <span className="text-[var(--color-text-muted)]">No</span>
-                )}
-              </span>
-            </div>
-          </div>
-        </>
-      )}
     </div>
   );
 }
@@ -209,30 +94,6 @@ function MetadataItem({
       <span className="font-semibold text-[var(--color-text-secondary)] text-sm">{label}:</span>
       <span className="ml-2">{children}</span>
     </div>
-  );
-}
-
-function BooleanIndicator({
-  value,
-  color,
-}: {
-  value: boolean | null | undefined;
-  color: 'danger' | 'info' | 'warning';
-}) {
-  const colorClass = {
-    danger: 'text-[var(--color-danger)]',
-    info: 'text-[var(--color-info)]',
-    warning: 'text-[var(--color-warning)]',
-  }[color];
-
-  return (
-    <span className="text-sm">
-      {value ? (
-        <span className={colorClass}>● Yes</span>
-      ) : (
-        <span className="text-[var(--color-text-muted)]">– No</span>
-      )}
-    </span>
   );
 }
 

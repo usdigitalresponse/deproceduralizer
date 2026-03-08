@@ -72,7 +72,7 @@ export const PENALTY_TYPES = ['fine', 'fee', 'penalty', 'surcharge', 'forfeiture
 export type PenaltyType = (typeof PENALTY_TYPES)[number];
 
 // Re-export shared review workflow types
-export type { ReviewStatus, DeveloperStatus, ResolutionType, Developer } from './red-flags';
+export type { ReviewStatus, DeveloperStatus, ResolutionType, Developer } from './review-constants';
 export {
   REVIEW_STATUSES,
   REVIEW_STATUS_LABELS,
@@ -80,4 +80,4 @@ export {
   DEVELOPER_STATUSES,
   RESOLUTION_TYPES,
   DEVELOPERS
-} from './red-flags';
+} from './review-constants';

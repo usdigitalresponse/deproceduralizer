@@ -1,8 +1,7 @@
 'use client';
 
-import { FileText, Flag, Sparkles, ShieldAlert } from 'lucide-react';
+import { FileText, Sparkles, ShieldAlert } from 'lucide-react';
 import type { DashboardStats, StatuteLinkStats, SeverityDistribution, JenAIReviewStatusCounts } from '@deproceduralizer/database';
-import type { ReviewStatusCounts } from '@/lib/actions/red-flags';
 import type { ComplianceIssueStatusCounts } from '@/lib/actions/compliance-issues';
 import type { MetadataStats } from '@/lib/actions/regulations';
 import type { DefinitionsAnalyticsStats } from '@/lib/actions/definitions';
@@ -23,7 +22,6 @@ const LEGACY_TYPES = new Set(['in_person', 'paper_form', 'notarized', 'certified
 
 interface OverviewTabProps {
   dashboardStats: DashboardStats | null;
-  redFlagStatus: ReviewStatusCounts | null;
   complianceStatus: ComplianceIssueStatusCounts | null;
   complianceTypeCounts: Record<string, number> | null;
   metadataStats: MetadataStats | null;
@@ -101,7 +99,6 @@ function CoverageTile({ label, value }: { label: string; value: string }) {
 
 export function OverviewTab({
   dashboardStats,
-  redFlagStatus,
   complianceStatus,
   complianceTypeCounts,
   metadataStats,
@@ -128,18 +125,7 @@ export function OverviewTab({
     funnel && funnel.tier3.total > 0 ? funnel.tier3 : funnel?.tier2;
   const tierLabel = funnel && funnel.tier3.total > 0 ? '3' : '2';
 
-  // Severity distribution
-  const severityData = dashboardStats.flagsBySeverity;
-  const high = severityData?.high ?? 0;
-  const medium = severityData?.medium ?? 0;
-  const low = severityData?.low ?? 0;
-  const totalFlags = dashboardStats.totalFlags ?? 0;
-
   // Review progress
-  const redFlagReviewed = redFlagStatus?.confirmed ?? 0;
-  const redFlagUnreviewed = redFlagStatus?.unreviewed ?? 0;
-  const redFlagTotal = redFlagStatus?.total ?? 0;
-
   const complianceReviewed = complianceStatus?.confirmed ?? 0;
   const complianceUnreviewed = complianceStatus?.unreviewed ?? 0;
   const complianceTotal = complianceStatus?.total ?? 0;
@@ -182,7 +168,7 @@ export function OverviewTab({
   return (
     <div className="space-y-6">
       {/* Section 1: Executive Stats */}
-      <StatGrid columns={4}>
+      <StatGrid columns={3}>
         <StatCard
           label="Regulations Analyzed"
           value={dashboardStats.totalDocuments}
@@ -210,13 +196,6 @@ export function OverviewTab({
               ? 'Requirements that could be simplified'
               : 'Pipeline data not available'
           }
-        />
-        <StatCard
-          label="Red Flags"
-          value={totalFlags}
-          icon={Flag}
-          variant={totalFlags > 0 ? 'danger' : 'default'}
-          subtitle={`${dashboardStats.unreviewedFlags} awaiting review`}
         />
       </StatGrid>
 
@@ -316,53 +295,11 @@ export function OverviewTab({
               total: complianceTotal,
             }}
           />
-          <ReviewProgressBar
-            label="Red Flags"
-            counts={{
-              confirmed: redFlagReviewed,
-              unreviewed: redFlagUnreviewed,
-              total: redFlagTotal,
-            }}
-          />
         </div>
       </Card>
 
-      {/* Section 4: Severity Distribution (3 donuts side-by-side) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card padding="lg">
-          <h3 className="text-lg font-semibold text-[var(--color-text)] mb-4">
-            Red Flag Severity
-          </h3>
-          {totalFlags > 0 ? (
-            <div className="flex flex-col items-center gap-4">
-              <ClientChart minHeight={160}>
-                <SeverityDonutChart
-                  high={high}
-                  medium={medium}
-                  low={low}
-                  width={160}
-                  height={160}
-                  showTotal
-                />
-              </ClientChart>
-              <ChartLegend
-                items={colors
-                  .getSeverityPieColors()
-                  .slice(0, 3)
-                  .map((item, i) => ({
-                    ...item,
-                    value: [high, medium, low][i],
-                  }))}
-                orientation="horizontal"
-              />
-            </div>
-          ) : (
-            <div className="flex items-center justify-center h-48 text-[var(--color-text-muted)]">
-              No red flag data
-            </div>
-          )}
-        </Card>
-
+      {/* Section 4: Severity Distribution (2 donuts side-by-side) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card padding="lg">
           <h3 className="text-lg font-semibold text-[var(--color-text)] mb-4">
             Compliance Issue Severity

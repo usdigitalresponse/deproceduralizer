@@ -1,4 +1,12 @@
-import { PRIORITY_OPTIONS, IMPACT_TYPES, formatLabel } from '@/types/regulation';
+import { IMPACT_TYPES, formatLabel } from '@/types/regulation';
+
+const PRIORITY_OPTIONS = [
+  { value: '1', label: '1 - Lowest' },
+  { value: '2', label: '2 - Low' },
+  { value: '3', label: '3 - Medium' },
+  { value: '4', label: '4 - High' },
+  { value: '5', label: '5 - Highest' },
+];
 
 export const getPriorityLabel = (priority: number | null) => {
   if (!priority) return null;

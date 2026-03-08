@@ -1,7 +1,6 @@
 import { notFound } from 'next/navigation';
 import { getDashboardStats } from '@/lib/actions/dashboard';
 import { getSectionTypeStats, getMetadataStats, getTopKeywords, getTopAppliesTo } from '@/lib/actions/regulations';
-import { getRedFlagStatusCounts, getRedFlagCategories } from '@/lib/actions/red-flags';
 import { getComplianceIssueStatusCounts, getComplianceIssueCountsByType, getComplianceSeverityDistribution } from '@/lib/actions/compliance-issues';
 import { getJenAISeverityDistribution, getJenAIStatusCounts } from '@/lib/actions/jenai';
 import { getDefinitionAnalyticsStats } from '@/lib/actions/definitions';
@@ -34,8 +33,6 @@ export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
     metadataStatsResult,
     topKeywordsResult,
     topAppliesToResult,
-    redFlagStatusResult,
-    redFlagCategoriesResult,
     complianceStatusResult,
     complianceTypeCountsResult,
     definitionsStatsResult,
@@ -52,8 +49,6 @@ export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
     getMetadataStats(state),
     getTopKeywords(state, 30),
     getTopAppliesTo(state, 30),
-    getRedFlagStatusCounts(stateCode),
-    getRedFlagCategories(stateCode),
     getComplianceIssueStatusCounts(stateCode),
     getComplianceIssueCountsByType(stateCode),
     getDefinitionAnalyticsStats(stateCode),
@@ -72,8 +67,6 @@ export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
   const metadataStats = metadataStatsResult.success ? metadataStatsResult.data : null;
   const topKeywords = topKeywordsResult.success ? topKeywordsResult.data : null;
   const topAppliesTo = topAppliesToResult.success ? topAppliesToResult.data : null;
-  const redFlagStatus = redFlagStatusResult.success ? redFlagStatusResult.data : null;
-  const redFlagCategories = redFlagCategoriesResult.success ? redFlagCategoriesResult.data : null;
   const complianceStatus = complianceStatusResult.success ? complianceStatusResult.data : null;
   const complianceTypeCounts = complianceTypeCountsResult.success ? complianceTypeCountsResult.data : null;
   const definitionsStats = definitionsStatsResult.success ? definitionsStatsResult.data : null;
@@ -99,8 +92,6 @@ export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
           metadataStats={metadataStats}
           topKeywords={topKeywords}
           topAppliesTo={topAppliesTo}
-          redFlagStatus={redFlagStatus}
-          redFlagCategories={redFlagCategories}
           complianceStatus={complianceStatus}
           complianceTypeCounts={complianceTypeCounts}
           definitionsStats={definitionsStats}

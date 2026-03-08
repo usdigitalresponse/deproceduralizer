@@ -16,12 +16,11 @@ Complete guide for running the Deproceduralizer analysis pipeline on a state's r
 8. Research Pipeline  →  compliance_issue_analyses table (LLM Tier 1-3)
 9. IBR Scan           →  incorporations_by_reference table
 9b. Fines Scan        →  fines_fees_penalties table (LLM structured extraction)
-10. Red Flags         →  analyses table
-11. JenAI Pipeline    →  jenai_analyses + jenai_issues tables (LLM single-pass)
-12. Refresh Stats     →  precomputed counts on regulatory_documents
+10. JenAI Pipeline    →  jenai_analyses + jenai_issues tables (LLM single-pass)
+11. Refresh Stats     →  precomputed counts on regulatory_documents
 
 Separate pipeline:
-13. Guidance Import   →  guidance_documents table (from nys-documents repo)
+12. Guidance Import   →  guidance_documents table (from nys-documents repo)
 ```
 
 **Step dependencies:**
@@ -29,9 +28,9 @@ Separate pipeline:
 - Step 5 (cross-references) can run anytime after Step 1 (only needs scraped documents)
 - Steps 6 and 7 can run in parallel (no dependency on each other)
 - **Step 8 depends on Steps 5 and 6** — the research pipeline uses document summaries and cross-reference summaries as LLM context
-- Steps 9-10 are independent of 8 and can run anytime after Step 1
-- **Step 11 depends on Steps 5 and 6** — JenAI uses summaries, cross-refs, and definitions as rich LLM context
-- Step 12 should run last (after any step that changes counts)
+- Steps 9-9b are independent of 8 and can run anytime after Step 1
+- **Step 10 depends on Steps 5 and 6** — JenAI uses summaries, cross-refs, and definitions as rich LLM context
+- Step 11 should run last (after any step that changes counts)
 
 ## Full State Analysis (e.g., NY)
 
@@ -533,25 +532,7 @@ python backend/scripts/fines_scanner.py --state ny --include-guidance --dry-run
 |------|------|
 | ~$1-3 (Haiku batch) | ~6 min for 5,500 docs |
 
-### Step 10: Red Flag Analysis
-
-```bash
-python backend/scripts/red_flags.py --state NY   # or NJ, NYC
-```
-
-- Identifies 12 categories of implementation complexity (Jennifer Pahlka's framework)
-- One analysis row per document in `analyses` table
-- `is_current = TRUE` marks the latest analysis per document
-- Use `--skip-done` to avoid re-analyzing, `--title 5` to filter, `--sample-size N` to limit
-- Use `--dry-run` to preview, `--chapter II` to filter by chapter
-- Use `--use-batch-api` for 50% cheaper batch processing, `--process-batch <batch_id>` to process a completed batch
-- Old analyses deleted on rerun (red_flags cascade)
-
-| Cost | Time |
-|------|------|
-| $$ (Claude) | Hours |
-
-### Step 11: JenAI Pipeline (Single-Pass Enriched Analysis)
+### Step 10: JenAI Pipeline (Single-Pass Enriched Analysis)
 
 ```bash
 # Dry run (default) — shows section count, no execution
@@ -597,14 +578,14 @@ cd backend && python3 -m scripts.jenai_pipeline.cli --state ny --document-id 818
 - `--no-cache` — Disable LLM API response cache
 - `--document-id ID [ID ...]` — Target specific document ID(s) (auto-disables exclude_analyzed)
 
-### Step 12: Refresh Hierarchy Stats
+### Step 11: Refresh Hierarchy Stats
 
 ```bash
 python backend/scripts/refresh_hierarchy_stats.py --state NY   # or NJ, NYC
 ```
 
 - Precomputes hierarchy statistics for frontend performance
-- Updates: `child_count`, `descendant_count`, `descendant_flag_count`, `descendant_analyzed_count`, `compliance_issue_count`, `descendant_compliance_issue_count`
+- Updates: `child_count`, `descendant_count`, `descendant_analyzed_count`, `compliance_issue_count`, `descendant_compliance_issue_count`
 - Run after any step that changes document counts or analysis results
 - Use `--structure`, `--analysis`, `--compliance`, or `--statute-links` to refresh only specific stat types
 - Use `--all-states` to refresh all states at once
@@ -812,10 +793,7 @@ python3 -m scripts.research_pipeline.cli --state nyc --all-issues --title 3 \
   --max-tier 3 --web-search --execute \
   --limit all --global-limit no-limit --skip-summary-check
 
-# 4. Red flags
-python backend/scripts/red_flags.py --state NYC --title 3
-
-# 5. Refresh hierarchy stats
+# 4. Refresh hierarchy stats
 python backend/scripts/refresh_hierarchy_stats.py --state NYC
 ```
 
@@ -930,7 +908,7 @@ matches the source faithfully. See issue #16 for details.
 
 All prompts live in the `/prompts/` directory:
 
-- Core analysis prompts: `prompts/core.yaml` (red_flags, definitions)
+- Core analysis prompts: `prompts/core.yaml` (definitions)
 - Compliance issues: `prompts/compliance_issues.yaml` (46 issue types with patterns + prompts) <!-- metric: ISSUE_TYPE_COUNT=46 -->
 - Frontend copy: `frontend/apps/web/src/data/prompts.yaml` (copied from `prompts/core.yaml` via prebuild)
 
@@ -949,8 +927,7 @@ Approximate LLM costs per state (as of February 2025):
 | 8. Research Pipeline (full) | Claude Haiku/Sonnet | ~$50-60 (observed, per title) |
 | 9. IBR Scan | Claude Haiku | ~$5-10 |
 | 9b. Fines Scan | Claude Haiku | ~$1-3 |
-| 10. Red Flags | Claude | ~$50-100 |
-| **Total** | | **~$216-293** |
+| **Total** | | **~$166-193** |
 
 Costs depend on document count and average length. NY and NJ each have ~60K regulatory documents.
 

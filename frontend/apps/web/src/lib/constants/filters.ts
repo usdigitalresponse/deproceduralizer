@@ -17,10 +17,8 @@ import {
   SEVERITY_VALUES,
   REVIEW_STATUS_VALUES,
   BOOLEAN_FILTER_VALUES,
-  FLAG_SORT_BY_VALUES,
   COMPLIANCE_SORT_BY_VALUES,
   DEVELOPER_SORT_BY_VALUES,
-  RED_FLAG_DEVELOPER_SORT_BY_VALUES,
   COMPLIANCE_DEVELOPER_SORT_BY_VALUES,
   DEFINITIONS_REVIEW_STATUS_VALUES,
   DEFINITIONS_REVIEW_SCOPE_LEVEL_VALUES,
@@ -78,15 +76,6 @@ const SEVERITY_LABELS: Record<(typeof SEVERITY_VALUES)[number], string> = {
 
 export const SEVERITY_FILTER_OPTIONS = createFilterOptions(SEVERITY_VALUES, SEVERITY_LABELS);
 
-// Version for table headers with "No Red Flag Rating" option
-export const SEVERITY_TABLE_OPTIONS = [
-  { value: '', label: 'All' },
-  { value: 'high', label: 'High (7-10)' },
-  { value: 'medium', label: 'Medium (4-6)' },
-  { value: 'low', label: 'Low (1-3)' },
-  { value: 'null', label: 'No Red Flag Rating' },
-];
-
 // ============================================
 // Review Status Options
 // ============================================
@@ -106,18 +95,6 @@ export const REVIEW_STATUS_FILTER_OPTIONS = createFilterOptions(REVIEW_STATUS_VA
 // ============================================
 // Boolean Filter Options
 // ============================================
-
-export const ANALYZED_FILTER_OPTIONS = createFilterOptions(BOOLEAN_FILTER_VALUES, {
-  all: 'All',
-  true: 'Has Red Flag Analysis',
-  false: 'No Red Flag Analysis',
-});
-
-export const HAS_FLAGS_FILTER_OPTIONS = createFilterOptions(BOOLEAN_FILTER_VALUES, {
-  all: 'All',
-  true: 'Has Flags',
-  false: 'No Flags',
-});
 
 export const HAS_DEFINITIONS_FILTER_OPTIONS = createFilterOptions(BOOLEAN_FILTER_VALUES, {
   all: 'All',
@@ -157,12 +134,6 @@ export const REQUIREMENT_FOUND_FILTER_OPTIONS = createFilterOptions(BOOLEAN_FILT
 // Sort Options
 // ============================================
 
-export const REVIEW_SORT_OPTIONS = createFilterOptions(FLAG_SORT_BY_VALUES, {
-  severity: 'Severity',
-  category: 'Category',
-  reviewedAt: 'Last Reviewed',
-});
-
 export const COMPLIANCE_SORT_OPTIONS = createFilterOptions(COMPLIANCE_SORT_BY_VALUES, {
   severity: 'Severity',
   createdAt: 'Date Created',
@@ -171,13 +142,6 @@ export const COMPLIANCE_SORT_OPTIONS = createFilterOptions(COMPLIANCE_SORT_BY_VA
 });
 
 export const DEVELOPER_SORT_OPTIONS = createFilterOptions(DEVELOPER_SORT_BY_VALUES, {
-  reviewedAt: 'Review Date',
-  developerCheckedAt: 'Last Updated',
-});
-
-export const RED_FLAG_DEVELOPER_SORT_OPTIONS = createFilterOptions(RED_FLAG_DEVELOPER_SORT_BY_VALUES, {
-  severity: 'Severity',
-  category: 'Category',
   reviewedAt: 'Review Date',
   developerCheckedAt: 'Last Updated',
 });
@@ -549,12 +513,6 @@ export const SEARCH_DOC_TYPE_OPTIONS: FilterOption[] = [
   { value: 'regulation', label: 'Regulations' },
   { value: 'statute', label: 'Statutes' },
   { value: 'guidance', label: 'Guidance' },
-];
-
-export const SEARCH_ANALYSIS_OPTIONS: FilterOption[] = [
-  { value: 'all', label: 'All' },
-  { value: 'true', label: 'Has Red Flag Analysis' },
-  { value: 'false', label: 'No Red Flag Analysis' },
 ];
 
 export const SEARCH_CLASSIFICATION_OPTIONS: FilterOption[] = [

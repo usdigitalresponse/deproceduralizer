@@ -1,7 +1,6 @@
 'use client';
 
 import { useMemo } from 'react';
-import type { ReviewStatusCounts } from '@/lib/actions/red-flags';
 import type { ComplianceIssueStatusCounts } from '@/lib/actions/compliance-issues';
 import { Card } from '@/components/ui';
 import { ClientChart, ChartContainer, HorizontalBarChart, ChartLegend } from '@/components/charts';
@@ -10,7 +9,6 @@ import type { BarChartDatum } from '@/lib/charts/types';
 
 interface IssuesTabProps {
   complianceByType: Record<string, number>;
-  redFlagStatus: ReviewStatusCounts | null;
   complianceStatus: ComplianceIssueStatusCounts | null;
 }
 
@@ -44,7 +42,6 @@ function formatIssueType(type: string): string {
 
 export function IssuesTab({
   complianceByType,
-  redFlagStatus,
   complianceStatus,
 }: IssuesTabProps) {
   const colors = useChartColors();

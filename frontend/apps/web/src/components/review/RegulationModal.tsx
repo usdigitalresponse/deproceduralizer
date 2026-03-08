@@ -8,14 +8,11 @@ import {
   ModalTitle,
   ModalBody,
   ModalClose,
-  Badge,
-  SeverityBadge,
   Button,
 } from '@/components/ui';
 import { RegulationSummary } from '@/components/regulations/RegulationSummary';
 import { RegulationContent } from '@/components/regulations/RegulationContent';
 import { formatStateCitation } from '@/lib/formatters/citations';
-import { getComplexityVariant } from '@/types/regulation';
 import { useJurisdictionFromPath, useRegulationById } from '@/hooks';
 import { isValidJurisdiction, DEFAULT_JURISDICTION } from '@/types/state';
 
@@ -95,43 +92,17 @@ export function RegulationModal({ regulationId, onClose }: RegulationModalProps)
 
           {regulation && !isLoading && !error && (
             <>
-              {/* Metadata Grid */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <div className="border-b border-[var(--color-neutral-200)] pb-2">
-                  <span className="font-semibold text-[var(--color-text-secondary)] text-sm">Source:</span>
-                  <a
-                    href={regulation.url ?? ''}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="ml-2 text-[var(--color-link)] hover:text-[var(--color-link-hover)] hover:underline text-sm"
-                  >
-                    View Original
-                  </a>
-                </div>
-                <div className="border-b border-[var(--color-neutral-200)] pb-2">
-                  <span className="font-semibold text-[var(--color-text-secondary)] text-sm">Red Flags:</span>
-                  <Badge variant={(regulation.numFlags ?? 0) > 0 ? 'danger' : 'default'} className="ml-2">
-                    {regulation.numFlags || 0} flags
-                  </Badge>
-                </div>
-                <div className="border-b border-[var(--color-neutral-200)] pb-2">
-                  <span className="font-semibold text-[var(--color-text-secondary)] text-sm">Severity:</span>
-                  {regulation.maxSeverity ? (
-                    <SeverityBadge severity={regulation.maxSeverity} className="ml-2" />
-                  ) : (
-                    <span className="ml-2 text-[var(--color-text-muted)]">–</span>
-                  )}
-                </div>
-                <div className="border-b border-[var(--color-neutral-200)] pb-2">
-                  <span className="font-semibold text-[var(--color-text-secondary)] text-sm">Complexity:</span>
-                  {regulation.overallComplexity ? (
-                    <Badge variant={getComplexityVariant(regulation.overallComplexity)} className="ml-2">
-                      {regulation.overallComplexity}
-                    </Badge>
-                  ) : (
-                    <span className="ml-2 text-[var(--color-text-muted)]">–</span>
-                  )}
-                </div>
+              {/* Metadata */}
+              <div className="border-b border-[var(--color-neutral-200)] pb-2 mb-6">
+                <span className="font-semibold text-[var(--color-text-secondary)] text-sm">Source:</span>
+                <a
+                  href={regulation.url ?? ''}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ml-2 text-[var(--color-link)] hover:text-[var(--color-link-hover)] hover:underline text-sm"
+                >
+                  View Original
+                </a>
               </div>
 
               {/* Summary */}

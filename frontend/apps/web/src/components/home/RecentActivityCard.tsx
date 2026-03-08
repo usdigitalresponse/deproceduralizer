@@ -1,6 +1,6 @@
 'use client';
 
-import { Search, CheckCircle, Flag, FileText } from 'lucide-react';
+import { Search, CheckCircle } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import type { RecentActivity } from '@deproceduralizer/database';
 
@@ -34,9 +34,7 @@ function MetricItem({ icon: Icon, value, label, colorClass }: MetricItemProps) {
 export function RecentActivityCard({ activity }: RecentActivityCardProps) {
   const hasActivity =
     activity.newIssues > 0 ||
-    activity.issuesReviewed > 0 ||
-    activity.flagsReviewed > 0 ||
-    activity.documentsAnalyzed > 0;
+    activity.issuesReviewed > 0;
 
   return (
     <Card>
@@ -57,18 +55,6 @@ export function RecentActivityCard({ activity }: RecentActivityCardProps) {
             value={activity.issuesReviewed}
             label="Issues reviewed"
             colorClass="bg-[var(--color-success-bg)] text-[var(--color-success)]"
-          />
-          <MetricItem
-            icon={Flag}
-            value={activity.flagsReviewed}
-            label="Flags reviewed"
-            colorClass="bg-[var(--color-success-bg)] text-[var(--color-success)]"
-          />
-          <MetricItem
-            icon={FileText}
-            value={activity.documentsAnalyzed}
-            label="Red flag analyses"
-            colorClass="bg-[var(--color-info-bg)] text-[var(--color-info)]"
           />
         </div>
       ) : (

@@ -2,7 +2,6 @@ import {
   FileText,
   Scale,
   ClipboardList,
-  AlertTriangle,
   BookOpen,
   Link2,
   Library,
@@ -20,7 +19,6 @@ export type EntityType =
   | 'regulatory_document'
   | 'statute'
   | 'compliance_issue'
-  | 'red_flag'
   | 'definition'
   | 'cross_reference'
   | 'ibr_standard'
@@ -73,15 +71,6 @@ export const ENTITY_TYPES: Record<EntityType, EntityTypeConfig> = {
     bgColor: 'bg-amber-50',
     borderColor: 'border-amber-300',
     textColor: 'text-amber-700',
-  },
-  red_flag: {
-    icon: AlertTriangle,
-    label: 'Red Flag',
-    shortLabel: 'Red Flag',
-    iconColor: 'text-rose-600',
-    bgColor: 'bg-rose-50',
-    borderColor: 'border-rose-300',
-    textColor: 'text-rose-700',
   },
   definition: {
     icon: BookOpen,

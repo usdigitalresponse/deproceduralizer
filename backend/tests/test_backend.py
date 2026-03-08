@@ -39,30 +39,6 @@ class TestBatchHelpers:
         assert request['params']['messages'][0]['content'] == "Say hello"
         assert len(request['params']['tools']) == 1
 
-    def test_load_prompt(self):
-        from lib.prompts import load_prompt, load_prompt_parts
-
-        # Test red flags prompt loads (template only - dynamic content)
-        prompt = load_prompt(
-            "red_flags_analysis",
-            section_text="Test content",
-            citation="Test § 1.1",
-            heading="Test Heading"
-        )
-        assert "Test content" in prompt
-        assert "Test § 1.1" in prompt
-
-        # Framework is now in system prompt (for caching)
-        parts = load_prompt_parts(
-            "red_flags_analysis",
-            section_text="Test content",
-            citation="Test § 1.1",
-            heading="Test Heading"
-        )
-        assert parts['system'] is not None
-        assert "COMPLEXITY_POLICY_DEBT" in parts['system']  # Framework in system
-        assert "Test content" in parts['user']  # Dynamic in user
-
     def test_load_prompt_definitions(self):
         from lib.prompts import load_prompt
 
@@ -73,34 +49,6 @@ class TestBatchHelpers:
         )
         assert "Test Title" in prompt
         assert "Test content" in prompt
-
-
-class TestRedFlagsPrompt:
-    """Test red flags prompt creation."""
-
-    def test_create_analysis_prompt(self):
-        from scripts.red_flags import create_analysis_prompt
-        from lib.prompts import load_prompt_parts
-
-        # create_analysis_prompt returns template only (for backwards compat)
-        prompt = create_analysis_prompt(
-            section_text="The applicant shall submit Form A-100 in PDF format.",
-            citation="N.J.A.C. 3A:1-1.1",
-            heading="Application Requirements"
-        )
-
-        # Should contain the section text
-        assert "Form A-100" in prompt
-
-        # Framework categories are in system prompt now (for caching)
-        parts = load_prompt_parts(
-            "red_flags_analysis",
-            section_text="test",
-            citation="test",
-            heading="test"
-        )
-        assert "MANDATED_STEPS_NOT_OUTCOMES" in parts['system']
-        assert "ADMINISTRATIVE_BURDENS" in parts['system']
 
 
 # =============================================================================
@@ -123,48 +71,18 @@ class TestLLMCalls:
         if not os.environ.get('ANTHROPIC_API_KEY'):
             pytest.skip("ANTHROPIC_API_KEY not set")
 
-    def test_red_flags_analysis(self):
-        """Test red flags LLM analysis produces valid output."""
-        import asyncio
-        from scripts.red_flags import (
-            RegulationAnalysis,
-            RegulationData,
-            analyze_regulation,
-        )
-        from lib.llm import get_async_anthropic_client
-
-        # Simple test regulation
-        reg = RegulationData(
-            url="https://test.example.com",
-            title="Test Section",
-            content="The applicant must submit Form A-100 in PDF format within 10 days.",
-            url_type="regulation",
-            source_index=1,
-        )
-
-        client = get_async_anthropic_client()
-        result = asyncio.run(analyze_regulation(reg, client))
-
-        # Verify we got a valid response
-        assert isinstance(result, RegulationAnalysis)
-        assert isinstance(result.has_implementation_issues, bool)
-        assert isinstance(result.red_flags, list)
-
     def test_batch_request_format_valid(self):
         """Test that batch requests are formatted correctly for the API."""
         from lib.batch import format_batch_request
-        from scripts.red_flags import RegulationAnalysis, create_analysis_prompt
+        from pydantic import BaseModel
 
-        prompt = create_analysis_prompt(
-            section_text="Test content",
-            citation="Test § 1.1",
-            heading="Test"
-        )
+        class SimpleResponse(BaseModel):
+            answer: str
 
         request = format_batch_request(
             custom_id="test_1",
-            prompt=prompt,
-            response_format=RegulationAnalysis,
+            prompt="Test content",
+            response_format=SimpleResponse,
         )
 
         # Verify structure matches Anthropic batch API spec
@@ -250,17 +168,6 @@ class TestCLI:
         result = subprocess.run(
             [sys.executable, 'scripts/batch_definitions.py', 'submit',
              '--state', 'NJ', '--title', '3A', '--limit', '1', '--dry-run'],
-            capture_output=True, text=True, cwd=str(backend_dir)
-        )
-        assert result.returncode == 0
-        assert 'DRY RUN' in result.stdout
-
-    def test_red_flags_dryrun(self):
-        import subprocess
-        backend_dir = Path(__file__).parent.parent
-        result = subprocess.run(
-            [sys.executable, 'scripts/red_flags.py',
-             '--state', 'NJ', '--title', '3A', '--sample-size', '1', '--dry-run'],
             capture_output=True, text=True, cwd=str(backend_dir)
         )
         assert result.returncode == 0

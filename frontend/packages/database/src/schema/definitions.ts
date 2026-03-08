@@ -68,7 +68,7 @@ export const definitions = pgTable('definitions', {
   teamNotes: text('team_notes'),  // Notes for the development team
   originalValues: jsonb('original_values'),  // Stores original LLM values when corrections are made
 
-  // Developer tracking fields (same as red-flags)
+  // Developer tracking fields
   developerStatus: varchar('developer_status', { length: 50 }).default('unresolved'),
   developerAssigned: varchar('developer_assigned', { length: 50 }),
   developerNotes: text('developer_notes'),
@@ -129,7 +129,7 @@ export const SCOPE_LEVELS = [
 ] as const;
 export type ScopeLevel = typeof SCOPE_LEVELS[number];
 
-// Review status workflow for definitions (different from red flags review)
+// Review status workflow for definitions
 export const DEFINITION_REVIEW_STATUSES = [
   'unreviewed',
   'confirmed',
@@ -153,7 +153,7 @@ export interface DefinitionOriginalValues {
   referenceTarget?: string;
 }
 
-// Re-export developer tracking constants from red-flags for convenience
+// Re-export developer tracking constants for convenience
 export {
   DEVELOPER_STATUSES,
   RESOLUTION_TYPES,
@@ -161,4 +161,4 @@ export {
   type DeveloperStatus,
   type ResolutionType,
   type Developer,
-} from './red-flags';
+} from './review-constants';

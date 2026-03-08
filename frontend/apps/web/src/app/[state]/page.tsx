@@ -21,9 +21,6 @@ interface PageProps {
     severity?: string;
     complexity?: string;
     hasFlags?: string;
-    hasImplIssues?: string;
-    techReview?: string;
-    reporting?: string;
     category?: string;
     summarySearch?: string;
     explanationSearch?: string;
@@ -44,61 +41,11 @@ export default async function Home({ params, searchParams }: PageProps) {
 
   const page = Math.max(1, parseInt(queryParams.page || '1', 10));
   const search = queryParams.search || '';
-  const sortBy = (queryParams.sortBy || 'maxSeverity') as PaginationOptions['sortBy'];
+  const sortBy = (queryParams.sortBy || 'title') as PaginationOptions['sortBy'];
   const sortOrder = (queryParams.sortOrder || 'desc') as PaginationOptions['sortOrder'];
 
   // Parse filters from URL params
   const filters: FilterOptions = {};
-
-  // Severity filter: 'high', 'medium', 'low', or 'null'
-  if (queryParams.severity && ['high', 'medium', 'low', 'null'].includes(queryParams.severity)) {
-    filters.severity = queryParams.severity as FilterOptions['severity'];
-  }
-
-  // Complexity filter
-  if (queryParams.complexity) {
-    if (queryParams.complexity === 'null') {
-      filters.complexity = 'null';
-    } else if (['LOW', 'MEDIUM', 'MEDIUM-HIGH', 'HIGH'].includes(queryParams.complexity)) {
-      filters.complexity = queryParams.complexity as FilterOptions['complexity'];
-    }
-  }
-
-  // Flags filter (boolean only)
-  const hasFlags = parseBooleanParam(queryParams.hasFlags);
-  if (hasFlags !== undefined) filters.hasFlags = hasFlags;
-
-  // Boolean filters with null support
-  if (queryParams.hasImplIssues === 'null') {
-    filters.hasImplementationIssues = 'null';
-  } else {
-    const hasImplIssues = parseBooleanParam(queryParams.hasImplIssues);
-    if (hasImplIssues !== undefined) filters.hasImplementationIssues = hasImplIssues;
-  }
-
-  if (queryParams.techReview === 'null') {
-    filters.requiresTechnicalReview = 'null';
-  } else {
-    const techReview = parseBooleanParam(queryParams.techReview);
-    if (techReview !== undefined) filters.requiresTechnicalReview = techReview;
-  }
-
-  if (queryParams.reporting === 'null') {
-    filters.hasReportingRequirement = 'null';
-  } else {
-    const reporting = parseBooleanParam(queryParams.reporting);
-    if (reporting !== undefined) filters.hasReportingRequirement = reporting;
-  }
-
-  // Category filter
-  if (queryParams.category) {
-    filters.category = queryParams.category;
-  }
-
-  // Text search filters
-  if (queryParams.summarySearch) {
-    filters.summarySearch = queryParams.summarySearch;
-  }
 
   if (queryParams.explanationSearch) {
     filters.explanationSearch = queryParams.explanationSearch;

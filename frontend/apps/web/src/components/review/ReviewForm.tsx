@@ -1,6 +1,14 @@
 'use client';
 
-import { REVIEW_STATUSES, IMPACT_TYPES, PRIORITY_OPTIONS } from '@/types/regulation';
+import { REVIEW_STATUSES, IMPACT_TYPES } from '@/types/regulation';
+
+const PRIORITY_OPTIONS = [
+  { value: '1', label: '1 - Lowest' },
+  { value: '2', label: '2 - Low' },
+  { value: '3', label: '3 - Medium' },
+  { value: '4', label: '4 - High' },
+  { value: '5', label: '5 - Highest' },
+];
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
@@ -8,7 +16,7 @@ import { Select } from '@/components/ui/Select';
 import { ReviewStatusBadge } from '@/components/ui/Badge';
 import { useReviewForm, type ReviewFormCallbackData } from '@/hooks/useReviewForm';
 
-export type ReviewItemType = 'red_flag' | 'compliance_issue';
+export type ReviewItemType = 'compliance_issue';
 
 export interface ReviewableItem {
   id: number;
@@ -38,26 +46,8 @@ interface ReviewFormProps<T extends ReviewableItem> {
 }
 
 /**
- * Generic review form for red flags and compliance issues.
+ * Generic review form for compliance issues.
  * Handles review status, reviewer name, priority, impact type, and notes.
- *
- * @example
- * // For red flags
- * <ReviewForm
- *   itemType="red_flag"
- *   item={flag}
- *   onUpdated={handleFlagUpdated}
- *   onSubmit={updateRedFlagReview}
- * />
- *
- * @example
- * // For compliance issues
- * <ReviewForm
- *   itemType="compliance_issue"
- *   item={issue}
- *   onUpdated={handleIssueUpdated}
- *   onSubmit={updateComplianceIssueReview}
- * />
  */
 export function ReviewForm<T extends ReviewableItem>({
   itemType,
@@ -91,10 +81,7 @@ export function ReviewForm<T extends ReviewableItem>({
     onUpdated,
   });
 
-  // Styling based on item type
-  const borderColor = itemType === 'red_flag'
-    ? 'border-[var(--color-danger)]/20'
-    : 'border-[var(--color-warning)]/20';
+  const borderColor = 'border-[var(--color-warning)]/20';
 
   if (!isEditing) {
     return (

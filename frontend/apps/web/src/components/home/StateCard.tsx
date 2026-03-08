@@ -125,27 +125,14 @@ export function StateCard({ jurisdiction, stats }: StateCardProps) {
               barColor={info.barColor}
             />
           )}
-          <ProgressBar
-            label="Red Flag Analysis"
-            current={stats.analyzedDocuments}
-            total={stats.totalDocuments}
-            barColor={info.barColor}
-          />
         </div>
 
         {/* Actionable badges */}
-        {(stats.unreviewedFlags > 0 || issuesUnreviewed > 0) && (
+        {issuesUnreviewed > 0 && (
           <div className="flex flex-wrap gap-2 mt-3">
-            {stats.unreviewedFlags > 0 && (
-              <Badge variant="danger">
-                {stats.unreviewedFlags.toLocaleString()} unreviewed flags
-              </Badge>
-            )}
-            {issuesUnreviewed > 0 && (
-              <Badge variant="danger">
-                {issuesUnreviewed.toLocaleString()} unreviewed issues
-              </Badge>
-            )}
+            <Badge variant="danger">
+              {issuesUnreviewed.toLocaleString()} unreviewed issues
+            </Badge>
           </div>
         )}
       </Card>
