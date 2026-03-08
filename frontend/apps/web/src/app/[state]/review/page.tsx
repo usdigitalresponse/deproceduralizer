@@ -14,7 +14,6 @@ import {
   ComplianceDeveloperQueue,
 } from '@/components/review';
 import { JenAIQueue } from '@/components/review/JenAIQueue';
-import { GuidanceReviewPlaceholder } from '@/components/review/GuidanceReviewPlaceholder';
 import {
   getDeveloperModeCountsData,
   getReviewModeCountsData,
@@ -70,6 +69,7 @@ type ReviewPageQueryParams = {
   focusType?: string;
   focusSection?: string;
   focusPattern?: string;
+  source?: string;
 };
 
 /** Common context passed to every tab loader */
@@ -111,7 +111,7 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
   const stateCode = state as JurisdictionCode;
   const stateConfig = JURISDICTION_CONFIG[stateCode];
   const mode = (queryParams.mode || 'review') as ReviewMode;
-  const reviewType = (queryParams.type || 'flags') as ReviewType;
+  const reviewType = (queryParams.type || 'compliance') as ReviewType;
 
   // Handle default redirects
   if (shouldRedirect(mode, reviewType, queryParams)) {
@@ -146,13 +146,13 @@ function shouldRedirect(
   queryParams: ReviewPageQueryParams
 ): boolean {
   if (mode === 'developer') {
-    return !queryParams.developerStatus && reviewType !== 'needs_info' && reviewType !== 'jenai' && reviewType !== 'guidance';
+    return !queryParams.developerStatus && reviewType !== 'needs_info' && reviewType !== 'jenai';
   }
   // Suggestion mode doesn't need reviewStatus - it always shows unreviewed items
   if (reviewType === 'compliance' && queryParams.queueMode === 'suggestion') {
     return false;
   }
-  return !queryParams.reviewStatus && reviewType !== 'needs_info' && reviewType !== 'jenai' && reviewType !== 'guidance';
+  return !queryParams.reviewStatus && reviewType !== 'needs_info' && reviewType !== 'jenai';
 }
 
 function buildRedirectUrl(
@@ -169,7 +169,7 @@ function buildRedirectUrl(
   if (mode === 'developer') {
     params.set('mode', 'developer');
     params.set('developerStatus', 'unresolved');
-    if (reviewType !== 'flags') params.set('type', reviewType);
+    if (reviewType !== 'compliance') params.set('type', reviewType);
   } else {
     params.set('type', reviewType);
     params.set('reviewStatus', 'unreviewed');
@@ -210,8 +210,6 @@ async function renderDeveloperMode(
       return loadDeveloperJenAITab(ctx, tabCounts);
     case 'compliance':
       return loadDeveloperComplianceTab(ctx, tabCounts, countsData.complianceDeveloperStatusCounts);
-    case 'guidance':
-      return loadGuidanceTab(ctx, tabCounts, 'developer', countsData.guidanceStatusCounts);
     default:
       return loadDeveloperRedFlagsTab(ctx, tabCounts, countsData.redFlagDeveloperStatusCounts);
   }
@@ -392,8 +390,6 @@ async function renderReviewMode(
       return loadReviewJenAITab(ctx, tabCounts);
     case 'compliance':
       return loadReviewComplianceTab(ctx, tabCounts, countsData.complianceStatusCounts);
-    case 'guidance':
-      return loadGuidanceTab(ctx, tabCounts, 'review', countsData.guidanceStatusCounts);
     default:
       return loadReviewRedFlagsTab(ctx, tabCounts, countsData.flagStatusCounts);
   }
@@ -548,6 +544,7 @@ async function loadReviewComplianceFilterTab(
   errorControls: ErrorControls,
 ) {
   const sortBy = (ctx.queryParams.sortBy || 'severity') as 'issueType' | 'createdAt' | 'reviewedAt' | 'severity';
+  const source = (ctx.queryParams.source || 'all') as 'regulation' | 'guidance' | 'all';
   const filters = {
     status: ctx.queryParams.reviewStatus === 'all' ? undefined : ctx.queryParams.reviewStatus,
     issueType: ctx.queryParams.issueType || undefined,
@@ -558,6 +555,7 @@ async function loadReviewComplianceFilterTab(
     tierCompleted: parseTierFilter(ctx.queryParams.tierCompleted),
     federalMandate: parseBooleanFilter(ctx.queryParams.federalMandate),
     hasAnalysis: parseBooleanFilter(ctx.queryParams.hasAnalysis),
+    source,
   };
 
   const dataResult = await getComplianceQueueData(ctx.stateCode, {
@@ -639,28 +637,6 @@ async function loadReviewRedFlagsTab(
 }
 
 // ============================================
-// Guidance Tab (shared between review and developer mode)
-// ============================================
-
-async function loadGuidanceTab(
-  ctx: TabLoaderContext,
-  tabCounts: TabCounts,
-  mode: ReviewMode,
-  statusCounts?: { total: number; unreviewed: number; reviewed: number; dismissed: number },
-) {
-  return (
-    <ReviewPageLayout pageConfig={ctx.pageConfig} mode={mode} reviewType="guidance" tabCounts={tabCounts}>
-      <GuidanceReviewPlaceholder
-        jurisdiction={ctx.stateCode.toLowerCase()}
-        count={tabCounts.guidance}
-        mode={mode}
-        statusCounts={statusCounts}
-      />
-    </ReviewPageLayout>
-  );
-}
-
-// ============================================
 // Shared Layout Component
 // ============================================
 
@@ -674,7 +650,7 @@ function ReviewPageLayout({
   pageConfig: { title: string; description: string };
   mode: ReviewMode;
   reviewType: ReviewType;
-  tabCounts: { flags: number; compliance: number; definitions: number; needs_info: number; jenai: number; guidance: number };
+  tabCounts: { flags: number; compliance: number; definitions: number; needs_info: number; jenai: number };
   children: React.ReactNode;
 }) {
   return (

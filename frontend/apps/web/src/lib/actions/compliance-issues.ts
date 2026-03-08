@@ -205,9 +205,28 @@ export async function getComplianceIssuesPaginated(
       tierCompleted?: '0' | '1' | '2' | '3' | 'all';
       federalMandate?: boolean | 'all';
       hasAnalysis?: boolean | 'all';
+      source?: 'regulation' | 'guidance' | 'all';
     };
   }
 ): Promise<ActionResult<PaginatedComplianceIssuesResult>> {
+  // If source is 'guidance', delegate to the dedicated guidance query
+  if (options.filters?.source === 'guidance') {
+    return runAction('getComplianceIssuesPaginated', () =>
+      complianceIssuesRepo.getGuidanceComplianceIssuesPaginated(state, {
+        jurisdiction: state,
+        page: options.page,
+        pageSize: options.pageSize,
+        sortBy: options.sortBy,
+        sortOrder: options.sortOrder,
+        filters: options.filters ? {
+          status: options.filters.status as ReviewStatus | 'all' | undefined,
+          issueType: options.filters.issueType as IssueType | 'all' | undefined,
+          severity: options.filters.severity,
+        } : undefined,
+      })
+    );
+  }
+
   return runAction('getComplianceIssuesPaginated', () =>
     complianceIssuesRepo.getAllPaginated({
       jurisdiction: state,
@@ -224,6 +243,7 @@ export async function getComplianceIssuesPaginated(
         tierCompleted: options.filters.tierCompleted,
         federalMandate: options.filters.federalMandate,
         hasAnalysis: options.filters.hasAnalysis,
+        source: options.filters.source,
       } : undefined,
     })
   );
@@ -325,23 +345,5 @@ export async function getComplianceSeverityDistribution(
     () => complianceIssuesRepo.getSeverityDistribution(state),
     [`compliance-severity-dist-${state}`],
     { revalidate: 3600, tags: ['compliance-analytics'] }
-  );
-}
-
-export interface GuidanceStatusCounts {
-  total: number;
-  unreviewed: number;
-  reviewed: number;
-  dismissed: number;
-}
-
-export async function getGuidanceComplianceIssueStatusCounts(
-  state: JurisdictionCode
-): Promise<ActionResult<GuidanceStatusCounts>> {
-  return runCachedAction(
-    'getGuidanceComplianceIssueStatusCounts',
-    () => complianceIssuesRepo.getGuidanceComplianceIssueStatusCounts(state),
-    [`guidance-compliance-status-counts-${state}`],
-    { revalidate: 120, tags: ['compliance-issues'] }
   );
 }

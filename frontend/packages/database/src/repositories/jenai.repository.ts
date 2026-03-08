@@ -1,4 +1,4 @@
-import { eq, and, desc, asc, sql, count, gte, lt, or, isNull, ne } from 'drizzle-orm';
+import { eq, and, desc, asc, sql, count, gte, lt, or, isNull, isNotNull, ne } from 'drizzle-orm';
 import { BaseRepository } from './base.repository';
 import { jenaiIssues, type JenAIIssue } from '../schema/jenai-issues';
 import { jenaiAnalyses } from '../schema/jenai-analyses';
@@ -29,15 +29,25 @@ export interface JenAIIssueWithContext extends JenAIIssue {
     agency: string | null;
     docType: string | null;
     url: string | null;
+    year: number | null;
+    datePublished: string | null;
+    status: string | null;
+    policyCategory: string | null;
+    supersedes: string[] | null;
+    supersededBy: string | null;
+    revisionOf: string | null;
   } | null;
   sourceType: 'regulation' | 'guidance';
 }
+
+export type JenAISource = 'regulation' | 'guidance' | 'all';
 
 export interface JenAIFilterOptions {
   jurisdiction: JurisdictionCode;
   status?: string;
   severity?: 'high' | 'medium' | 'low';
   category?: string;
+  source?: JenAISource;
 }
 
 export interface JenAIPaginationOptions {
@@ -81,7 +91,7 @@ export interface UpdateJenAIReviewInput {
   reviewedBy: string;
   justificationNotes?: string;
   teamNotes?: string;
-  priority?: number;
+  severity?: number;
   impactType?: string;
 }
 
@@ -228,6 +238,10 @@ export class JenAIRepository extends BaseRepository {
       if (filters.category) {
         conditions.push(eq(jenaiIssues.category, filters.category));
       }
+
+      if (filters.source && filters.source !== 'all') {
+        conditions.push(this.buildSourceCondition(filters.source));
+      }
     }
 
     return this.queryPaginated({ conditions, sortBy, sortOrder, page, pageSize });
@@ -245,7 +259,7 @@ export class JenAIRepository extends BaseRepository {
         reviewedAt: new Date(),
         justificationNotes: data.justificationNotes ?? null,
         teamNotes: data.teamNotes ?? null,
-        priority: data.priority ?? null,
+        ...(data.severity !== undefined ? { severity: data.severity } : {}),
         impactType: data.impactType ?? null,
       })
       .where(eq(jenaiIssues.id, id))
@@ -268,6 +282,34 @@ export class JenAIRepository extends BaseRepository {
         resolutionComments: data.resolutionComments ?? null,
         developerQuestion: data.developerQuestion ?? null,
         developerCheckedAt: new Date(),
+      })
+      .where(eq(jenaiIssues.id, id))
+      .returning();
+
+    return result[0];
+  }
+
+  /**
+   * Reset a JenAI issue back to unreviewed state.
+   * Clears all review and developer fields but preserves LLM-assigned severity.
+   */
+  async resetIssue(id: number): Promise<JenAIIssue | undefined> {
+    const result = await this.db
+      .update(jenaiIssues)
+      .set({
+        reviewStatus: 'unreviewed',
+        reviewedBy: null,
+        reviewedAt: null,
+        justificationNotes: null,
+        teamNotes: null,
+        impactType: null,
+        developerStatus: 'unresolved',
+        developerAssigned: null,
+        developerNotes: null,
+        resolutionType: null,
+        resolutionComments: null,
+        developerQuestion: null,
+        developerCheckedAt: null,
       })
       .where(eq(jenaiIssues.id, id))
       .returning();
@@ -311,6 +353,10 @@ export class JenAIRepository extends BaseRepository {
       if (filters.category) {
         conditions.push(eq(jenaiIssues.category, filters.category));
       }
+
+      if (filters.source && filters.source !== 'all') {
+        conditions.push(this.buildSourceCondition(filters.source));
+      }
     }
 
     return this.queryPaginated({
@@ -341,6 +387,12 @@ export class JenAIRepository extends BaseRepository {
   // ---------------------------------------------------------------------------
   // Private helpers
   // ---------------------------------------------------------------------------
+
+  private buildSourceCondition(source: JenAISource) {
+    return source === 'regulation'
+      ? isNotNull(jenaiIssues.documentId)
+      : isNotNull(jenaiIssues.guidanceDocumentId);
+  }
 
   private buildSeverityCondition(severity: 'high' | 'medium' | 'low') {
     if (severity === 'high') return gte(jenaiIssues.severity, SEVERITY_HIGH_MIN);
@@ -398,6 +450,13 @@ export class JenAIRepository extends BaseRepository {
       guidanceAgency: guidanceDocuments.agency,
       guidanceDocType: guidanceDocuments.docType,
       guidanceUrl: guidanceDocuments.url,
+      guidanceYear: guidanceDocuments.year,
+      guidanceDatePublished: guidanceDocuments.datePublished,
+      guidanceStatus: guidanceDocuments.status,
+      guidancePolicyCategory: guidanceDocuments.policyCategory,
+      guidanceSupersedes: guidanceDocuments.supersedes,
+      guidanceSupersededBy: guidanceDocuments.supersededBy,
+      guidanceRevisionOf: guidanceDocuments.revisionOf,
     };
   }
 
@@ -496,6 +555,13 @@ export class JenAIRepository extends BaseRepository {
     guidanceAgency: string | null;
     guidanceDocType: string | null;
     guidanceUrl: string | null;
+    guidanceYear: number | null;
+    guidanceDatePublished: string | null;
+    guidanceStatus: string | null;
+    guidancePolicyCategory: string | null;
+    guidanceSupersedes: string[] | null;
+    guidanceSupersededBy: string | null;
+    guidanceRevisionOf: string | null;
   }): JenAIIssueWithContext {
     const isGuidance = row.guidanceDocumentId !== null;
 
@@ -552,6 +618,13 @@ export class JenAIRepository extends BaseRepository {
             agency: row.guidanceAgency,
             docType: row.guidanceDocType,
             url: row.guidanceUrl,
+            year: row.guidanceYear,
+            datePublished: row.guidanceDatePublished,
+            status: row.guidanceStatus,
+            policyCategory: row.guidancePolicyCategory,
+            supersedes: row.guidanceSupersedes,
+            supersededBy: row.guidanceSupersededBy,
+            revisionOf: row.guidanceRevisionOf,
           }
         : null,
       sourceType: isGuidance ? 'guidance' : 'regulation',

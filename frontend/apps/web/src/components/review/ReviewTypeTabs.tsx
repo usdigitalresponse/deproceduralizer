@@ -4,6 +4,7 @@ import { useQueryStates } from 'nuqs';
 import { Badge } from '@/components/ui';
 import { REVIEW_TYPES, type ReviewType, type ReviewMode } from '@/types/regulation';
 import { JenAIAvatar } from './JenAIAvatar';
+import { ComplianceAvatar } from './ComplianceAvatar';
 import {
   reviewTypeParser,
   pageParser,
@@ -20,7 +21,6 @@ interface ReviewTypeTabsProps {
     definitions: number;
     needs_info: number;
     jenai: number;
-    guidance: number;
   };
   mode?: ReviewMode;
 }
@@ -62,8 +62,6 @@ export function ReviewTypeTabs({ activeType, counts, mode = 'review' }: ReviewTy
         return counts.needs_info;
       case 'jenai':
         return counts.jenai;
-      case 'guidance':
-        return counts.guidance;
       default:
         return 0;
     }
@@ -76,10 +74,55 @@ export function ReviewTypeTabs({ activeType, counts, mode = 'review' }: ReviewTy
     const isDefinitionsActive = activeType === 'definitions';
     const isNeedsInfoActive = activeType === 'needs_info';
     const isJenaiActive = activeType === 'jenai';
-    const isGuidanceActive = activeType === 'guidance';
 
     return (
       <div className="flex gap-1 p-1 bg-[var(--color-neutral-100)] rounded-[var(--radius-lg)] mb-4">
+        <button
+          onClick={() => handleTabChange('compliance')}
+          className={`
+            flex items-center gap-2 px-4 py-2 rounded-[var(--radius-md)] text-sm font-medium
+            transition-all duration-[var(--duration-fast)]
+            ${
+              isComplianceActive
+                ? 'bg-white text-[var(--color-text)] shadow-sm'
+                : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-white/50'
+            }
+          `}
+        >
+          <ComplianceAvatar size={22} />
+          Compliance Issues
+          {counts.compliance > 0 && (
+            <Badge
+              variant={isComplianceActive ? 'warning' : 'default'}
+              className="text-xs"
+            >
+              {counts.compliance}
+            </Badge>
+          )}
+        </button>
+        <button
+          onClick={() => handleTabChange('jenai')}
+          className={`
+            flex items-center gap-2 px-4 py-2 rounded-[var(--radius-md)] text-sm font-medium
+            transition-all duration-[var(--duration-fast)]
+            ${
+              isJenaiActive
+                ? 'bg-white text-[var(--color-text)] shadow-sm'
+                : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-white/50'
+            }
+          `}
+        >
+          <JenAIAvatar size={22} />
+          JenAI
+          {counts.jenai > 0 && (
+            <Badge
+              variant={isJenaiActive ? 'info' : 'default'}
+              className="text-xs"
+            >
+              {counts.jenai}
+            </Badge>
+          )}
+        </button>
         <button
           onClick={() => handleTabChange('flags')}
           className={`
@@ -99,28 +142,6 @@ export function ReviewTypeTabs({ activeType, counts, mode = 'review' }: ReviewTy
               className="text-xs"
             >
               {counts.flags}
-            </Badge>
-          )}
-        </button>
-        <button
-          onClick={() => handleTabChange('compliance')}
-          className={`
-            flex items-center gap-2 px-4 py-2 rounded-[var(--radius-md)] text-sm font-medium
-            transition-all duration-[var(--duration-fast)]
-            ${
-              isComplianceActive
-                ? 'bg-white text-[var(--color-text)] shadow-sm'
-                : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-white/50'
-            }
-          `}
-        >
-          Compliance Issues
-          {counts.compliance > 0 && (
-            <Badge
-              variant={isComplianceActive ? 'warning' : 'default'}
-              className="text-xs"
-            >
-              {counts.compliance}
             </Badge>
           )}
         </button>
@@ -168,51 +189,6 @@ export function ReviewTypeTabs({ activeType, counts, mode = 'review' }: ReviewTy
             </Badge>
           )}
         </button>
-        <button
-          onClick={() => handleTabChange('jenai')}
-          className={`
-            flex items-center gap-2 px-4 py-2 rounded-[var(--radius-md)] text-sm font-medium
-            transition-all duration-[var(--duration-fast)]
-            ${
-              isJenaiActive
-                ? 'bg-white text-[var(--color-text)] shadow-sm'
-                : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-white/50'
-            }
-          `}
-        >
-          <JenAIAvatar size={22} />
-          JenAI
-          {counts.jenai > 0 && (
-            <Badge
-              variant={isJenaiActive ? 'info' : 'default'}
-              className="text-xs"
-            >
-              {counts.jenai}
-            </Badge>
-          )}
-        </button>
-        <button
-          onClick={() => handleTabChange('guidance')}
-          className={`
-            flex items-center gap-2 px-4 py-2 rounded-[var(--radius-md)] text-sm font-medium
-            transition-all duration-[var(--duration-fast)]
-            ${
-              isGuidanceActive
-                ? 'bg-white text-[var(--color-text)] shadow-sm'
-                : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-white/50'
-            }
-          `}
-        >
-          Guidance
-          {counts.guidance > 0 && (
-            <Badge
-              variant={isGuidanceActive ? 'info' : 'default'}
-              className="text-xs"
-            >
-              {counts.guidance}
-            </Badge>
-          )}
-        </button>
       </div>
     );
   }
@@ -237,6 +213,7 @@ export function ReviewTypeTabs({ activeType, counts, mode = 'review' }: ReviewTy
               }
             `}
           >
+            {tab.value === 'compliance' && <ComplianceAvatar size={22} />}
             {tab.value === 'jenai' && <JenAIAvatar size={22} />}
             {tab.label}
             {count > 0 && (

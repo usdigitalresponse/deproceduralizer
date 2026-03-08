@@ -20,6 +20,7 @@ export interface SummaryContextProps {
   regulation: ComplianceIssueWithAnalysis['regulation'];
   state: string;
   citation: string;
+  guidance?: ComplianceIssueWithAnalysis['guidance'];
 }
 
 export interface LLMAnalysisSectionProps {
@@ -50,6 +51,7 @@ export interface RegulationActionsProps {
   verbatimSupportingText: string[] | null;
   regexMatchPattern: string | null;
   isVerbatim: boolean | null;
+  guidance?: ComplianceIssueWithAnalysis['guidance'];
 }
 
 export interface ReviewFormProps {

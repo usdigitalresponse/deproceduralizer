@@ -120,16 +120,33 @@ export function DeveloperForm({
       {/* Actions */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => window.open(`/${state.toLowerCase()}/regulations/${item.regulation.id}`, '_blank')}
-          >
-            View Full Regulation Page
-            <ExternalLink className="w-3 h-3 ml-1" />
-          </Button>
-          <CornellLink url={item.regulation.url} />
+          {item.guidance ? (
+            <>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => window.open(`/${state.toLowerCase()}/guidance/${item.guidance!.id}`, '_blank')}
+              >
+                View Guidance Page
+                <ExternalLink className="w-3 h-3 ml-1" />
+              </Button>
+              <CornellLink url={item.guidance.url} />
+            </>
+          ) : item.regulation ? (
+            <>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => window.open(`/${state.toLowerCase()}/regulations/${item.regulation.id}`, '_blank')}
+              >
+                View Full Regulation Page
+                <ExternalLink className="w-3 h-3 ml-1" />
+              </Button>
+              <CornellLink url={item.regulation.url} />
+            </>
+          ) : null}
           <Button
             type="button"
             variant="ghost"

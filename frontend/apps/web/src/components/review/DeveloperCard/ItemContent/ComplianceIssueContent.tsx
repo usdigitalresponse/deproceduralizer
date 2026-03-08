@@ -10,6 +10,7 @@ export function ComplianceIssueContent({ item, state }: ComplianceIssueContentPr
   if (!item.complianceIssueData) return null;
 
   const issue = item.complianceIssueData;
+  const isGuidance = !!item.guidance;
   const citation = formatStateCitation(issue.jurisdiction || state, issue.regulation);
 
   return (
@@ -31,20 +32,36 @@ export function ComplianceIssueContent({ item, state }: ComplianceIssueContentPr
         />
       </div>
 
-      {/* Hierarchy breadcrumb */}
-      <div className="mb-1">
-        <HierarchyBreadcrumbsInline
-          documentId={issue.regulation.id}
-          state={issue.jurisdiction || state}
-        />
-      </div>
+      {/* Guidance document context */}
+      {isGuidance && item.guidance && (
+        <div className="bg-[var(--color-warning-bg)] rounded p-2 mb-3">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
+            {item.guidance.agency && <span className="text-xs font-medium text-[var(--color-text-secondary)]">{item.guidance.agency}</span>}
+            {item.guidance.docType && <Badge variant="default" className="text-xs">{item.guidance.docType}</Badge>}
+            {item.guidance.year && <span className="text-xs text-[var(--color-text-muted)]">{item.guidance.year}</span>}
+          </div>
+          {item.guidance.title && <p className="text-sm text-[var(--color-text)]">{item.guidance.title}</p>}
+        </div>
+      )}
 
-      {/* Regulation citation */}
-      <div className="text-sm text-[var(--color-text-muted)] mb-4">
-        {citation && <span className="font-mono">{citation}</span>}
-        {citation && issue.regulation.title && ' - '}
-        <span className="text-[var(--color-text-secondary)]">{issue.regulation.title}</span>
-      </div>
+      {/* Hierarchy breadcrumb (only for regulation-sourced issues) */}
+      {!isGuidance && (
+        <div className="mb-1">
+          <HierarchyBreadcrumbsInline
+            documentId={issue.regulation.id}
+            state={issue.jurisdiction || state}
+          />
+        </div>
+      )}
+
+      {/* Regulation citation (only for regulation-sourced issues) */}
+      {!isGuidance && (
+        <div className="text-sm text-[var(--color-text-muted)] mb-4">
+          {citation && <span className="font-mono">{citation}</span>}
+          {citation && issue.regulation.title && ' - '}
+          <span className="text-[var(--color-text-secondary)]">{issue.regulation.title}</span>
+        </div>
+      )}
 
       {/* LLM Analysis box */}
       {(issue.tier1Reasoning || issue.tier2Reasoning || issue.tier3Reasoning || (issue.verbatimSupportingText && issue.verbatimSupportingText.length > 0)) && (
@@ -90,8 +107,8 @@ export function ComplianceIssueContent({ item, state }: ComplianceIssueContentPr
         </div>
       )}
 
-      {/* Full Regulation Text Viewer */}
-      {issue.regulation.content && (
+      {/* Full Regulation Text Viewer (only for regulation-sourced issues) */}
+      {!isGuidance && issue.regulation.content && (
         <RegulationTextViewer
           content={issue.regulation.content}
           documentId={issue.regulation.id}

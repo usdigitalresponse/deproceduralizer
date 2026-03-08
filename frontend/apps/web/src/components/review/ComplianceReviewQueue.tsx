@@ -94,7 +94,7 @@ export function ComplianceReviewQueue(props: ComplianceReviewQueueProps) {
     getItemId: (i) => i.id,
     getItemStatus: (i) => i.reviewStatus || 'unreviewed',
     defaultStatus: 'unreviewed',
-    getRegulationId: (i) => i.regulation.id,
+    getRegulationId: (i) => i.regulation?.id ?? 0,
     statusFilter: reviewStatus || 'unreviewed',
   });
 
@@ -135,7 +135,7 @@ export function ComplianceReviewQueue(props: ComplianceReviewQueueProps) {
   } = useQueueNavigation({
     items: issues,
     getItemId: (i) => `compliance-${i.id}`,
-    onViewRegulation: (i) => setSelectedRegulationId(i.regulation.id),
+    onViewRegulation: (i) => i.regulation?.id ? setSelectedRegulationId(i.regulation.id) : undefined,
     findNextUnreviewed: (idx) => issues.findIndex(
       (i, index) => index > idx && (i.reviewStatus === 'unreviewed' || !i.reviewStatus)
     ),

@@ -1,14 +1,24 @@
 'use client';
 
-import { useState, useEffect, useTransition } from 'react';
+import { useState, useEffect, useTransition, useCallback } from 'react';
+import { useQueryStates } from 'nuqs';
 import { JenAICard } from './JenAICard';
 import { QueuePagination, QueueResultsInfo } from './shared';
-import { getJenAIIssuesPaginated, getJenAICategories, getJenAIStatusCounts } from '@/lib/actions/jenai';
+import {
+  getJenAIIssuesPaginated,
+  getJenAIDeveloperItems,
+  getJenAICategories,
+  getJenAIStatusCounts,
+  getJenAIDeveloperStatusCounts,
+} from '@/lib/actions/jenai';
 import { ReviewProgress } from './ReviewProgress';
-import { JENAI_CATEGORY_LABELS } from '@/lib/constants/jenai';
-import { formatLabel } from '@/types/regulation';
+import { DeveloperProgress } from './DeveloperProgress';
+import { JenAIReviewFilters } from './JenAIReviewFilters';
+import { JenAIDeveloperFilters } from './JenAIDeveloperFilters';
 import { JenAIAvatar } from './JenAIAvatar';
+import { jenaiReviewQueueParsers, jenaiDeveloperQueueParsers } from '@/lib/url/parsers';
 import type { JurisdictionCode } from '@/types/state';
+import type { JenAIIssueWithContext } from '@deproceduralizer/database';
 
 interface JenAIQueueProps {
   jurisdiction: JurisdictionCode;
@@ -16,49 +26,30 @@ interface JenAIQueueProps {
 }
 
 export function JenAIQueue({ jurisdiction, mode = 'review' }: JenAIQueueProps) {
-  const [issues, setIssues] = useState<Array<Record<string, unknown>>>([]);
+  const isDeveloper = mode === 'developer';
+
+  const [reviewFilters, setReviewFilters] = useQueryStates(jenaiReviewQueueParsers, { shallow: false });
+  const [devFilters, setDevFilters] = useQueryStates(jenaiDeveloperQueueParsers, { shallow: false });
+
+  const [issues, setIssues] = useState<JenAIIssueWithContext[]>([]);
   const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [isPending, startTransition] = useTransition();
 
-  // Filters
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [severityFilter, setSeverityFilter] = useState<string>('all');
-  const [categoryFilter, setCategoryFilter] = useState<string>('');
-  const [sortBy, setSortBy] = useState<'severity' | 'category' | 'reviewedAt' | 'confidence'>('severity');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-
-  // Categories and counts
   const [categories, setCategories] = useState<{ category: string; count: number }[]>([]);
   const [statusCounts, setStatusCounts] = useState<Record<string, number>>({});
 
   const pageSize = 10;
 
-  // Load data
+  // Stable data: categories + status counts only depend on jurisdiction and mode
   useEffect(() => {
     startTransition(async () => {
-      const [issuesResult, categoriesResult, countsResult] = await Promise.all([
-        getJenAIIssuesPaginated(jurisdiction, {
-          page,
-          pageSize,
-          sortBy,
-          sortOrder,
-          filters: {
-            status: statusFilter === 'all' ? undefined : statusFilter,
-            severity: severityFilter === 'all' ? undefined : severityFilter as 'high' | 'medium' | 'low',
-            category: categoryFilter || undefined,
-          },
-        }),
+      const [categoriesResult, countsResult] = await Promise.all([
         getJenAICategories(jurisdiction),
-        getJenAIStatusCounts(jurisdiction),
+        isDeveloper
+          ? getJenAIDeveloperStatusCounts(jurisdiction)
+          : getJenAIStatusCounts(jurisdiction),
       ]);
-
-      if (issuesResult.success) {
-        setIssues(issuesResult.data.data as unknown as Array<Record<string, unknown>>);
-        setTotal(issuesResult.data.total);
-        setTotalPages(issuesResult.data.totalPages);
-      }
 
       if (categoriesResult.success) {
         setCategories(categoriesResult.data);
@@ -66,8 +57,7 @@ export function JenAIQueue({ jurisdiction, mode = 'review' }: JenAIQueueProps) {
 
       if (countsResult.success) {
         const counts: Record<string, number> = {};
-        const data = countsResult.data;
-        for (const [key, value] of Object.entries(data)) {
+        for (const [key, value] of Object.entries(countsResult.data)) {
           if (key !== 'total') {
             counts[key] = value as number;
           }
@@ -75,97 +65,141 @@ export function JenAIQueue({ jurisdiction, mode = 'review' }: JenAIQueueProps) {
         setStatusCounts(counts);
       }
     });
-  }, [jurisdiction, page, statusFilter, severityFilter, categoryFilter, sortBy, sortOrder]);
+  }, [jurisdiction, isDeveloper]);
 
-  const goToPage = (newPage: number) => {
-    setPage(newPage);
-  };
+  // Filtered data: issues depend on URL filter state
+  useEffect(() => {
+    startTransition(async () => {
+      const issuesResult = isDeveloper
+        ? await getJenAIDeveloperItems(jurisdiction, {
+            page: devFilters.page,
+            pageSize,
+            sortBy: devFilters.sortBy,
+            sortOrder: devFilters.sortOrder,
+            developerStatus: devFilters.developerStatus === 'all' ? undefined : devFilters.developerStatus,
+            developerAssigned: devFilters.developerAssigned || undefined,
+            severity: devFilters.severity,
+            category: devFilters.category || undefined,
+            source: devFilters.source,
+          })
+        : await getJenAIIssuesPaginated(jurisdiction, {
+            page: reviewFilters.page,
+            pageSize,
+            sortBy: reviewFilters.sortBy,
+            sortOrder: reviewFilters.sortOrder,
+            filters: {
+              status: reviewFilters.reviewStatus === 'all' ? undefined : reviewFilters.reviewStatus,
+              severity: reviewFilters.severity === 'all' ? undefined : reviewFilters.severity,
+              category: reviewFilters.category || undefined,
+              source: reviewFilters.source,
+            },
+          });
+
+      if (issuesResult.success) {
+        setIssues(issuesResult.data.data);
+        setTotal(issuesResult.data.total);
+        setTotalPages(issuesResult.data.totalPages);
+      }
+    });
+  }, [jurisdiction, isDeveloper, reviewFilters, devFilters]);
+
+  const refreshStatusCounts = useCallback(() => {
+    const countsFetcher = isDeveloper
+      ? getJenAIDeveloperStatusCounts(jurisdiction)
+      : getJenAIStatusCounts(jurisdiction);
+    countsFetcher.then((result) => {
+      if (result.success) {
+        const counts: Record<string, number> = {};
+        for (const [key, value] of Object.entries(result.data)) {
+          if (key !== 'total') {
+            counts[key] = value as number;
+          }
+        }
+        setStatusCounts(counts);
+      }
+    });
+  }, [jurisdiction, isDeveloper]);
+
+  const handleIssueUpdated = useCallback((updated: JenAIIssueWithContext) => {
+    // Check if updated issue still matches the active status filter
+    const activeStatusFilter = isDeveloper
+      ? devFilters.developerStatus
+      : reviewFilters.reviewStatus;
+
+    const updatedStatus = isDeveloper
+      ? updated.developerStatus
+      : updated.reviewStatus;
+
+    // If a status filter is active and the updated issue no longer matches, remove it
+    if (activeStatusFilter && activeStatusFilter !== 'all' && updatedStatus !== activeStatusFilter) {
+      setIssues(prev => prev.filter(i => i.id !== updated.id));
+      setTotal(prev => Math.max(0, prev - 1));
+    } else {
+      setIssues(prev => prev.map(i => i.id === updated.id ? updated : i));
+    }
+
+    // Refresh status counts to keep progress bar accurate
+    refreshStatusCounts();
+  }, [isDeveloper, devFilters.developerStatus, reviewFilters.reviewStatus, refreshStatusCounts]);
+
+  const handleIssueCleared = useCallback((issueId: number) => {
+    setIssues(prev => prev.filter(i => i.id !== issueId));
+    setTotal(prev => Math.max(0, prev - 1));
+    refreshStatusCounts();
+  }, [refreshStatusCounts]);
+
+  const currentPage = isDeveloper ? devFilters.page : reviewFilters.page;
+
+  const goToPage = useCallback((newPage: number) => {
+    if (isDeveloper) {
+      setDevFilters({ page: newPage });
+    } else {
+      setReviewFilters({ page: newPage });
+    }
+  }, [isDeveloper, setDevFilters, setReviewFilters]);
 
   return (
     <div>
-      {/* Status counts progress */}
+      {/* Progress bar */}
       {Object.keys(statusCounts).length > 0 && (
-        <ReviewProgress
-          counts={{
-            unreviewed: statusCounts.unreviewed ?? 0,
-            confirmed: statusCounts.confirmed ?? 0,
-            rejected_clear_fp: statusCounts.rejected_clear_fp ?? 0,
-            rejected_not_obvious_bad: statusCounts.rejected_not_obvious_bad ?? 0,
-            needs_context: statusCounts.needs_context ?? 0,
-            deferred: statusCounts.deferred ?? 0,
-            total: Object.values(statusCounts).reduce((a, b) => a + b, 0),
-          }}
-        />
+        isDeveloper ? (
+          <DeveloperProgress
+            counts={{
+              unresolved: statusCounts.unresolved ?? 0,
+              resolved: statusCounts.resolved ?? 0,
+              pending: statusCounts.pending ?? 0,
+              backlogged: statusCounts.backlogged ?? 0,
+              need_more_info: statusCounts.need_more_info ?? 0,
+              total: Object.values(statusCounts).reduce((a, b) => a + b, 0),
+            }}
+          />
+        ) : (
+          <ReviewProgress
+            counts={{
+              unreviewed: statusCounts.unreviewed ?? 0,
+              confirmed: statusCounts.confirmed ?? 0,
+              rejected_clear_fp: statusCounts.rejected_clear_fp ?? 0,
+              rejected_not_obvious_bad: statusCounts.rejected_not_obvious_bad ?? 0,
+              needs_context: statusCounts.needs_context ?? 0,
+              deferred: statusCounts.deferred ?? 0,
+              total: Object.values(statusCounts).reduce((a, b) => a + b, 0),
+            }}
+          />
+        )
       )}
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3 mb-4">
-        {/* Status filter */}
-        <select
-          value={statusFilter}
-          onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-          className="px-3 py-1.5 rounded-[var(--radius-md)] border border-[var(--color-neutral-200)] bg-[var(--color-background)] text-sm text-[var(--color-text)]"
-        >
-          <option value="all">All Statuses</option>
-          <option value="unreviewed">Unreviewed</option>
-          <option value="confirmed">Confirmed</option>
-          <option value="rejected_clear_fp">Rejected (FP)</option>
-          <option value="rejected_not_obvious_bad">Rejected (Not Bad)</option>
-          <option value="needs_context">Needs Context</option>
-          <option value="deferred">Deferred</option>
-        </select>
-
-        {/* Severity filter */}
-        <select
-          value={severityFilter}
-          onChange={(e) => { setSeverityFilter(e.target.value); setPage(1); }}
-          className="px-3 py-1.5 rounded-[var(--radius-md)] border border-[var(--color-neutral-200)] bg-[var(--color-background)] text-sm text-[var(--color-text)]"
-        >
-          <option value="all">All Severity</option>
-          <option value="high">High (7-10)</option>
-          <option value="medium">Medium (4-6)</option>
-          <option value="low">Low (1-3)</option>
-        </select>
-
-        {/* Category filter */}
-        <select
-          value={categoryFilter}
-          onChange={(e) => { setCategoryFilter(e.target.value); setPage(1); }}
-          className="px-3 py-1.5 rounded-[var(--radius-md)] border border-[var(--color-neutral-200)] bg-[var(--color-background)] text-sm text-[var(--color-text)]"
-        >
-          <option value="">All Categories</option>
-          {categories.map((cat) => (
-            <option key={cat.category} value={cat.category}>
-              {JENAI_CATEGORY_LABELS[cat.category] || formatLabel(cat.category)} ({cat.count})
-            </option>
-          ))}
-        </select>
-
-        {/* Sort */}
-        <select
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-          className="px-3 py-1.5 rounded-[var(--radius-md)] border border-[var(--color-neutral-200)] bg-[var(--color-background)] text-sm text-[var(--color-text)]"
-        >
-          <option value="severity">Sort by Severity</option>
-          <option value="confidence">Sort by Confidence</option>
-          <option value="category">Sort by Category</option>
-          <option value="reviewedAt">Sort by Reviewed At</option>
-        </select>
-
-        <button
-          onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-          className="px-3 py-1.5 rounded-[var(--radius-md)] border border-[var(--color-neutral-200)] bg-[var(--color-background)] text-sm text-[var(--color-text)] hover:bg-[var(--color-neutral-50)]"
-        >
-          {sortOrder === 'asc' ? 'Ascending' : 'Descending'}
-        </button>
-      </div>
+      {isDeveloper ? (
+        <JenAIDeveloperFilters categories={categories} className="mb-4" />
+      ) : (
+        <JenAIReviewFilters categories={categories} className="mb-4" />
+      )}
 
       {/* Results info */}
       {total > 0 && (
         <QueueResultsInfo
-          startItem={(page - 1) * pageSize + 1}
-          endItem={Math.min(page * pageSize, total)}
+          startItem={(currentPage - 1) * pageSize + 1}
+          endItem={Math.min(currentPage * pageSize, total)}
           total={total}
           itemLabel="JenAI issues"
           showKeyboardHint={false}
@@ -191,7 +225,7 @@ export function JenAIQueue({ jurisdiction, mode = 'review' }: JenAIQueueProps) {
       {!isPending && issues.length > 0 && (
         <div className="space-y-4">
           {issues.map((issue) => (
-            <JenAICard key={issue.id as number} issue={issue as never} state={jurisdiction} />
+            <JenAICard key={issue.id} issue={issue} onUpdated={handleIssueUpdated} onCleared={handleIssueCleared} state={jurisdiction} mode={mode} />
           ))}
         </div>
       )}
@@ -199,7 +233,7 @@ export function JenAIQueue({ jurisdiction, mode = 'review' }: JenAIQueueProps) {
       {/* Pagination */}
       {totalPages > 1 && (
         <QueuePagination
-          page={page}
+          page={currentPage}
           totalPages={totalPages}
           onPageChange={goToPage}
         />

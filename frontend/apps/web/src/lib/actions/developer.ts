@@ -60,6 +60,15 @@ export interface DeveloperItem {
     title: string | null;
     url: string | null;
   };
+  // Guidance document context (for guidance-sourced compliance issues)
+  guidance?: {
+    id: number;
+    title: string | null;
+    url: string | null;
+    agency: string | null;
+    docType: string | null;
+    year: number | null;
+  };
   // Type-specific data
   redFlagData?: RedFlagWithContext;
   complianceIssueData?: ComplianceIssueWithAnalysis;
@@ -279,6 +288,7 @@ export async function getCombinedReviewedItems(
         title: issue.regulation.title,
         url: issue.regulation.url,
       },
+      guidance: issue.guidance ?? undefined,
       complianceIssueData: issue,
     }));
 
@@ -375,6 +385,7 @@ export async function getNeedMoreInfoItems(
         title: issue.regulation.title,
         url: issue.regulation.url,
       },
+      guidance: issue.guidance ?? undefined,
       complianceIssueData: issue,
     }));
 

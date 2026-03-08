@@ -7,6 +7,7 @@ import {
   complianceQueueParsers,
   type ReviewStatusValue,
   type SeverityValue,
+  type ComplianceSourceValue,
   type StatuteSourceValue,
   type RequirementFoundValue,
   type TierFilterValue,
@@ -17,6 +18,7 @@ import {
 import { typedValue } from '@/lib/url/type-helpers';
 import {
   SEVERITY_FILTER_OPTIONS,
+  COMPLIANCE_SOURCE_FILTER_OPTIONS,
   STATUTE_SOURCE_FILTER_OPTIONS,
   REQUIREMENT_FOUND_FILTER_OPTIONS,
   TIER_FILTER_OPTIONS,
@@ -44,6 +46,7 @@ export function ComplianceFilters({
       reviewStatus: 'unreviewed',
       issueType: null,
       severity: 'all',
+      source: 'all',
       statuteSource: 'all',
       requirementFound: 'true',
       tierCompleted: 'all',
@@ -57,6 +60,7 @@ export function ComplianceFilters({
     (filters.reviewStatus && filters.reviewStatus !== 'unreviewed') ||
     filters.issueType ||
     (filters.severity && filters.severity !== 'all') ||
+    (filters.source && filters.source !== 'all') ||
     (filters.statuteSource && filters.statuteSource !== 'all') ||
     (filters.requirementFound && filters.requirementFound !== 'true') ||
     (filters.tierCompleted && filters.tierCompleted !== 'all') ||
@@ -106,6 +110,14 @@ export function ComplianceFilters({
       </FilterField>
 
       <FilterField label="Source">
+        <Select
+          value={filters.source || 'all'}
+          onValueChange={(value) => setFilters({ source: value as ComplianceSourceValue, page: 1 })}
+          options={COMPLIANCE_SOURCE_FILTER_OPTIONS}
+        />
+      </FilterField>
+
+      <FilterField label="Mandate">
         <Select
           value={filters.statuteSource || 'all'}
           onValueChange={(value) => setFilters({ statuteSource: value as StatuteSourceValue, page: 1 })}

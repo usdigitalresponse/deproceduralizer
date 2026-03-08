@@ -52,6 +52,7 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
           regulation={issue.regulation}
           state={issue.jurisdiction ?? 'ny'}
           citation={citation ?? ''}
+          guidance={issue.guidance}
         />
 
         {/* LLM Analysis */}
@@ -84,6 +85,7 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
           verbatimSupportingText={issue.verbatimSupportingText}
           regexMatchPattern={issue.regexMatchPattern}
           isVerbatim={issue.isVerbatim}
+          guidance={issue.guidance}
         />
 
         {/* Technical Details */}

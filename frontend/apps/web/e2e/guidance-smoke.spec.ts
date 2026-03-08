@@ -9,8 +9,7 @@ test.describe('Guidance Documents', () => {
       page.getByRole('heading', { level: 1, name: /Guidance Documents/i })
     ).toBeVisible();
 
-    // Check Overview tab is active by default (should show stats)
-    // StatCard renders label in a <p> — look for "Total Guidance Docs" text
+    // Check Overview tab is active by default (should show stat cards)
     await expect(
       page.getByText('Total Guidance Docs')
     ).toBeVisible();

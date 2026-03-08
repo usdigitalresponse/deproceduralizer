@@ -84,6 +84,12 @@ import {
   GUIDANCE_POLICY_CATEGORY_VALUES,
   // Pipeline source
   PIPELINE_SOURCE_VALUES,
+  // Compliance source
+  COMPLIANCE_SOURCE_VALUES,
+  // JenAI
+  JENAI_SOURCE_VALUES,
+  JENAI_REVIEW_SORT_BY_VALUES,
+  JENAI_DEVELOPER_SORT_BY_VALUES,
 } from '@/lib/constants/values';
 
 // Re-export types for convenience
@@ -136,6 +142,10 @@ export type {
   GuidanceSortByValue,
   GuidanceStatusValue,
   GuidancePolicyCategoryValue,
+  ComplianceSourceValue,
+  JenAISourceValue,
+  JenAIReviewSortByValue,
+  JenAIDeveloperSortByValue,
 } from '@/lib/constants/values';
 
 // Re-export value arrays for backward compatibility
@@ -215,6 +225,14 @@ export const complianceSortByParser = parseAsStringEnum([...COMPLIANCE_SORT_BY_V
 export const developerSortByParser = parseAsStringEnum([...DEVELOPER_SORT_BY_VALUES]).withDefault('reviewedAt');
 export const redFlagDeveloperSortByParser = parseAsStringEnum([...RED_FLAG_DEVELOPER_SORT_BY_VALUES]).withDefault('reviewedAt');
 export const complianceDeveloperSortByParser = parseAsStringEnum([...COMPLIANCE_DEVELOPER_SORT_BY_VALUES]).withDefault('reviewedAt');
+
+// Compliance source parser (regulation vs guidance vs all)
+export const complianceSourceParser = parseAsStringEnum([...COMPLIANCE_SOURCE_VALUES]).withDefault('all');
+
+// JenAI parsers
+export const jenaiSourceParser = parseAsStringEnum([...JENAI_SOURCE_VALUES]).withDefault('all');
+export const jenaiReviewSortByParser = parseAsStringEnum([...JENAI_REVIEW_SORT_BY_VALUES]).withDefault('severity');
+export const jenaiDeveloperSortByParser = parseAsStringEnum([...JENAI_DEVELOPER_SORT_BY_VALUES]).withDefault('reviewedAt');
 
 // Definitions review parsers
 export const definitionsReviewStatusParser = parseAsStringEnum([...DEFINITIONS_REVIEW_STATUS_VALUES]).withDefault('all');
@@ -411,6 +429,7 @@ export const complianceQueueParsers = {
   reviewStatus: reviewStatusParser,
   severity: severityParser,
   issueType: categoryParser,
+  source: complianceSourceParser,
   statuteSource: statuteSourceParser,
   requirementFound: requirementFoundParser,
   tierCompleted: tierFilterParser,
@@ -466,6 +485,33 @@ export const complianceDeveloperQueueParsers = {
   reviewStatus: reviewStatusParser,
   issueType: categoryParser,
   sortBy: complianceDeveloperSortByParser,
+  sortOrder: sortOrderParser,
+};
+
+/**
+ * Parser configuration for JenAI review queue filters
+ */
+export const jenaiReviewQueueParsers = {
+  page: pageParser,
+  reviewStatus: reviewStatusParser,
+  severity: severityParser,
+  category: categoryParser,
+  source: jenaiSourceParser,
+  sortBy: jenaiReviewSortByParser,
+  sortOrder: sortOrderParser,
+};
+
+/**
+ * Parser configuration for JenAI developer queue filters
+ */
+export const jenaiDeveloperQueueParsers = {
+  page: pageParser,
+  developerStatus: developerStatusParser,
+  developerAssigned: developerAssignedParser,
+  severity: severityParser,
+  category: categoryParser,
+  source: jenaiSourceParser,
+  sortBy: jenaiDeveloperSortByParser,
   sortOrder: sortOrderParser,
 };
 

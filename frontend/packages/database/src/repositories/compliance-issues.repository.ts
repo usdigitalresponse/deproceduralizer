@@ -115,6 +115,15 @@ export interface ComplianceIssueWithContext extends ComplianceIssue {
     hasForm: boolean | null;
     hasIbr: boolean | null;
   };
+
+  guidance: {
+    id: number;
+    title: string | null;
+    url: string | null;
+    agency: string | null;
+    docType: string | null;
+    year: number | null;
+  } | null;
 }
 
 export interface ComplianceIssueFilterOptions {
@@ -130,6 +139,8 @@ export interface ComplianceIssueFilterOptions {
   federalMandate?: boolean | 'all';
   /** Filter by whether analysis exists */
   hasAnalysis?: boolean | 'all';
+  /** Filter by document source (regulation, guidance, or all) */
+  source?: 'regulation' | 'guidance' | 'all';
 }
 
 export interface ComplianceIssuePaginationOptions {
@@ -395,6 +406,13 @@ const issueListSelectColumns = {
   regulationSectionType: regulatoryDocuments.sectionType,
   regulationHasForm: regulatoryDocuments.hasForm,
   regulationHasIbr: regulatoryDocuments.hasIbr,
+  // Guidance document context
+  guidanceDocId: guidanceDocuments.id,
+  guidanceDocTitle: guidanceDocuments.title,
+  guidanceDocUrl: guidanceDocuments.url,
+  guidanceDocAgency: guidanceDocuments.agency,
+  guidanceDocType: guidanceDocuments.docType,
+  guidanceDocYear: guidanceDocuments.year,
 } as const;
 
 /** Map a DB row from issueListSelectColumns to ComplianceIssueWithAnalysis.
@@ -455,7 +473,7 @@ function mapRowToIssue(
     analysisCleanupType: string | null;
     analysisCleanupEffort: string | null;
     // Regulation context
-    regulationId: number;
+    regulationId: number | null;
     regulationTitle: string | null;
     regulationNycrrTitle: number | null;
     regulationNycrrPart: string | null;
@@ -469,6 +487,13 @@ function mapRowToIssue(
     regulationHasForm: boolean | null;
     regulationHasIbr: boolean | null;
     regulationContent?: string | null;
+    // Guidance document context
+    guidanceDocId: number | null;
+    guidanceDocTitle: string | null;
+    guidanceDocUrl: string | null;
+    guidanceDocAgency: string | null;
+    guidanceDocType: string | null;
+    guidanceDocYear: number | null;
   },
 ): ComplianceIssueWithAnalysis {
   const analysis: TierAnalysis | null = row.analysisHighestTier !== null ? {
@@ -495,7 +520,7 @@ function mapRowToIssue(
   return {
     id: Number(row.id),
     documentId: row.documentId != null ? Number(row.documentId) : null,
-    guidanceDocumentId: null,
+    guidanceDocumentId: row.guidanceDocId ? Number(row.guidanceDocId) : null,
     issueType: row.issueType,
     regexMatchPattern: row.regexMatchPattern,
     regexMatchContext: row.regexMatchContext,
@@ -529,7 +554,7 @@ function mapRowToIssue(
     jurisdiction: row.jurisdiction,
     createdAt: row.createdAt,
     regulation: {
-      id: row.regulationId,
+      id: row.regulationId ?? 0,
       title: row.regulationTitle,
       content: row.regulationContent ?? null,
       nycrrTitle: row.regulationNycrrTitle,
@@ -544,6 +569,14 @@ function mapRowToIssue(
       hasForm: row.regulationHasForm,
       hasIbr: row.regulationHasIbr,
     },
+    guidance: row.guidanceDocId ? {
+      id: Number(row.guidanceDocId),
+      title: row.guidanceDocTitle ?? null,
+      url: row.guidanceDocUrl ?? null,
+      agency: row.guidanceDocAgency ?? null,
+      docType: row.guidanceDocType ?? null,
+      year: row.guidanceDocYear ?? null,
+    } : null,
     analysis,
   };
 }
@@ -944,30 +977,44 @@ export class ComplianceIssuesRepository extends BaseRepository {
    * PR 6.5: Reads analysis_id FK directly; falls back to composite lookup for NULL analysis_id.
    * PR 6.3: Used by mutations that accept compliance_issues.id but now update analyses.
    */
-  private async findAnalysisForIssue(issueId: number): Promise<{ analysisId: number; documentId: number | null; issueType: string } | null> {
+  private async findAnalysisForIssue(issueId: number): Promise<{ analysisId: number; documentId: number | null; guidanceDocumentId: number | null; issueType: string } | null> {
     const issue = await this.getById(issueId);
     if (!issue) return null;
 
     // PR 6.5: Direct FK read when analysis_id is populated
     if (issue.analysisId) {
-      return { analysisId: issue.analysisId, documentId: issue.documentId, issueType: issue.issueType };
+      return { analysisId: issue.analysisId, documentId: issue.documentId, guidanceDocumentId: issue.guidanceDocumentId, issueType: issue.issueType };
     }
 
     // Fallback: composite lookup for rows where analysis_id is still NULL
-    // Only works for regulatory document issues (documentId is not null)
-    if (issue.documentId == null) return null;
+    if (issue.documentId != null) {
+      const [analysis] = await this.db
+        .select({ id: complianceIssueAnalyses.id })
+        .from(complianceIssueAnalyses)
+        .where(and(
+          eq(complianceIssueAnalyses.documentId, issue.documentId),
+          eq(complianceIssueAnalyses.issueType, issue.issueType)
+        ))
+        .limit(1);
 
-    const [analysis] = await this.db
-      .select({ id: complianceIssueAnalyses.id })
-      .from(complianceIssueAnalyses)
-      .where(and(
-        eq(complianceIssueAnalyses.documentId, issue.documentId),
-        eq(complianceIssueAnalyses.issueType, issue.issueType)
-      ))
-      .limit(1);
+      if (analysis) return { analysisId: analysis.id, documentId: issue.documentId, guidanceDocumentId: null, issueType: issue.issueType };
+    }
 
-    if (!analysis) return null;
-    return { analysisId: analysis.id, documentId: issue.documentId, issueType: issue.issueType };
+    // Fallback for guidance-sourced issues
+    if (issue.guidanceDocumentId != null) {
+      const [analysis] = await this.db
+        .select({ id: complianceIssueAnalyses.id })
+        .from(complianceIssueAnalyses)
+        .where(and(
+          eq(complianceIssueAnalyses.guidanceDocumentId, issue.guidanceDocumentId),
+          eq(complianceIssueAnalyses.issueType, issue.issueType)
+        ))
+        .limit(1);
+
+      if (analysis) return { analysisId: analysis.id, documentId: null, guidanceDocumentId: issue.guidanceDocumentId, issueType: issue.issueType };
+    }
+
+    return null;
   }
 
   async getByDocumentId(documentId: number): Promise<ComplianceIssueWithAnalysisFields[]> {
@@ -1017,6 +1064,87 @@ export class ComplianceIssuesRepository extends BaseRepository {
         eq(complianceIssues.analysisId, complianceIssueAnalyses.id)
       )
       .where(eq(complianceIssues.documentId, documentId))
+      .orderBy(asc(complianceIssues.issueType));
+
+    return results.map(row => ({
+      ...row,
+      id: Number(row.id),
+      documentId: row.documentId != null ? Number(row.documentId) : null,
+      guidanceDocumentId: row.guidanceDocumentId ?? null,
+      requirementFound: row.requirementFound ?? false,
+      verbatimSupportingText: row.verbatimSupportingText ?? [],
+      isVerbatim: row.isVerbatim ?? null,
+      requiredByStatute: row.requiredByStatute ?? false,
+      statuteCitation: row.statuteCitation ?? null,
+      tier1Reasoning: row.tier1Reasoning ?? null,
+      tier2Reasoning: row.tier2Reasoning ?? null,
+      tier3Reasoning: row.tier3Reasoning ?? null,
+    }));
+  }
+
+  /**
+   * Re-fetch a single issue after mutation, using whichever source ID is available.
+   */
+  private async refetchIssue(
+    issueId: number,
+    analysisInfo: { documentId: number | null; guidanceDocumentId: number | null }
+  ): Promise<ComplianceIssueWithAnalysisFields | undefined> {
+    if (analysisInfo.documentId != null) {
+      const issues = await this.getByDocumentId(analysisInfo.documentId);
+      return issues.find(i => i.id === issueId);
+    }
+    if (analysisInfo.guidanceDocumentId != null) {
+      const issues = await this.getByGuidanceDocumentId(analysisInfo.guidanceDocumentId);
+      return issues.find(i => i.id === issueId);
+    }
+    return undefined;
+  }
+
+  async getByGuidanceDocumentId(guidanceDocumentId: number): Promise<ComplianceIssueWithAnalysisFields[]> {
+    const results = await this.db
+      .select({
+        id: complianceIssues.id,
+        documentId: complianceIssues.documentId,
+        guidanceDocumentId: complianceIssues.guidanceDocumentId,
+        issueType: complianceIssues.issueType,
+        occurrenceNumber: complianceIssues.occurrenceNumber,
+        url: complianceIssues.url,
+        regexMatchPattern: complianceIssues.regexMatchPattern,
+        regexMatchContext: complianceIssues.regexMatchContext,
+        jurisdiction: complianceIssues.jurisdiction,
+        createdAt: complianceIssues.createdAt,
+        analysisId: complianceIssues.analysisId,
+        runId: complianceIssues.runId,
+        requirementFound: complianceIssueAnalyses.requirementFound,
+        verbatimSupportingText: complianceIssueAnalyses.verbatimRequirements,
+        isVerbatim: complianceIssueAnalyses.isVerbatim,
+        requiredByStatute: complianceIssueAnalyses.citesFederalStatute,
+        statuteCitation: complianceIssueAnalyses.federalCitation,
+        tier1Reasoning: complianceIssueAnalyses.tier1Reasoning,
+        tier2Reasoning: complianceIssueAnalyses.tier2Reasoning,
+        tier3Reasoning: complianceIssueAnalyses.tier3Reasoning,
+        severity: sql<number | null>`COALESCE(${complianceIssueAnalyses.reviewerSeverity}, ${complianceIssueAnalyses.finalSeverity}, ${complianceIssueAnalyses.severity})`,
+        originalSeverity: complianceIssueAnalyses.reviewerOriginalSeverity,
+        reviewStatus: complianceIssueAnalyses.reviewStatus,
+        reviewedBy: complianceIssueAnalyses.reviewedBy,
+        reviewedAt: complianceIssueAnalyses.reviewedAt,
+        justificationNotes: complianceIssueAnalyses.justificationNotes,
+        teamNotes: complianceIssueAnalyses.teamNotes,
+        impactType: complianceIssueAnalyses.impactType,
+        developerStatus: complianceIssueAnalyses.developerStatus,
+        developerAssigned: complianceIssueAnalyses.developerAssigned,
+        developerNotes: complianceIssueAnalyses.developerNotes,
+        resolutionType: complianceIssueAnalyses.resolutionType,
+        resolutionComments: complianceIssueAnalyses.resolutionComments,
+        developerQuestion: complianceIssueAnalyses.developerQuestion,
+        developerCheckedAt: complianceIssueAnalyses.developerCheckedAt,
+      })
+      .from(complianceIssues)
+      .leftJoin(
+        complianceIssueAnalyses,
+        eq(complianceIssues.analysisId, complianceIssueAnalyses.id)
+      )
+      .where(eq(complianceIssues.guidanceDocumentId, guidanceDocumentId))
       .orderBy(asc(complianceIssues.issueType));
 
     return results.map(row => ({
@@ -1092,10 +1220,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       .set(updateData)
       .where(eq(complianceIssueAnalyses.id, analysisInfo.analysisId));
 
-    // Return via getByDocumentId to get the full shape with aliased fields
-    if (analysisInfo.documentId == null) return undefined;
-    const issues = await this.getByDocumentId(analysisInfo.documentId);
-    return issues.find(i => i.id === id);
+    return this.refetchIssue(id, analysisInfo);
   }
 
   /**
@@ -1313,16 +1438,24 @@ export class ComplianceIssuesRepository extends BaseRepository {
 
     const whereClause = and(...conditions);
 
-    // Get total count (includes LEFT JOIN to analyses for tier filter support)
-    const [{ count: total }] = await this.db
+    // When source='all', use leftJoin so guidance-only issues (documentId IS NULL) are included
+    const useLeftJoinForRegulations = filters?.source === 'all';
+
+    // Build count query with appropriate join strategy
+    const countQuery = this.db
       .select({ count: count() })
-      .from(complianceIssues)
-      .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
-      .leftJoin(
-        complianceIssueAnalyses,
-        eq(complianceIssues.analysisId, complianceIssueAnalyses.id)
-      )
-      .where(whereClause);
+      .from(complianceIssues);
+    if (useLeftJoinForRegulations) {
+      countQuery.leftJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id));
+    } else {
+      countQuery.innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id));
+    }
+    countQuery.leftJoin(
+      complianceIssueAnalyses,
+      eq(complianceIssues.analysisId, complianceIssueAnalyses.id)
+    );
+    countQuery.leftJoin(guidanceDocuments, eq(complianceIssues.guidanceDocumentId, guidanceDocuments.id));
+    const [{ count: total }] = await countQuery.where(whereClause);
 
     // Build sort column — severity and review fields now come from analyses
     const sortColumn = {
@@ -1337,13 +1470,19 @@ export class ComplianceIssuesRepository extends BaseRepository {
     const secondarySort = asc(complianceIssues.id); // Tiebreaker for consistent ordering
 
     // Get paginated results with regulation context and analysis data
-    const results = await this.db
+    const dataQuery = this.db
       .select({
         ...issueListSelectColumns,
         regulationContent: regulatoryDocuments.content,
       })
-      .from(complianceIssues)
-      .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
+      .from(complianceIssues);
+    if (useLeftJoinForRegulations) {
+      dataQuery.leftJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id));
+    } else {
+      dataQuery.innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id));
+    }
+    dataQuery.leftJoin(guidanceDocuments, eq(complianceIssues.guidanceDocumentId, guidanceDocuments.id));
+    const results = await dataQuery
       .leftJoin(
         complianceIssueAnalyses,
         eq(complianceIssues.analysisId, complianceIssueAnalyses.id)
@@ -1386,10 +1525,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       })
       .where(eq(complianceIssueAnalyses.id, analysisInfo.analysisId));
 
-    // Return via getByDocumentId to get the full shape with aliased fields
-    if (analysisInfo.documentId == null) return undefined;
-    const issues = await this.getByDocumentId(analysisInfo.documentId);
-    return issues.find(i => i.id === id);
+    return this.refetchIssue(id, analysisInfo);
   }
 
   /**
@@ -1479,12 +1615,13 @@ export class ComplianceIssuesRepository extends BaseRepository {
     const [{ count: total }] = await this.db
       .select({ count: count() })
       .from(complianceIssues)
-      .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
+      .leftJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
+      .leftJoin(guidanceDocuments, eq(complianceIssues.guidanceDocumentId, guidanceDocuments.id))
       .leftJoin(
         complianceIssueAnalyses,
         eq(complianceIssues.analysisId, complianceIssueAnalyses.id)
       )
-      .where(whereClause);
+      .where(and(whereClause, or(isNotNull(regulatoryDocuments.id), isNotNull(guidanceDocuments.id))));
 
     // Build sort column — review/dev fields now come from analyses
     const sortColumn = {
@@ -1502,12 +1639,13 @@ export class ComplianceIssuesRepository extends BaseRepository {
     const results = await this.db
       .select(issueListSelectColumns)
       .from(complianceIssues)
-      .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
+      .leftJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
+      .leftJoin(guidanceDocuments, eq(complianceIssues.guidanceDocumentId, guidanceDocuments.id))
       .leftJoin(
         complianceIssueAnalyses,
         eq(complianceIssues.analysisId, complianceIssueAnalyses.id)
       )
-      .where(whereClause)
+      .where(and(whereClause, or(isNotNull(regulatoryDocuments.id), isNotNull(guidanceDocuments.id))))
       .orderBy(primarySort, secondarySort)
       .limit(pageSize)
       .offset(offset);
@@ -1548,12 +1686,13 @@ export class ComplianceIssuesRepository extends BaseRepository {
     const [{ count: total }] = await this.db
       .select({ count: count() })
       .from(complianceIssues)
-      .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
+      .leftJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
+      .leftJoin(guidanceDocuments, eq(complianceIssues.guidanceDocumentId, guidanceDocuments.id))
       .leftJoin(
         complianceIssueAnalyses,
         eq(complianceIssues.analysisId, complianceIssueAnalyses.id)
       )
-      .where(whereClause);
+      .where(and(whereClause, or(isNotNull(regulatoryDocuments.id), isNotNull(guidanceDocuments.id))));
 
     // Order by developerCheckedAt desc (from analyses)
     const orderBy = [desc(complianceIssueAnalyses.developerCheckedAt)];
@@ -1562,12 +1701,13 @@ export class ComplianceIssuesRepository extends BaseRepository {
     const results = await this.db
       .select(issueListSelectColumns)
       .from(complianceIssues)
-      .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
+      .leftJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
+      .leftJoin(guidanceDocuments, eq(complianceIssues.guidanceDocumentId, guidanceDocuments.id))
       .leftJoin(
         complianceIssueAnalyses,
         eq(complianceIssues.analysisId, complianceIssueAnalyses.id)
       )
-      .where(whereClause)
+      .where(and(whereClause, or(isNotNull(regulatoryDocuments.id), isNotNull(guidanceDocuments.id))))
       .orderBy(...orderBy)
       .limit(pageSize)
       .offset(offset);
@@ -1644,10 +1784,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       })
       .where(eq(complianceIssueAnalyses.id, analysisInfo.analysisId));
 
-    // Return via getByDocumentId to get the full shape with aliased fields
-    if (analysisInfo.documentId == null) return undefined;
-    const issues = await this.getByDocumentId(analysisInfo.documentId);
-    return issues.find(i => i.id === id);
+    return this.refetchIssue(id, analysisInfo);
   }
 
   /**
@@ -1947,6 +2084,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       .select({ count: sql<number>`count(*)::int` })
       .from(complianceIssues)
       .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
+      .leftJoin(guidanceDocuments, eq(complianceIssues.guidanceDocumentId, guidanceDocuments.id))
       .leftJoin(
         complianceIssueAnalyses,
         eq(complianceIssues.analysisId, complianceIssueAnalyses.id)
@@ -1959,6 +2097,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       .select(issueListSelectColumns)
       .from(complianceIssues)
       .innerJoin(regulatoryDocuments, eq(complianceIssues.documentId, regulatoryDocuments.id))
+      .leftJoin(guidanceDocuments, eq(complianceIssues.guidanceDocumentId, guidanceDocuments.id))
       .leftJoin(
         complianceIssueAnalyses,
         eq(complianceIssues.analysisId, complianceIssueAnalyses.id)
@@ -3543,6 +3682,8 @@ export class ComplianceIssuesRepository extends BaseRepository {
         gdTitle: guidanceDocuments.title,
         gdAgency: guidanceDocuments.agency,
         gdUrl: guidanceDocuments.url,
+        gdDocType: guidanceDocuments.docType,
+        gdYear: guidanceDocuments.year,
       })
       .from(complianceIssueAnalyses)
       .innerJoin(guidanceDocuments, eq(complianceIssueAnalyses.guidanceDocumentId, guidanceDocuments.id))
@@ -3591,10 +3732,10 @@ export class ComplianceIssuesRepository extends BaseRepository {
       resolutionComments: null,
       developerQuestion: null,
       developerCheckedAt: null,
-      // Document context -- adapts guidance doc info into regulation shape for component compatibility
+      // Placeholder regulation (guidance issues have no regulation)
       regulation: {
-        id: Number(row.guidanceDocumentId),
-        title: row.gdTitle,
+        id: 0,
+        title: null,
         content: null,
         nycrrTitle: null,
         nycrrPart: null,
@@ -3602,11 +3743,19 @@ export class ComplianceIssuesRepository extends BaseRepository {
         njacTitle: null,
         njacChapter: null,
         njacSubchapter: null,
-        url: row.gdUrl,
+        url: null,
         summary: null,
         sectionType: null,
         hasForm: null,
         hasIbr: null,
+      },
+      guidance: {
+        id: Number(row.guidanceDocumentId),
+        title: row.gdTitle ?? null,
+        url: row.gdUrl ?? null,
+        agency: row.gdAgency ?? null,
+        docType: row.gdDocType ?? null,
+        year: row.gdYear ?? null,
       },
       analysis: null,
     }));

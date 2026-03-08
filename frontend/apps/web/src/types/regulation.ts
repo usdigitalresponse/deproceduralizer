@@ -128,7 +128,6 @@ export const REVIEW_TYPES = REVIEW_TYPE_VALUES.map(value => {
     definitions: 'Definitions',
     needs_info: 'Needs More Info',
     jenai: 'JenAI',
-    guidance: 'Guidance',
   };
   return { value, label: labels[value] };
 });

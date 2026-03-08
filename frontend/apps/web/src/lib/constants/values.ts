@@ -106,11 +106,27 @@ export type RedFlagDeveloperSortByValue = (typeof RED_FLAG_DEVELOPER_SORT_BY_VAL
 export const COMPLIANCE_DEVELOPER_SORT_BY_VALUES = ['severity', 'issueType', 'reviewedAt', 'developerCheckedAt'] as const;
 export type ComplianceDeveloperSortByValue = (typeof COMPLIANCE_DEVELOPER_SORT_BY_VALUES)[number];
 
+// Compliance source filter (regulation vs guidance)
+export const COMPLIANCE_SOURCE_VALUES = ['all', 'regulation', 'guidance'] as const;
+export type ComplianceSourceValue = (typeof COMPLIANCE_SOURCE_VALUES)[number];
+
+// JenAI source filter
+export const JENAI_SOURCE_VALUES = ['all', 'regulation', 'guidance'] as const;
+export type JenAISourceValue = (typeof JENAI_SOURCE_VALUES)[number];
+
+// JenAI review mode sort
+export const JENAI_REVIEW_SORT_BY_VALUES = ['severity', 'confidence', 'category', 'reviewedAt'] as const;
+export type JenAIReviewSortByValue = (typeof JENAI_REVIEW_SORT_BY_VALUES)[number];
+
+// JenAI developer mode sort
+export const JENAI_DEVELOPER_SORT_BY_VALUES = ['severity', 'confidence', 'category', 'reviewedAt', 'developerCheckedAt'] as const;
+export type JenAIDeveloperSortByValue = (typeof JENAI_DEVELOPER_SORT_BY_VALUES)[number];
+
 // ============================================
 // Review page navigation
 // ============================================
 
-export const REVIEW_TYPE_VALUES = ['flags', 'compliance', 'definitions', 'needs_info', 'jenai', 'guidance'] as const;
+export const REVIEW_TYPE_VALUES = ['compliance', 'jenai', 'flags', 'definitions', 'needs_info'] as const;
 export type ReviewTypeValue = (typeof REVIEW_TYPE_VALUES)[number];
 
 // Pipeline source tabs (regulations vs guidance)

@@ -21,7 +21,6 @@ export interface ReviewPageErrorProps {
       definitions: number;
       needs_info: number;
       jenai: number;
-      guidance: number;
     };
   };
 }

@@ -32,9 +32,6 @@ export { JenAIQueue } from './JenAIQueue';
 export { JenAICard } from './JenAICard';
 export { JenAIAvatar } from './JenAIAvatar';
 
-// Guidance components
-export { GuidanceReviewPlaceholder } from './GuidanceReviewPlaceholder';
-
 // Definition review components
 export {
   DefinitionReviewCard,

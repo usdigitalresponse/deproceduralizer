@@ -54,6 +54,8 @@ interface UseQueueReturn<TItem, TCounts> {
   handleViewRegulation: (regulationId: number) => void;
   /** Handle item update with optimistic count adjustment */
   handleItemUpdated: (updatedItem: TItem) => void;
+  /** Remove an item from the list (e.g. after clearing) */
+  handleItemRemoved: (itemId: string | number) => void;
   /** Navigate to a page */
   goToPage: (page: number) => void;
 }
@@ -147,6 +149,11 @@ export function useQueue<TItem, TCounts extends object>({
     });
   }, [getItemId, getItemStatus, defaultStatus, statusFilter]);
 
+  // Remove an item from the list (e.g. after clearing and returning to review)
+  const handleItemRemoved = useCallback((itemId: string | number) => {
+    setItems((prevItems) => prevItems.filter((item) => getItemId(item) !== itemId));
+  }, [getItemId]);
+
   // Pagination helper
   const goToPage = useCallback((page: number) => {
     setPage(page);
@@ -160,6 +167,7 @@ export function useQueue<TItem, TCounts extends object>({
     setSelectedRegulationId,
     handleViewRegulation,
     handleItemUpdated,
+    handleItemRemoved,
     goToPage,
   };
 }

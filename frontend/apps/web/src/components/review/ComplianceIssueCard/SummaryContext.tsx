@@ -1,9 +1,24 @@
 import { SectionTypeBadge } from '@/components/ui/SectionTypeBadge';
 import { MetadataIndicators } from '@/components/ui/MetadataIndicators';
+import { Badge } from '@/components/ui';
 import { HierarchyBreadcrumbsInline } from '../shared';
 import type { SummaryContextProps } from './types';
 
-export function SummaryContext({ regulation, state, citation }: SummaryContextProps) {
+export function SummaryContext({ regulation, state, citation, guidance }: SummaryContextProps) {
+  // Guidance document context (for guidance-sourced compliance issues)
+  if (guidance) {
+    return (
+      <div className="bg-[var(--color-warning-bg)] rounded p-2 mb-3">
+        <div className="flex items-center gap-2 mb-1 flex-wrap">
+          {guidance.agency && <span className="text-xs font-medium text-[var(--color-text-secondary)]">{guidance.agency}</span>}
+          {guidance.docType && <Badge variant="default" className="text-xs">{guidance.docType}</Badge>}
+          {guidance.year && <span className="text-xs text-[var(--color-text-muted)]">{guidance.year}</span>}
+        </div>
+        {guidance.title && <p className="text-sm text-[var(--color-text)]">{guidance.title}</p>}
+      </div>
+    );
+  }
+
   const hasSummaryContent = regulation.summary || regulation.sectionType || regulation.hasForm || regulation.hasIbr;
 
   return (

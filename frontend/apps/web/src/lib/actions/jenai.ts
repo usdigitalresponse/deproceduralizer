@@ -1,7 +1,7 @@
 'use server';
 
 import 'server-only';
-import { revalidatePath } from 'next/cache';
+import { updateTag } from 'next/cache';
 import {
   db,
   JenAIRepository,
@@ -24,12 +24,13 @@ export async function getJenAIIssuesPaginated(
   options: {
     page: number;
     pageSize: number;
-    sortBy?: 'severity' | 'category' | 'reviewedAt' | 'confidence';
+    sortBy?: 'severity' | 'category' | 'reviewedAt' | 'confidence' | 'developerCheckedAt';
     sortOrder?: 'asc' | 'desc';
     filters?: {
       status?: string;
       severity?: 'high' | 'medium' | 'low';
       category?: string;
+      source?: 'regulation' | 'guidance' | 'all';
     };
   }
 ): Promise<ActionResult<PaginatedJenAIResult>> {
@@ -41,6 +42,7 @@ export async function getJenAIIssuesPaginated(
         status: options.filters.status,
         severity: options.filters.severity,
         category: options.filters.category,
+        source: options.filters.source,
       } : undefined,
     })
   );
@@ -98,7 +100,7 @@ export async function updateJenAIReview(
     reviewedBy: string;
     justificationNotes?: string;
     teamNotes?: string;
-    priority?: number;
+    severity?: number;
     impactType?: string;
   }
 ): Promise<ActionResult<JenAIIssue>> {
@@ -108,7 +110,7 @@ export async function updateJenAIReview(
       reviewedBy: input.reviewedBy,
       justificationNotes: input.justificationNotes,
       teamNotes: input.teamNotes,
-      priority: input.priority,
+      severity: input.severity,
       impactType: input.impactType,
     });
 
@@ -116,10 +118,34 @@ export async function updateJenAIReview(
       return failure(`JenAI issue with id ${input.id} not found`);
     }
 
-    revalidatePath('/[state]/review', 'page');
+    // Don't use revalidatePath - client manages queue state locally via optimistic updates.
+    // Path revalidation would cause server to re-fetch, breaking local state.
+    updateTag('jenai');
     return success(result);
   } catch (error) {
     console.error('[updateJenAIReview]', error);
+    return failure(getErrorMessage(error));
+  }
+}
+
+/**
+ * Resets a JenAI issue back to unreviewed state.
+ * Clears all review and developer fields but preserves LLM-assigned severity.
+ */
+export async function resetJenAIIssue(
+  id: number
+): Promise<ActionResult<JenAIIssue>> {
+  try {
+    const result = await jenaiRepo.resetIssue(id);
+
+    if (!result) {
+      return failure(`JenAI issue with id ${id} not found`);
+    }
+
+    updateTag('jenai');
+    return success(result);
+  } catch (error) {
+    console.error('[resetJenAIIssue]', error);
     return failure(getErrorMessage(error));
   }
 }
@@ -152,7 +178,9 @@ export async function updateJenAIDeveloper(
       return failure(`JenAI issue with id ${input.id} not found`);
     }
 
-    revalidatePath('/[state]/review', 'page');
+    // Don't use revalidatePath - client manages queue state locally via optimistic updates.
+    // Path revalidation would cause server to re-fetch, breaking local state.
+    updateTag('jenai');
     return success(result);
   } catch (error) {
     console.error('[updateJenAIDeveloper]', error);
@@ -168,13 +196,14 @@ export async function getJenAIDeveloperItems(
   options: {
     page: number;
     pageSize: number;
-    sortBy?: 'severity' | 'category' | 'reviewedAt' | 'developerCheckedAt';
+    sortBy?: 'severity' | 'category' | 'reviewedAt' | 'developerCheckedAt' | 'confidence';
     sortOrder?: 'asc' | 'desc';
     developerStatus?: string;
     developerAssigned?: string;
     severity?: 'high' | 'medium' | 'low' | 'all';
     reviewStatus?: string;
     category?: string;
+    source?: 'regulation' | 'guidance' | 'all';
   }
 ): Promise<ActionResult<PaginatedJenAIResult>> {
   return runAction('getJenAIDeveloperItems', () =>
@@ -190,6 +219,7 @@ export async function getJenAIDeveloperItems(
         status: options.reviewStatus,
         severity: options.severity === 'all' ? undefined : options.severity,
         category: options.category,
+        source: options.source,
       },
     })
   );

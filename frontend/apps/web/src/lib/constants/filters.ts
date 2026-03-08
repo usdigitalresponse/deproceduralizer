@@ -42,6 +42,10 @@ import {
   TIER3_FINDING_FILTER_VALUES,
   TIER3_TRIGGER_FILTER_VALUES,
   EASY_CLEANUP_FILTER_VALUES,
+  COMPLIANCE_SOURCE_VALUES,
+  JENAI_SOURCE_VALUES,
+  JENAI_REVIEW_SORT_BY_VALUES,
+  JENAI_DEVELOPER_SORT_BY_VALUES,
 } from './values';
 import { ISSUE_TYPE_LABELS } from '@/types/regulation';
 
@@ -133,6 +137,13 @@ export const STATUTE_SOURCE_FILTER_OPTIONS = createFilterOptions(BOOLEAN_FILTER_
   false: 'Agency Added',
 });
 
+// Compliance source filter (regulation vs guidance)
+export const COMPLIANCE_SOURCE_FILTER_OPTIONS = createFilterOptions(COMPLIANCE_SOURCE_VALUES, {
+  all: 'All Sources',
+  regulation: 'Regulations',
+  guidance: 'Guidance',
+});
+
 // LLM Requirement Found filter
 // Note: requirementFound=false means the regex matched but LLM found nothing of concern.
 // Default to 'true' to show only confirmed issues (where LLM verified an actual requirement).
@@ -174,6 +185,31 @@ export const RED_FLAG_DEVELOPER_SORT_OPTIONS = createFilterOptions(RED_FLAG_DEVE
 export const COMPLIANCE_DEVELOPER_SORT_OPTIONS = createFilterOptions(COMPLIANCE_DEVELOPER_SORT_BY_VALUES, {
   severity: 'Severity',
   issueType: 'Issue Type',
+  reviewedAt: 'Review Date',
+  developerCheckedAt: 'Last Updated',
+});
+
+// ============================================
+// JenAI Filter Options
+// ============================================
+
+export const JENAI_SOURCE_FILTER_OPTIONS = createFilterOptions(JENAI_SOURCE_VALUES, {
+  all: 'All Sources',
+  regulation: 'Regulations',
+  guidance: 'Guidance',
+});
+
+export const JENAI_REVIEW_SORT_OPTIONS = createFilterOptions(JENAI_REVIEW_SORT_BY_VALUES, {
+  severity: 'Severity',
+  confidence: 'Confidence',
+  category: 'Category',
+  reviewedAt: 'Last Reviewed',
+});
+
+export const JENAI_DEVELOPER_SORT_OPTIONS = createFilterOptions(JENAI_DEVELOPER_SORT_BY_VALUES, {
+  severity: 'Severity',
+  confidence: 'Confidence',
+  category: 'Category',
   reviewedAt: 'Review Date',
   developerCheckedAt: 'Last Updated',
 });

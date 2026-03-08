@@ -12,8 +12,6 @@ import {
   getComplianceIssueStatusCounts,
   getComplianceIssueTypes,
   getComplianceSuggestionBatch,
-  getGuidanceComplianceIssueStatusCounts,
-  type GuidanceStatusCounts,
   type SuggestionBatchResult,
 } from './compliance-issues';
 import {
@@ -48,7 +46,6 @@ export interface TabCounts {
   definitions: number;
   needs_info: number;
   jenai: number;
-  guidance: number;
 }
 
 export interface DeveloperModeCountsData {
@@ -57,10 +54,7 @@ export interface DeveloperModeCountsData {
   redFlagDeveloperStatusCounts: Awaited<ReturnType<typeof getRedFlagDeveloperStatusCounts>> extends ActionResult<infer T> ? T : never;
   complianceDeveloperStatusCounts: Awaited<ReturnType<typeof getComplianceIssueDeveloperStatusCounts>> extends ActionResult<infer T> ? T : never;
   needsInfoCounts: Awaited<ReturnType<typeof getNeedMoreInfoCounts>> extends ActionResult<infer T> ? T : never;
-  guidanceStatusCounts: GuidanceStatusCounts;
 }
-
-export type { GuidanceStatusCounts };
 
 export interface ReviewModeCountsData {
   tabCounts: TabCounts;
@@ -68,7 +62,6 @@ export interface ReviewModeCountsData {
   complianceStatusCounts: Awaited<ReturnType<typeof getComplianceIssueStatusCounts>> extends ActionResult<infer T> ? T : never;
   definitionsStats: Awaited<ReturnType<typeof getDefinitionReviewStats>> extends ActionResult<infer T> ? T : never;
   needsInfoCounts: Awaited<ReturnType<typeof getNeedMoreInfoCounts>> extends ActionResult<infer T> ? T : never;
-  guidanceStatusCounts: GuidanceStatusCounts;
 }
 
 // ============================================
@@ -88,7 +81,6 @@ export async function getDeveloperModeCountsData(
     needsInfoCountsResult,
     definitionDevCountsResult,
     jenaiDevCountsResult,
-    guidanceCountsResult,
   ] = await Promise.all([
     getCombinedDeveloperStatusCounts(stateCode),
     getRedFlagDeveloperStatusCounts(stateCode),
@@ -96,7 +88,6 @@ export async function getDeveloperModeCountsData(
     getNeedMoreInfoCounts(stateCode),
     getDefinitionDeveloperStatusCounts(stateCode),
     getJenAIDeveloperStatusCounts(stateCode),
-    getGuidanceComplianceIssueStatusCounts(stateCode),
   ]);
 
   if (!developerStatusCountsResult.success) {
@@ -125,9 +116,6 @@ export async function getDeveloperModeCountsData(
   const jenaiDevCounts = jenaiDevCountsResult.success
     ? jenaiDevCountsResult.data
     : { total: 0 };
-  const guidanceStatusCounts: GuidanceStatusCounts = guidanceCountsResult.success
-    ? guidanceCountsResult.data
-    : { total: 0, unreviewed: 0, reviewed: 0, dismissed: 0 };
 
   const tabCounts: TabCounts = {
     flags: redFlagDeveloperStatusCounts.total,
@@ -135,7 +123,6 @@ export async function getDeveloperModeCountsData(
     definitions: definitionDevCounts.total,
     needs_info: needsInfoCounts.combined.total,
     jenai: jenaiDevCounts.total,
-    guidance: guidanceStatusCounts.total,
   };
 
   return success({
@@ -144,7 +131,6 @@ export async function getDeveloperModeCountsData(
     redFlagDeveloperStatusCounts,
     complianceDeveloperStatusCounts,
     needsInfoCounts,
-    guidanceStatusCounts,
   });
 }
 
@@ -232,14 +218,12 @@ export async function getReviewModeCountsData(
     definitionsStatsResult,
     needsInfoCountsResult,
     jenaiStatusCountsResult,
-    guidanceStatusCountsResult,
   ] = await Promise.all([
     getRedFlagStatusCounts(stateCode),
     getComplianceIssueStatusCounts(stateCode),
     getDefinitionReviewStats(stateCode),
     getNeedMoreInfoCounts(stateCode),
     getJenAIStatusCounts(stateCode),
-    getGuidanceComplianceIssueStatusCounts(stateCode),
   ]);
 
   if (!flagStatusCountsResult.success) {
@@ -263,9 +247,6 @@ export async function getReviewModeCountsData(
   const definitionsStats = definitionsStatsResult.data;
   const needsInfoCounts = needsInfoCountsResult.data;
   const jenaiStatusCounts = jenaiStatusCountsResult.success ? jenaiStatusCountsResult.data : { total: 0 };
-  const guidanceStatusCounts: GuidanceStatusCounts = guidanceStatusCountsResult.success
-    ? guidanceStatusCountsResult.data
-    : { total: 0, unreviewed: 0, reviewed: 0, dismissed: 0 };
 
   const tabCounts: TabCounts = {
     flags: flagStatusCounts.total,
@@ -273,7 +254,6 @@ export async function getReviewModeCountsData(
     definitions: definitionsStats.total,
     needs_info: needsInfoCounts.combined.total,
     jenai: jenaiStatusCounts.total,
-    guidance: guidanceStatusCounts.total,
   };
 
   return success({
@@ -282,7 +262,6 @@ export async function getReviewModeCountsData(
     complianceStatusCounts,
     definitionsStats,
     needsInfoCounts,
-    guidanceStatusCounts,
   });
 }
 
@@ -343,6 +322,7 @@ export async function getComplianceQueueData(
       tierCompleted?: '0' | '1' | '2' | '3' | 'all';
       federalMandate?: boolean | 'all';
       hasAnalysis?: boolean | 'all';
+      source?: 'regulation' | 'guidance' | 'all';
     };
   }
 ) {

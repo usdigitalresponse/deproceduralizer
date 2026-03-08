@@ -7,6 +7,9 @@ export { HierarchyTreeView } from './HierarchyTreeView';
 export { HierarchyTreeNodeCompact } from './HierarchyTreeNodeCompact';
 export { SiblingSectionsView } from './SiblingSectionsView';
 
+// Dialogs
+export { ConfirmDialog } from './ConfirmDialog';
+
 // Queue components
 export { QueuePagination } from './QueuePagination';
 export { QueueResultsInfo } from './QueueResultsInfo';

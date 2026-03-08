@@ -174,13 +174,22 @@ export function QueueReviewFormBase({
       </div>
 
       {/* Actions */}
-      <div className="flex items-center justify-end">
+      <div className="flex items-center justify-end gap-3">
+        {(!formData.reviewedBy.trim() || formData.reviewStatus === 'unreviewed') && (
+          <p className="text-xs text-[var(--color-text-muted)]">
+            {!formData.reviewedBy.trim() && formData.reviewStatus === 'unreviewed'
+              ? 'Set a status and enter your name to save'
+              : formData.reviewStatus === 'unreviewed'
+                ? 'Select a review status to save'
+                : 'Enter your name to save'}
+          </p>
+        )}
         <Button
           type="submit"
           variant="primary"
           size="sm"
           isLoading={isPending}
-          disabled={isPending || !formData.reviewedBy.trim()}
+          disabled={isPending || !formData.reviewedBy.trim() || formData.reviewStatus === 'unreviewed'}
           data-testid={`${testIdPrefix}-save-button`}
         >
           {isPending ? 'Saving...' : 'Save Review'}

@@ -23,6 +23,20 @@ describe('parseCommaSeparated', () => {
   });
 });
 
+describe('complianceSourceParser default', () => {
+  it('defaults to "all"', async () => {
+    const { complianceSourceParser } = await import('./parsers');
+    expect(complianceSourceParser.defaultValue).toBe('all');
+  });
+});
+
+describe('jenaiSourceParser default', () => {
+  it('defaults to "all"', async () => {
+    const { jenaiSourceParser } = await import('./parsers');
+    expect(jenaiSourceParser.defaultValue).toBe('all');
+  });
+});
+
 describe('serializeCommaSeparated', () => {
   it('returns null for empty array', () => {
     expect(serializeCommaSeparated([])).toBeNull();

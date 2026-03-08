@@ -9,7 +9,22 @@ export function RegulationActions({
   verbatimSupportingText,
   regexMatchPattern,
   isVerbatim,
+  guidance,
 }: RegulationActionsProps) {
+  // Guidance document actions
+  if (guidance) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-3 flex-wrap">
+          <Button variant="secondary" size="sm" onClick={() => window.open(`/${stateCode}/guidance/${guidance.id}`, '_blank')}>
+            View Guidance Page <ExternalLink className="w-3 h-3 ml-1" />
+          </Button>
+          <CornellLink url={guidance.url} />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       {/* View Full Regulation Page + Cornell Link */}

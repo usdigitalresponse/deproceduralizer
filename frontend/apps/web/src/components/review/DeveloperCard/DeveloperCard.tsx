@@ -138,11 +138,13 @@ export const DeveloperCard = forwardRef<HTMLDivElement, DeveloperCardProps>(
         {/* Review info (read-only summary) */}
         <ReviewSummary item={item} />
 
-        {/* Hierarchy Tree View */}
-        <HierarchyTreeView
-          documentId={item.regulation.id}
-          state={state}
-        />
+        {/* Hierarchy Tree View (only for regulation-sourced items) */}
+        {item.regulation.id !== 0 && (
+          <HierarchyTreeView
+            documentId={item.regulation.id}
+            state={state}
+          />
+        )}
 
         {/* Developer form */}
         <DeveloperForm

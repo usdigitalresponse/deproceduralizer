@@ -1,5 +1,6 @@
 'use client';
 
+import { useCallback } from 'react';
 import type { DeveloperItem, CombinedDeveloperStatusCounts } from '@/lib/actions/developer';
 import { DeveloperProgress } from './DeveloperProgress';
 import { DeveloperFilters } from './DeveloperFilters';
@@ -33,6 +34,7 @@ export function DeveloperQueue({
     setSelectedRegulationId,
     handleViewRegulation,
     handleItemUpdated,
+    handleItemRemoved,
     goToPage,
   } = useQueue<DeveloperItem, CombinedDeveloperStatusCounts>({
     initialItems,
@@ -40,8 +42,12 @@ export function DeveloperQueue({
     getItemId: (i) => `${i.type}-${i.id}`,
     getItemStatus: (i) => i.developerStatus || 'unresolved',
     defaultStatus: 'unresolved',
-    getRegulationId: (i) => i.regulation.id,
+    getRegulationId: (i) => i.regulation?.id ?? 0,
   });
+
+  const handleItemCleared = useCallback((itemId: number, itemType: 'red_flag' | 'compliance_issue') => {
+    handleItemRemoved(`${itemType}-${itemId}`);
+  }, [handleItemRemoved]);
 
   // Keyboard navigation hook (auto-attaches listener)
   const {
@@ -52,7 +58,7 @@ export function DeveloperQueue({
   } = useQueueNavigation({
     items: items,
     getItemId: (i) => `${i.type}-${i.id}`,
-    onViewRegulation: (i) => setSelectedRegulationId(i.regulation.id),
+    onViewRegulation: (i) => i.regulation?.id ? setSelectedRegulationId(i.regulation.id) : undefined,
     itemLabel: 'item',
   });
 
@@ -97,6 +103,7 @@ export function DeveloperQueue({
               ref={(el) => setCardRef(index, el)}
               item={item}
               onUpdated={handleItemUpdated}
+              onCleared={handleItemCleared}
               onViewRegulation={handleViewRegulation}
               isFocused={index === focusedIndex}
               state={state}
