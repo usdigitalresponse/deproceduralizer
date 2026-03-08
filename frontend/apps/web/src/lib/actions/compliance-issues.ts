@@ -146,12 +146,14 @@ export interface ComplianceIssueStatusCounts {
  * @returns Object with counts per status and total
  */
 export async function getComplianceIssueStatusCounts(
-  state: JurisdictionCode
+  state: JurisdictionCode,
+  options?: { source?: 'regulation' | 'guidance' | 'all' }
 ): Promise<ActionResult<ComplianceIssueStatusCounts>> {
+  const source = options?.source ?? 'all';
   return runCachedAction(
     'getComplianceIssueStatusCounts',
-    () => complianceIssuesRepo.getCountsByStatus(state),
-    [`compliance-issue-status-counts-${state}`],
+    () => complianceIssuesRepo.getCountsByStatus(state, { source }),
+    [`compliance-issue-status-counts-${state}-${source}`],
     { revalidate: 120, tags: ['compliance-issues'] }
   );
 }

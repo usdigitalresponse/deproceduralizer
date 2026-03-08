@@ -210,7 +210,8 @@ export async function getComplianceDeveloperQueueData(
  * Fetch all counts needed for review mode tabs
  */
 export async function getReviewModeCountsData(
-  stateCode: JurisdictionCode
+  stateCode: JurisdictionCode,
+  options?: { source?: 'regulation' | 'guidance' | 'all' }
 ): Promise<ActionResult<ReviewModeCountsData>> {
   const [
     flagStatusCountsResult,
@@ -220,7 +221,7 @@ export async function getReviewModeCountsData(
     jenaiStatusCountsResult,
   ] = await Promise.all([
     getRedFlagStatusCounts(stateCode),
-    getComplianceIssueStatusCounts(stateCode),
+    getComplianceIssueStatusCounts(stateCode, { source: options?.source }),
     getDefinitionReviewStats(stateCode),
     getNeedMoreInfoCounts(stateCode),
     getJenAIStatusCounts(stateCode),

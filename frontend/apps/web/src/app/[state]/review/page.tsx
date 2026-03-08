@@ -366,7 +366,8 @@ async function renderReviewMode(
   ctx: TabLoaderContext,
   reviewType: ReviewType,
 ) {
-  const countsResult = await getReviewModeCountsData(ctx.stateCode);
+  const source = (ctx.queryParams.source || 'all') as 'regulation' | 'guidance' | 'all';
+  const countsResult = await getReviewModeCountsData(ctx.stateCode, { source });
 
   if (!countsResult.success) {
     return (

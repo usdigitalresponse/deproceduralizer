@@ -1241,17 +1241,28 @@ export class ComplianceIssuesRepository extends BaseRepository {
    * PR 6.3: Counts analysis rows (one per document+issue_type) instead of match rows.
    * Only counts LLM-confirmed issues (requirement_found = TRUE) to exclude regex-only matches.
    */
-  async getCountsByStatus(jurisdiction: JurisdictionCode): Promise<ComplianceIssueStatusCounts> {
+  async getCountsByStatus(
+    jurisdiction: JurisdictionCode,
+    options?: { source?: 'regulation' | 'guidance' | 'all' }
+  ): Promise<ComplianceIssueStatusCounts> {
+    const conditions = [
+      eq(complianceIssueAnalyses.jurisdiction, normalizeJurisdiction(jurisdiction)),
+      eq(complianceIssueAnalyses.requirementFound, true),
+    ];
+
+    if (options?.source === 'guidance') {
+      conditions.push(isNotNull(complianceIssueAnalyses.guidanceDocumentId));
+    } else if (options?.source === 'regulation') {
+      conditions.push(isNull(complianceIssueAnalyses.guidanceDocumentId));
+    }
+
     const result = await this.db
       .select({
         status: complianceIssueAnalyses.reviewStatus,
         count: sql<number>`count(*)::int`,
       })
       .from(complianceIssueAnalyses)
-      .where(and(
-        eq(complianceIssueAnalyses.jurisdiction, normalizeJurisdiction(jurisdiction)),
-        eq(complianceIssueAnalyses.requirementFound, true)
-      ))
+      .where(and(...conditions))
       .groupBy(complianceIssueAnalyses.reviewStatus);
 
     // Initialize counts with zeros
