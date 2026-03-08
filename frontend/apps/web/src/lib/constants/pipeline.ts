@@ -3,6 +3,8 @@
  * Single source of truth for tier information displayed in the UI.
  */
 
+import { CLASSIFICATION_FILTER_OPTIONS } from './filters';
+
 /**
  * Classification colors consistent with TierClassificationFlow.tsx
  */
@@ -194,6 +196,15 @@ export const PIPELINE_TIERS: PipelineTierData[] = [
     ],
   },
 ];
+
+/**
+ * Classification filter options with color indicators.
+ * Shared between AnalysisTableFilters and GuidanceAnalysisTableFilters.
+ */
+export const COLORED_CLASSIFICATION_OPTIONS = CLASSIFICATION_FILTER_OPTIONS.map(option => ({
+  ...option,
+  colorClass: CLASSIFICATION_COLORS[option.value as keyof typeof CLASSIFICATION_COLORS],
+}));
 
 /**
  * Get colors for a classification

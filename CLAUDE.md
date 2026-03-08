@@ -61,7 +61,7 @@ When working on the Next.js frontend, follow these patterns:
 ### LLM Prompts
 - All prompts are centralized in the `/prompts/` directory:
   - `prompts/core.yaml` - Core analysis prompts (red_flags, definitions)
-  - `prompts/compliance_issues.yaml` - All 46 compliance issue types with patterns and prompts
+  - `prompts/compliance_issues.yaml` - All 46 compliance issue types with patterns and prompts (includes fines_fees_penalties dedicated-table config)
 - Prompts have `system` (static, cached) and `template` (dynamic) sections
 - When adding/modifying prompts, update the appropriate file in `/prompts/`
 - **Important:** When modifying any prompt, update its `updated_at` field to today's date (YYYY-MM-DD format)
@@ -97,10 +97,20 @@ When working on the Next.js frontend, follow these patterns:
 - Default is dry-run — must pass `--execute` to actually run
 - Prompts in `prompts/jenai.yaml`
 
+### Fines Pipeline
+- Scans regulations and guidance for fines, fees, penalties, surcharges, forfeitures: `python backend/scripts/fines_scanner.py --state ny`
+- Regex search followed by LLM structured extraction, saves to `fines_fees_penalties` table
+- Extracts: penalty type, amount (min/max), who pays, responsible agency, violation description
+- Prompt config in `prompts/compliance_issues.yaml` (key: `fines_fees_penalties`) — uses dedicated table, not `compliance_issues`
+- Supports `--include-guidance` for guidance docs, `--batch` for Batch API, `--dry-run` for regex-only
+- Uses Haiku model; cost ~$1-3 per full state scan
+- **IMPORTANT**: Always ask user permission before running (costs money)
+
 ### Pipeline Scripts
 - Use `scripts.research_pipeline.cli` for the 3-tier compliance research.
 - Use `scripts.jenai_pipeline.cli` for the single-pass JenAI analysis.
 - Use `scripts.summarization.cli` for hierarchical document summarization.
+- Use `backend/scripts/fines_scanner.py` for fines, fees & penalties extraction.
 - When adding/removing backend scripts, update `docs/OPERATIONS.md`.
 - Scrapers handle migration automatically via `lib.migration.migrate_regulations_to_db()`.
 
@@ -117,6 +127,7 @@ When working on the Next.js frontend, follow these patterns:
 | `.claude/skills/pipeline/SKILL.md` | Pipeline overview and step routing | Adding/removing pipeline steps |
 | `.claude/skills/research-pipeline/SKILL.md` | Pipeline internals (tiers, state machine, triggers) | Changing tier logic, triggers, state machine, cost model |
 | `.claude/skills/jenai-pipeline/SKILL.md` | JenAI pipeline architecture and categories | Changing tier logic, categories, context strategy |
+| `.claude/skills/fines-pipeline/SKILL.md` | Fines extraction architecture and prompt structure | Adding scrapers, changing fines extraction logic |
 | `.claude/skills/cross-references/` | Extraction patterns and troubleshooting | Changing regex patterns, resolution logic |
 | `.claude/skills/web-scraping/SKILL.md` | nys-documents scraping pipeline and downloaders | Adding scrapers, changing download logic, download failures |
 

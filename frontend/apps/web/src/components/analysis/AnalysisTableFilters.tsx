@@ -19,7 +19,6 @@ import type {
 } from '@/lib/constants/values';
 import {
   TIER_FILTER_OPTIONS,
-  CLASSIFICATION_FILTER_OPTIONS,
   FEDERAL_MANDATE_FILTER_OPTIONS,
   ANALYSIS_SORT_OPTIONS,
   PIPELINE_RUN_FILTER_OPTIONS,
@@ -35,13 +34,7 @@ import {
   TIER3_TRIGGER_FILTER_OPTIONS,
   EASY_CLEANUP_FILTER_OPTIONS,
 } from '@/lib/constants/filters';
-import { CLASSIFICATION_COLORS } from '@/lib/constants/pipeline';
-
-// Create classification options with color indicators
-const COLORED_CLASSIFICATION_OPTIONS = CLASSIFICATION_FILTER_OPTIONS.map(option => ({
-  ...option,
-  colorClass: CLASSIFICATION_COLORS[option.value as keyof typeof CLASSIFICATION_COLORS],
-}));
+import { CLASSIFICATION_COLORS, COLORED_CLASSIFICATION_OPTIONS } from '@/lib/constants/pipeline';
 
 export function AnalysisTableFilters() {
   const [filters, setFilters] = useQueryStates(analysisTableParsers, {

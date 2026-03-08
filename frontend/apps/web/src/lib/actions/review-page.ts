@@ -13,6 +13,7 @@ import {
   getComplianceIssueTypes,
   getComplianceSuggestionBatch,
   getGuidanceComplianceIssueStatusCounts,
+  type GuidanceStatusCounts,
   type SuggestionBatchResult,
 } from './compliance-issues';
 import {
@@ -56,7 +57,10 @@ export interface DeveloperModeCountsData {
   redFlagDeveloperStatusCounts: Awaited<ReturnType<typeof getRedFlagDeveloperStatusCounts>> extends ActionResult<infer T> ? T : never;
   complianceDeveloperStatusCounts: Awaited<ReturnType<typeof getComplianceIssueDeveloperStatusCounts>> extends ActionResult<infer T> ? T : never;
   needsInfoCounts: Awaited<ReturnType<typeof getNeedMoreInfoCounts>> extends ActionResult<infer T> ? T : never;
+  guidanceStatusCounts: GuidanceStatusCounts;
 }
+
+export type { GuidanceStatusCounts };
 
 export interface ReviewModeCountsData {
   tabCounts: TabCounts;
@@ -64,6 +68,7 @@ export interface ReviewModeCountsData {
   complianceStatusCounts: Awaited<ReturnType<typeof getComplianceIssueStatusCounts>> extends ActionResult<infer T> ? T : never;
   definitionsStats: Awaited<ReturnType<typeof getDefinitionReviewStats>> extends ActionResult<infer T> ? T : never;
   needsInfoCounts: Awaited<ReturnType<typeof getNeedMoreInfoCounts>> extends ActionResult<infer T> ? T : never;
+  guidanceStatusCounts: GuidanceStatusCounts;
 }
 
 // ============================================
@@ -120,9 +125,9 @@ export async function getDeveloperModeCountsData(
   const jenaiDevCounts = jenaiDevCountsResult.success
     ? jenaiDevCountsResult.data
     : { total: 0 };
-  const guidanceCounts = guidanceCountsResult.success
+  const guidanceStatusCounts: GuidanceStatusCounts = guidanceCountsResult.success
     ? guidanceCountsResult.data
-    : { total: 0 };
+    : { total: 0, unreviewed: 0, reviewed: 0, dismissed: 0 };
 
   const tabCounts: TabCounts = {
     flags: redFlagDeveloperStatusCounts.total,
@@ -130,7 +135,7 @@ export async function getDeveloperModeCountsData(
     definitions: definitionDevCounts.total,
     needs_info: needsInfoCounts.combined.total,
     jenai: jenaiDevCounts.total,
-    guidance: guidanceCounts.total,
+    guidance: guidanceStatusCounts.total,
   };
 
   return success({
@@ -139,6 +144,7 @@ export async function getDeveloperModeCountsData(
     redFlagDeveloperStatusCounts,
     complianceDeveloperStatusCounts,
     needsInfoCounts,
+    guidanceStatusCounts,
   });
 }
 
@@ -257,7 +263,7 @@ export async function getReviewModeCountsData(
   const definitionsStats = definitionsStatsResult.data;
   const needsInfoCounts = needsInfoCountsResult.data;
   const jenaiStatusCounts = jenaiStatusCountsResult.success ? jenaiStatusCountsResult.data : { total: 0 };
-  const guidanceStatusCounts = guidanceStatusCountsResult.success
+  const guidanceStatusCounts: GuidanceStatusCounts = guidanceStatusCountsResult.success
     ? guidanceStatusCountsResult.data
     : { total: 0, unreviewed: 0, reviewed: 0, dismissed: 0 };
 
@@ -276,6 +282,7 @@ export async function getReviewModeCountsData(
     complianceStatusCounts,
     definitionsStats,
     needsInfoCounts,
+    guidanceStatusCounts,
   });
 }
 

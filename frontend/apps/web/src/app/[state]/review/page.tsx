@@ -211,7 +211,7 @@ async function renderDeveloperMode(
     case 'compliance':
       return loadDeveloperComplianceTab(ctx, tabCounts, countsData.complianceDeveloperStatusCounts);
     case 'guidance':
-      return loadGuidanceTab(ctx, tabCounts, 'developer');
+      return loadGuidanceTab(ctx, tabCounts, 'developer', countsData.guidanceStatusCounts);
     default:
       return loadDeveloperRedFlagsTab(ctx, tabCounts, countsData.redFlagDeveloperStatusCounts);
   }
@@ -393,7 +393,7 @@ async function renderReviewMode(
     case 'compliance':
       return loadReviewComplianceTab(ctx, tabCounts, countsData.complianceStatusCounts);
     case 'guidance':
-      return loadGuidanceTab(ctx, tabCounts, 'review');
+      return loadGuidanceTab(ctx, tabCounts, 'review', countsData.guidanceStatusCounts);
     default:
       return loadReviewRedFlagsTab(ctx, tabCounts, countsData.flagStatusCounts);
   }
@@ -646,6 +646,7 @@ async function loadGuidanceTab(
   ctx: TabLoaderContext,
   tabCounts: TabCounts,
   mode: ReviewMode,
+  statusCounts?: { total: number; unreviewed: number; reviewed: number; dismissed: number },
 ) {
   return (
     <ReviewPageLayout pageConfig={ctx.pageConfig} mode={mode} reviewType="guidance" tabCounts={tabCounts}>
@@ -653,6 +654,7 @@ async function loadGuidanceTab(
         jurisdiction={ctx.stateCode.toLowerCase()}
         count={tabCounts.guidance}
         mode={mode}
+        statusCounts={statusCounts}
       />
     </ReviewPageLayout>
   );

@@ -405,7 +405,7 @@ export const MATCH_STATUS_LABELS: Record<string, string> = {
 // Prompts Page
 // ============================================
 
-export const PROMPTS_TAB_VALUES = ['overview', 'research', 'jenai', 'catalog'] as const;
+export const PROMPTS_TAB_VALUES = ['overview', 'research', 'jenai', 'fines', 'catalog'] as const;
 export type PromptsTabValue = (typeof PROMPTS_TAB_VALUES)[number];
 
 // ============================================

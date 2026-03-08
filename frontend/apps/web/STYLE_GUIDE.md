@@ -1847,7 +1847,35 @@ Metadata sidebar showing ancestor chain (indented tree), sibling count, definiti
 
 ### Shared: LayerSection
 
-Extracted to `components/prompts/shared/LayerSection.tsx`. Collapsible section with copy button, placeholder highlighting, token/line counts. Used by both V5 `ComposedPromptViewer` and `JenAIComposedPromptViewer`.
+Extracted to `components/prompts/shared/LayerSection.tsx`. Collapsible section with copy button, placeholder highlighting, token/line counts. Used by V5 `ComposedPromptViewer`, `JenAIComposedPromptViewer`, and `FinesComposedPromptViewer`.
+
+---
+
+## Fines Pipeline Composer
+
+Interactive prompt viewer for the fines extraction pipeline. Located on `/prompts?tab=fines` page. User searches for a regulatory section and sees the fully assembled 2-layer prompt with document metadata and regulation context.
+
+### FinesPipelineComposer
+
+Parent orchestrator — header card reusing `DocumentSearchSelector` from JenAI, 2-column layout (viewer + context panel), and token breakdown.
+
+```tsx
+import { FinesPipelineComposer } from '@/components/prompts';
+
+<FinesPipelineComposer />
+```
+
+### FinesComposedPromptViewer
+
+2-layer prompt viewer using shared `LayerSection` component. Layers: System (cached globally), Template (unique per document). Color-coded with legend.
+
+### FinesContextPanel
+
+Right sidebar showing document metadata: source type (regulation/guidance), responsible agency, NYCRR title, content length, windowing status, and matched regex patterns.
+
+### FinesTokenBreakdown
+
+Stacked bar chart showing token distribution between system and template layers, with cache savings estimate.
 
 ---
 
@@ -3975,7 +4003,7 @@ Table rows in the pipeline list have colored left borders based on priority:
 
 ## Prompts Page
 
-The Prompts page at `/prompts` displays all LLM prompts used by the regulatory analysis system. It uses a four-tab layout with `SegmentedControl` for tab switching, following the same pattern as IBR and Guidance pages.
+The Prompts page at `/prompts` displays all LLM prompts used by the regulatory analysis system. It uses a five-tab layout with `SegmentedControl` for tab switching, following the same pattern as IBR and Guidance pages.
 
 ### Tab Structure
 
@@ -3983,12 +4011,13 @@ The Prompts page at `/prompts` displays all LLM prompts used by the regulatory a
 |-----|-----------|-----------|-------------|
 | Overview | `?tab=overview` (default) | `PromptsOverviewTab` | Stats dashboard, composer quick links, catalog summary |
 | Research | `?tab=research` | `V5PipelineComposer` | 3-tier research pipeline prompt composer (full width) |
-| JenAI | `?tab=jenai` | Placeholder (coming soon) | JenAI pipeline prompt composer |
+| JenAI | `?tab=jenai` | `JenAIPipelineComposer` | JenAI pipeline prompt composer |
+| Fines | `?tab=fines` | `FinesPipelineComposer` | Fines extraction prompt composer (2-layer) |
 | Catalog | `?tab=catalog` | `PromptCatalogTab` | Search + prompt cards + sidebar nav |
 
 ### PromptsClient
 
-Client component managing tab state via `promptsParsers` (nuqs). Renders tab content based on active tab. Uses `SegmentedControl` with BarChart3/Layers/Cpu/Code icons. Passes `onNavigateTab` callback to `PromptsOverviewTab` for composer quick links.
+Client component managing tab state via `promptsParsers` (nuqs). Renders tab content based on active tab. Uses `SegmentedControl` with BarChart3/Layers/Cpu/DollarSign/Code icons. Passes `onNavigateTab` callback to `PromptsOverviewTab` for composer quick links.
 
 ### PromptsOverviewTab
 
@@ -4019,7 +4048,10 @@ components/prompts/
 ├── FeedbackList.tsx        # Feedback display list
 ├── PromptTemplate.tsx      # Prompt template viewer
 ├── PromptVariables.tsx     # Prompt variables display
-└── V5PipelineComposer/     # Research pipeline composer
+├── V5PipelineComposer/     # Research pipeline composer
+├── JenAIPipelineComposer/  # JenAI pipeline prompt composer
+├── FinesPipelineComposer/  # Fines extraction prompt composer
+└── shared/                 # Shared prompt components (LayerSection)
 ```
 
 ---

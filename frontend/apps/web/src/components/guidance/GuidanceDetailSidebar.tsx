@@ -12,6 +12,7 @@ interface GuidanceDetailSidebarProps {
   doc: GuidanceDocumentDetail;
   state?: string;
   resolvedCitations?: ResolvedRegulationCitation[];
+  hasComplianceCard?: boolean;
 }
 
 function MetadataRow({ label, children }: { label: string; children: React.ReactNode }) {
@@ -37,7 +38,7 @@ function ListSection({ label, items }: { label: string; items: string[] | null }
   );
 }
 
-export function GuidanceDetailSidebar({ doc, state, resolvedCitations }: GuidanceDetailSidebarProps) {
+export function GuidanceDetailSidebar({ doc, state, resolvedCitations, hasComplianceCard }: GuidanceDetailSidebarProps) {
   return (
     <Card padding="lg">
       <CardHeader>
@@ -97,12 +98,21 @@ export function GuidanceDetailSidebar({ doc, state, resolvedCitations }: Guidanc
         {/* Compliance issues */}
         {doc.complianceIssueCount > 0 && state && (
           <MetadataRow label="Compliance Issues">
-            <Link
-              href={`/${state}/pipeline?source=guidance`}
-              className="inline-flex items-center gap-1 hover:underline"
-            >
-              <Badge variant="warning">{doc.complianceIssueCount}</Badge>
-            </Link>
+            {hasComplianceCard ? (
+              <a
+                href="#compliance-analysis"
+                className="inline-flex items-center gap-1 hover:underline"
+              >
+                <Badge variant="warning">{doc.complianceIssueCount}</Badge>
+              </a>
+            ) : (
+              <Link
+                href={`/${state}/pipeline?source=guidance`}
+                className="inline-flex items-center gap-1 hover:underline"
+              >
+                <Badge variant="warning">{doc.complianceIssueCount}</Badge>
+              </Link>
+            )}
           </MetadataRow>
         )}
       </div>

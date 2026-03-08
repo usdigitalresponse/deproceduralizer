@@ -574,6 +574,9 @@ export interface AnalysisListFilters {
   tier3Trigger?: string;
   easyCleanup?: 'any' | 'trivial' | 'easy' | 'medium';
   bookmarkedOnly?: boolean;
+  // Guidance-specific filters
+  agency?: string;
+  docType?: string;
 }
 
 /** Analysis source: regulations (default) or guidance documents. */
@@ -806,6 +809,14 @@ export function buildAnalysisListFilters(params: {
         WHERE ${bookmarks.analysisId} = ${complianceIssueAnalyses.id}
       )`
     );
+  }
+
+  // Guidance-specific filters (agency/docType on joined guidance_documents table)
+  if (filters.agency) {
+    conditions.push(eq(guidanceDocuments.agency, filters.agency));
+  }
+  if (filters.docType) {
+    conditions.push(eq(guidanceDocuments.docType, filters.docType));
   }
 
   return conditions;

@@ -7,6 +7,7 @@ import type { PipelineSourceValue } from '@/lib/constants/values';
 import { TierDistributionChart } from './TierDistributionChart';
 import { AnalysisTable } from './AnalysisTable';
 import { AnalysisTableFilters } from './AnalysisTableFilters';
+import { GuidanceAnalysisTableFilters } from './GuidanceAnalysisTableFilters';
 import { ExportCsvButton } from './ExportCsvButton';
 import { PipelineFlowVisualizer } from './PipelineFlowVisualizer';
 import { PriorityPicksBanner } from './PriorityPicksBanner';
@@ -18,6 +19,8 @@ interface AnalysisDashboardProps {
   total: number;
   priorityPicks?: PriorityPicksResult | null;
   source?: PipelineSourceValue;
+  guidanceAgencies?: string[];
+  guidanceDocTypes?: string[];
 }
 
 export function AnalysisDashboard({
@@ -27,6 +30,8 @@ export function AnalysisDashboard({
   total,
   priorityPicks,
   source,
+  guidanceAgencies,
+  guidanceDocTypes,
 }: AnalysisDashboardProps) {
   if (!tierCounts || !classificationBreakdown) {
     return (
@@ -112,7 +117,14 @@ export function AnalysisDashboard({
         </div>
 
         <Suspense fallback={<div className="animate-pulse bg-[var(--color-neutral-100)] h-12 rounded-[var(--radius-md)]" />}>
-          <AnalysisTableFilters />
+          {source === 'guidance' ? (
+            <GuidanceAnalysisTableFilters
+              agencies={guidanceAgencies ?? []}
+              docTypes={guidanceDocTypes ?? []}
+            />
+          ) : (
+            <AnalysisTableFilters />
+          )}
         </Suspense>
 
         <Suspense fallback={<div className="animate-pulse bg-[var(--color-neutral-100)] h-64 rounded-[var(--radius-md)]" />}>

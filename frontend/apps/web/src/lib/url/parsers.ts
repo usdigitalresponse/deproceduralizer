@@ -297,6 +297,9 @@ export const analysisTableParsers = {
   easyCleanup: easyCleanupParser,
   // Bookmarks filter
   bookmarkedOnly: bookmarkedOnlyParser,
+  // Guidance-specific filters (null = no filter)
+  agency: parseAsString,
+  docType: parseAsString,
 };
 
 // ============================================

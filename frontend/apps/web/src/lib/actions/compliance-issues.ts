@@ -328,9 +328,16 @@ export async function getComplianceSeverityDistribution(
   );
 }
 
+export interface GuidanceStatusCounts {
+  total: number;
+  unreviewed: number;
+  reviewed: number;
+  dismissed: number;
+}
+
 export async function getGuidanceComplianceIssueStatusCounts(
   state: JurisdictionCode
-): Promise<ActionResult<{ total: number; unreviewed: number; reviewed: number; dismissed: number }>> {
+): Promise<ActionResult<GuidanceStatusCounts>> {
   return runCachedAction(
     'getGuidanceComplianceIssueStatusCounts',
     () => complianceIssuesRepo.getGuidanceComplianceIssueStatusCounts(state),

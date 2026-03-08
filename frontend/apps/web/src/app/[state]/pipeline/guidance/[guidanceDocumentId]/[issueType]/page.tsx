@@ -193,6 +193,7 @@ export default async function GuidanceAnalysisDetailPage({ params, searchParams 
         {/* Bookmark Notes Card - shown when bookmarked, hidden in print mode */}
         {!isPrintMode && <BookmarkNotesCard />}
 
+
           {/* Header Card */}
         <div id="section-overview" className="bg-white border border-[var(--color-neutral-200)] rounded-[var(--radius-md)] p-6 mb-6">
           <div className="flex flex-wrap items-start gap-4 mb-4">

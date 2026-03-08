@@ -1,7 +1,7 @@
 'use client';
 
 import { useQueryStates } from 'nuqs';
-import { BarChart3, Layers, Cpu, Code } from 'lucide-react';
+import { BarChart3, Layers, Cpu, DollarSign, Code } from 'lucide-react';
 import { SegmentedControl, type SegmentedControlOption } from '@/components/ui/SegmentedControl';
 import { promptsParsers } from '@/lib/url/parsers';
 import type { PromptsTabValue } from '@/lib/constants/values';
@@ -13,11 +13,13 @@ import { PromptCatalogTab } from './PromptCatalogTab';
 import { ArchivedFeedback } from './ArchivedFeedback';
 import { V5PipelineComposer } from './V5PipelineComposer';
 import { JenAIPipelineComposer } from './JenAIPipelineComposer';
+import { FinesPipelineComposer } from './FinesPipelineComposer';
 
 const TAB_OPTIONS: SegmentedControlOption<PromptsTabValue>[] = [
   { value: 'overview', label: 'Overview', icon: BarChart3 },
   { value: 'research', label: 'Research', icon: Layers },
   { value: 'jenai', label: 'JenAI', icon: Cpu },
+  { value: 'fines', label: 'Fines', icon: DollarSign },
   { value: 'catalog', label: 'Catalog', icon: Code },
 ];
 
@@ -73,6 +75,10 @@ export function PromptsClient({
 
         {currentTab === 'jenai' && (
           <JenAIPipelineComposer />
+        )}
+
+        {currentTab === 'fines' && (
+          <FinesPipelineComposer />
         )}
 
         {currentTab === 'catalog' && (
