@@ -1,12 +1,19 @@
 'use client';
 
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useQueryStates } from 'nuqs';
-import { Select, FilterBar, FilterField } from '@/components/ui';
+import { Select, MultiSelect, FilterBar, FilterField } from '@/components/ui';
 import { DEVELOPER_STATUSES, DEVELOPERS, REVIEW_STATUSES, COMPLIANCE_ISSUE_TYPES, formatLabel } from '@/types/regulation';
-import { complianceDeveloperQueueParsers, type ComplianceDeveloperSortByValue, type DeveloperStatusValue, type SeverityValue, type ReviewStatusValue } from '@/lib/url/parsers';
+import {
+  complianceDeveloperQueueParsers,
+  parseCommaSeparated,
+  serializeCommaSeparated,
+  type ComplianceDeveloperSortByValue,
+  type DeveloperStatusValue,
+  type ReviewStatusValue,
+} from '@/lib/url/parsers';
 import { typedValue } from '@/lib/url/type-helpers';
-import { SEVERITY_FILTER_OPTIONS, COMPLIANCE_DEVELOPER_SORT_OPTIONS } from '@/lib/constants/filters';
+import { SEVERITY_MULTISELECT_OPTIONS, COMPLIANCE_DEVELOPER_SORT_OPTIONS } from '@/lib/constants/filters';
 
 interface ComplianceDeveloperFiltersProps {
   issueTypes: string[];
@@ -37,19 +44,21 @@ export function ComplianceDeveloperFilters({
     shallow: false,
   });
 
-  const issueTypeOptions = [
-    { value: 'all', label: 'All Issue Types' },
-    ...issueTypes.map(t => {
+  const selectedIssueTypes = useMemo(() => parseCommaSeparated(filters.issueType), [filters.issueType]);
+  const selectedSeverities = useMemo(() => parseCommaSeparated(filters.severity), [filters.severity]);
+
+  const issueTypeOptions = useMemo(() =>
+    issueTypes.map(t => {
       const found = COMPLIANCE_ISSUE_TYPES.find(ct => ct.value === t);
       return { value: t, label: found?.label || formatLabel(t) };
     }),
-  ];
+  [issueTypes]);
 
   const clearFilters = useCallback(() => {
     setFilters({
       developerStatus: 'all',
       developerAssigned: null,
-      severity: 'all',
+      severity: null,
       reviewStatus: 'all',
       issueType: null,
       page: 1,
@@ -59,7 +68,7 @@ export function ComplianceDeveloperFilters({
   const hasActiveFilters = Boolean(
     (filters.developerStatus && filters.developerStatus !== 'all') ||
     filters.developerAssigned ||
-    (filters.severity && filters.severity !== 'all') ||
+    filters.severity ||
     (filters.reviewStatus && filters.reviewStatus !== 'all') ||
     filters.issueType
   );
@@ -95,10 +104,12 @@ export function ComplianceDeveloperFilters({
       </FilterField>
 
       <FilterField label="Severity">
-        <Select
-          value={filters.severity || 'all'}
-          onValueChange={typedValue<SeverityValue>((value) => setFilters({ severity: value, page: 1 }))}
-          options={SEVERITY_FILTER_OPTIONS}
+        <MultiSelect
+          label="Severity"
+          value={selectedSeverities}
+          onChange={(values) => setFilters({ severity: serializeCommaSeparated(values), page: 1 })}
+          options={SEVERITY_MULTISELECT_OPTIONS}
+          placeholder="All Severities"
           aria-label="Filter by severity"
         />
       </FilterField>
@@ -113,10 +124,12 @@ export function ComplianceDeveloperFilters({
       </FilterField>
 
       <FilterField label="Issue Type">
-        <Select
-          value={filters.issueType || 'all'}
-          onValueChange={(value) => setFilters({ issueType: value === 'all' ? null : value, page: 1 })}
+        <MultiSelect
+          label="Issue Type"
+          value={selectedIssueTypes}
+          onChange={(values) => setFilters({ issueType: serializeCommaSeparated(values), page: 1 })}
           options={issueTypeOptions}
+          placeholder="All Issue Types"
           aria-label="Filter by issue type"
         />
       </FilterField>

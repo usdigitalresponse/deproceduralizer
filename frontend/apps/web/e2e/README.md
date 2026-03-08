@@ -69,7 +69,7 @@ Tests assume the following data exists:
 |-------|-------------|
 | NY | Has regulatory documents with browse tree |
 | NY | Has definitions in glossary |
-| NY | Has unreviewed red flags |
+| NY | Has unreviewed compliance issues |
 | NJ | Has regulatory documents with browse tree |
 | NJ | Has unreviewed compliance issues |
 | NJ | Has LLM-rejected compliance issues (`requirement_found=false`) |
@@ -102,7 +102,6 @@ await waitForReviewReady(page);
 Available helpers:
 - `waitForBrowseReady(page)` - Browse page with expand buttons
 - `waitForComplianceReviewReady(page)` - Review page with compliance cards
-- `waitForRedFlagReviewReady(page)` - Review page with red flag cards
 - `waitForDefinitionsReady(page)` - Definitions glossary
 - `waitForDashboardReady(page)` - Dashboard with statistics
 - `waitForSuggestionModeReady(page)` - Suggestion mode UI

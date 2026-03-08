@@ -63,7 +63,7 @@ export const NAV_ITEMS: NavItem[] = [
   },
   {
     key: 'table',
-    label: 'Table View',
+    label: 'Regulations',
     icon: Table,
     isStateSpecific: true,
     pathSuffix: '',
@@ -71,7 +71,7 @@ export const NAV_ITEMS: NavItem[] = [
   },
   {
     key: 'browse',
-    label: 'Browse',
+    label: 'Browse Regulations',
     icon: FolderTree,
     isStateSpecific: true,
     pathSuffix: '/browse',
@@ -79,7 +79,7 @@ export const NAV_ITEMS: NavItem[] = [
   },
   {
     key: 'glossary',
-    label: 'Glossary',
+    label: 'Definitions',
     icon: getEntityIcon('definition'),
     isStateSpecific: true,
     pathSuffix: '/definitions',
@@ -95,7 +95,7 @@ export const NAV_ITEMS: NavItem[] = [
   },
   {
     key: 'ibr',
-    label: 'Standards (IBR)',
+    label: 'Referenced Standards',
     icon: getEntityIcon('ibr_standard'),
     isStateSpecific: true,
     pathSuffix: '/ibr',
@@ -111,7 +111,7 @@ export const NAV_ITEMS: NavItem[] = [
   },
   {
     key: 'review',
-    label: 'Review Mode',
+    label: 'Review',
     icon: ClipboardCheck,
     isStateSpecific: true,
     pathSuffix: '/review',

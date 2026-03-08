@@ -6,7 +6,7 @@ import type { HeaderProps } from './types';
 export function Header({ issue, issueTypeLabel }: HeaderProps) {
   return (
     <div className="flex items-start justify-between gap-4 mb-4">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
         <a
           href={`/prompts#prompt-${issue.issueType}`}
           target="_blank"

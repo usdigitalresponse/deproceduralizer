@@ -28,7 +28,7 @@ export async function waitForComplianceReviewReady(page: Page) {
 
 /** Wait for definitions glossary page to be fully loaded */
 export async function waitForDefinitionsReady(page: Page) {
-  await expect(page.getByRole('heading', { name: /Definitions Glossary/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Definitions/i })).toBeVisible();
   await expect(page.getByText(/Total Definitions/i)).toBeVisible();
   await expect(page.locator('h3').first()).toBeVisible();
 }
@@ -58,7 +58,7 @@ export async function waitForSuggestionModeReady(page: Page) {
 export async function waitForFilterModeReady(page: Page) {
   await expect(page.getByRole('heading', { name: /Review/i })).toBeVisible();
   await expect(page.getByText('Status:')).toBeVisible({ timeout: 10000 });
-  await expect(page.getByText('Type:', { exact: true })).toBeVisible();
+  await expect(page.getByText('Issue Type:')).toBeVisible();
 }
 
 /** Wait for prompts page to be fully loaded */

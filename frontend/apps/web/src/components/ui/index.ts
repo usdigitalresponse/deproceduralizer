@@ -24,6 +24,10 @@ export { Textarea } from './Textarea';
 export { Select } from './Select';
 export type { SelectOption } from './Select';
 
+// MultiSelect
+export { MultiSelect } from './MultiSelect';
+export type { MultiSelectProps, MultiSelectOption } from './MultiSelect';
+
 // Modal
 export {
   Modal,

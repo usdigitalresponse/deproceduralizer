@@ -1,4 +1,4 @@
-import { eq, and, desc, asc, sql, count, gte, lt, or, isNull, isNotNull, ne } from 'drizzle-orm';
+import { eq, and, desc, asc, sql, count, gte, lt, or, isNull, isNotNull, ne, inArray } from 'drizzle-orm';
 import { BaseRepository } from './base.repository';
 import { jenaiIssues, type JenAIIssue } from '../schema/jenai-issues';
 import { jenaiAnalyses } from '../schema/jenai-analyses';
@@ -46,7 +46,11 @@ export interface JenAIFilterOptions {
   jurisdiction: JurisdictionCode;
   status?: string;
   severity?: 'high' | 'medium' | 'low';
+  /** Filter by multiple severity levels (multi-select). Takes precedence over severity when provided. */
+  severities?: ('high' | 'medium' | 'low')[];
   category?: string;
+  /** Filter by multiple categories (multi-select). Takes precedence over category when provided. */
+  categories?: string[];
   source?: JenAISource;
 }
 
@@ -231,11 +235,17 @@ export class JenAIRepository extends BaseRepository {
         }
       }
 
-      if (filters.severity) {
+      // Severity filter (multi-select severities takes precedence)
+      if (filters.severities && filters.severities.length > 0) {
+        const severityConditions = filters.severities.map(s => this.buildSeverityCondition(s));
+        conditions.push(or(...severityConditions)!);
+      } else if (filters.severity) {
         conditions.push(this.buildSeverityCondition(filters.severity));
       }
 
-      if (filters.category) {
+      if (filters.categories && filters.categories.length > 0) {
+        conditions.push(inArray(jenaiIssues.category, filters.categories));
+      } else if (filters.category) {
         conditions.push(eq(jenaiIssues.category, filters.category));
       }
 
@@ -346,11 +356,17 @@ export class JenAIRepository extends BaseRepository {
         conditions.push(eq(jenaiIssues.reviewStatus, filters.status));
       }
 
-      if (filters.severity) {
+      // Severity filter (multi-select severities takes precedence)
+      if (filters.severities && filters.severities.length > 0) {
+        const severityConditions = filters.severities.map(s => this.buildSeverityCondition(s));
+        conditions.push(or(...severityConditions)!);
+      } else if (filters.severity) {
         conditions.push(this.buildSeverityCondition(filters.severity));
       }
 
-      if (filters.category) {
+      if (filters.categories && filters.categories.length > 0) {
+        conditions.push(inArray(jenaiIssues.category, filters.categories));
+      } else if (filters.category) {
         conditions.push(eq(jenaiIssues.category, filters.category));
       }
 

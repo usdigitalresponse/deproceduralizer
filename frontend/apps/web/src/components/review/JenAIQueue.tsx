@@ -78,7 +78,7 @@ export function JenAIQueue({ jurisdiction, mode = 'review' }: JenAIQueueProps) {
             sortOrder: devFilters.sortOrder,
             developerStatus: devFilters.developerStatus === 'all' ? undefined : devFilters.developerStatus,
             developerAssigned: devFilters.developerAssigned || undefined,
-            severity: devFilters.severity,
+            severity: devFilters.severity || undefined,
             category: devFilters.category || undefined,
             source: devFilters.source,
           })
@@ -89,7 +89,7 @@ export function JenAIQueue({ jurisdiction, mode = 'review' }: JenAIQueueProps) {
             sortOrder: reviewFilters.sortOrder,
             filters: {
               status: reviewFilters.reviewStatus === 'all' ? undefined : reviewFilters.reviewStatus,
-              severity: reviewFilters.severity === 'all' ? undefined : reviewFilters.severity,
+              severity: reviewFilters.severity || undefined,
               category: reviewFilters.category || undefined,
               source: reviewFilters.source,
             },

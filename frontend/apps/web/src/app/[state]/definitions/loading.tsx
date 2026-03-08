@@ -6,7 +6,7 @@ export default function DefinitionsLoading() {
   return (
     <div className="bg-[var(--color-background)]">
       <PageHeader
-        title="Definitions Glossary"
+        title="Definitions"
         description="Browse regulatory definitions"
       />
 

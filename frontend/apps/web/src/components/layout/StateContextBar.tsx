@@ -99,7 +99,7 @@ export function StateContextBar({ jurisdiction }: StateContextBarProps) {
               aria-expanded={isDropdownOpen}
               aria-haspopup="listbox"
             >
-              <span>Switch State</span>
+              <span>Switch Jurisdiction</span>
               <svg
                 className={`w-4 h-4 transition-transform duration-[var(--duration-fast)] ${
                   isDropdownOpen ? 'rotate-180' : ''

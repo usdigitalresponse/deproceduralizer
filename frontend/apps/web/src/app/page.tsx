@@ -114,7 +114,7 @@ export default async function HomePage() {
         {/* State Selection */}
         <section>
           <h2 className="text-lg font-semibold text-[var(--color-text)] mb-4">
-            Select a State
+            Select a Jurisdiction
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <StateCard jurisdiction="ny" stats={stateStats.ny} />

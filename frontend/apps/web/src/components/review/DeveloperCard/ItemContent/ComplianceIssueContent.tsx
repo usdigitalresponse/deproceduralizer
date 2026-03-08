@@ -71,7 +71,7 @@ export function ComplianceIssueContent({ item, state }: ComplianceIssueContentPr
             {issue.isVerbatim !== null && (
               <Badge
                 variant={issue.isVerbatim ? 'info' : 'default'}
-                className="text-[10px] py-0 px-1.5"
+                className="text-xs"
               >
                 {issue.isVerbatim ? 'Verbatim Quote' : 'Paraphrased'}
               </Badge>

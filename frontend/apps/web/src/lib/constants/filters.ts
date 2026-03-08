@@ -76,6 +76,9 @@ const SEVERITY_LABELS: Record<(typeof SEVERITY_VALUES)[number], string> = {
 
 export const SEVERITY_FILTER_OPTIONS = createFilterOptions(SEVERITY_VALUES, SEVERITY_LABELS);
 
+/** Severity options for MultiSelect (no "All" entry — empty selection = all). */
+export const SEVERITY_MULTISELECT_OPTIONS: FilterOption[] = SEVERITY_FILTER_OPTIONS.filter(o => o.value !== 'all');
+
 // ============================================
 // Review Status Options
 // ============================================
@@ -208,7 +211,7 @@ export const DEFINITIONS_TYPE_OPTIONS = createFilterOptions(DEFINITION_TYPE_VALU
 });
 
 export const DEFINITIONS_CROSS_REFERENCE_OPTIONS = createFilterOptions(DEFINITIONS_CROSS_REF_VALUES, {
-  all: 'All Cross-Ref',
+  all: 'All Cross-Refs',
   true: 'Cross-Reference Only',
   false: 'Not Cross-Reference',
 });
@@ -239,7 +242,7 @@ export const DEFINITIONS_SORT_OPTIONS = createFilterOptions(DEFINITIONS_SORT_BY_
 
 // Cross-reference categorization options (two dimensions)
 export const DEFINITIONS_REFERENCE_COMPLETENESS_OPTIONS = createFilterOptions(REFERENCE_COMPLETENESS_VALUES, {
-  all: 'All Completeness',
+  all: 'All Completeness Levels',
   pure_pointer: 'Pure Pointer',
   hybrid: 'Hybrid',
 });
@@ -509,7 +512,7 @@ export const ADVOCACY_FOR_CHANGE_FILTER_OPTIONS = createFilterOptions(
 // ============================================
 
 export const SEARCH_DOC_TYPE_OPTIONS: FilterOption[] = [
-  { value: 'all', label: 'All types' },
+  { value: 'all', label: 'All Document Types' },
   { value: 'regulation', label: 'Regulations' },
   { value: 'statute', label: 'Statutes' },
   { value: 'guidance', label: 'Guidance' },

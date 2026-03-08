@@ -282,7 +282,7 @@ async function loadDeveloperComplianceTab(
     sortOrder: ctx.sortOrder,
     developerStatus: ctx.queryParams.developerStatus || undefined,
     developerAssigned: ctx.queryParams.developerAssigned || undefined,
-    severity: (ctx.queryParams.severity || 'all') as 'high' | 'medium' | 'low' | 'all',
+    severity: ctx.queryParams.severity || undefined,
     reviewStatus: ctx.queryParams.reviewStatus || undefined,
     issueType: ctx.queryParams.issueType || undefined,
   });

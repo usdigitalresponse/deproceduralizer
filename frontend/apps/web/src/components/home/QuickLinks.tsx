@@ -61,13 +61,13 @@ export function QuickLinks({ jurisdiction, stats }: QuickLinksProps) {
       <QuickLink
         href={`/${jurisdiction}/browse`}
         icon={<FolderTree className="w-6 h-6 text-[var(--color-text-secondary)] group-hover:text-[var(--color-primary)] transition-colors" />}
-        title="Browse Hierarchy"
+        title="Browse Regulations"
         description="Explore regulations in a tree view organized by titles, parts, and sections"
       />
       <QuickLink
         href={`/${jurisdiction}/review?reviewStatus=unreviewed`}
         icon={<ClipboardCheck className="w-6 h-6 text-[var(--color-text-secondary)] group-hover:text-[var(--color-primary)] transition-colors" />}
-        title="Review Queue"
+        title="Review"
         description="Review and triage flagged regulations that need attention"
         badge={unreviewedCount}
       />
@@ -80,7 +80,7 @@ export function QuickLinks({ jurisdiction, stats }: QuickLinksProps) {
       <QuickLink
         href={`/${jurisdiction}/definitions`}
         icon={<DefinitionIcon className="w-6 h-6 text-[var(--color-text-secondary)] group-hover:text-[var(--color-primary)] transition-colors" />}
-        title="Definitions Glossary"
+        title="Definitions"
         description="Browse and search regulatory definitions extracted from regulations"
       />
       <QuickLink

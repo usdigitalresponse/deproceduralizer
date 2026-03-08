@@ -2,18 +2,19 @@
 
 import { useCallback, useMemo } from 'react';
 import { useQueryStates } from 'nuqs';
-import { Select, FilterBar, FilterField } from '@/components/ui';
+import { Select, MultiSelect, FilterBar, FilterField } from '@/components/ui';
 import {
   jenaiReviewQueueParsers,
+  parseCommaSeparated,
+  serializeCommaSeparated,
   type ReviewStatusValue,
-  type SeverityValue,
   type JenAIReviewSortByValue,
   type JenAISourceValue,
 } from '@/lib/url/parsers';
 import { typedValue } from '@/lib/url/type-helpers';
 import {
   REVIEW_STATUS_FILTER_OPTIONS,
-  SEVERITY_FILTER_OPTIONS,
+  SEVERITY_MULTISELECT_OPTIONS,
   JENAI_REVIEW_SORT_OPTIONS,
   JENAI_SOURCE_FILTER_OPTIONS,
 } from '@/lib/constants/filters';
@@ -33,10 +34,13 @@ export function JenAIReviewFilters({
     shallow: false,
   });
 
+  const selectedCategories = useMemo(() => parseCommaSeparated(filters.category), [filters.category]);
+  const selectedSeverities = useMemo(() => parseCommaSeparated(filters.severity), [filters.severity]);
+
   const clearFilters = useCallback(() => {
     setFilters({
       reviewStatus: 'unreviewed',
-      severity: 'all',
+      severity: null,
       category: null,
       source: 'all',
       page: 1,
@@ -45,18 +49,17 @@ export function JenAIReviewFilters({
 
   const hasActiveFilters = Boolean(
     (filters.reviewStatus && filters.reviewStatus !== 'unreviewed') ||
-    (filters.severity && filters.severity !== 'all') ||
+    filters.severity ||
     (filters.source && filters.source !== 'all') ||
     filters.category
   );
 
-  const categoryOptions = useMemo(() => [
-    { value: 'all', label: 'All Categories' },
-    ...categories.map(cat => ({
+  const categoryOptions = useMemo(() =>
+    categories.map(cat => ({
       value: cat.category,
       label: `${JENAI_CATEGORY_LABELS[cat.category] || formatLabel(cat.category)} (${cat.count})`,
     })),
-  ], [categories]);
+  [categories]);
 
   return (
     <FilterBar
@@ -89,19 +92,23 @@ export function JenAIReviewFilters({
       </FilterField>
 
       <FilterField label="Severity">
-        <Select
-          value={filters.severity || 'all'}
-          onValueChange={typedValue<SeverityValue>((value) => setFilters({ severity: value, page: 1 }))}
-          options={SEVERITY_FILTER_OPTIONS}
+        <MultiSelect
+          label="Severity"
+          value={selectedSeverities}
+          onChange={(values) => setFilters({ severity: serializeCommaSeparated(values), page: 1 })}
+          options={SEVERITY_MULTISELECT_OPTIONS}
+          placeholder="All Severities"
           aria-label="Filter by severity"
         />
       </FilterField>
 
       <FilterField label="Category">
-        <Select
-          value={filters.category || 'all'}
-          onValueChange={(value) => setFilters({ category: value === 'all' ? null : value, page: 1 })}
+        <MultiSelect
+          label="Category"
+          value={selectedCategories}
+          onChange={(values) => setFilters({ category: serializeCommaSeparated(values), page: 1 })}
           options={categoryOptions}
+          placeholder="All Categories"
           aria-label="Filter by category"
         />
       </FilterField>

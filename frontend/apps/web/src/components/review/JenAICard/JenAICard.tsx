@@ -22,7 +22,7 @@ export const JenAICard = forwardRef<HTMLDivElement, JenAICardProps>(
     return (
       <CardWrapper ref={ref} id={`jenai-${issue.id}`} data-testid="jenai-card">
         {/* Header: category, severity, confidence, review status, source badge */}
-        <div className="flex flex-wrap items-center gap-2 mb-3">
+        <div className="flex flex-wrap items-center gap-2 mb-4">
           <Badge variant="info" className="text-xs font-medium">
             {categoryLabel}
           </Badge>

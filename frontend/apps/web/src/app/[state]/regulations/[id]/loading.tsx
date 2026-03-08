@@ -52,7 +52,7 @@ export default function RegulationDetailLoading() {
             </div>
           </Card>
 
-          {/* Red flags skeleton */}
+          {/* Compliance issues skeleton */}
           <Card>
             <div className="h-5 w-32 bg-[var(--color-neutral-200)] rounded animate-pulse mb-4" />
             <div className="space-y-3">

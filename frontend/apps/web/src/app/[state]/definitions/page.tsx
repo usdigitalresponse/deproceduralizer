@@ -65,7 +65,7 @@ export default async function DefinitionsPage({ params, searchParams }: PageProp
     return (
       <div className="bg-[var(--color-background)]">
         <PageHeader
-          title={`${stateConfig.name} Definitions Glossary`}
+          title={`${stateConfig.name} Definitions`}
           description={`Browse regulatory definitions from ${stateConfig.regulationsLabel}`}
         />
         <Container size="2xl" className="py-6">
@@ -81,7 +81,7 @@ export default async function DefinitionsPage({ params, searchParams }: PageProp
     return (
       <div className="bg-[var(--color-background)]">
         <PageHeader
-          title={`${stateConfig.name} Definitions Glossary`}
+          title={`${stateConfig.name} Definitions`}
           description={`Browse regulatory definitions from ${stateConfig.regulationsLabel}`}
         />
         <Container size="2xl" className="py-6">
@@ -97,7 +97,7 @@ export default async function DefinitionsPage({ params, searchParams }: PageProp
     return (
       <div className="bg-[var(--color-background)]">
         <PageHeader
-          title={`${stateConfig.name} Definitions Glossary`}
+          title={`${stateConfig.name} Definitions`}
           description={`Browse regulatory definitions from ${stateConfig.regulationsLabel}`}
         />
         <Container size="2xl" className="py-6">
@@ -117,7 +117,7 @@ export default async function DefinitionsPage({ params, searchParams }: PageProp
   return (
     <div className="bg-[var(--color-background)]">
       <PageHeader
-        title={`${stateConfig.name} Definitions Glossary`}
+        title={`${stateConfig.name} Definitions`}
         description={`Browse and search ${stats.total.toLocaleString()} regulatory definitions from ${stateConfig.regulationsLabel}`}
       />
 

@@ -4,6 +4,38 @@
  */
 
 // ============================================
+// Multi-Select Parsing Helpers
+// ============================================
+
+export type SeverityLevel = 'high' | 'medium' | 'low';
+const VALID_SEVERITIES: readonly SeverityLevel[] = ['high', 'medium', 'low'];
+
+/**
+ * Parse comma-separated string into array. Server-safe (no nuqs dependency).
+ */
+export function parseCommaSeparated(value: string | null | undefined): string[] {
+  if (!value) return [];
+  return value.split(',').filter(Boolean);
+}
+
+/**
+ * Serialize array to comma-separated string for URL.
+ */
+export function serializeCommaSeparated(values: string[]): string | null {
+  if (values.length === 0) return null;
+  return values.join(',');
+}
+
+/**
+ * Parse comma-separated severity string into typed array.
+ * Filters out invalid values.
+ */
+export function parseSeverities(raw: string | null | undefined): SeverityLevel[] {
+  if (!raw) return [];
+  return raw.split(',').filter((s): s is SeverityLevel => VALID_SEVERITIES.includes(s as SeverityLevel));
+}
+
+// ============================================
 // Filter Parsing Helpers
 // ============================================
 
@@ -21,12 +53,13 @@ export function parseBooleanParam(value: string | undefined): boolean | undefine
 }
 
 /**
- * Parse severity filter value to typed value.
+ * Parse severity filter value.
+ * Supports comma-separated multi-select values (e.g., "high,medium").
+ * Returns undefined when no filter is active.
  */
-export function parseSeverityFilter(val?: string): 'high' | 'medium' | 'low' | 'all' {
-  if (!val || val === 'all') return 'all';
-  if (val === 'high' || val === 'medium' || val === 'low') return val;
-  return 'all';
+export function parseSeverityFilter(val?: string): string | undefined {
+  if (!val || val === 'all') return undefined;
+  return val;
 }
 
 /**

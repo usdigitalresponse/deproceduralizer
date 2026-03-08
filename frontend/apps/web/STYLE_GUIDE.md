@@ -303,6 +303,27 @@ import { OutcomeBadges } from '@/components/issues';
 - Shadow: `--shadow-sm`
 - Padding options: `none`, `sm`, `md` (default), `lg`
 
+### Card Spacing Standards
+
+Two valid tiers:
+
+| Tier | Usage | Padding | Header Spacing | Example |
+|------|-------|---------|----------------|---------|
+| Full | Review cards, detail views | `Card padding="md"` (p-6) | `mb-4` | ComplianceIssueCard, JenAICard |
+| Compact | Search results, list items | `Card padding="sm"` (p-4) | `mb-2` | SearchResultCard, ComplianceIssueDisplayCard |
+
+### Collapsible Details Styling
+
+All `<details>` content blocks use this container pattern:
+```
+p-3 bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] border border-[var(--color-neutral-200)]
+```
+
+### Badge Typography
+
+- All badges: `text-xs` (12px). Never use `text-[10px]`.
+- Badge container gaps: `gap-2` everywhere.
+
 ### MarkdownTable
 
 Renders a markdown pipe-delimited table string as a styled HTML `<table>`. Used by `AnnotatableContent` to display tables embedded in regulation text.
@@ -338,6 +359,35 @@ import { MarkdownTable } from '@/components/ui/MarkdownTable';
 ### Select (Native)
 
 Styled native select with same appearance as Input for consistency.
+
+### MultiSelect
+
+Multi-value selection with chips and checkboxes.
+
+```tsx
+import { MultiSelect } from '@/components/ui';
+
+<MultiSelect
+  label="Issue Type"
+  options={issueTypeOptions}
+  value={selectedTypes}
+  onChange={setSelectedTypes}
+  placeholder="All Issue Types"
+/>
+```
+
+**Behavior:**
+- Trigger shows selected items as chips (max 2, then "+N more")
+- Empty selection = placeholder text (acts as "All")
+- Dropdown stays open after selection
+- "Clear all" link when items selected
+
+**URL State:**
+- Comma-separated values: `?issueType=wet_signature,in_person`
+- Backward compatible with single values
+- Use `parseCommaSeparated()` / `serializeCommaSeparated()` from `parsers.ts`
+
+**Accessibility:** `role="listbox"`, `aria-multiselectable="true"`, keyboard navigation
 
 ### SearchInput
 
@@ -502,7 +552,7 @@ import { Search, CheckCircle } from 'lucide-react';
 // With description and action
 <EmptyState
   icon={Search}
-  title="No red flags found"
+  title="No issues found"
   description="Try adjusting your filters or search terms"
   action={{ label: "Clear filters", onClick: handleClear }}
 />
@@ -951,9 +1001,9 @@ const VIEW_OPTIONS: SegmentedControlOption<'table' | 'cards'>[] = [
 />
 
 // With badge counts
-const REVIEW_TABS: SegmentedControlOption<'flags' | 'issues'>[] = [
-  { value: 'flags', label: 'Red Flags', badge: 25, badgeVariant: 'danger' },
-  { value: 'issues', label: 'Issues', badge: 10, badgeVariant: 'warning' },
+const REVIEW_TABS: SegmentedControlOption<'compliance' | 'jenai'>[] = [
+  { value: 'compliance', label: 'Compliance Issues', badge: 25, badgeVariant: 'warning' },
+  { value: 'jenai', label: 'JenAI', badge: 10, badgeVariant: 'info' },
 ];
 
 <SegmentedControl options={REVIEW_TABS} value={type} onChange={setType} />
@@ -1121,8 +1171,8 @@ import { NavDropdown } from '@/components/layout/NavDropdown';
   label="Review"
   icon={ClipboardCheck}
   items={[
-    { key: 'red-flags', label: 'Red Flags', href: '/review/red-flags', isActive: true },
-    { key: 'compliance', label: 'Compliance', href: '/review/compliance', isActive: false },
+    { key: 'compliance', label: 'Compliance Issues', href: '/review/compliance', isActive: true },
+    { key: 'jenai', label: 'JenAI', href: '/review/jenai', isActive: false },
   ]}
 />
 ```
@@ -1207,9 +1257,9 @@ All interactive elements have visible focus states:
 
 ---
 
-## Review Mode Components
+## Review Components
 
-The Review Mode provides a dedicated interface for efficiently triaging red flags identified by analysis.
+The Review page provides a dedicated interface for efficiently triaging compliance issues identified by analysis.
 
 ### ReviewQueue
 
@@ -1223,7 +1273,7 @@ Main container component that orchestrates the review interface:
 import { ReviewQueue } from '@/components/review';
 
 <ReviewQueue
-  initialFlags={flags}
+  initialItems={items}
   pagination={{ page, pageSize, total, totalPages }}
   statusCounts={counts}
   categories={categories}
@@ -1235,7 +1285,7 @@ import { ReviewQueue } from '@/components/review';
 
 ### ReviewCard
 
-Decomposed red flag review card (5 sub-components in `ReviewCard/` directory):
+Decomposed review card (5 sub-components in `ReviewCard/` directory):
 
 **Sub-components:**
 - `Header` — Category label, severity/complexity/effort badges, review status
@@ -1245,7 +1295,7 @@ Decomposed red flag review card (5 sub-components in `ReviewCard/` directory):
 - `SiblingSectionsView` (shared) — Lazy-loaded collapsible showing sibling sections under same parent
 
 **Features:**
-- Displays flag category, severity badge, complexity badge, effort estimate badge
+- Displays issue category, severity badge, complexity badge, effort estimate badge
 - Shows parent regulation title and NYCRR citation with hierarchy breadcrumbs
 - LLM Analysis blue box with explanation + text examples + implementation approach
 - Matched phrases in collapsible "Technical Details" section
@@ -1302,9 +1352,9 @@ import { ReviewProgress } from '@/components/review';
 ### ReviewKeyboardNav
 
 Keyboard shortcut handler:
-- `j` / `↓`: Next flag
-- `k` / `↑`: Previous flag
-- `n`: Next unreviewed flag
+- `j` / `↓`: Next item
+- `k` / `↑`: Previous item
+- `n`: Next unreviewed item
 - `v`: View regulation
 - `?`: Show keyboard shortcuts help modal
 
@@ -1336,7 +1386,7 @@ import { RegulationModal } from '@/components/review';
 
 ### ReviewModeSwitcher
 
-Compact two-button toggle for switching between Review Mode and Developer Mode:
+Compact two-button toggle for switching between Review and Developer Mode:
 - Positioned above the tab bar with bottom margin for visual separation
 - Uses `inline-flex` to maintain compact width
 - Persists mode in URL params (`?mode=developer`)
@@ -1350,7 +1400,7 @@ import { ReviewModeSwitcher } from '@/components/review';
 ### ReviewTypeTabs
 
 Tab bar for switching between content types. Adapts based on mode:
-- **Review Mode**: Red Flags, Compliance Issues, Needs More Info
+- **Review**: Compliance Issues, JenAI, Definitions, Needs More Info
 - **Developer Mode**: All Reviewed Items, Needs More Info
 
 ```tsx
@@ -1358,7 +1408,7 @@ import { ReviewTypeTabs } from '@/components/review';
 
 <ReviewTypeTabs
   activeType={reviewType}
-  counts={{ flags: 100, compliance: 50, needs_info: 5 }}
+  counts={{ compliance: 50, jenai: 30, definitions: 20, needs_info: 5 }}
   mode={mode}
 />
 ```
@@ -1458,7 +1508,7 @@ Developer Mode provides a second layer for tracking implementation status of rev
 
 ### DeveloperQueue
 
-Combined queue showing both red flags and compliance issues that have been reviewed:
+Combined queue showing compliance issues that have been reviewed:
 - Manages local state for optimistic updates
 - Handles pagination and keyboard navigation
 - Shows developer-specific progress and filters
@@ -1480,7 +1530,7 @@ import { DeveloperQueue } from '@/components/review';
 ### DeveloperCard
 
 Individual item card with developer tracking form:
-- Shows item type badge (Red Flag or Compliance Issue)
+- Shows item type badge (Compliance Issue)
 - Developer status dropdown: Unresolved, Resolved, Pending, Backlogged, Need More Info
 - Developer assignment: Michael or Abigail
 - Resolution type (when resolved): Implemented or Not Implemented
@@ -1701,7 +1751,7 @@ FilterBar for compliance developer mode: Dev Status, Developer, Severity, Review
 
 ## Definitions Review Workflow
 
-Complete workflow for reviewing AI-extracted regulatory definitions. Parallel to the Red Flags review flow.
+Complete workflow for reviewing AI-extracted regulatory definitions.
 
 ### DefinitionsReviewQueue
 
@@ -1924,34 +1974,6 @@ Used in empty states and as a visual indicator for JenAI features.
 
 ---
 
-## Red Flag Developer Components
-
-Developer mode separation for red flag review items. Follows the same DeveloperCard/DeveloperQueue pattern as compliance.
-
-### RedFlagDeveloperQueue
-
-Developer queue for reviewed red flag issues.
-
-| Prop | Type | Description |
-|------|------|-------------|
-| `initialItems` | `RedFlagWithContext[]` | Pre-loaded items |
-| `pagination` | `PaginationInfo` | Page info |
-| `statusCounts` | `CombinedDeveloperStatusCounts` | Developer status breakdown |
-| `categories` | `string[]` | Available red flag categories |
-
-Uses `DeveloperCard` with `RedFlagContent`. Same structure as `ComplianceDeveloperQueue` but operates on red flag items with category filtering.
-
-### RedFlagDeveloperFilters
-
-FilterBar for red flag developer mode: Dev Status, Developer, Severity, Review Status, Category. Includes sort controls.
-
-| Prop | Type | Description |
-|------|------|-------------|
-| `categories` | `string[]` | Available red flag categories |
-| `className` | `string?` | Additional CSS classes |
-
----
-
 ## Error Handling Pattern
 
 Server actions use the `ActionResult<T>` type for consistent error handling that is **obvious, not silent**.
@@ -2067,7 +2089,7 @@ import { SeverityBadge } from '@/components/ui';
 | `ISSUE_TYPE_LABELS` | Display labels for issue types |
 | `RESOLUTION_TYPES` | Implemented / Not Implemented |
 | `DEVELOPERS` | Michael / Abigail |
-| `REVIEW_TYPES` | flags / compliance / needs_info |
+| `REVIEW_TYPES` | compliance / jenai / definitions / needs_info |
 | `COMPLEXITY_LEVELS` | LOW / MEDIUM / MEDIUM-HIGH / HIGH |
 | `SEVERITY_THRESHOLDS` | HIGH: 7, MEDIUM: 4, LOW: 1 |
 
@@ -2299,16 +2321,16 @@ import { RegulationQuickStats } from '@/components/regulations';
 
 ### ReviewForm
 
-Generic review form used by RedFlagReviewForm and ComplianceIssueReviewForm:
+Generic review form used by ComplianceIssueReviewForm:
 
 ```tsx
 import { ReviewForm } from '@/components/review';
 
 <ReviewForm
-  itemType="red_flag"  // or "compliance_issue"
-  item={flag}
+  itemType="compliance_issue"
+  item={issue}
   onUpdated={handleUpdated}
-  onSubmit={updateRedFlagReview}
+  onSubmit={updateComplianceIssueReview}
 />
 ```
 
@@ -2322,7 +2344,7 @@ import { useReviewForm } from '@/hooks';
 const { formData, updateField, isEditing, setIsEditing, isPending, error, handleSubmit } =
   useReviewForm({
     initialData: item,
-    onSubmit: updateRedFlagReview,
+    onSubmit: updateComplianceIssueReview,
     onUpdated: handleUpdated,
   });
 ```
@@ -2403,7 +2425,7 @@ import { QueueResultsInfo } from '@/components/review/shared';
 <QueueResultsInfo
   pagination={pagination}
   currentCount={items.length}
-  itemLabel="flags"
+  itemLabel="issues"
   showKeyboardHint
 />
 ```
@@ -2416,7 +2438,7 @@ Empty state for queues:
 import { QueueEmptyState } from '@/components/review/shared';
 
 <QueueEmptyState
-  title="No flags found"
+  title="No issues found"
   description="Try adjusting your filters."
 />
 ```
@@ -2429,10 +2451,10 @@ Keyboard navigation for queues (j/k navigation, focus management):
 import { useQueueNavigation } from '@/hooks';
 
 const { focusedIndex, setCardRef, handleKeyDown, currentItem } = useQueueNavigation({
-  items: flags,
-  getItemId: (f) => `flag-${f.id}`,
-  onViewRegulation: (f) => setSelectedId(f.regulation.id),
-  findNextUnreviewed: (idx) => flags.findIndex((f, i) => i > idx && !f.reviewStatus),
+  items: issues,
+  getItemId: (item) => `issue-${item.id}`,
+  onViewRegulation: (item) => setSelectedId(item.regulation.id),
+  findNextUnreviewed: (idx) => issues.findIndex((item, i) => i > idx && !item.reviewStatus),
 });
 
 useEffect(() => {
@@ -2560,7 +2582,6 @@ apps/web/src/
 │   │   │   ├── SummarySection.tsx
 │   │   │   ├── MetadataSection.tsx
 │   │   │   ├── ComplianceIssuesSection.tsx
-│   │   │   ├── RedFlagsSection.tsx
 │   │   │   ├── CrossReferencesSection.tsx
 │   │   │   ├── IncomingReferencesSection.tsx
 │   │   │   ├── StatuteLinksSection.tsx
@@ -2628,11 +2649,6 @@ apps/web/src/
 │   │   ├── EvidenceDisplay.tsx
 │   │   ├── WebSourceBadge.tsx
 │   │   └── index.ts
-│   ├── flags/                  # Red flag display components
-│   │   ├── RedFlagCard.tsx
-│   │   ├── RedFlagReviewForm.tsx
-│   │   ├── RedFlagsList.tsx
-│   │   └── index.ts
 │   ├── cross-references/       # Cross-reference components
 │   │   ├── CrossReferenceCard.tsx
 │   │   ├── CrossReferenceList.tsx
@@ -2676,7 +2692,7 @@ apps/web/src/
 │   │   ├── CommentarySidebar.tsx
 │   │   └── index.ts
 │   └── review/                 # Review mode components
-│       ├── ReviewCard/              # Red flag review card
+│       ├── ReviewCard/              # Review card
 │       │   ├── ReviewCard.tsx
 │       │   ├── Header.tsx
 │       │   ├── LLMAnalysisSection.tsx
@@ -2699,8 +2715,7 @@ apps/web/src/
 │       │   ├── DeveloperForm.tsx
 │       │   ├── ReviewSummary.tsx
 │       │   ├── ItemContent/
-│       │   │   ├── ComplianceIssueContent.tsx
-│       │   │   └── RedFlagContent.tsx
+│       │   │   └── ComplianceIssueContent.tsx
 │       │   └── index.tsx
 │       ├── definitions/             # Definitions review workflow
 │       │   ├── DefinitionsReviewQueue.tsx
@@ -2742,8 +2757,6 @@ apps/web/src/
 │       ├── SuggestionModeControls.tsx
 │       ├── ComplianceDeveloperQueue.tsx
 │       ├── ComplianceDeveloperFilters.tsx
-│       ├── RedFlagDeveloperQueue.tsx
-│       ├── RedFlagDeveloperFilters.tsx
 │       ├── JenAIQueue.tsx
 │       ├── JenAICard.tsx
 │       ├── JenAIAvatar.tsx
@@ -2780,7 +2793,6 @@ apps/web/src/
 │   │   ├── pipeline-analytics.ts # Pipeline analytics actions
 │   │   ├── prompt-feedback.ts   # Prompt feedback actions
 │   │   ├── prompts.ts           # Prompt management actions
-│   │   ├── red-flags.ts         # Red flag CRUD
 │   │   ├── regulations.ts       # Regulation listing/detail
 │   │   ├── research-pipeline.ts # Research pipeline actions
 │   │   ├── review-page.ts       # Review page data loading
@@ -3009,7 +3021,7 @@ import { DashboardStats } from '@/components/home';
 <DashboardStats stats={aggregateStats} />
 ```
 
-Cards: Total Regulations, Analyzed (with % coverage), Compliance Issues (with unreviewed count), Red Flags (with unreviewed count). Displays 2 columns on mobile, 4 columns on desktop.
+Cards: Total Regulations, Analyzed (with % coverage), Compliance Issues (with unreviewed count), JenAI Issues (with unreviewed count). Displays 2 columns on mobile, 4 columns on desktop.
 
 ### RecentActivityCard
 
@@ -3021,7 +3033,7 @@ import { RecentActivityCard } from '@/components/home';
 <RecentActivityCard activity={recentActivity} />
 ```
 
-Metrics: Issues discovered, Issues reviewed, Flags reviewed, Documents analyzed. Shows "No recent activity" when all counts are zero. Data comes from `getRecentActivity()` server action.
+Metrics: Issues discovered, Issues reviewed, Definitions reviewed, Documents analyzed. Shows "No recent activity" when all counts are zero. Data comes from `getRecentActivity()` server action.
 
 ### TopIssuesChart
 
@@ -3049,7 +3061,7 @@ import { StateCard } from '@/components/home';
 Features:
 - State abbreviation badge with accent color
 - Two progress bars: "Analyzed X/Y" and "Reviewed X/Y"
-- Danger badges for unreviewed flags/issues (only when > 0)
+- Danger badges for unreviewed issues (only when > 0)
 - Hover state with shadow elevation
 
 ### QuickLinks
@@ -3062,7 +3074,7 @@ import { QuickLinks } from '@/components/home';
 <QuickLinks state="ny" stats={aggregateStats} />
 ```
 
-Pass `stats` prop to show unreviewed count badge on the Review Queue card. Links to Browse Hierarchy, Review Queue, Analytics, Definitions Glossary, Table View.
+Pass `stats` prop to show unreviewed count badge on the Review Queue card. Links to Browse Hierarchy, Review Queue, Analytics, Definitions, Regulations.
 
 ---
 
@@ -3484,7 +3496,7 @@ import { ChartContainer } from '@/components/charts';
 
 <ChartContainer
   title="Severity Distribution"
-  description="Breakdown of flags by severity level"
+  description="Breakdown of issues by severity level"
   aspectRatio={16 / 9}
   minHeight={200}
   actions={<Button size="sm">Export</Button>}
@@ -3533,7 +3545,7 @@ import { PieChart, SeverityDonutChart } from '@/components/charts';
     { label: 'Low', value: 200, severity: 'low' },
   ]}
   total={350}
-  label="Total Flags"
+  label="Total Issues"
 />
 ```
 
@@ -3656,7 +3668,7 @@ import { HierarchyTab } from '@/components/analytics';
 
 <HierarchyTab
   data={hierarchyData}
-  sizeMetric="flags"      // flags | documents | compliance
+  sizeMetric="issues"      // issues | documents | compliance
   colorMetric="severity"   // severity | reviewStatus | none
   depth={2}               // 1-3 levels deep
 />
@@ -3796,7 +3808,7 @@ import { RegulationCard } from '@/components/regulations';
 
 Card displays:
 - Title with hierarchy level badge
-- Severity badge and flags count
+- Severity badge and issue count
 - Section type badge, complexity, metadata indicators
 - Summary excerpt (2-3 lines)
 - Keywords (max 3)
@@ -4095,7 +4107,7 @@ Client component managing tab state via `ibrParsers` (nuqs). Renders `IbrOvervie
 
 IBR appears in the Explorer nav group after Statutes:
 ```typescript
-{ key: 'ibr', label: 'Standards (IBR)', icon: Library, pathSuffix: '/ibr', groupId: 'explorer' }
+{ key: 'ibr', label: 'Referenced Standards', icon: Library, pathSuffix: '/ibr', groupId: 'explorer' }
 ```
 
 ### File Structure
@@ -4162,7 +4174,7 @@ Client component managing tab state via `guidanceParsers` (nuqs). Renders `Guida
 
 ### Navigation Integration
 
-Guidance appears in the Explorer nav group after Standards (IBR):
+Guidance appears in the Explorer nav group after Referenced Standards:
 ```typescript
 { key: 'guidance', label: 'Guidance', icon: ScrollText, pathSuffix: '/guidance', groupId: 'explorer' }
 ```
@@ -4189,7 +4201,7 @@ components/guidance/
 
 ## Entity Type Visual System
 
-The app has 9 core data entity types. Each has a distinct visual identity (icon + color palette) defined once in `src/lib/constants/entity-types.ts` and applied everywhere via the `EntityTypeIndicator` component.
+The app has 8 core data entity types. Each has a distinct visual identity (icon + color palette) defined once in `src/lib/constants/entity-types.ts` and applied everywhere via the `EntityTypeIndicator` component.
 
 ### Design Principle
 
@@ -4206,7 +4218,6 @@ Entity types communicate **what** something is. Status/severity badges (Severity
 | Regulatory Document | `FileText` | `text-slate-600` | `bg-slate-50` | `border-slate-300` |
 | Statute | `Scale` | `text-violet-600` | `bg-violet-50` | `border-violet-300` |
 | Compliance Issue | `ClipboardList` | `text-amber-600` | `bg-amber-50` | `border-amber-300` |
-| Red Flag | `AlertTriangle` | `text-rose-600` | `bg-rose-50` | `border-rose-300` |
 | Definition | `BookOpen` | `text-sky-600` | `bg-sky-50` | `border-sky-300` |
 | Cross-Reference | `Link2` | `text-indigo-600` | `bg-indigo-50` | `border-indigo-300` |
 | IBR/Standard | `Library` | `text-emerald-600` | `bg-emerald-50` | `border-emerald-300` |
@@ -4229,7 +4240,7 @@ Always import entity icons via `getEntityIcon()` or `getEntityConfig()` from `en
 import { EntityTypeIndicator } from '@/components/ui';
 
 // Icon only (default) — section headers
-<EntityTypeIndicator type="red_flag" size="sm" />
+<EntityTypeIndicator type="compliance_issue" size="sm" />
 
 // Icon + label — for headers needing text
 <EntityTypeIndicator type="definition" size="md" showLabel />
@@ -4255,8 +4266,7 @@ import { EntityTypeIndicator } from '@/components/ui';
 ### Usage Guidelines
 
 - **Section headers**: Use `EntityTypeIndicator` with just `type` and `size` props, alongside existing `<h3>` text
-- **Navigation**: Nav items that map to entity types (Statutes, Glossary, IBR, Bookmarks) import icons from `entity-types.ts`; view/action nav items (Browse, Table View, Pipeline) keep their own icons
-- **RedFlagCard left-border**: The `border-l-4 border-[var(--color-danger)]` on red flag cards communicates severity (a status concern), not entity type — keep it separate
+- **Navigation**: Nav items that map to entity types (Statutes, Definitions, IBR, Bookmarks) import icons from `entity-types.ts`; view/action nav items (Browse, Regulations, Pipeline) keep their own icons
 - **Cross-reference direction**: Both outgoing and incoming cross-references use the same `Link2` + indigo. The section title ("Cross-References" vs "Cited By") communicates direction
 
 ## Fines, Fees & Penalties Components
@@ -4394,8 +4404,7 @@ import { GuidanceComplianceCard } from '@/components/guidance/GuidanceCompliance
 
 ## Review Tab Consistency
 
-The Review page supports 6 tab types defined in `REVIEW_TYPE_VALUES`:
-- **Red Flags**: Red flag findings from regulation analysis
+The Review page supports 5 tab types defined in `REVIEW_TYPE_VALUES`:
 - **Compliance Issues**: Compliance issues from regulation analysis
 - **Definitions**: Definition review/editing
 - **Needs More Info**: Items requiring additional context

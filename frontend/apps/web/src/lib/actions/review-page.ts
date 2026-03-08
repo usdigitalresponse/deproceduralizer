@@ -224,7 +224,7 @@ export async function getComplianceQueueData(
     filters: {
       status?: string;
       issueType?: string;
-      severity?: 'high' | 'medium' | 'low' | 'all';
+      severity?: string;
       requiredByStatute?: boolean | 'all';
       requirementFound?: boolean | 'all';
       tierCompleted?: '0' | '1' | '2' | '3' | 'all';

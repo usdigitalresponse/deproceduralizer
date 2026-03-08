@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Badge, SectionTypeBadge } from '@/components/ui';
+import { Badge, Card, SectionTypeBadge } from '@/components/ui';
 import { getEntityIcon } from '@/lib/constants/entity-types';
 import { sanitizeSnippet } from '@/lib/utils/sanitize-snippet';
 import type { SearchResultItem } from '@deproceduralizer/database';
@@ -43,14 +43,7 @@ export function SearchResultCard({ result, state, query, searchUrl }: SearchResu
   const showAnalysisRow = result.type === 'regulation' && result.issueCount > 0;
 
   return (
-    <div className="
-      p-4
-      bg-[var(--color-surface)]
-      border border-[var(--color-neutral-200)]
-      rounded-[var(--radius-md)]
-      transition-colors duration-[var(--duration-fast)]
-      hover:border-[var(--color-neutral-300)]
-    ">
+    <Card padding="sm" className="transition-colors duration-[var(--duration-fast)] hover:border-[var(--color-neutral-300)]">
       {/* Header row */}
       <div className="flex items-start gap-3 mb-2">
         <TypeIcon
@@ -110,22 +103,22 @@ export function SearchResultCard({ result, state, query, searchUrl }: SearchResu
             {result.issueCount} {result.issueCount === 1 ? 'issue' : 'issues'}
           </span>
           {result.burdensomeCount > 0 && (
-            <Badge variant="warning" className="text-[10px] px-1.5 py-0">
+            <Badge variant="warning" className="text-xs">
               {result.burdensomeCount} burdensome
             </Badge>
           )}
           {result.hasFederalMandate && (
-            <Badge variant="info" className="text-[10px] px-1.5 py-0">
+            <Badge variant="info" className="text-xs">
               Federal mandate
             </Badge>
           )}
           {result.easyCleanupCount > 0 && (
-            <Badge variant="success" className="text-[10px] px-1.5 py-0">
+            <Badge variant="success" className="text-xs">
               Easy cleanup
             </Badge>
           )}
         </Link>
       )}
-    </div>
+    </Card>
   );
 }

@@ -22,6 +22,7 @@ import {
 // PR 6.3: updateReview now returns ComplianceIssueWithAnalysisFields (review fields from analyses)
 import { expandContext } from '@/lib/utils/expandContext';
 import { type ActionResult, success, failure, getErrorMessage, runAction, runCachedAction } from './types';
+import { parseCommaSeparated, parseSeverities } from '@/lib/url/filter-helpers';
 
 const complianceIssuesRepo = new ComplianceIssuesRepository(db);
 const regulatoryDocumentsRepo = new RegulatoryDocumentsRepository(db);
@@ -200,7 +201,7 @@ export async function getComplianceIssuesPaginated(
     filters?: {
       status?: string;
       issueType?: string;
-      severity?: 'high' | 'medium' | 'low' | 'all';
+      severity?: string;
       requiredByStatute?: boolean | 'all';
       requirementFound?: boolean | 'all';
       tierCompleted?: '0' | '1' | '2' | '3' | 'all';
@@ -210,6 +211,10 @@ export async function getComplianceIssuesPaginated(
     };
   }
 ): Promise<ActionResult<PaginatedComplianceIssuesResult>> {
+  // Parse comma-separated multi-select filter values
+  const issueTypes = parseCommaSeparated(options.filters?.issueType ?? null);
+  const severities = parseSeverities(options.filters?.severity);
+
   // If source is 'guidance', delegate to the dedicated guidance query
   if (options.filters?.source === 'guidance') {
     return runAction('getComplianceIssuesPaginated', () =>
@@ -221,8 +226,9 @@ export async function getComplianceIssuesPaginated(
         sortOrder: options.sortOrder,
         filters: options.filters ? {
           status: options.filters.status as ReviewStatus | 'all' | undefined,
-          issueType: options.filters.issueType as IssueType | 'all' | undefined,
-          severity: options.filters.severity,
+          issueType: (issueTypes.length === 1 ? issueTypes[0] : undefined) as IssueType | 'all' | undefined,
+          issueTypes: issueTypes.length > 1 ? issueTypes as IssueType[] : undefined,
+          severities: severities.length > 0 ? severities : undefined,
         } : undefined,
       })
     );
@@ -237,8 +243,9 @@ export async function getComplianceIssuesPaginated(
       sortOrder: options.sortOrder,
       filters: options.filters ? {
         status: options.filters.status as ReviewStatus | 'all' | undefined,
-        issueType: options.filters.issueType as IssueType | 'all' | undefined,
-        severity: options.filters.severity,
+        issueType: (issueTypes.length === 1 ? issueTypes[0] : undefined) as IssueType | 'all' | undefined,
+        issueTypes: issueTypes.length > 1 ? issueTypes as IssueType[] : undefined,
+        severities: severities.length > 0 ? severities : undefined,
         requiredByStatute: options.filters.requiredByStatute,
         requirementFound: options.filters.requirementFound,
         tierCompleted: options.filters.tierCompleted,

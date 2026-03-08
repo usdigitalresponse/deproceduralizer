@@ -24,7 +24,7 @@ export function LLMAnalysisSection({
         {isVerbatim !== null && (
           <Badge
             variant={isVerbatim ? 'info' : 'default'}
-            className="text-[10px] py-0 px-1.5"
+            className="text-xs"
           >
             {isVerbatim ? 'Verbatim Quote' : 'Paraphrased'}
           </Badge>

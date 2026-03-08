@@ -13,6 +13,7 @@ import {
   type SeverityDistribution,
 } from '@deproceduralizer/database';
 import { type ActionResult, success, failure, getErrorMessage, runAction, runCachedAction } from './types';
+import { parseCommaSeparated, parseSeverities } from '@/lib/url/filter-helpers';
 
 const jenaiRepo = new JenAIRepository(db);
 
@@ -28,20 +29,25 @@ export async function getJenAIIssuesPaginated(
     sortOrder?: 'asc' | 'desc';
     filters?: {
       status?: string;
-      severity?: 'high' | 'medium' | 'low';
+      severity?: string;
       category?: string;
       source?: 'regulation' | 'guidance' | 'all';
     };
   }
 ): Promise<ActionResult<PaginatedJenAIResult>> {
+  // Parse comma-separated multi-select filter values
+  const categories = parseCommaSeparated(options.filters?.category ?? null);
+  const severities = parseSeverities(options.filters?.severity);
+
   return runAction('getJenAIIssuesPaginated', () =>
     jenaiRepo.getAllPaginated({
       jurisdiction: state,
       ...options,
       filters: options.filters ? {
         status: options.filters.status,
-        severity: options.filters.severity,
-        category: options.filters.category,
+        severities: severities.length > 0 ? severities : undefined,
+        category: categories.length === 1 ? categories[0] : undefined,
+        categories: categories.length > 1 ? categories : undefined,
         source: options.filters.source,
       } : undefined,
     })
@@ -200,12 +206,16 @@ export async function getJenAIDeveloperItems(
     sortOrder?: 'asc' | 'desc';
     developerStatus?: string;
     developerAssigned?: string;
-    severity?: 'high' | 'medium' | 'low' | 'all';
+    severity?: string;
     reviewStatus?: string;
     category?: string;
     source?: 'regulation' | 'guidance' | 'all';
   }
 ): Promise<ActionResult<PaginatedJenAIResult>> {
+  // Parse comma-separated multi-select filter values
+  const categories = parseCommaSeparated(options.category ?? null);
+  const severities = parseSeverities(options.severity);
+
   return runAction('getJenAIDeveloperItems', () =>
     jenaiRepo.getReviewedPaginated({
       jurisdiction: state,
@@ -217,8 +227,9 @@ export async function getJenAIDeveloperItems(
       developerAssigned: options.developerAssigned,
       filters: {
         status: options.reviewStatus,
-        severity: options.severity === 'all' ? undefined : options.severity,
-        category: options.category,
+        severities: severities.length > 0 ? severities : undefined,
+        category: categories.length === 1 ? categories[0] : undefined,
+        categories: categories.length > 1 ? categories : undefined,
         source: options.source,
       },
     })

@@ -138,7 +138,11 @@ export interface ComplianceIssueFilterOptions {
   jurisdiction: JurisdictionCode;
   status?: ReviewStatus | 'all';
   issueType?: IssueType | 'all';
+  /** Filter by multiple issue types (multi-select). Takes precedence over issueType when provided. */
+  issueTypes?: IssueType[];
   severity?: 'high' | 'medium' | 'low' | 'all';
+  /** Filter by multiple severity levels (multi-select). Takes precedence over severity when provided. */
+  severities?: ('high' | 'medium' | 'low')[];
   requiredByStatute?: boolean | 'all';
   requirementFound?: boolean | 'all';
   /** Filter by highest tier completed in research pipeline (0-3, or 'all') */
@@ -604,6 +608,8 @@ export interface AnalysisListFilters {
   federalMandate?: boolean;
   pipelineRun?: boolean;
   issueType?: string;
+  /** Filter by multiple issue types (multi-select). Takes precedence over issueType when provided. */
+  issueTypes?: string[];
   severity?: 'high' | 'medium' | 'low' | 'none';
   severityChanged?: 'increased' | 'decreased' | 'unchanged' | 'no_tier3';
   federalMandateConfirmed?: 'true' | 'false' | 'no_tier3';
@@ -619,6 +625,16 @@ export interface AnalysisListFilters {
 
 /** Analysis source: regulations (default) or guidance documents. */
 export type AnalysisSource = 'regulation' | 'guidance';
+
+/**
+ * Build a SQL condition for a severity range (high=7+, medium=4-6, low=1-3).
+ * Used by both single-select and multi-select severity filters.
+ */
+function buildSeverityRangeCondition(severity: 'high' | 'medium' | 'low', column: typeof complianceIssueAnalyses.finalSeverity) {
+  if (severity === 'high') return gte(column, 7);
+  if (severity === 'medium') return and(gte(column, 4), lt(column, 7))!;
+  return lt(column, 4);
+}
 
 /**
  * Build a single SQL condition for a Tier 3 JSONB flag filter.
@@ -708,7 +724,9 @@ export function buildAnalysisListFilters(params: {
     }
   }
 
-  if (filters.issueType) {
+  if (filters.issueTypes && filters.issueTypes.length > 0) {
+    conditions.push(inArray(complianceIssueAnalyses.issueType, filters.issueTypes));
+  } else if (filters.issueType) {
     conditions.push(eq(complianceIssueAnalyses.issueType, filters.issueType));
   }
 
@@ -1412,20 +1430,20 @@ export class ComplianceIssuesRepository extends BaseRepository {
         }
       }
 
-      // Issue type filter
-      if (filters.issueType && filters.issueType !== 'all') {
+      // Issue type filter (multi-select takes precedence)
+      if (filters.issueTypes && filters.issueTypes.length > 0) {
+        conditions.push(inArray(complianceIssues.issueType, filters.issueTypes));
+      } else if (filters.issueType && filters.issueType !== 'all') {
         conditions.push(eq(complianceIssues.issueType, filters.issueType));
       }
 
       // Severity filter (high=7-10, medium=4-6, low=1-3) — reads from analyses
-      if (filters.severity && filters.severity !== 'all') {
-        if (filters.severity === 'high') {
-          conditions.push(gte(complianceIssueAnalyses.finalSeverity, 7));
-        } else if (filters.severity === 'medium') {
-          conditions.push(and(gte(complianceIssueAnalyses.finalSeverity, 4), lt(complianceIssueAnalyses.finalSeverity, 7))!);
-        } else if (filters.severity === 'low') {
-          conditions.push(lt(complianceIssueAnalyses.finalSeverity, 4));
-        }
+      // Multi-select severities takes precedence over single severity
+      if (filters.severities && filters.severities.length > 0) {
+        const severityConditions = filters.severities.map(s => buildSeverityRangeCondition(s, complianceIssueAnalyses.finalSeverity));
+        conditions.push(or(...severityConditions)!);
+      } else if (filters.severity && filters.severity !== 'all') {
+        conditions.push(buildSeverityRangeCondition(filters.severity, complianceIssueAnalyses.finalSeverity));
       }
 
       // Required by statute filter — reads from analyses
@@ -1631,9 +1649,19 @@ export class ComplianceIssuesRepository extends BaseRepository {
         conditions.push(eq(complianceIssueAnalyses.reviewStatus, filters.status));
       }
 
-      // Issue type filter
-      if (filters.issueType && filters.issueType !== 'all') {
+      // Issue type filter (multi-select takes precedence)
+      if (filters.issueTypes && filters.issueTypes.length > 0) {
+        conditions.push(inArray(complianceIssues.issueType, filters.issueTypes));
+      } else if (filters.issueType && filters.issueType !== 'all') {
         conditions.push(eq(complianceIssues.issueType, filters.issueType));
+      }
+
+      // Severity filter (multi-select severities takes precedence)
+      if (filters.severities && filters.severities.length > 0) {
+        const severityConditions = filters.severities.map(s => buildSeverityRangeCondition(s, complianceIssueAnalyses.finalSeverity));
+        conditions.push(or(...severityConditions)!);
+      } else if (filters.severity && filters.severity !== 'all') {
+        conditions.push(buildSeverityRangeCondition(filters.severity, complianceIssueAnalyses.finalSeverity));
       }
     }
 
@@ -3666,8 +3694,18 @@ export class ComplianceIssuesRepository extends BaseRepository {
         conditions.push(eq(complianceIssueAnalyses.reviewStatus, filters.status));
       }
     }
-    if (filters?.issueType && filters.issueType !== 'all') {
+    if (filters?.issueTypes && filters.issueTypes.length > 0) {
+      conditions.push(inArray(complianceIssueAnalyses.issueType, filters.issueTypes));
+    } else if (filters?.issueType && filters.issueType !== 'all') {
       conditions.push(eq(complianceIssueAnalyses.issueType, filters.issueType));
+    }
+
+    // Severity filter (multi-select severities takes precedence)
+    if (filters?.severities && filters.severities.length > 0) {
+      const severityConditions = filters.severities.map(s => buildSeverityRangeCondition(s, complianceIssueAnalyses.finalSeverity));
+      conditions.push(or(...severityConditions)!);
+    } else if (filters?.severity && filters.severity !== 'all') {
+      conditions.push(buildSeverityRangeCondition(filters.severity, complianceIssueAnalyses.finalSeverity));
     }
 
     const whereClause = and(...conditions);

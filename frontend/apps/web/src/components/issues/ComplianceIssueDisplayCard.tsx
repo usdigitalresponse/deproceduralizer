@@ -1,7 +1,7 @@
 'use client';
 
 import { ReactNode } from 'react';
-import { Badge, ReviewStatusBadge, Tag, Button } from '@/components/ui';
+import { Badge, ReviewStatusBadge, Tag, Button, Card } from '@/components/ui';
 import { ISSUE_TYPE_LABELS } from '@/types/regulation';
 import { highlightTerm, highlightContext } from '@/lib/utils/highlight';
 import { TierProgressIndicator } from './TierProgressIndicator';
@@ -59,9 +59,9 @@ export function ComplianceIssueDisplayCard({
   const expandedText = expandedContext?.expandedText;
 
   return (
-    <div className="bg-[var(--color-surface)] border border-[var(--color-neutral-200)] p-4 rounded-[var(--radius-md)]">
+    <Card padding="sm">
       {/* Header */}
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2 flex-wrap">
           <Badge variant="warning" className="font-semibold">
             {issueTypeLabel}
@@ -92,7 +92,7 @@ export function ComplianceIssueDisplayCard({
             {issue.isVerbatim !== null && (
               <Badge
                 variant={issue.isVerbatim ? 'info' : 'default'}
-                className="text-[10px] py-0 px-1.5"
+                className="text-xs"
               >
                 {issue.isVerbatim ? 'Verbatim Quote' : 'Paraphrased'}
               </Badge>
@@ -133,11 +133,11 @@ export function ComplianceIssueDisplayCard({
         <details className="mb-3">
           <summary className="text-xs font-medium text-[var(--color-text-secondary)] cursor-pointer hover:text-[var(--color-text)] py-1 flex items-center gap-2">
             Research Evidence
-            <span className="text-[10px] text-[var(--color-text-muted)] bg-[var(--color-neutral-200)] px-1.5 py-0.5 rounded">
+            <span className="text-xs text-[var(--color-text-muted)] bg-[var(--color-neutral-200)] px-1.5 py-0.5 rounded">
               {issue.analysis.contextUsed.length} sources
             </span>
           </summary>
-          <div className="mt-2">
+          <div className="mt-2 p-3 bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] border border-[var(--color-neutral-200)]">
             <EvidenceDisplay
               contextUsed={issue.analysis.contextUsed}
               verbatimRequirements={issue.analysis.verbatimRequirements}
@@ -160,7 +160,7 @@ export function ComplianceIssueDisplayCard({
               compact
             />
           </summary>
-          <div className="mt-2 space-y-2">
+          <div className="mt-2 p-3 bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] border border-[var(--color-neutral-200)] space-y-2">
             {issue.analysis.argumentForRegulation && (
               <div className="p-2 bg-[var(--color-success-bg)] rounded-[var(--radius-sm)] border-l-2 border-[var(--color-success)]">
                 <span className="text-xs font-medium text-[var(--color-success)]">For: </span>
@@ -206,7 +206,7 @@ export function ComplianceIssueDisplayCard({
           <summary className="text-xs font-medium text-[var(--color-text-secondary)] cursor-pointer hover:text-[var(--color-text)] py-1">
             Technical Details
           </summary>
-          <div className="mt-2 pl-2 border-l-2 border-[var(--color-neutral-200)]">
+          <div className="mt-2 p-3 bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] border border-[var(--color-neutral-200)]">
             <span className="text-xs font-medium text-[var(--color-text-secondary)]">Pattern matched:</span>
             <div className="mt-1">
               <Tag variant="warning" size="sm">
@@ -226,7 +226,7 @@ export function ComplianceIssueDisplayCard({
             <summary className="text-xs font-medium text-[var(--color-text-secondary)] cursor-pointer hover:text-[var(--color-text)] py-1">
               Original Match Context
             </summary>
-            <div className="mt-2 p-3 bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] border-l-2 border-[var(--color-neutral-300)]">
+            <div className="mt-2 p-3 bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] border-l-2 border-[var(--color-primary-weak)]">
               <p className="text-sm text-[var(--color-text)] whitespace-pre-wrap">
                 {highlightTerm(matchContext, matchPattern)}
               </p>
@@ -237,7 +237,7 @@ export function ComplianceIssueDisplayCard({
 
       {/* Children slot (typically review form) */}
       {children}
-    </div>
+    </Card>
   );
 }
 

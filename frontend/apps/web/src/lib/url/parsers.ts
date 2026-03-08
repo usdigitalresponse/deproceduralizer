@@ -200,7 +200,7 @@ export const sortOrderParser = parseAsStringEnum([...SORT_ORDER_VALUES]).withDef
 // Review parsers
 export const reviewStatusParser = parseAsStringEnum([...REVIEW_STATUS_VALUES]).withDefault('unreviewed');
 export const developerStatusParser = parseAsStringEnum([...DEVELOPER_STATUS_VALUES]).withDefault('all');
-export const severityParser = parseAsStringEnum([...SEVERITY_VALUES]).withDefault('all');
+export const severityParser = parseAsString;
 export const statuteSourceParser = parseAsStringEnum([...BOOLEAN_FILTER_VALUES]).withDefault('all');
 export const requirementFoundParser = parseAsStringEnum([...BOOLEAN_FILTER_VALUES]).withDefault('true');
 export const reviewTypeParser = parseAsStringEnum([...REVIEW_TYPE_VALUES]).withDefault('compliance');
@@ -725,18 +725,5 @@ export const crossRefTableParsers = {
   crSortOrder: sortOrderParser,
 };
 
-/**
- * Helper to parse comma-separated filter values from URL
- */
-export function parseCommaSeparated(value: string | null): string[] {
-  if (!value) return [];
-  return value.split(',').filter(Boolean);
-}
-
-/**
- * Helper to serialize array to comma-separated string for URL
- */
-export function serializeCommaSeparated(values: string[]): string | null {
-  if (values.length === 0) return null;
-  return values.join(',');
-}
+// Re-export server-safe parsing helpers so client components can import from parsers.ts
+export { parseCommaSeparated, serializeCommaSeparated, parseSeverities, type SeverityLevel } from './filter-helpers';

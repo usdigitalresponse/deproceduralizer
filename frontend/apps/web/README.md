@@ -4,13 +4,13 @@ A regulatory analysis tool for identifying compliance issues, procedural complex
 
 ## Overview
 
-The Deproceduralizer is a web application that helps policy reviewers and government staff analyze regulatory documents. It identifies "red flags" - areas of complexity, compliance issues, and sections requiring technical review - and provides a searchable interface for reviewing and annotating findings.
+The Deproceduralizer is a web application that helps policy reviewers and government staff analyze regulatory documents. It identifies compliance issues, procedural complexity, and sections requiring technical review, and provides a searchable interface for reviewing and annotating findings.
 
 ### Key Features
 
 - **Home Dashboard**: Overview of stats across all states with quick navigation
 - **Multi-State Support**: View and analyze regulations from NY and NJ
-- **Red Flag Analysis**: AI-powered identification of regulatory complexity and compliance issues
+- **Compliance Issue Detection**: AI-powered identification of regulatory complexity and compliance issues
 - **Compliance Issues**: Detection of 40+ compliance issue types (wet signatures, mail-only, etc.)
 - **Definitions Glossary**: Searchable A-Z glossary with List and Grouped view modes
 - **Browse Hierarchy**: Tree view of regulations organized by titles, parts, and sections
@@ -85,7 +85,6 @@ apps/web/
 │   │   ├── home/               # Dashboard components
 │   │   ├── browse/             # Browse hierarchy components
 │   │   ├── definitions/        # Definitions glossary components
-│   │   ├── flags/              # Red flag display components
 │   │   ├── issues/             # Compliance issue components
 │   │   └── review/             # Review queue and shared components
 │   ├── hooks/                  # Custom React hooks

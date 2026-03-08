@@ -17,6 +17,7 @@ import {
   type IssueType,
 } from '@deproceduralizer/database';
 import { type ActionResult, success, failure, getErrorMessage, runAction } from './types';
+import { parseCommaSeparated, parseSeverities } from '@/lib/url/filter-helpers';
 
 const complianceIssuesRepo = new ComplianceIssuesRepository(db);
 
@@ -341,7 +342,7 @@ export interface ComplianceDeveloperQueueParams {
   pageSize: number;
   developerStatus?: string;
   developerAssigned?: string;
-  severity?: 'high' | 'medium' | 'low' | 'all';
+  severity?: string;
   reviewStatus?: string;
   issueType?: string;
   sortBy?: 'severity' | 'issueType' | 'reviewedAt' | 'developerCheckedAt';
@@ -358,22 +359,29 @@ export async function getComplianceIssueDeveloperItems(
   return runAction('getComplianceIssueDeveloperItems', () => {
     const { page, pageSize, developerStatus, developerAssigned, severity, reviewStatus, issueType, sortBy = 'reviewedAt', sortOrder = 'desc' } = params;
 
+    // Parse comma-separated multi-select filter values
+    const issueTypes = parseCommaSeparated(issueType ?? null);
+    const severities = parseSeverities(severity);
+
     // Build filters - typed to match repository expectations
     type FilterType = {
       status?: 'unreviewed' | 'confirmed' | 'rejected_clear_fp' | 'rejected_not_obvious_bad' | 'needs_context' | 'deferred' | 'all';
-      severity?: 'high' | 'medium' | 'low' | 'all';
+      severities?: ('high' | 'medium' | 'low')[];
       issueType?: IssueType | 'all';
+      issueTypes?: IssueType[];
     };
     const filters: FilterType = {};
 
     if (reviewStatus && reviewStatus !== 'all') {
       filters.status = reviewStatus as FilterType['status'];
     }
-    if (severity && severity !== 'all') {
-      filters.severity = severity as 'high' | 'medium' | 'low';
+    if (severities.length > 0) {
+      filters.severities = severities;
     }
-    if (issueType) {
-      filters.issueType = issueType as IssueType;
+    if (issueTypes.length === 1) {
+      filters.issueType = issueTypes[0] as IssueType;
+    } else if (issueTypes.length > 1) {
+      filters.issueTypes = issueTypes as IssueType[];
     }
 
     return complianceIssuesRepo.getReviewedPaginated({
