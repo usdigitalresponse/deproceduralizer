@@ -22,7 +22,7 @@ physical_inspection:
   - '"available on the website" or similar'
   - Genuinely requires physical inspection (large maps, samples)
   - FOIL boilerplate — "records access officer", "freedom of information", "FOIL request"
-  - "requests for public access to records" or "pursuant to the Freedom of Information Law"
+  - '"requests for public access to records" or "pursuant to the Freedom of Information Law"'
   - Text describes government transparency obligation, not physical-only access restriction
   - Agency FOIL officer designation or FOIL compliance procedures
   severity_baseline: 4
