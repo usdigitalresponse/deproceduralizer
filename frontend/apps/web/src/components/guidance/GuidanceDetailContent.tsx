@@ -91,8 +91,17 @@ export function GuidanceDetailContent({ doc, state, crossRefHighlights }: Guidan
     const queryLen = query.length;
     const textEnd = globalOffset + text.length;
 
-    // Find search matches overlapping this text range
-    const relevant = searchMatches.filter((pos) => pos < textEnd && pos + queryLen > globalOffset);
+    // Binary search for first match that could overlap this text range
+    let lo = 0, hi = searchMatches.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >>> 1;
+      if (searchMatches[mid] + queryLen <= globalOffset) lo = mid + 1;
+      else hi = mid;
+    }
+    const relevant: number[] = [];
+    for (let i = lo; i < searchMatches.length && searchMatches[i] < textEnd; i++) {
+      relevant.push(searchMatches[i]);
+    }
     if (relevant.length === 0) return text;
 
     const parts: React.ReactNode[] = [];

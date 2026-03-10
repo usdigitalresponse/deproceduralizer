@@ -715,6 +715,10 @@ export const crossRefGroupSortByParser = parseAsStringEnum([...CROSSREF_GROUP_SO
  * Parser configuration for cross-references table view.
  * Uses 'cr'-prefixed params to avoid collisions with other tab parsers.
  */
+export const crossRefAgencyParser = parseAsString.withDefault('all');
+export const crossRefDocTypeParser = parseAsString.withDefault('all');
+export const crossRefNycrrTitleParser = parseAsString.withDefault('all');
+
 export const crossRefTableParsers = {
   crView: crossRefViewModeParser,
   crMode: crossRefTableModeParser,
@@ -728,6 +732,9 @@ export const crossRefTableParsers = {
   crSortBy: crossRefSortByParser,
   crGroupSortBy: crossRefGroupSortByParser,
   crSortOrder: sortOrderParser,
+  crAgency: crossRefAgencyParser,
+  crDocType: crossRefDocTypeParser,
+  crNycrrTitle: crossRefNycrrTitleParser,
 };
 
 // Re-export server-safe parsing helpers so client components can import from parsers.ts

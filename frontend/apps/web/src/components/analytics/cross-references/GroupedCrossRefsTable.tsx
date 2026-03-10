@@ -174,7 +174,7 @@ export function GroupedCrossRefsTable({
   useEffect(() => {
     setGroupRefs({});
     setExpandedGroups(new Set());
-  }, [activeFilters?.isResolved, activeFilters?.refType]);
+  }, [activeFilters?.isResolved, activeFilters?.refType, activeFilters?.agency, activeFilters?.docType, activeFilters?.nycrrTitle]);
 
   const getGroupKey = useCallback(
     (group: CrossRefDocumentGroup) =>

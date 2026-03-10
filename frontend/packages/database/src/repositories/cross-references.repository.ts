@@ -189,6 +189,9 @@ export interface CrossRefTableOptions {
   searchQuery?: string;
   sortBy?: 'sourceDocument' | 'refType' | 'normalizedCitation' | 'isResolved';
   sortOrder?: 'asc' | 'desc';
+  agency?: string;
+  docType?: string;
+  nycrrTitle?: string;
 }
 
 export interface PaginatedCrossRefTableResult {
@@ -220,6 +223,9 @@ export interface CrossRefGroupOptions {
   searchQuery?: string;
   sortBy?: 'documentName' | 'totalRefs' | 'unresolvedCount';
   sortOrder?: 'asc' | 'desc';
+  agency?: string;
+  docType?: string;
+  nycrrTitle?: string;
 }
 
 export interface PaginatedCrossRefGroupResult {
@@ -230,14 +236,84 @@ export interface PaginatedCrossRefGroupResult {
   totalPages: number;
 }
 
+/** Dynamic filter options populated from DB for dropdowns */
+export interface CrossRefFilterOptions {
+  agencies: string[];
+  docTypes: string[];
+  nycrrTitles: { value: string; label: string }[];
+}
+
 /** Filter options for accordion expansion and other filtered queries */
 export interface CrossRefActiveFilters {
   isResolved?: boolean | 'all';
   refType?: string;
+  agency?: string;
+  docType?: string;
+  nycrrTitle?: string;
 }
 
 /** Allowlist of valid ref_type values for server-side validation */
 const VALID_REF_TYPES = new Set(['nycrr', 'njac', 'ny_short_form', 'same_section', 'guidance', 'form', 'ssl', 'ny_statute']);
+
+/** Shared filter condition builder for cross-reference queries */
+function buildCrossRefFilterConditions(options: {
+  jurisdiction: string;
+  isResolved?: boolean | 'all';
+  refType?: string;
+  sourceType?: 'regulation' | 'guidance' | 'all';
+  targetType?: 'regulation' | 'guidance' | 'none' | 'all';
+  searchQuery?: string;
+  agency?: string;
+  docType?: string;
+  nycrrTitle?: string;
+}): SQL[] {
+  const { jurisdiction, isResolved = 'all', refType, sourceType = 'all', targetType = 'all', searchQuery, agency, docType, nycrrTitle } = options;
+  const stateUpper = normalizeJurisdiction(jurisdiction);
+  const conditions: SQL[] = [sql`cr.source_jurisdiction = ${stateUpper}`];
+
+  if (isResolved !== 'all') {
+    conditions.push(sql`cr.is_resolved = ${isResolved}`);
+  }
+  if (refType && refType !== 'all' && VALID_REF_TYPES.has(refType)) {
+    conditions.push(sql`cr.ref_type = ${refType}`);
+  }
+  if (sourceType === 'regulation') {
+    conditions.push(sql`cr.source_guidance_id IS NULL`);
+  } else if (sourceType === 'guidance') {
+    conditions.push(sql`cr.source_guidance_id IS NOT NULL`);
+  }
+  if (targetType === 'regulation') {
+    conditions.push(sql`cr.target_document_id IS NOT NULL`);
+  } else if (targetType === 'guidance') {
+    conditions.push(sql`cr.target_guidance_id IS NOT NULL`);
+  } else if (targetType === 'none') {
+    conditions.push(sql`cr.target_document_id IS NULL AND cr.target_guidance_id IS NULL`);
+  }
+  if (searchQuery && searchQuery.trim()) {
+    conditions.push(sql`cr.normalized_citation ILIKE ${'%' + searchQuery.trim() + '%'}`);
+  }
+
+  // Agency filter (guidance sources only — uses EXISTS subquery to avoid extra JOINs)
+  if (agency && agency.trim()) {
+    conditions.push(sql`cr.source_guidance_id IS NOT NULL AND EXISTS (
+      SELECT 1 FROM guidance_documents g WHERE g.id = cr.source_guidance_id AND g.agency = ${agency.trim()}
+    )`);
+  }
+  // Doc type filter (guidance sources only)
+  if (docType && docType.trim()) {
+    conditions.push(sql`cr.source_guidance_id IS NOT NULL AND EXISTS (
+      SELECT 1 FROM guidance_documents g WHERE g.id = cr.source_guidance_id AND g.doc_type = ${docType.trim()}
+    )`);
+  }
+  // NYCRR title filter (regulation sources only)
+  if (nycrrTitle && nycrrTitle.trim()) {
+    conditions.push(sql`cr.source_document_id IS NOT NULL AND EXISTS (
+      SELECT 1 FROM regulatory_documents rd WHERE rd.id = cr.source_document_id AND rd.nycrr_title::text = ${nycrrTitle.trim()}
+    )`);
+  }
+
+  return conditions;
+}
 
 export class CrossReferencesRepository extends BaseRepository {
   /**
@@ -887,46 +963,10 @@ export class CrossReferencesRepository extends BaseRepository {
    * Supports filtering by resolved status, ref type, and source type.
    */
   async getPaginated(options: CrossRefTableOptions): Promise<PaginatedCrossRefTableResult> {
-    const {
-      jurisdiction,
-      page,
-      pageSize,
-      isResolved = false,
-      refType,
-      sourceType = 'all',
-      targetType = 'all',
-      searchQuery,
-      sortBy = 'sourceDocument',
-      sortOrder = 'asc',
-    } = options;
-    const stateUpper = normalizeJurisdiction(jurisdiction);
+    const { page, pageSize, sortBy = 'sourceDocument', sortOrder = 'asc' } = options;
     const offset = (page - 1) * pageSize;
 
-    // Build parameterized WHERE conditions
-    const conditions: SQL[] = [sql`cr.source_jurisdiction = ${stateUpper}`];
-
-    if (isResolved !== 'all') {
-      conditions.push(sql`cr.is_resolved = ${isResolved}`);
-    }
-    if (refType && refType !== 'all' && VALID_REF_TYPES.has(refType)) {
-      conditions.push(sql`cr.ref_type = ${refType}`);
-    }
-    if (sourceType === 'regulation') {
-      conditions.push(sql`cr.source_guidance_id IS NULL`);
-    } else if (sourceType === 'guidance') {
-      conditions.push(sql`cr.source_guidance_id IS NOT NULL`);
-    }
-    if (targetType === 'regulation') {
-      conditions.push(sql`cr.target_document_id IS NOT NULL`);
-    } else if (targetType === 'guidance') {
-      conditions.push(sql`cr.target_guidance_id IS NOT NULL`);
-    } else if (targetType === 'none') {
-      conditions.push(sql`cr.target_document_id IS NULL AND cr.target_guidance_id IS NULL`);
-    }
-    if (searchQuery && searchQuery.trim()) {
-      conditions.push(sql`cr.normalized_citation ILIKE ${'%' + searchQuery.trim() + '%'}`);
-    }
-
+    const conditions = buildCrossRefFilterConditions(options);
     const whereClause = sql.join(conditions, sql` AND `);
 
     // Sort column allowlist (column names cannot be parameterized)
@@ -1025,46 +1065,10 @@ export class CrossReferencesRepository extends BaseRepository {
    * Returns document groups with total and unresolved counts.
    */
   async getGroupedByDocument(options: CrossRefGroupOptions): Promise<PaginatedCrossRefGroupResult> {
-    const {
-      jurisdiction,
-      page,
-      pageSize,
-      isResolved = 'all',
-      refType,
-      sourceType = 'all',
-      targetType = 'all',
-      searchQuery,
-      sortBy = 'unresolvedCount',
-      sortOrder = 'desc',
-    } = options;
-    const stateUpper = normalizeJurisdiction(jurisdiction);
+    const { page, pageSize, sortBy = 'unresolvedCount', sortOrder = 'desc' } = options;
     const offset = (page - 1) * pageSize;
 
-    // Build parameterized WHERE conditions
-    const conditions: SQL[] = [sql`cr.source_jurisdiction = ${stateUpper}`];
-
-    if (isResolved !== 'all') {
-      conditions.push(sql`cr.is_resolved = ${isResolved}`);
-    }
-    if (refType && refType !== 'all' && VALID_REF_TYPES.has(refType)) {
-      conditions.push(sql`cr.ref_type = ${refType}`);
-    }
-    if (sourceType === 'regulation') {
-      conditions.push(sql`cr.source_guidance_id IS NULL`);
-    } else if (sourceType === 'guidance') {
-      conditions.push(sql`cr.source_guidance_id IS NOT NULL`);
-    }
-    if (targetType === 'regulation') {
-      conditions.push(sql`cr.target_document_id IS NOT NULL`);
-    } else if (targetType === 'guidance') {
-      conditions.push(sql`cr.target_guidance_id IS NOT NULL`);
-    } else if (targetType === 'none') {
-      conditions.push(sql`cr.target_document_id IS NULL AND cr.target_guidance_id IS NULL`);
-    }
-    if (searchQuery && searchQuery.trim()) {
-      conditions.push(sql`cr.normalized_citation ILIKE ${'%' + searchQuery.trim() + '%'}`);
-    }
-
+    const conditions = buildCrossRefFilterConditions(options);
     const whereClause = sql.join(conditions, sql` AND `);
 
     // Sort column allowlist (column names cannot be parameterized)
@@ -1237,5 +1241,50 @@ export class CrossReferencesRepository extends BaseRepository {
       targetGuidanceId: row.target_guidance_id,
       targetGuidanceRef: row.target_guidance_ref,
     }));
+  }
+
+  /**
+   * Get distinct filter option values for dynamic dropdowns.
+   * Returns agencies, doc types, and NYCRR titles that have cross-references.
+   */
+  async getFilterOptions(jurisdiction: JurisdictionCode): Promise<CrossRefFilterOptions> {
+    const stateUpper = normalizeJurisdiction(jurisdiction);
+
+    const [agencyResult, docTypeResult, nycrrTitleResult] = await Promise.all([
+      this.db.execute<{ agency: string }>(sql`
+        SELECT DISTINCT g.agency
+        FROM cross_references cr
+        JOIN guidance_documents g ON cr.source_guidance_id = g.id
+        WHERE cr.source_jurisdiction = ${stateUpper} AND g.agency IS NOT NULL
+        ORDER BY g.agency
+      `),
+      this.db.execute<{ doc_type: string }>(sql`
+        SELECT DISTINCT g.doc_type
+        FROM cross_references cr
+        JOIN guidance_documents g ON cr.source_guidance_id = g.id
+        WHERE cr.source_jurisdiction = ${stateUpper} AND g.doc_type IS NOT NULL
+        ORDER BY g.doc_type
+      `),
+      this.db.execute<{ nycrr_title: number; nycrr_title_name: string | null }>(sql`
+        SELECT DISTINCT rd.nycrr_title, rd.nycrr_title_name
+        FROM cross_references cr
+        JOIN regulatory_documents rd ON cr.source_document_id = rd.id
+        WHERE cr.source_jurisdiction = ${stateUpper}
+          AND rd.nycrr_title IS NOT NULL
+          AND cr.source_guidance_id IS NULL
+        ORDER BY rd.nycrr_title
+      `),
+    ]);
+
+    return {
+      agencies: agencyResult.rows.map(r => r.agency),
+      docTypes: docTypeResult.rows.map(r => r.doc_type),
+      nycrrTitles: nycrrTitleResult.rows.map(r => ({
+        value: String(r.nycrr_title),
+        label: r.nycrr_title_name
+          ? `Title ${r.nycrr_title} - ${r.nycrr_title_name}`
+          : `Title ${r.nycrr_title}`,
+      })),
+    };
   }
 }

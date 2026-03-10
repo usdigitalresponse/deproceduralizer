@@ -23,6 +23,7 @@ import {
   type PaginatedCrossRefGroupResult,
   type CrossRefTableRow,
   type CrossRefDocumentGroup,
+  type CrossRefFilterOptions,
 } from '@deproceduralizer/database';
 import { type ActionResult, runAction } from './types';
 
@@ -213,6 +214,15 @@ export async function getCrossRefsBySource(
   );
 }
 
+/**
+ * Get dynamic filter options (agencies, doc types, NYCRR titles) for dropdowns.
+ */
+export async function getCrossRefFilterOptions(
+  state: JurisdictionCode
+): Promise<ActionResult<CrossRefFilterOptions>> {
+  return runAction('getCrossRefFilterOptions', () => crossRefsRepo.getFilterOptions(state));
+}
+
 // Re-export types for components
 export type {
   GuidanceReferenceItem,
@@ -224,5 +234,6 @@ export type {
   CrossRefTableRow,
   CrossRefDocumentGroup,
   CrossRefActiveFilters,
+  CrossRefFilterOptions,
 };
 

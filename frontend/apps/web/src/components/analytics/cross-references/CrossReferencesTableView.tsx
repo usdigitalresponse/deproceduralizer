@@ -1,12 +1,11 @@
 'use client';
 
-import { useEffect, useState, useMemo, useTransition, useCallback } from 'react';
+import { useEffect, useState, useMemo, useTransition, useCallback, useRef } from 'react';
 import { useQueryStates } from 'nuqs';
-import { Link2, CheckCircle, AlertCircle } from 'lucide-react';
+import { Link2, CheckCircle, AlertCircle, Search } from 'lucide-react';
 import { Card, StatCard, StatGrid, Select, SegmentedControl } from '@/components/ui';
 import { FilterBar, FilterField } from '@/components/ui/FilterBar';
 import { crossRefTableParsers } from '@/lib/url/parsers';
-import { Search } from 'lucide-react';
 import {
   CROSSREF_RESOLVED_VALUES,
   CROSSREF_REF_TYPE_VALUES,
@@ -14,11 +13,13 @@ import {
   CROSSREF_SOURCE_TYPE_VALUES,
   CROSSREF_TARGET_TYPE_VALUES,
 } from '@/lib/constants/values';
+import type { CrossRefFilterOptions } from '@/lib/actions/cross-references';
 import { Input } from '@/components/ui/Input';
 import {
   getCrossReferenceStats,
   getCrossRefTablePaginated,
   getCrossRefGroupedByDocument,
+  getCrossRefFilterOptions,
 } from '@/lib/actions/cross-references';
 import type {
   PaginatedCrossRefTableResult,
@@ -71,9 +72,30 @@ export function CrossReferencesTableView({ jurisdiction }: CrossReferencesTableV
   const [params, setParams] = useQueryStates(crossRefTableParsers);
   const [isPending, startTransition] = useTransition();
 
-  // Stats
+  // Stats & dynamic filter options
   const [stats, setStats] = useState<CrossRefStats | null>(null);
+  const [filterOptions, setFilterOptions] = useState<CrossRefFilterOptions | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Memoize dynamic filter dropdown options to avoid recreating arrays on every render
+  const agencyOptions = useMemo(() =>
+    filterOptions && filterOptions.agencies.length > 0
+      ? [{ value: 'all', label: 'All Agencies' }, ...filterOptions.agencies.map((a) => ({ value: a, label: a }))]
+      : null,
+    [filterOptions]
+  );
+  const docTypeOptions = useMemo(() =>
+    filterOptions && filterOptions.docTypes.length > 0
+      ? [{ value: 'all', label: 'All Doc Types' }, ...filterOptions.docTypes.map((d) => ({ value: d, label: d }))]
+      : null,
+    [filterOptions]
+  );
+  const nycrrTitleOptions = useMemo(() =>
+    filterOptions && filterOptions.nycrrTitles.length > 0
+      ? [{ value: 'all', label: 'All Titles' }, ...filterOptions.nycrrTitles]
+      : null,
+    [filterOptions]
+  );
 
   // Flat table data
   const [flatResult, setFlatResult] = useState<PaginatedCrossRefTableResult | null>(null);
@@ -83,16 +105,40 @@ export function CrossReferencesTableView({ jurisdiction }: CrossReferencesTableV
 
   const isFlat = params.crMode === 'flat';
 
-  // Load stats on mount
+  // Debounced search: local state for typing, syncs to URL after 300ms
+  const [localSearch, setLocalSearch] = useState(params.crSearch);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  // Keep local state in sync if URL changes externally (e.g., clear filters)
+  useEffect(() => {
+    setLocalSearch(params.crSearch);
+  }, [params.crSearch]);
+
+  const handleSearchChange = useCallback((value: string) => {
+    setLocalSearch(value);
+    clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => {
+      setParams({ crSearch: value, crPage: 1 });
+    }, 300);
+  }, [setParams]);
+
+  // Cleanup timer on unmount
+  useEffect(() => () => clearTimeout(searchTimerRef.current), []);
+
+  // Load stats and filter options on mount
   useEffect(() => {
     let cancelled = false;
-    async function loadStats() {
-      const result = await getCrossReferenceStats(jurisdiction);
-      if (!cancelled && result.success) {
-        setStats(result.data);
+    async function loadInitial() {
+      const [statsResult, filtersResult] = await Promise.all([
+        getCrossReferenceStats(jurisdiction),
+        getCrossRefFilterOptions(jurisdiction),
+      ]);
+      if (!cancelled) {
+        if (statsResult.success) setStats(statsResult.data);
+        if (filtersResult.success) setFilterOptions(filtersResult.data);
       }
     }
-    loadStats();
+    loadInitial();
     return () => { cancelled = true; };
   }, [jurisdiction]);
 
@@ -114,6 +160,9 @@ export function CrossReferencesTableView({ jurisdiction }: CrossReferencesTableV
           searchQuery: params.crSearch || undefined,
           sortBy: params.crSortBy,
           sortOrder: params.crSortOrder,
+          agency: params.crAgency !== 'all' ? params.crAgency : undefined,
+          docType: params.crDocType !== 'all' ? params.crDocType : undefined,
+          nycrrTitle: params.crNycrrTitle !== 'all' ? params.crNycrrTitle : undefined,
         };
         const result = await getCrossRefTablePaginated(options);
         if (!cancelled) {
@@ -135,6 +184,9 @@ export function CrossReferencesTableView({ jurisdiction }: CrossReferencesTableV
           searchQuery: params.crSearch || undefined,
           sortBy: params.crGroupSortBy,
           sortOrder: params.crSortOrder,
+          agency: params.crAgency !== 'all' ? params.crAgency : undefined,
+          docType: params.crDocType !== 'all' ? params.crDocType : undefined,
+          nycrrTitle: params.crNycrrTitle !== 'all' ? params.crNycrrTitle : undefined,
         };
         const result = await getCrossRefGroupedByDocument(options);
         if (!cancelled) {
@@ -165,6 +217,9 @@ export function CrossReferencesTableView({ jurisdiction }: CrossReferencesTableV
     params.crSortBy,
     params.crGroupSortBy,
     params.crSortOrder,
+    params.crAgency,
+    params.crDocType,
+    params.crNycrrTitle,
   ]);
 
   const handlePageChange = useCallback(
@@ -199,14 +254,20 @@ export function CrossReferencesTableView({ jurisdiction }: CrossReferencesTableV
   const activeFilters = useMemo(() => ({
     isResolved: resolvedFilterToOption(params.crResolved),
     refType: params.crRefType,
-  }), [params.crResolved, params.crRefType]);
+    agency: params.crAgency !== 'all' ? params.crAgency : undefined,
+    docType: params.crDocType !== 'all' ? params.crDocType : undefined,
+    nycrrTitle: params.crNycrrTitle !== 'all' ? params.crNycrrTitle : undefined,
+  }), [params.crResolved, params.crRefType, params.crAgency, params.crDocType, params.crNycrrTitle]);
 
   const hasActiveFilters =
     params.crResolved !== 'unresolved' ||
     params.crRefType !== 'all' ||
     params.crSourceType !== 'all' ||
     params.crTargetType !== 'all' ||
-    params.crSearch !== '';
+    params.crSearch !== '' ||
+    params.crAgency !== 'all' ||
+    params.crDocType !== 'all' ||
+    params.crNycrrTitle !== 'all';
 
   const handleClearFilters = useCallback(() => {
     setParams({
@@ -215,6 +276,9 @@ export function CrossReferencesTableView({ jurisdiction }: CrossReferencesTableV
       crSourceType: 'all',
       crTargetType: 'all',
       crSearch: '',
+      crAgency: 'all',
+      crDocType: 'all',
+      crNycrrTitle: 'all',
       crPage: 1,
     });
   }, [setParams]);
@@ -292,13 +356,43 @@ export function CrossReferencesTableView({ jurisdiction }: CrossReferencesTableV
               aria-label="Filter by target type"
             />
           </FilterField>
+          {agencyOptions && (
+            <FilterField label="Agency">
+              <Select
+                options={agencyOptions}
+                value={params.crAgency}
+                onValueChange={(v) => setParams({ crAgency: v, crPage: 1 })}
+                aria-label="Filter by agency"
+              />
+            </FilterField>
+          )}
+          {docTypeOptions && (
+            <FilterField label="Doc Type">
+              <Select
+                options={docTypeOptions}
+                value={params.crDocType}
+                onValueChange={(v) => setParams({ crDocType: v, crPage: 1 })}
+                aria-label="Filter by doc type"
+              />
+            </FilterField>
+          )}
+          {nycrrTitleOptions && (
+            <FilterField label="NYCRR Title">
+              <Select
+                options={nycrrTitleOptions}
+                value={params.crNycrrTitle}
+                onValueChange={(v) => setParams({ crNycrrTitle: v, crPage: 1 })}
+                aria-label="Filter by NYCRR title"
+              />
+            </FilterField>
+          )}
           <FilterField label="Citation">
             <div className="flex items-center gap-1.5">
               <Search className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
               <Input
                 type="text"
-                value={params.crSearch}
-                onChange={(e) => setParams({ crSearch: e.target.value, crPage: 1 })}
+                value={localSearch}
+                onChange={(e) => handleSearchChange(e.target.value)}
                 placeholder="Search citations..."
                 className="text-sm py-1"
               />
