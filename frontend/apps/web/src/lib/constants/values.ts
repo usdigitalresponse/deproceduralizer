@@ -280,7 +280,7 @@ export type CrossRefTableModeValue = (typeof CROSSREF_TABLE_MODE_VALUES)[number]
 export const CROSSREF_RESOLVED_VALUES = ['all', 'resolved', 'unresolved'] as const;
 export type CrossRefResolvedValue = (typeof CROSSREF_RESOLVED_VALUES)[number];
 
-export const CROSSREF_REF_TYPE_VALUES = ['all', 'njac', 'nycrr', 'ny_short_form', 'same_section', 'guidance'] as const;
+export const CROSSREF_REF_TYPE_VALUES = ['all', 'njac', 'nycrr', 'ny_short_form', 'same_section', 'guidance', 'form', 'ssl', 'ny_statute'] as const;
 export type CrossRefRefTypeValue = (typeof CROSSREF_REF_TYPE_VALUES)[number];
 
 export const CROSSREF_REF_TYPE_LABELS: Record<string, string> = {
@@ -289,10 +289,16 @@ export const CROSSREF_REF_TYPE_LABELS: Record<string, string> = {
   ny_short_form: 'Short Form',
   same_section: 'Same Section',
   guidance: 'Guidance',
+  form: 'Form',
+  ssl: 'SSL',
+  ny_statute: 'NY Statute',
 };
 
 export const CROSSREF_SOURCE_TYPE_VALUES = ['all', 'regulation', 'guidance'] as const;
 export type CrossRefSourceTypeValue = (typeof CROSSREF_SOURCE_TYPE_VALUES)[number];
+
+export const CROSSREF_TARGET_TYPE_VALUES = ['all', 'regulation', 'guidance', 'none'] as const;
+export type CrossRefTargetTypeValue = (typeof CROSSREF_TARGET_TYPE_VALUES)[number];
 
 export const CROSSREF_SORT_BY_VALUES = ['sourceDocument', 'refType', 'normalizedCitation', 'isResolved'] as const;
 export type CrossRefSortByValue = (typeof CROSSREF_SORT_BY_VALUES)[number];

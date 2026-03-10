@@ -27,6 +27,9 @@ class RefType(Enum):
     NY_SHORT_FORM = "ny_short_form"   # NY short-form like "section 505.14 of this Part"
     SAME_SECTION = "same_section"     # Relative refs like "(a)(1) of this section"
     GUIDANCE = "guidance"             # Guidance-to-guidance refs like "23-OCFS-ADM-15"
+    FORM = "form"                     # Government form numbers like "OCFS-5019", "LDSS-2999"
+    SSL = "ssl"                       # Social Services Law like "SSL § 366"
+    NY_STATUTE = "ny_statute"         # Other NY statutes (PHL, FCA, Exec Law, etc.)
     # Note: SAME_SECTION captured for validation but filtered from final output
 
 
@@ -670,18 +673,20 @@ def expand_nycrr_list(content: str, initial_match: PatternMatch) -> List[Pattern
 GUIDANCE_REF_PATTERN = re.compile(
     r'''
     (?:
-        # Format 1: Agency-prefixed: "23-OCFS-ADM-15", "07-OCFS-LCM-12-R1"
-        (?<!\d)(\d{2})-([A-Z]+)-(ADM|LCM|INF|GIS)-(\d+(?:-R\d+)?)
+        # Format 1: Agency-prefixed with OCR whitespace tolerance:
+        # "23-OCFS-ADM-15", "16 - OCFS - ADM - 09", "19-OCFS- ADM-04"
+        (?<!\d)(\d{2})\s*-\s*([A-Z]+)\s*-\s*(ADM|LCM|INF|GIS)\s*-\s*(\d+(?:\s*-\s*R\s*\d+)?)
     )
     |
     (?:
-        # Format 2: Short format: "90 ADM-31", "04 INF-22"
-        (?<!\d)(\d{2})\s+(ADM|LCM|INF)-(\d+)
+        # Format 2: Short format with OCR whitespace tolerance:
+        # "90 ADM-31", "04 INF-22", "90 ADM - 31"
+        (?<!\d)(\d{2})\s+(ADM|LCM|INF)\s*-\s*(\d+)
     )
     |
     (?:
         # Format 3: GIS format: "GIS-20-MA/10"
-        (GIS-\d{2}-[A-Z]{2}/\d+)
+        (GIS\s*-\s*\d{2}\s*-\s*[A-Z]{2}/\d+)
     )
     |
     (?:
@@ -703,7 +708,8 @@ def parse_guidance_ref_match(match: re.Match) -> Optional[PatternMatch]:
         year = match.group(1)
         agency = match.group(2)
         doc_type = match.group(3)
-        number = match.group(4)
+        # Normalize OCR whitespace in number/revision (e.g., "09 - R 1" -> "09-R1")
+        number = re.sub(r'\s+', '', match.group(4))
         normalized = f"{year}-{agency}-{doc_type}-{number}"
         return PatternMatch(
             ref_type=RefType.GUIDANCE,
@@ -783,6 +789,179 @@ def parse_guidance_ref_match(match: re.Match) -> Optional[PatternMatch]:
 
 
 # =============================================================================
+# FORM NUMBER PATTERNS
+# =============================================================================
+#
+# Matches government form number references in document content.
+# These are form identifiers like:
+#   "OCFS-5019", "LDSS-2999", "DSS-4037E"
+#   "OCFS - 6000" (OCR whitespace variant)
+#   "OCFS 7006" (space, no dash)
+#
+# Note: Form numbers use 3-5 digit numbers (to avoid matching guidance refs
+# which use 1-2 digit numbers like OCFS-ADM-15).
+
+FORM_PATTERN = re.compile(
+    r'''
+    (?:
+        # OCFS, LDSS, or DSS followed by separator and 3-5 digit form number
+        # Optional trailing letter suffix (e.g., "LDSS-4148A", "DSS-4037E")
+        (OCFS|LDSS|DSS)\s*[-–]\s*(\d{3,5}[A-Z]?)
+    )
+    ''',
+    re.VERBOSE
+)
+
+
+def parse_form_match(match: re.Match) -> Optional[PatternMatch]:
+    """Parse a form number reference match."""
+    raw_text = match.group(0)
+    agency = match.group(1)
+    form_number = match.group(2)
+    # Normalize: strip whitespace around dash
+    normalized = f"{agency}-{form_number}"
+    return PatternMatch(
+        ref_type=RefType.FORM,
+        raw_text=raw_text,
+        normalized=normalized,
+        start=match.start(),
+        end=match.end(),
+        components={
+            'agency': agency,
+            'form_number': form_number,
+        }
+    )
+
+
+# =============================================================================
+# SSL (SOCIAL SERVICES LAW) PATTERNS
+# =============================================================================
+#
+# Matches Social Services Law references in document content.
+# Examples:
+#   "SSL § 366", "SSL §366-a", "SSL section 131-o"
+#   "SSL 209", "SSL 131"
+
+SSL_PATTERN = re.compile(
+    r'''
+    SSL\s*
+    (?:§+\s*|[Ss]ection\s+)?    # Optional § or "section"
+    (\d+(?:-[a-z])?)             # Section number with optional letter suffix
+    ''',
+    re.VERBOSE
+)
+
+
+def parse_ssl_match(match: re.Match) -> Optional[PatternMatch]:
+    """Parse an SSL (Social Services Law) reference match."""
+    raw_text = match.group(0)
+    section = match.group(1)
+    normalized = f"SSL {section}"
+    return PatternMatch(
+        ref_type=RefType.SSL,
+        raw_text=raw_text,
+        normalized=normalized,
+        start=match.start(),
+        end=match.end(),
+        components={
+            'law': 'SSL',
+            'section': section,
+        }
+    )
+
+
+# =============================================================================
+# NY STATUTE PATTERNS
+# =============================================================================
+#
+# Matches references to other NY state statutes in document content.
+# Examples:
+#   "Public Health Law § 2803", "PHL § 12"
+#   "Executive Law § 296", "Exec. Law § 63"
+#   "Family Court Act § 1012", "FCA § 1046"
+#   "Education Law § 3214"
+#   "Penal Law § 120.05"
+#   "Mental Hygiene Law § 81.09"
+#   "Labor Law § 240"
+#   "General Business Law § 349"
+#   "Domestic Relations Law § 75-a"
+#   "Insurance Law § 3216"
+#   "Tax Law § 606"
+#   "CPLR § 7803"
+
+# Map abbreviations and full names to canonical law names
+NY_STATUTE_ALIASES = {
+    'Public Health Law': 'PHL',
+    'PHL': 'PHL',
+    'Executive Law': 'Exec Law',
+    'Exec Law': 'Exec Law',
+    'Exec. Law': 'Exec Law',
+    'Family Court Act': 'FCA',
+    'FCA': 'FCA',
+    'Education Law': 'Educ Law',
+    'Educ Law': 'Educ Law',
+    'Educ. Law': 'Educ Law',
+    'Penal Law': 'Penal Law',
+    'Mental Hygiene Law': 'MHL',
+    'MHL': 'MHL',
+    'Labor Law': 'Labor Law',
+    'General Business Law': 'GBL',
+    'GBL': 'GBL',
+    'Domestic Relations Law': 'DRL',
+    'DRL': 'DRL',
+    'Insurance Law': 'Ins Law',
+    'Ins Law': 'Ins Law',
+    'Ins. Law': 'Ins Law',
+    'Tax Law': 'Tax Law',
+    'CPLR': 'CPLR',
+    'Real Property Tax Law': 'RPTL',
+    'RPTL': 'RPTL',
+    'Vehicle and Traffic Law': 'VTL',
+    'VTL': 'VTL',
+}
+
+# Build alternation from all alias keys, sorted longest first to avoid partial matches
+_statute_names = sorted(NY_STATUTE_ALIASES.keys(), key=len, reverse=True)
+_statute_alternation = '|'.join(re.escape(name) for name in _statute_names)
+
+NY_STATUTE_PATTERN = re.compile(
+    rf'''
+    (?:{_statute_alternation})     # Law name or abbreviation
+    \s*§+\s*                       # Section symbol (required for statutes)
+    (\d+(?:[.\-][a-z0-9]+)*)      # Section number with optional subsections
+    ''',
+    re.VERBOSE
+)
+
+
+def parse_ny_statute_match(match: re.Match) -> Optional[PatternMatch]:
+    """Parse a NY statute reference match."""
+    raw_text = match.group(0)
+    section = match.group(1)
+
+    # Extract the law name from the raw text (everything before §)
+    law_part = raw_text.split('§')[0].strip()
+    canonical_law = NY_STATUTE_ALIASES.get(law_part)
+    if not canonical_law:
+        # Try stripping trailing dots/spaces
+        law_part_clean = law_part.rstrip('. ')
+        canonical_law = NY_STATUTE_ALIASES.get(law_part_clean, law_part)
+
+    normalized = f"{canonical_law} § {section}"
+    return PatternMatch(
+        ref_type=RefType.NY_STATUTE,
+        raw_text=raw_text,
+        normalized=normalized,
+        start=match.start(),
+        end=match.end(),
+        components={
+            'law': canonical_law,
+            'section': section,
+        }
+    )
+
+
+# =============================================================================
 # PATTERN REGISTRY
 # =============================================================================
 
@@ -790,6 +969,9 @@ PATTERNS: List[Tuple[re.Pattern, callable]] = [
     (NYCRR_PATTERN, parse_nycrr_match),
     (NJAC_PATTERN, parse_njac_match),
     (GUIDANCE_REF_PATTERN, parse_guidance_ref_match),
+    (SSL_PATTERN, parse_ssl_match),
+    (NY_STATUTE_PATTERN, parse_ny_statute_match),
+    (FORM_PATTERN, parse_form_match),
     (NY_SHORT_FORM_PATTERN, parse_ny_short_form_match),
     (SAME_SECTION_RANGE_PATTERN, parse_same_section_range_match),
     (SAME_SECTION_PATTERN, parse_same_section_match),

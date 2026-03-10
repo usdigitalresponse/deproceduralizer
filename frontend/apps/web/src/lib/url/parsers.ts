@@ -62,6 +62,7 @@ import {
   CROSSREF_RESOLVED_VALUES,
   CROSSREF_REF_TYPE_VALUES,
   CROSSREF_SOURCE_TYPE_VALUES,
+  CROSSREF_TARGET_TYPE_VALUES,
   CROSSREF_SORT_BY_VALUES,
   CROSSREF_GROUP_SORT_BY_VALUES,
   // View mode
@@ -705,6 +706,8 @@ export const crossRefTableModeParser = parseAsStringEnum([...CROSSREF_TABLE_MODE
 export const crossRefResolvedParser = parseAsStringEnum([...CROSSREF_RESOLVED_VALUES]).withDefault('unresolved');
 export const crossRefRefTypeParser = parseAsStringEnum([...CROSSREF_REF_TYPE_VALUES]).withDefault('all');
 export const crossRefSourceTypeParser = parseAsStringEnum([...CROSSREF_SOURCE_TYPE_VALUES]).withDefault('all');
+export const crossRefTargetTypeParser = parseAsStringEnum([...CROSSREF_TARGET_TYPE_VALUES]).withDefault('all');
+export const crossRefSearchParser = parseAsString.withDefault('');
 export const crossRefSortByParser = parseAsStringEnum([...CROSSREF_SORT_BY_VALUES]).withDefault('sourceDocument');
 export const crossRefGroupSortByParser = parseAsStringEnum([...CROSSREF_GROUP_SORT_BY_VALUES]).withDefault('unresolvedCount');
 
@@ -720,6 +723,8 @@ export const crossRefTableParsers = {
   crResolved: crossRefResolvedParser,
   crRefType: crossRefRefTypeParser,
   crSourceType: crossRefSourceTypeParser,
+  crTargetType: crossRefTargetTypeParser,
+  crSearch: crossRefSearchParser,
   crSortBy: crossRefSortByParser,
   crGroupSortBy: crossRefGroupSortByParser,
   crSortOrder: sortOrderParser,

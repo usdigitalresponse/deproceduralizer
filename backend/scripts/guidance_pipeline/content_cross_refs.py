@@ -3,9 +3,12 @@
 Scans guidance_documents.content for:
 1. NYCRR citations (e.g., "18 NYCRR 430.12") -> resolves to regulatory_documents
 2. Guidance-to-guidance refs (e.g., "23-OCFS-ADM-15") -> resolves to guidance_documents
+3. Form numbers (e.g., "OCFS-5019", "LDSS-2999") -> unresolved, tracked for display
+4. SSL references (e.g., "SSL § 366") -> unresolved, tracked for display
+5. NY statute references (e.g., "PHL § 2803") -> unresolved, tracked for display
 
 Extracts citations directly from document text content using the shared
-regex pattern library (patterns.py), filtering to NYCRR and guidance reference types.
+regex pattern library (patterns.py), filtering to relevant reference types.
 """
 
 import re
@@ -208,11 +211,16 @@ def extract_content_cross_refs(
         docs = cur.fetchall()
         print(f"\nProcessing {len(docs)} guidance documents...")
 
-        # Stats
-        total_nycrr_refs = 0
-        total_guidance_refs = 0
-        total_nycrr_resolved = 0
-        total_guidance_resolved = 0
+        # Ref types we extract from guidance content
+        ACCEPTED_REF_TYPES = {
+            RefType.NYCRR, RefType.GUIDANCE, RefType.FORM,
+            RefType.SSL, RefType.NY_STATUTE,
+        }
+
+        # Stats per ref type
+        stats: dict[str, dict[str, int]] = {}
+        for rt in ACCEPTED_REF_TYPES:
+            stats[rt.value] = {'total': 0, 'resolved': 0}
         docs_with_refs = 0
         docs_processed = 0
         docs_errored = 0
@@ -227,31 +235,49 @@ def extract_content_cross_refs(
                 # Extract all matches from content
                 matches = extract_all_matches(content)
 
-                # Filter to NYCRR and guidance refs only
-                nycrr_matches = [m for m in matches if m.ref_type == RefType.NYCRR]
-                guidance_matches = [m for m in matches if m.ref_type == RefType.GUIDANCE]
+                # Filter to accepted ref types
+                accepted = [m for m in matches if m.ref_type in ACCEPTED_REF_TYPES]
 
                 # Always add to cleanup list so stale refs are deleted on re-run
                 source_ids_to_clean.append(doc_id)
 
-                if not nycrr_matches and not guidance_matches:
+                if not accepted:
                     docs_processed += 1
                     continue
 
                 docs_with_refs += 1
 
-                # Process NYCRR refs
-                for m in nycrr_matches:
-                    total_nycrr_refs += 1
-                    title = m.components.get('title', '')
-                    section_base = m.components.get('section_base', '')
+                for m in accepted:
+                    ref_type_str = m.ref_type.value
+                    stats[ref_type_str]['total'] += 1
 
-                    target_id = _resolve_nycrr_citation(
-                        title, section_base, section_lookup, part_lookup
-                    )
-                    is_resolved = target_id is not None
+                    # Resolve based on ref type
+                    target_doc_id = None
+                    target_guidance_id = None
+                    is_resolved = False
+
+                    if m.ref_type == RefType.NYCRR:
+                        title = m.components.get('title', '')
+                        section_base = m.components.get('section_base', '')
+                        target_doc_id = _resolve_nycrr_citation(
+                            title, section_base, section_lookup, part_lookup
+                        )
+                        is_resolved = target_doc_id is not None
+
+                    elif m.ref_type == RefType.GUIDANCE:
+                        target_guidance_id = _resolve_guidance_ref(
+                            m.normalized, m.components, guidance_lookup
+                        )
+                        is_resolved = target_guidance_id is not None
+                        # Don't create self-references
+                        if target_guidance_id == doc_id:
+                            stats[ref_type_str]['total'] -= 1
+                            continue
+
+                    # FORM, SSL, NY_STATUTE: unresolved by default (no lookup target)
+
                     if is_resolved:
-                        total_nycrr_resolved += 1
+                        stats[ref_type_str]['resolved'] += 1
 
                     # Context
                     ctx_start = max(0, m.start - 50)
@@ -260,60 +286,20 @@ def extract_content_cross_refs(
                     context_after = ' '.join(content[m.end:ctx_end].split())
 
                     rows_to_insert.append((
-                        doc_id,          # source_guidance_id
-                        "nycrr",         # ref_type
-                        m.raw_text,      # raw_text
-                        m.normalized,    # normalized_citation
-                        m.start,         # start_offset
-                        m.end,           # end_offset
+                        doc_id,              # source_guidance_id
+                        ref_type_str,        # ref_type
+                        m.raw_text,          # raw_text
+                        m.normalized,        # normalized_citation
+                        m.start,             # start_offset
+                        m.end,               # end_offset
                         context_before,
                         context_after,
-                        target_id,       # target_document_id
-                        None,            # target_guidance_id
+                        target_doc_id,       # target_document_id
+                        target_guidance_id,  # target_guidance_id
                         is_resolved,
-                        state_upper,     # jurisdiction
-                        state_upper,     # source_jurisdiction
-                        state_upper if target_id else None,  # target_jurisdiction
-                    ))
-
-                # Process guidance refs
-                for m in guidance_matches:
-                    total_guidance_refs += 1
-
-                    target_gid = _resolve_guidance_ref(
-                        m.normalized, m.components, guidance_lookup
-                    )
-                    is_resolved = target_gid is not None
-                    if is_resolved:
-                        total_guidance_resolved += 1
-
-                    # Don't create self-references
-                    if target_gid == doc_id:
-                        total_guidance_refs -= 1
-                        if is_resolved:
-                            total_guidance_resolved -= 1
-                        continue
-
-                    ctx_start = max(0, m.start - 50)
-                    ctx_end = min(len(content), m.end + 50)
-                    context_before = ' '.join(content[ctx_start:m.start].split())
-                    context_after = ' '.join(content[m.end:ctx_end].split())
-
-                    rows_to_insert.append((
-                        doc_id,
-                        "guidance",
-                        m.raw_text,
-                        m.normalized,
-                        m.start,
-                        m.end,
-                        context_before,
-                        context_after,
-                        None,            # target_document_id
-                        target_gid,      # target_guidance_id
-                        is_resolved,
-                        state_upper,
-                        state_upper,
-                        state_upper if target_gid else None,
+                        state_upper,         # jurisdiction
+                        state_upper,         # source_jurisdiction
+                        state_upper if (target_doc_id or target_guidance_id) else None,
                     ))
 
                 docs_processed += 1
@@ -321,10 +307,12 @@ def extract_content_cross_refs(
                     elapsed = time.time() - start_time
                     rate = docs_processed / elapsed if elapsed > 0 else 0
                     remaining = (len(docs) - docs_processed) / rate if rate > 0 else 0
+                    ref_summary = ", ".join(
+                        f"{s['total']} {rt}" for rt, s in stats.items() if s['total'] > 0
+                    )
                     print(
                         f"  Processed {docs_processed}/{len(docs)} docs, "
-                        f"{total_nycrr_refs} NYCRR refs ({total_nycrr_resolved} resolved), "
-                        f"{total_guidance_refs} guidance refs ({total_guidance_resolved} resolved), "
+                        f"{ref_summary}, "
                         f"ETA: {remaining:.0f}s"
                     )
             except Exception as e:
@@ -340,32 +328,27 @@ def extract_content_cross_refs(
         print(f"Documents with refs: {docs_with_refs}")
         if docs_errored:
             print(f"Documents errored:   {docs_errored}")
-        print(f"\nNYCRR references: {total_nycrr_refs}")
-        if total_nycrr_refs:
-            print(f"  Resolved: {total_nycrr_resolved}/{total_nycrr_refs} ({100 * total_nycrr_resolved / total_nycrr_refs:.1f}%)")
-        print(f"\nGuidance references: {total_guidance_refs}")
-        if total_guidance_refs:
-            print(f"  Resolved: {total_guidance_resolved}/{total_guidance_refs} ({100 * total_guidance_resolved / total_guidance_refs:.1f}%)")
+
+        for ref_type_str, s in stats.items():
+            if s['total'] > 0:
+                print(f"\n{ref_type_str} references: {s['total']}")
+                if s['resolved']:
+                    print(f"  Resolved: {s['resolved']}/{s['total']} ({100 * s['resolved'] / s['total']:.1f}%)")
+
         print(f"\nTotal rows to insert: {len(rows_to_insert)}")
 
         if dry_run:
             print("\n(dry run -- use --execute to write to database)")
 
-            # Show some samples
-            nycrr_samples = [r for r in rows_to_insert if r[1] == "nycrr"][:5]
-            guidance_samples = [r for r in rows_to_insert if r[1] == "guidance"][:5]
-
-            if nycrr_samples:
-                print(f"\nSample NYCRR refs:")
-                for row in nycrr_samples:
-                    resolved = "+" if row[10] else "x"
-                    print(f"  [{resolved}] doc {row[0]}: {row[2]} -> {row[3]} (target: {row[8]})")
-
-            if guidance_samples:
-                print(f"\nSample guidance refs:")
-                for row in guidance_samples:
-                    resolved = "+" if row[10] else "x"
-                    print(f"  [{resolved}] doc {row[0]}: {row[2]} -> {row[3]} (target: {row[9]})")
+            # Show samples per type
+            for ref_type_str in stats:
+                samples = [r for r in rows_to_insert if r[1] == ref_type_str][:5]
+                if samples:
+                    print(f"\nSample {ref_type_str} refs:")
+                    for row in samples:
+                        resolved = "+" if row[10] else "x"
+                        target = row[8] or row[9] or "-"
+                        print(f"  [{resolved}] doc {row[0]}: {row[2]} -> {row[3]} (target: {target})")
 
             return
 

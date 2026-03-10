@@ -14,6 +14,7 @@ import {
 import { HierarchyBreadcrumbsServer } from '@/components/regulations/HierarchyBreadcrumbsServer';
 import { ChildrenListServer } from '@/components/regulations/ChildrenListServer';
 import { EnablingAuthorityCard, StatuteLinksList } from '@/components/statutes';
+import { JenAIIssuesList } from '@/components/jenai';
 import { RegulationSidebarWithNav } from './RegulationSidebarWithNav';
 import type { SectionConfig } from '@/hooks/useActiveSection';
 import type {
@@ -23,6 +24,7 @@ import type {
   CrossReferenceWithSource,
   ComplianceIssueWithAnalysisFields,
   RegulationStatuteLinkWithStatute,
+  JenAIIssue,
 } from '@deproceduralizer/database';
 import type { GuidanceReferenceItem } from '@/lib/actions/cross-references';
 
@@ -50,6 +52,8 @@ interface RegulationDetailSidebarProps {
   availableButNotUsed: ApplicableDefinition[];
   /** IDs of definitions defined in this document */
   definedHereIds: Set<number>;
+  /** JenAI issues for this document */
+  jenaiIssues: JenAIIssue[];
 }
 
 /**
@@ -71,6 +75,7 @@ export async function RegulationDetailSidebar({
   usedDefinitions,
   availableButNotUsed,
   definedHereIds,
+  jenaiIssues,
 }: RegulationDetailSidebarProps) {
   const sections: SectionConfig[] = [
     { id: 'sidebar-hierarchy', label: 'Hierarchy' },
@@ -78,6 +83,9 @@ export async function RegulationDetailSidebar({
     { id: 'sidebar-document-info', label: 'Info' },
     ...(complianceIssues.length > 0
       ? [{ id: 'sidebar-compliance-issues', label: 'Issues', count: complianceIssues.length }]
+      : []),
+    ...(jenaiIssues.length > 0
+      ? [{ id: 'sidebar-jenai', label: 'JenAI', count: jenaiIssues.length }]
       : []),
     ...(crossRefs.length > 0
       ? [{ id: 'sidebar-cross-refs', label: 'Cross-Refs', count: crossRefs.length }]
@@ -180,6 +188,13 @@ export async function RegulationDetailSidebar({
               issues={complianceIssues}
               state={state}
             />
+          </div>
+        )}
+
+        {/* JenAI Issues */}
+        {jenaiIssues.length > 0 && (
+          <div id="sidebar-jenai">
+            <JenAIIssuesList issues={jenaiIssues} state={state} />
           </div>
         )}
 

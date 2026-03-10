@@ -7,6 +7,7 @@ import { X, ExternalLink, Link2, AlertCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import type { CrossRefMatch } from '@/hooks/useCrossRefHighlighting';
 import { getCrossRefTargetUrl, getCrossRefLinkText } from '@/lib/cross-ref-url';
+import { CROSSREF_REF_TYPE_LABELS } from '@/lib/constants/values';
 
 interface CrossRefPopoverProps {
   /** The cross-reference match to display */
@@ -105,6 +106,9 @@ export function CrossRefPopover({
         ) : (
           <Badge variant="warning">Unresolved</Badge>
         )}
+        <Badge variant="default">
+          {CROSSREF_REF_TYPE_LABELS[crossRef.refType] ?? crossRef.refType}
+        </Badge>
       </div>
 
       {/* Target document info */}

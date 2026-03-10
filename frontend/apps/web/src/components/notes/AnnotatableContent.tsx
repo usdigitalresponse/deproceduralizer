@@ -340,7 +340,7 @@ export function AnnotatableContent({
         parts.push(
           <span
             key={`crossref-${crossRef.id}`}
-            className="crossref-highlight"
+            className={`crossref-highlight ${crossRef.isResolved ? 'crossref-highlight--resolved' : 'crossref-highlight--unresolved'}`}
             onClick={(e) => handleCrossRefClick(e, crossRef)}
             role="button"
             tabIndex={0}

@@ -3,9 +3,11 @@ import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { getGuidanceById, getDocumentLineage, getGuidanceResolvedCitations, getGuidanceComplianceAnalysisSummary } from '@/lib/actions/guidance-documents';
 import { getGuidanceCrossRefsForHighlighting } from '@/lib/actions/cross-references';
+import { getJenAIIssuesForDocument } from '@/lib/actions/jenai';
 import { GuidanceDetailSidebar } from '@/components/guidance/GuidanceDetailSidebar';
 import { GuidanceDetailContent } from '@/components/guidance/GuidanceDetailContent';
 import { GuidanceComplianceCard } from '@/components/guidance/GuidanceComplianceCard';
+import { JenAIIssuesList } from '@/components/jenai';
 import { DocumentLineageViewer } from '@/components/guidance/DocumentLineageViewer';
 import { GuidanceStatusBadge } from '@/components/guidance/GuidanceStatusBadge';
 import { GuidanceBookmarkButton } from '@/components/guidance/GuidanceBookmarkButton';
@@ -29,12 +31,13 @@ export default async function GuidanceDetailPage({ params }: GuidanceDetailPageP
     notFound();
   }
 
-  const [result, lineageResult, resolvedCitationsResult, complianceSummaryResult, crossRefResult] = await Promise.all([
+  const [result, lineageResult, resolvedCitationsResult, complianceSummaryResult, crossRefResult, jenaiIssuesResult] = await Promise.all([
     getGuidanceById(docId),
     getDocumentLineage(docId),
     getGuidanceResolvedCitations(docId),
     getGuidanceComplianceAnalysisSummary(docId),
     getGuidanceCrossRefsForHighlighting(docId),
+    getJenAIIssuesForDocument(docId, 'guidance'),
   ]);
 
   if (!result.success || !result.data) {
@@ -46,6 +49,7 @@ export default async function GuidanceDetailPage({ params }: GuidanceDetailPageP
   const resolvedCitations = resolvedCitationsResult.success ? resolvedCitationsResult.data : [];
   const complianceSummary = complianceSummaryResult.success ? complianceSummaryResult.data : null;
   const crossRefHighlights = crossRefResult.success ? crossRefResult.data : [];
+  const jenaiIssues = jenaiIssuesResult.success ? jenaiIssuesResult.data : [];
 
   return (
     <div className="bg-[var(--color-background)] min-h-screen">
@@ -71,17 +75,20 @@ export default async function GuidanceDetailPage({ params }: GuidanceDetailPageP
       />
       <Container size="2xl" className="py-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
+          {/* Main Content — second on mobile, left on desktop */}
+          <div className="order-2 lg:order-1 lg:col-span-2 space-y-6">
             <GuidanceDetailContent doc={doc} state={state} crossRefHighlights={crossRefHighlights} />
+          </div>
+
+          {/* Sidebar — first on mobile, right on desktop */}
+          <div className="order-1 lg:order-2 space-y-4">
+            <GuidanceDetailSidebar doc={doc} state={state} resolvedCitations={resolvedCitations} />
             {complianceSummary && complianceSummary.totalIssues > 0 && (
               <GuidanceComplianceCard summary={complianceSummary} state={state} guidanceDocumentId={docId} />
             )}
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-4">
-            <GuidanceDetailSidebar doc={doc} state={state} resolvedCitations={resolvedCitations} />
+            {jenaiIssues.length > 0 && (
+              <JenAIIssuesList issues={jenaiIssues} state={state} />
+            )}
             {lineage && lineage.chain.length > 1 && (
               <DocumentLineageViewer
                 lineage={lineage}

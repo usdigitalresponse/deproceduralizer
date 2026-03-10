@@ -6,12 +6,15 @@ import { Link2, CheckCircle, AlertCircle } from 'lucide-react';
 import { Card, StatCard, StatGrid, Select, SegmentedControl } from '@/components/ui';
 import { FilterBar, FilterField } from '@/components/ui/FilterBar';
 import { crossRefTableParsers } from '@/lib/url/parsers';
+import { Search } from 'lucide-react';
 import {
   CROSSREF_RESOLVED_VALUES,
   CROSSREF_REF_TYPE_VALUES,
   CROSSREF_REF_TYPE_LABELS,
   CROSSREF_SOURCE_TYPE_VALUES,
+  CROSSREF_TARGET_TYPE_VALUES,
 } from '@/lib/constants/values';
+import { Input } from '@/components/ui/Input';
 import {
   getCrossReferenceStats,
   getCrossRefTablePaginated,
@@ -51,6 +54,11 @@ const REF_TYPE_OPTIONS = CROSSREF_REF_TYPE_VALUES.map((v) => ({
 const SOURCE_TYPE_OPTIONS = CROSSREF_SOURCE_TYPE_VALUES.map((v) => ({
   value: v,
   label: v === 'all' ? 'All Sources' : v === 'regulation' ? 'Regulation' : 'Guidance',
+}));
+
+const TARGET_TYPE_OPTIONS = CROSSREF_TARGET_TYPE_VALUES.map((v) => ({
+  value: v,
+  label: v === 'all' ? 'All Targets' : v === 'regulation' ? 'Regulation' : v === 'guidance' ? 'Guidance' : 'No Target',
 }));
 
 function resolvedFilterToOption(value: string): boolean | 'all' {
@@ -102,6 +110,8 @@ export function CrossReferencesTableView({ jurisdiction }: CrossReferencesTableV
           isResolved: resolvedFilterToOption(params.crResolved),
           refType: params.crRefType,
           sourceType: params.crSourceType,
+          targetType: params.crTargetType,
+          searchQuery: params.crSearch || undefined,
           sortBy: params.crSortBy,
           sortOrder: params.crSortOrder,
         };
@@ -121,6 +131,8 @@ export function CrossReferencesTableView({ jurisdiction }: CrossReferencesTableV
           isResolved: resolvedFilterToOption(params.crResolved),
           refType: params.crRefType,
           sourceType: params.crSourceType,
+          targetType: params.crTargetType,
+          searchQuery: params.crSearch || undefined,
           sortBy: params.crGroupSortBy,
           sortOrder: params.crSortOrder,
         };
@@ -148,6 +160,8 @@ export function CrossReferencesTableView({ jurisdiction }: CrossReferencesTableV
     params.crResolved,
     params.crRefType,
     params.crSourceType,
+    params.crTargetType,
+    params.crSearch,
     params.crSortBy,
     params.crGroupSortBy,
     params.crSortOrder,
@@ -190,13 +204,17 @@ export function CrossReferencesTableView({ jurisdiction }: CrossReferencesTableV
   const hasActiveFilters =
     params.crResolved !== 'unresolved' ||
     params.crRefType !== 'all' ||
-    params.crSourceType !== 'all';
+    params.crSourceType !== 'all' ||
+    params.crTargetType !== 'all' ||
+    params.crSearch !== '';
 
   const handleClearFilters = useCallback(() => {
     setParams({
       crResolved: 'unresolved',
       crRefType: 'all',
       crSourceType: 'all',
+      crTargetType: 'all',
+      crSearch: '',
       crPage: 1,
     });
   }, [setParams]);
@@ -265,6 +283,26 @@ export function CrossReferencesTableView({ jurisdiction }: CrossReferencesTableV
               onValueChange={(v) => setParams({ crSourceType: v as typeof params.crSourceType, crPage: 1 })}
               aria-label="Filter by source type"
             />
+          </FilterField>
+          <FilterField label="Target">
+            <Select
+              options={TARGET_TYPE_OPTIONS}
+              value={params.crTargetType}
+              onValueChange={(v) => setParams({ crTargetType: v as typeof params.crTargetType, crPage: 1 })}
+              aria-label="Filter by target type"
+            />
+          </FilterField>
+          <FilterField label="Citation">
+            <div className="flex items-center gap-1.5">
+              <Search className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
+              <Input
+                type="text"
+                value={params.crSearch}
+                onChange={(e) => setParams({ crSearch: e.target.value, crPage: 1 })}
+                placeholder="Search citations..."
+                className="text-sm py-1"
+              />
+            </div>
           </FilterField>
         </FilterBar>
       </Card>

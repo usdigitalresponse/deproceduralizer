@@ -2,11 +2,12 @@
 
 import { forwardRef } from 'react';
 import Link from 'next/link';
-import { Badge, SeverityBadge, Tag } from '@/components/ui';
+import { ExternalLink } from 'lucide-react';
+import { Badge, SeverityBadge, Tag, Button } from '@/components/ui';
 import { SectionTypeBadge } from '@/components/ui/SectionTypeBadge';
 import { MetadataIndicators } from '@/components/ui/MetadataIndicators';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
-import { CardWrapper, HierarchyBreadcrumbsInline } from '../shared';
+import { CardWrapper, HierarchyBreadcrumbsInline, CornellLink, RegulationTextViewer, HierarchyTreeView } from '../shared';
 import { JENAI_CATEGORY_LABELS } from '@/lib/constants/jenai';
 import { getComplexityVariant, formatLabel } from '@/types/regulation';
 import { ReviewForm } from './ReviewForm';
@@ -124,23 +125,46 @@ export const JenAICard = forwardRef<HTMLDivElement, JenAICardProps>(
           </details>
         )}
 
-        {/* Document link */}
-        {(() => {
-          const url = isGuidance ? issue.guidance?.url : issue.regulation?.url;
-          const label = isGuidance ? 'View guidance document' : 'View regulation source';
-          return url ? (
-            <div className="pt-2 border-t border-[var(--color-neutral-200)]">
-              <a
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-[var(--color-link)] hover:text-[var(--color-link-hover)] underline"
+        {/* Document actions */}
+        {isGuidance && issue.guidance ? (
+          <div className="flex items-center gap-3 flex-wrap pt-2 border-t border-[var(--color-neutral-200)]">
+            <Button variant="secondary" size="sm" onClick={() => window.open(`/${state.toLowerCase()}/guidance/${issue.guidance!.id}`, '_blank')}>
+              View Guidance Page <ExternalLink className="w-3 h-3 ml-1" />
+            </Button>
+            <CornellLink url={issue.guidance.url} />
+          </div>
+        ) : issue.regulation ? (
+          <>
+            <div className="mb-4 flex items-center gap-3 pt-2 border-t border-[var(--color-neutral-200)]">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => window.open(`/${state.toLowerCase()}/regulations/${issue.regulation!.id}`, '_blank')}
               >
-                {label}
-              </a>
+                View Full Regulation Page
+                <ExternalLink className="w-3 h-3 ml-1" />
+              </Button>
+              <CornellLink url={issue.regulation.url} />
             </div>
-          ) : null;
-        })()}
+
+            {issue.regulation.content && (
+              <RegulationTextViewer
+                content={issue.regulation.content}
+                documentId={issue.regulation.id}
+                state={state}
+                scrollToText={issue.textExamples?.[0]}
+                isVerbatim={issue.isVerbatim ?? false}
+                label="Show Section Text"
+              />
+            )}
+
+            <HierarchyTreeView
+              documentId={issue.regulation.id}
+              state={state}
+            />
+          </>
+        ) : null}
 
         {/* Review summary (read-only, shown in developer mode) */}
         {mode === 'developer' && <JenAIReviewSummary issue={issue} />}
@@ -194,11 +218,14 @@ function RegulationContext({ issue, state }: { issue: JenAICardProps['issue']; s
 
       {/* Regulation citation */}
       <div className="mb-4 text-sm">
-        <span className="text-[var(--color-text-muted)]">
+        <Link
+          href={`/${state.toLowerCase()}/regulations/${issue.regulation.id}`}
+          className="text-[var(--color-link)] hover:text-[var(--color-link-hover)] hover:underline"
+        >
           {nycrrCitation && <span className="font-mono">{nycrrCitation}</span>}
           {nycrrCitation && issue.regulation.title && ' - '}
-        </span>
-        <span className="text-[var(--color-text-secondary)]">{issue.regulation.title}</span>
+          <span>{issue.regulation.title}</span>
+        </Link>
       </div>
     </>
   );

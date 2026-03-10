@@ -185,6 +185,8 @@ export interface CrossRefTableOptions {
   isResolved?: boolean | 'all';
   refType?: string;
   sourceType?: 'regulation' | 'guidance' | 'all';
+  targetType?: 'regulation' | 'guidance' | 'none' | 'all';
+  searchQuery?: string;
   sortBy?: 'sourceDocument' | 'refType' | 'normalizedCitation' | 'isResolved';
   sortOrder?: 'asc' | 'desc';
 }
@@ -214,6 +216,8 @@ export interface CrossRefGroupOptions {
   isResolved?: boolean | 'all';
   refType?: string;
   sourceType?: 'regulation' | 'guidance' | 'all';
+  targetType?: 'regulation' | 'guidance' | 'none' | 'all';
+  searchQuery?: string;
   sortBy?: 'documentName' | 'totalRefs' | 'unresolvedCount';
   sortOrder?: 'asc' | 'desc';
 }
@@ -233,7 +237,7 @@ export interface CrossRefActiveFilters {
 }
 
 /** Allowlist of valid ref_type values for server-side validation */
-const VALID_REF_TYPES = new Set(['nycrr', 'njac', 'ny_short_form', 'same_section', 'guidance']);
+const VALID_REF_TYPES = new Set(['nycrr', 'njac', 'ny_short_form', 'same_section', 'guidance', 'form', 'ssl', 'ny_statute']);
 
 export class CrossReferencesRepository extends BaseRepository {
   /**
@@ -890,6 +894,8 @@ export class CrossReferencesRepository extends BaseRepository {
       isResolved = false,
       refType,
       sourceType = 'all',
+      targetType = 'all',
+      searchQuery,
       sortBy = 'sourceDocument',
       sortOrder = 'asc',
     } = options;
@@ -909,6 +915,16 @@ export class CrossReferencesRepository extends BaseRepository {
       conditions.push(sql`cr.source_guidance_id IS NULL`);
     } else if (sourceType === 'guidance') {
       conditions.push(sql`cr.source_guidance_id IS NOT NULL`);
+    }
+    if (targetType === 'regulation') {
+      conditions.push(sql`cr.target_document_id IS NOT NULL`);
+    } else if (targetType === 'guidance') {
+      conditions.push(sql`cr.target_guidance_id IS NOT NULL`);
+    } else if (targetType === 'none') {
+      conditions.push(sql`cr.target_document_id IS NULL AND cr.target_guidance_id IS NULL`);
+    }
+    if (searchQuery && searchQuery.trim()) {
+      conditions.push(sql`cr.normalized_citation ILIKE ${'%' + searchQuery.trim() + '%'}`);
     }
 
     const whereClause = sql.join(conditions, sql` AND `);
@@ -1016,6 +1032,8 @@ export class CrossReferencesRepository extends BaseRepository {
       isResolved = 'all',
       refType,
       sourceType = 'all',
+      targetType = 'all',
+      searchQuery,
       sortBy = 'unresolvedCount',
       sortOrder = 'desc',
     } = options;
@@ -1035,6 +1053,16 @@ export class CrossReferencesRepository extends BaseRepository {
       conditions.push(sql`cr.source_guidance_id IS NULL`);
     } else if (sourceType === 'guidance') {
       conditions.push(sql`cr.source_guidance_id IS NOT NULL`);
+    }
+    if (targetType === 'regulation') {
+      conditions.push(sql`cr.target_document_id IS NOT NULL`);
+    } else if (targetType === 'guidance') {
+      conditions.push(sql`cr.target_guidance_id IS NOT NULL`);
+    } else if (targetType === 'none') {
+      conditions.push(sql`cr.target_document_id IS NULL AND cr.target_guidance_id IS NULL`);
+    }
+    if (searchQuery && searchQuery.trim()) {
+      conditions.push(sql`cr.normalized_citation ILIKE ${'%' + searchQuery.trim() + '%'}`);
     }
 
     const whereClause = sql.join(conditions, sql` AND `);

@@ -235,22 +235,34 @@ table {
 
 .crossref-highlight {
   text-decoration: underline !important;
-  text-decoration-style: dotted !important;
-  text-decoration-color: var(--color-success) !important;
   text-underline-offset: 2px !important;
   cursor: pointer !important;
   transition: all var(--transition-fast);
 }
 
-.crossref-highlight:hover {
-  text-decoration-style: solid !important;
-  background-color: var(--color-success-bg);
-}
-
 .crossref-highlight:focus-visible {
   outline: 2px solid var(--color-focus);
   outline-offset: 1px;
-  background-color: var(--color-success-bg);
+}
+
+/* Resolved: solid green underline — clickable link */
+.crossref-highlight--resolved {
+  text-decoration-style: solid !important;
+  text-decoration-color: var(--color-success) !important;
+}
+
+.crossref-highlight--resolved:hover {
+  background-color: var(--color-success-bg) !important;
+}
+
+/* Unresolved: dotted amber underline — unlinked reference */
+.crossref-highlight--unresolved {
+  text-decoration-style: dotted !important;
+  text-decoration-color: var(--color-warning) !important;
+}
+
+.crossref-highlight--unresolved:hover {
+  background-color: var(--color-warning-bg) !important;
 }
 
 /* ========================================

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page, type Locator } from '@playwright/test';
 import {
   waitForBrowseReady,
   waitForComplianceReviewReady,
@@ -12,6 +12,18 @@ import {
   waitForPipelineReady,
   waitForCrossRefTableReady,
 } from './helpers';
+
+/** Opens a MultiSelect dropdown by clicking its trigger and waiting for the listbox.
+ *  Retries the click once if the dropdown doesn't appear (handles React state race). */
+async function openMultiSelect(page: Page, trigger: Locator, listboxName: RegExp) {
+  await expect(trigger).toBeVisible();
+  await trigger.click();
+  const listbox = page.getByRole('listbox', { name: listboxName });
+  if (!(await listbox.isVisible().catch(() => false))) {
+    await trigger.click();
+  }
+  await expect(listbox).toBeVisible({ timeout: 5000 });
+}
 
 test.describe('Smoke Tests', () => {
 
@@ -47,8 +59,8 @@ test.describe('Smoke Tests', () => {
   test('state switching works', async ({ page }) => {
     await page.goto('/ny/browse');
 
-    // Click switch state button
-    await page.getByRole('button', { name: /Switch State/i }).click();
+    // Click switch jurisdiction button
+    await page.getByRole('button', { name: /Switch Jurisdiction/i }).click();
 
     // Should show state options
     await expect(page.getByText('New Jersey')).toBeVisible();
@@ -58,7 +70,7 @@ test.describe('Smoke Tests', () => {
     await page.goto('/ny/definitions');
 
     // Wait for glossary heading (h1 includes state name)
-    await expect(page.getByRole('heading', { name: /New York Definitions Glossary/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /New York Definitions/i })).toBeVisible();
 
     // Should show total definitions count
     await expect(page.getByText(/Total Definitions/i)).toBeVisible();
@@ -100,8 +112,8 @@ test.describe('Smoke Tests', () => {
     await expect(page.getByText('Regulations Scanned')).toBeVisible();
     await expect(page.getByText('Compliance Issues', { exact: true })).toBeVisible();
 
-    // Should show state selection with both states
-    await expect(page.getByRole('heading', { name: /Select a State/i })).toBeVisible();
+    // Should show jurisdiction selection with both states
+    await expect(page.getByRole('heading', { name: /Select a Jurisdiction/i })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'New York State' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'New Jersey State' })).toBeVisible();
   });
@@ -127,7 +139,7 @@ test.describe('Smoke Tests', () => {
     await page.goto('/ny/definitions');
 
     // Wait for glossary to load
-    await expect(page.getByRole('heading', { name: /New York Definitions Glossary/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /New York Definitions/i })).toBeVisible();
 
     // Find the search input (placeholder is "Filter by term...")
     const searchInput = page.getByPlaceholder(/filter by term/i);
@@ -153,14 +165,18 @@ test.describe('Compliance Issues', () => {
     // Wait for compliance issues to load
     await waitForComplianceReviewReady(page);
 
-    // Apply filter - find the Type dropdown
+    // Open the MultiSelect dropdown
     const typeFilter = page.getByTestId('issue-type-filter');
-    await typeFilter.click();
+    await openMultiSelect(page, typeFilter, /Issue Type/i);
 
     // Select "Wet Signature" option
     await page.getByRole('option', { name: /wet signature/i }).click();
 
-    // Wait for filter to apply - cards should still be visible after filter
+    // Close the dropdown by clicking outside (body)
+    await page.locator('body').click({ position: { x: 0, y: 0 } });
+
+    // Wait for URL to update with the filter and cards to reload
+    await page.waitForURL(/issueType=.*wet_signature/i, { timeout: 10000 });
     await expect(page.getByTestId('compliance-issue-card').first()).toBeVisible({ timeout: 10000 });
 
     // Verify filtered results show wet signature issues
@@ -181,11 +197,10 @@ test.describe('Compliance Issues', () => {
     // Wait for page to fully load
     await waitForComplianceReviewReady(page);
 
-    // Open issue type dropdown
+    // Open issue type MultiSelect dropdown
     const typeFilter = page.getByTestId('issue-type-filter');
-    await typeFilter.click();
+    await openMultiSelect(page, typeFilter, /Issue Type/i);
 
-    // Get all option texts
     const options = page.getByRole('option');
     const optionCount = await options.count();
 
@@ -196,8 +211,8 @@ test.describe('Compliance Issues', () => {
       const text = await options.nth(i).textContent();
       // Verify no underscores in display text (snake_case would have underscores)
       expect(text).not.toMatch(/_/);
-      // Verify Title Case (first letter of each word capitalized, except "All Types")
-      if (text && text !== 'All Types') {
+      // Verify Title Case (first letter of each word capitalized)
+      if (text) {
         expect(text).toMatch(/^[A-Z]/);
       }
     }
@@ -307,9 +322,9 @@ test.describe('Suggestion Mode', () => {
     await expect(page.getByRole('heading', { name: /Review New Jersey/i })).toBeVisible();
     await waitForFilterModeReady(page);
 
-    // Verify filter mode UI is visible
+    // Verify filter mode UI is visible (use exact match to avoid "Pipeline Severity:" on cards)
     await expect(page.getByText('Status:')).toBeVisible({ timeout: 10000 });
-    await expect(page.getByText('Type:', { exact: true })).toBeVisible();
+    await expect(page.getByText('Issue Type:')).toBeVisible();
     await expect(page.getByText('Severity:', { exact: true })).toBeVisible();
 
     // Verify suggestion mode controls are NOT visible
@@ -409,9 +424,9 @@ test.describe('Prompts Alignment', () => {
     // Wait for page to fully load
     await waitForComplianceReviewReady(page);
 
-    // Open issue type dropdown
+    // Open issue type MultiSelect dropdown
     const typeFilter = page.getByTestId('issue-type-filter');
-    await typeFilter.click();
+    await openMultiSelect(page, typeFilter, /Issue Type/i);
 
     // Get all option texts
     const options = page.getByRole('option');

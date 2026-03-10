@@ -22,6 +22,7 @@ export interface JenAIIssueWithContext extends JenAIIssue {
     sectionType: string | null;
     hasForm: boolean | null;
     hasIbr: boolean | null;
+    content: string | null;
   } | null;
   guidance: {
     id: number;
@@ -400,6 +401,26 @@ export class JenAIRepository extends BaseRepository {
     return { high: row.high, medium: row.medium, low: row.low, total: row.total };
   }
 
+  /**
+   * Get individual JenAI issues for a specific document (regulation or guidance).
+   * Returns lightweight issue rows without document context (no JOINs).
+   */
+  async getByDocumentId(
+    documentId: number,
+    type: 'regulation' | 'guidance'
+  ): Promise<JenAIIssue[]> {
+    const docFilter = type === 'regulation'
+      ? eq(jenaiIssues.documentId, documentId)
+      : eq(jenaiIssues.guidanceDocumentId, documentId);
+
+    return this.db
+      .select()
+      .from(jenaiIssues)
+      .where(docFilter)
+      .orderBy(desc(jenaiIssues.severity), asc(jenaiIssues.id))
+      .limit(50);
+  }
+
   // ---------------------------------------------------------------------------
   // Private helpers
   // ---------------------------------------------------------------------------
@@ -460,6 +481,7 @@ export class JenAIRepository extends BaseRepository {
       regulationSectionType: regulatoryDocuments.sectionType,
       regulationHasForm: regulatoryDocuments.hasForm,
       regulationHasIbr: regulatoryDocuments.hasIbr,
+      regulationContent: regulatoryDocuments.content,
       // Guidance fields (LEFT JOIN — null for regulation-backed rows)
       guidanceId: guidanceDocuments.id,
       guidanceTitle: guidanceDocuments.title,
@@ -566,6 +588,7 @@ export class JenAIRepository extends BaseRepository {
     regulationSectionType: string | null;
     regulationHasForm: boolean | null;
     regulationHasIbr: boolean | null;
+    regulationContent: string | null;
     guidanceId: number | null;
     guidanceTitle: string | null;
     guidanceAgency: string | null;
@@ -625,6 +648,7 @@ export class JenAIRepository extends BaseRepository {
             sectionType: row.regulationSectionType,
             hasForm: row.regulationHasForm,
             hasIbr: row.regulationHasIbr,
+            content: row.regulationContent,
           }
         : null,
       guidance: isGuidance && row.guidanceId !== null

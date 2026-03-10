@@ -22,16 +22,18 @@ interface FlatCrossRefsTableProps {
   onSort: (column: CrossRefSortByValue) => void;
 }
 
-function refTypeBadgeVariant(refType: string): 'default' | 'info' | 'warning' {
+function refTypeBadgeVariant(refType: string): 'default' | 'info' | 'warning' | 'success' {
   switch (refType) {
     case 'nycrr':
     case 'njac':
       return 'info';
-    case 'ny_short_form':
-    case 'same_section':
-      return 'default';
-    default:
+    case 'form':
       return 'warning';
+    case 'ssl':
+    case 'ny_statute':
+      return 'success';
+    default:
+      return 'default';
   }
 }
 

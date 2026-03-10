@@ -13,6 +13,9 @@ from scripts.cross_references.patterns import (
     NJAC_PATTERN,
     SAME_SECTION_RANGE_PATTERN,
     GUIDANCE_REF_PATTERN,
+    FORM_PATTERN,
+    SSL_PATTERN,
+    NY_STATUTE_PATTERN,
     _normalize_njac_section,
     extract_all_matches,
     RefType,
@@ -486,3 +489,294 @@ class TestTSBMGuidancePatterns:
         assert len(nycrr) == 1
         assert len(guidance) == 1
         assert guidance[0].normalized == "TSB-M-14(5)C"
+
+
+# =============================================================================
+# OCR Whitespace Tolerance in Guidance Refs
+# =============================================================================
+
+class TestGuidanceOCRWhitespace:
+    """Test that OCR-corrupted guidance refs with extra whitespace are captured."""
+
+    def test_space_after_dash(self):
+        """'19-OCFS- ADM-04' (space after second dash)."""
+        text = "See 19-OCFS- ADM-04 for details."
+        matches = extract_all_matches(text)
+        guidance = [m for m in matches if m.ref_type == RefType.GUIDANCE]
+        assert len(guidance) == 1
+        assert guidance[0].normalized == "19-OCFS-ADM-04"
+
+    def test_space_around_all_dashes(self):
+        """'16 - OCFS - ADM - 09' (spaces around all dashes)."""
+        text = "Per 16 - OCFS - ADM - 09 requirements."
+        matches = extract_all_matches(text)
+        guidance = [m for m in matches if m.ref_type == RefType.GUIDANCE]
+        assert len(guidance) == 1
+        assert guidance[0].normalized == "16-OCFS-ADM-09"
+
+    def test_space_around_all_dashes_with_revision(self):
+        """'16 - OCFS - ADM - 09 - R1' with revision suffix."""
+        text = "See 16 - OCFS - ADM - 09 - R1 for info."
+        matches = extract_all_matches(text)
+        guidance = [m for m in matches if m.ref_type == RefType.GUIDANCE]
+        assert len(guidance) == 1
+        assert guidance[0].normalized == "16-OCFS-ADM-09-R1"
+
+    def test_space_corrupted_revision_with_space(self):
+        """'23 - OCFS - INF - 02 - R 1' (space in 'R 1')."""
+        text = "Per 23 - OCFS - INF - 02 - R 1 guidance."
+        matches = extract_all_matches(text)
+        guidance = [m for m in matches if m.ref_type == RefType.GUIDANCE]
+        assert len(guidance) == 1
+        assert guidance[0].normalized == "23-OCFS-INF-02-R1"
+
+    def test_mixed_spacing(self):
+        """'12-OCFS- ADM-03' (only one space corrupted)."""
+        text = "Reference 12-OCFS- ADM-03 applies."
+        matches = extract_all_matches(text)
+        guidance = [m for m in matches if m.ref_type == RefType.GUIDANCE]
+        assert len(guidance) == 1
+        assert guidance[0].normalized == "12-OCFS-ADM-03"
+
+    def test_otda_with_spaces(self):
+        """'08 - OTDA - INF - 12' (OTDA agency)."""
+        text = "See 08 - OTDA - INF - 12 for details."
+        matches = extract_all_matches(text)
+        guidance = [m for m in matches if m.ref_type == RefType.GUIDANCE]
+        assert len(guidance) == 1
+        assert guidance[0].normalized == "08-OTDA-INF-12"
+
+    def test_lcm_with_spaces(self):
+        """'15 - OCFS - LCM - 04' (LCM type)."""
+        text = "Per 15 - OCFS - LCM - 04."
+        matches = extract_all_matches(text)
+        guidance = [m for m in matches if m.ref_type == RefType.GUIDANCE]
+        assert len(guidance) == 1
+        assert guidance[0].normalized == "15-OCFS-LCM-04"
+
+    def test_short_format_with_space_in_dash(self):
+        """'90 ADM - 31' (space around dash in short format)."""
+        text = "See 90 ADM - 31 for context."
+        matches = extract_all_matches(text)
+        guidance = [m for m in matches if m.ref_type == RefType.GUIDANCE]
+        assert len(guidance) == 1
+        assert guidance[0].normalized == "90 ADM-31"
+
+
+# =============================================================================
+# Form Number Patterns
+# =============================================================================
+
+class TestFormPatterns:
+    """Test form number reference extraction."""
+
+    def test_ocfs_form(self):
+        """Basic OCFS form number."""
+        text = "Complete form OCFS-5019 and submit."
+        matches = extract_all_matches(text)
+        forms = [m for m in matches if m.ref_type == RefType.FORM]
+        assert len(forms) == 1
+        assert forms[0].normalized == "OCFS-5019"
+
+    def test_ldss_form(self):
+        """Basic LDSS form number."""
+        text = "Use LDSS-2999 for this purpose."
+        matches = extract_all_matches(text)
+        forms = [m for m in matches if m.ref_type == RefType.FORM]
+        assert len(forms) == 1
+        assert forms[0].normalized == "LDSS-2999"
+
+    def test_dss_form_with_letter_suffix(self):
+        """DSS form with trailing letter."""
+        text = "See DSS-4037E for instructions."
+        matches = extract_all_matches(text)
+        forms = [m for m in matches if m.ref_type == RefType.FORM]
+        assert len(forms) == 1
+        assert forms[0].normalized == "DSS-4037E"
+
+    def test_ocfs_form_ocr_whitespace(self):
+        """OCFS form with OCR-corrupted whitespace."""
+        text = "Submit OCFS - 6000 immediately."
+        matches = extract_all_matches(text)
+        forms = [m for m in matches if m.ref_type == RefType.FORM]
+        assert len(forms) == 1
+        assert forms[0].normalized == "OCFS-6000"
+
+    def test_ldss_form_with_letter(self):
+        """LDSS form with trailing letter."""
+        text = "Complete LDSS-4148A and LDSS-4148B."
+        matches = extract_all_matches(text)
+        forms = [m for m in matches if m.ref_type == RefType.FORM]
+        assert len(forms) == 2
+        assert forms[0].normalized == "LDSS-4148A"
+        assert forms[1].normalized == "LDSS-4148B"
+
+    def test_form_not_confused_with_guidance(self):
+        """OCFS-5019 (form) should not match as guidance ref."""
+        text = "Use OCFS-5019 per 16-OCFS-ADM-09."
+        matches = extract_all_matches(text)
+        forms = [m for m in matches if m.ref_type == RefType.FORM]
+        guidance = [m for m in matches if m.ref_type == RefType.GUIDANCE]
+        assert len(forms) == 1
+        assert len(guidance) == 1
+        assert forms[0].normalized == "OCFS-5019"
+        assert guidance[0].normalized == "16-OCFS-ADM-09"
+
+    def test_three_digit_form(self):
+        """3-digit form number."""
+        text = "See LDSS-923B for details."
+        matches = extract_all_matches(text)
+        forms = [m for m in matches if m.ref_type == RefType.FORM]
+        assert len(forms) == 1
+        assert forms[0].normalized == "LDSS-923B"
+
+    def test_five_digit_form(self):
+        """5-digit form number."""
+        text = "Refer to LDSS-12345 for the procedure."
+        matches = extract_all_matches(text)
+        forms = [m for m in matches if m.ref_type == RefType.FORM]
+        assert len(forms) == 1
+        assert forms[0].normalized == "LDSS-12345"
+
+
+# =============================================================================
+# SSL (Social Services Law) Patterns
+# =============================================================================
+
+class TestSSLPatterns:
+    """Test Social Services Law reference extraction."""
+
+    def test_ssl_with_section_symbol(self):
+        """SSL § 366."""
+        text = "Pursuant to SSL § 366, the applicant must."
+        matches = extract_all_matches(text)
+        ssl = [m for m in matches if m.ref_type == RefType.SSL]
+        assert len(ssl) == 1
+        assert ssl[0].normalized == "SSL 366"
+
+    def test_ssl_with_letter_suffix(self):
+        """SSL § 131-a."""
+        text = "Under SSL § 131-a provisions."
+        matches = extract_all_matches(text)
+        ssl = [m for m in matches if m.ref_type == RefType.SSL]
+        assert len(ssl) == 1
+        assert ssl[0].normalized == "SSL 131-a"
+
+    def test_ssl_bare_number(self):
+        """SSL 209 (no section symbol)."""
+        text = "As defined in SSL 209."
+        matches = extract_all_matches(text)
+        ssl = [m for m in matches if m.ref_type == RefType.SSL]
+        assert len(ssl) == 1
+        assert ssl[0].normalized == "SSL 209"
+
+    def test_ssl_with_section_word(self):
+        """SSL section 111."""
+        text = "Per SSL section 111 requirements."
+        matches = extract_all_matches(text)
+        ssl = [m for m in matches if m.ref_type == RefType.SSL]
+        assert len(ssl) == 1
+        assert ssl[0].normalized == "SSL 111"
+
+    def test_multiple_ssl_refs(self):
+        """Multiple SSL references in one text."""
+        text = "SSL § 366 and SSL § 131-o apply."
+        matches = extract_all_matches(text)
+        ssl = [m for m in matches if m.ref_type == RefType.SSL]
+        assert len(ssl) == 2
+
+
+# =============================================================================
+# NY Statute Patterns
+# =============================================================================
+
+class TestNYStatutePatterns:
+    """Test NY statute reference extraction."""
+
+    def test_public_health_law(self):
+        """Public Health Law § 2803."""
+        text = "Per Public Health Law § 2803 requirements."
+        matches = extract_all_matches(text)
+        statutes = [m for m in matches if m.ref_type == RefType.NY_STATUTE]
+        assert len(statutes) == 1
+        assert statutes[0].normalized == "PHL § 2803"
+
+    def test_phl_abbreviation(self):
+        """PHL § 12."""
+        text = "See PHL § 12 for details."
+        matches = extract_all_matches(text)
+        statutes = [m for m in matches if m.ref_type == RefType.NY_STATUTE]
+        assert len(statutes) == 1
+        assert statutes[0].normalized == "PHL § 12"
+
+    def test_executive_law(self):
+        """Executive Law § 296."""
+        text = "Under Executive Law § 296."
+        matches = extract_all_matches(text)
+        statutes = [m for m in matches if m.ref_type == RefType.NY_STATUTE]
+        assert len(statutes) == 1
+        assert statutes[0].normalized == "Exec Law § 296"
+
+    def test_family_court_act(self):
+        """Family Court Act § 1012."""
+        text = "Per Family Court Act § 1012."
+        matches = extract_all_matches(text)
+        statutes = [m for m in matches if m.ref_type == RefType.NY_STATUTE]
+        assert len(statutes) == 1
+        assert statutes[0].normalized == "FCA § 1012"
+
+    def test_fca_abbreviation(self):
+        """FCA § 1046."""
+        text = "Under FCA § 1046 provisions."
+        matches = extract_all_matches(text)
+        statutes = [m for m in matches if m.ref_type == RefType.NY_STATUTE]
+        assert len(statutes) == 1
+        assert statutes[0].normalized == "FCA § 1046"
+
+    def test_penal_law_with_decimal(self):
+        """Penal Law § 120.05."""
+        text = "Charged under Penal Law § 120.05."
+        matches = extract_all_matches(text)
+        statutes = [m for m in matches if m.ref_type == RefType.NY_STATUTE]
+        assert len(statutes) == 1
+        assert statutes[0].normalized == "Penal Law § 120.05"
+
+    def test_education_law(self):
+        """Education Law § 3214."""
+        text = "Education Law § 3214 applies."
+        matches = extract_all_matches(text)
+        statutes = [m for m in matches if m.ref_type == RefType.NY_STATUTE]
+        assert len(statutes) == 1
+        assert statutes[0].normalized == "Educ Law § 3214"
+
+    def test_cplr(self):
+        """CPLR § 7803."""
+        text = "Article 78 proceeding under CPLR § 7803."
+        matches = extract_all_matches(text)
+        statutes = [m for m in matches if m.ref_type == RefType.NY_STATUTE]
+        assert len(statutes) == 1
+        assert statutes[0].normalized == "CPLR § 7803"
+
+    def test_mental_hygiene_law(self):
+        """Mental Hygiene Law § 81.09."""
+        text = "Per Mental Hygiene Law § 81.09."
+        matches = extract_all_matches(text)
+        statutes = [m for m in matches if m.ref_type == RefType.NY_STATUTE]
+        assert len(statutes) == 1
+        assert statutes[0].normalized == "MHL § 81.09"
+
+    def test_mixed_statute_and_nycrr(self):
+        """Statute and NYCRR in same text."""
+        text = "Per PHL § 2803 and 10 NYCRR 415.2, the facility must."
+        matches = extract_all_matches(text)
+        statutes = [m for m in matches if m.ref_type == RefType.NY_STATUTE]
+        nycrr = [m for m in matches if m.ref_type == RefType.NYCRR]
+        assert len(statutes) == 1
+        assert len(nycrr) == 1
+
+    def test_no_match_without_section_symbol(self):
+        """Statute names without § should NOT match (too many false positives)."""
+        text = "The Penal Law is complex."
+        matches = extract_all_matches(text)
+        statutes = [m for m in matches if m.ref_type == RefType.NY_STATUTE]
+        assert len(statutes) == 0

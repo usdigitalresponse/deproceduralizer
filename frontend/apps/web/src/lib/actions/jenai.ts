@@ -246,3 +246,18 @@ export async function getJenAISeverityDistribution(
     { revalidate: 3600, tags: ['jenai-analytics'] }
   );
 }
+
+/**
+ * Gets individual JenAI issues for a specific document.
+ */
+export async function getJenAIIssuesForDocument(
+  documentId: number,
+  type: 'regulation' | 'guidance'
+): Promise<ActionResult<JenAIIssue[]>> {
+  return runCachedAction(
+    'getJenAIIssuesForDocument',
+    () => jenaiRepo.getByDocumentId(documentId, type),
+    [`jenai-doc-issues-${type}-${documentId}`],
+    { revalidate: 300, tags: ['jenai'] }
+  );
+}
