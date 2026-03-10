@@ -3,6 +3,7 @@ export { CardWrapper } from './CardWrapper';
 export { HierarchyBreadcrumbsInline } from './HierarchyBreadcrumbsInline';
 export { CornellLink } from './CornellLink';
 export { RegulationTextViewer } from './RegulationTextViewer';
+export { LazyDocumentTextViewer } from './LazyDocumentTextViewer';
 export { HierarchyTreeView } from './HierarchyTreeView';
 export { HierarchyTreeNodeCompact } from './HierarchyTreeNodeCompact';
 export { SiblingSectionsView } from './SiblingSectionsView';

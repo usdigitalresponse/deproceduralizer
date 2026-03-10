@@ -2,7 +2,7 @@
 
 import { useState, forwardRef } from 'react';
 import { formatStateCitation } from '@/lib/formatters/citations';
-import { CardWrapper, HierarchyTreeView } from '../../shared';
+import { CardWrapper, HierarchyTreeView, LazyDocumentTextViewer } from '../../shared';
 import { useDefinitionForm } from './hooks/useDefinitionForm';
 import { useDefinitionHandlers } from './hooks/useDefinitionHandlers';
 import { Header } from './Header';
@@ -82,6 +82,15 @@ export const DefinitionReviewCard = forwardRef<HTMLDivElement, DefinitionReviewC
           <HierarchyTreeView
             documentId={definition.regulation.id}
             state={jurisdiction}
+          />
+        )}
+
+        {/* Lazy-loaded Regulation Text */}
+        {definition.regulation && (
+          <LazyDocumentTextViewer
+            documentId={definition.regulation.id}
+            state={jurisdiction}
+            label="Show Regulation Text"
           />
         )}
 

@@ -488,6 +488,54 @@ test.describe('Prompts Alignment', () => {
     await expect(page.getByPlaceholder(/Search prompts/i)).toBeVisible();
   });
 
+  test('research tab renders composer with issue selector', async ({ page }) => {
+    await page.goto('/prompts?tab=research');
+    await expect(page.locator('h1').filter({ hasText: /Prompts/i }).first()).toBeVisible();
+
+    // The composer should render (not blank) — either the issue selector or an error alert
+    const composer = page.getByText(/Compliance\/Research Pipeline Prompt Composer/i);
+    // Use a visible alert (not the hidden Next.js route announcer)
+    const errorAlert = page.locator('[role="alert"]:not(#__next-route-announcer__)');
+
+    // One of these must be visible — the tab should never be blank
+    await expect(composer.or(errorAlert.first())).toBeVisible({ timeout: 10000 });
+
+    // If composer loaded, verify issue selector is present
+    if (await composer.isVisible()) {
+      await expect(page.getByRole('heading', { name: /Select an Issue Type/i })).toBeVisible();
+    }
+  });
+
+  test('jenai tab renders composer with document search', async ({ page }) => {
+    await page.goto('/prompts?tab=jenai');
+    await expect(page.locator('h1').filter({ hasText: /Prompts/i }).first()).toBeVisible();
+
+    // JenAI composer should render with its heading
+    await expect(page.getByText(/JenAI Pipeline Prompt Composer/i)).toBeVisible({ timeout: 10000 });
+
+    // Should have a document search input (placeholder contains "NYCRR" or "fire safety")
+    await expect(page.getByPlaceholder(/NYCRR.*fire safety/i)).toBeVisible({ timeout: 5000 });
+  });
+
+  test('fines tab renders composer with document search', async ({ page }) => {
+    await page.goto('/prompts?tab=fines');
+    await expect(page.locator('h1').filter({ hasText: /Prompts/i }).first()).toBeVisible();
+
+    // Fines composer should render with its heading
+    await expect(page.getByText(/Fines Pipeline Prompt Composer/i)).toBeVisible({ timeout: 10000 });
+
+    // Should have a document search input (placeholder contains "NYCRR" or "fire safety")
+    await expect(page.getByPlaceholder(/NYCRR.*fire safety/i)).toBeVisible({ timeout: 5000 });
+  });
+
+  test('overview tab shows renamed Compliance/Research Pipeline Composer', async ({ page }) => {
+    await page.goto('/prompts');
+    await expect(page.locator('h1').filter({ hasText: /Prompts/i }).first()).toBeVisible();
+
+    // Verify the renamed title appears
+    await expect(page.getByText(/Compliance\/Research Pipeline Composer/i)).toBeVisible();
+  });
+
 });
 
 test.describe('Review Form Submission', () => {
@@ -595,6 +643,90 @@ test.describe('Review Form Submission', () => {
 
     // Note: We don't click confirm to avoid permanently modifying definitions
     // The test verifies the form is functional
+  });
+
+});
+
+test.describe('JenAI Review Cards', () => {
+
+  test('jenai review cards render with hierarchy tree view', async ({ page }) => {
+    await page.goto('/ny/review?type=jenai');
+    await expect(page.getByRole('heading', { name: /Review New York/i })).toBeVisible();
+
+    // Wait for JenAI cards to load
+    const cards = page.getByTestId('jenai-card');
+    await expect(cards.first()).toBeVisible({ timeout: 10000 });
+
+    // Cards should have hierarchy breadcrumbs (from HierarchyBreadcrumbsInline)
+    // and a "View Hierarchy" button (from HierarchyTreeView)
+    const firstCard = cards.first();
+    await expect(firstCard.getByText(/View Hierarchy/i)).toBeVisible();
+  });
+
+});
+
+test.describe('Review Card Text Viewers', () => {
+
+  test('definition review card has lazy regulation text button', async ({ page }) => {
+    await page.goto('/ny/review?mode=review&type=definitions');
+    await expect(page.getByRole('heading', { name: /Review New York/i })).toBeVisible();
+
+    // Wait for definition cards to load
+    const cards = page.getByTestId('definition-card');
+    await expect(cards.first()).toBeVisible({ timeout: 15000 });
+
+    // First definition card should have a "Show Regulation Text" button
+    const firstCard = cards.first();
+    await expect(firstCard.getByRole('button', { name: /Show Regulation Text/i }).first()).toBeVisible();
+  });
+
+  test('developer card (compliance) has lazy regulation text button', async ({ page }) => {
+    await page.goto('/nj/review?type=compliance&queueMode=filter&reviewStatus=confirmed');
+    await expect(page.getByRole('heading', { name: /Review New Jersey/i })).toBeVisible();
+    await waitForComplianceReviewReady(page);
+
+    const cards = page.getByTestId('compliance-issue-card');
+    if (await cards.count() === 0) {
+      console.log('No confirmed compliance issues found, skipping test');
+      return;
+    }
+
+    // Card should have a "Show Regulation Text" button (lazy-loaded)
+    const firstCard = cards.first();
+    await expect(firstCard.getByText(/Show Regulation Text/i)).toBeVisible();
+  });
+
+  test('jenai composer search finds documents by citation', async ({ page }) => {
+    await page.goto('/prompts?tab=jenai');
+    await expect(page.getByText(/JenAI Pipeline Prompt Composer/i)).toBeVisible({ timeout: 10000 });
+
+    // Use the specific placeholder for the JenAI composer search input
+    const searchInput = page.getByPlaceholder(/NYCRR.*fire safety/i);
+    await expect(searchInput).toBeVisible({ timeout: 5000 });
+    await searchInput.fill('10 NYCRR');
+
+    // Wait for search results dropdown (buttons with FileText icon inside result container)
+    // Results are rendered as <button> elements in a dropdown div
+    const resultButtons = page.locator('.max-h-\\[320px\\] button');
+    await expect(resultButtons.first()).toBeVisible({ timeout: 15000 });
+
+    // At least one result should contain NYCRR in its text
+    const firstResultText = await resultButtons.first().textContent();
+    expect(firstResultText).toContain('NYCRR');
+  });
+
+  test('jenai composer search still finds documents by content', async ({ page }) => {
+    await page.goto('/prompts?tab=jenai');
+    await expect(page.getByText(/JenAI Pipeline Prompt Composer/i)).toBeVisible({ timeout: 10000 });
+
+    // Use the specific placeholder for the JenAI composer search input
+    const searchInput = page.getByPlaceholder(/NYCRR.*fire safety/i);
+    await expect(searchInput).toBeVisible({ timeout: 5000 });
+    await searchInput.fill('fire safety');
+
+    // Wait for search results dropdown
+    const resultButtons = page.locator('.max-h-\\[320px\\] button');
+    await expect(resultButtons.first()).toBeVisible({ timeout: 15000 });
   });
 
 });

@@ -42,7 +42,7 @@ export function PromptsOverviewTab({
           <Card>
             <div className="flex items-center gap-3 mb-3">
               <Layers className="w-5 h-5 text-[var(--color-primary)]" />
-              <h3 className="text-base font-semibold text-[var(--color-text)]">Research Pipeline Composer</h3>
+              <h3 className="text-base font-semibold text-[var(--color-text)]">Compliance/Research Pipeline Composer</h3>
             </div>
             <p className="text-sm text-[var(--color-text-secondary)] mb-4">
               Compose and preview prompts for the 3-tier compliance research pipeline. Select an issue type to see the full prompt sent at each tier.

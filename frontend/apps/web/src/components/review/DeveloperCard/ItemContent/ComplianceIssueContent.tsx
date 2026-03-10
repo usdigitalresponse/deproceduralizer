@@ -3,7 +3,7 @@ import { ISSUE_TYPE_LABELS, formatLabel } from '@/types/regulation';
 import { formatStateCitation } from '@/lib/formatters/citations';
 import { OutcomeBadges } from '@/components/issues/OutcomeBadges';
 import { DecisionRationale } from '@/components/issues/DecisionRationale';
-import { HierarchyBreadcrumbsInline, RegulationTextViewer } from '../../shared';
+import { HierarchyBreadcrumbsInline, LazyDocumentTextViewer } from '../../shared';
 import type { ComplianceIssueContentProps } from '../types';
 
 export function ComplianceIssueContent({ item, state }: ComplianceIssueContentProps) {
@@ -107,10 +107,9 @@ export function ComplianceIssueContent({ item, state }: ComplianceIssueContentPr
         </div>
       )}
 
-      {/* Full Regulation Text Viewer (only for regulation-sourced issues) */}
-      {!isGuidance && issue.regulation.content && (
-        <RegulationTextViewer
-          content={issue.regulation.content}
+      {/* Full Regulation Text Viewer (lazy-loaded for list views) */}
+      {!isGuidance && (
+        <LazyDocumentTextViewer
           documentId={issue.regulation.id}
           state={state}
           scrollToText={issue.verbatimSupportingText?.[0]}

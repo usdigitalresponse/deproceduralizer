@@ -115,7 +115,7 @@ Script: `backend/scripts/batch_exclude_ny_sections.py` (use `--dry-run` to previ
 |--------|------|-------------|
 | `search_vector` | tsvector | Weighted: title(A) + summary(B) + content(C). Maintained by trigger. |
 
-**Indexes:** `idx_documents_state`, `idx_documents_type`, `idx_documents_state_type`, `idx_documents_parent`, `idx_documents_hierarchy_level`, `idx_documents_regulatory_status`, `idx_documents_url`, `idx_documents_short_title`, `idx_documents_exclude_from_analysis` (partial), `idx_rd_keywords` (GIN), `idx_rd_applies_to` (GIN), `idx_rd_section_type` (partial), `idx_rd_has_form` (partial), `idx_rd_has_ibr` (partial), `idx_regulatory_documents_search_vector` (GIN), `idx_rd_rcny_title` (partial: WHERE jurisdiction = 'NYC'), `idx_rd_jurisdiction_source_type` (unique: jurisdiction, source_index, type - for upsert)
+**Indexes:** `idx_documents_state`, `idx_documents_type`, `idx_documents_state_type`, `idx_documents_parent`, `idx_documents_hierarchy_level`, `idx_documents_regulatory_status`, `idx_documents_url`, `idx_documents_short_title`, `idx_documents_exclude_from_analysis` (partial), `idx_rd_keywords` (GIN), `idx_rd_applies_to` (GIN), `idx_rd_section_type` (partial), `idx_rd_has_form` (partial), `idx_rd_has_ibr` (partial), `idx_regulatory_documents_search_vector` (GIN), `idx_rd_rcny_title` (partial: WHERE jurisdiction = 'NYC'), `idx_rd_jurisdiction_source_type` (unique: jurisdiction, source_index, type - for upsert), `idx_regulatory_documents_citation_trgm` (GIN trigram on citation)
 
 ## jenai_analyses
 

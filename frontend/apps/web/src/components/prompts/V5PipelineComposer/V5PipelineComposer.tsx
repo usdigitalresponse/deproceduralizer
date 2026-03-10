@@ -75,7 +75,7 @@ export function V5PipelineComposer({ issueTypes, className = '' }: V5PipelineCom
           </div>
           <div>
             <h2 className="text-lg font-semibold text-[var(--color-text)]">
-              V5 Research Pipeline Prompt Composer
+              Compliance/Research Pipeline Prompt Composer
             </h2>
             <p className="text-sm text-[var(--color-text-secondary)]">
               Interactive view of the 3-tier progressive context disclosure system

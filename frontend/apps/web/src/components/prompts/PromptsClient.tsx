@@ -7,6 +7,7 @@ import { promptsParsers } from '@/lib/url/parsers';
 import type { PromptsTabValue } from '@/lib/constants/values';
 import type { PromptData, CompliancePromptData } from '@/lib/actions/prompts';
 import type { PromptFeedback } from '@deproceduralizer/database';
+import { Alert } from '@/components/ui/Alert';
 import type { IssueTypeOption } from './V5PipelineComposer/types';
 import { PromptsOverviewTab } from './PromptsOverviewTab';
 import { PromptCatalogTab } from './PromptCatalogTab';
@@ -69,8 +70,14 @@ export function PromptsClient({
           />
         )}
 
-        {currentTab === 'research' && issueTypes.length > 0 && (
-          <V5PipelineComposer issueTypes={issueTypes} />
+        {currentTab === 'research' && (
+          issueTypes.length > 0 ? (
+            <V5PipelineComposer issueTypes={issueTypes} />
+          ) : (
+            <Alert variant="error" title="Failed to load issue configurations">
+              There may be a YAML syntax error in the issue config files. Check the server logs for details.
+            </Alert>
+          )
         )}
 
         {currentTab === 'jenai' && (

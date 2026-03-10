@@ -163,8 +163,13 @@ export async function searchSectionsForComposer(
       WHERE jurisdiction = ${jurisdiction.toUpperCase()}
         AND hierarchy_level IN ('section', 'subpart')
         AND direct_child_count = 0
-        AND search_vector @@ websearch_to_tsquery('english', ${trimmed})
-      ORDER BY ts_rank(search_vector, websearch_to_tsquery('english', ${trimmed}), 32) DESC
+        AND (
+          search_vector @@ websearch_to_tsquery('english', ${trimmed})
+          OR citation ILIKE '%' || ${trimmed} || '%'
+        )
+      ORDER BY
+        CASE WHEN citation ILIKE '%' || ${trimmed} || '%' THEN 0 ELSE 1 END,
+        ts_rank(search_vector, websearch_to_tsquery('english', ${trimmed}), 32) DESC
       LIMIT 10
     `);
 

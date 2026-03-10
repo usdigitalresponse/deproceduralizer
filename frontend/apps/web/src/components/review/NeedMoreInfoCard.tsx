@@ -6,7 +6,7 @@ import type { DeveloperItem } from '@/lib/actions/developer';
 import { Button, Textarea, Badge, Tag, CopyLinkButton } from '@/components/ui';
 import { ISSUE_TYPE_LABELS, formatLabel } from '@/types/regulation';
 import { formatStateCitation } from '@/lib/formatters/citations';
-import { CardWrapper, CornellLink, RegulationTextViewer, HierarchyTreeView } from './shared';
+import { CardWrapper, CornellLink, LazyDocumentTextViewer, HierarchyTreeView } from './shared';
 import { FileWarning, MessageCircleQuestion, ExternalLink } from 'lucide-react';
 
 interface NeedMoreInfoCardProps {
@@ -74,18 +74,15 @@ export const NeedMoreInfoCard = forwardRef<HTMLDivElement, NeedMoreInfoCardProps
                 </div>
               </div>
             )}
-            {/* Full Regulation Text Viewer */}
-            {issue.regulation.content && (
-              <RegulationTextViewer
-                content={issue.regulation.content}
-                documentId={issue.regulation.id}
-                state={state}
-                scrollToText={issue.verbatimSupportingText?.[0]}
-                highlightPattern={issue.regexMatchPattern}
-                isVerbatim={issue.isVerbatim ?? false}
-                label="Show Regulation Text"
-              />
-            )}
+            {/* Full Regulation Text Viewer (lazy-loaded for list views) */}
+            <LazyDocumentTextViewer
+              documentId={issue.regulation.id}
+              state={state}
+              scrollToText={issue.verbatimSupportingText?.[0]}
+              highlightPattern={issue.regexMatchPattern}
+              isVerbatim={issue.isVerbatim ?? false}
+              label="Show Regulation Text"
+            />
           </div>
         );
       }
