@@ -154,6 +154,13 @@ class FineFeePenaltyItem(BaseModel):
         default=None,
         description="Agency that administers or collects this charge"
     )
+    agency_level: Optional[Literal[
+        'federal', 'state', 'county', 'city', 'village', 'town',
+        'authority', 'judiciary', 'generic'
+    ]] = Field(
+        default=None,
+        description="Government level of the responsible agency"
+    )
     violation_description: Optional[str] = Field(
         default=None,
         description="What triggers this fine/fee"

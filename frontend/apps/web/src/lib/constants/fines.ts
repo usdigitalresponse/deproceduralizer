@@ -42,6 +42,10 @@ export const SOURCE_TYPE_LABELS: Record<string, string> = {
   guidance: 'Guidance Documents',
 };
 
+/** Multi-select options for penalty type filter (empty selection = all) */
+export const PENALTY_TYPE_MULTISELECT_OPTIONS = Object.entries(PENALTY_TYPE_LABELS_PLURAL)
+  .map(([value, label]) => ({ value, label }));
+
 export const PENALTY_TYPE_COLORS: Record<string, string> = {
   fine: 'bg-[var(--color-danger-bg)] text-[var(--color-danger)]',
   penalty: 'bg-[var(--color-warning-bg)] text-[var(--color-warning)]',
@@ -49,4 +53,35 @@ export const PENALTY_TYPE_COLORS: Record<string, string> = {
   surcharge: 'bg-[var(--color-warning-bg)] text-[var(--color-warning)]',
   forfeiture: 'bg-[var(--color-danger-bg)] text-[var(--color-danger)]',
   other: 'bg-[var(--color-neutral-100)] text-[var(--color-text-secondary)]',
+};
+
+// ---------------------------------------------------------------------------
+// Agency level constants
+// ---------------------------------------------------------------------------
+
+export const AGENCY_LEVEL_LABELS: Record<string, string> = {
+  federal: 'Federal',
+  state: 'State',
+  county: 'County',
+  city: 'City',
+  village: 'Village',
+  town: 'Town',
+  authority: 'Authority',
+  judiciary: 'Judiciary',
+  generic: 'Generic',
+};
+
+export const AGENCY_LEVEL_MULTISELECT_OPTIONS = Object.entries(AGENCY_LEVEL_LABELS)
+  .map(([value, label]) => ({ value, label }));
+
+export const AGENCY_LEVEL_COLORS: Record<string, string> = {
+  federal: 'bg-[var(--color-danger-bg)] text-[var(--color-danger)]',
+  state: 'bg-[var(--color-info-bg)] text-[var(--color-info)]',
+  county: 'bg-[var(--color-warning-bg)] text-[var(--color-warning)]',
+  city: 'bg-[var(--color-success-bg)] text-[var(--color-success)]',
+  village: 'bg-[var(--color-neutral-100)] text-[var(--color-text-secondary)]',
+  town: 'bg-[var(--color-neutral-100)] text-[var(--color-text-secondary)]',
+  authority: 'bg-[var(--color-warning-bg)] text-[var(--color-warning)]',
+  judiciary: 'bg-[var(--color-danger-bg)] text-[var(--color-danger)]',
+  generic: 'bg-[var(--color-neutral-100)] text-[var(--color-text-secondary)]',
 };

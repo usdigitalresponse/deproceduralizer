@@ -10,8 +10,28 @@ import {
   type FinesOverviewStats,
 } from '@deproceduralizer/database';
 import { type ActionResult, runAction, runCachedAction } from './types';
+import { parseCommaSeparated } from '@/lib/url/filter-helpers';
 
 const finesRepo = new FinesRepository(db);
+
+export type AgencyOption = { id: number; name: string; level: string | null };
+
+/** Parse comma-separated multi-select filter strings into arrays for the repository */
+function parseFinesMultiSelectFilters(filters?: { penaltyType?: string; agency?: string; agencyLevel?: string; whoPays?: string; perUnit?: string }) {
+  const agencyRaw = parseCommaSeparated(filters?.agency);
+  // If values are numeric, treat as agency IDs; otherwise fall back to string matching
+  const agencyIds = agencyRaw.map(Number).filter(n => !isNaN(n));
+  const isNumeric = agencyRaw.length > 0 && agencyIds.length === agencyRaw.length;
+
+  return {
+    penaltyTypes: parseCommaSeparated(filters?.penaltyType).filter(t => t !== 'all'),
+    agencies: isNumeric ? [] : agencyRaw,
+    agencyIds: isNumeric ? agencyIds : [],
+    agencyLevels: parseCommaSeparated(filters?.agencyLevel),
+    whoPaysValues: parseCommaSeparated(filters?.whoPays),
+    perUnitValues: parseCommaSeparated(filters?.perUnit),
+  };
+}
 
 // Re-export types for components
 export type { FineWithContext, FinesOverviewStats };
@@ -37,6 +57,7 @@ export async function getFinesPaginated(
     filters?: {
       penaltyType?: string;
       agency?: string;
+      agencyLevel?: string;
       search?: string;
       sourceType?: 'regulation' | 'guidance';
       amountMin?: number;
@@ -47,15 +68,19 @@ export async function getFinesPaginated(
   }
 ): Promise<ActionResult<PaginatedFinesResult>> {
   const { page, pageSize, sortBy = 'createdAt', sortOrder = 'desc', filters } = options;
-  const type = filters?.penaltyType ?? '';
-  const agency = filters?.agency ?? '';
+  const multiSelect = parseFinesMultiSelectFilters(filters);
+
+  // Stabilize cache keys: sort multi-select values so "fine,fee" and "fee,fine" hit the same cache
+  const type = [...multiSelect.penaltyTypes].sort().join(',');
+  const agency = [...multiSelect.agencyIds].sort().join(',') || [...multiSelect.agencies].sort().join(',');
   const search = filters?.search ?? '';
   const sourceType = filters?.sourceType ?? '';
   const amountMin = filters?.amountMin ?? '';
   const amountMax = filters?.amountMax ?? '';
-  const whoPays = filters?.whoPays ?? '';
-  const perUnit = filters?.perUnit ?? '';
-  const cacheKey = `fines-paginated-${state}-${page}-${pageSize}-${sortBy}-${sortOrder}-${type}-${agency}-${search}-${sourceType}-${amountMin}-${amountMax}-${whoPays}-${perUnit}`;
+  const agencyLevel = [...multiSelect.agencyLevels].sort().join(',');
+  const whoPays = [...multiSelect.whoPaysValues].sort().join(',');
+  const perUnit = [...multiSelect.perUnitValues].sort().join(',');
+  const cacheKey = `fines-paginated-${state}-${page}-${pageSize}-${sortBy}-${sortOrder}-${type}-${agency}-${agencyLevel}-${search}-${sourceType}-${amountMin}-${amountMax}-${whoPays}-${perUnit}`;
 
   return runCachedAction(
     'getFinesPaginated',
@@ -66,14 +91,8 @@ export async function getFinesPaginated(
       sortBy,
       sortOrder,
       filters: filters ? {
-        penaltyType: filters.penaltyType,
-        agency: filters.agency,
-        search: filters.search,
-        sourceType: filters.sourceType,
-        amountMin: filters.amountMin,
-        amountMax: filters.amountMax,
-        whoPays: filters.whoPays,
-        perUnit: filters.perUnit,
+        ...filters,
+        ...multiSelect,
       } : undefined,
     }),
     [cacheKey],
@@ -83,7 +102,7 @@ export async function getFinesPaginated(
 
 export async function getFinesAgencies(
   state: JurisdictionCode
-): Promise<ActionResult<string[]>> {
+): Promise<ActionResult<AgencyOption[]>> {
   return runCachedAction(
     'getFinesAgencies',
     () => finesRepo.getAgencies(state),
@@ -119,6 +138,7 @@ export async function exportFinesCsv(
   filters?: {
     penaltyType?: string;
     agency?: string;
+    agencyLevel?: string;
     search?: string;
     sourceType?: 'regulation' | 'guidance';
     amountMin?: number;
@@ -127,8 +147,10 @@ export async function exportFinesCsv(
     perUnit?: string;
   }
 ): Promise<ActionResult<string>> {
+  const multiSelect = parseFinesMultiSelectFilters(filters);
+
   return runAction('exportFinesCsv', async () => {
-    const data = await finesRepo.getExportData(state, filters);
+    const data = await finesRepo.getExportData(state, { ...filters, ...multiSelect });
     return buildFinesCsv(data);
   });
 }
@@ -138,6 +160,7 @@ export async function exportFinesZipByAgency(
   filters?: {
     penaltyType?: string;
     agency?: string;
+    agencyLevel?: string;
     search?: string;
     sourceType?: 'regulation' | 'guidance';
     amountMin?: number;
@@ -146,9 +169,11 @@ export async function exportFinesZipByAgency(
     perUnit?: string;
   }
 ): Promise<ActionResult<string>> {
+  const multiSelect = parseFinesMultiSelectFilters(filters);
+
   return runAction('exportFinesZipByAgency', async () => {
     const { default: JSZip } = await import('jszip');
-    const grouped = await finesRepo.getExportDataGroupedByAgency(state, filters);
+    const grouped = await finesRepo.getExportDataGroupedByAgency(state, { ...filters, ...multiSelect });
     const zip = new JSZip();
 
     for (const [agency, rows] of grouped) {
@@ -168,9 +193,9 @@ export async function exportFinesZipByAgency(
 function buildFinesCsv(data: FineWithContext[]): string {
   const headers = [
     'ID', 'Penalty Type', 'Amount', 'Amount Min', 'Amount Max', 'Per Unit',
-    'Who Pays', 'Responsible Agency', 'Violation Description',
-    'Requirement Quote', 'Source Type', 'Source Title', 'Source URL',
-    'Jurisdiction',
+    'Who Pays', 'Agency (Canonical)', 'Agency Level', 'Agency (AI-Extracted)',
+    'Violation Description', 'Requirement Quote', 'Source Type',
+    'Source Title', 'Source URL', 'Jurisdiction',
   ];
 
   const escape = (v: string | null | undefined) => {
@@ -187,6 +212,8 @@ function buildFinesCsv(data: FineWithContext[]): string {
     row.amountMax ?? '',
     escape(row.perUnit),
     escape(row.whoPays),
+    escape(row.agencyCanonicalName || row.responsibleAgency),
+    escape(row.agencyLevel),
     escape(row.responsibleAgency),
     escape(row.violationDescription),
     escape(row.requirementQuote),

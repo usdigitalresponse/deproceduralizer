@@ -11,6 +11,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { regulatoryDocuments } from './regulatory-documents';
 import { guidanceDocuments } from './guidance-documents';
+import { agencies } from './agencies';
 
 /**
  * Fines, Fees & Penalties: Structured extraction of monetary charges
@@ -35,6 +36,8 @@ export const finesFeesPenalties = pgTable('fines_fees_penalties', {
   perUnit: text('per_unit'),
   whoPays: text('who_pays'),
   responsibleAgency: text('responsible_agency'),
+  agencyId: bigint('agency_id', { mode: 'number' })
+    .references(() => agencies.id, { onDelete: 'set null' }),
   violationDescription: text('violation_description'),
   requirementQuote: text('requirement_quote'),
   context: text('context').notNull(),

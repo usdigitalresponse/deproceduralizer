@@ -639,7 +639,8 @@ Structured extraction of monetary charges (fines, fees, penalties, surcharges, f
 | `amount_max` | numeric(12,2) | Parsed maximum amount |
 | `per_unit` | text | "per violation", "per day", etc. |
 | `who_pays` | text | Subject of the charge |
-| `responsible_agency` | text | Administering agency |
+| `responsible_agency` | text | Administering agency (raw LLM-extracted) |
+| `agency_id` | bigint | FK to agencies(id) — canonical agency lookup |
 | `violation_description` | text | What triggers the charge |
 | `requirement_quote` | text | Exact quote from source |
 | `context` | text NOT NULL | Context snippet |
@@ -663,9 +664,46 @@ Structured extraction of monetary charges (fines, fees, penalties, surcharges, f
 
 **Constraints:** `fines_one_source_check` (exactly one of document_id or guidance_document_id must be set), `chk_fines_jurisdiction`
 
-**Indexes:** `idx_fines_jurisdiction`, `idx_fines_document_id`, `idx_fines_guidance_document_id`, `idx_fines_penalty_type`, `idx_fines_responsible_agency`, `idx_fines_llm_confirmed`
+**Indexes:** `idx_fines_jurisdiction`, `idx_fines_document_id`, `idx_fines_guidance_document_id`, `idx_fines_penalty_type`, `idx_fines_responsible_agency`, `idx_fines_llm_confirmed`, `idx_fines_agency_id`
 
-**Migrations:** `0062_fines_fees_penalties.sql`, `0063_widen_fines_columns.sql`
+**Migrations:** `0062_fines_fees_penalties.sql`, `0063_widen_fines_columns.sql`, `0067_agencies_lookup.sql` (added `agency_id` FK)
+
+## agencies
+
+Canonical agency lookup table for deduplicating `responsible_agency` across fines (and eventually compliance/JenAI). Stores one row per (jurisdiction, canonical_name) pair.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | bigserial | Primary key |
+| `jurisdiction` | varchar(3) NOT NULL | NY, NJ, or NYC |
+| `canonical_name` | text NOT NULL | Canonical display name (InitCap) |
+| `abbreviation` | varchar(50) | Optional abbreviation (e.g., DOH) |
+| `level` | varchar(20) | Government level: federal, state, county, city, village, town, authority, judiciary, generic |
+| `created_at` | timestamp | Creation timestamp |
+
+**Constraints:** `chk_agencies_jurisdiction`, `uq_agencies_jurisdiction_name` (unique on jurisdiction + canonical_name), `chk_agencies_level` (CHECK on valid level values)
+
+**Indexes:** `idx_agencies_jurisdiction`, `idx_agencies_level` (partial: WHERE level IS NOT NULL)
+
+**Migrations:** `0067_agencies_lookup.sql`, `0068_seed_agencies.sql`, `0071_deep_agency_dedup.sql`, `0072_agency_level.sql`
+
+## agency_aliases
+
+Maps variant spellings, abbreviations, and case variants to a canonical agency in the `agencies` table.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | bigserial | Primary key |
+| `agency_id` | bigint NOT NULL | FK to agencies(id) ON DELETE CASCADE |
+| `alias` | text NOT NULL | Alias string (exact match for lookup) |
+| `source` | varchar(50) | Origin: 'canonical', 'title_map', 'llm', 'guidance', 'manual' |
+| `created_at` | timestamp | Creation timestamp |
+
+**Constraints:** `uq_agency_aliases` (unique on agency_id + alias)
+
+**Indexes:** `idx_agency_aliases_agency_id`, `idx_agency_aliases_alias`
+
+**Migrations:** `0067_agencies_lookup.sql`, `0068_seed_agencies.sql`
 
 ## statutes
 

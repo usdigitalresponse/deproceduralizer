@@ -261,9 +261,6 @@ export type FinesTabValue = (typeof FINES_TAB_VALUES)[number];
 export const FINES_SORT_BY_VALUES = ['penaltyType', 'amount', 'responsibleAgency', 'createdAt'] as const;
 export type FinesSortByValue = (typeof FINES_SORT_BY_VALUES)[number];
 
-export const PENALTY_TYPE_FILTER_VALUES = ['all', 'fine', 'fee', 'penalty', 'surcharge', 'forfeiture', 'other'] as const;
-export type PenaltyTypeFilterValue = (typeof PENALTY_TYPE_FILTER_VALUES)[number];
-
 export const SOURCE_TYPE_FILTER_VALUES = ['regulation', 'guidance'] as const;
 export type SourceTypeFilterValue = (typeof SOURCE_TYPE_FILTER_VALUES)[number];
 

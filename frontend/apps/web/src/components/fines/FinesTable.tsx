@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { DollarSign } from 'lucide-react';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { PENALTY_TYPE_LABELS, PENALTY_TYPE_COLORS } from '@/lib/constants/fines';
+import { PENALTY_TYPE_LABELS, PENALTY_TYPE_COLORS, AGENCY_LEVEL_LABELS, AGENCY_LEVEL_COLORS } from '@/lib/constants/fines';
 import type { FineWithContext } from '@/lib/actions/fines';
 
 interface FinesTableProps {
@@ -31,6 +31,8 @@ export function FinesTable({ data, state, onRowClick }: FinesTableProps) {
             <th className="text-left py-3 pr-3 text-xs font-medium text-[var(--color-text-muted)]">Type</th>
             <th className="text-left py-3 pr-3 text-xs font-medium text-[var(--color-text-muted)]">Amount</th>
             <th className="text-left py-3 pr-3 text-xs font-medium text-[var(--color-text-muted)]">Agency</th>
+            <th className="text-left py-3 pr-3 text-xs font-medium text-[var(--color-text-muted)]">Level</th>
+            <th className="text-left py-3 pr-3 text-xs font-medium text-[var(--color-text-muted)]">AI Extracted</th>
             <th className="text-left py-3 pr-3 text-xs font-medium text-[var(--color-text-muted)]">Description</th>
             <th className="text-left py-3 text-xs font-medium text-[var(--color-text-muted)]">Source</th>
           </tr>
@@ -40,6 +42,10 @@ export function FinesTable({ data, state, onRowClick }: FinesTableProps) {
             const sourceLink = fine.sourceDocument.type === 'regulation'
               ? `/${state}/regulations/${fine.documentId}`
               : `/${state}/guidance/${fine.guidanceDocumentId}`;
+
+            const displayAgency = fine.agencyCanonicalName ?? fine.responsibleAgency ?? '—';
+            const rawAgency = fine.responsibleAgency;
+            const isNormalized = fine.agencyCanonicalName && rawAgency && fine.agencyCanonicalName !== rawAgency;
 
             return (
               <tr
@@ -52,7 +58,7 @@ export function FinesTable({ data, state, onRowClick }: FinesTableProps) {
                     {PENALTY_TYPE_LABELS[fine.penaltyType] || fine.penaltyType}
                   </span>
                 </td>
-                <td className="py-3 pr-3 text-[var(--color-text)] font-medium whitespace-nowrap">
+                <td className="py-3 pr-3 text-[var(--color-text)] font-medium">
                   {fine.amount ?? '—'}
                   {fine.perUnit && (
                     <span className="text-xs text-[var(--color-text-muted)] ml-1">
@@ -60,8 +66,18 @@ export function FinesTable({ data, state, onRowClick }: FinesTableProps) {
                     </span>
                   )}
                 </td>
-                <td className="py-3 pr-3 text-[var(--color-text-secondary)] max-w-[150px] truncate" title={fine.responsibleAgency ?? ''}>
-                  {fine.responsibleAgency ?? '—'}
+                <td className="py-3 pr-3 max-w-[200px] truncate text-[var(--color-text-secondary)]" title={displayAgency}>
+                  {displayAgency}
+                </td>
+                <td className="py-3 pr-3">
+                  {fine.agencyLevel && (
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${AGENCY_LEVEL_COLORS[fine.agencyLevel] || AGENCY_LEVEL_COLORS.generic}`}>
+                      {AGENCY_LEVEL_LABELS[fine.agencyLevel] || fine.agencyLevel}
+                    </span>
+                  )}
+                </td>
+                <td className="py-3 pr-3 max-w-[200px] truncate text-[var(--color-text-muted)] text-xs" title={isNormalized ? rawAgency ?? '' : ''}>
+                  {isNormalized ? rawAgency : '—'}
                 </td>
                 <td className="py-3 pr-3 text-[var(--color-text-secondary)] max-w-[250px] truncate" title={fine.violationDescription ?? ''}>
                   {fine.violationDescription ?? '—'}

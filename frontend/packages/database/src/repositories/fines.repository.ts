@@ -1,11 +1,14 @@
-import { eq, and, desc, asc, sql, count, ilike, or, gte, lte, isNotNull } from 'drizzle-orm';
+import { eq, and, desc, asc, sql, count, ilike, or, gte, lte, isNotNull, inArray } from 'drizzle-orm';
 import { BaseRepository } from './base.repository';
 import { finesFeesPenalties, type FineFeePenalty } from '../schema/fines-fees-penalties';
 import { regulatoryDocuments } from '../schema/regulatory-documents';
 import { guidanceDocuments } from '../schema/guidance-documents';
+import { agencies } from '../schema/agencies';
 import { type JurisdictionCode, normalizeJurisdiction } from '../schema/constants';
 
 export interface FineWithContext extends FineFeePenalty {
+  agencyCanonicalName?: string | null;
+  agencyLevel?: string | null;
   sourceDocument: {
     id: number;
     title: string | null;
@@ -25,6 +28,13 @@ export interface FinesFilterOptions {
   sourceType?: 'regulation' | 'guidance';
   whoPays?: string;
   perUnit?: string;
+  // Multi-select array filters (take precedence over singular equivalents)
+  penaltyTypes?: string[];
+  agencies?: string[];
+  agencyIds?: number[];
+  agencyLevels?: string[];
+  whoPaysValues?: string[];
+  perUnitValues?: string[];
 }
 
 export interface FinesPaginationOptions {
@@ -50,6 +60,7 @@ export interface FinesOverviewStats {
   uniqueDocs: number;
   byType: Array<{ type: string; count: number }>;
   byAgency: Array<{ agency: string; count: number }>;
+  byLevel: Array<{ level: string; count: number }>;
 }
 
 export class FinesRepository extends BaseRepository {
@@ -65,11 +76,11 @@ export class FinesRepository extends BaseRepository {
       .from(finesFeesPenalties)
       .where(whereClause);
 
-    // Sort column
+    // Sort column — use canonical name for agency sort
     const sortColumn = {
       penaltyType: finesFeesPenalties.penaltyType,
       amount: finesFeesPenalties.amountMax,
-      responsibleAgency: finesFeesPenalties.responsibleAgency,
+      responsibleAgency: agencies.canonicalName,
       createdAt: finesFeesPenalties.createdAt,
     }[sortBy];
 
@@ -80,6 +91,7 @@ export class FinesRepository extends BaseRepository {
       .from(finesFeesPenalties)
       .leftJoin(regulatoryDocuments, eq(finesFeesPenalties.documentId, regulatoryDocuments.id))
       .leftJoin(guidanceDocuments, eq(finesFeesPenalties.guidanceDocumentId, guidanceDocuments.id))
+      .leftJoin(agencies, eq(finesFeesPenalties.agencyId, agencies.id))
       .where(whereClause)
       .orderBy(primarySort, asc(finesFeesPenalties.id))
       .limit(pageSize)
@@ -106,7 +118,7 @@ export class FinesRepository extends BaseRepository {
     const [stats] = await this.db
       .select({
         total: sql<number>`count(*)::int`,
-        uniqueAgencies: sql<number>`count(distinct ${finesFeesPenalties.responsibleAgency})::int`,
+        uniqueAgencies: sql<number>`count(distinct ${finesFeesPenalties.agencyId})::int`,
         uniqueDocs: sql<number>`(count(distinct ${finesFeesPenalties.documentId}) + count(distinct ${finesFeesPenalties.guidanceDocumentId}))::int`,
       })
       .from(finesFeesPenalties)
@@ -122,14 +134,27 @@ export class FinesRepository extends BaseRepository {
       .groupBy(finesFeesPenalties.penaltyType)
       .orderBy(desc(sql`count(*)`));
 
+    // Group by canonical name via LEFT JOIN
     const byAgency = await this.db
       .select({
-        agency: finesFeesPenalties.responsibleAgency,
+        agency: sql<string>`COALESCE(${agencies.canonicalName}, ${finesFeesPenalties.responsibleAgency}, 'Unknown')`,
         count: sql<number>`count(*)::int`,
       })
       .from(finesFeesPenalties)
-      .where(and(baseCondition, isNotNull(finesFeesPenalties.responsibleAgency)))
-      .groupBy(finesFeesPenalties.responsibleAgency)
+      .leftJoin(agencies, eq(finesFeesPenalties.agencyId, agencies.id))
+      .where(baseCondition)
+      .groupBy(sql`COALESCE(${agencies.canonicalName}, ${finesFeesPenalties.responsibleAgency}, 'Unknown')`)
+      .orderBy(desc(sql`count(*)`));
+
+    const byLevel = await this.db
+      .select({
+        level: sql<string>`COALESCE(${agencies.level}, 'unknown')`,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(finesFeesPenalties)
+      .leftJoin(agencies, eq(finesFeesPenalties.agencyId, agencies.id))
+      .where(baseCondition)
+      .groupBy(sql`COALESCE(${agencies.level}, 'unknown')`)
       .orderBy(desc(sql`count(*)`));
 
     return {
@@ -138,26 +163,31 @@ export class FinesRepository extends BaseRepository {
       uniqueDocs: stats.uniqueDocs,
       byType: byType.map(row => ({ type: row.type, count: row.count })),
       byAgency: byAgency.map(row => ({
-        agency: row.agency || 'Unknown',
+        agency: row.agency,
         count: row.count,
       })),
+      byLevel: byLevel.map(row => ({ level: row.level, count: row.count })),
     };
   }
 
-  async getAgencies(jurisdiction: JurisdictionCode): Promise<string[]> {
-    const result = await this.db
-      .selectDistinct({ agency: finesFeesPenalties.responsibleAgency })
-      .from(finesFeesPenalties)
-      .where(and(
-        eq(finesFeesPenalties.jurisdiction, normalizeJurisdiction(jurisdiction)),
-        eq(finesFeesPenalties.llmConfirmed, true),
-        isNotNull(finesFeesPenalties.responsibleAgency)
-      ))
-      .orderBy(asc(finesFeesPenalties.responsibleAgency));
+  async getAgencies(jurisdiction: JurisdictionCode): Promise<{ id: number; name: string; level: string | null }[]> {
+    const stateUpper = normalizeJurisdiction(jurisdiction);
 
-    return result
-      .map(r => r.agency)
-      .filter((a): a is string => a !== null);
+    const result = await this.db
+      .selectDistinct({
+        id: agencies.id,
+        name: agencies.canonicalName,
+        level: agencies.level,
+      })
+      .from(agencies)
+      .innerJoin(finesFeesPenalties, eq(finesFeesPenalties.agencyId, agencies.id))
+      .where(and(
+        eq(agencies.jurisdiction, stateUpper),
+        eq(finesFeesPenalties.llmConfirmed, true),
+      ))
+      .orderBy(asc(agencies.canonicalName));
+
+    return result;
   }
 
   async getExportData(jurisdiction: JurisdictionCode, filters?: Omit<FinesFilterOptions, 'jurisdiction'>): Promise<FineWithContext[]> {
@@ -168,6 +198,7 @@ export class FinesRepository extends BaseRepository {
       .from(finesFeesPenalties)
       .leftJoin(regulatoryDocuments, eq(finesFeesPenalties.documentId, regulatoryDocuments.id))
       .leftJoin(guidanceDocuments, eq(finesFeesPenalties.guidanceDocumentId, guidanceDocuments.id))
+      .leftJoin(agencies, eq(finesFeesPenalties.agencyId, agencies.id))
       .where(whereClause)
       .orderBy(asc(finesFeesPenalties.penaltyType), asc(finesFeesPenalties.id));
 
@@ -214,7 +245,7 @@ export class FinesRepository extends BaseRepository {
     const grouped = new Map<string, FineWithContext[]>();
 
     for (const row of data) {
-      const agency = row.responsibleAgency || 'Unassigned';
+      const agency = row.agencyCanonicalName || row.responsibleAgency || 'Unassigned';
       const existing = grouped.get(agency);
       if (existing) {
         existing.push(row);
@@ -238,11 +269,22 @@ export class FinesRepository extends BaseRepository {
     ];
 
     if (filters) {
-      if (filters.penaltyType && filters.penaltyType !== 'all') {
+      // penaltyTypes array takes precedence over singular penaltyType
+      if (filters.penaltyTypes?.length) {
+        conditions.push(inArray(finesFeesPenalties.penaltyType, filters.penaltyTypes));
+      } else if (filters.penaltyType && filters.penaltyType !== 'all') {
         conditions.push(eq(finesFeesPenalties.penaltyType, filters.penaltyType));
       }
-      if (filters.agency) {
+      // agencyIds (numeric) takes precedence over agencies (string) and agency (string)
+      if (filters.agencyIds?.length) {
+        conditions.push(inArray(finesFeesPenalties.agencyId, filters.agencyIds));
+      } else if (filters.agencies?.length) {
+        conditions.push(inArray(finesFeesPenalties.responsibleAgency, filters.agencies));
+      } else if (filters.agency) {
         conditions.push(eq(finesFeesPenalties.responsibleAgency, filters.agency));
+      }
+      if (filters.agencyLevels?.length) {
+        conditions.push(inArray(agencies.level, filters.agencyLevels));
       }
       if (filters.search) {
         const searchTerm = `%${filters.search}%`;
@@ -266,10 +308,16 @@ export class FinesRepository extends BaseRepository {
       } else if (filters.sourceType === 'guidance') {
         conditions.push(isNotNull(finesFeesPenalties.guidanceDocumentId));
       }
-      if (filters.whoPays) {
+      // whoPaysValues array takes precedence over singular whoPays
+      if (filters.whoPaysValues?.length) {
+        conditions.push(inArray(finesFeesPenalties.whoPays, filters.whoPaysValues));
+      } else if (filters.whoPays) {
         conditions.push(eq(finesFeesPenalties.whoPays, filters.whoPays));
       }
-      if (filters.perUnit) {
+      // perUnitValues array takes precedence over singular perUnit
+      if (filters.perUnitValues?.length) {
+        conditions.push(inArray(finesFeesPenalties.perUnit, filters.perUnitValues));
+      } else if (filters.perUnit) {
         conditions.push(eq(finesFeesPenalties.perUnit, filters.perUnit));
       }
     }
@@ -289,6 +337,7 @@ export class FinesRepository extends BaseRepository {
       perUnit: finesFeesPenalties.perUnit,
       whoPays: finesFeesPenalties.whoPays,
       responsibleAgency: finesFeesPenalties.responsibleAgency,
+      agencyId: finesFeesPenalties.agencyId,
       violationDescription: finesFeesPenalties.violationDescription,
       requirementQuote: finesFeesPenalties.requirementQuote,
       context: finesFeesPenalties.context,
@@ -309,6 +358,9 @@ export class FinesRepository extends BaseRepository {
       developerQuestion: finesFeesPenalties.developerQuestion,
       developerCheckedAt: finesFeesPenalties.developerCheckedAt,
       createdAt: finesFeesPenalties.createdAt,
+      // Agency fields
+      agencyCanonicalName: agencies.canonicalName,
+      agencyLevel: agencies.level,
       // Regulation fields
       regId: regulatoryDocuments.id,
       regTitle: regulatoryDocuments.title,
@@ -332,6 +384,7 @@ export class FinesRepository extends BaseRepository {
     perUnit: string | null;
     whoPays: string | null;
     responsibleAgency: string | null;
+    agencyId: number | null;
     violationDescription: string | null;
     requirementQuote: string | null;
     context: string;
@@ -352,6 +405,8 @@ export class FinesRepository extends BaseRepository {
     developerQuestion: string | null;
     developerCheckedAt: Date | null;
     createdAt: Date | null;
+    agencyCanonicalName: string | null;
+    agencyLevel: string | null;
     regId: number | null;
     regTitle: string | null;
     regHierarchyPath: string | null;
@@ -373,6 +428,7 @@ export class FinesRepository extends BaseRepository {
       perUnit: row.perUnit,
       whoPays: row.whoPays,
       responsibleAgency: row.responsibleAgency,
+      agencyId: row.agencyId,
       violationDescription: row.violationDescription,
       requirementQuote: row.requirementQuote,
       context: row.context,
@@ -393,6 +449,8 @@ export class FinesRepository extends BaseRepository {
       developerQuestion: row.developerQuestion,
       developerCheckedAt: row.developerCheckedAt,
       createdAt: row.createdAt,
+      agencyCanonicalName: row.agencyCanonicalName,
+      agencyLevel: row.agencyLevel,
       sourceDocument: isGuidance
         ? {
             id: row.guidId!,

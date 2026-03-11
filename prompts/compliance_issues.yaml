@@ -2381,7 +2381,7 @@ incorporation_by_reference:
 # =============================================================================
 
 fines_fees_penalties:
-  updated_at: "2026-03-05"
+  updated_at: "2026-03-10"
   # NOTE: This issue type uses a DEDICATED TABLE (fines_fees_penalties)
   # instead of compliance_issues table. See backend/scripts/fines_scanner.py
   # Config is kept here for pattern/prompt reuse. Similar to IBR (issue #49).
@@ -2449,6 +2449,10 @@ fines_fees_penalties:
         NEVER return generic terms like "Department", "Commission", "Commissioner", "Office", "Board", or "Agency" alone.
         Always include the full name (e.g., "Department of Environmental Conservation", not just "Department").
         If the specific agency cannot be determined from the text, use the agency from the document metadata.
+      - agency_level: Government level of the responsible agency. One of:
+        "federal", "state", "county", "city", "village", "town", "authority", "judiciary", "generic".
+        Most NY regulatory agencies are "state". Use "federal" for U.S. agencies, "authority" for quasi-governmental bodies,
+        "judiciary" for courts, and "generic" if the level cannot be determined.
       - violation_description: What triggers this fine/fee (brief description)
       - requirement_quote: Exact quote from the text establishing this charge
 

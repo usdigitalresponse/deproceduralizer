@@ -4317,17 +4317,20 @@ Right-side drawer showing full detail for a selected fine/fee/penalty.
 Browse view with filter bar, paginated results, CSV export, and per-agency ZIP export.
 
 - 7 filters via `FilterBar` + `nuqs` URL state (`finesParsers`):
-  - **Penalty Type** -- dropdown (All / Fine / Fee / Penalty / Surcharge / Forfeiture / Other)
-  - **Source Type** -- dropdown (All Sources / Regulations / Guidance Documents), uses `SOURCE_TYPE_LABELS`
-  - **Agency** -- dropdown, dynamic values from `getFinesAgencies()`
-  - **Who Pays** -- dropdown, dynamic values from `getFinesWhoPays()`
-  - **Per Unit** -- dropdown, dynamic values from `getFinesPerUnits()`
+  - **Penalty Type** -- `MultiSelect` with `PENALTY_TYPE_MULTISELECT_OPTIONS`, empty = all types. Uses `parseCommaSeparated`/`serializeCommaSeparated`
+  - **Source Type** -- `Select` dropdown (All Sources / Regulations / Guidance Documents), uses `SOURCE_TYPE_LABELS`
+  - **Agency** -- `MultiSelect`, dynamic values from `getFinesAgencies()`, empty = all agencies
+  - **Who Pays** -- `MultiSelect`, dynamic values from `getFinesWhoPays()`, empty = all
+  - **Per Unit** -- `MultiSelect`, dynamic values from `getFinesPerUnits()`, empty = all
   - **Amount Range** -- two compact `<input type="number">` (Min $ / Max $), styled inline with filter bar
   - **Search** -- free-text search via `SearchInput`
 - Error state displayed as a danger banner above results card
-- Two export buttons in results header:
-  - **Export CSV** -- single CSV with all filtered results
-  - **Export by Agency (ZIP)** -- generates a ZIP file (via `jszip`) with one CSV per agency
+- Three export buttons in results header, separated by a vertical divider:
+  - **Export All (CSV)** -- ghost variant, always exports full unfiltered data via `exportAllFinesCsv`
+  - **Export Filtered CSV** / **Export CSV** -- secondary variant, exports current filtered results. Shows `Filter` icon prefix when filters are active
+  - **Export Filtered by Agency (ZIP)** / **Export by Agency (ZIP)** -- secondary variant, generates a ZIP file (via `jszip`) with one CSV per agency. Shows `Filter` icon prefix when filters are active
+- When filters are active, muted text below filtered export buttons shows count: "Exports N filtered results"
+- Filtered export buttons disabled when `total === 0`; "Export All" remains enabled
 
 ### FinesOverviewTab
 

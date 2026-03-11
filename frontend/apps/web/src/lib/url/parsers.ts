@@ -49,7 +49,6 @@ import {
   // Fines
   FINES_TAB_VALUES,
   FINES_SORT_BY_VALUES,
-  PENALTY_TYPE_FILTER_VALUES,
   SOURCE_TYPE_FILTER_VALUES,
   // Analytics
   ANALYTICS_TAB_VALUES,
@@ -623,13 +622,14 @@ export type { IbrTabValue, IbrSortByValue } from '@/lib/constants/values';
 
 export const finesTabParser = parseAsStringEnum([...FINES_TAB_VALUES]).withDefault('overview');
 export const finesSortByParser = parseAsStringEnum([...FINES_SORT_BY_VALUES]).withDefault('createdAt');
-export const penaltyTypeParser = parseAsStringEnum([...PENALTY_TYPE_FILTER_VALUES]).withDefault('all');
+export const penaltyTypeParser = parseAsString;
 export const agencyParser = parseAsString;
 export const sourceTypeParser = parseAsStringEnum([...SOURCE_TYPE_FILTER_VALUES]);
 export const amountMinParser = parseAsFloat;
 export const amountMaxParser = parseAsFloat;
 export const whoPaysParser = parseAsString;
 export const perUnitParser = parseAsString;
+export const agencyLevelParser = parseAsString;
 
 /**
  * Parser configuration for Fines & Fees page
@@ -648,10 +648,11 @@ export const finesParsers = {
   amountMax: amountMaxParser,
   whoPays: whoPaysParser,
   perUnit: perUnitParser,
+  agencyLevel: agencyLevelParser,
 };
 
 // Re-export Fines types
-export type { FinesTabValue, FinesSortByValue, PenaltyTypeFilterValue, SourceTypeFilterValue } from '@/lib/constants/values';
+export type { FinesTabValue, FinesSortByValue, SourceTypeFilterValue } from '@/lib/constants/values';
 
 // ============================================
 // Prompts page parsers

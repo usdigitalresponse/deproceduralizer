@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { ExternalLink } from 'lucide-react';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerBody, DrawerClose } from '@/components/ui/Drawer';
 import { Button } from '@/components/ui/Button';
-import { PENALTY_TYPE_LABELS } from '@/lib/constants/fines';
+import { PENALTY_TYPE_LABELS, AGENCY_LEVEL_LABELS, AGENCY_LEVEL_COLORS } from '@/lib/constants/fines';
 import type { FineWithContext } from '@/lib/actions/fines';
 
 interface FinesDetailDrawerProps {
@@ -21,6 +21,10 @@ export function FinesDetailDrawer({ fine, open, onOpenChange, state }: FinesDeta
     ? `/${state}/regulations/${fine.documentId}`
     : `/${state}/guidance/${fine.guidanceDocumentId}`;
 
+  const displayAgency = fine.agencyCanonicalName ?? fine.responsibleAgency;
+  const rawAgency = fine.responsibleAgency;
+  const showRawAgency = rawAgency && displayAgency && rawAgency !== displayAgency;
+
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent side="right" size="lg">
@@ -31,9 +35,14 @@ export function FinesDetailDrawer({ fine, open, onOpenChange, state }: FinesDeta
                 {PENALTY_TYPE_LABELS[fine.penaltyType] || fine.penaltyType}: {fine.amount || 'Amount not specified'}
               </DrawerTitle>
               <div className="flex items-center gap-2 mt-1">
-                {fine.responsibleAgency && (
+                {displayAgency && (
                   <span className="text-sm text-[var(--color-text-secondary)]">
-                    {fine.responsibleAgency}
+                    {displayAgency}
+                  </span>
+                )}
+                {fine.agencyLevel && (
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${AGENCY_LEVEL_COLORS[fine.agencyLevel] || AGENCY_LEVEL_COLORS.generic}`}>
+                    {AGENCY_LEVEL_LABELS[fine.agencyLevel] || fine.agencyLevel}
                   </span>
                 )}
                 {fine.perUnit && (
@@ -42,6 +51,11 @@ export function FinesDetailDrawer({ fine, open, onOpenChange, state }: FinesDeta
                   </span>
                 )}
               </div>
+              {showRawAgency && (
+                <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+                  AI-extracted: &ldquo;{rawAgency}&rdquo;
+                </p>
+              )}
             </div>
             <DrawerClose />
           </DrawerHeader>

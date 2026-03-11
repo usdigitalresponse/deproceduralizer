@@ -216,7 +216,7 @@ export function MultiSelect({
         <div
           className="
             absolute z-50 mt-1
-            w-full min-w-[200px]
+            w-full min-w-[280px]
             bg-[var(--color-surface)]
             rounded-[var(--radius-md)]
             border border-[var(--color-neutral-200)]
@@ -291,7 +291,7 @@ export function MultiSelect({
                   >
                     {isSelected && <Check className="w-2.5 h-2.5 text-white" />}
                   </span>
-                  <span className="truncate">{option.label}</span>
+                  <span className="truncate" title={option.label}>{option.label}</span>
                 </li>
               );
             })}

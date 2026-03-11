@@ -6,7 +6,7 @@ import { SegmentedControl, type SegmentedControlOption } from '@/components/ui/S
 import { finesParsers } from '@/lib/url/parsers';
 import type { FinesTabValue } from '@/lib/constants/values';
 import type { JurisdictionCode } from '@deproceduralizer/database';
-import type { FinesOverviewStats } from '@/lib/actions/fines';
+import type { FinesOverviewStats, AgencyOption } from '@/lib/actions/fines';
 import { FinesOverviewTab } from './FinesOverviewTab';
 import { FinesBrowseTab } from './FinesBrowseTab';
 
@@ -18,7 +18,7 @@ const TAB_OPTIONS: SegmentedControlOption<FinesTabValue>[] = [
 export interface FinesClientProps {
   jurisdiction: JurisdictionCode;
   stats: FinesOverviewStats | null;
-  agencies: string[];
+  agencies: AgencyOption[];
   whoPaysValues: string[];
   perUnitValues: string[];
 }

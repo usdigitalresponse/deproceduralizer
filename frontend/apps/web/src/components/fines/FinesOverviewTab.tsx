@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ChartContainer } from '@/components/charts/ChartContainer';
 import { HorizontalBarChart } from '@/components/charts/BarChart';
-import { PENALTY_TYPE_LABELS_PLURAL } from '@/lib/constants/fines';
+import { PENALTY_TYPE_LABELS_PLURAL, AGENCY_LEVEL_LABELS } from '@/lib/constants/fines';
 import type { FinesOverviewStats } from '@/lib/actions/fines';
 
 interface FinesOverviewTabProps {
@@ -59,8 +59,31 @@ export function FinesOverviewTab({ stats }: FinesOverviewTabProps) {
           }}
         </ChartContainer>
 
+        {/* By Government Level Chart */}
+        <ChartContainer title="By Government Level" aspectRatio={1.2} minHeight={250}>
+          {({ width, height }) => {
+            const levelData = (stats?.byLevel ?? []).map(d => ({
+              label: AGENCY_LEVEL_LABELS[d.level] ?? d.level,
+              value: d.count,
+            }));
+            if (levelData.length === 0) {
+              return <EmptyState title="No level data available" />;
+            }
+            return (
+              <HorizontalBarChart
+                data={levelData}
+                width={width}
+                height={height}
+                maxBars={10}
+              />
+            );
+          }}
+        </ChartContainer>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6">
         {/* By Agency Chart */}
-        <ChartContainer title="By Agency" aspectRatio={1.2} minHeight={250}>
+        <ChartContainer title="By Agency" aspectRatio={2.5} minHeight={300}>
           {({ width, height }) => {
             const agencyData = (stats?.byAgency ?? []).map(d => ({
               label: d.agency,
@@ -74,7 +97,7 @@ export function FinesOverviewTab({ stats }: FinesOverviewTabProps) {
                 data={agencyData}
                 width={width}
                 height={height}
-                maxBars={10}
+                maxBars={15}
               />
             );
           }}
