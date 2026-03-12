@@ -1,0 +1,79 @@
+english_only:
+  updated_at: '2026-03-11'
+  display_name: English-Only Requirement
+  db_issue_type: english_only
+  category: Equity & Access
+  description: 'English-only requirement without translation or language access provisions.
+    NY Executive Order 26 requires state agencies to provide language access services
+    for Limited English Proficiency (LEP) populations. Regulations that mandate English-only
+    submissions without translation provisions may violate this requirement and create
+    barriers for LEP communities.'
+  positive_indicators:
+  - Documents or submissions must be in English only
+  - No provision for translation or interpretation services
+  - No accommodation for Limited English Proficiency individuals
+  - The requirement affects public-facing services or licensing
+  - Forms or applications available only in English
+  negative_indicators:
+  - The regulation explicitly provides for translation services
+  - The requirement is for technical/scientific documentation where English is the standard
+  - '"In English" refers to Plain English readability requirements'
+  - The context is an academic English examination or course
+  - The English requirement is for internal agency communications
+  - FDA labeling or medical records where English is standard
+  severity_baseline: 5
+  severity_modifiers:
+    increases:
+    - '+1: Public-facing requirement affecting vulnerable/LEP populations'
+    - '+1: High volume of affected individuals'
+    - '+2: No translation provision and affects licensing or benefits'
+    decreases:
+    - '-1: Low-impact administrative context'
+    - '-1: Clear technical necessity for English'
+    - '-2: Translation or interpretation services explicitly provided'
+  patterns:
+  - "shall be.{0,20}in english"
+  - "must be.{0,20}in english"
+  - "written in english"
+  - "english.{0,20}only"
+  - "english language.{0,20}(requirement|proficiency|ability)"
+  - "submitted.{0,20}in english"
+  exclusion_patterns:
+  - "plain english"
+  statistics:
+    total_matches: null
+    true_positives: null
+    true_positive_rate: null
+    sample_date: '2026-03-11'
+  examples:
+    true_positives:
+    - citation: 10 NYCRR 405.5
+      quote: all patient records shall be maintained in English
+      reasoning: English-only requirement for patient records with no translation
+        provision. Creates barriers for LEP patients and healthcare workers.
+      classification: burdensome
+      severity: 7
+    - citation: 19 NYCRR 500.2
+      quote: applications must be submitted in English
+      reasoning: Public-facing licensing requirement with no accommodation for LEP
+        applicants. Violates EO 26 language access principles.
+      classification: burdensome
+      severity: 6
+    false_positives:
+    - citation: 11 NYCRR 52.40
+      quote: policy forms shall be written in plain English
+      reasoning: Plain English readability requirement, not an English-only mandate.
+        Promotes clarity, not language exclusion.
+      classification: unrelated
+    - citation: 8 NYCRR 100.2
+      quote: students shall demonstrate proficiency in English language arts
+      reasoning: Academic English proficiency examination, not a regulatory English-only
+        barrier.
+      classification: unrelated
+    justified:
+    - citation: 10 NYCRR 86.2
+      quote: clinical laboratory reports shall be in English as required by federal CLIA regulations
+      reasoning: Federal requirement for standardized lab reporting. English is the
+        scientific standard and translation could introduce errors.
+      classification: justified
+      severity: 2

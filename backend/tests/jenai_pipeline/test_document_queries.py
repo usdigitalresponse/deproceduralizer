@@ -104,7 +104,8 @@ class TestTitleFiltering:
     def test_no_title_filter_when_none(self, mock_db):
         get_sections_for_analysis(jurisdiction='ny')
         sql = _get_executed_sql(mock_db)
-        assert 'nycrr_title' not in sql
+        # nycrr_title appears in SELECT (AS reg_title_num) but should NOT appear in WHERE as a filter
+        assert 'nycrr_title =' not in sql
         assert 'njac_title' not in sql
 
 

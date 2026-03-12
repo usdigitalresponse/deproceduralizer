@@ -255,7 +255,7 @@ tier1:
 # =============================================================================
 
 tier2:
-  updated_at: "2026-01-08"
+  updated_at: "2026-03-10"
   description: "Full document classification with re-run capability"
 
   # ─────────────────────────────────────────────────────────────────────────
@@ -287,6 +287,7 @@ tier2:
         - Professionals (maintaining licenses, serving clients)
         - Vulnerable populations (elderly, disabled, low-income, rural, youth/children)
         - For each group, What is the risk this is mitigating?  The reward of implementation? How does that weigh against the inevitable burden and cost of implementation and/or compliance?
+        - Set **primary_affected_population** to the single group MOST impacted
     11. **Calculate severity** - Baseline + modifiers
     12. **Extract verbatim requirement text** - Exact quotes
 
@@ -393,6 +394,10 @@ tier2:
     | confidence | 0.0 to 1.0 (decimal, e.g., 0.85) |
     | severity | 1 to 10 (integer only, NEVER 0 or >10; required if burdensome/justified) |
     | context_used[].type | "self", "hierarchy", "sibling", "definition", "cross_reference", "statute", "web" |
+    | primary_affected_population | "families", "small_businesses", "licensed_professionals", "government_staff", "vulnerable_populations", "general_public", "healthcare_providers", "childcare_providers", "nonprofits" (null if unrelated) |
+    | report_serves_public | true/false/null — only for mandated_reports and reporting_frequency issue types |
+    | report_duplicates_existing | true/false/null — only for mandated_reports and reporting_frequency issue types |
+    | report_frequency_excessive | true/false/null — only for mandated_reports and reporting_frequency issue types |
 
     ## Output Format (Final Classification)
 
@@ -428,6 +433,7 @@ tier2:
       "federal_citation": null,
       "claims_no_alternative": true,
       "potentially_controversial": false,
+      "primary_affected_population": "licensed_professionals",
 
       "needs_web_search": true,
       "web_search_topics": [

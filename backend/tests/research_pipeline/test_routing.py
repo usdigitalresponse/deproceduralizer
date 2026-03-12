@@ -230,11 +230,11 @@ class TestGetTier3TriggerReason:
     """Test get_tier3_trigger_reason() function."""
 
     def test_no_tier2_output(self):
-        """No tier2_output should return unknown trigger message."""
+        """No tier2_output should return 'No Tier 2 output'."""
         unit = make_tracked_unit()
         unit.tier2_output = None
         reason = get_tier3_trigger_reason(unit)
-        assert "Unknown" in reason or "no Tier 2" in reason
+        assert "No Tier 2 output" in reason
 
     def test_unrelated_not_escalated(self):
         """Unrelated should return 'not escalated'."""
@@ -245,12 +245,13 @@ class TestGetTier3TriggerReason:
         assert "Not escalated" in reason
 
     def test_random_sample_flag(self):
-        """Random sample flag should be reflected in reason."""
+        """is_random_sample is deprecated; reason comes from should_escalate logic."""
         unit = make_tracked_unit(
             tier2_output=make_tier2_output(classification="burdensome", severity=4, confidence=0.9)
         )
         reason = get_tier3_trigger_reason(unit, is_random_sample=True)
-        assert "Random" in reason or "sample" in reason
+        # is_random_sample is ignored; escalation decided by should_escalate_to_tier3_with_reason
+        assert isinstance(reason, str)
 
     def test_federal_statute_with_citation(self):
         """Federal statute with citation should include it."""

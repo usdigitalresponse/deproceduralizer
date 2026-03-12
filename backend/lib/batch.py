@@ -305,6 +305,9 @@ class BatchManager:
         last_progress = 0
         retry_count = 0
         max_retries = 5
+        poll_count = 0
+
+        log(f"  Polling batch {batch_id[:20]}... (every {poll_interval}s)")
 
         while True:
             elapsed = time.time() - start_time
@@ -316,6 +319,7 @@ class BatchManager:
             try:
                 status = self.get_batch_status(batch_id)
                 retry_count = 0
+                poll_count += 1
 
                 if status["status"] == "ended":
                     log(f"  Batch complete in {format_time(elapsed)}")
@@ -324,14 +328,17 @@ class BatchManager:
 
                 completed = status.get("succeeded", 0) + status.get("errored", 0)
                 total = status.get("total", 0)
+                processing = status.get("processing", 0)
 
                 if completed > last_progress and total > 0:
                     rate = completed / elapsed if elapsed > 0 else 0
                     remaining = (total - completed) / rate if rate > 0 else 0
                     eta = format_time(remaining)
-                    processing = status.get("processing", 0)
                     log(f"  Progress: {completed}/{total} ({processing} processing) ETA: {eta}")
                     last_progress = completed
+                else:
+                    # Always show something so the user knows it's alive
+                    log(f"  Waiting... {completed}/{total} done, {processing} processing ({format_time(elapsed)} elapsed)")
 
             except Exception as e:
                 retry_count += 1

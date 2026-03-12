@@ -44,6 +44,11 @@ export const finesFeesPenalties = pgTable('fines_fees_penalties', {
   termMatched: text('term_matched'),
   llmConfirmed: boolean('llm_confirmed').default(false),
 
+  // Classification
+  jurisdictionLevel: varchar('jurisdiction_level', { length: 20 }),
+  jurisdictionLevelOther: text('jurisdiction_level_other'),
+  issuingEntityConfidence: numeric('issuing_entity_confidence', { precision: 3, scale: 2 }),
+
   // Metadata
   jurisdiction: varchar('jurisdiction', { length: 3 }).notNull(),
   url: text('url'),

@@ -22,6 +22,37 @@ from .context import ContextRequest, ContextEntryLLM
 from .matches import DismissedMatch
 
 
+import re
+
+# Matches a single backslash NOT already part of a valid JSON escape sequence.
+# First consume valid escapes (\\, \", \/, \b, \f, \n, \r, \t, \uXXXX) then
+# match any remaining lone backslash. Uses alternation so the valid escapes
+# are "eaten" and only the invalid ones get replaced.
+_VALID_JSON_ESCAPE = re.compile(
+    r'(\\["\\/bfnrt]|\\u[0-9a-fA-F]{4})|\\(?!["\\/bfnrtu])'
+)
+
+
+def _safe_json_loads(s: str):
+    """Parse JSON string, fixing invalid backslash escapes from LLM output.
+
+    LLMs often embed regex patterns (e.g., \\bpenalty\\b, \\$100) in JSON
+    strings without properly escaping the backslashes. This causes json.loads()
+    to fail with "Invalid \\escape". Fix by doubling lone backslashes while
+    preserving already-valid escape sequences like \\\\ or \\n.
+    """
+    try:
+        return json.loads(s)
+    except json.JSONDecodeError:
+        # Replace invalid escapes: if group 1 matched (valid escape), keep it;
+        # otherwise the match is an invalid lone backslash, so double it.
+        fixed = _VALID_JSON_ESCAPE.sub(
+            lambda m: m.group(1) if m.group(1) else '\\\\',
+            s,
+        )
+        return json.loads(fixed)
+
+
 class Tier1Output(BaseModel):
     """
     Tier 1 output - filter matches and request context.
@@ -74,7 +105,7 @@ class Tier1Output(BaseModel):
     def parse_dismissed_matches(cls, v):
         """Handle LLM sometimes returning as JSON string."""
         if isinstance(v, str):
-            return json.loads(v)
+            return _safe_json_loads(v)
         return v
 
     @field_validator('context_requests', mode='before')
@@ -82,7 +113,7 @@ class Tier1Output(BaseModel):
     def parse_context_requests(cls, v):
         """Handle LLM sometimes returning as JSON string."""
         if isinstance(v, str):
-            return json.loads(v)
+            return _safe_json_loads(v)
         return v
 
     @model_validator(mode='after')
@@ -163,6 +194,40 @@ class Tier2Output(BaseModel):
     web_search_topics: list[str] = Field(
         default_factory=list,
         description="Suggested search topics if needs_web_search=true"
+    )
+
+    # Affected population
+    primary_affected_population: Optional[str] = Field(
+        default=None,
+        description=(
+            "Who is MOST affected by this burden. One of: "
+            "'families', 'small_businesses', 'licensed_professionals', "
+            "'government_staff', 'vulnerable_populations', 'general_public', "
+            "'healthcare_providers', 'childcare_providers', 'nonprofits'"
+        )
+    )
+
+    # Report utility assessment (mandated_reports / reporting_frequency only)
+    report_serves_public: Optional[bool] = Field(
+        default=None,
+        description=(
+            "True if this report serves a clear public interest (epidemiological data, "
+            "safety monitoring, transparency). Only set for reporting issue types."
+        )
+    )
+    report_duplicates_existing: Optional[bool] = Field(
+        default=None,
+        description=(
+            "True if the reported information is already available through other channels "
+            "(dashboards, FOIL, existing publications). Only set for reporting issue types."
+        )
+    )
+    report_frequency_excessive: Optional[bool] = Field(
+        default=None,
+        description=(
+            "True if the reporting frequency is disproportionate to the oversight value. "
+            "Only set for reporting issue types."
+        )
     )
 
     # Escalation flags

@@ -10,7 +10,7 @@
 export const ISSUE_TYPES = [
   "mail_only",
   "certified_mail",
-  "fax",
+  "fax_required",
   "obsolete_comm",
   "landline",
   "check_payment",
@@ -53,7 +53,10 @@ export const ISSUE_TYPES = [
   "fines_fees_penalties",
   "good_moral_character",
   "fee_no_waiver",
-  "criminal_history_barrier"
+  "criminal_history_barrier",
+  "english_only",
+  "subjective_discretion",
+  "disproportionate_fee"
 ] as const;
 
 /**
@@ -91,7 +94,7 @@ export const ISSUE_TYPE_META: Record<IssueType, IssueTypeMeta> = {
     dbIssueType: "certified_mail",
     updatedAt: "2025-12-26",
   },
-  fax: {
+  fax_required: {
     displayName: "Fax Requirements",
     category: "Communication",
     description: "Fax required or only alternative to mail",
@@ -355,14 +358,14 @@ export const ISSUE_TYPE_META: Record<IssueType, IssueTypeMeta> = {
     category: "Reporting",
     description: "Mandated reporting requirements",
     dbIssueType: "mandated_reports",
-    updatedAt: "2025-12-26",
+    updatedAt: "2026-03-11",
   },
   reporting_frequency: {
     displayName: "Excessive Reporting Frequency",
     category: "Reporting",
     description: "Reporting frequency disproportionate to risk or purpose",
     dbIssueType: "reporting_frequency",
-    updatedAt: "2026-02-20",
+    updatedAt: "2026-03-11",
   },
   incorporation_by_reference: {
     displayName: "Incorporation by Reference",
@@ -376,7 +379,7 @@ export const ISSUE_TYPE_META: Record<IssueType, IssueTypeMeta> = {
     category: "Enforcement",
     description: "Monetary charges including fines, fees, penalties, surcharges, and forfeitures",
     dbIssueType: "fines_fees_penalties",
-    updatedAt: "2026-03-05",
+    updatedAt: "2026-03-10",
   },
   good_moral_character: {
     displayName: "Good Moral Character Requirement",
@@ -398,6 +401,27 @@ export const ISSUE_TYPE_META: Record<IssueType, IssueTypeMeta> = {
     description: "Criminal history barrier without required balancing test",
     dbIssueType: "criminal_history_barrier",
     updatedAt: "2026-03-05",
+  },
+  english_only: {
+    displayName: "English-Only Requirement",
+    category: "Equity & Access",
+    description: "English-only requirement without translation or language access provisions",
+    dbIssueType: "english_only",
+    updatedAt: "2026-03-11",
+  },
+  subjective_discretion: {
+    displayName: "Unconstrained Discretionary Authority",
+    category: "Equity & Access",
+    description: "Sole discretion or unconstrained authority without clear standards or appeal",
+    dbIssueType: "subjective_discretion",
+    updatedAt: "2026-03-11",
+  },
+  disproportionate_fee: {
+    displayName: "Disproportionate Fee",
+    category: "Fees & Financial Barriers",
+    description: "Fee disproportionate to the regulatory activity or service provided",
+    dbIssueType: "disproportionate_fee",
+    updatedAt: "2026-03-11",
   }
 };
 

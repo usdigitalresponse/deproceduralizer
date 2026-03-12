@@ -478,6 +478,22 @@ Helps Tier 3 web search avoid returning results about similar-sounding but diffe
 | `not_to_confuse_with` | text[] | List of similar-sounding programs to ignore in searches (DEFAULT '{}') |
 | `search_scope_guidance` | text | Guidance for Tier 3 on what to focus on vs avoid (e.g., "Focus on NJ DGE employee licensing, not federal banking requirements") |
 
+**Reform Prioritization (Issue #253)**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `primary_affected_population` | varchar(50) | Who is most affected: `families`, `small_businesses`, `licensed_professionals`, `government_staff`, `vulnerable_populations`, `general_public`, `healthcare_providers`, `childcare_providers`, `nonprofits` |
+| `domain_relevance_score` | integer | Title-based domain priority boost (-2 to +2). Computed post-Tier-2 from NYCRR/NJAC/RCNY title mappings |
+| `reform_priority_score` | integer | Composite score = severity + domain_relevance + population modifier. For ranking burdensome issues by reform value |
+
+**Report Utility Assessment (Issue #253, mandated_reports/reporting_frequency only)**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `report_serves_public` | boolean | True if report serves clear public interest (epidemiological, safety, transparency) |
+| `report_duplicates_existing` | boolean | True if information already available via FOIL, dashboards, federal reporting |
+| `report_frequency_excessive` | boolean | True if frequency is disproportionate to oversight value |
+
 **Example Values:**
 ```json
 {
@@ -845,6 +861,12 @@ Sub-regulatory guidance documents (ADMs, LCMs, INFs, GIS, TSBs, etc.) from NY st
 | `search_vector` | tsvector | Full-text search (auto-populated by trigger; recomputed only when title/content change — migration 0058) |
 | `is_attachment` | boolean | True if title matches attachment/enclosure/appendix patterns (default false) |
 | `policy_category` | text | Rule-based category: `policy_directive`, `legal_interpretation`, `tax_guidance`, `informational`, `reference_material`, `non_policy`, `data_dump`, `unclassified` |
+| `summary` | text | AI-generated summary (migration 0069) |
+| `section_type` | varchar(50) | Primary category (requirements, procedures, etc.) (migration 0069) |
+| `keywords` | text[] | 3-5 searchable terms (migration 0069) |
+| `applies_to` | text[] | Who must comply (migration 0069) |
+| `has_form` | boolean | References a specific form (default false, migration 0069) |
+| `has_ibr` | boolean | Incorporates external standards (default false, migration 0069) |
 
 **Indexes:** `idx_gd_catalog_id` (unique, partial), `idx_gd_text_path` (unique, partial — migration 0059), `idx_gd_agency`, `idx_gd_doc_type`, `idx_gd_canonical_ref` (partial), `idx_gd_status`, `idx_gd_search` (GIN), `idx_gd_year`, `idx_gd_policy_category` (partial)
 

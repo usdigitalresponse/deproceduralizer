@@ -473,6 +473,12 @@ def save_tier2_results(
                         program_context = %s,
                         not_to_confuse_with = %s,
                         search_scope_guidance = %s,
+                        -- Affected population
+                        primary_affected_population = %s,
+                        -- Report utility (mandated_reports / reporting_frequency)
+                        report_serves_public = %s,
+                        report_duplicates_existing = %s,
+                        report_frequency_excessive = %s,
                         -- Inline so crash between tiers doesn't leave NULLs
                         requirement_found = %s,
                         is_justified = %s,
@@ -516,6 +522,12 @@ def save_tier2_results(
                     getattr(output, 'program_context', None),
                     getattr(output, 'not_to_confuse_with', None) or [],
                     getattr(output, 'search_scope_guidance', None),
+                    # Affected population
+                    getattr(output, 'primary_affected_population', None),
+                    # Report utility
+                    getattr(output, 'report_serves_public', None),
+                    getattr(output, 'report_duplicates_existing', None),
+                    getattr(output, 'report_frequency_excessive', None),
                     # Inline derived fields
                     requirement_found,
                     is_justified,
@@ -540,12 +552,138 @@ def save_tier2_results(
 
             if total > 10:
                 print(f"    Saved {saved} Tier 2 results" + " " * 20)
+
+            # Backfill domain_relevance_score and reform_priority for newly-saved analyses
+            if saved > 0:
+                _backfill_domain_relevance(cur, units)
+                _compute_reform_priority(cur, units)
+
         conn.commit()
     finally:
         if should_close:
             conn.close()
 
     return saved
+
+
+# ---------------------------------------------------------------------------
+# Domain relevance scoring
+# ---------------------------------------------------------------------------
+
+# Domain priority boost by jurisdiction and title (from RAF/USDR feedback analysis)
+# Positive = high reform value, negative = low reform value
+#
+# NY (NYCRR titles)
+_NY_DOMAIN: dict[int, int] = {
+    18: 2,   # Social Services (child care, welfare, SNAP)
+    16: 2,   # Public Service (utilities, construction)
+    6: 2,    # Environmental (pesticides, DEC)
+    10: 1,   # Health (mixed — some transparency reports)
+    14: 1,   # Mental Hygiene
+    12: 1,   # Labor
+    8: 0,    # Education
+    9: 0,    # Executive (gaming, corrections)
+    4: -1,   # Civil Service
+    22: -1,  # Judiciary
+    21: -2,  # Miscellaneous
+}
+
+# NJ (NJAC titles) — mapped to analogous NY domains
+_NJ_DOMAIN: dict[str, int] = {
+    "10": 2,    # Human Services (child care, welfare — analogous to NY 18)
+    "3A": 2,    # Children and Families
+    "7": 2,     # Environmental Protection (analogous to NY 6)
+    "14": 2,    # Public Utilities (analogous to NY 16)
+    "8": 1,     # Health (analogous to NY 10)
+    "12": 1,    # Labor and Workforce Development
+    "5": 1,     # Community Affairs (housing, local gov)
+    "13": 0,    # Law and Public Safety
+    "11": 0,    # Insurance
+    "16": 0,    # Transportation
+    "3": 0,     # Banking
+    "2": 0,     # Agriculture
+    "10A": -1,  # Corrections
+    "1": -1,    # Administrative Law
+    "19": -2,   # Other Agencies / Casino Control
+}
+
+# NYC (RCNY titles — varchar column) — mapped by agency impact
+_NYC_DOMAIN: dict[str, int] = {
+    "28": 2,   # Housing Preservation and Development
+    "15": 2,   # Environmental Protection
+    "6": 1,    # Consumer and Worker Protection
+    "66": 1,   # Small Business Services
+    "16": 1,   # Sanitation
+    "3": 0,    # Fire Department / Health Code
+    "35": 0,   # Taxi and Limousine Commission
+    "34": 0,   # Transportation
+    "38": -1,  # Police Department
+    "55": -1,  # Citywide Administrative Services
+}
+
+_DEFAULT_DOMAIN_SCORE = 0
+
+
+def _backfill_domain_relevance(cur, units: list[TrackedUnit]) -> None:
+    """Compute domain_relevance_score from title for newly-saved analyses.
+
+    Supports NY (nycrr_title), NJ (njac_title), and NYC (rcny_title).
+    """
+    doc_ids = [u.document_id for u in units if u.tier2_output is not None]
+    if not doc_ids:
+        return
+
+    # NY: integer titles (nycrr_title is int)
+    ny_clauses = "\n".join(
+        f"WHEN rd.nycrr_title = {t} THEN {b}" for t, b in _NY_DOMAIN.items()
+    )
+    # NJ: string titles (e.g. '3A', '10A')
+    nj_clauses = "\n".join(
+        f"WHEN rd.njac_title = '{t}' THEN {b}" for t, b in _NJ_DOMAIN.items()
+    )
+    # NYC: string titles (rcny_title is varchar)
+    nyc_clauses = "\n".join(
+        f"WHEN rd.rcny_title = '{t}' THEN {b}" for t, b in _NYC_DOMAIN.items()
+    )
+
+    cur.execute(f"""
+        UPDATE compliance_issue_analyses cia
+        SET domain_relevance_score = CASE rd.jurisdiction
+            WHEN 'NY' THEN CASE {ny_clauses} ELSE {_DEFAULT_DOMAIN_SCORE} END
+            WHEN 'NJ' THEN CASE {nj_clauses} ELSE {_DEFAULT_DOMAIN_SCORE} END
+            WHEN 'NYC' THEN CASE {nyc_clauses} ELSE {_DEFAULT_DOMAIN_SCORE} END
+            ELSE {_DEFAULT_DOMAIN_SCORE}
+        END
+        FROM regulatory_documents rd
+        WHERE cia.document_id = rd.id
+          AND cia.document_id = ANY(%s)
+    """, (doc_ids,))
+
+
+# Population categories that get a priority boost/penalty
+_VULNERABLE_POPULATIONS = ('vulnerable_populations', 'families', 'childcare_providers')
+_LOW_PRIORITY_POPULATIONS = ('government_staff',)
+
+
+def _compute_reform_priority(cur, units: list[TrackedUnit]) -> None:
+    """Compute reform_priority_score = severity + domain_relevance + population modifier."""
+    doc_ids = [u.document_id for u in units if u.tier2_output is not None]
+    if not doc_ids:
+        return
+
+    cur.execute("""
+        UPDATE compliance_issue_analyses
+        SET reform_priority_score = COALESCE(severity, 0)
+            + COALESCE(domain_relevance_score, 0)
+            + CASE
+                WHEN primary_affected_population = ANY(%s) THEN 1
+                WHEN primary_affected_population = ANY(%s) THEN -1
+                ELSE 0
+              END
+        WHERE tier2_classification IN ('burdensome', 'justified')
+          AND severity IS NOT NULL
+          AND document_id = ANY(%s)
+    """, (list(_VULNERABLE_POPULATIONS), list(_LOW_PRIORITY_POPULATIONS), doc_ids))
 
 
 @retry_db_operation()

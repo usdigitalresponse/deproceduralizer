@@ -70,10 +70,11 @@ export class FinesRepository extends BaseRepository {
 
     const whereClause = this.buildWhereClause(jurisdiction, filters);
 
-    // Total count
+    // Total count (join agencies so whereClause can reference agencies.level)
     const [{ count: total }] = await this.db
       .select({ count: count() })
       .from(finesFeesPenalties)
+      .leftJoin(agencies, eq(finesFeesPenalties.agencyId, agencies.id))
       .where(whereClause);
 
     // Sort column — use canonical name for agency sort
@@ -357,6 +358,9 @@ export class FinesRepository extends BaseRepository {
       resolutionComments: finesFeesPenalties.resolutionComments,
       developerQuestion: finesFeesPenalties.developerQuestion,
       developerCheckedAt: finesFeesPenalties.developerCheckedAt,
+      jurisdictionLevel: finesFeesPenalties.jurisdictionLevel,
+      jurisdictionLevelOther: finesFeesPenalties.jurisdictionLevelOther,
+      issuingEntityConfidence: finesFeesPenalties.issuingEntityConfidence,
       createdAt: finesFeesPenalties.createdAt,
       // Agency fields
       agencyCanonicalName: agencies.canonicalName,
@@ -404,6 +408,9 @@ export class FinesRepository extends BaseRepository {
     resolutionComments: string | null;
     developerQuestion: string | null;
     developerCheckedAt: Date | null;
+    jurisdictionLevel: string | null;
+    jurisdictionLevelOther: string | null;
+    issuingEntityConfidence: string | null;
     createdAt: Date | null;
     agencyCanonicalName: string | null;
     agencyLevel: string | null;
@@ -448,6 +455,9 @@ export class FinesRepository extends BaseRepository {
       resolutionComments: row.resolutionComments,
       developerQuestion: row.developerQuestion,
       developerCheckedAt: row.developerCheckedAt,
+      jurisdictionLevel: row.jurisdictionLevel,
+      jurisdictionLevelOther: row.jurisdictionLevelOther,
+      issuingEntityConfidence: row.issuingEntityConfidence,
       createdAt: row.createdAt,
       agencyCanonicalName: row.agencyCanonicalName,
       agencyLevel: row.agencyLevel,

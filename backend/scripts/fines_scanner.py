@@ -527,8 +527,10 @@ class FinesSearcher(BasePatternSearcher):
                             (document_id, guidance_document_id, penalty_type, amount,
                              amount_min, amount_max, per_unit, who_pays, responsible_agency,
                              violation_description, requirement_quote, context,
-                             term_matched, llm_confirmed, jurisdiction, url)
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                             term_matched, llm_confirmed, jurisdiction, url,
+                             jurisdiction_level, jurisdiction_level_other, issuing_entity_confidence)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                            ON CONFLICT DO NOTHING
                             """,
                             (
                                 document_id,
@@ -547,6 +549,9 @@ class FinesSearcher(BasePatternSearcher):
                                 True,
                                 self.state_config.state_code,
                                 result.get('url', ''),
+                                item.get('jurisdiction_level'),
+                                item.get('jurisdiction_level_other'),
+                                item.get('issuing_entity_confidence'),
                             )
                         )
                         saved += 1

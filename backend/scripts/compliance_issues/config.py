@@ -6,7 +6,7 @@ Only jurisdiction configurations are defined here in Python.
 """
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional, Type, Pattern
 
@@ -107,6 +107,7 @@ class IssueTypeConfig:
     response_model: Type[BaseComplianceAnalysis]
     patterns: list[str]
     prompt: dict  # Contains 'system' and 'template'
+    exclusion_patterns: list[str] = field(default_factory=list)
 
     @property
     def compiled_patterns(self) -> list[re.Pattern]:
@@ -117,10 +118,19 @@ class IssueTypeConfig:
             ]
         return self._compiled_patterns
 
+    @property
+    def compiled_exclusion_patterns(self) -> list[re.Pattern]:
+        """Compile exclusion regex patterns (cached on first access)."""
+        if not hasattr(self, '_compiled_exclusion_patterns'):
+            self._compiled_exclusion_patterns = [
+                re.compile(p, re.IGNORECASE) for p in self.exclusion_patterns
+            ]
+        return self._compiled_exclusion_patterns
+
 
 # Issue types that use dedicated tables (not compliance_issues table)
 # These are excluded from ISSUE_TYPES but can be loaded separately via _load_issue_config()
-DEDICATED_TABLE_ISSUE_TYPES = {'incorporation_by_reference', 'fines_fees_penalties'}
+DEDICATED_TABLE_ISSUE_TYPES = {'incorporation_by_reference'}
 
 
 def _load_issue_types(include_dedicated: bool = False) -> dict[str, IssueTypeConfig]:
@@ -155,6 +165,7 @@ def _load_issue_types(include_dedicated: bool = False) -> dict[str, IssueTypeCon
             response_model=response_model,
             patterns=config.get('patterns', []),
             prompt=config.get('prompt', {}),
+            exclusion_patterns=config.get('exclusion_patterns', []),
         )
 
     return issue_types

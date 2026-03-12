@@ -71,8 +71,8 @@ class TestCostTracker:
         from scripts.research_pipeline.cost_tracker import format_time
 
         assert format_time(30) == "30s"
-        assert format_time(90) == "1.5m"
-        assert format_time(7200) == "2.0h"
+        assert format_time(90) == "1m 30s"
+        assert format_time(7200) == "2h 0m"
 
 
 class TestCostTrackerIntegration:

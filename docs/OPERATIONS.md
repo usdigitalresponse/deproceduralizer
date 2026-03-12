@@ -395,14 +395,43 @@ python3 -m scripts.summarization.recover_batches --state NY --limit 500
 |------|------|
 | ~$100/state, ~$2-5/title (Haiku) | Hours per phase (batch queue) |
 
+### Step 6b: Summarize Guidance Documents
+
+```bash
+cd backend
+
+# Dry run — preview what would be submitted
+python3 -m scripts.guidance_summarization --dry-run
+
+# Run full pipeline (submit → poll → process → import to DB)
+python3 -m scripts.guidance_summarization --run
+
+# Filter by agency or doc type
+python3 -m scripts.guidance_summarization --run --agency OCFS
+python3 -m scripts.guidance_summarization --run --doc-type ADM --limit 100
+
+# Check status / show progress
+python3 -m scripts.guidance_summarization --status
+python3 -m scripts.guidance_summarization --stats
+```
+
+- Single-phase batch (guidance docs are flat, no hierarchy)
+- Uses cross-referenced regulation summaries as context
+- Updates `guidance_documents` with: `summary`, `section_type`, `keywords`, `applies_to`, `has_form`, `has_ibr`
+- Truncates very long docs (>100K chars) with head+tail strategy
+
+| Cost | Time |
+|------|------|
+| ~$50-100 for all 12K docs (Haiku) | Hours (batch queue) |
+
 ### Step 7: Scan Compliance Issues (Regex)
 
 ```bash
 python backend/scripts/scan_compliance_issues.py --state ny
 ```
 
-<!-- metric: ISSUE_TYPE_COUNT=46 -->
-- Regex-only scan — finds candidate matches for 46 compliance issue types
+<!-- metric: ISSUE_TYPE_COUNT=49 -->
+- Regex-only scan — finds candidate matches for 49 compliance issue types
 - Patterns defined in `prompts/compliance_issues.yaml`
 - Use `--issue wet_signature` for a single type, `--dry-run` to search without saving
 - Use `--list-issues` to see all available issue types, `--limit N` to cap matches per issue type
@@ -923,7 +952,7 @@ matches the source faithfully. See issue #16 for details.
 All prompts live in the `/prompts/` directory:
 
 - Core analysis prompts: `prompts/core.yaml` (definitions)
-- Compliance issues: `prompts/compliance_issues.yaml` (46 issue types with patterns + prompts) <!-- metric: ISSUE_TYPE_COUNT=46 -->
+- Compliance issues: `prompts/compliance_issues.yaml` (49 issue types with patterns + prompts) <!-- metric: ISSUE_TYPE_COUNT=49 -->
 - Frontend copy: `frontend/apps/web/src/data/prompts.yaml` (copied from `prompts/core.yaml` via prebuild)
 
 TypeScript types are auto-generated from YAML - run `python scripts/generate_prompt_types.py` after modifying `prompts/compliance_issues.yaml`.

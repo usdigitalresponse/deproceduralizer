@@ -169,6 +169,18 @@ class FineFeePenaltyItem(BaseModel):
         default=None,
         description="Exact quote from text establishing this charge"
     )
+    jurisdiction_level: Optional[Literal['federal', 'state', 'county', 'local', 'other']] = Field(
+        default=None,
+        description="Level of government imposing this charge: 'federal', 'state', 'county', 'local', or 'other'"
+    )
+    jurisdiction_level_other: Optional[str] = Field(
+        default=None,
+        description="Free-text description if jurisdiction_level is 'other'"
+    )
+    issuing_entity_confidence: Optional[float] = Field(
+        default=None,
+        description="Confidence (0.0-1.0) in responsible_agency attribution"
+    )
 
     @model_validator(mode='after')
     def validate_amount_range(self) -> 'FineFeePenaltyItem':

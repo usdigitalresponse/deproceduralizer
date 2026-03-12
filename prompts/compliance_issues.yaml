@@ -139,7 +139,7 @@ certified_mail:
       or appears to be unnecessary burden for routine correspondence.
 
 
-fax:
+fax_required:
   updated_at: "2026-03-05"
   display_name: "Fax Requirements"
   db_issue_type: "fax_required"
@@ -2189,7 +2189,7 @@ waiting_period:
 # =============================================================================
 
 mandated_reports:
-  updated_at: "2025-12-26"
+  updated_at: "2026-03-11"
   display_name: "Mandated Reports"
   db_issue_type: "mandated_reports"
   category: "Reporting"
@@ -2218,10 +2218,27 @@ mandated_reports:
       (4) the information could be provided through other means (e.g., dashboard,
           existing data publications).
 
+      REPORT UTILITY ASSESSMENT (set these three fields):
+      - **report_serves_public**: true if the report serves a clear public interest
+        (e.g., epidemiological surveillance, safety incident tracking, environmental
+        monitoring, civil rights compliance). Monthly health officer reports are
+        essential epidemiological data — the "juice is not worth the squeeze" to
+        eliminate them.
+      - **report_duplicates_existing**: true if the information is already available
+        through other channels (FOIL requests, agency dashboards, existing federal
+        reporting, published data).
+      - **report_frequency_excessive**: true if the frequency is disproportionate to
+        the oversight value (e.g., monthly reports for routine low-risk matters that
+        could be quarterly or annual).
+
       SEVERITY GUIDANCE for mandated reports:
-      - 7-10: Frequent (monthly+), detailed reports with high staff burden
+      - 7-10: Frequent (monthly+), detailed reports with high staff burden, does NOT
+        serve public interest
       - 4-6: Periodic (quarterly/annual), moderate effort to produce
-      - 1-3: Simple reports, minimal burden, or reports with clear value
+      - 1-3: Simple reports, minimal burden, or reports with clear public value
+      - **If report_serves_public is true, reduce severity by 2-3 points.** A report
+        that serves genuine public health, safety, or transparency purposes is low
+        reform priority even if burdensome to produce.
 
       If a report requirement exists, flag it with appropriate severity.
       If no report requirement is found, explain why.
@@ -2236,10 +2253,11 @@ mandated_reports:
       {statute_context}
 
       Note the report's stated purpose, frequency, and recipient.
+      Set report_serves_public, report_duplicates_existing, and report_frequency_excessive.
 
 
 reporting_frequency:
-  updated_at: "2026-02-20"
+  updated_at: "2026-03-11"
   display_name: "Excessive Reporting Frequency"
   db_issue_type: "reporting_frequency"
   category: "Reporting"
@@ -2263,6 +2281,14 @@ reporting_frequency:
       THIS issue type focuses specifically on whether the FREQUENCY is disproportionate —
       i.e., whether the same oversight goal could be achieved with less frequent reporting.
 
+      REPORT UTILITY ASSESSMENT (set these three fields):
+      - **report_serves_public**: true if the underlying report serves genuine public
+        interest (epidemiological data, safety monitoring, environmental compliance).
+      - **report_duplicates_existing**: true if the information is already available
+        through other channels (FOIL, dashboards, federal reporting).
+      - **report_frequency_excessive**: true if the frequency is the core problem
+        (e.g., monthly when quarterly would suffice).
+
       This IS a compliance issue when:
       - Monthly or more frequent reporting is required for routine, low-risk matters
       - The reporting frequency creates significant staff burden relative to the oversight value
@@ -2279,6 +2305,7 @@ reporting_frequency:
       - 7-10: Monthly+ reports on routine/low-risk matters with high staff burden
       - 4-6: Quarterly reports that could reasonably be semi-annual or annual
       - 1-3: Reporting frequency is arguably appropriate but worth flagging for review
+      - **If report_serves_public is true, reduce severity by 2-3 points.**
 
     template: |
       Analyze this regulation for excessive reporting frequency:
@@ -2288,6 +2315,8 @@ reporting_frequency:
 
       STATUTE CONTEXT:
       {statute_context}
+
+      Set report_serves_public, report_duplicates_existing, and report_frequency_excessive.
 
       Evaluate whether the reporting frequency is proportionate to the risk or purpose.
       Consider the staff burden imposed relative to the oversight value gained.
@@ -2382,9 +2411,9 @@ incorporation_by_reference:
 
 fines_fees_penalties:
   updated_at: "2026-03-10"
-  # NOTE: This issue type uses a DEDICATED TABLE (fines_fees_penalties)
-  # instead of compliance_issues table. See backend/scripts/fines_scanner.py
-  # Config is kept here for pattern/prompt reuse. Similar to IBR (issue #49).
+  # NOTE: This issue type uses BOTH the standard compliance_issues pipeline
+  # AND a dedicated fines_fees_penalties table (via backend/scripts/fines_scanner.py)
+  # for structured extraction. See issue #275.
   display_name: "Fines, Fees & Penalties"
   db_issue_type: "fines_fees_penalties"
   category: "Enforcement"
@@ -2443,7 +2472,8 @@ fines_fees_penalties:
       - amount_min: The minimum numeric dollar amount if parseable (null if not monetary or not parseable)
       - amount_max: The maximum numeric dollar amount if parseable (null if not monetary or not parseable)
       - per_unit: What the amount is per (e.g., "per violation", "per day", "per occurrence", null if flat)
-      - who_pays: Who is subject to this charge (e.g., "licensee", "applicant", "employer")
+      - who_pays: Who is subject to this charge (e.g., "licensee", "applicant", "employer").
+        Use DEFINITIONS below to resolve vague terms — if "entity" is defined as "licensed child care provider", use the specific term.
       - responsible_agency: The FULL OFFICIAL NAME of the government agency that administers or collects this charge.
         Use the agency name from the DOCUMENT METADATA section below if available.
         NEVER return generic terms like "Department", "Commission", "Commissioner", "Office", "Board", or "Agency" alone.
@@ -2455,6 +2485,13 @@ fines_fees_penalties:
         "judiciary" for courts, and "generic" if the level cannot be determined.
       - violation_description: What triggers this fine/fee (brief description)
       - requirement_quote: Exact quote from the text establishing this charge
+      - jurisdiction_level: The level of government imposing this charge: "federal", "state", "county", "local", or "other".
+        Use ANCESTOR SUMMARIES below for context about which level of government this regulation belongs to.
+        If the regulation implements a federal requirement, set to "federal". If it's a state regulation imposing its own charge, set to "state".
+      - jurisdiction_level_other: Free-text if jurisdiction_level is "other" (e.g., "tribal", "interstate compact")
+      - issuing_entity_confidence: Your confidence (0.0-1.0) in the responsible_agency attribution.
+        1.0 = agency explicitly named in the text. 0.7-0.9 = inferred from document metadata or context.
+        0.5-0.7 = best guess from limited context. Below 0.5 = very uncertain.
 
       Classification guidance:
       - "fee" = regulatory fee required for a license, permit, application, inspection, or government service
@@ -2666,3 +2703,193 @@ criminal_history_barrier:
 
       Determine whether this creates a criminal history barrier without the
       Article 23-A balancing test or individualized assessment.
+
+
+# =============================================================================
+# EQUITY & ACCESS — PHASE 2
+# =============================================================================
+
+english_only:
+  updated_at: "2026-03-11"
+  display_name: "English-Only Requirement"
+  db_issue_type: "english_only"
+  category: "Equity & Access"
+  description: "English-only requirement without translation or language access provisions"
+  response_model: "BaseComplianceAnalysis"
+  patterns:
+    - "shall be.{0,20}in english"
+    - "must be.{0,20}in english"
+    - "written in english"
+    - "english.{0,20}only"
+    - "english language.{0,20}(requirement|proficiency|ability)"
+    - "submitted.{0,20}in english"
+  exclusion_patterns:
+    - "plain english"
+  prompt:
+    system: |
+      You analyze regulations for ENGLISH-ONLY requirements that lack
+      language access provisions.
+
+      NY Executive Order 26 requires state agencies to provide language
+      access services for Limited English Proficiency (LEP) populations.
+      Regulations that mandate English-only submissions without translation
+      provisions may violate this requirement and create barriers for LEP
+      communities.
+
+      This IS a compliance issue when:
+      - Documents or submissions must be in English only
+      - No provision for translation or interpretation services
+      - No accommodation for Limited English Proficiency individuals
+      - The requirement affects public-facing services or licensing
+
+      This is NOT a compliance issue when:
+      - The regulation explicitly provides for translation services
+      - The requirement is for technical/scientific documentation
+        where English is the standard (e.g., FDA labeling, medical records)
+      - "In English" refers to Plain English readability requirements
+      - The context is an academic English examination or course
+      - The English requirement is for internal agency communications
+
+      SEVERITY GUIDANCE:
+      - 7-10: Public-facing requirement affecting vulnerable/LEP populations,
+        no translation provision, high volume of affected individuals
+      - 4-6: Licensing/application context, moderate affected population
+      - 1-3: Low-impact administrative context or clear technical necessity
+
+    template: |
+      Analyze this regulation for English-only requirements:
+
+      REGULATION TEXT:
+      {regulation_context}
+
+      STATUTE CONTEXT:
+      {statute_context}
+
+      Determine whether the regulation mandates English-only without
+      adequate language access provisions for LEP populations.
+
+
+subjective_discretion:
+  updated_at: "2026-03-11"
+  display_name: "Unconstrained Discretionary Authority"
+  db_issue_type: "subjective_discretion"
+  category: "Equity & Access"
+  description: "Sole discretion or unconstrained authority without clear standards or appeal"
+  response_model: "BaseComplianceAnalysis"
+  patterns:
+    - "sole discretion"
+    - "absolute discretion"
+    - "in (its|their|his|her) discretion"
+    - "(may|shall) (deny|refuse|reject|revoke).{0,30}without (explanation|cause|reason|hearing)"
+  prompt:
+    system: |
+      You analyze regulations for UNCONSTRAINED DISCRETIONARY AUTHORITY
+      that operates without clear standards or appeal mechanisms.
+
+      Broad discretion without objective criteria can enable inconsistent
+      or discriminatory application of regulations. Focus on discretion
+      that affects individual rights, licensing, permits, or benefits.
+
+      This IS a compliance issue when:
+      - "Sole discretion" or "absolute discretion" gives unchecked power
+        over licensing, permits, benefits, or individual rights
+      - No objective criteria guide the discretionary decision
+      - No appeal or review mechanism exists for adverse decisions
+      - The discretion could enable arbitrary or discriminatory outcomes
+
+      This is NOT a compliance issue when:
+      - The discretion is purely administrative/procedural (accepting late
+        filings, scheduling flexibility, granting extensions)
+      - Clear standards or criteria accompany the discretion
+      - A robust appeal or administrative review mechanism exists
+      - The context is internal agency management or staffing
+      - The discretion is about grant funding allocation or rulemaking
+
+      SEVERITY GUIDANCE:
+      - 7-10: Discretion over licensing/permits/benefits with NO criteria
+        and NO appeal, affecting individuals or small businesses
+      - 4-6: Some criteria exist but vague, or appeal exists but limited
+      - 1-3: Administrative discretion with minimal impact on rights
+
+      NOTE: High false positive rate expected (~40%). Many "sole discretion"
+      uses are in appropriate administrative contexts. Be conservative —
+      only flag when discretion materially affects rights or access.
+
+    template: |
+      Analyze this regulation for unconstrained discretionary authority:
+
+      REGULATION TEXT:
+      {regulation_context}
+
+      STATUTE CONTEXT:
+      {statute_context}
+
+      Determine whether this grants unconstrained discretionary authority
+      without adequate standards or appeal mechanisms.
+
+
+disproportionate_fee:
+  updated_at: "2026-03-11"
+  display_name: "Disproportionate Fee"
+  db_issue_type: "disproportionate_fee"
+  category: "Fees & Financial Barriers"
+  description: "Fee disproportionate to the regulatory activity or service provided"
+  response_model: "BaseComplianceAnalysis"
+  patterns:
+    - "\\$\\s*[\\d,]+.{0,40}(fee|charge|cost|assessment)"
+    - "(fee|charge|cost).{0,40}\\$\\s*[\\d,]+"
+    - "(application|license|permit|registration|filing|inspection|examination).{0,10}fee.{0,30}\\$"
+    - "fee schedule"
+  exclusion_patterns:
+    - "\\bfine\\b"
+    - "\\bpenalt"
+    - "\\bsurcharge\\b"
+    - "\\bforfeiture\\b"
+  prompt:
+    system: |
+      You analyze regulations for DISPROPORTIONATE FEES — fees that are
+      unreasonably high relative to the regulatory activity, service
+      provided, or capacity of the regulated entity.
+
+      Focus on fees where the dollar amount appears excessive given the
+      context. Consider:
+      (1) Does the fee amount seem proportionate to the service or activity?
+      (2) Could the fee be a significant barrier to entry for individuals
+          or small businesses?
+      (3) Are there similar activities with much lower fees elsewhere?
+      (4) Does the fee appear to be revenue-generating rather than
+          cost-recovery?
+
+      This IS a compliance issue when:
+      - Application/license fees exceed $500 for individual/small business activities
+      - The fee is clearly revenue-generating rather than cost-recovery
+      - Multiple fees stack up for a single regulatory interaction
+      - The fee creates a meaningful barrier to market entry or compliance
+      - No sliding scale or small-business accommodation exists
+
+      This is NOT a compliance issue when:
+      - The fee is proportionate to actual processing/inspection costs
+      - The fee applies to large commercial operations (proportionate to scale)
+      - The regulation explicitly justifies the fee amount
+      - The fee is nominal (under $100) for routine administrative processing
+      - Fines, penalties, or surcharges (these are handled by fines_fees_penalties)
+
+      SEVERITY GUIDANCE:
+      - 7-10: Fees >$1,000 for individuals/small businesses, clear barrier
+        to entry, no accommodation for ability to pay
+      - 4-6: Fees $200-$1,000, moderate barrier, or stacked fees totaling
+        a significant amount
+      - 1-3: Fees that seem somewhat high but arguable, or fees that
+        primarily affect well-resourced entities
+
+    template: |
+      Analyze this regulation for disproportionate fees:
+
+      REGULATION TEXT:
+      {regulation_context}
+
+      STATUTE CONTEXT:
+      {statute_context}
+
+      Assess whether any fees specified are disproportionate to the
+      regulatory activity or create undue financial barriers.

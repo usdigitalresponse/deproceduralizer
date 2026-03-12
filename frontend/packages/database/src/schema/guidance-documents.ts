@@ -41,6 +41,8 @@ export const guidanceDocuments = pgTable('guidance_documents', {
   sourceProject: text('source_project'),
   textPath: text('text_path'),
   jurisdiction: varchar('jurisdiction', { length: 3 }).notNull(),
+  targetAudience: text('target_audience').array(),
+  isApplication: boolean('is_application'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });

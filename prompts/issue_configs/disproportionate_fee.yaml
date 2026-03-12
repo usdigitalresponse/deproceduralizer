@@ -1,0 +1,83 @@
+disproportionate_fee:
+  updated_at: '2026-03-11'
+  display_name: Disproportionate Fee
+  db_issue_type: disproportionate_fee
+  category: Fees & Financial Barriers
+  description: 'Fee disproportionate to the regulatory activity or service provided.
+    Fees that are unreasonably high relative to the regulatory activity, service provided,
+    or capacity of the regulated entity can create significant barriers to entry for
+    individuals and small businesses. Focus on fees that appear to be revenue-generating
+    rather than cost-recovery.'
+  positive_indicators:
+  - Application or license fees exceeding $500 for individual/small business activities
+  - Fee is clearly revenue-generating rather than cost-recovery
+  - Multiple fees stack up for a single regulatory interaction
+  - Fee creates a meaningful barrier to market entry or compliance
+  - No sliding scale or small-business accommodation exists
+  negative_indicators:
+  - Fee is proportionate to actual processing or inspection costs
+  - Fee applies to large commercial operations proportionate to scale
+  - The regulation explicitly justifies the fee amount
+  - Fee is nominal (under $100) for routine administrative processing
+  - 'Fines, penalties, or surcharges (handled by fines_fees_penalties)'
+  - Fee has a statutory mandate with clear cost-recovery basis
+  severity_baseline: 5
+  severity_modifiers:
+    increases:
+    - '+1: Fee exceeds $500 for individuals or small businesses'
+    - '+1: No accommodation for ability to pay or business size'
+    - '+2: Fee exceeds $1,000 with clear barrier-to-entry effect'
+    decreases:
+    - '-1: Fee has a clear cost-recovery justification'
+    - '-1: Sliding scale or reduced fee available'
+    - '-2: Fee is nominal (under $100) for routine processing'
+  patterns:
+  - "\\$\\s*[\\d,]+.{0,40}(fee|charge|cost|assessment)"
+  - "(fee|charge|cost).{0,40}\\$\\s*[\\d,]+"
+  - "(application|license|permit|registration|filing|inspection|examination).{0,10}fee.{0,30}\\$"
+  - "fee schedule"
+  exclusion_patterns:
+  - "\\bfine\\b"
+  - "\\bpenalt"
+  - "\\bsurcharge\\b"
+  - "\\bforfeiture\\b"
+  statistics:
+    total_matches: null
+    true_positives: null
+    true_positive_rate: null
+    sample_date: '2026-03-11'
+  examples:
+    true_positives:
+    - citation: 10 NYCRR 710.3
+      quote: a non-refundable application fee of $2,500 shall accompany each initial
+        application for certification
+      reasoning: High application fee for certification with no waiver or sliding scale.
+        Creates a significant barrier to entry for small providers.
+      classification: burdensome
+      severity: 7
+    - citation: 19 NYCRR 36.4
+      quote: license fee of $800 plus examination fee of $350 plus background check
+        fee of $175
+      reasoning: Stacked fees totaling $1,325 for a single licensing interaction. No
+        small-business accommodation.
+      classification: burdensome
+      severity: 7
+    false_positives:
+    - citation: 6 NYCRR 621.7
+      quote: application fee of $50 for minor facility modifications
+      reasoning: Nominal fee for routine administrative processing. Proportionate to
+        the service provided.
+      classification: unrelated
+    - citation: 10 NYCRR 86.4
+      quote: civil penalty of not more than $2,000 per violation
+      reasoning: This is a fine/penalty, not a fee. Handled by fines_fees_penalties
+        issue type.
+      classification: unrelated
+    justified:
+    - citation: 6 NYCRR 750.3
+      quote: SPDES permit fee of $1,500 for major industrial dischargers as established
+        by Environmental Conservation Law 72-0602
+      reasoning: Fee has clear statutory mandate. Applies to large industrial operations
+        where the fee is proportionate to environmental impact and regulatory oversight costs.
+      classification: justified
+      severity: 3

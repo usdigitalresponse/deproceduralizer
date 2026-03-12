@@ -1,0 +1,76 @@
+subjective_discretion:
+  updated_at: '2026-03-11'
+  display_name: Unconstrained Discretionary Authority
+  db_issue_type: subjective_discretion
+  category: Equity & Access
+  description: 'Sole discretion or unconstrained authority without clear standards
+    or appeal mechanisms. Broad discretion without objective criteria can enable inconsistent
+    or discriminatory application of regulations. Focus on discretion that affects
+    individual rights, licensing, permits, or benefits.'
+  positive_indicators:
+  - '"Sole discretion" or "absolute discretion" over licensing, permits, or benefits'
+  - No objective criteria guide the discretionary decision
+  - No appeal or review mechanism for adverse decisions
+  - Discretion could enable arbitrary or discriminatory outcomes
+  - Denial or revocation without explanation, cause, or hearing
+  negative_indicators:
+  - Discretion is purely administrative/procedural (accepting late filings, scheduling)
+  - Clear standards or criteria accompany the discretion
+  - A robust appeal or administrative review mechanism exists
+  - Context is internal agency management or staffing
+  - Discretion is about grant funding allocation or rulemaking
+  - Administrative flexibility provisions (granting extensions, scheduling)
+  severity_baseline: 5
+  severity_modifiers:
+    increases:
+    - '+1: Discretion over licensing or permits with no criteria'
+    - '+1: No appeal or review mechanism exists'
+    - '+2: Affects individual rights or benefits with no standards and no appeal'
+    decreases:
+    - '-1: Some criteria exist but are vague'
+    - '-1: Appeal exists but is limited'
+    - '-2: Administrative discretion with minimal impact on rights'
+  patterns:
+  - "sole discretion"
+  - "absolute discretion"
+  - "in (its|their|his|her) discretion"
+  - "(may|shall) (deny|refuse|reject|revoke).{0,30}without (explanation|cause|reason|hearing)"
+  statistics:
+    total_matches: null
+    true_positives: null
+    true_positive_rate: null
+    sample_date: '2026-03-11'
+  examples:
+    true_positives:
+    - citation: 9 NYCRR 1200.5
+      quote: the commissioner may in his sole discretion deny or revoke any license
+        without a hearing
+      reasoning: Unconstrained discretion over licensing with no criteria, no hearing,
+        and no appeal mechanism. Enables arbitrary outcomes.
+      classification: burdensome
+      severity: 8
+    - citation: 19 NYCRR 440.3
+      quote: the department may reject any application in its absolute discretion
+      reasoning: Absolute discretion over permit applications with no objective standards.
+        Applicants have no recourse.
+      classification: burdensome
+      severity: 7
+    false_positives:
+    - citation: 18 NYCRR 352.7
+      quote: the commissioner may in his discretion grant an extension of time for filing
+      reasoning: Administrative flexibility provision for filing deadlines. Low stakes
+        and benefits applicants.
+      classification: unrelated
+    - citation: 6 NYCRR 621.4
+      quote: the department may in its discretion waive minor application deficiencies
+      reasoning: Discretion used to reduce burden on applicants, not to deny rights.
+        Beneficial flexibility.
+      classification: unrelated
+    justified:
+    - citation: 3 NYCRR 11.2
+      quote: the superintendent may in their discretion approve or deny applications
+        based on the criteria set forth in section 11.3
+      reasoning: Discretion is accompanied by explicit criteria in a referenced section.
+        Standards constrain the decision.
+      classification: justified
+      severity: 3

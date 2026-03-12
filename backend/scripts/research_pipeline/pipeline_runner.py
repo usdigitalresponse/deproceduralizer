@@ -55,6 +55,7 @@ from .config import TIER3_BATCH_SIZE, MAX_BATCH_POLL_TIME
 from .models.matches import ProcessingUnit
 from .context import group_for_cache_efficiency
 from .ids import make_custom_id
+from .fines_extraction import FINES_ISSUE_TYPE
 from .pipeline_logger import DualOutput
 
 from lib.db import get_db_connection
@@ -224,6 +225,11 @@ async def run_pipeline(
                          realtime, model, incremental_save, tier2_reruns,
                          out, trace_context, batch_trace_ids,
                          jurisdiction, issue_type_single, run_id, poll_interval, cache)
+
+    # --- Fines structured extraction (post-Tier 2 hook) ---
+    if max_tier >= 2 and FINES_ISSUE_TYPE in issue_types:
+        from .fines_extraction import run_fines_extraction
+        await run_fines_extraction(units, jurisdiction)
 
     # --- Tier 3 ---
     if max_tier >= 3 and enable_web_search:

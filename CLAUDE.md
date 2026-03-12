@@ -19,7 +19,7 @@ Canonical counts for use across all documentation. When adding/removing issue ty
 
 | Metric | Value | Source of Truth |
 |--------|-------|-----------------|
-| Compliance issue types | 46 | `prompts/compliance_issues.yaml` |
+| Compliance issue types | 49 | `prompts/compliance_issues.yaml` |
 | Pipeline steps | 11 | `docs/OPERATIONS.md` step table |
 | JenAI/Pahlka categories | 18 | `prompts/jenai.yaml` |
 
@@ -67,7 +67,7 @@ When working on the Next.js frontend, follow these patterns:
 ### LLM Prompts
 - All prompts are centralized in the `/prompts/` directory:
   - `prompts/core.yaml` - Core analysis prompts (definitions)
-  - `prompts/compliance_issues.yaml` - All 46 compliance issue types with patterns and prompts (includes fines_fees_penalties dedicated-table config)
+  - `prompts/compliance_issues.yaml` - All 49 compliance issue types with patterns and prompts (includes fines_fees_penalties dedicated-table config)
 - Prompts have `system` (static, cached) and `template` (dynamic) sections
 - When adding/modifying prompts, update the appropriate file in `/prompts/`
 - **Important:** When modifying any prompt, update its `updated_at` field to today's date (YYYY-MM-DD format)

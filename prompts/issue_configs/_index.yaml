@@ -81,13 +81,19 @@ equity_access:
   - good_moral_character
   - fee_no_waiver
   - criminal_history_barrier
+  - english_only
+  - subjective_discretion
 
-# Statistics Summary (from 2026-01-01 query, updated 2026-03-05)
-# Total: 44 config files (of 46 total issue types; IBR and fines have dedicated tables)
+# Fees & Financial Barriers
+fees_financial:
+  - disproportionate_fee
+
+# Statistics Summary (from 2026-01-01 query, updated 2026-03-11)
+# Total: 47 config files (of 49 total issue types; IBR and fines have dedicated tables)
 # High precision (>80% TPR): notarization, multiple_copies, embossed_seal, handwriting_specs, binding_required
 # Low precision (<20% TPR): fax, pdf_only, typewriter, cash_only
 
-# File count: 44 configs (2 dedicated-table types not included)
+# File count: 47 configs (2 dedicated-table types not included)
 all_configs:
   - binding_required
   - bulletin_board
@@ -133,3 +139,6 @@ all_configs:
   - good_moral_character
   - fee_no_waiver
   - criminal_history_barrier
+  - disproportionate_fee
+  - english_only
+  - subjective_discretion

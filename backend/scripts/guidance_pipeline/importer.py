@@ -1,5 +1,6 @@
 """Import guidance documents into the guidance_documents table."""
 
+import re
 import time
 from collections import Counter
 
@@ -9,6 +10,26 @@ from scripts.guidance_pipeline.catalog import (
     extract_year,
     load_text,
 )
+
+# Doc types that are actually codified law/regulations, not guidance
+_REGULATION_DOC_TYPES = {"Code", "Statute"}
+
+# Title patterns that indicate NYCRR regulation text, not guidance
+_REGULATION_TITLE_RE = re.compile(
+    r"^(?:CHAPTER [IVX]+|PART \d+|SUBPART \d+)\b.*(?:FINANCING|ACCOUNTING|DEALERS|RULE)\b",
+    re.IGNORECASE,
+)
+
+
+def _is_regulation(doc: dict) -> bool:
+    """Return True if the document is actually a regulation, not guidance."""
+    doc_type = doc.get("doc_type", "")
+    if doc_type in _REGULATION_DOC_TYPES:
+        return True
+    title = doc.get("title", "")
+    if _REGULATION_TITLE_RE.search(title):
+        return True
+    return False
 
 
 def preview_import(docs: list[dict]) -> None:
@@ -57,7 +78,7 @@ def _do_import(conn, source_dir: str, docs: list[dict]) -> dict[str, int]:
          status, supersedes, superseded_by, revision_of,
          sender_name, sender_title, distribution_to, programs,
          cites_regulations, cites_federal, cites_documents,
-         source_project, text_path)
+         source_project, text_path, jurisdiction)
         VALUES (
             %(catalog_id)s, %(canonical_ref)s, %(title)s, %(agency)s, %(agency_division)s,
             %(doc_type)s, %(domain)s,
@@ -66,7 +87,7 @@ def _do_import(conn, source_dir: str, docs: list[dict]) -> dict[str, int]:
             %(status)s, %(supersedes)s, %(superseded_by)s, %(revision_of)s,
             %(sender_name)s, %(sender_title)s, %(distribution_to)s, %(programs)s,
             %(cites_regulations)s, %(cites_federal)s, %(cites_documents)s,
-            %(source_project)s, %(text_path)s
+            %(source_project)s, %(text_path)s, %(jurisdiction)s
         )
         ON CONFLICT (catalog_id) WHERE catalog_id IS NOT NULL DO UPDATE SET
             canonical_ref = EXCLUDED.canonical_ref,
@@ -95,7 +116,8 @@ def _do_import(conn, source_dir: str, docs: list[dict]) -> dict[str, int]:
             cites_federal = EXCLUDED.cites_federal,
             cites_documents = EXCLUDED.cites_documents,
             source_project = EXCLUDED.source_project,
-            text_path = EXCLUDED.text_path
+            text_path = EXCLUDED.text_path,
+            jurisdiction = EXCLUDED.jurisdiction
         RETURNING id
     """
 
@@ -108,6 +130,11 @@ def _do_import(conn, source_dir: str, docs: list[dict]) -> dict[str, int]:
     cur = conn.cursor()
 
     for i, doc in enumerate(docs):
+        # Skip documents that are actually regulations, not guidance
+        if _is_regulation(doc):
+            skipped += 1
+            continue
+
         content = load_text(source_dir, doc.get("text_path", ""))
         if not content or not content.strip():
             skipped += 1
@@ -151,6 +178,17 @@ def _do_import(conn, source_dir: str, docs: list[dict]) -> dict[str, int]:
     return id_map
 
 
+def _infer_jurisdiction(agency: str) -> str:
+    """Infer jurisdiction from agency name.
+
+    NYC agencies (NYC_DOHMH, NYC_DOE, etc.) → 'NYC'
+    Everything else → 'NY' (state-level agencies)
+    """
+    if agency and agency.upper().startswith("NYC"):
+        return "NYC"
+    return "NY"
+
+
 def _build_row(doc: dict, content: str) -> dict:
     """Build a parameter dict for the upsert query."""
     canonical_ref = extract_canonical_ref(doc)
@@ -165,11 +203,13 @@ def _build_row(doc: dict, content: str) -> dict:
             return None
         return s[:10]  # Take YYYY-MM-DD portion
 
+    agency = doc.get("agency", "UNKNOWN")
+
     return {
         "catalog_id": doc.get("id"),
         "canonical_ref": canonical_ref,
         "title": (doc.get("title", "") or "").strip() or f"Guidance Document {doc.get('id', '?')}",
-        "agency": doc.get("agency", "UNKNOWN"),
+        "agency": agency,
         "agency_division": doc.get("agency_division"),
         "doc_type": doc.get("doc_type"),
         "domain": doc.get("domain"),
@@ -194,4 +234,5 @@ def _build_row(doc: dict, content: str) -> dict:
         "cites_documents": doc.get("cites_documents") or None,
         "source_project": doc.get("source_project"),
         "text_path": doc.get("text_path"),
+        "jurisdiction": _infer_jurisdiction(agency),
     }

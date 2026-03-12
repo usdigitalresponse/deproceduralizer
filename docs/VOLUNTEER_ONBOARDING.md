@@ -19,7 +19,7 @@ Work through these steps in order. Each builds on the previous one.
 Start here to get the big picture before diving into details.
 
 - [ ] Browse the **section type distribution** — see how regulations are categorized
-- [ ] Review **compliance issue counts by type and severity** — there are 46 issue types we scan for
+- [ ] Review **compliance issue counts by type and severity** — there are 49 issue types we scan for
 - [ ] Check the **pipeline tier progression** — shows how many issues have been through each stage of AI analysis
 - [ ] Look at **JenAI severity distribution** — this is the 19-category Pahlka framework analysis
 
@@ -63,7 +63,7 @@ This shows the research pipeline — the multi-stage AI analysis process.
 This is where all the AI prompts that power the analysis are defined.
 
 - [ ] Browse the **Core prompts** — these handle definitions and foundational analysis
-- [ ] Browse the **Compliance Issue prompts** (46) — each one targets a specific type of regulatory burden
+- [ ] Browse the **Compliance Issue prompts** (49) — each one targets a specific type of regulatory burden
 - [ ] Browse the **JenAI prompts** (18) — these are the Pahlka framework categories for implementation analysis
 - [ ] Read through **2-3 prompts** in detail to understand what the AI is being asked to look for
 - [ ] Note the **feedback counts** — you can provide feedback on any prompt if you think it could be improved

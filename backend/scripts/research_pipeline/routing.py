@@ -36,11 +36,12 @@ LOW_CONFIDENCE_THRESHOLD = 0.85
 # These are high-impact or frequently challenged requirements that benefit
 # from external verification via web search when sufficiently severe.
 HIGH_RISK_ISSUE_TYPES = frozenset({
-    "newspaper",        # Public notice requirements
-    "notarization",     # Notarization requirements
-    "wet_signature",    # Physical signature requirements
-    "witness",          # Witness requirements
-    "mandated_reports", # Mandated reporting requirements
+    "newspaper",            # Public notice requirements
+    "notarization",         # Notarization requirements
+    "wet_signature",        # Physical signature requirements
+    "witness",              # Witness requirements
+    "mandated_reports",     # Mandated reporting requirements
+    "fines_fees_penalties", # Fines, fees & penalties
 })
 
 # Prefixes for issue types that are high-risk (e.g., in_person_*)

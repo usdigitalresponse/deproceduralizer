@@ -1,0 +1,81 @@
+fines_fees_penalties:
+  updated_at: '2026-03-09'
+  display_name: Fines, Fees & Penalties
+  db_issue_type: fines_fees_penalties
+  category: Enforcement
+  description: 'Monetary charges including fines, fees, penalties, surcharges, and forfeitures
+    imposed by regulations. High fines without clear statutory mandate or proportionality
+    can create disproportionate burdens on small businesses, low-income individuals,
+    and regulated entities. Excessive penalties may discourage compliance rather than
+    encourage it.'
+  positive_indicators:
+  - Civil penalty or fine with specific dollar amount
+  - Fee schedule for permits, licenses, or applications
+  - Per-violation or per-day penalty structure
+  - Surcharges or forfeitures authorized by the regulation
+  - Non-monetary penalties like suspension, revocation, or disqualification
+  negative_indicators:
+  - Dollar amounts that are budget thresholds or grant amounts, not charges
+  - Fees merely mentioned as accounting categories
+  - Third-party charges not imposed by the regulation
+  - Passing references to fines without the regulation actually imposing them
+  severity_baseline: 5
+  severity_modifiers:
+    increases:
+    - '+1: Fine exceeds $1,000 per violation'
+    - '+1: Per-day penalty structure (can accumulate rapidly)'
+    - '+1: No waiver, reduction, or appeal provision'
+    - '+2: Fine exceeds $10,000 per violation'
+    decreases:
+    - '-1: Clear statutory mandate for the penalty amount'
+    - '-1: Hardship waiver or fee reduction available'
+    - '-2: Fee is nominal ($25 or less)'
+  patterns:
+  - "\\bcivil penalty\\b"
+  - "\\bpenalt(y|ies)\\b"
+  - "\\bfine\\b"
+  - "\\bfines\\b"
+  - "\\bsurcharge\\b"
+  - "\\bforfeiture\\b"
+  - per violation
+  - per occurrence
+  - fee schedule
+  - "\\bfiling fee\\b"
+  - "\\blicense fee\\b"
+  - "\\bapplication fee\\b"
+  - "\\binspection fee\\b"
+  - "\\bpermit fee\\b"
+  - "\\brenewal fee\\b"
+  - "\\blate fee\\b"
+  - subject to a fine
+  - shall be fined
+  - shall pay a penalty
+  statistics:
+    total_matches: null
+    true_positives: null
+    true_positive_rate: null
+    sample_date: '2026-03-09'
+  examples:
+    true_positives:
+    - citation: 6 NYCRR 71.4
+      quote: shall be subject to a civil penalty of not more than $37,500 per violation per day
+      reasoning: High per-day penalty that can accumulate rapidly. Significant financial
+        burden on violators.
+      classification: burdensome
+      severity: 8
+    - citation: 10 NYCRR 405.3
+      quote: a non-refundable application fee of $250 shall accompany each application
+      reasoning: Mandatory fee for license application with no waiver provision.
+      classification: burdensome
+      severity: 5
+    false_positives:
+    - citation: 18 NYCRR 352.1
+      quote: conference fees and accreditation fees shall be reported as administrative costs
+      reasoning: Fees mentioned as accounting categories, not imposed by the regulation.
+      classification: unrelated
+    justified:
+    - citation: 10 NYCRR 86.4
+      quote: inspection fee of $50 per annual inspection as required by Public Health Law 2803
+      reasoning: Nominal fee with clear statutory mandate. Covers cost of inspection.
+      classification: justified
+      severity: 3

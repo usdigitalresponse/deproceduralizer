@@ -118,6 +118,13 @@ def _resolve_guidance_ref(
     if normalized in guidance_lookup:
         return guidance_lookup[normalized]
 
+    # Strip revision suffixes (-R1, -R2, etc.) and try base version
+    revision_match = re.match(r'^(.+)-R\d+$', normalized)
+    if revision_match:
+        base_ref = revision_match.group(1)
+        if base_ref in guidance_lookup:
+            return guidance_lookup[base_ref]
+
     # For short-format refs ("90 ADM-31"), try agency-prefixed variants
     fmt = components.get('format')
     if fmt == 'short':
