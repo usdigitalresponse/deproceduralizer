@@ -476,3 +476,17 @@ export const GUIDANCE_POLICY_CATEGORY_VALUES = [
   'informational', 'reference_material', 'non_policy', 'data_dump', 'unclassified'
 ] as const;
 export type GuidancePolicyCategoryValue = (typeof GUIDANCE_POLICY_CATEGORY_VALUES)[number];
+
+// ============================================
+// Filter Sentinels
+// ============================================
+
+/** Sentinel value for filtering null/missing values in MultiSelect dropdowns */
+export const FILTER_NULL_VALUE = '__none__';
+
+// ============================================
+// Bookmarks Page
+// ============================================
+
+export const BOOKMARK_TAB_VALUES = ['analysis', 'document', 'guidance', 'fine'] as const;
+export type BookmarkTabValue = (typeof BOOKMARK_TAB_VALUES)[number];

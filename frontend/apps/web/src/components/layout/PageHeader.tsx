@@ -7,6 +7,7 @@ interface PageHeaderProps {
   title: string;
   description?: string;
   actions?: ReactNode;
+  breadcrumb?: ReactNode;
   className?: string;
 }
 
@@ -14,6 +15,7 @@ export function PageHeader({
   title,
   description,
   actions,
+  breadcrumb,
   className = '',
 }: PageHeaderProps) {
   return (
@@ -26,6 +28,7 @@ export function PageHeader({
     >
       <Container size="2xl">
         <div className="py-6">
+          {breadcrumb && <div className="mb-3">{breadcrumb}</div>}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h1 className="text-2xl font-semibold text-[var(--color-text)]">

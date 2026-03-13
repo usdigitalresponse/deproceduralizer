@@ -56,6 +56,7 @@ export function FinesClient({
             agencies={agencies}
             whoPaysValues={whoPaysValues}
             perUnitValues={perUnitValues}
+            stats={stats}
           />
         )}
       </div>

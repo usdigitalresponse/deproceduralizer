@@ -4,12 +4,15 @@ import { bookmarks, Bookmark, NewBookmark } from '../schema/bookmarks';
 import { regulatoryDocuments } from '../schema/regulatory-documents';
 import { complianceIssueAnalyses } from '../schema/compliance-issue-analyses';
 import { guidanceDocuments } from '../schema/guidance-documents';
+import { finesFeesPenalties } from '../schema/fines-fees-penalties';
+import { agencies } from '../schema/agencies';
 import { normalizeJurisdiction } from '../schema/constants';
 
 export interface CreateBookmarkInput {
   documentId?: number;
   analysisId?: number;
   guidanceDocumentId?: number;
+  fineId?: number;
   issueType?: string;
   jurisdiction: string;
   notes?: string;
@@ -18,6 +21,7 @@ export interface CreateBookmarkInput {
 
 export interface UpdateBookmarkInput {
   notes?: string;
+  createdBy?: string;
 }
 
 export interface BookmarkWithDetails extends Bookmark {
@@ -39,6 +43,14 @@ export interface BookmarkWithDetails extends Bookmark {
   guidanceTitle: string | null;
   guidanceCanonicalRef: string | null;
   guidanceAgency: string | null;
+  // Fine fields (null for non-fine bookmarks)
+  finePenaltyType: string | null;
+  fineAmount: string | null;
+  fineWhoPays: string | null;
+  fineViolationDescription: string | null;
+  fineAgencyCanonicalName: string | null;
+  fineAgencyLevel: string | null;
+  finePerUnit: string | null;
 }
 
 export class BookmarksRepository extends BaseRepository {
@@ -52,6 +64,7 @@ export class BookmarksRepository extends BaseRepository {
         documentId: input.documentId ?? null,
         analysisId: input.analysisId ?? null,
         guidanceDocumentId: input.guidanceDocumentId ?? null,
+        fineId: input.fineId ?? null,
         issueType: input.issueType ?? null,
         jurisdiction: normalizeJurisdiction(input.jurisdiction),
         notes: input.notes ?? null,
@@ -166,6 +179,80 @@ export class BookmarksRepository extends BaseRepository {
   }
 
   /**
+   * Get bookmark by fine ID
+   */
+  async getFineBookmark(fineId: number): Promise<Bookmark | undefined> {
+    const [bookmark] = await this.db
+      .select()
+      .from(bookmarks)
+      .where(eq(bookmarks.fineId, fineId))
+      .limit(1);
+
+    return bookmark;
+  }
+
+  /**
+   * Check if a fine is bookmarked
+   */
+  async isFineBookmarked(fineId: number): Promise<boolean> {
+    const bookmark = await this.getFineBookmark(fineId);
+    return !!bookmark;
+  }
+
+  /**
+   * Delete fine bookmark
+   */
+  async deleteFineBookmark(fineId: number): Promise<boolean> {
+    const result = await this.db
+      .delete(bookmarks)
+      .where(eq(bookmarks.fineId, fineId))
+      .returning({ id: bookmarks.id });
+
+    return result.length > 0;
+  }
+
+  /**
+   * Get all bookmarked fine IDs for a state
+   */
+  async getBookmarkedFineIds(jurisdiction: string): Promise<number[]> {
+    const results = await this.db
+      .select({ fineId: bookmarks.fineId })
+      .from(bookmarks)
+      .where(
+        and(
+          eq(bookmarks.jurisdiction, normalizeJurisdiction(jurisdiction)),
+          isNotNull(bookmarks.fineId)
+        )
+      );
+
+    return results
+      .map(r => r.fineId)
+      .filter((id): id is number => id !== null);
+  }
+
+  /**
+   * Get all fine bookmarks with notes for a state (for inline notes display)
+   */
+  async getFineBookmarksWithNotes(jurisdiction: string): Promise<{ fineId: number; id: number; notes: string | null; createdBy: string | null }[]> {
+    const results = await this.db
+      .select({
+        fineId: bookmarks.fineId,
+        id: bookmarks.id,
+        notes: bookmarks.notes,
+        createdBy: bookmarks.createdBy,
+      })
+      .from(bookmarks)
+      .where(
+        and(
+          eq(bookmarks.jurisdiction, normalizeJurisdiction(jurisdiction)),
+          isNotNull(bookmarks.fineId)
+        )
+      );
+
+    return results.filter((r): r is { fineId: number; id: number; notes: string | null; createdBy: string | null } => r.fineId !== null);
+  }
+
+  /**
    * Get all bookmarked analysis IDs for a state
    */
   async getBookmarkedAnalysisIds(jurisdiction: string): Promise<number[]> {
@@ -189,7 +276,7 @@ export class BookmarksRepository extends BaseRepository {
    */
   async getAllWithDetails(
     jurisdiction: string,
-    type?: 'analysis' | 'document' | 'guidance'
+    type?: 'analysis' | 'document' | 'guidance' | 'fine'
   ): Promise<BookmarkWithDetails[]> {
     let query = this.db
       .select({
@@ -197,6 +284,7 @@ export class BookmarksRepository extends BaseRepository {
         documentId: bookmarks.documentId,
         analysisId: bookmarks.analysisId,
         guidanceDocumentId: bookmarks.guidanceDocumentId,
+        fineId: bookmarks.fineId,
         issueType: bookmarks.issueType,
         jurisdiction: bookmarks.jurisdiction,
         notes: bookmarks.notes,
@@ -221,11 +309,21 @@ export class BookmarksRepository extends BaseRepository {
         guidanceTitle: guidanceDocuments.title,
         guidanceCanonicalRef: guidanceDocuments.canonicalRef,
         guidanceAgency: guidanceDocuments.agency,
+        // Fine fields
+        finePenaltyType: finesFeesPenalties.penaltyType,
+        fineAmount: finesFeesPenalties.amount,
+        fineWhoPays: finesFeesPenalties.whoPays,
+        fineViolationDescription: finesFeesPenalties.violationDescription,
+        fineAgencyCanonicalName: agencies.canonicalName,
+        fineAgencyLevel: agencies.level,
+        finePerUnit: finesFeesPenalties.perUnit,
       })
       .from(bookmarks)
       .leftJoin(regulatoryDocuments, eq(bookmarks.documentId, regulatoryDocuments.id))
       .leftJoin(complianceIssueAnalyses, eq(bookmarks.analysisId, complianceIssueAnalyses.id))
       .leftJoin(guidanceDocuments, eq(bookmarks.guidanceDocumentId, guidanceDocuments.id))
+      .leftJoin(finesFeesPenalties, eq(bookmarks.fineId, finesFeesPenalties.id))
+      .leftJoin(agencies, eq(finesFeesPenalties.agencyId, agencies.id))
       .where(eq(bookmarks.jurisdiction, normalizeJurisdiction(jurisdiction)))
       .orderBy(desc(bookmarks.createdAt))
       .$dynamic();
@@ -234,9 +332,11 @@ export class BookmarksRepository extends BaseRepository {
     if (type === 'analysis') {
       query = query.where(isNotNull(bookmarks.analysisId));
     } else if (type === 'document') {
-      query = query.where(and(isNull(bookmarks.analysisId), isNull(bookmarks.guidanceDocumentId)));
+      query = query.where(and(isNull(bookmarks.analysisId), isNull(bookmarks.guidanceDocumentId), isNull(bookmarks.fineId)));
     } else if (type === 'guidance') {
       query = query.where(and(isNotNull(bookmarks.guidanceDocumentId), isNull(bookmarks.analysisId)));
+    } else if (type === 'fine') {
+      query = query.where(isNotNull(bookmarks.fineId));
     }
 
     return query;
@@ -250,6 +350,7 @@ export class BookmarksRepository extends BaseRepository {
       .update(bookmarks)
       .set({
         notes: data.notes,
+        ...(data.createdBy !== undefined && { createdBy: data.createdBy }),
         updatedAt: new Date(),
       })
       .where(eq(bookmarks.id, id))
@@ -302,13 +403,14 @@ export class BookmarksRepository extends BaseRepository {
   /**
    * Get bookmark count for a state
    */
-  async getCount(jurisdiction: string, type?: 'analysis' | 'document' | 'guidance'): Promise<number> {
+  async getCount(jurisdiction: string, type?: 'analysis' | 'document' | 'guidance' | 'fine'): Promise<number> {
     const base = eq(bookmarks.jurisdiction, normalizeJurisdiction(jurisdiction));
 
     const typeConditions = {
       analysis: and(base, isNotNull(bookmarks.analysisId)),
-      document: and(base, isNull(bookmarks.analysisId), isNull(bookmarks.guidanceDocumentId)),
+      document: and(base, isNull(bookmarks.analysisId), isNull(bookmarks.guidanceDocumentId), isNull(bookmarks.fineId)),
       guidance: and(base, isNotNull(bookmarks.guidanceDocumentId), isNull(bookmarks.analysisId)),
+      fine: and(base, isNotNull(bookmarks.fineId)),
     };
 
     const [result] = await this.db

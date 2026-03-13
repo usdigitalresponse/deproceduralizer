@@ -97,6 +97,8 @@ import {
   JENAI_REVIEW_SORT_BY_VALUES,
   JENAI_DEVELOPER_SORT_BY_VALUES,
   JENAI_VERBATIM_VALUES,
+  // Bookmarks
+  BOOKMARK_TAB_VALUES,
 } from '@/lib/constants/values';
 
 // Re-export types for convenience
@@ -159,6 +161,7 @@ export type {
   CrossRefSourceTypeValue,
   CrossRefSortByValue,
   CrossRefGroupSortByValue,
+  BookmarkTabValue,
 } from '@/lib/constants/values';
 
 // Re-export value arrays for backward compatibility
@@ -776,6 +779,19 @@ export const crossRefTableParsers = {
   crAgency: crossRefAgencyParser,
   crDocType: crossRefDocTypeParser,
   crNycrrTitle: crossRefNycrrTitleParser,
+};
+
+// ============================================
+// Bookmarks page parsers
+// ============================================
+
+export const bookmarkTabParser = parseAsStringEnum([...BOOKMARK_TAB_VALUES]).withDefault('analysis');
+
+/**
+ * Parser configuration for Bookmarks page
+ */
+export const bookmarksParsers = {
+  tab: bookmarkTabParser,
 };
 
 // Re-export server-safe parsing helpers so client components can import from parsers.ts

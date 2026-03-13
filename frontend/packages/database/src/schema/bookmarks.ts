@@ -9,28 +9,34 @@ import {
 import { regulatoryDocuments } from './regulatory-documents';
 import { complianceIssueAnalyses } from './compliance-issue-analyses';
 import { guidanceDocuments } from './guidance-documents';
+import { finesFeesPenalties } from './fines-fees-penalties';
 
 /**
  * Bookmarks table
  *
- * User bookmarks for pipeline analyses, regulatory documents, and guidance documents.
+ * User bookmarks for pipeline analyses, regulatory documents, guidance documents,
+ * and individual fines/fees/penalties.
  * Supports bookmarking:
  * - A specific analysis (document + issue type)
  * - A regulatory document without a specific analysis
  * - A guidance document
+ * - A fine/fee/penalty
  *
- * CHECK constraint: exactly one of document_id or guidance_document_id must be set.
+ * CHECK constraint: exactly one source type must be set
+ * (fine_id alone, OR document_id/guidance_document_id).
  */
 export const bookmarks = pgTable('bookmarks', {
   id: bigserial('id', { mode: 'number' }).primaryKey(),
 
-  // Target: regulatory document (with optional analysis) OR guidance document
+  // Target: regulatory document (with optional analysis) OR guidance document OR fine
   documentId: bigint('document_id', { mode: 'number' })
     .references(() => regulatoryDocuments.id, { onDelete: 'cascade' }),
   analysisId: bigint('analysis_id', { mode: 'number' })
     .references(() => complianceIssueAnalyses.id, { onDelete: 'cascade' }),
   guidanceDocumentId: bigint('guidance_document_id', { mode: 'number' })
     .references(() => guidanceDocuments.id, { onDelete: 'cascade' }),
+  fineId: bigint('fine_id', { mode: 'number' })
+    .references(() => finesFeesPenalties.id, { onDelete: 'cascade' }),
 
   // Denormalized for easier querying/filtering
   issueType: varchar('issue_type', { length: 50 }),
@@ -48,4 +54,4 @@ export type Bookmark = typeof bookmarks.$inferSelect;
 export type NewBookmark = typeof bookmarks.$inferInsert;
 
 // Bookmark type discriminator
-export type BookmarkType = 'analysis' | 'document' | 'guidance';
+export type BookmarkType = 'analysis' | 'document' | 'guidance' | 'fine';

@@ -1,13 +1,23 @@
 'use client';
 
-import { useState, useCallback, type ComponentType } from 'react';
+import { useState, useCallback, useMemo, type ComponentType } from 'react';
 import Link from 'next/link';
-import { Trash2, ExternalLink, FileText, ListChecks, BookOpen, Sparkles, AlertTriangle, Zap } from 'lucide-react';
+import { useQueryStates } from 'nuqs';
+import { Trash2, ExternalLink, FileText, ListChecks, BookOpen, DollarSign, Sparkles, AlertTriangle, Zap } from 'lucide-react';
 import type { BookmarkWithDetails, JurisdictionCode } from '@deproceduralizer/database';
-import { Badge } from '@/components/ui';
-import { removeBookmark, updateBookmarkNotes } from '@/lib/actions/bookmarks';
+import { Badge, MultiSelect } from '@/components/ui';
+import { FilterBar, FilterField } from '@/components/ui/FilterBar';
+import { removeBookmark, updateBookmarkNotes, getFineBookmark } from '@/lib/actions/bookmarks';
+import { getFineById } from '@/lib/actions/fines';
+import type { FineWithContext } from '@/lib/actions/fines';
 import { ISSUE_TYPE_LABELS } from '@/types/regulation';
+import { PENALTY_TYPE_LABELS } from '@/lib/constants/fines';
+import { bookmarksParsers } from '@/lib/url/parsers';
+import { FILTER_NULL_VALUE } from '@/lib/constants/values';
+import type { BookmarkTabValue } from '@/lib/constants/values';
 import { BookmarkNotesEditor } from './BookmarkNotesEditor';
+import { FinesDetailDrawer } from '@/components/fines/FinesDetailDrawer';
+import { useBookmarkName } from '@/hooks/useBookmarkName';
 
 function TabButton({
   icon: Icon,
@@ -44,21 +54,197 @@ function TabButton({
 
 interface BookmarksContentProps {
   bookmarks: BookmarkWithDetails[];
-  counts: { analysis: number; document: number; guidance: number; total: number };
+  counts: { analysis: number; document: number; guidance: number; fine: number; total: number };
   jurisdiction: JurisdictionCode;
 }
 
-type BookmarkTab = 'analysis' | 'document' | 'guidance';
+type FineSortField = 'type' | 'amount' | 'agency' | 'whoPays' | 'description' | 'by' | 'bookmarked';
+type SortOrder = 'asc' | 'desc';
+
+const FINE_SORT_OPTIONS = [
+  { value: 'bookmarked', label: 'Date Bookmarked' },
+  { value: 'type', label: 'Type' },
+  { value: 'amount', label: 'Amount' },
+  { value: 'agency', label: 'Agency' },
+  { value: 'whoPays', label: 'Who Pays' },
+  { value: 'by', label: 'Bookmarked By' },
+];
+
+function parseAmount(amount: string | null): number {
+  if (!amount) return 0;
+  const cleaned = amount.replace(/[^0-9.]/g, '');
+  return parseFloat(cleaned) || 0;
+}
+
+function getDateThresholds() {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return {
+    today,
+    weekAgo: new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000),
+    monthAgo: new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000),
+  };
+}
+
+function classifyDate(d: Date | null, thresholds: ReturnType<typeof getDateThresholds>): string {
+  if (!d) return 'older';
+  if (d >= thresholds.today) return 'today';
+  if (d >= thresholds.weekAgo) return 'week';
+  if (d >= thresholds.monthAgo) return 'month';
+  return 'older';
+}
 
 export function BookmarksContent({ bookmarks, counts, jurisdiction }: BookmarksContentProps) {
-  const [activeTab, setActiveTab] = useState<BookmarkTab>('analysis');
+  const [params, setParams] = useQueryStates(bookmarksParsers, { shallow: true });
+  const activeTab = params.tab as BookmarkTabValue;
+  const setActiveTab = useCallback((tab: BookmarkTabValue) => setParams({ tab }), [setParams]);
   const [localBookmarks, setLocalBookmarks] = useState(bookmarks);
+  const [fineSortBy, setFineSortBy] = useState<FineSortField>('bookmarked');
+  const [fineSortOrder, setFineSortOrder] = useState<SortOrder>('desc');
+  const [fineFilterType, setFineFilterType] = useState<string[]>([]);
+  const [fineFilterAgency, setFineFilterAgency] = useState<string[]>([]);
+  const [fineFilterWhoPays, setFineFilterWhoPays] = useState<string[]>([]);
+  const [fineFilterBy, setFineFilterBy] = useState<string[]>([]);
+  const [fineFilterDate, setFineFilterDate] = useState<string[]>([]);
+  const [drawerFine, setDrawerFine] = useState<FineWithContext | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [fineCache, setFineCache] = useState<Map<number, FineWithContext>>(new Map());
+  const { bookmarkName, saveBookmarkName } = useBookmarkName();
 
-  const filteredBookmarks = localBookmarks.filter(b => {
+  const filteredBookmarks = useMemo(() => localBookmarks.filter(b => {
     if (activeTab === 'analysis') return b.analysisId !== null;
     if (activeTab === 'guidance') return b.guidanceDocumentId !== null && b.analysisId === null;
-    return b.analysisId === null && b.guidanceDocumentId === null; // document
-  });
+    if (activeTab === 'fine') return b.fineId !== null;
+    return b.analysisId === null && b.guidanceDocumentId === null && b.fineId === null; // document
+  }), [localBookmarks, activeTab]);
+
+  // Derive filter options from tab-filtered bookmarks (before dropdown filtering)
+  const typeFilterOptions = useMemo(() => {
+    const unique = [...new Set(filteredBookmarks.map(b => b.finePenaltyType).filter(Boolean))] as string[];
+    return unique.sort().map(t => ({ value: t, label: PENALTY_TYPE_LABELS[t] || t }));
+  }, [filteredBookmarks]);
+
+  const agencyFilterOptions = useMemo(() => {
+    const unique = [...new Set(filteredBookmarks.map(b => b.fineAgencyCanonicalName).filter(Boolean))] as string[];
+    return unique.sort().map(a => ({ value: a, label: a }));
+  }, [filteredBookmarks]);
+
+  const whoPaysFilterOptions = useMemo(() => {
+    const unique = [...new Set(filteredBookmarks.map(b => b.fineWhoPays).filter(Boolean))] as string[];
+    return unique.sort().map(w => ({ value: w, label: w }));
+  }, [filteredBookmarks]);
+
+  const byFilterOptions = useMemo(() => {
+    const hasNull = filteredBookmarks.some(b => !b.createdBy);
+    const unique = [...new Set(filteredBookmarks.map(b => b.createdBy).filter(Boolean))] as string[];
+    const options = unique.sort().map(name => ({ value: name, label: name }));
+    if (hasNull) {
+      options.push({ value: FILTER_NULL_VALUE, label: 'Unattributed' });
+    }
+    return options;
+  }, [filteredBookmarks]);
+
+  const dateFilterOptions = useMemo(() => {
+    const thresholds = getDateThresholds();
+    const counts: Record<string, number> = { today: 0, week: 0, month: 0, older: 0 };
+
+    for (const b of filteredBookmarks) {
+      const d = b.createdAt ? new Date(b.createdAt) : null;
+      counts[classifyDate(d, thresholds)]++;
+    }
+
+    const labels: Record<string, string> = { today: 'Today', week: 'This Week', month: 'This Month', older: 'Older' };
+    return Object.entries(counts)
+      .filter(([, count]) => count > 0)
+      .map(([value, count]) => ({ value, label: labels[value], count }));
+  }, [filteredBookmarks]);
+
+  const hasFineActiveFilters = fineFilterType.length > 0 || fineFilterAgency.length > 0 || fineFilterWhoPays.length > 0 || fineFilterBy.length > 0 || fineFilterDate.length > 0;
+
+  const clearFineFilters = useCallback(() => {
+    setFineFilterType([]);
+    setFineFilterAgency([]);
+    setFineFilterWhoPays([]);
+    setFineFilterBy([]);
+    setFineFilterDate([]);
+  }, []);
+
+  // Apply dropdown filters, then sort
+  const sortedFineBookmarks = useMemo(() => {
+    if (activeTab !== 'fine') return filteredBookmarks;
+
+    let result = filteredBookmarks;
+    if (fineFilterType.length > 0) {
+      result = result.filter(b => b.finePenaltyType && fineFilterType.includes(b.finePenaltyType));
+    }
+    if (fineFilterAgency.length > 0) {
+      result = result.filter(b => b.fineAgencyCanonicalName && fineFilterAgency.includes(b.fineAgencyCanonicalName));
+    }
+    if (fineFilterWhoPays.length > 0) {
+      result = result.filter(b => b.fineWhoPays && fineFilterWhoPays.includes(b.fineWhoPays));
+    }
+    if (fineFilterBy.length > 0) {
+      result = result.filter(b => {
+        if (!b.createdBy) return fineFilterBy.includes(FILTER_NULL_VALUE);
+        return fineFilterBy.includes(b.createdBy);
+      });
+    }
+    if (fineFilterDate.length > 0) {
+      const thresholds = getDateThresholds();
+      result = result.filter(b => {
+        const d = b.createdAt ? new Date(b.createdAt) : null;
+        return fineFilterDate.includes(classifyDate(d, thresholds));
+      });
+    }
+
+    const sorted = [...result];
+    sorted.sort((a, b) => {
+      let cmp = 0;
+      switch (fineSortBy) {
+        case 'type': {
+          const aLabel = a.finePenaltyType ? (PENALTY_TYPE_LABELS[a.finePenaltyType] || a.finePenaltyType) : '';
+          const bLabel = b.finePenaltyType ? (PENALTY_TYPE_LABELS[b.finePenaltyType] || b.finePenaltyType) : '';
+          cmp = aLabel.localeCompare(bLabel);
+          break;
+        }
+        case 'amount':
+          cmp = parseAmount(a.fineAmount) - parseAmount(b.fineAmount);
+          break;
+        case 'agency': {
+          const aAgency = a.fineAgencyCanonicalName || '';
+          const bAgency = b.fineAgencyCanonicalName || '';
+          cmp = aAgency.localeCompare(bAgency);
+          break;
+        }
+        case 'whoPays': {
+          const aWho = a.fineWhoPays || '';
+          const bWho = b.fineWhoPays || '';
+          cmp = aWho.localeCompare(bWho);
+          break;
+        }
+        case 'description': {
+          const aDesc = a.fineViolationDescription || '';
+          const bDesc = b.fineViolationDescription || '';
+          cmp = aDesc.localeCompare(bDesc);
+          break;
+        }
+        case 'by': {
+          const aBy = a.createdBy || '';
+          const bBy = b.createdBy || '';
+          cmp = aBy.localeCompare(bBy);
+          break;
+        }
+        case 'bookmarked': {
+          const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          cmp = aTime - bTime;
+          break;
+        }
+      }
+      return fineSortOrder === 'asc' ? cmp : -cmp;
+    });
+    return sorted;
+  }, [filteredBookmarks, fineSortBy, fineSortOrder, activeTab, fineFilterType, fineFilterAgency, fineFilterWhoPays, fineFilterBy, fineFilterDate]);
 
   // Count easy fixes and federal mandates for summary
   const easyFixCount = filteredBookmarks.filter(b => b.easyCleanupCandidate).length;
@@ -72,6 +258,46 @@ export function BookmarksContent({ bookmarks, counts, jurisdiction }: BookmarksC
       console.error('Failed to remove bookmark:', result.error);
     }
   }, [bookmarks]);
+
+  const handleOpenFineDrawer = useCallback(async (fineId: number) => {
+    const cached = fineCache.get(fineId);
+    if (cached) {
+      setDrawerFine(cached);
+      setDrawerOpen(true);
+      return;
+    }
+    const result = await getFineById(fineId);
+    if (result.success && result.data) {
+      setFineCache(prev => new Map(prev).set(fineId, result.data!));
+      setDrawerFine(result.data);
+      setDrawerOpen(true);
+    }
+  }, [fineCache]);
+
+  const handleDrawerOpenChange = useCallback(async (open: boolean) => {
+    setDrawerOpen(open);
+    if (!open && drawerFine) {
+      // Sync bookmark data back to the table when drawer closes
+      const result = await getFineBookmark(drawerFine.id);
+      if (result.success && result.data) {
+        setLocalBookmarks(prev =>
+          prev.map(b => b.fineId === drawerFine.id
+            ? { ...b, notes: result.data!.notes, createdBy: result.data!.createdBy }
+            : b
+          )
+        );
+      } else {
+        // Bookmark was removed in the drawer
+        setLocalBookmarks(prev => prev.filter(b => b.fineId !== drawerFine.id));
+      }
+    }
+  }, [drawerFine]);
+
+  const handleDrawerBookmarkChange = useCallback((fineId: number, bookmarked: boolean) => {
+    if (!bookmarked) {
+      setLocalBookmarks(prev => prev.filter(b => b.fineId !== fineId));
+    }
+  }, []);
 
   const handleSaveNotes = useCallback(async (bookmarkId: number, notes: string) => {
     const result = await updateBookmarkNotes(bookmarkId, notes);
@@ -89,6 +315,7 @@ export function BookmarksContent({ bookmarks, counts, jurisdiction }: BookmarksC
         <TabButton icon={ListChecks} label="Analyses" count={counts.analysis} isActive={activeTab === 'analysis'} onClick={() => setActiveTab('analysis')} />
         <TabButton icon={FileText} label="Documents" count={counts.document} isActive={activeTab === 'document'} onClick={() => setActiveTab('document')} />
         <TabButton icon={BookOpen} label="Guidance" count={counts.guidance} isActive={activeTab === 'guidance'} onClick={() => setActiveTab('guidance')} />
+        <TabButton icon={DollarSign} label="Fines" count={counts.fine} isActive={activeTab === 'fine'} onClick={() => setActiveTab('fine')} />
       </div>
 
       {/* Summary Stats (Analysis tab only) */}
@@ -113,14 +340,16 @@ export function BookmarksContent({ bookmarks, counts, jurisdiction }: BookmarksC
       {filteredBookmarks.length === 0 ? (
         <div className="bg-white border border-[var(--color-neutral-200)] rounded-[var(--radius-md)] p-8 text-center">
           <p className="text-[var(--color-text-muted)]">
-            No {activeTab === 'analysis' ? 'analyses' : activeTab === 'guidance' ? 'guidance documents' : 'documents'} bookmarked yet.
+            No {activeTab === 'analysis' ? 'analyses' : activeTab === 'guidance' ? 'guidance documents' : activeTab === 'fine' ? 'fines' : 'documents'} bookmarked yet.
           </p>
           <p className="text-sm text-[var(--color-text-muted)] mt-2">
             {activeTab === 'analysis'
               ? 'Click the star icon on any pipeline analysis to bookmark it.'
               : activeTab === 'guidance'
                 ? 'Click the star icon on any guidance document to bookmark it.'
-                : 'Click the star icon on any document to bookmark it.'}
+                : activeTab === 'fine'
+                  ? 'Click the star icon on any fine or fee to bookmark it.'
+                  : 'Click the star icon on any document to bookmark it.'}
           </p>
         </div>
       ) : activeTab === 'analysis' ? (
@@ -139,12 +368,14 @@ export function BookmarksContent({ bookmarks, counts, jurisdiction }: BookmarksC
       ) : activeTab === 'guidance' ? (
         // Table layout for guidance documents
         <div className="bg-white border border-[var(--color-neutral-200)] rounded-[var(--radius-md)] overflow-hidden">
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-[var(--color-neutral-50)] border-b border-[var(--color-neutral-200)]">
                 <th className="text-left px-4 py-3 font-medium text-[var(--color-text-muted)]">Guidance Document</th>
                 <th className="text-left px-4 py-3 font-medium text-[var(--color-text-muted)]">Agency</th>
                 <th className="text-left px-4 py-3 font-medium text-[var(--color-text-muted)]">Notes</th>
+                <th className="text-left px-4 py-3 font-medium text-[var(--color-text-muted)]">By</th>
                 <th className="text-left px-4 py-3 font-medium text-[var(--color-text-muted)]">Bookmarked</th>
                 <th className="text-center px-3 py-3 font-medium text-[var(--color-text-muted)]">Actions</th>
               </tr>
@@ -161,15 +392,126 @@ export function BookmarksContent({ bookmarks, counts, jurisdiction }: BookmarksC
               ))}
             </tbody>
           </table>
+          </div>
+        </div>
+      ) : activeTab === 'fine' ? (
+        // Table layout for fines with filters
+        <div className="space-y-4">
+          <FilterBar
+            showSortControls
+            sortBy={fineSortBy}
+            sortOrder={fineSortOrder}
+            sortOptions={FINE_SORT_OPTIONS}
+            onSortByChange={(v) => setFineSortBy(v as FineSortField)}
+            onSortOrderToggle={() => setFineSortOrder(o => o === 'asc' ? 'desc' : 'asc')}
+            hasActiveFilters={hasFineActiveFilters}
+            onClearFilters={clearFineFilters}
+          >
+            <FilterField label="Type">
+              <MultiSelect
+                label="Type"
+                value={fineFilterType}
+                onChange={setFineFilterType}
+                options={typeFilterOptions}
+                placeholder="All Types"
+              />
+            </FilterField>
+            <FilterField label="Agency">
+              <MultiSelect
+                label="Agency"
+                value={fineFilterAgency}
+                onChange={setFineFilterAgency}
+                options={agencyFilterOptions}
+                placeholder="All Agencies"
+              />
+            </FilterField>
+            <FilterField label="Who Pays">
+              <MultiSelect
+                label="Who Pays"
+                value={fineFilterWhoPays}
+                onChange={setFineFilterWhoPays}
+                options={whoPaysFilterOptions}
+                placeholder="All"
+              />
+            </FilterField>
+            <FilterField label="By">
+              <MultiSelect
+                label="By"
+                value={fineFilterBy}
+                onChange={setFineFilterBy}
+                options={byFilterOptions}
+                placeholder="All"
+              />
+            </FilterField>
+            <FilterField label="Date">
+              <MultiSelect
+                label="Date"
+                value={fineFilterDate}
+                onChange={setFineFilterDate}
+                options={dateFilterOptions}
+                placeholder="All Dates"
+              />
+            </FilterField>
+          </FilterBar>
+          <div className="bg-white border border-[var(--color-neutral-200)] rounded-[var(--radius-md)] overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-[var(--color-neutral-50)] border-b border-[var(--color-neutral-200)]">
+                    <th className="text-left px-4 py-3 font-medium text-[var(--color-text-muted)]">Type</th>
+                    <th className="text-left px-4 py-3 font-medium text-[var(--color-text-muted)]">Amount</th>
+                    <th className="text-left px-4 py-3 font-medium text-[var(--color-text-muted)]">Agency</th>
+                    <th className="text-left px-4 py-3 font-medium text-[var(--color-text-muted)]">Description</th>
+                    <th className="text-left px-4 py-3 font-medium text-[var(--color-text-muted)]">By</th>
+                    <th className="text-left px-4 py-3 font-medium text-[var(--color-text-muted)]">Bookmarked</th>
+                    <th className="text-center px-3 py-3 font-medium text-[var(--color-text-muted)]">
+                      <span className="sr-only">Actions</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedFineBookmarks.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="px-4 py-8 text-center text-[var(--color-text-muted)]">
+                        No fines match the current filters.
+                      </td>
+                    </tr>
+                  ) : sortedFineBookmarks.map((bookmark) => (
+                    <FineBookmarkRow
+                      key={bookmark.id}
+                      bookmark={bookmark}
+                      onRowClick={() => bookmark.fineId && handleOpenFineDrawer(bookmark.fineId)}
+                      onSaveNotes={async (notes, createdBy) => {
+                        if (createdBy) saveBookmarkName(createdBy);
+                        const result = await updateBookmarkNotes(bookmark.id, notes, createdBy);
+                        if (result.success) {
+                          setLocalBookmarks(prev =>
+                            prev.map(b => b.id === bookmark.id
+                              ? { ...b, notes, createdBy: createdBy ?? b.createdBy }
+                              : b
+                            )
+                          );
+                        }
+                      }}
+                      onRemove={() => handleRemove(bookmark.id)}
+                      bookmarkName={bookmarkName}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       ) : (
         // Simple table for documents
         <div className="bg-white border border-[var(--color-neutral-200)] rounded-[var(--radius-md)] overflow-hidden">
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-[var(--color-neutral-50)] border-b border-[var(--color-neutral-200)]">
                 <th className="text-left px-4 py-3 font-medium text-[var(--color-text-muted)]">Document</th>
                 <th className="text-left px-4 py-3 font-medium text-[var(--color-text-muted)]">Notes</th>
+                <th className="text-left px-4 py-3 font-medium text-[var(--color-text-muted)]">By</th>
                 <th className="text-left px-4 py-3 font-medium text-[var(--color-text-muted)]">Bookmarked</th>
                 <th className="text-center px-3 py-3 font-medium text-[var(--color-text-muted)]">Actions</th>
               </tr>
@@ -186,8 +528,18 @@ export function BookmarksContent({ bookmarks, counts, jurisdiction }: BookmarksC
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
+
+      {/* Fines detail drawer */}
+      <FinesDetailDrawer
+        fine={drawerFine}
+        open={drawerOpen}
+        onOpenChange={handleDrawerOpenChange}
+        state={jurisdiction.toLowerCase()}
+        onBookmarkChange={handleDrawerBookmarkChange}
+      />
     </div>
   );
 }
@@ -385,11 +737,18 @@ function AnalysisBookmarkCard({
         <div className="pt-3 border-t border-[var(--color-neutral-100)]">
           <div className="flex items-center justify-between gap-2">
             <BookmarkNotesEditor notes={bookmark.notes} onSave={onSaveNotes} />
-            <span className="text-xs text-[var(--color-text-muted)] shrink-0">
-              {bookmark.createdAt
-                ? new Date(bookmark.createdAt).toLocaleDateString()
-                : ''}
-            </span>
+            <div className="flex items-center gap-2 shrink-0">
+              {bookmark.createdBy && (
+                <span className="text-xs text-[var(--color-text-muted)]">
+                  {bookmark.createdBy}
+                </span>
+              )}
+              <span className="text-xs text-[var(--color-text-muted)]">
+                {bookmark.createdAt
+                  ? new Date(bookmark.createdAt).toLocaleDateString()
+                  : ''}
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -431,6 +790,11 @@ function DocumentBookmarkRow({
       {/* Notes */}
       <td className="px-4 py-3">
         <BookmarkNotesEditor notes={bookmark.notes} onSave={onSaveNotes} compact />
+      </td>
+
+      {/* By */}
+      <td className="px-4 py-3 text-xs text-[var(--color-text-muted)]">
+        {bookmark.createdBy || '-'}
       </td>
 
       {/* Date */}
@@ -505,6 +869,11 @@ function GuidanceBookmarkRow({
         <BookmarkNotesEditor notes={bookmark.notes} onSave={onSaveNotes} compact />
       </td>
 
+      {/* By */}
+      <td className="px-4 py-3 text-xs text-[var(--color-text-muted)]">
+        {bookmark.createdBy || '-'}
+      </td>
+
       {/* Date */}
       <td className="px-4 py-3 text-xs text-[var(--color-text-muted)]">
         {bookmark.createdAt
@@ -534,6 +903,94 @@ function GuidanceBookmarkRow({
         </div>
       </td>
     </tr>
+  );
+}
+
+// Fine bookmark row
+interface FineBookmarkRowProps {
+  bookmark: BookmarkWithDetails;
+  onRowClick: () => void;
+  onSaveNotes: (notes: string, createdBy?: string) => Promise<void>;
+  onRemove: () => void;
+  bookmarkName: string;
+}
+
+function FineBookmarkRow({
+  bookmark,
+  onRowClick,
+  onSaveNotes,
+  onRemove,
+  bookmarkName,
+}: FineBookmarkRowProps) {
+  if (!bookmark.fineId) return null;
+
+  return (
+    <>
+      <tr
+        onClick={onRowClick}
+        className="cursor-pointer hover:bg-[var(--color-neutral-50)] transition-colors"
+      >
+        {/* Type */}
+        <td className="px-4 py-3">
+          <span className="text-xs font-medium">
+            {bookmark.finePenaltyType
+              ? (PENALTY_TYPE_LABELS[bookmark.finePenaltyType] || bookmark.finePenaltyType)
+              : '-'}
+          </span>
+        </td>
+
+        {/* Amount */}
+        <td className="px-4 py-3 text-sm font-medium text-[var(--color-text)]">
+          {bookmark.fineAmount || '-'}
+        </td>
+
+        {/* Agency */}
+        <td className="px-4 py-3 text-xs text-[var(--color-text-muted)] max-w-[150px] truncate">
+          {bookmark.fineAgencyCanonicalName || '-'}
+        </td>
+
+        {/* Description */}
+        <td className="px-4 py-3 max-w-[200px]">
+          <div className="truncate text-xs text-[var(--color-text-secondary)]" title={bookmark.fineViolationDescription || ''}>
+            {bookmark.fineViolationDescription || '-'}
+          </div>
+        </td>
+
+        {/* By */}
+        <td className="px-4 py-3 text-xs text-[var(--color-text-muted)]">
+          {bookmark.createdBy || '-'}
+        </td>
+
+        {/* Date */}
+        <td className="px-4 py-3 text-xs text-[var(--color-text-muted)]">
+          {bookmark.createdAt
+            ? new Date(bookmark.createdAt).toLocaleDateString()
+            : '-'}
+        </td>
+
+        {/* Actions */}
+        <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
+          <button
+            onClick={onRemove}
+            className="p-1 text-[var(--color-text-muted)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-bg)] rounded"
+            aria-label="Remove bookmark"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </td>
+      </tr>
+      <tr className="border-b border-[var(--color-neutral-100)]">
+        <td colSpan={7} className="px-4 pb-3 pt-0" onClick={(e) => e.stopPropagation()}>
+          <BookmarkNotesEditor
+            notes={bookmark.notes}
+            onSave={onSaveNotes}
+            createdBy={bookmark.createdBy}
+            showName
+            defaultName={bookmarkName}
+          />
+        </td>
+      </tr>
+    </>
   );
 }
 

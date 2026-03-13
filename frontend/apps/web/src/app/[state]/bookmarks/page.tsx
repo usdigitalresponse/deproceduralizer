@@ -26,7 +26,7 @@ export default async function BookmarksPage({ params }: BookmarksPageProps) {
   ]);
 
   const bookmarks = bookmarksResult.success ? bookmarksResult.data : [];
-  const counts = countsResult.success ? countsResult.data : { analysis: 0, document: 0, guidance: 0, total: 0 };
+  const counts = countsResult.success ? countsResult.data : { analysis: 0, document: 0, guidance: 0, fine: 0, total: 0 };
 
   return (
     <div className="bg-[var(--color-background)] min-h-screen">

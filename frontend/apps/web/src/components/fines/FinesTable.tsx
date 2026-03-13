@@ -3,16 +3,32 @@
 import Link from 'next/link';
 import { DollarSign } from 'lucide-react';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { PENALTY_TYPE_LABELS, PENALTY_TYPE_COLORS, AGENCY_LEVEL_LABELS, AGENCY_LEVEL_COLORS } from '@/lib/constants/fines';
+import { BookmarkButton } from '@/components/ui';
+import { BookmarkNotesEditor } from '@/components/bookmarks/BookmarkNotesEditor';
+import type { FineBookmarkInfo } from '@/lib/actions/bookmarks';
+import {
+  PENALTY_TYPE_LABELS,
+  PENALTY_TYPE_COLORS,
+  AGENCY_LEVEL_LABELS,
+  AGENCY_LEVEL_COLORS,
+  SOURCE_TYPE_COLORS,
+  SOURCE_TYPE_BADGE_LABELS,
+  ESTIMATED_PAYERS_LABELS,
+} from '@/lib/constants/fines';
 import type { FineWithContext } from '@/lib/actions/fines';
 
 interface FinesTableProps {
   data: FineWithContext[];
   state: string;
   onRowClick: (fine: FineWithContext) => void;
+  bookmarkedFineIds?: Set<number>;
+  onToggleBookmark?: (fineId: number) => void;
+  fineBookmarks?: Map<number, FineBookmarkInfo>;
+  onSaveBookmarkNotes?: (bookmarkId: number, fineId: number, notes: string, createdBy?: string) => Promise<void>;
+  bookmarkName?: string;
 }
 
-export function FinesTable({ data, state, onRowClick }: FinesTableProps) {
+export function FinesTable({ data, state, onRowClick, bookmarkedFineIds, onToggleBookmark, fineBookmarks, onSaveBookmarkNotes, bookmarkName }: FinesTableProps) {
   if (data.length === 0) {
     return (
       <EmptyState
@@ -28,10 +44,13 @@ export function FinesTable({ data, state, onRowClick }: FinesTableProps) {
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-[var(--color-neutral-200)]">
+            {bookmarkedFineIds && <th className="w-8 py-3 pr-1" />}
             <th className="text-left py-3 pr-3 text-xs font-medium text-[var(--color-text-muted)]">Type</th>
             <th className="text-left py-3 pr-3 text-xs font-medium text-[var(--color-text-muted)]">Amount</th>
             <th className="text-left py-3 pr-3 text-xs font-medium text-[var(--color-text-muted)]">Agency</th>
             <th className="text-left py-3 pr-3 text-xs font-medium text-[var(--color-text-muted)]">Level</th>
+            <th className="text-left py-3 pr-3 text-xs font-medium text-[var(--color-text-muted)]">Who Pays</th>
+            <th className="text-left py-3 pr-3 text-xs font-medium text-[var(--color-text-muted)]">Est. Impact</th>
             <th className="text-left py-3 pr-3 text-xs font-medium text-[var(--color-text-muted)]">AI Extracted</th>
             <th className="text-left py-3 pr-3 text-xs font-medium text-[var(--color-text-muted)]">Description</th>
             <th className="text-left py-3 text-xs font-medium text-[var(--color-text-muted)]">Source</th>
@@ -46,13 +65,26 @@ export function FinesTable({ data, state, onRowClick }: FinesTableProps) {
             const displayAgency = fine.agencyCanonicalName ?? fine.responsibleAgency ?? '—';
             const rawAgency = fine.responsibleAgency;
             const isNormalized = fine.agencyCanonicalName && rawAgency && fine.agencyCanonicalName !== rawAgency;
+            const sourceType = fine.sourceDocument.type;
+            const bookmark = fineBookmarks?.get(fine.id);
+            const isBookmarked = bookmarkedFineIds?.has(fine.id);
+            const colCount = bookmarkedFineIds ? 11 : 10;
 
             return (
+              <FineRow key={fine.id}>
               <tr
-                key={fine.id}
                 onClick={() => onRowClick(fine)}
-                className="border-b border-[var(--color-neutral-100)] cursor-pointer hover:bg-[var(--color-neutral-50)] transition-colors"
+                className={`${isBookmarked && bookmark ? '' : 'border-b border-[var(--color-neutral-100)] '}cursor-pointer hover:bg-[var(--color-neutral-50)] transition-colors`}
               >
+                {bookmarkedFineIds && (
+                  <td className="py-3 pr-1" onClick={(e) => e.stopPropagation()}>
+                    <BookmarkButton
+                      isBookmarked={bookmarkedFineIds.has(fine.id)}
+                      onToggle={() => onToggleBookmark?.(fine.id)}
+                      size="sm"
+                    />
+                  </td>
+                )}
                 <td className="py-3 pr-3">
                   <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${PENALTY_TYPE_COLORS[fine.penaltyType] || PENALTY_TYPE_COLORS.other}`}>
                     {PENALTY_TYPE_LABELS[fine.penaltyType] || fine.penaltyType}
@@ -76,6 +108,14 @@ export function FinesTable({ data, state, onRowClick }: FinesTableProps) {
                     </span>
                   )}
                 </td>
+                <td className="py-3 pr-3 max-w-[150px] truncate text-[var(--color-text-secondary)]" title={fine.whoPays ?? ''}>
+                  {fine.whoPays ?? '—'}
+                </td>
+                <td className="py-3 pr-3 text-xs text-[var(--color-text-muted)]">
+                  {fine.estimatedAnnualPayers
+                    ? (ESTIMATED_PAYERS_LABELS[fine.estimatedAnnualPayers] || fine.estimatedAnnualPayers)
+                    : '—'}
+                </td>
                 <td className="py-3 pr-3 max-w-[200px] truncate text-[var(--color-text-muted)] text-xs" title={isNormalized ? rawAgency ?? '' : ''}>
                   {isNormalized ? rawAgency : '—'}
                 </td>
@@ -83,20 +123,43 @@ export function FinesTable({ data, state, onRowClick }: FinesTableProps) {
                   {fine.violationDescription ?? '—'}
                 </td>
                 <td className="py-3 max-w-[200px]">
-                  <Link
-                    href={sourceLink}
-                    onClick={(e) => e.stopPropagation()}
-                    className="text-[var(--color-primary)] hover:underline truncate block"
-                    title={fine.sourceDocument.title ?? ''}
-                  >
-                    {fine.sourceDocument.title ?? '—'}
-                  </Link>
+                  <div className="flex items-center gap-1.5">
+                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium whitespace-nowrap ${SOURCE_TYPE_COLORS[sourceType]}`}>
+                      {SOURCE_TYPE_BADGE_LABELS[sourceType]}
+                    </span>
+                    <Link
+                      href={sourceLink}
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-[var(--color-primary)] hover:underline truncate"
+                      title={fine.sourceDocument.title ?? ''}
+                    >
+                      {fine.sourceDocument.title ?? '—'}
+                    </Link>
+                  </div>
                 </td>
               </tr>
+              {isBookmarked && bookmark && onSaveBookmarkNotes && (
+                <tr className="border-b border-[var(--color-neutral-100)]">
+                  <td colSpan={colCount} className="px-4 pb-3 pt-0" onClick={(e) => e.stopPropagation()}>
+                    <BookmarkNotesEditor
+                      notes={bookmark.notes}
+                      onSave={(notes, createdBy) => onSaveBookmarkNotes(bookmark.id, fine.id, notes, createdBy)}
+                      createdBy={bookmark.createdBy}
+                      showName
+                      defaultName={bookmarkName}
+                    />
+                  </td>
+                </tr>
+              )}
+              </FineRow>
             );
           })}
         </tbody>
       </table>
     </div>
   );
+}
+
+function FineRow({ children }: { children: React.ReactNode }) {
+  return <>{children}</>;
 }

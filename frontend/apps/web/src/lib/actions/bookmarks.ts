@@ -25,6 +25,7 @@ const bookmarksRepo = new BookmarksRepository(db);
 function refreshBookmarkCache(...additionalPages: string[]) {
   updateTag('bookmarks');
   revalidatePath('/[state]/bookmarks', 'page');
+  revalidatePath('/[state]/fines', 'page');
   for (const page of additionalPages) {
     revalidatePath(page, 'page');
   }
@@ -185,10 +186,14 @@ export async function getBookmarks(
  */
 export async function updateBookmarkNotes(
   bookmarkId: number,
-  notes: string
+  notes: string,
+  createdBy?: string
 ): Promise<ActionResult<Bookmark>> {
   try {
-    const bookmark = await bookmarksRepo.update(bookmarkId, { notes });
+    const bookmark = await bookmarksRepo.update(bookmarkId, {
+      notes,
+      ...(createdBy !== undefined && { createdBy }),
+    });
 
     if (!bookmark) {
       return failure(`Bookmark with id ${bookmarkId} not found`);
@@ -243,25 +248,105 @@ export async function getBookmarkedAnalysisIds(
 }
 
 /**
+ * Toggle bookmark for a fine/fee/penalty.
+ * If bookmarked, removes it. If not, creates one.
+ * @returns The created bookmark, or null if removed
+ */
+export async function toggleFineBookmark(
+  fineId: number,
+  jurisdiction: string,
+  notes?: string,
+  createdBy?: string
+): Promise<ActionResult<Bookmark | null>> {
+  try {
+    const existing = await bookmarksRepo.getFineBookmark(fineId);
+
+    if (existing) {
+      await bookmarksRepo.delete(existing.id);
+      refreshBookmarkCache();
+      return success(null);
+    }
+
+    const bookmark = await bookmarksRepo.create({
+      fineId,
+      jurisdiction,
+      notes,
+      createdBy,
+    });
+
+    refreshBookmarkCache();
+    return success(bookmark);
+  } catch (error) {
+    console.error('[toggleFineBookmark]', error);
+    return failure(getErrorMessage(error));
+  }
+}
+
+/**
+ * Check if a fine is bookmarked.
+ */
+export async function isFineBookmarked(
+  fineId: number
+): Promise<ActionResult<boolean>> {
+  return runAction('isFineBookmarked', () => bookmarksRepo.isFineBookmarked(fineId));
+}
+
+/**
+ * Get the full bookmark object for a fine (for notes editing).
+ */
+export async function getFineBookmark(
+  fineId: number
+): Promise<ActionResult<Bookmark | null>> {
+  return runAction('getFineBookmark', async () => {
+    const bookmark = await bookmarksRepo.getFineBookmark(fineId);
+    return bookmark ?? null;
+  });
+}
+
+/**
+ * Get all bookmarked fine IDs for a state.
+ * Used for efficient batch checking in tables.
+ */
+export async function getBookmarkedFineIds(
+  jurisdiction: string
+): Promise<ActionResult<number[]>> {
+  return runAction('getBookmarkedFineIds', () => bookmarksRepo.getBookmarkedFineIds(jurisdiction));
+}
+
+export type FineBookmarkInfo = { fineId: number; id: number; notes: string | null; createdBy: string | null };
+
+/**
+ * Get all fine bookmarks with notes for a state.
+ * Used for inline notes display in the fines table.
+ */
+export async function getFineBookmarksWithNotes(
+  jurisdiction: string
+): Promise<ActionResult<FineBookmarkInfo[]>> {
+  return runAction('getFineBookmarksWithNotes', () => bookmarksRepo.getFineBookmarksWithNotes(jurisdiction));
+}
+
+/**
  * Get bookmark counts for a state.
  * Cached for 2 minutes with parallel queries for performance.
  */
 export async function getBookmarkCounts(
   jurisdiction: string
-): Promise<ActionResult<{ analysis: number; document: number; guidance: number; total: number }>> {
+): Promise<ActionResult<{ analysis: number; document: number; guidance: number; fine: number; total: number }>> {
   return runCachedAction(
     'getBookmarkCounts',
     async () => {
-      const [analysisCount, documentCount, guidanceCount] = await Promise.all([
+      const [analysisCount, documentCount, guidanceCount, fineCount] = await Promise.all([
         bookmarksRepo.getCount(jurisdiction, 'analysis'),
         bookmarksRepo.getCount(jurisdiction, 'document'),
         bookmarksRepo.getCount(jurisdiction, 'guidance'),
+        bookmarksRepo.getCount(jurisdiction, 'fine'),
       ]);
       return {
         analysis: analysisCount,
         document: documentCount,
         guidance: guidanceCount,
-        total: analysisCount + documentCount + guidanceCount,
+        fine: fineCount,
+        total: analysisCount + documentCount + guidanceCount + fineCount,
       };
     },
     [`bookmark-counts-${jurisdiction}`],

@@ -381,6 +381,7 @@ import { MultiSelect } from '@/components/ui';
 - Empty selection = placeholder text (acts as "All")
 - Dropdown stays open after selection
 - "Clear all" link when items selected
+- Optional `count` field on options: renders right-aligned, non-truncating count next to the label (uses `tabular-nums` for digit alignment)
 - `searchable` prop (default `false`): renders a text input at the top of the dropdown for client-side filtering of options. Use when option list is large (20+ items).
 
 **URL State:**
@@ -4295,14 +4296,34 @@ All penalty type display values are centralized in a single constants file to av
 
 Badge classes use CSS variable tokens (e.g., `bg-[var(--color-danger-bg)] text-[var(--color-danger)]`) instead of raw Tailwind colors to stay consistent with the design system.
 
+**Source type constants** are also centralized in the same file:
+
+- **`SOURCE_TYPE_COLORS`** -- Badge colors: `regulation` → `info` (blue), `guidance` → `warning` (amber)
+- **`SOURCE_TYPE_BADGE_LABELS`** -- Short labels for inline badges: `Reg`, `Guidance`
+- **`SOURCE_TYPE_LABELS`** -- Full labels for charts and filters: `Regulations`, `Guidance Documents`
+
+**Inline source type badge pattern:** Small badges (`text-[10px]`, `px-1.5 py-0.5`) placed inline before a link or title to indicate document source type. Used in the FinesTable Source column:
+
+```tsx
+<div className="flex items-center gap-1.5">
+  <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium whitespace-nowrap ${SOURCE_TYPE_COLORS[sourceType]}`}>
+    {SOURCE_TYPE_BADGE_LABELS[sourceType]}
+  </span>
+  <Link ...>{title}</Link>
+</div>
+```
+
 ### FinesTable
 
-Data table displaying paginated fines with penalty type badge, amount, agency, description, and source link.
+Data table displaying paginated fines with penalty type badge, amount, agency, level, who pays, description, and source link.
 
 - Standard table styling: `border-[var(--color-neutral-200)]` borders, `hover:bg-[var(--color-neutral-50)]` row hover
 - Penalty type column renders a badge using `PENALTY_TYPE_COLORS` and `PENALTY_TYPE_LABELS` from constants
+- Who Pays column: `max-w-[150px] truncate`, shows `whoPays` value or "—" for nulls
+- Source column: inline source type badge (`Reg`/`Guidance`) before the document title link
 - Clickable rows open `FinesDetailDrawer`
 - Falls back to `EmptyState` when no data
+- Optional bookmark star column (first column): `BookmarkButton` with `sm` size, click stops propagation to avoid triggering row click. Controlled via `bookmarkedFineIds` (Set<number>) and `onToggleBookmark` props
 
 ### FinesDetailDrawer
 
@@ -4312,6 +4333,21 @@ Right-side drawer showing full detail for a selected fine/fee/penalty.
 - Sections: Violation/Trigger, Who Pays, Amount Details, Requirement Quote, Context, Pattern Matched, Source Document
 - Section headers use `text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider`
 - Requirement quote uses `border-l-2 border-[var(--color-primary)]` blockquote style
+- `FineBookmarkButton` in drawer header (next to close button)
+- "View full details →" link at bottom of drawer body, linking to `/[state]/fines/[fineId]`
+
+### FineDetailContent
+
+Full-page detail view for individual fines (at `/[state]/fines/[fineId]`).
+
+- 2-column layout: main content (left) + sidebar (right)
+- Main: Violation/Trigger, Who Pays, Activity Category + Estimated Impact, Justification, Amount Details, Requirement Quote, Full Context, Pattern Matched
+- Sidebar: Type/level badges, agency info, source document card with link, bookmark section (`FineBookmarkButton` + `BookmarkNotesEditor` with name field)
+- Follows same server component → client component pattern as guidance detail page
+
+### FineBookmarkButton
+
+Bookmark toggle button for fines (cloned from `GuidanceBookmarkButton`). Accepts `fineId`, `jurisdiction`, optional `size`/`showLabel`. Uses `useBookmarkName` for auto-filling creator name. Optimistic updates with rollback on failure.
 
 ### FinesBrowseTab
 
@@ -4321,7 +4357,7 @@ Browse view with filter bar, paginated results, CSV export, and per-agency ZIP e
   - **Penalty Type** -- `MultiSelect` with `PENALTY_TYPE_MULTISELECT_OPTIONS`, empty = all types. Uses `parseCommaSeparated`/`serializeCommaSeparated`
   - **Source Type** -- `Select` dropdown (All Sources / Regulations / Guidance Documents), uses `SOURCE_TYPE_LABELS`
   - **Agency** -- `MultiSelect`, dynamic values from `getFinesAgencies()`, empty = all agencies
-  - **Who Pays** -- `MultiSelect`, dynamic values from `getFinesWhoPays()`, empty = all
+  - **Who Pays** -- `MultiSelect` with `count` field (right-aligned, non-truncating), dynamic values from `getFinesWhoPays()`, empty = all
   - **Per Unit** -- `MultiSelect`, dynamic values from `getFinesPerUnits()`, empty = all
   - **Amount Range** -- two compact `<input type="number">` (Min $ / Max $), styled inline with filter bar
   - **Search** -- free-text search via `SearchInput`
@@ -4337,21 +4373,30 @@ Browse view with filter bar, paginated results, CSV export, and per-agency ZIP e
 
 Summary statistics and charts for fines data.
 
-- Three `StatCard`s: total count, unique agencies, source documents
-- Two `HorizontalBarChart`s: by penalty type (using `PENALTY_TYPE_LABELS_PLURAL`) and by agency
+- Four `StatCard`s in a `StatGrid columns={4}`: Total Fines & Fees, Agencies, From Regulations, From Guidance
+- Five `HorizontalBarChart`s:
+  - Row 1 (2-col grid): By Type (`PENALTY_TYPE_LABELS_PLURAL`), By Government Level (`AGENCY_LEVEL_LABELS`)
+  - Row 2 (2-col grid): By Who Pays (title-cased), By Source Type (`SOURCE_TYPE_LABELS`)
+  - Row 3 (full-width): By Agency
 
 ### File Structure
 
 ```
 src/components/fines/
-  FinesBrowseTab.tsx    -- Browse with 7 filters, pagination, CSV + ZIP export
-  FinesClient.tsx       -- Tab container (Overview / Browse), passes server data to tabs
-  FinesDetailDrawer.tsx -- Right-side detail drawer
-  FinesOverviewTab.tsx  -- Stats + charts overview
-  FinesTable.tsx        -- Data table with penalty type badges
+  FineBookmarkButton.tsx  -- Bookmark toggle for fines (uses useBookmarkName)
+  FinesBrowseTab.tsx      -- Browse with 7 filters, pagination, CSV + ZIP export, bookmark integration
+  FinesClient.tsx         -- Tab container (Overview / Browse), passes server data to tabs
+  FineDetailContent.tsx   -- Full-page detail view (2-column layout)
+  FinesDetailDrawer.tsx   -- Right-side detail drawer with bookmark + detail link
+  FinesOverviewTab.tsx    -- Stats + charts overview
+  FinesTable.tsx          -- Data table with optional bookmark star column
+src/app/[state]/fines/[fineId]/
+  page.tsx                -- Server component for fine detail page
+src/hooks/
+  useBookmarkName.ts      -- localStorage hook for bookmark creator name
 src/lib/constants/
-  fines.ts              -- PENALTY_TYPE_LABELS, PENALTY_TYPE_LABELS_PLURAL, PENALTY_TYPE_COLORS, SOURCE_TYPE_LABELS
-src/lib/url/parsers.ts  -- finesParsers (tab, page, pageSize, sortBy, sortOrder, penaltyType, agency, search, sourceType, amountMin, amountMax, whoPays, perUnit)
+  fines.ts                -- PENALTY_TYPE_LABELS, PENALTY_TYPE_LABELS_PLURAL, PENALTY_TYPE_COLORS, SOURCE_TYPE_LABELS, SOURCE_TYPE_COLORS, SOURCE_TYPE_BADGE_LABELS, ACTIVITY_CATEGORY_LABELS, ESTIMATED_PAYERS_LABELS
+src/lib/url/parsers.ts    -- finesParsers (tab, page, pageSize, sortBy, sortOrder, penaltyType, agency, search, sourceType, amountMin, amountMax, whoPays, perUnit)
 ```
 
 ---

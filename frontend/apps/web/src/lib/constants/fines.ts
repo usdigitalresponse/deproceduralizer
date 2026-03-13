@@ -36,11 +36,6 @@ export const PENALTY_TYPE_LABELS_PLURAL: Record<string, string> = {
  * - forfeiture -> danger (red)    — loss of asset/right
  * - other     -> neutral (gray)   — uncategorized
  */
-/** Labels for the source type filter */
-export const SOURCE_TYPE_LABELS: Record<string, string> = {
-  regulation: 'Regulations',
-  guidance: 'Guidance Documents',
-};
 
 /** Multi-select options for penalty type filter (empty selection = all) */
 export const PENALTY_TYPE_MULTISELECT_OPTIONS = Object.entries(PENALTY_TYPE_LABELS_PLURAL)
@@ -73,6 +68,58 @@ export const AGENCY_LEVEL_LABELS: Record<string, string> = {
 
 export const AGENCY_LEVEL_MULTISELECT_OPTIONS = Object.entries(AGENCY_LEVEL_LABELS)
   .map(([value, label]) => ({ value, label }));
+
+// ---------------------------------------------------------------------------
+// Source type constants (regulation vs guidance)
+// ---------------------------------------------------------------------------
+
+/** Full labels for charts and filters */
+export const SOURCE_TYPE_LABELS: Record<string, string> = {
+  regulation: 'Regulations',
+  guidance: 'Guidance Documents',
+};
+
+export const SOURCE_TYPE_COLORS: Record<string, string> = {
+  regulation: 'bg-[var(--color-info-bg)] text-[var(--color-info)]',
+  guidance: 'bg-[var(--color-warning-bg)] text-[var(--color-warning)]',
+};
+
+/** Short labels for inline badges (e.g. "Reg", "Guidance") */
+export const SOURCE_TYPE_BADGE_LABELS: Record<string, string> = {
+  regulation: 'Reg',
+  guidance: 'Guidance',
+};
+
+// ---------------------------------------------------------------------------
+// Enrichment column constants
+// ---------------------------------------------------------------------------
+
+export const ESTIMATED_PAYERS_LABELS: Record<string, string> = {
+  tens: 'Tens per year',
+  hundreds: 'Hundreds per year',
+  thousands: 'Thousands per year',
+  ten_thousands: 'Tens of thousands per year',
+  hundred_thousands: 'Hundreds of thousands per year',
+};
+
+export const ACTIVITY_CATEGORY_LABELS: Record<string, string> = {
+  cannabis_alcohol: 'Cannabis & Alcohol',
+  financial_services: 'Financial Services',
+  transportation: 'Transportation',
+  social_services: 'Social Services',
+  education: 'Education',
+  environmental_permit: 'Environmental Permits',
+  professional_licensing: 'Professional Licensing',
+  healthcare_facility: 'Healthcare Facility',
+  real_estate_housing: 'Real Estate & Housing',
+  business_licensing: 'Business Licensing',
+  hunting_fishing_wildlife: 'Hunting/Fishing/Wildlife',
+  construction_building: 'Construction & Building',
+  manufacturing_industrial: 'Manufacturing & Industrial',
+  childcare_provider: 'Childcare Provider',
+  food_service: 'Food Service',
+  other: 'Other',
+};
 
 export const AGENCY_LEVEL_COLORS: Record<string, string> = {
   federal: 'bg-[var(--color-danger-bg)] text-[var(--color-danger)]',

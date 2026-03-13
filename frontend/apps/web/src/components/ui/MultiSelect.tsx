@@ -361,9 +361,11 @@ export function MultiSelect({
                   >
                     {isSelected && <Check className="w-2.5 h-2.5 text-white" />}
                   </span>
-                  <span className="truncate" title={option.label}>{option.label}</span>
+                  <span className="truncate flex-1 min-w-0" title={option.label}>{option.label}</span>
                   {option.count !== undefined && (
-                    <span className="ml-auto text-xs text-[var(--color-text-muted)] flex-shrink-0 tabular-nums">{option.count}</span>
+                    <span className="flex-shrink-0 text-xs text-[var(--color-text-muted)] tabular-nums ml-1">
+                      {option.count.toLocaleString()}
+                    </span>
                   )}
                 </li>
               );

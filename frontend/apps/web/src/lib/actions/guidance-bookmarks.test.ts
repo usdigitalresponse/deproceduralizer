@@ -6,9 +6,9 @@ const mockRevalidatePath = vi.fn();
 const mockUnstableCache = vi.fn();
 
 vi.mock('next/cache', () => ({
-  updateTag: (...args: unknown[]) => mockUpdateTag(...args),
-  revalidatePath: (...args: unknown[]) => mockRevalidatePath(...args),
-  unstable_cache: (...args: unknown[]) => mockUnstableCache(...args),
+  updateTag: mockUpdateTag,
+  revalidatePath: mockRevalidatePath,
+  unstable_cache: mockUnstableCache,
 }));
 
 vi.mock('server-only', () => ({}));
@@ -25,15 +25,15 @@ const mockIsGuidanceDocumentBookmarked = vi.fn();
 
 // Mock db.select chain for direct queries
 const mockLimit = vi.fn();
-const mockWhere = vi.fn(() => ({ limit: mockLimit }));
-const mockLeftJoin = vi.fn(() => ({ where: mockWhere }));
-const mockInnerJoin = vi.fn(() => ({ where: mockWhere }));
-const mockFrom = vi.fn(() => ({ where: mockWhere, leftJoin: mockLeftJoin, innerJoin: mockInnerJoin }));
-const mockSelect = vi.fn(() => ({ from: mockFrom }));
+const mockWhere = vi.fn().mockReturnValue({ limit: mockLimit });
+const mockLeftJoin = vi.fn().mockReturnValue({ where: mockWhere });
+const mockInnerJoin = vi.fn().mockReturnValue({ where: mockWhere });
+const mockFrom = vi.fn().mockReturnValue({ where: mockWhere, leftJoin: mockLeftJoin, innerJoin: mockInnerJoin });
+const mockSelect = vi.fn().mockReturnValue({ from: mockFrom });
 
 vi.mock('@deproceduralizer/database', () => ({
   db: {
-    select: (...args: unknown[]) => mockSelect(...args),
+    select: mockSelect,
   },
   BookmarksRepository: vi.fn().mockImplementation(() => ({
     getByAnalysisId: mockGetByAnalysisId,
@@ -91,7 +91,9 @@ describe('toggleGuidanceAnalysisBookmarkByDocIssue', () => {
     const result = await toggleGuidanceAnalysisBookmarkByDocIssue(42, 'excessive_fees', 'NY');
 
     expect(result.success).toBe(true);
-    expect(result.data).toEqual(createdBookmark);
+    if (result.success) {
+      expect(result.data).toEqual(createdBookmark);
+    }
     expect(mockCreate).toHaveBeenCalledWith({
       guidanceDocumentId: 42,
       analysisId: 100,
@@ -114,7 +116,9 @@ describe('toggleGuidanceAnalysisBookmarkByDocIssue', () => {
     const result = await toggleGuidanceAnalysisBookmarkByDocIssue(42, 'excessive_fees', 'NY');
 
     expect(result.success).toBe(true);
-    expect(result.data).toBeNull();
+    if (result.success) {
+      expect(result.data).toBeNull();
+    }
     expect(mockDelete).toHaveBeenCalledWith(55);
   });
 
@@ -183,7 +187,9 @@ describe('getBookmarkByGuidanceDocIssue', () => {
     const result = await getBookmarkByGuidanceDocIssue(42, 'excessive_fees');
 
     expect(result.success).toBe(true);
-    expect(result.data).toEqual(bookmark);
+    if (result.success) {
+      expect(result.data).toEqual(bookmark);
+    }
     expect(mockGetByAnalysisId).toHaveBeenCalledWith(100);
   });
 
@@ -194,7 +200,9 @@ describe('getBookmarkByGuidanceDocIssue', () => {
     const result = await getBookmarkByGuidanceDocIssue(42, 'excessive_fees');
 
     expect(result.success).toBe(true);
-    expect(result.data).toBeNull();
+    if (result.success) {
+      expect(result.data).toBeNull();
+    }
   });
 
   it('returns null when no analysis found', async () => {
@@ -203,7 +211,9 @@ describe('getBookmarkByGuidanceDocIssue', () => {
     const result = await getBookmarkByGuidanceDocIssue(999, 'excessive_fees');
 
     expect(result.success).toBe(true);
-    expect(result.data).toBeNull();
+    if (result.success) {
+      expect(result.data).toBeNull();
+    }
   });
 
   it('returns failure on error', async () => {
@@ -294,7 +304,9 @@ describe('toggleGuidanceBookmark', () => {
     const result = await toggleGuidanceBookmark(42, 'NY');
 
     expect(result.success).toBe(true);
-    expect(result.data).toEqual(createdBookmark);
+    if (result.success) {
+      expect(result.data).toEqual(createdBookmark);
+    }
     expect(mockCreate).toHaveBeenCalledWith({
       guidanceDocumentId: 42,
       jurisdiction: 'NY',
@@ -310,7 +322,9 @@ describe('toggleGuidanceBookmark', () => {
     const result = await toggleGuidanceBookmark(42, 'NY');
 
     expect(result.success).toBe(true);
-    expect(result.data).toBeNull();
+    if (result.success) {
+      expect(result.data).toBeNull();
+    }
     expect(mockDelete).toHaveBeenCalledWith(5);
   });
 
@@ -333,7 +347,9 @@ describe('isGuidanceBookmarked', () => {
     const result = await isGuidanceBookmarked(42);
 
     expect(result.success).toBe(true);
-    expect(result.data).toBe(true);
+    if (result.success) {
+      expect(result.data).toBe(true);
+    }
   });
 
   it('returns false when not bookmarked', async () => {
@@ -342,6 +358,8 @@ describe('isGuidanceBookmarked', () => {
     const result = await isGuidanceBookmarked(42);
 
     expect(result.success).toBe(true);
-    expect(result.data).toBe(false);
+    if (result.success) {
+      expect(result.data).toBe(false);
+    }
   });
 });

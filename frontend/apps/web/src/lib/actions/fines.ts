@@ -4,6 +4,7 @@ import 'server-only';
 import {
   db,
   FinesRepository,
+  BookmarksRepository,
   type JurisdictionCode,
   type FineWithContext,
   type PaginatedFinesResult,
@@ -13,6 +14,7 @@ import { type ActionResult, runAction, runCachedAction } from './types';
 import { parseCommaSeparated } from '@/lib/url/filter-helpers';
 
 const finesRepo = new FinesRepository(db);
+const bookmarksRepo = new BookmarksRepository(db);
 
 export type AgencyOption = { id: number; name: string; level: string | null };
 
@@ -36,13 +38,22 @@ function parseFinesMultiSelectFilters(filters?: { penaltyType?: string; agency?:
 // Re-export types for components
 export type { FineWithContext, FinesOverviewStats };
 
+export async function getFineById(
+  id: number
+): Promise<ActionResult<FineWithContext | null>> {
+  return runAction('getFineById', async () => {
+    const fine = await finesRepo.getById(id);
+    return fine ?? null;
+  });
+}
+
 export async function getFinesOverviewStats(
   state: JurisdictionCode
 ): Promise<ActionResult<FinesOverviewStats>> {
   return runCachedAction(
     'getFinesOverviewStats',
     () => finesRepo.getOverviewStats(state),
-    [`fines-overview-stats-${state}`],
+    [`fines-overview-stats-v3-${state}`],
     { revalidate: 120, tags: ['fines'] }
   );
 }
@@ -150,8 +161,12 @@ export async function exportFinesCsv(
   const multiSelect = parseFinesMultiSelectFilters(filters);
 
   return runAction('exportFinesCsv', async () => {
-    const data = await finesRepo.getExportData(state, { ...filters, ...multiSelect });
-    return buildFinesCsv(data);
+    const [data, bookmarkData] = await Promise.all([
+      finesRepo.getExportData(state, { ...filters, ...multiSelect }),
+      bookmarksRepo.getFineBookmarksWithNotes(state),
+    ]);
+    const bookmarkMap = new Map(bookmarkData.map(b => [b.fineId, b]));
+    return buildFinesCsv(data, bookmarkMap);
   });
 }
 
@@ -173,12 +188,16 @@ export async function exportFinesZipByAgency(
 
   return runAction('exportFinesZipByAgency', async () => {
     const { default: JSZip } = await import('jszip');
-    const grouped = await finesRepo.getExportDataGroupedByAgency(state, { ...filters, ...multiSelect });
+    const [grouped, bookmarkData] = await Promise.all([
+      finesRepo.getExportDataGroupedByAgency(state, { ...filters, ...multiSelect }),
+      bookmarksRepo.getFineBookmarksWithNotes(state),
+    ]);
+    const bookmarkMap = new Map(bookmarkData.map(b => [b.fineId, b]));
     const zip = new JSZip();
 
     for (const [agency, rows] of grouped) {
       const safeName = agency.replace(/[^a-zA-Z0-9 _-]/g, '').replace(/\s+/g, '-');
-      zip.file(`${safeName}.csv`, buildFinesCsv(rows));
+      zip.file(`${safeName}.csv`, buildFinesCsv(rows, bookmarkMap));
     }
 
     const buffer = await zip.generateAsync({ type: 'base64' });
@@ -190,12 +209,16 @@ export async function exportFinesZipByAgency(
 // Shared CSV builder
 // ---------------------------------------------------------------------------
 
-function buildFinesCsv(data: FineWithContext[]): string {
+type BookmarkInfo = { fineId: number; id: number; notes: string | null; createdBy: string | null };
+
+function buildFinesCsv(data: FineWithContext[], bookmarks?: Map<number, BookmarkInfo>): string {
   const headers = [
     'ID', 'Penalty Type', 'Amount', 'Amount Min', 'Amount Max', 'Per Unit',
     'Who Pays', 'Agency (Canonical)', 'Agency Level', 'Agency (AI-Extracted)',
     'Violation Description', 'Requirement Quote', 'Source Type',
     'Source Title', 'Source URL', 'Jurisdiction',
+    'Activity Category', 'Est. Annual Payers', 'Justification', 'Who Pays (Normalized)',
+    'bookmark_saved', 'bookmark_notes', 'bookmark_by',
   ];
 
   const escape = (v: string | null | undefined) => {
@@ -204,24 +227,34 @@ function buildFinesCsv(data: FineWithContext[]): string {
     return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s}"` : s;
   };
 
-  const rows = data.map(row => [
-    row.id,
-    escape(row.penaltyType),
-    escape(row.amount),
-    row.amountMin ?? '',
-    row.amountMax ?? '',
-    escape(row.perUnit),
-    escape(row.whoPays),
-    escape(row.agencyCanonicalName || row.responsibleAgency),
-    escape(row.agencyLevel),
-    escape(row.responsibleAgency),
-    escape(row.violationDescription),
-    escape(row.requirementQuote),
-    row.sourceDocument.type,
-    escape(row.sourceDocument.title),
-    escape(row.sourceDocument.url),
-    row.jurisdiction,
-  ].join(','));
+  const rows = data.map(row => {
+    const bm = bookmarks?.get(row.id);
+    return [
+      row.id,
+      escape(row.penaltyType),
+      escape(row.amount),
+      row.amountMin ?? '',
+      row.amountMax ?? '',
+      escape(row.perUnit),
+      escape(row.whoPays),
+      escape(row.agencyCanonicalName || row.responsibleAgency),
+      escape(row.agencyLevel),
+      escape(row.responsibleAgency),
+      escape(row.violationDescription),
+      escape(row.requirementQuote),
+      row.sourceDocument.type,
+      escape(row.sourceDocument.title),
+      escape(row.sourceDocument.url),
+      row.jurisdiction,
+      escape(row.activityCategory),
+      escape(row.estimatedAnnualPayers),
+      escape(row.justification),
+      escape(row.whoPaysNormalized),
+      bm ? 'yes' : '',
+      escape(bm?.notes),
+      escape(bm?.createdBy),
+    ].join(',');
+  });
 
   return [headers.join(','), ...rows].join('\n');
 }

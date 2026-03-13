@@ -69,6 +69,12 @@ export const finesFeesPenalties = pgTable('fines_fees_penalties', {
   developerQuestion: text('developer_question'),
   developerCheckedAt: timestamp('developer_checked_at'),
 
+  // Enrichment columns (added by Abigail — nullable, progressively populated)
+  activityCategory: varchar('activity_category', { length: 100 }),
+  estimatedAnnualPayers: varchar('estimated_annual_payers', { length: 50 }),
+  justification: text('justification'),
+  whoPaysNormalized: varchar('who_pays_normalized', { length: 100 }),
+
   createdAt: timestamp('created_at').defaultNow(),
 });
 

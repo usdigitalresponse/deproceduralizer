@@ -58,9 +58,14 @@ export interface FinesOverviewStats {
   total: number;
   uniqueAgencies: number;
   uniqueDocs: number;
+  regulationCount: number;
+  guidanceCount: number;
   byType: Array<{ type: string; count: number }>;
   byAgency: Array<{ agency: string; count: number }>;
   byLevel: Array<{ level: string; count: number }>;
+  byWhoPays: Array<{ whoPays: string; count: number }>;
+  byPerUnit: Array<{ perUnit: string; count: number }>;
+  bySourceType: Array<{ sourceType: string; count: number }>;
 }
 
 export class FinesRepository extends BaseRepository {
@@ -70,7 +75,7 @@ export class FinesRepository extends BaseRepository {
 
     const whereClause = this.buildWhereClause(jurisdiction, filters);
 
-    // Total count (join agencies so whereClause can reference agencies.level)
+    // Total count — must join agencies since filters may reference agencies.level
     const [{ count: total }] = await this.db
       .select({ count: count() })
       .from(finesFeesPenalties)
@@ -107,6 +112,20 @@ export class FinesRepository extends BaseRepository {
       pageSize,
       totalPages: Math.ceil(total / pageSize),
     };
+  }
+
+  async getById(id: number): Promise<FineWithContext | undefined> {
+    const [result] = await this.db
+      .select(this.finesSelectFields())
+      .from(finesFeesPenalties)
+      .leftJoin(regulatoryDocuments, eq(finesFeesPenalties.documentId, regulatoryDocuments.id))
+      .leftJoin(guidanceDocuments, eq(finesFeesPenalties.guidanceDocumentId, guidanceDocuments.id))
+      .leftJoin(agencies, eq(finesFeesPenalties.agencyId, agencies.id))
+      .where(eq(finesFeesPenalties.id, id))
+      .limit(1);
+
+    if (!result) return undefined;
+    return this.mapToFineWithContext(result);
   }
 
   async getOverviewStats(jurisdiction: JurisdictionCode): Promise<FinesOverviewStats> {
@@ -158,16 +177,51 @@ export class FinesRepository extends BaseRepository {
       .groupBy(sql`COALESCE(${agencies.level}, 'unknown')`)
       .orderBy(desc(sql`count(*)`));
 
+    const byWhoPays = await this.db
+      .select({
+        whoPays: sql<string>`LOWER(TRIM(${finesFeesPenalties.whoPays}))`,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(finesFeesPenalties)
+      .where(and(baseCondition, isNotNull(finesFeesPenalties.whoPays)))
+      .groupBy(sql`LOWER(TRIM(${finesFeesPenalties.whoPays}))`)
+      .orderBy(desc(sql`count(*)`));
+
+    const byPerUnit = await this.db
+      .select({
+        perUnit: sql<string>`LOWER(TRIM(${finesFeesPenalties.perUnit}))`,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(finesFeesPenalties)
+      .where(and(baseCondition, isNotNull(finesFeesPenalties.perUnit)))
+      .groupBy(sql`LOWER(TRIM(${finesFeesPenalties.perUnit}))`)
+      .orderBy(desc(sql`count(*)`));
+
+    const bySourceType = await this.db
+      .select({
+        sourceType: sql<string>`CASE WHEN ${finesFeesPenalties.guidanceDocumentId} IS NOT NULL THEN 'guidance' WHEN ${finesFeesPenalties.documentId} IS NOT NULL THEN 'regulation' ELSE 'unknown' END`,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(finesFeesPenalties)
+      .where(baseCondition)
+      .groupBy(sql`CASE WHEN ${finesFeesPenalties.guidanceDocumentId} IS NOT NULL THEN 'guidance' WHEN ${finesFeesPenalties.documentId} IS NOT NULL THEN 'regulation' ELSE 'unknown' END`)
+      .orderBy(desc(sql`count(*)`));
+
+    const regulationCount = bySourceType.find(r => r.sourceType === 'regulation')?.count ?? 0;
+    const guidanceCount = bySourceType.find(r => r.sourceType === 'guidance')?.count ?? 0;
+
     return {
       total: stats.total,
       uniqueAgencies: stats.uniqueAgencies,
       uniqueDocs: stats.uniqueDocs,
-      byType: byType.map(row => ({ type: row.type, count: row.count })),
-      byAgency: byAgency.map(row => ({
-        agency: row.agency,
-        count: row.count,
-      })),
-      byLevel: byLevel.map(row => ({ level: row.level, count: row.count })),
+      regulationCount,
+      guidanceCount,
+      byType,
+      byAgency,
+      byLevel,
+      byWhoPays,
+      byPerUnit,
+      bySourceType,
     };
   }
 
@@ -361,6 +415,10 @@ export class FinesRepository extends BaseRepository {
       jurisdictionLevel: finesFeesPenalties.jurisdictionLevel,
       jurisdictionLevelOther: finesFeesPenalties.jurisdictionLevelOther,
       issuingEntityConfidence: finesFeesPenalties.issuingEntityConfidence,
+      activityCategory: finesFeesPenalties.activityCategory,
+      estimatedAnnualPayers: finesFeesPenalties.estimatedAnnualPayers,
+      justification: finesFeesPenalties.justification,
+      whoPaysNormalized: finesFeesPenalties.whoPaysNormalized,
       createdAt: finesFeesPenalties.createdAt,
       // Agency fields
       agencyCanonicalName: agencies.canonicalName,
@@ -411,6 +469,10 @@ export class FinesRepository extends BaseRepository {
     jurisdictionLevel: string | null;
     jurisdictionLevelOther: string | null;
     issuingEntityConfidence: string | null;
+    activityCategory: string | null;
+    estimatedAnnualPayers: string | null;
+    justification: string | null;
+    whoPaysNormalized: string | null;
     createdAt: Date | null;
     agencyCanonicalName: string | null;
     agencyLevel: string | null;
@@ -458,6 +520,10 @@ export class FinesRepository extends BaseRepository {
       jurisdictionLevel: row.jurisdictionLevel,
       jurisdictionLevelOther: row.jurisdictionLevelOther,
       issuingEntityConfidence: row.issuingEntityConfidence,
+      activityCategory: row.activityCategory,
+      estimatedAnnualPayers: row.estimatedAnnualPayers,
+      justification: row.justification,
+      whoPaysNormalized: row.whoPaysNormalized,
       createdAt: row.createdAt,
       agencyCanonicalName: row.agencyCanonicalName,
       agencyLevel: row.agencyLevel,

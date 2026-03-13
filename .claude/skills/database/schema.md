@@ -676,13 +676,17 @@ Structured extraction of monetary charges (fines, fees, penalties, surcharges, f
 | `resolution_comments` | text | Resolution comments |
 | `developer_question` | text | Question for reviewer |
 | `developer_checked_at` | timestamp | Developer check timestamp |
+| `activity_category` | varchar(100) | Activity category (e.g. cannabis_alcohol, financial_services) |
+| `estimated_annual_payers` | varchar(50) | Estimated annual payer volume (tens, hundreds, thousands, etc.) |
+| `justification` | text | Justification for the fine/fee |
+| `who_pays_normalized` | varchar(100) | Normalized who-pays value for consistent grouping |
 | `created_at` | timestamp | Creation timestamp |
 
 **Constraints:** `fines_one_source_check` (exactly one of document_id or guidance_document_id must be set), `chk_fines_jurisdiction`
 
 **Indexes:** `idx_fines_jurisdiction`, `idx_fines_document_id`, `idx_fines_guidance_document_id`, `idx_fines_penalty_type`, `idx_fines_responsible_agency`, `idx_fines_llm_confirmed`, `idx_fines_agency_id`
 
-**Migrations:** `0062_fines_fees_penalties.sql`, `0063_widen_fines_columns.sql`, `0067_agencies_lookup.sql` (added `agency_id` FK)
+**Migrations:** `0062_fines_fees_penalties.sql`, `0063_widen_fines_columns.sql`, `0067_agencies_lookup.sql` (added `agency_id` FK), `0083_fines_enrichment_columns.sql` (enrichment columns)
 
 ## agencies
 
@@ -967,18 +971,20 @@ User annotations on regulations with optional text anchoring.
 
 ## bookmarks
 
-User bookmarks for pipeline analyses, regulatory documents, and guidance documents. Supports bookmarking:
+User bookmarks for pipeline analyses, regulatory documents, guidance documents, and fines/fees/penalties. Supports bookmarking:
 - A specific analysis (document + issue type)
 - A regulatory document without a specific analysis
 - A guidance document
+- A fine/fee/penalty
 
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | bigserial | Primary key |
-| `document_id` | bigint | FK to regulatory_documents (ON DELETE CASCADE) - nullable (exactly one of document_id or guidance_document_id must be set) |
-| `analysis_id` | bigint | FK to compliance_issue_analyses (ON DELETE CASCADE) - null for document/guidance-level bookmarks |
-| `guidance_document_id` | bigint | FK to guidance_documents (ON DELETE CASCADE) - null for regulatory doc bookmarks |
-| `issue_type` | varchar(50) | Denormalized from analysis for filtering (null for document/guidance bookmarks) |
+| `document_id` | bigint | FK to regulatory_documents (ON DELETE CASCADE) - nullable |
+| `analysis_id` | bigint | FK to compliance_issue_analyses (ON DELETE CASCADE) - null for document/guidance/fine bookmarks |
+| `guidance_document_id` | bigint | FK to guidance_documents (ON DELETE CASCADE) - null for regulatory doc/fine bookmarks |
+| `fine_id` | bigint | FK to fines_fees_penalties (ON DELETE CASCADE) - null for non-fine bookmarks |
+| `issue_type` | varchar(50) | Denormalized from analysis for filtering (null for document/guidance/fine bookmarks) |
 | `jurisdiction` | varchar(3) NOT NULL | NY, NJ, or NYC (CHECK constraint) |
 | `notes` | text | Optional user notes explaining why bookmarked |
 | `created_by` | varchar(255) | Who created the bookmark |
@@ -987,18 +993,20 @@ User bookmarks for pipeline analyses, regulatory documents, and guidance documen
 
 **Bookmark Types:**
 - **Analysis bookmark**: `analysis_id` set, `document_id` auto-filled from analysis
-- **Document bookmark**: `document_id` set, `analysis_id` null, `guidance_document_id` null
-- **Guidance bookmark**: `guidance_document_id` set, `document_id` null, `analysis_id` null
+- **Document bookmark**: `document_id` set, `analysis_id` null, `guidance_document_id` null, `fine_id` null
+- **Guidance bookmark**: `guidance_document_id` set, `document_id` null, `analysis_id` null, `fine_id` null
+- **Fine bookmark**: `fine_id` set, all others null
 
 **Constraints:**
 - `chk_bookmarks_jurisdiction CHECK (jurisdiction IN ('NY', 'NJ', 'NYC'))`
-- `chk_bookmarks_one_document_source CHECK ((document_id IS NOT NULL)::int + (guidance_document_id IS NOT NULL)::int = 1)`
+- `chk_bookmarks_source_type CHECK ((fine_id IS NOT NULL AND document_id IS NULL AND guidance_document_id IS NULL) OR (fine_id IS NULL AND (document_id IS NOT NULL OR guidance_document_id IS NOT NULL)))`
 
 **Indexes:**
 - `idx_bookmarks_unique_analysis UNIQUE(analysis_id)` - one bookmark per analysis
 - `idx_bookmarks_unique_document UNIQUE(document_id) WHERE analysis_id IS NULL` - one document bookmark per doc
 - `idx_bookmarks_unique_guidance_document UNIQUE(guidance_document_id) WHERE guidance_document_id IS NOT NULL AND analysis_id IS NULL` - one guidance bookmark per doc
-- `idx_bookmarks_document`, `idx_bookmarks_analysis`, `idx_bookmarks_guidance_document`, `idx_bookmarks_state`, `idx_bookmarks_created_at`
+- `idx_bookmarks_unique_fine UNIQUE(fine_id) WHERE fine_id IS NOT NULL` - one bookmark per fine
+- `idx_bookmarks_document`, `idx_bookmarks_analysis`, `idx_bookmarks_guidance_document`, `idx_bookmarks_fine`, `idx_bookmarks_state`, `idx_bookmarks_created_at`
 
 ## document_tags
 

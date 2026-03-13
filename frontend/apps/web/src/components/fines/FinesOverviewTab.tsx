@@ -1,22 +1,81 @@
 'use client';
 
-import { DollarSign, Building2, FileText } from 'lucide-react';
+import { DollarSign, Building2, Scale, BookOpen } from 'lucide-react';
 import { StatCard, StatGrid } from '@/components/ui/StatCard';
-import { Card, CardHeader, CardTitle } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ChartContainer } from '@/components/charts/ChartContainer';
 import { HorizontalBarChart } from '@/components/charts/BarChart';
-import { PENALTY_TYPE_LABELS_PLURAL, AGENCY_LEVEL_LABELS } from '@/lib/constants/fines';
+import { PENALTY_TYPE_LABELS_PLURAL, AGENCY_LEVEL_LABELS, SOURCE_TYPE_LABELS } from '@/lib/constants/fines';
 import type { FinesOverviewStats } from '@/lib/actions/fines';
 
 interface FinesOverviewTabProps {
   stats: FinesOverviewStats | null;
 }
 
+interface BarChartSectionProps {
+  title: string;
+  data: Array<{ label: string; value: number }>;
+  emptyMessage: string;
+  aspectRatio?: number;
+  minHeight?: number;
+  maxBars?: number;
+}
+
+/** Reusable chart section that handles empty state and dimension plumbing */
+function BarChartSection({ title, data, emptyMessage, aspectRatio = 1.2, minHeight = 250, maxBars = 10 }: BarChartSectionProps) {
+  return (
+    <ChartContainer title={title} aspectRatio={aspectRatio} minHeight={minHeight}>
+      {({ width, height }) => {
+        if (data.length === 0) {
+          return <EmptyState title={emptyMessage} />;
+        }
+        return (
+          <HorizontalBarChart
+            data={data}
+            width={width}
+            height={height}
+            maxBars={maxBars}
+          />
+        );
+      }}
+    </ChartContainer>
+  );
+}
+
+/** Title-case a lower-cased who_pays value (e.g. "licensee" -> "Licensee") */
+function titleCase(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
 export function FinesOverviewTab({ stats }: FinesOverviewTabProps) {
+  const typeData = (stats?.byType ?? []).map(d => ({
+    label: PENALTY_TYPE_LABELS_PLURAL[d.type] ?? d.type,
+    value: d.count,
+  }));
+
+  const levelData = (stats?.byLevel ?? []).map(d => ({
+    label: AGENCY_LEVEL_LABELS[d.level] ?? d.level,
+    value: d.count,
+  }));
+
+  const whoPaysData = (stats?.byWhoPays ?? []).map(d => ({
+    label: titleCase(d.whoPays),
+    value: d.count,
+  }));
+
+  const sourceData = (stats?.bySourceType ?? []).map(d => ({
+    label: SOURCE_TYPE_LABELS[d.sourceType] ?? d.sourceType,
+    value: d.count,
+  }));
+
+  const agencyData = (stats?.byAgency ?? []).map(d => ({
+    label: d.agency,
+    value: d.count,
+  }));
+
   return (
     <div className="space-y-6">
-      <StatGrid columns={3}>
+      <StatGrid columns={4}>
         <StatCard
           label="Total Fines & Fees"
           value={stats?.total ?? 0}
@@ -30,78 +89,35 @@ export function FinesOverviewTab({ stats }: FinesOverviewTabProps) {
           variant="info"
         />
         <StatCard
-          label="Source Documents"
-          value={stats?.uniqueDocs ?? 0}
-          icon={FileText}
-          variant="warning"
+          label="From Regulations"
+          value={stats?.regulationCount ?? 0}
+          icon={Scale}
+          variant="info"
+        />
+        <StatCard
+          label="From Guidance"
+          value={stats?.guidanceCount ?? 0}
+          icon={BookOpen}
+          variant="success"
         />
       </StatGrid>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* By Penalty Type Chart */}
-        <ChartContainer title="By Type" aspectRatio={1.2} minHeight={250}>
-          {({ width, height }) => {
-            const typeData = (stats?.byType ?? []).map(d => ({
-              label: PENALTY_TYPE_LABELS_PLURAL[d.type] ?? d.type,
-              value: d.count,
-            }));
-            if (typeData.length === 0) {
-              return <EmptyState title="No data available" />;
-            }
-            return (
-              <HorizontalBarChart
-                data={typeData}
-                width={width}
-                height={height}
-                maxBars={10}
-              />
-            );
-          }}
-        </ChartContainer>
-
-        {/* By Government Level Chart */}
-        <ChartContainer title="By Government Level" aspectRatio={1.2} minHeight={250}>
-          {({ width, height }) => {
-            const levelData = (stats?.byLevel ?? []).map(d => ({
-              label: AGENCY_LEVEL_LABELS[d.level] ?? d.level,
-              value: d.count,
-            }));
-            if (levelData.length === 0) {
-              return <EmptyState title="No level data available" />;
-            }
-            return (
-              <HorizontalBarChart
-                data={levelData}
-                width={width}
-                height={height}
-                maxBars={10}
-              />
-            );
-          }}
-        </ChartContainer>
+        <BarChartSection title="By Type" data={typeData} emptyMessage="No data available" />
+        <BarChartSection title="By Government Level" data={levelData} emptyMessage="No level data available" />
+        <BarChartSection title="By Who Pays" data={whoPaysData} emptyMessage="No who-pays data available" />
+        <BarChartSection title="By Source Type" data={sourceData} emptyMessage="No source type data available" />
       </div>
 
       <div className="grid grid-cols-1 gap-6">
-        {/* By Agency Chart */}
-        <ChartContainer title="By Agency" aspectRatio={2.5} minHeight={300}>
-          {({ width, height }) => {
-            const agencyData = (stats?.byAgency ?? []).map(d => ({
-              label: d.agency,
-              value: d.count,
-            }));
-            if (agencyData.length === 0) {
-              return <EmptyState title="No agency data available" />;
-            }
-            return (
-              <HorizontalBarChart
-                data={agencyData}
-                width={width}
-                height={height}
-                maxBars={15}
-              />
-            );
-          }}
-        </ChartContainer>
+        <BarChartSection
+          title="By Agency"
+          data={agencyData}
+          emptyMessage="No agency data available"
+          aspectRatio={2.5}
+          minHeight={300}
+          maxBars={15}
+        />
       </div>
     </div>
   );

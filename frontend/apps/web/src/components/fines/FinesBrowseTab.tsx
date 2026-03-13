@@ -13,18 +13,22 @@ import { Button } from '@/components/ui/Button';
 import { FinesTable } from './FinesTable';
 import { FinesDetailDrawer } from './FinesDetailDrawer';
 import { getFinesPaginated, exportFinesCsv, exportFinesZipByAgency } from '@/lib/actions/fines';
+import { getFineBookmarksWithNotes, toggleFineBookmark, updateBookmarkNotes } from '@/lib/actions/bookmarks';
+import type { FineBookmarkInfo } from '@/lib/actions/bookmarks';
+import { useBookmarkName } from '@/hooks/useBookmarkName';
 import type { AgencyOption } from '@/lib/actions/fines';
 import { finesParsers } from '@/lib/url/parsers';
 import { parseCommaSeparated, serializeCommaSeparated } from '@/lib/url/filter-helpers';
 import { SOURCE_TYPE_LABELS, PENALTY_TYPE_MULTISELECT_OPTIONS, AGENCY_LEVEL_MULTISELECT_OPTIONS } from '@/lib/constants/fines';
 import type { JurisdictionCode } from '@deproceduralizer/database';
-import type { FineWithContext } from '@/lib/actions/fines';
+import type { FineWithContext, FinesOverviewStats } from '@/lib/actions/fines';
 
 interface FinesBrowseTabProps {
   jurisdiction: JurisdictionCode;
   agencies: AgencyOption[];
   whoPaysValues: string[];
   perUnitValues: string[];
+  stats: FinesOverviewStats | null;
 }
 
 const sortOptions = [
@@ -39,7 +43,7 @@ const sourceTypeOptions = [
   ...Object.entries(SOURCE_TYPE_LABELS).map(([value, label]) => ({ value, label })),
 ];
 
-export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitValues }: FinesBrowseTabProps) {
+export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitValues, stats }: FinesBrowseTabProps) {
   const [params, setParams] = useQueryStates(finesParsers, { shallow: true });
   const [data, setData] = useState<FineWithContext[]>([]);
   const [total, setTotal] = useState(0);
@@ -50,6 +54,9 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
   const [selectedFine, setSelectedFine] = useState<FineWithContext | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [exportStateOnly, setExportStateOnly] = useState(true);
+  const [fineBookmarks, setFineBookmarks] = useState<Map<number, FineBookmarkInfo>>(new Map());
+  const bookmarkedIds = useMemo(() => new Set(fineBookmarks.keys()), [fineBookmarks]);
+  const { bookmarkName } = useBookmarkName();
 
   // Parse URL state for multi-select filters
   const selectedPenaltyTypes = useMemo(() => parseCommaSeparated(params.penaltyType), [params.penaltyType]);
@@ -58,21 +65,57 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
   const selectedWhoPays = useMemo(() => parseCommaSeparated(params.whoPays), [params.whoPays]);
   const selectedPerUnits = useMemo(() => parseCommaSeparated(params.perUnit), [params.perUnit]);
 
-  // Build option arrays — agencies now use ID-based values
-  const agencyOptions = useMemo(() =>
-    agencies.map(a => ({ value: String(a.id), label: a.name })),
-  [agencies]);
+  // Build option arrays with counts from stats
+  const penaltyTypeOptions = useMemo(() => {
+    const countMap = new Map(stats?.byType?.map(d => [d.type, d.count]) ?? []);
+    return PENALTY_TYPE_MULTISELECT_OPTIONS.map(opt => ({
+      ...opt,
+      count: countMap.get(opt.value),
+    }));
+  }, [stats?.byType]);
 
-  const whoPaysOptions = useMemo(() =>
-    whoPaysValues.map(v => ({ value: v, label: v })),
-  [whoPaysValues]);
+  const agencyOptions = useMemo(() => {
+    const countMap = new Map(stats?.byAgency?.map(d => [d.agency, d.count]) ?? []);
+    return agencies.map(a => ({
+      value: String(a.id),
+      label: a.name,
+      count: countMap.get(a.name),
+    }));
+  }, [agencies, stats?.byAgency]);
 
-  const perUnitOptions = useMemo(() =>
-    perUnitValues.map(v => ({ value: v, label: v })),
-  [perUnitValues]);
+  const agencyLevelOptions = useMemo(() => {
+    const countMap = new Map(stats?.byLevel?.map(d => [d.level, d.count]) ?? []);
+    return AGENCY_LEVEL_MULTISELECT_OPTIONS.map(opt => ({
+      ...opt,
+      count: countMap.get(opt.value),
+    }));
+  }, [stats?.byLevel]);
+
+  const whoPaysOptions = useMemo(() => {
+    const countMap = new Map(stats?.byWhoPays?.map(d => [d.whoPays, d.count]) ?? []);
+    return whoPaysValues.map(v => {
+      const cnt = countMap.get(v.toLowerCase().trim());
+      return { value: v, label: v, count: cnt };
+    });
+  }, [whoPaysValues, stats?.byWhoPays]);
+
+  const perUnitOptions = useMemo(() => {
+    const countMap = new Map(stats?.byPerUnit?.map(d => [d.perUnit, d.count]) ?? []);
+    return perUnitValues.map(v => ({
+      value: v,
+      label: v,
+      count: countMap.get(v.toLowerCase().trim()),
+    }));
+  }, [perUnitValues, stats?.byPerUnit]);
 
   useEffect(() => {
     fetchData();
+    // Fetch bookmarked fines with notes
+    getFineBookmarksWithNotes(jurisdiction).then(result => {
+      if (result.success) {
+        setFineBookmarks(new Map(result.data.map(b => [b.fineId, b])));
+      }
+    });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const buildFilters = useCallback((overrides: Record<string, unknown> = {}) => {
@@ -191,6 +234,79 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
     setDrawerOpen(true);
   }, []);
 
+  const handleToggleBookmark = useCallback(async (fineId: number) => {
+    const wasBookmarked = fineBookmarks.has(fineId);
+
+    // Optimistic toggle
+    setFineBookmarks(prev => {
+      const next = new Map(prev);
+      if (wasBookmarked) {
+        next.delete(fineId);
+      } else {
+        next.set(fineId, { fineId, id: -1, notes: null, createdBy: bookmarkName || null });
+      }
+      return next;
+    });
+
+    const result = await toggleFineBookmark(fineId, jurisdiction, undefined, bookmarkName || undefined);
+    if (!result.success) {
+      // Revert on failure
+      setFineBookmarks(prev => {
+        const next = new Map(prev);
+        if (wasBookmarked) {
+          next.set(fineId, { fineId, id: -1, notes: null, createdBy: null });
+        } else {
+          next.delete(fineId);
+        }
+        return next;
+      });
+    } else if (result.data && !wasBookmarked) {
+      // Update with real bookmark ID
+      setFineBookmarks(prev => {
+        const next = new Map(prev);
+        next.set(fineId, { fineId, id: result.data!.id, notes: result.data!.notes, createdBy: result.data!.createdBy });
+        return next;
+      });
+    }
+  }, [jurisdiction, bookmarkName, fineBookmarks]);
+
+  const handleBookmarkChange = useCallback((fineId: number, bookmarked: boolean) => {
+    setFineBookmarks(prev => {
+      const next = new Map(prev);
+      if (bookmarked) {
+        next.set(fineId, { fineId, id: -1, notes: null, createdBy: bookmarkName || null });
+      } else {
+        next.delete(fineId);
+      }
+      return next;
+    });
+  }, [bookmarkName]);
+
+  const handleSaveBookmarkNotes = useCallback(async (bookmarkId: number, fineId: number, notes: string, createdBy?: string) => {
+    const result = await updateBookmarkNotes(bookmarkId, notes, createdBy);
+    if (result.success) {
+      setFineBookmarks(prev => {
+        const next = new Map(prev);
+        const existing = next.get(fineId);
+        if (existing) {
+          next.set(fineId, { ...existing, notes: result.data.notes, createdBy: result.data.createdBy });
+        }
+        return next;
+      });
+    }
+  }, []);
+
+  const handleDrawerOpenChange = useCallback(async (open: boolean) => {
+    setDrawerOpen(open);
+    if (!open && selectedFine) {
+      // Sync bookmark data when drawer closes (notes may have been edited in drawer)
+      const result = await getFineBookmarksWithNotes(jurisdiction);
+      if (result.success) {
+        setFineBookmarks(new Map(result.data.map(b => [b.fineId, b])));
+      }
+    }
+  }, [selectedFine, jurisdiction]);
+
   const currentFilters = useMemo(() => buildFilters(), [buildFilters]);
 
   const triggerDownload = useCallback((data: BlobPart, filename: string, mimeType: string) => {
@@ -270,7 +386,7 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
             label="Type"
             value={selectedPenaltyTypes}
             onChange={(values) => handleMultiFilterChange('penaltyType', values)}
-            options={PENALTY_TYPE_MULTISELECT_OPTIONS}
+            options={penaltyTypeOptions}
             placeholder="All Types"
             data-testid="penalty-type-filter"
           />
@@ -298,7 +414,7 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
             label="Level"
             value={selectedAgencyLevels}
             onChange={(values) => handleMultiFilterChange('agencyLevel', values)}
-            options={AGENCY_LEVEL_MULTISELECT_OPTIONS}
+            options={agencyLevelOptions}
             placeholder="All Levels"
             data-testid="agency-level-filter"
           />
@@ -310,6 +426,7 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
             onChange={(values) => handleMultiFilterChange('whoPays', values)}
             options={whoPaysOptions}
             placeholder="All"
+            className="min-w-[240px]"
             data-testid="who-pays-filter"
           />
         </FilterField>
@@ -444,7 +561,16 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
             </div>
           </div>
           <div className="p-4">
-            <FinesTable data={data} state={jurisdiction} onRowClick={handleRowClick} />
+            <FinesTable
+              data={data}
+              state={jurisdiction}
+              onRowClick={handleRowClick}
+              bookmarkedFineIds={bookmarkedIds}
+              onToggleBookmark={handleToggleBookmark}
+              fineBookmarks={fineBookmarks}
+              onSaveBookmarkNotes={handleSaveBookmarkNotes}
+              bookmarkName={bookmarkName}
+            />
           </div>
           {totalPages > 1 && (
             <div className="px-4 py-3 border-t border-[var(--color-neutral-200)]">
@@ -464,8 +590,9 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
       <FinesDetailDrawer
         fine={selectedFine}
         open={drawerOpen}
-        onOpenChange={setDrawerOpen}
+        onOpenChange={handleDrawerOpenChange}
         state={jurisdiction}
+        onBookmarkChange={handleBookmarkChange}
       />
     </div>
   );

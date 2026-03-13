@@ -56,9 +56,26 @@ export function useLocalStorageName<T extends string = string>(
     setIsLoaded(true);
   }, [key, validate]);
 
+  // Sync across hook instances in the same tab via custom event
+  useEffect(() => {
+    const handler = (e: Event) => {
+      if (!(e instanceof CustomEvent)) return;
+      const { key: evtKey, value } = e.detail as { key: string; value: string };
+      if (evtKey !== key || typeof value !== 'string') return;
+      if (validate) {
+        if (validate(value)) setName(value);
+      } else {
+        setName(value as T);
+      }
+    };
+    window.addEventListener('localStorageNameSync', handler);
+    return () => window.removeEventListener('localStorageNameSync', handler);
+  }, [key, validate]);
+
   const saveName = useCallback((newName: T) => {
     localStorage.setItem(key, newName);
     setName(newName);
+    window.dispatchEvent(new CustomEvent<{ key: string; value: string }>('localStorageNameSync', { detail: { key, value: newName } }));
   }, [key]);
 
   return { name, saveName, isLoaded };
