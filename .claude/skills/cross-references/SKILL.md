@@ -23,12 +23,29 @@ python3 -m cross_references.run_extraction --state NJ --output db
 
 ## Current Stats (Mar 2026)
 
-| Jurisdiction | Total Refs | Documents | Resolution Rate |
-|--------------|------------|-----------|-----------------|
-| NY           | 46,105     | 12,803    | 99.3%           |
-| NJ           | 83,853     | 23,399    | 99.9%           |
-| NYC          | 3,953      | 1,210     | 99.8%           |
-| **Total**    | **133,911**| -         | **99.6%**       |
+### Overall
+
+| Jurisdiction | Total Refs | Resolved | Resolution Rate |
+|--------------|------------|----------|-----------------|
+| NY           | 93,334     | 54,971   | 58.9%           |
+| NJ           | 83,853     | 83,826   | 100.0%          |
+| NYC          | 3,953      | 3,945    | 99.8%           |
+| **Total**    | **181,140**| **142,742** | **78.8%**    |
+
+### By Reference Type
+
+| ref_type | Count | Resolved | Rate | Notes |
+|----------|-------|----------|------|-------|
+| njac | 58,678 | 58,652 | 100.0% | Full-form NJ citations |
+| same_section | 46,561 | 46,561 | 100.0% | Self-referential, no target doc needed |
+| ny_short_form | 22,816 | 22,610 | 99.1% | Relative refs resolved via source context |
+| form | 19,754 | 0 | 0.0% | Form IDs (e.g. `LDSS-4013B`) — intentionally unresolved, forms not in DB |
+| guidance | 17,160 | 11,970 | 69.8% | Guidance-to-guidance refs; unresolved = historical docs not scraped |
+| nycrr | 12,451 | 12,214 | 98.1% | Full-form NY citations |
+| ny_statute | 2,221 | 0 | 0.0% | Statute refs (e.g. `Education Law 3209`) — statutes not in DB |
+| ssl | 1,499 | 0 | 0.0% | Social Services Law refs — statutes not in DB |
+
+**Regulation-to-regulation resolution remains ~99%+.** The overall rate is lower because newer ref types (`form`, `ny_statute`, `ssl`) reference entities outside the document DB and are extracted for display/informational purposes only.
 
 ## When to Re-run Extraction
 
@@ -64,7 +81,7 @@ Key columns:
 - `source_document_id` - Document containing the citation
 - `target_document_id` - Document being cited (NULL if unresolved)
 - `raw_text` - Original citation text
-- `ref_type` - nycrr, njac, ny_short_form, same_section
+- `ref_type` - nycrr, njac, ny_short_form, same_section, form, guidance, ny_statute, ssl
 
 ### Frontend
 
@@ -90,3 +107,7 @@ Hooks: `frontend/apps/web/src/hooks/useCrossRefHighlighting.ts`
 | NJAC | `N.J.A.C. 8:43-1.2` | Full-form NJ citation |
 | NY Short-form | `section 624.8 of this Part` | Requires source context |
 | Same-section | `paragraph (a) of this section` | Internal reference |
+| Form | `LDSS-4013B` | Government form IDs (display only, not resolved) |
+| Guidance | `85 ADM-8`, `TSB-M-14(1.1)S` | Cross-refs between guidance documents |
+| NY Statute | `Education Law 3209` | NY statute references (display only) |
+| SSL | `SSL 366-c` | Social Services Law references (display only) |

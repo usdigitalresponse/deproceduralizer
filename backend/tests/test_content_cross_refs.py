@@ -10,6 +10,7 @@ import pytest
 from scripts.guidance_pipeline.content_cross_refs import (
     _resolve_nycrr_citation,
     _resolve_guidance_ref,
+    _zero_pad_ref_number,
 )
 
 
@@ -117,3 +118,43 @@ class TestResolveGuidanceRef:
         components = {"format": "short", "year": "05", "doc_type": "LCM", "number": "12"}
         result = _resolve_guidance_ref("05 LCM-12", components, guidance_lookup)
         assert result == 700
+
+    def test_short_format_zero_padding(self):
+        """Short-format ref '99 ADM-5' should resolve to '99-OTDA-ADM-05' via zero-padding."""
+        guidance_lookup = {"99-OTDA-ADM-05": 800}
+        components = {"format": "short", "year": "99", "doc_type": "ADM", "number": "5"}
+        result = _resolve_guidance_ref("99 ADM-5", components, guidance_lookup)
+        assert result == 800
+
+    def test_agency_prefixed_zero_padding(self):
+        """Agency-prefixed ref '99-OTDA-ADM-5' should resolve to '99-OTDA-ADM-05'."""
+        guidance_lookup = {"99-OTDA-ADM-05": 900}
+        components = {"format": "agency_prefixed"}
+        result = _resolve_guidance_ref("99-OTDA-ADM-5", components, guidance_lookup)
+        assert result == 900
+
+    def test_tsb_m_zero_padding(self):
+        """TSB-M ref 'TSB-M-08(3)S' should resolve to 'TSB-M-08(03)S' via zero-padding."""
+        guidance_lookup = {"TSB-M-08(03)S": 1000}
+        components = {"format": "tsb_m", "year": "08", "number": "3", "tax_type": "S"}
+        result = _resolve_guidance_ref("TSB-M-08(3)S", components, guidance_lookup)
+        assert result == 1000
+
+
+class TestZeroPadRefNumber:
+    """Test _zero_pad_ref_number helper."""
+
+    def test_pads_single_digit_agency_prefixed(self):
+        assert _zero_pad_ref_number("99-OTDA-ADM-5") == "99-OTDA-ADM-05"
+
+    def test_pads_single_digit_short_format(self):
+        assert _zero_pad_ref_number("99 ADM-5") == "99 ADM-05"
+
+    def test_no_change_for_two_digit_number(self):
+        assert _zero_pad_ref_number("99-OTDA-ADM-05") == "99-OTDA-ADM-05"
+
+    def test_no_change_for_multi_digit_number(self):
+        assert _zero_pad_ref_number("99-OTDA-ADM-123") == "99-OTDA-ADM-123"
+
+    def test_no_change_for_gis_format(self):
+        assert _zero_pad_ref_number("GIS-20-MA/10") == "GIS-20-MA/10"

@@ -1,9 +1,11 @@
 # Scraper Expansion Plan
 
 > **Status: IN PROGRESS**
-> As of 2026-02-26, 25 scrapers are registered covering 21 agencies.
+> As of 2026-03-13, 25 scrapers are registered covering 21 agencies.
 
 ## Current Coverage
+
+The table below shows scraper registrations. See **Database Counts** for actual imported totals.
 
 | Agency | Scraper | Type | Docs | Status |
 |--------|---------|------|------|--------|
@@ -11,29 +13,58 @@
 | OMH | omh-guidance | Static | ~30 | Done |
 | NYSDOT | nysdot-permits | Static | ~15 | Done |
 | OCM | ocm-licensing | Static | ~10 | Done |
-| WCB | wcb-subject-numbers | Static | 289 | **New** |
+| WCB | wcb-subject-numbers | Static | 289 | Done |
 | NYSDOL | nysdol-directives | Paginated | ~50 | Done |
 | OPWDD | opwdd-guidance | Paginated | ~100 | Done |
 | OASAS | oasas-legal | Paginated | ~169 | Done |
 | SLA | sla-guidance | Paginated | ~50 | Done |
 | HCR | hcr-rental-housing | Paginated | ~60 | Done |
 | DOCCS | doccs-directives | Paginated | 369 | Done |
-| OGS | ogs-procurement | Paginated | 91 | **New** |
-| DOS | dos-technical-support | Paginated | 188 | **New** |
-| DOS | dos-publications | Paginated | 89 | **New** |
-| AG | ag-opinions | Paginated | 536 | **New** |
-| AG | ag-regulatory-documents | Paginated | 221 | **New** |
-| AG | ag-real-estate-memos | Paginated | 115 | **New** |
+| OGS | ogs-procurement | Paginated | 91 | Done |
+| DOS | dos-technical-support | Paginated | 188 | Done |
+| DOS | dos-publications | Paginated | 89 | Done |
+| AG | ag-opinions | Paginated | 536 | Done |
+| AG | ag-regulatory-documents | Paginated | 221 | Done |
+| AG | ag-real-estate-memos | Paginated | 115 | Done |
 | NYSDEC | nysdec-guidance | CategoryHub | ~200 | Done |
 | TAX | tax-tsb-m | CategoryHub | ~500 | Done |
 | OTDA | otda-directives | CategoryHub | ~1000 | Done |
 | NYSDOH | nysdoh-dals | Playwright | 755 | New (downloads failing) |
 | NYSDOH | nysdoh-early-intervention | Playwright | 179 | New (downloads failing) |
-| NYSDOH | nysdoh-gis | Playwright | 1,148 | **New** |
+| NYSDOH | nysdoh-gis | Playwright | 1,148 | Done |
 | NYDFS | nydfs-circular-letters | Playwright | ~100 | Enabled |
 | OCFS | ocfs-childcare-letters | Playwright | ~200 | Enabled |
 
-**Total: ~6,400+ scraped documents across 21 agencies**
+## Database Counts (Mar 2026)
+
+Actual guidance documents imported into the `guidance_documents` table:
+
+| Agency | DB Count | Top Doc Types |
+|--------|----------|---------------|
+| OTDA | 4,997 | ADM, INF, LCM, GIS |
+| NYSDOH | 2,059 | GIS, DAL |
+| OCFS | 1,826 | LCM, INF, ADM |
+| TAX | 1,484 | TSB-M |
+| AG | 841 | Informal Opinion, letter |
+| SLA | 535 | Guidance, Advisory |
+| WCB | 289 | Bulletin |
+| DOCCS | 252 | Directive |
+| DOS | 196 | Technical Bulletin, Publication |
+| NYSDEC | 188 | Guidance |
+| OPWDD | 97 | ADM, other |
+| OGS | 90 | Contract Letter, Requirement Letter |
+| HCR | 89 | Guidance |
+| NYSDOL | 77 | Directive |
+| OMH | 68 | Guidance |
+| NYSED | 42 | Guidance |
+| OASAS | 25 | Guidance |
+| JUSTICE_CENTER | 2 | Guidance |
+| OCM | 2 | Guidance |
+| NYDFS | 1 | Circular Letter |
+| NYC_DOHMH | 146 | Health Code Guidance |
+
+**Total in DB: 13,306 guidance documents (13,160 NY + 146 NYC)**
+All documents have text content (100% extraction rate).
 
 ## Known Issue: health.ny.gov blocks automated downloads
 

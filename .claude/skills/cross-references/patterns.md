@@ -159,6 +159,41 @@ NY_SHORT_FORM_PATTERN = re.compile(
 )
 ```
 
+### Form References (Display Only)
+
+**Pattern:** Government form identifiers
+
+**Examples:**
+- `LDSS-4013B`
+- `DSS-2267`
+- `DSS-3174`
+
+**Resolution:** Not resolved — forms are not stored as documents in the DB. Extracted for display/informational purposes.
+
+### NY Statute References (Display Only)
+
+**Pattern:** `{Statute Name} {section}`
+
+**Examples:**
+- `Education Law 3209`
+- `Family Court Act 413`
+- `Vehicle and Traffic Law 375`
+- `Tax Law 452`
+
+**Resolution:** Not resolved — NY statutes are not in the document DB. Extracted for display/informational purposes.
+
+### SSL (Social Services Law) References (Display Only)
+
+**Pattern:** `SSL {section}`
+
+**Examples:**
+- `SSL 22`
+- `SSL 111-g`
+- `SSL 131`
+- `SSL 366-c`
+
+**Resolution:** Not resolved — a specific statute type extracted separately due to high frequency in OTDA/OCFS/NYSDOH guidance documents.
+
 ## Fallback Resolution Strategies
 
 ### NYCRR Fallbacks

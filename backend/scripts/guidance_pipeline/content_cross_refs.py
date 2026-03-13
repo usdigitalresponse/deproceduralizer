@@ -108,6 +108,18 @@ DOC_TYPE_AGENCIES = {
 # GIS excluded — Format 3 handles GIS directly with no agency ambiguity
 
 
+def _zero_pad_ref_number(normalized: str) -> str:
+    """Zero-pad the trailing number in a guidance ref to 2 digits.
+
+    E.g., '99-OTDA-ADM-5' -> '99-OTDA-ADM-05'
+         '99 ADM-5' -> '99 ADM-05'
+    """
+    m = re.match(r'^(.+[-\s])(\d+)$', normalized)
+    if m and len(m.group(2)) == 1:
+        return f"{m.group(1)}{m.group(2).zfill(2)}"
+    return normalized
+
+
 def _resolve_guidance_ref(
     normalized: str,
     components: dict,
@@ -117,6 +129,11 @@ def _resolve_guidance_ref(
     # Try direct match
     if normalized in guidance_lookup:
         return guidance_lookup[normalized]
+
+    # Try zero-padded variant (e.g., "99-OTDA-ADM-5" -> "99-OTDA-ADM-05")
+    padded = _zero_pad_ref_number(normalized)
+    if padded != normalized and padded in guidance_lookup:
+        return guidance_lookup[padded]
 
     # Strip revision suffixes (-R1, -R2, etc.) and try base version
     revision_match = re.match(r'^(.+)-R\d+$', normalized)
@@ -131,11 +148,17 @@ def _resolve_guidance_ref(
         year = components.get('year', '')
         doc_type = components.get('doc_type', '')
         number = components.get('number', '')
+        padded_number = number.zfill(2)
         agencies = DOC_TYPE_AGENCIES.get(doc_type, [])
         for agency in agencies:
             candidate = f"{year}-{agency}-{doc_type}-{number}"
             if candidate in guidance_lookup:
                 return guidance_lookup[candidate]
+            # Try with zero-padded number (e.g., '5' -> '05')
+            if padded_number != number:
+                candidate_padded = f"{year}-{agency}-{doc_type}-{padded_number}"
+                if candidate_padded in guidance_lookup:
+                    return guidance_lookup[candidate_padded]
             # Try with leading zeros stripped (e.g., '06' -> '6')
             if number.lstrip("0") != number and number.lstrip("0"):
                 candidate2 = f"{year}-{agency}-{doc_type}-{number.lstrip('0')}"
@@ -144,12 +167,20 @@ def _resolve_guidance_ref(
 
     # For TSB-M refs, the canonical_ref in the DB is already "TSB-M-YY(N)X"
     if fmt == 'tsb_m':
-        # Also try with/without leading zeros on number
         number = components.get('number', '')
+        year = components.get('year', '')
+        tax_type = components.get('tax_type', '')
+        # Try with leading zeros stripped (e.g., '06' -> '6')
         if number.lstrip("0") != number and number.lstrip("0"):
-            stripped = f"TSB-M-{components.get('year', '')}({number.lstrip('0')}){components.get('tax_type', '')}"
+            stripped = f"TSB-M-{year}({number.lstrip('0')}){tax_type}"
             if stripped in guidance_lookup:
                 return guidance_lookup[stripped]
+        # Try with zero-padded number (e.g., '1' -> '01')
+        padded_number = number.zfill(2)
+        if padded_number != number:
+            padded_tsb = f"TSB-M-{year}({padded_number}){tax_type}"
+            if padded_tsb in guidance_lookup:
+                return guidance_lookup[padded_tsb]
 
     return None
 

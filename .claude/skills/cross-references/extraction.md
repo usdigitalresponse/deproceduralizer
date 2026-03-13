@@ -22,6 +22,7 @@
 # Extract and write directly to database
 python3 -m cross_references.run_extraction --state NJ --output db
 python3 -m cross_references.run_extraction --state NY --output db
+python3 -m cross_references.run_extraction --state NYC --output db
 ```
 
 ### Test Run (JSON Output)
