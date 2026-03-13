@@ -6,6 +6,7 @@ import { Container } from '@/components/layout/Container';
 import { Alert } from '@/components/ui';
 import { isValidJurisdiction, JURISDICTION_CONFIG } from '@/types/state';
 import { searchRegulations, getSearchFilterOptions } from '@/lib/actions/search';
+import { parseCommaSeparated } from '@/lib/url/filter-helpers';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,7 +19,10 @@ interface PageProps {
     sectionType?: string;
     hierarchyLevel?: string;
     parentPath?: string;
-    hasAnalysis?: string;
+    issueSystem?: string;
+    issueType?: string;
+    issueCategory?: string;
+    issueSeverity?: string;
     classification?: string;
   }>;
 }
@@ -46,7 +50,7 @@ export default async function SearchPage({ params, searchParams }: PageProps) {
       <div className="bg-[var(--color-background)] min-h-screen">
         <PageHeader
           title={`Search ${stateConfig.name} Regulations`}
-          description="Full-text search across regulations, statutes, and analysis"
+          description="Full-text search across regulations, statutes, guidance, policy documents, and analysis"
         />
         <Container size="2xl" className="py-6">
           <SearchResultsClient jurisdiction={stateCode} initialResults={null} initialQuery="" filterOptions={filterOptions} />
@@ -54,6 +58,11 @@ export default async function SearchPage({ params, searchParams }: PageProps) {
       </div>
     );
   }
+
+  // Parse CSV multi-select params
+  const issueTypes = parseCommaSeparated(queryParams.issueType);
+  const issueCategories = parseCommaSeparated(queryParams.issueCategory);
+  const issueSeverities = parseCommaSeparated(queryParams.issueSeverity);
 
   const result = await searchRegulations({
     jurisdiction: stateCode,
@@ -63,7 +72,10 @@ export default async function SearchPage({ params, searchParams }: PageProps) {
     sectionType: queryParams.sectionType || null,
     hierarchyLevel: queryParams.hierarchyLevel || null,
     parentPath: queryParams.parentPath || null,
-    hasAnalysis: queryParams.hasAnalysis || null,
+    issueSystem: queryParams.issueSystem || null,
+    issueTypes: issueTypes.length ? issueTypes : null,
+    issueCategories: issueCategories.length ? issueCategories : null,
+    issueSeverities: issueSeverities.length ? issueSeverities : null,
     classification: queryParams.classification || null,
   });
 
@@ -72,7 +84,7 @@ export default async function SearchPage({ params, searchParams }: PageProps) {
       <div className="bg-[var(--color-background)] min-h-screen">
         <PageHeader
           title={`Search ${stateConfig.name} Regulations`}
-          description="Full-text search across regulations, statutes, and analysis"
+          description="Full-text search across regulations, statutes, guidance, policy documents, and analysis"
         />
         <Container size="2xl" className="py-6">
           <Alert variant="error">Search failed: {result.error}</Alert>
@@ -85,7 +97,7 @@ export default async function SearchPage({ params, searchParams }: PageProps) {
     <div className="bg-[var(--color-background)] min-h-screen">
       <PageHeader
         title={`Search ${stateConfig.name} Regulations`}
-        description="Full-text search across regulations, statutes, and analysis"
+        description="Full-text search across regulations, statutes, guidance, policy documents, and analysis"
       />
       <Container size="2xl" className="py-6">
         <SearchResultsClient

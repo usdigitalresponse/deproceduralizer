@@ -1,7 +1,107 @@
-import { sql } from 'drizzle-orm';
+import { sql, type SQL } from 'drizzle-orm';
 import { BaseRepository } from './base.repository';
 import { JurisdictionCode, normalizeJurisdiction } from '../schema/constants';
 import { shouldExcludeStatutes, shouldExcludeRegulations, shouldExcludeGuidance, shouldSkipAnalyses } from './search-filters';
+
+// ============================================
+// Issue system filter helpers
+// ============================================
+
+/** @internal Exported for testing only. */
+export function sqlTextArray(values: string[]): SQL {
+  return sql`ARRAY[${sql.join(values.map(v => sql`${v}`), sql`, `)}]::text[]`;
+}
+
+/** @internal Exported for testing only. */
+export function buildSeverityCondition(severities: string[], alias: string): SQL {
+  const conds: SQL[] = [];
+  if (severities.includes('high')) conds.push(sql.raw(`${alias}.severity >= 7`));
+  if (severities.includes('medium')) conds.push(sql.raw(`(${alias}.severity >= 4 AND ${alias}.severity < 7)`));
+  if (severities.includes('low')) conds.push(sql.raw(`(${alias}.severity >= 1 AND ${alias}.severity < 4)`));
+  if (conds.length === 0) return sql``;
+  return sql`AND (${sql.join(conds, sql` OR `)})`;
+}
+
+/** @internal Exported for testing only. */
+export function buildComplianceExists(
+  docCol: string,
+  classification?: string | null,
+  issueTypes?: string[] | null,
+  issueSeverities?: string[] | null,
+  isGuidance = false,
+): SQL {
+  const classFilter = classification
+    ? sql`AND cia_f.tier2_classification = ${classification}`
+    : sql``;
+  const typeFilter = issueTypes?.length
+    ? sql`AND cia_f.issue_type = ANY(${sqlTextArray(issueTypes)})`
+    : sql``;
+  const sevFilter = issueSeverities?.length
+    ? buildSeverityCondition(issueSeverities, 'cia_f')
+    : sql``;
+  const fkCol = isGuidance ? 'guidance_document_id' : 'document_id';
+  return sql`EXISTS (
+    SELECT 1 FROM compliance_issue_analyses cia_f
+    WHERE cia_f.${sql.raw(fkCol)} = ${sql.raw(docCol)}
+      AND cia_f.requirement_found = true
+      ${classFilter} ${typeFilter} ${sevFilter}
+  )`;
+}
+
+/** @internal Exported for testing only. */
+export function buildJenaiExists(
+  docCol: string,
+  issueCategories?: string[] | null,
+  issueSeverities?: string[] | null,
+  isGuidance = false,
+): SQL {
+  const catFilter = issueCategories?.length
+    ? sql`AND ji_f.category = ANY(${sqlTextArray(issueCategories)})`
+    : sql``;
+  const sevFilter = issueSeverities?.length
+    ? buildSeverityCondition(issueSeverities, 'ji_f')
+    : sql``;
+  const joinCol = isGuidance ? 'ja_f.guidance_document_id' : 'ja_f.document_id';
+  return sql`EXISTS (
+    SELECT 1 FROM jenai_issues ji_f
+    JOIN jenai_analyses ja_f ON ja_f.id = ji_f.analysis_id
+    WHERE ${sql.raw(joinCol)} = ${sql.raw(docCol)}
+      ${catFilter} ${sevFilter}
+  )`;
+}
+
+/** @internal Exported for testing only. */
+export function buildIssueFilter(
+  docCol: string,
+  issueSystem?: string | null,
+  classification?: string | null,
+  issueTypes?: string[] | null,
+  issueCategories?: string[] | null,
+  issueSeverities?: string[] | null,
+  isGuidance = false,
+): SQL {
+  if (!issueSystem) return sql``;
+
+  switch (issueSystem) {
+    case 'compliance':
+      return sql`AND ${buildComplianceExists(docCol, classification, issueTypes, issueSeverities, isGuidance)}`;
+    case 'jenai':
+      return sql`AND ${buildJenaiExists(docCol, issueCategories, issueSeverities, isGuidance)}`;
+    case 'any': {
+      const comp = issueSeverities?.length
+        ? buildComplianceExists(docCol, classification, issueTypes, issueSeverities, isGuidance)
+        : buildComplianceExists(docCol, null, null, null, isGuidance);
+      const jenai = issueSeverities?.length
+        ? buildJenaiExists(docCol, issueCategories, issueSeverities, isGuidance)
+        : buildJenaiExists(docCol, null, null, isGuidance);
+      return sql`AND (${comp} OR ${jenai})`;
+    }
+    case 'none':
+      return sql`AND NOT ${buildComplianceExists(docCol, null, null, null, isGuidance)} AND NOT ${buildJenaiExists(docCol, null, null, isGuidance)}`;
+    default:
+      return sql``;
+  }
+}
 
 // ============================================
 // Types
@@ -26,7 +126,7 @@ export interface SearchResultItem {
 
 export interface CommentaryHit {
   id: number;
-  type: 'analysis' | 'definition';
+  type: 'analysis' | 'definition' | 'jenai_issue';
   documentId: number;
   documentTitle: string;
   documentCitation: string | null;
@@ -63,7 +163,10 @@ export interface SearchOptions {
   sectionType?: string | null;
   hierarchyLevel?: string | null;
   parentPath?: string | null;
-  hasAnalysis?: string | null;
+  issueSystem?: string | null;
+  issueTypes?: string[] | null;
+  issueCategories?: string[] | null;
+  issueSeverities?: string[] | null;
   classification?: string | null;
   docType?: string | null;
 }
@@ -82,7 +185,10 @@ export class SearchRepository extends BaseRepository {
       sectionType,
       hierarchyLevel,
       parentPath,
-      hasAnalysis,
+      issueSystem,
+      issueTypes,
+      issueCategories,
+      issueSeverities,
       classification,
       docType,
     } = options;
@@ -100,24 +206,17 @@ export class SearchRepository extends BaseRepository {
       ? sql`AND rd.hierarchy_path LIKE ${parentPath + '%'}`
       : sql``;
 
-    // Analysis existence filter
-    const regHasAnalysisFilter = hasAnalysis === 'true'
-      ? sql`AND EXISTS (SELECT 1 FROM compliance_issue_analyses cia2 WHERE cia2.document_id = rd.id AND cia2.requirement_found = true)`
-      : hasAnalysis === 'false'
-        ? sql`AND NOT EXISTS (SELECT 1 FROM compliance_issue_analyses cia2 WHERE cia2.document_id = rd.id AND cia2.requirement_found = true)`
-        : sql``;
-
-    // Classification filter
-    const regClassificationFilter = classification
-      ? sql`AND EXISTS (SELECT 1 FROM compliance_issue_analyses cia2 WHERE cia2.document_id = rd.id AND cia2.requirement_found = true AND cia2.tier2_classification = ${classification})`
-      : sql``;
+    // Issue system filter for regulations (document_id)
+    const regIssueFilter = buildIssueFilter('rd.id', issueSystem, classification, issueTypes, issueCategories, issueSeverities);
+    // Issue system filter for guidance (guidance_document_id)
+    const guidanceIssueFilter = buildIssueFilter('gd.id', issueSystem, classification, issueTypes, issueCategories, issueSeverities, true);
 
     // Document type filter — exclude entire branch when filtering to the other type.
     // Also exclude statutes when regulation-specific filters are active
     // (statutes have no section_type, hierarchy_level, or analyses).
     const excludeRegulations = shouldExcludeRegulations({ docType });
-    const excludeStatutes = shouldExcludeStatutes({ docType, sectionType, hierarchyLevel, hasAnalysis, classification });
-    const excludeGuidance = shouldExcludeGuidance({ docType, sectionType, hierarchyLevel, hasAnalysis, classification });
+    const excludeStatutes = shouldExcludeStatutes({ docType, sectionType, hierarchyLevel, issueSystem, classification });
+    const excludeGuidance = shouldExcludeGuidance({ docType, sectionType, hierarchyLevel, issueSystem, classification });
 
     // Primary search: regulations + statutes via UNION ALL
     const results = await this.db.execute(sql`
@@ -162,8 +261,7 @@ export class SearchRepository extends BaseRepository {
           ${regSectionTypeFilter}
           ${regHierarchyLevelFilter}
           ${regParentPathFilter}
-          ${regHasAnalysisFilter}
-          ${regClassificationFilter}
+          ${regIssueFilter}
 
         UNION ALL
 
@@ -213,6 +311,7 @@ export class SearchRepository extends BaseRepository {
         WHERE gd.jurisdiction = ${normalizeJurisdiction(jurisdiction)}
           AND gd.search_vector @@ sq.q
           ${excludeGuidance ? sql`AND false` : sql``}
+          ${guidanceIssueFilter}
       ) combined
       ORDER BY rank DESC
       LIMIT ${pageSize}
@@ -233,8 +332,7 @@ export class SearchRepository extends BaseRepository {
             ${regSectionTypeFilter}
             ${regHierarchyLevelFilter}
             ${regParentPathFilter}
-            ${regHasAnalysisFilter}
-            ${regClassificationFilter}
+            ${regIssueFilter}
         ) + (
           SELECT count(*)::int FROM statutes s, search_query sq
           WHERE s.jurisdiction =${normalizeJurisdiction(jurisdiction)}
@@ -245,14 +343,21 @@ export class SearchRepository extends BaseRepository {
           WHERE gd.jurisdiction = ${normalizeJurisdiction(jurisdiction)}
             AND gd.search_vector @@ sq.q
             ${excludeGuidance ? sql`AND false` : sql``}
+            ${guidanceIssueFilter}
         ) AS total
     `);
 
     const total = Number((countResult.rows[0] as unknown as { total: number }).total) || 0;
     const items = results.rows as unknown as SearchResultItem[];
 
-    // Commentary sidebar query (analysis + definition hits, filtered to match active filters)
-    const commentary = await this.searchCommentary(jurisdiction, query, { classification, hasAnalysis });
+    // Commentary sidebar query (analysis + definition + jenai hits, filtered to match active filters)
+    const commentary = await this.searchCommentary(jurisdiction, query, {
+      classification,
+      issueSystem,
+      issueTypes,
+      issueCategories,
+      issueSeverities,
+    });
 
     return {
       items,
@@ -267,15 +372,36 @@ export class SearchRepository extends BaseRepository {
   private async searchCommentary(
     jurisdiction: JurisdictionCode,
     query: string,
-    filters?: { classification?: string | null; hasAnalysis?: string | null },
+    filters?: {
+      classification?: string | null;
+      issueSystem?: string | null;
+      issueTypes?: string[] | null;
+      issueCategories?: string[] | null;
+      issueSeverities?: string[] | null;
+    },
   ): Promise<CommentaryHit[]> {
-    // Filter analysis hits by classification when active
+    // Compliance sub-filters
     const classificationFilter = filters?.classification
       ? sql`AND cia.tier2_classification = ${filters.classification}`
       : sql``;
+    const issueTypeFilter = filters?.issueTypes?.length
+      ? sql`AND cia.issue_type = ANY(${sqlTextArray(filters.issueTypes)})`
+      : sql``;
+    const compSevFilter = filters?.issueSeverities?.length
+      ? buildSeverityCondition(filters.issueSeverities, 'cia')
+      : sql``;
 
-    // When filtering to "not analyzed", skip the analysis branch entirely
-    const skipAnalyses = shouldSkipAnalyses(filters?.hasAnalysis);
+    // JenAI sub-filters
+    const categoryFilter = filters?.issueCategories?.length
+      ? sql`AND ji.category = ANY(${sqlTextArray(filters.issueCategories)})`
+      : sql``;
+    const jenaiSevFilter = filters?.issueSeverities?.length
+      ? buildSeverityCondition(filters.issueSeverities, 'ji')
+      : sql``;
+
+    // Gate branches by issueSystem
+    const skipCompliance = shouldSkipAnalyses(filters?.issueSystem); // true for 'none' and 'jenai'
+    const skipJenai = filters?.issueSystem === 'none' || filters?.issueSystem === 'compliance';
 
     const results = await this.db.execute(sql`
       WITH search_query AS (
@@ -310,9 +436,36 @@ export class SearchRepository extends BaseRepository {
         WHERE rd.jurisdiction =${normalizeJurisdiction(jurisdiction)}
           AND cia.search_vector @@ sq.q
           ${classificationFilter}
-          ${skipAnalyses ? sql`AND false` : sql``}
+          ${issueTypeFilter}
+          ${compSevFilter}
+          ${skipCompliance ? sql`AND false` : sql``}
         ORDER BY rank DESC
         LIMIT 30
+      )
+      UNION ALL
+      (
+        SELECT
+          ji.id,
+          'jenai_issue' AS type,
+          coalesce(ji.document_id, ji.guidance_document_id)::int AS "documentId",
+          coalesce(rd.title, gd.title) AS "documentTitle",
+          coalesce(rd.citation, gd.canonical_ref) AS "documentCitation",
+          left(ji.explanation, 200) AS snippet,
+          ji.category AS label,
+          0 AS rank,
+          NULL AS classification,
+          ji.severity,
+          NULL AS "highlightText"
+        FROM jenai_issues ji
+        JOIN jenai_analyses ja ON ja.id = ji.analysis_id
+        LEFT JOIN regulatory_documents rd ON ji.document_id = rd.id
+        LEFT JOIN guidance_documents gd ON ji.guidance_document_id = gd.id
+        WHERE ja.jurisdiction = ${normalizeJurisdiction(jurisdiction)}
+          AND ji.explanation ILIKE ${'%' + query + '%'}
+          ${categoryFilter}
+          ${jenaiSevFilter}
+          ${skipJenai ? sql`AND false` : sql``}
+        LIMIT 20
       )
       UNION ALL
       (

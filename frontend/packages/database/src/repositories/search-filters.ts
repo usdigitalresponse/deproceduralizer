@@ -1,7 +1,7 @@
 import type { SearchOptions } from './search.repository';
 
 type FilterOptions = Pick<SearchOptions,
-  'docType' | 'sectionType' | 'hierarchyLevel' | 'hasAnalysis' | 'classification'
+  'docType' | 'sectionType' | 'hierarchyLevel' | 'issueSystem' | 'classification'
 >;
 
 export function shouldExcludeStatutes(opts: FilterOptions): boolean {
@@ -9,8 +9,7 @@ export function shouldExcludeStatutes(opts: FilterOptions): boolean {
     || opts.docType === 'guidance'
     || !!opts.sectionType
     || !!opts.hierarchyLevel
-    || opts.hasAnalysis === 'true'
-    || !!opts.classification;
+    || !!opts.issueSystem;
 }
 
 export function shouldExcludeRegulations(opts: Pick<SearchOptions, 'docType'>): boolean {
@@ -21,11 +20,9 @@ export function shouldExcludeRegulations(opts: Pick<SearchOptions, 'docType'>): 
 export function shouldExcludeGuidance(opts: FilterOptions): boolean {
   return opts.docType === 'regulation'
     || opts.docType === 'statute'
-    || !!opts.hierarchyLevel
-    || opts.hasAnalysis === 'true'
-    || !!opts.classification;
+    || !!opts.hierarchyLevel;
 }
 
-export function shouldSkipAnalyses(hasAnalysis?: string | null): boolean {
-  return hasAnalysis === 'false';
+export function shouldSkipAnalyses(issueSystem?: string | null): boolean {
+  return issueSystem === 'none' || issueSystem === 'jenai';
 }

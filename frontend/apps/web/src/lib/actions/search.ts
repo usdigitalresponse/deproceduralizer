@@ -23,7 +23,7 @@ export async function searchRegulations(
   return runCachedAction(
     'searchRegulations',
     () => searchRepo.search({ ...options, query }),
-    [`search-${options.jurisdiction}-${query}-${options.page || 1}-${options.docType || ''}-${options.sectionType || ''}-${options.hierarchyLevel || ''}-${options.parentPath || ''}-${options.hasAnalysis || ''}-${options.classification || ''}`],
+    [`search-${options.jurisdiction}-${query}-${options.page || 1}-${options.docType || ''}-${options.sectionType || ''}-${options.hierarchyLevel || ''}-${options.parentPath || ''}-${options.issueSystem || ''}-${options.issueTypes?.join(',') || ''}-${options.issueCategories?.join(',') || ''}-${options.issueSeverities?.join(',') || ''}-${options.classification || ''}`],
     { revalidate: 30 }
   );
 }

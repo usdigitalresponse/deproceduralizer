@@ -62,7 +62,7 @@ export function SearchResultsClient({
       <SearchInput
         value={currentQuery}
         onSearch={handleSearch}
-        placeholder="Search regulations, statutes, and analyses..."
+        placeholder="Search regulations, statutes, guidance, and analyses..."
         size="md"
         isLoading={isPending}
         aria-label="Search regulations"
@@ -74,7 +74,7 @@ export function SearchResultsClient({
         <EmptyState
           icon={Search}
           title="Search regulations"
-          description="Enter a search term to find regulations, statutes, and analyses across the corpus"
+          description="Enter a search term to find regulations, statutes, guidance, policy documents, and analyses across the corpus"
         />
       )}
 

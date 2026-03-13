@@ -631,7 +631,10 @@ export const searchResultsParsers = {
   sectionType: parseAsString,
   hierarchyLevel: parseAsString,
   parentPath: parseAsString,
-  hasAnalysis: parseAsString,
+  issueSystem: parseAsString,
+  issueType: parseAsString,
+  issueCategory: parseAsString,
+  issueSeverity: parseAsString,
   classification: parseAsString,
 };
 

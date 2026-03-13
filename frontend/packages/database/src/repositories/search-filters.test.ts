@@ -26,16 +26,20 @@ describe('shouldExcludeStatutes', () => {
     expect(shouldExcludeStatutes({ hierarchyLevel: 'section' })).toBe(true);
   });
 
-  it('returns true when hasAnalysis is true', () => {
-    expect(shouldExcludeStatutes({ hasAnalysis: 'true' })).toBe(true);
+  it('returns true when issueSystem is set', () => {
+    expect(shouldExcludeStatutes({ issueSystem: 'compliance' })).toBe(true);
   });
 
-  it('returns false when hasAnalysis is false (statutes qualify as not-analyzed)', () => {
-    expect(shouldExcludeStatutes({ hasAnalysis: 'false' })).toBe(false);
+  it('returns false when issueSystem is null', () => {
+    expect(shouldExcludeStatutes({ issueSystem: null })).toBe(false);
   });
 
-  it('returns true when classification is set', () => {
-    expect(shouldExcludeStatutes({ classification: 'burdensome' })).toBe(true);
+  it('returns false when only classification is set (no issueSystem)', () => {
+    expect(shouldExcludeStatutes({ classification: 'burdensome' })).toBe(false);
+  });
+
+  it('returns true when issueSystem and classification are set', () => {
+    expect(shouldExcludeStatutes({ issueSystem: 'compliance', classification: 'burdensome' })).toBe(true);
   });
 
   it('returns true when sectionType is set with null docType (original bug scenario)', () => {
@@ -55,7 +59,7 @@ describe('shouldExcludeStatutes', () => {
       docType: null,
       sectionType: null,
       hierarchyLevel: null,
-      hasAnalysis: null,
+      issueSystem: null,
       classification: null,
     })).toBe(false);
   });
@@ -65,7 +69,7 @@ describe('shouldExcludeStatutes', () => {
       docType: undefined,
       sectionType: undefined,
       hierarchyLevel: undefined,
-      hasAnalysis: undefined,
+      issueSystem: undefined,
       classification: undefined,
     })).toBe(false);
   });
@@ -110,16 +114,12 @@ describe('shouldExcludeGuidance', () => {
     expect(shouldExcludeGuidance({ hierarchyLevel: 'section' })).toBe(true);
   });
 
-  it('returns true when hasAnalysis is true', () => {
-    expect(shouldExcludeGuidance({ hasAnalysis: 'true' })).toBe(true);
+  it('returns false when issueSystem is set (guidance can have issues)', () => {
+    expect(shouldExcludeGuidance({ issueSystem: 'compliance' })).toBe(false);
   });
 
-  it('returns false when hasAnalysis is false', () => {
-    expect(shouldExcludeGuidance({ hasAnalysis: 'false' })).toBe(false);
-  });
-
-  it('returns true when classification is set', () => {
-    expect(shouldExcludeGuidance({ classification: 'burdensome' })).toBe(true);
+  it('returns false when classification is set (guidance can have classified issues)', () => {
+    expect(shouldExcludeGuidance({ classification: 'burdensome' })).toBe(false);
   });
 
   it('returns false when only sectionType is set', () => {
@@ -136,11 +136,19 @@ describe('shouldSkipAnalyses', () => {
     expect(shouldSkipAnalyses(undefined)).toBe(false);
   });
 
-  it('returns false when true', () => {
-    expect(shouldSkipAnalyses('true')).toBe(false);
+  it('returns false when compliance', () => {
+    expect(shouldSkipAnalyses('compliance')).toBe(false);
   });
 
-  it('returns true when false', () => {
-    expect(shouldSkipAnalyses('false')).toBe(true);
+  it('returns true when none', () => {
+    expect(shouldSkipAnalyses('none')).toBe(true);
+  });
+
+  it('returns true when jenai', () => {
+    expect(shouldSkipAnalyses('jenai')).toBe(true);
+  });
+
+  it('returns false when any', () => {
+    expect(shouldSkipAnalyses('any')).toBe(false);
   });
 });

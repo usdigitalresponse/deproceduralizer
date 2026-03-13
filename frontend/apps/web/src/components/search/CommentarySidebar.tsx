@@ -2,12 +2,13 @@
 
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
-import { ChevronRight, FileText } from 'lucide-react';
+import { ChevronRight, FileText, Lightbulb } from 'lucide-react';
 import { getEntityIcon } from '@/lib/constants/entity-types';
 import { Badge } from '@/components/ui';
 import { sanitizeSnippet } from '@/lib/utils/sanitize-snippet';
 import { SEVERITY_THRESHOLDS } from '@/lib/constants/values';
 import { ISSUE_TYPE_LABELS } from '@/types/regulation';
+import { JENAI_CATEGORY_LABELS } from '@/lib/constants/jenai';
 import type { CommentaryHit } from '@deproceduralizer/database';
 
 interface CommentarySidebarProps {
@@ -86,15 +87,23 @@ function CommentaryHitCard({
   searchUrl?: string;
 }) {
   const isAnalysis = hit.type === 'analysis';
-  const Icon = isAnalysis ? getEntityIcon('compliance_issue') : getEntityIcon('definition');
+  const isJenai = hit.type === 'jenai_issue';
+  const isIssue = isAnalysis || isJenai;
+  const Icon = isAnalysis
+    ? getEntityIcon('compliance_issue')
+    : isJenai
+      ? Lightbulb
+      : getEntityIcon('definition');
 
-  // Build primary href (analysis → pipeline page, definition → regulation with highlight)
+  // Build primary href
+  // analysis → pipeline page, jenai_issue → regulation page, definition → regulation with highlight
   const primaryHref = useMemo(() => {
-    const fromParam = searchUrl ? `?from=${encodeURIComponent(searchUrl)}` : '';
     if (isAnalysis) {
+      const fromParam = searchUrl ? `?from=${encodeURIComponent(searchUrl)}` : '';
       const base = `/${state}/pipeline/${hit.documentId}/${hit.label}`;
       return `${base}${fromParam}#matches`;
     }
+    // Both jenai_issue and definition link to the regulation page
     const p = new URLSearchParams();
     if (hit.highlightText) p.set('highlight', hit.highlightText);
     if (searchUrl) p.set('from', searchUrl);
@@ -102,7 +111,7 @@ function CommentaryHitCard({
     return `/${state}/regulations/${hit.documentId}${qs ? `?${qs}` : ''}`;
   }, [isAnalysis, state, hit.documentId, hit.label, hit.highlightText, searchUrl]);
 
-  // Build regulation link (for analysis cards — "View regulation" secondary link)
+  // Build regulation link (for compliance analysis cards — "View regulation" secondary link)
   const regulationHref = useMemo(() => {
     if (!isAnalysis) return null;
     const p = new URLSearchParams();
@@ -112,10 +121,12 @@ function CommentaryHitCard({
     return `/${state}/regulations/${hit.documentId}${qs ? `?${qs}` : ''}`;
   }, [isAnalysis, state, hit.documentId, query, searchUrl]);
 
-  // Human-readable issue type label for analyses
+  // Human-readable label
   const issueLabel = isAnalysis
     ? (ISSUE_TYPE_LABELS[hit.label] || hit.label)
-    : hit.label;
+    : isJenai
+      ? (JENAI_CATEGORY_LABELS[hit.label] || hit.label)
+      : hit.label;
 
   // sanitizeSnippet strips all HTML except <mark> tags from trusted PostgreSQL ts_headline output — safe against XSS
   const sanitizedSnippet = sanitizeSnippet(hit.snippet);
@@ -133,7 +144,7 @@ function CommentaryHitCard({
         className="block hover:bg-[var(--color-neutral-50)] -mx-1 px-1 rounded transition-colors duration-[var(--duration-fast)]"
       >
         {/* Badge row — classification + severity (icon is in the label row below) */}
-        {isAnalysis && (hit.classification || hit.severity != null) && (
+        {isIssue && (hit.classification || hit.severity != null) && (
           <div className="flex items-center gap-1.5 mb-1">
             {hit.classification && (
               <Badge variant={getClassificationVariant(hit.classification)} className="text-[10px] px-1 py-0">
@@ -160,7 +171,9 @@ function CommentaryHitCard({
           <span>
             {isAnalysis
               ? `Analysis: ${issueLabel} in ${hit.documentTitle}`
-              : `Definition: ${issueLabel}`}
+              : isJenai
+                ? `Implementation: ${issueLabel} in ${hit.documentTitle}`
+                : `Definition: ${issueLabel}`}
           </span>
         </p>
 

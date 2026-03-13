@@ -47,6 +47,7 @@ import {
   JENAI_VERBATIM_VALUES,
 } from './values';
 import { ISSUE_TYPE_LABELS } from '@/types/regulation';
+import { JENAI_CATEGORY_LABELS } from '@/lib/constants/jenai';
 
 // ============================================
 // Helper to create filter options from value arrays
@@ -537,3 +538,21 @@ export const SEARCH_CLASSIFICATION_OPTIONS: FilterOption[] = [
   { value: 'justified', label: 'Justified' },
   { value: 'unrelated', label: 'Unrelated' },
 ];
+
+export const SEARCH_ISSUE_SYSTEM_OPTIONS: FilterOption[] = [
+  { value: 'all', label: 'All Documents' },
+  { value: 'compliance', label: 'Compliance Issues' },
+  { value: 'jenai', label: 'JenAI (Implementation Issues)' },
+  { value: 'any', label: 'Any Issues' },
+  { value: 'none', label: 'No Issues' },
+];
+
+/** JenAI category options for MultiSelect (no "All" entry — empty selection = all). */
+export const JENAI_CATEGORY_MULTISELECT_OPTIONS: FilterOption[] =
+  Object.entries(JENAI_CATEGORY_LABELS)
+    .sort(([, a], [, b]) => a.localeCompare(b))
+    .map(([value, label]) => ({ value, label }));
+
+/** Issue type options for MultiSelect (no "All" entry — empty selection = all). */
+export const ISSUE_TYPE_MULTISELECT_OPTIONS: FilterOption[] =
+  ISSUE_TYPE_FILTER_OPTIONS.filter(o => o.value !== 'all');
