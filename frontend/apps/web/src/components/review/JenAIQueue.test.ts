@@ -63,3 +63,90 @@ describe('JenAIQueue: shouldRemoveIssue (filter-aware update logic)', () => {
     expect(shouldRemoveIssue('all', 'needs_changes')).toBe(false);
   });
 });
+
+/**
+ * Test hasActiveFilters logic for JenAI filters.
+ * Mirrors the condition in JenAIReviewFilters and JenAIDeveloperFilters.
+ */
+function hasActiveFilters(filters: {
+  reviewStatus?: string | null;
+  severity?: string | null;
+  source?: string | null;
+  category?: string | null;
+  part?: string | null;
+  sectionType?: string | null;
+  search?: string | null;
+  complexity?: string | null;
+  verbatim?: string | null;
+}): boolean {
+  return Boolean(
+    (filters.reviewStatus && filters.reviewStatus !== 'unreviewed') ||
+    filters.severity ||
+    (filters.source && filters.source !== 'all') ||
+    filters.category ||
+    filters.part ||
+    filters.sectionType ||
+    filters.search ||
+    filters.complexity ||
+    (filters.verbatim && filters.verbatim !== 'all')
+  );
+}
+
+describe('JenAIQueue: hasActiveFilters includes filter fields', () => {
+  it('returns false when no filters are active', () => {
+    expect(hasActiveFilters({ reviewStatus: 'unreviewed', source: 'all' })).toBe(false);
+  });
+
+  it('returns true when part filter is set', () => {
+    expect(hasActiveFilters({ reviewStatus: 'unreviewed', source: 'all', part: '418' })).toBe(true);
+  });
+
+  it('returns true when sectionType filter is set', () => {
+    expect(hasActiveFilters({ reviewStatus: 'unreviewed', source: 'all', sectionType: 'requirements' })).toBe(true);
+  });
+
+  it('returns true when search filter is set', () => {
+    expect(hasActiveFilters({ reviewStatus: 'unreviewed', source: 'all', search: 'child care' })).toBe(true);
+  });
+
+  it('returns true when complexity filter is set', () => {
+    expect(hasActiveFilters({ reviewStatus: 'unreviewed', source: 'all', complexity: 'HIGH' })).toBe(true);
+  });
+
+  it('returns true when verbatim filter is non-default', () => {
+    expect(hasActiveFilters({ reviewStatus: 'unreviewed', source: 'all', verbatim: 'true' })).toBe(true);
+  });
+
+  it('returns false when verbatim is "all"', () => {
+    expect(hasActiveFilters({ reviewStatus: 'unreviewed', source: 'all', verbatim: 'all' })).toBe(false);
+  });
+
+  it('returns false when filters are null', () => {
+    expect(hasActiveFilters({
+      reviewStatus: 'unreviewed',
+      source: 'all',
+      part: null,
+      sectionType: null,
+      search: null,
+      complexity: null,
+      verbatim: null,
+    })).toBe(false);
+  });
+});
+
+describe('JenAIQueue: cleared filter state has no active filters', () => {
+  it('hasActiveFilters returns false for the clear-filters shape', () => {
+    // This shape mirrors what clearFilters() passes to setFilters
+    expect(hasActiveFilters({
+      reviewStatus: 'unreviewed',
+      severity: null,
+      category: null,
+      source: 'all',
+      part: null,
+      sectionType: null,
+      search: null,
+      complexity: null,
+      verbatim: 'all',
+    })).toBe(false);
+  });
+});

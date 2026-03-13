@@ -39,6 +39,7 @@ export interface QueueReviewFormBaseProps {
   secondFieldSlot: (props: { formData: ReturnType<typeof useReviewForm>['formData']; updateField: ReturnType<typeof useReviewForm>['updateField']; isPending: boolean }) => ReactNode;
   justificationRows?: number;
   justificationPlaceholder?: string;
+  justificationLabel?: ReactNode;
   testIdPrefix: string;
 }
 
@@ -49,6 +50,7 @@ export function QueueReviewFormBase({
   secondFieldSlot,
   justificationRows = 2,
   justificationPlaceholder = 'Explain your reasoning for this classification...',
+  justificationLabel,
   testIdPrefix,
 }: QueueReviewFormBaseProps) {
   const {
@@ -146,7 +148,7 @@ export function QueueReviewFormBase({
       {/* Justification Notes */}
       <div className="mb-3">
         <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">
-          Justification and analysis for the model
+          {justificationLabel ?? <>Justification and analysis <strong>for the model</strong> (compliance issues and JenAI)</>}
         </label>
         <Textarea
           value={formData.justificationNotes ?? ''}

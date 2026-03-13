@@ -8,6 +8,8 @@ import {
   getJenAIIssuesPaginated,
   getJenAIDeveloperItems,
   getJenAICategories,
+  getJenAIParts,
+  getJenAISectionTypes,
   getJenAIStatusCounts,
   getJenAIDeveloperStatusCounts,
 } from '@/lib/actions/jenai';
@@ -16,9 +18,11 @@ import { DeveloperProgress } from './DeveloperProgress';
 import { JenAIReviewFilters } from './JenAIReviewFilters';
 import { JenAIDeveloperFilters } from './JenAIDeveloperFilters';
 import { JenAIAvatar } from './JenAIAvatar';
-import { jenaiReviewQueueParsers, jenaiDeveloperQueueParsers } from '@/lib/url/parsers';
+import { jenaiQueueParsers } from '@/lib/url/parsers';
 import type { JurisdictionCode } from '@/types/state';
 import type { JenAIIssueWithContext } from '@deproceduralizer/database';
+
+type JenAISortBy = 'severity' | 'category' | 'reviewedAt' | 'confidence' | 'developerCheckedAt';
 
 interface JenAIQueueProps {
   jurisdiction: JurisdictionCode;
@@ -28,8 +32,10 @@ interface JenAIQueueProps {
 export function JenAIQueue({ jurisdiction, mode = 'review' }: JenAIQueueProps) {
   const isDeveloper = mode === 'developer';
 
-  const [reviewFilters, setReviewFilters] = useQueryStates(jenaiReviewQueueParsers, { shallow: false });
-  const [devFilters, setDevFilters] = useQueryStates(jenaiDeveloperQueueParsers, { shallow: false });
+  // shallow: true (default) — data is fetched via client-side server actions in useEffect,
+  // not via server components, so full Next.js navigation is unnecessary overhead.
+  const [filters, setFilters] = useQueryStates(jenaiQueueParsers);
+  const effectiveSortBy = (filters.sortBy || (isDeveloper ? 'reviewedAt' : 'severity')) as JenAISortBy;
 
   const [issues, setIssues] = useState<JenAIIssueWithContext[]>([]);
   const [total, setTotal] = useState(0);
@@ -37,15 +43,19 @@ export function JenAIQueue({ jurisdiction, mode = 'review' }: JenAIQueueProps) {
   const [isPending, startTransition] = useTransition();
 
   const [categories, setCategories] = useState<{ category: string; count: number }[]>([]);
+  const [parts, setParts] = useState<{ part: string; partName: string | null; count: number }[]>([]);
+  const [sectionTypes, setSectionTypes] = useState<{ sectionType: string; count: number }[]>([]);
   const [statusCounts, setStatusCounts] = useState<Record<string, number>>({});
 
   const pageSize = 10;
 
-  // Stable data: categories + status counts only depend on jurisdiction and mode
+  // Stable data: categories, parts, sectionTypes + status counts only depend on jurisdiction and mode
   useEffect(() => {
     startTransition(async () => {
-      const [categoriesResult, countsResult] = await Promise.all([
+      const [categoriesResult, partsResult, sectionTypesResult, countsResult] = await Promise.all([
         getJenAICategories(jurisdiction),
+        getJenAIParts(jurisdiction),
+        getJenAISectionTypes(jurisdiction),
         isDeveloper
           ? getJenAIDeveloperStatusCounts(jurisdiction)
           : getJenAIStatusCounts(jurisdiction),
@@ -53,6 +63,14 @@ export function JenAIQueue({ jurisdiction, mode = 'review' }: JenAIQueueProps) {
 
       if (categoriesResult.success) {
         setCategories(categoriesResult.data);
+      }
+
+      if (partsResult.success) {
+        setParts(partsResult.data);
+      }
+
+      if (sectionTypesResult.success) {
+        setSectionTypes(sectionTypesResult.data);
       }
 
       if (countsResult.success) {
@@ -72,26 +90,36 @@ export function JenAIQueue({ jurisdiction, mode = 'review' }: JenAIQueueProps) {
     startTransition(async () => {
       const issuesResult = isDeveloper
         ? await getJenAIDeveloperItems(jurisdiction, {
-            page: devFilters.page,
+            page: filters.page,
             pageSize,
-            sortBy: devFilters.sortBy,
-            sortOrder: devFilters.sortOrder,
-            developerStatus: devFilters.developerStatus === 'all' ? undefined : devFilters.developerStatus,
-            developerAssigned: devFilters.developerAssigned || undefined,
-            severity: devFilters.severity || undefined,
-            category: devFilters.category || undefined,
-            source: devFilters.source,
+            sortBy: effectiveSortBy,
+            sortOrder: filters.sortOrder,
+            developerStatus: filters.developerStatus === 'all' ? undefined : filters.developerStatus,
+            developerAssigned: filters.developerAssigned || undefined,
+            severity: filters.severity || undefined,
+            category: filters.category || undefined,
+            source: filters.source,
+            part: filters.part || undefined,
+            sectionType: filters.sectionType || undefined,
+            search: filters.search || undefined,
+            complexity: filters.complexity || undefined,
+            verbatim: filters.verbatim || undefined,
           })
         : await getJenAIIssuesPaginated(jurisdiction, {
-            page: reviewFilters.page,
+            page: filters.page,
             pageSize,
-            sortBy: reviewFilters.sortBy,
-            sortOrder: reviewFilters.sortOrder,
+            sortBy: effectiveSortBy,
+            sortOrder: filters.sortOrder,
             filters: {
-              status: reviewFilters.reviewStatus === 'all' ? undefined : reviewFilters.reviewStatus,
-              severity: reviewFilters.severity || undefined,
-              category: reviewFilters.category || undefined,
-              source: reviewFilters.source,
+              status: filters.reviewStatus === 'all' ? undefined : filters.reviewStatus,
+              severity: filters.severity || undefined,
+              category: filters.category || undefined,
+              source: filters.source,
+              part: filters.part || undefined,
+              sectionType: filters.sectionType || undefined,
+              search: filters.search || undefined,
+              complexity: filters.complexity || undefined,
+              verbatim: filters.verbatim || undefined,
             },
           });
 
@@ -101,7 +129,7 @@ export function JenAIQueue({ jurisdiction, mode = 'review' }: JenAIQueueProps) {
         setTotalPages(issuesResult.data.totalPages);
       }
     });
-  }, [jurisdiction, isDeveloper, reviewFilters, devFilters]);
+  }, [jurisdiction, isDeveloper, filters, effectiveSortBy]);
 
   const refreshStatusCounts = useCallback(() => {
     const countsFetcher = isDeveloper
@@ -123,8 +151,8 @@ export function JenAIQueue({ jurisdiction, mode = 'review' }: JenAIQueueProps) {
   const handleIssueUpdated = useCallback((updated: JenAIIssueWithContext) => {
     // Check if updated issue still matches the active status filter
     const activeStatusFilter = isDeveloper
-      ? devFilters.developerStatus
-      : reviewFilters.reviewStatus;
+      ? filters.developerStatus
+      : filters.reviewStatus;
 
     const updatedStatus = isDeveloper
       ? updated.developerStatus
@@ -140,7 +168,7 @@ export function JenAIQueue({ jurisdiction, mode = 'review' }: JenAIQueueProps) {
 
     // Refresh status counts to keep progress bar accurate
     refreshStatusCounts();
-  }, [isDeveloper, devFilters.developerStatus, reviewFilters.reviewStatus, refreshStatusCounts]);
+  }, [isDeveloper, filters.developerStatus, filters.reviewStatus, refreshStatusCounts]);
 
   const handleIssueCleared = useCallback((issueId: number) => {
     setIssues(prev => prev.filter(i => i.id !== issueId));
@@ -148,15 +176,11 @@ export function JenAIQueue({ jurisdiction, mode = 'review' }: JenAIQueueProps) {
     refreshStatusCounts();
   }, [refreshStatusCounts]);
 
-  const currentPage = isDeveloper ? devFilters.page : reviewFilters.page;
+  const currentPage = filters.page;
 
   const goToPage = useCallback((newPage: number) => {
-    if (isDeveloper) {
-      setDevFilters({ page: newPage });
-    } else {
-      setReviewFilters({ page: newPage });
-    }
-  }, [isDeveloper, setDevFilters, setReviewFilters]);
+    setFilters({ page: newPage });
+  }, [setFilters]);
 
   return (
     <div>
@@ -190,9 +214,19 @@ export function JenAIQueue({ jurisdiction, mode = 'review' }: JenAIQueueProps) {
 
       {/* Filters */}
       {isDeveloper ? (
-        <JenAIDeveloperFilters categories={categories} className="mb-4" />
+        <JenAIDeveloperFilters
+          categories={categories}
+          parts={parts}
+          sectionTypes={sectionTypes}
+          className="mb-4"
+        />
       ) : (
-        <JenAIReviewFilters categories={categories} className="mb-4" />
+        <JenAIReviewFilters
+          categories={categories}
+          parts={parts}
+          sectionTypes={sectionTypes}
+          className="mb-4"
+        />
       )}
 
       {/* Results info */}

@@ -53,6 +53,16 @@ export interface JenAIFilterOptions {
   /** Filter by multiple categories (multi-select). Takes precedence over category when provided. */
   categories?: string[];
   source?: JenAISource;
+  /** Filter by NYCRR/NJAC part numbers (e.g., ['418', '413']) */
+  parts?: string[];
+  /** Filter by section types (e.g., ['requirements', 'penalties']) */
+  sectionTypes?: string[];
+  /** Full-text search over explanation + tags using tsvector */
+  search?: string;
+  /** Filter by complexity levels (e.g., ['HIGH', 'MEDIUM']) */
+  complexities?: string[];
+  /** Filter by verbatim flag */
+  isVerbatim?: boolean;
 }
 
 export interface JenAIPaginationOptions {
@@ -136,6 +146,58 @@ export class JenAIRepository extends BaseRepository {
       .orderBy(asc(jenaiIssues.category));
 
     return result;
+  }
+
+  /**
+   * Get distinct part numbers with names and issue counts.
+   * Returns nycrrPart/nycrrPartName for NY/NYC or njacPart/njacPartName for NJ.
+   */
+  async getParts(jurisdiction: JurisdictionCode): Promise<{ part: string; partName: string | null; count: number }[]> {
+    const normalized = normalizeJurisdiction(jurisdiction);
+    const isNJ = normalized === 'NJ';
+    const partCol = isNJ ? regulatoryDocuments.njacPart : regulatoryDocuments.nycrrPart;
+    const partNameCol = isNJ ? regulatoryDocuments.njacPartName : regulatoryDocuments.nycrrPartName;
+
+    const result = await this.db
+      .select({
+        part: sql<string>`${partCol}::text`,
+        partName: sql<string | null>`max(${partNameCol})`,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(jenaiIssues)
+      .innerJoin(jenaiAnalyses, eq(jenaiIssues.analysisId, jenaiAnalyses.id))
+      .innerJoin(regulatoryDocuments, eq(jenaiIssues.documentId, regulatoryDocuments.id))
+      .where(and(
+        eq(jenaiAnalyses.jurisdiction, normalized),
+        isNotNull(partCol),
+      ))
+      .groupBy(partCol)
+      .orderBy(asc(partCol));
+
+    return result;
+  }
+
+  /**
+   * Get distinct section types with issue counts.
+   */
+  async getSectionTypes(jurisdiction: JurisdictionCode): Promise<{ sectionType: string; count: number }[]> {
+    const result = await this.db
+      .select({
+        sectionType: regulatoryDocuments.sectionType,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(jenaiIssues)
+      .innerJoin(jenaiAnalyses, eq(jenaiIssues.analysisId, jenaiAnalyses.id))
+      .innerJoin(regulatoryDocuments, eq(jenaiIssues.documentId, regulatoryDocuments.id))
+      .where(and(
+        eq(jenaiAnalyses.jurisdiction, normalizeJurisdiction(jurisdiction)),
+        isNotNull(regulatoryDocuments.sectionType),
+      ))
+      .groupBy(regulatoryDocuments.sectionType)
+      .orderBy(asc(regulatoryDocuments.sectionType));
+
+    // Filter out null sectionType at runtime (TypeScript doesn't narrow from the SQL isNotNull)
+    return result.filter((r): r is { sectionType: string; count: number } => r.sectionType !== null);
   }
 
   /**
@@ -236,26 +298,13 @@ export class JenAIRepository extends BaseRepository {
         }
       }
 
-      // Severity filter (multi-select severities takes precedence)
-      if (filters.severities && filters.severities.length > 0) {
-        const severityConditions = filters.severities.map(s => this.buildSeverityCondition(s));
-        conditions.push(or(...severityConditions)!);
-      } else if (filters.severity) {
-        conditions.push(this.buildSeverityCondition(filters.severity));
-      }
-
-      if (filters.categories && filters.categories.length > 0) {
-        conditions.push(inArray(jenaiIssues.category, filters.categories));
-      } else if (filters.category) {
-        conditions.push(eq(jenaiIssues.category, filters.category));
-      }
-
-      if (filters.source && filters.source !== 'all') {
-        conditions.push(this.buildSourceCondition(filters.source));
-      }
+      this.applyCommonFilters(conditions, filters, jurisdiction);
     }
 
-    return this.queryPaginated({ conditions, sortBy, sortOrder, page, pageSize });
+    return this.queryPaginated({
+      conditions, sortBy, sortOrder, page, pageSize,
+      needsDocJoinsForCount: this.filtersNeedDocJoins(filters),
+    });
   }
 
   /**
@@ -357,28 +406,13 @@ export class JenAIRepository extends BaseRepository {
         conditions.push(eq(jenaiIssues.reviewStatus, filters.status));
       }
 
-      // Severity filter (multi-select severities takes precedence)
-      if (filters.severities && filters.severities.length > 0) {
-        const severityConditions = filters.severities.map(s => this.buildSeverityCondition(s));
-        conditions.push(or(...severityConditions)!);
-      } else if (filters.severity) {
-        conditions.push(this.buildSeverityCondition(filters.severity));
-      }
-
-      if (filters.categories && filters.categories.length > 0) {
-        conditions.push(inArray(jenaiIssues.category, filters.categories));
-      } else if (filters.category) {
-        conditions.push(eq(jenaiIssues.category, filters.category));
-      }
-
-      if (filters.source && filters.source !== 'all') {
-        conditions.push(this.buildSourceCondition(filters.source));
-      }
+      this.applyCommonFilters(conditions, filters, jurisdiction);
     }
 
     return this.queryPaginated({
       conditions, sortBy, sortOrder, page, pageSize,
       defaultSortFallback: jenaiIssues.reviewedAt,
+      needsDocJoinsForCount: this.filtersNeedDocJoins(filters),
     });
   }
 
@@ -425,10 +459,75 @@ export class JenAIRepository extends BaseRepository {
   // Private helpers
   // ---------------------------------------------------------------------------
 
+  /**
+   * Apply common filter conditions (severity, category, source, part, sectionType).
+   * Shared between getAllPaginated and getReviewedPaginated.
+   */
+  private applyCommonFilters(
+    conditions: ReturnType<typeof eq>[],
+    filters: Omit<JenAIFilterOptions, 'jurisdiction'>,
+    jurisdiction: JurisdictionCode
+  ): void {
+    // Severity (multi-select takes precedence)
+    if (filters.severities && filters.severities.length > 0) {
+      const severityConditions = filters.severities.map(s => this.buildSeverityCondition(s));
+      conditions.push(or(...severityConditions)!);
+    } else if (filters.severity) {
+      conditions.push(this.buildSeverityCondition(filters.severity));
+    }
+
+    if (filters.categories && filters.categories.length > 0) {
+      conditions.push(inArray(jenaiIssues.category, filters.categories));
+    } else if (filters.category) {
+      conditions.push(eq(jenaiIssues.category, filters.category));
+    }
+
+    if (filters.source && filters.source !== 'all') {
+      conditions.push(this.buildSourceCondition(filters.source));
+    }
+
+    if (filters.parts && filters.parts.length > 0) {
+      conditions.push(this.buildPartCondition(jurisdiction, filters.parts));
+    }
+
+    if (filters.sectionTypes && filters.sectionTypes.length > 0) {
+      conditions.push(inArray(regulatoryDocuments.sectionType, filters.sectionTypes));
+    }
+
+    if (filters.search) {
+      conditions.push(
+        sql`jenai_issues_search_tsvector(${jenaiIssues.explanation}, ${jenaiIssues.tags}) @@ plainto_tsquery('english', ${filters.search})`
+      );
+    }
+
+    if (filters.complexities && filters.complexities.length > 0) {
+      conditions.push(inArray(jenaiIssues.complexity, filters.complexities));
+    }
+
+    if (filters.isVerbatim !== undefined) {
+      conditions.push(eq(jenaiIssues.isVerbatim, filters.isVerbatim));
+    }
+  }
+
+  private filtersNeedDocJoins(filters?: Omit<JenAIFilterOptions, 'jurisdiction'>): boolean {
+    return Boolean(
+      filters?.parts?.length || filters?.sectionTypes?.length
+    );
+  }
+
   private buildSourceCondition(source: JenAISource) {
     return source === 'regulation'
       ? isNotNull(jenaiIssues.documentId)
       : isNotNull(jenaiIssues.guidanceDocumentId);
+  }
+
+  private buildPartCondition(jurisdiction: JurisdictionCode, parts: string[]) {
+    const normalized = normalizeJurisdiction(jurisdiction);
+    if (normalized === 'NJ') {
+      return inArray(regulatoryDocuments.njacPart, parts);
+    }
+    // NY/NYC: nycrrPart is varchar, direct inArray
+    return inArray(regulatoryDocuments.nycrrPart, parts);
   }
 
   private buildSeverityCondition(severity: 'high' | 'medium' | 'low') {
@@ -505,16 +604,25 @@ export class JenAIRepository extends BaseRepository {
     page: number;
     pageSize: number;
     defaultSortFallback?: typeof jenaiIssues.reviewedAt;
+    needsDocJoinsForCount?: boolean;
   }): Promise<PaginatedJenAIResult> {
-    const { conditions, sortBy, sortOrder, page, pageSize, defaultSortFallback } = options;
+    const { conditions, sortBy, sortOrder, page, pageSize, defaultSortFallback, needsDocJoinsForCount } = options;
     const offset = (page - 1) * pageSize;
     const whereClause = and(...conditions);
 
-    const [{ count: total }] = await this.db
+    // When part/sectionType filters are active, count query needs doc JOINs
+    const countQuery = this.db
       .select({ count: count() })
       .from(jenaiIssues)
-      .innerJoin(jenaiAnalyses, eq(jenaiIssues.analysisId, jenaiAnalyses.id))
-      .where(whereClause);
+      .innerJoin(jenaiAnalyses, eq(jenaiIssues.analysisId, jenaiAnalyses.id));
+
+    if (needsDocJoinsForCount) {
+      countQuery
+        .leftJoin(regulatoryDocuments, eq(jenaiIssues.documentId, regulatoryDocuments.id))
+        .leftJoin(guidanceDocuments, eq(jenaiIssues.guidanceDocumentId, guidanceDocuments.id));
+    }
+
+    const [{ count: total }] = await countQuery.where(whereClause);
 
     const sortColumn = {
       severity: jenaiIssues.severity,

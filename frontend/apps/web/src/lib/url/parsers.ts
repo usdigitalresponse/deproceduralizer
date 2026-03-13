@@ -96,6 +96,7 @@ import {
   JENAI_SOURCE_VALUES,
   JENAI_REVIEW_SORT_BY_VALUES,
   JENAI_DEVELOPER_SORT_BY_VALUES,
+  JENAI_VERBATIM_VALUES,
 } from '@/lib/constants/values';
 
 // Re-export types for convenience
@@ -148,6 +149,7 @@ export type {
   GuidancePolicyCategoryValue,
   ComplianceSourceValue,
   JenAISourceValue,
+  JenAIVerbatimValue,
   JenAIReviewSortByValue,
   JenAIDeveloperSortByValue,
   CrossRefViewModeValue,
@@ -241,6 +243,7 @@ export const complianceSourceParser = parseAsStringEnum([...COMPLIANCE_SOURCE_VA
 export const jenaiSourceParser = parseAsStringEnum([...JENAI_SOURCE_VALUES]).withDefault('all');
 export const jenaiReviewSortByParser = parseAsStringEnum([...JENAI_REVIEW_SORT_BY_VALUES]).withDefault('severity');
 export const jenaiDeveloperSortByParser = parseAsStringEnum([...JENAI_DEVELOPER_SORT_BY_VALUES]).withDefault('reviewedAt');
+export const jenaiVerbatimParser = parseAsStringEnum([...JENAI_VERBATIM_VALUES]).withDefault('all');
 
 // Definitions review parsers
 export const definitionsReviewStatusParser = parseAsStringEnum([...DEFINITIONS_REVIEW_STATUS_VALUES]).withDefault('all');
@@ -260,7 +263,7 @@ export const hasNotesParser = parseAsStringEnum([...HAS_NOTES_VALUES]).withDefau
 // Suggestion mode parsers
 // ============================================
 
-export const queueModeParser = parseAsStringEnum([...QUEUE_MODE_VALUES]).withDefault('suggestion');
+export const queueModeParser = parseAsStringEnum([...QUEUE_MODE_VALUES]).withDefault('filter');
 export const groupingModeParser = parseAsStringEnum([...GROUPING_MODE_VALUES]).withDefault('issue_type');
 export const batchSizeParser = parseAsInteger.withDefault(3);
 export const shownIdsParser = parseAsString; // comma-separated IDs
@@ -459,7 +462,33 @@ export const complianceDeveloperQueueParsers = {
 };
 
 /**
- * Parser configuration for JenAI review queue filters
+ * Merged parser for JenAIQueue — a single hook replaces the former dual-hook
+ * pattern (review + developer) that caused URL race conditions on shared params
+ * like `source`.  Mode-specific defaults for `sortBy` are handled in the component.
+ */
+export const jenaiQueueParsers = {
+  page: pageParser,
+  // Review-specific
+  reviewStatus: reviewStatusParser,
+  // Developer-specific
+  developerStatus: developerStatusParser,
+  developerAssigned: developerAssignedParser,
+  // Shared
+  severity: severityParser,
+  category: categoryParser,
+  source: jenaiSourceParser,
+  part: parseAsString,
+  sectionType: parseAsString,
+  search: searchParser,
+  complexity: parseAsString,
+  verbatim: jenaiVerbatimParser,
+  sortBy: parseAsString, // no default — mode decides ('severity' vs 'reviewedAt')
+  sortOrder: sortOrderParser,
+};
+
+/**
+ * Parser configuration for JenAI review queue filters.
+ * Used by JenAIReviewFilters (conditionally rendered, no dual-hook issue).
  */
 export const jenaiReviewQueueParsers = {
   page: pageParser,
@@ -467,12 +496,18 @@ export const jenaiReviewQueueParsers = {
   severity: severityParser,
   category: categoryParser,
   source: jenaiSourceParser,
+  part: parseAsString,
+  sectionType: parseAsString,
+  search: searchParser,
+  complexity: parseAsString,
+  verbatim: jenaiVerbatimParser,
   sortBy: jenaiReviewSortByParser,
   sortOrder: sortOrderParser,
 };
 
 /**
- * Parser configuration for JenAI developer queue filters
+ * Parser configuration for JenAI developer queue filters.
+ * Used by JenAIDeveloperFilters (conditionally rendered, no dual-hook issue).
  */
 export const jenaiDeveloperQueueParsers = {
   page: pageParser,
@@ -481,6 +516,11 @@ export const jenaiDeveloperQueueParsers = {
   severity: severityParser,
   category: categoryParser,
   source: jenaiSourceParser,
+  part: parseAsString,
+  sectionType: parseAsString,
+  search: searchParser,
+  complexity: parseAsString,
+  verbatim: jenaiVerbatimParser,
   sortBy: jenaiDeveloperSortByParser,
   sortOrder: sortOrderParser,
 };

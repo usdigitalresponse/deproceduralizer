@@ -44,6 +44,7 @@ import {
   JENAI_SOURCE_VALUES,
   JENAI_REVIEW_SORT_BY_VALUES,
   JENAI_DEVELOPER_SORT_BY_VALUES,
+  JENAI_VERBATIM_VALUES,
 } from './values';
 import { ISSUE_TYPE_LABELS } from '@/types/regulation';
 
@@ -179,6 +180,18 @@ export const JENAI_DEVELOPER_SORT_OPTIONS = createFilterOptions(JENAI_DEVELOPER_
   category: 'Category',
   reviewedAt: 'Review Date',
   developerCheckedAt: 'Last Updated',
+});
+
+export const COMPLEXITY_MULTISELECT_OPTIONS: FilterOption[] = [
+  { value: 'HIGH', label: 'High' },
+  { value: 'MEDIUM', label: 'Medium' },
+  { value: 'LOW', label: 'Low' },
+];
+
+export const JENAI_VERBATIM_FILTER_OPTIONS = createFilterOptions(JENAI_VERBATIM_VALUES, {
+  all: 'All',
+  true: 'Verbatim',
+  false: 'Not Verbatim',
 });
 
 // ============================================

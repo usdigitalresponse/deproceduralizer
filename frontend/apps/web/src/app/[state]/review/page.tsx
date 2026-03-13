@@ -411,8 +411,8 @@ async function loadReviewComplianceTab(
   complianceStatusCounts: ReviewModeCountsData['complianceStatusCounts'],
 ) {
   const errorControls: ErrorControls = { mode: 'review', reviewType: 'compliance', tabCounts };
-  // Default to 'suggestion' mode unless explicitly set to 'filter'
-  const queueMode = ctx.queryParams.queueMode === 'filter' ? 'filter' : 'suggestion';
+  // Default to 'filter' mode unless explicitly set to 'suggestion'
+  const queueMode = ctx.queryParams.queueMode === 'suggestion' ? 'suggestion' : 'filter';
 
   if (queueMode === 'suggestion') {
     return loadReviewComplianceSuggestionTab(ctx, tabCounts, complianceStatusCounts, errorControls);

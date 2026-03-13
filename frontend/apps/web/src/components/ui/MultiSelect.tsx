@@ -1,11 +1,12 @@
 'use client';
 
-import { useRef, useState, useEffect, useCallback, type KeyboardEvent } from 'react';
+import { useRef, useState, useEffect, useCallback, useMemo, type KeyboardEvent } from 'react';
 import { ChevronDown, Check } from 'lucide-react';
 
 export interface MultiSelectOption {
   value: string;
   label: string;
+  count?: number;
 }
 
 export interface MultiSelectProps {
@@ -16,6 +17,8 @@ export interface MultiSelectProps {
   placeholder?: string;
   disabled?: boolean;
   className?: string;
+  /** When true, renders a search input at the top of the dropdown for client-side filtering */
+  searchable?: boolean;
   'aria-label'?: string;
   'data-testid'?: string;
 }
@@ -36,14 +39,17 @@ export function MultiSelect({
   placeholder = 'All',
   disabled = false,
   className = '',
+  searchable = false,
   'aria-label': ariaLabel,
   'data-testid': dataTestId,
 }: MultiSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [focusedIndex, setFocusedIndex] = useState(-1);
+  const [searchTerm, setSearchTerm] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Close on click outside
   useEffect(() => {
@@ -66,6 +72,7 @@ export function MultiSelect({
     function handleEscape(event: globalThis.KeyboardEvent) {
       if (event.key === 'Escape') {
         setIsOpen(false);
+        setSearchTerm('');
         triggerRef.current?.focus();
       }
     }
@@ -74,12 +81,24 @@ export function MultiSelect({
     return () => document.removeEventListener('keydown', handleEscape);
   }, [isOpen]);
 
-  // Focus the list when it opens
+  // Focus search input or list when dropdown opens; clear search when closing
   useEffect(() => {
-    if (isOpen && listRef.current) {
-      setFocusedIndex(0);
+    if (isOpen) {
+      if (searchable && searchInputRef.current) {
+        searchInputRef.current.focus();
+      }
+      setFocusedIndex(searchable ? -1 : 0);
+    } else {
+      setSearchTerm('');
     }
-  }, [isOpen]);
+  }, [isOpen, searchable]);
+
+  // Client-side filtered options when searchable
+  const filteredOptions = useMemo(() => {
+    if (!searchable || !searchTerm) return options;
+    const term = searchTerm.toLowerCase();
+    return options.filter(o => o.label.toLowerCase().includes(term));
+  }, [searchable, searchTerm, options]);
 
   const toggleOption = useCallback((optionValue: string) => {
     const isSelected = value.includes(optionValue);
@@ -101,21 +120,36 @@ export function MultiSelect({
     }
   };
 
+  const handleSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      if (filteredOptions.length > 0) {
+        setFocusedIndex(0);
+        listRef.current?.focus();
+      }
+    }
+  };
+
   const handleListKeyDown = (event: KeyboardEvent<HTMLUListElement>) => {
     switch (event.key) {
       case 'ArrowDown':
         event.preventDefault();
-        setFocusedIndex(prev => Math.min(prev + 1, options.length - 1));
+        setFocusedIndex(prev => Math.min(prev + 1, filteredOptions.length - 1));
         break;
       case 'ArrowUp':
         event.preventDefault();
-        setFocusedIndex(prev => Math.max(prev - 1, 0));
+        if (searchable && focusedIndex <= 0) {
+          setFocusedIndex(-1);
+          searchInputRef.current?.focus();
+        } else {
+          setFocusedIndex(prev => Math.max(prev - 1, 0));
+        }
         break;
       case 'Enter':
       case ' ':
         event.preventDefault();
-        if (focusedIndex >= 0 && focusedIndex < options.length) {
-          toggleOption(options[focusedIndex].value);
+        if (focusedIndex >= 0 && focusedIndex < filteredOptions.length) {
+          toggleOption(filteredOptions[focusedIndex].value);
         }
         break;
       case 'Home':
@@ -124,10 +158,17 @@ export function MultiSelect({
         break;
       case 'End':
         event.preventDefault();
-        setFocusedIndex(options.length - 1);
+        setFocusedIndex(filteredOptions.length - 1);
         break;
     }
   };
+
+  // Reset focused index when search term changes
+  useEffect(() => {
+    if (searchable && searchTerm) {
+      setFocusedIndex(-1);
+    }
+  }, [searchable, searchTerm]);
 
   // Scroll focused option into view
   useEffect(() => {
@@ -191,7 +232,7 @@ export function MultiSelect({
                     bg-[var(--color-primary-faint)]
                     text-[var(--color-primary)]
                     rounded-[var(--radius-sm)]
-                    max-w-[120px] truncate
+                    max-w-[160px] truncate
                   "
                   title={chipLabel}
                 >
@@ -216,7 +257,7 @@ export function MultiSelect({
         <div
           className="
             absolute z-50 mt-1
-            w-full min-w-[280px]
+            w-full min-w-[320px]
             bg-[var(--color-surface)]
             rounded-[var(--radius-md)]
             border border-[var(--color-neutral-200)]
@@ -242,6 +283,30 @@ export function MultiSelect({
             </div>
           )}
 
+          {/* Search input */}
+          {searchable && (
+            <div className="px-2 py-1.5 border-b border-[var(--color-neutral-200)]">
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                onKeyDown={handleSearchKeyDown}
+                placeholder="Search..."
+                aria-label={`Search ${label}`}
+                className="
+                  w-full px-2 py-1 text-sm
+                  bg-[var(--color-surface)]
+                  border border-[var(--color-neutral-300)]
+                  rounded-[var(--radius-sm)]
+                  outline-none
+                  focus:ring-1 focus:ring-[var(--color-focus)]
+                  placeholder:text-[var(--color-text-muted)]
+                "
+              />
+            </div>
+          )}
+
           {/* Options list */}
           <ul
             ref={listRef}
@@ -252,7 +317,12 @@ export function MultiSelect({
             onKeyDown={handleListKeyDown}
             className="p-1 max-h-[300px] overflow-y-auto outline-none"
           >
-            {options.map((option, index) => {
+            {filteredOptions.length === 0 && (
+              <li className="px-3 py-2 text-sm text-[var(--color-text-muted)] select-none">
+                No matching options
+              </li>
+            )}
+            {filteredOptions.map((option, index) => {
               const isSelected = value.includes(option.value);
               const isFocused = focusedIndex === index;
 
@@ -292,6 +362,9 @@ export function MultiSelect({
                     {isSelected && <Check className="w-2.5 h-2.5 text-white" />}
                   </span>
                   <span className="truncate" title={option.label}>{option.label}</span>
+                  {option.count !== undefined && (
+                    <span className="ml-auto text-xs text-[var(--color-text-muted)] flex-shrink-0 tabular-nums">{option.count}</span>
+                  )}
                 </li>
               );
             })}

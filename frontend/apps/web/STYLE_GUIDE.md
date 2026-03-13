@@ -381,6 +381,7 @@ import { MultiSelect } from '@/components/ui';
 - Empty selection = placeholder text (acts as "All")
 - Dropdown stays open after selection
 - "Clear all" link when items selected
+- `searchable` prop (default `false`): renders a text input at the top of the dropdown for client-side filtering of options. Use when option list is large (20+ items).
 
 **URL State:**
 - Comma-separated values: `?issueType=wet_signature,in_person`

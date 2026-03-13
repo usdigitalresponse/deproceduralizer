@@ -1103,6 +1103,128 @@ test.describe('Cross-References Table View', () => {
 
 });
 
+test.describe('JenAI Queue Filters', () => {
+
+  test('jenai queue shows part and section type filters', async ({ page }) => {
+    await page.goto('/ny/review?type=jenai');
+    await expect(page.getByRole('heading', { name: /Review New York/i })).toBeVisible();
+
+    // Wait for cards to load (confirms data is ready)
+    const cards = page.getByTestId('jenai-card');
+    await expect(cards.first()).toBeVisible({ timeout: 15000 });
+
+    // Verify filters are visible
+    await expect(page.getByLabel('Filter by part')).toBeVisible();
+    await expect(page.getByLabel('Filter by section type')).toBeVisible();
+  });
+
+  test('jenai queue part filter narrows results', async ({ page }) => {
+    await page.goto('/ny/review?type=jenai');
+    await expect(page.getByRole('heading', { name: /Review New York/i })).toBeVisible();
+
+    const cards = page.getByTestId('jenai-card');
+    await expect(cards.first()).toBeVisible({ timeout: 15000 });
+
+    // Open part multi-select and pick first option
+    const partTrigger = page.getByLabel('Filter by part');
+    await openMultiSelect(page, partTrigger, /Part/i);
+
+    // Click the first option
+    const firstOption = page.getByRole('listbox', { name: /Part/i }).getByRole('option').first();
+    await firstOption.click();
+
+    // Close dropdown by pressing Escape
+    await page.keyboard.press('Escape');
+
+    // Wait for results to update — URL should contain part param
+    await page.waitForURL(/part=/);
+
+    // Results should be narrowed (or same if all belong to one part)
+    const filteredCards = page.getByTestId('jenai-card');
+    await expect(filteredCards.first()).toBeVisible({ timeout: 10000 });
+  });
+
+  test('jenai queue part filter hides when source is guidance', async ({ page }) => {
+    await page.goto('/ny/review?type=jenai&source=guidance');
+    await expect(page.getByRole('heading', { name: /Review New York/i })).toBeVisible();
+
+    // Wait for filter bar to render (source filter should always be visible)
+    await expect(page.getByLabel('Filter by source')).toBeVisible({ timeout: 10000 });
+
+    // Part and section type filters should be hidden
+    await expect(page.getByLabel('Filter by part')).not.toBeVisible();
+    await expect(page.getByLabel('Filter by section type')).not.toBeVisible();
+  });
+
+  test('jenai queue clear filters resets part filter', async ({ page }) => {
+    // Navigate with pre-set part filter
+    await page.goto('/ny/review?type=jenai&part=418');
+    await expect(page.getByRole('heading', { name: /Review New York/i })).toBeVisible();
+
+    // Wait for filters to render
+    await expect(page.getByLabel('Filter by part')).toBeVisible({ timeout: 10000 });
+
+    // Click clear filters button
+    const clearButton = page.getByRole('button', { name: /Clear Filters/i });
+    if (await clearButton.isVisible()) {
+      await clearButton.click();
+
+      // URL should no longer have part param
+      await page.waitForURL((url) => !url.searchParams.has('part'), { timeout: 5000 });
+    }
+  });
+
+  test('jenai queue shows search, complexity, and verbatim filters', async ({ page }) => {
+    await page.goto('/ny/review?type=jenai');
+    await expect(page.getByRole('heading', { name: /Review New York/i })).toBeVisible();
+
+    // Wait for cards to load
+    const cards = page.getByTestId('jenai-card');
+    await expect(cards.first()).toBeVisible({ timeout: 15000 });
+
+    // Verify new filters are visible
+    await expect(page.getByLabel('Search JenAI issues')).toBeVisible();
+    await expect(page.getByLabel('Filter by complexity')).toBeVisible();
+    await expect(page.getByLabel('Filter by verbatim')).toBeVisible();
+  });
+
+  test('jenai queue search updates URL', async ({ page }) => {
+    await page.goto('/ny/review?type=jenai');
+    await expect(page.getByRole('heading', { name: /Review New York/i })).toBeVisible();
+
+    const cards = page.getByTestId('jenai-card');
+    await expect(cards.first()).toBeVisible({ timeout: 15000 });
+
+    // Type a search term
+    const searchInput = page.getByLabel('Search JenAI issues');
+    await searchInput.fill('child care');
+
+    // URL should update with search param (debounced)
+    await page.waitForURL(/search=/, { timeout: 5000 });
+  });
+
+  test('jenai queue complexity filter narrows results', async ({ page }) => {
+    await page.goto('/ny/review?type=jenai');
+    await expect(page.getByRole('heading', { name: /Review New York/i })).toBeVisible();
+
+    const cards = page.getByTestId('jenai-card');
+    await expect(cards.first()).toBeVisible({ timeout: 15000 });
+
+    // Open complexity multi-select and pick HIGH
+    const complexityTrigger = page.getByLabel('Filter by complexity');
+    await openMultiSelect(page, complexityTrigger, /Complexity/i);
+
+    const highOption = page.getByRole('listbox', { name: /Complexity/i }).getByRole('option', { name: 'High', exact: true });
+    await highOption.click();
+
+    await page.keyboard.press('Escape');
+
+    // URL should contain complexity param
+    await page.waitForURL(/complexity=/, { timeout: 5000 });
+  });
+
+});
+
 test.describe('Data Integrity', () => {
 
   test('compliance cards do not show stale column names as text', async ({ page }) => {

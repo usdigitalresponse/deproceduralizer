@@ -6,7 +6,7 @@ export function ReviewNotesSection({ formData, setFormData, hasChanges }: Review
     <div className="mt-4 space-y-3">
       <div>
         <label className="text-sm font-medium text-[var(--color-text)]">
-          Justification and analysis for the model {hasChanges && <span className="text-[var(--color-danger)]">*</span>}
+          Justification and analysis <strong>for the model</strong> (compliance issues and JenAI) {hasChanges && <span className="text-[var(--color-danger)]">*</span>}
         </label>
         <Textarea
           value={formData.justificationNotes}

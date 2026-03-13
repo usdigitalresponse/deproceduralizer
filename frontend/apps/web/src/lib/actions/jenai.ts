@@ -32,12 +32,23 @@ export async function getJenAIIssuesPaginated(
       severity?: string;
       category?: string;
       source?: 'regulation' | 'guidance' | 'all';
+      part?: string;
+      sectionType?: string;
+      search?: string;
+      complexity?: string;
+      verbatim?: string;
     };
   }
 ): Promise<ActionResult<PaginatedJenAIResult>> {
   // Parse comma-separated multi-select filter values
   const categories = parseCommaSeparated(options.filters?.category ?? null);
   const severities = parseSeverities(options.filters?.severity);
+  const parts = parseCommaSeparated(options.filters?.part ?? null);
+  const sectionTypes = parseCommaSeparated(options.filters?.sectionType ?? null);
+  const complexities = parseCommaSeparated(options.filters?.complexity ?? null);
+  const isVerbatim = options.filters?.verbatim === 'true' ? true
+    : options.filters?.verbatim === 'false' ? false
+    : undefined;
 
   return runAction('getJenAIIssuesPaginated', () =>
     jenaiRepo.getAllPaginated({
@@ -49,6 +60,11 @@ export async function getJenAIIssuesPaginated(
         category: categories.length === 1 ? categories[0] : undefined,
         categories: categories.length > 1 ? categories : undefined,
         source: options.filters.source,
+        parts: parts.length > 0 ? parts : undefined,
+        sectionTypes: sectionTypes.length > 0 ? sectionTypes : undefined,
+        search: options.filters.search || undefined,
+        complexities: complexities.length > 0 ? complexities : undefined,
+        isVerbatim,
       } : undefined,
     })
   );
@@ -79,6 +95,34 @@ export async function getJenAIDeveloperStatusCounts(
     () => jenaiRepo.getDeveloperStatusCounts(state),
     [`jenai-developer-status-counts-${state}`],
     { revalidate: 120, tags: ['jenai'] }
+  );
+}
+
+/**
+ * Gets distinct part numbers with names and issue counts.
+ */
+export async function getJenAIParts(
+  state: JurisdictionCode
+): Promise<ActionResult<{ part: string; partName: string | null; count: number }[]>> {
+  return runCachedAction(
+    'getJenAIParts',
+    () => jenaiRepo.getParts(state),
+    [`jenai-parts-${state}`],
+    { revalidate: 300 }
+  );
+}
+
+/**
+ * Gets distinct section types with issue counts.
+ */
+export async function getJenAISectionTypes(
+  state: JurisdictionCode
+): Promise<ActionResult<{ sectionType: string; count: number }[]>> {
+  return runCachedAction(
+    'getJenAISectionTypes',
+    () => jenaiRepo.getSectionTypes(state),
+    [`jenai-section-types-${state}`],
+    { revalidate: 300 }
   );
 }
 
@@ -210,11 +254,22 @@ export async function getJenAIDeveloperItems(
     reviewStatus?: string;
     category?: string;
     source?: 'regulation' | 'guidance' | 'all';
+    part?: string;
+    sectionType?: string;
+    search?: string;
+    complexity?: string;
+    verbatim?: string;
   }
 ): Promise<ActionResult<PaginatedJenAIResult>> {
   // Parse comma-separated multi-select filter values
   const categories = parseCommaSeparated(options.category ?? null);
   const severities = parseSeverities(options.severity);
+  const parts = parseCommaSeparated(options.part ?? null);
+  const sectionTypes = parseCommaSeparated(options.sectionType ?? null);
+  const complexities = parseCommaSeparated(options.complexity ?? null);
+  const isVerbatim = options.verbatim === 'true' ? true
+    : options.verbatim === 'false' ? false
+    : undefined;
 
   return runAction('getJenAIDeveloperItems', () =>
     jenaiRepo.getReviewedPaginated({
@@ -231,6 +286,11 @@ export async function getJenAIDeveloperItems(
         category: categories.length === 1 ? categories[0] : undefined,
         categories: categories.length > 1 ? categories : undefined,
         source: options.source,
+        parts: parts.length > 0 ? parts : undefined,
+        sectionTypes: sectionTypes.length > 0 ? sectionTypes : undefined,
+        search: options.search || undefined,
+        complexities: complexities.length > 0 ? complexities : undefined,
+        isVerbatim,
       },
     })
   );

@@ -186,7 +186,7 @@ export function ReviewForm<T extends ReviewableItem>({
 
       <div>
         <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">
-          Justification and analysis for the model
+          Justification and analysis <strong>for the model</strong> (compliance issues and JenAI)
         </label>
         <Textarea
           value={formData.justificationNotes ?? ''}

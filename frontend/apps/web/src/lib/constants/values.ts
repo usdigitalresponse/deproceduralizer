@@ -108,6 +108,10 @@ export type ComplianceSourceValue = (typeof COMPLIANCE_SOURCE_VALUES)[number];
 export const JENAI_SOURCE_VALUES = ['all', 'regulation', 'guidance'] as const;
 export type JenAISourceValue = (typeof JENAI_SOURCE_VALUES)[number];
 
+// JenAI verbatim filter
+export const JENAI_VERBATIM_VALUES = ['all', 'true', 'false'] as const;
+export type JenAIVerbatimValue = (typeof JENAI_VERBATIM_VALUES)[number];
+
 // JenAI review mode sort
 export const JENAI_REVIEW_SORT_BY_VALUES = ['severity', 'confidence', 'category', 'reviewedAt'] as const;
 export type JenAIReviewSortByValue = (typeof JENAI_REVIEW_SORT_BY_VALUES)[number];

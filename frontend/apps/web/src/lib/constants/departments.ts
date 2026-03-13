@@ -68,3 +68,14 @@ export function getDepartmentName(nycrrTitle: number | null, njacTitle: string |
   }
   return '';
 }
+
+/**
+ * Look up department name from a title string and jurisdiction code.
+ * NJ titles are string keys (e.g. '4A'); NY/NYC titles are parsed to integers.
+ */
+export function getDepartmentNameByTitle(title: string, jurisdiction: 'ny' | 'nj' | 'nyc'): string {
+  if (jurisdiction === 'nj') {
+    return NJAC_TITLE_DEPARTMENTS[title] ?? `Title ${title}`;
+  }
+  return NYCRR_TITLE_DEPARTMENTS[parseInt(title, 10)] ?? `Title ${title}`;
+}

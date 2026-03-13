@@ -47,6 +47,8 @@ export function ReviewForm({ issue, onUpdated }: ReviewFormProps) {
           />
         </div>
       )}
+      justificationRows={3}
+      justificationPlaceholder="e.g., 'This regulation uses unnecessarily complex cross-references that could be simplified into a single clear requirement.' or 'While the language is dense, this is a standard legal structure necessary for precision — not a real implementation burden.'"
       testIdPrefix="jenai"
     />
   );
