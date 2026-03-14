@@ -91,12 +91,36 @@ def _resolve_nycrr_citation(
     return None
 
 
-def _build_guidance_lookup(cur) -> dict[str, int]:
-    """Build canonical_ref -> guidance_documents.id lookup."""
+def _build_guidance_lookup(cur) -> tuple[dict[str, int], dict[str, int]]:
+    """Build guidance lookups for cross-reference resolution.
+
+    Returns:
+        (canonical_lookup, latest_revision_lookup) where:
+        - canonical_lookup: canonical_ref -> guidance_documents.id
+        - latest_revision_lookup: base_ref -> id of latest revision
+          e.g., '22-OCFS-ADM-02' -> id of '22-OCFS-ADM-02-R1'
+    """
     cur.execute(
         "SELECT id, canonical_ref FROM guidance_documents WHERE canonical_ref IS NOT NULL"
     )
-    return {row[1]: row[0] for row in cur.fetchall()}
+    canonical_lookup: dict[str, int] = {}
+    # Track base_ref -> (revision_number, id) to keep only the latest
+    revision_tracker: dict[str, tuple[int, int]] = {}
+
+    for doc_id, canonical_ref in cur.fetchall():
+        canonical_lookup[canonical_ref] = doc_id
+
+        # Index revised docs by their base ref
+        rev_match = re.match(r'^(.+)-R(\d+)$', canonical_ref)
+        if rev_match:
+            base_ref = rev_match.group(1)
+            rev_num = int(rev_match.group(2))
+            existing = revision_tracker.get(base_ref)
+            if existing is None or rev_num > existing[0]:
+                revision_tracker[base_ref] = (rev_num, doc_id)
+
+    latest_revision_lookup = {base: doc_id for base, (_, doc_id) in revision_tracker.items()}
+    return canonical_lookup, latest_revision_lookup
 
 
 # Known agencies that produce each doc type (for short-format resolution)
@@ -124,6 +148,7 @@ def _resolve_guidance_ref(
     normalized: str,
     components: dict,
     guidance_lookup: dict[str, int],
+    latest_revision_lookup: Optional[dict[str, int]] = None,
 ) -> Optional[int]:
     """Resolve a guidance reference to a guidance_documents.id."""
     # Try direct match
@@ -141,6 +166,16 @@ def _resolve_guidance_ref(
         base_ref = revision_match.group(1)
         if base_ref in guidance_lookup:
             return guidance_lookup[base_ref]
+        # Intermediate revision (e.g., -R1) -> try latest revision
+        if latest_revision_lookup and base_ref in latest_revision_lookup:
+            return latest_revision_lookup[base_ref]
+
+    # Reverse revision: base ref -> latest revised version
+    # e.g., "22-OCFS-ADM-02" -> "22-OCFS-ADM-02-R1"
+    if latest_revision_lookup and normalized in latest_revision_lookup:
+        return latest_revision_lookup[normalized]
+    if latest_revision_lookup and padded != normalized and padded in latest_revision_lookup:
+        return latest_revision_lookup[padded]
 
     # For short-format refs ("90 ADM-31"), try agency-prefixed variants
     fmt = components.get('format')
@@ -164,6 +199,14 @@ def _resolve_guidance_ref(
                 candidate2 = f"{year}-{agency}-{doc_type}-{number.lstrip('0')}"
                 if candidate2 in guidance_lookup:
                     return guidance_lookup[candidate2]
+            # Try latest revision of agency-prefixed candidates
+            if latest_revision_lookup:
+                if candidate in latest_revision_lookup:
+                    return latest_revision_lookup[candidate]
+                if padded_number != number:
+                    candidate_padded = f"{year}-{agency}-{doc_type}-{padded_number}"
+                    if candidate_padded in latest_revision_lookup:
+                        return latest_revision_lookup[candidate_padded]
 
     # For TSB-M refs, the canonical_ref in the DB is already "TSB-M-YY(N)X"
     if fmt == 'tsb_m':
@@ -216,8 +259,8 @@ def extract_content_cross_refs(
         section_lookup, part_lookup = _build_regulation_lookups(cur, state_upper)
         print(f"  Regulation lookups: {len(section_lookup)} sections, {len(part_lookup)} parts")
 
-        guidance_lookup = _build_guidance_lookup(cur)
-        print(f"  Guidance lookup: {len(guidance_lookup)} canonical_refs")
+        guidance_lookup, latest_revision_lookup = _build_guidance_lookup(cur)
+        print(f"  Guidance lookup: {len(guidance_lookup)} canonical_refs, {len(latest_revision_lookup)} with revisions")
 
         # Fetch guidance docs with content
         conditions = [
@@ -304,7 +347,8 @@ def extract_content_cross_refs(
 
                     elif m.ref_type == RefType.GUIDANCE:
                         target_guidance_id = _resolve_guidance_ref(
-                            m.normalized, m.components, guidance_lookup
+                            m.normalized, m.components, guidance_lookup,
+                            latest_revision_lookup,
                         )
                         is_resolved = target_guidance_id is not None
                         # Don't create self-references

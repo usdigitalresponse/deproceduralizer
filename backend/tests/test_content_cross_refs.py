@@ -140,6 +140,49 @@ class TestResolveGuidanceRef:
         result = _resolve_guidance_ref("TSB-M-08(3)S", components, guidance_lookup)
         assert result == 1000
 
+    def test_reverse_revision_resolves_to_latest(self):
+        """Base ref '22-OCFS-ADM-02' should resolve to latest revision '-R1'."""
+        guidance_lookup = {"22-OCFS-ADM-02-R1": 1100}
+        latest_rev = {"22-OCFS-ADM-02": 1100}
+        components = {"format": "agency_prefixed"}
+        result = _resolve_guidance_ref("22-OCFS-ADM-02", components, guidance_lookup, latest_rev)
+        assert result == 1100
+
+    def test_reverse_revision_picks_latest_not_first(self):
+        """When multiple revisions exist, should resolve to the latest."""
+        guidance_lookup = {
+            "23-OCFS-LCM-12-R1": 1200,
+            "23-OCFS-LCM-12-R4": 1500,
+        }
+        # latest_revision_lookup should map to -R4 (highest)
+        latest_rev = {"23-OCFS-LCM-12": 1500}
+        components = {"format": "agency_prefixed"}
+        result = _resolve_guidance_ref("23-OCFS-LCM-12", components, guidance_lookup, latest_rev)
+        assert result == 1500
+
+    def test_intermediate_revision_resolves_to_latest(self):
+        """Intermediate revision '-R1' should resolve to latest '-R4'."""
+        guidance_lookup = {"23-OCFS-LCM-12-R4": 1500}
+        latest_rev = {"23-OCFS-LCM-12": 1500}
+        components = {"format": "agency_prefixed"}
+        result = _resolve_guidance_ref("23-OCFS-LCM-12-R1", components, guidance_lookup, latest_rev)
+        assert result == 1500
+
+    def test_short_format_with_revision_fallback(self):
+        """Short-format ref should fall back to latest revision via agency expansion."""
+        guidance_lookup = {"99-OTDA-ADM-05-R2": 1600}
+        latest_rev = {"99-OTDA-ADM-05": 1600}
+        components = {"format": "short", "year": "99", "doc_type": "ADM", "number": "5"}
+        result = _resolve_guidance_ref("99 ADM-5", components, guidance_lookup, latest_rev)
+        assert result == 1600
+
+    def test_no_revision_lookup_still_works(self):
+        """When latest_revision_lookup is None, all existing behavior preserved."""
+        guidance_lookup = {"23-OCFS-ADM-15": 100}
+        components = {"format": "agency_prefixed"}
+        result = _resolve_guidance_ref("23-OCFS-ADM-15", components, guidance_lookup, None)
+        assert result == 100
+
 
 class TestZeroPadRefNumber:
     """Test _zero_pad_ref_number helper."""

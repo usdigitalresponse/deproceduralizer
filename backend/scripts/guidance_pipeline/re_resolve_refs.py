@@ -38,8 +38,8 @@ def re_resolve_guidance_refs(dry_run: bool = True) -> None:
 
         # Build current guidance lookup
         print("Building guidance lookup...")
-        guidance_lookup = _build_guidance_lookup(cur)
-        print(f"  {len(guidance_lookup)} canonical_refs in guidance_documents")
+        guidance_lookup, latest_revision_lookup = _build_guidance_lookup(cur)
+        print(f"  {len(guidance_lookup)} canonical_refs, {len(latest_revision_lookup)} with revisions")
 
         # Fetch all unresolved guidance refs
         cur.execute("""
@@ -66,13 +66,20 @@ def re_resolve_guidance_refs(dry_run: bool = True) -> None:
                 resolved_count += 1
                 continue
 
+            # Try reverse revision (base -> latest revision)
+            if normalized in latest_revision_lookup:
+                resolved_updates.append((ref_id, latest_revision_lookup[normalized]))
+                resolved_count += 1
+                continue
+
             # Try to re-parse and resolve with agency expansion
             # Parse the normalized citation to get components
             matches = extract_all_matches(normalized)
             for match in matches:
                 if match.ref_type == RefType.GUIDANCE:
                     target_id = _resolve_guidance_ref(
-                        match.normalized, match.components, guidance_lookup
+                        match.normalized, match.components, guidance_lookup,
+                        latest_revision_lookup,
                     )
                     if target_id:
                         resolved_updates.append((ref_id, target_id))
