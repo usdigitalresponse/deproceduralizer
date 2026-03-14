@@ -73,6 +73,10 @@ backend/PENDING_BATCHES.md
 codebase_export*.txt
 scripts/export_codebase*.py
 
+# Analysis output CSVs
+backend/volume_validation_*.csv
+backend/volume_comparison_*.csv
+
 # Build artifacts
 *.egg-info/
 

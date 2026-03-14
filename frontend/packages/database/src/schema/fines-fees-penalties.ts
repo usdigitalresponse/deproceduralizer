@@ -49,6 +49,13 @@ export const finesFeesPenalties = pgTable('fines_fees_penalties', {
   jurisdictionLevelOther: text('jurisdiction_level_other'),
   issuingEntityConfidence: numeric('issuing_entity_confidence', { precision: 3, scale: 2 }),
 
+  // Enrichment (LLM classification)
+  whoPaysNormalized: varchar('who_pays_normalized', { length: 40 }),
+  activityCategory: varchar('activity_category', { length: 40 }),
+  estimatedAnnualPayers: varchar('estimated_annual_payers', { length: 30 }),
+  justification: text('justification'),
+  justificationQuote: text('justification_quote'),
+
   // Metadata
   jurisdiction: varchar('jurisdiction', { length: 3 }).notNull(),
   url: text('url'),
@@ -68,12 +75,6 @@ export const finesFeesPenalties = pgTable('fines_fees_penalties', {
   resolutionComments: text('resolution_comments'),
   developerQuestion: text('developer_question'),
   developerCheckedAt: timestamp('developer_checked_at'),
-
-  // Enrichment columns (added by Abigail — nullable, progressively populated)
-  activityCategory: varchar('activity_category', { length: 100 }),
-  estimatedAnnualPayers: varchar('estimated_annual_payers', { length: 50 }),
-  justification: text('justification'),
-  whoPaysNormalized: varchar('who_pays_normalized', { length: 100 }),
 
   createdAt: timestamp('created_at').defaultNow(),
 });

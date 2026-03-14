@@ -842,6 +842,18 @@ python backend/scripts/refresh_hierarchy_stats.py --state NYC
 
 **Note:** `--skip-summary-check` is needed because many NYC docs are structural parent stubs with no content, making the summary percentage look low even when all summarizable sections are done.
 
+## Post-Extraction Enrichment
+
+LLM-based classification scripts that add normalized fields to existing data. All use the shared `EnrichmentRunner` (`lib/enrichment.py`) — supports batch API (Haiku, cheaper) and realtime with automatic retry + Sonnet escalation for failures.
+
+| Command | Purpose | Cost |
+|---------|---------|------|
+| `python3 -m scripts.enrich_who_pays --execute --batch` | Normalize `who_pays` into 15 categories | ~$1-2 |
+| `python3 -m scripts.enrich_fines_activity --execute --batch` | Classify fines by 17 activity categories + volume + justification | ~$2-4 |
+| `python3 -m scripts.enrich_guidance_audience --execute --batch` | Classify guidance audience direction/expertise/tags | ~$6-7 (full) |
+
+All scripts default to dry-run. Use `--limit N` to test on a subset first.
+
 ## Planning & Estimation Scripts
 
 These scripts help plan runs without making API calls or writing to the database.

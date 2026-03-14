@@ -43,6 +43,13 @@ export const guidanceDocuments = pgTable('guidance_documents', {
   jurisdiction: varchar('jurisdiction', { length: 3 }).notNull(),
   targetAudience: text('target_audience').array(),
   isApplication: boolean('is_application'),
+
+  // Summarization & audience classification
+  summary: text('summary'),
+  audienceDirection: varchar('audience_direction', { length: 20 }),
+  audienceExpertise: varchar('audience_expertise', { length: 20 }),
+  audienceExplanation: text('audience_explanation'),
+
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });

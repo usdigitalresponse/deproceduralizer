@@ -418,6 +418,7 @@ export class FinesRepository extends BaseRepository {
       activityCategory: finesFeesPenalties.activityCategory,
       estimatedAnnualPayers: finesFeesPenalties.estimatedAnnualPayers,
       justification: finesFeesPenalties.justification,
+      justificationQuote: finesFeesPenalties.justificationQuote,
       whoPaysNormalized: finesFeesPenalties.whoPaysNormalized,
       createdAt: finesFeesPenalties.createdAt,
       // Agency fields
@@ -472,6 +473,7 @@ export class FinesRepository extends BaseRepository {
     activityCategory: string | null;
     estimatedAnnualPayers: string | null;
     justification: string | null;
+    justificationQuote: string | null;
     whoPaysNormalized: string | null;
     createdAt: Date | null;
     agencyCanonicalName: string | null;
@@ -523,6 +525,7 @@ export class FinesRepository extends BaseRepository {
       activityCategory: row.activityCategory,
       estimatedAnnualPayers: row.estimatedAnnualPayers,
       justification: row.justification,
+      justificationQuote: row.justificationQuote,
       whoPaysNormalized: row.whoPaysNormalized,
       createdAt: row.createdAt,
       agencyCanonicalName: row.agencyCanonicalName,

@@ -102,6 +102,68 @@ def get_db_connection(timeout: int = 30) -> Optional[Connection]:
         return None
 
 
+def fetch_rows(query: str, params: tuple | list = ()) -> list[dict]:
+    """Execute a SELECT query and return results as a list of dicts.
+
+    Handles connection lifecycle and cursor-to-dict conversion.
+    """
+    conn = get_db_connection()
+    if not conn:
+        raise ConnectionError("Could not connect to database")
+
+    try:
+        cur = conn.cursor()
+        cur.execute(query, params)
+        columns = [desc[0] for desc in cur.description]
+        rows = [dict(zip(columns, row)) for row in cur.fetchall()]
+        conn.commit()
+        return rows
+    finally:
+        conn.close()
+
+
+def chunked_update(
+    query: str,
+    rows: list[tuple],
+    chunk_size: int = 500,
+    label: str = "rows",
+) -> int:
+    """Execute an UPDATE query in chunks, reconnecting between chunks.
+
+    Avoids Neon connection timeouts on large batch writes.
+
+    Args:
+        query: SQL UPDATE with %s placeholders (e.g., "UPDATE t SET x=%s WHERE id=%s").
+        rows: List of param tuples matching the query placeholders.
+        chunk_size: Rows per chunk (reconnects after each).
+        label: Label for progress output.
+
+    Returns:
+        Number of rows written.
+    """
+    if not rows:
+        return 0
+
+    written = 0
+    for i in range(0, len(rows), chunk_size):
+        chunk = rows[i:i + chunk_size]
+        conn = get_db_connection()
+        if not conn:
+            raise ConnectionError(f"Could not connect to database at {label} {written}")
+
+        try:
+            cur = conn.cursor()
+            for params in chunk:
+                cur.execute(query, params)
+            conn.commit()
+            written += len(chunk)
+            print(f"  Written {written}/{len(rows)} {label}...")
+        finally:
+            conn.close()
+
+    return written
+
+
 def retry_db_operation(max_retries: int = 5, base_delay: float = 1.0) -> Callable:
     """Retry DB operations on connection failures with exponential backoff."""
     def decorator(func: Callable[..., T]) -> Callable[..., T]:

@@ -676,17 +676,21 @@ Structured extraction of monetary charges (fines, fees, penalties, surcharges, f
 | `resolution_comments` | text | Resolution comments |
 | `developer_question` | text | Question for reviewer |
 | `developer_checked_at` | timestamp | Developer check timestamp |
-| `activity_category` | varchar(100) | Activity category (e.g. cannabis_alcohol, financial_services) |
-| `estimated_annual_payers` | varchar(50) | Estimated annual payer volume (tens, hundreds, thousands, etc.) |
-| `justification` | text | Justification for the fine/fee |
-| `who_pays_normalized` | varchar(100) | Normalized who-pays value for consistent grouping |
+| `jurisdiction_level` | varchar(20) | federal, state, county, local, other |
+| `jurisdiction_level_other` | text | Free-text if jurisdiction_level is 'other' |
+| `issuing_entity_confidence` | numeric(3,2) | Confidence (0.0–1.0) in agency attribution |
+| `who_pays_normalized` | varchar(40) | LLM-classified category (15 values). CHECK constraint. |
+| `activity_category` | varchar(40) | Activity domain (17 values: hunting_fishing_wildlife, business_licensing, manufacturing_industrial, healthcare_facility, childcare_provider, professional_licensing, environmental_permit, construction_building, food_service, transportation, cannabis_alcohol, real_estate_housing, education, financial_services, social_services, utilities_telecom, other) |
+| `estimated_annual_payers` | varchar(30) | Volume magnitude: tens, hundreds, thousands, ten_thousands, hundred_thousands |
+| `justification` | text | What the charge funds; cost-recovery vs revenue-generating |
+| `justification_quote` | text | Verbatim regulation quote supporting justification |
 | `created_at` | timestamp | Creation timestamp |
 
-**Constraints:** `fines_one_source_check` (exactly one of document_id or guidance_document_id must be set), `chk_fines_jurisdiction`
+**Constraints:** `fines_one_source_check` (exactly one of document_id or guidance_document_id must be set), `chk_fines_jurisdiction`, `chk_fines_who_pays_normalized`, `chk_fines_jurisdiction_level`, `chk_fines_activity_category` (validates activity_category enum values), `chk_fines_estimated_annual_payers` (validates estimated_annual_payers enum values)
 
-**Indexes:** `idx_fines_jurisdiction`, `idx_fines_document_id`, `idx_fines_guidance_document_id`, `idx_fines_penalty_type`, `idx_fines_responsible_agency`, `idx_fines_llm_confirmed`, `idx_fines_agency_id`
+**Indexes:** `idx_fines_jurisdiction`, `idx_fines_document_id`, `idx_fines_guidance_document_id`, `idx_fines_penalty_type`, `idx_fines_responsible_agency`, `idx_fines_llm_confirmed`, `idx_fines_agency_id`, `idx_fines_who_pays_normalized`, `idx_fines_activity_category` (partial index on activity_category WHERE NOT NULL)
 
-**Migrations:** `0062_fines_fees_penalties.sql`, `0063_widen_fines_columns.sql`, `0067_agencies_lookup.sql` (added `agency_id` FK), `0083_fines_enrichment_columns.sql` (enrichment columns)
+**Migrations:** `0062_fines_fees_penalties.sql`, `0063_widen_fines_columns.sql`, `0067_agencies_lookup.sql` (added `agency_id` FK), `0080_fines_jurisdiction_level.sql`, `0083_fines_who_pays_normalized.sql`, `0084_fines_justification_quote.sql`, `0085_fines_activity_enrichment.sql`
 
 ## agencies
 
@@ -865,12 +869,16 @@ Sub-regulatory guidance documents (ADMs, LCMs, INFs, GIS, TSBs, etc.) from NY st
 | `search_vector` | tsvector | Full-text search (auto-populated by trigger; recomputed only when title/content change — migration 0058) |
 | `is_attachment` | boolean | True if title matches attachment/enclosure/appendix patterns (default false) |
 | `policy_category` | text | Rule-based category: `policy_directive`, `legal_interpretation`, `tax_guidance`, `informational`, `reference_material`, `non_policy`, `data_dump`, `unclassified` |
-| `summary` | text | AI-generated summary (migration 0069) |
-| `section_type` | varchar(50) | Primary category (requirements, procedures, etc.) (migration 0069) |
-| `keywords` | text[] | 3-5 searchable terms (migration 0069) |
-| `applies_to` | text[] | Who must comply (migration 0069) |
-| `has_form` | boolean | References a specific form (default false, migration 0069) |
-| `has_ibr` | boolean | Incorporates external standards (default false, migration 0069) |
+| `summary` | text | AI-generated summary (migration 0081) |
+| `section_type` | varchar(50) | Primary category (requirements, procedures, etc.) (migration 0081) |
+| `keywords` | text[] | 3-5 searchable terms (migration 0081) |
+| `applies_to` | text[] | Who must comply (migration 0081) |
+| `has_form` | boolean | References a specific form (default false, migration 0081) |
+| `has_ibr` | boolean | Incorporates external standards (default false, migration 0081) |
+| `target_audience` | text[] | 1-3 audience tags from controlled vocabulary (migration 0081) |
+| `audience_direction` | varchar(20) | public, government, or both (migration 0078) |
+| `audience_expertise` | varchar(20) | lay, specialized, or mixed (migration 0078) |
+| `audience_explanation` | text | 1-2 sentence description of who the doc is for (migration 0078) |
 
 **Indexes:** `idx_gd_catalog_id` (unique, partial), `idx_gd_text_path` (unique, partial — migration 0059), `idx_gd_agency`, `idx_gd_doc_type`, `idx_gd_canonical_ref` (partial), `idx_gd_status`, `idx_gd_search` (GIN), `idx_gd_year`, `idx_gd_policy_category` (partial)
 
