@@ -8,6 +8,12 @@ import {
   buildJenaiExists,
   buildIssueFilter,
 } from './search.repository';
+import {
+  shouldExcludeStatutes,
+  shouldExcludeRegulations,
+  shouldExcludeGuidance,
+  shouldSkipAnalyses,
+} from './search-filters';
 
 /**
  * Flatten a Drizzle SQL object into a single string with $N placeholders,
@@ -181,5 +187,95 @@ describe('buildIssueFilter', () => {
   it('returns empty SQL for unknown system', () => {
     const result = toQueryString(buildIssueFilter('rd.id', 'unknown'));
     expect(result).toBe('');
+  });
+
+  it('compliance system does NOT reference jenai_issues', () => {
+    const result = toQueryString(buildIssueFilter('rd.id', 'compliance', 'burdensome', ['in_person_pickup'], null, ['high']));
+    expect(result).toContain('compliance_issue_analyses');
+    expect(result).not.toContain('jenai_issues');
+  });
+
+  it('jenai system does NOT reference compliance_issue_analyses', () => {
+    const result = toQueryString(buildIssueFilter('rd.id', 'jenai', null, null, ['FROZEN_TECHNOLOGY']));
+    expect(result).toContain('jenai_issues');
+    expect(result).not.toContain('compliance_issue_analyses');
+  });
+
+  it('none system negates both tables', () => {
+    const result = toQueryString(buildIssueFilter('rd.id', 'none'));
+    expect(result).toContain('NOT');
+    expect(result).toContain('compliance_issue_analyses');
+    expect(result).toContain('jenai_issues');
+    // Should be AND NOT (both absent), not OR
+    expect(result).toContain('AND');
+  });
+
+  it('compliance + all sub-filters produces no whitespace errors', () => {
+    const result = toQueryString(
+      buildIssueFilter('rd.id', 'compliance', 'burdensome', ['mail_only', 'in_person_pickup'], null, ['high', 'medium']),
+    );
+    expect(result).not.toMatch(/\$\d+AND/i);
+    expect(result).not.toMatch(/\$\d+OR/i);
+    expect(result).toContain('ARRAY[');
+    expect(result).toContain('severity');
+  });
+});
+
+// ============================================
+// search-filters — doc type gating
+// ============================================
+
+describe('shouldExcludeStatutes', () => {
+  it('excludes statutes when issueSystem is set', () => {
+    expect(shouldExcludeStatutes({ issueSystem: 'compliance' })).toBe(true);
+    expect(shouldExcludeStatutes({ issueSystem: 'jenai' })).toBe(true);
+    expect(shouldExcludeStatutes({ issueSystem: 'any' })).toBe(true);
+    expect(shouldExcludeStatutes({ issueSystem: 'none' })).toBe(true);
+  });
+
+  it('includes statutes when no issue filter is active', () => {
+    expect(shouldExcludeStatutes({})).toBe(false);
+    expect(shouldExcludeStatutes({ issueSystem: null })).toBe(false);
+  });
+
+  it('excludes statutes when docType is regulation or guidance', () => {
+    expect(shouldExcludeStatutes({ docType: 'regulation' })).toBe(true);
+    expect(shouldExcludeStatutes({ docType: 'guidance' })).toBe(true);
+  });
+});
+
+describe('shouldExcludeRegulations', () => {
+  it('excludes regulations when docType is statute or guidance', () => {
+    expect(shouldExcludeRegulations({ docType: 'statute' })).toBe(true);
+    expect(shouldExcludeRegulations({ docType: 'guidance' })).toBe(true);
+  });
+
+  it('includes regulations by default', () => {
+    expect(shouldExcludeRegulations({})).toBe(false);
+  });
+});
+
+describe('shouldExcludeGuidance', () => {
+  it('excludes guidance when docType is regulation or statute', () => {
+    expect(shouldExcludeGuidance({ docType: 'regulation' })).toBe(true);
+    expect(shouldExcludeGuidance({ docType: 'statute' })).toBe(true);
+  });
+
+  it('excludes guidance when hierarchyLevel is set', () => {
+    expect(shouldExcludeGuidance({ hierarchyLevel: 'chapter' })).toBe(true);
+  });
+});
+
+describe('shouldSkipAnalyses', () => {
+  it('skips analyses for none and jenai', () => {
+    expect(shouldSkipAnalyses('none')).toBe(true);
+    expect(shouldSkipAnalyses('jenai')).toBe(true);
+  });
+
+  it('does not skip for compliance, any, or null', () => {
+    expect(shouldSkipAnalyses('compliance')).toBe(false);
+    expect(shouldSkipAnalyses('any')).toBe(false);
+    expect(shouldSkipAnalyses(null)).toBe(false);
+    expect(shouldSkipAnalyses(undefined)).toBe(false);
   });
 });
