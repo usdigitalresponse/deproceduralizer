@@ -120,6 +120,14 @@ export type JenAIReviewSortByValue = (typeof JENAI_REVIEW_SORT_BY_VALUES)[number
 export const JENAI_DEVELOPER_SORT_BY_VALUES = ['severity', 'confidence', 'category', 'reviewedAt', 'developerCheckedAt'] as const;
 export type JenAIDeveloperSortByValue = (typeof JENAI_DEVELOPER_SORT_BY_VALUES)[number];
 
+// Burden Index sort options
+export const BURDEN_SORT_BY_VALUES = ['adjustedBurden', 'compositeBurden', 'maxSeverity', 'issueCount'] as const;
+export type BurdenSortByValue = (typeof BURDEN_SORT_BY_VALUES)[number];
+
+// Burden Index source filter (reuses JenAI source values)
+export const BURDEN_SOURCE_VALUES = ['all', 'regulation', 'guidance'] as const;
+export type BurdenSourceValue = (typeof BURDEN_SOURCE_VALUES)[number];
+
 // ============================================
 // Review page navigation
 // ============================================

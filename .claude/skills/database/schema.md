@@ -149,6 +149,14 @@ JenAI single-pass pipeline analysis results. One row per document analyzed.
 | `max_severity` | integer | Highest severity across categories |
 | `num_categories_found` | integer | Count of categories found |
 
+**Composite Burden Scores** (auto-maintained by `trg_jenai_issues_burden_recalc` trigger)
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `composite_burden` | real | `SUM(severity × confidence)` across all issues for this analysis |
+| `structural_cluster_count` | integer | Count of distinct structural categories present (from: ADMINISTRATIVE_BURDENS, MANDATED_STEPS_NOT_OUTCOMES, REGULATORY_COMPLEXITY, ONE_SIZE_FITS_ALL, CASCADE_OF_RIGIDITY, UNFUNDED_MANDATE) |
+| `adjusted_burden` | real | `composite_burden × (1 + 0.1 × structural_cluster_count)` — the primary ranking metric |
+
 **Pipeline Tracking**
 
 | Column | Type | Description |
@@ -159,7 +167,9 @@ JenAI single-pass pipeline analysis results. One row per document analyzed.
 
 **Constraints:** `jenai_analyses_one_source_check CHECK (exactly one of document_id or guidance_document_id is set)`, `chk_jenai_jurisdiction CHECK (jurisdiction IN ('NY', 'NJ', 'NYC'))`
 
-**Indexes:** `jenai_analyses_document_id_unique` (partial, WHERE document_id IS NOT NULL), `jenai_analyses_guidance_document_id_unique` (partial, WHERE guidance_document_id IS NOT NULL), `idx_jenai_analyses_state`, `idx_jenai_analyses_run_id`
+**Indexes:** `jenai_analyses_document_id_unique` (partial, WHERE document_id IS NOT NULL), `jenai_analyses_guidance_document_id_unique` (partial, WHERE guidance_document_id IS NOT NULL), `idx_jenai_analyses_state`, `idx_jenai_analyses_run_id`, `idx_jenai_analyses_adjusted_burden_desc` (adjusted_burden DESC NULLS LAST)
+
+**Trigger:** `trg_jenai_issues_burden_recalc` — fires AFTER INSERT/UPDATE/DELETE on `jenai_issues`, recalculates `composite_burden`, `structural_cluster_count`, and `adjusted_burden` for the parent analysis. Function: `recalculate_jenai_burden()`.
 
 ## jenai_issues
 

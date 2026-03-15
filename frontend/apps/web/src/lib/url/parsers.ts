@@ -99,6 +99,9 @@ import {
   JENAI_VERBATIM_VALUES,
   // Bookmarks
   BOOKMARK_TAB_VALUES,
+  // Burden Index
+  BURDEN_SORT_BY_VALUES,
+  BURDEN_SOURCE_VALUES,
 } from '@/lib/constants/values';
 
 // Re-export types for convenience
@@ -162,6 +165,8 @@ export type {
   CrossRefSortByValue,
   CrossRefGroupSortByValue,
   BookmarkTabValue,
+  BurdenSortByValue,
+  BurdenSourceValue,
 } from '@/lib/constants/values';
 
 // Re-export value arrays for backward compatibility
@@ -795,6 +800,29 @@ export const bookmarkTabParser = parseAsStringEnum([...BOOKMARK_TAB_VALUES]).wit
  */
 export const bookmarksParsers = {
   tab: bookmarkTabParser,
+};
+
+// ============================================
+// Burden Index page parsers
+// ============================================
+
+export const burdenSortByParser = parseAsStringEnum([...BURDEN_SORT_BY_VALUES]).withDefault('adjustedBurden');
+export const burdenSourceParser = parseAsStringEnum([...BURDEN_SOURCE_VALUES]).withDefault('all');
+
+/**
+ * Parser configuration for Burden Index page
+ */
+export const burdenParsers = {
+  page: pageParser,
+  pageSize: pageSizeParser,
+  sortBy: burdenSortByParser,
+  sortOrder: sortOrderParser,
+  source: burdenSourceParser,
+  severity: parseAsString,     // comma-separated: "high,medium"
+  category: parseAsString,     // comma-separated: "CAT1,CAT2"
+  part: parseAsString,         // comma-separated part numbers
+  sectionType: parseAsString,  // comma-separated section types
+  search: searchParser,
 };
 
 // Re-export server-safe parsing helpers so client components can import from parsers.ts

@@ -11,6 +11,8 @@ import {
   type JenAIReviewStatusCounts,
   type JenAIDeveloperStatusCounts,
   type SeverityDistribution,
+  type PaginatedBurdenResult,
+  type BurdenOverviewStats,
 } from '@deproceduralizer/database';
 import { type ActionResult, success, failure, getErrorMessage, runAction, runCachedAction } from './types';
 import { parseCommaSeparated, parseSeverities } from '@/lib/url/filter-helpers';
@@ -319,5 +321,60 @@ export async function getJenAIIssuesForDocument(
     () => jenaiRepo.getByDocumentId(documentId, type),
     [`jenai-doc-issues-${type}-${documentId}`],
     { revalidate: 300, tags: ['jenai'] }
+  );
+}
+
+/**
+ * Gets paginated burden ranking with filters.
+ * Accepts raw comma-separated filter strings from URL params and parses them.
+ */
+export async function getJenAIBurdenRanking(
+  jurisdiction: JurisdictionCode,
+  options: {
+    page: number;
+    pageSize: number;
+    sortBy?: 'adjustedBurden' | 'compositeBurden' | 'maxSeverity' | 'issueCount';
+    sortOrder?: 'asc' | 'desc';
+    source?: 'regulation' | 'guidance' | 'all';
+    severity?: string;
+    category?: string;
+    part?: string;
+    sectionType?: string;
+    search?: string;
+  }
+): Promise<ActionResult<PaginatedBurdenResult>> {
+  const severities = parseSeverities(options.severity);
+  const categories = parseCommaSeparated(options.category ?? null);
+  const parts = parseCommaSeparated(options.part ?? null);
+  const sectionTypes = parseCommaSeparated(options.sectionType ?? null);
+
+  return runAction('getJenAIBurdenRanking', () =>
+    jenaiRepo.getBurdenRanking({
+      jurisdiction,
+      page: options.page,
+      pageSize: options.pageSize,
+      sortBy: options.sortBy,
+      sortOrder: options.sortOrder,
+      source: options.source,
+      severities: severities.length > 0 ? severities : undefined,
+      categories: categories.length > 0 ? categories : undefined,
+      parts: parts.length > 0 ? parts : undefined,
+      sectionTypes: sectionTypes.length > 0 ? sectionTypes : undefined,
+      search: options.search || undefined,
+    })
+  );
+}
+
+/**
+ * Gets aggregate overview stats for the burden index.
+ */
+export async function getJenAIBurdenStats(
+  jurisdiction: JurisdictionCode
+): Promise<ActionResult<BurdenOverviewStats>> {
+  return runCachedAction(
+    'getJenAIBurdenStats',
+    () => jenaiRepo.getBurdenOverviewStats(jurisdiction),
+    [`burden-stats-${jurisdiction}`],
+    { revalidate: 60, tags: ['burden', 'jenai'] }
   );
 }

@@ -1,4 +1,4 @@
-import { eq, and, desc, asc, sql, count, gte, lt, or, isNull, isNotNull, ne, inArray } from 'drizzle-orm';
+import { eq, and, desc, asc, sql, count, gte, lt, or, isNull, isNotNull, ne, inArray, type SQL } from 'drizzle-orm';
 import { BaseRepository } from './base.repository';
 import { jenaiIssues, type JenAIIssue } from '../schema/jenai-issues';
 import { jenaiAnalyses } from '../schema/jenai-analyses';
@@ -101,6 +101,54 @@ export interface JenAIDeveloperStatusCounts {
   total: number;
 }
 
+export interface BurdenRankingRow {
+  analysisId: number;
+  documentId: number | null;
+  guidanceDocumentId: number | null;
+  title: string | null;
+  url: string | null;
+  source: 'regulation' | 'guidance';
+  adjustedBurden: number;
+  compositeBurden: number;
+  structuralClusterCount: number;
+  maxSeverity: number;
+  issueCount: number;
+  categories: string[];
+}
+
+export interface PaginatedBurdenResult {
+  data: BurdenRankingRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export interface BurdenRankingOptions {
+  jurisdiction: JurisdictionCode;
+  page: number;
+  pageSize: number;
+  sortBy?: 'adjustedBurden' | 'compositeBurden' | 'maxSeverity' | 'issueCount';
+  sortOrder?: 'asc' | 'desc';
+  source?: 'regulation' | 'guidance' | 'all';
+  /** @deprecated Use severities[] instead */
+  minSeverity?: number;
+  /** @deprecated Use categories[] instead */
+  category?: string;
+  severities?: ('high' | 'medium' | 'low')[];
+  categories?: string[];
+  parts?: string[];
+  sectionTypes?: string[];
+  search?: string;
+}
+
+export interface BurdenOverviewStats {
+  totalAnalyzed: number;
+  highBurdenCount: number;
+  averageBurden: number;
+  topStructuralCategory: string | null;
+}
+
 export interface UpdateJenAIReviewInput {
   reviewStatus: string;
   reviewedBy: string;
@@ -117,6 +165,75 @@ export interface UpdateJenAIDeveloperInput {
   resolutionType?: string;
   resolutionComments?: string;
   developerQuestion?: string;
+}
+
+export interface BurdenFilterOptions {
+  source?: 'regulation' | 'guidance' | 'all';
+  /** @deprecated Use severities[] instead */
+  minSeverity?: number;
+  /** @deprecated Use categories[] instead */
+  category?: string;
+  severities?: ('high' | 'medium' | 'low')[];
+  categories?: string[];
+  parts?: string[];
+  sectionTypes?: string[];
+  search?: string;
+}
+
+function sqlTextArrayBurden(values: string[]): SQL {
+  return sql`ARRAY[${sql.join(values.map(v => sql`${v}`), sql`, `)}]::text[]`;
+}
+
+export function buildBurdenFilterFragments(options: BurdenFilterOptions, jurisdiction?: string) {
+  const { source, minSeverity, category, severities, categories, parts, sectionTypes, search } = options;
+
+  const sourceFilter = source === 'regulation' ? sql`AND ja.document_id IS NOT NULL`
+    : source === 'guidance' ? sql`AND ja.guidance_document_id IS NOT NULL`
+    : sql``;
+
+  // Severity: multi-select takes precedence over legacy minSeverity
+  let severityFilter: SQL;
+  if (severities && severities.length > 0) {
+    const conds: SQL[] = [];
+    if (severities.includes('high')) conds.push(sql.raw(`ja.max_severity >= 7`));
+    if (severities.includes('medium')) conds.push(sql.raw(`(ja.max_severity >= 4 AND ja.max_severity < 7)`));
+    if (severities.includes('low')) conds.push(sql.raw(`(ja.max_severity < 4)`));
+    severityFilter = conds.length > 0
+      ? sql`AND (${sql.join(conds, sql` OR `)})`
+      : sql``;
+  } else {
+    severityFilter = minSeverity ? sql`AND ja.max_severity >= ${minSeverity}` : sql``;
+  }
+
+  // Category: multi-select takes precedence over legacy single category
+  let categoryFilter: SQL;
+  if (categories && categories.length > 0) {
+    categoryFilter = sql`AND EXISTS (SELECT 1 FROM jenai_issues ji2 WHERE ji2.analysis_id = ja.id AND ji2.category = ANY(${sqlTextArrayBurden(categories)}))`;
+  } else if (category) {
+    categoryFilter = sql`AND EXISTS (SELECT 1 FROM jenai_issues ji2 WHERE ji2.analysis_id = ja.id AND ji2.category = ANY(string_to_array(${category}, ',')))`;
+  } else {
+    categoryFilter = sql``;
+  }
+
+  // Part filter: uses jurisdiction to pick the right column
+  let partsFilter: SQL;
+  if (parts && parts.length > 0) {
+    const partCol = jurisdiction?.toUpperCase() === 'NJ' ? 'rd.njac_part' : 'rd.nycrr_part';
+    partsFilter = sql`AND ${sql.raw(partCol)} = ANY(${sqlTextArrayBurden(parts)})`;
+  } else {
+    partsFilter = sql``;
+  }
+
+  // Section type filter
+  const sectionTypesFilter = sectionTypes && sectionTypes.length > 0
+    ? sql`AND rd.section_type = ANY(${sqlTextArrayBurden(sectionTypes)})`
+    : sql``;
+
+  const searchFilter = search
+    ? sql`AND (rd.title ILIKE ${'%' + search + '%'} OR gd.title ILIKE ${'%' + search + '%'})`
+    : sql``;
+
+  return { sourceFilter, severityFilter, categoryFilter, partsFilter, sectionTypesFilter, searchFilter };
 }
 
 export class JenAIRepository extends BaseRepository {
@@ -433,6 +550,147 @@ export class JenAIRepository extends BaseRepository {
 
     const row = result.rows[0] as { high: number; medium: number; low: number; total: number };
     return { high: row.high, medium: row.medium, low: row.low, total: row.total };
+  }
+
+  /**
+   * Get ranked documents by composite burden score with filtering and pagination.
+   */
+  async getBurdenRanking(options: BurdenRankingOptions): Promise<PaginatedBurdenResult> {
+    const {
+      jurisdiction,
+      page,
+      pageSize,
+      sortBy = 'adjustedBurden',
+      sortOrder = 'desc',
+      source,
+      minSeverity,
+      category,
+      severities,
+      categories,
+      parts,
+      sectionTypes,
+      search,
+    } = options;
+
+    const normalized = normalizeJurisdiction(jurisdiction);
+    const offset = (page - 1) * pageSize;
+
+    const { sourceFilter, severityFilter, categoryFilter, partsFilter, sectionTypesFilter, searchFilter } =
+      buildBurdenFilterFragments({ source, minSeverity, category, severities, categories, parts, sectionTypes, search }, normalized);
+
+    // Sort mapping
+    const sortFragment = sortBy === 'maxSeverity' ? sql`r.max_severity`
+      : sortBy === 'compositeBurden' ? sql`r.composite_burden`
+      : sortBy === 'issueCount' ? sql`r.issue_count`
+      : sql`r.adjusted_burden`;
+    const dirFragment = sortOrder === 'asc' ? sql`ASC NULLS FIRST` : sql`DESC NULLS LAST`;
+
+    const result = await this.db.execute(sql`
+      SELECT r.*, (SELECT COUNT(*)::int FROM (
+        SELECT ja.id
+        FROM jenai_analyses ja
+        LEFT JOIN regulatory_documents rd ON ja.document_id = rd.id
+        LEFT JOIN guidance_documents gd ON ja.guidance_document_id = gd.id
+        WHERE ja.jurisdiction = ${normalized}
+          AND ja.adjusted_burden IS NOT NULL
+          ${sourceFilter} ${severityFilter} ${categoryFilter} ${partsFilter} ${sectionTypesFilter} ${searchFilter}
+      ) sub) AS total_count
+      FROM (
+        SELECT
+          ja.id AS analysis_id,
+          ja.document_id,
+          ja.guidance_document_id,
+          COALESCE(rd.title, gd.title) AS title,
+          COALESCE(rd.url, gd.url) AS url,
+          CASE WHEN ja.guidance_document_id IS NOT NULL THEN 'guidance' ELSE 'regulation' END AS source,
+          ja.adjusted_burden,
+          ja.composite_burden,
+          ja.structural_cluster_count,
+          ja.max_severity,
+          (SELECT COUNT(*)::int FROM jenai_issues ji WHERE ji.analysis_id = ja.id) AS issue_count,
+          (SELECT ARRAY_AGG(DISTINCT ji.category ORDER BY ji.category)
+           FROM jenai_issues ji WHERE ji.analysis_id = ja.id) AS categories
+        FROM jenai_analyses ja
+        LEFT JOIN regulatory_documents rd ON ja.document_id = rd.id
+        LEFT JOIN guidance_documents gd ON ja.guidance_document_id = gd.id
+        WHERE ja.jurisdiction = ${normalized}
+          AND ja.adjusted_burden IS NOT NULL
+          ${sourceFilter} ${severityFilter} ${categoryFilter} ${partsFilter} ${sectionTypesFilter} ${searchFilter}
+      ) r
+      ORDER BY ${sortFragment} ${dirFragment}, r.analysis_id ASC
+      LIMIT ${pageSize} OFFSET ${offset}
+    `);
+
+    const rows = result.rows as Array<Record<string, unknown>>;
+    const total = rows.length > 0 ? (rows[0].total_count as number) : 0;
+
+    const data: BurdenRankingRow[] = rows.map(row => ({
+      analysisId: row.analysis_id as number,
+      documentId: row.document_id as number | null,
+      guidanceDocumentId: row.guidance_document_id as number | null,
+      title: row.title as string | null,
+      url: row.url as string | null,
+      source: row.source as 'regulation' | 'guidance',
+      adjustedBurden: row.adjusted_burden as number,
+      compositeBurden: row.composite_burden as number,
+      structuralClusterCount: row.structural_cluster_count as number,
+      maxSeverity: row.max_severity as number,
+      issueCount: row.issue_count as number,
+      categories: (row.categories as string[]) ?? [],
+    }));
+
+    return {
+      data,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
+  }
+
+  /**
+   * Get aggregate overview stats for the burden index page.
+   */
+  async getBurdenOverviewStats(jurisdiction: JurisdictionCode): Promise<BurdenOverviewStats> {
+    const normalized = normalizeJurisdiction(jurisdiction);
+
+    const result = await this.db.execute(sql`
+      SELECT
+        COUNT(*)::int AS total_analyzed,
+        COUNT(*) FILTER (WHERE adjusted_burden > 40)::int AS high_burden_count,
+        COALESCE(ROUND(AVG(adjusted_burden)::numeric, 1), 0)::real AS average_burden
+      FROM jenai_analyses
+      WHERE jurisdiction = ${normalized}
+        AND adjusted_burden IS NOT NULL
+    `);
+
+    const row = result.rows[0] as {
+      total_analyzed: number;
+      high_burden_count: number;
+      average_burden: number;
+    };
+
+    // Find top structural category
+    const catResult = await this.db.execute(sql`
+      SELECT ji.category, COUNT(*)::int AS cnt
+      FROM jenai_issues ji
+      INNER JOIN jenai_analyses ja ON ji.analysis_id = ja.id
+      WHERE ja.jurisdiction = ${normalized}
+        AND ji.category IN ('ADMINISTRATIVE_BURDENS', 'MANDATED_STEPS_NOT_OUTCOMES',
+          'REGULATORY_COMPLEXITY', 'ONE_SIZE_FITS_ALL', 'CASCADE_OF_RIGIDITY', 'UNFUNDED_MANDATE')
+      GROUP BY ji.category
+      ORDER BY cnt DESC
+      LIMIT 1
+    `);
+
+    const topCat = catResult.rows[0] as { category: string } | undefined;
+
+    return {
+      totalAnalyzed: row.total_analyzed,
+      highBurdenCount: row.high_burden_count,
+      averageBurden: row.average_burden,
+      topStructuralCategory: topCat?.category ?? null,
+    };
   }
 
   /**

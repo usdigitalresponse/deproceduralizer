@@ -1,4 +1,4 @@
-import { Table, FolderTree, ClipboardCheck, Home, Code, BarChart3, FlaskConical, Search, BookOpen, DollarSign, type LucideIcon } from 'lucide-react';
+import { Table, FolderTree, ClipboardCheck, Home, Code, BarChart3, FlaskConical, Search, BookOpen, DollarSign, Layers, type LucideIcon } from 'lucide-react';
 // Entity-type icons sourced from entity-types.ts (canonical visual identity)
 import { getEntityIcon } from './entity-types';
 
@@ -37,7 +37,7 @@ export interface NavItem {
 export const NAV_GROUPS = {
   explorer: { label: 'Explorer', icon: FolderTree },
   review: { label: 'Review', icon: ClipboardCheck },
-  metrics: { label: 'Metrics', icon: BarChart3 },
+  metrics: { label: 'Analysis', icon: BarChart3 },
 };
 
 /**
@@ -52,22 +52,6 @@ export const NAV_ITEMS: NavItem[] = [
     isStateSpecific: false,
     href: '/',
     showOnDesktop: false,
-  },
-  {
-    key: 'search',
-    label: 'Search',
-    icon: Search,
-    isStateSpecific: true,
-    pathSuffix: '/search',
-    groupId: 'explorer',
-  },
-  {
-    key: 'table',
-    label: 'Regulations',
-    icon: Table,
-    isStateSpecific: true,
-    pathSuffix: '',
-    groupId: 'explorer',
   },
   {
     key: 'browse',
@@ -86,11 +70,11 @@ export const NAV_ITEMS: NavItem[] = [
     groupId: 'explorer',
   },
   {
-    key: 'statutes',
-    label: 'Statutes',
-    icon: getEntityIcon('statute'),
+    key: 'guidance',
+    label: 'Guidance',
+    icon: getEntityIcon('guidance_document'),
     isStateSpecific: true,
-    pathSuffix: '/statutes',
+    pathSuffix: '/guidance',
     groupId: 'explorer',
   },
   {
@@ -102,11 +86,27 @@ export const NAV_ITEMS: NavItem[] = [
     groupId: 'explorer',
   },
   {
-    key: 'guidance',
-    label: 'Guidance',
-    icon: getEntityIcon('guidance_document'),
+    key: 'table',
+    label: 'Regulations',
+    icon: Table,
     isStateSpecific: true,
-    pathSuffix: '/guidance',
+    pathSuffix: '',
+    groupId: 'explorer',
+  },
+  {
+    key: 'search',
+    label: 'Search',
+    icon: Search,
+    isStateSpecific: true,
+    pathSuffix: '/search',
+    groupId: 'explorer',
+  },
+  {
+    key: 'statutes',
+    label: 'Statutes',
+    icon: getEntityIcon('statute'),
+    isStateSpecific: true,
+    pathSuffix: '/statutes',
     groupId: 'explorer',
   },
   {
@@ -128,11 +128,11 @@ export const NAV_ITEMS: NavItem[] = [
     isHighlighted: true,
   },
   {
-    key: 'fines',
-    label: 'Fines & Fees',
-    icon: DollarSign,
+    key: 'analytics',
+    label: 'Analytics',
+    icon: BarChart3,
     isStateSpecific: true,
-    pathSuffix: '/fines',
+    pathSuffix: '/analytics',
     groupId: 'metrics',
   },
   {
@@ -144,11 +144,19 @@ export const NAV_ITEMS: NavItem[] = [
     groupId: 'metrics',
   },
   {
-    key: 'analytics',
-    label: 'Analytics',
-    icon: BarChart3,
+    key: 'burden',
+    label: 'Burden Index',
+    icon: Layers,
     isStateSpecific: true,
-    pathSuffix: '/analytics',
+    pathSuffix: '/burden',
+    groupId: 'metrics',
+  },
+  {
+    key: 'fines',
+    label: 'Fines & Fees',
+    icon: DollarSign,
+    isStateSpecific: true,
+    pathSuffix: '/fines',
     groupId: 'metrics',
   },
   {

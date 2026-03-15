@@ -4401,6 +4401,45 @@ src/lib/url/parsers.ts    -- finesParsers (tab, page, pageSize, sortBy, sortOrde
 
 ---
 
+## Burden Index Components
+
+Components for browsing and filtering regulatory documents ranked by composite burden score. Located in `components/burden/`.
+
+### BurdenClient
+
+Main client component using `nuqs` URL state via `burdenParsers`. No tabs — single-page layout with stats, filters, and ranked list.
+
+**Overview section:**
+- `StatGrid columns={4}` with 4 `StatCard`s: Documents Analyzed, High Burden (>40), Average Score, Top Structural Category
+
+**Filters:**
+- Source: `Select` (All / Regulations / Guidance)
+- Min Severity: `Select` (Any / 4+ / 7+)
+- Category: `Select` dropdown of 6 structural categories
+- Sort By: `Select` (adjustedBurden / compositeBurden / maxSeverity / issueCount)
+- Order: `Select` (Highest First / Lowest First)
+- Search: `SearchInput` for document titles
+
+**Ranked document list:**
+Each row is a `Card` displaying:
+- **Rank badge** (left, circle with number)
+- **Document title** (linked to regulation/guidance detail page) with external link icon
+- **Source badge** (Regulation/Guidance, color-coded)
+- **Score section** (right-aligned): adjusted burden (large), raw composite, max severity, issue count
+- **Structural cluster indicators**: 6 small badges (`Admin`, `Steps`, `Complex`, `One-Size`, `Rigidity`, `Unfunded`), filled with warning colors when present
+- **"Why this ranks high" explanation**: italic text computed from structured data
+
+**File structure:**
+```
+src/components/burden/
+  BurdenClient.tsx          -- Full page client component with stats, filters, ranked list
+src/app/[state]/burden/
+  page.tsx                  -- Server component (validates jurisdiction, fetches stats)
+src/lib/url/parsers.ts      -- burdenParsers (page, pageSize, sortBy, sortOrder, source, severity, category, part, sectionType, search)
+```
+
+---
+
 ## Pipeline Source Tab Pattern
 
 The Pipeline page uses a `SegmentedControl` to switch between regulation-sourced and guidance-sourced compliance issues. Both tabs share the same table columns, badges, sort/filter controls, and review flow -- only the underlying document context differs.

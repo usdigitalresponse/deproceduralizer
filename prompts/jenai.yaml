@@ -533,10 +533,10 @@ analysis:
 
         SEVERITY GUIDANCE:
         - HIGH (7-10): Requirements clearly designed for large institutions applied
-          without modification to small/home-based operations, creating impossible
-          compliance burdens
+          without modification to small/home-based operations, creating clearly
+          disproportionate or practically unworkable compliance burdens
         - MEDIUM (4-6): Uniform requirements that are disproportionate for some
-          program types but not impossible
+          program types but still technically achievable with significant effort
         - LOW (1-3): Minor uniformity that most programs can accommodate
 
     18. UNFUNDED_MANDATE

@@ -28,6 +28,11 @@ export const jenaiAnalyses = pgTable('jenai_analyses', {
   maxSeverity: integer('max_severity'),
   numCategoriesFound: integer('num_categories_found'),
 
+  // Composite burden scores (auto-maintained by DB trigger)
+  compositeBurden: real('composite_burden'),
+  structuralClusterCount: integer('structural_cluster_count'),
+  adjustedBurden: real('adjusted_burden'),
+
   // Pipeline Tracking
   pipelineVersion: varchar('pipeline_version', { length: 20 }),
   modelVersion: varchar('model_version', { length: 100 }),
