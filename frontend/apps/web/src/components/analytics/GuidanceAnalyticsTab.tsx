@@ -1,12 +1,20 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState, useTransition, useCallback } from 'react';
 import Link from 'next/link';
-import { ScrollText, Link2, Building2, FileText } from 'lucide-react';
-import type { GuidanceOverviewStats, GuidanceCitationStats } from '@/lib/actions/guidance-documents';
+import { ScrollText, Link2, Building2, FileText, BookOpen, GitBranch, FolderTree, AlertTriangle, ChevronDown, ChevronRight, Calendar } from 'lucide-react';
+import type { GuidanceOverviewStats, GuidanceCitationStats, GuidanceReadabilityStats, ReadabilityCrossCutStats, LineageStats, DocumentFamily } from '@/lib/actions/guidance-documents';
+import { getReadabilityByAgencyFiltered } from '@/lib/actions/guidance-documents';
 import type { JurisdictionCode } from '@/types/state';
 import { formatLabel } from '@/types/regulation';
-import { StatCard, StatGrid } from '@/components/ui';
+import { getReadabilityLabel } from '@/components/guidance/ReadabilityBadge';
+import { GuidanceStatusBadge } from '@/components/guidance/GuidanceStatusBadge';
+import { FleschEaseKey, GradeLevelKey } from '@/components/guidance/ReadabilityScaleKey';
+import { StatCard, StatGrid, MultiSelect } from '@/components/ui';
+import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card';
+import { ReadabilityCrossCutSection } from '@/components/guidance/ReadabilityCrossCutSection';
+import { StickyPageSectionTabs } from '@/components/navigation/StickyPageSectionTabs';
+import type { SectionConfig } from '@/hooks/useActiveSection';
 import { ClientChart, ChartContainer, HorizontalBarChart, PieChart, ChartLegend } from '@/components/charts';
 import { useChartColors } from '@/hooks/useChartColors';
 import type { BarChartDatum, PieChartDatum } from '@/lib/charts/types';
@@ -14,6 +22,9 @@ import type { BarChartDatum, PieChartDatum } from '@/lib/charts/types';
 interface GuidanceAnalyticsTabProps {
   overviewStats: GuidanceOverviewStats | null;
   citationStats: GuidanceCitationStats | null;
+  readabilityStats: GuidanceReadabilityStats | null;
+  crossCutStats: ReadabilityCrossCutStats | null;
+  lineageStats: LineageStats | null;
   jurisdiction: JurisdictionCode;
 }
 
@@ -29,7 +40,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   unclassified: '#d4d4d4',
 };
 
-export function GuidanceAnalyticsTab({ overviewStats, citationStats, jurisdiction }: GuidanceAnalyticsTabProps) {
+export function GuidanceAnalyticsTab({ overviewStats, citationStats, readabilityStats, crossCutStats, lineageStats, jurisdiction }: GuidanceAnalyticsTabProps) {
   const colors = useChartColors();
 
   // By agency bar chart data
@@ -102,9 +113,44 @@ export function GuidanceAnalyticsTab({ overviewStats, citationStats, jurisdictio
   const agencyCount = overviewStats.byAgency.length;
   const distinctCitedRegs = citationStats?.topCitedRegulations.length ?? 0;
 
+  // By-year bar chart data
+  const yearData: BarChartDatum[] = useMemo(() => {
+    if (!overviewStats) return [];
+    return overviewStats.byYear.map((row) => ({
+      label: String(row.year),
+      value: row.count,
+    }));
+  }, [overviewStats]);
+
+  const sections: SectionConfig[] = useMemo(() => {
+    const s: SectionConfig[] = [
+      { id: 'guidance-overview', label: 'Overview' },
+      { id: 'guidance-agencies', label: 'Agencies' },
+      { id: 'guidance-categories', label: 'Categories' },
+    ];
+    if (citationStats && citationStats.topCitedRegulations.length > 0) {
+      s.push({ id: 'guidance-citations', label: 'Top Citations', count: citationStats.topCitedRegulations.length });
+    }
+    if (lineageStats && lineageStats.docsWithLineage > 0) {
+      s.push({ id: 'guidance-lineage', label: 'Lineage', count: lineageStats.docsWithLineage });
+    }
+    if (readabilityStats && readabilityStats.docsWithMetrics > 0) {
+      s.push({ id: 'guidance-readability', label: 'Readability', count: readabilityStats.docsWithMetrics });
+    }
+    if (crossCutStats) {
+      s.push({ id: 'guidance-crosscuts', label: 'Cross-Cuts' });
+    }
+    return s;
+  }, [citationStats, lineageStats, readabilityStats, crossCutStats]);
+
   return (
     <div className="space-y-6">
+      <div className="sticky top-[89px] z-10 bg-white border-b border-[var(--color-neutral-200)] -mx-1 px-1 pb-1 shadow-sm">
+        <StickyPageSectionTabs sections={sections} scrollOffset={140} />
+      </div>
+
       {/* Stat Cards */}
+      <div id="guidance-overview" className="scroll-mt-[140px]">
       <StatGrid columns={4}>
         <StatCard
           label="Total Documents"
@@ -133,9 +179,10 @@ export function GuidanceAnalyticsTab({ overviewStats, citationStats, jurisdictio
           subtitle="Distinct regulations cited"
         />
       </StatGrid>
+      </div>
 
       {/* Charts Row 1: By Agency + Citation Coverage */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div id="guidance-agencies" className="scroll-mt-[140px] grid grid-cols-1 lg:grid-cols-2 gap-6">
         <ChartContainer
           title="Documents by Agency"
           description="Top agencies by guidance document count"
@@ -188,7 +235,7 @@ export function GuidanceAnalyticsTab({ overviewStats, citationStats, jurisdictio
       </div>
 
       {/* Charts Row 2: Policy Category + Status */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div id="guidance-categories" className="scroll-mt-[140px] grid grid-cols-1 lg:grid-cols-2 gap-6">
         <ChartContainer
           title="Policy Category"
           description="Documents by policy classification"
@@ -266,9 +313,34 @@ export function GuidanceAnalyticsTab({ overviewStats, citationStats, jurisdictio
         </ChartContainer>
       </div>
 
+      {/* Charts Row 3: By Year */}
+      {yearData.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <ChartContainer
+            title="Documents by Year"
+            description="Distribution of guidance documents by publication year"
+            aspectRatio={1.5}
+            minHeight={Math.max(250, yearData.length * 25)}
+            maxHeight={500}
+          >
+            {({ width, height }) => (
+              <ClientChart minHeight={height}>
+                <HorizontalBarChart
+                  data={yearData}
+                  width={width}
+                  height={height}
+                  maxBars={20}
+                  sortOrder="none"
+                />
+              </ClientChart>
+            )}
+          </ChartContainer>
+        </div>
+      )}
+
       {/* Top-Cited Regulations Table */}
       {citationStats && citationStats.topCitedRegulations.length > 0 && (
-        <div className="bg-white rounded-[var(--radius-lg)] border border-[var(--color-neutral-200)] overflow-hidden">
+        <div id="guidance-citations" className="scroll-mt-[140px] bg-white rounded-[var(--radius-lg)] border border-[var(--color-neutral-200)] overflow-hidden">
           <div className="p-4 border-b border-[var(--color-neutral-200)]">
             <h3 className="font-semibold">Top-Cited Regulations</h3>
             <p className="text-sm text-[var(--color-text-muted)] mt-1">
@@ -313,6 +385,422 @@ export function GuidanceAnalyticsTab({ overviewStats, citationStats, jurisdictio
           </div>
         </div>
       )}
+
+      {/* Document Lineage Section */}
+      {lineageStats && lineageStats.docsWithLineage > 0 && (
+        <div id="guidance-lineage" className="scroll-mt-[140px]">
+          <LineageSection lineageStats={lineageStats} overviewStats={overviewStats} jurisdiction={jurisdiction} />
+        </div>
+      )}
+
+      {/* Readability Analysis Section */}
+      {readabilityStats && readabilityStats.docsWithMetrics > 0 && (
+        <div id="guidance-readability" className="scroll-mt-[140px]">
+          <ReadabilitySection readabilityStats={readabilityStats} jurisdiction={jurisdiction} />
+        </div>
+      )}
+
+      {/* Readability × Compliance × JenAI Cross-Cut Section */}
+      {crossCutStats && (
+        <div id="guidance-crosscuts" className="scroll-mt-[140px]">
+          <ReadabilityCrossCutSection stats={crossCutStats} />
+        </div>
+      )}
     </div>
+  );
+}
+
+function getGradeLevelLabel(grade: number): string {
+  if (grade < 8) return 'Middle school';
+  if (grade < 13) return 'High school';
+  if (grade < 17) return 'College level';
+  return 'Graduate level';
+}
+
+function MetricCell({ label, value }: { label: string; value: number | null }) {
+  return (
+    <div className="flex justify-between gap-2 py-1 px-2">
+      <span className="text-xs text-[var(--color-text-muted)]">{label}</span>
+      <span className="text-xs font-medium text-[var(--color-text)] tabular-nums">
+        {value !== null ? value.toFixed(1) : '--'}
+      </span>
+    </div>
+  );
+}
+
+function formatAudienceLabel(tag: string): string {
+  return tag
+    .split('_')
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
+function ReadabilitySection({
+  readabilityStats,
+  jurisdiction,
+}: {
+  readabilityStats: GuidanceReadabilityStats;
+  jurisdiction: JurisdictionCode;
+}) {
+  const [selectedAudiences, setSelectedAudiences] = useState<string[]>([]);
+  const [filteredAgencyData, setFilteredAgencyData] = useState<BarChartDatum[] | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  const analyzedPct = readabilityStats.totalDocs > 0
+    ? Math.round((readabilityStats.docsWithMetrics / readabilityStats.totalDocs) * 100)
+    : 0;
+
+  const avgEaseLabel = readabilityStats.avgFleschReadingEase !== null
+    ? getReadabilityLabel(readabilityStats.avgFleschReadingEase)
+    : undefined;
+
+  const avgGradeLabel = readabilityStats.avgFleschKincaidGrade !== null
+    ? getGradeLevelLabel(readabilityStats.avgFleschKincaidGrade)
+    : undefined;
+
+  const gradeData: BarChartDatum[] = readabilityStats.gradeDistribution.map(d => ({
+    label: d.grade,
+    value: d.count,
+  }));
+
+  const defaultAgencyData: BarChartDatum[] = readabilityStats.readingEaseByAgency.map(d => ({
+    label: d.agency,
+    value: Number(d.avgReadingEase),
+  }));
+
+  const agencyReadabilityData = filteredAgencyData ?? defaultAgencyData;
+
+  const audienceOptions = useMemo(() =>
+    readabilityStats.audienceTags.map(t => ({
+      value: t.tag,
+      label: formatAudienceLabel(t.tag),
+      count: t.count,
+    })),
+    [readabilityStats.audienceTags]
+  );
+
+  const handleAudienceChange = useCallback((values: string[]) => {
+    setSelectedAudiences(values);
+    if (values.length === 0) {
+      setFilteredAgencyData(null);
+      return;
+    }
+    startTransition(async () => {
+      const result = await getReadabilityByAgencyFiltered(jurisdiction, values);
+      if (result.success) {
+        setFilteredAgencyData(result.data.map(d => ({
+          label: d.agency,
+          value: Number(d.avgReadingEase),
+        })));
+      }
+    });
+  }, [jurisdiction]);
+
+  return (
+    <div className="space-y-6">
+      <h3 className="text-lg font-semibold text-[var(--color-text)]">Readability Analysis</h3>
+
+      <StatGrid columns={3}>
+        <StatCard
+          label="Docs Analyzed"
+          value={readabilityStats.docsWithMetrics}
+          icon={BookOpen}
+          variant="info"
+          subtitle={`${analyzedPct}% of total`}
+        />
+        <StatCard
+          label="Avg Reading Ease"
+          value={readabilityStats.avgFleschReadingEase !== null
+            ? Number(readabilityStats.avgFleschReadingEase).toFixed(1)
+            : '--'}
+          icon={BookOpen}
+          variant={readabilityStats.avgFleschReadingEase !== null && readabilityStats.avgFleschReadingEase < 30
+            ? 'danger'
+            : readabilityStats.avgFleschReadingEase !== null && readabilityStats.avgFleschReadingEase < 50
+              ? 'warning'
+              : 'default'}
+          subtitle={avgEaseLabel}
+        />
+        <StatCard
+          label="Avg Grade Level"
+          value={readabilityStats.avgFleschKincaidGrade !== null
+            ? Number(readabilityStats.avgFleschKincaidGrade).toFixed(1)
+            : '--'}
+          icon={BookOpen}
+          variant="default"
+          subtitle={avgGradeLabel}
+        />
+      </StatGrid>
+
+      {/* All readability formula averages + text stats */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="bg-[var(--color-neutral-50)] border border-[var(--color-neutral-200)] rounded-[var(--radius-md)] p-3">
+          <p className="text-xs font-semibold text-[var(--color-text-secondary)] mb-2">Corpus Readability Averages</p>
+          <div className="grid grid-cols-2 gap-x-4">
+            <MetricCell label="Flesch Reading Ease" value={readabilityStats.avgFleschReadingEase} />
+            <MetricCell label="FK Grade" value={readabilityStats.avgFleschKincaidGrade} />
+            <MetricCell label="Gunning Fog" value={readabilityStats.avgGunningFog} />
+            <MetricCell label="ARI" value={readabilityStats.avgAutomatedReadabilityIndex} />
+            <MetricCell label="Coleman-Liau" value={readabilityStats.avgColemanLiauIndex} />
+            <MetricCell label="SMOG" value={readabilityStats.avgSmogIndex} />
+            <MetricCell label="Dale-Chall" value={readabilityStats.avgDaleChallScore} />
+            <MetricCell label="Linsear Write" value={readabilityStats.avgLinsearWriteFormula} />
+          </div>
+        </div>
+        <div className="bg-[var(--color-neutral-50)] border border-[var(--color-neutral-200)] rounded-[var(--radius-md)] p-3">
+          <p className="text-xs font-semibold text-[var(--color-text-secondary)] mb-2">Corpus Text Statistics</p>
+          <div className="grid grid-cols-2 gap-x-4">
+            <MetricCell label="Avg Words / Doc" value={readabilityStats.avgWordCount} />
+            <MetricCell label="Avg Sentences / Doc" value={readabilityStats.avgSentenceCount} />
+            <MetricCell label="Avg Difficult Words %" value={readabilityStats.avgDifficultWordPct} />
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="space-y-3">
+          <ChartContainer
+            title="Grade Level Distribution"
+            description="Documents bucketed by Flesch-Kincaid grade level"
+            aspectRatio={1.2}
+            minHeight={250}
+            maxHeight={400}
+          >
+            {({ width, height }) => (
+              <ClientChart minHeight={height}>
+                {gradeData.length > 0 ? (
+                  <HorizontalBarChart
+                    data={gradeData}
+                    width={width}
+                    height={height}
+                    maxBars={10}
+                    sortOrder="none"
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-full text-[var(--color-text-muted)]">
+                    No grade level data
+                  </div>
+                )}
+              </ClientChart>
+            )}
+          </ChartContainer>
+          <GradeLevelKey />
+        </div>
+
+        <div className="space-y-3">
+          <div className="flex items-end gap-3">
+            <div className="flex-1">
+              <MultiSelect
+                label="Filter by Audience"
+                options={audienceOptions}
+                value={selectedAudiences}
+                onChange={handleAudienceChange}
+                placeholder="All audiences"
+                searchable
+              />
+            </div>
+            {isPending && (
+              <span className="text-xs text-[var(--color-text-muted)] pb-2">Loading...</span>
+            )}
+          </div>
+          <ChartContainer
+            title="Readability by Agency"
+            description={selectedAudiences.length > 0
+              ? `Filtered to ${selectedAudiences.map(formatAudienceLabel).join(', ')}`
+              : 'Average Flesch Reading Ease by agency (higher = easier)'}
+            aspectRatio={1.2}
+            minHeight={Math.max(250, agencyReadabilityData.length * 30)}
+            maxHeight={500}
+          >
+            {({ width, height }) => (
+              <ClientChart minHeight={height}>
+                {agencyReadabilityData.length > 0 ? (
+                  <HorizontalBarChart
+                    data={agencyReadabilityData}
+                    width={width}
+                    height={height}
+                    maxBars={15}
+                    sortOrder="none"
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-full text-[var(--color-text-muted)]">
+                    {selectedAudiences.length > 0 ? 'No data for selected audiences' : 'No agency readability data'}
+                  </div>
+                )}
+              </ClientChart>
+            )}
+          </ChartContainer>
+          <FleschEaseKey />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LineageSection({
+  lineageStats,
+  overviewStats,
+  jurisdiction,
+}: {
+  lineageStats: LineageStats;
+  overviewStats: GuidanceOverviewStats | null;
+  jurisdiction: JurisdictionCode;
+}) {
+  const lineagePercentage = overviewStats && overviewStats.total > 0
+    ? Math.round((lineageStats.docsWithLineage / overviewStats.total) * 100)
+    : 0;
+
+  return (
+    <div className="space-y-6">
+      <h3 className="text-lg font-semibold text-[var(--color-text)]">Document Lineage</h3>
+
+      <StatGrid columns={3}>
+        <StatCard
+          label="Docs with Lineage"
+          value={lineageStats.docsWithLineage}
+          icon={GitBranch}
+          variant="info"
+          subtitle={`${lineagePercentage}% of total`}
+        />
+        <StatCard
+          label="Document Families"
+          value={lineageStats.totalFamilies}
+          icon={FolderTree}
+          variant="default"
+          subtitle="Revision chains"
+        />
+        <StatCard
+          label="Orphaned References"
+          value={lineageStats.orphanedReferences}
+          icon={AlertTriangle}
+          variant={lineageStats.orphanedReferences > 0 ? 'warning' : 'default'}
+          subtitle="Refs to missing docs"
+        />
+      </StatGrid>
+
+      {lineageStats.families.length > 0 && (
+        <DocumentFamiliesTable families={lineageStats.families} totalFamilies={lineageStats.totalFamilies} jurisdiction={jurisdiction} />
+      )}
+    </div>
+  );
+}
+
+function DocumentFamiliesTable({ families, totalFamilies, jurisdiction }: { families: DocumentFamily[]; totalFamilies: number; jurisdiction: string }) {
+  const [expandedFamily, setExpandedFamily] = useState<string | null>(null);
+
+  return (
+    <Card padding="none">
+      <CardHeader className="p-6 pb-0">
+        <CardTitle>Document Families</CardTitle>
+        <CardDescription>
+          {totalFamilies} revision chain{totalFamilies !== 1 ? 's' : ''}
+          {totalFamilies > families.length ? ` (showing top ${families.length} by chain length)` : ''}
+        </CardDescription>
+      </CardHeader>
+      <div className="mt-4">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-[var(--color-neutral-200)]">
+              <th className="text-left p-3 pl-6 text-[var(--color-text-muted)] font-medium">Family (oldest ref)</th>
+              <th className="text-left p-3 text-[var(--color-text-muted)] font-medium">Agency</th>
+              <th className="text-center p-3 text-[var(--color-text-muted)] font-medium">Chain</th>
+              <th className="text-left p-3 pr-6 text-[var(--color-text-muted)] font-medium">Active Version</th>
+            </tr>
+          </thead>
+          <tbody>
+            {families.map(family => (
+              <FamilyRow
+                key={family.familyId}
+                family={family}
+                jurisdiction={jurisdiction}
+                isExpanded={expandedFamily === family.familyId}
+                onToggle={() =>
+                  setExpandedFamily(prev =>
+                    prev === family.familyId ? null : family.familyId
+                  )
+                }
+              />
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Card>
+  );
+}
+
+function FamilyRow({
+  family,
+  jurisdiction,
+  isExpanded,
+  onToggle,
+}: {
+  family: DocumentFamily;
+  jurisdiction: string;
+  isExpanded: boolean;
+  onToggle: () => void;
+}) {
+  const activeMember = family.members.find(m => m.id === family.currentActiveId);
+  const ChevronIcon = isExpanded ? ChevronDown : ChevronRight;
+
+  return (
+    <>
+      <tr
+        className="border-b border-[var(--color-neutral-100)] hover:bg-[var(--color-primary-faint)] cursor-pointer transition-colors"
+        onClick={onToggle}
+      >
+        <td className="p-3 pl-6">
+          <div className="flex items-center gap-2">
+            <ChevronIcon className="h-4 w-4 text-[var(--color-text-muted)] flex-shrink-0" />
+            <span className="font-medium text-[var(--color-text)]">{family.familyId}</span>
+          </div>
+        </td>
+        <td className="p-3 text-[var(--color-text-secondary)]">{family.agency}</td>
+        <td className="p-3 text-center text-[var(--color-text)]">{family.chainLength}</td>
+        <td className="p-3 pr-6">
+          {activeMember ? (
+            <span className="text-[var(--color-success)] font-medium">
+              {activeMember.canonicalRef}
+            </span>
+          ) : (
+            <span className="text-[var(--color-warning)] flex items-center gap-1">
+              <AlertTriangle className="h-3 w-3" />
+              None active
+            </span>
+          )}
+        </td>
+      </tr>
+      {isExpanded && (
+        <tr>
+          <td colSpan={4} className="bg-[var(--color-neutral-50)] px-6 py-3">
+            <div className="space-y-2">
+              {family.members.map((member, i) => (
+                <div
+                  key={member.id}
+                  className="flex items-center gap-3 text-sm"
+                >
+                  <span className="text-[var(--color-text-muted)] w-4 text-right flex-shrink-0">
+                    {i + 1}.
+                  </span>
+                  <Link
+                    href={`/${jurisdiction}/guidance/${member.id}`}
+                    className="text-[var(--color-primary)] hover:underline font-medium"
+                    onClick={e => e.stopPropagation()}
+                  >
+                    {member.canonicalRef}
+                  </Link>
+                  {member.year && (
+                    <span className="text-[var(--color-text-muted)]">({member.year})</span>
+                  )}
+                  <span className="text-[var(--color-text-secondary)] truncate max-w-[300px]">
+                    {member.title}
+                  </span>
+                  <GuidanceStatusBadge status={member.status} />
+                </div>
+              ))}
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
   );
 }

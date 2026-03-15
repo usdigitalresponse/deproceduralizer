@@ -424,6 +424,31 @@ python3 -m scripts.guidance_summarization --stats
 |------|------|
 | ~$50-100 for all 12K docs (Haiku) | Hours (batch queue) |
 
+### Step 6c: Readability Metrics (Guidance Documents)
+
+```bash
+cd backend
+python3 -m scripts.readability_metrics --run
+```
+
+- Computes 8 readability indices + word/sentence counts using `textstat` library
+- Pure local computation (no LLM, no API costs)
+- Resumes automatically (skips docs with `word_count IS NOT NULL`)
+- Skips documents with <100 words or <3 sentences
+
+Key flags:
+| Flag | Description |
+|------|-------------|
+| `--run` | Compute and save metrics to the database |
+| `--dry-run` | Compute metrics without saving (preview mode) |
+| `--stats` | Show current computation status |
+| `--agency OCFS` | Filter by agency |
+| `--limit N` | Max documents to process |
+
+| Cost | Time |
+|------|------|
+| $0 (local computation) | ~1 min for 13K docs |
+
 ### Step 7: Scan Compliance Issues (Regex)
 
 ```bash

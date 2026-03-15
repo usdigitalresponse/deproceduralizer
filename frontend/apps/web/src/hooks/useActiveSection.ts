@@ -9,11 +9,14 @@ export interface SectionConfig {
 }
 
 /**
- * Tracks which section is currently visible using IntersectionObserver.
- * Returns the id of the topmost intersecting section.
+ * Tracks which section is currently visible.
  *
- * When `root` is provided (e.g., a scrollable sidebar container), intersection
- * is calculated relative to that element instead of the viewport.
+ * For viewport scrolling (no `root`): uses a scroll listener that picks the
+ * last section whose top has scrolled past the offset. This is reliable with
+ * sticky headers and tall sections.
+ *
+ * When `root` is provided (e.g., a scrollable sidebar container): uses
+ * IntersectionObserver relative to that element.
  */
 export function useActiveSection(
   sectionIds: string[],
@@ -21,6 +24,7 @@ export function useActiveSection(
     rootMargin?: string;
     threshold?: number;
     root?: Element | null;
+    scrollOffset?: number;
   }
 ): string | null {
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -28,38 +32,58 @@ export function useActiveSection(
   useEffect(() => {
     if (sectionIds.length === 0) return;
 
-    const visibleIds = new Set<string>();
+    // For custom scroll containers, use IntersectionObserver
+    if (options?.root) {
+      const visibleIds = new Set<string>();
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            visibleIds.add(entry.target.id);
-          } else {
-            visibleIds.delete(entry.target.id);
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              visibleIds.add(entry.target.id);
+            } else {
+              visibleIds.delete(entry.target.id);
+            }
+          });
+
+          const topmost = sectionIds.find((id) => visibleIds.has(id));
+          if (topmost) {
+            setActiveId(topmost);
           }
-        });
-
-        // Pick the topmost visible section (earliest in sectionIds order)
-        const topmost = sectionIds.find((id) => visibleIds.has(id));
-        if (topmost) {
-          setActiveId(topmost);
+        },
+        {
+          root: options.root,
+          rootMargin: options?.rootMargin ?? '-100px 0px -50% 0px',
+          threshold: options?.threshold ?? 0,
         }
-      },
-      {
-        root: options?.root ?? null,
-        rootMargin: options?.rootMargin ?? '-100px 0px -50% 0px',
-        threshold: options?.threshold ?? 0,
+      );
+
+      sectionIds.forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) observer.observe(el);
+      });
+
+      return () => observer.disconnect();
+    }
+
+    // For viewport scrolling, use scroll-based detection
+    const offset = options?.scrollOffset ?? 150;
+
+    const handleScroll = () => {
+      let active: string | null = null;
+      for (const id of sectionIds) {
+        const el = document.getElementById(id);
+        if (el && el.getBoundingClientRect().top <= offset) {
+          active = id;
+        }
       }
-    );
+      setActiveId(active ?? sectionIds[0] ?? null);
+    };
 
-    sectionIds.forEach((id) => {
-      const el = document.getElementById(id);
-      if (el) observer.observe(el);
-    });
-
-    return () => observer.disconnect();
-  }, [sectionIds, options?.rootMargin, options?.threshold, options?.root]);
+    handleScroll();
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [sectionIds, options?.rootMargin, options?.threshold, options?.root, options?.scrollOffset]);
 
   return activeId;
 }

@@ -879,6 +879,18 @@ Sub-regulatory guidance documents (ADMs, LCMs, INFs, GIS, TSBs, etc.) from NY st
 | `audience_direction` | varchar(20) | public, government, or both (migration 0078) |
 | `audience_expertise` | varchar(20) | lay, specialized, or mixed (migration 0078) |
 | `audience_explanation` | text | 1-2 sentence description of who the doc is for (migration 0078) |
+| `flesch_kincaid_grade` | real | Flesch-Kincaid Grade Level score (migration 0086) |
+| `flesch_reading_ease` | real | Flesch Reading Ease score (migration 0086) |
+| `gunning_fog` | real | Gunning Fog Index (migration 0086) |
+| `automated_readability_index` | real | Automated Readability Index (migration 0086) |
+| `coleman_liau_index` | real | Coleman-Liau Index (migration 0086) |
+| `smog_index` | real | SMOG Index (migration 0086) |
+| `dale_chall_readability_score` | real | Dale-Chall Readability Score (migration 0086) |
+| `linsear_write_formula` | real | Linsear Write Formula score (migration 0086) |
+| `reading_grade_level` | varchar(50) | Consensus reading grade level label (migration 0086) |
+| `difficult_word_count` | integer | Count of difficult/uncommon words (migration 0086) |
+| `word_count` | integer | Total word count (migration 0086) |
+| `sentence_count` | integer | Total sentence count (migration 0086) |
 
 **Indexes:** `idx_gd_catalog_id` (unique, partial), `idx_gd_text_path` (unique, partial — migration 0059), `idx_gd_agency`, `idx_gd_doc_type`, `idx_gd_canonical_ref` (partial), `idx_gd_status`, `idx_gd_search` (GIN), `idx_gd_year`, `idx_gd_policy_category` (partial)
 

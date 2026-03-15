@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Guidance Documents', () => {
-  test('guidance list page loads with overview stats', async ({ page }) => {
+  test('guidance list page loads with browse table', async ({ page }) => {
     await page.goto('/ny/guidance');
 
     // Check page title with a specific heading selector
@@ -9,17 +9,15 @@ test.describe('Guidance Documents', () => {
       page.getByRole('heading', { level: 1, name: /Guidance Documents/i })
     ).toBeVisible();
 
-    // Check Overview tab is active by default (should show stat cards)
-    await expect(
-      page.getByText('Total Guidance Docs')
-    ).toBeVisible();
+    // Guidance page now shows browse directly (overview moved to analytics)
+    await page.waitForSelector('table tbody tr, [role="row"]', { timeout: 10000 });
 
     // Screenshot
-    await page.screenshot({ path: '/tmp/guidance-overview.png', fullPage: true });
+    await page.screenshot({ path: '/tmp/guidance-browse-default.png', fullPage: true });
   });
 
   test('guidance browse tab shows table with documents', async ({ page }) => {
-    await page.goto('/ny/guidance?tab=browse');
+    await page.goto('/ny/guidance');
 
     // Wait for table content to appear instead of arbitrary timeout
     await page.waitForSelector('table tbody tr, [role="row"]', { timeout: 10000 });
@@ -41,8 +39,8 @@ test.describe('Guidance Documents', () => {
   });
 
   test('guidance detail page loads with document data', async ({ page }) => {
-    // Go to browse tab and find a document
-    await page.goto('/ny/guidance?tab=browse');
+    // Go to guidance page and find a document
+    await page.goto('/ny/guidance');
 
     // Wait for table content to load
     await page.waitForSelector('table tbody tr, [role="row"]', { timeout: 10000 });

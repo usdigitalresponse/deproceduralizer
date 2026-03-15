@@ -1,32 +1,64 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState, useTransition, useCallback } from 'react';
 import Link from 'next/link';
-import { Building2, FileType, CheckCircle, GitBranch, FolderTree, AlertTriangle, ChevronDown, ChevronRight } from 'lucide-react';
+import { Building2, FileType, CheckCircle, GitBranch, FolderTree, AlertTriangle, ChevronDown, ChevronRight, BookOpen } from 'lucide-react';
 import { getEntityIcon } from '@/lib/constants/entity-types';
 import { StatCard, StatGrid } from '@/components/ui/StatCard';
+import { MultiSelect } from '@/components/ui/MultiSelect';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ChartContainer } from '@/components/charts/ChartContainer';
 import { HorizontalBarChart } from '@/components/charts/BarChart';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card';
+import { StickyPageSectionTabs } from '@/components/navigation/StickyPageSectionTabs';
+import type { SectionConfig } from '@/hooks/useActiveSection';
 import { GuidanceStatusBadge } from './GuidanceStatusBadge';
 import { formatLabel } from '@/types/regulation';
-import type { GuidanceOverviewStats, LineageStats, DocumentFamily } from '@/lib/actions/guidance-documents';
+import { getReadabilityLabel } from './ReadabilityBadge';
+import { FleschEaseKey, GradeLevelKey } from './ReadabilityScaleKey';
+import { ReadabilityCrossCutSection } from './ReadabilityCrossCutSection';
+import type { GuidanceOverviewStats, LineageStats, GuidanceReadabilityStats, ReadabilityCrossCutStats, DocumentFamily } from '@/lib/actions/guidance-documents';
+import { getReadabilityByAgencyFiltered } from '@/lib/actions/guidance-documents';
+import type { JurisdictionCode } from '@/types/state';
 
 interface GuidanceOverviewTabProps {
   stats: GuidanceOverviewStats | null;
   lineageStats: LineageStats | null;
+  readabilityStats: GuidanceReadabilityStats | null;
+  crossCutStats: ReadabilityCrossCutStats | null;
   jurisdiction: string;
 }
 
-export function GuidanceOverviewTab({ stats, lineageStats, jurisdiction }: GuidanceOverviewTabProps) {
+export function GuidanceOverviewTab({ stats, lineageStats, readabilityStats, crossCutStats, jurisdiction }: GuidanceOverviewTabProps) {
   const activeCount = stats?.byStatus.find(s => s.status.toLowerCase() === 'active')?.count ?? 0;
   const activePercentage = stats && stats.total > 0
     ? Math.round((activeCount / stats.total) * 100)
     : 0;
 
+  const sections: SectionConfig[] = useMemo(() => {
+    const s: SectionConfig[] = [
+      { id: 'gov-overview', label: 'Overview' },
+      { id: 'gov-charts', label: 'Charts' },
+    ];
+    if (lineageStats) {
+      s.push({ id: 'gov-lineage', label: 'Lineage', count: lineageStats.docsWithLineage });
+    }
+    if (readabilityStats && readabilityStats.docsWithMetrics > 0) {
+      s.push({ id: 'gov-readability', label: 'Readability', count: readabilityStats.docsWithMetrics });
+    }
+    if (crossCutStats) {
+      s.push({ id: 'gov-crosscuts', label: 'Cross-Cuts' });
+    }
+    return s;
+  }, [lineageStats, readabilityStats, crossCutStats]);
+
   return (
     <div className="space-y-6">
+      <div className="sticky top-[89px] z-10 bg-white border-b border-[var(--color-neutral-200)] -mx-1 px-1 pb-1 shadow-sm">
+        <StickyPageSectionTabs sections={sections} scrollOffset={140} />
+      </div>
+
+      <div id="gov-overview" className="scroll-mt-[140px]">
       <StatGrid columns={4}>
         <StatCard
           label="Total Guidance Docs"
@@ -54,8 +86,9 @@ export function GuidanceOverviewTab({ stats, lineageStats, jurisdiction }: Guida
           subtitle={`${activeCount} of ${stats?.total ?? 0}`}
         />
       </StatGrid>
+      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div id="gov-charts" className="scroll-mt-[140px] grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* By Agency */}
         <ChartContainer title="By Agency" aspectRatio={1.2} minHeight={250}>
           {({ width, height }) => {
@@ -131,7 +164,23 @@ export function GuidanceOverviewTab({ stats, lineageStats, jurisdiction }: Guida
 
       {/* Document Lineage Section */}
       {lineageStats && (
-        <LineageSection lineageStats={lineageStats} stats={stats} jurisdiction={jurisdiction} />
+        <div id="gov-lineage" className="scroll-mt-[140px]">
+          <LineageSection lineageStats={lineageStats} stats={stats} jurisdiction={jurisdiction} />
+        </div>
+      )}
+
+      {/* Readability Analysis Section */}
+      {readabilityStats && readabilityStats.docsWithMetrics > 0 && (
+        <div id="gov-readability" className="scroll-mt-[140px]">
+          <ReadabilitySection readabilityStats={readabilityStats} jurisdiction={jurisdiction as JurisdictionCode} />
+        </div>
+      )}
+
+      {/* Readability × Compliance × JenAI Cross-Cut Section */}
+      {crossCutStats && (
+        <div id="gov-crosscuts" className="scroll-mt-[140px]">
+          <ReadabilityCrossCutSection stats={crossCutStats} />
+        </div>
       )}
     </div>
   );
@@ -302,5 +351,220 @@ function FamilyRow({
         </tr>
       )}
     </>
+  );
+}
+
+function getGradeLevelLabel(grade: number): string {
+  if (grade < 8) return 'Middle school';
+  if (grade < 13) return 'High school';
+  if (grade < 17) return 'College level';
+  return 'Graduate level';
+}
+
+function formatAudienceLabel(tag: string): string {
+  return tag
+    .split('_')
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
+function MetricCell({ label, value }: { label: string; value: number | null }) {
+  return (
+    <div className="flex justify-between gap-2 py-1 px-2">
+      <span className="text-xs text-[var(--color-text-muted)]">{label}</span>
+      <span className="text-xs font-medium text-[var(--color-text)] tabular-nums">
+        {value !== null ? value.toFixed(1) : '--'}
+      </span>
+    </div>
+  );
+}
+
+function ReadabilitySection({
+  readabilityStats,
+  jurisdiction,
+}: {
+  readabilityStats: GuidanceReadabilityStats;
+  jurisdiction: JurisdictionCode;
+}) {
+  const [selectedAudiences, setSelectedAudiences] = useState<string[]>([]);
+  const [filteredAgencyData, setFilteredAgencyData] = useState<Array<{ label: string; value: number }> | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  const analyzedPct = readabilityStats.totalDocs > 0
+    ? Math.round((readabilityStats.docsWithMetrics / readabilityStats.totalDocs) * 100)
+    : 0;
+
+  const avgEaseLabel = readabilityStats.avgFleschReadingEase !== null
+    ? getReadabilityLabel(readabilityStats.avgFleschReadingEase)
+    : undefined;
+
+  const avgGradeLabel = readabilityStats.avgFleschKincaidGrade !== null
+    ? getGradeLevelLabel(readabilityStats.avgFleschKincaidGrade)
+    : undefined;
+
+  const defaultAgencyData = readabilityStats.readingEaseByAgency.map(d => ({
+    label: d.agency,
+    value: Number(d.avgReadingEase),
+  }));
+
+  const agencyReadabilityData = filteredAgencyData ?? defaultAgencyData;
+
+  const audienceOptions = useMemo(() =>
+    readabilityStats.audienceTags.map(t => ({
+      value: t.tag,
+      label: formatAudienceLabel(t.tag),
+      count: t.count,
+    })),
+    [readabilityStats.audienceTags]
+  );
+
+  const handleAudienceChange = useCallback((values: string[]) => {
+    setSelectedAudiences(values);
+    if (values.length === 0) {
+      setFilteredAgencyData(null);
+      return;
+    }
+    startTransition(async () => {
+      const result = await getReadabilityByAgencyFiltered(jurisdiction, values);
+      if (result.success) {
+        setFilteredAgencyData(result.data.map(d => ({
+          label: d.agency,
+          value: Number(d.avgReadingEase),
+        })));
+      }
+    });
+  }, [jurisdiction]);
+
+  return (
+    <div className="space-y-6">
+      <h3 className="text-lg font-semibold text-[var(--color-text)]">Readability Analysis</h3>
+
+      <StatGrid columns={3}>
+        <StatCard
+          label="Docs Analyzed"
+          value={readabilityStats.docsWithMetrics}
+          icon={BookOpen}
+          variant="info"
+          subtitle={`${analyzedPct}% of total`}
+        />
+        <StatCard
+          label="Avg Reading Ease"
+          value={readabilityStats.avgFleschReadingEase !== null
+            ? Number(readabilityStats.avgFleschReadingEase).toFixed(1)
+            : '--'}
+          icon={BookOpen}
+          variant={readabilityStats.avgFleschReadingEase !== null && readabilityStats.avgFleschReadingEase < 30
+            ? 'danger'
+            : readabilityStats.avgFleschReadingEase !== null && readabilityStats.avgFleschReadingEase < 50
+              ? 'warning'
+              : 'default'}
+          subtitle={avgEaseLabel}
+        />
+        <StatCard
+          label="Avg Grade Level"
+          value={readabilityStats.avgFleschKincaidGrade !== null
+            ? Number(readabilityStats.avgFleschKincaidGrade).toFixed(1)
+            : '--'}
+          icon={BookOpen}
+          variant="default"
+          subtitle={avgGradeLabel}
+        />
+      </StatGrid>
+
+      {/* All readability formula averages + text stats */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="bg-[var(--color-neutral-50)] border border-[var(--color-neutral-200)] rounded-[var(--radius-md)] p-3">
+          <p className="text-xs font-semibold text-[var(--color-text-secondary)] mb-2">Corpus Readability Averages</p>
+          <div className="grid grid-cols-2 gap-x-4">
+            <MetricCell label="Flesch Reading Ease" value={readabilityStats.avgFleschReadingEase} />
+            <MetricCell label="FK Grade" value={readabilityStats.avgFleschKincaidGrade} />
+            <MetricCell label="Gunning Fog" value={readabilityStats.avgGunningFog} />
+            <MetricCell label="ARI" value={readabilityStats.avgAutomatedReadabilityIndex} />
+            <MetricCell label="Coleman-Liau" value={readabilityStats.avgColemanLiauIndex} />
+            <MetricCell label="SMOG" value={readabilityStats.avgSmogIndex} />
+            <MetricCell label="Dale-Chall" value={readabilityStats.avgDaleChallScore} />
+            <MetricCell label="Linsear Write" value={readabilityStats.avgLinsearWriteFormula} />
+          </div>
+        </div>
+        <div className="bg-[var(--color-neutral-50)] border border-[var(--color-neutral-200)] rounded-[var(--radius-md)] p-3">
+          <p className="text-xs font-semibold text-[var(--color-text-secondary)] mb-2">Corpus Text Statistics</p>
+          <div className="grid grid-cols-2 gap-x-4">
+            <MetricCell label="Avg Words / Doc" value={readabilityStats.avgWordCount} />
+            <MetricCell label="Avg Sentences / Doc" value={readabilityStats.avgSentenceCount} />
+            <MetricCell label="Avg Difficult Words %" value={readabilityStats.avgDifficultWordPct} />
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Grade Level Distribution */}
+        <div className="space-y-3">
+          <ChartContainer title="Grade Level Distribution" aspectRatio={1.2} minHeight={250}>
+            {({ width, height }) => {
+              const gradeData = readabilityStats.gradeDistribution.map(d => ({
+                label: d.grade,
+                value: d.count,
+              }));
+              if (gradeData.length === 0) {
+                return <EmptyState title="No grade level data available" />;
+              }
+              return (
+                <HorizontalBarChart
+                  data={gradeData}
+                  width={width}
+                  height={height}
+                  maxBars={10}
+                  sortOrder="none"
+                />
+              );
+            }}
+          </ChartContainer>
+          <GradeLevelKey />
+        </div>
+
+        {/* Readability by Agency */}
+        <div className="space-y-3">
+          <div className="flex items-end gap-3">
+            <div className="flex-1">
+              <MultiSelect
+                label="Filter by Audience"
+                options={audienceOptions}
+                value={selectedAudiences}
+                onChange={handleAudienceChange}
+                placeholder="All audiences"
+                searchable
+              />
+            </div>
+            {isPending && (
+              <span className="text-xs text-[var(--color-text-muted)] pb-2">Loading...</span>
+            )}
+          </div>
+          <ChartContainer
+            title="Readability by Agency"
+            description={selectedAudiences.length > 0
+              ? `Filtered to ${selectedAudiences.map(formatAudienceLabel).join(', ')}`
+              : undefined}
+            aspectRatio={1.2}
+            minHeight={250}
+          >
+            {({ width, height }) => {
+              if (agencyReadabilityData.length === 0) {
+                return <EmptyState title={selectedAudiences.length > 0 ? 'No data for selected audiences' : 'No agency readability data available'} />;
+              }
+              return (
+                <HorizontalBarChart
+                  data={agencyReadabilityData}
+                  width={width}
+                  height={height}
+                  maxBars={15}
+                  sortOrder="none"
+                />
+              );
+            }}
+          </ChartContainer>
+          <FleschEaseKey />
+        </div>
+      </div>
+    </div>
   );
 }

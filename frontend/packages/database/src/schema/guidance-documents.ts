@@ -6,6 +6,7 @@ import {
   text,
   timestamp,
   boolean,
+  real,
 } from 'drizzle-orm/pg-core';
 
 export const guidanceDocuments = pgTable('guidance_documents', {
@@ -49,6 +50,20 @@ export const guidanceDocuments = pgTable('guidance_documents', {
   audienceDirection: varchar('audience_direction', { length: 20 }),
   audienceExpertise: varchar('audience_expertise', { length: 20 }),
   audienceExplanation: text('audience_explanation'),
+
+  // Readability metrics (computed by textstat)
+  fleschKincaidGrade: real('flesch_kincaid_grade'),
+  fleschReadingEase: real('flesch_reading_ease'),
+  gunningFog: real('gunning_fog'),
+  automatedReadabilityIndex: real('automated_readability_index'),
+  colemanLiauIndex: real('coleman_liau_index'),
+  smogIndex: real('smog_index'),
+  daleChallReadabilityScore: real('dale_chall_readability_score'),
+  linsearWriteFormula: real('linsear_write_formula'),
+  readingGradeLevel: varchar('reading_grade_level', { length: 50 }),
+  difficultWordCount: integer('difficult_word_count'),
+  wordCount: integer('word_count'),
+  sentenceCount: integer('sentence_count'),
 
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),

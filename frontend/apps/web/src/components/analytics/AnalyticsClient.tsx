@@ -7,7 +7,7 @@ import type { SectionTypeStats, MetadataStats, KeywordStats, AppliesToStats } fr
 import type { DefinitionsAnalyticsStats } from '@/lib/actions/definitions';
 import type { PipelineAnalyticsData } from '@/lib/actions/pipeline-analytics';
 import type { SeverityDistribution, JenAIReviewStatusCounts } from '@deproceduralizer/database';
-import type { GuidanceOverviewStats, GuidanceCitationStats } from '@/lib/actions/guidance-documents';
+import type { GuidanceOverviewStats, GuidanceCitationStats, GuidanceReadabilityStats, ReadabilityCrossCutStats, LineageStats } from '@/lib/actions/guidance-documents';
 import type { AnalyticsTabValue } from '@/lib/constants/values';
 import { analyticsParsers } from '@/lib/url/parsers';
 import { AnalyticsTabs } from './AnalyticsTabs';
@@ -37,6 +37,9 @@ export interface AnalyticsClientProps {
   jenaiStats: JenAIReviewStatusCounts | null;
   guidanceOverviewStats?: GuidanceOverviewStats | null;
   guidanceCitationStats?: GuidanceCitationStats | null;
+  guidanceReadabilityStats?: GuidanceReadabilityStats | null;
+  guidanceReadabilityCrossCuts?: ReadabilityCrossCutStats | null;
+  guidanceLineageStats?: LineageStats | null;
 }
 
 export function AnalyticsClient({
@@ -55,6 +58,9 @@ export function AnalyticsClient({
   jenaiStats,
   guidanceOverviewStats,
   guidanceCitationStats,
+  guidanceReadabilityStats,
+  guidanceReadabilityCrossCuts,
+  guidanceLineageStats,
 }: AnalyticsClientProps) {
   const [params, setParams] = useQueryStates(analyticsParsers, { shallow: true });
   const currentTab = params.tab;
@@ -118,6 +124,9 @@ export function AnalyticsClient({
           <GuidanceAnalyticsTab
             overviewStats={guidanceOverviewStats ?? null}
             citationStats={guidanceCitationStats ?? null}
+            readabilityStats={guidanceReadabilityStats ?? null}
+            crossCutStats={guidanceReadabilityCrossCuts ?? null}
+            lineageStats={guidanceLineageStats ?? null}
             jurisdiction={jurisdiction}
           />
         )}

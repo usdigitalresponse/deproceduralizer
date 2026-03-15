@@ -10,5 +10,7 @@ anthropic>=0.39.0
 aiohttp>=3.9.0
 psycopg[binary]>=3.1.0
 psycopg_pool>=3.2.0
+# Readability metrics
+textstat>=0.7.3
 # Observability/cost tracking
 langfuse>=2.0.0

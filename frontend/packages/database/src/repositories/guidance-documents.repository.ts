@@ -54,6 +54,19 @@ export interface GuidanceDocumentDetail {
   citesDocuments: string[] | null;
   jurisdiction: string | null;
   complianceIssueCount: number;
+  // Readability metrics
+  fleschKincaidGrade: number | null;
+  fleschReadingEase: number | null;
+  gunningFog: number | null;
+  automatedReadabilityIndex: number | null;
+  colemanLiauIndex: number | null;
+  smogIndex: number | null;
+  daleChallReadabilityScore: number | null;
+  linsearWriteFormula: number | null;
+  readingGradeLevel: string | null;
+  difficultWordCount: number | null;
+  wordCount: number | null;
+  sentenceCount: number | null;
 }
 
 export interface GuidanceOverviewStats {
@@ -174,6 +187,79 @@ export interface LineageStats {
   families: DocumentFamily[];     // grouped revision chains (top 50 by chain length)
 }
 
+
+export interface GuidanceReadabilityStats {
+  docsWithMetrics: number;
+  totalDocs: number;
+  avgFleschReadingEase: number | null;
+  avgFleschKincaidGrade: number | null;
+  avgGunningFog: number | null;
+  avgAutomatedReadabilityIndex: number | null;
+  avgColemanLiauIndex: number | null;
+  avgSmogIndex: number | null;
+  avgDaleChallScore: number | null;
+  avgLinsearWriteFormula: number | null;
+  avgWordCount: number | null;
+  avgSentenceCount: number | null;
+  avgDifficultWordPct: number | null;
+  gradeDistribution: Array<{ grade: string; count: number }>;
+  readingEaseByAgency: Array<{
+    agency: string;
+    avgReadingEase: number;
+    avgGradeLevel: number;
+    docCount: number;
+  }>;
+  audienceTags: Array<{ tag: string; count: number }>;
+}
+
+export interface ReadabilityByAgencyRow {
+  agency: string;
+  avgReadingEase: number;
+  avgGradeLevel: number;
+  docCount: number;
+}
+
+export interface ReadabilityCrossCutStats {
+  /** Readability averages grouped by audience_direction (public/government/both) */
+  byDirection: Array<{
+    direction: string;
+    avgReadingEase: number;
+    avgGradeLevel: number;
+    avgComplianceIssues: number;
+    avgJenaiSeverity: number | null;
+    docCount: number;
+  }>;
+  /** Readability averages grouped by audience_expertise (lay/specialized/mixed) */
+  byExpertise: Array<{
+    expertise: string;
+    avgReadingEase: number;
+    avgGradeLevel: number;
+    avgComplianceIssues: number;
+    avgJenaiSeverity: number | null;
+    docCount: number;
+  }>;
+  /** Readability averages grouped by target_audience tag (unnested) */
+  byAudienceTag: Array<{
+    tag: string;
+    avgReadingEase: number;
+    avgGradeLevel: number;
+    avgComplianceIssues: number;
+    avgJenaiSeverity: number | null;
+    docCount: number;
+  }>;
+  /** Compliance issue counts grouped by readability bucket */
+  complianceByReadability: Array<{
+    bucket: string;
+    avgComplianceIssues: number;
+    docCount: number;
+  }>;
+  /** JenAI avg severity grouped by readability bucket */
+  jenaiByReadability: Array<{
+    bucket: string;
+    avgSeverity: number;
+    docCount: number;
+  }>;
+}
 
 export class GuidanceDocumentsRepository extends BaseRepository {
   async getAllPaginated(options: GuidancePaginationOptions): Promise<PaginatedGuidanceResult> {
@@ -315,6 +401,18 @@ export class GuidanceDocumentsRepository extends BaseRepository {
         citesDocuments: guidanceDocuments.citesDocuments,
         jurisdiction: guidanceDocuments.jurisdiction,
         complianceIssueCount: sql<number>`(${issueCountResult})`.mapWith(Number),
+        fleschKincaidGrade: guidanceDocuments.fleschKincaidGrade,
+        fleschReadingEase: guidanceDocuments.fleschReadingEase,
+        gunningFog: guidanceDocuments.gunningFog,
+        automatedReadabilityIndex: guidanceDocuments.automatedReadabilityIndex,
+        colemanLiauIndex: guidanceDocuments.colemanLiauIndex,
+        smogIndex: guidanceDocuments.smogIndex,
+        daleChallReadabilityScore: guidanceDocuments.daleChallReadabilityScore,
+        linsearWriteFormula: guidanceDocuments.linsearWriteFormula,
+        readingGradeLevel: guidanceDocuments.readingGradeLevel,
+        difficultWordCount: guidanceDocuments.difficultWordCount,
+        wordCount: guidanceDocuments.wordCount,
+        sentenceCount: guidanceDocuments.sentenceCount,
       })
       .from(guidanceDocuments)
       .where(eq(guidanceDocuments.id, id))
@@ -353,12 +451,12 @@ export class GuidanceDocumentsRepository extends BaseRepository {
         .orderBy(desc(sql`count(*)`)),
       this.db
         .select({
-          category: guidanceDocuments.policyCategory,
+          category: sql<string>`CASE WHEN ${guidanceDocuments.policyCategory} IS NULL OR LOWER(${guidanceDocuments.policyCategory}) = 'unclassified' THEN 'Unclassified' ELSE ${guidanceDocuments.policyCategory} END`,
           count: sql<number>`count(*)::int`,
         })
         .from(guidanceDocuments)
         .where(baseCondition)
-        .groupBy(guidanceDocuments.policyCategory)
+        .groupBy(sql`CASE WHEN ${guidanceDocuments.policyCategory} IS NULL OR LOWER(${guidanceDocuments.policyCategory}) = 'unclassified' THEN 'Unclassified' ELSE ${guidanceDocuments.policyCategory} END`)
         .orderBy(desc(sql`count(*)`)),
       this.db
         .select({
@@ -393,7 +491,7 @@ export class GuidanceDocumentsRepository extends BaseRepository {
         count: row.count,
       })),
       byPolicyCategory: byPolicyCategory.map(row => ({
-        category: row.category || 'Unclassified',
+        category: row.category,
         count: row.count,
       })),
       byStatus: byStatus.map(row => ({
@@ -1106,6 +1204,378 @@ export class GuidanceDocumentsRepository extends BaseRepository {
       orphanedReferences,
       totalFamilies: families.length,
       families: families.slice(0, 50),
+    };
+  }
+
+  async getReadabilityStats(jurisdiction: JurisdictionCode): Promise<GuidanceReadabilityStats> {
+    const stateUpper = normalizeJurisdiction(jurisdiction);
+
+    const [countsResult, avgsResult, gradeDistResult, byAgencyResult, audienceTagsResult] = await Promise.all([
+      // Query 1: Total docs and docs with metrics
+      this.db.execute<{ total: number; with_metrics: number }>(sql`
+        SELECT
+          count(*)::int as total,
+          count(*) FILTER (WHERE flesch_kincaid_grade IS NOT NULL)::int as with_metrics
+        FROM guidance_documents
+        WHERE jurisdiction = ${stateUpper}
+      `),
+
+      // Query 2: Averages for all metrics
+      this.db.execute<{
+        avg_reading_ease: number | null;
+        avg_grade_level: number | null;
+        avg_gunning_fog: number | null;
+        avg_ari: number | null;
+        avg_coleman_liau: number | null;
+        avg_smog: number | null;
+        avg_dale_chall: number | null;
+        avg_linsear: number | null;
+        avg_word_count: number | null;
+        avg_sentence_count: number | null;
+        avg_difficult_word_pct: number | null;
+      }>(sql`
+        SELECT
+          avg(flesch_reading_ease)::numeric(5,1) as avg_reading_ease,
+          avg(flesch_kincaid_grade)::numeric(5,1) as avg_grade_level,
+          avg(gunning_fog)::numeric(5,1) as avg_gunning_fog,
+          avg(automated_readability_index)::numeric(5,1) as avg_ari,
+          avg(coleman_liau_index)::numeric(5,1) as avg_coleman_liau,
+          avg(smog_index)::numeric(5,1) as avg_smog,
+          avg(dale_chall_readability_score)::numeric(5,1) as avg_dale_chall,
+          avg(linsear_write_formula)::numeric(5,1) as avg_linsear,
+          avg(word_count)::numeric(10,0) as avg_word_count,
+          avg(sentence_count)::numeric(10,0) as avg_sentence_count,
+          avg(CASE WHEN word_count > 0 THEN (difficult_word_count::numeric / word_count) * 100 END)::numeric(5,1) as avg_difficult_word_pct
+        FROM guidance_documents
+        WHERE jurisdiction = ${stateUpper}
+          AND flesch_kincaid_grade IS NOT NULL
+      `),
+
+      // Query 3: Grade distribution
+      this.db.execute<{ grade: string; count: number }>(sql`
+        SELECT
+          CASE
+            WHEN flesch_kincaid_grade < 8 THEN 'Below 8th'
+            WHEN flesch_kincaid_grade < 10 THEN '8th-10th'
+            WHEN flesch_kincaid_grade < 12 THEN '10th-12th'
+            WHEN flesch_kincaid_grade < 14 THEN '12th-14th'
+            WHEN flesch_kincaid_grade < 16 THEN '14th-16th'
+            WHEN flesch_kincaid_grade < 18 THEN '16th-18th'
+            ELSE 'Above 18th'
+          END as grade,
+          count(*)::int as count
+        FROM guidance_documents
+        WHERE jurisdiction = ${stateUpper}
+          AND flesch_kincaid_grade IS NOT NULL
+        GROUP BY 1
+        ORDER BY min(flesch_kincaid_grade)
+      `),
+
+      // Query 4: Reading ease by agency (top 15, hardest first)
+      this.db.execute<{
+        agency: string;
+        avg_reading_ease: number;
+        avg_grade_level: number;
+        doc_count: number;
+      }>(sql`
+        SELECT
+          agency,
+          avg(flesch_reading_ease)::numeric(5,1) as avg_reading_ease,
+          avg(flesch_kincaid_grade)::numeric(5,1) as avg_grade_level,
+          count(*)::int as doc_count
+        FROM guidance_documents
+        WHERE jurisdiction = ${stateUpper}
+          AND flesch_kincaid_grade IS NOT NULL
+        GROUP BY agency
+        HAVING count(*) >= 2
+        ORDER BY avg_reading_ease ASC
+        LIMIT 15
+      `),
+
+      // Query 5: Distinct audience tags with counts (for filter dropdown)
+      this.db.execute<{ tag: string; count: number }>(sql`
+        SELECT unnest(target_audience) AS tag, count(*)::int AS count
+        FROM guidance_documents
+        WHERE jurisdiction = ${stateUpper}
+          AND flesch_kincaid_grade IS NOT NULL
+        GROUP BY 1
+        ORDER BY count DESC
+      `),
+    ]);
+
+    const counts = countsResult.rows[0];
+    const avgs = avgsResult.rows[0];
+    const toNum = (v: number | null) => v !== null ? Number(v) : null;
+
+    return {
+      totalDocs: counts.total,
+      docsWithMetrics: counts.with_metrics,
+      avgFleschReadingEase: toNum(avgs.avg_reading_ease),
+      avgFleschKincaidGrade: toNum(avgs.avg_grade_level),
+      avgGunningFog: toNum(avgs.avg_gunning_fog),
+      avgAutomatedReadabilityIndex: toNum(avgs.avg_ari),
+      avgColemanLiauIndex: toNum(avgs.avg_coleman_liau),
+      avgSmogIndex: toNum(avgs.avg_smog),
+      avgDaleChallScore: toNum(avgs.avg_dale_chall),
+      avgLinsearWriteFormula: toNum(avgs.avg_linsear),
+      avgWordCount: toNum(avgs.avg_word_count),
+      avgSentenceCount: toNum(avgs.avg_sentence_count),
+      avgDifficultWordPct: toNum(avgs.avg_difficult_word_pct),
+      gradeDistribution: gradeDistResult.rows.map(row => ({
+        grade: row.grade,
+        count: row.count,
+      })),
+      readingEaseByAgency: byAgencyResult.rows.map(row => ({
+        agency: row.agency,
+        avgReadingEase: Number(row.avg_reading_ease),
+        avgGradeLevel: Number(row.avg_grade_level),
+        docCount: row.doc_count,
+      })),
+      audienceTags: audienceTagsResult.rows.map(row => ({
+        tag: row.tag,
+        count: row.count,
+      })),
+    };
+  }
+
+  async getReadabilityByAgencyFiltered(
+    jurisdiction: JurisdictionCode,
+    audienceTags: string[]
+  ): Promise<ReadabilityByAgencyRow[]> {
+    const stateUpper = normalizeJurisdiction(jurisdiction);
+
+    const result = await this.db.execute<{
+      agency: string;
+      avg_reading_ease: number;
+      avg_grade_level: number;
+      doc_count: number;
+    }>(sql`
+      SELECT
+        agency,
+        avg(flesch_reading_ease)::numeric(5,1) as avg_reading_ease,
+        avg(flesch_kincaid_grade)::numeric(5,1) as avg_grade_level,
+        count(*)::int as doc_count
+      FROM guidance_documents
+      WHERE jurisdiction = ${stateUpper}
+        AND flesch_kincaid_grade IS NOT NULL
+        AND target_audience && ARRAY[${sql.join(audienceTags.map(t => sql`${t}`), sql`, `)}]::text[]
+      GROUP BY agency
+      HAVING count(*) >= 2
+      ORDER BY avg_reading_ease ASC
+      LIMIT 15
+    `);
+
+    return result.rows.map(row => ({
+      agency: row.agency,
+      avgReadingEase: Number(row.avg_reading_ease),
+      avgGradeLevel: Number(row.avg_grade_level),
+      docCount: row.doc_count,
+    }));
+  }
+
+  async getReadabilityCrossCutStats(jurisdiction: JurisdictionCode): Promise<ReadabilityCrossCutStats> {
+    const stateUpper = normalizeJurisdiction(jurisdiction);
+
+    // Common CTE: guidance docs with readability + compliance count + JenAI avg severity
+    const baseCte = sql`
+      WITH doc_metrics AS (
+        SELECT
+          gd.id,
+          gd.flesch_reading_ease,
+          gd.flesch_kincaid_grade,
+          gd.audience_direction,
+          gd.audience_expertise,
+          gd.target_audience,
+          COALESCE(ci_counts.issue_count, 0) AS compliance_issue_count,
+          ji_avgs.avg_severity AS jenai_avg_severity
+        FROM guidance_documents gd
+        LEFT JOIN (
+          SELECT guidance_document_id, count(*)::int AS issue_count
+          FROM compliance_issues
+          WHERE guidance_document_id IS NOT NULL
+          GROUP BY guidance_document_id
+        ) ci_counts ON gd.id = ci_counts.guidance_document_id
+        LEFT JOIN (
+          SELECT guidance_document_id, avg(severity)::numeric(5,1) AS avg_severity
+          FROM jenai_issues
+          WHERE guidance_document_id IS NOT NULL
+          GROUP BY guidance_document_id
+        ) ji_avgs ON gd.id = ji_avgs.guidance_document_id
+        WHERE gd.jurisdiction = ${stateUpper}
+          AND gd.flesch_kincaid_grade IS NOT NULL
+      )
+    `;
+
+    const [byDirectionResult, byExpertiseResult, byTagResult, compByReadResult, jenaiByReadResult] = await Promise.all([
+      // By audience_direction
+      this.db.execute<{
+        direction: string;
+        avg_reading_ease: number;
+        avg_grade_level: number;
+        avg_compliance: number;
+        avg_jenai: number | null;
+        doc_count: number;
+      }>(sql`
+        ${baseCte}
+        SELECT
+          audience_direction AS direction,
+          avg(flesch_reading_ease)::numeric(5,1) AS avg_reading_ease,
+          avg(flesch_kincaid_grade)::numeric(5,1) AS avg_grade_level,
+          avg(compliance_issue_count)::numeric(5,2) AS avg_compliance,
+          avg(jenai_avg_severity)::numeric(5,1) AS avg_jenai,
+          count(*)::int AS doc_count
+        FROM doc_metrics
+        WHERE audience_direction IS NOT NULL
+        GROUP BY audience_direction
+        ORDER BY doc_count DESC
+      `),
+
+      // By audience_expertise
+      this.db.execute<{
+        expertise: string;
+        avg_reading_ease: number;
+        avg_grade_level: number;
+        avg_compliance: number;
+        avg_jenai: number | null;
+        doc_count: number;
+      }>(sql`
+        ${baseCte}
+        SELECT
+          audience_expertise AS expertise,
+          avg(flesch_reading_ease)::numeric(5,1) AS avg_reading_ease,
+          avg(flesch_kincaid_grade)::numeric(5,1) AS avg_grade_level,
+          avg(compliance_issue_count)::numeric(5,2) AS avg_compliance,
+          avg(jenai_avg_severity)::numeric(5,1) AS avg_jenai,
+          count(*)::int AS doc_count
+        FROM doc_metrics
+        WHERE audience_expertise IS NOT NULL
+        GROUP BY audience_expertise
+        ORDER BY doc_count DESC
+      `),
+
+      // By target_audience tag (unnested)
+      this.db.execute<{
+        tag: string;
+        avg_reading_ease: number;
+        avg_grade_level: number;
+        avg_compliance: number;
+        avg_jenai: number | null;
+        doc_count: number;
+      }>(sql`
+        ${baseCte}
+        SELECT
+          unnest(target_audience) AS tag,
+          avg(flesch_reading_ease)::numeric(5,1) AS avg_reading_ease,
+          avg(flesch_kincaid_grade)::numeric(5,1) AS avg_grade_level,
+          avg(compliance_issue_count)::numeric(5,2) AS avg_compliance,
+          avg(jenai_avg_severity)::numeric(5,1) AS avg_jenai,
+          count(*)::int AS doc_count
+        FROM doc_metrics
+        WHERE target_audience IS NOT NULL
+        GROUP BY 1
+        HAVING count(*) >= 2
+        ORDER BY doc_count DESC
+      `),
+
+      // Compliance issues by readability bucket
+      this.db.execute<{
+        bucket: string;
+        avg_compliance: number;
+        doc_count: number;
+      }>(sql`
+        ${baseCte}
+        SELECT
+          CASE
+            WHEN flesch_reading_ease < 30 THEN 'Very Difficult (0-29)'
+            WHEN flesch_reading_ease < 50 THEN 'Difficult (30-49)'
+            WHEN flesch_reading_ease < 60 THEN 'Fairly Difficult (50-59)'
+            WHEN flesch_reading_ease < 70 THEN 'Standard (60-69)'
+            ELSE 'Easy (70+)'
+          END AS bucket,
+          avg(compliance_issue_count)::numeric(5,2) AS avg_compliance,
+          count(*)::int AS doc_count
+        FROM doc_metrics
+        GROUP BY 1
+        ORDER BY min(flesch_reading_ease)
+      `),
+
+      // JenAI severity by readability bucket
+      this.db.execute<{
+        bucket: string;
+        avg_severity: number;
+        doc_count: number;
+      }>(sql`
+        ${baseCte}
+        SELECT
+          CASE
+            WHEN flesch_reading_ease < 30 THEN 'Very Difficult (0-29)'
+            WHEN flesch_reading_ease < 50 THEN 'Difficult (30-49)'
+            WHEN flesch_reading_ease < 60 THEN 'Fairly Difficult (50-59)'
+            WHEN flesch_reading_ease < 70 THEN 'Standard (60-69)'
+            ELSE 'Easy (70+)'
+          END AS bucket,
+          avg(jenai_avg_severity)::numeric(5,1) AS avg_severity,
+          count(*)::int AS doc_count
+        FROM doc_metrics
+        WHERE jenai_avg_severity IS NOT NULL
+        GROUP BY 1
+        ORDER BY min(flesch_reading_ease)
+      `),
+    ]);
+
+    const mapRow = <T extends Record<string, unknown>>(row: T) => ({
+      ...row,
+      avg_reading_ease: Number(row.avg_reading_ease),
+      avg_grade_level: Number(row.avg_grade_level),
+      avg_compliance: Number(row.avg_compliance),
+      avg_jenai: row.avg_jenai !== null ? Number(row.avg_jenai) : null,
+      doc_count: Number(row.doc_count),
+    });
+
+    return {
+      byDirection: byDirectionResult.rows.map(r => {
+        const m = mapRow(r);
+        return {
+          direction: r.direction,
+          avgReadingEase: m.avg_reading_ease,
+          avgGradeLevel: m.avg_grade_level,
+          avgComplianceIssues: m.avg_compliance,
+          avgJenaiSeverity: m.avg_jenai,
+          docCount: m.doc_count,
+        };
+      }),
+      byExpertise: byExpertiseResult.rows.map(r => {
+        const m = mapRow(r);
+        return {
+          expertise: r.expertise,
+          avgReadingEase: m.avg_reading_ease,
+          avgGradeLevel: m.avg_grade_level,
+          avgComplianceIssues: m.avg_compliance,
+          avgJenaiSeverity: m.avg_jenai,
+          docCount: m.doc_count,
+        };
+      }),
+      byAudienceTag: byTagResult.rows.map(r => {
+        const m = mapRow(r);
+        return {
+          tag: r.tag,
+          avgReadingEase: m.avg_reading_ease,
+          avgGradeLevel: m.avg_grade_level,
+          avgComplianceIssues: m.avg_compliance,
+          avgJenaiSeverity: m.avg_jenai,
+          docCount: m.doc_count,
+        };
+      }),
+      complianceByReadability: compByReadResult.rows.map(r => ({
+        bucket: r.bucket,
+        avgComplianceIssues: Number(r.avg_compliance),
+        docCount: Number(r.doc_count),
+      })),
+      jenaiByReadability: jenaiByReadResult.rows.map(r => ({
+        bucket: r.bucket,
+        avgSeverity: Number(r.avg_severity),
+        docCount: Number(r.doc_count),
+      })),
     };
   }
 }

@@ -12,6 +12,7 @@
 - when creating PR test plans, always include live example URLs (query the database to find real records) so each manual test item has a clickable link to verify
 - before committing, check `git worktree list` - do not commit changes that belong to other worktrees/feature branches
 - before starting a local dev server or running smoke tests, check what's already running with `lsof -i :3000,3010,3011,3012`. If a port is in use, pick the next available one. Also check for Next.js `.next` lock files — if another process holds the lock, use a git worktree to avoid conflicts. Multiple Claude agents may be running in the same folder simultaneously.
+- when working in a git worktree, the frontend `.env` symlink (`frontend/apps/web/.env -> ../../../.env`) won't resolve correctly because the root `.env` isn't in the worktree. Symlink it from the main repo: `ln -sf ~/Documents/Programming/raf/deproceduralizer/.env frontend/apps/web/.env` (and same for `.env.local` if it exists). Also symlink `backend/.env` if running Python scripts.
 
 ## Project Metrics
 

@@ -4451,6 +4451,51 @@ import { GuidanceComplianceCard } from '@/components/guidance/GuidanceCompliance
 <GuidanceComplianceCard summary={complianceSummary} state={state} />
 ```
 
+### ReadabilityBadge
+
+Color-coded Badge displaying Flesch Reading Ease score with difficulty label. Thresholds: 0-29 danger ("Very Difficult"), 30-49 warning ("Difficult"), 50-59 warning ("Fairly Difficult"), 60-69 default ("Standard"), 70+ success ("Easy"). Shows numeric score alongside the label (e.g., "32 - Difficult"). Also exports `getReadabilityLabel(score)` helper for use in stat cards.
+
+```tsx
+import { ReadabilityBadge } from '@/components/guidance/ReadabilityBadge';
+
+<ReadabilityBadge score={doc.fleschReadingEase} />
+```
+
+### ReadabilityMetricsCard
+
+Sidebar card on guidance document detail pages showing readability metrics. Only renders when `doc.wordCount` is not null. Displays:
+- Flesch Reading Ease prominently with `ReadabilityBadge`
+- Consensus grade level from `readingGradeLevel`
+- 2-column grid of detailed scores: FK Grade, Gunning Fog, ARI, Coleman-Liau, SMOG, Dale-Chall, Linsear Write
+- Word count, sentence count, and difficult word percentage
+
+Uses `Card` + `CardHeader`/`CardTitle` layout with CSS variable styling matching `GuidanceDetailSidebar`.
+
+```tsx
+import { ReadabilityMetricsCard } from '@/components/guidance/ReadabilityMetricsCard';
+
+<ReadabilityMetricsCard doc={doc} />
+```
+
+### ReadabilityCrossCutSection
+
+Analytics section showing cross-cutting analysis of readability complexity against compliance issues and JenAI implementation burden, segmented by target audience. Renders up to 10 charts across 5 rows:
+
+- **Headline stats**: Public-facing ease, government-internal ease, lay audience ease, specialist ease
+- **Row 1**: Reading ease by audience direction + by expertise level
+- **Row 2**: Compliance issues by readability bucket + JenAI severity by readability bucket
+- **Row 3**: Compliance issues by direction + by expertise
+- **Row 4**: Grade level by target audience tag + compliance issues by tag
+- **Row 5**: JenAI severity by direction + by tag
+
+Only renders sections where data exists. Returns null if no cross-cut data.
+
+```tsx
+import { ReadabilityCrossCutSection } from '@/components/guidance/ReadabilityCrossCutSection';
+
+<ReadabilityCrossCutSection stats={crossCutStats} />
+```
+
 ## Review Tab Consistency
 
 The Review page supports 5 tab types defined in `REVIEW_TYPE_VALUES`:

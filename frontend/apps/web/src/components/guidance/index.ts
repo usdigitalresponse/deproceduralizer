@@ -1,5 +1,4 @@
 export { GuidanceClient } from './GuidanceClient';
-export { GuidanceOverviewTab } from './GuidanceOverviewTab';
 export { GuidanceBrowseTab } from './GuidanceBrowseTab';
 export { GuidanceTable } from './GuidanceTable';
 export { GuidanceDetailSidebar } from './GuidanceDetailSidebar';

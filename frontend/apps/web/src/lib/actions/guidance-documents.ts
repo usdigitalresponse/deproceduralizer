@@ -18,6 +18,9 @@ import {
   type LineageStats,
   type DocumentFamily,
   type LineageFamilyMember,
+  type GuidanceReadabilityStats,
+  type ReadabilityByAgencyRow,
+  type ReadabilityCrossCutStats,
 } from '@deproceduralizer/database';
 import { type ActionResult, runAction, runCachedAction } from './types';
 
@@ -38,6 +41,9 @@ export type {
   LineageStats,
   DocumentFamily,
   LineageFamilyMember,
+  GuidanceReadabilityStats,
+  ReadabilityByAgencyRow,
+  ReadabilityCrossCutStats,
 };
 
 export async function getGuidanceOverviewStats(
@@ -167,6 +173,37 @@ export async function getGuidanceLineageStats(
     'getGuidanceLineageStats',
     () => guidanceRepo.getLineageStats(state),
     [`guidance-lineage-stats-${state}`],
+    { revalidate: 120, tags: ['guidance'] }
+  );
+}
+
+export async function getGuidanceReadabilityStats(
+  state: JurisdictionCode
+): Promise<ActionResult<GuidanceReadabilityStats>> {
+  return runCachedAction(
+    'getGuidanceReadabilityStats',
+    () => guidanceRepo.getReadabilityStats(state),
+    [`guidance-readability-stats-${state}`],
+    { revalidate: 120, tags: ['guidance'] }
+  );
+}
+
+export async function getReadabilityByAgencyFiltered(
+  state: JurisdictionCode,
+  audienceTags: string[]
+): Promise<ActionResult<ReadabilityByAgencyRow[]>> {
+  return runAction('getReadabilityByAgencyFiltered', () =>
+    guidanceRepo.getReadabilityByAgencyFiltered(state, audienceTags)
+  );
+}
+
+export async function getGuidanceReadabilityCrossCuts(
+  state: JurisdictionCode
+): Promise<ActionResult<ReadabilityCrossCutStats>> {
+  return runCachedAction(
+    'getGuidanceReadabilityCrossCuts',
+    () => guidanceRepo.getReadabilityCrossCutStats(state),
+    [`guidance-readability-crosscuts-${state}`],
     { revalidate: 120, tags: ['guidance'] }
   );
 }

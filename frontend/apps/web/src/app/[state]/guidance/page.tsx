@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { getGuidanceOverviewStats, getGuidanceAgencies, getGuidanceDocTypes, getGuidanceLineageStats } from '@/lib/actions/guidance-documents';
+import { getGuidanceAgencies, getGuidanceDocTypes } from '@/lib/actions/guidance-documents';
 import { GuidanceClient } from '@/components/guidance/GuidanceClient';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Container } from '@/components/layout/Container';
@@ -15,11 +15,9 @@ export default async function GuidancePage({ params }: GuidancePageProps) {
 
   const stateConfig = JURISDICTION_CONFIG[state];
 
-  const [statsResult, agenciesResult, docTypesResult, lineageStatsResult] = await Promise.all([
-    getGuidanceOverviewStats(state),
+  const [agenciesResult, docTypesResult] = await Promise.all([
     getGuidanceAgencies(state),
     getGuidanceDocTypes(state),
-    getGuidanceLineageStats(state),
   ]);
 
   return (
@@ -31,8 +29,6 @@ export default async function GuidancePage({ params }: GuidancePageProps) {
       <Container size="2xl" className="py-6">
         <GuidanceClient
           jurisdiction={state}
-          stats={statsResult.success ? statsResult.data : null}
-          lineageStats={lineageStatsResult.success ? lineageStatsResult.data : null}
           agencies={agenciesResult.success ? agenciesResult.data : []}
           docTypes={docTypesResult.success ? docTypesResult.data : []}
         />

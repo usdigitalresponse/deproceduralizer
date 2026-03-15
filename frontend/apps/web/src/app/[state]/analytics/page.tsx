@@ -6,7 +6,7 @@ import { getJenAISeverityDistribution, getJenAIStatusCounts } from '@/lib/action
 import { getDefinitionAnalyticsStats } from '@/lib/actions/definitions';
 import { getStatuteStats } from '@/lib/actions/statutes';
 import { getPipelineAnalyticsData } from '@/lib/actions/pipeline-analytics';
-import { getGuidanceOverviewStats, getGuidanceCitationStats } from '@/lib/actions/guidance-documents';
+import { getGuidanceOverviewStats, getGuidanceCitationStats, getGuidanceReadabilityStats, getGuidanceReadabilityCrossCuts, getGuidanceLineageStats } from '@/lib/actions/guidance-documents';
 import { AnalyticsClient } from '@/components/analytics/AnalyticsClient';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Container } from '@/components/layout/Container';
@@ -43,6 +43,9 @@ export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
     jenaiStatsResult,
     guidanceOverviewStatsResult,
     guidanceCitationStatsResult,
+    guidanceReadabilityStatsResult,
+    guidanceReadabilityCrossCutsResult,
+    guidanceLineageStatsResult,
   ] = await Promise.all([
     getDashboardStats(stateCode),
     getSectionTypeStats(state),
@@ -59,6 +62,9 @@ export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
     getJenAIStatusCounts(stateCode),
     getGuidanceOverviewStats(stateCode),
     getGuidanceCitationStats(stateCode),
+    getGuidanceReadabilityStats(stateCode),
+    getGuidanceReadabilityCrossCuts(stateCode),
+    getGuidanceLineageStats(stateCode),
   ]);
 
   // Extract data, falling back to null on failure
@@ -77,6 +83,9 @@ export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
   const jenaiStats = jenaiStatsResult.success ? jenaiStatsResult.data : null;
   const guidanceOverviewStats = guidanceOverviewStatsResult.success ? guidanceOverviewStatsResult.data : null;
   const guidanceCitationStats = guidanceCitationStatsResult.success ? guidanceCitationStatsResult.data : null;
+  const guidanceReadabilityStats = guidanceReadabilityStatsResult.success ? guidanceReadabilityStatsResult.data : null;
+  const guidanceReadabilityCrossCuts = guidanceReadabilityCrossCutsResult.success ? guidanceReadabilityCrossCutsResult.data : null;
+  const guidanceLineageStats = guidanceLineageStatsResult.success ? guidanceLineageStatsResult.data : null;
 
   return (
     <div className="bg-[var(--color-background)] min-h-screen">
@@ -102,6 +111,9 @@ export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
           jenaiStats={jenaiStats}
           guidanceOverviewStats={guidanceOverviewStats}
           guidanceCitationStats={guidanceCitationStats}
+          guidanceReadabilityStats={guidanceReadabilityStats}
+          guidanceReadabilityCrossCuts={guidanceReadabilityCrossCuts}
+          guidanceLineageStats={guidanceLineageStats}
         />
       </Container>
     </div>

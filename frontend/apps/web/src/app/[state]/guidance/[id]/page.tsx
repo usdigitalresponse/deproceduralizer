@@ -7,6 +7,7 @@ import { getJenAIIssuesForDocument } from '@/lib/actions/jenai';
 import { GuidanceDetailSidebar } from '@/components/guidance/GuidanceDetailSidebar';
 import { GuidanceDetailContent } from '@/components/guidance/GuidanceDetailContent';
 import { GuidanceComplianceCard } from '@/components/guidance/GuidanceComplianceCard';
+import { ReadabilityMetricsCard } from '@/components/guidance/ReadabilityMetricsCard';
 import { JenAIIssuesList } from '@/components/jenai';
 import { DocumentLineageViewer } from '@/components/guidance/DocumentLineageViewer';
 import { GuidanceStatusBadge } from '@/components/guidance/GuidanceStatusBadge';
@@ -83,6 +84,7 @@ export default async function GuidanceDetailPage({ params }: GuidanceDetailPageP
           {/* Sidebar — first on mobile, right on desktop */}
           <div className="order-1 lg:order-2 space-y-4">
             <GuidanceDetailSidebar doc={doc} state={state} resolvedCitations={resolvedCitations} />
+            <ReadabilityMetricsCard doc={doc} />
             {complianceSummary && complianceSummary.totalIssues > 0 && (
               <GuidanceComplianceCard summary={complianceSummary} state={state} guidanceDocumentId={docId} />
             )}
