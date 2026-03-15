@@ -39,8 +39,7 @@ from .queries import (
 # Import raw ancestors function for optimization
 from lib.db import get_ancestors_batch
 
-# Import fetcher (will be created next)
-# We need to import it dynamically to avoid circular imports
+# Deferred import to avoid circular dependency
 def _get_fetch_document_content_batch():
     from .fetchers import fetch_document_content_batch
     return fetch_document_content_batch
@@ -204,7 +203,7 @@ def prioritize_summaries(
     siblings: list[SiblingEntry],
     cross_refs: list[CrossRefEntry],
     immediate_siblings: dict[str, Optional[SiblingEntry]],
-) -> list[tuple[str, int, str, Optional[str]]]:
+) -> list[tuple[str, int, str, Optional[str], bool]]:
     """
     Select summaries to fetch in priority order for V5 proactive context.
 
@@ -214,8 +213,10 @@ def prioritize_summaries(
     3. Keyword-matched siblings (sorted by category priority)
     4. Keyword-matched cross-refs (deduplicated against siblings)
 
-    Returns list of (item_type, target_id, reason, keyword_category) tuples,
-    limited to MAX_SUMMARIES total.
+    Returns list of (item_type, target_id, reason, keyword_category, is_guidance)
+    tuples, limited to MAX_SUMMARIES total. The is_guidance flag indicates whether
+    target_id refers to guidance_documents (True) or regulatory_documents (False),
+    which is critical for routing to the correct table during content fetching.
 
     Args:
         doc_id: The source document ID
@@ -224,34 +225,38 @@ def prioritize_summaries(
         immediate_siblings: Dict with 'prev' and 'next' sibling entries
 
     Returns:
-        List of (item_type, target_id, reason, keyword_category) tuples
+        List of (item_type, target_id, reason, keyword_category, is_guidance) tuples
     """
-    items: list[tuple[str, int, str, Optional[str]]] = []
-    added_ids: set[int] = set()
+    items: list[tuple[str, int, str, Optional[str], bool]] = []
+    # Dedup by (target_id, is_guidance) to avoid cross-table ID collisions —
+    # both tables use independent bigserial sequences with overlapping ranges
+    added_keys: set[tuple[int, bool]] = set()
 
     def add_if_new(
-        item_type: str, target_id: int, reason: str, category: Optional[str]
+        item_type: str, target_id: int, reason: str, category: Optional[str],
+        is_guidance: bool = False,
     ) -> bool:
         """Add item if not duplicate and under limit. Returns True if added."""
-        if target_id in added_ids:
+        key = (target_id, is_guidance)
+        if key in added_keys:
             return False
         if len(items) >= MAX_SUMMARIES:
             return False
-        items.append((item_type, target_id, reason, category))
-        added_ids.add(target_id)
+        items.append((item_type, target_id, reason, category, is_guidance))
+        added_keys.add(key)
         return True
 
-    # Priority 1: Preceding sibling
+    # Priority 1: Preceding sibling (always regulation)
     prev_sib = immediate_siblings.get("prev")
     if prev_sib and not is_excludable(prev_sib.title):
         add_if_new("sibling", prev_sib.document_id, "preceding", None)
 
-    # Priority 2: Following sibling
+    # Priority 2: Following sibling (always regulation)
     next_sib = immediate_siblings.get("next")
     if next_sib and not is_excludable(next_sib.title):
         add_if_new("sibling", next_sib.document_id, "following", None)
 
-    # Priority 3: Keyword-matched siblings
+    # Priority 3: Keyword-matched siblings (always regulation)
     # Build list with (sibling, category, priority_index) then sort
     keyword_siblings: list[tuple[SiblingEntry, str, int]] = []
     for sib in siblings:
@@ -269,7 +274,7 @@ def prioritize_summaries(
     for sib, category, _ in keyword_siblings:
         add_if_new("sibling", sib.document_id, "keyword", category)
 
-    # Priority 4: Keyword-matched cross-refs (deduplicated against siblings)
+    # Priority 4: Keyword-matched cross-refs (may be guidance or regulation)
     keyword_cross_refs: list[tuple[CrossRefEntry, str, int]] = []
     for cr in cross_refs:
         if is_excludable(cr.target_title):
@@ -281,7 +286,7 @@ def prioritize_summaries(
 
     keyword_cross_refs.sort(key=lambda x: x[2])
     for cr, category, _ in keyword_cross_refs:
-        add_if_new("cross_ref", cr.target_id, "keyword", category)
+        add_if_new("cross_ref", cr.target_id, "keyword", category, is_guidance=cr.is_guidance)
 
     return items
 
@@ -351,7 +356,8 @@ def build_proactive_context(
     # =========================================================================
     # For each document, select which items need content fetching
     docs_needing_content: set[int] = set()
-    priority_selections: dict[int, list[tuple[str, int, str, Optional[str]]]] = {}
+    guidance_ids_needing_content: set[int] = set()
+    priority_selections: dict[int, list[tuple[str, int, str, Optional[str], bool]]] = {}
 
     for doc_id in document_ids:
         siblings = siblings_map.get(doc_id, [])
@@ -363,19 +369,25 @@ def build_proactive_context(
         selections = prioritize_summaries(doc_id, siblings, cross_refs, immediate)
         priority_selections[doc_id] = selections
 
-        # Collect all doc IDs that need content fetching
-        for _, target_id, _, _ in selections:
-            docs_needing_content.add(target_id)
+        # Collect doc IDs that need content fetching, routing by per-item is_guidance flag
+        for _, target_id, _, _, is_guidance in selections:
+            if is_guidance:
+                guidance_ids_needing_content.add(target_id)
+            else:
+                docs_needing_content.add(target_id)
 
-        # Also need ancestor content (not counted toward 20 limit)
+        # Ancestor content is always regulatory (not counted toward 20 limit)
         for ancestor in ancestors:
             docs_needing_content.add(ancestor.document_id)
 
     # =========================================================================
     # PHASE 3: CONTENT FETCH (single batch query)
     # =========================================================================
-    # Fetch content/summary for all needed documents in one query
-    content_map = fetch_document_content_batch(list(docs_needing_content))
+    # Fetch content/summary for all needed documents, routing IDs to correct tables
+    content_map = fetch_document_content_batch(
+        list(docs_needing_content),
+        guidance_document_ids=list(guidance_ids_needing_content) if guidance_ids_needing_content else None,
+    )
 
     # =========================================================================
     # PHASE 4: ASSEMBLY
@@ -393,7 +405,7 @@ def build_proactive_context(
         sibling_summaries: list[SiblingSummary] = []
         cross_ref_summaries: list[CrossRefSummary] = []
 
-        for item_type, target_id, reason, category in selections:
+        for item_type, target_id, reason, category, _is_guidance in selections:
             data = content_map.get(target_id, {})
             summary_text, is_fallback = get_summary_or_fallback(
                 data.get("summary"),

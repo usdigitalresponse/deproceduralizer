@@ -9,7 +9,7 @@ Submodules:
 - catalog: Context catalog assembly functions
 - proactive: V5 proactive context building functions
 - fetchers: Content fetching for summaries and full text
-- guidance_context: Guidance document context (cited regulation summaries)
+- guidance_context: Guidance document context (cited document summaries)
 
 The main entry points are:
 - build_context_catalog(): Build context catalogs for multiple documents
@@ -71,7 +71,7 @@ from .fetchers import (
 )
 
 from .guidance_context import (
-    fetch_cited_regulation_summaries,
+    fetch_cited_document_summaries,
     build_guidance_batch_context,
     fetch_guidance_content_batch,
     format_guidance_preamble,
@@ -124,7 +124,7 @@ __all__ = [
     "fetch_summaries_for_requests",
     "fetch_full_text_for_requests",
     # Guidance context
-    "fetch_cited_regulation_summaries",
+    "fetch_cited_document_summaries",
     "build_guidance_batch_context",
     "fetch_guidance_content_batch",
     "format_guidance_preamble",

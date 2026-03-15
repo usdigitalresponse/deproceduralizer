@@ -2,11 +2,12 @@
 Guidance document context for the research pipeline.
 
 Builds context for guidance documents by fetching:
-- Cited regulation summaries (via cross_references with source_guidance_id)
+- Cited document summaries — both regulations and other guidance docs
+  (via cross_references with source_guidance_id)
 - Guidance document content and metadata
 
 Guidance docs don't have hierarchy (no parent/child/sibling relationships),
-so context comes from cross-references to the regulations they cite.
+so context comes from cross-references to the documents they cite.
 """
 
 from collections import defaultdict
@@ -17,23 +18,24 @@ from psycopg import Connection
 from lib.db import get_db_connection
 
 
-def fetch_cited_regulation_summaries(
+def fetch_cited_document_summaries(
     guidance_ids: list[int],
     conn: Optional[Connection] = None,
 ) -> dict[int, list[dict]]:
     """
-    Fetch summaries of regulations cited by guidance documents.
+    Fetch summaries of documents (regulations and guidance) cited by guidance documents.
 
-    Joins cross_references (source_guidance_id) to regulatory_documents
-    to get citation, title, summary, and section_type for each cited regulation.
+    Queries cross_references (source_guidance_id) against both regulatory_documents
+    and guidance_documents to get citation, title, summary, and section_type for
+    each cited document.
 
     Args:
         guidance_ids: List of guidance_documents IDs
         conn: Optional database connection
 
     Returns:
-        Dict mapping guidance_document_id -> list of cited regulation dicts:
-        [{citation, title, summary, section_type, document_id}]
+        Dict mapping guidance_document_id -> list of cited document dicts:
+        [{citation, title, summary, section_type, document_id, is_guidance}]
     """
     if not guidance_ids:
         return {}
@@ -47,9 +49,12 @@ def fetch_cited_regulation_summaries(
         raise RuntimeError("Failed to establish database connection for guidance context")
 
     try:
+        results: dict[int, list[dict]] = defaultdict(list)
+
         with conn.cursor() as cur:
+            # Cross-refs to regulatory documents (deduplicated by target)
             cur.execute("""
-                SELECT
+                SELECT DISTINCT ON (cr.source_guidance_id, rd.id)
                     cr.source_guidance_id,
                     rd.id as document_id,
                     rd.citation,
@@ -61,10 +66,9 @@ def fetch_cited_regulation_summaries(
                 WHERE cr.source_guidance_id = ANY(%s)
                     AND cr.target_document_id IS NOT NULL
                     AND cr.is_resolved = true
-                ORDER BY cr.source_guidance_id, rd.citation
+                ORDER BY cr.source_guidance_id, rd.id, rd.citation
             """, (guidance_ids,))
 
-            results: dict[int, list[dict]] = defaultdict(list)
             for row in cur.fetchall():
                 results[row[0]].append({
                     "document_id": row[1],
@@ -72,6 +76,34 @@ def fetch_cited_regulation_summaries(
                     "title": row[3] or "",
                     "summary": row[4] or "",
                     "section_type": row[5] or "",
+                    "is_guidance": False,
+                })
+
+            # Cross-refs to guidance documents (deduplicated by target)
+            cur.execute("""
+                SELECT DISTINCT ON (cr.source_guidance_id, gd.id)
+                    cr.source_guidance_id,
+                    gd.id as document_id,
+                    gd.canonical_ref,
+                    gd.title,
+                    gd.summary,
+                    gd.section_type
+                FROM cross_references cr
+                JOIN guidance_documents gd ON cr.target_guidance_id = gd.id
+                WHERE cr.source_guidance_id = ANY(%s)
+                    AND cr.target_guidance_id IS NOT NULL
+                    AND cr.is_resolved = true
+                ORDER BY cr.source_guidance_id, gd.id, gd.canonical_ref
+            """, (guidance_ids,))
+
+            for row in cur.fetchall():
+                results[row[0]].append({
+                    "document_id": row[1],
+                    "citation": row[2] or "",
+                    "title": row[3] or "",
+                    "summary": row[4] or "",
+                    "section_type": row[5] or "",
+                    "is_guidance": True,
                 })
 
             return dict(results)
@@ -87,21 +119,21 @@ def build_guidance_batch_context(
     metadata: Optional[dict] = None,
 ) -> str:
     """
-    Format cited regulation summaries as context for prompt insertion.
+    Format cited document summaries as context for prompt insertion.
 
     Args:
         guidance_id: The guidance document ID
-        cited_summaries: List of dicts from fetch_cited_regulation_summaries
+        cited_summaries: List of dicts from fetch_cited_document_summaries
         metadata: Optional guidance doc metadata (agency, doc_type, etc.)
 
     Returns:
         Formatted string for prompt context
     """
     if not cited_summaries:
-        return "(no cited regulations resolved)"
+        return "(no cited documents resolved)"
 
     lines = []
-    for reg in cited_summaries[:20]:  # Cap at 20 cited regulations
+    for reg in cited_summaries[:20]:  # Cap at 20 cited documents
         citation = reg.get("citation", "")
         title = reg.get("title", "")
         summary = reg.get("summary", "")
@@ -118,7 +150,7 @@ def build_guidance_batch_context(
 
     result = "\n".join(lines)
     if len(cited_summaries) > 20:
-        result += f"\n... and {len(cited_summaries) - 20} more cited regulations"
+        result += f"\n... and {len(cited_summaries) - 20} more cited documents"
 
     return result
 

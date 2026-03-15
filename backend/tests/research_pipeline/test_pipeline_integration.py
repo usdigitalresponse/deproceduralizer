@@ -8,12 +8,25 @@ Skip DB tests: cd backend && pytest tests/research_pipeline/test_pipeline_integr
 
 import pytest
 from pathlib import Path
+from unittest.mock import patch
 from dotenv import load_dotenv
 
+
+def _find_env_file() -> Path:
+    """Walk up from this file to find .env (supports git worktrees)."""
+    d = Path(__file__).resolve().parent
+    while d != d.parent:
+        if (d / ".env").exists():
+            return d / ".env"
+        d = d.parent
+    # Fallback: standard project root
+    return Path(__file__).parent.parent.parent.parent / ".env"
+
+
 # Load .env from project root
-PROJECT_ROOT = Path(__file__).parent.parent.parent.parent  # newyork/
-BACKEND_DIR = Path(__file__).parent.parent.parent  # newyork/backend/
-load_dotenv(PROJECT_ROOT / ".env")
+PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
+BACKEND_DIR = Path(__file__).parent.parent.parent
+load_dotenv(_find_env_file())
 
 
 class TestModelsImport:
@@ -1146,6 +1159,7 @@ class TestTier2Routing:
         next_state = get_next_state(unit)
         assert next_state == ProcessingState.DONE
 
+    @pytest.mark.usefixtures("disable_random_sampling")
     def test_justified_low_severity_to_done(self):
         """T2-R2: justified with low severity → DONE"""
         from scripts.research_pipeline.state_machine import get_next_state, ProcessingState
@@ -1159,6 +1173,7 @@ class TestTier2Routing:
         next_state = get_next_state(unit)
         assert next_state == ProcessingState.DONE
 
+    @pytest.mark.usefixtures("disable_random_sampling")
     def test_burdensome_low_severity_to_done(self):
         """T2-R3: burdensome with low severity, no flags → DONE"""
         from scripts.research_pipeline.state_machine import get_next_state, ProcessingState
@@ -1349,6 +1364,7 @@ class TestEscalationTriggers:
         next_state = get_next_state(unit)
         assert next_state == ProcessingState.DONE  # V5: low severity without triggers → DONE
 
+    @pytest.mark.usefixtures("disable_random_sampling")
     def test_no_web_search_low_severity_to_done(self):
         """T2-E4: sev=4 + needs_web_search=False → DONE"""
         from scripts.research_pipeline.state_machine import get_next_state, ProcessingState
@@ -1384,6 +1400,7 @@ class TestEscalationTriggers:
         next_state = get_next_state(unit)
         assert next_state == ProcessingState.TIER3_PENDING
 
+    @pytest.mark.usefixtures("disable_random_sampling")
     def test_justified_not_controversial_to_done(self):
         """T2-E6: justified + controversial=False → DONE"""
         from scripts.research_pipeline.state_machine import get_next_state, ProcessingState
@@ -1419,6 +1436,7 @@ class TestEscalationTriggers:
         next_state = get_next_state(unit)
         assert next_state == ProcessingState.TIER3_PENDING
 
+    @pytest.mark.usefixtures("disable_random_sampling")
     def test_high_severity_high_confidence_no_flags_to_done(self):
         """T2-E8: sev=7 + conf=0.95 + no flags → DONE"""
         from scripts.research_pipeline.state_machine import get_next_state, ProcessingState
@@ -2405,7 +2423,7 @@ class TestPrioritizeSummaries:
         )
 
         assert len(items) >= 1
-        assert items[0] == ("sibling", 1, "preceding", None)
+        assert items[0] == ("sibling", 1, "preceding", None, False)
 
     def test_prioritize_includes_following(self):
         """prioritize_summaries should include following sibling."""
@@ -2428,7 +2446,7 @@ class TestPrioritizeSummaries:
         )
 
         assert len(items) >= 1
-        assert items[0] == ("sibling", 2, "following", None)
+        assert items[0] == ("sibling", 2, "following", None, False)
 
     def test_prioritize_skips_excludable(self):
         """prioritize_summaries should skip excludable sections."""
@@ -3680,7 +3698,9 @@ class TestCacheOrderingBehavior:
         ]
 
         from scripts.research_pipeline.context import group_for_cache_efficiency
-        ordered = group_for_cache_efficiency(units)
+        # Pass subchapter_map to avoid DB call during unit tests
+        subchapter_map = {1: 100, 2: 200, 3: 100}
+        ordered = group_for_cache_efficiency(units, subchapter_map=subchapter_map)
 
         # mail_only units should be consecutive
         issue_types = [u.issue_type for u in ordered]
@@ -3705,7 +3725,9 @@ class TestCacheOrderingBehavior:
         ]
 
         from scripts.research_pipeline.context import group_for_cache_efficiency
-        ordered = group_for_cache_efficiency(units)
+        # Pass subchapter_map to avoid DB call during unit tests
+        subchapter_map = {i: 100 for i in range(5)}
+        ordered = group_for_cache_efficiency(units, subchapter_map=subchapter_map)
 
         assert len(ordered) == 5
         assert set(u.document_id for u in ordered) == set(range(5))
@@ -3723,7 +3745,9 @@ class TestCacheEfficiencyMetricsBehavior:
         assert result["total"] == 0
         assert result["unique_issue_types"] == 0
 
-    def test_single_issue_type_high_cache_rate(self):
+    @patch("scripts.research_pipeline.context.catalog.get_subchapter_ids_batch",
+           side_effect=lambda ids: {i: 100 for i in ids})
+    def test_single_issue_type_high_cache_rate(self, mock_subchapter):
         """All same issue_type should have high cache hit rate."""
         from scripts.research_pipeline.models.matches import ProcessingUnit, MatchInfo
         from scripts.research_pipeline.context import estimate_cache_efficiency
@@ -3741,7 +3765,9 @@ class TestCacheEfficiencyMetricsBehavior:
         assert result["estimated_cache_hits"] == 4  # All but first get cache hit
         assert result["cache_hit_rate"] == 0.8  # 4/5
 
-    def test_all_different_issue_types_low_cache_rate(self):
+    @patch("scripts.research_pipeline.context.catalog.get_subchapter_ids_batch",
+           side_effect=lambda ids: {i: i for i in ids})
+    def test_all_different_issue_types_low_cache_rate(self, mock_subchapter):
         """All different issue_types should have low cache hit rate."""
         from scripts.research_pipeline.models.matches import ProcessingUnit, MatchInfo
         from scripts.research_pipeline.context import estimate_cache_efficiency
@@ -3972,3 +3998,39 @@ class TestCLIIntegrationSubprocess:
 
         # all should be available
         assert "--all-issues" in result.stdout or "all_issues" in result.stdout
+
+
+# =============================================================================
+# GUIDANCE CONTEXT TESTS
+# =============================================================================
+
+
+class TestBuildGuidanceBatchContext:
+    """Tests for build_guidance_batch_context sentinel and formatting."""
+
+    def test_empty_summaries_returns_sentinel(self):
+        from scripts.research_pipeline.context.guidance_context import build_guidance_batch_context
+        result = build_guidance_batch_context(1, [])
+        assert result == "(no cited documents resolved)"
+
+    def test_none_summaries_returns_sentinel(self):
+        from scripts.research_pipeline.context.guidance_context import build_guidance_batch_context
+        # Passing None should also be handled gracefully
+        result = build_guidance_batch_context(1, None)
+        assert result == "(no cited documents resolved)"
+
+    def test_with_summaries_returns_formatted(self):
+        from scripts.research_pipeline.context.guidance_context import build_guidance_batch_context
+        summaries = [
+            {
+                "citation": "18 NYCRR 505.14",
+                "title": "Personal Care Services",
+                "summary": "Establishes requirements for personal care service provision.",
+                "section_type": "substantive",
+            }
+        ]
+        result = build_guidance_batch_context(1, summaries)
+        assert "18 NYCRR 505.14" in result
+        assert "substantive" in result
+        assert "Establishes requirements" in result
+        assert result != "(no cited documents resolved)"

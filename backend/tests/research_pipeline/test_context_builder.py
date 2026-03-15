@@ -495,7 +495,7 @@ class TestPrioritizeSummaries:
         )
 
         assert len(items) >= 1
-        assert items[0] == ("sibling", 1, "preceding", None)
+        assert items[0] == ("sibling", 1, "preceding", None, False)
 
     def test_includes_following(self):
         """prioritize_summaries should include following sibling."""

@@ -1528,7 +1528,11 @@ def get_guidance_issue_types(
     doc_type: Optional[str] = None,
 ) -> list[str]:
     """
-    Get all issue types that have compliance_issues matches for guidance documents.
+    Get all issue types that have compliance_issues matches for guidance documents
+    AND have a corresponding prompt config file.
+
+    Some issue types (e.g., incorporation_by_reference) use dedicated tables/scanners
+    and don't have research pipeline prompt configs.
 
     Args:
         agency: Optional filter by guidance agency
@@ -1537,6 +1541,8 @@ def get_guidance_issue_types(
     Returns:
         List of issue type strings
     """
+    from scripts.research_pipeline.prompt_loader import list_issue_types
+
     conn = get_db_connection()
     if conn is None:
         raise RuntimeError("Failed to establish database connection")
@@ -1551,6 +1557,8 @@ def get_guidance_issue_types(
         doc_type_filter = "AND gd.doc_type = %s"
         params.append(doc_type)
 
+    available_configs = set(list_issue_types())
+
     try:
         with conn.cursor() as cur:
             cur.execute(f"""
@@ -1562,6 +1570,10 @@ def get_guidance_issue_types(
                     {doc_type_filter}
                 ORDER BY ci.issue_type
             """, params)
-            return [row[0] for row in cur.fetchall()]
+            db_types = [row[0] for row in cur.fetchall()]
+            skipped = [t for t in db_types if t not in available_configs]
+            if skipped:
+                print(f"  Skipping {len(skipped)} issue types without pipeline configs: {', '.join(skipped)}")
+            return [t for t in db_types if t in available_configs]
     finally:
         conn.close()

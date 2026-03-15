@@ -138,6 +138,10 @@ def main():
         "--rerun-fabricated", action="store_true",
         help="Re-run on records with fabricated quotes (starts with 'Establishes'/'This') using full doc text",
     )
+    parser.add_argument(
+        "--resume-batch", nargs="+", metavar="BATCH_ID",
+        help="Resume from completed Anthropic batch IDs (skip fetch/submit, just download and write)",
+    )
     args = parser.parse_args()
 
     if args.rerun_fabricated:
@@ -166,7 +170,8 @@ def main():
         write_batch=write_fines_results,
     )
 
-    runner.run(execute=args.execute, batch=args.batch, limit=args.limit)
+    runner.run(execute=args.execute, batch=args.batch, limit=args.limit,
+               resume_batch_ids=args.resume_batch)
 
 
 if __name__ == "__main__":

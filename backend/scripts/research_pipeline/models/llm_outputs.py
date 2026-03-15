@@ -291,9 +291,19 @@ class Tier2Output(BaseModel):
     @field_validator('verbatim_requirements', mode='before')
     @classmethod
     def parse_verbatim_requirements(cls, v):
-        """Handle LLM sometimes returning as JSON string."""
+        """Handle LLM sometimes returning as JSON string.
+
+        Falls back to wrapping the raw string in a list if JSON parsing fails
+        (e.g. when requirement text contains unescaped quotes or commas).
+        """
         if isinstance(v, str):
-            return json.loads(v)
+            try:
+                parsed = json.loads(v)
+                if isinstance(parsed, list):
+                    return parsed
+                return [str(parsed)]
+            except json.JSONDecodeError:
+                return [v]
         return v
 
     @field_validator('context_used', mode='before')
@@ -504,9 +514,19 @@ class Tier3Output(BaseModel):
     @field_validator('verbatim_requirements', mode='before')
     @classmethod
     def parse_verbatim_requirements(cls, v):
-        """Handle LLM sometimes returning as JSON string."""
+        """Handle LLM sometimes returning as JSON string.
+
+        Falls back to wrapping the raw string in a list if JSON parsing fails
+        (e.g. when requirement text contains unescaped quotes or commas).
+        """
         if isinstance(v, str):
-            return json.loads(v)
+            try:
+                parsed = json.loads(v)
+                if isinstance(parsed, list):
+                    return parsed
+                return [str(parsed)]
+            except json.JSONDecodeError:
+                return [v]
         return v
 
     @field_validator('context_used', mode='before')

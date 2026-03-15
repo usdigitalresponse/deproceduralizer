@@ -879,6 +879,15 @@ LLM-based classification scripts that add normalized fields to existing data. Al
 
 All scripts default to dry-run. Use `--limit N` to test on a subset first.
 
+## Utility & Recovery Scripts
+
+| Command | Purpose |
+|---------|---------|
+| `cd backend && python3 -m scripts.fix_fabricated_quotes --execute` | Fix remaining fabricated justification_quotes in fines activity classifications |
+| `cd backend && python3 -m scripts.research_pipeline.resume_guidance_run` | Resume a guidance research pipeline run safely after a crash (checks in-flight batches, polls to completion, then re-runs pipeline) |
+| `cd backend && python3 -m scripts.research_pipeline.resume_guidance_run --check-only` | Check status of in-flight batches without running anything |
+| `cd backend && python3 -m scripts.research_pipeline.recover_tier1_batch --batch-id <id> --state NY` | Recover Tier 1 results from Anthropic batch when pipeline crashed before import |
+
 ## Planning & Estimation Scripts
 
 These scripts help plan runs without making API calls or writing to the database.

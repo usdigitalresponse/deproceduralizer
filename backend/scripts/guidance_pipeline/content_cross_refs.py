@@ -151,13 +151,17 @@ def _resolve_guidance_ref(
     latest_revision_lookup: Optional[dict[str, int]] = None,
 ) -> Optional[int]:
     """Resolve a guidance reference to a guidance_documents.id."""
-    # Try direct match
+    # Try direct match — but prefer latest revision if one supersedes it
     if normalized in guidance_lookup:
+        if latest_revision_lookup and normalized in latest_revision_lookup:
+            return latest_revision_lookup[normalized]
         return guidance_lookup[normalized]
 
     # Try zero-padded variant (e.g., "99-OTDA-ADM-5" -> "99-OTDA-ADM-05")
     padded = _zero_pad_ref_number(normalized)
     if padded != normalized and padded in guidance_lookup:
+        if latest_revision_lookup and padded in latest_revision_lookup:
+            return latest_revision_lookup[padded]
         return guidance_lookup[padded]
 
     # Strip revision suffixes (-R1, -R2, etc.) and try base version

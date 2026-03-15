@@ -119,7 +119,7 @@ def build_prompt(record: dict) -> str:
     return "\n".join(parts)
 
 
-def write_results(results: list[tuple[int, str]]) -> int:
+def write_results(results: list[tuple[str, int]]) -> int:
     """Write normalized categories back to DB."""
     return chunked_update(
         "UPDATE fines_fees_penalties SET who_pays_normalized = %s WHERE id = %s",
@@ -134,6 +134,10 @@ def main():
     parser.add_argument("--dry-run", action="store_true", help="Preview without DB writes (default)")
     parser.add_argument("--batch", action="store_true", help="Use batch API instead of realtime")
     parser.add_argument("--limit", type=int, default=0, help="Max records to process (0=all)")
+    parser.add_argument(
+        "--resume-batch", nargs="+", metavar="BATCH_ID",
+        help="Resume from completed Anthropic batch IDs (skip fetch/submit, just download and write)",
+    )
     args = parser.parse_args()
 
     runner = EnrichmentRunner(
@@ -145,7 +149,8 @@ def main():
         write_result=lambda row_id, parsed: (parsed.category, row_id),
         write_batch=write_results,
     )
-    runner.run(execute=args.execute, batch=args.batch, limit=args.limit)
+    runner.run(execute=args.execute, batch=args.batch, limit=args.limit,
+               resume_batch_ids=args.resume_batch)
 
 
 if __name__ == "__main__":

@@ -245,7 +245,7 @@ class EnrichmentRunner:
             id_map[custom_id] = row['id']
             row_map[row['id']] = row
 
-        # Split into chunks of 10,000 (Anthropic batch API limit)
+        # Split into chunks of 10,000 (practical limit for batch submissions)
         BATCH_CHUNK_SIZE = 10_000
         manager = BatchManager()
         results = []
@@ -256,11 +256,14 @@ class EnrichmentRunner:
             chunk_label = f" (chunk {chunk_idx + 1}/{len(chunks)})" if len(chunks) > 1 else ""
             print(f"  Submitting {len(chunk)} requests to batch API{chunk_label}...")
             batch_id = manager.submit_batch(chunk, batch_name=f"{self.name}_{chunk_idx}" if len(chunks) > 1 else self.name)
+            print(f"  BATCH SUBMITTED: {batch_id}")
+            print(f"  (To resume: --resume-batch {batch_id})")
             manager.poll_until_complete(batch_id)
 
             for result in manager.get_batch_results(batch_id):
                 row_id = id_map.get(result.custom_id)
                 if not row_id:
+                    logger.warning("Unknown custom_id in batch results: %s", result.custom_id)
                     continue
                 try:
                     parsed = parse_batch_result_tool_use(result, self.response_model)
@@ -288,7 +291,7 @@ class EnrichmentRunner:
     def _retry_failures(self, rows: list[dict]) -> list:
         """Retry failed rows via realtime API with coercion fallback.
 
-        Strategy: try Haiku (1 attempt) → coerce raw response → skip.
+        Strategy: try realtime model (1 attempt) → coerce raw response → skip.
         Coercion handles the common case where the LLM returns valid data
         except for hallucinated Literal values in list/scalar fields.
         """
@@ -301,7 +304,7 @@ class EnrichmentRunner:
         for row in rows:
             prompt = self.build_prompt(row)
 
-            # Try Haiku with 1 retry (not 3 — if it hallucinates, retries won't help)
+            # Try realtime model with 1 attempt (not 3 — if it hallucinates, retries won't help)
             parsed = call_llm_parse(
                 client=client,
                 prompt=prompt,
@@ -383,7 +386,7 @@ class EnrichmentRunner:
                     return self.response_model.model_validate(input_data)
 
         except Exception as e:
-            logger.debug("JSON coercion failed for item %s: %s", row_id, e)
+            logger.warning("JSON coercion failed for item %s: %s", row_id, e)
         return None
 
     def _row_label(self, row: dict) -> str:
@@ -397,7 +400,7 @@ class EnrichmentRunner:
     def _parsed_label(self, parsed: BaseModel) -> str:
         """Build a short display label from a parsed result."""
         parts = []
-        # Show the first field (usually the classification)
+        # Show the first 1-2 fields (usually the classification)
         for field_name, field_value in parsed:
             parts.append(f"{field_value}")
             if len(parts) >= 2:

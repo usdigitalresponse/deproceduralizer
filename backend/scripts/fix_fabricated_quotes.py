@@ -40,6 +40,10 @@ def main():
     parser.add_argument("--dry-run", action="store_true", help="Preview only")
     parser.add_argument("--batch", action="store_true", help="Use batch API")
     parser.add_argument("--limit", type=int, default=0, help="Max records (0=all)")
+    parser.add_argument(
+        "--resume-batch", nargs="+", metavar="BATCH_ID",
+        help="Resume from completed Anthropic batch IDs (skip fetch/submit, just download and write)",
+    )
     args = parser.parse_args()
 
     runner = EnrichmentRunner(
@@ -59,7 +63,8 @@ def main():
         write_batch=write_fines_results,
     )
 
-    runner.run(execute=args.execute, batch=args.batch, limit=args.limit)
+    runner.run(execute=args.execute, batch=args.batch, limit=args.limit,
+               resume_batch_ids=args.resume_batch)
 
 
 if __name__ == "__main__":

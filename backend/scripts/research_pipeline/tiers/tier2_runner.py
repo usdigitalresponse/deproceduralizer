@@ -33,10 +33,9 @@ from ..context import (
     get_ancestors_batch,
     # V5 4-layer caching
     get_subchapter_ids_batch,
-    build_batch_context_for_subchapter,
     build_batch_context_for_subchapters,
     # Guidance context
-    fetch_cited_regulation_summaries,
+    fetch_cited_document_summaries,
     build_guidance_batch_context,
     fetch_guidance_content_batch,
     format_guidance_preamble,
@@ -541,7 +540,7 @@ def _prepare_tier2_guidance_batch(
 
     # Fetch guidance content and cited regulation summaries
     guidance_content = fetch_guidance_content_batch(doc_ids)
-    cited_summaries = fetch_cited_regulation_summaries(doc_ids)
+    cited_summaries = fetch_cited_document_summaries(doc_ids)
 
     # Collect and fetch context requests from Tier 1 outputs
     all_context_requests = collect_context_requests(
@@ -588,8 +587,8 @@ def _prepare_tier2_guidance_batch(
         tier1_fetched_context = format_fetched_context(unit_context, unit_requests)
 
         # Add cited regulation context to tier1_fetched_context
-        if cited_context and cited_context != "(no cited regulations resolved)":
-            tier1_fetched_context += "\n\n=== CITED REGULATIONS ===\n" + cited_context
+        if cited_context and cited_context != "(no cited documents resolved)":
+            tier1_fetched_context += "\n\n=== CITED DOCUMENTS ===\n" + cited_context
 
         # Format prompt
         prompt_parts = format_tier_prompt(
@@ -689,11 +688,14 @@ async def run_tier2_with_reruns(
     # Pre-fetch guidance data
     guidance_doc_ids = [u.document_id for u in guidance_units_list]
     guidance_content = fetch_guidance_content_batch(guidance_doc_ids) if guidance_doc_ids else {}
-    cited_summaries = fetch_cited_regulation_summaries(guidance_doc_ids) if guidance_doc_ids else {}
+    cited_summaries = fetch_cited_document_summaries(guidance_doc_ids) if guidance_doc_ids else {}
 
-    # V5 4-layer caching: Get subchapter IDs for batch context (regulation only)
+    # V5 4-layer caching: Get subchapter IDs and pre-batch context (regulation only)
     subchapter_ids = get_subchapter_ids_batch(reg_doc_ids) if reg_doc_ids else {}
-    batch_contexts: dict[int, dict[str, str]] = {}
+    unique_subchapter_ids = list({sid for sid in subchapter_ids.values() if sid})
+    batch_contexts = build_batch_context_for_subchapters(
+        subchapter_ids=unique_subchapter_ids,
+    ) if unique_subchapter_ids else {}
 
     # Collect context requests from all Tier 1 outputs
     all_context_requests = collect_context_requests(
@@ -763,19 +765,14 @@ async def run_tier2_with_reruns(
             unit_cited = cited_summaries.get(doc_id, [])
             metadata = guidance_content.get(doc_id, {})
             cited_context = build_guidance_batch_context(doc_id, unit_cited, metadata)
-            if cited_context and cited_context != "(no cited regulations resolved)":
-                tier1_fetched_context += "\n\n=== CITED REGULATIONS ===\n" + cited_context
+            if cited_context and cited_context != "(no cited documents resolved)":
+                tier1_fetched_context += "\n\n=== CITED DOCUMENTS ===\n" + cited_context
             batch_context_vars = GUIDANCE_BATCH_CONTEXT_VARS
         else:
-            # V5 4-layer caching: Build or retrieve batch context for this unit's subchapter
+            # V5 4-layer caching: use pre-fetched batch context for this unit's subchapter
             subchapter_id = subchapter_ids.get(doc_id)
             if subchapter_id:
-                if subchapter_id not in batch_contexts:
-                    batch_contexts[subchapter_id] = build_batch_context_for_subchapter(
-                        subchapter_id=subchapter_id,
-                        issue_type=issue_config.name,
-                    )
-                batch_context_vars = batch_contexts[subchapter_id]
+                batch_context_vars = batch_contexts.get(subchapter_id, {})
             else:
                 batch_context_vars = {
                     "subchapter_citation": "(no subchapter)",

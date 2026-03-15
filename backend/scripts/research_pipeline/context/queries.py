@@ -271,7 +271,8 @@ def get_crossrefs_batch(
     if conn is None:
         raise psycopg.OperationalError("Failed to establish database connection")
 
-    query = """
+    # Query 1: Cross-refs to regulatory documents
+    reg_query = """
         SELECT
             cr.source_document_id,
             cr.target_document_id,
@@ -286,24 +287,56 @@ def get_crossrefs_batch(
         ORDER BY cr.source_document_id, rd.citation
     """
 
+    # Query 2: Cross-refs to guidance documents (deduplicated by target)
+    guidance_query = """
+        SELECT DISTINCT ON (cr.source_document_id, gd.id)
+            cr.source_document_id,
+            cr.target_guidance_id,
+            gd.canonical_ref,
+            gd.title,
+            gd.title,  -- no short_title for guidance; duplicated to match reg query shape
+            gd.section_type
+        FROM cross_references cr
+        JOIN guidance_documents gd ON cr.target_guidance_id = gd.id
+        WHERE cr.source_document_id = ANY(%s)
+          AND cr.target_guidance_id IS NOT NULL
+          AND cr.is_resolved = true
+        ORDER BY cr.source_document_id, gd.id, gd.canonical_ref
+    """
+
     with conn.cursor() as cur:
-        cur.execute(query, [document_ids])
-        rows = cur.fetchall()
+        cur.execute(reg_query, [document_ids])
+        reg_rows = cur.fetchall()
+        cur.execute(guidance_query, [document_ids])
+        guidance_rows = cur.fetchall()
 
     conn.commit()
     conn.close()
 
     # Group by source_document_id
     result: dict[int, list[CrossRefEntry]] = {doc_id: [] for doc_id in document_ids}
-    for row in rows:
+
+    # Add regulatory cross-refs
+    for row in reg_rows:
         source_id = row[0]
         section_type = row[5] or ""
-
         entry = CrossRefEntry(
-            target_id=row[1],  # target_document_id
+            target_id=row[1],
             citation=row[2] or "",
-            target_title=row[4] or row[3],  # Prefer short_title, fall back to full title
+            target_title=row[4] or row[3],
             is_definitions_section=section_type == "definitions",
+        )
+        result[source_id].append(entry)
+
+    # Add guidance cross-refs
+    for row in guidance_rows:
+        source_id = row[0]
+        entry = CrossRefEntry(
+            target_id=row[1],
+            citation=row[2] or "",
+            target_title=row[3] or "",
+            is_definitions_section=False,
+            is_guidance=True,
         )
         result[source_id].append(entry)
 

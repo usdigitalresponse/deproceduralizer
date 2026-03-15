@@ -224,6 +224,85 @@ class BatchManager:
 
         return batch_id
 
+    def find_resumable_batch(self, batch_name: str, expected_count: int = 0) -> Optional[str]:
+        """
+        Check if there's a resumable batch matching the given batch_name prefix.
+
+        Cross-references active Anthropic batches with local batch_mapping.json
+        to find a batch that was submitted but never polled to completion.
+        Also checks for batches that completed but were never imported (e.g.,
+        if the polling process died after the batch finished but before DB import).
+
+        Args:
+            batch_name: The batch name prefix to match (e.g., "NY_multi_tier1")
+            expected_count: If > 0, only match batches with at least this many
+                requests (prevents matching a small test batch when resuming a
+                large production run)
+
+        Returns:
+            Batch API ID if a resumable batch is found, None otherwise
+        """
+        if not self.batches_dir:
+            return None
+
+        # Load local mapping: batch_id -> directory path
+        mapping_file = self.batches_dir / 'batch_mapping.json'
+        if not mapping_file.exists():
+            return None
+
+        try:
+            mapping = json.loads(mapping_file.read_text())
+        except (json.JSONDecodeError, IOError):
+            return None
+
+        # Find batch IDs whose directory name starts with our batch_name
+        candidate_ids = []
+        for batch_id, dir_path in mapping.items():
+            dir_name = Path(dir_path).name
+            if dir_name.startswith(batch_name):
+                candidate_ids.append(batch_id)
+
+        if not candidate_ids:
+            return None
+
+        # Check which candidates are still active at Anthropic
+        active = self.list_active_batches()
+        active_ids = {b['batch_id'] for b in active}
+
+        for batch_id in reversed(candidate_ids):  # most recent first
+            if batch_id in active_ids:
+                # Verify request count if expected_count is set
+                if expected_count > 0:
+                    active_info = next((b for b in active if b['batch_id'] == batch_id), None)
+                    if active_info:
+                        total = active_info.get('processing', 0) + active_info.get('succeeded', 0)
+                        if total < expected_count:
+                            continue
+                print(f"  Found resumable in-flight batch: {batch_id}")
+                return batch_id
+
+        # Also check if any candidate completed but wasn't imported
+        for batch_id in reversed(candidate_ids):
+            if batch_id not in active_ids:
+                try:
+                    status = self.get_batch_status(batch_id)
+                    if status['status'] == 'ended' and status['succeeded'] > 0:
+                        # Verify request count matches
+                        if expected_count > 0 and status['succeeded'] < expected_count:
+                            continue
+                        print(f"  Found completed-but-unimported batch: {batch_id} ({status['succeeded']} succeeded)")
+                        return batch_id
+                except anthropic.APIStatusError as e:
+                    if e.status_code in (401, 403):
+                        raise  # Auth errors should not be silently caught
+                    logger.debug("Could not check batch %s status: %s", batch_id, e)
+                    continue
+                except Exception as e:
+                    logger.debug("Could not check batch %s status: %s", batch_id, e)
+                    continue
+
+        return None
+
     def list_active_batches(self) -> list[dict]:
         """
         List all in-progress batches from the API.
@@ -429,8 +508,8 @@ class BatchManager:
                 batch_dir_str = mapping.get(batch_id)
                 if batch_dir_str:
                     batch_dir = Path(batch_dir_str)
-            except (json.JSONDecodeError, IOError):
-                pass  # Fall through to find_batch_dir
+            except (json.JSONDecodeError, IOError) as e:
+                logger.warning("Failed to read batch_mapping.json: %s", e)
 
         # Fallback to directory scanning
         if batch_dir is None:
@@ -446,7 +525,8 @@ class BatchManager:
 
         try:
             return json.loads(requests_file.read_text())
-        except (json.JSONDecodeError, IOError):
+        except (json.JSONDecodeError, IOError) as e:
+            logger.warning("Failed to read requests file %s: %s", requests_file, e)
             return {}
 
     def log_error(self, batch_dir: Path, custom_id: str, error_type: str, message: str):
@@ -531,7 +611,7 @@ def _parse_cached_response(response_body: dict, output_class: Type[BaseModel]) -
 
         return None
     except (ValidationError, json.JSONDecodeError) as e:
-        print(f"  Cache parse error: {e}")
+        logger.warning("Cache parse error: %s", e)
         return None
 
 
@@ -656,7 +736,13 @@ def run_batch_tier(
         print(f"  All {len(batch_requests)} requests served from cache")
         return "cache"
 
-    batch_id = manager.submit_batch(uncached_requests, batch_name=batch_name)
+    # Check for a resumable batch (submitted but polling died before import)
+    batch_id = manager.find_resumable_batch(batch_name, expected_count=len(uncached_requests))
+    if batch_id:
+        print(f"  Resuming existing batch {batch_id} instead of re-submitting")
+    else:
+        batch_id = manager.submit_batch(uncached_requests, batch_name=batch_name)
+
     manager.poll_until_complete(batch_id)
 
     # --- Process fresh results and store in cache ---

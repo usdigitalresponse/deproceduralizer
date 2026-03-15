@@ -68,47 +68,72 @@ def build_scope_chains(
 @retry_db_operation()
 def fetch_document_content_batch(
     document_ids: list[int],
+    guidance_document_ids: list[int] | None = None,
 ) -> dict[int, dict]:
     """
     Fetch full document content for multiple documents.
 
+    Queries regulatory_documents for document_ids and guidance_documents
+    for guidance_document_ids. IDs must be routed to the correct table
+    to avoid collisions (both tables use independent bigserial sequences
+    with overlapping ID ranges).
+
     Used by Tier 2+ when full text is needed for analysis.
 
     Args:
-        document_ids: List of document IDs
+        document_ids: List of regulatory document IDs
+        guidance_document_ids: List of guidance document IDs (queried separately)
 
     Returns:
         Dict mapping doc_id -> {content, citation, title, summary}
     """
-    if not document_ids:
+    if not document_ids and not guidance_document_ids:
         return {}
 
     conn = get_db_connection()
     if conn is None:
         raise RuntimeError("Failed to establish database connection")
 
-    query = """
-        SELECT id, content, citation, title, short_title, summary
-        FROM regulatory_documents
-        WHERE id = ANY(%s)
-    """
+    result: dict[int, dict] = {}
 
-    with conn.cursor() as cur:
-        cur.execute(query, [document_ids])
-        rows = cur.fetchall()
+    # Query regulatory_documents
+    if document_ids:
+        reg_query = """
+            SELECT id, content, citation, title, short_title, summary
+            FROM regulatory_documents
+            WHERE id = ANY(%s)
+        """
+        with conn.cursor() as cur:
+            cur.execute(reg_query, [document_ids])
+            for row in cur.fetchall():
+                result[row[0]] = {
+                    "content": row[1] or "",
+                    "citation": row[2] or "",
+                    "title": row[3] or row[4] or "",
+                    "summary": row[5] or "",
+                }
+
+    # Query guidance_documents (separate table, separate ID space)
+    if guidance_document_ids:
+        guidance_query = """
+            SELECT id, content, canonical_ref, title, summary
+            FROM guidance_documents
+            WHERE id = ANY(%s)
+        """
+        with conn.cursor() as cur:
+            cur.execute(guidance_query, [guidance_document_ids])
+            for row in cur.fetchall():
+                result[row[0]] = {
+                    "content": row[1] or "",
+                    "citation": row[2] or "",
+                    "title": row[3] or "",
+                    "summary": row[4] or "",
+                }
 
     conn.commit()
     conn.close()
 
-    return {
-        row[0]: {
-            "content": row[1] or "",
-            "citation": row[2] or "",
-            "title": row[3] or row[4] or "",
-            "summary": row[5] or "",
-        }
-        for row in rows
-    }
+    return result
 
 
 def fetch_document_summaries_batch(document_ids: list[int]) -> dict[int, str]:
@@ -193,8 +218,9 @@ def fetch_summaries_for_requests(
     if conn is None:
         raise RuntimeError("Failed to establish database connection")
 
-    # Fetch document summaries by citation
+    # Fetch document summaries by citation (regulatory + guidance)
     if doc_citations:
+        # Try regulatory_documents first
         query = """
             SELECT citation, summary
             FROM regulatory_documents
@@ -204,9 +230,25 @@ def fetch_summaries_for_requests(
             cur.execute(query, [doc_citations])
             for row in cur.fetchall():
                 if row[1]:
-                    # Store under each composite key that references this citation
                     for key in citation_to_keys.get(row[0], []):
                         result[key] = row[1]
+
+        # Check guidance_documents for any citations not yet resolved
+        unresolved = [c for c in doc_citations if not any(
+            result.get(k) for k in citation_to_keys.get(c, [])
+        )]
+        if unresolved:
+            guidance_query = """
+                SELECT canonical_ref, summary
+                FROM guidance_documents
+                WHERE canonical_ref = ANY(%s) AND summary IS NOT NULL
+            """
+            with conn.cursor() as cur:
+                cur.execute(guidance_query, [unresolved])
+                for row in cur.fetchall():
+                    if row[1]:
+                        for key in citation_to_keys.get(row[0], []):
+                            result[key] = row[1]
 
     # Fetch definitions with scope-aware lookup
     if definition_requests:
@@ -363,6 +405,24 @@ def fetch_full_text_for_requests(
         for citation, content in regular_docs:
             for key in citation_to_keys.get(citation, []):
                 result[key] = content
+
+        # Check guidance_documents for any citations not yet resolved
+        resolved_citations = {c for c, _ in regular_docs} | {
+            definitions_citations[did] for did in definitions_doc_ids
+        }
+        unresolved = [c for c in doc_citations if c not in resolved_citations]
+        if unresolved:
+            guidance_query = """
+                SELECT canonical_ref, content
+                FROM guidance_documents
+                WHERE canonical_ref = ANY(%s) AND content IS NOT NULL
+            """
+            with conn.cursor() as cur:
+                cur.execute(guidance_query, [unresolved])
+                for row in cur.fetchall():
+                    if row[1]:
+                        for key in citation_to_keys.get(row[0], []):
+                            result[key] = row[1]
 
         # For definitions sections, fetch all definitions scoped to them
         if definitions_doc_ids:

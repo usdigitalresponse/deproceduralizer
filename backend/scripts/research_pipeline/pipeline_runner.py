@@ -238,7 +238,8 @@ async def run_pipeline(
         await _run_tier3(units, issue_configs, batch_manager, cost_tracker,
                          realtime, model, incremental_save,
                          out, trace_context, batch_trace_ids,
-                         jurisdiction, issue_type_single, run_id, poll_interval, cache)
+                         jurisdiction, issue_type_single, run_id, poll_interval,
+                         cache, source_type=source_type)
     elif not enable_web_search:
         tier3_pending = [u for u in units.values() if u.state == ProcessingState.TIER3_PENDING]
         if tier3_pending:
@@ -352,10 +353,16 @@ async def run_tier3_only(
     batch_trace_ids: dict[str, str] = {}
     trace_context = None
 
+    # Derive source_type from processing units
+    source_type = "regulation"
+    if processing_units and processing_units[0].source_type == "guidance":
+        source_type = "guidance"
+
     await _run_tier3(units, issue_configs, batch_manager, cost_tracker,
                      realtime, model, True,
                      out, trace_context, batch_trace_ids,
-                     jurisdiction, issue_type_single, run_id, 60)
+                     jurisdiction, issue_type_single, run_id, 60,
+                     source_type=source_type)
 
     cost_tracker.mark_complete()
     _print_summary(out, units, cost_tracker)
@@ -489,6 +496,7 @@ async def _run_tier1(units, issue_configs, batch_manager, cost_tracker,
             requests, pending, "tier1", process_tier1_results,
             batch_manager, cost_tracker, out, trace_context, batch_trace_ids,
             jurisdiction, issue_type_single, run_id, poll_interval,
+            source_type=source_type,
             cache=cache, cache_pipeline="research", cache_tier=1)
 
     # State transitions
@@ -506,9 +514,7 @@ async def _run_tier1(units, issue_configs, batch_manager, cost_tracker,
     if incremental_save:
         tier1_units = [u for u in units.values() if u.tier1_output]
         if tier1_units:
-            conn = get_db_connection()
-            saved = save_tier1_results(tier1_units, conn)
-            conn.close()
+            saved = save_tier1_results(tier1_units)
             tier_out.info(f"  Saved {saved} Tier 1 results to database")
 
 
@@ -559,6 +565,7 @@ async def _run_tier2(units, issue_configs, batch_manager, cost_tracker,
                 requests, pending, "tier2", process_tier2_results,
                 batch_manager, cost_tracker, out, trace_context, batch_trace_ids,
                 jurisdiction, issue_type_single, run_id, poll_interval,
+                source_type=source_type,
                 cache=cache, cache_pipeline="research", cache_tier=2)
 
         for unit in succeeded:
@@ -632,9 +639,7 @@ def _save_tier2(units, incremental_save, tier_out):
     if incremental_save:
         tier2_units = [u for u in units.values() if u.tier2_output]
         if tier2_units:
-            conn = get_db_connection()
-            saved = save_tier2_results(tier2_units, conn)
-            conn.close()
+            saved = save_tier2_results(tier2_units)
             tier_out.info(f"  Saved {saved} Tier 2 results to database")
 
 
@@ -642,7 +647,7 @@ async def _run_tier3(units, issue_configs, batch_manager, cost_tracker,
                      realtime, model, incremental_save,
                      out, trace_context, batch_trace_ids,
                      jurisdiction, issue_type_single, run_id, poll_interval,
-                     cache=None):
+                     cache=None, source_type: str = "regulation"):
     """Run Tier 3: Web Search Verification."""
     tier_out = DualOutput(logger=None, tier=3)
 
@@ -660,25 +665,29 @@ async def _run_tier3(units, issue_configs, batch_manager, cost_tracker,
     else:
         await _run_tier3_batch(pending, units, issue_configs, batch_manager,
                                 cost_tracker, out, trace_context, batch_trace_ids,
-                                jurisdiction, issue_type_single, run_id, poll_interval)
+                                jurisdiction, issue_type_single, run_id, poll_interval,
+                                source_type=source_type)
 
     # Save
     if incremental_save:
         tier3_units = [u for u in units.values() if u.tier3_output]
         if tier3_units:
-            conn = get_db_connection()
-            saved = save_tier3_results(tier3_units, conn)
-            conn.close()
+            saved = save_tier3_results(tier3_units)
             tier_out.info(f"  Saved {saved} Tier 3 results to database")
 
 
 async def _run_tier3_realtime(pending, issue_configs, cost_tracker,
                                trace_context, jurisdiction, out, cache=None):
-    """Run Tier 3 using real-time API with rate limiting."""
+    """Run Tier 3 using real-time API with rate limiting.
+
+    Saves results to DB after each sub-batch so progress is durable
+    and you can safely stop the pipeline at any time.
+    """
     tier_out = DualOutput(logger=None, tier=3)
     tier_out.info("  (Using REAL-TIME API with web search)")
 
-    completed = 0
+    total_succeeded = 0
+    total_failed = 0
     for i in range(0, len(pending), TIER3_BATCH_SIZE):
         batch = pending[i:i + TIER3_BATCH_SIZE]
         await run_tier3_realtime(
@@ -691,23 +700,27 @@ async def _run_tier3_realtime(pending, issue_configs, cost_tracker,
         completed = min(i + TIER3_BATCH_SIZE, len(pending))
         tier_out.info(f"  Progress: {completed}/{len(pending)}")
 
-    succeeded = []
-    failed = []
-    for unit in pending:
-        if unit.tier3_output is not None:
-            unit.state = ProcessingState.TIER3_COMPLETE
-            unit.state = get_next_state(unit)
-            succeeded.append(unit)
-        elif unit.error_message:
-            unit.state = ProcessingState.ERROR
-            failed.append(unit)
+        # Save after each sub-batch so results are durable
+        batch_done = [u for u in batch if u.tier3_output is not None]
+        batch_errs = [u for u in batch if u.error_message]
+        for u in batch_done:
+            u.state = ProcessingState.TIER3_COMPLETE
+            u.state = get_next_state(u)
+        for u in batch_errs:
+            u.state = ProcessingState.ERROR
+        if batch_done:
+            saved = save_tier3_results(batch_done)
+            tier_out.info(f"  Saved {saved} Tier 3 results to database ({completed}/{len(pending)} processed)")
+        total_succeeded += len(batch_done)
+        total_failed += len(batch_errs)
 
-    _log_tier_complete(out, cost_tracker, "Tier 3 (realtime)", len(succeeded), len(failed))
+    _log_tier_complete(out, cost_tracker, "Tier 3 (realtime)", total_succeeded, total_failed)
 
 
 async def _run_tier3_batch(pending, units, issue_configs, batch_manager,
                             cost_tracker, out, trace_context, batch_trace_ids,
-                            jurisdiction, issue_type_single, run_id, poll_interval):
+                            jurisdiction, issue_type_single, run_id, poll_interval,
+                            source_type: str = "regulation"):
     """Run Tier 3 using Batch API."""
     tier_out = DualOutput(logger=None, tier=3)
     tier_out.info("  (Using BATCH API with web search - 50% cost savings)")
@@ -724,7 +737,8 @@ async def _run_tier3_batch(pending, units, issue_configs, batch_manager,
 
     batch_id = _submit_batch(requests, "tier3", batch_manager, out,
                               trace_context, batch_trace_ids,
-                              jurisdiction, issue_type_single, run_id)
+                              jurisdiction, issue_type_single, run_id,
+                              source_type=source_type)
 
     await _poll_batch(batch_id, batch_manager, out, poll_interval)
 
@@ -784,6 +798,7 @@ async def _submit_and_poll_batch(requests, pending, tier_key, process_fn,
                                   batch_manager, cost_tracker, out,
                                   trace_context, batch_trace_ids,
                                   jurisdiction, issue_type_single, run_id, poll_interval,
+                                  source_type: str = "regulation",
                                   cache=None, cache_pipeline=None, cache_tier=None):
     """Submit batch, poll for completion, process results.
 
@@ -842,7 +857,8 @@ async def _submit_and_poll_batch(requests, pending, tier_key, process_fn,
 
     batch_id = _submit_batch(uncached_requests, tier_key, batch_manager, out,
                               trace_context, batch_trace_ids,
-                              jurisdiction, issue_type_single, run_id)
+                              jurisdiction, issue_type_single, run_id,
+                              source_type=source_type)
 
     await _poll_batch(batch_id, batch_manager, out, poll_interval)
 
@@ -905,17 +921,33 @@ def _store_batch_results_in_cache(cache, batch_id, requests, request_hashes,
             cache.store_batch(entries)
             print(f"  Cache: stored {len(entries)} new responses")
     except (psycopg.Error, anthropic.APIError) as e:
-        print(f"  Cache store warning: {e}")
+        logger.warning("Cache store failed (non-fatal): %s", e)
 
 
 def _submit_batch(requests, tier_key, batch_manager, out,
                    trace_context, batch_trace_ids,
-                   jurisdiction, issue_type_single, run_id):
-    """Submit a batch and return batch ID."""
+                   jurisdiction, issue_type_single, run_id,
+                   source_type: str = "regulation"):
+    """Submit a batch and return batch ID. Resumes an existing in-flight batch if found."""
     issue_label = issue_type_single if issue_type_single else "multi"
+    source_suffix = "_guidance" if source_type == "guidance" else ""
+    batch_name = f"{jurisdiction}_{issue_label}_{tier_key}{source_suffix}_{run_id}"
+
+    # Check for a resumable batch (submitted but polling died before import)
+    # Use prefix without run_id since run_id changes every invocation
+    # Pass expected_count to avoid matching smaller batches from test runs
+    resume_prefix = f"{jurisdiction}_{issue_label}_{tier_key}{source_suffix}"
+    batch_id = batch_manager.find_resumable_batch(resume_prefix, expected_count=len(requests))
+    if batch_id:
+        tier_num = int(tier_key[-1]) if tier_key[-1].isdigit() else 0
+        tier_out = DualOutput(logger=None, tier=tier_num) if tier_num else out
+        tier_out.info(f"  >>> RESUMING EXISTING BATCH: {batch_id}")
+        tier_out.info(f"  >>> (skipping re-submission of {len(requests)} requests)")
+        return batch_id
+
     batch_id = batch_manager.submit_batch(
         requests=requests,
-        batch_name=f"{jurisdiction}_{issue_label}_{tier_key}_{run_id}",
+        batch_name=batch_name,
         metadata={
             "state": jurisdiction,
             "tier": tier_key,
@@ -1093,7 +1125,7 @@ def _sort_for_cache_efficiency(units: dict[str, TrackedUnit]) -> dict[str, Track
             for pu in ordered_pus
         }
     except Exception as e:
-        print(f"  Warning: Cache sort failed ({e}), using original order")
+        logger.warning("Cache sort failed, using original order: %s", e)
         return units
 
 

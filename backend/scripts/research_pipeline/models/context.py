@@ -53,6 +53,10 @@ class CrossRefEntry(BaseModel):
         default=False,
         description="Cross-ref target is a definitions section"
     )
+    is_guidance: bool = Field(
+        default=False,
+        description="True if target is a guidance document (vs regulatory document)"
+    )
 
 
 class AncestorEntry(BaseModel):

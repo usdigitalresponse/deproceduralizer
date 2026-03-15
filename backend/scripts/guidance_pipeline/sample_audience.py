@@ -22,7 +22,7 @@ from .summarize import (
     _build_user_prompt,
 )
 from scripts.research_pipeline.context.guidance_context import (
-    fetch_cited_regulation_summaries,
+    fetch_cited_document_summaries,
     build_guidance_batch_context,
 )
 
@@ -132,7 +132,7 @@ def main():
 
     # Fetch cited regulation summaries
     doc_ids = [d["id"] for d in docs]
-    cited_summaries = fetch_cited_regulation_summaries(doc_ids)
+    cited_summaries = fetch_cited_document_summaries(doc_ids)
 
     client = get_anthropic_client()
     results = []

@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field, model_validator
 from lib.batch import BatchManager, format_batch_request
 from lib.db import get_db_connection
 from scripts.research_pipeline.context.guidance_context import (
-    fetch_cited_regulation_summaries,
+    fetch_cited_document_summaries,
     build_guidance_batch_context,
 )
 
@@ -355,7 +355,7 @@ def prepare_batch(
     Returns (requests, batch_dir).
     """
     doc_ids = [d["id"] for d in docs]
-    cited_summaries = fetch_cited_regulation_summaries(doc_ids)
+    cited_summaries = fetch_cited_document_summaries(doc_ids)
 
     requests = []
     for doc in docs:
@@ -550,7 +550,7 @@ def escalate_validation_failures(
                 "content": row[9],
             })
 
-        cited_summaries = fetch_cited_regulation_summaries([d["id"] for d in docs])
+        cited_summaries = fetch_cited_document_summaries([d["id"] for d in docs])
         client = get_anthropic_client()
         fixed = 0
         still_failed = 0

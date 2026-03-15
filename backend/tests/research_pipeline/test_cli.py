@@ -4,13 +4,32 @@ CLI tests for the research pipeline.
 Uses subprocess to test actual CLI behavior rather than reimplementing argparse.
 """
 
+import os
 import subprocess
 from pathlib import Path
 
 import pytest
+from dotenv import dotenv_values
 
 # Get the backend directory for subprocess cwd
 BACKEND_DIR = Path(__file__).parent.parent.parent
+
+
+def _find_env_file() -> Path:
+    """Walk up from this file to find .env (supports git worktrees)."""
+    d = Path(__file__).resolve().parent
+    while d != d.parent:
+        if (d / ".env").exists():
+            return d / ".env"
+        d = d.parent
+    return Path()  # won't exist — will return empty dict from dotenv_values
+
+
+def _cli_env() -> dict:
+    """Build env dict for subprocess calls, merging .env with current env."""
+    env = os.environ.copy()
+    env.update(dotenv_values(_find_env_file()))
+    return env
 
 
 class TestCLIHelp:
@@ -68,6 +87,7 @@ class TestCLIHelp:
 class TestCLIDefaults:
     """Test CLI default values and cost-safe behavior."""
 
+    @pytest.mark.db
     def test_all_issues_dry_run_by_default(self):
         """--state nj --all-issues should dry-run by default (no --execute)."""
         result = subprocess.run(
@@ -76,6 +96,7 @@ class TestCLIDefaults:
             text=True,
             cwd=BACKEND_DIR,
             timeout=60,
+            env=_cli_env(),
         )
         assert result.returncode == 0, f"CLI failed: {result.stderr}"
         assert "RUNNING ALL ISSUE TYPES" in result.stdout
@@ -92,6 +113,7 @@ class TestCLIDefaults:
         assert result.returncode != 0
         assert "required" in result.stderr.lower() or "error" in result.stderr.lower()
 
+    @pytest.mark.db
     def test_single_issue_dry_run_by_default(self):
         """--issue mail_only should dry-run by default."""
         result = subprocess.run(
@@ -101,6 +123,7 @@ class TestCLIDefaults:
             text=True,
             cwd=BACKEND_DIR,
             timeout=60,
+            env=_cli_env(),
         )
         assert result.returncode == 0
         assert "RESEARCH PIPELINE" in result.stdout

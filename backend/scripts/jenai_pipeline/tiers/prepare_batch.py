@@ -123,7 +123,7 @@ def prepare_guidance_batch(
         custom_id -> guidance_document_id for result correlation.
     """
     from scripts.research_pipeline.context import (
-        fetch_cited_regulation_summaries,
+        fetch_cited_document_summaries,
         build_guidance_batch_context,
         format_guidance_preamble,
     )
@@ -133,8 +133,8 @@ def prepare_guidance_batch(
 
     doc_ids = [u.unit.document_id for u in units]
 
-    # Fetch cited regulation summaries in batch
-    cited_summaries = fetch_cited_regulation_summaries(doc_ids)
+    # Fetch cited document summaries (regulations + guidance) in batch
+    cited_summaries = fetch_cited_document_summaries(doc_ids)
 
     batch_requests = []
     custom_id_map = {}

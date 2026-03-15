@@ -39,10 +39,9 @@ from ..context import (
     fetch_document_summaries_batch,
     # V5 4-layer caching
     get_subchapter_ids_batch,
-    build_batch_context_for_subchapter,
     build_batch_context_for_subchapters,
     # Guidance context
-    fetch_cited_regulation_summaries,
+    fetch_cited_document_summaries,
     build_guidance_batch_context,
     fetch_guidance_content_batch,
     format_guidance_preamble,
@@ -254,7 +253,7 @@ def _prepare_tier1_guidance_batch(
     doc_ids = [u.document_id for u in units]
 
     # Fetch guidance-specific context
-    cited_summaries = fetch_cited_regulation_summaries(doc_ids)
+    cited_summaries = fetch_cited_document_summaries(doc_ids)
     guidance_content = fetch_guidance_content_batch(doc_ids)
 
     requests = []
@@ -306,7 +305,7 @@ def _prepare_tier1_guidance_batch(
             immediate_siblings="(not applicable for guidance documents)",
             keyword_crossref_summaries=cited_context,
             crossref_count=str(len(unit_cited)),
-            crossref_catalog="(see cited regulations above)",
+            crossref_catalog="(see cited documents above)",
             crossref_catalog_truncated="",
             sibling_titles="(not applicable)",
             crossref_citations=", ".join(r.get("citation", "") for r in unit_cited[:10]),

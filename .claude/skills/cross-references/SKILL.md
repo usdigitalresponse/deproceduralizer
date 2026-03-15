@@ -99,6 +99,32 @@ Hooks: `frontend/apps/web/src/hooks/useCrossRefHighlighting.ts`
    - Popover includes "View referenced document" link for navigation
 4. **Tree View Badges**: Documents show cross-reference counts in browse tree
 
+## Guidance Cross-Reference Resolution
+
+Guidance-to-guidance cross-references use a two-lookup system for resolution:
+
+### Lookup System
+
+1. **`canonical_lookup`**: Maps `canonical_ref` -> `guidance_documents.id`. Covers exact matches for references like `22-OCFS-ADM-02`.
+
+2. **`latest_revision_lookup`**: Maps base ref -> id of the latest revision. When a document has revisions (e.g., `22-OCFS-ADM-02-R1`), this maps the base ref (`22-OCFS-ADM-02`) to the latest revision's ID.
+
+### Reverse-Revision Resolution
+
+When a cross-reference cites a base ref (e.g., `22-OCFS-ADM-02`) but only a revised version exists in the DB (`22-OCFS-ADM-02-R1`), the resolver uses reverse-revision resolution:
+
+1. Try direct match in `canonical_lookup`
+2. Strip revision suffix and try base ref in `canonical_lookup`
+3. Try intermediate revisions in `latest_revision_lookup`
+4. **Reverse**: Try the cited ref in `latest_revision_lookup` (base -> latest revision)
+
+This ensures citations to the original document resolve to the most current revision.
+
+### Implementation
+
+- `content_cross_refs.py`: `_build_guidance_lookup()` builds both lookups, `_resolve_guidance_ref()` implements the resolution chain
+- `re_resolve_refs.py`: Re-resolves previously unresolved guidance refs using updated lookups
+
 ## Pattern Types
 
 | Type | Example | Notes |
