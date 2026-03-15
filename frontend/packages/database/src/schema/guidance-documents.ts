@@ -47,6 +47,11 @@ export const guidanceDocuments = pgTable('guidance_documents', {
 
   // Summarization & audience classification
   summary: text('summary'),
+  sectionType: varchar('section_type', { length: 50 }),
+  keywords: text('keywords').array(),
+  appliesTo: text('applies_to').array(),
+  hasForm: boolean('has_form').default(false),
+  hasIbr: boolean('has_ibr').default(false),
   audienceDirection: varchar('audience_direction', { length: 20 }),
   audienceExpertise: varchar('audience_expertise', { length: 20 }),
   audienceExplanation: text('audience_explanation'),

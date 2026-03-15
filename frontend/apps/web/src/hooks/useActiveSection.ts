@@ -25,12 +25,25 @@ export function useActiveSection(
     threshold?: number;
     root?: Element | null;
     scrollOffset?: number;
+    /** Scope element lookups to this container (avoids duplicate-ID issues
+     *  when the same sidebar content is rendered for both mobile and desktop). */
+    scope?: Element | null;
   }
 ): string | null {
   const [activeId, setActiveId] = useState<string | null>(null);
 
   useEffect(() => {
     if (sectionIds.length === 0) return;
+
+    // Scoped lookup: finds element by ID within scope (or falls back to document)
+    // This is needed because RegulationDetailLayout renders sidebar content twice
+    // (mobile <details> + desktop <div>), creating duplicate IDs in the DOM.
+    const findElement = (id: string): Element | null => {
+      if (options?.scope) {
+        return options.scope.querySelector(`#${CSS.escape(id)}`);
+      }
+      return document.getElementById(id);
+    };
 
     // For custom scroll containers, use IntersectionObserver
     if (options?.root) {
@@ -59,7 +72,7 @@ export function useActiveSection(
       );
 
       sectionIds.forEach((id) => {
-        const el = document.getElementById(id);
+        const el = findElement(id);
         if (el) observer.observe(el);
       });
 
@@ -72,7 +85,7 @@ export function useActiveSection(
     const handleScroll = () => {
       let active: string | null = null;
       for (const id of sectionIds) {
-        const el = document.getElementById(id);
+        const el = findElement(id);
         if (el && el.getBoundingClientRect().top <= offset) {
           active = id;
         }
@@ -83,7 +96,7 @@ export function useActiveSection(
     handleScroll();
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [sectionIds, options?.rootMargin, options?.threshold, options?.root, options?.scrollOffset]);
+  }, [sectionIds, options?.rootMargin, options?.threshold, options?.root, options?.scrollOffset, options?.scope]);
 
   return activeId;
 }

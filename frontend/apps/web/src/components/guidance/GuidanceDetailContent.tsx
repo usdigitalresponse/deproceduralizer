@@ -256,7 +256,7 @@ export function GuidanceDetailContent({ doc, state, crossRefHighlights }: Guidan
         {doc.content ? (
           <div
             ref={contentRef}
-            className="bg-[var(--color-neutral-50)] border-l-4 border-[var(--color-neutral-400)] p-4 rounded-[var(--radius-md)] text-sm leading-relaxed whitespace-pre-wrap break-words max-h-[600px] overflow-y-auto"
+            className="bg-[var(--color-neutral-50)] border-l-4 border-[var(--color-neutral-400)] p-4 rounded-[var(--radius-md)] text-sm leading-relaxed whitespace-pre-wrap break-words max-h-[80vh] overflow-y-auto"
           >
             {renderHighlightedContent(doc.content, crossRefMatches)}
           </div>

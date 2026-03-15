@@ -473,6 +473,18 @@ export type PromptsTabValue = (typeof PROMPTS_TAB_VALUES)[number];
 export const GUIDANCE_TAB_VALUES = ['overview', 'browse'] as const;
 export type GuidanceTabValue = (typeof GUIDANCE_TAB_VALUES)[number];
 
+export const GUIDANCE_AUDIENCE_DIRECTION_VALUES = ['all', 'public', 'government', 'both'] as const;
+export type GuidanceAudienceDirectionValue = (typeof GUIDANCE_AUDIENCE_DIRECTION_VALUES)[number];
+
+export const GUIDANCE_BROWSE_MODE_VALUES = ['flat', 'grouped'] as const;
+export type GuidanceBrowseModeValue = (typeof GUIDANCE_BROWSE_MODE_VALUES)[number];
+
+export const GUIDANCE_GROUP_BY_VALUES = ['agency', 'docType', 'policyCategory'] as const;
+export type GuidanceGroupByValue = (typeof GUIDANCE_GROUP_BY_VALUES)[number];
+
+export const GUIDANCE_GROUP_SORT_BY_VALUES = ['groupKey', 'documentCount', 'complianceIssueCount', 'jenaiIssueCount', 'avgReadingEase'] as const;
+export type GuidanceGroupSortByValue = (typeof GUIDANCE_GROUP_SORT_BY_VALUES)[number];
+
 export const GUIDANCE_SORT_BY_VALUES = ['title', 'agency', 'year', 'status', 'createdAt'] as const;
 export type GuidanceSortByValue = (typeof GUIDANCE_SORT_BY_VALUES)[number];
 

@@ -85,9 +85,13 @@ import {
   PROMPTS_TAB_VALUES,
   // Guidance
   GUIDANCE_TAB_VALUES,
+  GUIDANCE_BROWSE_MODE_VALUES,
+  GUIDANCE_GROUP_BY_VALUES,
+  GUIDANCE_GROUP_SORT_BY_VALUES,
   GUIDANCE_SORT_BY_VALUES,
   GUIDANCE_STATUS_VALUES,
   GUIDANCE_POLICY_CATEGORY_VALUES,
+  GUIDANCE_AUDIENCE_DIRECTION_VALUES,
   // Pipeline source
   PIPELINE_SOURCE_VALUES,
   // Compliance source
@@ -149,9 +153,13 @@ export type {
   PipelineSubTabValue,
   PromptsTabValue,
   GuidanceTabValue,
+  GuidanceBrowseModeValue,
+  GuidanceGroupByValue,
+  GuidanceGroupSortByValue,
   GuidanceSortByValue,
   GuidanceStatusValue,
   GuidancePolicyCategoryValue,
+  GuidanceAudienceDirectionValue,
   ComplianceSourceValue,
   JenAISourceValue,
   JenAIVerbatimValue,
@@ -723,6 +731,9 @@ export const promptsParsers = {
 // ============================================
 
 export const guidanceTabParser = parseAsStringEnum([...GUIDANCE_TAB_VALUES]).withDefault('overview');
+export const guidanceBrowseModeParser = parseAsStringEnum([...GUIDANCE_BROWSE_MODE_VALUES]).withDefault('flat');
+export const guidanceGroupByParser = parseAsStringEnum([...GUIDANCE_GROUP_BY_VALUES]).withDefault('agency');
+export const guidanceGroupSortByParser = parseAsStringEnum([...GUIDANCE_GROUP_SORT_BY_VALUES]).withDefault('documentCount');
 export const guidanceSortByParser = parseAsStringEnum([...GUIDANCE_SORT_BY_VALUES]).withDefault('year');
 export const guidanceStatusParser = parseAsStringEnum([...GUIDANCE_STATUS_VALUES]).withDefault('all');
 export const guidancePolicyCategoryParser = parseAsStringEnum([...GUIDANCE_POLICY_CATEGORY_VALUES]).withDefault('all');
@@ -730,12 +741,17 @@ export const guidanceAgencyParser = parseAsString;
 export const guidanceDocTypeParser = parseAsString;
 export const guidanceYearFromParser = parseAsInteger;
 export const guidanceYearToParser = parseAsInteger;
+export const guidanceAudienceDirectionParser = parseAsStringEnum([...GUIDANCE_AUDIENCE_DIRECTION_VALUES]).withDefault('all');
+export const guidanceSectionTypeParser = parseAsStringEnum([...SECTION_TYPE_VALUES]).withDefault('all');
 
 /**
  * Parser configuration for Guidance page
  */
 export const guidanceParsers = {
   tab: guidanceTabParser,
+  browseMode: guidanceBrowseModeParser,
+  groupBy: guidanceGroupByParser,
+  groupSortBy: guidanceGroupSortByParser,
   page: pageParser,
   pageSize: pageSizeParser,
   sortBy: guidanceSortByParser,
@@ -747,6 +763,10 @@ export const guidanceParsers = {
   yearFrom: guidanceYearFromParser,
   yearTo: guidanceYearToParser,
   search: searchParser,
+  audienceDirection: guidanceAudienceDirectionParser,
+  sectionType: guidanceSectionTypeParser,
+  hasForm: parseAsBoolean,
+  hasIbr: parseAsBoolean,
 };
 
 // ============================================

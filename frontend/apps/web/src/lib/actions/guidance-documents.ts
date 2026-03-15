@@ -21,6 +21,10 @@ import {
   type GuidanceReadabilityStats,
   type ReadabilityByAgencyRow,
   type ReadabilityCrossCutStats,
+  type GuidanceGroupByDimension,
+  type GuidanceGroupRow,
+  type PaginatedGuidanceGroupResult,
+  type GuidanceGroupDocumentsResult,
 } from '@deproceduralizer/database';
 import { type ActionResult, runAction, runCachedAction } from './types';
 
@@ -44,6 +48,10 @@ export type {
   GuidanceReadabilityStats,
   ReadabilityByAgencyRow,
   ReadabilityCrossCutStats,
+  GuidanceGroupByDimension,
+  GuidanceGroupRow,
+  PaginatedGuidanceGroupResult,
+  GuidanceGroupDocumentsResult,
 };
 
 export async function getGuidanceOverviewStats(
@@ -72,6 +80,10 @@ export async function getGuidancePaginated(
       yearFrom?: number;
       yearTo?: number;
       search?: string;
+      audienceDirection?: string;
+      sectionType?: string;
+      hasForm?: boolean;
+      hasIbr?: boolean;
     };
   }
 ): Promise<ActionResult<PaginatedGuidanceResult>> {
@@ -83,7 +95,11 @@ export async function getGuidancePaginated(
   const yearFrom = filters?.yearFrom ?? '';
   const yearTo = filters?.yearTo ?? '';
   const search = filters?.search ?? '';
-  const cacheKey = `guidance-paginated-${state}-${page}-${pageSize}-${sortBy}-${sortOrder}-${agency}-${docType}-${policyCategory}-${status}-${yearFrom}-${yearTo}-${search}`;
+  const audienceDirection = filters?.audienceDirection ?? '';
+  const sectionType = filters?.sectionType ?? '';
+  const hasForm = filters?.hasForm ?? '';
+  const hasIbr = filters?.hasIbr ?? '';
+  const cacheKey = `guidance-paginated-${state}-${page}-${pageSize}-${sortBy}-${sortOrder}-${agency}-${docType}-${policyCategory}-${status}-${yearFrom}-${yearTo}-${search}-${audienceDirection}-${sectionType}-${hasForm}-${hasIbr}`;
 
   return runCachedAction(
     'getGuidancePaginated',
@@ -221,5 +237,81 @@ export async function getGuidanceComplianceAnalysisSummary(
 ): Promise<ActionResult<GuidanceComplianceAnalysisSummary>> {
   return runAction('getGuidanceComplianceAnalysisSummary', () =>
     complianceIssuesRepo.getGuidanceComplianceAnalysisSummary(guidanceDocumentId)
+  );
+}
+
+export async function getGuidanceGrouped(
+  state: JurisdictionCode,
+  options: {
+    groupBy: GuidanceGroupByDimension;
+    page: number;
+    pageSize: number;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
+    filters?: {
+      agency?: string;
+      docType?: string;
+      policyCategory?: string;
+      status?: string;
+      yearFrom?: number;
+      yearTo?: number;
+      search?: string;
+      audienceDirection?: string;
+      sectionType?: string;
+      hasForm?: boolean;
+      hasIbr?: boolean;
+    };
+  }
+): Promise<ActionResult<PaginatedGuidanceGroupResult>> {
+  const { groupBy, page, pageSize, sortBy = 'documentCount', sortOrder = 'desc', filters } = options;
+  const agency = filters?.agency ?? '';
+  const docType = filters?.docType ?? '';
+  const policyCategory = filters?.policyCategory ?? '';
+  const status = filters?.status ?? '';
+  const yearFrom = filters?.yearFrom ?? '';
+  const yearTo = filters?.yearTo ?? '';
+  const search = filters?.search ?? '';
+  const audienceDirection = filters?.audienceDirection ?? '';
+  const sectionType = filters?.sectionType ?? '';
+  const hasForm = filters?.hasForm ?? '';
+  const hasIbr = filters?.hasIbr ?? '';
+  const cacheKey = `guidance-grouped-${state}-${groupBy}-${page}-${pageSize}-${sortBy}-${sortOrder}-${agency}-${docType}-${policyCategory}-${status}-${yearFrom}-${yearTo}-${search}-${audienceDirection}-${sectionType}-${hasForm}-${hasIbr}`;
+
+  return runCachedAction(
+    'getGuidanceGrouped',
+    () => guidanceRepo.getGroupedPaginated({
+      jurisdiction: state,
+      groupBy,
+      page,
+      pageSize,
+      sortBy,
+      sortOrder,
+      filters: filters || undefined,
+    }),
+    [cacheKey],
+    { revalidate: 120, tags: ['guidance'] }
+  );
+}
+
+export async function getGuidanceGroupDocuments(
+  state: JurisdictionCode,
+  groupBy: GuidanceGroupByDimension,
+  groupValue: string,
+  filters?: {
+    agency?: string;
+    docType?: string;
+    policyCategory?: string;
+    status?: string;
+    yearFrom?: number;
+    yearTo?: number;
+    search?: string;
+    audienceDirection?: string;
+    sectionType?: string;
+    hasForm?: boolean;
+    hasIbr?: boolean;
+  }
+): Promise<ActionResult<GuidanceGroupDocumentsResult>> {
+  return runAction('getGuidanceGroupDocuments', () =>
+    guidanceRepo.getDocumentsForGroup(state, groupBy, groupValue, filters || undefined)
   );
 }

@@ -160,6 +160,26 @@ export function GuidanceOverviewTab({ stats, lineageStats, readabilityStats, cro
             );
           }}
         </ChartContainer>
+
+        {/* By Audience Direction */}
+        {(stats?.byAudienceDirection ?? []).length > 0 && (
+          <ChartContainer title="By Audience Direction" aspectRatio={1.2} minHeight={250}>
+            {({ width, height }) => {
+              const audienceData = (stats?.byAudienceDirection ?? []).map(d => ({
+                label: formatLabel(d.audienceDirection),
+                value: d.count,
+              }));
+              return (
+                <HorizontalBarChart
+                  data={audienceData}
+                  width={width}
+                  height={height}
+                  maxBars={10}
+                />
+              );
+            }}
+          </ChartContainer>
+        )}
       </div>
 
       {/* Document Lineage Section */}

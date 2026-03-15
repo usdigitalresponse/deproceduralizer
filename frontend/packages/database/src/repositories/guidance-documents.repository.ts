@@ -2,6 +2,7 @@ import { eq, and, desc, asc, sql, count, ilike, or, gte, lte, inArray } from 'dr
 import { BaseRepository } from './base.repository';
 import { guidanceDocuments } from '../schema/guidance-documents';
 import { complianceIssues } from '../schema/compliance-issues';
+import { jenaiIssues } from '../schema/jenai-issues';
 import { crossReferences } from '../schema/cross-references';
 import { regulatoryDocuments } from '../schema/regulatory-documents';
 import { JurisdictionCode, normalizeJurisdiction } from '../schema/constants';
@@ -20,6 +21,8 @@ export interface GuidanceDocumentListItem {
   year: number | null;
   url: string | null;
   complianceIssueCount: number;
+  jenaiIssueCount: number;
+  fleschReadingEase: number | null;
 }
 
 export interface GuidanceDocumentDetail {
@@ -53,6 +56,16 @@ export interface GuidanceDocumentDetail {
   citesFederal: string[] | null;
   citesDocuments: string[] | null;
   jurisdiction: string | null;
+  summary: string | null;
+  sectionType: string | null;
+  keywords: string[] | null;
+  appliesTo: string[] | null;
+  hasForm: boolean | null;
+  hasIbr: boolean | null;
+  targetAudience: string[] | null;
+  audienceDirection: string | null;
+  audienceExpertise: string | null;
+  audienceExplanation: string | null;
   complianceIssueCount: number;
   // Readability metrics
   fleschKincaidGrade: number | null;
@@ -76,6 +89,7 @@ export interface GuidanceOverviewStats {
   byPolicyCategory: Array<{ category: string; count: number }>;
   byStatus: Array<{ status: string; count: number }>;
   byYear: Array<{ year: number; count: number }>;
+  byAudienceDirection: Array<{ audienceDirection: string; count: number }>;
 }
 
 export interface GuidancePaginationOptions {
@@ -92,6 +106,10 @@ export interface GuidancePaginationOptions {
     yearFrom?: number;
     yearTo?: number;
     search?: string;
+    audienceDirection?: string;
+    sectionType?: string;
+    hasForm?: boolean;
+    hasIbr?: boolean;
   };
 }
 
@@ -261,11 +279,40 @@ export interface ReadabilityCrossCutStats {
   }>;
 }
 
-export class GuidanceDocumentsRepository extends BaseRepository {
-  async getAllPaginated(options: GuidancePaginationOptions): Promise<PaginatedGuidanceResult> {
-    const { jurisdiction, page, pageSize, sortBy = 'title', sortOrder = 'asc', filters } = options;
-    const offset = (page - 1) * pageSize;
+export type GuidanceGroupByDimension = 'agency' | 'docType' | 'policyCategory';
 
+export interface GuidanceGroupRow {
+  groupKey: string;
+  documentCount: number;
+  complianceIssueCount: number;
+  jenaiIssueCount: number;
+  yearMin: number | null;
+  yearMax: number | null;
+  avgFleschReadingEase: number | null;
+  avgFleschKincaidGrade: number | null;
+}
+
+export interface PaginatedGuidanceGroupResult {
+  data: GuidanceGroupRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export interface GuidanceGroupDocumentsResult {
+  documents: GuidanceDocumentListItem[];
+  byYear: Array<{
+    year: number | null;
+    documents: GuidanceDocumentListItem[];
+  }>;
+}
+
+export class GuidanceDocumentsRepository extends BaseRepository {
+  private buildFilterConditions(
+    jurisdiction: JurisdictionCode,
+    filters?: GuidancePaginationOptions['filters']
+  ): ReturnType<typeof eq>[] {
     const conditions: ReturnType<typeof eq>[] = [
       eq(guidanceDocuments.jurisdiction, normalizeJurisdiction(jurisdiction)),
     ];
@@ -299,8 +346,28 @@ export class GuidanceDocumentsRepository extends BaseRepository {
           )!
         );
       }
+      if (filters.audienceDirection) {
+        conditions.push(eq(guidanceDocuments.audienceDirection, filters.audienceDirection));
+      }
+      if (filters.sectionType) {
+        conditions.push(eq(guidanceDocuments.sectionType, filters.sectionType));
+      }
+      if (filters.hasForm) {
+        conditions.push(eq(guidanceDocuments.hasForm, true));
+      }
+      if (filters.hasIbr) {
+        conditions.push(eq(guidanceDocuments.hasIbr, true));
+      }
     }
 
+    return conditions;
+  }
+
+  async getAllPaginated(options: GuidancePaginationOptions): Promise<PaginatedGuidanceResult> {
+    const { jurisdiction, page, pageSize, sortBy = 'title', sortOrder = 'asc', filters } = options;
+    const offset = (page - 1) * pageSize;
+
+    const conditions = this.buildFilterConditions(jurisdiction, filters);
     const whereClause = and(...conditions);
 
     // Subquery for compliance issue count
@@ -312,6 +379,16 @@ export class GuidanceDocumentsRepository extends BaseRepository {
       .from(complianceIssues)
       .groupBy(complianceIssues.guidanceDocumentId)
       .as('issue_counts');
+
+    // Subquery for JenAI issue count
+    const jenaiCountSq = this.db
+      .select({
+        guidanceDocumentId: jenaiIssues.guidanceDocumentId,
+        count: sql<number>`count(*)::int`.as('jenai_count'),
+      })
+      .from(jenaiIssues)
+      .groupBy(jenaiIssues.guidanceDocumentId)
+      .as('jenai_counts');
 
     // Build sort column
     const sortColumn = {
@@ -341,9 +418,12 @@ export class GuidanceDocumentsRepository extends BaseRepository {
           year: guidanceDocuments.year,
           url: guidanceDocuments.url,
           complianceIssueCount: sql<number>`coalesce(${issueCountSq.count}, 0)`.mapWith(Number),
+          jenaiIssueCount: sql<number>`coalesce(${jenaiCountSq.count}, 0)`.mapWith(Number),
+          fleschReadingEase: guidanceDocuments.fleschReadingEase,
         })
         .from(guidanceDocuments)
         .leftJoin(issueCountSq, eq(guidanceDocuments.id, issueCountSq.guidanceDocumentId))
+        .leftJoin(jenaiCountSq, eq(guidanceDocuments.id, jenaiCountSq.guidanceDocumentId))
         .where(whereClause)
         .orderBy(primarySort, secondarySort)
         .limit(pageSize)
@@ -400,6 +480,16 @@ export class GuidanceDocumentsRepository extends BaseRepository {
         citesFederal: guidanceDocuments.citesFederal,
         citesDocuments: guidanceDocuments.citesDocuments,
         jurisdiction: guidanceDocuments.jurisdiction,
+        summary: guidanceDocuments.summary,
+        sectionType: guidanceDocuments.sectionType,
+        keywords: guidanceDocuments.keywords,
+        appliesTo: guidanceDocuments.appliesTo,
+        hasForm: guidanceDocuments.hasForm,
+        hasIbr: guidanceDocuments.hasIbr,
+        targetAudience: guidanceDocuments.targetAudience,
+        audienceDirection: guidanceDocuments.audienceDirection,
+        audienceExpertise: guidanceDocuments.audienceExpertise,
+        audienceExplanation: guidanceDocuments.audienceExplanation,
         complianceIssueCount: sql<number>`(${issueCountResult})`.mapWith(Number),
         fleschKincaidGrade: guidanceDocuments.fleschKincaidGrade,
         fleschReadingEase: guidanceDocuments.fleschReadingEase,
@@ -426,7 +516,7 @@ export class GuidanceDocumentsRepository extends BaseRepository {
     const baseCondition = eq(guidanceDocuments.jurisdiction, stateUpper);
 
     // Run all aggregate queries in parallel
-    const [totalResult, byAgency, byDocType, byPolicyCategory, byStatus, byYear] = await Promise.all([
+    const [totalResult, byAgency, byDocType, byPolicyCategory, byStatus, byYear, byAudienceDirection] = await Promise.all([
       this.db
         .select({ count: sql<number>`count(*)::int` })
         .from(guidanceDocuments)
@@ -476,6 +566,15 @@ export class GuidanceDocumentsRepository extends BaseRepository {
         .where(and(baseCondition, sql`${guidanceDocuments.year} IS NOT NULL`))
         .groupBy(guidanceDocuments.year)
         .orderBy(desc(guidanceDocuments.year)),
+      this.db
+        .select({
+          audienceDirection: guidanceDocuments.audienceDirection,
+          count: sql<number>`count(*)::int`,
+        })
+        .from(guidanceDocuments)
+        .where(and(baseCondition, sql`${guidanceDocuments.audienceDirection} IS NOT NULL`))
+        .groupBy(guidanceDocuments.audienceDirection)
+        .orderBy(desc(sql`count(*)`)),
     ]);
 
     const total = totalResult[0].count;
@@ -504,6 +603,10 @@ export class GuidanceDocumentsRepository extends BaseRepository {
           year: row.year,
           count: row.count,
         })),
+      byAudienceDirection: byAudienceDirection.map(row => ({
+        audienceDirection: row.audienceDirection || 'Unknown',
+        count: row.count,
+      })),
     };
   }
 
@@ -1575,6 +1678,214 @@ export class GuidanceDocumentsRepository extends BaseRepository {
         bucket: r.bucket,
         avgSeverity: Number(r.avg_severity),
         docCount: Number(r.doc_count),
+      })),
+    };
+  }
+
+  private buildFilterSqlFragments(
+    jurisdiction: JurisdictionCode,
+    filters?: GuidancePaginationOptions['filters']
+  ): { whereClauses: ReturnType<typeof sql>[]; params: unknown[] } {
+    const stateUpper = normalizeJurisdiction(jurisdiction);
+    const clauses: ReturnType<typeof sql>[] = [sql`gd.jurisdiction = ${stateUpper}`];
+
+    if (filters) {
+      if (filters.agency) clauses.push(sql`gd.agency = ${filters.agency}`);
+      if (filters.docType) clauses.push(sql`gd.doc_type = ${filters.docType}`);
+      if (filters.policyCategory) clauses.push(sql`gd.policy_category = ${filters.policyCategory}`);
+      if (filters.status) clauses.push(sql`gd.status = ${filters.status}`);
+      if (filters.yearFrom) clauses.push(sql`gd.year >= ${filters.yearFrom}`);
+      if (filters.yearTo) clauses.push(sql`gd.year <= ${filters.yearTo}`);
+      if (filters.search) {
+        const searchTerm = `%${filters.search}%`;
+        clauses.push(sql`(gd.title ILIKE ${searchTerm} OR gd.canonical_ref ILIKE ${searchTerm} OR gd.agency ILIKE ${searchTerm})`);
+      }
+      if (filters.audienceDirection) clauses.push(sql`gd.audience_direction = ${filters.audienceDirection}`);
+      if (filters.sectionType) clauses.push(sql`gd.section_type = ${filters.sectionType}`);
+      if (filters.hasForm) clauses.push(sql`gd.has_form = true`);
+      if (filters.hasIbr) clauses.push(sql`gd.has_ibr = true`);
+    }
+
+    return { whereClauses: clauses, params: [] };
+  }
+
+  async getGroupedPaginated(options: {
+    jurisdiction: JurisdictionCode;
+    groupBy: GuidanceGroupByDimension;
+    page: number;
+    pageSize: number;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
+    filters?: GuidancePaginationOptions['filters'];
+  }): Promise<PaginatedGuidanceGroupResult> {
+    const { jurisdiction, groupBy, page, pageSize, sortBy = 'documentCount', sortOrder = 'desc', filters } = options;
+    const offset = (page - 1) * pageSize;
+
+    const dimensionCol: Record<GuidanceGroupByDimension, string> = {
+      agency: 'gd.agency',
+      docType: 'gd.doc_type',
+      policyCategory: 'gd.policy_category',
+    };
+    const col = dimensionCol[groupBy];
+
+    const { whereClauses } = this.buildFilterSqlFragments(jurisdiction, filters);
+    const whereSQL = sql.join(whereClauses, sql` AND `);
+
+    const sortColMap: Record<string, ReturnType<typeof sql>> = {
+      groupKey: sql`group_key`,
+      documentCount: sql`document_count`,
+      complianceIssueCount: sql`compliance_issue_count`,
+      jenaiIssueCount: sql`jenai_issue_count`,
+      avgReadingEase: sql`avg_reading_ease`,
+    };
+    const sortCol = sortColMap[sortBy] ?? sql`document_count`;
+    const orderDir = sortOrder === 'asc' ? sql`ASC` : sql`DESC`;
+
+    const dimColSql = sql.raw(col);
+
+    const [countResult, dataResult] = await Promise.all([
+      this.db.execute<{ total: number }>(sql`
+        SELECT COUNT(DISTINCT COALESCE(${dimColSql}, 'Unknown'))::int AS total
+        FROM guidance_documents gd
+        WHERE ${whereSQL}
+      `),
+      this.db.execute<{
+        group_key: string;
+        document_count: number;
+        compliance_issue_count: number;
+        jenai_issue_count: number;
+        year_min: number | null;
+        year_max: number | null;
+        avg_reading_ease: number | null;
+        avg_grade_level: number | null;
+      }>(sql`
+        SELECT
+          COALESCE(${dimColSql}, 'Unknown') AS group_key,
+          COUNT(DISTINCT gd.id)::int AS document_count,
+          COUNT(DISTINCT ci.id)::int AS compliance_issue_count,
+          COUNT(DISTINCT ji.id)::int AS jenai_issue_count,
+          MIN(gd.year) AS year_min,
+          MAX(gd.year) AS year_max,
+          AVG(gd.flesch_reading_ease)::numeric(5,1) AS avg_reading_ease,
+          AVG(gd.flesch_kincaid_grade)::numeric(5,1) AS avg_grade_level
+        FROM guidance_documents gd
+        LEFT JOIN compliance_issues ci ON ci.guidance_document_id = gd.id
+        LEFT JOIN jenai_issues ji ON ji.guidance_document_id = gd.id
+        WHERE ${whereSQL}
+        GROUP BY 1
+        ORDER BY ${sortCol} ${orderDir}
+        LIMIT ${pageSize} OFFSET ${offset}
+      `),
+    ]);
+
+    const total = countResult.rows[0]?.total ?? 0;
+    const toNum = (v: number | null) => v !== null ? Number(v) : null;
+
+    return {
+      data: dataResult.rows.map(row => ({
+        groupKey: row.group_key,
+        documentCount: row.document_count,
+        complianceIssueCount: row.compliance_issue_count,
+        jenaiIssueCount: row.jenai_issue_count,
+        yearMin: row.year_min,
+        yearMax: row.year_max,
+        avgFleschReadingEase: toNum(row.avg_reading_ease),
+        avgFleschKincaidGrade: toNum(row.avg_grade_level),
+      })),
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
+  }
+
+  async getDocumentsForGroup(
+    jurisdiction: JurisdictionCode,
+    groupBy: GuidanceGroupByDimension,
+    groupValue: string,
+    filters?: GuidancePaginationOptions['filters']
+  ): Promise<GuidanceGroupDocumentsResult> {
+    const conditions = this.buildFilterConditions(jurisdiction, filters);
+
+    // Add the group constraint
+    const dimensionField = {
+      agency: guidanceDocuments.agency,
+      docType: guidanceDocuments.docType,
+      policyCategory: guidanceDocuments.policyCategory,
+    }[groupBy];
+
+    if (groupValue === 'Unknown') {
+      conditions.push(sql`${dimensionField} IS NULL`);
+    } else {
+      conditions.push(eq(dimensionField, groupValue));
+    }
+
+    const whereClause = and(...conditions);
+
+    const issueCountSq = this.db
+      .select({
+        guidanceDocumentId: complianceIssues.guidanceDocumentId,
+        count: sql<number>`count(*)::int`.as('issue_count'),
+      })
+      .from(complianceIssues)
+      .groupBy(complianceIssues.guidanceDocumentId)
+      .as('issue_counts');
+
+    const jenaiCountSq = this.db
+      .select({
+        guidanceDocumentId: jenaiIssues.guidanceDocumentId,
+        count: sql<number>`count(*)::int`.as('jenai_count'),
+      })
+      .from(jenaiIssues)
+      .groupBy(jenaiIssues.guidanceDocumentId)
+      .as('jenai_counts');
+
+    const results = await this.db
+      .select({
+        id: guidanceDocuments.id,
+        catalogId: guidanceDocuments.catalogId,
+        canonicalRef: guidanceDocuments.canonicalRef,
+        title: guidanceDocuments.title,
+        agency: guidanceDocuments.agency,
+        docType: guidanceDocuments.docType,
+        policyCategory: guidanceDocuments.policyCategory,
+        status: guidanceDocuments.status,
+        year: guidanceDocuments.year,
+        url: guidanceDocuments.url,
+        complianceIssueCount: sql<number>`coalesce(${issueCountSq.count}, 0)`.mapWith(Number),
+        jenaiIssueCount: sql<number>`coalesce(${jenaiCountSq.count}, 0)`.mapWith(Number),
+        fleschReadingEase: guidanceDocuments.fleschReadingEase,
+      })
+      .from(guidanceDocuments)
+      .leftJoin(issueCountSq, eq(guidanceDocuments.id, issueCountSq.guidanceDocumentId))
+      .leftJoin(jenaiCountSq, eq(guidanceDocuments.id, jenaiCountSq.guidanceDocumentId))
+      .where(whereClause)
+      .orderBy(desc(guidanceDocuments.year), asc(guidanceDocuments.title));
+
+    // Bucket by year in JS
+    const yearMap = new Map<number | null, GuidanceDocumentListItem[]>();
+    for (const doc of results) {
+      const key = doc.year;
+      const bucket = yearMap.get(key);
+      if (bucket) {
+        bucket.push(doc);
+      } else {
+        yearMap.set(key, [doc]);
+      }
+    }
+
+    // Sort year keys descending (null last)
+    const sortedYears = [...yearMap.keys()].sort((a, b) => {
+      if (a === null) return 1;
+      if (b === null) return -1;
+      return b - a;
+    });
+
+    return {
+      documents: results,
+      byYear: sortedYears.map(year => ({
+        year,
+        documents: yearMap.get(year)!,
       })),
     };
   }

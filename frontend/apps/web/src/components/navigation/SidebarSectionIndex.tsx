@@ -19,12 +19,16 @@ export function SidebarSectionIndex({ sections, children }: SidebarSectionIndexP
   const sectionIds = useMemo(() => sections.map((s) => s.id), [sections]);
   const contentRef = useRef<HTMLDivElement>(null);
   const [scrollRoot, setScrollRoot] = useState<Element | null>(null);
+  const [contentScope, setContentScope] = useState<Element | null>(null);
   const [isContentVisible, setIsContentVisible] = useState(true);
 
-  // Find the sidebar scroll container (aside) to use as IntersectionObserver root
+  // Find the sidebar scroll container (aside) and set content scope for scoped element lookups.
+  // Scoping is needed because RegulationDetailLayout renders sidebar content twice
+  // (mobile <details> + desktop <div>), creating duplicate IDs in the DOM.
   useEffect(() => {
     if (contentRef.current) {
       setScrollRoot(contentRef.current.closest('aside'));
+      setContentScope(contentRef.current);
     }
   }, []);
 
@@ -32,6 +36,7 @@ export function SidebarSectionIndex({ sections, children }: SidebarSectionIndexP
     // Offset: 48px for sticky pill nav height, detect in top 40% of sidebar
     rootMargin: '-48px 0px -60% 0px',
     root: scrollRoot,
+    scope: contentScope,
   });
 
   // Hide nav when sidebar content scrolls out of viewport (e.g., at page footer)
@@ -51,7 +56,9 @@ export function SidebarSectionIndex({ sections, children }: SidebarSectionIndexP
   }, []);
 
   const scrollToSection = useCallback((id: string) => {
-    const el = document.getElementById(id);
+    // Scope lookup to contentRef to find the visible element (avoids duplicate-ID
+    // issues from RegulationDetailLayout rendering sidebar for mobile + desktop)
+    const el = contentRef.current?.querySelector(`#${CSS.escape(id)}`) ?? document.getElementById(id);
     if (!el) return;
 
     // Find the sidebar scroll container (aside with overflow-y-auto)

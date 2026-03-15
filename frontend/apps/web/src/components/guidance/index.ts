@@ -1,7 +1,6 @@
 export { GuidanceClient } from './GuidanceClient';
 export { GuidanceBrowseTab } from './GuidanceBrowseTab';
 export { GuidanceTable } from './GuidanceTable';
-export { GuidanceDetailSidebar } from './GuidanceDetailSidebar';
 export { GuidanceDetailContent } from './GuidanceDetailContent';
 export { GuidanceComplianceCard } from './GuidanceComplianceCard';
 export { GuidanceStatusBadge } from './GuidanceStatusBadge';
@@ -10,3 +9,4 @@ export { DocumentLineageViewer } from './DocumentLineageViewer';
 export { SupersedureChain } from './SupersedureChain';
 export { LinkedCitationList } from './LinkedCitationList';
 export { GuidanceBookmarkButton } from './GuidanceBookmarkButton';
+export { GroupedGuidanceTable } from './GroupedGuidanceTable';

@@ -4144,7 +4144,21 @@ Four stat cards (Total Documents, Active, Agencies, Policy Categories) plus four
 
 ### GuidanceBrowseTab
 
-Inline filter bar with dropdowns for agency, doc type, policy category, status, plus search input. Uses `GuidanceTable` for display. Pagination at bottom. All filter/sort state managed via `useQueryStates(guidanceParsers)`.
+Supports two browse modes via `SegmentedControl` toggle (Flat / Grouped), following the same pattern as the cross-references table's flat/grouped mode.
+
+**Flat mode** (default): Inline filter bar with dropdowns for agency, doc type, policy category, status, plus search input. Uses `GuidanceTable` for display. Pagination at bottom.
+
+**Grouped mode**: Documents aggregated by a selectable dimension (Agency, Doc Type, or Policy Category) via a `Select` dropdown. Shows `GroupedGuidanceTable` with aggregate stats per group. Sort controls are inline in the grouped table headers, not in the `FilterBar`.
+
+All filter/sort/mode state managed via `useQueryStates(guidanceParsers)`.
+
+### GroupedGuidanceTable
+
+Grouped/collapsible table for guidance documents, following the `GroupedCrossRefsTable` pattern from cross-references. Group row columns: expand toggle, Group Name, Documents count, Compliance Issues, JenAI Issues, Year range, Avg Readability (`ReadabilityBadge`). Sortable column headers for group-level metrics.
+
+**Expansion behavior**: Click group row to toggle. First expand lazy-loads documents via `getGuidanceGroupDocuments` server action. Cached in component state; cache cleared when filters/groupBy change.
+
+**Year sub-groups**: Expanded content is bucketed by year using collapsible `YearSection` sub-components. Each year section shows compact document rows (Ref, Title, Type, Status, Issues).
 
 ### GuidanceTable
 
@@ -4158,9 +4172,21 @@ Status badge mapping: `active` → success, `superseded` → warning, `canceled`
 
 Badge for policy category values (eligibility, compliance, fiscal, etc.) with distinct color variants per category.
 
-### GuidanceDetailSidebar
+### GuidanceSidebarWithNav
 
-Metadata card on the detail page showing agency, division, doc type, policy category, dates, programs, sender info, distribution, and cited regulations/documents.
+Thin client wrapper around `SidebarSectionIndex` for the guidance detail page. Provides scrollspy pill navigation at the top of the sidebar, matching the `RegulationSidebarWithNav` pattern. Sections are built conditionally based on available data (Summary, Metadata, Readability, Compliance, JenAI, Lineage). Lives in `app/[state]/guidance/[id]/GuidanceSidebarWithNav.tsx`.
+
+The guidance detail page uses `RegulationDetailLayout` for its two-column sticky layout (same as regulation and statute pages), with all sidebar content inlined in `page.tsx` and wrapped in `GuidanceSidebarWithNav`. The former `GuidanceDetailSidebar` component is no longer used — its content is rendered directly in the page for easier section ID assignment.
+
+### AudienceCard
+
+Audience classification card rendered in the guidance detail sidebar below the metadata card. Shows:
+- **Direction badge**: `public` (green), `government` (blue), `both` (yellow)
+- **Expertise badge**: `lay` (green), `specialized` (yellow), `mixed` (default)
+- **Target Audience** as `Tag` chips (e.g., "Local DSS", "Child Care Providers")
+- **Explanation** as muted text paragraph
+
+Returns `null` when all audience fields are empty.
 
 ### GuidanceDetailContent
 
@@ -4188,12 +4214,14 @@ components/guidance/
 ├── index.ts                  # Barrel exports
 ├── GuidanceClient.tsx        # Tab switching client component
 ├── GuidanceOverviewTab.tsx   # Overview analytics
-├── GuidanceBrowseTab.tsx     # Filter + table + pagination
-├── GuidanceTable.tsx         # Clickable data table
+├── GuidanceBrowseTab.tsx     # Filter + flat/grouped toggle + conditional render
+├── GuidanceTable.tsx         # Flat clickable data table
+├── GroupedGuidanceTable.tsx  # Grouped/collapsible table with lazy-load expansion
 ├── GuidanceStatusBadge.tsx   # Status badge
 ├── PolicyCategoryBadge.tsx   # Policy category badge
-├── GuidanceDetailSidebar.tsx # Detail page metadata sidebar
+├── GuidanceDetailSidebar.tsx # (deprecated — sidebar content inlined in page.tsx)
 ├── GuidanceDetailContent.tsx # Detail page content display
+├── AudienceCard.tsx         # Audience classification metadata card
 ├── DocumentLineageViewer.tsx    # Full transitive document lineage timeline
 ├── LinkedCitationList.tsx       # Linked citation list
 └── GuidanceBookmarkButton.tsx   # Bookmark toggle for guidance detail page
@@ -4508,7 +4536,7 @@ Sidebar card on guidance document detail pages showing readability metrics. Only
 - 2-column grid of detailed scores: FK Grade, Gunning Fog, ARI, Coleman-Liau, SMOG, Dale-Chall, Linsear Write
 - Word count, sentence count, and difficult word percentage
 
-Uses `Card` + `CardHeader`/`CardTitle` layout with CSS variable styling matching `GuidanceDetailSidebar`.
+Uses `Card` + `CardHeader`/`CardTitle` layout with CSS variable styling.
 
 ```tsx
 import { ReadabilityMetricsCard } from '@/components/guidance/ReadabilityMetricsCard';
