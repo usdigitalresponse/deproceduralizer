@@ -1,6 +1,7 @@
 'use client';
 
 import { HTMLAttributes } from 'react';
+import { ClickableTag } from '@/components/tags/ClickableTag';
 
 export type SectionType =
   | 'definitions'
@@ -23,6 +24,8 @@ interface SectionTypeBadgeProps extends HTMLAttributes<HTMLSpanElement> {
   type: string | null | undefined;
   /** Show abbreviated version for compact displays */
   compact?: boolean;
+  /** When provided, wraps the badge with ClickableTag using this field name */
+  tagField?: string;
 }
 
 const SECTION_TYPE_STYLES: Record<SectionType, { bg: string; text: string }> = {
@@ -91,6 +94,7 @@ const SECTION_TYPE_ABBREV: Record<SectionType, string> = {
 export function SectionTypeBadge({
   type,
   compact = false,
+  tagField,
   className = '',
   ...props
 }: SectionTypeBadgeProps) {
@@ -105,7 +109,7 @@ export function SectionTypeBadge({
     ? SECTION_TYPE_ABBREV[normalizedType] ?? type.toUpperCase().slice(0, 4)
     : SECTION_TYPE_LABELS[normalizedType] ?? type;
 
-  return (
+  const badge = (
     <span
       className={`
         inline-flex items-center
@@ -122,6 +126,16 @@ export function SectionTypeBadge({
       {label}
     </span>
   );
+
+  if (tagField) {
+    return (
+      <ClickableTag field={tagField} value={type}>
+        {badge}
+      </ClickableTag>
+    );
+  }
+
+  return badge;
 }
 
 export default SectionTypeBadge;

@@ -24,6 +24,9 @@ importers:
       '@nivo/chord':
         specifier: ^0.99.0
         version: 0.99.0(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
+      '@nivo/sankey':
+        specifier: ^0.99.0
+        version: 0.99.0(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
       '@radix-ui/react-dialog':
         specifier: ^1.1.15
         version: 1.1.15(@types/react-dom@19.2.3(@types/react@19.2.7))(@types/react@19.2.7)(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
@@ -85,8 +88,8 @@ importers:
         specifier: 19.2.1
         version: 19.2.1(react@19.2.1)
       react-force-graph-2d:
-        specifier: ^1.29.0
-        version: 1.29.0(react@19.2.1)
+        specifier: ^1.29.1
+        version: 1.29.1(react@19.2.1)
       react-markdown:
         specifier: ^10.1.0
         version: 10.1.0(@types/react@19.2.7)(react@19.2.1)
@@ -994,6 +997,11 @@ packages:
     peerDependencies:
       react: ^16.14 || ^17.0 || ^18.0 || ^19.0
 
+  '@nivo/sankey@0.99.0':
+    resolution: {integrity: sha512-u5hySywsachjo9cHdUxCR9qwD6gfRVPEAcpuIUKiA0WClDjdGbl3vkrQcQcFexJUBThqSSbwGCDWR+2INXSbTw==}
+    peerDependencies:
+      react: ^16.14 || ^17.0 || ^18.0 || ^19.0
+
   '@nivo/text@0.99.0':
     resolution: {integrity: sha512-ho3oZpAZApsJNjsIL5WJSAdg/wjzTBcwo1KiHBlRGUmD+yUWO8qp7V+mnYRhJchwygtRVALlPgZ/rlcW2Xr/MQ==}
     peerDependencies:
@@ -1622,6 +1630,9 @@ packages:
   '@types/d3-path@3.1.1':
     resolution: {integrity: sha512-VMZBYyQvbGmWyWVea0EHs/BwLgxc+MKi1zLDCONksozI4YJMcTt8ZEuIR4Sb1MMTE8MMW49v0IwI5+b7RmfWlg==}
 
+  '@types/d3-sankey@0.11.2':
+    resolution: {integrity: sha512-U6SrTWUERSlOhnpSrgvMX64WblX1AxX6nEjI2t3mLK2USpQrnbwYYK+AS9SwiE7wgYmOsSSKoSdr8aoKBH0HgQ==}
+
   '@types/d3-scale-chromatic@3.1.0':
     resolution: {integrity: sha512-iWMJgwkK7yTRmWqRB5plb1kadXyQ5Sj8V/zYlFGMUBbIPKQScw+Dku9cAAMgJG+z5GYDoMjWGLVOvjghDEFnKQ==}
 
@@ -2222,6 +2233,9 @@ packages:
     resolution: {integrity: sha512-04xDrxQTDTCFwP5H6hRhsRcb9xxv2RzkcsygFzmkSIOJy3PeRJP7sNk3VRIbKXcog561P9oU0/rVH6vDROAgUw==}
     engines: {node: '>=12'}
 
+  d3-sankey@0.12.3:
+    resolution: {integrity: sha512-nQhsBRmM19Ax5xEIPLMY9ZmJ/cDvd1BG3UVvt5h3WRxKg5zGRbvnteTyWAbzeSvlh3tW7ZEmq4VwR5mB3tutmQ==}
+
   d3-scale-chromatic@3.1.0:
     resolution: {integrity: sha512-A3s5PWiZ9YCXFye1o246KoscMWqf8BsD9eRiJ3He7C9OBaxKhAd5TFCdEx/7VbKtxxTsu//1mMJFrEt572cEyQ==}
     engines: {node: '>=12'}
@@ -2698,8 +2712,8 @@ packages:
     resolution: {integrity: sha512-dKx12eRCVIzqCxFGplyFKJMPvLEWgmNtUrpTiJIR5u97zEhRG8ySrtboPHZXx7daLxQVrl643cTzbab2tkQjxg==}
     engines: {node: '>= 0.4'}
 
-  force-graph@1.51.0:
-    resolution: {integrity: sha512-aTnihCmiMA0ItLJLCbrQYS9mzriopW24goFPgUnKAAmAlPogTSmFWqoBPMXzIfPb7bs04Hur5zEI4WYgLW3Sig==}
+  force-graph@1.51.2:
+    resolution: {integrity: sha512-zZNdMqx8qIQGurgnbgYIUsdXxSfvhfRSIdncsKGv/twUOZpwCsk9hPHmdjdcme1+epATgb41G0rkIGHJ0Wydng==}
     engines: {node: '>=12'}
 
   fsevents@2.3.2:
@@ -3142,8 +3156,8 @@ packages:
     resolution: {integrity: sha512-iPZK6eYjbxRu3uB4/WZ3EsEIMJFMqAoopl3R+zuq0UjcAm/MO6KCweDgPfP3elTztoKP3KtnVHxTn2NHBSDVUw==}
     engines: {node: '>=10'}
 
-  lodash-es@4.17.22:
-    resolution: {integrity: sha512-XEawp1t0gxSi9x01glktRZ5HDy0HXqrM0x5pXQM98EaI0NxO6jVM7omDOxsuEo5UIASAnm2bRp1Jt/e0a2XU8Q==}
+  lodash-es@4.17.23:
+    resolution: {integrity: sha512-kVI48u3PZr38HdYz98UmfPnXl2DXrpdctLrFLCd3kOx1xUkOmpFPx7gCWWM5MPkL/fD8zb+Ph0QzjGFs4+hHWg==}
 
   lodash.merge@4.6.2:
     resolution: {integrity: sha512-0KpjqXRVvrYyCsX1swR/XTK0va6VQkQM6MNo7PqW77ByjAhoARA8EfrP1N4+KlKj8YS0ZUCtRT/YUuhyYDujIQ==}
@@ -3488,8 +3502,8 @@ packages:
   postgres-range@1.1.4:
     resolution: {integrity: sha512-i/hbxIE9803Alj/6ytL7UHQxRvZkI9O4Sy+J3HGc4F4oo/2eQAjTSNJ0bfxyse3bH0nuVesCk+3IRLaMtG3H6w==}
 
-  preact@10.28.1:
-    resolution: {integrity: sha512-u1/ixq/lVQI0CakKNvLDEcW5zfCjUQfZdK9qqWuIJtsezuyG6pk9TWj75GMuI/EzRSZB/VAE43sNWWZfiy8psw==}
+  preact@10.29.0:
+    resolution: {integrity: sha512-wSAGyk2bYR1c7t3SZ3jHcM6xy0lcBcDel6lODcs9ME6Th++Dx2KU+6D3HD8wMMKGA8Wpw7OMd3/4RGzYRpzwRg==}
 
   prelude-ls@1.2.1:
     resolution: {integrity: sha512-vkcDPrRZo1QZLbn5RLGPpg/WmIQ65qoWWhcGKf/b5eplkkarX0m9z8ppCat4mlOqUsWpyNuYgO3VRyrYHSzX5g==}
@@ -3516,8 +3530,8 @@ packages:
     peerDependencies:
       react: ^19.2.1
 
-  react-force-graph-2d@1.29.0:
-    resolution: {integrity: sha512-Xv5IIk+hsZmB3F2ibja/t6j/b0/1T9dtFOQacTUoLpgzRHrO6wPu1GtQ2LfRqI/imgtaapnXUgQaE8g8enPo5w==}
+  react-force-graph-2d@1.29.1:
+    resolution: {integrity: sha512-1Rl/1Z3xy2iTHKj6a0jRXGyiI86xUti81K+jBQZ+Oe46csaMikp47L5AjrzA9hY9fNGD63X8ffrqnvaORukCuQ==}
     engines: {node: '>=12'}
     peerDependencies:
       react: '*'
@@ -4746,6 +4760,24 @@ snapshots:
     transitivePeerDependencies:
       - react-dom
 
+  '@nivo/sankey@0.99.0(react-dom@19.2.1(react@19.2.1))(react@19.2.1)':
+    dependencies:
+      '@nivo/colors': 0.99.0(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
+      '@nivo/core': 0.99.0(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
+      '@nivo/legends': 0.99.0(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
+      '@nivo/text': 0.99.0(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
+      '@nivo/theming': 0.99.0(react@19.2.1)
+      '@nivo/tooltip': 0.99.0(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
+      '@react-spring/web': 10.0.3(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
+      '@types/d3-sankey': 0.11.2
+      '@types/d3-shape': 3.1.7
+      d3-sankey: 0.12.3
+      d3-shape: 3.2.0
+      lodash: 4.17.21
+      react: 19.2.1
+    transitivePeerDependencies:
+      - react-dom
+
   '@nivo/text@0.99.0(react-dom@19.2.1(react@19.2.1))(react@19.2.1)':
     dependencies:
       '@nivo/core': 0.99.0(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
@@ -5276,6 +5308,10 @@ snapshots:
   '@types/d3-path@1.0.11': {}
 
   '@types/d3-path@3.1.1': {}
+
+  '@types/d3-sankey@0.11.2':
+    dependencies:
+      '@types/d3-shape': 1.3.12
 
   '@types/d3-scale-chromatic@3.1.0': {}
 
@@ -5903,6 +5939,11 @@ snapshots:
 
   d3-quadtree@3.0.1: {}
 
+  d3-sankey@0.12.3:
+    dependencies:
+      d3-array: 2.12.1
+      d3-shape: 1.3.7
+
   d3-scale-chromatic@3.1.0:
     dependencies:
       d3-color: 3.1.0
@@ -6514,13 +6555,13 @@ snapshots:
     dependencies:
       d3-selection: 3.0.0
       kapsule: 1.16.3
-      preact: 10.28.1
+      preact: 10.29.0
 
   for-each@0.3.5:
     dependencies:
       is-callable: 1.2.7
 
-  force-graph@1.51.0:
+  force-graph@1.51.2:
     dependencies:
       '@tweenjs/tween.js': 25.0.0
       accessor-fn: 1.5.3
@@ -6536,7 +6577,7 @@ snapshots:
       float-tooltip: 1.7.5
       index-array-by: 1.4.2
       kapsule: 1.16.3
-      lodash-es: 4.17.22
+      lodash-es: 4.17.23
 
   fsevents@2.3.2:
     optional: true
@@ -6890,7 +6931,7 @@ snapshots:
 
   kapsule@1.16.3:
     dependencies:
-      lodash-es: 4.17.22
+      lodash-es: 4.17.23
 
   keyv@4.5.4:
     dependencies:
@@ -6964,7 +7005,7 @@ snapshots:
     dependencies:
       p-locate: 5.0.0
 
-  lodash-es@4.17.22: {}
+  lodash-es@4.17.23: {}
 
   lodash.merge@4.6.2: {}
 
@@ -7421,7 +7462,7 @@ snapshots:
 
   postgres-range@1.1.4: {}
 
-  preact@10.28.1: {}
+  preact@10.29.0: {}
 
   prelude-ls@1.2.1: {}
 
@@ -7444,9 +7485,9 @@ snapshots:
       react: 19.2.1
       scheduler: 0.27.0
 
-  react-force-graph-2d@1.29.0(react@19.2.1):
+  react-force-graph-2d@1.29.1(react@19.2.1):
     dependencies:
-      force-graph: 1.51.0
+      force-graph: 1.51.2
       prop-types: 15.8.1
       react: 19.2.1
       react-kapsule: 2.5.7(react@19.2.1)

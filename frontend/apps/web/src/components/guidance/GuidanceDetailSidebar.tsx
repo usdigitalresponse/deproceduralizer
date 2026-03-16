@@ -8,6 +8,11 @@ import { EnhancedRegulationSummary } from '@/components/regulations/EnhancedRegu
 import { GuidanceStatusBadge } from './GuidanceStatusBadge';
 import { PolicyCategoryBadge } from './PolicyCategoryBadge';
 import { LinkedCitationList } from './LinkedCitationList';
+import { SectionTypeBadge } from '@/components/ui/SectionTypeBadge';
+import { KeywordTags } from '@/components/ui/KeywordTags';
+import { MetadataIndicators } from '@/components/ui/MetadataIndicators';
+import { TagBadge } from '@/components/tags/TagBadge';
+import { ClickableTag } from '@/components/tags/ClickableTag';
 import type { GuidanceDocumentDetail, ResolvedRegulationCitation } from '@/lib/actions/guidance-documents';
 
 interface GuidanceDetailSidebarProps {
@@ -83,7 +88,7 @@ export function GuidanceDetailSidebar({ doc, state, resolvedCitations }: Guidanc
           <MetadataRow label="Domain">{doc.domain}</MetadataRow>
         )}
         <MetadataRow label="Category">
-          <PolicyCategoryBadge category={doc.policyCategory} />
+          <PolicyCategoryBadge category={doc.policyCategory} clickable />
         </MetadataRow>
         <MetadataRow label="Status">
           <GuidanceStatusBadge status={doc.status} />
@@ -129,23 +134,29 @@ export function GuidanceDetailSidebar({ doc, state, resolvedCitations }: Guidanc
             {(doc.audienceDirection || doc.audienceExpertise) && (
               <div className="flex items-center gap-2 flex-wrap mb-2">
                 {doc.audienceDirection && (
-                  <Badge variant={directionVariant[doc.audienceDirection] ?? 'default'}>
-                    {doc.audienceDirection}
-                  </Badge>
+                  <ClickableTag field="audience_direction" value={doc.audienceDirection}>
+                    <Badge variant={directionVariant[doc.audienceDirection] ?? 'default'}>
+                      {doc.audienceDirection}
+                    </Badge>
+                  </ClickableTag>
                 )}
                 {doc.audienceExpertise && (
-                  <Badge variant={expertiseVariant[doc.audienceExpertise] ?? 'default'}>
-                    {doc.audienceExpertise}
-                  </Badge>
+                  <ClickableTag field="audience_expertise" value={doc.audienceExpertise}>
+                    <Badge variant={expertiseVariant[doc.audienceExpertise] ?? 'default'}>
+                      {doc.audienceExpertise}
+                    </Badge>
+                  </ClickableTag>
                 )}
               </div>
             )}
             {doc.targetAudience && doc.targetAudience.length > 0 && (
               <div className="flex flex-wrap gap-1 mb-2">
                 {doc.targetAudience.map((audience) => (
-                  <Tag key={audience} variant="primary" size="sm">
-                    {audience}
-                  </Tag>
+                  <ClickableTag key={audience} field="target_audience" value={audience}>
+                    <Tag variant="primary" size="sm">
+                      {audience}
+                    </Tag>
+                  </ClickableTag>
                 ))}
               </div>
             )}

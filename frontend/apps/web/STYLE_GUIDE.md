@@ -491,13 +491,14 @@ import { SectionTypeBadge } from '@/components/ui/SectionTypeBadge';
 
 <SectionTypeBadge type="definitions" />
 <SectionTypeBadge type="requirements" compact />
-<SectionTypeBadge type={document.sectionType} />
+<SectionTypeBadge type={document.sectionType} tagField="guid_section_type" />
 ```
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `type` | `string \| null` | - | Section type category |
 | `compact` | `boolean` | `false` | Show abbreviated label |
+| `tagField` | `string` | - | When provided, wraps badge with ClickableTag |
 
 Section type categories (15): `definitions`, `requirements`, `procedures`, `prohibitions`, `standards`, `eligibility`, `penalties`, `fees`, `forms`, `reporting`, `purpose`, `scope`, `exemptions`, `reserved`, `other`
 
@@ -511,7 +512,7 @@ Display array of keywords with overflow handling:
 import { KeywordTags } from '@/components/ui/KeywordTags';
 
 <KeywordTags keywords={['licensing', 'fees', 'application']} />
-<KeywordTags keywords={keywords} maxDisplay={2} size="sm" />
+<KeywordTags keywords={keywords} maxDisplay={2} size="sm" tagField="guid_keywords" />
 ```
 
 | Prop | Type | Default | Description |
@@ -519,6 +520,7 @@ import { KeywordTags } from '@/components/ui/KeywordTags';
 | `keywords` | `string[] \| null` | - | Array of keywords |
 | `maxDisplay` | `number` | `3` | Max tags before "+N" |
 | `size` | `'sm' \| 'md'` | `'sm'` | Tag size |
+| `tagField` | `string` | - | When provided, each keyword becomes clickable via ClickableTag |
 
 ### MetadataIndicators
 
@@ -528,7 +530,7 @@ Icons for form references and external standards:
 import { MetadataIndicators } from '@/components/ui/MetadataIndicators';
 
 <MetadataIndicators hasForm hasIbr />
-<MetadataIndicators hasForm={document.hasForm} hasIbr={document.hasIbr} size="md" />
+<MetadataIndicators hasForm={document.hasForm} hasIbr={document.hasIbr} size="md" tagFieldPrefix="guid" />
 ```
 
 | Prop | Type | Default | Description |
@@ -536,9 +538,62 @@ import { MetadataIndicators } from '@/components/ui/MetadataIndicators';
 | `hasForm` | `boolean \| null` | - | Show form reference icon |
 | `hasIbr` | `boolean \| null` | - | Show external standards icon |
 | `size` | `'sm' \| 'md'` | `'sm'` | Icon size |
+| `tagFieldPrefix` | `string` | - | When provided, wraps indicators with ClickableTag (e.g., `guid` -> `guid_has_form`) |
 
 - Form reference: indigo FileText icon
 - External standards (IBR): green ExternalLink icon
+
+### ClickableTag
+
+Wrapper that makes any tag clickable, opening the TagDrawer:
+
+```tsx
+import { ClickableTag } from '@/components/tags/ClickableTag';
+
+<ClickableTag field="jenai_category" value={issue.category}>
+  <Badge variant="info">{categoryLabel}</Badge>
+</ClickableTag>
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `field` | `string` | - | Tag field key (from TAG_FIELDS registry) |
+| `value` | `string` | - | Tag value to explore |
+| `contextDocumentId` | `number` | - | Optional document ID for context counts |
+| `children` | `ReactNode` | - | Content to wrap |
+| `className` | `string` | - | Additional CSS classes |
+
+Renders as a `<button>` with hover ring effect. Requires `TagDrawerProvider` in the component tree (provided in `[state]/layout.tsx`).
+
+### TagBadge
+
+Pill badge for displaying tag values with domain-based colors:
+
+```tsx
+import { TagBadge } from '@/components/tags/TagBadge';
+
+<TagBadge value="existing_providers" domain="guidance" />
+<TagBadge value="fine" domain="fines" />
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `value` | `string` | - | Raw tag value (underscores replaced, title-cased) |
+| `domain` | `TagDomain` | - | Optional domain for color styling |
+| `className` | `string` | - | Additional CSS classes |
+
+Domain colors from `TAG_DOMAIN_COLORS`: regulation (indigo), guidance (amber), fines (rose), compliance (emerald), jenai (violet).
+
+### TagDrawer
+
+Slide-in drawer that opens when any ClickableTag is clicked:
+
+```tsx
+// Automatically included via [state]/layout.tsx — no manual usage needed.
+// Uses useTagDrawer() context for state management.
+```
+
+Shows: tag value, field label, total occurrences, cross-domain counts (expandable with sample links), similar tags (clickable pills), and "Explore in Tags Analytics" link.
 
 ### EmptyState
 

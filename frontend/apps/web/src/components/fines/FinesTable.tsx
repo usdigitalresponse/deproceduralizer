@@ -6,6 +6,7 @@ import { DollarSign } from 'lucide-react';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { BookmarkButton } from '@/components/ui';
 import { BookmarkNotesEditor } from '@/components/bookmarks/BookmarkNotesEditor';
+import { ClickableTag } from '@/components/tags/ClickableTag';
 import { tableRowClass, tableHeaderClass } from '@/components/ui/table-styles';
 import type { FineBookmarkInfo } from '@/lib/actions/bookmarks';
 import {
@@ -93,9 +94,11 @@ export function FinesTable({ data, state, onRowClick, bookmarkedFineIds, onToggl
                   </td>
                 )}
                 <td className="py-3 pr-3">
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${PENALTY_TYPE_COLORS[fine.penaltyType] || PENALTY_TYPE_COLORS.other}`}>
-                    {PENALTY_TYPE_LABELS[fine.penaltyType] || fine.penaltyType}
-                  </span>
+                  <ClickableTag field="penalty_type" value={fine.penaltyType}>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${PENALTY_TYPE_COLORS[fine.penaltyType] || PENALTY_TYPE_COLORS.other}`}>
+                      {PENALTY_TYPE_LABELS[fine.penaltyType] || fine.penaltyType}
+                    </span>
+                  </ClickableTag>
                 </td>
                 <td className="py-3 pr-3 text-[var(--color-text)] font-medium">
                   {fine.amount ?? '—'}
@@ -116,7 +119,13 @@ export function FinesTable({ data, state, onRowClick, bookmarkedFineIds, onToggl
                   )}
                 </td>
                 <td className="py-3 pr-3 max-w-[150px] truncate text-[var(--color-text-secondary)]" title={fine.whoPays ?? ''}>
-                  {fine.whoPays ?? '—'}
+                  {fine.whoPaysNormalized ? (
+                    <ClickableTag field="who_pays_normalized" value={fine.whoPaysNormalized}>
+                      <span>{fine.whoPays ?? '—'}</span>
+                    </ClickableTag>
+                  ) : (
+                    fine.whoPays ?? '—'
+                  )}
                 </td>
                 <td className="py-3 pr-3 text-xs text-[var(--color-text-muted)]">
                   {fine.estimatedAnnualPayers

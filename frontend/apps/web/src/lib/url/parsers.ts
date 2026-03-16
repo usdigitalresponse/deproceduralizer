@@ -823,6 +823,32 @@ export const bookmarksParsers = {
 };
 
 // ============================================
+// Tags page parsers
+// ============================================
+
+import { TAGS_TAB_VALUES } from '@/lib/constants/tags';
+
+export const tagsTabParser = parseAsStringEnum([...TAGS_TAB_VALUES]).withDefault('overview');
+export const tagDomainParser = parseAsString;
+export const tagFieldParser = parseAsString;
+export const tagTypeParser = parseAsString;
+export const tagSearchParser = parseAsString;
+export const tagFieldAParser = parseAsString;
+export const tagFieldBParser = parseAsString;
+export const readabilityFieldParser = parseAsString;
+
+export const tagsParsers = {
+  tab: tagsTabParser,
+  domains: tagDomainParser,
+  fields: tagFieldParser,
+  types: tagTypeParser,
+  search: tagSearchParser,
+  fieldA: tagFieldAParser,
+  fieldB: tagFieldBParser,
+  readField: readabilityFieldParser,
+};
+
+// ============================================
 // Burden Index page parsers
 // ============================================
 

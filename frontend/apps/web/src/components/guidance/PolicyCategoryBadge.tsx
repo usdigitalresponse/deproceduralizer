@@ -1,6 +1,7 @@
 'use client';
 
 import { Badge } from '@/components/ui/Badge';
+import { ClickableTag } from '@/components/tags/ClickableTag';
 
 const CATEGORY_CONFIG: Record<string, { variant: 'info' | 'warning' | 'success' | 'danger' | 'default'; label: string }> = {
   policy_directive: { variant: 'info', label: 'Policy Directive' },
@@ -15,12 +16,23 @@ const CATEGORY_CONFIG: Record<string, { variant: 'info' | 'warning' | 'success' 
 
 interface PolicyCategoryBadgeProps {
   category: string | null;
+  /** When true, wraps the badge with ClickableTag for policy_category field */
+  clickable?: boolean;
 }
 
-export function PolicyCategoryBadge({ category }: PolicyCategoryBadgeProps) {
+export function PolicyCategoryBadge({ category, clickable }: PolicyCategoryBadgeProps) {
   const config = category ? CATEGORY_CONFIG[category.toLowerCase()] : null;
-  if (!config) {
-    return <Badge variant="default">{category ?? 'Unclassified'}</Badge>;
+  const badge = config
+    ? <Badge variant={config.variant}>{config.label}</Badge>
+    : <Badge variant="default">{category ?? 'Unclassified'}</Badge>;
+
+  if (clickable && category) {
+    return (
+      <ClickableTag field="policy_category" value={category}>
+        {badge}
+      </ClickableTag>
+    );
   }
-  return <Badge variant={config.variant}>{config.label}</Badge>;
+
+  return badge;
 }

@@ -14,3 +14,5 @@ export * from './jenai.repository';
 export * from './guidance-documents.repository';
 export * from './fines.repository';
 export * from './agencies.repository';
+export type * from './tags.types';
+export * from './tags.repository';

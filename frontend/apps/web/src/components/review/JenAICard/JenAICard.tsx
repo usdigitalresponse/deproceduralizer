@@ -6,6 +6,7 @@ import { ExternalLink } from 'lucide-react';
 import { Badge, SeverityBadge, Tag, Button } from '@/components/ui';
 import { SectionTypeBadge } from '@/components/ui/SectionTypeBadge';
 import { MetadataIndicators } from '@/components/ui/MetadataIndicators';
+import { ClickableTag } from '@/components/tags/ClickableTag';
 import { formatNycrrCitation } from '@/lib/formatters/nycrr';
 import { CardWrapper, HierarchyBreadcrumbsInline, CornellLink, RegulationTextViewer, HierarchyTreeView } from '../shared';
 import { JENAI_CATEGORY_LABELS } from '@/lib/constants/jenai';
@@ -24,9 +25,11 @@ export const JenAICard = forwardRef<HTMLDivElement, JenAICardProps>(
       <CardWrapper ref={ref} id={`jenai-${issue.id}`} data-testid="jenai-card">
         {/* Header: category, severity, confidence, review status, source badge */}
         <div className="flex flex-wrap items-center gap-2 mb-4">
-          <Badge variant="info" className="text-xs font-medium">
-            {categoryLabel}
-          </Badge>
+          <ClickableTag field="jenai_category" value={issue.category}>
+            <Badge variant="info" className="text-xs font-medium">
+              {categoryLabel}
+            </Badge>
+          </ClickableTag>
           <SeverityBadge severity={issue.severity} />
           {issue.complexity && (
             <Badge variant={getComplexityVariant(issue.complexity)} className="text-xs">

@@ -1,6 +1,8 @@
 import { notFound } from 'next/navigation';
 import { isValidJurisdiction, type JurisdictionCode } from '@/types/state';
 import { StateContextBar } from '@/components/layout/StateContextBar';
+import { TagDrawerProvider } from '@/components/tags/useTagDrawer';
+import { TagDrawer } from '@/components/tags/TagDrawer';
 
 interface StateLayoutProps {
   children: React.ReactNode;
@@ -20,10 +22,11 @@ export default async function StateLayout({ children, params }: StateLayoutProps
   }
 
   return (
-    <>
+    <TagDrawerProvider>
       <StateContextBar jurisdiction={state as JurisdictionCode} />
       {children}
-    </>
+      <TagDrawer />
+    </TagDrawerProvider>
   );
 }
 
