@@ -10,8 +10,15 @@ export interface EmptyStateProps {
   title: string;
   /** Secondary descriptive text */
   description?: string;
+  /** Optional suggestion hint (e.g., "Did you mean...") */
+  suggestion?: string;
   /** Optional action button */
   action?: {
+    label: string;
+    onClick: () => void;
+  };
+  /** Optional secondary action (ghost/link style) */
+  actionSecondary?: {
     label: string;
     onClick: () => void;
   };
@@ -51,7 +58,9 @@ export function EmptyState({
   icon: Icon = FileSearch,
   title,
   description,
+  suggestion,
   action,
+  actionSecondary,
   className = '',
 }: EmptyStateProps) {
   return (
@@ -74,10 +83,24 @@ export function EmptyState({
           {description}
         </p>
       )}
-      {action && (
-        <Button variant="secondary" size="sm" onClick={action.onClick}>
-          {action.label}
-        </Button>
+      {suggestion && (
+        <p className="text-sm text-[var(--color-text-muted)] italic max-w-md mb-4">
+          {suggestion}
+        </p>
+      )}
+      {(action || actionSecondary) && (
+        <div className="flex items-center gap-3">
+          {action && (
+            <Button variant="secondary" size="sm" onClick={action.onClick}>
+              {action.label}
+            </Button>
+          )}
+          {actionSecondary && (
+            <Button variant="ghost" size="sm" onClick={actionSecondary.onClick}>
+              {actionSecondary.label}
+            </Button>
+          )}
+        </div>
       )}
     </div>
   );

@@ -60,7 +60,7 @@ export function AggregatedTermCard({ term, jurisdiction }: AggregatedTermCardPro
         <div className="flex-1 min-w-0">
           {/* Term heading with variant count */}
           <div className="flex items-center gap-2 flex-wrap mb-2">
-            <h3 className="text-base font-semibold text-[var(--color-text)]">
+            <h3 className="text-lg font-bold text-[var(--color-primary)]">
               {term.displayTerm}
             </h3>
             {term.variantCount > 1 && (

@@ -9,6 +9,7 @@ import { SearchInput } from '@/components/ui/SearchInput';
 import { FilterBar, FilterField } from '@/components/ui/FilterBar';
 import { Pagination } from '@/components/ui/Pagination';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { Badge } from '@/components/ui/Badge';
 import { GuidanceTable } from './GuidanceTable';
 import { GroupedGuidanceTable } from './GroupedGuidanceTable';
 import { getGuidancePaginated, getGuidanceGrouped } from '@/lib/actions/guidance-documents';
@@ -333,13 +334,17 @@ export function GuidanceBrowseTab({ jurisdiction, agencies, docTypes }: Guidance
               {total} {isGrouped ? 'group' : 'result'}{total !== 1 ? 's' : ''}
             </span>
             {hasActiveFilters && (
-              <button
-                type="button"
-                onClick={clearFilters}
-                className="text-xs text-[var(--color-primary)] hover:text-[var(--color-primary-hover)] hover:underline transition-colors"
-              >
-                ({activeFilterCount} filter{activeFilterCount !== 1 ? 's' : ''} applied — clear)
-              </button>
+              <Badge variant="info">
+                {activeFilterCount} filter{activeFilterCount !== 1 ? 's' : ''} applied
+                <span aria-hidden="true" className="mx-1">·</span>
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="underline hover:text-[var(--color-primary-hover)] transition-colors"
+                >
+                  Clear
+                </button>
+              </Badge>
             )}
           </div>
           {isGrouped ? (

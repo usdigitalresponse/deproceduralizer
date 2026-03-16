@@ -153,3 +153,10 @@ export {
   tableCellClass,
   tableRowClass,
 } from './table-styles';
+
+// InfoTooltip
+export { InfoTooltip } from './InfoTooltip';
+export type { InfoTooltipProps } from './InfoTooltip';
+
+// Skeleton
+export { Skeleton } from './Skeleton';

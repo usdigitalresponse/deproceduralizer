@@ -14,23 +14,27 @@ export function LinkedCitationList({ citations, state }: LinkedCitationListProps
   return (
     <div className="py-2 border-b border-[var(--color-neutral-100)] last:border-b-0">
       <span className="text-xs font-medium text-[var(--color-text-muted)] block mb-1">Cited Regulations</span>
-      <ul className="space-y-0.5">
+      <div className="flex flex-wrap gap-1.5">
         {citations.map((citation) => (
-          <li key={citation.citationText} className="text-xs">
-            {citation.regulationId ? (
-              <Link
-                href={`/${state}/regulations/${citation.regulationId}`}
-                className="text-[var(--color-link)] hover:text-[var(--color-link-hover)] hover:underline"
-                title={citation.regulationTitle ?? undefined}
-              >
-                {citation.citationText}
-              </Link>
-            ) : (
-              <span className="text-[var(--color-text)]">{citation.citationText}</span>
-            )}
-          </li>
+          citation.regulationId ? (
+            <Link
+              key={citation.citationText}
+              href={`/${state}/regulations/${citation.regulationId}`}
+              className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-mono bg-[var(--color-primary-weaker)] text-[var(--color-primary)] hover:bg-[var(--color-primary-weak)] transition-colors"
+              title={citation.regulationTitle ?? undefined}
+            >
+              {citation.citationText}
+            </Link>
+          ) : (
+            <span
+              key={citation.citationText}
+              className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-mono bg-[var(--color-neutral-100)] text-[var(--color-text-muted)]"
+            >
+              {citation.citationText}
+            </span>
+          )
         ))}
-      </ul>
+      </div>
     </div>
   );
 }

@@ -93,9 +93,10 @@ export const BookmarkButton = forwardRef<HTMLButtonElement, BookmarkButtonProps>
           </svg>
         ) : (
           <Star
-            className={styles.icon}
+            className={`${styles.icon} transition-transform duration-200 ${isBookmarked ? 'scale-110' : 'scale-100'}`}
             fill={isBookmarked ? 'currentColor' : 'none'}
             strokeWidth={isBookmarked ? 0 : 2}
+            style={isBookmarked ? { animation: 'bookmark-pop 300ms ease-out' } : undefined}
           />
         )}
         {showLabel && (

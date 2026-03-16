@@ -17,6 +17,8 @@ import {
 import { HorizontalBarChart } from '@/components/charts/BarChart';
 import { ISSUE_TYPE_LABELS } from '@/types/regulation';
 import { useChartColors } from '@/hooks/useChartColors';
+import { useChartNavigation } from '@/hooks/useChartNavigation';
+import type { JurisdictionCode } from '@/types/state';
 
 const LEGACY_TYPES = new Set(['in_person', 'paper_form', 'notarized', 'certified', 'reporting_requirement', 'other']);
 
@@ -31,6 +33,7 @@ interface OverviewTabProps {
   complianceSeverity: SeverityDistribution | null;
   jenaiSeverity: SeverityDistribution | null;
   jenaiStats: JenAIReviewStatusCounts | null;
+  jurisdiction?: JurisdictionCode;
 }
 
 function ReviewProgressBar({
@@ -108,8 +111,10 @@ export function OverviewTab({
   complianceSeverity,
   jenaiSeverity,
   jenaiStats,
+  jurisdiction,
 }: OverviewTabProps) {
   const colors = useChartColors();
+  const navigateToPipeline = useChartNavigation(jurisdiction ? `/${jurisdiction}/pipeline` : '/ny/pipeline');
 
   if (!dashboardStats) {
     return (
@@ -153,6 +158,11 @@ export function OverviewTab({
         .sort((a, b) => b.value - a.value)
         .slice(0, 8)
     : [];
+
+  // Reverse lookup: display label → raw key (for chart click navigation)
+  const labelToKey = complianceTypeCounts
+    ? new Map(Object.keys(complianceTypeCounts).map(key => [ISSUE_TYPE_LABELS[key] ?? key, key]))
+    : new Map<string, string>();
 
   // Coverage tile helpers
   const summaryPercent =
@@ -265,6 +275,7 @@ export function OverviewTab({
                   width={width}
                   height={height}
                   maxBars={8}
+                  onBarClick={(datum) => navigateToPipeline({ issueType: labelToKey.get(datum.label) ?? datum.label })}
                 />
               </ClientChart>
             )}

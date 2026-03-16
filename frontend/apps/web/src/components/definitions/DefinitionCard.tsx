@@ -197,7 +197,7 @@ export function DefinitionCard({
               <BookOpen className="w-3.5 h-3.5 text-[var(--color-text-muted)] flex-shrink-0" />
               <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
                 {citation && (
-                  <span className="text-xs font-mono text-[var(--color-text-muted)]">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[var(--color-primary-weaker)] text-[var(--color-primary)] text-xs font-mono">
                     {citation}
                   </span>
                 )}

@@ -44,6 +44,47 @@ function ListSection({ label, items }: { label: string; items: string[] | null }
   );
 }
 
+function DocumentDateTimeline({ doc }: { doc: GuidanceDocumentDetail }) {
+  const dates = [
+    doc.datePublished ? { label: 'Published', date: doc.datePublished } : null,
+    doc.dateEffective ? { label: 'Effective', date: doc.dateEffective } : null,
+    doc.dateRevised ? { label: 'Revised', date: doc.dateRevised } : null,
+    doc.dateExpires ? { label: 'Expires', date: doc.dateExpires } : null,
+  ].filter((d): d is { label: string; date: string } => d !== null);
+
+  if (dates.length === 0) return null;
+
+  // Fall back to plain metadata rows for single date
+  if (dates.length === 1) {
+    return <MetadataRow label={dates[0].label}>{dates[0].date}</MetadataRow>;
+  }
+
+  return (
+    <div className="py-2 border-b border-[var(--color-neutral-100)]">
+      <span className="text-xs font-medium text-[var(--color-text-muted)] block mb-2">Timeline</span>
+      <div className="relative pl-4">
+        {/* Vertical line */}
+        <div className="absolute left-[5px] top-1 bottom-1 w-px bg-[var(--color-neutral-200)]" />
+        {dates.map((d, i) => (
+          <div key={d.label} className={`relative flex items-start gap-2 ${i < dates.length - 1 ? 'pb-3' : ''}`}>
+            <div
+              className={`absolute left-[-13px] top-1 w-2.5 h-2.5 rounded-full border-2 ${
+                i === dates.length - 1
+                  ? 'bg-[var(--color-primary)] border-[var(--color-primary)]'
+                  : 'bg-[var(--color-surface)] border-[var(--color-neutral-300)]'
+              }`}
+            />
+            <div>
+              <span className="text-[10px] font-medium text-[var(--color-text-muted)] uppercase tracking-wide">{d.label}</span>
+              <span className="text-xs text-[var(--color-text)] block">{d.date}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 const directionVariant: Record<string, 'success' | 'info' | 'warning' | 'default'> = {
   public: 'success',
   government: 'info',
@@ -94,19 +135,8 @@ export function GuidanceDetailSidebar({ doc, state, resolvedCitations }: Guidanc
           <GuidanceStatusBadge status={doc.status} />
         </MetadataRow>
 
-        {/* Dates */}
-        {doc.datePublished && (
-          <MetadataRow label="Published">{doc.datePublished}</MetadataRow>
-        )}
-        {doc.dateEffective && (
-          <MetadataRow label="Effective">{doc.dateEffective}</MetadataRow>
-        )}
-        {doc.dateRevised && (
-          <MetadataRow label="Revised">{doc.dateRevised}</MetadataRow>
-        )}
-        {doc.dateExpires && (
-          <MetadataRow label="Expires">{doc.dateExpires}</MetadataRow>
-        )}
+        {/* Dates — timeline if 2+ dates, plain rows otherwise */}
+        <DocumentDateTimeline doc={doc} />
 
         {/* Sender */}
         {doc.senderName && (

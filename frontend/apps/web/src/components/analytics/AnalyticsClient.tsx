@@ -90,6 +90,7 @@ export function AnalyticsClient({
             complianceSeverity={complianceSeverity}
             jenaiSeverity={jenaiSeverity}
             jenaiStats={jenaiStats}
+            jurisdiction={jurisdiction}
           />
         )}
 

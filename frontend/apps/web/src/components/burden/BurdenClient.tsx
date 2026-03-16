@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { StatCard, StatGrid } from '@/components/ui/StatCard';
-import { Select, MultiSelect } from '@/components/ui';
+import { Select, MultiSelect, InfoTooltip } from '@/components/ui';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { FilterBar, FilterField } from '@/components/ui/FilterBar';
 import { Pagination } from '@/components/ui/Pagination';
@@ -42,6 +42,22 @@ const STRUCTURAL_CATEGORY_SHORT: Record<string, string> = {
   ONE_SIZE_FITS_ALL: 'One-Size',
   CASCADE_OF_RIGIDITY: 'Rigidity',
   UNFUNDED_MANDATE: 'Unfunded',
+};
+
+/** Concise descriptions of each structural burden category for tooltips. */
+const STRUCTURAL_CATEGORY_DESCRIPTIONS: Record<string, string> = {
+  ADMINISTRATIVE_BURDENS:
+    'Physical friction: notarization, wet signatures, in-person appearances, original documents, or unrealistic deadlines creating barriers to access.',
+  MANDATED_STEPS_NOT_OUTCOMES:
+    'Prescribes specific procedures without stating the goal, preventing better or more efficient approaches.',
+  REGULATORY_COMPLEXITY:
+    'Language so convoluted or cross-referenced that its meaning is genuinely unclear.',
+  ONE_SIZE_FITS_ALL:
+    'Uniform standards ignoring program diversity \u2014 identical requirements regardless of size, context, or risk level.',
+  CASCADE_OF_RIGIDITY:
+    'Multiple absolute mandates listed without prioritization, creating impossible compliance when goals conflict.',
+  UNFUNDED_MANDATE:
+    'Requirements imposed without appropriation or funding mechanism, forcing regulated entities to bear all costs.',
 };
 
 const sortOptions = [
@@ -459,14 +475,17 @@ export function BurdenClient({ jurisdiction, stats, categories, parts, sectionTy
                       return (
                         <span
                           key={cat}
-                          className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                          className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium ${
                             present
                               ? 'bg-[var(--color-warning-bg)] text-[var(--color-warning)] border border-[var(--color-warning)]'
                               : 'bg-[var(--color-neutral-50)] text-[var(--color-text-muted)] border border-[var(--color-neutral-200)]'
                           }`}
-                          title={formatCategoryLabel(cat)}
                         >
                           {STRUCTURAL_CATEGORY_SHORT[cat]}
+                          <InfoTooltip
+                            content={STRUCTURAL_CATEGORY_DESCRIPTIONS[cat] ?? formatCategoryLabel(cat)}
+                            size={10}
+                          />
                         </span>
                       );
                     })}

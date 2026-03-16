@@ -39,7 +39,11 @@ export function IbrClient({
   };
 
   const handleOrgBarClick = useCallback((organization: string) => {
-    setParams({ tab: 'browse' as IbrTabValue, sourceOrganization: organization, page: 1 });
+    setParams({ tab: 'browse' as IbrTabValue, sourceOrganization: organization, page: 1 }, { history: 'push' });
+  }, [setParams]);
+
+  const handleStandardClick = useCallback((search: string) => {
+    setParams({ tab: 'browse' as IbrTabValue, search, sourceOrganization: null, page: 1 }, { history: 'push' });
   }, [setParams]);
 
   return (
@@ -57,6 +61,7 @@ export function IbrClient({
             topStandards={topStandards}
             flaggedDocCount={flaggedDocCount}
             onOrgBarClick={handleOrgBarClick}
+            onStandardClick={handleStandardClick}
           />
         )}
 

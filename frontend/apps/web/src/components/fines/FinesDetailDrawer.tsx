@@ -1,15 +1,36 @@
 'use client';
 
 import Link from 'next/link';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, DollarSign, Receipt, AlertTriangle, Plus } from 'lucide-react';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerBody, DrawerClose } from '@/components/ui/Drawer';
 import { Button } from '@/components/ui/Button';
+import { InfoTooltip } from '@/components/ui';
 import { FineBookmarkProvider, FineDetailBookmark, FineDetailNotesCard } from './FineDetailBookmark';
 import { ClassificationBadge } from '@/components/issues';
 import { TierBadge } from '@/components/issues/TierProgressIndicator';
 import { SeverityBadge } from '@/components/ui/Badge';
 import { PENALTY_TYPE_LABELS, AGENCY_LEVEL_LABELS, AGENCY_LEVEL_COLORS, ACTIVITY_CATEGORY_LABELS, ESTIMATED_PAYERS_LABELS } from '@/lib/constants/fines';
 import type { FineWithContext } from '@/lib/actions/fines';
+import type { LucideIcon } from 'lucide-react';
+
+const PENALTY_TYPE_ICONS: Record<string, LucideIcon> = {
+  fine: DollarSign,
+  fee: Receipt,
+  penalty: AlertTriangle,
+  surcharge: Plus,
+};
+
+const WHO_PAYS_TOOLTIPS: Record<string, string> = {
+  licensee: 'The holder of the license, permit, or certification',
+  applicant: 'The person or entity applying for a license or permit',
+  owner: 'The property or business owner responsible',
+  operator: 'The entity operating the regulated facility or activity',
+};
+
+function getWhoPaysTooltip(whoPays: string): string {
+  const key = whoPays.toLowerCase().trim();
+  return WHO_PAYS_TOOLTIPS[key] ?? 'The party responsible for the regulated activity';
+}
 
 interface FinesDetailDrawerProps {
   fine: FineWithContext | null;
@@ -38,6 +59,10 @@ export function FinesDetailDrawer({ fine, open, onOpenChange, state, onBookmarkC
             <DrawerHeader>
               <div className="flex-1 min-w-0">
                 <DrawerTitle>
+                  {(() => {
+                    const Icon = PENALTY_TYPE_ICONS[fine.penaltyType] ?? DollarSign;
+                    return <Icon className="w-4 h-4 inline-block mr-1.5 align-text-bottom text-[var(--color-text-secondary)]" />;
+                  })()}
                   {PENALTY_TYPE_LABELS[fine.penaltyType] || fine.penaltyType}: {fine.amount || 'Amount not specified'}
                 </DrawerTitle>
                 <div className="flex items-center gap-2 mt-1">
@@ -104,8 +129,9 @@ export function FinesDetailDrawer({ fine, open, onOpenChange, state, onBookmarkC
                     <h4 className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-2">
                       Who Pays
                     </h4>
-                    <p className="text-sm text-[var(--color-text)]">
+                    <p className="text-sm text-[var(--color-text)] flex items-center gap-1.5">
                       {fine.whoPays}
+                      <InfoTooltip content={getWhoPaysTooltip(fine.whoPays)} size={13} />
                     </p>
                   </div>
                 )}
