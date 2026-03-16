@@ -7,6 +7,8 @@ import { zebraRowClass, hoverRowClass, tableHeaderClass } from '@/components/ui/
 import { Badge } from '@/components/ui/Badge';
 import { GuidanceStatusBadge } from './GuidanceStatusBadge';
 import { PolicyCategoryBadge } from './PolicyCategoryBadge';
+import { ReadabilityBadge } from './ReadabilityBadge';
+import { formatLabel } from '@/types/regulation';
 import type { GuidanceDocumentListItem } from '@/lib/actions/guidance-documents';
 
 const AVATAR_COLORS = [
@@ -62,6 +64,8 @@ export function GuidanceTable({ data, state }: GuidanceTableProps) {
             <th className={`${tableHeaderClass} bg-[var(--color-neutral-50)]`}>Type</th>
             <th className={`${tableHeaderClass} bg-[var(--color-neutral-50)]`}>Category</th>
             <th className={`${tableHeaderClass} bg-[var(--color-neutral-50)]`}>Status</th>
+            <th className={`${tableHeaderClass} bg-[var(--color-neutral-50)]`}>Readability</th>
+            <th className={`${tableHeaderClass} bg-[var(--color-neutral-50)]`}>Audience</th>
             <th className={`${tableHeaderClass} bg-[var(--color-neutral-50)] text-right`}>Year</th>
           </tr>
         </thead>
@@ -106,6 +110,25 @@ export function GuidanceTable({ data, state }: GuidanceTableProps) {
               </td>
               <td className="py-3 pr-3">
                 <GuidanceStatusBadge status={doc.status} />
+              </td>
+              <td className="py-3 pr-3">
+                <ReadabilityBadge score={doc.fleschReadingEase} />
+              </td>
+              <td className="py-3 pr-3">
+                {doc.targetAudience && doc.targetAudience.length > 0 ? (
+                  <div className="flex flex-wrap gap-1">
+                    {doc.targetAudience.slice(0, 2).map(a => (
+                      <Badge key={a} variant="default">{formatLabel(a)}</Badge>
+                    ))}
+                    {doc.targetAudience.length > 2 && (
+                      <Badge variant="default" title={doc.targetAudience.map(formatLabel).join(', ')}>
+                        +{doc.targetAudience.length - 2}
+                      </Badge>
+                    )}
+                  </div>
+                ) : (
+                  <span className="text-[var(--color-text-muted)]">—</span>
+                )}
               </td>
               <td className="py-3 text-right text-[var(--color-text-muted)]">
                 {doc.year ?? '—'}

@@ -93,6 +93,8 @@ import {
   GUIDANCE_STATUS_VALUES,
   GUIDANCE_POLICY_CATEGORY_VALUES,
   GUIDANCE_AUDIENCE_DIRECTION_VALUES,
+  GUIDANCE_READABILITY_VALUES,
+  GUIDANCE_AUDIENCE_EXPERTISE_VALUES,
   // Pipeline source
   PIPELINE_SOURCE_VALUES,
   // Compliance source
@@ -161,6 +163,9 @@ export type {
   GuidanceStatusValue,
   GuidancePolicyCategoryValue,
   GuidanceAudienceDirectionValue,
+  GuidanceReadabilityValue,
+  GuidanceAudienceExpertiseValue,
+  GuidanceTargetAudienceValue,
   ComplianceSourceValue,
   JenAISourceValue,
   JenAIVerbatimValue,
@@ -746,6 +751,9 @@ export const guidanceYearFromParser = parseAsInteger;
 export const guidanceYearToParser = parseAsInteger;
 export const guidanceAudienceDirectionParser = parseAsStringEnum([...GUIDANCE_AUDIENCE_DIRECTION_VALUES]).withDefault('all');
 export const guidanceSectionTypeParser = parseAsStringEnum([...SECTION_TYPE_VALUES]).withDefault('all');
+export const guidanceReadabilityParser = parseAsStringEnum([...GUIDANCE_READABILITY_VALUES]).withDefault('all');
+export const guidanceAudienceExpertiseParser = parseAsStringEnum([...GUIDANCE_AUDIENCE_EXPERTISE_VALUES]).withDefault('all');
+export const guidanceTargetAudienceParser = parseAsString; // comma-separated for MultiSelect
 
 /**
  * Parser configuration for Guidance page
@@ -768,6 +776,9 @@ export const guidanceParsers = {
   search: searchParser,
   audienceDirection: guidanceAudienceDirectionParser,
   sectionType: guidanceSectionTypeParser,
+  readability: guidanceReadabilityParser,
+  audienceExpertise: guidanceAudienceExpertiseParser,
+  targetAudience: guidanceTargetAudienceParser,
   hasForm: parseAsBoolean,
   hasIbr: parseAsBoolean,
 };

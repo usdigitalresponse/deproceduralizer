@@ -5,7 +5,7 @@ import { complianceIssues } from '../schema/compliance-issues';
 import { jenaiIssues } from '../schema/jenai-issues';
 import { crossReferences } from '../schema/cross-references';
 import { regulatoryDocuments } from '../schema/regulatory-documents';
-import { JurisdictionCode, normalizeJurisdiction } from '../schema/constants';
+import { JurisdictionCode, normalizeJurisdiction, READABILITY_TIERS, type ReadabilityTier } from '../schema/constants';
 // Note: policyCategory values are from POLICY_CATEGORIES, status from GUIDANCE_STATUSES
 // in ../schema/guidance-documents.ts. Drizzle infers text() as string, not the union type.
 
@@ -23,6 +23,7 @@ export interface GuidanceDocumentListItem {
   complianceIssueCount: number;
   jenaiIssueCount: number;
   fleschReadingEase: number | null;
+  targetAudience: string[] | null;
   excludeFromAnalysis: boolean | null;
 }
 
@@ -96,13 +97,15 @@ export interface GuidanceOverviewStats {
   byStatus: Array<{ status: string; count: number }>;
   byYear: Array<{ year: number; count: number }>;
   byAudienceDirection: Array<{ audienceDirection: string; count: number }>;
+  byTargetAudience: Array<{ audience: string; count: number }>;
+  byAudienceExpertise: Array<{ expertise: string; count: number }>;
 }
 
 export interface GuidancePaginationOptions {
   jurisdiction: JurisdictionCode;
   page: number;
   pageSize: number;
-  sortBy?: 'title' | 'agency' | 'year' | 'status' | 'createdAt';
+  sortBy?: 'title' | 'agency' | 'year' | 'status' | 'createdAt' | 'readability';
   sortOrder?: 'asc' | 'desc';
   filters?: {
     agency?: string;
@@ -116,6 +119,9 @@ export interface GuidancePaginationOptions {
     sectionType?: string;
     hasForm?: boolean;
     hasIbr?: boolean;
+    readability?: string;
+    targetAudience?: string[];
+    audienceExpertise?: string;
   };
 }
 
@@ -315,6 +321,10 @@ export interface GuidanceGroupDocumentsResult {
 }
 
 export class GuidanceDocumentsRepository extends BaseRepository {
+  private getReadabilityScoreRange(tier: string): { min: number; max: number } | null {
+    return READABILITY_TIERS[tier as ReadabilityTier] ?? null;
+  }
+
   private buildFilterConditions(
     jurisdiction: JurisdictionCode,
     filters?: GuidancePaginationOptions['filters']
@@ -364,6 +374,25 @@ export class GuidanceDocumentsRepository extends BaseRepository {
       if (filters.hasIbr) {
         conditions.push(eq(guidanceDocuments.hasIbr, true));
       }
+      if (filters.readability) {
+        const range = this.getReadabilityScoreRange(filters.readability);
+        if (range) {
+          if (range.min !== -Infinity) {
+            conditions.push(gte(guidanceDocuments.fleschReadingEase, range.min));
+          }
+          if (range.max !== Infinity) {
+            conditions.push(sql`${guidanceDocuments.fleschReadingEase} < ${range.max}`);
+          }
+        }
+      }
+      if (filters.targetAudience && filters.targetAudience.length > 0) {
+        // Drizzle binds JS arrays as scalars — build a proper ARRAY[...]::text[] literal
+        const audienceArray = sql`ARRAY[${sql.join(filters.targetAudience.map(v => sql`${v}`), sql`, `)}]::text[]`;
+        conditions.push(sql`${guidanceDocuments.targetAudience} && ${audienceArray}`);
+      }
+      if (filters.audienceExpertise) {
+        conditions.push(eq(guidanceDocuments.audienceExpertise, filters.audienceExpertise));
+      }
     }
 
     return conditions;
@@ -403,9 +432,14 @@ export class GuidanceDocumentsRepository extends BaseRepository {
       year: guidanceDocuments.year,
       status: guidanceDocuments.status,
       createdAt: guidanceDocuments.createdAt,
+      readability: guidanceDocuments.fleschReadingEase,
     }[sortBy];
 
-    const primarySort = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
+    // NULLS LAST for nullable sort columns so nulls always appear at the end
+    const needsNullsLast = sortBy === 'year' || sortBy === 'readability';
+    const primarySort = needsNullsLast
+      ? (sortOrder === 'asc' ? sql`${sortColumn} ASC NULLS LAST` : sql`${sortColumn} DESC NULLS LAST`)
+      : (sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn));
     const secondarySort = asc(guidanceDocuments.id);
 
     // Run count and data queries in parallel
@@ -426,6 +460,7 @@ export class GuidanceDocumentsRepository extends BaseRepository {
           complianceIssueCount: sql<number>`coalesce(${issueCountSq.count}, 0)`.mapWith(Number),
           jenaiIssueCount: sql<number>`coalesce(${jenaiCountSq.count}, 0)`.mapWith(Number),
           fleschReadingEase: guidanceDocuments.fleschReadingEase,
+          targetAudience: guidanceDocuments.targetAudience,
           excludeFromAnalysis: guidanceDocuments.excludeFromAnalysis,
         })
         .from(guidanceDocuments)
@@ -527,7 +562,7 @@ export class GuidanceDocumentsRepository extends BaseRepository {
     const baseCondition = eq(guidanceDocuments.jurisdiction, stateUpper);
 
     // Run all aggregate queries in parallel
-    const [totalResult, byAgency, byDocType, byPolicyCategory, byStatus, byYear, byAudienceDirection] = await Promise.all([
+    const [totalResult, byAgency, byDocType, byPolicyCategory, byStatus, byYear, byAudienceDirection, byTargetAudience, byAudienceExpertise] = await Promise.all([
       this.db
         .select({ count: sql<number>`count(*)::int` })
         .from(guidanceDocuments)
@@ -586,6 +621,22 @@ export class GuidanceDocumentsRepository extends BaseRepository {
         .where(and(baseCondition, sql`${guidanceDocuments.audienceDirection} IS NOT NULL`))
         .groupBy(guidanceDocuments.audienceDirection)
         .orderBy(desc(sql`count(*)`)),
+      // Unnest the target_audience array to get per-value counts
+      this.db.execute<{ audience: string; count: number }>(sql`
+        SELECT unnest(target_audience) AS audience, count(*)::int AS count
+        FROM guidance_documents
+        WHERE jurisdiction = ${stateUpper} AND target_audience IS NOT NULL
+        GROUP BY 1 ORDER BY 2 DESC
+      `),
+      this.db
+        .select({
+          expertise: guidanceDocuments.audienceExpertise,
+          count: sql<number>`count(*)::int`,
+        })
+        .from(guidanceDocuments)
+        .where(and(baseCondition, sql`${guidanceDocuments.audienceExpertise} IS NOT NULL`))
+        .groupBy(guidanceDocuments.audienceExpertise)
+        .orderBy(desc(sql`count(*)`)),
     ]);
 
     const total = totalResult[0].count;
@@ -616,6 +667,14 @@ export class GuidanceDocumentsRepository extends BaseRepository {
         })),
       byAudienceDirection: byAudienceDirection.map(row => ({
         audienceDirection: row.audienceDirection || 'Unknown',
+        count: row.count,
+      })),
+      byTargetAudience: byTargetAudience.rows.map(row => ({
+        audience: row.audience,
+        count: row.count,
+      })),
+      byAudienceExpertise: byAudienceExpertise.map(row => ({
+        expertise: row.expertise || 'Unknown',
         count: row.count,
       })),
     };
@@ -1715,6 +1774,18 @@ export class GuidanceDocumentsRepository extends BaseRepository {
       if (filters.sectionType) clauses.push(sql`gd.section_type = ${filters.sectionType}`);
       if (filters.hasForm) clauses.push(sql`gd.has_form = true`);
       if (filters.hasIbr) clauses.push(sql`gd.has_ibr = true`);
+      if (filters.readability) {
+        const range = this.getReadabilityScoreRange(filters.readability);
+        if (range) {
+          if (range.min !== -Infinity) clauses.push(sql`gd.flesch_reading_ease >= ${range.min}`);
+          if (range.max !== Infinity) clauses.push(sql`gd.flesch_reading_ease < ${range.max}`);
+        }
+      }
+      if (filters.targetAudience && filters.targetAudience.length > 0) {
+        const audienceArray = sql`ARRAY[${sql.join(filters.targetAudience.map(v => sql`${v}`), sql`, `)}]::text[]`;
+        clauses.push(sql`gd.target_audience && ${audienceArray}`);
+      }
+      if (filters.audienceExpertise) clauses.push(sql`gd.audience_expertise = ${filters.audienceExpertise}`);
     }
 
     return { whereClauses: clauses, params: [] };
@@ -1866,6 +1937,7 @@ export class GuidanceDocumentsRepository extends BaseRepository {
         complianceIssueCount: sql<number>`coalesce(${issueCountSq.count}, 0)`.mapWith(Number),
         jenaiIssueCount: sql<number>`coalesce(${jenaiCountSq.count}, 0)`.mapWith(Number),
         fleschReadingEase: guidanceDocuments.fleschReadingEase,
+        targetAudience: guidanceDocuments.targetAudience,
         excludeFromAnalysis: guidanceDocuments.excludeFromAnalysis,
       })
       .from(guidanceDocuments)

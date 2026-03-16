@@ -1,18 +1,26 @@
 'use client';
 
 import { Badge } from '@/components/ui/Badge';
+import { READABILITY_TIERS } from '@/lib/constants/values';
 
 interface ReadabilityConfig {
   variant: 'danger' | 'warning' | 'default' | 'success';
   label: string;
 }
 
+const TIER_DISPLAY: Record<string, ReadabilityConfig> = {
+  very_difficult: { variant: 'danger', label: 'Very Difficult' },
+  difficult: { variant: 'warning', label: 'Difficult' },
+  fairly_difficult: { variant: 'warning', label: 'Fairly Difficult' },
+  standard: { variant: 'default', label: 'Standard' },
+  easy: { variant: 'success', label: 'Easy' },
+};
+
 function getReadabilityConfig(score: number): ReadabilityConfig {
-  if (score < 30) return { variant: 'danger', label: 'Very Difficult' };
-  if (score < 50) return { variant: 'warning', label: 'Difficult' };
-  if (score < 60) return { variant: 'warning', label: 'Fairly Difficult' };
-  if (score < 70) return { variant: 'default', label: 'Standard' };
-  return { variant: 'success', label: 'Easy' };
+  for (const [tier, { max }] of Object.entries(READABILITY_TIERS)) {
+    if (score < max) return TIER_DISPLAY[tier];
+  }
+  return TIER_DISPLAY.easy;
 }
 
 export function getReadabilityLabel(score: number): string {

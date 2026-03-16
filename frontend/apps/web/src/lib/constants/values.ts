@@ -488,7 +488,7 @@ export type GuidanceGroupByValue = (typeof GUIDANCE_GROUP_BY_VALUES)[number];
 export const GUIDANCE_GROUP_SORT_BY_VALUES = ['groupKey', 'documentCount', 'complianceIssueCount', 'jenaiIssueCount', 'avgReadingEase'] as const;
 export type GuidanceGroupSortByValue = (typeof GUIDANCE_GROUP_SORT_BY_VALUES)[number];
 
-export const GUIDANCE_SORT_BY_VALUES = ['title', 'agency', 'year', 'status', 'createdAt'] as const;
+export const GUIDANCE_SORT_BY_VALUES = ['title', 'agency', 'year', 'status', 'createdAt', 'readability'] as const;
 export type GuidanceSortByValue = (typeof GUIDANCE_SORT_BY_VALUES)[number];
 
 export const GUIDANCE_STATUS_VALUES = ['all', 'active', 'superseded', 'canceled', 'expired'] as const;
@@ -499,6 +499,30 @@ export const GUIDANCE_POLICY_CATEGORY_VALUES = [
   'informational', 'reference_material', 'non_policy', 'data_dump', 'unclassified'
 ] as const;
 export type GuidancePolicyCategoryValue = (typeof GUIDANCE_POLICY_CATEGORY_VALUES)[number];
+
+export const GUIDANCE_READABILITY_VALUES = ['all', 'very_difficult', 'difficult', 'fairly_difficult', 'standard', 'easy'] as const;
+export type GuidanceReadabilityValue = (typeof GUIDANCE_READABILITY_VALUES)[number];
+
+/** Flesch Reading Ease score ranges for readability tiers.
+ * Matches READABILITY_TIERS in database/schema/constants.ts — keep in sync. */
+export const READABILITY_TIERS = {
+  very_difficult: { min: -Infinity, max: 30 },
+  difficult: { min: 30, max: 50 },
+  fairly_difficult: { min: 50, max: 60 },
+  standard: { min: 60, max: 70 },
+  easy: { min: 70, max: Infinity },
+} as const;
+
+export const GUIDANCE_AUDIENCE_EXPERTISE_VALUES = ['all', 'lay', 'specialized', 'mixed'] as const;
+export type GuidanceAudienceExpertiseValue = (typeof GUIDANCE_AUDIENCE_EXPERTISE_VALUES)[number];
+
+export const GUIDANCE_TARGET_AUDIENCE_VALUES = [
+  'local_district_staff', 'government_internal', 'existing_providers',
+  'families', 'small_businesses', 'legal_practitioners', 'childcare_providers',
+  'prospective_providers', 'licensed_professionals', 'healthcare_providers',
+  'general_public', 'nonprofits', 'educators'
+] as const;
+export type GuidanceTargetAudienceValue = (typeof GUIDANCE_TARGET_AUDIENCE_VALUES)[number];
 
 // ============================================
 // Filter Sentinels

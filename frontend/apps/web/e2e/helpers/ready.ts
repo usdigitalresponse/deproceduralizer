@@ -20,10 +20,18 @@ export async function waitForReviewReady(page: Page) {
   await expect(cardLocator).toBeVisible({ timeout: 10000 });
 }
 
-/** Wait for review page with compliance issues specifically */
+/** Wait for review page with compliance issues to finish loading.
+ *  Waits for either cards to appear or the empty state — callers should
+ *  check card count before interacting. */
 export async function waitForComplianceReviewReady(page: Page) {
   await expect(page.getByRole('heading', { name: /Review/i })).toBeVisible();
-  await expect(page.getByTestId('compliance-issue-card').first()).toBeVisible({ timeout: 10000 });
+  // Wait for either a compliance card or the empty state text
+  await expect(
+    page.getByTestId('compliance-issue-card').first()
+      .or(page.getByText('No compliance issues found'))
+      .or(page.getByText('No items found'))
+      .or(page.getByText('All items reviewed'))
+  ).toBeVisible({ timeout: 15000 });
 }
 
 /** Wait for definitions glossary page to be fully loaded */

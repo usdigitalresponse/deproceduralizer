@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef, type ComponentType } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo, type ComponentType } from 'react';
 import { List, Layers } from 'lucide-react';
 import { useQueryStates } from 'nuqs';
 import { Card } from '@/components/ui/Card';
 import { Select } from '@/components/ui/Select';
+import { MultiSelect } from '@/components/ui';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { FilterBar, FilterField } from '@/components/ui/FilterBar';
 import { Pagination } from '@/components/ui/Pagination';
@@ -12,12 +13,17 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Badge } from '@/components/ui/Badge';
 import { GuidanceTable } from './GuidanceTable';
 import { GroupedGuidanceTable } from './GroupedGuidanceTable';
-import { getGuidancePaginated, getGuidanceGrouped } from '@/lib/actions/guidance-documents';
+import { getGuidancePaginated, getGuidanceGrouped, getGuidanceOverviewStats } from '@/lib/actions/guidance-documents';
+import type { GuidanceOverviewStats } from '@/lib/actions/guidance-documents';
 import { guidanceParsers } from '@/lib/url/parsers';
+import { parseCommaSeparated, serializeCommaSeparated } from '@/lib/url/filter-helpers';
 import {
   GUIDANCE_STATUS_VALUES,
   GUIDANCE_POLICY_CATEGORY_VALUES,
   GUIDANCE_AUDIENCE_DIRECTION_VALUES,
+  GUIDANCE_READABILITY_VALUES,
+  GUIDANCE_AUDIENCE_EXPERTISE_VALUES,
+  GUIDANCE_TARGET_AUDIENCE_VALUES,
   SECTION_TYPE_VALUES,
 } from '@/lib/constants/values';
 import { formatLabel } from '@/types/regulation';
@@ -37,6 +43,7 @@ const sortOptions = [
   { value: 'year', label: 'Year' },
   { value: 'status', label: 'Status' },
   { value: 'createdAt', label: 'Date Added' },
+  { value: 'readability', label: 'Readability' },
 ];
 
 const browseModeOptions: Array<{ value: GuidanceBrowseModeValue; label: string; icon?: ComponentType<{ className?: string }> }> = [
@@ -70,6 +77,21 @@ const sectionTypeOptions = SECTION_TYPE_VALUES.map(v => ({
   label: v === 'all' ? 'All Section Types' : formatLabel(v),
 }));
 
+const readabilityOptions = GUIDANCE_READABILITY_VALUES.map(v => ({
+  value: v,
+  label: v === 'all' ? 'All Readability' : formatLabel(v),
+}));
+
+const audienceExpertiseBaseOptions = GUIDANCE_AUDIENCE_EXPERTISE_VALUES.map(v => ({
+  value: v,
+  label: v === 'all' ? 'All Expertise' : formatLabel(v),
+}));
+
+const targetAudienceBaseOptions = GUIDANCE_TARGET_AUDIENCE_VALUES.map(v => ({
+  value: v,
+  label: formatLabel(v),
+}));
+
 export function GuidanceBrowseTab({ jurisdiction, agencies, docTypes }: GuidanceBrowseTabProps) {
   const [params, setParams] = useQueryStates(guidanceParsers, { shallow: true });
 
@@ -83,11 +105,39 @@ export function GuidanceBrowseTab({ jurisdiction, agencies, docTypes }: Guidance
   const [groupedTotalPages, setGroupedTotalPages] = useState(0);
 
   const [isLoading, setIsLoading] = useState(false);
+  const [stats, setStats] = useState<GuidanceOverviewStats | null>(null);
   const fetchCounterRef = useRef(0);
 
   const isGrouped = params.browseMode === 'grouped';
   const total = isGrouped ? groupedTotal : flatTotal;
   const totalPages = isGrouped ? groupedTotalPages : Math.ceil(flatTotal / params.pageSize);
+
+  const selectedTargetAudiences = useMemo(() => parseCommaSeparated(params.targetAudience), [params.targetAudience]);
+
+  // Fetch overview stats once for MultiSelect counts
+  useEffect(() => {
+    getGuidanceOverviewStats(jurisdiction).then(result => {
+      if (result.success) setStats(result.data);
+    });
+  }, [jurisdiction]);
+
+  const targetAudienceOptions = useMemo(() => {
+    if (!stats?.byTargetAudience) return targetAudienceBaseOptions;
+    const countMap = new Map(stats.byTargetAudience.map(d => [d.audience, d.count]));
+    return targetAudienceBaseOptions.map(opt => ({
+      ...opt,
+      count: countMap.get(opt.value) ?? 0,
+    }));
+  }, [stats?.byTargetAudience]);
+
+  const audienceExpertiseOptions = useMemo(() => {
+    if (!stats?.byAudienceExpertise) return audienceExpertiseBaseOptions;
+    const countMap = new Map(stats.byAudienceExpertise.map(d => [d.expertise, d.count]));
+    return audienceExpertiseBaseOptions.map(opt => ({
+      ...opt,
+      label: opt.value === 'all' ? opt.label : `${opt.label} (${countMap.get(opt.value) ?? 0})`,
+    }));
+  }, [stats?.byAudienceExpertise]);
 
   const agencyOptions = [
     { value: 'all', label: 'All Agencies' },
@@ -111,6 +161,9 @@ export function GuidanceBrowseTab({ jurisdiction, agencies, docTypes }: Guidance
     sectionType: params.sectionType !== 'all' ? params.sectionType : undefined,
     hasForm: params.hasForm || undefined,
     hasIbr: params.hasIbr || undefined,
+    readability: params.readability !== 'all' ? params.readability : undefined,
+    targetAudience: selectedTargetAudiences.length > 0 ? selectedTargetAudiences : undefined,
+    audienceExpertise: params.audienceExpertise !== 'all' ? params.audienceExpertise : undefined,
   };
 
   const fetchData = useCallback(async () => {
@@ -162,6 +215,10 @@ export function GuidanceBrowseTab({ jurisdiction, agencies, docTypes }: Guidance
     setParams({ [key]: value, page: 1 } as Parameters<typeof setParams>[0]);
   }, [setParams]);
 
+  const handleMultiFilterChange = useCallback((key: string, values: string[]) => {
+    setParams({ [key]: serializeCommaSeparated(values), page: 1 } as Parameters<typeof setParams>[0]);
+  }, [setParams]);
+
   const handlePageChange = useCallback((newPage: number) => {
     setParams({ page: newPage } as Parameters<typeof setParams>[0]);
   }, [setParams]);
@@ -189,6 +246,9 @@ export function GuidanceBrowseTab({ jurisdiction, agencies, docTypes }: Guidance
     params.search,
     params.audienceDirection && params.audienceDirection !== 'all',
     params.sectionType && params.sectionType !== 'all',
+    params.readability && params.readability !== 'all',
+    params.audienceExpertise && params.audienceExpertise !== 'all',
+    selectedTargetAudiences.length > 0,
     params.hasForm,
     params.hasIbr,
   ].filter(Boolean).length;
@@ -206,6 +266,9 @@ export function GuidanceBrowseTab({ jurisdiction, agencies, docTypes }: Guidance
       search: null,
       audienceDirection: 'all',
       sectionType: 'all',
+      readability: 'all',
+      audienceExpertise: 'all',
+      targetAudience: null,
       hasForm: null,
       hasIbr: null,
       page: 1,
@@ -277,7 +340,7 @@ export function GuidanceBrowseTab({ jurisdiction, agencies, docTypes }: Guidance
             aria-label="Filter by status"
           />
         </FilterField>
-        <FilterField label="Audience">
+        <FilterField label="Direction">
           <Select
             value={params.audienceDirection || 'all'}
             onValueChange={(v) => handleFilterChange('audienceDirection', v)}
@@ -291,6 +354,32 @@ export function GuidanceBrowseTab({ jurisdiction, agencies, docTypes }: Guidance
             onValueChange={(v) => handleFilterChange('sectionType', v)}
             options={sectionTypeOptions}
             aria-label="Filter by section type"
+          />
+        </FilterField>
+        <FilterField label="Readability">
+          <Select
+            value={params.readability || 'all'}
+            onValueChange={(v) => handleFilterChange('readability', v)}
+            options={readabilityOptions}
+            aria-label="Filter by readability"
+          />
+        </FilterField>
+        <FilterField label="Expertise">
+          <Select
+            value={params.audienceExpertise || 'all'}
+            onValueChange={(v) => handleFilterChange('audienceExpertise', v)}
+            options={audienceExpertiseOptions}
+            aria-label="Filter by audience expertise"
+          />
+        </FilterField>
+        <FilterField label="Target Audience">
+          <MultiSelect
+            label="Target Audience"
+            options={targetAudienceOptions}
+            value={selectedTargetAudiences}
+            onChange={(values) => handleMultiFilterChange('targetAudience', values)}
+            placeholder="All audiences"
+            searchable
           />
         </FilterField>
         <FilterField label="Has Form">

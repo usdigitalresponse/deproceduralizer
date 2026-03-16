@@ -19,3 +19,17 @@ export function normalizeJurisdiction(jurisdiction: string): string {
   return jurisdiction.toUpperCase();
 }
 
+/**
+ * Flesch Reading Ease score ranges for readability tiers.
+ * Single source of truth used by ReadabilityBadge, repository filters, and analytics queries.
+ */
+export const READABILITY_TIERS = {
+  very_difficult: { min: -Infinity, max: 30 },
+  difficult: { min: 30, max: 50 },
+  fairly_difficult: { min: 50, max: 60 },
+  standard: { min: 60, max: 70 },
+  easy: { min: 70, max: Infinity },
+} as const;
+
+export type ReadabilityTier = keyof typeof READABILITY_TIERS;
+
