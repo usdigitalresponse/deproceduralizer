@@ -59,6 +59,7 @@ Examples:
     parser.add_argument("--supersedure-report", action="store_true", help="Print supersedure relationship report")
     parser.add_argument("--classify", action="store_true", help="Run rule-based classification (dry-run by default)")
     parser.add_argument("--regex-scan", action="store_true", help="Scan guidance docs for compliance issue regex patterns")
+    parser.add_argument("--incremental", action="store_true", help="Only scan docs without existing matches (preserves analysis_id links)")
     parser.add_argument("--doc-type", help="Filter regex scan to a specific doc_type")
     parser.add_argument("--resolve-guidance-refs", action="store_true", help="Resolve cites_documents to guidance_documents (dry-run by default)")
     parser.add_argument("--extract-content-refs", action="store_true", help="Extract NYCRR + guidance refs from document content (dry-run by default)")
@@ -134,7 +135,7 @@ Examples:
 
     if args.regex_scan:
         from scripts.guidance_pipeline.regex_scan import regex_scan
-        regex_scan(agency=args.agency, doc_type=args.doc_type, execute=args.execute)
+        regex_scan(agency=args.agency, doc_type=args.doc_type, execute=args.execute, incremental=args.incremental)
         return
 
     if args.resolve_guidance_refs:

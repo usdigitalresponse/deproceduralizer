@@ -49,6 +49,7 @@ def regex_scan(
     agency: str | None = None,
     doc_type: str | None = None,
     execute: bool = False,
+    incremental: bool = False,
 ) -> None:
     """Scan guidance documents for compliance issue patterns.
 
@@ -56,6 +57,7 @@ def regex_scan(
         agency: Filter to a specific agency
         doc_type: Filter to a specific doc_type
         execute: If True, save matches to compliance_issues table. Otherwise output only.
+        incremental: If True, only scan docs without existing matches (preserves analysis_id links).
     """
     conn = get_db_connection()
     if not conn:
@@ -68,6 +70,7 @@ def regex_scan(
         conditions = [
             "policy_category IN ('policy_directive', 'informational')",
             "is_attachment = false",
+            "(exclude_from_analysis = FALSE OR exclude_from_analysis IS NULL)",
             "content IS NOT NULL",
             "content NOT LIKE '%%PDF-%%'",  # skip raw PDF blobs (text extraction failed)
         ]
@@ -83,9 +86,22 @@ def regex_scan(
         cur.execute(f"SELECT id, doc_type, title, url, content FROM guidance_documents WHERE {where}", params)
         docs = cur.fetchall()
 
-        print(f"Scanning {len(docs)} guidance documents...")
+        total_eligible = len(docs)
+
+        # In incremental mode, filter out docs that already have compliance_issues rows
+        if incremental:
+            cur.execute(
+                "SELECT DISTINCT guidance_document_id FROM compliance_issues WHERE guidance_document_id IS NOT NULL"
+            )
+            already_scanned = {row[0] for row in cur.fetchall()}
+            before = len(docs)
+            docs = [d for d in docs if d[0] not in already_scanned]
+            print(f"Incremental mode: {total_eligible} eligible, {before - len(docs)} already scanned, {len(docs)} new to scan")
+        else:
+            print(f"Scanning {len(docs)} guidance documents...")
+
         if not docs:
-            print("No documents match filters. Run --classify first?")
+            print("No new documents to scan.")
             return
 
         patterns = _load_patterns()
@@ -93,14 +109,15 @@ def regex_scan(
 
         if execute:
             run_id = f"guidance_{uuid.uuid4().hex[:8]}"
-            # Check for existing guidance matches
-            cur.execute("SELECT COUNT(*) FROM compliance_issues WHERE guidance_document_id IS NOT NULL")
-            existing = cur.fetchone()[0]
-            if existing > 0:
-                print(f"Clearing {existing} existing guidance matches...")
-                cur.execute("DELETE FROM compliance_issues WHERE guidance_document_id IS NOT NULL")
-                # NOT committing here — delete + inserts commit atomically at end of scan.
-                # On error, conn.close() in finally block auto-rolls back, preserving old data.
+            if not incremental:
+                # Full mode: clear existing matches and re-scan everything
+                cur.execute("SELECT COUNT(*) FROM compliance_issues WHERE guidance_document_id IS NOT NULL")
+                existing = cur.fetchone()[0]
+                if existing > 0:
+                    print(f"Clearing {existing} existing guidance matches...")
+                    cur.execute("DELETE FROM compliance_issues WHERE guidance_document_id IS NOT NULL")
+                    # NOT committing here — delete + inserts commit atomically at end of scan.
+                    # On error, conn.close() in finally block auto-rolls back, preserving old data.
             print(f"Run ID: {run_id}")
         else:
             print("(dry run — use --execute to save to DB)")

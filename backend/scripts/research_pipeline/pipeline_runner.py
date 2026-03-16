@@ -215,7 +215,8 @@ async def run_pipeline(
     await _run_tier1(units, issue_configs, batch_manager, cost_tracker,
                      subchapter_context_cache, realtime, model,
                      incremental_save, out, trace_context, batch_trace_ids,
-                     jurisdiction, issue_type_single, run_id, poll_interval, cache)
+                     jurisdiction, issue_type_single, run_id, poll_interval, cache,
+                     source_type=source_type)
 
     # --- Tier 2 ---
     if max_tier >= 2:
@@ -224,7 +225,8 @@ async def run_pipeline(
         await _run_tier2(units, issue_configs, batch_manager, cost_tracker,
                          realtime, model, incremental_save, tier2_reruns,
                          out, trace_context, batch_trace_ids,
-                         jurisdiction, issue_type_single, run_id, poll_interval, cache)
+                         jurisdiction, issue_type_single, run_id, poll_interval, cache,
+                         source_type=source_type)
 
     # --- Fines structured extraction (post-Tier 2 hook) ---
     if max_tier >= 2 and FINES_ISSUE_TYPE in issue_types:
@@ -456,7 +458,7 @@ async def _run_tier1(units, issue_configs, batch_manager, cost_tracker,
                      subchapter_context_cache, realtime, model,
                      incremental_save, out, trace_context, batch_trace_ids,
                      jurisdiction, issue_type_single, run_id, poll_interval,
-                     cache=None):
+                     cache=None, source_type="regulation"):
     """Run Tier 1: Match Filtering."""
     tier_out = DualOutput(logger=None, tier=1)
 
@@ -522,7 +524,7 @@ async def _run_tier2(units, issue_configs, batch_manager, cost_tracker,
                      realtime, model, incremental_save, tier2_reruns,
                      out, trace_context, batch_trace_ids,
                      jurisdiction, issue_type_single, run_id, poll_interval,
-                     cache=None):
+                     cache=None, source_type="regulation"):
     """Run Tier 2: Summary-Based Research."""
     tier_out = DualOutput(logger=None, tier=2)
 
