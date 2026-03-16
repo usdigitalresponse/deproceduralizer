@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from 'react';
 import { Button } from '@/components/ui/Button';
-import { setDocumentExclusion } from '@/lib/actions/regulations';
 
 interface ExclusionToggleProps {
   documentId: number;
@@ -10,6 +9,12 @@ interface ExclusionToggleProps {
   excludedBy?: string | null;
   excludedAt?: Date | null;
   excludedReason?: string | null;
+  onToggle: (input: {
+    documentId: number;
+    exclude: boolean;
+    excludedBy: string;
+    reason?: string;
+  }) => Promise<{ success: boolean; error?: string }>;
 }
 
 export function ExclusionToggle({
@@ -18,6 +23,7 @@ export function ExclusionToggle({
   excludedBy,
   excludedAt,
   excludedReason,
+  onToggle,
 }: ExclusionToggleProps) {
   const [isPending, startTransition] = useTransition();
   const [showReasonInput, setShowReasonInput] = useState(false);
@@ -29,13 +35,13 @@ export function ExclusionToggle({
       // Remove exclusion directly
       setError(null);
       startTransition(async () => {
-        const result = await setDocumentExclusion({
+        const result = await onToggle({
           documentId,
           exclude: false,
           excludedBy: '',
         });
         if (!result.success) {
-          setError(result.error);
+          setError(result.error ?? 'Failed to update');
         }
       });
     } else {
@@ -47,14 +53,14 @@ export function ExclusionToggle({
   const handleConfirmExclusion = () => {
     setError(null);
     startTransition(async () => {
-      const result = await setDocumentExclusion({
+      const result = await onToggle({
         documentId,
         exclude: true,
         excludedBy: 'user', // In production, use actual user identity
         reason: reason || undefined,
       });
       if (!result.success) {
-        setError(result.error);
+        setError(result.error ?? 'Failed to update');
       } else {
         setShowReasonInput(false);
         setReason('');

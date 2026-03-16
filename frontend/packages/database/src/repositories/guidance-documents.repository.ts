@@ -23,6 +23,7 @@ export interface GuidanceDocumentListItem {
   complianceIssueCount: number;
   jenaiIssueCount: number;
   fleschReadingEase: number | null;
+  excludeFromAnalysis: boolean | null;
 }
 
 export interface GuidanceDocumentDetail {
@@ -67,6 +68,11 @@ export interface GuidanceDocumentDetail {
   audienceExpertise: string | null;
   audienceExplanation: string | null;
   complianceIssueCount: number;
+  // Analysis exclusion
+  excludeFromAnalysis: boolean | null;
+  excludedAt: Date | null;
+  excludedBy: string | null;
+  excludedReason: string | null;
   // Readability metrics
   fleschKincaidGrade: number | null;
   fleschReadingEase: number | null;
@@ -420,6 +426,7 @@ export class GuidanceDocumentsRepository extends BaseRepository {
           complianceIssueCount: sql<number>`coalesce(${issueCountSq.count}, 0)`.mapWith(Number),
           jenaiIssueCount: sql<number>`coalesce(${jenaiCountSq.count}, 0)`.mapWith(Number),
           fleschReadingEase: guidanceDocuments.fleschReadingEase,
+          excludeFromAnalysis: guidanceDocuments.excludeFromAnalysis,
         })
         .from(guidanceDocuments)
         .leftJoin(issueCountSq, eq(guidanceDocuments.id, issueCountSq.guidanceDocumentId))
@@ -491,6 +498,10 @@ export class GuidanceDocumentsRepository extends BaseRepository {
         audienceExpertise: guidanceDocuments.audienceExpertise,
         audienceExplanation: guidanceDocuments.audienceExplanation,
         complianceIssueCount: sql<number>`(${issueCountResult})`.mapWith(Number),
+        excludeFromAnalysis: guidanceDocuments.excludeFromAnalysis,
+        excludedAt: guidanceDocuments.excludedAt,
+        excludedBy: guidanceDocuments.excludedBy,
+        excludedReason: guidanceDocuments.excludedReason,
         fleschKincaidGrade: guidanceDocuments.fleschKincaidGrade,
         fleschReadingEase: guidanceDocuments.fleschReadingEase,
         gunningFog: guidanceDocuments.gunningFog,
@@ -1855,6 +1866,7 @@ export class GuidanceDocumentsRepository extends BaseRepository {
         complianceIssueCount: sql<number>`coalesce(${issueCountSq.count}, 0)`.mapWith(Number),
         jenaiIssueCount: sql<number>`coalesce(${jenaiCountSq.count}, 0)`.mapWith(Number),
         fleschReadingEase: guidanceDocuments.fleschReadingEase,
+        excludeFromAnalysis: guidanceDocuments.excludeFromAnalysis,
       })
       .from(guidanceDocuments)
       .leftJoin(issueCountSq, eq(guidanceDocuments.id, issueCountSq.guidanceDocumentId))

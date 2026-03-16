@@ -56,6 +56,12 @@ export const guidanceDocuments = pgTable('guidance_documents', {
   audienceExpertise: varchar('audience_expertise', { length: 20 }),
   audienceExplanation: text('audience_explanation'),
 
+  // Analysis exclusion
+  excludeFromAnalysis: boolean('exclude_from_analysis').default(false),
+  excludedAt: timestamp('excluded_at'),
+  excludedBy: varchar('excluded_by', { length: 255 }),
+  excludedReason: text('excluded_reason'),
+
   // Readability metrics (computed by textstat)
   fleschKincaidGrade: real('flesch_kincaid_grade'),
   fleschReadingEase: real('flesch_reading_ease'),

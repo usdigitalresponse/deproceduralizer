@@ -901,8 +901,12 @@ Sub-regulatory guidance documents (ADMs, LCMs, INFs, GIS, TSBs, etc.) from NY st
 | `difficult_word_count` | integer | Count of difficult/uncommon words (migration 0086) |
 | `word_count` | integer | Total word count (migration 0086) |
 | `sentence_count` | integer | Total sentence count (migration 0086) |
+| `exclude_from_analysis` | boolean | Exclude from all LLM analysis pipelines (default false, migration 0068) |
+| `excluded_at` | timestamp | When the document was excluded (migration 0068) |
+| `excluded_by` | varchar(255) | Who excluded the document (migration 0068) |
+| `excluded_reason` | text | Reason for exclusion (migration 0068) |
 
-**Indexes:** `idx_gd_catalog_id` (unique, partial), `idx_gd_text_path` (unique, partial — migration 0059), `idx_gd_agency`, `idx_gd_doc_type`, `idx_gd_canonical_ref` (partial), `idx_gd_status`, `idx_gd_search` (GIN), `idx_gd_year`, `idx_gd_policy_category` (partial)
+**Indexes:** `idx_gd_catalog_id` (unique, partial), `idx_gd_text_path` (unique, partial — migration 0059), `idx_gd_agency`, `idx_gd_doc_type`, `idx_gd_canonical_ref` (partial), `idx_gd_status`, `idx_gd_search` (GIN), `idx_gd_year`, `idx_gd_policy_category` (partial), `idx_guidance_exclude_from_analysis` (partial, migration 0068)
 
 **Classification pipeline** (`--classify --execute`, 5 passes):
 1. **Attachments**: title regex for attachment/appendix/enclosure → `is_attachment = true`

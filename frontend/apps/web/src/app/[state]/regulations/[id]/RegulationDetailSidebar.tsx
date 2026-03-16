@@ -27,6 +27,7 @@ import type {
   JenAIIssue,
 } from '@deproceduralizer/database';
 import type { GuidanceReferenceItem } from '@/lib/actions/cross-references';
+import { setDocumentExclusion } from '@/lib/actions/regulations';
 
 interface RegulationDetailSidebarProps {
   /** The regulation document */
@@ -175,6 +176,10 @@ export async function RegulationDetailSidebar({
             excludedBy={regulation.excludedBy}
             excludedAt={regulation.excludedAt}
             excludedReason={regulation.excludedReason}
+            onToggle={async (input) => {
+              'use server';
+              return setDocumentExclusion(input);
+            }}
           />
         </Card>
 

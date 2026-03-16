@@ -1,8 +1,13 @@
 'use server';
 
 import 'server-only';
+import { revalidatePath } from 'next/cache';
 import {
   db,
+  eq,
+  and,
+  desc,
+  guidanceDocuments,
   GuidanceDocumentsRepository,
   ComplianceIssuesRepository,
   type JurisdictionCode,
@@ -26,7 +31,7 @@ import {
   type PaginatedGuidanceGroupResult,
   type GuidanceGroupDocumentsResult,
 } from '@deproceduralizer/database';
-import { type ActionResult, runAction, runCachedAction } from './types';
+import { type ActionResult, success, failure, getErrorMessage, runAction, runCachedAction } from './types';
 
 const guidanceRepo = new GuidanceDocumentsRepository(db);
 const complianceIssuesRepo = new ComplianceIssuesRepository(db);
@@ -313,5 +318,85 @@ export async function getGuidanceGroupDocuments(
 ): Promise<ActionResult<GuidanceGroupDocumentsResult>> {
   return runAction('getGuidanceGroupDocuments', () =>
     guidanceRepo.getDocumentsForGroup(state, groupBy, groupValue, filters || undefined)
+  );
+}
+
+// ============================================================================
+// Analysis Exclusion Actions
+// ============================================================================
+
+export interface SetGuidanceExclusionInput {
+  documentId: number;
+  exclude: boolean;
+  excludedBy: string;
+  reason?: string;
+}
+
+export interface ExcludedGuidanceDocument {
+  id: number;
+  title: string;
+  agency: string;
+  excludedAt: Date | null;
+  excludedBy: string | null;
+  excludedReason: string | null;
+  jurisdiction: string;
+}
+
+/**
+ * Sets or removes the exclude_from_analysis flag for a guidance document.
+ */
+export async function setGuidanceExclusion(
+  input: SetGuidanceExclusionInput
+): Promise<ActionResult<{ id: number; excludeFromAnalysis: boolean }>> {
+  try {
+    const now = input.exclude ? new Date() : null;
+
+    await db
+      .update(guidanceDocuments)
+      .set({
+        excludeFromAnalysis: input.exclude,
+        excludedAt: now,
+        excludedBy: input.exclude ? input.excludedBy : null,
+        excludedReason: input.exclude ? (input.reason || null) : null,
+      })
+      .where(eq(guidanceDocuments.id, input.documentId));
+
+    revalidatePath(`/`);
+
+    return success({
+      id: input.documentId,
+      excludeFromAnalysis: input.exclude,
+    });
+  } catch (error) {
+    console.error('[setGuidanceExclusion]', error);
+    return failure(getErrorMessage(error));
+  }
+}
+
+/**
+ * Fetches all guidance documents marked as excluded from analysis for a given state.
+ */
+export async function getExcludedGuidanceDocuments(
+  state: string
+): Promise<ActionResult<ExcludedGuidanceDocument[]>> {
+  return runAction('getExcludedGuidanceDocuments', () =>
+    db
+      .select({
+        id: guidanceDocuments.id,
+        title: guidanceDocuments.title,
+        agency: guidanceDocuments.agency,
+        excludedAt: guidanceDocuments.excludedAt,
+        excludedBy: guidanceDocuments.excludedBy,
+        excludedReason: guidanceDocuments.excludedReason,
+        jurisdiction: guidanceDocuments.jurisdiction,
+      })
+      .from(guidanceDocuments)
+      .where(
+        and(
+          eq(guidanceDocuments.jurisdiction, state.toUpperCase()),
+          eq(guidanceDocuments.excludeFromAnalysis, true)
+        )
+      )
+      .orderBy(desc(guidanceDocuments.excludedAt))
   );
 }

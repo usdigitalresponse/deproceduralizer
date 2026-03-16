@@ -4,7 +4,7 @@ import { ArrowLeft } from 'lucide-react';
 import { Card, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Tag } from '@/components/ui/Tag';
-import { getGuidanceById, getDocumentLineage, getGuidanceResolvedCitations, getGuidanceComplianceAnalysisSummary } from '@/lib/actions/guidance-documents';
+import { getGuidanceById, getDocumentLineage, getGuidanceResolvedCitations, getGuidanceComplianceAnalysisSummary, setGuidanceExclusion } from '@/lib/actions/guidance-documents';
 import { getGuidanceCrossRefsForHighlighting } from '@/lib/actions/cross-references';
 import { getJenAIIssuesForDocument } from '@/lib/actions/jenai';
 import { GuidanceDetailContent } from '@/components/guidance/GuidanceDetailContent';
@@ -14,6 +14,7 @@ import { JenAIIssuesList } from '@/components/jenai';
 import { DocumentLineageViewer } from '@/components/guidance/DocumentLineageViewer';
 import { GuidanceStatusBadge } from '@/components/guidance/GuidanceStatusBadge';
 import { GuidanceBookmarkButton } from '@/components/guidance/GuidanceBookmarkButton';
+import { ExclusionToggle } from '@/components/regulations/ExclusionToggle';
 import { PolicyCategoryBadge } from '@/components/guidance/PolicyCategoryBadge';
 import { LinkedCitationList } from '@/components/guidance/LinkedCitationList';
 import { EnhancedRegulationSummary } from '@/components/regulations/EnhancedRegulationSummary';
@@ -102,6 +103,7 @@ export default async function GuidanceDetailPage({ params }: GuidanceDetailPageP
   const sections: SectionConfig[] = [
     ...(hasSummaryMetadata ? [{ id: 'sidebar-summary', label: 'Summary' }] : []),
     { id: 'sidebar-metadata', label: 'Metadata' },
+    { id: 'sidebar-exclusion', label: 'Exclusion' },
     ...(doc.wordCount !== null ? [{ id: 'sidebar-readability', label: 'Readability' }] : []),
     ...(complianceSummary && complianceSummary.totalIssues > 0 ? [{ id: 'sidebar-compliance', label: 'Compliance', count: complianceSummary.totalIssues }] : []),
     ...(jenaiIssues.length > 0 ? [{ id: 'sidebar-jenai', label: 'JenAI', count: jenaiIssues.length }] : []),
@@ -240,6 +242,21 @@ export default async function GuidanceDetailPage({ params }: GuidanceDetailPageP
                   <ListSection label="Cited Federal Statutes" items={doc.citesFederal} />
                   <ListSection label="Cited Documents" items={doc.citesDocuments} />
                 </div>
+              </Card>
+
+              {/* Exclusion Toggle */}
+              <Card id="sidebar-exclusion" className="p-4">
+                <ExclusionToggle
+                  documentId={docId}
+                  isExcluded={doc.excludeFromAnalysis ?? false}
+                  excludedBy={doc.excludedBy}
+                  excludedAt={doc.excludedAt}
+                  excludedReason={doc.excludedReason}
+                  onToggle={async (input) => {
+                    'use server';
+                    return setGuidanceExclusion(input);
+                  }}
+                />
               </Card>
 
               {/* Readability */}

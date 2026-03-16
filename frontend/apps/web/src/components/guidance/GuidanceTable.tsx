@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { getEntityIcon } from '@/lib/constants/entity-types';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { tableRowClass, tableHeaderClass } from '@/components/ui/table-styles';
+import { Badge } from '@/components/ui/Badge';
 import { GuidanceStatusBadge } from './GuidanceStatusBadge';
 import { PolicyCategoryBadge } from './PolicyCategoryBadge';
 import type { GuidanceDocumentListItem } from '@/lib/actions/guidance-documents';
@@ -39,10 +40,12 @@ export function GuidanceTable({ data, state }: GuidanceTableProps) {
           </tr>
         </thead>
         <tbody>
-          {data.map((doc) => (
+          {data.map((doc) => {
+            const isExcluded = doc.excludeFromAnalysis === true;
+            return (
             <tr
               key={doc.id}
-              className={tableRowClass}
+              className={`${tableRowClass}${isExcluded ? ' opacity-60' : ''}`}
             >
               <td className="py-3 pr-3 text-[var(--color-text-muted)] text-xs whitespace-nowrap">
                 <Link
@@ -53,12 +56,15 @@ export function GuidanceTable({ data, state }: GuidanceTableProps) {
                 </Link>
               </td>
               <td className="py-3 pr-3 text-[var(--color-text)] max-w-[300px] truncate" title={doc.title}>
-                <Link
-                  href={`/${state}/guidance/${doc.id}`}
-                  className="text-[var(--color-primary)] hover:underline"
-                >
-                  {doc.title}
-                </Link>
+                <div className="flex items-center gap-2">
+                  <Link
+                    href={`/${state}/guidance/${doc.id}`}
+                    className="text-[var(--color-primary)] hover:underline truncate"
+                  >
+                    {doc.title}
+                  </Link>
+                  {isExcluded && <Badge variant="warning">Excluded</Badge>}
+                </div>
               </td>
               <td className="py-3 pr-3 text-[var(--color-text-secondary)] max-w-[150px] truncate" title={doc.agency}>
                 {doc.agency}
@@ -76,7 +82,8 @@ export function GuidanceTable({ data, state }: GuidanceTableProps) {
                 {doc.year ?? '—'}
               </td>
             </tr>
-          ))}
+            );
+          })}
         </tbody>
       </table>
     </div>

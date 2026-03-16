@@ -192,6 +192,7 @@ class ProcessingUnitBuilder:
                     {state_filter}
                     {title_filter}
                     AND rd.type = 'regulation'
+                    AND (rd.exclude_from_analysis = FALSE OR rd.exclude_from_analysis IS NULL)
                     AND rd.content IS NOT NULL
                     AND LENGTH(rd.content) > 100
                     -- Exclude documents already analyzed
@@ -337,6 +338,7 @@ class ProcessingUnitBuilder:
                     {state_filter}
                     {title_filter}
                     AND rd.type = 'regulation'
+                    AND (rd.exclude_from_analysis = FALSE OR rd.exclude_from_analysis IS NULL)
                     AND rd.content IS NOT NULL
                     AND LENGTH(rd.content) > 100
                     AND (
@@ -834,6 +836,7 @@ class ProcessingUnitBuilder:
                     ci.issue_type = ANY(%s)
                     {title_filter}
                     AND rd.type = 'regulation'
+                    AND (rd.exclude_from_analysis = FALSE OR rd.exclude_from_analysis IS NULL)
                     AND rd.content IS NOT NULL
                     AND LENGTH(rd.content) > 100
                     -- Only fetch docs that need processing

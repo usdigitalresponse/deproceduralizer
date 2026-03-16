@@ -145,6 +145,7 @@ def get_guidance_for_analysis(
 
     conditions = [
         "gd.jurisdiction = %s",
+        "(gd.exclude_from_analysis = FALSE OR gd.exclude_from_analysis IS NULL)",
         "gd.content IS NOT NULL",
         "LENGTH(gd.content) > 50",
     ]

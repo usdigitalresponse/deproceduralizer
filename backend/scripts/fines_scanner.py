@@ -284,6 +284,7 @@ class FinesSearcher(BasePatternSearcher):
                 FROM guidance_documents
                 WHERE jurisdiction = %s
                   AND content IS NOT NULL
+                  AND (exclude_from_analysis = FALSE OR exclude_from_analysis IS NULL)
                 ORDER BY id
                 """,
                 (state_code,)
