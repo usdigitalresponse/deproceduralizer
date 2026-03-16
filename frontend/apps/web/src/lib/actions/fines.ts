@@ -7,6 +7,7 @@ import {
   BookmarksRepository,
   type JurisdictionCode,
   type FineWithContext,
+  type FineAnalysis,
   type PaginatedFinesResult,
   type FinesOverviewStats,
 } from '@deproceduralizer/database';
@@ -35,8 +36,18 @@ function parseFinesMultiSelectFilters(filters?: { penaltyType?: string; agency?:
   };
 }
 
+/** Narrow a classification string to a valid filter value, or undefined if invalid */
+function parseClassificationFilter(
+  value: string | undefined
+): 'burdensome' | 'justified' | 'not_analyzed' | undefined {
+  if (value === 'burdensome' || value === 'justified' || value === 'not_analyzed') {
+    return value;
+  }
+  return undefined;
+}
+
 // Re-export types for components
-export type { FineWithContext, FinesOverviewStats };
+export type { FineWithContext, FineAnalysis, FinesOverviewStats };
 
 export async function getFineById(
   id: number
@@ -75,6 +86,7 @@ export async function getFinesPaginated(
       amountMax?: number;
       whoPays?: string;
       perUnit?: string;
+      classification?: string;
     };
   }
 ): Promise<ActionResult<PaginatedFinesResult>> {
@@ -91,7 +103,8 @@ export async function getFinesPaginated(
   const agencyLevel = [...multiSelect.agencyLevels].sort().join(',');
   const whoPays = [...multiSelect.whoPaysValues].sort().join(',');
   const perUnit = [...multiSelect.perUnitValues].sort().join(',');
-  const cacheKey = `fines-paginated-${state}-${page}-${pageSize}-${sortBy}-${sortOrder}-${type}-${agency}-${agencyLevel}-${search}-${sourceType}-${amountMin}-${amountMax}-${whoPays}-${perUnit}`;
+  const classification = filters?.classification ?? '';
+  const cacheKey = `fines-paginated-${state}-${page}-${pageSize}-${sortBy}-${sortOrder}-${type}-${agency}-${agencyLevel}-${search}-${sourceType}-${amountMin}-${amountMax}-${whoPays}-${perUnit}-${classification}`;
 
   return runCachedAction(
     'getFinesPaginated',
@@ -104,6 +117,7 @@ export async function getFinesPaginated(
       filters: filters ? {
         ...filters,
         ...multiSelect,
+        classification: parseClassificationFilter(filters.classification),
       } : undefined,
     }),
     [cacheKey],
@@ -156,13 +170,15 @@ export async function exportFinesCsv(
     amountMax?: number;
     whoPays?: string;
     perUnit?: string;
+    classification?: string;
   }
 ): Promise<ActionResult<string>> {
   const multiSelect = parseFinesMultiSelectFilters(filters);
+  const classificationFilter = parseClassificationFilter(filters?.classification);
 
   return runAction('exportFinesCsv', async () => {
     const [data, bookmarkData] = await Promise.all([
-      finesRepo.getExportData(state, { ...filters, ...multiSelect }),
+      finesRepo.getExportData(state, { ...filters, ...multiSelect, classification: classificationFilter }),
       bookmarksRepo.getFineBookmarksWithNotes(state),
     ]);
     const bookmarkMap = new Map(bookmarkData.map(b => [b.fineId, b]));
@@ -182,14 +198,16 @@ export async function exportFinesZipByAgency(
     amountMax?: number;
     whoPays?: string;
     perUnit?: string;
+    classification?: string;
   }
 ): Promise<ActionResult<string>> {
   const multiSelect = parseFinesMultiSelectFilters(filters);
+  const classificationFilter = parseClassificationFilter(filters?.classification);
 
   return runAction('exportFinesZipByAgency', async () => {
     const { default: JSZip } = await import('jszip');
     const [grouped, bookmarkData] = await Promise.all([
-      finesRepo.getExportDataGroupedByAgency(state, { ...filters, ...multiSelect }),
+      finesRepo.getExportDataGroupedByAgency(state, { ...filters, ...multiSelect, classification: classificationFilter }),
       bookmarksRepo.getFineBookmarksWithNotes(state),
     ]);
     const bookmarkMap = new Map(bookmarkData.map(b => [b.fineId, b]));
@@ -219,6 +237,9 @@ function buildFinesCsv(data: FineWithContext[], bookmarks?: Map<number, Bookmark
     'Source Title', 'Source URL', 'Jurisdiction',
     'Activity Category', 'Est. Annual Payers', 'Justification', 'Who Pays (Normalized)',
     'bookmark_saved', 'bookmark_notes', 'bookmark_by',
+    'Classification', 'Severity', 'Tier Completed',
+    'Argument For Regulation', 'Argument Against Regulation', 'Web Search Summary',
+    'Federal Mandate Found', 'Easy Cleanup Candidate', 'Cleanup Effort',
   ];
 
   const escape = (v: string | null | undefined) => {
@@ -227,8 +248,12 @@ function buildFinesCsv(data: FineWithContext[], bookmarks?: Map<number, Bookmark
     return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s}"` : s;
   };
 
+  const boolLabel = (v: boolean | null | undefined) => v === true ? 'yes' : v === false ? 'no' : '';
+
   const rows = data.map(row => {
     const bm = bookmarks?.get(row.id);
+    const a = row.analysis;
+    const classification = a?.tier3Classification ?? a?.tier2Classification ?? a?.tier1Classification ?? '';
     return [
       row.id,
       escape(row.penaltyType),
@@ -253,6 +278,15 @@ function buildFinesCsv(data: FineWithContext[], bookmarks?: Map<number, Bookmark
       bm ? 'yes' : '',
       escape(bm?.notes),
       escape(bm?.createdBy),
+      escape(classification),
+      a?.finalSeverity ?? '',
+      a?.highestTierCompleted ?? '',
+      escape(a?.argumentForRegulation),
+      escape(a?.argumentAgainstRegulation),
+      escape(a?.webSearchSummary),
+      boolLabel(a?.federalMandateFound),
+      boolLabel(a?.easyCleanupCandidate),
+      escape(a?.cleanupEffort),
     ].join(',');
   });
 

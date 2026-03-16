@@ -90,6 +90,14 @@ export const SOURCE_TYPE_BADGE_LABELS: Record<string, string> = {
   guidance: 'Guidance',
 };
 
+/** Filter options for the fines classification dropdown */
+export const FINES_CLASSIFICATION_OPTIONS = [
+  { value: 'all', label: 'All Analysis' },
+  { value: 'burdensome', label: 'Burdensome' },
+  { value: 'justified', label: 'Justified' },
+  { value: 'not_analyzed', label: 'Not Analyzed' },
+] as const;
+
 // ---------------------------------------------------------------------------
 // Enrichment column constants
 // ---------------------------------------------------------------------------

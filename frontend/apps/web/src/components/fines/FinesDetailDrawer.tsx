@@ -5,6 +5,9 @@ import { ExternalLink } from 'lucide-react';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerBody, DrawerClose } from '@/components/ui/Drawer';
 import { Button } from '@/components/ui/Button';
 import { FineBookmarkProvider, FineDetailBookmark, FineDetailNotesCard } from './FineDetailBookmark';
+import { ClassificationBadge } from '@/components/issues';
+import { TierBadge } from '@/components/issues/TierProgressIndicator';
+import { SeverityBadge } from '@/components/ui/Badge';
 import { PENALTY_TYPE_LABELS, AGENCY_LEVEL_LABELS, AGENCY_LEVEL_COLORS, ACTIVITY_CATEGORY_LABELS, ESTIMATED_PAYERS_LABELS } from '@/lib/constants/fines';
 import type { FineWithContext } from '@/lib/actions/fines';
 
@@ -225,6 +228,73 @@ export function FinesDetailDrawer({ fine, open, onOpenChange, state, onBookmarkC
                   </div>
                 </div>
               </div>
+
+              {/* Research Pipeline Analysis */}
+              {fine.analysis && (
+                <div className="border-t border-[var(--color-neutral-200)] pt-4">
+                  <h4 className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-3">
+                    Research Pipeline Analysis
+                  </h4>
+                  <p className="text-xs text-[var(--color-text-muted)] mb-3">
+                    Document-level analysis shared by all fines from this source
+                  </p>
+
+                  {/* Classification + Tier + Severity badges */}
+                  <div className="flex flex-wrap items-center gap-2 mb-4">
+                    <ClassificationBadge
+                      classification={fine.analysis.tier3Classification ?? fine.analysis.tier2Classification ?? fine.analysis.tier1Classification}
+                    />
+                    <TierBadge highestTierCompleted={fine.analysis.highestTierCompleted} />
+                    {fine.analysis.finalSeverity !== null && (
+                      <SeverityBadge severity={fine.analysis.finalSeverity} />
+                    )}
+                  </div>
+
+                  {/* Federal Mandate + Easy Cleanup flags */}
+                  {(fine.analysis.federalMandateFound || fine.analysis.easyCleanupCandidate) && (
+                    <div className="flex flex-wrap items-center gap-2 mb-4">
+                      {fine.analysis.federalMandateFound && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                          Federal Mandate
+                        </span>
+                      )}
+                      {fine.analysis.easyCleanupCandidate && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-50 text-green-700 border border-green-200">
+                          Easy Cleanup{fine.analysis.cleanupEffort ? ` (${fine.analysis.cleanupEffort})` : ''}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Arguments */}
+                  {fine.analysis.argumentForRegulation && (
+                    <div className="mb-3">
+                      <h5 className="text-xs font-medium text-green-700 mb-1">Argument For Regulation</h5>
+                      <p className="text-xs text-[var(--color-text-secondary)] whitespace-pre-wrap">
+                        {fine.analysis.argumentForRegulation}
+                      </p>
+                    </div>
+                  )}
+                  {fine.analysis.argumentAgainstRegulation && (
+                    <div className="mb-3">
+                      <h5 className="text-xs font-medium text-orange-700 mb-1">Argument Against Regulation</h5>
+                      <p className="text-xs text-[var(--color-text-secondary)] whitespace-pre-wrap">
+                        {fine.analysis.argumentAgainstRegulation}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Web Search Summary */}
+                  {fine.analysis.webSearchSummary && (
+                    <div className="bg-blue-50 border border-blue-100 rounded-[var(--radius-md)] p-3">
+                      <h5 className="text-xs font-medium text-blue-700 mb-1">Web Search Findings</h5>
+                      <p className="text-xs text-blue-900 whitespace-pre-wrap">
+                        {fine.analysis.webSearchSummary}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
             </DrawerBody>
           </div>
         </FineBookmarkProvider>

@@ -276,6 +276,9 @@ export type FinesSortByValue = (typeof FINES_SORT_BY_VALUES)[number];
 export const SOURCE_TYPE_FILTER_VALUES = ['regulation', 'guidance'] as const;
 export type SourceTypeFilterValue = (typeof SOURCE_TYPE_FILTER_VALUES)[number];
 
+export const FINES_CLASSIFICATION_FILTER_VALUES = ['all', 'burdensome', 'justified', 'not_analyzed'] as const;
+export type FinesClassificationFilterValue = (typeof FINES_CLASSIFICATION_FILTER_VALUES)[number];
+
 // ============================================
 // Cross-References Table View
 // ============================================

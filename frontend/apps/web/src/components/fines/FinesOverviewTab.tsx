@@ -5,7 +5,8 @@ import { StatCard, StatGrid } from '@/components/ui/StatCard';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ChartContainer } from '@/components/charts/ChartContainer';
 import { HorizontalBarChart } from '@/components/charts/BarChart';
-import { PENALTY_TYPE_LABELS_PLURAL, AGENCY_LEVEL_LABELS, SOURCE_TYPE_LABELS } from '@/lib/constants/fines';
+import { PENALTY_TYPE_LABELS_PLURAL, AGENCY_LEVEL_LABELS } from '@/lib/constants/fines';
+import { CLASSIFICATION_LABELS } from '@/lib/constants/pipeline';
 import type { FinesOverviewStats } from '@/lib/actions/fines';
 
 interface FinesOverviewTabProps {
@@ -63,13 +64,13 @@ export function FinesOverviewTab({ stats }: FinesOverviewTabProps) {
     value: d.count,
   }));
 
-  const sourceData = (stats?.bySourceType ?? []).map(d => ({
-    label: SOURCE_TYPE_LABELS[d.sourceType] ?? d.sourceType,
+  const agencyData = (stats?.byAgency ?? []).map(d => ({
+    label: d.agency,
     value: d.count,
   }));
 
-  const agencyData = (stats?.byAgency ?? []).map(d => ({
-    label: d.agency,
+  const classificationData = (stats?.byClassification ?? []).map(d => ({
+    label: CLASSIFICATION_LABELS[d.classification] ?? d.classification,
     value: d.count,
   }));
 
@@ -106,7 +107,7 @@ export function FinesOverviewTab({ stats }: FinesOverviewTabProps) {
         <BarChartSection title="By Type" data={typeData} emptyMessage="No data available" />
         <BarChartSection title="By Government Level" data={levelData} emptyMessage="No level data available" />
         <BarChartSection title="By Who Pays" data={whoPaysData} emptyMessage="No who-pays data available" />
-        <BarChartSection title="By Source Type" data={sourceData} emptyMessage="No source type data available" />
+        <BarChartSection title="By Analysis Classification" data={classificationData} emptyMessage="No analysis data available" />
       </div>
 
       <div className="grid grid-cols-1 gap-6">

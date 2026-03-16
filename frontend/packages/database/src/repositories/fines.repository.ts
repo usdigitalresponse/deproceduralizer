@@ -1,14 +1,42 @@
-import { eq, and, desc, asc, sql, count, ilike, or, gte, lte, isNotNull, inArray } from 'drizzle-orm';
+import { eq, and, desc, asc, sql, count, ilike, or, gte, lte, isNotNull, isNull, inArray } from 'drizzle-orm';
 import { BaseRepository } from './base.repository';
 import { finesFeesPenalties, type FineFeePenalty } from '../schema/fines-fees-penalties';
 import { regulatoryDocuments } from '../schema/regulatory-documents';
 import { guidanceDocuments } from '../schema/guidance-documents';
 import { agencies } from '../schema/agencies';
+import { complianceIssueAnalyses } from '../schema/compliance-issue-analyses';
 import { type JurisdictionCode, normalizeJurisdiction } from '../schema/constants';
+
+export interface FineAnalysis {
+  highestTierCompleted: number;
+  tier1Classification: string | null;
+  tier2Classification: string | null;
+  tier3Classification: string | null;
+  severity: number | null;
+  finalSeverity: number | null;
+  tier3SeverityAdjustment: number | null;
+  argumentForRegulation: string | null;
+  argumentAgainstRegulation: string | null;
+  webSearchSummary: string | null;
+  requirementFound: boolean | null;
+  isJustified: boolean | null;
+  federalMandateFound: boolean | null;
+  stateHasDiscretion: boolean | null;
+  easyCleanupCandidate: boolean | null;
+  cleanupType: string | null;
+  cleanupEffort: string | null;
+  tier1Reasoning: string | null;
+  tier2Reasoning: string | null;
+  tier3Reasoning: string | null;
+  tier3TriggerReason: string | null;
+  tier3Flags: unknown;
+  pipelineVersion: string | null;
+}
 
 export interface FineWithContext extends FineFeePenalty {
   agencyCanonicalName?: string | null;
   agencyLevel?: string | null;
+  analysis: FineAnalysis | null;
   sourceDocument: {
     id: number;
     title: string | null;
@@ -28,6 +56,7 @@ export interface FinesFilterOptions {
   sourceType?: 'regulation' | 'guidance';
   whoPays?: string;
   perUnit?: string;
+  classification?: 'burdensome' | 'justified' | 'not_analyzed';
   // Multi-select array filters (take precedence over singular equivalents)
   penaltyTypes?: string[];
   agencies?: string[];
@@ -66,6 +95,64 @@ export interface FinesOverviewStats {
   byWhoPays: Array<{ whoPays: string; count: number }>;
   byPerUnit: Array<{ perUnit: string; count: number }>;
   bySourceType: Array<{ sourceType: string; count: number }>;
+  byClassification: Array<{ classification: string; count: number }>;
+}
+
+/** Shape of analysis columns from the LEFT JOIN on compliance_issue_analyses */
+interface AnalysisRowFields {
+  analysisHighestTierCompleted: number | null;
+  analysisTier1Classification: string | null;
+  analysisTier2Classification: string | null;
+  analysisTier3Classification: string | null;
+  analysisSeverity: number | null;
+  analysisFinalSeverity: number | null;
+  analysisTier3SeverityAdjustment: number | null;
+  analysisArgumentFor: string | null;
+  analysisArgumentAgainst: string | null;
+  analysisWebSearchSummary: string | null;
+  analysisRequirementFound: boolean | null;
+  analysisIsJustified: boolean | null;
+  analysisFederalMandateFound: boolean | null;
+  analysisStateHasDiscretion: boolean | null;
+  analysisEasyCleanupCandidate: boolean | null;
+  analysisCleanupType: string | null;
+  analysisCleanupEffort: string | null;
+  analysisTier1Reasoning: string | null;
+  analysisTier2Reasoning: string | null;
+  analysisTier3Reasoning: string | null;
+  analysisTier3TriggerReason: string | null;
+  analysisTier3Flags: unknown;
+  analysisPipelineVersion: string | null;
+}
+
+/** Map flattened analysis row fields to the nested FineAnalysis shape, or null if no analysis */
+function mapAnalysisFields(row: AnalysisRowFields): FineAnalysis | null {
+  if (row.analysisHighestTierCompleted === null) return null;
+  return {
+    highestTierCompleted: row.analysisHighestTierCompleted,
+    tier1Classification: row.analysisTier1Classification,
+    tier2Classification: row.analysisTier2Classification,
+    tier3Classification: row.analysisTier3Classification,
+    severity: row.analysisSeverity,
+    finalSeverity: row.analysisFinalSeverity,
+    tier3SeverityAdjustment: row.analysisTier3SeverityAdjustment,
+    argumentForRegulation: row.analysisArgumentFor,
+    argumentAgainstRegulation: row.analysisArgumentAgainst,
+    webSearchSummary: row.analysisWebSearchSummary,
+    requirementFound: row.analysisRequirementFound,
+    isJustified: row.analysisIsJustified,
+    federalMandateFound: row.analysisFederalMandateFound,
+    stateHasDiscretion: row.analysisStateHasDiscretion,
+    easyCleanupCandidate: row.analysisEasyCleanupCandidate,
+    cleanupType: row.analysisCleanupType,
+    cleanupEffort: row.analysisCleanupEffort,
+    tier1Reasoning: row.analysisTier1Reasoning,
+    tier2Reasoning: row.analysisTier2Reasoning,
+    tier3Reasoning: row.analysisTier3Reasoning,
+    tier3TriggerReason: row.analysisTier3TriggerReason,
+    tier3Flags: row.analysisTier3Flags,
+    pipelineVersion: row.analysisPipelineVersion,
+  };
 }
 
 export class FinesRepository extends BaseRepository {
@@ -76,11 +163,16 @@ export class FinesRepository extends BaseRepository {
     const whereClause = this.buildWhereClause(jurisdiction, filters);
 
     // Total count — must join agencies since filters may reference agencies.level
-    const [{ count: total }] = await this.db
+    // Also join analyses when classification filter is active
+    const needsAnalysisJoin = Boolean(filters?.classification);
+    const countQuery = this.db
       .select({ count: count() })
       .from(finesFeesPenalties)
-      .leftJoin(agencies, eq(finesFeesPenalties.agencyId, agencies.id))
-      .where(whereClause);
+      .leftJoin(agencies, eq(finesFeesPenalties.agencyId, agencies.id));
+    if (needsAnalysisJoin) {
+      countQuery.leftJoin(complianceIssueAnalyses, this.analysisJoinCondition);
+    }
+    const [{ count: total }] = await countQuery.where(whereClause);
 
     // Sort column — use canonical name for agency sort
     const sortColumn = {
@@ -98,6 +190,7 @@ export class FinesRepository extends BaseRepository {
       .leftJoin(regulatoryDocuments, eq(finesFeesPenalties.documentId, regulatoryDocuments.id))
       .leftJoin(guidanceDocuments, eq(finesFeesPenalties.guidanceDocumentId, guidanceDocuments.id))
       .leftJoin(agencies, eq(finesFeesPenalties.agencyId, agencies.id))
+      .leftJoin(complianceIssueAnalyses, this.analysisJoinCondition)
       .where(whereClause)
       .orderBy(primarySort, asc(finesFeesPenalties.id))
       .limit(pageSize)
@@ -121,6 +214,7 @@ export class FinesRepository extends BaseRepository {
       .leftJoin(regulatoryDocuments, eq(finesFeesPenalties.documentId, regulatoryDocuments.id))
       .leftJoin(guidanceDocuments, eq(finesFeesPenalties.guidanceDocumentId, guidanceDocuments.id))
       .leftJoin(agencies, eq(finesFeesPenalties.agencyId, agencies.id))
+      .leftJoin(complianceIssueAnalyses, this.analysisJoinCondition)
       .where(eq(finesFeesPenalties.id, id))
       .limit(1);
 
@@ -207,6 +301,27 @@ export class FinesRepository extends BaseRepository {
       .groupBy(sql`CASE WHEN ${finesFeesPenalties.guidanceDocumentId} IS NOT NULL THEN 'guidance' WHEN ${finesFeesPenalties.documentId} IS NOT NULL THEN 'regulation' ELSE 'unknown' END`)
       .orderBy(desc(sql`count(*)`));
 
+    // Classification breakdown via LEFT JOIN to compliance_issue_analyses
+    const classificationSql = sql`CASE
+      WHEN ${complianceIssueAnalyses.id} IS NULL THEN 'not_analyzed'
+      ELSE COALESCE(
+        ${complianceIssueAnalyses.tier3Classification},
+        ${complianceIssueAnalyses.tier2Classification},
+        ${complianceIssueAnalyses.tier1Classification},
+        'not_analyzed'
+      )
+    END`;
+    const byClassification = await this.db
+      .select({
+        classification: sql<string>`${classificationSql}`,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(finesFeesPenalties)
+      .leftJoin(complianceIssueAnalyses, this.analysisJoinCondition)
+      .where(baseCondition)
+      .groupBy(classificationSql)
+      .orderBy(desc(sql`count(*)`));
+
     const regulationCount = bySourceType.find(r => r.sourceType === 'regulation')?.count ?? 0;
     const guidanceCount = bySourceType.find(r => r.sourceType === 'guidance')?.count ?? 0;
 
@@ -222,6 +337,7 @@ export class FinesRepository extends BaseRepository {
       byWhoPays,
       byPerUnit,
       bySourceType,
+      byClassification,
     };
   }
 
@@ -249,11 +365,12 @@ export class FinesRepository extends BaseRepository {
     const whereClause = this.buildWhereClause(jurisdiction, filters);
 
     const results = await this.db
-      .select(this.finesSelectFields())
+      .select(this.finesExportSelectFields())
       .from(finesFeesPenalties)
       .leftJoin(regulatoryDocuments, eq(finesFeesPenalties.documentId, regulatoryDocuments.id))
       .leftJoin(guidanceDocuments, eq(finesFeesPenalties.guidanceDocumentId, guidanceDocuments.id))
       .leftJoin(agencies, eq(finesFeesPenalties.agencyId, agencies.id))
+      .leftJoin(complianceIssueAnalyses, this.analysisJoinCondition)
       .where(whereClause)
       .orderBy(asc(finesFeesPenalties.penaltyType), asc(finesFeesPenalties.id));
 
@@ -316,6 +433,23 @@ export class FinesRepository extends BaseRepository {
   // Private helpers
   // ---------------------------------------------------------------------------
 
+  /** The analysis JOIN condition: match on document_id OR guidance_document_id, with issue_type = 'fines_fees_penalties' */
+  private get analysisJoinCondition() {
+    return and(
+      or(
+        and(
+          isNotNull(finesFeesPenalties.documentId),
+          eq(finesFeesPenalties.documentId, complianceIssueAnalyses.documentId)
+        ),
+        and(
+          isNotNull(finesFeesPenalties.guidanceDocumentId),
+          eq(finesFeesPenalties.guidanceDocumentId, complianceIssueAnalyses.guidanceDocumentId)
+        )
+      ),
+      eq(complianceIssueAnalyses.issueType, 'fines_fees_penalties')
+    );
+  }
+
   private buildWhereClause(jurisdiction: JurisdictionCode, filters?: Omit<FinesFilterOptions, 'jurisdiction'>) {
     const stateUpper = normalizeJurisdiction(jurisdiction);
     const conditions: ReturnType<typeof eq>[] = [
@@ -375,6 +509,17 @@ export class FinesRepository extends BaseRepository {
       } else if (filters.perUnit) {
         conditions.push(eq(finesFeesPenalties.perUnit, filters.perUnit));
       }
+      // Classification filter — uses COALESCE(tier3 > tier2 > tier1) for final classification
+      if (filters.classification === 'not_analyzed') {
+        conditions.push(isNull(complianceIssueAnalyses.id));
+      } else if (filters.classification === 'burdensome' || filters.classification === 'justified') {
+        conditions.push(
+          eq(
+            sql`COALESCE(${complianceIssueAnalyses.tier3Classification}, ${complianceIssueAnalyses.tier2Classification}, ${complianceIssueAnalyses.tier1Classification})`,
+            filters.classification
+          )
+        );
+      }
     }
 
     return and(...conditions);
@@ -433,6 +578,44 @@ export class FinesRepository extends BaseRepository {
       guidId: guidanceDocuments.id,
       guidTitle: guidanceDocuments.title,
       guidUrl: guidanceDocuments.url,
+      // Analysis fields (from compliance_issue_analyses LEFT JOIN)
+      analysisHighestTierCompleted: complianceIssueAnalyses.highestTierCompleted,
+      analysisTier1Classification: complianceIssueAnalyses.tier1Classification,
+      analysisTier2Classification: complianceIssueAnalyses.tier2Classification,
+      analysisTier3Classification: complianceIssueAnalyses.tier3Classification,
+      analysisSeverity: complianceIssueAnalyses.severity,
+      analysisFinalSeverity: complianceIssueAnalyses.finalSeverity,
+      analysisTier3SeverityAdjustment: complianceIssueAnalyses.tier3SeverityAdjustment,
+      analysisArgumentFor: complianceIssueAnalyses.argumentForRegulation,
+      analysisArgumentAgainst: complianceIssueAnalyses.argumentAgainstRegulation,
+      analysisWebSearchSummary: complianceIssueAnalyses.webSearchSummary,
+      analysisRequirementFound: complianceIssueAnalyses.requirementFound,
+      analysisIsJustified: complianceIssueAnalyses.isJustified,
+      analysisFederalMandateFound: complianceIssueAnalyses.federalMandateFound,
+      analysisStateHasDiscretion: complianceIssueAnalyses.stateHasDiscretion,
+      analysisEasyCleanupCandidate: complianceIssueAnalyses.easyCleanupCandidate,
+      analysisCleanupType: complianceIssueAnalyses.cleanupType,
+      analysisCleanupEffort: complianceIssueAnalyses.cleanupEffort,
+      analysisTier1Reasoning: complianceIssueAnalyses.tier1Reasoning,
+      analysisTier2Reasoning: complianceIssueAnalyses.tier2Reasoning,
+      analysisTier3Reasoning: complianceIssueAnalyses.tier3Reasoning,
+      analysisTier3TriggerReason: complianceIssueAnalyses.tier3TriggerReason,
+      analysisTier3Flags: complianceIssueAnalyses.tier3Flags,
+      analysisPipelineVersion: complianceIssueAnalyses.pipelineVersion,
+    };
+  }
+
+  /** Lean select for CSV export — nulls out heavy text fields not used by buildFinesCsv to stay under Neon's 64MB response limit */
+  private finesExportSelectFields() {
+    return {
+      ...this.finesSelectFields(),
+      context: sql<string>`''`,
+      analysisTier1Reasoning: sql<string | null>`null`,
+      analysisTier2Reasoning: sql<string | null>`null`,
+      analysisTier3Reasoning: sql<string | null>`null`,
+      analysisTier3TriggerReason: sql<string | null>`null`,
+      analysisTier3Flags: sql<unknown>`null`,
+      analysisPipelineVersion: sql<string | null>`null`,
     };
   }
 
@@ -485,7 +668,7 @@ export class FinesRepository extends BaseRepository {
     guidId: number | null;
     guidTitle: string | null;
     guidUrl: string | null;
-  }): FineWithContext {
+  } & AnalysisRowFields): FineWithContext {
     const isGuidance = row.guidanceDocumentId !== null;
 
     return {
@@ -530,6 +713,7 @@ export class FinesRepository extends BaseRepository {
       createdAt: row.createdAt,
       agencyCanonicalName: row.agencyCanonicalName,
       agencyLevel: row.agencyLevel,
+      analysis: mapAnalysisFields(row),
       sourceDocument: isGuidance
         ? {
             id: row.guidId!,

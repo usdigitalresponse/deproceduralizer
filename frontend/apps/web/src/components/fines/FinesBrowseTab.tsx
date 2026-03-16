@@ -19,7 +19,7 @@ import { useBookmarkName } from '@/hooks/useBookmarkName';
 import type { AgencyOption } from '@/lib/actions/fines';
 import { finesParsers } from '@/lib/url/parsers';
 import { parseCommaSeparated, serializeCommaSeparated } from '@/lib/url/filter-helpers';
-import { SOURCE_TYPE_LABELS, PENALTY_TYPE_MULTISELECT_OPTIONS, AGENCY_LEVEL_MULTISELECT_OPTIONS } from '@/lib/constants/fines';
+import { SOURCE_TYPE_LABELS, PENALTY_TYPE_MULTISELECT_OPTIONS, AGENCY_LEVEL_MULTISELECT_OPTIONS, FINES_CLASSIFICATION_OPTIONS } from '@/lib/constants/fines';
 import type { JurisdictionCode } from '@deproceduralizer/database';
 import type { FineWithContext, FinesOverviewStats } from '@/lib/actions/fines';
 
@@ -42,6 +42,8 @@ const sourceTypeOptions = [
   { value: 'all', label: 'All Sources' },
   ...Object.entries(SOURCE_TYPE_LABELS).map(([value, label]) => ({ value, label })),
 ];
+
+const classificationOptions = FINES_CLASSIFICATION_OPTIONS.map(o => ({ value: o.value, label: o.label }));
 
 export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitValues, stats }: FinesBrowseTabProps) {
   const [params, setParams] = useQueryStates(finesParsers, { shallow: true });
@@ -131,6 +133,7 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
     const amountMax = resolve('amountMax', params.amountMax) as number | null;
     const whoPaysRaw = resolve('whoPays', params.whoPays) as string | null;
     const perUnitRaw = resolve('perUnit', params.perUnit) as string | null;
+    const classificationRaw = resolve('classification', params.classification) as string | null;
 
     const resolvedSourceType: 'regulation' | 'guidance' | undefined =
       sourceType === 'regulation' || sourceType === 'guidance'
@@ -147,6 +150,7 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
       amountMax: amountMax ?? undefined,
       whoPays: whoPaysRaw || undefined,
       perUnit: perUnitRaw || undefined,
+      classification: classificationRaw && classificationRaw !== 'all' ? classificationRaw : undefined,
     };
   }, [params]);
 
@@ -209,7 +213,8 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
     params.amountMin !== null ||
     params.amountMax !== null ||
     params.whoPays ||
-    params.perUnit
+    params.perUnit ||
+    (params.classification && params.classification !== 'all')
   );
 
   const clearFilters = useCallback(() => {
@@ -223,6 +228,7 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
       amountMax: null,
       whoPays: null,
       perUnit: null,
+      classification: 'all',
       page: 1,
     };
     setParams(defaults as Parameters<typeof setParams>[0]);
@@ -397,6 +403,14 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
             onValueChange={(v) => handleFilterChange('sourceType', v === 'all' ? null : v)}
             options={sourceTypeOptions}
             aria-label="Filter by source type"
+          />
+        </FilterField>
+        <FilterField label="Analysis">
+          <Select
+            value={params.classification || 'all'}
+            onValueChange={(v) => handleFilterChange('classification', v === 'all' ? 'all' : v)}
+            options={classificationOptions}
+            aria-label="Filter by analysis classification"
           />
         </FilterField>
         <FilterField label="Agency">

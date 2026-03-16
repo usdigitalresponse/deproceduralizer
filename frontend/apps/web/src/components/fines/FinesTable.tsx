@@ -18,6 +18,7 @@ import {
   SOURCE_TYPE_BADGE_LABELS,
   ESTIMATED_PAYERS_LABELS,
 } from '@/lib/constants/fines';
+import { ClassificationBadge } from '@/components/issues';
 import type { FineWithContext } from '@/lib/actions/fines';
 
 interface FinesTableProps {
@@ -58,7 +59,7 @@ export function FinesTable({ data, state, onRowClick, bookmarkedFineIds, onToggl
             <th className={tableHeaderClass}>Level</th>
             <th className={tableHeaderClass}>Who Pays</th>
             <th className={tableHeaderClass}>Est. Impact</th>
-            <th className={tableHeaderClass}>AI Extracted</th>
+            <th className={tableHeaderClass}>Analysis</th>
             <th className={tableHeaderClass}>Description</th>
             <th className={tableHeaderClass}>Source</th>
           </tr>
@@ -132,8 +133,14 @@ export function FinesTable({ data, state, onRowClick, bookmarkedFineIds, onToggl
                     ? (ESTIMATED_PAYERS_LABELS[fine.estimatedAnnualPayers] || fine.estimatedAnnualPayers)
                     : '—'}
                 </td>
-                <td className="py-3 pr-3 max-w-[200px] truncate text-[var(--color-text-muted)] text-xs" title={isNormalized ? rawAgency ?? '' : ''}>
-                  {isNormalized ? rawAgency : '—'}
+                <td className="py-3 pr-3">
+                  {fine.analysis ? (
+                    <ClassificationBadge
+                      classification={fine.analysis.tier3Classification ?? fine.analysis.tier2Classification ?? fine.analysis.tier1Classification}
+                    />
+                  ) : (
+                    <span className="text-xs text-[var(--color-text-muted)]">—</span>
+                  )}
                 </td>
                 <td className="py-3 pr-3 text-[var(--color-text-secondary)] max-w-[250px] truncate" title={fine.violationDescription ?? ''}>
                   {fine.violationDescription ?? '—'}

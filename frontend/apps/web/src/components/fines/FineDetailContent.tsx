@@ -4,6 +4,10 @@ import Link from 'next/link';
 import { ExternalLink } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { ClassificationBadge } from '@/components/issues';
+import { TierBadge } from '@/components/issues/TierProgressIndicator';
+import { DecisionRationale } from '@/components/issues/DecisionRationale';
+import { SeverityBadge } from '@/components/ui/Badge';
 import {
   PENALTY_TYPE_LABELS,
   PENALTY_TYPE_COLORS,
@@ -151,6 +155,82 @@ export function FineDetailContent({ fine, state }: FineDetailContentProps) {
             )}
           </div>
         </Card>
+
+        {/* Card 5: Research Pipeline Analysis */}
+        {fine.analysis && (
+          <Card>
+            <h3 className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-3">
+              Research Pipeline Analysis
+            </h3>
+            <p className="text-xs text-[var(--color-text-muted)] mb-4">
+              Document-level analysis shared by all fines from this source
+            </p>
+
+            {/* Classification + Tier + Severity badges */}
+            <div className="flex flex-wrap items-center gap-2 mb-4">
+              <ClassificationBadge
+                classification={fine.analysis.tier3Classification ?? fine.analysis.tier2Classification ?? fine.analysis.tier1Classification}
+              />
+              <TierBadge highestTierCompleted={fine.analysis.highestTierCompleted} />
+              {fine.analysis.finalSeverity !== null && (
+                <SeverityBadge severity={fine.analysis.finalSeverity} />
+              )}
+              {fine.analysis.federalMandateFound && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                  Federal Mandate
+                </span>
+              )}
+              {fine.analysis.easyCleanupCandidate && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-50 text-green-700 border border-green-200">
+                  Easy Cleanup{fine.analysis.cleanupEffort ? ` (${fine.analysis.cleanupEffort})` : ''}
+                </span>
+              )}
+            </div>
+
+            {/* Decision Rationale (expandable T1/T2/T3 reasoning) */}
+            <DecisionRationale
+              tier1Reasoning={fine.analysis.tier1Reasoning}
+              tier2Reasoning={fine.analysis.tier2Reasoning}
+              tier3Reasoning={fine.analysis.tier3Reasoning}
+            />
+
+            {/* Arguments For/Against */}
+            <div className="space-y-4 mt-4">
+              {fine.analysis.argumentForRegulation && (
+                <div className="bg-green-50 border border-green-100 rounded-[var(--radius-md)] p-4">
+                  <h4 className="text-xs font-medium text-green-700 uppercase tracking-wider mb-2">
+                    Argument For Regulation
+                  </h4>
+                  <p className="text-sm text-green-900 whitespace-pre-wrap">
+                    {fine.analysis.argumentForRegulation}
+                  </p>
+                </div>
+              )}
+              {fine.analysis.argumentAgainstRegulation && (
+                <div className="bg-orange-50 border border-orange-100 rounded-[var(--radius-md)] p-4">
+                  <h4 className="text-xs font-medium text-orange-700 uppercase tracking-wider mb-2">
+                    Argument Against Regulation
+                  </h4>
+                  <p className="text-sm text-orange-900 whitespace-pre-wrap">
+                    {fine.analysis.argumentAgainstRegulation}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Web Search Summary */}
+            {fine.analysis.webSearchSummary && (
+              <div className="bg-blue-50 border border-blue-100 rounded-[var(--radius-md)] p-4 mt-4">
+                <h4 className="text-xs font-medium text-blue-700 uppercase tracking-wider mb-2">
+                  Web Search Findings
+                </h4>
+                <p className="text-sm text-blue-900 whitespace-pre-wrap">
+                  {fine.analysis.webSearchSummary}
+                </p>
+              </div>
+            )}
+          </Card>
+        )}
       </div>
 
       {/* Sidebar */}

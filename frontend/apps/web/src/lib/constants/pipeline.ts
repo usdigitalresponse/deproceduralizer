@@ -49,6 +49,7 @@ export const CLASSIFICATION_LABELS: Record<string, string> = {
   unrelated: 'Unrelated',
   justified: 'Justified',
   burdensome: 'Burdensome',
+  not_analyzed: 'Not Analyzed',
 };
 
 export interface PipelineInput {

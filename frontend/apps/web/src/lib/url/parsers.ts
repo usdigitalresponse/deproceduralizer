@@ -50,6 +50,7 @@ import {
   FINES_TAB_VALUES,
   FINES_SORT_BY_VALUES,
   SOURCE_TYPE_FILTER_VALUES,
+  FINES_CLASSIFICATION_FILTER_VALUES,
   // Analytics
   ANALYTICS_TAB_VALUES,
   TREEMAP_SIZE_METRIC_VALUES,
@@ -689,6 +690,7 @@ export const amountMaxParser = parseAsFloat;
 export const whoPaysParser = parseAsString;
 export const perUnitParser = parseAsString;
 export const agencyLevelParser = parseAsString;
+export const finesClassificationParser = parseAsStringEnum([...FINES_CLASSIFICATION_FILTER_VALUES]).withDefault('all');
 
 /**
  * Parser configuration for Fines & Fees page
@@ -708,10 +710,11 @@ export const finesParsers = {
   whoPays: whoPaysParser,
   perUnit: perUnitParser,
   agencyLevel: agencyLevelParser,
+  classification: finesClassificationParser,
 };
 
 // Re-export Fines types
-export type { FinesTabValue, FinesSortByValue, SourceTypeFilterValue } from '@/lib/constants/values';
+export type { FinesTabValue, FinesSortByValue, SourceTypeFilterValue, FinesClassificationFilterValue } from '@/lib/constants/values';
 
 // ============================================
 // Prompts page parsers
