@@ -1,10 +1,12 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { DollarSign } from 'lucide-react';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { BookmarkButton } from '@/components/ui';
 import { BookmarkNotesEditor } from '@/components/bookmarks/BookmarkNotesEditor';
+import { tableRowClass, tableHeaderClass } from '@/components/ui/table-styles';
 import type { FineBookmarkInfo } from '@/lib/actions/bookmarks';
 import {
   PENALTY_TYPE_LABELS,
@@ -29,6 +31,10 @@ interface FinesTableProps {
 }
 
 export function FinesTable({ data, state, onRowClick, bookmarkedFineIds, onToggleBookmark, fineBookmarks, onSaveBookmarkNotes, bookmarkName }: FinesTableProps) {
+  const handleToggleBookmark = (fineId: number) => {
+    onToggleBookmark?.(fineId);
+  };
+
   if (data.length === 0) {
     return (
       <EmptyState
@@ -45,15 +51,15 @@ export function FinesTable({ data, state, onRowClick, bookmarkedFineIds, onToggl
         <thead>
           <tr className="border-b border-[var(--color-neutral-200)]">
             {bookmarkedFineIds && <th className="w-8 py-3 pr-1" />}
-            <th className="text-left py-3 pr-3 text-xs font-medium text-[var(--color-text-muted)]">Type</th>
-            <th className="text-left py-3 pr-3 text-xs font-medium text-[var(--color-text-muted)]">Amount</th>
-            <th className="text-left py-3 pr-3 text-xs font-medium text-[var(--color-text-muted)]">Agency</th>
-            <th className="text-left py-3 pr-3 text-xs font-medium text-[var(--color-text-muted)]">Level</th>
-            <th className="text-left py-3 pr-3 text-xs font-medium text-[var(--color-text-muted)]">Who Pays</th>
-            <th className="text-left py-3 pr-3 text-xs font-medium text-[var(--color-text-muted)]">Est. Impact</th>
-            <th className="text-left py-3 pr-3 text-xs font-medium text-[var(--color-text-muted)]">AI Extracted</th>
-            <th className="text-left py-3 pr-3 text-xs font-medium text-[var(--color-text-muted)]">Description</th>
-            <th className="text-left py-3 text-xs font-medium text-[var(--color-text-muted)]">Source</th>
+            <th className={tableHeaderClass}>Type</th>
+            <th className={tableHeaderClass}>Amount</th>
+            <th className={tableHeaderClass}>Agency</th>
+            <th className={tableHeaderClass}>Level</th>
+            <th className={tableHeaderClass}>Who Pays</th>
+            <th className={tableHeaderClass}>Est. Impact</th>
+            <th className={tableHeaderClass}>AI Extracted</th>
+            <th className={tableHeaderClass}>Description</th>
+            <th className={tableHeaderClass}>Source</th>
           </tr>
         </thead>
         <tbody>
@@ -74,14 +80,15 @@ export function FinesTable({ data, state, onRowClick, bookmarkedFineIds, onToggl
               <FineRow key={fine.id}>
               <tr
                 onClick={() => onRowClick(fine)}
-                className={`${isBookmarked && bookmark ? '' : 'border-b border-[var(--color-neutral-100)] '}cursor-pointer hover:bg-[var(--color-neutral-50)] transition-colors`}
+                className={`${tableRowClass} cursor-pointer${isBookmarked && bookmark ? ' !border-b-0' : ''}`}
               >
                 {bookmarkedFineIds && (
                   <td className="py-3 pr-1" onClick={(e) => e.stopPropagation()}>
                     <BookmarkButton
                       isBookmarked={bookmarkedFineIds.has(fine.id)}
-                      onToggle={() => onToggleBookmark?.(fine.id)}
+                      onToggle={() => handleToggleBookmark(fine.id)}
                       size="sm"
+                      className=""
                     />
                   </td>
                 )}

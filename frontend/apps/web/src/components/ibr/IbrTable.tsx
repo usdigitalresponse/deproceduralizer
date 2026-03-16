@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { getEntityIcon } from '@/lib/constants/entity-types';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { tableHeaderClass, tableRowClass, tableCellClass } from '@/components/ui/table-styles';
 import type { IbrWithContext } from '@/lib/actions/ibr';
 
 interface IbrTableProps {
@@ -27,10 +28,10 @@ export function IbrTable({ data, state, onRowClick }: IbrTableProps) {
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-[var(--color-neutral-200)]">
-            <th className="text-left py-3 pr-3 text-xs font-medium text-[var(--color-text-muted)]">Standard</th>
-            <th className="text-left py-3 pr-3 text-xs font-medium text-[var(--color-text-muted)]">Organization</th>
-            <th className="text-left py-3 pr-3 text-xs font-medium text-[var(--color-text-muted)]">Version</th>
-            <th className="text-left py-3 text-xs font-medium text-[var(--color-text-muted)]">Source Regulation</th>
+            <th className={tableHeaderClass}>Standard</th>
+            <th className={tableHeaderClass}>Organization</th>
+            <th className={tableHeaderClass}>Version</th>
+            <th className={tableHeaderClass}>Source Regulation</th>
           </tr>
         </thead>
         <tbody>
@@ -38,18 +39,24 @@ export function IbrTable({ data, state, onRowClick }: IbrTableProps) {
             <tr
               key={ibr.id}
               onClick={() => onRowClick(ibr)}
-              className="border-b border-[var(--color-neutral-100)] cursor-pointer hover:bg-[var(--color-neutral-50)] transition-colors"
+              className={`${tableRowClass} cursor-pointer`}
             >
-              <td className="py-3 pr-3 text-[var(--color-text)] max-w-[250px] truncate" title={ibr.incorporatedDocument ?? ''}>
+              <td className={`${tableCellClass} text-[var(--color-text)] max-w-[250px] truncate`} title={ibr.incorporatedDocument ?? ''}>
                 {ibr.incorporatedDocument ?? 'Unknown'}
               </td>
-              <td className="py-3 pr-3 text-[var(--color-text-secondary)]">
+              <td className={`${tableCellClass} text-[var(--color-text-secondary)]`}>
                 {ibr.sourceOrganization ?? '—'}
               </td>
-              <td className="py-3 pr-3 text-[var(--color-text-muted)]">
-                {ibr.version ?? '—'}
+              <td className={tableCellClass}>
+                {ibr.version ? (
+                  <span className="font-mono text-xs bg-[var(--color-neutral-100)] px-1.5 py-0.5 rounded">
+                    {ibr.version}
+                  </span>
+                ) : (
+                  <span className="text-[var(--color-text-muted)]">—</span>
+                )}
               </td>
-              <td className="py-3 max-w-[300px]">
+              <td className={`${tableCellClass} max-w-[300px]`}>
                 <Link
                   href={`/${state}/regulations/${ibr.documentId}`}
                   onClick={(e) => e.stopPropagation()}

@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useQueryStates } from 'nuqs';
-import { Download, FileArchive, Filter } from 'lucide-react';
+import { Download, FileArchive, Filter, ChevronDown } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Select } from '@/components/ui/Select';
 import { MultiSelect } from '@/components/ui';
@@ -506,58 +506,14 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
 
               <div className="h-5 border-l border-[var(--color-neutral-300)]" />
 
-              {/* Export All — exports unfiltered data (respects state-only toggle) */}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleExportAll}
-                disabled={exporting === 'all'}
-              >
-                <Download className="w-3.5 h-3.5 mr-1.5" />
-                {exporting === 'all' ? 'Exporting...' : 'Export All (CSV)'}
-              </Button>
-
-              {/* Divider between "Export All" and filtered exports */}
-              <div className="h-5 border-l border-[var(--color-neutral-300)]" />
-
-              {/* Filtered exports — respect current filter state */}
-              <div className="flex flex-col items-end gap-1">
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={handleExportZip}
-                    disabled={exporting === 'zip' || total === 0}
-                  >
-                    {hasActiveFilters && <Filter className="w-3 h-3 mr-1" />}
-                    <FileArchive className="w-3.5 h-3.5 mr-1.5" />
-                    {exporting === 'zip'
-                      ? 'Exporting...'
-                      : hasActiveFilters
-                        ? 'Export Filtered by Agency (ZIP)'
-                        : 'Export by Agency (ZIP)'}
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={handleExport}
-                    disabled={exporting === 'csv' || total === 0}
-                  >
-                    {hasActiveFilters && <Filter className="w-3 h-3 mr-1" />}
-                    <Download className="w-3.5 h-3.5 mr-1.5" />
-                    {exporting === 'csv'
-                      ? 'Exporting...'
-                      : hasActiveFilters
-                        ? 'Export Filtered CSV'
-                        : 'Export CSV'}
-                  </Button>
-                </div>
-                {hasActiveFilters && (
-                  <span className="text-xs text-[var(--color-text-muted)]">
-                    Exports {total} filtered result{total !== 1 ? 's' : ''}
-                  </span>
-                )}
-              </div>
+              <ExportDropdown
+                exporting={exporting}
+                hasActiveFilters={hasActiveFilters}
+                total={total}
+                onExportAll={handleExportAll}
+                onExportCsv={handleExport}
+                onExportZip={handleExportZip}
+              />
             </div>
           </div>
           <div className="p-4">
@@ -594,6 +550,98 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
         state={jurisdiction}
         onBookmarkChange={handleBookmarkChange}
       />
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Export dropdown                                                     */
+/* ------------------------------------------------------------------ */
+
+interface ExportDropdownProps {
+  exporting: 'csv' | 'zip' | 'all' | null;
+  hasActiveFilters: boolean;
+  total: number;
+  onExportAll: () => void;
+  onExportCsv: () => void;
+  onExportZip: () => void;
+}
+
+function ExportDropdown({ exporting, hasActiveFilters, total, onExportAll, onExportCsv, onExportZip }: ExportDropdownProps) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleAction = (action: () => void) => {
+    setOpen(false);
+    action();
+  };
+
+  return (
+    <div className="relative" ref={ref}>
+      <Button
+        variant="secondary"
+        size="sm"
+        onClick={() => setOpen((prev) => !prev)}
+        disabled={exporting !== null}
+      >
+        <Download className="w-3.5 h-3.5 mr-1.5" />
+        {exporting ? 'Exporting...' : 'Export'}
+        <ChevronDown className={`w-3.5 h-3.5 ml-1 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </Button>
+
+      {open && (
+        <div className="absolute right-0 mt-1 w-64 bg-[var(--color-surface)] border border-[var(--color-neutral-200)] rounded-[var(--radius-md)] shadow-lg z-50 py-1">
+          <button
+            className="w-full text-left px-3 py-2 text-sm hover:bg-[var(--color-neutral-50)] transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => handleAction(onExportAll)}
+            disabled={exporting === 'all'}
+          >
+            <Download className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
+            Export All (CSV)
+          </button>
+
+          <div className="border-t border-[var(--color-neutral-100)] my-1" />
+
+          <button
+            className="w-full text-left px-3 py-2 text-sm hover:bg-[var(--color-neutral-50)] transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => handleAction(onExportCsv)}
+            disabled={exporting === 'csv' || total === 0}
+          >
+            {hasActiveFilters && <Filter className="w-3 h-3 text-[var(--color-text-muted)]" />}
+            <Download className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
+            {hasActiveFilters ? 'Export Filtered (CSV)' : 'Export (CSV)'}
+          </button>
+
+          <button
+            className="w-full text-left px-3 py-2 text-sm hover:bg-[var(--color-neutral-50)] transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => handleAction(onExportZip)}
+            disabled={exporting === 'zip' || total === 0}
+          >
+            {hasActiveFilters && <Filter className="w-3 h-3 text-[var(--color-text-muted)]" />}
+            <FileArchive className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
+            {hasActiveFilters ? 'Export Filtered by Agency (ZIP)' : 'Export by Agency (ZIP)'}
+          </button>
+
+          {hasActiveFilters && (
+            <>
+              <div className="border-t border-[var(--color-neutral-100)] my-1" />
+              <span className="block px-3 py-1 text-xs text-[var(--color-text-muted)]">
+                Filtered exports include {total} result{total !== 1 ? 's' : ''}
+              </span>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }

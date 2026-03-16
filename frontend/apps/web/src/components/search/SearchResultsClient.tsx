@@ -4,7 +4,7 @@ import { useCallback, useMemo, useTransition } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { useQueryStates } from 'nuqs';
 import { Search } from 'lucide-react';
-import { SearchInput, Pagination, EmptyState } from '@/components/ui';
+import { SearchInput, Pagination, EmptyState, StickyContainer } from '@/components/ui';
 import { SearchResultCard } from './SearchResultCard';
 import { CommentarySidebar } from './CommentarySidebar';
 import { SearchFilters } from './SearchFilters';
@@ -127,12 +127,16 @@ export function SearchResultsClient({
 
               {/* Commentary sidebar */}
               <div className="hidden lg:block">
-                <CommentarySidebar
-                  hits={initialResults.commentary}
-                  state={jurisdiction}
-                  query={currentQuery}
-                  searchUrl={searchUrl}
-                />
+                <StickyContainer offset="1rem">
+                  <div className="max-h-[calc(100vh-2rem)] overflow-y-auto">
+                    <CommentarySidebar
+                      hits={initialResults.commentary}
+                      state={jurisdiction}
+                      query={currentQuery}
+                      searchUrl={searchUrl}
+                    />
+                  </div>
+                </StickyContainer>
               </div>
             </div>
           )}

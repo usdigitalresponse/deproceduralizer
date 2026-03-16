@@ -124,3 +124,32 @@ export type { EntityTypeIndicatorProps } from './EntityTypeIndicator';
 
 // MarkdownTable
 export { MarkdownTable } from './MarkdownTable';
+
+// AnimatedCollapse
+export { AnimatedCollapse } from './AnimatedCollapse';
+export type { AnimatedCollapseProps } from './AnimatedCollapse';
+
+// ColorStripe
+export { ColorStripe } from './ColorStripe';
+export type { ColorStripeProps } from './ColorStripe';
+
+// StickyContainer
+export { StickyContainer } from './StickyContainer';
+export type { StickyContainerProps } from './StickyContainer';
+
+// ProportionalBar
+export { ProportionalBar } from './ProportionalBar';
+export type { ProportionalBarProps, ColorStop } from './ProportionalBar';
+
+// EntityTypeBadge
+export { EntityTypeBadge } from './EntityTypeBadge';
+export type { EntityTypeBadgeProps } from './EntityTypeBadge';
+
+// Table styles
+export {
+  zebraRowClass,
+  hoverRowClass,
+  tableHeaderClass,
+  tableCellClass,
+  tableRowClass,
+} from './table-styles';

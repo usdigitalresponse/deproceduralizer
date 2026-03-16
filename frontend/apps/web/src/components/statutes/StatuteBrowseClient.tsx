@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/Card';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerBody, DrawerClose } from '@/components/ui';
 import { ResizableDivider } from '@/components/ui/ResizableDivider';
 import { useResponsive, useDebouncedValue } from '@/hooks';
+import { Badge } from '@/components/ui/Badge';
 import { StatuteHierarchyTree } from './StatuteHierarchyTree';
 import { StatuteBrowseFilters } from './StatuteBrowseFilters';
 import { StatuteDetailPanel } from './StatuteDetailPanel';
@@ -248,6 +249,13 @@ export function StatuteBrowseClient({
           style={isMobile ? undefined : { width: panelWidth }}
         >
           <Card padding="none" className="min-h-[300px] h-[40vh] lg:h-[calc(100vh-16rem)] overflow-hidden">
+            {searchResults !== null && (
+              <div className="px-3 py-1.5 border-b border-[var(--color-neutral-200)] bg-[var(--color-neutral-50)]">
+                <Badge variant="default" className="text-xs">
+                  {searchResults.length} result{searchResults.length !== 1 ? 's' : ''} found
+                </Badge>
+              </div>
+            )}
             <StatuteHierarchyTree
               roots={displayRoots}
               expandedIds={expandedIds}

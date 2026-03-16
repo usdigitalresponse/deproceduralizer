@@ -99,23 +99,24 @@ test.describe('Smoke Tests', () => {
   test('dashboard shows statistics', async ({ page }) => {
     await page.goto('/');
 
-    // Should show dashboard heading
-    await expect(page.getByRole('heading', { name: /Regulatory Analysis Dashboard/i })).toBeVisible();
+    // Should show dashboard eyebrow
+    await expect(page.getByText(/Regulatory Analysis Dashboard/i)).toBeVisible();
 
-    // Should show overview section with populated statistics
-    await expect(page.getByRole('heading', { name: /Overview/i })).toBeVisible();
+    // Should show Regulatory Landscape section
+    await expect(page.getByRole('heading', { name: /Regulatory Landscape/i })).toBeVisible();
 
     // Verify key stats are populated with actual numbers (comma-formatted like 123,388)
     await expect(page.locator('text=/\\d{1,3}(,\\d{3})+/').first()).toBeVisible();
 
-    // Should show all the stat labels in the overview section
-    await expect(page.getByText('Regulations Scanned')).toBeVisible();
-    await expect(page.getByText('Compliance Issues', { exact: true })).toBeVisible();
+    // Should show hero stat labels
+    await expect(page.getByText('regulations scanned')).toBeVisible();
+    await expect(page.getByText('issues found')).toBeVisible();
 
-    // Should show jurisdiction selection with both states
-    await expect(page.getByRole('heading', { name: /Select a Jurisdiction/i })).toBeVisible();
+    // Should show jurisdiction cards for all 3 jurisdictions
+    await expect(page.getByRole('heading', { name: /Jurisdictions/i })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'New York State' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'New Jersey State' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'New York City' })).toBeVisible();
   });
 
   test('browse search filters results', async ({ page }) => {
@@ -650,15 +651,15 @@ test.describe('Review Form Submission', () => {
 test.describe('JenAI Review Cards', () => {
 
   test('jenai review cards render with hierarchy tree view', async ({ page }) => {
-    await page.goto('/ny/review?type=jenai');
+    // Filter to regulation-sourced issues so we get cards with hierarchy
+    await page.goto('/ny/review?type=jenai&source=regulation');
     await expect(page.getByRole('heading', { name: /Review New York/i })).toBeVisible();
 
     // Wait for JenAI cards to load
     const cards = page.getByTestId('jenai-card');
     await expect(cards.first()).toBeVisible({ timeout: 10000 });
 
-    // Cards should have hierarchy breadcrumbs (from HierarchyBreadcrumbsInline)
-    // and a "View Hierarchy" button (from HierarchyTreeView)
+    // Regulation-sourced cards should have a "View Hierarchy" button (from HierarchyTreeView)
     const firstCard = cards.first();
     await expect(firstCard.getByText(/View Hierarchy/i)).toBeVisible();
   });

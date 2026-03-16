@@ -7,15 +7,17 @@ import { Card, CardHeader, CardTitle } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ChartContainer } from '@/components/charts/ChartContainer';
 import { HorizontalBarChart } from '@/components/charts/BarChart';
+import type { BarChartDatum } from '@/lib/charts/types';
 import type { IbrOverviewStats, IbrTopStandard } from '@/lib/actions/ibr';
 
 interface IbrOverviewTabProps {
   stats: IbrOverviewStats | null;
   topStandards: IbrTopStandard[] | null;
   flaggedDocCount?: number;
+  onOrgBarClick?: (organization: string) => void;
 }
 
-export function IbrOverviewTab({ stats, topStandards, flaggedDocCount }: IbrOverviewTabProps) {
+export function IbrOverviewTab({ stats, topStandards, flaggedDocCount, onOrgBarClick }: IbrOverviewTabProps) {
   return (
     <div className="space-y-6">
       {/* Stat Cards */}
@@ -61,6 +63,7 @@ export function IbrOverviewTab({ stats, topStandards, flaggedDocCount }: IbrOver
                 width={width}
                 height={height}
                 maxBars={10}
+                onBarClick={onOrgBarClick ? (datum: BarChartDatum) => onOrgBarClick(datum.label) : undefined}
               />
             );
           }}
@@ -92,8 +95,14 @@ export function IbrOverviewTab({ stats, topStandards, flaggedDocCount }: IbrOver
                         <td className="py-2 pr-3 text-[var(--color-text-secondary)]">
                           {standard.sourceOrganization ?? '—'}
                         </td>
-                        <td className="py-2 pr-3 text-[var(--color-text-muted)]">
-                          {standard.version ?? '—'}
+                        <td className="py-2 pr-3">
+                          {standard.version ? (
+                            <span className="font-mono text-xs bg-[var(--color-neutral-100)] px-1.5 py-0.5 rounded">
+                              {standard.version}
+                            </span>
+                          ) : (
+                            <span className="text-[var(--color-text-muted)]">—</span>
+                          )}
                         </td>
                         <td className="py-2 text-right font-medium text-[var(--color-text)]">
                           {standard.count}

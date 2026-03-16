@@ -81,6 +81,7 @@ export function GlossaryClient({ jurisdiction, initialData }: GlossaryClientProp
   const [alphabeticalIndex, setAlphabeticalIndex] = useState(initialData.alphabeticalIndex);
   const [error, setError] = useState<string | null>(null);
 
+
   // ─────────────────────────────────────────────────────────────────────────────
   // Helper functions (centralized to avoid duplication)
   // ─────────────────────────────────────────────────────────────────────────────
@@ -338,59 +339,61 @@ export function GlossaryClient({ jurisdiction, initialData }: GlossaryClientProp
         )}
       </div>
 
-      {/* Definition/Term cards */}
-      {params.view === 'aggregated' ? (
-        aggregatedTerms.length > 0 ? (
-          <div className="space-y-4">
-            {aggregatedTerms.map((term) => (
-              <AggregatedTermCard
-                key={term.normalizedTerm}
-                term={term}
-                jurisdiction={jurisdiction}
+      {/* Definition/Term cards with crossfade on view switch */}
+      <div>
+        {params.view === 'aggregated' ? (
+          aggregatedTerms.length > 0 ? (
+            <div className="space-y-4">
+              {aggregatedTerms.map((term) => (
+                <AggregatedTermCard
+                  key={term.normalizedTerm}
+                  term={term}
+                  jurisdiction={jurisdiction}
+                />
+              ))}
+            </div>
+          ) : (
+            <Card>
+              <EmptyState
+                icon={Layers}
+                title="No terms found"
+                description={
+                  params.search || params.letter
+                    ? `No terms ${params.search ? `matching "${params.search}"` : ''}${params.search && params.letter ? ' and ' : ''}${params.letter ? `starting with "${params.letter}"` : ''}`
+                    : undefined
+                }
+                action={hasActiveFilters ? { label: 'Clear filters', onClick: handleResetAllFilters } : undefined}
               />
-            ))}
-          </div>
+            </Card>
+          )
         ) : (
-          <Card>
-            <EmptyState
-              icon={Layers}
-              title="No terms found"
-              description={
-                params.search || params.letter
-                  ? `No terms ${params.search ? `matching "${params.search}"` : ''}${params.search && params.letter ? ' and ' : ''}${params.letter ? `starting with "${params.letter}"` : ''}`
-                  : undefined
-              }
-              action={hasActiveFilters ? { label: 'Clear filters', onClick: handleResetAllFilters } : undefined}
-            />
-          </Card>
-        )
-      ) : (
-        definitions.length > 0 ? (
-          <div className="space-y-4">
-            {definitions.map((definition) => (
-              <DefinitionCard
-                key={definition.id}
-                definition={definition}
-                state={jurisdiction}
-                showSource={true}
+          definitions.length > 0 ? (
+            <div className="space-y-4">
+              {definitions.map((definition) => (
+                <DefinitionCard
+                  key={definition.id}
+                  definition={definition}
+                  state={jurisdiction}
+                  showSource={true}
+                />
+              ))}
+            </div>
+          ) : (
+            <Card>
+              <EmptyState
+                icon={DefinitionIcon}
+                title="No definitions found"
+                description={
+                  hasActiveFilters
+                    ? `No definitions ${params.search ? `matching "${params.search}"` : ''}${params.search && params.letter ? ' and ' : ''}${params.letter ? `starting with "${params.letter}"` : ''}`
+                    : undefined
+                }
+                action={hasActiveFilters ? { label: 'Clear filters', onClick: handleResetAllFilters } : undefined}
               />
-            ))}
-          </div>
-        ) : (
-          <Card>
-            <EmptyState
-              icon={DefinitionIcon}
-              title="No definitions found"
-              description={
-                hasActiveFilters
-                  ? `No definitions ${params.search ? `matching "${params.search}"` : ''}${params.search && params.letter ? ' and ' : ''}${params.letter ? `starting with "${params.letter}"` : ''}`
-                  : undefined
-              }
-              action={hasActiveFilters ? { label: 'Clear filters', onClick: handleResetAllFilters } : undefined}
-            />
-          </Card>
-        )
-      )}
+            </Card>
+          )
+        )}
+      </div>
 
       {/* Pagination */}
       {totalPages > 1 && (

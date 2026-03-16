@@ -128,12 +128,14 @@ export function RegulationDetailClient({
   return (
     <div className="space-y-4">
       {/* Notes panel - stacked above regulation text */}
-      <NotesSidePanel
-        documentId={documentId}
-        state={state}
-        notes={notes}
-        onNotesChange={handleNotesChange}
-      />
+      <div className="border-l-4 border-[var(--color-accent)] bg-[var(--color-accent-muted)] rounded-r-md p-3">
+        <NotesSidePanel
+          documentId={documentId}
+          state={state}
+          notes={notes}
+          onNotesChange={handleNotesChange}
+        />
+      </div>
 
       {/* Regulation text area */}
       <Card>

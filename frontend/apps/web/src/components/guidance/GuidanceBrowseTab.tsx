@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, type ComponentType } from 'react';
+import { List, Layers } from 'lucide-react';
 import { useQueryStates } from 'nuqs';
 import { Card } from '@/components/ui/Card';
 import { Select } from '@/components/ui/Select';
@@ -37,9 +38,9 @@ const sortOptions = [
   { value: 'createdAt', label: 'Date Added' },
 ];
 
-const browseModeOptions: Array<{ value: GuidanceBrowseModeValue; label: string }> = [
-  { value: 'flat', label: 'Flat' },
-  { value: 'grouped', label: 'Grouped' },
+const browseModeOptions: Array<{ value: GuidanceBrowseModeValue; label: string; icon?: ComponentType<{ className?: string }> }> = [
+  { value: 'flat', label: 'Flat', icon: List },
+  { value: 'grouped', label: 'Grouped', icon: Layers },
 ];
 
 const groupByOptions: Array<{ value: GuidanceGroupByValue; label: string }> = [
@@ -177,19 +178,21 @@ export function GuidanceBrowseTab({ jurisdiction, agencies, docTypes }: Guidance
     setParams({ groupSortBy: column, sortOrder: newOrder, page: 1 } as Parameters<typeof setParams>[0]);
   }, [setParams, params.groupSortBy, params.sortOrder]);
 
-  const hasActiveFilters = Boolean(
-    (params.agency && params.agency !== 'all') ||
-    (params.docType && params.docType !== 'all') ||
-    (params.policyCategory && params.policyCategory !== 'all') ||
-    (params.status && params.status !== 'all') ||
-    params.yearFrom ||
-    params.yearTo ||
-    params.search ||
-    (params.audienceDirection && params.audienceDirection !== 'all') ||
-    (params.sectionType && params.sectionType !== 'all') ||
-    params.hasForm ||
-    params.hasIbr
-  );
+  const activeFilterCount = [
+    params.agency && params.agency !== 'all',
+    params.docType && params.docType !== 'all',
+    params.policyCategory && params.policyCategory !== 'all',
+    params.status && params.status !== 'all',
+    params.yearFrom,
+    params.yearTo,
+    params.search,
+    params.audienceDirection && params.audienceDirection !== 'all',
+    params.sectionType && params.sectionType !== 'all',
+    params.hasForm,
+    params.hasIbr,
+  ].filter(Boolean).length;
+
+  const hasActiveFilters = activeFilterCount > 0;
 
   const clearFilters = useCallback(() => {
     setParams({
@@ -325,10 +328,19 @@ export function GuidanceBrowseTab({ jurisdiction, agencies, docTypes }: Guidance
 
       <Card padding="none">
         <div className={`${isLoading ? 'opacity-50 pointer-events-none' : ''} transition-opacity`}>
-          <div className="px-4 py-3 border-b border-[var(--color-neutral-200)]">
+          <div className="px-4 py-3 border-b border-[var(--color-neutral-200)] flex items-center gap-2">
             <span className="text-sm text-[var(--color-text-muted)]">
               {total} {isGrouped ? 'group' : 'result'}{total !== 1 ? 's' : ''}
             </span>
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="text-xs text-[var(--color-primary)] hover:text-[var(--color-primary-hover)] hover:underline transition-colors"
+              >
+                ({activeFilterCount} filter{activeFilterCount !== 1 ? 's' : ''} applied — clear)
+              </button>
+            )}
           </div>
           {isGrouped ? (
             <GroupedGuidanceTable

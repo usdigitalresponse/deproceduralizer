@@ -6,7 +6,9 @@ import { useQueryStates } from 'nuqs';
 import { Trash2, ExternalLink, FileText, ListChecks, BookOpen, DollarSign, Sparkles, AlertTriangle, Zap } from 'lucide-react';
 import type { BookmarkWithDetails, JurisdictionCode } from '@deproceduralizer/database';
 import { Badge, MultiSelect } from '@/components/ui';
+import type { BadgeVariant } from '@/components/ui/Badge';
 import { FilterBar, FilterField } from '@/components/ui/FilterBar';
+import { tableRowClass, tableHeaderClass } from '@/components/ui/table-styles';
 import { removeBookmark, updateBookmarkNotes, getFineBookmark } from '@/lib/actions/bookmarks';
 import { getFineById } from '@/lib/actions/fines';
 import type { FineWithContext } from '@/lib/actions/fines';
@@ -23,12 +25,14 @@ function TabButton({
   icon: Icon,
   label,
   count,
+  badgeVariant = 'default',
   isActive,
   onClick,
 }: {
   icon: ComponentType<{ className?: string }>;
   label: string;
   count: number;
+  badgeVariant?: BadgeVariant;
   isActive: boolean;
   onClick: () => void;
 }) {
@@ -45,7 +49,7 @@ function TabButton({
     >
       <Icon className="w-4 h-4" />
       {label}
-      <Badge variant="default" className="text-xs ml-1">
+      <Badge variant={badgeVariant} className="text-xs ml-1">
         {count}
       </Badge>
     </button>
@@ -312,10 +316,10 @@ export function BookmarksContent({ bookmarks, counts, jurisdiction }: BookmarksC
     <div className="space-y-6">
       {/* Tab Buttons */}
       <div className="flex gap-2 border-b border-[var(--color-neutral-200)]">
-        <TabButton icon={ListChecks} label="Analyses" count={counts.analysis} isActive={activeTab === 'analysis'} onClick={() => setActiveTab('analysis')} />
-        <TabButton icon={FileText} label="Documents" count={counts.document} isActive={activeTab === 'document'} onClick={() => setActiveTab('document')} />
-        <TabButton icon={BookOpen} label="Guidance" count={counts.guidance} isActive={activeTab === 'guidance'} onClick={() => setActiveTab('guidance')} />
-        <TabButton icon={DollarSign} label="Fines" count={counts.fine} isActive={activeTab === 'fine'} onClick={() => setActiveTab('fine')} />
+        <TabButton icon={ListChecks} label="Analyses" count={counts.analysis} badgeVariant="warning" isActive={activeTab === 'analysis'} onClick={() => setActiveTab('analysis')} />
+        <TabButton icon={FileText} label="Documents" count={counts.document} badgeVariant="default" isActive={activeTab === 'document'} onClick={() => setActiveTab('document')} />
+        <TabButton icon={BookOpen} label="Guidance" count={counts.guidance} badgeVariant="success" isActive={activeTab === 'guidance'} onClick={() => setActiveTab('guidance')} />
+        <TabButton icon={DollarSign} label="Fines" count={counts.fine} badgeVariant="info" isActive={activeTab === 'fine'} onClick={() => setActiveTab('fine')} />
       </div>
 
       {/* Summary Stats (Analysis tab only) */}
@@ -344,12 +348,12 @@ export function BookmarksContent({ bookmarks, counts, jurisdiction }: BookmarksC
           </p>
           <p className="text-sm text-[var(--color-text-muted)] mt-2">
             {activeTab === 'analysis'
-              ? 'Click the star icon on any pipeline analysis to bookmark it.'
+              ? 'Bookmark analyses from the Pipeline page to track important compliance findings'
               : activeTab === 'guidance'
-                ? 'Click the star icon on any guidance document to bookmark it.'
+                ? 'Bookmark guidance documents to track important policy directives'
                 : activeTab === 'fine'
-                  ? 'Click the star icon on any fine or fee to bookmark it.'
-                  : 'Click the star icon on any document to bookmark it.'}
+                  ? 'Star fines and fees from the Fines & Fees page to build your reference list'
+                  : 'Star any regulation from the Browse or Detail page to save it here'}
           </p>
         </div>
       ) : activeTab === 'analysis' ? (
@@ -372,12 +376,12 @@ export function BookmarksContent({ bookmarks, counts, jurisdiction }: BookmarksC
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-[var(--color-neutral-50)] border-b border-[var(--color-neutral-200)]">
-                <th className="text-left px-4 py-3 font-medium text-[var(--color-text-muted)]">Guidance Document</th>
-                <th className="text-left px-4 py-3 font-medium text-[var(--color-text-muted)]">Agency</th>
-                <th className="text-left px-4 py-3 font-medium text-[var(--color-text-muted)]">Notes</th>
-                <th className="text-left px-4 py-3 font-medium text-[var(--color-text-muted)]">By</th>
-                <th className="text-left px-4 py-3 font-medium text-[var(--color-text-muted)]">Bookmarked</th>
-                <th className="text-center px-3 py-3 font-medium text-[var(--color-text-muted)]">Actions</th>
+                <th className={tableHeaderClass}>Guidance Document</th>
+                <th className={tableHeaderClass}>Agency</th>
+                <th className={tableHeaderClass}>Notes</th>
+                <th className={tableHeaderClass}>By</th>
+                <th className={tableHeaderClass}>Bookmarked</th>
+                <th className={`${tableHeaderClass} !text-right`}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -464,7 +468,7 @@ export function BookmarksContent({ bookmarks, counts, jurisdiction }: BookmarksC
                     <th className="text-left px-4 py-3 font-medium text-[var(--color-text-muted)]">Description</th>
                     <th className="text-left px-4 py-3 font-medium text-[var(--color-text-muted)]">By</th>
                     <th className="text-left px-4 py-3 font-medium text-[var(--color-text-muted)]">Bookmarked</th>
-                    <th className="text-center px-3 py-3 font-medium text-[var(--color-text-muted)]">
+                    <th className="text-right px-3 py-3 font-medium text-[var(--color-text-muted)]">
                       <span className="sr-only">Actions</span>
                     </th>
                   </tr>
@@ -509,11 +513,11 @@ export function BookmarksContent({ bookmarks, counts, jurisdiction }: BookmarksC
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-[var(--color-neutral-50)] border-b border-[var(--color-neutral-200)]">
-                <th className="text-left px-4 py-3 font-medium text-[var(--color-text-muted)]">Document</th>
-                <th className="text-left px-4 py-3 font-medium text-[var(--color-text-muted)]">Notes</th>
-                <th className="text-left px-4 py-3 font-medium text-[var(--color-text-muted)]">By</th>
-                <th className="text-left px-4 py-3 font-medium text-[var(--color-text-muted)]">Bookmarked</th>
-                <th className="text-center px-3 py-3 font-medium text-[var(--color-text-muted)]">Actions</th>
+                <th className={tableHeaderClass}>Document</th>
+                <th className={tableHeaderClass}>Notes</th>
+                <th className={tableHeaderClass}>By</th>
+                <th className={tableHeaderClass}>Bookmarked</th>
+                <th className={`${tableHeaderClass} !text-right`}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -774,7 +778,7 @@ function DocumentBookmarkRow({
   const viewUrl = `/${jurisdiction.toLowerCase()}/regulations/${bookmark.documentId}`;
 
   return (
-    <tr className="border-b border-[var(--color-neutral-100)] hover:bg-[var(--color-neutral-50)]">
+    <tr className={tableRowClass}>
       {/* Document */}
       <td className="px-4 py-3 max-w-xs">
         <div className="truncate text-[var(--color-text)]" title={bookmark.documentTitle || ''}>
@@ -806,7 +810,7 @@ function DocumentBookmarkRow({
 
       {/* Actions */}
       <td className="px-3 py-3">
-        <div className="flex items-center justify-center gap-2">
+        <div className="flex items-center justify-end gap-2">
           <Link
             href={viewUrl}
             target="_blank"
@@ -846,7 +850,7 @@ function GuidanceBookmarkRow({
   const viewUrl = `/${jurisdiction.toLowerCase()}/guidance/${bookmark.guidanceDocumentId}`;
 
   return (
-    <tr className="border-b border-[var(--color-neutral-100)] hover:bg-[var(--color-neutral-50)]">
+    <tr className={tableRowClass}>
       {/* Title & Ref */}
       <td className="px-4 py-3 max-w-xs">
         <div className="truncate text-[var(--color-text)]" title={bookmark.guidanceTitle || ''}>
@@ -883,7 +887,7 @@ function GuidanceBookmarkRow({
 
       {/* Actions */}
       <td className="px-3 py-3">
-        <div className="flex items-center justify-center gap-2">
+        <div className="flex items-center justify-end gap-2">
           <Link
             href={viewUrl}
             target="_blank"
@@ -970,13 +974,15 @@ function FineBookmarkRow({
 
         {/* Actions */}
         <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={onRemove}
-            className="p-1 text-[var(--color-text-muted)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-bg)] rounded"
-            aria-label="Remove bookmark"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
+          <div className="flex items-center justify-end gap-2">
+            <button
+              onClick={onRemove}
+              className="p-1 text-[var(--color-text-muted)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-bg)] rounded"
+              aria-label="Remove bookmark"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </td>
       </tr>
       <tr className="border-b border-[var(--color-neutral-100)]">

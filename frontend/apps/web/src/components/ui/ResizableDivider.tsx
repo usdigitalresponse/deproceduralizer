@@ -82,7 +82,7 @@ export function ResizableDivider({
   return (
     <div
       className={`
-        ${isVertical ? 'w-1 cursor-col-resize' : 'h-1 cursor-row-resize'}
+        ${isVertical ? 'w-3 cursor-col-resize' : 'h-3 cursor-row-resize'}
         flex-shrink-0 relative group
         ${className}
       `}
@@ -100,7 +100,7 @@ export function ResizableDivider({
       <div
         className={`
           absolute
-          ${isVertical ? 'inset-y-0 -left-1 -right-1' : 'inset-x-0 -top-1 -bottom-1'}
+          ${isVertical ? 'inset-y-0 -left-2 -right-2' : 'inset-x-0 -top-2 -bottom-2'}
         `}
       />
       {/* Visible line */}
@@ -109,8 +109,38 @@ export function ResizableDivider({
           absolute
           ${isVertical ? 'inset-y-0 left-1/2 -translate-x-1/2 w-px' : 'inset-x-0 top-1/2 -translate-y-1/2 h-px'}
           bg-[var(--color-neutral-200)]
-          group-hover:bg-[var(--color-neutral-400)]
+          group-hover:bg-[var(--color-primary)]
           transition-colors duration-[var(--duration-fast)]
+        `}
+      />
+      {/* Grip indicator (3 dots) */}
+      <div
+        className={`
+          absolute
+          ${isVertical
+            ? 'left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col gap-1 items-center'
+            : 'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-row gap-1 items-center'}
+          opacity-0 group-hover:opacity-100
+          transition-opacity duration-[var(--duration-fast)]
+        `}
+        aria-hidden="true"
+      >
+        {[0, 1, 2].map((i) => (
+          <span
+            key={i}
+            className="block w-1 h-1 rounded-full bg-[var(--color-neutral-400)] group-hover:bg-[var(--color-primary)]"
+          />
+        ))}
+      </div>
+      {/* Hover background strip */}
+      <div
+        className={`
+          absolute
+          ${isVertical ? 'inset-y-0 left-0 right-0' : 'inset-x-0 top-0 bottom-0'}
+          rounded
+          bg-transparent group-hover:bg-[var(--color-neutral-100)]
+          transition-colors duration-[var(--duration-fast)]
+          -z-10
         `}
       />
     </div>

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { FullTextSearchLink } from '@/components/ui/FullTextSearchLink';
 import { Button } from '@/components/ui/Button';
+import { StickyContainer } from '@/components/ui/StickyContainer';
 import { useJurisdictionFromPath } from '@/hooks/useStateFromPath';
 import { X } from 'lucide-react';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
@@ -100,44 +101,46 @@ export function GlossarySearch({
       </div>
 
       {/* A-Z letter bar */}
-      <div role="group" aria-label="Filter by first letter" className="flex flex-wrap gap-1">
-        <Button
-          type="button"
-          variant={selectedLetter === null ? 'primary' : 'ghost'}
-          size="sm"
-          onClick={() => onLetterChange(null)}
-          aria-label="Show all terms"
-          aria-pressed={selectedLetter === null}
-          className="px-3 py-1 h-auto text-xs font-medium"
-        >
-          All
-        </Button>
-        {ALPHABET.map((letter) => {
-          const count = letterCounts.get(letter) ?? 0;
-          const isSelected = selectedLetter === letter;
-          const hasItems = count > 0;
+      <StickyContainer offset="0" blur>
+        <div role="group" aria-label="Filter by first letter" className="flex flex-wrap gap-1 py-2">
+          <Button
+            type="button"
+            variant={selectedLetter === null ? 'primary' : 'ghost'}
+            size="sm"
+            onClick={() => onLetterChange(null)}
+            aria-label="Show all terms"
+            aria-pressed={selectedLetter === null}
+            className="px-3 py-1 h-auto text-xs font-medium"
+          >
+            All
+          </Button>
+          {ALPHABET.map((letter) => {
+            const count = letterCounts.get(letter) ?? 0;
+            const isSelected = selectedLetter === letter;
+            const hasItems = count > 0;
 
-          return (
-            <Button
-              key={letter}
-              type="button"
-              variant={isSelected ? 'primary' : 'ghost'}
-              size="sm"
-              onClick={() => onLetterChange(isSelected ? null : letter)}
-              disabled={!hasItems && !isSelected}
-              aria-label={`Filter by letter ${letter}${hasItems ? `, ${count} definition${count === 1 ? '' : 's'}` : ', no definitions'}`}
-              aria-pressed={isSelected}
-              className={`
-                px-2.5 py-1 h-auto text-xs font-medium min-w-[32px]
-                ${!hasItems && !isSelected ? 'opacity-40 cursor-not-allowed' : ''}
-              `}
-              title={hasItems ? `${count} definition${count === 1 ? '' : 's'}` : 'No definitions'}
-            >
-              {letter}
-            </Button>
-          );
-        })}
-      </div>
+            return (
+              <Button
+                key={letter}
+                type="button"
+                variant={isSelected ? 'primary' : 'ghost'}
+                size="sm"
+                onClick={() => onLetterChange(isSelected ? null : letter)}
+                disabled={!hasItems && !isSelected}
+                aria-label={`Filter by letter ${letter}${hasItems ? `, ${count} definition${count === 1 ? '' : 's'}` : ', no definitions'}`}
+                aria-pressed={isSelected}
+                className={`
+                  px-2.5 py-1 h-auto text-xs font-medium min-w-[32px]
+                  ${!hasItems && !isSelected ? 'opacity-40 cursor-not-allowed' : ''}
+                `}
+                title={hasItems ? `${count} definition${count === 1 ? '' : 's'}` : 'No definitions'}
+              >
+                {letter}
+              </Button>
+            );
+          })}
+        </div>
+      </StickyContainer>
 
       {/* Active filter summary */}
       {hasLocalFilters && (

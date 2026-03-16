@@ -3,7 +3,8 @@
 import { memo } from 'react';
 import type { StatuteHierarchyNode } from '@deproceduralizer/database';
 import { Badge } from '@/components/ui/Badge';
-import { ChevronRight, ChevronDown, FileText, Folder } from 'lucide-react';
+import { ChevronRight, FileText, FolderOpen, Scale, BookOpen } from 'lucide-react';
+import { AnimatedCollapse } from '@/components/ui/AnimatedCollapse';
 import { STATUTE_HIERARCHY_LEVEL_LABELS } from '@/lib/constants/hierarchy';
 import { highlightTerm } from '@/lib/utils/highlight';
 
@@ -21,9 +22,20 @@ interface StatuteTreeNodeProps {
 
 /**
  * Map hierarchy levels to folder/file icons.
- * Container levels get Folder, sections get FileText.
+ * Container levels get FolderOpen, sections get FileText.
  */
 const containerLevels = new Set(['title', 'chapter', 'article', 'law', 'part', 'subpart']);
+
+/** Distinct icon per hierarchy level */
+const HIERARCHY_LEVEL_ICONS: Record<string, typeof FileText> = {
+  law: Scale,
+  title: BookOpen,
+  article: FileText,
+  chapter: FolderOpen,
+  section: FileText,
+  part: FolderOpen,
+  subpart: FolderOpen,
+};
 
 /**
  * Strip redundant state prefixes from statute titles since hierarchy context
@@ -55,7 +67,7 @@ export const StatuteTreeNode = memo(function StatuteTreeNode({
   const hasChildren = node.childCount > 0;
   const indentPx = depth * 20;
   const isContainer = containerLevels.has(node.hierarchyLevel || '');
-  const Icon = isContainer ? Folder : FileText;
+  const Icon = HIERARCHY_LEVEL_ICONS[node.hierarchyLevel || ''] || (isContainer ? FolderOpen : FileText);
   const levelLabel = STATUTE_HIERARCHY_LEVEL_LABELS[node.hierarchyLevel || ''] || node.hierarchyLevel || 'Document';
   const displayTitle = cleanStatuteTitle(node.title);
 
@@ -113,11 +125,10 @@ export const StatuteTreeNode = memo(function StatuteTreeNode({
             }}
             aria-label={isExpanded ? 'Collapse' : 'Expand'}
           >
-            {isExpanded ? (
-              <ChevronDown className="w-4 h-4" aria-hidden="true" />
-            ) : (
-              <ChevronRight className="w-4 h-4" aria-hidden="true" />
-            )}
+            <ChevronRight
+              className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}
+              aria-hidden="true"
+            />
           </button>
         ) : (
           <span className="w-5 shrink-0" />
@@ -158,15 +169,17 @@ export const StatuteTreeNode = memo(function StatuteTreeNode({
         </div>
       </div>
 
-      {/* Children (when expanded) */}
-      {isExpanded && (
-        <div role="group">
-          {isLoading ? (
-            <StatuteTreeNodeSkeleton depth={depth + 1} count={3} />
-          ) : (
-            renderChildren?.()
-          )}
-        </div>
+      {/* Children (animated expand/collapse) */}
+      {hasChildren && (
+        <AnimatedCollapse isOpen={isExpanded}>
+          <div role="group">
+            {isLoading ? (
+              <StatuteTreeNodeSkeleton depth={depth + 1} count={3} />
+            ) : (
+              renderChildren?.()
+            )}
+          </div>
+        </AnimatedCollapse>
       )}
     </div>
   );

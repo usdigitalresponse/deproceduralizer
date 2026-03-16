@@ -1,31 +1,61 @@
-import { Container, PageHeader } from '@/components/layout';
-import { DashboardStats, StateCard, QuickLinks, RecentActivityCard, TopIssuesChart, HomePrioritySection, PipelineHeroBanner } from '@/components/home';
-import { getDashboardStats, getAllStateStats, getRecentActivity } from '@/lib/actions/dashboard';
-import { getPriorityPicks } from '@/lib/actions/analysis';
+import { Container } from '@/components/layout';
+import { StateCard, HomeHero, RegulatoryLandscape } from '@/components/home';
+import { getDashboardStats, getAllStateStats } from '@/lib/actions/dashboard';
+import { getGuidanceOverviewStats } from '@/lib/actions/guidance-documents';
+import { getJenAIBurdenStats, getJenAIStatusCounts, getJenAICategories } from '@/lib/actions/jenai';
+import { getFinesOverviewStats } from '@/lib/actions/fines';
 import { DEFAULT_JURISDICTION, VALID_JURISDICTIONS } from '@/types/state';
-import type { JurisdictionCode } from '@deproceduralizer/database';
 import { Alert } from '@/components/ui';
 
 /**
- * Home page dashboard with aggregate stats, state selector, and quick links.
+ * Home page dashboard with aggregate stats, regulatory landscape, and jurisdiction cards.
  */
 export default async function HomePage() {
-  // Fetch stats for all states combined, per-state, recent activity, and priority picks
-  const [aggregateResult, stateStatsResult, activityResult, ...priorityResults] = await Promise.all([
+  const [
+    aggregateResult,
+    stateStatsResult,
+    guidanceNY,
+    guidanceNJ,
+    guidanceNYC,
+    burdenNY,
+    burdenNJ,
+    burdenNYC,
+    finesNY,
+    finesNJ,
+    finesNYC,
+    jenaiNY,
+    jenaiNJ,
+    jenaiNYC,
+    jenaiCategoriesResult,
+  ] = await Promise.all([
     getDashboardStats(),
     getAllStateStats(),
-    getRecentActivity(),
-    ...VALID_JURISDICTIONS.map((s) => getPriorityPicks(s as JurisdictionCode)),
+    getGuidanceOverviewStats('ny'),
+    getGuidanceOverviewStats('nj'),
+    getGuidanceOverviewStats('nyc'),
+    getJenAIBurdenStats('ny'),
+    getJenAIBurdenStats('nj'),
+    getJenAIBurdenStats('nyc'),
+    getFinesOverviewStats('ny'),
+    getFinesOverviewStats('nj'),
+    getFinesOverviewStats('nyc'),
+    getJenAIStatusCounts('ny'),
+    getJenAIStatusCounts('nj'),
+    getJenAIStatusCounts('nyc'),
+    getJenAICategories('ny'),
   ]);
 
-  // Handle errors - display them obviously
+  // Handle errors
   if (!aggregateResult.success) {
     return (
       <>
-        <PageHeader
-          title="Regulatory Analysis Dashboard"
-          description="AI-powered analysis of state regulations to identify procedural complexity and potential issues"
-        />
+        <div className="bg-[var(--color-primary-faint)] border-b border-[var(--color-neutral-200)]">
+          <Container size="2xl" className="py-8">
+            <p className="text-xs tracking-[0.15em] font-medium uppercase text-[var(--color-primary-mid)]">
+              Regulatory Analysis Dashboard
+            </p>
+          </Container>
+        </div>
         <Container size="2xl" className="py-6">
           <Alert variant="error">
             Failed to load dashboard stats: {aggregateResult.error}
@@ -38,10 +68,13 @@ export default async function HomePage() {
   if (!stateStatsResult.success) {
     return (
       <>
-        <PageHeader
-          title="Regulatory Analysis Dashboard"
-          description="AI-powered analysis of state regulations to identify procedural complexity and potential issues"
-        />
+        <div className="bg-[var(--color-primary-faint)] border-b border-[var(--color-neutral-200)]">
+          <Container size="2xl" className="py-8">
+            <p className="text-xs tracking-[0.15em] font-medium uppercase text-[var(--color-primary-mid)]">
+              Regulatory Analysis Dashboard
+            </p>
+          </Container>
+        </div>
         <Container size="2xl" className="py-6">
           <Alert variant="error">
             Failed to load state stats: {stateStatsResult.error}
@@ -53,81 +86,94 @@ export default async function HomePage() {
 
   const aggregateStats = aggregateResult.data;
   const stateStats = stateStatsResult.data;
-  const recentActivity = activityResult.success ? activityResult.data : null;
 
-  const statePriorities = VALID_JURISDICTIONS.map((s, i) => {
-    const result = priorityResults[i];
-    return {
-      jurisdiction: s as JurisdictionCode,
-      items: result.success ? result.data.items : [],
-      totalQuickWins: result.success ? result.data.totalQuickWins : 0,
-      isQuickWinMode: result.success ? result.data.isQuickWinMode : false,
-    };
-  });
+  // Guidance
+  const guidanceByState = {
+    ny: guidanceNY.success ? guidanceNY.data : null,
+    nj: guidanceNJ.success ? guidanceNJ.data : null,
+    nyc: guidanceNYC.success ? guidanceNYC.data : null,
+  };
+  const aggregateGuidanceTotal = Object.values(guidanceByState)
+    .reduce((sum, s) => sum + (s?.total ?? 0), 0);
+  const aggregateGuidanceAgencies = Object.values(guidanceByState)
+    .reduce((sum, s) => sum + (s?.byAgency?.length ?? 0), 0);
+
+  // Burden
+  const burdenByState = {
+    ny: burdenNY.success ? burdenNY.data : null,
+    nj: burdenNJ.success ? burdenNJ.data : null,
+    nyc: burdenNYC.success ? burdenNYC.data : null,
+  };
+
+  // Fines
+  const finesByState = {
+    ny: finesNY.success ? finesNY.data : null,
+    nj: finesNJ.success ? finesNJ.data : null,
+    nyc: finesNYC.success ? finesNYC.data : null,
+  };
+  const aggregateFinesTotal = Object.values(finesByState)
+    .reduce((sum, s) => sum + (s?.total ?? 0), 0);
+  const aggregateFinesAgencies = Object.values(finesByState)
+    .reduce((sum, s) => sum + (s?.uniqueAgencies ?? 0), 0);
+
+  // JenAI
+  const jenaiByState = {
+    ny: jenaiNY.success ? jenaiNY.data : null,
+    nj: jenaiNJ.success ? jenaiNJ.data : null,
+    nyc: jenaiNYC.success ? jenaiNYC.data : null,
+  };
+  const aggregateJenaiTotal = Object.values(jenaiByState)
+    .reduce((sum, s) => sum + (s?.total ?? 0), 0);
+  const aggregateJenaiUnreviewed = Object.values(jenaiByState)
+    .reduce((sum, s) => sum + (s?.unreviewed ?? 0), 0);
+  const jenaiTopCategory = jenaiCategoriesResult.success
+    ? jenaiCategoriesResult.data
+        .filter((c) => c.category.toLowerCase() !== 'other')
+        .sort((a, b) => b.count - a.count)[0]?.category ?? null
+    : null;
 
   return (
     <>
-      <PageHeader
-        title="Regulatory Analysis Dashboard"
-        description="AI-powered analysis of state regulations to identify procedural complexity and potential issues"
+      <HomeHero
+        stats={aggregateStats}
+        stateStats={stateStats}
+        guidanceTotal={aggregateGuidanceTotal}
+        jenaiTotal={aggregateJenaiTotal}
+        jenaiUnreviewed={aggregateJenaiUnreviewed}
       />
 
       <Container size="2xl" className="py-6 space-y-8">
-        {/* Pipeline Hero Banner */}
-        <PipelineHeroBanner state={DEFAULT_JURISDICTION} />
-
-        {/* Overview */}
+        {/* Regulatory Landscape */}
         <section>
           <h2 className="text-lg font-semibold text-[var(--color-text)] mb-4">
-            Overview
+            Regulatory Landscape
           </h2>
-          <DashboardStats stats={aggregateStats} />
+          <RegulatoryLandscape
+            complianceStats={aggregateStats.complianceIssues}
+            guidanceStats={{ total: aggregateGuidanceTotal, agencyCount: aggregateGuidanceAgencies }}
+            finesStats={{ total: aggregateFinesTotal, uniqueAgencies: aggregateFinesAgencies }}
+            jenaiStats={{ total: aggregateJenaiTotal, unreviewed: aggregateJenaiUnreviewed, topCategory: jenaiTopCategory }}
+            jurisdiction={DEFAULT_JURISDICTION}
+          />
         </section>
 
-        {/* Priority Picks */}
-        {statePriorities.some((sp) => sp.items.length > 0) && (
-          <section>
-            <h2 className="text-lg font-semibold text-[var(--color-text)] mb-4">
-              Featured Issues
-            </h2>
-            <HomePrioritySection jurisdictionPriorities={statePriorities} />
-          </section>
-        )}
-
-        {/* Recent Activity + Top Issues */}
-        {(recentActivity || aggregateStats.complianceIssues?.total > 0) && (
-          <section>
-            <h2 className="text-lg font-semibold text-[var(--color-text)] mb-4">
-              Recent Activity &amp; Top Issues
-            </h2>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {recentActivity && (
-                <RecentActivityCard activity={recentActivity} />
-              )}
-              {aggregateStats.complianceIssues?.total > 0 && (
-                <TopIssuesChart byType={aggregateStats.complianceIssues.byType} />
-              )}
-            </div>
-          </section>
-        )}
-
-        {/* State Selection */}
+        {/* Jurisdictions */}
         <section>
           <h2 className="text-lg font-semibold text-[var(--color-text)] mb-4">
-            Select a Jurisdiction
+            Jurisdictions
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <StateCard jurisdiction="ny" stats={stateStats.ny} />
-            <StateCard jurisdiction="nj" stats={stateStats.nj} />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {VALID_JURISDICTIONS.map((j) => (
+              <StateCard
+                key={j}
+                jurisdiction={j}
+                stats={stateStats[j]}
+                guidanceTotal={guidanceByState[j]?.total}
+                burdenStats={burdenByState[j]}
+                jenaiStats={jenaiByState[j]}
+              />
+            ))}
           </div>
-        </section>
-
-        {/* Quick Actions */}
-        <section>
-          <h2 className="text-lg font-semibold text-[var(--color-text)] mb-4">
-            Quick Actions
-          </h2>
-          <QuickLinks jurisdiction={DEFAULT_JURISDICTION} stats={aggregateStats} />
         </section>
       </Container>
     </>

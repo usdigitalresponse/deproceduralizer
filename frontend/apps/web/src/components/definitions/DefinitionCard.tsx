@@ -6,6 +6,8 @@ import { ChevronDown, ChevronUp, ExternalLink, BookOpen, Quote } from 'lucide-re
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { ProportionalBar } from '@/components/ui/ProportionalBar';
+import type { ColorStop } from '@/components/ui/ProportionalBar';
 import type { DefinitionWithContext } from '@deproceduralizer/database';
 import { formatStateCitation } from '@/lib/formatters/citations';
 import { DEFAULT_JURISDICTION } from '@/types/state';
@@ -68,15 +70,31 @@ export function DefinitionCard({
     ? definitionText
     : definitionText.slice(0, maxLength) + (isLongDefinition ? '...' : '');
 
+  // Color stops for quality bar: red (<40%), yellow (40-70%), green (>70%)
+  const qualityColorStops: ColorStop[] = [
+    { threshold: 40, color: 'var(--color-danger)' },
+    { threshold: 70, color: 'var(--color-warning)' },
+    { threshold: 100, color: 'var(--color-success)' },
+  ];
+
   // Format overlap as quality indicator
   const getQualityBadge = () => {
     const overlap = definition.definitionOverlap ?? 0;
-    if (overlap >= 0.9) {
-      return <Badge variant="success">High Quality</Badge>;
-    } else if (overlap >= 0.5) {
-      return <Badge variant="warning">Medium Quality</Badge>;
-    } else if (overlap > 0) {
-      return <Badge variant="default">Low Quality</Badge>;
+    if (overlap > 0) {
+      const percentage = Math.round(overlap * 100);
+      const label = overlap >= 0.7 ? 'High' : overlap >= 0.4 ? 'Medium' : 'Low';
+      return (
+        <div className="flex items-center gap-2 min-w-[120px]">
+          <ProportionalBar
+            value={percentage}
+            max={100}
+            colorStops={qualityColorStops}
+            height={4}
+            className="flex-1"
+          />
+          <span className="text-xs text-[var(--color-text-muted)] whitespace-nowrap">{label} ({percentage}%)</span>
+        </div>
+      );
     }
     return null;
   };
@@ -94,10 +112,10 @@ export function DefinitionCard({
   return (
     <Card padding={compact ? 'sm' : 'md'} className="hover:border-[var(--color-primary-weak)] transition-colors">
       <div className="flex items-start justify-between gap-4">
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 border-l-3 border-[var(--color-primary-weak)] pl-3">
           {/* Term heading */}
           <div className="flex items-center gap-2 flex-wrap mb-2">
-            <h3 className="text-base font-semibold text-[var(--color-text)]">
+            <h3 className="text-lg font-semibold text-[var(--color-primary)]">
               {definition.term}
             </h3>
             {definition.scope && (

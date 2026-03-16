@@ -81,68 +81,71 @@ export function FinesDetailDrawer({ fine, open, onOpenChange, state, onBookmarkC
               {/* Bookmark Notes */}
               <FineDetailNotesCard />
 
-              {/* Violation Description */}
-              {fine.violationDescription && (
-                <div>
-                  <h4 className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-2">
-                    Violation / Trigger
-                  </h4>
-                  <p className="text-sm text-[var(--color-text)]">
-                    {fine.violationDescription}
-                  </p>
-                </div>
-              )}
+              {/* --- Core Details --- */}
+              <div className="border-t border-[var(--color-neutral-200)] pt-4 mt-4 space-y-6">
+                {/* Violation Description */}
+                {fine.violationDescription && (
+                  <div>
+                    <h4 className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-2">
+                      Violation / Trigger
+                    </h4>
+                    <p className="text-sm text-[var(--color-text)]">
+                      {fine.violationDescription}
+                    </p>
+                  </div>
+                )}
 
-              {/* Who Pays */}
-              {fine.whoPays && (
-                <div>
-                  <h4 className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-2">
-                    Who Pays
-                  </h4>
-                  <p className="text-sm text-[var(--color-text)]">
-                    {fine.whoPays}
-                  </p>
-                </div>
-              )}
+                {/* Who Pays */}
+                {fine.whoPays && (
+                  <div>
+                    <h4 className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-2">
+                      Who Pays
+                    </h4>
+                    <p className="text-sm text-[var(--color-text)]">
+                      {fine.whoPays}
+                    </p>
+                  </div>
+                )}
 
-              {/* Activity Category */}
-              {fine.activityCategory && (
-                <div>
-                  <h4 className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-2">
-                    Activity Category
-                  </h4>
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[var(--color-neutral-100)] text-[var(--color-text-secondary)]">
-                    {ACTIVITY_CATEGORY_LABELS[fine.activityCategory] || fine.activityCategory}
-                  </span>
-                </div>
-              )}
+                {/* Activity Category */}
+                {fine.activityCategory && (
+                  <div>
+                    <h4 className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-2">
+                      Activity Category
+                    </h4>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[var(--color-neutral-100)] text-[var(--color-text-secondary)]">
+                      {ACTIVITY_CATEGORY_LABELS[fine.activityCategory] || fine.activityCategory}
+                    </span>
+                  </div>
+                )}
 
-              {/* Estimated Impact */}
-              {fine.estimatedAnnualPayers && (
-                <div>
-                  <h4 className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-2">
-                    Estimated Impact
-                  </h4>
-                  <p className="text-sm text-[var(--color-text)]">
-                    {ESTIMATED_PAYERS_LABELS[fine.estimatedAnnualPayers] || fine.estimatedAnnualPayers}
-                  </p>
-                </div>
-              )}
+                {/* Estimated Impact */}
+                {fine.estimatedAnnualPayers && (
+                  <div>
+                    <h4 className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-2">
+                      Estimated Impact
+                    </h4>
+                    <p className="text-sm text-[var(--color-text)]">
+                      {ESTIMATED_PAYERS_LABELS[fine.estimatedAnnualPayers] || fine.estimatedAnnualPayers}
+                    </p>
+                  </div>
+                )}
 
-              {/* Justification */}
-              {fine.justification && (
-                <div>
-                  <h4 className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-2">
-                    Justification
-                  </h4>
-                  <p className="text-sm text-[var(--color-text-secondary)] whitespace-pre-wrap">
-                    {fine.justification}
-                  </p>
-                </div>
-              )}
+                {/* Justification */}
+                {fine.justification && (
+                  <div>
+                    <h4 className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-2">
+                      Justification
+                    </h4>
+                    <p className="text-sm text-[var(--color-text-secondary)] whitespace-pre-wrap">
+                      {fine.justification}
+                    </p>
+                  </div>
+                )}
+              </div>
 
-              {/* Amount Details */}
-              <div>
+              {/* --- Amount Details --- */}
+              <div className="border-t border-[var(--color-neutral-200)] pt-4 mt-4">
                 <h4 className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-2">
                   Amount Details
                 </h4>
@@ -154,42 +157,45 @@ export function FinesDetailDrawer({ fine, open, onOpenChange, state, onBookmarkC
                 </div>
               </div>
 
-              {/* Requirement Quote */}
-              {fine.requirementQuote && (
+              {/* --- Evidence --- */}
+              <div className="border-t border-[var(--color-neutral-200)] pt-4 mt-4 space-y-6">
+                {/* Requirement Quote */}
+                {fine.requirementQuote && (
+                  <div>
+                    <h4 className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-2">
+                      Requirement Quote
+                    </h4>
+                    <blockquote className="text-sm text-[var(--color-text)] bg-[var(--color-neutral-50)] border-l-2 border-[var(--color-primary)] pl-3 py-2 rounded-r">
+                      {fine.requirementQuote}
+                    </blockquote>
+                  </div>
+                )}
+
+                {/* Full Context */}
                 <div>
                   <h4 className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-2">
-                    Requirement Quote
+                    Context
                   </h4>
-                  <blockquote className="text-sm text-[var(--color-text)] bg-[var(--color-neutral-50)] border-l-2 border-[var(--color-primary)] pl-3 py-2 rounded-r">
-                    {fine.requirementQuote}
-                  </blockquote>
+                  <p className="text-sm text-[var(--color-text-secondary)] whitespace-pre-wrap">
+                    {fine.context}
+                  </p>
                 </div>
-              )}
 
-              {/* Full Context */}
-              <div>
-                <h4 className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-2">
-                  Context
-                </h4>
-                <p className="text-sm text-[var(--color-text-secondary)] whitespace-pre-wrap">
-                  {fine.context}
-                </p>
+                {/* Pattern Matched */}
+                {fine.termMatched && (
+                  <div>
+                    <h4 className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-2">
+                      Pattern Matched
+                    </h4>
+                    <code className="text-xs bg-[var(--color-neutral-100)] px-2 py-1 rounded font-mono">
+                      {fine.termMatched}
+                    </code>
+                  </div>
+                )}
               </div>
 
-              {/* Pattern Matched */}
-              {fine.termMatched && (
-                <div>
-                  <h4 className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-2">
-                    Pattern Matched
-                  </h4>
-                  <code className="text-xs bg-[var(--color-neutral-100)] px-2 py-1 rounded font-mono">
-                    {fine.termMatched}
-                  </code>
-                </div>
-              )}
-
-              {/* Source Document */}
-              <div>
+              {/* --- Source Document --- */}
+              <div className="border-t border-[var(--color-neutral-200)] pt-4 mt-4">
                 <h4 className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-2">
                   Source {fine.sourceDocument.type === 'guidance' ? 'Guidance' : 'Regulation'}
                 </h4>

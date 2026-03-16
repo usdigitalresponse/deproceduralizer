@@ -6,6 +6,7 @@ import { ChevronDown, ChevronUp, Layers, BookOpen, ExternalLink } from 'lucide-r
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { AnimatedCollapse } from '@/components/ui/AnimatedCollapse';
 import { DefinitionCard } from './DefinitionCard';
 import { getDefinitionsForTermAction } from '@/lib/actions/definitions';
 import type { AggregatedTerm, DefinitionWithContext, JurisdictionCode } from '@deproceduralizer/database';
@@ -128,9 +129,9 @@ export function AggregatedTermCard({ term, jurisdiction }: AggregatedTermCardPro
       </div>
 
       {/* Expanded definitions list */}
-      {isExpanded && definitions && (
+      <AnimatedCollapse isOpen={isExpanded && definitions !== null}>
         <div className="mt-4 pt-4 border-t border-[var(--color-neutral-100)] space-y-3">
-          {definitions.map((def) => (
+          {definitions?.map((def) => (
             <DefinitionCard
               key={def.id}
               definition={def}
@@ -139,7 +140,7 @@ export function AggregatedTermCard({ term, jurisdiction }: AggregatedTermCardPro
             />
           ))}
         </div>
-      )}
+      </AnimatedCollapse>
     </Card>
   );
 }

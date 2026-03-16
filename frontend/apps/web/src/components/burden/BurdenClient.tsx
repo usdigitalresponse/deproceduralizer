@@ -14,6 +14,7 @@ import { SearchInput } from '@/components/ui/SearchInput';
 import { FilterBar, FilterField } from '@/components/ui/FilterBar';
 import { Pagination } from '@/components/ui/Pagination';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ProportionalBar } from '@/components/ui/ProportionalBar';
 import {
   burdenParsers,
   parseCommaSeparated,
@@ -114,6 +115,7 @@ export function BurdenClient({ jurisdiction, stats, categories, parts, sectionTy
   const [totalPages, setTotalPages] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
 
   // Parse multi-select values from comma-separated URL params
   const selectedSeverities = useMemo(() => parseCommaSeparated(params.severity), [params.severity]);
@@ -239,6 +241,18 @@ export function BurdenClient({ jurisdiction, stats, categories, parts, sectionTy
     setParams(defaults as Parameters<typeof setParams>[0]);
     fetchData(defaults);
   }, [setParams, fetchData]);
+
+  const toggleRowExpanded = useCallback((analysisId: number) => {
+    setExpandedRows(prev => {
+      const next = new Set(prev);
+      if (next.has(analysisId)) {
+        next.delete(analysisId);
+      } else {
+        next.add(analysisId);
+      }
+      return next;
+    });
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -421,11 +435,12 @@ export function BurdenClient({ jurisdiction, stats, categories, parts, sectionTy
                     </div>
 
                     {/* Score section */}
-                    <div className="flex-shrink-0 text-right">
+                    <div className="flex-shrink-0 text-right w-28">
                       <div className="text-xl font-bold text-[var(--color-text)]">
                         {row.adjustedBurden?.toFixed(1)}
                       </div>
                       <div className="text-xs text-[var(--color-text-muted)]">adjusted burden</div>
+                      <ProportionalBar value={row.adjustedBurden ?? 0} max={80} height={4} className="mt-1" />
                     </div>
                   </div>
 
@@ -458,9 +473,18 @@ export function BurdenClient({ jurisdiction, stats, categories, parts, sectionTy
                   </div>
 
                   {/* Why it ranks high */}
-                  <p className="mt-2 text-xs text-[var(--color-text-muted)] italic">
+                  <p className={`mt-2 text-xs text-[var(--color-text-muted)] italic ${
+                    expandedRows.has(row.analysisId) ? '' : 'line-clamp-2'
+                  }`}>
                     {buildExplanation(row)}
                   </p>
+                  <button
+                    type="button"
+                    onClick={() => toggleRowExpanded(row.analysisId)}
+                    className="mt-0.5 text-xs text-[var(--color-primary)] hover:underline"
+                  >
+                    {expandedRows.has(row.analysisId) ? 'Show less' : 'Show more'}
+                  </button>
                 </div>
               </div>
             </Card>

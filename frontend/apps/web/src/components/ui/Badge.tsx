@@ -3,7 +3,7 @@
 import { HTMLAttributes } from 'react';
 import { SEVERITY_THRESHOLDS } from '@/types/regulation';
 
-type BadgeVariant =
+export type BadgeVariant =
   | 'default'
   | 'success'
   | 'warning'

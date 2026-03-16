@@ -1,4 +1,5 @@
 export { PipelineFunnel } from './PipelineFunnel';
+export { PipelineStepper } from './PipelineStepper';
 export { ClassificationHeatmap } from './ClassificationHeatmap';
 export { TriggerReasons } from './TriggerReasons';
 export { ConfidenceDistributions } from './ConfidenceDistributions';

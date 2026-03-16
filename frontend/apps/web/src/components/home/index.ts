@@ -5,3 +5,5 @@ export { RecentActivityCard } from './RecentActivityCard';
 export { TopIssuesChart } from './TopIssuesChart';
 export { HomePrioritySection } from './HomePrioritySection';
 export { PipelineHeroBanner } from './PipelineHeroBanner';
+export { HomeHero } from './HomeHero';
+export { RegulatoryLandscape } from './RegulatoryLandscape';

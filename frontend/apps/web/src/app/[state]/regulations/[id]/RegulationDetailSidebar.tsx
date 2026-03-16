@@ -183,63 +183,107 @@ export async function RegulationDetailSidebar({
 
         {/* Compliance Issues */}
         {complianceIssues && complianceIssues.length > 0 && (
-          <div id="sidebar-compliance-issues">
+          <details id="sidebar-compliance-issues" open className="[&[open]>summary]:mb-2">
+            <summary className="flex items-center justify-between cursor-pointer px-1 py-1.5 hover:bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] transition-colors list-none [&::-webkit-details-marker]:hidden">
+              <span className="font-semibold text-sm text-[var(--color-text)]">Compliance Issues</span>
+              <span className="text-xs font-medium bg-[var(--color-neutral-100)] text-[var(--color-text-secondary)] rounded-full px-2 py-0.5">{complianceIssues.length}</span>
+            </summary>
             <ComplianceIssuesSummaryList
               issues={complianceIssues}
               state={state}
             />
-          </div>
+          </details>
         )}
 
         {/* JenAI Issues */}
         {jenaiIssues.length > 0 && (
-          <div id="sidebar-jenai">
+          <details id="sidebar-jenai" open className="[&[open]>summary]:mb-2">
+            <summary className="flex items-center justify-between cursor-pointer px-1 py-1.5 hover:bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] transition-colors list-none [&::-webkit-details-marker]:hidden">
+              <span className="font-semibold text-sm text-[var(--color-text)]">JenAI Issues</span>
+              <span className="text-xs font-medium bg-[var(--color-neutral-100)] text-[var(--color-text-secondary)] rounded-full px-2 py-0.5">{jenaiIssues.length}</span>
+            </summary>
             <JenAIIssuesList issues={jenaiIssues} state={state} />
-          </div>
+          </details>
         )}
 
         {/* Cross-References */}
         {crossRefs.length > 0 && (
-          <Card id="sidebar-cross-refs" className="p-4">
-            <CrossReferenceList
-              crossRefs={crossRefs}
-              state={state as 'nj' | 'ny'}
-              title="Cross-References"
-            />
+          <Card id="sidebar-cross-refs" className="p-0 overflow-hidden">
+            <details open className="[&[open]>summary]:mb-0">
+              <summary className="flex items-center justify-between cursor-pointer p-4 hover:bg-[var(--color-neutral-50)] transition-colors list-none [&::-webkit-details-marker]:hidden">
+                <span className="font-semibold text-sm text-[var(--color-text)]">Cross-References</span>
+                <span className="text-xs font-medium bg-[var(--color-neutral-100)] text-[var(--color-text-secondary)] rounded-full px-2 py-0.5">{crossRefs.length}</span>
+              </summary>
+              <div className="px-4 pb-4">
+                <CrossReferenceList
+                  crossRefs={crossRefs}
+                  state={state as 'nj' | 'ny'}
+                  title="Cross-References"
+                />
+              </div>
+            </details>
           </Card>
         )}
 
         {/* Incoming References */}
         {incomingRefs.length > 0 && (
-          <Card id="sidebar-cited-by" className="p-4">
-            <IncomingReferenceList
-              crossRefs={incomingRefs}
-              state={state as 'nj' | 'ny'}
-              title="Cited By"
-            />
+          <Card id="sidebar-cited-by" className="p-0 overflow-hidden">
+            <details open className="[&[open]>summary]:mb-0">
+              <summary className="flex items-center justify-between cursor-pointer p-4 hover:bg-[var(--color-neutral-50)] transition-colors list-none [&::-webkit-details-marker]:hidden">
+                <span className="font-semibold text-sm text-[var(--color-text)]">Cited By</span>
+                <span className="text-xs font-medium bg-[var(--color-neutral-100)] text-[var(--color-text-secondary)] rounded-full px-2 py-0.5">{incomingRefs.length}</span>
+              </summary>
+              <div className="px-4 pb-4">
+                <IncomingReferenceList
+                  crossRefs={incomingRefs}
+                  state={state as 'nj' | 'ny'}
+                  title="Cited By"
+                />
+              </div>
+            </details>
           </Card>
         )}
 
         {/* Guidance References */}
         {guidanceRefs.length > 0 && (
-          <Card id="sidebar-guidance-refs" className="p-4">
-            <GuidanceReferenceList
-              items={guidanceRefs}
-              state={state}
-            />
+          <Card id="sidebar-guidance-refs" className="p-0 overflow-hidden">
+            <details open className="[&[open]>summary]:mb-0">
+              <summary className="flex items-center justify-between cursor-pointer p-4 hover:bg-[var(--color-neutral-50)] transition-colors list-none [&::-webkit-details-marker]:hidden">
+                <span className="font-semibold text-sm text-[var(--color-text)]">Guidance References</span>
+                <span className="text-xs font-medium bg-[var(--color-neutral-100)] text-[var(--color-text-secondary)] rounded-full px-2 py-0.5">{guidanceRefs.length}</span>
+              </summary>
+              <div className="px-4 pb-4">
+                <GuidanceReferenceList
+                  items={guidanceRefs}
+                  state={state}
+                />
+              </div>
+            </details>
           </Card>
         )}
 
         {/* Statute Links */}
         {statuteLinks.length > 0 && (
-          <Card id="sidebar-statute-links" className="p-4">
-            <StatuteLinksList links={statuteLinks} state={state} />
+          <Card id="sidebar-statute-links" className="p-0 overflow-hidden">
+            <details open className="[&[open]>summary]:mb-0">
+              <summary className="flex items-center justify-between cursor-pointer p-4 hover:bg-[var(--color-neutral-50)] transition-colors list-none [&::-webkit-details-marker]:hidden">
+                <span className="font-semibold text-sm text-[var(--color-text)]">Statute Links</span>
+                <span className="text-xs font-medium bg-[var(--color-neutral-100)] text-[var(--color-text-secondary)] rounded-full px-2 py-0.5">{statuteLinks.length}</span>
+              </summary>
+              <div className="px-4 pb-4">
+                <StatuteLinksList links={statuteLinks} state={state} />
+              </div>
+            </details>
           </Card>
         )}
 
         {/* Definitions Used */}
         {usedDefinitions.length > 0 && (
-          <div id="sidebar-definitions-used">
+          <details id="sidebar-definitions-used" open className="[&[open]>summary]:mb-2">
+            <summary className="flex items-center justify-between cursor-pointer px-1 py-1.5 hover:bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] transition-colors list-none [&::-webkit-details-marker]:hidden">
+              <span className="font-semibold text-sm text-[var(--color-text)]">Definitions Used</span>
+              <span className="text-xs font-medium bg-[var(--color-neutral-100)] text-[var(--color-text-secondary)] rounded-full px-2 py-0.5">{usedDefinitions.length}</span>
+            </summary>
             <DefinitionsList
               definitions={usedDefinitions}
               definedHereIds={definedHereIds}
@@ -250,12 +294,16 @@ export async function RegulationDetailSidebar({
               collapsible
               initialCollapsed={false}
             />
-          </div>
+          </details>
         )}
 
         {/* Available Definitions */}
         {availableButNotUsed.length > 0 && (
-          <div id="sidebar-definitions-available">
+          <details id="sidebar-definitions-available" className="[&[open]>summary]:mb-2">
+            <summary className="flex items-center justify-between cursor-pointer px-1 py-1.5 hover:bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] transition-colors list-none [&::-webkit-details-marker]:hidden">
+              <span className="font-semibold text-sm text-[var(--color-text)]">Other Available Definitions</span>
+              <span className="text-xs font-medium bg-[var(--color-neutral-100)] text-[var(--color-text-secondary)] rounded-full px-2 py-0.5">{availableButNotUsed.length}</span>
+            </summary>
             <ApplicableDefinitions
               definitions={availableButNotUsed}
               state={state}
@@ -263,7 +311,7 @@ export async function RegulationDetailSidebar({
               description="Terms in scope but not used in this document"
               collapsed={true}
             />
-          </div>
+          </details>
         )}
       </RegulationSidebarWithNav>
     </div>

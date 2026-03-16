@@ -8,6 +8,7 @@ import { getDocumentReferenceContext } from '@/lib/actions/cross-references';
 import { Card } from '@/components/ui/Card';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerBody, DrawerClose } from '@/components/ui';
 import { ResizableDivider } from '@/components/ui/ResizableDivider';
+import { ReferenceHighlightLegend } from './ReferenceHighlightLegend';
 import { useResponsive } from '@/hooks';
 import { HierarchyTree } from './HierarchyTree';
 import { BrowseFilters } from './BrowseFilters';
@@ -326,6 +327,10 @@ export function BrowseClient({
                 <DrawerClose />
               </DrawerHeader>
               <DrawerBody className="flex-1 p-0">
+                <ReferenceHighlightLegend
+                  hasReferences={referencesIds.size > 0}
+                  hasReferencedBy={referencedByIds.size > 0}
+                />
                 <DetailPanel
                   documentId={selectedId}
                   onClose={handleCloseDetail}
@@ -336,7 +341,11 @@ export function BrowseClient({
             </DrawerContent>
           </Drawer>
         ) : (
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 space-y-2">
+            <ReferenceHighlightLegend
+              hasReferences={referencesIds.size > 0}
+              hasReferencedBy={referencedByIds.size > 0}
+            />
             <DetailPanel
               documentId={selectedId}
               onClose={handleCloseDetail}

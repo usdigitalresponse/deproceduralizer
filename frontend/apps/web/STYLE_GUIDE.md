@@ -1146,6 +1146,19 @@ Standardized page title area with:
 - Optional description
 - Light background stripe
 
+Used on all interior pages. **Not** used on the home page (see `HomeHero` below).
+
+### HomeHero
+
+Data-forward hero component used **only** on the home page (`app/page.tsx`). Replaces `PageHeader`, `DashboardStats`, and `PipelineHeroBanner` to avoid redundant sections.
+
+Structure:
+- Eyebrow label ("REGULATORY ANALYSIS DASHBOARD") instead of a large title
+- Four large stat numbers in a 2x2 → 4-column grid (regulations scanned, guidance documents, issues found, awaiting review)
+- Action bar with Pipeline + Burden Index links and jurisdiction pills
+
+Located at `components/home/HomeHero.tsx`. Server component — receives `stats`, `stateStats`, and `guidanceTotal` as props.
+
 ### StateContextBar
 
 Displays the current jurisdiction with a dropdown to switch between available states. Sits below the main header.
@@ -3056,15 +3069,37 @@ Clickable card for state selection with progress bars:
 ```tsx
 import { StateCard } from '@/components/home';
 
-<StateCard state="ny" stats={nyStats} />
-<StateCard state="nj" stats={njStats} />
+<StateCard jurisdiction="ny" stats={nyStats} guidanceTotal={1234} burdenStats={burdenData} />
 ```
 
 Features:
-- State abbreviation badge with accent color
-- Two progress bars: "Analyzed X/Y" and "Reviewed X/Y"
+- State abbreviation badge with accent color (uses CSS custom property vars: `--color-state-{code}-accent`, `--color-state-{code}-bg`, `--color-state-{code}-border`)
+- Subtitle shows regulation count + guidance count (when > 0)
+- Progress bar: "Compliance Issues Human-Reviewed X/Y"
+- Inline burden bar with average score (when burden data available)
 - Danger badges for unreviewed issues (only when > 0)
 - Hover state with shadow elevation
+
+Optional props: `guidanceTotal?: number`, `burdenStats?: BurdenOverviewStats | null`. Zero/null data is handled gracefully (rows hidden).
+
+### RegulatoryLandscape
+
+3-column grid of linked summary cards providing at-a-glance access to major data domains:
+
+```tsx
+import { RegulatoryLandscape } from '@/components/home';
+
+<RegulatoryLandscape
+  complianceStats={aggregateStats.complianceIssues}
+  guidanceStats={{ total: 13000, agencyCount: 42 }}
+  finesStats={{ total: 12000, uniqueAgencies: 35 }}
+  jurisdiction="ny"
+/>
+```
+
+Cards: Compliance Issues (→ pipeline), Guidance Documents (→ guidance), Fines & Fees (→ fines).
+
+Each card uses a left 4px colored border accent (`--color-warning`, `--color-primary`, `--color-danger`), shows a large primary metric, secondary detail text, and reveals an arrow on hover. Null/zero data shows "No data yet".
 
 ### QuickLinks
 

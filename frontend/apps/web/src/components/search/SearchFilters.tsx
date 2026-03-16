@@ -145,31 +145,37 @@ export function SearchFilters({ className = '', filterOptions }: SearchFiltersPr
         />
       </FilterField>
 
-      {/* Conditional sub-filters based on issue system */}
-      {issueSystem === 'compliance' && (
-        <>
-          <FilterField label="Classification">
-            <Select
-              value={filters.classification || 'all'}
-              onValueChange={(v) => updateFilter({ classification: v === 'all' ? null : v })}
-              options={SEARCH_CLASSIFICATION_OPTIONS}
-              aria-label="Filter by classification"
-            />
-          </FilterField>
-          <FilterField label="Issue Type">
-            <MultiSelect
-              label="Issue Type"
-              options={ISSUE_TYPE_MULTISELECT_OPTIONS}
-              value={issueTypeValues}
-              onChange={(values) => updateFilter({ issueType: serializeCommaSeparated(values) })}
-              placeholder="All issue types"
-              aria-label="Filter by compliance issue type"
-            />
-          </FilterField>
-        </>
-      )}
+      {/* Conditional sub-filters based on issue system — animated in/out */}
+      <div className={`
+        flex items-center gap-3
+        transition-all duration-200 ease-out overflow-hidden
+        ${issueSystem === 'compliance' ? 'max-w-[500px] opacity-100' : 'max-w-0 opacity-0'}
+      `}>
+        <FilterField label="Classification">
+          <Select
+            value={filters.classification || 'all'}
+            onValueChange={(v) => updateFilter({ classification: v === 'all' ? null : v })}
+            options={SEARCH_CLASSIFICATION_OPTIONS}
+            aria-label="Filter by classification"
+          />
+        </FilterField>
+        <FilterField label="Issue Type">
+          <MultiSelect
+            label="Issue Type"
+            options={ISSUE_TYPE_MULTISELECT_OPTIONS}
+            value={issueTypeValues}
+            onChange={(values) => updateFilter({ issueType: serializeCommaSeparated(values) })}
+            placeholder="All issue types"
+            aria-label="Filter by compliance issue type"
+          />
+        </FilterField>
+      </div>
 
-      {issueSystem === 'jenai' && (
+      <div className={`
+        flex items-center gap-3
+        transition-all duration-200 ease-out overflow-hidden
+        ${issueSystem === 'jenai' ? 'max-w-[300px] opacity-100' : 'max-w-0 opacity-0'}
+      `}>
         <FilterField label="Category">
           <MultiSelect
             label="Category"
@@ -180,9 +186,13 @@ export function SearchFilters({ className = '', filterOptions }: SearchFiltersPr
             aria-label="Filter by JenAI category"
           />
         </FilterField>
-      )}
+      </div>
 
-      {issueSystem && issueSystem !== 'none' && (
+      <div className={`
+        flex items-center gap-3
+        transition-all duration-200 ease-out overflow-hidden
+        ${issueSystem && issueSystem !== 'none' ? 'max-w-[250px] opacity-100' : 'max-w-0 opacity-0'}
+      `}>
         <FilterField label="Severity">
           <MultiSelect
             label="Severity"
@@ -193,7 +203,7 @@ export function SearchFilters({ className = '', filterOptions }: SearchFiltersPr
             aria-label="Filter by severity"
           />
         </FilterField>
-      )}
+      </div>
     </FilterBar>
   );
 }

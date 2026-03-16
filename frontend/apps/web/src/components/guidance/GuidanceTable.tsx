@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { getEntityIcon } from '@/lib/constants/entity-types';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { tableRowClass, tableHeaderClass } from '@/components/ui/table-styles';
 import { GuidanceStatusBadge } from './GuidanceStatusBadge';
 import { PolicyCategoryBadge } from './PolicyCategoryBadge';
 import type { GuidanceDocumentListItem } from '@/lib/actions/guidance-documents';
@@ -28,20 +29,20 @@ export function GuidanceTable({ data, state }: GuidanceTableProps) {
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-[var(--color-neutral-200)]">
-            <th className="text-left py-3 pr-3 text-xs font-medium text-[var(--color-text-muted)]">Ref</th>
-            <th className="text-left py-3 pr-3 text-xs font-medium text-[var(--color-text-muted)]">Title</th>
-            <th className="text-left py-3 pr-3 text-xs font-medium text-[var(--color-text-muted)]">Agency</th>
-            <th className="text-left py-3 pr-3 text-xs font-medium text-[var(--color-text-muted)]">Type</th>
-            <th className="text-left py-3 pr-3 text-xs font-medium text-[var(--color-text-muted)]">Category</th>
-            <th className="text-left py-3 pr-3 text-xs font-medium text-[var(--color-text-muted)]">Status</th>
-            <th className="text-right py-3 text-xs font-medium text-[var(--color-text-muted)]">Year</th>
+            <th className={tableHeaderClass}>Ref</th>
+            <th className={tableHeaderClass}>Title</th>
+            <th className={tableHeaderClass}>Agency</th>
+            <th className={tableHeaderClass}>Type</th>
+            <th className={tableHeaderClass}>Category</th>
+            <th className={tableHeaderClass}>Status</th>
+            <th className={`${tableHeaderClass} text-right`}>Year</th>
           </tr>
         </thead>
         <tbody>
           {data.map((doc) => (
             <tr
               key={doc.id}
-              className="border-b border-[var(--color-neutral-100)] hover:bg-[var(--color-neutral-50)] transition-colors"
+              className={tableRowClass}
             >
               <td className="py-3 pr-3 text-[var(--color-text-muted)] text-xs whitespace-nowrap">
                 <Link

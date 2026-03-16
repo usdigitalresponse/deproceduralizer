@@ -353,6 +353,7 @@ export function PipelineFunnel({ data }: PipelineFunnelProps) {
           label="Total Analyses"
           value={data.totalAnalyses}
           icon={BarChart3}
+          subtitle={`${data.tier1.needsResearch} advanced past Tier 1`}
         />
         <StatCard
           label="Tier 1 FP Rate"

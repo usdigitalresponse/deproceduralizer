@@ -192,8 +192,8 @@ export function OverviewTab({
           icon={ShieldAlert}
           variant={(bestTier?.burdensome ?? 0) > 0 ? 'danger' : 'default'}
           subtitle={
-            pipelineData
-              ? 'Requirements that could be simplified'
+            pipelineData && bestTier
+              ? `${complianceUnreviewed} unreviewed of ${complianceTotal} total issues`
               : 'Pipeline data not available'
           }
         />

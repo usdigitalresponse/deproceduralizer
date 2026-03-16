@@ -1,8 +1,8 @@
 'use client';
 
 import { usePathname, useSearchParams } from 'next/navigation';
-import { FileText, AlertTriangle, Loader2, ExternalLink } from 'lucide-react';
-import { Card } from '@/components/ui';
+import { FolderTree, AlertTriangle, Loader2, ExternalLink } from 'lucide-react';
+import { Card, EmptyState } from '@/components/ui';
 import { RegulationContent } from '@/components/regulations';
 import { HierarchyBreadcrumbs } from '../HierarchyBreadcrumbs';
 import { getJurisdictionFromPathname } from '@/hooks';
@@ -33,11 +33,11 @@ export function DetailPanel({ documentId, onClose, onNavigate, fullScreen = fals
   if (!documentId) {
     return (
       <Card className={`${heightClass} flex items-center justify-center`}>
-        <div className="text-center text-[var(--color-text-muted)]">
-          <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
-          <p className="text-sm font-medium">Select a regulation</p>
-          <p className="text-xs mt-1">Click on an item in the tree to view details</p>
-        </div>
+        <EmptyState
+          icon={FolderTree}
+          title="Select a regulation"
+          description="Click a node in the hierarchy tree to view its details"
+        />
       </Card>
     );
   }

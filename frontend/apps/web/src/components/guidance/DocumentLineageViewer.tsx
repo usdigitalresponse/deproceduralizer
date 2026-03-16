@@ -27,12 +27,12 @@ function TimelineNode({
   const content = (
     <div className="flex flex-col gap-0.5">
       <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-sm font-semibold text-[var(--color-text)]">
+        <span className={`text-sm font-semibold ${isCurrent ? 'text-[var(--color-primary)]' : 'text-[var(--color-text)]'}`}>
           {refLabel}
         </span>
         {isCurrent && (
-          <span className="text-xs text-[var(--color-primary)] font-medium">
-            Current document
+          <span className="text-[10px] uppercase tracking-wide text-[var(--color-primary)] font-semibold bg-[var(--color-primary-faint)] px-1.5 py-0.5 rounded-full">
+            Current
           </span>
         )}
       </div>
@@ -48,21 +48,25 @@ function TimelineNode({
     </div>
   );
 
+  const lineColor = isCurrent
+    ? 'border-[var(--color-primary)]'
+    : 'border-[var(--color-neutral-200)]';
+
   return (
     <div
-      className={`relative pl-8 ${!isLast ? 'pb-6 border-l-2 border-[var(--color-neutral-200)]' : ''} ml-1.5`}
+      className={`relative pl-8 ${!isLast ? `pb-6 border-l-2 ${lineColor}` : ''} ml-1.5`}
     >
       {/* Timeline circle */}
       <div
-        className={`absolute left-0 top-1 w-3 h-3 rounded-full border-2 -translate-x-1/2 ${
+        className={`absolute left-0 top-1 -translate-x-1/2 rounded-full border-2 ${
           isCurrent
-            ? 'bg-[var(--color-primary)] border-[var(--color-primary)]'
-            : 'bg-[var(--color-surface)] border-[var(--color-neutral-300)]'
+            ? 'w-4 h-4 bg-[var(--color-primary)] border-[var(--color-primary)] shadow-sm'
+            : 'w-3 h-3 bg-[var(--color-surface)] border-[var(--color-neutral-300)]'
         }`}
       />
 
       {isCurrent ? (
-        <div className="bg-[var(--color-primary-weaker)] rounded-[var(--radius-md)] p-2 -ml-2">
+        <div className="bg-[var(--color-primary-weaker)] border border-[var(--color-primary-faint)] rounded-[var(--radius-md)] p-3 -ml-2 shadow-sm">
           {content}
         </div>
       ) : (

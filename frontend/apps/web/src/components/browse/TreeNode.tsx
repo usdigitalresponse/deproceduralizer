@@ -5,7 +5,8 @@ import { type HierarchyNode } from '@deproceduralizer/database';
 import { Badge } from '@/components/ui/Badge';
 import { SectionTypeBadge } from '@/components/ui/SectionTypeBadge';
 import { MetadataIndicators } from '@/components/ui/MetadataIndicators';
-import { ChevronRight, ChevronDown, FileText, BookOpen, Folder, Link2, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
+import { AnimatedCollapse } from '@/components/ui/AnimatedCollapse';
+import { ChevronRight, FileText, BookOpen, Folder, ArrowUpRight } from 'lucide-react';
 import { formatDisplayTitle } from '@/lib/format';
 import { HIERARCHY_LEVEL_LABELS } from '@/lib/constants/hierarchy';
 import { highlightTerm } from '@/lib/utils/highlight';
@@ -99,7 +100,16 @@ export const TreeNode = memo(function TreeNode({
   };
 
   return (
-    <div role="treeitem" aria-expanded={hasChildren ? isExpanded : undefined}>
+    <div role="treeitem" aria-expanded={hasChildren ? isExpanded : undefined} className="relative">
+      {/* Depth guide lines */}
+      {depth > 0 && Array.from({ length: depth }).map((_, i) => (
+        <div
+          key={i}
+          className="absolute top-0 bottom-0 border-l border-[var(--color-neutral-200)]"
+          style={{ left: `${i * 20 + 12}px` }}
+          aria-hidden="true"
+        />
+      ))}
       <div
         className={`
           flex items-start gap-2 py-1.5 px-2 rounded cursor-pointer
@@ -118,7 +128,7 @@ export const TreeNode = memo(function TreeNode({
         onKeyDown={handleKeyDown}
         title={node.hierarchyPath || undefined}
       >
-        {/* Expand/collapse chevron */}
+        {/* Expand/collapse chevron with rotation animation */}
         {hasChildren ? (
           <button
             className="p-0.5 hover:bg-[var(--color-neutral-200)] rounded shrink-0"
@@ -128,11 +138,14 @@ export const TreeNode = memo(function TreeNode({
             }}
             aria-label={isExpanded ? 'Collapse' : 'Expand'}
           >
-            {isExpanded ? (
-              <ChevronDown className="w-4 h-4" aria-hidden="true" />
-            ) : (
-              <ChevronRight className="w-4 h-4" aria-hidden="true" />
-            )}
+            <ChevronRight
+              className="w-4 h-4"
+              style={{
+                transition: 'transform 200ms ease-out',
+                transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+              }}
+              aria-hidden="true"
+            />
           </button>
         ) : (
           <span className="w-5 shrink-0" />
@@ -219,15 +232,17 @@ export const TreeNode = memo(function TreeNode({
         </div>
       </div>
 
-      {/* Children (when expanded) */}
-      {isExpanded && (
-        <div role="group">
-          {isLoading ? (
-            <TreeNodeSkeleton depth={depth + 1} count={3} />
-          ) : (
-            renderChildren?.()
-          )}
-        </div>
+      {/* Children (with animated expand/collapse) */}
+      {hasChildren && (
+        <AnimatedCollapse isOpen={isExpanded}>
+          <div role="group">
+            {isLoading ? (
+              <TreeNodeSkeleton depth={depth + 1} count={3} />
+            ) : (
+              renderChildren?.()
+            )}
+          </div>
+        </AnimatedCollapse>
       )}
     </div>
   );

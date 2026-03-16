@@ -4,10 +4,10 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import type { StatuteWithLinks, StatuteAncestor } from '@deproceduralizer/database';
-import { FileText, AlertTriangle, Loader2, ChevronRight, ExternalLink } from 'lucide-react';
+import { AlertTriangle, Loader2, ChevronRight, ExternalLink, Scale } from 'lucide-react';
 import { EntityTypeIndicator } from '@/components/ui/EntityTypeIndicator';
 import { getEntityIcon, getEntityConfig } from '@/lib/constants/entity-types';
-import { Card, Button } from '@/components/ui';
+import { Card, Button, EmptyState } from '@/components/ui';
 import { Badge } from '@/components/ui/Badge';
 import { RegulationContent } from '@/components/regulations';
 import { STATUTE_HIERARCHY_LEVEL_LABELS } from '@/lib/constants/hierarchy';
@@ -80,11 +80,11 @@ export function StatuteDetailPanel({
   if (!statuteId) {
     return (
       <Card className={`${heightClass} flex items-center justify-center`}>
-        <div className="text-center text-[var(--color-text-muted)]">
-          <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
-          <p className="text-sm font-medium">Select a statute to view details</p>
-          <p className="text-xs mt-1">Click on an item in the tree to view details</p>
-        </div>
+        <EmptyState
+          icon={Scale}
+          title="Select a statute"
+          description="Click a node in the tree to view its details"
+        />
       </Card>
     );
   }

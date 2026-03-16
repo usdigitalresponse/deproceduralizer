@@ -38,8 +38,8 @@ test.describe('Authentication', () => {
     await page.getByLabel(/Password/i).fill('***REMOVED***');
     await page.getByRole('button', { name: /Continue/i }).click();
 
-    // Should redirect to dashboard
-    await expect(page.getByRole('heading', { name: /Regulatory Analysis Dashboard/i })).toBeVisible({ timeout: 15000 });
+    // Should redirect to dashboard (eyebrow text, not a heading)
+    await expect(page.getByText(/Regulatory Analysis Dashboard/i)).toBeVisible({ timeout: 15000 });
   });
 
   test('authenticated session persists across navigation', async ({ page }) => {
@@ -47,7 +47,7 @@ test.describe('Authentication', () => {
     await page.goto('/');
     await page.getByLabel(/Password/i).fill('***REMOVED***');
     await page.getByRole('button', { name: /Continue/i }).click();
-    await expect(page.getByRole('heading', { name: /Regulatory Analysis Dashboard/i })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(/Regulatory Analysis Dashboard/i)).toBeVisible({ timeout: 15000 });
 
     // Navigate to another page
     await page.goto('/ny/browse');

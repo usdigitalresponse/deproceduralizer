@@ -1,5 +1,6 @@
 'use client';
 
+import { useCallback } from 'react';
 import { useQueryStates } from 'nuqs';
 import { BarChart3, List } from 'lucide-react';
 import { SegmentedControl, type SegmentedControlOption } from '@/components/ui/SegmentedControl';
@@ -37,6 +38,10 @@ export function IbrClient({
     setParams({ tab });
   };
 
+  const handleOrgBarClick = useCallback((organization: string) => {
+    setParams({ tab: 'browse' as IbrTabValue, sourceOrganization: organization, page: 1 });
+  }, [setParams]);
+
   return (
     <div className="space-y-6">
       <SegmentedControl
@@ -51,6 +56,7 @@ export function IbrClient({
             stats={stats}
             topStandards={topStandards}
             flaggedDocCount={flaggedDocCount}
+            onOrgBarClick={handleOrgBarClick}
           />
         )}
 

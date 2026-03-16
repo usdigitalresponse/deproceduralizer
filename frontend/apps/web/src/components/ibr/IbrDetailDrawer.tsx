@@ -32,7 +32,7 @@ export function IbrDetailDrawer({ ibr, open, onOpenChange, state }: IbrDetailDra
                   </span>
                 )}
                 {ibr.version && (
-                  <span className="text-xs text-[var(--color-text-muted)]">
+                  <span className="font-mono text-xs bg-[var(--color-neutral-100)] px-1.5 py-0.5 rounded">
                     v{ibr.version}
                   </span>
                 )}
@@ -41,11 +41,11 @@ export function IbrDetailDrawer({ ibr, open, onOpenChange, state }: IbrDetailDra
             <DrawerClose />
           </DrawerHeader>
 
-          <DrawerBody className="p-4 space-y-6">
+          <DrawerBody className="p-4 space-y-0">
             {/* Requirement Quote */}
             {ibr.requirementQuote && (
-              <div>
-                <h4 className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-2">
+              <div className="pb-4">
+                <h4 className="text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider mb-2">
                   Requirement Quote
                 </h4>
                 <blockquote className="text-sm text-[var(--color-text)] bg-[var(--color-neutral-50)] border-l-2 border-[var(--color-primary)] pl-3 py-2 rounded-r">
@@ -55,8 +55,8 @@ export function IbrDetailDrawer({ ibr, open, onOpenChange, state }: IbrDetailDra
             )}
 
             {/* Full Context */}
-            <div>
-              <h4 className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-2">
+            <div className="border-t border-[var(--color-neutral-200)] pt-4 mt-4">
+              <h4 className="text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider mb-2">
                 Context
               </h4>
               <p className="text-sm text-[var(--color-text-secondary)] whitespace-pre-wrap">
@@ -66,8 +66,8 @@ export function IbrDetailDrawer({ ibr, open, onOpenChange, state }: IbrDetailDra
 
             {/* Term Matched */}
             {ibr.termMatched && (
-              <div>
-                <h4 className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-2">
+              <div className="border-t border-[var(--color-neutral-200)] pt-4 mt-4">
+                <h4 className="text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider mb-2">
                   Pattern Matched
                 </h4>
                 <code className="text-xs bg-[var(--color-neutral-100)] px-2 py-1 rounded font-mono">
@@ -77,8 +77,8 @@ export function IbrDetailDrawer({ ibr, open, onOpenChange, state }: IbrDetailDra
             )}
 
             {/* Source Regulation */}
-            <div>
-              <h4 className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-2">
+            <div className="border-t border-[var(--color-neutral-200)] pt-4 mt-4">
+              <h4 className="text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider mb-2">
                 Source Regulation
               </h4>
               <div className="text-sm space-y-2">

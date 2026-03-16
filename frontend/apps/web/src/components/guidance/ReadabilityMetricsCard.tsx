@@ -6,6 +6,14 @@ import { Card, CardHeader, CardTitle } from '@/components/ui/Card';
 import { ReadabilityBadge } from './ReadabilityBadge';
 import type { GuidanceDocumentDetail } from '@/lib/actions/guidance-documents';
 
+function getFleschLabel(score: number | null): { label: string; color: string } {
+  if (score === null) return { label: '--', color: 'var(--color-neutral-400)' };
+  if (score >= 90) return { label: 'Very Easy', color: 'var(--color-success)' };
+  if (score >= 60) return { label: 'Standard', color: 'var(--color-warning)' };
+  if (score >= 30) return { label: 'Difficult', color: 'var(--color-orange, #e67700)' };
+  return { label: 'Very Difficult', color: 'var(--color-danger)' };
+}
+
 interface ReadabilityMetricsCardProps {
   doc: GuidanceDocumentDetail;
 }
@@ -39,6 +47,19 @@ export function ReadabilityMetricsCard({ doc }: ReadabilityMetricsCardProps) {
       >
         <CardTitle>Readability Metrics</CardTitle>
         <div className="flex items-center gap-2">
+          {(() => {
+            const flesch = getFleschLabel(doc.fleschReadingEase);
+            return (
+              <>
+                <span
+                  className="inline-block w-2 h-2 rounded-full"
+                  style={{ backgroundColor: flesch.color }}
+                  title={flesch.label}
+                />
+                <span className="text-xs text-[var(--color-text-secondary)]">{flesch.label}</span>
+              </>
+            );
+          })()}
           <ReadabilityBadge score={doc.fleschReadingEase} />
           {isExpanded ? (
             <ChevronDown className="w-4 h-4 text-[var(--color-text-muted)]" />
