@@ -1,21 +1,13 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryStates } from 'nuqs';
 import { Star, Sparkles } from 'lucide-react';
-import { Select, FilterBar, FilterField, Badge } from '@/components/ui';
+import { MultiSelect, FilterBar, FilterField, Badge } from '@/components/ui';
 import { analysisTableParsers } from '@/lib/url/parsers';
+import { parseCommaSeparated, serializeCommaSeparated } from '@/lib/url/filter-helpers';
 import type {
-  ClassificationFilterValue,
-  TierFilterValue,
-  FederalMandateFilterValue,
   AnalysisSortByValue,
-  BooleanFilterValue,
-  PipelineSeverityFilterValue,
-  SeverityChangedFilterValue,
-  Tier3FindingFilterValue,
-  Tier3TriggerFilterValue,
-  EasyCleanupFilterValue,
 } from '@/lib/constants/values';
 import {
   TIER_FILTER_OPTIONS,
@@ -33,84 +25,140 @@ import {
   ADVOCACY_FOR_CHANGE_FILTER_OPTIONS,
   TIER3_TRIGGER_FILTER_OPTIONS,
   EASY_CLEANUP_FILTER_OPTIONS,
+  CLASSIFICATION_FILTER_OPTIONS,
+  toMultiSelectOptions,
 } from '@/lib/constants/filters';
-import { CLASSIFICATION_COLORS, COLORED_CLASSIFICATION_OPTIONS } from '@/lib/constants/pipeline';
+import type { AnalysisFilterStats } from '@/lib/actions/analysis';
 
-export function AnalysisTableFilters() {
+interface AnalysisTableFiltersProps {
+  filterStats?: AnalysisFilterStats;
+}
+
+export function AnalysisTableFilters({ filterStats }: AnalysisTableFiltersProps) {
   const [filters, setFilters] = useQueryStates(analysisTableParsers, {
     shallow: false,
   });
 
   const [showAdvanced, setShowAdvanced] = useState(false);
 
+  // On first load, apply default classification if no URL param is set
+  const didApplyDefaults = useRef(false);
+  useEffect(() => {
+    if (!didApplyDefaults.current && filters.classification === null) {
+      didApplyDefaults.current = true;
+      setFilters({ classification: 'burdensome,justified,needs_research' });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const clearFilters = useCallback(() => {
     setFilters({
-      tierCompleted: 'all',
-      classification: 'all',
-      federalMandate: 'all',
-      pipelineRun: 'all',
+      tierCompleted: null,
+      classification: 'burdensome,justified,needs_research',
+      federalMandate: null,
+      pipelineRun: null,
       issueType: null,
-      severity: 'all',
-      severityChanged: 'all',
-      federalMandateConfirmed: 'all',
-      stateDiscretion: 'all',
-      alternativeFound: 'all',
-      evidenceGap: 'all',
-      supersededByLaw: 'all',
-      advocacyForChange: 'all',
-      tier3Trigger: 'all',
-      easyCleanup: 'all',
-      bookmarkedOnly: 'all',
+      severity: null,
+      severityChanged: null,
+      federalMandateConfirmed: null,
+      stateDiscretion: null,
+      alternativeFound: null,
+      evidenceGap: null,
+      supersededByLaw: null,
+      advocacyForChange: null,
+      tier3Trigger: null,
+      easyCleanup: null,
+      bookmarkedOnly: null,
       page: 1,
     });
   }, [setFilters]);
 
+  // Build filter options with counts from stats
+  const classificationOptions = useMemo(() => {
+    const countMap = new Map(filterStats?.byClassification?.map(d => [d.classification, d.count]) ?? []);
+    return toMultiSelectOptions(CLASSIFICATION_FILTER_OPTIONS).map(opt => ({
+      ...opt,
+      count: countMap.get(opt.value),
+    }));
+  }, [filterStats?.byClassification]);
+
+  const tierOptions = useMemo(() => {
+    const countMap = new Map(filterStats?.byTier?.map(d => [String(d.tier), d.count]) ?? []);
+    return toMultiSelectOptions(TIER_FILTER_OPTIONS).map(opt => ({
+      ...opt,
+      count: countMap.get(opt.value),
+    }));
+  }, [filterStats?.byTier]);
+
+  const severityOptions = useMemo(() => {
+    const countMap = new Map(filterStats?.bySeverity?.map(d => [d.severity, d.count]) ?? []);
+    return toMultiSelectOptions(PIPELINE_SEVERITY_FILTER_OPTIONS).map(opt => ({
+      ...opt,
+      count: countMap.get(opt.value),
+    }));
+  }, [filterStats?.bySeverity]);
+
+  const issueTypeOptions = useMemo(() => {
+    const countMap = new Map(filterStats?.byIssueType?.map(d => [d.issueType, d.count]) ?? []);
+    return toMultiSelectOptions(ISSUE_TYPE_FILTER_OPTIONS).map(opt => ({
+      ...opt,
+      count: countMap.get(opt.value),
+    }));
+  }, [filterStats?.byIssueType]);
+
+  const federalMandateOptions = useMemo(() => {
+    const countMap = new Map(filterStats?.byFederalMandate?.map(d => [d.federalMandate, d.count]) ?? []);
+    return toMultiSelectOptions(FEDERAL_MANDATE_FILTER_OPTIONS).map(opt => ({
+      ...opt,
+      count: countMap.get(opt.value),
+    }));
+  }, [filterStats?.byFederalMandate]);
+
   const isBookmarkedOnly = filters.bookmarkedOnly === 'true';
-  const isEasyCleanupOnly = filters.easyCleanup === 'any';
+  const isEasyCleanupOnly = parseCommaSeparated(filters.easyCleanup).includes('any');
 
   const hasActiveFilters = Boolean(
-    filters.tierCompleted !== 'all' ||
-    filters.classification !== 'all' ||
-    filters.federalMandate !== 'all' ||
-    filters.pipelineRun !== 'all' ||
+    filters.tierCompleted ||
+    (filters.classification && filters.classification !== 'burdensome,justified,needs_research') ||
+    filters.federalMandate ||
+    filters.pipelineRun ||
     filters.issueType ||
-    filters.severity !== 'all' ||
-    filters.severityChanged !== 'all' ||
-    filters.federalMandateConfirmed !== 'all' ||
-    filters.stateDiscretion !== 'all' ||
-    filters.alternativeFound !== 'all' ||
-    filters.evidenceGap !== 'all' ||
-    filters.supersededByLaw !== 'all' ||
-    filters.advocacyForChange !== 'all' ||
-    filters.tier3Trigger !== 'all' ||
-    filters.easyCleanup !== 'all' ||
-    filters.bookmarkedOnly !== 'all'
+    filters.severity ||
+    filters.severityChanged ||
+    filters.federalMandateConfirmed ||
+    filters.stateDiscretion ||
+    filters.alternativeFound ||
+    filters.evidenceGap ||
+    filters.supersededByLaw ||
+    filters.advocacyForChange ||
+    filters.tier3Trigger ||
+    filters.easyCleanup ||
+    filters.bookmarkedOnly
   );
 
   // Count how many advanced filters are active
   const advancedFilterCount = [
-    filters.severityChanged !== 'all',
-    filters.federalMandateConfirmed !== 'all',
-    filters.stateDiscretion !== 'all',
-    filters.alternativeFound !== 'all',
-    filters.evidenceGap !== 'all',
-    filters.supersededByLaw !== 'all',
-    filters.advocacyForChange !== 'all',
-    filters.tier3Trigger !== 'all',
-    filters.easyCleanup !== 'all',
+    filters.severityChanged,
+    filters.federalMandateConfirmed,
+    filters.stateDiscretion,
+    filters.alternativeFound,
+    filters.evidenceGap,
+    filters.supersededByLaw,
+    filters.advocacyForChange,
+    filters.tier3Trigger,
+    filters.easyCleanup,
   ].filter(Boolean).length;
 
   const clearTier3Filters = useCallback(() => {
     setFilters({
-      severityChanged: 'all',
-      federalMandateConfirmed: 'all',
-      stateDiscretion: 'all',
-      alternativeFound: 'all',
-      evidenceGap: 'all',
-      supersededByLaw: 'all',
-      advocacyForChange: 'all',
-      tier3Trigger: 'all',
-      easyCleanup: 'all',
+      severityChanged: null,
+      federalMandateConfirmed: null,
+      stateDiscretion: null,
+      alternativeFound: null,
+      evidenceGap: null,
+      supersededByLaw: null,
+      advocacyForChange: null,
+      tier3Trigger: null,
+      easyCleanup: null,
       page: 1,
     });
   }, [setFilters]);
@@ -127,70 +175,60 @@ export function AnalysisTableFilters() {
         onSortOrderToggle={() => setFilters({ sortOrder: filters.sortOrder === 'desc' ? 'asc' : 'desc', page: 1 })}
         hasActiveFilters={hasActiveFilters}
         onClearFilters={clearFilters}
+        clearFiltersLabel="Reset Filters"
       >
         <FilterField label="Tier">
-          <Select
-            value={filters.tierCompleted}
-            onValueChange={(value) => setFilters({ tierCompleted: value as TierFilterValue, page: 1 })}
-            options={TIER_FILTER_OPTIONS}
-            aria-label="Filter by tier completed"
+          <MultiSelect
+            label="Tier"
+            value={parseCommaSeparated(filters.tierCompleted)}
+            onChange={(values) => setFilters({ tierCompleted: serializeCommaSeparated(values), page: 1 })}
+            options={tierOptions}
           />
         </FilterField>
 
         <FilterField label="Classification">
-          <Select
-            value={filters.classification}
-            onValueChange={(value) => setFilters({ classification: value as ClassificationFilterValue, page: 1 })}
-            options={COLORED_CLASSIFICATION_OPTIONS}
-            aria-label="Filter by classification"
-            renderOption={(option) => {
-              const colorClass = CLASSIFICATION_COLORS[option.value as keyof typeof CLASSIFICATION_COLORS];
-              if (!colorClass || option.value === 'all') {
-                return <span>{option.label}</span>;
-              }
-              return (
-                <span className="flex items-center gap-2">
-                  <span className={`w-2 h-2 rounded-full ${colorClass.bg} border ${colorClass.border}`} />
-                  {option.label}
-                </span>
-              );
-            }}
+          <MultiSelect
+            label="Classification"
+            value={parseCommaSeparated(filters.classification)}
+            onChange={(values) => setFilters({ classification: serializeCommaSeparated(values), page: 1 })}
+            options={classificationOptions}
           />
         </FilterField>
 
         <FilterField label="Issue Type">
-          <Select
-            value={filters.issueType || 'all'}
-            onValueChange={(value) => setFilters({ issueType: value === 'all' ? null : value, page: 1 })}
-            options={ISSUE_TYPE_FILTER_OPTIONS}
-            aria-label="Filter by issue type"
+          <MultiSelect
+            label="Issue Type"
+            value={parseCommaSeparated(filters.issueType)}
+            onChange={(values) => setFilters({ issueType: serializeCommaSeparated(values), page: 1 })}
+            options={issueTypeOptions}
+            searchable
           />
         </FilterField>
 
         <FilterField label="Severity">
-          <Select
-            value={filters.severity}
-            onValueChange={(value) => setFilters({ severity: value as PipelineSeverityFilterValue, page: 1 })}
-            options={PIPELINE_SEVERITY_FILTER_OPTIONS}
-            aria-label="Filter by severity"
+          <MultiSelect
+            label="Severity"
+            value={parseCommaSeparated(filters.severity)}
+            onChange={(values) => setFilters({ severity: serializeCommaSeparated(values), page: 1 })}
+            options={severityOptions}
           />
         </FilterField>
 
         <FilterField label="Federal Mandate">
-          <Select
-            value={filters.federalMandate}
-            onValueChange={(value) => setFilters({ federalMandate: value as FederalMandateFilterValue, page: 1 })}
-            options={FEDERAL_MANDATE_FILTER_OPTIONS}
-            aria-label="Filter by federal mandate"
+          <MultiSelect
+            label="Federal Mandate"
+            value={parseCommaSeparated(filters.federalMandate)}
+            onChange={(values) => setFilters({ federalMandate: serializeCommaSeparated(values), page: 1 })}
+            options={federalMandateOptions}
           />
         </FilterField>
 
         <FilterField label="Pipeline">
-          <Select
-            value={filters.pipelineRun}
-            onValueChange={(value) => setFilters({ pipelineRun: value as BooleanFilterValue, page: 1 })}
-            options={PIPELINE_RUN_FILTER_OPTIONS}
-            aria-label="Filter by pipeline run status"
+          <MultiSelect
+            label="Pipeline"
+            value={parseCommaSeparated(filters.pipelineRun)}
+            onChange={(values) => setFilters({ pipelineRun: serializeCommaSeparated(values), page: 1 })}
+            options={toMultiSelectOptions(PIPELINE_RUN_FILTER_OPTIONS)}
           />
         </FilterField>
       </FilterBar>
@@ -201,7 +239,7 @@ export function AnalysisTableFilters() {
         <button
           type="button"
           onClick={() => setFilters({
-            bookmarkedOnly: isBookmarkedOnly ? 'all' : 'true',
+            bookmarkedOnly: isBookmarkedOnly ? null : 'true',
             page: 1,
           })}
           className={`
@@ -222,7 +260,7 @@ export function AnalysisTableFilters() {
         <button
           type="button"
           onClick={() => setFilters({
-            easyCleanup: isEasyCleanupOnly ? 'all' : 'any',
+            easyCleanup: isEasyCleanupOnly ? null : 'any',
             page: 1,
           })}
           className={`
@@ -271,83 +309,83 @@ export function AnalysisTableFilters() {
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
             <FilterField label="T3 Trigger">
-              <Select
-                value={filters.tier3Trigger}
-                onValueChange={(value) => setFilters({ tier3Trigger: value as Tier3TriggerFilterValue, page: 1 })}
-                options={TIER3_TRIGGER_FILTER_OPTIONS}
-                aria-label="Filter by Tier 3 trigger"
+              <MultiSelect
+                label="T3 Trigger"
+                value={parseCommaSeparated(filters.tier3Trigger)}
+                onChange={(values) => setFilters({ tier3Trigger: serializeCommaSeparated(values), page: 1 })}
+                options={toMultiSelectOptions(TIER3_TRIGGER_FILTER_OPTIONS)}
               />
             </FilterField>
 
             <FilterField label="Sev. Changed">
-              <Select
-                value={filters.severityChanged}
-                onValueChange={(value) => setFilters({ severityChanged: value as SeverityChangedFilterValue, page: 1 })}
-                options={SEVERITY_CHANGED_FILTER_OPTIONS}
-                aria-label="Filter by severity changed"
+              <MultiSelect
+                label="Sev. Changed"
+                value={parseCommaSeparated(filters.severityChanged)}
+                onChange={(values) => setFilters({ severityChanged: serializeCommaSeparated(values), page: 1 })}
+                options={toMultiSelectOptions(SEVERITY_CHANGED_FILTER_OPTIONS)}
               />
             </FilterField>
 
             <FilterField label="Fed. Mandate (T3)">
-              <Select
-                value={filters.federalMandateConfirmed}
-                onValueChange={(value) => setFilters({ federalMandateConfirmed: value as Tier3FindingFilterValue, page: 1 })}
-                options={FEDERAL_MANDATE_CONFIRMED_FILTER_OPTIONS}
-                aria-label="Filter by federal mandate confirmed"
+              <MultiSelect
+                label="Fed. Mandate (T3)"
+                value={parseCommaSeparated(filters.federalMandateConfirmed)}
+                onChange={(values) => setFilters({ federalMandateConfirmed: serializeCommaSeparated(values), page: 1 })}
+                options={toMultiSelectOptions(FEDERAL_MANDATE_CONFIRMED_FILTER_OPTIONS)}
               />
             </FilterField>
 
             <FilterField label="State Discretion">
-              <Select
-                value={filters.stateDiscretion}
-                onValueChange={(value) => setFilters({ stateDiscretion: value as Tier3FindingFilterValue, page: 1 })}
-                options={STATE_DISCRETION_FILTER_OPTIONS}
-                aria-label="Filter by state discretion"
+              <MultiSelect
+                label="State Discretion"
+                value={parseCommaSeparated(filters.stateDiscretion)}
+                onChange={(values) => setFilters({ stateDiscretion: serializeCommaSeparated(values), page: 1 })}
+                options={toMultiSelectOptions(STATE_DISCRETION_FILTER_OPTIONS)}
               />
             </FilterField>
 
             <FilterField label="Alt. Found">
-              <Select
-                value={filters.alternativeFound}
-                onValueChange={(value) => setFilters({ alternativeFound: value as Tier3FindingFilterValue, page: 1 })}
-                options={ALTERNATIVE_FOUND_FILTER_OPTIONS}
-                aria-label="Filter by alternative found"
+              <MultiSelect
+                label="Alt. Found"
+                value={parseCommaSeparated(filters.alternativeFound)}
+                onChange={(values) => setFilters({ alternativeFound: serializeCommaSeparated(values), page: 1 })}
+                options={toMultiSelectOptions(ALTERNATIVE_FOUND_FILTER_OPTIONS)}
               />
             </FilterField>
 
             <FilterField label="Evidence Gap">
-              <Select
-                value={filters.evidenceGap}
-                onValueChange={(value) => setFilters({ evidenceGap: value as Tier3FindingFilterValue, page: 1 })}
-                options={EVIDENCE_GAP_FILTER_OPTIONS}
-                aria-label="Filter by evidence gap"
+              <MultiSelect
+                label="Evidence Gap"
+                value={parseCommaSeparated(filters.evidenceGap)}
+                onChange={(values) => setFilters({ evidenceGap: serializeCommaSeparated(values), page: 1 })}
+                options={toMultiSelectOptions(EVIDENCE_GAP_FILTER_OPTIONS)}
               />
             </FilterField>
 
             <FilterField label="Superseded">
-              <Select
-                value={filters.supersededByLaw}
-                onValueChange={(value) => setFilters({ supersededByLaw: value as Tier3FindingFilterValue, page: 1 })}
-                options={SUPERSEDED_BY_LAW_FILTER_OPTIONS}
-                aria-label="Filter by superseded by law"
+              <MultiSelect
+                label="Superseded"
+                value={parseCommaSeparated(filters.supersededByLaw)}
+                onChange={(values) => setFilters({ supersededByLaw: serializeCommaSeparated(values), page: 1 })}
+                options={toMultiSelectOptions(SUPERSEDED_BY_LAW_FILTER_OPTIONS)}
               />
             </FilterField>
 
             <FilterField label="Advocacy">
-              <Select
-                value={filters.advocacyForChange}
-                onValueChange={(value) => setFilters({ advocacyForChange: value as Tier3FindingFilterValue, page: 1 })}
-                options={ADVOCACY_FOR_CHANGE_FILTER_OPTIONS}
-                aria-label="Filter by advocacy for change"
+              <MultiSelect
+                label="Advocacy"
+                value={parseCommaSeparated(filters.advocacyForChange)}
+                onChange={(values) => setFilters({ advocacyForChange: serializeCommaSeparated(values), page: 1 })}
+                options={toMultiSelectOptions(ADVOCACY_FOR_CHANGE_FILTER_OPTIONS)}
               />
             </FilterField>
 
             <FilterField label="Easy Cleanup">
-              <Select
-                value={filters.easyCleanup}
-                onValueChange={(value) => setFilters({ easyCleanup: value as EasyCleanupFilterValue, page: 1 })}
-                options={EASY_CLEANUP_FILTER_OPTIONS}
-                aria-label="Filter by easy cleanup"
+              <MultiSelect
+                label="Easy Cleanup"
+                value={parseCommaSeparated(filters.easyCleanup)}
+                onChange={(values) => setFilters({ easyCleanup: serializeCommaSeparated(values), page: 1 })}
+                options={toMultiSelectOptions(EASY_CLEANUP_FILTER_OPTIONS)}
               />
             </FilterField>
           </div>

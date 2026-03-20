@@ -62,6 +62,15 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
   const bookmarkedIds = useMemo(() => new Set(fineBookmarks.keys()), [fineBookmarks]);
   const { bookmarkName } = useBookmarkName();
 
+  // On first load, apply default severity filter if no URL param is set
+  const didApplyDefaults = useRef(false);
+  useEffect(() => {
+    if (!didApplyDefaults.current && params.severity === null) {
+      didApplyDefaults.current = true;
+      setParams({ severity: 'high,medium,low' });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Parse URL state for multi-select filters
   const selectedPenaltyTypes = useMemo(() => parseCommaSeparated(params.penaltyType), [params.penaltyType]);
   const selectedAgencies = useMemo(() => parseCommaSeparated(params.agency), [params.agency]);
@@ -231,7 +240,7 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
     params.whoPays ||
     params.perUnit ||
     (params.classification && params.classification !== 'all') ||
-    params.severity ||
+    (params.severity && params.severity !== 'high,medium,low') ||
     params.estimatedImpact
   );
 
@@ -247,7 +256,7 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
       whoPays: null,
       perUnit: null,
       classification: 'all',
-      severity: null,
+      severity: 'high,medium,low',
       estimatedImpact: null,
       page: 1,
     };
@@ -391,6 +400,7 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
         onSortOrderToggle={() => handleFilterChange('sortOrder', params.sortOrder === 'desc' ? 'asc' : 'desc')}
         hasActiveFilters={hasActiveFilters}
         onClearFilters={clearFilters}
+        clearFiltersLabel="Reset Filters"
       >
         <FilterField label="Type">
           <MultiSelect

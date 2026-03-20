@@ -6,6 +6,7 @@ import { Download } from 'lucide-react';
 import type { JurisdictionCode } from '@deproceduralizer/database';
 import { analysisTableParsers } from '@/lib/url/parsers';
 import { exportAnalysisCsv } from '@/lib/actions/analysis';
+import { parseCommaSeparated } from '@/lib/url/filter-helpers';
 
 interface ExportCsvButtonProps {
   jurisdiction: JurisdictionCode;
@@ -22,21 +23,21 @@ export function ExportCsvButton({ jurisdiction }: ExportCsvButtonProps) {
         jurisdiction,
         window.location.origin,
         {
-          tierCompleted: filters.tierCompleted !== 'all' ? parseInt(filters.tierCompleted) : undefined,
-          classification: filters.classification !== 'all' ? filters.classification : undefined,
-          federalMandate: filters.federalMandate !== 'all' ? filters.federalMandate === 'true' : undefined,
-          pipelineRun: filters.pipelineRun !== 'all' ? filters.pipelineRun === 'true' : undefined,
-          issueType: filters.issueType && filters.issueType !== 'all' ? filters.issueType : undefined,
-          severity: filters.severity !== 'all' ? filters.severity : undefined,
-          severityChanged: filters.severityChanged !== 'all' ? filters.severityChanged : undefined,
-          federalMandateConfirmed: filters.federalMandateConfirmed !== 'all' ? filters.federalMandateConfirmed : undefined,
-          stateDiscretion: filters.stateDiscretion !== 'all' ? filters.stateDiscretion : undefined,
-          alternativeFound: filters.alternativeFound !== 'all' ? filters.alternativeFound : undefined,
-          evidenceGap: filters.evidenceGap !== 'all' ? filters.evidenceGap : undefined,
-          supersededByLaw: filters.supersededByLaw !== 'all' ? filters.supersededByLaw : undefined,
-          advocacyForChange: filters.advocacyForChange !== 'all' ? filters.advocacyForChange : undefined,
-          tier3Trigger: filters.tier3Trigger !== 'all' ? filters.tier3Trigger : undefined,
-          easyCleanup: filters.easyCleanup !== 'all' ? filters.easyCleanup : undefined,
+          tiersCompleted: parseCommaSeparated(filters.tierCompleted).map(Number).filter(n => !isNaN(n)) || undefined,
+          classifications: parseCommaSeparated(filters.classification) || undefined,
+          federalMandates: parseCommaSeparated(filters.federalMandate) || undefined,
+          pipelineRuns: parseCommaSeparated(filters.pipelineRun) || undefined,
+          issueTypes: parseCommaSeparated(filters.issueType) || undefined,
+          severities: (parseCommaSeparated(filters.severity) as ('high' | 'medium' | 'low' | 'none')[]) || undefined,
+          severityChanges: parseCommaSeparated(filters.severityChanged) || undefined,
+          federalMandatesConfirmed: parseCommaSeparated(filters.federalMandateConfirmed) || undefined,
+          stateDiscretions: parseCommaSeparated(filters.stateDiscretion) || undefined,
+          alternativesFound: parseCommaSeparated(filters.alternativeFound) || undefined,
+          evidenceGaps: parseCommaSeparated(filters.evidenceGap) || undefined,
+          supersededByLaws: parseCommaSeparated(filters.supersededByLaw) || undefined,
+          advocacyForChanges: parseCommaSeparated(filters.advocacyForChange) || undefined,
+          tier3Triggers: parseCommaSeparated(filters.tier3Trigger) || undefined,
+          easyCleanups: parseCommaSeparated(filters.easyCleanup) || undefined,
           bookmarkedOnly: filters.bookmarkedOnly === 'true' ? true : undefined,
         },
         filters.sortBy,

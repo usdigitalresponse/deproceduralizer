@@ -186,7 +186,10 @@ export class FinesRepository extends BaseRepository {
       severity: complianceIssueAnalyses.finalSeverity,
     }[sortBy];
 
-    const primarySort = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
+    // For severity sort, always push NULLs to the bottom regardless of direction
+    const primarySort = sortBy === 'severity'
+      ? sql`${complianceIssueAnalyses.finalSeverity} ${sql.raw(sortOrder === 'asc' ? 'ASC' : 'DESC')} NULLS LAST`
+      : sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
 
     const results = await this.db
       .select(this.finesSelectFields())

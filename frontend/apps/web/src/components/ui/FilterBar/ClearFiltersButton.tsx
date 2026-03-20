@@ -10,6 +10,8 @@ export interface ClearFiltersButtonProps {
   onClick: () => void;
   /** Display variant */
   variant?: 'text' | 'icon';
+  /** Custom label override (default: "Clear filters" / "Clear all") */
+  label?: string;
 }
 
 /**
@@ -27,15 +29,18 @@ export function ClearFiltersButton({
   hasActiveFilters,
   onClick,
   variant = 'text',
+  label,
 }: ClearFiltersButtonProps) {
   if (!hasActiveFilters) {
     return null;
   }
 
+  const defaultLabel = variant === 'text' ? 'Clear filters' : 'Clear all';
+
   return (
     <Button variant="ghost" size="sm" onClick={onClick}>
       {variant === 'icon' && <X className="w-4 h-4 mr-1" />}
-      Clear{variant === 'text' ? ' filters' : ' all'}
+      {label ?? defaultLabel}
     </Button>
   );
 }

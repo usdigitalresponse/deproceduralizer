@@ -53,7 +53,7 @@ import { JENAI_CATEGORY_LABELS } from '@/lib/constants/jenai';
 // Helper to create filter options from value arrays
 // ============================================
 
-type FilterOption = { value: string; label: string };
+export type FilterOption = { value: string; label: string };
 
 function createFilterOptions<T extends readonly string[]>(
   values: T,
@@ -556,3 +556,8 @@ export const JENAI_CATEGORY_MULTISELECT_OPTIONS: FilterOption[] =
 /** Issue type options for MultiSelect (no "All" entry — empty selection = all). */
 export const ISSUE_TYPE_MULTISELECT_OPTIONS: FilterOption[] =
   ISSUE_TYPE_FILTER_OPTIONS.filter(o => o.value !== 'all');
+
+/** Strip the 'all' option from filter options for use in MultiSelect */
+export function toMultiSelectOptions(options: readonly FilterOption[]): FilterOption[] {
+  return options.filter(o => o.value !== 'all');
+}

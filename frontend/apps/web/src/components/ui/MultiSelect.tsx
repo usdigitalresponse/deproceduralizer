@@ -113,6 +113,15 @@ export function MultiSelect({
     onChange([]);
   }, [onChange]);
 
+  const allFilteredSelected = useMemo(() => {
+    if (filteredOptions.length === 0) return false;
+    return filteredOptions.every(o => value.includes(o.value));
+  }, [filteredOptions, value]);
+
+  const selectAll = useCallback(() => {
+    onChange(filteredOptions.map(o => o.value));
+  }, [filteredOptions, onChange]);
+
   const handleTriggerKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
     if (event.key === 'ArrowDown' || event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
@@ -265,9 +274,21 @@ export function MultiSelect({
             overflow-hidden
           "
         >
-          {/* Clear all link */}
-          {value.length > 0 && (
-            <div className="px-3 py-1.5 border-b border-[var(--color-neutral-200)]">
+          {/* Select all / Clear all header */}
+          <div className="px-3 py-1.5 border-b border-[var(--color-neutral-200)] flex items-center justify-between">
+            <button
+              type="button"
+              onClick={allFilteredSelected ? clearAll : selectAll}
+              className="
+                text-xs text-[var(--color-primary)]
+                hover:text-[var(--color-primary-hover,var(--color-primary))]
+                hover:underline
+                cursor-pointer
+              "
+            >
+              {allFilteredSelected ? 'Deselect All' : 'Select All'}
+            </button>
+            {value.length > 0 && (
               <button
                 type="button"
                 onClick={clearAll}
@@ -280,8 +301,8 @@ export function MultiSelect({
               >
                 Clear all
               </button>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Search input */}
           {searchable && (

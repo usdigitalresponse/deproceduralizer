@@ -327,25 +327,25 @@ export const bookmarkedOnlyParser = parseAsStringEnum([...BOOLEAN_FILTER_VALUES]
 export const analysisTableParsers = {
   page: pageParser,
   pageSize: pageSizeParser,
-  tierCompleted: tierFilterParser,
-  classification: classificationFilterParser,
-  federalMandate: federalMandateFilterParser,
-  pipelineRun: pipelineRunParser,
+  tierCompleted: parseAsString,
+  classification: parseAsString,
+  federalMandate: parseAsString,
+  pipelineRun: parseAsString,
   issueType: categoryParser,
   sortBy: analysisSortByParser,
   sortOrder: sortOrderParser,
-  // V5 Tier 3 filters
-  severity: pipelineSeverityParser,
-  severityChanged: severityChangedParser,
-  federalMandateConfirmed: tier3FindingParser,
-  stateDiscretion: tier3FindingParser,
-  alternativeFound: tier3FindingParser,
-  evidenceGap: tier3FindingParser,
-  supersededByLaw: tier3FindingParser,
-  advocacyForChange: tier3FindingParser,
-  tier3Trigger: tier3TriggerParser,
+  // V5 Tier 3 filters (comma-separated for multi-select)
+  severity: parseAsString,
+  severityChanged: parseAsString,
+  federalMandateConfirmed: parseAsString,
+  stateDiscretion: parseAsString,
+  alternativeFound: parseAsString,
+  evidenceGap: parseAsString,
+  supersededByLaw: parseAsString,
+  advocacyForChange: parseAsString,
+  tier3Trigger: parseAsString,
   // V5.1 Easy Cleanup filter
-  easyCleanup: easyCleanupParser,
+  easyCleanup: parseAsString,
   // Bookmarks filter
   bookmarkedOnly: bookmarkedOnlyParser,
   // Guidance-specific filters (null = no filter)
@@ -686,7 +686,7 @@ export type { IbrTabValue, IbrSortByValue } from '@/lib/constants/values';
 // ============================================
 
 export const finesTabParser = parseAsStringEnum([...FINES_TAB_VALUES]).withDefault('overview');
-export const finesSortByParser = parseAsStringEnum([...FINES_SORT_BY_VALUES]).withDefault('createdAt');
+export const finesSortByParser = parseAsStringEnum([...FINES_SORT_BY_VALUES]).withDefault('severity');
 export const penaltyTypeParser = parseAsString;
 export const agencyParser = parseAsString;
 export const sourceTypeParser = parseAsStringEnum([...SOURCE_TYPE_FILTER_VALUES]);

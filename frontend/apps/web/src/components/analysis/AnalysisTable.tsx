@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
 import type { JurisdictionCode, AnalysisListItem, GuidanceAnalysisListItem } from '@deproceduralizer/database';
 import type { PipelineSourceValue } from '@/lib/constants/values';
 import { analysisTableParsers } from '@/lib/url/parsers';
+import { parseCommaSeparated } from '@/lib/url/filter-helpers';
 import {
   getAnalysisListPaginated,
   getGuidanceAnalysisListPaginated,
@@ -125,24 +126,44 @@ export function AnalysisTable({ jurisdiction, source }: AnalysisTableProps) {
   }, [jurisdiction, bookmarkedPairs, isGuidance]);
 
   // Build shared filter object from URL state
-  const buildFilters = useCallback(() => ({
-    tierCompleted: filters.tierCompleted !== 'all' ? parseInt(filters.tierCompleted) : undefined,
-    classification: filters.classification !== 'all' ? filters.classification : undefined,
-    federalMandate: filters.federalMandate !== 'all' ? filters.federalMandate === 'true' : undefined,
-    pipelineRun: filters.pipelineRun !== 'all' ? filters.pipelineRun === 'true' : undefined,
-    issueType: filters.issueType && filters.issueType !== 'all' ? filters.issueType : undefined,
-    severity: filters.severity !== 'all' ? filters.severity : undefined,
-    severityChanged: filters.severityChanged !== 'all' ? filters.severityChanged : undefined,
-    federalMandateConfirmed: filters.federalMandateConfirmed !== 'all' ? filters.federalMandateConfirmed : undefined,
-    stateDiscretion: filters.stateDiscretion !== 'all' ? filters.stateDiscretion : undefined,
-    alternativeFound: filters.alternativeFound !== 'all' ? filters.alternativeFound : undefined,
-    evidenceGap: filters.evidenceGap !== 'all' ? filters.evidenceGap : undefined,
-    supersededByLaw: filters.supersededByLaw !== 'all' ? filters.supersededByLaw : undefined,
-    advocacyForChange: filters.advocacyForChange !== 'all' ? filters.advocacyForChange : undefined,
-    tier3Trigger: filters.tier3Trigger !== 'all' ? filters.tier3Trigger : undefined,
-    easyCleanup: filters.easyCleanup !== 'all' ? filters.easyCleanup : undefined,
-    bookmarkedOnly: filters.bookmarkedOnly === 'true' ? true : undefined,
-  }), [filters]);
+  // Filter out 'all' for backward compatibility with legacy URLs (e.g., ?issueType=all)
+  const buildFilters = useCallback(() => {
+    const parse = (v: string | null) => parseCommaSeparated(v).filter(x => x !== 'all');
+    const tiers = parse(filters.tierCompleted).map(Number).filter(n => !isNaN(n));
+    const classifications = parse(filters.classification);
+    const federalMandates = parse(filters.federalMandate);
+    const pipelineRuns = parse(filters.pipelineRun);
+    const issueTypes = parse(filters.issueType);
+    const severities = parse(filters.severity) as ('high' | 'medium' | 'low' | 'none')[];
+    const severityChanges = parse(filters.severityChanged);
+    const federalMandatesConfirmed = parse(filters.federalMandateConfirmed);
+    const stateDiscretions = parse(filters.stateDiscretion);
+    const alternativesFound = parse(filters.alternativeFound);
+    const evidenceGaps = parse(filters.evidenceGap);
+    const supersededByLaws = parse(filters.supersededByLaw);
+    const advocacyForChanges = parse(filters.advocacyForChange);
+    const tier3Triggers = parse(filters.tier3Trigger);
+    const easyCleanups = parse(filters.easyCleanup);
+
+    return {
+      tiersCompleted: tiers.length > 0 ? tiers : undefined,
+      classifications: classifications.length > 0 ? classifications : undefined,
+      federalMandates: federalMandates.length > 0 ? federalMandates : undefined,
+      pipelineRuns: pipelineRuns.length > 0 ? pipelineRuns : undefined,
+      issueTypes: issueTypes.length > 0 ? issueTypes : undefined,
+      severities: severities.length > 0 ? severities : undefined,
+      severityChanges: severityChanges.length > 0 ? severityChanges : undefined,
+      federalMandatesConfirmed: federalMandatesConfirmed.length > 0 ? federalMandatesConfirmed : undefined,
+      stateDiscretions: stateDiscretions.length > 0 ? stateDiscretions : undefined,
+      alternativesFound: alternativesFound.length > 0 ? alternativesFound : undefined,
+      evidenceGaps: evidenceGaps.length > 0 ? evidenceGaps : undefined,
+      supersededByLaws: supersededByLaws.length > 0 ? supersededByLaws : undefined,
+      advocacyForChanges: advocacyForChanges.length > 0 ? advocacyForChanges : undefined,
+      tier3Triggers: tier3Triggers.length > 0 ? tier3Triggers : undefined,
+      easyCleanups: easyCleanups.length > 0 ? easyCleanups : undefined,
+      bookmarkedOnly: filters.bookmarkedOnly === 'true' ? true : undefined,
+    };
+  }, [filters]);
 
   // Fetch data when filters or source change
   useEffect(() => {

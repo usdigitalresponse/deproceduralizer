@@ -24,8 +24,10 @@ export interface FilterBarProps {
   onSortOrderToggle?: () => void;
   /** Whether there are active filters */
   hasActiveFilters?: boolean;
-  /** Callback to clear filters */
+  /** Callback to clear/reset filters */
   onClearFilters?: () => void;
+  /** Label for the clear/reset button (default: "Clear filters") */
+  clearFiltersLabel?: string;
   /** Additional CSS classes */
   className?: string;
 }
@@ -66,6 +68,7 @@ export function FilterBar({
   onSortOrderToggle,
   hasActiveFilters = false,
   onClearFilters,
+  clearFiltersLabel,
   className = '',
 }: FilterBarProps) {
   const variantStyles = {
@@ -83,6 +86,7 @@ export function FilterBar({
         <ClearFiltersButton
           hasActiveFilters={hasActiveFilters}
           onClick={onClearFilters}
+          label={clearFiltersLabel}
         />
       )}
 

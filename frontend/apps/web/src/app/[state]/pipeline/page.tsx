@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
-import { getAnalysisTierStats, getGuidanceAnalysisTierStats, getPriorityPicks } from '@/lib/actions/analysis';
+import { getAnalysisTierStats, getGuidanceAnalysisTierStats, getPriorityPicks, getAnalysisFilterStats } from '@/lib/actions/analysis';
 import { AnalysisDashboard, PipelineSourceTabs } from '@/components/analysis';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Container } from '@/components/layout/Container';
@@ -26,17 +26,20 @@ export default async function AnalysisPage({ params, searchParams }: AnalysisPag
   const isGuidance = source === 'guidance';
 
   // Fetch stats based on source, and priority picks (regulations only)
-  const statsResult = isGuidance
-    ? await getGuidanceAnalysisTierStats(stateCode)
-    : await getAnalysisTierStats(stateCode);
-
-  const priorityResult = isGuidance ? null : await getPriorityPicks(stateCode);
+  const [statsResult, priorityResult, filterStatsResult] = await Promise.all([
+    isGuidance
+      ? getGuidanceAnalysisTierStats(stateCode)
+      : getAnalysisTierStats(stateCode),
+    isGuidance ? Promise.resolve(null) : getPriorityPicks(stateCode),
+    isGuidance ? Promise.resolve(null) : getAnalysisFilterStats(stateCode),
+  ]);
 
   const tierCounts = statsResult.success ? statsResult.data.tierCounts : null;
   const classificationBreakdown = statsResult.success ? statsResult.data.classificationBreakdown : null;
   const total = statsResult.success ? statsResult.data.total : 0;
 
   const priorityPicks = priorityResult?.success ? priorityResult.data : null;
+  const filterStats = filterStatsResult?.success ? filterStatsResult.data : null;
 
   return (
     <div className="bg-[var(--color-background)] min-h-screen">
@@ -57,6 +60,7 @@ export default async function AnalysisPage({ params, searchParams }: AnalysisPag
             total={total}
             priorityPicks={priorityPicks}
             source={source}
+            filterStats={filterStats}
           />
         </div>
       </Container>

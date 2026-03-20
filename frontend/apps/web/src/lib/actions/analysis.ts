@@ -14,6 +14,7 @@ import {
   type ComplianceIssue,
   type AnalysisExportRow,
   type AnalysisListFilters,
+  type AnalysisFilterStats,
 } from '@deproceduralizer/database';
 import { type ActionResult, success, failure, getErrorMessage, runAction, runCachedAction } from './types';
 import { generateCsv } from '@/lib/utils/csv';
@@ -56,6 +57,28 @@ export async function getAnalysisTierStats(
       return { tierCounts, classificationBreakdown, total };
     },
     [`analysis-tier-stats-${state}`],
+    { revalidate: 120 }
+  );
+}
+
+// Re-export for use by components
+export type { AnalysisFilterStats };
+
+/**
+ * Gets filter dimension counts for the 5 key pipeline filter dropdowns.
+ * Returns counts by classification, severity, tier, issue type, and federal mandate.
+ * Cached for 2 minutes to reduce database traffic.
+ *
+ * @param state - The state code (e.g., 'NY', 'NJ')
+ * @returns Filter stats broken down by each dimension
+ */
+export async function getAnalysisFilterStats(
+  state: JurisdictionCode
+): Promise<ActionResult<AnalysisFilterStats>> {
+  return runCachedAction(
+    'getAnalysisFilterStats',
+    () => complianceIssuesRepo.getAnalysisFilterStats(state),
+    [`analysis-filter-stats-${state}`],
     { revalidate: 120 }
   );
 }
