@@ -74,6 +74,20 @@ export function FinesOverviewTab({ stats }: FinesOverviewTabProps) {
     value: d.count,
   }));
 
+  const SEVERITY_LEVEL_LABELS: Record<string, string> = {
+    high: 'High (7-10)',
+    medium: 'Medium (4-6)',
+    low: 'Low (1-3)',
+    false_positive: 'False Positive',
+    unrelated: 'Unrelated to Burden',
+    none: 'No Analysis',
+  };
+
+  const severityData = (stats?.bySeverity ?? []).map((d: { severity: string; count: number }) => ({
+    label: SEVERITY_LEVEL_LABELS[d.severity] ?? d.severity,
+    value: d.count,
+  }));
+
   return (
     <div className="space-y-6">
       <StatGrid columns={4}>
@@ -108,6 +122,7 @@ export function FinesOverviewTab({ stats }: FinesOverviewTabProps) {
         <BarChartSection title="By Government Level" data={levelData} emptyMessage="No level data available" />
         <BarChartSection title="By Who Pays" data={whoPaysData} emptyMessage="No who-pays data available" />
         <BarChartSection title="By Analysis Classification" data={classificationData} emptyMessage="No analysis data available" />
+        <BarChartSection title="By Severity" data={severityData} emptyMessage="No severity data available" />
       </div>
 
       <div className="grid grid-cols-1 gap-6">

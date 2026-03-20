@@ -19,6 +19,8 @@ import {
   ESTIMATED_PAYERS_LABELS,
 } from '@/lib/constants/fines';
 import { ClassificationBadge } from '@/components/issues';
+import { SeverityBadge } from '@/components/ui/Badge';
+import { Skeleton } from '@/components/ui/Skeleton';
 import type { FineWithContext } from '@/lib/actions/fines';
 
 interface FinesTableProps {
@@ -30,12 +32,17 @@ interface FinesTableProps {
   fineBookmarks?: Map<number, FineBookmarkInfo>;
   onSaveBookmarkNotes?: (bookmarkId: number, fineId: number, notes: string, createdBy?: string) => Promise<void>;
   bookmarkName?: string;
+  isLoading?: boolean;
 }
 
-export function FinesTable({ data, state, onRowClick, bookmarkedFineIds, onToggleBookmark, fineBookmarks, onSaveBookmarkNotes, bookmarkName }: FinesTableProps) {
+export function FinesTable({ data, state, onRowClick, bookmarkedFineIds, onToggleBookmark, fineBookmarks, onSaveBookmarkNotes, bookmarkName, isLoading }: FinesTableProps) {
   const handleToggleBookmark = (fineId: number) => {
     onToggleBookmark?.(fineId);
   };
+
+  if (isLoading && data.length === 0) {
+    return <FinesTableSkeleton hasBookmarks={!!onToggleBookmark} />;
+  }
 
   if (data.length === 0) {
     return (
@@ -58,8 +65,9 @@ export function FinesTable({ data, state, onRowClick, bookmarkedFineIds, onToggl
             <th className={tableHeaderClass}>Agency</th>
             <th className={tableHeaderClass}>Level</th>
             <th className={tableHeaderClass}>Who Pays</th>
-            <th className={tableHeaderClass}>Est. Impact</th>
+            <th className={tableHeaderClass} title="Intended to show order of magnitude. May contain significant discrepancies — use for broad filtering only, not as authoritative fact.">Est. Impact</th>
             <th className={tableHeaderClass}>Analysis</th>
+            <th className={tableHeaderClass}>Sev.</th>
             <th className={tableHeaderClass}>Description</th>
             <th className={tableHeaderClass}>Source</th>
           </tr>
@@ -76,7 +84,7 @@ export function FinesTable({ data, state, onRowClick, bookmarkedFineIds, onToggl
             const sourceType = fine.sourceDocument.type;
             const bookmark = fineBookmarks?.get(fine.id);
             const isBookmarked = bookmarkedFineIds?.has(fine.id);
-            const colCount = bookmarkedFineIds ? 11 : 10;
+            const colCount = bookmarkedFineIds ? 12 : 11;
 
             return (
               <FineRow key={fine.id}>
@@ -142,6 +150,13 @@ export function FinesTable({ data, state, onRowClick, bookmarkedFineIds, onToggl
                     <span className="text-xs text-[var(--color-text-muted)]">—</span>
                   )}
                 </td>
+                <td className="py-3 pr-3">
+                  {fine.analysis?.finalSeverity != null ? (
+                    <SeverityBadge severity={fine.analysis.finalSeverity} />
+                  ) : (
+                    <span className="text-xs text-[var(--color-text-muted)]">—</span>
+                  )}
+                </td>
                 <td className="py-3 pr-3 text-[var(--color-text-secondary)] max-w-[250px] truncate" title={fine.violationDescription ?? ''}>
                   {fine.violationDescription ?? '—'}
                 </td>
@@ -185,4 +200,40 @@ export function FinesTable({ data, state, onRowClick, bookmarkedFineIds, onToggl
 
 function FineRow({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
+}
+
+function FinesTableSkeleton({ hasBookmarks }: { hasBookmarks: boolean }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-[var(--color-neutral-200)]">
+            {hasBookmarks && <th className="py-2 pl-4 pr-1 w-8" />}
+            {['Type', 'Amount', 'Agency', 'Level', 'Who Pays', 'Est. Impact', 'Analysis', 'Sev.', 'Description', 'Source'].map(h => (
+              <th key={h} className={`py-2 ${h === 'Type' && !hasBookmarks ? 'pl-4' : ''} pr-3 text-left text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider`}>
+                {h}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {Array.from({ length: 10 }, (_, i) => (
+            <tr key={i} className="border-b border-[var(--color-neutral-100)]">
+              {hasBookmarks && <td className="py-3 pl-4 pr-1"><Skeleton className="h-5 w-5 rounded" /></td>}
+              <td className="py-3 pr-3"><Skeleton className="h-5 w-16 rounded-full" /></td>
+              <td className="py-3 pr-3"><Skeleton className="h-4 w-24" /></td>
+              <td className="py-3 pr-3"><Skeleton className="h-4 w-32" /></td>
+              <td className="py-3 pr-3"><Skeleton className="h-5 w-14 rounded" /></td>
+              <td className="py-3 pr-3"><Skeleton className="h-4 w-20" /></td>
+              <td className="py-3 pr-3"><Skeleton className="h-4 w-16" /></td>
+              <td className="py-3 pr-3"><Skeleton className="h-5 w-20 rounded-full" /></td>
+              <td className="py-3 pr-3"><Skeleton className="h-5 w-14 rounded-full" /></td>
+              <td className="py-3 pr-3"><Skeleton className="h-4 w-40" /></td>
+              <td className="py-3 pr-3"><Skeleton className="h-4 w-28" /></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 }

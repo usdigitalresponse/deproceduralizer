@@ -270,7 +270,7 @@ export type IbrSortByValue = (typeof IBR_SORT_BY_VALUES)[number];
 export const FINES_TAB_VALUES = ['overview', 'browse'] as const;
 export type FinesTabValue = (typeof FINES_TAB_VALUES)[number];
 
-export const FINES_SORT_BY_VALUES = ['penaltyType', 'amount', 'responsibleAgency', 'createdAt'] as const;
+export const FINES_SORT_BY_VALUES = ['penaltyType', 'amount', 'responsibleAgency', 'severity', 'createdAt'] as const;
 export type FinesSortByValue = (typeof FINES_SORT_BY_VALUES)[number];
 
 export const SOURCE_TYPE_FILTER_VALUES = ['regulation', 'guidance'] as const;
@@ -278,6 +278,10 @@ export type SourceTypeFilterValue = (typeof SOURCE_TYPE_FILTER_VALUES)[number];
 
 export const FINES_CLASSIFICATION_FILTER_VALUES = ['all', 'burdensome', 'justified', 'not_analyzed'] as const;
 export type FinesClassificationFilterValue = (typeof FINES_CLASSIFICATION_FILTER_VALUES)[number];
+
+// Fines severity filter values
+export const FINES_SEVERITY_FILTER_VALUES = ['all', 'high', 'medium', 'low', 'false_positive', 'unrelated'] as const;
+export type FinesSeverityFilterValue = (typeof FINES_SEVERITY_FILTER_VALUES)[number];
 
 // ============================================
 // Cross-References Table View

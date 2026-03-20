@@ -46,7 +46,7 @@ export function InfoTooltip({ content, className = '', size = 14 }: InfoTooltipP
       {isVisible && (
         <span
           role="tooltip"
-          className={`absolute z-50 left-1/2 -translate-x-1/2 px-2.5 py-1.5 text-xs leading-relaxed whitespace-normal max-w-[220px] w-max pointer-events-none ${
+          className={`absolute z-50 left-1/2 -translate-x-1/2 px-2.5 py-1.5 text-xs leading-relaxed whitespace-normal max-w-[280px] w-max pointer-events-none ${
             position === 'top' ? 'bottom-full mb-1.5' : 'top-full mt-1.5'
           }`}
           style={{

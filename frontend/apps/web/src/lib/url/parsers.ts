@@ -716,6 +716,8 @@ export const finesParsers = {
   perUnit: perUnitParser,
   agencyLevel: agencyLevelParser,
   classification: finesClassificationParser,
+  severity: parseAsString,
+  estimatedImpact: parseAsString,
 };
 
 // Re-export Fines types

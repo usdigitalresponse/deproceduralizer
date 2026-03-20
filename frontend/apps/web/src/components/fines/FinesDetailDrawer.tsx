@@ -151,9 +151,10 @@ export function FinesDetailDrawer({ fine, open, onOpenChange, state, onBookmarkC
                 {/* Estimated Impact */}
                 {fine.estimatedAnnualPayers && (
                   <div>
-                    <h4 className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-2">
+                    <h4 className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-1">
                       Estimated Impact
                     </h4>
+                    <p className="text-[10px] text-[var(--color-text-muted)] italic mb-1">Order of magnitude estimate — may contain significant discrepancies</p>
                     <p className="text-sm text-[var(--color-text)]">
                       {ESTIMATED_PAYERS_LABELS[fine.estimatedAnnualPayers] || fine.estimatedAnnualPayers}
                     </p>

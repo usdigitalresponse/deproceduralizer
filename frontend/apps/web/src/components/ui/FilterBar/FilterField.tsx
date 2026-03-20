@@ -9,6 +9,8 @@ export interface FilterFieldProps {
   children: ReactNode;
   /** HTML id for the control (for accessibility) */
   htmlFor?: string;
+  /** Tooltip text shown on hover */
+  title?: string;
 }
 
 /**
@@ -21,12 +23,13 @@ export interface FilterFieldProps {
  * </FilterField>
  * ```
  */
-export function FilterField({ label, children, htmlFor }: FilterFieldProps) {
+export function FilterField({ label, children, htmlFor, title }: FilterFieldProps) {
   return (
     <div className="flex items-center gap-2">
       <label
         className="text-sm text-[var(--color-text-secondary)]"
         htmlFor={htmlFor}
+        title={title}
       >
         {label}:
       </label>

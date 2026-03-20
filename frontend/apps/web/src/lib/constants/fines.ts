@@ -90,6 +90,15 @@ export const SOURCE_TYPE_BADGE_LABELS: Record<string, string> = {
   guidance: 'Guidance',
 };
 
+/** Multi-select options for fines severity filter */
+export const FINES_SEVERITY_MULTISELECT_OPTIONS = [
+  { value: 'high', label: 'High (7-10)' },
+  { value: 'medium', label: 'Medium (4-6)' },
+  { value: 'low', label: 'Low (1-3)' },
+  { value: 'false_positive', label: 'False Positive' },
+  { value: 'unrelated', label: 'Unrelated to Burden' },
+];
+
 /** Filter options for the fines classification dropdown */
 export const FINES_CLASSIFICATION_OPTIONS = [
   { value: 'all', label: 'All Analysis' },
@@ -109,6 +118,14 @@ export const ESTIMATED_PAYERS_LABELS: Record<string, string> = {
   ten_thousands: 'Tens of thousands per year',
   hundred_thousands: 'Hundreds of thousands per year',
 };
+
+export const ESTIMATED_PAYERS_MULTISELECT_OPTIONS = [
+  { value: 'hundred_thousands', label: 'Hundreds of thousands' },
+  { value: 'ten_thousands', label: 'Tens of thousands' },
+  { value: 'thousands', label: 'Thousands' },
+  { value: 'hundreds', label: 'Hundreds' },
+  { value: 'tens', label: 'Tens' },
+];
 
 export const ACTIVITY_CATEGORY_LABELS: Record<string, string> = {
   cannabis_alcohol: 'Cannabis & Alcohol',

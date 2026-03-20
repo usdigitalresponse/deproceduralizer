@@ -98,9 +98,10 @@ export function FineDetailContent({ fine, state }: FineDetailContentProps) {
                   )}
                   {fine.estimatedAnnualPayers && (
                     <div>
-                      <h3 className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-3">
+                      <h3 className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-1">
                         Estimated Impact
                       </h3>
+                      <p className="text-[10px] text-[var(--color-text-muted)] italic mb-2">Order of magnitude estimate — may contain significant discrepancies</p>
                       <p className="text-sm text-[var(--color-text)]">
                         {ESTIMATED_PAYERS_LABELS[fine.estimatedAnnualPayers] || fine.estimatedAnnualPayers}
                       </p>

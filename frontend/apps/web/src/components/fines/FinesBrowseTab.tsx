@@ -8,6 +8,7 @@ import { Select } from '@/components/ui/Select';
 import { MultiSelect } from '@/components/ui';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { FilterBar, FilterField } from '@/components/ui/FilterBar';
+import { InfoTooltip } from '@/components/ui/InfoTooltip';
 import { Pagination } from '@/components/ui/Pagination';
 import { Button } from '@/components/ui/Button';
 import { FinesTable } from './FinesTable';
@@ -19,7 +20,7 @@ import { useBookmarkName } from '@/hooks/useBookmarkName';
 import type { AgencyOption } from '@/lib/actions/fines';
 import { finesParsers } from '@/lib/url/parsers';
 import { parseCommaSeparated, serializeCommaSeparated } from '@/lib/url/filter-helpers';
-import { SOURCE_TYPE_LABELS, PENALTY_TYPE_MULTISELECT_OPTIONS, AGENCY_LEVEL_MULTISELECT_OPTIONS, FINES_CLASSIFICATION_OPTIONS } from '@/lib/constants/fines';
+import { SOURCE_TYPE_LABELS, PENALTY_TYPE_MULTISELECT_OPTIONS, AGENCY_LEVEL_MULTISELECT_OPTIONS, FINES_CLASSIFICATION_OPTIONS, FINES_SEVERITY_MULTISELECT_OPTIONS, ESTIMATED_PAYERS_MULTISELECT_OPTIONS } from '@/lib/constants/fines';
 import type { JurisdictionCode } from '@deproceduralizer/database';
 import type { FineWithContext, FinesOverviewStats } from '@/lib/actions/fines';
 
@@ -36,6 +37,7 @@ const sortOptions = [
   { value: 'penaltyType', label: 'Type' },
   { value: 'amount', label: 'Amount' },
   { value: 'responsibleAgency', label: 'Agency' },
+  { value: 'severity', label: 'Severity' },
 ];
 
 const sourceTypeOptions = [
@@ -50,7 +52,7 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
   const [data, setData] = useState<FineWithContext[]>([]);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [exporting, setExporting] = useState<'csv' | 'zip' | 'all' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedFine, setSelectedFine] = useState<FineWithContext | null>(null);
@@ -66,6 +68,8 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
   const selectedAgencyLevels = useMemo(() => parseCommaSeparated(params.agencyLevel), [params.agencyLevel]);
   const selectedWhoPays = useMemo(() => parseCommaSeparated(params.whoPays), [params.whoPays]);
   const selectedPerUnits = useMemo(() => parseCommaSeparated(params.perUnit), [params.perUnit]);
+  const selectedSeverities = useMemo(() => parseCommaSeparated(params.severity), [params.severity]);
+  const selectedEstimatedImpact = useMemo(() => parseCommaSeparated(params.estimatedImpact), [params.estimatedImpact]);
 
   // Build option arrays with counts from stats
   const penaltyTypeOptions = useMemo(() => {
@@ -110,6 +114,14 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
     }));
   }, [perUnitValues, stats?.byPerUnit]);
 
+  const severityOptions = useMemo(() => {
+    const countMap = new Map(stats?.bySeverity?.map((d: { severity: string; count: number }) => [d.severity, d.count]) ?? []);
+    return FINES_SEVERITY_MULTISELECT_OPTIONS.map(opt => ({
+      ...opt,
+      count: countMap.get(opt.value),
+    }));
+  }, [stats?.bySeverity]);
+
   useEffect(() => {
     fetchData();
     // Fetch bookmarked fines with notes
@@ -134,6 +146,8 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
     const whoPaysRaw = resolve('whoPays', params.whoPays) as string | null;
     const perUnitRaw = resolve('perUnit', params.perUnit) as string | null;
     const classificationRaw = resolve('classification', params.classification) as string | null;
+    const severityRaw = resolve('severity', params.severity) as string | null;
+    const estimatedImpactRaw = resolve('estimatedImpact', params.estimatedImpact) as string | null;
 
     const resolvedSourceType: 'regulation' | 'guidance' | undefined =
       sourceType === 'regulation' || sourceType === 'guidance'
@@ -151,6 +165,8 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
       whoPays: whoPaysRaw || undefined,
       perUnit: perUnitRaw || undefined,
       classification: classificationRaw && classificationRaw !== 'all' ? classificationRaw : undefined,
+      severity: severityRaw || undefined,
+      estimatedImpact: estimatedImpactRaw || undefined,
     };
   }, [params]);
 
@@ -214,7 +230,9 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
     params.amountMax !== null ||
     params.whoPays ||
     params.perUnit ||
-    (params.classification && params.classification !== 'all')
+    (params.classification && params.classification !== 'all') ||
+    params.severity ||
+    params.estimatedImpact
   );
 
   const clearFilters = useCallback(() => {
@@ -229,6 +247,8 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
       whoPays: null,
       perUnit: null,
       classification: 'all',
+      severity: null,
+      estimatedImpact: null,
       page: 1,
     };
     setParams(defaults as Parameters<typeof setParams>[0]);
@@ -398,6 +418,16 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
             aria-label="Filter by analysis classification"
           />
         </FilterField>
+        <FilterField label="Severity">
+          <MultiSelect
+            label="Severity"
+            options={severityOptions}
+            value={selectedSeverities}
+            onChange={(values) => handleMultiFilterChange('severity', values)}
+            placeholder="All Severities"
+            data-testid="severity-filter"
+          />
+        </FilterField>
         <FilterField label="Agency">
           <MultiSelect
             label="Agency"
@@ -437,6 +467,17 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
             options={perUnitOptions}
             placeholder="All"
             data-testid="per-unit-filter"
+          />
+        </FilterField>
+        <FilterField label="Est. Impact">
+          <InfoTooltip content="Intended to show order of magnitude and may contain significant discrepancies. Should only be relied on to assist with broad filtering and organizing but never as authoritative fact." />
+          <MultiSelect
+            label="Est. Impact"
+            value={selectedEstimatedImpact}
+            onChange={(values) => handleMultiFilterChange('estimatedImpact', values)}
+            options={ESTIMATED_PAYERS_MULTISELECT_OPTIONS}
+            placeholder="All"
+            data-testid="estimated-impact-filter"
           />
         </FilterField>
         <FilterField label="Amount">
@@ -486,10 +527,10 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
 
       {/* Results */}
       <Card padding="none">
-        <div className={`${isLoading ? 'opacity-50 pointer-events-none' : ''} transition-opacity`}>
+        <div>
           <div className="px-4 py-3 border-b border-[var(--color-neutral-200)] flex items-center justify-between">
             <span className="text-sm text-[var(--color-text-muted)]">
-              {total} result{total !== 1 ? 's' : ''}
+              {isLoading ? 'Loading...' : `${total} result${total !== 1 ? 's' : ''}`}
             </span>
             <div className="flex items-center gap-2">
               {/* State-only export toggle */}
@@ -524,6 +565,7 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
               fineBookmarks={fineBookmarks}
               onSaveBookmarkNotes={handleSaveBookmarkNotes}
               bookmarkName={bookmarkName}
+              isLoading={isLoading}
             />
           </div>
           {totalPages > 1 && (

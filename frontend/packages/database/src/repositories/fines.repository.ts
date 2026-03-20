@@ -1,4 +1,4 @@
-import { eq, and, desc, asc, sql, count, ilike, or, gte, lte, isNotNull, isNull, inArray } from 'drizzle-orm';
+import { eq, and, desc, asc, sql, count, ilike, or, gte, lte, lt, isNotNull, isNull, inArray } from 'drizzle-orm';
 import { BaseRepository } from './base.repository';
 import { finesFeesPenalties, type FineFeePenalty } from '../schema/fines-fees-penalties';
 import { regulatoryDocuments } from '../schema/regulatory-documents';
@@ -57,6 +57,7 @@ export interface FinesFilterOptions {
   whoPays?: string;
   perUnit?: string;
   classification?: 'burdensome' | 'justified' | 'not_analyzed';
+  severities?: ('high' | 'medium' | 'low' | 'false_positive' | 'unrelated')[];
   // Multi-select array filters (take precedence over singular equivalents)
   penaltyTypes?: string[];
   agencies?: string[];
@@ -64,13 +65,14 @@ export interface FinesFilterOptions {
   agencyLevels?: string[];
   whoPaysValues?: string[];
   perUnitValues?: string[];
+  estimatedImpactValues?: string[];
 }
 
 export interface FinesPaginationOptions {
   jurisdiction: JurisdictionCode;
   page: number;
   pageSize: number;
-  sortBy?: 'penaltyType' | 'amount' | 'responsibleAgency' | 'createdAt';
+  sortBy?: 'penaltyType' | 'amount' | 'responsibleAgency' | 'createdAt' | 'severity';
   sortOrder?: 'asc' | 'desc';
   filters?: Omit<FinesFilterOptions, 'jurisdiction'>;
 }
@@ -96,6 +98,7 @@ export interface FinesOverviewStats {
   byPerUnit: Array<{ perUnit: string; count: number }>;
   bySourceType: Array<{ sourceType: string; count: number }>;
   byClassification: Array<{ classification: string; count: number }>;
+  bySeverity: Array<{ severity: string; count: number }>;
 }
 
 /** Shape of analysis columns from the LEFT JOIN on compliance_issue_analyses */
@@ -164,7 +167,7 @@ export class FinesRepository extends BaseRepository {
 
     // Total count — must join agencies since filters may reference agencies.level
     // Also join analyses when classification filter is active
-    const needsAnalysisJoin = Boolean(filters?.classification);
+    const needsAnalysisJoin = Boolean(filters?.classification) || Boolean(filters?.severities?.length);
     const countQuery = this.db
       .select({ count: count() })
       .from(finesFeesPenalties)
@@ -180,6 +183,7 @@ export class FinesRepository extends BaseRepository {
       amount: finesFeesPenalties.amountMax,
       responsibleAgency: agencies.canonicalName,
       createdAt: finesFeesPenalties.createdAt,
+      severity: complianceIssueAnalyses.finalSeverity,
     }[sortBy];
 
     const primarySort = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
@@ -322,6 +326,27 @@ export class FinesRepository extends BaseRepository {
       .groupBy(classificationSql)
       .orderBy(desc(sql`count(*)`));
 
+    // Severity breakdown via LEFT JOIN to compliance_issue_analyses
+    const finalClassSql = sql`COALESCE(${complianceIssueAnalyses.tier3Classification}, ${complianceIssueAnalyses.tier2Classification}, ${complianceIssueAnalyses.tier1Classification})`;
+    const severitySql = sql`CASE
+      WHEN ${finalClassSql} = 'all_false_positives' THEN 'false_positive'
+      WHEN ${finalClassSql} = 'unrelated' THEN 'unrelated'
+      WHEN ${complianceIssueAnalyses.finalSeverity} >= 7 THEN 'high'
+      WHEN ${complianceIssueAnalyses.finalSeverity} >= 4 THEN 'medium'
+      WHEN ${complianceIssueAnalyses.finalSeverity} >= 1 THEN 'low'
+      ELSE 'none'
+    END`;
+    const bySeverity = await this.db
+      .select({
+        severity: sql<string>`${severitySql}`,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(finesFeesPenalties)
+      .leftJoin(complianceIssueAnalyses, this.analysisJoinCondition)
+      .where(baseCondition)
+      .groupBy(severitySql)
+      .orderBy(desc(sql`count(*)`));
+
     const regulationCount = bySourceType.find(r => r.sourceType === 'regulation')?.count ?? 0;
     const guidanceCount = bySourceType.find(r => r.sourceType === 'guidance')?.count ?? 0;
 
@@ -338,6 +363,7 @@ export class FinesRepository extends BaseRepository {
       byPerUnit,
       bySourceType,
       byClassification,
+      bySeverity,
     };
   }
 
@@ -509,6 +535,10 @@ export class FinesRepository extends BaseRepository {
       } else if (filters.perUnit) {
         conditions.push(eq(finesFeesPenalties.perUnit, filters.perUnit));
       }
+      // Estimated impact filter
+      if (filters.estimatedImpactValues?.length) {
+        conditions.push(inArray(finesFeesPenalties.estimatedAnnualPayers, filters.estimatedImpactValues));
+      }
       // Classification filter — uses COALESCE(tier3 > tier2 > tier1) for final classification
       if (filters.classification === 'not_analyzed') {
         conditions.push(isNull(complianceIssueAnalyses.id));
@@ -519,6 +549,19 @@ export class FinesRepository extends BaseRepository {
             filters.classification
           )
         );
+      }
+      // Severity filter (high=7+, medium=4-6, low=1-3, false_positive/unrelated=classification-based)
+      if (filters.severities && filters.severities.length > 0) {
+        const classificationSql = sql`COALESCE(${complianceIssueAnalyses.tier3Classification}, ${complianceIssueAnalyses.tier2Classification}, ${complianceIssueAnalyses.tier1Classification})`;
+        const severityConditions = filters.severities.map(s => {
+          if (s === 'false_positive') return eq(classificationSql, 'all_false_positives');
+          if (s === 'unrelated') return eq(classificationSql, 'unrelated');
+          if (s === 'high') return gte(complianceIssueAnalyses.finalSeverity, 7);
+          if (s === 'medium') return and(gte(complianceIssueAnalyses.finalSeverity, 4), lt(complianceIssueAnalyses.finalSeverity, 7))!;
+          // low
+          return and(gte(complianceIssueAnalyses.finalSeverity, 1), lt(complianceIssueAnalyses.finalSeverity, 4))!;
+        });
+        conditions.push(or(...severityConditions)!);
       }
     }
 

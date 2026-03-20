@@ -20,7 +20,7 @@ const bookmarksRepo = new BookmarksRepository(db);
 export type AgencyOption = { id: number; name: string; level: string | null };
 
 /** Parse comma-separated multi-select filter strings into arrays for the repository */
-function parseFinesMultiSelectFilters(filters?: { penaltyType?: string; agency?: string; agencyLevel?: string; whoPays?: string; perUnit?: string }) {
+function parseFinesMultiSelectFilters(filters?: { penaltyType?: string; agency?: string; agencyLevel?: string; whoPays?: string; perUnit?: string; estimatedImpact?: string }) {
   const agencyRaw = parseCommaSeparated(filters?.agency);
   // If values are numeric, treat as agency IDs; otherwise fall back to string matching
   const agencyIds = agencyRaw.map(Number).filter(n => !isNaN(n));
@@ -33,6 +33,7 @@ function parseFinesMultiSelectFilters(filters?: { penaltyType?: string; agency?:
     agencyLevels: parseCommaSeparated(filters?.agencyLevel),
     whoPaysValues: parseCommaSeparated(filters?.whoPays),
     perUnitValues: parseCommaSeparated(filters?.perUnit),
+    estimatedImpactValues: parseCommaSeparated(filters?.estimatedImpact),
   };
 }
 
@@ -44,6 +45,16 @@ function parseClassificationFilter(
     return value;
   }
   return undefined;
+}
+
+const VALID_SEVERITIES = new Set(['high', 'medium', 'low', 'false_positive', 'unrelated'] as const);
+type SeverityValue = 'high' | 'medium' | 'low' | 'false_positive' | 'unrelated';
+
+/** Parse comma-separated severity string into typed array, or undefined if empty/invalid */
+function parseSeveritiesFilter(value: string | undefined): SeverityValue[] | undefined {
+  if (!value) return undefined;
+  const values = value.split(',').filter((v): v is SeverityValue => VALID_SEVERITIES.has(v as SeverityValue));
+  return values.length > 0 ? values : undefined;
 }
 
 // Re-export types for components
@@ -74,7 +85,7 @@ export async function getFinesPaginated(
   options: {
     page: number;
     pageSize: number;
-    sortBy?: 'penaltyType' | 'amount' | 'responsibleAgency' | 'createdAt';
+    sortBy?: 'penaltyType' | 'amount' | 'responsibleAgency' | 'createdAt' | 'severity';
     sortOrder?: 'asc' | 'desc';
     filters?: {
       penaltyType?: string;
@@ -87,11 +98,14 @@ export async function getFinesPaginated(
       whoPays?: string;
       perUnit?: string;
       classification?: string;
+      severity?: string;
+      estimatedImpact?: string;
     };
   }
 ): Promise<ActionResult<PaginatedFinesResult>> {
   const { page, pageSize, sortBy = 'createdAt', sortOrder = 'desc', filters } = options;
   const multiSelect = parseFinesMultiSelectFilters(filters);
+  const severities = parseSeveritiesFilter(filters?.severity);
 
   // Stabilize cache keys: sort multi-select values so "fine,fee" and "fee,fine" hit the same cache
   const type = [...multiSelect.penaltyTypes].sort().join(',');
@@ -104,7 +118,9 @@ export async function getFinesPaginated(
   const whoPays = [...multiSelect.whoPaysValues].sort().join(',');
   const perUnit = [...multiSelect.perUnitValues].sort().join(',');
   const classification = filters?.classification ?? '';
-  const cacheKey = `fines-paginated-${state}-${page}-${pageSize}-${sortBy}-${sortOrder}-${type}-${agency}-${agencyLevel}-${search}-${sourceType}-${amountMin}-${amountMax}-${whoPays}-${perUnit}-${classification}`;
+  const severity = severities ? [...severities].sort().join(',') : '';
+  const estimatedImpact = [...multiSelect.estimatedImpactValues].sort().join(',');
+  const cacheKey = `fines-paginated-${state}-${page}-${pageSize}-${sortBy}-${sortOrder}-${type}-${agency}-${agencyLevel}-${search}-${sourceType}-${amountMin}-${amountMax}-${whoPays}-${perUnit}-${classification}-${severity}-${estimatedImpact}`;
 
   return runCachedAction(
     'getFinesPaginated',
@@ -118,6 +134,7 @@ export async function getFinesPaginated(
         ...filters,
         ...multiSelect,
         classification: parseClassificationFilter(filters.classification),
+        severities,
       } : undefined,
     }),
     [cacheKey],
@@ -171,14 +188,17 @@ export async function exportFinesCsv(
     whoPays?: string;
     perUnit?: string;
     classification?: string;
+    severity?: string;
+    estimatedImpact?: string;
   }
 ): Promise<ActionResult<string>> {
   const multiSelect = parseFinesMultiSelectFilters(filters);
   const classificationFilter = parseClassificationFilter(filters?.classification);
+  const severities = parseSeveritiesFilter(filters?.severity);
 
   return runAction('exportFinesCsv', async () => {
     const [data, bookmarkData] = await Promise.all([
-      finesRepo.getExportData(state, { ...filters, ...multiSelect, classification: classificationFilter }),
+      finesRepo.getExportData(state, { ...filters, ...multiSelect, classification: classificationFilter, severities }),
       bookmarksRepo.getFineBookmarksWithNotes(state),
     ]);
     const bookmarkMap = new Map(bookmarkData.map(b => [b.fineId, b]));
@@ -199,15 +219,17 @@ export async function exportFinesZipByAgency(
     whoPays?: string;
     perUnit?: string;
     classification?: string;
+    severity?: string;
   }
 ): Promise<ActionResult<string>> {
   const multiSelect = parseFinesMultiSelectFilters(filters);
   const classificationFilter = parseClassificationFilter(filters?.classification);
+  const severities = parseSeveritiesFilter(filters?.severity);
 
   return runAction('exportFinesZipByAgency', async () => {
     const { default: JSZip } = await import('jszip');
     const [grouped, bookmarkData] = await Promise.all([
-      finesRepo.getExportDataGroupedByAgency(state, { ...filters, ...multiSelect, classification: classificationFilter }),
+      finesRepo.getExportDataGroupedByAgency(state, { ...filters, ...multiSelect, classification: classificationFilter, severities }),
       bookmarksRepo.getFineBookmarksWithNotes(state),
     ]);
     const bookmarkMap = new Map(bookmarkData.map(b => [b.fineId, b]));
