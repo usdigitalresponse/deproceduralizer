@@ -7,7 +7,7 @@ import type { PipelineSourceValue } from '@/lib/constants/values';
 import { TierDistributionChart } from './TierDistributionChart';
 import { AnalysisTable } from './AnalysisTable';
 import { AnalysisTableFilters } from './AnalysisTableFilters';
-import { ExportCsvButton } from './ExportCsvButton';
+import { ExportDropdown } from './ExportCsvButton';
 import { PipelineFlowVisualizer } from './PipelineFlowVisualizer';
 import { PriorityPicksBanner } from './PriorityPicksBanner';
 
@@ -110,7 +110,7 @@ export function AnalysisDashboard({
           <h3 className="text-lg font-semibold text-[var(--color-text)]">
             Pipeline Records
           </h3>
-          <ExportCsvButton jurisdiction={jurisdiction} />
+          <ExportDropdown jurisdiction={jurisdiction} />
         </div>
 
         <Suspense fallback={<div className="animate-pulse bg-[var(--color-neutral-100)] h-12 rounded-[var(--radius-md)]" />}>

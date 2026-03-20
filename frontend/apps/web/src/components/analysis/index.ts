@@ -14,7 +14,7 @@ export { PipelineTimeline } from './PipelineTimeline';
 export { AnalysisTable } from './AnalysisTable';
 export { AnalysisTableFilters } from './AnalysisTableFilters';
 export { GuidanceAnalysisTableFilters } from './GuidanceAnalysisTableFilters';
-export { ExportCsvButton } from './ExportCsvButton';
+export { ExportDropdown, ExportCsvButton } from './ExportCsvButton';
 export { PipelineFlowVisualizer } from './PipelineFlowVisualizer';
 export { PipelineExampleWalkthrough } from './PipelineExampleWalkthrough';
 export { PriorityPicksBanner } from './PriorityPicksBanner';

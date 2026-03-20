@@ -13,6 +13,7 @@ import {
   type GuidanceAnalysisListItem,
   type ComplianceIssue,
   type AnalysisExportRow,
+  type ComprehensiveAnalysisExportRow,
   type AnalysisListFilters,
   type AnalysisFilterStats,
 } from '@deproceduralizer/database';
@@ -294,6 +295,7 @@ export async function exportAnalysisCsv(
       'Severity',
       'Easy Fix Type',
       'Effort',
+      'Source URL',
       'Link',
     ];
 
@@ -307,10 +309,141 @@ export async function exportAnalysisCsv(
       row.finalSeverity?.toString() ?? '',
       row.cleanupType ?? '',
       row.cleanupEffort ?? '',
+      row.url ?? '',
       `${baseUrl}/${state.toLowerCase()}/pipeline/${row.documentId}/${row.issueType}`,
     ]);
 
     return generateCsv(headers, csvRows);
+  });
+}
+
+// ============================================
+// Comprehensive Export (Full CSV + By Agency ZIP)
+// ============================================
+
+const COMPREHENSIVE_HEADERS = [
+  'Document Title', 'Citation', 'URL', 'Issue Type', 'Issue Type Label',
+  'Department', 'Responsible Agency', 'Match Count', 'Highest Tier',
+  'Tier 1 Classification', 'Tier 2 Classification', 'Tier 3 Classification',
+  'Final Classification', 'Severity', 'Severity Baseline', 'Tier 3 Severity Adjustment',
+  'Requirement Found', 'Is Justified',
+  "What's Burdensome", 'Argument For Regulation', 'Bad Regulation Text',
+  'Web Search Summary', 'Federal Mandate Found', 'State Has Discretion',
+  'Evidence Gap', 'Cites Federal Statute', 'Federal Citation', 'Tier 3 Trigger',
+  'Easy Cleanup', 'Cleanup Type', 'Cleanup Effort', 'Cleanup Recommendation',
+  'Pipeline Version', 'Review Status', 'Reviewed By',
+  'Justification Notes', 'Team Notes', 'Impact Type',
+  'Developer Status', 'Developer Assigned', 'Developer Notes', 'Resolution Type',
+  'Link',
+];
+
+function boolLabel(v: boolean | null | undefined): string {
+  return v === true ? 'yes' : v === false ? 'no' : '';
+}
+
+function buildComprehensiveCsvRow(
+  row: ComprehensiveAnalysisExportRow,
+  baseUrl: string,
+  state: string,
+): string[] {
+  const classification = row.tier3Classification ?? row.tier2Classification ?? row.tier1Classification ?? '';
+  return [
+    row.documentTitle ?? '',
+    row.citation ?? '',
+    row.url ?? '',
+    row.issueType,
+    ISSUE_TYPE_LABELS[row.issueType] ?? row.issueType,
+    getDepartmentName(row.nycrrTitle, row.njacTitle),
+    row.responsibleAgency ?? '',
+    row.groupedMatchCount?.toString() ?? '',
+    row.highestTierCompleted?.toString() ?? '',
+    row.tier1Classification ?? '',
+    row.tier2Classification ?? '',
+    row.tier3Classification ?? '',
+    classification,
+    row.finalSeverity?.toString() ?? '',
+    row.severityBaseline?.toString() ?? '',
+    row.tier3SeverityAdjustment?.toString() ?? '',
+    boolLabel(row.requirementFound),
+    boolLabel(row.isJustified),
+    row.argumentAgainstRegulation ?? '',
+    row.argumentForRegulation ?? '',
+    (row.verbatimRequirements ?? []).join('; '),
+    row.webSearchSummary ?? '',
+    boolLabel(row.federalMandateFound),
+    boolLabel(row.stateHasDiscretion),
+    boolLabel(row.tier3EvidenceGap),
+    boolLabel(row.citesFederalStatute),
+    row.federalCitation ?? '',
+    row.tier3TriggerReason ?? '',
+    boolLabel(row.easyCleanupCandidate),
+    row.cleanupType ?? '',
+    row.cleanupEffort ?? '',
+    row.cleanupRecommendation ?? '',
+    row.pipelineVersion ?? '',
+    row.reviewStatus ?? '',
+    row.reviewedBy ?? '',
+    row.justificationNotes ?? '',
+    row.teamNotes ?? '',
+    row.impactType ?? '',
+    row.developerStatus ?? '',
+    row.developerAssigned ?? '',
+    row.developerNotes ?? '',
+    row.resolutionType ?? '',
+    `${baseUrl}/${state.toLowerCase()}/pipeline/${row.documentId}/${row.issueType}`,
+  ];
+}
+
+/**
+ * Exports comprehensive analysis data as a CSV string with all analysis fields.
+ * Respects active filters. Capped at 10000 rows.
+ */
+export async function exportComprehensiveAnalysisCsv(
+  state: JurisdictionCode,
+  baseUrl: string,
+  filters: AnalysisListFilters,
+  sortBy?: string,
+  sortOrder?: string,
+): Promise<ActionResult<string>> {
+  return runAction('exportComprehensiveAnalysisCsv', async () => {
+    const rows = await complianceIssuesRepo.getComprehensiveExportData(state, {
+      sortBy,
+      sortOrder,
+      filters,
+    });
+    const csvRows = rows.map((row) => buildComprehensiveCsvRow(row, baseUrl, state));
+    return generateCsv(COMPREHENSIVE_HEADERS, csvRows);
+  });
+}
+
+/**
+ * Exports comprehensive analysis data as a ZIP file with one CSV per responsible agency.
+ * Respects active filters. Returns base64-encoded ZIP.
+ */
+export async function exportAnalysisZipByAgency(
+  state: JurisdictionCode,
+  baseUrl: string,
+  filters: AnalysisListFilters,
+  sortBy?: string,
+  sortOrder?: string,
+): Promise<ActionResult<string>> {
+  return runAction('exportAnalysisZipByAgency', async () => {
+    const { default: JSZip } = await import('jszip');
+    const grouped = await complianceIssuesRepo.getComprehensiveExportDataGroupedByAgency(state, {
+      sortBy,
+      sortOrder,
+      filters,
+    });
+    const zip = new JSZip();
+
+    for (const [agency, rows] of grouped) {
+      const safeName = agency.replace(/[^a-zA-Z0-9 _-]/g, '').replace(/\s+/g, '-');
+      const csvRows = rows.map((row) => buildComprehensiveCsvRow(row, baseUrl, state));
+      zip.file(`${safeName}.csv`, generateCsv(COMPREHENSIVE_HEADERS, csvRows));
+    }
+
+    const buffer = await zip.generateAsync({ type: 'base64' });
+    return buffer;
   });
 }
 

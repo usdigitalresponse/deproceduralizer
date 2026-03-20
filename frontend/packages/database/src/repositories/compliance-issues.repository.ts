@@ -2777,6 +2777,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         docNjacSubchapter: regulatoryDocuments.njacSubchapter,
         docNycrrPart: regulatoryDocuments.nycrrPart,
         docNycrrSection: regulatoryDocuments.nycrrSection,
+        docUrl: regulatoryDocuments.url,
         issueType: complianceIssueAnalyses.issueType,
         argumentAgainstRegulation: complianceIssueAnalyses.argumentAgainstRegulation,
         verbatimRequirements: complianceIssueAnalyses.verbatimRequirements,
@@ -2805,6 +2806,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       return {
         documentTitle: row.docShortTitle || row.docTitle,
         citation,
+        url: row.docUrl,
         issueType: row.issueType,
         nycrrTitle: row.docNycrrTitle,
         njacTitle: row.docNjacTitle,
@@ -2816,6 +2818,182 @@ export class ComplianceIssuesRepository extends BaseRepository {
         documentId: row.documentId,
       };
     });
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // Comprehensive Export (Full CSV + By Agency)
+  // ═══════════════════════════════════════════════════════════════════
+
+  /**
+   * Get comprehensive analysis data for CSV export.
+   * Includes all meaningful analysis fields (~38 columns).
+   * Same filters as getAnalysisListPaginated but unpaginated. Capped at 10000 rows.
+   */
+  async getComprehensiveExportData(
+    jurisdiction: JurisdictionCode,
+    options: {
+      sortBy?: string;
+      sortOrder?: string;
+      filters?: AnalysisListFilters;
+    } = {}
+  ): Promise<ComprehensiveAnalysisExportRow[]> {
+    const { sortBy = 'severity', sortOrder = 'desc', filters } = options;
+
+    const conditions = buildAnalysisListFilters({ jurisdiction, filters });
+    const whereClause = and(...conditions);
+    const orderClauses = buildAnalysisListSort(sortBy, sortOrder);
+
+    const results = await this.db
+      .select({
+        // Document info
+        docShortTitle: regulatoryDocuments.shortTitle,
+        docTitle: regulatoryDocuments.title,
+        docCitation: regulatoryDocuments.citation,
+        docUrl: regulatoryDocuments.url,
+        docNycrrTitle: regulatoryDocuments.nycrrTitle,
+        docNjacTitle: regulatoryDocuments.njacTitle,
+        docNjacChapter: regulatoryDocuments.njacChapter,
+        docNjacSubchapter: regulatoryDocuments.njacSubchapter,
+        docNycrrPart: regulatoryDocuments.nycrrPart,
+        docNycrrSection: regulatoryDocuments.nycrrSection,
+        // Analysis core
+        issueType: complianceIssueAnalyses.issueType,
+        documentId: complianceIssueAnalyses.documentId,
+        groupedMatchCount: complianceIssueAnalyses.groupedMatchCount,
+        highestTierCompleted: complianceIssueAnalyses.highestTierCompleted,
+        // Tier classifications
+        tier1Classification: complianceIssueAnalyses.tier1Classification,
+        tier2Classification: complianceIssueAnalyses.tier2Classification,
+        tier3Classification: complianceIssueAnalyses.tier3Classification,
+        // Severity
+        finalSeverity: sql<number | null>`COALESCE(${complianceIssueAnalyses.finalSeverity}, ${complianceIssueAnalyses.severity})`,
+        severityBaseline: complianceIssueAnalyses.severityBaseline,
+        tier3SeverityAdjustment: complianceIssueAnalyses.tier3SeverityAdjustment,
+        // Key analysis fields
+        requirementFound: complianceIssueAnalyses.requirementFound,
+        isJustified: complianceIssueAnalyses.isJustified,
+        verbatimRequirements: complianceIssueAnalyses.verbatimRequirements,
+        argumentForRegulation: complianceIssueAnalyses.argumentForRegulation,
+        argumentAgainstRegulation: complianceIssueAnalyses.argumentAgainstRegulation,
+        // Tier 3 web search
+        webSearchSummary: complianceIssueAnalyses.webSearchSummary,
+        federalMandateFound: complianceIssueAnalyses.federalMandateFound,
+        stateHasDiscretion: complianceIssueAnalyses.stateHasDiscretion,
+        tier3EvidenceGap: complianceIssueAnalyses.tier3EvidenceGap,
+        tier3TriggerReason: complianceIssueAnalyses.tier3TriggerReason,
+        // Federal mandate
+        citesFederalStatute: complianceIssueAnalyses.citesFederalStatute,
+        federalCitation: complianceIssueAnalyses.federalCitation,
+        // Cleanup
+        easyCleanupCandidate: complianceIssueAnalyses.easyCleanupCandidate,
+        cleanupType: complianceIssueAnalyses.cleanupType,
+        cleanupEffort: complianceIssueAnalyses.cleanupEffort,
+        cleanupRecommendation: complianceIssueAnalyses.cleanupRecommendation,
+        // Pipeline
+        responsibleAgency: complianceIssueAnalyses.responsibleAgency,
+        pipelineVersion: complianceIssueAnalyses.pipelineVersion,
+        // Review
+        reviewStatus: complianceIssueAnalyses.reviewStatus,
+        reviewedBy: complianceIssueAnalyses.reviewedBy,
+        justificationNotes: complianceIssueAnalyses.justificationNotes,
+        teamNotes: complianceIssueAnalyses.teamNotes,
+        impactType: complianceIssueAnalyses.impactType,
+        // Developer
+        developerStatus: complianceIssueAnalyses.developerStatus,
+        developerAssigned: complianceIssueAnalyses.developerAssigned,
+        developerNotes: complianceIssueAnalyses.developerNotes,
+        resolutionType: complianceIssueAnalyses.resolutionType,
+      })
+      .from(complianceIssueAnalyses)
+      .innerJoin(regulatoryDocuments, eq(complianceIssueAnalyses.documentId, regulatoryDocuments.id))
+      .where(whereClause)
+      .orderBy(...orderClauses)
+      .limit(10000);
+
+    return results.map((row) => {
+      // Build citation from structured fields (same logic as getAnalysisExportData)
+      let citation: string | null = row.docCitation ?? null;
+      if (!citation) {
+        if (row.docNjacTitle) {
+          citation = `N.J.A.C. ${row.docNjacTitle}:${row.docNjacChapter || ''}${row.docNjacSubchapter ? `-${row.docNjacSubchapter}` : ''}`;
+        } else if (row.docNycrrTitle) {
+          citation = `${row.docNycrrTitle} NYCRR ${row.docNycrrPart || ''}${row.docNycrrSection ? `.${row.docNycrrSection}` : ''}`;
+        }
+      }
+
+      return {
+        documentTitle: row.docShortTitle || row.docTitle,
+        citation,
+        url: row.docUrl,
+        issueType: row.issueType,
+        nycrrTitle: row.docNycrrTitle,
+        njacTitle: row.docNjacTitle,
+        documentId: row.documentId,
+        groupedMatchCount: row.groupedMatchCount,
+        highestTierCompleted: row.highestTierCompleted,
+        tier1Classification: row.tier1Classification,
+        tier2Classification: row.tier2Classification,
+        tier3Classification: row.tier3Classification,
+        finalSeverity: row.finalSeverity,
+        severityBaseline: row.severityBaseline,
+        tier3SeverityAdjustment: row.tier3SeverityAdjustment,
+        requirementFound: row.requirementFound,
+        isJustified: row.isJustified,
+        verbatimRequirements: row.verbatimRequirements,
+        argumentForRegulation: row.argumentForRegulation,
+        argumentAgainstRegulation: row.argumentAgainstRegulation,
+        webSearchSummary: row.webSearchSummary,
+        federalMandateFound: row.federalMandateFound,
+        stateHasDiscretion: row.stateHasDiscretion,
+        tier3EvidenceGap: row.tier3EvidenceGap,
+        tier3TriggerReason: row.tier3TriggerReason,
+        citesFederalStatute: row.citesFederalStatute,
+        federalCitation: row.federalCitation,
+        easyCleanupCandidate: row.easyCleanupCandidate,
+        cleanupType: row.cleanupType,
+        cleanupEffort: row.cleanupEffort,
+        cleanupRecommendation: row.cleanupRecommendation,
+        responsibleAgency: row.responsibleAgency,
+        pipelineVersion: row.pipelineVersion,
+        reviewStatus: row.reviewStatus,
+        reviewedBy: row.reviewedBy,
+        justificationNotes: row.justificationNotes,
+        teamNotes: row.teamNotes,
+        impactType: row.impactType,
+        developerStatus: row.developerStatus,
+        developerAssigned: row.developerAssigned,
+        developerNotes: row.developerNotes,
+        resolutionType: row.resolutionType,
+      };
+    });
+  }
+
+  /**
+   * Get comprehensive export data grouped by responsible agency.
+   * Returns a Map of agency name → rows for ZIP-by-agency export.
+   */
+  async getComprehensiveExportDataGroupedByAgency(
+    jurisdiction: JurisdictionCode,
+    options: {
+      sortBy?: string;
+      sortOrder?: string;
+      filters?: AnalysisListFilters;
+    } = {}
+  ): Promise<Map<string, ComprehensiveAnalysisExportRow[]>> {
+    const data = await this.getComprehensiveExportData(jurisdiction, options);
+    const grouped = new Map<string, ComprehensiveAnalysisExportRow[]>();
+
+    for (const row of data) {
+      const agency = row.responsibleAgency || 'Unassigned';
+      const existing = grouped.get(agency);
+      if (existing) {
+        existing.push(row);
+      } else {
+        grouped.set(agency, [row]);
+      }
+    }
+
+    return grouped;
   }
 
   // ═══════════════════════════════════════════════════════════════════
@@ -4198,6 +4376,7 @@ export interface FullGuidanceAnalysisRecord extends Omit<FullAnalysisRecord, 'do
 export interface AnalysisExportRow {
   documentTitle: string | null;
   citation: string | null;
+  url: string | null;
   issueType: string;
   nycrrTitle: number | null;
   njacTitle: string | null;
@@ -4207,6 +4386,51 @@ export interface AnalysisExportRow {
   cleanupType: string | null;
   cleanupEffort: string | null;
   documentId: number | null;
+}
+
+export interface ComprehensiveAnalysisExportRow {
+  documentTitle: string | null;
+  citation: string | null;
+  url: string | null;
+  issueType: string;
+  nycrrTitle: number | null;
+  njacTitle: string | null;
+  documentId: number | null;
+  groupedMatchCount: number;
+  highestTierCompleted: number | null;
+  tier1Classification: string | null;
+  tier2Classification: string | null;
+  tier3Classification: string | null;
+  finalSeverity: number | null;
+  severityBaseline: number | null;
+  tier3SeverityAdjustment: number | null;
+  requirementFound: boolean | null;
+  isJustified: boolean | null;
+  verbatimRequirements: string[] | null;
+  argumentForRegulation: string | null;
+  argumentAgainstRegulation: string | null;
+  webSearchSummary: string | null;
+  federalMandateFound: boolean | null;
+  stateHasDiscretion: boolean | null;
+  tier3EvidenceGap: boolean | null;
+  tier3TriggerReason: string | null;
+  citesFederalStatute: boolean | null;
+  federalCitation: string | null;
+  easyCleanupCandidate: boolean | null;
+  cleanupType: string | null;
+  cleanupEffort: string | null;
+  cleanupRecommendation: string | null;
+  responsibleAgency: string | null;
+  pipelineVersion: string | null;
+  reviewStatus: string | null;
+  reviewedBy: string | null;
+  justificationNotes: string | null;
+  teamNotes: string | null;
+  impactType: string | null;
+  developerStatus: string | null;
+  developerAssigned: string | null;
+  developerNotes: string | null;
+  resolutionType: string | null;
 }
 
 // ═══════════════════════════════════════════════════════════════════
