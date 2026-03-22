@@ -4,6 +4,7 @@ import 'server-only';
 import {
   db,
   ComplianceIssuesRepository,
+  BookmarksRepository,
   type JurisdictionCode,
   type TierCompletionCounts,
   type ClassificationBreakdown,
@@ -23,6 +24,7 @@ import { getDepartmentName } from '@/lib/constants/departments';
 import { ISSUE_TYPE_LABELS } from '@/types/regulation';
 
 const complianceIssuesRepo = new ComplianceIssuesRepository(db);
+const bookmarksRepo = new BookmarksRepository(db);
 
 /**
  * Combined analysis stats for dashboard.
@@ -279,11 +281,14 @@ export async function exportAnalysisCsv(
   sortOrder?: string,
 ): Promise<ActionResult<string>> {
   return runAction('exportAnalysisCsv', async () => {
-    const rows = await complianceIssuesRepo.getAnalysisExportData(state, {
-      sortBy,
-      sortOrder,
-      filters,
-    });
+    const [rows, markersMap] = await Promise.all([
+      complianceIssuesRepo.getAnalysisExportData(state, {
+        sortBy,
+        sortOrder,
+        filters,
+      }),
+      bookmarksRepo.getAnalysisBookmarkMarkersMap(state),
+    ]);
 
     const headers = [
       'Title',
@@ -295,23 +300,34 @@ export async function exportAnalysisCsv(
       'Severity',
       'Easy Fix Type',
       'Effort',
+      'Marker Categories',
+      'Bookmark Notes',
+      'Marked By',
       'Source URL',
       'Link',
     ];
 
-    const csvRows = rows.map((row: AnalysisExportRow) => [
-      row.documentTitle ?? '',
-      row.citation ?? '',
-      ISSUE_TYPE_LABELS[row.issueType] ?? row.issueType,
-      getDepartmentName(row.nycrrTitle, row.njacTitle),
-      row.argumentAgainstRegulation ?? '',
-      (row.verbatimRequirements ?? []).join('; '),
-      row.finalSeverity?.toString() ?? '',
-      row.cleanupType ?? '',
-      row.cleanupEffort ?? '',
-      row.url ?? '',
-      `${baseUrl}/${state.toLowerCase()}/pipeline/${row.documentId}/${row.issueType}`,
-    ]);
+    const csvRows = rows.map((row: AnalysisExportRow) => {
+      const key = `r-${row.documentId}-${row.issueType}`;
+      const markerEntry = markersMap.get(key);
+      const markerNames = markerEntry?.markers.map(m => m.name).join(', ') ?? '';
+      return [
+        row.documentTitle ?? '',
+        row.citation ?? '',
+        ISSUE_TYPE_LABELS[row.issueType] ?? row.issueType,
+        getDepartmentName(row.nycrrTitle, row.njacTitle),
+        row.argumentAgainstRegulation ?? '',
+        (row.verbatimRequirements ?? []).join('; '),
+        row.finalSeverity?.toString() ?? '',
+        row.cleanupType ?? '',
+        row.cleanupEffort ?? '',
+        markerNames,
+        markerEntry?.notes ?? '',
+        markerEntry?.createdBy ?? '',
+        row.url ?? '',
+        `${baseUrl}/${state.toLowerCase()}/pipeline/${row.documentId}/${row.issueType}`,
+      ];
+    });
 
     return generateCsv(headers, csvRows);
   });

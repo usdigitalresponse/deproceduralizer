@@ -3,15 +3,15 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { Card } from '@/components/ui/Card';
 
 /**
- * Loading skeleton for the bookmarks page.
+ * Loading skeleton for the markers page.
  * Shows tabs and table skeleton.
  */
-export default function BookmarksLoading() {
+export default function MarkersLoading() {
   return (
     <div className="bg-[var(--color-background)] min-h-screen">
       <PageHeader
-        title="Bookmarks"
-        description="View and manage your bookmarked analyses and documents"
+        title="Labels"
+        description="View and manage your marked analyses, documents, and fines"
       />
 
       <Container size="2xl" className="py-6">

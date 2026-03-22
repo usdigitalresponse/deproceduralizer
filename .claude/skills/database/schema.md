@@ -1042,6 +1042,44 @@ User bookmarks for pipeline analyses, regulatory documents, guidance documents, 
 - `idx_bookmarks_unique_fine UNIQUE(fine_id) WHERE fine_id IS NOT NULL` - one bookmark per fine
 - `idx_bookmarks_document`, `idx_bookmarks_analysis`, `idx_bookmarks_guidance_document`, `idx_bookmarks_fine`, `idx_bookmarks_state`, `idx_bookmarks_created_at`
 
+## marker_groups
+
+User-defined colored tag groups for organizing bookmarks. Supports predefined (seeded) and custom (user-created) groups, with optional jurisdiction scoping.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | bigserial | Primary key |
+| `name` | varchar(100) NOT NULL | Display name (e.g. "Easy Win", "Priority") |
+| `color` | varchar(7) | Hex color code, default `#6b7280` |
+| `icon` | varchar(50) | Optional icon name (nullable, currently unused) |
+| `jurisdiction` | varchar(3) | NULL = global, or 'NY'/'NJ'/'NYC' for jurisdiction-specific |
+| `sort_order` | integer | Display ordering, default 0 |
+| `is_custom` | boolean | false = predefined seed data, true = user-created |
+| `created_by` | varchar(255) | Who created the group |
+| `created_at` | timestamptz | When created |
+| `updated_at` | timestamptz | When last updated |
+
+**Seed data:** Easy Win (#22c55e), Needs Review (#f97316), Legal Question (#ef4444), Report Draft (#3b82f6), Priority (#8b5cf6)
+
+**Constraints:** `uq_marker_groups_name_jurisdiction UNIQUE(name, COALESCE(jurisdiction, '__global__'))` - unique names per jurisdiction scope
+
+**Migration:** `0088_marker_groups.sql`
+
+## bookmark_markers
+
+Many-to-many junction between bookmarks and marker_groups. Assigns colored tags to bookmarks.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | bigserial | Primary key |
+| `bookmark_id` | bigint NOT NULL | FK to bookmarks (ON DELETE CASCADE) |
+| `marker_group_id` | bigint NOT NULL | FK to marker_groups (ON DELETE CASCADE) |
+| `created_at` | timestamptz | When assigned |
+
+**Constraints:** `uq_bookmark_markers UNIQUE(bookmark_id, marker_group_id)`
+
+**Indexes:** `idx_bookmark_markers_bookmark_id`, `idx_bookmark_markers_marker_group_id`
+
 ## document_tags
 
 Flexible tagging for scan scoping. Tags use a flat namespace with prefixes.

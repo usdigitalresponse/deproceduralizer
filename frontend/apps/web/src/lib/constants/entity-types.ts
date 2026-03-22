@@ -6,7 +6,7 @@ import {
   Link2,
   Library,
   MessageSquare,
-  Star,
+  Tag,
   ScrollText,
   type LucideIcon,
 } from 'lucide-react';
@@ -24,7 +24,8 @@ export type EntityType =
   | 'ibr_standard'
   | 'guidance_document'
   | 'note'
-  | 'bookmark';
+  | 'bookmark'
+  | 'marker';
 
 export interface EntityTypeConfig {
   icon: LucideIcon;
@@ -118,9 +119,18 @@ export const ENTITY_TYPES: Record<EntityType, EntityTypeConfig> = {
     textColor: 'text-stone-700',
   },
   bookmark: {
-    icon: Star,
-    label: 'Bookmark',
-    shortLabel: 'Bookmark',
+    icon: Tag,
+    label: 'Label',
+    shortLabel: 'Label',
+    iconColor: 'text-yellow-600',
+    bgColor: 'bg-yellow-50',
+    borderColor: 'border-yellow-300',
+    textColor: 'text-yellow-700',
+  },
+  marker: {
+    icon: Tag,
+    label: 'Label',
+    shortLabel: 'Label',
     iconColor: 'text-yellow-600',
     bgColor: 'bg-yellow-50',
     borderColor: 'border-yellow-300',

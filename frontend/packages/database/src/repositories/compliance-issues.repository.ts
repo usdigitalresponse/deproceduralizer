@@ -15,6 +15,7 @@ import {
   Tier3Flags,
 } from '../schema/compliance-issue-analyses';
 import { bookmarks } from '../schema/bookmarks';
+import { bookmarkMarkers } from '../schema/marker-groups';
 import { ReviewStatus, ImpactType, DeveloperStatus, ResolutionType, Developer } from '../schema/review-constants';
 import { JurisdictionCode } from '../schema/constants';
 
@@ -638,6 +639,7 @@ export interface AnalysisListFilters {
   easyCleanups?: string[];
 
   bookmarkedOnly?: boolean;
+  markerGroupIds?: number[];
 }
 
 /** Analysis source: regulations (default) or guidance documents. */
@@ -1009,6 +1011,19 @@ export function buildAnalysisListFilters(params: {
       sql`EXISTS (
         SELECT 1 FROM ${bookmarks}
         WHERE ${bookmarks.analysisId} = ${complianceIssueAnalyses.id}
+      )`
+    );
+  }
+
+  // Marker group filter
+  if (filters.markerGroupIds && filters.markerGroupIds.length > 0) {
+    const ids = filters.markerGroupIds;
+    conditions.push(
+      sql`EXISTS (
+        SELECT 1 FROM ${bookmarkMarkers}
+        JOIN ${bookmarks} ON ${bookmarkMarkers.bookmarkId} = ${bookmarks.id}
+        WHERE ${bookmarks.analysisId} = ${complianceIssueAnalyses.id}
+          AND ${bookmarkMarkers.markerGroupId} IN (${sql.join(ids.map(id => sql`${id}`), sql`, `)})
       )`
     );
   }

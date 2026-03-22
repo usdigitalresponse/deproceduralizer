@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { Bookmark as BookmarkIcon, Pencil, X, Check } from 'lucide-react';
+import { Tag as TagIcon, Pencil, X, Check } from 'lucide-react';
 import { BookmarkButton } from '@/components/ui';
+import { MarkerBadge, MarkerPicker } from '@/components/markers';
 import { useBookmarkName } from '@/hooks/useBookmarkName';
+import type { MarkerGroup } from '@deproceduralizer/database';
 import {
   getFineBookmark,
   toggleFineBookmark,
@@ -135,13 +137,19 @@ export function FineBookmarkButton({
 
 // ── Inline amber notes card (matches pipeline BookmarkNotesCard pattern) ──
 
+type MarkerInfo = { id: number; name: string; color: string };
+
 interface BookmarkNotesCardProps {
   bookmark: Bookmark;
   onSave: (notes: string, createdBy?: string) => Promise<void>;
   defaultName?: string;
+  markers?: MarkerInfo[];
+  availableGroups?: MarkerGroup[];
+  onMarkerToggle?: (bookmarkId: number, markerGroupId: number, assign: boolean) => void;
+  onCreateCustom?: (name: string) => void;
 }
 
-export function BookmarkNotesCard({ bookmark, onSave, defaultName }: BookmarkNotesCardProps) {
+export function BookmarkNotesCard({ bookmark, onSave, defaultName, markers, availableGroups, onMarkerToggle, onCreateCustom }: BookmarkNotesCardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editedNotes, setEditedNotes] = useState('');
   const [editedName, setEditedName] = useState('');
@@ -175,10 +183,10 @@ export function BookmarkNotesCard({ bookmark, onSave, defaultName }: BookmarkNot
   return (
     <div className="bg-amber-50 border border-amber-200 rounded-[var(--radius-md)] p-4">
       <div className="flex items-start gap-3">
-        <BookmarkIcon className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" fill="currentColor" />
+        <TagIcon className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" fill="currentColor" />
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2 mb-2">
-            <h3 className="text-sm font-semibold text-amber-800">Bookmarked</h3>
+            <h3 className="text-sm font-semibold text-amber-800">Marked</h3>
             {!isEditing && (
               <button
                 onClick={handleStartEdit}
@@ -190,12 +198,40 @@ export function BookmarkNotesCard({ bookmark, onSave, defaultName }: BookmarkNot
             )}
           </div>
 
+          {/* Marker badges + picker */}
+          {availableGroups && availableGroups.length > 0 && bookmark.id > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5 mb-2">
+              {markers && markers.length > 0 ? (
+                markers.map(m => (
+                  <MarkerBadge
+                    key={m.id}
+                    name={m.name}
+                    color={m.color}
+                    size="sm"
+                    onRemove={onMarkerToggle ? () => onMarkerToggle(bookmark.id, m.id, false) : undefined}
+                  />
+                ))
+              ) : (
+                <span className="text-xs text-amber-500 italic">No label chosen</span>
+              )}
+              {onMarkerToggle && (
+                <MarkerPicker
+                  bookmarkId={bookmark.id}
+                  assignedMarkerIds={markers?.map(m => m.id) ?? []}
+                  availableGroups={availableGroups}
+                  onToggle={onMarkerToggle}
+                  onCreateCustom={onCreateCustom}
+                />
+              )}
+            </div>
+          )}
+
           {isEditing ? (
             <div className="space-y-2">
               <textarea
                 value={editedNotes}
                 onChange={(e) => setEditedNotes(e.target.value)}
-                placeholder="Add notes about why this is bookmarked..."
+                placeholder="Add notes..."
                 className="w-full px-3 py-2 text-sm bg-white border border-amber-300 rounded-[var(--radius-sm)] resize-none focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent placeholder:text-amber-400"
                 rows={2}
                 autoFocus

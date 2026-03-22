@@ -5,6 +5,8 @@ import { complianceIssues } from '../schema/compliance-issues';
 import { jenaiIssues } from '../schema/jenai-issues';
 import { crossReferences } from '../schema/cross-references';
 import { regulatoryDocuments } from '../schema/regulatory-documents';
+import { bookmarks } from '../schema/bookmarks';
+import { bookmarkMarkers } from '../schema/marker-groups';
 import { JurisdictionCode, normalizeJurisdiction, READABILITY_TIERS, type ReadabilityTier } from '../schema/constants';
 // Note: policyCategory values are from POLICY_CATEGORIES, status from GUIDANCE_STATUSES
 // in ../schema/guidance-documents.ts. Drizzle infers text() as string, not the union type.
@@ -122,6 +124,8 @@ export interface GuidancePaginationOptions {
     readability?: string;
     targetAudience?: string[];
     audienceExpertise?: string;
+    markerGroupIds?: number[];
+    bookmarkedOnly?: boolean;
   };
 }
 
@@ -392,6 +396,31 @@ export class GuidanceDocumentsRepository extends BaseRepository {
       }
       if (filters.audienceExpertise) {
         conditions.push(eq(guidanceDocuments.audienceExpertise, filters.audienceExpertise));
+      }
+
+      // Bookmarked only filter
+      if (filters.bookmarkedOnly) {
+        conditions.push(
+          sql`EXISTS (
+            SELECT 1 FROM ${bookmarks}
+            WHERE ${bookmarks.guidanceDocumentId} = ${guidanceDocuments.id}
+              AND ${bookmarks.analysisId} IS NULL
+          )`
+        );
+      }
+
+      // Marker group filter
+      if (filters.markerGroupIds && filters.markerGroupIds.length > 0) {
+        const ids = filters.markerGroupIds;
+        conditions.push(
+          sql`EXISTS (
+            SELECT 1 FROM ${bookmarkMarkers}
+            JOIN ${bookmarks} ON ${bookmarkMarkers.bookmarkId} = ${bookmarks.id}
+            WHERE ${bookmarks.guidanceDocumentId} = ${guidanceDocuments.id}
+              AND ${bookmarks.analysisId} IS NULL
+              AND ${bookmarkMarkers.markerGroupId} IN (${sql.join(ids.map(id => sql`${id}`), sql`, `)})
+          )`
+        );
       }
     }
 

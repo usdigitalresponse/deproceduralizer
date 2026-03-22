@@ -48,7 +48,7 @@ export default async function FinesPage({ params }: FinesPageProps) {
               className="inline-flex items-center gap-1.5 text-sm text-[var(--color-primary)] hover:underline"
             >
               <Star className="w-4 h-4" />
-              View Bookmarked Fines ({fineBookmarkCount})
+              View Marked Fines ({fineBookmarkCount})
             </Link>
           ) : undefined
         }

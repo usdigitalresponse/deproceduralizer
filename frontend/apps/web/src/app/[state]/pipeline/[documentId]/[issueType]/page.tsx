@@ -183,6 +183,9 @@ export default async function AnalysisDetailPage({ params, searchParams }: Analy
 
         <Container size="2xl" className="py-6">
 
+          {/* Bookmark Notes Card - shown when marked, immediately below sticky nav */}
+          {!isPrintMode && <BookmarkNotesCard />}
+
           {/* Header Card */}
         <div id="section-overview" className="bg-white border border-[var(--color-neutral-200)] rounded-[var(--radius-md)] p-6 mb-6">
           <div className="flex flex-wrap items-start gap-4 mb-4">
@@ -331,9 +334,6 @@ export default async function AnalysisDetailPage({ params, searchParams }: Analy
             tier3Reasoning={analysis.tier3?.severityAdjustmentReasoning || null}
           />
         </div>
-
-        {/* Bookmark Notes Card - shown when bookmarked, hidden in print mode */}
-        {!isPrintMode && <BookmarkNotesCard />}
 
         {/* Regex Matches Section - collapsible in standard view, expanded in print mode */}
         {matches && matches.length > 0 && (

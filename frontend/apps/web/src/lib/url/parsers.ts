@@ -104,8 +104,8 @@ import {
   JENAI_REVIEW_SORT_BY_VALUES,
   JENAI_DEVELOPER_SORT_BY_VALUES,
   JENAI_VERBATIM_VALUES,
-  // Bookmarks
-  BOOKMARK_TAB_VALUES,
+  // Markers (formerly Bookmarks)
+  MARKER_TAB_VALUES,
   // Burden Index
   BURDEN_SORT_BY_VALUES,
   BURDEN_SOURCE_VALUES,
@@ -178,6 +178,7 @@ export type {
   CrossRefSourceTypeValue,
   CrossRefSortByValue,
   CrossRefGroupSortByValue,
+  MarkerTabValue,
   BookmarkTabValue,
   BurdenSortByValue,
   BurdenSourceValue,
@@ -348,6 +349,8 @@ export const analysisTableParsers = {
   easyCleanup: parseAsString,
   // Bookmarks filter
   bookmarkedOnly: bookmarkedOnlyParser,
+  // Marker group filter (comma-separated IDs)
+  marker: parseAsString,
   // Guidance-specific filters (null = no filter)
   agency: parseAsString,
   docType: parseAsString,
@@ -716,6 +719,10 @@ export const finesParsers = {
   perUnit: perUnitParser,
   agencyLevel: agencyLevelParser,
   classification: finesClassificationParser,
+  // Bookmarked only filter
+  bookmarkedOnly: bookmarkedOnlyParser,
+  // Marker group filter (comma-separated IDs)
+  marker: parseAsString,
   severity: parseAsString,
   estimatedImpact: parseAsString,
 };
@@ -783,6 +790,10 @@ export const guidanceParsers = {
   targetAudience: guidanceTargetAudienceParser,
   hasForm: parseAsBoolean,
   hasIbr: parseAsBoolean,
+  // Bookmarked only filter
+  bookmarkedOnly: bookmarkedOnlyParser,
+  // Marker group filter (comma-separated IDs)
+  marker: parseAsString,
 };
 
 // ============================================
@@ -826,17 +837,21 @@ export const crossRefTableParsers = {
 };
 
 // ============================================
-// Bookmarks page parsers
+// Markers page parsers (formerly Bookmarks)
 // ============================================
 
-export const bookmarkTabParser = parseAsStringEnum([...BOOKMARK_TAB_VALUES]).withDefault('analysis');
+export const markerTabParser = parseAsStringEnum([...MARKER_TAB_VALUES]).withDefault('analysis');
 
 /**
- * Parser configuration for Bookmarks page
+ * Parser configuration for Markers page
  */
-export const bookmarksParsers = {
-  tab: bookmarkTabParser,
+export const markersParsers = {
+  tab: markerTabParser,
 };
+
+// Backward compat aliases
+export const bookmarkTabParser = markerTabParser;
+export const bookmarksParsers = markersParsers;
 
 // ============================================
 // Tags page parsers

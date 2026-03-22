@@ -5,7 +5,9 @@ import {
   varchar,
   text,
   timestamp,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { regulatoryDocuments } from './regulatory-documents';
 import { complianceIssueAnalyses } from './compliance-issue-analyses';
 import { guidanceDocuments } from './guidance-documents';
@@ -47,7 +49,21 @@ export const bookmarks = pgTable('bookmarks', {
   createdBy: varchar('created_by', { length: 255 }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
-});
+}, (table) => [
+  // Partial unique indexes matching migrations 0023, 0060, 0084
+  uniqueIndex('idx_bookmarks_unique_analysis')
+    .on(table.analysisId)
+    .where(sql`${table.analysisId} is not null`),
+  uniqueIndex('idx_bookmarks_unique_document')
+    .on(table.documentId)
+    .where(sql`${table.analysisId} is null`),
+  uniqueIndex('idx_bookmarks_unique_guidance_document')
+    .on(table.guidanceDocumentId)
+    .where(sql`${table.guidanceDocumentId} is not null and ${table.analysisId} is null`),
+  uniqueIndex('idx_bookmarks_unique_fine')
+    .on(table.fineId)
+    .where(sql`${table.fineId} is not null`),
+]);
 
 // Type exports
 export type Bookmark = typeof bookmarks.$inferSelect;

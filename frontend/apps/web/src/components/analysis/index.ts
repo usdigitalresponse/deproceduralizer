@@ -12,6 +12,7 @@ export { SeverityProgression } from './SeverityProgression';
 export { DismissedMatchesDisplay } from './DismissedMatchesDisplay';
 export { PipelineTimeline } from './PipelineTimeline';
 export { AnalysisTable } from './AnalysisTable';
+export { AnalysisDetailDrawer } from './AnalysisDetailDrawer';
 export { AnalysisTableFilters } from './AnalysisTableFilters';
 export { GuidanceAnalysisTableFilters } from './GuidanceAnalysisTableFilters';
 export { ExportDropdown, ExportCsvButton } from './ExportCsvButton';

@@ -71,7 +71,7 @@ export function BookmarkNotesEditor({
             className={`flex-1 text-sm border border-[var(--color-neutral-300)] ${
               compact ? 'px-2 py-1 rounded' : 'px-3 py-2 rounded-[var(--radius-sm)]'
             }`}
-            placeholder={compact ? 'Add notes...' : 'Add notes about this bookmark...'}
+            placeholder={compact ? 'Add notes...' : 'Add notes about this marker...'}
             autoFocus
             onKeyDown={(e) => {
               if (e.key === 'Enter') handleSave();

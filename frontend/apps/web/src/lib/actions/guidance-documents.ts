@@ -96,7 +96,9 @@ export async function getGuidancePaginated(
   const readability = filters?.readability ?? '';
   const targetAudience = filters?.targetAudience?.join(',') ?? '';
   const audienceExpertise = filters?.audienceExpertise ?? '';
-  const cacheKey = `guidance-paginated-${state}-${page}-${pageSize}-${sortBy}-${sortOrder}-${agency}-${docType}-${policyCategory}-${status}-${yearFrom}-${yearTo}-${search}-${audienceDirection}-${sectionType}-${hasForm}-${hasIbr}-${readability}-${targetAudience}-${audienceExpertise}`;
+  const markerIds = filters?.markerGroupIds?.sort().join(',') ?? '';
+  const bookmarkedOnly = filters?.bookmarkedOnly ? '1' : '';
+  const cacheKey = `guidance-paginated-${state}-${page}-${pageSize}-${sortBy}-${sortOrder}-${agency}-${docType}-${policyCategory}-${status}-${yearFrom}-${yearTo}-${search}-${audienceDirection}-${sectionType}-${hasForm}-${hasIbr}-${readability}-${targetAudience}-${audienceExpertise}-${markerIds}-${bookmarkedOnly}`;
 
   return runCachedAction(
     'getGuidancePaginated',
@@ -263,7 +265,9 @@ export async function getGuidanceGrouped(
   const readability = filters?.readability ?? '';
   const targetAudience = filters?.targetAudience?.join(',') ?? '';
   const audienceExpertise = filters?.audienceExpertise ?? '';
-  const cacheKey = `guidance-grouped-${state}-${groupBy}-${page}-${pageSize}-${sortBy}-${sortOrder}-${agency}-${docType}-${policyCategory}-${status}-${yearFrom}-${yearTo}-${search}-${audienceDirection}-${sectionType}-${hasForm}-${hasIbr}-${readability}-${targetAudience}-${audienceExpertise}`;
+  const bookmarkedOnlyGrouped = filters?.bookmarkedOnly ? '1' : '';
+  const markerIds = filters?.markerGroupIds?.sort().join(',') ?? '';
+  const cacheKey = `guidance-grouped-${state}-${groupBy}-${page}-${pageSize}-${sortBy}-${sortOrder}-${agency}-${docType}-${policyCategory}-${status}-${yearFrom}-${yearTo}-${search}-${audienceDirection}-${sectionType}-${hasForm}-${hasIbr}-${readability}-${targetAudience}-${audienceExpertise}-${bookmarkedOnlyGrouped}-${markerIds}`;
 
   return runCachedAction(
     'getGuidanceGrouped',

@@ -2,10 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryStates } from 'nuqs';
-import { Star, Sparkles } from 'lucide-react';
+import { Sparkles, Tag } from 'lucide-react';
+import type { MarkerGroup } from '@deproceduralizer/database';
 import { MultiSelect, FilterBar, FilterField, Badge } from '@/components/ui';
 import { analysisTableParsers } from '@/lib/url/parsers';
 import { parseCommaSeparated, serializeCommaSeparated } from '@/lib/url/filter-helpers';
+import { getMarkerGroups } from '@/lib/actions/marker-groups';
 import type {
   AnalysisSortByValue,
 } from '@/lib/constants/values';
@@ -31,15 +33,27 @@ import {
 import type { AnalysisFilterStats } from '@/lib/actions/analysis';
 
 interface AnalysisTableFiltersProps {
+  jurisdiction?: string;
   filterStats?: AnalysisFilterStats;
 }
 
-export function AnalysisTableFilters({ filterStats }: AnalysisTableFiltersProps) {
+export function AnalysisTableFilters({ jurisdiction, filterStats }: AnalysisTableFiltersProps) {
   const [filters, setFilters] = useQueryStates(analysisTableParsers, {
     shallow: false,
   });
 
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [markerGroupsList, setMarkerGroupsList] = useState<MarkerGroup[]>([]);
+
+  // Fetch marker groups for the filter dropdown
+  useEffect(() => {
+    if (!jurisdiction) return;
+    getMarkerGroups(jurisdiction).then(result => {
+      if (result.success) setMarkerGroupsList(result.data);
+    });
+  }, [jurisdiction]);
+
+  const selectedMarkerIds = filters.marker ? parseCommaSeparated(filters.marker) : [];
 
   // On first load, apply default classification if no URL param is set
   const didApplyDefaults = useRef(false);
@@ -68,6 +82,7 @@ export function AnalysisTableFilters({ filterStats }: AnalysisTableFiltersProps)
       tier3Trigger: null,
       easyCleanup: null,
       bookmarkedOnly: null,
+      marker: null,
       page: 1,
     });
   }, [setFilters]);
@@ -132,7 +147,8 @@ export function AnalysisTableFilters({ filterStats }: AnalysisTableFiltersProps)
     filters.advocacyForChange ||
     filters.tier3Trigger ||
     filters.easyCleanup ||
-    filters.bookmarkedOnly
+    filters.bookmarkedOnly ||
+    filters.marker
   );
 
   // Count how many advanced filters are active
@@ -252,8 +268,8 @@ export function AnalysisTableFilters({ filterStats }: AnalysisTableFiltersProps)
           `}
           aria-pressed={isBookmarkedOnly}
         >
-          <Star className="w-3.5 h-3.5" fill={isBookmarkedOnly ? 'currentColor' : 'none'} />
-          Bookmarked
+          <Tag className="w-3.5 h-3.5" fill={isBookmarkedOnly ? 'currentColor' : 'none'} />
+          Marked
         </button>
 
         {/* Easy Cleanup Toggle */}
@@ -276,6 +292,24 @@ export function AnalysisTableFilters({ filterStats }: AnalysisTableFiltersProps)
           <Sparkles className="w-3.5 h-3.5" />
           Easy Fix
         </button>
+
+        {/* Marker Filter */}
+        {markerGroupsList.length > 0 && (
+          <div className="flex items-center gap-1.5">
+            <Tag className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
+            <MultiSelect
+              label="Labels"
+              value={selectedMarkerIds}
+              onChange={(values: string[]) => setFilters({
+                marker: values.length > 0 ? serializeCommaSeparated(values) : null,
+                page: 1,
+              })}
+              options={markerGroupsList.map(g => ({ value: String(g.id), label: g.name }))}
+              placeholder="All"
+              className="min-w-[120px]"
+            />
+          </div>
+        )}
 
         {/* Advanced Tier 3 Filters Toggle */}
         <button

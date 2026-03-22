@@ -11,6 +11,16 @@ const nextConfig: NextConfig = {
   // corrupt a running dev server or clash with other test runs.
   // Set NEXT_DIST_DIR=.next-test in your environment to activate.
   ...(process.env.NEXT_DIST_DIR && { distDir: process.env.NEXT_DIST_DIR }),
+
+  async redirects() {
+    return [
+      {
+        source: '/:state/bookmarks',
+        destination: '/:state/markers',
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

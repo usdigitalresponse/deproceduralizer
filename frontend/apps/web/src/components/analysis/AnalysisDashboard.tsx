@@ -114,7 +114,7 @@ export function AnalysisDashboard({
         </div>
 
         <Suspense fallback={<div className="animate-pulse bg-[var(--color-neutral-100)] h-12 rounded-[var(--radius-md)]" />}>
-          <AnalysisTableFilters filterStats={filterStats ?? undefined} />
+          <AnalysisTableFilters jurisdiction={jurisdiction} filterStats={filterStats ?? undefined} />
         </Suspense>
 
         <Suspense fallback={<div className="animate-pulse bg-[var(--color-neutral-100)] h-64 rounded-[var(--radius-md)]" />}>

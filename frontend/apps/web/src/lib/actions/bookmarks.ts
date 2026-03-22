@@ -18,14 +18,16 @@ import { type ActionResult, success, failure, getErrorMessage, runAction, runCac
 const bookmarksRepo = new BookmarksRepository(db);
 
 /**
- * Invalidate bookmark-related caches after mutations.
- * Always invalidates the bookmarks tag and bookmarks page;
+ * Invalidate bookmark/marker-related caches after mutations.
+ * Always invalidates the bookmarks tag and markers page;
  * pass additional page paths to revalidate (e.g. pipeline, regulations).
  */
 function refreshBookmarkCache(...additionalPages: string[]) {
   updateTag('bookmarks');
-  revalidatePath('/[state]/bookmarks', 'page');
+  updateTag('marker-groups');
+  revalidatePath('/[state]/markers', 'page');
   revalidatePath('/[state]/fines', 'page');
+  revalidatePath('/[state]/guidance', 'page');
   for (const page of additionalPages) {
     revalidatePath(page, 'page');
   }
@@ -172,6 +174,18 @@ export async function isGuidanceBookmarked(
 }
 
 /**
+ * Get the full guidance document bookmark (or null if not bookmarked).
+ */
+export async function getGuidanceBookmark(
+  guidanceDocId: number
+): Promise<ActionResult<Bookmark | null>> {
+  return runAction('getGuidanceBookmark', async () => {
+    const bookmark = await bookmarksRepo.getGuidanceDocumentBookmark(guidanceDocId);
+    return bookmark ?? null;
+  });
+}
+
+/**
  * Get all bookmarks for a state with document/analysis details.
  */
 export async function getBookmarks(
@@ -199,7 +213,7 @@ export async function updateBookmarkNotes(
       return failure(`Bookmark with id ${bookmarkId} not found`);
     }
 
-    revalidatePath('/[state]/bookmarks', 'page');
+    revalidatePath('/[state]/markers', 'page');
     return success(bookmark);
   } catch (error) {
     console.error('[updateBookmarkNotes]', error);
@@ -451,7 +465,7 @@ export async function getBookmarkedDocIssuePairs(
     return new Set(
       allBookmarks
         .filter(b => b.analysisId !== null && b.issueType !== null)
-        .map(b => `${b.documentId}-${b.issueType}`)
+        .map(b => `r-${b.documentId}-${b.issueType}`)
     );
   });
 }
@@ -591,7 +605,112 @@ export async function getBookmarkedGuidanceDocIssuePairs(
     return new Set(
       results
         .filter(r => r.guidanceDocumentId !== null && r.issueType !== null)
-        .map(r => `${r.guidanceDocumentId}-${r.issueType}`)
+        .map(r => `g-${r.guidanceDocumentId}-${r.issueType}`)
     );
   });
+}
+
+// ── Marker assignment actions ──────────────────────────────────────
+
+/**
+ * Assign a marker group to a bookmark.
+ */
+export async function assignMarkerToBookmark(
+  bookmarkId: number,
+  markerGroupId: number
+): Promise<ActionResult<boolean>> {
+  try {
+    await bookmarksRepo.assignMarker(bookmarkId, markerGroupId);
+    refreshBookmarkCache();
+    return success(true);
+  } catch (error) {
+    console.error('[assignMarkerToBookmark]', error);
+    return failure(getErrorMessage(error));
+  }
+}
+
+/**
+ * Remove a marker group from a bookmark.
+ */
+export async function removeMarkerFromBookmark(
+  bookmarkId: number,
+  markerGroupId: number
+): Promise<ActionResult<boolean>> {
+  try {
+    await bookmarksRepo.removeMarker(bookmarkId, markerGroupId);
+    refreshBookmarkCache();
+    return success(true);
+  } catch (error) {
+    console.error('[removeMarkerFromBookmark]', error);
+    return failure(getErrorMessage(error));
+  }
+}
+
+/**
+ * Replace all markers for a bookmark with the given set.
+ */
+export async function setBookmarkMarkers(
+  bookmarkId: number,
+  markerGroupIds: number[]
+): Promise<ActionResult<boolean>> {
+  try {
+    await bookmarksRepo.setMarkers(bookmarkId, markerGroupIds);
+    refreshBookmarkCache();
+    return success(true);
+  } catch (error) {
+    console.error('[setBookmarkMarkers]', error);
+    return failure(getErrorMessage(error));
+  }
+}
+
+/**
+ * Get markers assigned to a bookmark.
+ */
+export async function getMarkersForBookmark(
+  bookmarkId: number
+): Promise<ActionResult<{ id: number; name: string; color: string }[]>> {
+  return runAction('getMarkersForBookmark', () => bookmarksRepo.getMarkersForBookmark(bookmarkId));
+}
+
+// ── Bulk marker maps for inline display ──────────────────────────────
+
+export type MarkerInfo = { id: number; name: string; color: string };
+export type BookmarkMarkerEntry = { bookmarkId: number; markers: MarkerInfo[]; notes: string | null; createdBy: string | null };
+export type BookmarkMarkersMap = Map<string, BookmarkMarkerEntry>;
+
+/**
+ * Get analysis bookmark markers map for inline display on pipeline rows.
+ * Key: "documentId-issueType"
+ */
+export async function getAnalysisBookmarkMarkersMap(
+  jurisdiction: string
+): Promise<ActionResult<BookmarkMarkersMap>> {
+  // Note: uses runAction (not runCachedAction) because Map objects aren't JSON-serializable for unstable_cache
+  return runAction('getAnalysisBookmarkMarkersMap', () =>
+    bookmarksRepo.getAnalysisBookmarkMarkersMap(jurisdiction)
+  );
+}
+
+/**
+ * Get fine bookmark markers map for inline display on fines table rows.
+ * Key: fineId as string
+ */
+export async function getFineBookmarkMarkersMap(
+  jurisdiction: string
+): Promise<ActionResult<BookmarkMarkersMap>> {
+  return runAction('getFineBookmarkMarkersMap', () =>
+    bookmarksRepo.getFineBookmarkMarkersMap(jurisdiction)
+  );
+}
+
+/**
+ * Get guidance document bookmark markers map for inline display.
+ * Key: guidanceDocumentId as string
+ */
+export async function getGuidanceDocBookmarkMarkersMap(
+  jurisdiction: string
+): Promise<ActionResult<BookmarkMarkersMap>> {
+  return runAction('getGuidanceDocBookmarkMarkersMap', () =>
+    bookmarksRepo.getGuidanceDocBookmarkMarkersMap(jurisdiction)
+  );
 }

@@ -1885,7 +1885,26 @@ Progress card showing review completion with status breakdown.
 | `counts` | `{ unreviewed, confirmed, corrected, falsePositive, total }` | Status counts |
 | `className` | `string?` | Additional CSS classes |
 
-### BulkActionsBar
+### BulkActionBar (shared)
+
+Sticky bottom bar (`position: sticky; bottom: 0`) for bulk operations across tables. Dark background (`--color-neutral-800`) with white text. Appears when 1+ rows are selected.
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `selectedCount` | `number` | Number of selected items |
+| `onMarkAll` | `() => void` | Bookmark all unbookmarked selected items |
+| `onAssignMarker` | `(markerGroupId: number) => void` | Assign marker to all bookmarked selected items |
+| `onCreateAndAssign` | `(name: string) => void?` | Create new category and assign to selected bookmarked items |
+| `onUnmarkAll` | `() => void?` | Remove bookmarks from all selected bookmarked items (danger variant) |
+| `onClear` | `() => void` | Clear selection |
+| `availableGroups` | `MarkerGroup[]` | Marker groups for category picker dropdown |
+| `isProcessing` | `boolean?` | Disables buttons during async operations |
+| `totalMatchingCount` | `number?` | Total items matching filter across all pages |
+| `onSelectAllMatching` | `() => void?` | Called when "Select all X matching items" banner is clicked |
+
+Used by `FinesTable` and `AnalysisTable`. The "Assign Category" dropdown opens upward (above the bar) using `bottom-full` and includes an inline text input + Plus button at the bottom for creating new categories (same pattern as `MarkerPicker.onCreateCustom`). When `onUnmarkAll` is provided, an "Unmark All" button with danger styling appears. When all visible rows are selected and `totalMatchingCount > selectedCount`, a "Select all X matching items" banner appears above the action bar. Paired with `useBulkSelection` hook from `@/hooks/useBulkSelection`.
+
+### BulkActionsBar (definitions)
 
 Floating bottom bar for batch operations on selected definitions.
 
@@ -4092,16 +4111,33 @@ Table rows in the pipeline list have colored left borders based on priority:
 - `border-l-4 border-l-[var(--color-warning)]` — high severity (>=7) only
 - No left border — everything else
 
+### Bulk Selection (AnalysisTable)
+
+Checkbox column (first column, before bookmark) with header select-all checkbox. Uses `useBulkSelection` hook with `rowMarkerKey` ("docId-issueType") as selection keys. Selected rows highlighted with `bg-[var(--color-primary-weaker)]`. When items are selected, renders `BulkActionBar` between table and pagination for bulk bookmark, unmark, marker assignment, and inline category creation. Header checkbox supports indeterminate state when partial selection. "Select all matching" banner appears when all visible rows are selected and more exist across pages.
+
 ### Pipeline Detail Page Section Order
 
 1. Header Card (classification flow, final outcome)
 2. **Executive Summary Card** (key findings at a glance)
 3. Easy Cleanup Card (when flagged)
 4. **Severity Progression** (Base -> Web Search -> Final)
-5. Bookmark Notes Card (when bookmarked)
-6. Regex Matches Section
-7. Pipeline Timeline (tier-by-tier journey)
-8. Metadata Footer
+5. Marker Badges + Picker (when bookmarked)
+6. Bookmark Notes Card (when bookmarked)
+7. Regex Matches Section
+8. Pipeline Timeline (tier-by-tier journey)
+9. Metadata Footer
+
+### Marker Assignment on Detail Pages
+
+All three detail pages (fines, pipeline, guidance) support marker assignment when an item is bookmarked. The pattern:
+
+- **Provider wraps the page** (`FineBookmarkProvider`, `AnalysisBookmarkProvider`, `GuidanceBookmarkProvider`) to share bookmark + marker state
+- **MarkerBadge chips** (`size="sm"`) display assigned markers with an `onRemove` callback
+- **MarkerPicker** trigger (tag icon) opens a dropdown to assign/unassign marker groups
+- Markers appear between the bookmark toggle and the notes card
+- Optimistic updates: UI updates instantly, reverts on server action failure
+- Marker groups and assigned markers are fetched client-side via `useEffect` (not SSR)
+- Components: `MarkerBadge` and `MarkerPicker` from `@/components/markers`
 
 ---
 
@@ -4314,7 +4350,8 @@ components/guidance/
 ├── AudienceCard.tsx         # Audience classification metadata card
 ├── DocumentLineageViewer.tsx    # Full transitive document lineage timeline
 ├── LinkedCitationList.tsx       # Linked citation list
-└── GuidanceBookmarkButton.tsx   # Bookmark toggle for guidance detail page
+├── GuidanceBookmarkButton.tsx   # Bookmark toggle (standalone, used in browse)
+└── GuidanceDetailBookmark.tsx   # Provider + bookmark toggle + markers for detail page
 ```
 
 ---
@@ -4441,7 +4478,8 @@ Data table displaying paginated fines with penalty type badge, amount, agency, l
 - Source column: inline source type badge (`Reg`/`Guidance`) before the document title link
 - Clickable rows open `FinesDetailDrawer`
 - Falls back to `EmptyState` when no data
-- Optional bookmark star column (first column): `BookmarkButton` with `sm` size, click stops propagation to avoid triggering row click. Controlled via `bookmarkedFineIds` (Set<number>) and `onToggleBookmark` props
+- Optional bookmark star column: `BookmarkButton` with `sm` size, click stops propagation to avoid triggering row click. Controlled via `bookmarkedFineIds` (Set<number>) and `onToggleBookmark` props
+- **Bulk selection**: checkbox column (first column, before bookmark) with header select-all checkbox. Uses `useBulkSelection` hook. Selected rows highlighted with `bg-[var(--color-primary-weaker)]`. When items are selected, renders `BulkActionBar` as a sticky footer bar for bulk bookmark, unmark, marker assignment, and inline category creation. "Select all matching" banner appears when all visible rows are selected and more exist across pages
 
 ### FinesDetailDrawer
 
@@ -4462,6 +4500,8 @@ Full-page detail view for individual fines (at `/[state]/fines/[fineId]`).
 - Main: Violation/Trigger, Who Pays, Activity Category + Estimated Impact, Justification, Amount Details, Requirement Quote, Full Context, Pattern Matched
 - Sidebar: Type/level badges, agency info, source document card with link, bookmark section (`FineBookmarkButton` + `BookmarkNotesEditor` with name field)
 - Follows same server component → client component pattern as guidance detail page
+- Detail page wrapped in `FineBookmarkProvider` -- provides shared bookmark + marker state to header star and notes card
+- `FineDetailNotesCard` renders marker badges + picker above the notes card when bookmarked
 
 ### FineBookmarkButton
 

@@ -6,6 +6,7 @@ export * from './definitions.repository';
 export * from './prompt-feedback.repository';
 export * from './cross-references.repository';
 export * from './bookmarks.repository';
+export * from './marker-groups.repository';
 export * from './statutes.repository';
 export * from './search.repository';
 export * from './search-filters';

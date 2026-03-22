@@ -5,6 +5,8 @@ import { regulatoryDocuments } from '../schema/regulatory-documents';
 import { guidanceDocuments } from '../schema/guidance-documents';
 import { agencies } from '../schema/agencies';
 import { complianceIssueAnalyses } from '../schema/compliance-issue-analyses';
+import { bookmarks } from '../schema/bookmarks';
+import { bookmarkMarkers } from '../schema/marker-groups';
 import { type JurisdictionCode, normalizeJurisdiction } from '../schema/constants';
 
 export interface FineAnalysis {
@@ -65,6 +67,8 @@ export interface FinesFilterOptions {
   agencyLevels?: string[];
   whoPaysValues?: string[];
   perUnitValues?: string[];
+  markerGroupIds?: number[];
+  bookmarkedOnly?: boolean;
   estimatedImpactValues?: string[];
 }
 
@@ -553,6 +557,31 @@ export class FinesRepository extends BaseRepository {
           )
         );
       }
+
+
+      // Bookmarked only filter
+      if (filters.bookmarkedOnly) {
+        conditions.push(
+          sql`EXISTS (
+            SELECT 1 FROM ${bookmarks}
+            WHERE ${bookmarks.fineId} = ${finesFeesPenalties.id}
+          )`
+        );
+      }
+
+      // Marker group filter
+      if (filters.markerGroupIds && filters.markerGroupIds.length > 0) {
+        const ids = filters.markerGroupIds;
+        conditions.push(
+          sql`EXISTS (
+            SELECT 1 FROM ${bookmarkMarkers}
+            JOIN ${bookmarks} ON ${bookmarkMarkers.bookmarkId} = ${bookmarks.id}
+            WHERE ${bookmarks.fineId} = ${finesFeesPenalties.id}
+              AND ${bookmarkMarkers.markerGroupId} IN (${sql.join(ids.map(id => sql`${id}`), sql`, `)})
+          )`
+        );
+      }
+
       // Severity filter (high=7+, medium=4-6, low=1-3, false_positive/unrelated=classification-based)
       if (filters.severities && filters.severities.length > 0) {
         const classificationSql = sql`COALESCE(${complianceIssueAnalyses.tier3Classification}, ${complianceIssueAnalyses.tier2Classification}, ${complianceIssueAnalyses.tier1Classification})`;

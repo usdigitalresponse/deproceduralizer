@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useQueryStates } from 'nuqs';
-import { Download, FileArchive, ChevronDown } from 'lucide-react';
+import { Download, FileArchive, ChevronDown, Tag } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Select } from '@/components/ui/Select';
 import { MultiSelect } from '@/components/ui';
@@ -14,14 +14,23 @@ import { Button } from '@/components/ui/Button';
 import { FinesTable } from './FinesTable';
 import { FinesDetailDrawer } from './FinesDetailDrawer';
 import { getFinesPaginated, exportFinesCsv, exportFinesZipByAgency } from '@/lib/actions/fines';
-import { getFineBookmarksWithNotes, toggleFineBookmark, updateBookmarkNotes } from '@/lib/actions/bookmarks';
+import {
+  getFineBookmarksWithNotes,
+  toggleFineBookmark,
+  updateBookmarkNotes,
+  getFineBookmarkMarkersMap,
+  assignMarkerToBookmark,
+  removeMarkerFromBookmark,
+  type BookmarkMarkersMap,
+} from '@/lib/actions/bookmarks';
 import type { FineBookmarkInfo } from '@/lib/actions/bookmarks';
+import { getMarkerGroups, getOrCreateCustomMarkerGroup } from '@/lib/actions/marker-groups';
 import { useBookmarkName } from '@/hooks/useBookmarkName';
 import type { AgencyOption } from '@/lib/actions/fines';
 import { finesParsers } from '@/lib/url/parsers';
 import { parseCommaSeparated, serializeCommaSeparated } from '@/lib/url/filter-helpers';
 import { SOURCE_TYPE_LABELS, PENALTY_TYPE_MULTISELECT_OPTIONS, AGENCY_LEVEL_MULTISELECT_OPTIONS, FINES_CLASSIFICATION_OPTIONS, FINES_SEVERITY_MULTISELECT_OPTIONS, ESTIMATED_PAYERS_MULTISELECT_OPTIONS } from '@/lib/constants/fines';
-import type { JurisdictionCode } from '@deproceduralizer/database';
+import type { JurisdictionCode, MarkerGroup } from '@deproceduralizer/database';
 import type { FineWithContext, FinesOverviewStats } from '@/lib/actions/fines';
 
 interface FinesBrowseTabProps {
@@ -59,6 +68,8 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [exportStateOnly, setExportStateOnly] = useState(true);
   const [fineBookmarks, setFineBookmarks] = useState<Map<number, FineBookmarkInfo>>(new Map());
+  const [bookmarkMarkersMap, setBookmarkMarkersMap] = useState<BookmarkMarkersMap>(new Map());
+  const [markerGroupsList, setMarkerGroupsList] = useState<MarkerGroup[]>([]);
   const bookmarkedIds = useMemo(() => new Set(fineBookmarks.keys()), [fineBookmarks]);
   const { bookmarkName } = useBookmarkName();
 
@@ -77,6 +88,7 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
   const selectedAgencyLevels = useMemo(() => parseCommaSeparated(params.agencyLevel), [params.agencyLevel]);
   const selectedWhoPays = useMemo(() => parseCommaSeparated(params.whoPays), [params.whoPays]);
   const selectedPerUnits = useMemo(() => parseCommaSeparated(params.perUnit), [params.perUnit]);
+  const selectedMarkerIds = useMemo(() => parseCommaSeparated(params.marker), [params.marker]);
   const selectedSeverities = useMemo(() => parseCommaSeparated(params.severity), [params.severity]);
   const selectedEstimatedImpact = useMemo(() => parseCommaSeparated(params.estimatedImpact), [params.estimatedImpact]);
 
@@ -133,11 +145,17 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
 
   useEffect(() => {
     fetchData();
-    // Fetch bookmarked fines with notes
-    getFineBookmarksWithNotes(jurisdiction).then(result => {
-      if (result.success) {
-        setFineBookmarks(new Map(result.data.map(b => [b.fineId, b])));
+    // Fetch bookmarked fines with notes, marker maps, and marker groups
+    Promise.all([
+      getFineBookmarksWithNotes(jurisdiction),
+      getFineBookmarkMarkersMap(jurisdiction),
+      getMarkerGroups(jurisdiction),
+    ]).then(([bookmarkResult, markersResult, groupsResult]) => {
+      if (bookmarkResult.success) {
+        setFineBookmarks(new Map(bookmarkResult.data.map(b => [b.fineId, b])));
       }
+      if (markersResult.success) setBookmarkMarkersMap(markersResult.data);
+      if (groupsResult.success) setMarkerGroupsList(groupsResult.data);
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -155,6 +173,8 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
     const whoPaysRaw = resolve('whoPays', params.whoPays) as string | null;
     const perUnitRaw = resolve('perUnit', params.perUnit) as string | null;
     const classificationRaw = resolve('classification', params.classification) as string | null;
+    const markerRaw = resolve('marker', params.marker) as string | null;
+    const bookmarkedOnlyRaw = resolve('bookmarkedOnly', params.bookmarkedOnly) as string | null;
     const severityRaw = resolve('severity', params.severity) as string | null;
     const estimatedImpactRaw = resolve('estimatedImpact', params.estimatedImpact) as string | null;
 
@@ -162,6 +182,8 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
       sourceType === 'regulation' || sourceType === 'guidance'
         ? sourceType
         : undefined;
+
+    const markerIds = markerRaw ? parseCommaSeparated(markerRaw).map(Number).filter(n => !isNaN(n)) : undefined;
 
     return {
       penaltyType: penaltyTypeRaw || undefined,
@@ -174,6 +196,8 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
       whoPays: whoPaysRaw || undefined,
       perUnit: perUnitRaw || undefined,
       classification: classificationRaw && classificationRaw !== 'all' ? classificationRaw : undefined,
+      markerGroupIds: markerIds?.length ? markerIds : undefined,
+      bookmarkedOnly: bookmarkedOnlyRaw === 'true' ? true : undefined,
       severity: severityRaw || undefined,
       estimatedImpact: estimatedImpactRaw || undefined,
     };
@@ -240,6 +264,8 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
     params.whoPays ||
     params.perUnit ||
     (params.classification && params.classification !== 'all') ||
+    params.marker ||
+    params.bookmarkedOnly === 'true' ||
     (params.severity && params.severity !== 'high,medium,low') ||
     params.estimatedImpact
   );
@@ -256,6 +282,8 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
       whoPays: null,
       perUnit: null,
       classification: 'all',
+      marker: null,
+      bookmarkedOnly: null,
       severity: 'high,medium,low',
       estimatedImpact: null,
       page: 1,
@@ -272,6 +300,10 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
   const handleToggleBookmark = useCallback(async (fineId: number) => {
     const wasBookmarked = fineBookmarks.has(fineId);
 
+    // Save previous state for revert (Bug 3: avoid fake id:-1 placeholders)
+    const previousBookmarkEntry = fineBookmarks.get(fineId);
+    const previousMarkersEntry = bookmarkMarkersMap.get(String(fineId));
+
     // Optimistic toggle
     setFineBookmarks(prev => {
       const next = new Map(prev);
@@ -283,18 +315,35 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
       return next;
     });
 
+    // Bug 1: Also update bookmarkMarkersMap optimistically on unmark
+    if (wasBookmarked) {
+      setBookmarkMarkersMap(prev => {
+        const next = new Map(prev);
+        next.delete(String(fineId));
+        return next;
+      });
+    }
+
     const result = await toggleFineBookmark(fineId, jurisdiction, undefined, bookmarkName || undefined);
     if (!result.success) {
-      // Revert on failure
+      // Revert to previous state on failure
       setFineBookmarks(prev => {
         const next = new Map(prev);
-        if (wasBookmarked) {
-          next.set(fineId, { fineId, id: -1, notes: null, createdBy: null });
+        if (previousBookmarkEntry) {
+          next.set(fineId, previousBookmarkEntry);
         } else {
           next.delete(fineId);
         }
         return next;
       });
+      // Revert bookmarkMarkersMap on failure
+      if (wasBookmarked && previousMarkersEntry) {
+        setBookmarkMarkersMap(prev => {
+          const next = new Map(prev);
+          next.set(String(fineId), previousMarkersEntry);
+          return next;
+        });
+      }
     } else if (result.data && !wasBookmarked) {
       // Update with real bookmark ID
       setFineBookmarks(prev => {
@@ -302,8 +351,14 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
         next.set(fineId, { fineId, id: result.data!.id, notes: result.data!.notes, createdBy: result.data!.createdBy });
         return next;
       });
+      // Bug 1: Add to bookmarkMarkersMap so label picker appears immediately
+      setBookmarkMarkersMap(prev => {
+        const next = new Map(prev);
+        next.set(String(fineId), { bookmarkId: result.data!.id, markers: [], notes: result.data!.notes, createdBy: result.data!.createdBy });
+        return next;
+      });
     }
-  }, [jurisdiction, bookmarkName, fineBookmarks]);
+  }, [jurisdiction, bookmarkName, fineBookmarks, bookmarkMarkersMap]);
 
   const handleBookmarkChange = useCallback((fineId: number, bookmarked: boolean) => {
     setFineBookmarks(prev => {
@@ -330,6 +385,114 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
       });
     }
   }, []);
+
+  // Handle marker toggle with optimistic update
+  const handleMarkerToggle = useCallback(async (bookmarkId: number, markerGroupId: number, assign: boolean) => {
+    // Find the key for this bookmark (fineId as string)
+    const key = Array.from(bookmarkMarkersMap.entries()).find(([, v]) => v.bookmarkId === bookmarkId)?.[0];
+    if (!key) return;
+
+    // Optimistic update
+    setBookmarkMarkersMap(prev => {
+      const next = new Map(prev);
+      const entry = next.get(key);
+      if (!entry) return prev;
+      const group = markerGroupsList.find(g => g.id === markerGroupId);
+      if (assign && group) {
+        next.set(key, { ...entry, markers: [...entry.markers, { id: group.id, name: group.name, color: group.color }] });
+      } else {
+        next.set(key, { ...entry, markers: entry.markers.filter(m => m.id !== markerGroupId) });
+      }
+      return next;
+    });
+
+    const result = assign
+      ? await assignMarkerToBookmark(bookmarkId, markerGroupId)
+      : await removeMarkerFromBookmark(bookmarkId, markerGroupId);
+
+    if (!result.success) {
+      // Refresh on failure
+      const refreshed = await getFineBookmarkMarkersMap(jurisdiction);
+      if (refreshed.success) setBookmarkMarkersMap(refreshed.data);
+    }
+  }, [bookmarkMarkersMap, markerGroupsList, jurisdiction]);
+
+  // Handle creating a custom marker group and auto-assigning to a bookmark
+  const handleCreateCustomMarker = useCallback(async (bookmarkId: number, fineId: number, name: string) => {
+    const result = await getOrCreateCustomMarkerGroup(name, jurisdiction);
+    if (result.success) {
+      // Add to available groups if not already present
+      setMarkerGroupsList(prev => prev.some(g => g.id === result.data.id) ? prev : [...prev, result.data]);
+      // Auto-assign to bookmark
+      const assignResult = await assignMarkerToBookmark(bookmarkId, result.data.id);
+      if (assignResult.success) {
+        // Update markers map
+        const key = String(fineId);
+        setBookmarkMarkersMap(prev => {
+          const next = new Map(prev);
+          const entry = next.get(key);
+          if (entry) {
+            const already = entry.markers.some(m => m.id === result.data.id);
+            if (!already) {
+              next.set(key, { ...entry, markers: [...entry.markers, { id: result.data.id, name: result.data.name, color: result.data.color }] });
+            }
+          }
+          return next;
+        });
+      } else {
+        console.warn('[CreateCustomMarker] assign failed, refreshing markers map');
+        const refreshed = await getFineBookmarkMarkersMap(jurisdiction);
+        if (refreshed.success) setBookmarkMarkersMap(refreshed.data);
+      }
+    }
+  }, [jurisdiction]);
+
+  // Bulk create new category and assign to all selected bookmarked fines
+  const handleBulkCreateAndAssign = useCallback(async (name: string, selectedFineIds: Set<number>) => {
+    const result = await getOrCreateCustomMarkerGroup(name, jurisdiction);
+    if (!result.success) return;
+
+    // Add to available groups list
+    setMarkerGroupsList(prev => prev.some(g => g.id === result.data.id) ? prev : [...prev, result.data]);
+
+    // Assign to all selected items that have bookmarks
+    const assignments: Promise<{ success: boolean }>[] = [];
+    for (const fineId of selectedFineIds) {
+      const key = String(fineId);
+      const entry = bookmarkMarkersMap.get(key);
+      if (entry) {
+        const alreadyAssigned = entry.markers.some(m => m.id === result.data.id);
+        if (!alreadyAssigned) {
+          assignments.push(
+            (async () => {
+              const assignResult = await assignMarkerToBookmark(entry.bookmarkId, result.data.id);
+              if (assignResult.success) {
+                setBookmarkMarkersMap(prev => {
+                  const next = new Map(prev);
+                  const e = next.get(key);
+                  if (e) {
+                    const already = e.markers.some(m => m.id === result.data.id);
+                    if (!already) {
+                      next.set(key, { ...e, markers: [...e.markers, { id: result.data.id, name: result.data.name, color: result.data.color }] });
+                    }
+                  }
+                  return next;
+                });
+              }
+              return assignResult;
+            })()
+          );
+        }
+      }
+    }
+    const results = await Promise.allSettled(assignments);
+    const failures = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.success));
+    if (failures.length > 0) {
+      console.warn(`[BulkAssign] ${failures.length}/${results.length} assignments failed, refreshing...`);
+      const refreshed = await getFineBookmarkMarkersMap(jurisdiction);
+      if (refreshed.success) setBookmarkMarkersMap(refreshed.data);
+    }
+  }, [jurisdiction, bookmarkMarkersMap]);
 
   const handleDrawerOpenChange = useCallback(async (open: boolean) => {
     setDrawerOpen(open);
@@ -479,6 +642,21 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
             data-testid="per-unit-filter"
           />
         </FilterField>
+        {markerGroupsList.length > 0 && (
+          <FilterField label="Label">
+            <div className="flex items-center gap-1.5">
+              <Tag className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
+              <MultiSelect
+                label="Labels"
+                value={selectedMarkerIds}
+                onChange={(values: string[]) => handleMultiFilterChange('marker', values)}
+                options={markerGroupsList.map(g => ({ value: String(g.id), label: g.name }))}
+                placeholder="All"
+                className="min-w-[120px]"
+              />
+            </div>
+          </FilterField>
+        )}
         <FilterField label="Est. Impact">
           <InfoTooltip content="Intended to show order of magnitude and may contain significant discrepancies. Should only be relied on to assist with broad filtering and organizing but never as authoritative fact." />
           <MultiSelect
@@ -529,6 +707,33 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
         </FilterField>
       </FilterBar>
 
+      {/* Quick filters row */}
+      <div className="flex items-center gap-4">
+        <button
+          type="button"
+          onClick={() => {
+            const newParams = {
+              bookmarkedOnly: params.bookmarkedOnly === 'true' ? 'all' : 'true',
+              page: 1,
+            };
+            setParams(newParams as Parameters<typeof setParams>[0]);
+            fetchData(newParams);
+          }}
+          className={`
+            inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-sm)]
+            text-xs font-medium transition-colors
+            ${params.bookmarkedOnly === 'true'
+              ? 'bg-[var(--color-warning)] text-white'
+              : 'bg-[var(--color-neutral-100)] text-[var(--color-text-secondary)] hover:bg-[var(--color-neutral-200)]'
+            }
+          `}
+          aria-pressed={params.bookmarkedOnly === 'true'}
+        >
+          <Tag className="w-3.5 h-3.5" fill={params.bookmarkedOnly === 'true' ? 'currentColor' : 'none'} />
+          Marked
+        </button>
+      </div>
+
       {error && (
         <div className="p-4 bg-[var(--color-danger-bg)] border border-[var(--color-danger)] rounded-[var(--radius-md)]">
           <p className="text-sm text-[var(--color-danger)]">{error}</p>
@@ -575,6 +780,11 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
               fineBookmarks={fineBookmarks}
               onSaveBookmarkNotes={handleSaveBookmarkNotes}
               bookmarkName={bookmarkName}
+              bookmarkMarkersMap={bookmarkMarkersMap}
+              availableGroups={markerGroupsList}
+              onMarkerToggle={handleMarkerToggle}
+              onCreateCustomMarker={handleCreateCustomMarker}
+              onCreateAndAssignMarker={handleBulkCreateAndAssign}
               isLoading={isLoading}
             />
           </div>

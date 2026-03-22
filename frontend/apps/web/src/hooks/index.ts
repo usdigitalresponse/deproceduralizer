@@ -21,3 +21,4 @@ export { useRegulationById } from './useRegulationById';
 export { useActiveSection } from './useActiveSection';
 export type { SectionConfig } from './useActiveSection';
 export { useChartNavigation } from './useChartNavigation';
+export { useBulkSelection } from './useBulkSelection';

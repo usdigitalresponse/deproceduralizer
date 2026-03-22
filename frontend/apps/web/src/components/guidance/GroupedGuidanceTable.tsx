@@ -4,6 +4,8 @@ import { useState, useCallback, useEffect, Fragment } from 'react';
 import Link from 'next/link';
 import { ChevronRight, ChevronDown, ArrowUpDown, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
+import { BookmarkButton } from '@/components/ui';
+import { MarkerDots, MarkerPicker } from '@/components/markers';
 import { Pagination } from '@/components/ui/Pagination';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ReadabilityBadge } from './ReadabilityBadge';
@@ -17,7 +19,8 @@ import type {
   GuidanceDocumentListItem,
 } from '@/lib/actions/guidance-documents';
 import type { GuidanceGroupSortByValue, SortOrderValue } from '@/lib/url/parsers';
-import type { JurisdictionCode } from '@deproceduralizer/database';
+import type { JurisdictionCode, MarkerGroup } from '@deproceduralizer/database';
+import type { BookmarkMarkersMap } from '@/lib/actions/bookmarks';
 import { getEntityIcon } from '@/lib/constants/entity-types';
 
 interface GroupedGuidanceTableProps {
@@ -46,6 +49,12 @@ interface GroupedGuidanceTableProps {
     hasForm?: boolean;
     hasIbr?: boolean;
   };
+  bookmarkedDocIds?: Set<number>;
+  onToggleBookmark?: (docId: number) => void;
+  bookmarkMarkersMap?: BookmarkMarkersMap;
+  availableGroups?: MarkerGroup[];
+  onMarkerToggle?: (bookmarkId: number, markerGroupId: number, assign: boolean) => void;
+  onCreateCustomMarker?: (bookmarkId: number, docId: number, name: string) => void;
 }
 
 function SortableHeader({
@@ -87,12 +96,24 @@ function YearSection({
   jurisdiction,
   isOpen,
   onToggle,
+  bookmarkedDocIds,
+  onToggleBookmark,
+  bookmarkMarkersMap,
+  availableGroups,
+  onMarkerToggle,
+  onCreateCustomMarker,
 }: {
   year: number | null;
   documents: GuidanceDocumentListItem[];
   jurisdiction: JurisdictionCode;
   isOpen: boolean;
   onToggle: () => void;
+  bookmarkedDocIds?: Set<number>;
+  onToggleBookmark?: (docId: number) => void;
+  bookmarkMarkersMap?: BookmarkMarkersMap;
+  availableGroups?: MarkerGroup[];
+  onMarkerToggle?: (bookmarkId: number, markerGroupId: number, assign: boolean) => void;
+  onCreateCustomMarker?: (bookmarkId: number, docId: number, name: string) => void;
 }) {
   const state = jurisdiction.toLowerCase();
   const complianceTotal = documents.reduce((sum, d) => sum + d.complianceIssueCount, 0);
@@ -138,6 +159,8 @@ function YearSection({
         <table className="w-full text-left">
           <thead>
             <tr>
+              {bookmarkedDocIds && <th className="w-8 py-1.5 pl-6" />}
+              {bookmarkedDocIds && <th className="w-12 py-1.5" />}
               <th className="px-8 py-1.5 text-[10px] font-medium text-[var(--color-text-muted)] uppercase tracking-wide">
                 Ref
               </th>
@@ -156,11 +179,38 @@ function YearSection({
             </tr>
           </thead>
           <tbody>
-            {documents.map((doc) => (
+            {documents.map((doc) => {
+              const markerEntry = bookmarkMarkersMap?.get(String(doc.id));
+              return (
               <tr
                 key={doc.id}
                 className="border-t border-[var(--color-neutral-100)]"
               >
+                {bookmarkedDocIds && (
+                  <td className="py-1.5 pl-6" onClick={(e) => e.stopPropagation()}>
+                    <BookmarkButton
+                      isBookmarked={bookmarkedDocIds.has(doc.id)}
+                      onToggle={() => onToggleBookmark?.(doc.id)}
+                      size="sm"
+                    />
+                  </td>
+                )}
+                {bookmarkedDocIds && (
+                  <td className="py-1.5">
+                    {markerEntry && (
+                      <div className="flex items-center gap-0.5">
+                        <MarkerDots markers={markerEntry.markers} />
+                        <MarkerPicker
+                          bookmarkId={markerEntry.bookmarkId}
+                          assignedMarkerIds={markerEntry.markers.map(m => m.id)}
+                          availableGroups={availableGroups ?? []}
+                          onToggle={onMarkerToggle ?? (() => {})}
+                          onCreateCustom={onCreateCustomMarker ? (name) => onCreateCustomMarker(markerEntry.bookmarkId, doc.id, name) : undefined}
+                        />
+                      </div>
+                    )}
+                  </td>
+                )}
                 <td className="px-8 py-1.5 text-xs text-[var(--color-text-muted)] whitespace-nowrap">
                   <Link
                     href={`/${state}/guidance/${doc.id}`}
@@ -191,7 +241,8 @@ function YearSection({
                   )}
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       )}
@@ -213,6 +264,12 @@ export function GroupedGuidanceTable({
   onPageChange,
   onSort,
   activeFilters,
+  bookmarkedDocIds,
+  onToggleBookmark,
+  bookmarkMarkersMap,
+  availableGroups,
+  onMarkerToggle,
+  onCreateCustomMarker,
 }: GroupedGuidanceTableProps) {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [groupDocs, setGroupDocs] = useState<Record<string, GuidanceGroupDocumentsResult>>({});
@@ -473,6 +530,12 @@ export function GroupedGuidanceTable({
                                   jurisdiction={jurisdiction}
                                   isOpen={openYears[group.groupKey]?.has(year) ?? false}
                                   onToggle={() => toggleYear(group.groupKey, year)}
+                                  bookmarkedDocIds={bookmarkedDocIds}
+                                  onToggleBookmark={onToggleBookmark}
+                                  bookmarkMarkersMap={bookmarkMarkersMap}
+                                  availableGroups={availableGroups}
+                                  onMarkerToggle={onMarkerToggle}
+                                  onCreateCustomMarker={onCreateCustomMarker}
                                 />
                               ))}
                             </>

@@ -536,8 +536,12 @@ export type GuidanceTargetAudienceValue = (typeof GUIDANCE_TARGET_AUDIENCE_VALUE
 export const FILTER_NULL_VALUE = '__none__';
 
 // ============================================
-// Bookmarks Page
+// Markers Page (formerly Bookmarks)
 // ============================================
 
-export const BOOKMARK_TAB_VALUES = ['analysis', 'document', 'guidance', 'fine'] as const;
-export type BookmarkTabValue = (typeof BOOKMARK_TAB_VALUES)[number];
+export const MARKER_TAB_VALUES = ['analysis', 'document', 'guidance', 'fine'] as const;
+export type MarkerTabValue = (typeof MARKER_TAB_VALUES)[number];
+
+// Backward compat aliases
+export const BOOKMARK_TAB_VALUES = MARKER_TAB_VALUES;
+export type BookmarkTabValue = MarkerTabValue;

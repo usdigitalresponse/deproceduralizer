@@ -13,7 +13,7 @@ import { ReadabilityMetricsCard } from '@/components/guidance/ReadabilityMetrics
 import { JenAIIssuesList } from '@/components/jenai';
 import { DocumentLineageViewer } from '@/components/guidance/DocumentLineageViewer';
 import { GuidanceStatusBadge } from '@/components/guidance/GuidanceStatusBadge';
-import { GuidanceBookmarkButton } from '@/components/guidance/GuidanceBookmarkButton';
+import { GuidanceBookmarkProvider, GuidanceDetailBookmark, GuidanceDetailMarkers } from '@/components/guidance/GuidanceDetailBookmark';
 import { ExclusionToggle } from '@/components/regulations/ExclusionToggle';
 import { PolicyCategoryBadge } from '@/components/guidance/PolicyCategoryBadge';
 import { LinkedCitationList } from '@/components/guidance/LinkedCitationList';
@@ -111,6 +111,7 @@ export default async function GuidanceDetailPage({ params }: GuidanceDetailPageP
   ];
 
   return (
+    <GuidanceBookmarkProvider guidanceDocumentId={docId} jurisdiction={state}>
     <div className="bg-[var(--color-background)] min-h-screen">
       <PageHeader
         title={doc.title}
@@ -125,14 +126,12 @@ export default async function GuidanceDetailPage({ params }: GuidanceDetailPageP
               Back to Guidance
             </Link>
             <GuidanceStatusBadge status={doc.status} />
-            <GuidanceBookmarkButton
-              guidanceDocumentId={docId}
-              jurisdiction={state}
-            />
+            <GuidanceDetailBookmark />
           </div>
         }
       />
       <Container size="2xl" className="py-6">
+        <GuidanceDetailMarkers />
         <RegulationDetailLayout
           sidebar={
             <GuidanceSidebarWithNav sections={sections}>
@@ -294,5 +293,6 @@ export default async function GuidanceDetailPage({ params }: GuidanceDetailPageP
         />
       </Container>
     </div>
+    </GuidanceBookmarkProvider>
   );
 }

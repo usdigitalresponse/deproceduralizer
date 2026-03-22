@@ -98,6 +98,8 @@ export async function getFinesPaginated(
       whoPays?: string;
       perUnit?: string;
       classification?: string;
+      markerGroupIds?: number[];
+      bookmarkedOnly?: boolean;
       severity?: string;
       estimatedImpact?: string;
     };
@@ -118,9 +120,11 @@ export async function getFinesPaginated(
   const whoPays = [...multiSelect.whoPaysValues].sort().join(',');
   const perUnit = [...multiSelect.perUnitValues].sort().join(',');
   const classification = filters?.classification ?? '';
+  const markerIds = filters?.markerGroupIds?.sort().join(',') ?? '';
+  const bookmarkedOnly = filters?.bookmarkedOnly ? '1' : '';
   const severity = severities ? [...severities].sort().join(',') : '';
   const estimatedImpact = [...multiSelect.estimatedImpactValues].sort().join(',');
-  const cacheKey = `fines-paginated-${state}-${page}-${pageSize}-${sortBy}-${sortOrder}-${type}-${agency}-${agencyLevel}-${search}-${sourceType}-${amountMin}-${amountMax}-${whoPays}-${perUnit}-${classification}-${severity}-${estimatedImpact}`;
+  const cacheKey = `fines-paginated-${state}-${page}-${pageSize}-${sortBy}-${sortOrder}-${type}-${agency}-${agencyLevel}-${search}-${sourceType}-${amountMin}-${amountMax}-${whoPays}-${perUnit}-${classification}-${markerIds}-${bookmarkedOnly}-${severity}-${estimatedImpact}`;
 
   return runCachedAction(
     'getFinesPaginated',
@@ -197,12 +201,13 @@ export async function exportFinesCsv(
   const severities = parseSeveritiesFilter(filters?.severity);
 
   return runAction('exportFinesCsv', async () => {
-    const [data, bookmarkData] = await Promise.all([
+    const [data, bookmarkData, markersMap] = await Promise.all([
       finesRepo.getExportData(state, { ...filters, ...multiSelect, classification: classificationFilter, severities }),
       bookmarksRepo.getFineBookmarksWithNotes(state),
+      bookmarksRepo.getFineBookmarkMarkersMap(state),
     ]);
     const bookmarkMap = new Map(bookmarkData.map(b => [b.fineId, b]));
-    return buildFinesCsv(data, bookmarkMap);
+    return buildFinesCsv(data, bookmarkMap, markersMap);
   });
 }
 
@@ -228,16 +233,17 @@ export async function exportFinesZipByAgency(
 
   return runAction('exportFinesZipByAgency', async () => {
     const { default: JSZip } = await import('jszip');
-    const [grouped, bookmarkData] = await Promise.all([
+    const [grouped, bookmarkData, markersMap] = await Promise.all([
       finesRepo.getExportDataGroupedByAgency(state, { ...filters, ...multiSelect, classification: classificationFilter, severities }),
       bookmarksRepo.getFineBookmarksWithNotes(state),
+      bookmarksRepo.getFineBookmarkMarkersMap(state),
     ]);
     const bookmarkMap = new Map(bookmarkData.map(b => [b.fineId, b]));
     const zip = new JSZip();
 
     for (const [agency, rows] of grouped) {
       const safeName = agency.replace(/[^a-zA-Z0-9 _-]/g, '').replace(/\s+/g, '-');
-      zip.file(`${safeName}.csv`, buildFinesCsv(rows, bookmarkMap));
+      zip.file(`${safeName}.csv`, buildFinesCsv(rows, bookmarkMap, markersMap));
     }
 
     const buffer = await zip.generateAsync({ type: 'base64' });
@@ -250,15 +256,20 @@ export async function exportFinesZipByAgency(
 // ---------------------------------------------------------------------------
 
 type BookmarkInfo = { fineId: number; id: number; notes: string | null; createdBy: string | null };
+type MarkersMapEntry = { bookmarkId: number; markers: { id: number; name: string; color: string }[]; notes: string | null; createdBy: string | null };
 
-function buildFinesCsv(data: FineWithContext[], bookmarks?: Map<number, BookmarkInfo>): string {
+function buildFinesCsv(
+  data: FineWithContext[],
+  bookmarks?: Map<number, BookmarkInfo>,
+  markersMap?: Map<string, MarkersMapEntry>,
+): string {
   const headers = [
     'ID', 'Penalty Type', 'Amount', 'Amount Min', 'Amount Max', 'Per Unit',
     'Who Pays', 'Agency (Canonical)', 'Agency Level', 'Agency (AI-Extracted)',
     'Violation Description', 'Requirement Quote', 'Source Type',
     'Source Title', 'Source URL', 'Jurisdiction',
     'Activity Category', 'Est. Annual Payers', 'Justification', 'Who Pays (Normalized)',
-    'bookmark_saved', 'bookmark_notes', 'bookmark_by',
+    'bookmark_saved', 'bookmark_notes', 'bookmark_by', 'marker_categories',
     'Classification', 'Severity', 'Tier Completed',
     'Argument For Regulation', 'Argument Against Regulation', 'Web Search Summary',
     'Federal Mandate Found', 'Easy Cleanup Candidate', 'Cleanup Effort',
@@ -274,6 +285,8 @@ function buildFinesCsv(data: FineWithContext[], bookmarks?: Map<number, Bookmark
 
   const rows = data.map(row => {
     const bm = bookmarks?.get(row.id);
+    const markerEntry = markersMap?.get(String(row.id));
+    const markerNames = markerEntry?.markers.map(m => m.name).join(', ') ?? '';
     const a = row.analysis;
     const classification = a?.tier3Classification ?? a?.tier2Classification ?? a?.tier1Classification ?? '';
     return [
@@ -300,6 +313,7 @@ function buildFinesCsv(data: FineWithContext[], bookmarks?: Map<number, Bookmark
       bm ? 'yes' : '',
       escape(bm?.notes),
       escape(bm?.createdBy),
+      escape(markerNames),
       escape(classification),
       a?.finalSeverity ?? '',
       a?.highestTierCompleted ?? '',

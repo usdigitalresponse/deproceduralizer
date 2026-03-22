@@ -17,6 +17,7 @@ export * from './jenai-issues';
 export * from './relations';
 export * from './constants';
 export * from './bookmarks';
+export * from './marker-groups';
 export * from './document-tags';
 export * from './share-tokens';
 export * from './guidance-documents';

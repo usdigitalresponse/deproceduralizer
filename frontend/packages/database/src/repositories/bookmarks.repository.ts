@@ -1,6 +1,7 @@
-import { eq, and, isNull, isNotNull, desc, sql } from 'drizzle-orm';
+import { eq, and, isNull, isNotNull, desc, sql, inArray } from 'drizzle-orm';
 import { BaseRepository } from './base.repository';
 import { bookmarks, Bookmark, NewBookmark } from '../schema/bookmarks';
+import { bookmarkMarkers, markerGroups } from '../schema/marker-groups';
 import { regulatoryDocuments } from '../schema/regulatory-documents';
 import { complianceIssueAnalyses } from '../schema/compliance-issue-analyses';
 import { guidanceDocuments } from '../schema/guidance-documents';
@@ -51,6 +52,8 @@ export interface BookmarkWithDetails extends Bookmark {
   fineAgencyCanonicalName: string | null;
   fineAgencyLevel: string | null;
   finePerUnit: string | null;
+  // Marker groups
+  markers: { id: number; name: string; color: string }[];
 }
 
 export class BookmarksRepository extends BaseRepository {
@@ -70,9 +73,29 @@ export class BookmarksRepository extends BaseRepository {
         notes: input.notes ?? null,
         createdBy: input.createdBy ?? null,
       })
+      .onConflictDoNothing()
       .returning();
 
-    return bookmark;
+    if (bookmark) return bookmark;
+
+    // Conflict — row already exists, fetch it
+    if (input.analysisId) {
+      const existing = await this.getByAnalysisId(input.analysisId);
+      if (existing) return existing;
+    }
+    if (input.fineId) {
+      const existing = await this.getFineBookmark(input.fineId);
+      if (existing) return existing;
+    }
+    if (input.guidanceDocumentId) {
+      const existing = await this.getGuidanceDocumentBookmark(input.guidanceDocumentId);
+      if (existing) return existing;
+    }
+    if (input.documentId) {
+      const existing = await this.getDocumentBookmark(input.documentId);
+      if (existing) return existing;
+    }
+    throw new Error('Bookmark create conflict but no matching key found');
   }
 
   /**
@@ -339,7 +362,17 @@ export class BookmarksRepository extends BaseRepository {
       query = query.where(isNotNull(bookmarks.fineId));
     }
 
-    return query;
+    const rows = await query;
+    if (rows.length === 0) return [];
+
+    // Batch-fetch markers to avoid row duplication from many-to-many JOIN
+    const bookmarkIds = rows.map(r => r.id);
+    const markersMap = await this.getMarkersForBookmarks(bookmarkIds);
+
+    return rows.map(row => ({
+      ...row,
+      markers: markersMap.get(row.id) ?? [],
+    }));
   }
 
   /**
@@ -419,5 +452,241 @@ export class BookmarksRepository extends BaseRepository {
       .where(type ? typeConditions[type] : base);
 
     return result?.count ?? 0;
+  }
+
+  // ── Marker assignment methods ──────────────────────────────────────
+
+  /**
+   * Assign a marker group to a bookmark.
+   * Verifies scope: the group must be global (jurisdiction=NULL) or match the bookmark's jurisdiction.
+   */
+  async assignMarker(bookmarkId: number, markerGroupId: number): Promise<void> {
+    const [bookmark] = await this.db
+      .select({ jurisdiction: bookmarks.jurisdiction })
+      .from(bookmarks)
+      .where(eq(bookmarks.id, bookmarkId))
+      .limit(1);
+    const [group] = await this.db
+      .select({ jurisdiction: markerGroups.jurisdiction })
+      .from(markerGroups)
+      .where(eq(markerGroups.id, markerGroupId))
+      .limit(1);
+
+    if (group?.jurisdiction && bookmark?.jurisdiction && group.jurisdiction !== bookmark.jurisdiction) {
+      throw new Error(
+        `Marker group jurisdiction '${group.jurisdiction}' does not match bookmark jurisdiction '${bookmark.jurisdiction}'`
+      );
+    }
+
+    await this.db
+      .insert(bookmarkMarkers)
+      .values({ bookmarkId, markerGroupId })
+      .onConflictDoNothing();
+  }
+
+  /**
+   * Remove a marker group from a bookmark
+   */
+  async removeMarker(bookmarkId: number, markerGroupId: number): Promise<void> {
+    await this.db
+      .delete(bookmarkMarkers)
+      .where(
+        and(
+          eq(bookmarkMarkers.bookmarkId, bookmarkId),
+          eq(bookmarkMarkers.markerGroupId, markerGroupId)
+        )
+      );
+  }
+
+  /**
+   * Replace all markers for a bookmark with the given set
+   */
+  async setMarkers(bookmarkId: number, markerGroupIds: number[]): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      // Remove all existing
+      await tx
+        .delete(bookmarkMarkers)
+        .where(eq(bookmarkMarkers.bookmarkId, bookmarkId));
+
+      // Insert new ones
+      if (markerGroupIds.length > 0) {
+        await tx
+          .insert(bookmarkMarkers)
+          .values(markerGroupIds.map(markerGroupId => ({ bookmarkId, markerGroupId })));
+      }
+    });
+  }
+
+  /**
+   * Get marker groups assigned to a single bookmark
+   */
+  async getMarkersForBookmark(bookmarkId: number): Promise<{ id: number; name: string; color: string }[]> {
+    return this.db
+      .select({
+        id: markerGroups.id,
+        name: markerGroups.name,
+        color: markerGroups.color,
+      })
+      .from(bookmarkMarkers)
+      .innerJoin(markerGroups, eq(bookmarkMarkers.markerGroupId, markerGroups.id))
+      .where(eq(bookmarkMarkers.bookmarkId, bookmarkId));
+  }
+
+  /**
+   * Batch-fetch marker groups for multiple bookmarks
+   */
+  async getMarkersForBookmarks(bookmarkIds: number[]): Promise<Map<number, { id: number; name: string; color: string }[]>> {
+    if (bookmarkIds.length === 0) return new Map();
+
+    const rows = await this.db
+      .select({
+        bookmarkId: bookmarkMarkers.bookmarkId,
+        id: markerGroups.id,
+        name: markerGroups.name,
+        color: markerGroups.color,
+      })
+      .from(bookmarkMarkers)
+      .innerJoin(markerGroups, eq(bookmarkMarkers.markerGroupId, markerGroups.id))
+      .where(inArray(bookmarkMarkers.bookmarkId, bookmarkIds));
+
+    const map = new Map<number, { id: number; name: string; color: string }[]>();
+    for (const row of rows) {
+      const list = map.get(row.bookmarkId) ?? [];
+      list.push({ id: row.id, name: row.name, color: row.color });
+      map.set(row.bookmarkId, list);
+    }
+    return map;
+  }
+
+  // ── Bulk marker maps for inline display ────────────────────────────
+
+  /**
+   * Get a map of analysis bookmark markers keyed by "documentId-issueType".
+   * Used to display markers inline on pipeline table rows.
+   */
+  async getAnalysisBookmarkMarkersMap(
+    jurisdiction: string
+  ): Promise<Map<string, { bookmarkId: number; markers: { id: number; name: string; color: string }[]; notes: string | null; createdBy: string | null }>> {
+    const stateUpper = normalizeJurisdiction(jurisdiction);
+    const rows = await this.db
+      .select({
+        bookmarkId: bookmarks.id,
+        documentId: complianceIssueAnalyses.documentId,
+        guidanceDocumentId: complianceIssueAnalyses.guidanceDocumentId,
+        issueType: bookmarks.issueType,
+        notes: bookmarks.notes,
+        createdBy: bookmarks.createdBy,
+      })
+      .from(bookmarks)
+      .innerJoin(complianceIssueAnalyses, eq(bookmarks.analysisId, complianceIssueAnalyses.id))
+      .where(
+        and(
+          eq(bookmarks.jurisdiction, stateUpper),
+          sql`${bookmarks.analysisId} IS NOT NULL`
+        )
+      );
+
+    if (rows.length === 0) return new Map();
+
+    const bookmarkIds = rows.map(r => r.bookmarkId);
+    const markersMap = await this.getMarkersForBookmarks(bookmarkIds);
+
+    const result = new Map<string, { bookmarkId: number; markers: { id: number; name: string; color: string }[]; notes: string | null; createdBy: string | null }>();
+    for (const row of rows) {
+      const docId = row.guidanceDocumentId ?? row.documentId;
+      if (docId === null || row.issueType === null) continue;
+      const prefix = row.guidanceDocumentId !== null ? 'g' : 'r';
+      const key = `${prefix}-${docId}-${row.issueType}`;
+      result.set(key, {
+        bookmarkId: row.bookmarkId,
+        markers: markersMap.get(row.bookmarkId) ?? [],
+        notes: row.notes,
+        createdBy: row.createdBy,
+      });
+    }
+    return result;
+  }
+
+  /**
+   * Get a map of fine bookmark markers keyed by fineId (as string).
+   * Used to display markers inline on fines table rows.
+   */
+  async getFineBookmarkMarkersMap(
+    jurisdiction: string
+  ): Promise<Map<string, { bookmarkId: number; markers: { id: number; name: string; color: string }[]; notes: string | null; createdBy: string | null }>> {
+    const stateUpper = normalizeJurisdiction(jurisdiction);
+    const rows = await this.db
+      .select({
+        bookmarkId: bookmarks.id,
+        fineId: bookmarks.fineId,
+        notes: bookmarks.notes,
+        createdBy: bookmarks.createdBy,
+      })
+      .from(bookmarks)
+      .where(
+        and(
+          eq(bookmarks.jurisdiction, stateUpper),
+          isNotNull(bookmarks.fineId)
+        )
+      );
+
+    if (rows.length === 0) return new Map();
+
+    const bookmarkIds = rows.map(r => r.bookmarkId);
+    const markersMap = await this.getMarkersForBookmarks(bookmarkIds);
+
+    const result = new Map<string, { bookmarkId: number; markers: { id: number; name: string; color: string }[]; notes: string | null; createdBy: string | null }>();
+    for (const row of rows) {
+      if (row.fineId === null) continue;
+      result.set(String(row.fineId), {
+        bookmarkId: row.bookmarkId,
+        markers: markersMap.get(row.bookmarkId) ?? [],
+        notes: row.notes,
+        createdBy: row.createdBy,
+      });
+    }
+    return result;
+  }
+
+  /**
+   * Get a map of guidance document bookmark markers keyed by guidanceDocumentId (as string).
+   * Used to display markers inline on guidance table rows.
+   */
+  async getGuidanceDocBookmarkMarkersMap(
+    jurisdiction: string
+  ): Promise<Map<string, { bookmarkId: number; markers: { id: number; name: string; color: string }[]; notes: string | null; createdBy: string | null }>> {
+    const stateUpper = normalizeJurisdiction(jurisdiction);
+    const rows = await this.db
+      .select({
+        bookmarkId: bookmarks.id,
+        guidanceDocumentId: bookmarks.guidanceDocumentId,
+        notes: bookmarks.notes,
+        createdBy: bookmarks.createdBy,
+      })
+      .from(bookmarks)
+      .where(
+        and(
+          eq(bookmarks.jurisdiction, stateUpper),
+          isNotNull(bookmarks.guidanceDocumentId),
+          isNull(bookmarks.analysisId) // document-level bookmarks only
+        )
+      );
+
+    if (rows.length === 0) return new Map();
+
+    const bookmarkIds = rows.map(r => r.bookmarkId);
+    const markersMap = await this.getMarkersForBookmarks(bookmarkIds);
+
+    const result = new Map<string, { bookmarkId: number; markers: { id: number; name: string; color: string }[]; notes: string | null; createdBy: string | null }>();
+    for (const row of rows) {
+      if (row.guidanceDocumentId === null) continue;
+      result.set(String(row.guidanceDocumentId), {
+        bookmarkId: row.bookmarkId,
+        markers: markersMap.get(row.bookmarkId) ?? [],
+        notes: row.notes,
+        createdBy: row.createdBy,
+      });
+    }
+    return result;
   }
 }

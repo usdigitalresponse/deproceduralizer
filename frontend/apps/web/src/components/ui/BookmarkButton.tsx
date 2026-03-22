@@ -1,7 +1,7 @@
 'use client';
 
 import { forwardRef, ButtonHTMLAttributes } from 'react';
-import { Star } from 'lucide-react';
+import { Tag } from 'lucide-react';
 
 type BookmarkButtonSize = 'sm' | 'md';
 
@@ -65,9 +65,9 @@ export const BookmarkButton = forwardRef<HTMLButtonElement, BookmarkButtonProps>
           ${className}
         `.trim().replace(/\s+/g, ' ')}
         disabled={isDisabled}
-        aria-label={isBookmarked ? 'Remove bookmark' : 'Add bookmark'}
+        aria-label={isBookmarked ? 'Unmark' : 'Mark'}
         aria-pressed={isBookmarked}
-        title={isBookmarked ? 'Remove bookmark' : 'Bookmark'}
+        title={isBookmarked ? 'Unmark' : 'Mark'}
         {...props}
       >
         {isLoading ? (
@@ -92,7 +92,7 @@ export const BookmarkButton = forwardRef<HTMLButtonElement, BookmarkButtonProps>
             />
           </svg>
         ) : (
-          <Star
+          <Tag
             className={`${styles.icon} transition-transform duration-200 ${isBookmarked ? 'scale-110' : 'scale-100'}`}
             fill={isBookmarked ? 'currentColor' : 'none'}
             strokeWidth={isBookmarked ? 0 : 2}
@@ -101,7 +101,7 @@ export const BookmarkButton = forwardRef<HTMLButtonElement, BookmarkButtonProps>
         )}
         {showLabel && (
           <span className="text-xs font-medium">
-            {isBookmarked ? 'Bookmarked' : 'Bookmark'}
+            {isBookmarked ? 'Marked' : 'Mark'}
           </span>
         )}
       </button>

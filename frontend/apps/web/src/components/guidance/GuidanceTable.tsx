@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { getEntityIcon } from '@/lib/constants/entity-types';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { BookmarkButton } from '@/components/ui';
+import { MarkerDots, MarkerPicker } from '@/components/markers';
 import { zebraRowClass, hoverRowClass, tableHeaderClass } from '@/components/ui/table-styles';
 import { Badge } from '@/components/ui/Badge';
 import { GuidanceStatusBadge } from './GuidanceStatusBadge';
@@ -10,6 +12,8 @@ import { PolicyCategoryBadge } from './PolicyCategoryBadge';
 import { ReadabilityBadge } from './ReadabilityBadge';
 import { formatLabel } from '@/types/regulation';
 import type { GuidanceDocumentListItem } from '@/lib/actions/guidance-documents';
+import type { BookmarkMarkersMap } from '@/lib/actions/bookmarks';
+import type { MarkerGroup } from '@deproceduralizer/database';
 
 const AVATAR_COLORS = [
   'bg-blue-100 text-blue-700',
@@ -40,9 +44,15 @@ function AgencyAvatar({ name }: { name: string }) {
 interface GuidanceTableProps {
   data: GuidanceDocumentListItem[];
   state: string;
+  bookmarkedDocIds?: Set<number>;
+  onToggleBookmark?: (docId: number) => void;
+  bookmarkMarkersMap?: BookmarkMarkersMap;
+  availableGroups?: MarkerGroup[];
+  onMarkerToggle?: (bookmarkId: number, markerGroupId: number, assign: boolean) => void;
+  onCreateCustomMarker?: (bookmarkId: number, docId: number, name: string) => void;
 }
 
-export function GuidanceTable({ data, state }: GuidanceTableProps) {
+export function GuidanceTable({ data, state, bookmarkedDocIds, onToggleBookmark, bookmarkMarkersMap, availableGroups, onMarkerToggle, onCreateCustomMarker }: GuidanceTableProps) {
   if (data.length === 0) {
     return (
       <EmptyState
@@ -58,6 +68,8 @@ export function GuidanceTable({ data, state }: GuidanceTableProps) {
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-[var(--color-neutral-200)]">
+            {bookmarkedDocIds && <th className="w-10 py-3 pr-1 bg-[var(--color-neutral-50)]" />}
+            {bookmarkedDocIds && <th className="w-16 py-3 pr-1 bg-[var(--color-neutral-50)]" />}
             <th className={`${tableHeaderClass} bg-[var(--color-neutral-50)]`}>Ref</th>
             <th className={`${tableHeaderClass} bg-[var(--color-neutral-50)]`}>Title</th>
             <th className={`${tableHeaderClass} bg-[var(--color-neutral-50)]`}>Agency</th>
@@ -77,6 +89,35 @@ export function GuidanceTable({ data, state }: GuidanceTableProps) {
               key={doc.id}
               className={`${zebraRowClass} ${hoverRowClass} border-b border-[var(--color-neutral-100)]${isExcluded ? ' opacity-60' : ''}`}
             >
+              {bookmarkedDocIds && (
+                <td className="py-3 pr-1">
+                  <BookmarkButton
+                    isBookmarked={bookmarkedDocIds.has(doc.id)}
+                    onToggle={() => onToggleBookmark?.(doc.id)}
+                    size="sm"
+                  />
+                </td>
+              )}
+              {bookmarkedDocIds && (
+                <td className="py-3 pr-1">
+                  {(() => {
+                    const markerEntry = bookmarkMarkersMap?.get(String(doc.id));
+                    if (!markerEntry) return null;
+                    return (
+                      <div className="flex items-center gap-0.5">
+                        <MarkerDots markers={markerEntry.markers} />
+                        <MarkerPicker
+                          bookmarkId={markerEntry.bookmarkId}
+                          assignedMarkerIds={markerEntry.markers.map(m => m.id)}
+                          availableGroups={availableGroups ?? []}
+                          onToggle={onMarkerToggle ?? (() => {})}
+                          onCreateCustom={onCreateCustomMarker ? (name) => onCreateCustomMarker(markerEntry.bookmarkId, doc.id, name) : undefined}
+                        />
+                      </div>
+                    );
+                  })()}
+                </td>
+              )}
               <td className="py-3 pr-3 text-[var(--color-text-muted)] text-xs whitespace-nowrap">
                 <Link
                   href={`/${state}/guidance/${doc.id}`}
