@@ -119,6 +119,12 @@ function PriorityCard({ item, jurisdiction }: PriorityCardProps) {
         {item.documentTitle || 'Untitled'}
       </div>
 
+      {item.reviewSummary && (
+        <p className="mt-1 text-[11px] text-[var(--color-text-secondary)] line-clamp-2 leading-snug">
+          {item.reviewSummary}
+        </p>
+      )}
+
       {item.easyCleanupCandidate && (
         <div className="mt-1.5">
           <Badge variant="success" className="text-[10px]">

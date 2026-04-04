@@ -32,6 +32,15 @@ export function ComplianceIssueContent({ item, state }: ComplianceIssueContentPr
         />
       </div>
 
+      {/* Review Summary — highest-value quick triage text */}
+      {issue.analysis?.reviewSummary && (
+        <div className="mb-3 pl-3 border-l-[3px] border-[var(--color-neutral-200)]">
+          <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">
+            {issue.analysis.reviewSummary}
+          </p>
+        </div>
+      )}
+
       {/* Guidance document context */}
       {isGuidance && item.guidance && (
         <div className="bg-[var(--color-warning-bg)] rounded p-2 mb-3">

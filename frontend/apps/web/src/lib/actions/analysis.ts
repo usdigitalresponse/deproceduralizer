@@ -297,6 +297,7 @@ export async function exportAnalysisCsv(
       'Department',
       "What's Burdensome",
       'Bad Regulation Text',
+      'Review Summary',
       'Severity',
       'Easy Fix Type',
       'Effort',
@@ -318,6 +319,7 @@ export async function exportAnalysisCsv(
         getDepartmentName(row.nycrrTitle, row.njacTitle),
         row.argumentAgainstRegulation ?? '',
         (row.verbatimRequirements ?? []).join('; '),
+        row.reviewSummary ?? '',
         row.finalSeverity?.toString() ?? '',
         row.cleanupType ?? '',
         row.cleanupEffort ?? '',
@@ -339,6 +341,7 @@ export async function exportAnalysisCsv(
 
 const COMPREHENSIVE_HEADERS = [
   'Document Title', 'Citation', 'URL', 'Issue Type', 'Issue Type Label',
+  'Review Summary',
   'Department', 'Responsible Agency', 'Match Count', 'Highest Tier',
   'Tier 1 Classification', 'Tier 2 Classification', 'Tier 3 Classification',
   'Final Classification', 'Severity', 'Severity Baseline', 'Tier 3 Severity Adjustment',
@@ -369,6 +372,7 @@ function buildComprehensiveCsvRow(
     row.url ?? '',
     row.issueType,
     ISSUE_TYPE_LABELS[row.issueType] ?? row.issueType,
+    row.reviewSummary ?? '',
     getDepartmentName(row.nycrrTitle, row.njacTitle),
     row.responsibleAgency ?? '',
     row.groupedMatchCount?.toString() ?? '',

@@ -24,6 +24,7 @@ export interface ResearchPipelineData {
   tier1: TierPromptData;
   tier2: TierPromptData;
   tier3: TierPromptData;
+  summary?: TierPromptData;
 }
 
 export interface ExampleCase {
@@ -107,6 +108,7 @@ interface RawResearchPipeline {
   tier1?: RawTierPrompt;
   tier2?: RawTierPrompt;
   tier3?: RawTierPrompt;
+  summary?: RawTierPrompt;
 }
 
 interface RawIssueConfigEntry {
@@ -175,6 +177,7 @@ export async function getResearchPipelinePrompts(): Promise<ActionResult<Researc
       tier1: parseTierData(parsed.tier1, '1'),
       tier2: parseTierData(parsed.tier2, '2'),
       tier3: parseTierData(parsed.tier3, '3'),
+      summary: parsed.summary ? parseTierData(parsed.summary, 'Summary') : undefined,
     };
   });
 }

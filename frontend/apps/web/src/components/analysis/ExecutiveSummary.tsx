@@ -69,6 +69,13 @@ function Tier3Summary({ analysis, finalClassification }: TierSummaryProps) {
         after web search verification
       </p>
 
+      {/* Review Summary — plain-language distillation of the analysis */}
+      {analysis.reviewSummary && (
+        <p className="mt-2 text-sm text-[var(--color-text-secondary)] leading-relaxed">
+          {analysis.reviewSummary}
+        </p>
+      )}
+
       {/* Web Search Summary */}
       {tier3?.webSearchSummary && (
         <div className="mt-3 p-3 bg-[var(--color-info-bg)] border border-[var(--color-info)]/20 rounded-[var(--radius-sm)]">
@@ -126,9 +133,16 @@ function Tier2Summary({ analysis, finalClassification }: TierSummaryProps) {
         (no web verification performed)
       </p>
 
-      <p className="mt-2 text-xs text-[var(--color-text-muted)]">
-        This analysis completed at Tier 2. Web search verification was not triggered for this item.
-      </p>
+      {/* Review Summary — plain-language distillation of the analysis */}
+      {analysis.reviewSummary ? (
+        <p className="mt-2 text-sm text-[var(--color-text-secondary)] leading-relaxed">
+          {analysis.reviewSummary}
+        </p>
+      ) : (
+        <p className="mt-2 text-xs text-[var(--color-text-muted)]">
+          This analysis completed at Tier 2. Web search verification was not triggered for this item.
+        </p>
+      )}
     </div>
   );
 }

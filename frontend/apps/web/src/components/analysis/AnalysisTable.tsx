@@ -55,6 +55,7 @@ export type UnifiedAnalysisRow = {
   cleanupType: string | null;
   cleanupEffort: string | null;
   tier3TriggerReason: string | null;
+  reviewSummary: string | null;
 } & (
   | { kind: 'regulation'; documentId: number; citation: string | null }
   | { kind: 'guidance'; guidanceDocumentId: number; agency: string | null; docType: string | null; canonicalRef: string | null }
@@ -788,7 +789,7 @@ function AnalysisTableRow({
         </td>
 
         {/* Document */}
-        <td className="px-4 py-3 max-w-xs">
+        <td className="px-4 py-3 max-w-xs" title={item.reviewSummary || undefined}>
           {item.kind === 'guidance' ? (
             <>
               {item.agency && (
@@ -796,13 +797,13 @@ function AnalysisTableRow({
                   {item.agency}
                 </div>
               )}
-              <div className="truncate text-[var(--color-text)]" title={item.documentTitle || ''}>
+              <div className="truncate text-[var(--color-text)]" title={item.reviewSummary || item.documentTitle || ''}>
                 {item.documentTitle || 'Untitled'}
               </div>
             </>
           ) : (
             <>
-              <div className="truncate text-[var(--color-text)]" title={item.documentTitle || ''}>
+              <div className="truncate text-[var(--color-text)]" title={item.reviewSummary || item.documentTitle || ''}>
                 {item.documentTitle || 'Untitled'}
               </div>
               {item.citation && (

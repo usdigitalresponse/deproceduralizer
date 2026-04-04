@@ -118,6 +118,11 @@ export const complianceIssueAnalyses = pgTable('compliance_issue_analyses', {
   stateHasDiscretion: boolean('state_has_discretion').default(true),
 
   // ═══════════════════════════════════════════════════════════════════
+  // Review Summary (post-pipeline generation via Haiku batch)
+  // ═══════════════════════════════════════════════════════════════════
+  reviewSummary: text('review_summary'),
+
+  // ═══════════════════════════════════════════════════════════════════
   // Final Derived Fields
   // ═══════════════════════════════════════════════════════════════════
   requirementFound: boolean('requirement_found'),

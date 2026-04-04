@@ -266,6 +266,13 @@ export function FinesDetailDrawer({ fine, open, onOpenChange, state, onBookmarkC
                     Document-level analysis shared by all fines from this source
                   </p>
 
+                  {/* Review Summary */}
+                  {fine.analysis.reviewSummary && (
+                    <p className="text-sm text-[var(--color-text-secondary)] mb-3 leading-relaxed">
+                      {fine.analysis.reviewSummary}
+                    </p>
+                  )}
+
                   {/* Classification + Tier + Severity badges */}
                   <div className="flex flex-wrap items-center gap-2 mb-4">
                     <ClassificationBadge

@@ -212,6 +212,7 @@ export interface TierAnalysis {
   easyCleanupCandidate: boolean;
   cleanupType: string | null;
   cleanupEffort: string | null;
+  reviewSummary: string | null;
 }
 
 /**
@@ -346,6 +347,9 @@ export interface FullAnalysisRecord {
   cleanupEvidence: string | null;
   cleanupRecommendation: string | null;
   cleanupEffort: string | null;
+
+  // Review Summary (post-pipeline Haiku batch)
+  reviewSummary: string | null;
 }
 
 /** Shared SELECT columns for compliance issue list/queue queries (excludes regulationContent). */
@@ -407,6 +411,7 @@ const issueListSelectColumns = {
   analysisEasyCleanup: complianceIssueAnalyses.easyCleanupCandidate,
   analysisCleanupType: complianceIssueAnalyses.cleanupType,
   analysisCleanupEffort: complianceIssueAnalyses.cleanupEffort,
+  analysisReviewSummary: complianceIssueAnalyses.reviewSummary,
   // Regulation context (no content — too large for list views)
   regulationId: regulatoryDocuments.id,
   regulationTitle: regulatoryDocuments.title,
@@ -487,6 +492,7 @@ function mapRowToIssue(
     analysisEasyCleanup: boolean | null;
     analysisCleanupType: string | null;
     analysisCleanupEffort: string | null;
+    analysisReviewSummary: string | null;
     // Regulation context
     regulationId: number | null;
     regulationTitle: string | null;
@@ -530,6 +536,7 @@ function mapRowToIssue(
     easyCleanupCandidate: row.analysisEasyCleanup ?? false,
     cleanupType: row.analysisCleanupType,
     cleanupEffort: row.analysisCleanupEffort,
+    reviewSummary: row.analysisReviewSummary ?? null,
   } : null;
 
   return {
@@ -1109,6 +1116,7 @@ export interface AnalysisListRawRow {
   cleanupType: string | null;
   cleanupEffort: string | null;
   tier3TriggerReason: string | null;
+  reviewSummary: string | null;
   docTitle: string | null;
   docShortTitle: string | null;
   docNjacTitle: string | null;       // varchar in schema
@@ -1150,6 +1158,7 @@ export function mapAnalysisListRow(row: AnalysisListRawRow): AnalysisListItem {
     cleanupType: row.cleanupType,
     cleanupEffort: row.cleanupEffort,
     tier3TriggerReason: row.tier3TriggerReason,
+    reviewSummary: row.reviewSummary ?? null,
   };
 }
 
@@ -2641,6 +2650,9 @@ export class ComplianceIssuesRepository extends BaseRepository {
         cleanupRecommendation: complianceIssueAnalyses.cleanupRecommendation,
         cleanupEffort: complianceIssueAnalyses.cleanupEffort,
 
+        // Review Summary
+        reviewSummary: complianceIssueAnalyses.reviewSummary,
+
         // Document fields
         docId: regulatoryDocuments.id,
         docTitle: regulatoryDocuments.title,
@@ -2778,6 +2790,9 @@ export class ComplianceIssuesRepository extends BaseRepository {
       cleanupEvidence: row.cleanupEvidence,
       cleanupRecommendation: row.cleanupRecommendation,
       cleanupEffort: row.cleanupEffort,
+
+      // Review Summary
+      reviewSummary: row.reviewSummary ?? null,
     };
   }
 
@@ -2837,6 +2852,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         cleanupType: complianceIssueAnalyses.cleanupType,
         cleanupEffort: complianceIssueAnalyses.cleanupEffort,
         tier3TriggerReason: complianceIssueAnalyses.tier3TriggerReason,
+        reviewSummary: complianceIssueAnalyses.reviewSummary,
         docTitle: regulatoryDocuments.title,
         docShortTitle: regulatoryDocuments.shortTitle,
         docNjacTitle: regulatoryDocuments.njacTitle,
@@ -2900,6 +2916,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         cleanupType: complianceIssueAnalyses.cleanupType,
         cleanupEffort: complianceIssueAnalyses.cleanupEffort,
         documentId: complianceIssueAnalyses.documentId,
+        reviewSummary: complianceIssueAnalyses.reviewSummary,
       })
       .from(complianceIssueAnalyses)
       .innerJoin(regulatoryDocuments, eq(complianceIssueAnalyses.documentId, regulatoryDocuments.id))
@@ -2931,6 +2948,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         cleanupType: row.cleanupType,
         cleanupEffort: row.cleanupEffort,
         documentId: row.documentId,
+        reviewSummary: row.reviewSummary ?? null,
       };
     });
   }
@@ -3018,6 +3036,8 @@ export class ComplianceIssuesRepository extends BaseRepository {
         developerAssigned: complianceIssueAnalyses.developerAssigned,
         developerNotes: complianceIssueAnalyses.developerNotes,
         resolutionType: complianceIssueAnalyses.resolutionType,
+        // Review Summary
+        reviewSummary: complianceIssueAnalyses.reviewSummary,
       })
       .from(complianceIssueAnalyses)
       .innerJoin(regulatoryDocuments, eq(complianceIssueAnalyses.documentId, regulatoryDocuments.id))
@@ -3079,6 +3099,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         developerAssigned: row.developerAssigned,
         developerNotes: row.developerNotes,
         resolutionType: row.resolutionType,
+        reviewSummary: row.reviewSummary ?? null,
       };
     });
   }
@@ -3866,6 +3887,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         cleanupType: complianceIssueAnalyses.cleanupType,
         cleanupEffort: complianceIssueAnalyses.cleanupEffort,
         tier3TriggerReason: complianceIssueAnalyses.tier3TriggerReason,
+        reviewSummary: complianceIssueAnalyses.reviewSummary,
         docTitle: guidanceDocuments.title,
         docAgency: guidanceDocuments.agency,
         docType: guidanceDocuments.docType,
@@ -3899,6 +3921,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         cleanupType: row.cleanupType,
         cleanupEffort: row.cleanupEffort,
         tier3TriggerReason: row.tier3TriggerReason,
+        reviewSummary: row.reviewSummary ?? null,
       })),
       total,
       page,
@@ -3991,6 +4014,9 @@ export class ComplianceIssuesRepository extends BaseRepository {
         cleanupEvidence: complianceIssueAnalyses.cleanupEvidence,
         cleanupRecommendation: complianceIssueAnalyses.cleanupRecommendation,
         cleanupEffort: complianceIssueAnalyses.cleanupEffort,
+
+        // Review Summary
+        reviewSummary: complianceIssueAnalyses.reviewSummary,
 
         // Guidance document fields
         gdId: guidanceDocuments.id,
@@ -4102,6 +4128,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       cleanupEvidence: row.cleanupEvidence,
       cleanupRecommendation: row.cleanupRecommendation,
       cleanupEffort: row.cleanupEffort,
+      reviewSummary: row.reviewSummary ?? null,
     };
   }
 
@@ -4473,6 +4500,8 @@ export interface AnalysisListItem {
   cleanupEffort: string | null;
   // V5.1: Tier 3 trigger reason
   tier3TriggerReason: string | null;
+  // Review summary (post-pipeline)
+  reviewSummary: string | null;
 }
 
 /** Analysis list item for guidance documents. Uses agency/docType instead of regulation citation. */
@@ -4496,6 +4525,7 @@ export interface GuidanceAnalysisListItem {
   cleanupType: string | null;
   cleanupEffort: string | null;
   tier3TriggerReason: string | null;
+  reviewSummary: string | null;
 }
 
 /**
@@ -4530,6 +4560,7 @@ export interface AnalysisExportRow {
   cleanupType: string | null;
   cleanupEffort: string | null;
   documentId: number | null;
+  reviewSummary: string | null;
 }
 
 export interface ComprehensiveAnalysisExportRow {
@@ -4575,6 +4606,7 @@ export interface ComprehensiveAnalysisExportRow {
   developerAssigned: string | null;
   developerNotes: string | null;
   resolutionType: string | null;
+  reviewSummary: string | null;
 }
 
 // ═══════════════════════════════════════════════════════════════════

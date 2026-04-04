@@ -1,6 +1,6 @@
 import type { IssueConfig, ComposedPrompt } from '@/lib/actions/research-pipeline';
 
-export type TierNumber = 1 | 2 | 3;
+export type TierNumber = 1 | 2 | 3 | 'summary';
 
 export interface TierInfo {
   tier: TierNumber;
@@ -27,6 +27,12 @@ export const TIER_INFO: TierInfo[] = [
     name: 'Web Search Verification',
     description: 'Validates findings using external web sources',
     shortName: 'Verify',
+  },
+  {
+    tier: 'summary',
+    name: 'Review Summary Generation',
+    description: 'Post-pipeline Haiku batch: distills 1-2 sentence review summary from all tier outputs',
+    shortName: 'Summary',
   },
 ];
 

@@ -271,6 +271,15 @@ export default async function AnalysisDetailPage({ params, searchParams }: Analy
           </div>
         </div>
 
+        {/* Review Summary - quick triage text from post-pipeline generation */}
+        {analysis.reviewSummary && (
+          <div className="mb-4 pl-4 border-l-[var(--border-width-4)] border-[var(--color-neutral-200)]">
+            <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">
+              {analysis.reviewSummary}
+            </p>
+          </div>
+        )}
+
         {/* Executive Summary Card - key findings at a glance */}
         <div id="section-summary">
           <ExecutiveSummary analysis={analysis} />

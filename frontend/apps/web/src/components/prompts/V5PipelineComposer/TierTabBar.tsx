@@ -28,8 +28,12 @@ export function TierTabBar({ activeTier, onChange }: TierTabBarProps) {
             role="tab"
             aria-selected={isActive}
           >
-            <span className="hidden sm:inline">Tier {tier.tier}: </span>
-            <span className="sm:hidden">T{tier.tier}: </span>
+            {tier.tier !== 'summary' && (
+              <>
+                <span className="hidden sm:inline">Tier {tier.tier}: </span>
+                <span className="sm:hidden">T{tier.tier}: </span>
+              </>
+            )}
             {tier.shortName}
           </button>
         );

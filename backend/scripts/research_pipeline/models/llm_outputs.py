@@ -564,3 +564,10 @@ class Tier3Output(BaseModel):
         return self
 
 
+class SummaryOutput(BaseModel):
+    """Post-processing output — 1-2 sentence review summary."""
+    review_summary: str = Field(
+        description="1-2 sentence plain-language summary for quick review triage"
+    )
+
+
