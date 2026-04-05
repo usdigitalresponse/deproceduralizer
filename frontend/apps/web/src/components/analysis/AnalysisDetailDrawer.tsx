@@ -717,11 +717,7 @@ export function AnalysisDetailDrawer({ item, open, onOpenChange, jurisdiction, r
                 </div>
               </div>
 
-              {item.reviewSummary && (
-                <div className="border-t border-[var(--color-neutral-200)] pt-4">
-                  <ReviewSummaryText summary={item.reviewSummary} variant="inline" />
-                </div>
-              )}
+              <ReviewSummaryText summary={item.reviewSummary} className="mt-2" />
 
               {/* --- Tier Breakdown --- */}
               <div className="border-t border-[var(--color-neutral-200)] pt-4 space-y-3">

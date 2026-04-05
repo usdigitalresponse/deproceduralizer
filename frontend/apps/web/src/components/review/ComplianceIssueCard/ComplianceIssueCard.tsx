@@ -42,7 +42,9 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
           </div>
         </div>
 
-        <ReviewSummaryText summary={issue.analysis?.reviewSummary} className="mb-4" />
+        {issue.analysis?.reviewSummary && (
+          <ReviewSummaryText summary={issue.analysis.reviewSummary} className="mb-4" />
+        )}
 
         {/* Tier Classification Flow */}
         {issue.analysis && (

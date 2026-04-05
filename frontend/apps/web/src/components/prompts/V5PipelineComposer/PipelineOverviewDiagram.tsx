@@ -1,14 +1,14 @@
 'use client';
 
-import { ArrowRight, Filter, FileSearch, Globe } from 'lucide-react';
+import { ArrowRight, Filter, FileSearch, Globe, FileText } from 'lucide-react';
 import { TIER_INFO, type TierNumber } from './types';
 
 interface PipelineOverviewDiagramProps {
   activeTier: TierNumber;
 }
 
-const TIER_ICONS = [Filter, FileSearch, Globe];
-const TIER_STATS = ['~40% stop', '~80% final', '~20% final'];
+const TIER_ICONS = [Filter, FileSearch, Globe, FileText];
+const TIER_STATS = ['~40% stop', '~80% final', '~20% final', 'post-pipeline'];
 
 export function PipelineOverviewDiagram({ activeTier }: PipelineOverviewDiagramProps) {
   return (
@@ -39,7 +39,7 @@ export function PipelineOverviewDiagram({ activeTier }: PipelineOverviewDiagramP
                   <Icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-[var(--color-primary)]'}`} />
                 </div>
                 <span className="text-xs font-medium uppercase tracking-wide opacity-80">
-                  Tier {tier.tier}
+                  {typeof tier.tier === 'number' ? `Tier ${tier.tier}` : ''}
                 </span>
                 <span className={`text-sm font-semibold text-center ${isActive ? '' : 'text-[var(--color-text)]'}`}>
                   {tier.shortName}

@@ -1,10 +1,11 @@
 interface ReviewSummaryTextProps {
   summary: string | null | undefined;
   variant?: 'bordered' | 'inline' | 'compact';
+  label?: string;
   className?: string;
 }
 
-export function ReviewSummaryText({ summary, variant = 'bordered', className = '' }: ReviewSummaryTextProps) {
+export function ReviewSummaryText({ summary, variant = 'bordered', label = 'Analysis Summary', className = '' }: ReviewSummaryTextProps) {
   if (!summary) return null;
 
   if (variant === 'compact') {
@@ -23,9 +24,13 @@ export function ReviewSummaryText({ summary, variant = 'bordered', className = '
     );
   }
 
+  // Default 'bordered' variant — prominent card-style box for key summary
   return (
-    <div className={`pl-3 border-l-[var(--border-width-4)] border-[var(--color-neutral-200)] ${className}`}>
-      <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">
+    <div className={`bg-[var(--color-primary-weaker)] border border-[var(--color-primary-weak)] rounded-[var(--radius-md)] px-4 py-3 ${className}`}>
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-primary-mid)] mb-1">
+        {label}
+      </p>
+      <p className="text-sm text-[var(--color-text)] leading-relaxed">
         {summary}
       </p>
     </div>
