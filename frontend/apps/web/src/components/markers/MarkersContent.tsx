@@ -1,30 +1,29 @@
 'use client';
 
 import { useState, useCallback, useMemo, type ComponentType } from 'react';
-import Link from 'next/link';
 import { useQueryStates } from 'nuqs';
-import { Trash2, ExternalLink, FileText, ListChecks, BookOpen, DollarSign, Sparkles, AlertTriangle, Zap, Settings, Tag } from 'lucide-react';
-import { toast } from 'sonner';
+import { FileText, ListChecks, BookOpen, DollarSign, Sparkles, AlertTriangle, Settings, Tag } from 'lucide-react';
 import type { BookmarkWithDetails, MarkerGroup, JurisdictionCode } from '@deproceduralizer/database';
 import { Badge, MultiSelect } from '@/components/ui';
 import type { BadgeVariant } from '@/components/ui/Badge';
 import { FilterBar, FilterField } from '@/components/ui/FilterBar';
-import { tableRowClass, tableHeaderClass } from '@/components/ui/table-styles';
-import { removeBookmark, updateBookmarkNotes, getFineBookmark, getMarkersForBookmark, assignMarkerToBookmark, removeMarkerFromBookmark } from '@/lib/actions/bookmarks';
-import { createMarkerGroup, updateMarkerGroup, deleteMarkerGroup, deleteMarkerGroupAndUnmarkAll, reorderMarkerGroups, getOrCreateCustomMarkerGroup } from '@/lib/actions/marker-groups';
+import { tableHeaderClass } from '@/components/ui/table-styles';
+import { updateBookmarkNotes, getFineBookmark, getMarkersForBookmark } from '@/lib/actions/bookmarks';
 import { getFineById } from '@/lib/actions/fines';
 import type { FineWithContext } from '@/lib/actions/fines';
-import { ISSUE_TYPE_LABELS } from '@/types/regulation';
 import { PENALTY_TYPE_LABELS } from '@/lib/constants/fines';
 import { markersParsers } from '@/lib/url/parsers';
+import { parseCommaSeparated, serializeCommaSeparated } from '@/lib/url/filter-helpers';
 import { FILTER_NULL_VALUE } from '@/lib/constants/values';
 import type { MarkerTabValue } from '@/lib/constants/values';
-import { MarkerNotesEditor } from './MarkerNotesEditor';
-import { MarkerBadge } from './MarkerBadge';
-import { MarkerPicker } from './MarkerPicker';
+import { useMarkerMutations } from '@/hooks/useMarkerMutations';
+import { useBookmarkName } from '@/hooks/useBookmarkName';
+import { AnalysisBookmarkCard } from './AnalysisBookmarkCard';
+import { DocumentBookmarkRow } from './DocumentBookmarkRow';
+import { GuidanceBookmarkRow } from './GuidanceBookmarkRow';
+import { FineBookmarkRow } from './FineBookmarkRow';
 import { MarkerGroupManager } from './MarkerGroupManager';
 import { FinesDetailDrawer } from '@/components/fines/FinesDetailDrawer';
-import { useBookmarkName } from '@/hooks/useBookmarkName';
 
 function TabButton({
   icon: Icon,
@@ -108,21 +107,29 @@ export function MarkersContent({ bookmarks, counts, jurisdiction, markerGroups }
   const [params, setParams] = useQueryStates(markersParsers, { shallow: true });
   const activeTab = params.tab as MarkerTabValue;
   const setActiveTab = useCallback((tab: MarkerTabValue) => setParams({ tab }), [setParams]);
-  const [localGroups, setLocalGroups] = useState(markerGroups);
   const [managerOpen, setManagerOpen] = useState(false);
-  const [localBookmarks, setLocalBookmarks] = useState(bookmarks);
-  const [fineSortBy, setFineSortBy] = useState<FineSortField>('bookmarked');
-  const [fineSortOrder, setFineSortOrder] = useState<SortOrder>('desc');
-  const [fineFilterType, setFineFilterType] = useState<string[]>([]);
-  const [fineFilterAgency, setFineFilterAgency] = useState<string[]>([]);
-  const [fineFilterWhoPays, setFineFilterWhoPays] = useState<string[]>([]);
-  const [fineFilterBy, setFineFilterBy] = useState<string[]>([]);
-  const [fineFilterDate, setFineFilterDate] = useState<string[]>([]);
-  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string[]>([]);
   const [drawerFine, setDrawerFine] = useState<FineWithContext | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [fineCache, setFineCache] = useState<Map<number, FineWithContext>>(new Map());
   const { bookmarkName, saveBookmarkName } = useBookmarkName();
+
+  const {
+    localBookmarks, setLocalBookmarks,
+    localGroups,
+    handleRemove, handleSaveNotes, handleMarkerToggle, handleCreateCustomMarker,
+    handleCreateGroup, handleUpdateGroup, handleDeleteGroup,
+    handleDeleteGroupAndUnmarkAll, handleReorderGroups,
+  } = useMarkerMutations({ bookmarks, markerGroups, jurisdiction });
+
+  // Fine-tab filters from URL state
+  const fineSortBy = (params.mFineSortBy || 'bookmarked') as FineSortField;
+  const fineSortOrder = (params.mFineSortOrder || 'desc') as SortOrder;
+  const fineFilterType = parseCommaSeparated(params.mFineType);
+  const fineFilterAgency = parseCommaSeparated(params.mFineAgency);
+  const fineFilterWhoPays = parseCommaSeparated(params.mFineWhoPays);
+  const fineFilterBy = parseCommaSeparated(params.mFineBy);
+  const fineFilterDate = parseCommaSeparated(params.mFineDate);
+  const selectedCategoryFilter = parseCommaSeparated(params.mCategory);
 
   const filteredBookmarks = useMemo(() => {
     let result = localBookmarks.filter(b => {
@@ -205,13 +212,11 @@ export function MarkersContent({ bookmarks, counts, jurisdiction, markerGroups }
   const hasFineActiveFilters = fineFilterType.length > 0 || fineFilterAgency.length > 0 || fineFilterWhoPays.length > 0 || fineFilterBy.length > 0 || fineFilterDate.length > 0 || selectedCategoryFilter.length > 0;
 
   const clearFineFilters = useCallback(() => {
-    setFineFilterType([]);
-    setFineFilterAgency([]);
-    setFineFilterWhoPays([]);
-    setFineFilterBy([]);
-    setFineFilterDate([]);
-    setSelectedCategoryFilter([]);
-  }, []);
+    setParams({
+      mFineType: null, mFineAgency: null, mFineWhoPays: null,
+      mFineBy: null, mFineDate: null, mCategory: null,
+    });
+  }, [setParams]);
 
   // Apply dropdown filters, then sort
   const sortedFineBookmarks = useMemo(() => {
@@ -294,15 +299,6 @@ export function MarkersContent({ bookmarks, counts, jurisdiction, markerGroups }
   const easyFixCount = filteredBookmarks.filter(b => b.easyCleanupCandidate).length;
   const federalCount = filteredBookmarks.filter(b => b.federalMandateFound).length;
 
-  const handleRemove = useCallback(async (bookmarkId: number) => {
-    setLocalBookmarks(prev => prev.filter(b => b.id !== bookmarkId));
-    const result = await removeBookmark(bookmarkId);
-    if (!result.success) {
-      setLocalBookmarks(bookmarks);
-      toast.error('Could not unsave item');
-    }
-  }, [bookmarks]);
-
   const handleOpenFineDrawer = useCallback(async (fineId: number) => {
     const cached = fineCache.get(fineId);
     if (cached) {
@@ -348,87 +344,6 @@ export function MarkersContent({ bookmarks, counts, jurisdiction, markerGroups }
       setLocalBookmarks(prev => prev.filter(b => b.fineId !== fineId));
     }
   }, []);
-
-  const handleSaveNotes = useCallback(async (bookmarkId: number, notes: string) => {
-    const result = await updateBookmarkNotes(bookmarkId, notes);
-    if (result.success) {
-      setLocalBookmarks(prev =>
-        prev.map(b => b.id === bookmarkId ? { ...b, notes } : b)
-      );
-    }
-  }, []);
-
-  const handleMarkerToggle = useCallback(async (bookmarkId: number, markerGroupId: number, assign: boolean) => {
-    // Optimistic update
-    setLocalBookmarks(prev => prev.map(b => {
-      if (b.id !== bookmarkId) return b;
-      const markers = assign
-        ? [...b.markers, localGroups.find(g => g.id === markerGroupId)!].filter(Boolean).map(g => ({ id: g.id, name: g.name, color: g.color }))
-        : b.markers.filter(m => m.id !== markerGroupId);
-      return { ...b, markers };
-    }));
-
-    const result = assign
-      ? await assignMarkerToBookmark(bookmarkId, markerGroupId)
-      : await removeMarkerFromBookmark(bookmarkId, markerGroupId);
-
-    if (!result.success) {
-      setLocalBookmarks(bookmarks); // Revert
-      toast.error('Could not update label');
-    }
-  }, [bookmarks, localGroups]);
-
-  const handleCreateCustomMarker = useCallback(async (name: string) => {
-    const result = await getOrCreateCustomMarkerGroup(name, jurisdiction);
-    if (result.success) {
-      setLocalGroups(prev => {
-        if (prev.some(g => g.id === result.data.id)) return prev;
-        return [...prev, result.data];
-      });
-      toast.success(`Label "${name}" created`);
-      return result.data;
-    }
-    toast.error('Could not create label');
-    return null;
-  }, [jurisdiction]);
-
-  const handleCreateGroup = useCallback(async (name: string, color: string) => {
-    const result = await createMarkerGroup({ name, color, jurisdiction });
-    if (result.success) setLocalGroups(prev =>
-      prev.some(g => g.id === result.data.id) ? prev : [...prev, result.data]
-    );
-  }, [jurisdiction]);
-
-  const handleUpdateGroup = useCallback(async (id: number, updates: { name?: string; color?: string }) => {
-    const result = await updateMarkerGroup(id, updates);
-    if (result.success) setLocalGroups(prev => prev.map(g => g.id === id ? result.data : g));
-  }, []);
-
-  const handleDeleteGroup = useCallback(async (id: number) => {
-    const result = await deleteMarkerGroup(id);
-    if (result.success) {
-      setLocalGroups(prev => prev.filter(g => g.id !== id));
-      setLocalBookmarks(prev => prev.map(b => ({
-        ...b,
-        markers: b.markers.filter(m => m.id !== id),
-      })));
-    }
-  }, []);
-
-  const handleDeleteGroupAndUnmarkAll = useCallback(async (id: number) => {
-    const result = await deleteMarkerGroupAndUnmarkAll(id);
-    if (result.success) {
-      setLocalGroups(prev => prev.filter(g => g.id !== id));
-      setLocalBookmarks(prev => prev.filter(b => !b.markers.some(m => m.id === id)));
-    }
-  }, []);
-
-  const handleReorderGroups = useCallback(async (ids: number[]) => {
-    // Optimistic reorder
-    const reordered = ids.map(id => localGroups.find(g => g.id === id)!).filter(Boolean);
-    setLocalGroups(reordered);
-    await reorderMarkerGroups(ids);
-  }, [localGroups]);
 
   return (
     <div className="space-y-6">
@@ -476,11 +391,10 @@ export function MarkersContent({ bookmarks, counts, jurisdiction, markerGroups }
                 key={group.id}
                 type="button"
                 onClick={() => {
-                  setSelectedCategoryFilter(prev =>
-                    isSelected
-                      ? prev.filter(id => id !== String(group.id))
-                      : [...prev, String(group.id)]
-                  );
+                  const updated = isSelected
+                    ? selectedCategoryFilter.filter(id => id !== String(group.id))
+                    : [...selectedCategoryFilter, String(group.id)];
+                  setParams({ mCategory: serializeCommaSeparated(updated) });
                 }}
                 className={`
                   inline-flex items-center gap-1.5
@@ -505,7 +419,7 @@ export function MarkersContent({ bookmarks, counts, jurisdiction, markerGroups }
           {selectedCategoryFilter.length > 0 && (
             <button
               type="button"
-              onClick={() => setSelectedCategoryFilter([])}
+              onClick={() => setParams({ mCategory: null })}
               className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-primary)] underline cursor-pointer transition-colors"
             >
               Clear
@@ -605,8 +519,8 @@ export function MarkersContent({ bookmarks, counts, jurisdiction, markerGroups }
             sortBy={fineSortBy}
             sortOrder={fineSortOrder}
             sortOptions={FINE_SORT_OPTIONS}
-            onSortByChange={(v) => setFineSortBy(v as FineSortField)}
-            onSortOrderToggle={() => setFineSortOrder(o => o === 'asc' ? 'desc' : 'asc')}
+            onSortByChange={(v) => setParams({ mFineSortBy: v })}
+            onSortOrderToggle={() => setParams({ mFineSortOrder: fineSortOrder === 'asc' ? 'desc' : 'asc' })}
             hasActiveFilters={hasFineActiveFilters}
             onClearFilters={clearFineFilters}
           >
@@ -614,7 +528,7 @@ export function MarkersContent({ bookmarks, counts, jurisdiction, markerGroups }
               <MultiSelect
                 label="Type"
                 value={fineFilterType}
-                onChange={setFineFilterType}
+                onChange={(v) => setParams({ mFineType: serializeCommaSeparated(v) })}
                 options={typeFilterOptions}
                 placeholder="All Types"
               />
@@ -623,7 +537,7 @@ export function MarkersContent({ bookmarks, counts, jurisdiction, markerGroups }
               <MultiSelect
                 label="Agency"
                 value={fineFilterAgency}
-                onChange={setFineFilterAgency}
+                onChange={(v) => setParams({ mFineAgency: serializeCommaSeparated(v) })}
                 options={agencyFilterOptions}
                 placeholder="All Agencies"
               />
@@ -632,7 +546,7 @@ export function MarkersContent({ bookmarks, counts, jurisdiction, markerGroups }
               <MultiSelect
                 label="Who Pays"
                 value={fineFilterWhoPays}
-                onChange={setFineFilterWhoPays}
+                onChange={(v) => setParams({ mFineWhoPays: serializeCommaSeparated(v) })}
                 options={whoPaysFilterOptions}
                 placeholder="All"
               />
@@ -641,7 +555,7 @@ export function MarkersContent({ bookmarks, counts, jurisdiction, markerGroups }
               <MultiSelect
                 label="By"
                 value={fineFilterBy}
-                onChange={setFineFilterBy}
+                onChange={(v) => setParams({ mFineBy: serializeCommaSeparated(v) })}
                 options={byFilterOptions}
                 placeholder="All"
               />
@@ -650,7 +564,7 @@ export function MarkersContent({ bookmarks, counts, jurisdiction, markerGroups }
               <MultiSelect
                 label="Date"
                 value={fineFilterDate}
-                onChange={setFineFilterDate}
+                onChange={(v) => setParams({ mFineDate: serializeCommaSeparated(v) })}
                 options={dateFilterOptions}
                 placeholder="All Dates"
               />
@@ -660,7 +574,7 @@ export function MarkersContent({ bookmarks, counts, jurisdiction, markerGroups }
                 <MultiSelect
                   label="Label"
                   value={selectedCategoryFilter}
-                  onChange={setSelectedCategoryFilter}
+                  onChange={(v) => setParams({ mCategory: serializeCommaSeparated(v) })}
                   options={categoryFilterOptions}
                   placeholder="All Labels"
                 />
@@ -776,562 +690,6 @@ export function MarkersContent({ bookmarks, counts, jurisdiction, markerGroups }
         onOpenChange={setManagerOpen}
       />
     </div>
-  );
-}
-
-// Analysis bookmark card - shows all the detailed info
-interface AnalysisBookmarkCardProps {
-  bookmark: BookmarkWithDetails;
-  jurisdiction: JurisdictionCode;
-  onSaveNotes: (notes: string) => Promise<void>;
-  onRemove: () => void;
-  availableGroups: MarkerGroup[];
-  onMarkerToggle: (bookmarkId: number, markerGroupId: number, assign: boolean) => void;
-  onCreateCustomMarker?: (name: string) => Promise<MarkerGroup | null> | void;
-}
-
-function AnalysisBookmarkCard({
-  bookmark,
-  jurisdiction,
-  onSaveNotes,
-  onRemove,
-  availableGroups,
-  onMarkerToggle,
-  onCreateCustomMarker,
-}: AnalysisBookmarkCardProps) {
-  const issueTypeLabel = bookmark.issueType
-    ? ISSUE_TYPE_LABELS[bookmark.issueType as keyof typeof ISSUE_TYPE_LABELS] || bookmark.issueType
-    : null;
-
-  const isGuidanceAnalysis = bookmark.guidanceDocumentId !== null && bookmark.documentId === null;
-  const viewUrl = isGuidanceAnalysis
-    ? `/${jurisdiction.toLowerCase()}/pipeline/guidance/${bookmark.guidanceDocumentId}/${bookmark.issueType}`
-    : `/${jurisdiction.toLowerCase()}/pipeline/${bookmark.documentId}/${bookmark.issueType}`;
-
-  // Use final severity if available, fallback to base severity
-  const severity = bookmark.analysisFinalSeverity ?? bookmark.analysisSeverity;
-
-  // Use tier3 classification if available, fallback to tier2
-  const classification = bookmark.analysisTier3Classification || bookmark.analysisClassification;
-
-  // Format cleanup effort
-  const cleanupEffortLabel = bookmark.cleanupEffort === 'trivial' ? 'Trivial'
-    : bookmark.cleanupEffort === 'easy' ? 'Easy'
-    : bookmark.cleanupEffort === 'medium' ? 'Medium'
-    : bookmark.cleanupEffort;
-
-  // Format cleanup type
-  const cleanupTypeLabel = bookmark.cleanupType === 'alternative_in_practice'
-    ? 'Alternative in Practice'
-    : bookmark.cleanupType === 'alternative_authorized'
-    ? 'State Authorized Alternative'
-    : bookmark.cleanupType === 'peer_state_solution'
-    ? 'Peer State Has Solution'
-    : bookmark.cleanupType;
-
-  return (
-    <div className="bg-white border border-[var(--color-neutral-200)] rounded-[var(--radius-md)] overflow-hidden">
-      {/* Easy Fix Banner */}
-      {bookmark.easyCleanupCandidate && (
-        <div className="bg-[var(--color-success-bg)] px-4 py-2 flex items-center gap-3 border-b border-[var(--color-success)]">
-          <Sparkles className="w-5 h-5 text-[var(--color-success)]" />
-          <span className="text-sm font-medium text-[var(--color-success)]">
-            Easy Cleanup Opportunity
-          </span>
-          {cleanupEffortLabel && (
-            <Badge variant="success" className="text-xs">
-              {cleanupEffortLabel} Fix
-            </Badge>
-          )}
-          {cleanupTypeLabel && (
-            <span className="text-xs text-[var(--color-success)]">
-              {cleanupTypeLabel}
-            </span>
-          )}
-        </div>
-      )}
-
-      {/* Federal Mandate Banner */}
-      {bookmark.federalMandateFound && !bookmark.easyCleanupCandidate && (
-        <div className="bg-[var(--color-danger-bg)] px-4 py-2 flex items-center gap-3 border-b border-[var(--color-danger)]">
-          <AlertTriangle className="w-5 h-5 text-[var(--color-danger)]" />
-          <span className="text-sm font-medium text-[var(--color-danger)]">
-            Federal Mandate Found
-          </span>
-        </div>
-      )}
-
-      <div className="p-4">
-        {/* Top row: Badges and Actions */}
-        <div className="flex items-start justify-between gap-4 mb-3">
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Issue Type */}
-            {issueTypeLabel && (
-              <Badge variant="warning" className="text-xs">
-                {issueTypeLabel}
-              </Badge>
-            )}
-
-            {/* Tier Progress */}
-            {bookmark.highestTierCompleted !== null && (
-              <Badge variant="default" className="text-xs">
-                Tier {bookmark.highestTierCompleted}
-              </Badge>
-            )}
-
-            {/* Classification */}
-            {classification && (
-              <Badge
-                variant={classification === 'burdensome' ? 'danger' : classification === 'justified' ? 'success' : 'default'}
-                className="text-xs capitalize"
-              >
-                {classification}
-              </Badge>
-            )}
-
-            {/* Federal Mandate (small badge if easy fix banner is showing) */}
-            {bookmark.federalMandateFound && bookmark.easyCleanupCandidate && (
-              <Badge variant="danger" className="text-xs">
-                Federal
-              </Badge>
-            )}
-
-            {/* Severity */}
-            {severity !== null && (
-              <span
-                className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${
-                  severity >= 7
-                    ? 'bg-[var(--color-danger-bg)] text-[var(--color-danger)]'
-                    : severity >= 4
-                      ? 'bg-[var(--color-warning-bg)] text-[var(--color-warning)]'
-                      : 'bg-[var(--color-success-bg)] text-[var(--color-success)]'
-                }`}
-                title={`Severity: ${severity}/10`}
-              >
-                {severity}
-              </span>
-            )}
-          </div>
-
-          {/* Labels + Actions */}
-          <div className="flex items-center gap-2 shrink-0">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              {bookmark.markers.length > 0 ? (
-                bookmark.markers.map(m => (
-                  <MarkerBadge key={m.id} name={m.name} color={m.color} size="sm"
-                    onRemove={() => onMarkerToggle(bookmark.id, m.id, false)} />
-                ))
-              ) : (
-                <span className="text-xs text-[var(--color-text-muted)] italic">No label</span>
-              )}
-              <MarkerPicker
-                bookmarkId={bookmark.id}
-                assignedMarkerIds={bookmark.markers.map(m => m.id)}
-                availableGroups={availableGroups}
-                onToggle={onMarkerToggle}
-                onCreateCustom={onCreateCustomMarker}
-              />
-            </div>
-            <Link
-              href={viewUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-[var(--color-primary)] bg-[var(--color-primary-weaker)] hover:bg-[var(--color-primary-weak)] rounded transition-colors"
-            >
-              View Analysis
-              <ExternalLink className="w-3 h-3" />
-            </Link>
-            <button
-              onClick={onRemove}
-              className="p-1.5 text-[var(--color-text-muted)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-bg)] rounded"
-              aria-label="Unsave"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-
-        {/* Document Title and Citation */}
-        <div className="mb-3">
-          {isGuidanceAnalysis ? (
-            <>
-              {bookmark.guidanceAgency && (
-                <p className="text-xs text-[var(--color-text-muted)] font-medium">{bookmark.guidanceAgency}</p>
-              )}
-              <h3 className="font-medium text-[var(--color-text)]" title={bookmark.guidanceTitle || ''}>
-                {bookmark.guidanceTitle || 'Untitled Document'}
-              </h3>
-              {bookmark.guidanceCanonicalRef && (
-                <p className="text-xs font-mono text-[var(--color-text-muted)] mt-0.5">
-                  {bookmark.guidanceCanonicalRef}
-                </p>
-              )}
-            </>
-          ) : (
-            <>
-              <h3 className="font-medium text-[var(--color-text)]" title={bookmark.documentTitle || ''}>
-                {bookmark.documentTitle || 'Untitled Document'}
-              </h3>
-              {bookmark.documentCitation && (
-                <p className="text-xs font-mono text-[var(--color-text-muted)] mt-0.5">
-                  {bookmark.documentCitation}
-                </p>
-              )}
-            </>
-          )}
-        </div>
-
-        {/* Tier 3 Trigger Reason (if available) */}
-        {bookmark.tier3TriggerReason && (
-          <div className="mb-3 text-xs text-[var(--color-text-muted)] flex items-start gap-2">
-            <Zap className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-            <span>
-              <span className="font-medium">Escalated to Tier 3:</span> {bookmark.tier3TriggerReason}
-            </span>
-          </div>
-        )}
-
-        {/* Notes */}
-        <div className="pt-3 border-t border-[var(--color-neutral-100)]">
-          <div className="flex items-center justify-between gap-2">
-            <MarkerNotesEditor notes={bookmark.notes} onSave={onSaveNotes} />
-            <div className="flex items-center gap-2 shrink-0">
-              {bookmark.createdBy && (
-                <span className="text-xs text-[var(--color-text-muted)]">
-                  {bookmark.createdBy}
-                </span>
-              )}
-              <span className="text-xs text-[var(--color-text-muted)]">
-                {bookmark.createdAt
-                  ? new Date(bookmark.createdAt).toLocaleDateString()
-                  : ''}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Simple document bookmark row
-interface DocumentBookmarkRowProps {
-  bookmark: BookmarkWithDetails;
-  jurisdiction: JurisdictionCode;
-  onSaveNotes: (notes: string) => Promise<void>;
-  onRemove: () => void;
-  availableGroups: MarkerGroup[];
-  onMarkerToggle: (bookmarkId: number, markerGroupId: number, assign: boolean) => void;
-  onCreateCustomMarker?: (name: string) => Promise<MarkerGroup | null> | void;
-}
-
-function DocumentBookmarkRow({
-  bookmark,
-  jurisdiction,
-  onSaveNotes,
-  onRemove,
-  availableGroups,
-  onMarkerToggle,
-  onCreateCustomMarker,
-}: DocumentBookmarkRowProps) {
-  if (!bookmark.documentId) return null;
-  const viewUrl = `/${jurisdiction.toLowerCase()}/regulations/${bookmark.documentId}`;
-
-  return (
-    <tr className={tableRowClass}>
-      {/* Document */}
-      <td className="px-4 py-3 max-w-xs">
-        <div className="truncate text-[var(--color-text)]" title={bookmark.documentTitle || ''}>
-          {bookmark.documentTitle || 'Untitled'}
-        </div>
-        {bookmark.documentCitation && (
-          <div className="truncate text-xs text-[var(--color-text-muted)] font-mono" title={bookmark.documentCitation}>
-            {bookmark.documentCitation}
-          </div>
-        )}
-      </td>
-
-      {/* Labels */}
-      <td className="px-4 py-3">
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {bookmark.markers.length > 0 ? (
-            bookmark.markers.map(m => (
-              <MarkerBadge key={m.id} name={m.name} color={m.color} size="sm"
-                onRemove={() => onMarkerToggle(bookmark.id, m.id, false)} />
-            ))
-          ) : (
-            <span className="text-xs text-[var(--color-text-muted)] italic">No label</span>
-          )}
-          <MarkerPicker
-            bookmarkId={bookmark.id}
-            assignedMarkerIds={bookmark.markers.map(m => m.id)}
-            availableGroups={availableGroups}
-            onToggle={onMarkerToggle}
-            onCreateCustom={onCreateCustomMarker}
-          />
-        </div>
-      </td>
-
-      {/* Notes */}
-      <td className="px-4 py-3">
-        <MarkerNotesEditor notes={bookmark.notes} onSave={onSaveNotes} compact />
-      </td>
-
-      {/* By */}
-      <td className="px-4 py-3 text-xs text-[var(--color-text-muted)]">
-        {bookmark.createdBy || '-'}
-      </td>
-
-      {/* Date */}
-      <td className="px-4 py-3 text-xs text-[var(--color-text-muted)]">
-        {bookmark.createdAt
-          ? new Date(bookmark.createdAt).toLocaleDateString()
-          : '-'}
-      </td>
-
-      {/* Actions */}
-      <td className="px-3 py-3">
-        <div className="flex items-center justify-end gap-2">
-          <Link
-            href={viewUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-xs text-[var(--color-primary)] hover:underline"
-          >
-            View
-            <ExternalLink className="w-3 h-3" />
-          </Link>
-          <button
-            onClick={onRemove}
-            className="p-1 text-[var(--color-text-muted)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-bg)] rounded"
-            aria-label="Unsave"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      </td>
-    </tr>
-  );
-}
-
-// Guidance document bookmark row
-interface GuidanceBookmarkRowProps {
-  bookmark: BookmarkWithDetails;
-  jurisdiction: JurisdictionCode;
-  onSaveNotes: (notes: string) => Promise<void>;
-  onRemove: () => void;
-  availableGroups: MarkerGroup[];
-  onMarkerToggle: (bookmarkId: number, markerGroupId: number, assign: boolean) => void;
-  onCreateCustomMarker?: (name: string) => Promise<MarkerGroup | null> | void;
-}
-
-function GuidanceBookmarkRow({
-  bookmark,
-  jurisdiction,
-  onSaveNotes,
-  onRemove,
-  availableGroups,
-  onMarkerToggle,
-  onCreateCustomMarker,
-}: GuidanceBookmarkRowProps) {
-  const viewUrl = `/${jurisdiction.toLowerCase()}/guidance/${bookmark.guidanceDocumentId}`;
-
-  return (
-    <tr className={tableRowClass}>
-      {/* Title & Ref */}
-      <td className="px-4 py-3 max-w-xs">
-        <div className="truncate text-[var(--color-text)]" title={bookmark.guidanceTitle || ''}>
-          {bookmark.guidanceTitle || 'Untitled'}
-        </div>
-        {bookmark.guidanceCanonicalRef && (
-          <div className="truncate text-xs text-[var(--color-text-muted)] font-mono" title={bookmark.guidanceCanonicalRef}>
-            {bookmark.guidanceCanonicalRef}
-          </div>
-        )}
-      </td>
-
-      {/* Agency */}
-      <td className="px-4 py-3 text-xs text-[var(--color-text-muted)]">
-        {bookmark.guidanceAgency || '-'}
-      </td>
-
-      {/* Labels */}
-      <td className="px-4 py-3">
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {bookmark.markers.length > 0 ? (
-            bookmark.markers.map(m => (
-              <MarkerBadge key={m.id} name={m.name} color={m.color} size="sm"
-                onRemove={() => onMarkerToggle(bookmark.id, m.id, false)} />
-            ))
-          ) : (
-            <span className="text-xs text-[var(--color-text-muted)] italic">No label</span>
-          )}
-          <MarkerPicker
-            bookmarkId={bookmark.id}
-            assignedMarkerIds={bookmark.markers.map(m => m.id)}
-            availableGroups={availableGroups}
-            onToggle={onMarkerToggle}
-            onCreateCustom={onCreateCustomMarker}
-          />
-        </div>
-      </td>
-
-      {/* Notes */}
-      <td className="px-4 py-3">
-        <MarkerNotesEditor notes={bookmark.notes} onSave={onSaveNotes} compact />
-      </td>
-
-      {/* By */}
-      <td className="px-4 py-3 text-xs text-[var(--color-text-muted)]">
-        {bookmark.createdBy || '-'}
-      </td>
-
-      {/* Date */}
-      <td className="px-4 py-3 text-xs text-[var(--color-text-muted)]">
-        {bookmark.createdAt
-          ? new Date(bookmark.createdAt).toLocaleDateString()
-          : '-'}
-      </td>
-
-      {/* Actions */}
-      <td className="px-3 py-3">
-        <div className="flex items-center justify-end gap-2">
-          <Link
-            href={viewUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-xs text-[var(--color-primary)] hover:underline"
-          >
-            View
-            <ExternalLink className="w-3 h-3" />
-          </Link>
-          <button
-            onClick={onRemove}
-            className="p-1 text-[var(--color-text-muted)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-bg)] rounded"
-            aria-label="Unsave"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      </td>
-    </tr>
-  );
-}
-
-// Fine bookmark row
-interface FineBookmarkRowProps {
-  bookmark: BookmarkWithDetails;
-  onRowClick: () => void;
-  onSaveNotes: (notes: string, createdBy?: string) => Promise<void>;
-  onRemove: () => void;
-  bookmarkName: string;
-  availableGroups: MarkerGroup[];
-  onMarkerToggle: (bookmarkId: number, markerGroupId: number, assign: boolean) => void;
-  onCreateCustomMarker?: (name: string) => Promise<MarkerGroup | null> | void;
-}
-
-function FineBookmarkRow({
-  bookmark,
-  onRowClick,
-  onSaveNotes,
-  onRemove,
-  bookmarkName,
-  availableGroups,
-  onMarkerToggle,
-  onCreateCustomMarker,
-}: FineBookmarkRowProps) {
-  if (!bookmark.fineId) return null;
-
-  return (
-    <>
-      <tr
-        onClick={onRowClick}
-        className="cursor-pointer hover:bg-[var(--color-neutral-50)] transition-colors"
-      >
-        {/* Type */}
-        <td className="px-4 py-3">
-          <span className="text-xs font-medium">
-            {bookmark.finePenaltyType
-              ? (PENALTY_TYPE_LABELS[bookmark.finePenaltyType] || bookmark.finePenaltyType)
-              : '-'}
-          </span>
-        </td>
-
-        {/* Amount */}
-        <td className="px-4 py-3 text-sm font-medium text-[var(--color-text)]">
-          {bookmark.fineAmount || '-'}
-        </td>
-
-        {/* Agency */}
-        <td className="px-4 py-3 text-xs text-[var(--color-text-muted)] max-w-[150px] truncate">
-          {bookmark.fineAgencyCanonicalName || '-'}
-        </td>
-
-        {/* Description */}
-        <td className="px-4 py-3 max-w-[200px]">
-          <div className="truncate text-xs text-[var(--color-text-secondary)]" title={bookmark.fineViolationDescription || ''}>
-            {bookmark.fineViolationDescription || '-'}
-          </div>
-        </td>
-
-        {/* Labels */}
-        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {bookmark.markers.length > 0 ? (
-              bookmark.markers.map(m => (
-                <MarkerBadge key={m.id} name={m.name} color={m.color} size="sm"
-                  onRemove={() => onMarkerToggle(bookmark.id, m.id, false)} />
-              ))
-            ) : (
-              <span className="text-xs text-[var(--color-text-muted)] italic">No label</span>
-            )}
-            <MarkerPicker
-              bookmarkId={bookmark.id}
-              assignedMarkerIds={bookmark.markers.map(m => m.id)}
-              availableGroups={availableGroups}
-              onToggle={onMarkerToggle}
-              onCreateCustom={onCreateCustomMarker}
-            />
-          </div>
-        </td>
-
-        {/* By */}
-        <td className="px-4 py-3 text-xs text-[var(--color-text-muted)]">
-          {bookmark.createdBy || '-'}
-        </td>
-
-        {/* Date */}
-        <td className="px-4 py-3 text-xs text-[var(--color-text-muted)]">
-          {bookmark.createdAt
-            ? new Date(bookmark.createdAt).toLocaleDateString()
-            : '-'}
-        </td>
-
-        {/* Actions */}
-        <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
-          <div className="flex items-center justify-end gap-2">
-            <button
-              onClick={onRemove}
-              className="p-1 text-[var(--color-text-muted)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-bg)] rounded"
-              aria-label="Unsave"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </td>
-      </tr>
-      <tr className="border-b border-[var(--color-neutral-100)]">
-        <td colSpan={8} className="px-4 pb-3 pt-0" onClick={(e) => e.stopPropagation()}>
-          <MarkerNotesEditor
-            notes={bookmark.notes}
-            onSave={onSaveNotes}
-            createdBy={bookmark.createdBy}
-            showName
-            defaultName={bookmarkName}
-          />
-        </td>
-      </tr>
-    </>
   );
 }
 
