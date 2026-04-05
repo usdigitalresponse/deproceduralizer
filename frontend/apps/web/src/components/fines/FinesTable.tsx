@@ -152,6 +152,20 @@ export function FinesTable({ data, state, onRowClick, bookmarkedFineIds, onToggl
 
   return (
     <div className="overflow-x-auto relative">
+      {/* Bulk action bar (top) */}
+      {showCheckboxes && selectedCount > 0 && availableGroups && (
+        <BulkActionBar
+          selectedCount={selectedCount}
+          onMarkAll={handleBulkMarkAll}
+          onAssignMarker={handleBulkAssignMarker}
+          onCreateAndAssign={onCreateAndAssignMarker ? handleBulkCreateAndAssign : undefined}
+          onUnmarkAll={onToggleBookmark ? handleBulkUnmarkAll : undefined}
+          onClear={clear}
+          availableGroups={availableGroups}
+          isProcessing={isProcessing}
+        />
+      )}
+
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-[var(--color-neutral-200)]">

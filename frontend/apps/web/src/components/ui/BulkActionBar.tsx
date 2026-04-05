@@ -81,7 +81,6 @@ export function BulkActionBar({
       {/* Action bar */}
       <div
         className="
-          sticky bottom-0 z-[var(--z-sticky,30)]
           flex items-center gap-3
           bg-[var(--color-neutral-800)] text-[var(--color-text-inverse)]
           px-4 py-2.5

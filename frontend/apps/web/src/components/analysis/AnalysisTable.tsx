@@ -566,6 +566,20 @@ export function AnalysisTable({ jurisdiction, source }: AnalysisTableProps) {
 
   return (
     <div className="bg-white border border-[var(--color-neutral-200)] rounded-[var(--radius-md)] overflow-hidden">
+      {/* Bulk action bar (top) */}
+      {selectedCount > 0 && (
+        <BulkActionBar
+          selectedCount={selectedCount}
+          onMarkAll={handleBulkMarkAll}
+          onAssignMarker={handleBulkAssignMarker}
+          onCreateAndAssign={handleBulkCreateAndAssign}
+          onUnmarkAll={handleBulkUnmarkAll}
+          onClear={clearSelection}
+          availableGroups={markerGroupsList}
+          isProcessing={isProcessing}
+        />
+      )}
+
       {/* Table */}
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
