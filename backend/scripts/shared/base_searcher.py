@@ -339,16 +339,20 @@ class BasePatternSearcher(ABC):
         print(f"\n[1/2] Formatting {len(matches)} batch requests...")
 
         requests = []
+        manifest = {}
         for match in matches:
             system_prompt, user_prompt = self.create_prompt(match)
+            custom_id = f"doc_{match['document_id']}"
             request = format_batch_request(
-                custom_id=f"doc_{match['document_id']}",
+                custom_id=custom_id,
                 prompt=user_prompt,
                 response_format=self.issue_config.response_model,
                 model=self.model,
                 system=system_prompt,
             )
             requests.append(request)
+            # Save match metadata (without full_content) for reliable batch processing
+            manifest[custom_id] = {k: v for k, v in match.items() if k != 'full_content'}
 
         print(f"      Formatted {len(requests)} requests")
 
@@ -365,11 +369,35 @@ class BasePatternSearcher(ABC):
             }
         )
 
+        # Persist match manifest alongside batch files for reliable re-processing
+        batch_dir = manager.find_batch_dir(batch_id)
+        if batch_dir:
+            manifest_file = batch_dir / 'match_manifest.json'
+            with open(manifest_file, 'w') as f:
+                json.dump(manifest, f, indent=2, ensure_ascii=False)
+            print(f"      Saved match manifest ({len(manifest)} entries)")
+
         print(f"      Submitted batch: {batch_id}")
         return batch_id
 
-    def process_batch_results(self, batch_id: str, matches: list[dict]) -> list[dict]:
-        """Process results from a completed batch."""
+    def load_match_manifest(self, batch_id: str) -> dict[str, dict] | None:
+        """Load persisted match manifest for a batch, if available."""
+        manager = BatchManager(batches_dir=self.batches_dir)
+        batch_dir = manager.find_batch_dir(batch_id)
+        if not batch_dir:
+            return None
+        manifest_file = batch_dir / 'match_manifest.json'
+        if not manifest_file.exists():
+            return None
+        with open(manifest_file) as f:
+            return json.load(f)
+
+    def process_batch_results(self, batch_id: str, matches: list[dict] | None = None) -> list[dict]:
+        """Process results from a completed batch.
+
+        Prefers loading the persisted match manifest (saved at submit time).
+        Falls back to the provided matches list for backwards compatibility.
+        """
         print("=" * 70)
         print(f"PROCESSING {self.issue_config.display_name.upper()} BATCH")
         print("=" * 70)
@@ -390,7 +418,18 @@ class BasePatternSearcher(ABC):
 
         print(f"      Batch completed: {status['succeeded']} succeeded, {status['errored']} errored")
 
-        match_lookup = {m['document_id']: m for m in matches}
+        # Try loading persisted manifest first (immutable, created at submit time)
+        manifest = self.load_match_manifest(batch_id)
+        if manifest:
+            print(f"      Loaded match manifest ({len(manifest)} entries)")
+            manifest_lookup = manifest
+        else:
+            print("      WARNING: No match manifest found — falling back to re-fetched matches")
+            if not matches:
+                print("      ERROR: No matches provided and no manifest found")
+                return []
+            manifest_lookup = {f"doc_{m['document_id']}": m for m in matches}
+
         batch_dir = manager.find_batch_dir(batch_id)
 
         print("[2/3] Retrieving and processing results...")
@@ -399,15 +438,18 @@ class BasePatternSearcher(ABC):
         results = []
         processed = 0
         errored = 0
+        missing = 0
 
         for result in results_iter:
             custom_id = result.custom_id
-            doc_id = int(custom_id.replace('doc_', ''))
-            match = match_lookup.get(doc_id)
+            match = manifest_lookup.get(custom_id)
 
             if not match:
+                missing += 1
                 errored += 1
                 processed += 1
+                if missing <= 5:
+                    print(f"      WARNING: No match found for {custom_id}")
                 continue
 
             if result.result.type != 'succeeded':
@@ -433,7 +475,9 @@ class BasePatternSearcher(ABC):
 
             processed += 1
 
-        print(f"      Processed {processed} results ({errored} errors)")
+        if missing > 5:
+            print(f"      ... and {missing - 5} more missing matches")
+        print(f"      Processed {processed} results ({errored} errors, {missing} missing matches)")
 
         if batch_dir:
             info_file = batch_dir / 'batch_info.json'

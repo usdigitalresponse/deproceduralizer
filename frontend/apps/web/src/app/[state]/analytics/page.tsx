@@ -2,9 +2,16 @@ import { notFound } from 'next/navigation';
 import { getDashboardStats } from '@/lib/actions/dashboard';
 import { getSectionTypeStats, getMetadataStats, getTopKeywords, getTopAppliesTo } from '@/lib/actions/regulations';
 import { getComplianceIssueStatusCounts, getComplianceIssueCountsByType, getComplianceIssueCountsByTypeAndClassification, getComplianceSeverityDistribution } from '@/lib/actions/compliance-issues';
-import { getJenAISeverityDistribution, getJenAIStatusCounts } from '@/lib/actions/jenai';
+import {
+  getJenAISeverityDistribution, getJenAIStatusCounts, getJenAICategories,
+  getJenAIParts, getJenAISectionTypes, getJenAIDeveloperStatusCounts,
+  getJenAIBurdenStats, getJenAIComplexityDistribution,
+  getJenAICategorySeverityMatrix, getJenAISourceTypeBreakdown,
+  getJenAIReviewProgressByCategory, getJenAIBurdenScoreDistribution,
+} from '@/lib/actions/jenai';
 import { getDefinitionAnalyticsStats } from '@/lib/actions/definitions';
 import { getStatuteStats } from '@/lib/actions/statutes';
+import { getJenAIStrategyStats } from '@/lib/actions/jenai-strategies';
 import { getPipelineAnalyticsData } from '@/lib/actions/pipeline-analytics';
 import { getGuidanceOverviewStats, getGuidanceCitationStats, getGuidanceReadabilityStats, getGuidanceReadabilityCrossCuts, getGuidanceLineageStats } from '@/lib/actions/guidance-documents';
 import { AnalyticsClient } from '@/components/analytics/AnalyticsClient';
@@ -56,6 +63,18 @@ export default async function AnalyticsPage({ params, searchParams }: AnalyticsP
     guidanceReadabilityStatsResult,
     guidanceReadabilityCrossCutsResult,
     guidanceLineageStatsResult,
+    // JenAI analytics tab data
+    jenaiCategoriesResult,
+    jenaiPartsResult,
+    jenaiSectionTypesResult,
+    jenaiDeveloperStatusCountsResult,
+    jenaiBurdenStatsResult,
+    jenaiComplexityDistributionResult,
+    jenaiCategorySeverityMatrixResult,
+    jenaiSourceTypeBreakdownResult,
+    jenaiReviewProgressByCategoryResult,
+    jenaiBurdenScoreDistributionResult,
+    jenaiStrategyStatsResult,
     complianceTypeClassificationResult,
   ] = await Promise.all([
     getDashboardStats(stateCode),
@@ -76,6 +95,18 @@ export default async function AnalyticsPage({ params, searchParams }: AnalyticsP
     getGuidanceReadabilityStats(stateCode),
     getGuidanceReadabilityCrossCuts(stateCode),
     getGuidanceLineageStats(stateCode),
+    // JenAI analytics tab
+    getJenAICategories(stateCode),
+    getJenAIParts(stateCode),
+    getJenAISectionTypes(stateCode),
+    getJenAIDeveloperStatusCounts(stateCode),
+    getJenAIBurdenStats(stateCode),
+    getJenAIComplexityDistribution(stateCode),
+    getJenAICategorySeverityMatrix(stateCode),
+    getJenAISourceTypeBreakdown(stateCode),
+    getJenAIReviewProgressByCategory(stateCode),
+    getJenAIBurdenScoreDistribution(stateCode),
+    getJenAIStrategyStats(stateCode),
     getComplianceIssueCountsByTypeAndClassification(stateCode, repoSource),
   ]);
 
@@ -99,6 +130,23 @@ export default async function AnalyticsPage({ params, searchParams }: AnalyticsP
   const guidanceReadabilityCrossCuts = guidanceReadabilityCrossCutsResult.success ? guidanceReadabilityCrossCutsResult.data : null;
   const guidanceLineageStats = guidanceLineageStatsResult.success ? guidanceLineageStatsResult.data : null;
   const complianceTypeClassification = complianceTypeClassificationResult.success ? complianceTypeClassificationResult.data : null;
+
+  // JenAI analytics tab — grouped into single prop object
+  const jenaiAnalyticsData = {
+    jenaiStats,
+    jenaiSeverity,
+    categories: jenaiCategoriesResult.success ? jenaiCategoriesResult.data : null,
+    parts: jenaiPartsResult.success ? jenaiPartsResult.data : null,
+    sectionTypes: jenaiSectionTypesResult.success ? jenaiSectionTypesResult.data : null,
+    developerStatusCounts: jenaiDeveloperStatusCountsResult.success ? jenaiDeveloperStatusCountsResult.data : null,
+    burdenStats: jenaiBurdenStatsResult.success ? jenaiBurdenStatsResult.data : null,
+    complexityDistribution: jenaiComplexityDistributionResult.success ? jenaiComplexityDistributionResult.data : null,
+    categorySeverityMatrix: jenaiCategorySeverityMatrixResult.success ? jenaiCategorySeverityMatrixResult.data : null,
+    sourceTypeBreakdown: jenaiSourceTypeBreakdownResult.success ? jenaiSourceTypeBreakdownResult.data : null,
+    reviewProgressByCategory: jenaiReviewProgressByCategoryResult.success ? jenaiReviewProgressByCategoryResult.data : null,
+    burdenScoreDistribution: jenaiBurdenScoreDistributionResult.success ? jenaiBurdenScoreDistributionResult.data : null,
+    strategyStats: jenaiStrategyStatsResult.success ? jenaiStrategyStatsResult.data : null,
+  };
 
   return (
     <div className="bg-[var(--color-background)] min-h-screen">
@@ -127,6 +175,7 @@ export default async function AnalyticsPage({ params, searchParams }: AnalyticsP
           guidanceReadabilityStats={guidanceReadabilityStats}
           guidanceReadabilityCrossCuts={guidanceReadabilityCrossCuts}
           guidanceLineageStats={guidanceLineageStats}
+          jenaiAnalyticsData={jenaiAnalyticsData}
           complianceTypeClassification={complianceTypeClassification}
         />
       </Container>

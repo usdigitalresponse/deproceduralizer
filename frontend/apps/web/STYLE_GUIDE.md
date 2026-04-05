@@ -2716,6 +2716,7 @@ apps/web/src/
 │   │   ├── KeywordsTab.tsx
 │   │   ├── StatutesTab.tsx
 │   │   ├── CrossReferencesTab.tsx
+│   │   ├── JenAIAnalyticsTab.tsx
 │   │   ├── cross-references/   # Cross-ref analytics sub-components
 │   │   ├── definitions-graph/  # Definitions graph visualizations
 │   │   ├── pipeline/           # Pipeline analytics sub-components
@@ -3739,7 +3740,7 @@ URL-based tabs using `nuqs`:
 ```tsx
 import { analyticsTabParser } from '@/lib/url/parsers';
 
-// ?tab=overview | crossrefs | issues | keywords | definitions | statutes | pipeline
+// ?tab=overview | crossrefs | issues | keywords | definitions | statutes | guidance | jenai | pipeline
 const [{ tab }, setParams] = useQueryStates({
   tab: analyticsTabParser,
 });
@@ -3835,6 +3836,40 @@ Content:
 - **Link Type Distribution**: Horizontal bar chart from `byLinkType` using `LINK_TYPE_LABELS`
 - **Match Quality**: Donut chart from `byMatchStatus` using `MATCH_STATUS_LABELS` with color-coded statuses (matched=green, corrected=blue, unmatched=yellow, obsolete=red)
 - **Link Type Details**: Grid of count cards for each link type
+
+### JenAIAnalyticsTab
+
+Dedicated analytics tab for JenAI Pahlka framework analysis. 6 scrollable sections with `StickyPageSectionTabs`.
+
+```tsx
+import { JenAIAnalyticsTab } from '@/components/analytics';
+
+<JenAIAnalyticsTab
+  jurisdiction={stateCode}
+  jenaiStats={jenaiStats}
+  jenaiSeverity={jenaiSeverity}
+  categories={jenaiCategories}
+  parts={jenaiParts}
+  sectionTypes={jenaiSectionTypes}
+  developerStatusCounts={jenaiDeveloperStatusCounts}
+  burdenStats={jenaiBurdenStats}
+  complexityDistribution={jenaiComplexityDistribution}
+  categorySeverityMatrix={jenaiCategorySeverityMatrix}
+  sourceTypeBreakdown={jenaiSourceTypeBreakdown}
+  reviewProgressByCategory={jenaiReviewProgressByCategory}
+  burdenScoreDistribution={jenaiBurdenScoreDistribution}
+/>
+```
+
+Sections:
+- **Overview**: 4 stat cards (Total Findings, High Severity, Review Progress %, Avg Burden)
+- **Category Landscape**: HorizontalBarChart (18 categories, structural highlighted in orange) + PieChart (Structural vs Non-Structural)
+- **Severity & Complexity**: Severity PieChart + Complexity PieChart + Category × Severity HeatmapGrid
+- **Parts & Sources**: HorizontalBarChart by Part + Section Type + PieChart (Regulation vs Guidance)
+- **Review & Developer Progress**: Review Status PieChart + Developer Status PieChart + StackedBarChart (categories × review statuses)
+- **Burden Hotspots**: 3 stat cards + BarChart histogram (burden score distribution by bucket)
+
+Uses `STRUCTURAL_CATEGORIES` and `JENAI_CATEGORY_LABELS` from `lib/constants/jenai.ts`.
 
 ### PipelineTab
 
@@ -4565,6 +4600,43 @@ src/hooks/
 src/lib/constants/
   fines.ts                -- PENALTY_TYPE_LABELS, PENALTY_TYPE_LABELS_PLURAL, PENALTY_TYPE_COLORS, SOURCE_TYPE_LABELS, SOURCE_TYPE_COLORS, SOURCE_TYPE_BADGE_LABELS, ACTIVITY_CATEGORY_LABELS, ESTIMATED_PAYERS_LABELS
 src/lib/url/parsers.ts    -- finesParsers (tab, page, pageSize, sortBy, sortOrder, penaltyType, agency, search, sourceType, amountMin, amountMax, whoPays, perUnit)
+```
+
+---
+
+## JenAI Strategies Components
+
+Components for browsing JenAI framework findings filtered by different analysis strategies. Located in `components/jenai/`.
+
+### JenAIStrategiesClient
+
+Main client component using `nuqs` URL state via `jenaiStrategyParsers`. Uses `SegmentedControl` with 5 tabs: Overview, Best Stories, Surprises, Pahlka Framework, Action Plan.
+
+### JenAIOverviewTab
+
+Stats overview with 4 `StatCard`s in a `StatGrid columns={4}`: Total Findings, Best Stories, Surprises, Pahlka Framework. Two `HorizontalBarChart`s showing category and severity distributions.
+
+### JenAIBrowseTab
+
+Browse tab shared across all 4 strategy tabs. Shows strategy description banner, `FilterBar` with category (MultiSelect), severity (Select), and search. Paginated results using `JenAIStrategyTable`.
+
+### JenAIStrategyTable
+
+Data table with columns: Category (color badge), Severity (color badge), Type (regulation/guidance badge), Source (link), Explanation (truncated with `line-clamp-2`). Uses `tableHeaderClass` and `tableRowClass` from `ui/table-styles`.
+
+### File Layout
+
+```
+src/components/jenai/
+  JenAIStrategiesClient.tsx -- Tab container (Overview + 4 strategy tabs)
+  JenAIOverviewTab.tsx      -- Stats + charts overview
+  JenAIBrowseTab.tsx        -- Browse with filters, pagination per strategy
+  JenAIStrategyTable.tsx    -- Data table for strategy findings
+src/app/[state]/jenai/
+  page.tsx                  -- Server component fetching stats
+src/lib/actions/
+  jenai-strategies.ts       -- Server actions (stats + paginated query with strategy filters)
+src/lib/url/parsers.ts      -- jenaiStrategyParsers (tab, page, pageSize, sortBy, sortOrder, category, severity, search)
 ```
 
 ---

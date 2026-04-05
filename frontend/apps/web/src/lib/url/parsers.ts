@@ -104,6 +104,8 @@ import {
   JENAI_REVIEW_SORT_BY_VALUES,
   JENAI_DEVELOPER_SORT_BY_VALUES,
   JENAI_VERBATIM_VALUES,
+  JENAI_STRATEGY_TAB_VALUES,
+  JENAI_STRATEGY_SORT_BY_VALUES,
   // Markers (formerly Bookmarks)
   MARKER_TAB_VALUES,
   // Burden Index
@@ -175,6 +177,8 @@ export type {
   JenAIVerbatimValue,
   JenAIReviewSortByValue,
   JenAIDeveloperSortByValue,
+  JenAIStrategyTabValue,
+  JenAIStrategySortByValue,
   CrossRefViewModeValue,
   CrossRefTableModeValue,
   CrossRefResolvedValue,
@@ -887,6 +891,27 @@ export const tagsParsers = {
   fieldA: tagFieldAParser,
   fieldB: tagFieldBParser,
   readField: readabilityFieldParser,
+};
+
+// ============================================
+// JenAI Strategies page parsers
+// ============================================
+
+export const jenaiStrategyTabParser = parseAsStringEnum([...JENAI_STRATEGY_TAB_VALUES]).withDefault('overview');
+export const jenaiStrategySortByParser = parseAsStringEnum([...JENAI_STRATEGY_SORT_BY_VALUES]).withDefault('severity');
+
+/**
+ * Parser configuration for JenAI Strategies page
+ */
+export const jenaiStrategyParsers = {
+  tab: jenaiStrategyTabParser,
+  page: pageParser,
+  pageSize: pageSizeParser,
+  sortBy: jenaiStrategySortByParser,
+  sortOrder: sortOrderParser,
+  category: parseAsString,
+  severity: parseAsString,
+  search: searchParser,
 };
 
 // ============================================

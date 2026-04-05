@@ -1,4 +1,4 @@
-import { Table, FolderTree, ClipboardCheck, Home, Code, BarChart3, FlaskConical, Search, BookOpen, DollarSign, Tag, Layers, type LucideIcon } from 'lucide-react';
+import { Table, FolderTree, ClipboardCheck, Home, Code, BarChart3, FlaskConical, Search, BookOpen, DollarSign, Tag, Layers, Lightbulb, type LucideIcon } from 'lucide-react';
 // Entity-type icons sourced from entity-types.ts (canonical visual identity)
 import { getEntityIcon } from './entity-types';
 
@@ -157,6 +157,14 @@ export const NAV_ITEMS: NavItem[] = [
     icon: DollarSign,
     isStateSpecific: true,
     pathSuffix: '/fines',
+    groupId: 'metrics',
+  },
+  {
+    key: 'jenai',
+    label: 'JenAI Analysis',
+    icon: Lightbulb,
+    isStateSpecific: true,
+    pathSuffix: '/jenai',
     groupId: 'metrics',
   },
   {

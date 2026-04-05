@@ -8,6 +8,8 @@ from .db.document_queries import get_sections_for_analysis, get_guidance_for_ana
 from .db.analysis_writer import save_analysis_results
 from .db.analysis_reader import get_existing_analyses
 from .tiers.prepare_batch import prepare_analysis_batch, prepare_guidance_batch
+from .retry_verbatim import retry_non_verbatim_text_examples
+from scripts.classify_topics import run_topic_classification
 from .config import DEFAULT_MAX_SECTIONS, BATCH_MODEL
 from lib.batch import run_batch_tier, run_realtime_tier
 from lib.cache import CacheManager
@@ -35,6 +37,7 @@ def run_pipeline(
     source_type: str = "regulation",
     agency: str | None = None,
     doc_type: str | None = None,
+    retry_verbatim: bool = False,
 ) -> dict:
     """Run the JenAI single-pass enriched pipeline.
 
@@ -154,11 +157,22 @@ def run_pipeline(
                 cache=cache, cache_pipeline="jenai", cache_tier=1,
             )
 
+        # Retry non-verbatim text_examples before saving (opt-in: costs money)
+        if retry_verbatim:
+            print("\n=== Validating text_examples (verbatim check + retry) ===")
+            retry_non_verbatim_text_examples(pending_units)
+        else:
+            print("\n  Skipping verbatim retry (pass --retry-verbatim to enable)")
+
         # Save results
         saved = save_analysis_results(pending_units, batch_id, run_id)
         completed = sum(1 for u in pending_units if u.state == ProcessingState.DONE)
         errors = sum(1 for u in pending_units if u.state == ProcessingState.ERROR)
         print(f"Saved {saved} results ({completed} completed, {errors} errors)")
+
+        # Submit topic classification batch (non-blocking — poll separately)
+        print("\n=== Topic classification (multi-label) ===")
+        run_topic_classification(submit_only=True)
 
     if cache.enabled:
         print(f"\n{cache.summary()}")

@@ -344,10 +344,12 @@ class FinesSearcher(BasePatternSearcher):
 
     def submit_batch(self, matches: list[dict]) -> str:
         """Override to use guid_ prefix for guidance document IDs."""
+        import json as _json
         from lib.batch import format_batch_request, BatchManager
 
         print(f"\n[1/2] Formatting {len(matches)} batch requests...")
         requests = []
+        manifest = {}
         for match in matches:
             system_prompt, user_prompt = self.create_prompt(match)
             if match.get('source_type') == 'guidance':
@@ -362,6 +364,8 @@ class FinesSearcher(BasePatternSearcher):
                 system=system_prompt,
             )
             requests.append(request)
+            # Save match metadata (without full_content) for reliable batch processing
+            manifest[custom_id] = {k: v for k, v in match.items() if k != 'full_content'}
         print(f"      Formatted {len(requests)} requests")
 
         print(f"\n[2/2] Submitting to Anthropic Batch API...")
@@ -375,11 +379,39 @@ class FinesSearcher(BasePatternSearcher):
                 'match_count': len(matches),
             }
         )
+
+        # Persist match manifest alongside batch files for reliable re-processing
+        batch_dir = manager.find_batch_dir(batch_id)
+        if batch_dir:
+            manifest_file = batch_dir / 'match_manifest.json'
+            with open(manifest_file, 'w') as f:
+                _json.dump(manifest, f, indent=2, ensure_ascii=False)
+            print(f"      Saved match manifest ({len(manifest)} entries)")
+
         print(f"      Submitted batch: {batch_id}")
         return batch_id
 
-    def process_batch_results(self, batch_id: str, matches: list[dict]) -> list[dict]:
-        """Override to handle both doc_ and guid_ custom IDs."""
+    def load_match_manifest(self, batch_id: str) -> dict[str, dict] | None:
+        """Load persisted match manifest for a batch, if available."""
+        import json as _json
+        from lib.batch import BatchManager
+
+        manager = BatchManager(batches_dir=self.batches_dir)
+        batch_dir = manager.find_batch_dir(batch_id)
+        if not batch_dir:
+            return None
+        manifest_file = batch_dir / 'match_manifest.json'
+        if not manifest_file.exists():
+            return None
+        with open(manifest_file) as f:
+            return _json.load(f)
+
+    def process_batch_results(self, batch_id: str, matches: list[dict] | None = None) -> list[dict]:
+        """Override to handle both doc_ and guid_ custom IDs.
+
+        Prefers loading the persisted match manifest (saved at submit time).
+        Falls back to the provided matches list for backwards compatibility.
+        """
         from lib.batch import BatchManager, parse_batch_result_tool_use
 
         print("=" * 70)
@@ -401,14 +433,24 @@ class FinesSearcher(BasePatternSearcher):
 
         print(f"      Batch completed: {status['succeeded']} succeeded, {status['errored']} errored")
 
-        # Build lookup supporting both doc_ and guid_ prefixes
-        doc_lookup = {}
-        guid_lookup = {}
-        for m in matches:
-            if m.get('source_type') == 'guidance':
-                guid_lookup[m['guidance_document_id']] = m
-            else:
-                doc_lookup[m['document_id']] = m
+        # Try loading persisted manifest first (immutable, created at submit time)
+        manifest = self.load_match_manifest(batch_id)
+        if manifest:
+            print(f"      Loaded match manifest ({len(manifest)} entries)")
+            # Build lookup directly from manifest keyed by custom_id
+            manifest_lookup = manifest
+        else:
+            print("      WARNING: No match manifest found — falling back to re-fetched matches")
+            if not matches:
+                print("      ERROR: No matches provided and no manifest found")
+                return []
+            manifest_lookup = {}
+            for m in matches:
+                if m.get('source_type') == 'guidance':
+                    cid = f"guid_{m['guidance_document_id']}"
+                else:
+                    cid = f"doc_{m['document_id']}"
+                manifest_lookup[cid] = m
 
         batch_dir = manager.find_batch_dir(batch_id)
 
@@ -417,19 +459,18 @@ class FinesSearcher(BasePatternSearcher):
         results = []
         processed = 0
         errored = 0
+        missing = 0
 
         for result in results_iter:
             custom_id = result.custom_id
-            if custom_id.startswith('guid_'):
-                gid = int(custom_id.replace('guid_', ''))
-                match = guid_lookup.get(gid)
-            else:
-                did = int(custom_id.replace('doc_', ''))
-                match = doc_lookup.get(did)
+            match = manifest_lookup.get(custom_id)
 
             if not match:
+                missing += 1
                 errored += 1
                 processed += 1
+                if missing <= 5:
+                    print(f"      WARNING: No match found for {custom_id}")
                 continue
 
             if result.result.type != 'succeeded':
@@ -453,7 +494,9 @@ class FinesSearcher(BasePatternSearcher):
 
             processed += 1
 
-        print(f"      Processed {processed} results ({errored} errors)")
+        if missing > 5:
+            print(f"      ... and {missing - 5} more missing matches")
+        print(f"      Processed {processed} results ({errored} errors, {missing} missing matches)")
         return results
 
     def print_results(self, results: list[dict]) -> None:
@@ -626,10 +669,15 @@ def main():
         manager = BatchManager(batches_dir=searcher.batches_dir)
         manager.poll_until_complete(batch_id, poll_interval=60)
         print("\nBatch complete! Processing results...")
-        matches = searcher.search(limit=args.limit)
-        if args.include_guidance:
-            matches.extend(searcher.search_guidance(limit=args.limit))
-        results = searcher.process_batch_results(batch_id, matches)
+        # Use persisted manifest if available; fall back to re-search
+        if searcher.load_match_manifest(batch_id):
+            results = searcher.process_batch_results(batch_id)
+        else:
+            print("WARNING: No manifest found — re-searching (results may differ from submission)")
+            matches = searcher.search(limit=args.limit)
+            if args.include_guidance:
+                matches.extend(searcher.search_guidance(limit=args.limit))
+            results = searcher.process_batch_results(batch_id, matches)
         if results:
             saved = searcher.save_to_database(results)
             searcher.print_results(results)
@@ -638,10 +686,15 @@ def main():
 
     if args.process_batch:
         print(f"\nProcessing batch: {args.process_batch}")
-        matches = searcher.search(limit=args.limit)
-        if args.include_guidance:
-            matches.extend(searcher.search_guidance(limit=args.limit))
-        results = searcher.process_batch_results(args.process_batch, matches)
+        # Use persisted manifest if available; fall back to re-search
+        if searcher.load_match_manifest(args.process_batch):
+            results = searcher.process_batch_results(args.process_batch)
+        else:
+            print("WARNING: No manifest found — re-searching (results may differ from submission)")
+            matches = searcher.search(limit=args.limit)
+            if args.include_guidance:
+                matches.extend(searcher.search_guidance(limit=args.limit))
+            results = searcher.process_batch_results(args.process_batch, matches)
         if results:
             saved = searcher.save_to_database(results)
             searcher.print_results(results)

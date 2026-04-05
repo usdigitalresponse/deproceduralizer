@@ -82,3 +82,14 @@ backend/volume_comparison_*.csv
 
 # Backup files
 backups/
+
+# Scratch/test JSON files
+jenai_*.json
+
+# Tournament intermediate outputs (large, regeneratable)
+backend/outputs/jenai_tournament/round1_all.json
+backend/outputs/jenai_tournament/round1_keepers.json
+backend/outputs/jenai_tournament/round2_semifinalists.json
+backend/outputs/fix_text_examples/
+backend/outputs/jenai_domains/
+backend/outputs/jenai_tournament/batches/

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Code, Search, X, Shield, Cpu } from 'lucide-react';
+import { Code, Search, X, Shield, Cpu, Trophy } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { PromptCard } from './PromptCard';
 import { CompliancePromptCard } from './CompliancePromptCard';
@@ -11,6 +11,7 @@ interface PromptsListProps {
   prompts: PromptData[];
   compliancePrompts?: CompliancePromptData[];
   jenaiPrompts?: PromptData[];
+  tournamentPrompts?: PromptData[];
   feedbackCounts: Record<string, number>;
   className?: string;
 }
@@ -22,11 +23,12 @@ export function PromptsList({
   prompts,
   compliancePrompts = [],
   jenaiPrompts = [],
+  tournamentPrompts = [],
   feedbackCounts,
   className = '',
 }: PromptsListProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const totalPrompts = prompts.length + compliancePrompts.length + jenaiPrompts.length;
+  const totalPrompts = prompts.length + compliancePrompts.length + jenaiPrompts.length + tournamentPrompts.length;
 
   // Filter core prompts based on search query
   const filteredPrompts = useMemo(() => {
@@ -63,6 +65,17 @@ export function PromptsList({
     );
   }, [jenaiPrompts, searchQuery]);
 
+  // Filter tournament prompts based on search query
+  const filteredTournamentPrompts = useMemo(() => {
+    if (!searchQuery.trim()) return tournamentPrompts;
+    const query = searchQuery.toLowerCase();
+    return tournamentPrompts.filter(
+      (p) =>
+        p.name.toLowerCase().includes(query) ||
+        p.description.toLowerCase().includes(query)
+    );
+  }, [tournamentPrompts, searchQuery]);
+
   // Group compliance prompts by category
   const complianceByCategory = useMemo(() => {
     const groups: Record<string, CompliancePromptData[]> = {};
@@ -73,7 +86,7 @@ export function PromptsList({
     return groups;
   }, [filteredCompliancePrompts]);
 
-  const totalFiltered = filteredPrompts.length + filteredCompliancePrompts.length + filteredJenaiPrompts.length;
+  const totalFiltered = filteredPrompts.length + filteredCompliancePrompts.length + filteredJenaiPrompts.length + filteredTournamentPrompts.length;
 
   return (
     <div className={`space-y-6 ${className}`}>
@@ -157,6 +170,26 @@ export function PromptsList({
             </span>
           </h2>
           {filteredJenaiPrompts.map((prompt) => (
+            <PromptCard
+              key={prompt.name}
+              prompt={prompt}
+              feedbackCount={feedbackCounts[prompt.name] || 0}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Tournament Pipeline Prompts */}
+      {filteredTournamentPrompts.length > 0 && (
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold text-[var(--color-text)] flex items-center gap-2">
+            <Trophy className="w-5 h-5 text-[var(--color-primary)]" />
+            Tournament Pipeline Prompts
+            <span className="text-sm font-normal text-[var(--color-text-muted)]">
+              ({filteredTournamentPrompts.length})
+            </span>
+          </h2>
+          {filteredTournamentPrompts.map((prompt) => (
             <PromptCard
               key={prompt.name}
               prompt={prompt}

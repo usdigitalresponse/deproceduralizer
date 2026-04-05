@@ -879,6 +879,29 @@ LLM-based classification scripts that add normalized fields to existing data. Al
 
 All scripts default to dry-run. Use `--limit N` to test on a subset first.
 
+## JenAI Tournament Pipeline
+
+Filters JenAI findings into actionable recommendations through multi-round LLM evaluation.
+
+| Command | Purpose | Cost |
+|---------|---------|------|
+| `cd backend && python scripts/jenai_tournament.py --full` | Full pipeline: Pass 1 + Pass 2 + top examples + JSON | ~$15 |
+| `cd backend && python scripts/jenai_tournament.py --domain childcare` | Childcare-specific themes + fixes | ~$1 |
+| `cd backend && python scripts/jenai_tournament.py --domain permitting` | Permitting-specific themes + fixes | ~$1 |
+| `cd backend && python scripts/jenai_tournament.py --verify` | Web search verification on Pass 1 semifinalists | ~$5 |
+| `cd backend && python scripts/jenai_tournament.py --build-json` | Rebuild tournament_results.json (no API calls) | $0 |
+| `cd backend && python scripts/import_tournament_results.py` | Import tournament_results.json into DB tables | $0 |
+| `cd backend && python scripts/classify_topics.py --execute` | Multi-label topic classification (50 topics) | ~$3-5 |
+| `cd backend && python scripts/validate_verbatim.py --execute` | Fix is_verbatim flags on text_examples | $0 |
+| `cd backend && python scripts/fix_text_examples.py --execute` | Re-extract verbatim text_examples via batch | ~$3 |
+
+**Outputs:**
+- `backend/outputs/jenai_strategies/tournament_results.json` — unified results for frontend
+- `backend/outputs/jenai_domains/{domain}/analysis.json` — domain-specific analysis
+- DB tables: `tournament_patterns`, `tournament_examples`, `tournament_named_findings`
+
+**Prompts:** `prompts/tournament.yaml` (all prompts loaded from YAML)
+
 ## Utility & Recovery Scripts
 
 | Command | Purpose |

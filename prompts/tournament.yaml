@@ -1,0 +1,409 @@
+# =============================================================================
+# JenAI Tournament Pipeline: 3-Round Filtering Prompts
+# =============================================================================
+#
+# Two passes:
+#   Pass 1: Easy text fixes (swap a word, update a reference)
+#   Pass 2: Structural policy fixes (add proportionality, size exemptions, etc.)
+#
+# Rounds:
+#   Round 1: Importance filter — is this important, fixable, and enforced?
+#   Round 2: Tournament bracket — pick 5 best from each batch of 50
+#   Round 3: Group by fix pattern — collapse duplicates into recommendations
+#   Merge: Consolidate similar Round 3 groups (Pass 2 only)
+#   Top examples: Pick 5 most compelling examples per mega-pattern
+#
+# Usage:
+#   from lib.prompts import load_prompt_parts
+#   # Or load directly via yaml:
+#   import yaml
+#   with open(PROJECT_ROOT / "prompts" / "tournament.yaml") as f:
+#       prompts = yaml.safe_load(f)
+
+# -----------------------------------------------------------------------------
+# SHARED: Top Examples (used by both passes)
+# -----------------------------------------------------------------------------
+
+top_examples:
+  updated_at: "2026-03-17"
+  description: |
+    Pick the 5 most compelling examples from a mega-pattern's findings.
+    Ranks by narrative impact: concrete harm, scale, absurdity, clarity.
+  system: |
+    Pick the 5 most compelling examples from this list of regulatory findings
+    that all share the same fix pattern. "Compelling" means:
+
+    1. CONCRETE HARM: Real people are hurt in a specific, vivid way right now
+    2. SCALE: Affects many people, or the affected population is vulnerable
+    3. ABSURDITY: A layperson would say "that's obviously broken"
+    4. CLARITY: The fix is obvious and the before/after is dramatic
+
+    Rank by "if a journalist wrote about this, which would make the best story?"
+
+    Reply with exactly 5 lines, each starting with the finding number.
+  template: |
+    Fix pattern: {pattern_name}
+
+    {findings_text}
+
+# =============================================================================
+# PASS 1: Easy Text Fixes
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Pass 1 Round 1: Importance Filter
+# -----------------------------------------------------------------------------
+
+pass1_round1:
+  updated_at: "2026-03-17"
+  description: |
+    Evaluate each JenAI finding for importance (hurts real people now),
+    fixability (specific text edit), and enforcement. ~10% should pass.
+    Uses tool_choice to force structured output via ImportantAndFixable schema.
+  system: |
+    You are helping identify the most important, easily fixable regulatory
+    problems in New York State. We need findings that are ALL THREE: important
+    (hurts real people now), fixable (specific text edit), and enforced.
+
+    WANT: ICD-9 codes in Medicaid billing (every hospital, easy fix, enforced).
+    Identical requirements for 4-child home and 200-child center (add exemption).
+    Paper-only high-volume application (authorize electronic).
+    Film darkrooms mandated when radiology is digital (change the word).
+
+    DON'T WANT: Renamed agency (cosmetic). No success metrics (abstract).
+    Expired deadline (dead letter). Complex regulation (observation).
+    Unfunded mandate needing new money. No appeal mechanism (new policy).
+    Dead URLs (webmaster). "Establish a program" fixes.
+
+    If the fix requires 'establish', 'create', 'fund', or 'appropriate' -> fixable=false.
+    If you can't name the specific regulation section to edit -> fixable=false.
+    ~10% should pass. If in doubt, keep=false.
+  template: |
+    [{category}] {citation} (sev {severity})
+    {explanation}
+    Tags: {tags}
+
+# -----------------------------------------------------------------------------
+# Pass 1 Round 2: Tournament Bracket
+# -----------------------------------------------------------------------------
+
+pass1_round2:
+  updated_at: "2026-03-17"
+  description: |
+    Pick the 5 most impactful, clearly fixable findings from a batch of 50.
+    Prefers literal text edits: electronic submission, obsolete standard swaps,
+    notarization removal, size exemptions, deemed-approved deadlines.
+  system: |
+    Pick the 5 most impactful, clearly fixable findings from this numbered list.
+
+    Criteria — ALL must be true:
+    1. Harm is concrete and affects many people NOW
+    2. Fix is a LITERAL TEXT EDIT — delete a word, replace a term, add one sentence
+    3. A state official would say "yeah, we should just fix that"
+
+    PREFER these kinds of findings:
+    - "Authorize electronic submission" added to a paper-only process
+    - "Replace ICD-9 with ICD-10" — swap an obsolete standard
+    - "Remove notarization requirement" or "allow sworn statement"
+    - "Add: programs under X are exempt" — one-sentence size exemption
+    - "Add 30-day deemed-approved deadline" to an open-ended approval
+
+    DO NOT PICK these — they slipped through Round 1 but are NOT text edits:
+    - "Add tiered service requirements" — that's redesigning the regulation
+    - "Create an alternative pathway" — that's new policy
+    - "Establish a grant/reimbursement mechanism" — that's new funding
+    - Browser/system compatibility issues — that's IT, not regulation
+    - "Permit substitution of experience for training hours" — new policy
+    - Income reporting threshold changes — policy redesign
+
+    Reply with ONLY 5 lines, each starting with the finding number:
+    14 - Replace ICD-9 with ICD-10 in Medicaid billing — affects every hospital
+    37 - Authorize electronic submission for high-volume application
+  template: |
+    {findings_text}
+
+# -----------------------------------------------------------------------------
+# Pass 1 Round 3: Group by Fix Pattern
+# -----------------------------------------------------------------------------
+
+pass1_round3:
+  updated_at: "2026-03-17"
+  description: |
+    Group semifinalists into narrow categories where the fix is literally
+    the same action applied to different regulations. Uses tool_choice
+    to force structured JSON output via Round3Groups schema.
+  system: |
+    Group these regulatory fixes into NARROW categories where the fix is
+    LITERALLY THE SAME ACTION applied to different regulations.
+
+    SAME GROUP (same mechanical fix):
+    - "Add 'or electronically' after 'in writing' in 18 NYCRR 359.6"
+    - "Add 'or electronically' after 'in writing' in 14 NYCRR 703.5"
+    -> Group: "Add 'or electronically' after 'in writing'"
+
+    - "Add 30-day deemed-approved deadline to 18 NYCRR 476.2"
+    - "Add 30-day deemed-approved deadline to 21 OCFS ADM 19"
+    -> Group: "Add deemed-approved deadline to open-ended approval"
+
+    DIFFERENT GROUPS (different fixes even if same theme):
+    - "Replace ICD-9 with ICD-10" != "Replace NFPA 2000 edition with current edition"
+    - "Remove notarization requirement" != "Authorize electronic submission"
+    - "Replace fax requirement with secure electronic" != "Add email as filing option"
+    - "Replace 'in writing' with 'in writing or electronically'" != "Replace certified mail with email"
+
+    Be NARROW. The test is: could a single rulemaking action apply this exact
+    fix to all regulations in the group? If not, split into separate groups.
+
+    Return a JSON list of groups, each with a 'fix' (the reusable fix pattern)
+    and 'indices' (list of finding numbers from the input).
+  template: |
+    {findings_text}
+
+# =============================================================================
+# PASS 2: Structural Policy Fixes
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Pass 2 Round 2: Structural Tournament Bracket
+# -----------------------------------------------------------------------------
+
+pass2_round2:
+  updated_at: "2026-03-17"
+  description: |
+    Pick the 5 most impactful structural findings from a batch of 50.
+    Prefers policy-flavored one-sentence fixes: proportionality, size
+    exemptions, prioritization clauses, cure periods, outcome standards.
+  system: |
+    Pick the 5 most impactful findings from this numbered list. These are
+    STRUCTURAL regulatory problems — not typos or obsolete references, but
+    policy design flaws fixable by adding ONE SENTENCE to existing regulation text.
+
+    Criteria — ALL must be true:
+    1. Harm is concrete and affects many people NOW
+    2. Fix is ONE SENTENCE added or replaced — not a new program, not new funding
+    3. The fix changes HOW the regulation works, not just what word it uses
+
+    PREFER these kinds of findings (structural but still a line change):
+    - "Add: 'Programs serving fewer than 6 children are exempt from (a)(3)-(a)(7)'" — size exemption
+    - "Replace 'shall ensure no X ever occurs' with 'shall take reasonable steps to minimize X'" — proportionality
+    - "Add: 'When requirements in this section conflict, child safety takes precedence'" — prioritization clause
+    - "Add: 'If the agency does not respond within 30 days, the application is deemed approved'" — cure period / deemed approval
+    - "Replace 'must use form OCFS-7018' with 'must collect the following data: [fields]'" — outcome over process
+
+    DO NOT PICK:
+    - "Authorize electronic submission" / "replace ICD-9" — those are Pass 1 (mechanical text swaps)
+    - "Establish a tiered licensing system" — that's a whole new program
+    - "Create a grant/reimbursement mechanism" — that's new funding
+    - "Conduct a study" / "convene a workgroup" — that's not a reg fix
+    - Abstract observations without a specific one-sentence fix
+
+    Reply with ONLY 5 lines, each starting with the finding number:
+    14 - Add size exemption for small providers to staffing ratio mandate
+    37 - Replace absolute safety language with proportionality standard
+  template: |
+    {findings_text}
+
+# -----------------------------------------------------------------------------
+# Pass 2 Round 3: Group by Policy Fix Pattern
+# -----------------------------------------------------------------------------
+
+pass2_round3:
+  updated_at: "2026-03-17"
+  description: |
+    Group structural semifinalists by policy fix type. Groups by fix
+    approach (same policy mechanism) rather than identical text edit.
+    Uses tool_choice to force structured JSON output via Round3Groups schema.
+  system: |
+    Group these structural regulatory fixes into categories where the
+    FIX APPROACH is the same even if applied to different regulatory domains.
+
+    SAME GROUP (same policy fix pattern):
+    - "Add: facilities with <6 beds exempt from (a)(3)-(a)(7)" in 14 NYCRR 686.6
+    - "Add: programs serving <10 children exempt from staffing ratios" in 18 NYCRR 418.10
+    -> Group: "Add small-provider/small-facility size exemption"
+
+    - "Replace 'shall ensure no X ever occurs' with 'shall take reasonable steps'" in 10 NYCRR 47-6.5
+    - "Replace 'free from all conditions' with 'free from conditions a reasonable facility would identify'" in 18 NYCRR 448.3
+    -> Group: "Replace absolute/zero-risk language with proportionality standard"
+
+    DIFFERENT GROUPS (different fix approaches):
+    - "Add size exemption" != "Add prioritization clause" (different policy tools)
+    - "Replace absolute with proportional" != "Add cure period" (different mechanisms)
+    - "Replace process mandate with outcome standard" != "Add deemed-approved deadline"
+
+    Be specific enough that a policy analyst could draft the fix pattern once
+    and apply it across all regulations in the group. But don't split groups
+    that use the same policy mechanism just because they're in different domains.
+
+    Return a JSON list of groups, each with a 'fix' (the reusable policy fix
+    pattern) and 'indices' (list of finding numbers from the input).
+  template: |
+    {findings_text}
+
+# -----------------------------------------------------------------------------
+# Pass 2 Merge: Consolidate Similar Patterns
+# -----------------------------------------------------------------------------
+
+pass2_merge:
+  updated_at: "2026-03-17"
+  description: |
+    Merge similar Round 3 patterns that describe the same policy mechanism
+    into clean mega-patterns. Produces final deliverable groupings.
+    Uses tool_choice to force structured JSON output via MergedGroups schema.
+  system: |
+    You have a list of regulatory fix patterns with counts. Many are duplicates
+    described slightly differently because they came from different processing chunks.
+
+    Merge patterns that describe THE SAME policy mechanism into a single group.
+    Give each merged group a clean, concise name (5-10 words).
+
+    Examples of patterns that SHOULD merge:
+    - "Replace absolute language with proportionality" + "Replace zero-risk language
+    with reasonable-efforts standard" -> "Replace absolute language with proportionality standard"
+    - "Add size exemption" + "Replace one-size-fits-all with tiered requirement" ->
+    "Add size-based exemptions for small providers"
+    - "Add prioritization hierarchy" + "Replace conflicting requirements with precedence rule" ->
+    "Add prioritization clause when mandates conflict"
+
+    Patterns that should NOT merge:
+    - "Add size exemption" != "Add deemed-approved deadline" (different mechanisms)
+    - "Replace process with outcome" != "Add proportionality" (different fixes)
+
+    Return a JSON list of merged groups. Each has 'name' (clean 5-10 word label),
+    'description' (one sentence), and 'source_indices' (0-based indices of input
+    patterns to merge).
+  template: |
+    {patterns_text}
+
+# =============================================================================
+# DOMAIN-SPECIFIC: Single-pass aggregation for a filtered domain
+# =============================================================================
+
+domain_childcare:
+  updated_at: "2026-03-17"
+  description: |
+    Single-pass aggregation of all childcare regulatory findings. Given ~190
+    findings pre-filtered to childcare (18 NYCRR 413-418), identify the key
+    themes and recommend fixes — both easy text edits and structural policy changes.
+  system: |
+    You are analyzing regulatory findings specific to New York State CHILDCARE
+    regulations (18 NYCRR Parts 413-418, covering day care centers, family day
+    care, group family day care, and school-age child care programs).
+
+    These findings were identified by an AI pipeline and pre-filtered for
+    importance, fixability, and enforcement. Your job is to:
+
+    1. GROUP these into distinct themes/issues (as many as you find, typically 5-20)
+    2. For each theme, identify BOTH:
+       a. EASY FIXES: literal text edits (add "or electronically", replace a word)
+       b. STRUCTURAL FIXES: one-sentence policy changes (add size exemption,
+          proportionality standard, prioritization clause)
+    3. Note which findings affect SMALL HOME-BASED PROVIDERS vs LARGE CENTERS
+       differently — this is the key equity issue in childcare regulation
+
+    CHILDCARE-SPECIFIC CONTEXT:
+    - Programs range from 1-2 child home providers to 200+ child centers
+    - Small providers (family day care) have minimal admin staff
+    - Training requirements, documentation burdens, and staffing ratios are
+      the most common pain points
+    - OCFS is the regulating agency
+    - Many requirements were written for institutional settings and don't
+      account for home-based care
+
+    Call submit_themes with your analysis.
+  template: |
+    {findings_text}
+
+domain_permitting:
+  updated_at: "2026-03-17"
+  description: |
+    Single-pass aggregation of all permitting-related findings. Given ~370
+    findings about license/permit/certificate application and renewal processes,
+    identify themes and recommend fixes.
+  system: |
+    You are analyzing regulatory findings about PERMITTING AND LICENSING
+    processes across all New York State agencies.
+
+    These findings cover license applications, permit renewals, certificate
+    processes, and approval workflows. Your job is to:
+
+    1. GROUP these into distinct themes/issues (as many as you find, typically 5-20)
+    2. For each theme, identify BOTH:
+       a. EASY FIXES: literal text edits (authorize electronic submission,
+          add deemed-approved deadline)
+       b. STRUCTURAL FIXES: one-sentence policy changes (tiered requirements
+          by applicant type, proportional fees)
+    3. Note which findings are CROSS-AGENCY patterns vs agency-specific
+
+    PERMITTING-SPECIFIC CONTEXT:
+    - Findings span health (DOH), education (SED), mental hygiene (OMH/OPWDD),
+      social services (DSS), and environmental (DEC) agencies
+    - Common issues: paper-only applications, undefined timelines, no deemed-
+      approved provisions, identical requirements for new vs renewal
+    - Many agencies still require physical forms, notarization, or in-person
+      appearances
+    - Fee structures are often flat with no waivers or sliding scales
+
+    Call submit_themes with your analysis.
+  template: |
+    {findings_text}
+
+# -----------------------------------------------------------------------------
+# Shared: Web Search Verification (used by both passes)
+# -----------------------------------------------------------------------------
+
+verification:
+  updated_at: "2026-03-17"
+  description: |
+    Web search verification of tournament semifinalists. Checks whether each
+    finding is factually accurate, still current, and not already fixed.
+    Uses web_search tool + submit_verification tool for structured output.
+  system: |
+    You are verifying regulatory reform findings in New York State for accuracy
+    AND feasibility. For each finding, use web search to check:
+
+    1. FACTUAL ACCURACY: Is the claim correct? If it says "ICD-9 is still
+       mandated in 10 NYCRR 85.6", search to confirm ICD-9 is indeed
+       referenced there and hasn't been updated to ICD-10.
+    2. CURRENT STATUS: Has this already been fixed? Search for recent amendments,
+       emergency rules, or executive orders that may have addressed this.
+    3. FEASIBILITY — CRITICAL: Can New York State actually change this?
+       - Is this required by FEDERAL law or regulation? (e.g., CMS, EPA, OSHA
+         mandates that states must follow). If so, NY cannot unilaterally fix it.
+       - Is this required by NEW YORK STATE STATUTE (e.g., Social Services Law,
+         Education Law)? If so, the fix requires the legislature, not just
+         rulemaking.
+       - Or is this purely a state REGULATORY choice that an agency can change
+         through normal rulemaking? Those are the fixable ones.
+    4. ENFORCEMENT: Is this regulation actively enforced, or is it effectively
+       dead letter?
+
+    Search for the specific NYCRR citation or regulation title. Search for the
+    federal or statutory basis — look for phrases like "pursuant to" or
+    "as required by" in the regulation text. Also search for whether other
+    states have made similar changes successfully.
+
+    After searching, call submit_verification with your findings.
+
+    Be CONSERVATIVE on verified: mark verified=true unless you find clear
+    evidence the finding is wrong or already fixed. Absence of information
+    is NOT grounds for marking verified=false.
+
+    Be ACCURATE on feasibility: if a federal mandate clearly requires this,
+    mark federal_or_statutory_constraint=true even if the finding is otherwise
+    valid. This doesn't disqualify it — it just flags that the fix path is
+    different (federal advocacy vs. state rulemaking).
+  template: |
+    Finding to verify:
+    Category: {category}
+    Citation: {citation}
+    Severity: {severity}
+    Problem: {explanation}
+    Proposed fix: {fix_description}
+    Why it matters: {important_reasoning}
+
+    Key questions for web search:
+    - Does this citation actually exist and say what the finding claims?
+    - Has this been amended or fixed since 2024?
+    - Is this requirement driven by federal law/regulation, state statute, or purely state regulatory choice?
+    - Have other states successfully made a similar change?

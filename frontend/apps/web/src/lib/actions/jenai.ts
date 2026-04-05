@@ -298,6 +298,76 @@ export async function getJenAIDeveloperItems(
   );
 }
 
+/**
+ * Gets complexity distribution (HIGH/MEDIUM/LOW counts).
+ */
+export async function getJenAIComplexityDistribution(
+  state: JurisdictionCode
+): Promise<ActionResult<{ complexity: string; count: number }[]>> {
+  return runCachedAction(
+    'getJenAIComplexityDistribution',
+    () => jenaiRepo.getComplexityDistribution(state),
+    [`jenai-complexity-dist-${state}`],
+    { revalidate: 300, tags: ['jenai-analytics'] }
+  );
+}
+
+/**
+ * Gets category × severity matrix for heatmap.
+ */
+export async function getJenAICategorySeverityMatrix(
+  state: JurisdictionCode
+): Promise<ActionResult<{ category: string; severityBucket: string; count: number }[]>> {
+  return runCachedAction(
+    'getJenAICategorySeverityMatrix',
+    () => jenaiRepo.getCategorySeverityMatrix(state),
+    [`jenai-cat-severity-matrix-${state}`],
+    { revalidate: 300, tags: ['jenai-analytics'] }
+  );
+}
+
+/**
+ * Gets source type breakdown (regulation vs guidance counts).
+ */
+export async function getJenAISourceTypeBreakdown(
+  state: JurisdictionCode
+): Promise<ActionResult<{ regulation: number; guidance: number }>> {
+  return runCachedAction(
+    'getJenAISourceTypeBreakdown',
+    () => jenaiRepo.getSourceTypeBreakdown(state),
+    [`jenai-source-type-${state}`],
+    { revalidate: 300, tags: ['jenai-analytics'] }
+  );
+}
+
+/**
+ * Gets review progress grouped by category.
+ */
+export async function getJenAIReviewProgressByCategory(
+  state: JurisdictionCode
+): Promise<ActionResult<{ category: string; reviewStatus: string; count: number }[]>> {
+  return runCachedAction(
+    'getJenAIReviewProgressByCategory',
+    () => jenaiRepo.getReviewProgressByCategory(state),
+    [`jenai-review-by-cat-${state}`],
+    { revalidate: 300, tags: ['jenai-analytics'] }
+  );
+}
+
+/**
+ * Gets burden score distribution as histogram buckets.
+ */
+export async function getJenAIBurdenScoreDistribution(
+  state: JurisdictionCode
+): Promise<ActionResult<{ bucket: string; count: number }[]>> {
+  return runCachedAction(
+    'getJenAIBurdenScoreDistribution',
+    () => jenaiRepo.getBurdenScoreDistribution(state),
+    [`jenai-burden-dist-${state}`],
+    { revalidate: 300, tags: ['jenai-analytics'] }
+  );
+}
+
 export async function getJenAISeverityDistribution(
   state: JurisdictionCode
 ): Promise<ActionResult<SeverityDistribution>> {

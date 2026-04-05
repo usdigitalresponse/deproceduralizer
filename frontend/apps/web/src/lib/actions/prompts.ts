@@ -158,6 +158,37 @@ export async function getJenAIPrompts(): Promise<ActionResult<PromptData[]>> {
 }
 
 /**
+ * Load and parse tournament pipeline prompts from prompts/tournament.yaml.
+ * The file is copied during build (see prebuild script in package.json).
+ * Same structure as core.yaml: dictionary of prompt names with system/template/description.
+ */
+export async function getTournamentPrompts(): Promise<ActionResult<PromptData[]>> {
+  return runAction('getTournamentPrompts', async () => {
+    const promptsPath = join(process.cwd(), 'src/data/tournament.yaml');
+    const fileContent = await readFile(promptsPath, 'utf-8');
+    const parsed = yaml.load(fileContent) as Record<string, RawPromptData>;
+
+    return Object.entries(parsed).map(
+      ([name, data]) => {
+        const system = data.system?.trim() || null;
+        const batchContext = data.batch_context?.trim() || null;
+        const template = data.template?.trim() || '';
+        const allVariables = extractVariables((system || '') + (batchContext || '') + template);
+        return {
+          name,
+          description: data.description?.trim() || '',
+          system,
+          batchContext,
+          template,
+          variables: allVariables,
+          updatedAt: data.updated_at || null,
+        };
+      }
+    );
+  });
+}
+
+/**
  * Load and parse compliance issue prompts from prompts/compliance_issues.yaml.
  * The file is copied during build (see prebuild script in package.json).
  */

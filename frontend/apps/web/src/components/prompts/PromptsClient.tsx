@@ -28,6 +28,7 @@ export interface PromptsClientProps {
   prompts: PromptData[];
   compliancePrompts: CompliancePromptData[];
   jenaiPrompts: PromptData[];
+  tournamentPrompts?: PromptData[];
   feedbackCounts: Record<string, number>;
   orphanedFeedback: PromptFeedback[];
   issueTypes: IssueTypeOption[];
@@ -37,6 +38,7 @@ export function PromptsClient({
   prompts,
   compliancePrompts,
   jenaiPrompts,
+  tournamentPrompts = [],
   feedbackCounts,
   orphanedFeedback,
   issueTypes,
@@ -93,6 +95,7 @@ export function PromptsClient({
             prompts={prompts}
             compliancePrompts={compliancePrompts}
             jenaiPrompts={jenaiPrompts}
+            tournamentPrompts={tournamentPrompts}
             feedbackCounts={feedbackCounts}
           />
         )}

@@ -188,7 +188,20 @@ class BatchManager:
         Raises:
             Exception if batch submission fails
         """
-        batch = self.client.beta.messages.batches.create(requests=requests)
+        import time as _time
+        max_retries = 5
+        for attempt in range(max_retries):
+            try:
+                batch = self.client.beta.messages.batches.create(requests=requests)
+                break
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    wait = 2 ** attempt * 5  # 5s, 10s, 20s, 40s
+                    print(f"      Batch submission failed (attempt {attempt + 1}/{max_retries}): {e}")
+                    print(f"      Retrying in {wait}s...")
+                    _time.sleep(wait)
+                else:
+                    raise
         batch_id = batch.id
 
         # Save batch info locally if batches_dir is set

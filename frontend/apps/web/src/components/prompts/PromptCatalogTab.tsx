@@ -8,6 +8,7 @@ interface PromptCatalogTabProps {
   prompts: PromptData[];
   compliancePrompts: CompliancePromptData[];
   jenaiPrompts: PromptData[];
+  tournamentPrompts?: PromptData[];
   feedbackCounts: Record<string, number>;
 }
 
@@ -15,6 +16,7 @@ export function PromptCatalogTab({
   prompts,
   compliancePrompts,
   jenaiPrompts,
+  tournamentPrompts = [],
   feedbackCounts,
 }: PromptCatalogTabProps) {
   return (
@@ -24,6 +26,7 @@ export function PromptCatalogTab({
           prompts={prompts}
           compliancePrompts={compliancePrompts}
           jenaiPrompts={jenaiPrompts}
+          tournamentPrompts={tournamentPrompts}
           feedbackCounts={feedbackCounts}
         />
       </div>
@@ -32,6 +35,7 @@ export function PromptCatalogTab({
           prompts={prompts}
           compliancePrompts={compliancePrompts}
           jenaiPrompts={jenaiPrompts}
+          tournamentPrompts={tournamentPrompts}
         />
       </aside>
     </div>

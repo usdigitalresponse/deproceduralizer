@@ -1,0 +1,97 @@
+# =============================================================================
+# Topic Classification: Multi-label tagging for JenAI findings
+# =============================================================================
+#
+# Assigns multiple topic labels to each JenAI finding based on what the
+# regulation is ABOUT (not what's wrong with it — that's the JenAI category).
+#
+# Four label groups:
+#   1. Agency/Domain (18) — which agency/area of government
+#   2. Process Types (12) — what kind of regulatory process
+#   3. Affected Populations (10) — who is impacted
+#   4. Reform Themes (10) — what type of reform is needed
+#
+# Each finding gets 2-6 labels across all groups.
+#
+# Usage:
+#   cd backend && source .venv/bin/activate
+#   python scripts/classify_topics.py --execute          # batch, ~$3-5
+#   python scripts/classify_topics.py                    # dry run
+#   python scripts/classify_topics.py --poll             # check/import results
+
+classify:
+  updated_at: "2026-03-17"
+  description: |
+    Multi-label topic classification for JenAI regulatory findings. Assigns
+    2-6 topic labels from a predefined taxonomy of 50 topics organized into
+    4 groups: agency/domain, process type, affected population, reform theme.
+  system: |
+    You are classifying a regulatory finding by TOPIC — what the regulation
+    is about, not what's wrong with it.
+
+    Assign 2-6 labels from these groups. A finding can have labels from
+    multiple groups. Only assign labels that clearly apply.
+
+    AGENCY/DOMAIN (which area of government):
+    - childcare: Day care centers, family day care, school-age programs (OCFS)
+    - child_welfare: Foster care, adoption, CPS, preventive services (OCFS)
+    - healthcare_facilities: Hospitals, nursing homes, clinics (DOH)
+    - public_health: Disease control, vital records, environmental health (DOH)
+    - mental_health: Psychiatric facilities, community mental health (OMH)
+    - developmental_disabilities: Residential, day programs, employment (OPWDD)
+    - substance_use: Treatment programs, prevention, recovery (OASAS)
+    - k12_education: Schools, curriculum, accountability, special ed (SED)
+    - higher_education: Colleges, universities, financial aid (SED)
+    - professional_licensing: Teacher cert, healthcare licenses, professions (SED)
+    - public_assistance: SNAP, TANF, emergency assistance (OTDA)
+    - medicaid: Eligibility, billing, managed care (DOH/OHIP)
+    - adult_care: Assisted living, adult homes (DOH)
+    - environmental: Permits, water quality, air quality (DEC)
+    - housing: Housing standards, rent regulation (HCR)
+    - juvenile_justice: Detention, delinquency, PINS (OCFS)
+    - domestic_violence: DV shelters, services, safety protocols (OCFS)
+    - disability_services: Accessibility, accommodations, ADA compliance
+
+    PROCESS TYPE (what kind of regulatory process):
+    - permitting_licensing: Application processes, license renewals, approvals
+    - digital_modernization: Paper-only processes, electronic submission, portals
+    - training_certification: Mandatory training, continuing ed, competency
+    - inspections_compliance: Site inspections, compliance monitoring, enforcement
+    - fees_fines_costs: Application fees, penalties, surcharges, unfunded mandates
+    - reporting_recordkeeping: Data submission, forms, documentation requirements
+    - appeals_due_process: Hearings, grievances, cure periods, notice requirements
+    - background_checks: Criminal history, fingerprinting, disqualification
+    - procurement_contracting: RFPs, vendor selection, contract requirements
+    - rate_setting_reimbursement: Payment rates, reimbursement formulas, billing
+    - interagency_coordination: Multi-agency processes, referrals, info sharing
+    - public_notice_transparency: Public comment, FOIL, posting requirements
+
+    AFFECTED POPULATION (who is impacted):
+    - small_providers: One-size-fits-all rules burdening small operators
+    - children_families: Regulations directly affecting children or families
+    - low_income: Benefits, eligibility, means testing, poverty-related
+    - people_with_disabilities: Disability-specific services, accommodations
+    - elderly_aging: Senior services, long-term care, aging in place
+    - immigrants_refugees: Language access, immigration status, refugee services
+    - rural_communities: Geographic barriers, access assumptions, urban-centric
+    - healthcare_workers: Nurses, aides, technicians — staffing, scope of practice
+    - teachers_educators: Certification, evaluation, professional development
+    - nonprofit_organizations: Nonprofit-specific compliance, reporting
+
+    REFORM THEME (what type of reform):
+    - staffing_ratios: Mandated ratios, qualifications, supervision rules
+    - timelines_deadlines: Response times, deemed-approved, automatic denial
+    - safety_risk_standards: Zero-risk language, absolute requirements, proportionality
+    - outdated_references: Obsolete citations, superseded standards, dead references
+    - federal_mandates: Requirements driven by federal law NY can't change alone
+    - conflicting_requirements: Contradictory mandates, cascading rigidity
+    - scope_of_practice: Who can do what, credential requirements, supervision
+    - facility_space: Square footage, physical plant, equipment mandates
+    - transportation_access: In-person requirements, geographic access, travel
+    - data_privacy: PII, HIPAA, records access, information security
+
+    Call submit_topics with your labels.
+  template: |
+    Citation: {citation}
+    Category: {category}
+    Explanation: {explanation}

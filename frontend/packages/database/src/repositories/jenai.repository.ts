@@ -714,6 +714,123 @@ export class JenAIRepository extends BaseRepository {
   }
 
   // ---------------------------------------------------------------------------
+  // Analytics queries
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Get complexity distribution (HIGH/MEDIUM/LOW counts) for analytics.
+   */
+  async getComplexityDistribution(jurisdiction: JurisdictionCode): Promise<{ complexity: string; count: number }[]> {
+    const result = await this.db
+      .select({
+        complexity: jenaiIssues.complexity,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(jenaiIssues)
+      .innerJoin(jenaiAnalyses, eq(jenaiIssues.analysisId, jenaiAnalyses.id))
+      .where(and(
+        eq(jenaiAnalyses.jurisdiction, normalizeJurisdiction(jurisdiction)),
+        isNotNull(jenaiIssues.complexity),
+      ))
+      .groupBy(jenaiIssues.complexity)
+      .orderBy(asc(jenaiIssues.complexity));
+
+    return result.filter((r): r is { complexity: string; count: number } => r.complexity !== null);
+  }
+
+  /**
+   * Get category × severity matrix for heatmap visualization.
+   * Severity is bucketed into High (7+), Medium (4-6), Low (1-3).
+   */
+  async getCategorySeverityMatrix(jurisdiction: JurisdictionCode): Promise<{ category: string; severityBucket: string; count: number }[]> {
+    const result = await this.db.execute(sql`
+      SELECT
+        ji.category,
+        CASE
+          WHEN ji.severity >= ${SEVERITY_HIGH_MIN} THEN 'High'
+          WHEN ji.severity >= ${SEVERITY_MEDIUM_MIN} THEN 'Medium'
+          ELSE 'Low'
+        END AS severity_bucket,
+        COUNT(*)::int AS count
+      FROM jenai_issues ji
+      INNER JOIN jenai_analyses ja ON ji.analysis_id = ja.id
+      WHERE ja.jurisdiction = ${normalizeJurisdiction(jurisdiction)}
+      GROUP BY ji.category, severity_bucket
+      ORDER BY ji.category, severity_bucket
+    `);
+
+    return (result.rows as { category: string; severity_bucket: string; count: number }[]).map(row => ({
+      category: row.category,
+      severityBucket: row.severity_bucket,
+      count: row.count,
+    }));
+  }
+
+  /**
+   * Get source type breakdown (regulation vs guidance issue counts).
+   */
+  async getSourceTypeBreakdown(jurisdiction: JurisdictionCode): Promise<{ regulation: number; guidance: number }> {
+    const result = await this.db.execute(sql`
+      SELECT
+        COUNT(*) FILTER (WHERE ji.document_id IS NOT NULL AND ji.guidance_document_id IS NULL)::int AS regulation,
+        COUNT(*) FILTER (WHERE ji.guidance_document_id IS NOT NULL)::int AS guidance
+      FROM jenai_issues ji
+      INNER JOIN jenai_analyses ja ON ji.analysis_id = ja.id
+      WHERE ja.jurisdiction = ${normalizeJurisdiction(jurisdiction)}
+    `);
+
+    const row = result.rows[0] as { regulation: number; guidance: number };
+    return { regulation: row.regulation, guidance: row.guidance };
+  }
+
+  /**
+   * Get review progress by category (category × review status counts).
+   */
+  async getReviewProgressByCategory(jurisdiction: JurisdictionCode): Promise<{ category: string; reviewStatus: string; count: number }[]> {
+    const result = await this.db
+      .select({
+        category: jenaiIssues.category,
+        reviewStatus: sql<string>`COALESCE(${jenaiIssues.reviewStatus}, 'unreviewed')`,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(jenaiIssues)
+      .innerJoin(jenaiAnalyses, eq(jenaiIssues.analysisId, jenaiAnalyses.id))
+      .where(eq(jenaiAnalyses.jurisdiction, normalizeJurisdiction(jurisdiction)))
+      .groupBy(jenaiIssues.category, jenaiIssues.reviewStatus)
+      .orderBy(asc(jenaiIssues.category));
+
+    return result;
+  }
+
+  /**
+   * Get burden score distribution as histogram buckets (0-10, 10-20, ..., 50+).
+   */
+  async getBurdenScoreDistribution(jurisdiction: JurisdictionCode): Promise<{ bucket: string; count: number }[]> {
+    const result = await this.db.execute(sql`
+      SELECT
+        CASE
+          WHEN adjusted_burden < 10 THEN '0-10'
+          WHEN adjusted_burden < 20 THEN '10-20'
+          WHEN adjusted_burden < 30 THEN '20-30'
+          WHEN adjusted_burden < 40 THEN '30-40'
+          WHEN adjusted_burden < 50 THEN '40-50'
+          ELSE '50+'
+        END AS bucket,
+        COUNT(*)::int AS count
+      FROM jenai_analyses
+      WHERE jurisdiction = ${normalizeJurisdiction(jurisdiction)}
+        AND adjusted_burden IS NOT NULL
+      GROUP BY bucket
+      ORDER BY MIN(adjusted_burden)
+    `);
+
+    return (result.rows as { bucket: string; count: number }[]).map(row => ({
+      bucket: row.bucket,
+      count: row.count,
+    }));
+  }
+
+  // ---------------------------------------------------------------------------
   // Private helpers
   // ---------------------------------------------------------------------------
 

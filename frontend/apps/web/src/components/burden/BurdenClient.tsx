@@ -22,18 +22,9 @@ import {
 } from '@/lib/url/parsers';
 import { getJenAIBurdenRanking } from '@/lib/actions/jenai';
 import { SEVERITY_MULTISELECT_OPTIONS } from '@/lib/constants/filters';
-import { JENAI_CATEGORY_LABELS } from '@/lib/constants/jenai';
+import { STRUCTURAL_CATEGORIES, getCategoryLabel, isStructuralCategory } from '@/lib/constants/jenai';
 import { formatLabel } from '@/types/regulation';
 import type { JurisdictionCode, BurdenOverviewStats, BurdenRankingRow } from '@deproceduralizer/database';
-
-const STRUCTURAL_CATEGORIES = [
-  'ADMINISTRATIVE_BURDENS',
-  'MANDATED_STEPS_NOT_OUTCOMES',
-  'REGULATORY_COMPLEXITY',
-  'ONE_SIZE_FITS_ALL',
-  'CASCADE_OF_RIGIDITY',
-  'UNFUNDED_MANDATE',
-] as const;
 
 const STRUCTURAL_CATEGORY_SHORT: Record<string, string> = {
   ADMINISTRATIVE_BURDENS: 'Admin',
@@ -81,9 +72,7 @@ interface BurdenClientProps {
   sectionTypes: { sectionType: string; count: number }[];
 }
 
-function formatCategoryLabel(cat: string): string {
-  return JENAI_CATEGORY_LABELS[cat as keyof typeof JENAI_CATEGORY_LABELS] ?? cat;
-}
+const formatCategoryLabel = getCategoryLabel;
 
 function buildExplanation(row: BurdenRankingRow): string {
   const parts: string[] = [];
@@ -99,9 +88,7 @@ function buildExplanation(row: BurdenRankingRow): string {
   );
 
   // Top structural categories present
-  const structuralPresent = row.categories.filter(c =>
-    (STRUCTURAL_CATEGORIES as readonly string[]).includes(c)
-  );
+  const structuralPresent = row.categories.filter(isStructuralCategory);
   if (structuralPresent.length > 0) {
     const names = structuralPresent.slice(0, 3).map(formatCategoryLabel).join(', ');
     parts.push(names + '.');
@@ -143,7 +130,7 @@ export function BurdenClient({ jurisdiction, stats, categories, parts, sectionTy
   const categoryOptions = useMemo(() =>
     categories.map(cat => ({
       value: cat.category,
-      label: JENAI_CATEGORY_LABELS[cat.category] || formatLabel(cat.category),
+      label: getCategoryLabel(cat.category),
       count: cat.count,
     })),
   [categories]);

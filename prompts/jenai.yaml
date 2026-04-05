@@ -21,7 +21,7 @@
 # Variables (template): citation, title, summary, cross_references, section_text
 
 analysis:
-  updated_at: "2026-03-04"
+  updated_at: "2026-03-17"
   description: |
     Single-pass enriched analysis. Each regulatory section is evaluated against
     all 18 categories with full context upfront: ancestor summaries, sibling
@@ -646,7 +646,10 @@ analysis:
           (e.g., ["unrealistic-deadline", "automatic-denial", "no-appeal"])
         - implementation_approach: How to implement this better (optional)
         - effort_estimate: Rough effort to fix (optional)
-        - text_examples: Additional text excerpts illustrating the issue
+        - text_examples: Additional text excerpts illustrating the issue.
+          IMPORTANT: text_examples MUST be copied VERBATIM from the section
+          text — do not paraphrase, summarize, create hypothetical scenarios,
+          or alter wording. If you cannot find a verbatim excerpt, omit this field.
 
     - classification: One of:
         - "clean" — No Pahlka category issues found (OTHER may still be present)

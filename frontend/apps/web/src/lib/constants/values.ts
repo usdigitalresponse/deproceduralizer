@@ -120,6 +120,13 @@ export type JenAIReviewSortByValue = (typeof JENAI_REVIEW_SORT_BY_VALUES)[number
 export const JENAI_DEVELOPER_SORT_BY_VALUES = ['severity', 'confidence', 'category', 'reviewedAt', 'developerCheckedAt'] as const;
 export type JenAIDeveloperSortByValue = (typeof JENAI_DEVELOPER_SORT_BY_VALUES)[number];
 
+// JenAI Strategies page
+export const JENAI_STRATEGY_TAB_VALUES = ['recommendations', 'overview', 'compare', 'best-stories', 'surprises', 'pahlka', 'action-plan'] as const;
+export type JenAIStrategyTabValue = (typeof JENAI_STRATEGY_TAB_VALUES)[number];
+
+export const JENAI_STRATEGY_SORT_BY_VALUES = ['severity', 'category', 'createdAt'] as const;
+export type JenAIStrategySortByValue = (typeof JENAI_STRATEGY_SORT_BY_VALUES)[number];
+
 // Burden Index sort options
 export const BURDEN_SORT_BY_VALUES = ['adjustedBurden', 'compositeBurden', 'maxSeverity', 'issueCount'] as const;
 export type BurdenSortByValue = (typeof BURDEN_SORT_BY_VALUES)[number];
@@ -326,7 +333,7 @@ export type CrossRefGroupSortByValue = (typeof CROSSREF_GROUP_SORT_BY_VALUES)[nu
 // Analytics Page
 // ============================================
 
-export const ANALYTICS_TAB_VALUES = ['overview', 'crossrefs', 'issues', 'keywords', 'definitions', 'statutes', 'guidance', 'pipeline'] as const;
+export const ANALYTICS_TAB_VALUES = ['overview', 'crossrefs', 'issues', 'keywords', 'definitions', 'statutes', 'guidance', 'jenai', 'pipeline'] as const;
 export type AnalyticsTabValue = (typeof ANALYTICS_TAB_VALUES)[number];
 
 export const PIPELINE_SUBTAB_VALUES = ['overview', 'context', 'verification'] as const;

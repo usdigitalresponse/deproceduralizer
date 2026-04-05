@@ -7,7 +7,7 @@ import type { ComplianceIssueStatusCounts, ComplianceTypeClassificationCounts } 
 import type { SectionTypeStats, MetadataStats, KeywordStats, AppliesToStats } from '@/lib/actions/regulations';
 import type { DefinitionsAnalyticsStats } from '@/lib/actions/definitions';
 import type { PipelineAnalyticsData } from '@/lib/actions/pipeline-analytics';
-import type { SeverityDistribution, JenAIReviewStatusCounts } from '@deproceduralizer/database';
+import type { SeverityDistribution, JenAIReviewStatusCounts, JenAIDeveloperStatusCounts, BurdenOverviewStats } from '@deproceduralizer/database';
 import type { GuidanceOverviewStats, GuidanceCitationStats, GuidanceReadabilityStats, ReadabilityCrossCutStats, LineageStats } from '@/lib/actions/guidance-documents';
 import type { AnalyticsTabValue, AnalyticsSourceValue } from '@/lib/constants/values';
 import { analyticsParsers, analyticsSourceParser } from '@/lib/url/parsers';
@@ -21,6 +21,7 @@ import { DefinitionsTab } from './DefinitionsTab';
 import { CrossReferencesTab } from './CrossReferencesTab';
 import { StatutesTab } from './StatutesTab';
 import { GuidanceAnalyticsTab } from './GuidanceAnalyticsTab';
+import { JenAIAnalyticsTab, type JenAIAnalyticsTabProps } from './JenAIAnalyticsTab';
 import { PipelineTab } from './PipelineTab';
 
 const SOURCE_OPTIONS: SegmentedControlOption<AnalyticsSourceValue>[] = [
@@ -49,6 +50,7 @@ export interface AnalyticsClientProps {
   guidanceReadabilityStats?: GuidanceReadabilityStats | null;
   guidanceReadabilityCrossCuts?: ReadabilityCrossCutStats | null;
   guidanceLineageStats?: LineageStats | null;
+  jenaiAnalyticsData?: JenAIAnalyticsTabProps | null;
   complianceTypeClassification?: ComplianceTypeClassificationCounts | null;
 }
 
@@ -71,6 +73,7 @@ export function AnalyticsClient({
   guidanceReadabilityStats,
   guidanceReadabilityCrossCuts,
   guidanceLineageStats,
+  jenaiAnalyticsData,
   complianceTypeClassification,
 }: AnalyticsClientProps) {
   const [params, setParams] = useQueryStates(analyticsParsers, { shallow: true });
@@ -153,6 +156,10 @@ export function AnalyticsClient({
             lineageStats={guidanceLineageStats ?? null}
             jurisdiction={jurisdiction}
           />
+        )}
+
+        {currentTab === 'jenai' && jenaiAnalyticsData && (
+          <JenAIAnalyticsTab {...jenaiAnalyticsData} jurisdiction={jurisdiction} />
         )}
 
         {currentTab === 'pipeline' && (

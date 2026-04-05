@@ -80,6 +80,10 @@ def build_parser() -> argparse.ArgumentParser:
         '--no-cache', action='store_true',
         help="Disable LLM API response cache (forces fresh API calls)",
     )
+    parser.add_argument(
+        '--retry-verbatim', action='store_true',
+        help="Run a retry batch for non-verbatim text_examples (costs money)",
+    )
 
     # Guidance document support
     parser.add_argument(
@@ -143,6 +147,7 @@ def main():
         realtime=args.realtime,
         document_ids=args.document_id,
         no_cache=args.no_cache,
+        retry_verbatim=args.retry_verbatim,
         source_type=args.source,
         agency=args.agency,
         doc_type=args.doc_type,

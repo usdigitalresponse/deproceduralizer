@@ -148,6 +148,15 @@ def save_analysis_results(
                     if cat.matched_phrases and source_text:
                         is_verbatim, _ = check_verbatim(cat.matched_phrases, source_text)
 
+                    # Check if text_examples are verbatim — keep all, but set
+                    # is_verbatim=false if any are summaries (we want summaries
+                    # when verbatim isn't possible, just flagged correctly)
+                    validated_examples = cat.text_examples
+                    if cat.text_examples and source_text:
+                        all_verbatim, _ = check_verbatim(cat.text_examples, source_text)
+                        if not all_verbatim:
+                            is_verbatim = False
+
                     cur.execute(f"""
                         INSERT INTO jenai_issues (
                             analysis_id, {id_column}, category,
@@ -180,7 +189,7 @@ def save_analysis_results(
                         analysis_id, doc_id, cat.category.value,
                         cat.explanation, cat.severity, cat.complexity, cat.confidence,
                         cat.matched_phrases, cat.implementation_approach,
-                        cat.effort_estimate, cat.text_examples,
+                        cat.effort_estimate, validated_examples,
                         cat.tags, is_verbatim,
                         now, now,
                     ))

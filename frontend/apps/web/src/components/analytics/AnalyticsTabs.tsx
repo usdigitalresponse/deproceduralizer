@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { BarChart3, Tag, GitBranch } from 'lucide-react';
+import { BarChart3, Tag, GitBranch, Sparkles } from 'lucide-react';
 import { getEntityIcon } from '@/lib/constants/entity-types';
 import { SegmentedControl, type SegmentedControlOption } from '@/components/ui';
 import type { AnalyticsTabValue } from '@/lib/constants/values';
@@ -19,6 +19,7 @@ const TABS: SegmentedControlOption<AnalyticsTabValue>[] = [
   { value: 'definitions', label: 'Definitions', icon: getEntityIcon('definition') },
   { value: 'statutes', label: 'Statutes', icon: getEntityIcon('statute') },
   { value: 'guidance', label: 'Guidance', icon: getEntityIcon('guidance_document') },
+  { value: 'jenai', label: 'JenAI', icon: Sparkles },
   { value: 'pipeline', label: 'Pipeline', icon: GitBranch },
 ];
 
