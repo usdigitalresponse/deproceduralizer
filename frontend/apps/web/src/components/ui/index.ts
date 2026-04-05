@@ -100,12 +100,14 @@ export { ProgressCard } from './ProgressCard';
 export type { ProgressCardProps, StatusItem, StatusVariant } from './ProgressCard';
 
 // FilterBar
-export { FilterBar, FilterField, SortControls, ClearFiltersButton } from './FilterBar';
+export { FilterBar, FilterField, SortControls, ClearFiltersButton, TieredFilterBar, AdvancedFilterToggle } from './FilterBar';
 export type {
   FilterBarProps,
   FilterFieldProps,
   SortControlsProps,
   ClearFiltersButtonProps,
+  TieredFilterBarProps,
+  AdvancedFilterToggleProps,
 } from './FilterBar';
 
 // SegmentedControl

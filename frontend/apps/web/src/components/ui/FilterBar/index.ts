@@ -9,3 +9,9 @@ export type { SortControlsProps } from './SortControls';
 
 export { ClearFiltersButton } from './ClearFiltersButton';
 export type { ClearFiltersButtonProps } from './ClearFiltersButton';
+
+export { TieredFilterBar } from './TieredFilterBar';
+export type { TieredFilterBarProps } from './TieredFilterBar';
+
+export { AdvancedFilterToggle } from './AdvancedFilterToggle';
+export type { AdvancedFilterToggleProps } from './AdvancedFilterToggle';
