@@ -594,4 +594,15 @@ describe('mapAnalysisListRow', () => {
     const result = mapAnalysisListRow(row);
     expect(result.tier3TriggerReason).toBe('high_risk_issue');
   });
+
+  it('preserves reviewSummary when present', () => {
+    const row = { ...baseRow, reviewSummary: 'This regulation requires wet signatures despite electronic alternatives.' };
+    const result = mapAnalysisListRow(row);
+    expect(result.reviewSummary).toBe('This regulation requires wet signatures despite electronic alternatives.');
+  });
+
+  it('defaults reviewSummary to null when absent', () => {
+    const result = mapAnalysisListRow(baseRow);
+    expect(result.reviewSummary).toBeNull();
+  });
 });
