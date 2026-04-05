@@ -613,6 +613,7 @@ async def generate_summaries_from_db(
     source: Optional[str] = None,
     agency: Optional[str] = None,
     doc_type: Optional[str] = None,
+    force: bool = False,
 ) -> int:
     """Generate summaries for existing analyses from the database.
 
@@ -627,6 +628,7 @@ async def generate_summaries_from_db(
         source: Optional source filter ('regulation' or 'guidance').
         agency: Optional agency filter for guidance docs (e.g., 'OCFS').
         doc_type: Optional document type filter for guidance docs (e.g., 'ADM').
+        force: If True, regenerate summaries even for analyses that already have one.
 
     Returns:
         Count of summaries generated and saved.
@@ -645,6 +647,7 @@ async def generate_summaries_from_db(
         analyses = _fetch_analyses_for_summaries(
             jurisdiction, issue_types, conn, limit,
             title=title, source=source, agency=agency, doc_type=doc_type,
+            force=force,
         )
 
         if not analyses:
@@ -722,6 +725,7 @@ def _fetch_analyses_for_summaries(
     source: Optional[str] = None,
     agency: Optional[str] = None,
     doc_type: Optional[str] = None,
+    force: bool = False,
 ) -> list[dict]:
     """Fetch completed analyses from DB for standalone summary generation.
 
@@ -775,7 +779,7 @@ def _fetch_analyses_for_summaries(
                 JOIN regulatory_documents d ON a.document_id = d.id
                 WHERE a.jurisdiction = %s
                     AND a.document_id IS NOT NULL
-                    AND a.review_summary IS NULL
+                    {"" if force else "AND a.review_summary IS NULL"}
                     AND a.highest_tier_completed >= 1
                     {issue_type_filter}
                     {title_filter}
@@ -823,7 +827,7 @@ def _fetch_analyses_for_summaries(
                 JOIN guidance_documents g ON a.guidance_document_id = g.id
                 WHERE a.jurisdiction = %s
                     AND a.guidance_document_id IS NOT NULL
-                    AND a.review_summary IS NULL
+                    {"" if force else "AND a.review_summary IS NULL"}
                     AND a.highest_tier_completed >= 1
                     {guidance_issue_filter}
                     {guidance_extra_filters}

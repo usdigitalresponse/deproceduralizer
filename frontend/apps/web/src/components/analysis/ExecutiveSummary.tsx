@@ -42,14 +42,23 @@ export function ExecutiveSummary({ analysis }: ExecutiveSummaryProps) {
     const hasFlags = tier3.federalMandateFound || tier3.stateHasDiscretion ||
       tier3.flags?.modernized_alternative_found?.value || tier3.flags?.superseded_by_law?.value;
 
-    // Nothing to show if no web search details or flags
-    if (!hasWebSearch && !hasFlags && !severityChanged) return null;
-
     return (
       <div className="bg-white border border-[var(--color-neutral-200)] rounded-[var(--radius-md)] p-6 mb-6">
         <h2 className="text-sm font-semibold text-[var(--color-text-muted)] mb-3">
-          Web Search Verification (Tier 3)
+          {hasWebSearch || hasFlags ? 'Web Search Verification (Tier 3)' : 'Key Findings'}
         </h2>
+
+        {/* Fallback classification line when no review summary exists in top card */}
+        {!analysis.reviewSummary && (
+          <p className="text-sm text-[var(--color-text)] mb-3">
+            Classified as{' '}
+            <span className="font-semibold">{finalClassification}</span>
+            {finalSeverity !== null && (
+              <> with severity <span className="font-semibold">{finalSeverity}</span>/10</>
+            )}{' '}
+            after web search verification
+          </p>
+        )}
 
         {tier3.webSearchSummary && (
           <div className="p-3 bg-[var(--color-info-bg)] border border-[var(--color-info)]/20 rounded-[var(--radius-sm)]">
@@ -89,6 +98,28 @@ export function ExecutiveSummary({ analysis }: ExecutiveSummaryProps) {
     );
   }
 
-  // Tier 2 only: no separate section needed (summary is in top card, no web search details)
-  return null;
+  // Tier 2: show classification fallback (important for pre-backfill and guidance pages)
+  return (
+    <div className="bg-white border border-[var(--color-neutral-200)] rounded-[var(--radius-md)] p-6 mb-6">
+      <h2 className="text-sm font-semibold text-[var(--color-text-muted)] mb-3">
+        Key Findings
+      </h2>
+
+      {analysis.reviewSummary ? (
+        <div className="bg-[var(--color-primary-weaker)] border border-[var(--color-primary-weak)] rounded-[var(--radius-md)] px-4 py-3">
+          <p className="text-sm text-[var(--color-text)] leading-relaxed">
+            {analysis.reviewSummary}
+          </p>
+        </div>
+      ) : (
+        <p className="text-sm text-[var(--color-text)]">
+          Classified as{' '}
+          <span className="font-semibold">{finalClassification}</span>
+          {finalSeverity !== null && (
+            <> with severity <span className="font-semibold">{finalSeverity}</span>/10</>
+          )}
+        </p>
+      )}
+    </div>
+  );
 }

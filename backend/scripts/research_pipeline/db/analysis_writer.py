@@ -1024,9 +1024,9 @@ def save_review_summaries(
                 if cur.rowcount > 0:
                     saved += 1
 
-                # Commit every 50 rows to prevent Neon idle-in-transaction timeout
-                if saved % 50 == 0:
-                    conn.commit()
+                    # Commit every 50 rows to prevent Neon idle-in-transaction timeout
+                    if saved % 50 == 0:
+                        conn.commit()
 
             if total > 10:
                 print(f"    Saved {saved} review summaries" + " " * 20)

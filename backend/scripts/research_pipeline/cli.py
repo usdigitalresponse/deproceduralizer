@@ -1075,7 +1075,9 @@ RESUME BEHAVIOR:
         "--summaries-only",
         action="store_true",
         help="Generate review summaries for existing analyses WITHOUT running the pipeline. "
-             "Reads completed analyses from DB and generates 1-2 sentence summaries."
+             "Reads completed analyses from DB and generates 1-2 sentence summaries. "
+             "By default only processes analyses without existing summaries. "
+             "Use with --force-rerun to regenerate all summaries (e.g., after prompt changes)."
     )
     parser.add_argument(
         "--statute-mandate",
@@ -1214,6 +1216,10 @@ RESUME BEHAVIOR:
             jurisdictions = list(VALID_JURISDICTIONS)
             print(f"Running for all jurisdictions: {', '.join(jurisdictions)}")
 
+        force_regen = getattr(args, 'force_rerun', False)
+        if force_regen:
+            print("Force regeneration: will overwrite existing summaries")
+
         for jur in jurisdictions:
             print(f"\n--- Generating summaries for {jur} ---")
             asyncio.run(generate_summaries_from_db(
@@ -1224,6 +1230,7 @@ RESUME BEHAVIOR:
                 source=source_filter,
                 agency=agency_filter,
                 doc_type=doc_type_filter,
+                force=force_regen,
             ))
         sys.exit(0)
 
