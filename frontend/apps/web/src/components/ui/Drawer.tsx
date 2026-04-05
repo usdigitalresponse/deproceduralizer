@@ -39,7 +39,7 @@ interface DrawerContentProps {
   children: ReactNode;
   className?: string;
   side?: 'left' | 'right' | 'bottom';
-  size?: 'sm' | 'md' | 'lg' | 'full';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
 }
 
 const sideStyles = {
@@ -71,18 +71,21 @@ const sizeStyles = {
     sm: 'w-72',
     md: 'w-80',
     lg: 'w-96',
+    xl: 'w-[680px] max-w-full',
     full: 'w-full',
   },
   right: {
     sm: 'w-72',
     md: 'w-80',
     lg: 'w-96',
+    xl: 'w-[680px] max-w-full',
     full: 'w-full',
   },
   bottom: {
     sm: 'h-1/3',
     md: 'h-1/2',
     lg: 'h-3/4',
+    xl: 'h-5/6',
     full: 'h-full',
   },
 };

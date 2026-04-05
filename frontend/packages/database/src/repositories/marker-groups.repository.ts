@@ -42,6 +42,21 @@ export class MarkerGroupsRepository extends BaseRepository {
   }
 
   /**
+   * Get triage marker groups (category = 'triage'), ordered by sortOrder.
+   */
+  async getTriageGroups(jurisdiction?: string): Promise<MarkerGroup[]> {
+    const conditions = jurisdiction
+      ? sql`${markerGroups.category} = 'triage' AND (${markerGroups.jurisdiction} IS NULL OR ${markerGroups.jurisdiction} = ${jurisdiction.toUpperCase()})`
+      : eq(markerGroups.category, 'triage');
+
+    return this.db
+      .select()
+      .from(markerGroups)
+      .where(conditions)
+      .orderBy(asc(markerGroups.sortOrder));
+  }
+
+  /**
    * Get a marker group by ID
    */
   async getById(id: number): Promise<MarkerGroup | undefined> {

@@ -145,7 +145,10 @@ describe('toggleGuidanceAnalysisBookmarkByDocIssue', () => {
     await toggleGuidanceAnalysisBookmarkByDocIssue(42, 'excessive_fees', 'NY');
 
     expect(mockUpdateTag).toHaveBeenCalledWith('bookmarks');
-    expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/bookmarks', 'page');
+    expect(mockUpdateTag).toHaveBeenCalledWith('marker-groups');
+    expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/markers', 'page');
+    expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/fines', 'page');
+    expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/guidance', 'page');
     expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/pipeline', 'page');
   });
 
@@ -160,7 +163,10 @@ describe('toggleGuidanceAnalysisBookmarkByDocIssue', () => {
     await toggleGuidanceAnalysisBookmarkByDocIssue(42, 'excessive_fees', 'NY');
 
     expect(mockUpdateTag).toHaveBeenCalledWith('bookmarks');
-    expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/bookmarks', 'page');
+    expect(mockUpdateTag).toHaveBeenCalledWith('marker-groups');
+    expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/markers', 'page');
+    expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/fines', 'page');
+    expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/guidance', 'page');
     expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/pipeline', 'page');
   });
 
@@ -239,8 +245,8 @@ describe('getBookmarkedGuidanceDocIssuePairs', () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data).toBeInstanceOf(Set);
-      expect(result.data.has('10-excessive_fees')).toBe(true);
-      expect(result.data.has('20-unclear_language')).toBe(true);
+      expect(result.data.has('g-10-excessive_fees')).toBe(true);
+      expect(result.data.has('g-20-unclear_language')).toBe(true);
       expect(result.data.size).toBe(2);
     }
   });
@@ -256,7 +262,7 @@ describe('getBookmarkedGuidanceDocIssuePairs', () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.size).toBe(1);
-      expect(result.data.has('10-excessive_fees')).toBe(true);
+      expect(result.data.has('g-10-excessive_fees')).toBe(true);
     }
   });
 
@@ -335,7 +341,9 @@ describe('toggleGuidanceBookmark', () => {
     await toggleGuidanceBookmark(42, 'NY');
 
     expect(mockUpdateTag).toHaveBeenCalledWith('bookmarks');
-    expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/bookmarks', 'page');
+    expect(mockUpdateTag).toHaveBeenCalledWith('marker-groups');
+    expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/markers', 'page');
+    expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/fines', 'page');
     expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/guidance', 'page');
   });
 });

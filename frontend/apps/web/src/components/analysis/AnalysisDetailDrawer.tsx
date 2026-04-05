@@ -1,17 +1,25 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import Link from 'next/link';
-import { ExternalLink, FileText, ChevronDown, ChevronRight } from 'lucide-react';
-import type { JurisdictionCode, FullAnalysisRecord, FullGuidanceAnalysisRecord, EvidencedFlag } from '@deproceduralizer/database';
+import { ExternalLink, FileText, ChevronDown, ChevronRight, ChevronLeft } from 'lucide-react';
+import type { JurisdictionCode, FullAnalysisRecord, FullGuidanceAnalysisRecord, EvidencedFlag, MarkerGroup } from '@deproceduralizer/database';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerBody, DrawerClose } from '@/components/ui/Drawer';
-import { AnalysisBookmarkProvider, BookmarkToggle, BookmarkNotesCard } from './AnalysisBookmarkSection';
+import { AnalysisBookmarkProvider, BookmarkNotesCard, useBookmarkRefresh, useBookmarkContext } from './AnalysisBookmarkSection';
 import { ClassificationBadge } from '@/components/issues/TierClassificationFlow';
 import { TierBadge } from '@/components/issues/TierProgressIndicator';
 import { Badge, SeverityBadge } from '@/components/ui/Badge';
+import { BookmarkButton } from '@/components/ui';
+import { MarkerBadge, MarkerPicker } from '@/components/markers';
+import { MarkdownContent } from '@/components/ui/MarkdownContent';
 import { ISSUE_TYPE_LABELS } from '@/types/regulation';
 import { getFullAnalysisRecord, getFullGuidanceAnalysisRecord } from '@/lib/actions/analysis';
+import { getTriageMarkerGroups } from '@/lib/actions/marker-groups';
+import { toggleTriageTag } from '@/lib/actions/bookmarks';
+import { isInteractiveElement } from '@/lib/utils/keyboard';
+import { TriageButtons } from './TriageButtons';
 import type { UnifiedAnalysisRow } from './AnalysisTable';
+
 
 type FullRecord = FullAnalysisRecord | FullGuidanceAnalysisRecord;
 
@@ -20,6 +28,10 @@ interface AnalysisDetailDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   jurisdiction: JurisdictionCode;
+  rows: UnifiedAnalysisRow[];
+  currentIndex: number;
+  onNavigate: (index: number) => void;
+  onTriageChanged?: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -114,9 +126,7 @@ function EvidencedFlagDisplay({ label, flag }: { label: string; flag: EvidencedF
         )}
       </div>
       {flag.reason && (
-        <p className="text-sm text-[var(--color-text-secondary)] ml-0.5 whitespace-pre-wrap">
-          {flag.reason}
-        </p>
+        <MarkdownContent className="text-sm text-[var(--color-text-secondary)] ml-0.5">{flag.reason}</MarkdownContent>
       )}
       {flag.evidence && flag.evidence.length > 0 && (
         <div className="mt-1.5 ml-0.5 space-y-1">
@@ -201,9 +211,7 @@ function FullAnalysisContent({ record }: { record: FullRecord }) {
               <h5 className="text-xs font-medium text-[var(--color-text-muted)] mb-1.5">
                 What&apos;s Burdensome
               </h5>
-              <p className="text-sm text-[var(--color-text)] whitespace-pre-wrap leading-relaxed">
-                {argumentAgainst}
-              </p>
+              <MarkdownContent className="text-sm text-[var(--color-text)]">{argumentAgainst}</MarkdownContent>
             </div>
           )}
           {best.reasoning && (
@@ -211,9 +219,7 @@ function FullAnalysisContent({ record }: { record: FullRecord }) {
               <h5 className="text-xs font-medium text-[var(--color-text-muted)] mb-1.5">
                 Best Analysis (Tier {best.tier})
               </h5>
-              <p className="text-sm text-[var(--color-text-secondary)] whitespace-pre-wrap leading-relaxed">
-                {best.reasoning}
-              </p>
+              <MarkdownContent>{best.reasoning}</MarkdownContent>
             </div>
           )}
         </CollapsibleSection>
@@ -243,9 +249,7 @@ function FullAnalysisContent({ record }: { record: FullRecord }) {
               <h5 className="text-xs font-medium text-[var(--color-danger)] mb-1">
                 Argument: Burdensome
               </h5>
-              <p className="text-sm text-[var(--color-text-secondary)] whitespace-pre-wrap leading-relaxed">
-                {argFraming.best_argument_burdensome}
-              </p>
+              <MarkdownContent>{argFraming.best_argument_burdensome}</MarkdownContent>
             </div>
           )}
           {argFraming.best_argument_justified && (
@@ -253,9 +257,7 @@ function FullAnalysisContent({ record }: { record: FullRecord }) {
               <h5 className="text-xs font-medium text-[var(--color-success)] mb-1">
                 Argument: Justified
               </h5>
-              <p className="text-sm text-[var(--color-text-secondary)] whitespace-pre-wrap leading-relaxed">
-                {argFraming.best_argument_justified}
-              </p>
+              <MarkdownContent>{argFraming.best_argument_justified}</MarkdownContent>
             </div>
           )}
           {argFraming.best_argument_unrelated && (
@@ -263,9 +265,7 @@ function FullAnalysisContent({ record }: { record: FullRecord }) {
               <h5 className="text-xs font-medium text-[var(--color-text-muted)] mb-1">
                 Argument: Unrelated
               </h5>
-              <p className="text-sm text-[var(--color-text-secondary)] whitespace-pre-wrap leading-relaxed">
-                {argFraming.best_argument_unrelated}
-              </p>
+              <MarkdownContent>{argFraming.best_argument_unrelated}</MarkdownContent>
             </div>
           )}
         </CollapsibleSection>
@@ -274,9 +274,7 @@ function FullAnalysisContent({ record }: { record: FullRecord }) {
       {/* --- Counterargument --- */}
       {argumentFor && (
         <CollapsibleSection title="Counterargument (Pro-Regulation)">
-          <p className="text-sm text-[var(--color-text-secondary)] whitespace-pre-wrap leading-relaxed">
-            {argumentFor}
-          </p>
+          <MarkdownContent>{argumentFor}</MarkdownContent>
         </CollapsibleSection>
       )}
 
@@ -310,9 +308,7 @@ function FullAnalysisContent({ record }: { record: FullRecord }) {
                 <h5 className="text-xs font-medium text-[var(--color-text-muted)] mb-1">
                   Calculation (Tier 2)
                 </h5>
-                <p className="text-sm text-[var(--color-text-secondary)] whitespace-pre-wrap leading-relaxed">
-                  {severityCalc}
-                </p>
+                <MarkdownContent>{severityCalc}</MarkdownContent>
               </div>
             )}
             {severityAdjReasoning && (
@@ -320,9 +316,7 @@ function FullAnalysisContent({ record }: { record: FullRecord }) {
                 <h5 className="text-xs font-medium text-[var(--color-text-muted)] mb-1">
                   Tier 3 Adjustment
                 </h5>
-                <p className="text-sm text-[var(--color-text-secondary)] whitespace-pre-wrap leading-relaxed">
-                  {severityAdjReasoning}
-                </p>
+                <MarkdownContent>{severityAdjReasoning}</MarkdownContent>
               </div>
             )}
           </div>
@@ -337,9 +331,7 @@ function FullAnalysisContent({ record }: { record: FullRecord }) {
               <h5 className="text-xs font-medium text-[var(--color-text-muted)] mb-1.5">
                 Web Search Summary
               </h5>
-              <p className="text-sm text-[var(--color-text-secondary)] whitespace-pre-wrap leading-relaxed">
-                {webSearchSummary}
-              </p>
+              <MarkdownContent>{webSearchSummary}</MarkdownContent>
             </div>
           )}
           {t3Flags && (
@@ -383,17 +375,13 @@ function FullAnalysisContent({ record }: { record: FullRecord }) {
             {record.cleanupEvidence && (
               <div>
                 <h5 className="text-xs font-medium text-[var(--color-text-muted)] mb-1">Evidence</h5>
-                <p className="text-sm text-[var(--color-text-secondary)] whitespace-pre-wrap leading-relaxed">
-                  {record.cleanupEvidence}
-                </p>
+                <MarkdownContent>{record.cleanupEvidence}</MarkdownContent>
               </div>
             )}
             {record.cleanupRecommendation && (
               <div>
                 <h5 className="text-xs font-medium text-[var(--color-text-muted)] mb-1">Recommendation</h5>
-                <p className="text-sm text-[var(--color-text-secondary)] whitespace-pre-wrap leading-relaxed">
-                  {record.cleanupRecommendation}
-                </p>
+                <MarkdownContent>{record.cleanupRecommendation}</MarkdownContent>
               </div>
             )}
           </div>
@@ -404,13 +392,118 @@ function FullAnalysisContent({ record }: { record: FullRecord }) {
 }
 
 // ---------------------------------------------------------------------------
+// Bookmark toggle wrapper — notifies parent table when bookmark state changes
+// ---------------------------------------------------------------------------
+
+function SyncingBookmarkToggle({ onDataChanged }: { onDataChanged?: () => void }) {
+  const { isBookmarked, handleToggle, isLoading } = useBookmarkContext();
+  const prevBookmarked = useRef(isBookmarked);
+
+  useEffect(() => {
+    if (prevBookmarked.current !== isBookmarked) {
+      prevBookmarked.current = isBookmarked;
+      onDataChanged?.();
+    }
+  }, [isBookmarked, onDataChanged]);
+
+  return (
+    <BookmarkButton
+      isBookmarked={isBookmarked}
+      onToggle={handleToggle}
+      isLoading={isLoading}
+      size="md"
+      showLabel
+    />
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Unified toolbar content — lives inside AnalysisBookmarkProvider so it can
+// read markers from context. Triage active state derives from the provider's
+// markers, so badge-X removals and triage button toggles stay in sync.
+// ---------------------------------------------------------------------------
+
+function DrawerToolbarContent({
+  triageGroups,
+  onTriageToggle,
+  triageLoading,
+  onDataChanged,
+}: {
+  triageGroups: MarkerGroup[];
+  onTriageToggle: (groupId: number) => Promise<void>;
+  triageLoading: boolean;
+  onDataChanged?: () => void;
+}) {
+  const { bookmark, isBookmarked, markers, availableGroups, handleMarkerToggle, handleCreateCustomMarker } = useBookmarkContext();
+  const refreshBookmark = useBookmarkRefresh();
+
+  // Derive active triage IDs from the provider's markers (single source of truth)
+  const triageGroupIds = useMemo(() => new Set(triageGroups.map(g => g.id)), [triageGroups]);
+  const activeTriageIds = useMemo(
+    () => new Set(markers.filter(m => triageGroupIds.has(m.id)).map(m => m.id)),
+    [markers, triageGroupIds]
+  );
+
+  const handleTriage = useCallback(async (groupId: number) => {
+    await onTriageToggle(groupId);
+    await refreshBookmark();
+    onDataChanged?.();
+  }, [onTriageToggle, refreshBookmark, onDataChanged]);
+
+  // Wrap marker toggle to also notify parent of changes
+  const handleMarkerToggleWithRefresh = useCallback((bookmarkId: number, markerGroupId: number, assign: boolean) => {
+    handleMarkerToggle(bookmarkId, markerGroupId, assign);
+    onDataChanged?.();
+  }, [handleMarkerToggle, onDataChanged]);
+
+  return (
+    <>
+      {/* Triage tags */}
+      {triageGroups.length > 0 && (
+        <TriageButtons
+          triageGroups={triageGroups}
+          activeTriageIds={activeTriageIds}
+          onToggle={handleTriage}
+          disabled={triageLoading}
+        />
+      )}
+
+      {/* Additional markers */}
+      {isBookmarked && bookmark && bookmark.id > 0 && availableGroups.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {markers.map(m => (
+            <MarkerBadge
+              key={m.id}
+              name={m.name}
+              color={m.color}
+              size="sm"
+              onRemove={() => handleMarkerToggleWithRefresh(bookmark.id, m.id, false)}
+            />
+          ))}
+          <MarkerPicker
+            bookmarkId={bookmark.id}
+            assignedMarkerIds={markers.map(m => m.id)}
+            availableGroups={availableGroups}
+            onToggle={handleMarkerToggleWithRefresh}
+            onCreateCustom={handleCreateCustomMarker}
+          />
+        </div>
+      )}
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Main drawer component
 // ---------------------------------------------------------------------------
 
-export function AnalysisDetailDrawer({ item, open, onOpenChange, jurisdiction }: AnalysisDetailDrawerProps) {
+export function AnalysisDetailDrawer({ item, open, onOpenChange, jurisdiction, rows, currentIndex, onNavigate, onTriageChanged }: AnalysisDetailDrawerProps) {
   const [fullRecord, setFullRecord] = useState<FullRecord | null>(null);
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [triageGroups, setTriageGroups] = useState<MarkerGroup[]>([]);
+  const [triageLoading, setTriageLoading] = useState(false);
+  const fetchVersionRef = useRef(0);
 
   // Build a stable key from the item to detect changes
   const itemKey = item
@@ -419,47 +512,92 @@ export function AnalysisDetailDrawer({ item, open, onOpenChange, jurisdiction }:
       : `reg-${item.documentId}-${item.issueType}`
     : null;
 
-  const fetchFullRecord = useCallback(async () => {
-    if (!item) return;
+  const hasPrev = currentIndex > 0;
+  const hasNext = currentIndex < rows.length - 1;
 
-    setLoading(true);
-    setFetchError(null);
-
-    try {
-      if (item.kind === 'guidance') {
-        const result = await getFullGuidanceAnalysisRecord(item.guidanceDocumentId, item.issueType);
-        if (result.success && result.data) {
-          setFullRecord(result.data);
-        } else {
-          setFetchError(result.success ? 'No analysis record found.' : result.error);
-        }
-      } else {
-        const result = await getFullAnalysisRecord(item.documentId, item.issueType);
-        if (result.success && result.data) {
-          setFullRecord(result.data);
-        } else {
-          setFetchError(result.success ? 'No analysis record found.' : result.error);
-        }
-      }
-    } catch (err) {
-      setFetchError(err instanceof Error ? err.message : 'Failed to load analysis details.');
-    } finally {
-      setLoading(false);
+  // Fetch triage marker groups once
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      const result = await getTriageMarkerGroups(jurisdiction);
+      if (!cancelled && result.success) setTriageGroups(result.data);
     }
-  }, [item]);
+    load();
+    return () => { cancelled = true; };
+  }, [jurisdiction]);
 
-  // Fetch full record when item changes or drawer opens
+  // Fetch full record when item changes or drawer opens (with cancellation guard)
   useEffect(() => {
     if (open && item) {
+      const version = ++fetchVersionRef.current;
       setFullRecord(null);
-      fetchFullRecord();
+      setLoading(true);
+      setFetchError(null);
+
+      const doFetch = async () => {
+        try {
+          const result = item.kind === 'guidance'
+            ? await getFullGuidanceAnalysisRecord(item.guidanceDocumentId, item.issueType)
+            : await getFullAnalysisRecord(item.documentId, item.issueType);
+
+          // Discard if a newer navigation has started
+          if (version !== fetchVersionRef.current) return;
+
+          if (result.success && result.data) {
+            setFullRecord(result.data);
+          } else {
+            setFetchError(result.success ? 'No analysis record found.' : result.error);
+          }
+        } catch (err) {
+          if (version !== fetchVersionRef.current) return;
+          setFetchError(err instanceof Error ? err.message : 'Failed to load analysis details.');
+        } finally {
+          if (version === fetchVersionRef.current) {
+            setLoading(false);
+          }
+        }
+      };
+
+      doFetch();
     }
     if (!open) {
-      // Clear when closing to avoid stale data flash
+      fetchVersionRef.current++;
       setFullRecord(null);
       setFetchError(null);
     }
-  }, [open, itemKey, fetchFullRecord]);
+  }, [open, itemKey, item]);
+
+  // Keyboard navigation
+  useEffect(() => {
+    if (!open) return;
+
+    function handleKeyDown(e: KeyboardEvent) {
+      if (isInteractiveElement(e)) return;
+
+      if ((e.key === 'ArrowLeft' || e.key === 'p') && hasPrev) {
+        e.preventDefault();
+        onNavigate(currentIndex - 1);
+      } else if ((e.key === 'ArrowRight' || e.key === 'n') && hasNext) {
+        e.preventDefault();
+        onNavigate(currentIndex + 1);
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [open, hasPrev, hasNext, currentIndex, onNavigate]);
+
+  // Handle triage tag toggle (state sync handled by DrawerToolbarContent)
+  const handleTriageToggle = useCallback(async (markerGroupId: number) => {
+    if (!item) return;
+    setTriageLoading(true);
+
+    const kind = item.kind;
+    const docId = kind === 'guidance' ? item.guidanceDocumentId : item.documentId;
+    await toggleTriageTag(kind, docId, item.issueType, markerGroupId, jurisdiction);
+
+    setTriageLoading(false);
+  }, [item, jurisdiction]);
 
   if (!item) return null;
 
@@ -479,7 +617,7 @@ export function AnalysisDetailDrawer({ item, open, onOpenChange, jurisdiction }:
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent side="right" size="lg">
+      <DrawerContent side="right" size="xl">
         <AnalysisBookmarkProvider {...bookmarkProviderProps}>
           <div className="flex flex-col h-full">
             <DrawerHeader>
@@ -510,20 +648,55 @@ export function AnalysisDetailDrawer({ item, open, onOpenChange, jurisdiction }:
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <BookmarkToggle />
+                <SyncingBookmarkToggle onDataChanged={onTriageChanged} />
                 <DrawerClose />
               </div>
             </DrawerHeader>
 
-            <div className="px-4 py-2 border-b border-[var(--color-neutral-200)] bg-[var(--color-neutral-50)]">
-              <Link
-                href={detailHref}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-sm text-[var(--color-primary)] hover:underline font-medium"
-              >
-                View full analysis details <ExternalLink className="w-3.5 h-3.5" />
-              </Link>
+            {/* Sticky toolbar: navigation + triage tags */}
+            <div className="sticky top-0 z-10 bg-[var(--color-surface)] border-b border-[var(--color-neutral-200)] px-4 py-2 space-y-2">
+              {/* Navigation row */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onNavigate(currentIndex - 1)}
+                    disabled={!hasPrev}
+                    className="p-1 rounded border border-[var(--color-neutral-300)] hover:bg-[var(--color-neutral-100)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    title="Previous (← or P)"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <span className="text-xs text-[var(--color-text-muted)] tabular-nums">
+                    {currentIndex + 1} of {rows.length}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => onNavigate(currentIndex + 1)}
+                    disabled={!hasNext}
+                    className="p-1 rounded border border-[var(--color-neutral-300)] hover:bg-[var(--color-neutral-100)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    title="Next (→ or N)"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+                <Link
+                  href={detailHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs text-[var(--color-primary)] hover:underline font-medium"
+                >
+                  Full details <ExternalLink className="w-3 h-3" />
+                </Link>
+              </div>
+
+              {/* Triage + markers — single component inside provider for state consistency */}
+              <DrawerToolbarContent
+                triageGroups={triageGroups}
+                onTriageToggle={handleTriageToggle}
+                triageLoading={triageLoading}
+                onDataChanged={onTriageChanged}
+              />
             </div>
 
             <DrawerBody className="p-4 space-y-6">

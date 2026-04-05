@@ -3016,7 +3016,7 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerBody, DrawerClo
 | Prop | Values | Default | Description |
 |------|--------|---------|-------------|
 | `side` | `left`, `right`, `bottom` | `right` | Slide-in direction |
-| `size` | `sm`, `md`, `lg`, `full` | `md` | Panel width/height |
+| `size` | `sm`, `md`, `lg`, `xl`, `full` | `md` | Panel width/height (`xl` = 540px) |
 
 ### Mobile Navigation
 
@@ -4114,6 +4114,16 @@ Table rows in the pipeline list have colored left borders based on priority:
 ### Bulk Selection (AnalysisTable)
 
 Checkbox column (first column, before bookmark) with header select-all checkbox. Uses `useBulkSelection` hook with `rowMarkerKey` ("docId-issueType") as selection keys. Selected rows highlighted with `bg-[var(--color-primary-weaker)]`. When items are selected, renders `BulkActionBar` between table and pagination for bulk bookmark, unmark, marker assignment, and inline category creation. Header checkbox supports indeterminate state when partial selection. "Select all matching" banner appears when all visible rows are selected and more exist across pages.
+
+### AnalysisDetailDrawer Navigation + Triage
+
+The pipeline drawer (`AnalysisDetailDrawer`, `size="xl"` = 540px) includes a sticky toolbar below the header with:
+
+- **Navigation row:** Prev/Next buttons (`ChevronLeft`/`ChevronRight`) with "N of M" counter. Keyboard: `←`/`→` or `p`/`n`.
+- **Triage row:** Three color-coded `TriageButtons` — Confirmed (green `#16a34a`), Needs Review (amber `#d97706`), Incorrect (red `#dc2626`). Multi-select. Auto-bookmarks on first tag. Active state: filled background + white text. Inactive: outlined border + colored text.
+- **Active row highlight:** Table row for the currently-viewed item gets `ring-1 ring-inset ring-[var(--color-primary)]` + light blue tint.
+
+Triage tags are `marker_groups` with `category = 'triage'`. They also appear in the regular MarkerPicker dropdown.
 
 ### Pipeline Detail Page Section Order
 

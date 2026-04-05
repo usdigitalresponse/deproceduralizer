@@ -30,6 +30,15 @@ export async function getMarkerGroups(
 }
 
 /**
+ * Get triage marker groups (Confirmed, Needs Review, Incorrect).
+ */
+export async function getTriageMarkerGroups(
+  jurisdiction?: string
+): Promise<ActionResult<MarkerGroup[]>> {
+  return runAction('getTriageMarkerGroups', () => markerGroupsRepo.getTriageGroups(jurisdiction));
+}
+
+/**
  * Create a new marker group.
  */
 export async function createMarkerGroup(input: {

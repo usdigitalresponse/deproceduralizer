@@ -8,27 +8,13 @@ import {
   getFineBookmark,
   toggleFineBookmark,
   updateBookmarkNotes,
-  getMarkersForBookmark,
-  assignMarkerToBookmark,
-  removeMarkerFromBookmark,
 } from '@/lib/actions/bookmarks';
-import { getMarkerGroups, getOrCreateCustomMarkerGroup } from '@/lib/actions/marker-groups';
-import type { Bookmark, MarkerGroup } from '@deproceduralizer/database';
+import type { Bookmark } from '@deproceduralizer/database';
+import { useBookmarkState, type BookmarkState } from '@/hooks/useBookmarkState';
 
-type MarkerInfo = { id: number; name: string; color: string };
-
-// Context so the header star and notes card share state
-interface FineBookmarkContextValue {
-  bookmark: Bookmark | null;
-  isLoading: boolean;
-  isBookmarked: boolean;
-  handleToggle: () => Promise<void>;
+interface FineBookmarkContextValue extends BookmarkState {
   handleSaveNotes: (notes: string, createdBy?: string) => Promise<void>;
   bookmarkName: string;
-  markers: MarkerInfo[];
-  availableGroups: MarkerGroup[];
-  handleMarkerToggle: (bookmarkId: number, markerGroupId: number, assign: boolean) => void;
-  handleCreateCustomMarker: (name: string) => void;
 }
 
 const FineBookmarkContext = createContext<FineBookmarkContextValue | null>(null);
@@ -41,141 +27,40 @@ interface FineBookmarkProviderProps {
 }
 
 export function FineBookmarkProvider({ fineId, jurisdiction, onBookmarkChange, children }: FineBookmarkProviderProps) {
-  const [bookmark, setBookmark] = useState<Bookmark | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const { bookmarkName, saveBookmarkName } = useBookmarkName();
-  const [markers, setMarkers] = useState<MarkerInfo[]>([]);
-  const [availableGroups, setAvailableGroups] = useState<MarkerGroup[]>([]);
 
-  const isBookmarked = bookmark !== null;
-
-  useEffect(() => {
-    async function fetchBookmark() {
-      const result = await getFineBookmark(fineId);
-      if (result.success && result.data) {
-        setBookmark(result.data);
-      }
-      setIsLoading(false);
-    }
-    fetchBookmark();
+  const fetchBookmark = useCallback(async () => {
+    const result = await getFineBookmark(fineId);
+    return result.success ? result.data : null;
   }, [fineId]);
 
-  // Fetch marker groups once
-  useEffect(() => {
-    async function fetchGroups() {
-      const result = await getMarkerGroups(jurisdiction);
-      if (result.success) {
-        setAvailableGroups(result.data);
-      }
-    }
-    fetchGroups();
-  }, [jurisdiction]);
-
-  // Fetch markers when bookmark changes
-  useEffect(() => {
-    if (!bookmark || bookmark.id < 0) {
-      setMarkers([]);
-      return;
-    }
-    async function fetchMarkers() {
-      const result = await getMarkersForBookmark(bookmark!.id);
-      if (result.success) {
-        setMarkers(result.data);
-      }
-    }
-    fetchMarkers();
-  }, [bookmark?.id]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleToggle = useCallback(async () => {
-    const wasBookmarked = isBookmarked;
-    if (wasBookmarked) {
-      setBookmark(null);
-      onBookmarkChange?.(fineId, false);
-    } else {
-      // Optimistic: show bookmarked immediately with a placeholder
-      setBookmark({
-        id: -1,
-        documentId: null,
-        analysisId: null,
-        guidanceDocumentId: null,
-        fineId: fineId,
-        issueType: null,
-        jurisdiction,
-        notes: null,
-        createdBy: bookmarkName || null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
-      onBookmarkChange?.(fineId, true);
-    }
-
+  const toggleBookmarkFn = useCallback(async () => {
     const result = await toggleFineBookmark(fineId, jurisdiction, undefined, bookmarkName || undefined);
+    if (!result.success) return undefined as unknown as Bookmark | null;
+    return result.data;
+  }, [fineId, jurisdiction, bookmarkName]);
 
-    if (!result.success) {
-      const refetch = await getFineBookmark(fineId);
-      if (refetch.success && refetch.data) {
-        setBookmark(refetch.data);
-        onBookmarkChange?.(fineId, true);
-      } else {
-        setBookmark(null);
-        onBookmarkChange?.(fineId, false);
-      }
-    } else if (result.data) {
-      setBookmark(result.data);
-      onBookmarkChange?.(fineId, true);
-    } else {
-      setBookmark(null);
-      onBookmarkChange?.(fineId, false);
-    }
-  }, [fineId, jurisdiction, isBookmarked, bookmarkName, onBookmarkChange]);
+  const state = useBookmarkState({ fetchBookmark, toggleBookmark: toggleBookmarkFn, jurisdiction });
+
+  // Notify parent of bookmark changes
+  useEffect(() => {
+    onBookmarkChange?.(fineId, state.isBookmarked);
+  }, [state.isBookmarked]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSaveNotes = useCallback(async (notes: string, createdBy?: string) => {
     if (createdBy) {
       saveBookmarkName(createdBy);
     }
-    if (bookmark) {
-      const result = await updateBookmarkNotes(bookmark.id, notes, createdBy);
+    if (state.bookmark) {
+      const result = await updateBookmarkNotes(state.bookmark.id, notes, createdBy);
       if (result.success) {
-        setBookmark(prev => prev ? { ...prev, notes, createdBy: createdBy ?? prev.createdBy } : null);
+        state.setBookmark({ ...state.bookmark, notes, createdBy: createdBy ?? state.bookmark.createdBy });
       }
     }
-  }, [bookmark, saveBookmarkName]);
-
-  const handleMarkerToggle = useCallback((bookmarkId: number, markerGroupId: number, assign: boolean) => {
-    // Optimistic update
-    if (assign) {
-      const group = availableGroups.find(g => g.id === markerGroupId);
-      if (group) {
-        setMarkers(prev => [...prev, { id: group.id, name: group.name, color: group.color }]);
-      }
-      assignMarkerToBookmark(bookmarkId, markerGroupId).then(result => {
-        if (!result.success) {
-          setMarkers(prev => prev.filter(m => m.id !== markerGroupId));
-        }
-      });
-    } else {
-      const removed = markers.find(m => m.id === markerGroupId);
-      setMarkers(prev => prev.filter(m => m.id !== markerGroupId));
-      removeMarkerFromBookmark(bookmarkId, markerGroupId).then(result => {
-        if (!result.success && removed) {
-          setMarkers(prev => [...prev, removed]);
-        }
-      });
-    }
-  }, [availableGroups, markers]);
-
-  const handleCreateCustomMarker = useCallback(async (name: string) => {
-    if (!bookmark || bookmark.id < 0) return;
-    const result = await getOrCreateCustomMarkerGroup(name, jurisdiction);
-    if (result.success) {
-      setAvailableGroups(prev => prev.some(g => g.id === result.data.id) ? prev : [...prev, result.data]);
-      await assignMarkerToBookmark(bookmark.id, result.data.id);
-      setMarkers(prev => prev.some(m => m.id === result.data.id) ? prev : [...prev, { id: result.data.id, name: result.data.name, color: result.data.color }]);
-    }
-  }, [bookmark, jurisdiction]);
+  }, [state.bookmark, saveBookmarkName, state.setBookmark]);
 
   return (
-    <FineBookmarkContext.Provider value={{ bookmark, isLoading, isBookmarked, handleToggle, handleSaveNotes, bookmarkName, markers, availableGroups, handleMarkerToggle, handleCreateCustomMarker }}>
+    <FineBookmarkContext.Provider value={{ ...state, handleSaveNotes, bookmarkName }}>
       {children}
     </FineBookmarkContext.Provider>
   );

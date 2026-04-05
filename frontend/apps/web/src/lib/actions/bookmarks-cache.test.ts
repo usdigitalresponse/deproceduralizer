@@ -50,55 +50,61 @@ beforeEach(() => {
 
 describe('refreshBookmarkCache (via action behavior)', () => {
   describe('toggleAnalysisBookmark - removes bookmark', () => {
-    it('invalidates bookmarks tag and pipeline+bookmarks pages', async () => {
+    it('invalidates bookmarks + marker-groups tags and markers/fines/guidance/pipeline pages', async () => {
       mockGetByAnalysisId.mockResolvedValue({ id: 1 });
       mockDelete.mockResolvedValue(true);
 
       await toggleAnalysisBookmark(42);
 
       expect(mockUpdateTag).toHaveBeenCalledWith('bookmarks');
-      expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/bookmarks', 'page');
+      expect(mockUpdateTag).toHaveBeenCalledWith('marker-groups');
+      expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/markers', 'page');
+      expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/fines', 'page');
+      expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/guidance', 'page');
       expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/pipeline', 'page');
-      expect(mockRevalidatePath).toHaveBeenCalledTimes(2);
     });
   });
 
   describe('toggleDocumentBookmark - removes bookmark', () => {
-    it('invalidates bookmarks tag and regulations+bookmarks pages', async () => {
+    it('invalidates bookmarks + marker-groups tags and markers/fines/guidance/regulations pages', async () => {
       mockGetDocumentBookmark.mockResolvedValue({ id: 2 });
       mockDelete.mockResolvedValue(true);
 
       await toggleDocumentBookmark(10, 'ny');
 
       expect(mockUpdateTag).toHaveBeenCalledWith('bookmarks');
-      expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/bookmarks', 'page');
+      expect(mockUpdateTag).toHaveBeenCalledWith('marker-groups');
+      expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/markers', 'page');
+      expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/fines', 'page');
+      expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/guidance', 'page');
       expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/regulations', 'page');
-      expect(mockRevalidatePath).toHaveBeenCalledTimes(2);
     });
   });
 
   describe('removeBookmark', () => {
-    it('invalidates bookmarks tag and all three pages', async () => {
+    it('invalidates bookmarks + marker-groups tags and markers/fines/guidance/pipeline/regulations pages', async () => {
       mockDelete.mockResolvedValue(true);
 
       await removeBookmark(5);
 
       expect(mockUpdateTag).toHaveBeenCalledWith('bookmarks');
-      expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/bookmarks', 'page');
+      expect(mockUpdateTag).toHaveBeenCalledWith('marker-groups');
+      expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/markers', 'page');
+      expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/fines', 'page');
+      expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/guidance', 'page');
       expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/pipeline', 'page');
       expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/regulations', 'page');
-      expect(mockRevalidatePath).toHaveBeenCalledTimes(3);
     });
   });
 
   describe('updateBookmarkNotes', () => {
-    it('only revalidates bookmarks page (no updateTag)', async () => {
+    it('only revalidates markers page (no updateTag)', async () => {
       mockUpdate.mockResolvedValue({ id: 7, notes: 'updated' });
 
       await updateBookmarkNotes(7, 'new notes');
 
       expect(mockUpdateTag).not.toHaveBeenCalled();
-      expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/bookmarks', 'page');
+      expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/markers', 'page');
       expect(mockRevalidatePath).toHaveBeenCalledTimes(1);
     });
   });

@@ -714,3 +714,81 @@ export async function getGuidanceDocBookmarkMarkersMap(
     bookmarksRepo.getGuidanceDocBookmarkMarkersMap(jurisdiction)
   );
 }
+
+// ── Triage tag helpers ─────────────────────────────────────────────────
+
+/**
+ * Toggle a triage tag on an analysis.
+ * Auto-bookmarks the item if it isn't already bookmarked.
+ * Multi-select: toggling one tag doesn't remove others.
+ *
+ * @param kind - 'regulation' or 'guidance'
+ * @param docId - documentId (regulation) or guidanceDocumentId (guidance)
+ * @param issueType - the issue type key
+ * @param markerGroupId - the triage marker group to toggle
+ * @param jurisdiction - jurisdiction code
+ * @returns The updated list of marker IDs on the bookmark
+ */
+export async function toggleTriageTag(
+  kind: 'regulation' | 'guidance',
+  docId: number,
+  issueType: string,
+  markerGroupId: number,
+  jurisdiction: string
+): Promise<ActionResult<{ bookmarkId: number; markerIds: number[] }>> {
+  try {
+    // 1. Find the analysis
+    const analysisFilter = kind === 'guidance'
+      ? eq(complianceIssueAnalyses.guidanceDocumentId, docId)
+      : eq(complianceIssueAnalyses.documentId, docId);
+
+    const [analysis] = await db
+      .select({
+        analysisId: complianceIssueAnalyses.id,
+        jurisdiction: complianceIssueAnalyses.jurisdiction,
+      })
+      .from(complianceIssueAnalyses)
+      .where(and(analysisFilter, eq(complianceIssueAnalyses.issueType, issueType)))
+      .limit(1);
+
+    if (!analysis) {
+      return failure(`Analysis not found for ${kind} ${docId} / ${issueType}`);
+    }
+
+    // 2. Ensure bookmark exists (find or create)
+    let bookmark = await bookmarksRepo.getByAnalysisId(analysis.analysisId);
+    const createdNewBookmark = !bookmark;
+    if (!bookmark) {
+      const createInput = kind === 'guidance'
+        ? { guidanceDocumentId: docId, analysisId: analysis.analysisId, issueType, jurisdiction: analysis.jurisdiction }
+        : { documentId: docId, analysisId: analysis.analysisId, issueType, jurisdiction: analysis.jurisdiction };
+      bookmark = await bookmarksRepo.create(createInput);
+    }
+
+    // 3. Check if marker is already assigned
+    const currentMarkers = await bookmarksRepo.getMarkersForBookmark(bookmark.id);
+    const isAssigned = currentMarkers.some(m => m.id === markerGroupId);
+
+    if (isAssigned) {
+      await bookmarksRepo.removeMarker(bookmark.id, markerGroupId);
+    } else {
+      await bookmarksRepo.assignMarker(bookmark.id, markerGroupId);
+    }
+
+    // 4. Return updated marker list
+    const updatedMarkers = await bookmarksRepo.getMarkersForBookmark(bookmark.id);
+    // Only invalidate cache when a new bookmark was created — this refreshes
+    // cached counts on Labels/Fines pages without re-rendering the pipeline page.
+    if (createdNewBookmark) {
+      updateTag('bookmarks');
+    }
+
+    return success({
+      bookmarkId: bookmark.id,
+      markerIds: updatedMarkers.map(m => m.id),
+    });
+  } catch (error) {
+    console.error('[toggleTriageTag]', error);
+    return failure(getErrorMessage(error));
+  }
+}

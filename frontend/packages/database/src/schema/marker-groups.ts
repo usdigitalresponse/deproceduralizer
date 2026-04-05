@@ -26,6 +26,7 @@ export const markerGroups = pgTable('marker_groups', {
   jurisdiction: varchar('jurisdiction', { length: 3 }),
   sortOrder: integer('sort_order').notNull().default(0),
   isCustom: boolean('is_custom').notNull().default(false),
+  category: varchar('category', { length: 30 }),
   createdBy: varchar('created_by', { length: 255 }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),

@@ -358,6 +358,8 @@ export const analysisTableParsers = {
   // Guidance-specific filters (null = no filter)
   agency: parseAsString,
   docType: parseAsString,
+  // Drawer state: marker key of the open item (e.g. "r-12345-wet_signature")
+  drawerItem: parseAsString,
 };
 
 // ============================================

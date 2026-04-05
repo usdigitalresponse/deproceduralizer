@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useTransition, useCallback, useMemo } from 'react';
+import { useEffect, useState, useTransition, useCallback, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { useQueryStates } from 'nuqs';
 import { ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
@@ -101,6 +101,7 @@ export function AnalysisTable({ jurisdiction, source }: AnalysisTableProps) {
   const [error, setError] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<UnifiedAnalysisRow | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const drawerItemFromUrl = filters.drawerItem;
   const [isProcessing, setIsProcessing] = useState(false);
   const { bookmarkName } = useBookmarkName();
 
@@ -460,18 +461,59 @@ export function AnalysisTable({ jurisdiction, source }: AnalysisTableProps) {
     if (markersResult.success) setBookmarkMarkersMap(markersResult.data);
   }, [jurisdiction, isGuidance]);
 
+  // Sync drawer state with URL (open, close, or switch item on history navigation)
+  useEffect(() => {
+    if (drawerItemFromUrl && rows.length > 0) {
+      const match = rows.find(r => rowMarkerKey(r) === drawerItemFromUrl);
+      if (match) {
+        setSelectedItem(match);
+        setDrawerOpen(true);
+      }
+    } else if (!drawerItemFromUrl && drawerOpen) {
+      setDrawerOpen(false);
+    }
+  }, [drawerItemFromUrl, rows]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleDrawerOpenChange = useCallback((open: boolean) => {
     setDrawerOpen(open);
     if (!open) {
-      // Refresh bookmark/marker data when drawer closes to sync any changes made inside
+      // Clear URL state and refresh bookmark/marker data when drawer closes
+      setFilters({ drawerItem: null });
       refreshBookmarkData();
     }
-  }, [refreshBookmarkData]);
+  }, [refreshBookmarkData, setFilters]);
 
   const handleRowClick = useCallback((item: UnifiedAnalysisRow) => {
     setSelectedItem(item);
     setDrawerOpen(true);
-  }, []);
+    setFilters({ drawerItem: rowMarkerKey(item) });
+  }, [setFilters]);
+
+  // Compute current index for drawer navigation
+  const currentIndex = useMemo(() => {
+    if (!selectedItem) return -1;
+    const key = rowMarkerKey(selectedItem);
+    return rows.findIndex(r => rowMarkerKey(r) === key);
+  }, [selectedItem, rows]);
+
+  // Navigate to a different row from inside the drawer
+  const handleNavigate = useCallback((index: number) => {
+    if (index >= 0 && index < rows.length) {
+      setSelectedItem(rows[index]);
+      setFilters({ drawerItem: rowMarkerKey(rows[index]) });
+    }
+  }, [rows, setFilters]);
+
+  // Ref for scrolling active row into view
+  const rowRefs = useRef<Map<string, HTMLTableRowElement>>(new Map());
+
+  // Scroll active row into view when navigating
+  useEffect(() => {
+    if (!drawerOpen || !selectedItem) return;
+    const key = rowMarkerKey(selectedItem);
+    const row = rowRefs.current.get(key);
+    row?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [drawerOpen, selectedItem]);
 
   const handlePageChange = (newPage: number) => {
     setFilters({ page: newPage });
@@ -560,6 +602,11 @@ export function AnalysisTable({ jurisdiction, source }: AnalysisTableProps) {
                   onToggleSelection={() => toggleSelection(markerKey)}
                   onSaveNotes={markerEntry ? (notes, createdBy) => handleSaveNotes(markerEntry.bookmarkId, markerKey, notes, createdBy) : undefined}
                   bookmarkName={bookmarkName}
+                  isActive={drawerOpen && selectedItem !== null && markerKey === rowMarkerKey(selectedItem)}
+                  rowRef={(el) => {
+                    if (el) rowRefs.current.set(markerKey, el);
+                    else rowRefs.current.delete(markerKey);
+                  }}
                 />
               );
             })}
@@ -623,6 +670,10 @@ export function AnalysisTable({ jurisdiction, source }: AnalysisTableProps) {
         open={drawerOpen}
         onOpenChange={handleDrawerOpenChange}
         jurisdiction={jurisdiction}
+        rows={rows}
+        currentIndex={currentIndex}
+        onNavigate={handleNavigate}
+        onTriageChanged={refreshBookmarkData}
       />
     </div>
   );
@@ -643,6 +694,8 @@ interface AnalysisTableRowProps {
   onToggleSelection: () => void;
   onSaveNotes?: (notes: string, createdBy?: string) => Promise<void>;
   bookmarkName: string;
+  isActive: boolean;
+  rowRef?: (el: HTMLTableRowElement | null) => void;
 }
 
 function AnalysisTableRow({
@@ -660,6 +713,8 @@ function AnalysisTableRow({
   onToggleSelection,
   onSaveNotes,
   bookmarkName,
+  isActive,
+  rowRef,
 }: AnalysisTableRowProps) {
   const issueTypeLabel = ISSUE_TYPE_LABELS[item.issueType as keyof typeof ISSUE_TYPE_LABELS] || item.issueType;
 
@@ -680,7 +735,8 @@ function AnalysisTableRow({
   return (
     <>
       <tr
-        className={`border-b border-[var(--color-neutral-100)] hover:bg-[var(--color-neutral-50)] cursor-pointer ${borderClass}${isSelected ? ' bg-[var(--color-primary-weaker)]' : ''}${isBookmarked && markerEntry ? ' !border-b-0' : ''}`}
+        ref={rowRef}
+        className={`border-b border-[var(--color-neutral-100)] hover:bg-[var(--color-neutral-50)] cursor-pointer ${borderClass}${isActive ? ' ring-1 ring-inset ring-[var(--color-primary)] bg-blue-50/40' : ''}${isSelected ? ' bg-[var(--color-primary-weaker)]' : ''}${isBookmarked && markerEntry ? ' !border-b-0' : ''}`}
         onClick={(e) => {
           // Don't open drawer when clicking interactive elements (buttons, links, inputs)
           const target = e.target as HTMLElement;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect, createContext, useContext, type ReactNode } from 'react';
+import { useState, useCallback, useEffect, useMemo, createContext, useContext, type ReactNode } from 'react';
 import { Tag as TagIcon, Pencil, X, Check } from 'lucide-react';
 import type { JurisdictionCode, Bookmark, MarkerGroup } from '@deproceduralizer/database';
 import { BookmarkButton } from '@/components/ui';
@@ -11,27 +11,10 @@ import {
   getBookmarkByDocIssue,
   getBookmarkByGuidanceDocIssue,
   updateBookmarkNotes,
-  getMarkersForBookmark,
-  assignMarkerToBookmark,
-  removeMarkerFromBookmark,
 } from '@/lib/actions/bookmarks';
-import { getMarkerGroups, getOrCreateCustomMarkerGroup } from '@/lib/actions/marker-groups';
+import { useBookmarkState, type BookmarkState, type MarkerInfo } from '@/hooks/useBookmarkState';
 
-type MarkerInfo = { id: number; name: string; color: string };
-
-// Context for sharing bookmark state
-interface BookmarkContextValue {
-  bookmark: Bookmark | null;
-  isLoading: boolean;
-  isBookmarked: boolean;
-  handleToggle: () => Promise<void>;
-  markers: MarkerInfo[];
-  availableGroups: MarkerGroup[];
-  handleMarkerToggle: (bookmarkId: number, markerGroupId: number, assign: boolean) => void;
-  handleCreateCustomMarker: (name: string) => void;
-}
-
-const BookmarkContext = createContext<BookmarkContextValue | null>(null);
+const BookmarkContext = createContext<BookmarkState | null>(null);
 
 type AnalysisBookmarkProviderProps = {
   issueType: string;
@@ -54,120 +37,28 @@ export function AnalysisBookmarkProvider({
   jurisdiction,
   children,
 }: AnalysisBookmarkProviderProps) {
-  const [bookmark, setBookmark] = useState<Bookmark | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [markers, setMarkers] = useState<MarkerInfo[]>([]);
-  const [availableGroups, setAvailableGroups] = useState<MarkerGroup[]>([]);
-
-  const isBookmarked = bookmark !== null;
   const isGuidance = guidanceDocumentId !== undefined;
 
-  // Fetch bookmark
-  useEffect(() => {
-    async function fetchBookmark() {
-      const result = isGuidance
-        ? await getBookmarkByGuidanceDocIssue(guidanceDocumentId, issueType)
-        : await getBookmarkByDocIssue(documentId!, issueType);
-      if (result.success) {
-        setBookmark(result.data);
-      }
-      setIsLoading(false);
-    }
-    fetchBookmark();
+  const fetchBookmark = useCallback(async () => {
+    const result = isGuidance
+      ? await getBookmarkByGuidanceDocIssue(guidanceDocumentId, issueType)
+      : await getBookmarkByDocIssue(documentId!, issueType);
+    return result.success ? result.data : null;
   }, [documentId, guidanceDocumentId, issueType, isGuidance]);
 
-  // Fetch marker groups once
-  useEffect(() => {
-    async function fetchGroups() {
-      const result = await getMarkerGroups(jurisdiction);
-      if (result.success) {
-        setAvailableGroups(result.data);
-      }
-    }
-    fetchGroups();
-  }, [jurisdiction]);
-
-  // Fetch markers when bookmark changes
-  useEffect(() => {
-    if (!bookmark || bookmark.id < 0) {
-      setMarkers([]);
-      return;
-    }
-    async function fetchMarkers() {
-      const result = await getMarkersForBookmark(bookmark!.id);
-      if (result.success) {
-        setMarkers(result.data);
-      }
-    }
-    fetchMarkers();
-  }, [bookmark?.id]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleToggle = useCallback(async () => {
-    const wasBookmarked = isBookmarked;
-
-    // Optimistic update
-    if (wasBookmarked) {
-      setBookmark(null);
-    }
-
+  const toggleBookmark = useCallback(async () => {
     const result = isGuidance
       ? await toggleGuidanceAnalysisBookmarkByDocIssue(guidanceDocumentId, issueType, jurisdiction)
       : await toggleAnalysisBookmarkByDocIssue(documentId!, issueType, jurisdiction);
+    if (!result.success) return undefined as unknown as Bookmark | null;
+    return result.data;
+  }, [documentId, guidanceDocumentId, issueType, jurisdiction, isGuidance]);
 
-    if (!result.success) {
-      // Revert on failure
-      const refetchResult = isGuidance
-        ? await getBookmarkByGuidanceDocIssue(guidanceDocumentId, issueType)
-        : await getBookmarkByDocIssue(documentId!, issueType);
-      if (refetchResult.success) {
-        setBookmark(refetchResult.data);
-      }
-      console.error('Failed to toggle bookmark:', result.error);
-    } else if (result.data) {
-      setBookmark(result.data);
-    }
-  }, [documentId, guidanceDocumentId, issueType, jurisdiction, isBookmarked, isGuidance]);
-
-  const handleMarkerToggle = useCallback((bookmarkId: number, markerGroupId: number, assign: boolean) => {
-    if (assign) {
-      const group = availableGroups.find(g => g.id === markerGroupId);
-      if (group) {
-        setMarkers(prev => [...prev, { id: group.id, name: group.name, color: group.color }]);
-      }
-      assignMarkerToBookmark(bookmarkId, markerGroupId).then(result => {
-        if (!result.success) {
-          setMarkers(prev => prev.filter(m => m.id !== markerGroupId));
-        }
-      });
-    } else {
-      const removed = markers.find(m => m.id === markerGroupId);
-      setMarkers(prev => prev.filter(m => m.id !== markerGroupId));
-      removeMarkerFromBookmark(bookmarkId, markerGroupId).then(result => {
-        if (!result.success && removed) {
-          setMarkers(prev => [...prev, removed]);
-        }
-      });
-    }
-  }, [availableGroups, markers]);
-
-  const handleCreateCustomMarker = useCallback(async (name: string) => {
-    if (!bookmark || bookmark.id < 0) return;
-    const result = await getOrCreateCustomMarkerGroup(name, jurisdiction);
-    if (result.success) {
-      setAvailableGroups(prev => prev.some(g => g.id === result.data.id) ? prev : [...prev, result.data]);
-      await assignMarkerToBookmark(bookmark.id, result.data.id);
-      setMarkers(prev => prev.some(m => m.id === result.data.id) ? prev : [...prev, { id: result.data.id, name: result.data.name, color: result.data.color }]);
-    }
-  }, [bookmark, jurisdiction]);
-
-  // Allow updating bookmark from notes card
-  const updateBookmark = useCallback((updated: Bookmark) => {
-    setBookmark(updated);
-  }, []);
+  const state = useBookmarkState({ fetchBookmark, toggleBookmark, jurisdiction });
 
   return (
-    <BookmarkContext.Provider value={{ bookmark, isLoading, isBookmarked, handleToggle, markers, availableGroups, handleMarkerToggle, handleCreateCustomMarker }}>
-      <BookmarkUpdateContext.Provider value={updateBookmark}>
+    <BookmarkContext.Provider value={state}>
+      <BookmarkUpdateContext.Provider value={state.setBookmark}>
         {children}
       </BookmarkUpdateContext.Provider>
     </BookmarkContext.Provider>
@@ -176,6 +67,26 @@ export function AnalysisBookmarkProvider({
 
 // Separate context for updates to avoid re-renders
 const BookmarkUpdateContext = createContext<((b: Bookmark) => void) | null>(null);
+
+/**
+ * Hook to access the bookmark refresh function.
+ * Call after external mutations (e.g. triage auto-bookmark) to sync the provider's state.
+ */
+export function useBookmarkRefresh(): () => Promise<void> {
+  const ctx = useContext(BookmarkContext);
+  if (!ctx) throw new Error('useBookmarkRefresh must be used within AnalysisBookmarkProvider');
+  return ctx.refreshBookmark;
+}
+
+/**
+ * Hook to access the full bookmark context (bookmark state, markers, toggle handlers).
+ * Must be used within AnalysisBookmarkProvider.
+ */
+export function useBookmarkContext(): BookmarkState {
+  const ctx = useContext(BookmarkContext);
+  if (!ctx) throw new Error('useBookmarkContext must be used within AnalysisBookmarkProvider');
+  return ctx;
+}
 
 /**
  * Bookmark toggle button - place in the navigation area.

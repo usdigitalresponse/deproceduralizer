@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { isInteractiveElement } from '@/lib/utils/keyboard';
 
 /**
  * Shortcut definitions for keyboard help display
@@ -27,40 +28,6 @@ interface UseQueueNavigationOptions<T> {
   enableHelpModal?: boolean;
   /** Item label for shortcuts (e.g., 'flag', 'issue', 'definition') */
   itemLabel?: string;
-}
-
-/**
- * Check if keyboard event target is an interactive element that should capture input
- */
-function isInteractiveElement(e: KeyboardEvent): boolean {
-  const target = e.target;
-
-  // Check standard form elements
-  if (
-    target instanceof HTMLInputElement ||
-    target instanceof HTMLTextAreaElement ||
-    target instanceof HTMLSelectElement
-  ) {
-    return true;
-  }
-
-  // Check for Radix UI dropdowns and other ARIA widgets
-  if (target instanceof HTMLElement) {
-    const role = target.getAttribute('role');
-    if (role === 'combobox' || role === 'listbox' || role === 'option') {
-      return true;
-    }
-
-    // Check if inside an open Radix Select portal
-    if (
-      target.closest('[data-radix-select-viewport]') ||
-      target.closest('[role="listbox"]')
-    ) {
-      return true;
-    }
-  }
-
-  return false;
 }
 
 /**

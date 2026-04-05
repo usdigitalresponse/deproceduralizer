@@ -1055,15 +1055,16 @@ User-defined colored tag groups for organizing bookmarks. Supports predefined (s
 | `jurisdiction` | varchar(3) | NULL = global, or 'NY'/'NJ'/'NYC' for jurisdiction-specific |
 | `sort_order` | integer | Display ordering, default 0 |
 | `is_custom` | boolean | false = predefined seed data, true = user-created |
+| `category` | varchar(30) | Marker category (e.g. 'triage' for triage quick-tags), NULL for regular markers |
 | `created_by` | varchar(255) | Who created the group |
 | `created_at` | timestamptz | When created |
 | `updated_at` | timestamptz | When last updated |
 
-**Seed data:** Easy Win (#22c55e), Needs Review (#f97316), Legal Question (#ef4444), Report Draft (#3b82f6), Priority (#8b5cf6)
+**Seed data:** Easy Win (#22c55e), Needs Review (#d97706, triage), Legal Question (#ef4444), Report Draft (#3b82f6), Priority (#8b5cf6), Confirmed (#16a34a, triage), Incorrect (#dc2626, triage)
 
 **Constraints:** `uq_marker_groups_name_jurisdiction UNIQUE(name, COALESCE(jurisdiction, '__global__'))` - unique names per jurisdiction scope
 
-**Migration:** `0088_marker_groups.sql`
+**Migration:** `0088_marker_groups.sql`, `0090_triage_marker_groups.sql`
 
 ## bookmark_markers
 

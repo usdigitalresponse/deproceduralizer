@@ -243,23 +243,27 @@ export function MarkerGroupManager({
                     {count > 0 && (
                       <span className="text-xs text-[var(--color-text-muted)]">{count}</span>
                     )}
-                    <button
-                      type="button"
-                      onClick={() => handleStartEdit(group)}
-                      className="p-1 text-[var(--color-text-muted)] hover:text-[var(--color-primary)] hover:bg-[var(--color-neutral-100)] rounded-[var(--radius-sm)] cursor-pointer opacity-0 group-hover:opacity-100 focus:opacity-100"
-                      aria-label={`Edit ${group.name}`}
-                    >
-                      <Pencil className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteClick(group)}
-                      disabled={isSubmitting || deleteConfirm !== null}
-                      className="p-1 text-[var(--color-text-muted)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-bg)] rounded-[var(--radius-sm)] cursor-pointer opacity-0 group-hover:opacity-100 focus:opacity-100 disabled:opacity-40"
-                      aria-label={`Delete ${group.name}`}
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    {group.category !== 'triage' && (
+                      <button
+                        type="button"
+                        onClick={() => handleStartEdit(group)}
+                        className="p-1 text-[var(--color-text-muted)] hover:text-[var(--color-primary)] hover:bg-[var(--color-neutral-100)] rounded-[var(--radius-sm)] cursor-pointer opacity-0 group-hover:opacity-100 focus:opacity-100"
+                        aria-label={`Edit ${group.name}`}
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    {group.category !== 'triage' && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteClick(group)}
+                        disabled={isSubmitting || deleteConfirm !== null}
+                        className="p-1 text-[var(--color-text-muted)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-bg)] rounded-[var(--radius-sm)] cursor-pointer opacity-0 group-hover:opacity-100 focus:opacity-100 disabled:opacity-40"
+                        aria-label={`Delete ${group.name}`}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </>
                 )}
               </div>
