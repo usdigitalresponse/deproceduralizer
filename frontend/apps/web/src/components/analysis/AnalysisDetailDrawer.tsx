@@ -719,6 +719,27 @@ export function AnalysisDetailDrawer({ item, open, onOpenChange, jurisdiction, r
 
               <ReviewSummaryText summary={item.reviewSummary} className="mt-2" />
 
+              {/* --- Regulation Context (from async-loaded full record) --- */}
+              {fullRecord && !loading && (
+                <div className="space-y-2">
+                  {'document' in fullRecord && fullRecord.document.summary && (
+                    <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">
+                      {fullRecord.document.summary}
+                    </p>
+                  )}
+                  {'document' in fullRecord && fullRecord.document.keywords && fullRecord.document.keywords.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {fullRecord.document.keywords.map((kw: string) => (
+                        <Badge key={kw} variant="default" className="text-xs">{kw}</Badge>
+                      ))}
+                      {fullRecord.document.appliesTo?.map((entity: string) => (
+                        <Badge key={entity} variant="info" className="text-xs">{entity}</Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* --- Tier Breakdown --- */}
               <div className="border-t border-[var(--color-neutral-200)] pt-4 space-y-3">
                 <h4 className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
