@@ -3254,7 +3254,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         totalRequests: sql<number>`COALESCE(sum(jsonb_array_length(${complianceIssueAnalyses.tier1Recommendations}->'context_requests')) FILTER (WHERE ${complianceIssueAnalyses.tier1Recommendations} IS NOT NULL), 0)::int`,
       })
       .from(complianceIssueAnalyses)
-      .where(and(...conditions.slice(0, issueType ? 2 : 1), isNotNull(complianceIssueAnalyses.tier1Classification)));
+      .where(and(...conditions, isNotNull(complianceIssueAnalyses.tier1Classification)));
 
     const rows = contextTypeResults.rows as Array<{ context_type: string; need_level: string; count: number }>;
     const byIssueRows = byIssueTypeResults.rows as Array<{ issue_type: string; context_type: string; count: number }>;

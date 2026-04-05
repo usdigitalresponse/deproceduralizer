@@ -159,7 +159,7 @@ export function AnalyticsClient({
         )}
 
         {currentTab === 'pipeline' && (
-          <PipelineTab jurisdiction={jurisdiction} data={pipelineData} />
+          <PipelineTab jurisdiction={jurisdiction} data={pipelineData} activeSource={source} />
         )}
       </div>
     </div>

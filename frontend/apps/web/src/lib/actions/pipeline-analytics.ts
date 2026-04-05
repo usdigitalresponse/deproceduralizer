@@ -111,24 +111,26 @@ export async function getTier3EvidenceStats(
 
 export async function getConfidenceByClassification(
   state: JurisdictionCode,
-  issueType?: string
+  issueType?: string,
+  source?: AnalysisSource
 ): Promise<ActionResult<ConfidenceByClassificationData>> {
   return runCachedAction(
     'getConfidenceByClassification',
     () => complianceIssuesRepo.getConfidenceByClassification(state, issueType),
-    [`pipeline-confidence-by-class-${state}-${issueType ?? 'all'}`],
+    [`pipeline-confidence-by-class-${state}-${issueType ?? 'all'}-${source ?? 'all'}`],
     { revalidate: 3600, tags: ['pipeline-analytics'] }
   );
 }
 
 export async function getTransitionReasons(
   state: JurisdictionCode,
-  issueType?: string
+  issueType?: string,
+  source?: AnalysisSource
 ): Promise<ActionResult<TransitionReasonData>> {
   return runCachedAction(
     'getTransitionReasons',
     () => complianceIssuesRepo.getTransitionReasons(state, issueType),
-    [`pipeline-transition-reasons-${state}-${issueType ?? 'all'}`],
+    [`pipeline-transition-reasons-${state}-${issueType ?? 'all'}-${source ?? 'all'}`],
     { revalidate: 3600, tags: ['pipeline-analytics'] }
   );
 }
@@ -148,22 +150,23 @@ export interface PipelineAnalyticsBundle {
 
 export async function getPipelineAnalyticsBundle(
   state: JurisdictionCode,
-  issueType?: string
+  issueType?: string,
+  source?: AnalysisSource
 ): Promise<ActionResult<PipelineAnalyticsBundle>> {
   return runCachedAction(
     'getPipelineAnalyticsBundle',
     async () => {
       const [funnel, tier1, transitions, evidence, confByClass, transReasons] = await Promise.all([
-        complianceIssuesRepo.getPipelineFunnelStats(state, issueType),
-        complianceIssuesRepo.getTier1ContextRequestStats(state, issueType),
-        complianceIssuesRepo.getTierTransitionStats(state, issueType),
-        complianceIssuesRepo.getTier3EvidenceStats(state, issueType),
+        complianceIssuesRepo.getPipelineFunnelStats(state, issueType, source),
+        complianceIssuesRepo.getTier1ContextRequestStats(state, issueType, source),
+        complianceIssuesRepo.getTierTransitionStats(state, issueType, source),
+        complianceIssuesRepo.getTier3EvidenceStats(state, issueType, source),
         complianceIssuesRepo.getConfidenceByClassification(state, issueType).catch(() => null),
         complianceIssuesRepo.getTransitionReasons(state, issueType).catch(() => null),
       ]);
       return { funnel, tier1Context: tier1, tierTransitions: transitions, tier3Evidence: evidence, confidenceByClassification: confByClass, transitionReasons: transReasons };
     },
-    [`pipeline-bundle-${state}-${issueType ?? 'all'}`],
+    [`pipeline-bundle-${state}-${issueType ?? 'all'}-${source ?? 'all'}`],
     { revalidate: 3600, tags: ['pipeline-analytics'] }
   );
 }
@@ -211,7 +214,8 @@ export async function getResearchFunnelStats(
 /** Fetch all context/research subtab data in parallel. */
 export async function getPipelineContextData(
   state: JurisdictionCode,
-  issueType?: string
+  issueType?: string,
+  _source?: AnalysisSource
 ): Promise<ActionResult<PipelineContextData>> {
   try {
     const [tier2Result, contextResult, funnelResult] = await Promise.all([
@@ -249,8 +253,8 @@ export async function getPipelineAnalyticsData(
       getTier1ContextRequestStats(state, undefined, source),
       getTierTransitionStats(state, undefined, source),
       getTier3EvidenceStats(state, undefined, source),
-      getConfidenceByClassification(state),
-      getTransitionReasons(state),
+      getConfidenceByClassification(state, undefined, source),
+      getTransitionReasons(state, undefined, source),
     ]);
 
     if (!funnelResult.success) return failure(funnelResult.error);

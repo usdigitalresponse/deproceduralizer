@@ -33,9 +33,14 @@ const SUBTAB_OPTIONS: SegmentedControlOption<PipelineSubTabValue>[] = [
 interface PipelineTabProps {
   jurisdiction: JurisdictionCode;
   data: PipelineAnalyticsData | null;
+  activeSource?: string;
 }
 
-export function PipelineTab({ jurisdiction, data: initialData }: PipelineTabProps) {
+export function PipelineTab({ jurisdiction, data: initialData, activeSource }: PipelineTabProps) {
+  // Map URL source value to repo source type for refetch calls
+  const repoSource = activeSource === 'regulations' ? 'regulation' as const
+    : activeSource === 'guidance' ? 'guidance' as const
+    : undefined;
   const [params, setParams] = useQueryStates(analyticsParsers, { shallow: true });
   const issueType = params.pIssueType;
   const subTab = params.pSubTab as PipelineSubTabValue;
@@ -81,7 +86,7 @@ export function PipelineTab({ jurisdiction, data: initialData }: PipelineTabProp
     setIsFiltering(true);
 
     async function fetchFiltered() {
-      const result = await getPipelineAnalyticsBundle(jurisdiction, issueType!);
+      const result = await getPipelineAnalyticsBundle(jurisdiction, issueType!, repoSource);
 
       if (cancelled) return;
 
@@ -122,7 +127,7 @@ export function PipelineTab({ jurisdiction, data: initialData }: PipelineTabProp
     setIsLoadingContext(true);
 
     async function fetchContext() {
-      const result = await getPipelineContextData(jurisdiction, issueType ?? undefined);
+      const result = await getPipelineContextData(jurisdiction, issueType ?? undefined, repoSource);
       if (cancelled) return;
 
       if (result.success) {
