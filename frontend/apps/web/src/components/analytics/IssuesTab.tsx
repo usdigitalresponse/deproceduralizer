@@ -42,6 +42,8 @@ export function IssuesTab({
   const confirmedIssues = complianceStatus?.confirmed ?? 0;
   const falsePositives =
     (complianceStatus?.rejected_clear_fp ?? 0) + (complianceStatus?.rejected_not_obvious_bad ?? 0);
+  const pendingReview =
+    (complianceStatus?.unreviewed ?? 0) + (complianceStatus?.needs_context ?? 0) + (complianceStatus?.deferred ?? 0);
 
   // Bar chart data — filtered by classification
   const issueTypeData = useMemo(() => {
@@ -125,9 +127,10 @@ export function IssuesTab({
         </Card>
         <Card padding="md" className="text-center">
           <div className="text-3xl font-bold text-[var(--color-text)]">
-            {(totalIssues - confirmedIssues - falsePositives).toLocaleString()}
+            {pendingReview.toLocaleString()}
           </div>
-          <div className="text-sm text-[var(--color-text-muted)]">Awaiting Review</div>
+          <div className="text-sm text-[var(--color-text-muted)]">Pending Human Review</div>
+          <div className="text-xs text-[var(--color-text-muted)]">Unreviewed + needs context + deferred</div>
         </Card>
         <Card padding="md" className="text-center">
           <div className="text-3xl font-bold text-[var(--color-success)]">
