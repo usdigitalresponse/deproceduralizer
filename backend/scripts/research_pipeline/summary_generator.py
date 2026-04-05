@@ -563,6 +563,13 @@ async def generate_review_summaries(
         )
         print(f"  Batch submitted: {batch_id}")
 
+        # Close DB connection before polling — Neon kills idle-in-transaction after ~5 min
+        if conn:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
         # Poll for completion
         await asyncio.to_thread(
             manager.poll_until_complete,
@@ -579,15 +586,22 @@ async def generate_review_summaries(
             print("  No summaries to save.")
             return 0
 
-        # Save to DB
+        # Save to DB with fresh connection (original was closed before polling)
         from .db.analysis_writer import save_review_summaries
-        saved = save_review_summaries(summary_tuples, conn)
-        print(f"  Saved {saved} review summaries to database")
-        return saved
+        save_conn = get_db_connection()
+        try:
+            saved = save_review_summaries(summary_tuples, save_conn)
+            print(f"  Saved {saved} review summaries to database")
+            return saved
+        finally:
+            save_conn.close()
 
     finally:
         if should_close and conn:
-            conn.close()
+            try:
+                conn.close()
+            except Exception:
+                pass  # May already be closed
 
 
 async def generate_summaries_from_db(
@@ -658,6 +672,13 @@ async def generate_summaries_from_db(
         )
         print(f"  Batch submitted: {batch_id}")
 
+        # Close DB connection before polling — Neon kills idle-in-transaction after ~5 min
+        if conn:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
         # Poll for completion
         await asyncio.to_thread(
             manager.poll_until_complete,
@@ -674,15 +695,22 @@ async def generate_summaries_from_db(
             print("  No summaries to save.")
             return 0
 
-        # Save to DB
+        # Save to DB with fresh connection (original was closed before polling)
         from .db.analysis_writer import save_review_summaries
-        saved = save_review_summaries(summary_tuples, conn)
-        print(f"  Saved {saved} review summaries to database")
-        return saved
+        save_conn = get_db_connection()
+        try:
+            saved = save_review_summaries(summary_tuples, save_conn)
+            print(f"  Saved {saved} review summaries to database")
+            return saved
+        finally:
+            save_conn.close()
 
     finally:
         if should_close and conn:
-            conn.close()
+            try:
+                conn.close()
+            except Exception:
+                pass  # May already be closed
 
 
 def _fetch_analyses_for_summaries(
