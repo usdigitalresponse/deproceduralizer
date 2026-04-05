@@ -149,16 +149,6 @@ export default async function AnalyticsPage({ params, searchParams }: AnalyticsP
           pipelineData={pipelineData}
           jenaiSeverity={jenaiSeverity}
           jenaiStats={jenaiStats}
-          jenaiCategories={jenaiCategories}
-          jenaiParts={jenaiParts}
-          jenaiSectionTypes={jenaiSectionTypes}
-          jenaiDeveloperStatus={jenaiDeveloperStatus}
-          jenaiStrategyStats={jenaiStrategyStats}
-          jenaiComplexity={jenaiComplexity}
-          jenaiCategorySeverity={jenaiCategorySeverity}
-          jenaiSourceType={jenaiSourceType}
-          jenaiReviewProgress={jenaiReviewProgress}
-          jenaiBurdenScore={jenaiBurdenScore}
           guidanceOverviewStats={guidanceOverviewStats}
           guidanceCitationStats={guidanceCitationStats}
           guidanceReadabilityStats={guidanceReadabilityStats}
