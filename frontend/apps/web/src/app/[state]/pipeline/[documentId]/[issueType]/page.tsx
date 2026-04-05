@@ -14,7 +14,7 @@ import {
   PrintButton,
   PrintModeStyles,
   SeverityProgression,
-  ExecutiveSummary,
+
   RegulatoryContext,
 } from '@/components/analysis';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -270,11 +270,6 @@ export default async function AnalysisDetailPage({ params, searchParams }: Analy
               </div>
             </div>
           </div>
-        </div>
-
-        {/* Executive Summary Card - key findings at a glance */}
-        <div id="section-summary">
-          <ExecutiveSummary analysis={analysis} />
         </div>
 
         {/* Easy Cleanup Card - shown when flagged as easy cleanup opportunity */}
