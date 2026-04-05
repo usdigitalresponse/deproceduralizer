@@ -4,6 +4,7 @@ import { useState, useCallback, useMemo, type ComponentType } from 'react';
 import Link from 'next/link';
 import { useQueryStates } from 'nuqs';
 import { Trash2, ExternalLink, FileText, ListChecks, BookOpen, DollarSign, Sparkles, AlertTriangle, Zap, Settings, Tag } from 'lucide-react';
+import { toast } from 'sonner';
 import type { BookmarkWithDetails, MarkerGroup, JurisdictionCode } from '@deproceduralizer/database';
 import { Badge, MultiSelect } from '@/components/ui';
 import type { BadgeVariant } from '@/components/ui/Badge';
@@ -298,7 +299,7 @@ export function MarkersContent({ bookmarks, counts, jurisdiction, markerGroups }
     const result = await removeBookmark(bookmarkId);
     if (!result.success) {
       setLocalBookmarks(bookmarks);
-      console.error('Failed to remove bookmark:', result.error);
+      toast.error('Could not unsave item');
     }
   }, [bookmarks]);
 
@@ -373,6 +374,7 @@ export function MarkersContent({ bookmarks, counts, jurisdiction, markerGroups }
 
     if (!result.success) {
       setLocalBookmarks(bookmarks); // Revert
+      toast.error('Could not update label');
     }
   }, [bookmarks, localGroups]);
 
@@ -383,8 +385,10 @@ export function MarkersContent({ bookmarks, counts, jurisdiction, markerGroups }
         if (prev.some(g => g.id === result.data.id)) return prev;
         return [...prev, result.data];
       });
+      toast.success(`Label "${name}" created`);
       return result.data;
     }
+    toast.error('Could not create label');
     return null;
   }, [jurisdiction]);
 

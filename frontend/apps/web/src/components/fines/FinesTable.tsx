@@ -3,6 +3,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { DollarSign } from 'lucide-react';
+import { toast } from 'sonner';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { BookmarkButton } from '@/components/ui';
 import { BulkActionBar } from '@/components/ui/BulkActionBar';
@@ -72,7 +73,11 @@ export function FinesTable({ data, state, onRowClick, bookmarkedFineIds, onToggl
     setIsProcessing(true);
     try {
       const unbookmarked = Array.from(selectedKeys).filter(id => !bookmarkedFineIds.has(id));
-      await Promise.allSettled(unbookmarked.map(id => onToggleBookmark(id)));
+      const results = await Promise.allSettled(unbookmarked.map(id => onToggleBookmark(id)));
+      const succeeded = results.filter(r => r.status === 'fulfilled').length;
+      const failed = results.filter(r => r.status === 'rejected').length;
+      if (succeeded > 0) toast.success(`Saved ${succeeded} item${succeeded !== 1 ? 's' : ''}`);
+      if (failed > 0) toast.error(`${failed} item${failed !== 1 ? 's' : ''} could not be saved`);
     } finally {
       setIsProcessing(false);
     }
@@ -97,7 +102,11 @@ export function FinesTable({ data, state, onRowClick, bookmarkedFineIds, onToggl
           }
         }
       }
-      await Promise.allSettled(assignments);
+      const results = await Promise.allSettled(assignments);
+      const succeeded = results.filter(r => r.status === 'fulfilled').length;
+      const failed = results.filter(r => r.status === 'rejected').length;
+      if (succeeded > 0) toast.success(`Label applied to ${succeeded} item${succeeded !== 1 ? 's' : ''}`);
+      if (failed > 0) toast.error(`Label could not be applied to ${failed} item${failed !== 1 ? 's' : ''}`);
     } finally {
       setIsProcessing(false);
     }
@@ -109,15 +118,20 @@ export function FinesTable({ data, state, onRowClick, bookmarkedFineIds, onToggl
     setIsProcessing(true);
     try {
       const bookmarked = Array.from(selectedKeys).filter(id => bookmarkedFineIds.has(id));
-      await Promise.allSettled(bookmarked.map(id => onToggleBookmark(id)));
+      const results = await Promise.allSettled(bookmarked.map(id => onToggleBookmark(id)));
+      const succeeded = results.filter(r => r.status === 'fulfilled').length;
+      const failed = results.filter(r => r.status === 'rejected').length;
+      if (succeeded > 0) toast.success(`Unsaved ${succeeded} item${succeeded !== 1 ? 's' : ''}`);
+      if (failed > 0) toast.error(`${failed} item${failed !== 1 ? 's' : ''} could not be unsaved`);
     } finally {
       setIsProcessing(false);
     }
   }, [selectedKeys, bookmarkedFineIds, onToggleBookmark]);
 
   // Bulk create new category and assign to all selected bookmarked items
-  const handleBulkCreateAndAssign = useCallback((name: string) => {
-    onCreateAndAssignMarker?.(name, selectedKeys);
+  const handleBulkCreateAndAssign = useCallback(async (name: string) => {
+    await onCreateAndAssignMarker?.(name, selectedKeys);
+    toast.success(`Label "${name}" applied to ${selectedKeys.size} item${selectedKeys.size !== 1 ? 's' : ''}`);
   }, [selectedKeys, onCreateAndAssignMarker]);
 
   if (isLoading && data.length === 0) {

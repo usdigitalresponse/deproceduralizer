@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition, useCallback, useMemo, useRef } from
 import Link from 'next/link';
 import { useQueryStates } from 'nuqs';
 import { ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
+import { toast } from 'sonner';
 import type { JurisdictionCode, AnalysisListItem, GuidanceAnalysisListItem } from '@deproceduralizer/database';
 import type { PipelineSourceValue } from '@/lib/constants/values';
 import { analysisTableParsers } from '@/lib/url/parsers';
@@ -269,9 +270,13 @@ export function AnalysisTable({ jurisdiction, source }: AnalysisTableProps) {
           }
         }
       }
-      await Promise.allSettled(
+      const results = await Promise.allSettled(
         unbookmarked.map(({ docId, issueType }) => handleBookmarkToggle(docId, issueType))
       );
+      const succeeded = results.filter(r => r.status === 'fulfilled').length;
+      const failed = results.filter(r => r.status === 'rejected').length;
+      if (succeeded > 0) toast.success(`Saved ${succeeded} item${succeeded !== 1 ? 's' : ''}`);
+      if (failed > 0) toast.error(`${failed} item${failed !== 1 ? 's' : ''} could not be saved`);
     } finally {
       setIsProcessing(false);
     }
@@ -293,7 +298,11 @@ export function AnalysisTable({ jurisdiction, source }: AnalysisTableProps) {
           }
         }
       }
-      await Promise.allSettled(assignments);
+      const results = await Promise.allSettled(assignments);
+      const succeeded = results.filter(r => r.status === 'fulfilled').length;
+      const failed = results.filter(r => r.status === 'rejected').length;
+      if (succeeded > 0) toast.success(`Label applied to ${succeeded} item${succeeded !== 1 ? 's' : ''}`);
+      if (failed > 0) toast.error(`Label could not be applied to ${failed} item${failed !== 1 ? 's' : ''}`);
     } finally {
       setIsProcessing(false);
     }
@@ -313,9 +322,13 @@ export function AnalysisTable({ jurisdiction, source }: AnalysisTableProps) {
           }
         }
       }
-      await Promise.allSettled(
+      const results = await Promise.allSettled(
         bookmarked.map(({ docId, issueType }) => handleBookmarkToggle(docId, issueType))
       );
+      const succeeded = results.filter(r => r.status === 'fulfilled').length;
+      const failed = results.filter(r => r.status === 'rejected').length;
+      if (succeeded > 0) toast.success(`Unsaved ${succeeded} item${succeeded !== 1 ? 's' : ''}`);
+      if (failed > 0) toast.error(`${failed} item${failed !== 1 ? 's' : ''} could not be unsaved`);
     } finally {
       setIsProcessing(false);
     }
@@ -326,7 +339,10 @@ export function AnalysisTable({ jurisdiction, source }: AnalysisTableProps) {
     setIsProcessing(true);
     try {
       const result = await getOrCreateCustomMarkerGroup(name, jurisdiction);
-      if (!result.success) return;
+      if (!result.success) {
+        toast.error('Could not create label');
+        return;
+      }
 
       // Add to available groups list
       setMarkerGroupsList(prev => prev.some(g => g.id === result.data.id) ? prev : [...prev, result.data]);
@@ -361,8 +377,11 @@ export function AnalysisTable({ jurisdiction, source }: AnalysisTableProps) {
         }
       }
       const results = await Promise.allSettled(assignments);
+      const succeeded = results.filter(r => r.status === 'fulfilled' && r.value.success).length;
       const failures = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.success));
+      if (succeeded > 0) toast.success(`Label "${name}" applied to ${succeeded} item${succeeded !== 1 ? 's' : ''}`);
       if (failures.length > 0) {
+        toast.error(`Label could not be applied to ${failures.length} item${failures.length !== 1 ? 's' : ''}`);
         console.warn(`[BulkAssign] ${failures.length}/${results.length} assignments failed, refreshing...`);
         // Refresh markers map to re-sync
         const refreshed = await getAnalysisBookmarkMarkersMap(jurisdiction);

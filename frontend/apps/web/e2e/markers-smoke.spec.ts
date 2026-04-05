@@ -5,24 +5,24 @@ test.describe('Markers Feature Smoke Tests', () => {
   test('markers page loads with tabs', async ({ page }) => {
     await page.goto('/ny/markers');
     // Wait for the page-specific heading (not the nav h1)
-    await expect(page.getByRole('heading', { name: /Labels/i })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('heading', { name: /Saved Items/i })).toBeVisible({ timeout: 15000 });
     // Check tab buttons exist (custom TabButton components render as <button>)
     await expect(page.locator('button:has-text("Analyses")')).toBeVisible();
     await expect(page.locator('button:has-text("Fines")')).toBeVisible();
   });
 
-  test('pipeline page shows marked filter toggle', async ({ page }) => {
+  test('pipeline page shows saved filter toggle', async ({ page }) => {
     await page.goto('/ny/pipeline');
     await page.waitForSelector('table', { timeout: 15000 });
-    const markedButton = page.locator('button:has-text("Marked")');
-    await expect(markedButton).toBeVisible();
+    const savedButton = page.locator('button:has-text("Saved")');
+    await expect(savedButton).toBeVisible();
   });
 
-  test('fines browse has marked filter', async ({ page }) => {
+  test('fines browse has saved filter', async ({ page }) => {
     await page.goto('/ny/fines?tab=browse');
     await page.waitForSelector('table', { timeout: 15000 });
-    const markedButton = page.locator('button:has-text("Marked")');
-    await expect(markedButton).toBeVisible();
+    const savedButton = page.locator('button:has-text("Saved")');
+    await expect(savedButton).toBeVisible();
   });
 
   test('pipeline row click opens detail drawer', async ({ page }) => {
@@ -59,11 +59,11 @@ test.describe('Markers Feature Smoke Tests', () => {
     await expect(headerCheckbox).toBeVisible();
   });
 
-  test('guidance browse has marked filter', async ({ page }) => {
+  test('guidance browse has saved filter', async ({ page }) => {
     await page.goto('/ny/guidance');
     await page.waitForSelector('table', { timeout: 15000 });
-    const markedButton = page.locator('button:has-text("Marked")');
-    await expect(markedButton).toBeVisible();
+    const savedButton = page.locator('button:has-text("Saved")');
+    await expect(savedButton).toBeVisible();
   });
 
   test('bookmarks URL redirects to markers', async ({ page }) => {
