@@ -224,7 +224,7 @@ python3 -m scripts.research_pipeline.cli \
 
 Post-pipeline step that generates 1-2 sentence plain-language summaries for quick review triage.
 
-**When it runs:** After `save_final_results()`, before optional summarization. Enabled by default with `--execute`; disable with `--no-summaries`.
+**When it runs:** After `save_final_results()`, before optional summarization. Enabled by default with `--execute`; disable with `--no-generate-summaries`.
 
 **Model:** Haiku via Anthropic Batch API (summarization/distillation task, not analytical reasoning).
 
@@ -242,7 +242,7 @@ Post-pipeline step that generates 1-2 sentence plain-language summaries for quic
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--generate-summaries` / `--no-summaries` | on with `--execute` | Control summary generation after pipeline |
+| `--generate-summaries` / `--no-generate-summaries` | on with `--execute` | Control summary generation after pipeline |
 | `--summaries-only` | off | Standalone: regenerate summaries for existing analyses without re-running the pipeline |
 
 **Standalone example:**

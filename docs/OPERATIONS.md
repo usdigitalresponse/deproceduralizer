@@ -500,7 +500,7 @@ Key flags:
 | `--doc-type` | none | Filter guidance by doc type (e.g., `ADM`, `DAL`) |
 | `--statute-mandate` | off | Run statute mandate checks after pipeline (NY only) |
 | `--run-statute-mandate-only` | off | Run only the statute mandate check step |
-| `--generate-summaries` / `--no-summaries` | on with `--execute` | Generate review summaries after pipeline completes |
+| `--generate-summaries` / `--no-generate-summaries` | on with `--execute` | Generate review summaries after pipeline completes |
 | `--summaries-only` | off | Standalone: regenerate summaries for existing analyses without re-running the pipeline |
 
 **Guidance Documents** (requires migration 0058):
