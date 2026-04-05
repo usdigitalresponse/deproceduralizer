@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { getDashboardStats } from '@/lib/actions/dashboard';
 import { getSectionTypeStats, getMetadataStats, getTopKeywords, getTopAppliesTo } from '@/lib/actions/regulations';
-import { getComplianceIssueStatusCounts, getComplianceIssueCountsByType, getComplianceIssueCountsByTypeAndClassification, getComplianceSeverityDistribution } from '@/lib/actions/compliance-issues';
+import { getAnalyticsSummary } from '@/lib/actions/analytics-metrics';
 import {
   getJenAISeverityDistribution, getJenAIStatusCounts, getJenAICategories,
   getJenAIParts, getJenAISectionTypes, getJenAIDeveloperStatusCounts,
@@ -44,70 +44,61 @@ export default async function AnalyticsPage({ params, searchParams }: AnalyticsP
     undefined; // 'all' or missing → no filter (combined)
 
   // Fetch all analytics data in parallel
+  // getAnalyticsSummary replaces 5 separate compliance calls with one composite fetcher
   const [
     dashboardStatsResult,
     sectionTypeStatsResult,
     metadataStatsResult,
     topKeywordsResult,
     topAppliesToResult,
-    complianceStatusResult,
-    complianceTypeCountsResult,
+    analyticsSummaryResult,
     definitionsStatsResult,
     statuteStatsResult,
     pipelineDataResult,
-    complianceSeverityResult,
     jenaiSeverityResult,
     jenaiStatsResult,
+    jenaiCategoriesResult,
+    jenaiPartsResult,
+    jenaiSectionTypesResult,
+    jenaiDeveloperStatusResult,
+    jenaiStrategyStatsResult,
+    jenaiComplexityResult,
+    jenaiCategorySeverityResult,
+    jenaiSourceTypeResult,
+    jenaiReviewProgressResult,
+    jenaiBurdenScoreResult,
     guidanceOverviewStatsResult,
     guidanceCitationStatsResult,
     guidanceReadabilityStatsResult,
     guidanceReadabilityCrossCutsResult,
     guidanceLineageStatsResult,
-    // JenAI analytics tab data
-    jenaiCategoriesResult,
-    jenaiPartsResult,
-    jenaiSectionTypesResult,
-    jenaiDeveloperStatusCountsResult,
-    jenaiBurdenStatsResult,
-    jenaiComplexityDistributionResult,
-    jenaiCategorySeverityMatrixResult,
-    jenaiSourceTypeBreakdownResult,
-    jenaiReviewProgressByCategoryResult,
-    jenaiBurdenScoreDistributionResult,
-    jenaiStrategyStatsResult,
-    complianceTypeClassificationResult,
   ] = await Promise.all([
     getDashboardStats(stateCode),
     getSectionTypeStats(state),
     getMetadataStats(state),
     getTopKeywords(state, 30),
     getTopAppliesTo(state, 30),
-    getComplianceIssueStatusCounts(stateCode, repoSource ? { source: repoSource } : undefined),
-    getComplianceIssueCountsByType(stateCode, repoSource),
+    getAnalyticsSummary(stateCode, repoSource),
     getDefinitionAnalyticsStats(stateCode),
     getStatuteStats(state),
     getPipelineAnalyticsData(stateCode, repoSource),
-    getComplianceSeverityDistribution(stateCode, repoSource),
     getJenAISeverityDistribution(stateCode),
     getJenAIStatusCounts(stateCode),
-    getGuidanceOverviewStats(stateCode),
-    getGuidanceCitationStats(stateCode),
-    getGuidanceReadabilityStats(stateCode),
-    getGuidanceReadabilityCrossCuts(stateCode),
-    getGuidanceLineageStats(stateCode),
-    // JenAI analytics tab
     getJenAICategories(stateCode),
     getJenAIParts(stateCode),
     getJenAISectionTypes(stateCode),
     getJenAIDeveloperStatusCounts(stateCode),
-    getJenAIBurdenStats(stateCode),
+    getJenAIStrategyStats(stateCode),
     getJenAIComplexityDistribution(stateCode),
     getJenAICategorySeverityMatrix(stateCode),
     getJenAISourceTypeBreakdown(stateCode),
     getJenAIReviewProgressByCategory(stateCode),
     getJenAIBurdenScoreDistribution(stateCode),
-    getJenAIStrategyStats(stateCode),
-    getComplianceIssueCountsByTypeAndClassification(stateCode, repoSource),
+    getGuidanceOverviewStats(stateCode),
+    getGuidanceCitationStats(stateCode),
+    getGuidanceReadabilityStats(stateCode),
+    getGuidanceReadabilityCrossCuts(stateCode),
+    getGuidanceLineageStats(stateCode),
   ]);
 
   // Extract data, falling back to null on failure
@@ -116,37 +107,27 @@ export default async function AnalyticsPage({ params, searchParams }: AnalyticsP
   const metadataStats = metadataStatsResult.success ? metadataStatsResult.data : null;
   const topKeywords = topKeywordsResult.success ? topKeywordsResult.data : null;
   const topAppliesTo = topAppliesToResult.success ? topAppliesToResult.data : null;
-  const complianceStatus = complianceStatusResult.success ? complianceStatusResult.data : null;
-  const complianceTypeCounts = complianceTypeCountsResult.success ? complianceTypeCountsResult.data : null;
+  const analyticsSummary = analyticsSummaryResult.success ? analyticsSummaryResult.data : null;
   const definitionsStats = definitionsStatsResult.success ? definitionsStatsResult.data : null;
   const statuteStats = statuteStatsResult.success ? statuteStatsResult.data : null;
   const pipelineData = pipelineDataResult.success ? pipelineDataResult.data : null;
-  const complianceSeverity = complianceSeverityResult.success ? complianceSeverityResult.data : null;
   const jenaiSeverity = jenaiSeverityResult.success ? jenaiSeverityResult.data : null;
   const jenaiStats = jenaiStatsResult.success ? jenaiStatsResult.data : null;
+  const jenaiCategories = jenaiCategoriesResult.success ? jenaiCategoriesResult.data : null;
+  const jenaiParts = jenaiPartsResult.success ? jenaiPartsResult.data : null;
+  const jenaiSectionTypes = jenaiSectionTypesResult.success ? jenaiSectionTypesResult.data : null;
+  const jenaiDeveloperStatus = jenaiDeveloperStatusResult.success ? jenaiDeveloperStatusResult.data : null;
+  const jenaiStrategyStats = jenaiStrategyStatsResult.success ? jenaiStrategyStatsResult.data : null;
+  const jenaiComplexity = jenaiComplexityResult.success ? jenaiComplexityResult.data : null;
+  const jenaiCategorySeverity = jenaiCategorySeverityResult.success ? jenaiCategorySeverityResult.data : null;
+  const jenaiSourceType = jenaiSourceTypeResult.success ? jenaiSourceTypeResult.data : null;
+  const jenaiReviewProgress = jenaiReviewProgressResult.success ? jenaiReviewProgressResult.data : null;
+  const jenaiBurdenScore = jenaiBurdenScoreResult.success ? jenaiBurdenScoreResult.data : null;
   const guidanceOverviewStats = guidanceOverviewStatsResult.success ? guidanceOverviewStatsResult.data : null;
   const guidanceCitationStats = guidanceCitationStatsResult.success ? guidanceCitationStatsResult.data : null;
   const guidanceReadabilityStats = guidanceReadabilityStatsResult.success ? guidanceReadabilityStatsResult.data : null;
   const guidanceReadabilityCrossCuts = guidanceReadabilityCrossCutsResult.success ? guidanceReadabilityCrossCutsResult.data : null;
   const guidanceLineageStats = guidanceLineageStatsResult.success ? guidanceLineageStatsResult.data : null;
-  const complianceTypeClassification = complianceTypeClassificationResult.success ? complianceTypeClassificationResult.data : null;
-
-  // JenAI analytics tab — grouped into single prop object
-  const jenaiAnalyticsData = {
-    jenaiStats,
-    jenaiSeverity,
-    categories: jenaiCategoriesResult.success ? jenaiCategoriesResult.data : null,
-    parts: jenaiPartsResult.success ? jenaiPartsResult.data : null,
-    sectionTypes: jenaiSectionTypesResult.success ? jenaiSectionTypesResult.data : null,
-    developerStatusCounts: jenaiDeveloperStatusCountsResult.success ? jenaiDeveloperStatusCountsResult.data : null,
-    burdenStats: jenaiBurdenStatsResult.success ? jenaiBurdenStatsResult.data : null,
-    complexityDistribution: jenaiComplexityDistributionResult.success ? jenaiComplexityDistributionResult.data : null,
-    categorySeverityMatrix: jenaiCategorySeverityMatrixResult.success ? jenaiCategorySeverityMatrixResult.data : null,
-    sourceTypeBreakdown: jenaiSourceTypeBreakdownResult.success ? jenaiSourceTypeBreakdownResult.data : null,
-    reviewProgressByCategory: jenaiReviewProgressByCategoryResult.success ? jenaiReviewProgressByCategoryResult.data : null,
-    burdenScoreDistribution: jenaiBurdenScoreDistributionResult.success ? jenaiBurdenScoreDistributionResult.data : null,
-    strategyStats: jenaiStrategyStatsResult.success ? jenaiStrategyStatsResult.data : null,
-  };
 
   return (
     <div className="bg-[var(--color-background)] min-h-screen">
@@ -162,12 +143,10 @@ export default async function AnalyticsPage({ params, searchParams }: AnalyticsP
           metadataStats={metadataStats}
           topKeywords={topKeywords}
           topAppliesTo={topAppliesTo}
-          complianceStatus={complianceStatus}
-          complianceTypeCounts={complianceTypeCounts}
+          analyticsSummary={analyticsSummary}
           definitionsStats={definitionsStats}
           statuteStats={statuteStats}
           pipelineData={pipelineData}
-          complianceSeverity={complianceSeverity}
           jenaiSeverity={jenaiSeverity}
           jenaiStats={jenaiStats}
           guidanceOverviewStats={guidanceOverviewStats}
@@ -175,8 +154,21 @@ export default async function AnalyticsPage({ params, searchParams }: AnalyticsP
           guidanceReadabilityStats={guidanceReadabilityStats}
           guidanceReadabilityCrossCuts={guidanceReadabilityCrossCuts}
           guidanceLineageStats={guidanceLineageStats}
-          jenaiAnalyticsData={jenaiAnalyticsData}
-          complianceTypeClassification={complianceTypeClassification}
+          jenaiAnalyticsData={{
+            jenaiStats,
+            jenaiSeverity,
+            categories: jenaiCategories,
+            parts: jenaiParts,
+            sectionTypes: jenaiSectionTypes,
+            developerStatusCounts: jenaiDeveloperStatus,
+            burdenStats: null,
+            complexityDistribution: jenaiComplexity,
+            categorySeverityMatrix: jenaiCategorySeverity,
+            sourceTypeBreakdown: jenaiSourceType,
+            reviewProgressByCategory: jenaiReviewProgress,
+            burdenScoreDistribution: jenaiBurdenScore,
+            strategyStats: jenaiStrategyStats,
+          }}
         />
       </Container>
     </div>

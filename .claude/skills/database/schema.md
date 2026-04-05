@@ -336,6 +336,34 @@ The following columns on `regulatory_documents` store compliance issue counts:
 
 These are updated by `refresh_compliance_stats()` in `backend/lib/stats.py` and only count issues where `requirement_found = TRUE` (in `compliance_issue_analyses`).
 
+### Metric Contract (Analytics & Pipeline)
+
+**Canonical Tables:**
+- `compliance_issues` = **regex/match layer** — raw scan results from `scan_compliance_issues.py`. NOT the reporting layer. Do not use for user-facing counts.
+- `compliance_issue_analyses` = **canonical reporting layer** — all analytics, pipeline stats, and user-facing counts come from this table.
+
+**Population Rules for User-Facing Counts:**
+- All user-facing issue counts MUST filter `requirement_found = TRUE`
+- Classification uses `COALESCE(tier3_classification, tier2_classification, tier1_classification)` — each record counted once at its highest completed tier
+- Source scoping (regulations vs guidance) uses `guidance_document_id IS NULL` (regulations) or `guidance_document_id IS NOT NULL` (guidance)
+- Source filtering helpers: `buildSourceCondition()` (Drizzle) and `buildSourceSqlFragment()` (raw SQL) in `compliance-issues.repository.ts`
+
+**Where `requirement_found` is Set:**
+- Set in `backend/scripts/research_pipeline/result_processor.py` during Tier 2/3 processing
+- Written to DB in `backend/scripts/research_pipeline/db/analysis_writer.py`
+- `burdensome` / `justified` → `requirement_found = true`
+- `unrelated` / `all_false_positives` → `requirement_found = false`
+
+**Human Review vs Issue Existence:**
+- `review_status` is a separate dimension from `requirement_found` — they must not be conflated
+- Human review buckets: `unreviewed`, `confirmed`, `rejected_clear_fp`, `rejected_not_obvious_bad`, `needs_context`, `deferred`
+- "Pending Human Review" = `unreviewed + needs_context + deferred`
+
+**Cross-Page Consistency:**
+- `/analytics` and `/pipeline` should use the same backend metric definitions for the same concepts
+- When source scope is selected, it must apply to all cards, charts, drill-downs, and subtabs
+- The `ClassificationBreakdown.coalesced` field provides deduplicated classification counts
+
 ## compliance_issue_analyses
 
 Document-level analysis results for the 3-tier research pipeline. One row per (document_id, issue_type) pair.

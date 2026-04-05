@@ -15,9 +15,6 @@ import {
   type ComplianceIssueWithAnalysisFields,
   type ComplianceIssueWithAnalysis,
   type PaginatedComplianceIssuesResult,
-  type TierCompletionCounts,
-  type SeverityDistribution,
-  type AnalysisSource,
 } from '@deproceduralizer/database';
 
 // PR 6.3: updateReview now returns ComplianceIssueWithAnalysisFields (review fields from analyses)
@@ -157,61 +154,6 @@ export async function getComplianceIssueStatusCounts(
     [`compliance-issue-status-counts-${state}-${source}`],
     { revalidate: 120, tags: ['compliance-issues'] }
   );
-}
-
-/**
- * Gets counts of compliance issues grouped by issue type for a state.
- * @param state - The state code (e.g., 'NY', 'NJ')
- * @returns Object mapping issue type to count
- */
-export async function getComplianceIssueCountsByType(
-  state: JurisdictionCode,
-  source?: AnalysisSource
-): Promise<ActionResult<Record<string, number>>> {
-  return runCachedAction(
-    'getComplianceIssueCountsByType',
-    () => complianceIssuesRepo.getCountsByType(state, source),
-    [`compliance-type-counts-${state}-${source ?? 'all'}`],
-    { revalidate: 300, tags: ['compliance-analytics'] }
-  );
-}
-
-/** Counts by issue type, broken down by classification (burdensome/justified/unrelated). */
-export type ComplianceTypeClassificationCounts = Record<
-  string,
-  { burdensome: number; justified: number; unrelated: number; total: number }
->;
-
-/**
- * Gets counts of compliance issues grouped by issue type AND classification.
- * @param state - The state code (e.g., 'NY', 'NJ')
- */
-export async function getComplianceIssueCountsByTypeAndClassification(
-  state: JurisdictionCode,
-  source?: AnalysisSource
-): Promise<ActionResult<ComplianceTypeClassificationCounts>> {
-  return runCachedAction(
-    'getComplianceIssueCountsByTypeAndClassification',
-    () => complianceIssuesRepo.getCountsByTypeAndClassification(state, source),
-    [`compliance-type-class-counts-${state}-${source ?? 'all'}`],
-    { revalidate: 300, tags: ['compliance-analytics'] }
-  );
-}
-
-export interface ComplianceIssueStats {
-  total: number;
-  byType: Record<string, number>;
-}
-
-/**
- * Gets aggregate statistics for compliance issues.
- * @param state - Optional state code to filter by (returns all states if omitted)
- * @returns Total count and counts by issue type
- */
-export async function getComplianceIssueStats(
-  state?: JurisdictionCode
-): Promise<ActionResult<ComplianceIssueStats>> {
-  return runAction('getComplianceIssueStats', () => complianceIssuesRepo.getStatsByJurisdiction(state));
 }
 
 /**
@@ -362,26 +304,3 @@ export async function getComplianceSuggestionBatch(
   );
 }
 
-/**
- * Gets counts of compliance issues by analysis tier completion.
- * Useful for showing pipeline progress statistics.
- * @param state - The state code (e.g., 'NY', 'NJ')
- * @returns Object with counts per tier level (0 = not analyzed)
- */
-export async function getAnalysisTierCounts(
-  state: JurisdictionCode
-): Promise<ActionResult<TierCompletionCounts>> {
-  return runAction('getAnalysisTierCounts', () => complianceIssuesRepo.getAnalysisTierCounts(state));
-}
-
-export async function getComplianceSeverityDistribution(
-  state: JurisdictionCode,
-  source?: AnalysisSource
-): Promise<ActionResult<SeverityDistribution>> {
-  return runCachedAction(
-    'getComplianceSeverityDistribution',
-    () => complianceIssuesRepo.getSeverityDistribution(state, source),
-    [`compliance-severity-dist-${state}-${source ?? 'all'}`],
-    { revalidate: 3600, tags: ['compliance-analytics'] }
-  );
-}

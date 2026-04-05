@@ -6,8 +6,6 @@ import {
   ComplianceIssuesRepository,
   BookmarksRepository,
   type JurisdictionCode,
-  type TierCompletionCounts,
-  type ClassificationBreakdown,
   type FullAnalysisRecord,
   type FullGuidanceAnalysisRecord,
   type AnalysisListItem,
@@ -26,55 +24,9 @@ import { ISSUE_TYPE_LABELS } from '@/types/regulation';
 const complianceIssuesRepo = new ComplianceIssuesRepository(db);
 const bookmarksRepo = new BookmarksRepository(db);
 
-/**
- * Combined analysis stats for dashboard.
- */
-export interface AnalysisTierStats {
-  tierCounts: TierCompletionCounts;
-  classificationBreakdown: ClassificationBreakdown;
-  total: number;
-}
-
-/**
- * Gets comprehensive analysis statistics for the dashboard.
- * Combines tier counts and classification breakdown.
- * Cached for 2 minutes to reduce database traffic.
- *
- * @param state - The state code (e.g., 'NY', 'NJ')
- * @returns Tier counts and classification breakdown
- */
-export async function getAnalysisTierStats(
-  state: JurisdictionCode
-): Promise<ActionResult<AnalysisTierStats>> {
-  return runCachedAction(
-    'getAnalysisTierStats',
-    async () => {
-      const [tierCounts, classificationBreakdown] = await Promise.all([
-        complianceIssuesRepo.getAnalysisTierCounts(state, 'regulation'),
-        complianceIssuesRepo.getClassificationBreakdown(state, 'regulation'),
-      ]);
-
-      const total = tierCounts.tier0 + tierCounts.tier1 + tierCounts.tier2 +
-                    tierCounts.tier3;
-
-      return { tierCounts, classificationBreakdown, total };
-    },
-    [`analysis-tier-stats-${state}`],
-    { revalidate: 120 }
-  );
-}
-
 // Re-export for use by components
 export type { AnalysisFilterStats };
 
-/**
- * Gets filter dimension counts for the 5 key pipeline filter dropdowns.
- * Returns counts by classification, severity, tier, issue type, and federal mandate.
- * Cached for 2 minutes to reduce database traffic.
- *
- * @param state - The state code (e.g., 'NY', 'NJ')
- * @returns Filter stats broken down by each dimension
- */
 export async function getAnalysisFilterStats(
   state: JurisdictionCode
 ): Promise<ActionResult<AnalysisFilterStats>> {
@@ -86,36 +38,11 @@ export async function getAnalysisFilterStats(
   );
 }
 
-/**
- * Gets the full analysis record for a specific document and issue type.
- * Used for the dedicated analysis detail page.
- *
- * @param documentId - The regulatory document ID
- * @param issueType - The issue type (e.g., 'wet_signature', 'in_person')
- * @returns Full analysis record with all tier data
- */
 export async function getFullAnalysisRecord(
   documentId: number,
   issueType: string
 ): Promise<ActionResult<FullAnalysisRecord | null>> {
   return runAction('getFullAnalysisRecord', () => complianceIssuesRepo.getFullAnalysis(documentId, issueType));
-}
-
-/**
- * Gets classification breakdown by tier for charts.
- *
- * @param state - The state code (e.g., 'NY', 'NJ')
- * @returns Classification counts per tier
- */
-export async function getClassificationBreakdown(
-  state: JurisdictionCode
-): Promise<ActionResult<ClassificationBreakdown>> {
-  return runCachedAction(
-    'getClassificationBreakdown',
-    () => complianceIssuesRepo.getClassificationBreakdown(state),
-    [`classification-breakdown-${state}`],
-    { revalidate: 120 }
-  );
 }
 
 /**
@@ -466,24 +393,6 @@ export async function exportAnalysisZipByAgency(
 // ============================================
 // Guidance Analysis Actions
 // ============================================
-
-export async function getGuidanceAnalysisTierStats(
-  state: JurisdictionCode
-): Promise<ActionResult<AnalysisTierStats>> {
-  return runCachedAction(
-    'getGuidanceAnalysisTierStats',
-    async () => {
-      const [tierCounts, classificationBreakdown] = await Promise.all([
-        complianceIssuesRepo.getGuidanceAnalysisTierCounts(state),
-        complianceIssuesRepo.getGuidanceClassificationBreakdown(state),
-      ]);
-      const total = tierCounts.tier0 + tierCounts.tier1 + tierCounts.tier2 + tierCounts.tier3;
-      return { tierCounts, classificationBreakdown, total };
-    },
-    [`guidance-analysis-tier-stats-${state}`],
-    { revalidate: 120 }
-  );
-}
 
 export interface PaginatedGuidanceAnalysisResult {
   data: GuidanceAnalysisListItem[];

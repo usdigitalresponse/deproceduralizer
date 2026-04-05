@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import { useQueryStates } from 'nuqs';
-import type { ComplianceIssueStatusCounts, ComplianceTypeClassificationCounts } from '@/lib/actions/compliance-issues';
+import type { TypeClassificationCounts, ClassificationTotals, ReviewStatusCounts } from '@/lib/actions/analytics-metrics';
 import { Card, SegmentedControl } from '@/components/ui';
 import { ClientChart, ChartContainer, HorizontalBarChart } from '@/components/charts';
 import { ISSUE_TYPE_LABELS } from '@/types/regulation';
@@ -20,8 +20,9 @@ const OVERVIEW_CLASSIFICATION_OPTIONS = [
 
 interface IssuesTabProps {
   complianceByType: Record<string, number>;
-  complianceStatus: ComplianceIssueStatusCounts | null;
-  complianceTypeClassification: ComplianceTypeClassificationCounts | null;
+  complianceStatus: ReviewStatusCounts | null;
+  complianceTypeClassification: TypeClassificationCounts | null;
+  classificationTotals: ClassificationTotals | null;
   jurisdiction?: JurisdictionCode;
   activeSource?: string;
 }
@@ -30,6 +31,7 @@ export function IssuesTab({
   complianceByType,
   complianceStatus,
   complianceTypeClassification,
+  classificationTotals,
   jurisdiction,
   activeSource,
 }: IssuesTabProps) {
@@ -42,6 +44,8 @@ export function IssuesTab({
   const confirmedIssues = complianceStatus?.confirmed ?? 0;
   const falsePositives =
     (complianceStatus?.rejected_clear_fp ?? 0) + (complianceStatus?.rejected_not_obvious_bad ?? 0);
+  const pendingReview =
+    (complianceStatus?.unreviewed ?? 0) + (complianceStatus?.needs_context ?? 0) + (complianceStatus?.deferred ?? 0);
 
   // Bar chart data — filtered by classification
   const issueTypeData = useMemo(() => {
@@ -113,21 +117,22 @@ export function IssuesTab({
         </Card>
         <Card padding="md" className="text-center">
           <div className="text-3xl font-bold text-[var(--color-danger)]">
-            {breakdownTotals.burdensome.toLocaleString()}
+            {(classificationTotals?.burdensome ?? breakdownTotals.burdensome).toLocaleString()}
           </div>
           <div className="text-sm text-[var(--color-text-muted)]">Burdensome</div>
         </Card>
         <Card padding="md" className="text-center">
           <div className="text-3xl font-bold text-[var(--color-success)]">
-            {breakdownTotals.justified.toLocaleString()}
+            {(classificationTotals?.justified ?? breakdownTotals.justified).toLocaleString()}
           </div>
           <div className="text-sm text-[var(--color-text-muted)]">Justified</div>
         </Card>
         <Card padding="md" className="text-center">
           <div className="text-3xl font-bold text-[var(--color-text)]">
-            {(totalIssues - confirmedIssues - falsePositives).toLocaleString()}
+            {pendingReview.toLocaleString()}
           </div>
-          <div className="text-sm text-[var(--color-text-muted)]">Awaiting Review</div>
+          <div className="text-sm text-[var(--color-text-muted)]">Pending Human Review</div>
+          <div className="text-xs text-[var(--color-text-muted)]">Unreviewed + needs context + deferred</div>
         </Card>
         <Card padding="md" className="text-center">
           <div className="text-3xl font-bold text-[var(--color-success)]">

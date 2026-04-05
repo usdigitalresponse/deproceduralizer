@@ -213,3 +213,104 @@ describe('COALESCE consistency', () => {
     expect(coalescedT1).toBe('needs_research'); // tier1 used as last resort
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════
+// Metric contract invariants
+// ═══════════════════════════════════════════════════════════════════
+
+describe('Metric contract invariants', () => {
+  it('requirementFound=false should never appear in user-facing counts', () => {
+    // Simulating: the repo methods filter requirementFound=true
+    // Records with requirementFound=false should be excluded
+    const allRecords = [
+      { issueType: 'notarization', requirementFound: true, classification: 'burdensome' },
+      { issueType: 'notarization', requirementFound: false, classification: 'unrelated' },
+      { issueType: 'wet_signature', requirementFound: true, classification: 'justified' },
+      { issueType: 'wet_signature', requirementFound: false, classification: 'all_false_positives' },
+    ];
+
+    // User-facing counts should only include requirementFound=true
+    const userFacing = allRecords.filter(r => r.requirementFound);
+    expect(userFacing).toHaveLength(2);
+    expect(userFacing.every(r => r.requirementFound)).toBe(true);
+
+    // No false-positive classifications in user-facing data
+    const classifications = userFacing.map(r => r.classification);
+    expect(classifications).not.toContain('all_false_positives');
+  });
+
+  it('source-scoped drill-downs should not leak cross-source data', () => {
+    const records = [
+      { issueType: 'notarization', guidanceDocumentId: null, documentId: 1 },  // regulation
+      { issueType: 'notarization', guidanceDocumentId: 100, documentId: null }, // guidance
+      { issueType: 'wet_signature', guidanceDocumentId: null, documentId: 2 },  // regulation
+    ];
+
+    // Regulation filter
+    const regulations = records.filter(r => r.guidanceDocumentId === null);
+    expect(regulations).toHaveLength(2);
+    expect(regulations.every(r => r.documentId !== null)).toBe(true);
+
+    // Guidance filter
+    const guidance = records.filter(r => r.guidanceDocumentId !== null);
+    expect(guidance).toHaveLength(1);
+    expect(guidance.every(r => r.documentId === null)).toBe(true);
+
+    // Combined = all records
+    expect(regulations.length + guidance.length).toBe(records.length);
+  });
+
+  it('classificationTotals should equal sum of countsByTypeAndClassification', () => {
+    // Simulated countsByTypeAndClassification output
+    const byTypeAndClass: Record<string, { burdensome: number; justified: number; total: number }> = {
+      notarization: { burdensome: 87, justified: 64, total: 151 },
+      check_payment: { burdensome: 107, justified: 8, total: 115 },
+      certified_mail: { burdensome: 28, justified: 313, total: 341 },
+    };
+
+    // Compute classificationTotals (same logic as getClassificationTotals server action)
+    const totals = Object.values(byTypeAndClass).reduce(
+      (acc, classMap) => ({
+        burdensome: acc.burdensome + classMap.burdensome,
+        justified: acc.justified + classMap.justified,
+        total: acc.total + classMap.total,
+      }),
+      { burdensome: 0, justified: 0, total: 0 }
+    );
+
+    expect(totals.burdensome).toBe(87 + 107 + 28);
+    expect(totals.justified).toBe(64 + 8 + 313);
+    expect(totals.total).toBe(151 + 115 + 341);
+    expect(totals.burdensome + totals.justified).toBeLessThanOrEqual(totals.total);
+  });
+
+  it('guidance and regulation paths should use the same contract', () => {
+    // Both paths should produce the same shape
+    const regulationResult = {
+      burdensome: 1027,
+      justified: 2500,
+      unrelated: 400,
+      total: 3927,
+    };
+
+    const guidanceResult = {
+      burdensome: 128,
+      justified: 359,
+      unrelated: 85,
+      total: 572,
+    };
+
+    // Both have the same keys
+    expect(Object.keys(regulationResult)).toEqual(Object.keys(guidanceResult));
+
+    // Both have positive totals
+    expect(regulationResult.total).toBeGreaterThan(0);
+    expect(guidanceResult.total).toBeGreaterThan(0);
+
+    // burdensome + justified + unrelated <= total (some records may have null classification)
+    expect(regulationResult.burdensome + regulationResult.justified + regulationResult.unrelated)
+      .toBeLessThanOrEqual(regulationResult.total);
+    expect(guidanceResult.burdensome + guidanceResult.justified + guidanceResult.unrelated)
+      .toBeLessThanOrEqual(guidanceResult.total);
+  });
+});

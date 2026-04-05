@@ -4,7 +4,7 @@ import { useMemo } from 'react';
 import { useQueryStates } from 'nuqs';
 import { FileText, Sparkles, ShieldAlert } from 'lucide-react';
 import type { DashboardStats, StatuteLinkStats, SeverityDistribution, JenAIReviewStatusCounts } from '@deproceduralizer/database';
-import type { ComplianceIssueStatusCounts, ComplianceTypeClassificationCounts } from '@/lib/actions/compliance-issues';
+import type { ClassificationTotals, TypeClassificationCounts, ReviewStatusCounts } from '@/lib/actions/analytics-metrics';
 import type { MetadataStats } from '@/lib/actions/regulations';
 import type { DefinitionsAnalyticsStats } from '@/lib/actions/definitions';
 import type { PipelineAnalyticsData } from '@/lib/actions/pipeline-analytics';
@@ -33,7 +33,7 @@ const OVERVIEW_CLASSIFICATION_OPTIONS = [
 
 interface OverviewTabProps {
   dashboardStats: DashboardStats | null;
-  complianceStatus: ComplianceIssueStatusCounts | null;
+  complianceStatus: ReviewStatusCounts | null;
   complianceTypeCounts: Record<string, number> | null;
   metadataStats: MetadataStats | null;
   definitionsStats: DefinitionsAnalyticsStats | null;
@@ -43,7 +43,8 @@ interface OverviewTabProps {
   jenaiSeverity: SeverityDistribution | null;
   jenaiStats: JenAIReviewStatusCounts | null;
   jurisdiction?: JurisdictionCode;
-  complianceTypeClassification: ComplianceTypeClassificationCounts | null;
+  complianceTypeClassification: TypeClassificationCounts | null;
+  classificationTotals: ClassificationTotals | null;
   onNavigateToIssues?: () => void;
   activeSource?: string;
 }
@@ -125,6 +126,7 @@ export function OverviewTab({
   jenaiStats,
   jurisdiction,
   complianceTypeClassification,
+  classificationTotals,
   onNavigateToIssues,
   activeSource,
 }: OverviewTabProps) {
@@ -152,26 +154,13 @@ export function OverviewTab({
   const complianceUnreviewed = complianceStatus?.unreviewed ?? 0;
   const complianceTotal = complianceStatus?.total ?? 0;
 
-  // COALESCE-based classification totals from breakdown data (most accurate — each record counted once)
-  const coalesced = useMemo(() => {
-    if (!complianceTypeClassification) return null;
-    return Object.values(complianceTypeClassification).reduce(
-      (acc, classMap) => ({
-        burdensome: acc.burdensome + classMap.burdensome,
-        justified: acc.justified + classMap.justified,
-        unrelated: acc.unrelated + (classMap.total - classMap.burdensome - classMap.justified),
-        total: acc.total + classMap.total,
-      }),
-      { burdensome: 0, justified: 0, unrelated: 0, total: 0 }
-    );
-  }, [complianceTypeClassification]);
-
-  // Classification donut data — use COALESCE totals when available, fall back to funnel tier data
-  const classificationData = coalesced
+  // Classification donut data — use server-computed classificationTotals, fall back to funnel tier data
+  const ct = classificationTotals;
+  const classificationData = ct
     ? [
-        { label: 'Burdensome', value: coalesced.burdensome, color: colors.colors.danger },
-        { label: 'Justified', value: coalesced.justified, color: colors.colors.success },
-        { label: 'Unrelated', value: coalesced.unrelated, color: colors.colors.neutral300 },
+        { label: 'Burdensome', value: ct.burdensome, color: colors.colors.danger },
+        { label: 'Justified', value: ct.justified, color: colors.colors.success },
+        { label: 'Unrelated', value: ct.unrelated, color: colors.colors.neutral300 },
       ]
     : bestTier
     ? [
@@ -180,19 +169,17 @@ export function OverviewTab({
         { label: 'Unrelated', value: bestTier.unrelated, color: colors.colors.neutral300 },
       ]
     : [];
-  const classificationTotal = coalesced
-    ? coalesced.total
-    : bestTier
+  const classificationTotal = ct?.total ?? (bestTier
     ? bestTier.burdensome + bestTier.justified + bestTier.unrelated
-    : 0;
+    : 0);
 
-  // Dynamic stat card based on classification filter — uses COALESCE totals
+  // Dynamic stat card based on classification filter — uses server-computed totals
   const classificationStatLabel = classificationFilter === 'all'
     ? 'Classified Burdensome'
     : `Classified ${classificationFilter.charAt(0).toUpperCase() + classificationFilter.slice(1)}`;
   const classificationStatValue = classificationFilter === 'all'
-    ? (coalesced?.burdensome ?? bestTier?.burdensome ?? 0)
-    : (coalesced?.[classificationFilter] ?? bestTier?.[classificationFilter] ?? 0);
+    ? (ct?.burdensome ?? bestTier?.burdensome ?? 0)
+    : (ct?.[classificationFilter] ?? bestTier?.[classificationFilter] ?? 0);
   const classificationStatVariant = classificationFilter === 'justified'
     ? 'default' as const
     : classificationStatValue > 0 ? 'danger' as const : 'default' as const;

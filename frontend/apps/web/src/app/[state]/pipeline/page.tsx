@@ -1,11 +1,13 @@
 import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
-import { getAnalysisTierStats, getGuidanceAnalysisTierStats, getPriorityPicks, getAnalysisFilterStats } from '@/lib/actions/analysis';
+import { getPriorityPicks, getAnalysisFilterStats } from '@/lib/actions/analysis';
+import { getAnalyticsSummary } from '@/lib/actions/analytics-metrics';
 import { AnalysisDashboard, PipelineSourceTabs } from '@/components/analysis';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Container } from '@/components/layout/Container';
 import { JURISDICTION_CONFIG, isValidJurisdiction } from '@/types/state';
 import type { PipelineSourceValue } from '@/lib/constants/values';
+import type { AnalysisSource } from '@deproceduralizer/database';
 
 interface AnalysisPageProps {
   params: Promise<{ state: string }>;
@@ -24,19 +26,20 @@ export default async function AnalysisPage({ params, searchParams }: AnalysisPag
   const stateConfig = JURISDICTION_CONFIG[state];
   const source: PipelineSourceValue = queryParams.source === 'guidance' ? 'guidance' : 'regulations';
   const isGuidance = source === 'guidance';
+  const repoSource: AnalysisSource = isGuidance ? 'guidance' : 'regulation';
 
-  // Fetch stats based on source, and priority picks (regulations only)
-  const [statsResult, priorityResult, filterStatsResult] = await Promise.all([
-    isGuidance
-      ? getGuidanceAnalysisTierStats(stateCode)
-      : getAnalysisTierStats(stateCode),
+  // Fetch stats using shared metrics service (same as analytics page)
+  const [summaryResult, priorityResult, filterStatsResult] = await Promise.all([
+    getAnalyticsSummary(stateCode, repoSource),
     isGuidance ? Promise.resolve(null) : getPriorityPicks(stateCode),
     isGuidance ? Promise.resolve(null) : getAnalysisFilterStats(stateCode),
   ]);
 
-  const tierCounts = statsResult.success ? statsResult.data.tierCounts : null;
-  const classificationBreakdown = statsResult.success ? statsResult.data.classificationBreakdown : null;
-  const total = statsResult.success ? statsResult.data.total : 0;
+  const tierCounts = summaryResult.success ? summaryResult.data.tierCounts : null;
+  const classificationBreakdown = summaryResult.success ? summaryResult.data.classificationBreakdown : null;
+  const total = summaryResult.success
+    ? summaryResult.data.tierCounts.tier0 + summaryResult.data.tierCounts.tier1 + summaryResult.data.tierCounts.tier2 + summaryResult.data.tierCounts.tier3
+    : 0;
 
   const priorityPicks = priorityResult?.success ? priorityResult.data : null;
   const filterStats = filterStatsResult?.success ? filterStatsResult.data : null;
