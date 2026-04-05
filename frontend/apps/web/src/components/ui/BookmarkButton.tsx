@@ -65,9 +65,9 @@ export const BookmarkButton = forwardRef<HTMLButtonElement, BookmarkButtonProps>
           ${className}
         `.trim().replace(/\s+/g, ' ')}
         disabled={isDisabled}
-        aria-label={isBookmarked ? 'Unmark' : 'Mark'}
+        aria-label={isBookmarked ? 'Unsave' : 'Save'}
         aria-pressed={isBookmarked}
-        title={isBookmarked ? 'Unmark' : 'Mark'}
+        title={isBookmarked ? 'Unsave' : 'Save'}
         {...props}
       >
         {isLoading ? (
@@ -101,7 +101,7 @@ export const BookmarkButton = forwardRef<HTMLButtonElement, BookmarkButtonProps>
         )}
         {showLabel && (
           <span className="text-xs font-medium">
-            {isBookmarked ? 'Marked' : 'Mark'}
+            {isBookmarked ? 'Saved' : 'Save'}
           </span>
         )}
       </button>

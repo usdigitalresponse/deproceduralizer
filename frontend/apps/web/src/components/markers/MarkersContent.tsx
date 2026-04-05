@@ -71,12 +71,12 @@ type FineSortField = 'type' | 'amount' | 'agency' | 'whoPays' | 'description' | 
 type SortOrder = 'asc' | 'desc';
 
 const FINE_SORT_OPTIONS = [
-  { value: 'bookmarked', label: 'Date Marked' },
+  { value: 'bookmarked', label: 'Date Saved' },
   { value: 'type', label: 'Type' },
   { value: 'amount', label: 'Amount' },
   { value: 'agency', label: 'Agency' },
   { value: 'whoPays', label: 'Who Pays' },
-  { value: 'by', label: 'Marked By' },
+  { value: 'by', label: 'Saved By' },
 ];
 
 function parseAmount(amount: string | null): number {
@@ -532,16 +532,16 @@ export function MarkersContent({ bookmarks, counts, jurisdiction, markerGroups }
       {filteredBookmarks.length === 0 ? (
         <div className="bg-white border border-[var(--color-neutral-200)] rounded-[var(--radius-md)] p-8 text-center">
           <p className="text-[var(--color-text-muted)]">
-            No {activeTab === 'analysis' ? 'analyses' : activeTab === 'guidance' ? 'guidance documents' : activeTab === 'fine' ? 'fines' : 'documents'} marked yet.
+            No {activeTab === 'analysis' ? 'analyses' : activeTab === 'guidance' ? 'guidance documents' : activeTab === 'fine' ? 'fines' : 'documents'} saved yet.
           </p>
           <p className="text-sm text-[var(--color-text-muted)] mt-2">
             {activeTab === 'analysis'
-              ? 'Mark analyses from the Pipeline page to track important compliance findings'
+              ? 'Save analyses from the Pipeline page to track important compliance findings'
               : activeTab === 'guidance'
-                ? 'Mark guidance documents to track important policy directives'
+                ? 'Save guidance documents to track important policy directives'
                 : activeTab === 'fine'
-                  ? 'Star fines and fees from the Fines & Fees page to build your reference list'
-                  : 'Star any regulation from the Browse or Detail page to save it here'}
+                  ? 'Save fines and fees from the Fines & Fees page to build your reference list'
+                  : 'Save any regulation from the Browse or Detail page to add it here'}
           </p>
         </div>
       ) : activeTab === 'analysis' ? (
@@ -572,7 +572,7 @@ export function MarkersContent({ bookmarks, counts, jurisdiction, markerGroups }
                 <th className={tableHeaderClass}>Labels</th>
                 <th className={tableHeaderClass}>Notes</th>
                 <th className={tableHeaderClass}>By</th>
-                <th className={tableHeaderClass}>Marked</th>
+                <th className={tableHeaderClass}>Saved</th>
                 <th className={`${tableHeaderClass} !text-right`}>Actions</th>
               </tr>
             </thead>
@@ -674,7 +674,7 @@ export function MarkersContent({ bookmarks, counts, jurisdiction, markerGroups }
                     <th className="text-left px-4 py-3 font-medium text-[var(--color-text-muted)]">Description</th>
                     <th className="text-left px-4 py-3 font-medium text-[var(--color-text-muted)]">Labels</th>
                     <th className="text-left px-4 py-3 font-medium text-[var(--color-text-muted)]">By</th>
-                    <th className="text-left px-4 py-3 font-medium text-[var(--color-text-muted)]">Marked</th>
+                    <th className="text-left px-4 py-3 font-medium text-[var(--color-text-muted)]">Saved</th>
                     <th className="text-right px-3 py-3 font-medium text-[var(--color-text-muted)]">
                       <span className="sr-only">Actions</span>
                     </th>
@@ -727,7 +727,7 @@ export function MarkersContent({ bookmarks, counts, jurisdiction, markerGroups }
                 <th className={tableHeaderClass}>Labels</th>
                 <th className={tableHeaderClass}>Notes</th>
                 <th className={tableHeaderClass}>By</th>
-                <th className={tableHeaderClass}>Marked</th>
+                <th className={tableHeaderClass}>Saved</th>
                 <th className={`${tableHeaderClass} !text-right`}>Actions</th>
               </tr>
             </thead>
@@ -940,7 +940,7 @@ function AnalysisBookmarkCard({
             <button
               onClick={onRemove}
               className="p-1.5 text-[var(--color-text-muted)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-bg)] rounded"
-              aria-label="Unmark"
+              aria-label="Unsave"
             >
               <Trash2 className="w-4 h-4" />
             </button>
@@ -1100,7 +1100,7 @@ function DocumentBookmarkRow({
           <button
             onClick={onRemove}
             className="p-1 text-[var(--color-text-muted)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-bg)] rounded"
-            aria-label="Unmark"
+            aria-label="Unsave"
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>
@@ -1204,7 +1204,7 @@ function GuidanceBookmarkRow({
           <button
             onClick={onRemove}
             className="p-1 text-[var(--color-text-muted)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-bg)] rounded"
-            aria-label="Unmark"
+            aria-label="Unsave"
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>
@@ -1309,7 +1309,7 @@ function FineBookmarkRow({
             <button
               onClick={onRemove}
               className="p-1 text-[var(--color-text-muted)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-bg)] rounded"
-              aria-label="Unmark"
+              aria-label="Unsave"
             >
               <Trash2 className="w-3.5 h-3.5" />
             </button>

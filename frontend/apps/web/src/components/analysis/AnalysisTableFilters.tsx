@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryStates } from 'nuqs';
-import { Sparkles, Tag } from 'lucide-react';
+import { Bookmark, Sparkles, Tag } from 'lucide-react';
 import type { MarkerGroup } from '@deproceduralizer/database';
 import { MultiSelect, FilterBar, FilterField, Badge } from '@/components/ui';
 import { analysisTableParsers } from '@/lib/url/parsers';
@@ -268,8 +268,8 @@ export function AnalysisTableFilters({ jurisdiction, filterStats }: AnalysisTabl
           `}
           aria-pressed={isBookmarkedOnly}
         >
-          <Tag className="w-3.5 h-3.5" fill={isBookmarkedOnly ? 'currentColor' : 'none'} />
-          Marked
+          <Bookmark className="w-3.5 h-3.5" fill={isBookmarkedOnly ? 'currentColor' : 'none'} />
+          Saved
         </button>
 
         {/* Easy Cleanup Toggle */}

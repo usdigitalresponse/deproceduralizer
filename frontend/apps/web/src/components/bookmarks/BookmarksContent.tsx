@@ -690,7 +690,7 @@ function AnalysisBookmarkCard({
             <button
               onClick={onRemove}
               className="p-1.5 text-[var(--color-text-muted)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-bg)] rounded"
-              aria-label="Unmark"
+              aria-label="Unsave"
             >
               <Trash2 className="w-4 h-4" />
             </button>
@@ -823,7 +823,7 @@ function DocumentBookmarkRow({
           <button
             onClick={onRemove}
             className="p-1 text-[var(--color-text-muted)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-bg)] rounded"
-            aria-label="Unmark"
+            aria-label="Unsave"
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>
@@ -900,7 +900,7 @@ function GuidanceBookmarkRow({
           <button
             onClick={onRemove}
             className="p-1 text-[var(--color-text-muted)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-bg)] rounded"
-            aria-label="Unmark"
+            aria-label="Unsave"
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>
@@ -978,7 +978,7 @@ function FineBookmarkRow({
             <button
               onClick={onRemove}
               className="p-1 text-[var(--color-text-muted)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-bg)] rounded"
-              aria-label="Unmark"
+              aria-label="Unsave"
             >
               <Trash2 className="w-3.5 h-3.5" />
             </button>

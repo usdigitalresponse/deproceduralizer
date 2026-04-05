@@ -137,7 +137,7 @@ export const NAV_ITEMS: NavItem[] = [
   },
   {
     key: 'markers',
-    label: 'Labels',
+    label: 'Saved Items',
     icon: getEntityIcon('marker'),
     isStateSpecific: true,
     pathSuffix: '/markers',

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef, useMemo, type ComponentType } from 'react';
-import { List, Layers, Tag } from 'lucide-react';
+import { List, Layers, Bookmark } from 'lucide-react';
 import { useQueryStates } from 'nuqs';
 import { Card } from '@/components/ui/Card';
 import { Select } from '@/components/ui/Select';
@@ -591,8 +591,8 @@ export function GuidanceBrowseTab({ jurisdiction, agencies, docTypes }: Guidance
           `}
           aria-pressed={params.bookmarkedOnly === 'true'}
         >
-          <Tag className="w-3.5 h-3.5" fill={params.bookmarkedOnly === 'true' ? 'currentColor' : 'none'} />
-          Marked
+          <Bookmark className="w-3.5 h-3.5" fill={params.bookmarkedOnly === 'true' ? 'currentColor' : 'none'} />
+          Saved
         </button>
       </div>
 

@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useQueryStates } from 'nuqs';
-import { Download, FileArchive, ChevronDown, Tag } from 'lucide-react';
+import { Download, FileArchive, ChevronDown, Tag, Bookmark } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Select } from '@/components/ui/Select';
 import { MultiSelect } from '@/components/ui';
@@ -729,8 +729,8 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
           `}
           aria-pressed={params.bookmarkedOnly === 'true'}
         >
-          <Tag className="w-3.5 h-3.5" fill={params.bookmarkedOnly === 'true' ? 'currentColor' : 'none'} />
-          Marked
+          <Bookmark className="w-3.5 h-3.5" fill={params.bookmarkedOnly === 'true' ? 'currentColor' : 'none'} />
+          Saved
         </button>
       </div>
 

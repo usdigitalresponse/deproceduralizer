@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Tag, X, Check, Loader2, Plus, BookmarkX } from 'lucide-react';
+import { Tag, X, Check, Loader2, Plus, BookmarkX, Bookmark } from 'lucide-react';
 import type { MarkerGroup } from '@deproceduralizer/database';
 
 export interface BulkActionBarProps {
@@ -17,7 +17,7 @@ export interface BulkActionBarProps {
 
 /**
  * Sticky bottom bar that appears when 1+ table rows are selected.
- * Provides bulk bookmark ("Mark All"), bulk unmark, and bulk marker assignment actions.
+ * Provides bulk save ("Save All"), bulk unsave, and bulk label assignment actions.
  */
 export function BulkActionBar({
   selectedCount,
@@ -107,20 +107,20 @@ export function BulkActionBar({
             inline-flex items-center gap-1.5
             px-3 py-1.5 rounded-[var(--radius-sm)]
             text-xs font-medium
-            bg-[var(--color-warning)] text-[var(--color-neutral-900)]
+            bg-[var(--color-primary)] text-[var(--color-text-inverse)]
             hover:brightness-110
             disabled:opacity-50 disabled:cursor-not-allowed
             cursor-pointer
             transition-all duration-[var(--duration-fast)]
           "
-          aria-label="Mark all selected items"
+          aria-label="Save all selected items"
         >
           {isProcessing ? (
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
           ) : (
-            <Tag className="w-3.5 h-3.5" />
+            <Bookmark className="w-3.5 h-3.5" />
           )}
-          Mark All
+          Save All
         </button>
 
         {/* Unmark All button */}
@@ -139,14 +139,14 @@ export function BulkActionBar({
               cursor-pointer
               transition-colors duration-[var(--duration-fast)]
             "
-            aria-label="Remove bookmarks from all selected items"
+            aria-label="Unsave all selected items"
           >
             {isProcessing ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
             ) : (
               <BookmarkX className="w-3.5 h-3.5" />
             )}
-            Unmark All
+            Unsave All
           </button>
         )}
 

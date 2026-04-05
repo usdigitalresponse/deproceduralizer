@@ -284,8 +284,8 @@ export function MarkerGroupManager({
                   {deleteConfirm.loading
                     ? 'Checking...'
                     : deleteConfirm.bookmarkCount === 0
-                      ? 'No items are marked with this label.'
-                      : `${deleteConfirm.bookmarkCount} item${deleteConfirm.bookmarkCount === 1 ? '' : 's'} marked with this label.`
+                      ? 'No items are saved with this label.'
+                      : `${deleteConfirm.bookmarkCount} item${deleteConfirm.bookmarkCount === 1 ? '' : 's'} saved with this label.`
                   }
                 </p>
                 <div className="flex items-center gap-2 mt-2.5">
@@ -323,7 +323,7 @@ export function MarkerGroupManager({
                         transition-colors duration-[var(--duration-fast)]
                       "
                     >
-                      Unmark all items
+                      Unsave all items
                     </button>
                   )}
                   <button

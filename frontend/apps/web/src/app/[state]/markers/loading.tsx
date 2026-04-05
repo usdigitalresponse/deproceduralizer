@@ -11,7 +11,7 @@ export default function MarkersLoading() {
     <div className="bg-[var(--color-background)] min-h-screen">
       <PageHeader
         title="Labels"
-        description="View and manage your marked analyses, documents, and fines"
+        description="View and manage your saved analyses, documents, and fines"
       />
 
       <Container size="2xl" className="py-6">

@@ -67,7 +67,7 @@ export function MarkerBadge({ name, color, size = 'sm', onRemove, className = ''
             transition-colors duration-[var(--duration-fast)]
             cursor-pointer
           `.trim().replace(/\s+/g, ' ')}
-          aria-label={`Remove ${name} marker`}
+          aria-label={`Remove ${name} label`}
         >
           <X className="w-full h-full" />
         </button>

@@ -33,8 +33,8 @@ export default async function MarkersPage({ params }: MarkersPageProps) {
   return (
     <div className="bg-[var(--color-background)] min-h-screen">
       <PageHeader
-        title={`${stateConfig.name} Labels`}
-        description="View and manage your marked analyses, documents, and fines"
+        title={`${stateConfig.name} Saved Items`}
+        description="View and manage your saved analyses, documents, and fines"
       />
       <Container size="2xl" className="py-6">
         <MarkersContent
