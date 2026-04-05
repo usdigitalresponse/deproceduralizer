@@ -369,6 +369,7 @@ async def _execute_pipeline(
     statute_mandate: bool = False,
     summarize: bool = False,
     no_cache: bool = False,
+    generate_summaries: bool = False,
 ) -> list:
     """Execute the pipeline with given processing units.
 
@@ -390,6 +391,7 @@ async def _execute_pipeline(
         enable_web_search: If True, run Tier 3 web search verification when max_tier >= 3
         title_filter: Optional title filter (e.g., '3A' for Title 3A)
         summarize: If True, run document summarization after pipeline
+        generate_summaries: If True, generate review summaries after pipeline
 
     Returns:
         List of TrackedUnit results
@@ -434,6 +436,20 @@ async def _execute_pipeline(
     saved_count = save_final_results(results, conn)
     conn.close()
     print(f"Saved {saved_count} final classifications")
+
+    # --- Review Summary Generation (post-pipeline) ---
+    if generate_summaries:
+        print(f"\n{'='*60}")
+        print("GENERATING REVIEW SUMMARIES")
+        print(f"{'='*60}")
+        from .summary_generator import generate_review_summaries
+        summary_conn = get_db_connection()
+        if summary_conn:
+            summary_count = await generate_review_summaries(results, pipeline_jurisdiction, summary_conn)
+            summary_conn.close()
+            print(f"Generated {summary_count} review summaries")
+        else:
+            print("WARNING: Could not connect to DB for summary generation")
 
     # --- Summarization (post-pipeline, optional) ---
     if summarize and title_filter:
@@ -533,6 +549,7 @@ async def run_test(
     source_type: str = "regulation",
     agency: str | None = None,
     doc_type: str | None = None,
+    generate_summaries: bool = False,
 ):
     """
     Run the research pipeline on unanalyzed documents.
@@ -648,6 +665,7 @@ async def run_test(
         statute_mandate=statute_mandate,
         summarize=summarize,
         no_cache=no_cache,
+        generate_summaries=generate_summaries,
     )
 
     # Print detailed results
@@ -696,6 +714,7 @@ async def run_batched_issues(
     source_type: str = "regulation",
     agency: str | None = None,
     doc_type: str | None = None,
+    generate_summaries: bool = False,
 ):
     """Run pipeline with all issue types batched together per tier."""
     if source_type == "guidance":
@@ -804,6 +823,7 @@ async def run_batched_issues(
         statute_mandate=statute_mandate,
         summarize=summarize,
         no_cache=no_cache,
+        generate_summaries=generate_summaries,
     )
 
     return results
@@ -1044,6 +1064,22 @@ RESUME BEHAVIOR:
 
     # === POST-PIPELINE FLAGS ===
     parser.add_argument(
+        "--generate-summaries",
+        dest="generate_summaries",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Generate review summaries after pipeline (default: on when --execute is set). "
+             "Use --no-generate-summaries to skip."
+    )
+    parser.add_argument(
+        "--summaries-only",
+        action="store_true",
+        help="Generate review summaries for existing analyses WITHOUT running the pipeline. "
+             "Reads completed analyses from DB and generates 1-2 sentence summaries. "
+             "By default only processes analyses without existing summaries. "
+             "Use with --force-rerun to regenerate all summaries (e.g., after prompt changes)."
+    )
+    parser.add_argument(
         "--statute-mandate",
         action="store_true",
         help="Run statute mandate checks after the pipeline (NY only). "
@@ -1142,9 +1178,71 @@ RESUME BEHAVIOR:
         ))
         sys.exit(0)
 
+    # === SUMMARIES ONLY MODE ===
+    if args.summaries_only:
+        issue_types_for_summary = None if args.all_issues else [args.issue_type] if args.issue_type else None
+        title_filter = args.title
+        source_filter = getattr(args, 'source', None)
+        agency_filter = getattr(args, 'agency', None)
+        doc_type_filter = getattr(args, 'doc_type', None)
+
+        if not args.execute:
+            print("\n*** SUMMARIES ONLY MODE (DRY RUN) ***")
+            print(f"Jurisdiction: {jurisdiction_for_db or 'ALL'}")
+            if issue_types_for_summary:
+                print(f"Issue types: {', '.join(issue_types_for_summary)}")
+            else:
+                print("Issue types: ALL")
+            if title_filter:
+                print(f"Title filter: {title_filter}")
+            if source_filter:
+                print(f"Source filter: {source_filter}")
+            if agency_filter:
+                print(f"Agency filter: {agency_filter}")
+            if doc_type_filter:
+                print(f"Doc type filter: {doc_type_filter}")
+            print("\nThis would generate review summaries for existing analyses.")
+            print("Pass --execute to actually run.")
+            sys.exit(0)
+
+        print(f"\n*** SUMMARIES ONLY MODE ***")
+        from scripts.research_pipeline.summary_generator import generate_summaries_from_db
+
+        # Handle dangerously-run-all: iterate all jurisdictions
+        if jurisdiction_for_db:
+            jurisdictions = [jurisdiction_for_db]
+        else:
+            from lib.jurisdictions import VALID_JURISDICTIONS
+            jurisdictions = list(VALID_JURISDICTIONS)
+            print(f"Running for all jurisdictions: {', '.join(jurisdictions)}")
+
+        force_regen = getattr(args, 'force_rerun', False)
+        if force_regen:
+            print("Force regeneration: will overwrite existing summaries")
+
+        for jur in jurisdictions:
+            print(f"\n--- Generating summaries for {jur} ---")
+            asyncio.run(generate_summaries_from_db(
+                jurisdiction=jur,
+                issue_types=issue_types_for_summary,
+                limit=max_docs,
+                title=title_filter,
+                source=source_filter,
+                agency=agency_filter,
+                doc_type=doc_type_filter,
+                force=force_regen,
+            ))
+        sys.exit(0)
+
     # === NORMAL PIPELINE MODE ===
     # Dry-run by default; --execute opts into real execution
     dry_run = not args.execute
+
+    # Resolve --generate-summaries default: on when --execute is set, off otherwise
+    # None means "use default", True/False means explicit user choice
+    generate_summaries = args.generate_summaries
+    if generate_summaries is None:
+        generate_summaries = args.execute  # Default: on when executing
 
     # Pre-flight check: verify summarization is largely complete
     if not args.skip_summary_check and jurisdiction_for_db and args.title and not dry_run:
@@ -1181,6 +1279,7 @@ RESUME BEHAVIOR:
             source_type=args.source,
             agency=args.agency,
             doc_type=args.doc_type,
+            generate_summaries=generate_summaries,
         ))
     else:
         asyncio.run(run_test(
@@ -1199,4 +1298,5 @@ RESUME BEHAVIOR:
             source_type=args.source,
             agency=args.agency,
             doc_type=args.doc_type,
+            generate_summaries=generate_summaries,
         ))

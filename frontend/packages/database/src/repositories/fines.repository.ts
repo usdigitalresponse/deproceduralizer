@@ -33,6 +33,7 @@ export interface FineAnalysis {
   tier3TriggerReason: string | null;
   tier3Flags: unknown;
   pipelineVersion: string | null;
+  reviewSummary: string | null;
 }
 
 export interface FineWithContext extends FineFeePenalty {
@@ -130,6 +131,7 @@ interface AnalysisRowFields {
   analysisTier3TriggerReason: string | null;
   analysisTier3Flags: unknown;
   analysisPipelineVersion: string | null;
+  analysisReviewSummary: string | null;
 }
 
 /** Map flattened analysis row fields to the nested FineAnalysis shape, or null if no analysis */
@@ -159,6 +161,7 @@ function mapAnalysisFields(row: AnalysisRowFields): FineAnalysis | null {
     tier3TriggerReason: row.analysisTier3TriggerReason,
     tier3Flags: row.analysisTier3Flags,
     pipelineVersion: row.analysisPipelineVersion,
+    reviewSummary: row.analysisReviewSummary ?? null,
   };
 }
 
@@ -677,6 +680,7 @@ export class FinesRepository extends BaseRepository {
       analysisTier3TriggerReason: complianceIssueAnalyses.tier3TriggerReason,
       analysisTier3Flags: complianceIssueAnalyses.tier3Flags,
       analysisPipelineVersion: complianceIssueAnalyses.pipelineVersion,
+      analysisReviewSummary: complianceIssueAnalyses.reviewSummary,
     };
   }
 

@@ -1,12 +1,14 @@
 subjective_discretion:
-  updated_at: '2026-03-11'
+  updated_at: '2026-04-05'
   display_name: Unconstrained Discretionary Authority
   db_issue_type: subjective_discretion
   category: Equity & Access
   description: 'Sole discretion or unconstrained authority without clear standards
     or appeal mechanisms. Broad discretion without objective criteria can enable inconsistent
     or discriminatory application of regulations. Focus on discretion that affects
-    individual rights, licensing, permits, or benefits.'
+    individual rights, licensing, permits, or benefits. Unconstrained government discretion
+    also burdens the agency itself through inconsistent decisions, legal challenges,
+    and staff uncertainty about how to apply standards.'
   positive_indicators:
   - '"Sole discretion" or "absolute discretion" over licensing, permits, or benefits'
   - No objective criteria guide the discretionary decision
@@ -17,8 +19,8 @@ subjective_discretion:
   - Discretion is purely administrative/procedural (accepting late filings, scheduling)
   - Clear standards or criteria accompany the discretion
   - A robust appeal or administrative review mechanism exists
-  - Context is internal agency management or staffing
-  - Discretion is about grant funding allocation or rulemaking
+  - Context is purely internal personnel scheduling or assignment with no public-facing impact
+  - Discretion is about rulemaking process or regulatory development
   - Administrative flexibility provisions (granting extensions, scheduling)
   severity_baseline: 5
   severity_modifiers:

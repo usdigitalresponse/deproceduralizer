@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useQueryStates } from 'nuqs';
 import { Zap, ArrowRight } from 'lucide-react';
 import type { AnalysisListItem, JurisdictionCode } from '@deproceduralizer/database';
-import { Badge } from '@/components/ui';
+import { Badge, ReviewSummaryText } from '@/components/ui';
 import { ISSUE_TYPE_LABELS } from '@/types/regulation';
 import { analysisTableParsers } from '@/lib/url/parsers';
 
@@ -118,6 +118,8 @@ function PriorityCard({ item, jurisdiction }: PriorityCardProps) {
       <div className="text-xs text-[var(--color-text)] truncate" title={item.documentTitle || ''}>
         {item.documentTitle || 'Untitled'}
       </div>
+
+      <ReviewSummaryText summary={item.reviewSummary} variant="compact" className="mt-1" />
 
       {item.easyCleanupCandidate && (
         <div className="mt-1.5">

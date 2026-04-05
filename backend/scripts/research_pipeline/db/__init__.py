@@ -49,6 +49,7 @@ from .analysis_writer import (
     save_tier3_results,
     save_final_results,
     save_all_results,
+    save_review_summaries,
     PIPELINE_VERSION,
 )
 
@@ -75,5 +76,6 @@ __all__ = [
     "save_tier3_results",
     "save_final_results",
     "save_all_results",
+    "save_review_summaries",
     "PIPELINE_VERSION",
 ]

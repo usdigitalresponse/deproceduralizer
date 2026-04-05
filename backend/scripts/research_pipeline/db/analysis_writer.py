@@ -972,3 +972,67 @@ def save_all_results(
     finally:
         if should_close:
             conn.close()
+
+
+@retry_db_operation()
+def save_review_summaries(
+    summaries: list[tuple],
+    conn: Optional[Connection] = None,
+) -> int:
+    """
+    Save review summaries to the compliance_issue_analyses table.
+
+    Args:
+        summaries: List of (document_id, guidance_document_id, issue_type, review_summary) tuples.
+        conn: Optional database connection.
+
+    Returns:
+        Count of saved rows.
+    """
+    if conn is None:
+        conn = get_db_connection()
+        should_close = True
+    else:
+        should_close = False
+
+    saved = 0
+    total = len(summaries)
+
+    try:
+        with conn.cursor() as cur:
+            for i, (doc_id, guidance_doc_id, issue_type, review_summary) in enumerate(summaries):
+                if i % 10 == 0 and total > 10:
+                    print(f"    Saving summaries: {i}/{total}...", end="\r", flush=True)
+
+                # Determine source type from which ID is set
+                if guidance_doc_id:
+                    source_type = "guidance"
+                else:
+                    source_type = "regulation"
+
+                cur.execute(f"""
+                    UPDATE compliance_issue_analyses SET
+                        review_summary = %s,
+                        updated_at = NOW()
+                    {_where_clause(source_type)}
+                """, (
+                    review_summary,
+                    doc_id if source_type == "regulation" else guidance_doc_id,
+                    issue_type,
+                ))
+
+                if cur.rowcount > 0:
+                    saved += 1
+
+                    # Commit every 50 rows to prevent Neon idle-in-transaction timeout
+                    if saved % 50 == 0:
+                        conn.commit()
+
+            if total > 10:
+                print(f"    Saved {saved} review summaries" + " " * 20)
+        conn.commit()
+    finally:
+        if should_close:
+            conn.close()
+
+    return saved

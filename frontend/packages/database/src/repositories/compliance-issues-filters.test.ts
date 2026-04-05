@@ -56,15 +56,15 @@ describe('buildAnalysisListFilters', () => {
     expect(conditions.length).toBeGreaterThanOrEqual(1);
   });
 
-  it('returns only jurisdiction condition when no filters provided', () => {
+  it('returns only base conditions when no filters provided', () => {
     const conditions = buildAnalysisListFilters({ jurisdiction: 'nj' });
-    // Just the jurisdiction condition
-    expect(conditions.length).toBe(1);
+    // Just the jurisdiction + source condition
+    expect(conditions.length).toBe(2);
   });
 
-  it('returns only jurisdiction condition when filters is empty object', () => {
+  it('returns only base conditions when filters is empty object', () => {
     const conditions = buildAnalysisListFilters({ jurisdiction: 'nj', filters: {} });
-    expect(conditions.length).toBe(1);
+    expect(conditions.length).toBe(2);
   });
 
   // --- Tier completed filter ---
@@ -73,7 +73,7 @@ describe('buildAnalysisListFilters', () => {
       jurisdiction: 'nj',
       filters: { tierCompleted: 2 },
     });
-    expect(conditions.length).toBe(2);
+    expect(conditions.length).toBe(3);
   });
 
   // --- Classification filter ---
@@ -82,7 +82,7 @@ describe('buildAnalysisListFilters', () => {
       jurisdiction: 'nj',
       filters: { classification: 'burdensome' },
     });
-    expect(conditions.length).toBe(2);
+    expect(conditions.length).toBe(3);
   });
 
   // --- Federal mandate filter ---
@@ -91,7 +91,7 @@ describe('buildAnalysisListFilters', () => {
       jurisdiction: 'nj',
       filters: { federalMandate: true },
     });
-    expect(conditions.length).toBe(2);
+    expect(conditions.length).toBe(3);
   });
 
   // --- Pipeline run filter ---
@@ -100,7 +100,7 @@ describe('buildAnalysisListFilters', () => {
       jurisdiction: 'nj',
       filters: { pipelineRun: true },
     });
-    expect(conditions.length).toBe(2);
+    expect(conditions.length).toBe(3);
   });
 
   it('adds pipeline run=false condition (tier = 0)', () => {
@@ -108,7 +108,7 @@ describe('buildAnalysisListFilters', () => {
       jurisdiction: 'nj',
       filters: { pipelineRun: false },
     });
-    expect(conditions.length).toBe(2);
+    expect(conditions.length).toBe(3);
   });
 
   // --- Issue type filter ---
@@ -117,7 +117,7 @@ describe('buildAnalysisListFilters', () => {
       jurisdiction: 'nj',
       filters: { issueType: 'newspaper' },
     });
-    expect(conditions.length).toBe(2);
+    expect(conditions.length).toBe(3);
   });
 
   // --- Severity range filter ---
@@ -126,7 +126,7 @@ describe('buildAnalysisListFilters', () => {
       jurisdiction: 'nj',
       filters: { severity: 'high' },
     });
-    expect(conditions.length).toBe(2);
+    expect(conditions.length).toBe(3);
   });
 
   it('adds severity=medium condition (4-6)', () => {
@@ -134,7 +134,7 @@ describe('buildAnalysisListFilters', () => {
       jurisdiction: 'nj',
       filters: { severity: 'medium' },
     });
-    expect(conditions.length).toBe(2);
+    expect(conditions.length).toBe(3);
   });
 
   it('adds severity=low condition (1-3)', () => {
@@ -142,7 +142,7 @@ describe('buildAnalysisListFilters', () => {
       jurisdiction: 'nj',
       filters: { severity: 'low' },
     });
-    expect(conditions.length).toBe(2);
+    expect(conditions.length).toBe(3);
   });
 
   it('adds severity=none condition (IS NULL)', () => {
@@ -150,7 +150,7 @@ describe('buildAnalysisListFilters', () => {
       jurisdiction: 'nj',
       filters: { severity: 'none' },
     });
-    expect(conditions.length).toBe(2);
+    expect(conditions.length).toBe(3);
   });
 
   // --- Severity changed filter ---
@@ -159,7 +159,7 @@ describe('buildAnalysisListFilters', () => {
       jurisdiction: 'nj',
       filters: { severityChanged: 'increased' },
     });
-    expect(conditions.length).toBe(2);
+    expect(conditions.length).toBe(3);
   });
 
   it('adds severityChanged=decreased condition', () => {
@@ -167,7 +167,7 @@ describe('buildAnalysisListFilters', () => {
       jurisdiction: 'nj',
       filters: { severityChanged: 'decreased' },
     });
-    expect(conditions.length).toBe(2);
+    expect(conditions.length).toBe(3);
   });
 
   it('adds severityChanged=unchanged condition', () => {
@@ -175,7 +175,7 @@ describe('buildAnalysisListFilters', () => {
       jurisdiction: 'nj',
       filters: { severityChanged: 'unchanged' },
     });
-    expect(conditions.length).toBe(2);
+    expect(conditions.length).toBe(3);
   });
 
   it('adds severityChanged=no_tier3 condition', () => {
@@ -183,7 +183,7 @@ describe('buildAnalysisListFilters', () => {
       jurisdiction: 'nj',
       filters: { severityChanged: 'no_tier3' },
     });
-    expect(conditions.length).toBe(2);
+    expect(conditions.length).toBe(3);
   });
 
   // --- Tier 3 flag filters (JSONB) ---
@@ -192,7 +192,7 @@ describe('buildAnalysisListFilters', () => {
       jurisdiction: 'nj',
       filters: { federalMandateConfirmed: 'true' },
     });
-    expect(conditions.length).toBe(2);
+    expect(conditions.length).toBe(3);
   });
 
   it('adds federalMandateConfirmed=false condition', () => {
@@ -200,7 +200,7 @@ describe('buildAnalysisListFilters', () => {
       jurisdiction: 'nj',
       filters: { federalMandateConfirmed: 'false' },
     });
-    expect(conditions.length).toBe(2);
+    expect(conditions.length).toBe(3);
   });
 
   it('adds stateDiscretion filter', () => {
@@ -208,7 +208,7 @@ describe('buildAnalysisListFilters', () => {
       jurisdiction: 'nj',
       filters: { stateDiscretion: 'true' },
     });
-    expect(conditions.length).toBe(2);
+    expect(conditions.length).toBe(3);
   });
 
   it('adds alternativeFound filter', () => {
@@ -216,7 +216,7 @@ describe('buildAnalysisListFilters', () => {
       jurisdiction: 'nj',
       filters: { alternativeFound: 'true' },
     });
-    expect(conditions.length).toBe(2);
+    expect(conditions.length).toBe(3);
   });
 
   it('adds supersededByLaw filter', () => {
@@ -224,7 +224,7 @@ describe('buildAnalysisListFilters', () => {
       jurisdiction: 'nj',
       filters: { supersededByLaw: 'false' },
     });
-    expect(conditions.length).toBe(2);
+    expect(conditions.length).toBe(3);
   });
 
   it('adds advocacyForChange filter', () => {
@@ -232,7 +232,7 @@ describe('buildAnalysisListFilters', () => {
       jurisdiction: 'nj',
       filters: { advocacyForChange: 'no_tier3' },
     });
-    expect(conditions.length).toBe(2);
+    expect(conditions.length).toBe(3);
   });
 
   // --- Evidence gap filter (boolean column, not JSONB) ---
@@ -241,7 +241,7 @@ describe('buildAnalysisListFilters', () => {
       jurisdiction: 'nj',
       filters: { evidenceGap: 'true' },
     });
-    expect(conditions.length).toBe(2);
+    expect(conditions.length).toBe(3);
   });
 
   it('adds evidenceGap=false condition', () => {
@@ -249,7 +249,7 @@ describe('buildAnalysisListFilters', () => {
       jurisdiction: 'nj',
       filters: { evidenceGap: 'false' },
     });
-    expect(conditions.length).toBe(2);
+    expect(conditions.length).toBe(3);
   });
 
   it('adds evidenceGap=no_tier3 condition', () => {
@@ -257,7 +257,7 @@ describe('buildAnalysisListFilters', () => {
       jurisdiction: 'nj',
       filters: { evidenceGap: 'no_tier3' },
     });
-    expect(conditions.length).toBe(2);
+    expect(conditions.length).toBe(3);
   });
 
   // --- Tier 3 trigger filter ---
@@ -266,7 +266,7 @@ describe('buildAnalysisListFilters', () => {
       jurisdiction: 'nj',
       filters: { tier3Trigger: 'high_risk_issue' },
     });
-    expect(conditions.length).toBe(2);
+    expect(conditions.length).toBe(3);
   });
 
   it('adds tier3Trigger=federal_citation condition', () => {
@@ -274,7 +274,7 @@ describe('buildAnalysisListFilters', () => {
       jurisdiction: 'nj',
       filters: { tier3Trigger: 'federal_citation' },
     });
-    expect(conditions.length).toBe(2);
+    expect(conditions.length).toBe(3);
   });
 
   it('adds tier3Trigger=no_alternative condition', () => {
@@ -282,7 +282,7 @@ describe('buildAnalysisListFilters', () => {
       jurisdiction: 'nj',
       filters: { tier3Trigger: 'no_alternative' },
     });
-    expect(conditions.length).toBe(2);
+    expect(conditions.length).toBe(3);
   });
 
   it('adds tier3Trigger=high_severity condition', () => {
@@ -290,7 +290,7 @@ describe('buildAnalysisListFilters', () => {
       jurisdiction: 'nj',
       filters: { tier3Trigger: 'high_severity' },
     });
-    expect(conditions.length).toBe(2);
+    expect(conditions.length).toBe(3);
   });
 
   it('adds tier3Trigger=controversial condition', () => {
@@ -298,7 +298,7 @@ describe('buildAnalysisListFilters', () => {
       jurisdiction: 'nj',
       filters: { tier3Trigger: 'controversial' },
     });
-    expect(conditions.length).toBe(2);
+    expect(conditions.length).toBe(3);
   });
 
   it('adds tier3Trigger=mandate_suspected condition', () => {
@@ -306,7 +306,7 @@ describe('buildAnalysisListFilters', () => {
       jurisdiction: 'nj',
       filters: { tier3Trigger: 'mandate_suspected' },
     });
-    expect(conditions.length).toBe(2);
+    expect(conditions.length).toBe(3);
   });
 
   it('adds tier3Trigger=not_triggered condition', () => {
@@ -314,7 +314,7 @@ describe('buildAnalysisListFilters', () => {
       jurisdiction: 'nj',
       filters: { tier3Trigger: 'not_triggered' },
     });
-    expect(conditions.length).toBe(2);
+    expect(conditions.length).toBe(3);
   });
 
   // --- Easy cleanup filter ---
@@ -323,7 +323,7 @@ describe('buildAnalysisListFilters', () => {
       jurisdiction: 'nj',
       filters: { easyCleanup: 'any' },
     });
-    expect(conditions.length).toBe(2);
+    expect(conditions.length).toBe(3);
   });
 
   it('adds easyCleanup=trivial condition (specific effort level)', () => {
@@ -331,7 +331,7 @@ describe('buildAnalysisListFilters', () => {
       jurisdiction: 'nj',
       filters: { easyCleanup: 'trivial' },
     });
-    expect(conditions.length).toBe(2);
+    expect(conditions.length).toBe(3);
   });
 
   it('adds easyCleanup=easy condition', () => {
@@ -339,7 +339,7 @@ describe('buildAnalysisListFilters', () => {
       jurisdiction: 'nj',
       filters: { easyCleanup: 'easy' },
     });
-    expect(conditions.length).toBe(2);
+    expect(conditions.length).toBe(3);
   });
 
   it('adds easyCleanup=medium condition', () => {
@@ -347,7 +347,7 @@ describe('buildAnalysisListFilters', () => {
       jurisdiction: 'nj',
       filters: { easyCleanup: 'medium' },
     });
-    expect(conditions.length).toBe(2);
+    expect(conditions.length).toBe(3);
   });
 
   // --- Bookmarked only filter ---
@@ -356,7 +356,7 @@ describe('buildAnalysisListFilters', () => {
       jurisdiction: 'nj',
       filters: { bookmarkedOnly: true },
     });
-    expect(conditions.length).toBe(2);
+    expect(conditions.length).toBe(3);
   });
 
   it('does not add condition when bookmarkedOnly=false', () => {
@@ -364,7 +364,7 @@ describe('buildAnalysisListFilters', () => {
       jurisdiction: 'nj',
       filters: { bookmarkedOnly: false },
     });
-    expect(conditions.length).toBe(1);
+    expect(conditions.length).toBe(2);
   });
 
   // --- Combined filters ---
@@ -379,18 +379,18 @@ describe('buildAnalysisListFilters', () => {
         bookmarkedOnly: true,
       },
     });
-    // jurisdiction + tierCompleted + classification + severity + federalMandateConfirmed + bookmarkedOnly
-    expect(conditions.length).toBe(6);
+    // jurisdiction + source + tierCompleted + classification + severity + federalMandateConfirmed + bookmarkedOnly
+    expect(conditions.length).toBe(7);
   });
 
   it('handles NYC jurisdiction code', () => {
     const conditions = buildAnalysisListFilters({ jurisdiction: 'nyc' });
-    expect(conditions.length).toBe(1);
+    expect(conditions.length).toBe(2);
   });
 
   it('handles NY jurisdiction code', () => {
     const conditions = buildAnalysisListFilters({ jurisdiction: 'ny' });
-    expect(conditions.length).toBe(1);
+    expect(conditions.length).toBe(2);
   });
 });
 

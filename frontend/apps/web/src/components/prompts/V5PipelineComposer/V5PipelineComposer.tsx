@@ -9,8 +9,61 @@ import { TierTabBar } from './TierTabBar';
 import { ComposedPromptViewer } from './ComposedPromptViewer';
 import { IssueMetadataPanel } from './IssueMetadataPanel';
 import { TokenBreakdown } from './TokenBreakdown';
-import { composePromptForTier, getIssueConfigByType } from '@/lib/actions/research-pipeline';
+import { composePromptForTier, getIssueConfigByType, getResearchPipelinePrompts } from '@/lib/actions/research-pipeline';
 import type { IssueTypeOption, TierNumber, IssueConfig, ComposedPrompt } from './types';
+import type { TierPromptData } from '@/lib/actions/research-pipeline';
+
+/** Lightweight viewer for the summary tier prompt (system + template only). */
+function SummaryPromptViewer({ data, isLoading }: { data: TierPromptData; isLoading: boolean }) {
+  if (isLoading) {
+    return (
+      <Card>
+        <div className="animate-pulse space-y-4">
+          <div className="h-4 w-1/3 bg-[var(--color-neutral-200)] rounded" />
+          <div className="h-24 bg-[var(--color-neutral-100)] rounded" />
+          <div className="h-4 w-1/3 bg-[var(--color-neutral-200)] rounded" />
+          <div className="h-24 bg-[var(--color-neutral-100)] rounded" />
+        </div>
+      </Card>
+    );
+  }
+
+  /** Highlight {placeholders} in prompt text */
+  function highlightPlaceholders(text: string) {
+    return text.split(/(\{[^}]+\})/).map((part, i) =>
+      part.startsWith('{') && part.endsWith('}')
+        ? <span key={i} className="px-1 py-0.5 rounded bg-[var(--color-accent-muted)] text-[var(--color-warning)] font-mono text-xs">{part}</span>
+        : <span key={i}>{part}</span>
+    );
+  }
+
+  return (
+    <Card>
+      <h3 className="text-sm font-semibold text-[var(--color-text)] mb-1">Summary Generation Prompt</h3>
+      <p className="text-xs text-[var(--color-text-muted)] mb-4">
+        {data.description} {data.updated_at && <span className="ml-1">(updated {data.updated_at})</span>}
+      </p>
+
+      {data.static_core && (
+        <div className="mb-4">
+          <h4 className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-2">System Prompt</h4>
+          <pre className="whitespace-pre-wrap text-xs text-[var(--color-text-secondary)] bg-[var(--color-neutral-50)] border border-[var(--color-neutral-200)] rounded-[var(--radius-md)] p-4 max-h-96 overflow-y-auto leading-relaxed">
+            {highlightPlaceholders(data.static_core)}
+          </pre>
+        </div>
+      )}
+
+      {data.document_template && (
+        <div>
+          <h4 className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-2">Template (User Message)</h4>
+          <pre className="whitespace-pre-wrap text-xs text-[var(--color-text-secondary)] bg-[var(--color-neutral-50)] border border-[var(--color-neutral-200)] rounded-[var(--radius-md)] p-4 max-h-96 overflow-y-auto leading-relaxed">
+            {highlightPlaceholders(data.document_template)}
+          </pre>
+        </div>
+      )}
+    </Card>
+  );
+}
 
 interface V5PipelineComposerProps {
   issueTypes: IssueTypeOption[];
@@ -22,6 +75,7 @@ export function V5PipelineComposer({ issueTypes, className = '' }: V5PipelineCom
   const [activeTier, setActiveTier] = useState<TierNumber>(1);
   const [composedPrompt, setComposedPrompt] = useState<ComposedPrompt | null>(null);
   const [issueConfig, setIssueConfig] = useState<IssueConfig | null>(null);
+  const [summaryPromptData, setSummaryPromptData] = useState<TierPromptData | null>(null);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -30,23 +84,29 @@ export function V5PipelineComposer({ issueTypes, className = '' }: V5PipelineCom
     setError(null);
 
     startTransition(async () => {
-      // Load both the composed prompt and issue config
-      const [promptResult, configResult] = await Promise.all([
-        composePromptForTier(activeTier, issueType),
-        getIssueConfigByType(issueType),
-      ]);
-
-      if (!promptResult.success) {
-        setError(promptResult.error);
-        return;
+      if (activeTier === 'summary') {
+        // Summary tier: load pipeline prompts and issue config
+        const [pipelineResult, configResult] = await Promise.all([
+          getResearchPipelinePrompts(),
+          getIssueConfigByType(issueType),
+        ]);
+        if (!pipelineResult.success) { setError(pipelineResult.error); return; }
+        if (!configResult.success) { setError(configResult.error); return; }
+        setSummaryPromptData(pipelineResult.data.summary ?? null);
+        setComposedPrompt(null);
+        setIssueConfig(configResult.data);
+      } else {
+        // Load both the composed prompt and issue config
+        const [promptResult, configResult] = await Promise.all([
+          composePromptForTier(activeTier, issueType),
+          getIssueConfigByType(issueType),
+        ]);
+        if (!promptResult.success) { setError(promptResult.error); return; }
+        if (!configResult.success) { setError(configResult.error); return; }
+        setComposedPrompt(promptResult.data);
+        setSummaryPromptData(null);
+        setIssueConfig(configResult.data);
       }
-      if (!configResult.success) {
-        setError(configResult.error);
-        return;
-      }
-
-      setComposedPrompt(promptResult.data);
-      setIssueConfig(configResult.data);
     });
   };
 
@@ -56,12 +116,17 @@ export function V5PipelineComposer({ issueTypes, className = '' }: V5PipelineCom
 
     setError(null);
     startTransition(async () => {
-      const result = await composePromptForTier(tier, selectedIssue);
-      if (!result.success) {
-        setError(result.error);
-        return;
+      if (tier === 'summary') {
+        const result = await getResearchPipelinePrompts();
+        if (!result.success) { setError(result.error); return; }
+        setSummaryPromptData(result.data.summary ?? null);
+        setComposedPrompt(null);
+      } else {
+        const result = await composePromptForTier(tier, selectedIssue);
+        if (!result.success) { setError(result.error); return; }
+        setComposedPrompt(result.data);
+        setSummaryPromptData(null);
       }
-      setComposedPrompt(result.data);
     });
   };
 
@@ -114,10 +179,23 @@ export function V5PipelineComposer({ issueTypes, className = '' }: V5PipelineCom
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Composed Prompt Viewer (2/3 width) */}
             <div className="lg:col-span-2">
-              <ComposedPromptViewer
-                composedPrompt={composedPrompt}
-                isLoading={isPending}
-              />
+              {activeTier === 'summary' ? (
+                summaryPromptData ? (
+                  <SummaryPromptViewer data={summaryPromptData} isLoading={isPending} />
+                ) : !isPending ? (
+                  <Card>
+                    <p className="text-sm text-[var(--color-text-muted)] py-8 text-center">
+                      No summary prompt section found in research_pipeline.yaml.
+                      The summary generation prompt will appear here once added by the backend pipeline.
+                    </p>
+                  </Card>
+                ) : null
+              ) : (
+                <ComposedPromptViewer
+                  composedPrompt={composedPrompt}
+                  isLoading={isPending}
+                />
+              )}
             </div>
 
             {/* Issue Metadata Panel (1/3 width) */}

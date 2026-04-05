@@ -220,6 +220,37 @@ python3 -m scripts.research_pipeline.cli \
 - Results in `statute_mandate_checks` table
 - Small number of LLM calls (only flagged + linked pairs)
 
+## Review Summary Generation
+
+Post-pipeline step that generates 1-2 sentence plain-language summaries for quick review triage.
+
+**When it runs:** After `save_final_results()`, before optional summarization. Enabled by default with `--execute`; disable with `--no-generate-summaries`.
+
+**Model:** Haiku via Anthropic Batch API (summarization/distillation task, not analytical reasoning).
+
+**Inputs:** All tier outputs (Tier 1/2/3 classification, reasoning, severity, arguments, verbatim requirements, web search findings, evidence flags) + document metadata (citation, title, summary).
+
+**Output:** `review_summary` column on `compliance_issue_analyses`. One summary per analysis.
+
+**Cost:** ~$0.05-0.10 per 500 analyses (Haiku + batch discount + cache savings). Negligible relative to the pipeline itself.
+
+**Caching strategy (2-layer):**
+- **Layer 1 (system):** Pipeline explanation + tone guidelines. Cached globally across all requests via `cache_control: ephemeral`.
+- **Layer 2 (user message):** Issue type context (cached prefix, same for all docs of that issue type) + per-document analysis data (unique suffix, not cached). Batch requests sorted by issue type to maximize prefix cache hits.
+
+**CLI flags:**
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--generate-summaries` / `--no-generate-summaries` | on with `--execute` | Control summary generation after pipeline |
+| `--summaries-only` | off | Standalone: regenerate summaries for existing analyses without re-running the pipeline |
+
+**Standalone example:**
+```bash
+python3 -m scripts.research_pipeline.cli \
+  --state ny --all-issues --summaries-only --execute
+```
+
 ## Summarization
 
 Can be run as a post-pipeline step or standalone.

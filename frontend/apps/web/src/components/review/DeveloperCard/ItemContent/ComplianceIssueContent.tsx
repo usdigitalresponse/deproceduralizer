@@ -1,4 +1,4 @@
-import { Badge, Tag } from '@/components/ui';
+import { Badge, Tag, ReviewSummaryText } from '@/components/ui';
 import { ISSUE_TYPE_LABELS, formatLabel } from '@/types/regulation';
 import { formatStateCitation } from '@/lib/formatters/citations';
 import { OutcomeBadges } from '@/components/issues/OutcomeBadges';
@@ -31,6 +31,8 @@ export function ComplianceIssueContent({ item, state }: ComplianceIssueContentPr
           showSeverity
         />
       </div>
+
+      <ReviewSummaryText summary={issue.analysis?.reviewSummary} className="mb-3" />
 
       {/* Guidance document context */}
       {isGuidance && item.guidance && (

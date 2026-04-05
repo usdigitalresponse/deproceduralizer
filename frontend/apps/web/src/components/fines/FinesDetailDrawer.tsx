@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { ExternalLink, DollarSign, Receipt, AlertTriangle, Plus } from 'lucide-react';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerBody, DrawerClose } from '@/components/ui/Drawer';
 import { Button } from '@/components/ui/Button';
-import { InfoTooltip } from '@/components/ui';
+import { InfoTooltip, ReviewSummaryText } from '@/components/ui';
 import { FineBookmarkProvider, FineDetailBookmark, FineDetailNotesCard } from './FineDetailBookmark';
 import { ClassificationBadge } from '@/components/issues';
 import { TierBadge } from '@/components/issues/TierProgressIndicator';
@@ -265,6 +265,8 @@ export function FinesDetailDrawer({ fine, open, onOpenChange, state, onBookmarkC
                   <p className="text-xs text-[var(--color-text-muted)] mb-3">
                     Document-level analysis shared by all fines from this source
                   </p>
+
+                  <ReviewSummaryText summary={fine.analysis.reviewSummary} variant="inline" className="mb-3" />
 
                   {/* Classification + Tier + Severity badges */}
                   <div className="flex flex-wrap items-center gap-2 mb-4">

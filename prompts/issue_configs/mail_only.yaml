@@ -1,14 +1,19 @@
 mail_only:
-  updated_at: '2026-03-05'
-  display_name: Mail-Only Submission
+  updated_at: '2026-04-05'
+  display_name: Mail-Only Communication
   db_issue_type: mail_only
   category: Communication
-  description: 'Mail is required as the ONLY submission method with no electronic alternative, adding
-    delays and costs to the submission process. This affects: citizens facing delays in time-sensitive
-    matters like home purchases, childcare applications, or benefit claims; businesses with compliance
-    deadlines; professionals filing documents; government staff processing paper submissions; and vulnerable
-    populations including rural residents with limited mail service, elderly who struggle with post office
-    trips, disabled individuals, and low-income people who cannot afford postage and printing costs.'
+  description: 'Mail is prescribed as the required communication method — either for public submissions
+    TO government or government communications TO the public — with no electronic alternative. This
+    covers both directions: (1) Inbound: citizens, businesses, or professionals must submit documents
+    by mail, adding delays and costs. (2) Outbound: government agencies are mandated to send notices,
+    decisions, or documents by physical mail rather than faster/cheaper electronic methods. Both
+    directions are modernization opportunities. Outbound mail mandates burden the agency (printing,
+    postage, staffing) AND the recipient — people who move, are transient, homeless, hospitalized,
+    or traveling may miss critical notices like hearing dates, benefit determinations, or license
+    renewals. Keeping a mailing address current is difficult for many populations, and mail-only
+    communication means time-sensitive information arrives days late when email, text, or portal
+    notifications would be instant and more reliably received.'
   positive_indicators:
   - '"shall submit by mail" or "must be mailed" with no alternatives mentioned'
   - Only USPS/postal service mentioned for submission (no email, portal, electronic)
@@ -16,24 +21,33 @@ mail_only:
   - Submission address is a physical mailing address without online alternative
   - Pattern "(applicant|petitioner|person) shall mail" indicates inbound requirement
   - No mention of email, online portal, or electronic submission options in surrounding context
+  - 'Agency/board/department "shall mail" or "shall be mailed" TO parties — outbound mail mandate with
+    no electronic alternative'
+  - 'Notices, decisions, or determinations that "shall be sent by" certified/registered mail — mandated
+    government outbound communication method'
+  - 'Hearing notices, orders, or official documents that must be served "by mail" — government-to-public
+    communication locked to postal service'
   negative_indicators:
   - Electronic alternative explicitly mentioned ("or electronically", "or via portal", "or email")
   - '"may submit by mail OR" with alternatives listed'
-  - 'Mail is outbound (agency-to-applicant): "shall be mailed TO" or "mailed by [agency]"'
   - '"or" appears within 30 characters of mail reference (indicates alternatives)'
-  - Mail is mentioned for contact info or general context, not submission requirement
+  - Mail is mentioned for contact info or general context, not a communication requirement
   - Reference to electronic filing system, online submission, or digital alternative
+  - Mail is one of multiple delivery options explicitly listed (e.g., "by mail, fax, or electronic means")
+  - Permissive language about mail ("may be sent by mail") rather than mandatory ("shall be mailed")
   severity_baseline: 4
   severity_modifiers:
     increases:
-    - '+1: No alternative submission method mentioned anywhere in document'
+    - '+1: No alternative communication method mentioned anywhere in document'
     - '+1: Time-sensitive deadline where mail delays are problematic'
     - '+1: Requires certified/registered mail (additional cost burden)'
     - '+1: Affects vulnerable populations or high-volume processes'
+    - '+1: High-volume outbound notices (e.g., thousands of hearing notices per year)'
     decreases:
     - '-1: Statutory requirement (from_statute=true) mandates mail'
     - '-1: Physical document authenticity genuinely needed (original signatures, chain of custody)'
-    - '-2: Security or legal constraints legitimately require physical submission'
+    - '-2: Security or legal constraints legitimately require physical delivery'
+    - '-1: Outbound mail is a backup/confirmation for electronic delivery already provided'
   patterns:
   - must be mailed
   - shall be mailed
@@ -46,8 +60,6 @@ mail_only:
   - only.{0,10}by mail
   exclusion_patterns:
   - '''or'' within 30 chars of ''mail'' (indicates alternatives)'
-  - shall be mailed TO (outbound mail from agency)
-  - mailed by [agency name] (outbound mail)
   - electronic|email|online|portal within 80 chars (alternative exists)
   statistics:
     total_matches: 347
@@ -68,12 +80,21 @@ mail_only:
         requirement.
       classification: burdensome
       severity: 5
-    false_positives:
     - citation: N.J.A.C. 13:45A-26F.12
       quote: Notice...shall be mailed by OAL to both parties
-      reasoning: This is the government mailing TO parties, not a submission requirement. Outbound mail
-        is not burdensome to the public.
-      classification: unrelated
+      reasoning: Government is mandated to mail notices to parties with no electronic alternative mentioned.
+        This is an outbound mail mandate — the agency must use physical mail for official communications,
+        adding cost and delay when email or portal notification would suffice.
+      classification: burdensome
+      severity: 4
+    - citation: 12 NYCRR 328.6
+      quote: Notice of such hearing shall be mailed by registered or certified mail
+      reasoning: Agency is mandated to send hearing notices by registered/certified mail — expensive outbound
+        communication requirement with no electronic alternative. Recipients receive slower notification
+        than email or text would provide.
+      classification: burdensome
+      severity: 5
+    false_positives:
     - citation: 20 NYCRR 473.1
       quote: mailed or delivered/submitted
       reasoning: Explicitly offers alternatives to mail ('or delivered/submitted'). Mail is optional,
@@ -82,6 +103,10 @@ mail_only:
     - citation: 13 NYCRR 22.5
       quote: mailed or submitted
       reasoning: The word 'or' indicates alternatives exist. Electronic submission is implied.
+      classification: unrelated
+    - citation: 9 NYCRR 54.3
+      quote: notices shall be served by mail or electronic means
+      reasoning: Both mail and electronic delivery are permitted — mail is not the only option.
       classification: unrelated
     justified:
     - citation: N.J.A.C. 13:69D-1.5

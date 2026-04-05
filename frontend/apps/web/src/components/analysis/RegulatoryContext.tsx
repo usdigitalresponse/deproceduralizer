@@ -35,9 +35,10 @@ interface RegulatoryContextProps {
   ancestors: AncestorNode[];
   document: DocumentContext;
   state: string;
+  reviewSummary?: string | null;
 }
 
-export function RegulatoryContext({ ancestors, document, state }: RegulatoryContextProps) {
+export function RegulatoryContext({ ancestors, document, state, reviewSummary }: RegulatoryContextProps) {
   const hasAncestors = ancestors.length > 0;
   const hasSummary = !!document.summary;
   const hasKeywords = document.keywords && document.keywords.length > 0;
@@ -97,7 +98,19 @@ export function RegulatoryContext({ ancestors, document, state }: RegulatoryCont
         </nav>
       )}
 
-      {/* Summary */}
+      {/* Analysis Summary — what the pipeline found */}
+      {reviewSummary && (
+        <div className="bg-[var(--color-primary-weaker)] border border-[var(--color-primary-weak)] rounded-[var(--radius-md)] px-4 py-3 mb-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-primary-mid)] mb-1">
+            Analysis Summary
+          </p>
+          <p className="text-sm text-[var(--color-text)] leading-relaxed">
+            {reviewSummary}
+          </p>
+        </div>
+      )}
+
+      {/* Regulation Summary — what the regulation is about */}
       {hasSummary && (
         <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed mb-3">
           {document.summary}

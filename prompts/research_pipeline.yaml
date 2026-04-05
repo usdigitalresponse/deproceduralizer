@@ -995,3 +995,94 @@ statute_mandate:
     Answer statute_mandated=false if the regulation goes beyond what the statute
     requires, or if the statute gives the agency discretion in how to implement
     this area.
+
+
+# =============================================================================
+# SUMMARY: Review Summary Generation (Post-Processing)
+# =============================================================================
+
+summary:
+  updated_at: "2026-04-04"
+  description: "Generate 1-2 sentence review summary from completed analysis"
+
+  system: |
+    You generate concise review summaries for regulatory compliance analyses.
+    Each summary should be 1-2 sentences that a policy reviewer can scan in
+    3 seconds. Lead with what the regulation requires, then why it's flagged.
+
+    Use plain language — no regulatory citation codes, no severity numbers,
+    no analytical framework terminology. Write for a smart generalist, not
+    a regulatory specialist.
+
+    ## How the Analysis Pipeline Works
+
+    Each regulation was analyzed through a 3-tier pipeline. Not all analyses
+    reach all tiers — some stop early when the issue is resolved:
+
+    **Tier 1 (Match Filtering):** Regex patterns flagged potential issues in
+    the regulation text. Tier 1 reviewed each match to determine whether it's
+    a genuine compliance concern or a false positive (e.g., a historical
+    reference, an exemption clause, or an example). If ALL matches were false
+    positives, the analysis stops here with "all_false_positives."
+
+    **Tier 2 (Classification & Severity):** For genuine matches, Tier 2
+    performed deep analysis using the full regulatory text, related definitions,
+    cross-referenced documents, and sibling section summaries. It classified
+    the issue as "burdensome" (unnecessarily difficult), "justified" (burden
+    serves a legitimate purpose), or "unrelated" (not actually a compliance
+    issue). It assigned a severity score (1-10) and generated steelman arguments
+    for both sides.
+
+    **Tier 3 (Web Search Verification):** For high-stakes or ambiguous
+    classifications, Tier 3 performed live web searches to verify claims —
+    checking whether federal mandates are real, whether peer states have
+    modernized, and whether alternatives exist. It may adjust the severity
+    and classification based on external evidence. Not all analyses reach
+    Tier 3.
+
+    ## Your Task
+
+    Synthesize the analysis results into a plain-language summary. Weight
+    higher tiers more heavily — Tier 3 findings supersede Tier 2 where they
+    differ. If the analysis only reached Tier 1, summarize why the matches
+    were dismissed.
+
+    Adapt tone to classification:
+    - "burdensome": State what's required and what makes it unnecessarily difficult
+    - "justified": State what's required and why the burden appears necessary
+    - "unrelated": State why this was flagged but isn't actually a compliance issue
+    - "all_false_positives": State why the regex matches were not real instances
+
+  template: |
+    Generate a 1-2 sentence review summary for this compliance issue analysis.
+
+    REGULATION: {citation} — {title}
+    REGULATION SUMMARY: {document_summary}
+    ISSUE TYPE: {issue_type_display} ({issue_type})
+    FINAL CLASSIFICATION: {classification}
+    HIGHEST TIER COMPLETED: {highest_tier}
+    SEVERITY: {severity}/10
+    AFFECTED POPULATION: {affected_population}
+
+    VERBATIM REQUIREMENTS:
+    {verbatim_requirements}
+
+    ARGUMENT AGAINST (why it may be burdensome):
+    {argument_against}
+
+    ARGUMENT FOR (why it may be justified):
+    {argument_for}
+
+    REGEX MATCH CONTEXT:
+    {regex_match_context}
+
+    CONTEXT USED:
+    {context_used}
+
+    === TIER 1 ANALYSIS (Match Filtering) ===
+    Classification: {tier1_classification}
+    Reasoning: {tier1_reasoning}
+    Dismissed Matches: {dismissed_reasons}
+
+    {tier2_block}
+    {tier3_block}

@@ -24,6 +24,7 @@ export interface ResearchPipelineData {
   tier1: TierPromptData;
   tier2: TierPromptData;
   tier3: TierPromptData;
+  summary?: TierPromptData;
 }
 
 export interface ExampleCase {
@@ -103,10 +104,16 @@ interface RawTierPrompt {
   document_template?: string;
 }
 
+interface RawSummaryPrompt extends RawTierPrompt {
+  system?: string;
+  template?: string;
+}
+
 interface RawResearchPipeline {
   tier1?: RawTierPrompt;
   tier2?: RawTierPrompt;
   tier3?: RawTierPrompt;
+  summary?: RawSummaryPrompt;
 }
 
 interface RawIssueConfigEntry {
@@ -158,6 +165,20 @@ function parseTierData(raw: RawTierPrompt | undefined, tierName: string): TierPr
   };
 }
 
+/**
+ * Parse summary prompt data — uses system/template keys instead of static_core/document_template
+ */
+function parseSummaryData(raw: RawSummaryPrompt | undefined): TierPromptData {
+  return {
+    updated_at: raw?.updated_at || '',
+    description: raw?.description || 'Summary',
+    static_core: (raw?.system || raw?.static_core || '').trim(),
+    issue_block: '',
+    batch_context: '',
+    document_template: (raw?.template || raw?.document_template || '').trim(),
+  };
+}
+
 // =============================================================================
 // Server Actions
 // =============================================================================
@@ -175,6 +196,7 @@ export async function getResearchPipelinePrompts(): Promise<ActionResult<Researc
       tier1: parseTierData(parsed.tier1, '1'),
       tier2: parseTierData(parsed.tier2, '2'),
       tier3: parseTierData(parsed.tier3, '3'),
+      summary: parsed.summary ? parseSummaryData(parsed.summary) : undefined,
     };
   });
 }

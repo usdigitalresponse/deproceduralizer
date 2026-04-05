@@ -19,7 +19,7 @@ import {
 } from '@/components/analysis';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Container } from '@/components/layout/Container';
-import { Badge, ScrollToHash } from '@/components/ui';
+import { Badge, ScrollToHash, ReviewSummaryText } from '@/components/ui';
 import { ClassificationBadge, TierClassificationFlow } from '@/components/issues/TierClassificationFlow';
 import { isValidJurisdiction } from '@/types/state';
 import { ISSUE_TYPE_LABELS } from '@/types/regulation';
@@ -221,6 +221,7 @@ export default async function AnalysisDetailPage({ params, searchParams }: Analy
             ancestors={ancestors}
             document={analysis.document}
             state={stateCode}
+            reviewSummary={analysis.reviewSummary}
           />
 
           {/* Tier Classification Flow */}
@@ -271,7 +272,7 @@ export default async function AnalysisDetailPage({ params, searchParams }: Analy
           </div>
         </div>
 
-        {/* Executive Summary Card - key findings at a glance */}
+        {/* Executive Summary — web search details for T3, classification fallback for T2/pre-backfill */}
         <div id="section-summary">
           <ExecutiveSummary analysis={analysis} />
         </div>

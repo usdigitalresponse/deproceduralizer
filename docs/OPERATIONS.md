@@ -500,12 +500,24 @@ Key flags:
 | `--doc-type` | none | Filter guidance by doc type (e.g., `ADM`, `DAL`) |
 | `--statute-mandate` | off | Run statute mandate checks after pipeline (NY only) |
 | `--run-statute-mandate-only` | off | Run only the statute mandate check step |
+| `--generate-summaries` / `--no-generate-summaries` | on with `--execute` | Generate review summaries after pipeline completes |
+| `--summaries-only` | off | Standalone: regenerate summaries for existing analyses without re-running the pipeline |
 
 **Guidance Documents** (requires migration 0058):
 ```bash
 cd backend
 # OCFS childcare guidance
 python3 -m scripts.research_pipeline.cli --state ny --all-issues --source guidance --agency OCFS --execute --limit 10
+```
+
+**Review Summary Generation** (post-pipeline, default on with `--execute`):
+
+After the pipeline completes, generates 1-2 sentence plain-language summaries for each analysis using Haiku via Batch API. Cost: ~$0.05-0.10 per 500 analyses. Summaries are saved to the `review_summary` column in `compliance_issue_analyses`.
+
+```bash
+cd backend
+# Regenerate summaries for existing analyses (no pipeline re-run)
+python3 -m scripts.research_pipeline.cli --state ny --all-issues --summaries-only --execute
 ```
 
 **Statute Mandate Checks** (NY only, post-pipeline):

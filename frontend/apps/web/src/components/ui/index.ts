@@ -164,3 +164,6 @@ export { Skeleton } from './Skeleton';
 // BulkActionBar
 export { BulkActionBar } from './BulkActionBar';
 export type { BulkActionBarProps } from './BulkActionBar';
+
+// ReviewSummaryText
+export { ReviewSummaryText } from './ReviewSummaryText';

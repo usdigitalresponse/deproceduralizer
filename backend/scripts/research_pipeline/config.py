@@ -27,6 +27,10 @@ BATCH_MODEL = DEFAULT_MODEL  # Currently claude-sonnet-4-6
 # Tier 3 model (used for both batch and realtime modes)
 TIER3_REALTIME_MODEL = DEFAULT_MODEL
 
+# Summary generation model (Haiku — distillation task, not analytical reasoning)
+SUMMARY_MODEL = "claude-haiku-4-5-20251001"
+SUMMARY_MAX_TOKENS = 256
+
 
 # =============================================================================
 # Tier 2 Re-run Configuration

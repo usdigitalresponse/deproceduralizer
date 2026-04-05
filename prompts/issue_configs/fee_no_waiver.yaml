@@ -1,5 +1,5 @@
 fee_no_waiver:
-  updated_at: '2026-03-05'
+  updated_at: '2026-04-05'
   display_name: Non-Refundable Fee Without Waiver
   db_issue_type: fee_no_waiver
   category: Equity & Access
@@ -16,7 +16,7 @@ fee_no_waiver:
   negative_indicators:
   - Hardship waiver or fee reduction provision exists
   - Fee is refundable under certain conditions
-  - Fee applies only to businesses or commercial entities
+  - Fee applies only to large commercial operations where the fee is immaterial relative to business scale
   - Processing cost justification with waiver available
   - Fee amount is nominal ($10 or less)
   severity_baseline: 5
@@ -28,7 +28,7 @@ fee_no_waiver:
     decreases:
     - '-2: Hardship waiver provision exists'
     - '-1: Fee is nominal ($25 or less)'
-    - '-1: Applies only to business entities'
+    - '-1: Applies only to large commercial entities (not sole proprietors or small businesses)'
   patterns:
   - non-?refundable.{0,30}fee
   - fee.{0,30}non-?refundable
@@ -58,6 +58,6 @@ fee_no_waiver:
       classification: unrelated
     - citation: 6 NYCRR 621.7
       quote: non-refundable permit fee for commercial operations
-      reasoning: Applies to commercial/business entities, not individuals. Business cost
-        of doing business.
-      classification: unrelated
+      reasoning: Applies to commercial operations — but small businesses and sole proprietors
+        face the same hardship as individuals. Only immaterial for large-scale operations.
+      classification: burdensome

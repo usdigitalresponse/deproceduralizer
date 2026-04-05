@@ -1,5 +1,5 @@
 english_only:
-  updated_at: '2026-03-11'
+  updated_at: '2026-04-05'
   display_name: English-Only Requirement
   db_issue_type: english_only
   category: Equity & Access
@@ -7,7 +7,9 @@ english_only:
     NY Executive Order 26 requires state agencies to provide language access services
     for Limited English Proficiency (LEP) populations. Regulations that mandate English-only
     submissions without translation provisions may violate this requirement and create
-    barriers for LEP communities.'
+    barriers for LEP communities. English-only internal culture also affects service
+    delivery to diverse populations by limiting the hiring pool, reducing effectiveness
+    with LEP communities, and burdening multilingual staff.'
   positive_indicators:
   - Documents or submissions must be in English only
   - No provision for translation or interpretation services
@@ -19,7 +21,7 @@ english_only:
   - The requirement is for technical/scientific documentation where English is the standard
   - '"In English" refers to Plain English readability requirements'
   - The context is an academic English examination or course
-  - The English requirement is for internal agency communications
+  - The English requirement is for standardized inter-agency data exchange, federal reporting formats, or routine internal communications among English-speaking staff (mandating translation of all internal communications would itself be burdensome)
   - FDA labeling or medical records where English is standard
   severity_baseline: 5
   severity_modifiers:

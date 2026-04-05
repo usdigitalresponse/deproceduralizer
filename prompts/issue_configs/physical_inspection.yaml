@@ -1,30 +1,32 @@
 physical_inspection:
-  updated_at: '2026-03-05'
+  updated_at: '2026-04-05'
   display_name: Physical Inspection Location
   db_issue_type: physical_inspection
   category: Physical Presence
   description: 'Documents must be available for public inspection at a physical location only, without
-    online access. This limits transparency for: citizens who cannot travel to inspect records; researchers
-    and journalists investigating public matters; businesses monitoring regulatory filings; and particularly
-    excludes rural residents, disabled individuals, elderly with mobility issues, workers who cannot visit
-    during business hours, and anyone outside the geographic area. Online posting would dramatically expand
-    public access.'
+    online access. This burdens BOTH the public AND the government: (1) Public burden: citizens must
+    travel to inspect records, excluding rural residents, disabled individuals, elderly with mobility
+    issues, workers who cannot visit during business hours, and anyone outside the geographic area.
+    (2) Government burden: agencies must staff inspection rooms, retrieve and re-file documents, manage
+    appointment scheduling, and maintain physical reading spaces — diverting staff from other public-facing
+    work. Government-mandated physical-only inspection (including FOIL/transparency obligations) is a
+    physical access restriction even if well-intentioned. Online posting would dramatically expand public
+    access while reducing agency workload.'
   positive_indicators:
   - Physical inspection is the only access method
   - Documents could reasonably be posted online
   - Online access is not mentioned
   - '"during business hours" limits accessibility'
   - Public records without web access
+  - Government records available for inspection only at physical location with no online access
   negative_indicators:
   - Online access is also provided
   - Documents contain security-sensitive information
   - Physical inspection is in addition to online
   - '"available on the website" or similar'
   - Genuinely requires physical inspection (large maps, samples)
-  - FOIL boilerplate — "records access officer", "freedom of information", "FOIL request"
-  - '"requests for public access to records" or "pursuant to the Freedom of Information Law"'
-  - Text describes government transparency obligation, not physical-only access restriction
-  - Agency FOIL officer designation or FOIL compliance procedures
+  - Purely procedural FOIL text that names an officer or describes request procedures without specifying physical-only access
+  - FOIL text that does NOT describe physical-only inspection (e.g., naming a records access officer without specifying how records are accessed)
   severity_baseline: 4
   severity_modifiers:
     increases:
@@ -71,13 +73,16 @@ physical_inspection:
       severity: 2
     - citation: 21 NYCRR 1401.4
       quote: records access officer shall make records available for public inspection
-      reasoning: FOIL boilerplate — describes agency's transparency obligation under
-        Freedom of Information Law, not a physical-only access restriction.
-      classification: unrelated
+      reasoning: Describes physical-only inspection of public records with no online access mentioned.
+        The agency must staff an inspection room and retrieve documents; the public must travel to the
+        office during business hours. A transparency obligation that is physical-only IS a physical
+        access restriction — it burdens both the agency and the public.
+      classification: burdensome
+      severity: 4
     - citation: 9 NYCRR 6601.3
       quote: requests for public access to records pursuant to the Freedom of Information Law
-      reasoning: FOIL compliance procedure — statutory requirement for government
-        transparency, not a burdensome inspection-only rule.
+      reasoning: Purely procedural FOIL text describing how to submit records requests. Does not specify
+        physical-only inspection — this is about the request process, not the access method.
       classification: unrelated
     justified:
     - citation: N.J.A.C. 7:26-2.3
