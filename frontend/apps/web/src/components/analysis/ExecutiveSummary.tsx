@@ -59,17 +59,23 @@ function Tier3Summary({ analysis, finalClassification }: TierSummaryProps) {
         Key Findings
       </h2>
 
-      {/* One-line verdict */}
-      <p className="text-sm text-[var(--color-text)]">
-        Classified as{' '}
-        <span className="font-semibold">{finalClassification}</span>
-        {finalSeverity !== null && (
-          <> with severity <span className="font-semibold">{finalSeverity}</span>/10</>
-        )}{' '}
-        after web search verification
-      </p>
-
-      <ReviewSummaryText summary={analysis.reviewSummary} variant="inline" className="mt-2" />
+      {/* Review summary as hero content when available */}
+      {analysis.reviewSummary ? (
+        <div className="bg-[var(--color-primary-weaker)] border border-[var(--color-primary-weak)] rounded-[var(--radius-md)] px-4 py-3 mb-3">
+          <p className="text-sm text-[var(--color-text)] leading-relaxed">
+            {analysis.reviewSummary}
+          </p>
+        </div>
+      ) : (
+        <p className="text-sm text-[var(--color-text)]">
+          Classified as{' '}
+          <span className="font-semibold">{finalClassification}</span>
+          {finalSeverity !== null && (
+            <> with severity <span className="font-semibold">{finalSeverity}</span>/10</>
+          )}{' '}
+          after web search verification
+        </p>
+      )}
 
       {/* Web Search Summary */}
       {tier3?.webSearchSummary && (
@@ -119,20 +125,20 @@ function Tier2Summary({ analysis, finalClassification }: TierSummaryProps) {
         Key Findings
       </h2>
 
-      <p className="text-sm text-[var(--color-text)]">
-        Classified as{' '}
-        <span className="font-semibold">{finalClassification}</span>
-        {finalSeverity !== null && (
-          <> with severity <span className="font-semibold">{finalSeverity}</span>/10</>
-        )}{' '}
-        (no web verification performed)
-      </p>
-
       {analysis.reviewSummary ? (
-        <ReviewSummaryText summary={analysis.reviewSummary} variant="inline" className="mt-2" />
+        <div className="bg-[var(--color-primary-weaker)] border border-[var(--color-primary-weak)] rounded-[var(--radius-md)] px-4 py-3">
+          <p className="text-sm text-[var(--color-text)] leading-relaxed">
+            {analysis.reviewSummary}
+          </p>
+        </div>
       ) : (
-        <p className="mt-2 text-xs text-[var(--color-text-muted)]">
-          This analysis completed at Tier 2. Web search verification was not triggered for this item.
+        <p className="text-sm text-[var(--color-text)]">
+          Classified as{' '}
+          <span className="font-semibold">{finalClassification}</span>
+          {finalSeverity !== null && (
+            <> with severity <span className="font-semibold">{finalSeverity}</span>/10</>
+          )}{' '}
+          (no web verification performed)
         </p>
       )}
     </div>

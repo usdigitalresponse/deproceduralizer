@@ -271,8 +271,6 @@ export default async function AnalysisDetailPage({ params, searchParams }: Analy
           </div>
         </div>
 
-        <ReviewSummaryText summary={analysis.reviewSummary} className="mb-4" />
-
         {/* Executive Summary Card - key findings at a glance */}
         <div id="section-summary">
           <ExecutiveSummary analysis={analysis} />
