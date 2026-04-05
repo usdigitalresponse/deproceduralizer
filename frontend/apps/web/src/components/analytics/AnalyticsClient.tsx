@@ -3,12 +3,12 @@
 import { useQueryState, useQueryStates } from 'nuqs';
 import { ScrollText, BookOpen, LayoutList } from 'lucide-react';
 import type { DashboardStats, JurisdictionCode, StatuteLinkStats } from '@deproceduralizer/database';
-import type { ComplianceIssueStatusCounts, ComplianceTypeClassificationCounts } from '@/lib/actions/compliance-issues';
 import type { SectionTypeStats, MetadataStats, KeywordStats, AppliesToStats } from '@/lib/actions/regulations';
 import type { DefinitionsAnalyticsStats } from '@/lib/actions/definitions';
 import type { PipelineAnalyticsData } from '@/lib/actions/pipeline-analytics';
 import type { SeverityDistribution, JenAIReviewStatusCounts, JenAIDeveloperStatusCounts, BurdenOverviewStats } from '@deproceduralizer/database';
 import type { GuidanceOverviewStats, GuidanceCitationStats, GuidanceReadabilityStats, ReadabilityCrossCutStats, LineageStats } from '@/lib/actions/guidance-documents';
+import type { AnalyticsSummaryMetrics } from '@/lib/actions/analytics-metrics';
 import type { AnalyticsTabValue, AnalyticsSourceValue } from '@/lib/constants/values';
 import { analyticsParsers, analyticsSourceParser } from '@/lib/url/parsers';
 import { SegmentedControl } from '@/components/ui';
@@ -37,12 +37,10 @@ export interface AnalyticsClientProps {
   metadataStats: MetadataStats | null;
   topKeywords: KeywordStats[] | null;
   topAppliesTo: AppliesToStats[] | null;
-  complianceStatus: ComplianceIssueStatusCounts | null;
-  complianceTypeCounts: Record<string, number> | null;
+  analyticsSummary: AnalyticsSummaryMetrics | null;
   definitionsStats: DefinitionsAnalyticsStats | null;
   statuteStats: StatuteLinkStats | null;
   pipelineData: PipelineAnalyticsData | null;
-  complianceSeverity: SeverityDistribution | null;
   jenaiSeverity: SeverityDistribution | null;
   jenaiStats: JenAIReviewStatusCounts | null;
   guidanceOverviewStats?: GuidanceOverviewStats | null;
@@ -51,7 +49,6 @@ export interface AnalyticsClientProps {
   guidanceReadabilityCrossCuts?: ReadabilityCrossCutStats | null;
   guidanceLineageStats?: LineageStats | null;
   jenaiAnalyticsData?: JenAIAnalyticsTabProps | null;
-  complianceTypeClassification?: ComplianceTypeClassificationCounts | null;
 }
 
 export function AnalyticsClient({
@@ -60,12 +57,10 @@ export function AnalyticsClient({
   sectionTypeStats,
   metadataStats,
   topKeywords,
-  complianceStatus,
-  complianceTypeCounts,
+  analyticsSummary,
   definitionsStats,
   statuteStats,
   pipelineData,
-  complianceSeverity,
   jenaiSeverity,
   jenaiStats,
   guidanceOverviewStats,
@@ -74,7 +69,6 @@ export function AnalyticsClient({
   guidanceReadabilityCrossCuts,
   guidanceLineageStats,
   jenaiAnalyticsData,
-  complianceTypeClassification,
 }: AnalyticsClientProps) {
   const [params, setParams] = useQueryStates(analyticsParsers, { shallow: true });
   const [source, setSource] = useQueryState('source', analyticsSourceParser.withOptions({ shallow: false }));
@@ -101,17 +95,18 @@ export function AnalyticsClient({
         {currentTab === 'overview' && (
           <OverviewTab
             dashboardStats={dashboardStats}
-            complianceStatus={complianceStatus}
-            complianceTypeCounts={complianceTypeCounts}
+            complianceStatus={analyticsSummary?.reviewStatus ?? null}
+            complianceTypeCounts={analyticsSummary?.countsByType ?? null}
             metadataStats={metadataStats}
             definitionsStats={definitionsStats}
             statuteStats={statuteStats}
             pipelineData={pipelineData}
-            complianceSeverity={complianceSeverity}
+            complianceSeverity={analyticsSummary?.severity ?? null}
             jenaiSeverity={jenaiSeverity}
             jenaiStats={jenaiStats}
             jurisdiction={jurisdiction}
-            complianceTypeClassification={complianceTypeClassification ?? null}
+            complianceTypeClassification={analyticsSummary?.countsByTypeAndClassification ?? null}
+            classificationTotals={analyticsSummary?.classificationTotals ?? null}
             onNavigateToIssues={() => setParams({ tab: 'issues' })}
             activeSource={source}
           />
@@ -119,9 +114,10 @@ export function AnalyticsClient({
 
         {currentTab === 'issues' && (
           <IssuesTab
-            complianceByType={complianceTypeCounts ?? {}}
-            complianceStatus={complianceStatus}
-            complianceTypeClassification={complianceTypeClassification ?? null}
+            complianceByType={analyticsSummary?.countsByType ?? {}}
+            complianceStatus={analyticsSummary?.reviewStatus ?? null}
+            complianceTypeClassification={analyticsSummary?.countsByTypeAndClassification ?? null}
+            classificationTotals={analyticsSummary?.classificationTotals ?? null}
             jurisdiction={jurisdiction}
             activeSource={source}
           />

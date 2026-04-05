@@ -10,6 +10,7 @@ import { useChartNavigation } from '@/hooks/useChartNavigation';
 import type { JurisdictionCode } from '@/types/state';
 import type { OverviewClassificationValue } from '@/lib/constants/values';
 import { LEGACY_ISSUE_TYPES } from '@/lib/constants/values';
+import type { ClassificationTotals } from '@/lib/actions/analytics-metrics';
 import { analyticsParsers } from '@/lib/url/parsers';
 
 const OVERVIEW_CLASSIFICATION_OPTIONS = [
@@ -22,6 +23,7 @@ interface IssuesTabProps {
   complianceByType: Record<string, number>;
   complianceStatus: ComplianceIssueStatusCounts | null;
   complianceTypeClassification: ComplianceTypeClassificationCounts | null;
+  classificationTotals: ClassificationTotals | null;
   jurisdiction?: JurisdictionCode;
   activeSource?: string;
 }
@@ -30,6 +32,7 @@ export function IssuesTab({
   complianceByType,
   complianceStatus,
   complianceTypeClassification,
+  classificationTotals,
   jurisdiction,
   activeSource,
 }: IssuesTabProps) {
@@ -115,13 +118,13 @@ export function IssuesTab({
         </Card>
         <Card padding="md" className="text-center">
           <div className="text-3xl font-bold text-[var(--color-danger)]">
-            {breakdownTotals.burdensome.toLocaleString()}
+            {(classificationTotals?.burdensome ?? breakdownTotals.burdensome).toLocaleString()}
           </div>
           <div className="text-sm text-[var(--color-text-muted)]">Burdensome</div>
         </Card>
         <Card padding="md" className="text-center">
           <div className="text-3xl font-bold text-[var(--color-success)]">
-            {breakdownTotals.justified.toLocaleString()}
+            {(classificationTotals?.justified ?? breakdownTotals.justified).toLocaleString()}
           </div>
           <div className="text-sm text-[var(--color-text-muted)]">Justified</div>
         </Card>
