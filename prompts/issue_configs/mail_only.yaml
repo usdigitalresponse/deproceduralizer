@@ -9,8 +9,11 @@ mail_only:
     by mail, adding delays and costs. (2) Outbound: government agencies are mandated to send notices,
     decisions, or documents by physical mail rather than faster/cheaper electronic methods. Both
     directions are modernization opportunities. Outbound mail mandates burden the agency (printing,
-    postage, staffing) and delay receipt by the public, especially when email, text, or portal
-    notifications would be faster and more accessible.'
+    postage, staffing) AND the recipient — people who move, are transient, homeless, hospitalized,
+    or traveling may miss critical notices like hearing dates, benefit determinations, or license
+    renewals. Keeping a mailing address current is difficult for many populations, and mail-only
+    communication means time-sensitive information arrives days late when email, text, or portal
+    notifications would be instant and more reliably received.'
   positive_indicators:
   - '"shall submit by mail" or "must be mailed" with no alternatives mentioned'
   - Only USPS/postal service mentioned for submission (no email, portal, electronic)
