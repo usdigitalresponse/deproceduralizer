@@ -1,5 +1,5 @@
 obsolete_media:
-  updated_at: '2026-01-03'
+  updated_at: '2026-04-05'
   display_name: Obsolete Storage Media
   db_issue_type: obsolete_media
   category: Technology
@@ -18,7 +18,7 @@ obsolete_media:
   - Online submission is equally available
   - Physical media is one of several options
   - '"or upload" or "or email" alternatives'
-  - Media reference is historical/archival
+  - Passing reference to media type without any storage or maintenance requirement
   - Large file transfers where media is practical
   severity_baseline: 5
   severity_modifiers:
@@ -63,8 +63,8 @@ obsolete_media:
       classification: unrelated
     - citation: N.J.A.C. 8:43-12.1
       quote: historical records on microfiche or tape
-      reasoning: Archival reference to historical records.
-      classification: unrelated
+      reasoning: If records must be maintained on microfiche/tape, this is a storage requirement on obsolete media — records cannot be easily searched, shared, or backed up. Only a passing descriptive mention would be unrelated.
+      classification: burdensome
     justified:
     - citation: N.J.A.C. 7:26-2.4
       quote: large datasets may be submitted on external drive

@@ -1,5 +1,5 @@
 waiting_period:
-  updated_at: '2026-01-03'
+  updated_at: '2026-04-05'
   display_name: Mandatory Waiting Period
   db_issue_type: waiting_period
   category: Process
@@ -8,13 +8,17 @@ waiting_period:
     burden: citizens in time-sensitive situations such as home purchases, childcare enrollment, or urgent
     permit needs; businesses with project timelines; professionals awaiting credential approval; and vulnerable
     populations including those who cannot afford service delays, families with urgent childcare needs,
-    and elderly individuals for whom delays represent significant portions of remaining time.'
+    and elderly individuals for whom delays represent significant portions of remaining time. Government
+    agencies bearing waiting periods must track pending applications, maintain open files, and respond
+    to status inquiries, draining capacity for subsequent applications and delaying permits, licenses,
+    and services for the public.'
   positive_indicators:
   - No stated rationale for the waiting period
   - Waiting period appears arbitrary
   - Faster processing would be feasible without harm
   - Wait period for routine administrative action
   - Extended waiting period (30+ days) without justification
+  - Waiting period imposed on government action (e.g., 'the department shall not act for X days') without stated rationale
   negative_indicators:
   - Clear safety rationale (firearms cooling-off, hazardous materials)
   - Public comment period required by law

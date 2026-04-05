@@ -1,25 +1,30 @@
 certified_mail:
-  updated_at: '2026-01-03'
+  updated_at: '2026-04-05'
   display_name: Certified/Registered Mail
   db_issue_type: certified_mail
   category: Communication
   description: 'Certified or registered mail is required, adding $5-15 per mailing plus post office visits
-    and tracking complexity. This burdens: citizens with time and cost for routine correspondence; businesses
-    with high-volume mailing costs; professionals meeting filing deadlines; government staff processing
-    return receipts; and vulnerable populations including elderly and disabled individuals who struggle
-    with post office access, and rural residents far from postal facilities. Email with read receipts
-    could replace most uses.'
+    and tracking complexity. This affects BOTH directions: (1) Public-to-government: citizens, businesses,
+    and professionals bear cost and delay for routine submissions. (2) Government-to-public: agencies
+    sending certified mail at scale (license revocations, renewal reminders, adverse actions) spend
+    enormous amounts on postage, staff time, and return receipt processing — costs borne by taxpayers
+    and slowing service delivery. Government staff must process return receipts manually. Vulnerable
+    populations including elderly, disabled, and rural residents struggle with post office access.
+    Email with read receipts or electronic delivery with confirmation could replace most uses in both
+    directions.'
   positive_indicators:
   - Certified mail required for routine correspondence
   - No clear legal rationale for proof of delivery
   - Regular mail or email would suffice for the purpose
   - '"shall be sent by certified mail" without clear legal purpose'
   - Return receipt required for non-legal-process communications
+  - Government agency must send certified mail at scale (notices, revocations, renewals)
+  - Outbound government certified mail for adverse actions where electronic delivery could suffice
   negative_indicators:
   - Establishing legally significant deadline (appeal periods)
-  - Serving legal notice where proof of delivery required by statute
-  - Formal contract termination or legal process
-  - Adverse action requiring documented notice (termination, denial)
+  - Serving legal notice where proof of delivery required by statute AND electronic delivery with read receipt is not legally permissible
+  - Formal contract termination or legal process where statute specifically prohibits electronic service
+  - Adverse action where statute explicitly requires physical certified mail and no electronic delivery option exists in law
   - '"or electronic delivery" offered as alternative'
   - Statutory requirement mandates certified mail
   severity_baseline: 4
@@ -28,6 +33,7 @@ certified_mail:
     - '+1: No electronic alternative mentioned'
     - '+1: Routine/administrative communication'
     - '+1: High-volume process'
+    - '+1: Government must send at scale (hundreds/thousands of notices per year)'
     decreases:
     - '-2: Clear legal rationale (legal notice, appeal deadline)'
     - '-1: Statutory requirement'
@@ -59,15 +65,17 @@ certified_mail:
       reasoning: Annual reports could be submitted electronically.
       classification: burdensome
       severity: 5
+    - citation: N.J.A.C. 13:69D-1.12
+      quote: notice of license revocation shall be served by certified mail
+      reasoning: Government sends hundreds of license revocations per year by certified mail at $5-15 each.
+        Electronic delivery with read receipt could provide equivalent proof of delivery at a fraction of
+        the cost. This wastes taxpayer money and slows the revocation process.
+      classification: burdensome
+      severity: 4
     false_positives:
     - citation: N.J.A.C. 1:1-10.3
       quote: appeal shall be sent by certified mail within 45 days
       reasoning: Legal appeal deadline requires proof of mailing date. Justified.
-      classification: justified
-      severity: 2
-    - citation: N.J.A.C. 13:69D-1.12
-      quote: notice of license revocation shall be served by certified mail
-      reasoning: License revocation is adverse action requiring documented delivery.
       classification: justified
       severity: 2
     - citation: N.J.A.C. 7:26-2.3

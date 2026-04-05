@@ -1,26 +1,29 @@
 pdf_only:
-  updated_at: '2026-01-03'
+  updated_at: '2026-04-05'
   display_name: PDF Only Format
   db_issue_type: pdf_only
   category: Technology
-  description: 'PDF format is required exclusively, creating barriers when accepting multiple formats
-    would improve accessibility. This affects: citizens without PDF creation tools or knowledge; businesses
-    with legacy document systems; and particularly vulnerable populations including elderly unfamiliar
-    with format conversion, disabled individuals using screen readers that work better with other formats,
-    low-income people without Adobe software, and those with limited technical skills. Accepting Word,
-    text, or other formats would be more inclusive.'
+  description: 'PDF format is required exclusively — either for submission or as the only format provided
+    by government — creating barriers when alternatives would improve accessibility. This affects BOTH
+    directions: (1) Public-to-government: citizens must convert documents to PDF, requiring software and
+    technical skills many lack. (2) Government-to-public: agency forms available only as PDF downloads
+    with no online fillable alternative force citizens to print, fill by hand, scan, and return — or
+    purchase PDF editing software. Vulnerable populations are particularly affected: elderly unfamiliar
+    with format conversion, disabled individuals using screen readers that work better with HTML forms,
+    low-income people without Adobe software, and those with limited technical skills.'
   positive_indicators:
   - PDF is the ONLY accepted format
   - Other common formats explicitly rejected
   - Online form entry is not available
   - '"must be PDF" or "PDF only" explicit exclusion'
   - No alternative submission method
+  - Government-provided forms available only as PDF download with no online fillable alternative
   negative_indicators:
   - PDF is one of several accepted formats
   - Online form submission available
   - Requirement is for final/archival documents where PDF is standard
   - '"PDF preferred" not required'
-  - Context is output format (agency provides PDF)
+  - Agency provides PDF alongside web forms or other accessible formats (PDF as one of multiple options is fine)
   severity_baseline: 2
   severity_modifiers:
     increases:
@@ -45,11 +48,11 @@ pdf_only:
 
     1. Most ".pdf" mentions are just file references
 
-    2. "PDF format" often describes output, not requirement
+    2. "PDF format" often describes output alongside other options
 
-    3. PDF is so common it''s rarely an actual burden
+    3. PDF is so common it''s rarely an actual burden when alternatives exist
 
-    4. Many matches are agency providing PDFs, not requiring them
+    4. PDF-only output IS burdensome when no web form or fillable alternative is offered
 
     '
   examples:
@@ -62,8 +65,12 @@ pdf_only:
     false_positives:
     - citation: N.J.A.C. 17:12-2.5
       quote: forms available for download in PDF format
-      reasoning: Agency provides PDF. Not a submission requirement.
-      classification: unrelated
+      reasoning: If PDF is the ONLY format available with no online fillable web form alternative, this
+        is burdensome — citizens must download, print, fill by hand, and mail back. If the agency also
+        provides a web form or fillable PDF, it would be unrelated. Classify based on whether alternatives
+        exist in context.
+      classification: burdensome
+      severity: 3
     - citation: N.J.A.C. 13:45A-5.2
       quote: submit via portal or as PDF attachment
       reasoning: Online portal is alternative.

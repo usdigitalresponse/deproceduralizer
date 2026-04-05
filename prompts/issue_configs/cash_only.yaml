@@ -1,11 +1,12 @@
 cash_only:
-  updated_at: '2026-01-03'
+  updated_at: '2026-04-05'
   display_name: Cash Only Payment
   db_issue_type: cash_only
   category: Payment
   description: 'Cash is required or is the only payment option, creating accessibility and security concerns.
     This particularly affects: citizens who must travel with cash and find exact change; businesses unable
-    to use corporate payment methods or credit lines; and vulnerable populations including the unbanked,
+    to use corporate payment methods or credit lines; government agencies that must maintain cash-handling
+    infrastructure, security, and reconciliation processes; and vulnerable populations including the unbanked,
     low-income individuals without easy cash access, elderly who face safety concerns carrying cash, and
     rural residents far from ATMs.'
   positive_indicators:
@@ -55,6 +56,6 @@ cash_only:
       classification: unrelated
     - citation: N.J.A.C. 17:1-2.5
       quote: petty cash disbursements
-      reasoning: Internal cash handling, not payment requirement.
-      classification: unrelated
+      reasoning: Petty cash systems require security, reconciliation, and audit overhead — burdensome administrative infrastructure that could be replaced by electronic payments.
+      classification: burdensome
     justified: []

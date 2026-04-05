@@ -1,14 +1,16 @@
 fax_required:
-  updated_at: '2026-03-05'
+  updated_at: '2026-04-05'
   display_name: Fax Requirements
   db_issue_type: fax_required
   category: Communication
   description: 'Fax transmission is required or is the only alternative to physical mail, despite being
-    obsolete and unreliable. This affects: citizens without fax machine access who must find fax services;
-    businesses maintaining outdated equipment; professionals filing time-sensitive documents with transmission
-    uncertainty; government staff managing fax workflows and confirmations; and vulnerable populations
-    including younger generations unfamiliar with fax technology, elderly struggling with the equipment,
-    and rural residents without nearby fax services.'
+    obsolete and unreliable. This burdens BOTH the public AND the government: (1) Public/business burden:
+    citizens and businesses must own or locate fax machines, pay per-page transmission fees, and deal
+    with transmission failures and busy signals. (2) Government burden: agencies must maintain fax
+    infrastructure (machines, dedicated phone lines, toner), manually route incoming faxes to the correct
+    department, and cannot auto-process faxed documents into digital workflows — wasting staff time and
+    taxpayer money. Vulnerable populations are particularly affected: younger generations unfamiliar with
+    fax technology, elderly struggling with the equipment, and rural residents without nearby fax services.'
   positive_indicators:
   - '"shall fax" or "must be faxed" with mandatory language'
   - Fax is the ONLY alternative to mail (no email, no online portal)
@@ -28,9 +30,9 @@ fax_required:
     - '+1: No alternative submission method mentioned'
     - '+2: Affects vulnerable populations (elderly, low-income)'
     - '+1: Time-sensitive communications where fax delays are problematic'
+    - '+1: Government agency required to maintain fax infrastructure'
     decreases:
     - '-1: Fax is one of several options including email'
-    - '-1: B2G (business-to-government) context where fax may be common'
     - '-1: Statutory requirement mandates fax'
   patterns:
   - facsimile
