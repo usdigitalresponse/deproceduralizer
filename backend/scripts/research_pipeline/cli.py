@@ -1178,26 +1178,53 @@ RESUME BEHAVIOR:
 
     # === SUMMARIES ONLY MODE ===
     if args.summaries_only:
+        issue_types_for_summary = None if args.all_issues else [args.issue_type] if args.issue_type else None
+        title_filter = args.title
+        source_filter = getattr(args, 'source', None)
+        agency_filter = getattr(args, 'agency', None)
+        doc_type_filter = getattr(args, 'doc_type', None)
+
         if not args.execute:
             print("\n*** SUMMARIES ONLY MODE (DRY RUN) ***")
             print(f"Jurisdiction: {jurisdiction_for_db or 'ALL'}")
-            issue_types_for_summary = None if args.all_issues else [args.issue_type] if args.issue_type else None
             if issue_types_for_summary:
                 print(f"Issue types: {', '.join(issue_types_for_summary)}")
             else:
                 print("Issue types: ALL")
+            if title_filter:
+                print(f"Title filter: {title_filter}")
+            if source_filter:
+                print(f"Source filter: {source_filter}")
+            if agency_filter:
+                print(f"Agency filter: {agency_filter}")
+            if doc_type_filter:
+                print(f"Doc type filter: {doc_type_filter}")
             print("\nThis would generate review summaries for existing analyses.")
             print("Pass --execute to actually run.")
             sys.exit(0)
 
         print(f"\n*** SUMMARIES ONLY MODE ***")
         from scripts.research_pipeline.summary_generator import generate_summaries_from_db
-        issue_types_for_summary = None if args.all_issues else [args.issue_type] if args.issue_type else None
-        asyncio.run(generate_summaries_from_db(
-            jurisdiction=jurisdiction_for_db or "NJ",
-            issue_types=issue_types_for_summary,
-            limit=max_docs,
-        ))
+
+        # Handle dangerously-run-all: iterate all jurisdictions
+        if jurisdiction_for_db:
+            jurisdictions = [jurisdiction_for_db]
+        else:
+            from lib.jurisdictions import VALID_JURISDICTIONS
+            jurisdictions = list(VALID_JURISDICTIONS)
+            print(f"Running for all jurisdictions: {', '.join(jurisdictions)}")
+
+        for jur in jurisdictions:
+            print(f"\n--- Generating summaries for {jur} ---")
+            asyncio.run(generate_summaries_from_db(
+                jurisdiction=jur,
+                issue_types=issue_types_for_summary,
+                limit=max_docs,
+                title=title_filter,
+                source=source_filter,
+                agency=agency_filter,
+                doc_type=doc_type_filter,
+            ))
         sys.exit(0)
 
     # === NORMAL PIPELINE MODE ===

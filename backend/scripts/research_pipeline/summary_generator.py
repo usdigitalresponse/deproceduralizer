@@ -601,6 +601,10 @@ async def generate_summaries_from_db(
     issue_types: Optional[list[str]] = None,
     conn: Optional[Connection] = None,
     limit: Optional[int] = None,
+    title: Optional[str] = None,
+    source: Optional[str] = None,
+    agency: Optional[str] = None,
+    doc_type: Optional[str] = None,
 ) -> int:
     """Generate summaries for existing analyses from the database.
 
@@ -611,6 +615,10 @@ async def generate_summaries_from_db(
         issue_types: Optional list of issue types to filter. If None, all types.
         conn: Optional database connection.
         limit: Optional limit on total analyses to process.
+        title: Optional regulatory title filter (e.g., '18' for NYCRR Title 18).
+        source: Optional source filter ('regulation' or 'guidance').
+        agency: Optional agency filter for guidance docs (e.g., 'OCFS').
+        doc_type: Optional document type filter for guidance docs (e.g., 'ADM').
 
     Returns:
         Count of summaries generated and saved.
@@ -628,6 +636,7 @@ async def generate_summaries_from_db(
         print(f"  Fetching analyses for summary generation...")
         analyses = _fetch_analyses_for_summaries(
             jurisdiction, issue_types, conn, limit,
+            title=title, source=source, agency=agency, doc_type=doc_type,
         )
 
         if not analyses:
@@ -687,6 +696,10 @@ def _fetch_analyses_for_summaries(
     issue_types: Optional[list[str]],
     conn: Connection,
     limit: Optional[int] = None,
+    title: Optional[str] = None,
+    source: Optional[str] = None,
+    agency: Optional[str] = None,
+    doc_type: Optional[str] = None,
 ) -> list[dict]:
     """Fetch completed analyses from DB for standalone summary generation.
 
@@ -706,69 +719,100 @@ def _fetch_analyses_for_summaries(
     if limit:
         limit_clause = f"LIMIT {int(limit)}"
 
+    # Build title filter for regulations
+    title_filter = ""
+    if title:
+        # Determine jurisdiction-specific title column
+        jur_upper = jurisdiction.upper()
+        if jur_upper == "NJ":
+            title_filter = "AND d.njac_title = %s"
+        elif jur_upper == "NYC":
+            title_filter = "AND d.rcny_title = %s"
+        else:  # NY
+            title_filter = "AND d.nycrr_title = %s"
+        params.append(title)
+
+    skip_regulations = source == "guidance"
+    skip_guidance = source == "regulation"
+
     with conn.cursor() as cur:
         # Fetch regulation analyses
-        cur.execute(f"""
-            SELECT
-                a.document_id, NULL as guidance_document_id,
-                a.issue_type, a.highest_tier_completed,
-                a.tier1_classification, a.tier1_reasoning, a.tier1_dismissed_reasons,
-                a.tier2_classification, a.tier2_reasoning,
-                a.severity, a.severity_calculation, a.final_severity,
-                a.argument_for_regulation, a.argument_against_regulation,
-                a.federal_citation, a.primary_affected_population,
-                a.verbatim_requirements, a.context_used,
-                a.tier3_classification, a.tier3_reasoning,
-                a.tier3_severity_adjustment, a.tier3_severity_adjustment_reasoning,
-                a.web_search_summary, a.cleanup_recommendation,
-                d.citation, d.title, d.summary,
-                'regulation' as source_type
-            FROM compliance_issue_analyses a
-            JOIN regulatory_documents d ON a.document_id = d.id
-            WHERE a.jurisdiction = %s
-                AND a.document_id IS NOT NULL
-                AND a.review_summary IS NULL
-                AND a.highest_tier_completed >= 1
-                {issue_type_filter}
-            ORDER BY a.issue_type, a.document_id
-            {limit_clause}
-        """, params)
+        if not skip_regulations:
+            cur.execute(f"""
+                SELECT
+                    a.document_id, NULL as guidance_document_id,
+                    a.issue_type, a.highest_tier_completed,
+                    a.tier1_classification, a.tier1_reasoning, a.tier1_dismissed_reasons,
+                    a.tier2_classification, a.tier2_reasoning,
+                    a.severity, a.severity_calculation, a.final_severity,
+                    a.argument_for_regulation, a.argument_against_regulation,
+                    a.federal_citation, a.primary_affected_population,
+                    a.verbatim_requirements, a.context_used,
+                    a.tier3_classification, a.tier3_reasoning,
+                    a.tier3_severity_adjustment, a.tier3_severity_adjustment_reasoning,
+                    a.web_search_summary, a.cleanup_recommendation,
+                    d.citation, d.title, d.summary,
+                    'regulation' as source_type,
+                    a.tier3_flags
+                FROM compliance_issue_analyses a
+                JOIN regulatory_documents d ON a.document_id = d.id
+                WHERE a.jurisdiction = %s
+                    AND a.document_id IS NOT NULL
+                    AND a.review_summary IS NULL
+                    AND a.highest_tier_completed >= 1
+                    {issue_type_filter}
+                    {title_filter}
+                ORDER BY a.issue_type, a.document_id
+                {limit_clause}
+            """, params)
 
-        for row in cur.fetchall():
-            analyses.append(_row_to_analysis_dict(row))
+            for row in cur.fetchall():
+                analyses.append(_row_to_analysis_dict(row))
 
         # Fetch guidance analyses
-        guidance_params: list = [jurisdiction.upper()]
-        guidance_issue_filter = ""
-        if issue_types:
-            guidance_issue_filter = "AND a.issue_type = ANY(%s)"
-            guidance_params.append(issue_types)
+        if not skip_guidance:
+            guidance_params: list = [jurisdiction.upper()]
+            guidance_issue_filter = ""
+            if issue_types:
+                guidance_issue_filter = "AND a.issue_type = ANY(%s)"
+                guidance_params.append(issue_types)
 
-        cur.execute(f"""
-            SELECT
-                NULL as document_id, a.guidance_document_id,
-                a.issue_type, a.highest_tier_completed,
-                a.tier1_classification, a.tier1_reasoning, a.tier1_dismissed_reasons,
-                a.tier2_classification, a.tier2_reasoning,
-                a.severity, a.severity_calculation, a.final_severity,
-                a.argument_for_regulation, a.argument_against_regulation,
-                a.federal_citation, a.primary_affected_population,
-                a.verbatim_requirements, a.context_used,
-                a.tier3_classification, a.tier3_reasoning,
-                a.tier3_severity_adjustment, a.tier3_severity_adjustment_reasoning,
-                a.web_search_summary, a.cleanup_recommendation,
-                NULL as citation, g.title, NULL as summary,
-                'guidance' as source_type
-            FROM compliance_issue_analyses a
-            JOIN guidance_documents g ON a.guidance_document_id = g.id
-            WHERE a.jurisdiction = %s
-                AND a.guidance_document_id IS NOT NULL
-                AND a.review_summary IS NULL
-                AND a.highest_tier_completed >= 1
-                {guidance_issue_filter}
-            ORDER BY a.issue_type, a.guidance_document_id
-            {limit_clause}
-        """, guidance_params)
+            # Build guidance-specific filters
+            guidance_extra_filters = ""
+            if agency:
+                guidance_extra_filters += " AND g.agency = %s"
+                guidance_params.append(agency)
+            if doc_type:
+                guidance_extra_filters += " AND g.doc_type = %s"
+                guidance_params.append(doc_type)
+
+            cur.execute(f"""
+                SELECT
+                    NULL as document_id, a.guidance_document_id,
+                    a.issue_type, a.highest_tier_completed,
+                    a.tier1_classification, a.tier1_reasoning, a.tier1_dismissed_reasons,
+                    a.tier2_classification, a.tier2_reasoning,
+                    a.severity, a.severity_calculation, a.final_severity,
+                    a.argument_for_regulation, a.argument_against_regulation,
+                    a.federal_citation, a.primary_affected_population,
+                    a.verbatim_requirements, a.context_used,
+                    a.tier3_classification, a.tier3_reasoning,
+                    a.tier3_severity_adjustment, a.tier3_severity_adjustment_reasoning,
+                    a.web_search_summary, a.cleanup_recommendation,
+                    NULL as citation, g.title, NULL as summary,
+                    'guidance' as source_type,
+                    a.tier3_flags
+                FROM compliance_issue_analyses a
+                JOIN guidance_documents g ON a.guidance_document_id = g.id
+                WHERE a.jurisdiction = %s
+                    AND a.guidance_document_id IS NOT NULL
+                    AND a.review_summary IS NULL
+                    AND a.highest_tier_completed >= 1
+                    {guidance_issue_filter}
+                    {guidance_extra_filters}
+                ORDER BY a.issue_type, a.guidance_document_id
+                {limit_clause}
+            """, guidance_params)
 
         for row in cur.fetchall():
             analyses.append(_row_to_analysis_dict(row))
@@ -791,7 +835,16 @@ def _row_to_analysis_dict(row) -> dict:
         except (json.JSONDecodeError, TypeError):
             pass
 
-    return {
+    # Parse tier3_flags JSONB (index 28) for evidence flags
+    tier3_flags = row[28] if len(row) > 28 else None
+    if isinstance(tier3_flags, str):
+        try:
+            tier3_flags = json.loads(tier3_flags)
+        except (json.JSONDecodeError, TypeError):
+            tier3_flags = {}
+    tier3_flags = tier3_flags or {}
+
+    result = {
         "document_id": row[0],
         "guidance_document_id": row[1],
         "issue_type": issue_type,
@@ -823,6 +876,20 @@ def _row_to_analysis_dict(row) -> dict:
         "issue_type_display": _get_issue_display_name(issue_type),
         "regex_match_context": "",  # Enriched later
     }
+
+    # Extract EvidencedFlag data from tier3_flags for prompt template
+    for flag_name in [
+        "federal_mandate_confirmed", "state_discretion_found",
+        "modernized_alternative_found", "superseded_by_law", "advocacy_for_change",
+    ]:
+        flag = tier3_flags.get(flag_name, {})
+        result[f"{flag_name}_value"] = flag.get("value", False)
+        result[f"{flag_name}_reason"] = flag.get("reason", "")
+        # Extract web quotes from evidence arrays
+        evidence_list = flag.get("evidence", [])
+        result[f"{flag_name}_evidence"] = evidence_list
+
+    return result
 
 
 def _enrich_with_regex_context(analyses: list[dict], conn: Connection) -> None:

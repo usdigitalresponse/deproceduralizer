@@ -160,6 +160,20 @@ function parseTierData(raw: RawTierPrompt | undefined, tierName: string): TierPr
   };
 }
 
+/**
+ * Parse summary prompt data — uses system/template keys instead of static_core/document_template
+ */
+function parseSummaryData(raw: RawTierPrompt | undefined): TierPromptData {
+  return {
+    updated_at: raw?.updated_at || '',
+    description: raw?.description || 'Summary',
+    static_core: ((raw as Record<string, string>)?.system || raw?.static_core || '').trim(),
+    issue_block: '',
+    batch_context: '',
+    document_template: ((raw as Record<string, string>)?.template || raw?.document_template || '').trim(),
+  };
+}
+
 // =============================================================================
 // Server Actions
 // =============================================================================
@@ -177,7 +191,7 @@ export async function getResearchPipelinePrompts(): Promise<ActionResult<Researc
       tier1: parseTierData(parsed.tier1, '1'),
       tier2: parseTierData(parsed.tier2, '2'),
       tier3: parseTierData(parsed.tier3, '3'),
-      summary: parsed.summary ? parseTierData(parsed.summary, 'Summary') : undefined,
+      summary: parsed.summary ? parseSummaryData(parsed.summary) : undefined,
     };
   });
 }
