@@ -27,43 +27,9 @@ const complianceIssuesRepo = new ComplianceIssuesRepository(db);
 const bookmarksRepo = new BookmarksRepository(db);
 
 /**
- * Combined analysis stats for dashboard.
+ * AnalysisTierStats and getAnalysisTierStats/getGuidanceAnalysisTierStats
+ * replaced by getAnalyticsSummary() in analytics-metrics.ts.
  */
-export interface AnalysisTierStats {
-  tierCounts: TierCompletionCounts;
-  classificationBreakdown: ClassificationBreakdown;
-  total: number;
-}
-
-/**
- * Gets comprehensive analysis statistics for the dashboard.
- * Combines tier counts and classification breakdown.
- * Cached for 2 minutes to reduce database traffic.
- *
- * @param state - The state code (e.g., 'NY', 'NJ')
- * @returns Tier counts and classification breakdown
- * @deprecated Use getAnalyticsSummary() from analytics-metrics.ts instead
- */
-export async function getAnalysisTierStats(
-  state: JurisdictionCode
-): Promise<ActionResult<AnalysisTierStats>> {
-  return runCachedAction(
-    'getAnalysisTierStats',
-    async () => {
-      const [tierCounts, classificationBreakdown] = await Promise.all([
-        complianceIssuesRepo.getAnalysisTierCounts(state, 'regulation'),
-        complianceIssuesRepo.getClassificationBreakdown(state, 'regulation'),
-      ]);
-
-      const total = tierCounts.tier0 + tierCounts.tier1 + tierCounts.tier2 +
-                    tierCounts.tier3;
-
-      return { tierCounts, classificationBreakdown, total };
-    },
-    [`analysis-tier-stats-${state}`],
-    { revalidate: 120 }
-  );
-}
 
 // Re-export for use by components
 export type { AnalysisFilterStats };
@@ -467,25 +433,6 @@ export async function exportAnalysisZipByAgency(
 // ============================================
 // Guidance Analysis Actions
 // ============================================
-
-/** @deprecated Use getAnalyticsSummary(state, 'guidance') from analytics-metrics.ts instead */
-export async function getGuidanceAnalysisTierStats(
-  state: JurisdictionCode
-): Promise<ActionResult<AnalysisTierStats>> {
-  return runCachedAction(
-    'getGuidanceAnalysisTierStats',
-    async () => {
-      const [tierCounts, classificationBreakdown] = await Promise.all([
-        complianceIssuesRepo.getGuidanceAnalysisTierCounts(state),
-        complianceIssuesRepo.getGuidanceClassificationBreakdown(state),
-      ]);
-      const total = tierCounts.tier0 + tierCounts.tier1 + tierCounts.tier2 + tierCounts.tier3;
-      return { tierCounts, classificationBreakdown, total };
-    },
-    [`guidance-analysis-tier-stats-${state}`],
-    { revalidate: 120 }
-  );
-}
 
 export interface PaginatedGuidanceAnalysisResult {
   data: GuidanceAnalysisListItem[];
