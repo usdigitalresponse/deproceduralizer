@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/Card';
 import { Select } from '@/components/ui/Select';
 import { MultiSelect } from '@/components/ui';
 import { SearchInput } from '@/components/ui/SearchInput';
-import { FilterBar, FilterField } from '@/components/ui/FilterBar';
+import { TieredFilterBar, FilterField } from '@/components/ui/FilterBar';
 import { InfoTooltip } from '@/components/ui/InfoTooltip';
 import { Pagination } from '@/components/ui/Pagination';
 import { Button } from '@/components/ui/Button';
@@ -270,6 +270,17 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
     params.estimatedImpact
   );
 
+  const advancedFilterCount = [
+    params.classification && params.classification !== 'all',
+    params.agencyLevel,
+    params.whoPays,
+    params.perUnit,
+    params.marker,
+    params.estimatedImpact,
+    params.amountMin !== null,
+    params.amountMax !== null,
+  ].filter(Boolean).length;
+
   const clearFilters = useCallback(() => {
     const defaults = {
       penaltyType: null,
@@ -286,6 +297,22 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
       bookmarkedOnly: null,
       severity: 'high,medium,low',
       estimatedImpact: null,
+      page: 1,
+    };
+    setParams(defaults as Parameters<typeof setParams>[0]);
+    fetchData(defaults);
+  }, [setParams, fetchData]);
+
+  const clearAdvancedFilters = useCallback(() => {
+    const defaults = {
+      classification: 'all',
+      agencyLevel: null,
+      whoPays: null,
+      perUnit: null,
+      marker: null,
+      estimatedImpact: null,
+      amountMin: null,
+      amountMax: null,
       page: 1,
     };
     setParams(defaults as Parameters<typeof setParams>[0]);
@@ -554,7 +581,7 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
 
   return (
     <div className="space-y-4">
-      <FilterBar
+      <TieredFilterBar
         showSortControls
         sortBy={params.sortBy}
         sortOrder={params.sortOrder}
@@ -564,175 +591,185 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
         hasActiveFilters={hasActiveFilters}
         onClearFilters={clearFilters}
         clearFiltersLabel="Reset Filters"
-      >
-        <FilterField label="Type">
-          <MultiSelect
-            label="Type"
-            value={selectedPenaltyTypes}
-            onChange={(values) => handleMultiFilterChange('penaltyType', values)}
-            options={penaltyTypeOptions}
-            placeholder="All Types"
-            data-testid="penalty-type-filter"
-          />
-        </FilterField>
-        <FilterField label="Source">
-          <Select
-            value={params.sourceType || 'all'}
-            onValueChange={(v) => handleFilterChange('sourceType', v === 'all' ? null : v)}
-            options={sourceTypeOptions}
-            aria-label="Filter by source type"
-          />
-        </FilterField>
-        <FilterField label="Analysis">
-          <Select
-            value={params.classification || 'all'}
-            onValueChange={(v) => handleFilterChange('classification', v === 'all' ? 'all' : v)}
-            options={classificationOptions}
-            aria-label="Filter by analysis classification"
-          />
-        </FilterField>
-        <FilterField label="Severity">
-          <MultiSelect
-            label="Severity"
-            options={severityOptions}
-            value={selectedSeverities}
-            onChange={(values) => handleMultiFilterChange('severity', values)}
-            placeholder="All Severities"
-            data-testid="severity-filter"
-          />
-        </FilterField>
-        <FilterField label="Agency">
-          <MultiSelect
-            label="Agency"
-            value={selectedAgencies}
-            onChange={(values) => handleMultiFilterChange('agency', values)}
-            options={agencyOptions}
-            placeholder="All Agencies"
-            data-testid="agency-filter"
-          />
-        </FilterField>
-        <FilterField label="Level">
-          <MultiSelect
-            label="Level"
-            value={selectedAgencyLevels}
-            onChange={(values) => handleMultiFilterChange('agencyLevel', values)}
-            options={agencyLevelOptions}
-            placeholder="All Levels"
-            data-testid="agency-level-filter"
-          />
-        </FilterField>
-        <FilterField label="Who Pays">
-          <MultiSelect
-            label="Who Pays"
-            value={selectedWhoPays}
-            onChange={(values) => handleMultiFilterChange('whoPays', values)}
-            options={whoPaysOptions}
-            placeholder="All"
-            className="min-w-[240px]"
-            data-testid="who-pays-filter"
-          />
-        </FilterField>
-        <FilterField label="Per Unit">
-          <MultiSelect
-            label="Per Unit"
-            value={selectedPerUnits}
-            onChange={(values) => handleMultiFilterChange('perUnit', values)}
-            options={perUnitOptions}
-            placeholder="All"
-            data-testid="per-unit-filter"
-          />
-        </FilterField>
-        {markerGroupsList.length > 0 && (
-          <FilterField label="Label">
-            <div className="flex items-center gap-1.5">
-              <Tag className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
+        advancedLabel="More Filters"
+        advancedCount={advancedFilterCount}
+        onClearAdvanced={clearAdvancedFilters}
+        primaryFilters={
+          <>
+            <FilterField label="Type">
               <MultiSelect
-                label="Labels"
-                value={selectedMarkerIds}
-                onChange={(values: string[]) => handleMultiFilterChange('marker', values)}
-                options={markerGroupsList.map(g => ({ value: String(g.id), label: g.name }))}
-                placeholder="All"
-                className="min-w-[120px]"
+                label="Type"
+                value={selectedPenaltyTypes}
+                onChange={(values) => handleMultiFilterChange('penaltyType', values)}
+                options={penaltyTypeOptions}
+                placeholder="All Types"
+                data-testid="penalty-type-filter"
               />
-            </div>
-          </FilterField>
-        )}
-        <FilterField label="Est. Impact">
-          <InfoTooltip content="Intended to show order of magnitude and may contain significant discrepancies. Should only be relied on to assist with broad filtering and organizing but never as authoritative fact." />
-          <MultiSelect
-            label="Est. Impact"
-            value={selectedEstimatedImpact}
-            onChange={(values) => handleMultiFilterChange('estimatedImpact', values)}
-            options={ESTIMATED_PAYERS_MULTISELECT_OPTIONS}
-            placeholder="All"
-            data-testid="estimated-impact-filter"
-          />
-        </FilterField>
-        <FilterField label="Amount">
-          <div className="flex items-center gap-1">
-            <input
-              type="number"
-              placeholder="Min $"
-              value={params.amountMin ?? ''}
-              onChange={(e) => {
-                const val = e.target.value ? parseFloat(e.target.value) : null;
-                handleFilterChange('amountMin', val);
+            </FilterField>
+            <FilterField label="Source">
+              <Select
+                value={params.sourceType || 'all'}
+                onValueChange={(v) => handleFilterChange('sourceType', v === 'all' ? null : v)}
+                options={sourceTypeOptions}
+                aria-label="Filter by source type"
+              />
+            </FilterField>
+            <FilterField label="Severity">
+              <MultiSelect
+                label="Severity"
+                options={severityOptions}
+                value={selectedSeverities}
+                onChange={(values) => handleMultiFilterChange('severity', values)}
+                placeholder="All Severities"
+                data-testid="severity-filter"
+              />
+            </FilterField>
+            <FilterField label="Agency">
+              <MultiSelect
+                label="Agency"
+                value={selectedAgencies}
+                onChange={(values) => handleMultiFilterChange('agency', values)}
+                options={agencyOptions}
+                placeholder="All Agencies"
+                data-testid="agency-filter"
+              />
+            </FilterField>
+            <FilterField label="Search">
+              <SearchInput
+                value={params.search || ''}
+                onSearch={(v) => handleFilterChange('search', v || null)}
+                placeholder="Search fines, fees..."
+                aria-label="Search fines"
+                size="sm"
+                isLoading={isLoading}
+              />
+            </FilterField>
+          </>
+        }
+        quickToggles={
+          <>
+            <button
+              type="button"
+              onClick={() => {
+                const newParams = {
+                  bookmarkedOnly: params.bookmarkedOnly === 'true' ? 'all' : 'true',
+                  page: 1,
+                };
+                setParams(newParams as Parameters<typeof setParams>[0]);
+                fetchData(newParams);
               }}
-              className="w-20 px-2 py-1.5 text-sm bg-[var(--color-surface)] border border-[var(--color-neutral-300)] rounded-[var(--radius-md)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-focus-ring)] focus:outline-none"
-              aria-label="Minimum amount"
-            />
-            <span className="text-xs text-[var(--color-text-muted)]">-</span>
-            <input
-              type="number"
-              placeholder="Max $"
-              value={params.amountMax ?? ''}
-              onChange={(e) => {
-                const val = e.target.value ? parseFloat(e.target.value) : null;
-                handleFilterChange('amountMax', val);
-              }}
-              className="w-20 px-2 py-1.5 text-sm bg-[var(--color-surface)] border border-[var(--color-neutral-300)] rounded-[var(--radius-md)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-focus-ring)] focus:outline-none"
-              aria-label="Maximum amount"
-            />
-          </div>
-        </FilterField>
-        <FilterField label="Search">
-          <SearchInput
-            value={params.search || ''}
-            onSearch={(v) => handleFilterChange('search', v || null)}
-            placeholder="Search fines, fees..."
-            aria-label="Search fines"
-            size="sm"
-            isLoading={isLoading}
-          />
-        </FilterField>
-      </FilterBar>
-
-      {/* Quick filters row */}
-      <div className="flex items-center gap-4">
-        <button
-          type="button"
-          onClick={() => {
-            const newParams = {
-              bookmarkedOnly: params.bookmarkedOnly === 'true' ? 'all' : 'true',
-              page: 1,
-            };
-            setParams(newParams as Parameters<typeof setParams>[0]);
-            fetchData(newParams);
-          }}
-          className={`
-            inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-sm)]
-            text-xs font-medium transition-colors
-            ${params.bookmarkedOnly === 'true'
-              ? 'bg-[var(--color-warning)] text-white'
-              : 'bg-[var(--color-neutral-100)] text-[var(--color-text-secondary)] hover:bg-[var(--color-neutral-200)]'
-            }
-          `}
-          aria-pressed={params.bookmarkedOnly === 'true'}
-        >
-          <Bookmark className="w-3.5 h-3.5" fill={params.bookmarkedOnly === 'true' ? 'currentColor' : 'none'} />
-          Saved
-        </button>
-      </div>
+              className={`
+                inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-sm)]
+                text-xs font-medium transition-colors
+                ${params.bookmarkedOnly === 'true'
+                  ? 'bg-[var(--color-warning)] text-white'
+                  : 'bg-[var(--color-neutral-100)] text-[var(--color-text-secondary)] hover:bg-[var(--color-neutral-200)]'
+                }
+              `}
+              aria-pressed={params.bookmarkedOnly === 'true'}
+            >
+              <Bookmark className="w-3.5 h-3.5" fill={params.bookmarkedOnly === 'true' ? 'currentColor' : 'none'} />
+              Saved
+            </button>
+          </>
+        }
+        advancedFilters={
+          <>
+            <FilterField label="Analysis">
+              <Select
+                value={params.classification || 'all'}
+                onValueChange={(v) => handleFilterChange('classification', v === 'all' ? 'all' : v)}
+                options={classificationOptions}
+                aria-label="Filter by analysis classification"
+              />
+            </FilterField>
+            <FilterField label="Level">
+              <MultiSelect
+                label="Level"
+                value={selectedAgencyLevels}
+                onChange={(values) => handleMultiFilterChange('agencyLevel', values)}
+                options={agencyLevelOptions}
+                placeholder="All Levels"
+                data-testid="agency-level-filter"
+              />
+            </FilterField>
+            <FilterField label="Who Pays">
+              <MultiSelect
+                label="Who Pays"
+                value={selectedWhoPays}
+                onChange={(values) => handleMultiFilterChange('whoPays', values)}
+                options={whoPaysOptions}
+                placeholder="All"
+                className="min-w-[240px]"
+                data-testid="who-pays-filter"
+              />
+            </FilterField>
+            <FilterField label="Per Unit">
+              <MultiSelect
+                label="Per Unit"
+                value={selectedPerUnits}
+                onChange={(values) => handleMultiFilterChange('perUnit', values)}
+                options={perUnitOptions}
+                placeholder="All"
+                data-testid="per-unit-filter"
+              />
+            </FilterField>
+            {markerGroupsList.length > 0 && (
+              <FilterField label="Label">
+                <div className="flex items-center gap-1.5">
+                  <Tag className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
+                  <MultiSelect
+                    label="Labels"
+                    value={selectedMarkerIds}
+                    onChange={(values: string[]) => handleMultiFilterChange('marker', values)}
+                    options={markerGroupsList.map(g => ({ value: String(g.id), label: g.name }))}
+                    placeholder="All"
+                    className="min-w-[120px]"
+                  />
+                </div>
+              </FilterField>
+            )}
+            <FilterField label="Est. Impact">
+              <InfoTooltip content="Intended to show order of magnitude and may contain significant discrepancies. Should only be relied on to assist with broad filtering and organizing but never as authoritative fact." />
+              <MultiSelect
+                label="Est. Impact"
+                value={selectedEstimatedImpact}
+                onChange={(values) => handleMultiFilterChange('estimatedImpact', values)}
+                options={ESTIMATED_PAYERS_MULTISELECT_OPTIONS}
+                placeholder="All"
+                data-testid="estimated-impact-filter"
+              />
+            </FilterField>
+            <FilterField label="Amount">
+              <div className="flex items-center gap-1">
+                <input
+                  type="number"
+                  placeholder="Min $"
+                  value={params.amountMin ?? ''}
+                  onChange={(e) => {
+                    const val = e.target.value ? parseFloat(e.target.value) : null;
+                    handleFilterChange('amountMin', val);
+                  }}
+                  className="w-20 px-2 py-1.5 text-sm bg-[var(--color-surface)] border border-[var(--color-neutral-300)] rounded-[var(--radius-md)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-focus-ring)] focus:outline-none"
+                  aria-label="Minimum amount"
+                />
+                <span className="text-xs text-[var(--color-text-muted)]">-</span>
+                <input
+                  type="number"
+                  placeholder="Max $"
+                  value={params.amountMax ?? ''}
+                  onChange={(e) => {
+                    const val = e.target.value ? parseFloat(e.target.value) : null;
+                    handleFilterChange('amountMax', val);
+                  }}
+                  className="w-20 px-2 py-1.5 text-sm bg-[var(--color-surface)] border border-[var(--color-neutral-300)] rounded-[var(--radius-md)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-focus-ring)] focus:outline-none"
+                  aria-label="Maximum amount"
+                />
+              </div>
+            </FilterField>
+          </>
+        }
+      />
 
       {error && (
         <div className="p-4 bg-[var(--color-danger-bg)] border border-[var(--color-danger)] rounded-[var(--radius-md)]">

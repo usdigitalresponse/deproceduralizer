@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/Card';
 import { Select } from '@/components/ui/Select';
 import { MultiSelect } from '@/components/ui';
 import { SearchInput } from '@/components/ui/SearchInput';
-import { FilterBar, FilterField } from '@/components/ui/FilterBar';
+import { TieredFilterBar, FilterField } from '@/components/ui/FilterBar';
 import { Pagination } from '@/components/ui/Pagination';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Badge } from '@/components/ui/Badge';
@@ -394,6 +394,17 @@ export function GuidanceBrowseTab({ jurisdiction, agencies, docTypes }: Guidance
 
   const hasActiveFilters = activeFilterCount > 0;
 
+  const advancedFilterCount = [
+    params.audienceDirection && params.audienceDirection !== 'all',
+    params.sectionType && params.sectionType !== 'all',
+    params.readability && params.readability !== 'all',
+    params.audienceExpertise && params.audienceExpertise !== 'all',
+    selectedTargetAudiences.length > 0,
+    params.hasForm,
+    params.hasIbr,
+    selectedMarkerIds.length > 0,
+  ].filter(Boolean).length;
+
   const markerFilterOptions = useMemo(
     () => markerGroupsList.map(g => ({ value: String(g.id), label: g.name })),
     [markerGroupsList]
@@ -408,6 +419,21 @@ export function GuidanceBrowseTab({ jurisdiction, agencies, docTypes }: Guidance
       yearFrom: null,
       yearTo: null,
       search: null,
+      audienceDirection: 'all',
+      sectionType: 'all',
+      readability: 'all',
+      audienceExpertise: 'all',
+      targetAudience: null,
+      hasForm: null,
+      hasIbr: null,
+      marker: null,
+      bookmarkedOnly: 'all',
+      page: 1,
+    } as Parameters<typeof setParams>[0]);
+  }, [setParams]);
+
+  const clearAdvancedFilters = useCallback(() => {
+    setParams({
       audienceDirection: 'all',
       sectionType: 'all',
       readability: 'all',
@@ -444,7 +470,7 @@ export function GuidanceBrowseTab({ jurisdiction, agencies, docTypes }: Guidance
         )}
       </div>
 
-      <FilterBar
+      <TieredFilterBar
         showSortControls={!isGrouped}
         sortBy={params.sortBy}
         sortOrder={params.sortOrder}
@@ -453,148 +479,158 @@ export function GuidanceBrowseTab({ jurisdiction, agencies, docTypes }: Guidance
         onSortOrderToggle={() => handleFilterChange('sortOrder', params.sortOrder === 'desc' ? 'asc' : 'desc')}
         hasActiveFilters={hasActiveFilters}
         onClearFilters={clearFilters}
-      >
-        <FilterField label="Agency">
-          <Select
-            value={params.agency || 'all'}
-            onValueChange={(v) => handleFilterChange('agency', v === 'all' ? null : v)}
-            options={agencyOptions}
-            aria-label="Filter by agency"
-          />
-        </FilterField>
-        <FilterField label="Type">
-          <Select
-            value={params.docType || 'all'}
-            onValueChange={(v) => handleFilterChange('docType', v === 'all' ? null : v)}
-            options={docTypeOptions}
-            aria-label="Filter by document type"
-          />
-        </FilterField>
-        <FilterField label="Category">
-          <Select
-            value={params.policyCategory || 'all'}
-            onValueChange={(v) => handleFilterChange('policyCategory', v)}
-            options={policyCategoryOptions}
-            aria-label="Filter by policy category"
-          />
-        </FilterField>
-        <FilterField label="Status">
-          <Select
-            value={params.status || 'all'}
-            onValueChange={(v) => handleFilterChange('status', v)}
-            options={statusOptions}
-            aria-label="Filter by status"
-          />
-        </FilterField>
-        <FilterField label="Direction">
-          <Select
-            value={params.audienceDirection || 'all'}
-            onValueChange={(v) => handleFilterChange('audienceDirection', v)}
-            options={audienceDirectionOptions}
-            aria-label="Filter by audience direction"
-          />
-        </FilterField>
-        <FilterField label="Section Type">
-          <Select
-            value={params.sectionType || 'all'}
-            onValueChange={(v) => handleFilterChange('sectionType', v)}
-            options={sectionTypeOptions}
-            aria-label="Filter by section type"
-          />
-        </FilterField>
-        <FilterField label="Readability">
-          <Select
-            value={params.readability || 'all'}
-            onValueChange={(v) => handleFilterChange('readability', v)}
-            options={readabilityOptions}
-            aria-label="Filter by readability"
-          />
-        </FilterField>
-        <FilterField label="Expertise">
-          <Select
-            value={params.audienceExpertise || 'all'}
-            onValueChange={(v) => handleFilterChange('audienceExpertise', v)}
-            options={audienceExpertiseOptions}
-            aria-label="Filter by audience expertise"
-          />
-        </FilterField>
-        <FilterField label="Target Audience">
-          <MultiSelect
-            label="Target Audience"
-            options={targetAudienceOptions}
-            value={selectedTargetAudiences}
-            onChange={(values) => handleMultiFilterChange('targetAudience', values)}
-            placeholder="All audiences"
-            searchable
-          />
-        </FilterField>
-        <FilterField label="Has Form">
-          <Select
-            value={params.hasForm ? 'yes' : 'no'}
-            onValueChange={(v) => setParams({ hasForm: v === 'yes' ? true : null, page: 1 } as Parameters<typeof setParams>[0])}
-            options={[
-              { value: 'no', label: 'Any' },
-              { value: 'yes', label: 'Has Form' },
-            ]}
-            aria-label="Filter by has form"
-          />
-        </FilterField>
-        <FilterField label="Has IBR">
-          <Select
-            value={params.hasIbr ? 'yes' : 'no'}
-            onValueChange={(v) => setParams({ hasIbr: v === 'yes' ? true : null, page: 1 } as Parameters<typeof setParams>[0])}
-            options={[
-              { value: 'no', label: 'Any' },
-              { value: 'yes', label: 'Has IBR' },
-            ]}
-            aria-label="Filter by has IBR"
-          />
-        </FilterField>
-        {markerGroupsList.length > 0 && (
-          <FilterField label="Label">
-            <MultiSelect
-              label="Label"
-              options={markerFilterOptions}
-              value={selectedMarkerIds}
-              onChange={(values) => handleMultiFilterChange('marker', values)}
-              placeholder="All labels"
-            />
-          </FilterField>
-        )}
-        <FilterField label="Search">
-          <SearchInput
-            value={params.search || ''}
-            onSearch={(v) => handleFilterChange('search', v || null)}
-            placeholder="Search title, ref, agency..."
-            aria-label="Search guidance documents"
-            size="sm"
-            isLoading={isLoading}
-          />
-        </FilterField>
-      </FilterBar>
-
-      {/* Quick filters row */}
-      <div className="flex items-center gap-4">
-        <button
-          type="button"
-          onClick={() => setParams({
-            bookmarkedOnly: params.bookmarkedOnly === 'true' ? 'all' : 'true',
-            page: 1,
-          } as Parameters<typeof setParams>[0])}
-          className={`
-            inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-sm)]
-            text-xs font-medium transition-colors
-            ${params.bookmarkedOnly === 'true'
-              ? 'bg-[var(--color-warning)] text-white'
-              : 'bg-[var(--color-neutral-100)] text-[var(--color-text-secondary)] hover:bg-[var(--color-neutral-200)]'
-            }
-          `}
-          aria-pressed={params.bookmarkedOnly === 'true'}
-        >
-          <Bookmark className="w-3.5 h-3.5" fill={params.bookmarkedOnly === 'true' ? 'currentColor' : 'none'} />
-          Saved
-        </button>
-      </div>
+        advancedLabel="More Filters"
+        advancedCount={advancedFilterCount}
+        onClearAdvanced={clearAdvancedFilters}
+        primaryFilters={
+          <>
+            <FilterField label="Agency">
+              <Select
+                value={params.agency || 'all'}
+                onValueChange={(v) => handleFilterChange('agency', v === 'all' ? null : v)}
+                options={agencyOptions}
+                aria-label="Filter by agency"
+              />
+            </FilterField>
+            <FilterField label="Type">
+              <Select
+                value={params.docType || 'all'}
+                onValueChange={(v) => handleFilterChange('docType', v === 'all' ? null : v)}
+                options={docTypeOptions}
+                aria-label="Filter by document type"
+              />
+            </FilterField>
+            <FilterField label="Category">
+              <Select
+                value={params.policyCategory || 'all'}
+                onValueChange={(v) => handleFilterChange('policyCategory', v)}
+                options={policyCategoryOptions}
+                aria-label="Filter by policy category"
+              />
+            </FilterField>
+            <FilterField label="Status">
+              <Select
+                value={params.status || 'all'}
+                onValueChange={(v) => handleFilterChange('status', v)}
+                options={statusOptions}
+                aria-label="Filter by status"
+              />
+            </FilterField>
+            <FilterField label="Search">
+              <SearchInput
+                value={params.search || ''}
+                onSearch={(v) => handleFilterChange('search', v || null)}
+                placeholder="Search title, ref, agency..."
+                aria-label="Search guidance documents"
+                size="sm"
+                isLoading={isLoading}
+              />
+            </FilterField>
+          </>
+        }
+        quickToggles={
+          <>
+            <button
+              type="button"
+              onClick={() => setParams({
+                bookmarkedOnly: params.bookmarkedOnly === 'true' ? 'all' : 'true',
+                page: 1,
+              } as Parameters<typeof setParams>[0])}
+              className={`
+                inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-sm)]
+                text-xs font-medium transition-colors
+                ${params.bookmarkedOnly === 'true'
+                  ? 'bg-[var(--color-warning)] text-white'
+                  : 'bg-[var(--color-neutral-100)] text-[var(--color-text-secondary)] hover:bg-[var(--color-neutral-200)]'
+                }
+              `}
+              aria-pressed={params.bookmarkedOnly === 'true'}
+            >
+              <Bookmark className="w-3.5 h-3.5" fill={params.bookmarkedOnly === 'true' ? 'currentColor' : 'none'} />
+              Saved
+            </button>
+          </>
+        }
+        advancedFilters={
+          <>
+            <FilterField label="Direction">
+              <Select
+                value={params.audienceDirection || 'all'}
+                onValueChange={(v) => handleFilterChange('audienceDirection', v)}
+                options={audienceDirectionOptions}
+                aria-label="Filter by audience direction"
+              />
+            </FilterField>
+            <FilterField label="Section Type">
+              <Select
+                value={params.sectionType || 'all'}
+                onValueChange={(v) => handleFilterChange('sectionType', v)}
+                options={sectionTypeOptions}
+                aria-label="Filter by section type"
+              />
+            </FilterField>
+            <FilterField label="Readability">
+              <Select
+                value={params.readability || 'all'}
+                onValueChange={(v) => handleFilterChange('readability', v)}
+                options={readabilityOptions}
+                aria-label="Filter by readability"
+              />
+            </FilterField>
+            <FilterField label="Expertise">
+              <Select
+                value={params.audienceExpertise || 'all'}
+                onValueChange={(v) => handleFilterChange('audienceExpertise', v)}
+                options={audienceExpertiseOptions}
+                aria-label="Filter by audience expertise"
+              />
+            </FilterField>
+            <FilterField label="Target Audience">
+              <MultiSelect
+                label="Target Audience"
+                options={targetAudienceOptions}
+                value={selectedTargetAudiences}
+                onChange={(values) => handleMultiFilterChange('targetAudience', values)}
+                placeholder="All audiences"
+                searchable
+              />
+            </FilterField>
+            <FilterField label="Has Form">
+              <Select
+                value={params.hasForm ? 'yes' : 'no'}
+                onValueChange={(v) => setParams({ hasForm: v === 'yes' ? true : null, page: 1 } as Parameters<typeof setParams>[0])}
+                options={[
+                  { value: 'no', label: 'Any' },
+                  { value: 'yes', label: 'Has Form' },
+                ]}
+                aria-label="Filter by has form"
+              />
+            </FilterField>
+            <FilterField label="Has IBR">
+              <Select
+                value={params.hasIbr ? 'yes' : 'no'}
+                onValueChange={(v) => setParams({ hasIbr: v === 'yes' ? true : null, page: 1 } as Parameters<typeof setParams>[0])}
+                options={[
+                  { value: 'no', label: 'Any' },
+                  { value: 'yes', label: 'Has IBR' },
+                ]}
+                aria-label="Filter by has IBR"
+              />
+            </FilterField>
+            {markerGroupsList.length > 0 && (
+              <FilterField label="Label">
+                <MultiSelect
+                  label="Label"
+                  options={markerFilterOptions}
+                  value={selectedMarkerIds}
+                  onChange={(values) => handleMultiFilterChange('marker', values)}
+                  placeholder="All labels"
+                />
+              </FilterField>
+            )}
+          </>
+        }
+      />
 
       <Card padding="none">
         <div className={`${isLoading ? 'opacity-50 pointer-events-none' : ''} transition-opacity`}>
