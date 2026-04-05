@@ -1,5 +1,5 @@
 import type { FullAnalysisRecord } from '@deproceduralizer/database';
-import { Badge } from '@/components/ui';
+import { Badge, ReviewSummaryText } from '@/components/ui';
 
 interface ExecutiveSummaryProps {
   analysis: FullAnalysisRecord;
@@ -69,12 +69,7 @@ function Tier3Summary({ analysis, finalClassification }: TierSummaryProps) {
         after web search verification
       </p>
 
-      {/* Review Summary — plain-language distillation of the analysis */}
-      {analysis.reviewSummary && (
-        <p className="mt-2 text-sm text-[var(--color-text-secondary)] leading-relaxed">
-          {analysis.reviewSummary}
-        </p>
-      )}
+      <ReviewSummaryText summary={analysis.reviewSummary} variant="inline" className="mt-2" />
 
       {/* Web Search Summary */}
       {tier3?.webSearchSummary && (
@@ -133,11 +128,8 @@ function Tier2Summary({ analysis, finalClassification }: TierSummaryProps) {
         (no web verification performed)
       </p>
 
-      {/* Review Summary — plain-language distillation of the analysis */}
       {analysis.reviewSummary ? (
-        <p className="mt-2 text-sm text-[var(--color-text-secondary)] leading-relaxed">
-          {analysis.reviewSummary}
-        </p>
+        <ReviewSummaryText summary={analysis.reviewSummary} variant="inline" className="mt-2" />
       ) : (
         <p className="mt-2 text-xs text-[var(--color-text-muted)]">
           This analysis completed at Tier 2. Web search verification was not triggered for this item.

@@ -82,10 +82,12 @@ def _get_issue_description(issue_type: str) -> str:
         return ""
 
 
-def _format_evidenced_flag(flag) -> tuple[str, str]:
-    """Format an EvidencedFlag into (value_str, reason_str)."""
+def _format_flag(flag) -> tuple[str, str]:
+    """Format an EvidencedFlag (object or dict) into (value_str, reason_str)."""
     if flag is None:
         return ("N/A", "N/A")
+    if isinstance(flag, dict):
+        return (str(flag.get("value", "N/A")), flag.get("reason", "N/A"))
     return (str(flag.value), flag.reason)
 
 
@@ -117,19 +119,11 @@ def _build_tier3_block(analysis: dict) -> str:
     superseded = analysis.get("superseded_by_law")
     advocacy = analysis.get("advocacy_for_change")
 
-    def _flag_str(flag) -> tuple[str, str]:
-        if flag is None:
-            return ("N/A", "N/A")
-        if isinstance(flag, dict):
-            return (str(flag.get("value", "N/A")), flag.get("reason", "N/A"))
-        # EvidencedFlag object
-        return (str(flag.value), flag.reason)
-
-    fm_val, fm_reason = _flag_str(federal_mandate)
-    sd_val, sd_reason = _flag_str(state_discretion)
-    ma_val, ma_reason = _flag_str(modernized_alt)
-    ss_val, ss_reason = _flag_str(superseded)
-    adv_val, adv_reason = _flag_str(advocacy)
+    fm_val, fm_reason = _format_flag(federal_mandate)
+    sd_val, sd_reason = _format_flag(state_discretion)
+    ma_val, ma_reason = _format_flag(modernized_alt)
+    ss_val, ss_reason = _format_flag(superseded)
+    adv_val, adv_reason = _format_flag(advocacy)
 
     # Build web quotes from context_used entries where type == "web"
     web_quotes = ""
@@ -722,14 +716,9 @@ def _fetch_analyses_for_summaries(
     # Build title filter for regulations
     title_filter = ""
     if title:
-        # Determine jurisdiction-specific title column
-        jur_upper = jurisdiction.upper()
-        if jur_upper == "NJ":
-            title_filter = "AND d.njac_title = %s"
-        elif jur_upper == "NYC":
-            title_filter = "AND d.rcny_title = %s"
-        else:  # NY
-            title_filter = "AND d.nycrr_title = %s"
+        from lib.jurisdictions import title_column_for_jurisdiction
+        title_col = title_column_for_jurisdiction(jurisdiction)
+        title_filter = f"AND d.{title_col} = %s"
         params.append(title)
 
     skip_regulations = source == "guidance"
@@ -877,17 +866,13 @@ def _row_to_analysis_dict(row) -> dict:
         "regex_match_context": "",  # Enriched later
     }
 
-    # Extract EvidencedFlag data from tier3_flags for prompt template
+    # Store tier3_flags as dicts so _build_tier3_block can use _format_flag()
     for flag_name in [
         "federal_mandate_confirmed", "state_discretion_found",
         "modernized_alternative_found", "superseded_by_law", "advocacy_for_change",
     ]:
-        flag = tier3_flags.get(flag_name, {})
-        result[f"{flag_name}_value"] = flag.get("value", False)
-        result[f"{flag_name}_reason"] = flag.get("reason", "")
-        # Extract web quotes from evidence arrays
-        evidence_list = flag.get("evidence", [])
-        result[f"{flag_name}_evidence"] = evidence_list
+        flag = tier3_flags.get(flag_name)
+        result[flag_name] = flag  # dict or None — _format_flag handles both
 
     return result
 

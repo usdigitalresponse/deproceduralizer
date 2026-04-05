@@ -104,11 +104,16 @@ interface RawTierPrompt {
   document_template?: string;
 }
 
+interface RawSummaryPrompt extends RawTierPrompt {
+  system?: string;
+  template?: string;
+}
+
 interface RawResearchPipeline {
   tier1?: RawTierPrompt;
   tier2?: RawTierPrompt;
   tier3?: RawTierPrompt;
-  summary?: RawTierPrompt;
+  summary?: RawSummaryPrompt;
 }
 
 interface RawIssueConfigEntry {
@@ -163,14 +168,14 @@ function parseTierData(raw: RawTierPrompt | undefined, tierName: string): TierPr
 /**
  * Parse summary prompt data — uses system/template keys instead of static_core/document_template
  */
-function parseSummaryData(raw: RawTierPrompt | undefined): TierPromptData {
+function parseSummaryData(raw: RawSummaryPrompt | undefined): TierPromptData {
   return {
     updated_at: raw?.updated_at || '',
     description: raw?.description || 'Summary',
-    static_core: ((raw as Record<string, string>)?.system || raw?.static_core || '').trim(),
+    static_core: (raw?.system || raw?.static_core || '').trim(),
     issue_block: '',
     batch_context: '',
-    document_template: ((raw as Record<string, string>)?.template || raw?.document_template || '').trim(),
+    document_template: (raw?.template || raw?.document_template || '').trim(),
   };
 }
 

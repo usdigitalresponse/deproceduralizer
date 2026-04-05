@@ -2,7 +2,7 @@
 
 import { forwardRef } from 'react';
 import { usePathname } from 'next/navigation';
-import { CopyLinkButton } from '@/components/ui';
+import { CopyLinkButton, ReviewSummaryText } from '@/components/ui';
 import { ISSUE_TYPE_LABELS } from '@/types/regulation';
 import { formatStateCitation } from '@/lib/formatters/citations';
 import { CardWrapper } from '../shared';
@@ -42,14 +42,7 @@ export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCar
           </div>
         </div>
 
-        {/* Review Summary — quick triage text from post-pipeline Haiku batch */}
-        {issue.analysis?.reviewSummary && (
-          <div className="mb-4 pl-3 border-l-[3px] border-[var(--color-neutral-200)]">
-            <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">
-              {issue.analysis.reviewSummary}
-            </p>
-          </div>
-        )}
+        <ReviewSummaryText summary={issue.analysis?.reviewSummary} className="mb-4" />
 
         {/* Tier Classification Flow */}
         {issue.analysis && (

@@ -9,7 +9,7 @@ import { AnalysisBookmarkProvider, BookmarkNotesCard, useBookmarkRefresh, useBoo
 import { ClassificationBadge } from '@/components/issues/TierClassificationFlow';
 import { TierBadge } from '@/components/issues/TierProgressIndicator';
 import { Badge, SeverityBadge } from '@/components/ui/Badge';
-import { BookmarkButton } from '@/components/ui';
+import { BookmarkButton, ReviewSummaryText } from '@/components/ui';
 import { MarkerBadge, MarkerPicker } from '@/components/markers';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
 import { ISSUE_TYPE_LABELS } from '@/types/regulation';
@@ -717,12 +717,9 @@ export function AnalysisDetailDrawer({ item, open, onOpenChange, jurisdiction, r
                 </div>
               </div>
 
-              {/* --- Review Summary --- */}
               {item.reviewSummary && (
                 <div className="border-t border-[var(--color-neutral-200)] pt-4">
-                  <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">
-                    {item.reviewSummary}
-                  </p>
+                  <ReviewSummaryText summary={item.reviewSummary} variant="inline" />
                 </div>
               )}
 

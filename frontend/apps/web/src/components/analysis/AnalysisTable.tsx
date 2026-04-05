@@ -789,7 +789,7 @@ function AnalysisTableRow({
         </td>
 
         {/* Document */}
-        <td className="px-4 py-3 max-w-xs" title={item.reviewSummary || undefined}>
+        <td className="px-4 py-3 max-w-xs">
           {item.kind === 'guidance' ? (
             <>
               {item.agency && (

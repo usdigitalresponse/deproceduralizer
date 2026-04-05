@@ -19,7 +19,7 @@ import {
 } from '@/components/analysis';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Container } from '@/components/layout/Container';
-import { Badge, ScrollToHash } from '@/components/ui';
+import { Badge, ScrollToHash, ReviewSummaryText } from '@/components/ui';
 import { ClassificationBadge, TierClassificationFlow } from '@/components/issues/TierClassificationFlow';
 import { isValidJurisdiction } from '@/types/state';
 import { ISSUE_TYPE_LABELS } from '@/types/regulation';
@@ -271,14 +271,7 @@ export default async function AnalysisDetailPage({ params, searchParams }: Analy
           </div>
         </div>
 
-        {/* Review Summary - quick triage text from post-pipeline generation */}
-        {analysis.reviewSummary && (
-          <div className="mb-4 pl-4 border-l-[var(--border-width-4)] border-[var(--color-neutral-200)]">
-            <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">
-              {analysis.reviewSummary}
-            </p>
-          </div>
-        )}
+        <ReviewSummaryText summary={analysis.reviewSummary} className="mb-4" />
 
         {/* Executive Summary Card - key findings at a glance */}
         <div id="section-summary">
