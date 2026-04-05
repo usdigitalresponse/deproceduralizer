@@ -42,6 +42,7 @@ export interface AnalysisTierStats {
  *
  * @param state - The state code (e.g., 'NY', 'NJ')
  * @returns Tier counts and classification breakdown
+ * @deprecated Use getAnalyticsSummary() from analytics-metrics.ts instead
  */
 export async function getAnalysisTierStats(
   state: JurisdictionCode
@@ -467,6 +468,7 @@ export async function exportAnalysisZipByAgency(
 // Guidance Analysis Actions
 // ============================================
 
+/** @deprecated Use getAnalyticsSummary(state, 'guidance') from analytics-metrics.ts instead */
 export async function getGuidanceAnalysisTierStats(
   state: JurisdictionCode
 ): Promise<ActionResult<AnalysisTierStats>> {
