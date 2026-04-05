@@ -35,6 +35,69 @@ interface AnalysisDetailDrawerProps {
 }
 
 // ---------------------------------------------------------------------------
+// Drawer section navigation — scrolls within the drawer body
+// ---------------------------------------------------------------------------
+
+function DrawerSectionNav({ record }: { record: FullRecord }) {
+  const sections: { id: string; label: string }[] = [];
+
+  const hasArgumentAgainst = record.tier2?.argumentAgainstRegulation;
+  const hasBestReasoning = record.tier3?.reasoning || record.tier2?.reasoning || record.tier1?.reasoning;
+  if (hasArgumentAgainst || hasBestReasoning) {
+    sections.push({ id: 'drawer-issue-summary', label: 'Summary' });
+  }
+
+  const hasVerbatim = record.tier2?.verbatimRequirements && record.tier2.verbatimRequirements.length > 0;
+  if (hasVerbatim) {
+    sections.push({ id: 'drawer-bad-text', label: 'Matched Text' });
+  }
+
+  const argFraming = record.tier1?.argumentFraming;
+  if (argFraming && (argFraming.best_argument_burdensome || argFraming.best_argument_justified)) {
+    sections.push({ id: 'drawer-arguments', label: 'Arguments' });
+  }
+
+  if (record.tier2?.argumentForRegulation) {
+    sections.push({ id: 'drawer-counterargument', label: 'Counter' });
+  }
+
+  if (record.finalSeverity !== null && (record.tier2?.severityCalculation || record.tier3?.severityAdjustmentReasoning)) {
+    sections.push({ id: 'drawer-severity', label: 'Severity' });
+  }
+
+  const hasWebResearch = record.tier3?.webSearchSummary || record.tier3?.flags;
+  if (hasWebResearch) {
+    sections.push({ id: 'drawer-web-research', label: 'Web Research' });
+  }
+
+  if (record.easyCleanupCandidate) {
+    sections.push({ id: 'drawer-cleanup', label: 'Cleanup' });
+  }
+
+  if (sections.length < 2) return null;
+
+  return (
+    <div className="pt-2 border-t border-[var(--color-neutral-200)]">
+      <div className="flex gap-1.5 overflow-x-auto scrollbar-hide">
+        {sections.map((section) => (
+          <button
+            key={section.id}
+            type="button"
+            onClick={() => {
+              const el = document.getElementById(section.id);
+              el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }}
+            className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium whitespace-nowrap bg-[var(--color-neutral-100)] text-[var(--color-text-secondary)] hover:bg-[var(--color-neutral-200)] hover:text-[var(--color-text)] transition-colors cursor-pointer"
+          >
+            {section.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Collapsible section component
 // ---------------------------------------------------------------------------
 
@@ -42,15 +105,17 @@ function CollapsibleSection({
   title,
   defaultOpen = false,
   children,
+  id,
 }: {
   title: string;
   defaultOpen?: boolean;
   children: React.ReactNode;
+  id?: string;
 }) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
   return (
-    <div className="border-t border-[var(--color-neutral-200)] pt-4">
+    <div id={id} className="border-t border-[var(--color-neutral-200)] pt-4">
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
@@ -205,7 +270,7 @@ function FullAnalysisContent({ record }: { record: FullRecord }) {
     <>
       {/* --- Issue Summary --- */}
       {(argumentAgainst || best.reasoning) && (
-        <CollapsibleSection title="Issue Summary" defaultOpen>
+        <CollapsibleSection title="Issue Summary" defaultOpen id="drawer-issue-summary">
           {argumentAgainst && (
             <div className="mb-4">
               <h5 className="text-xs font-medium text-[var(--color-text-muted)] mb-1.5">
@@ -227,7 +292,7 @@ function FullAnalysisContent({ record }: { record: FullRecord }) {
 
       {/* --- Matched Text / Verbatim Requirements --- */}
       {verbatimRequirements && verbatimRequirements.length > 0 && (
-        <CollapsibleSection title="Bad Regulation Text" defaultOpen>
+        <CollapsibleSection title="Bad Regulation Text" defaultOpen id="drawer-bad-text">
           <div className="space-y-2">
             {verbatimRequirements.map((text, i) => (
               <blockquote
@@ -243,7 +308,7 @@ function FullAnalysisContent({ record }: { record: FullRecord }) {
 
       {/* --- Argument Framing (Tier 1) --- */}
       {argFraming && (argFraming.best_argument_burdensome || argFraming.best_argument_justified) && (
-        <CollapsibleSection title="Argument Framing">
+        <CollapsibleSection title="Argument Framing" id="drawer-arguments">
           {argFraming.best_argument_burdensome && (
             <div className="mb-3">
               <h5 className="text-xs font-medium text-[var(--color-danger)] mb-1">
@@ -273,14 +338,14 @@ function FullAnalysisContent({ record }: { record: FullRecord }) {
 
       {/* --- Counterargument --- */}
       {argumentFor && (
-        <CollapsibleSection title="Counterargument (Pro-Regulation)">
+        <CollapsibleSection title="Counterargument (Pro-Regulation)" id="drawer-counterargument">
           <MarkdownContent>{argumentFor}</MarkdownContent>
         </CollapsibleSection>
       )}
 
       {/* --- Severity Justification --- */}
       {(record.finalSeverity !== null && (severityCalc || severityAdjReasoning)) && (
-        <CollapsibleSection title="Severity Justification">
+        <CollapsibleSection title="Severity Justification" id="drawer-severity">
           <div className="space-y-3">
             {record.finalSeverity !== null && (
               <div className="flex items-center gap-2 mb-2">
@@ -325,7 +390,7 @@ function FullAnalysisContent({ record }: { record: FullRecord }) {
 
       {/* --- Web Search / Tier 3 Evidence --- */}
       {(webSearchSummary || t3Flags) && (
-        <CollapsibleSection title="Web Research & Evidence">
+        <CollapsibleSection title="Web Research & Evidence" id="drawer-web-research">
           {webSearchSummary && (
             <div className="mb-4">
               <h5 className="text-xs font-medium text-[var(--color-text-muted)] mb-1.5">
@@ -348,7 +413,7 @@ function FullAnalysisContent({ record }: { record: FullRecord }) {
 
       {/* --- Easy Cleanup Details --- */}
       {record.easyCleanupCandidate && (
-        <CollapsibleSection title="Easy Cleanup Details" defaultOpen>
+        <CollapsibleSection title="Easy Cleanup Details" defaultOpen id="drawer-cleanup">
           <div className="space-y-2">
             {record.cleanupType && (
               <div className="flex items-center gap-2">
@@ -697,6 +762,9 @@ export function AnalysisDetailDrawer({ item, open, onOpenChange, jurisdiction, r
                 triageLoading={triageLoading}
                 onDataChanged={onTriageChanged}
               />
+
+              {/* Section navigation tabs */}
+              {fullRecord && !loading && <DrawerSectionNav record={fullRecord} />}
             </div>
 
             <DrawerBody className="p-4 space-y-6">
