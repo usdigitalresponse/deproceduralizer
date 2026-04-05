@@ -1,15 +1,18 @@
 'use client';
 
-import { useQueryStates } from 'nuqs';
+import { useQueryState, useQueryStates } from 'nuqs';
+import { ScrollText, BookOpen, LayoutList } from 'lucide-react';
 import type { DashboardStats, JurisdictionCode, StatuteLinkStats } from '@deproceduralizer/database';
-import type { ComplianceIssueStatusCounts } from '@/lib/actions/compliance-issues';
+import type { ComplianceIssueStatusCounts, ComplianceTypeClassificationCounts } from '@/lib/actions/compliance-issues';
 import type { SectionTypeStats, MetadataStats, KeywordStats, AppliesToStats } from '@/lib/actions/regulations';
 import type { DefinitionsAnalyticsStats } from '@/lib/actions/definitions';
 import type { PipelineAnalyticsData } from '@/lib/actions/pipeline-analytics';
 import type { SeverityDistribution, JenAIReviewStatusCounts } from '@deproceduralizer/database';
 import type { GuidanceOverviewStats, GuidanceCitationStats, GuidanceReadabilityStats, ReadabilityCrossCutStats, LineageStats } from '@/lib/actions/guidance-documents';
-import type { AnalyticsTabValue } from '@/lib/constants/values';
-import { analyticsParsers } from '@/lib/url/parsers';
+import type { AnalyticsTabValue, AnalyticsSourceValue } from '@/lib/constants/values';
+import { analyticsParsers, analyticsSourceParser } from '@/lib/url/parsers';
+import { SegmentedControl } from '@/components/ui';
+import type { SegmentedControlOption } from '@/components/ui';
 import { AnalyticsTabs } from './AnalyticsTabs';
 import { OverviewTab } from './OverviewTab';
 import { IssuesTab } from './IssuesTab';
@@ -19,6 +22,12 @@ import { CrossReferencesTab } from './CrossReferencesTab';
 import { StatutesTab } from './StatutesTab';
 import { GuidanceAnalyticsTab } from './GuidanceAnalyticsTab';
 import { PipelineTab } from './PipelineTab';
+
+const SOURCE_OPTIONS: SegmentedControlOption<AnalyticsSourceValue>[] = [
+  { value: 'all', label: 'All', icon: LayoutList },
+  { value: 'regulations', label: 'Regulations', icon: ScrollText },
+  { value: 'guidance', label: 'Guidance', icon: BookOpen },
+];
 
 export interface AnalyticsClientProps {
   jurisdiction: JurisdictionCode;
@@ -40,6 +49,7 @@ export interface AnalyticsClientProps {
   guidanceReadabilityStats?: GuidanceReadabilityStats | null;
   guidanceReadabilityCrossCuts?: ReadabilityCrossCutStats | null;
   guidanceLineageStats?: LineageStats | null;
+  complianceTypeClassification?: ComplianceTypeClassificationCounts | null;
 }
 
 export function AnalyticsClient({
@@ -61,21 +71,28 @@ export function AnalyticsClient({
   guidanceReadabilityStats,
   guidanceReadabilityCrossCuts,
   guidanceLineageStats,
+  complianceTypeClassification,
 }: AnalyticsClientProps) {
   const [params, setParams] = useQueryStates(analyticsParsers, { shallow: true });
+  const [source, setSource] = useQueryState('source', analyticsSourceParser.withOptions({ shallow: false }));
   const currentTab = params.tab;
 
   const handleTabChange = (tab: AnalyticsTabValue) => {
     setParams({ tab });
   };
 
-  const handleParamsChange = (newParams: Record<string, unknown>) => {
-    setParams(newParams as Parameters<typeof setParams>[0]);
-  };
-
   return (
     <div className="space-y-6">
-      <AnalyticsTabs activeTab={currentTab} onTabChange={handleTabChange} />
+      <div className="flex items-center justify-between">
+        <AnalyticsTabs activeTab={currentTab} onTabChange={handleTabChange} />
+        <SegmentedControl
+          options={SOURCE_OPTIONS}
+          value={source}
+          onChange={setSource}
+          variant="filled"
+          size="sm"
+        />
+      </div>
 
       <div className="mt-6">
         {currentTab === 'overview' && (
@@ -91,6 +108,9 @@ export function AnalyticsClient({
             jenaiSeverity={jenaiSeverity}
             jenaiStats={jenaiStats}
             jurisdiction={jurisdiction}
+            complianceTypeClassification={complianceTypeClassification ?? null}
+            onNavigateToIssues={() => setParams({ tab: 'issues' })}
+            activeSource={source}
           />
         )}
 
@@ -98,6 +118,9 @@ export function AnalyticsClient({
           <IssuesTab
             complianceByType={complianceTypeCounts ?? {}}
             complianceStatus={complianceStatus}
+            complianceTypeClassification={complianceTypeClassification ?? null}
+            jurisdiction={jurisdiction}
+            activeSource={source}
           />
         )}
 

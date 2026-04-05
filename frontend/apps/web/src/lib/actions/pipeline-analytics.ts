@@ -14,6 +14,7 @@ import {
   type ContextUsedStats,
   type ResearchFunnelStats,
   type ConfidenceByClassificationData,
+  type AnalysisSource,
 } from '@deproceduralizer/database';
 import { type ActionResult, success, failure, getErrorMessage, runCachedAction } from './types';
 
@@ -58,48 +59,52 @@ export type {
 
 export async function getPipelineFunnelStats(
   state: JurisdictionCode,
-  issueType?: string
+  issueType?: string,
+  source?: AnalysisSource
 ): Promise<ActionResult<PipelineFunnelData>> {
   return runCachedAction(
     'getPipelineFunnelStats',
-    () => complianceIssuesRepo.getPipelineFunnelStats(state, issueType),
-    [`pipeline-funnel-${state}-${issueType ?? 'all'}`],
+    () => complianceIssuesRepo.getPipelineFunnelStats(state, issueType, source),
+    [`pipeline-funnel-${state}-${issueType ?? 'all'}-${source ?? 'all'}`],
     { revalidate: 3600, tags: ['pipeline-analytics'] }
   );
 }
 
 export async function getTier1ContextRequestStats(
   state: JurisdictionCode,
-  issueType?: string
+  issueType?: string,
+  source?: AnalysisSource
 ): Promise<ActionResult<Tier1ContextRequestStats>> {
   return runCachedAction(
     'getTier1ContextRequestStats',
-    () => complianceIssuesRepo.getTier1ContextRequestStats(state, issueType),
-    [`pipeline-tier1-context-${state}-${issueType ?? 'all'}`],
+    () => complianceIssuesRepo.getTier1ContextRequestStats(state, issueType, source),
+    [`pipeline-tier1-context-${state}-${issueType ?? 'all'}-${source ?? 'all'}`],
     { revalidate: 3600, tags: ['pipeline-analytics'] }
   );
 }
 
 export async function getTierTransitionStats(
   state: JurisdictionCode,
-  issueType?: string
+  issueType?: string,
+  source?: AnalysisSource
 ): Promise<ActionResult<TierTransitionData>> {
   return runCachedAction(
     'getTierTransitionStats',
-    () => complianceIssuesRepo.getTierTransitionStats(state, issueType),
-    [`pipeline-tier-transitions-${state}-${issueType ?? 'all'}`],
+    () => complianceIssuesRepo.getTierTransitionStats(state, issueType, source),
+    [`pipeline-tier-transitions-${state}-${issueType ?? 'all'}-${source ?? 'all'}`],
     { revalidate: 3600, tags: ['pipeline-analytics'] }
   );
 }
 
 export async function getTier3EvidenceStats(
   state: JurisdictionCode,
-  issueType?: string
+  issueType?: string,
+  source?: AnalysisSource
 ): Promise<ActionResult<Tier3EvidenceStats>> {
   return runCachedAction(
     'getTier3EvidenceStats',
-    () => complianceIssuesRepo.getTier3EvidenceStats(state, issueType),
-    [`pipeline-tier3-evidence-${state}-${issueType ?? 'all'}`],
+    () => complianceIssuesRepo.getTier3EvidenceStats(state, issueType, source),
+    [`pipeline-tier3-evidence-${state}-${issueType ?? 'all'}-${source ?? 'all'}`],
     { revalidate: 3600, tags: ['pipeline-analytics'] }
   );
 }
@@ -235,14 +240,15 @@ export async function getPipelineContextData(
 // ═══════════════════════════════════════════════════════════════════
 
 export async function getPipelineAnalyticsData(
-  state: JurisdictionCode
+  state: JurisdictionCode,
+  source?: AnalysisSource
 ): Promise<ActionResult<PipelineAnalyticsData>> {
   try {
     const [funnelResult, tier1Result, transitionsResult, evidenceResult, confByClassResult, transitionReasonsResult] = await Promise.all([
-      getPipelineFunnelStats(state),
-      getTier1ContextRequestStats(state),
-      getTierTransitionStats(state),
-      getTier3EvidenceStats(state),
+      getPipelineFunnelStats(state, undefined, source),
+      getTier1ContextRequestStats(state, undefined, source),
+      getTierTransitionStats(state, undefined, source),
+      getTier3EvidenceStats(state, undefined, source),
       getConfidenceByClassification(state),
       getTransitionReasons(state),
     ]);

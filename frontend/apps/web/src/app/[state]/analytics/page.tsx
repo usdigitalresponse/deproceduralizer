@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { getDashboardStats } from '@/lib/actions/dashboard';
 import { getSectionTypeStats, getMetadataStats, getTopKeywords, getTopAppliesTo } from '@/lib/actions/regulations';
-import { getComplianceIssueStatusCounts, getComplianceIssueCountsByType, getComplianceSeverityDistribution } from '@/lib/actions/compliance-issues';
+import { getComplianceIssueStatusCounts, getComplianceIssueCountsByType, getComplianceIssueCountsByTypeAndClassification, getComplianceSeverityDistribution } from '@/lib/actions/compliance-issues';
 import { getJenAISeverityDistribution, getJenAIStatusCounts } from '@/lib/actions/jenai';
 import { getDefinitionAnalyticsStats } from '@/lib/actions/definitions';
 import { getStatuteStats } from '@/lib/actions/statutes';
@@ -11,13 +11,16 @@ import { AnalyticsClient } from '@/components/analytics/AnalyticsClient';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Container } from '@/components/layout/Container';
 import { JURISDICTION_CONFIG, isValidJurisdiction } from '@/types/state';
+import type { AnalysisSource } from '@deproceduralizer/database';
 
 interface AnalyticsPageProps {
   params: Promise<{ state: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
-export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
+export default async function AnalyticsPage({ params, searchParams }: AnalyticsPageProps) {
   const { state } = await params;
+  const queryParams = await searchParams;
 
   if (!isValidJurisdiction(state)) {
     notFound();
@@ -25,6 +28,13 @@ export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
 
   const stateCode = state;
   const stateConfig = JURISDICTION_CONFIG[state];
+
+  // Map URL source value to repo source type
+  const rawSource = typeof queryParams.source === 'string' ? queryParams.source : undefined;
+  const repoSource: AnalysisSource | undefined =
+    rawSource === 'regulations' ? 'regulation' :
+    rawSource === 'guidance' ? 'guidance' :
+    undefined; // 'all' or missing → no filter (combined)
 
   // Fetch all analytics data in parallel
   const [
@@ -46,18 +56,19 @@ export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
     guidanceReadabilityStatsResult,
     guidanceReadabilityCrossCutsResult,
     guidanceLineageStatsResult,
+    complianceTypeClassificationResult,
   ] = await Promise.all([
     getDashboardStats(stateCode),
     getSectionTypeStats(state),
     getMetadataStats(state),
     getTopKeywords(state, 30),
     getTopAppliesTo(state, 30),
-    getComplianceIssueStatusCounts(stateCode),
-    getComplianceIssueCountsByType(stateCode),
+    getComplianceIssueStatusCounts(stateCode, repoSource ? { source: repoSource } : undefined),
+    getComplianceIssueCountsByType(stateCode, repoSource),
     getDefinitionAnalyticsStats(stateCode),
     getStatuteStats(state),
-    getPipelineAnalyticsData(stateCode),
-    getComplianceSeverityDistribution(stateCode),
+    getPipelineAnalyticsData(stateCode, repoSource),
+    getComplianceSeverityDistribution(stateCode, repoSource),
     getJenAISeverityDistribution(stateCode),
     getJenAIStatusCounts(stateCode),
     getGuidanceOverviewStats(stateCode),
@@ -65,6 +76,7 @@ export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
     getGuidanceReadabilityStats(stateCode),
     getGuidanceReadabilityCrossCuts(stateCode),
     getGuidanceLineageStats(stateCode),
+    getComplianceIssueCountsByTypeAndClassification(stateCode, repoSource),
   ]);
 
   // Extract data, falling back to null on failure
@@ -86,6 +98,7 @@ export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
   const guidanceReadabilityStats = guidanceReadabilityStatsResult.success ? guidanceReadabilityStatsResult.data : null;
   const guidanceReadabilityCrossCuts = guidanceReadabilityCrossCutsResult.success ? guidanceReadabilityCrossCutsResult.data : null;
   const guidanceLineageStats = guidanceLineageStatsResult.success ? guidanceLineageStatsResult.data : null;
+  const complianceTypeClassification = complianceTypeClassificationResult.success ? complianceTypeClassificationResult.data : null;
 
   return (
     <div className="bg-[var(--color-background)] min-h-screen">
@@ -114,6 +127,7 @@ export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
           guidanceReadabilityStats={guidanceReadabilityStats}
           guidanceReadabilityCrossCuts={guidanceReadabilityCrossCuts}
           guidanceLineageStats={guidanceLineageStats}
+          complianceTypeClassification={complianceTypeClassification}
         />
       </Container>
     </div>

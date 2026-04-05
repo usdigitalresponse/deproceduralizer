@@ -50,8 +50,8 @@ export async function getAnalysisTierStats(
     'getAnalysisTierStats',
     async () => {
       const [tierCounts, classificationBreakdown] = await Promise.all([
-        complianceIssuesRepo.getAnalysisTierCounts(state),
-        complianceIssuesRepo.getClassificationBreakdown(state),
+        complianceIssuesRepo.getAnalysisTierCounts(state, 'regulation'),
+        complianceIssuesRepo.getClassificationBreakdown(state, 'regulation'),
       ]);
 
       const total = tierCounts.tier0 + tierCounts.tier1 + tierCounts.tier2 +

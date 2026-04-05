@@ -1,12 +1,14 @@
 'use client';
 
+import { useMemo } from 'react';
+import { useQueryStates } from 'nuqs';
 import { FileText, Sparkles, ShieldAlert } from 'lucide-react';
 import type { DashboardStats, StatuteLinkStats, SeverityDistribution, JenAIReviewStatusCounts } from '@deproceduralizer/database';
-import type { ComplianceIssueStatusCounts } from '@/lib/actions/compliance-issues';
+import type { ComplianceIssueStatusCounts, ComplianceTypeClassificationCounts } from '@/lib/actions/compliance-issues';
 import type { MetadataStats } from '@/lib/actions/regulations';
 import type { DefinitionsAnalyticsStats } from '@/lib/actions/definitions';
 import type { PipelineAnalyticsData } from '@/lib/actions/pipeline-analytics';
-import { Card, StatCard, StatGrid } from '@/components/ui';
+import { Card, StatCard, StatGrid, SegmentedControl } from '@/components/ui';
 import {
   ClientChart,
   ChartContainer,
@@ -19,8 +21,15 @@ import { ISSUE_TYPE_LABELS } from '@/types/regulation';
 import { useChartColors } from '@/hooks/useChartColors';
 import { useChartNavigation } from '@/hooks/useChartNavigation';
 import type { JurisdictionCode } from '@/types/state';
+import type { OverviewClassificationValue } from '@/lib/constants/values';
+import { LEGACY_ISSUE_TYPES } from '@/lib/constants/values';
+import { analyticsParsers } from '@/lib/url/parsers';
 
-const LEGACY_TYPES = new Set(['in_person', 'paper_form', 'notarized', 'certified', 'reporting_requirement', 'other']);
+const OVERVIEW_CLASSIFICATION_OPTIONS = [
+  { value: 'burdensome' as const, label: 'Burdensome' },
+  { value: 'justified' as const, label: 'Justified' },
+  { value: 'all' as const, label: 'All' },
+];
 
 interface OverviewTabProps {
   dashboardStats: DashboardStats | null;
@@ -34,6 +43,9 @@ interface OverviewTabProps {
   jenaiSeverity: SeverityDistribution | null;
   jenaiStats: JenAIReviewStatusCounts | null;
   jurisdiction?: JurisdictionCode;
+  complianceTypeClassification: ComplianceTypeClassificationCounts | null;
+  onNavigateToIssues?: () => void;
+  activeSource?: string;
 }
 
 function ReviewProgressBar({
@@ -112,9 +124,14 @@ export function OverviewTab({
   jenaiSeverity,
   jenaiStats,
   jurisdiction,
+  complianceTypeClassification,
+  onNavigateToIssues,
+  activeSource,
 }: OverviewTabProps) {
   const colors = useChartColors();
   const navigateToPipeline = useChartNavigation(jurisdiction ? `/${jurisdiction}/pipeline` : '/ny/pipeline');
+  const [params, setParams] = useQueryStates(analyticsParsers, { shallow: true });
+  const classificationFilter = params.oClassification as OverviewClassificationValue;
 
   if (!dashboardStats) {
     return (
@@ -135,29 +152,77 @@ export function OverviewTab({
   const complianceUnreviewed = complianceStatus?.unreviewed ?? 0;
   const complianceTotal = complianceStatus?.total ?? 0;
 
-  // Classification donut data
-  const classificationData = bestTier
+  // COALESCE-based classification totals from breakdown data (most accurate — each record counted once)
+  const coalesced = useMemo(() => {
+    if (!complianceTypeClassification) return null;
+    return Object.values(complianceTypeClassification).reduce(
+      (acc, classMap) => ({
+        burdensome: acc.burdensome + classMap.burdensome,
+        justified: acc.justified + classMap.justified,
+        unrelated: acc.unrelated + (classMap.total - classMap.burdensome - classMap.justified),
+        total: acc.total + classMap.total,
+      }),
+      { burdensome: 0, justified: 0, unrelated: 0, total: 0 }
+    );
+  }, [complianceTypeClassification]);
+
+  // Classification donut data — use COALESCE totals when available, fall back to funnel tier data
+  const classificationData = coalesced
+    ? [
+        { label: 'Burdensome', value: coalesced.burdensome, color: colors.colors.danger },
+        { label: 'Justified', value: coalesced.justified, color: colors.colors.success },
+        { label: 'Unrelated', value: coalesced.unrelated, color: colors.colors.neutral300 },
+      ]
+    : bestTier
     ? [
         { label: 'Burdensome', value: bestTier.burdensome, color: colors.colors.danger },
         { label: 'Justified', value: bestTier.justified, color: colors.colors.success },
         { label: 'Unrelated', value: bestTier.unrelated, color: colors.colors.neutral300 },
       ]
     : [];
-  const classificationTotal = bestTier
+  const classificationTotal = coalesced
+    ? coalesced.total
+    : bestTier
     ? bestTier.burdensome + bestTier.justified + bestTier.unrelated
     : 0;
 
-  // Top issue types
-  const issueTypeEntries = complianceTypeCounts
-    ? Object.entries(complianceTypeCounts)
-        .filter(([type]) => !LEGACY_TYPES.has(type))
+  // Dynamic stat card based on classification filter — uses COALESCE totals
+  const classificationStatLabel = classificationFilter === 'all'
+    ? 'Classified Burdensome'
+    : `Classified ${classificationFilter.charAt(0).toUpperCase() + classificationFilter.slice(1)}`;
+  const classificationStatValue = classificationFilter === 'all'
+    ? (coalesced?.burdensome ?? bestTier?.burdensome ?? 0)
+    : (coalesced?.[classificationFilter] ?? bestTier?.[classificationFilter] ?? 0);
+  const classificationStatVariant = classificationFilter === 'justified'
+    ? 'default' as const
+    : classificationStatValue > 0 ? 'danger' as const : 'default' as const;
+
+  // Top issue types — filtered by classification when data is available
+  const issueTypeEntries = useMemo(() => {
+    if (complianceTypeClassification && classificationFilter !== 'all') {
+      return Object.entries(complianceTypeClassification)
+        .filter(([type]) => !LEGACY_ISSUE_TYPES.has(type))
+        .map(([type, classMap]) => ({
+          label: ISSUE_TYPE_LABELS[type] ?? type,
+          value: classMap[classificationFilter] ?? 0,
+        }))
+        .filter(entry => entry.value > 0)
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 8);
+    }
+    // Fallback: use total counts
+    if (complianceTypeCounts) {
+      return Object.entries(complianceTypeCounts)
+        .filter(([type]) => !LEGACY_ISSUE_TYPES.has(type))
         .map(([type, count]) => ({
           label: ISSUE_TYPE_LABELS[type] ?? type,
           value: count,
         }))
         .sort((a, b) => b.value - a.value)
-        .slice(0, 8)
-    : [];
+        .slice(0, 8);
+    }
+    return [];
+  }, [complianceTypeClassification, complianceTypeCounts, classificationFilter]);
 
   // Reverse lookup: display label → raw key (for chart click navigation)
   const labelToKey = complianceTypeCounts
@@ -197,10 +262,10 @@ export function OverviewTab({
           }
         />
         <StatCard
-          label="Classified Burdensome"
-          value={bestTier?.burdensome ?? 0}
+          label={classificationStatLabel}
+          value={classificationStatValue}
           icon={ShieldAlert}
-          variant={(bestTier?.burdensome ?? 0) > 0 ? 'danger' : 'default'}
+          variant={classificationStatVariant}
           subtitle={
             pipelineData && bestTier
               ? `${complianceUnreviewed} unreviewed of ${complianceTotal} total issues`
@@ -209,13 +274,27 @@ export function OverviewTab({
         />
       </StatGrid>
 
+      {/* Classification Filter */}
+      {complianceTypeClassification && (
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-medium text-[var(--color-text-muted)]">Show:</span>
+          <SegmentedControl
+            options={OVERVIEW_CLASSIFICATION_OPTIONS}
+            value={classificationFilter}
+            onChange={(val) => setParams({ oClassification: val })}
+            variant="filled"
+            size="sm"
+          />
+        </div>
+      )}
+
       {/* Section 2: Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left: Compliance Classification Donut */}
         {classificationData.length > 0 && classificationTotal > 0 ? (
           <ChartContainer
             title="Compliance Classification"
-            description={`Based on Tier ${tierLabel} analysis`}
+            description="Best available classification per issue"
             aspectRatio={1.2}
             minHeight={250}
             maxHeight={350}
@@ -263,7 +342,7 @@ export function OverviewTab({
         {/* Right: Top Issue Types */}
         {issueTypeEntries.length > 0 ? (
           <ChartContainer
-            title="Top Issue Types"
+            title={classificationFilter === 'all' ? 'Top Issue Types' : `Top Issue Types (${classificationFilter})`}
             aspectRatio={4 / 3}
             minHeight={250}
             maxHeight={350}
@@ -275,7 +354,11 @@ export function OverviewTab({
                   width={width}
                   height={height}
                   maxBars={8}
-                  onBarClick={(datum) => navigateToPipeline({ issueType: labelToKey.get(datum.label) ?? datum.label })}
+                  onBarClick={(datum) => navigateToPipeline({
+                    issueType: labelToKey.get(datum.label) ?? datum.label,
+                    ...(classificationFilter !== 'all' ? { classification: classificationFilter } : {}),
+                    ...(activeSource && activeSource !== 'all' ? { source: activeSource } : {}),
+                  })}
                 />
               </ClientChart>
             )}
@@ -291,6 +374,18 @@ export function OverviewTab({
           </Card>
         )}
       </div>
+
+      {/* Link to full breakdown in Issues tab */}
+      {complianceTypeClassification && onNavigateToIssues && (
+        <div className="flex justify-end">
+          <button
+            onClick={onNavigateToIssues}
+            className="text-sm text-[var(--color-primary)] hover:underline cursor-pointer"
+          >
+            View full issue type breakdown →
+          </button>
+        </div>
+      )}
 
       {/* Section 3: Human Review Progress */}
       <Card padding="lg">

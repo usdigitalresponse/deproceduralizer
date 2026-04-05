@@ -561,3 +561,4 @@ export const ISSUE_TYPE_MULTISELECT_OPTIONS: FilterOption[] =
 export function toMultiSelectOptions(options: readonly FilterOption[]): FilterOption[] {
   return options.filter(o => o.value !== 'all');
 }
+

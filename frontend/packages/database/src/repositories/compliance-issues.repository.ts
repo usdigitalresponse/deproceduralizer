@@ -239,6 +239,8 @@ export interface ClassificationBreakdown {
   tier1: Record<string, number>;
   tier2: Record<string, number>;
   tier3: Record<string, number>;
+  /** COALESCE(tier3, tier2, tier1) — each record counted once at its highest tier. */
+  coalesced: Record<string, number>;
 }
 
 /**
@@ -644,6 +646,20 @@ export interface AnalysisListFilters {
 
 /** Analysis source: regulations (default) or guidance documents. */
 export type AnalysisSource = 'regulation' | 'guidance';
+
+/** Build a Drizzle ORM condition to filter by analysis source. Returns undefined if no filter needed. */
+export function buildSourceCondition(source?: AnalysisSource) {
+  if (source === 'guidance') return isNotNull(complianceIssueAnalyses.guidanceDocumentId);
+  if (source === 'regulation') return isNull(complianceIssueAnalyses.guidanceDocumentId);
+  return undefined;
+}
+
+/** Build a raw SQL fragment to filter by analysis source. Returns empty string if no filter needed. */
+export function buildSourceSqlFragment(source?: AnalysisSource): string {
+  if (source === 'guidance') return 'AND guidance_document_id IS NOT NULL';
+  if (source === 'regulation') return 'AND guidance_document_id IS NULL';
+  return '';
+}
 
 /**
  * Build a SQL condition for a severity range (high=7+, medium=4-6, low=1-3).
@@ -1488,22 +1504,73 @@ export class ComplianceIssuesRepository extends BaseRepository {
    * Get counts by issue type.
    * PR 6.3: Counts confirmed analyses (requirement_found = TRUE) instead of raw regex matches.
    */
-  async getCountsByType(jurisdiction: JurisdictionCode): Promise<Record<string, number>> {
+  async getCountsByType(jurisdiction: JurisdictionCode, source?: AnalysisSource): Promise<Record<string, number>> {
+    const conditions = [
+      eq(complianceIssueAnalyses.jurisdiction, normalizeJurisdiction(jurisdiction)),
+      eq(complianceIssueAnalyses.requirementFound, true),
+    ];
+    const sourceCondition = buildSourceCondition(source);
+    if (sourceCondition) conditions.push(sourceCondition);
+
     const result = await this.db
       .select({
         issueType: complianceIssueAnalyses.issueType,
         count: sql<number>`count(*)::int`,
       })
       .from(complianceIssueAnalyses)
-      .where(and(
-        eq(complianceIssueAnalyses.jurisdiction, normalizeJurisdiction(jurisdiction)),
-        eq(complianceIssueAnalyses.requirementFound, true)
-      ))
+      .where(and(...conditions))
       .groupBy(complianceIssueAnalyses.issueType);
 
     const counts: Record<string, number> = {};
     for (const row of result) {
       counts[row.issueType] = row.count;
+    }
+
+    return counts;
+  }
+
+  /**
+   * Get counts by issue type broken down by classification (burdensome/justified/unrelated).
+   * Uses COALESCE(tier3, tier2) for best available classification.
+   */
+  async getCountsByTypeAndClassification(
+    jurisdiction: JurisdictionCode,
+    source?: AnalysisSource
+  ): Promise<Record<string, { burdensome: number; justified: number; unrelated: number; total: number }>> {
+    const conditions = [
+      eq(complianceIssueAnalyses.jurisdiction, normalizeJurisdiction(jurisdiction)),
+      eq(complianceIssueAnalyses.requirementFound, true),
+    ];
+    const sourceCondition = buildSourceCondition(source);
+    if (sourceCondition) conditions.push(sourceCondition);
+
+    const result = await this.db
+      .select({
+        issueType: complianceIssueAnalyses.issueType,
+        classification: sql<string>`COALESCE(${complianceIssueAnalyses.tier3Classification}, ${complianceIssueAnalyses.tier2Classification}, ${complianceIssueAnalyses.tier1Classification})`,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(complianceIssueAnalyses)
+      .where(and(...conditions))
+      .groupBy(
+        complianceIssueAnalyses.issueType,
+        sql`COALESCE(${complianceIssueAnalyses.tier3Classification}, ${complianceIssueAnalyses.tier2Classification}, ${complianceIssueAnalyses.tier1Classification})`
+      );
+
+    const counts: Record<string, { burdensome: number; justified: number; unrelated: number; total: number }> = {};
+    for (const row of result) {
+      if (!counts[row.issueType]) {
+        counts[row.issueType] = { burdensome: 0, justified: 0, unrelated: 0, total: 0 };
+      }
+      const classification = row.classification as string | null;
+      if (classification === 'burdensome') {
+        counts[row.issueType].burdensome = row.count;
+      } else if (classification === 'justified') {
+        counts[row.issueType].justified = row.count;
+      } else if (classification === 'unrelated') {
+        counts[row.issueType].unrelated = row.count;
+      }
+      counts[row.issueType].total += row.count;
     }
 
     return counts;
@@ -2339,8 +2406,14 @@ export class ComplianceIssuesRepository extends BaseRepository {
   /**
    * Get tier completion counts for analysis pipeline progress
    */
-  async getAnalysisTierCounts(jurisdiction: JurisdictionCode): Promise<TierCompletionCounts> {
+  async getAnalysisTierCounts(jurisdiction: JurisdictionCode, source?: AnalysisSource): Promise<TierCompletionCounts> {
     // Count issues by highest tier completed in their analysis
+    const conditions = [
+      eq(complianceIssues.jurisdiction, normalizeJurisdiction(jurisdiction)),
+    ];
+    const sourceCondition = buildSourceCondition(source);
+    if (sourceCondition) conditions.push(sourceCondition);
+
     const results = await this.db
       .select({
         tier: complianceIssueAnalyses.highestTierCompleted,
@@ -2351,7 +2424,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         complianceIssueAnalyses,
         eq(complianceIssues.analysisId, complianceIssueAnalyses.id)
       )
-      .where(eq(complianceIssues.jurisdiction, normalizeJurisdiction(jurisdiction)))
+      .where(and(...conditions))
       .groupBy(complianceIssueAnalyses.highestTierCompleted);
 
     // Build the counts object
@@ -2381,12 +2454,20 @@ export class ComplianceIssuesRepository extends BaseRepository {
    * Get classification breakdown by tier for analytics charts.
    * Shows distribution of classifications at each tier level.
    */
-  async getClassificationBreakdown(jurisdiction: JurisdictionCode): Promise<ClassificationBreakdown> {
+  async getClassificationBreakdown(jurisdiction: JurisdictionCode, source?: AnalysisSource): Promise<ClassificationBreakdown> {
     const breakdown: ClassificationBreakdown = {
       tier1: {},
       tier2: {},
       tier3: {},
+      coalesced: {},
     };
+
+    const baseConditions: SQL[] = [
+      eq(complianceIssueAnalyses.jurisdiction, normalizeJurisdiction(jurisdiction)),
+      eq(complianceIssueAnalyses.requirementFound, true),
+    ];
+    const sourceCondition = buildSourceCondition(source);
+    if (sourceCondition) baseConditions.push(sourceCondition);
 
     // Tier 1 classifications
     const tier1Results = await this.db
@@ -2396,7 +2477,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       })
       .from(complianceIssueAnalyses)
       .where(and(
-        eq(complianceIssueAnalyses.jurisdiction, normalizeJurisdiction(jurisdiction)),
+        ...baseConditions,
         sql`${complianceIssueAnalyses.tier1Classification} IS NOT NULL`
       ))
       .groupBy(complianceIssueAnalyses.tier1Classification);
@@ -2415,7 +2496,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       })
       .from(complianceIssueAnalyses)
       .where(and(
-        eq(complianceIssueAnalyses.jurisdiction, normalizeJurisdiction(jurisdiction)),
+        ...baseConditions,
         sql`${complianceIssueAnalyses.tier2Classification} IS NOT NULL`
       ))
       .groupBy(complianceIssueAnalyses.tier2Classification);
@@ -2434,7 +2515,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       })
       .from(complianceIssueAnalyses)
       .where(and(
-        eq(complianceIssueAnalyses.jurisdiction, normalizeJurisdiction(jurisdiction)),
+        ...baseConditions,
         sql`${complianceIssueAnalyses.tier3Classification} IS NOT NULL`
       ))
       .groupBy(complianceIssueAnalyses.tier3Classification);
@@ -2442,6 +2523,25 @@ export class ComplianceIssuesRepository extends BaseRepository {
     for (const row of tier3Results) {
       if (row.classification) {
         breakdown.tier3[row.classification] = row.count;
+      }
+    }
+
+    // Coalesced: each record counted once at its highest completed tier
+    const coalescedResults = await this.db
+      .select({
+        classification: sql<string>`COALESCE(${complianceIssueAnalyses.tier3Classification}, ${complianceIssueAnalyses.tier2Classification}, ${complianceIssueAnalyses.tier1Classification})`,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(complianceIssueAnalyses)
+      .where(and(
+        ...baseConditions,
+        sql`COALESCE(${complianceIssueAnalyses.tier3Classification}, ${complianceIssueAnalyses.tier2Classification}, ${complianceIssueAnalyses.tier1Classification}) IS NOT NULL`
+      ))
+      .groupBy(sql`COALESCE(${complianceIssueAnalyses.tier3Classification}, ${complianceIssueAnalyses.tier2Classification}, ${complianceIssueAnalyses.tier1Classification})`);
+
+    for (const row of coalescedResults) {
+      if (row.classification) {
+        breakdown.coalesced[row.classification] = row.count;
       }
     }
 
@@ -3019,7 +3119,8 @@ export class ComplianceIssuesRepository extends BaseRepository {
    * Get severity distribution (high/medium/low) for compliance issue analyses.
    * Uses COALESCE(final_severity, severity) to get the best available severity.
    */
-  async getSeverityDistribution(jurisdiction: JurisdictionCode): Promise<SeverityDistribution> {
+  async getSeverityDistribution(jurisdiction: JurisdictionCode, source?: AnalysisSource): Promise<SeverityDistribution> {
+    const sourceFragment = buildSourceSqlFragment(source);
     const result = await this.db.execute(sql`
       SELECT
         COUNT(*) FILTER (WHERE COALESCE(final_severity, severity) >= 7)::int AS "high",
@@ -3029,6 +3130,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       FROM compliance_issue_analyses
       WHERE jurisdiction = ${normalizeJurisdiction(jurisdiction)}
         AND requirement_found = TRUE
+        ${sql.raw(sourceFragment)}
     `);
 
     const row = result.rows[0] as { high: number; medium: number; low: number; total: number };
@@ -3043,14 +3145,17 @@ export class ComplianceIssuesRepository extends BaseRepository {
    * Get funnel statistics across all 3 pipeline tiers.
    * Counts analyses at each stage with classification breakdowns.
    */
-  async getPipelineFunnelStats(jurisdiction: JurisdictionCode, issueType?: string): Promise<PipelineFunnelData> {
+  async getPipelineFunnelStats(jurisdiction: JurisdictionCode, issueType?: string, source?: AnalysisSource): Promise<PipelineFunnelData> {
     const conditions = [
       eq(complianceIssueAnalyses.jurisdiction, normalizeJurisdiction(jurisdiction)),
       isNotNull(complianceIssueAnalyses.tier1Classification),
+      eq(complianceIssueAnalyses.requirementFound, true),
     ];
     if (issueType) {
       conditions.push(eq(complianceIssueAnalyses.issueType, issueType));
     }
+    const sourceCondition = buildSourceCondition(source);
+    if (sourceCondition) conditions.push(sourceCondition);
 
     const result = await this.db
       .select({
@@ -3097,7 +3202,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
   /**
    * Get Tier 1 context request distribution from tier1_recommendations JSONB.
    */
-  async getTier1ContextRequestStats(jurisdiction: JurisdictionCode, issueType?: string): Promise<Tier1ContextRequestStats> {
+  async getTier1ContextRequestStats(jurisdiction: JurisdictionCode, issueType?: string, source?: AnalysisSource): Promise<Tier1ContextRequestStats> {
     const conditions = [
       eq(complianceIssueAnalyses.jurisdiction, normalizeJurisdiction(jurisdiction)),
       isNotNull(complianceIssueAnalyses.tier1Recommendations),
@@ -3105,6 +3210,9 @@ export class ComplianceIssuesRepository extends BaseRepository {
     if (issueType) {
       conditions.push(eq(complianceIssueAnalyses.issueType, issueType));
     }
+    const sourceCondition = buildSourceCondition(source);
+    if (sourceCondition) conditions.push(sourceCondition);
+    const sourceFragment = buildSourceSqlFragment(source);
 
     // Unpack the JSONB context_requests array
     const contextTypeResults = await this.db.execute(sql`
@@ -3117,6 +3225,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       WHERE jurisdiction = ${normalizeJurisdiction(jurisdiction)}
         AND tier1_recommendations IS NOT NULL
         ${issueType ? sql`AND issue_type = ${issueType}` : sql``}
+        ${sql.raw(sourceFragment)}
       GROUP BY cr->>'context_type', cr->>'need_level'
       ORDER BY count DESC
     `);
@@ -3132,6 +3241,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       WHERE a.jurisdiction = ${normalizeJurisdiction(jurisdiction)}
         AND a.tier1_recommendations IS NOT NULL
         ${issueType ? sql`AND a.issue_type = ${issueType}` : sql``}
+        ${sql.raw(sourceFragment)}
       GROUP BY a.issue_type, cr->>'context_type'
       ORDER BY count DESC
     `);
@@ -3176,13 +3286,16 @@ export class ComplianceIssuesRepository extends BaseRepository {
    * Get tier transition statistics: classification changes between tiers,
    * confidence distributions, and trigger reasons.
    */
-  async getTierTransitionStats(jurisdiction: JurisdictionCode, issueType?: string): Promise<TierTransitionData> {
+  async getTierTransitionStats(jurisdiction: JurisdictionCode, issueType?: string, source?: AnalysisSource): Promise<TierTransitionData> {
     const conditions = [
       eq(complianceIssueAnalyses.jurisdiction, normalizeJurisdiction(jurisdiction)),
     ];
     if (issueType) {
       conditions.push(eq(complianceIssueAnalyses.issueType, issueType));
     }
+    const sourceCondition = buildSourceCondition(source);
+    if (sourceCondition) conditions.push(sourceCondition);
+    const sourceFragment = buildSourceSqlFragment(source);
 
     // Tier 2→3 classification cross-tab
     const crossTabResults = await this.db.execute(sql`
@@ -3195,6 +3308,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
         AND tier2_classification IS NOT NULL
         AND tier3_classification IS NOT NULL
         ${issueType ? sql`AND issue_type = ${issueType}` : sql``}
+        ${sql.raw(sourceFragment)}
       GROUP BY tier2_classification, tier3_classification
       ORDER BY count DESC
     `);
@@ -3215,6 +3329,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       WHERE jurisdiction = ${normalizeJurisdiction(jurisdiction)}
         AND tier1_confidence IS NOT NULL
         ${issueType ? sql`AND issue_type = ${issueType}` : sql``}
+        ${sql.raw(sourceFragment)}
       GROUP BY bucket
       UNION ALL
       SELECT
@@ -3231,6 +3346,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       WHERE jurisdiction = ${normalizeJurisdiction(jurisdiction)}
         AND tier2_confidence IS NOT NULL
         ${issueType ? sql`AND issue_type = ${issueType}` : sql``}
+        ${sql.raw(sourceFragment)}
       GROUP BY bucket
       UNION ALL
       SELECT
@@ -3247,6 +3363,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       WHERE jurisdiction = ${normalizeJurisdiction(jurisdiction)}
         AND tier3_confidence IS NOT NULL
         ${issueType ? sql`AND issue_type = ${issueType}` : sql``}
+        ${sql.raw(sourceFragment)}
       GROUP BY bucket
       ORDER BY tier, bucket
     `);
@@ -3394,7 +3511,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
   /**
    * Get Tier 3 evidence statistics: flag distributions, severity adjustments, cleanup stats.
    */
-  async getTier3EvidenceStats(jurisdiction: JurisdictionCode, issueType?: string): Promise<Tier3EvidenceStats> {
+  async getTier3EvidenceStats(jurisdiction: JurisdictionCode, issueType?: string, source?: AnalysisSource): Promise<Tier3EvidenceStats> {
     const conditions = [
       eq(complianceIssueAnalyses.jurisdiction, normalizeJurisdiction(jurisdiction)),
       isNotNull(complianceIssueAnalyses.tier3Classification),
@@ -3402,6 +3519,9 @@ export class ComplianceIssuesRepository extends BaseRepository {
     if (issueType) {
       conditions.push(eq(complianceIssueAnalyses.issueType, issueType));
     }
+    const sourceCondition = buildSourceCondition(source);
+    if (sourceCondition) conditions.push(sourceCondition);
+    const sourceFragment = buildSourceSqlFragment(source);
 
     // Flag distribution from tier3_flags JSONB
     const flagResults = await this.db.execute(sql`
@@ -3421,6 +3541,7 @@ export class ComplianceIssuesRepository extends BaseRepository {
       WHERE jurisdiction = ${normalizeJurisdiction(jurisdiction)}
         AND tier3_classification IS NOT NULL
         ${issueType ? sql`AND issue_type = ${issueType}` : sql``}
+        ${sql.raw(sourceFragment)}
     `);
 
     // Severity adjustment distribution
@@ -3658,13 +3779,14 @@ export class ComplianceIssuesRepository extends BaseRepository {
   }
 
   async getGuidanceClassificationBreakdown(jurisdiction: JurisdictionCode): Promise<ClassificationBreakdown> {
-    const breakdown: ClassificationBreakdown = { tier1: {}, tier2: {}, tier3: {} };
+    const breakdown: ClassificationBreakdown = { tier1: {}, tier2: {}, tier3: {}, coalesced: {} };
     const baseConditions = and(
       eq(complianceIssueAnalyses.jurisdiction, normalizeJurisdiction(jurisdiction)),
-      isNotNull(complianceIssueAnalyses.guidanceDocumentId)
+      isNotNull(complianceIssueAnalyses.guidanceDocumentId),
+      eq(complianceIssueAnalyses.requirementFound, true)
     );
 
-    const [tier1Results, tier2Results, tier3Results] = await Promise.all([
+    const [tier1Results, tier2Results, tier3Results, coalescedResults] = await Promise.all([
       this.db.select({
         classification: complianceIssueAnalyses.tier1Classification,
         count: sql<number>`count(*)::int`,
@@ -3683,11 +3805,18 @@ export class ComplianceIssuesRepository extends BaseRepository {
       }).from(complianceIssueAnalyses)
         .where(and(baseConditions, sql`${complianceIssueAnalyses.tier3Classification} IS NOT NULL`))
         .groupBy(complianceIssueAnalyses.tier3Classification),
+      this.db.select({
+        classification: sql<string>`COALESCE(${complianceIssueAnalyses.tier3Classification}, ${complianceIssueAnalyses.tier2Classification}, ${complianceIssueAnalyses.tier1Classification})`,
+        count: sql<number>`count(*)::int`,
+      }).from(complianceIssueAnalyses)
+        .where(and(baseConditions, sql`COALESCE(${complianceIssueAnalyses.tier3Classification}, ${complianceIssueAnalyses.tier2Classification}, ${complianceIssueAnalyses.tier1Classification}) IS NOT NULL`))
+        .groupBy(sql`COALESCE(${complianceIssueAnalyses.tier3Classification}, ${complianceIssueAnalyses.tier2Classification}, ${complianceIssueAnalyses.tier1Classification})`),
     ]);
 
     for (const row of tier1Results) { if (row.classification) breakdown.tier1[row.classification] = row.count; }
     for (const row of tier2Results) { if (row.classification) breakdown.tier2[row.classification] = row.count; }
     for (const row of tier3Results) { if (row.classification) breakdown.tier3[row.classification] = row.count; }
+    for (const row of coalescedResults) { if (row.classification) breakdown.coalesced[row.classification] = row.count; }
     return breakdown;
   }
 

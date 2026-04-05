@@ -67,20 +67,14 @@ export function AnalysisDashboard({
         <div className="bg-white border border-[var(--color-neutral-200)] rounded-[var(--radius-md)] p-4">
           <div className="text-xs text-[var(--color-text-muted)] mb-1">Burdensome</div>
           <div className="text-2xl font-bold text-[var(--color-warning)]">
-            {(
-              (classificationBreakdown.tier2['burdensome'] || 0) +
-              (classificationBreakdown.tier3['burdensome'] || 0)
-            ).toLocaleString()}
+            {(classificationBreakdown.coalesced['burdensome'] || 0).toLocaleString()}
           </div>
         </div>
 
         <div className="bg-white border border-[var(--color-neutral-200)] rounded-[var(--radius-md)] p-4">
           <div className="text-xs text-[var(--color-text-muted)] mb-1">Justified</div>
           <div className="text-2xl font-bold text-[var(--color-success)]">
-            {(
-              (classificationBreakdown.tier2['justified'] || 0) +
-              (classificationBreakdown.tier3['justified'] || 0)
-            ).toLocaleString()}
+            {(classificationBreakdown.coalesced['justified'] || 0).toLocaleString()}
           </div>
         </div>
       </div>

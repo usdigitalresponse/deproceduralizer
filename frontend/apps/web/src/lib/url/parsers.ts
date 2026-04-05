@@ -109,6 +109,10 @@ import {
   // Burden Index
   BURDEN_SORT_BY_VALUES,
   BURDEN_SOURCE_VALUES,
+  // Overview classification
+  OVERVIEW_CLASSIFICATION_VALUES,
+  // Analytics source
+  ANALYTICS_SOURCE_VALUES,
 } from '@/lib/constants/values';
 
 // Re-export types for convenience
@@ -577,6 +581,9 @@ export const treemapDepthParser = parseAsInteger.withDefault(2);
 /**
  * Parser configuration for analytics page
  */
+export const overviewClassificationParser = parseAsStringEnum([...OVERVIEW_CLASSIFICATION_VALUES]).withDefault('burdensome');
+export const analyticsSourceParser = parseAsStringEnum([...ANALYTICS_SOURCE_VALUES]).withDefault('all');
+
 export const analyticsParsers = {
   tab: analyticsTabParser,
   sizeMetric: treemapSizeMetricParser,
@@ -584,6 +591,7 @@ export const analyticsParsers = {
   depth: treemapDepthParser,
   pIssueType: parseAsString,
   pSubTab: pipelineSubTabParser,
+  oClassification: overviewClassificationParser,
 };
 
 // ============================================

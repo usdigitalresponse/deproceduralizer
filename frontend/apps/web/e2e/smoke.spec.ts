@@ -100,7 +100,7 @@ test.describe('Smoke Tests', () => {
     await page.goto('/');
 
     // Should show dashboard eyebrow
-    await expect(page.getByText(/Regulatory Analysis Dashboard/i)).toBeVisible();
+    await expect(page.getByText(/Regulatory Analysis Dashboard/i).first()).toBeVisible();
 
     // Should show Regulatory Landscape section
     await expect(page.getByRole('heading', { name: /Regulatory Landscape/i })).toBeVisible();

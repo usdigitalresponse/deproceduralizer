@@ -17,6 +17,7 @@ import {
   type PaginatedComplianceIssuesResult,
   type TierCompletionCounts,
   type SeverityDistribution,
+  type AnalysisSource,
 } from '@deproceduralizer/database';
 
 // PR 6.3: updateReview now returns ComplianceIssueWithAnalysisFields (review fields from analyses)
@@ -164,9 +165,37 @@ export async function getComplianceIssueStatusCounts(
  * @returns Object mapping issue type to count
  */
 export async function getComplianceIssueCountsByType(
-  state: JurisdictionCode
+  state: JurisdictionCode,
+  source?: AnalysisSource
 ): Promise<ActionResult<Record<string, number>>> {
-  return runAction('getComplianceIssueCountsByType', () => complianceIssuesRepo.getCountsByType(state));
+  return runCachedAction(
+    'getComplianceIssueCountsByType',
+    () => complianceIssuesRepo.getCountsByType(state, source),
+    [`compliance-type-counts-${state}-${source ?? 'all'}`],
+    { revalidate: 300, tags: ['compliance-analytics'] }
+  );
+}
+
+/** Counts by issue type, broken down by classification (burdensome/justified/unrelated). */
+export type ComplianceTypeClassificationCounts = Record<
+  string,
+  { burdensome: number; justified: number; unrelated: number; total: number }
+>;
+
+/**
+ * Gets counts of compliance issues grouped by issue type AND classification.
+ * @param state - The state code (e.g., 'NY', 'NJ')
+ */
+export async function getComplianceIssueCountsByTypeAndClassification(
+  state: JurisdictionCode,
+  source?: AnalysisSource
+): Promise<ActionResult<ComplianceTypeClassificationCounts>> {
+  return runCachedAction(
+    'getComplianceIssueCountsByTypeAndClassification',
+    () => complianceIssuesRepo.getCountsByTypeAndClassification(state, source),
+    [`compliance-type-class-counts-${state}-${source ?? 'all'}`],
+    { revalidate: 300, tags: ['compliance-analytics'] }
+  );
 }
 
 export interface ComplianceIssueStats {
@@ -346,12 +375,13 @@ export async function getAnalysisTierCounts(
 }
 
 export async function getComplianceSeverityDistribution(
-  state: JurisdictionCode
+  state: JurisdictionCode,
+  source?: AnalysisSource
 ): Promise<ActionResult<SeverityDistribution>> {
   return runCachedAction(
     'getComplianceSeverityDistribution',
-    () => complianceIssuesRepo.getSeverityDistribution(state),
-    [`compliance-severity-dist-${state}`],
+    () => complianceIssuesRepo.getSeverityDistribution(state, source),
+    [`compliance-severity-dist-${state}-${source ?? 'all'}`],
     { revalidate: 3600, tags: ['compliance-analytics'] }
   );
 }

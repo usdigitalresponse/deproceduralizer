@@ -375,6 +375,19 @@ export const CLASSIFICATION_FILTER_VALUES = [
 ] as const;
 export type ClassificationFilterValue = (typeof CLASSIFICATION_FILTER_VALUES)[number];
 
+// Overview tab classification filter (simplified for executive audiences)
+export const OVERVIEW_CLASSIFICATION_VALUES = ['all', 'burdensome', 'justified'] as const;
+export type OverviewClassificationValue = (typeof OVERVIEW_CLASSIFICATION_VALUES)[number];
+
+// Analytics source filter (regulations, guidance, or all)
+export const ANALYTICS_SOURCE_VALUES = ['all', 'regulations', 'guidance'] as const;
+export type AnalyticsSourceValue = (typeof ANALYTICS_SOURCE_VALUES)[number];
+
+// Legacy issue types excluded from analytics charts/tables
+export const LEGACY_ISSUE_TYPES = new Set([
+  'in_person', 'paper_form', 'notarized', 'certified', 'reporting_requirement', 'other',
+]);
+
 // ============================================
 // Tier 3 Analysis Filters (V5 Pipeline)
 // ============================================
