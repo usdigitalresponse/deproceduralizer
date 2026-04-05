@@ -38,13 +38,18 @@ interface AnalysisDetailDrawerProps {
 // Drawer section navigation — scrolls within the drawer body
 // ---------------------------------------------------------------------------
 
-function DrawerSectionNav({ record }: { record: FullRecord }) {
+function DrawerSectionNav({ record, hasReviewSummary }: { record: FullRecord; hasReviewSummary?: boolean }) {
   const sections: { id: string; label: string }[] = [];
+
+  // Analysis Summary (the blue box at top of drawer body)
+  if (hasReviewSummary) {
+    sections.push({ id: 'drawer-analysis-summary', label: 'Analysis' });
+  }
 
   const hasArgumentAgainst = record.tier2?.argumentAgainstRegulation;
   const hasBestReasoning = record.tier3?.reasoning || record.tier2?.reasoning || record.tier1?.reasoning;
   if (hasArgumentAgainst || hasBestReasoning) {
-    sections.push({ id: 'drawer-issue-summary', label: 'Summary' });
+    sections.push({ id: 'drawer-issue-summary', label: 'Issue Detail' });
   }
 
   const hasVerbatim = record.tier2?.verbatimRequirements && record.tier2.verbatimRequirements.length > 0;
@@ -764,7 +769,7 @@ export function AnalysisDetailDrawer({ item, open, onOpenChange, jurisdiction, r
               />
 
               {/* Section navigation tabs */}
-              {fullRecord && !loading && <DrawerSectionNav record={fullRecord} />}
+              {fullRecord && !loading && <DrawerSectionNav record={fullRecord} hasReviewSummary={!!item.reviewSummary} />}
             </div>
 
             <DrawerBody className="p-4 space-y-6">
@@ -785,7 +790,9 @@ export function AnalysisDetailDrawer({ item, open, onOpenChange, jurisdiction, r
                 </div>
               </div>
 
-              <ReviewSummaryText summary={item.reviewSummary} className="mt-2" />
+              <div id="drawer-analysis-summary">
+                <ReviewSummaryText summary={item.reviewSummary} className="mt-2" />
+              </div>
 
               {/* --- Regulation Context (from async-loaded full record) --- */}
               {fullRecord && !loading && (
