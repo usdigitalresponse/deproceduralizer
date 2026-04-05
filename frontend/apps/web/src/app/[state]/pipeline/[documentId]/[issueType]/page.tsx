@@ -221,6 +221,7 @@ export default async function AnalysisDetailPage({ params, searchParams }: Analy
             ancestors={ancestors}
             document={analysis.document}
             state={stateCode}
+            reviewSummary={analysis.reviewSummary}
           />
 
           {/* Tier Classification Flow */}
