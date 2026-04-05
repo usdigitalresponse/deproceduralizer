@@ -4,8 +4,7 @@ import { useMemo } from 'react';
 import { useQueryStates } from 'nuqs';
 import { FileText, Sparkles, ShieldAlert } from 'lucide-react';
 import type { DashboardStats, StatuteLinkStats, SeverityDistribution, JenAIReviewStatusCounts } from '@deproceduralizer/database';
-import type { ComplianceIssueStatusCounts } from '@/lib/actions/compliance-issues';
-import type { ClassificationTotals, TypeClassificationCounts } from '@/lib/actions/analytics-metrics';
+import type { ClassificationTotals, TypeClassificationCounts, ReviewStatusCounts } from '@/lib/actions/analytics-metrics';
 import type { MetadataStats } from '@/lib/actions/regulations';
 import type { DefinitionsAnalyticsStats } from '@/lib/actions/definitions';
 import type { PipelineAnalyticsData } from '@/lib/actions/pipeline-analytics';
@@ -34,7 +33,7 @@ const OVERVIEW_CLASSIFICATION_OPTIONS = [
 
 interface OverviewTabProps {
   dashboardStats: DashboardStats | null;
-  complianceStatus: ComplianceIssueStatusCounts | null;
+  complianceStatus: ReviewStatusCounts | null;
   complianceTypeCounts: Record<string, number> | null;
   metadataStats: MetadataStats | null;
   definitionsStats: DefinitionsAnalyticsStats | null;

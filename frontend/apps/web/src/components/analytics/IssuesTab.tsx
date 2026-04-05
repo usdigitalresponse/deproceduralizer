@@ -2,8 +2,7 @@
 
 import { useMemo } from 'react';
 import { useQueryStates } from 'nuqs';
-import type { ComplianceIssueStatusCounts } from '@/lib/actions/compliance-issues';
-import type { TypeClassificationCounts } from '@/lib/actions/analytics-metrics';
+import type { TypeClassificationCounts, ClassificationTotals, ReviewStatusCounts } from '@/lib/actions/analytics-metrics';
 import { Card, SegmentedControl } from '@/components/ui';
 import { ClientChart, ChartContainer, HorizontalBarChart } from '@/components/charts';
 import { ISSUE_TYPE_LABELS } from '@/types/regulation';
@@ -11,7 +10,6 @@ import { useChartNavigation } from '@/hooks/useChartNavigation';
 import type { JurisdictionCode } from '@/types/state';
 import type { OverviewClassificationValue } from '@/lib/constants/values';
 import { LEGACY_ISSUE_TYPES } from '@/lib/constants/values';
-import type { ClassificationTotals } from '@/lib/actions/analytics-metrics';
 import { analyticsParsers } from '@/lib/url/parsers';
 
 const OVERVIEW_CLASSIFICATION_OPTIONS = [
@@ -22,7 +20,7 @@ const OVERVIEW_CLASSIFICATION_OPTIONS = [
 
 interface IssuesTabProps {
   complianceByType: Record<string, number>;
-  complianceStatus: ComplianceIssueStatusCounts | null;
+  complianceStatus: ReviewStatusCounts | null;
   complianceTypeClassification: TypeClassificationCounts | null;
   classificationTotals: ClassificationTotals | null;
   jurisdiction?: JurisdictionCode;

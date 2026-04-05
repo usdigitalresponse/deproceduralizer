@@ -15,8 +15,6 @@ import {
   type ComplianceIssueWithAnalysisFields,
   type ComplianceIssueWithAnalysis,
   type PaginatedComplianceIssuesResult,
-  type TierCompletionCounts,
-  type SeverityDistribution,
 } from '@deproceduralizer/database';
 
 // PR 6.3: updateReview now returns ComplianceIssueWithAnalysisFields (review fields from analyses)
@@ -156,25 +154,6 @@ export async function getComplianceIssueStatusCounts(
     [`compliance-issue-status-counts-${state}-${source}`],
     { revalidate: 120, tags: ['compliance-issues'] }
   );
-}
-
-// getComplianceIssueCountsByType, getComplianceIssueCountsByTypeAndClassification,
-// and ComplianceTypeClassificationCounts moved to analytics-metrics.ts
-
-export interface ComplianceIssueStats {
-  total: number;
-  byType: Record<string, number>;
-}
-
-/**
- * Gets aggregate statistics for compliance issues.
- * @param state - Optional state code to filter by (returns all states if omitted)
- * @returns Total count and counts by issue type
- */
-export async function getComplianceIssueStats(
-  state?: JurisdictionCode
-): Promise<ActionResult<ComplianceIssueStats>> {
-  return runAction('getComplianceIssueStats', () => complianceIssuesRepo.getStatsByJurisdiction(state));
 }
 
 /**
@@ -325,16 +304,3 @@ export async function getComplianceSuggestionBatch(
   );
 }
 
-/**
- * Gets counts of compliance issues by analysis tier completion.
- * Useful for showing pipeline progress statistics.
- * @param state - The state code (e.g., 'NY', 'NJ')
- * @returns Object with counts per tier level (0 = not analyzed)
- */
-export async function getAnalysisTierCounts(
-  state: JurisdictionCode
-): Promise<ActionResult<TierCompletionCounts>> {
-  return runAction('getAnalysisTierCounts', () => complianceIssuesRepo.getAnalysisTierCounts(state));
-}
-
-// getComplianceSeverityDistribution moved to analytics-metrics.ts as getSeverityMetrics
