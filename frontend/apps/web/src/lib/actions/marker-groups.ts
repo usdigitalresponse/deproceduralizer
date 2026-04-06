@@ -14,7 +14,7 @@ const markerGroupsRepo = new MarkerGroupsRepository(db);
 function refreshMarkerGroupCache() {
   updateTag('bookmarks');
   updateTag('marker-groups');
-  revalidatePath('/[state]/markers', 'page');
+  revalidatePath('/[state]/saved', 'page');
   revalidatePath('/[state]/pipeline', 'page');
   revalidatePath('/[state]/fines', 'page');
   revalidatePath('/[state]/guidance', 'page');

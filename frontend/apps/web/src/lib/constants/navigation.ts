@@ -136,11 +136,11 @@ export const NAV_ITEMS: NavItem[] = [
     groupId: 'metrics',
   },
   {
-    key: 'markers',
-    label: 'Labels',
+    key: 'saved',
+    label: 'Saved Items',
     icon: getEntityIcon('marker'),
     isStateSpecific: true,
-    pathSuffix: '/markers',
+    pathSuffix: '/saved',
     groupId: 'metrics',
   },
   {

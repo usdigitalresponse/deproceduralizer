@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition, useCallback, useMemo, useRef } from
 import Link from 'next/link';
 import { useQueryStates } from 'nuqs';
 import { ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
+import { toast } from 'sonner';
 import type { JurisdictionCode, AnalysisListItem, GuidanceAnalysisListItem } from '@deproceduralizer/database';
 import type { PipelineSourceValue } from '@/lib/constants/values';
 import { analysisTableParsers } from '@/lib/url/parsers';
@@ -171,10 +172,12 @@ export function AnalysisTable({ jurisdiction, source }: AnalysisTableProps) {
         return next;
       });
       console.error('Failed to toggle bookmark:', result.error);
+      return false;
     } else {
       // Refresh markers map to pick up new bookmark entries (including notes)
       const refreshed = await getAnalysisBookmarkMarkersMap(jurisdiction);
       if (refreshed.success) setBookmarkMarkersMap(refreshed.data);
+      return true;
     }
   }, [jurisdiction, bookmarkedPairs, isGuidance]);
 
@@ -182,7 +185,7 @@ export function AnalysisTable({ jurisdiction, source }: AnalysisTableProps) {
   const handleMarkerToggle = useCallback(async (bookmarkId: number, markerGroupId: number, assign: boolean) => {
     // Find the key for this bookmark
     const key = Array.from(bookmarkMarkersMap.entries()).find(([, v]) => v.bookmarkId === bookmarkId)?.[0];
-    if (!key) return;
+    if (!key) return false;
 
     // Optimistic update
     setBookmarkMarkersMap(prev => {
@@ -206,7 +209,9 @@ export function AnalysisTable({ jurisdiction, source }: AnalysisTableProps) {
       // Refresh on failure
       const refreshed = await getAnalysisBookmarkMarkersMap(jurisdiction);
       if (refreshed.success) setBookmarkMarkersMap(refreshed.data);
+      return false;
     }
+    return true;
   }, [bookmarkMarkersMap, markerGroupsList, jurisdiction]);
 
   // Handle creating a custom marker group and auto-assigning to a bookmark
@@ -269,9 +274,13 @@ export function AnalysisTable({ jurisdiction, source }: AnalysisTableProps) {
           }
         }
       }
-      await Promise.allSettled(
+      const results = await Promise.allSettled(
         unbookmarked.map(({ docId, issueType }) => handleBookmarkToggle(docId, issueType))
       );
+      const succeeded = results.filter(r => r.status === 'fulfilled' && r.value === true).length;
+      const failed = results.length - succeeded;
+      if (succeeded > 0) toast.success(`Saved ${succeeded} item${succeeded !== 1 ? 's' : ''}`);
+      if (failed > 0) toast.error(`${failed} item${failed !== 1 ? 's' : ''} could not be saved`);
     } finally {
       setIsProcessing(false);
     }
@@ -281,19 +290,25 @@ export function AnalysisTable({ jurisdiction, source }: AnalysisTableProps) {
   const handleBulkAssignMarker = useCallback(async (markerGroupId: number) => {
     setIsProcessing(true);
     try {
-      const assignments: Promise<void>[] = [];
+      const assignments: Promise<boolean>[] = [];
+      let skippedCount = 0;
       for (const key of selectedKeys) {
         const entry = bookmarkMarkersMap.get(key);
         if (entry) {
           const alreadyAssigned = entry.markers.some(m => m.id === markerGroupId);
           if (!alreadyAssigned) {
-            assignments.push(
-              (async () => { await handleMarkerToggle(entry.bookmarkId, markerGroupId, true); })()
-            );
+            assignments.push(handleMarkerToggle(entry.bookmarkId, markerGroupId, true));
           }
+        } else {
+          skippedCount++;
         }
       }
-      await Promise.allSettled(assignments);
+      const results = await Promise.allSettled(assignments);
+      const succeeded = results.filter(r => r.status === 'fulfilled' && r.value === true).length;
+      const failed = results.length - succeeded;
+      if (succeeded > 0) toast.success(`Label applied to ${succeeded} item${succeeded !== 1 ? 's' : ''}`);
+      if (failed > 0) toast.error(`Label could not be applied to ${failed} item${failed !== 1 ? 's' : ''}`);
+      if (skippedCount > 0) toast.warning(`${skippedCount} item${skippedCount !== 1 ? 's' : ''} skipped — save them first to add labels`);
     } finally {
       setIsProcessing(false);
     }
@@ -313,9 +328,13 @@ export function AnalysisTable({ jurisdiction, source }: AnalysisTableProps) {
           }
         }
       }
-      await Promise.allSettled(
+      const results = await Promise.allSettled(
         bookmarked.map(({ docId, issueType }) => handleBookmarkToggle(docId, issueType))
       );
+      const succeeded = results.filter(r => r.status === 'fulfilled' && r.value === true).length;
+      const failed = results.length - succeeded;
+      if (succeeded > 0) toast.success(`Unsaved ${succeeded} item${succeeded !== 1 ? 's' : ''}`);
+      if (failed > 0) toast.error(`${failed} item${failed !== 1 ? 's' : ''} could not be unsaved`);
     } finally {
       setIsProcessing(false);
     }
@@ -326,7 +345,10 @@ export function AnalysisTable({ jurisdiction, source }: AnalysisTableProps) {
     setIsProcessing(true);
     try {
       const result = await getOrCreateCustomMarkerGroup(name, jurisdiction);
-      if (!result.success) return;
+      if (!result.success) {
+        toast.error('Could not create label');
+        return;
+      }
 
       // Add to available groups list
       setMarkerGroupsList(prev => prev.some(g => g.id === result.data.id) ? prev : [...prev, result.data]);
@@ -361,8 +383,11 @@ export function AnalysisTable({ jurisdiction, source }: AnalysisTableProps) {
         }
       }
       const results = await Promise.allSettled(assignments);
+      const succeeded = results.filter(r => r.status === 'fulfilled' && r.value.success).length;
       const failures = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.success));
+      if (succeeded > 0) toast.success(`Label "${name}" applied to ${succeeded} item${succeeded !== 1 ? 's' : ''}`);
       if (failures.length > 0) {
+        toast.error(`Label could not be applied to ${failures.length} item${failures.length !== 1 ? 's' : ''}`);
         console.warn(`[BulkAssign] ${failures.length}/${results.length} assignments failed, refreshing...`);
         // Refresh markers map to re-sync
         const refreshed = await getAnalysisBookmarkMarkersMap(jurisdiction);
@@ -547,6 +572,21 @@ export function AnalysisTable({ jurisdiction, source }: AnalysisTableProps) {
 
   return (
     <div className="bg-white border border-[var(--color-neutral-200)] rounded-[var(--radius-md)] overflow-hidden">
+      {/* Bulk action bar (top) */}
+      {selectedCount > 0 && (
+        <BulkActionBar
+          selectedCount={selectedCount}
+          onMarkAll={handleBulkMarkAll}
+          onAssignMarker={handleBulkAssignMarker}
+          onCreateAndAssign={handleBulkCreateAndAssign}
+          onUnmarkAll={handleBulkUnmarkAll}
+          onClear={clearSelection}
+          availableGroups={markerGroupsList}
+          isProcessing={isProcessing}
+          position="top"
+        />
+      )}
+
       {/* Table */}
       <div className="overflow-x-auto">
         <table className="w-full text-sm">

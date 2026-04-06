@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Tag, X, Check, Loader2, Plus, BookmarkX } from 'lucide-react';
+import { Tag, X, Check, Loader2, Plus, BookmarkX, Bookmark } from 'lucide-react';
 import type { MarkerGroup } from '@deproceduralizer/database';
 
 export interface BulkActionBarProps {
@@ -13,11 +13,13 @@ export interface BulkActionBarProps {
   onClear: () => void;
   availableGroups: MarkerGroup[];
   isProcessing?: boolean;
+  /** Where the bar is positioned — controls label picker direction */
+  position?: 'top' | 'bottom';
 }
 
 /**
  * Sticky bottom bar that appears when 1+ table rows are selected.
- * Provides bulk bookmark ("Mark All"), bulk unmark, and bulk marker assignment actions.
+ * Provides bulk save ("Save All"), bulk unsave, and bulk label assignment actions.
  */
 export function BulkActionBar({
   selectedCount,
@@ -28,6 +30,7 @@ export function BulkActionBar({
   onClear,
   availableGroups,
   isProcessing = false,
+  position = 'bottom',
 }: BulkActionBarProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [customInput, setCustomInput] = useState('');
@@ -81,7 +84,6 @@ export function BulkActionBar({
       {/* Action bar */}
       <div
         className="
-          sticky bottom-0 z-[var(--z-sticky,30)]
           flex items-center gap-3
           bg-[var(--color-neutral-800)] text-[var(--color-text-inverse)]
           px-4 py-2.5
@@ -107,20 +109,20 @@ export function BulkActionBar({
             inline-flex items-center gap-1.5
             px-3 py-1.5 rounded-[var(--radius-sm)]
             text-xs font-medium
-            bg-[var(--color-warning)] text-[var(--color-neutral-900)]
+            bg-[var(--color-primary)] text-[var(--color-text-inverse)]
             hover:brightness-110
             disabled:opacity-50 disabled:cursor-not-allowed
             cursor-pointer
             transition-all duration-[var(--duration-fast)]
           "
-          aria-label="Mark all selected items"
+          aria-label="Save all selected items"
         >
           {isProcessing ? (
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
           ) : (
-            <Tag className="w-3.5 h-3.5" />
+            <Bookmark className="w-3.5 h-3.5" />
           )}
-          Mark All
+          Save All
         </button>
 
         {/* Unmark All button */}
@@ -139,14 +141,14 @@ export function BulkActionBar({
               cursor-pointer
               transition-colors duration-[var(--duration-fast)]
             "
-            aria-label="Remove bookmarks from all selected items"
+            aria-label="Unsave all selected items"
           >
             {isProcessing ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
             ) : (
               <BookmarkX className="w-3.5 h-3.5" />
             )}
-            Unmark All
+            Unsave All
           </button>
         )}
 
@@ -175,13 +177,13 @@ export function BulkActionBar({
 
           {pickerOpen && (
             <div
-              className="
-                absolute bottom-full left-0 mb-1
+              className={`
+                absolute left-0 ${position === 'top' ? 'top-full mt-1' : 'bottom-full mb-1'}
                 w-56 rounded-[var(--radius-md)]
                 bg-[var(--color-surface)] border border-[var(--color-neutral-200)]
                 shadow-lg py-1
                 max-h-64 overflow-y-auto
-              "
+              `}
               role="listbox"
               aria-label="Labels"
             >

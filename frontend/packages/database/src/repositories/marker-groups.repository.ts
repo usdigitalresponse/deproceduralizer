@@ -25,6 +25,12 @@ export class MarkerGroupsRepository extends BaseRepository {
    * Returns groups that are global (no jurisdiction) OR match the given jurisdiction.
    */
   async getAll(jurisdiction?: string): Promise<MarkerGroup[]> {
+    // Order: triage labels first (by sortOrder), then all others alphabetically by name
+    const order = [
+      sql`CASE WHEN ${markerGroups.category} = 'triage' THEN 0 ELSE 1 END`,
+      asc(markerGroups.sortOrder),
+      asc(markerGroups.name),
+    ];
     if (jurisdiction) {
       return this.db
         .select()
@@ -32,13 +38,13 @@ export class MarkerGroupsRepository extends BaseRepository {
         .where(
           sql`${markerGroups.jurisdiction} IS NULL OR ${markerGroups.jurisdiction} = ${jurisdiction.toUpperCase()}`
         )
-        .orderBy(asc(markerGroups.sortOrder), asc(markerGroups.name));
+        .orderBy(...order);
     }
 
     return this.db
       .select()
       .from(markerGroups)
-      .orderBy(asc(markerGroups.sortOrder), asc(markerGroups.name));
+      .orderBy(...order);
   }
 
   /**

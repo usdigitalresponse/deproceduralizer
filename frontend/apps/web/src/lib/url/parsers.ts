@@ -861,6 +861,15 @@ export const markerTabParser = parseAsStringEnum([...MARKER_TAB_VALUES]).withDef
  */
 export const markersParsers = {
   tab: markerTabParser,
+  // Fine-tab filters (URL-persisted, comma-separated for multi-select)
+  mCategory: parseAsString,
+  mFineType: parseAsString,
+  mFineAgency: parseAsString,
+  mFineWhoPays: parseAsString,
+  mFineBy: parseAsString,
+  mFineDate: parseAsString,
+  mFineSortBy: parseAsString.withDefault('bookmarked'),
+  mFineSortOrder: sortOrderParser,
 };
 
 // Backward compat aliases

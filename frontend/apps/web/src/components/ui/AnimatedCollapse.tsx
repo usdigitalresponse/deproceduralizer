@@ -67,9 +67,20 @@ export function AnimatedCollapse({
 
   const effectiveDuration = prefersReducedMotion ? 0 : duration;
 
+  // Track animation state so we can switch to overflow-visible when fully open
+  // (overflow-hidden clips dropdown menus inside the collapsed content)
+  const [isAnimating, setIsAnimating] = useState(false);
+  useEffect(() => {
+    setIsAnimating(true);
+    const timer = setTimeout(() => setIsAnimating(false), effectiveDuration + 50);
+    return () => clearTimeout(timer);
+  }, [isOpen, effectiveDuration]);
+
+  const overflow = (!isOpen || isAnimating) ? 'overflow-hidden' : 'overflow-visible';
+
   return (
     <div
-      className={`overflow-hidden ${className}`}
+      className={`${overflow} ${className}`}
       style={{
         maxHeight: isOpen ? height : 0,
         opacity: isOpen ? 1 : 0,

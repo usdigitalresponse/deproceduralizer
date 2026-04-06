@@ -25,7 +25,7 @@ const bookmarksRepo = new BookmarksRepository(db);
 function refreshBookmarkCache(...additionalPages: string[]) {
   updateTag('bookmarks');
   updateTag('marker-groups');
-  revalidatePath('/[state]/markers', 'page');
+  revalidatePath('/[state]/saved', 'page');
   revalidatePath('/[state]/fines', 'page');
   revalidatePath('/[state]/guidance', 'page');
   for (const page of additionalPages) {
@@ -213,7 +213,7 @@ export async function updateBookmarkNotes(
       return failure(`Bookmark with id ${bookmarkId} not found`);
     }
 
-    revalidatePath('/[state]/markers', 'page');
+    revalidatePath('/[state]/saved', 'page');
     return success(bookmark);
   } catch (error) {
     console.error('[updateBookmarkNotes]', error);

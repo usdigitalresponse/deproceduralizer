@@ -3,6 +3,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { DollarSign } from 'lucide-react';
+import { toast } from 'sonner';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { BookmarkButton } from '@/components/ui';
 import { BulkActionBar } from '@/components/ui/BulkActionBar';
@@ -33,18 +34,18 @@ interface FinesTableProps {
   state: string;
   onRowClick: (fine: FineWithContext) => void;
   bookmarkedFineIds?: Set<number>;
-  onToggleBookmark?: (fineId: number) => void;
+  onToggleBookmark?: (fineId: number) => Promise<boolean> | void;
   fineBookmarks?: Map<number, FineBookmarkInfo>;
   onSaveBookmarkNotes?: (bookmarkId: number, fineId: number, notes: string, createdBy?: string) => Promise<void>;
   bookmarkName?: string;
   bookmarkMarkersMap?: BookmarkMarkersMap;
   availableGroups?: MarkerGroup[];
-  onMarkerToggle?: (bookmarkId: number, markerGroupId: number, assign: boolean) => void;
+  onMarkerToggle?: (bookmarkId: number, markerGroupId: number, assign: boolean) => Promise<boolean> | void;
   onCreateCustomMarker?: (bookmarkId: number, fineId: number, name: string) => void;
   /** Callback to bulk-assign a marker to a specific bookmark */
   onBulkAssignMarker?: (bookmarkId: number, markerGroupId: number) => void;
   /** Callback to create a new marker group and assign to all selected bookmarked items */
-  onCreateAndAssignMarker?: (name: string, selectedFineIds: Set<number>) => void;
+  onCreateAndAssignMarker?: (name: string, selectedFineIds: Set<number>) => Promise<{ succeeded: number; failed: number }> | void;
   isLoading?: boolean;
 }
 
@@ -72,7 +73,11 @@ export function FinesTable({ data, state, onRowClick, bookmarkedFineIds, onToggl
     setIsProcessing(true);
     try {
       const unbookmarked = Array.from(selectedKeys).filter(id => !bookmarkedFineIds.has(id));
-      await Promise.allSettled(unbookmarked.map(id => onToggleBookmark(id)));
+      const results = await Promise.allSettled(unbookmarked.map(id => onToggleBookmark(id)));
+      const succeeded = results.filter(r => r.status === 'fulfilled' && r.value === true).length;
+      const failed = results.length - succeeded;
+      if (succeeded > 0) toast.success(`Saved ${succeeded} item${succeeded !== 1 ? 's' : ''}`);
+      if (failed > 0) toast.error(`${failed} item${failed !== 1 ? 's' : ''} could not be saved`);
     } finally {
       setIsProcessing(false);
     }
@@ -83,7 +88,8 @@ export function FinesTable({ data, state, onRowClick, bookmarkedFineIds, onToggl
     if (!bookmarkMarkersMap || !onMarkerToggle) return;
     setIsProcessing(true);
     try {
-      const assignments: Promise<void>[] = [];
+      const assignments: Promise<boolean | void>[] = [];
+      let skippedCount = 0;
       for (const fineId of selectedKeys) {
         const entry = bookmarkMarkersMap.get(String(fineId));
         if (entry) {
@@ -95,9 +101,16 @@ export function FinesTable({ data, state, onRowClick, bookmarkedFineIds, onToggl
               assignments.push(Promise.resolve(onMarkerToggle(entry.bookmarkId, markerGroupId, true)));
             }
           }
+        } else {
+          skippedCount++;
         }
       }
-      await Promise.allSettled(assignments);
+      const results = await Promise.allSettled(assignments);
+      const succeeded = results.filter(r => r.status === 'fulfilled' && r.value === true).length;
+      const failed = results.length - succeeded;
+      if (succeeded > 0) toast.success(`Label applied to ${succeeded} item${succeeded !== 1 ? 's' : ''}`);
+      if (failed > 0) toast.error(`Label could not be applied to ${failed} item${failed !== 1 ? 's' : ''}`);
+      if (skippedCount > 0) toast.warning(`${skippedCount} item${skippedCount !== 1 ? 's' : ''} skipped — save them first to add labels`);
     } finally {
       setIsProcessing(false);
     }
@@ -109,15 +122,23 @@ export function FinesTable({ data, state, onRowClick, bookmarkedFineIds, onToggl
     setIsProcessing(true);
     try {
       const bookmarked = Array.from(selectedKeys).filter(id => bookmarkedFineIds.has(id));
-      await Promise.allSettled(bookmarked.map(id => onToggleBookmark(id)));
+      const results = await Promise.allSettled(bookmarked.map(id => onToggleBookmark(id)));
+      const succeeded = results.filter(r => r.status === 'fulfilled' && r.value === true).length;
+      const failed = results.length - succeeded;
+      if (succeeded > 0) toast.success(`Unsaved ${succeeded} item${succeeded !== 1 ? 's' : ''}`);
+      if (failed > 0) toast.error(`${failed} item${failed !== 1 ? 's' : ''} could not be unsaved`);
     } finally {
       setIsProcessing(false);
     }
   }, [selectedKeys, bookmarkedFineIds, onToggleBookmark]);
 
   // Bulk create new category and assign to all selected bookmarked items
-  const handleBulkCreateAndAssign = useCallback((name: string) => {
-    onCreateAndAssignMarker?.(name, selectedKeys);
+  const handleBulkCreateAndAssign = useCallback(async (name: string) => {
+    const result = await onCreateAndAssignMarker?.(name, selectedKeys);
+    if (result) {
+      if (result.succeeded > 0) toast.success(`Label "${name}" applied to ${result.succeeded} item${result.succeeded !== 1 ? 's' : ''}`);
+      if (result.failed > 0) toast.error(`Label could not be applied to ${result.failed} item${result.failed !== 1 ? 's' : ''}`);
+    }
   }, [selectedKeys, onCreateAndAssignMarker]);
 
   if (isLoading && data.length === 0) {
@@ -138,6 +159,21 @@ export function FinesTable({ data, state, onRowClick, bookmarkedFineIds, onToggl
 
   return (
     <div className="overflow-x-auto relative">
+      {/* Bulk action bar (top) */}
+      {showCheckboxes && selectedCount > 0 && availableGroups && (
+        <BulkActionBar
+          selectedCount={selectedCount}
+          onMarkAll={handleBulkMarkAll}
+          onAssignMarker={handleBulkAssignMarker}
+          onCreateAndAssign={onCreateAndAssignMarker ? handleBulkCreateAndAssign : undefined}
+          onUnmarkAll={onToggleBookmark ? handleBulkUnmarkAll : undefined}
+          onClear={clear}
+          availableGroups={availableGroups}
+          isProcessing={isProcessing}
+          position="top"
+        />
+      )}
+
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-[var(--color-neutral-200)]">

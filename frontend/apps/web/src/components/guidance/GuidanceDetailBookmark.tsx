@@ -67,7 +67,7 @@ export function GuidanceDetailBookmark() {
 }
 
 /**
- * Amber "Marked" card with markers + notes -- place below header when bookmarked.
+ * Amber "Saved" card with labels + notes -- place below header when saved.
  * Exported as both GuidanceDetailNotesCard (preferred) and GuidanceDetailMarkers (legacy alias).
  */
 export function GuidanceDetailNotesCard() {

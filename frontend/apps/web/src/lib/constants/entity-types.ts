@@ -120,8 +120,8 @@ export const ENTITY_TYPES: Record<EntityType, EntityTypeConfig> = {
   },
   bookmark: {
     icon: Tag,
-    label: 'Label',
-    shortLabel: 'Label',
+    label: 'Saved Item',
+    shortLabel: 'Saved',
     iconColor: 'text-yellow-600',
     bgColor: 'bg-yellow-50',
     borderColor: 'border-yellow-300',
