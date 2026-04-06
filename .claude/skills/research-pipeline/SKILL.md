@@ -244,11 +244,27 @@ Post-pipeline step that generates 1-2 sentence plain-language summaries for quic
 |------|---------|-------------|
 | `--generate-summaries` / `--no-generate-summaries` | on with `--execute` | Control summary generation after pipeline |
 | `--summaries-only` | off | Standalone: regenerate summaries for existing analyses without re-running the pipeline |
+| `--force-rerun` (with `--summaries-only`) | off | Regenerate summaries even for analyses that already have one |
 
-**Standalone example:**
+**Important notes:**
+- Default `--source` is `regulation`. Guidance analyses require `--source guidance` as a separate run.
+- Already-summarized analyses are auto-skipped (WHERE `review_summary IS NULL`) unless `--force-rerun` is used.
+- Anthropic batch API limit is 10,000 per batch. For larger sets, use `--global-limit 10000` and run again — the second run auto-skips completed rows.
+- Scope filters `--title`, `--source`, `--agency`, `--doc-type` are all supported in `--summaries-only` mode.
+
+**Standalone examples:**
 ```bash
+# Regulations (default source)
 python3 -m scripts.research_pipeline.cli \
-  --state ny --all-issues --summaries-only --execute
+  --state ny --all-issues --summaries-only --execute --limit all --global-limit no-limit
+
+# Guidance (must specify --source guidance)
+python3 -m scripts.research_pipeline.cli \
+  --state ny --all-issues --summaries-only --execute --source guidance --limit all --global-limit no-limit
+
+# Refresh after prompt changes
+python3 -m scripts.research_pipeline.cli \
+  --state ny --all-issues --summaries-only --execute --force-rerun --limit all --global-limit no-limit
 ```
 
 ## Summarization
