@@ -5,7 +5,6 @@ export interface DeveloperCardProps {
   onUpdated: (updatedItem: DeveloperItem) => void;
   /** Called after item is cleared and should be removed from the list */
   onCleared?: (itemId: number, itemType: 'compliance_issue') => void;
-  onViewRegulation?: (regulationId: number) => void;
   isFocused?: boolean;
   /** State code for hierarchy links */
   state?: string;

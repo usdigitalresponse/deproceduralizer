@@ -13,14 +13,13 @@ interface NeedMoreInfoCardProps {
   item: DeveloperItem;
   isOwner: boolean; // true if current reviewer created this item
   onUpdated: (updatedItem: DeveloperItem) => void;
-  onViewRegulation: (regulationId: number) => void;
   isFocused?: boolean;
   /** State code for regulation links */
   state?: string;
 }
 
 export const NeedMoreInfoCard = forwardRef<HTMLDivElement, NeedMoreInfoCardProps>(
-  ({ item, isOwner, onUpdated, onViewRegulation, isFocused = false, state = 'ny' }, ref) => {
+  ({ item, isOwner, onUpdated, isFocused = false, state = 'ny' }, ref) => {
     const [isPending, startTransition] = useTransition();
     const [error, setError] = useState<string | null>(null);
     const [responseNotes, setResponseNotes] = useState(item.teamNotes || '');

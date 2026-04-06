@@ -104,7 +104,6 @@ export function DeveloperQueue({
               item={item}
               onUpdated={handleItemUpdated}
               onCleared={handleItemCleared}
-              onViewRegulation={handleViewRegulation}
               isFocused={index === focusedIndex}
               state={state}
             />

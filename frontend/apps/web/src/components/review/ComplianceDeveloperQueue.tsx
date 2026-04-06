@@ -141,7 +141,6 @@ export function ComplianceDeveloperQueue({
               ref={(el) => setCardRef(index, el)}
               item={item}
               onUpdated={handleItemUpdated}
-              onViewRegulation={handleViewRegulation}
               isFocused={index === focusedIndex}
               state={state}
             />

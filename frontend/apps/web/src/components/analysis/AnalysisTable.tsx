@@ -633,7 +633,6 @@ export function AnalysisTable({ jurisdiction, source }: AnalysisTableProps) {
                   jurisdiction={jurisdiction}
                   isBookmarked={isBookmarked}
                   onBookmarkToggle={() => handleBookmarkToggle(docId, item.issueType)}
-                  isGuidance={isGuidance}
                   markerEntry={markerEntry}
                   availableGroups={markerGroupsList}
                   onMarkerToggle={handleMarkerToggle}
@@ -725,7 +724,6 @@ interface AnalysisTableRowProps {
   jurisdiction: JurisdictionCode;
   isBookmarked: boolean;
   onBookmarkToggle: () => void;
-  isGuidance: boolean;
   markerEntry?: BookmarkMarkerEntry;
   availableGroups: MarkerGroup[];
   onMarkerToggle: (bookmarkId: number, markerGroupId: number, assign: boolean) => void;
@@ -744,7 +742,6 @@ function AnalysisTableRow({
   jurisdiction,
   isBookmarked,
   onBookmarkToggle,
-  isGuidance,
   markerEntry,
   availableGroups,
   onMarkerToggle,

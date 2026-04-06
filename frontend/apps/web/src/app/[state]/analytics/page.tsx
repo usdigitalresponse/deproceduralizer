@@ -5,7 +5,7 @@ import { getAnalyticsSummary } from '@/lib/actions/analytics-metrics';
 import {
   getJenAISeverityDistribution, getJenAIStatusCounts, getJenAICategories,
   getJenAIParts, getJenAISectionTypes, getJenAIDeveloperStatusCounts,
-  getJenAIBurdenStats, getJenAIComplexityDistribution,
+  getJenAIComplexityDistribution,
   getJenAICategorySeverityMatrix, getJenAISourceTypeBreakdown,
   getJenAIReviewProgressByCategory, getJenAIBurdenScoreDistribution,
 } from '@/lib/actions/jenai';
