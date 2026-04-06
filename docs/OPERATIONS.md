@@ -514,10 +514,26 @@ python3 -m scripts.research_pipeline.cli --state ny --all-issues --source guidan
 
 After the pipeline completes, generates 1-2 sentence plain-language summaries for each analysis using Haiku via Batch API. Cost: ~$0.05-0.10 per 500 analyses. Summaries are saved to the `review_summary` column in `compliance_issue_analyses`.
 
+**Important:** The default `--source` is `regulation`. Guidance analyses require a separate `--source guidance` run. The Anthropic batch API limit is 10,000 requests per batch — if you have more, run with `--global-limit 10000` first, then run again (already-summarized rows are auto-skipped).
+
 ```bash
 cd backend
-# Regenerate summaries for existing analyses (no pipeline re-run)
-python3 -m scripts.research_pipeline.cli --state ny --all-issues --summaries-only --execute
+
+# Standalone: generate summaries for all existing regulation analyses
+python3 -m scripts.research_pipeline.cli --state ny --all-issues --summaries-only --execute --limit all --global-limit no-limit
+
+# Standalone: generate summaries for guidance analyses (must specify --source guidance)
+python3 -m scripts.research_pipeline.cli --state ny --all-issues --summaries-only --execute --source guidance --limit all --global-limit no-limit
+
+# Regenerate existing summaries after prompt changes (--force-rerun overwrites non-null summaries)
+python3 -m scripts.research_pipeline.cli --state ny --all-issues --summaries-only --execute --force-rerun --limit all --global-limit no-limit
+
+# Filter by title or agency
+python3 -m scripts.research_pipeline.cli --state ny --issue mail_only --summaries-only --execute --title 18
+python3 -m scripts.research_pipeline.cli --state ny --all-issues --summaries-only --execute --source guidance --agency OCFS
+
+# All jurisdictions (loops NY, NJ, NYC)
+python3 -m scripts.research_pipeline.cli --state dangerously-run-all --all-issues --summaries-only --execute --limit all --global-limit no-limit
 ```
 
 **Statute Mandate Checks** (NY only, post-pipeline):
