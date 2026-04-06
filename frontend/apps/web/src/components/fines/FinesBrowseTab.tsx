@@ -479,9 +479,9 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
   }, [jurisdiction]);
 
   // Bulk create new category and assign to all selected bookmarked fines
-  const handleBulkCreateAndAssign = useCallback(async (name: string, selectedFineIds: Set<number>) => {
+  const handleBulkCreateAndAssign = useCallback(async (name: string, selectedFineIds: Set<number>): Promise<{ succeeded: number; failed: number }> => {
     const result = await getOrCreateCustomMarkerGroup(name, jurisdiction);
-    if (!result.success) return;
+    if (!result.success) return { succeeded: 0, failed: selectedFineIds.size };
 
     // Add to available groups list
     setMarkerGroupsList(prev => prev.some(g => g.id === result.data.id) ? prev : [...prev, result.data]);
@@ -523,6 +523,7 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
       const refreshed = await getFineBookmarkMarkersMap(jurisdiction);
       if (refreshed.success) setBookmarkMarkersMap(refreshed.data);
     }
+    return { succeeded: results.length - failures.length, failed: failures.length };
   }, [jurisdiction, bookmarkMarkersMap]);
 
   const handleDrawerOpenChange = useCallback(async (open: boolean) => {

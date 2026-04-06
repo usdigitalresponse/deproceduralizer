@@ -45,7 +45,7 @@ interface FinesTableProps {
   /** Callback to bulk-assign a marker to a specific bookmark */
   onBulkAssignMarker?: (bookmarkId: number, markerGroupId: number) => void;
   /** Callback to create a new marker group and assign to all selected bookmarked items */
-  onCreateAndAssignMarker?: (name: string, selectedFineIds: Set<number>) => void;
+  onCreateAndAssignMarker?: (name: string, selectedFineIds: Set<number>) => Promise<{ succeeded: number; failed: number }> | void;
   isLoading?: boolean;
 }
 
@@ -134,8 +134,11 @@ export function FinesTable({ data, state, onRowClick, bookmarkedFineIds, onToggl
 
   // Bulk create new category and assign to all selected bookmarked items
   const handleBulkCreateAndAssign = useCallback(async (name: string) => {
-    await onCreateAndAssignMarker?.(name, selectedKeys);
-    toast.success(`Label "${name}" applied to ${selectedKeys.size} item${selectedKeys.size !== 1 ? 's' : ''}`);
+    const result = await onCreateAndAssignMarker?.(name, selectedKeys);
+    if (result) {
+      if (result.succeeded > 0) toast.success(`Label "${name}" applied to ${result.succeeded} item${result.succeeded !== 1 ? 's' : ''}`);
+      if (result.failed > 0) toast.error(`Label could not be applied to ${result.failed} item${result.failed !== 1 ? 's' : ''}`);
+    }
   }, [selectedKeys, onCreateAndAssignMarker]);
 
   if (isLoading && data.length === 0) {
