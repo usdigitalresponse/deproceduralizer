@@ -371,6 +371,7 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
           return next;
         });
       }
+      return false;
     } else if (result.data && !wasBookmarked) {
       // Update with real bookmark ID
       setFineBookmarks(prev => {
@@ -385,6 +386,7 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
         return next;
       });
     }
+    return true;
   }, [jurisdiction, bookmarkName, fineBookmarks, bookmarkMarkersMap]);
 
   const handleBookmarkChange = useCallback((fineId: number, bookmarked: boolean) => {
@@ -417,7 +419,7 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
   const handleMarkerToggle = useCallback(async (bookmarkId: number, markerGroupId: number, assign: boolean) => {
     // Find the key for this bookmark (fineId as string)
     const key = Array.from(bookmarkMarkersMap.entries()).find(([, v]) => v.bookmarkId === bookmarkId)?.[0];
-    if (!key) return;
+    if (!key) return false;
 
     // Optimistic update
     setBookmarkMarkersMap(prev => {
@@ -441,7 +443,9 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
       // Refresh on failure
       const refreshed = await getFineBookmarkMarkersMap(jurisdiction);
       if (refreshed.success) setBookmarkMarkersMap(refreshed.data);
+      return false;
     }
+    return true;
   }, [bookmarkMarkersMap, markerGroupsList, jurisdiction]);
 
   // Handle creating a custom marker group and auto-assigning to a bookmark
@@ -651,8 +655,10 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
             <button
               type="button"
               onClick={() => {
+                const turningOff = params.bookmarkedOnly === 'true';
                 const newParams = {
-                  bookmarkedOnly: params.bookmarkedOnly === 'true' ? 'all' : 'true',
+                  bookmarkedOnly: turningOff ? 'all' : 'true',
+                  marker: turningOff ? null : params.marker,
                   page: 1,
                 };
                 setParams(newParams as Parameters<typeof setParams>[0]);

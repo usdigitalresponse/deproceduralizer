@@ -34,13 +34,13 @@ interface FinesTableProps {
   state: string;
   onRowClick: (fine: FineWithContext) => void;
   bookmarkedFineIds?: Set<number>;
-  onToggleBookmark?: (fineId: number) => void;
+  onToggleBookmark?: (fineId: number) => Promise<boolean> | void;
   fineBookmarks?: Map<number, FineBookmarkInfo>;
   onSaveBookmarkNotes?: (bookmarkId: number, fineId: number, notes: string, createdBy?: string) => Promise<void>;
   bookmarkName?: string;
   bookmarkMarkersMap?: BookmarkMarkersMap;
   availableGroups?: MarkerGroup[];
-  onMarkerToggle?: (bookmarkId: number, markerGroupId: number, assign: boolean) => void;
+  onMarkerToggle?: (bookmarkId: number, markerGroupId: number, assign: boolean) => Promise<boolean> | void;
   onCreateCustomMarker?: (bookmarkId: number, fineId: number, name: string) => void;
   /** Callback to bulk-assign a marker to a specific bookmark */
   onBulkAssignMarker?: (bookmarkId: number, markerGroupId: number) => void;
@@ -74,8 +74,8 @@ export function FinesTable({ data, state, onRowClick, bookmarkedFineIds, onToggl
     try {
       const unbookmarked = Array.from(selectedKeys).filter(id => !bookmarkedFineIds.has(id));
       const results = await Promise.allSettled(unbookmarked.map(id => onToggleBookmark(id)));
-      const succeeded = results.filter(r => r.status === 'fulfilled').length;
-      const failed = results.filter(r => r.status === 'rejected').length;
+      const succeeded = results.filter(r => r.status === 'fulfilled' && r.value === true).length;
+      const failed = results.length - succeeded;
       if (succeeded > 0) toast.success(`Saved ${succeeded} item${succeeded !== 1 ? 's' : ''}`);
       if (failed > 0) toast.error(`${failed} item${failed !== 1 ? 's' : ''} could not be saved`);
     } finally {
@@ -88,7 +88,7 @@ export function FinesTable({ data, state, onRowClick, bookmarkedFineIds, onToggl
     if (!bookmarkMarkersMap || !onMarkerToggle) return;
     setIsProcessing(true);
     try {
-      const assignments: Promise<void>[] = [];
+      const assignments: Promise<boolean | void>[] = [];
       let skippedCount = 0;
       for (const fineId of selectedKeys) {
         const entry = bookmarkMarkersMap.get(String(fineId));
@@ -106,8 +106,8 @@ export function FinesTable({ data, state, onRowClick, bookmarkedFineIds, onToggl
         }
       }
       const results = await Promise.allSettled(assignments);
-      const succeeded = results.filter(r => r.status === 'fulfilled').length;
-      const failed = results.filter(r => r.status === 'rejected').length;
+      const succeeded = results.filter(r => r.status === 'fulfilled' && r.value === true).length;
+      const failed = results.length - succeeded;
       if (succeeded > 0) toast.success(`Label applied to ${succeeded} item${succeeded !== 1 ? 's' : ''}`);
       if (failed > 0) toast.error(`Label could not be applied to ${failed} item${failed !== 1 ? 's' : ''}`);
       if (skippedCount > 0) toast.warning(`${skippedCount} item${skippedCount !== 1 ? 's' : ''} skipped — save them first to add labels`);
@@ -123,8 +123,8 @@ export function FinesTable({ data, state, onRowClick, bookmarkedFineIds, onToggl
     try {
       const bookmarked = Array.from(selectedKeys).filter(id => bookmarkedFineIds.has(id));
       const results = await Promise.allSettled(bookmarked.map(id => onToggleBookmark(id)));
-      const succeeded = results.filter(r => r.status === 'fulfilled').length;
-      const failed = results.filter(r => r.status === 'rejected').length;
+      const succeeded = results.filter(r => r.status === 'fulfilled' && r.value === true).length;
+      const failed = results.length - succeeded;
       if (succeeded > 0) toast.success(`Unsaved ${succeeded} item${succeeded !== 1 ? 's' : ''}`);
       if (failed > 0) toast.error(`${failed} item${failed !== 1 ? 's' : ''} could not be unsaved`);
     } finally {

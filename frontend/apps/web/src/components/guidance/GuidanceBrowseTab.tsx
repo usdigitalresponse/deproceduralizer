@@ -442,7 +442,6 @@ export function GuidanceBrowseTab({ jurisdiction, agencies, docTypes }: Guidance
       hasForm: null,
       hasIbr: null,
       marker: null,
-      bookmarkedOnly: 'all',
       page: 1,
     } as Parameters<typeof setParams>[0]);
   }, [setParams]);
@@ -534,6 +533,7 @@ export function GuidanceBrowseTab({ jurisdiction, agencies, docTypes }: Guidance
               type="button"
               onClick={() => setParams({
                 bookmarkedOnly: params.bookmarkedOnly === 'true' ? 'all' : 'true',
+                marker: params.bookmarkedOnly === 'true' ? null : params.marker,
                 page: 1,
               } as Parameters<typeof setParams>[0])}
               className={`

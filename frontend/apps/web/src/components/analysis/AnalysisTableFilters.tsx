@@ -258,6 +258,7 @@ export function AnalysisTableFilters({ jurisdiction, filterStats }: AnalysisTabl
             type="button"
             onClick={() => setFilters({
               bookmarkedOnly: isBookmarkedOnly ? null : 'true',
+              marker: isBookmarkedOnly ? null : filters.marker,
               page: 1,
             })}
             className={`

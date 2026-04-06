@@ -162,7 +162,7 @@ export function BookmarkNotesCard() {
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2 mb-2">
             <h3 className="text-sm font-semibold text-amber-800">
-              Marked
+              Saved
             </h3>
             {!isEditingNotes && (
               <button
@@ -240,7 +240,7 @@ export function BookmarkNotesCard() {
 
           {bookmark?.createdAt && (
             <p className="mt-2 text-xs text-amber-500">
-              Marked {new Date(bookmark.createdAt).toLocaleDateString()}
+              Saved {new Date(bookmark.createdAt).toLocaleDateString()}
             </p>
           )}
         </div>

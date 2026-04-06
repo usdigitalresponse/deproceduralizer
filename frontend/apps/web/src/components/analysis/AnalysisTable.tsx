@@ -172,10 +172,12 @@ export function AnalysisTable({ jurisdiction, source }: AnalysisTableProps) {
         return next;
       });
       console.error('Failed to toggle bookmark:', result.error);
+      return false;
     } else {
       // Refresh markers map to pick up new bookmark entries (including notes)
       const refreshed = await getAnalysisBookmarkMarkersMap(jurisdiction);
       if (refreshed.success) setBookmarkMarkersMap(refreshed.data);
+      return true;
     }
   }, [jurisdiction, bookmarkedPairs, isGuidance]);
 
@@ -183,7 +185,7 @@ export function AnalysisTable({ jurisdiction, source }: AnalysisTableProps) {
   const handleMarkerToggle = useCallback(async (bookmarkId: number, markerGroupId: number, assign: boolean) => {
     // Find the key for this bookmark
     const key = Array.from(bookmarkMarkersMap.entries()).find(([, v]) => v.bookmarkId === bookmarkId)?.[0];
-    if (!key) return;
+    if (!key) return false;
 
     // Optimistic update
     setBookmarkMarkersMap(prev => {
@@ -207,7 +209,9 @@ export function AnalysisTable({ jurisdiction, source }: AnalysisTableProps) {
       // Refresh on failure
       const refreshed = await getAnalysisBookmarkMarkersMap(jurisdiction);
       if (refreshed.success) setBookmarkMarkersMap(refreshed.data);
+      return false;
     }
+    return true;
   }, [bookmarkMarkersMap, markerGroupsList, jurisdiction]);
 
   // Handle creating a custom marker group and auto-assigning to a bookmark
@@ -273,8 +277,8 @@ export function AnalysisTable({ jurisdiction, source }: AnalysisTableProps) {
       const results = await Promise.allSettled(
         unbookmarked.map(({ docId, issueType }) => handleBookmarkToggle(docId, issueType))
       );
-      const succeeded = results.filter(r => r.status === 'fulfilled').length;
-      const failed = results.filter(r => r.status === 'rejected').length;
+      const succeeded = results.filter(r => r.status === 'fulfilled' && r.value === true).length;
+      const failed = results.length - succeeded;
       if (succeeded > 0) toast.success(`Saved ${succeeded} item${succeeded !== 1 ? 's' : ''}`);
       if (failed > 0) toast.error(`${failed} item${failed !== 1 ? 's' : ''} could not be saved`);
     } finally {
@@ -286,24 +290,22 @@ export function AnalysisTable({ jurisdiction, source }: AnalysisTableProps) {
   const handleBulkAssignMarker = useCallback(async (markerGroupId: number) => {
     setIsProcessing(true);
     try {
-      const assignments: Promise<void>[] = [];
+      const assignments: Promise<boolean>[] = [];
       let skippedCount = 0;
       for (const key of selectedKeys) {
         const entry = bookmarkMarkersMap.get(key);
         if (entry) {
           const alreadyAssigned = entry.markers.some(m => m.id === markerGroupId);
           if (!alreadyAssigned) {
-            assignments.push(
-              (async () => { await handleMarkerToggle(entry.bookmarkId, markerGroupId, true); })()
-            );
+            assignments.push(handleMarkerToggle(entry.bookmarkId, markerGroupId, true));
           }
         } else {
           skippedCount++;
         }
       }
       const results = await Promise.allSettled(assignments);
-      const succeeded = results.filter(r => r.status === 'fulfilled').length;
-      const failed = results.filter(r => r.status === 'rejected').length;
+      const succeeded = results.filter(r => r.status === 'fulfilled' && r.value === true).length;
+      const failed = results.length - succeeded;
       if (succeeded > 0) toast.success(`Label applied to ${succeeded} item${succeeded !== 1 ? 's' : ''}`);
       if (failed > 0) toast.error(`Label could not be applied to ${failed} item${failed !== 1 ? 's' : ''}`);
       if (skippedCount > 0) toast.warning(`${skippedCount} item${skippedCount !== 1 ? 's' : ''} skipped — save them first to add labels`);
@@ -329,8 +331,8 @@ export function AnalysisTable({ jurisdiction, source }: AnalysisTableProps) {
       const results = await Promise.allSettled(
         bookmarked.map(({ docId, issueType }) => handleBookmarkToggle(docId, issueType))
       );
-      const succeeded = results.filter(r => r.status === 'fulfilled').length;
-      const failed = results.filter(r => r.status === 'rejected').length;
+      const succeeded = results.filter(r => r.status === 'fulfilled' && r.value === true).length;
+      const failed = results.length - succeeded;
       if (succeeded > 0) toast.success(`Unsaved ${succeeded} item${succeeded !== 1 ? 's' : ''}`);
       if (failed > 0) toast.error(`${failed} item${failed !== 1 ? 's' : ''} could not be unsaved`);
     } finally {
