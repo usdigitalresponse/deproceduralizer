@@ -1,7 +1,7 @@
 'use client';
 
 import { forwardRef, ButtonHTMLAttributes } from 'react';
-import { Tag } from 'lucide-react';
+import { Bookmark } from 'lucide-react';
 
 type BookmarkButtonSize = 'sm' | 'md';
 
@@ -92,7 +92,7 @@ export const BookmarkButton = forwardRef<HTMLButtonElement, BookmarkButtonProps>
             />
           </svg>
         ) : (
-          <Tag
+          <Bookmark
             className={`${styles.icon} transition-transform duration-200 ${isBookmarked ? 'scale-110' : 'scale-100'}`}
             fill={isBookmarked ? 'currentColor' : 'none'}
             strokeWidth={isBookmarked ? 0 : 2}
