@@ -577,6 +577,7 @@ export function AnalysisTable({ jurisdiction, source }: AnalysisTableProps) {
           onClear={clearSelection}
           availableGroups={markerGroupsList}
           isProcessing={isProcessing}
+          position="top"
         />
       )}
 

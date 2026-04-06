@@ -163,6 +163,7 @@ export function FinesTable({ data, state, onRowClick, bookmarkedFineIds, onToggl
           onClear={clear}
           availableGroups={availableGroups}
           isProcessing={isProcessing}
+          position="top"
         />
       )}
 

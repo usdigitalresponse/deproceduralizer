@@ -13,6 +13,8 @@ export interface BulkActionBarProps {
   onClear: () => void;
   availableGroups: MarkerGroup[];
   isProcessing?: boolean;
+  /** Where the bar is positioned — controls label picker direction */
+  position?: 'top' | 'bottom';
 }
 
 /**
@@ -28,6 +30,7 @@ export function BulkActionBar({
   onClear,
   availableGroups,
   isProcessing = false,
+  position = 'bottom',
 }: BulkActionBarProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [customInput, setCustomInput] = useState('');
@@ -175,7 +178,7 @@ export function BulkActionBar({
           {pickerOpen && (
             <div
               className="
-                absolute bottom-full left-0 mb-1
+                absolute left-0 ${position === 'top' ? 'top-full mt-1' : 'bottom-full mb-1'}
                 w-56 rounded-[var(--radius-md)]
                 bg-[var(--color-surface)] border border-[var(--color-neutral-200)]
                 shadow-lg py-1
