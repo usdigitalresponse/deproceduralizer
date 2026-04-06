@@ -617,7 +617,7 @@ export function GuidanceBrowseTab({ jurisdiction, agencies, docTypes }: Guidance
                 aria-label="Filter by has IBR"
               />
             </FilterField>
-            {markerGroupsList.length > 0 && (
+            {params.bookmarkedOnly === 'true' && markerGroupsList.length > 0 && (
               <FilterField label="Label">
                 <MultiSelect
                   label="Label"

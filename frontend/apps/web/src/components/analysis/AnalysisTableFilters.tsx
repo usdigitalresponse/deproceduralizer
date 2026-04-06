@@ -294,7 +294,7 @@ export function AnalysisTableFilters({ jurisdiction, filterStats }: AnalysisTabl
             Easy Fix
           </button>
 
-          {markerGroupsList.length > 0 && (
+          {isBookmarkedOnly && markerGroupsList.length > 0 && (
             <div className="flex items-center gap-1.5">
               <Tag className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
               <MultiSelect

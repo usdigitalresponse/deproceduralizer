@@ -714,7 +714,7 @@ export function FinesBrowseTab({ jurisdiction, agencies, whoPaysValues, perUnitV
                 data-testid="per-unit-filter"
               />
             </FilterField>
-            {markerGroupsList.length > 0 && (
+            {params.bookmarkedOnly === 'true' && markerGroupsList.length > 0 && (
               <FilterField label="Label">
                 <div className="flex items-center gap-1.5">
                   <Tag className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
