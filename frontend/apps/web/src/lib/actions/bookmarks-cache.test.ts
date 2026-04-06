@@ -58,7 +58,7 @@ describe('refreshBookmarkCache (via action behavior)', () => {
 
       expect(mockUpdateTag).toHaveBeenCalledWith('bookmarks');
       expect(mockUpdateTag).toHaveBeenCalledWith('marker-groups');
-      expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/markers', 'page');
+      expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/saved', 'page');
       expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/fines', 'page');
       expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/guidance', 'page');
       expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/pipeline', 'page');
@@ -74,7 +74,7 @@ describe('refreshBookmarkCache (via action behavior)', () => {
 
       expect(mockUpdateTag).toHaveBeenCalledWith('bookmarks');
       expect(mockUpdateTag).toHaveBeenCalledWith('marker-groups');
-      expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/markers', 'page');
+      expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/saved', 'page');
       expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/fines', 'page');
       expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/guidance', 'page');
       expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/regulations', 'page');
@@ -89,7 +89,7 @@ describe('refreshBookmarkCache (via action behavior)', () => {
 
       expect(mockUpdateTag).toHaveBeenCalledWith('bookmarks');
       expect(mockUpdateTag).toHaveBeenCalledWith('marker-groups');
-      expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/markers', 'page');
+      expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/saved', 'page');
       expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/fines', 'page');
       expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/guidance', 'page');
       expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/pipeline', 'page');
@@ -104,7 +104,7 @@ describe('refreshBookmarkCache (via action behavior)', () => {
       await updateBookmarkNotes(7, 'new notes');
 
       expect(mockUpdateTag).not.toHaveBeenCalled();
-      expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/markers', 'page');
+      expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/saved', 'page');
       expect(mockRevalidatePath).toHaveBeenCalledTimes(1);
     });
   });

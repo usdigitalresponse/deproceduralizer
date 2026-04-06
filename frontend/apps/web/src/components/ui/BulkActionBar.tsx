@@ -177,13 +177,13 @@ export function BulkActionBar({
 
           {pickerOpen && (
             <div
-              className="
+              className={`
                 absolute left-0 ${position === 'top' ? 'top-full mt-1' : 'bottom-full mb-1'}
                 w-56 rounded-[var(--radius-md)]
                 bg-[var(--color-surface)] border border-[var(--color-neutral-200)]
                 shadow-lg py-1
                 max-h-64 overflow-y-auto
-              "
+              `}
               role="listbox"
               aria-label="Labels"
             >

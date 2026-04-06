@@ -2,8 +2,8 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Markers Feature Smoke Tests', () => {
 
-  test('markers page loads with tabs', async ({ page }) => {
-    await page.goto('/ny/markers');
+  test('saved items page loads with tabs', async ({ page }) => {
+    await page.goto('/ny/saved');
     // Wait for the page-specific heading (not the nav h1)
     await expect(page.getByRole('heading', { name: /Saved Items/i })).toBeVisible({ timeout: 15000 });
     // Check tab buttons exist (custom TabButton components render as <button>)
@@ -66,10 +66,16 @@ test.describe('Markers Feature Smoke Tests', () => {
     await expect(savedButton).toBeVisible();
   });
 
-  test('bookmarks URL redirects to markers', async ({ page }) => {
+  test('bookmarks URL redirects to saved', async ({ page }) => {
     await page.goto('/ny/bookmarks');
-    await page.waitForURL('**/ny/markers**', { timeout: 10000 });
-    await expect(page).toHaveURL(/\/ny\/markers/);
+    await page.waitForURL('**/ny/saved**', { timeout: 10000 });
+    await expect(page).toHaveURL(/\/ny\/saved/);
+  });
+
+  test('markers URL redirects to saved', async ({ page }) => {
+    await page.goto('/ny/markers');
+    await page.waitForURL('**/ny/saved**', { timeout: 10000 });
+    await expect(page).toHaveURL(/\/ny\/saved/);
   });
 
 });

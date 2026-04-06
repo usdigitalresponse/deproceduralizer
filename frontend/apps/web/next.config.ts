@@ -16,7 +16,12 @@ const nextConfig: NextConfig = {
     return [
       {
         source: '/:state/bookmarks',
-        destination: '/:state/markers',
+        destination: '/:state/saved',
+        permanent: true,
+      },
+      {
+        source: '/:state/markers',
+        destination: '/:state/saved',
         permanent: true,
       },
     ];

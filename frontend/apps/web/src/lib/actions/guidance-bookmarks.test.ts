@@ -146,7 +146,7 @@ describe('toggleGuidanceAnalysisBookmarkByDocIssue', () => {
 
     expect(mockUpdateTag).toHaveBeenCalledWith('bookmarks');
     expect(mockUpdateTag).toHaveBeenCalledWith('marker-groups');
-    expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/markers', 'page');
+    expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/saved', 'page');
     expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/fines', 'page');
     expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/guidance', 'page');
     expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/pipeline', 'page');
@@ -164,7 +164,7 @@ describe('toggleGuidanceAnalysisBookmarkByDocIssue', () => {
 
     expect(mockUpdateTag).toHaveBeenCalledWith('bookmarks');
     expect(mockUpdateTag).toHaveBeenCalledWith('marker-groups');
-    expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/markers', 'page');
+    expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/saved', 'page');
     expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/fines', 'page');
     expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/guidance', 'page');
     expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/pipeline', 'page');
@@ -342,7 +342,7 @@ describe('toggleGuidanceBookmark', () => {
 
     expect(mockUpdateTag).toHaveBeenCalledWith('bookmarks');
     expect(mockUpdateTag).toHaveBeenCalledWith('marker-groups');
-    expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/markers', 'page');
+    expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/saved', 'page');
     expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/fines', 'page');
     expect(mockRevalidatePath).toHaveBeenCalledWith('/[state]/guidance', 'page');
   });
