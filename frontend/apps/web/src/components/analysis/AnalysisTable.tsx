@@ -287,6 +287,7 @@ export function AnalysisTable({ jurisdiction, source }: AnalysisTableProps) {
     setIsProcessing(true);
     try {
       const assignments: Promise<void>[] = [];
+      let skippedCount = 0;
       for (const key of selectedKeys) {
         const entry = bookmarkMarkersMap.get(key);
         if (entry) {
@@ -296,6 +297,8 @@ export function AnalysisTable({ jurisdiction, source }: AnalysisTableProps) {
               (async () => { await handleMarkerToggle(entry.bookmarkId, markerGroupId, true); })()
             );
           }
+        } else {
+          skippedCount++;
         }
       }
       const results = await Promise.allSettled(assignments);
@@ -303,6 +306,7 @@ export function AnalysisTable({ jurisdiction, source }: AnalysisTableProps) {
       const failed = results.filter(r => r.status === 'rejected').length;
       if (succeeded > 0) toast.success(`Label applied to ${succeeded} item${succeeded !== 1 ? 's' : ''}`);
       if (failed > 0) toast.error(`Label could not be applied to ${failed} item${failed !== 1 ? 's' : ''}`);
+      if (skippedCount > 0) toast.warning(`${skippedCount} item${skippedCount !== 1 ? 's' : ''} skipped — save them first to add labels`);
     } finally {
       setIsProcessing(false);
     }
