@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useMemo, createContext, useContext, type ReactNode } from 'react';
 import { Tag as TagIcon, Pencil, X, Check } from 'lucide-react';
-import type { JurisdictionCode, Bookmark, MarkerGroup } from '@deproceduralizer/database';
+import type { JurisdictionCode, Bookmark } from '@deproceduralizer/database';
 import { BookmarkButton } from '@/components/ui';
 import { MarkerBadge, MarkerPicker } from '@/components/markers';
 import {

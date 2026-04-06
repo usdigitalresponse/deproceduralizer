@@ -8,10 +8,6 @@ import { EnhancedRegulationSummary } from '@/components/regulations/EnhancedRegu
 import { GuidanceStatusBadge } from './GuidanceStatusBadge';
 import { PolicyCategoryBadge } from './PolicyCategoryBadge';
 import { LinkedCitationList } from './LinkedCitationList';
-import { SectionTypeBadge } from '@/components/ui/SectionTypeBadge';
-import { KeywordTags } from '@/components/ui/KeywordTags';
-import { MetadataIndicators } from '@/components/ui/MetadataIndicators';
-import { TagBadge } from '@/components/tags/TagBadge';
 import { ClickableTag } from '@/components/tags/ClickableTag';
 import type { GuidanceDocumentDetail, ResolvedRegulationCitation } from '@/lib/actions/guidance-documents';
 

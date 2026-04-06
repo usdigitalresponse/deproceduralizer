@@ -218,7 +218,6 @@ export function ComplianceReviewQueue(props: ComplianceReviewQueueProps) {
               ref={(el) => setCardRef(index, el)}
               issue={issue}
               onUpdated={handleItemUpdated}
-              onViewRegulation={handleViewRegulation}
               isFocused={index === focusedIndex}
             />
           ))}

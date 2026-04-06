@@ -3,7 +3,6 @@ import type { ComplianceIssueWithAnalysis, ContextEntry } from '@deproceduralize
 export interface ComplianceIssueCardProps {
   issue: ComplianceIssueWithAnalysis;
   onUpdated: (updatedIssue: ComplianceIssueWithAnalysis) => void;
-  onViewRegulation: (regulationId: number) => void;
   isFocused?: boolean;
 }
 

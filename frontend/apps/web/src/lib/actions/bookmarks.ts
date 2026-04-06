@@ -376,7 +376,7 @@ export async function getBookmarkCounts(
 export async function toggleAnalysisBookmarkByDocIssue(
   documentId: number,
   issueType: string,
-  jurisdiction: string,
+  _jurisdiction: string,
   createdBy?: string
 ): Promise<ActionResult<Bookmark | null>> {
   try {
@@ -506,7 +506,7 @@ export async function getBookmarkByDocIssue(
 export async function toggleGuidanceAnalysisBookmarkByDocIssue(
   guidanceDocumentId: number,
   issueType: string,
-  jurisdiction: string,
+  _jurisdiction: string,
   createdBy?: string
 ): Promise<ActionResult<Bookmark | null>> {
   try {
@@ -734,7 +734,7 @@ export async function toggleTriageTag(
   docId: number,
   issueType: string,
   markerGroupId: number,
-  jurisdiction: string
+  _jurisdiction: string
 ): Promise<ActionResult<{ bookmarkId: number; markerIds: number[] }>> {
   try {
     // 1. Find the analysis

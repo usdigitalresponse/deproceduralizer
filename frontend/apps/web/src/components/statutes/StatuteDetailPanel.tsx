@@ -6,7 +6,6 @@ import { usePathname, useSearchParams } from 'next/navigation';
 import type { StatuteWithLinks, StatuteAncestor } from '@deproceduralizer/database';
 import { AlertTriangle, Loader2, ChevronRight, ExternalLink, Scale } from 'lucide-react';
 import { EntityTypeIndicator } from '@/components/ui/EntityTypeIndicator';
-import { getEntityIcon, getEntityConfig } from '@/lib/constants/entity-types';
 import { Card, Button, EmptyState } from '@/components/ui';
 import { Badge } from '@/components/ui/Badge';
 import { RegulationContent } from '@/components/regulations';

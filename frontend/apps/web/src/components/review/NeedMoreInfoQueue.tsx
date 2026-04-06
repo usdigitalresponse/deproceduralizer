@@ -144,7 +144,6 @@ export function NeedMoreInfoQueue({
                   item={item}
                   isOwner={true}
                   onUpdated={handleItemUpdated}
-                  onViewRegulation={handleViewRegulation}
                   isFocused={index === focusedIndex}
                   state={jurisdictionCode}
                 />
@@ -169,7 +168,6 @@ export function NeedMoreInfoQueue({
                     item={item}
                     isOwner={false}
                     onUpdated={handleItemUpdated}
-                    onViewRegulation={handleViewRegulation}
                     isFocused={actualIndex === focusedIndex}
                     state={jurisdictionCode}
                   />

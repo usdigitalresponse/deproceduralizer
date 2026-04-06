@@ -15,7 +15,7 @@ import { ClearConfirmDialog } from './ClearConfirmDialog';
 import type { DeveloperCardProps } from './types';
 
 export const DeveloperCard = forwardRef<HTMLDivElement, DeveloperCardProps>(
-  ({ item, onUpdated, onCleared, onViewRegulation, isFocused = false, state = 'ny' }, ref) => {
+  ({ item, onUpdated, onCleared, isFocused = false, state = 'ny' }, ref) => {
     const [isPending, startTransition] = useTransition();
     const [isClearPending, startClearTransition] = useTransition();
     const [error, setError] = useState<string | null>(null);

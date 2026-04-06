@@ -19,7 +19,7 @@ import { ReviewForm } from './ReviewForm';
 import type { ComplianceIssueCardProps } from './types';
 
 export const ComplianceIssueCard = forwardRef<HTMLDivElement, ComplianceIssueCardProps>(
-  ({ issue, onUpdated, onViewRegulation, isFocused = false }, ref) => {
+  ({ issue, onUpdated, isFocused = false }, ref) => {
     const pathname = usePathname();
     const jurisdictionCode = getJurisdictionFromPathname(pathname);
 

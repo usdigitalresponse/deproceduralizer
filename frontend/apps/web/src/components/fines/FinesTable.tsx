@@ -42,14 +42,12 @@ interface FinesTableProps {
   availableGroups?: MarkerGroup[];
   onMarkerToggle?: (bookmarkId: number, markerGroupId: number, assign: boolean) => Promise<boolean> | void;
   onCreateCustomMarker?: (bookmarkId: number, fineId: number, name: string) => void;
-  /** Callback to bulk-assign a marker to a specific bookmark */
-  onBulkAssignMarker?: (bookmarkId: number, markerGroupId: number) => void;
   /** Callback to create a new marker group and assign to all selected bookmarked items */
   onCreateAndAssignMarker?: (name: string, selectedFineIds: Set<number>) => Promise<{ succeeded: number; failed: number }> | void;
   isLoading?: boolean;
 }
 
-export function FinesTable({ data, state, onRowClick, bookmarkedFineIds, onToggleBookmark, fineBookmarks, onSaveBookmarkNotes, bookmarkName, bookmarkMarkersMap, availableGroups, onMarkerToggle, onCreateCustomMarker, onBulkAssignMarker, onCreateAndAssignMarker, isLoading }: FinesTableProps) {
+export function FinesTable({ data, state, onRowClick, bookmarkedFineIds, onToggleBookmark, fineBookmarks, onSaveBookmarkNotes, bookmarkName, bookmarkMarkersMap, availableGroups, onMarkerToggle, onCreateCustomMarker, onCreateAndAssignMarker, isLoading }: FinesTableProps) {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const visibleIds = useMemo(() => data.map(f => f.id), [data]);
@@ -95,11 +93,7 @@ export function FinesTable({ data, state, onRowClick, bookmarkedFineIds, onToggl
         if (entry) {
           const alreadyAssigned = entry.markers.some(m => m.id === markerGroupId);
           if (!alreadyAssigned) {
-            if (onBulkAssignMarker) {
-              assignments.push(Promise.resolve(onBulkAssignMarker(entry.bookmarkId, markerGroupId)));
-            } else {
-              assignments.push(Promise.resolve(onMarkerToggle(entry.bookmarkId, markerGroupId, true)));
-            }
+            assignments.push(Promise.resolve(onMarkerToggle(entry.bookmarkId, markerGroupId, true)));
           }
         } else {
           skippedCount++;
@@ -114,7 +108,7 @@ export function FinesTable({ data, state, onRowClick, bookmarkedFineIds, onToggl
     } finally {
       setIsProcessing(false);
     }
-  }, [selectedKeys, bookmarkMarkersMap, onMarkerToggle, onBulkAssignMarker]);
+  }, [selectedKeys, bookmarkMarkersMap, onMarkerToggle]);
 
   // Bulk unmark all: remove bookmarks from all selected items that are bookmarked
   const handleBulkUnmarkAll = useCallback(async () => {
