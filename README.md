@@ -10,8 +10,8 @@ Built with support from the **Recoding America Fund**.
 
 State administrative codes contain tens of thousands of regulatory sections — many with outdated procedural requirements (fax-only submissions, wet signatures, certified mail mandates) that are invisible at scale. No human team can read 120,000+ sections looking for these problems.
 
-<!-- metric: ISSUE_TYPE_COUNT=42 -->
-Deproceduralizer applies Jennifer Pahlka's regulatory burden framework through a combination of regex pattern matching and multi-tier LLM verification. It scans regulation text for 42 types of compliance issues, then uses Claude to filter false positives, classify burden severity, and verify findings against source statutes.
+<!-- metric: ISSUE_TYPE_COUNT=49 -->
+Deproceduralizer applies Jennifer Pahlka's regulatory burden framework through a combination of regex pattern matching and multi-tier LLM verification. It scans regulation text for 49 types of compliance issues, then uses Claude to filter false positives, classify burden severity, and verify findings against source statutes.
 
 The result is an interactive web application where policy reviewers can browse regulations, review AI-identified findings, track triage decisions, and export actionable data — all organized by the regulatory hierarchy they already know.
 
@@ -25,6 +25,7 @@ The result is an interactive web application where policy reviewers can browse r
 - [Project Structure](#project-structure)
 - [Analysis Pipeline](#analysis-pipeline)
 - [Database Schema](#database-schema)
+- [Database Backups](#database-backups)
 - [Development](#development)
 - [Deployment](#deployment)
 - [Data Coverage](#data-coverage)
@@ -33,8 +34,8 @@ The result is an interactive web application where policy reviewers can browse r
 
 ## Key Capabilities
 
-<!-- metric: ISSUE_TYPE_COUNT=42 -->
-- **42 compliance issue types** — wet signatures, mail-only processes, fax requirements, obsolete technology mandates, excessive documentation, and more
+<!-- metric: ISSUE_TYPE_COUNT=49 -->
+- **49 compliance issue types** — wet signatures, mail-only processes, fax requirements, obsolete technology mandates, excessive documentation, and more
 - **3-tier research pipeline** — regex scan → LLM filtering → LLM classification with optional web search verification
 - **Hierarchical summarization** — bottom-up summaries from sections through subchapters, chapters, parts, and titles using Anthropic Batch API
 - **Multi-state support** — New York (NYCRR) and New Jersey (NJAC) with extensible scraper architecture
@@ -238,7 +239,16 @@ deproceduralizer/
 │
 ├── prompts/                              # LLM prompt definitions (YAML)
 │   ├── core.yaml                         # Definitions prompts
-│   └── compliance_issues.yaml            # 42 issue types with patterns
+│   └── compliance_issues.yaml            # 49 issue types with patterns
+│
+├── data/                                 # Generated/exported data artifacts
+│   ├── db_backup/<UTC-timestamp>/        # Point-in-time JSONL DB snapshots
+│   ├── outputs/                          # Pipeline output artifacts
+│   └── summaries/                        # Summarization batch outputs
+│
+├── scripts/
+│   ├── db-query.sh                       # Postgres query helpers
+│   └── export_db_to_flatfiles.py         # DB → JSONL snapshot exporter
 │
 ├── docs/
 │   └── OPERATIONS.md                     # Pipeline runbook
@@ -247,7 +257,7 @@ deproceduralizer/
 │   ├── hooks/                            # Workflow automation hooks
 │   └── skills/                           # Domain-specific skill docs
 │
-├── DATABASE_SETUP.md                     # Database setup guide
+├── DATABASE_SETUP.md                     # Database setup guide (incl. restore-from-snapshot)
 └── .env                                  # Environment variables (gitignored)
 ```
 
@@ -262,7 +272,7 @@ The full pipeline transforms raw regulation text into structured, reviewable fin
 5. **Link Definitions** — Match definitions to documents where terms appear
 6. **Cross-References** — Extract internal citations between regulatory documents
 7. **Summaries** — Generate hierarchical summaries (sections → subchapters → chapters → parts → titles)
-8. **Compliance Scan** — Regex-only detection of 42 compliance issue types (no LLM, free) <!-- metric: ISSUE_TYPE_COUNT=42 -->
+8. **Compliance Scan** — Regex-only detection of 49 compliance issue types (no LLM, free) <!-- metric: ISSUE_TYPE_COUNT=49 -->
 9. **Research Pipeline** — 3-tier LLM analysis: filter false positives → classify burden/severity → web search verification
 10. **IBR Scan** — Detect external standards incorporated by reference
 11. **Refresh Stats** — Precompute hierarchy statistics for frontend performance
@@ -279,7 +289,7 @@ See [`docs/OPERATIONS.md`](docs/OPERATIONS.md) for the complete runbook with com
 |-------|---------|
 | `regulatory_documents` | Regulation text, metadata, hierarchy, denormalized stats |
 | `definitions` | Extracted defined terms with scope tracking |
-| `compliance_issues` | Regex-matched compliance issue candidates (42 types) | <!-- metric: ISSUE_TYPE_COUNT=42 -->
+| `compliance_issues` | Regex-matched compliance issue candidates (49 types) | <!-- metric: ISSUE_TYPE_COUNT=49 -->
 | `compliance_issue_analyses` | LLM analysis + human review per document/issue type |
 | `statute_references` | Legal citations extracted from regulations (USC, CFR, state) |
 | `cross_references` | Internal citations between regulatory documents |
@@ -288,6 +298,30 @@ See [`docs/OPERATIONS.md`](docs/OPERATIONS.md) for the complete runbook with com
 | `definition_document_occurrences` | Links definitions to documents where terms appear |
 
 See [`.claude/skills/database/schema.md`](.claude/skills/database/schema.md) for complete schema documentation, or [`frontend/packages/database/src/schema/`](frontend/packages/database/src/schema/) for Drizzle definitions.
+
+## Database Backups
+
+This repository doubles as a versioned mirror of the production database. Point-in-time snapshots live under [`data/db_backup/<UTC-timestamp>/`](data/db_backup/) — see [`data/db_backup/README.md`](data/db_backup/README.md) for the snapshot index.
+
+Each snapshot contains:
+
+- `schema.sql` — full `pg_dump --schema-only` of the `public` schema.
+- `manifest.json` — per-file row counts, sizes, and sha256 hashes.
+- `<table>.jsonl.zip` for each normal table; large tables are split into `<table>/<table>.part-NNN.jsonl.zip` chunks so every artifact stays under GitHub's 100 MB hard limit.
+- `sensitive/` — schema-only dumps (and PII-redacted sample rows where useful) for tables containing user data (`share_tokens`, `bookmarks`, `document_notes`, `eval_human_votes`, `prompt_feedback`).
+- `llm_api_cache` is excluded entirely (regeneratable and may contain raw prompts).
+
+**Taking a new snapshot** — run from inside the active `deproceduralizer` working copy (where `DATABASE_URL` is set in `.env.local`):
+
+```bash
+cd /path/to/deproceduralizer
+set -a && source .env.local && set +a
+python3 /path/to/deproceduralizer-backup/scripts/export_db_to_flatfiles.py \
+  --out-dir .db_backup_staging/$(date -u +%Y-%m-%dT%H-%M-%SZ)
+# then mv the staged directory into deproceduralizer-backup/data/db_backup/ and commit
+```
+
+**Restoring from a snapshot** — see [`DATABASE_SETUP.md#restoring-from-a-snapshot`](DATABASE_SETUP.md#restoring-from-a-snapshot).
 
 ## Development
 
