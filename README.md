@@ -4,7 +4,7 @@ An AI-powered tool that helps government staff identify procedural barriers, out
 
 Built with support from the **Recoding America Fund**.
 
-`States: NY | NJ` · `Next.js 16` · `Python 3.10+` · `Deployed on Vercel`
+`States: NY | NJ | NYC` · `Next.js 16` · `Python 3.10+` · `Deployed on Vercel`
 
 ## What This Project Does
 
@@ -37,15 +37,18 @@ The result is an interactive web application where policy reviewers can browse r
 <!-- metric: ISSUE_TYPE_COUNT=49 -->
 - **49 compliance issue types** — wet signatures, mail-only processes, fax requirements, obsolete technology mandates, excessive documentation, and more
 - **3-tier research pipeline** — regex scan → LLM filtering → LLM classification with optional web search verification
+- **JenAI burden analysis** — single-pass LLM pipeline applying Jennifer Pahlka's 18-category framework, producing composite burden scores per document <!-- metric: JENAI_CATEGORIES=18 -->
+- **Fines, fees & penalties extraction** — LLM structured extraction of monetary charges (amount, who pays, responsible agency, violation) from regulations and guidance
 - **Hierarchical summarization** — bottom-up summaries from sections through subchapters, chapters, parts, and titles using Anthropic Batch API
-- **Multi-state support** — New York (NYCRR) and New Jersey (NJAC) with extensible scraper architecture
+- **Multi-jurisdiction support** — New York State (NYCRR), New Jersey (NJAC), and New York City (RCNY + Charter/Admin Code) with extensible scraper architecture
+- **Guidance documents** — sub-regulatory ADMs, LCMs, INFs, GIS, TSBs imported from the `nys-documents` catalog and analyzed alongside formal regulations
 - **Human review workflow** — review queues with keyboard navigation, status tracking, priority assignment, and reviewer notes
 - **Developer mode** — implementation tracking, developer assignment, and resolution status for reviewed findings
 - **IBR detection** — identifies external standards incorporated by reference (NFPA, ICC, ASTM, CFR)
 - **Analytics dashboard** — visualizations of compliance issue distribution, severity trends, and pipeline coverage
 - **Statute mandate checking** — verifies whether cited statutes actually mandate flagged requirements (NY)
 - **Cross-reference extraction** — maps internal citations between regulatory documents for contextual analysis
-- **Bookmarks** — save and organize regulations of interest for later review
+- **Saved items & marker groups** — save and organize regulations, guidance, fines, and analyses of interest for focused review
 
 ## Architecture
 
@@ -60,9 +63,9 @@ Cornell Law Website (Regulations + Statutes)
         ↓
     PostgreSQL (Neon)
         ↓
-    Analysis Pipeline (11 steps: status detection, definitions, cross-refs,
-                       summaries, compliance scan, research pipeline,
-                       IBR scan, JenAI analysis, stats refresh)
+    Analysis Pipeline (13 steps — see "Analysis Pipeline" below for the
+                       canonical sequence; plus a separate Guidance Import
+                       pipeline that loads sub-regulatory documents)
         ↓
     Next.js Web App (server actions query DB directly via Drizzle)
         ↓
@@ -133,8 +136,8 @@ Open http://localhost:3010 to browse the application immediately (assuming the d
 
 ### Run the Pipeline
 
-<!-- metric: PIPELINE_STEPS=11 -->
-The full analysis pipeline has 11 steps. For a quick demo on a single title:
+<!-- metric: PIPELINE_STEPS=13 -->
+The full analysis pipeline has 13 steps (plus a separate guidance-import pipeline). For a quick demo on a single title:
 
 ```bash
 # Scrape NY regulations (includes DB migration)
@@ -155,17 +158,24 @@ See [`docs/OPERATIONS.md`](docs/OPERATIONS.md) for the complete runbook with all
 | `/` | Dashboard — cross-state overview and summary metrics |
 | `/[state]` | Table View — paginated regulations table with search and filters |
 | `/[state]/browse` | Browse — interactive hierarchy tree browser |
+| `/[state]/search` | Search — full-text search across regulations with filters |
 | `/[state]/definitions` | Glossary — definitions with A-Z filter, list/grouped views |
 | `/[state]/statutes` | Statutes — browse linked state statutes |
 | `/[state]/statutes/[id]` | Statute Detail — individual statute with linked regulations |
+| `/[state]/guidance` | Guidance — sub-regulatory ADMs/LCMs/INFs from state agencies |
 | `/[state]/ibr` | Standards (IBR) — incorporated-by-reference standards browser |
+| `/[state]/fines` | Fines, Fees & Penalties — monetary charges with agency and who-pays breakdowns |
+| `/[state]/jenai` | JenAI Strategies — single-pass burden analysis explorer |
+| `/[state]/burden` | Burden — JenAI 18-category composite burden scores and drill-down |
+| `/[state]/tags` | Tags — cross-domain tag analytics across regulations, guidance, fines, JenAI |
 | `/[state]/review` | Review Mode — queues for compliance issues, definitions |
 | `/[state]/review?mode=developer` | Developer Mode — implementation tracking and assignment |
 | `/[state]/pipeline` | Pipeline — research pipeline status, funnel visualization, drill-downs |
-| `/[state]/bookmarks` | Bookmarks — saved regulations for later review |
+| `/[state]/saved` | Saved — bookmarked regulations, guidance, fines, and analyses organized by marker group |
 | `/[state]/analytics` | Analytics — compliance issue distribution and severity visualizations |
 | `/[state]/regulations/[id]` | Regulation Detail — full text with analysis, flags, and cross-references |
 | `/prompts` | Prompts — view and provide feedback on LLM prompts |
+| `/onboarding` | Onboarding — first-run walkthrough for new reviewers |
 
 ### Features
 
@@ -205,7 +215,9 @@ deproceduralizer/
 │       ├── scan_compliance_issues.py     # Regex compliance issue scanner
 │       ├── batch_definitions.py          # Batch definition extraction
 │       ├── ibr_scanner.py                # Incorporation by reference scanner
+│       ├── fines_scanner.py              # Fines/fees/penalties LLM extraction
 │       ├── research_pipeline/            # 3-tier LLM analysis pipeline
+│       ├── jenai_pipeline/               # Single-pass 18-category burden analysis
 │       ├── summarization/                # Hierarchical summarization
 │       ├── cross_references/             # Internal citation extraction
 │       └── ...
@@ -239,7 +251,12 @@ deproceduralizer/
 │
 ├── prompts/                              # LLM prompt definitions (YAML)
 │   ├── core.yaml                         # Definitions prompts
-│   └── compliance_issues.yaml            # 49 issue types with patterns
+│   ├── compliance_issues.yaml            # 49 issue types with patterns
+│   ├── jenai.yaml                        # 18-category Pahlka burden framework
+│   ├── research_pipeline.yaml            # 3-tier research pipeline prompts
+│   ├── topic_classification.yaml         # Topic taxonomy prompts
+│   ├── tournament.yaml                   # Prompt-tournament evaluation
+│   └── issue_configs/                    # Per-issue-type prompt overrides
 │
 ├── data/                                 # Generated/exported data artifacts
 │   ├── db_backup/<UTC-timestamp>/        # Point-in-time JSONL DB snapshots
@@ -266,7 +283,7 @@ deproceduralizer/
 The full pipeline transforms raw regulation text into structured, reviewable findings.
 
 1. **Scrape** — Fetch regulations from Cornell Law into JSON cache, then migrate to PostgreSQL
-2. **Exclude** — Mark non-regulatory sections (executive orders, data tables) to skip in analysis
+2. **Exclude** — Mark non-regulatory sections (executive orders, military code, data tables) to skip in analysis
 3. **Regulatory Status** — Detect repealed, reserved, recodified, or expired sections
 4. **Definitions** — Extract defined terms using Anthropic Batch API (Haiku)
 5. **Link Definitions** — Match definitions to documents where terms appear
@@ -275,9 +292,15 @@ The full pipeline transforms raw regulation text into structured, reviewable fin
 8. **Compliance Scan** — Regex-only detection of 49 compliance issue types (no LLM, free) <!-- metric: ISSUE_TYPE_COUNT=49 -->
 9. **Research Pipeline** — 3-tier LLM analysis: filter false positives → classify burden/severity → web search verification
 10. **IBR Scan** — Detect external standards incorporated by reference
-11. **Refresh Stats** — Precompute hierarchy statistics for frontend performance
+11. **Fines Scan** — LLM structured extraction of fines, fees, penalties, surcharges, forfeitures
+12. **JenAI Pipeline** — Single-pass LLM analysis applying the 18-category Pahlka burden framework <!-- metric: JENAI_CATEGORIES=18 -->
+13. **Refresh Stats** — Precompute hierarchy statistics for frontend performance
 
-Steps 6-8 can run in parallel. Step 9 depends on steps 6 and 7. Step 11 runs last.
+A separate **Guidance Import** pipeline loads sub-regulatory documents from the `nys-documents` catalog into `guidance_documents`; once imported, guidance is analyzed by the same downstream pipelines.
+
+**Dependencies:** Cross-References (6) can run anytime after Scrape (1). Summaries (7) and Compliance Scan (8) can run in parallel. Research Pipeline (9) and JenAI Pipeline (12) both depend on Cross-References (6) and Summaries (7). IBR (10) and Fines (11) are independent of the LLM pipelines. Refresh Stats (13) runs last.
+
+> Note: `docs/OPERATIONS.md` numbers these the same way conceptually but labels Exclude as **1b** and Fines as **9b** (sub-steps grouped with their parent). The runbook is the source of truth for commands and flags.
 
 See [`docs/OPERATIONS.md`](docs/OPERATIONS.md) for the complete runbook with commands, flags, cost estimates, and timing for each step.
 
@@ -288,14 +311,20 @@ See [`docs/OPERATIONS.md`](docs/OPERATIONS.md) for the complete runbook with com
 | Table | Purpose |
 |-------|---------|
 | `regulatory_documents` | Regulation text, metadata, hierarchy, denormalized stats |
+| `guidance_documents` | Sub-regulatory guidance (ADMs, LCMs, INFs, GIS, TSBs) imported from `nys-documents` |
+| `agencies` | Canonical agency lookup for deduplicating `responsible_agency` across pipelines |
 | `definitions` | Extracted defined terms with scope tracking |
+| `definition_document_occurrences` | Links definitions to documents where terms appear |
 | `compliance_issues` | Regex-matched compliance issue candidates (49 types) | <!-- metric: ISSUE_TYPE_COUNT=49 -->
 | `compliance_issue_analyses` | LLM analysis + human review per document/issue type |
+| `jenai_analyses` | JenAI single-pass burden analysis, one row per document |
+| `jenai_issues` | Per-category findings (18 categories) linked to `jenai_analyses` |
+| `fines_fees_penalties` | Structured extraction of monetary charges from regulations and guidance |
 | `statute_references` | Legal citations extracted from regulations (USC, CFR, state) |
+| `regulation_statute_links` | Many-to-many crosswalk between regulations and statutes |
+| `statute_mandate_checks` | Whether cited statutes actually mandate flagged issues |
 | `cross_references` | Internal citations between regulatory documents |
 | `incorporations_by_reference` | External standards referenced in regulations |
-| `statute_mandate_checks` | Whether cited statutes actually mandate flagged issues |
-| `definition_document_occurrences` | Links definitions to documents where terms appear |
 
 See [`.claude/skills/database/schema.md`](.claude/skills/database/schema.md) for complete schema documentation, or [`frontend/packages/database/src/schema/`](frontend/packages/database/src/schema/) for Drizzle definitions.
 
@@ -400,10 +429,13 @@ python scripts/generate_prompt_types.py
 
 ## Data Coverage
 
-| State | Regulation Source | Documents | Statute Sources |
-|-------|-------------------|-----------|-----------------|
-| New York | NYCRR (23 titles) | ~60,000 sections | NY Consolidated Laws (OpenLegislation API), NYC Charter + Admin Code |
-| New Jersey | NJAC | ~61,000 documents | NJ Statutes |
+| Jurisdiction | Regulation Source | Documents | Statute Sources |
+|--------------|-------------------|-----------|-----------------|
+| New York (NY) | NYCRR (23 titles) | ~60,000 sections | NY Consolidated Laws (OpenLegislation API) |
+| New Jersey (NJ) | NJAC | ~61,000 documents | NJ Statutes |
+| New York City (NYC) | RCNY | sub-state | NYC Charter + Administrative Code |
+
+In addition to the regulatory corpora above, the database holds a **guidance documents** corpus of ADMs, LCMs, INFs, GIS, TSBs, and similar sub-regulatory directives imported from the `nys-documents` catalog. Guidance is analyzed by the same downstream pipelines (compliance scan, fines extraction, JenAI burden analysis).
 
 ## Contributing
 

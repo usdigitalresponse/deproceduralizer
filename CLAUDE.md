@@ -28,7 +28,7 @@ Canonical counts for use across all documentation. When adding/removing issue ty
 | Metric | Value | Source of Truth |
 |--------|-------|-----------------|
 | Compliance issue types | 49 | `prompts/compliance_issues.yaml` |
-| Pipeline steps | 11 | `docs/OPERATIONS.md` step table |
+| Pipeline steps | 13 | `docs/OPERATIONS.md` step table |
 | JenAI/Pahlka categories | 18 | `prompts/jenai.yaml` |
 
 ## Frontend Architecture Guidelines (frontend/apps/web)
