@@ -9,7 +9,7 @@
     "test": "pnpm -r run test"
   },
   "devDependencies": {
-    "next": "16.0.10"
+    "next": "16.2.6"
   },
   "packageManager": "pnpm@9.15.1",
   "dependencies": {
