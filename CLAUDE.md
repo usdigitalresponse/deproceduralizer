@@ -1,3 +1,9 @@
+## Repository Purpose
+
+This is `deproceduralizer-backup`, a mirror of the active `deproceduralizer` codebase **plus** periodic database snapshots under `data/db_backup/<UTC-timestamp>/`. Most of the guidance below is inherited from upstream and applies when reading or reasoning about the code; for backup-specific operations (taking snapshots, restoring), see `data/db_backup/README.md` and the "Restoring from a Snapshot" section of `DATABASE_SETUP.md`. The export script lives at `scripts/export_db_to_flatfiles.py`.
+
+---
+
 - whenever adding new components or frontend features, be sure to look at apps/web/STYLE_GUIDE.md and update the apps/web/STYLE_GUIDE.md as necessary to ensure the new components are consistent with it. Also, try to keep components as atomic as possible, keeping DRY principles as much as possible
 - before pushing, verify documentation is current: if changes touched pipeline scripts, check docs/OPERATIONS.md; if they touched schema, check .claude/skills/database/schema.md; if they touched pipeline internals, check the corresponding skill file
 - Before pushing, always run the smoke tests: `cd frontend/apps/web && pnpm test:e2e` unless you've run it recently. When starting a big feature, always add running smoke tests to the todos.

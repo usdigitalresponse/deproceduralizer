@@ -59,6 +59,10 @@ node_modules
 data/raw/
 data/*.csv
 
+# DB backup snapshots: commit the snapshot directories under data/db_backup/<ts>/
+# but ignore any intermediate scratch files inside them.
+data/db_backup/**/*.tmp
+
 # Local summarization batch results
 backend/scripts/local_summarization/summaries_staging/
 backend/summaries_staging/
