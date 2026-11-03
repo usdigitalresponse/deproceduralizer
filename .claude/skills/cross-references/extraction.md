@@ -4,7 +4,7 @@
 
 1. Working directory:
    ```bash
-   cd ~/Documents/Programming/raf/deproceduralizer/backend/scripts
+   cd <path-to-repo>/backend/scripts
    ```
 
 2. Environment variables set (DATABASE_URL in .env)

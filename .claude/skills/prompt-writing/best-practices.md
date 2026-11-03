@@ -1,5 +1,7 @@
 # Prompt Writing Best Practices
 
+> Condensed from Anthropic's [prompt engineering guide](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/overview), with examples adapted for this project.
+
 ## 1. Be Clear and Direct
 
 Think of Claude as a brilliant new employee with no context on your norms or preferences.

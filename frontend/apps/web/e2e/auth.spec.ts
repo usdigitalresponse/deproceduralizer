@@ -1,5 +1,10 @@
 import { test, expect } from '@playwright/test';
 
+// The real site password never lives in source. Set E2E_SITE_PASSWORD locally,
+// or as a GitHub Actions secret, to run the tests that need it.
+const SITE_PASSWORD = process.env.E2E_SITE_PASSWORD ?? '';
+const SKIP_REASON = 'Set E2E_SITE_PASSWORD to run tests that use the real site password';
+
 test.describe('Authentication', () => {
   // Re-enable the password form for auth tests (bypassed in dev/preview by default)
   test.beforeEach(async ({ page }) => {
@@ -32,10 +37,12 @@ test.describe('Authentication', () => {
   });
 
   test('correct password grants access', async ({ page }) => {
+    test.skip(!SITE_PASSWORD, SKIP_REASON);
+
     await page.goto('/');
 
     // Enter correct password
-    await page.getByLabel(/Password/i).fill('***REMOVED***');
+    await page.getByLabel(/Password/i).fill(SITE_PASSWORD);
     await page.getByRole('button', { name: /Continue/i }).click();
 
     // Should redirect to dashboard (eyebrow text, not a heading)
@@ -43,9 +50,11 @@ test.describe('Authentication', () => {
   });
 
   test('authenticated session persists across navigation', async ({ page }) => {
+    test.skip(!SITE_PASSWORD, SKIP_REASON);
+
     // Authenticate first
     await page.goto('/');
-    await page.getByLabel(/Password/i).fill('***REMOVED***');
+    await page.getByLabel(/Password/i).fill(SITE_PASSWORD);
     await page.getByRole('button', { name: /Continue/i }).click();
     await expect(page.getByText(/Regulatory Analysis Dashboard/i)).toBeVisible({ timeout: 15000 });
 

@@ -23,7 +23,7 @@ description: Query and manage the Deproceduralizer Neon PostgreSQL database. Use
 
 ## Connection
 
-- **Host**: `ep-REDACTED-pooler.c-3.us-east-1.aws.neon.tech`
+- **Host**: Neon Postgres. See `DATABASE_URL` in `.env`.
 - **Database**: `neondb`
 - **Connection**: Via `DATABASE_URL` in `.env`
 

@@ -1,0 +1,11 @@
+deproceduralizer
+Copyright 2026 U.S. Digital Response
+Copyright 2026 Recoding America
+
+Licensed under the Apache License, Version 2.0. See LICENSE.
+
+Bundled fonts
+-------------
+The Inter and JetBrains Mono font files in frontend/apps/web/src/fonts/ are
+licensed under the SIL Open Font License, Version 1.1, not the Apache License.
+See Inter-OFL.txt and JetBrainsMono-OFL.txt in that folder.

@@ -65,6 +65,7 @@ jobs:
         env:
           PLAYWRIGHT_TEST_BASE_URL: ${{ github.event.client_payload.url }}
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+          E2E_SITE_PASSWORD: ${{ secrets.E2E_SITE_PASSWORD }}
 
       - name: Report status to Vercel
         if: always()

@@ -50,6 +50,7 @@ class BaseRegulationsScraper(ABC):
         self.base_url = base_url
         self.session = requests.Session()
         self.session.headers.update({
+            # Identify the scraper honestly rather than posing as a browser.
             'User-Agent': 'deproceduralizer/1.0 (+https://github.com/usdigitalresponse/deproceduralizer)'
         })
         self.visited_urls = set()

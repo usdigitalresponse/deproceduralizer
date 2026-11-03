@@ -11,7 +11,7 @@ Extract and display internal cross-references between regulatory documents.
 
 ```bash
 # Run extraction for a state
-cd ~/Documents/Programming/raf/deproceduralizer/backend/scripts
+cd <path-to-repo>/backend/scripts
 python3 -m cross_references.run_extraction --state NJ --output db
 
 # Check stats

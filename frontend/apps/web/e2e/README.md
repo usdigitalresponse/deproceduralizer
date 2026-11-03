@@ -42,6 +42,7 @@ These tests include cleanup logic to restore data after running.
 |----------|----------|-------------|
 | `PLAYWRIGHT_TEST_BASE_URL` | No | Base URL for tests (default: `http://localhost:3000`) |
 | `VERCEL_AUTOMATION_BYPASS_SECRET` | For Vercel | Bypass Vercel deployment protection |
+| `E2E_SITE_PASSWORD` | For auth tests | The real `SITE_PASSWORD`. The two tests that log in with it skip when it's unset. |
 
 ## Auth Bypass in Dev/Preview
 

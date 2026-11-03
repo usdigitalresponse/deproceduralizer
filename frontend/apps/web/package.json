@@ -2,6 +2,7 @@
   "name": "web",
   "version": "0.1.0",
   "private": true,
+  "license": "Apache-2.0",
   "scripts": {
     "dev": "next dev",
     "prebuild": "mkdir -p src/data && cp ../../../prompts/core.yaml src/data/core.yaml && cp ../../../prompts/compliance_issues.yaml src/data/compliance_issues.yaml && cp ../../../prompts/research_pipeline.yaml src/data/research_pipeline.yaml && cp ../../../prompts/jenai.yaml src/data/jenai.yaml && cp ../../../prompts/tournament.yaml src/data/tournament.yaml && rm -rf src/data/issue_configs && cp -r ../../../prompts/issue_configs src/data/issue_configs",
