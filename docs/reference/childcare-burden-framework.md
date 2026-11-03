@@ -1,6 +1,6 @@
 # Childcare Regulatory Burden Analytical Framework
 
-> **Derived from:** [NHSA Comment Letter on OHS NPRM (Jan 2024)](./nhsa-nprm-comments-2024.md)
+> **Derived from:** [NHSA Comment Letter on OHS NPRM (Jan 2024)](https://nhsa.org/wp-content/uploads/2024/01/NHSA-NPRMComments.pdf), National Head Start Association
 > **Purpose:** Childcare-specific burden categories for detecting systemic regulatory burden patterns — complementing the existing 42 compliance issue types (procedural friction) and 19 JenAI Pahlka categories
 > **Status:** Reference framework for future pipeline integration
 

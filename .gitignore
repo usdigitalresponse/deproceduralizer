@@ -59,9 +59,17 @@ node_modules
 data/raw/
 data/*.csv
 
-# DB backup snapshots: commit the snapshot directories under data/db_backup/<ts>/
-# but ignore any intermediate scratch files inside them.
+# DB snapshots: only the schema (schema.sql, sensitive/*.schema.sql) ships in this
+# repo. Full snapshots, with data, live in the private deproceduralizer-backup archive.
+data/db_backup/**/*.zip
+data/db_backup/**/*.jsonl
+data/db_backup/**/manifest.json
 data/db_backup/**/*.tmp
+
+# Pipeline outputs quote regulation text in bulk; keep them out of the public repo
+data/outputs/
+data/summaries/
+backend/outputs/
 
 # Local summarization batch results
 backend/scripts/local_summarization/summaries_staging/

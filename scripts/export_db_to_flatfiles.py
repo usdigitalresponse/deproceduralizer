@@ -6,7 +6,7 @@ Designed to be run from inside the `deproceduralizer/` working copy (where
 snapshot directory that can be copied into `deproceduralizer-backup/data/db_backup/`.
 
 Usage:
-    cd ~/Documents/Programming/raf/deproceduralizer
+    cd /path/to/deproceduralizer
     set -a && source .env.local && set +a
     python3 ../deproceduralizer-backup/scripts/export_db_to_flatfiles.py \
         --out-dir .db_backup_staging/$(date -u +%Y-%m-%dT%H-%M-%SZ)

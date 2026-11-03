@@ -33,12 +33,13 @@ The result is an interactive web application where policy reviewers can browse r
 - [Project Structure](#project-structure)
 - [Analysis Pipeline](#analysis-pipeline)
 - [Database Schema](#database-schema)
-- [Database Backups](#database-backups)
+- [Getting Data](#getting-data)
 - [Development](#development)
 - [Deployment](#deployment)
 - [Data Coverage](#data-coverage)
+- [Data Sources](#data-sources)
 - [Contributing](#contributing)
-- [License](#license)
+- [License & Copyright](#license--copyright)
 
 ## Key Capabilities
 
@@ -274,23 +275,20 @@ deproceduralizer/
 │   ├── tournament.yaml                   # Prompt-tournament evaluation
 │   └── issue_configs/                    # Per-issue-type prompt overrides
 │
-├── data/                                 # Generated/exported data artifacts
-│   ├── db_backup/<UTC-timestamp>/        # Point-in-time JSONL DB snapshots
-│   ├── outputs/                          # Pipeline output artifacts
-│   └── summaries/                        # Summarization batch outputs
+├── data/
+│   └── db_backup/<UTC-timestamp>/        # Database schema only (schema.sql); no records ship here
 │
 ├── scripts/
 │   ├── db-query.sh                       # Postgres query helpers
-│   └── export_db_to_flatfiles.py         # DB → JSONL snapshot exporter
+│   └── export_db_to_flatfiles.py         # DB → JSONL snapshot exporter (for the private archive)
 │
 ├── docs/
 │   └── OPERATIONS.md                     # Pipeline runbook
 │
 ├── .claude/                              # Claude Code configuration
-│   ├── hooks/                            # Workflow automation hooks
 │   └── skills/                           # Domain-specific skill docs
 │
-├── DATABASE_SETUP.md                     # Database setup guide (incl. restore-from-snapshot)
+├── DATABASE_SETUP.md                     # Database setup guide
 └── .env                                  # Environment variables (gitignored)
 ```
 
@@ -372,29 +370,31 @@ See [`docs/OPERATIONS.md`](docs/OPERATIONS.md) for the complete runbook with com
 
 See [`.claude/skills/database/schema.md`](.claude/skills/database/schema.md) for complete schema documentation, or [`frontend/packages/database/src/schema/`](frontend/packages/database/src/schema/) for Drizzle definitions.
 
-## Database Backups
+## Getting Data
 
-This repository doubles as a versioned mirror of the production database. Point-in-time snapshots live under [`data/db_backup/<UTC-timestamp>/`](data/db_backup/) — see [`data/db_backup/README.md`](data/db_backup/README.md) for the snapshot index.
+The app reads everything from Postgres, never from files in this repo. A fresh clone runs, but every page stays empty until you point it at a populated database.
 
-Each snapshot contains:
+No regulation text, analysis results, or database records ship here. We keep full database snapshots in a private archive.
 
-- `schema.sql` — full `pg_dump --schema-only` of the `public` schema.
-- `manifest.json` — per-file row counts, sizes, and sha256 hashes.
-- `<table>.jsonl.zip` for each normal table; large tables are split into `<table>/<table>.part-NNN.jsonl.zip` chunks so every artifact stays under GitHub's 100 MB hard limit.
-- `sensitive/` — schema-only dumps (and PII-redacted sample rows where useful) for tables containing user data (`share_tokens`, `bookmarks`, `document_notes`, `eval_human_votes`, `prompt_feedback`).
-- `llm_api_cache` is excluded entirely (regeneratable and may contain raw prompts).
+You have three ways to get data:
 
-**Taking a new snapshot** — run from inside the active `deproceduralizer` working copy (where `DATABASE_URL` is set in `.env.local`):
+- **Team members ---** point `DATABASE_URL` at the existing Neon database. Nothing else changes.
+- **Collaborators with archive access ---** restore a full snapshot from the private `deproceduralizer-backup` repository, following the steps in its `DATABASE_SETUP.md`.
+- **Everyone else ---** create an empty database and build your own data with the pipeline.
 
-```bash
-cd /path/to/deproceduralizer
-set -a && source .env.local && set +a
-python3 /path/to/deproceduralizer-backup/scripts/export_db_to_flatfiles.py \
-  --out-dir .db_backup_staging/$(date -u +%Y-%m-%dT%H-%M-%SZ)
-# then mv the staged directory into deproceduralizer-backup/data/db_backup/ and commit
-```
+To build your own database:
 
-**Restoring from a snapshot** — see [`DATABASE_SETUP.md#restoring-from-a-snapshot`](DATABASE_SETUP.md#restoring-from-a-snapshot).
+1. Create the schema. Load [`data/db_backup/2026-05-15T20-22-11Z/schema.sql`](data/db_backup/2026-05-15T20-22-11Z/schema.sql), or apply the migrations in [`frontend/packages/database/migrations/`](frontend/packages/database/migrations/). See [`DATABASE_SETUP.md`](DATABASE_SETUP.md).
+2. Run the scrapers for the jurisdictions you want. [Data Sources](#data-sources) lists them.
+3. Run the regex compliance scan, which is free: `python backend/scripts/scan_compliance_issues.py --state ny`.
+
+A few limits to know about before you start:
+
+- **AI steps cost money ---** summarization, the research pipeline, JenAI, and fines extraction all call the Anthropic API. Check the cost estimates in [`docs/OPERATIONS.md`](docs/OPERATIONS.md) first.
+- **NY statutes need an API key ---** request a free key from the [NY Senate Open Legislation API](https://legislation.nysenate.gov/) and set `NY_OPEN_LEG_API_KEY`.
+- **NYC data needs manual downloads ---** the NYC parsers read exports you download yourself from American Legal Publishing.
+- **Guidance documents need a separate repo ---** they come from the `nys-documents` scraping pipeline, which isn't part of this repo.
+- **Smoke tests need data ---** `pnpm test:e2e` checks for real records, so it fails against an empty database.
 
 ## Development
 
@@ -481,7 +481,25 @@ python scripts/generate_prompt_types.py
 
 In addition to the regulatory corpora above, the database holds a **guidance documents** corpus of ADMs, LCMs, INFs, GIS, TSBs, and similar sub-regulatory directives imported from the `nys-documents` catalog. Guidance is analyzed by the same downstream pipelines (compliance scan, fines extraction, JenAI burden analysis).
 
+## Data Sources
+
+Every scraper reads from a public source, and that source's terms apply to anything you download. This repo ships the code, not the data.
+
+| Data | Source | Script |
+|------|--------|--------|
+| NY regulations (NYCRR) | [Cornell Legal Information Institute](https://www.law.cornell.edu/regulations/new-york) | `backend/scripts/ny_regulations_scraper.py` |
+| NJ regulations (NJAC) | [Cornell Legal Information Institute](https://www.law.cornell.edu/regulations/new-jersey) | `backend/scripts/nj_regulations_scraper.py` |
+| NY Consolidated Laws | [NY Senate Open Legislation API](https://legislation.nysenate.gov/) | `backend/scripts/ny_statutes.py` |
+| NJ statutes | [NJ Legislature bulk statutes file](https://pub.njleg.gov/statutes/) | `backend/scripts/nj_statutes.py` |
+| NYC Rules (RCNY) and Health Code | [American Legal Publishing](https://codelibrary.amlegal.com/codes/newyorkcity/latest/NYCrules/0-0-0-1), manual export | `backend/scripts/rcny_parser.py`, `backend/scripts/health_code_parser.py` |
+| NYC Charter and Administrative Code | American Legal Publishing, manual export | `backend/scripts/nyc_statutes.py` |
+| NY agency guidance documents | `nys-documents`, a separate scraping repo | `backend/scripts/guidance_pipeline/` |
+
+The regulations scrapers identify themselves as `deproceduralizer/1.0` and cache every page they fetch, so a rerun doesn't hit the source again. Keep request rates low, and if a site blocks automated access, skip it.
+
 ## Contributing
+
+We're not accepting issues or pull requests right now. [`CONTRIBUTING.md`](CONTRIBUTING.md) explains how U.S. Digital Response projects take contributions in general.
 
 Key conventions:
 
@@ -497,8 +515,16 @@ References:
 - [`docs/OPERATIONS.md`](docs/OPERATIONS.md) — pipeline runbook with all commands and costs
 - [`CLAUDE.md`](CLAUDE.md) — project conventions for AI-assisted development
 
-This project uses Claude Code hooks (`.claude/hooks/`) for workflow enforcement: pre-push test reminders, pre-commit documentation checks, and schema update validation.
+## License & Copyright
 
-## License
+Copyright 2026 U.S. Digital Response
 
-See LICENSE file.
+Copyright 2026 Recoding America
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use this software except in compliance with the License. You may obtain a copy of the License at:
+
+[`LICENSE`](./LICENSE) in this repository or http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
+
+The bundled Inter and JetBrains Mono fonts are under the SIL Open Font License instead. See [`NOTICE`](./NOTICE).

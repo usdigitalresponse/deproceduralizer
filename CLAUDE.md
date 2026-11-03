@@ -1,6 +1,6 @@
 ## Repository Purpose
 
-This is `deproceduralizer-backup`, a mirror of the active `deproceduralizer` codebase **plus** periodic database snapshots under `data/db_backup/<UTC-timestamp>/`. Most of the guidance below is inherited from upstream and applies when reading or reasoning about the code; for backup-specific operations (taking snapshots, restoring), see `data/db_backup/README.md` and the "Restoring from a Snapshot" section of `DATABASE_SETUP.md`. The export script lives at `scripts/export_db_to_flatfiles.py`.
+This is `deproceduralizer`, the public, code-only release of the regulatory analysis tool. No regulation text, analysis results, or database records ship here: the app reads everything from Postgres (`DATABASE_URL`). The schema from our latest snapshot lives in `data/db_backup/<UTC-timestamp>/schema.sql`; the full snapshots stay in the private `deproceduralizer-backup` archive. See the README's "Getting Data" section for how to populate a database.
 
 ---
 

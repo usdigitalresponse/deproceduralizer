@@ -21,7 +21,11 @@ pnpm test:e2e --grep @mutation
 ## Test Categories
 
 ### Smoke Tests (Default)
-Fast, read-only tests that verify critical user paths work:
+Fast, read-only tests that verify critical user paths work.
+
+**Note:** the smoke tests check for real records, like nonzero counts and search results, so they need a populated database. Against an empty one they fail. See [Getting Data](../../../../README.md#getting-data).
+
+They cover:
 - Browse page loads and expands
 - Review mode shows data
 - Definitions glossary loads
