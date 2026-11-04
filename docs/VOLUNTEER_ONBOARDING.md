@@ -21,7 +21,7 @@ Start here to get the big picture before diving into details.
 - [ ] Browse the **section type distribution** — see how regulations are categorized
 - [ ] Review **compliance issue counts by type and severity** — there are 49 issue types we scan for
 - [ ] Check the **pipeline tier progression** — shows how many issues have been through each stage of AI analysis
-- [ ] Look at **JenAI severity distribution** — this is the 19-category Pahlka framework analysis
+- [ ] Look at **Barrier severity distribution** — this is the 18-category barrier framework analysis
 
 **Goal:** Understand the scale of what we're analyzing and how we categorize regulatory burden.
 
@@ -64,7 +64,7 @@ This is where all the AI prompts that power the analysis are defined.
 
 - [ ] Browse the **Core prompts** — these handle definitions and foundational analysis
 - [ ] Browse the **Compliance Issue prompts** (49) — each one targets a specific type of regulatory burden
-- [ ] Browse the **JenAI prompts** (18) — these are the Pahlka framework categories for implementation analysis
+- [ ] Browse the **Barrier prompts** (18) — these are the barrier framework categories for implementation analysis
 - [ ] Read through **2-3 prompts** in detail to understand what the AI is being asked to look for
 - [ ] Note the **feedback counts** — you can provide feedback on any prompt if you think it could be improved
 
@@ -72,13 +72,13 @@ This is where all the AI prompts that power the analysis are defined.
 
 ---
 
-### Step 5: Review JenAI Results
+### Step 5: Review Barrier Results
 
-**Go to:** `ny/review` → **JenAI tab**
+**Go to:** `ny/review` → **Barrier tab**
 
-The JenAI analysis uses a single enriched pass to categorize regulatory burden across 19 categories.
+The Barrier analysis uses a single enriched pass to categorize regulatory burden across 18 categories.
 
-- [ ] Browse through several JenAI results to see how regulations are categorized
+- [ ] Browse through several Barrier results to see how regulations are categorized
 - [ ] Pay attention to the **severity ratings** and **category assignments**
 - [ ] Note whether the AI's reasoning makes sense for the regulatory text shown
 
@@ -135,4 +135,4 @@ This is where the core review work happens. You'll be validating AI findings.
 | Glossary | `ny/definitions` | Extracted defined terms |
 | Guidance | `ny/guidance` | Sub-regulatory guidance documents |
 | Prompts | `prompts` | All AI prompts with feedback |
-| Review | `ny/review` | Review queues (compliance, flags, JenAI, definitions) |
+| Review | `ny/review` | Review queues (compliance, flags, Barrier, definitions) |

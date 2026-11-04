@@ -2,7 +2,7 @@
  * Tag Analytics constants — central registry of every tag field in the system.
  *
  * This file is the single source of truth for:
- * - Tag domains (regulation, guidance, fines, compliance, jenai)
+ * - Tag domains (regulation, guidance, fines, compliance, barriers)
  * - Tag types (structured, free_text, issue_type, boolean)
  * - Tag field metadata (table, column, allowed values, display labels)
  * - Tab definitions for the /tags page
@@ -12,7 +12,7 @@
 // Domains
 // ---------------------------------------------------------------------------
 
-export const TAG_DOMAINS = ['regulation', 'guidance', 'fines', 'compliance', 'jenai'] as const;
+export const TAG_DOMAINS = ['regulation', 'guidance', 'fines', 'compliance', 'barriers'] as const;
 export type TagDomain = (typeof TAG_DOMAINS)[number];
 
 export const TAG_DOMAIN_LABELS: Record<TagDomain, string> = {
@@ -20,7 +20,7 @@ export const TAG_DOMAIN_LABELS: Record<TagDomain, string> = {
   guidance: 'Guidance',
   fines: 'Fines & Fees',
   compliance: 'Compliance',
-  jenai: 'JenAI',
+  barriers: 'Barrier',
 };
 
 export const TAG_DOMAIN_COLORS: Record<TagDomain, string> = {
@@ -28,7 +28,7 @@ export const TAG_DOMAIN_COLORS: Record<TagDomain, string> = {
   guidance: 'bg-amber-100 text-amber-800',
   fines: 'bg-rose-100 text-rose-800',
   compliance: 'bg-emerald-100 text-emerald-800',
-  jenai: 'bg-violet-100 text-violet-800',
+  barriers: 'bg-violet-100 text-violet-800',
 };
 
 // ---------------------------------------------------------------------------
@@ -296,13 +296,13 @@ export const TAG_FIELDS: TagFieldMeta[] = [
     isArray: true,
   },
 
-  // JenAI
+  // Barrier
   {
-    field: 'jenai_tags',
-    label: 'Tags (JenAI)',
-    domain: 'jenai',
+    field: 'barrier_tags',
+    label: 'Tags (Barrier)',
+    domain: 'barriers',
     type: 'free_text',
-    table: 'jenai_issues',
+    table: 'barrier_issues',
     column: 'tags',
     isArray: true,
   },
@@ -319,11 +319,11 @@ export const TAG_FIELDS: TagFieldMeta[] = [
     isArray: false,
   },
   {
-    field: 'jenai_category',
-    label: 'JenAI Category',
-    domain: 'jenai',
+    field: 'barrier_category',
+    label: 'Barrier Category',
+    domain: 'barriers',
     type: 'issue_type',
-    table: 'jenai_issues',
+    table: 'barrier_issues',
     column: 'category',
     isArray: false,
   },
@@ -426,7 +426,7 @@ export const TAG_DOMAIN_HEX: Record<string, string> = {
   guidance: '#fbbf24',   // amber-400
   fines: '#fb7185',      // rose-400
   compliance: '#34d399', // emerald-400
-  jenai: '#a78bfa',      // violet-400
+  barriers: '#a78bfa',      // violet-400
 };
 
 export const TAG_DOMAIN_HEX_LIGHT: Record<string, string> = {
@@ -434,7 +434,7 @@ export const TAG_DOMAIN_HEX_LIGHT: Record<string, string> = {
   guidance: '#fef3c7',   // amber-100
   fines: '#ffe4e6',      // rose-100
   compliance: '#d1fae5', // emerald-100
-  jenai: '#ede9fe',      // violet-100
+  barriers: '#ede9fe',      // violet-100
 };
 
 export function domainColor(domain: string): string {

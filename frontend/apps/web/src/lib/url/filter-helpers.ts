@@ -105,7 +105,7 @@ export function getReviewPageConfig(
   stateName: string,
   regulationsLabel: string,
   mode: 'review' | 'developer',
-  reviewType: 'compliance' | 'definitions' | 'needs_info' | 'jenai'
+  reviewType: 'compliance' | 'definitions' | 'needs_info' | 'barriers'
 ): PageConfig {
   if (mode === 'developer') {
     if (reviewType === 'definitions') {
@@ -114,10 +114,10 @@ export function getReviewPageConfig(
         description: 'Track implementation status of reviewed definitions',
       };
     }
-    if (reviewType === 'jenai') {
+    if (reviewType === 'barriers') {
       return {
-        title: `Developer Review - ${stateName} JenAI`,
-        description: 'Track implementation status of JenAI implementation issues',
+        title: `Developer Review - ${stateName} Barriers`,
+        description: 'Track implementation status of barrier issues',
       };
     }
     return {
@@ -143,10 +143,10 @@ export function getReviewPageConfig(
         title: `Review ${stateName} Regulations`,
         description: 'Items that need additional information from reviewers',
       };
-    case 'jenai':
+    case 'barriers':
       return {
         title: `Review ${stateName} Implementation Issues`,
-        description: `Review JenAI-identified implementation complexity issues in ${regulationsLabel}`,
+        description: `Review implementation barriers identified in ${regulationsLabel}`,
       };
     default:
       return {

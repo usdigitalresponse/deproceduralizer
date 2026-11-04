@@ -9,7 +9,7 @@ import { getDefinitionsWithContext } from '@/lib/actions/definitions';
 import { getNotesByDocumentId } from '@/lib/actions/document-notes';
 import { getCrossReferencesForDocument, getIncomingReferences, getCrossReferencesForHighlighting, getGuidanceReferencingDocument } from '@/lib/actions/cross-references';
 import { getStatuteLinksForRegulation, getEnablingAuthorityForRegulation } from '@/lib/actions/statutes';
-import { getJenAIIssuesForDocument } from '@/lib/actions/jenai';
+import { getBarrierIssuesForDocument } from '@/lib/actions/barrier';
 import { computeComplianceHighlights } from '@/lib/utils/complianceHighlights';
 import { RegulationDetailClient } from './RegulationDetailClient';
 import { RegulationDetailLayout } from './RegulationDetailLayout';
@@ -34,7 +34,7 @@ export default async function RegulationDetailPage({ params, searchParams }: Pag
     notFound();
   }
 
-  const [regulationResult, complianceIssuesResult, definitionsResult, notesResult, crossRefsResult, incomingRefsResult, highlightRefsResult, statuteLinksResult, enablingAuthorityResult, guidanceRefsResult, jenaiIssuesResult] = await Promise.all([
+  const [regulationResult, complianceIssuesResult, definitionsResult, notesResult, crossRefsResult, incomingRefsResult, highlightRefsResult, statuteLinksResult, enablingAuthorityResult, guidanceRefsResult, barrierIssuesResult] = await Promise.all([
     getRegulationById(regulationId),
     getComplianceIssuesByDocumentId(regulationId),
     getDefinitionsWithContext(regulationId),
@@ -45,7 +45,7 @@ export default async function RegulationDetailPage({ params, searchParams }: Pag
     getStatuteLinksForRegulation(regulationId),
     getEnablingAuthorityForRegulation(regulationId),
     getGuidanceReferencingDocument(regulationId),
-    getJenAIIssuesForDocument(regulationId, 'regulation'),
+    getBarrierIssuesForDocument(regulationId, 'regulation'),
   ]);
 
   // Handle errors - display them obviously
@@ -146,8 +146,8 @@ export default async function RegulationDetailPage({ params, searchParams }: Pag
   const enablingAuthority = enablingAuthorityResult.success ? enablingAuthorityResult.data : [];
   // Guidance references
   const guidanceRefs = guidanceRefsResult.success ? guidanceRefsResult.data : [];
-  // JenAI issues
-  const jenaiIssues = jenaiIssuesResult.success ? jenaiIssuesResult.data : [];
+  // Barrier issues
+  const barrierIssues = barrierIssuesResult.success ? barrierIssuesResult.data : [];
   // IDs of definitions defined here
   const definedHereIds = new Set(usedInText.definedHere.map(d => d.id));
 
@@ -177,7 +177,7 @@ export default async function RegulationDetailPage({ params, searchParams }: Pag
               usedDefinitions={usedDefinitions}
               availableButNotUsed={availableButNotUsed}
               definedHereIds={definedHereIds}
-              jenaiIssues={jenaiIssues}
+              barrierIssues={barrierIssues}
             />
           }
           content={

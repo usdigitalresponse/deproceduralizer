@@ -116,7 +116,7 @@ export const REVIEW_TYPES = REVIEW_TYPE_VALUES.map(value => {
     compliance: 'Compliance Issues',
     definitions: 'Definitions',
     needs_info: 'Needs More Info',
-    jenai: 'JenAI',
+    barriers: 'Barrier',
   };
   return { value, label: labels[value] };
 });

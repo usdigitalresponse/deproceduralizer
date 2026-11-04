@@ -13,13 +13,13 @@ import { PromptsOverviewTab } from './PromptsOverviewTab';
 import { PromptCatalogTab } from './PromptCatalogTab';
 import { ArchivedFeedback } from './ArchivedFeedback';
 import { V5PipelineComposer } from './V5PipelineComposer';
-import { JenAIPipelineComposer } from './JenAIPipelineComposer';
+import { BarrierPipelineComposer } from './BarrierPipelineComposer';
 import { FinesPipelineComposer } from './FinesPipelineComposer';
 
 const TAB_OPTIONS: SegmentedControlOption<PromptsTabValue>[] = [
   { value: 'overview', label: 'Overview', icon: BarChart3 },
   { value: 'research', label: 'Research', icon: Layers },
-  { value: 'jenai', label: 'JenAI', icon: Cpu },
+  { value: 'barriers', label: 'Barriers', icon: Cpu },
   { value: 'fines', label: 'Fines', icon: DollarSign },
   { value: 'catalog', label: 'Catalog', icon: Code },
 ];
@@ -27,7 +27,7 @@ const TAB_OPTIONS: SegmentedControlOption<PromptsTabValue>[] = [
 export interface PromptsClientProps {
   prompts: PromptData[];
   compliancePrompts: CompliancePromptData[];
-  jenaiPrompts: PromptData[];
+  barrierPrompts: PromptData[];
   tournamentPrompts?: PromptData[];
   feedbackCounts: Record<string, number>;
   orphanedFeedback: PromptFeedback[];
@@ -37,7 +37,7 @@ export interface PromptsClientProps {
 export function PromptsClient({
   prompts,
   compliancePrompts,
-  jenaiPrompts,
+  barrierPrompts,
   tournamentPrompts = [],
   feedbackCounts,
   orphanedFeedback,
@@ -65,7 +65,7 @@ export function PromptsClient({
           <PromptsOverviewTab
             coreCount={prompts.length}
             complianceCount={compliancePrompts.length}
-            jenaiCount={jenaiPrompts.length}
+            barrierCount={barrierPrompts.length}
             totalFeedback={totalFeedback}
             hasIssueTypes={issueTypes.length > 0}
             onNavigateTab={handleTabChange}
@@ -82,8 +82,8 @@ export function PromptsClient({
           )
         )}
 
-        {currentTab === 'jenai' && (
-          <JenAIPipelineComposer />
+        {currentTab === 'barriers' && (
+          <BarrierPipelineComposer />
         )}
 
         {currentTab === 'fines' && (
@@ -94,7 +94,7 @@ export function PromptsClient({
           <PromptCatalogTab
             prompts={prompts}
             compliancePrompts={compliancePrompts}
-            jenaiPrompts={jenaiPrompts}
+            barrierPrompts={barrierPrompts}
             tournamentPrompts={tournamentPrompts}
             feedbackCounts={feedbackCounts}
           />

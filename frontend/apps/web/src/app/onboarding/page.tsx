@@ -37,7 +37,7 @@ const STEPS: OnboardingStep[] = [
       'Browse the section type distribution — see how regulations are categorized',
       'Review compliance issue counts by type and severity — there are 42 issue types we scan for',
       'Check the pipeline tier progression — shows how many issues have been through each stage of AI analysis',
-      'Look at JenAI severity distribution — this is the 19-category Pahlka framework analysis',
+      'Look at Barrier severity distribution — this is the 18-category barrier framework analysis',
     ],
     goal: 'Understand the scale of what we\'re analyzing and how we categorize regulatory burden.',
   },
@@ -82,7 +82,7 @@ const STEPS: OnboardingStep[] = [
     checklist: [
       'Browse the Core prompts (12) — these handle definitions and foundational analysis',
       'Browse the Compliance Issue prompts (42) — each one targets a specific type of regulatory burden',
-      'Browse the JenAI prompts (19) — these are the Pahlka framework categories for implementation analysis',
+      'Browse the Barrier prompts (18) — these are the barrier framework categories for implementation analysis',
       'Read through 2-3 prompts in detail to understand what the AI is being asked to look for',
       'Note the feedback counts — you can provide feedback on any prompt if you think it could be improved',
     ],
@@ -90,13 +90,13 @@ const STEPS: OnboardingStep[] = [
   },
   {
     number: 5,
-    title: 'Review JenAI Results',
+    title: 'Review Barrier Results',
     icon: ClipboardCheck,
     route: '/ny/review',
-    routeLabel: 'ny/review → JenAI tab',
-    description: 'The JenAI analysis uses a single enriched pass to categorize regulatory burden across 19 categories.',
+    routeLabel: 'ny/review → Barrier tab',
+    description: 'The Barrier analysis uses a single enriched pass to categorize regulatory burden across 18 categories.',
     checklist: [
-      'Browse through several JenAI results to see how regulations are categorized',
+      'Browse through several Barrier results to see how regulations are categorized',
       'Pay attention to the severity ratings and category assignments',
       'Note whether the AI\'s reasoning makes sense for the regulatory text shown',
     ],
@@ -148,7 +148,7 @@ const QUICK_REFERENCE = [
   { section: 'Glossary', route: '/ny/definitions', description: 'Extracted defined terms' },
   { section: 'Guidance', route: '/ny/guidance', description: 'Sub-regulatory guidance documents' },
   { section: 'Prompts', route: '/prompts', description: 'All AI prompts with feedback' },
-  { section: 'Review', route: '/ny/review', description: 'Review queues (compliance, JenAI, definitions)' },
+  { section: 'Review', route: '/ny/review', description: 'Review queues (compliance, barriers, definitions)' },
 ];
 
 export default function OnboardingPage() {

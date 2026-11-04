@@ -3,15 +3,15 @@ import { getDashboardStats } from '@/lib/actions/dashboard';
 import { getSectionTypeStats, getMetadataStats, getTopKeywords, getTopAppliesTo } from '@/lib/actions/regulations';
 import { getAnalyticsSummary } from '@/lib/actions/analytics-metrics';
 import {
-  getJenAISeverityDistribution, getJenAIStatusCounts, getJenAICategories,
-  getJenAIParts, getJenAISectionTypes, getJenAIDeveloperStatusCounts,
-  getJenAIComplexityDistribution,
-  getJenAICategorySeverityMatrix, getJenAISourceTypeBreakdown,
-  getJenAIReviewProgressByCategory, getJenAIBurdenScoreDistribution,
-} from '@/lib/actions/jenai';
+  getBarrierSeverityDistribution, getBarrierStatusCounts, getBarrierCategories,
+  getBarrierParts, getBarrierSectionTypes, getBarrierDeveloperStatusCounts,
+  getBarrierComplexityDistribution,
+  getBarrierCategorySeverityMatrix, getBarrierSourceTypeBreakdown,
+  getBarrierReviewProgressByCategory, getBarrierBurdenScoreDistribution,
+} from '@/lib/actions/barrier';
 import { getDefinitionAnalyticsStats } from '@/lib/actions/definitions';
 import { getStatuteStats } from '@/lib/actions/statutes';
-import { getJenAIStrategyStats } from '@/lib/actions/jenai-strategies';
+import { getBarrierStrategyStats } from '@/lib/actions/barrier-strategies';
 import { getPipelineAnalyticsData } from '@/lib/actions/pipeline-analytics';
 import { getGuidanceOverviewStats, getGuidanceCitationStats, getGuidanceReadabilityStats, getGuidanceReadabilityCrossCuts, getGuidanceLineageStats } from '@/lib/actions/guidance-documents';
 import { AnalyticsClient } from '@/components/analytics/AnalyticsClient';
@@ -55,18 +55,18 @@ export default async function AnalyticsPage({ params, searchParams }: AnalyticsP
     definitionsStatsResult,
     statuteStatsResult,
     pipelineDataResult,
-    jenaiSeverityResult,
-    jenaiStatsResult,
-    jenaiCategoriesResult,
-    jenaiPartsResult,
-    jenaiSectionTypesResult,
-    jenaiDeveloperStatusResult,
-    jenaiStrategyStatsResult,
-    jenaiComplexityResult,
-    jenaiCategorySeverityResult,
-    jenaiSourceTypeResult,
-    jenaiReviewProgressResult,
-    jenaiBurdenScoreResult,
+    barrierSeverityResult,
+    barrierStatsResult,
+    barrierCategoriesResult,
+    barrierPartsResult,
+    barrierSectionTypesResult,
+    barrierDeveloperStatusResult,
+    barrierStrategyStatsResult,
+    barrierComplexityResult,
+    barrierCategorySeverityResult,
+    barrierSourceTypeResult,
+    barrierReviewProgressResult,
+    barrierBurdenScoreResult,
     guidanceOverviewStatsResult,
     guidanceCitationStatsResult,
     guidanceReadabilityStatsResult,
@@ -82,18 +82,18 @@ export default async function AnalyticsPage({ params, searchParams }: AnalyticsP
     getDefinitionAnalyticsStats(stateCode),
     getStatuteStats(state),
     getPipelineAnalyticsData(stateCode, repoSource),
-    getJenAISeverityDistribution(stateCode),
-    getJenAIStatusCounts(stateCode),
-    getJenAICategories(stateCode),
-    getJenAIParts(stateCode),
-    getJenAISectionTypes(stateCode),
-    getJenAIDeveloperStatusCounts(stateCode),
-    getJenAIStrategyStats(stateCode),
-    getJenAIComplexityDistribution(stateCode),
-    getJenAICategorySeverityMatrix(stateCode),
-    getJenAISourceTypeBreakdown(stateCode),
-    getJenAIReviewProgressByCategory(stateCode),
-    getJenAIBurdenScoreDistribution(stateCode),
+    getBarrierSeverityDistribution(stateCode),
+    getBarrierStatusCounts(stateCode),
+    getBarrierCategories(stateCode),
+    getBarrierParts(stateCode),
+    getBarrierSectionTypes(stateCode),
+    getBarrierDeveloperStatusCounts(stateCode),
+    getBarrierStrategyStats(stateCode),
+    getBarrierComplexityDistribution(stateCode),
+    getBarrierCategorySeverityMatrix(stateCode),
+    getBarrierSourceTypeBreakdown(stateCode),
+    getBarrierReviewProgressByCategory(stateCode),
+    getBarrierBurdenScoreDistribution(stateCode),
     getGuidanceOverviewStats(stateCode),
     getGuidanceCitationStats(stateCode),
     getGuidanceReadabilityStats(stateCode),
@@ -111,18 +111,18 @@ export default async function AnalyticsPage({ params, searchParams }: AnalyticsP
   const definitionsStats = definitionsStatsResult.success ? definitionsStatsResult.data : null;
   const statuteStats = statuteStatsResult.success ? statuteStatsResult.data : null;
   const pipelineData = pipelineDataResult.success ? pipelineDataResult.data : null;
-  const jenaiSeverity = jenaiSeverityResult.success ? jenaiSeverityResult.data : null;
-  const jenaiStats = jenaiStatsResult.success ? jenaiStatsResult.data : null;
-  const jenaiCategories = jenaiCategoriesResult.success ? jenaiCategoriesResult.data : null;
-  const jenaiParts = jenaiPartsResult.success ? jenaiPartsResult.data : null;
-  const jenaiSectionTypes = jenaiSectionTypesResult.success ? jenaiSectionTypesResult.data : null;
-  const jenaiDeveloperStatus = jenaiDeveloperStatusResult.success ? jenaiDeveloperStatusResult.data : null;
-  const jenaiStrategyStats = jenaiStrategyStatsResult.success ? jenaiStrategyStatsResult.data : null;
-  const jenaiComplexity = jenaiComplexityResult.success ? jenaiComplexityResult.data : null;
-  const jenaiCategorySeverity = jenaiCategorySeverityResult.success ? jenaiCategorySeverityResult.data : null;
-  const jenaiSourceType = jenaiSourceTypeResult.success ? jenaiSourceTypeResult.data : null;
-  const jenaiReviewProgress = jenaiReviewProgressResult.success ? jenaiReviewProgressResult.data : null;
-  const jenaiBurdenScore = jenaiBurdenScoreResult.success ? jenaiBurdenScoreResult.data : null;
+  const barrierSeverity = barrierSeverityResult.success ? barrierSeverityResult.data : null;
+  const barrierStats = barrierStatsResult.success ? barrierStatsResult.data : null;
+  const barrierCategories = barrierCategoriesResult.success ? barrierCategoriesResult.data : null;
+  const barrierParts = barrierPartsResult.success ? barrierPartsResult.data : null;
+  const barrierSectionTypes = barrierSectionTypesResult.success ? barrierSectionTypesResult.data : null;
+  const barrierDeveloperStatus = barrierDeveloperStatusResult.success ? barrierDeveloperStatusResult.data : null;
+  const barrierStrategyStats = barrierStrategyStatsResult.success ? barrierStrategyStatsResult.data : null;
+  const barrierComplexity = barrierComplexityResult.success ? barrierComplexityResult.data : null;
+  const barrierCategorySeverity = barrierCategorySeverityResult.success ? barrierCategorySeverityResult.data : null;
+  const barrierSourceType = barrierSourceTypeResult.success ? barrierSourceTypeResult.data : null;
+  const barrierReviewProgress = barrierReviewProgressResult.success ? barrierReviewProgressResult.data : null;
+  const barrierBurdenScore = barrierBurdenScoreResult.success ? barrierBurdenScoreResult.data : null;
   const guidanceOverviewStats = guidanceOverviewStatsResult.success ? guidanceOverviewStatsResult.data : null;
   const guidanceCitationStats = guidanceCitationStatsResult.success ? guidanceCitationStatsResult.data : null;
   const guidanceReadabilityStats = guidanceReadabilityStatsResult.success ? guidanceReadabilityStatsResult.data : null;
@@ -147,27 +147,27 @@ export default async function AnalyticsPage({ params, searchParams }: AnalyticsP
           definitionsStats={definitionsStats}
           statuteStats={statuteStats}
           pipelineData={pipelineData}
-          jenaiSeverity={jenaiSeverity}
-          jenaiStats={jenaiStats}
+          barrierSeverity={barrierSeverity}
+          barrierStats={barrierStats}
           guidanceOverviewStats={guidanceOverviewStats}
           guidanceCitationStats={guidanceCitationStats}
           guidanceReadabilityStats={guidanceReadabilityStats}
           guidanceReadabilityCrossCuts={guidanceReadabilityCrossCuts}
           guidanceLineageStats={guidanceLineageStats}
-          jenaiAnalyticsData={{
-            jenaiStats,
-            jenaiSeverity,
-            categories: jenaiCategories,
-            parts: jenaiParts,
-            sectionTypes: jenaiSectionTypes,
-            developerStatusCounts: jenaiDeveloperStatus,
+          barrierAnalyticsData={{
+            barrierStats,
+            barrierSeverity,
+            categories: barrierCategories,
+            parts: barrierParts,
+            sectionTypes: barrierSectionTypes,
+            developerStatusCounts: barrierDeveloperStatus,
             burdenStats: null,
-            complexityDistribution: jenaiComplexity,
-            categorySeverityMatrix: jenaiCategorySeverity,
-            sourceTypeBreakdown: jenaiSourceType,
-            reviewProgressByCategory: jenaiReviewProgress,
-            burdenScoreDistribution: jenaiBurdenScore,
-            strategyStats: jenaiStrategyStats,
+            complexityDistribution: barrierComplexity,
+            categorySeverityMatrix: barrierCategorySeverity,
+            sourceTypeBreakdown: barrierSourceType,
+            reviewProgressByCategory: barrierReviewProgress,
+            burdenScoreDistribution: barrierBurdenScore,
+            strategyStats: barrierStrategyStats,
           }}
         />
       </Container>

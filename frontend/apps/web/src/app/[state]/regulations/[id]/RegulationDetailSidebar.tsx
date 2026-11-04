@@ -14,7 +14,7 @@ import {
 import { HierarchyBreadcrumbsServer } from '@/components/regulations/HierarchyBreadcrumbsServer';
 import { ChildrenListServer } from '@/components/regulations/ChildrenListServer';
 import { EnablingAuthorityCard, StatuteLinksList } from '@/components/statutes';
-import { JenAIIssuesList } from '@/components/jenai';
+import { BarrierIssuesList } from '@/components/barriers';
 import { RegulationSidebarWithNav } from './RegulationSidebarWithNav';
 import type { SectionConfig } from '@/hooks/useActiveSection';
 import type {
@@ -24,7 +24,7 @@ import type {
   CrossReferenceWithSource,
   ComplianceIssueWithAnalysisFields,
   RegulationStatuteLinkWithStatute,
-  JenAIIssue,
+  BarrierIssue,
 } from '@deproceduralizer/database';
 import type { GuidanceReferenceItem } from '@/lib/actions/cross-references';
 import { setDocumentExclusion } from '@/lib/actions/regulations';
@@ -53,8 +53,8 @@ interface RegulationDetailSidebarProps {
   availableButNotUsed: ApplicableDefinition[];
   /** IDs of definitions defined in this document */
   definedHereIds: Set<number>;
-  /** JenAI issues for this document */
-  jenaiIssues: JenAIIssue[];
+  /** Barrier issues for this document */
+  barrierIssues: BarrierIssue[];
 }
 
 /**
@@ -76,7 +76,7 @@ export async function RegulationDetailSidebar({
   usedDefinitions,
   availableButNotUsed,
   definedHereIds,
-  jenaiIssues,
+  barrierIssues,
 }: RegulationDetailSidebarProps) {
   const sections: SectionConfig[] = [
     { id: 'sidebar-hierarchy', label: 'Hierarchy' },
@@ -85,8 +85,8 @@ export async function RegulationDetailSidebar({
     ...(complianceIssues.length > 0
       ? [{ id: 'sidebar-compliance-issues', label: 'Issues', count: complianceIssues.length }]
       : []),
-    ...(jenaiIssues.length > 0
-      ? [{ id: 'sidebar-jenai', label: 'JenAI', count: jenaiIssues.length }]
+    ...(barrierIssues.length > 0
+      ? [{ id: 'sidebar-barrier', label: 'Barriers', count: barrierIssues.length }]
       : []),
     ...(crossRefs.length > 0
       ? [{ id: 'sidebar-cross-refs', label: 'Cross-Refs', count: crossRefs.length }]
@@ -200,14 +200,14 @@ export async function RegulationDetailSidebar({
           </details>
         )}
 
-        {/* JenAI Issues */}
-        {jenaiIssues.length > 0 && (
-          <details id="sidebar-jenai" open className="[&[open]>summary]:mb-2">
+        {/* Barrier Issues */}
+        {barrierIssues.length > 0 && (
+          <details id="sidebar-barrier" open className="[&[open]>summary]:mb-2">
             <summary className="flex items-center justify-between cursor-pointer px-1 py-1.5 hover:bg-[var(--color-neutral-50)] rounded-[var(--radius-md)] transition-colors list-none [&::-webkit-details-marker]:hidden">
-              <span className="font-semibold text-sm text-[var(--color-text)]">JenAI Issues</span>
-              <span className="text-xs font-medium bg-[var(--color-neutral-100)] text-[var(--color-text-secondary)] rounded-full px-2 py-0.5">{jenaiIssues.length}</span>
+              <span className="font-semibold text-sm text-[var(--color-text)]">Barrier Issues</span>
+              <span className="text-xs font-medium bg-[var(--color-neutral-100)] text-[var(--color-text-secondary)] rounded-full px-2 py-0.5">{barrierIssues.length}</span>
             </summary>
-            <JenAIIssuesList issues={jenaiIssues} state={state} />
+            <BarrierIssuesList issues={barrierIssues} state={state} />
           </details>
         )}
 

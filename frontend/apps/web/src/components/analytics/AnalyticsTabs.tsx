@@ -19,7 +19,7 @@ const TABS: SegmentedControlOption<AnalyticsTabValue>[] = [
   { value: 'definitions', label: 'Definitions', icon: getEntityIcon('definition') },
   { value: 'statutes', label: 'Statutes', icon: getEntityIcon('statute') },
   { value: 'guidance', label: 'Guidance', icon: getEntityIcon('guidance_document') },
-  { value: 'jenai', label: 'JenAI', icon: Sparkles },
+  { value: 'barriers', label: 'Barriers', icon: Sparkles },
   { value: 'pipeline', label: 'Pipeline', icon: GitBranch },
 ];
 

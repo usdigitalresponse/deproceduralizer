@@ -309,7 +309,7 @@ Two valid tiers:
 
 | Tier | Usage | Padding | Header Spacing | Example |
 |------|-------|---------|----------------|---------|
-| Full | Review cards, detail views | `Card padding="md"` (p-6) | `mb-4` | ComplianceIssueCard, JenAICard |
+| Full | Review cards, detail views | `Card padding="md"` (p-6) | `mb-4` | ComplianceIssueCard, BarrierCard |
 | Compact | Search results, list items | `Card padding="sm"` (p-4) | `mb-2` | SearchResultCard, ComplianceIssueDisplayCard |
 
 ### Collapsible Details Styling
@@ -550,7 +550,7 @@ Wrapper that makes any tag clickable, opening the TagDrawer:
 ```tsx
 import { ClickableTag } from '@/components/tags/ClickableTag';
 
-<ClickableTag field="jenai_category" value={issue.category}>
+<ClickableTag field="barrier_category" value={issue.category}>
   <Badge variant="info">{categoryLabel}</Badge>
 </ClickableTag>
 ```
@@ -582,7 +582,7 @@ import { TagBadge } from '@/components/tags/TagBadge';
 | `domain` | `TagDomain` | - | Optional domain for color styling |
 | `className` | `string` | - | Additional CSS classes |
 
-Domain colors from `TAG_DOMAIN_COLORS`: regulation (indigo), guidance (amber), fines (rose), compliance (emerald), jenai (violet).
+Domain colors from `TAG_DOMAIN_COLORS`: regulation (indigo), guidance (amber), fines (rose), compliance (emerald), barrier (violet).
 
 ### TagDrawer
 
@@ -1058,9 +1058,9 @@ const VIEW_OPTIONS: SegmentedControlOption<'table' | 'cards'>[] = [
 />
 
 // With badge counts
-const REVIEW_TABS: SegmentedControlOption<'compliance' | 'jenai'>[] = [
+const REVIEW_TABS: SegmentedControlOption<'compliance' | 'barriers'>[] = [
   { value: 'compliance', label: 'Compliance Issues', badge: 25, badgeVariant: 'warning' },
-  { value: 'jenai', label: 'JenAI', badge: 10, badgeVariant: 'info' },
+  { value: 'barriers', label: 'Barriers', badge: 10, badgeVariant: 'info' },
 ];
 
 <SegmentedControl options={REVIEW_TABS} value={type} onChange={setType} />
@@ -1242,7 +1242,7 @@ import { NavDropdown } from '@/components/layout/NavDropdown';
   icon={ClipboardCheck}
   items={[
     { key: 'compliance', label: 'Compliance Issues', href: '/review/compliance', isActive: true },
-    { key: 'jenai', label: 'JenAI', href: '/review/jenai', isActive: false },
+    { key: 'barriers', label: 'Barriers', href: '/review/barriers', isActive: false },
   ]}
 />
 ```
@@ -1470,7 +1470,7 @@ import { ReviewModeSwitcher } from '@/components/review';
 ### ReviewTypeTabs
 
 Tab bar for switching between content types. Adapts based on mode:
-- **Review**: Compliance Issues, JenAI, Definitions, Needs More Info
+- **Review**: Compliance Issues, Barrier, Definitions, Needs More Info
 - **Developer Mode**: All Reviewed Items, Needs More Info
 
 ```tsx
@@ -1478,7 +1478,7 @@ import { ReviewTypeTabs } from '@/components/review';
 
 <ReviewTypeTabs
   activeType={reviewType}
-  counts={{ compliance: 50, jenai: 30, definitions: 20, needs_info: 5 }}
+  counts={{ compliance: 50, barrier: 30, definitions: 20, needs_info: 5 }}
   mode={mode}
 />
 ```
@@ -1954,25 +1954,25 @@ Card for developer assignment with: developer selection, status tracking (unreso
 
 ---
 
-## JenAI Pipeline Composer
+## Barrier Pipeline Composer
 
-Interactive prompt viewer for the JenAI pipeline. Located on `/prompts` page. User searches for a regulatory section and sees the fully assembled 3-layer prompt with real DB context.
+Interactive prompt viewer for the Barrier pipeline. Located on `/prompts` page. User searches for a regulatory section and sees the fully assembled 3-layer prompt with real DB context.
 
-### JenAIPipelineComposer
+### BarrierPipelineComposer
 
 Parent orchestrator — header card with `DocumentSearchSelector`, 2-column layout (viewer + context panel), and token breakdown.
 
 ```tsx
-import { JenAIPipelineComposer } from '@/components/prompts';
+import { BarrierPipelineComposer } from '@/components/prompts';
 
-<JenAIPipelineComposer />
+<BarrierPipelineComposer />
 ```
 
 ### DocumentSearchSelector
 
 Debounced search typeahead for regulatory sections. Includes jurisdiction toggle (NY/NJ/NYC) and displays selected document.
 
-### JenAIComposedPromptViewer
+### BarrierComposedPromptViewer
 
 3-layer prompt viewer using shared `LayerSection` component. Layers: System (cached globally), Batch Context (cached per subchapter), Template (unique per section). Color-coded with legend.
 
@@ -1980,13 +1980,13 @@ Debounced search typeahead for regulatory sections. Includes jurisdiction toggle
 
 Metadata sidebar showing ancestor chain (indented tree), sibling count, definition count, and cross-reference count.
 
-### JenAITokenBreakdown
+### BarrierTokenBreakdown
 
 3-segment stacked bar with cache savings estimate. Similar to V5 `TokenBreakdown` but with 3 segments instead of 4.
 
 ### Shared: LayerSection
 
-Extracted to `components/prompts/shared/LayerSection.tsx`. Collapsible section with copy button, placeholder highlighting, token/line counts. Used by V5 `ComposedPromptViewer`, `JenAIComposedPromptViewer`, and `FinesComposedPromptViewer`.
+Extracted to `components/prompts/shared/LayerSection.tsx`. Collapsible section with copy button, placeholder highlighting, token/line counts. Used by V5 `ComposedPromptViewer`, `BarrierComposedPromptViewer`, and `FinesComposedPromptViewer`.
 
 ---
 
@@ -1996,7 +1996,7 @@ Interactive prompt viewer for the fines extraction pipeline. Located on `/prompt
 
 ### FinesPipelineComposer
 
-Parent orchestrator — header card reusing `DocumentSearchSelector` from JenAI, 2-column layout (viewer + context panel), and token breakdown.
+Parent orchestrator — header card reusing `DocumentSearchSelector` from Barrier, 2-column layout (viewer + context panel), and token breakdown.
 
 ```tsx
 import { FinesPipelineComposer } from '@/components/prompts';
@@ -2018,18 +2018,18 @@ Stacked bar chart showing token distribution between system and template layers,
 
 ---
 
-## JenAI Pipeline Components
+## Barrier Pipeline Components
 
-Components for viewing JenAI Pahlka framework analysis results — 19-category implementation complexity assessment.
+Components for viewing barrier framework analysis results — 18-category implementation complexity assessment.
 
-### JenAIQueue
+### BarrierQueue
 
-Paginated, filterable queue of JenAI implementation issues.
+Paginated, filterable queue of Barrier implementation issues.
 
 ```tsx
-import { JenAIQueue } from '@/components/review';
+import { BarrierQueue } from '@/components/review';
 
-<JenAIQueue state="NY" mode="review" />
+<BarrierQueue state="NY" mode="review" />
 ```
 
 | Prop | Type | Description |
@@ -2039,27 +2039,16 @@ import { JenAIQueue } from '@/components/review';
 
 Filters: status (unreviewed, confirmed, rejected variants, needs_context, deferred), severity, category. Sort by severity, confidence, category, reviewedAt. Progress bar with status counts.
 
-### JenAICard
+### BarrierCard
 
-Card displaying a single JenAI implementation issue.
+Card displaying a single Barrier implementation issue.
 
 | Prop | Type | Description |
 |------|------|-------------|
-| `issue` | `JenAIIssueData` | JenAI issue with analysis |
+| `issue` | `BarrierIssueData` | Barrier issue with analysis |
 | `state` | `string?` | Jurisdiction |
 
 Displays: category badge, severity/complexity indicators, confidence score, regulation summary with metadata (sectionType, hasForm, hasIbr), hierarchy breadcrumbs, explanation, text examples, implementation approach, effort estimate, matched phrases (expandable), and regulation link.
-
-### JenAIAvatar
-
-SVG avatar for "Jen AI" — stylized face with auburn wavy hair, blue glasses, and animated sparkles.
-
-| Prop | Type | Description |
-|------|------|-------------|
-| `size` | `number?` | SVG size in pixels |
-| `className` | `string?` | Additional CSS classes |
-
-Used in empty states and as a visual indicator for JenAI features.
 
 ---
 
@@ -2178,7 +2167,7 @@ import { SeverityBadge } from '@/components/ui';
 | `ISSUE_TYPE_LABELS` | Display labels for issue types |
 | `RESOLUTION_TYPES` | Implemented / Not Implemented |
 | `DEVELOPERS` | Michael / Abigail |
-| `REVIEW_TYPES` | compliance / jenai / definitions / needs_info |
+| `REVIEW_TYPES` | compliance / barrier / definitions / needs_info |
 | `COMPLEXITY_LEVELS` | LOW / MEDIUM / MEDIUM-HIGH / HIGH |
 | `SEVERITY_THRESHOLDS` | HIGH: 7, MEDIUM: 4, LOW: 1 |
 
@@ -2191,7 +2180,7 @@ Additional constants centralized by domain:
 | `entity-types.ts` | Entity type definitions and display config |
 | `filters.ts` | Filter option arrays (status, severity, tier, etc.) |
 | `hierarchy.ts` | Hierarchy level labels and ordering |
-| `jenai.ts` | JenAI 19-category definitions and display config |
+| `barriers.ts` | Barrier 18-category definitions and display config |
 | `navigation.ts` | Navigation link configuration |
 | `pipeline.ts` | Pipeline status colors, classification mappings |
 | `values.ts` | Shared value constants (state codes, defaults) |
@@ -2716,7 +2705,7 @@ apps/web/src/
 │   │   ├── KeywordsTab.tsx
 │   │   ├── StatutesTab.tsx
 │   │   ├── CrossReferencesTab.tsx
-│   │   ├── JenAIAnalyticsTab.tsx
+│   │   ├── BarrierAnalyticsTab.tsx
 │   │   ├── cross-references/   # Cross-ref analytics sub-components
 │   │   ├── definitions-graph/  # Definitions graph visualizations
 │   │   ├── pipeline/           # Pipeline analytics sub-components
@@ -2764,7 +2753,7 @@ apps/web/src/
 │   │   ├── FeedbackForm.tsx
 │   │   ├── FeedbackList.tsx
 │   │   ├── V5PipelineComposer/ # Research pipeline prompt composer
-│   │   ├── JenAIPipelineComposer/ # JenAI pipeline prompt composer
+│   │   ├── BarrierPipelineComposer/ # Barrier pipeline prompt composer
 │   │   ├── shared/            # Shared prompt components (LayerSection)
 │   │   └── index.ts
 │   ├── regulations/            # Regulation listing/filtering components
@@ -2847,9 +2836,8 @@ apps/web/src/
 │       ├── SuggestionModeControls.tsx
 │       ├── ComplianceDeveloperQueue.tsx
 │       ├── ComplianceDeveloperFilters.tsx
-│       ├── JenAIQueue.tsx
-│       ├── JenAICard.tsx
-│       ├── JenAIAvatar.tsx
+│       ├── BarrierQueue.tsx
+│       ├── BarrierCard.tsx
 │       ├── DeveloperQueue.tsx
 │       ├── DeveloperProgress.tsx
 │       ├── DeveloperFilters.tsx
@@ -2879,7 +2867,7 @@ apps/web/src/
 │   │   ├── document-notes.ts    # Document annotation actions
 │   │   ├── hierarchy.ts         # Hierarchy navigation
 │   │   ├── ibr.ts               # IBR page actions
-│   │   ├── jenai.ts             # JenAI pipeline actions
+│   │   ├── barrier.ts           # Barrier pipeline actions
 │   │   ├── pipeline-analytics.ts # Pipeline analytics actions
 │   │   ├── prompt-feedback.ts   # Prompt feedback actions
 │   │   ├── prompts.ts           # Prompt management actions
@@ -2897,7 +2885,7 @@ apps/web/src/
 │   │   ├── entity-types.ts      # Entity type definitions
 │   │   ├── filters.ts           # Filter option constants
 │   │   ├── hierarchy.ts         # Hierarchy level labels
-│   │   ├── jenai.ts             # JenAI category constants
+│   │   ├── barrier.ts           # Barrier category constants
 │   │   ├── navigation.ts        # Navigation config
 │   │   ├── pipeline.ts          # Pipeline status/color constants
 │   │   └── values.ts            # Shared value constants
@@ -3111,7 +3099,7 @@ import { DashboardStats } from '@/components/home';
 <DashboardStats stats={aggregateStats} />
 ```
 
-Cards: Total Regulations, Analyzed (with % coverage), Compliance Issues (with unreviewed count), JenAI Issues (with unreviewed count). Displays 2 columns on mobile, 4 columns on desktop.
+Cards: Total Regulations, Analyzed (with % coverage), Compliance Issues (with unreviewed count), Barrier Issues (with unreviewed count). Displays 2 columns on mobile, 4 columns on desktop.
 
 ### RecentActivityCard
 
@@ -3740,7 +3728,7 @@ URL-based tabs using `nuqs`:
 ```tsx
 import { analyticsTabParser } from '@/lib/url/parsers';
 
-// ?tab=overview | crossrefs | issues | keywords | definitions | statutes | guidance | jenai | pipeline
+// ?tab=overview | crossrefs | issues | keywords | definitions | statutes | guidance | barrier | pipeline
 const [{ tab }, setParams] = useQueryStates({
   tab: analyticsTabParser,
 });
@@ -3837,27 +3825,27 @@ Content:
 - **Match Quality**: Donut chart from `byMatchStatus` using `MATCH_STATUS_LABELS` with color-coded statuses (matched=green, corrected=blue, unmatched=yellow, obsolete=red)
 - **Link Type Details**: Grid of count cards for each link type
 
-### JenAIAnalyticsTab
+### BarrierAnalyticsTab
 
-Dedicated analytics tab for JenAI Pahlka framework analysis. 6 scrollable sections with `StickyPageSectionTabs`.
+Dedicated analytics tab for barrier framework analysis. 6 scrollable sections with `StickyPageSectionTabs`.
 
 ```tsx
-import { JenAIAnalyticsTab } from '@/components/analytics';
+import { BarrierAnalyticsTab } from '@/components/analytics';
 
-<JenAIAnalyticsTab
+<BarrierAnalyticsTab
   jurisdiction={stateCode}
-  jenaiStats={jenaiStats}
-  jenaiSeverity={jenaiSeverity}
-  categories={jenaiCategories}
-  parts={jenaiParts}
-  sectionTypes={jenaiSectionTypes}
-  developerStatusCounts={jenaiDeveloperStatusCounts}
-  burdenStats={jenaiBurdenStats}
-  complexityDistribution={jenaiComplexityDistribution}
-  categorySeverityMatrix={jenaiCategorySeverityMatrix}
-  sourceTypeBreakdown={jenaiSourceTypeBreakdown}
-  reviewProgressByCategory={jenaiReviewProgressByCategory}
-  burdenScoreDistribution={jenaiBurdenScoreDistribution}
+  barrierStats={barrierStats}
+  barrierSeverity={barrierSeverity}
+  categories={barrierCategories}
+  parts={barrierParts}
+  sectionTypes={barrierSectionTypes}
+  developerStatusCounts={barrierDeveloperStatusCounts}
+  burdenStats={barrierBurdenStats}
+  complexityDistribution={barrierComplexityDistribution}
+  categorySeverityMatrix={barrierCategorySeverityMatrix}
+  sourceTypeBreakdown={barrierSourceTypeBreakdown}
+  reviewProgressByCategory={barrierReviewProgressByCategory}
+  burdenScoreDistribution={barrierBurdenScoreDistribution}
 />
 ```
 
@@ -3869,7 +3857,7 @@ Sections:
 - **Review & Developer Progress**: Review Status PieChart + Developer Status PieChart + StackedBarChart (categories × review statuses)
 - **Burden Hotspots**: 3 stat cards + BarChart histogram (burden score distribution by bucket)
 
-Uses `STRUCTURAL_CATEGORIES` and `JENAI_CATEGORY_LABELS` from `lib/constants/jenai.ts`.
+Uses `STRUCTURAL_CATEGORIES` and `BARRIER_CATEGORY_LABELS` from `lib/constants/barrier.ts`.
 
 ### PipelineTab
 
@@ -4196,7 +4184,7 @@ The Prompts page at `/prompts` displays all LLM prompts used by the regulatory a
 |-----|-----------|-----------|-------------|
 | Overview | `?tab=overview` (default) | `PromptsOverviewTab` | Stats dashboard, composer quick links, catalog summary |
 | Research | `?tab=research` | `V5PipelineComposer` | 3-tier research pipeline prompt composer (full width) |
-| JenAI | `?tab=jenai` | `JenAIPipelineComposer` | JenAI pipeline prompt composer |
+| Barrier | `?tab=barrier` | `BarrierPipelineComposer` | Barrier pipeline prompt composer |
 | Fines | `?tab=fines` | `FinesPipelineComposer` | Fines extraction prompt composer (2-layer) |
 | Catalog | `?tab=catalog` | `PromptCatalogTab` | Search + prompt cards + sidebar nav |
 
@@ -4206,7 +4194,7 @@ Client component managing tab state via `promptsParsers` (nuqs). Renders tab con
 
 ### PromptsOverviewTab
 
-Dashboard with five stat cards (Total, Core, Compliance, JenAI, Feedback), two pipeline composer cards with "Open Composer" buttons, a prompt catalog summary card, and optional archived feedback section.
+Dashboard with five stat cards (Total, Core, Compliance, Barrier, Feedback), two pipeline composer cards with "Open Composer" buttons, a prompt catalog summary card, and optional archived feedback section.
 
 ### PromptCatalogTab
 
@@ -4214,7 +4202,7 @@ Thin wrapper composing `PromptsList` + `PromptNav` in the existing flex layout. 
 
 ### PromptsList
 
-Search input + three prompt sections (Core, Compliance by category, JenAI). Stats have been moved to `PromptsOverviewTab` to avoid duplication. Includes empty state and archived feedback rendering.
+Search input + three prompt sections (Core, Compliance by category, Barrier). Stats have been moved to `PromptsOverviewTab` to avoid duplication. Includes empty state and archived feedback rendering.
 
 ### File Structure
 
@@ -4234,7 +4222,7 @@ components/prompts/
 ├── PromptTemplate.tsx      # Prompt template viewer
 ├── PromptVariables.tsx     # Prompt variables display
 ├── V5PipelineComposer/     # Research pipeline composer
-├── JenAIPipelineComposer/  # JenAI pipeline prompt composer
+├── BarrierPipelineComposer/  # Barrier pipeline prompt composer
 ├── FinesPipelineComposer/  # Fines extraction prompt composer
 └── shared/                 # Shared prompt components (LayerSection)
 ```
@@ -4325,7 +4313,7 @@ All filter/sort/mode state managed via `useQueryStates(guidanceParsers)`.
 
 ### GroupedGuidanceTable
 
-Grouped/collapsible table for guidance documents, following the `GroupedCrossRefsTable` pattern from cross-references. Group row columns: expand toggle, Group Name, Documents count, Compliance Issues, JenAI Issues, Year range, Avg Readability (`ReadabilityBadge`). Sortable column headers for group-level metrics.
+Grouped/collapsible table for guidance documents, following the `GroupedCrossRefsTable` pattern from cross-references. Group row columns: expand toggle, Group Name, Documents count, Compliance Issues, Barrier Issues, Year range, Avg Readability (`ReadabilityBadge`). Sortable column headers for group-level metrics.
 
 **Expansion behavior**: Click group row to toggle. First expand lazy-loads documents via `getGuidanceGroupDocuments` server action. Cached in component state; cache cleared when filters/groupBy change.
 
@@ -4345,7 +4333,7 @@ Badge for policy category values (eligibility, compliance, fiscal, etc.) with di
 
 ### GuidanceSidebarWithNav
 
-Thin client wrapper around `SidebarSectionIndex` for the guidance detail page. Provides scrollspy pill navigation at the top of the sidebar, matching the `RegulationSidebarWithNav` pattern. Sections are built conditionally based on available data (Summary, Metadata, Readability, Compliance, JenAI, Lineage). Lives in `app/[state]/guidance/[id]/GuidanceSidebarWithNav.tsx`.
+Thin client wrapper around `SidebarSectionIndex` for the guidance detail page. Provides scrollspy pill navigation at the top of the sidebar, matching the `RegulationSidebarWithNav` pattern. Sections are built conditionally based on available data (Summary, Metadata, Readability, Compliance, Barrier, Lineage). Lives in `app/[state]/guidance/[id]/GuidanceSidebarWithNav.tsx`.
 
 The guidance detail page uses `RegulationDetailLayout` for its two-column sticky layout (same as regulation and statute pages), with all sidebar content inlined in `page.tsx` and wrapped in `GuidanceSidebarWithNav`. The former `GuidanceDetailSidebar` component is no longer used — its content is rendered directly in the page for easier section ID assignment.
 
@@ -4604,39 +4592,39 @@ src/lib/url/parsers.ts    -- finesParsers (tab, page, pageSize, sortBy, sortOrde
 
 ---
 
-## JenAI Strategies Components
+## Barrier Strategies Components
 
-Components for browsing JenAI framework findings filtered by different analysis strategies. Located in `components/jenai/`.
+Components for browsing Barrier framework findings filtered by different analysis strategies. Located in `components/barriers/`.
 
-### JenAIStrategiesClient
+### BarrierStrategiesClient
 
-Main client component using `nuqs` URL state via `jenaiStrategyParsers`. Uses `SegmentedControl` with 5 tabs: Overview, Best Stories, Surprises, Pahlka Framework, Action Plan.
+Main client component using `nuqs` URL state via `barrierStrategyParsers`. Uses `SegmentedControl` with 5 tabs: Overview, Best Stories, Surprises, Core Framework, Action Plan.
 
-### JenAIOverviewTab
+### BarrierOverviewTab
 
-Stats overview with 4 `StatCard`s in a `StatGrid columns={4}`: Total Findings, Best Stories, Surprises, Pahlka Framework. Two `HorizontalBarChart`s showing category and severity distributions.
+Stats overview with 4 `StatCard`s in a `StatGrid columns={4}`: Total Findings, Best Stories, Surprises, Core Framework. Two `HorizontalBarChart`s showing category and severity distributions.
 
-### JenAIBrowseTab
+### BarrierBrowseTab
 
-Browse tab shared across all 4 strategy tabs. Shows strategy description banner, `FilterBar` with category (MultiSelect), severity (Select), and search. Paginated results using `JenAIStrategyTable`.
+Browse tab shared across all 4 strategy tabs. Shows strategy description banner, `FilterBar` with category (MultiSelect), severity (Select), and search. Paginated results using `BarrierStrategyTable`.
 
-### JenAIStrategyTable
+### BarrierStrategyTable
 
 Data table with columns: Category (color badge), Severity (color badge), Type (regulation/guidance badge), Source (link), Explanation (truncated with `line-clamp-2`). Uses `tableHeaderClass` and `tableRowClass` from `ui/table-styles`.
 
 ### File Layout
 
 ```
-src/components/jenai/
-  JenAIStrategiesClient.tsx -- Tab container (Overview + 4 strategy tabs)
-  JenAIOverviewTab.tsx      -- Stats + charts overview
-  JenAIBrowseTab.tsx        -- Browse with filters, pagination per strategy
-  JenAIStrategyTable.tsx    -- Data table for strategy findings
-src/app/[state]/jenai/
+src/components/barriers/
+  BarrierStrategiesClient.tsx -- Tab container (Overview + 4 strategy tabs)
+  BarrierOverviewTab.tsx      -- Stats + charts overview
+  BarrierBrowseTab.tsx        -- Browse with filters, pagination per strategy
+  BarrierStrategyTable.tsx    -- Data table for strategy findings
+src/app/[state]/barriers/
   page.tsx                  -- Server component fetching stats
 src/lib/actions/
-  jenai-strategies.ts       -- Server actions (stats + paginated query with strategy filters)
-src/lib/url/parsers.ts      -- jenaiStrategyParsers (tab, page, pageSize, sortBy, sortOrder, category, severity, search)
+  barrier-strategies.ts       -- Server actions (stats + paginated query with strategy filters)
+src/lib/url/parsers.ts      -- barrierStrategyParsers (tab, page, pageSize, sortBy, sortOrder, category, severity, search)
 ```
 
 ---
@@ -4758,14 +4746,14 @@ import { ReadabilityMetricsCard } from '@/components/guidance/ReadabilityMetrics
 
 ### ReadabilityCrossCutSection
 
-Analytics section showing cross-cutting analysis of readability complexity against compliance issues and JenAI implementation burden, segmented by target audience. Renders up to 10 charts across 5 rows:
+Analytics section showing cross-cutting analysis of readability complexity against compliance issues and Barrier implementation burden, segmented by target audience. Renders up to 10 charts across 5 rows:
 
 - **Headline stats**: Public-facing ease, government-internal ease, lay audience ease, specialist ease
 - **Row 1**: Reading ease by audience direction + by expertise level
-- **Row 2**: Compliance issues by readability bucket + JenAI severity by readability bucket
+- **Row 2**: Compliance issues by readability bucket + Barrier severity by readability bucket
 - **Row 3**: Compliance issues by direction + by expertise
 - **Row 4**: Grade level by target audience tag + compliance issues by tag
-- **Row 5**: JenAI severity by direction + by tag
+- **Row 5**: Barrier severity by direction + by tag
 
 Only renders sections where data exists. Returns null if no cross-cut data.
 
@@ -4781,7 +4769,7 @@ The Review page supports 5 tab types defined in `REVIEW_TYPE_VALUES`:
 - **Compliance Issues**: Compliance issues from regulation analysis
 - **Definitions**: Definition review/editing
 - **Needs More Info**: Items requiring additional context
-- **JenAI**: JenAI framework analysis results
+- **Barrier**: Barrier framework analysis results
 - **Guidance**: Compliance issues from guidance documents (links to Pipeline)
 
 Each tab shows a count badge in the tab button. The `ReviewTypeTabs` component handles both review mode and developer mode layouts. The Guidance tab currently renders a `GuidanceReviewPlaceholder` that links to the Pipeline page with `?source=guidance`, since guidance compliance issues share the pipeline review workflow.

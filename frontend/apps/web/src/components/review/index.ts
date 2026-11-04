@@ -22,10 +22,9 @@ export { NeedMoreInfoCard } from './NeedMoreInfoCard';
 export { ComplianceDeveloperQueue } from './ComplianceDeveloperQueue';
 export { ComplianceDeveloperFilters } from './ComplianceDeveloperFilters';
 
-// JenAI components
-export { JenAIQueue } from './JenAIQueue';
-export { JenAICard } from './JenAICard';
-export { JenAIAvatar } from './JenAIAvatar';
+// Barrier components
+export { BarrierQueue } from './BarrierQueue';
+export { BarrierCard } from './BarrierCard';
 
 // Definition review components
 export {

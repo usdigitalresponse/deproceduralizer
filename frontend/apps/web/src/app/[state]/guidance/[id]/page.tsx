@@ -6,11 +6,11 @@ import { Badge } from '@/components/ui/Badge';
 import { Tag } from '@/components/ui/Tag';
 import { getGuidanceById, getDocumentLineage, getGuidanceResolvedCitations, getGuidanceComplianceAnalysisSummary, setGuidanceExclusion } from '@/lib/actions/guidance-documents';
 import { getGuidanceCrossRefsForHighlighting } from '@/lib/actions/cross-references';
-import { getJenAIIssuesForDocument } from '@/lib/actions/jenai';
+import { getBarrierIssuesForDocument } from '@/lib/actions/barrier';
 import { GuidanceDetailContent } from '@/components/guidance/GuidanceDetailContent';
 import { GuidanceComplianceCard } from '@/components/guidance/GuidanceComplianceCard';
 import { ReadabilityMetricsCard } from '@/components/guidance/ReadabilityMetricsCard';
-import { JenAIIssuesList } from '@/components/jenai';
+import { BarrierIssuesList } from '@/components/barriers';
 import { DocumentLineageViewer } from '@/components/guidance/DocumentLineageViewer';
 import { GuidanceStatusBadge } from '@/components/guidance/GuidanceStatusBadge';
 import { GuidanceBookmarkProvider, GuidanceDetailBookmark, GuidanceDetailMarkers } from '@/components/guidance/GuidanceDetailBookmark';
@@ -76,13 +76,13 @@ export default async function GuidanceDetailPage({ params }: GuidanceDetailPageP
     notFound();
   }
 
-  const [result, lineageResult, resolvedCitationsResult, complianceSummaryResult, crossRefResult, jenaiIssuesResult] = await Promise.all([
+  const [result, lineageResult, resolvedCitationsResult, complianceSummaryResult, crossRefResult, barrierIssuesResult] = await Promise.all([
     getGuidanceById(docId),
     getDocumentLineage(docId),
     getGuidanceResolvedCitations(docId),
     getGuidanceComplianceAnalysisSummary(docId),
     getGuidanceCrossRefsForHighlighting(docId),
-    getJenAIIssuesForDocument(docId, 'guidance'),
+    getBarrierIssuesForDocument(docId, 'guidance'),
   ]);
 
   if (!result.success || !result.data) {
@@ -94,7 +94,7 @@ export default async function GuidanceDetailPage({ params }: GuidanceDetailPageP
   const resolvedCitations = resolvedCitationsResult.success ? resolvedCitationsResult.data : [];
   const complianceSummary = complianceSummaryResult.success ? complianceSummaryResult.data : null;
   const crossRefHighlights = crossRefResult.success ? crossRefResult.data : [];
-  const jenaiIssues = jenaiIssuesResult.success ? jenaiIssuesResult.data : [];
+  const barrierIssues = barrierIssuesResult.success ? barrierIssuesResult.data : [];
 
   const hasSummaryMetadata = doc.summary || doc.sectionType || doc.keywords?.length || doc.appliesTo?.length || doc.hasForm || doc.hasIbr;
   const hasAudience = doc.targetAudience?.length || doc.audienceDirection || doc.audienceExpertise || doc.audienceExplanation;
@@ -106,7 +106,7 @@ export default async function GuidanceDetailPage({ params }: GuidanceDetailPageP
     { id: 'sidebar-exclusion', label: 'Exclusion' },
     ...(doc.wordCount !== null ? [{ id: 'sidebar-readability', label: 'Readability' }] : []),
     ...(complianceSummary && complianceSummary.totalIssues > 0 ? [{ id: 'sidebar-compliance', label: 'Compliance', count: complianceSummary.totalIssues }] : []),
-    ...(jenaiIssues.length > 0 ? [{ id: 'sidebar-jenai', label: 'JenAI', count: jenaiIssues.length }] : []),
+    ...(barrierIssues.length > 0 ? [{ id: 'sidebar-barrier', label: 'Barriers', count: barrierIssues.length }] : []),
     ...(lineage && lineage.chain.length > 1 ? [{ id: 'sidebar-lineage', label: 'Lineage' }] : []),
   ];
 
@@ -272,10 +272,10 @@ export default async function GuidanceDetailPage({ params }: GuidanceDetailPageP
                 </div>
               )}
 
-              {/* JenAI */}
-              {jenaiIssues.length > 0 && (
-                <div id="sidebar-jenai">
-                  <JenAIIssuesList issues={jenaiIssues} state={state} />
+              {/* Barrier */}
+              {barrierIssues.length > 0 && (
+                <div id="sidebar-barrier">
+                  <BarrierIssuesList issues={barrierIssues} state={state} />
                 </div>
               )}
 

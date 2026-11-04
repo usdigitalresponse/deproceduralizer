@@ -99,13 +99,13 @@ import {
   PIPELINE_SOURCE_VALUES,
   // Compliance source
   COMPLIANCE_SOURCE_VALUES,
-  // JenAI
-  JENAI_SOURCE_VALUES,
-  JENAI_REVIEW_SORT_BY_VALUES,
-  JENAI_DEVELOPER_SORT_BY_VALUES,
-  JENAI_VERBATIM_VALUES,
-  JENAI_STRATEGY_TAB_VALUES,
-  JENAI_STRATEGY_SORT_BY_VALUES,
+  // Barrier
+  BARRIER_SOURCE_VALUES,
+  BARRIER_REVIEW_SORT_BY_VALUES,
+  BARRIER_DEVELOPER_SORT_BY_VALUES,
+  BARRIER_VERBATIM_VALUES,
+  BARRIER_STRATEGY_TAB_VALUES,
+  BARRIER_STRATEGY_SORT_BY_VALUES,
   // Markers (formerly Bookmarks)
   MARKER_TAB_VALUES,
   // Burden Index
@@ -173,12 +173,12 @@ export type {
   GuidanceAudienceExpertiseValue,
   GuidanceTargetAudienceValue,
   ComplianceSourceValue,
-  JenAISourceValue,
-  JenAIVerbatimValue,
-  JenAIReviewSortByValue,
-  JenAIDeveloperSortByValue,
-  JenAIStrategyTabValue,
-  JenAIStrategySortByValue,
+  BarrierSourceValue,
+  BarrierVerbatimValue,
+  BarrierReviewSortByValue,
+  BarrierDeveloperSortByValue,
+  BarrierStrategyTabValue,
+  BarrierStrategySortByValue,
   CrossRefViewModeValue,
   CrossRefTableModeValue,
   CrossRefResolvedValue,
@@ -270,11 +270,11 @@ export const complianceDeveloperSortByParser = parseAsStringEnum([...COMPLIANCE_
 // Compliance source parser (regulation vs guidance vs all)
 export const complianceSourceParser = parseAsStringEnum([...COMPLIANCE_SOURCE_VALUES]).withDefault('all');
 
-// JenAI parsers
-export const jenaiSourceParser = parseAsStringEnum([...JENAI_SOURCE_VALUES]).withDefault('all');
-export const jenaiReviewSortByParser = parseAsStringEnum([...JENAI_REVIEW_SORT_BY_VALUES]).withDefault('severity');
-export const jenaiDeveloperSortByParser = parseAsStringEnum([...JENAI_DEVELOPER_SORT_BY_VALUES]).withDefault('reviewedAt');
-export const jenaiVerbatimParser = parseAsStringEnum([...JENAI_VERBATIM_VALUES]).withDefault('all');
+// Barrier parsers
+export const barrierSourceParser = parseAsStringEnum([...BARRIER_SOURCE_VALUES]).withDefault('all');
+export const barrierReviewSortByParser = parseAsStringEnum([...BARRIER_REVIEW_SORT_BY_VALUES]).withDefault('severity');
+export const barrierDeveloperSortByParser = parseAsStringEnum([...BARRIER_DEVELOPER_SORT_BY_VALUES]).withDefault('reviewedAt');
+export const barrierVerbatimParser = parseAsStringEnum([...BARRIER_VERBATIM_VALUES]).withDefault('all');
 
 // Definitions review parsers
 export const definitionsReviewStatusParser = parseAsStringEnum([...DEFINITIONS_REVIEW_STATUS_VALUES]).withDefault('all');
@@ -497,11 +497,11 @@ export const complianceDeveloperQueueParsers = {
 };
 
 /**
- * Merged parser for JenAIQueue — a single hook replaces the former dual-hook
+ * Merged parser for BarrierQueue — a single hook replaces the former dual-hook
  * pattern (review + developer) that caused URL race conditions on shared params
  * like `source`.  Mode-specific defaults for `sortBy` are handled in the component.
  */
-export const jenaiQueueParsers = {
+export const barrierQueueParsers = {
   page: pageParser,
   // Review-specific
   reviewStatus: reviewStatusParser,
@@ -511,52 +511,52 @@ export const jenaiQueueParsers = {
   // Shared
   severity: severityParser,
   category: categoryParser,
-  source: jenaiSourceParser,
+  source: barrierSourceParser,
   part: parseAsString,
   sectionType: parseAsString,
   search: searchParser,
   complexity: parseAsString,
-  verbatim: jenaiVerbatimParser,
+  verbatim: barrierVerbatimParser,
   sortBy: parseAsString, // no default — mode decides ('severity' vs 'reviewedAt')
   sortOrder: sortOrderParser,
 };
 
 /**
- * Parser configuration for JenAI review queue filters.
- * Used by JenAIReviewFilters (conditionally rendered, no dual-hook issue).
+ * Parser configuration for Barrier review queue filters.
+ * Used by BarrierReviewFilters (conditionally rendered, no dual-hook issue).
  */
-export const jenaiReviewQueueParsers = {
+export const barrierReviewQueueParsers = {
   page: pageParser,
   reviewStatus: reviewStatusParser,
   severity: severityParser,
   category: categoryParser,
-  source: jenaiSourceParser,
+  source: barrierSourceParser,
   part: parseAsString,
   sectionType: parseAsString,
   search: searchParser,
   complexity: parseAsString,
-  verbatim: jenaiVerbatimParser,
-  sortBy: jenaiReviewSortByParser,
+  verbatim: barrierVerbatimParser,
+  sortBy: barrierReviewSortByParser,
   sortOrder: sortOrderParser,
 };
 
 /**
- * Parser configuration for JenAI developer queue filters.
- * Used by JenAIDeveloperFilters (conditionally rendered, no dual-hook issue).
+ * Parser configuration for Barrier developer queue filters.
+ * Used by BarrierDeveloperFilters (conditionally rendered, no dual-hook issue).
  */
-export const jenaiDeveloperQueueParsers = {
+export const barrierDeveloperQueueParsers = {
   page: pageParser,
   developerStatus: developerStatusParser,
   developerAssigned: developerAssignedParser,
   severity: severityParser,
   category: categoryParser,
-  source: jenaiSourceParser,
+  source: barrierSourceParser,
   part: parseAsString,
   sectionType: parseAsString,
   search: searchParser,
   complexity: parseAsString,
-  verbatim: jenaiVerbatimParser,
-  sortBy: jenaiDeveloperSortByParser,
+  verbatim: barrierVerbatimParser,
+  sortBy: barrierDeveloperSortByParser,
   sortOrder: sortOrderParser,
 };
 
@@ -903,20 +903,20 @@ export const tagsParsers = {
 };
 
 // ============================================
-// JenAI Strategies page parsers
+// Barrier Strategies page parsers
 // ============================================
 
-export const jenaiStrategyTabParser = parseAsStringEnum([...JENAI_STRATEGY_TAB_VALUES]).withDefault('overview');
-export const jenaiStrategySortByParser = parseAsStringEnum([...JENAI_STRATEGY_SORT_BY_VALUES]).withDefault('severity');
+export const barrierStrategyTabParser = parseAsStringEnum([...BARRIER_STRATEGY_TAB_VALUES]).withDefault('overview');
+export const barrierStrategySortByParser = parseAsStringEnum([...BARRIER_STRATEGY_SORT_BY_VALUES]).withDefault('severity');
 
 /**
- * Parser configuration for JenAI Strategies page
+ * Parser configuration for Barrier Strategies page
  */
-export const jenaiStrategyParsers = {
-  tab: jenaiStrategyTabParser,
+export const barrierStrategyParsers = {
+  tab: barrierStrategyTabParser,
   page: pageParser,
   pageSize: pageSizeParser,
-  sortBy: jenaiStrategySortByParser,
+  sortBy: barrierStrategySortByParser,
   sortOrder: sortOrderParser,
   category: parseAsString,
   severity: parseAsString,

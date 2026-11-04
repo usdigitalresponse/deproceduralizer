@@ -127,13 +127,13 @@ export async function getPromptNames(): Promise<ActionResult<string[]>> {
 }
 
 /**
- * Load and parse JenAI prompts from prompts/jenai.yaml.
+ * Load and parse Barrier prompts from prompts/barriers.yaml.
  * The file is copied during build (see prebuild script in package.json).
  * Same structure as core.yaml: dictionary of prompt names with system/template/description.
  */
-export async function getJenAIPrompts(): Promise<ActionResult<PromptData[]>> {
-  return runAction('getJenAIPrompts', async () => {
-    const promptsPath = join(process.cwd(), 'src/data/jenai.yaml');
+export async function getBarrierPrompts(): Promise<ActionResult<PromptData[]>> {
+  return runAction('getBarrierPrompts', async () => {
+    const promptsPath = join(process.cwd(), 'src/data/barriers.yaml');
     const fileContent = await readFile(promptsPath, 'utf-8');
     const parsed = yaml.load(fileContent) as Record<string, RawPromptData>;
 

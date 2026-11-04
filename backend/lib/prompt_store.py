@@ -29,7 +29,7 @@ from lib.db import get_db_connection
 
 logger = logging.getLogger(__name__)
 
-VALID_PIPELINES = ("research", "jenai", "summarization")
+VALID_PIPELINES = ("research", "barrier", "summarization")
 
 
 def _validate_pipeline(pipeline: str) -> None:
@@ -100,7 +100,7 @@ def store_prompt(
 
     Args:
         request_params: The 'params' dict from a batch request
-        pipeline: Pipeline name ('research', 'jenai', 'summarization')
+        pipeline: Pipeline name ('research', 'barrier', 'summarization')
         tier: Tier number (1, 2, 3) or None for single-pass
         conn: Optional DB connection (creates one if not provided)
 
@@ -166,7 +166,7 @@ def store_prompt_batch(
     Args:
         requests: List of batch request dicts. Each must have 'custom_id'.
                   Request params can be nested under 'params' key or flat at top level.
-        pipeline: Pipeline name ('research', 'jenai', 'summarization')
+        pipeline: Pipeline name ('research', 'barrier', 'summarization')
         tier: Tier number (1, 2, 3) or None for single-pass
         conn: Optional DB connection
 

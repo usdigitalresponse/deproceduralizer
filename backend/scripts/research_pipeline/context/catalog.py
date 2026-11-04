@@ -34,7 +34,7 @@ class PreFetchedContextData:
     """Holds pre-fetched context data to avoid redundant DB queries.
 
     When both build_context_catalog() and build_proactive_context() are called
-    for the same document set (e.g., in JenAI's prepare_analysis_batch), the
+    for the same document set (e.g., in the barrier pipeline's prepare_analysis_batch), the
     caller can fetch shared data once and pass it via this dataclass.
     """
     raw_ancestors: dict[int, list[dict]] = field(default_factory=dict)

@@ -160,11 +160,11 @@ export const NAV_ITEMS: NavItem[] = [
     groupId: 'metrics',
   },
   {
-    key: 'jenai',
-    label: 'JenAI Analysis',
+    key: 'barriers',
+    label: 'Barrier Analysis',
     icon: Lightbulb,
     isStateSpecific: true,
-    pathSuffix: '/jenai',
+    pathSuffix: '/barriers',
     groupId: 'metrics',
   },
   {

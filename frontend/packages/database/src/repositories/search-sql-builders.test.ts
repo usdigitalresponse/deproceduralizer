@@ -5,7 +5,7 @@ import {
   sqlTextArray,
   buildSeverityCondition,
   buildComplianceExists,
-  buildJenaiExists,
+  buildBarrierExists,
   buildIssueFilter,
 } from './search.repository';
 import {
@@ -127,19 +127,19 @@ describe('buildComplianceExists', () => {
 });
 
 // ============================================
-// buildJenaiExists — whitespace + array regression
+// buildBarrierExists — whitespace + array regression
 // ============================================
 
-describe('buildJenaiExists', () => {
+describe('buildBarrierExists', () => {
   it('produces valid SQL with categories', () => {
-    const result = toQueryString(buildJenaiExists('rd.id', ['FROZEN_TECHNOLOGY']));
+    const result = toQueryString(buildBarrierExists('rd.id', ['FROZEN_TECHNOLOGY']));
     expect(result).toContain('ARRAY[');
     expect(result).toContain('category');
     expect(result).not.toMatch(/\$\d+AND/i);
   });
 
   it('produces valid SQL with categories + severity', () => {
-    const result = toQueryString(buildJenaiExists('rd.id', ['FROZEN_TECHNOLOGY'], ['high', 'medium']));
+    const result = toQueryString(buildBarrierExists('rd.id', ['FROZEN_TECHNOLOGY'], ['high', 'medium']));
     expect(result).toContain('category');
     expect(result).toContain('severity');
     expect(result).not.toMatch(/\$\d+AND/i);
@@ -164,16 +164,16 @@ describe('buildIssueFilter', () => {
     expect(result).not.toMatch(/\$\d+AND/i);
   });
 
-  it('returns jenai EXISTS for jenai system', () => {
-    const result = toQueryString(buildIssueFilter('rd.id', 'jenai', null, null, ['FROZEN_TECHNOLOGY']));
-    expect(result).toContain('jenai_issues');
+  it('returns barriers EXISTS for barriers system', () => {
+    const result = toQueryString(buildIssueFilter('rd.id', 'barriers', null, null, ['FROZEN_TECHNOLOGY']));
+    expect(result).toContain('barrier_issues');
     expect(result).toContain('category');
   });
 
   it('returns OR for any system', () => {
     const result = toQueryString(buildIssueFilter('rd.id', 'any'));
     expect(result).toContain('compliance_issue_analyses');
-    expect(result).toContain('jenai_issues');
+    expect(result).toContain('barrier_issues');
     expect(result).toContain('OR');
   });
 
@@ -181,7 +181,7 @@ describe('buildIssueFilter', () => {
     const result = toQueryString(buildIssueFilter('rd.id', 'none'));
     expect(result).toContain('NOT');
     expect(result).toContain('compliance_issue_analyses');
-    expect(result).toContain('jenai_issues');
+    expect(result).toContain('barrier_issues');
   });
 
   it('returns empty SQL for unknown system', () => {
@@ -189,15 +189,15 @@ describe('buildIssueFilter', () => {
     expect(result).toBe('');
   });
 
-  it('compliance system does NOT reference jenai_issues', () => {
+  it('compliance system does NOT reference barrier_issues', () => {
     const result = toQueryString(buildIssueFilter('rd.id', 'compliance', 'burdensome', ['in_person_pickup'], null, ['high']));
     expect(result).toContain('compliance_issue_analyses');
-    expect(result).not.toContain('jenai_issues');
+    expect(result).not.toContain('barrier_issues');
   });
 
-  it('jenai system does NOT reference compliance_issue_analyses', () => {
-    const result = toQueryString(buildIssueFilter('rd.id', 'jenai', null, null, ['FROZEN_TECHNOLOGY']));
-    expect(result).toContain('jenai_issues');
+  it('barriers system does NOT reference compliance_issue_analyses', () => {
+    const result = toQueryString(buildIssueFilter('rd.id', 'barriers', null, null, ['FROZEN_TECHNOLOGY']));
+    expect(result).toContain('barrier_issues');
     expect(result).not.toContain('compliance_issue_analyses');
   });
 
@@ -205,7 +205,7 @@ describe('buildIssueFilter', () => {
     const result = toQueryString(buildIssueFilter('rd.id', 'none'));
     expect(result).toContain('NOT');
     expect(result).toContain('compliance_issue_analyses');
-    expect(result).toContain('jenai_issues');
+    expect(result).toContain('barrier_issues');
     // Should be AND NOT (both absent), not OR
     expect(result).toContain('AND');
   });
@@ -228,7 +228,7 @@ describe('buildIssueFilter', () => {
 describe('shouldExcludeStatutes', () => {
   it('excludes statutes when issueSystem is set', () => {
     expect(shouldExcludeStatutes({ issueSystem: 'compliance' })).toBe(true);
-    expect(shouldExcludeStatutes({ issueSystem: 'jenai' })).toBe(true);
+    expect(shouldExcludeStatutes({ issueSystem: 'barriers' })).toBe(true);
     expect(shouldExcludeStatutes({ issueSystem: 'any' })).toBe(true);
     expect(shouldExcludeStatutes({ issueSystem: 'none' })).toBe(true);
   });
@@ -267,9 +267,9 @@ describe('shouldExcludeGuidance', () => {
 });
 
 describe('shouldSkipAnalyses', () => {
-  it('skips analyses for none and jenai', () => {
+  it('skips analyses for none and barriers', () => {
     expect(shouldSkipAnalyses('none')).toBe(true);
-    expect(shouldSkipAnalyses('jenai')).toBe(true);
+    expect(shouldSkipAnalyses('barriers')).toBe(true);
   });
 
   it('does not skip for compliance, any, or null', () => {

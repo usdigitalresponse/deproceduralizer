@@ -104,34 +104,34 @@ export type ComplianceDeveloperSortByValue = (typeof COMPLIANCE_DEVELOPER_SORT_B
 export const COMPLIANCE_SOURCE_VALUES = ['all', 'regulation', 'guidance'] as const;
 export type ComplianceSourceValue = (typeof COMPLIANCE_SOURCE_VALUES)[number];
 
-// JenAI source filter
-export const JENAI_SOURCE_VALUES = ['all', 'regulation', 'guidance'] as const;
-export type JenAISourceValue = (typeof JENAI_SOURCE_VALUES)[number];
+// Barrier source filter
+export const BARRIER_SOURCE_VALUES = ['all', 'regulation', 'guidance'] as const;
+export type BarrierSourceValue = (typeof BARRIER_SOURCE_VALUES)[number];
 
-// JenAI verbatim filter
-export const JENAI_VERBATIM_VALUES = ['all', 'true', 'false'] as const;
-export type JenAIVerbatimValue = (typeof JENAI_VERBATIM_VALUES)[number];
+// Barrier verbatim filter
+export const BARRIER_VERBATIM_VALUES = ['all', 'true', 'false'] as const;
+export type BarrierVerbatimValue = (typeof BARRIER_VERBATIM_VALUES)[number];
 
-// JenAI review mode sort
-export const JENAI_REVIEW_SORT_BY_VALUES = ['severity', 'confidence', 'category', 'reviewedAt'] as const;
-export type JenAIReviewSortByValue = (typeof JENAI_REVIEW_SORT_BY_VALUES)[number];
+// Barrier review mode sort
+export const BARRIER_REVIEW_SORT_BY_VALUES = ['severity', 'confidence', 'category', 'reviewedAt'] as const;
+export type BarrierReviewSortByValue = (typeof BARRIER_REVIEW_SORT_BY_VALUES)[number];
 
-// JenAI developer mode sort
-export const JENAI_DEVELOPER_SORT_BY_VALUES = ['severity', 'confidence', 'category', 'reviewedAt', 'developerCheckedAt'] as const;
-export type JenAIDeveloperSortByValue = (typeof JENAI_DEVELOPER_SORT_BY_VALUES)[number];
+// Barrier developer mode sort
+export const BARRIER_DEVELOPER_SORT_BY_VALUES = ['severity', 'confidence', 'category', 'reviewedAt', 'developerCheckedAt'] as const;
+export type BarrierDeveloperSortByValue = (typeof BARRIER_DEVELOPER_SORT_BY_VALUES)[number];
 
-// JenAI Strategies page
-export const JENAI_STRATEGY_TAB_VALUES = ['recommendations', 'overview', 'compare', 'best-stories', 'surprises', 'pahlka', 'action-plan'] as const;
-export type JenAIStrategyTabValue = (typeof JENAI_STRATEGY_TAB_VALUES)[number];
+// Barrier Strategies page
+export const BARRIER_STRATEGY_TAB_VALUES = ['recommendations', 'overview', 'compare', 'best-stories', 'surprises', 'framework', 'action-plan'] as const;
+export type BarrierStrategyTabValue = (typeof BARRIER_STRATEGY_TAB_VALUES)[number];
 
-export const JENAI_STRATEGY_SORT_BY_VALUES = ['severity', 'category', 'createdAt'] as const;
-export type JenAIStrategySortByValue = (typeof JENAI_STRATEGY_SORT_BY_VALUES)[number];
+export const BARRIER_STRATEGY_SORT_BY_VALUES = ['severity', 'category', 'createdAt'] as const;
+export type BarrierStrategySortByValue = (typeof BARRIER_STRATEGY_SORT_BY_VALUES)[number];
 
 // Burden Index sort options
 export const BURDEN_SORT_BY_VALUES = ['adjustedBurden', 'compositeBurden', 'maxSeverity', 'issueCount'] as const;
 export type BurdenSortByValue = (typeof BURDEN_SORT_BY_VALUES)[number];
 
-// Burden Index source filter (reuses JenAI source values)
+// Burden Index source filter (reuses Barrier source values)
 export const BURDEN_SOURCE_VALUES = ['all', 'regulation', 'guidance'] as const;
 export type BurdenSourceValue = (typeof BURDEN_SOURCE_VALUES)[number];
 
@@ -139,7 +139,7 @@ export type BurdenSourceValue = (typeof BURDEN_SOURCE_VALUES)[number];
 // Review page navigation
 // ============================================
 
-export const REVIEW_TYPE_VALUES = ['compliance', 'jenai', 'definitions', 'needs_info'] as const;
+export const REVIEW_TYPE_VALUES = ['compliance', 'barriers', 'definitions', 'needs_info'] as const;
 export type ReviewTypeValue = (typeof REVIEW_TYPE_VALUES)[number];
 
 // Pipeline source tabs (regulations vs guidance)
@@ -333,7 +333,7 @@ export type CrossRefGroupSortByValue = (typeof CROSSREF_GROUP_SORT_BY_VALUES)[nu
 // Analytics Page
 // ============================================
 
-export const ANALYTICS_TAB_VALUES = ['overview', 'crossrefs', 'issues', 'keywords', 'definitions', 'statutes', 'guidance', 'jenai', 'pipeline'] as const;
+export const ANALYTICS_TAB_VALUES = ['overview', 'crossrefs', 'issues', 'keywords', 'definitions', 'statutes', 'guidance', 'barriers', 'pipeline'] as const;
 export type AnalyticsTabValue = (typeof ANALYTICS_TAB_VALUES)[number];
 
 export const PIPELINE_SUBTAB_VALUES = ['overview', 'context', 'verification'] as const;
@@ -490,7 +490,7 @@ export const MATCH_STATUS_LABELS: Record<string, string> = {
 // Prompts Page
 // ============================================
 
-export const PROMPTS_TAB_VALUES = ['overview', 'research', 'jenai', 'fines', 'catalog'] as const;
+export const PROMPTS_TAB_VALUES = ['overview', 'research', 'barriers', 'fines', 'catalog'] as const;
 export type PromptsTabValue = (typeof PROMPTS_TAB_VALUES)[number];
 
 // ============================================
@@ -509,7 +509,7 @@ export type GuidanceBrowseModeValue = (typeof GUIDANCE_BROWSE_MODE_VALUES)[numbe
 export const GUIDANCE_GROUP_BY_VALUES = ['agency', 'docType', 'policyCategory'] as const;
 export type GuidanceGroupByValue = (typeof GUIDANCE_GROUP_BY_VALUES)[number];
 
-export const GUIDANCE_GROUP_SORT_BY_VALUES = ['groupKey', 'documentCount', 'complianceIssueCount', 'jenaiIssueCount', 'avgReadingEase'] as const;
+export const GUIDANCE_GROUP_SORT_BY_VALUES = ['groupKey', 'documentCount', 'complianceIssueCount', 'barrierIssueCount', 'avgReadingEase'] as const;
 export type GuidanceGroupSortByValue = (typeof GUIDANCE_GROUP_SORT_BY_VALUES)[number];
 
 export const GUIDANCE_SORT_BY_VALUES = ['title', 'agency', 'year', 'status', 'createdAt', 'readability'] as const;

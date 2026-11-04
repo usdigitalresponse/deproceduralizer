@@ -84,7 +84,7 @@ deproceduralizer/
 │   ├── scripts/               # Scrapers, scanners, pipeline steps
 │   │   ├── compliance_issues/ # Regex scanner + config
 │   │   ├── research_pipeline/ # 3-tier LLM analysis (CLI entry point)
-│   │   ├── jenai_pipeline/    # Single-pass 19-category Pahlka analysis
+│   │   ├── barrier_pipeline/    # Single-pass 18-category barrier analysis
 │   │   └── summarization/     # Hierarchical doc summarization
 │   └── lib/                   # Shared Python utilities
 ├── prompts/                   # LLM prompt definitions (YAML)
@@ -110,7 +110,7 @@ deproceduralizer/
 | `prompt-writing` | LLM prompt authoring best practices and caching |
 | `cleanup` | Track and revert test data / temporary operations |
 | `troubleshooting` | Common issues (Next.js cache, etc.) |
-| `jenai-pipeline` | Single-pass 19-category Pahlka framework analysis |
+| `barrier-pipeline` | Single-pass 18-category barrier framework analysis |
 | `web-scraping` | NY state agency document scraping and downloads |
 | `codebase-stats` | This skill — LOC counts and project overview |
 

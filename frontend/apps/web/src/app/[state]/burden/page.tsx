@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { getJenAIBurdenStats, getJenAICategories, getJenAIParts, getJenAISectionTypes } from '@/lib/actions/jenai';
+import { getBarrierBurdenStats, getBarrierCategories, getBarrierParts, getBarrierSectionTypes } from '@/lib/actions/barrier';
 import { BurdenClient } from '@/components/burden/BurdenClient';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Container } from '@/components/layout/Container';
@@ -19,10 +19,10 @@ export default async function BurdenPage({ params }: BurdenPageProps) {
   const stateConfig = JURISDICTION_CONFIG[state];
 
   const [statsResult, categoriesResult, partsResult, sectionTypesResult] = await Promise.all([
-    getJenAIBurdenStats(state),
-    getJenAICategories(state),
-    getJenAIParts(state),
-    getJenAISectionTypes(state),
+    getBarrierBurdenStats(state),
+    getBarrierCategories(state),
+    getBarrierParts(state),
+    getBarrierSectionTypes(state),
   ]);
 
   const stats = statsResult.success ? statsResult.data : null;

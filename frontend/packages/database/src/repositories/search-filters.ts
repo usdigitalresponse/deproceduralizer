@@ -24,5 +24,5 @@ export function shouldExcludeGuidance(opts: FilterOptions): boolean {
 }
 
 export function shouldSkipAnalyses(issueSystem?: string | null): boolean {
-  return issueSystem === 'none' || issueSystem === 'jenai';
+  return issueSystem === 'none' || issueSystem === 'barriers';
 }

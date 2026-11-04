@@ -2,7 +2,7 @@ import { Container } from '@/components/layout';
 import { StateCard, HomeHero, RegulatoryLandscape } from '@/components/home';
 import { getDashboardStats, getAllStateStats } from '@/lib/actions/dashboard';
 import { getGuidanceOverviewStats } from '@/lib/actions/guidance-documents';
-import { getJenAIBurdenStats, getJenAIStatusCounts, getJenAICategories } from '@/lib/actions/jenai';
+import { getBarrierBurdenStats, getBarrierStatusCounts, getBarrierCategories } from '@/lib/actions/barrier';
 import { getFinesOverviewStats } from '@/lib/actions/fines';
 import { DEFAULT_JURISDICTION, VALID_JURISDICTIONS } from '@/types/state';
 import { Alert } from '@/components/ui';
@@ -23,26 +23,26 @@ export default async function HomePage() {
     finesNY,
     finesNJ,
     finesNYC,
-    jenaiNY,
-    jenaiNJ,
-    jenaiNYC,
-    jenaiCategoriesResult,
+    barrierNY,
+    barrierNJ,
+    barrierNYC,
+    barrierCategoriesResult,
   ] = await Promise.all([
     getDashboardStats(),
     getAllStateStats(),
     getGuidanceOverviewStats('ny'),
     getGuidanceOverviewStats('nj'),
     getGuidanceOverviewStats('nyc'),
-    getJenAIBurdenStats('ny'),
-    getJenAIBurdenStats('nj'),
-    getJenAIBurdenStats('nyc'),
+    getBarrierBurdenStats('ny'),
+    getBarrierBurdenStats('nj'),
+    getBarrierBurdenStats('nyc'),
     getFinesOverviewStats('ny'),
     getFinesOverviewStats('nj'),
     getFinesOverviewStats('nyc'),
-    getJenAIStatusCounts('ny'),
-    getJenAIStatusCounts('nj'),
-    getJenAIStatusCounts('nyc'),
-    getJenAICategories('ny'),
+    getBarrierStatusCounts('ny'),
+    getBarrierStatusCounts('nj'),
+    getBarrierStatusCounts('nyc'),
+    getBarrierCategories('ny'),
   ]);
 
   // Handle errors
@@ -116,18 +116,18 @@ export default async function HomePage() {
   const aggregateFinesAgencies = Object.values(finesByState)
     .reduce((sum, s) => sum + (s?.uniqueAgencies ?? 0), 0);
 
-  // JenAI
-  const jenaiByState = {
-    ny: jenaiNY.success ? jenaiNY.data : null,
-    nj: jenaiNJ.success ? jenaiNJ.data : null,
-    nyc: jenaiNYC.success ? jenaiNYC.data : null,
+  // Barrier
+  const barrierByState = {
+    ny: barrierNY.success ? barrierNY.data : null,
+    nj: barrierNJ.success ? barrierNJ.data : null,
+    nyc: barrierNYC.success ? barrierNYC.data : null,
   };
-  const aggregateJenaiTotal = Object.values(jenaiByState)
+  const aggregateBarrierTotal = Object.values(barrierByState)
     .reduce((sum, s) => sum + (s?.total ?? 0), 0);
-  const aggregateJenaiUnreviewed = Object.values(jenaiByState)
+  const aggregateBarrierUnreviewed = Object.values(barrierByState)
     .reduce((sum, s) => sum + (s?.unreviewed ?? 0), 0);
-  const jenaiTopCategory = jenaiCategoriesResult.success
-    ? jenaiCategoriesResult.data
+  const barrierTopCategory = barrierCategoriesResult.success
+    ? barrierCategoriesResult.data
         .filter((c) => c.category.toLowerCase() !== 'other')
         .sort((a, b) => b.count - a.count)[0]?.category ?? null
     : null;
@@ -138,8 +138,8 @@ export default async function HomePage() {
         stats={aggregateStats}
         stateStats={stateStats}
         guidanceTotal={aggregateGuidanceTotal}
-        jenaiTotal={aggregateJenaiTotal}
-        jenaiUnreviewed={aggregateJenaiUnreviewed}
+        barrierTotal={aggregateBarrierTotal}
+        barrierUnreviewed={aggregateBarrierUnreviewed}
       />
 
       <Container size="2xl" className="py-6 space-y-8">
@@ -152,7 +152,7 @@ export default async function HomePage() {
             complianceStats={aggregateStats.complianceIssues}
             guidanceStats={{ total: aggregateGuidanceTotal, agencyCount: aggregateGuidanceAgencies }}
             finesStats={{ total: aggregateFinesTotal, uniqueAgencies: aggregateFinesAgencies }}
-            jenaiStats={{ total: aggregateJenaiTotal, unreviewed: aggregateJenaiUnreviewed, topCategory: jenaiTopCategory }}
+            barrierStats={{ total: aggregateBarrierTotal, unreviewed: aggregateBarrierUnreviewed, topCategory: barrierTopCategory }}
             jurisdiction={DEFAULT_JURISDICTION}
           />
         </section>
@@ -170,7 +170,7 @@ export default async function HomePage() {
                 stats={stateStats[j]}
                 guidanceTotal={guidanceByState[j]?.total}
                 burdenStats={burdenByState[j]}
-                jenaiStats={jenaiByState[j]}
+                barrierStats={barrierByState[j]}
               />
             ))}
           </div>

@@ -196,7 +196,7 @@ export function GuidanceOverviewTab({ stats, lineageStats, readabilityStats, cro
         </div>
       )}
 
-      {/* Readability × Compliance × JenAI Cross-Cut Section */}
+      {/* Readability × Compliance × Barrier Cross-Cut Section */}
       {crossCutStats && (
         <div id="gov-crosscuts" className="scroll-mt-[140px]">
           <ReadabilityCrossCutSection stats={crossCutStats} />

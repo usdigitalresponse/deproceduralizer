@@ -117,9 +117,11 @@ Script: `backend/scripts/batch_exclude_ny_sections.py` (use `--dry-run` to previ
 
 **Indexes:** `idx_documents_state`, `idx_documents_type`, `idx_documents_state_type`, `idx_documents_parent`, `idx_documents_hierarchy_level`, `idx_documents_regulatory_status`, `idx_documents_url`, `idx_documents_short_title`, `idx_documents_exclude_from_analysis` (partial), `idx_rd_keywords` (GIN), `idx_rd_applies_to` (GIN), `idx_rd_section_type` (partial), `idx_rd_has_form` (partial), `idx_rd_has_ibr` (partial), `idx_regulatory_documents_search_vector` (GIN), `idx_rd_rcny_title` (partial: WHERE jurisdiction = 'NYC'), `idx_rd_jurisdiction_source_type` (unique: jurisdiction, source_index, type - for upsert), `idx_regulatory_documents_citation_trgm` (GIN trigram on citation)
 
-## jenai_analyses
+## barrier_analyses
 
-JenAI single-pass pipeline analysis results. One row per document analyzed.
+Barrier single-pass pipeline analysis results. One row per document analyzed.
+
+**Note:** Migration `0094_rename_to_barrier.sql` renamed this table, `barrier_issues`, `tournament_examples.barrier_issue_id`, and every related index, constraint, sequence, function, and trigger from their legacy names. Earlier migrations were rewritten to use the new names directly, so 0094 is a no-op on fresh installs.
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -149,7 +151,7 @@ JenAI single-pass pipeline analysis results. One row per document analyzed.
 | `max_severity` | integer | Highest severity across categories |
 | `num_categories_found` | integer | Count of categories found |
 
-**Composite Burden Scores** (auto-maintained by `trg_jenai_issues_burden_recalc` trigger)
+**Composite Burden Scores** (auto-maintained by `trg_barrier_issues_burden_recalc` trigger)
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -165,20 +167,20 @@ JenAI single-pass pipeline analysis results. One row per document analyzed.
 | `model_version` | varchar(100) | LLM model used |
 | `responsible_agency` | text | Administering agency (from NYCRR title mapping or guidance doc agency) |
 
-**Constraints:** `jenai_analyses_one_source_check CHECK (exactly one of document_id or guidance_document_id is set)`, `chk_jenai_jurisdiction CHECK (jurisdiction IN ('NY', 'NJ', 'NYC'))`
+**Constraints:** `barrier_analyses_one_source_check CHECK (exactly one of document_id or guidance_document_id is set)`, `chk_barrier_jurisdiction CHECK (jurisdiction IN ('NY', 'NJ', 'NYC'))`
 
-**Indexes:** `jenai_analyses_document_id_unique` (partial, WHERE document_id IS NOT NULL), `jenai_analyses_guidance_document_id_unique` (partial, WHERE guidance_document_id IS NOT NULL), `idx_jenai_analyses_state`, `idx_jenai_analyses_run_id`, `idx_jenai_analyses_adjusted_burden_desc` (adjusted_burden DESC NULLS LAST)
+**Indexes:** `barrier_analyses_document_id_unique` (partial, WHERE document_id IS NOT NULL), `barrier_analyses_guidance_document_id_unique` (partial, WHERE guidance_document_id IS NOT NULL), `idx_barrier_analyses_state`, `idx_barrier_analyses_run_id`, `idx_barrier_analyses_adjusted_burden_desc` (adjusted_burden DESC NULLS LAST)
 
-**Trigger:** `trg_jenai_issues_burden_recalc` — fires AFTER INSERT/UPDATE/DELETE on `jenai_issues`, recalculates `composite_burden`, `structural_cluster_count`, and `adjusted_burden` for the parent analysis. Function: `recalculate_jenai_burden()`.
+**Trigger:** `trg_barrier_issues_burden_recalc` — fires AFTER INSERT/UPDATE/DELETE on `barrier_issues`, recalculates `composite_burden`, `structural_cluster_count`, and `adjusted_burden` for the parent analysis. Function: `recalculate_barrier_burden()`.
 
-## jenai_issues
+## barrier_issues
 
-One row per category finding per document. Links to `jenai_analyses`.
+One row per category finding per document. Links to `barrier_analyses`.
 
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | bigserial | Primary key |
-| `analysis_id` | bigint NOT NULL | FK to jenai_analyses (ON DELETE CASCADE) |
+| `analysis_id` | bigint NOT NULL | FK to barrier_analyses (ON DELETE CASCADE) |
 | `document_id` | bigint | FK to regulatory_documents (ON DELETE CASCADE, nullable) |
 | `guidance_document_id` | bigint | FK to guidance_documents (ON DELETE CASCADE, nullable) |
 | `category` | varchar(50) | One of 18 categories (CHECK constraint) |
@@ -193,7 +195,7 @@ One row per category finding per document. Links to `jenai_analyses`.
 | `tags` | text[] | 2-3 kebab-case labels per finding |
 | `is_verbatim` | boolean | Whether matched_phrases are verbatim from source text |
 
-**Valid Categories (18 — 15 Pahlka + 2 structural + OTHER catch-all):**
+**Valid Categories (18 — 15 core + 2 structural + OTHER catch-all):**
 - `REGULATORY_COMPLEXITY`, `POLICY_IMPLEMENTATION_SEPARATION`, `CASCADE_OF_RIGIDITY`
 - `MANDATED_STEPS_NOT_OUTCOMES`, `ADMINISTRATIVE_BURDENS`, `NO_FEEDBACK_LOOPS`
 - `PROCESS_WORSHIP_OVERSIGHT`, `ZERO_RISK_LANGUAGE`, `FROZEN_TECHNOLOGY`
@@ -204,9 +206,9 @@ One row per category finding per document. Links to `jenai_analyses`.
 
 **Review/Developer fields:** `review_status`, `reviewed_by`, `reviewed_at`, `justification_notes`, `team_notes`, `priority`, `impact_type`, `developer_status`, `developer_assigned`, `developer_notes`, `resolution_type`, `resolution_comments`, `developer_question`, `developer_checked_at`
 
-**Constraints:** `jenai_issues_analysis_category_unique UNIQUE(analysis_id, category)`, `jenai_issues_one_source_check CHECK (exactly one of document_id or guidance_document_id is set)`
+**Constraints:** `barrier_issues_analysis_category_unique UNIQUE(analysis_id, category)`, `barrier_issues_one_source_check CHECK (exactly one of document_id or guidance_document_id is set)`
 
-**Indexes:** `idx_jenai_issues_document`, `idx_jenai_issues_category`, `idx_jenai_issues_review_status`, `idx_jenai_issues_severity`
+**Indexes:** `idx_barrier_issues_document`, `idx_barrier_issues_category`, `idx_barrier_issues_review_status`, `idx_barrier_issues_severity`
 
 ## definitions
 
@@ -598,7 +600,7 @@ Deduplicated prompt templates for observability. Each unique canonical request (
 |--------|------|-------------|
 | `id` | bigserial | Primary key |
 | `content_hash` | text NOT NULL UNIQUE | SHA-256 of canonical request params |
-| `pipeline` | text NOT NULL | `research`, `jenai`, `summarization` |
+| `pipeline` | text NOT NULL | `research`, `barrier`, `summarization` |
 | `tier` | integer | 1, 2, 3 (NULL for single-pass pipelines) |
 | `model` | text NOT NULL | Model name (e.g., `claude-sonnet-4-5-20250929`) |
 | `system_prompt` | text | Extracted system prompt text |
@@ -733,7 +735,7 @@ Structured extraction of monetary charges (fines, fees, penalties, surcharges, f
 
 ## agencies
 
-Canonical agency lookup table for deduplicating `responsible_agency` across fines (and eventually compliance/JenAI). Stores one row per (jurisdiction, canonical_name) pair.
+Canonical agency lookup table for deduplicating `responsible_agency` across fines (and eventually compliance/Barrier). Stores one row per (jurisdiction, canonical_name) pair.
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -1152,13 +1154,13 @@ Stores user feedback on LLM prompts defined in `prompts/core.yaml`.
 
 ## llm_api_cache
 
-Caches LLM API responses to avoid redundant calls across pipeline runs. Used by research pipeline, JenAI pipeline, and summarization.
+Caches LLM API responses to avoid redundant calls across pipeline runs. Used by research pipeline, Barrier pipeline, and summarization.
 
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | uuid | Primary key (gen_random_uuid()) |
 | `request_hash` | text NOT NULL UNIQUE | SHA-256 of canonical request params (model, system, messages, tools, tool_choice, max_tokens) |
-| `pipeline` | text | `research`, `jenai`, `summarization`, etc. |
+| `pipeline` | text | `research`, `barrier`, `summarization`, etc. |
 | `tier` | integer | 1, 2, 3, or NULL |
 | `document_id` | bigint | FK to regulatory_documents (nullable) |
 | `model` | text NOT NULL | LLM model used |

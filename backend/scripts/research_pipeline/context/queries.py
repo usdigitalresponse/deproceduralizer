@@ -73,7 +73,7 @@ def get_sibling_summaries_batch(
     # Get siblings by finding documents with the same parent.
     # Self-inclusion is intentional — it ensures all sections in a subchapter
     # produce identical sibling lists, which is required for Layer 2 prompt
-    # caching in both JenAI and research pipelines. The only cosmetic side
+    # caching in both Barrier and research pipelines. The only cosmetic side
     # effect is that the context registry counts self as "sibling" before "self".
     # See .claude/skills/pipeline-caching/SKILL.md for caching rules.
     query = """

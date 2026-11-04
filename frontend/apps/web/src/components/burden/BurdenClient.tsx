@@ -20,9 +20,9 @@ import {
   parseCommaSeparated,
   serializeCommaSeparated,
 } from '@/lib/url/parsers';
-import { getJenAIBurdenRanking } from '@/lib/actions/jenai';
+import { getBarrierBurdenRanking } from '@/lib/actions/barrier';
 import { SEVERITY_MULTISELECT_OPTIONS } from '@/lib/constants/filters';
-import { STRUCTURAL_CATEGORIES, getCategoryLabel, isStructuralCategory } from '@/lib/constants/jenai';
+import { STRUCTURAL_CATEGORIES, getCategoryLabel, isStructuralCategory } from '@/lib/constants/barrier';
 import { formatLabel } from '@/types/regulation';
 import type { JurisdictionCode, BurdenOverviewStats, BurdenRankingRow } from '@deproceduralizer/database';
 
@@ -171,7 +171,7 @@ export function BurdenClient({ jurisdiction, stats, categories, parts, sectionTy
       const sortBy = resolve('sortBy', params.sortBy) as 'adjustedBurden' | 'compositeBurden' | 'maxSeverity' | 'issueCount';
       const sortOrder = resolve('sortOrder', params.sortOrder) as 'asc' | 'desc';
 
-      const result = await getJenAIBurdenRanking(jurisdiction, {
+      const result = await getBarrierBurdenRanking(jurisdiction, {
         page,
         pageSize: params.pageSize,
         sortBy,

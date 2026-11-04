@@ -122,10 +122,10 @@ END $$;
 
 
 --
--- Name: jenai_issues_search_tsvector(text, text[]); Type: FUNCTION; Schema: public; Owner: -
+-- Name: barrier_issues_search_tsvector(text, text[]); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.jenai_issues_search_tsvector(explanation text, tags text[]) RETURNS tsvector
+CREATE FUNCTION public.barrier_issues_search_tsvector(explanation text, tags text[]) RETURNS tsvector
     LANGUAGE sql IMMUTABLE
     AS $$
   SELECT to_tsvector('english', coalesce(explanation, '') || ' ' || coalesce(array_to_string(tags, ' '), ''));
@@ -158,10 +158,10 @@ $_$;
 
 
 --
--- Name: recalculate_jenai_burden(); Type: FUNCTION; Schema: public; Owner: -
+-- Name: recalculate_barrier_burden(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.recalculate_jenai_burden() RETURNS trigger
+CREATE FUNCTION public.recalculate_barrier_burden() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 DECLARE
@@ -190,10 +190,10 @@ BEGIN
       )
     )
   INTO new_composite, new_cluster_count
-  FROM jenai_issues
+  FROM barrier_issues
   WHERE analysis_id = target_analysis_id;
 
-  UPDATE jenai_analyses
+  UPDATE barrier_analyses
   SET
     composite_burden = new_composite,
     structural_cluster_count = new_cluster_count,
@@ -1750,10 +1750,10 @@ ALTER SEQUENCE public.incorporations_by_reference_id_seq OWNED BY public.incorpo
 
 
 --
--- Name: jenai_analyses; Type: TABLE; Schema: public; Owner: -
+-- Name: barrier_analyses; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.jenai_analyses (
+CREATE TABLE public.barrier_analyses (
     id bigint NOT NULL,
     document_id bigint,
     jurisdiction character varying(3) NOT NULL,
@@ -1777,16 +1777,16 @@ CREATE TABLE public.jenai_analyses (
     composite_burden real,
     structural_cluster_count integer,
     adjusted_burden real,
-    CONSTRAINT chk_jenai_jurisdiction CHECK (((jurisdiction)::text = ANY ((ARRAY['NY'::character varying, 'NJ'::character varying, 'NYC'::character varying])::text[]))),
-    CONSTRAINT jenai_analyses_one_source_check CHECK ((((document_id IS NOT NULL) AND (guidance_document_id IS NULL)) OR ((document_id IS NULL) AND (guidance_document_id IS NOT NULL))))
+    CONSTRAINT chk_barrier_jurisdiction CHECK (((jurisdiction)::text = ANY ((ARRAY['NY'::character varying, 'NJ'::character varying, 'NYC'::character varying])::text[]))),
+    CONSTRAINT barrier_analyses_one_source_check CHECK ((((document_id IS NOT NULL) AND (guidance_document_id IS NULL)) OR ((document_id IS NULL) AND (guidance_document_id IS NOT NULL))))
 );
 
 
 --
--- Name: jenai_analyses_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: barrier_analyses_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
-CREATE SEQUENCE public.jenai_analyses_id_seq
+CREATE SEQUENCE public.barrier_analyses_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -1795,17 +1795,17 @@ CREATE SEQUENCE public.jenai_analyses_id_seq
 
 
 --
--- Name: jenai_analyses_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+-- Name: barrier_analyses_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
-ALTER SEQUENCE public.jenai_analyses_id_seq OWNED BY public.jenai_analyses.id;
+ALTER SEQUENCE public.barrier_analyses_id_seq OWNED BY public.barrier_analyses.id;
 
 
 --
--- Name: jenai_issues; Type: TABLE; Schema: public; Owner: -
+-- Name: barrier_issues; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.jenai_issues (
+CREATE TABLE public.barrier_issues (
     id bigint NOT NULL,
     analysis_id bigint NOT NULL,
     document_id bigint,
@@ -1838,18 +1838,18 @@ CREATE TABLE public.jenai_issues (
     is_verbatim boolean,
     guidance_document_id bigint,
     topics text[] DEFAULT '{}'::text[],
-    CONSTRAINT jenai_issues_category_check CHECK (((category)::text = ANY ((ARRAY['REGULATORY_COMPLEXITY'::character varying, 'POLICY_IMPLEMENTATION_SEPARATION'::character varying, 'CASCADE_OF_RIGIDITY'::character varying, 'MANDATED_STEPS_NOT_OUTCOMES'::character varying, 'ADMINISTRATIVE_BURDENS'::character varying, 'NO_FEEDBACK_LOOPS'::character varying, 'PROCESS_WORSHIP_OVERSIGHT'::character varying, 'ZERO_RISK_LANGUAGE'::character varying, 'FROZEN_TECHNOLOGY'::character varying, 'OTHER'::character varying, 'MISSING_OUTCOMES'::character varying, 'UNCLEAR_DELEGATION'::character varying, 'ACCESS_ASSUMPTION_BARRIERS'::character varying, 'FEE_COST_BURDENS'::character varying, 'DEAD_SUPERSEDED_REFERENCES'::character varying, 'MISSING_DIGITAL_AUTHORIZATION'::character varying, 'ONE_SIZE_FITS_ALL'::character varying, 'UNFUNDED_MANDATE'::character varying])::text[]))),
-    CONSTRAINT jenai_issues_confidence_check CHECK (((confidence >= (0.0)::double precision) AND (confidence <= (1.0)::double precision))),
-    CONSTRAINT jenai_issues_one_source_check CHECK ((((document_id IS NOT NULL) AND (guidance_document_id IS NULL)) OR ((document_id IS NULL) AND (guidance_document_id IS NOT NULL)))),
-    CONSTRAINT jenai_issues_severity_check CHECK (((severity >= 1) AND (severity <= 10)))
+    CONSTRAINT barrier_issues_category_check CHECK (((category)::text = ANY ((ARRAY['REGULATORY_COMPLEXITY'::character varying, 'POLICY_IMPLEMENTATION_SEPARATION'::character varying, 'CASCADE_OF_RIGIDITY'::character varying, 'MANDATED_STEPS_NOT_OUTCOMES'::character varying, 'ADMINISTRATIVE_BURDENS'::character varying, 'NO_FEEDBACK_LOOPS'::character varying, 'PROCESS_WORSHIP_OVERSIGHT'::character varying, 'ZERO_RISK_LANGUAGE'::character varying, 'FROZEN_TECHNOLOGY'::character varying, 'OTHER'::character varying, 'MISSING_OUTCOMES'::character varying, 'UNCLEAR_DELEGATION'::character varying, 'ACCESS_ASSUMPTION_BARRIERS'::character varying, 'FEE_COST_BURDENS'::character varying, 'DEAD_SUPERSEDED_REFERENCES'::character varying, 'MISSING_DIGITAL_AUTHORIZATION'::character varying, 'ONE_SIZE_FITS_ALL'::character varying, 'UNFUNDED_MANDATE'::character varying])::text[]))),
+    CONSTRAINT barrier_issues_confidence_check CHECK (((confidence >= (0.0)::double precision) AND (confidence <= (1.0)::double precision))),
+    CONSTRAINT barrier_issues_one_source_check CHECK ((((document_id IS NOT NULL) AND (guidance_document_id IS NULL)) OR ((document_id IS NULL) AND (guidance_document_id IS NOT NULL)))),
+    CONSTRAINT barrier_issues_severity_check CHECK (((severity >= 1) AND (severity <= 10)))
 );
 
 
 --
--- Name: jenai_issues_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: barrier_issues_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
-CREATE SEQUENCE public.jenai_issues_id_seq
+CREATE SEQUENCE public.barrier_issues_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -1858,10 +1858,10 @@ CREATE SEQUENCE public.jenai_issues_id_seq
 
 
 --
--- Name: jenai_issues_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+-- Name: barrier_issues_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
-ALTER SEQUENCE public.jenai_issues_id_seq OWNED BY public.jenai_issues.id;
+ALTER SEQUENCE public.barrier_issues_id_seq OWNED BY public.barrier_issues.id;
 
 
 --
@@ -2253,7 +2253,7 @@ ALTER SEQUENCE public.statutes_id_seq OWNED BY public.statutes.id;
 CREATE TABLE public.tournament_examples (
     id integer NOT NULL,
     pattern_id integer NOT NULL,
-    jenai_issue_id integer,
+    barrier_issue_id integer,
     citation text NOT NULL,
     category text,
     severity integer,
@@ -2484,17 +2484,17 @@ ALTER TABLE ONLY public.incorporations_by_reference ALTER COLUMN id SET DEFAULT 
 
 
 --
--- Name: jenai_analyses id; Type: DEFAULT; Schema: public; Owner: -
+-- Name: barrier_analyses id; Type: DEFAULT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.jenai_analyses ALTER COLUMN id SET DEFAULT nextval('public.jenai_analyses_id_seq'::regclass);
+ALTER TABLE ONLY public.barrier_analyses ALTER COLUMN id SET DEFAULT nextval('public.barrier_analyses_id_seq'::regclass);
 
 
 --
--- Name: jenai_issues id; Type: DEFAULT; Schema: public; Owner: -
+-- Name: barrier_issues id; Type: DEFAULT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.jenai_issues ALTER COLUMN id SET DEFAULT nextval('public.jenai_issues_id_seq'::regclass);
+ALTER TABLE ONLY public.barrier_issues ALTER COLUMN id SET DEFAULT nextval('public.barrier_issues_id_seq'::regclass);
 
 
 --
@@ -2782,35 +2782,35 @@ ALTER TABLE ONLY public.incorporations_by_reference
 
 
 --
--- Name: jenai_analyses jenai_analyses_document_unique; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: barrier_analyses barrier_analyses_document_unique; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.jenai_analyses
-    ADD CONSTRAINT jenai_analyses_document_unique UNIQUE (document_id);
-
-
---
--- Name: jenai_analyses jenai_analyses_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.jenai_analyses
-    ADD CONSTRAINT jenai_analyses_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.barrier_analyses
+    ADD CONSTRAINT barrier_analyses_document_unique UNIQUE (document_id);
 
 
 --
--- Name: jenai_issues jenai_issues_analysis_category_unique; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: barrier_analyses barrier_analyses_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.jenai_issues
-    ADD CONSTRAINT jenai_issues_analysis_category_unique UNIQUE (analysis_id, category);
+ALTER TABLE ONLY public.barrier_analyses
+    ADD CONSTRAINT barrier_analyses_pkey PRIMARY KEY (id);
 
 
 --
--- Name: jenai_issues jenai_issues_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: barrier_issues barrier_issues_analysis_category_unique; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.jenai_issues
-    ADD CONSTRAINT jenai_issues_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.barrier_issues
+    ADD CONSTRAINT barrier_issues_analysis_category_unique UNIQUE (analysis_id, category);
+
+
+--
+-- Name: barrier_issues barrier_issues_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.barrier_issues
+    ADD CONSTRAINT barrier_issues_pkey PRIMARY KEY (id);
 
 
 --
@@ -3915,73 +3915,73 @@ CREATE INDEX idx_ibr_review_status ON public.incorporations_by_reference USING b
 
 
 --
--- Name: idx_jenai_analyses_adjusted_burden_desc; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_barrier_analyses_adjusted_burden_desc; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_jenai_analyses_adjusted_burden_desc ON public.jenai_analyses USING btree (adjusted_burden DESC NULLS LAST);
-
-
---
--- Name: idx_jenai_analyses_agency; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_jenai_analyses_agency ON public.jenai_analyses USING btree (responsible_agency) WHERE (responsible_agency IS NOT NULL);
+CREATE INDEX idx_barrier_analyses_adjusted_burden_desc ON public.barrier_analyses USING btree (adjusted_burden DESC NULLS LAST);
 
 
 --
--- Name: idx_jenai_analyses_jurisdiction; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_barrier_analyses_agency; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_jenai_analyses_jurisdiction ON public.jenai_analyses USING btree (jurisdiction);
-
-
---
--- Name: idx_jenai_analyses_run_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_jenai_analyses_run_id ON public.jenai_analyses USING btree (run_id);
+CREATE INDEX idx_barrier_analyses_agency ON public.barrier_analyses USING btree (responsible_agency) WHERE (responsible_agency IS NOT NULL);
 
 
 --
--- Name: idx_jenai_issues_category; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_barrier_analyses_jurisdiction; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_jenai_issues_category ON public.jenai_issues USING btree (category);
-
-
---
--- Name: idx_jenai_issues_document; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_jenai_issues_document ON public.jenai_issues USING btree (document_id);
+CREATE INDEX idx_barrier_analyses_jurisdiction ON public.barrier_analyses USING btree (jurisdiction);
 
 
 --
--- Name: idx_jenai_issues_review_status; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_barrier_analyses_run_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_jenai_issues_review_status ON public.jenai_issues USING btree (review_status);
-
-
---
--- Name: idx_jenai_issues_search; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_jenai_issues_search ON public.jenai_issues USING gin (public.jenai_issues_search_tsvector(explanation, tags));
+CREATE INDEX idx_barrier_analyses_run_id ON public.barrier_analyses USING btree (run_id);
 
 
 --
--- Name: idx_jenai_issues_severity; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_barrier_issues_category; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_jenai_issues_severity ON public.jenai_issues USING btree (severity);
+CREATE INDEX idx_barrier_issues_category ON public.barrier_issues USING btree (category);
 
 
 --
--- Name: idx_jenai_issues_topics; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_barrier_issues_document; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_jenai_issues_topics ON public.jenai_issues USING gin (topics);
+CREATE INDEX idx_barrier_issues_document ON public.barrier_issues USING btree (document_id);
+
+
+--
+-- Name: idx_barrier_issues_review_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_barrier_issues_review_status ON public.barrier_issues USING btree (review_status);
+
+
+--
+-- Name: idx_barrier_issues_search; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_barrier_issues_search ON public.barrier_issues USING gin (public.barrier_issues_search_tsvector(explanation, tags));
+
+
+--
+-- Name: idx_barrier_issues_severity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_barrier_issues_severity ON public.barrier_issues USING btree (severity);
+
+
+--
+-- Name: idx_barrier_issues_topics; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_barrier_issues_topics ON public.barrier_issues USING gin (topics);
 
 
 --
@@ -4223,17 +4223,17 @@ CREATE INDEX idx_tournament_patterns_pass ON public.tournament_patterns USING bt
 
 
 --
--- Name: jenai_analyses_document_id_unique; Type: INDEX; Schema: public; Owner: -
+-- Name: barrier_analyses_document_id_unique; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX jenai_analyses_document_id_unique ON public.jenai_analyses USING btree (document_id) WHERE (document_id IS NOT NULL);
+CREATE UNIQUE INDEX barrier_analyses_document_id_unique ON public.barrier_analyses USING btree (document_id) WHERE (document_id IS NOT NULL);
 
 
 --
--- Name: jenai_analyses_guidance_document_id_unique; Type: INDEX; Schema: public; Owner: -
+-- Name: barrier_analyses_guidance_document_id_unique; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX jenai_analyses_guidance_document_id_unique ON public.jenai_analyses USING btree (guidance_document_id) WHERE (guidance_document_id IS NOT NULL);
+CREATE UNIQUE INDEX barrier_analyses_guidance_document_id_unique ON public.barrier_analyses USING btree (guidance_document_id) WHERE (guidance_document_id IS NOT NULL);
 
 
 --
@@ -4244,10 +4244,10 @@ CREATE TRIGGER trg_compliance_issue_analyses_search_vector BEFORE INSERT OR UPDA
 
 
 --
--- Name: jenai_issues trg_jenai_issues_burden_recalc; Type: TRIGGER; Schema: public; Owner: -
+-- Name: barrier_issues trg_barrier_issues_burden_recalc; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER trg_jenai_issues_burden_recalc AFTER INSERT OR DELETE OR UPDATE ON public.jenai_issues FOR EACH ROW EXECUTE FUNCTION public.recalculate_jenai_burden();
+CREATE TRIGGER trg_barrier_issues_burden_recalc AFTER INSERT OR DELETE OR UPDATE ON public.barrier_issues FOR EACH ROW EXECUTE FUNCTION public.recalculate_barrier_burden();
 
 
 --
@@ -4544,43 +4544,43 @@ ALTER TABLE ONLY public.incorporations_by_reference
 
 
 --
--- Name: jenai_analyses jenai_analyses_document_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: barrier_analyses barrier_analyses_document_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.jenai_analyses
-    ADD CONSTRAINT jenai_analyses_document_id_fkey FOREIGN KEY (document_id) REFERENCES public.regulatory_documents(id) ON DELETE CASCADE;
-
-
---
--- Name: jenai_analyses jenai_analyses_guidance_document_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.jenai_analyses
-    ADD CONSTRAINT jenai_analyses_guidance_document_id_fkey FOREIGN KEY (guidance_document_id) REFERENCES public.guidance_documents(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.barrier_analyses
+    ADD CONSTRAINT barrier_analyses_document_id_fkey FOREIGN KEY (document_id) REFERENCES public.regulatory_documents(id) ON DELETE CASCADE;
 
 
 --
--- Name: jenai_issues jenai_issues_analysis_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: barrier_analyses barrier_analyses_guidance_document_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.jenai_issues
-    ADD CONSTRAINT jenai_issues_analysis_id_fkey FOREIGN KEY (analysis_id) REFERENCES public.jenai_analyses(id) ON DELETE CASCADE;
-
-
---
--- Name: jenai_issues jenai_issues_document_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.jenai_issues
-    ADD CONSTRAINT jenai_issues_document_id_fkey FOREIGN KEY (document_id) REFERENCES public.regulatory_documents(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.barrier_analyses
+    ADD CONSTRAINT barrier_analyses_guidance_document_id_fkey FOREIGN KEY (guidance_document_id) REFERENCES public.guidance_documents(id) ON DELETE CASCADE;
 
 
 --
--- Name: jenai_issues jenai_issues_guidance_document_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: barrier_issues barrier_issues_analysis_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.jenai_issues
-    ADD CONSTRAINT jenai_issues_guidance_document_id_fkey FOREIGN KEY (guidance_document_id) REFERENCES public.guidance_documents(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.barrier_issues
+    ADD CONSTRAINT barrier_issues_analysis_id_fkey FOREIGN KEY (analysis_id) REFERENCES public.barrier_analyses(id) ON DELETE CASCADE;
+
+
+--
+-- Name: barrier_issues barrier_issues_document_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.barrier_issues
+    ADD CONSTRAINT barrier_issues_document_id_fkey FOREIGN KEY (document_id) REFERENCES public.regulatory_documents(id) ON DELETE CASCADE;
+
+
+--
+-- Name: barrier_issues barrier_issues_guidance_document_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.barrier_issues
+    ADD CONSTRAINT barrier_issues_guidance_document_id_fkey FOREIGN KEY (guidance_document_id) REFERENCES public.guidance_documents(id) ON DELETE CASCADE;
 
 
 --
@@ -4648,11 +4648,11 @@ ALTER TABLE ONLY public.statutes
 
 
 --
--- Name: tournament_examples tournament_examples_jenai_issue_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: tournament_examples tournament_examples_barrier_issue_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.tournament_examples
-    ADD CONSTRAINT tournament_examples_jenai_issue_id_fkey FOREIGN KEY (jenai_issue_id) REFERENCES public.jenai_issues(id);
+    ADD CONSTRAINT tournament_examples_barrier_issue_id_fkey FOREIGN KEY (barrier_issue_id) REFERENCES public.barrier_issues(id);
 
 
 --

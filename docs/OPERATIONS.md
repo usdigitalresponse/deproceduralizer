@@ -16,7 +16,7 @@ Complete guide for running the Deproceduralizer analysis pipeline on a state's r
 8. Research Pipeline  →  compliance_issue_analyses table (LLM Tier 1-3)
 9. IBR Scan           →  incorporations_by_reference table
 9b. Fines Scan        →  fines_fees_penalties table (LLM structured extraction)
-10. JenAI Pipeline    →  jenai_analyses + jenai_issues tables (LLM single-pass)
+10. Barrier Pipeline    →  barrier_analyses + barrier_issues tables (LLM single-pass)
 11. Refresh Stats     →  precomputed counts on regulatory_documents
 
 Separate pipeline:
@@ -29,7 +29,7 @@ Separate pipeline:
 - Steps 6 and 7 can run in parallel (no dependency on each other)
 - **Step 8 depends on Steps 5 and 6** — the research pipeline uses document summaries and cross-reference summaries as LLM context
 - Steps 9-9b are independent of 8 and can run anytime after Step 1
-- **Step 10 depends on Steps 5 and 6** — JenAI uses summaries, cross-refs, and definitions as rich LLM context
+- **Step 10 depends on Steps 5 and 6** — Barrier uses summaries, cross-refs, and definitions as rich LLM context
 - Step 11 should run last (after any step that changes counts)
 
 ## Full State Analysis (e.g., NY)
@@ -614,33 +614,33 @@ python backend/scripts/fines_scanner.py --state ny --include-guidance --dry-run
 |------|------|
 | ~$1-3 (Haiku batch) | ~6 min for 5,500 docs |
 
-### Step 10: JenAI Pipeline (Single-Pass Enriched Analysis)
+### Step 10: Barrier Pipeline (Single-Pass Enriched Analysis)
 
 ```bash
 # Dry run (default) — shows section count, no execution
-cd backend && python3 -m scripts.jenai_pipeline.cli --state ny --title 18
+cd backend && python3 -m scripts.barrier_pipeline.cli --state ny --title 18
 
 # Filter by part (e.g., child care Parts 413-419)
-cd backend && python3 -m scripts.jenai_pipeline.cli --state ny --title 18 --part 414
+cd backend && python3 -m scripts.barrier_pipeline.cli --state ny --title 18 --part 414
 
 # Execute pipeline (limit 20 sections)
-cd backend && python3 -m scripts.jenai_pipeline.cli --state ny --title 18 --execute --limit 20
+cd backend && python3 -m scripts.barrier_pipeline.cli --state ny --title 18 --execute --limit 20
 
 # Realtime mode (faster, 2x cost)
-cd backend && python3 -m scripts.jenai_pipeline.cli --state ny --title 18 --part 414 --execute --realtime
+cd backend && python3 -m scripts.barrier_pipeline.cli --state ny --title 18 --part 414 --execute --realtime
 
 # Re-run specific document(s) by ID
-cd backend && python3 -m scripts.jenai_pipeline.cli --state ny --document-id 81899 --execute --realtime
+cd backend && python3 -m scripts.barrier_pipeline.cli --state ny --document-id 81899 --execute --realtime
 
 # Multiple document IDs
-cd backend && python3 -m scripts.jenai_pipeline.cli --state ny --document-id 81899 78696 --execute --realtime
+cd backend && python3 -m scripts.barrier_pipeline.cli --state ny --document-id 81899 78696 --execute --realtime
 ```
 
 - Single-pass enriched LLM pipeline analyzing regulatory sections for implementation complexity
-<!-- metric: JENAI_CATEGORIES=18 -->
-- Uses 18-category framework: 15 Pahlka problem categories + 2 structural + OTHER catch-all
+<!-- metric: BARRIER_CATEGORIES=18 -->
+- Uses 18-category framework: 15 core problem categories + 2 structural + OTHER catch-all
 - Full rich context upfront: ancestor summaries, sibling summaries, cross-ref summaries, full definition text
-- Results in `jenai_analyses` (one row per document) + `jenai_issues` (one row per category finding)
+- Results in `barrier_analyses` (one row per document) + `barrier_issues` (one row per category finding)
 - **Depends on:** Step 5 (cross-references) and Step 6 (summaries) for context
 - Uses Anthropic Batch API (Sonnet 4.6) for cost efficiency
 
@@ -655,7 +655,7 @@ cd backend && python3 -m scripts.jenai_pipeline.cli --state ny --document-id 818
 - `--limit N` — Max sections (default: 100)
 - `--execute` — Actually run (default is dry-run)
 - `--include-all-types` — Include reserved, definitions, scope sections (excluded by default)
-- `--force` — Re-analyze sections that already have JenAI analyses
+- `--force` — Re-analyze sections that already have Barrier analyses
 - `--realtime` — Use realtime API instead of batch (faster but 2x cost)
 - `--no-cache` — Disable LLM API response cache
 - `--document-id ID [ID ...]` — Target specific document ID(s) (auto-disables exclude_analyzed)
@@ -907,25 +907,25 @@ LLM-based classification scripts that add normalized fields to existing data. Al
 
 All scripts default to dry-run. Use `--limit N` to test on a subset first.
 
-## JenAI Tournament Pipeline
+## Barrier Tournament Pipeline
 
-Filters JenAI findings into actionable recommendations through multi-round LLM evaluation.
+Filters Barrier findings into actionable recommendations through multi-round LLM evaluation.
 
 | Command | Purpose | Cost |
 |---------|---------|------|
-| `cd backend && python scripts/jenai_tournament.py --full` | Full pipeline: Pass 1 + Pass 2 + top examples + JSON | ~$15 |
-| `cd backend && python scripts/jenai_tournament.py --domain childcare` | Childcare-specific themes + fixes | ~$1 |
-| `cd backend && python scripts/jenai_tournament.py --domain permitting` | Permitting-specific themes + fixes | ~$1 |
-| `cd backend && python scripts/jenai_tournament.py --verify` | Web search verification on Pass 1 semifinalists | ~$5 |
-| `cd backend && python scripts/jenai_tournament.py --build-json` | Rebuild tournament_results.json (no API calls) | $0 |
+| `cd backend && python scripts/barrier_tournament.py --full` | Full pipeline: Pass 1 + Pass 2 + top examples + JSON | ~$15 |
+| `cd backend && python scripts/barrier_tournament.py --domain childcare` | Childcare-specific themes + fixes | ~$1 |
+| `cd backend && python scripts/barrier_tournament.py --domain permitting` | Permitting-specific themes + fixes | ~$1 |
+| `cd backend && python scripts/barrier_tournament.py --verify` | Web search verification on Pass 1 semifinalists | ~$5 |
+| `cd backend && python scripts/barrier_tournament.py --build-json` | Rebuild tournament_results.json (no API calls) | $0 |
 | `cd backend && python scripts/import_tournament_results.py` | Import tournament_results.json into DB tables | $0 |
 | `cd backend && python scripts/classify_topics.py --execute` | Multi-label topic classification (50 topics) | ~$3-5 |
 | `cd backend && python scripts/validate_verbatim.py --execute` | Fix is_verbatim flags on text_examples | $0 |
 | `cd backend && python scripts/fix_text_examples.py --execute` | Re-extract verbatim text_examples via batch | ~$3 |
 
 **Outputs:**
-- `backend/outputs/jenai_strategies/tournament_results.json` — unified results for frontend
-- `backend/outputs/jenai_domains/{domain}/analysis.json` — domain-specific analysis
+- `backend/outputs/barrier_strategies/tournament_results.json` — unified results for frontend
+- `backend/outputs/barrier_domains/{domain}/analysis.json` — domain-specific analysis
 - DB tables: `tournament_patterns`, `tournament_examples`, `tournament_named_findings`
 
 **Prompts:** `prompts/tournament.yaml` (all prompts loaded from YAML)

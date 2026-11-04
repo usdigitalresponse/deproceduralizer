@@ -9,7 +9,7 @@ import type { PromptsTabValue } from '@/lib/constants/values';
 interface PromptsOverviewTabProps {
   coreCount: number;
   complianceCount: number;
-  jenaiCount: number;
+  barrierCount: number;
   totalFeedback: number;
   hasIssueTypes: boolean;
   onNavigateTab: (tab: PromptsTabValue) => void;
@@ -18,12 +18,12 @@ interface PromptsOverviewTabProps {
 export function PromptsOverviewTab({
   coreCount,
   complianceCount,
-  jenaiCount,
+  barrierCount,
   totalFeedback,
   hasIssueTypes,
   onNavigateTab,
 }: PromptsOverviewTabProps) {
-  const totalPrompts = coreCount + complianceCount + jenaiCount;
+  const totalPrompts = coreCount + complianceCount + barrierCount;
 
   return (
     <div className="space-y-6">
@@ -32,7 +32,7 @@ export function PromptsOverviewTab({
         <StatCard label="Total Prompts" value={totalPrompts} icon={Code} />
         <StatCard label="Core" value={coreCount} icon={Code} />
         <StatCard label="Compliance" value={complianceCount} icon={Shield} />
-        <StatCard label="JenAI" value={jenaiCount} icon={Cpu} />
+        <StatCard label="Barriers" value={barrierCount} icon={Cpu} />
         <StatCard label="Feedback Items" value={totalFeedback} icon={MessageSquare} />
       </div>
 
@@ -55,12 +55,12 @@ export function PromptsOverviewTab({
         <Card>
           <div className="flex items-center gap-3 mb-3">
             <Cpu className="w-5 h-5 text-[var(--color-primary)]" />
-            <h3 className="text-base font-semibold text-[var(--color-text)]">JenAI Pipeline Composer</h3>
+            <h3 className="text-base font-semibold text-[var(--color-text)]">Barrier Pipeline Composer</h3>
           </div>
           <p className="text-sm text-[var(--color-text-secondary)] mb-4">
-            Preview and compose prompts for the JenAI single-pass regulatory implementation analysis pipeline.
+            Preview and compose prompts for the Barrier single-pass regulatory implementation analysis pipeline.
           </p>
-          <Button variant="secondary" size="sm" onClick={() => onNavigateTab('jenai')}>
+          <Button variant="secondary" size="sm" onClick={() => onNavigateTab('barriers')}>
             Open Composer
           </Button>
         </Card>

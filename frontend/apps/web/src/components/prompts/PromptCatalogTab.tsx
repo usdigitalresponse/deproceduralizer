@@ -7,7 +7,7 @@ import type { PromptData, CompliancePromptData } from '@/lib/actions/prompts';
 interface PromptCatalogTabProps {
   prompts: PromptData[];
   compliancePrompts: CompliancePromptData[];
-  jenaiPrompts: PromptData[];
+  barrierPrompts: PromptData[];
   tournamentPrompts?: PromptData[];
   feedbackCounts: Record<string, number>;
 }
@@ -15,7 +15,7 @@ interface PromptCatalogTabProps {
 export function PromptCatalogTab({
   prompts,
   compliancePrompts,
-  jenaiPrompts,
+  barrierPrompts,
   tournamentPrompts = [],
   feedbackCounts,
 }: PromptCatalogTabProps) {
@@ -25,7 +25,7 @@ export function PromptCatalogTab({
         <PromptsList
           prompts={prompts}
           compliancePrompts={compliancePrompts}
-          jenaiPrompts={jenaiPrompts}
+          barrierPrompts={barrierPrompts}
           tournamentPrompts={tournamentPrompts}
           feedbackCounts={feedbackCounts}
         />
@@ -34,7 +34,7 @@ export function PromptCatalogTab({
         <PromptNav
           prompts={prompts}
           compliancePrompts={compliancePrompts}
-          jenaiPrompts={jenaiPrompts}
+          barrierPrompts={barrierPrompts}
           tournamentPrompts={tournamentPrompts}
         />
       </aside>

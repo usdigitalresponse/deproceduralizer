@@ -272,7 +272,7 @@
    - **How**: Small legend card, sticky-positioned at the top of the content area, with color swatches and labels. Toggleable to show/hide each highlight type.
 
 3. **Sidebar Section Collapse with Counts** (Impact: High)
-   - **What**: Make each sidebar section (Compliance Issues, Cross-Refs, Statutes, Definitions, JenAI) collapsible with item counts in the header.
+   - **What**: Make each sidebar section (Compliance Issues, Cross-Refs, Statutes, Definitions, Barrier) collapsible with item counts in the header.
    - **Why**: The sidebar can be extremely long (10+ compliance issues, 20+ definitions). Collapsible sections with counts let users jump to what matters.
    - **How**: Wrap each section in a `<details>` element. Show `(5)` count badge next to section title. Default-open sections with content, closed for empty sections.
 
@@ -319,7 +319,7 @@
 
 4. **Conditional Filter Reveal Animation** (Impact: Medium)
    - **What**: Animate the appearance of sub-filters (classification, issue type, severity) when the issue system selector changes.
-   - **Why**: Filters appearing/disappearing instantly when switching between Compliance and JenAI is jarring.
+   - **Why**: Filters appearing/disappearing instantly when switching between Compliance and Barrier is jarring.
    - **How**: CSS `transition: max-height 200ms, opacity 150ms` on the conditional filter containers.
 
 5. **Recent Searches / Saved Searches** (Impact: Medium)

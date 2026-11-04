@@ -24,7 +24,7 @@ Use the Read tool to read `docs/OPERATIONS.md` — it contains the complete pipe
 | 8 | Research pipeline (LLM) | `cd backend && python3 -m scripts.research_pipeline.cli --state ny --all-issues --execute` | ~$50-60/title |
 | 9 | IBR scan | `python backend/scripts/ibr_scanner.py --state ny` | ~$5-10 |
 | 9b | Fines scan | `python backend/scripts/fines_scanner.py --state ny --include-guidance --batch` | ~$1-3 |
-| 10 | JenAI pipeline (LLM) | `cd backend && python3 -m scripts.jenai_pipeline.cli --state ny --execute` | ~$30-60/title |
+| 10 | Barrier pipeline (LLM) | `cd backend && python3 -m scripts.barrier_pipeline.cli --state ny --execute` | ~$30-60/title |
 | 11 | Refresh stats | `python backend/scripts/refresh_hierarchy_stats.py --state NY` | Free |
 
 ## Critical Dependencies
@@ -35,21 +35,21 @@ Use the Read tool to read `docs/OPERATIONS.md` — it contains the complete pipe
 - **Step 8 depends on Steps 5 and 6** — uses summaries and cross-ref summaries as LLM context
 - Step 9 (IBR) is independent, can run anytime after Step 1
 - Step 9b (fines) is independent, can run anytime after Step 1
-- **Step 10 depends on Steps 5 and 6** — JenAI uses summaries, cross-refs, and definitions as context
+- **Step 10 depends on Steps 5 and 6** — Barrier uses summaries, cross-refs, and definitions as context
 - Step 11 runs last
 
 ## Related Skills
 
 For detailed architecture/internals on specific steps, invoke the relevant skill:
 - **research-pipeline** — Tier logic, state machine, escalation triggers, cost optimization (Step 8)
-- **jenai-pipeline** — Single-pass 19-category Pahlka framework analysis, context strategy, category taxonomy (Step 10)
+- **barrier-pipeline** — Single-pass 18-category barrier framework analysis, context strategy, category taxonomy (Step 10)
 - **cross-references** — Extraction patterns, resolution logic, troubleshooting (Step 5)
 - **fines-pipeline** — Fines extraction, prompt structure, agency attribution (Step 9b)
 - **database** — Schema reference, queries, maintenance procedures
 
 ## LLM API Response Cache
 
-All LLM pipeline steps (research, JenAI, summarization) use a shared response cache (`backend/lib/cache.py`) backed by the `llm_api_cache` table. Requests are keyed by SHA-256 hash of canonical params (model, system, messages, tools, tool_choice, max_tokens). Cache is enabled by default and reports hit/miss stats in pipeline output. Disable with `--no-cache` on the research pipeline or JenAI CLI.
+All LLM pipeline steps (research, Barrier, summarization) use a shared response cache (`backend/lib/cache.py`) backed by the `llm_api_cache` table. Requests are keyed by SHA-256 hash of canonical params (model, system, messages, tools, tool_choice, max_tokens). Cache is enabled by default and reports hit/miss stats in pipeline output. Disable with `--no-cache` on the research pipeline or Barrier CLI.
 
 ## Important Reminders
 

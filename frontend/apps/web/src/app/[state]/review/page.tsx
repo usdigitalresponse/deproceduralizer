@@ -11,7 +11,7 @@ import {
   ReviewPageError,
   ComplianceDeveloperQueue,
 } from '@/components/review';
-import { JenAIQueue } from '@/components/review/JenAIQueue';
+import { BarrierQueue } from '@/components/review/BarrierQueue';
 import {
   getDeveloperModeCountsData,
   getReviewModeCountsData,
@@ -143,13 +143,13 @@ function shouldRedirect(
   queryParams: ReviewPageQueryParams
 ): boolean {
   if (mode === 'developer') {
-    return !queryParams.developerStatus && reviewType !== 'needs_info' && reviewType !== 'jenai';
+    return !queryParams.developerStatus && reviewType !== 'needs_info' && reviewType !== 'barriers';
   }
   // Suggestion mode doesn't need reviewStatus - it always shows unreviewed items
   if (reviewType === 'compliance' && queryParams.queueMode === 'suggestion') {
     return false;
   }
-  return !queryParams.reviewStatus && reviewType !== 'needs_info' && reviewType !== 'jenai';
+  return !queryParams.reviewStatus && reviewType !== 'needs_info' && reviewType !== 'barriers';
 }
 
 function buildRedirectUrl(
@@ -203,8 +203,8 @@ async function renderDeveloperMode(
       return loadDeveloperDefinitionsTab(ctx, tabCounts);
     case 'needs_info':
       return loadDeveloperNeedsInfoTab(ctx, tabCounts, countsData.needsInfoCounts);
-    case 'jenai':
-      return loadDeveloperJenAITab(ctx, tabCounts);
+    case 'barriers':
+      return loadDeveloperBarrierTab(ctx, tabCounts);
     case 'compliance':
     default:
       return loadDeveloperComplianceTab(ctx, tabCounts, countsData.complianceDeveloperStatusCounts);
@@ -257,13 +257,13 @@ async function loadDeveloperNeedsInfoTab(
   );
 }
 
-async function loadDeveloperJenAITab(
+async function loadDeveloperBarrierTab(
   ctx: TabLoaderContext,
   tabCounts: TabCounts,
 ) {
   return (
-    <ReviewPageLayout pageConfig={ctx.pageConfig} mode="developer" reviewType="jenai" tabCounts={tabCounts}>
-      <JenAIQueue jurisdiction={ctx.stateCode} mode="developer" />
+    <ReviewPageLayout pageConfig={ctx.pageConfig} mode="developer" reviewType="barriers" tabCounts={tabCounts}>
+      <BarrierQueue jurisdiction={ctx.stateCode} mode="developer" />
     </ReviewPageLayout>
   );
 }
@@ -340,8 +340,8 @@ async function renderReviewMode(
       return loadReviewDefinitionsTab(ctx, tabCounts);
     case 'needs_info':
       return loadReviewNeedsInfoTab(ctx, tabCounts, countsData.needsInfoCounts);
-    case 'jenai':
-      return loadReviewJenAITab(ctx, tabCounts);
+    case 'barriers':
+      return loadReviewBarrierTab(ctx, tabCounts);
     case 'compliance':
     default:
       return loadReviewComplianceTab(ctx, tabCounts, countsData.complianceStatusCounts);
@@ -394,13 +394,13 @@ async function loadReviewNeedsInfoTab(
   );
 }
 
-async function loadReviewJenAITab(
+async function loadReviewBarrierTab(
   ctx: TabLoaderContext,
   tabCounts: TabCounts,
 ) {
   return (
-    <ReviewPageLayout pageConfig={ctx.pageConfig} mode="review" reviewType="jenai" tabCounts={tabCounts}>
-      <JenAIQueue jurisdiction={ctx.stateCode} mode="review" />
+    <ReviewPageLayout pageConfig={ctx.pageConfig} mode="review" reviewType="barriers" tabCounts={tabCounts}>
+      <BarrierQueue jurisdiction={ctx.stateCode} mode="review" />
     </ReviewPageLayout>
   );
 }
@@ -558,7 +558,7 @@ function ReviewPageLayout({
   pageConfig: { title: string; description: string };
   mode: ReviewMode;
   reviewType: ReviewType;
-  tabCounts: { compliance: number; definitions: number; needs_info: number; jenai: number };
+  tabCounts: { compliance: number; definitions: number; needs_info: number; barriers: number };
   children: React.ReactNode;
 }) {
   return (

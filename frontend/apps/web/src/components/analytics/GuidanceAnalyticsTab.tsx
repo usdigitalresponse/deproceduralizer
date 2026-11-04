@@ -400,7 +400,7 @@ export function GuidanceAnalyticsTab({ overviewStats, citationStats, readability
         </div>
       )}
 
-      {/* Readability × Compliance × JenAI Cross-Cut Section */}
+      {/* Readability × Compliance × Barrier Cross-Cut Section */}
       {crossCutStats && (
         <div id="guidance-crosscuts" className="scroll-mt-[140px]">
           <ReadabilityCrossCutSection stats={crossCutStats} />

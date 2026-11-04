@@ -29,7 +29,7 @@ Canonical counts for use across all documentation. When adding/removing issue ty
 |--------|-------|-----------------|
 | Compliance issue types | 49 | `prompts/compliance_issues.yaml` |
 | Pipeline steps | 13 | `docs/OPERATIONS.md` step table |
-| JenAI/Pahlka categories | 18 | `prompts/jenai.yaml` |
+| Barrier categories | 18 | `prompts/barriers.yaml` |
 
 ## Frontend Architecture Guidelines (frontend/apps/web)
 
@@ -103,13 +103,13 @@ When working on the Next.js frontend, follow these patterns:
 - Results stored in `statute_mandate_checks` table
 - Only runs for flagged analyses (burdensome/justified) with matched statute links
 
-### JenAI Pipeline
-- Single-pass LLM pipeline for 18-category framework analysis: `cd backend && python3 -m scripts.jenai_pipeline.cli`
+### Barrier Pipeline
+- Single-pass LLM pipeline for 18-category framework analysis: `cd backend && python3 -m scripts.barrier_pipeline.cli`
 - Single enriched pass with full context upfront: ancestor summaries, sibling summaries, cross-ref summaries, definitions.
-- Results in `jenai_analyses` + `jenai_issues` tables
+- Results in `barrier_analyses` + `barrier_issues` tables
 - **IMPORTANT**: Always ask user permission before running (costs money)
 - Default is dry-run — must pass `--execute` to actually run
-- Prompts in `prompts/jenai.yaml`
+- Prompts in `prompts/barriers.yaml`
 
 ### Fines Pipeline
 - Scans regulations and guidance for fines, fees, penalties, surcharges, forfeitures: `python backend/scripts/fines_scanner.py --state ny`
@@ -122,7 +122,7 @@ When working on the Next.js frontend, follow these patterns:
 
 ### Pipeline Scripts
 - Use `scripts.research_pipeline.cli` for the 3-tier compliance research.
-- Use `scripts.jenai_pipeline.cli` for the single-pass JenAI analysis.
+- Use `scripts.barrier_pipeline.cli` for the single-pass Barrier analysis.
 - Use `scripts.summarization.cli` for hierarchical document summarization.
 - Use `backend/scripts/fines_scanner.py` for fines, fees & penalties extraction.
 - When adding/removing backend scripts, update `docs/OPERATIONS.md`.
@@ -140,7 +140,7 @@ When working on the Next.js frontend, follow these patterns:
 | `.claude/skills/regulatory-analysis/` | Bad regulation patterns & examples | Adding new anti-pattern categories |
 | `.claude/skills/pipeline/SKILL.md` | Pipeline overview and step routing | Adding/removing pipeline steps |
 | `.claude/skills/research-pipeline/SKILL.md` | Pipeline internals (tiers, state machine, triggers) | Changing tier logic, triggers, state machine, cost model |
-| `.claude/skills/jenai-pipeline/SKILL.md` | JenAI pipeline architecture and categories | Changing tier logic, categories, context strategy |
+| `.claude/skills/barrier-pipeline/SKILL.md` | Barrier pipeline architecture and categories | Changing tier logic, categories, context strategy |
 | `.claude/skills/fines-pipeline/SKILL.md` | Fines extraction architecture and prompt structure | Adding scrapers, changing fines extraction logic |
 | `.claude/skills/cross-references/` | Extraction patterns and troubleshooting | Changing regex patterns, resolution logic |
 | `.claude/skills/pipeline-caching/SKILL.md` | 3-layer prompt caching architecture | Editing context formatting, sibling/cross-ref queries, batch preparation |

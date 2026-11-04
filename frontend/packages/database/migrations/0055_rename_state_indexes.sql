@@ -30,7 +30,7 @@ ALTER INDEX idx_bookmarks_state RENAME TO idx_bookmarks_jurisdiction;
 -- incorporations_by_reference (1 index)
 ALTER INDEX idx_ibr_state RENAME TO idx_ibr_jurisdiction;
 
--- jenai_analyses (1 index)
-ALTER INDEX idx_jenai_analyses_state RENAME TO idx_jenai_analyses_jurisdiction;
+-- barrier_analyses (1 index)
+ALTER INDEX idx_barrier_analyses_state RENAME TO idx_barrier_analyses_jurisdiction;
 
 COMMIT;

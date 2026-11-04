@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Validate and fix is_verbatim flags on jenai_issues.text_examples.
+Validate and fix is_verbatim flags on barrier_issues.text_examples.
 
 Checks each text_example against the source regulation content using fuzzy
 matching. If the match ratio is below a threshold, marks is_verbatim=false.
@@ -58,7 +58,7 @@ def best_match_ratio(example: str, content: str) -> float:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Validate is_verbatim on jenai_issues")
+    parser = argparse.ArgumentParser(description="Validate is_verbatim on barrier_issues")
     parser.add_argument("--execute", action="store_true", help="Actually update the DB")
     parser.add_argument("--title", type=str, help="Filter by NYCRR title number")
     parser.add_argument("--limit", type=int, default=0, help="Limit number of issues to check")
@@ -75,7 +75,7 @@ def main():
 
     cur.execute(f"""
         SELECT ji.id, ji.text_examples, ji.is_verbatim, rd.content, rd.citation
-        FROM jenai_issues ji
+        FROM barrier_issues ji
         JOIN regulatory_documents rd ON ji.document_id = rd.id
         WHERE ji.text_examples IS NOT NULL
           AND array_length(ji.text_examples, 1) > 0
@@ -126,7 +126,7 @@ def main():
     if args.execute and to_fix:
         ids = [t[0] for t in to_fix]
         cur.execute(
-            "UPDATE jenai_issues SET is_verbatim = false WHERE id = ANY(%s)",
+            "UPDATE barrier_issues SET is_verbatim = false WHERE id = ANY(%s)",
             (ids,),
         )
         conn.commit()

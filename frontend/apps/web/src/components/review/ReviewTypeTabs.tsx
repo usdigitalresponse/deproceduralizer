@@ -3,7 +3,7 @@
 import { useQueryStates } from 'nuqs';
 import { Badge } from '@/components/ui';
 import { REVIEW_TYPES, type ReviewType, type ReviewMode } from '@/types/regulation';
-import { JenAIAvatar } from './JenAIAvatar';
+import { Lightbulb } from 'lucide-react';
 import { ComplianceAvatar } from './ComplianceAvatar';
 import {
   reviewTypeParser,
@@ -19,7 +19,7 @@ interface ReviewTypeTabsProps {
     compliance: number;
     definitions: number;
     needs_info: number;
-    jenai: number;
+    barriers: number;
   };
   mode?: ReviewMode;
 }
@@ -57,8 +57,8 @@ export function ReviewTypeTabs({ activeType, counts, mode = 'review' }: ReviewTy
         return counts.definitions;
       case 'needs_info':
         return counts.needs_info;
-      case 'jenai':
-        return counts.jenai;
+      case 'barriers':
+        return counts.barriers;
       default:
         return 0;
     }
@@ -69,7 +69,7 @@ export function ReviewTypeTabs({ activeType, counts, mode = 'review' }: ReviewTy
     const isComplianceActive = activeType === 'compliance';
     const isDefinitionsActive = activeType === 'definitions';
     const isNeedsInfoActive = activeType === 'needs_info';
-    const isJenaiActive = activeType === 'jenai';
+    const isBarrierActive = activeType === 'barriers';
 
     return (
       <div className="flex gap-1 p-1 bg-[var(--color-neutral-100)] rounded-[var(--radius-lg)] mb-4">
@@ -97,25 +97,25 @@ export function ReviewTypeTabs({ activeType, counts, mode = 'review' }: ReviewTy
           )}
         </button>
         <button
-          onClick={() => handleTabChange('jenai')}
+          onClick={() => handleTabChange('barriers')}
           className={`
             flex items-center gap-2 px-4 py-2 rounded-[var(--radius-md)] text-sm font-medium
             transition-all duration-[var(--duration-fast)]
             ${
-              isJenaiActive
+              isBarrierActive
                 ? 'bg-white text-[var(--color-text)] shadow-sm'
                 : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-white/50'
             }
           `}
         >
-          <JenAIAvatar size={22} />
-          JenAI
-          {counts.jenai > 0 && (
+          <Lightbulb size={18} aria-hidden="true" />
+          Barriers
+          {counts.barriers > 0 && (
             <Badge
-              variant={isJenaiActive ? 'info' : 'default'}
+              variant={isBarrierActive ? 'info' : 'default'}
               className="text-xs"
             >
-              {counts.jenai}
+              {counts.barriers}
             </Badge>
           )}
         </button>
@@ -188,7 +188,7 @@ export function ReviewTypeTabs({ activeType, counts, mode = 'review' }: ReviewTy
             `}
           >
             {tab.value === 'compliance' && <ComplianceAvatar size={22} />}
-            {tab.value === 'jenai' && <JenAIAvatar size={22} />}
+            {tab.value === 'barriers' && <Lightbulb size={18} aria-hidden="true" />}
             {tab.label}
             {count > 0 && (
               <Badge

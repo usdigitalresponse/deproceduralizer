@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { SQL } from 'drizzle-orm';
-import { buildBurdenFilterFragments } from './jenai.repository';
+import { buildBurdenFilterFragments } from './barrier.repository';
 
 /**
  * Flatten a Drizzle SQL object into a single string with $N placeholders,
@@ -105,7 +105,7 @@ describe('buildBurdenFilterFragments', () => {
     const { categoryFilter } = buildBurdenFilterFragments({ category: 'ADMINISTRATIVE_BURDENS' });
     const qs = toQueryString(categoryFilter);
     expect(qs).toContain('AND EXISTS');
-    expect(qs).toContain('jenai_issues');
+    expect(qs).toContain('barrier_issues');
     expect(qs).toContain('ja.id');
     expect(qs).toContain('string_to_array');
     expect(qs).toContain('ANY');
@@ -116,7 +116,7 @@ describe('buildBurdenFilterFragments', () => {
     const { categoryFilter } = buildBurdenFilterFragments({ categories: ['ADMINISTRATIVE_BURDENS', 'UNFUNDED_MANDATE'] });
     const qs = toQueryString(categoryFilter);
     expect(qs).toContain('AND EXISTS');
-    expect(qs).toContain('jenai_issues');
+    expect(qs).toContain('barrier_issues');
     expect(qs).toContain('ARRAY[');
     expect(qs).toContain('::text[]');
     expect(qs).toContain('ANY');

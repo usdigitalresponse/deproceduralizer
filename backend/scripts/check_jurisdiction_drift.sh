@@ -62,7 +62,7 @@ fi
 
 # Pattern 4: Dict key access ['state'] in pipeline runners (should be ['jurisdiction'])
 HITS4=$(grep -rn -E "\['state'\]" \
-    "$BACKEND/scripts/jenai_pipeline/pipeline_runner.py" \
+    "$BACKEND/scripts/barrier_pipeline/pipeline_runner.py" \
     "$BACKEND/scripts/research_pipeline/db/document_queries.py" \
     "$BACKEND/scripts/research_pipeline/maintenance/recovery.py" \
     2>/dev/null || true)

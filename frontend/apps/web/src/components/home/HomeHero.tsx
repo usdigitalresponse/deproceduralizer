@@ -9,8 +9,8 @@ interface HomeHeroProps {
   stats: DashboardStats;
   stateStats: Record<JurisdictionCode, DashboardStats>;
   guidanceTotal: number;
-  jenaiTotal: number;
-  jenaiUnreviewed: number;
+  barrierTotal: number;
+  barrierUnreviewed: number;
 }
 
 const jurisdictionPills: Record<JurisdictionCode, { abbrev: string; textColor: string; bgColor: string }> = {
@@ -19,9 +19,9 @@ const jurisdictionPills: Record<JurisdictionCode, { abbrev: string; textColor: s
   nyc: { abbrev: 'NYC', textColor: 'text-[var(--color-state-nyc-accent)]', bgColor: 'bg-[var(--color-state-nyc-bg)]' },
 };
 
-export function HomeHero({ stats, stateStats, guidanceTotal, jenaiTotal, jenaiUnreviewed }: HomeHeroProps) {
-  const totalIssues = stats.complianceIssues.total + jenaiTotal;
-  const totalUnreviewed = stats.complianceIssues.unreviewed + jenaiUnreviewed;
+export function HomeHero({ stats, stateStats, guidanceTotal, barrierTotal, barrierUnreviewed }: HomeHeroProps) {
+  const totalIssues = stats.complianceIssues.total + barrierTotal;
+  const totalUnreviewed = stats.complianceIssues.unreviewed + barrierUnreviewed;
 
   return (
     <div className="bg-[var(--color-primary-faint)] border-b border-[var(--color-neutral-200)]">

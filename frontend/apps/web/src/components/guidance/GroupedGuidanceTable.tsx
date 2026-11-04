@@ -117,7 +117,7 @@ function YearSection({
 }) {
   const state = jurisdiction.toLowerCase();
   const complianceTotal = documents.reduce((sum, d) => sum + d.complianceIssueCount, 0);
-  const jenaiTotal = documents.reduce((sum, d) => sum + d.jenaiIssueCount, 0);
+  const barrierTotal = documents.reduce((sum, d) => sum + d.barrierIssueCount, 0);
   const readabilityScores = documents
     .map(d => d.fleschReadingEase)
     .filter((s): s is number => s !== null);
@@ -146,9 +146,9 @@ function YearSection({
             {complianceTotal} compliance
           </Badge>
         )}
-        {jenaiTotal > 0 && (
-          <Badge variant={jenaiTotal >= 10 ? 'danger' : 'warning'}>
-            {jenaiTotal} JenAI
+        {barrierTotal > 0 && (
+          <Badge variant={barrierTotal >= 10 ? 'danger' : 'warning'}>
+            {barrierTotal} Barrier
           </Badge>
         )}
         {avgReadability !== null && (
@@ -408,8 +408,8 @@ export function GroupedGuidanceTable({
               </th>
               <th className="text-right py-3 pr-3">
                 <SortableHeader
-                  label="JenAI"
-                  column="jenaiIssueCount"
+                  label="Barriers"
+                  column="barrierIssueCount"
                   currentSort={sortBy}
                   currentOrder={sortOrder}
                   onClick={onSort}
@@ -464,9 +464,9 @@ export function GroupedGuidanceTable({
                       )}
                     </td>
                     <td className="py-3 pr-3 text-right">
-                      {group.jenaiIssueCount > 0 ? (
-                        <Badge variant={group.jenaiIssueCount >= 10 ? 'danger' : 'warning'}>
-                          {group.jenaiIssueCount}
+                      {group.barrierIssueCount > 0 ? (
+                        <Badge variant={group.barrierIssueCount >= 10 ? 'danger' : 'warning'}>
+                          {group.barrierIssueCount}
                         </Badge>
                       ) : (
                         <span className="text-[var(--color-text-muted)]">0</span>

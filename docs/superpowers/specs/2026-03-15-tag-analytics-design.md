@@ -2,7 +2,7 @@
 
 ## Overview
 
-A unified tag analytics system that surfaces the tagging landscape across all domains (regulations, guidance, fines, compliance issues, JenAI findings), enables cross-domain correlation and exploration, and makes every tag in the application clickable for instant context.
+A unified tag analytics system that surfaces the tagging landscape across all domains (regulations, guidance, fines, compliance issues, Barrier findings), enables cross-domain correlation and exploration, and makes every tag in the application clickable for instant context.
 
 ### Goals
 
@@ -45,14 +45,14 @@ Four tag types are in scope, spanning 6 database domains:
 |-------|--------|---------|-------|
 | `keywords[]` | Regulations, Guidance | text[] (3-5 terms per doc) | `regulatory_documents`, `guidance_documents` |
 | `applies_to[]` | Regulations, Guidance | text[] (entities that must comply) | `regulatory_documents`, `guidance_documents` |
-| `tags[]` | JenAI | text[] (2-3 kebab-case labels per finding) | `jenai_issues` |
+| `tags[]` | Barrier | text[] (2-3 kebab-case labels per finding) | `barrier_issues` |
 
 ### Issue Type Taxonomies (classification tags on findings)
 
 | Field | Domain | Values | Table |
 |-------|--------|--------|-------|
 | `issue_type` | Compliance | 49 types grouped by category | `compliance_issues` |
-| `category` | JenAI | 18 Pahlka categories | `jenai_issues` |
+| `category` | Barrier | 18 barrier categories | `barrier_issues` |
 | Tier classifications | Compliance | burdensome / justified / unrelated | `compliance_issue_analyses` |
 
 ### Boolean Flags
@@ -72,7 +72,7 @@ Four tag types are in scope, spanning 6 database domains:
 #### Tag Abstraction
 
 ```typescript
-type TagDomain = 'regulation' | 'guidance' | 'fines' | 'compliance' | 'jenai';
+type TagDomain = 'regulation' | 'guidance' | 'fines' | 'compliance' | 'barriers';
 type TagType = 'structured' | 'free_text' | 'issue_type' | 'boolean';
 
 interface TagValue {
@@ -105,7 +105,7 @@ Seven core query methods:
 
 #### Query-Time Normalization
 
-For free-text fields (`keywords`, `applies_to`, JenAI `tags`), all queries apply `LOWER(TRIM(value))` before grouping. This collapses trivial variants ("Childcare Providers" / "childcare providers") without requiring a pipeline change.
+For free-text fields (`keywords`, `applies_to`, Barrier `tags`), all queries apply `LOWER(TRIM(value))` before grouping. This collapses trivial variants ("Childcare Providers" / "childcare providers") without requiring a pipeline change.
 
 #### Server Actions: `tags.ts`
 
@@ -132,7 +132,7 @@ Thin wrappers with `unstable_cache` (120s TTL, tagged `'tags'`), one per reposit
 
 Persistent across all sub-tabs. All state managed via `nuqs` parsers:
 
-- **Domain filter** (multi-select): Regulation, Guidance, Fines, Compliance, JenAI
+- **Domain filter** (multi-select): Regulation, Guidance, Fines, Compliance, Barrier
 - **Tag field filter** (multi-select, dynamic based on selected domains): section_type, keywords, penalty_type, activity_category, target_audience, etc.
 - **Search** (text): Filter tag values by substring
 - **Tag type** (multi-select): Structured, Free-text, Issue Type, Boolean
@@ -142,7 +142,7 @@ Persistent across all sub-tabs. All state managed via `nuqs` parsers:
 **Top row**: 4 stat cards — Total unique tag values, most common tag, domain with most tags, free-text tags needing normalization (fuzzy cluster count).
 
 **Main area**: Interactive treemap (d3-hierarchy via @visx)
-- Outer level: Tag domain (regulation/guidance/fines/compliance/jenai)
+- Outer level: Tag domain (regulation/guidance/fines/compliance/barriers)
 - Inner level: Tag field (section_type/keywords/penalty_type/etc.)
 - Leaf level: Individual tag values, sized by document count
 - Click a leaf → opens tag drawer
@@ -169,7 +169,7 @@ Persistent across all sub-tabs. All state managed via `nuqs` parsers:
 - User picks X-axis tag field and Y-axis tag field from dropdowns
 - Cell color = co-occurrence count
 - Click cell → shows documents with both tags
-- Default: `activity_category` × JenAI `category`
+- Default: `activity_category` × Barrier `category`
 
 **Bottom**: Sankey diagram (@nivo/sankey — new dependency)
 - User configures 2-4 "stages" from dropdowns
@@ -218,7 +218,7 @@ Any tag displayed anywhere in the app is clickable. A shared `useTagDrawer()` ho
 │  Guidance Documents      23     │     sample titles with links
 │  Fines & Fees            12     │
 │  Compliance Issues        7     │
-│  JenAI Findings           4     │
+│  Barrier Findings           4     │
 ├─────────────────────────────────┤
 │ Similar tags:                   │  ← Only for free-text tags with
 │   "child care" (19 docs)        │     fuzzy matches
@@ -252,7 +252,7 @@ Single server action: `getTagDetail(jurisdiction, field, value, contextDocumentI
 | `PolicyCategoryBadge` | `policy_category` | Wrapped with `ClickableTag` |
 | `MetadataIndicators` | `has_form`, `has_ibr` | Wrapped with `ClickableTag` |
 | `ReadabilityBadge` | `reading_grade_level` | Wrapped, links to readability sub-tab |
-| JenAI category display | `category` | Wrapped with `ClickableTag` |
+| Barrier category display | `category` | Wrapped with `ClickableTag` |
 | `FinesTable` cells | `penalty_type`, `activity_category`, `who_pays_normalized` | Cell content wrapped with `ClickableTag` |
 
 #### Surfacing Hidden Guidance Fields
@@ -315,7 +315,7 @@ frontend/apps/web/src/
   │   └── FinesTable.tsx                    # Add ClickableTag to cells
   │
   ├── components/review/
-  │   └── JenAICard/JenAICard.tsx           # Add ClickableTag to category
+  │   └── BarrierCard/BarrierCard.tsx           # Add ClickableTag to category
   │
   ├── lib/url/parsers.ts                    # Add tags page URL state parsers
   └── lib/constants/values.ts               # Add tags tab values
@@ -355,13 +355,13 @@ Tags live in different tables. Cross-domain queries join through document relati
 regulatory_documents (document_id)
   ├── compliance_issues.document_id
   ├── compliance_issue_analyses (via compliance_issues.analysis_id)
-  ├── jenai_issues.document_id
+  ├── barrier_issues.document_id
   ├── fines_fees_penalties.document_id
   └── document_tags.document_id
 
 guidance_documents (guidance_document_id)
   ├── compliance_issues.guidance_document_id
-  ├── jenai_issues.guidance_document_id
+  ├── barrier_issues.guidance_document_id
   └── fines_fees_penalties.guidance_document_id
 ```
 
@@ -417,7 +417,7 @@ After shared contracts are committed, these workstreams can run **simultaneously
 - `TagDrawer` component with drawer layout
 - `ClickableTag` wrapper component
 - `TagBadge` general-purpose pill component
-- Wrap existing components: `KeywordTags`, `SectionTypeBadge`, `PolicyCategoryBadge`, `MetadataIndicators`, `ReadabilityBadge`, JenAI category display, `FinesTable` cells
+- Wrap existing components: `KeywordTags`, `SectionTypeBadge`, `PolicyCategoryBadge`, `MetadataIndicators`, `ReadabilityBadge`, Barrier category display, `FinesTable` cells
 - Extend `GuidanceDocumentsRepository.getById()` to select hidden tag fields
 - Extend `GuidanceDocumentDetail` type
 - Update `GuidanceDetailSidebar` to surface hidden fields

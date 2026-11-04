@@ -18,9 +18,9 @@ export function ReadabilityCrossCutSection({ stats }: ReadabilityCrossCutSection
   const hasExpertise = stats.byExpertise.length > 0;
   const hasTags = stats.byAudienceTag.length > 0;
   const hasCompliance = stats.complianceByReadability.length > 0;
-  const hasJenai = stats.jenaiByReadability.length > 0;
+  const hasBarrier = stats.barrierByReadability.length > 0;
 
-  if (!hasDirection && !hasExpertise && !hasTags && !hasCompliance && !hasJenai) {
+  if (!hasDirection && !hasExpertise && !hasTags && !hasCompliance && !hasBarrier) {
     return null;
   }
 
@@ -134,8 +134,8 @@ export function ReadabilityCrossCutSection({ stats }: ReadabilityCrossCutSection
         </div>
       )}
 
-      {/* Row 2: Compliance by Readability + JenAI by Readability */}
-      {(hasCompliance || hasJenai) && (
+      {/* Row 2: Compliance by Readability + Barrier by Readability */}
+      {(hasCompliance || hasBarrier) && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {hasCompliance && (
             <ChartContainer
@@ -166,16 +166,16 @@ export function ReadabilityCrossCutSection({ stats }: ReadabilityCrossCutSection
             </ChartContainer>
           )}
 
-          {hasJenai && (
+          {hasBarrier && (
             <ChartContainer
-              title="JenAI Severity by Reading Difficulty"
-              description="Avg JenAI implementation burden severity by readability"
+              title="Barrier Severity by Reading Difficulty"
+              description="Avg Barrier implementation burden severity by readability"
               aspectRatio={1.2}
               minHeight={250}
               maxHeight={400}
             >
               {({ width, height }) => {
-                const data: BarChartDatum[] = stats.jenaiByReadability.map(d => ({
+                const data: BarChartDatum[] = stats.barrierByReadability.map(d => ({
                   label: d.bucket,
                   value: Number(d.avgSeverity),
                   secondaryLabel: `${d.docCount} docs`,
@@ -189,7 +189,7 @@ export function ReadabilityCrossCutSection({ stats }: ReadabilityCrossCutSection
                     sortOrder="none"
                   />
                 ) : (
-                  <EmptyState title="No JenAI data" />
+                  <EmptyState title="No Barrier data" />
                 );
               }}
             </ChartContainer>
@@ -295,13 +295,13 @@ export function ReadabilityCrossCutSection({ stats }: ReadabilityCrossCutSection
         </div>
       )}
 
-      {/* Row 5: JenAI by audience dimensions */}
+      {/* Row 5: Barrier by audience dimensions */}
       {(hasDirection || hasTags) && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {hasDirection && stats.byDirection.some(d => d.avgJenaiSeverity !== null) && (
+          {hasDirection && stats.byDirection.some(d => d.avgBarrierSeverity !== null) && (
             <ChartContainer
-              title="JenAI Severity by Audience Direction"
-              description="Avg JenAI implementation burden by audience direction"
+              title="Barrier Severity by Audience Direction"
+              description="Avg Barrier implementation burden by audience direction"
               aspectRatio={1.4}
               minHeight={200}
               maxHeight={300}
@@ -309,10 +309,10 @@ export function ReadabilityCrossCutSection({ stats }: ReadabilityCrossCutSection
               {({ width, height }) => (
                 <HorizontalBarChart
                   data={stats.byDirection
-                    .filter(d => d.avgJenaiSeverity !== null)
+                    .filter(d => d.avgBarrierSeverity !== null)
                     .map(d => ({
                       label: formatLabel(d.direction),
-                      value: Number(d.avgJenaiSeverity),
+                      value: Number(d.avgBarrierSeverity),
                       secondaryLabel: `${d.docCount} docs`,
                     }))}
                   width={width}
@@ -323,9 +323,9 @@ export function ReadabilityCrossCutSection({ stats }: ReadabilityCrossCutSection
             </ChartContainer>
           )}
 
-          {hasTags && stats.byAudienceTag.some(d => d.avgJenaiSeverity !== null) && (
+          {hasTags && stats.byAudienceTag.some(d => d.avgBarrierSeverity !== null) && (
             <ChartContainer
-              title="JenAI Severity by Target Audience"
+              title="Barrier Severity by Target Audience"
               description="Avg implementation burden severity per audience tag"
               aspectRatio={1.2}
               minHeight={Math.max(250, stats.byAudienceTag.length * 30)}
@@ -334,10 +334,10 @@ export function ReadabilityCrossCutSection({ stats }: ReadabilityCrossCutSection
               {({ width, height }) => (
                 <HorizontalBarChart
                   data={stats.byAudienceTag
-                    .filter(d => d.avgJenaiSeverity !== null)
+                    .filter(d => d.avgBarrierSeverity !== null)
                     .map(d => ({
                       label: formatLabel(d.tag),
-                      value: Number(d.avgJenaiSeverity!),
+                      value: Number(d.avgBarrierSeverity!),
                       secondaryLabel: `${d.docCount} docs`,
                     }))}
                   width={width}

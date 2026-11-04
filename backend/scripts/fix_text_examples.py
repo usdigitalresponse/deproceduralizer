@@ -2,7 +2,7 @@
 """
 Fix paraphrased text_examples by re-extracting verbatim quotes.
 
-Finds jenai_issues where text_examples don't match the regulation content,
+Finds barrier_issues where text_examples don't match the regulation content,
 then uses LLM to extract proper verbatim quotes.
 
 Usage:
@@ -99,7 +99,7 @@ def find_bad_issues(conn, limit: int = 0) -> list[dict]:
     cur.execute(f"""
         SELECT ji.id, ji.category, ji.explanation, ji.text_examples,
                rd.content, rd.citation
-        FROM jenai_issues ji
+        FROM barrier_issues ji
         JOIN regulatory_documents rd ON ji.document_id = rd.id
         WHERE ji.text_examples IS NOT NULL
           AND array_length(ji.text_examples, 1) > 0
@@ -186,7 +186,7 @@ def import_results(conn, manager: BatchManager, batch_id: str, bad_issues: list[
 
             if verified:
                 cur.execute(
-                    "UPDATE jenai_issues SET text_examples = %s, is_verbatim = true WHERE id = %s",
+                    "UPDATE barrier_issues SET text_examples = %s, is_verbatim = true WHERE id = %s",
                     (verified, issue["id"]),
                 )
                 updated += 1
@@ -194,7 +194,7 @@ def import_results(conn, manager: BatchManager, batch_id: str, bad_issues: list[
                 # No good verbatim quotes — keep existing text_examples as summaries
                 # (don't clear them, just ensure is_verbatim=false)
                 cur.execute(
-                    "UPDATE jenai_issues SET is_verbatim = false WHERE id = %s",
+                    "UPDATE barrier_issues SET is_verbatim = false WHERE id = %s",
                     (issue["id"],),
                 )
                 empty += 1
