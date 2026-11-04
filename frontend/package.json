@@ -14,7 +14,7 @@
     "db:e2e:down": "docker compose -f ../docker-compose.e2e.yml down -v"
   },
   "devDependencies": {
-    "next": "16.2.6"
+    "next": "16.4.1"
   },
   "packageManager": "pnpm@9.15.1",
   "dependencies": {
