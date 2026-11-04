@@ -20,15 +20,15 @@ jobs:
   frontend-lint:
     name: Frontend lint
     runs-on: ubuntu-latest
-    # eslint-config-next 16 turned on the React Compiler hooks rules, which flag
-    # ~60 pre-existing spots across 40+ files. Reported but not blocking until
-    # that cleanup lands; flip this off afterwards.
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-frontend
+      # eslint-config-next 16 turned on the React Compiler hooks rules, which flag
+      # ~60 pre-existing spots across 40+ files. The step reports them as a warning
+      # instead of failing the job until that cleanup lands; remove the flag afterwards.
       - run: pnpm --filter web lint
         working-directory: frontend
+        continue-on-error: true
 
   frontend-typecheck:
     name: Frontend typecheck
@@ -82,7 +82,9 @@ jobs:
 
   e2e:
     name: E2E smoke tests
-    runs-on: ubuntu-latest
+    # Pinned: Playwright only installs browser system packages on Ubuntu LTS
+    # releases it knows about, and ubuntu-latest moves ahead of that list.
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     env:
       # The app reaches Postgres through the local Neon proxy (docker-compose.e2e.yml);
