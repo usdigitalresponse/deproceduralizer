@@ -1,0 +1,20 @@
+name: Set up frontend toolchain
+description: Install pnpm and Node (from .nvmrc), restore the pnpm store cache, and install workspace dependencies.
+
+runs:
+  using: composite
+  steps:
+    - uses: pnpm/action-setup@v4
+      with:
+        package_json_file: frontend/package.json
+
+    - uses: actions/setup-node@v4
+      with:
+        node-version-file: .nvmrc
+        cache: pnpm
+        cache-dependency-path: frontend/pnpm-lock.yaml
+
+    - name: Install dependencies
+      shell: bash
+      working-directory: frontend
+      run: pnpm install --frozen-lockfile

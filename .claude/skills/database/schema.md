@@ -1178,6 +1178,16 @@ Caches LLM API responses to avoid redundant calls across pipeline runs. Used by 
 
 **Indexes:** `llm_api_cache_request_hash_key` (unique on `request_hash`), `idx_cache_semantic` (`pipeline`, `tier`), `idx_cache_document` (`document_id`), `idx_cache_stale` (partial on `stale_after` WHERE NOT NULL)
 
+## Synthetic seed (local/e2e)
+
+`frontend/packages/database/seed/` generates deterministic fixtures for the Docker e2e stack (`scripts/e2e-db-reset.sh`). It inserts explicit ids, then resets each table's sequence. Tables seeded: `agencies`, `regulatory_documents`, `guidance_documents`, `definitions`, `compliance_issue_analyses`, `compliance_issues`, `barrier_analyses`, `barrier_issues`, `fines_fees_penalties`, `cross_references`. Query assumptions the seed satisfies on purpose (change the seed and `seed/fixtures.test.ts` together if these change):
+
+- `definitions` jurisdiction is inferred from `url LIKE '%new-york%'` / `'%new-jersey%'`, and the glossary joins `regulatory_documents` on `url`.
+- Fines browse requires `llm_confirmed = true`.
+- Pipeline tier-3 filters read `tier3_flags->'<flag>'->>'value'` and need `tier3_classification IS NOT NULL`.
+- Browse uses the precomputed `direct_child_count`, `descendant_count`, `compliance_issue_count` and `descendant_compliance_issue_count` columns; the composer search needs `direct_child_count = 0` on leaf sections.
+- `smoke.spec.ts` visits NJ document id `150387` and filters NY barriers by part `418`.
+
 ## Tables Without Drizzle Definitions
 
 The following tables exist in the database (created by migrations) but are intentionally **not** defined in the Drizzle schema. Do not add them to Drizzle — they are accessed via raw SQL only.

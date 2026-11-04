@@ -35,9 +35,10 @@ See [STYLE_GUIDE.md](./STYLE_GUIDE.md) for comprehensive component documentation
 # Install dependencies
 pnpm install
 
-# Set up environment variables
-cp .env.example .env.local
-# Edit .env.local with your database connection string
+# Set up environment variables (the example lives at the repo root)
+cp ../../../.env.example .env.local
+# Edit .env.local with your database connection string, or use the Docker
+# stack described in the root README under "Local database with Docker"
 ```
 
 ### Development

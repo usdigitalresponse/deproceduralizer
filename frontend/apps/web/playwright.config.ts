@@ -1,23 +1,19 @@
 import { defineConfig, devices } from '@playwright/test';
 import { execSync } from 'child_process';
 
-// Vercel Protection Bypass header (for testing protected deployments)
-const vercelBypassSecret = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+// ---------------------------------------------------------------------------
+// Server modes
+//
+//   E2E_SERVER=dev   (default) Start or reuse a `next dev` server. Handles port
+//                    collisions between parallel agents and keeps its build in
+//                    .next-test so it never corrupts a running dev server.
+//   E2E_SERVER=start CI mode. Assumes `pnpm build` already ran and serves the
+//                    production build with `next start` on E2E_PORT (3010).
+//
+//   PLAYWRIGHT_TEST_BASE_URL overrides both: no server is started.
+// ---------------------------------------------------------------------------
 
-// ---------------------------------------------------------------------------
-// Smart server detection
-//
-// Problems this solves:
-//   1. Port collisions between multiple Claude agents / dev servers
-//   2. .next directory shared between dev server, build, and test runs
-//   3. Stale .next/dev/lock files from crashed processes
-//   4. `pnpm build` corrupting a running `pnpm dev` (they share .next/)
-//
-// Strategy:
-//   - If a dev server is already running on any common port → reuse it
-//   - Otherwise start our own on a free port with an ISOLATED .next-test
-//     directory so we never touch the user's .next/
-// ---------------------------------------------------------------------------
+const serverMode = process.env.E2E_SERVER === 'start' ? 'start' : 'dev';
 
 const PREFERRED_PORTS = [3010, 3001, 3000];
 
@@ -67,7 +63,13 @@ function resolveServer(): { baseURL: string; port: number; needsServer: boolean 
     };
   }
 
-  // 2. Check if any preferred port is running OUR app (not just any HTTP server)
+  // 2. CI: serve the production build on a fixed port, no probing
+  if (serverMode === 'start') {
+    const port = Number(process.env.E2E_PORT ?? PREFERRED_PORTS[0]);
+    return { baseURL: `http://localhost:${port}`, port, needsServer: true };
+  }
+
+  // 3. Check if any preferred port is running OUR app (not just any HTTP server)
   for (const port of PREFERRED_PORTS) {
     if (isOurAppResponding(port)) {
       return {
@@ -78,7 +80,7 @@ function resolveServer(): { baseURL: string; port: number; needsServer: boolean 
     }
   }
 
-  // 3. No existing server — find a free port and start our own
+  // 4. No existing server — find a free port and start our own
   const port = findFreePort(PREFERRED_PORTS[0]);
   return {
     baseURL: `http://localhost:${port}`,
@@ -89,30 +91,17 @@ function resolveServer(): { baseURL: string; port: number; needsServer: boolean 
 
 const { baseURL, port, needsServer } = resolveServer();
 
-export default defineConfig({
-  testDir: './e2e',
-  fullyParallel: true,
-  forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
-  reporter: [['html', { open: 'never' }]],
-  timeout: 30_000,
-
-  use: {
-    baseURL,
-    trace: 'on-first-retry',
-    screenshot: 'only-on-failure',
-    ...(vercelBypassSecret && {
-      extraHTTPHeaders: {
-        'x-vercel-protection-bypass': vercelBypassSecret,
-      },
-    }),
-  },
-
-  // Only launch a server if we couldn't find an existing one.
-  // Uses .next-test as distDir so we never corrupt a running dev server.
-  webServer: needsServer
+const webServer = !needsServer
+  ? undefined
+  : serverMode === 'start'
     ? {
+        command: `pnpm start --port ${port}`,
+        url: baseURL,
+        reuseExistingServer: false,
+        timeout: 120_000,
+      }
+    : {
+        // Uses .next-test as distDir so we never corrupt a running dev server.
         command: [
           'rm -f .next-test/dev/lock',
           'pnpm prebuild',
@@ -122,8 +111,24 @@ export default defineConfig({
         reuseExistingServer: !process.env.CI,
         timeout: 120_000,
         env: { NEXT_DIST_DIR: '.next-test' },
-      }
-    : undefined,
+      };
+
+export default defineConfig({
+  testDir: './e2e',
+  fullyParallel: true,
+  forbidOnly: !!process.env.CI,
+  retries: process.env.CI ? 2 : 0,
+  workers: process.env.CI ? 1 : undefined,
+  reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : [['html', { open: 'never' }]],
+  timeout: 30_000,
+
+  use: {
+    baseURL,
+    trace: 'on-first-retry',
+    screenshot: 'only-on-failure',
+  },
+
+  webServer,
 
   projects: [
     // Auth setup: sets localStorage isAuthenticated before all tests

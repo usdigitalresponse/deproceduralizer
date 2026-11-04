@@ -123,7 +123,8 @@ class TestRealtimeMode:
         )
 
         with patch('scripts.barrier_pipeline.pipeline_runner.run_batch_tier') as mock_bt, \
-             patch('scripts.barrier_pipeline.pipeline_runner.run_realtime_tier') as mock_rt:
+             patch('scripts.barrier_pipeline.pipeline_runner.run_realtime_tier') as mock_rt, \
+             patch('scripts.barrier_pipeline.pipeline_runner.run_topic_classification'):
             run_pipeline(jurisdiction='ny', dry_run=False, realtime=True)
             mock_bt.assert_not_called()
             mock_rt.assert_called_once()
@@ -137,7 +138,8 @@ class TestRealtimeMode:
         )
 
         with patch('scripts.barrier_pipeline.pipeline_runner.run_batch_tier') as mock_bt, \
-             patch('scripts.barrier_pipeline.pipeline_runner.run_realtime_tier') as mock_rt:
+             patch('scripts.barrier_pipeline.pipeline_runner.run_realtime_tier') as mock_rt, \
+             patch('scripts.barrier_pipeline.pipeline_runner.run_topic_classification'):
             mock_bt.return_value = 'batch_123'
             run_pipeline(jurisdiction='ny', dry_run=False, realtime=False)
             mock_bt.assert_called_once()

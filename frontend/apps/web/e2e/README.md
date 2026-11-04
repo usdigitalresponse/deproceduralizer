@@ -4,19 +4,31 @@ End-to-end tests using Playwright for the Deproceduralizer frontend.
 
 ## Quick Start
 
+The suite needs a populated database. The quickest way is the Docker stack from the root README ("Local database with Docker"):
+
 ```bash
-# Run all tests (uses local dev server)
+cd frontend
+pnpm db:e2e:up && pnpm db:e2e:reset
+# then in .env.local (or exported):
+#   DATABASE_URL=postgres://postgres:postgres@localhost:5432/deproceduralizer_e2e
+#   NEON_LOCAL_PROXY_URL=http://localhost:4444
+```
+
+```bash
+# Run all tests (starts or reuses a local dev server)
 pnpm test:e2e
 
-# Run against a deployed environment
-PLAYWRIGHT_TEST_BASE_URL=https://your-url.vercel.app pnpm test:e2e
+# Run the way CI does: production build served by `next start`
+pnpm build && E2E_SERVER=start pnpm test:e2e
 
-# Run only smoke tests (fast, read-only)
-pnpm test:e2e --grep @smoke
+# Run against any running deployment (no server is started)
+PLAYWRIGHT_TEST_BASE_URL=https://your-url.example.com pnpm test:e2e
 
 # Run only mutation tests (data-modifying)
 pnpm test:e2e --grep @mutation
 ```
+
+**Note:** in dev mode the config reuses any Node server it finds on ports 3010, 3001 or 3000. If another project's dev server is listening there, the tests will hit the wrong app; stop it or use `E2E_SERVER=start`.
 
 ## Test Categories
 
@@ -44,9 +56,14 @@ These tests include cleanup logic to restore data after running.
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `PLAYWRIGHT_TEST_BASE_URL` | No | Base URL for tests (default: `http://localhost:3000`) |
-| `VERCEL_AUTOMATION_BYPASS_SECRET` | For Vercel | Bypass Vercel deployment protection |
-| `E2E_SITE_PASSWORD` | For auth tests | The real `SITE_PASSWORD`. The two tests that log in with it skip when it's unset. |
+| `DATABASE_URL`, `NEON_LOCAL_PROXY_URL` | Yes (server) | Where the app under test reads data. See the root `.env.example`. |
+| `E2E_SERVER` | No | `dev` (default) starts or reuses `next dev`; `start` serves an existing `pnpm build` with `next start`. |
+| `E2E_PORT` | No | Port for `start` mode (default `3010`). |
+| `PLAYWRIGHT_TEST_BASE_URL` | No | Test an already-running server instead; no server is started. |
+| `SITE_PASSWORD` | For auth tests | The server-side password. The "wrong password" test needs it set to anything. |
+| `E2E_SITE_PASSWORD` | For auth tests | The same value, so the two login tests run. They skip when it's unset. |
+
+CI sets both passwords to a throwaway value, so all four auth tests run there.
 
 ## Auth Bypass in Dev/Preview
 
@@ -68,27 +85,37 @@ Non-auth tests (smoke tests, mutation tests) are unaffected — they benefit fro
 
 ## Data Invariants
 
-Tests assume the following data exists:
+The synthetic seed in `frontend/packages/database/seed/` is built to satisfy every assertion here, and `seed/fixtures.test.ts` pins the invariants so a drift between seed and specs fails in the unit tests, not in CI's e2e job. The headline requirements:
 
 | State | Requirement |
 |-------|-------------|
-| NY | Has regulatory documents with browse tree |
-| NY | Has definitions in glossary |
-| NY | Has unreviewed compliance issues |
-| NJ | Has regulatory documents with browse tree |
-| NJ | Has unreviewed compliance issues |
-| NJ | Has LLM-rejected compliance issues (`requirement_found=false`) |
+| NY | Browse tree with precomputed child counts; at least 1,000 documents overall so dashboard totals are comma-formatted |
+| NY | Definitions whose `url` contains `new-york` (that is how the glossary scopes by jurisdiction) |
+| NY | Compliance analyses classified burdensome on both regulations and guidance; barrier issues incl. part `418`; fines with `llm_confirmed=true`; guidance docs; at least 1,000 cross-references |
+| NY | Leaf sections with citation `10 NYCRR …` and content containing "fire safety" (composer search) |
+| NJ | Browse tree; unreviewed confirmed compliance issues incl. low severity (1–3) and `wet_signature` |
+| NJ | LLM-rejected compliance issues (`requirement_found=false`), one on document id `150387` |
+| NJ | Pipeline rows with tier-3 flags set to false and high-risk types with severity ≥ 7 |
+
+If you add a test that needs new data, extend the seed and add the invariant to `fixtures.test.ts` in the same change.
 
 ## File Structure
 
 ```
 e2e/
-├── README.md              # This file
-├── smoke.spec.ts          # Main smoke test suite
+├── README.md               # This file
+├── auth.setup.ts           # Writes the authenticated storage state
+├── auth.spec.ts            # Password form tests
+├── smoke.spec.ts           # Main smoke test suite
+├── analytics-smoke.spec.ts
+├── guidance-smoke.spec.ts
+├── markers-smoke.spec.ts
 └── helpers/
-    ├── index.ts           # Barrel export
-    └── ready.ts           # Page readiness helpers
+    ├── index.ts            # Barrel export
+    └── ready.ts            # Page readiness helpers
 ```
+
+CI runs this suite in `.github/workflows/ci.yml` (job `e2e`): Docker Postgres + Neon proxy, schema and seed, `pnpm build`, then `E2E_SERVER=start pnpm test:e2e`. The Playwright report is uploaded as an artifact on failure.
 
 ## Helpers
 
