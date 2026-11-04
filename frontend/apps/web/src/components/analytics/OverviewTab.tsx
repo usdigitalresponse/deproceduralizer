@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import { useQueryStates } from 'nuqs';
 import { FileText, Sparkles, ShieldAlert } from 'lucide-react';
-import type { DashboardStats, StatuteLinkStats, SeverityDistribution, JenAIReviewStatusCounts } from '@deproceduralizer/database';
+import type { DashboardStats, StatuteLinkStats, SeverityDistribution, BarrierReviewStatusCounts } from '@deproceduralizer/database';
 import type { ClassificationTotals, TypeClassificationCounts, ReviewStatusCounts } from '@/lib/actions/analytics-metrics';
 import type { MetadataStats } from '@/lib/actions/regulations';
 import type { DefinitionsAnalyticsStats } from '@/lib/actions/definitions';
@@ -40,8 +40,8 @@ interface OverviewTabProps {
   statuteStats: StatuteLinkStats | null;
   pipelineData: PipelineAnalyticsData | null;
   complianceSeverity: SeverityDistribution | null;
-  jenaiSeverity: SeverityDistribution | null;
-  jenaiStats: JenAIReviewStatusCounts | null;
+  barrierSeverity: SeverityDistribution | null;
+  barrierStats: BarrierReviewStatusCounts | null;
   jurisdiction?: JurisdictionCode;
   complianceTypeClassification: TypeClassificationCounts | null;
   classificationTotals: ClassificationTotals | null;
@@ -122,8 +122,8 @@ export function OverviewTab({
   statuteStats,
   pipelineData,
   complianceSeverity,
-  jenaiSeverity,
-  jenaiStats,
+  barrierSeverity,
+  barrierStats,
   jurisdiction,
   complianceTypeClassification,
   classificationTotals,
@@ -238,14 +238,14 @@ export function OverviewTab({
           subtitle={`${metadataStats?.withSummary ?? 0} with AI summaries`}
         />
         <StatCard
-          label="JenAI Findings"
-          value={jenaiStats?.total ?? 0}
+          label="Barrier Findings"
+          value={barrierStats?.total ?? 0}
           icon={Sparkles}
-          variant={(jenaiStats?.total ?? 0) > 0 ? 'warning' : 'default'}
+          variant={(barrierStats?.total ?? 0) > 0 ? 'warning' : 'default'}
           subtitle={
-            jenaiStats
-              ? `${jenaiStats.unreviewed} awaiting review`
-              : 'JenAI data not available'
+            barrierStats
+              ? `${barrierStats.unreviewed} awaiting review`
+              : 'Barrier data not available'
           }
         />
         <StatCard
@@ -429,15 +429,15 @@ export function OverviewTab({
 
         <Card padding="lg">
           <h3 className="text-lg font-semibold text-[var(--color-text)] mb-4">
-            JenAI Severity
+            Barrier Severity
           </h3>
-          {jenaiSeverity && jenaiSeverity.total > 0 ? (
+          {barrierSeverity && barrierSeverity.total > 0 ? (
             <div className="flex flex-col items-center gap-4">
               <ClientChart minHeight={160}>
                 <SeverityDonutChart
-                  high={jenaiSeverity.high}
-                  medium={jenaiSeverity.medium}
-                  low={jenaiSeverity.low}
+                  high={barrierSeverity.high}
+                  medium={barrierSeverity.medium}
+                  low={barrierSeverity.low}
                   width={160}
                   height={160}
                   showTotal
@@ -449,14 +449,14 @@ export function OverviewTab({
                   .slice(0, 3)
                   .map((item, i) => ({
                     ...item,
-                    value: [jenaiSeverity.high, jenaiSeverity.medium, jenaiSeverity.low][i],
+                    value: [barrierSeverity.high, barrierSeverity.medium, barrierSeverity.low][i],
                   }))}
                 orientation="horizontal"
               />
             </div>
           ) : (
             <div className="flex items-center justify-center h-48 text-[var(--color-text-muted)]">
-              No JenAI severity data
+              No Barrier severity data
             </div>
           )}
         </Card>

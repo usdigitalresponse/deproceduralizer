@@ -23,9 +23,9 @@ import {
   getDefinitionDeveloperStatusCounts,
 } from './definitions';
 import {
-  getJenAIStatusCounts,
-  getJenAIDeveloperStatusCounts,
-} from './jenai';
+  getBarrierStatusCounts,
+  getBarrierDeveloperStatusCounts,
+} from './barrier';
 import { type ActionResult, success, failure } from './types';
 
 // ============================================
@@ -36,7 +36,7 @@ export interface TabCounts {
   compliance: number;
   definitions: number;
   needs_info: number;
-  jenai: number;
+  barriers: number;
 }
 
 export interface DeveloperModeCountsData {
@@ -68,13 +68,13 @@ export async function getDeveloperModeCountsData(
     complianceDevCountsResult,
     needsInfoCountsResult,
     definitionDevCountsResult,
-    jenaiDevCountsResult,
+    barrierDevCountsResult,
   ] = await Promise.all([
     getCombinedDeveloperStatusCounts(stateCode),
     getComplianceIssueDeveloperStatusCounts(stateCode),
     getNeedMoreInfoCounts(stateCode),
     getDefinitionDeveloperStatusCounts(stateCode),
-    getJenAIDeveloperStatusCounts(stateCode),
+    getBarrierDeveloperStatusCounts(stateCode),
   ]);
 
   if (!developerStatusCountsResult.success) {
@@ -95,15 +95,15 @@ export async function getDeveloperModeCountsData(
   const definitionDevCounts = definitionDevCountsResult.success
     ? definitionDevCountsResult.data
     : { total: 0 };
-  const jenaiDevCounts = jenaiDevCountsResult.success
-    ? jenaiDevCountsResult.data
+  const barrierDevCounts = barrierDevCountsResult.success
+    ? barrierDevCountsResult.data
     : { total: 0 };
 
   const tabCounts: TabCounts = {
     compliance: complianceDeveloperStatusCounts.total,
     definitions: definitionDevCounts.total,
     needs_info: needsInfoCounts.combined.total,
-    jenai: jenaiDevCounts.total,
+    barriers: barrierDevCounts.total,
   };
 
   return success({
@@ -171,12 +171,12 @@ export async function getReviewModeCountsData(
     complianceStatusCountsResult,
     definitionsStatsResult,
     needsInfoCountsResult,
-    jenaiStatusCountsResult,
+    barrierStatusCountsResult,
   ] = await Promise.all([
     getComplianceIssueStatusCounts(stateCode, { source: options?.source }),
     getDefinitionReviewStats(stateCode),
     getNeedMoreInfoCounts(stateCode),
-    getJenAIStatusCounts(stateCode),
+    getBarrierStatusCounts(stateCode),
   ]);
 
   if (!complianceStatusCountsResult.success) {
@@ -194,13 +194,13 @@ export async function getReviewModeCountsData(
   const complianceStatusCounts = complianceStatusCountsResult.data;
   const definitionsStats = definitionsStatsResult.data;
   const needsInfoCounts = needsInfoCountsResult.data;
-  const jenaiStatusCounts = jenaiStatusCountsResult.success ? jenaiStatusCountsResult.data : { total: 0 };
+  const barrierStatusCounts = barrierStatusCountsResult.success ? barrierStatusCountsResult.data : { total: 0 };
 
   const tabCounts: TabCounts = {
     compliance: complianceStatusCounts.total,
     definitions: definitionsStats.total,
     needs_info: needsInfoCounts.combined.total,
-    jenai: jenaiStatusCounts.total,
+    barriers: barrierStatusCounts.total,
   };
 
   return success({

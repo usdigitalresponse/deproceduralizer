@@ -10,7 +10,7 @@ import type { PromptData, CompliancePromptData } from '@/lib/actions/prompts';
 interface PromptsListProps {
   prompts: PromptData[];
   compliancePrompts?: CompliancePromptData[];
-  jenaiPrompts?: PromptData[];
+  barrierPrompts?: PromptData[];
   tournamentPrompts?: PromptData[];
   feedbackCounts: Record<string, number>;
   className?: string;
@@ -22,13 +22,13 @@ interface PromptsListProps {
 export function PromptsList({
   prompts,
   compliancePrompts = [],
-  jenaiPrompts = [],
+  barrierPrompts = [],
   tournamentPrompts = [],
   feedbackCounts,
   className = '',
 }: PromptsListProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const totalPrompts = prompts.length + compliancePrompts.length + jenaiPrompts.length + tournamentPrompts.length;
+  const totalPrompts = prompts.length + compliancePrompts.length + barrierPrompts.length + tournamentPrompts.length;
 
   // Filter core prompts based on search query
   const filteredPrompts = useMemo(() => {
@@ -54,16 +54,16 @@ export function PromptsList({
     );
   }, [compliancePrompts, searchQuery]);
 
-  // Filter JenAI prompts based on search query
-  const filteredJenaiPrompts = useMemo(() => {
-    if (!searchQuery.trim()) return jenaiPrompts;
+  // Filter Barrier prompts based on search query
+  const filteredBarrierPrompts = useMemo(() => {
+    if (!searchQuery.trim()) return barrierPrompts;
     const query = searchQuery.toLowerCase();
-    return jenaiPrompts.filter(
+    return barrierPrompts.filter(
       (p) =>
         p.name.toLowerCase().includes(query) ||
         p.description.toLowerCase().includes(query)
     );
-  }, [jenaiPrompts, searchQuery]);
+  }, [barrierPrompts, searchQuery]);
 
   // Filter tournament prompts based on search query
   const filteredTournamentPrompts = useMemo(() => {
@@ -86,7 +86,7 @@ export function PromptsList({
     return groups;
   }, [filteredCompliancePrompts]);
 
-  const totalFiltered = filteredPrompts.length + filteredCompliancePrompts.length + filteredJenaiPrompts.length + filteredTournamentPrompts.length;
+  const totalFiltered = filteredPrompts.length + filteredCompliancePrompts.length + filteredBarrierPrompts.length + filteredTournamentPrompts.length;
 
   return (
     <div className={`space-y-6 ${className}`}>
@@ -159,17 +159,17 @@ export function PromptsList({
         </div>
       )}
 
-      {/* JenAI Prompts */}
-      {filteredJenaiPrompts.length > 0 && (
+      {/* Barrier Prompts */}
+      {filteredBarrierPrompts.length > 0 && (
         <div className="space-y-4">
           <h2 className="text-lg font-semibold text-[var(--color-text)] flex items-center gap-2">
             <Cpu className="w-5 h-5 text-[var(--color-primary)]" />
-            JenAI Pipeline Prompts
+            Barrier Pipeline Prompts
             <span className="text-sm font-normal text-[var(--color-text-muted)]">
-              ({filteredJenaiPrompts.length})
+              ({filteredBarrierPrompts.length})
             </span>
           </h2>
-          {filteredJenaiPrompts.map((prompt) => (
+          {filteredBarrierPrompts.map((prompt) => (
             <PromptCard
               key={prompt.name}
               prompt={prompt}

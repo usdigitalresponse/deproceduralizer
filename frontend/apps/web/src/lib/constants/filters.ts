@@ -41,13 +41,13 @@ import {
   TIER3_TRIGGER_FILTER_VALUES,
   EASY_CLEANUP_FILTER_VALUES,
   COMPLIANCE_SOURCE_VALUES,
-  JENAI_SOURCE_VALUES,
-  JENAI_REVIEW_SORT_BY_VALUES,
-  JENAI_DEVELOPER_SORT_BY_VALUES,
-  JENAI_VERBATIM_VALUES,
+  BARRIER_SOURCE_VALUES,
+  BARRIER_REVIEW_SORT_BY_VALUES,
+  BARRIER_DEVELOPER_SORT_BY_VALUES,
+  BARRIER_VERBATIM_VALUES,
 } from './values';
 import { ISSUE_TYPE_LABELS } from '@/types/regulation';
-import { JENAI_CATEGORY_LABELS } from '@/lib/constants/jenai';
+import { BARRIER_CATEGORY_LABELS } from '@/lib/constants/barrier';
 
 // ============================================
 // Helper to create filter options from value arrays
@@ -159,23 +159,23 @@ export const COMPLIANCE_DEVELOPER_SORT_OPTIONS = createFilterOptions(COMPLIANCE_
 });
 
 // ============================================
-// JenAI Filter Options
+// Barrier Filter Options
 // ============================================
 
-export const JENAI_SOURCE_FILTER_OPTIONS = createFilterOptions(JENAI_SOURCE_VALUES, {
+export const BARRIER_SOURCE_FILTER_OPTIONS = createFilterOptions(BARRIER_SOURCE_VALUES, {
   all: 'All Sources',
   regulation: 'Regulations',
   guidance: 'Guidance',
 });
 
-export const JENAI_REVIEW_SORT_OPTIONS = createFilterOptions(JENAI_REVIEW_SORT_BY_VALUES, {
+export const BARRIER_REVIEW_SORT_OPTIONS = createFilterOptions(BARRIER_REVIEW_SORT_BY_VALUES, {
   severity: 'Severity',
   confidence: 'Confidence',
   category: 'Category',
   reviewedAt: 'Last Reviewed',
 });
 
-export const JENAI_DEVELOPER_SORT_OPTIONS = createFilterOptions(JENAI_DEVELOPER_SORT_BY_VALUES, {
+export const BARRIER_DEVELOPER_SORT_OPTIONS = createFilterOptions(BARRIER_DEVELOPER_SORT_BY_VALUES, {
   severity: 'Severity',
   confidence: 'Confidence',
   category: 'Category',
@@ -189,7 +189,7 @@ export const COMPLEXITY_MULTISELECT_OPTIONS: FilterOption[] = [
   { value: 'LOW', label: 'Low' },
 ];
 
-export const JENAI_VERBATIM_FILTER_OPTIONS = createFilterOptions(JENAI_VERBATIM_VALUES, {
+export const BARRIER_VERBATIM_FILTER_OPTIONS = createFilterOptions(BARRIER_VERBATIM_VALUES, {
   all: 'All',
   true: 'Verbatim',
   false: 'Not Verbatim',
@@ -542,14 +542,14 @@ export const SEARCH_CLASSIFICATION_OPTIONS: FilterOption[] = [
 export const SEARCH_ISSUE_SYSTEM_OPTIONS: FilterOption[] = [
   { value: 'all', label: 'All Documents' },
   { value: 'compliance', label: 'Compliance Issues' },
-  { value: 'jenai', label: 'JenAI (Implementation Issues)' },
+  { value: 'barriers', label: 'Barriers (Implementation Issues)' },
   { value: 'any', label: 'Any Issues' },
   { value: 'none', label: 'No Issues' },
 ];
 
-/** JenAI category options for MultiSelect (no "All" entry — empty selection = all). */
-export const JENAI_CATEGORY_MULTISELECT_OPTIONS: FilterOption[] =
-  Object.entries(JENAI_CATEGORY_LABELS)
+/** Barrier category options for MultiSelect (no "All" entry — empty selection = all). */
+export const BARRIER_CATEGORY_MULTISELECT_OPTIONS: FilterOption[] =
+  Object.entries(BARRIER_CATEGORY_LABELS)
     .sort(([, a], [, b]) => a.localeCompare(b))
     .map(([value, label]) => ({ value, label }));
 

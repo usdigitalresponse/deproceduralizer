@@ -9,7 +9,7 @@
 CREATE TABLE prompt_templates (
     id BIGSERIAL PRIMARY KEY,
     content_hash TEXT NOT NULL UNIQUE,          -- SHA-256 of canonical request params
-    pipeline TEXT NOT NULL,                     -- 'research', 'jenai', 'summarization'
+    pipeline TEXT NOT NULL,                     -- 'research', 'barrier', 'summarization'
     tier INTEGER,                               -- 1, 2, 3 (NULL for single-pass pipelines)
     model TEXT NOT NULL,
     system_prompt TEXT,                          -- extracted system prompt text

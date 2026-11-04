@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { ChevronRight } from 'lucide-react';
-import type { DashboardStats, BurdenOverviewStats, JenAIReviewStatusCounts } from '@deproceduralizer/database';
+import type { DashboardStats, BurdenOverviewStats, BarrierReviewStatusCounts } from '@deproceduralizer/database';
 import type { JurisdictionCode } from '@/types/state';
 
 interface StateCardProps {
@@ -12,7 +12,7 @@ interface StateCardProps {
   stats: DashboardStats;
   guidanceTotal?: number;
   burdenStats?: BurdenOverviewStats | null;
-  jenaiStats?: JenAIReviewStatusCounts | null;
+  barrierStats?: BarrierReviewStatusCounts | null;
 }
 
 const jurisdictionInfo: Record<JurisdictionCode, {
@@ -96,7 +96,7 @@ function BurdenBar({ average }: { average: number }) {
   );
 }
 
-export function StateCard({ jurisdiction, stats, guidanceTotal, burdenStats, jenaiStats }: StateCardProps) {
+export function StateCard({ jurisdiction, stats, guidanceTotal, burdenStats, barrierStats }: StateCardProps) {
   const info = jurisdictionInfo[jurisdiction];
 
   const issuesTotal = stats.complianceIssues?.total ?? 0;
@@ -150,11 +150,11 @@ export function StateCard({ jurisdiction, stats, guidanceTotal, burdenStats, jen
             />
           )}
 
-          {jenaiStats && jenaiStats.total > 0 && (
+          {barrierStats && barrierStats.total > 0 && (
             <ProgressBar
-              label="JenAI Issues Reviewed"
-              current={jenaiStats.total - jenaiStats.unreviewed}
-              total={jenaiStats.total}
+              label="Barrier Issues Reviewed"
+              current={barrierStats.total - barrierStats.unreviewed}
+              total={barrierStats.total}
               barColor={info.accentVar}
             />
           )}

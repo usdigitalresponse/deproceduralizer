@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui';
 import { sanitizeSnippet } from '@/lib/utils/sanitize-snippet';
 import { SEVERITY_THRESHOLDS } from '@/lib/constants/values';
 import { ISSUE_TYPE_LABELS } from '@/types/regulation';
-import { JENAI_CATEGORY_LABELS } from '@/lib/constants/jenai';
+import { BARRIER_CATEGORY_LABELS } from '@/lib/constants/barrier';
 import type { CommentaryHit } from '@deproceduralizer/database';
 
 interface CommentarySidebarProps {
@@ -87,23 +87,23 @@ function CommentaryHitCard({
   searchUrl?: string;
 }) {
   const isAnalysis = hit.type === 'analysis';
-  const isJenai = hit.type === 'jenai_issue';
-  const isIssue = isAnalysis || isJenai;
+  const isBarrier = hit.type === 'barrier_issue';
+  const isIssue = isAnalysis || isBarrier;
   const Icon = isAnalysis
     ? getEntityIcon('compliance_issue')
-    : isJenai
+    : isBarrier
       ? Lightbulb
       : getEntityIcon('definition');
 
   // Build primary href
-  // analysis → pipeline page, jenai_issue → regulation page, definition → regulation with highlight
+  // analysis → pipeline page, barrier_issue → regulation page, definition → regulation with highlight
   const primaryHref = useMemo(() => {
     if (isAnalysis) {
       const fromParam = searchUrl ? `?from=${encodeURIComponent(searchUrl)}` : '';
       const base = `/${state}/pipeline/${hit.documentId}/${hit.label}`;
       return `${base}${fromParam}#matches`;
     }
-    // Both jenai_issue and definition link to the regulation page
+    // Both barrier_issue and definition link to the regulation page
     const p = new URLSearchParams();
     if (hit.highlightText) p.set('highlight', hit.highlightText);
     if (searchUrl) p.set('from', searchUrl);
@@ -124,8 +124,8 @@ function CommentaryHitCard({
   // Human-readable label
   const issueLabel = isAnalysis
     ? (ISSUE_TYPE_LABELS[hit.label] || hit.label)
-    : isJenai
-      ? (JENAI_CATEGORY_LABELS[hit.label] || hit.label)
+    : isBarrier
+      ? (BARRIER_CATEGORY_LABELS[hit.label] || hit.label)
       : hit.label;
 
   // sanitizeSnippet strips all HTML except <mark> tags from trusted PostgreSQL ts_headline output — safe against XSS
@@ -171,7 +171,7 @@ function CommentaryHitCard({
           <span>
             {isAnalysis
               ? `Analysis: ${issueLabel} in ${hit.documentTitle}`
-              : isJenai
+              : isBarrier
                 ? `Implementation: ${issueLabel} in ${hit.documentTitle}`
                 : `Definition: ${issueLabel}`}
           </span>

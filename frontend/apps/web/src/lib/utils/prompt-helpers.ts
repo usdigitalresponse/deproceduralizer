@@ -1,5 +1,5 @@
 /**
- * Shared utilities for prompt composition (used by both research-pipeline and jenai-prompt-composer).
+ * Shared utilities for prompt composition (used by both research-pipeline and barrier-prompt-composer).
  */
 
 export function estimateTokens(text: string): number {

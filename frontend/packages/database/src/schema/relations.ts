@@ -8,8 +8,8 @@ import { definitions } from './definitions';
 import { definitionDocumentOccurrences } from './definition-document-occurrences';
 import { crossReferences } from './cross-references';
 import { complianceIssueAnalyses } from './compliance-issue-analyses';
-import { jenaiAnalyses } from './jenai-analyses';
-import { jenaiIssues } from './jenai-issues';
+import { barrierAnalyses } from './barrier-analyses';
+import { barrierIssues } from './barrier-issues';
 import { documentTags } from './document-tags';
 
 export const regulatoryDocumentsRelations = relations(regulatoryDocuments, ({ one, many }) => ({
@@ -118,22 +118,22 @@ export const complianceIssueAnalysesRelations = relations(complianceIssueAnalyse
   }),
 }));
 
-// JenAI analyses table relations (2-tier implementation analysis)
-export const jenaiAnalysesRelations = relations(jenaiAnalyses, ({ one, many }) => ({
+// Barrier analyses table relations (2-tier implementation analysis)
+export const barrierAnalysesRelations = relations(barrierAnalyses, ({ one, many }) => ({
   document: one(regulatoryDocuments, {
-    fields: [jenaiAnalyses.documentId],
+    fields: [barrierAnalyses.documentId],
     references: [regulatoryDocuments.id],
   }),
-  issues: many(jenaiIssues),
+  issues: many(barrierIssues),
 }));
 
-export const jenaiIssuesRelations = relations(jenaiIssues, ({ one }) => ({
-  analysis: one(jenaiAnalyses, {
-    fields: [jenaiIssues.analysisId],
-    references: [jenaiAnalyses.id],
+export const barrierIssuesRelations = relations(barrierIssues, ({ one }) => ({
+  analysis: one(barrierAnalyses, {
+    fields: [barrierIssues.analysisId],
+    references: [barrierAnalyses.id],
   }),
   document: one(regulatoryDocuments, {
-    fields: [jenaiIssues.documentId],
+    fields: [barrierIssues.documentId],
     references: [regulatoryDocuments.id],
   }),
 }));

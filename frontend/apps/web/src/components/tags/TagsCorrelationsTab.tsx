@@ -224,7 +224,7 @@ interface TagsCorrelationsTabProps {
 export function TagsCorrelationsTab({ jurisdiction }: TagsCorrelationsTabProps) {
   // --- Heatmap state ---
   const [fieldA, setFieldA] = useState('activity_category');
-  const [fieldB, setFieldB] = useState('jenai_category');
+  const [fieldB, setFieldB] = useState('barrier_category');
   const [cooccurrence, setCooccurrence] = useState<TagCooccurrenceResult | null>(null);
   const [heatmapLoading, setHeatmapLoading] = useState(true);
   const [heatmapError, setHeatmapError] = useState<string | null>(null);

@@ -8,7 +8,7 @@ interface RegulatoryLandscapeProps {
   complianceStats: { total: number; unreviewed: number; byType: Record<string, number> };
   guidanceStats: { total: number; agencyCount: number } | null;
   finesStats: { total: number; uniqueAgencies: number } | null;
-  jenaiStats: { total: number; unreviewed: number; topCategory: string | null } | null;
+  barrierStats: { total: number; unreviewed: number; topCategory: string | null } | null;
   jurisdiction: JurisdictionCode;
 }
 
@@ -71,7 +71,7 @@ function LandscapeCard({ href, icon, accentColor, title, metric, metricLabel, se
   );
 }
 
-export function RegulatoryLandscape({ complianceStats, guidanceStats, finesStats, jenaiStats, jurisdiction }: RegulatoryLandscapeProps) {
+export function RegulatoryLandscape({ complianceStats, guidanceStats, finesStats, barrierStats, jurisdiction }: RegulatoryLandscapeProps) {
   const topIssue = getTopIssueType(complianceStats.byType);
 
   return (
@@ -95,14 +95,14 @@ export function RegulatoryLandscape({ complianceStats, guidanceStats, finesStats
         href={`/${jurisdiction}/burden`}
         icon={<Scale className="w-5 h-5" />}
         accentColor="--color-info"
-        title="JenAI Issues"
-        metric={jenaiStats?.total ?? null}
+        title="Barrier Issues"
+        metric={barrierStats?.total ?? null}
         metricLabel="implementation issues"
         secondary={
-          jenaiStats
+          barrierStats
             ? [
-                jenaiStats.unreviewed > 0 ? `${jenaiStats.unreviewed.toLocaleString()} unreviewed` : null,
-                jenaiStats.topCategory ? `Top: ${jenaiStats.topCategory}` : null,
+                barrierStats.unreviewed > 0 ? `${barrierStats.unreviewed.toLocaleString()} unreviewed` : null,
+                barrierStats.topCategory ? `Top: ${barrierStats.topCategory}` : null,
               ].filter(Boolean).join(' · ') || null
             : null
         }

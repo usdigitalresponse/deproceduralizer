@@ -11,7 +11,7 @@ import {
   SEARCH_ISSUE_SYSTEM_OPTIONS,
   SEVERITY_MULTISELECT_OPTIONS,
   ISSUE_TYPE_MULTISELECT_OPTIONS,
-  JENAI_CATEGORY_MULTISELECT_OPTIONS,
+  BARRIER_CATEGORY_MULTISELECT_OPTIONS,
 } from '@/lib/constants/filters';
 import type { SearchFilterOptions } from '@deproceduralizer/database';
 
@@ -174,16 +174,16 @@ export function SearchFilters({ className = '', filterOptions }: SearchFiltersPr
       <div className={`
         flex items-center gap-3
         transition-all duration-200 ease-out overflow-hidden
-        ${issueSystem === 'jenai' ? 'max-w-[300px] opacity-100' : 'max-w-0 opacity-0'}
+        ${issueSystem === 'barriers' ? 'max-w-[300px] opacity-100' : 'max-w-0 opacity-0'}
       `}>
         <FilterField label="Category">
           <MultiSelect
             label="Category"
-            options={JENAI_CATEGORY_MULTISELECT_OPTIONS}
+            options={BARRIER_CATEGORY_MULTISELECT_OPTIONS}
             value={issueCategoryValues}
             onChange={(values) => updateFilter({ issueCategory: serializeCommaSeparated(values) })}
             placeholder="All categories"
-            aria-label="Filter by JenAI category"
+            aria-label="Filter by Barrier category"
           />
         </FilterField>
       </div>

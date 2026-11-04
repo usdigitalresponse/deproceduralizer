@@ -1,7 +1,7 @@
 # Childcare Regulatory Burden Analytical Framework
 
 > **Derived from:** [NHSA Comment Letter on OHS NPRM (Jan 2024)](https://nhsa.org/wp-content/uploads/2024/01/NHSA-NPRMComments.pdf), National Head Start Association
-> **Purpose:** Childcare-specific burden categories for detecting systemic regulatory burden patterns — complementing the existing 42 compliance issue types (procedural friction) and 19 JenAI Pahlka categories
+> **Purpose:** Childcare-specific burden categories for detecting systemic regulatory burden patterns — complementing the existing 42 compliance issue types (procedural friction) and 19 barrier categories
 > **Status:** Reference framework for future pipeline integration
 
 ---
@@ -11,7 +11,7 @@
 The NHSA comment letter reveals **10 higher-level structural/systemic burden patterns** specific to childcare and early childhood education regulations. These differ from our existing detection categories in that they capture systemic dynamics — the interaction effects between regulations, funding, workforce markets, and organizational capacity — rather than individual procedural friction points (wet signatures, fax requirements, etc.).
 
 These categories are designed to be used as:
-- A guide for extending `prompts/compliance_issues.yaml` or `prompts/jenai.yaml` when childcare regulations are added to the system
+- A guide for extending `prompts/compliance_issues.yaml` or `prompts/barriers.yaml` when childcare regulations are added to the system
 - A reference for human analysts reviewing childcare regulations
 - A template for creating childcare-specific detection signals in future pipeline work
 
@@ -317,9 +317,9 @@ These categories are designed to be used as:
 | `PROCESS_WORSHIP_OVERSIGHT` | `PUNITIVE_COMPLIANCE_CULTURE` | Process focus vs. fear/distrust dynamics |
 | `MANDATED_STEPS_NOT_OUTCOMES` | `PRESCRIPTIVE_MICROMANAGEMENT` | Procedural burden vs. authority displacement |
 
-### Overlap with JenAI 19 Pahlka Categories
+### Overlap with the 19 Barrier Categories
 
-| JenAI Category | Childcare Category | Relationship |
+| Barrier Category | Childcare Category | Relationship |
 |---------------|--------------------|-------------|
 | `DISPROPORTIONATE_BURDEN` | `DISPROPORTIONATE_SMALL_PROGRAM_IMPACT` | General vs. small-program-specific |
 | `REGULATORY_OVERHEAD` | `CUMULATIVE_COMPLIANCE_BURDEN` | Single-regulation vs. aggregate |
@@ -343,7 +343,7 @@ These categories fill genuine gaps in the existing frameworks:
 
 When these categories are integrated into the detection pipeline, key architectural questions include:
 
-1. **Extension vs. separate pipeline:** Should these be added as new categories within JenAI's 19-category framework, or should they form a separate childcare-focused analysis pass?
+1. **Extension vs. separate pipeline:** Should these be added as new categories within the barrier framework's 19 categories, or should they form a separate childcare-focused analysis pass?
 
 2. **Detection methodology:** These are structural/systemic patterns — they may require multi-document analysis (comparing funding levels to mandate costs, checking for workforce availability data) rather than single-section scanning.
 

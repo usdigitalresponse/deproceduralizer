@@ -30,64 +30,64 @@ describe('complianceSourceParser default', () => {
   });
 });
 
-describe('jenaiSourceParser default', () => {
+describe('barrierSourceParser default', () => {
   it('defaults to "all"', async () => {
-    const { jenaiSourceParser } = await import('./parsers');
-    expect(jenaiSourceParser.defaultValue).toBe('all');
+    const { barrierSourceParser } = await import('./parsers');
+    expect(barrierSourceParser.defaultValue).toBe('all');
   });
 });
 
-describe('jenaiVerbatimParser default', () => {
+describe('barrierVerbatimParser default', () => {
   it('defaults to "all"', async () => {
-    const { jenaiVerbatimParser } = await import('./parsers');
-    expect(jenaiVerbatimParser.defaultValue).toBe('all');
+    const { barrierVerbatimParser } = await import('./parsers');
+    expect(barrierVerbatimParser.defaultValue).toBe('all');
   });
 });
 
-describe('jenaiQueueParsers keys (merged)', () => {
+describe('barrierQueueParsers keys (merged)', () => {
   it('includes all keys from both review and developer parsers', async () => {
-    const { jenaiQueueParsers } = await import('./parsers');
+    const { barrierQueueParsers } = await import('./parsers');
     // Shared
-    expect(jenaiQueueParsers).toHaveProperty('page');
-    expect(jenaiQueueParsers).toHaveProperty('source');
-    expect(jenaiQueueParsers).toHaveProperty('severity');
-    expect(jenaiQueueParsers).toHaveProperty('category');
-    expect(jenaiQueueParsers).toHaveProperty('part');
-    expect(jenaiQueueParsers).toHaveProperty('sectionType');
-    expect(jenaiQueueParsers).toHaveProperty('search');
-    expect(jenaiQueueParsers).toHaveProperty('complexity');
-    expect(jenaiQueueParsers).toHaveProperty('verbatim');
-    expect(jenaiQueueParsers).toHaveProperty('sortBy');
-    expect(jenaiQueueParsers).toHaveProperty('sortOrder');
+    expect(barrierQueueParsers).toHaveProperty('page');
+    expect(barrierQueueParsers).toHaveProperty('source');
+    expect(barrierQueueParsers).toHaveProperty('severity');
+    expect(barrierQueueParsers).toHaveProperty('category');
+    expect(barrierQueueParsers).toHaveProperty('part');
+    expect(barrierQueueParsers).toHaveProperty('sectionType');
+    expect(barrierQueueParsers).toHaveProperty('search');
+    expect(barrierQueueParsers).toHaveProperty('complexity');
+    expect(barrierQueueParsers).toHaveProperty('verbatim');
+    expect(barrierQueueParsers).toHaveProperty('sortBy');
+    expect(barrierQueueParsers).toHaveProperty('sortOrder');
     // Review-specific
-    expect(jenaiQueueParsers).toHaveProperty('reviewStatus');
+    expect(barrierQueueParsers).toHaveProperty('reviewStatus');
     // Developer-specific
-    expect(jenaiQueueParsers).toHaveProperty('developerStatus');
-    expect(jenaiQueueParsers).toHaveProperty('developerAssigned');
+    expect(barrierQueueParsers).toHaveProperty('developerStatus');
+    expect(barrierQueueParsers).toHaveProperty('developerAssigned');
   });
 });
 
-describe('jenaiReviewQueueParsers keys', () => {
+describe('barrierReviewQueueParsers keys', () => {
   it('includes part, sectionType, search, complexity, and verbatim parsers', async () => {
-    const { jenaiReviewQueueParsers } = await import('./parsers');
-    expect(jenaiReviewQueueParsers).toHaveProperty('part');
-    expect(jenaiReviewQueueParsers).toHaveProperty('sectionType');
-    expect(jenaiReviewQueueParsers).toHaveProperty('search');
-    expect(jenaiReviewQueueParsers).toHaveProperty('complexity');
-    expect(jenaiReviewQueueParsers).toHaveProperty('verbatim');
-    expect(jenaiReviewQueueParsers).not.toHaveProperty('department');
+    const { barrierReviewQueueParsers } = await import('./parsers');
+    expect(barrierReviewQueueParsers).toHaveProperty('part');
+    expect(barrierReviewQueueParsers).toHaveProperty('sectionType');
+    expect(barrierReviewQueueParsers).toHaveProperty('search');
+    expect(barrierReviewQueueParsers).toHaveProperty('complexity');
+    expect(barrierReviewQueueParsers).toHaveProperty('verbatim');
+    expect(barrierReviewQueueParsers).not.toHaveProperty('department');
   });
 });
 
-describe('jenaiDeveloperQueueParsers keys', () => {
+describe('barrierDeveloperQueueParsers keys', () => {
   it('includes part, sectionType, search, complexity, and verbatim parsers', async () => {
-    const { jenaiDeveloperQueueParsers } = await import('./parsers');
-    expect(jenaiDeveloperQueueParsers).toHaveProperty('part');
-    expect(jenaiDeveloperQueueParsers).toHaveProperty('sectionType');
-    expect(jenaiDeveloperQueueParsers).toHaveProperty('search');
-    expect(jenaiDeveloperQueueParsers).toHaveProperty('complexity');
-    expect(jenaiDeveloperQueueParsers).toHaveProperty('verbatim');
-    expect(jenaiDeveloperQueueParsers).not.toHaveProperty('department');
+    const { barrierDeveloperQueueParsers } = await import('./parsers');
+    expect(barrierDeveloperQueueParsers).toHaveProperty('part');
+    expect(barrierDeveloperQueueParsers).toHaveProperty('sectionType');
+    expect(barrierDeveloperQueueParsers).toHaveProperty('search');
+    expect(barrierDeveloperQueueParsers).toHaveProperty('complexity');
+    expect(barrierDeveloperQueueParsers).toHaveProperty('verbatim');
+    expect(barrierDeveloperQueueParsers).not.toHaveProperty('department');
   });
 });
 

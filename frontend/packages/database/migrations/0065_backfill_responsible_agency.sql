@@ -1,8 +1,8 @@
--- Backfill responsible_agency on jenai_analyses and compliance_issue_analyses
+-- Backfill responsible_agency on barrier_analyses and compliance_issue_analyses
 -- Uses the NYCRR title→agency mapping from regulatory_documents title-level entries
 
--- jenai_analyses: regulations (via document_id → regulatory_documents)
-UPDATE jenai_analyses ja
+-- barrier_analyses: regulations (via document_id → regulatory_documents)
+UPDATE barrier_analyses ja
 SET responsible_agency = subq.agency_name
 FROM (
     SELECT rd.id AS doc_id, titles.agency_name
@@ -23,8 +23,8 @@ FROM (
 WHERE ja.document_id = subq.doc_id
   AND ja.responsible_agency IS NULL;
 
--- jenai_analyses: guidance (via guidance_document_id → guidance_documents.agency)
-UPDATE jenai_analyses ja
+-- barrier_analyses: guidance (via guidance_document_id → guidance_documents.agency)
+UPDATE barrier_analyses ja
 SET responsible_agency = gd.agency
 FROM guidance_documents gd
 WHERE ja.guidance_document_id = gd.id

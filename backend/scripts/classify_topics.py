@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Multi-label topic classification for JenAI findings.
+Multi-label topic classification for Barrier findings.
 
 Assigns 2-6 topic labels to each finding from a 50-topic taxonomy organized
 into 4 groups: agency/domain, process type, affected population, reform theme.
@@ -71,7 +71,7 @@ SUBMIT_TOOL = {
 
 
 def get_findings_to_classify(conn, limit: int = 0, force: bool = False) -> list[dict]:
-    """Get jenai_issues that need topic classification."""
+    """Get barrier_issues that need topic classification."""
     cur = conn.cursor()
 
     where_clause = "WHERE ji.category != 'OTHER'"
@@ -83,7 +83,7 @@ def get_findings_to_classify(conn, limit: int = 0, force: bool = False) -> list[
     cur.execute(f"""
         SELECT ji.id, ji.category, ji.explanation,
                COALESCE(rd.citation, gd.title) as citation
-        FROM jenai_issues ji
+        FROM barrier_issues ji
         LEFT JOIN regulatory_documents rd ON ji.document_id = rd.id
         LEFT JOIN guidance_documents gd ON ji.guidance_document_id = gd.id
         {where_clause}
@@ -176,7 +176,7 @@ def import_results(conn, manager: BatchManager, batch_id: str, id_map: dict):
                 raise ValueError("No topics found in response")
 
             cur.execute(
-                "UPDATE jenai_issues SET topics = %s WHERE id = %s",
+                "UPDATE barrier_issues SET topics = %s WHERE id = %s",
                 (topics, finding_id),
             )
             classified += 1
@@ -231,7 +231,7 @@ def run_topic_classification(limit: int = 0, force: bool = False, submit_only: b
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Multi-label topic classification for JenAI findings"
+        description="Multi-label topic classification for Barrier findings"
     )
     parser.add_argument("--execute", action="store_true",
                         help="Submit batch (default is dry run)")

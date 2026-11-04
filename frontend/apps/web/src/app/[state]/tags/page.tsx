@@ -26,7 +26,7 @@ export default async function TagsPage({ params }: TagsPageProps) {
     <div className="bg-[var(--color-background)] min-h-screen">
       <PageHeader
         title={`${stateConfig.name} Tag Analytics`}
-        description="Cross-domain tag analysis across regulations, guidance, fines, compliance, and JenAI"
+        description="Cross-domain tag analysis across regulations, guidance, fines, compliance, and barriers"
       />
       <Container size="2xl" className="py-6">
         <TagsClient

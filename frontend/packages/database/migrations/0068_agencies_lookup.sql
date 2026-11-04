@@ -1,4 +1,4 @@
--- Agency lookup tables for deduplication of responsible_agency across fines, compliance, and JenAI
+-- Agency lookup tables for deduplication of responsible_agency across fines, compliance, and Barrier
 -- Phase 1: fines_fees_penalties only; other tables get FKs in a follow-up
 
 CREATE TABLE agencies (

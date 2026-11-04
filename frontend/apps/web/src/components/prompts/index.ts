@@ -11,5 +11,5 @@ export { V5PipelineComposer } from './V5PipelineComposer';
 export { PromptsClient } from './PromptsClient';
 export { PromptsOverviewTab } from './PromptsOverviewTab';
 export { PromptCatalogTab } from './PromptCatalogTab';
-export { JenAIPipelineComposer } from './JenAIPipelineComposer';
+export { BarrierPipelineComposer } from './BarrierPipelineComposer';
 export { FinesPipelineComposer } from './FinesPipelineComposer';

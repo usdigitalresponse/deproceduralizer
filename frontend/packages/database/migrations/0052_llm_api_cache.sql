@@ -5,7 +5,7 @@
 CREATE TABLE llm_api_cache (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     request_hash TEXT NOT NULL UNIQUE,
-    pipeline TEXT,              -- 'research', 'jenai', 'summarization', etc.
+    pipeline TEXT,              -- 'research', 'barrier', 'summarization', etc.
     tier INTEGER,               -- 1, 2, 3, or NULL
     document_id BIGINT,         -- FK to regulatory_documents (nullable)
     model TEXT NOT NULL,

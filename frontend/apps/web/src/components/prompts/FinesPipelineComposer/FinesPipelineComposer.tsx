@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react';
 import { DollarSign, Search } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
-import { DocumentSearchSelector } from '../JenAIPipelineComposer/DocumentSearchSelector';
+import { DocumentSearchSelector } from '../BarrierPipelineComposer/DocumentSearchSelector';
 import { FinesComposedPromptViewer } from './FinesComposedPromptViewer';
 import { FinesContextPanel } from './FinesContextPanel';
 import { FinesTokenBreakdown } from './FinesTokenBreakdown';
@@ -50,7 +50,7 @@ export function FinesPipelineComposer({ className = '' }: FinesPipelineComposerP
           </div>
         </div>
 
-        {/* Document Search - reuse JenAI's DocumentSearchSelector */}
+        {/* Document Search - reuse the barrier composer's DocumentSearchSelector */}
         <DocumentSearchSelector
           onSelect={handleDocumentSelect}
           isLoading={isPending}

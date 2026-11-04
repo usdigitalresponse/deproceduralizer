@@ -1,5 +1,5 @@
 # =============================================================================
-# JenAI Tournament Pipeline: 3-Round Filtering Prompts
+# Barrier Tournament Pipeline: 3-Round Filtering Prompts
 # =============================================================================
 #
 # Two passes:
@@ -55,9 +55,9 @@ top_examples:
 # -----------------------------------------------------------------------------
 
 pass1_round1:
-  updated_at: "2026-03-17"
+  updated_at: "2026-11-04"
   description: |
-    Evaluate each JenAI finding for importance (hurts real people now),
+    Evaluate each Barrier finding for importance (hurts real people now),
     fixability (specific text edit), and enforcement. ~10% should pass.
     Uses tool_choice to force structured output via ImportantAndFixable schema.
   system: |

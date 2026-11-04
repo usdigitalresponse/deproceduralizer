@@ -14,7 +14,7 @@ ALTER TABLE bookmarks RENAME COLUMN state TO jurisdiction;
 ALTER TABLE cross_references RENAME COLUMN state TO jurisdiction;
 ALTER TABLE document_notes RENAME COLUMN state TO jurisdiction;
 ALTER TABLE incorporations_by_reference RENAME COLUMN state TO jurisdiction;
-ALTER TABLE jenai_analyses RENAME COLUMN state TO jurisdiction;
+ALTER TABLE barrier_analyses RENAME COLUMN state TO jurisdiction;
 ALTER TABLE statutes RENAME COLUMN state TO jurisdiction;
 
 -- =============================================================================
@@ -148,8 +148,8 @@ ALTER TABLE bookmarks ADD CONSTRAINT chk_bookmarks_jurisdiction CHECK (jurisdict
 -- document_notes (no prior CHECK — new constraint)
 ALTER TABLE document_notes ADD CONSTRAINT chk_document_notes_jurisdiction CHECK (jurisdiction IN ('NY', 'NJ', 'NYC'));
 
--- jenai_analyses (no prior CHECK — new constraint)
-ALTER TABLE jenai_analyses ADD CONSTRAINT chk_jenai_jurisdiction CHECK (jurisdiction IN ('NY', 'NJ', 'NYC'));
+-- barrier_analyses (no prior CHECK — new constraint)
+ALTER TABLE barrier_analyses ADD CONSTRAINT chk_barrier_jurisdiction CHECK (jurisdiction IN ('NY', 'NJ', 'NYC'));
 
 -- =============================================================================
 -- 3. Recreate unique indexes/constraints referencing `state`

@@ -46,10 +46,10 @@ The result is an interactive web application where policy reviewers can browse r
 <!-- metric: ISSUE_TYPE_COUNT=49 -->
 - **49 compliance issue types** — wet signatures, mail-only processes, fax requirements, obsolete technology mandates, excessive documentation, and more
 - **3-tier research pipeline** — regex scan → LLM filtering → LLM classification with optional web search verification
-- **JenAI burden analysis** — single-pass LLM pipeline applying Jennifer Pahlka's 18-category framework, producing composite burden scores per document <!-- metric: JENAI_CATEGORIES=18 -->
-- **Tournament filtering** — three-round LLM bracket over JenAI findings (importance → fixability → grouping) that surfaces 20–40 actionable recommendations (text edits + structural fixes), powering the `/jenai` strategies page
+- **Barrier burden analysis** — single-pass LLM pipeline applying an 18-category framework inspired by Jennifer Pahlka's *Recoding America*, producing composite burden scores per document <!-- metric: BARRIER_CATEGORIES=18 -->
+- **Tournament filtering** — three-round LLM bracket over Barrier findings (importance → fixability → grouping) that surfaces 20–40 actionable recommendations (text edits + structural fixes), powering the `/barriers` strategies page
 - **Fines, fees & penalties extraction** — LLM structured extraction of monetary charges (amount, who pays, responsible agency, violation) from regulations and guidance, with post-scan enrichment for activity domain, estimated annual payers, and verbatim justification quotes
-- **Post-pipeline enrichments** — multi-label topic tagging on JenAI findings (50-topic taxonomy), guidance audience classification (direction/expertise/target roles), and other Batch-API enrichments that layer on top of core pipeline output
+- **Post-pipeline enrichments** — multi-label topic tagging on Barrier findings (50-topic taxonomy), guidance audience classification (direction/expertise/target roles), and other Batch-API enrichments that layer on top of core pipeline output
 - **Hierarchical summarization** — bottom-up summaries from sections through subchapters, chapters, parts, and titles using Anthropic Batch API
 - **Multi-jurisdiction support** — New York State (NYCRR), New Jersey (NJAC), and New York City (RCNY + Charter/Admin Code) with extensible scraper architecture
 - **Guidance documents** — sub-regulatory ADMs, LCMs, INFs, GIS, TSBs imported from the `nys-documents` catalog; a dedicated multi-step pipeline classifies them, detects supersedure chains, extracts cross-references to NYCRR and other guidance, and runs the same compliance scans as formal regulations
@@ -176,9 +176,9 @@ See [`docs/OPERATIONS.md`](docs/OPERATIONS.md) for the complete runbook with all
 | `/[state]/guidance` | Guidance — sub-regulatory ADMs/LCMs/INFs from state agencies |
 | `/[state]/ibr` | Standards (IBR) — incorporated-by-reference standards browser |
 | `/[state]/fines` | Fines, Fees & Penalties — monetary charges with agency and who-pays breakdowns |
-| `/[state]/jenai` | JenAI Strategies — single-pass burden analysis explorer |
-| `/[state]/burden` | Burden — JenAI 18-category composite burden scores and drill-down |
-| `/[state]/tags` | Tags — cross-domain tag analytics across regulations, guidance, fines, JenAI |
+| `/[state]/barriers` | Barrier Strategies — single-pass burden analysis explorer |
+| `/[state]/burden` | Burden — Barrier 18-category composite burden scores and drill-down |
+| `/[state]/tags` | Tags — cross-domain tag analytics across regulations, guidance, fines, Barrier |
 | `/[state]/review` | Review Mode — queues for compliance issues, definitions |
 | `/[state]/review?mode=developer` | Developer Mode — implementation tracking and assignment |
 | `/[state]/pipeline` | Pipeline — research pipeline status, funnel visualization, drill-downs |
@@ -229,11 +229,11 @@ deproceduralizer/
 │       ├── fines_scanner.py              # Fines/fees/penalties LLM extraction
 │       ├── enrich_fines_activity.py      # Fines activity-category + payer-volume enrichment
 │       ├── enrich_guidance_audience.py   # Guidance audience direction/expertise/role
-│       ├── classify_topics.py            # JenAI 50-topic multi-label tagging
-│       ├── jenai_tournament.py           # 3-round tournament filtering over JenAI findings
+│       ├── classify_topics.py            # Barrier 50-topic multi-label tagging
+│       ├── barrier_tournament.py           # 3-round tournament filtering over Barrier findings
 │       ├── import_tournament_results.py  # Load tournament JSON into DB
 │       ├── research_pipeline/            # 3-tier compliance research pipeline
-│       ├── jenai_pipeline/               # Single-pass 18-category burden analysis
+│       ├── barrier_pipeline/               # Single-pass 18-category burden analysis
 │       ├── guidance_pipeline/            # Guidance import + classify + supersedure + refs
 │       ├── summarization/                # Hierarchical summarization
 │       ├── cross_references/             # Internal citation extraction
@@ -269,7 +269,7 @@ deproceduralizer/
 ├── prompts/                              # LLM prompt definitions (YAML)
 │   ├── core.yaml                         # Definitions prompts
 │   ├── compliance_issues.yaml            # 49 issue types with patterns
-│   ├── jenai.yaml                        # 18-category Pahlka burden framework
+│   ├── barriers.yaml                        # 18-category barrier framework
 │   ├── research_pipeline.yaml            # 3-tier research pipeline prompts
 │   ├── topic_classification.yaml         # Topic taxonomy prompts
 │   ├── tournament.yaml                   # Prompt-tournament evaluation
@@ -307,10 +307,10 @@ The full pipeline transforms raw regulation text into structured, reviewable fin
 9. **Research Pipeline** — 3-tier LLM analysis: filter false positives → classify burden/severity → web search verification
 10. **IBR Scan** — Detect external standards incorporated by reference
 11. **Fines Scan** — LLM structured extraction of fines, fees, penalties, surcharges, forfeitures
-12. **JenAI Pipeline** — Single-pass LLM analysis applying the 18-category Pahlka burden framework <!-- metric: JENAI_CATEGORIES=18 -->
+12. **Barrier Pipeline** — Single-pass LLM analysis applying the 18-category barrier framework <!-- metric: BARRIER_CATEGORIES=18 -->
 13. **Refresh Stats** — Precompute hierarchy statistics for frontend performance
 
-**Dependencies:** Cross-References (6) can run anytime after Scrape (1). Summaries (7) and Compliance Scan (8) can run in parallel. Research Pipeline (9) and JenAI Pipeline (12) both depend on Cross-References (6) and Summaries (7). IBR (10) and Fines (11) are independent of the LLM pipelines. Refresh Stats (13) runs last.
+**Dependencies:** Cross-References (6) can run anytime after Scrape (1). Summaries (7) and Compliance Scan (8) can run in parallel. Research Pipeline (9) and Barrier Pipeline (12) both depend on Cross-References (6) and Summaries (7). IBR (10) and Fines (11) are independent of the LLM pipelines. Refresh Stats (13) runs last.
 
 > Note: `docs/OPERATIONS.md` numbers these the same way conceptually but labels Exclude as **1b** and Fines as **9b** (sub-steps grouped with their parent). The runbook is the source of truth for commands and flags.
 
@@ -334,8 +334,8 @@ Optional downstream enrichments (separate scripts): `guidance_summarization` (Ba
 
 Workflows that operate on top of the core pipeline output:
 
-- **JenAI Tournament** (`backend/scripts/jenai_tournament.py`) — Three-round LLM bracket (importance → tournament → pattern grouping) over JenAI findings, run as two passes (text edits + structural fixes). Outputs to `tournament_patterns`, `tournament_examples`, and `tournament_named_findings` tables; results feed the `/[state]/jenai` strategies page. Full run is ~$15 / ~40 min on Haiku 4.5. Import via `import_tournament_results.py`.
-- **Topic Classification** (`backend/scripts/classify_topics.py`) — Multi-label tagging of JenAI findings against a 50-topic taxonomy. Writes to `jenai_issues.topics` (GIN-indexed). Invoked automatically at the tail end of the JenAI pipeline; can also be re-run standalone with `--execute`.
+- **Barrier Tournament** (`backend/scripts/barrier_tournament.py`) — Three-round LLM bracket (importance → tournament → pattern grouping) over Barrier findings, run as two passes (text edits + structural fixes). Outputs to `tournament_patterns`, `tournament_examples`, and `tournament_named_findings` tables; results feed the `/[state]/barriers` strategies page. Full run is ~$15 / ~40 min on Haiku 4.5. Import via `import_tournament_results.py`.
+- **Topic Classification** (`backend/scripts/classify_topics.py`) — Multi-label tagging of Barrier findings against a 50-topic taxonomy. Writes to `barrier_issues.topics` (GIN-indexed). Invoked automatically at the tail end of the Barrier pipeline; can also be re-run standalone with `--execute`.
 - **Fines Activity Enrichment** (`backend/scripts/enrich_fines_activity.py`) — Classifies fines into 17 activity domains, estimates annual payer volume buckets, and extracts verbatim justification quotes. Updates columns on `fines_fees_penalties`.
 - **Guidance Audience Enrichment** (`backend/scripts/enrich_guidance_audience.py`) — Classifies guidance documents by audience direction (public/government), expertise level (lay/specialized/mixed), and target-audience tags. Updates columns on `guidance_documents`.
 
@@ -356,9 +356,9 @@ See [`docs/OPERATIONS.md`](docs/OPERATIONS.md) for the complete runbook with com
 | `definition_document_occurrences` | Links definitions to documents where terms appear |
 | `compliance_issues` | Regex-matched compliance issue candidates (49 types) | <!-- metric: ISSUE_TYPE_COUNT=49 -->
 | `compliance_issue_analyses` | LLM analysis + human review per document/issue type |
-| `jenai_analyses` | JenAI single-pass burden analysis, one row per document |
-| `jenai_issues` | Per-category findings (18 categories) with multi-label `topics` (50-topic taxonomy), linked to `jenai_analyses` |
-| `tournament_patterns` | Mega-patterns produced by JenAI tournament filtering (per pass) |
+| `barrier_analyses` | Barrier single-pass burden analysis, one row per document |
+| `barrier_issues` | Per-category findings (18 categories) with multi-label `topics` (50-topic taxonomy), linked to `barrier_analyses` |
+| `tournament_patterns` | Mega-patterns produced by Barrier tournament filtering (per pass) |
 | `tournament_examples` | Top-5 example findings per tournament pattern |
 | `tournament_named_findings` | Named pass-1 tournament findings ("quick hits") |
 | `fines_fees_penalties` | Structured extraction of monetary charges from regulations and guidance |
@@ -390,7 +390,7 @@ To build your own database:
 
 A few limits to know about before you start:
 
-- **AI steps cost money ---** summarization, the research pipeline, JenAI, and fines extraction all call the Anthropic API. Check the cost estimates in [`docs/OPERATIONS.md`](docs/OPERATIONS.md) first.
+- **AI steps cost money ---** summarization, the research pipeline, Barrier, and fines extraction all call the Anthropic API. Check the cost estimates in [`docs/OPERATIONS.md`](docs/OPERATIONS.md) first.
 - **NY statutes need an API key ---** request a free key from the [NY Senate Open Legislation API](https://legislation.nysenate.gov/) and set `NY_OPEN_LEG_API_KEY`.
 - **NYC data needs manual downloads ---** the NYC parsers read exports you download yourself from American Legal Publishing.
 - **Guidance documents need a separate repo ---** they come from the `nys-documents` scraping pipeline, which isn't part of this repo.
@@ -479,7 +479,7 @@ python scripts/generate_prompt_types.py
 | New Jersey (NJ) | NJAC | ~61,000 documents | NJ Statutes |
 | New York City (NYC) | RCNY | sub-state | NYC Charter + Administrative Code |
 
-In addition to the regulatory corpora above, the database holds a **guidance documents** corpus of ADMs, LCMs, INFs, GIS, TSBs, and similar sub-regulatory directives imported from the `nys-documents` catalog. Guidance is analyzed by the same downstream pipelines (compliance scan, fines extraction, JenAI burden analysis).
+In addition to the regulatory corpora above, the database holds a **guidance documents** corpus of ADMs, LCMs, INFs, GIS, TSBs, and similar sub-regulatory directives imported from the `nys-documents` catalog. Guidance is analyzed by the same downstream pipelines (compliance scan, fines extraction, Barrier burden analysis).
 
 ## Data Sources
 

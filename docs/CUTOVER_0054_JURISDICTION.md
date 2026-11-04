@@ -9,9 +9,9 @@ Migration 0054 renames the `state` column to `jurisdiction` on 9 tables, recreat
 
 ## What the migration does
 
-- Renames `state` → `jurisdiction` on: `regulatory_documents`, `compliance_issues`, `compliance_issue_analyses`, `bookmarks`, `cross_references`, `document_notes`, `incorporations_by_reference`, `jenai_analyses`, `statutes`
+- Renames `state` → `jurisdiction` on: `regulatory_documents`, `compliance_issues`, `compliance_issue_analyses`, `bookmarks`, `cross_references`, `document_notes`, `incorporations_by_reference`, `barrier_analyses`, `statutes`
 - Drops and recreates 6 existing CHECK constraints with new column name
-- Adds 3 new CHECK constraints (for `bookmarks`, `document_notes`, `jenai_analyses` which never had them)
+- Adds 3 new CHECK constraints (for `bookmarks`, `document_notes`, `barrier_analyses` which never had them)
 - Renames unique index `idx_rd_state_source_type` → `idx_rd_jurisdiction_source_type`
 - Renames unique constraint `statutes_state_citation_key` → `unique_jurisdiction_citation`
 - All wrapped in a single transaction (`BEGIN`/`COMMIT`)
@@ -104,7 +104,7 @@ ALTER TABLE bookmarks RENAME COLUMN jurisdiction TO state;
 ALTER TABLE cross_references RENAME COLUMN jurisdiction TO state;
 ALTER TABLE document_notes RENAME COLUMN jurisdiction TO state;
 ALTER TABLE incorporations_by_reference RENAME COLUMN jurisdiction TO state;
-ALTER TABLE jenai_analyses RENAME COLUMN jurisdiction TO state;
+ALTER TABLE barrier_analyses RENAME COLUMN jurisdiction TO state;
 ALTER TABLE statutes RENAME COLUMN jurisdiction TO state;
 COMMIT;
 ```

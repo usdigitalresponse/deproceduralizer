@@ -171,7 +171,7 @@ export function PromptCard({
             </div>
           )}
 
-          {/* Batch Context (if present — JenAI 3-layer prompts) */}
+          {/* Batch Context (if present — Barrier 3-layer prompts) */}
           {prompt.batchContext && (
             <div>
               <h4 className="text-sm font-medium text-[var(--color-text)] mb-2">

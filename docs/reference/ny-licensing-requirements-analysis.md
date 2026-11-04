@@ -2,7 +2,7 @@
 
 > **Date:** March 15, 2026
 > **Scope:** New York State (NYCRR), New York City (RCNY/Health Code), county-level requirements
-> **Data Sources:** 61,620 NY State regulatory documents, 8,403 NYC regulatory documents, 685 NY guidance documents, 139 NYC guidance documents; JenAI 18-category burden analysis (NY only); 3-tier compliance issue analysis (NY and NYC)
+> **Data Sources:** 61,620 NY State regulatory documents, 8,403 NYC regulatory documents, 685 NY guidance documents, 139 NYC guidance documents; Barrier 18-category burden analysis (NY only); 3-tier compliance issue analysis (NY and NYC)
 
 ---
 
@@ -29,7 +29,7 @@ This analysis examines the full landscape of licensing requirements affecting pr
 - **"Good moral character"** — an undefined, standardless licensing criterion — appears in **25+ separate professional licensing regulations** across NYCRR Titles 1, 3, 4, 8, 9, 10, 12, and 18. None reference Article 23-A's legally required balancing test for criminal history considerations.
 - **NYC creates a distinct licensing layer** on top of state requirements for child care, camps, after-school programs, and children's institutions, with separate permits, staffing standards, and training cycles that duplicate state frameworks.
 - **County data is not independently maintained** in our database; county requirements are embedded in state regulations as delegated functions rather than independent licensing regimes.
-- **JenAI burden analysis has not been run on NYC data** (0 of 8,403 documents analyzed), leaving the NYC licensing burden unquantified.
+- **Barrier burden analysis has not been run on NYC data** (0 of 8,403 documents analyzed), leaving the NYC licensing burden unquantified.
 - The highest-burden licensing-related regulations cluster in **Title 18 (Social Services)** — particularly child welfare, foster care, and child care licensing — where cascading rigidity, one-size-fits-all mandates, and stacked administrative requirements create the most acute compliance challenges.
 
 ---
@@ -273,7 +273,7 @@ Counties in New York do **not** create independent licensing regimes that duplic
 |--------|-------|
 | Total NYC documents (RCNY + Health Code) | 8,403 |
 | NYC guidance documents | 139 |
-| JenAI burden analyses completed | 0 |
+| Barrier burden analyses completed | 0 |
 | Compliance issues found | 663 across 27 issue types |
 
 The most common NYC compliance issues are: check_payment (156), certified_mail (148), fax_required (88), bulletin_board (81), fee_no_waiver (45).
@@ -351,7 +351,7 @@ NYC requires a **separate permit from the NYC Commissioner** before operating an
 
 ### 5.5 Analysis Gap
 
-**JenAI burden analysis has not been run on any NYC documents.** This means we lack the 18-category Pahlka framework assessment for NYC regulations that we have for NY State. Running the JenAI pipeline on NYC data would quantify the burden of the NYC licensing overlay and enable direct comparison with state-level burden scores.
+**Barrier burden analysis has not been run on any NYC documents.** This means we lack the 18-category barrier framework assessment for NYC regulations that we have for NY State. Running the Barrier pipeline on NYC data would quantify the burden of the NYC licensing overlay and enable direct comparison with state-level burden scores.
 
 ---
 
@@ -367,7 +367,7 @@ The most significant duplication in New York's licensing landscape is the existe
 | Child care checks | 18 NYCRR Part 413 (OCFS) | All child day care programs | **5-year recertification** for all personnel including volunteers |
 | Justice Center checks | 14 NYCRR (Justice Center) | Programs serving vulnerable populations | Separate process and timeline |
 
-**The JenAI analysis flagged this directly** (18 NYCRR § 449.4, composite burden score 30.11):
+**The Barrier analysis flagged this directly** (18 NYCRR § 449.4, composite burden score 30.11):
 
 > *"Three sequential, mandatory background check workflows (VPCR staff exclusion list, SCR child abuse inquiry, Justice Center criminal history) each with separate forms, prescribed notice requirements, fees, and specific payment instruments create stacked friction that can delay hiring and may functionally preclude rapid staffing for programs serving youth."*
 
@@ -477,9 +477,9 @@ A provider operating under both state and city authority must track multiple ove
 
 ## 7. Burdensomeness Analysis
 
-### 7.1 JenAI Burden Framework Results (NY State)
+### 7.1 Barrier Burden Framework Results (NY State)
 
-The JenAI 18-category Pahlka framework analysis reveals the overall burden landscape across NY State regulations. Categories most relevant to licensing are highlighted:
+The 18-category barrier framework analysis reveals the overall burden landscape across NY State regulations. Categories most relevant to licensing are highlighted:
 
 | Category | Issues Found | Avg Burden Score | Avg Severity | Licensing Relevance |
 |----------|-------------|-----------------|--------------|-------------------|
@@ -638,7 +638,7 @@ All must be submitted within 90 days of acceptance.
 
 **Training burden**: 30 hours every 2 years (15 in first 6 months, minimum 5/year) across specified topics. Pre-application orientation required. Federal health/safety training before licensure. Current CPR/first aid with in-person competency.
 
-**JenAI-identified one-size-fits-all problem**: A family day care home serving 2 children must meet the **identical** medication administration training, health care consultant, and documentation requirements as one serving 12 children.
+**Barrier-identified one-size-fits-all problem**: A family day care home serving 2 children must meet the **identical** medication administration training, health care consultant, and documentation requirements as one serving 12 children.
 
 ---
 
@@ -683,7 +683,7 @@ All must be submitted within 90 days of acceptance.
 
 **Problem**: Identical requirements regardless of whether a provider serves 2 people or 200.
 
-**Recommendation** (from JenAI analysis):
+**Recommendation** (from Barrier analysis):
 - Create tiered compliance frameworks based on program size and complexity
 - Small home-based providers (fewer than 6 children) should have:
   - Simplified training requirements
@@ -714,11 +714,11 @@ All must be submitted within 90 days of acceptance.
 - Replace mandatory in-person hearings with video conference options (as California already does for gaming license hearings)
 - Eliminate certified mail requirements for routine notices
 
-### 8.7 Run JenAI Analysis on NYC Data
+### 8.7 Run Barrier Analysis on NYC Data
 
 **Problem**: No burden analysis exists for 8,403 NYC regulatory documents, leaving the NYC licensing overlay unquantified.
 
-**Recommendation**: Run the JenAI pipeline on NYC jurisdiction data to:
+**Recommendation**: Run the Barrier pipeline on NYC jurisdiction data to:
 - Quantify the burden of NYC-specific licensing requirements
 - Enable direct comparison of NYC vs. state burden scores
 - Identify NYC-specific reform opportunities
@@ -728,7 +728,7 @@ All must be submitted within 90 days of acceptance.
 
 **Problem**: Multiple separate documentation forms and processes triggered at each stage of licensing and placement decisions.
 
-**Recommendation** (from JenAI analysis):
+**Recommendation** (from Barrier analysis):
 - Consolidate placement-entry documentation into single structured forms
 - Replace open-ended narrative requirements with structured electronic forms with checkboxes and brief narrative fields
 - Accept existing medical/court records to satisfy documentation requirements without requiring separate narrative restatement
@@ -762,7 +762,7 @@ All must be submitted within 90 days of acceptance.
 | Total regulatory documents | 61,620 | 8,403 |
 | Guidance documents | 685 | 139 |
 | Documents with summaries | 60,445 | 419 |
-| JenAI analyses completed | Yes (18 categories) | **None** |
+| Barrier analyses completed | Yes (18 categories) | **None** |
 | Compliance issues scanned | Yes (46 issue types) | Yes (27 issue types) |
 | Compliance issues analyzed (3-tier) | Yes | Yes |
 

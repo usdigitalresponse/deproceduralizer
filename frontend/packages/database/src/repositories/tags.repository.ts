@@ -24,7 +24,7 @@ import type {
 //
 // IMPORTANT: `field` keys MUST match the frontend constants in
 // `apps/web/src/lib/constants/tags.ts` — prefixed keys like
-// `reg_section_type`, `guid_keywords`, `jenai_category`, etc.
+// `reg_section_type`, `guid_keywords`, `barrier_category`, etc.
 // ---------------------------------------------------------------------------
 
 type FieldKind = 'scalar' | 'array' | 'boolean';
@@ -68,9 +68,9 @@ const TAG_FIELDS: TagFieldDef[] = [
   { domain: 'compliance', field: 'issue_type', column: 'issue_type', table: 'compliance_issue_analyses', kind: 'scalar', jurisdictionJoin: null, documentIdColumn: 'document_id', documentTable: 'regulatory_documents' },
   { domain: 'compliance', field: 'tier_classification', column: 'tier2_classification', table: 'compliance_issue_analyses', kind: 'scalar', jurisdictionJoin: null, documentIdColumn: 'document_id', documentTable: 'regulatory_documents' },
 
-  // --- jenai (jenai_issues) ---
-  { domain: 'jenai', field: 'jenai_category', column: 'category', table: 'jenai_issues', kind: 'scalar', jurisdictionJoin: 'JOIN regulatory_documents rd ON ji.document_id = rd.id', documentIdColumn: 'document_id', documentTable: 'regulatory_documents' },
-  { domain: 'jenai', field: 'jenai_tags', column: 'tags', table: 'jenai_issues', kind: 'array', jurisdictionJoin: 'JOIN regulatory_documents rd ON ji.document_id = rd.id', documentIdColumn: 'document_id', documentTable: 'regulatory_documents' },
+  // --- barriers (barrier_issues) ---
+  { domain: 'barriers', field: 'barrier_category', column: 'category', table: 'barrier_issues', kind: 'scalar', jurisdictionJoin: 'JOIN regulatory_documents rd ON ji.document_id = rd.id', documentIdColumn: 'document_id', documentTable: 'regulatory_documents' },
+  { domain: 'barriers', field: 'barrier_tags', column: 'tags', table: 'barrier_issues', kind: 'array', jurisdictionJoin: 'JOIN regulatory_documents rd ON ji.document_id = rd.id', documentIdColumn: 'document_id', documentTable: 'regulatory_documents' },
 
   // --- fines (fines_fees_penalties) ---
   { domain: 'fines', field: 'penalty_type', column: 'penalty_type', table: 'fines_fees_penalties', kind: 'scalar', jurisdictionJoin: null, documentIdColumn: 'document_id', documentTable: 'regulatory_documents' },
@@ -91,7 +91,7 @@ const FREE_TEXT_FIELDS = new Set([
   'reg_applies_to',
   'guid_keywords',
   'guid_applies_to',
-  'jenai_tags',
+  'barrier_tags',
   'target_audience',
 ]);
 
@@ -124,7 +124,7 @@ function jurisdictionClause(
     return guidanceJurisdictionMatches(jurisdictionUpper) ? '1=1' : '1=0';
   }
 
-  // jenai_issues need a join to regulatory_documents for jurisdiction
+  // barrier_issues need a join to regulatory_documents for jurisdiction
   if (def.jurisdictionJoin) {
     return `rd.jurisdiction = '${jurisdictionUpper}'`;
   }
@@ -159,7 +159,7 @@ export class TagsRepository extends BaseRepository {
       // (e.g., "false" for has_ibr becomes the "most common tag")
       if (def.kind === 'boolean') continue;
 
-      const alias = def.table === 'jenai_issues' ? 'ji' : 't';
+      const alias = def.table === 'barrier_issues' ? 'ji' : 't';
       const fromClause = def.jurisdictionJoin
         ? `${def.table} ${alias} ${def.jurisdictionJoin}`
         : `${def.table} ${alias}`;
@@ -326,7 +326,7 @@ export class TagsRepository extends BaseRepository {
     const domainCounts: TagDomainCount[] = [];
 
     for (const def of matchingDefs) {
-      const alias = def.table === 'jenai_issues' ? 'ji' : 't';
+      const alias = def.table === 'barrier_issues' ? 'ji' : 't';
       const fromClause = def.jurisdictionJoin
         ? `${def.table} ${alias} ${def.jurisdictionJoin}`
         : `${def.table} ${alias}`;
@@ -431,7 +431,7 @@ export class TagsRepository extends BaseRepository {
     if (contextDocumentId != null) {
       const def = matchingDefs[0];
       if (def) {
-        const alias = def.table === 'jenai_issues' ? 'ji' : 't';
+        const alias = def.table === 'barrier_issues' ? 'ji' : 't';
         const fromClause = def.jurisdictionJoin
           ? `${def.table} ${alias} ${def.jurisdictionJoin}`
           : `${def.table} ${alias}`;
@@ -493,7 +493,7 @@ export class TagsRepository extends BaseRepository {
     // Build UNION ALL of all matching fields to get the set of distinct values
     const unionParts: string[] = [];
     for (const def of matchingDefs) {
-      const alias = def.table === 'jenai_issues' ? 'ji' : 't';
+      const alias = def.table === 'barrier_issues' ? 'ji' : 't';
       const fromClause = def.jurisdictionJoin
         ? `${def.table} ${alias} ${def.jurisdictionJoin}`
         : `${def.table} ${alias}`;
@@ -605,7 +605,7 @@ export class TagsRepository extends BaseRepository {
 
     // Same table — just use one FROM
     if (defA.table === defB.table) {
-      const alias = defA.table === 'jenai_issues' ? 'ji' : 't';
+      const alias = defA.table === 'barrier_issues' ? 'ji' : 't';
       const fromClause = defA.jurisdictionJoin
         ? `${defA.table} ${alias} ${defA.jurisdictionJoin}`
         : `${defA.table} ${alias}`;
@@ -733,7 +733,7 @@ export class TagsRepository extends BaseRepository {
     // Step 1: Get top tag values as nodes
     const unionParts: string[] = [];
     for (const def of fields) {
-      const alias = def.table === 'jenai_issues' ? 'ji' : 't';
+      const alias = def.table === 'barrier_issues' ? 'ji' : 't';
       const fromClause = def.jurisdictionJoin
         ? `${def.table} ${alias} ${def.jurisdictionJoin}`
         : `${def.table} ${alias}`;
@@ -869,7 +869,7 @@ export class TagsRepository extends BaseRepository {
       if (!def) continue;
 
       const cteName = `stage_${i}`;
-      const alias = def.table === 'jenai_issues' ? 'ji' : 't';
+      const alias = def.table === 'barrier_issues' ? 'ji' : 't';
       const fromClause = def.jurisdictionJoin
         ? `${def.table} ${alias} ${def.jurisdictionJoin}`
         : `${def.table} ${alias}`;

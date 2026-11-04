@@ -112,7 +112,7 @@ class TestStoreBatch:
         entry = _make_entry(
             request_hash="test_hash",
             model="claude-haiku-4-5-20251001",
-            pipeline="jenai",
+            pipeline="barrier",
             tier=2,
             document_id=99,
         )
@@ -131,7 +131,7 @@ class TestStoreBatch:
         assert params[5] == 75                # output_tokens
         assert params[6] == 50                # cache_read_tokens
         assert params[7] == 25                # cache_write_tokens
-        assert params[8] == "jenai"           # pipeline
+        assert params[8] == "barrier"           # pipeline
         assert params[9] == 2                 # tier
         assert params[10] == 99              # document_id
 

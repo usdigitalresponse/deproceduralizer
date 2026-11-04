@@ -17,7 +17,7 @@ import {
 export const promptTemplates = pgTable('prompt_templates', {
   id: bigserial('id', { mode: 'number' }).primaryKey(),
   contentHash: text('content_hash').notNull().unique(),
-  pipeline: text('pipeline').notNull(),        // 'research', 'jenai', 'summarization'
+  pipeline: text('pipeline').notNull(),        // 'research', 'barrier', 'summarization'
   tier: integer('tier'),                        // 1, 2, 3 (NULL for single-pass)
   model: text('model').notNull(),
   systemPrompt: text('system_prompt'),
@@ -30,5 +30,5 @@ export const promptTemplates = pgTable('prompt_templates', {
 export type PromptTemplate = typeof promptTemplates.$inferSelect;
 export type NewPromptTemplate = typeof promptTemplates.$inferInsert;
 
-export const PROMPT_PIPELINES = ['research', 'jenai', 'summarization'] as const;
+export const PROMPT_PIPELINES = ['research', 'barrier', 'summarization'] as const;
 export type PromptPipeline = typeof PROMPT_PIPELINES[number];

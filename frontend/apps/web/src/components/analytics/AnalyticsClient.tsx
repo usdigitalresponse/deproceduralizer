@@ -6,7 +6,7 @@ import type { DashboardStats, JurisdictionCode, StatuteLinkStats } from '@deproc
 import type { SectionTypeStats, MetadataStats, KeywordStats, AppliesToStats } from '@/lib/actions/regulations';
 import type { DefinitionsAnalyticsStats } from '@/lib/actions/definitions';
 import type { PipelineAnalyticsData } from '@/lib/actions/pipeline-analytics';
-import type { SeverityDistribution, JenAIReviewStatusCounts, JenAIDeveloperStatusCounts, BurdenOverviewStats } from '@deproceduralizer/database';
+import type { SeverityDistribution, BarrierReviewStatusCounts, BarrierDeveloperStatusCounts, BurdenOverviewStats } from '@deproceduralizer/database';
 import type { GuidanceOverviewStats, GuidanceCitationStats, GuidanceReadabilityStats, ReadabilityCrossCutStats, LineageStats } from '@/lib/actions/guidance-documents';
 import type { AnalyticsSummaryMetrics } from '@/lib/actions/analytics-metrics';
 import type { AnalyticsTabValue, AnalyticsSourceValue } from '@/lib/constants/values';
@@ -21,7 +21,7 @@ import { DefinitionsTab } from './DefinitionsTab';
 import { CrossReferencesTab } from './CrossReferencesTab';
 import { StatutesTab } from './StatutesTab';
 import { GuidanceAnalyticsTab } from './GuidanceAnalyticsTab';
-import { JenAIAnalyticsTab, type JenAIAnalyticsTabProps } from './JenAIAnalyticsTab';
+import { BarrierAnalyticsTab, type BarrierAnalyticsTabProps } from './BarrierAnalyticsTab';
 import { PipelineTab } from './PipelineTab';
 
 const SOURCE_OPTIONS: SegmentedControlOption<AnalyticsSourceValue>[] = [
@@ -41,14 +41,14 @@ export interface AnalyticsClientProps {
   definitionsStats: DefinitionsAnalyticsStats | null;
   statuteStats: StatuteLinkStats | null;
   pipelineData: PipelineAnalyticsData | null;
-  jenaiSeverity: SeverityDistribution | null;
-  jenaiStats: JenAIReviewStatusCounts | null;
+  barrierSeverity: SeverityDistribution | null;
+  barrierStats: BarrierReviewStatusCounts | null;
   guidanceOverviewStats?: GuidanceOverviewStats | null;
   guidanceCitationStats?: GuidanceCitationStats | null;
   guidanceReadabilityStats?: GuidanceReadabilityStats | null;
   guidanceReadabilityCrossCuts?: ReadabilityCrossCutStats | null;
   guidanceLineageStats?: LineageStats | null;
-  jenaiAnalyticsData?: JenAIAnalyticsTabProps | null;
+  barrierAnalyticsData?: BarrierAnalyticsTabProps | null;
 }
 
 export function AnalyticsClient({
@@ -61,14 +61,14 @@ export function AnalyticsClient({
   definitionsStats,
   statuteStats,
   pipelineData,
-  jenaiSeverity,
-  jenaiStats,
+  barrierSeverity,
+  barrierStats,
   guidanceOverviewStats,
   guidanceCitationStats,
   guidanceReadabilityStats,
   guidanceReadabilityCrossCuts,
   guidanceLineageStats,
-  jenaiAnalyticsData,
+  barrierAnalyticsData,
 }: AnalyticsClientProps) {
   const [params, setParams] = useQueryStates(analyticsParsers, { shallow: true });
   const [source, setSource] = useQueryState('source', analyticsSourceParser.withOptions({ shallow: false }));
@@ -102,8 +102,8 @@ export function AnalyticsClient({
             statuteStats={statuteStats}
             pipelineData={pipelineData}
             complianceSeverity={analyticsSummary?.severity ?? null}
-            jenaiSeverity={jenaiSeverity}
-            jenaiStats={jenaiStats}
+            barrierSeverity={barrierSeverity}
+            barrierStats={barrierStats}
             jurisdiction={jurisdiction}
             complianceTypeClassification={analyticsSummary?.countsByTypeAndClassification ?? null}
             classificationTotals={analyticsSummary?.classificationTotals ?? null}
@@ -154,8 +154,8 @@ export function AnalyticsClient({
           />
         )}
 
-        {currentTab === 'jenai' && jenaiAnalyticsData && (
-          <JenAIAnalyticsTab {...jenaiAnalyticsData} jurisdiction={jurisdiction} />
+        {currentTab === 'barriers' && barrierAnalyticsData && (
+          <BarrierAnalyticsTab {...barrierAnalyticsData} jurisdiction={jurisdiction} />
         )}
 
         {currentTab === 'pipeline' && (

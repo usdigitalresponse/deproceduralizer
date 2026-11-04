@@ -1,9 +1,9 @@
 # =============================================================================
-# Topic Classification: Multi-label tagging for JenAI findings
+# Topic Classification: Multi-label tagging for Barrier findings
 # =============================================================================
 #
-# Assigns multiple topic labels to each JenAI finding based on what the
-# regulation is ABOUT (not what's wrong with it — that's the JenAI category).
+# Assigns multiple topic labels to each Barrier finding based on what the
+# regulation is ABOUT (not what's wrong with it — that's the Barrier category).
 #
 # Four label groups:
 #   1. Agency/Domain (18) — which agency/area of government
@@ -20,9 +20,9 @@
 #   python scripts/classify_topics.py --poll             # check/import results
 
 classify:
-  updated_at: "2026-03-17"
+  updated_at: "2026-11-04"
   description: |
-    Multi-label topic classification for JenAI regulatory findings. Assigns
+    Multi-label topic classification for Barrier regulatory findings. Assigns
     2-6 topic labels from a predefined taxonomy of 50 topics organized into
     4 groups: agency/domain, process type, affected population, reform theme.
   system: |

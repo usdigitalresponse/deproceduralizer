@@ -507,12 +507,12 @@ test.describe('Prompts Alignment', () => {
     }
   });
 
-  test('jenai tab renders composer with document search', async ({ page }) => {
-    await page.goto('/prompts?tab=jenai');
+  test('barriers tab renders composer with document search', async ({ page }) => {
+    await page.goto('/prompts?tab=barriers');
     await expect(page.locator('h1').filter({ hasText: /Prompts/i }).first()).toBeVisible();
 
-    // JenAI composer should render with its heading
-    await expect(page.getByText(/JenAI Pipeline Prompt Composer/i)).toBeVisible({ timeout: 10000 });
+    // Barrier composer should render with its heading
+    await expect(page.getByText(/Barrier Pipeline Prompt Composer/i)).toBeVisible({ timeout: 10000 });
 
     // Should have a document search input (placeholder contains "NYCRR" or "fire safety")
     await expect(page.getByPlaceholder(/NYCRR.*fire safety/i)).toBeVisible({ timeout: 5000 });
@@ -648,15 +648,15 @@ test.describe('Review Form Submission', () => {
 
 });
 
-test.describe('JenAI Review Cards', () => {
+test.describe('Barrier Review Cards', () => {
 
-  test('jenai review cards render with hierarchy tree view', async ({ page }) => {
+  test('barriers review cards render with hierarchy tree view', async ({ page }) => {
     // Filter to regulation-sourced issues so we get cards with hierarchy
-    await page.goto('/ny/review?type=jenai&source=regulation');
+    await page.goto('/ny/review?type=barriers&source=regulation');
     await expect(page.getByRole('heading', { name: /Review New York/i })).toBeVisible();
 
-    // Wait for JenAI cards to load
-    const cards = page.getByTestId('jenai-card');
+    // Wait for Barrier cards to load
+    const cards = page.getByTestId('barrier-card');
     await expect(cards.first()).toBeVisible({ timeout: 10000 });
 
     // Regulation-sourced cards should have a "View Hierarchy" button (from HierarchyTreeView)
@@ -697,11 +697,11 @@ test.describe('Review Card Text Viewers', () => {
     await expect(firstCard.getByText(/Show Regulation Text/i)).toBeVisible();
   });
 
-  test('jenai composer search finds documents by citation', async ({ page }) => {
-    await page.goto('/prompts?tab=jenai');
-    await expect(page.getByText(/JenAI Pipeline Prompt Composer/i)).toBeVisible({ timeout: 10000 });
+  test('barriers composer search finds documents by citation', async ({ page }) => {
+    await page.goto('/prompts?tab=barriers');
+    await expect(page.getByText(/Barrier Pipeline Prompt Composer/i)).toBeVisible({ timeout: 10000 });
 
-    // Use the specific placeholder for the JenAI composer search input
+    // Use the specific placeholder for the Barrier composer search input
     const searchInput = page.getByPlaceholder(/NYCRR.*fire safety/i);
     await expect(searchInput).toBeVisible({ timeout: 5000 });
     await searchInput.fill('10 NYCRR');
@@ -716,11 +716,11 @@ test.describe('Review Card Text Viewers', () => {
     expect(firstResultText).toContain('NYCRR');
   });
 
-  test('jenai composer search still finds documents by content', async ({ page }) => {
-    await page.goto('/prompts?tab=jenai');
-    await expect(page.getByText(/JenAI Pipeline Prompt Composer/i)).toBeVisible({ timeout: 10000 });
+  test('barriers composer search still finds documents by content', async ({ page }) => {
+    await page.goto('/prompts?tab=barriers');
+    await expect(page.getByText(/Barrier Pipeline Prompt Composer/i)).toBeVisible({ timeout: 10000 });
 
-    // Use the specific placeholder for the JenAI composer search input
+    // Use the specific placeholder for the Barrier composer search input
     const searchInput = page.getByPlaceholder(/NYCRR.*fire safety/i);
     await expect(searchInput).toBeVisible({ timeout: 5000 });
     await searchInput.fill('fire safety');
@@ -1104,14 +1104,14 @@ test.describe('Cross-References Table View', () => {
 
 });
 
-test.describe('JenAI Queue Filters', () => {
+test.describe('Barrier Queue Filters', () => {
 
-  test('jenai queue shows part and section type filters', async ({ page }) => {
-    await page.goto('/ny/review?type=jenai');
+  test('barriers queue shows part and section type filters', async ({ page }) => {
+    await page.goto('/ny/review?type=barriers');
     await expect(page.getByRole('heading', { name: /Review New York/i })).toBeVisible();
 
     // Wait for cards to load (confirms data is ready)
-    const cards = page.getByTestId('jenai-card');
+    const cards = page.getByTestId('barrier-card');
     await expect(cards.first()).toBeVisible({ timeout: 15000 });
 
     // Verify filters are visible
@@ -1119,11 +1119,11 @@ test.describe('JenAI Queue Filters', () => {
     await expect(page.getByLabel('Filter by section type')).toBeVisible();
   });
 
-  test('jenai queue part filter narrows results', async ({ page }) => {
-    await page.goto('/ny/review?type=jenai');
+  test('barriers queue part filter narrows results', async ({ page }) => {
+    await page.goto('/ny/review?type=barriers');
     await expect(page.getByRole('heading', { name: /Review New York/i })).toBeVisible();
 
-    const cards = page.getByTestId('jenai-card');
+    const cards = page.getByTestId('barrier-card');
     await expect(cards.first()).toBeVisible({ timeout: 15000 });
 
     // Open part multi-select and pick first option
@@ -1141,12 +1141,12 @@ test.describe('JenAI Queue Filters', () => {
     await page.waitForURL(/part=/);
 
     // Results should be narrowed (or same if all belong to one part)
-    const filteredCards = page.getByTestId('jenai-card');
+    const filteredCards = page.getByTestId('barrier-card');
     await expect(filteredCards.first()).toBeVisible({ timeout: 10000 });
   });
 
-  test('jenai queue part filter hides when source is guidance', async ({ page }) => {
-    await page.goto('/ny/review?type=jenai&source=guidance');
+  test('barriers queue part filter hides when source is guidance', async ({ page }) => {
+    await page.goto('/ny/review?type=barriers&source=guidance');
     await expect(page.getByRole('heading', { name: /Review New York/i })).toBeVisible();
 
     // Wait for filter bar to render (source filter should always be visible)
@@ -1157,9 +1157,9 @@ test.describe('JenAI Queue Filters', () => {
     await expect(page.getByLabel('Filter by section type')).not.toBeVisible();
   });
 
-  test('jenai queue clear filters resets part filter', async ({ page }) => {
+  test('barriers queue clear filters resets part filter', async ({ page }) => {
     // Navigate with pre-set part filter
-    await page.goto('/ny/review?type=jenai&part=418');
+    await page.goto('/ny/review?type=barriers&part=418');
     await expect(page.getByRole('heading', { name: /Review New York/i })).toBeVisible();
 
     // Wait for filters to render
@@ -1175,40 +1175,40 @@ test.describe('JenAI Queue Filters', () => {
     }
   });
 
-  test('jenai queue shows search, complexity, and verbatim filters', async ({ page }) => {
-    await page.goto('/ny/review?type=jenai');
+  test('barriers queue shows search, complexity, and verbatim filters', async ({ page }) => {
+    await page.goto('/ny/review?type=barriers');
     await expect(page.getByRole('heading', { name: /Review New York/i })).toBeVisible();
 
     // Wait for cards to load
-    const cards = page.getByTestId('jenai-card');
+    const cards = page.getByTestId('barrier-card');
     await expect(cards.first()).toBeVisible({ timeout: 15000 });
 
     // Verify new filters are visible
-    await expect(page.getByLabel('Search JenAI issues')).toBeVisible();
+    await expect(page.getByLabel('Search Barrier issues')).toBeVisible();
     await expect(page.getByLabel('Filter by complexity')).toBeVisible();
     await expect(page.getByLabel('Filter by verbatim')).toBeVisible();
   });
 
-  test('jenai queue search updates URL', async ({ page }) => {
-    await page.goto('/ny/review?type=jenai');
+  test('barriers queue search updates URL', async ({ page }) => {
+    await page.goto('/ny/review?type=barriers');
     await expect(page.getByRole('heading', { name: /Review New York/i })).toBeVisible();
 
-    const cards = page.getByTestId('jenai-card');
+    const cards = page.getByTestId('barrier-card');
     await expect(cards.first()).toBeVisible({ timeout: 15000 });
 
     // Type a search term
-    const searchInput = page.getByLabel('Search JenAI issues');
+    const searchInput = page.getByLabel('Search Barrier issues');
     await searchInput.fill('child care');
 
     // URL should update with search param (debounced)
     await page.waitForURL(/search=/, { timeout: 5000 });
   });
 
-  test('jenai queue complexity filter narrows results', async ({ page }) => {
-    await page.goto('/ny/review?type=jenai');
+  test('barriers queue complexity filter narrows results', async ({ page }) => {
+    await page.goto('/ny/review?type=barriers');
     await expect(page.getByRole('heading', { name: /Review New York/i })).toBeVisible();
 
-    const cards = page.getByTestId('jenai-card');
+    const cards = page.getByTestId('barrier-card');
     await expect(cards.first()).toBeVisible({ timeout: 15000 });
 
     // Open complexity multi-select and pick HIGH

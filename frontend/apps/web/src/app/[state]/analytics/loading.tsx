@@ -41,11 +41,11 @@ export default function AnalyticsLoading() {
             </div>
           </div>
 
-          {/* Row 2: 3 stat cards (Regulations Analyzed, JenAI Findings, Classified Burdensome) */}
+          {/* Row 2: 3 stat cards (Regulations Analyzed, Barrier Findings, Classified Burdensome) */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {[
               { label: 'Regulations Analyzed', valueW: 20 },
-              { label: 'JenAI Findings', valueW: 18 },
+              { label: 'Barrier Findings', valueW: 18 },
               { label: 'Classified Burdensome', valueW: 14 },
             ].map((card) => (
               <Card key={card.label} className="flex items-center gap-4">
@@ -136,9 +136,9 @@ export default function AnalyticsLoading() {
             </div>
           </Card>
 
-          {/* Row 7: Severity donuts (Compliance Issue Severity + JenAI Severity) */}
+          {/* Row 7: Severity donuts (Compliance Issue Severity + Barrier Severity) */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {['Compliance Issue Severity', 'JenAI Severity'].map((title) => (
+            {['Compliance Issue Severity', 'Barrier Severity'].map((title) => (
               <Card key={title} padding="lg">
                 <div className="space-y-4">
                   <div className="h-5 bg-[var(--color-neutral-200)] rounded animate-pulse" style={{ width: `${title.length * 7}px` }} />

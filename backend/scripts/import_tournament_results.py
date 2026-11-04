@@ -10,7 +10,7 @@ import psycopg
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 load_dotenv(PROJECT_ROOT / "backend" / ".env")
 
-RESULTS_FILE = PROJECT_ROOT / "backend" / "outputs" / "jenai_strategies" / "tournament_results.json"
+RESULTS_FILE = PROJECT_ROOT / "backend" / "outputs" / "barrier_strategies" / "tournament_results.json"
 
 
 def main():
@@ -40,7 +40,7 @@ def main():
             for ex in mp.get("top_examples", []):
                 cur.execute(
                     """INSERT INTO tournament_examples
-                       (pattern_id, jenai_issue_id, citation, category, severity, explanation, fix, why_it_matters)
+                       (pattern_id, barrier_issue_id, citation, category, severity, explanation, fix, why_it_matters)
                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
                     (
                         pattern_id,

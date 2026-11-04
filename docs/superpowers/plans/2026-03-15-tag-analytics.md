@@ -4,7 +4,7 @@
 
 **Goal:** Build a unified Tag Analytics page (`/[state]/tags`) with cross-domain tag visualizations, a shared TagDrawer for in-context tag exploration, and clickable tags across every detail page in the application.
 
-**Architecture:** A `TagsRepository` queries across 5 database domains (regulations, guidance, fines, compliance, JenAI) using UNION ALL and cross-domain JOINs. Server actions cache results. The frontend is a new `/[state]/tags` page with 4 sub-tabs (Overview, Connections, Correlations, Readability). A `TagDrawer` component provides quick-peek tag details from any page. Existing tag displays are wrapped with `ClickableTag` for interactivity.
+**Architecture:** A `TagsRepository` queries across 5 database domains (regulations, guidance, fines, compliance, Barrier) using UNION ALL and cross-domain JOINs. Server actions cache results. The frontend is a new `/[state]/tags` page with 4 sub-tabs (Overview, Connections, Correlations, Readability). A `TagDrawer` component provides quick-peek tag details from any page. Existing tag displays are wrapped with `ClickableTag` for interactivity.
 
 **Tech Stack:** Next.js 15, Drizzle ORM, PostgreSQL (pg_trgm), nuqs (URL state), @nivo/chord, @nivo/sankey, react-force-graph-2d, @visx/hierarchy, D3
 
@@ -27,7 +27,7 @@ These files define the interfaces all workstreams build against. Must be merged 
 // frontend/apps/web/src/lib/constants/tags.ts
 
 // --- Tag Domains ---
-export const TAG_DOMAINS = ['regulation', 'guidance', 'fines', 'compliance', 'jenai'] as const;
+export const TAG_DOMAINS = ['regulation', 'guidance', 'fines', 'compliance', 'barriers'] as const;
 export type TagDomain = (typeof TAG_DOMAINS)[number];
 
 export const TAG_DOMAIN_LABELS: Record<TagDomain, string> = {
@@ -35,7 +35,7 @@ export const TAG_DOMAIN_LABELS: Record<TagDomain, string> = {
   guidance: 'Guidance',
   fines: 'Fines & Fees',
   compliance: 'Compliance Issues',
-  jenai: 'JenAI Findings',
+  barrier: 'Barrier Findings',
 };
 
 export const TAG_DOMAIN_COLORS: Record<TagDomain, string> = {
@@ -43,7 +43,7 @@ export const TAG_DOMAIN_COLORS: Record<TagDomain, string> = {
   guidance: 'bg-amber-100 text-amber-800',
   fines: 'bg-rose-100 text-rose-800',
   compliance: 'bg-emerald-100 text-emerald-800',
-  jenai: 'bg-violet-100 text-violet-800',
+  barrier: 'bg-violet-100 text-violet-800',
 };
 
 // --- Tag Types ---
@@ -90,10 +90,10 @@ export const TAG_FIELDS: TagFieldMeta[] = [
   { field: 'reg_applies_to', label: 'Applies To (Reg)', domain: 'regulation', type: 'free_text', table: 'regulatory_documents', column: 'applies_to', isArray: true },
   { field: 'guid_keywords', label: 'Keywords (Guidance)', domain: 'guidance', type: 'free_text', table: 'guidance_documents', column: 'keywords', isArray: true },
   { field: 'guid_applies_to', label: 'Applies To (Guidance)', domain: 'guidance', type: 'free_text', table: 'guidance_documents', column: 'applies_to', isArray: true },
-  { field: 'jenai_tags', label: 'JenAI Tags', domain: 'jenai', type: 'free_text', table: 'jenai_issues', column: 'tags', isArray: true },
+  { field: 'barrier_tags', label: 'Barrier Tags', domain: 'barriers', type: 'free_text', table: 'barrier_issues', column: 'tags', isArray: true },
   // Issue type taxonomies
   { field: 'issue_type', label: 'Compliance Issue Type', domain: 'compliance', type: 'issue_type', table: 'compliance_issues', column: 'issue_type', isArray: false },
-  { field: 'jenai_category', label: 'JenAI Category', domain: 'jenai', type: 'issue_type', table: 'jenai_issues', column: 'category', isArray: false },
+  { field: 'barrier_category', label: 'Barrier Category', domain: 'barriers', type: 'issue_type', table: 'barrier_issues', column: 'category', isArray: false },
   { field: 'tier_classification', label: 'Tier Classification', domain: 'compliance', type: 'issue_type', table: 'compliance_issue_analyses', column: 'tier2_classification', isArray: false, values: ['burdensome','justified','unrelated','needs_full_context','all_false_positives','needs_research'] },
   // Boolean flags
   { field: 'reg_has_form', label: 'Has Form (Reg)', domain: 'regulation', type: 'boolean', table: 'regulatory_documents', column: 'has_form', isArray: false },
@@ -151,7 +151,7 @@ import type { JurisdictionCode } from '../schema/constants';
 
 // --- Core tag value returned by overview queries ---
 export interface TagValue {
-  domain: string;       // 'regulation' | 'guidance' | 'fines' | 'compliance' | 'jenai'
+  domain: string;       // 'regulation' | 'guidance' | 'fines' | 'compliance' | 'barriers'
   field: string;        // tag field key from TAG_FIELDS registry
   value: string;        // the actual tag value
   count: number;        // number of documents/records with this tag
@@ -728,7 +728,7 @@ GROUP BY domain, field, normalized_value
 ORDER BY count DESC
 ```
 
-For compliance issues and JenAI issues, join through `document_id` to get the jurisdiction filter (since those tables use `jurisdiction` or join to `regulatory_documents.jurisdiction`).
+For compliance issues and Barrier issues, join through `document_id` to get the jurisdiction filter (since those tables use `jurisdiction` or join to `regulatory_documents.jurisdiction`).
 
 - [ ] **Step 3: Run test**
 
@@ -824,7 +824,7 @@ git commit -m "feat(tags): implement getSimilarTags with pg_trgm fuzzy matching"
 
 - [ ] **Step 1: Implement co-occurrence matrix**
 
-Given two tag fields (e.g., `activity_category` on fines and `jenai_category` on JenAI issues), find documents that have both and count the combinations.
+Given two tag fields (e.g., `activity_category` on fines and `barrier_category` on Barrier issues), find documents that have both and count the combinations.
 
 **Same-table case** (both fields on same table):
 ```sql
@@ -838,7 +838,7 @@ GROUP BY a.activity_category, a.penalty_type
 ```sql
 SELECT f.activity_category AS value_a, j.category AS value_b, COUNT(DISTINCT f.document_id) AS count
 FROM fines_fees_penalties f
-JOIN jenai_issues j ON j.document_id = f.document_id
+JOIN barrier_issues j ON j.document_id = f.document_id
 WHERE f.jurisdiction = $1
   AND f.activity_category IS NOT NULL
   AND j.category IS NOT NULL
@@ -1313,29 +1313,29 @@ git add frontend/apps/web/src/components/ui/KeywordTags.tsx frontend/apps/web/sr
 git commit -m "feat(tags): make KeywordTags, SectionTypeBadge, MetadataIndicators, PolicyCategoryBadge, ReadabilityBadge clickable"
 ```
 
-### Task 21: Wrap Fines and JenAI Components
+### Task 21: Wrap Fines and Barrier Components
 
 **Files:**
 - Modify: `frontend/apps/web/src/components/fines/FinesTable.tsx`
-- Modify: `frontend/apps/web/src/components/review/JenAICard/JenAICard.tsx`
+- Modify: `frontend/apps/web/src/components/review/BarrierCard/BarrierCard.tsx`
 
 - [ ] **Step 1: Read both files**
 
-Understand the current rendering of penalty_type, activity_category, who_pays_normalized in FinesTable, and category in JenAICard.
+Understand the current rendering of penalty_type, activity_category, who_pays_normalized in FinesTable, and category in BarrierCard.
 
 - [ ] **Step 2: Wrap FinesTable tag cells**
 
 For each tag-like cell (penalty_type, activity_category, who_pays_normalized), wrap the display content with `<ClickableTag field="penalty_type" value={fine.penaltyType}>`.
 
-- [ ] **Step 3: Wrap JenAICard category**
+- [ ] **Step 3: Wrap BarrierCard category**
 
-Wrap the category badge/display with `<ClickableTag field="jenai_category" value={issue.category}>`.
+Wrap the category badge/display with `<ClickableTag field="barrier_category" value={issue.category}>`.
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add frontend/apps/web/src/components/fines/FinesTable.tsx frontend/apps/web/src/components/review/JenAICard/JenAICard.tsx
-git commit -m "feat(tags): make fines table cells and JenAI category clickable"
+git add frontend/apps/web/src/components/fines/FinesTable.tsx frontend/apps/web/src/components/review/BarrierCard/BarrierCard.tsx
+git commit -m "feat(tags): make fines table cells and Barrier category clickable"
 ```
 
 ### Task 22: Surface Hidden Guidance Fields
@@ -1766,7 +1766,7 @@ pnpm add @nivo/sankey
 
 - [ ] **Step 2: Implement heatmap section**
 
-Use existing `HeatmapGrid` component. Add two dropdown selectors for X-axis and Y-axis tag fields (populated from `TAG_FIELDS` registry). Fetch data via `getTagCooccurrence(state, fieldA, fieldB)`. Default: `activity_category` × `jenai_category`.
+Use existing `HeatmapGrid` component. Add two dropdown selectors for X-axis and Y-axis tag fields (populated from `TAG_FIELDS` registry). Fetch data via `getTagCooccurrence(state, fieldA, fieldB)`. Default: `activity_category` × `barrier_category`.
 
 - [ ] **Step 3: Implement Sankey section**
 
@@ -1886,7 +1886,7 @@ Start dev server, navigate to:
 10. Click a node → tag drawer opens
 
 **Tags page — Correlations tab:**
-11. `/ny/tags?tab=correlations` — heatmap renders with default axes (activity_category × jenai_category)
+11. `/ny/tags?tab=correlations` — heatmap renders with default axes (activity_category × barrier_category)
 12. Changing axis dropdowns refetches data and updates heatmap
 13. Sankey diagram renders with preset buttons ("Regulation Journey", "Fines Flow")
 14. Stage dropdowns are configurable
@@ -1904,7 +1904,7 @@ Start dev server, navigate to:
 22. "Explore in Tags Analytics" link navigates to `/ny/tags?tab=overview&search=...`
 23. `/ny/regulations/[id]` — click a keyword or section type → drawer opens
 24. `/ny/fines` — click penalty type cell → drawer opens
-25. Review page — click JenAI category badge → drawer opens
+25. Review page — click Barrier category badge → drawer opens
 
 **Cross-jurisdiction:**
 26. `/nj/tags` — page loads and shows NJ-specific data

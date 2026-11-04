@@ -49,7 +49,7 @@ export function buildComplianceExists(
 }
 
 /** @internal Exported for testing only. */
-export function buildJenaiExists(
+export function buildBarrierExists(
   docCol: string,
   issueCategories?: string[] | null,
   issueSeverities?: string[] | null,
@@ -63,8 +63,8 @@ export function buildJenaiExists(
     : sql``;
   const joinCol = isGuidance ? 'ja_f.guidance_document_id' : 'ja_f.document_id';
   return sql`EXISTS (
-    SELECT 1 FROM jenai_issues ji_f
-    JOIN jenai_analyses ja_f ON ja_f.id = ji_f.analysis_id
+    SELECT 1 FROM barrier_issues ji_f
+    JOIN barrier_analyses ja_f ON ja_f.id = ji_f.analysis_id
     WHERE ${sql.raw(joinCol)} = ${sql.raw(docCol)}
       ${catFilter} ${sevFilter}
   )`;
@@ -85,19 +85,19 @@ export function buildIssueFilter(
   switch (issueSystem) {
     case 'compliance':
       return sql`AND ${buildComplianceExists(docCol, classification, issueTypes, issueSeverities, isGuidance)}`;
-    case 'jenai':
-      return sql`AND ${buildJenaiExists(docCol, issueCategories, issueSeverities, isGuidance)}`;
+    case 'barriers':
+      return sql`AND ${buildBarrierExists(docCol, issueCategories, issueSeverities, isGuidance)}`;
     case 'any': {
       const comp = issueSeverities?.length
         ? buildComplianceExists(docCol, classification, issueTypes, issueSeverities, isGuidance)
         : buildComplianceExists(docCol, null, null, null, isGuidance);
-      const jenai = issueSeverities?.length
-        ? buildJenaiExists(docCol, issueCategories, issueSeverities, isGuidance)
-        : buildJenaiExists(docCol, null, null, isGuidance);
-      return sql`AND (${comp} OR ${jenai})`;
+      const barriers = issueSeverities?.length
+        ? buildBarrierExists(docCol, issueCategories, issueSeverities, isGuidance)
+        : buildBarrierExists(docCol, null, null, isGuidance);
+      return sql`AND (${comp} OR ${barriers})`;
     }
     case 'none':
-      return sql`AND NOT ${buildComplianceExists(docCol, null, null, null, isGuidance)} AND NOT ${buildJenaiExists(docCol, null, null, isGuidance)}`;
+      return sql`AND NOT ${buildComplianceExists(docCol, null, null, null, isGuidance)} AND NOT ${buildBarrierExists(docCol, null, null, isGuidance)}`;
     default:
       return sql``;
   }
@@ -126,7 +126,7 @@ export interface SearchResultItem {
 
 export interface CommentaryHit {
   id: number;
-  type: 'analysis' | 'definition' | 'jenai_issue';
+  type: 'analysis' | 'definition' | 'barrier_issue';
   documentId: number;
   documentTitle: string;
   documentCitation: string | null;
@@ -350,7 +350,7 @@ export class SearchRepository extends BaseRepository {
     const total = Number((countResult.rows[0] as unknown as { total: number }).total) || 0;
     const items = results.rows as unknown as SearchResultItem[];
 
-    // Commentary sidebar query (analysis + definition + jenai hits, filtered to match active filters)
+    // Commentary sidebar query (analysis + definition + barriers hits, filtered to match active filters)
     const commentary = await this.searchCommentary(jurisdiction, query, {
       classification,
       issueSystem,
@@ -391,17 +391,17 @@ export class SearchRepository extends BaseRepository {
       ? buildSeverityCondition(filters.issueSeverities, 'cia')
       : sql``;
 
-    // JenAI sub-filters
+    // Barrier sub-filters
     const categoryFilter = filters?.issueCategories?.length
       ? sql`AND ji.category = ANY(${sqlTextArray(filters.issueCategories)})`
       : sql``;
-    const jenaiSevFilter = filters?.issueSeverities?.length
+    const barrierSevFilter = filters?.issueSeverities?.length
       ? buildSeverityCondition(filters.issueSeverities, 'ji')
       : sql``;
 
     // Gate branches by issueSystem
-    const skipCompliance = shouldSkipAnalyses(filters?.issueSystem); // true for 'none' and 'jenai'
-    const skipJenai = filters?.issueSystem === 'none' || filters?.issueSystem === 'compliance';
+    const skipCompliance = shouldSkipAnalyses(filters?.issueSystem); // true for 'none' and 'barriers'
+    const skipBarrier = filters?.issueSystem === 'none' || filters?.issueSystem === 'compliance';
 
     const results = await this.db.execute(sql`
       WITH search_query AS (
@@ -446,7 +446,7 @@ export class SearchRepository extends BaseRepository {
       (
         SELECT
           ji.id,
-          'jenai_issue' AS type,
+          'barrier_issue' AS type,
           coalesce(ji.document_id, ji.guidance_document_id)::int AS "documentId",
           coalesce(rd.title, gd.title) AS "documentTitle",
           coalesce(rd.citation, gd.canonical_ref) AS "documentCitation",
@@ -456,15 +456,15 @@ export class SearchRepository extends BaseRepository {
           NULL AS classification,
           ji.severity,
           NULL AS "highlightText"
-        FROM jenai_issues ji
-        JOIN jenai_analyses ja ON ja.id = ji.analysis_id
+        FROM barrier_issues ji
+        JOIN barrier_analyses ja ON ja.id = ji.analysis_id
         LEFT JOIN regulatory_documents rd ON ji.document_id = rd.id
         LEFT JOIN guidance_documents gd ON ji.guidance_document_id = gd.id
         WHERE ja.jurisdiction = ${normalizeJurisdiction(jurisdiction)}
           AND ji.explanation ILIKE ${'%' + query + '%'}
           ${categoryFilter}
-          ${jenaiSevFilter}
-          ${skipJenai ? sql`AND false` : sql``}
+          ${barrierSevFilter}
+          ${skipBarrier ? sql`AND false` : sql``}
         LIMIT 20
       )
       UNION ALL

@@ -2,7 +2,7 @@ import { eq, and, desc, asc, sql, count, ilike, or, gte, lte, inArray } from 'dr
 import { BaseRepository } from './base.repository';
 import { guidanceDocuments } from '../schema/guidance-documents';
 import { complianceIssues } from '../schema/compliance-issues';
-import { jenaiIssues } from '../schema/jenai-issues';
+import { barrierIssues } from '../schema/barrier-issues';
 import { crossReferences } from '../schema/cross-references';
 import { regulatoryDocuments } from '../schema/regulatory-documents';
 import { bookmarks } from '../schema/bookmarks';
@@ -23,7 +23,7 @@ export interface GuidanceDocumentListItem {
   year: number | null;
   url: string | null;
   complianceIssueCount: number;
-  jenaiIssueCount: number;
+  barrierIssueCount: number;
   fleschReadingEase: number | null;
   targetAudience: string[] | null;
   excludeFromAnalysis: boolean | null;
@@ -260,7 +260,7 @@ export interface ReadabilityCrossCutStats {
     avgReadingEase: number;
     avgGradeLevel: number;
     avgComplianceIssues: number;
-    avgJenaiSeverity: number | null;
+    avgBarrierSeverity: number | null;
     docCount: number;
   }>;
   /** Readability averages grouped by audience_expertise (lay/specialized/mixed) */
@@ -269,7 +269,7 @@ export interface ReadabilityCrossCutStats {
     avgReadingEase: number;
     avgGradeLevel: number;
     avgComplianceIssues: number;
-    avgJenaiSeverity: number | null;
+    avgBarrierSeverity: number | null;
     docCount: number;
   }>;
   /** Readability averages grouped by target_audience tag (unnested) */
@@ -278,7 +278,7 @@ export interface ReadabilityCrossCutStats {
     avgReadingEase: number;
     avgGradeLevel: number;
     avgComplianceIssues: number;
-    avgJenaiSeverity: number | null;
+    avgBarrierSeverity: number | null;
     docCount: number;
   }>;
   /** Compliance issue counts grouped by readability bucket */
@@ -287,8 +287,8 @@ export interface ReadabilityCrossCutStats {
     avgComplianceIssues: number;
     docCount: number;
   }>;
-  /** JenAI avg severity grouped by readability bucket */
-  jenaiByReadability: Array<{
+  /** Barrier avg severity grouped by readability bucket */
+  barrierByReadability: Array<{
     bucket: string;
     avgSeverity: number;
     docCount: number;
@@ -301,7 +301,7 @@ export interface GuidanceGroupRow {
   groupKey: string;
   documentCount: number;
   complianceIssueCount: number;
-  jenaiIssueCount: number;
+  barrierIssueCount: number;
   yearMin: number | null;
   yearMax: number | null;
   avgFleschReadingEase: number | null;
@@ -444,15 +444,15 @@ export class GuidanceDocumentsRepository extends BaseRepository {
       .groupBy(complianceIssues.guidanceDocumentId)
       .as('issue_counts');
 
-    // Subquery for JenAI issue count
-    const jenaiCountSq = this.db
+    // Subquery for Barrier issue count
+    const barrierCountSq = this.db
       .select({
-        guidanceDocumentId: jenaiIssues.guidanceDocumentId,
-        count: sql<number>`count(*)::int`.as('jenai_count'),
+        guidanceDocumentId: barrierIssues.guidanceDocumentId,
+        count: sql<number>`count(*)::int`.as('barrier_count'),
       })
-      .from(jenaiIssues)
-      .groupBy(jenaiIssues.guidanceDocumentId)
-      .as('jenai_counts');
+      .from(barrierIssues)
+      .groupBy(barrierIssues.guidanceDocumentId)
+      .as('barrier_counts');
 
     // Build sort column
     const sortColumn = {
@@ -487,14 +487,14 @@ export class GuidanceDocumentsRepository extends BaseRepository {
           year: guidanceDocuments.year,
           url: guidanceDocuments.url,
           complianceIssueCount: sql<number>`coalesce(${issueCountSq.count}, 0)`.mapWith(Number),
-          jenaiIssueCount: sql<number>`coalesce(${jenaiCountSq.count}, 0)`.mapWith(Number),
+          barrierIssueCount: sql<number>`coalesce(${barrierCountSq.count}, 0)`.mapWith(Number),
           fleschReadingEase: guidanceDocuments.fleschReadingEase,
           targetAudience: guidanceDocuments.targetAudience,
           excludeFromAnalysis: guidanceDocuments.excludeFromAnalysis,
         })
         .from(guidanceDocuments)
         .leftJoin(issueCountSq, eq(guidanceDocuments.id, issueCountSq.guidanceDocumentId))
-        .leftJoin(jenaiCountSq, eq(guidanceDocuments.id, jenaiCountSq.guidanceDocumentId))
+        .leftJoin(barrierCountSq, eq(guidanceDocuments.id, barrierCountSq.guidanceDocumentId))
         .where(whereClause)
         .orderBy(primarySort, secondarySort)
         .limit(pageSize)
@@ -1578,7 +1578,7 @@ export class GuidanceDocumentsRepository extends BaseRepository {
   async getReadabilityCrossCutStats(jurisdiction: JurisdictionCode): Promise<ReadabilityCrossCutStats> {
     const stateUpper = normalizeJurisdiction(jurisdiction);
 
-    // Common CTE: guidance docs with readability + compliance count + JenAI avg severity
+    // Common CTE: guidance docs with readability + compliance count + Barrier avg severity
     const baseCte = sql`
       WITH doc_metrics AS (
         SELECT
@@ -1589,7 +1589,7 @@ export class GuidanceDocumentsRepository extends BaseRepository {
           gd.audience_expertise,
           gd.target_audience,
           COALESCE(ci_counts.issue_count, 0) AS compliance_issue_count,
-          ji_avgs.avg_severity AS jenai_avg_severity
+          ji_avgs.avg_severity AS barrier_avg_severity
         FROM guidance_documents gd
         LEFT JOIN (
           SELECT guidance_document_id, count(*)::int AS issue_count
@@ -1599,7 +1599,7 @@ export class GuidanceDocumentsRepository extends BaseRepository {
         ) ci_counts ON gd.id = ci_counts.guidance_document_id
         LEFT JOIN (
           SELECT guidance_document_id, avg(severity)::numeric(5,1) AS avg_severity
-          FROM jenai_issues
+          FROM barrier_issues
           WHERE guidance_document_id IS NOT NULL
           GROUP BY guidance_document_id
         ) ji_avgs ON gd.id = ji_avgs.guidance_document_id
@@ -1608,14 +1608,14 @@ export class GuidanceDocumentsRepository extends BaseRepository {
       )
     `;
 
-    const [byDirectionResult, byExpertiseResult, byTagResult, compByReadResult, jenaiByReadResult] = await Promise.all([
+    const [byDirectionResult, byExpertiseResult, byTagResult, compByReadResult, barrierByReadResult] = await Promise.all([
       // By audience_direction
       this.db.execute<{
         direction: string;
         avg_reading_ease: number;
         avg_grade_level: number;
         avg_compliance: number;
-        avg_jenai: number | null;
+        avg_barrier: number | null;
         doc_count: number;
       }>(sql`
         ${baseCte}
@@ -1624,7 +1624,7 @@ export class GuidanceDocumentsRepository extends BaseRepository {
           avg(flesch_reading_ease)::numeric(5,1) AS avg_reading_ease,
           avg(flesch_kincaid_grade)::numeric(5,1) AS avg_grade_level,
           avg(compliance_issue_count)::numeric(5,2) AS avg_compliance,
-          avg(jenai_avg_severity)::numeric(5,1) AS avg_jenai,
+          avg(barrier_avg_severity)::numeric(5,1) AS avg_barrier,
           count(*)::int AS doc_count
         FROM doc_metrics
         WHERE audience_direction IS NOT NULL
@@ -1638,7 +1638,7 @@ export class GuidanceDocumentsRepository extends BaseRepository {
         avg_reading_ease: number;
         avg_grade_level: number;
         avg_compliance: number;
-        avg_jenai: number | null;
+        avg_barrier: number | null;
         doc_count: number;
       }>(sql`
         ${baseCte}
@@ -1647,7 +1647,7 @@ export class GuidanceDocumentsRepository extends BaseRepository {
           avg(flesch_reading_ease)::numeric(5,1) AS avg_reading_ease,
           avg(flesch_kincaid_grade)::numeric(5,1) AS avg_grade_level,
           avg(compliance_issue_count)::numeric(5,2) AS avg_compliance,
-          avg(jenai_avg_severity)::numeric(5,1) AS avg_jenai,
+          avg(barrier_avg_severity)::numeric(5,1) AS avg_barrier,
           count(*)::int AS doc_count
         FROM doc_metrics
         WHERE audience_expertise IS NOT NULL
@@ -1661,7 +1661,7 @@ export class GuidanceDocumentsRepository extends BaseRepository {
         avg_reading_ease: number;
         avg_grade_level: number;
         avg_compliance: number;
-        avg_jenai: number | null;
+        avg_barrier: number | null;
         doc_count: number;
       }>(sql`
         ${baseCte}
@@ -1670,7 +1670,7 @@ export class GuidanceDocumentsRepository extends BaseRepository {
           avg(flesch_reading_ease)::numeric(5,1) AS avg_reading_ease,
           avg(flesch_kincaid_grade)::numeric(5,1) AS avg_grade_level,
           avg(compliance_issue_count)::numeric(5,2) AS avg_compliance,
-          avg(jenai_avg_severity)::numeric(5,1) AS avg_jenai,
+          avg(barrier_avg_severity)::numeric(5,1) AS avg_barrier,
           count(*)::int AS doc_count
         FROM doc_metrics
         WHERE target_audience IS NOT NULL
@@ -1701,7 +1701,7 @@ export class GuidanceDocumentsRepository extends BaseRepository {
         ORDER BY min(flesch_reading_ease)
       `),
 
-      // JenAI severity by readability bucket
+      // Barrier severity by readability bucket
       this.db.execute<{
         bucket: string;
         avg_severity: number;
@@ -1716,10 +1716,10 @@ export class GuidanceDocumentsRepository extends BaseRepository {
             WHEN flesch_reading_ease < 70 THEN 'Standard (60-69)'
             ELSE 'Easy (70+)'
           END AS bucket,
-          avg(jenai_avg_severity)::numeric(5,1) AS avg_severity,
+          avg(barrier_avg_severity)::numeric(5,1) AS avg_severity,
           count(*)::int AS doc_count
         FROM doc_metrics
-        WHERE jenai_avg_severity IS NOT NULL
+        WHERE barrier_avg_severity IS NOT NULL
         GROUP BY 1
         ORDER BY min(flesch_reading_ease)
       `),
@@ -1730,7 +1730,7 @@ export class GuidanceDocumentsRepository extends BaseRepository {
       avg_reading_ease: Number(row.avg_reading_ease),
       avg_grade_level: Number(row.avg_grade_level),
       avg_compliance: Number(row.avg_compliance),
-      avg_jenai: row.avg_jenai !== null ? Number(row.avg_jenai) : null,
+      avg_barrier: row.avg_barrier !== null ? Number(row.avg_barrier) : null,
       doc_count: Number(row.doc_count),
     });
 
@@ -1742,7 +1742,7 @@ export class GuidanceDocumentsRepository extends BaseRepository {
           avgReadingEase: m.avg_reading_ease,
           avgGradeLevel: m.avg_grade_level,
           avgComplianceIssues: m.avg_compliance,
-          avgJenaiSeverity: m.avg_jenai,
+          avgBarrierSeverity: m.avg_barrier,
           docCount: m.doc_count,
         };
       }),
@@ -1753,7 +1753,7 @@ export class GuidanceDocumentsRepository extends BaseRepository {
           avgReadingEase: m.avg_reading_ease,
           avgGradeLevel: m.avg_grade_level,
           avgComplianceIssues: m.avg_compliance,
-          avgJenaiSeverity: m.avg_jenai,
+          avgBarrierSeverity: m.avg_barrier,
           docCount: m.doc_count,
         };
       }),
@@ -1764,7 +1764,7 @@ export class GuidanceDocumentsRepository extends BaseRepository {
           avgReadingEase: m.avg_reading_ease,
           avgGradeLevel: m.avg_grade_level,
           avgComplianceIssues: m.avg_compliance,
-          avgJenaiSeverity: m.avg_jenai,
+          avgBarrierSeverity: m.avg_barrier,
           docCount: m.doc_count,
         };
       }),
@@ -1773,7 +1773,7 @@ export class GuidanceDocumentsRepository extends BaseRepository {
         avgComplianceIssues: Number(r.avg_compliance),
         docCount: Number(r.doc_count),
       })),
-      jenaiByReadability: jenaiByReadResult.rows.map(r => ({
+      barrierByReadability: barrierByReadResult.rows.map(r => ({
         bucket: r.bucket,
         avgSeverity: Number(r.avg_severity),
         docCount: Number(r.doc_count),
@@ -1846,7 +1846,7 @@ export class GuidanceDocumentsRepository extends BaseRepository {
       groupKey: sql`group_key`,
       documentCount: sql`document_count`,
       complianceIssueCount: sql`compliance_issue_count`,
-      jenaiIssueCount: sql`jenai_issue_count`,
+      barrierIssueCount: sql`barrier_issue_count`,
       avgReadingEase: sql`avg_reading_ease`,
     };
     const sortCol = sortColMap[sortBy] ?? sql`document_count`;
@@ -1864,7 +1864,7 @@ export class GuidanceDocumentsRepository extends BaseRepository {
         group_key: string;
         document_count: number;
         compliance_issue_count: number;
-        jenai_issue_count: number;
+        barrier_issue_count: number;
         year_min: number | null;
         year_max: number | null;
         avg_reading_ease: number | null;
@@ -1874,14 +1874,14 @@ export class GuidanceDocumentsRepository extends BaseRepository {
           COALESCE(${dimColSql}, 'Unknown') AS group_key,
           COUNT(DISTINCT gd.id)::int AS document_count,
           COUNT(DISTINCT ci.id)::int AS compliance_issue_count,
-          COUNT(DISTINCT ji.id)::int AS jenai_issue_count,
+          COUNT(DISTINCT ji.id)::int AS barrier_issue_count,
           MIN(gd.year) AS year_min,
           MAX(gd.year) AS year_max,
           AVG(gd.flesch_reading_ease)::numeric(5,1) AS avg_reading_ease,
           AVG(gd.flesch_kincaid_grade)::numeric(5,1) AS avg_grade_level
         FROM guidance_documents gd
         LEFT JOIN compliance_issues ci ON ci.guidance_document_id = gd.id
-        LEFT JOIN jenai_issues ji ON ji.guidance_document_id = gd.id
+        LEFT JOIN barrier_issues ji ON ji.guidance_document_id = gd.id
         WHERE ${whereSQL}
         GROUP BY 1
         ORDER BY ${sortCol} ${orderDir}
@@ -1897,7 +1897,7 @@ export class GuidanceDocumentsRepository extends BaseRepository {
         groupKey: row.group_key,
         documentCount: row.document_count,
         complianceIssueCount: row.compliance_issue_count,
-        jenaiIssueCount: row.jenai_issue_count,
+        barrierIssueCount: row.barrier_issue_count,
         yearMin: row.year_min,
         yearMax: row.year_max,
         avgFleschReadingEase: toNum(row.avg_reading_ease),
@@ -1942,14 +1942,14 @@ export class GuidanceDocumentsRepository extends BaseRepository {
       .groupBy(complianceIssues.guidanceDocumentId)
       .as('issue_counts');
 
-    const jenaiCountSq = this.db
+    const barrierCountSq = this.db
       .select({
-        guidanceDocumentId: jenaiIssues.guidanceDocumentId,
-        count: sql<number>`count(*)::int`.as('jenai_count'),
+        guidanceDocumentId: barrierIssues.guidanceDocumentId,
+        count: sql<number>`count(*)::int`.as('barrier_count'),
       })
-      .from(jenaiIssues)
-      .groupBy(jenaiIssues.guidanceDocumentId)
-      .as('jenai_counts');
+      .from(barrierIssues)
+      .groupBy(barrierIssues.guidanceDocumentId)
+      .as('barrier_counts');
 
     const results = await this.db
       .select({
@@ -1964,14 +1964,14 @@ export class GuidanceDocumentsRepository extends BaseRepository {
         year: guidanceDocuments.year,
         url: guidanceDocuments.url,
         complianceIssueCount: sql<number>`coalesce(${issueCountSq.count}, 0)`.mapWith(Number),
-        jenaiIssueCount: sql<number>`coalesce(${jenaiCountSq.count}, 0)`.mapWith(Number),
+        barrierIssueCount: sql<number>`coalesce(${barrierCountSq.count}, 0)`.mapWith(Number),
         fleschReadingEase: guidanceDocuments.fleschReadingEase,
         targetAudience: guidanceDocuments.targetAudience,
         excludeFromAnalysis: guidanceDocuments.excludeFromAnalysis,
       })
       .from(guidanceDocuments)
       .leftJoin(issueCountSq, eq(guidanceDocuments.id, issueCountSq.guidanceDocumentId))
-      .leftJoin(jenaiCountSq, eq(guidanceDocuments.id, jenaiCountSq.guidanceDocumentId))
+      .leftJoin(barrierCountSq, eq(guidanceDocuments.id, barrierCountSq.guidanceDocumentId))
       .where(whereClause)
       .orderBy(desc(guidanceDocuments.year), asc(guidanceDocuments.title));
 

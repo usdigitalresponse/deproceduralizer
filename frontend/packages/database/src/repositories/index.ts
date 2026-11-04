@@ -11,7 +11,7 @@ export * from './statutes.repository';
 export * from './search.repository';
 export * from './search-filters';
 export * from './ibr.repository';
-export * from './jenai.repository';
+export * from './barrier.repository';
 export * from './guidance-documents.repository';
 export * from './fines.repository';
 export * from './agencies.repository';

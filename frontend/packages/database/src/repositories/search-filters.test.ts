@@ -144,8 +144,8 @@ describe('shouldSkipAnalyses', () => {
     expect(shouldSkipAnalyses('none')).toBe(true);
   });
 
-  it('returns true when jenai', () => {
-    expect(shouldSkipAnalyses('jenai')).toBe(true);
+  it('returns true when barriers', () => {
+    expect(shouldSkipAnalyses('barriers')).toBe(true);
   });
 
   it('returns false when any', () => {

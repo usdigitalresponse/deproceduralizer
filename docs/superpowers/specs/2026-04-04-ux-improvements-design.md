@@ -249,7 +249,7 @@ if (failed > 0) toast.error(`${failed} item${failed !== 1 ? 's' : ''} could not 
 - [ ] Refactor to use TieredFilterBar
 - [ ] Run `pnpm test:e2e`
 
-**JenAI Review** (11 filters with source-dependent sub-filters):
+**Barrier Review** (11 filters with source-dependent sub-filters):
 - [ ] Audit current filter pattern (source-dependent cascading)
 - [ ] Determine primary vs. advanced split (preserve source-dependent behavior)
 - [ ] Refactor to use TieredFilterBar

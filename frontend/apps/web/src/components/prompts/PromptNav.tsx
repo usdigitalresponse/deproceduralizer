@@ -7,7 +7,7 @@ import type { PromptData, CompliancePromptData } from '@/lib/actions/prompts';
 interface PromptNavProps {
   prompts: PromptData[];
   compliancePrompts?: CompliancePromptData[];
-  jenaiPrompts?: PromptData[];
+  barrierPrompts?: PromptData[];
   tournamentPrompts?: PromptData[];
   className?: string;
 }
@@ -18,7 +18,7 @@ interface PromptNavProps {
 export function PromptNav({
   prompts,
   compliancePrompts = [],
-  jenaiPrompts = [],
+  barrierPrompts = [],
   tournamentPrompts = [],
   className = '',
 }: PromptNavProps) {
@@ -39,10 +39,10 @@ export function PromptNav({
     return [
       ...prompts.map((p) => p.name),
       ...compliancePrompts.map((p) => p.name),
-      ...jenaiPrompts.map((p) => p.name),
+      ...barrierPrompts.map((p) => p.name),
       ...tournamentPrompts.map((p) => p.name),
     ];
-  }, [prompts, compliancePrompts, jenaiPrompts, tournamentPrompts]);
+  }, [prompts, compliancePrompts, barrierPrompts, tournamentPrompts]);
 
   useEffect(() => {
     // Set up intersection observer to track which prompt is visible
@@ -79,7 +79,7 @@ export function PromptNav({
     }
   };
 
-  if (prompts.length === 0 && compliancePrompts.length === 0 && jenaiPrompts.length === 0 && tournamentPrompts.length === 0) return null;
+  if (prompts.length === 0 && compliancePrompts.length === 0 && barrierPrompts.length === 0 && tournamentPrompts.length === 0) return null;
 
   return (
     <nav
@@ -160,28 +160,28 @@ export function PromptNav({
           </div>
         )}
 
-        {/* JenAI Composer Link */}
+        {/* Barrier Composer Link */}
         <div>
           <button
             onClick={() => {
-              const el = document.getElementById('jenai-composer');
+              const el = document.getElementById('barrier-composer');
               if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }}
             className="w-full text-left px-2 py-1.5 text-xs font-medium rounded transition-colors text-[var(--color-text-secondary)] hover:bg-[var(--color-neutral-50)] hover:text-[var(--color-text)]"
           >
-            JenAI Prompt Composer
+            Barrier Prompt Composer
           </button>
         </div>
 
-        {/* JenAI Prompts */}
-        {jenaiPrompts.length > 0 && (
+        {/* Barrier Prompts */}
+        {barrierPrompts.length > 0 && (
           <div>
             <div className="flex items-center gap-1.5 mb-2 text-xs font-medium text-[var(--color-text-secondary)]">
               <Cpu className="w-3 h-3" />
-              <span>JenAI ({jenaiPrompts.length})</span>
+              <span>Barrier ({barrierPrompts.length})</span>
             </div>
             <ul className="space-y-1">
-              {jenaiPrompts.map((prompt) => (
+              {barrierPrompts.map((prompt) => (
                 <li key={prompt.name}>
                   <button
                     onClick={() => scrollToPrompt(prompt.name)}

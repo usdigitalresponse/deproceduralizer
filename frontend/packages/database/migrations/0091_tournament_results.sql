@@ -1,4 +1,4 @@
--- Tournament results: mega-patterns and top examples from the JenAI tournament pipeline
+-- Tournament results: mega-patterns and top examples from the Barrier tournament pipeline
 
 CREATE TABLE tournament_patterns (
   id SERIAL PRIMARY KEY,
@@ -13,7 +13,7 @@ CREATE TABLE tournament_patterns (
 CREATE TABLE tournament_examples (
   id SERIAL PRIMARY KEY,
   pattern_id INTEGER NOT NULL REFERENCES tournament_patterns(id) ON DELETE CASCADE,
-  jenai_issue_id INTEGER REFERENCES jenai_issues(id),
+  barrier_issue_id INTEGER REFERENCES barrier_issues(id),
   citation TEXT NOT NULL,
   category TEXT,
   severity INTEGER,
