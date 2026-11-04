@@ -91,35 +91,35 @@ describe('ComplianceIssuesRepository source filtering', () => {
 
   describe('getCountsByType', () => {
     it('calls db.select when invoked without source', async () => {
-      await repo.getCountsByType('NY');
+      await repo.getCountsByType('ny');
       expect((mockDb as any)._mocks.selectFn).toHaveBeenCalled();
     });
 
     it('calls db.select when invoked with regulation source', async () => {
-      await repo.getCountsByType('NY', 'regulation');
+      await repo.getCountsByType('ny', 'regulation');
       expect((mockDb as any)._mocks.selectFn).toHaveBeenCalled();
     });
 
     it('calls db.select when invoked with guidance source', async () => {
-      await repo.getCountsByType('NY', 'guidance');
+      await repo.getCountsByType('ny', 'guidance');
       expect((mockDb as any)._mocks.selectFn).toHaveBeenCalled();
     });
 
     it('returns empty record when no rows', async () => {
-      const result = await repo.getCountsByType('NY');
+      const result = await repo.getCountsByType('ny');
       expect(result).toEqual({});
     });
   });
 
   describe('getCountsByTypeAndClassification', () => {
     it('returns empty record when no rows', async () => {
-      const result = await repo.getCountsByTypeAndClassification('NY');
+      const result = await repo.getCountsByTypeAndClassification('ny');
       expect(result).toEqual({});
     });
 
     it('accepts source parameter without error', async () => {
-      await expect(repo.getCountsByTypeAndClassification('NY', 'regulation')).resolves.toBeDefined();
-      await expect(repo.getCountsByTypeAndClassification('NY', 'guidance')).resolves.toBeDefined();
+      await expect(repo.getCountsByTypeAndClassification('ny', 'regulation')).resolves.toBeDefined();
+      await expect(repo.getCountsByTypeAndClassification('ny', 'guidance')).resolves.toBeDefined();
     });
   });
 
@@ -127,21 +127,21 @@ describe('ComplianceIssuesRepository source filtering', () => {
     it('returns zeros when DB returns empty result', async () => {
       mockDb = createMockDb([], [{ high: 0, medium: 0, low: 0, total: 0 }]);
       repo = new ComplianceIssuesRepository(mockDb);
-      const result = await repo.getSeverityDistribution('NY');
+      const result = await repo.getSeverityDistribution('ny');
       expect(result).toEqual({ high: 0, medium: 0, low: 0, total: 0 });
     });
 
     it('accepts source parameter', async () => {
       mockDb = createMockDb([], [{ high: 0, medium: 0, low: 0, total: 0 }]);
       repo = new ComplianceIssuesRepository(mockDb);
-      const result = await repo.getSeverityDistribution('NY', 'regulation');
+      const result = await repo.getSeverityDistribution('ny', 'regulation');
       expect(result).toEqual({ high: 0, medium: 0, low: 0, total: 0 });
     });
 
     it('includes source fragment in raw SQL for regulation', async () => {
       mockDb = createMockDb([], [{ high: 0, medium: 0, low: 0, total: 0 }]);
       repo = new ComplianceIssuesRepository(mockDb);
-      await repo.getSeverityDistribution('NY', 'regulation');
+      await repo.getSeverityDistribution('ny', 'regulation');
       expect((mockDb as any)._mocks.executeFn).toHaveBeenCalled();
     });
   });
@@ -209,7 +209,9 @@ describe('COALESCE consistency', () => {
     expect(coalescedT2).toBe('burdensome'); // tier2 used as fallback
 
     // Record with only tier1
-    const coalescedT1 = null ?? null ?? 'needs_research';
+    const noTier3: string | null = null;
+    const noTier2: string | null = null;
+    const coalescedT1 = noTier3 ?? noTier2 ?? 'needs_research';
     expect(coalescedT1).toBe('needs_research'); // tier1 used as last resort
   });
 });

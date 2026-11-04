@@ -10,6 +10,12 @@ import pytest
 from pathlib import Path
 from unittest.mock import patch
 from dotenv import load_dotenv
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from scripts.research_pipeline.models.llm_outputs import Tier1Output, Tier2Output, Tier3Output
+    from scripts.research_pipeline.state_machine import TrackedUnit
+
 
 
 def _find_env_file() -> Path:

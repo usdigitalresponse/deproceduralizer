@@ -6,7 +6,7 @@ This is `deproceduralizer`, the public, code-only release of the regulatory anal
 
 - whenever adding new components or frontend features, be sure to look at apps/web/STYLE_GUIDE.md and update the apps/web/STYLE_GUIDE.md as necessary to ensure the new components are consistent with it. Also, try to keep components as atomic as possible, keeping DRY principles as much as possible
 - before pushing, verify documentation is current: if changes touched pipeline scripts, check docs/OPERATIONS.md; if they touched schema, check .claude/skills/database/schema.md; if they touched pipeline internals, check the corresponding skill file
-- Before pushing, always run the smoke tests: `cd frontend/apps/web && pnpm test:e2e` unless you've run it recently. When starting a big feature, always add running smoke tests to the todos.
+- Before pushing, always run the smoke tests: `cd frontend/apps/web && pnpm test:e2e` unless you've run it recently. They need a populated database: either point `DATABASE_URL` at one, or run the local Docker stack (`cd frontend && pnpm db:e2e:up && pnpm db:e2e:reset`, then set `DATABASE_URL` and `NEON_LOCAL_PROXY_URL` as in `.env.example`). When starting a big feature, always add running smoke tests to the todos.
 - when modifying the database schema, add a migration to frontend/packages/database/migrations/ and update .claude/skills/database/schema.md
 - I am using vercel for deployment of the frontend by either pushing a branch and promoting, or pushing from main. Do NOT run `vercel --prod` directly - always deploy via git push
 - whenever you are planning to create or modify a prompt, add a todo or integrate the prompt into the appropriate file in ./prompts/

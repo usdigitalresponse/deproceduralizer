@@ -7,7 +7,11 @@
     "dev": "pnpm --filter web dev",
     "build": "pnpm --filter web build",
     "lint": "pnpm --filter web lint",
-    "test": "pnpm -r run test"
+    "test": "pnpm -r run test",
+    "typecheck": "pnpm -r run typecheck",
+    "db:e2e:up": "docker compose -f ../docker-compose.e2e.yml up -d --wait",
+    "db:e2e:reset": "bash ../scripts/e2e-db-reset.sh",
+    "db:e2e:down": "docker compose -f ../docker-compose.e2e.yml down -v"
   },
   "devDependencies": {
     "next": "16.2.6"

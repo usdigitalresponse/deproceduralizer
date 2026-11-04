@@ -53,7 +53,7 @@ description: Query and manage the Deproceduralizer Neon PostgreSQL database. Use
 - **[maintenance.md](maintenance.md)** - Hierarchy recomputation, migrations, auditing
 - **[bulk-operations.md](bulk-operations.md)** - Batch inserts, upserts, performance patterns
 
-**Important**: When adding migrations or modifying schema, always update `schema.md` to reflect the changes. Migrations are the single source of truth for DDL; there is no separate `schema.sql` file.
+**Important**: When adding migrations or modifying schema, always update `schema.md` to reflect the changes. Migrations are the source of truth for incremental DDL; `data/db_backup/<timestamp>/schema.sql` is a `pg_dump --schema-only` snapshot used to bootstrap fresh databases (including the e2e stack via `scripts/e2e-db-reset.sh`), so re-dump it after schema changes.
 
 ## ORM Access
 

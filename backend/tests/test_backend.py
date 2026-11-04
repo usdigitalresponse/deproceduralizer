@@ -162,6 +162,7 @@ class TestExclusionFilter:
 class TestCLI:
     """Test CLI commands work (dry-run mode)."""
 
+    @pytest.mark.db  # the dry run still queries regulatory_documents for sections
     def test_batch_definitions_dryrun(self):
         import subprocess
         backend_dir = Path(__file__).parent.parent

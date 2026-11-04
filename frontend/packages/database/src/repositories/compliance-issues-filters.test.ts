@@ -471,6 +471,7 @@ describe('mapAnalysisListRow', () => {
     docNycrrTitle: null,
     docNycrrPart: null,
     docNycrrSection: null,
+    reviewSummary: null,
   };
 
   it('maps basic fields correctly', () => {

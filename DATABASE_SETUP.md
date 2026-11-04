@@ -37,6 +37,30 @@ psql $DATABASE_URL -f frontend/packages/database/migrations/0007a_add_display_co
 
 **Naming convention:** Migrations use 4-digit zero-padded prefixes (e.g., `0000_`, `0001_`). When multiple migrations share the same number, they use `a`/`b`/`c` suffixes (e.g., `0007a_`, `0007b_`, `0043a_`, `0043b_`) to preserve sort order.
 
+## Local Postgres with Docker (development and e2e)
+
+You don't need Neon to run the app locally. `docker-compose.e2e.yml` at the repo root starts **postgres:17** and a local Neon proxy; the proxy exists because the app's driver (`@neondatabase/serverless` over HTTP) can't connect to Postgres directly.
+
+```bash
+cd frontend
+pnpm db:e2e:up        # or: E2E_PG_PORT=55432 pnpm db:e2e:up when 5432 is busy
+pnpm db:e2e:reset     # loads data/db_backup/<latest>/schema.sql, then seeds fixtures
+pnpm db:e2e:down      # removes containers and data
+```
+
+Environment for the app:
+
+```
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/deproceduralizer_e2e
+NEON_LOCAL_PROXY_URL=http://localhost:4444
+```
+
+Notes:
+
+- The reset script runs `psql` inside the container, creates the `pg_trgm` extension (the dump uses its index operator class but doesn't create it), strips the `\restrict` lines pg_dump 18 adds, and loads the schema with `ON_ERROR_STOP`.
+- It never drops the database, because the proxy keeps a small control-plane table there. It drops and recreates the `public` schema instead.
+- The seed (`frontend/packages/database/seed/`) is deterministic synthetic data: about 1,650 regulatory documents across NY, NJ and NYC, plus definitions, compliance analyses, Barrier analyses, fines, guidance documents and cross-references. `seed/fixtures.test.ts` pins the invariants the Playwright suite relies on. Re-run `pnpm --filter @deproceduralizer/database seed:e2e` to reseed without reloading the schema.
+
 ## Migrate Data
 
 Data migration is handled automatically by the scraper scripts:

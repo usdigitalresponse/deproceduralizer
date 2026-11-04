@@ -588,24 +588,17 @@ test.describe('Review Form Submission', () => {
     const oldCardLocator = page.locator(`#${cardId}`);
     await expect(oldCardLocator).toBeHidden({ timeout: 15000 });
 
-    // CLEANUP: Navigate to confirmed filter to find the card we just changed
+    // Verify the saved values persisted by finding the card under the confirmed filter.
+    // No revert: the form refuses to save a review with status "unreviewed", so the
+    // row stays confirmed. CI uses a throwaway database; locally, reseed with
+    // `pnpm --filter @deproceduralizer/database seed:e2e`.
     await page.goto('/nj/review?type=compliance&queueMode=filter&reviewStatus=confirmed&severity=low');
     await waitForComplianceReviewReady(page);
 
-    const cleanupCard = page.locator(`#${cardId}`);
-    if (await cleanupCard.count() > 0) {
-      // Verify saved values persisted after page navigation
-      const savedTeamNotes = cleanupCard.getByTestId('compliance-team-notes-textarea');
+    const savedCard = page.locator(`#${cardId}`);
+    if (await savedCard.count() > 0) {
+      const savedTeamNotes = savedCard.getByTestId('compliance-team-notes-textarea');
       await expect(savedTeamNotes).toHaveValue(testTeamNotes);
-
-      // CLEANUP: Revert status back to unreviewed
-      const cleanupStatusSelect = cleanupCard.getByTestId('compliance-status-select');
-      const cleanupSaveButton = cleanupCard.getByTestId('compliance-save-button');
-
-      await cleanupStatusSelect.click();
-      await page.getByRole('option', { name: 'Unreviewed' }).click();
-      await cleanupSaveButton.click();
-      await waitForSaveComplete(page);
     }
   });
 
@@ -777,23 +770,7 @@ test.describe('Review Queue Filter Behavior', () => {
 
     // The old card is now hidden, confirming it was filtered out after status change.
     // No need to check remaining card IDs — the toBeHidden assertion is sufficient.
-
-    // CLEANUP: Revert the reviewed item back to unreviewed
-    // Navigate to confirmed filter to find the item we just reviewed
-    await page.goto('/nj/review?type=compliance&queueMode=filter&reviewStatus=confirmed&severity=low');
-    await waitForComplianceReviewReady(page);
-
-    // Find the card we reviewed (by ID)
-    const reviewedCard = page.locator(`#${firstCardId}`);
-    if (await reviewedCard.count() > 0) {
-      const revertStatusSelect = reviewedCard.getByTestId('compliance-status-select');
-      const revertSaveButton = reviewedCard.getByTestId('compliance-save-button');
-
-      await revertStatusSelect.click();
-      await page.getByRole('option', { name: 'Unreviewed' }).click();
-      await revertSaveButton.click();
-      await waitForSaveComplete(page);
-    }
+    // No revert: the form cannot save status "unreviewed" (see the test above).
   });
 
   test('@mutation compliance issue stays visible when filter is all', async ({ page }) => {

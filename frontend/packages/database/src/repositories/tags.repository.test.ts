@@ -46,10 +46,14 @@ describe('TagsRepository.getTagOverview', () => {
   });
 
   it('computes stats from returned rows', async () => {
+    // getTagOverview reads one UNION ALL result set tagged by _type.
     mockDb = createMockDb([
-      { domain: 'regulation', field: 'reg_section_type', value: 'requirements', normalizedValue: 'requirements', count: 42 },
-      { domain: 'regulation', field: 'reg_section_type', value: 'definitions', normalizedValue: 'definitions', count: 30 },
-      { domain: 'guidance', field: 'policy_category', value: 'policy_directive', normalizedValue: 'policy_directive', count: 20 },
+      { _type: 'values', domain: 'regulation', field: 'reg_section_type', value: 'requirements', normalizedValue: 'requirements', count: 42 },
+      { _type: 'values', domain: 'regulation', field: 'reg_section_type', value: 'definitions', normalizedValue: 'definitions', count: 30 },
+      { _type: 'values', domain: 'guidance', field: 'policy_category', value: 'policy_directive', normalizedValue: 'policy_directive', count: 20 },
+      { _type: 'stats', total_unique: 3, total_count: 92 },
+      { _type: 'domain_stats', domain: 'regulation', domain_count: 72 },
+      { _type: 'domain_stats', domain: 'guidance', domain_count: 20 },
     ]);
     repo = new TagsRepository(mockDb);
 
@@ -70,9 +74,11 @@ describe('TagsRepository.getTagOverview', () => {
 
   it('detects fuzzy clusters when multiple raw values share normalized form', async () => {
     mockDb = createMockDb([
-      { domain: 'regulation', field: 'reg_keywords', value: 'Licensing', normalizedValue: 'licensing', count: 10 },
-      { domain: 'regulation', field: 'reg_keywords', value: 'licensing', normalizedValue: 'licensing', count: 8 },
-      { domain: 'regulation', field: 'reg_keywords', value: 'LICENSING', normalizedValue: 'licensing', count: 5 },
+      { _type: 'values', domain: 'regulation', field: 'reg_keywords', value: 'Licensing', normalizedValue: 'licensing', count: 10 },
+      { _type: 'values', domain: 'regulation', field: 'reg_keywords', value: 'licensing', normalizedValue: 'licensing', count: 8 },
+      { _type: 'values', domain: 'regulation', field: 'reg_keywords', value: 'LICENSING', normalizedValue: 'licensing', count: 5 },
+      { _type: 'stats', total_unique: 1, total_count: 23 },
+      { _type: 'domain_stats', domain: 'regulation', domain_count: 23 },
     ]);
     repo = new TagsRepository(mockDb);
 

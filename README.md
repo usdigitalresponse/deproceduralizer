@@ -119,7 +119,7 @@ cd frontend && pnpm install
 
 ### Environment
 
-Create a `.env` file in the project root:
+Create a `.env` file in the project root (start from [`.env.example`](.env.example)):
 
 ```bash
 DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
@@ -381,6 +381,7 @@ You have three ways to get data:
 - **Team members ---** point `DATABASE_URL` at the existing Neon database. Nothing else changes.
 - **Collaborators with archive access ---** restore a full snapshot from the private `deproceduralizer-backup` repository, following the steps in its `DATABASE_SETUP.md`.
 - **Everyone else ---** create an empty database and build your own data with the pipeline.
+- **Just want the app running ---** start the Docker stack and load the synthetic fixtures (see [Local database with Docker](#local-database-with-docker)). The fixtures are made-up prose, not regulations, but every page and the smoke tests work against them.
 
 To build your own database:
 
@@ -394,7 +395,26 @@ A few limits to know about before you start:
 - **NY statutes need an API key ---** request a free key from the [NY Senate Open Legislation API](https://legislation.nysenate.gov/) and set `NY_OPEN_LEG_API_KEY`.
 - **NYC data needs manual downloads ---** the NYC parsers read exports you download yourself from American Legal Publishing.
 - **Guidance documents need a separate repo ---** they come from the `nys-documents` scraping pipeline, which isn't part of this repo.
-- **Smoke tests need data ---** `pnpm test:e2e` checks for real records, so it fails against an empty database.
+- **Smoke tests need data ---** `pnpm test:e2e` checks for real records, so it fails against an empty database. The synthetic fixtures below are enough.
+
+### Local database with Docker
+
+The app talks to Postgres through Neon's HTTP driver, which can't speak plain TCP. [`docker-compose.e2e.yml`](docker-compose.e2e.yml) runs **postgres:17** plus a local Neon proxy so the unchanged driver works against a local database. [`scripts/e2e-db-reset.sh`](scripts/e2e-db-reset.sh) loads the schema dump and then seeds deterministic fixtures from [`frontend/packages/database/seed/`](frontend/packages/database/seed/).
+
+```bash
+cd frontend
+pnpm db:e2e:up        # postgres + neon proxy (set E2E_PG_PORT=55432 first if 5432 is taken)
+pnpm db:e2e:reset     # schema.sql + synthetic fixtures, about ten seconds
+```
+
+Then point the app at it in `.env` (see [`.env.example`](.env.example)):
+
+```
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/deproceduralizer_e2e
+NEON_LOCAL_PROXY_URL=http://localhost:4444
+```
+
+`pnpm db:e2e:down` removes the containers and their data. This is the same stack GitHub Actions uses for the e2e job, so a green local run means a green CI run.
 
 ## Development
 
@@ -406,7 +426,16 @@ cd frontend/apps/web
 pnpm dev --port 3010   # Start dev server
 pnpm build             # Production build
 pnpm lint              # Run ESLint
-pnpm test:e2e          # Run Playwright smoke tests
+pnpm test              # Run Vitest unit tests
+pnpm test:e2e          # Run Playwright smoke tests (needs a populated DB, see Getting Data)
+```
+
+Running the smoke tests the way CI does, against a production build:
+
+```bash
+cd frontend/apps/web
+pnpm build
+E2E_SERVER=start pnpm test:e2e
 ```
 
 ### Backend
@@ -429,12 +458,15 @@ pnpm generate          # Drizzle code generation after schema changes
 ### Type Checking
 
 ```bash
-# TypeScript
-cd frontend/packages/database && npx tsc --noEmit
+cd frontend && pnpm typecheck   # both workspace packages
 
 # Full build (includes type checking)
 cd frontend && pnpm build
 ```
+
+### Continuous integration
+
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on every pull request and on pushes to `main`: ESLint, `tsc`, Vitest, pytest (without the `llm` and `db` markers), a ruff syntax check of the backend, and the Playwright smoke suite against the Docker database stack above. Nothing in CI touches Vercel or a shared database.
 
 ### Prompts
 
